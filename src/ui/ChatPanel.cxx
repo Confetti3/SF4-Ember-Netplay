@@ -93,6 +93,7 @@ void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& roo
 void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
     const bool onChat = menu_.navigation.Screen() == "room-chat";
     if (!onChat) chatOpen_ = false;
+    chatTyping_ = false;
     ObserveChat(v, v.room);
     if (onChat) transcript_.MarkRead();
     NoteChatGate(ChatGateOf(v), ImGui::GetTime());
@@ -133,6 +134,18 @@ void ApplicationShell::NoteChatGate(ChatGate gate, double now) {
     chatGateLogged_ = chatGate_;
     chatGateLoggedAt_ = now;
     chatGateChanges_ = 0;
+}
+
+std::string ApplicationShell::ChatTypingText(const ShellView& v) const {
+    const auto& room = v.room;
+    std::vector<std::string> names;
+    for (const auto& member : room.members)
+        if (RoomTypingMs(member, v.roomElapsedMs) && member.id != room.localMember && !muted_.count(member.id))
+            names.push_back(member.name.empty() ? std::string(loc::T("room.player")) : member.name);
+    if (names.empty()) return {};
+    if (names.size() == 1) return loc::Tf("chat.typing.one", names[0]);
+    if (names.size() == 2) return loc::Tf("chat.typing.two", names[0], names[1]);
+    return loc::T("chat.typing.many");
 }
 
 // The transcript's lines in the current child, oldest first.
@@ -213,7 +226,8 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     // What goes under the conversation: the box, then one wrapped line of help
     // (or why nothing can be sent) with the room left in the message at its right.
     const float counterWidth = box ? ImGui::CalcTextSize(loc::Tf("chat.remaining", ChatBytesLeft()).c_str()).x + 12 * s : 0.f;
-    const float boxHeight = box ? ImGui::GetFrameHeight() : 0.f;
+    // The box sits under a line kept for who is typing, so it never moves when that shows.
+    const float boxHeight = box ? ImGui::GetFrameHeight() + ImGui::GetTextLineHeight() + spacing : 0.f;
     std::string note = loc::T("chat.detail");
     Tone noteTone = Tone::Neutral;
     // The box takes typing whatever the fence does. What it says follows the status line's held feedback
@@ -257,7 +271,15 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     ImGui::EndChild();
     ImGui::PopStyleColor(); ImGui::PopStyleVar();
 
-    if (box) DrawChatBox(x, width, gate != ChatGate::NotJoined, noteHeight);
+    if (box) {
+        const std::string typing = FitLabel(ChatTypingText(v), width);
+        ImGui::SetCursorPosX(x);
+        ImGui::PushStyleColor(ImGuiCol_Text, palette::Muted);
+        ImGui::TextUnformatted(typing.c_str());
+        ImGui::PopStyleColor();
+        if (!typing.empty()) NoteUserText(typing);
+        DrawChatBox(x, width, gate != ChatGate::NotJoined, noteHeight);
+    }
     ImGui::SetCursorPosX(x);
     const ImVec2 at = ImGui::GetCursorScreenPos();
     auto* draw = ImGui::GetWindowDrawList();
@@ -297,7 +319,9 @@ void ApplicationShell::DrawChatBox(float x, float width, bool typable, float not
     if (ImGui::IsItemActive()) ImGui::GetWindowDrawList()->AddRect(boxMin, boxMax, palette::Ember, 4 * s, 0, 2 * s);
     ImGui::EndDisabled();
     ReportMenuCard("chat-box", boxMin, boxMax);
-    if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) std::snprintf(chat_, sizeof(chat_), "%s", buffer);
+    if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { std::snprintf(chat_, sizeof(chat_), "%s", buffer); chatEditedAt_ = ImGui::GetTime(); }
+    // Typing is a draft edited in the last 4 seconds and not already on its way.
+    chatTyping_ = typable && HasText(chat_) && !pendingChat_ && !queuedChat_ && ImGui::GetTime() - chatEditedAt_ < 4;
     chatBoxText_ = chat_;
     NoteUserText(chat_, UserTextRole::Draft);
     // The counter, at the right of the note line under the box; the cursor stays at that line.

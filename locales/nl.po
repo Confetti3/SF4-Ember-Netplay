@@ -757,6 +757,15 @@ msgstr "Offline spelen"
 msgid "home.offline_detail"
 msgstr "Training, Versus, Arcade en de andere offline modi van het spel."
 
+msgid "training_select.title"
+msgstr "Training"
+
+msgid "training_select.start"
+msgstr "Training starten"
+
+msgid "training_select.start_detail"
+msgstr "Training laadt met deze personages in dit level."
+
 msgid "home.replays"
 msgstr "Replays"
 
@@ -1095,6 +1104,21 @@ msgstr "Invoervertraging"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Auto-stijl"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Hoe Auto de verbindingstest gebruikt. Gebalanceerd: 1 tot 3 frames. Direct: één frame minder, 0 tot 2, meer rollback. Vloeiend: één frame meer, 1 tot 4, minder rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Gebalanceerd"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Direct"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Vloeiend"
 
 msgid "room.name"
 msgstr "Kamernaam"
@@ -1757,6 +1781,12 @@ msgstr "Je wedstrijd staat klaar"
 
 msgid "training.key.detail"
 msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
+
+msgid "training.key.pad_back"
+msgstr "View op de controller"
+
+msgid "training.key.pad_back.detail"
+msgstr "View (Share, Create, Minus, Select) kort indrukken herstelt de positie, ingedrukt houden slaat haar op. Uit laat View aan het gevecht, voor een plink op een knop die ook View stuurt; de toetsen hierboven werken nog."
 
 msgid "training.dummy.action"
 msgstr "Dummy"
@@ -2815,6 +2845,12 @@ msgstr "{0} heeft een partij gewonnen aan tafel {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} heeft de set gewonnen aan tafel {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} typt..."
+msgid "chat.typing.two"
+msgstr "{0} en {1} typen..."
+msgid "chat.typing.many"
+msgstr "Meerdere mensen typen..."
 
 msgid "room.fighter_options"
 msgstr "Personage-opties"
@@ -2875,6 +2911,39 @@ msgstr "Kamer bijwerken..."
 
 msgid "room.battle_slot"
 msgstr "MATCHTAFEL {0}"
+
+msgid "room.table_name"
+msgstr "Tafelnaam"
+
+msgid "room.table_name.detail"
+msgstr "Staat op de kaart van de tafel na het nummer, bijvoorbeeld Beginners. Leeg toont alleen het nummer."
+
+msgid "room.template"
+msgstr "Sjabloon"
+
+msgid "room.template.none"
+msgstr "Geen"
+
+msgid "room.template.detail"
+msgstr "Een kamer die je hebt opgeslagen. Het vult de rijen hieronder, en de regels en naam van elke tafel zodra de kamer open is. Links en Rechts kiezen."
+
+msgid "room.template.delete"
+msgstr "Sjabloon verwijderen"
+
+msgid "room.template.delete.detail"
+msgstr "Verwijdert het sjabloon {0} van deze pc."
+
+msgid "room.template.full"
+msgstr "Je hebt {0} sjablonen. Verwijder er eerst een bij Kamer maken."
+
+msgid "room.template.saved"
+msgstr "Opgeslagen als het sjabloon {0}."
+
+msgid "room.save_template"
+msgstr "Opslaan als sjabloon"
+
+msgid "room.save_template.detail"
+msgstr "Bewaart de instellingen van deze kamer, en de regels en naam van elke tafel, op deze pc voor Kamer maken > Sjabloon. Dezelfde naam overschrijft het."
 
 msgid "room.looking_for_fight"
 msgstr "Tegenstander zoeken"
@@ -4715,6 +4784,72 @@ msgstr "Beide spelers sluiten achteraan de wachtrij aan en de volgende twee gaan
 
 msgid "rules.rotation.needs_set"
 msgstr "Kies eerst een setlengte. Zonder setlengte wisselt niemand."
+
+msgid "rules.instant_rematch"
+msgstr "Directe rematch"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Na elk potje kiezen beide vechters op het WIN-scherm 10 seconden lang Rematch, Personage kiezen of Terug naar de room."
+
+msgid "postmatch.choose"
+msgstr "Nog een keer?"
+
+msgid "postmatch.waiting_for"
+msgstr "Wachten op {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} wil een rematch"
+
+msgid "postmatch.wants_next"
+msgstr "{0} wil het volgende potje"
+
+msgid "postmatch.starting"
+msgstr "Volgende potje start"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} heeft de plek verlaten"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s om te kiezen"
+
+msgid "postmatch.rematch"
+msgstr "Rematch"
+
+msgid "postmatch.next_game"
+msgstr "Volgend potje"
+
+msgid "postmatch.again.detail"
+msgstr "Dezelfde vechters en regels. Het volgende potje start zodra jullie het allebei kiezen, zonder terug naar de room."
+
+msgid "postmatch.queue_waiting"
+msgstr "Geen rematch zolang er iemand in de wachtrij staat."
+
+msgid "postmatch.not_seated"
+msgstr "Je zit niet meer aan deze tafel."
+
+msgid "postmatch.character_select"
+msgstr "Personage kiezen"
+
+msgid "postmatch.character_select.detail"
+msgstr "Kies een andere vechter in de room en meld je daarna klaar."
+
+msgid "postmatch.back"
+msgstr "Terug naar de room"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Terug naar de room. Je houdt je plek, niet klaar. Geen antwoord binnen 10 seconden doet hetzelfde."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Verlaat je plek en kijk mee vanuit de room. Geen antwoord binnen 10 seconden doet hetzelfde."
+
+msgid "postmatch.state.choosing"
+msgstr "Kiest"
+
+msgid "postmatch.state.ready"
+msgstr "Klaar"
+
+msgid "postmatch.state.left"
+msgstr "Plek verlaten"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

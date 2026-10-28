@@ -1,6 +1,7 @@
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
 #include "../common/Localization.hxx"
+#include <algorithm>
 #include <cstdint>
 
 namespace sf4e { namespace ui {
@@ -21,9 +22,20 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  // ones chosen here follow once the creator is in it as host (netplay::CreatedRules).
  const bool publicRoom=screen=="create"&&preferences_.roomPublic;
  const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
+ // A saved template sets the rows below; they can still be changed after.
+ const auto& templates=preferences_.roomTemplates;
+ if(screen=="create"&&!templates.empty()){
+  const bool chosen=createTemplate_>=0&&createTemplate_<static_cast<int>(templates.size());
+  rows.push_back(Value("template",loc::T("room.template"),chosen?templates[createTemplate_].name:std::string(loc::T("room.template.none")),loc::T("room.template.detail"),can));
+  rows.back().userText=chosen;
+  if(chosen){rows.push_back(ConfirmRow("delete-template",loc::T("room.template.delete"),loc::Tf("room.template.delete.detail",templates[createTemplate_].name),can));rows.back().detailText=DetailText::Name;}
+ }
  if(screen=="defaults")rows.push_back(preferences_.autoInputDelay?Value("delay",loc::T("settings.input_delay"),loc::T("settings.input_delay.auto"),
-  loc::Tf("room.input_delay.auto.detail",AutoInputDelayMinimum,AutoInputDelayMaximum)+"\n"+reason,can):
+  AutoDelayDetail(preferences_.autoDelayStyle)+"\n"+reason,can):
   Value("delay",loc::T("settings.input_delay"),std::to_string(preferences_.inputDelay),loc::Tf("room.selected_delay.detail",MinimumInputDelay,MaximumInputDelay)+"\n"+reason,can));
+ // Auto's style, under the delay row while Auto is chosen.
+ if(screen=="defaults"&&preferences_.autoInputDelay)
+  rows.push_back(Value("auto-style",loc::T("settings.auto_delay_style"),AutoDelayStyleName(preferences_.autoDelayStyle),loc::T("settings.auto_delay_style.detail"),can));
  if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
@@ -43,14 +55,58 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,preferences_.publicTableRules,preferences_.roomDelayPolicy);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy);}
+ else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
+  preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
+  createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+ }
  else if(a.id=="host")Send(CommandKind::HostRoom,v,submit);
 }
 // Create's own choice, never one of the saved preferences.
 bool ApplicationShell::CreateAdjust(const MenuAction& a) {
+ if(a.id=="template"){
+  // None, then each saved template in turn.
+  const int count=static_cast<int>(preferences_.roomTemplates.size());
+  ApplyRoomTemplate((createTemplate_+1+(a.delta>0?1:count))%(count+1)-1);
+  return true;
+ }
  if(a.id!="practice-room")return false;
  createPractice_=a.delta>0;
  return true;
+}
+void ApplicationShell::ApplyRoomTemplate(int index) {
+ createTemplate_=-1;createTables_.reset();
+ if(index<0||index>=static_cast<int>(preferences_.roomTemplates.size()))return;
+ // A copy: preferences_ is replaced below.
+ const auto saved=preferences_.roomTemplates[index];
+ auto next=preferences_;
+ next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;
+ (saved.isPublic?next.publicTableRules:next.tableRules)=saved.tables.rules[0];
+ if(!next.Valid()){error_=loc::T("error.invalid_value");return;}
+ preferences_=std::move(next);preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
+ createTemplate_=index;createTables_=saved.tables;createPractice_=saved.practice;
+}
+// The template's tables while the rows still show its rules; rules changed
+// on the rows since go to every table, and the template's names stay.
+netplay::TableSetup ApplicationShell::CreateTables(const room::Rules& rules) const {
+ if(createTables_&&createTables_->rules[0]==rules)return *createTables_;
+ auto tables=netplay::TableSetup::Same(rules);
+ if(createTables_)tables.names=createTables_->names;
+ return tables;
+}
+void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
+ netplay::RoomTemplate saved;
+ saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;
+ for(const auto& table:room.tables)if(table.id<room::TableCount){saved.tables.rules[table.id]=table.rules;saved.tables.names[table.id]=table.name;}
+ if(!saved.Valid()){error_=loc::T("error.invalid_value");return;}
+ auto& templates=preferences_.roomTemplates;
+ // The same name is saved over; a new one needs a free place.
+ const auto same=std::find_if(templates.begin(),templates.end(),[&](const netplay::RoomTemplate& t){return t.name==saved.name;});
+ if(same!=templates.end())*same=saved;
+ else if(templates.size()>=netplay::MaxRoomTemplates){error_=loc::Tf("room.template.full",static_cast<int>(netplay::MaxRoomTemplates));return;}
+ else templates.push_back(saved);
+ preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
+ notice_=loc::Tf("room.template.saved",saved.name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+4;
 }
 
 // The public-room service is the one the Ember ID panel selects when its
@@ -71,7 +127,7 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 
 // Create public room opens Create on Public, which stays the default until changed.
 void ApplicationShell::OpenCreate() {
- createPractice_=false;menu_.navigation.Push("create");
+ createPractice_=false;createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
 }
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}

@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <windows.h>
 #include <detours/detours.h>
@@ -9,7 +10,11 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../common/InstalledContent.hxx"
 #include "../common/NativeMenuLock.hxx"
+#include "../common/TrainingStage.hxx"
+#include "sf4e__CodePages.hxx"
+#include "sf4e__CustomContent.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Game__Battle__System.hxx"
@@ -31,6 +36,8 @@ using rVsCharaSelect = rGameEvents::VsCharaSelect;
 using rVsMode = rGameEvents::VsMode;
 using rVsPreBattle = rGameEvents::VsPreBattle;
 using rVsStageSelect = rGameEvents::VsStageSelect;
+using rTrainingMode = rGameEvents::TrainingMode;
+using rTrainingBattle = rGameEvents::TrainingBattle;
 
 namespace fGameEvents = sf4e::GameEvents;
 using fMainMenu = fGameEvents::MainMenu;
@@ -38,6 +45,7 @@ using fRootEvent = fGameEvents::RootEvent;
 using fVsBattle = fGameEvents::VsBattle;
 using fVsPreBattle = fGameEvents::VsPreBattle;
 using fVsStageSelect = fGameEvents::VsStageSelect;
+using fTrainingMode = fGameEvents::TrainingMode;
 using fUserApp = sf4e::UserApp;
 
 int (*fMainMenu::OnModeSelectedOverride)(int mode);
@@ -54,6 +62,9 @@ bool fVsBattle::bSessionSynced = false;
 bool fVsBattle::bTerminateOnNextLeftBattle = false;
 sf4e::battle::NextRequest fVsBattle::nextRequest;
 bool fVsPreBattle::bSkipToVersus = false;
+std::mutex fTrainingMode::chosenLock;
+ULONGLONG fTrainingMode::chosenUntil = 0;
+std::optional<fGameEvents::TrainingSides> fTrainingMode::chosen, fTrainingMode::pendingSides;
 
 char* fRootEvent::eventFlowDescription = R"(	Boot, 0, Title,										
 LogoCapcom, 0, LogoNvidia, BLACK, 10.0f, BLACK, 10.0f			
@@ -202,17 +213,21 @@ void fMainMenu::RequestTraining(const sf4e::netplay::Generation& generation) {
 int fMainMenu::GetItemObserverState() {
 	sf4e::NetplayFacade::NotifyRuntimeEventSystemReady();
 	fGameEvents::TrainingRequest::Pending request;
-	if (trainingRequest.Peek(GetTickCount64(), request) &&
+	const bool chosen = fTrainingMode::Chosen() && NativeLockNow() == sf4e::input::NativeMenuLock::None;
+	if ((chosen || trainingRequest.Peek(GetTickCount64(), request)) &&
 		(this->*rMainMenu::itemObserverMethods.GetItemObserverState)() == rMainMenu::MMIOS_IDLE) {
-		// The runtime accepted it a tick or more ago, and the room may have changed
+		// Ember's Training select's picks go while no room or match is open.
+		// A room's request: the runtime accepted it a tick or more ago, and the room may have changed
 		// since (the session client applies room snapshots after the runtime's tick
 		// without publishing them). The runtime judges it again here, on the game
 		// thread, against the live session and room. It is forgotten either way, by
 		// serial, so a newer request made meanwhile is left alone.
-		const auto taken = trainingRequest.Take(GetTickCount64(), sf4e::NetplayFacade::TrainingRequestHolds);
+		const auto taken = chosen ? fGameEvents::TrainingRequest::Taken::Go :
+			trainingRequest.Take(GetTickCount64(), sf4e::NetplayFacade::TrainingRequestHolds);
 		if (taken == fGameEvents::TrainingRequest::Taken::Dropped)
 			spdlog::info("Main menu: Training request dropped, it no longer holds");
 		else if (taken == fGameEvents::TrainingRequest::Taken::Go) {
+			fTrainingMode::Enter();
 			// The game's own selection, with the Fight Request question
 			// switched off for this one call: it then exits to Training
 			// directly, the path it takes where requests are not offered.
@@ -459,6 +474,62 @@ bool fVsPreBattle::SetSides(const rVsMode::ConfirmedCharaConditions (&sides)[2],
 	(rVsMode::GetStageName(mode)->*Dimps::Platform::dString::publicMethods.assign)(Dimps::stageCodes[stage], 4);
 	*rVsMode::GetStageCode(mode) = stage;
 	return true;
+}
+
+// What both pushes in setupPlayer hold now (common/TrainingStage.hxx).
+static int pushedStage = 0;
+static bool PushTrainingStage(int stage) {
+	if (stage == pushedStage) return true;
+	sf4e::CodePages pages;
+	if (!sf4e::training_stage::Push(rTrainingBattle::stagePush, rTrainingBattle::stageMusicPush, pushedStage, stage, pages)) return false;
+	pushedStage = stage;
+	return true;
+}
+
+void fTrainingMode::Choose(const TrainingSides& sides) {
+	std::lock_guard<std::mutex> guard(chosenLock);
+	chosen = sides;
+	chosenUntil = GetTickCount64() + 2000;
+}
+
+bool fTrainingMode::Chosen() {
+	std::lock_guard<std::mutex> guard(chosenLock);
+	if (chosen && GetTickCount64() > chosenUntil) {
+		chosen.reset();
+		spdlog::info("Training: Training select's picks dropped, the main menu did not move in time");
+	}
+	return chosen.has_value();
+}
+
+void fTrainingMode::Enter() {
+	{
+		std::lock_guard<std::mutex> guard(chosenLock);
+		pendingSides = chosen;
+		chosen.reset();
+	}
+	const int stage = pendingSides ? sf4e::custom::ApplyStage(pendingSides->stage) : 0;
+	if (!PushTrainingStage(stage)) spdlog::warn("Training: stage {} not set, the bytes in setupPlayer are not the expected ones", stage);
+	if (pendingSides) spdlog::info("Training: stage {}, fighters from Ember's Training select", stage);
+}
+
+void fTrainingMode::ReplaceCharaSelect(char*& eventName) {
+	if (!pendingSides || !eventName || std::strcmp(eventName, "CharaSelect") != 0) return;
+	TrainingSides sides = *pendingSides;
+	pendingSides.reset();
+	char* query[] = { "TrainingMode" };
+	rTrainingMode* mode = (rTrainingMode*)EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), query, 1);
+	if (!mode) {
+		spdlog::warn("Training: character select asked for outside Training, the chosen fighters are dropped");
+		return;
+	}
+	sf4e::custom::ShowInstalledLooks(sides.sides);
+	for (int i = 0; i < 2; i++) {
+		rTrainingMode::Selection* side = rTrainingMode::GetSelection(mode, i);
+		side->conditions = sides.sides[i];
+		side->cursorCharaID = sides.sides[i].charaID;
+		side->chosen = TRUE;
+	}
+	eventName = "VersusFromChr";
 }
 
 void fVsStageSelect::Install() {

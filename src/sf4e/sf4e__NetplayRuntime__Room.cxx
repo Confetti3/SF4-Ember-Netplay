@@ -261,6 +261,13 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// one retried after this press would undo it (Queue, then Unqueue).
 		if (attempt == Attempt::Fresh) RoomActionIntent(command).Clear();
 		const auto action = command.roomAction.kind;
+		// Unready takes back the player's Ready; one still parked here, which
+		// the room never had, needs no message.
+		if (action == room::ActionKind::Unready) {
+			const bool parked = runtime->readyIntent.Parked();
+			runtime->readyIntent.Clear();
+			if (parked) return DispatchOutcome::Dispatched;
+		}
 		const bool changingTable = action == room::ActionKind::Queue || action == room::ActionKind::Unqueue ||
 			action == room::ActionKind::Watch || action == room::ActionKind::Unwatch;
 		if (changingTable && Game::Battle::System::ggpo) {
@@ -347,7 +354,10 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		if (draining || !gates.readyGate) {
 			Defer(runtime->readyIntent, command);
 			// Ready is the explicit handoff from post-match spectator draining.
-			if (draining) RetireFinishedMatch("iroh_rematch");
+			// Over the WIN screen the press waits for it to play out: both games
+			// leave it on the same frame, and one leaving early would stall the
+			// other's battle without its inputs.
+			if (draining && !PostMatchPromptDue()) RetireFinishedMatch("iroh_rematch");
 			return DispatchOutcome::Deferred;
 		}
 	}
@@ -392,8 +402,6 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		}
 		return DispatchOutcome::Dropped;
 	}
-	if (kind == netplay::CommandKind::RoomAction && command.roomAction.kind == room::ActionKind::Unready)
-		runtime->readyIntent.Clear();
     if (command.discordRevision) {
         if (kind == netplay::CommandKind::JoinInvite) runtime->discordInvite.Cancel();
         else if (kind == netplay::CommandKind::LeaveRoom) runtime->discordInvite.LeaveQueued();
@@ -446,11 +454,13 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
 		runtime->join = decision.effect != netplay::Effect::JoinInvite ? JoinKind::Private :
 			!command.publicTicket.empty() ? JoinKind::Public : command.join;
-		// Only the join of a public room just created carries rules for its tables.
-		if (runtime->join == JoinKind::Public && command.createdRules) {
+		// Only a room just created carries its tables: the join of a public one,
+		// or a private one hosted from a template.
+		if ((runtime->join == JoinKind::Public || decision.effect == netplay::Effect::HostRoom) && command.createdRules) {
 			runtime->createdRules.Start(*command.createdRules, GetTickCount64());
-			spdlog::info("Room: created room rules armed format={} rotation={}",
-				static_cast<int>(command.createdRules->format), static_cast<int>(command.createdRules->rotation));
+			spdlog::info("Room: created room tables armed format={} rotation={} named={}",
+				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation),
+				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
 			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :
@@ -674,7 +684,7 @@ bool AutoDelayMeasured() {
 int ReadyDelay() {
     if(!runtime->preferences.autoInputDelay) return runtime->selectedDelay;
     std::uint64_t revision=0;
-    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision));
+    return runtime->autoDelayCheck.Delay(CurrentProbePeer(revision),static_cast<AutoDelayStyle>(runtime->preferences.autoDelayStyle));
 }
 
 // A Ready sent mid-check would start the match's own link beside the

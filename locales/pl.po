@@ -757,6 +757,15 @@ msgstr "Graj offline"
 msgid "home.offline_detail"
 msgstr "Trening, Versus, Arcade i inne tryby offline gry."
 
+msgid "training_select.title"
+msgstr "Trening"
+
+msgid "training_select.start"
+msgstr "Rozpocznij trening"
+
+msgid "training_select.start_detail"
+msgstr "Trening wczyta się z tymi postaciami na tej arenie."
+
 msgid "home.replays"
 msgstr "Powtórki"
 
@@ -1095,6 +1104,21 @@ msgstr "Opóźnienie"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Styl Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Jak Auto korzysta z testu połączenia. Zrównoważony: od 1 do 3 klatek. Responsywny: klatka mniej, od 0 do 2, więcej rollbacku. Płynny: klatka więcej, od 1 do 4, mniej rollbacku."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Zrównoważony"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Responsywny"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Płynny"
 
 msgid "room.name"
 msgstr "Nazwa pokoju"
@@ -1757,6 +1781,12 @@ msgstr "Twój mecz jest gotowy"
 
 msgid "training.key.detail"
 msgstr "Lewo i Prawo wybierają klawisz, który robi to podczas walki. Wyłączone zostawia bez klawisza."
+
+msgid "training.key.pad_back"
+msgstr "View na padzie"
+
+msgid "training.key.pad_back.detail"
+msgstr "Krótkie View (Share, Create, Minus, Select) resetuje pozycję, przytrzymanie ją zapisuje. Wyłączone zostawia View walce, do plinku na przycisku, który też wysyła View; klawisze powyżej nadal działają."
 
 msgid "training.dummy.action"
 msgstr "Manekin"
@@ -2815,6 +2845,12 @@ msgstr "{0}: wygrana walka przy stole {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}: wygrany set przy stole {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} pisze..."
+msgid "chat.typing.two"
+msgstr "{0} i {1} piszą..."
+msgid "chat.typing.many"
+msgstr "Kilka osób pisze..."
 
 msgid "room.fighter_options"
 msgstr "Opcje postaci"
@@ -2875,6 +2911,39 @@ msgstr "Aktualizacja pokoju..."
 
 msgid "room.battle_slot"
 msgstr "STÓŁ WALKI {0}"
+
+msgid "room.table_name"
+msgstr "Nazwa stołu"
+
+msgid "room.table_name.detail"
+msgstr "Widoczna na karcie stołu po numerze, np. Początkujący. Puste pokazuje tylko numer."
+
+msgid "room.template"
+msgstr "Szablon"
+
+msgid "room.template.none"
+msgstr "Brak"
+
+msgid "room.template.detail"
+msgstr "Zapisany pokój. Ustawia wiersze poniżej, a po otwarciu pokoju zasady i nazwę każdego stołu. Lewo i Prawo wybierają."
+
+msgid "room.template.delete"
+msgstr "Usuń szablon"
+
+msgid "room.template.delete.detail"
+msgstr "Usuwa szablon {0} z tego komputera."
+
+msgid "room.template.full"
+msgstr "Masz {0} szablonów. Najpierw usuń jeden w Utwórz pokój."
+
+msgid "room.template.saved"
+msgstr "Zapisano jako szablon {0}."
+
+msgid "room.save_template"
+msgstr "Zapisz jako szablon"
+
+msgid "room.save_template.detail"
+msgstr "Zachowuje ustawienia tego pokoju oraz zasady i nazwę każdego stołu na tym komputerze dla Utwórz pokój > Szablon. Ta sama nazwa go nadpisuje."
 
 msgid "room.looking_for_fight"
 msgstr "Szukam walki"
@@ -4715,6 +4784,72 @@ msgstr "Obaj gracze wracają na koniec kolejki, a siadają dwaj następni."
 
 msgid "rules.rotation.needs_set"
 msgstr "Najpierw wybierz długość seta. Bez niej nikt się nie zmienia."
+
+msgid "rules.instant_rematch"
+msgstr "Natychmiastowy rewanż"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Po każdej grze obaj zawodnicy wybierają na ekranie WIN przez 10 sekund: Rewanż, Wybór postaci albo Powrót do pokoju."
+
+msgid "postmatch.choose"
+msgstr "Jeszcze raz?"
+
+msgid "postmatch.waiting_for"
+msgstr "Czekanie na: {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0}: chce rewanżu"
+
+msgid "postmatch.wants_next"
+msgstr "{0}: chce następnej gry"
+
+msgid "postmatch.starting"
+msgstr "Następna gra się zaczyna"
+
+msgid "postmatch.opponent_left"
+msgstr "{0}: opuszcza miejsce"
+
+msgid "postmatch.seconds_left"
+msgstr "Czas na wybór: {0} s"
+
+msgid "postmatch.rematch"
+msgstr "Rewanż"
+
+msgid "postmatch.next_game"
+msgstr "Następna gra"
+
+msgid "postmatch.again.detail"
+msgstr "Te same postacie i zasady. Następna gra zaczyna się, gdy obaj ją wybierzecie, bez powrotu do pokoju."
+
+msgid "postmatch.queue_waiting"
+msgstr "Nie ma rewanżu, gdy ktoś czeka w kolejce."
+
+msgid "postmatch.not_seated"
+msgstr "Nie siedzisz już przy tym stole."
+
+msgid "postmatch.character_select"
+msgstr "Wybór postaci"
+
+msgid "postmatch.character_select.detail"
+msgstr "Wybierz inną postać w pokoju, potem Gotowe."
+
+msgid "postmatch.back"
+msgstr "Powrót do pokoju"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Powrót do pokoju. Miejsce zostaje, bez gotowości. Brak odpowiedzi przez 10 sekund działa tak samo."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Opuść miejsce i oglądaj z pokoju. Brak odpowiedzi przez 10 sekund działa tak samo."
+
+msgid "postmatch.state.choosing"
+msgstr "Wybiera"
+
+msgid "postmatch.state.ready"
+msgstr "Gotowe"
+
+msgid "postmatch.state.left"
+msgstr "Poza miejscem"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

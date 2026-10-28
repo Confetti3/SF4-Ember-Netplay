@@ -757,6 +757,15 @@ msgstr "Главное меню"
 msgid "home.offline_detail"
 msgstr "Возврат в оригинальное меню SF4"
 
+msgid "training_select.title"
+msgstr "Тренировка"
+
+msgid "training_select.start"
+msgstr "Начать тренировку"
+
+msgid "training_select.start_detail"
+msgstr "Тренировка загрузится с этими бойцами на этой арене."
+
 msgid "home.replays"
 msgstr "Записи"
 
@@ -1095,6 +1104,21 @@ msgstr "Задержка ввода"
 
 msgid "settings.input_delay.auto"
 msgstr "Авто"
+
+msgid "settings.auto_delay_style"
+msgstr "Стиль Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Как Auto использует проверку соединения. Сбалансированный: от 1 до 3 кадров. Отзывчивый: на кадр меньше, от 0 до 2, больше откатов. Плавный: на кадр больше, от 1 до 4, меньше откатов."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Сбалансированный"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Отзывчивый"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Плавный"
 
 msgid "room.name"
 msgstr "Имя лобби"
@@ -1757,6 +1781,12 @@ msgstr "Ваш матч готов"
 
 msgid "training.key.detail"
 msgstr "Влево и Вправо выбирают клавишу, которая делает это во время боя. «Выкл.» оставляет без клавиши."
+
+msgid "training.key.pad_back"
+msgstr "View на геймпаде"
+
+msgid "training.key.pad_back.detail"
+msgstr "Короткое нажатие View (Share, Create, Minus, Select) сбрасывает позицию, удержание сохраняет её. «Выкл.» оставляет View бою — для плинка на кнопке, которая тоже шлёт View; клавиши выше продолжают работать."
 
 msgid "training.dummy.action"
 msgstr "Манекен"
@@ -2815,6 +2845,12 @@ msgstr "{0}: победа в бою в ячейке {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}: победа в поединке в ячейке {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} печатает..."
+msgid "chat.typing.two"
+msgstr "{0} и {1} печатают..."
+msgid "chat.typing.many"
+msgstr "Несколько человек печатают..."
 
 msgid "room.fighter_options"
 msgstr "Настройки бойца"
@@ -2875,6 +2911,39 @@ msgstr "Обновление лобби..."
 
 msgid "room.battle_slot"
 msgstr "ЯЧЕЙКА БОЯ {0}"
+
+msgid "room.table_name"
+msgstr "Название стола"
+
+msgid "room.table_name.detail"
+msgstr "Показывается на карточке стола после номера, например «Новички». Пусто — только номер."
+
+msgid "room.template"
+msgstr "Шаблон"
+
+msgid "room.template.none"
+msgstr "Нет"
+
+msgid "room.template.detail"
+msgstr "Сохранённая комната. Задаёт строки ниже, а после открытия комнаты — правила и название каждого стола. Влево и вправо — выбор."
+
+msgid "room.template.delete"
+msgstr "Удалить шаблон"
+
+msgid "room.template.delete.detail"
+msgstr "Удаляет шаблон {0} с этого ПК."
+
+msgid "room.template.full"
+msgstr "У вас {0} шаблонов. Сначала удалите один в «Создать комнату»."
+
+msgid "room.template.saved"
+msgstr "Сохранено как шаблон {0}."
+
+msgid "room.save_template"
+msgstr "Сохранить как шаблон"
+
+msgid "room.save_template.detail"
+msgstr "Сохраняет настройки этой комнаты, а также правила и название каждого стола, на этом ПК для «Создать комнату > Шаблон». То же имя перезаписывает его."
 
 msgid "room.looking_for_fight"
 msgstr "Ищет бой"
@@ -4715,6 +4784,72 @@ msgstr "Оба игрока встают в конец очереди, а сад
 
 msgid "rules.rotation.needs_set"
 msgstr "Сначала выберите длину поединка. Без неё никто не меняется."
+
+msgid "rules.instant_rematch"
+msgstr "Мгновенный реванш"
+
+msgid "rules.instant_rematch.detail"
+msgstr "После каждой игры оба бойца 10 секунд выбирают на экране WIN: Реванш, Выбор бойца или Назад в комнату."
+
+msgid "postmatch.choose"
+msgstr "Ещё раз?"
+
+msgid "postmatch.waiting_for"
+msgstr "Ждём: {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0}: хочет реванш"
+
+msgid "postmatch.wants_next"
+msgstr "{0}: хочет следующую игру"
+
+msgid "postmatch.starting"
+msgstr "Следующая игра начинается"
+
+msgid "postmatch.opponent_left"
+msgstr "{0}: не за столом"
+
+msgid "postmatch.seconds_left"
+msgstr "Осталось на выбор: {0} с"
+
+msgid "postmatch.rematch"
+msgstr "Реванш"
+
+msgid "postmatch.next_game"
+msgstr "Следующая игра"
+
+msgid "postmatch.again.detail"
+msgstr "Те же бойцы и правила. Следующая игра начнётся, как только вы оба её выберете, без возврата в комнату."
+
+msgid "postmatch.queue_waiting"
+msgstr "Реванша нет, пока кто-то ждёт в очереди."
+
+msgid "postmatch.not_seated"
+msgstr "Вы больше не сидите за этим столом."
+
+msgid "postmatch.character_select"
+msgstr "Выбор бойца"
+
+msgid "postmatch.character_select.detail"
+msgstr "Выберите другого бойца в комнате, затем Готов."
+
+msgid "postmatch.back"
+msgstr "Назад в комнату"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Назад в комнату. Место остаётся за вами, без готовности. Без ответа за 10 секунд будет так же."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Встаньте и смотрите из комнаты. Без ответа за 10 секунд будет так же."
+
+msgid "postmatch.state.choosing"
+msgstr "Выбирает"
+
+msgid "postmatch.state.ready"
+msgstr "Готов"
+
+msgid "postmatch.state.left"
+msgstr "Не за столом"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

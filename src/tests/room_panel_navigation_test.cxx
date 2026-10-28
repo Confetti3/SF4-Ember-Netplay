@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <cstdio>
 #include <utility>
 #include <vector>
 
@@ -919,6 +920,31 @@ int main() try {
     press(MenuInput::Back);
     Check(!shell.Navigation().Choosing(), "Back did not close the chooser");
     view.room.localTerminalPending = false; ++view.room.revision; frame();
+    const auto click = [&](ImVec2 point) {
+        io.AddMousePosEvent(point.x, point.y); frame();
+        io.AddMouseButtonEvent(0, true); frame();
+        io.AddMouseButtonEvent(0, false); frame();
+    };
+    // The mouse opens the seat chooser on the card and picks from its strip,
+    // at a game's screen sizes and interface scales.
+    const std::pair<float, ImVec2> screens[] = {{1.f, {1280, 800}}, {1.f, {1920, 1080}}, {1.5f, {1920, 1080}},
+        {1.34f, {2560, 1440}}, {2.f, {3840, 2160}}};
+    for (const auto& [scale, size] : screens) {
+        ApplyTheme(scale); io.Fonts->Build(); io.DisplaySize = size; frame(); frame();
+        for (const char* option : {"table-0/0", "table-0/2"}) {
+            click(targets.at("table-0"));
+            Check(shell.Navigation().Choosing(), "A click on the table card did not open the seat chooser");
+            frame(); // the strip reports its place once drawn
+            const auto beforeMouseSeat = actions.size(); const auto screen = shell.Navigation().Screen();
+            click(targets.at(option));
+            if (!(actions.size() == beforeMouseSeat + 1 || shell.Navigation().Screen() != screen)) {
+                std::fprintf(stderr, "scale %.1f size %.0fx%.0f option %s\n", scale, size.x, size.y, option);
+                Check(false, "A click on the seat chooser's strip picked nothing");
+            }
+            shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+        }
+    }
+    ApplyTheme(1.f); io.Fonts->Build(); io.DisplaySize = ImVec2(1280, 960); frame();
     // A full table's card offers the queue or watching in place; Y opens its
     // options list.
     focus("table-0"); press(MenuInput::Select);
@@ -938,11 +964,6 @@ int main() try {
     io.AddKeyEvent(ImGuiKey_Escape, false); frame();
     Check(shell.Navigation().Screen() == "room", "Keyboard Back did not return to the room");
     focus("table-0"); press(MenuInput::Select);
-    const auto click = [&](ImVec2 point) {
-        io.AddMousePosEvent(point.x, point.y); frame();
-        io.AddMouseButtonEvent(0, true); frame();
-        io.AddMouseButtonEvent(0, false); frame();
-    };
     const auto beforeLeave = actions.size(); click(targets.at("unqueue"));
     Check(actions.size() == beforeLeave + 1 && actions.back().roomAction.kind == room::ActionKind::Unqueue,
         "Mouse queue exit submitted zero or duplicate actions");
@@ -1138,6 +1159,8 @@ int main() try {
     // match status must not flash between preparation and room-update text.
     view = ShellView{};
     view.controllerReady = true;
+    // Known, so Home's timed background identity probe cannot count as a room action below.
+    view.identity.known = true;
     view.session.room = netplay::RoomState::Joined;
     view.session.control = netplay::Health::Healthy;
     view.session.coordinated = true;

@@ -2,6 +2,7 @@
 #include "IdentityPanel.hxx"
 #include "MenuNavigation.hxx"
 #include "../netplay/PublicRooms.hxx"
+#include "../netplay/TableSetup.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../common/RoomRules.hxx"
 #include <functional>
@@ -82,7 +83,7 @@ public:
     void Abandon();
     // Opens a public room: the new room's admission is joined when it arrives.
     // `rules` go with the new room's join, for the runtime to set on its tables.
-    void Create(const std::string& name, int capacity, const room::Rules& rules, room::DelayPolicy delayPolicy);
+    void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
     // What a pending request or refresh says on `screen`, and the list's own
@@ -126,8 +127,8 @@ private:
         netplay::tournament::Command command;
         bool sent = false;
         double sentAt = 0;
-        // A create's chosen table rules.
-        std::optional<room::Rules> createdRules;
+        // A create's chosen tables.
+        std::optional<netplay::TableSetup> createdRules;
     };
     // The room joined with an admission, kept while it is being opened and while
     // the player is in it. `seen`: the session has left Idle for it.

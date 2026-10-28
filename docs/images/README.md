@@ -11,7 +11,7 @@ Generate after building the current source:
 pwsh -NoProfile -File ./scripts/capture-readme.ps1 -GameRoot 'C:/Games/Steam/steamapps/common/Super Street Fighter IV - Arcade Edition'
 ```
 
-The script runs the full UiRenderTest sweep into `build/current/readme-captures-<time>`, which can take tens of gigabytes; delete that folder afterwards.
+The script renders every screen once, in English at 1280 x 720, into `build/current/readme-captures-<time>`; delete that folder afterwards.
 
 Home, room, fighter and costume selection retain the full 1280 x 720 viewport.
 Only BMP-to-PNG conversion is applied; UI text, geometry and artwork are not
@@ -19,6 +19,21 @@ composited or retouched.
 
 The normal UI regression suite retains its long-name and long-chat stress cases;
 the README option substitutes readable sample names and chat for presentation.
+
+## Guide pictures
+
+The step pictures under `guides/` are captured by the same run, from the same
+English 1280 x 720 renders, and written as WebP with libwebp's `cwebp -q 85`
+(`cwebp` must be on `PATH`). `capture-readme.ps1` lists which render each one is.
+
+The guide pictures it does not list are screenshots of Ember
+1.4.0-nightly20261018 running in the game on a Steam Deck: the training lab over
+a fight, Online play, the game's own Graphics settings, the stage previews, the
+main character roster, the Updates window, and a room with a second PC as guest
+(the room board, a match's HUD, the table after it and a battle log replay's
+strip). Each is cropped to the game's 1280 x 720 picture, or to the Updates
+window, and written with the same `cwebp -q 85`. Retake them by hand when those
+screens change.
 
 ## In-game frame meter
 

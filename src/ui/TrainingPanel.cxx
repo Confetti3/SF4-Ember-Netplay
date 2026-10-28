@@ -47,6 +47,9 @@ struct Lab {
     // How the frame meter is drawn (the Frame data page's two options).
     training::MeterOptions meter;
     std::array<int,2> keys{{1,10}};
+    // The pad's Back: a tap resets, a hold saves (TrainingPad.hxx). Off leaves
+    // Back to the game, for a plink on a button that also sends Back.
+    bool padBack=true;
     // The save or reset sent last, told only once the game says it was done.
     std::uint64_t position=0,positionGeneration=0; bool positionSave=false;
 } lab;
@@ -60,7 +63,7 @@ void SavePractice() {
     if(lab.directory.empty()) return;
     std::string error;
     const nlohmann::json practice{{"reply",{{"when",lab.plan.when},{"chance",lab.plan.chance},{"timing",lab.plan.timing},
-        {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves},{"custom",lab.customMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]}}},
+        {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves},{"custom",lab.customMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]},{"pad_back",lab.padBack}}},
         {"meter",MeterOptionsJson(lab.meter)}};
     if(!netplay::json_file::Publish(lab.directory,PracticeFile,practice,error)) Notice(loc::T("training.save_failed"),true);
 }
@@ -96,6 +99,7 @@ void LoadPractice() {
     // An older file lists six keys in a row; these two were its second and its last.
     const auto keys=practice.value("keys",nlohmann::json::object());
     lab.keys=ReadPositionKeys(keys);
+    lab.padBack=!keys.is_object()||keys.value("pad_back",true);
     lab.meter=ReadMeterOptions(practice.value("meter",nlohmann::json::object()));
 }
 // A queued save or reset can still be refused by the game, or fail there, so
@@ -198,7 +202,8 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         Row("reset-pos",loc::T("training.position.reset"),loc::T("training.position.reset.detail"),view.ready&&view.checkpoint),
         Value("key-0",loc::T("training.key.reset"),KeyName(ResetKey),loc::T("training.key.detail")),
         // Named by the row it presses, so it needs no words of its own.
-        Value("key-1",loc::T("training.position.save"),KeyName(SaveKey),loc::T("training.key.detail"))};
+        Value("key-1",loc::T("training.position.save"),KeyName(SaveKey),loc::T("training.key.detail")),
+        Value("pad-back",loc::T("training.key.pad_back"),loc::T(lab.padBack?"common.on":"common.off"),loc::T("training.key.pad_back.detail"))};
 }
 void HandleTools(const MenuAction& a,const training::View& view,const TrainingSubmit& submit) {
     if(a.kind==MenuAction::Adjust) {
@@ -222,6 +227,7 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
             do at=(at+count+step)%count; while(choices[at]>=0&&choices[at]==lab.keys[1-which]);
             lab.keys[which]=choices[at]; SavePractice();
         }
+        else if(a.id=="pad-back") { lab.padBack=a.delta>0; SavePractice(); }
         else if(a.id.compare(0,6,"dummy-")==0) {
             const std::string which=a.id.substr(6);
             const auto& now=view.dummy;
@@ -259,12 +265,13 @@ void ApplyTrainingPadEvent(const training::View& view,const TrainingSubmit& subm
     LoadPractice();
     switch(pad.kind) {
     case Kind::Save: {
+        if(!lab.padBack) break;
         Command place; place.action=Action::Place; place.generation=pad.generation; place.place[0]=pad.place[0]; place.place[1]=pad.place[1];
         if(submit) submit(place);
         SavePosition(view,submit);
         break;
     }
-    case Kind::Reset: ResetPosition(view,submit); break;
+    case Kind::Reset: if(lab.padBack) ResetPosition(view,submit); break;
     // Decided as each is applied, as the keys are: a press from before the controls opened or a call came does nothing.
     case Kind::Record: if(TrainingPressesAct(controls,called)) TrainingRecordPress(view,submit,{pad.epoch,true}); break;
     case Kind::Play: if(TrainingPressesAct(controls,called)) TrainingPlayPress(view,submit); break;

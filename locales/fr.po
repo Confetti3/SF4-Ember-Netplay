@@ -757,6 +757,15 @@ msgstr "Jouer hors ligne"
 msgid "home.offline_detail"
 msgstr "Entraînement, Versus, Arcade et les autres modes hors ligne du jeu."
 
+msgid "training_select.title"
+msgstr "Entraînement"
+
+msgid "training_select.start"
+msgstr "Lancer l'entraînement"
+
+msgid "training_select.start_detail"
+msgstr "L'entraînement se charge avec ces personnages dans ce niveau."
+
 msgid "home.replays"
 msgstr "Replays"
 
@@ -1095,6 +1104,21 @@ msgstr "Latence d'entrée"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Style Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Comment Auto utilise le test de connexion. Équilibré : 1 à 3 frames. Réactif : une frame de moins, 0 à 2, plus de rollback. Fluide : une frame de plus, 1 à 4, moins de rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Équilibré"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Réactif"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Fluide"
 
 msgid "room.name"
 msgstr "Nom du salon"
@@ -1757,6 +1781,12 @@ msgstr "Votre match est prêt"
 
 msgid "training.key.detail"
 msgstr "Gauche et Droite choisissent la touche qui fait cela pendant le combat. Désactivé la laisse sans touche."
+
+msgid "training.key.pad_back"
+msgstr "View sur la manette"
+
+msgid "training.key.pad_back.detail"
+msgstr "Un appui sur View (Share, Create, Minus, Select) réinitialise la position, un maintien l'enregistre. Désactivé laisse View au combat, pour un plink sur un bouton qui envoie aussi View ; les touches ci-dessus marchent toujours."
 
 msgid "training.dummy.action"
 msgstr "Mannequin"
@@ -2815,6 +2845,12 @@ msgstr "{0} a gagné un combat à la table {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} a remporté le set à la table {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} écrit..."
+msgid "chat.typing.two"
+msgstr "{0} et {1} écrivent..."
+msgid "chat.typing.many"
+msgstr "Plusieurs personnes écrivent..."
 
 msgid "room.fighter_options"
 msgstr "Options du personnage"
@@ -2875,6 +2911,39 @@ msgstr "Mise à jour..."
 
 msgid "room.battle_slot"
 msgstr "TABLE DE COMBAT {0}"
+
+msgid "room.table_name"
+msgstr "Nom de la table"
+
+msgid "room.table_name.detail"
+msgstr "Affiché sur la carte de la table après son numéro, par exemple Débutants. Vide n'affiche que le numéro."
+
+msgid "room.template"
+msgstr "Modèle"
+
+msgid "room.template.none"
+msgstr "Aucun"
+
+msgid "room.template.detail"
+msgstr "Un salon que vous avez enregistré. Il règle les lignes ci-dessous, puis les règles et le nom de chaque table une fois le salon ouvert. Gauche et Droite choisissent."
+
+msgid "room.template.delete"
+msgstr "Supprimer le modèle"
+
+msgid "room.template.delete.detail"
+msgstr "Supprime le modèle {0} de ce PC."
+
+msgid "room.template.full"
+msgstr "Vous avez {0} modèles. Supprimez-en un dans Créer un salon d'abord."
+
+msgid "room.template.saved"
+msgstr "Enregistré comme modèle {0}."
+
+msgid "room.save_template"
+msgstr "Enregistrer comme modèle"
+
+msgid "room.save_template.detail"
+msgstr "Garde les réglages de ce salon, ainsi que les règles et le nom de chaque table, sur ce PC pour Créer un salon > Modèle. Le même nom le remplace."
 
 msgid "room.looking_for_fight"
 msgstr "En quête d'un combat"
@@ -4715,6 +4784,72 @@ msgstr "Les deux joueurs retournent au bout de la file et les deux suivants s'as
 
 msgid "rules.rotation.needs_set"
 msgstr "Choisissez d'abord une longueur de set. Sans longueur, personne ne change."
+
+msgid "rules.instant_rematch"
+msgstr "Revanche immédiate"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Après chaque partie, les deux combattants choisissent Revanche, Sélection personnage ou Retour au salon sur l'écran WIN, pendant 10 secondes."
+
+msgid "postmatch.choose"
+msgstr "On remet ça ?"
+
+msgid "postmatch.waiting_for"
+msgstr "En attente de {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} veut une revanche"
+
+msgid "postmatch.wants_next"
+msgstr "{0} veut la partie suivante"
+
+msgid "postmatch.starting"
+msgstr "La partie suivante démarre"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} a quitté sa place"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s pour choisir"
+
+msgid "postmatch.rematch"
+msgstr "Revanche"
+
+msgid "postmatch.next_game"
+msgstr "Partie suivante"
+
+msgid "postmatch.again.detail"
+msgstr "Mêmes combattants, mêmes règles. La partie suivante démarre dès que vous la choisissez tous les deux, sans repasser par le salon."
+
+msgid "postmatch.queue_waiting"
+msgstr "Pas de revanche tant que quelqu'un attend dans la file."
+
+msgid "postmatch.not_seated"
+msgstr "Vous n'êtes plus assis à cette table."
+
+msgid "postmatch.character_select"
+msgstr "Sélection personnage"
+
+msgid "postmatch.character_select.detail"
+msgstr "Choisissez un autre combattant dans le salon, puis Prêt."
+
+msgid "postmatch.back"
+msgstr "Retour au salon"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Retour au salon. Vous gardez votre place, pas prêt. Sans réponse en 10 secondes, c'est pareil."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Quittez votre place et regardez depuis le salon. Sans réponse en 10 secondes, c'est pareil."
+
+msgid "postmatch.state.choosing"
+msgstr "Choisit"
+
+msgid "postmatch.state.ready"
+msgstr "Prêt"
+
+msgid "postmatch.state.left"
+msgstr "A quitté sa place"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

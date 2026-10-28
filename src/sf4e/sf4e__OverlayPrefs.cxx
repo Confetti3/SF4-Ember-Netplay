@@ -80,6 +80,7 @@ namespace OverlayPrefs {
 				if (selection::IsCustomColor(c.color) && !installed->HasColor(c.charaID, c.costume, c.color)) c.color = 0;
 			};
 			costume(data.lobby);
+			costume(data.trainingDummy);
 			for (auto& fighter : data.fighters) costume(fighter);
 			if (selection::IsCustomStage(data.stageID) && !installed->HasStage(data.stageID))
 				data.stageID = Data{}.stageID;
@@ -120,6 +121,7 @@ namespace OverlayPrefs {
 	void Clamp(Data& data) {
         DropRemovedCustom(data);
         ClampChara(data.lobby, data.lobbyEditionSelect);
+        ClampChara(data.trainingDummy, true);
         for (int id = 0; id < selection::FighterCount; ++id) {
             data.fighters[id].charaID = static_cast<uint8_t>(id);
             // Keep a remembered edition whatever the current rule; restoring a
@@ -139,6 +141,7 @@ namespace OverlayPrefs {
 		if (j.contains("lobby")) {
 			CharaFromJson(j["lobby"], out.lobby);
 		}
+		if (j.contains("trainingDummy")) CharaFromJson(j["trainingDummy"], out.trainingDummy);
 		if (j.contains("fighters") && j["fighters"].is_array()) {
 			const auto& fighters = j["fighters"];
 			for (std::size_t id = 0; id < fighters.size() && id < out.fighters.size(); ++id) {
@@ -182,6 +185,7 @@ namespace OverlayPrefs {
 		nlohmann::json j;
 		netplay::WriteBoolPreferences(data, j, boolPreferences);
 		CharaToJson(j["lobby"], data.lobby);
+		CharaToJson(j["trainingDummy"], data.trainingDummy);
 		j["fighters"] = nlohmann::json::array();
 		for (const auto& fighter : data.fighters) {
 			nlohmann::json row;
@@ -322,7 +326,7 @@ namespace OverlayPrefs {
 	}
 	std::uint64_t QueuePlayerPreferences(const netplay::PlayerPreferences& preferences) {
 		if (!writer || !preferences.Valid()) return 0;
-        nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay},
+        nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay}, {"autoDelayStyle", preferences.autoDelayStyle},
 			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
 			{"roundTimeIntegral", preferences.lobby.roundTime},
             {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},{"shareReplaysSince",preferences.shareReplaysSince},

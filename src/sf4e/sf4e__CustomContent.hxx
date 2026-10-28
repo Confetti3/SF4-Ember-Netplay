@@ -11,6 +11,7 @@
 // custom costume plays as a stand-in, one of the fighter's first three costumes (always owned), and while the
 // game builds that stand-in's file names it is given the custom slot instead (UseAppearance, Install).
 #include "../common/InstalledContent.hxx"
+#include "../Dimps/Dimps__GameEvents.hxx"
 
 namespace sf4e { namespace custom {
 
@@ -34,6 +35,9 @@ int ApplyStage(int stageId);
 // Installs a match's swaps (selection::ResolveAppearance) until EndBattle: the hooks give the game each side's
 // custom costume and color while it loads their stand-ins.
 void UseAppearance(const selection::Appearance& appearance);
+// UseAppearance for two picks as the game takes them, rewritten to what the game is given: custom costumes and
+// colors this PC has as their stand-ins, ones it lacks as the original.
+void ShowInstalledLooks(Dimps::GameEvents::VsMode::ConfirmedCharaConditions (&sides)[2]);
 void EndBattle();
 
 } }

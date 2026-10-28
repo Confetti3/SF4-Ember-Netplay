@@ -757,6 +757,15 @@ msgstr "离线游玩"
 msgid "home.offline_detail"
 msgstr "训练、对战、街机等游戏原有的离线模式。"
 
+msgid "training_select.title"
+msgstr "训练"
+
+msgid "training_select.start"
+msgstr "开始训练"
+
+msgid "training_select.start_detail"
+msgstr "用这些角色和场地开始训练。"
+
 msgid "home.replays"
 msgstr "回放"
 
@@ -1095,6 +1104,21 @@ msgstr "输入延迟"
 
 msgid "settings.input_delay.auto"
 msgstr "自动"
+
+msgid "settings.auto_delay_style"
+msgstr "Auto 风格"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Auto 如何使用连接检测。均衡：1 到 3 帧。灵敏：少一帧，0 到 2，回滚更多。流畅：多一帧，1 到 4，回滚更少。"
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "均衡"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "灵敏"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "流畅"
 
 msgid "room.name"
 msgstr "房间名称"
@@ -1757,6 +1781,12 @@ msgstr "你的对战已就绪"
 
 msgid "training.key.detail"
 msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
+
+msgid "training.key.pad_back"
+msgstr "手柄上的 View"
+
+msgid "training.key.pad_back.detail"
+msgstr "轻按 View (Share, Create, Minus, Select) 重置位置，长按保存位置。关闭后 View 交给对战，可用同时发送 View 的按键进行 plink；上面的按键仍然有效。"
 
 msgid "training.dummy.action"
 msgstr "木桩"
@@ -2816,6 +2846,12 @@ msgstr "{0} 在对战位 {1} 赢下一局 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} 在对战位 {1} 赢下对战组 ({2})"
+msgid "chat.typing.one"
+msgstr "{0} 正在输入..."
+msgid "chat.typing.two"
+msgstr "{0} 和 {1} 正在输入..."
+msgid "chat.typing.many"
+msgstr "多人正在输入..."
 
 msgid "room.fighter_options"
 msgstr "角色选项"
@@ -2876,6 +2912,39 @@ msgstr "正在更新房间..."
 
 msgid "room.battle_slot"
 msgstr "对战位 {0}"
+
+msgid "room.table_name"
+msgstr "桌名"
+
+msgid "room.table_name.detail"
+msgstr "显示在桌子卡片的编号后面，例如“新手”。留空只显示编号。"
+
+msgid "room.template"
+msgstr "模板"
+
+msgid "room.template.none"
+msgstr "无"
+
+msgid "room.template.detail"
+msgstr "你保存的房间。它会设置下面各项，并在房间打开后设置每张桌子的规则和名称。左右键选择。"
+
+msgid "room.template.delete"
+msgstr "删除模板"
+
+msgid "room.template.delete.detail"
+msgstr "从这台电脑删除模板 {0}。"
+
+msgid "room.template.full"
+msgstr "你已有 {0} 个模板。请先在“创建房间”中删除一个。"
+
+msgid "room.template.saved"
+msgstr "已保存为模板 {0}。"
+
+msgid "room.save_template"
+msgstr "另存为模板"
+
+msgid "room.save_template.detail"
+msgstr "将此房间的设置以及每张桌子的规则和名称保存在这台电脑上，供“创建房间 > 模板”使用。同名会覆盖。"
 
 msgid "room.looking_for_fight"
 msgstr "寻找对手"
@@ -4716,6 +4785,72 @@ msgstr "双方都回到队列末尾，由接下来的两人入座。"
 
 msgid "rules.rotation.needs_set"
 msgstr "请先选择每组局数。不限局数时没有人轮换。"
+
+msgid "rules.instant_rematch"
+msgstr "即时再战"
+
+msgid "rules.instant_rematch.detail"
+msgstr "每局结束后，双方在 WIN 画面有 10 秒选择再战、角色选择或返回房间。"
+
+msgid "postmatch.choose"
+msgstr "再来一局？"
+
+msgid "postmatch.waiting_for"
+msgstr "等待 {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} 想要再战"
+
+msgid "postmatch.wants_next"
+msgstr "{0} 想要下一局"
+
+msgid "postmatch.starting"
+msgstr "下一局即将开始"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} 离开了席位"
+
+msgid "postmatch.seconds_left"
+msgstr "剩余 {0} 秒"
+
+msgid "postmatch.rematch"
+msgstr "再战"
+
+msgid "postmatch.next_game"
+msgstr "下一局"
+
+msgid "postmatch.again.detail"
+msgstr "角色和规则不变。双方都选择后立即开始下一局，不回到房间。"
+
+msgid "postmatch.queue_waiting"
+msgstr "有人在队列中等待时不能再战。"
+
+msgid "postmatch.not_seated"
+msgstr "你已不在这张桌子的席位上。"
+
+msgid "postmatch.character_select"
+msgstr "角色选择"
+
+msgid "postmatch.character_select.detail"
+msgstr "在房间里选择其他角色，然后准备。"
+
+msgid "postmatch.back"
+msgstr "返回房间"
+
+msgid "postmatch.back.keep_seat"
+msgstr "返回房间。保留你的席位，未准备。10 秒内不回应效果相同。"
+
+msgid "postmatch.back.leave_seat"
+msgstr "离开席位，在房间里观战。10 秒内不回应效果相同。"
+
+msgid "postmatch.state.choosing"
+msgstr "选择中"
+
+msgid "postmatch.state.ready"
+msgstr "准备"
+
+msgid "postmatch.state.left"
+msgstr "已离席"
 
 msgid "rules.set_summary"
 msgstr "{0}，{1}"

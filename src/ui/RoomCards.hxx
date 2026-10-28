@@ -72,6 +72,8 @@ struct TableCardSeat {
 struct TableCardView {
     std::string id;
     int slot=0;
+    // The host's name for the table, after its number; empty for none.
+    std::string name;
     float height=0;
     std::string phase,middle,banner,footer;
     std::array<TableCardSeat,2> seats;

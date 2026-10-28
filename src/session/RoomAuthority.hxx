@@ -170,6 +170,7 @@ private:
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);
+	Result ApplyNameTable(MemberId member, const Action& action, Table* table);
 	Result ApplyAcknowledgeTerminal(MemberId member, const Action& action);
 	Result ApplySetRules(MemberId member, const Action& action, Table* table);
 	Result ApplyQueue(MemberId member, const Action& action, Table* table);
@@ -188,6 +189,7 @@ private:
 	Result ApplyAbortMatch(MemberId member, const Action& action, Table* table);
 	Result ApplyLockSpectating(MemberId member, const Action& action, Table* table, Member* item);
 	Result ApplySetTraining(MemberId member, const Action& action);
+	Result ApplyTyping(MemberId member, const Action& action);
 	Result ApplyPermitReady(MemberId member, const Action& action, Table* table);
 	// Table 0 of a room bound to a tournament match.
 	bool BoundTable(const Table& table) const;
@@ -381,6 +383,10 @@ private:
 	std::map<MemberId, std::uint64_t> lastActiveMs_;
 	void NoteActive(MemberId member);
 	std::uint32_t IdleSeconds(MemberId member) const;
+	// Who is typing in chat: when they last said so and whether they still are.
+	// Not checkpointed. TypingLeftMs is how long that word still stands.
+	std::map<MemberId, std::pair<std::uint64_t, bool>> typing_;
+	std::uint32_t TypingLeftMs(MemberId member) const;
 	std::map<MemberId, ActionId> lastAcceptedActions_;
 	std::set<ConnectionRef> kicked_;
 	// Server-owned rooms only. Held here rather than on Member so an account

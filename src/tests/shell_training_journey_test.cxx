@@ -46,6 +46,17 @@ void TrainingSettingsAndHome() {
  Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");
  SetMenuEntriesProbe({});h.Choose("offline");
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
+ // The game's own Training item opens Ember's select: your fighter, the dummy, the stage, then Start.
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.shell.ShowTraining();h.Frame();
+ Check(rows.size()==4&&rows[0].id=="training-fighter"&&rows[1].id=="training-dummy"&&rows[2].id=="training-stage"&&rows[3].id=="training-start","Training select rows changed");
+ h.Choose("training-dummy");
+ Check(h.shell.SelectingDummy(),"The dummy row did not open the fighter select for the dummy");
+ h.Screen("training");h.Choose("training-fighter");
+ Check(h.shell.Navigation().Screen()=="selection"&&!h.shell.SelectingDummy(),"The fighter row opened the select for the dummy");
+ h.Screen("training");h.Choose("training-start");
+ Check(h.actions.back().startTraining&&h.actions.back().training==TrainingEntry::None,"Start did not hand over Training select's picks");
+ SetMenuEntriesProbe({});
  // Private, then public, then private again, with the meter saved On: the choice survives the public room,
  // entering it saves nothing, and the row says why it is not offered only there.
  h.view.preferences.matchFrameMeter=true;

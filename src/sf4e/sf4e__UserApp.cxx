@@ -307,15 +307,7 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
     // What this PC shows: custom costumes and colors it has play as stand-ins, ones it doesn't have become the
     // original (the match data stays as sent).
     rVsMode::ConfirmedCharaConditions shown[2] = { netplay->client._matchData.chara[0], netplay->client._matchData.chara[1] };
-    const sf4e::selection::Look picks[2] = {
-        sf4e::selection::Look(shown[0].charaID, shown[0].costume, shown[0].color),
-        sf4e::selection::Look(shown[1].charaID, shown[1].costume, shown[1].color) };
-    const auto appearance = sf4e::selection::ResolveAppearance(picks, *sf4e::custom::Installed());
-    sf4e::custom::UseAppearance(appearance);
-    for (int i = 0; i < 2; i++) {
-        shown[i].costume = static_cast<BYTE>(appearance.shown[i].costume);
-        shown[i].color = static_cast<BYTE>(appearance.shown[i].color);
-    }
+    sf4e::custom::ShowInstalledLooks(shown);
     // A custom stage plays as its fallback stage, loading its own files if this PC has them.
     const int stage = sf4e::custom::ApplyStage(static_cast<int>(netplay->client._matchData.stageID));
     if (!fVsPreBattle::SetSides(shown, stage))

@@ -6,6 +6,8 @@ Ember's menus cover Home, rooms, fighter selection, settings and offline trainin
 
 Press F10 or Start at the native main menu to open Ember, or during a game you fight in a Practice room, where it opens on End practice (see [Training with another player](TRAINING_LAB.md#training-with-another-player)), or during a game you watch, where it opens on Stop watching (Leave this game for a queued member) and is translucent over the fight. Ember's menus select with the bottom face button and go back with the right one (A and B on Xbox) on an XInput controller, which every controller you set up in Ember is, whatever your fighting buttons are. On a DirectInput stick the game reads itself they use the buttons SF4's own menus use, its Light Kick and Medium Kick buttons, shown as LK and MK because its physical labels are not identifiable, and moving LK and MK in Game's button settings moves them in Ember's menus too. To use other buttons in Ember's menus only, choose Menu confirm and Menu back on the controller's Button layout screen and press the button you want; the two cannot share a button, and Start, View and the D-pad keep their jobs. Use the game's layout on that screen returns them to the bottom and right face buttons. DirectInput sticks the game reads itself have no shortcut buttons. On an XInput controller in a room, X, Y and View are shortcuts (see Play online). D-pad or keyboard arrows move the highlight; Left/Right adjusts value rows. Lists and grids stop at their edges. Direction holds repeat, but actions and confirmations do not.
 
+![Ember's Home](../images/ember-home.png)
+
 Back cancels the current text draft, confirmation or open choice first, otherwise returns one level. On your own table card in a room, Back leaves your seat or queue place instead (see Play online); elsewhere on the room board it goes to Home. Back from Home hides Ember and returns to the game without leaving your room, and Home's Online play row returns to it. Use the explicit Leave room action to disconnect; its confirmation starts on Cancel.
 
 Select a text row before typing or pasting with a physical keyboard. Enter accepts the draft; Escape or controller Back discards it. Chat is the exception: its message box is already open when the screen opens, so you just type and press Enter to send. Moving the mouse pointer moves the highlight over menu rows, dialog options and the seat chooser, while a resting pointer never undoes what the pad just chose; clicking selects. Click either end of a value row to adjust it with a mouse.
@@ -13,6 +15,8 @@ Select a text row before typing or pasting with a physical keyboard. Enter accep
 ## Play online
 
 Choose Online Play, then Create Room or Join Room. Create retains populated defaults. Join prioritizes Paste Invitation and Join. While connected, Online Play returns to your room.
+
+![Online play with Relay and Network status](../images/guides/controller_menus/online.webp)
 
 The room overview follows SF6's Custom Room composition: four stacked battle slots on the left, members above chat on the right, and the room's actions (Members, Chat, Table options, Room settings, Copy invitation, Leave room) sharing the right column beneath them, with the focused entry's explanation on a line below. Right moves from a slot to the member pane; Left returns to the last focused slot. Up/Down visits entries in order. Narrow layouts stack the same entries in one scrolling list.
 
@@ -28,11 +32,29 @@ Discord invitations use the same pending, cancellation and confirmed room-switch
 
 The arcade roster previews the highlighted fighter. Select commits it; merely moving the highlight does not. Saved choices are marked. Appearance opens separate Costume gallery and Color gallery pages with individual artwork cards. Move to preview, Select to save, then Back to return. Choices use native availability rather than asset counts. Ultra, Stage and additional options remain separate; P1 retains stage authority.
 
+![Fighter select's roster](../images/ember-fighter-selection.png)
+
+![Color gallery](../images/guides/controller_menus/colors.webp)
+
+![Stage, with each stage's preview](../images/guides/controller_menus/stage.webp)
+
 ## Change settings
 
-Home also includes Profile. Edit your name and choose a main from the portrait roster. Press A on Xbox (or click a portrait), then wait for Saving to finish. After the settings update is accepted, the menu returns to Profile and names the saved portrait. A failure stays visible with Retry. Merely highlighting a portrait does not save it. Your saved main supplies the player-card photo and name; it does not overwrite your next match's fighter. The card shows local confirmed online wins, losses and win percentage. Tracking started with v0.8.0, is local to this settings profile, and excludes offline/training, spectating, draws, cancellations, disconnects and unresolved results. It is not a Steam rank or historical record import. A native result must agree with the room's confirmed result, and repeated notifications are deduplicated. The profile persists through the existing asynchronous settings writer. Your name, main and personal settings cannot be changed while you are in a room; leave the room first.
+Home also includes Profile:
+
+1. On Home, choose **Profile**.
+
+   ![Profile](../images/guides/controller_menus/profile.webp)
+
+2. Select **Player name** to edit your name, or **Main character** to choose a main from the portrait roster: press A on Xbox (or click a portrait), then wait for Saving to finish.
+
+   ![Choose your main](../images/guides/controller_menus/main-character.webp)
+
+After the settings update is accepted, the menu returns to Profile and names the saved portrait. A failure stays visible with Retry. Merely highlighting a portrait does not save it. Your saved main supplies the player-card photo and name; it does not overwrite your next match's fighter. The card shows local confirmed online wins, losses and win percentage. Tracking started with v0.8.0, is local to this settings profile, and excludes offline/training, spectating, draws, cancellations, disconnects and unresolved results. It is not a Steam rank or historical record import. A native result must agree with the room's confirmed result, and repeated notifications are deduplicated. The profile persists through the existing asynchronous settings writer. Your name, main and personal settings cannot be changed while you are in a room; leave the room first.
 
 Prompts name the buttons that select and go back: A and B by default on XInput, or the buttons you chose for Menu confirm and Menu back. None of this rewrites your SF4 attack mappings or the game's own menus. DirectInput uses a generic button sprite with LK/MK labels instead of guessing another controller's labels. The launcher's recovery window, which runs before the game, keeps buttons 1 and 2 on a stick and says so in its prompts; it does not follow the game's tables or your Menu confirm and Menu back. While you set up a controller's buttons, the summary selects with the button you just recorded as Light kick and goes back with Medium kick, and its prompts name those buttons, until you save. Controller, direction and keyboard sprites are unmodified assets from Kenney Input Prompts 1.5A (CC0), not custom-drawn shapes or font-dependent Unicode symbols.
+
+![Button layout for an Xbox controller](../images/guides/controller_menus/button-layout.webp)
 
 Player & Controller, Gameplay Defaults, Interface and Discord use named value rows. Valid personal changes are coalesced and saved asynchronously. Saving/Saved/Error feedback is quiet; Retry saving resubmits after failure. Room rules still require Apply and host authority.
 
@@ -43,6 +65,8 @@ Before starting a match, Ember rechecks the device and verifies native P1/P2 bin
 ## Practice
 
 In offline training, F6 opens and closes Ember's training controls from the keyboard. On the assigned pad, hold Back and press Start within half a second to do the same: View and Start on an Xbox pad, Select and Start on a DirectInput pad, whose physical Back and Start the game normalizes to the same buttons. Inside, the pad works as in the other menus: the D-pad moves, the menu buttons select and go back (A and B on an Xbox pad, LK and MK on a DirectInput pad, unless you chose others), Left and Right change values, and B at the root closes the controls. Keyboard arrows, Enter and Escape, and the mouse, work too. The legend and the training HUD's chips show the buttons of whichever device was used last. Typing a recording's name or reply moves needs a keyboard.
+
+![Training controls over a Training fight](../images/guides/controller_menus/training-flyout.webp)
 
 The chord takes nothing from the pad's other uses. Start pressed on its own still opens only the game's pause, and Back alone still resets the position on a tap and saves it on a half-second hold. Start counts only when Back is already held, a Back used for the chord neither resets nor saves (a Start later than half a second comes after the save), and the chord's Start never reaches the game, so it does not pause it. An open flyout captures gameplay input everywhere, including controllers. Held closing buttons must return to neutral before gameplay resumes.
 

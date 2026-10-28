@@ -3,6 +3,7 @@
 
 #include "../Dimps/Dimps__Event.hxx"
 #include "sf4e__Event.hxx"
+#include "sf4e__GameEvents.hxx"
 
 namespace rEvent = Dimps::Event;
 namespace fEvent = sf4e::Event;
@@ -31,6 +32,10 @@ void fEventController::QueueEvent(char* eventName, DWORD arg1, DWORD arg2, DWORD
 		eventName = replacementEvent;
 		replacementEvent = nullptr;
 	}
+	// TrainingMode queues its CharaSelect here; this hook already exists, where
+	// catching it at TrainingMode itself would need a new one. Nothing is
+	// compared unless Ember's Training select is waiting.
+	sf4e::GameEvents::TrainingMode::ReplaceCharaSelect(eventName);
 
 	(_this->*rEventController::publicMethods.QueueEvent)(eventName, arg1, arg2, arg3);
 }

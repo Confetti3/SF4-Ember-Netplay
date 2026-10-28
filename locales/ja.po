@@ -757,6 +757,15 @@ msgstr "オフラインで遊ぶ"
 msgid "home.offline_detail"
 msgstr "トレーニング、対戦、アーケードなど、ゲーム本体のオフラインモードです。"
 
+msgid "training_select.title"
+msgstr "トレーニング"
+
+msgid "training_select.start"
+msgstr "トレーニング開始"
+
+msgid "training_select.start_detail"
+msgstr "このキャラとステージでトレーニングを始めます。"
+
 msgid "home.replays"
 msgstr "リプレイ"
 
@@ -1095,6 +1104,21 @@ msgstr "入力遅延"
 
 msgid "settings.input_delay.auto"
 msgstr "自動"
+
+msgid "settings.auto_delay_style"
+msgstr "Autoのスタイル"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Autoが接続チェックをどう使うか。バランス：1〜3フレーム。レスポンス重視：1フレーム少なく0〜2、ロールバック多め。なめらか：1フレーム多く1〜4、ロールバック少なめ。"
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "バランス"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "レスポンス重視"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "なめらか"
 
 msgid "room.name"
 msgstr "ルーム名"
@@ -1757,6 +1781,12 @@ msgstr "対戦の準備ができました"
 
 msgid "training.key.detail"
 msgstr "左右で、対戦中にこの操作を行うキーを選びます。オフにするとキーなしになります。"
+
+msgid "training.key.pad_back"
+msgstr "パッドのView"
+
+msgid "training.key.pad_back.detail"
+msgstr "View (Share, Create, Minus, Select)を短く押すと位置をリセット、長押しで保存します。オフにするとViewは対戦に渡り、Viewも送るボタンでのプリンクに使えます。上のキーはそのまま使えます。"
 
 msgid "training.dummy.action"
 msgstr "ダミー"
@@ -2816,6 +2846,12 @@ msgstr "{0}が対戦席{1}で1戦勝利しました ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}が対戦席{1}でセットを獲得しました ({2})"
+msgid "chat.typing.one"
+msgstr "{0}が入力中..."
+msgid "chat.typing.two"
+msgstr "{0}と{1}が入力中..."
+msgid "chat.typing.many"
+msgstr "複数の人が入力中..."
 
 msgid "room.fighter_options"
 msgstr "キャラオプション"
@@ -2876,6 +2912,39 @@ msgstr "ルームを更新中..."
 
 msgid "room.battle_slot"
 msgstr "対戦席{0}"
+
+msgid "room.table_name"
+msgstr "テーブル名"
+
+msgid "room.table_name.detail"
+msgstr "テーブルのカードで番号の後に表示されます（例：初心者）。空欄なら番号だけです。"
+
+msgid "room.template"
+msgstr "テンプレート"
+
+msgid "room.template.none"
+msgstr "なし"
+
+msgid "room.template.detail"
+msgstr "保存したルームです。下の項目を設定し、ルームが開いたら各テーブルのルールと名前も設定します。左右で選びます。"
+
+msgid "room.template.delete"
+msgstr "テンプレートを削除"
+
+msgid "room.template.delete.detail"
+msgstr "テンプレート{0}をこのPCから削除します。"
+
+msgid "room.template.full"
+msgstr "テンプレートは{0}個までです。先にルーム作成で1つ削除してください。"
+
+msgid "room.template.saved"
+msgstr "テンプレート{0}として保存しました。"
+
+msgid "room.save_template"
+msgstr "テンプレートとして保存"
+
+msgid "room.save_template.detail"
+msgstr "このルームの設定と各テーブルのルール・名前を、ルーム作成 > テンプレート用にこのPCに保存します。同じ名前なら上書きします。"
 
 msgid "room.looking_for_fight"
 msgstr "対戦相手を募集中"
@@ -4716,6 +4785,72 @@ msgstr "両者とも順番待ちの最後に並び、次の二人が席に着き
 
 msgid "rules.rotation.needs_set"
 msgstr "先にセットの長さを選んでください。セットなしでは交代しません。"
+
+msgid "rules.instant_rematch"
+msgstr "即再戦"
+
+msgid "rules.instant_rematch.detail"
+msgstr "各試合の後、WIN画面で10秒間、両者が再戦・キャラクター選択・ルームに戻るから選びます。"
+
+msgid "postmatch.choose"
+msgstr "もう一戦？"
+
+msgid "postmatch.waiting_for"
+msgstr "{0}を待っています"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0}が再戦を希望"
+
+msgid "postmatch.wants_next"
+msgstr "{0}が次の試合を希望"
+
+msgid "postmatch.starting"
+msgstr "次の試合を開始"
+
+msgid "postmatch.opponent_left"
+msgstr "{0}が席を離れました"
+
+msgid "postmatch.seconds_left"
+msgstr "残り{0}秒"
+
+msgid "postmatch.rematch"
+msgstr "再戦"
+
+msgid "postmatch.next_game"
+msgstr "次の試合"
+
+msgid "postmatch.again.detail"
+msgstr "同じキャラとルールのまま。二人とも選ぶとすぐに次の試合が始まり、ルームには戻りません。"
+
+msgid "postmatch.queue_waiting"
+msgstr "順番待ちの人がいる間は再戦できません。"
+
+msgid "postmatch.not_seated"
+msgstr "このテーブルの席にもう座っていません。"
+
+msgid "postmatch.character_select"
+msgstr "キャラクター選択"
+
+msgid "postmatch.character_select.detail"
+msgstr "ルームで別のキャラを選んでから準備完了にします。"
+
+msgid "postmatch.back"
+msgstr "ルームに戻る"
+
+msgid "postmatch.back.keep_seat"
+msgstr "ルームに戻ります。席はそのまま、準備完了ではありません。10秒間応答がなくても同じです。"
+
+msgid "postmatch.back.leave_seat"
+msgstr "席を離れてルームから観戦します。10秒間応答がなくても同じです。"
+
+msgid "postmatch.state.choosing"
+msgstr "選択中"
+
+msgid "postmatch.state.ready"
+msgstr "準備完了"
+
+msgid "postmatch.state.left"
+msgstr "席を離れた"
 
 msgid "rules.set_summary"
 msgstr "{0}、{1}"

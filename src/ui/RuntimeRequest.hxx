@@ -5,6 +5,7 @@
 #include "../common/ControllerRequest.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/RoomRules.hxx"
+#include "../netplay/TableSetup.hxx"
 #include "../common/SteamId.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/UpdateChannel.hxx"
@@ -54,6 +55,8 @@ struct RuntimeRequest {
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.
     TrainingEntry training=TrainingEntry::None;
+    // Training select's Start: the overlay hands the game both picks and the stage; sent alone.
+    bool startTraining=false;
     // Leave the game this PC watches (ShellView::watchedGame), named as the
     // press saw it; sent alone. The runtime decides, when it takes it, whether
     // the room still needs an Unwatch or only the rest of the stream ends.
@@ -64,9 +67,10 @@ struct RuntimeRequest {
     netplay::tournament::Command tournament;
     // With a JoinInvite: the signed ticket (JSON) of a public room's admission.
     std::string publicTicket;
-    // With the JoinInvite of a public room just created: the table rules chosen
-    // on Create, which the runtime sets once the creator is in it as host.
-    std::optional<room::Rules> createdRules;
+    // With HostRoom, or the JoinInvite of a public room just created: each
+    // table's rules and name chosen on Create, which the runtime sets once the
+    // creator is in it as host.
+    std::optional<netplay::TableSetup> createdRules;
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
     // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).

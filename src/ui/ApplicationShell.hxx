@@ -6,6 +6,7 @@
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
 #include "../netplay/InputAssignment.hxx"
+#include "../netplay/TableSetup.hxx"
 #include "../netplay/SessionController.hxx"
 #include "../netplay/MatchEndRules.hxx"
 #include "../netplay/PlayerPreferences.hxx"
@@ -130,6 +131,8 @@ struct ShellView {
     input::MenuButtons menuButtons;
             bool canChangeController = false, controllerReady = false;
     std::string selectionSummary, selectionError;
+    // The Training dummy's pick, as selectionSummary reads (Training select).
+    std::string dummySummary,dummyError;
     // The chosen fighter, Ultra, appearance, fighter options and stage, for
     // the table page's rows; ultraSteps and colorSteps when there is more than
     // one to step through.
@@ -139,9 +142,9 @@ struct ShellView {
     std::string hintFighter, hintAppearance, hintUltra;
     bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
-    // A Ready press in flight (parked, sent or awaiting commit), and the
-    // last failure with a sequence that changes per occurrence.
-    bool readyRequested = false;
+    // A Ready press in flight, and the last failure with a sequence that
+    // changes per occurrence.
+    netplay::ReadyPress readyPress = netplay::ReadyPress::None;
     std::string readyFailure;
     std::uint64_t readyFailureSequence = 0;
     // The fighter the opponent changed to since the player last readied
@@ -162,6 +165,9 @@ struct ShellView {
     // input::MenuContext::WatchedMatch): Ember's menu is open over it, and Stop
     // watching leaves it. Empty when nothing is watched.
     netplay::WatchedGame watchedGame;
+    // The WIN screen of a room game this PC fought, at a table with Instant
+    // rematch on (input::MenuContext::MatchResult): the post-match prompt opens.
+    bool matchResult = false;
     // That game's picture, for the top of the wide room board's column or the
     // menu's top right corner, over an opaque menu (PlayerPreferences::watchedPicture);
     // null when it is not wanted or could not be taken.
@@ -194,6 +200,10 @@ inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t e
     if (member.status == room::MemberStatus::Playing) return member.idleSeconds;
     const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, room::MaximumIdleSeconds));
     return (std::min)(member.idleSeconds + since, room::MaximumIdleSeconds);
+}
+// A member's "is typing" `elapsedMs` after the room stamped it; gone once it ran out.
+inline std::uint32_t RoomTypingMs(const room::Member& member, std::uint64_t elapsedMs) {
+    return elapsedMs < member.typingMs ? static_cast<std::uint32_t>(member.typingMs - elapsedMs) : 0;
 }
 // A countdown the room stamped (a table's holdRemainingMs or readyRemainingMs)
 // `elapsedMs` later. None sent stays none; one that has run out still holds
@@ -267,6 +277,11 @@ public:
             else menu_.navigation.Home();
         }
     }
+    // The game's Play offline > Training: Ember's Training select.
+    void ShowTraining() { menu_.navigation.Home(); menu_.navigation.Push("training"); }
+    // Fighter select is open from Training select's Dummy row: the overlay
+    // draws the dummy's pick in it.
+    bool SelectingDummy() const { return selectionForDummy_ && menu_.navigation.Screen() == "selection" && menu_.navigation.Parent() == "training"; }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
@@ -281,6 +296,10 @@ public:
     bool BoardDrawn() const { return boardDrawn_; }
     // The last Draw drew the fighter selector.
     bool SelectionDrawn() const { return selectionDrawn_; }
+    // The last Draw had the player writing a chat draft, which the runtime tells the room.
+    bool ChatTyping() const { return chatTyping_; }
+    // The line above the chat box: who else is typing, empty when nobody is.
+    std::string ChatTypingText(const ShellView& v) const;
     bool NoticeError() const { return menu_.NoticeError(); }
     // What this client keeps of the room chat (for tests).
     const ChatTranscript& Transcript() const { return transcript_; }
@@ -385,6 +404,8 @@ private:
     bool selectionFresh_=false;
     // The page fighter select opens on (EmbeddedReturn::openOn).
     std::string selectionOpenOn_;
+    // Training select opened fighter select on its Dummy row (SelectingDummy).
+    bool selectionForDummy_=false;
     // The screen an opening room was started from, as the controller recorded
     // it when it accepted the command: hosting, or joining (an invitation
     // or a Discord join). Read only while the room is opening.
@@ -403,6 +424,15 @@ private:
     std::vector<MenuEntry> RoomSetupRows(const ShellView& view,const std::string& screen,bool opening,const char* reason,std::string& title);
     void CreateActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     bool CreateAdjust(const MenuAction& action);
+    // A saved template onto Create's rows, and the tables a room opened from
+    // Create gets with these rules (createTables_).
+    void ApplyRoomTemplate(int index);
+    netplay::TableSetup CreateTables(const room::Rules& rules) const;
+    // Room settings › Save as template: the room as it is now, under `name`.
+    void SaveRoomTemplate(const room::Snapshot& room,const std::string& name);
+    // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
+    std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
+    void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
     // The Create screen, with Practice room off (createPractice_).
     void OpenCreate();
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
@@ -443,6 +473,27 @@ private:
     // watching, moved, or took a place, or their spectator view dropped
     // (ShellView::lockInDrops). The player's own Release gets none.
     void TrackLockIn(const ShellView& view, double now);
+    // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
+    // WIN screen (ShellView::matchResult) on its own screen, "post-match". It
+    // keeps the table and the opponent of the game it follows, and the
+    // generation of that game: a new one at the table ends it, unless both
+    // fighters chose Rematch, when it stays until that game is loading.
+    struct PostMatchPrompt {
+        int table = -1;
+        room::MemberId opponent = 0;
+        std::uint64_t generation = 0;
+        double until = 0;
+        bool chose = false, starting = false;
+    };
+    std::optional<PostMatchPrompt> postMatch_;
+    bool matchResultSeen_ = false;
+    // What Back to room, Character select or no answer leaves to do once the
+    // game is over and the room takes it: leave the seat, or open fighter select.
+    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
+    // Opens, times out and ends the prompt; open is null while Ember is hidden.
+    void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
+    void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
+    void DrawPostMatch(const ShellView& view, double now, const Submit& submit, bool* open);
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
@@ -494,6 +545,9 @@ private:
     std::function<void(const std::string&)> chatLog_;
     // The Chat screen has been drawn since the player last left it.
     bool chatOpen_=false;
+    // When the message box was last edited, and whether this frame's draft counts as typing (ChatTyping).
+    double chatEditedAt_ = -1e9;
+    bool chatTyping_ = false;
     // The text the message box last held. ImGui ignores the buffer it is given while the box has the
     // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
     std::string chatBoxText_;
@@ -518,6 +572,10 @@ private:
     // Create's Practice room choice for the private room it opens. Never saved:
     // every visit to Create starts with it off.
     bool createPractice_ = false;
+    // The template Create was set from (-1 none), and its tables. Like the
+    // Practice room choice, every visit to Create starts without one.
+    int createTemplate_ = -1;
+    std::optional<netplay::TableSetup> createTables_;
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

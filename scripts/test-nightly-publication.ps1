@@ -1000,7 +1000,7 @@ try {
         $workspace = Join-Path $fixture 'workspace'
         $nightlyScripts = Join-Path $workspace 'sf4-nightly/scripts'
         New-Item -ItemType Directory -Path $nightlyScripts -Force | Out-Null
-        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'Packaging.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
+        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'Packaging.ps1', 'PackageGuide.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
         @{sourceDirectory='sf4-current';buildDirectory='build/current';installDirectory='build/current/stage';
           channels=@{nightly=@{sourceDirectory='sf4-nightly';buildDirectory='build/current';installDirectory='build/current/stage';branch='nightly';githubRepo=$repository}}} |
             ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $workspace 'build-target.json')

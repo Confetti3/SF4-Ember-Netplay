@@ -139,7 +139,7 @@ struct Room {
     std::uint64_t discordRevision = 0;
     netplay::PlayerPreferences preferences;
     std::string publicTicket;
-    std::optional<room::Rules> createdRules;
+    std::optional<netplay::TableSetup> createdRules;
     JoinKind join = JoinKind::Private;
     bool practiceRoom = false;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
@@ -371,6 +371,8 @@ struct Runtime {
 	std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
 	// When the room was last told whether the player is in Training.
 	std::uint64_t trainingSaidAtMs = 0;
+	// When the room was last told the player is typing; zero once told they stopped.
+	std::uint64_t typingSaidAtMs = 0;
 	// The newest RoomNoticesKept room events for the chat, numbered from 1 by
 	// roomNoticeSequence. The interface takes each once by its number.
 	static constexpr std::size_t RoomNoticesKept = 16;
@@ -456,6 +458,8 @@ bool AtMainMenu();
 // Tests only: makes AtMainMenu answer `value`; nullopt restores the native check.
 // Do not Publish while it is true: Publish at the main menu reads the game's pads.
 void SetAtMainMenuForTest(std::optional<bool> value);
+// The post-match prompt's WIN (or DRAW) screen (sf4e__NetplayRuntime__Status.cxx).
+bool PostMatchPromptDue();
 void CloseRoom();
 void Apply(netplay::EventKind kind, const std::string& error = {});
 bool CanEditLobby();
@@ -603,6 +607,8 @@ void PublishAndTickDiscordInvite();
 void TickMemberLatency();
 // Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).
 bool FighterSelectorShown(std::uint64_t roomGeneration);
+// Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).
+bool ChatTypingShown(std::uint64_t roomGeneration);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

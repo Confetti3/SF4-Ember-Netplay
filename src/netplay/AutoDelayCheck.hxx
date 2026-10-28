@@ -128,8 +128,10 @@ public:
     bool Holding(std::uint64_t nowMs) const {
         return present_ && recommended_ < 0 && nowMs < holdUntilMs_ && (asked_ || Wanted(nowMs));
     }
-    // The delay Auto readies with against `opponent`.
-    int Delay(const std::string& opponent) const { return AutoInputDelay(Measured(opponent) ? recommended_ : -1); }
+    // The delay Auto readies with against `opponent`, in the player's style.
+    int Delay(const std::string& opponent, AutoDelayStyle style = AutoDelayStyle::Balanced) const {
+        return AutoInputDelay(Measured(opponent) ? recommended_ : -1, style);
+    }
 
 private:
     void Restart(std::uint64_t nowMs) {

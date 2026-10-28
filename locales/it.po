@@ -757,6 +757,15 @@ msgstr "Gioca offline"
 msgid "home.offline_detail"
 msgstr "Allenamento, Versus, Arcade e le altre modalità offline del gioco."
 
+msgid "training_select.title"
+msgstr "Allenamento"
+
+msgid "training_select.start"
+msgstr "Avvia allenamento"
+
+msgid "training_select.start_detail"
+msgstr "L'allenamento si carica con questi personaggi in questo livello."
+
 msgid "home.replays"
 msgstr "Replay"
 
@@ -1095,6 +1104,21 @@ msgstr "Ritardo input"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Stile Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Come Auto usa il test di connessione. Bilanciato: da 1 a 3 frame. Reattivo: un frame in meno, da 0 a 2, più rollback. Fluido: un frame in più, da 1 a 4, meno rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Bilanciato"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Reattivo"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Fluido"
 
 msgid "room.name"
 msgstr "Nome sala"
@@ -1757,6 +1781,12 @@ msgstr "La tua partita è pronta"
 
 msgid "training.key.detail"
 msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
+
+msgid "training.key.pad_back"
+msgstr "View sul controller"
+
+msgid "training.key.pad_back.detail"
+msgstr "Premere View (Share, Create, Minus, Select) ripristina la posizione, tenerlo premuto la salva. Disattivato lascia View al combattimento, per un plink su un tasto che invia anche View; i tasti sopra funzionano ancora."
 
 msgid "training.dummy.action"
 msgstr "Manichino"
@@ -2815,6 +2845,12 @@ msgstr "{0} ha vinto una partita al tavolo {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} ha vinto il set al tavolo {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} sta scrivendo..."
+msgid "chat.typing.two"
+msgstr "{0} e {1} stanno scrivendo..."
+msgid "chat.typing.many"
+msgstr "Diverse persone stanno scrivendo..."
 
 msgid "room.fighter_options"
 msgstr "Opzioni personaggio"
@@ -2875,6 +2911,39 @@ msgstr "Aggiornamento sala..."
 
 msgid "room.battle_slot"
 msgstr "TAVOLO PARTITA {0}"
+
+msgid "room.table_name"
+msgstr "Nome del tavolo"
+
+msgid "room.table_name.detail"
+msgstr "Appare sulla scheda del tavolo dopo il numero, ad esempio Principianti. Vuoto mostra solo il numero."
+
+msgid "room.template"
+msgstr "Modello"
+
+msgid "room.template.none"
+msgstr "Nessuno"
+
+msgid "room.template.detail"
+msgstr "Una stanza che hai salvato. Imposta le righe qui sotto e, aperta la stanza, le regole e il nome di ogni tavolo. Sinistra e Destra scelgono."
+
+msgid "room.template.delete"
+msgstr "Elimina modello"
+
+msgid "room.template.delete.detail"
+msgstr "Elimina il modello {0} da questo PC."
+
+msgid "room.template.full"
+msgstr "Hai {0} modelli. Eliminane prima uno in Crea stanza."
+
+msgid "room.template.saved"
+msgstr "Salvato come modello {0}."
+
+msgid "room.save_template"
+msgstr "Salva come modello"
+
+msgid "room.save_template.detail"
+msgstr "Conserva le impostazioni di questa stanza, e le regole e il nome di ogni tavolo, su questo PC per Crea stanza > Modello. Lo stesso nome lo sovrascrive."
 
 msgid "room.looking_for_fight"
 msgstr "Cerca una partita"
@@ -4715,6 +4784,72 @@ msgstr "Entrambi i giocatori tornano in fondo alla coda e si siedono i due succe
 
 msgid "rules.rotation.needs_set"
 msgstr "Scegli prima una durata del set. Senza durata nessuno cambia."
+
+msgid "rules.instant_rematch"
+msgstr "Rivincita immediata"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Dopo ogni partita entrambi i lottatori scelgono Rivincita, Seleziona personaggio o Torna alla stanza sulla schermata WIN, per 10 secondi."
+
+msgid "postmatch.choose"
+msgstr "Un'altra?"
+
+msgid "postmatch.waiting_for"
+msgstr "In attesa di {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} vuole la rivincita"
+
+msgid "postmatch.wants_next"
+msgstr "{0} vuole la prossima partita"
+
+msgid "postmatch.starting"
+msgstr "Inizia la prossima partita"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} ha lasciato il posto"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s per scegliere"
+
+msgid "postmatch.rematch"
+msgstr "Rivincita"
+
+msgid "postmatch.next_game"
+msgstr "Prossima partita"
+
+msgid "postmatch.again.detail"
+msgstr "Stessi lottatori e regole. La prossima partita inizia appena la scegliete entrambi, senza tornare alla stanza."
+
+msgid "postmatch.queue_waiting"
+msgstr "Niente rivincita finché qualcuno aspetta in coda."
+
+msgid "postmatch.not_seated"
+msgstr "Non sei più seduto a questo tavolo."
+
+msgid "postmatch.character_select"
+msgstr "Seleziona personaggio"
+
+msgid "postmatch.character_select.detail"
+msgstr "Scegli un altro lottatore nella stanza, poi Pronto."
+
+msgid "postmatch.back"
+msgstr "Torna alla stanza"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Torna alla stanza. Mantieni il posto, non pronto. Nessuna risposta in 10 secondi fa lo stesso."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Lascia il posto e guarda dalla stanza. Nessuna risposta in 10 secondi fa lo stesso."
+
+msgid "postmatch.state.choosing"
+msgstr "Sceglie"
+
+msgid "postmatch.state.ready"
+msgstr "Pronto"
+
+msgid "postmatch.state.left"
+msgstr "Ha lasciato il posto"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

@@ -757,6 +757,15 @@ msgstr "Offline spielen"
 msgid "home.offline_detail"
 msgstr "Training, Versus, Arcade und die anderen Offline-Modi des Spiels."
 
+msgid "training_select.title"
+msgstr "Training"
+
+msgid "training_select.start"
+msgstr "Training starten"
+
+msgid "training_select.start_detail"
+msgstr "Das Training lädt mit diesen Charakteren auf dieser Stage."
+
 msgid "home.replays"
 msgstr "Replays"
 
@@ -1095,6 +1104,21 @@ msgstr "Eingabeverzögerung"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Auto-Stil"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Wie Auto den Verbindungstest nutzt. Ausgewogen: 1 bis 3 Frames. Direkt: ein Frame weniger, 0 bis 2, mehr Rollback. Flüssig: ein Frame mehr, 1 bis 4, weniger Rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Ausgewogen"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Direkt"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Flüssig"
 
 msgid "room.name"
 msgstr "Raumname"
@@ -1757,6 +1781,12 @@ msgstr "Dein Match ist bereit"
 
 msgid "training.key.detail"
 msgstr "Links und Rechts wählen die Taste, die dies im Kampf auslöst. Aus lässt es ohne Taste."
+
+msgid "training.key.pad_back"
+msgstr "View am Pad"
+
+msgid "training.key.pad_back.detail"
+msgstr "Kurz View (Share, Create, Minus, Select) setzt die Position zurück, Halten speichert sie. Aus lässt View dem Kampf, für einen Plink auf einer Taste, die auch View sendet; die Tasten oben funktionieren weiter."
 
 msgid "training.dummy.action"
 msgstr "Dummy"
@@ -2815,6 +2845,12 @@ msgstr "{0} hat ein Spiel an Tisch {1} gewonnen ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} hat den Satz an Tisch {1} gewonnen ({2})"
+msgid "chat.typing.one"
+msgstr "{0} schreibt..."
+msgid "chat.typing.two"
+msgstr "{0} und {1} schreiben..."
+msgid "chat.typing.many"
+msgstr "Mehrere Leute schreiben..."
 
 msgid "room.fighter_options"
 msgstr "Charakter-Optionen"
@@ -2875,6 +2911,39 @@ msgstr "Raum-Update..."
 
 msgid "room.battle_slot"
 msgstr "KAMPFTISCH {0}"
+
+msgid "room.table_name"
+msgstr "Tischname"
+
+msgid "room.table_name.detail"
+msgstr "Steht auf der Tischkarte nach der Nummer, etwa Anfänger. Leer zeigt nur die Nummer."
+
+msgid "room.template"
+msgstr "Vorlage"
+
+msgid "room.template.none"
+msgstr "Keine"
+
+msgid "room.template.detail"
+msgstr "Ein gespeicherter Raum. Er setzt die Zeilen unten und, sobald der Raum offen ist, Regeln und Namen jedes Tisches. Links und Rechts wählen."
+
+msgid "room.template.delete"
+msgstr "Vorlage löschen"
+
+msgid "room.template.delete.detail"
+msgstr "Löscht die Vorlage {0} von diesem PC."
+
+msgid "room.template.full"
+msgstr "Du hast {0} Vorlagen. Lösche zuerst eine unter Raum erstellen."
+
+msgid "room.template.saved"
+msgstr "Als Vorlage {0} gespeichert."
+
+msgid "room.save_template"
+msgstr "Als Vorlage speichern"
+
+msgid "room.save_template.detail"
+msgstr "Speichert die Einstellungen dieses Raums sowie Regeln und Namen jedes Tisches auf diesem PC für Raum erstellen > Vorlage. Derselbe Name überschreibt sie."
 
 msgid "room.looking_for_fight"
 msgstr "Suche nach Kampf"
@@ -4715,6 +4784,72 @@ msgstr "Beide stellen sich hinten in der Warteschlange an, die nächsten zwei se
 
 msgid "rules.rotation.needs_set"
 msgstr "Wähle zuerst eine Satzlänge. Ohne Satzlänge wechselt niemand."
+
+msgid "rules.instant_rematch"
+msgstr "Sofort-Revanche"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Nach jedem Spiel wählen beide Kämpfer auf dem WIN-Bildschirm 10 Sekunden lang Revanche, Charakterauswahl oder Zurück in den Raum."
+
+msgid "postmatch.choose"
+msgstr "Noch eine Runde?"
+
+msgid "postmatch.waiting_for"
+msgstr "Warte auf {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} will eine Revanche"
+
+msgid "postmatch.wants_next"
+msgstr "{0} will das nächste Spiel"
+
+msgid "postmatch.starting"
+msgstr "Nächstes Spiel startet"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} hat den Platz verlassen"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s zum Wählen"
+
+msgid "postmatch.rematch"
+msgstr "Revanche"
+
+msgid "postmatch.next_game"
+msgstr "Nächstes Spiel"
+
+msgid "postmatch.again.detail"
+msgstr "Gleiche Kämpfer und Regeln. Das nächste Spiel startet, sobald ihr beide es wählt, ohne Umweg über den Raum."
+
+msgid "postmatch.queue_waiting"
+msgstr "Keine Revanche, solange jemand in der Warteschlange wartet."
+
+msgid "postmatch.not_seated"
+msgstr "Du sitzt nicht mehr an diesem Tisch."
+
+msgid "postmatch.character_select"
+msgstr "Charakterauswahl"
+
+msgid "postmatch.character_select.detail"
+msgstr "Wähle im Raum einen anderen Kämpfer, dann Bereit."
+
+msgid "postmatch.back"
+msgstr "Zurück in den Raum"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Zurück in den Raum. Du behältst deinen Platz, nicht bereit. Keine Antwort in 10 Sekunden bewirkt dasselbe."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Verlasse deinen Platz und schau im Raum zu. Keine Antwort in 10 Sekunden bewirkt dasselbe."
+
+msgid "postmatch.state.choosing"
+msgstr "Wählt"
+
+msgid "postmatch.state.ready"
+msgstr "Bereit"
+
+msgid "postmatch.state.left"
+msgstr "Platz verlassen"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

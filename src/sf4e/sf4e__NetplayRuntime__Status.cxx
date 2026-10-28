@@ -265,7 +265,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
         fields.leavePending = runtime->leave.leaveRequested;
         fields.terminalPending = runtime->teardown.terminalAckPending;
         fields.authorityWritable = !snapshot.session.coordinated || snapshot.session.authorityWritable;
-        fields.readyRequested = snapshot.readyRequested; fields.readyGate = snapshot.readyGate;
+        fields.readyRequested = snapshot.readyPress != netplay::ReadyPress::None; fields.readyGate = snapshot.readyGate;
         if (runtime->room) fields.probe = runtime->room->Probe().status;
         fields.probeFailure = runtime->room ? runtime->room->Probe().failureReason : 0U;
         fields.probeRoute = snapshot.probeRoute;
@@ -307,6 +307,7 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
     // the menu's Stop watching and the leave it sends agree.
     const bool watchedMatch = WatchedGameNow().Active();
     return atMainMenu ? input::MenuContext::MainMenu :
+        PostMatchPromptDue() ? input::MenuContext::MatchResult :
         training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
         replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
         practiceFight ? input::MenuContext::PracticeMatch :
@@ -343,7 +344,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
-    mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.roomSideWidth); mix(runtime->preferences.roomMemberShare);
+    mix(runtime->preferences.autoDelayStyle); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.roomSideWidth); mix(runtime->preferences.roomMemberShare);
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
@@ -352,6 +353,21 @@ std::uint64_t PublishFingerprint() {
 }
 
 namespace internal {
+// The WIN (or DRAW) screen of a room game this PC fought, once the game's result is
+// known, at a table whose rules ask (room::Rules::instantRematch). A Practice
+// room and a tournament's table have no rematch to offer.
+bool PostMatchPromptDue() {
+    using rSystem = Dimps::Game::Battle::System;
+    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !UserApp::netplay ||
+        !rSystem::staticVars.CurrentBattleFlow || !IsRuntimeMatchEndCommitted()) return false;
+    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
+    if (flow != rSystem::BF__MATCH_RESULT && flow != rSystem::BF__DRAW_RESULT) return false;
+    const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+    const auto table = runtime->entry.enteredTable;
+    return !room.practice && !room.tournament.Active() && table >= 0 && table < static_cast<int>(room.tables.size()) &&
+        room.tables[table].rules.instantRematch;
+}
+
 // This PC is one of the watchers of a game starting or not yet over: a
 // locked-in spectator whose table holds its start for them, a spectator in the
 // roster frozen at the start (the room says Watching), or a member queued at
@@ -629,7 +645,8 @@ PostPublishState Publish() {
         snapshot.delayLocked = gates.delayLocked; snapshot.canProbe = gates.canProbe; snapshot.canApplyDelay = gates.canApplyDelay;
         snapshot.localSlot = gates.localSlot; snapshot.selectedDelay = gates.selectedDelay;
     }
-    snapshot.readyRequested = runtime->readyIntent.Armed();
+    snapshot.readyPress = runtime->readyIntent.Parked() ? netplay::ReadyPress::Held :
+        runtime->readyIntent.Armed() ? netplay::ReadyPress::Sent : netplay::ReadyPress::None;
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
     snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;
@@ -698,6 +715,11 @@ static netplay::LatencyBoardPulse fighterSelector;
 bool FighterSelectorShown(std::uint64_t roomGeneration) {
 	return fighterSelector.Shown(roomGeneration, GetTickCount64());
 }
+// And for a chat draft being written (ApplicationShell::ChatTyping).
+static netplay::LatencyBoardPulse chatTyping;
+bool ChatTypingShown(std::uint64_t roomGeneration) {
+	return chatTyping.Shown(roomGeneration, GetTickCount64());
+}
 
 void TickMemberLatency() {
 	if (!runtime->room) return;
@@ -743,6 +765,10 @@ void NoteLatencyBoard(std::uint64_t roomGeneration) {
 
 void NoteFighterSelector(std::uint64_t roomGeneration) {
 	internal::fighterSelector.Note(roomGeneration, GetTickCount64());
+}
+
+void NoteChatTyping(std::uint64_t roomGeneration) {
+	internal::chatTyping.Note(roomGeneration, GetTickCount64());
 }
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,

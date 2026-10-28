@@ -12,7 +12,8 @@ namespace sf4e { namespace netplay {
 // One set of table rules, whole: ReadTableRules reads it back.
 inline nlohmann::json TableRulesJson(const room::Rules& rules) {
     return {{"format", static_cast<int>(rules.format)}, {"rotation", static_cast<int>(rules.rotation)},
-        {"editionSelect", rules.editionSelect}, {"roundCount", rules.roundCount}, {"roundTime", rules.roundTime}};
+        {"editionSelect", rules.editionSelect}, {"roundCount", rules.roundCount}, {"roundTime", rules.roundTime},
+        {"instantRematch", rules.instantRematch}};
 }
 // The private room's rules sit beside the room's own fields, the public room's under "publicRules".
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
@@ -21,6 +22,19 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     json["publicRules"] = TableRulesJson(value.publicTableRules);
     // Only Own is written; a document without the key reads as Shared.
     if (value.roomDelayPolicy == room::DelayPolicy::Own) json["delay"] = "own";
+    if (!value.roomTemplates.empty()) {
+        auto& templates = json["templates"] = nlohmann::json::array();
+        for (const auto& saved : value.roomTemplates) {
+            auto tables = nlohmann::json::array();
+            for (std::size_t i = 0; i < room::TableCount; ++i) {
+                auto table = TableRulesJson(saved.tables.rules[i]);
+                if (!saved.tables.names[i].empty()) table["name"] = saved.tables.names[i];
+                tables.push_back(std::move(table));
+            }
+            templates.push_back({{"name", saved.name}, {"room", saved.roomName}, {"capacity", saved.capacity}, {"public", saved.isPublic},
+                {"practice", saved.practice}, {"delay", saved.delayPolicy == room::DelayPolicy::Own ? "own" : "shared"}, {"tables", std::move(tables)}});
+        }
+    }
     return json;
 }
 
@@ -31,7 +45,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
 inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     for (const char* key : {"format", "rotation", "roundCount", "roundTime"})
         if (object.contains(key) && !object[key].is_number_integer()) return false;
-    if (object.contains("editionSelect") && !object["editionSelect"].is_boolean()) return false;
+    for (const char* key : {"editionSelect", "instantRematch"})
+        if (object.contains(key) && !object[key].is_boolean()) return false;
     const auto number = [&](const char* key, std::int64_t current, std::int64_t largest, std::int64_t& read) {
         read = object.value(key, current);
         return read >= 0 && read <= largest;
@@ -47,7 +62,35 @@ inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     rules.roundCount = static_cast<std::uint8_t>(rounds);
     rules.roundTime = static_cast<std::uint16_t>(time);
     rules.editionSelect = object.value("editionSelect", rules.editionSelect);
+    rules.instantRematch = object.value("instantRematch", rules.instantRematch);
     return rules.Valid();
+}
+
+// The saved templates; one that cannot be read whole is left out, so the
+// others and the room defaults still load.
+inline std::vector<RoomTemplate> ReadRoomTemplates(const nlohmann::json& defaults) {
+    std::vector<RoomTemplate> templates;
+    const auto list = defaults.find("templates");
+    if (list == defaults.end() || !list->is_array()) return templates;
+    for (const auto& item : *list) {
+        if (templates.size() == MaxRoomTemplates) break;
+        try {
+            RoomTemplate saved;
+            saved.name = item.at("name").get<std::string>(); saved.roomName = item.at("room").get<std::string>();
+            saved.capacity = item.at("capacity").get<int>(); saved.isPublic = item.at("public").get<bool>();
+            saved.practice = item.value("practice", false);
+            saved.delayPolicy = item.value("delay", std::string()) == "own" ? room::DelayPolicy::Own : room::DelayPolicy::Shared;
+            const auto& tables = item.at("tables");
+            if (!tables.is_array() || tables.size() != room::TableCount) continue;
+            bool read = true;
+            for (std::size_t i = 0; i < room::TableCount && read; ++i) {
+                read = tables[i].is_object() && ReadTableRules(tables[i], saved.tables.rules[i]);
+                if (read && tables[i].contains("name")) saved.tables.names[i] = tables[i].at("name").get<std::string>();
+            }
+            if (read && saved.Valid()) templates.push_back(std::move(saved));
+        } catch (const nlohmann::json::exception&) {}
+    }
+    return templates;
 }
 
 inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreferences& value) {
@@ -75,6 +118,7 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         if (!ReadTableRules(defaults, candidate.tableRules)) return false;
         if (defaults.contains("publicRules") &&
             (!defaults["publicRules"].is_object() || !ReadTableRules(defaults["publicRules"], candidate.publicTableRules))) return false;
+        candidate.roomTemplates = ReadRoomTemplates(defaults);
         if (!candidate.Valid()) return false;
         value = std::move(candidate);
         return true;

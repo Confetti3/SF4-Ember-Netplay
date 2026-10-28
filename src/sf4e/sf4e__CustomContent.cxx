@@ -127,6 +127,18 @@ void UseAppearance(const selection::Appearance& appearance) {
     }
 }
 
+void ShowInstalledLooks(Dimps::GameEvents::VsMode::ConfirmedCharaConditions (&sides)[2]) {
+    const selection::Look picks[2] = {
+        selection::Look(sides[0].charaID, sides[0].costume, sides[0].color),
+        selection::Look(sides[1].charaID, sides[1].costume, sides[1].color) };
+    const auto appearance = selection::ResolveAppearance(picks, *Installed());
+    UseAppearance(appearance);
+    for (int i = 0; i < 2; i++) {
+        sides[i].costume = static_cast<std::uint8_t>(appearance.shown[i].costume);
+        sides[i].color = static_cast<std::uint8_t>(appearance.shown[i].color);
+    }
+}
+
 void EndBattle() {
     costumeSwaps = {};
     colorSwaps = {};

@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
+. (Join-Path $PSScriptRoot 'PackageGuide.ps1')
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('sf4-build-guard-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $fixture | Out-Null
 $source = Join-Path $fixture 'source'
@@ -229,3 +230,12 @@ Write-Output 'PASS the compiler environment is entered once per installation and
 # The receipt names what the default test run leaves out; build-current.ps1 and run-package-tests.ps1 share this string.
 if ($EmberExcludedTests -cne 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke') { throw 'The default test exclusions changed; the build receipt and docs name them' }
 Write-Output 'PASS the default test exclusions are the ones the receipt names'
+# The packaged guides drop every picture, and one they cannot drop stops the build.
+$repo = Split-Path $PSScriptRoot -Parent
+$docs = [string[]]@(& git -C $repo ls-files '*.md')
+if ($LASTEXITCODE -or !$docs) { throw 'No tracked Markdown files to check' }
+foreach ($doc in $docs) { Get-PackageGuide (Join-Path $repo $doc) | Out-Null }
+[IO.File]::WriteAllText((Join-Path $fixture 'inline.md'), 'Step one ![Home](../images/home.webp)')
+try { Get-PackageGuide (Join-Path $fixture 'inline.md') | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike '*keeps a picture*') { throw } }
+Write-Output 'PASS package guide drops its pictures'

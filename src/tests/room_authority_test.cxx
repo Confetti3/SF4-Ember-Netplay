@@ -657,6 +657,78 @@ static void TestChatAfterSenderLeaves() {
 	EXPECT(readable && parsed.chat.empty());
 }
 
+// Typing is shown to the others for TypingMs, ended by a stop or a message, at
+// most a start a second, moves no revision, and is never checkpointed.
+static void TestTyping() {
+	RoomAuthority authority("Typing", 8, 314);
+	authority.AdvanceTime(1000);
+	const auto host = Join(authority, 0, true), guest = Join(authority, 1);
+	// Typing moves no revision, so TableAction's ids would repeat.
+	std::uint64_t next = 100000;
+	const auto say = [&](MemberId member, bool typing) {
+		auto action = TableAction(authority, member, 0, ActionKind::Typing);
+		action.typing = typing;
+		action.actionId = ++next;
+		return authority.Apply(member, action);
+	};
+	const auto shown = [&](MemberId member) { return FindMember(authority.SnapshotFor(host), member)->typingMs; };
+	const auto revision = authority.SnapshotView().revision;
+	CHECK(!shown(guest));
+	CHECK(say(guest, true).accepted && shown(guest) == TypingMs && authority.SnapshotView().revision == revision);
+	// Stamped per recipient: the room's own state and checkpoints keep none.
+	CHECK(!FindMember(authority.SnapshotCopy(), guest)->typingMs);
+	CHECK(authority.Checkpoint().dump().find("typing") == std::string::npos);
+	authority.AdvanceTime(1500);
+	CHECK(shown(guest) == TypingMs - 500 && !shown(host));
+	// A second start within the second is refused; after it, it shows for TypingMs again.
+	authority.AdvanceTime(1900);
+	CHECK(say(guest, true).reason == RejectReason::InvalidChat && shown(guest) == TypingMs - 900);
+	authority.AdvanceTime(2000);
+	CHECK(say(guest, true).accepted && shown(guest) == TypingMs);
+	// It runs out by itself.
+	authority.AdvanceTime(2000 + TypingMs);
+	CHECK(!shown(guest));
+	// A stop ends it, and a stop with nothing to stop is refused, so neither can be sent over and over.
+	CHECK(say(guest, false).reason == RejectReason::InvalidChat);
+	CHECK(say(guest, true).accepted && say(guest, false).accepted && !shown(guest));
+	CHECK(!say(guest, false).accepted);
+	// A message from the member ends it; another member's does not.
+	authority.AdvanceTime(9000);
+	CHECK(say(guest, true).accepted && say(host, true).accepted);
+	auto chat = TableAction(authority, guest, 0, ActionKind::Chat);
+	chat.text = "hello";
+	chat.actionId = ++next;
+	CHECK(authority.Apply(guest, chat).accepted && !shown(guest) && shown(host));
+	// On the wire: as "locked", written only when set, and capped rather than refused when a newer peer says more.
+	auto action = TableAction(authority, guest, 0, ActionKind::Typing);
+	action.typing = true;
+	const nlohmann::json wire = action;
+	CHECK(wire.at("locked").get<bool>());
+	const Action back = wire.get<Action>();
+	CHECK(back.kind == ActionKind::Typing && back.typing && !back.locked);
+	nlohmann::json sent = authority.SnapshotFor(guest);
+	int written = 0;
+	for (auto& member : sent.at("members")) {
+		written += member.contains("typing_ms");
+		if (member.at("id") == host) member["typing_ms"] = TypingMs * 10;
+	}
+	CHECK(written == 1 && FindMember(sent.get<Snapshot>(), host)->typingMs == TypingMs);
+	// An older peer's snapshot reads as nobody typing, and a kind past ours is still refused.
+	for (auto& member : sent.at("members")) member.erase("typing_ms");
+	CHECK(!FindMember(sent.get<Snapshot>(), host)->typingMs);
+	nlohmann::json unknown = wire;
+	unknown["kind"] = static_cast<int>(LastActionKind) + 1;
+	bool refused = false;
+	try { (void)unknown.get<Action>(); } catch (const std::exception&) { refused = true; }
+	CHECK(refused);
+	// Paused for recovery, nobody shows as typing, and a member who leaves takes it with them.
+	authority.PauseForRecovery();
+	CHECK(!shown(host));
+	authority.ResumeRecovery(10000);
+	CHECK(say(guest, true).accepted && authority.Leave(guest).accepted);
+	CHECK(!say(guest, true).accepted);
+}
+
 static void TestSpectatorDoesNotHoldTable() {
 	RoomAuthority authority("Spectator retirement", 8, 312);
 	Join(authority, 0, true);
@@ -878,7 +950,29 @@ static void TestProbePairCommitted() {
 	EXPECT(!ProbePairCommitted(seated, watched) && !ProbePairCommitted(watched, seated) && ProbePairCommitted(watched, watched));
 }
 
+// The host names a table, during a game too; the name crosses the wire and a
+// checkpoint, an unnamed table carries no key, and nobody else can name one.
+static void TestTableName() {
+    RoomAuthority authority("Names", 16, 93);
+    const auto host = Join(authority, 0, true), guest = Join(authority, 1);
+    const auto named = [&](MemberId member, std::string text, std::uint64_t id) {
+        auto action = TableAction(authority, member, 1, ActionKind::NameTable);
+        action.text = std::move(text); action.actionId += id;
+        return authority.Apply(member, action).accepted;
+    };
+    CHECK(named(host, "Beginners", 0) && authority.SnapshotView().tables[1].name == "Beginners");
+    CHECK(!named(guest, "Mine", 10) && !named(host, std::string(MaximumTableNameBytes + 1, 'a'), 20) && !named(host, "Two\nlines", 30));
+    CHECK(authority.SnapshotView().tables[1].name == "Beginners");
+    const auto wire = nlohmann::json(authority.SnapshotFor(guest));
+    CHECK(wire["tables"][1]["name"] == "Beginners" && !wire["tables"][0].contains("name"));
+    CHECK(wire.get<Snapshot>().tables[1].name == "Beginners");
+    RoomAuthority replica("Replica");
+    CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())) && replica.SnapshotView().tables[1].name == "Beginners");
+    CHECK(named(host, "", 40) && authority.SnapshotView().tables[1].name.empty());
+}
+
 int main() {
+    TestTableName();
     TestProfileMain();
     TestReadyDelaysShareTheHigherValue();
     TestReadyDelayZero();
@@ -968,6 +1062,7 @@ int main() {
 	TestSpectatorDoesNotHoldTable();
 	TestPlaceAndSeatRules();
 	TestChatAfterSenderLeaves();
+	TestTyping();
 	TestFighterAbandonsDisputedResult();
 	TestSnapshotBound();
 	TestDepartureRecoveryAndSnapshotValidation();

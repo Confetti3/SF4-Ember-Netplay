@@ -101,6 +101,15 @@ static void InputDelayMigrations(const Path& root) {
     missing.inputDelay = 7;
     sf4e::netplay::ReadInputDelayPreference({{"autoInputDelay", false}}, missing);
     CHECK(missing.inputDelay == sf4e::DefaultInputDelay && !missing.autoInputDelay);
+    // Auto's style loads only as a style this build knows; anything else is Balanced.
+    for (const Json style : {Json(1), Json(2)}) {
+        PlayerPreferences styled; sf4e::netplay::ReadInputDelayPreference({{"autoDelayStyle", style}}, styled);
+        CHECK(styled.autoDelayStyle == style.get<int>());
+    }
+    for (const Json style : {Json(3), Json(-1), Json(1.5), Json("2"), Json(18446744073709551615ull)}) {
+        PlayerPreferences styled; styled.autoDelayStyle = 2; sf4e::netplay::ReadInputDelayPreference({{"autoDelayStyle", style}}, styled);
+        CHECK(styled.autoDelayStyle == 0);
+    }
     // Saving and loading keeps each choice as it was: the game writes both keys.
     for (const bool on : {true, false}) for (int number : {0, 1, 3}) {
         const auto again = LoadDelay(root, L"delay-round-" + std::to_wstring(on) + L"-" + std::to_wstring(number),
@@ -571,6 +580,7 @@ int main() {
     defaults.publicTableRules.rotation = sf4e::room::RotationMode::LoserStays;
     defaults.publicTableRules.roundCount = 5;
     defaults.publicTableRules.roundTime = 60;
+    defaults.tableRules.instantRematch = false;
     CHECK(asyncStore.SaveLauncher({{"roomDefaults", sf4e::netplay::RoomPreferences(defaults)}}, error));
     CHECK(asyncStore.SaveLauncher({{"inputDelay", 4}}, error));
     CHECK(asyncStore.LoadLauncher(result, error));
@@ -579,7 +589,35 @@ int main() {
     CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12 && restored.roomPublic &&
         restored.tableRules.format == sf4e::room::SetFormat::Ft10 && restored.tableRules.rotation == sf4e::room::RotationMode::BothRotate);
     CHECK(restored.publicTableRules == defaults.publicTableRules && !(restored.publicTableRules == restored.tableRules));
-    CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.roundTime == 9999);
+    CHECK(restored.tableRules == defaults.tableRules && restored.tableRules.roundTime == 9999 && !restored.tableRules.instantRematch);
+    // Defaults saved before Instant rematch existed have it on.
+    {
+        auto older = result;
+        older["roomDefaults"].erase("instantRematch");
+        sf4e::netplay::PlayerPreferences fromOlder;
+        CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules.instantRematch);
+    }
+    // Room templates keep each table's rules and name; one that cannot be read
+    // whole is left out, and the defaults and the other templates still load.
+    {
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Friday casuals"; saved.roomName = "Casuals"; saved.capacity = 12; saved.practice = true;
+        saved.delayPolicy = sf4e::room::DelayPolicy::Own;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        saved.tables.rules[1].format = sf4e::room::SetFormat::Ft3; saved.tables.names[1] = "Beginners";
+        auto withTemplates = defaults; withTemplates.roomTemplates = {saved};
+        Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(withTemplates)}};
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomTemplates.size() == 1 && read.roomTemplates[0] == saved);
+        auto broken = document["roomDefaults"]["templates"][0];
+        broken["tables"].erase(0);
+        document["roomDefaults"]["templates"].insert(document["roomDefaults"]["templates"].begin(), broken);
+        document["roomDefaults"]["templates"].push_back(Json{{"name", 3}});
+        sf4e::netplay::PlayerPreferences partly;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, partly) && partly.roomTemplates.size() == 1 && partly.roomTemplates[0] == saved &&
+            partly.roomName == "Friday room");
+        CHECK(!Json(sf4e::netplay::RoomPreferences(defaults)).contains("templates"));
+    }
     // A Practice room is chosen for one room on Create, never kept with the defaults.
     for (const auto* saved : {&result["roomDefaults"], &result["roomDefaults"]["publicRules"]})
         CHECK(!saved->contains("practice") && !saved->contains("training") && !saved->contains("timeBeforePractice"));
@@ -629,7 +667,7 @@ int main() {
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},
-        Json{{"roundTime", 120}}}) {
+        Json{{"roundTime", 120}}, Json{{"instantRematch", 1}}}) {
         CHECK(!sf4e::netplay::ReadRoomPreferences({{"roomDefaults", invalid}}, restored));
         CHECK(restored.roomName == "Friday room" && restored.roomCapacity == 12);
     }

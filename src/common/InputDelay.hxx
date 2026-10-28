@@ -12,8 +12,8 @@ constexpr int InputDelayWireCeiling = 10;
 // records Ready and the connection check all share it.
 constexpr int MaximumInputDelay = 5;
 static_assert(MaximumInputDelay <= InputDelayWireCeiling, "a choice always fits the wire");
-// The smallest. 0 adds no delay and is only ever a player's own choice: the
-// connection check never recommends it and Auto never readies with it.
+// The smallest. 0 adds no delay: the connection check never recommends it,
+// and Auto readies with it only in its Responsive style.
 constexpr int MinimumInputDelay = 0;
 // Where a new profile's chosen delay starts, and what a saved delay that is
 // not a whole number from 0 to InputDelayWireCeiling loads as
@@ -27,13 +27,28 @@ constexpr int RecommendedInputDelayMinimum = 1;
 constexpr int AutoInputDelayMinimum = 1;
 constexpr int AutoInputDelayMaximum = 3;
 static_assert(AutoInputDelayMaximum <= MaximumInputDelay, "Auto stays within the choice");
-static_assert(AutoInputDelayMinimum >= RecommendedInputDelayMinimum, "Auto never readies at 0 frames");
+static_assert(AutoInputDelayMinimum >= RecommendedInputDelayMinimum, "Balanced Auto never readies at 0 frames");
+// How Auto turns the recommendation into a delay, the player's choice:
+// Balanced takes it within AutoInputDelayMinimum to AutoInputDelayMaximum;
+// Responsive one frame less, from 0 to 2, so a close opponent plays at 0 and
+// rolls back more; Smooth one frame more, from 1 to 4, for fewer rollbacks.
+enum class AutoDelayStyle : int { Balanced = 0, Responsive, Smooth };
+constexpr int AutoDelayStyles = 3;
+struct AutoDelayRange { int minimum, maximum, shift; };
+constexpr AutoDelayRange AutoInputDelayRange(AutoDelayStyle style) {
+    return style == AutoDelayStyle::Responsive ? AutoDelayRange{MinimumInputDelay, 2, -1} :
+        style == AutoDelayStyle::Smooth ? AutoDelayRange{AutoInputDelayMinimum, 4, 1} :
+        AutoDelayRange{AutoInputDelayMinimum, AutoInputDelayMaximum, 0};
+}
+static_assert(AutoInputDelayRange(AutoDelayStyle::Smooth).maximum <= MaximumInputDelay, "Auto stays within the choice");
 // The delay Auto readies with. Without a recommendation (-1) it is the
-// default, where a chosen delay starts.
-constexpr int AutoInputDelay(int recommended) {
+// default, where a chosen delay starts, in every style.
+constexpr int ClampAutoDelay(int delay, AutoDelayRange range) {
+    return delay < range.minimum ? range.minimum : delay > range.maximum ? range.maximum : delay;
+}
+constexpr int AutoInputDelay(int recommended, AutoDelayStyle style = AutoDelayStyle::Balanced) {
     return recommended < 0 || recommended > InputDelayWireCeiling ? DefaultInputDelay :
-        recommended < AutoInputDelayMinimum ? AutoInputDelayMinimum :
-        recommended > AutoInputDelayMaximum ? AutoInputDelayMaximum : recommended;
+        ClampAutoDelay(recommended + AutoInputDelayRange(style).shift, AutoInputDelayRange(style));
 }
 
 // The delay a round trip of `rttMs` asks for: one frame through 80 ms, then

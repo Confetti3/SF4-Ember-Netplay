@@ -757,6 +757,15 @@ msgstr "Jugar sin conexión"
 msgid "home.offline_detail"
 msgstr "Entrenamiento, Versus, Arcade y los demás modos sin conexión del juego."
 
+msgid "training_select.title"
+msgstr "Entrenamiento"
+
+msgid "training_select.start"
+msgstr "Empezar entrenamiento"
+
+msgid "training_select.start_detail"
+msgstr "El entrenamiento se carga con estos personajes en esta fase."
+
 msgid "home.replays"
 msgstr "Repeticiones"
 
@@ -1095,6 +1104,21 @@ msgstr "Retr. entrada"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Estilo de Auto"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "Cómo usa Auto la prueba de conexión. Equilibrado: de 1 a 3 frames. Reactivo: un frame menos, de 0 a 2, más rollback. Fluido: un frame más, de 1 a 4, menos rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Equilibrado"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Reactivo"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Fluido"
 
 msgid "room.name"
 msgstr "Nombre"
@@ -1757,6 +1781,12 @@ msgstr "Tu partida está lista"
 
 msgid "training.key.detail"
 msgstr "Izquierda y Derecha eligen la tecla que hace esto durante el combate. Desactivado la deja sin tecla."
+
+msgid "training.key.pad_back"
+msgstr "View en el mando"
+
+msgid "training.key.pad_back.detail"
+msgstr "Pulsar View (Share, Create, Minus, Select) restablece la posición y mantenerlo la guarda. Desactivado deja View al combate, para un plink con un botón que también envía View; las teclas de arriba siguen funcionando."
 
 msgid "training.dummy.action"
 msgstr "Muñeco"
@@ -2816,6 +2846,12 @@ msgstr "{0} ha ganado una partida en la mesa {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} ha ganado el set en la mesa {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} está escribiendo..."
+msgid "chat.typing.two"
+msgstr "{0} y {1} están escribiendo..."
+msgid "chat.typing.many"
+msgstr "Varias personas están escribiendo..."
 
 msgid "room.fighter_options"
 msgstr "Opciones del personaje"
@@ -2876,6 +2912,39 @@ msgstr "Actualizando sala..."
 
 msgid "room.battle_slot"
 msgstr "MESA DE COMBATE {0}"
+
+msgid "room.table_name"
+msgstr "Nombre de la mesa"
+
+msgid "room.table_name.detail"
+msgstr "Se muestra en la tarjeta de la mesa tras su número, por ejemplo Principiantes. Vacío muestra solo el número."
+
+msgid "room.template"
+msgstr "Plantilla"
+
+msgid "room.template.none"
+msgstr "Ninguna"
+
+msgid "room.template.detail"
+msgstr "Una sala que guardaste. Ajusta las filas de abajo y, al abrir la sala, las reglas y el nombre de cada mesa. Izquierda y Derecha eligen."
+
+msgid "room.template.delete"
+msgstr "Borrar plantilla"
+
+msgid "room.template.delete.detail"
+msgstr "Borra la plantilla {0} de este PC."
+
+msgid "room.template.full"
+msgstr "Tienes {0} plantillas. Borra una en Crear sala primero."
+
+msgid "room.template.saved"
+msgstr "Guardada como la plantilla {0}."
+
+msgid "room.save_template"
+msgstr "Guardar como plantilla"
+
+msgid "room.save_template.detail"
+msgstr "Guarda los ajustes de esta sala, y las reglas y el nombre de cada mesa, en este PC para Crear sala > Plantilla. El mismo nombre la sobrescribe."
 
 msgid "room.looking_for_fight"
 msgstr "Buscando rival"
@@ -4716,6 +4785,72 @@ msgstr "Los dos jugadores vuelven al final de la cola y se sientan los dos sigui
 
 msgid "rules.rotation.needs_set"
 msgstr "Elige primero una duración de set. Sin duración nadie cambia."
+
+msgid "rules.instant_rematch"
+msgstr "Revancha inmediata"
+
+msgid "rules.instant_rematch.detail"
+msgstr "Tras cada partida, los dos luchadores eligen Revancha, Selección de personaje o Volver a la sala en la pantalla WIN, durante 10 segundos."
+
+msgid "postmatch.choose"
+msgstr "¿Otra?"
+
+msgid "postmatch.waiting_for"
+msgstr "Esperando a {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} quiere la revancha"
+
+msgid "postmatch.wants_next"
+msgstr "{0} quiere la siguiente partida"
+
+msgid "postmatch.starting"
+msgstr "Empieza la siguiente partida"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} ha dejado el asiento"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s para elegir"
+
+msgid "postmatch.rematch"
+msgstr "Revancha"
+
+msgid "postmatch.next_game"
+msgstr "Siguiente partida"
+
+msgid "postmatch.again.detail"
+msgstr "Mismos luchadores y reglas. La siguiente partida empieza en cuanto los dos la elijáis, sin volver a la sala."
+
+msgid "postmatch.queue_waiting"
+msgstr "No hay revancha mientras alguien espera en la cola."
+
+msgid "postmatch.not_seated"
+msgstr "Ya no estás sentado en esta mesa."
+
+msgid "postmatch.character_select"
+msgstr "Selección de personaje"
+
+msgid "postmatch.character_select.detail"
+msgstr "Elige otro luchador en la sala y marca Listo."
+
+msgid "postmatch.back"
+msgstr "Volver a la sala"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Volver a la sala. Conservas tu asiento, sin Listo. No responder en 10 segundos hace lo mismo."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Deja tu asiento y mira desde la sala. No responder en 10 segundos hace lo mismo."
+
+msgid "postmatch.state.choosing"
+msgstr "Eligiendo"
+
+msgid "postmatch.state.ready"
+msgstr "Listo"
+
+msgid "postmatch.state.left"
+msgstr "Dejó el asiento"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

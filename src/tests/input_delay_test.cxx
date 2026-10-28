@@ -17,6 +17,21 @@ int main() {
             AutoInputDelay(recommended) > 0);
     // No recommendation, or one outside the wire range, is a new profile's two frames.
     CHECK(AutoInputDelay(-1) == DefaultInputDelay && AutoInputDelay(InputDelayWireCeiling + 1) == DefaultInputDelay && DefaultInputDelay == 2);
+    // The styles: Responsive is one frame less from 0 to 2, so a close
+    // opponent plays at 0; Smooth one more from 1 to 4. With no
+    // recommendation every style readies at the default.
+    using S = AutoDelayStyle;
+    CHECK(AutoInputDelay(1, S::Responsive) == 0 && AutoInputDelay(2, S::Responsive) == 1 && AutoInputDelay(3, S::Responsive) == 2 &&
+        AutoInputDelay(5, S::Responsive) == 2);
+    CHECK(AutoInputDelay(1, S::Smooth) == 2 && AutoInputDelay(3, S::Smooth) == 4 && AutoInputDelay(5, S::Smooth) == 4 &&
+        AutoInputDelay(0, S::Smooth) == 1);
+    for (const S style : {S::Balanced, S::Responsive, S::Smooth}) {
+        CHECK(AutoInputDelay(-1, style) == DefaultInputDelay && AutoInputDelay(InputDelayWireCeiling + 1, style) == DefaultInputDelay);
+        for (int recommended = 0; recommended <= InputDelayWireCeiling; ++recommended)
+            CHECK(AutoInputDelay(recommended, style) >= AutoInputDelayRange(style).minimum &&
+                AutoInputDelay(recommended, style) <= AutoInputDelayRange(style).maximum && AutoInputDelay(recommended, style) <= MaximumInputDelay);
+    }
+    CHECK(AutoInputDelay(2, S::Balanced) == AutoInputDelay(2));
     // The round trip bands are the connection check's (recovery.rs, tests
     // probe_delay_uses_player_bands and probe_delay_tolerates_one_worse_tail_band
     // pin these edges in microseconds): change them together.

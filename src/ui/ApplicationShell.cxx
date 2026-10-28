@@ -114,6 +114,8 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
+    // Opened from a template: the runtime sets its tables once the room is up.
+    if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
     // A room opened here is not the public one the panel joined.
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
@@ -247,6 +249,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows.push_back(std::move(relay));rows.push_back(std::move(network));
  }else if(screen=="create"||screen=="defaults"){
   rows=RoomSetupRows(v,screen,opening,reason,title);
+ }else if(screen=="training"){
+  rows=TrainingSelectRows(v,title);
  }else if(screen=="join"){
   title=loc::T("room.join_title");rows={Row("paste",loc::T("room.paste_invitation"),loc::T("room.paste_invitation_detail"),v.canOpenRoom),
    opening?ConfirmRow("cancel-open",loc::T("room.stop_joining_action"),loc::T("room.stop_joining"),true):Row("join-now",loc::T("online.join"),loc::T("room.join_pasted"),v.canOpenRoom&&invitation_[0]),
@@ -408,7 +412,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    const bool local=id==v.room.localMember;
    if(member!=v.room.members.end())NoteUserText(member->name);
    return (local?std::string(loc::T("room.you")):member==v.room.members.end()?std::string(loc::T("room.player")):member->name)+
-    (table.ready[side]&&!finishedGame?loc::T("room.ready_suffix"):local&&v.readyRequested?loc::T("room.readying_suffix"):loc::T("room.not_ready_suffix"));
+    (table.ready[side]&&!finishedGame?loc::T("room.ready_suffix"):local&&v.readyPress!=netplay::ReadyPress::None?loc::T("room.readying_suffix"):loc::T("room.not_ready_suffix"));
   };
   status=state(table.p1,0)+" | "+state(table.p2,1);
   // Table phases carry their own tone: an unresolved result is a problem
@@ -507,10 +511,11 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  // A choice is saved like any setting, and the picker closes on it.
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
+ else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers")nav.Push(a.id);
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
- else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host")CreateActivate(a,v,submit);
+ else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host"||a.id=="delete-template")CreateActivate(a,v,submit);
  else if(a.id=="settings"||a.id=="about"||a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="defaults"||a.id=="interface"||a.id=="training-replays"||a.id=="discord"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="problem-reports"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -567,6 +572,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
+  else if(a.id=="auto-style")preferences_.autoDelayStyle=(std::max)(0,(std::min)(AutoDelayStyles-1,preferences_.autoDelayStyle+a.delta));
   else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));
   else if(a.id=="hud-name-offset")preferences_.matchHudNameOffset=(std::max)(-netplay::MaxMatchHudNameOffset,(std::min)(netplay::MaxMatchHudNameOffset,preferences_.matchHudNameOffset+2*a.delta));
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
@@ -625,6 +631,7 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  if(preferencesDirty_&&OnlyRoomSettingsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
+ UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
@@ -671,6 +678,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   noticeUntil_ = RebaseUiTimestamp(noticeUntil_, lastUiTime_, now);
   shortCopyUntil_ = RebaseUiTimestamp(shortCopyUntil_, lastUiTime_, now);
   roomUpdateUntil_ = RebaseUiTimestamp(roomUpdateUntil_, lastUiTime_, now);
+  if(postMatch_)postMatch_->until = RebaseUiTimestamp(postMatch_->until, lastUiTime_, now);
   roomUpdateStarted_ = -1;
  }
  lastUiTime_ = now;
@@ -694,6 +702,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   languageDirty_=false;
  }
  UpdateRoomTransitions(v,now);
+ UpdatePostMatch(v,v.room,now,submit,open);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
  UpdateChat(v,submit);
@@ -786,10 +795,16 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // After every other source of a notice this frame, so the question never takes a place they are about to.
  UpdateLaunchCheck(v,now,submit);
  const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(vp->Pos);ImGui::SetNextWindowSize(vp->Size);
+ const bool postMatchScreen=nav.Screen()=="post-match";
+ if(postMatchScreen){
+  // A panel in the middle of the WIN screen, which stays in sight around it.
+  const ImVec2 size((std::min)(vp->Size.x-32*Scale(),720*Scale()),(std::min)(vp->Size.y-32*Scale(),600*Scale()));
+  ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+(vp->Size.x-size.x)/2,vp->Pos.y+(vp->Size.y-size.y)/2));ImGui::SetNextWindowSize(size);
+ }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
- menu_.backInert=false;menu_.backdrop=!v.SeeThrough();
+ menu_.backInert=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // The wide room board shows the picture at the top of its column instead (DrawRoomBoard).
  if(v.watchedPicture&&!(nav.Screen()=="room"&&boardLayout_!=BoardLayout::Stacked&&(!preferences_.roomMembersHidden||!preferences_.roomChatHidden)))
@@ -814,6 +829,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::End();ImGui::PopStyleVar(2);return;
  }
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
+ if(screen=="post-match"){DrawPostMatch(v,now,submit,open);ImGui::End();ImGui::PopStyleVar(2);return;}
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
   if(intent.service!=platform::ServiceAction::None){

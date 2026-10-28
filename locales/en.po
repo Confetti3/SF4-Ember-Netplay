@@ -757,6 +757,15 @@ msgstr "Play offline"
 msgid "home.offline_detail"
 msgstr "Training, Versus, Arcade and the game's other offline modes."
 
+msgid "training_select.title"
+msgstr "Training"
+
+msgid "training_select.start"
+msgstr "Start Training"
+
+msgid "training_select.start_detail"
+msgstr "Training loads with these fighters on this stage."
+
 msgid "home.replays"
 msgstr "Replays"
 
@@ -1095,6 +1104,21 @@ msgstr "Input delay"
 
 msgid "settings.input_delay.auto"
 msgstr "Auto"
+
+msgid "settings.auto_delay_style"
+msgstr "Auto style"
+
+msgid "settings.auto_delay_style.detail"
+msgstr "How Auto uses the connection check. Balanced: 1 to 3 frames. Responsive: one frame less, 0 to 2, more rollback. Smooth: one frame more, 1 to 4, less rollback."
+
+msgid "settings.auto_delay_style.balanced"
+msgstr "Balanced"
+
+msgid "settings.auto_delay_style.responsive"
+msgstr "Responsive"
+
+msgid "settings.auto_delay_style.smooth"
+msgstr "Smooth"
 
 msgid "room.name"
 msgstr "Room name"
@@ -1757,6 +1781,12 @@ msgstr "Your match is ready"
 
 msgid "training.key.detail"
 msgstr "Left and Right pick the key that does this over the fight. Off leaves it without one."
+
+msgid "training.key.pad_back"
+msgstr "View on the pad"
+
+msgid "training.key.pad_back.detail"
+msgstr "A tap of View (Share, Create, Minus, Select) resets the position and a hold saves it. Off leaves View to the fight, for a plink on a button that also sends View; the keys above still work."
 
 msgid "training.dummy.action"
 msgstr "Dummy"
@@ -2707,6 +2737,12 @@ msgid "chat.event.game_won"
 msgstr "{0} won a game at slot {1} ({2})"
 msgid "chat.event.set_won"
 msgstr "{0} won the set at slot {1} ({2})"
+msgid "chat.typing.one"
+msgstr "{0} is typing..."
+msgid "chat.typing.two"
+msgstr "{0} and {1} are typing..."
+msgid "chat.typing.many"
+msgstr "Several people are typing..."
 msgid "room.fighter_options"
 msgstr "Fighter options"
 
@@ -2798,6 +2834,39 @@ msgid "room.replacement_opening"
 msgstr "Replacement room opening. Choose Copy invitation and send the new link. The old one no longer works."
 msgid "room.action_rejected"
 msgstr "The room changed or rejected this action. Review the current state and try again."
+
+msgid "room.table_name"
+msgstr "Table name"
+
+msgid "room.table_name.detail"
+msgstr "Shown on the table's card after its number, such as Beginners. Empty shows only the number."
+
+msgid "room.template"
+msgstr "Template"
+
+msgid "room.template.none"
+msgstr "None"
+
+msgid "room.template.detail"
+msgstr "A room you saved. It sets the rows below, and each table's rules and name once the room is open. Left and Right choose."
+
+msgid "room.template.delete"
+msgstr "Delete template"
+
+msgid "room.template.delete.detail"
+msgstr "Deletes the template {0} from this PC."
+
+msgid "room.template.full"
+msgstr "You have {0} templates. Delete one on Create room first."
+
+msgid "room.template.saved"
+msgstr "Saved as the template {0}."
+
+msgid "room.save_template"
+msgstr "Save as template"
+
+msgid "room.save_template.detail"
+msgstr "Keeps this room's settings, and each table's rules and name, on this PC for Create room > Template. The same name saves over it."
 
 msgid "room.leave_current_table"
 msgstr "Leave your current table first."
@@ -4347,6 +4416,72 @@ msgstr "Both players go to the back of the queue and the next two sit down."
 
 msgid "rules.rotation.needs_set"
 msgstr "Choose a set length first. With no set length nobody rotates."
+
+msgid "rules.instant_rematch"
+msgstr "Instant rematch"
+
+msgid "rules.instant_rematch.detail"
+msgstr "After each game both fighters choose Rematch, Character select or Back to room over the WIN screen, for 10 seconds."
+
+msgid "postmatch.choose"
+msgstr "Play again?"
+
+msgid "postmatch.waiting_for"
+msgstr "Waiting for {0}"
+
+msgid "postmatch.wants_rematch"
+msgstr "{0} wants a rematch"
+
+msgid "postmatch.wants_next"
+msgstr "{0} wants the next game"
+
+msgid "postmatch.starting"
+msgstr "Starting the next game"
+
+msgid "postmatch.opponent_left"
+msgstr "{0} left the seat"
+
+msgid "postmatch.seconds_left"
+msgstr "{0} s to choose"
+
+msgid "postmatch.rematch"
+msgstr "Rematch"
+
+msgid "postmatch.next_game"
+msgstr "Next game"
+
+msgid "postmatch.again.detail"
+msgstr "Same fighters and rules. The next game starts as soon as both of you choose it, without going back to the room."
+
+msgid "postmatch.queue_waiting"
+msgstr "No rematch while someone waits in the queue."
+
+msgid "postmatch.not_seated"
+msgstr "You are no longer seated at this table."
+
+msgid "postmatch.character_select"
+msgstr "Character select"
+
+msgid "postmatch.character_select.detail"
+msgstr "Choose another fighter in the room, then Ready."
+
+msgid "postmatch.back"
+msgstr "Back to room"
+
+msgid "postmatch.back.keep_seat"
+msgstr "Back to the room. You keep your seat, not ready. No answer in 10 seconds does the same."
+
+msgid "postmatch.back.leave_seat"
+msgstr "Leave your seat and watch from the room. No answer in 10 seconds does the same."
+
+msgid "postmatch.state.choosing"
+msgstr "Choosing"
+
+msgid "postmatch.state.ready"
+msgstr "Ready"
+
+msgid "postmatch.state.left"
+msgstr "Left the seat"
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"

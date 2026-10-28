@@ -937,6 +937,44 @@ void TestGatesAreCurrent() {
 	}
 	std::cout << "TestGatesAreCurrent passed\n";
 }
+
+// A seated fighter's Unready while the runtime still holds its Ready (parked
+// behind the last game's close) withdraws the press and sends the room nothing.
+void TestUnreadyWithdrawsAParkedReady() {
+	namespace room = sf4e::room;
+	namespace facade = sf4e::NetplayFacade;
+	room::RoomAuthority authority("Held ready", 16, 96);
+	const auto join = [&](int index, bool host) {
+		const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
+		CHECK(result.accepted);
+		return result.snapshot.members.back().id;
+	};
+	join(0, true);
+	const auto fighter = join(1, false), opponent = join(2, false);
+	for (const auto who : {fighter, opponent}) {
+		const auto& view = authority.SnapshotView();
+		room::Action queue;
+		queue.kind = room::ActionKind::Queue; queue.roomEpoch = view.roomEpoch; queue.revision = view.revision;
+		queue.table = 0; queue.tableRevision = view.tables[0].revision; queue.actionId = who * 1000 + view.revision + 1;
+		CHECK(authority.Apply(who, queue).accepted);
+	}
+	RuntimeRoom r;
+	r.Snapshot(authority.SnapshotFor(fighter));
+	CHECK(room::PlaceOf(r.Client().GetRoomSnapshot(), fighter).kind == room::Place::Kind::Seat);
+	auto* runtime = r.runtime;
+	const auto generation = runtime->controller.GetSnapshot().generation;
+	ParkReady(*runtime);
+	const auto sentBefore = r.transport->sent.size();
+	facade::RuntimeCommand unready{};
+	unready.command = {sf4e::netplay::CommandKind::RoomAction, generation, {}};
+	unready.roomAction.kind = room::ActionKind::Unready; unready.roomAction.table = 0; unready.roomAction.seat = 0;
+	CHECK(facade::SubmitRuntimeCommand(std::move(unready)));
+	facade::internal::DrainCommands(true);
+	CHECK(!runtime->readyIntent.Active());
+	for (std::size_t i = sentBefore; i < r.transport->sent.size(); ++i)
+		CHECK(r.transport->sent[i].value("type", json()) != json(protocol::MT_ROOM_ACTION));
+	std::cout << "TestUnreadyWithdrawsAParkedReady passed\n";
+}
 }
 int main() {
 	for (const bool queued : {false, true})
@@ -954,6 +992,7 @@ int main() {
 	TestEnteredBattleRequestCancelled();
 	TestGatesMatchPublished();
 	TestGatesAreCurrent();
+	TestUnreadyWithdrawsAParkedReady();
 	std::cout << "Spectator runtime tests passed\n";
 	return 0;
 }

@@ -107,7 +107,8 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  // ping on the pill.
  std::string markTip,pingTip;
  const ImU32 bannerColor=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
- text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",card.slot+1),16*s,palette::Ivory);
+ if(!card.name.empty()&&cardVisible)NoteUserText(card.name);
+ text(ImVec2(p.x+12*s,p.y+7*s),width*.57f,loc::Tf("room.battle_slot",card.slot+1)+(card.name.empty()?std::string():" \xC2\xB7 "+card.name),16*s,palette::Ivory);
  text(ImVec2(p.x+width*.60f,p.y+8*s),width*.40f-12*s,card.phase,14*s,palette::Ember);
  // A full pair shows its running win count where "VS" would sit; the gap
  // between the two sides grows to fit however long the rematch run gets.
