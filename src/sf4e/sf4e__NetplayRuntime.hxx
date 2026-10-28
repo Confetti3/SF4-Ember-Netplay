@@ -256,6 +256,8 @@ struct Runtime {
 		// The current match's generation once the room has committed its end
 		// (any result). Nothing about that match needs the player afterwards.
 		std::uint64_t committedEndGeneration = 0;
+		// Generation for which "a participant left" was already announced.
+		std::uint64_t participantLeftGeneration = 0;
 		netplay::MatchEndLog matchEndLog;
 	} teardown;
 	// Not part of MatchTeardown: CloseRoom does not reset it.
@@ -362,8 +364,6 @@ struct Runtime {
 	Intent lobbyEditIntent{15000, Intent::Completion::OnDispatch};
 	std::string readyFailure;
 	std::uint64_t readyFailureSequence = 0;
-	// Generation for which "a participant left" was already announced.
-	std::uint64_t participantLeftGeneration = 0;
 	// `error` is cleared by only a handful of successful actions, so every
 	// transient message otherwise stayed pinned for the session and hid save
 	// feedback. Transient errors expire; the helper-unavailable startup
