@@ -92,16 +92,20 @@ pub fn site(file: &str, id: &str, name: &str, origin: &str) -> config::SignInSit
 }
 
 /// Every URL in `value` (sign-in, user, organizer) moved to `origin`, keeping
-/// its path.
+/// its path. `link_prefix` stays: it is shown, not fetched, and must be https.
 fn localize(value: &mut Value, origin: &str) {
     match value {
         Value::String(text) if text.starts_with("https://") => {
-            let url = reqwest::Url::parse(text).unwrap();
-            *text = format!("{origin}{}", url.path());
+            // Not through Url: a "{tournament}" placeholder in the path must
+            // survive as written.
+            let rest = &text["https://".len()..];
+            let path = rest.find('/').map_or("", |at| &rest[at..]);
+            *text = format!("{origin}{path}");
         }
         Value::Object(fields) => fields
-            .values_mut()
-            .for_each(|field| localize(field, origin)),
+            .iter_mut()
+            .filter(|(key, _)| *key != "link_prefix")
+            .for_each(|(_, field)| localize(field, origin)),
         Value::Array(items) => items.iter_mut().for_each(|item| localize(item, origin)),
         _ => {}
     }
