@@ -60,7 +60,7 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
 ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory, ServiceHooks hooks) :
     policy_(hooks.policyStore ? UpdatePolicy(*hooks.policyStore) : UpdatePolicy()), diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
     hooks_ = std::move(hooks);
-    if (!hooks_.checkForUpdate) hooks_.checkForUpdate = [](launcher::UpdateChannel channel) { return launcher::CheckForUpdate(channel); };
+    if (!hooks_.checkForUpdate) hooks_.checkForUpdate = [this](launcher::UpdateChannel channel) { return launcher::CheckForUpdate(channel, cancelled_); };
     if (!hooks_.clock) hooks_.clock = [] { return static_cast<std::uint64_t>(std::time(nullptr)); };
     state_.launchCheck = LaunchCheck::Waiting;
     char installed[64] = {};

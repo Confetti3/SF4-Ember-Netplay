@@ -51,7 +51,7 @@ struct Identity {
 struct WorkflowDependencies {
     std::function<Identity(const std::function<bool()>&)> identity;
     std::function<Report(const Preparation&, const Account&, const std::function<bool()>&)> collect;
-    std::function<HttpPostResult(const Multipart&, const std::function<bool()>&)> upload;
+    std::function<HttpResponse(const Multipart&, const std::function<bool()>&)> upload;
     // Send problem reports as saved: nothing when the settings cannot be read.
     std::function<std::optional<bool>()> reportsOn;
     std::function<bool()> turnReportsOn;

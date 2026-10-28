@@ -2464,6 +2464,8 @@ msgstr "Uczestnik walki opuścił pokój. Gra się zakończy."
 msgid "update.github_unreachable"
 msgstr "Nie można połączyć się z GitHub. Sprawdź internet i spróbuj ponownie."
 
+msgid "update.rate_limited"
+msgstr "GitHub chwilowo ogranicza sprawdzanie aktualizacji. Odczekaj kilka minut i spróbuj ponownie."
 
 msgid "update.no_zip_asset"
 msgstr "Najnowsze wydanie nie zawiera pakietu ZIP SF4 Ember Netplay."
@@ -2527,8 +2529,8 @@ msgstr "W pobranym pakiecie brakuje Launcher.exe lub Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Błąd ścieżki roboczej."
 
-msgid "update.validation_failed"
-msgstr "Pobrany pakiet nie przeszedł weryfikacji (brakuje wymaganych plików)."
+msgid "update.validation_detail"
+msgstr "Weryfikacja aktualizacji nie powiodła się: {0}\nZainstalowane pliki nie zostały zastąpione."
 
 msgid "update.cancelled"
 msgstr "Aktualizacja anulowana przed instalacją."
