@@ -6,16 +6,18 @@ pub async fn run<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     endpoint: Endpoint,
     relay_only: bool,
 ) -> io::Result<()> {
-    run_on_port(stream, endpoint, relay_only, None).await
+    run_on_port(stream, endpoint, relay_only, None, wire::OnEof::LostIpc).await
 }
 
 /// `run` with the exact UDP port the coordination endpoint binds when this
-/// process hosts a room. Hosting fails if the port cannot be bound.
+/// process hosts a room, and what the end of the command input means.
+/// Hosting fails if the port cannot be bound.
 pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     stream: S,
     endpoint: Endpoint,
     relay_only: bool,
     coordination_port: Option<u16>,
+    on_eof: wire::OnEof,
 ) -> io::Result<()> {
     let (mut reader, mut writer) = tokio::io::split(stream);
     let (commands, receiver) = mpsc::channel(IPC_QUEUE_CAPACITY);
@@ -30,17 +32,21 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     );
     let reader_task = tokio::spawn(async move {
         let mut last_id = 1;
-        while let Ok(mut frame) = wire::read_ipc(&mut reader).await {
+        let ended = loop {
+            let mut frame = match wire::read_ipc(&mut reader).await {
+                Ok(frame) => frame,
+                Err(error) => break Some(error),
+            };
             if frame.message_id <= last_id {
-                break;
+                break None;
             }
             last_id = frame.message_id;
-            let parsed = serde_json::from_slice(&frame.payload);
+            let parsed = decode_command(&frame.payload);
             // A tournament request's text holds its passphrase; the parsed
             // request wipes its own copy, and this one goes now.
             zeroize::Zeroize::zeroize(&mut frame.payload);
             let Ok(command) = parsed else {
-                break;
+                break None;
             };
             if let Command::Tournament { request } = command {
                 tournament.submit(frame.message_id, request);
@@ -54,7 +60,27 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
                 .await
                 .is_err()
             {
-                break;
+                break None;
+            }
+        };
+        // The input ended, even inside a frame: with `OnEof::Shutdown` that is
+        // a stop, sent as a command with the next message ID, and the reader
+        // then waits, since a reader that ended would report a lost IPC
+        // connection. A malformed frame or an ID that does not rise fails.
+        if on_eof == wire::OnEof::Shutdown
+            && ended.is_some_and(|error| error.kind() == io::ErrorKind::UnexpectedEof)
+        {
+            let id = last_id.saturating_add(1).min(i64::MAX as u64);
+            if id > last_id
+                && commands
+                    .send(Request {
+                        id,
+                        command: Command::Shutdown,
+                    })
+                    .await
+                    .is_ok()
+            {
+                std::future::pending::<()>().await;
             }
         }
         let _ = failed_ipc.send(true);
@@ -62,7 +88,8 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
     let writer_task = tokio::spawn(async move {
         let mut message_id = 2;
         while let Some(event) = outbound.recv().await {
-            let payload = serde_json::to_vec(&event).map_err(|_| failed("IPC serialize"))?;
+            let stopped = matches!(event, Event::Stopped);
+            let payload = encode_event(event)?;
             wire::write_ipc(
                 &mut writer,
                 &ControlFrame {
@@ -71,7 +98,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
                 },
             )
             .await?;
-            if matches!(event, Event::Stopped) {
+            if stopped {
                 return Ok::<(), io::Error>(());
             }
             message_id += 1;
@@ -132,7 +159,6 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
         coordination_writable: false,
-        last_control_rebound: None,
         unwritable_leader_since: None,
         reconnect_target: None,
         pending_game_admissions: BTreeMap::new(),
@@ -171,6 +197,179 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         abort.abort();
     }
     result
+}
+
+/// The IPC payload of `event`. A checkpoint chunk and a room message go as a
+/// JSON header and a raw body, so their bytes are neither base64 encoded nor
+/// escaped into a JSON string; every other event goes as JSON.
+pub fn encode_event(event: Event) -> io::Result<Vec<u8>> {
+    match event {
+        Event::CheckpointChunk {
+            epoch,
+            room,
+            transfer,
+            term,
+            base_revision,
+            revision,
+            offset,
+            data,
+        } => raw_payload(
+            &Event::CheckpointChunk {
+                epoch,
+                room,
+                transfer,
+                term,
+                base_revision,
+                revision,
+                offset,
+                data: wire::IpcBytes::default(),
+            },
+            "data",
+            &data.0,
+        ),
+        Event::Message {
+            epoch,
+            peer,
+            message_id,
+            payload,
+        } if !payload.is_empty() => raw_payload(
+            &Event::Message {
+                epoch,
+                peer,
+                message_id,
+                payload: String::new(),
+            },
+            "payload",
+            payload.as_bytes(),
+        ),
+        event => serde_json::to_vec(&event).map_err(|_| failed("IPC serialize")),
+    }
+}
+
+/// A command from its IPC payload, JSON or raw-body.
+pub fn decode_command(payload: &[u8]) -> io::Result<Command> {
+    match wire::split_ipc_payload(payload)? {
+        wire::IpcPayload::Json(json) => {
+            serde_json::from_slice(json).map_err(|_| failed("invalid IPC command"))
+        }
+        wire::IpcPayload::Raw { header, body } => decode_raw(header, body, |command, bytes| {
+            let Command::CheckpointChunk { data, .. } = command else {
+                return false;
+            };
+            data.0 = bytes;
+            true
+        }),
+    }
+}
+
+/// `encode_event` for commands, for whatever stands in for the game.
+pub fn encode_command(command: Command) -> io::Result<Vec<u8>> {
+    match command {
+        Command::CheckpointChunk {
+            epoch,
+            room,
+            transfer,
+            term,
+            base_revision,
+            revision,
+            offset,
+            data,
+        } => raw_payload(
+            &Command::CheckpointChunk {
+                epoch,
+                room,
+                transfer,
+                term,
+                base_revision,
+                revision,
+                offset,
+                data: wire::IpcBytes::default(),
+            },
+            "data",
+            &data.0,
+        ),
+        Command::Send {
+            epoch,
+            peer,
+            message_id,
+            payload,
+            control,
+        } if !payload.is_empty() => raw_payload(
+            &Command::Send {
+                epoch,
+                peer,
+                message_id,
+                payload: String::new(),
+                control,
+            },
+            "payload",
+            payload.as_bytes(),
+        ),
+        command => serde_json::to_vec(&command).map_err(|_| failed("IPC serialize")),
+    }
+}
+
+/// `decode_command` for events, for whatever stands in for the game.
+pub fn decode_event(payload: &[u8]) -> io::Result<Event> {
+    match wire::split_ipc_payload(payload)? {
+        wire::IpcPayload::Json(json) => {
+            serde_json::from_slice(json).map_err(|_| failed("invalid IPC event"))
+        }
+        wire::IpcPayload::Raw { header, body } => decode_raw(header, body, |event, bytes| {
+            let Event::CheckpointChunk { data, .. } = event else {
+                return false;
+            };
+            data.0 = bytes;
+            true
+        }),
+    }
+}
+
+/// `message` serialized without its `field`, which goes as the raw body.
+fn raw_payload<T: Serialize>(message: &T, field: &str, body: &[u8]) -> io::Result<Vec<u8>> {
+    let mut header = serde_json::to_value(message).map_err(|_| failed("IPC serialize"))?;
+    if header
+        .as_object_mut()
+        .and_then(|fields| fields.remove(field))
+        .is_none()
+    {
+        return Err(failed("IPC serialize"));
+    }
+    let header = serde_json::to_vec(&header).map_err(|_| failed("IPC serialize"))?;
+    wire::raw_ipc_payload(&header, body)
+}
+
+/// A raw-body message with its body put back. A text body (`payload`) is
+/// restored as the string field it replaces; a byte body (`data`) is parsed
+/// as an empty placeholder that `restore` then fills. A header that already
+/// has the body's field, or names a message without a raw form, is refused.
+fn decode_raw<T: serde::de::DeserializeOwned>(
+    header: &[u8],
+    body: &[u8],
+    restore: impl FnOnce(&mut T, Vec<u8>) -> bool,
+) -> io::Result<T> {
+    let mut fields: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_slice(header).map_err(|_| failed("invalid raw IPC header"))?;
+    let field = match fields.get("type").and_then(serde_json::Value::as_str) {
+        Some("checkpoint_chunk") => "data",
+        Some("message" | "send") => "payload",
+        _ => return Err(failed("raw body on an IPC message without one")),
+    };
+    if fields.contains_key(field) {
+        return Err(failed("raw IPC header repeats its body"));
+    }
+    let text = if field == "payload" {
+        String::from_utf8(body.to_vec()).map_err(|_| failed("raw IPC payload is not text"))?
+    } else {
+        String::new()
+    };
+    fields.insert(field.into(), serde_json::Value::String(text));
+    let mut message = serde_json::from_value(serde_json::Value::Object(fields))
+        .map_err(|_| failed("invalid raw IPC message"))?;
+    if field == "data" && !restore(&mut message, body.to_vec()) {
+        return Err(failed("invalid raw IPC message"));
+    }
+    Ok(message)
 }
 
 // Dropping a cancelled service future must not detach pipe reader/writer tasks.

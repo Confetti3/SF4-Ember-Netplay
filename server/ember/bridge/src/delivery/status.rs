@@ -18,10 +18,11 @@ use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
+    db,
     error::{ApiFailure, Result},
     routes::{
         blumint::{self, liveness},
-        ledger::load,
+        ledger::{load, load_listed},
         policy,
     },
 };
@@ -34,7 +35,7 @@ const MAX_COMMIT_WAIT_SECS: u64 = 10;
 /// started on has nothing to say yet.
 pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
     let found = load(tx, match_id)?.ok_or_else(ApiFailure::unavailable)?;
-    if found.state.is_terminal() || !policy::of(tx, &found.connection_id)?.reports_progress {
+    if found.state.is_terminal() || !found.policy()?.reports_progress {
         return Ok(());
     }
     let last: Option<(String, u64)> = tx
@@ -83,6 +84,7 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
              state = 'queued', next_at = 0, attempts = 0, first_at = NULL",
         params![match_id, status.to_string(), now],
     )?;
+    db::queued();
     Ok(())
 }
 
@@ -92,7 +94,10 @@ pub fn observe(tx: &Transaction<'_>, match_id: &str, now: u64) -> Result<()> {
 /// is unchanged.
 pub fn observe_lapsed(tx: &Transaction<'_>, now: u64) -> Result<()> {
     for id in liveness::sweep(tx, now)? {
-        observe(tx, &id, now)?;
+        // A match whose stored state this bridge does not know is passed over.
+        if load_listed(tx, &id)?.is_some() {
+            observe(tx, &id, now)?;
+        }
     }
     Ok(())
 }

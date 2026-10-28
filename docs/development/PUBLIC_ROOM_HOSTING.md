@@ -154,8 +154,10 @@ Done in October 2026, shipping with the next client release:
   anything had happened. Both now wait for work: the helper's tick follows
   what is in flight (2 ms during a game or a checkpoint transfer, 25 ms with
   a room open, 50 ms with none) and every arrival brings it forward; the room
-  host sleeps until its helper has an event, 250 ms at most while the room is
-  empty and settled. The once-a-second coordination refresh reads a digest
+  host sleeps until its helper has an event or the room's next timer is due,
+  250 ms at most, whenever nothing is in flight; only a table that is
+  starting, playing or paused keeps the 16 ms tick. The once-a-second
+  coordination refresh reads a digest
   hashed once per revision instead of copying and rehashing the checkpoint,
   and a headless helper no longer probes for a gateway port mapping.
 - **Memory.** `MALLOC_ARENA_MAX=2` in the unit and the image, so glibc does

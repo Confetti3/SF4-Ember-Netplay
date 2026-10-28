@@ -5,11 +5,13 @@
 #include <cstdint>
 
 namespace sf4e { namespace discord {
-// Copied values only: no native pointers or user-authored profile text.
+// No native pointers or user-authored profile text. The session and room are
+// read in place for the one Describe call, not copied.
 struct PresenceInput {
+    PresenceInput(const netplay::Snapshot& session, const room::Snapshot& room) : session(session), room(room) {}
     bool ready = false, offline = false, show = true, invites = true;
-    netplay::Snapshot session;
-    room::Snapshot room;
+    const netplay::Snapshot& session;
+    const room::Snapshot& room;
     std::string party, secret;
     std::uint64_t expires = 0, now = 0;
 };

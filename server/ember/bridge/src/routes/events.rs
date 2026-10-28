@@ -18,7 +18,6 @@ use crate::{
     auth::{self, Actor},
     error::{ApiFailure, Result},
     events::{self, MAX_PAGE, Viewer},
-    routes::matches::viewer_of,
 };
 
 pub const KEEPALIVE_SECS: u64 = 20;
@@ -50,7 +49,7 @@ pub async fn list(
     headers: HeaderMap,
     Query(cursor): Query<Cursor>,
 ) -> Result<Response> {
-    let viewer = viewer_of(&auth::any(&state, &headers).await?)?;
+    let viewer = Viewer::of(&auth::any(&state, &headers).await?)?;
     let after = parse_cursor(cursor.after.as_deref())?;
     let limit = cursor.limit.unwrap_or(100).min(MAX_PAGE);
     let rows = state
@@ -88,7 +87,7 @@ pub async fn stream(
         Actor::Player(player) => Some(player.expires_at),
         _ => None,
     };
-    let viewer = viewer_of(&actor)?;
+    let viewer = Viewer::of(&actor)?;
     let standing = actor.standing();
     let resume = headers
         .get("last-event-id")
@@ -102,7 +101,7 @@ pub async fn stream(
         .db
         .read(move |tx| events::list(tx, &probe, after, 1))
         .await?;
-    let signal = state.stream_signal.subscribe();
+    let signal = state.db.commits();
     let initial = Stream {
         state,
         viewer,

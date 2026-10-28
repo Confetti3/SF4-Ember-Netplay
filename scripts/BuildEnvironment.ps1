@@ -35,6 +35,22 @@ function Get-EmberBuildTarget([string]$SourceRoot) {
     return $target
 }
 
+# Publication and packaging for one channel must never run from the other channel's checkout.
+function Assert-EmberChannel([object]$Target, [string]$Expected, [string]$Purpose) {
+    if ($Target.channel -cne $Expected) {
+        throw "$Purpose requires the $Expected channel, but this checkout is designated $($Target.channel) in build-target.json."
+    }
+}
+
+# The channel is not enough for Stable: a checkout whose parent folder has no build-target.json
+# falls back to its own file, which names only the top-level (stable) entry, so a Nightly checkout
+# set up that way reads as stable. Stable work also requires the release branch.
+function Assert-EmberStableBranch([string]$Branch, [string]$Purpose) {
+    if ("$Branch".Trim() -cne 'release') {
+        throw "$Purpose requires the release branch, but this checkout is on '$("$Branch".Trim())'."
+    }
+}
+
 function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [string]$VcpkgRoot) {
     if (!$VisualStudioPath) { $VisualStudioPath = $env:SF4E_VISUAL_STUDIO_PATH }
     if (!$VisualStudioPath) {
@@ -52,7 +68,13 @@ function Get-EmberToolPaths([string]$SourceRoot, [string]$VisualStudioPath, [str
     [pscustomobject]@{VisualStudioPath=[IO.Path]::GetFullPath($VisualStudioPath);VcpkgRoot=[IO.Path]::GetFullPath($VcpkgRoot)}
 }
 
+# Runs vcvarsall once per process. vcvarsall prepends to PATH, INCLUDE and LIB each time it runs, so a second
+# entry would double them; when this process already holds the environment of the same installation and target
+# architecture (VSINSTALLDIR and VSCMD_ARG_TGT_ARCH, which vcvarsall sets), it returns at once.
 function Enter-EmberVcEnvironment([string]$VisualStudioPath, [string]$Architecture = 'x86') {
+    $entered = $env:VSINSTALLDIR
+    if ($entered -and $env:VSCMD_ARG_TGT_ARCH -ceq $Architecture -and
+        [IO.Path]::GetFullPath($entered).TrimEnd('\','/') -ieq [IO.Path]::GetFullPath($VisualStudioPath).TrimEnd('\','/')) { return }
     $environment = & cmd.exe /d /s /c "`"$VisualStudioPath\VC\Auxiliary\Build\vcvarsall.bat`" $Architecture >nul && set"
     if ($LASTEXITCODE) { throw 'Compiler environment failed' }
     foreach ($entry in $environment) { if ($entry -match '^([^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1],$Matches[2],'Process') } }

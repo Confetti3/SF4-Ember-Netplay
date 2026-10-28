@@ -58,8 +58,13 @@ fn bound(fighters: &[EndpointId], watchers: &[EndpointId]) -> Seats {
     })
 }
 
+/// The seats `text` names, read from the whole parse and from the commit's
+/// view (`Committed::view`), which must agree.
 fn read(text: &str) -> Option<Seats> {
-    Seats::read(&serde_json::from_str(text).unwrap())
+    let whole = Seats::read(&serde_json::from_str(text).unwrap());
+    let view = Seats::read(&crate::coordination::envelope_view(text).unwrap());
+    assert_eq!(whole, view, "{text}");
+    whole
 }
 
 fn key() -> EndpointId {
@@ -312,10 +317,11 @@ async fn a_watcher_joins_with_the_full_invitation_only() {
     };
     assert!(
         actor
-            .command(Request {
+            .command_now(Request {
                 id: 9,
                 command: join
             })
+            .await
             .unwrap()
     );
     let refused = timeout(Duration::from_secs(5), events.recv()).await;
@@ -353,7 +359,7 @@ async fn refusal(from: &Endpoint, host: &Endpoint) -> Vec<u8> {
 /// Commits `checkpoint` on the leader's coordination.
 async fn commit(recovery: &RecoverySession, checkpoint: String) {
     let term = recovery.state().await.term;
-    let base = recovery.committed().await.revision();
+    let base = recovery.coordinator.store().committed().await.revision();
     let receipt = recovery
         .coordinator
         .propose(crate::coordination::Proposal {
@@ -361,7 +367,7 @@ async fn commit(recovery: &RecoverySession, checkpoint: String) {
             dedup_id: format!("watch-{base}"),
             term,
             base,
-            checkpoint,
+            checkpoint: checkpoint.into(),
             admin: None,
         })
         .await
@@ -383,7 +389,13 @@ async fn a_bound_room_takes_a_control_only_from_an_endpoint_it_names() {
             ),
         )
         .await;
-        let revision = fixture.recovery.committed().await.revision();
+        let revision = fixture
+            .recovery
+            .coordinator
+            .store()
+            .committed()
+            .await
+            .revision();
         // The gate reads the roster the next refresh caches.
         loop {
             if let Event::CoordinationState { revision: read, .. } =
@@ -474,7 +486,7 @@ async fn a_watchers_join_tells_the_room_it_only_watches() {
                 observer,
             },
         };
-        assert!(guest.command(join(1, true)).unwrap());
+        assert!(guest.command_now(join(1, true)).await.unwrap());
         complete_next(&mut guest).await;
         let refused = loop {
             match events.recv().await.unwrap() {
@@ -484,7 +496,7 @@ async fn a_watchers_join_tells_the_room_it_only_watches() {
             }
         };
         assert_eq!(refused, "join_failed");
-        assert!(guest.command(join(2, false)).unwrap());
+        assert!(guest.command_now(join(2, false)).await.unwrap());
         complete_next(&mut guest).await;
         let _ = next(&mut events, "connected").await;
         guest.clear_room();

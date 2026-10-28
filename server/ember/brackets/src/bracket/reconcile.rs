@@ -23,7 +23,8 @@ const RECONCILE_SECS: u64 = 5 * 60;
 /// match is logged once.
 #[derive(Default)]
 pub(super) struct Memory {
-    next: u64,
+    /// When the read-back is next due.
+    pub(super) next: u64,
     /// Matches the bridge could not be asked about at the last read-back.
     failing: HashSet<String>,
     /// Finished matches whose result the bridge had not started sending.

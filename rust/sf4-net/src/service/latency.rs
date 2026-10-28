@@ -426,13 +426,13 @@ impl Actor {
             Some(recovery) => {
                 let owner = recovery.incarnation;
                 if self.latency.observed.as_ref().map(|(id, _)| *id) != Some(owner) {
-                    let changes = recovery.coordinator.observed_changes().await;
+                    let changes = recovery.coordinator.store().observed_changes().await;
                     self.latency.observed = Some((owner, changes));
                 }
                 if let Some((_, changes)) = &mut self.latency.observed {
                     changes.mark_unchanged();
                 }
-                let (committed, count) = recovery.coordinator.committed_observed().await;
+                let (committed, count) = recovery.coordinator.store().committed_observed().await;
                 Some((owner, committed, count))
             }
             None => {

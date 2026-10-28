@@ -380,7 +380,6 @@ pub(super) async fn begin(
         Starter::Desk(ember_id) => {
             let ctx = Ctx::of(state);
             let slot = state.db.write(move |tx| work(tx, &ctx, &ember_id)).await?;
-            state.committed();
             slot
         }
     };
@@ -596,17 +595,13 @@ async fn callback(
         })
         .await;
     match stored {
-        Ok(Stored::Connected(ember_id)) => {
-            state.committed();
-            pages.connected(&shown, &ember_id, organizer)
-        }
+        Ok(Stored::Connected(ember_id)) => pages.connected(&shown, &ember_id, organizer),
         Ok(Stored::Asking {
             from,
             to,
             replaced,
             confirmation,
         }) => {
-            state.committed();
             let replaced = replaced.as_deref();
             match from {
                 Some(from) => pages.moving(&confirmation, &shown, &from, &to, replaced),
@@ -697,13 +692,11 @@ async fn decide(
             (ember_id, username, organizer)
         }
         Ok(Some(Decided::Changed)) => {
-            state.committed();
             return pages.changed();
         }
         Ok(None) => return pages.not_waiting(),
         Err(_) => return pages.not_saved(),
     };
-    state.committed();
     if moves {
         pages.connected(&username, &ember_id, organizer)
     } else if refused {

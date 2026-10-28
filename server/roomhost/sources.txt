@@ -1,0 +1,56 @@
+# The C++ sources of the public room host, one path per line, relative to the source root.
+# Read by CMake (cmake/sf4e_roomhost_sources.cmake) and by server/roomhost/build-linux.sh (g++ alone). The groups are the CMake targets whose sources
+# they are: room_model = sf4e_room_model, selection = the catalog part of sf4e_selection, session_server =
+# sf4e_session_server, iroh_room = sf4e_iroh_room, common = the part of sf4e_common the host uses, and host =
+# the sf4e-room-host target. host_posix is what Linux builds in place of host_windows (and of the Windows helper
+# client); build-linux.sh reads every group except host_windows. No game library.
+# A line starting with "# [name]" opens a group; other lines starting with # and blank lines are ignored;
+# a trailing carriage return (a CRLF checkout) is ignored.
+
+# [host]
+server/roomhost/main.cxx
+server/roomhost/RoomHost.cxx
+server/roomhost/RoomHostStatus.cxx
+
+# [host_posix]
+server/roomhost/RoomHostHelperPosix.cxx
+src/platform/HelperClientPosix.cxx
+
+# [host_windows]
+server/roomhost/RoomHostHelperWindows.cxx
+
+# [session_server]
+src/session/MatchAuthority.cxx
+src/session/sf4e__SessionServer.cxx
+src/session/sf4e__SessionServer__Handlers.cxx
+src/session/sf4e__SessionServer__Recovery.cxx
+src/session/sf4e__SessionServer__RecoveryCheckpoint.cxx
+src/session/sf4e__SessionServer__Rooms.cxx
+src/session/sf4e__SessionServer__Tournament.cxx
+src/session/sf4e__SessionProtocol.cxx
+
+# [iroh_room]
+src/session/IrohRoom.cxx
+src/session/IrohRoomAdapters.cxx
+src/session/IrohRoomCheckpoint.cxx
+src/session/IrohRoomPeers.cxx
+src/session/IrohRoomPublic.cxx
+src/session/IdentityEvents.cxx
+src/session/TournamentAnswers.cxx
+
+# [room_model]
+src/session/RoomModel.cxx
+src/session/RoomModelActions.cxx
+src/session/RoomModelJson.cxx
+src/session/RoomModelTournament.cxx
+src/session/RoomModelServerOwned.cxx
+src/session/RoomModelTerminal.cxx
+src/session/RoomModelTimers.cxx
+src/session/RoomDigest.cxx
+
+# [selection]
+src/common/FighterCatalog.cxx
+src/common/StageCatalog.cxx
+
+# [common]
+src/common/sf4e__RollbackDiagnostics.cxx

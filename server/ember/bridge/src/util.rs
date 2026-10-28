@@ -2,7 +2,7 @@ use std::{
     fs::{File, OpenOptions},
     io,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -105,6 +105,25 @@ pub fn outbound_client() -> reqwest::ClientBuilder {
         .timeout(std::time::Duration::from_secs(15))
         .user_agent(concat!("ember-bridge/", env!("CARGO_PKG_VERSION")))
         .no_proxy()
+}
+
+/// One `outbound_client()` for the calls whose destination is the bridge's
+/// own configuration (the room supervisor, BluMint's API, sign-in sites),
+/// built on first use and shared, so those calls keep their connections
+/// alive between them. A build that fails fails that call, as a build per
+/// call did, and the next call builds again. Webhook deliveries build their
+/// own per attempt (`delivery::webhooks::post_signed`).
+#[derive(Clone, Default)]
+pub struct Outbound(Arc<OnceLock<reqwest::Client>>);
+
+impl Outbound {
+    pub fn client(&self) -> reqwest::Result<&reqwest::Client> {
+        if let Some(client) = self.0.get() {
+            return Ok(client);
+        }
+        let built = outbound_client().build()?;
+        Ok(self.0.get_or_init(|| built))
+    }
 }
 
 /// The body of `response`, read chunk by chunk: the read stops as soon as it

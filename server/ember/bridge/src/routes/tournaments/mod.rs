@@ -11,7 +11,6 @@ use axum::{
 use ember_protocol::{
     api::ErrorCode,
     encoding::{Counter, is_prefixed_id},
-    json,
     tournament::{CreateTournament, RegisterEntrant},
 };
 use rusqlite::{Transaction, params};
@@ -21,14 +20,10 @@ use self::view::snapshot;
 use crate::{
     AppState,
     auth::{self, Role},
-    ctx::Ctx,
     error::{ApiFailure, Result},
     events::Viewer,
     http::{Body, GENERAL_BODY, expected_revision, idempotency_key, ok},
-    routes::{
-        matches::{idempotent, into_response, service_viewer, viewer_of},
-        policy, records,
-    },
+    routes::{idempotency::ServiceCall, policy, records},
     tournament::{self, Applied, Tournament},
 };
 
@@ -93,35 +88,20 @@ pub async fn create(
     let key = idempotency_key(&headers)?;
     let command: CreateTournament = body.parse()?;
     command.check()?;
-    let digest = json::digest(&command)?;
-    let ctx = Ctx::of(&state);
     let tenant_id = service.tenant_id.clone();
-    let result = state
-        .db
-        .write(move |tx| {
-            idempotent(
-                tx,
-                &service.id,
-                "/v1/tournaments",
-                &key,
-                &digest,
-                ctx.now,
-                |tx| {
-                    let applied = tournament::create(
-                        tx,
-                        &ctx,
-                        &tenant_id,
-                        &connection_id,
-                        &command,
-                        &digest,
-                    )?;
-                    created_or_found(tx, applied)
-                },
-            )
-        })
-        .await?;
-    state.committed();
-    Ok(into_response(result))
+    ServiceCall::new("/v1/tournaments")
+        .run(
+            &state,
+            service.id.clone(),
+            key,
+            command,
+            move |tx, ctx, digest, command| {
+                let applied =
+                    tournament::create(tx, ctx, &tenant_id, &connection_id, &command, digest)?;
+                created_or_found(tx, applied)
+            },
+        )
+        .await
 }
 
 /// `GET /v1/tournaments/{id}`: its provider, an organizer of its tenant, or
@@ -131,7 +111,7 @@ pub async fn get(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<Response> {
-    let viewer = viewer_of(&auth::any(&state, &headers).await?)?;
+    let viewer = Viewer::of(&auth::any(&state, &headers).await?)?;
     let body = state
         .db
         .read(move |tx| {
@@ -163,23 +143,22 @@ pub async fn register(
     let key = idempotency_key(&headers)?;
     let command: RegisterEntrant = body.parse()?;
     command.check()?;
-    let digest = json::digest(&command)?;
-    let ctx = Ctx::of(&state);
     let path = format!("/v1/tournaments/{id}/entrants");
-    let result = state
-        .db
-        .write(move |tx| {
-            idempotent(tx, &service.id, &path, &key, &digest, ctx.now, |tx| {
+    ServiceCall::new(path)
+        .run(
+            &state,
+            service.id.clone(),
+            key,
+            command,
+            move |tx, ctx, _, command| {
                 let tournament = tournament::load(tx, &id)?
                     .filter(|tournament| tournament.connection_id == connection_id)
                     .ok_or_else(ApiFailure::not_found)?;
-                let applied = tournament::register(tx, &ctx, tournament, &command)?;
+                let applied = tournament::register(tx, ctx, tournament, &command)?;
                 created_or_found(tx, applied)
-            })
-        })
-        .await?;
-    state.committed();
-    Ok(into_response(result))
+            },
+        )
+        .await
 }
 
 #[derive(Deserialize, Serialize)]
@@ -199,7 +178,7 @@ pub async fn withdraw_route(
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
     let service = auth::service(&state, &headers).await?;
-    let viewer = service_viewer(&service)?;
+    let viewer = Viewer::of_service(&service)?;
     let key = idempotency_key(&headers)?;
     let command: WithdrawCommand = if body.0.is_empty() {
         WithdrawCommand {
@@ -212,13 +191,14 @@ pub async fn withdraw_route(
         return Err(ApiFailure::invalid("Name the participant_id to withdraw."));
     }
     let expected = command.expected_revision.map(|revision| revision.0);
-    let digest = json::digest(&command)?;
-    let ctx = Ctx::of(&state);
     let path = format!("/v1/tournaments/{id}/entrants/{participant}/withdraw");
-    let result = state
-        .db
-        .write(move |tx| {
-            idempotent(tx, &service.id, &path, &key, &digest, ctx.now, |tx| {
+    ServiceCall::new(path)
+        .run(
+            &state,
+            service.id.clone(),
+            key,
+            command,
+            move |tx, ctx, _, _| {
                 let tournament = tournament::load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
                 if !visible(tx, &viewer, &tournament)? {
                     return Err(ApiFailure::not_found());
@@ -228,17 +208,15 @@ pub async fn withdraw_route(
                 }
                 let tournament = tournament::withdraw_participant(
                     tx,
-                    &ctx,
+                    ctx,
                     &tournament,
                     &participant,
                     (actor(service.role), service.id.clone()),
                 )?;
                 Ok((StatusCode::OK, snapshot(tx, &tournament)?))
-            })
-        })
-        .await?;
-    state.committed();
-    Ok(into_response(result))
+            },
+        )
+        .await
 }
 
 #[derive(Deserialize, Serialize)]
@@ -261,20 +239,21 @@ pub async fn start(
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
     let service = auth::service(&state, &headers).await?;
-    let viewer = service_viewer(&service)?;
+    let viewer = Viewer::of_service(&service)?;
     let key = idempotency_key(&headers)?;
     let command: StartCommand = body.parse()?;
     let expected = expected_revision(
         &headers,
         command.expected_revision.map(|revision| revision.0),
     )?;
-    let digest = json::digest(&command)?;
-    let ctx = Ctx::of(&state);
     let path = format!("/v1/tournaments/{id}/start");
-    let result = state
-        .db
-        .write(move |tx| {
-            idempotent(tx, &service.id, &path, &key, &digest, ctx.now, |tx| {
+    ServiceCall::new(path)
+        .run(
+            &state,
+            service.id.clone(),
+            key,
+            command,
+            move |tx, ctx, _, command| {
                 let tournament = tournament::load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
                 if !visible(tx, &viewer, &tournament)? {
                     return Err(ApiFailure::not_found());
@@ -284,17 +263,15 @@ pub async fn start(
                 }
                 let tournament = tournament::start(
                     tx,
-                    &ctx,
+                    ctx,
                     &tournament,
                     command.seeding.as_deref(),
                     (actor(service.role), service.id.clone()),
                 )?;
                 Ok((StatusCode::OK, snapshot(tx, &tournament)?))
-            })
-        })
-        .await?;
-    state.committed();
-    Ok(into_response(result))
+            },
+        )
+        .await
 }
 
 #[derive(Deserialize, Serialize)]
@@ -314,7 +291,7 @@ pub async fn cancel(
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
     let service = auth::service(&state, &headers).await?;
-    let viewer = service_viewer(&service)?;
+    let viewer = Viewer::of_service(&service)?;
     let key = idempotency_key(&headers)?;
     let command: CancelCommand = body.parse()?;
     check_reason(&command.reason)?;
@@ -322,13 +299,14 @@ pub async fn cancel(
         &headers,
         command.expected_revision.map(|revision| revision.0),
     )?;
-    let digest = json::digest(&command)?;
-    let ctx = Ctx::of(&state);
     let path = format!("/v1/tournaments/{id}/cancel");
-    let result = state
-        .db
-        .write(move |tx| {
-            idempotent(tx, &service.id, &path, &key, &digest, ctx.now, |tx| {
+    ServiceCall::new(path)
+        .run(
+            &state,
+            service.id.clone(),
+            key,
+            command,
+            move |tx, ctx, _, command| {
                 let tournament = tournament::load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
                 if !visible(tx, &viewer, &tournament)? {
                     return Err(ApiFailure::not_found());
@@ -338,15 +316,13 @@ pub async fn cancel(
                 }
                 let tournament = tournament::cancel(
                     tx,
-                    &ctx,
+                    ctx,
                     &tournament,
                     &command.reason,
                     (actor(service.role), service.id.clone()),
                 )?;
                 Ok((StatusCode::OK, snapshot(tx, &tournament)?))
-            })
-        })
-        .await?;
-    state.committed();
-    Ok(into_response(result))
+            },
+        )
+        .await
 }

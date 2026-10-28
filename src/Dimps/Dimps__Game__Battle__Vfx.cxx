@@ -63,10 +63,6 @@ void ColorFade::Locate(HMODULE peRoot){
 	*(PVOID*)&publicMethods.Spawn = (PVOID)(peRootOffset + 0x1ce7b0);
 }
 
-Dimps::Platform::list<ColorFadeData>* ColorFade::GetList(ColorFade* fade) {
-	return (Dimps::Platform::list<ColorFadeData>*)((unsigned int)fade + 12);
-}
-
 void ColorFadeUnit::Locate(HMODULE peRoot){
 	unsigned int peRootOffset = (unsigned int)peRoot;
 

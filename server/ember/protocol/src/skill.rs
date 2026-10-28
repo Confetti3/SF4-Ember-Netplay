@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Error, Result,
-    rooms::{is_country, is_false, is_player_name},
+    encoding::is_false,
+    rooms::{is_country, is_player_name},
 };
 
 /// The capability a bridge with the ranking routes offers.
@@ -122,7 +123,7 @@ impl RankingChoice {
 
 /// The caller's own place in ranking (`GET /v1/ranking/me`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "ranking", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "ranking", rename_all = "snake_case")]
 pub enum Standing {
     /// No Discord account is connected to the caller's Ember ID, and a
     /// rating belongs to one.
@@ -160,7 +161,6 @@ impl Standing {
 /// `GET /v1/ranking/board`: the listed players with a settled class, the
 /// highest class first.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Board {
     pub players: Vec<BoardEntry>,
 }
@@ -259,8 +259,11 @@ mod tests {
             .unwrap(),
             r#"{"ranking":"ranked"}"#
         );
-        // Strict like every other bridge object.
-        assert!(read(r#"{"ranking":"opted_out","badge":null}"#).is_err());
+        // An answer ignores a member it does not know, but not a state.
+        assert_eq!(
+            read(r#"{"ranking":"opted_out","badge":null}"#).unwrap(),
+            Standing::OptedOut { change_in: None }
+        );
         assert!(read(r#"{"ranking":"top"}"#).is_err());
     }
 

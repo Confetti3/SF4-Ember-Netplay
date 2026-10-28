@@ -14,6 +14,7 @@ use axum::{
     http::{HeaderMap, Method, StatusCode, Uri, header},
     response::{IntoResponse, Response},
 };
+use ember_bridge::testing::polled;
 use ember_notifier::{Bot, Clock, Config, Notifier};
 use serde_json::{Value, json};
 
@@ -23,14 +24,7 @@ pub const BRIDGE_ID: &str = "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11";
 pub const SECRET: &str = "whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oLkPBEB3QKLYQ=";
 
 pub fn temp(name: &str) -> PathBuf {
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes).unwrap();
-    let dir = std::env::temp_dir().join(format!(
-        "ember-notifier-{name}-{}",
-        ember_protocol::encoding::b64u(&bytes)
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ember_bridge::testing::temp_dir(&format!("ember-notifier-{name}"))
 }
 
 #[derive(Clone, Debug)]
@@ -88,17 +82,17 @@ impl Mock {
 
     /// Waits for a request whose path ends with `suffix`.
     pub async fn wait_for(&self, method: Method, suffix: &str) -> Logged {
-        for _ in 0..200 {
-            if let Some(found) = self
+        let mut found = None;
+        let arrived = polled(Duration::from_secs(5), || {
+            found = self
                 .requests()
                 .into_iter()
-                .find(|request| request.method == method && request.path.ends_with(suffix))
-            {
-                return found;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        panic!("no {method} {suffix}: {:?}", self.requests());
+                .find(|request| request.method == method && request.path.ends_with(suffix));
+            found.is_some()
+        })
+        .await;
+        assert!(arrived, "no {method} {suffix}: {:?}", self.requests());
+        found.unwrap()
     }
 }
 

@@ -45,7 +45,7 @@ public:
 		CloseHandle(operation.hEvent);
 		std::uint64_t id = 0; std::string nonce;
 		CHECK(ReadFrame(id, nonce) && id == 1 && nonce.size() == sizeof(bootstrap_.nonce));
-		CHECK(WriteFrame(1, "SF4N"));
+		CHECK(WriteFrame(1, sf4e::platform::helper_frame::AuthenticationAnswer()));
 		for (int wait = 0; wait < 5000 && client.State() == sf4e::platform::HelperState::Connecting; ++wait) Sleep(1);
 		CHECK(client.State() == sf4e::platform::HelperState::Connected);
 	}

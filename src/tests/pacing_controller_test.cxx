@@ -4,18 +4,9 @@
 
 #include "../common/sf4e__PacingController.hxx"
 #include "../common/FrameShiftMailbox.hxx"
+#include "test_support.hxx"
 
 using namespace sf4e::pacing;
-
-static int g_failures = 0;
-
-#define CHECK(cond)                                                          \
-	do {                                                                     \
-		if (!(cond)) {                                                       \
-			printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);           \
-			g_failures++;                                                    \
-		}                                                                    \
-	} while (0)
 
 static bool Near(double a, double b) {
 	double d = a - b;
@@ -34,18 +25,18 @@ static void TestClamping() {
 	// Negative and zero recommendations are ignored safely.
 	p.OnRecommendation(0);
 	p.OnRecommendation(-5);
-	CHECK(Near(p.outstandingMs, 0.0));
-	CHECK(p.recommendationsReceived == 2);
-	CHECK(p.framesRecommendedTotal == 0);
+	EXPECT(Near(p.outstandingMs, 0.0));
+	EXPECT(p.recommendationsReceived == 2);
+	EXPECT(p.framesRecommendedTotal == 0);
 
 	// A 3-frame recommendation converts to 50 ms.
 	p.OnRecommendation(3);
-	CHECK(Near(p.outstandingMs, 50.0));
+	EXPECT(Near(p.outstandingMs, 50.0));
 
 	// A huge recommendation clamps to the 9-frame cap (150 ms).
 	p.OnRecommendation(1000);
-	CHECK(Near(p.outstandingMs, 150.0));
-	CHECK(Near(p.maxOutstandingMs, 150.0));
+	EXPECT(Near(p.outstandingMs, 150.0));
+	EXPECT(Near(p.maxOutstandingMs, 150.0));
 }
 
 static void TestRepeatedRecommendationsDoNotAccumulate() {
@@ -55,48 +46,48 @@ static void TestRepeatedRecommendationsDoNotAccumulate() {
 	p.OnRecommendation(9);
 	p.OnRecommendation(9);
 	p.OnRecommendation(9);
-	CHECK(Near(p.outstandingMs, 150.0));
-	CHECK(Near(p.msReplacedTotal, 300.0));
+	EXPECT(Near(p.outstandingMs, 150.0));
+	EXPECT(Near(p.msReplacedTotal, 300.0));
 
 	// A smaller fresh estimate lowers the target.
 	p.OnRecommendation(3);
-	CHECK(Near(p.outstandingMs, 50.0));
+	EXPECT(Near(p.outstandingMs, 50.0));
 }
 
 static void TestEnabledDisabledABGate() {
 	PacingController p = Fresh();
 	p.enabled = false;
 	p.OnRecommendation(3);
-	CHECK(p.recommendationsReceived == 1);
-	CHECK(Near(p.outstandingMs, 0.0));
-	CHECK(Near(p.msAcceptedTotal, 0.0));
-	CHECK(Near(p.msDiscardedDisabled, 50.0));
-	CHECK(Near(p.NextShiftMs(), 0.0));
+	EXPECT(p.recommendationsReceived == 1);
+	EXPECT(Near(p.outstandingMs, 0.0));
+	EXPECT(Near(p.msAcceptedTotal, 0.0));
+	EXPECT(Near(p.msDiscardedDisabled, 50.0));
+	EXPECT(Near(p.NextShiftMs(), 0.0));
 
 	p.enabled = true;
 	p.OnRecommendation(3);
-	CHECK(Near(p.outstandingMs, 50.0));
-	CHECK(Near(p.NextShiftMs(), 3.0));
+	EXPECT(Near(p.outstandingMs, 50.0));
+	EXPECT(Near(p.NextShiftMs(), 3.0));
 }
 
 static void TestContinuousIgnoresRecommendations() {
 	PacingController p = Fresh();
 	p.continuous = true;
 	p.OnRecommendation(3);
-	CHECK(p.recommendationsReceived == 1);
-	CHECK(Near(p.outstandingMs, 0.0));
+	EXPECT(p.recommendationsReceived == 1);
+	EXPECT(Near(p.outstandingMs, 0.0));
 }
 
 static void TestShiftAccounting() {
 	PacingController p = Fresh();
 	p.OnRecommendation(3);
 	p.OnShiftApplied(3.25);
-	CHECK(Near(p.msSlowedTotal, 3.25));
-	CHECK(Near(p.outstandingMs, 50.0 - 3.25));
+	EXPECT(Near(p.msSlowedTotal, 3.25));
+	EXPECT(Near(p.outstandingMs, 50.0 - 3.25));
 	p.OnShiftApplied(-1.0);
-	CHECK(Near(p.msSpedUpTotal, 1.0));
-	CHECK(Near(p.outstandingMs, 50.0 - 2.25));
-	CHECK(Near(p.maxSingleShiftMs, 3.25));
+	EXPECT(Near(p.msSpedUpTotal, 1.0));
+	EXPECT(Near(p.outstandingMs, 50.0 - 2.25));
+	EXPECT(Near(p.maxSingleShiftMs, 3.25));
 }
 
 static void TestPerFrameBudgetAndRepayment() {
@@ -104,7 +95,7 @@ static void TestPerFrameBudgetAndRepayment() {
 	p.OnRecommendation(3); // 50 ms
 
 	// Each outer frame repays at most maxStepMs.
-	CHECK(Near(p.NextShiftMs(), 3.0));
+	EXPECT(Near(p.NextShiftMs(), 3.0));
 
 	// Full repayment loop terminates and total-applied ≈ debt.
 	int iterations = 0;
@@ -112,10 +103,10 @@ static void TestPerFrameBudgetAndRepayment() {
 		p.OnShiftApplied(p.NextShiftMs());
 		iterations++;
 	}
-	CHECK(iterations >= 16 && iterations <= 17); // 50/3
-	CHECK(p.outstandingMs < p.minShiftMs);
-	CHECK(p.msSlowedTotal > 49.0 && p.msSlowedTotal < 51.0);
-	CHECK(Near(p.maxSingleShiftMs, 3.0));
+	EXPECT(iterations >= 16 && iterations <= 17); // 50/3
+	EXPECT(p.outstandingMs < p.minShiftMs);
+	EXPECT(p.msSlowedTotal > 49.0 && p.msSlowedTotal < 51.0);
+	EXPECT(Near(p.maxSingleShiftMs, 3.0));
 }
 
 static void TestAppliedMovesDebtExactly() {
@@ -125,10 +116,10 @@ static void TestAppliedMovesDebtExactly() {
 	// A shift that lands after the target moved still counts in full, even
 	// across zero, so the next shift pays it back.
 	p.OnShiftApplied(80.0);
-	CHECK(Near(p.outstandingMs, -30.0));
-	CHECK(Near(p.NextShiftMs(), -3.0));
+	EXPECT(Near(p.outstandingMs, -30.0));
+	EXPECT(Near(p.NextShiftMs(), -3.0));
 	p.OnShiftApplied(0.0);
-	CHECK(Near(p.outstandingMs, -30.0));
+	EXPECT(Near(p.outstandingMs, -30.0));
 }
 
 static void TestMinGranularity() {
@@ -136,27 +127,27 @@ static void TestMinGranularity() {
 	p.OnRecommendation(3);
 	// Wait everything down to below minWaitMs.
 	p.OnShiftApplied(49.5);
-	CHECK(p.outstandingMs > 0.0 && p.outstandingMs < 1.0);
+	EXPECT(p.outstandingMs > 0.0 && p.outstandingMs < 1.0);
 	// Residual debt below the minimum is not worth a shift.
-	CHECK(Near(p.NextShiftMs(), 0.0));
+	EXPECT(Near(p.NextShiftMs(), 0.0));
 }
 
 static void TestReset() {
 	PacingController p = Fresh();
 	p.OnRecommendation(9); // 150 ms
 	p.OnShiftApplied(3.0);
-	CHECK(p.outstandingMs > 0.0);
+	EXPECT(p.outstandingMs > 0.0);
 
 	// No correction survives the match lifecycle; discard is recorded.
 	p.Reset();
-	CHECK(Near(p.outstandingMs, 0.0));
-	CHECK(Near(p.msDiscardedOnReset, 147.0));
-	CHECK(Near(p.NextShiftMs(), 0.0));
+	EXPECT(Near(p.outstandingMs, 0.0));
+	EXPECT(Near(p.msDiscardedOnReset, 147.0));
+	EXPECT(Near(p.NextShiftMs(), 0.0));
 
 	// Stats reset separately (per-match).
 	p.ResetStats();
-	CHECK(p.recommendationsReceived == 0);
-	CHECK(Near(p.msDiscardedOnReset, 0.0));
+	EXPECT(p.recommendationsReceived == 0);
+	EXPECT(Near(p.msDiscardedOnReset, 0.0));
 }
 
 static void TestConfigurableCaps() {
@@ -164,8 +155,8 @@ static void TestConfigurableCaps() {
 	p.maxRecommendationFrames = 4.0;
 	p.maxStepMs = 1.5;
 	p.OnRecommendation(9);
-	CHECK(Near(p.outstandingMs, 4.0 * 1000.0 / 60.0));
-	CHECK(Near(p.NextShiftMs(), 1.5));
+	EXPECT(Near(p.outstandingMs, 4.0 * 1000.0 / 60.0));
+	EXPECT(Near(p.NextShiftMs(), 1.5));
 }
 
 // Ledger A-012: a limiter call that took its request before a session reset
@@ -174,25 +165,25 @@ static void TestFrameShiftIsFencedByReset() {
 	FrameShiftMailbox mailbox;
 	mailbox.Request(2000);
 	const auto taken = mailbox.Take();
-	CHECK(taken.requestUs == 2000);
-	CHECK(mailbox.Take().requestUs == 0); // one request, one frame
+	EXPECT(taken.requestUs == 2000);
+	EXPECT(mailbox.Take().requestUs == 0); // one request, one frame
 	mailbox.Reset();                      // session reset while the limiter spins
 	mailbox.Complete(taken.generation, 1800);
-	CHECK(mailbox.TakeApplied() == 0);
+	EXPECT(mailbox.TakeApplied() == 0);
 	mailbox.Request(-1000);
 	const auto next = mailbox.Take();
 	mailbox.Complete(next.generation, -900);
-	CHECK(mailbox.TakeApplied() == -900);
-	CHECK(mailbox.TakeApplied() == 0);
+	EXPECT(mailbox.TakeApplied() == -900);
+	EXPECT(mailbox.TakeApplied() == 0);
 }
 
 // Ledger A-007: the hook sleeps only while the deadline is comfortably
 // ahead, and always leaves the last stretch for the game's own spin.
 static void TestLimiterSleepLeavesSpinMargin() {
-	CHECK(Near(LimiterSleepMs(16.667, 5.0), 16.667 - 5.0 - 1.5));
-	CHECK(LimiterSleepMs(16.667, 15.0) == 0.0);  // under 1 ms to sleep: spin
-	CHECK(LimiterSleepMs(16.667, 20.0) == 0.0);  // already late
-	CHECK(Near(LimiterSleepMs(19.667, 5.0, 1.5), 13.167)); // a lengthened frame
+	EXPECT(Near(LimiterSleepMs(16.667, 5.0), 16.667 - 5.0 - 1.5));
+	EXPECT(LimiterSleepMs(16.667, 15.0) == 0.0);  // under 1 ms to sleep: spin
+	EXPECT(LimiterSleepMs(16.667, 20.0) == 0.0);  // already late
+	EXPECT(Near(LimiterSleepMs(19.667, 5.0, 1.5), 13.167)); // a lengthened frame
 }
 
 int main() {
@@ -209,8 +200,8 @@ int main() {
 	TestReset();
 	TestConfigurableCaps();
 
-	if (g_failures) {
-		printf("%d failure(s)\n", g_failures);
+	if (TEST_FAILURES()) {
+		printf("%d failure(s)\n", TEST_FAILURES());
 		return 1;
 	}
 	printf("pacing_controller_test: all tests passed\n");

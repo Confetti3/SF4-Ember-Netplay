@@ -8,38 +8,25 @@ use serde::{Deserialize, Serialize};
 use crate::{
     EmberId, Error, Result,
     encoding::is_prefixed_id,
-    matches::{MAX_EXTERNAL_ID, check_metadata, games_to_win_valid},
+    matches::{check_provider_head, check_provider_tail, games_to_win_valid},
+    wire_enum::wire_enum,
 };
 
-/// Who gives up the seat when a set ends. The players who leave join the
-/// back of the queue; nobody else is ever put in it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Rotation {
-    /// King of the hill: the loser leaves.
-    WinnerStays,
-    LoserStays,
-    /// Both leave, winner first.
-    BothRotate,
+wire_enum! {
+    serde
+    /// Who gives up the seat when a set ends. The players who leave join the
+    /// back of the queue; nobody else is ever put in it.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum Rotation {
+        /// King of the hill: the loser leaves.
+        WinnerStays = "winner_stays",
+        LoserStays = "loser_stays",
+        /// Both leave, winner first.
+        BothRotate = "both_rotate",
+    }
 }
 
 impl Rotation {
-    pub const ALL: [Rotation; 3] = [Self::WinnerStays, Self::LoserStays, Self::BothRotate];
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::WinnerStays => "winner_stays",
-            Self::LoserStays => "loser_stays",
-            Self::BothRotate => "both_rotate",
-        }
-    }
-
-    pub fn parse(text: &str) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|rotation| rotation.as_str() == text)
-    }
-
     /// Slots (0 or 1) that leave after `winner` wins a set, in the order they
     /// rejoin the queue.
     pub fn leaving(self, winner: u8) -> Vec<u8> {
@@ -65,19 +52,11 @@ pub struct CreateLobby {
 
 impl CreateLobby {
     pub fn check(&self) -> Result<()> {
-        if self.external_lobby_id.is_empty() || self.external_lobby_id.len() > MAX_EXTERNAL_ID {
-            return Err(Error::InvalidField("external_lobby_id"));
-        }
-        if self.game != "usf4" {
-            return Err(Error::InvalidField("game"));
-        }
+        check_provider_head(&self.external_lobby_id, "external_lobby_id", &self.game)?;
         if !games_to_win_valid(self.games_to_win) {
             return Err(Error::InvalidField("games_to_win"));
         }
-        if self.required_build_id.is_empty() || self.required_build_id.len() > 128 {
-            return Err(Error::InvalidField("required_build_id"));
-        }
-        check_metadata(&self.metadata)
+        check_provider_tail(&self.required_build_id, &self.metadata)
     }
 }
 

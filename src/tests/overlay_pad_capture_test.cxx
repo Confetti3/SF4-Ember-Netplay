@@ -6,8 +6,11 @@
 #include "../sf4e/sf4e__Overlay.hxx"
 #include "../sf4e/sf4e__OverlayPrefs.hxx"
 #include "../netplay/ControllerRestore.hxx"
+#include <windows.h>
 #include <atomic>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <thread>
 
 #include "test_support.hxx"
@@ -93,5 +96,38 @@ int main() {
     Overlay::FreeOverlay();
     frame.join();
     CHECK(!Overlay::CapturesMenuInput());
+    {
+        // A failed per-tick identity read (here, settings.lock held by another
+        // process) makes the per-tick readers skip the disk for a few seconds.
+        // A one-shot Load in that window still reads the disk once the lock is free.
+        namespace prefs = sf4e::OverlayPrefs;
+        const auto directory = std::filesystem::temp_directory_path() /
+            (L"sf4e-overlay-prefs-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+        std::filesystem::create_directories(directory);
+        {
+            std::ofstream file(directory / L"overlay_prefs.json", std::ios::binary);
+            file << R"({"lobbySettings":{"roundCountIdx":3},"device":{"idx":2,"type":3,)"
+                    R"("identity":{"guid":"g","serial":"s","path":"p","name":"Saved pad"}}})";
+        }
+        prefs::UseDirectoryForTest(directory.wstring());
+        const ULONGLONG started = GetTickCount64();
+        HANDLE lock = CreateFileW((directory / L"settings.lock").c_str(), GENERIC_READ | GENERIC_WRITE,
+            0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        CHECK(lock != INVALID_HANDLE_VALUE);
+        CHECK(!prefs::DeviceIdentity());
+        CloseHandle(lock);
+        prefs::Data eachTick;
+        const bool skipped = !prefs::DeviceIdentity() && !prefs::LoadEachTick(eachTick);
+        // Only meaningful while the 3 s window is still open.
+        if (GetTickCount64() - started < 2500) CHECK(skipped);
+        prefs::Data loaded;
+        CHECK(prefs::Load(loaded));
+        CHECK(loaded.lobbyRoundCountIdx == 3 && loaded.deviceIdentity && loaded.deviceIdentity->name == "Saved pad");
+        const auto identity = prefs::DeviceIdentity();
+        CHECK(identity && identity->serial == "s");
+        prefs::UseDirectoryForTest({});
+        std::error_code ignored;
+        std::filesystem::remove_all(directory, ignored);
+    }
     return 0;
 }

@@ -41,7 +41,9 @@
 #include "../platform/HelperProcess.hxx"
 #include <nlohmann/json.hpp>
 #include <atomic>
+#include <cstdlib>
 #include <deque>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <mutex>
@@ -117,6 +119,8 @@ public:
 	json Status() { std::lock_guard<std::mutex> lock(mutex_); return status_; }
 	json Closed() { std::lock_guard<std::mutex> lock(mutex_); return closed_; }
 	bool ProtocolError() { std::lock_guard<std::mutex> lock(mutex_); return protocolError_; }
+	// Every line the host wrote, in order.
+	std::vector<std::string> Lines() { std::lock_guard<std::mutex> lock(mutex_); return lines_; }
 
 private:
 	void Read() {
@@ -138,6 +142,7 @@ private:
 		std::lock_guard<std::mutex> lock(mutex_);
 		const auto value = json::parse(line, nullptr, false);
 		const auto type = value.is_object() ? value.value("type", std::string()) : std::string();
+		lines_.push_back(line);
 		std::cout << "  room host: " << (type == "status" ? value.dump().substr(0, 60) +
 			"... banned=" + value.value("banned", json::array()).dump() : type.empty() ? line : type) << std::endl;
 		if (type == "hosted" && hosted_.is_null() && status_.is_null()) hosted_ = value;
@@ -149,8 +154,33 @@ private:
 	std::thread reader_;
 	std::mutex mutex_;
 	json hosted_, status_, closed_;
+	std::vector<std::string> lines_;
 	bool protocolError_ = false;
 };
+
+// The host's lines as the supervisor reads them: hosted first and once, and a
+// status only when it says something new. With SF4E_ROOM_HOST_TRANSCRIPT set,
+// the lines also go to that file with each invitation replaced, so the lines of
+// two host builds over the same scenario can be compared.
+bool LinesAreSendOnChange(const std::vector<std::string>& lines, std::string& detail) {
+	std::string previous;
+	std::ofstream transcript;
+	if (const char* path = std::getenv("SF4E_ROOM_HOST_TRANSCRIPT")) transcript.open(path, std::ios::binary);
+	bool sound = !lines.empty();
+	for (std::size_t i = 0; i < lines.size(); ++i) {
+		auto value = json::parse(lines[i], nullptr, false);
+		const auto type = value.is_object() ? value.value("type", std::string()) : std::string();
+		if ((i == 0) != (type == "hosted")) { sound = false; detail = "line " + std::to_string(i) + " is " + type; }
+		if (type == "status") {
+			if (lines[i] == previous) { sound = false; detail = "line " + std::to_string(i) + " repeats the status before it"; }
+			previous = lines[i];
+		}
+		if (value.is_object() && value.contains("invitation")) value["invitation"] = "<invitation>";
+		if (transcript) transcript << (value.is_object() ? value.dump() : lines[i]) << "\n";
+	}
+	detail += (detail.empty() ? "" : "; ") + std::to_string(lines.size()) + " lines";
+	return sound;
+}
 
 int clientErrors = 0;
 
@@ -810,6 +840,11 @@ int wmain(int argc, wchar_t** argv) {
 	Step("room host exits 0 within 10 s of stdin closing", exitCode && *exitCode == 0,
 		exitCode ? "exit " + std::to_string(*exitCode) + " after " + std::to_string(GetTickCount64() - closing) + " ms" : "still running");
 	Step("room host wrote only protocol lines", !child.ProtocolError());
+	{
+		std::string detail;
+		const bool sendOnChange = LinesAreSendOnChange(child.Lines(), detail);
+		Step("room host said hosted first and no status twice in a row", sendOnChange, detail);
+	}
 
 	// The host closes the room in the model before it leaves, so D's snapshot
 	// says closed at once rather than after the helper's host-loss grace.

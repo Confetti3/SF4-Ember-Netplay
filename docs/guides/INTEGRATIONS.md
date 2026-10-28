@@ -209,24 +209,43 @@ Both players need the same Ember build; the second player's game is refused
 with `incompatible_build` otherwise. `required_build_id` is your label for the
 build and is not checked against the game.
 
+A game claims its match again to renew its place, and every claim's answer can
+carry the room's signed binding. A bridge that lists `matches.claim_unchanged`
+in its capabilities `features` lets a claim carry `held_binding`, the digest
+(unpadded base64url SHA-256 of the binding's canonical bytes) of the binding
+the helper already holds and has verified. If the room's binding is still
+exactly that one, the answer has the role `unchanged`, with the `room_id` and
+`invitation` and without the binding; otherwise it is the usual `room` answer.
+A helper that does not send `held_binding` gets the answer it always got, and
+an older helper, which refuses a role it does not know, never sees
+`unchanged`. A binding's `issued_at` is the time the room was published, so a
+renewal that changes nothing repeats the same binding.
+
 ### A Play button
 
 The answer to `POST /v1/matches`, and `GET /v1/matches/{id}`, carry the
 match's `play_url`: `https://embernetplay.link/m#<bridge id>/<match id>`. It is
 the same for both players and safe to put in messages: only the match's two
 assigned Ember IDs can claim the match, and anyone else's Ember finds no such
-match in their list. The link itself does not expire, so you can store it;
-the match it opens does if nobody plays it (see "Matches nobody plays").
+match in their list. You can store the link, but it plays only while its
+match is open; a match nobody plays ends by itself (see "Matches nobody
+plays"). Once the match is completed, cancelled, failed or expired, the page
+says the match is over and asks for the newest link instead of opening Ember,
+and an Ember still in the match's room leaves it within about 10 seconds, or
+once the game on screen ends (a minute at most). The page learns this from
+`GET /v1/matches/{id}/link`, which needs no credential and answers only
+`{"over": true}` or `{"over": false}` (`404` for a match the bridge does not
+have).
 
 The page asks the player to choose Open in Ember, which hands Ember
-`ember://tournament/open?bridge=...&match=...`. Below that it shows how to get
-Ember when it is not installed yet (download, start it once, come back to the
-same link), so your site needs no explanation of its own. Ember opens the
-Tournament matches screen on that match and, for a player who is free, joins
-the match's room by itself; a player in a game or a room is never moved, and
-presses Play there later. A site can also link
-`ember://tournament/open?bridge=<bridge id>&match=<match id>` directly, which
-skips the page but offers nothing to a player without Ember. Where the `ember:` link does not
+`ember://tournament/open?bridge=...&match=...`, and opens it by itself in a
+browser where Ember opened from the page before. Below that it shows how to
+get Ember when it is not installed yet (download, start it once, come back to
+the same link), and on a phone it asks the player to open the link on their
+PC, so your site needs no explanation of its own. Ember opens the Tournament
+matches screen on that match and, for a player who is free, joins the match's
+room by itself; a player in a game or a room is never moved, and presses Play
+there later. Where the `ember:` link does not
 open Ember (Linux browsers, or a PC where Ember has not been started yet), the
 page's Copy link and Paste match link on that screen do the same, or the player
 picks the match from the list.
@@ -254,9 +273,10 @@ connection that does nothing changes nothing:
 - At most 6 watchers watch one match, staff included. A staff watcher can take
   the place of a link holder when the match is full.
 
-BluMint's connections cannot be opened to watchers: every write below answers
-`403 forbidden` with `details.reason` `connection_fixed`, and `spectators` in
-BluMint's create request stays ignored.
+BluMint's connections are always open to link holders, up to 2 a match, and
+have no staff or denials: every write below answers `403 forbidden` with
+`details.reason` `connection_fixed`, the read reports `link_holders` as
+`true`, and `spectators` in BluMint's create request stays ignored.
 
 **Address exposure.** A watcher joins the players' room, and the members of a
 room can learn each other's public IP addresses when Iroh finds a direct path.
@@ -889,8 +909,7 @@ the connection's provider credential as `Authorization: Bearer`:
   there by a code keeps that link.
 - `POST /v1/blumint/matches` creates an `ember-room-v1` set from two teams of
   one, of `series.gamesToWin`, starting from the teams' `startingWins`, and
-  answers `matchId`, the match's `ember://tournament/open` link as `matchUrl` and its
-  `play_url` as `pageUrl`. Every request
+  answers `matchId` and the match's `play_url` as `matchUrl`. Every request
   under one `Idempotency-Key` answers the same match for a day, and the key
   is the match's `external_match_id` (`blumint:<key>`), so it makes no other
   match for as long as the bridge keeps that one. Refusals answer

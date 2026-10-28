@@ -17,8 +17,8 @@ use crate::{
     encoding::{Counter, decode_b64u, is_prefixed_id},
     json,
     matches::{Rules, games_to_win_valid, starts_at_zero},
-    report::{GameReport, Outcome},
-    sign::Domain,
+    report::{AttemptKey, GameReport, Outcome},
+    sign::{BridgeSigned, Domain, bridge_sign, bridge_verify},
 };
 
 /// The rules profile of matches whose games the fighters report: the room's
@@ -76,6 +76,9 @@ pub fn roster_digest(p1: &EmberId, p2: &EmberId) -> Result<String> {
 
 /// The capabilities feature of a bridge that reads a claim's `ready`.
 pub const CLAIM_READY_FEATURE: &str = "matches.claim_ready";
+/// The capabilities feature of a bridge that reads a claim's `held_binding`
+/// and answers `ClaimAnswer::Unchanged` to it.
+pub const CLAIM_UNCHANGED_FEATURE: &str = "matches.claim_unchanged";
 
 /// `match.claim`: an assigned fighter offers this helper run's endpoint.
 /// Claiming again renews the claim and any provisioning lease it holds.
@@ -98,17 +101,29 @@ pub struct Claim {
     /// them out of the binding at once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub watch: Option<bool>,
+    /// The digest (`Binding::digest`) of the binding this helper holds for
+    /// the match, verified. Sent only to a bridge that lists
+    /// `CLAIM_UNCHANGED_FEATURE`, since an older one refuses a field it does
+    /// not know. Only a claim carrying it may be answered
+    /// `ClaimAnswer::Unchanged`, so a helper that never sends it never sees
+    /// that answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_binding: Option<String>,
 }
 
 impl Claim {
     pub fn check(&self) -> Result<()> {
-        check_helper(&self.endpoint_id, &self.helper_instance_id, &self.build_id)
+        check_helper(&self.endpoint_id, &self.helper_instance_id, &self.build_id)?;
+        if let Some(held) = &self.held_binding {
+            decode_b64u::<32>(held, "held_binding")?;
+        }
+        Ok(())
     }
 }
 
 /// What a claim returns.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "role", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "role", rename_all = "snake_case")]
 pub enum ClaimAnswer {
     /// No room yet and this fighter holds the provisioning lease: host one
     /// and publish it with this lease before it expires.
@@ -126,6 +141,12 @@ pub enum ClaimAnswer {
         invitation: String,
         binding: Option<Box<SignedBinding>>,
     },
+    /// The match's room, whose binding is still exactly the one the claim
+    /// said it holds (`Claim::held_binding`), so it is left out. Answered
+    /// only to a claim that carried `held_binding`: every other claim gets
+    /// `Room` as before, and a helper that never sends the field never sees
+    /// this answer, which it would refuse.
+    Unchanged { room_id: String, invitation: String },
 }
 
 /// `room.publish`: the room a fighter hosts for the match. A first room needs
@@ -252,17 +273,31 @@ impl Binding {
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedBinding> {
-        self.check()?;
+        let (binding, kid, signature) = bridge_sign(self, key, kid)?;
         Ok(SignedBinding {
-            binding: self.clone(),
-            kid: kid.to_owned(),
-            signature: key.sign(Domain::Binding, &json::to_value(self)?),
+            binding,
+            kid,
+            signature,
         })
     }
 
     /// The slot `endpoint_id` holds, if it is one of the two fighters.
     pub fn slot_of(&self, endpoint_id: &str) -> Option<u8> {
         (0..2u8).find(|&slot| self.fighters[slot as usize].endpoint_id == endpoint_id)
+    }
+
+    /// Unpadded base64url SHA-256 of the binding's canonical bytes, the ones
+    /// its signature covers: what a claim's `held_binding` names.
+    pub fn digest(&self) -> Result<String> {
+        json::digest(self)
+    }
+}
+
+impl BridgeSigned for Binding {
+    const DOMAIN: Domain = Domain::Binding;
+
+    fn check(&self) -> Result<()> {
+        Binding::check(self)
     }
 }
 
@@ -279,16 +314,7 @@ impl SignedBinding {
     /// own consistency. Whether it is the expected bridge and match is the
     /// caller's check.
     pub fn verify(&self, key: &PublicKey, kid: &str) -> Result<&Binding> {
-        if self.kid != kid {
-            return Err(Error::Mismatch("kid"));
-        }
-        self.binding.check()?;
-        key.verify(
-            Domain::Binding,
-            &json::to_value(&self.binding)?,
-            &self.signature,
-        )?;
-        Ok(&self.binding)
+        bridge_verify(&self.binding, &self.kid, &self.signature, key, kid)
     }
 }
 
@@ -332,19 +358,38 @@ impl Prepare {
 
     /// The fields both fighters must agree on (the endpoint is each one's own).
     pub fn same_game(&self, other: &Prepare) -> bool {
-        self.assignment_generation == other.assignment_generation
-            && self.binding_revision == other.binding_revision
-            && self.room_id == other.room_id
-            && self.table_id == other.table_id
-            && self.match_generation == other.match_generation
-            && self.rules_digest == other.rules_digest
-            && self.roster_digest == other.roster_digest
-            && self.build_id == other.build_id
+        self.game_key() == other.game_key()
+    }
+
+    fn game_key(&self) -> GameKey<'_> {
+        GameKey {
+            assignment_generation: self.assignment_generation,
+            binding_revision: self.binding_revision,
+            room_id: &self.room_id,
+            table_id: self.table_id,
+            match_generation: self.match_generation,
+            rules_digest: &self.rules_digest,
+            roster_digest: &self.roster_digest,
+            build_id: &self.build_id,
+        }
     }
 }
 
+/// What both fighters' descriptions of a game must share.
+#[derive(PartialEq, Eq)]
+struct GameKey<'a> {
+    assignment_generation: Counter,
+    binding_revision: Counter,
+    room_id: &'a str,
+    table_id: u8,
+    match_generation: Counter,
+    rules_digest: &'a str,
+    roster_digest: &'a str,
+    build_id: &'a str,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "state", rename_all = "snake_case")]
 pub enum PrepareAnswer {
     /// Waiting for the other fighter's matching description.
     Pending {
@@ -411,11 +456,11 @@ impl Permit {
     }
 
     pub fn sign(&self, key: &SigningIdentity, kid: &str) -> Result<SignedPermit> {
-        self.check()?;
+        let (permit, kid, signature) = bridge_sign(self, key, kid)?;
         Ok(SignedPermit {
-            permit: self.clone(),
-            kid: kid.to_owned(),
-            signature: key.sign(Domain::Permit, &json::to_value(self)?),
+            permit,
+            kid,
+            signature,
         })
     }
 
@@ -429,50 +474,33 @@ impl Permit {
         } else {
             return Err(Error::Mismatch("reporter is not a fighter"));
         };
-        let report = GameReport {
-            version: crate::report::VERSION,
-            bridge_id: self.bridge_id.clone(),
-            match_id: self.match_id.clone(),
-            assignment_generation: self.assignment_generation,
-            attempt_id: self.attempt_id.clone(),
-            permit_id: self.permit_id.clone(),
-            observation_id: observation.observation_id,
-            room_id: self.room_id.clone(),
-            table_id: self.table_id,
-            match_generation: self.match_generation,
-            reporter_id: reporter.clone(),
-            opponent_id: opponent,
-            p1_id: self.p1_id.clone(),
-            p2_id: self.p2_id.clone(),
-            rules_digest: self.rules_digest.clone(),
-            roster_digest: self.roster_digest.clone(),
-            build_id: self.build_id.clone(),
-            result: observation.result,
-            capture_frame: observation.capture_frame,
-            confirmed_input_frame: observation.confirmed_input_frame,
-            observed_at: observation.observed_at,
-            helper_instance_id: observation.helper_instance_id,
-            facts: None,
-        };
+        let report = self.key().report(reporter.clone(), opponent, observation);
         report.check()?;
         Ok(report)
     }
 
+    /// The attempt this permit authorizes.
+    pub fn key(&self) -> AttemptKey<'_> {
+        AttemptKey {
+            bridge_id: &self.bridge_id,
+            match_id: &self.match_id,
+            assignment_generation: self.assignment_generation,
+            attempt_id: &self.attempt_id,
+            permit_id: &self.permit_id,
+            room_id: &self.room_id,
+            table_id: self.table_id,
+            match_generation: self.match_generation,
+            p1_id: &self.p1_id,
+            p2_id: &self.p2_id,
+            rules_digest: &self.rules_digest,
+            roster_digest: &self.roster_digest,
+            build_id: &self.build_id,
+        }
+    }
+
     /// True when `report` is about this attempt, field for field.
     pub fn covers(&self, report: &GameReport) -> bool {
-        report.bridge_id == self.bridge_id
-            && report.match_id == self.match_id
-            && report.assignment_generation == self.assignment_generation
-            && report.attempt_id == self.attempt_id
-            && report.permit_id == self.permit_id
-            && report.room_id == self.room_id
-            && report.table_id == self.table_id
-            && report.match_generation == self.match_generation
-            && report.p1_id == self.p1_id
-            && report.p2_id == self.p2_id
-            && report.rules_digest == self.rules_digest
-            && report.roster_digest == self.roster_digest
-            && report.build_id == self.build_id
+        self.key() == report.key()
     }
 }
 
@@ -487,6 +515,14 @@ pub struct Observation {
     pub helper_instance_id: String,
 }
 
+impl BridgeSigned for Permit {
+    const DOMAIN: Domain = Domain::Permit;
+
+    fn check(&self) -> Result<()> {
+        Permit::check(self)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SignedPermit {
@@ -497,16 +533,7 @@ pub struct SignedPermit {
 
 impl SignedPermit {
     pub fn verify(&self, key: &PublicKey, kid: &str) -> Result<&Permit> {
-        if self.kid != kid {
-            return Err(Error::Mismatch("kid"));
-        }
-        self.permit.check()?;
-        key.verify(
-            Domain::Permit,
-            &json::to_value(&self.permit)?,
-            &self.signature,
-        )?;
-        Ok(&self.permit)
+        bridge_verify(&self.permit, &self.kid, &self.signature, key, kid)
     }
 }
 
@@ -520,14 +547,6 @@ pub const PLAY_PAGE: &str = "https://embernetplay.link/m#";
 /// such match in their list.
 pub fn play_url(bridge_id: &str, match_id: &str) -> String {
     format!("{PLAY_PAGE}{bridge_id}/{match_id}")
-}
-
-/// The same match as the link Ember itself opens, which the play page hands
-/// to Ember: a site that links it directly skips the page, and Ember plays
-/// the match as soon as the player is free. Unlike the page it offers nothing
-/// to a player whose Ember is not installed or never started.
-pub fn play_deep_link(bridge_id: &str, match_id: &str) -> String {
-    format!("ember://tournament/open?bridge={bridge_id}&match={match_id}")
 }
 
 #[cfg(test)]
@@ -817,6 +836,109 @@ mod tests {
         let mut unknown = older;
         unknown["seat"] = 0.into();
         assert!(serde_json::from_value::<Claim>(unknown).is_err());
+    }
+
+    // A claim names the binding it holds only when its helper sets it, and
+    // only as a digest; unset, the claim is the bytes an older bridge reads.
+    #[test]
+    fn a_claim_names_the_binding_it_holds_only_when_asked() {
+        let older = serde_json::json!({
+            "endpoint_id": "a".repeat(64),
+            "helper_instance_id": "ins_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01",
+            "build_id": "build",
+        });
+        let claim: Claim = serde_json::from_value(older.clone()).unwrap();
+        assert_eq!(claim.held_binding, None);
+        assert_eq!(serde_json::to_value(&claim).unwrap(), older);
+        let digest = crate::encoding::b64u(&[7; 32]);
+        let holding = Claim {
+            held_binding: Some(digest.clone()),
+            ..claim.clone()
+        };
+        assert!(holding.check().is_ok());
+        let sent = serde_json::to_value(&holding).unwrap();
+        assert_eq!(sent["held_binding"], digest.as_str());
+        assert_eq!(serde_json::from_value::<Claim>(sent).unwrap(), holding);
+        for wrong in [String::new(), "x".repeat(43), format!("{digest}A")] {
+            let claim = Claim {
+                held_binding: Some(wrong),
+                ..claim.clone()
+            };
+            assert_eq!(claim.check(), Err(Error::InvalidEncoding("held_binding")));
+        }
+    }
+
+    // The answers a claim without `held_binding` gets keep their bytes; the
+    // unchanged answer is one more role, carrying the room and its
+    // invitation and no binding.
+    #[test]
+    fn the_unchanged_answer_is_its_own_role() {
+        let room = serde_json::json!({
+            "role": "room", "room_id": "0".repeat(32), "invitation": "sf4e3:x", "binding": null,
+        });
+        let parsed: ClaimAnswer = serde_json::from_value(room.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), room);
+        let unchanged = ClaimAnswer::Unchanged {
+            room_id: "0".repeat(32),
+            invitation: "sf4e3:x".into(),
+        };
+        let sent = serde_json::to_value(&unchanged).unwrap();
+        assert_eq!(
+            sent,
+            serde_json::json!({ "role": "unchanged", "room_id": "0".repeat(32), "invitation": "sf4e3:x" })
+        );
+        assert_eq!(
+            serde_json::from_value::<ClaimAnswer>(sent).unwrap(),
+            unchanged
+        );
+    }
+
+    // The digest is of the canonical bytes, so it moves with any field,
+    // `issued_at` included, and not with how the JSON was written.
+    #[test]
+    fn a_binding_digest_names_its_bytes() {
+        let (a, b) = (key(1), key(2));
+        let binding = Binding {
+            version: VERSION,
+            bridge_id: "brg_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a11".into(),
+            match_id: "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a12".into(),
+            assignment_generation: Counter(1),
+            binding_revision: Counter(1),
+            room_id: "0123456789abcdef0123456789abcdef".into(),
+            build_id: "build".into(),
+            games_to_win: 2,
+            rules_digest: rules_digest(&rules()).unwrap(),
+            roster_digest: roster_digest(a.ember_id(), b.ember_id()).unwrap(),
+            fighters: [
+                BoundFighter {
+                    ember_id: a.ember_id().clone(),
+                    endpoint_id: "a".repeat(64),
+                },
+                BoundFighter {
+                    ember_id: b.ember_id().clone(),
+                    endpoint_id: "b".repeat(64),
+                },
+            ],
+            issued_at: 100,
+            starting_wins: [0, 0],
+            watchers: vec![],
+        };
+        let digest = binding.digest().unwrap();
+        assert_eq!(digest, json::digest(&binding).unwrap());
+        assert_eq!(digest.len(), 43);
+        let reread: Binding =
+            serde_json::from_str(&serde_json::to_string_pretty(&binding).unwrap()).unwrap();
+        assert_eq!(reread.digest().unwrap(), digest);
+        let later = Binding {
+            issued_at: 101,
+            ..binding.clone()
+        };
+        assert_ne!(later.digest().unwrap(), digest);
+        let moved = Binding {
+            binding_revision: Counter(2),
+            ..binding
+        };
+        assert_ne!(moved.digest().unwrap(), digest);
     }
 
     /// Seeded mutation fuzzing of what a helper or the bridge reads from the

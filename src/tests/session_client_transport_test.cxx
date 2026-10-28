@@ -262,9 +262,27 @@ int main() {
 		chatMessage.snapshot = unchanged;
 		json payload = chatMessage;
 		payload["snapshot"].erase("chat"); payload["snapshot"]["chat_unchanged"] = true;
+		const auto sequenceBefore = chatClient.RoomSnapshotSequence();
 		chatTransport->Push(payload); CHECK(chatClient.Step() == 0);
 		CHECK(chatClient.GetRoomSnapshot().revision == unchanged.revision);
 		CHECK(chatClient.GetRoomSnapshot().chat.size() == 1 && chatClient.GetRoomSnapshot().chat.front().text == "hi");
+		// Each whole replacement of the room moves the sequence.
+		CHECK(chatClient.RoomSnapshotSequence() != sequenceBefore);
+		// An older chat_unchanged snapshot is ignored and leaves the chat held
+		// and the sequence where they were.
+		const auto sequenceHeld = chatClient.RoomSnapshotSequence();
+		auto stale = unchanged; stale.revision = withChat.revision - 1;
+		chatMessage.snapshot = stale;
+		json stalePayload = chatMessage;
+		stalePayload["snapshot"].erase("chat"); stalePayload["snapshot"]["chat_unchanged"] = true;
+		chatTransport->Push(stalePayload); CHECK(chatClient.Step() == 0);
+		CHECK(chatClient.GetRoomSnapshot().revision == unchanged.revision);
+		CHECK(chatClient.GetRoomSnapshot().chat.size() == 1 && chatClient.GetRoomSnapshot().chat.front().text == "hi");
+		CHECK(chatClient.RoomSnapshotSequence() == sequenceHeld);
+		// The same again at the current revision is taken, chat kept.
+		chatTransport->Push(payload); CHECK(chatClient.Step() == 0);
+		CHECK(chatClient.GetRoomSnapshot().chat.size() == 1 && chatClient.GetRoomSnapshot().chat.front().text == "hi");
+		CHECK(chatClient.RoomSnapshotSequence() != sequenceHeld);
 	}
 	// Result and native-finish reports retain one exact queued action identity.
 	// A later retry cannot change the generation/outcome bytes or allocate a new

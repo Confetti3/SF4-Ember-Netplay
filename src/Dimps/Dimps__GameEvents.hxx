@@ -50,7 +50,9 @@ namespace Dimps {
 
 		struct RootEvent : Dimps::Event::EventBaseWithEC {
 			static char** eventFlowDefinition;
-			static Game::ProgressData** GetProgressData(RootEvent* e);
+			static Game::ProgressData** GetProgressData(RootEvent* e) {
+				return (Game::ProgressData**)((unsigned int)e + 0x6c);
+			}
 			static void Locate(HMODULE peRoot);
 		};
 
@@ -151,15 +153,21 @@ namespace Dimps {
 			// in the MainMenu object, which is _not_ the base of the object-
 			// it's at offset 0x40. These helpers can make things a little
 			// more clear when invoking item observer methods.
-			static MainMenu* ToItemObserver(MainMenu* s);
-			static MainMenu* FromItemObserver(MainMenu* s);
+			static MainMenu* ToItemObserver(MainMenu* s) {
+				return (MainMenu*)((unsigned int)s + 0x40);
+			}
+			static MainMenu* FromItemObserver(MainMenu* s) {
+				return (MainMenu*)((unsigned int)s - 0x40);
+			}
 
 			// Whether choosing Arcade or Training first asks about Fight
 			// Request. The menu fills it when it is built, from what the
 			// platform allows; with 0, OnModeSelected(MMI_TRAINING) leaves for
 			// Training at once, as the game itself does where no requests
 			// can be made. Takes the event, not its item observer.
-			static DWORD* GetFightRequestOffered(MainMenu* e);
+			static DWORD* GetFightRequestOffered(MainMenu* e) {
+				return (DWORD*)((unsigned int)e + 0x860);
+			}
 		};
 
 		struct VsCharaSelect : Dimps::Event::EventBase {
@@ -179,15 +187,33 @@ namespace Dimps {
 			struct PlayerConditions {
 				BYTE pad[492];
 
-				static Platform::dString* GetSelectedCharaAbbrev(PlayerConditions* c);
-				static Platform::dString* GetHoveredCharaAbbrev(PlayerConditions* c);
-				static BYTE* GetColor(PlayerConditions* c);
-				static BYTE* GetCostume(PlayerConditions* c);
-				static BYTE* GetPersonalAction(PlayerConditions* c);
-				static BYTE* GetUltraCombo(PlayerConditions* c);
-				static BYTE* GetWinQuote(PlayerConditions* c);
-				static BYTE* GetHandicap(PlayerConditions* c);
-				static BYTE* GetEdition(PlayerConditions* c);
+				static Platform::dString* GetSelectedCharaAbbrev(PlayerConditions* c) {
+					return (Platform::dString*)((unsigned int)c + 0x20);
+				}
+				static Platform::dString* GetHoveredCharaAbbrev(PlayerConditions* c) {
+					return (Platform::dString*)((unsigned int)c + 0x3c);
+				}
+				static BYTE* GetColor(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x59);
+				}
+				static BYTE* GetCostume(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x5a);
+				}
+				static BYTE* GetPersonalAction(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x5b);
+				}
+				static BYTE* GetUltraCombo(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x58);
+				}
+				static BYTE* GetWinQuote(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x5c);
+				}
+				static BYTE* GetHandicap(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x5d);
+				}
+				static BYTE* GetEdition(PlayerConditions* c) {
+					return (BYTE*)((unsigned int)c + 0x5e);
+				}
 			};
 
 			struct CharaSelectState {
@@ -237,7 +263,9 @@ namespace Dimps {
 			// a new method directly into the VsBattle vtable.
 			static BOOL (VsBattle::** vt_IsTerminationComplete)();
 
-			static Game::Request** GetRequest(VsBattle* battleEvent);
+			static Game::Request** GetRequest(VsBattle* battleEvent) {
+				return (Game::Request**)((unsigned int)battleEvent + 0x50);
+			}
 		};
 
 		struct VsMode : Dimps::Event::EventBaseWithEC {
@@ -256,15 +284,27 @@ namespace Dimps {
 			struct ConfirmedPlayerConditions {
 				BYTE pad[316];
 
-				static int* GetCharaID(ConfirmedPlayerConditions* c);
-				static int* GetSideActive(ConfirmedPlayerConditions* c);
-				static ConfirmedCharaConditions* GetCharaConditions(ConfirmedPlayerConditions* c);
+				static int* GetCharaID(ConfirmedPlayerConditions* c) {
+					return (int*)((unsigned int)c + 0x134);
+				}
+				static int* GetSideActive(ConfirmedPlayerConditions* c) {
+					return (int*)((unsigned int)c + 0x138);
+				}
+				static ConfirmedCharaConditions* GetCharaConditions(ConfirmedPlayerConditions* c) {
+					return (ConfirmedCharaConditions*)((unsigned int)c + 0x128);
+				}
 			};
 
 			static void Locate(HMODULE peRoot);
-			static ConfirmedPlayerConditions* GetConfirmedPlayerConditions(VsMode* e);
-			static Platform::dString* GetStageName(VsMode* e);
-			static int* GetStageCode(VsMode* e);
+			static ConfirmedPlayerConditions* GetConfirmedPlayerConditions(VsMode* e) {
+				return (ConfirmedPlayerConditions*)((unsigned int)e + 0x58);
+			}
+			static Platform::dString* GetStageName(VsMode* e) {
+				return (Platform::dString*)((unsigned int)e + 0x2d0);
+			}
+			static int* GetStageCode(VsMode* e) {
+				return (int*)((unsigned int)e + 0x2ec);
+			}
 
 			typedef struct __publicMethods {
 				void* (VsMode::* Destroy)(DWORD arg1);
@@ -301,7 +341,9 @@ namespace Dimps {
 
 			static void Locate(HMODULE peRoot);
 			static StageSelectState* GetState(VsStageSelect* event);
-			static StageSelect::Control* GetControl(VsStageSelect* event);
+			static StageSelect::Control* GetControl(VsStageSelect* selectEvent) {
+				return *(StageSelect::Control**)((unsigned int)selectEvent + 0x44);
+			}
 
 			typedef struct __publicMethods {
 				void* (VsStageSelect::* Destroy)(DWORD arg1);

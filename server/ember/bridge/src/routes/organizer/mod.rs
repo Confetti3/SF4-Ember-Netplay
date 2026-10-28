@@ -283,7 +283,6 @@ pub async fn start(
             })
         })
         .await?;
-    state.committed();
     done.map_err(ApiFailure::invalid)?;
     Ok(json(StatusCode::CREATED, &json!({ "id": id })))
 }
@@ -407,7 +406,6 @@ pub async fn stop(
             .db
             .write(move |tx| caller.prove(tx, &proving, Action::SiteRemove, Method::Delete, &path))
             .await?;
-        state.committed();
         if let Some(limits) = oauth.limits
             && !spend(&state, site.id(), &owner, 2, limits).await?
         {
@@ -418,7 +416,6 @@ pub async fn stop(
             .await
             .map_err(|refused| site_refused(&state, site.id(), "to delete the event", refused))?;
         let stopped = state.db.write(move |tx| end(tx, &ctx, &id, &owner)).await?;
-        state.committed();
         return if stopped {
             Ok(ok(&json!({})))
         } else {
@@ -432,7 +429,6 @@ pub async fn stop(
             end(tx, &ctx, &id, &ember_id)
         })
         .await?;
-    state.committed();
     if !stopped {
         return Err(ApiFailure::not_found());
     }
@@ -466,7 +462,7 @@ fn end(tx: &Transaction<'_>, ctx: &Ctx, id: &str, ember_id: &str) -> Result<bool
             if let Some(found) = crate::routes::ledger::load(tx, &match_id)?
                 && !found.state.is_terminal()
             {
-                crate::routes::matches::cancel_and_release(tx, ctx, &found, "event_stopped")?;
+                crate::routes::ledger::cancel_and_release(tx, ctx, &found, "event_stopped")?;
             }
         }
     }

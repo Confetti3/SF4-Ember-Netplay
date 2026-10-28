@@ -34,7 +34,7 @@ use axum::{
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
-    event::Kind,
+    event::{Kind, RoomEventData},
     rooms::{
         BANNED, CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom,
         ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT,
@@ -42,7 +42,6 @@ use ember_protocol::{
     },
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
-use serde_json::Value;
 
 use self::{
     create::{Owner, open},
@@ -83,6 +82,10 @@ pub struct Shared {
     /// Polls started, counted so a create refused for the room limit can
     /// reuse a poll that began after its refusal instead of queueing another.
     polls: AtomicU64,
+    /// The supervisor's `rev` of each room as the last committed poll applied
+    /// it, by room id. Only the poll reads or writes it, while it holds
+    /// `poll`.
+    applied: std::sync::Mutex<std::collections::HashMap<String, u64>>,
 }
 
 impl Default for Shared {
@@ -91,6 +94,7 @@ impl Default for Shared {
             poll: tokio::sync::Mutex::new(()),
             down: AtomicBool::new(false),
             polls: AtomicU64::new(0),
+            applied: Default::default(),
         }
     }
 }
@@ -239,6 +243,7 @@ fn refuse(reason: &'static str) -> ApiFailure {
 }
 
 /// A room as the bridge last knew it.
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Room {
     room_id: String,
     name: String,
@@ -396,11 +401,11 @@ fn announce(
         [connection_id],
         |row| row.get(0),
     )?;
-    let mut data =
-        serde_json::to_value(room.view(config)?).map_err(|_| ApiFailure::unavailable())?;
-    if let (Some(reason), Value::Object(fields)) = (reason, &mut data) {
-        fields.insert("reason".into(), reason.into());
-    }
+    let data = serde_json::to_value(RoomEventData {
+        room: room.view(config)?,
+        reason: reason.map(str::to_owned),
+    })
+    .map_err(|_| ApiFailure::unavailable())?;
     emit(
         tx,
         config,
@@ -650,7 +655,6 @@ pub async fn close(
             room.view(&config)
         })
         .await?;
-    state.committed();
     Ok(ok(&view))
 }
 

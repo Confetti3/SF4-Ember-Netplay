@@ -585,13 +585,13 @@ fn a_ban_lasts_for_the_rooms_life() {
         host.ban(account.clone()).unwrap();
     }
     // Every ban up to the cap is still held, the first included.
-    assert_eq!(host.policy.banned.len(), MAX_BANS);
+    assert_eq!(host.banned.len(), MAX_BANS);
     for account in &accounts {
         assert!(host.is_banned(account));
     }
     // Banning again changes nothing, even when the set is full.
     assert_eq!(host.ban(accounts[0].clone()), Ok(()));
-    assert_eq!(host.policy.banned.len(), MAX_BANS);
+    assert_eq!(host.banned.len(), MAX_BANS);
     // A snapshot taken before a ban does not see it.
     let mut other = PublicHost::parse(&key_text(9), "k1", BRIDGE, &creator()).unwrap();
     let snapshot = other.policy();
@@ -613,7 +613,7 @@ fn a_full_ban_set_refuses_another_and_forgets_nothing() {
         assert_eq!(host.ban(refused.clone()), Err(BanLimit));
         assert!(!host.is_banned(refused));
     }
-    assert_eq!(host.policy.banned.len(), MAX_BANS);
+    assert_eq!(host.banned.len(), MAX_BANS);
     for kept in &accounts[..MAX_BANS] {
         assert!(host.is_banned(kept));
     }

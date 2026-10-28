@@ -19,6 +19,7 @@ use super::{BATCH, Leased, Outcome, Queue, Record, Settled, results::BluMint};
 use crate::{
     AppState,
     audit::audit,
+    db,
     error::{ApiFailure, Result},
     routes::{
         blumint,
@@ -44,7 +45,7 @@ pub fn game_settled(
     if found.state == MatchState::Completed
         || next != MatchState::BetweenGames
         || !raised
-        || !policy::of(tx, &found.connection_id)?.reports_progress
+        || !found.policy()?.reports_progress
     {
         return Ok(());
     }
@@ -55,6 +56,7 @@ pub fn game_settled(
          ON CONFLICT (match_id, games_played) DO UPDATE SET state = 'queued', next_at = 0, first_at = NULL",
         params![found.id, games_won],
     )?;
+    db::queued();
     Ok(())
 }
 
@@ -68,9 +70,7 @@ pub fn keep_reported_wins(
     wins_before: [u8; 2],
     wins: [u8; 2],
 ) -> Result<()> {
-    if (0..2).all(|slot| wins[slot] >= wins_before[slot])
-        || !policy::of(tx, &found.connection_id)?.reports_progress
-    {
+    if (0..2).all(|slot| wins[slot] >= wins_before[slot]) || !found.policy()?.reports_progress {
         return Ok(());
     }
     // Sent at least once, whatever its state since: a report the next lease

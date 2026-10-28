@@ -18,11 +18,12 @@ use crate::{
     AppState, auth,
     ctx::Ctx,
     error::{ApiFailure, Result},
+    events::Viewer,
     http::{Body, json as respond},
     routes::{
         archive,
         ledger::{Match, load, participants, scores},
-        matches::{viewer_of, visible},
+        matches::visible,
         play::{fighter, playing},
     },
 };
@@ -104,7 +105,7 @@ pub async fn pack(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Result<Response> {
-    let viewer = viewer_of(&auth::any(&state, &headers).await?)?;
+    let viewer = Viewer::of(&auth::any(&state, &headers).await?)?;
     let file_name = format!("{id}.emberpack");
     let bytes = state
         .db

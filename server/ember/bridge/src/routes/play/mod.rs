@@ -31,7 +31,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
 use self::{
-    room::{ClaimRow, bind, binding, claims, invitation, room},
+    room::{ClaimRow, bind, claim_answer, claims, room},
     watch::Named,
 };
 use crate::{
@@ -164,20 +164,18 @@ fn rebind(
 
 /// The room as a fighter is told it, with the binding derived afresh: every
 /// answer goes through `rebind`, so none signs a stale set of watchers.
+/// `held` is the binding digest a claim named (`Claim::held_binding`): a
+/// claim naming the current binding is answered `Unchanged`.
 fn room_answer(
     tx: &Transaction<'_>,
     ctx: &Ctx,
     fighter: &mut PlayedMatch,
     claimed: &[ClaimRow],
+    held: Option<&str>,
 ) -> Result<ClaimAnswer> {
     rebind(tx, ctx, fighter, claimed)?;
     let current = room(tx, &fighter.found.id)?;
-    let (room_id, invitation) = invitation(ctx, &current)?;
-    Ok(ClaimAnswer::Room {
-        room_id,
-        invitation,
-        binding: binding(ctx, fighter, claimed, current)?.map(Box::new),
-    })
+    claim_answer(ctx, fighter, claimed, current, held)
 }
 
 /// `POST /v1/matches/{id}/claims`: a `match.claim` proof.
@@ -245,7 +243,14 @@ fn claim(
         "DELETE FROM match_claim_refusals WHERE match_id = ?1 AND ember_id = ?2",
         params![match_id, ember_id.as_str()],
     )?;
-    let answer = seat(tx, ctx, match_id, ember_id, fighter)?;
+    let answer = seat(
+        tx,
+        ctx,
+        match_id,
+        ember_id,
+        fighter,
+        command.held_binding.as_deref(),
+    )?;
     // Only the first claim moves the match's revision, so the other
     // fighter's arrival, and each change of a fighter's Ready, is observed
     // here.
@@ -261,11 +266,12 @@ fn seat(
     match_id: &str,
     ember_id: &EmberId,
     mut fighter: PlayedMatch,
+    held: Option<&str>,
 ) -> Result<ClaimAnswer> {
     let claimed = claims(tx, match_id)?;
     let current = room(tx, match_id)?;
     if current.room_id.is_some() {
-        return room_answer(tx, ctx, &mut fighter, &claimed);
+        return room_answer(tx, ctx, &mut fighter, &claimed, held);
     }
     let live = current.lease_expires_at.is_some_and(|at| at > ctx.now);
     let mine = current.lease_holder.as_deref() == Some(ember_id.as_str());
@@ -354,7 +360,7 @@ fn publish(
             "UPDATE match_rooms SET invitation_sealed = ?1 WHERE match_id = ?2",
             params![sealed, match_id],
         )?;
-        return room_answer(tx, ctx, &mut fighter, &claimed);
+        return room_answer(tx, ctx, &mut fighter, &claimed, None);
     }
     match (&command.lease_id, &command.replaces, &current.room_id) {
         (Some(lease_id), None, None) => {
@@ -389,7 +395,7 @@ fn publish(
          WHERE match_id = ?5",
         params![command.room_id, sealed, ember_id.as_str(), ctx.now, match_id],
     )?;
-    room_answer(tx, ctx, &mut fighter, &claimed)
+    room_answer(tx, ctx, &mut fighter, &claimed, None)
 }
 
 /// A replaced room starts a new assignment generation with the same roster

@@ -8,10 +8,9 @@
 #include <algorithm>
 
 #include <nlohmann/json.hpp>
+#include "test_support.hxx"
 
 using namespace sf4e::room;
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 static ConnectionRef Peer(int index) {
 	return ConnectionRef{"host", std::to_string(index)};
@@ -30,6 +29,6 @@ static Action TableAction(const RoomAuthority& authority, MemberId member, std::
 
 static MemberId Join(RoomAuthority& authority, int index, bool host = false) {
 	const auto result = authority.Join("Player" + std::to_string(index), Peer(index), host);
-	CHECK(result.accepted);
+	EXPECT(result.accepted);
 	return result.accepted ? result.snapshot.members.back().id : 0;
 }

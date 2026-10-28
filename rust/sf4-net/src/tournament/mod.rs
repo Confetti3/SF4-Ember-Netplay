@@ -24,7 +24,10 @@ mod watch;
 
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use ember_protocol::{
@@ -309,83 +312,246 @@ pub enum Request {
     },
 }
 
-impl Request {
-    fn op(&self) -> &'static str {
-        match self {
-            Self::IdentityStatus {} => "identity_status",
-            Self::IdentityEnable { .. } => "identity_enable",
-            Self::IdentityUnlock { .. } => "identity_unlock",
-            Self::IdentityExport { .. } => "identity_export",
-            Self::IdentityPreviewImport { .. } => "identity_preview_import",
-            Self::IdentityImport { .. } => "identity_import",
-            Self::IdentityReset { .. } => "identity_reset",
-            Self::BridgeList {} => "bridge_list",
-            Self::BridgeInspect { .. } => "bridge_inspect",
-            Self::BridgeApprove { .. } => "bridge_approve",
-            Self::BridgeForget { .. } => "bridge_forget",
-            Self::LinkList { .. } => "link_list",
-            Self::LinkClaim { .. } => "link_claim",
-            Self::LinkCancel { .. } => "link_cancel",
-            Self::LinkRemove { .. } => "link_remove",
-            Self::DiscordStatus { .. } => "discord_status",
-            Self::DiscordConnect { .. } => "discord_connect",
-            Self::DiscordRemove { .. } => "discord_remove",
-            Self::DiscordCancel { .. } => "discord_cancel",
-            Self::SiteStatus { .. } => "site_status",
-            Self::SiteConnect { .. } => "site_connect",
-            Self::SiteRemove { .. } => "site_remove",
-            Self::SiteCancel { .. } => "site_cancel",
-            Self::AssignmentList { .. } => "assignment_list",
-            Self::DeskRead { .. } => "desk_read",
-            Self::DeskAct { .. } => "desk_act",
-            Self::DeskWeb { .. } => "desk_web",
-            Self::DeskHandoff { .. } => "desk_handoff",
-            Self::DeskApprove { .. } => "desk_approve",
-            Self::DeskCodeInfo { .. } => "desk_code_info",
-            Self::DeskRedeem { .. } => "desk_redeem",
-            Self::DeskSiteState { .. } => "desk_site_state",
-            Self::MatchClaim { .. } => "match_claim",
-            Self::RoomPublish { .. } => "room_publish",
-            Self::RoomList { .. } => "room_list",
-            Self::RoomCreate { .. } => "room_create",
-            Self::RoomTicket { .. } => "room_ticket",
-            Self::RankingStanding { .. } => "ranking_standing",
-            Self::RankingChoose { .. } => "ranking_choose",
-            Self::RankingBoard { .. } => "ranking_board",
-            Self::GamePrepare { .. } => "game_prepare",
-            Self::GameReport { .. } => "game_report",
-            Self::MatchLeave { .. } => "match_leave",
-            Self::ReplaySend { .. } => "replay_send",
-            Self::ReplayArchive { .. } => "replay_archive",
-            Self::ReplayPack { .. } => "replay_pack",
-            Self::MatchWatch { .. } => "match_watch",
-            Self::MatchUnwatch { .. } => "match_unwatch",
-        }
-    }
+/// Where a request runs. Identity jobs run one at a time, in order, on a
+/// blocking thread; local jobs touch only this run's stores, one at a time,
+/// and never wait for an HTTP slot; bridge jobs run concurrently up to
+/// `HTTP_CONCURRENCY`, starting in the order they came.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Lane {
+    Identity,
+    Local,
+    Bridge,
+}
 
-    fn is_identity(&self) -> bool {
-        self.op().starts_with("identity_")
+/// Each request's op name, as serde's `rename_all` spells its tag, and its
+/// lane, written once. Both matches are exhaustive, so a new variant must be
+/// named and routed here.
+macro_rules! requests {
+    ($($variant:ident => $op:literal, $lane:ident;)*) => {
+        impl Request {
+            fn op(&self) -> &'static str {
+                match self {
+                    $(Self::$variant { .. } => $op,)*
+                }
+            }
+
+            fn lane(&self) -> Lane {
+                match self {
+                    $(Self::$variant { .. } => Lane::$lane,)*
+                }
+            }
+        }
+
+        #[cfg(test)]
+        const REQUESTS: &[(&str, Lane)] = &[$(($op, Lane::$lane),)*];
+    };
+}
+
+requests! {
+    IdentityStatus => "identity_status", Identity;
+    IdentityEnable => "identity_enable", Identity;
+    IdentityUnlock => "identity_unlock", Identity;
+    IdentityExport => "identity_export", Identity;
+    IdentityPreviewImport => "identity_preview_import", Identity;
+    IdentityImport => "identity_import", Identity;
+    IdentityReset => "identity_reset", Identity;
+    BridgeList => "bridge_list", Local;
+    BridgeInspect => "bridge_inspect", Bridge;
+    BridgeApprove => "bridge_approve", Bridge;
+    BridgeForget => "bridge_forget", Local;
+    LinkList => "link_list", Bridge;
+    LinkClaim => "link_claim", Bridge;
+    LinkCancel => "link_cancel", Bridge;
+    LinkRemove => "link_remove", Bridge;
+    DiscordStatus => "discord_status", Bridge;
+    DiscordConnect => "discord_connect", Bridge;
+    DiscordRemove => "discord_remove", Bridge;
+    DiscordCancel => "discord_cancel", Bridge;
+    SiteStatus => "site_status", Bridge;
+    SiteConnect => "site_connect", Bridge;
+    SiteRemove => "site_remove", Bridge;
+    SiteCancel => "site_cancel", Bridge;
+    AssignmentList => "assignment_list", Bridge;
+    MatchClaim => "match_claim", Bridge;
+    RoomPublish => "room_publish", Bridge;
+    RoomList => "room_list", Bridge;
+    RoomCreate => "room_create", Bridge;
+    RoomTicket => "room_ticket", Bridge;
+    RankingStanding => "ranking_standing", Bridge;
+    RankingChoose => "ranking_choose", Bridge;
+    RankingBoard => "ranking_board", Bridge;
+    GamePrepare => "game_prepare", Bridge;
+    GameReport => "game_report", Bridge;
+    MatchLeave => "match_leave", Local;
+    MatchWatch => "match_watch", Bridge;
+    DeskRead => "desk_read", Bridge;
+    DeskAct => "desk_act", Bridge;
+    DeskWeb => "desk_web", Bridge;
+    DeskHandoff => "desk_handoff", Bridge;
+    DeskApprove => "desk_approve", Bridge;
+    DeskCodeInfo => "desk_code_info", Bridge;
+    DeskRedeem => "desk_redeem", Bridge;
+    DeskSiteState => "desk_site_state", Bridge;
+    ReplaySend => "replay_send", Bridge;
+    ReplayArchive => "replay_archive", Bridge;
+    ReplayPack => "replay_pack", Bridge;
+    MatchUnwatch => "match_unwatch", Bridge;
+}
+
+/// A code the helper itself words for a failure, as the native UI is shown
+/// it. The bridge's own codes are `Failure::Bridge`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Code {
+    BindingMismatch,
+    BridgeChanged,
+    BridgeInvalidResponse,
+    BridgeMismatch,
+    BridgeNotApproved,
+    BridgePinned,
+    BridgeResponseTooLarge,
+    BridgeUnreachable,
+    BrowserUnavailable,
+    ChallengeMismatch,
+    Corrupt,
+    DeskCodeRefused,
+    DeskNumberWrong,
+    FileUnreadable,
+    IdentityBusy,
+    IdentityUnavailable,
+    Internal,
+    InvalidBridge,
+    InvalidName,
+    InvalidOrigin,
+    InvalidPath,
+    InvalidReplay,
+    InvalidRequest,
+    InviteInvalid,
+    InvitesUnsupported,
+    Io,
+    MatchLeft,
+    NotABridge,
+    NotBound,
+    NotFound,
+    OwnDelayUnsupported,
+    PermitMismatch,
+    PinnedBridgeMismatch,
+    RankingUnavailable,
+    ReplaysUnsupported,
+    ReportNotSaved,
+    RoomsUnavailable,
+    ServiceUnavailable,
+    SignInOff,
+    TooManyBridges,
+    UnknownPermit,
+    Unsupported,
+    UnsupportedBridge,
+    UntrustedSignature,
+    WatchUnsupported,
+}
+
+impl Code {
+    /// The code on the IPC wire.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BindingMismatch => "binding_mismatch",
+            Self::BridgeChanged => "bridge_changed",
+            Self::BridgeInvalidResponse => "bridge_invalid_response",
+            Self::BridgeMismatch => "bridge_mismatch",
+            Self::BridgeNotApproved => "bridge_not_approved",
+            Self::BridgePinned => "bridge_pinned",
+            Self::BridgeResponseTooLarge => "bridge_response_too_large",
+            Self::BridgeUnreachable => "bridge_unreachable",
+            Self::BrowserUnavailable => "browser_unavailable",
+            Self::ChallengeMismatch => "challenge_mismatch",
+            Self::Corrupt => "corrupt",
+            Self::DeskCodeRefused => "desk_code_refused",
+            Self::DeskNumberWrong => "desk_number_wrong",
+            Self::FileUnreadable => "file_unreadable",
+            Self::IdentityBusy => "identity_busy",
+            Self::IdentityUnavailable => "identity_unavailable",
+            Self::Internal => "internal",
+            Self::InvalidBridge => "invalid_bridge",
+            Self::InvalidName => "invalid_name",
+            Self::InvalidOrigin => "invalid_origin",
+            Self::InvalidPath => "invalid_path",
+            Self::InvalidReplay => "invalid_replay",
+            Self::InvalidRequest => "invalid_request",
+            Self::InviteInvalid => "invite_invalid",
+            Self::InvitesUnsupported => "invites_unsupported",
+            Self::Io => "io",
+            Self::MatchLeft => "match_left",
+            Self::NotABridge => "not_a_bridge",
+            Self::NotBound => "not_bound",
+            Self::NotFound => "not_found",
+            Self::OwnDelayUnsupported => "own_delay_unsupported",
+            Self::PermitMismatch => "permit_mismatch",
+            Self::PinnedBridgeMismatch => "pinned_bridge_mismatch",
+            Self::RankingUnavailable => "ranking_unavailable",
+            Self::ReplaysUnsupported => "replays_unsupported",
+            Self::ReportNotSaved => "report_not_saved",
+            Self::RoomsUnavailable => "rooms_unavailable",
+            Self::ServiceUnavailable => "service_unavailable",
+            Self::SignInOff => "sign_in_off",
+            Self::TooManyBridges => "too_many_bridges",
+            Self::UnknownPermit => "unknown_permit",
+            Self::Unsupported => "unsupported",
+            Self::UnsupportedBridge => "unsupported_bridge",
+            Self::UntrustedSignature => "untrusted_signature",
+            Self::WatchUnsupported => "watch_unsupported",
+        }
     }
 }
 
-/// Why a request failed: a stable, secret-free code for the native UI.
+/// Why a request failed: a stable, secret-free code for the native UI. The
+/// helper's own decisions, key storage and the bridge's refusals are kept
+/// apart, so a decision on one never reads another's code by its spelling:
+/// a bridge answering `internal` is not this helper failing.
 #[derive(Debug)]
-pub struct Failure(pub String);
+pub enum Failure {
+    Local(Code),
+    Identity(identity::Failure),
+    /// A bridge's error code, or the reason it gives that a caller words
+    /// apart, or `http_<status>` when its answer names neither.
+    Bridge(String),
+}
 
 impl From<identity::Failure> for Failure {
     fn from(failure: identity::Failure) -> Self {
-        Self(
-            serde_json::to_value(failure)
-                .ok()
-                .and_then(|value| value.as_str().map(str::to_owned))
-                .unwrap_or_else(|| "io".into()),
-        )
+        Self::Identity(failure)
     }
 }
 
 impl Failure {
-    fn new(code: &str) -> Self {
-        Self(code.into())
+    fn new(code: Code) -> Self {
+        Self::Local(code)
+    }
+
+    /// The code on the IPC wire.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Local(code) => code.as_str(),
+            Self::Identity(failure) => failure.as_str(),
+            Self::Bridge(code) => code,
+        }
+    }
+
+    fn into_reason(self) -> String {
+        match self {
+            Self::Bridge(code) => code,
+            other => other.as_str().to_owned(),
+        }
+    }
+}
+
+/// A std `Mutex` locked for a request: a poisoned lock is this helper's own
+/// failure.
+trait Locked<T> {
+    fn locked(&self) -> Result<std::sync::MutexGuard<'_, T>, Failure>;
+}
+
+impl<T> Locked<T> for Mutex<T> {
+    fn locked(&self) -> Result<std::sync::MutexGuard<'_, T>, Failure> {
+        self.lock().map_err(|_| Failure::new(Code::Internal))
     }
 }
 
@@ -397,24 +563,46 @@ pub type HomeRegion = Box<dyn Fn() -> Option<&'static str> + Send + Sync>;
 
 struct Job {
     request_id: u64,
+    /// When the request was submitted, counted across every lane, so a lane
+    /// can tell whether a request came before one another lane ran first
+    /// (a claim queued before a `match_leave`).
+    order: u64,
     request: Request,
 }
 
-/// Where the IPC reader submits requests.
+/// Where the IPC reader submits requests: one queue per lane, so a request
+/// never waits behind another lane's work. The native side matches answers
+/// by `request_id`, so answers of different lanes may arrive in any order.
 #[derive(Clone)]
 pub struct Handle {
-    jobs: mpsc::Sender<Job>,
+    identity: mpsc::Sender<Job>,
+    local: mpsc::Sender<Job>,
+    bridge: mpsc::Sender<Job>,
     events: mpsc::Sender<Event>,
+    /// The next request's `Job::order`.
+    order: Arc<AtomicU64>,
 }
 
 impl Handle {
-    /// Queues a request, or answers `busy` at once when the queue is full.
+    /// Queues a request on its lane, or answers `busy` at once when that
+    /// lane's queue is full.
+    ///
+    /// Routing here does not change the one way identity and bridge work
+    /// still meet: a bridge job that signs (`client::prove`) only tries the
+    /// identity lock, so it fails with `identity_busy` while a long identity
+    /// job (an export or an unlock) holds it, as before.
     pub fn submit(&self, request_id: u64, request: Request) {
         let op = request.op();
-        if self
-            .jobs
+        let order = self.order.fetch_add(1, Ordering::SeqCst);
+        let queue = match request.lane() {
+            Lane::Identity => &self.identity,
+            Lane::Local => &self.local,
+            Lane::Bridge => &self.bridge,
+        };
+        if queue
             .try_send(Job {
                 request_id,
+                order,
                 request,
             })
             .is_err()
@@ -438,6 +626,8 @@ fn busy(events: &mpsc::Sender<Event>, request_id: u64, op: &str) {
 
 pub(crate) struct Shared {
     identity: Mutex<Identity>,
+    /// The identity status the last answer that carried one held (`respond`).
+    status_sent: Mutex<Option<identity::Status>>,
     bridges: Mutex<bridges::Store>,
     client: client::Client,
     http: Arc<Semaphore>,
@@ -504,10 +694,15 @@ fn spawn_with(
     home_region: HomeRegion,
     open: impl FnOnce() -> (Identity, bridges::Store, spool::Spool) + Send + 'static,
 ) -> (Handle, tokio::task::JoinHandle<()>) {
-    let (jobs, mut receiver) = mpsc::channel::<Job>(QUEUE);
+    let (identity_jobs, mut identity_queue) = mpsc::channel::<Job>(QUEUE);
+    let (local_jobs, mut local_queue) = mpsc::channel::<Job>(QUEUE);
+    let (bridge_jobs, mut bridge_queue) = mpsc::channel::<Job>(QUEUE);
     let handle = Handle {
-        jobs,
+        identity: identity_jobs,
+        local: local_jobs,
+        bridge: bridge_jobs,
         events: events.clone(),
+        order: Arc::new(AtomicU64::new(1)),
     };
     let task = tokio::spawn(async move {
         let opened = tokio::task::spawn_blocking(open).await;
@@ -520,6 +715,7 @@ fn spawn_with(
         }
         let shared = Arc::new(Shared {
             identity: Mutex::new(identity),
+            status_sent: Mutex::new(None),
             bridges: Mutex::new(bridges),
             client: client::Client::new(),
             http: Arc::new(Semaphore::new(HTTP_CONCURRENCY)),
@@ -530,10 +726,8 @@ fn spawn_with(
             home_region,
         });
         // An initial status lets the native side render without asking.
-        respond(&events, &shared, 0, "identity_status", Ok(None)).await;
-        // Identity operations run one at a time, in order; bridge requests
-        // run concurrently up to the HTTP bound.
-        let (identity_jobs, mut identity_queue) = mpsc::channel::<Job>(QUEUE);
+        respond(&events, &shared, 0, "identity_status", Ok(None), None).await;
+        // Identity operations run one at a time, in order.
         let serial = {
             let shared = shared.clone();
             let events = events.clone();
@@ -541,11 +735,24 @@ fn spawn_with(
                 while let Some(job) = identity_queue.recv().await {
                     let op = job.request.op();
                     let worker = shared.clone();
-                    let outcome =
+                    let (outcome, status) =
                         tokio::task::spawn_blocking(move || identity_request(&worker, job.request))
                             .await
-                            .unwrap_or_else(|_| Err(Failure::new("internal")));
-                    respond(&events, &shared, job.request_id, op, outcome).await;
+                            .unwrap_or_else(|_| (Err(Failure::new(Code::Internal)), None));
+                    respond(&events, &shared, job.request_id, op, outcome, status).await;
+                }
+            })
+        };
+        // Local operations, which reach no bridge, run one at a time, in
+        // order, and take no HTTP slot.
+        let local = {
+            let shared = shared.clone();
+            let events = events.clone();
+            tokio::spawn(async move {
+                while let Some(job) = local_queue.recv().await {
+                    let op = job.request.op();
+                    let outcome = local_request(&shared, job.order, job.request).await;
+                    respond(&events, &shared, job.request_id, op, outcome, None).await;
                 }
             })
         };
@@ -564,17 +771,11 @@ fn spawn_with(
                 }
             })
         });
-        // Bridge jobs start only when an HTTP slot is free, so the bounded
-        // channel is the only place they wait; the set owns every running one.
+        // Bridge jobs start only when an HTTP slot is free, so their bounded
+        // channel is the only place they wait, and in order, since the
+        // semaphore is fair; the set owns every running one.
         let mut running = tokio::task::JoinSet::new();
-        while let Some(job) = receiver.recv().await {
-            if job.request.is_identity() {
-                if let Err(full) = identity_jobs.try_send(job) {
-                    let job = full.into_inner();
-                    busy(&events, job.request_id, job.request.op());
-                }
-                continue;
-            }
+        while let Some(job) = bridge_queue.recv().await {
             let Ok(permit) = shared.http.clone().acquire_owned().await else {
                 break;
             };
@@ -584,11 +785,12 @@ fn spawn_with(
             running.spawn(async move {
                 let _permit = permit;
                 let op = job.request.op();
-                let outcome = bridge_request(&shared, job.request).await;
-                respond(&events, &shared, job.request_id, op, outcome).await;
+                let outcome = bridge_request(&shared, job.order, job.request).await;
+                respond(&events, &shared, job.request_id, op, outcome, None).await;
             });
         }
         serial.abort();
+        local.abort();
         if let Some(resend) = resend {
             resend.abort();
         }
@@ -609,23 +811,42 @@ fn tournament_directory() -> PathBuf {
         .unwrap_or_default()
 }
 
+/// Answers a request. An identity answer always carries the identity status,
+/// `status` when the identity job read it under its own lock; any other answer
+/// carries it only when it differs from the one last sent, since the native
+/// side keeps the last view it was given when an answer has none. Nothing here
+/// waits on the identity lock: one held by a key operation omits the status
+/// rather than blocking a runtime thread, and an omitted one is not counted as
+/// sent.
 async fn respond(
     events: &mpsc::Sender<Event>,
     shared: &Shared,
     request_id: u64,
     op: &str,
     outcome: Outcome,
+    status: Option<identity::Status>,
 ) {
-    // Only tried: an identity operation holding the lock omits the status
-    // rather than blocking a runtime thread.
-    let status = shared
-        .identity
-        .try_lock()
-        .ok()
-        .and_then(|identity| serde_json::to_value(identity.status()).ok());
+    let status = status.or_else(|| {
+        shared
+            .identity
+            .try_lock()
+            .ok()
+            .map(|identity| identity.status())
+    });
+    let status = status.filter(|status| {
+        let Ok(mut sent) = shared.status_sent.lock() else {
+            return true;
+        };
+        let carried = op.starts_with("identity_") || sent.as_ref() != Some(status);
+        if carried {
+            *sent = Some(status.clone());
+        }
+        carried
+    });
+    let status = status.and_then(|status| serde_json::to_value(status).ok());
     let (ok, reason, data) = match outcome {
         Ok(data) => (true, None, data),
-        Err(Failure(code)) => (false, Some(code), None),
+        Err(failure) => (false, Some(failure.into_reason()), None),
     };
     // Waits for queue room instead of dropping: answers are rare and the
     // native side must see each one.
@@ -644,7 +865,7 @@ async fn respond(
 fn check_path(path: &str) -> Result<&Path, Failure> {
     let candidate = Path::new(path);
     if path.is_empty() || path.len() > MAX_PATH || !candidate.is_absolute() || path.contains('\0') {
-        return Err(Failure::new("invalid_path"));
+        return Err(Failure::new(Code::InvalidPath));
     }
     Ok(candidate)
 }
@@ -657,19 +878,19 @@ fn read_backup(path: &str) -> Result<Zeroizing<Vec<u8>>, Failure> {
 fn read_file(path: &str, max: usize) -> Result<Zeroizing<Vec<u8>>, Failure> {
     use std::io::Read;
     let path = check_path(path)?;
-    let file = std::fs::File::open(path).map_err(|_| Failure::new("file_unreadable"))?;
+    let file = std::fs::File::open(path).map_err(|_| Failure::new(Code::FileUnreadable))?;
     if file
         .metadata()
-        .map_err(|_| Failure::new("file_unreadable"))?
+        .map_err(|_| Failure::new(Code::FileUnreadable))?
         .len()
         > max as u64
     {
-        return Err(Failure::new("corrupt"));
+        return Err(Failure::new(Code::Corrupt));
     }
     let mut bytes = Zeroizing::new(Vec::new());
     file.take(max as u64 + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| Failure::new("file_unreadable"))?;
+        .map_err(|_| Failure::new(Code::FileUnreadable))?;
     Ok(bytes)
 }
 
@@ -679,11 +900,19 @@ fn protection(passphrase: Option<&Zeroizing<String>>) -> Protection<'_> {
     })
 }
 
-fn identity_request(shared: &Shared, request: Request) -> Outcome {
-    let mut identity = shared
-        .identity
-        .lock()
-        .map_err(|_| Failure::new("internal"))?;
+/// An identity request, and the identity status as it stands after it, read
+/// under the same lock.
+fn identity_request(shared: &Shared, request: Request) -> (Outcome, Option<identity::Status>) {
+    let mut identity = match shared.identity.locked() {
+        Ok(identity) => identity,
+        Err(failure) => return (Err(failure), None),
+    };
+    let outcome = run_identity(shared, &mut identity, request);
+    let status = identity.status();
+    (outcome, Some(status))
+}
+
+fn run_identity(shared: &Shared, identity: &mut Identity, request: Request) -> Outcome {
     match request {
         Request::IdentityStatus {} => Ok(None),
         Request::IdentityEnable { passphrase } => {
@@ -698,7 +927,7 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
             let target = check_path(&path)?;
             // The game names a file in its own backups folder, which may not exist yet.
             if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent).map_err(|_| Failure::new("io"))?;
+                std::fs::create_dir_all(parent).map_err(|_| Failure::new(Code::Io))?;
             }
             identity.export(target, &passphrase)?;
             Ok(Some(json!({ "path": path })))
@@ -715,8 +944,8 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
             local_passphrase,
             replace,
         } => {
-            let expected =
-                EmberId::parse(&expected_ember_id).map_err(|_| Failure::new("invalid_request"))?;
+            let expected = EmberId::parse(&expected_ember_id)
+                .map_err(|_| Failure::new(Code::InvalidRequest))?;
             let bytes = read_backup(&path)?;
             identity.import(
                 &bytes,
@@ -734,28 +963,44 @@ fn identity_request(shared: &Shared, request: Request) -> Outcome {
                 .as_deref()
                 .map(EmberId::parse)
                 .transpose()
-                .map_err(|_| Failure::new("invalid_request"))?;
+                .map_err(|_| Failure::new(Code::InvalidRequest))?;
             identity.reset(confirm.as_ref())?;
             // Sessions belong to the retired key.
             shared.client.forget_sessions();
             Ok(None)
         }
-        _ => Err(Failure::new("invalid_request")),
+        _ => Err(Failure::new(Code::InvalidRequest)),
     }
 }
 
-async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
+/// A request that reaches no bridge: this run's bridge list and what it
+/// verified for a match. `order` is the request's `Job::order`.
+async fn local_request(shared: &Arc<Shared>, order: u64, request: Request) -> Outcome {
     match request {
         Request::BridgeList {} => {
             let (bridges, removed) = {
-                let store = shared
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?;
+                let store = shared.bridges.locked()?;
                 (store.list(), store.removed())
             };
             Ok(Some(json!({ "bridges": bridges, "removed": removed })))
         }
+        Request::BridgeForget { bridge_id } => {
+            let store = shared.clone();
+            let id = bridge_id.clone();
+            tokio::task::spawn_blocking(move || store.bridges.locked()?.forget(&id))
+                .await
+                .map_err(|_| Failure::new(Code::Internal))??;
+            shared.client.forget_session(&bridge_id);
+            Ok(None)
+        }
+        Request::MatchLeave { match_id } => play::forget(shared, &match_id, order),
+        _ => Err(Failure::new(Code::InvalidRequest)),
+    }
+}
+
+/// A request to a bridge. `order` is the request's `Job::order`.
+async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> Outcome {
+    match request {
         Request::BridgeInspect { origin } => {
             let (profile, offered) = shared.client.inspect(&origin).await?;
             Ok(Some(
@@ -765,40 +1010,21 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
         Request::BridgeApprove { origin, bridge_id } => {
             let (profile, _) = shared.client.inspect(&origin).await?;
             if profile.bridge_id != bridge_id {
-                return Err(Failure::new("bridge_changed"));
+                return Err(Failure::new(Code::BridgeChanged));
             }
             // The keys that sign this bridge's bindings and permits, from
             // the origin being approved.
             let keys = shared.client.signing_keys(&origin).await?;
             let store = shared.clone();
             let displaced = tokio::task::spawn_blocking(move || {
-                store
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?
-                    .approve(&profile, keys)
+                store.bridges.locked()?.approve(&profile, keys)
             })
             .await
-            .map_err(|_| Failure::new("internal"))??;
+            .map_err(|_| Failure::new(Code::Internal))??;
             // A replaced profile's session is never offered to another origin.
             for id in displaced.iter().chain([&bridge_id]) {
                 shared.client.forget_session(id);
             }
-            Ok(None)
-        }
-        Request::BridgeForget { bridge_id } => {
-            let store = shared.clone();
-            let id = bridge_id.clone();
-            tokio::task::spawn_blocking(move || {
-                store
-                    .bridges
-                    .lock()
-                    .map_err(|_| Failure::new("internal"))?
-                    .forget(&id)
-            })
-            .await
-            .map_err(|_| Failure::new("internal"))??;
-            shared.client.forget_session(&bridge_id);
             Ok(None)
         }
         Request::LinkList { bridge_id } => client::links(shared, &bridge_id).await,
@@ -818,14 +1044,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             sign_in::status(shared, &bridge_id, &discord::routes()).await
         }
         Request::DiscordConnect { bridge_id } => {
-            sign_in::connect(
-                shared,
-                &bridge_id,
-                &discord::routes(),
-                discord::is_sign_in_page,
-                false,
-            )
-            .await
+            sign_in::connect(shared, &bridge_id, &discord::routes()).await
         }
         Request::DiscordRemove { bridge_id } => {
             sign_in::remove(shared, &bridge_id, &discord::routes()).await
@@ -883,7 +1102,7 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             match_id,
             build,
             ready,
-        } => play::claim_match(shared, &bridge_id, &match_id, &build, ready).await,
+        } => play::claim_match(shared, &bridge_id, &match_id, &build, ready, order).await,
         Request::RoomPublish {
             bridge_id,
             match_id,
@@ -931,7 +1150,6 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             )
             .await
         }
-        Request::MatchLeave { match_id } => play::forget(shared, &match_id),
         Request::ReplaySend {
             bridge_id,
             match_id,
@@ -954,6 +1172,309 @@ async fn bridge_request(shared: &Arc<Shared>, request: Request) -> Outcome {
             bridge_id,
             match_id,
         } => watch::unwatch_match(shared, &bridge_id, &match_id).await,
-        _ => Err(Failure::new("invalid_request")),
+        _ => Err(Failure::new(Code::InvalidRequest)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, time::Duration};
+
+    use super::*;
+
+    // Every op the list names is the tag serde reads for its variant, each
+    // appears once, and only identity ops run on the identity lane, as the
+    // `identity_` prefix routed them before.
+    #[test]
+    fn each_request_is_named_and_routed_once() {
+        let mut seen = HashSet::new();
+        for &(op, lane) in REQUESTS {
+            assert!(seen.insert(op), "{op} listed twice");
+            assert_eq!(lane == Lane::Identity, op.starts_with("identity_"), "{op}");
+            match serde_json::from_value::<Request>(json!({ "op": op })) {
+                Ok(request) => {
+                    assert_eq!(request.op(), op);
+                    assert_eq!(request.lane(), lane);
+                }
+                Err(error) => assert!(
+                    !error.to_string().contains("unknown variant"),
+                    "{op}: {error}"
+                ),
+            }
+        }
+        assert_eq!(seen.len(), 37);
+        let local: Vec<_> = REQUESTS
+            .iter()
+            .filter(|(_, lane)| *lane == Lane::Local)
+            .map(|(op, _)| *op)
+            .collect();
+        assert_eq!(local, ["bridge_list", "bridge_forget", "match_leave"]);
+        let forget: Request =
+            serde_json::from_value(json!({ "op": "bridge_forget", "bridge_id": "brg_x" })).unwrap();
+        assert_eq!((forget.op(), forget.lane()), ("bridge_forget", Lane::Local));
+    }
+
+    /// An origin that takes every connection and never answers, counting them.
+    async fn silent_origin() -> (
+        String,
+        Arc<std::sync::atomic::AtomicUsize>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let taken = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counted = taken.clone();
+        let task = tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                held.push(socket);
+            }
+        });
+        (origin, taken, task)
+    }
+
+    async fn answer(events: &mut mpsc::Receiver<Event>) -> (u64, String, bool, Option<String>) {
+        let event = tokio::time::timeout(Duration::from_secs(10), events.recv())
+            .await
+            .expect("an answer in time")
+            .expect("worker running");
+        let Event::Tournament {
+            request_id,
+            op,
+            ok,
+            reason,
+            ..
+        } = event
+        else {
+            panic!("not a tournament answer");
+        };
+        (request_id, op, ok, reason)
+    }
+
+    // Four bridge requests hang on an origin that never answers and a fifth
+    // waits for their HTTP slots; identity and local requests sent after
+    // them answer at once. Once the origin goes away, every bridge request
+    // answers, and no more than four were ever in flight.
+    #[tokio::test]
+    async fn identity_status_answers_while_four_bridge_requests_hang() {
+        let mut seed = [0; 16];
+        getrandom::fill(&mut seed).unwrap();
+        let dir =
+            std::env::temp_dir().join(ember_protocol::encoding::prefixed_id("sf4-net-lanes", seed));
+        let (sender, mut events) = mpsc::channel(64);
+        let (handle, task) = spawn_in(
+            sender,
+            dir.join("identity"),
+            dir.join("tournament"),
+            false,
+            "a".repeat(64),
+            Box::new(|| None),
+            Vec::new(),
+        );
+        // The status every worker sends once its stores are open.
+        assert_eq!(answer(&mut events).await.0, 0);
+        let (origin, taken, silent) = silent_origin().await;
+        for id in 1..=5 {
+            let inspect = json!({ "op": "bridge_inspect", "origin": origin });
+            handle.submit(id, serde_json::from_value(inspect).unwrap());
+        }
+        let started = tokio::time::Instant::now();
+        while taken.load(std::sync::atomic::Ordering::SeqCst) < HTTP_CONCURRENCY {
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "bridge requests not sent"
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        for (id, request) in [
+            (10, json!({ "op": "identity_status" })),
+            (11, json!({ "op": "bridge_list" })),
+            (12, json!({ "op": "match_leave", "match_id": "emt_x" })),
+        ] {
+            handle.submit(id, serde_json::from_value(request).unwrap());
+        }
+        let mut answered = Vec::new();
+        for _ in 0..3 {
+            let (id, op, ok, _) = answer(&mut events).await;
+            assert!(ok, "{op}");
+            answered.push(id);
+        }
+        answered.sort_unstable();
+        assert_eq!(answered, [10, 11, 12]);
+        // Well inside the 15 s a hanging bridge request may take.
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(
+            taken.load(std::sync::atomic::Ordering::SeqCst),
+            HTTP_CONCURRENCY
+        );
+
+        silent.abort();
+        let mut failed = Vec::new();
+        for _ in 0..5 {
+            let (id, op, ok, reason) = answer(&mut events).await;
+            assert_eq!((op.as_str(), ok), ("bridge_inspect", false));
+            assert_eq!(reason.as_deref(), Some("bridge_unreachable"));
+            failed.push(id);
+        }
+        failed.sort_unstable();
+        assert_eq!(failed, [1, 2, 3, 4, 5]);
+        drop(handle);
+        let _ = tokio::time::timeout(Duration::from_secs(10), task).await;
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // The codes the game reads are spelled as they always were, and a bridge's
+    // own code or a key-storage failure is worded as it was.
+    #[test]
+    fn failure_codes_are_the_words_the_game_reads() {
+        for (code, word) in [
+            (Code::BindingMismatch, "binding_mismatch"),
+            (Code::BridgeChanged, "bridge_changed"),
+            (Code::BridgeInvalidResponse, "bridge_invalid_response"),
+            (Code::BridgeMismatch, "bridge_mismatch"),
+            (Code::BridgeNotApproved, "bridge_not_approved"),
+            (Code::BridgePinned, "bridge_pinned"),
+            (Code::BridgeResponseTooLarge, "bridge_response_too_large"),
+            (Code::BridgeUnreachable, "bridge_unreachable"),
+            (Code::BrowserUnavailable, "browser_unavailable"),
+            (Code::ChallengeMismatch, "challenge_mismatch"),
+            (Code::Corrupt, "corrupt"),
+            (Code::FileUnreadable, "file_unreadable"),
+            (Code::IdentityBusy, "identity_busy"),
+            (Code::IdentityUnavailable, "identity_unavailable"),
+            (Code::Internal, "internal"),
+            (Code::InvalidBridge, "invalid_bridge"),
+            (Code::InvalidName, "invalid_name"),
+            (Code::InvalidOrigin, "invalid_origin"),
+            (Code::InvalidPath, "invalid_path"),
+            (Code::InvalidRequest, "invalid_request"),
+            (Code::Io, "io"),
+            (Code::MatchLeft, "match_left"),
+            (Code::NotABridge, "not_a_bridge"),
+            (Code::NotBound, "not_bound"),
+            (Code::NotFound, "not_found"),
+            (Code::OwnDelayUnsupported, "own_delay_unsupported"),
+            (Code::PermitMismatch, "permit_mismatch"),
+            (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
+            (Code::RankingUnavailable, "ranking_unavailable"),
+            (Code::ReportNotSaved, "report_not_saved"),
+            (Code::RoomsUnavailable, "rooms_unavailable"),
+            (Code::ServiceUnavailable, "service_unavailable"),
+            (Code::SignInOff, "sign_in_off"),
+            (Code::TooManyBridges, "too_many_bridges"),
+            (Code::UnknownPermit, "unknown_permit"),
+            (Code::UnsupportedBridge, "unsupported_bridge"),
+            (Code::UntrustedSignature, "untrusted_signature"),
+            (Code::WatchUnsupported, "watch_unsupported"),
+        ] {
+            assert_eq!(Failure::new(code).as_str(), word);
+            assert_eq!(Failure::new(code).into_reason(), word);
+        }
+        let from_identity: Failure = identity::Failure::WrongPassphrase.into();
+        assert_eq!(from_identity.as_str(), "wrong_passphrase");
+        let bridge = Failure::Bridge("http_502".into());
+        assert_eq!(bridge.as_str(), "http_502");
+        assert_eq!(bridge.into_reason(), "http_502");
+    }
+
+    /// The identity member of the next answer, whether it has one.
+    async fn carried(events: &mut mpsc::Receiver<Event>) -> Option<Value> {
+        let Some(Event::Tournament { identity, .. }) = events.recv().await else {
+            panic!("not a tournament answer");
+        };
+        identity
+    }
+
+    // An identity answer always carries the status. Any other answer carries
+    // it when it differs from the last one sent, and a status that could not
+    // be read (the lock held by a key operation) is neither sent nor counted
+    // as sent.
+    #[tokio::test]
+    async fn the_identity_status_travels_with_identity_answers_and_when_it_changes() {
+        let dir = std::env::temp_dir().join(ember_protocol::encoding::prefixed_id(
+            "sf4-net-status",
+            [5; 16],
+        ));
+        let shared = test_support::shared_pinning(&dir, &[]);
+        let (sender, mut events) = mpsc::channel(8);
+        let answer = |op: &'static str| {
+            let (sender, shared) = (&sender, &shared);
+            async move { respond(sender, shared, 1, op, Ok(None), None).await }
+        };
+
+        answer("bridge_list").await;
+        let first = carried(&mut events)
+            .await
+            .expect("the first status is sent");
+        assert_eq!(first["state"], "disabled");
+        answer("bridge_list").await;
+        assert!(carried(&mut events).await.is_none(), "unchanged");
+        answer("identity_status").await;
+        assert_eq!(carried(&mut events).await, Some(first));
+
+        // The lock held: the status is left out and not counted as sent.
+        shared
+            .identity
+            .lock()
+            .unwrap()
+            .enable(identity::Protection::Passphrase("a test passphrase"))
+            .unwrap();
+        let held = shared.identity.lock().unwrap();
+        answer("bridge_list").await;
+        assert!(carried(&mut events).await.is_none(), "locked");
+        drop(held);
+        answer("bridge_list").await;
+        let changed = carried(&mut events).await.expect("the new status is sent");
+        assert_eq!(changed["state"], "ready");
+        answer("bridge_list").await;
+        assert!(carried(&mut events).await.is_none(), "unchanged again");
+
+        // An identity job's own reading is the one sent.
+        let status = shared.identity.lock().unwrap().status();
+        respond(
+            &sender,
+            &shared,
+            2,
+            "identity_unlock",
+            Ok(None),
+            Some(status),
+        )
+        .await;
+        assert_eq!(carried(&mut events).await, Some(changed));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // A full lane answers `busy` at once, and only that lane is full.
+    #[tokio::test]
+    async fn a_full_lane_answers_busy() {
+        let (events, mut answers) = mpsc::channel(4 * QUEUE);
+        let (identity, _identity_queue) = mpsc::channel(1);
+        let (local, _local_queue) = mpsc::channel(1);
+        let (bridge, _bridge_queue) = mpsc::channel(1);
+        let handle = Handle {
+            identity,
+            local,
+            bridge,
+            events,
+            order: Arc::new(AtomicU64::new(1)),
+        };
+        let submit = |id: u64, request: Value| {
+            handle.submit(id, serde_json::from_value(request).unwrap());
+        };
+        submit(
+            1,
+            json!({ "op": "bridge_inspect", "origin": "http://127.0.0.1:9" }),
+        );
+        submit(
+            2,
+            json!({ "op": "bridge_inspect", "origin": "http://127.0.0.1:9" }),
+        );
+        submit(3, json!({ "op": "identity_status" }));
+        submit(4, json!({ "op": "bridge_list" }));
+        let (id, op, ok, reason) = answer(&mut answers).await;
+        assert_eq!((id, op.as_str(), ok), (2, "bridge_inspect", false));
+        assert_eq!(reason.as_deref(), Some("busy"));
+        assert!(answers.try_recv().is_err());
     }
 }

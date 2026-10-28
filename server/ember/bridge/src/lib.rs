@@ -22,12 +22,14 @@ mod routes;
 mod s3;
 mod secrets;
 mod skill;
+#[cfg(feature = "test-support")]
+pub mod testing;
 mod tournament;
 mod util;
 
 use std::{net::SocketAddr, sync::Arc};
 
-use tokio::{net::TcpListener, sync::Notify, task::JoinHandle};
+use tokio::{net::TcpListener, task::JoinHandle};
 
 pub use config::Config;
 pub use db::Db;
@@ -48,11 +50,10 @@ pub struct AppState {
     pub db: Db,
     pub clock: Clock,
     rate: Arc<rate::Limiter>,
-    /// Wakes event streams and the delivery worker after a commit.
-    events: Arc<Notify>,
-    delivery: Arc<Notify>,
     rooms: Arc<routes::rooms::Shared>,
-    stream_signal: tokio::sync::watch::Sender<u64>,
+    ranking_board: Arc<routes::ranking::PublicCache>,
+    /// The client shared by the calls to the bridge's configured services.
+    http: util::Outbound,
 }
 
 impl AppState {
@@ -70,23 +71,14 @@ impl AppState {
             db,
             clock,
             rate: Arc::new(rate::Limiter::default()),
-            events: Arc::new(Notify::new()),
-            delivery: Arc::new(Notify::new()),
             rooms: Arc::new(routes::rooms::Shared::default()),
-            stream_signal: tokio::sync::watch::channel(0).0,
+            ranking_board: Arc::new(routes::ranking::PublicCache::default()),
+            http: util::Outbound::default(),
         }
     }
 
     pub fn now(&self) -> u64 {
         self.clock.now()
-    }
-
-    /// Call after a transaction that may have written events.
-    fn committed(&self) {
-        self.events.notify_waiters();
-        self.delivery.notify_one();
-        self.stream_signal
-            .send_modify(|generation| *generation += 1);
     }
 }
 

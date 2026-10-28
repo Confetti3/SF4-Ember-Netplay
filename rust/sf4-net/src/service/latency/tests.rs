@@ -335,21 +335,10 @@ pub(super) async fn accept_one(actor: &mut Actor) {
 
 /// Prepares a game on `actor`, as the native side does before a match.
 pub(super) fn prepare_game(actor: &mut Actor, peer: EndpointId) {
-    let id = 7_000;
+    // What `Command::PrepareGame` runs.
+    let epoch = actor.epoch;
     actor
-        .command(Request {
-            id,
-            command: Command::PrepareGame {
-                epoch: actor.epoch,
-                peer,
-                room: ROOM,
-                generation: 1,
-                capability: [7; 32],
-                local_port: 41_000,
-                max_packet: 1200,
-                dial: false,
-            },
-        })
+        .prepare_game(7_000, epoch, peer, ROOM, 1, [7; 32], 41_000, 1200, false)
         .expect("prepare game");
     assert!(!actor.games.is_empty(), "the game slot is held at once");
 }
@@ -727,7 +716,7 @@ async fn a_batch_with_an_invalid_then_a_valid_checkpoint_is_a_skip_and_revokes()
     let seats: Vec<Seat> = members.iter().map(Member::seat).collect();
     let valid = checkpoint(&seats, &[]);
     let member = &mut members[0];
-    let (_, before) = member.recovery.coordinator.committed_observed().await;
+    let (_, before) = member.recovery.coordinator.store().committed_observed().await;
     let revocation = member.actor.latency.authority().revocation;
     let accepted = member
         .recovery
@@ -736,7 +725,7 @@ async fn a_batch_with_an_invalid_then_a_valid_checkpoint_is_a_skip_and_revokes()
         .apply_checkpoints(&["{\"checkpoint\": 1}".into(), valid])
         .await;
     assert_eq!(accepted, 2);
-    let (_, after) = member.recovery.coordinator.committed_observed().await;
+    let (_, after) = member.recovery.coordinator.store().committed_observed().await;
     assert_eq!(after, before + 2);
     member.actor.latency_refresh().await;
     let authority = member.actor.latency.authority();
@@ -783,13 +772,13 @@ async fn two_snapshots_at_one_revision_skip_close_slots_and_reject_a_queued_open
     // Two snapshots at the committed revision: another checkpoint, then the
     // original one again.
     let store = first[0].recovery.coordinator.store();
-    let (committed, _) = first[0].recovery.coordinator.committed_observed().await;
+    let (committed, _) = first[0].recovery.coordinator.store().committed_observed().await;
     let revision = committed.revision();
     store
         .install_checkpoint_snapshot("{\"checkpoint\": 2}")
         .await;
     store.install_checkpoint_snapshot(&valid).await;
-    let (committed, _) = first[0].recovery.coordinator.committed_observed().await;
+    let (committed, _) = first[0].recovery.coordinator.store().committed_observed().await;
     assert_eq!(committed.revision(), revision);
     let revocation = first[0].actor.latency.authority().revocation;
     let result = first[0]
@@ -868,7 +857,7 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     actor
         .completed_hosted(
             2,
-            Err(crate::service::failed("relay_unavailable")),
+            Err(crate::service::network::relay_unavailable()),
             Some(LatencyEndpoint::new(failed_host.clone())),
         )
         .await

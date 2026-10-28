@@ -44,6 +44,20 @@ pub enum Role {
     Organizer,
 }
 
+/// A stored role is one of the two this bridge knows; any other fails the
+/// read, so it never grants a role by default.
+impl rusqlite::types::FromSql for Role {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        match value.as_str()? {
+            "provider" => Ok(Self::Provider),
+            "organizer" => Ok(Self::Organizer),
+            _ => Err(rusqlite::types::FromSqlError::Other(Box::new(
+                crate::db::Unknown,
+            ))),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Service {
     pub id: String,
@@ -181,11 +195,7 @@ pub async fn service(state: &AppState, headers: &HeaderMap) -> Result<Service> {
                         id: row.get(0)?,
                         tenant_id: row.get(1)?,
                         connection_id: row.get(2)?,
-                        role: if row.get::<_, String>(3)? == "provider" {
-                            Role::Provider
-                        } else {
-                            Role::Organizer
-                        },
+                        role: row.get(3)?,
                     })
                 },
             )
@@ -446,4 +456,22 @@ pub fn start_browser_session(
         ],
     )?;
     Ok(token)
+}
+
+#[cfg(test)]
+mod tests {
+    use rusqlite::types::{FromSql, ValueRef};
+
+    use super::*;
+
+    #[test]
+    fn a_stored_role_is_read_only_when_known() {
+        let read = |text: &'static str| Role::column_result(ValueRef::Text(text.as_bytes()));
+        assert_eq!(read("provider").unwrap(), Role::Provider);
+        assert_eq!(read("organizer").unwrap(), Role::Organizer);
+        for other in ["", "admin", "Provider", "organizer "] {
+            assert!(read(other).is_err(), "{other:?}");
+        }
+        assert!(Role::column_result(ValueRef::Integer(1)).is_err());
+    }
 }

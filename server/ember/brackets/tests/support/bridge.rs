@@ -2,51 +2,37 @@
 //! start.gg sign-in site definitions and the connector's `direct`
 //! connection: lookup by those sites' accounts and by Discord, disputes
 //! restarted, results sent to the connector.
-use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::{ops::Deref, time::Duration};
 
 use axum::http::{Method, StatusCode};
-use ember_bridge::{AppState, Db, Keys, Running};
+use ember_bridge::{
+    config,
+    testing::{Loopback, until_async},
+};
 use ember_protocol::{EmberId, SigningIdentity};
 use rusqlite::params;
 use serde_json::{Value, json};
-use tokio::net::TcpListener;
 use zeroize::Zeroizing;
 
-use super::{CONNECTION, result_secret, temp};
+use super::{CONNECTION, result_secret};
 
 pub struct TestBridge {
-    running: Option<Running>,
-    pub origin: String,
-    pub clock: ember_bridge::Clock,
+    loopback: Loopback,
     pub http: reqwest::Client,
-    dir: PathBuf,
 }
 
-impl Drop for TestBridge {
-    fn drop(&mut self) {
-        if let Some(running) = self.running.take() {
-            running.abort();
-        }
-        let _ = std::fs::remove_dir_all(&self.dir);
+impl Deref for TestBridge {
+    type Target = Loopback;
+
+    fn deref(&self) -> &Loopback {
+        &self.loopback
     }
-}
-
-fn rand16() -> [u8; 16] {
-    let mut bytes = [0; 16];
-    getrandom::fill(&mut bytes).unwrap();
-    bytes
 }
 
 impl TestBridge {
     /// A bridge whose `brackets` connection sends results to `results_url`,
     /// and looks players up by Discord account when `discord_lookup`.
     pub async fn start(results_url: &str, discord_lookup: bool) -> Self {
-        let dir = temp("bridge");
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let origin = format!("http://{}", listener.local_addr().unwrap());
         // Built from JSON, as bridge.json is, so new optional settings need
         // no change here. The sites are the shipped definitions.
         let site = |name: &str| -> Value {
@@ -56,55 +42,46 @@ impl TestBridge {
             );
             serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
         };
-        let config: ember_bridge::Config = serde_json::from_value(json!({
-            "bridge_id": ember_protocol::encoding::prefixed_id("brg", rand16()),
-            "display_name": "Test bridge",
-            "origin": origin,
-            "listen": "127.0.0.1:0",
-            "database": dir.join("bridge.sqlite3"),
-            "secrets": dir.join("secrets.json"),
-            "allow_loopback_http": true,
-            "allow_private_webhooks": true,
-            "integration_secrets": dir.join("integrations.json"),
-            "sign_in_sites": [site("challonge"), site("startgg")],
-            "desk": { "connection": CONNECTION },
-            "tenants": [{
-                "id": "organizers",
-                "name": "Organizers",
-                "connections": [{
-                    "id": CONNECTION,
-                    "kind": "direct",
-                    "environment": "local",
-                    "display_name": "Brackets",
-                    "lookup_sites": ["challonge", "startgg"],
-                    "discord_lookup": discord_lookup,
-                    "disputes": "restart",
-                    "results_url": results_url,
-                }],
+        let sites: Vec<config::SignInSite> =
+            serde_json::from_value(json!([site("challonge"), site("startgg")])).unwrap();
+        let tenants: Vec<config::Tenant> = serde_json::from_value(json!([{
+            "id": "organizers",
+            "name": "Organizers",
+            "connections": [{
+                "id": CONNECTION,
+                "kind": "direct",
+                "environment": "local",
+                "display_name": "Brackets",
+                "lookup_sites": ["challonge", "startgg"],
+                "discord_lookup": discord_lookup,
+                "disputes": "restart",
+                "results_url": results_url,
             }],
-        }))
+        }]))
         .unwrap();
-        config.validate().unwrap();
-        let db = Db::open(&config.database).unwrap();
-        let clock = ember_bridge::Clock::default();
         let integrations = ember_bridge::integrations::Secrets {
             result_secrets: [(CONNECTION.to_owned(), result_secret())].into(),
             ..Default::default()
         };
-        let state = AppState::new(config, Keys::generate(), integrations, db, clock.clone());
-        ember_bridge::sync_config(&state).await.unwrap();
-        let running = ember_bridge::start(state, listener).unwrap();
+        let loopback = Loopback::start_with(
+            |config| {
+                config.display_name = "Test bridge".into();
+                config.integration_secrets =
+                    Some(config.database.with_file_name("integrations.json"));
+                config.sign_in_sites = sites;
+                config.tenants = tenants;
+                config.desk = Some(ember_bridge::config::Desk {
+                    connection: CONNECTION.into(),
+                    invite_only: false,
+                });
+            },
+            integrations,
+        )
+        .await;
         Self {
-            running: Some(running),
-            origin,
-            clock,
+            loopback,
             http: reqwest::Client::new(),
-            dir,
         }
-    }
-
-    pub fn state(&self) -> &AppState {
-        &self.running.as_ref().unwrap().state
     }
 
     pub async fn provider(&self) -> String {
@@ -250,8 +227,7 @@ impl TestBridge {
     /// may be the one that sends; waiting on the recorded outcome rather
     /// than on either keeps a test independent of how fast the worker runs.
     async fn deliver_until(&self, what: &str, settled: &'static str, params: Vec<String>) {
-        let deadline = Instant::now() + DELIVERY_DEADLINE;
-        while Instant::now() < deadline {
+        until_async(what, DELIVERY_DEADLINE, || async {
             let params = params.clone();
             let done: bool = self
                 .state()
@@ -266,12 +242,12 @@ impl TestBridge {
                 .await
                 .unwrap();
             if done {
-                return;
+                return true;
             }
             ember_bridge::deliver_results(self.state()).await;
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        }
-        panic!("{what} within {DELIVERY_DEADLINE:?}");
+            false
+        })
+        .await;
     }
 
     /// Tries to deliver the match's result until the bridge records that it
@@ -279,7 +255,7 @@ impl TestBridge {
     /// answers on the results URL.
     pub async fn fail_delivery(&self, match_id: &str) {
         self.deliver_until(
-            "the delivery was not recorded as failing",
+            "the delivery to be recorded as failing",
             "SELECT delivery_state IN ('retrying', 'failed') FROM matches WHERE id = ?1",
             vec![match_id.to_owned()],
         )
@@ -290,7 +266,7 @@ impl TestBridge {
     /// received.
     pub async fn deliver(&self) {
         self.deliver_until(
-            "results were not delivered",
+            "the results to be delivered",
             "SELECT NOT EXISTS (SELECT 1 FROM matches
                  WHERE state IN ('completed', 'cancelled', 'expired', 'failed')
                    AND delivery_state <> 'delivered')",

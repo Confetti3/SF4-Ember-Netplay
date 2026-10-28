@@ -173,15 +173,6 @@ fPadSystem::Inputs StressReadInput(rPadSystem* pad, int side) {
     };
 }
 
-void StressSimulate(rSystem* system, const fPadSystem::Inputs* inputs) {
-    PlaybackFrameScopeGuard playbackGuard;
-    fPadSystem::playbackFrame = 0;
-    fPadSystem::playbackData[0][0] = inputs[0];
-    fPadSystem::playbackData[0][1] = inputs[1];
-    diag::ScopedTimer _t(diag::OP_ENGINE_BATTLE_UPDATE);
-    (system->*rSystem::publicMethods.BattleUpdate)();
-}
-
 // SF4E_ROLLBACK_STRESS_AUDIT=1|2 (diagnostic). Each stress save also snapshots,
 // per fighter: the actor (raw, diagnostic only), both Chara::Afterimage objects
 // (actor +0x6EEC and +0x6EF0, built by the actor setup at 0x53ED50), each
@@ -518,7 +509,9 @@ bool StressStep(rSystem* system) {
         }
     }
     StressSaveBefore(current);
-    StressSimulate(system, simulated);
+    // The step GGPO's frames take, without the pre-step sound sync and
+    // without the reserved-bit strip (the harness plays the pads as read).
+    fSystem::StepEngine(system, simulated, false);
     stress.lastEngineFrame = StressEngineFrame(system);
     if (static_cast<int16_t>(stress.lastEngineFrame - before) != 1) {
         // Paused, or the native flow held the simulation: not a replayable
@@ -572,7 +565,7 @@ bool StressStep(rSystem* system) {
             }
             const int replayIndex = replayed % RollbackStress::kRing;
             StressSaveBefore(replayed);
-            StressSimulate(system, stress.inputs[replayIndex]);
+            fSystem::StepEngine(system, stress.inputs[replayIndex], false);
             const auto replay = fSystem::ComputeSemanticHashes(system);
             if (!compare) {
                 stress.hashes[replayIndex] = replay;

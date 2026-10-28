@@ -9,10 +9,9 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
+#include "test_support.hxx"
 
 using namespace sf4e::room;
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 struct Room {
 	RoomAuthority authority;
@@ -25,7 +24,7 @@ struct Room {
 	}
 	MemberId Join(const char* name, int index, bool isHost = false) {
 		const auto result = authority.Join(name, ConnectionRef{"host", std::to_string(index)}, isHost);
-		CHECK(result.accepted);
+		EXPECT(result.accepted);
 		return result.accepted ? result.snapshot.members.back().id : 0;
 	}
 	// Every action a client sends carries a higher id than its last.
@@ -55,151 +54,151 @@ int main() {
 	{
 		// A member says it and takes it back; saying what is already so changes nothing.
 		Room room;
-		CHECK(!room.member(room.p1).training);
+		EXPECT(!room.member(room.p1).training);
 		const auto before = room.authority.SnapshotView().revision;
-		CHECK(room.Say(room.p1, true).accepted && room.member(room.p1).training);
+		EXPECT(room.Say(room.p1, true).accepted && room.member(room.p1).training);
 		const auto said = room.authority.SnapshotView().revision;
-		CHECK(said > before);
-		CHECK(room.Say(room.p1, true).accepted && room.authority.SnapshotView().revision == said);
+		EXPECT(said > before);
+		EXPECT(room.Say(room.p1, true).accepted && room.authority.SnapshotView().revision == said);
 		// It is theirs alone: nobody else is marked, and nothing else about them moves.
-		CHECK(!room.member(room.p2).training && !room.member(room.host).training);
-		CHECK(room.member(room.p1).status == MemberStatus::Idle && room.member(room.p1).table == -1);
-		CHECK(room.Say(room.p1, false).accepted && !room.member(room.p1).training);
+		EXPECT(!room.member(room.p2).training && !room.member(room.host).training);
+		EXPECT(room.member(room.p1).status == MemberStatus::Idle && room.member(room.p1).table == -1);
+		EXPECT(room.Say(room.p1, false).accepted && !room.member(room.p1).training);
 		// Somebody who is not in the room cannot say it.
-		CHECK(!room.Say(9999, true).accepted);
-		CHECK(room.Say(9999, true).reason == RejectReason::UnknownMember);
+		EXPECT(!room.Say(9999, true).accepted);
+		EXPECT(room.Say(9999, true).reason == RejectReason::UnknownMember);
 	}
 	{
 		// It binds nothing: a queued and seated member in Training still readies, and the table starts.
 		Room room;
-		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
-		CHECK(room.Say(room.p1, true).accepted);
-		CHECK(room.member(room.p1).status == MemberStatus::Seated && room.member(room.p1).training);
-		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
-		CHECK(room.member(room.p1).training);
+		EXPECT(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
+		EXPECT(room.Say(room.p1, true).accepted);
+		EXPECT(room.member(room.p1).status == MemberStatus::Seated && room.member(room.p1).training);
+		EXPECT(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
+		EXPECT(room.member(room.p1).training);
 		// A game of theirs starting ends it without their word.
-		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
-		CHECK(room.member(room.p1).status == MemberStatus::Playing && !room.member(room.p1).training);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.member(room.p1).status == MemberStatus::Playing && !room.member(room.p1).training);
 		// And the game ending does not bring it back.
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
-		CHECK(room.authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
-		CHECK(!room.member(room.p1).training);
+		EXPECT(room.authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+		EXPECT(!room.member(room.p1).training);
 	}
 	{
 		// On the wire: written only when set, read as off when absent, and in every member's own view.
 		Room room;
 		nlohmann::json plain = room.authority.SnapshotFor(room.p2);
-		for (const auto& member : plain.at("members")) CHECK(!member.contains("training"));
-		CHECK(room.Say(room.p1, true).accepted);
+		for (const auto& member : plain.at("members")) EXPECT(!member.contains("training"));
+		EXPECT(room.Say(room.p1, true).accepted);
 		nlohmann::json marked = room.authority.SnapshotFor(room.p2);
 		int written = 0;
 		for (const auto& member : marked.at("members")) written += member.contains("training") && member.at("training").get<bool>();
-		CHECK(written == 1);
+		EXPECT(written == 1);
 		const Snapshot read = marked.get<Snapshot>();
 		const auto* seen = FindMember(read, room.p1);
-		CHECK(seen && seen->training);
+		EXPECT(seen && seen->training);
 		// A state written before the flag existed reads as before.
 		const Snapshot old = plain.get<Snapshot>();
-		for (const auto& member : old.members) CHECK(!member.training);
+		for (const auto& member : old.members) EXPECT(!member.training);
 		// The action goes over the wire and back as itself.
 		auto action = room.Make(room.p1, ActionKind::SetTraining);
 		action.inTraining = true;
 		const nlohmann::json wire = action;
 		// Peers that predate the field read and write the word as "locked".
-		CHECK(wire.at("locked").get<bool>());
+		EXPECT(wire.at("locked").get<bool>());
 		const Action back = wire.get<Action>();
-		CHECK(back.kind == ActionKind::SetTraining && back.inTraining && !back.locked && back.actionId == action.actionId);
+		EXPECT(back.kind == ActionKind::SetTraining && back.inTraining && !back.locked && back.actionId == action.actionId);
 		nlohmann::json older = wire;
 		older["locked"] = false;
-		CHECK(!older.get<Action>().inTraining);
+		EXPECT(!older.get<Action>().inTraining);
 		// Another kind's lock is not mistaken for Training.
 		auto lock = room.Make(room.p1, ActionKind::LockSpectating);
 		lock.locked = true;
 		const Action lockBack = nlohmann::json(lock).get<Action>();
-		CHECK(lockBack.locked && !lockBack.inTraining);
+		EXPECT(lockBack.locked && !lockBack.inTraining);
 		// A kind past the last known one is still refused.
 		nlohmann::json unknown = action;
 		unknown["kind"] = static_cast<int>(ActionKind::SetTraining) + 1;
 		bool refused = false;
 		try { (void)unknown.get<Action>(); } catch (const std::exception&) { refused = true; }
-		CHECK(refused);
+		EXPECT(refused);
 	}
 	{
 		// A member who leaves takes it with them; one who rejoins starts without it.
 		Room room;
-		CHECK(room.Say(room.p1, true).accepted);
-		CHECK(room.authority.Leave(room.p1).accepted);
+		EXPECT(room.Say(room.p1, true).accepted);
+		EXPECT(room.authority.Leave(room.p1).accepted);
 		const auto again = room.Join("P1", 1);
-		CHECK(again && !room.member(again).training);
+		EXPECT(again && !room.member(again).training);
 	}
 	{
 		// A Practice room: chosen when it is created, in every member's view, and kept
 		// through a checkpoint. A room created without it says nothing on the wire.
 		Room plain;
-		CHECK(!plain.authority.SnapshotView().practice);
-		CHECK(!nlohmann::json(plain.authority.SnapshotFor(plain.p2)).contains("practice"));
-		CHECK(!plain.authority.Checkpoint().at("snapshot").contains("practice"));
+		EXPECT(!plain.authority.SnapshotView().practice);
+		EXPECT(!nlohmann::json(plain.authority.SnapshotFor(plain.p2)).contains("practice"));
+		EXPECT(!plain.authority.Checkpoint().at("snapshot").contains("practice"));
 		Room room(true);
 		const nlohmann::json view = room.authority.SnapshotFor(room.p2);
-		CHECK(view.at("practice").get<bool>() && view.get<Snapshot>().practice);
+		EXPECT(view.at("practice").get<bool>() && view.get<Snapshot>().practice);
 		RoomAuthority restored("Restored");
-		CHECK(restored.RestoreCheckpoint(room.authority.Checkpoint()) && restored.SnapshotView().practice);
+		EXPECT(restored.RestoreCheckpoint(room.authority.Checkpoint()) && restored.SnapshotView().practice);
 		nlohmann::json bad = view;
 		bad["practice"] = 1;
 		bool refused = false;
 		try { (void)bad.get<Snapshot>(); } catch (const std::exception&) { refused = true; }
-		CHECK(refused);
+		EXPECT(refused);
 		// Nothing played or done in the room changes it: the host's rules, a game, the host leaving.
 		auto set = room.Make(room.host, ActionKind::SetRules);
 		set.rules = room.authority.SnapshotView().tables[0].rules;
 		set.rules.roundTime = 60;
-		CHECK(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().practice);
-		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
-		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
-		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().practice);
+		EXPECT(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
+		EXPECT(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
-		CHECK(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().practice);
-		CHECK(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().practice);
+		EXPECT(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().practice);
+		EXPECT(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().practice);
 	}
 	{
 		// A delay policy: Shared unless the room is created Own, written on the wire
 		// only when Own, read as Shared when absent, and kept through a checkpoint.
 		Room plain;
-		CHECK(plain.authority.SnapshotView().delayPolicy == DelayPolicy::Shared);
-		CHECK(!nlohmann::json(plain.authority.SnapshotFor(plain.p2)).contains("delay"));
-		CHECK(!plain.authority.Checkpoint().at("snapshot").contains("delay"));
+		EXPECT(plain.authority.SnapshotView().delayPolicy == DelayPolicy::Shared);
+		EXPECT(!nlohmann::json(plain.authority.SnapshotFor(plain.p2)).contains("delay"));
+		EXPECT(!plain.authority.Checkpoint().at("snapshot").contains("delay"));
 		Room room(false, DelayPolicy::Own);
 		const nlohmann::json view = room.authority.SnapshotFor(room.p2);
-		CHECK(view.at("delay") == "own" && view.get<Snapshot>().delayPolicy == DelayPolicy::Own);
+		EXPECT(view.at("delay") == "own" && view.get<Snapshot>().delayPolicy == DelayPolicy::Own);
 		// A state written before the field existed reads as Shared, and so does an explicit "shared".
 		nlohmann::json older = view;
 		older.erase("delay");
-		CHECK(older.get<Snapshot>().delayPolicy == DelayPolicy::Shared);
+		EXPECT(older.get<Snapshot>().delayPolicy == DelayPolicy::Shared);
 		older["delay"] = "shared";
-		CHECK(older.get<Snapshot>().delayPolicy == DelayPolicy::Shared);
+		EXPECT(older.get<Snapshot>().delayPolicy == DelayPolicy::Shared);
 		for (const nlohmann::json& value : {nlohmann::json(1), nlohmann::json(true), nlohmann::json("mine"), nlohmann::json(nullptr), nlohmann::json::array()}) {
 			nlohmann::json bad = view;
 			bad["delay"] = value;
 			bool refused = false;
 			try { (void)bad.get<Snapshot>(); } catch (const std::exception&) { refused = true; }
-			CHECK(refused);
+			EXPECT(refused);
 		}
 		RoomAuthority restored("Restored");
-		CHECK(restored.RestoreCheckpoint(room.authority.Checkpoint()) && restored.SnapshotView().delayPolicy == DelayPolicy::Own);
+		EXPECT(restored.RestoreCheckpoint(room.authority.Checkpoint()) && restored.SnapshotView().delayPolicy == DelayPolicy::Own);
 		// It is independent of Practice, and a public room (server owned) can be Own.
 		Room both(true, DelayPolicy::Own);
-		CHECK(both.authority.SnapshotView().practice && both.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		EXPECT(both.authority.SnapshotView().practice && both.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
 		// Nothing played or done in the room changes it: the host's rules, a game, the host leaving.
 		auto set = room.Make(room.host, ActionKind::SetRules);
 		set.rules = room.authority.SnapshotView().tables[0].rules;
 		set.rules.roundTime = 60;
-		CHECK(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
-		CHECK(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
-		CHECK(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
-		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		EXPECT(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
+		EXPECT(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
-		CHECK(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
-		CHECK(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		EXPECT(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
+		EXPECT(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
 	}
 	{
 		// Practice match is no table rule: the "training" an older build's rules
@@ -212,12 +211,12 @@ int main() {
 		nlohmann::json older = set;
 		older["rules"]["training"] = true;
 		older["rules"]["time_before_practice"] = 60;
-		CHECK(room.authority.Apply(room.host, older.get<Action>()).accepted);
-		CHECK(room.authority.SnapshotView().tables[0].rules == set.rules && !room.authority.SnapshotView().practice);
+		EXPECT(room.authority.Apply(room.host, older.get<Action>()).accepted);
+		EXPECT(room.authority.SnapshotView().tables[0].rules == set.rules && !room.authority.SnapshotView().practice);
 		const nlohmann::json view = room.authority.SnapshotFor(room.p2);
-		CHECK(!view.at("tables").at(0).at("rules").contains("training") && !view.contains("practice"));
+		EXPECT(!view.at("tables").at(0).at("rules").contains("training") && !view.contains("practice"));
 	}
-	if (failures) { std::printf("%d failures\n", failures); return 1; }
+	if (TEST_FAILURES()) { std::printf("%d failures\n", TEST_FAILURES()); return 1; }
 	std::printf("Room training flag rules passed.\n");
 	return 0;
 }

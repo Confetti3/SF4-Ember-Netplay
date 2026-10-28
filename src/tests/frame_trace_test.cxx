@@ -10,18 +10,9 @@
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/FrameTrace.hxx"
 #include "../common/GgpoTimeline.hxx"
+#include "test_support.hxx"
 
 using sf4e::statehash::FrameTrace;
-
-static int g_failures = 0;
-
-#define CHECK(cond)                                                          \
-	do {                                                                     \
-		if (!(cond)) {                                                       \
-			printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);           \
-			g_failures++;                                                    \
-		}                                                                    \
-	} while (0)
 
 struct Row {
 	int value = 0;
@@ -34,12 +25,12 @@ using Trace = FrameTrace<Row, 8>;
 static void ResimulationReplacesTheRowAndCountsThePass() {
 	Trace trace;
 	trace.Begin(5).row.value = 1;
-	CHECK(trace.Find(5)->passes == 1);
+	EXPECT(trace.Find(5)->passes == 1);
 	Trace::Entry& again = trace.Begin(5);
-	CHECK(again.row.value == 0);
+	EXPECT(again.row.value == 0);
 	again.row.value = 2;
-	CHECK(trace.Find(5)->passes == 2);
-	CHECK(trace.Find(5)->row.value == 2);
+	EXPECT(trace.Find(5)->passes == 2);
+	EXPECT(trace.Find(5)->row.value == 2);
 }
 
 // A slot taken by a later frame no longer answers for the earlier one, and
@@ -49,20 +40,20 @@ static void ALaterFrameTakesTheSlotOver() {
 	trace.Begin(3).row.value = 3;
 	trace.Begin(3);
 	trace.Begin(11).row.value = 11;
-	CHECK(trace.Find(3) == nullptr);
-	CHECK(trace.Find(11)->passes == 1);
-	CHECK(trace.Find(11)->row.value == 11);
+	EXPECT(trace.Find(3) == nullptr);
+	EXPECT(trace.Find(11)->passes == 1);
+	EXPECT(trace.Find(11)->row.value == 11);
 }
 
 static void UntracedFramesAreNotFound() {
 	Trace trace;
-	CHECK(trace.Find(0) == nullptr);
-	CHECK(trace.Find(-1) == nullptr);
+	EXPECT(trace.Find(0) == nullptr);
+	EXPECT(trace.Find(-1) == nullptr);
 	trace.Begin(4);
-	CHECK(trace.Find(12) == nullptr);
+	EXPECT(trace.Find(12) == nullptr);
 	trace.Clear();
-	CHECK(trace.Find(4) == nullptr);
-	CHECK(trace.Begin(4).passes == 1);
+	EXPECT(trace.Find(4) == nullptr);
+	EXPECT(trace.Begin(4).passes == 1);
 }
 
 // GGPO as the battle drives it, through the GgpoTimeline the battle uses
@@ -117,7 +108,7 @@ private:
 		arriving.clear();
 		rollingBack = true;
 		frame = from;
-		CHECK(timeline.Load(from, [&] { state = saves[from]; return true; }));
+		EXPECT(timeline.Load(from, [&] { state = saves[from]; return true; }));
 		while (frame < to) PlayFrame();
 		rollingBack = false;
 	}
@@ -134,16 +125,16 @@ static void ARollbackInsideTheAdvanceKeepsTheCorrectedSample() {
 	// the poll of the very advance that saves state 5.
 	ggpo.arriving[4] = 2;
 	ggpo.PlayFrame();
-	CHECK(ggpo.timeline.Held() == 5);
+	EXPECT(ggpo.timeline.Held() == 5);
 	const auto* entry = ggpo.trace.Find(5);
-	CHECK(entry != nullptr);
+	EXPECT(entry != nullptr);
 	if (!entry) return;
-	CHECK(entry->passes == 2);
-	CHECK(entry->row.value == 2 * 1000 + 6);
-	CHECK(ggpo.checkpoints[5] == 6);
-	CHECK(ggpo.trace.Find(4)->passes == 1);
-	CHECK(ggpo.trace.Find(4)->row.value == 1 * 1000 + 4);
-	CHECK(ggpo.trace.Find(6) == nullptr);
+	EXPECT(entry->passes == 2);
+	EXPECT(entry->row.value == 2 * 1000 + 6);
+	EXPECT(ggpo.checkpoints[5] == 6);
+	EXPECT(ggpo.trace.Find(4)->passes == 1);
+	EXPECT(ggpo.trace.Find(4)->row.value == 1 * 1000 + 4);
+	EXPECT(ggpo.trace.Find(6) == nullptr);
 }
 struct Checkpoint {
 	int frame;
@@ -156,8 +147,8 @@ struct Checkpoint {
 // until the battle starts again.
 static void TheEarliestPendingMismatchTakesTheTrace() {
 	using namespace sf4e::statehash;
-	CHECK(CheckpointRingIndex(1890) == CheckpointRingSize - 1);
-	CHECK(CheckpointRingIndex(1920) == 0);
+	EXPECT(CheckpointRingIndex(1890) == CheckpointRingSize - 1);
+	EXPECT(CheckpointRingIndex(1920) == 0);
 	const Checkpoint local[] = { { 1920, 1920 }, { 1890, 1890 } }; // ring order
 	const auto find = [&](int frame) -> const Checkpoint* {
 		for (const Checkpoint& checkpoint : local) if (checkpoint.frame == frame) return &checkpoint;
@@ -171,20 +162,20 @@ static void TheEarliestPendingMismatchTakesTheTrace() {
 	};
 	std::map<int, int> pending = { { 1920, 0 }, { 1890, 0 } };
 	ReconcileRemoteHashes(pending, 1920, find, report);
-	CHECK(reported == std::vector<int>({ 1890, 1920 }));
-	CHECK(dumped == std::vector<int>({ 1890 }));
-	CHECK(pending.empty());
-	CHECK(!trace.TakeDump());
+	EXPECT(reported == std::vector<int>({ 1890, 1920 }));
+	EXPECT(dumped == std::vector<int>({ 1890 }));
+	EXPECT(pending.empty());
+	EXPECT(!trace.TakeDump());
 	// A new battle logs its own first mismatch.
 	trace.Clear();
-	CHECK(trace.TakeDump());
+	EXPECT(trace.TakeDump());
 
 	// A checkpoint not yet confirmed here keeps its remote hash waiting.
 	pending = { { 1920, 0 }, { 1890, 0 } };
 	reported.clear();
 	ReconcileRemoteHashes(pending, 1900, find, report);
-	CHECK(reported == std::vector<int>({ 1890 }));
-	CHECK(pending.size() == 1 && pending.count(1920) == 1);
+	EXPECT(reported == std::vector<int>({ 1890 }));
+	EXPECT(pending.size() == 1 && pending.count(1920) == 1);
 }
 
 int main() {
@@ -193,8 +184,8 @@ int main() {
 	UntracedFramesAreNotFound();
 	ARollbackInsideTheAdvanceKeepsTheCorrectedSample();
 	TheEarliestPendingMismatchTakesTheTrace();
-	if (g_failures) {
-		printf("%d failure(s)\n", g_failures);
+	if (TEST_FAILURES()) {
+		printf("%d failure(s)\n", TEST_FAILURES());
 		return 1;
 	}
 	printf("FrameTrace: all passed\n");

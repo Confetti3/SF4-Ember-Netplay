@@ -4,23 +4,14 @@
 #include <string.h>
 
 #include "../common/sf4e__RollbackDiagnostics.hxx"
+#include "test_support.hxx"
 
 using namespace sf4e::diag;
-
-static int g_failures = 0;
-
-#define CHECK(cond)                                                          \
-	do {                                                                     \
-		if (!(cond)) {                                                       \
-			printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);           \
-			g_failures++;                                                    \
-		}                                                                    \
-	} while (0)
 
 static void TestHistogramAccounting() {
 	TimingStat s;
 	s.Reset();
-	CHECK(s.ApproxPercentileMs(0.5) == 0.0);
+	EXPECT(s.ApproxPercentileMs(0.5) == 0.0);
 
 	s.Record(0.1);   // bucket 0 (<0.25)
 	s.Record(0.3);   // bucket 1 (<0.5)
@@ -33,24 +24,24 @@ static void TestHistogramAccounting() {
 	s.Record(40.0);  // bucket 8 (<50)
 	s.Record(120.0); // bucket 9 (open)
 
-	CHECK(s.count == 10);
+	EXPECT(s.count == 10);
 	for (int i = 0; i < NUM_BUCKETS; i++) {
-		CHECK(s.buckets[i] == 1);
+		EXPECT(s.buckets[i] == 1);
 	}
-	CHECK(s.maxMs == 120.0);
-	CHECK(s.lastMs == 120.0);
-	CHECK(s.totalMs > 201.0 && s.totalMs < 202.0);
-	CHECK(s.hitchCounts[0] == 3); // 20, 40, 120
-	CHECK(s.hitchCounts[1] == 2); // 40, 120
-	CHECK(s.hitchCounts[2] == 2);
-	CHECK(s.hitchCounts[3] == 1);
-	CHECK(s.hitchCounts[4] == 1);
+	EXPECT(s.maxMs == 120.0);
+	EXPECT(s.lastMs == 120.0);
+	EXPECT(s.totalMs > 201.0 && s.totalMs < 202.0);
+	EXPECT(s.hitchCounts[0] == 3); // 20, 40, 120
+	EXPECT(s.hitchCounts[1] == 2); // 40, 120
+	EXPECT(s.hitchCounts[2] == 2);
+	EXPECT(s.hitchCounts[3] == 1);
+	EXPECT(s.hitchCounts[4] == 1);
 
 	// Negative durations clamp to zero rather than corrupting totals.
 	TimingStat n;
 	n.Reset();
 	n.Record(-5.0);
-	CHECK(n.count == 1 && n.totalMs == 0.0 && n.buckets[0] == 1);
+	EXPECT(n.count == 1 && n.totalMs == 0.0 && n.buckets[0] == 1);
 }
 
 static void TestPercentiles() {
@@ -62,17 +53,17 @@ static void TestPercentiles() {
 	s.Record(40.0); // one in bucket 8
 
 	// p50 falls in bucket 0 → its upper bound.
-	CHECK(s.ApproxPercentileMs(0.50) == 0.25);
-	CHECK(s.ApproxPercentileMs(0.95) == 0.25);
+	EXPECT(s.ApproxPercentileMs(0.50) == 0.25);
+	EXPECT(s.ApproxPercentileMs(0.95) == 0.25);
 	// p99+ hits the outlier's bucket upper bound (50.0).
-	CHECK(s.ApproxPercentileMs(0.995) == 50.0);
+	EXPECT(s.ApproxPercentileMs(0.995) == 50.0);
 
 	// Open-ended top bucket reports observed max, never infinity.
 	TimingStat t;
 	t.Reset();
 	t.Record(200.0);
-	CHECK(t.ApproxPercentileMs(0.5) == 200.0);
-	CHECK(t.ApproxPercentileMs(1.0) == 200.0);
+	EXPECT(t.ApproxPercentileMs(0.5) == 200.0);
+	EXPECT(t.ApproxPercentileMs(1.0) == 200.0);
 }
 
 static void TestBurstTracking() {
@@ -85,21 +76,21 @@ static void TestBurstTracking() {
 	d.OnRollbackCallback(1001.1);
 	d.OnRollbackCallback(1001.2);
 	d.OnFrameAdvanced(1002.0);
-	CHECK(d.maxResimBurst == 3);
-	CHECK(d.resimBursts == 1);
-	CHECK(d.resimBurstBuckets[2] == 1); // bucket for burst length 3
+	EXPECT(d.maxResimBurst == 3);
+	EXPECT(d.resimBursts == 1);
+	EXPECT(d.resimBurstBuckets[2] == 1); // bucket for burst length 3
 
 	// Burst of 1 ended by outer frame boundary.
 	d.OnRollbackCallback(1003.0);
 	d.OnOuterFrame(1004.0);
-	CHECK(d.maxResimBurst == 3);
-	CHECK(d.resimBursts == 2);
-	CHECK(d.resimBurstBuckets[0] == 1); // bucket for burst length 1
+	EXPECT(d.maxResimBurst == 3);
+	EXPECT(d.resimBursts == 2);
+	EXPECT(d.resimBurstBuckets[0] == 1); // bucket for burst length 1
 
-	CHECK(d.totalRollbackCallbacks == 4);
-	CHECK(d.outerFramesWithRollback == 1);
-	CHECK(d.maxRollbackCallbacksPerOuterFrame == 4);
-	CHECK(d.outerFrames == 1);
+	EXPECT(d.totalRollbackCallbacks == 4);
+	EXPECT(d.outerFramesWithRollback == 1);
+	EXPECT(d.maxRollbackCallbacksPerOuterFrame == 4);
+	EXPECT(d.outerFrames == 1);
 }
 
 static void TestStallAccounting() {
@@ -110,17 +101,17 @@ static void TestStallAccounting() {
 	// Two consecutive refused frames form ONE stall episode.
 	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 100.0);
 	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 116.0);
-	CHECK(d.predictionStalls == 1);
-	CHECK(d.skipReasons[SKIP_PREDICTION_THRESHOLD] == 2);
+	EXPECT(d.predictionStalls == 1);
+	EXPECT(d.skipReasons[SKIP_PREDICTION_THRESHOLD] == 2);
 
 	d.OnFrameAdvanced(150.0);
-	CHECK(d.predictionStallDuration.count == 1);
-	CHECK(d.predictionStallDuration.maxMs == 50.0);
-	CHECK(d.predictionStallStartMs < 0.0);
+	EXPECT(d.predictionStallDuration.count == 1);
+	EXPECT(d.predictionStallDuration.maxMs == 50.0);
+	EXPECT(d.predictionStallStartMs < 0.0);
 
 	// A later stall is a new episode.
 	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 200.0);
-	CHECK(d.predictionStalls == 2);
+	EXPECT(d.predictionStalls == 2);
 }
 
 static void TestStallSpansOuterTicks() {
@@ -137,11 +128,11 @@ static void TestStallSpansOuterTicks() {
 	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 140.0);
 	d.OnFrameAdvanced(175.0);
 
-	CHECK(d.predictionStalls == 1);
-	CHECK(d.skipReasons[SKIP_PREDICTION_THRESHOLD] == 3);
-	CHECK(d.predictionStallDuration.count == 1);
-	CHECK(d.predictionStallDuration.maxMs == 75.0);
-	CHECK(d.predictionStallStartMs < 0.0);
+	EXPECT(d.predictionStalls == 1);
+	EXPECT(d.skipReasons[SKIP_PREDICTION_THRESHOLD] == 3);
+	EXPECT(d.predictionStallDuration.count == 1);
+	EXPECT(d.predictionStallDuration.maxMs == 75.0);
+	EXPECT(d.predictionStallStartMs < 0.0);
 }
 
 static void TestSessionEndClosesActiveStall() {
@@ -151,10 +142,10 @@ static void TestSessionEndClosesActiveStall() {
 	d.RecordSkip(SKIP_PREDICTION_THRESHOLD, 25.0);
 	d.OnSessionEnded(125.0);
 
-	CHECK(d.predictionStalls == 1);
-	CHECK(d.predictionStallDuration.count == 1);
-	CHECK(d.predictionStallDuration.maxMs == 100.0);
-	CHECK(d.predictionStallStartMs < 0.0);
+	EXPECT(d.predictionStalls == 1);
+	EXPECT(d.predictionStallDuration.count == 1);
+	EXPECT(d.predictionStallDuration.maxMs == 100.0);
+	EXPECT(d.predictionStallStartMs < 0.0);
 }
 
 static void TestConnectionWarningAccounting() {
@@ -164,17 +155,17 @@ static void TestConnectionWarningAccounting() {
 
 	d.OnConnectionInterrupted(100.0);
 	d.OnConnectionInterrupted(110.0); // duplicate event: one episode
-	CHECK(d.connectionWarnings == 1);
+	EXPECT(d.connectionWarnings == 1);
 	d.OnConnectionResumed(300.0);
-	CHECK(d.connectionResumes == 1);
-	CHECK(d.connectionWarningDuration.count == 1);
-	CHECK(d.connectionWarningDuration.maxMs == 200.0);
+	EXPECT(d.connectionResumes == 1);
+	EXPECT(d.connectionWarningDuration.count == 1);
+	EXPECT(d.connectionWarningDuration.maxMs == 200.0);
 
 	// Terminal disconnect during a warning also closes the episode.
 	d.OnConnectionInterrupted(400.0);
 	d.OnTerminalDisconnect(450.0);
-	CHECK(d.terminalDisconnects == 1);
-	CHECK(d.connectionWarningDuration.count == 2);
+	EXPECT(d.terminalDisconnects == 1);
+	EXPECT(d.connectionWarningDuration.count == 2);
 }
 
 static void TestGgpoResultSlots() {
@@ -186,9 +177,9 @@ static void TestGgpoResultSlots() {
 	d.RecordGgpoResult(CALL_ADD_LOCAL_INPUT, 4);   // PREDICTION_THRESHOLD → slot 5
 	d.RecordGgpoResult(CALL_ADD_LOCAL_INPUT, -1);  // general failure → slot 0
 	d.RecordGgpoResult(CALL_ADD_LOCAL_INPUT, 99);  // out of range → slot 0
-	CHECK(d.ggpoResults[CALL_ADD_LOCAL_INPUT][1] == 1);
-	CHECK(d.ggpoResults[CALL_ADD_LOCAL_INPUT][5] == 1);
-	CHECK(d.ggpoResults[CALL_ADD_LOCAL_INPUT][0] == 2);
+	EXPECT(d.ggpoResults[CALL_ADD_LOCAL_INPUT][1] == 1);
+	EXPECT(d.ggpoResults[CALL_ADD_LOCAL_INPUT][5] == 1);
+	EXPECT(d.ggpoResults[CALL_ADD_LOCAL_INPUT][0] == 2);
 }
 
 static void TestTimesyncAccounting() {
@@ -200,9 +191,9 @@ static void TestTimesyncAccounting() {
 	d.OnTimesyncEvent(9);
 	d.OnTimesyncEvent(0);  // counted, but adds no frames
 	d.OnTimesyncEvent(-2); // negative ignored for frame totals
-	CHECK(d.timesyncEvents == 4);
-	CHECK(d.timesyncFramesTotal == 12);
-	CHECK(d.timesyncMaxFrames == 9);
+	EXPECT(d.timesyncEvents == 4);
+	EXPECT(d.timesyncFramesTotal == 12);
+	EXPECT(d.timesyncMaxFrames == 9);
 }
 
 static void TestResetAndDisabled() {
@@ -210,32 +201,32 @@ static void TestResetAndDisabled() {
 	SetEnabled(true);
 	d.ResetForMatch(0.0);
 	d.RecordOp(OP_SAVE_TOTAL, 1.0);
-	CHECK(d.ops[OP_SAVE_TOTAL].count == 1);
+	EXPECT(d.ops[OP_SAVE_TOTAL].count == 1);
 
 	d.ResetForMatch(500.0);
-	CHECK(d.ops[OP_SAVE_TOTAL].count == 0);
-	CHECK(d.enabled); // reset preserves enablement
-	CHECK(d.matchStartMs == 500.0);
+	EXPECT(d.ops[OP_SAVE_TOTAL].count == 0);
+	EXPECT(d.enabled); // reset preserves enablement
+	EXPECT(d.matchStartMs == 500.0);
 
 	SetEnabled(false);
 	d.RecordOp(OP_SAVE_TOTAL, 1.0);
 	d.OnRollbackCallback(1.0);
 	d.RecordSkip(SKIP_UPDATE_GATE, 1.0);
-	CHECK(d.ops[OP_SAVE_TOTAL].count == 0);
-	CHECK(d.totalRollbackCallbacks == 0);
-	CHECK(d.skipReasons[SKIP_UPDATE_GATE] == 0);
+	EXPECT(d.ops[OP_SAVE_TOTAL].count == 0);
+	EXPECT(d.totalRollbackCallbacks == 0);
+	EXPECT(d.skipReasons[SKIP_UPDATE_GATE] == 0);
 	char buf[64];
-	CHECK(d.FormatSummary(buf, sizeof(buf), "x") == 0);
+	EXPECT(d.FormatSummary(buf, sizeof(buf), "x") == 0);
 }
 
 static void TestPeriodicDue() {
 	RollbackDiagnostics& d = G();
 	SetEnabled(true);
 	d.ResetForMatch(0.0);
-	CHECK(!d.PeriodicSummaryDue(5000.0, 10.0));
-	CHECK(d.PeriodicSummaryDue(10000.0, 10.0));
-	CHECK(!d.PeriodicSummaryDue(10001.0, 10.0)); // latched
-	CHECK(d.PeriodicSummaryDue(20001.0, 10.0));
+	EXPECT(!d.PeriodicSummaryDue(5000.0, 10.0));
+	EXPECT(d.PeriodicSummaryDue(10000.0, 10.0));
+	EXPECT(!d.PeriodicSummaryDue(10001.0, 10.0)); // latched
+	EXPECT(d.PeriodicSummaryDue(20001.0, 10.0));
 }
 
 static void TestFormatSummary() {
@@ -252,15 +243,15 @@ static void TestFormatSummary() {
 
 	char buf[8192];
 	size_t n = d.FormatSummary(buf, sizeof(buf), "test");
-	CHECK(n > 0 && n < sizeof(buf));
-	CHECK(strstr(buf, "hard stalls") != NULL);
-	CHECK(strstr(buf, "simulation hitches") != NULL);
-	CHECK(strstr(buf, "visible corrections") != NULL);
-	CHECK(strstr(buf, "proxy") != NULL); // burst is labeled a proxy
-	CHECK(strstr(buf, "save") != NULL);
-	CHECK(strstr(buf, "skip[update_gate]=1") != NULL);
-	CHECK(strstr(buf, "trackedKeys=88/88") != NULL);
-	CHECK(strstr(buf, "hitch[>=16.67,25,33.33,50,100]") != NULL);
+	EXPECT(n > 0 && n < sizeof(buf));
+	EXPECT(strstr(buf, "hard stalls") != NULL);
+	EXPECT(strstr(buf, "simulation hitches") != NULL);
+	EXPECT(strstr(buf, "visible corrections") != NULL);
+	EXPECT(strstr(buf, "proxy") != NULL); // burst is labeled a proxy
+	EXPECT(strstr(buf, "save") != NULL);
+	EXPECT(strstr(buf, "skip[update_gate]=1") != NULL);
+	EXPECT(strstr(buf, "trackedKeys=88/88") != NULL);
+	EXPECT(strstr(buf, "hitch[>=16.67,25,33.33,50,100]") != NULL);
 
 	// Every timed operation populated at once (legacy and swap free paths plus
 	// per-unit memento timers) must still fit the host's summary buffer.
@@ -269,33 +260,33 @@ static void TestFormatSummary() {
 	}
 	char full[16384];
 	size_t fullLength = d.FormatSummary(full, sizeof(full), "every-operation");
-	CHECK(fullLength > 0 && fullLength < sizeof(full) - 1);
-	CHECK(strstr(full, "free.swap") != NULL);
-	CHECK(strstr(full, "restore.vfx") != NULL);
-	CHECK(strstr(full, "record.effect") != NULL);
-	CHECK(strstr(full, "room.checkpoint_build") != NULL);
+	EXPECT(fullLength > 0 && fullLength < sizeof(full) - 1);
+	EXPECT(strstr(full, "free.swap") != NULL);
+	EXPECT(strstr(full, "restore.vfx") != NULL);
+	EXPECT(strstr(full, "record.effect") != NULL);
+	EXPECT(strstr(full, "room.checkpoint_build") != NULL);
 
 	// Per-frame attribution accumulates within an outer frame, reads zero for
 	// an op that did not run, and is cleared by the outer-frame boundary.
 	d.OnOuterFrame(3.0);
-	CHECK(d.frameMs[OP_ROOM_BROADCAST] == 0.0);
+	EXPECT(d.frameMs[OP_ROOM_BROADCAST] == 0.0);
 	d.RecordOp(OP_ROOM_BROADCAST, 1.0);
 	d.RecordOp(OP_ROOM_BROADCAST, 2.5);
-	CHECK(d.frameMs[OP_ROOM_BROADCAST] == 3.5);
-	CHECK(d.frameMs[OP_ROOM_POLL] == 0.0);
-	CHECK(d.ops[OP_ROOM_BROADCAST].lastMs == 2.5);
+	EXPECT(d.frameMs[OP_ROOM_BROADCAST] == 3.5);
+	EXPECT(d.frameMs[OP_ROOM_POLL] == 0.0);
+	EXPECT(d.ops[OP_ROOM_BROADCAST].lastMs == 2.5);
 	d.OnOuterFrame(4.0);
-	CHECK(d.frameMs[OP_ROOM_BROADCAST] == 0.0);
+	EXPECT(d.frameMs[OP_ROOM_BROADCAST] == 0.0);
 
 	for (int op = 0; op < OP_COUNT; op++) {
-		CHECK(strcmp(TimedOpName(op), "?") != 0);
+		EXPECT(strcmp(TimedOpName(op), "?") != 0);
 	}
 
 	// A tiny buffer must not overflow and stays terminated.
 	char tiny[16];
 	size_t tn = d.FormatSummary(tiny, sizeof(tiny), "test");
-	CHECK(tn < sizeof(tiny));
-	CHECK(tiny[sizeof(tiny) - 1] == '\0' || strlen(tiny) < sizeof(tiny));
+	EXPECT(tn < sizeof(tiny));
+	EXPECT(tiny[sizeof(tiny) - 1] == '\0' || strlen(tiny) < sizeof(tiny));
 }
 
 int main() {
@@ -312,8 +303,8 @@ int main() {
 	TestPeriodicDue();
 	TestFormatSummary();
 
-	if (g_failures) {
-		printf("%d failure(s)\n", g_failures);
+	if (TEST_FAILURES()) {
+		printf("%d failure(s)\n", TEST_FAILURES());
 		return 1;
 	}
 	printf("rollback_diagnostics_test: all tests passed\n");

@@ -174,7 +174,15 @@ namespace sf4e {
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;
 			netplay::Snapshot session;
-			room::Snapshot room;
+			// The room as this player's screen shows it (class emblems already
+			// dropped where they are not shown). Built once per change of the
+			// client's room and shared, unchanged, by every snapshot published
+			// until the next; null without a room. Read it through Room().
+			std::shared_ptr<const room::Snapshot> room;
+			const room::Snapshot& Room() const {
+				static const room::Snapshot none;
+				return room ? *room : none;
+			}
 			// When `room` arrived (GetTickCount64); idle times count on from it.
 			std::uint64_t roomReceivedMs = 0;
 			// The newest room events for the chat, oldest first.
@@ -258,7 +266,13 @@ namespace sf4e {
 			bool pendingJoinDirect = false;
 			std::string helperError;
             std::string gameplayInputError;
-            std::vector<netplay::MemberView> members;
+            // The member list shown with `room`, built and shared the same
+            // way; null without one. Read it through Members().
+            std::shared_ptr<const std::vector<netplay::MemberView>> members;
+            const std::vector<netplay::MemberView>& Members() const {
+                static const std::vector<netplay::MemberView> none;
+                return members ? *members : none;
+            }
             netplay::NetworkAvailability network = netplay::NetworkAvailability::Starting;
             platform::ServiceSnapshot services;
             std::string controller;

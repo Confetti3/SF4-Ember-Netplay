@@ -15,6 +15,7 @@ use serde_json::{Value as Json_, json};
 
 const ME: &str = "/v1/ranking/me";
 const BOARD: &str = "/v1/ranking/board";
+const PUBLIC_BOARD: &str = "/v1/ranking/board/public";
 const DAY: i64 = 24 * 60 * 60;
 
 async fn start(show: bool) -> (Bridge, Supervisor) {
@@ -56,6 +57,12 @@ async fn board(bridge: &Bridge, player: &Player) -> Json_ {
     board["players"].clone()
 }
 
+/// The board as the embernetplay.link rankings page reads it, with no credential.
+async fn public_board(bridge: &Bridge) -> (StatusCode, Json_) {
+    let request = bridge.client.get(bridge.url(PUBLIC_BOARD)).send();
+    common::read(request.await.unwrap()).await
+}
+
 fn listed(name: &str, country: &str) -> Json_ {
     json!({ "ranked": true, "listing": { "name": name, "country": country } })
 }
@@ -75,6 +82,24 @@ async fn rate(bridge: &Bridge, account: &str, deviation: f64, band: u8, days_ago
                      (discord_user_id, rating, deviation, volatility, band, played_at)
                  VALUES (?1, ?2, ?3, 0.06, ?4, ?5)",
                 rusqlite::params![account, rating, deviation, band, played_at],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+/// Forgets the class last shown for `account`, as if every ticket so far
+/// came while it was placing.
+async fn shown_placing(bridge: &Bridge, account: &str) {
+    let account = account.to_owned();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "UPDATE skill_ratings SET band = 0 WHERE discord_user_id = ?1",
+                [account],
             )?;
             Ok(())
         })
@@ -229,7 +254,7 @@ async fn the_listing_changes_freely_and_needs_a_discord_account() {
 async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
     let (bridge, _fake) = start(true).await;
     let mut players = Vec::new();
-    for byte in 1..=7u8 {
+    for byte in 1..=8u8 {
         let player = player(&bridge, byte).await;
         connect_discord(&bridge, &byte.to_string(), &player).await;
         players.push(player);
@@ -243,6 +268,10 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
     rate(&bridge, "5", 60.0, 9, 600).await;
     rate(&bridge, "6", 60.0, 9, 0).await;
     rate(&bridge, "7", 60.0, 9, 0).await;
+    // 8 settled after its last ticket, which still showed it placing: it is
+    // on the board with the class its next ticket would show.
+    rate(&bridge, "8", 60.0, 6, 4).await;
+    shown_placing(&bridge, "8").await;
     for (index, player) in players.iter().enumerate() {
         if index == 5 {
             continue;
@@ -265,10 +294,38 @@ async fn the_board_lists_settled_classes_of_listed_players_highest_first() {
         board(&bridge, &players[0]).await,
         json!([
             entry("Player 3", 8, false),
+            entry("Player 8", 6, false),
             entry("Player 2", 5, false),
             entry("Player 1", 5, true)
         ])
     );
+
+    // The web page sees the same board with nobody's entry as its own.
+    let (status, public) = public_board(&bridge).await;
+    assert_eq!(status, StatusCode::OK, "{public}");
+    assert_eq!(public["shown"], json!(true));
+    assert!(public["listed_at"].as_u64().is_some(), "{public}");
+    assert_eq!(
+        public["players"],
+        json!([
+            entry("Player 3", 8, false),
+            entry("Player 8", 6, false),
+            entry("Player 2", 5, false),
+            entry("Player 1", 5, false)
+        ])
+    );
+
+    // It is read again only after 15 s, however often it is asked for.
+    let (status, renamed) = choose(&bridge, &players[2], listed("Player 3b", "US")).await;
+    assert_eq!(status, StatusCode::OK, "{renamed}");
+    let (_, again) = public_board(&bridge).await;
+    assert_eq!(again, public);
+    bridge.clock.advance(14);
+    let (_, held) = public_board(&bridge).await;
+    assert_eq!(held, public);
+    bridge.clock.advance(1);
+    let (_, later) = public_board(&bridge).await;
+    assert_eq!(later["players"][0], entry("Player 3b", 8, false));
 }
 
 #[tokio::test]
@@ -284,6 +341,11 @@ async fn while_classes_are_hidden_nothing_shows_but_the_choice_holds() {
         json!({ "ranking": "ranked", "listing": { "name": "Player 1", "country": "DE" } })
     );
     assert_eq!(board(&bridge, &first).await, json!([]));
+    // The web page can tell hidden classes from an empty board.
+    let (status, public) = public_board(&bridge).await;
+    assert_eq!(status, StatusCode::OK, "{public}");
+    assert_eq!(public["shown"], json!(false));
+    assert_eq!(public["players"], json!([]));
 }
 
 #[tokio::test]
@@ -295,6 +357,7 @@ async fn a_bridge_without_public_rooms_has_no_ranking() {
         let (status, _) = call(&bridge, &first, method, path, body).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
     }
+    assert_eq!(public_board(&bridge).await.0, StatusCode::NOT_FOUND);
     let (_, capabilities) = bridge.get(first.token(), "/v1/capabilities").await;
     assert!(
         !capabilities["features"]

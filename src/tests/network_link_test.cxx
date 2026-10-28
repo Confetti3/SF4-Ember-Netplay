@@ -5,34 +5,33 @@
 #include <cstdio>
 #include <utility>
 #include <vector>
+#include "test_support.hxx"
 
 using namespace sf4e;
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 int main() {
 	using namespace interface_values;
 	constexpr unsigned long Unspecified = UnspecifiedMedium, TunnelType = 131, BluetoothMedium = 10, PowerLineMedium = 4;
 	// Physical adapters.
-	CHECK(ClassifyInterface(true, EthernetType, Ethernet802_3Medium) == NetworkLink::Wired);
-	CHECK(ClassifyInterface(true, Ieee80211Type, Native80211Medium) == NetworkLink::Wireless);
+	EXPECT(ClassifyInterface(true, EthernetType, Ethernet802_3Medium) == NetworkLink::Wired);
+	EXPECT(ClassifyInterface(true, Ieee80211Type, Native80211Medium) == NetworkLink::Wireless);
 	// An older Wi-Fi driver: Ethernet type, 802.11 medium.
-	CHECK(ClassifyInterface(true, EthernetType, Native80211Medium) == NetworkLink::Wireless);
+	EXPECT(ClassifyInterface(true, EthernetType, Native80211Medium) == NetworkLink::Wireless);
 	// A wired card reporting no medium is still a cable.
-	CHECK(ClassifyInterface(true, EthernetType, Unspecified) == NetworkLink::Wired);
+	EXPECT(ClassifyInterface(true, EthernetType, Unspecified) == NetworkLink::Wired);
 	// Only a clear answer: the legacy wireless-LAN medium, which some wired
 	// drivers report, and other media behind an Ethernet type are Unknown.
-	CHECK(ClassifyInterface(true, EthernetType, WirelessLanMedium) == NetworkLink::Unknown);
-	CHECK(ClassifyInterface(true, EthernetType, BluetoothMedium) == NetworkLink::Unknown);
-	CHECK(ClassifyInterface(true, EthernetType, PowerLineMedium) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(true, EthernetType, WirelessLanMedium) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(true, EthernetType, BluetoothMedium) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(true, EthernetType, PowerLineMedium) == NetworkLink::Unknown);
 	// Virtual Ethernet (VPN, Hyper-V switch, overlay network) hides the real link.
-	CHECK(ClassifyInterface(false, EthernetType, Ethernet802_3Medium) == NetworkLink::Unknown);
-	CHECK(ClassifyInterface(false, EthernetType, Unspecified) == NetworkLink::Unknown);
-	CHECK(ClassifyInterface(false, Ieee80211Type, Native80211Medium) == NetworkLink::Unknown);
-	CHECK(ClassifyInterface(true, TunnelType, Unspecified) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(false, EthernetType, Ethernet802_3Medium) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(false, EthernetType, Unspecified) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(false, Ieee80211Type, Native80211Medium) == NetworkLink::Unknown);
+	EXPECT(ClassifyInterface(true, TunnelType, Unspecified) == NetworkLink::Unknown);
 	// The wire accepts only known kinds; anything else reads as Unknown.
-	CHECK(NetworkLinkFromWire(1) == NetworkLink::Wired && NetworkLinkFromWire(2) == NetworkLink::Wireless);
-	CHECK(NetworkLinkFromWire(0) == NetworkLink::Unknown && NetworkLinkFromWire(3) == NetworkLink::Unknown &&
+	EXPECT(NetworkLinkFromWire(1) == NetworkLink::Wired && NetworkLinkFromWire(2) == NetworkLink::Wireless);
+	EXPECT(NetworkLinkFromWire(0) == NetworkLink::Unknown && NetworkLinkFromWire(3) == NetworkLink::Unknown &&
 		NetworkLinkFromWire(-1) == NetworkLink::Unknown);
 	// Stacks as Windows reports them. Real NIC 26 and Wi-Fi 11 are hardware;
 	// the rest are virtual: vEthernet over a filter over a vSwitch over a
@@ -57,14 +56,14 @@ int main() {
 		facts.medium = index == 11 ? Native80211Medium : Ethernet802_3Medium;
 		return true;
 	};
-	CHECK(ResolveNetworkLink(7, lowerLayers, describe) == NetworkLink::Wired);
-	CHECK(ResolveNetworkLink(26, lowerLayers, describe) == NetworkLink::Wired);
-	CHECK(ResolveNetworkLink(60, lowerLayers, describe) == NetworkLink::Wireless);
-	CHECK(ResolveNetworkLink(28, lowerLayers, describe) == NetworkLink::Unknown);
-	CHECK(ResolveNetworkLink(52, lowerLayers, describe) == NetworkLink::Unknown);
-	CHECK(ResolveNetworkLink(70, lowerLayers, describe) == NetworkLink::Unknown);
-	CHECK(ResolveNetworkLink(80, lowerLayers, describe) == NetworkLink::Unknown);
-	CHECK(ResolveNetworkLink(99, lowerLayers, describe) == NetworkLink::Unknown);
+	EXPECT(ResolveNetworkLink(7, lowerLayers, describe) == NetworkLink::Wired);
+	EXPECT(ResolveNetworkLink(26, lowerLayers, describe) == NetworkLink::Wired);
+	EXPECT(ResolveNetworkLink(60, lowerLayers, describe) == NetworkLink::Wireless);
+	EXPECT(ResolveNetworkLink(28, lowerLayers, describe) == NetworkLink::Unknown);
+	EXPECT(ResolveNetworkLink(52, lowerLayers, describe) == NetworkLink::Unknown);
+	EXPECT(ResolveNetworkLink(70, lowerLayers, describe) == NetworkLink::Unknown);
+	EXPECT(ResolveNetworkLink(80, lowerLayers, describe) == NetworkLink::Unknown);
+	EXPECT(ResolveNetworkLink(99, lowerLayers, describe) == NetworkLink::Unknown);
 	// An unreadable branch is not proof it holds no other hardware, in either
 	// enumeration order.
 	for (const bool failedFirst : {false, true}) {
@@ -72,7 +71,7 @@ int main() {
 			return higher == 90 ? (failedFirst ? std::vector<unsigned long>{99, 26} : std::vector<unsigned long>{26, 99}) :
 				std::vector<unsigned long>{};
 		};
-		CHECK(ResolveNetworkLink(90, withUnreadable, describe) == NetworkLink::Unknown);
+		EXPECT(ResolveNetworkLink(90, withUnreadable, describe) == NetworkLink::Unknown);
 	}
 	// A stack past the size limit is never answered from the part that was
 	// read: a root over N hardware interfaces, one of them Wi-Fi, placed first
@@ -93,50 +92,50 @@ int main() {
 		return true;
 	};
 	for (const bool wifiFirst : {false, true}) {
-		CHECK(ResolveNetworkLink(1000, fan(64, wifiFirst), fanFacts) == NetworkLink::Unknown);
-		CHECK(ResolveNetworkLink(1000, fan(63, wifiFirst), fanFacts) == NetworkLink::Unknown);
+		EXPECT(ResolveNetworkLink(1000, fan(64, wifiFirst), fanFacts) == NetworkLink::Unknown);
+		EXPECT(ResolveNetworkLink(1000, fan(63, wifiFirst), fanFacts) == NetworkLink::Unknown);
 	}
 	const auto ethernetFacts = [&](unsigned long index, InterfaceFacts& facts) {
 		facts.hardware = index != 1000; facts.type = EthernetType; facts.medium = Ethernet802_3Medium;
 		return true;
 	};
-	CHECK(ResolveNetworkLink(1000, fan(63, true), ethernetFacts) == NetworkLink::Wired);
-	CHECK(ResolveNetworkLink(1000, fan(64, true), ethernetFacts) == NetworkLink::Unknown);
+	EXPECT(ResolveNetworkLink(1000, fan(63, true), ethernetFacts) == NetworkLink::Wired);
+	EXPECT(ResolveNetworkLink(1000, fan(64, true), ethernetFacts) == NetworkLink::Unknown);
 	// The NAT class travels the same way as the link: known values only.
-	CHECK(NatClassFromWire(1) == NatClass::Open && NatClassFromWire(2) == NatClass::Strict && NatClassFromWire(3) == NatClass::NoUdp);
-	CHECK(NatClassFromWire(0) == NatClass::Unknown && NatClassFromWire(4) == NatClass::Unknown && NatClassFromWire(-1) == NatClass::Unknown);
+	EXPECT(NatClassFromWire(1) == NatClass::Open && NatClassFromWire(2) == NatClass::Strict && NatClassFromWire(3) == NatClass::NoUdp);
+	EXPECT(NatClassFromWire(0) == NatClass::Unknown && NatClassFromWire(4) == NatClass::Unknown && NatClassFromWire(-1) == NatClass::Unknown);
 	// The helper's names; "checking" and anything unexpected are not a class.
-	CHECK(NatClassFromHelper("open") == NatClass::Open && NatClassFromHelper("strict") == NatClass::Strict &&
+	EXPECT(NatClassFromHelper("open") == NatClass::Open && NatClassFromHelper("strict") == NatClass::Strict &&
 		NatClassFromHelper("no_udp") == NatClass::NoUdp);
-	CHECK(NatClassFromHelper("checking") == NatClass::Unknown && NatClassFromHelper("") == NatClass::Unknown &&
+	EXPECT(NatClassFromHelper("checking") == NatClass::Unknown && NatClassFromHelper("") == NatClass::Unknown &&
 		NatClassFromHelper("Open") == NatClass::Unknown && NatClassFromHelper("symmetric") == NatClass::Unknown);
 	{
 		NetworkSummary summary;
-		CHECK(!summary.reported && summary.Checking() && summary.relay.empty());
-		summary.nat = NatClass::Open; CHECK(!summary.Checking());
-		NetworkSummary other = summary; CHECK(summary == other);
-		other.relayConnected = true; CHECK(summary != other);
+		EXPECT(!summary.reported && summary.Checking() && summary.relay.empty());
+		summary.nat = NatClass::Open; EXPECT(!summary.Checking());
+		NetworkSummary other = summary; EXPECT(summary == other);
+		other.relayConnected = true; EXPECT(summary != other);
 	}
 	// Where the direct path most likely failed. This side's own check comes first,
 	// then blocked UDP on either side, then strict NAT, then two open networks.
-	CHECK(DiagnoseDirectPath(NatClass::Unknown, NatClass::NoUdp) == DirectBlock::Checking);
-	CHECK(DiagnoseDirectPath(NatClass::NoUdp, NatClass::Open) == DirectBlock::LocalNoUdp);
-	CHECK(DiagnoseDirectPath(NatClass::NoUdp, NatClass::NoUdp) == DirectBlock::LocalNoUdp);
-	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::NoUdp) == DirectBlock::PeerNoUdp);
-	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::NoUdp) == DirectBlock::PeerNoUdp);
-	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Strict) == DirectBlock::LocalStrict);
-	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Open) == DirectBlock::LocalStrict);
-	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Strict) == DirectBlock::PeerStrict);
-	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Open) == DirectBlock::BothOpen);
+	EXPECT(DiagnoseDirectPath(NatClass::Unknown, NatClass::NoUdp) == DirectBlock::Checking);
+	EXPECT(DiagnoseDirectPath(NatClass::NoUdp, NatClass::Open) == DirectBlock::LocalNoUdp);
+	EXPECT(DiagnoseDirectPath(NatClass::NoUdp, NatClass::NoUdp) == DirectBlock::LocalNoUdp);
+	EXPECT(DiagnoseDirectPath(NatClass::Strict, NatClass::NoUdp) == DirectBlock::PeerNoUdp);
+	EXPECT(DiagnoseDirectPath(NatClass::Open, NatClass::NoUdp) == DirectBlock::PeerNoUdp);
+	EXPECT(DiagnoseDirectPath(NatClass::Strict, NatClass::Strict) == DirectBlock::LocalStrict);
+	EXPECT(DiagnoseDirectPath(NatClass::Strict, NatClass::Open) == DirectBlock::LocalStrict);
+	EXPECT(DiagnoseDirectPath(NatClass::Open, NatClass::Strict) == DirectBlock::PeerStrict);
+	EXPECT(DiagnoseDirectPath(NatClass::Open, NatClass::Open) == DirectBlock::BothOpen);
 	// A peer whose class is not known (an older build, or still checking) is not called open.
-	CHECK(DiagnoseDirectPath(NatClass::Open, NatClass::Unknown) == DirectBlock::None);
-	CHECK(DiagnoseDirectPath(NatClass::Strict, NatClass::Unknown) == DirectBlock::LocalStrict);
+	EXPECT(DiagnoseDirectPath(NatClass::Open, NatClass::Unknown) == DirectBlock::None);
+	EXPECT(DiagnoseDirectPath(NatClass::Strict, NatClass::Unknown) == DirectBlock::LocalStrict);
 	// The live answer depends on the machine; it must only not fail.
 	std::string detail;
 	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink(&detail)));
 	std::printf("  %s\n", detail.c_str());
-	CHECK(detail.find("route=if") == 0 || detail == "no default route" || detail == "wine");
-	if (failures) return 1;
+	EXPECT(detail.find("route=if") == 0 || detail == "no default route" || detail == "wine");
+	if (TEST_FAILURES()) return 1;
 	std::puts("NetworkLink test passed");
 	return 0;
 }

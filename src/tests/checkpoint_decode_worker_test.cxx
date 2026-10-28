@@ -47,6 +47,11 @@ int main() {
 	CHECK(inlineResult.ok && inlineResult.ticket == 1 && inlineResult.proposal.request == 11);
 	CHECK(inlineResult.journal.size() == 3 && inlineResult.journal[2].sequence == 3);
 	CHECK(inlineResult.proposal.checkpoint.at("schema") == "session-recovery-v2");
+	// The two older snapshots for the same recipient are superseded: their
+	// envelopes stay, digest-only, and only the newest keeps its replay copy.
+	CHECK(inlineResult.journal[0] == Effect(1, 4) && inlineResult.journal[0].publicPayload.is_null());
+	CHECK(inlineResult.journal[1] == Effect(2, 5) && inlineResult.journal[1].publicPayload.is_null());
+	CHECK(inlineResult.journal[2].publicPayload == Effect(3, 6).publicPayload);
 
 	// A proposal whose effects do not match their digest is refused, not thrown.
 	auto tampered = nlohmann::json::parse(Proposal(12));

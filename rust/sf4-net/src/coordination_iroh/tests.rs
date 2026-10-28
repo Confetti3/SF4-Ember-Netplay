@@ -50,7 +50,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
     assert!(nodes[0].propose(proposal).await.unwrap().accepted);
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            if nodes[1].committed().await.revision() == 1 && nodes[2].committed().await.revision() == 1
+            if nodes[1].store().committed().await.revision() == 1 && nodes[2].store().committed().await.revision() == 1
             {
                 break;
             }
@@ -80,7 +80,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
         &nodes[2]
     };
     assert_eq!(
-        successor.committed().await.checkpoint(),
+        successor.store().committed().await.checkpoint(),
         "active generation 42"
     );
     for i in 1..3 {
@@ -145,6 +145,68 @@ async fn raw_rpc(connection: &Connection, method: u8, body: &[u8]) -> io::Result
     send.write_all(body).await?;
     send.finish().map_err(|_| failure())?;
     read_body(&mut recv, MAX_RPC_RESPONSE).await
+}
+
+/// A helper of coordination wire 1 is refused at the QUIC handshake, and a
+/// wire 1 body that arrives anyway fails its own stream while the node goes
+/// on serving.
+#[tokio::test]
+async fn a_helper_of_another_coordination_wire_is_refused_cleanly() {
+    let version = crate::coordination::COORDINATION_WIRE_VERSION;
+    assert!(ALPN.ends_with(format!("/{version}").as_bytes()));
+    let room = [12; 16];
+    let server = IrohRpc::bind(room, 1, false).await.unwrap();
+    let client = IrohRpc::bind(room, 2, false).await.unwrap();
+    server.admit(2, client.address()).await.unwrap();
+    let coordinator = Arc::new(
+        Coordinator::new_for_room(room, 1, server.clone())
+            .await
+            .unwrap(),
+    );
+    coordinator
+        .raft()
+        .initialize(BTreeMap::from([(
+            1,
+            BasicNode::new(server.identity().to_string()),
+        )]))
+        .await
+        .unwrap();
+    coordinator
+        .raft()
+        .wait(Some(Duration::from_secs(5)))
+        .current_leader(1, "single leader")
+        .await
+        .unwrap();
+    let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
+
+    let old = timeout(
+        Duration::from_secs(10),
+        client
+            .endpoint
+            .connect(server.address(), b"sf4e/coordination/1"),
+    )
+    .await
+    .unwrap();
+    assert!(old.is_err(), "a wire 1 ALPN is refused");
+
+    let connection = client.endpoint.connect(server.address(), ALPN).await.unwrap();
+    let append = serde_json::to_vec(&serde_json::json!({
+        "version": 1,
+        "length": 2,
+        "digest": vec![0u8; 32],
+        "data": "eJwDAAAAAAE",
+    }))
+    .unwrap();
+    assert!(raw_rpc(&connection, 1, &append).await.is_err());
+    let snapshot = br#"{"vote":{},"meta":{},"offset":0,"data":"AQID","done":false}"#;
+    assert!(raw_rpc(&connection, 3, snapshot).await.is_err());
+    assert!(raw_rpc(&connection, 4, &[0]).await.is_ok());
+    assert!(!serving.is_finished());
+
+    serving.abort();
+    coordinator.raft().shutdown().await.unwrap();
+    server.close().await;
+    client.close().await;
 }
 
 #[tokio::test]
@@ -264,7 +326,7 @@ async fn concurrent_calls_share_one_dialed_connection() {
     let serving = tokio::spawn(server.clone().serve(coordinator.clone()));
     let expected = server.identity().to_string();
     let call = || {
-        <IrohRpc as RpcTransport>::call(client.as_ref(), 1, expected.clone(), "authority", vec![0])
+        <IrohRpc as RpcTransport>::call(client.as_ref(), 1, expected.clone(), Method::Authority, vec![0])
     };
     let served = || {
         server
@@ -339,7 +401,7 @@ async fn canceled_rpc_closes_the_cached_connection_before_retry() {
         caller.as_ref(),
         2,
         receiver.identity().to_string(),
-        "authority",
+        Method::Authority,
         vec![0],
     );
     cancel_once_received(read, &mut received).await;
@@ -353,7 +415,7 @@ async fn canceled_rpc_closes_the_cached_connection_before_retry() {
         caller.as_ref(),
         2,
         receiver.identity().to_string(),
-        "append",
+        Method::Append,
         vec![0],
     );
     cancel_once_received(call, &mut received).await;
@@ -451,7 +513,7 @@ async fn unanswering_target_cannot_starve_calls_to_others() {
         let caller = caller.clone();
         let expected = silent.identity().to_string();
         silent_calls.spawn(async move {
-            <IrohRpc as RpcTransport>::call(caller.as_ref(), 3, expected, "append", vec![0]).await
+            <IrohRpc as RpcTransport>::call(caller.as_ref(), 3, expected, Method::Append, vec![0]).await
         });
     }
     // The calls past the target's bound are refused at once; the rest wait.
@@ -477,7 +539,7 @@ async fn unanswering_target_cannot_starve_calls_to_others() {
             caller.as_ref(),
             2,
             live.identity().to_string(),
-            "authority",
+            Method::Authority,
             vec![0],
         ),
     )

@@ -48,9 +48,15 @@ namespace Dimps {
 					};
 
 					struct Round : Control {
-						static WORD* GetCurrentRound(Round* c);
-						static IEmSpriteNode** GetRoundActionNode(Round* c);
-						static IEmSpriteNode** GetRoundNumberNode(Round* c);
+						static WORD* GetCurrentRound(Round* c) {
+							return (WORD*)((unsigned int)c + 0x2c);
+						}
+						static IEmSpriteNode** GetRoundActionNode(Round* c) {
+							return (IEmSpriteNode**)((unsigned int)c + 0x1c);
+						}
+						static IEmSpriteNode** GetRoundNumberNode(Round* c) {
+							return (IEmSpriteNode**)((unsigned int)c + 0x24);
+						}
 
 						typedef struct __publicMethods {
 							void (Round::* Enable)();
@@ -62,25 +68,63 @@ namespace Dimps {
 					};
 
 					struct View {
-						static dDeque_0x10* GetQueuedAnnouncements(View* v);
-						static Control** GetActiveControl(View* v);
-						static Round** GetRoundControl(View* v);
-						static SingleNodeControl** GetFinalRoundControl(View* v);
-						static SingleNodeControl** GetExtraRoundControl(View* v);
-						static SingleNodeControl** GetFightControl(View* v);
-						static SingleNodeControl** GetKoControl(View* v);
-						static SingleNodeControl** GetDoubleKoControl(View* v);
-						static SingleNodeControl** GetTimeControl(View* v);
-						static SingleNodeControl** GetDrawControl(View* v);
-						static SingleNodeControl** GetPerfectControl(View* v);
-						static SingleNodeControl** GetWinControl(View* v);
-						static SingleNodeControl** GetLoseControl(View* v);
-						static SingleNodeControl** GetWins1Control(View* v);
-						static SingleNodeControl** GetWins2Control(View* v);
-						static SingleNodeControl** GetSuccessControl(View* v);
-						static SingleNodeControl** GetClearControl(View* v);
-						static SingleNodeControl** GetReadyGoControl(View* v);
-						static SingleNodeControl** GetEditionControl(View* v);
+						static dDeque_0x10* GetQueuedAnnouncements(View* v) {
+							return (dDeque_0x10*)((unsigned int)v + 0xb8);
+						}
+						static Control** GetActiveControl(View* v) {
+							return (Control**)((unsigned int)v + 0xd0);
+						}
+						static Round** GetRoundControl(View* v) {
+							return (Round**)((unsigned int)v + 0x20);
+						}
+						static SingleNodeControl** GetFinalRoundControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x28);
+						}
+						static SingleNodeControl** GetExtraRoundControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x30);
+						}
+						static SingleNodeControl** GetFightControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x38);
+						}
+						static SingleNodeControl** GetKoControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x40);
+						}
+						static SingleNodeControl** GetDoubleKoControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x48);
+						}
+						static SingleNodeControl** GetTimeControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x50);
+						}
+						static SingleNodeControl** GetDrawControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x58);
+						}
+						static SingleNodeControl** GetPerfectControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x60);
+						}
+						static SingleNodeControl** GetWinControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x68);
+						}
+						static SingleNodeControl** GetLoseControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x70);
+						}
+						static SingleNodeControl** GetWins1Control(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x78);
+						}
+						static SingleNodeControl** GetWins2Control(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x80);
+						}
+						static SingleNodeControl** GetSuccessControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x88);
+						}
+						static SingleNodeControl** GetClearControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x90);
+						}
+						static SingleNodeControl** GetReadyGoControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0x98);
+						}
+						static SingleNodeControl** GetEditionControl(View* v) {
+							return (SingleNodeControl**)((unsigned int)v + 0xa0);
+						}
 					};
 
 					struct Unit : IUnit {
@@ -88,7 +132,9 @@ namespace Dimps {
 							void (Unit::* HudAnnounce_Update)(Task** task);
 						} __publicMethods;
 
-						static Eva::Task** GetHudAnnounceUpdateTask(Unit* u);
+						static Eva::Task** GetHudAnnounceUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static View** GetView(Unit* u);
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
@@ -111,7 +157,9 @@ namespace Dimps {
 							void (Unit::* HudCockpit_Update)(Task** task);
 						} __publicMethods;
 
-						static Eva::Task** GetHudCockpitUpdateTask(Unit* u);
+						static Eva::Task** GetHudCockpitUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
 					};
@@ -119,7 +167,9 @@ namespace Dimps {
 
 				namespace Continue {
 					struct Unit : IUnit {
-						static Eva::Task** GetHudContinueUpdateTask(Unit* u);
+						static Eva::Task** GetHudContinueUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 					};
 				}
 
@@ -129,7 +179,9 @@ namespace Dimps {
 							void (Unit::* HudCursor_Update)(Task** task);
 						} __publicMethods;
 
-						static Eva::Task** GetHudCursorUpdateTask(Unit* u);
+						static Eva::Task** GetHudCursorUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
 					};
@@ -164,8 +216,12 @@ namespace Dimps {
 						
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
-						static Eva::IEmSpriteNode** GetActiveSprite(Bonus* b);
-						static DWORD* GetCurrentBonus(Bonus* b);
+						static Eva::IEmSpriteNode** GetActiveSprite(Bonus* b) {
+							return (Eva::IEmSpriteNode**)((unsigned int)b + 0x64);
+						}
+						static DWORD* GetCurrentBonus(Bonus* b) {
+							return (DWORD*)((unsigned int)b + 0x74);
+						}
 						static int32_t* GetScore(Bonus* b);
 						static DWORD* GetIsActive(Bonus* b);
 					};
@@ -178,22 +234,37 @@ namespace Dimps {
 						
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
-						static uint32_t* GetComboLength(Combo* c);
+						static uint32_t* GetComboLength(Combo* c) {
+							return (uint32_t*)((unsigned int)c + 0x60);
+						}
 						static int32_t* GetScore(Combo* c);
 						static DWORD* GetIsActive(Combo* c);
-						static DWORD* GetShouldShowAdjective(Combo* c);
+						static DWORD* GetShouldShowAdjective(Combo* c) {
+							return (DWORD*)((unsigned int)c + 0x6c);
+						}
 					};
 
 					struct Player {
 
-						static WithReleaser<Bonus>* GetBonuses(Player* p);
-						static WithReleaser<Combo>* GetCombo(Player* p);
-						static dDeque_0x10* GetQueuedComboNotices(Player* p);
-						static dDeque_0x10* GetQueuedBonusNotices(Player* p);
+						static WithReleaser<Bonus>* GetBonuses(Player* p) {
+							return (WithReleaser<Hud::Notice::Bonus>*)((unsigned int)p + 0x28);
+						}
+						static WithReleaser<Combo>* GetCombo(Player* p) {
+							return (WithReleaser<Hud::Notice::Combo>*)((unsigned int)p + 0x20);
+						}
+						static dDeque_0x10* GetQueuedComboNotices(Player* p) {
+							return (dDeque_0x10*)((unsigned int)p + 0x38);
+
+						}
+						static dDeque_0x10* GetQueuedBonusNotices(Player* p) {
+							return (dDeque_0x10*)((unsigned int)p + 0x50);
+						}
 					};
 
 					struct View {
-						static WithReleaser<Player>* GetPlayers(View* v);
+						static WithReleaser<Player>* GetPlayers(View* v) {
+							return (WithReleaser<Hud::Notice::Player>*)((unsigned int)v + 0x20);
+						}
 					};
 
 					struct Unit : IUnit {
@@ -203,7 +274,9 @@ namespace Dimps {
 
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
-						static Eva::Task** GetHudNoticeUpdateTask(Unit* u);
+						static Eva::Task** GetHudNoticeUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static View** GetView(Unit* u);
 					};
 				}
@@ -214,7 +287,9 @@ namespace Dimps {
 							void (Unit::* HudResult_Update)(Task** task);
 						} __publicMethods;
 
-						static Eva::Task** GetHudResultUpdateTask(Unit* u);
+						static Eva::Task** GetHudResultUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
 					};
@@ -226,7 +301,9 @@ namespace Dimps {
 							void (Unit::* HudSubtitle_Update)(Task** task);
 						} __publicMethods;
 
-						static Eva::Task** GetHudSubtitleUpdateTask(Unit* u);
+						static Eva::Task** GetHudSubtitleUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
 					};
@@ -238,7 +315,9 @@ namespace Dimps {
 							void (Unit::* HudTraining_Update)(Task** task);
 						} __publicMethods;
 
-						static Eva::Task** GetHudTrainingUpdateTask(Unit* u);
+						static Eva::Task** GetHudTrainingUpdateTask(Unit* u) {
+							return (Eva::Task**)((unsigned int)u + 0x8);
+						}
 						static void Locate(HMODULE peRoot);
 						static __publicMethods publicMethods;
 					};
@@ -255,14 +334,30 @@ namespace Dimps {
 						Unit* (*Factory)(DWORD arg1, DWORD arg2);
 					} __staticMethods;
 
-					static Announce::Unit** GetAnnounce(Unit* u);
-					static Cockpit::Unit** GetCockpit(Unit* u);
-					static Continue::Unit** GetContinue(Unit* u);
-					static Cursor::Unit** GetCursor(Unit* u);
-					static Notice::Unit** GetNotice(Unit* u);
-					static Result::Unit** GetResult(Unit* u);
-					static Subtitle::Unit** GetSubtitle(Unit* u);
-					static Training::Unit** GetTraining(Unit* u);
+					static Announce::Unit** GetAnnounce(Unit* u) {
+						return (Announce::Unit**)((unsigned int)u + 0x20);
+					}
+					static Cockpit::Unit** GetCockpit(Unit* u) {
+						return (Cockpit::Unit**)((unsigned int)u + 0x18);
+					}
+					static Continue::Unit** GetContinue(Unit* u) {
+						return (Continue::Unit**)((unsigned int)u + 0x2c);
+					}
+					static Cursor::Unit** GetCursor(Unit* u) {
+						return (Cursor::Unit**)((unsigned int)u + 0x24);
+					}
+					static Notice::Unit** GetNotice(Unit* u) {
+						return (Notice::Unit**)((unsigned int)u + 0x1c);
+					}
+					static Result::Unit** GetResult(Unit* u) {
+						return (Result::Unit**)((unsigned int)u + 0x28);
+					}
+					static Subtitle::Unit** GetSubtitle(Unit* u) {
+						return (Subtitle::Unit**)((unsigned int)u + 0x30);
+					}
+					static Training::Unit** GetTraining(Unit* u) {
+						return (Training::Unit**)((unsigned int)u + 0x34);
+					}
 					static void Locate(HMODULE peRoot);
 					static void ResetUnits(Unit* u);
 

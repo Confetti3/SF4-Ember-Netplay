@@ -52,6 +52,8 @@ export type RulesProfile = "organizer-reported-v1" | "ember-room-v1";
 
 /** A set of first to N games: 1 to 10, so best of 1 to best of 19. */
 export type GamesToWin = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+/** The largest GamesToWin; the protocol's MAX_GAMES_TO_WIN (checked by test/contract.test.ts). */
+export const GAMES_TO_WIN_MAX = 10 satisfies GamesToWin;
 
 export interface MatchSpec {
   external_match_id: string;
@@ -63,8 +65,10 @@ export interface MatchSpec {
   metadata?: { [key: string]: string };
 }
 
+/** The rotations the protocol has (checked by test/contract.test.ts). */
+export const ROTATIONS = ["winner_stays", "loser_stays", "both_rotate"] as const;
 /** Who gives up the seat when a lobby set ends. Winner stays is king of the hill. */
-export type Rotation = "winner_stays" | "loser_stays" | "both_rotate";
+export type Rotation = (typeof ROTATIONS)[number];
 
 export interface LobbySpec {
   external_lobby_id: string;
@@ -133,8 +137,10 @@ export interface RecentMatch {
   finished_at: number;
 }
 
+/** The tournament formats the protocol has (checked by test/contract.test.ts). */
+export const TOURNAMENT_FORMATS = ["single_elimination", "double_elimination", "round_robin"] as const;
 /** Single elimination, double elimination (with an optional grand final reset) or round robin. */
-export type TournamentFormat = "single_elimination" | "double_elimination" | "round_robin";
+export type TournamentFormat = (typeof TOURNAMENT_FORMATS)[number];
 
 export interface TournamentSpec {
   external_tournament_id: string;

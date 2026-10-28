@@ -21,8 +21,7 @@ where
     P: serde::de::DeserializeOwned,
     F: FnOnce(P, &Connection) -> io::Result<Option<RoomTicket>>,
 {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = timeout(HANDSHAKE_TIMEOUT, async {
+    guarded_handshake(connection.clone(), async {
         if connection.alpn() != CONTROL_ALPN {
             return Err(failed());
         }
@@ -41,11 +40,6 @@ where
         Ok(channel)
     })
     .await
-    .map_err(|_| failed())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 /// Sends `PublicRefused` and waits, briefly, for the joiner to have it, so the
@@ -68,8 +62,8 @@ pub(crate) async fn connect_public_on_proof<P: Serialize + Sync>(
     proof: &P,
     expected: Option<EndpointId>,
 ) -> io::Result<ControlChannel> {
-    let mut pending = PendingConnection(Some(connection.clone()));
-    let result = timeout(HANDSHAKE_TIMEOUT, async {
+    let deadline = Instant::now() + HANDSHAKE_TIMEOUT;
+    guarded(connection.clone(), deadline, timed_out, async {
         if connection.alpn() != CONTROL_ALPN
             || expected.is_some_and(|expected| connection.remote_id() != expected)
         {
@@ -88,11 +82,6 @@ pub(crate) async fn connect_public_on_proof<P: Serialize + Sync>(
         }
     })
     .await
-    .map_err(|_| timed_out())?;
-    if result.is_ok() {
-        pending.0 = None;
-    }
-    result
 }
 
 #[cfg(test)]
@@ -132,6 +121,24 @@ mod tests {
             .is_err()
         );
         assert!(serde_json::from_slice::<PublicReply>(b"{}").is_err());
+    }
+
+    #[test]
+    fn the_handshake_errors_keep_their_text_and_kind() {
+        for (error, text, kind) in [
+            (host_unreachable(), HOST_UNREACHABLE, io::ErrorKind::ConnectionAborted),
+            (admission_refused(), ADMISSION_REFUSED, io::ErrorKind::ConnectionAborted),
+            (timed_out(), HANDSHAKE_TIMED_OUT, io::ErrorKind::TimedOut),
+        ] {
+            assert_eq!(error.to_string(), text);
+            assert_eq!(error.kind(), kind);
+            // As an error made from the text alone prints.
+            assert_eq!(format!("{error:?}"), format!("{:?}", io::Error::new(kind, text)));
+        }
+        assert!(is_host_unreachable(&host_unreachable()));
+        assert!(!is_host_unreachable(&admission_refused()));
+        assert!(!is_admission_refused(&host_unreachable()));
+        assert!(!is_handshake_timeout(&host_unreachable()));
     }
 
     #[test]

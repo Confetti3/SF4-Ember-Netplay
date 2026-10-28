@@ -12,6 +12,8 @@ using namespace room_controls;
 
 // X, Y and View open the fighter, table options and chat; the same button
 // again returns to the board.
+// X, Y and View open the fighter, table options and chat; the same button
+// again returns to the board.
 void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  auto& nav=menu_.navigation;
  // Delete means something only on your own card (DrawRoomBoard).
@@ -88,11 +90,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   auto& hidden=a.id=="members-part"?preferences_.roomMembersHidden:preferences_.roomChatHidden;
   hidden=!hidden;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;return;
  }
-  if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;notice_=loc::T("room.invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;return;}
+  if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}
   if(a.id=="copy-short"){CopyShortInvitation(v,submit);return;}
   if(a.id=="copy-room-link"){
    const auto link=publicRooms_.RoomLink();
-   if(!link.empty()){ImGui::SetClipboardText(link.c_str());error_.clear();notice_=loc::T("public.link_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;}
+   if(!link.empty()){ImGui::SetClipboardText(link.c_str());error_.clear();ShowNotice(loc::T("public.link_copied"),Tone::Success,ImGui::GetTime()+3);}
    return;
   }
   if(a.id=="replace-room"){ShellAction request;request.command.kind=netplay::CommandKind::ReplaceRoom;request.command.generation=v.session.generation;

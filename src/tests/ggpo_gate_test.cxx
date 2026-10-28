@@ -6,18 +6,9 @@
 #include "../common/sf4e__GgpoAbortLatch.hxx"
 
 #include <string.h>
+#include "test_support.hxx"
 
 using namespace sf4e::gate;
-
-static int g_failures = 0;
-
-#define CHECK(cond)                                                          \
-	do {                                                                     \
-		if (!(cond)) {                                                       \
-			printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);           \
-			g_failures++;                                                    \
-		}                                                                    \
-	} while (0)
 
 static GgpoGateModel Fresh() {
 	GgpoGateModel g;
@@ -27,20 +18,20 @@ static GgpoGateModel Fresh() {
 
 static void TestLifecycleGating() {
 	GgpoGateModel g = Fresh();
-	CHECK(!g.CanAdvanceDeterministicFrame()); // no session
+	EXPECT(!g.CanAdvanceDeterministicFrame()); // no session
 
 	g.OnSessionStarted();
-	CHECK(!g.CanAdvanceDeterministicFrame()); // startup remains gated until RUNNING
+	EXPECT(!g.CanAdvanceDeterministicFrame()); // startup remains gated until RUNNING
 
 	g.OnRunning();
-	CHECK(g.CanAdvanceDeterministicFrame());
+	EXPECT(g.CanAdvanceDeterministicFrame());
 
 	g.OnBattleClosing();
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 
 	g.OnSessionClosed();
-	CHECK(g.phase == PHASE_NO_SESSION);
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(g.phase == PHASE_NO_SESSION);
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 }
 
 static void TestConnectionWarningDoesNotBlock() {
@@ -48,17 +39,17 @@ static void TestConnectionWarningDoesNotBlock() {
 	g.OnSessionStarted();
 	g.OnRunning();
 
-	CHECK(g.OnConnectionInterrupted(1000));  // newly active → alert once
-	CHECK(!g.OnConnectionInterrupted(1500)); // duplicate → no second alert
-	CHECK(g.connectionWarningActive);
-	CHECK(g.connectionWarningStartedAtMs == 1000);
+	EXPECT(g.OnConnectionInterrupted(1000));  // newly active → alert once
+	EXPECT(!g.OnConnectionInterrupted(1500)); // duplicate → no second alert
+	EXPECT(g.connectionWarningActive);
+	EXPECT(g.connectionWarningStartedAtMs == 1000);
 
 	// The warning must not stop simulation.
-	CHECK(g.CanAdvanceDeterministicFrame());
+	EXPECT(g.CanAdvanceDeterministicFrame());
 
-	CHECK(g.OnConnectionResumed());
-	CHECK(!g.OnConnectionResumed()); // no warning active → no alert
-	CHECK(g.CanAdvanceDeterministicFrame());
+	EXPECT(g.OnConnectionResumed());
+	EXPECT(!g.OnConnectionResumed()); // no warning active → no alert
+	EXPECT(g.CanAdvanceDeterministicFrame());
 }
 
 static void TestWarningPlusManualPause() {
@@ -68,15 +59,15 @@ static void TestWarningPlusManualPause() {
 
 	g.OnConnectionInterrupted(100);
 	g.SetManualPause(true);
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 
 	// Resume clears only the warning; the manual pause must survive.
 	g.OnConnectionResumed();
-	CHECK(g.manualPause);
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(g.manualPause);
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 
 	g.SetManualPause(false);
-	CHECK(g.CanAdvanceDeterministicFrame());
+	EXPECT(g.CanAdvanceDeterministicFrame());
 }
 
 static void TestThresholdPlusResume() {
@@ -86,21 +77,21 @@ static void TestThresholdPlusResume() {
 
 	g.OnConnectionInterrupted(100);
 	g.OnPredictionThreshold();
-	CHECK(g.predictionStalled);
+	EXPECT(g.predictionStalled);
 
 	// A resume event clears the warning but NOT the prediction stall; the
 	// stall ends only when GGPO accepts progression again.
 	g.OnConnectionResumed();
-	CHECK(g.predictionStalled);
-	CHECK(!g.connectionWarningActive);
+	EXPECT(g.predictionStalled);
+	EXPECT(!g.connectionWarningActive);
 
 	g.OnFrameAccepted();
-	CHECK(!g.predictionStalled);
+	EXPECT(!g.predictionStalled);
 
 	// The prediction stall never latches the central gate: GGPO enforces it
 	// by refusing input, so the gate stays open.
 	g.OnPredictionThreshold();
-	CHECK(g.CanAdvanceDeterministicFrame());
+	EXPECT(g.CanAdvanceDeterministicFrame());
 }
 
 static void TestFatalImmuneToResume() {
@@ -110,15 +101,15 @@ static void TestFatalImmuneToResume() {
 
 	g.OnConnectionInterrupted(100);
 	g.OnFatal();
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 
 	g.OnConnectionResumed();
-	CHECK(g.fatalError);
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(g.fatalError);
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 
 	// RUNNING (stale event) cannot revive a fatal session either.
 	g.OnRunning();
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 }
 
 static void TestNewSessionClearsPerSessionStateButKeepsPause() {
@@ -131,30 +122,30 @@ static void TestNewSessionClearsPerSessionStateButKeepsPause() {
 	g.SetManualPause(true);
 
 	g.OnSessionStarted(); // rematch
-	CHECK(!g.fatalError);
-	CHECK(!g.connectionWarningActive);
-	CHECK(!g.predictionStalled);
-	CHECK(g.manualPause); // user intent survives the rematch
+	EXPECT(!g.fatalError);
+	EXPECT(!g.connectionWarningActive);
+	EXPECT(!g.predictionStalled);
+	EXPECT(g.manualPause); // user intent survives the rematch
 	g.OnRunning();
-	CHECK(!g.CanAdvanceDeterministicFrame()); // still paused
+	EXPECT(!g.CanAdvanceDeterministicFrame()); // still paused
 
 	g.SetManualPause(false);
-	CHECK(g.CanAdvanceDeterministicFrame());
+	EXPECT(g.CanAdvanceDeterministicFrame());
 }
 
 static void TestRunningOnlyFromWaiting() {
 	GgpoGateModel g = Fresh();
 	// A stray RUNNING with no session must not open the gate.
 	g.OnRunning();
-	CHECK(g.phase == PHASE_NO_SESSION);
-	CHECK(!g.CanAdvanceDeterministicFrame());
+	EXPECT(g.phase == PHASE_NO_SESSION);
+	EXPECT(!g.CanAdvanceDeterministicFrame());
 
 	// A stray RUNNING while closing must not reopen the battle.
 	g.OnSessionStarted();
 	g.OnRunning();
 	g.OnBattleClosing();
 	g.OnRunning();
-	CHECK(g.phase == PHASE_BATTLE_CLOSING);
+	EXPECT(g.phase == PHASE_BATTLE_CLOSING);
 }
 
 // --- who owns the native battle (F-016) ---
@@ -163,19 +154,19 @@ static void TestRunningOnlyFromWaiting() {
 // other field is zero: that must read as an offline battle.
 static void TestAggregateInitialisationIsOffline() {
 	GgpoGateModel g = { PHASE_NO_SESSION };
-	CHECK(g.nativeBattle == NATIVE_BATTLE_OFFLINE);
-	CHECK(!g.NativeExitRequired());
-	CHECK(g.LocalControllerOwnsBattle(false));
-	CHECK(g.MayAdvance(false, true));
+	EXPECT(g.nativeBattle == NATIVE_BATTLE_OFFLINE);
+	EXPECT(!g.NativeExitRequired());
+	EXPECT(g.LocalControllerOwnsBattle(false));
+	EXPECT(g.MayAdvance(false, true));
 }
 
 static void TestOfflineBattleIsNeverOrphaned() {
 	GgpoGateModel g = Fresh();
 	g.OnSessionClosed(); // a shutdown at the menu, no battle claimed
-	CHECK(!g.NativeExitRequired());
-	CHECK(g.LocalControllerOwnsBattle(false));
-	CHECK(!g.OnNativeBattleClosed()); // nothing for the runtime to hear about
-	CHECK(!g.NativeExitRequired());
+	EXPECT(!g.NativeExitRequired());
+	EXPECT(g.LocalControllerOwnsBattle(false));
+	EXPECT(!g.OnNativeBattleClosed()); // nothing for the runtime to hear about
+	EXPECT(!g.NativeExitRequired());
 }
 
 static void TestLosingTheSessionOrphansTheBattle() {
@@ -183,19 +174,19 @@ static void TestLosingTheSessionOrphansTheBattle() {
 	g.OnNetplayBattleClaimed();
 	g.OnSessionStarted();
 	g.OnRunning();
-	CHECK(!g.LocalControllerOwnsBattle(true)); // GGPO owns the pad while live
-	CHECK(!g.NativeExitRequired());
+	EXPECT(!g.LocalControllerOwnsBattle(true)); // GGPO owns the pad while live
+	EXPECT(!g.NativeExitRequired());
 
 	g.OnSessionClosed(); // room closed, helper died, leave mid-fight
-	CHECK(g.NativeExitRequired());
-	CHECK(!g.LocalControllerOwnsBattle(false)); // never the local pad on both slots
-	CHECK(g.MayAdvance(false, true));            // the engine must run to leave
-	CHECK(g.OnOrphanFrame());                    // reported once
-	CHECK(!g.OnOrphanFrame());
+	EXPECT(g.NativeExitRequired());
+	EXPECT(!g.LocalControllerOwnsBattle(false)); // never the local pad on both slots
+	EXPECT(g.MayAdvance(false, true));            // the engine must run to leave
+	EXPECT(g.OnOrphanFrame());                    // reported once
+	EXPECT(!g.OnOrphanFrame());
 
-	CHECK(g.OnNativeBattleClosed()); // CloseBattle: an orphan, but a netplay battle
-	CHECK(!g.NativeExitRequired());
-	CHECK(g.LocalControllerOwnsBattle(false));
+	EXPECT(g.OnNativeBattleClosed()); // CloseBattle: an orphan, but a netplay battle
+	EXPECT(!g.NativeExitRequired());
+	EXPECT(g.LocalControllerOwnsBattle(false));
 }
 
 // CloseBattle reports whether the battle it closes was a netplay battle, live
@@ -205,20 +196,20 @@ static void TestClosingReportsANetplayBattleOnce() {
 	live.OnNetplayBattleClaimed();
 	live.OnSessionStarted();
 	live.OnRunning();
-	CHECK(live.OnNativeBattleClosed());
-	CHECK(!live.OnNativeBattleClosed());
+	EXPECT(live.OnNativeBattleClosed());
+	EXPECT(!live.OnNativeBattleClosed());
 	// A session retired after the close (the spectator drain) orphans nothing.
 	live.OnSessionClosed();
-	CHECK(!live.NativeExitRequired());
-	CHECK(!live.OnNativeBattleClosed());
+	EXPECT(!live.NativeExitRequired());
+	EXPECT(!live.OnNativeBattleClosed());
 
 	// A spectator whose stream ended: the session went first, the battle after.
 	GgpoGateModel spectator = Fresh();
 	spectator.OnNetplayBattleClaimed();
 	spectator.OnSessionStarted();
 	spectator.OnSessionClosed();
-	CHECK(spectator.NativeExitRequired());
-	CHECK(spectator.OnNativeBattleClosed());
+	EXPECT(spectator.NativeExitRequired());
+	EXPECT(spectator.OnNativeBattleClosed());
 }
 
 // A failure before the session starts (no endpoints, no controller, a
@@ -228,12 +219,12 @@ static void TestClaimWithoutSessionOrphansOnClose() {
 	g.OnNetplayBattleClaimed();
 	g.OnFatal();
 	g.OnSessionClosed();
-	CHECK(g.NativeExitRequired());
+	EXPECT(g.NativeExitRequired());
 	// An abort never gates the battle it has to leave, nor later offline play.
-	CHECK(g.MayAdvance(false, true));
-	CHECK(g.OnNativeBattleClosed());
-	CHECK(g.MayAdvance(false, true));
-	CHECK(!g.MayAdvance(false, false)); // only the manual gate remains
+	EXPECT(g.MayAdvance(false, true));
+	EXPECT(g.OnNativeBattleClosed());
+	EXPECT(g.MayAdvance(false, true));
+	EXPECT(!g.MayAdvance(false, false)); // only the manual gate remains
 }
 
 // StartGGPO retires a leftover session before starting the next one. The
@@ -242,11 +233,11 @@ static void TestLeftoverRetireThenStartReclaims() {
 	GgpoGateModel g = Fresh();
 	g.OnNetplayBattleClaimed();
 	g.OnSessionClosed(); // leftover_before_start
-	CHECK(g.NativeExitRequired());
+	EXPECT(g.NativeExitRequired());
 	g.OnSessionStarted();
-	CHECK(!g.NativeExitRequired());
-	CHECK(g.nativeBattle == NATIVE_BATTLE_NETPLAY);
-	CHECK(g.orphanFrames == 0);
+	EXPECT(!g.NativeExitRequired());
+	EXPECT(g.nativeBattle == NATIVE_BATTLE_NETPLAY);
+	EXPECT(g.orphanFrames == 0);
 }
 
 // CloseBattle runs before the session is retired, and the spectator drain
@@ -258,21 +249,21 @@ static void TestBattleClosedBeforeRetireIsNotAnOrphan() {
 	g.OnBattleClosing();
 	g.OnNativeBattleClosed();
 	g.OnSessionClosed();
-	CHECK(!g.NativeExitRequired());
-	CHECK(g.LocalControllerOwnsBattle(false));
+	EXPECT(!g.NativeExitRequired());
+	EXPECT(g.LocalControllerOwnsBattle(false));
 }
 
 static void TestMayAdvanceFollowsTheSessionWhileLive() {
 	GgpoGateModel g = Fresh();
 	g.OnSessionStarted();
-	CHECK(!g.MayAdvance(true, true)); // waiting for RUNNING
+	EXPECT(!g.MayAdvance(true, true)); // waiting for RUNNING
 	g.OnRunning();
-	CHECK(g.MayAdvance(true, true));
-	CHECK(!g.MayAdvance(true, false)); // manual pause
+	EXPECT(g.MayAdvance(true, true));
+	EXPECT(!g.MayAdvance(true, false)); // manual pause
 	g.OnFatal();
-	CHECK(!g.MayAdvance(true, true));
+	EXPECT(!g.MayAdvance(true, true));
 	g.OnSessionClosed();
-	CHECK(g.MayAdvance(false, true)); // the fatal state dies with the session
+	EXPECT(g.MayAdvance(false, true)); // the fatal state dies with the session
 }
 
 static void TestOrphanOverdueFiresOnce() {
@@ -284,25 +275,25 @@ static void TestOrphanOverdueFiresOnce() {
 		g.OnOrphanFrame();
 		if (g.OrphanOverdue(5)) overdue++;
 	}
-	CHECK(overdue == 1);
-	CHECK(g.orphanFrames == 10);
+	EXPECT(overdue == 1);
+	EXPECT(g.orphanFrames == 10);
 }
 
 static void TestClassifier() {
-	CHECK(ClassifyGgpoResult(0) == POLICY_CONTINUE);
-	CHECK(ClassifyGgpoResult(4) == POLICY_STALL_PREDICTION);
-	CHECK(ClassifyGgpoResult(6) == POLICY_SKIP_NOT_SYNCED);
-	CHECK(ClassifyGgpoResult(7) == POLICY_SKIP_OTHER);
-	CHECK(ClassifyGgpoResult(8) == POLICY_SKIP_OTHER);
-	CHECK(ClassifyGgpoResult(-1) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(1) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(2) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(3) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(5) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(9) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(10) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(11) == POLICY_FATAL);
-	CHECK(ClassifyGgpoResult(12345) == POLICY_FATAL); // unknown codes are fatal
+	EXPECT(ClassifyGgpoResult(0) == POLICY_CONTINUE);
+	EXPECT(ClassifyGgpoResult(4) == POLICY_STALL_PREDICTION);
+	EXPECT(ClassifyGgpoResult(6) == POLICY_SKIP_NOT_SYNCED);
+	EXPECT(ClassifyGgpoResult(7) == POLICY_SKIP_OTHER);
+	EXPECT(ClassifyGgpoResult(8) == POLICY_SKIP_OTHER);
+	EXPECT(ClassifyGgpoResult(-1) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(1) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(2) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(3) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(5) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(9) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(10) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(11) == POLICY_FATAL);
+	EXPECT(ClassifyGgpoResult(12345) == POLICY_FATAL); // unknown codes are fatal
 }
 
 // The session must never be closed from inside a GGPO callback: the fork
@@ -311,12 +302,12 @@ static void TestClassifier() {
 // out only once every callback frame has unwound.
 static void TestAbortLatchOutsideCallbackIsImmediate() {
 	AbortLatch latch;
-	CHECK(!latch.InCallback());
-	CHECK(!latch.Request("sync failed")); // not latched: caller closes now
-	CHECK(!latch.pending);
+	EXPECT(!latch.InCallback());
+	EXPECT(!latch.Request("sync failed")); // not latched: caller closes now
+	EXPECT(!latch.pending);
 	char reason[256] = "untouched";
-	CHECK(!latch.Take(reason, sizeof(reason)));
-	CHECK(strcmp(reason, "untouched") == 0);
+	EXPECT(!latch.Take(reason, sizeof(reason)));
+	EXPECT(strcmp(reason, "untouched") == 0);
 }
 
 static void TestAbortLatchInsideCallbackDefers() {
@@ -324,22 +315,22 @@ static void TestAbortLatchInsideCallbackDefers() {
 	char reason[256] = {};
 	{
 		AbortLatch::Scope callback(latch);
-		CHECK(latch.InCallback());
-		CHECK(latch.Request("first reason"));
-		CHECK(latch.pending);
+		EXPECT(latch.InCallback());
+		EXPECT(latch.Request("first reason"));
+		EXPECT(latch.pending);
 		// A second abort in the same burst keeps the first explanation.
-		CHECK(latch.Request("second reason"));
-		CHECK(strcmp(latch.reason, "first reason") == 0);
+		EXPECT(latch.Request("second reason"));
+		EXPECT(strcmp(latch.reason, "first reason") == 0);
 		// Still inside the callback: nothing may be taken yet.
-		CHECK(!latch.Take(reason, sizeof(reason)));
-		CHECK(reason[0] == '\0');
+		EXPECT(!latch.Take(reason, sizeof(reason)));
+		EXPECT(reason[0] == '\0');
 	}
-	CHECK(!latch.InCallback());
-	CHECK(latch.Take(reason, sizeof(reason)));
-	CHECK(strcmp(reason, "first reason") == 0);
-	CHECK(!latch.pending);
-	CHECK(latch.reason[0] == '\0');
-	CHECK(!latch.Take(reason, sizeof(reason))); // drained exactly once
+	EXPECT(!latch.InCallback());
+	EXPECT(latch.Take(reason, sizeof(reason)));
+	EXPECT(strcmp(reason, "first reason") == 0);
+	EXPECT(!latch.pending);
+	EXPECT(latch.reason[0] == '\0');
+	EXPECT(!latch.Take(reason, sizeof(reason))); // drained exactly once
 }
 
 static void TestAbortLatchNestedCallbacks() {
@@ -351,27 +342,27 @@ static void TestAbortLatchNestedCallbacks() {
 		AbortLatch::Scope outer(latch);
 		{
 			AbortLatch::Scope inner(latch);
-			CHECK(latch.depth == 2);
-			CHECK(latch.Request("buffer full"));
+			EXPECT(latch.depth == 2);
+			EXPECT(latch.Request("buffer full"));
 		}
-		CHECK(latch.depth == 1);
-		CHECK(!latch.Take(reason, sizeof(reason)));
+		EXPECT(latch.depth == 1);
+		EXPECT(!latch.Take(reason, sizeof(reason)));
 	}
-	CHECK(latch.depth == 0);
-	CHECK(latch.Take(reason, sizeof(reason)));
-	CHECK(strcmp(reason, "buffer full") == 0);
+	EXPECT(latch.depth == 0);
+	EXPECT(latch.Take(reason, sizeof(reason)));
+	EXPECT(strcmp(reason, "buffer full") == 0);
 }
 
 static void TestAbortLatchResetDropsPending() {
 	AbortLatch latch;
 	{
 		AbortLatch::Scope callback(latch);
-		CHECK(latch.Request("stale"));
+		EXPECT(latch.Request("stale"));
 	}
 	latch.Reset(); // a new session started before the outer tick drained it
 	char reason[256] = {};
-	CHECK(!latch.Take(reason, sizeof(reason)));
-	CHECK(!latch.pending);
+	EXPECT(!latch.Take(reason, sizeof(reason)));
+	EXPECT(!latch.pending);
 }
 
 // Model one native round transition with a save before it. Native idle still
@@ -381,10 +372,10 @@ static void TestAbortLatchResetDropsPending() {
 static void TestRoundTransitionUsesOneTimeline() {
 	GgpoGateModel gate{};
 	gate.OnSessionStarted();
-	CHECK(!gate.UsesGgpoTimeline(true, true)); // preserve initial bootstrap
+	EXPECT(!gate.UsesGgpoTimeline(true, true)); // preserve initial bootstrap
 	gate.OnRunning();
-	CHECK(!gate.UsesGgpoTimeline(true, true));
-	CHECK(gate.UsesGgpoTimeline(true, false));
+	EXPECT(!gate.UsesGgpoTimeline(true, true));
+	EXPECT(gate.UsesGgpoTimeline(true, false));
 	int engine = 0, ggpoFrames = 0;
 	const auto idleAt = [](int frame) { return frame >= 2 && frame < 5; };
 	for (int tick = 0; tick < 8; ++tick) {
@@ -393,16 +384,16 @@ static void TestRoundTransitionUsesOneTimeline() {
 	}
 	int replayEngine = 0;
 	for (int frame = 0; frame < ggpoFrames; ++frame) ++replayEngine;
-	CHECK(ggpoFrames == 8);
-	CHECK(replayEngine == engine);
+	EXPECT(ggpoFrames == 8);
+	EXPECT(replayEngine == engine);
 	// A rollback into idle keeps the latch; a rematch gets a new bootstrap.
-	CHECK(gate.UsesGgpoTimeline(true, true));
+	EXPECT(gate.UsesGgpoTimeline(true, true));
 	gate.OnSessionClosed();
-	CHECK(!gate.UsesGgpoTimeline(false, false));
+	EXPECT(!gate.UsesGgpoTimeline(false, false));
 	gate.OnSessionStarted();
-	CHECK(!gate.UsesGgpoTimeline(true, true));
+	EXPECT(!gate.UsesGgpoTimeline(true, true));
 	gate.Reset();
-	CHECK(!gate.timelineStarted);
+	EXPECT(!gate.timelineStarted);
 }
 
 int main() {
@@ -429,8 +420,8 @@ int main() {
 	TestOrphanOverdueFiresOnce();
 	TestClassifier();
 
-	if (g_failures) {
-		printf("%d failure(s)\n", g_failures);
+	if (TEST_FAILURES()) {
+		printf("%d failure(s)\n", TEST_FAILURES());
 		return 1;
 	}
 	printf("ggpo_gate_test: all tests passed\n");

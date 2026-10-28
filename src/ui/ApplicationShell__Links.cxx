@@ -9,7 +9,7 @@ void ApplicationShell::CopyShortInvitation(const ShellView& v,const Submit& subm
  error_.clear();
  if(!v.shortInvitation.empty()){
   ImGui::SetClipboardText(v.shortInvitation.c_str());
-  notice_=loc::T("room.short_invitation_copied");noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;shortCopyPending_=false;
+  ShowNotice(loc::T("room.short_invitation_copied"),Tone::Success,ImGui::GetTime()+3);shortCopyPending_=false;
   return;
  }
  ShellAction request;request.command.generation=v.session.generation;request.shortInvitation=true;
@@ -17,7 +17,7 @@ void ApplicationShell::CopyShortInvitation(const ShellView& v,const Submit& subm
  shortCopyPending_=true;shortCopyUntil_=ImGui::GetTime()+12;
  // A request that cannot be queued falls back at once, in UpdateShortCopy.
  if(!submit(std::move(request)))shortCopyUntil_=0;
- notice_=loc::T("room.short_invitation_pending");noticeTone_=Tone::Pending;noticeUntil_=ImGui::GetTime()+12;
+ ShowNotice(loc::T("room.short_invitation_pending"),Tone::Pending,ImGui::GetTime()+12);
 }
 // The short link answers within a few seconds. Without one, the full
 // invitation goes to the clipboard so the press still shares the room.
@@ -26,12 +26,12 @@ void ApplicationShell::UpdateShortCopy(const ShellView& v,double now) {
  if(v.session.room==netplay::RoomState::Idle||v.invitation.empty()){shortCopyPending_=false;return;}
  if(!v.shortInvitation.empty()){
   shortCopyPending_=false;ImGui::SetClipboardText(v.shortInvitation.c_str());
-  notice_=loc::T("room.short_invitation_copied");noticeTone_=Tone::Success;noticeUntil_=now+3;
+  ShowNotice(loc::T("room.short_invitation_copied"),Tone::Success,now+3);
   return;
  }
  if(v.shortInvitationFailures==shortFailuresSeen_&&now<shortCopyUntil_)return;
  shortCopyPending_=false;ImGui::SetClipboardText(v.invitation.c_str());
- notice_=loc::T("room.short_invitation_unavailable");noticeTone_=Tone::Neutral;noticeUntil_=now+6;
+ ShowNotice(loc::T("room.short_invitation_unavailable"),Tone::Neutral,now+6);
 }
 // A room link opened from the browser joins its room at once when the
 // player is free, as soon as a room can be opened. While a room is open it
@@ -46,7 +46,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  if(v.pendingJoinSequence!=joinLinkSeen_){
   joinLinkSeen_=v.pendingJoinSequence;joinLink_=v.pendingJoinLink;
   joinLinkDirect_=free&&v.pendingJoinDirect;
-  if(!joinLink_.empty()&&v.session.room!=RoomState::Idle){notice_=loc::T("room.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+8;}
+  if(!joinLink_.empty()&&v.session.room!=RoomState::Idle){ShowNotice(loc::T("room.link_waiting"),Tone::Pending,now+8);}
  }
  if(joinLink_.empty())return;
  if(!free){joinLinkDirect_=false;return;}
@@ -71,7 +71,7 @@ void ApplicationShell::UpdatePublicRoomLink(const ShellView& v,double now) {
   roomLinkSeen_=link.sequence;
   roomLinkOpening_=link.free&&v.session.room==RoomState::Idle&&v.session.match==MatchState::None;
   publicRooms_.OpenLink(link.bridge,link.room,roomLinkOpening_);
-  if(!roomLinkOpening_){notice_=loc::T("public.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
+  if(!roomLinkOpening_){ShowNotice(loc::T("public.link_waiting"),Tone::Pending,now+15);}
  }
  if(!roomLinkOpening_)return;
  // Busy by the time it can go on (a hidden menu, a dialog): it waits as a row instead.

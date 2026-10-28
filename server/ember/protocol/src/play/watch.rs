@@ -84,7 +84,7 @@ pub enum WaitReason {
 
 /// What a watch request returns.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "state", rename_all = "snake_case")]
 pub enum WatchAnswer {
     Waiting {
         retry_after: u64,
@@ -251,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn the_watch_answer_parses_strictly() {
+    fn the_watch_answer_ignores_unknown_fields_but_not_unknown_values() {
         let waiting =
             serde_json::json!({ "state": "waiting", "retry_after": 10, "reason": "not_bound" });
         assert_eq!(
@@ -264,9 +264,12 @@ mod tests {
         let room = serde_json::json!({ "state": "room", "room_id": "f".repeat(32), "invitation": "sf4e3:abc" });
         let parsed: WatchAnswer = serde_json::from_value(room.clone()).unwrap();
         assert_eq!(serde_json::to_value(&parsed).unwrap(), room);
-        let mut extra = waiting;
+        let mut extra = waiting.clone();
         extra["binding"] = serde_json::Value::Null;
-        assert!(serde_json::from_value::<WatchAnswer>(extra).is_err());
+        assert_eq!(
+            serde_json::from_value::<WatchAnswer>(extra).unwrap(),
+            serde_json::from_value::<WatchAnswer>(waiting).unwrap()
+        );
         for reason in ["no_room", "not_bound", "full"] {
             let text = format!(r#"{{"state":"waiting","retry_after":1,"reason":"{reason}"}}"#);
             assert!(json::parse_as::<WatchAnswer>(text.as_bytes(), 1024).is_ok());

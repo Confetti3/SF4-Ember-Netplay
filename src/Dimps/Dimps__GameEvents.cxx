@@ -74,10 +74,6 @@ void VsBattle::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.ExitForeground = (PVOID)(peRootOffset + 0x23bdf0);
 }
 
-Request** VsBattle::GetRequest(VsBattle* battleEvent) {
-	return (Request**)((unsigned int)battleEvent + 0x50);
-}
-
 void GameEvents::Flow::Request(Flow* flow, int row) {
 	struct Native { void Request(int row, int, int, int, int); };
 	void (Native::* request)(int, int, int, int, int);
@@ -101,22 +97,6 @@ void MainMenu::Locate(HMODULE peRoot) {
 }
 
 
-MainMenu* MainMenu::ToItemObserver(MainMenu* s) {
-	return (MainMenu*)((unsigned int)s + 0x40);
-}
-
-MainMenu* MainMenu::FromItemObserver(MainMenu* s) {
-	return (MainMenu*)((unsigned int)s - 0x40);
-}
-
-DWORD* MainMenu::GetFightRequestOffered(MainMenu* e) {
-	return (DWORD*)((unsigned int)e + 0x860);
-}
-
-Dimps::Game::ProgressData** RootEvent::GetProgressData(RootEvent* e) {
-	return (Dimps::Game::ProgressData**)((unsigned int)e + 0x6c);
-}
-
 void RootEvent::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
@@ -135,72 +115,12 @@ VsCharaSelect::CharaSelectState* VsCharaSelect::GetState(VsCharaSelect* selectEv
 	return (CharaSelectState*)((unsigned int)selectEvent + 0x4c);
 }
 
-dString* VsCharaSelect::PlayerConditions::GetSelectedCharaAbbrev(PlayerConditions* c) {
-	return (dString*)((unsigned int)c + 0x20);
-}
-
-dString* VsCharaSelect::PlayerConditions::GetHoveredCharaAbbrev(PlayerConditions* c) {
-	return (dString*)((unsigned int)c + 0x3c);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetUltraCombo(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x58);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetColor(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x59);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetCostume(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x5a);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetPersonalAction(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x5b);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetWinQuote(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x5c);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetHandicap(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x5d);
-}
-
-BYTE* VsCharaSelect::PlayerConditions::GetEdition(PlayerConditions* c) {
-	return (BYTE*)((unsigned int)c + 0x5e);
-}
-
 void VsMode::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 
 	*(PVOID*)&publicMethods.Destroy = (PVOID)(peRootOffset + 0x23dc60);
 
 	staticMethods.Factory = (VsMode * (*)(DWORD, DWORD, DWORD))(peRootOffset + 0x23dde0);
-}
-
-VsMode::ConfirmedPlayerConditions* VsMode::GetConfirmedPlayerConditions(VsMode* e) {
-	return (VsMode::ConfirmedPlayerConditions*)((unsigned int)e + 0x58);
-}
-
-dString* VsMode::GetStageName(VsMode* e) {
-	return (dString*)((unsigned int)e + 0x2d0);
-}
-
-int* VsMode::GetStageCode(VsMode* e) {
-	return (int*)((unsigned int)e + 0x2ec);
-}
-
-VsMode::ConfirmedCharaConditions* VsMode::ConfirmedPlayerConditions::GetCharaConditions(VsMode::ConfirmedPlayerConditions* c) {
-	return (VsMode::ConfirmedCharaConditions*)((unsigned int)c + 0x128);
-}
-
-int* VsMode::ConfirmedPlayerConditions::GetCharaID(VsMode::ConfirmedPlayerConditions* c) {
-	return (int*)((unsigned int)c + 0x134);
-}
-
-int* VsMode::ConfirmedPlayerConditions::GetSideActive(VsMode::ConfirmedPlayerConditions* c) {
-	return (int*)((unsigned int)c + 0x138);
 }
 
 void VsPreBattle::Locate(HMODULE peRoot) {
@@ -218,10 +138,6 @@ void VsStageSelect::Locate(HMODULE peRoot) {
 
 VsStageSelect::StageSelectState* VsStageSelect::GetState(VsStageSelect* selectEvent) {
 	return (StageSelectState*)((unsigned int)selectEvent + 0x48);
-}
-
-StageSelect::Control* VsStageSelect::GetControl(VsStageSelect* selectEvent) {
-	return *(StageSelect::Control**)((unsigned int)selectEvent + 0x44);
 }
 
 void StageSelect::Control::Locate(HMODULE peRoot) {

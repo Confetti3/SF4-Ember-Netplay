@@ -63,14 +63,30 @@ Expect-Rejection 'The build has the in-game self-test*'
 [IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
 Assert-BuildReceipt $source $build $stage | Out-Null
 Write-Output 'PASS self-test build refused by receipt, missing field and cache'
+# -SkipFingerprint drops only the fresh fingerprint of the tree: a changed tree passes, every other check still rejects.
+[IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'newer feature')
+Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null
+[IO.File]::WriteAllText((Join-Path $stage 'Sidecar.dll'), 'stale other build')
+try { Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Staged binary changed*') { throw } }
+[IO.File]::WriteAllText((Join-Path $stage 'Sidecar.dll'), 'fixture only - not executable')
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$fixture")
+try { Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'CMake source mismatch*') { throw } }
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
+[IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'current feature')
+Write-Output 'PASS the receipt check without the fresh fingerprint still refuses a changed binary and a foreign CMake source'
 
-# A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so.
+# A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so, and a
+# first run leaves out the test $omit names. Its tests are the ones a receipt with testsPassed must show as run
+# (the $missing list of Invoke-DefaultTests): the helper and Ember Rust suites, the SDK and the publisher's suites.
 $tests = Join-Path $fixture 'tests'
 New-Item -ItemType Directory -Path (Join-Path $tests 'Testing/Temporary') | Out-Null
 $fakeCtest = {
     $rerun = $args -contains '--rerun-failed'
-    $failing = if ($rerun) { $failAgain } else { 'HelperRust' }
-    $cases = foreach ($name in $(if ($rerun) { 'HelperRust' } else { 'HelperRust', 'EmberRust', 'BridgeSdk' })) {
+    $failing = if ($rerun) { $failAgain } elseif ($omit) { $null } else { 'HelperRust' }
+    $cases = foreach ($name in $(if ($rerun) { 'HelperRust' } else { 'HelperRust', 'EmberRust', 'BridgeSdk', 'BuildProvenance', 'NightlyPublication', 'NightlyPaths', 'PackageFiles' })) {
+        if ($name -eq $omit) { continue }
         if ($name -eq $failing) { "<testcase name=`"$name`" status=`"fail`"><failure/></testcase>" } else { "<testcase name=`"$name`" status=`"run`"/>" }
     }
     Set-Content -LiteralPath $args[[Array]::IndexOf($args, '--output-junit') + 1] -Value "<testsuite>$($cases -join '')</testsuite>"
@@ -82,6 +98,7 @@ function Expect-TestFailure([string]$Expected, [scriptblock]$Run) {
     catch { if ($_.Exception.Message -notlike $Expected) { throw } }
 }
 $failAgain = $null
+$omit = $null
 $passedOnRerun = @(Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 3>$null 6>$null)
 if (($passedOnRerun -join ',') -ne 'HelperRust') { throw "Rerun reported '$($passedOnRerun -join ',')'" }
 Expect-TestFailure 'Tests failed' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
@@ -89,6 +106,15 @@ $failAgain = 'HelperRust'
 Expect-TestFailure 'Tests failed, and again*' { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 -RerunFailed 6>$null }
 $global:LASTEXITCODE = 0
 Write-Output 'PASS a failed test passes on one rerun only with -RerunFailed, and a second failure stops the build'
+# A run that leaves out any one of the tests the components name is refused, whichever one it is.
+$failAgain = $null
+foreach ($name in 'HelperRust', 'EmberRust', 'BridgeSdk', 'BuildProvenance', 'NightlyPublication', 'NightlyPaths', 'PackageFiles') {
+    $omit = $name
+    Expect-TestFailure "Default CTest did not run: $name" { Invoke-DefaultTests $fakeCtest $tests 'Excluded' 2 6>$null }
+}
+$omit = $null
+$global:LASTEXITCODE = 0
+Write-Output 'PASS a CTest run without one of the suites the receipt components name is refused'
 Write-Output "Fixtures retained at $fixture"
 
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
@@ -129,3 +155,77 @@ $designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-
 try { Get-EmberBuildTarget $standalone | Out-Null; throw 'Unexpected acceptance' }
 catch { if ($_.Exception.Message -notlike 'Ambiguous build target:*') { throw } }
 Write-Output 'PASS duplicate checkout designation rejected'
+
+# Stable publication and packaging refuse the Nightly checkout; a receipt must match its channel's staging bridge.
+$designation.channels.nightly.buildDirectory = 'build/nightly'
+$designation.channels.nightly.sourceDirectory = 'nightly'
+$designation | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixture 'build-target.json')
+Assert-EmberChannel (Get-EmberBuildTarget $standalone) 'stable' 'Stable publication'
+try { Assert-EmberChannel (Get-EmberBuildTarget $nightly) 'stable' 'Stable publication'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Stable publication requires the stable channel*nightly*') { throw } }
+try { Assert-EmberChannel (Get-EmberBuildTarget $standalone) 'nightly' 'Nightly publication'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike 'Nightly publication requires the nightly channel*stable*') { throw } }
+Write-Output 'PASS the channel guard accepts its own checkout and refuses the other channel'
+function Expect-ChannelRejection([object]$Receipt, [string]$Channel) {
+    try { Assert-ReceiptChannel $Receipt $Channel; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike "The build receipt's staging bridge setting does not match*") { throw } }
+}
+Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$false;branch='release'}) 'stable'
+Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$true;branch='nightly'}) 'nightly'
+Expect-ChannelRejection ([pscustomobject]@{stagingBridge=$true}) 'stable'
+Expect-ChannelRejection ([pscustomobject]@{stagingBridge=$false}) 'nightly'
+Expect-ChannelRejection ([pscustomobject]@{sourceRoot='predates the field'}) 'stable'
+Expect-ChannelRejection ([pscustomobject]@{stagingBridge='true'}) 'nightly'
+Write-Output 'PASS a receipt must record the staging bridge setting of its own channel; a missing field is refused'
+
+# A Nightly checkout whose parent folder has no build-target.json falls back to its own file,
+# which names only the top-level entry, so it reads as stable. The receipt's branch still refuses it.
+$fallbackParent = Join-Path $fixture 'fallback-parent'
+$fallback = Join-Path $fallbackParent 'sf4-nightly'
+New-Item -ItemType Directory -Path $fallback | Out-Null
+@{sourceDirectory='.';buildDirectory='build/current';installDirectory='build/current/stage'} | ConvertTo-Json | Set-Content (Join-Path $fallback 'build-target.json')
+& git -C $fallback init -q -b nightly
+if ($LASTEXITCODE) { throw 'git init failed' }
+$fallbackTarget = Get-EmberBuildTarget $fallback
+if ($fallbackTarget.channel -ne 'stable') { throw 'The fallback designation no longer reads as stable; revisit this case' }
+Assert-EmberChannel $fallbackTarget 'stable' 'Stable publication'
+$fallbackBranch = & git -C $fallback branch --show-current
+$fallbackReceipt = [pscustomobject]@{stagingBridge=$false;branch=$fallbackBranch}
+try { Assert-ReceiptChannel $fallbackReceipt 'stable'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike "The build receipt is from branch 'nightly'; Stable builds come only from the release branch.") { throw } }
+try { Assert-EmberStableBranch $fallbackBranch 'Stable release packaging'; throw 'Unexpected acceptance' }
+catch { if ($_.Exception.Message -notlike "Stable release packaging requires the release branch, but this checkout is on 'nightly'.") { throw } }
+foreach ($branch in @($null, '', 'Release', 'release-candidate')) {
+    try { Assert-ReceiptChannel ([pscustomobject]@{stagingBridge=$false;branch=$branch}) 'stable'; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike "The build receipt is from branch*") { throw } }
+    try { Assert-EmberStableBranch $branch 'Stable publication'; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike 'Stable publication requires the release branch*') { throw } }
+}
+Assert-EmberStableBranch 'release' 'Stable publication'
+Write-Output 'PASS a fallback-designated checkout off the release branch reads as stable but its receipt and branch are refused for Stable'
+
+# Entering the compiler environment is once per process: a process that already holds the same installation and
+# target architecture returns at once (the path below has no vcvarsall.bat, so running it would throw), while another
+# architecture or installation still runs it.
+$vcSaved = @{VSINSTALLDIR=$env:VSINSTALLDIR;VSCMD_ARG_TGT_ARCH=$env:VSCMD_ARG_TGT_ARCH}
+try {
+    $vcRoot = Join-Path $fixture 'vs'
+    $env:VSINSTALLDIR = "$vcRoot\"
+    $env:VSCMD_ARG_TGT_ARCH = 'x86'
+    Enter-EmberVcEnvironment $vcRoot
+    Enter-EmberVcEnvironment ($vcRoot.ToUpperInvariant() + '\') 'x86'
+    foreach ($case in @(@($vcRoot, 'x64'), @((Join-Path $fixture 'other-vs'), 'x86'))) {
+        try { Enter-EmberVcEnvironment $case[0] $case[1] 2>$null; throw 'Unexpected skip' }
+        catch { if ($_.Exception.Message -ne 'Compiler environment failed') { throw } }
+    }
+    $env:VSINSTALLDIR = $null
+    try { Enter-EmberVcEnvironment $vcRoot 2>$null; throw 'Unexpected skip' }
+    catch { if ($_.Exception.Message -ne 'Compiler environment failed') { throw } }
+} finally {
+    $env:VSINSTALLDIR = $vcSaved.VSINSTALLDIR
+    $env:VSCMD_ARG_TGT_ARCH = $vcSaved.VSCMD_ARG_TGT_ARCH
+}
+Write-Output 'PASS the compiler environment is entered once per installation and architecture'
+# The receipt names what the default test run leaves out; build-current.ps1 and run-package-tests.ps1 share this string.
+if ($EmberExcludedTests -cne 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke') { throw 'The default test exclusions changed; the build receipt and docs name them' }
+Write-Output 'PASS the default test exclusions are the ones the receipt names'

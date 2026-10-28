@@ -7,16 +7,23 @@
 // the player: a name of 1 to 40 letters, digits, spaces and . ' & -, starting
 // with a letter or digit (SITE), is shown as text, and any other is dropped.
 // It reads the link from the URL
-// fragment, which is never sent to the server, and makes no requests of its own.
+// fragment, which is never sent to the server. Its one request asks whether
+// a match is over (/link/BRIDGE/MATCH, which nginx hands to that bridge), and
+// a match that is over shows that instead of opening Ember, so a link left
+// from an earlier match sends nobody back to it. When the answer does not
+// come, the page works as it did before.
 // It offers the ember: link on the player's click, and opens it by itself only
-// for a match (/m) in a browser where Ember has opened from this page before: a
-// browser without Ember's handler would otherwise replace this page with an error.
+// for a match (/m) in a browser where Ember has opened from a match page that
+// named the same required version: a browser without Ember's handler would
+// otherwise replace this page with an error, and an older Ember would open a
+// match it cannot play. Until then a match page leads with Update Ember.
 // That memory is one flag in this browser's storage, never a link.
 // On a phone or tablet it offers neither Ember nor its download, only the link
 // to take to the PC.
 // A link naming the staging bridge offers Nightly, the only Ember that trusts it.
 (function () {
   'use strict';
+  var site = window.EmberSite;
   var ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
   // brg_ or emt_ and a lowercase version 4 UUID, as the bridge writes them.
   var ID = /^[a-z]{3}_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -25,22 +32,32 @@
   // A site's name on its connect link: letters, digits, spaces and . ' & -.
   var SITE = /^[\p{L}\p{N}][\p{L}\p{N} .'&-]{0,39}$/u;
   var STAGING_BRIDGE = 'brg_1195478b-ac7e-4bc9-90af-c74eac5c747b';
+  var PRODUCTION_BRIDGE = 'brg_0dbc0598-2312-4ce3-9df8-e160330565e6';
+  // How long a match page waits to learn whether the match is over before it
+  // opens Ember anyway. A later answer that it is over still shows.
+  var OVER_WAIT_MS = 3000;
+  var OVER_TITLE = 'This match is over';
+  var OVER_LEAD = 'This match has ended, so its link no longer opens it. If you have another match to play, ' +
+    'open the newest match link from your tournament site.';
   var STABLE_DOWNLOAD = 'https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest';
   // Nightly builds are pre-releases, so the repository has no latest release.
   var NIGHTLY_DOWNLOAD = 'https://github.com/Confetti3/SF4-Ember-Netplay-Nightly/releases';
   var VERSION_NOTE = 'Public rooms and tournaments need Ember 1.1.0 or newer.';
   var NIGHTLY_NOTE = 'This link is for Ember\'s staging bridge, which only Ember Nightly 1.4.0 or newer opens. ' +
     'Download the newest Nightly at the top of the list.';
+  var STABLE_VERSION = site.STABLE_VERSION;
   // How long the page waits after Open in Ember before it guesses Ember did not open.
   var OPEN_WAIT_MS = 2000;
   // How long after that click Ember taking focus still counts as Ember opening:
   // a first launch waits for the browser's prompt and the launcher to start.
   var RECORD_WAIT_MS = 15000;
-  // Set once Ember took focus right after Open in Ember on this page.
+  // Set once Ember took focus right after Open in Ember on this page: the
+  // version a match page asked for, or 1 from any other page.
   var OPENED_KEY = 'ember.opened';
   var PHONE_FALLBACK_TITLE = 'Open it on your PC';
   var PHONE_FALLBACK_LEAD = 'Copy the link and send it to yourself, then open it on the PC you play on, or paste it into Ember there:';
-  var AUTO_AFTER = 'Ember opened from this browser before, so this page opens it for you. If nothing happens, choose Open in Ember.';
+  var AUTO_AFTER = 'Ember opened from this browser before, so this page opens it for you. If nothing happens, choose Open in Ember. ' +
+    'If Ember says your version differs from your opponent\'s, choose Update.';
 
   // The canonical 12-symbol room code, or null. Same rules as the game:
   // dashes and spaces ignored, any case, O read as 0 and I or L as 1.
@@ -85,8 +102,16 @@
     var parts = fragment.replace(/\/$/, '').split('/');
     if (path.replace(/\/$/, '') !== '/m' || parts.length !== 2 || !ID.test(parts[0]) || !ID.test(parts[1]) ||
       parts[0].slice(0, 4) !== 'brg_' || parts[1].slice(0, 4) !== 'emt_') return null;
+    var staging = parts[0] === STAGING_BRIDGE;
     return {
       bridge: parts[0],
+      match: parts[1],
+      need: staging ? 'nightly' : STABLE_VERSION,
+      needText: staging ? 'This match needs the newest Ember Nightly on both players\' PCs.' :
+        'This match needs Ember ' + STABLE_VERSION + ' on both players\' PCs. Ember shows its version in the corner of Home.',
+      update: staging ? 'Get the newest Nightly' : 'Update to Ember ' + STABLE_VERSION,
+      updateHow: staging ? 'In Ember Nightly: Help & about, then Check for updates.' :
+        'Or update inside Ember: Help & about, then Check for updates, then Exit and open updater, then Download and install. Then come back and choose Open in Ember.',
       title: 'Play your tournament match',
       lead: 'Your tournament match is ready to play in SF4 Ember Netplay.',
       code: null,
@@ -120,25 +145,7 @@
   }
 
   function copy(text, done) {
-    var status = document.getElementById('status');
-    function fallback() {
-      var area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
-      area.select();
-      var ok = false;
-      try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
-      document.body.removeChild(area);
-      status.textContent = ok ? done : 'Select the address in the address bar and copy it.';
-    }
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function () { status.textContent = done; }, fallback);
-    } else {
-      fallback();
-    }
+    site.copy(document.getElementById('status'), text, done, 'Select the address in the address bar and copy it.', true);
   }
 
   // Where a tournament site sends a player it could not find.
@@ -189,9 +196,14 @@
   var current = null;
   function reset() {
     var byId = function (id) { return document.getElementById(id); };
-    ['page', 'missing', 'link', 'fallback', 'tournaments', 'code', 'copy-code', 'version', 'not-opened'].forEach(function (id) {
+    ['page', 'missing', 'link', 'fallback', 'tournaments', 'code', 'copy-code', 'version', 'not-opened', 'need', 'update',
+      'update-how'].forEach(function (id) {
       byId(id).hidden = true;
     });
+    byId('phone').hidden = !PHONE;
+    byId('open').classList.add('primary');
+    byId('update').classList.remove('primary');
+    byId('not-opened-download').textContent = NOT_OPENED_DOWNLOAD;
     byId('get').hidden = false;
     byId('come-back').hidden = false;
     byId('get-title').textContent = "Don't have Ember yet?";
@@ -207,7 +219,7 @@
     byId('title').textContent = 'Open in Ember';
     byId('status').textContent = '';
     byId('open').href = '#';
-    ['lead', 'after', 'lasts', 'code', 'steps'].forEach(function (id) { byId(id).textContent = ''; });
+    ['lead', 'after', 'lasts', 'code', 'steps', 'need', 'update', 'update-how'].forEach(function (id) { byId(id).textContent = ''; });
     document.title = 'Open in Ember';
     current = null;
   }
@@ -258,17 +270,81 @@
       document.getElementById('copy-code').hidden = false;
     }
     document.getElementById('fallback').hidden = false;
+    var proceed = function () {};
     if (PHONE) {
       document.getElementById('fallback-title').textContent = PHONE_FALLBACK_TITLE;
-      document.getElementById('fallback-lead').textContent = PHONE_FALLBACK_LEAD;
+      document.getElementById('fallback-lead').textContent = (found.needText ? found.needText + ' ' : '') + PHONE_FALLBACK_LEAD;
+    } else {
+      document.getElementById('link').hidden = false;
+      var known = found.need && rememberedOpen() === found.need;
+      if (found.need) showNeed(found, known);
+      // A match opens by itself once per link while this page is open, and only
+      // where Ember opened before from a match page asking for the same version.
+      if (path === '/m' && found.link !== autoOpened && known) {
+        proceed = function () {
+          autoOpened = found.link;
+          document.getElementById('after').textContent = AUTO_AFTER;
+          location.href = found.ember;
+        };
+      }
+    }
+    if (found.match) checkOver(found, proceed);
+    else proceed();
+  }
+
+  // Asks the match's bridge whether the match is over, then calls proceed
+  // unless it is. Only Ember's own two bridges are asked: nginx on this site
+  // reaches no other. No answer within OVER_WAIT_MS, or any failure, proceeds.
+  function checkOver(found, proceed) {
+    if (!window.fetch || (found.bridge !== PRODUCTION_BRIDGE && found.bridge !== STAGING_BRIDGE)) {
+      proceed();
       return;
     }
-    document.getElementById('link').hidden = false;
-    // A match opens by itself once per link while this page is open.
-    if (path === '/m' && found.link !== autoOpened && rememberedOpen()) {
-      autoOpened = found.link;
-      document.getElementById('after').textContent = AUTO_AFTER;
-      location.href = found.ember;
+    var proceeded = false;
+    function go() {
+      if (proceeded) return;
+      proceeded = true;
+      clearTimeout(timer);
+      if (current === found) proceed();
+    }
+    var timer = setTimeout(go, OVER_WAIT_MS);
+    fetch('/link/' + found.bridge + '/' + found.match, { cache: 'no-store', credentials: 'omit' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (body) {
+        if (current !== found) return;
+        if (body && body.over === true) {
+          proceeded = true;
+          clearTimeout(timer);
+          showOver();
+        } else {
+          go();
+        }
+      }, go);
+  }
+
+  // The match a link names has ended: nothing to open, get or copy.
+  function showOver() {
+    ['link', 'fallback', 'get', 'phone'].forEach(function (id) { document.getElementById(id).hidden = true; });
+    document.getElementById('title').textContent = OVER_TITLE;
+    document.getElementById('lead').textContent = OVER_LEAD;
+    document.title = OVER_TITLE;
+  }
+
+  // A match plays only when both fighters run the same build, and Ember cannot
+  // tell this page which one it is. Until Ember has opened from a match page
+  // asking for this version, Update leads and Open follows it.
+  function showNeed(found, known) {
+    var byId = function (id) { return document.getElementById(id); };
+    byId('need').textContent = found.needText;
+    byId('update').textContent = found.update;
+    byId('update').href = found.need === 'nightly' ? NIGHTLY_DOWNLOAD : STABLE_DOWNLOAD;
+    byId('update-how').textContent = found.updateHow;
+    byId('not-opened-download').textContent = found.update;
+    if (found.need !== 'nightly') byId('version').textContent = 'Tournament matches need Ember ' + STABLE_VERSION + '.';
+    ['need', 'update', 'update-how'].forEach(function (id) { byId(id).hidden = false; });
+    if (!known) {
+      byId('update').classList.add('primary');
+      byId('open').classList.remove('primary');
     }
   }
 
@@ -305,10 +381,13 @@
   // then the page simply waits for a click, as it did before.
   var autoOpened = null;
   function rememberedOpen() {
-    try { return localStorage.getItem(OPENED_KEY) === '1'; } catch (error) { return false; }
+    try { return localStorage.getItem(OPENED_KEY); } catch (error) { return null; }
   }
+  // A match page records the version it asked for. Any other page records 1,
+  // and never over a version a match page recorded.
   function rememberOpen() {
-    try { localStorage.setItem(OPENED_KEY, '1'); } catch (error) { /* stays manual */ }
+    var value = current && current.need ? current.need : rememberedOpen() || '1';
+    try { localStorage.setItem(OPENED_KEY, value); } catch (error) { /* stays manual */ }
   }
   // Only after a click that Ember did not answer. An automatic open that does
   // nothing proves less (Chrome opens an app without a click only once the
@@ -325,13 +404,13 @@
     return /Android|iPhone|iPad|iPod|Mobile/i.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
   }
 
-  var FALLBACK_LEAD, FALLBACK_TITLE, TOURNAMENTS_TITLE, PHONE;
+  var FALLBACK_LEAD, FALLBACK_TITLE, TOURNAMENTS_TITLE, NOT_OPENED_DOWNLOAD, PHONE;
   function start() {
     FALLBACK_LEAD = document.getElementById('fallback-lead').textContent;
+    NOT_OPENED_DOWNLOAD = document.getElementById('not-opened-download').textContent;
     FALLBACK_TITLE = document.getElementById('fallback-title').textContent;
     TOURNAMENTS_TITLE = document.getElementById('tournaments-title').textContent;
     PHONE = onPhone();
-    document.getElementById('phone').hidden = !PHONE;
     document.getElementById('open').addEventListener('click', function () {
       if (current && current.ember) opened();
     });

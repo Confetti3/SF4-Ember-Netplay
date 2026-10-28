@@ -92,7 +92,11 @@ mod tests {
             b"Welcome to Amazon S3.",
             1_792_576_171,
         );
-        let authorization = &headers.iter().find(|(name, _)| *name == "authorization").unwrap().1;
+        let authorization = &headers
+            .iter()
+            .find(|(name, _)| *name == "authorization")
+            .unwrap()
+            .1;
         assert_eq!(
             authorization,
             "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20261021/us-east-1/s3/aws4_request, \

@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
-ember-protocol = { path = "../protocol" }
+ember-protocol = { path = "../protocol", features = ["client"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls-no-provider"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "fallible_uint"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
@@ -19,6 +19,6 @@ tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal
 zeroize = "1"
 
 [dev-dependencies]
-ember-bridge = { path = "../bridge" }
+ember-bridge = { path = "../bridge", features = ["test-support"] }
 getrandom = "0.3"
 url = "2"

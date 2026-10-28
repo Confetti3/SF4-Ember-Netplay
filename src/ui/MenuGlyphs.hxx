@@ -144,7 +144,7 @@ inline float MenuLegend(float width,const char* select,const char* back,bool dra
         if(draw){
             // The font shrinks and rows wrap, so only a hint wider than the
             // whole legend can be cut off.
-            ReportMenuText(("legend/"+hint.label).c_str(),font,height,w,width);
+            if(MenuProbesActive())ReportMenuText(("legend/"+hint.label).c_str(),font,height,w,width);
             auto* d=ImGui::GetWindowDrawList();
             DrawPromptGlyph(d,hint.glyph,ImVec2(start.x+x,start.y+y),size,art,s);
             d->AddText(ImGui::GetFont(),font,ImVec2(start.x+x+size+8*s,start.y+y+(size-font)*.5f),palette::Ivory,hint.label.c_str());

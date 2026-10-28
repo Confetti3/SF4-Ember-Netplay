@@ -3,6 +3,7 @@
 #include "../common/RoomRules.hxx"
 #include "../netplay/BoolPreferences.hxx"
 #include "../common/Localization.hxx"
+#include <cstring>
 namespace sf4e { namespace ui {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
@@ -21,6 +22,49 @@ inline MenuEntry Row(std::string id,std::string label,std::string detail,bool en
 }
 inline MenuEntry Value(std::string id,std::string label,std::string value,std::string detail,bool enabled=true) {
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.value=std::move(value); e.adjustable=true; return e;
+}
+// The saved on/off preferences (netplay::BoolPreferences) as menu rows: each
+// row's id and the preference it turns. Right turns a row On and Left Off.
+// "game-reads-pads" is On while the game reads the pads itself, which is with
+// the controller layer off. Edge spacing is a saved bool too, but its row
+// reads Raised or Normal, so it is not one of these.
+struct OnOffRow { const char* id; bool netplay::PlayerPreferences::* member; bool inverted; };
+inline constexpr OnOffRow OnOffRows[] = {
+    {"hud",&netplay::PlayerPreferences::showMatchHud,false},{"ready-sound",&netplay::PlayerPreferences::readySound,false},
+    {"shortcut-hint",&netplay::PlayerPreferences::showShortcutHint,false},{"class-emblems",&netplay::PlayerPreferences::classEmblems,false},
+    {"match-frame-meter",&netplay::PlayerPreferences::matchFrameMeter,false},{"training-auto-ready",&netplay::PlayerPreferences::trainingAutoReady,false},
+    {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},{"watched-picture",&netplay::PlayerPreferences::watchedPicture,false},
+    {"replay-share",&netplay::PlayerPreferences::shareReplays,false},
+    {"presence",&netplay::PlayerPreferences::discordPresence,false},{"invites",&netplay::PlayerPreferences::discordInvites,false},
+    {"share-steam",&netplay::PlayerPreferences::shareSteamProfile,false},{"send-reports",&netplay::PlayerPreferences::sendProblemReports,false},
+    {"background-play",&netplay::PlayerPreferences::backgroundPlay,false},{"lower-input-lag",&netplay::PlayerPreferences::lowerInputLag,false},
+    {"lower-keyboard-lag",&netplay::PlayerPreferences::lowerKeyboardLag,false},{"faster-display",&netplay::PlayerPreferences::fasterDisplay,false},
+    {"borderless",&netplay::PlayerPreferences::borderless,false},{"game-reads-pads",&netplay::PlayerPreferences::controllerLayer,true},
+};
+constexpr bool SavedOnOff(bool netplay::PlayerPreferences::* member) {
+    for(const auto& p:netplay::BoolPreferences) if(p.member==member) return true;
+    return false;
+}
+constexpr bool OnOffRowsSaved() {
+    for(const auto& row:OnOffRows) if(!SavedOnOff(row.member)) return false;
+    return true;
+}
+static_assert(OnOffRowsSaved(),"An on/off row turns a preference that is not saved as one");
+inline const OnOffRow* FindOnOffRow(const char* id) {
+    for(const auto& row:OnOffRows) if(std::strcmp(row.id,id)==0) return &row;
+    return nullptr;
+}
+// An on/off row; `id` is one of OnOffRows.
+inline MenuEntry OnOffValue(const netplay::PlayerPreferences& p,const char* id,std::string label,std::string detail,bool enabled=true) {
+    const OnOffRow& row=*FindOnOffRow(id);
+    return Value(id,std::move(label),loc::T(p.*row.member!=row.inverted?"common.on":"common.off"),std::move(detail),enabled);
+}
+// Left or Right on an on/off row; false for any other row.
+inline bool AdjustOnOff(netplay::PlayerPreferences& p,const std::string& id,int delta) {
+    const OnOffRow* row=FindOnOffRow(id.c_str());
+    if(!row) return false;
+    p.*row->member=row->inverted?delta<0:delta>0;
+    return true;
 }
 // A value shown for information: it cannot be focused for adjustment.
 inline MenuEntry ReadOnlyValue(std::string id,std::string label,std::string value,std::string detail) {

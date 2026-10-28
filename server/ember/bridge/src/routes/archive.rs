@@ -38,7 +38,10 @@ const MAX_WAITING: i64 = 2 << 30;
 const LISTED: i64 = 400;
 
 fn name(name: &Option<String>) -> Option<String> {
-    name.as_deref().map(str::trim).filter(|name| is_player_name(name)).map(str::to_owned)
+    name.as_deref()
+        .map(str::trim)
+        .filter(|name| is_player_name(name))
+        .map(str::to_owned)
 }
 
 fn country(code: &Option<String>) -> Option<String> {

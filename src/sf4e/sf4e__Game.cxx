@@ -26,6 +26,24 @@ std::set<rKey*> fKey::trackedKeys;
 bool fGame::MementoFailure::record = false;
 bool fGame::MementoFailure::restore = false;
 
+namespace {
+    // The key whose fKey::Initialize is in its native call. Native Initialize
+    // clears its own key first, and that call lands in the ClearKey detour.
+    // Erasing the key there only for Initialize to insert it again frees and
+    // allocates a set node per key per save. The skip is keyed on this one
+    // key, never on a nesting depth, so any other key cleared during an
+    // Initialize is still erased.
+    rKey* initializingKey = nullptr;
+
+    struct InitializingKeyScope {
+        rKey* previous;
+        explicit InitializingKeyScope(rKey* key) : previous(initializingKey) { initializingKey = key; }
+        ~InitializingKeyScope() { initializingKey = previous; }
+        InitializingKeyScope(const InitializingKeyScope&) = delete;
+        InitializingKeyScope& operator=(const InitializingKeyScope&) = delete;
+    };
+}
+
 void fGame::Install() {
     Battle::Install();
     GameMementoKey::Install();
@@ -44,14 +62,20 @@ void fKey::Initialize(void* mementoable, int numMementos) {
     // Initialize clears its previous payload internally. Check here too so
     // ownership enforcement does not depend on that native call's routing.
     sf4e::memento::NoteEngineClear(this, "initialize");
-    (this->*rKey::publicMethods.Initialize)(mementoable, numMementos);
+    {
+        InitializingKeyScope initializing(this);
+        (this->*rKey::publicMethods.Initialize)(mementoable, numMementos);
+    }
     trackedKeys.insert(this);
 }
 
 void fKey::ClearKey() {
     sf4e::memento::NoteEngineClear(this, "clear");
     (this->*rKey::publicMethods.ClearKey)();
-    trackedKeys.erase((rKey*)this);
+    // Initialize re-inserts this key as soon as its native call returns, and
+    // nothing reads trackedKeys inside that call, so membership afterwards is
+    // the same either way.
+    if (static_cast<rKey*>(this) != initializingKey) trackedKeys.erase((rKey*)this);
 }
 
 void fSingleNodeControl::RecordToAdditionalMemento(rSingleNodeControl* c, AdditionalMemento& m) {

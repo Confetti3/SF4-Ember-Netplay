@@ -49,7 +49,7 @@ game -- helper --HTTPS--> bridge /v1/rooms          (list, create, ticket)
 helper --iroh--> sf4e-room-host + its sf4-net child  (authority, sole voter)
 ```
 
-- `server/ember/protocol/src/rooms.rs`: shared types below.
+- `server/ember/protocol/src/rooms/`: shared types below.
 - `server/ember/bridge/src/routes/rooms.rs`, `migrations/012_rooms.sql`.
 - `server/ember-rooms`: supervisor, loopback only.
 - `server/roomhost/`: `sf4e-room-host`. `RoomHost` is the portable core; the
@@ -175,6 +175,24 @@ else without failing the line, and writes `games` in the listing only when it
 has one, so a room without games lists exactly what it did before. The bridge
 reads each game by itself and rates each once, by room, table and generation,
 so the host repeats its recent games in every status.
+
+Each `GET /rooms` entry also carries `rev`, a number the supervisor moves
+when any field it reports for the room (members, tables playing, bans, opened,
+details, games) differs from the host's last status, and only then, so a host
+that repeats its status leaves it where it was. It is drawn from one counter
+that starts at the clock in microseconds when the supervisor starts, so a
+restarted supervisor never repeats an earlier number, and it is only compared
+for equality. The bridge keeps the `rev` it last applied for each room, in
+memory, and skips an entry whose `rev` is the same: its fields, its games and
+its bans came in with that report. It remembers a room's `rev` only after the
+write of that poll committed and the room's row was open, published and either
+written or found already equal, so a poll that lands before the creating
+request has stored the invitation applies the room again at the next poll. The
+remembered set is replaced after each committed poll and a room the report
+leaves out is forgotten, as is everything when the bridge restarts. An entry
+without a `rev`, or with one that is not an unsigned integer (an older
+supervisor), is applied every poll, and an older bridge ignores the field, so
+the supervisors and the bridge can be deployed in any order.
 
 `creator` is the Ember ID of the player who made the room. The room host
 passes it to its helper as `HostPublic.creator`.
@@ -332,4 +350,5 @@ sends `JoinPublic`.
   The unit uses `KillMode=mixed`, so systemd's SIGTERM reaches the supervisor
   only; room hosts are closed by the supervisor, not signalled.
 - A status line from a room host is at most 128 KiB. The largest valid one (512
-  Ember IDs and a 4096 byte invitation) is about 35 KB.
+  Ember IDs, a 4096 byte invitation, details and games) is about 43 KB; the
+  limits and their homes are tabled in server/roomhost/README.md.

@@ -343,17 +343,28 @@ async fn restarting_the_bridge_changes_no_live_match() {
 }
 
 #[tokio::test]
-async fn blumint_matches_stay_closed_to_watchers() {
+async fn blumint_matches_are_open_to_link_holders_and_fixed() {
     let f = blumint::fixture().await;
     let id = blumint_match(&f).await;
-    let binding = bound(&f, &id).await;
+    let binding = bound_as(&f, &id, true).await;
     assert!(binding.get("watchers").is_none(), "{binding}");
-    let player3 = viewer(&f.bridge, 70).await;
-    let (status, refused) = ask(&f, &id, &player3).await;
-    assert_eq!(
-        (status, reason(&refused)),
-        (StatusCode::FORBIDDEN, "not_allowed")
-    );
+    // Anyone holding the link watches, within the link-holder cap.
+    let mut holders = vec![];
+    for byte in 70..73 {
+        f.bridge.clock.advance(1);
+        holders.push(viewer(&f.bridge, byte).await);
+    }
+    for holder in &holders[..2] {
+        admitted(&f, &id, holder).await;
+        f.bridge.clock.advance(1);
+    }
+    assert_eq!(waiting(&f, &id, &holders[2]).await, "full");
+    let named = watchers(&binding_for(&f, &id, f.b()).await);
+    assert_eq!(named.len(), 2);
+    for holder in &holders[..2] {
+        assert!(named.contains(&holder.id().as_str().to_owned()));
+    }
+    let player3 = &holders[2];
 
     let connection = blumint::CONNECTION;
     let staff = format!("/v1/connections/{connection}/watch/staff/{}", player3.id());
@@ -380,13 +391,13 @@ async fn blumint_matches_stay_closed_to_watchers() {
     let (status, read) = f.bridge.send(&f.provider, Method::GET, &policy, None).await;
     assert_eq!(
         (status, &read["link_holders"]),
-        (StatusCode::OK, &json!(false))
+        (StatusCode::OK, &json!(true))
     );
-    for table in [
-        "match_watchers",
-        "connection_watch_staff",
-        "match_watch_denials",
-    ] {
+    assert_eq!(
+        count(&f.bridge, "SELECT COUNT(*) FROM match_watchers").await,
+        3
+    );
+    for table in ["connection_watch_staff", "match_watch_denials"] {
         let sql: &'static str = Box::leak(format!("SELECT COUNT(*) FROM {table}").into_boxed_str());
         assert_eq!(count(&f.bridge, sql).await, 0, "{table}");
     }

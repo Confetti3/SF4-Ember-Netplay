@@ -1,8 +1,57 @@
 //! Room checkpoint transfer: inbound begin/chunk/end, outbound pump, acknowledgements.
 use super::*;
 
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct CheckpointProposalKey {
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) transfer: u64,
+    pub(super) term: u64,
+    pub(super) base_revision: u64,
+    pub(super) revision: u64,
+    pub(super) length: usize,
+    pub(super) digest: [u8; 32],
+}
+
+pub(super) struct OutgoingCheckpoint {
+    pub(super) transfer: CheckpointTransfer,
+    pub(super) next_offset: usize,
+    pub(super) in_flight: BTreeSet<u32>,
+    pub(super) acked_offset: u32,
+    pub(super) end_sent: bool,
+    pub(super) begin_sent: bool,
+    pub(super) started: tokio::time::Instant,
+    /// A `checkpoint_committed_local` marker rather than the bytes; its
+    /// marker is out once `begin_sent` is set.
+    pub(super) local: bool,
+}
+
+#[derive(Clone)]
+pub(super) struct PendingCheckpointCommitted {
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) transfer: u64,
+    pub(super) term: u64,
+    pub(super) base_revision: u64,
+    pub(super) revision: u64,
+    pub(super) length: u32,
+    pub(super) digest: String,
+}
+
 impl Actor {
+    #[cfg(test)]
     pub(super) fn start_outgoing_checkpoint(&mut self, transfer: CheckpointTransfer) {
+        self.export_checkpoint(transfer, false);
+    }
+
+    /// Starts the export of a committed checkpoint. `own` is set when the
+    /// commit is this helper's pending proposal, which the native side sent
+    /// and may still hold: it is offered a `checkpoint_committed_local`
+    /// marker in place of the bytes, and answers with the full length
+    /// (decoded from its copy) or 0 (send it all). Either answer, or the
+    /// transfer timeout, ends the marker; 0 turns it into the full transfer.
+    pub(super) fn export_checkpoint(&mut self, transfer: CheckpointTransfer, own: bool) {
         // One native receiver owns one reassembly buffer. Never replace an
         // export already in flight; the newly committed revision remains in
         // the replicated state machine and the watcher starts it after the
@@ -25,6 +74,7 @@ impl Actor {
             end_sent: false,
             begin_sent: false,
             started: tokio::time::Instant::now(),
+            local: own,
         });
         // A completed transfer is not visible to native code until its marker
         // arrives. Preserve revision order when a new commit becomes available
@@ -117,7 +167,7 @@ impl Actor {
         base_revision: u64,
         revision: u64,
         offset: u32,
-        data: String,
+        data: crate::wire::IpcBytes,
     ) -> io::Result<()> {
         let mut retry = false;
         let next_offset = if let Some(incoming) = self.incoming_transfer.as_mut() {
@@ -130,32 +180,28 @@ impl Actor {
                 Err(failed("invalid checkpoint identity"))
             } else {
                 incoming
-                    .push(offset as usize, &data)
+                    .push(offset as usize, &data.0)
                     .map(|acknowledged| acknowledged as u32)
             }
         } else if let Some((pending, cursor)) = self.pending_checkpoint_retry.as_mut() {
             retry = true;
-            let decoded = URL_SAFE_NO_PAD
-                .decode(data.as_bytes())
-                .map_err(|_| failed("invalid checkpoint retry chunk"));
-            decoded.and_then(|decoded| {
-                let end = (*cursor).saturating_add(decoded.len());
-                if pending.epoch != epoch
-                    || pending.room != room
-                    || pending.transfer != transfer
-                    || pending.term != term
-                    || pending.base_revision != base_revision
-                    || pending.revision != revision
-                    || offset as usize != *cursor
-                    || decoded.is_empty()
-                    || decoded.len() > CHECKPOINT_CHUNK_BYTES
-                    || end > pending.length
-                {
-                    return Err(failed("invalid checkpoint retry chunk"));
-                }
+            let end = (*cursor).saturating_add(data.0.len());
+            if pending.epoch != epoch
+                || pending.room != room
+                || pending.transfer != transfer
+                || pending.term != term
+                || pending.base_revision != base_revision
+                || pending.revision != revision
+                || offset as usize != *cursor
+                || data.0.is_empty()
+                || data.0.len() > CHECKPOINT_CHUNK_BYTES
+                || end > pending.length
+            {
+                Err(failed("invalid checkpoint retry chunk"))
+            } else {
                 *cursor = end;
                 Ok(end as u32)
-            })
+            }
         } else {
             Err(failed("checkpoint transfer missing"))
         };
@@ -263,12 +309,28 @@ impl Actor {
     /// leader status: followers become usable replicas after applying the
     /// committed log, while native writes remain gated by `leader_local`.
     pub(super) async fn pump_committed_checkpoint(&mut self) -> io::Result<()> {
-        let Some(recovery) = self.recovery.clone() else {
+        // Departure grace exists only to answer the old room's authority
+        // RPCs. Its native side is closed and never acknowledges a transfer,
+        // so an export would only hold the actor at the fast tick until it
+        // timed out.
+        if self.retirement_started.is_some() {
+            return Ok(());
+        }
+        let Some(recovery) = self.recovery.as_ref() else {
             return Ok(());
         };
-        // This runs on every actor tick; the committed value is shared, so
-        // looking at it copies nothing.
-        let committed = recovery.committed().await;
+        // This runs on every actor tick: compare the revision the store last
+        // published, which takes no lock, and look at the store only when it
+        // is past the last export. Compared on every tick rather than taken
+        // from a change notice, since a timed-out transfer lowers
+        // `last_exported_revision` with no new commit.
+        let latest = recovery.coordinator.committed_revision();
+        if latest == 0 || latest <= self.last_exported_revision {
+            return Ok(());
+        }
+        let recovery = recovery.clone();
+        // The committed value is shared, so looking at it copies nothing.
+        let committed = recovery.coordinator.store().committed().await;
         if committed.revision() == 0 || committed.revision() <= self.last_exported_revision {
             return Ok(());
         }
@@ -290,14 +352,13 @@ impl Actor {
         let Some(base_revision) = committed.revision().checked_sub(1) else {
             return Ok(());
         };
-        let transfer = CheckpointTransfer::new(
+        // No copy and no second hash: the transfer shares the committed
+        // checkpoint and the digest the commit already holds.
+        let transfer = CheckpointTransfer::from_committed(
             recovery.room,
             transfer_id,
-            committed.term(),
             base_revision,
-            committed.revision(),
-            // The one copy: the transfer owns its bytes.
-            committed.checkpoint().as_bytes().to_vec(),
+            &committed,
         )?;
         if let Some(retained) = self.observe_commit(recovery.room, &committed) {
             self.schedule_membership_reconciliation(
@@ -307,7 +368,7 @@ impl Actor {
                 false,
             );
         }
-        if self
+        let own = self
             .pending_checkpoint_proposal
             .as_ref()
             .is_some_and(|key| {
@@ -320,15 +381,15 @@ impl Actor {
                     && key.revision == transfer.revision
                     && key.length == transfer.bytes.len()
                     && key.digest == transfer.digest
-            })
-        {
+            });
+        if own {
             // Durable local application, rather than the client-write waiter,
             // completes proposal ownership. A late worker result is fenced by
             // the missing key and cannot replay the effect twice.
             self.pending_checkpoint_proposal = None;
             self.pending_checkpoint_retry = None;
         }
-        self.start_outgoing_checkpoint(transfer);
+        self.export_checkpoint(transfer, own);
         Ok(())
     }
 
@@ -429,6 +490,29 @@ impl Actor {
         if offset as usize > outgoing.transfer.bytes.len() {
             return self.error(0, "invalid_checkpoint_ack");
         }
+        if outgoing.local {
+            // The answer to a `checkpoint_committed_local` marker: the full
+            // length when the native side decoded the proposal it still
+            // held, which also marks the revision exported, or 0 when it no
+            // longer had that copy, which sends the whole transfer instead.
+            if !outgoing.begin_sent {
+                return self.error(0, "invalid_checkpoint_ack");
+            }
+            if offset as usize == outgoing.transfer.bytes.len() {
+                let revision = outgoing.transfer.revision;
+                self.outgoing_transfer = None;
+                self.last_exported_revision = revision;
+                return Ok(());
+            }
+            if offset != 0 {
+                return self.error(0, "invalid_checkpoint_ack");
+            }
+            outgoing.local = false;
+            outgoing.begin_sent = false;
+            outgoing.started = tokio::time::Instant::now();
+            self.pump_outgoing_checkpoint();
+            return Ok(());
+        }
         if offset as usize == outgoing.transfer.bytes.len() && outgoing.end_sent {
             let finished = outgoing.transfer.transfer;
             let transfer = outgoing.transfer.clone();
@@ -473,6 +557,26 @@ impl Actor {
             return;
         };
         let transfer = &outgoing.transfer;
+        if outgoing.local {
+            // The commit is the proposal the native side sent: one marker
+            // with its identity takes the place of the whole transfer.
+            if !outgoing.begin_sent
+                && self.emit_bulk(Event::CheckpointCommittedLocal {
+                    epoch: self.epoch,
+                    room: transfer.room,
+                    transfer: transfer.transfer,
+                    term: transfer.term,
+                    base_revision: transfer.base_revision,
+                    revision: transfer.revision,
+                    length: transfer.bytes.len() as u32,
+                    digest: transfer.digest_hex(),
+                })
+            {
+                outgoing.begin_sent = true;
+            }
+            self.outgoing_transfer = Some(outgoing);
+            return;
+        }
         if !outgoing.begin_sent {
             if !self.emit_bulk(Event::CheckpointBegin {
                 epoch: self.epoch,
@@ -494,7 +598,8 @@ impl Actor {
         {
             let offset = outgoing.next_offset;
             let end = (offset + CHECKPOINT_CHUNK_BYTES).min(transfer.bytes.len());
-            let data = URL_SAFE_NO_PAD.encode(&transfer.bytes[offset..end]);
+            // Raw bytes: the IPC writer sends them as a frame's body.
+            let data = crate::wire::IpcBytes(transfer.bytes[offset..end].to_vec());
             if !self.emit_bulk(Event::CheckpointChunk {
                 epoch: self.epoch,
                 room: transfer.room,
@@ -558,11 +663,11 @@ impl Actor {
         // the locally applied committed record authorizes native
         // replay and membership effects; the periodic watcher uses
         // this same durable observation if the waiter never returns.
-        let committed = recovery.committed().await;
+        let committed = recovery.coordinator.store().committed().await;
         let committed_exact = committed.revision() == key.revision
             && committed.term() == key.term
             && committed.request() == key.transfer.to_string()
-            && committed.checkpoint().as_bytes() == transfer.bytes
+            && committed.checkpoint().as_bytes() == &*transfer.bytes
             && transfer.room == key.room
             && transfer.transfer == key.transfer
             && transfer.base_revision == key.base_revision
@@ -582,11 +687,10 @@ impl Actor {
                 && self.outgoing_transfer.is_none()
                 && self.pending_checkpoint_committed.is_none()
             {
-                self.start_outgoing_checkpoint(transfer);
+                self.export_checkpoint(transfer, true);
             }
         }
-        self.last_coordination_state = None;
-        self.emit_coordination_state().await?;
+        self.republish_coordination_state().await?;
         Ok(())
     }
 }

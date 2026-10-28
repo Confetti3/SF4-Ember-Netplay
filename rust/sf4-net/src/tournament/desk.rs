@@ -6,15 +6,18 @@
 //! the player's; the helper only keeps the paths to the desk's own.
 use std::sync::Arc;
 
-use ember_protocol::{
-    challenge::{Action, Method},
-    encoding::is_prefixed_id,
-};
+use ember_protocol::{challenge::Action, encoding::is_prefixed_id};
 use serde_json::{Map, Value, json};
 
 use super::{
-    Failure, Outcome, Shared, browser,
-    client::{answer, feature_answer, prove, with_session},
+    Code, Failure, Outcome, Shared, browser,
+    client::{Body, BridgeCall, Refusals, Verb, answer, fetch, request, with_session},
+};
+
+/// A route an older bridge does not have: a 404 naming no reason.
+const UNSUPPORTED: Refusals<'static> = Refusals {
+    reasons: &[],
+    missing: Some(Code::Unsupported),
 };
 
 const EVENTS: &str = "/v1/organizer/events";
@@ -41,7 +44,7 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
     let path = match event {
         None => EVENTS.to_owned(),
         Some(event) if is_prefixed_id(event, "oev") => format!("{EVENTS}/{event}/sets"),
-        Some(_) => return Err(Failure::new("invalid_request")),
+        Some(_) => return Err(Failure::new(Code::InvalidRequest)),
     };
     with_session(shared, bridge_id, |bridge, token| {
         let path = path.clone();
@@ -62,7 +65,7 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
             let found = if status == 200 {
                 large_answer(&body)?
             } else {
-                answer(status, &body, &[200])?
+                answer(status, &body, &[200], &Refusals::NONE)?
             };
             if event.is_some() {
                 return Ok(Some(json!({ "event": event, "sets": sets(&found["sets"]) })));
@@ -70,21 +73,13 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
             // Whether Tournament Mode is the player's yet, on a bridge that
             // takes organizers by invitation; a bridge without the route
             // takes everyone.
-            let (status, body) = shared
-                .client
-                .call(
-                    reqwest::Method::GET,
-                    &format!("{}{ACCESS}", bridge.origin),
-                    Some(&token),
-                    None,
-                )
-                .await?;
-            let access = match feature_answer(status, &body, 200, &[], "unsupported") {
+            let call = BridgeCall::new(Verb::Get, ACCESS, &[200]).refusals(UNSUPPORTED);
+            let access = match fetch(shared, &bridge, Some(&token), &call).await {
                 Ok(found) => json!({
                     "invite_only": found["invite_only"].as_bool().unwrap_or(false),
                     "allowed": found["allowed"].as_bool().unwrap_or(true),
                 }),
-                Err(failure) if failure.0 == "unsupported" => {
+                Err(Failure::Local(Code::Unsupported)) => {
                     json!({ "invite_only": false, "allowed": true })
                 }
                 Err(failure) => return Err(failure),
@@ -100,83 +95,43 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
 fn large_answer(body: &[u8]) -> Result<Value, Failure> {
     ember_protocol::json::parse(body, MAX_SETS_ANSWER)
         .and_then(|value| ember_protocol::json::from_value::<Value>(&value))
-        .map_err(|_| Failure::new("bridge_invalid_response"))
+        .map_err(|_| Failure::new(Code::BridgeInvalidResponse))
 }
 
 /// A desk action on `path`, one of an event's set or match routes, proven
 /// and sent with `command` as its body.
 pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, command: Value) -> Outcome {
     if !is_action(path) || !command.is_object() {
-        return Err(Failure::new("invalid_request"));
+        return Err(Failure::new(Code::InvalidRequest));
     }
-    with_session(shared, bridge_id, |bridge, token| {
-        let command = command.clone();
-        async move {
-            let body = prove(
-                shared,
-                &bridge,
-                Some(&token),
-                Action::SiteConnect,
-                Method::Post,
-                path,
-                command,
-            )
-            .await?;
-            let (status, response) = shared
-                .client
-                .call(
-                    reqwest::Method::POST,
-                    &format!("{}{path}", bridge.origin),
-                    Some(&token),
-                    Some(body),
-                )
-                .await?;
-            // A sign-up the bridge took is 201 Created; a set's action 200.
-            answer(status, &response, &[200, 201])?;
-            Ok(None)
-        }
-    })
-    .await
+    // A sign-up the bridge took is 201 Created; a set's action 200.
+    let call = BridgeCall::new(Verb::Post, path, &[200, 201]).body(Body::Proven {
+        action: Action::SiteConnect,
+        command: &command,
+    });
+    request(shared, bridge_id, &call).await?;
+    Ok(None)
 }
 
 /// The player's web desk sessions, after noting them seen (`seen`) or
 /// ending them all (`end`, proven with `site.remove`).
 pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -> Outcome {
+    let empty = json!({});
+    let empty = &empty;
     with_session(shared, bridge_id, |bridge, token| async move {
-        let url = format!("{}{WEB}", bridge.origin);
         if end {
-            let body = prove(
-                shared,
-                &bridge,
-                Some(&token),
-                Action::SiteRemove,
-                Method::Delete,
-                WEB,
-                json!({}),
-            )
-            .await?;
-            let (status, response) = shared
-                .client
-                .call(reqwest::Method::DELETE, &url, Some(&token), Some(body))
-                .await?;
-            answer(status, &response, &[200])?;
+            let call = BridgeCall::new(Verb::Delete, WEB, &[200]).body(Body::Proven {
+                action: Action::SiteRemove,
+                command: &empty,
+            });
+            fetch(shared, &bridge, Some(&token), &call).await?;
         } else if seen {
-            let (status, response) = shared
-                .client
-                .call(
-                    reqwest::Method::POST,
-                    &format!("{url}/seen"),
-                    Some(&token),
-                    Some(b"{}".to_vec()),
-                )
-                .await?;
-            answer(status, &response, &[200])?;
+            let path = format!("{WEB}/seen");
+            let call = BridgeCall::new(Verb::Post, &path, &[200]).body(Body::Json(b"{}"));
+            fetch(shared, &bridge, Some(&token), &call).await?;
         }
-        let (status, body) = shared
-            .client
-            .call(reqwest::Method::GET, &url, Some(&token), None)
-            .await?;
-        let found = answer(status, &body, &[200])?;
+        let call = BridgeCall::new(Verb::Get, WEB, &[200]);
+        let found = fetch(shared, &bridge, Some(&token), &call).await?;
         let list = found["sessions"]
             .as_array()
             .map(Vec::as_slice)
@@ -199,34 +154,21 @@ pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -
 /// A one-time handoff to the web desk, proven with `site.connect`: its link
 /// opens in this PC's browser, and its token stays in the helper.
 pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+    let empty = json!({});
+    let empty = &empty;
     with_session(shared, bridge_id, |bridge, token| async move {
-        let body = prove(
-            shared,
-            &bridge,
-            Some(&token),
-            Action::SiteConnect,
-            Method::Post,
-            HANDOFF,
-            json!({}),
-        )
-        .await?;
-        let (status, response) = shared
-            .client
-            .call(
-                reqwest::Method::POST,
-                &format!("{}{HANDOFF}", bridge.origin),
-                Some(&token),
-                Some(body),
-            )
-            .await?;
-        let made = answer(status, &response, &[201])?;
+        let call = BridgeCall::new(Verb::Post, HANDOFF, &[201]).body(Body::Proven {
+            action: Action::SiteConnect,
+            command: &empty,
+        });
+        let made = fetch(shared, &bridge, Some(&token), &call).await?;
         let link = made["token"].as_str().unwrap_or_default();
         let well_formed = (16..=64).contains(&link.len())
             && link
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
         if !well_formed {
-            return Err(Failure::new("bridge_invalid_response"));
+            return Err(Failure::new(Code::BridgeInvalidResponse));
         }
         browser::open(&format!("{}/desk/h/{link}", bridge.origin))?;
         Ok(Some(json!({ "desk": format!("{}/desk", bridge.origin) })))
@@ -249,26 +191,15 @@ fn code_of(code: &str) -> Option<String> {
 /// now.
 pub async fn code_info(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
     let Some(code) = code_of(code) else {
-        return Err(Failure::new("desk_code_refused"));
+        return Err(Failure::new(Code::DeskCodeRefused));
     };
-    let code = &code;
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let (status, body) = shared
-            .client
-            .call(
-                reqwest::Method::GET,
-                &format!("{}{DEVICE}?code={code}", bridge.origin),
-                Some(&token),
-                None,
-            )
-            .await?;
-        if status == 404 {
-            return Err(Failure::new("desk_code_refused"));
-        }
-        let found = answer(status, &body, &[200])?;
-        info(&found).map(Some)
-    })
-    .await
+    let path = format!("{DEVICE}?code={code}");
+    let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(Refusals {
+        reasons: &[],
+        missing: Some(Code::DeskCodeRefused),
+    });
+    let found = request(shared, bridge_id, &call).await?;
+    info(&found).map(Some)
 }
 
 /// What the game shows of a device's code: its name kept short, when it
@@ -282,10 +213,10 @@ fn info(found: &Value) -> Result<Value, Failure> {
         .filter(|n| (10..100).contains(n))
         .collect();
     let Some(requested_at) = found["requested_at"].as_u64() else {
-        return Err(Failure::new("bridge_invalid_response"));
+        return Err(Failure::new(Code::BridgeInvalidResponse));
     };
     if choices.len() != 3 {
-        return Err(Failure::new("bridge_invalid_response"));
+        return Err(Failure::new(Code::BridgeInvalidResponse));
     }
     Ok(json!({
         "device": text(&found["device"]),
@@ -300,45 +231,28 @@ fn info(found: &Value) -> Result<Value, Failure> {
 /// number ends the code.
 pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: u8) -> Outcome {
     let Some(code) = code_of(code) else {
-        return Err(Failure::new("desk_code_refused"));
+        return Err(Failure::new(Code::DeskCodeRefused));
     };
     if !(10..100).contains(&number) {
-        return Err(Failure::new("desk_number_wrong"));
+        return Err(Failure::new(Code::DeskNumberWrong));
     }
-    let code = &code;
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let body = prove(
-            shared,
-            &bridge,
-            Some(&token),
-            Action::SiteConnect,
-            Method::Post,
-            APPROVE,
-            json!({ "code": code, "number": number }),
-        )
-        .await?;
-        let (status, response) = shared
-            .client
-            .call(
-                reqwest::Method::POST,
-                &format!("{}{APPROVE}", bridge.origin),
-                Some(&token),
-                Some(body),
-            )
-            .await?;
-        if status == 404 {
-            let wrong = serde_json::from_slice::<Value>(&response)
-                .is_ok_and(|refused| refused["error"]["details"]["reason"] == "number_wrong");
-            return Err(Failure::new(if wrong {
-                "desk_number_wrong"
-            } else {
-                "desk_code_refused"
-            }));
+    let command = json!({ "code": code, "number": number });
+    let call = BridgeCall::new(Verb::Post, APPROVE, &[200])
+        .body(Body::Proven {
+            action: Action::SiteConnect,
+            command: &command,
+        })
+        .refusals(Refusals {
+            reasons: &["number_wrong"],
+            missing: Some(Code::DeskCodeRefused),
+        });
+    match request(shared, bridge_id, &call).await {
+        Ok(_) => Ok(Some(json!({ "approved": true }))),
+        Err(Failure::Bridge(reason)) if reason == "number_wrong" => {
+            Err(Failure::new(Code::DeskNumberWrong))
         }
-        answer(status, &response, &[200])?;
-        Ok(Some(json!({ "approved": true })))
-    })
-    .await
+        Err(failure) => Err(failure),
+    }
 }
 
 /// The state of `tournament` on `site` and the moves the site allows now,
@@ -351,19 +265,11 @@ pub async fn site_state(shared: &Arc<Shared>, bridge_id: &str, site: &str, tourn
             && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
     };
     if !valid(site) || !valid(tournament) {
-        return Err(Failure::new("invalid_request"));
+        return Err(Failure::new(Code::InvalidRequest));
     }
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let (status, body) = shared
-            .client
-            .call(
-                reqwest::Method::GET,
-                &format!("{}/v1/organizer/tournaments?site={site}", bridge.origin),
-                Some(&token),
-                None,
-            )
-            .await?;
-        let found = answer(status, &body, &[200])?;
+    let path = format!("/v1/organizer/tournaments?site={site}");
+    let found = request(shared, bridge_id, &BridgeCall::new(Verb::Get, &path, &[200])).await?;
+    {
         let listed = found["tournaments"].as_array().map(Vec::as_slice).unwrap_or_default();
         let Some(event) = listed.iter().find(|each| each["id"] == tournament) else {
             return Ok(Some(json!({ "state": null, "actions": [] })));
@@ -379,41 +285,27 @@ pub async fn site_state(shared: &Arc<Shared>, bridge_id: &str, site: &str, tourn
             .collect();
         let state = event["state"].as_str().filter(|state| state.len() <= 32);
         Ok(Some(json!({ "tournament": tournament, "state": state, "actions": actions })))
-    })
-    .await
+    }
 }
 
 /// Redeems `code`, an invite to Tournament Mode, for the player's Ember ID.
 pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
     let code: String = code.trim().chars().take(16).collect();
     if code.is_empty() {
-        return Err(Failure::new("invite_invalid"));
+        return Err(Failure::new(Code::InviteInvalid));
     }
-    let code = &code;
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let body = prove(
-            shared,
-            &bridge,
-            Some(&token),
-            Action::SiteConnect,
-            Method::Post,
-            REDEEM,
-            json!({ "code": code }),
-        )
-        .await?;
-        let (status, response) = shared
-            .client
-            .call(
-                reqwest::Method::POST,
-                &format!("{}{REDEEM}", bridge.origin),
-                Some(&token),
-                Some(body),
-            )
-            .await?;
-        feature_answer(status, &response, 200, &["invite_invalid"], "invites_unsupported")?;
-        Ok(Some(json!({ "allowed": true })))
-    })
-    .await
+    let command = json!({ "code": code });
+    let call = BridgeCall::new(Verb::Post, REDEEM, &[200])
+        .body(Body::Proven {
+            action: Action::SiteConnect,
+            command: &command,
+        })
+        .refusals(Refusals {
+            reasons: &["invite_invalid"],
+            missing: Some(Code::InvitesUnsupported),
+        });
+    request(shared, bridge_id, &call).await?;
+    Ok(Some(json!({ "allowed": true })))
 }
 
 /// `/v1/organizer/events/{event}/sets/{set}`,

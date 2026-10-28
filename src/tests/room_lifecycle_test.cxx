@@ -9,47 +9,47 @@ static void TestQueueWatchAndReplay() {
 	const MemberId p2 = Join(authority, 2);
 	const MemberId p3 = Join(authority, 3);
 	const MemberId p4 = Join(authority, 4);
-	for (const auto member : {p1, p2, p3, p4}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2, p3, p4}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto queued = authority.SnapshotView().tables[0];
-	for (const auto member : {queued.p1, queued.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, queued.p1, queued.p2).accepted);
+	for (const auto member : {queued.p1, queued.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, queued.p1, queued.p2).accepted);
 	const auto playing = authority.SnapshotView().tables[0];
-	CHECK(playing.queue.size() == 2 && playing.spectators.size() == 2);
+	EXPECT(playing.queue.size() == 2 && playing.spectators.size() == 2);
 	const auto generation = playing.matchGeneration;
 	Action exactGeneration = TableAction(authority, p3, 0, ActionKind::Unwatch);
 	exactGeneration.matchGeneration = generation;
 	exactGeneration.tableRevision = playing.revision - 1; // stale UI revision, current native generation
-	CHECK(authority.Apply(p3, exactGeneration).accepted);
+	EXPECT(authority.Apply(p3, exactGeneration).accepted);
 	Action staleGeneration = TableAction(authority, p4, 0, ActionKind::Unwatch);
 	staleGeneration.matchGeneration = generation + 1;
-	CHECK(!authority.Apply(p4, staleGeneration).accepted);
-	CHECK(authority.EndMatch(0, playing.matchGeneration, MatchResult::P1Win).accepted);
+	EXPECT(!authority.Apply(p4, staleGeneration).accepted);
+	EXPECT(authority.EndMatch(0, playing.matchGeneration, MatchResult::P1Win).accepted);
 	const auto rematched = authority.SnapshotView().tables[0];
-	CHECK(rematched.p1 == p1 && rematched.p2 == p2 && rematched.score[0] == 1);
+	EXPECT(rematched.p1 == p1 && rematched.p2 == p2 && rematched.score[0] == 1);
 	const auto terminalCheckpoint = authority.Checkpoint();
-	CHECK(terminalCheckpoint.at("terminal_receipts").at(0).at("recipients").size() == 4);
+	EXPECT(terminalCheckpoint.at("terminal_receipts").at(0).at("recipients").size() == 4);
 	Action spectatorAck = TableAction(authority, p3, 0, ActionKind::AcknowledgeTerminal);
 	spectatorAck.matchGeneration = playing.matchGeneration;
-	CHECK(authority.Apply(p3, spectatorAck).accepted);
-	CHECK(std::find(rematched.queue.begin(), rematched.queue.end(), p3) != rematched.queue.end());
+	EXPECT(authority.Apply(p3, spectatorAck).accepted);
+	EXPECT(std::find(rematched.queue.begin(), rematched.queue.end(), p3) != rematched.queue.end());
 	Action stop = TableAction(authority, p2, 0, ActionKind::Unqueue);
-	CHECK(authority.Apply(p2, stop).accepted);
+	EXPECT(authority.Apply(p2, stop).accepted);
 	const auto rotated = authority.SnapshotView().tables[0];
-	CHECK(rotated.p2 == p3 && std::find(rotated.queue.begin(), rotated.queue.end(), p3) == rotated.queue.end());
-	CHECK(rotated.score[0] == 0 && rotated.score[1] == 0);
+	EXPECT(rotated.p2 == p3 && std::find(rotated.queue.begin(), rotated.queue.end(), p3) == rotated.queue.end());
+	EXPECT(rotated.score[0] == 0 && rotated.score[1] == 0);
 	Action replay = TableAction(authority, host, 0, ActionKind::Chat);
 	replay.text = "replay-safe";
 	replay.actionId = 9001;
 	const auto first = authority.Apply(host, replay);
 	const auto revision = authority.SnapshotView().revision;
 	const auto repeat = authority.Apply(host, replay);
-	CHECK(first.accepted && repeat.accepted && authority.SnapshotView().revision == revision && repeat.events.empty());
+	EXPECT(first.accepted && repeat.accepted && authority.SnapshotView().revision == revision && repeat.events.empty());
 
 	// A seated fighter cannot silently join another table as a watcher.
 	Action watch = TableAction(authority, rotated.p2, 1, ActionKind::Watch);
 	const auto before = authority.SnapshotCopy();
-	CHECK(!authority.Apply(rotated.p2, watch).accepted);
-	CHECK(authority.SnapshotView().revision == before.revision);
+	EXPECT(!authority.Apply(rotated.p2, watch).accepted);
+	EXPECT(authority.SnapshotView().revision == before.revision);
 }
 
 static void TestQueueTakesAskedSeatAndEndsWatching() {
@@ -61,18 +61,18 @@ static void TestQueueTakesAskedSeatAndEndsWatching() {
 		action.seat = static_cast<std::int8_t>(seat);
 		return authority.Apply(member, action).accepted;
 	};
-	CHECK(queue(first, 0, 1));
-	CHECK(authority.SnapshotView().tables[0].p2 == first && authority.SnapshotView().tables[0].p1 == 0);
+	EXPECT(queue(first, 0, 1));
+	EXPECT(authority.SnapshotView().tables[0].p2 == first && authority.SnapshotView().tables[0].p1 == 0);
 	// The asked-for seat is taken: refused, never swapped for the other one.
-	CHECK(!queue(second, 0, 1));
-	CHECK(authority.SnapshotView().tables[0].p1 == 0 && authority.SnapshotView().tables[0].queue.empty());
-	CHECK(queue(second, 0, 0));
-	CHECK(authority.SnapshotView().tables[0].p1 == second);
+	EXPECT(!queue(second, 0, 1));
+	EXPECT(authority.SnapshotView().tables[0].p1 == 0 && authority.SnapshotView().tables[0].queue.empty());
+	EXPECT(queue(second, 0, 0));
+	EXPECT(authority.SnapshotView().tables[0].p1 == second);
 	// A watcher sits down straight from watching, and stops watching.
-	CHECK(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
-	CHECK(queue(watcher, 1, 0));
+	EXPECT(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
+	EXPECT(queue(watcher, 1, 0));
 	const auto& tables = authority.SnapshotView().tables;
-	CHECK(tables[1].p1 == watcher && tables[0].spectators.empty() && tables[0].watchingNext.empty());
+	EXPECT(tables[1].p1 == watcher && tables[0].spectators.empty() && tables[0].watchingNext.empty());
 }
 
 // A host, fighters a and b at table 0 with the next player q queued behind them,
@@ -85,11 +85,11 @@ struct LiveTable {
 	LiveTable() {
 		host = Join(authority, 0, true); a = Join(authority, 1); b = Join(authority, 2);
 		q = Join(authority, 3); w = Join(authority, 4);
-		for (const auto member : {a, b, q}) CHECK(Do(member, ActionKind::Queue).accepted);
-		for (const auto member : {a, b}) CHECK(Do(member, ActionKind::Ready).accepted);
-		CHECK(authority.BeginMatch(0, a, b).accepted);
+		for (const auto member : {a, b, q}) EXPECT(Do(member, ActionKind::Queue).accepted);
+		for (const auto member : {a, b}) EXPECT(Do(member, ActionKind::Ready).accepted);
+		EXPECT(authority.BeginMatch(0, a, b).accepted);
 		generation = table().matchGeneration;
-		CHECK(Do(w, ActionKind::Watch).accepted);
+		EXPECT(Do(w, ActionKind::Watch).accepted);
 	}
 	Result Do(MemberId member, ActionKind kind) { return authority.Apply(member, TableAction(authority, member, 0, kind)); }
 	const Table& table() const { return authority.SnapshotView().tables[0]; }
@@ -101,7 +101,7 @@ struct LiveTable {
 	void Acknowledge(MemberId id, std::uint64_t forGeneration) {
 		Action ack = TableAction(authority, id, 0, ActionKind::AcknowledgeTerminal);
 		ack.matchGeneration = forGeneration;
-		CHECK(authority.Apply(id, ack).accepted);
+		EXPECT(authority.Apply(id, ack).accepted);
 	}
 };
 
@@ -111,17 +111,17 @@ struct LiveTable {
 static void TestFighterDepartureClosesTheGame() {
 	for (int how = 0; how < 3; ++how) {
 		LiveTable live;
-		CHECK(live.table().watchingNext.size() == 1 && live.member(live.w).status == MemberStatus::WatchingNext);
-		CHECK(live.member(live.b).delayLocked);
+		EXPECT(live.table().watchingNext.size() == 1 && live.member(live.w).status == MemberStatus::WatchingNext);
+		EXPECT(live.member(live.b).delayLocked);
 		if (how == 2) {
 			// A disputed result pauses the table; leaving it closes the game too.
 			const std::pair<MemberId, MatchResult> reports[] = {{live.a, MatchResult::P1Win}, {live.b, MatchResult::P2Win}};
 			for (const auto& entry : reports) {
 				Action report = TableAction(live.authority, entry.first, 0, ActionKind::RecordResult);
 				report.matchGeneration = live.generation; report.result = entry.second;
-				CHECK(live.authority.Apply(entry.first, report).accepted);
+				EXPECT(live.authority.Apply(entry.first, report).accepted);
 			}
-			CHECK(live.table().phase == TablePhase::Paused);
+			EXPECT(live.table().phase == TablePhase::Paused);
 		}
 		Result departure;
 		if (how == 1) {
@@ -129,19 +129,19 @@ static void TestFighterDepartureClosesTheGame() {
 			kick.target = live.a;
 			departure = live.authority.Apply(live.host, kick);
 		} else departure = live.authority.Leave(live.a);
-		CHECK(departure.accepted);
-		CHECK(std::any_of(departure.events.begin(), departure.events.end(), [](const Event& event) { return event.kind == Event::Kind::MatchEnded; }));
+		EXPECT(departure.accepted);
+		EXPECT(std::any_of(departure.events.begin(), departure.events.end(), [](const Event& event) { return event.kind == Event::Kind::MatchEnded; }));
 		const auto& table = live.table();
-		CHECK(table.phase == TablePhase::Waiting && table.p1 == live.q && table.p2 == live.b);
-		CHECK(table.watchingNext.empty() && live.Has(table.spectators, live.w));
-		CHECK(live.authority.MatchRoster(0).empty());
-		CHECK(live.member(live.b).status == MemberStatus::Seated && !live.member(live.b).delayLocked);
-		CHECK(live.member(live.w).status == MemberStatus::WatchingNext);
+		EXPECT(table.phase == TablePhase::Waiting && table.p1 == live.q && table.p2 == live.b);
+		EXPECT(table.watchingNext.empty() && live.Has(table.spectators, live.w));
+		EXPECT(live.authority.MatchRoster(0).empty());
+		EXPECT(live.member(live.b).status == MemberStatus::Seated && !live.member(live.b).delayLocked);
+		EXPECT(live.member(live.w).status == MemberStatus::WatchingNext);
 		// The watcher is granted the game that replaces it.
 		live.Acknowledge(live.b, live.generation); live.Acknowledge(live.q, live.generation);
-		for (const auto member : {live.q, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
-		CHECK(live.authority.BeginMatch(0, live.q, live.b).accepted);
-		CHECK(live.Has(live.authority.MatchRoster(0), live.w) && live.member(live.w).status == MemberStatus::Watching);
+		for (const auto member : {live.q, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
+		EXPECT(live.authority.BeginMatch(0, live.q, live.b).accepted);
+		EXPECT(live.Has(live.authority.MatchRoster(0), live.w) && live.member(live.w).status == MemberStatus::Watching);
 	}
 }
 
@@ -154,27 +154,27 @@ static void TestReadinessClearsTheDelayLock() {
 		return false;
 	};
 	const auto Do = [&](MemberId member, ActionKind kind) { return authority.Apply(member, TableAction(authority, member, 0, kind)); };
-	for (const auto member : {p1, p2}) CHECK(Do(member, ActionKind::Queue).accepted);
+	for (const auto member : {p1, p2}) EXPECT(Do(member, ActionKind::Queue).accepted);
 	// The opponent stands up.
-	CHECK(Do(p1, ActionKind::Ready).accepted && locked(p1));
-	CHECK(Do(p2, ActionKind::Unqueue).accepted);
-	CHECK(!locked(p1) && !locked(p2));
+	EXPECT(Do(p1, ActionKind::Ready).accepted && locked(p1));
+	EXPECT(Do(p2, ActionKind::Unqueue).accepted);
+	EXPECT(!locked(p1) && !locked(p2));
 	// The host changes the rules.
-	CHECK(Do(p2, ActionKind::Queue).accepted);
-	CHECK(Do(p1, ActionKind::Ready).accepted && locked(p1));
+	EXPECT(Do(p2, ActionKind::Queue).accepted);
+	EXPECT(Do(p1, ActionKind::Ready).accepted && locked(p1));
 	Action rules = TableAction(authority, host, 0, ActionKind::SetRules);
 	rules.rules = authority.SnapshotView().tables[0].rules;
 	rules.rules.roundCount = rules.rules.roundCount == 3 ? 5 : 3;
-	CHECK(authority.Apply(host, rules).accepted);
-	CHECK(!locked(p1) && !authority.SnapshotView().tables[0].ready[0]);
+	EXPECT(authority.Apply(host, rules).accepted);
+	EXPECT(!locked(p1) && !authority.SnapshotView().tables[0].ready[0]);
 	// The opponent leaves after both readied. That ends no game.
-	for (const auto member : {p1, p2}) CHECK(Do(member, ActionKind::Ready).accepted);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Ready);
+	for (const auto member : {p1, p2}) EXPECT(Do(member, ActionKind::Ready).accepted);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Ready);
 	const auto leaving = authority.Leave(p2);
-	CHECK(leaving.accepted);
-	CHECK(std::none_of(leaving.events.begin(), leaving.events.end(), [](const Event& event) { return event.kind == Event::Kind::MatchEnded; }));
-	CHECK(!locked(p1));
-	for (const auto& member : authority.SnapshotView().members) if (member.id == p1) CHECK(member.status == MemberStatus::Seated);
+	EXPECT(leaving.accepted);
+	EXPECT(std::none_of(leaving.events.begin(), leaving.events.end(), [](const Event& event) { return event.kind == Event::Kind::MatchEnded; }));
+	EXPECT(!locked(p1));
+	for (const auto& member : authority.SnapshotView().members) if (member.id == p1) EXPECT(member.status == MemberStatus::Seated);
 }
 
 // A queued member watches the game it waits out without having chosen to. Once
@@ -183,71 +183,71 @@ static void TestReadinessClearsTheDelayLock() {
 static void TestLeavingQueueEndsTheQueuedWatch() {
 	{
 		LiveTable live;
-		CHECK(live.Has(live.table().spectators, live.q) && live.member(live.q).status == MemberStatus::Queued);
-		CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
+		EXPECT(live.Has(live.table().spectators, live.q) && live.member(live.q).status == MemberStatus::Queued);
+		EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
 		for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
 		// Between games the grant is spent: leaving the queue leaves the table.
-		CHECK(live.Do(live.q, ActionKind::Unqueue).accepted);
+		EXPECT(live.Do(live.q, ActionKind::Unqueue).accepted);
 		const auto& table = live.table();
-		CHECK(!live.Has(table.queue, live.q) && !live.Has(table.spectators, live.q) && !live.Has(table.watchingNext, live.q));
-		CHECK(live.member(live.q).status == MemberStatus::Idle && live.member(live.q).table == -1);
-		CHECK(!WatchesByChoice(table, live.q));
-		for (const auto member : {live.a, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
-		CHECK(live.authority.BeginMatch(0, live.a, live.b).accepted);
+		EXPECT(!live.Has(table.queue, live.q) && !live.Has(table.spectators, live.q) && !live.Has(table.watchingNext, live.q));
+		EXPECT(live.member(live.q).status == MemberStatus::Idle && live.member(live.q).table == -1);
+		EXPECT(!WatchesByChoice(table, live.q));
+		for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
+		EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
 		// (w asked to watch the next game, and does.)
-		CHECK((live.authority.MatchRoster(0) == std::vector<MemberId>{live.a, live.b, live.w}));
+		EXPECT((live.authority.MatchRoster(0) == std::vector<MemberId>{live.a, live.b, live.w}));
 	}
 	{
 		LiveTable live;
 		// During the game it keeps the stream it is watching, but not by choice.
-		CHECK(live.Do(live.q, ActionKind::Unqueue).accepted);
-		CHECK(live.Has(live.table().spectators, live.q) && live.Has(live.table().endingWatchers, live.q));
-		CHECK(live.Has(live.authority.MatchRoster(0), live.q) && live.member(live.q).status == MemberStatus::Watching);
-		CHECK(!WatchesByChoice(live.table(), live.q));
+		EXPECT(live.Do(live.q, ActionKind::Unqueue).accepted);
+		EXPECT(live.Has(live.table().spectators, live.q) && live.Has(live.table().endingWatchers, live.q));
+		EXPECT(live.Has(live.authority.MatchRoster(0), live.q) && live.member(live.q).status == MemberStatus::Watching);
+		EXPECT(!WatchesByChoice(live.table(), live.q));
 		// The marker is part of the room state a follower restores.
 		RoomAuthority replica("Replica");
-		CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(live.authority.Checkpoint().dump())));
-		CHECK(replica.Checkpoint() == live.authority.Checkpoint());
-		CHECK(live.Has(replica.SnapshotView().tables[0].endingWatchers, live.q));
+		EXPECT(replica.RestoreCheckpoint(nlohmann::json::parse(live.authority.Checkpoint().dump())));
+		EXPECT(replica.Checkpoint() == live.authority.Checkpoint());
+		EXPECT(live.Has(replica.SnapshotView().tables[0].endingWatchers, live.q));
 		auto broken = live.authority.Checkpoint();
 		broken["snapshot"]["tables"][0]["spectators"] = nlohmann::json::array();
 		RoomAuthority rejecting("Rejecting");
-		CHECK(!rejecting.RestoreCheckpoint(broken));
+		EXPECT(!rejecting.RestoreCheckpoint(broken));
 		// The game ends and the place goes with it.
-		CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P2Win).accepted);
+		EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P2Win).accepted);
 		const auto& table = live.table();
-		CHECK(!live.Has(table.spectators, live.q) && table.endingWatchers.empty());
-		CHECK(live.member(live.q).status == MemberStatus::Idle);
+		EXPECT(!live.Has(table.spectators, live.q) && table.endingWatchers.empty());
+		EXPECT(live.member(live.q).status == MemberStatus::Idle);
 		for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
-		for (const auto member : {live.a, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
-		CHECK(live.authority.BeginMatch(0, live.a, live.b).accepted);
-		CHECK(!live.Has(live.authority.MatchRoster(0), live.q));
+		for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
+		EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
+		EXPECT(!live.Has(live.authority.MatchRoster(0), live.q));
 	}
 	{
 		LiveTable live;
 		// Watching on purpose makes the place its own.
-		CHECK(live.Do(live.q, ActionKind::Unqueue).accepted);
-		CHECK(live.Do(live.q, ActionKind::Watch).accepted);
-		CHECK(live.table().endingWatchers.empty() && WatchesByChoice(live.table(), live.q));
-		CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
-		CHECK(live.Has(live.table().spectators, live.q) && live.member(live.q).status == MemberStatus::WatchingNext);
+		EXPECT(live.Do(live.q, ActionKind::Unqueue).accepted);
+		EXPECT(live.Do(live.q, ActionKind::Watch).accepted);
+		EXPECT(live.table().endingWatchers.empty() && WatchesByChoice(live.table(), live.q));
+		EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
+		EXPECT(live.Has(live.table().spectators, live.q) && live.member(live.q).status == MemberStatus::WatchingNext);
 	}
 	{
 		// A fighter leaving mid-game skips EndMatch; the place still ends.
 		LiveTable live;
 		const MemberId r = Join(live.authority, 5);
-		CHECK(live.Do(r, ActionKind::Queue).accepted);
-		CHECK(live.authority.Leave(live.b).accepted);
-		CHECK(live.table().p2 == live.q && live.Has(live.table().queue, r));
-		CHECK(live.Do(r, ActionKind::Unqueue).accepted);
-		CHECK(!live.Has(live.table().spectators, r) && live.member(r).status == MemberStatus::Idle);
+		EXPECT(live.Do(r, ActionKind::Queue).accepted);
+		EXPECT(live.authority.Leave(live.b).accepted);
+		EXPECT(live.table().p2 == live.q && live.Has(live.table().queue, r));
+		EXPECT(live.Do(r, ActionKind::Unqueue).accepted);
+		EXPECT(!live.Has(live.table().spectators, r) && live.member(r).status == MemberStatus::Idle);
 	}
 	{
 		// A leaving watcher takes its marker along.
 		LiveTable live;
-		CHECK(live.Do(live.q, ActionKind::Unqueue).accepted);
-		CHECK(live.authority.Leave(live.q).accepted);
-		CHECK(live.table().endingWatchers.empty());
+		EXPECT(live.Do(live.q, ActionKind::Unqueue).accepted);
+		EXPECT(live.authority.Leave(live.q).accepted);
+		EXPECT(live.table().endingWatchers.empty());
 	}
 }
 
@@ -260,56 +260,56 @@ static void TestQueuedWatcherLeavesOneGame() {
 	leave.matchGeneration = live.generation;
 	leave.tableRevision = 0; // a generation-scoped action skips the table revision fence
 	leave.keepWatching = true;
-	CHECK(live.authority.Apply(live.q, leave).accepted);
-	CHECK(live.Has(live.table().queue, live.q) && live.Has(live.table().spectators, live.q));
-	CHECK(!WatchesByChoice(live.table(), live.q) && live.member(live.q).status == MemberStatus::Queued);
-	CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
+	EXPECT(live.authority.Apply(live.q, leave).accepted);
+	EXPECT(live.Has(live.table().queue, live.q) && live.Has(live.table().spectators, live.q));
+	EXPECT(!WatchesByChoice(live.table(), live.q) && live.member(live.q).status == MemberStatus::Queued);
+	EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
 	for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
-	for (const auto member : {live.a, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
-	CHECK(live.authority.BeginMatch(0, live.a, live.b).accepted);
-	CHECK(live.Has(live.authority.MatchRoster(0), live.q) && live.Has(live.table().queue, live.q));
+	for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
+	EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
+	EXPECT(live.Has(live.authority.MatchRoster(0), live.q) && live.Has(live.table().queue, live.q));
 }
 
 // A queued member's place, as a spectator's HUD shows it: from 1 for the next
 // to play; a seat is not a queue place.
 static void TestQueuePlaceCountsFromNext() {
 	LiveTable live;
-	CHECK(PlaceOf(live.authority.SnapshotView(), live.q).position == 1);
-	CHECK(live.Do(live.w, ActionKind::Queue).accepted);
+	EXPECT(PlaceOf(live.authority.SnapshotView(), live.q).position == 1);
+	EXPECT(live.Do(live.w, ActionKind::Queue).accepted);
 	const auto later = PlaceOf(live.authority.SnapshotView(), live.w);
-	CHECK(later.kind == Place::Kind::Queue && later.table == 0 && later.position == 2);
-	CHECK(PlaceOf(live.authority.SnapshotView(), live.a).position == 0);
+	EXPECT(later.kind == Place::Kind::Queue && later.table == 0 && later.position == 2);
+	EXPECT(PlaceOf(live.authority.SnapshotView(), live.a).position == 0);
 }
 
 // A spectator's HUD keeps the score the watched game started with, however far
 // the room has moved on; a fighter's follows the table.
 static void TestHudScoreFollowsTheWatchedGame() {
 	LiveTable live;
-	CHECK(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
+	EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
 	for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
-	for (const auto member : {live.a, live.b}) CHECK(live.Do(member, ActionKind::Ready).accepted);
-	CHECK(live.authority.BeginMatch(0, live.a, live.b).accepted);
+	for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
+	EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
 	const std::uint32_t start[2] = { live.table().score[0], live.table().score[1] };
-	CHECK(start[0] == 1 && start[1] == 0);
+	EXPECT(start[0] == 1 && start[1] == 0);
 	std::uint32_t shown[2] = { 9, 9 };
 	const auto fromTable = [&](bool spectating) {
 		const std::uint32_t current[2] = { live.table().score[0], live.table().score[1] };
 		return sf4e::HudScore(spectating, true, start, true, current, shown);
 	};
-	CHECK(fromTable(true) && shown[0] == 1 && shown[1] == 0);
+	EXPECT(fromTable(true) && shown[0] == 1 && shown[1] == 0);
 	// The room counts the game the spectator is still watching.
-	CHECK(live.authority.EndMatch(0, live.table().matchGeneration, MatchResult::P1Win).accepted);
-	CHECK(fromTable(true) && shown[0] == 1 && shown[1] == 0);
-	CHECK(fromTable(false) && shown[0] == 2 && shown[1] == 0);
+	EXPECT(live.authority.EndMatch(0, live.table().matchGeneration, MatchResult::P1Win).accepted);
+	EXPECT(fromTable(true) && shown[0] == 1 && shown[1] == 0);
+	EXPECT(fromTable(false) && shown[0] == 2 && shown[1] == 0);
 	// The loser leaves and the table's score resets.
-	CHECK(live.authority.Leave(live.b).accepted);
-	CHECK(live.table().score[0] == 0 && live.table().score[1] == 0);
-	CHECK(fromTable(true) && shown[0] == 1 && shown[1] == 0);
-	CHECK(fromTable(false) && shown[0] == 0 && shown[1] == 0);
+	EXPECT(live.authority.Leave(live.b).accepted);
+	EXPECT(live.table().score[0] == 0 && live.table().score[1] == 0);
+	EXPECT(fromTable(true) && shown[0] == 1 && shown[1] == 0);
+	EXPECT(fromTable(false) && shown[0] == 0 && shown[1] == 0);
 	// Nothing known, nothing shown.
 	const std::uint32_t none[2] = { 0, 0 };
-	CHECK(!sf4e::HudScore(true, false, none, true, start, shown));
-	CHECK(!sf4e::HudScore(false, true, start, false, none, shown));
+	EXPECT(!sf4e::HudScore(true, false, none, true, start, shown));
+	EXPECT(!sf4e::HudScore(false, true, start, false, none, shown));
 }
 
 // A spectator's HUD keeps the delay its game was granted with, taken as the
@@ -324,12 +324,12 @@ static void TestHudDelayFollowsTheWatchedGame() {
 		const auto ready = [&](MemberId member, std::uint8_t delay) {
 			auto action = TableAction(authority, member, 0, ActionKind::Ready);
 			action.inputDelay = delay;
-			CHECK(authority.Apply(member, action).accepted);
+			EXPECT(authority.Apply(member, action).accepted);
 		};
-		for (const auto member : {a, b}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
-		CHECK(authority.Apply(w, TableAction(authority, w, 0, ActionKind::Watch)).accepted);
+		for (const auto member : {a, b}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+		EXPECT(authority.Apply(w, TableAction(authority, w, 0, ActionKind::Watch)).accepted);
 		ready(a, 3); ready(b, 5);
-		CHECK(authority.BeginMatch(0, a, b).accepted);
+		EXPECT(authority.BeginMatch(0, a, b).accepted);
 		// What the grant's seats carry, as the host projects them (SeatMatchDelay).
 		const auto& room = authority.SnapshotView();
 		const auto& table = room.tables[0];
@@ -337,17 +337,17 @@ static void TestHudDelayFollowsTheWatchedGame() {
 		sf4e::MatchTelemetry telemetry;
 		telemetry.Reset(true);
 		telemetry.GrantedDelay(granted.frames, granted.own);
-		CHECK(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
+		EXPECT(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
 		const auto generation = table.matchGeneration;
-		CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+		EXPECT(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
 		for (const auto member : {a, b}) {
 			auto ack = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
 			ack.matchGeneration = generation;
-			CHECK(authority.Apply(member, ack).accepted);
+			EXPECT(authority.Apply(member, ack).accepted);
 		}
 		ready(a, 1); ready(b, 2);
-		CHECK(MatchDelay(table) == 2);
-		CHECK(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
+		EXPECT(MatchDelay(table) == 2);
+		EXPECT(telemetry.appliedDelay == 5 && telemetry.ownDelays == (policy == DelayPolicy::Own));
 	}
 }
 
@@ -372,31 +372,31 @@ static void TestLeavingTheSeatEndsItsReady() {
 		ready.Settle(sf4e::netplay::DispatchOutcome::Dispatched);
 		return ready;
 	};
-	CHECK(act(fighter, ActionKind::Queue, 0) && act(second, ActionKind::Queue, 1));
+	EXPECT(act(fighter, ActionKind::Queue, 0) && act(second, ActionKind::Queue, 1));
 	// Seated: the press stays, and so does a parked one.
 	auto ready = sent();
-	CHECK(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)) && ready.AwaitingCommit());
+	EXPECT(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)) && ready.AwaitingCommit());
 	// A refused leave changes nothing: Queue while seated is rejected.
-	CHECK(!act(fighter, ActionKind::Queue, 1));
-	CHECK(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)) && ready.Expired(20000));
+	EXPECT(!act(fighter, ActionKind::Queue, 1));
+	EXPECT(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)) && ready.Expired(20000));
 	// Stood up: the sent press ends and never reports a stall.
-	CHECK(act(fighter, ActionKind::Unqueue));
-	CHECK(sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)));
-	CHECK(!ready.Active() && !ready.Expired(20000));
+	EXPECT(act(fighter, ActionKind::Unqueue));
+	EXPECT(sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)));
+	EXPECT(!ready.Active() && !ready.Expired(20000));
 	// Nothing armed, nothing to end.
-	CHECK(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)));
+	EXPECT(!sf4e::netplay::DropReadyWithoutSeat(ready, authority.SnapshotFor(fighter)));
 	// A parked press ends the same way, and a queue place is not a seat.
-	CHECK(act(third, ActionKind::Queue, 0) && act(fighter, ActionKind::Queue));
+	EXPECT(act(third, ActionKind::Queue, 0) && act(fighter, ActionKind::Queue));
 	Intent parked(20000, Intent::Completion::OnCommit);
 	parked.Defer(2, generation, 0, Intent::Budget::Timed);
-	CHECK(PlaceOf(authority.SnapshotView(), fighter).kind == Place::Kind::Queue);
-	CHECK(sf4e::netplay::DropReadyWithoutSeat(parked, authority.SnapshotFor(fighter)) && !parked.Active());
+	EXPECT(PlaceOf(authority.SnapshotView(), fighter).kind == Place::Kind::Queue);
+	EXPECT(sf4e::netplay::DropReadyWithoutSeat(parked, authority.SnapshotFor(fighter)) && !parked.Active());
 	// No longer a member (the snapshot names no local member).
 	auto removed = sent();
-	CHECK(sf4e::netplay::DropReadyWithoutSeat(removed, authority.SnapshotFor(9999)) && !removed.Active());
+	EXPECT(sf4e::netplay::DropReadyWithoutSeat(removed, authority.SnapshotFor(9999)) && !removed.Active());
 	// A legacy lobby has no seats to lose.
 	auto legacy = sent();
-	CHECK(!sf4e::netplay::DropReadyWithoutSeat(legacy, Snapshot{}) && legacy.AwaitingCommit());
+	EXPECT(!sf4e::netplay::DropReadyWithoutSeat(legacy, Snapshot{}) && legacy.AwaitingCommit());
 }
 
 int main() {
@@ -411,7 +411,7 @@ int main() {
 	TestHudDelayFollowsTheWatchedGame();
 	TestQueuePlaceCountsFromNext();
 
-	if (failures) return 1;
+	if (TEST_FAILURES()) return 1;
 	std::puts("RoomLifecycle test passed");
 	return 0;
 }

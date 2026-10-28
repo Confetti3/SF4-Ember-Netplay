@@ -78,6 +78,9 @@ bool userGlyphBuildSeen = false;
 // Retires characters that no role has drawn within glyphRetention and fills
 // wantedUserGlyphs from the rest, best role first when over the cap.
 void UpdateWantedUserGlyphs(std::chrono::steady_clock::time_point now) {
+    // Names and chat in characters Inter draws note nothing, so most frames
+    // have nothing to retire or rank.
+    if (userGlyphs.empty()) { wantedUserGlyphs.clear(); return; }
     struct Ranked { std::size_t role, order; ImWchar glyph; };
     std::vector<Ranked> ranked;
     ranked.reserve(userGlyphs.size());

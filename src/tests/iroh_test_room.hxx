@@ -33,9 +33,9 @@ public:
 	std::array<std::uint8_t, 16> RoomId() const override { return roomId; }
 	const std::string& LocalIdentity() const override { return localIdentity; }
 	const CoordinationSnapshot& Coordination() const override { return coordination_; }
-	GameSnapshot Game(const std::string& peer) const override {
+	const GameSnapshot* FindGame(const std::string& peer) const override {
 		const auto found = snapshots_.find(peer);
-		return found == snapshots_.end() ? GameSnapshot() : found->second;
+		return found == snapshots_.end() ? nullptr : &found->second;
 	}
 	bool PrepareGame(const std::string& peer, std::uint64_t generation, const std::array<std::uint8_t, 32>&,
 		std::uint16_t localPort, std::size_t maxPacket, bool dial) override {

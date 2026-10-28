@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ember_protocol::{
     EmberId,
-    event::Kind,
+    event::{EventPlacement, Kind, TournamentCompletedData, TournamentMatchCompletedData},
     json,
     matches::{MAX_METADATA_ENTRIES, Participant as Assigned, Rules},
     tournament::{self as bracket, Format, Source, Status},
@@ -13,17 +13,17 @@ use rusqlite::{Transaction, params};
 use serde_json::json;
 
 use super::{
-    MATCH_PREFIX, Tournament, load,
+    MATCH_PREFIX, Tournament, load_listed,
     standings::round_robin_table,
-    state::{Bracket, Entrant, load_bracket, save, set_json},
+    state::{Bracket, load_bracket, player, save, set_completed, set_json},
     touch, tournament_event,
 };
 use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
     routes::{
+        ledger::{self, NewMatch, ORGANIZER_PROFILE},
         lobbies,
-        matches::{self, NewMatch, ORGANIZER_PROFILE},
     },
 };
 
@@ -43,12 +43,12 @@ fn start_node(
         return Ok(None);
     };
     for entrant in [first, second] {
-        if !matches::linked(
+        if !ledger::linked(
             tx,
             &tournament.connection_id,
             &entrant.participant_id,
             &entrant.ember_id,
-        )? || matches::busy(tx, &tournament.connection_id, &entrant.ember_id, "")?
+        )? || ledger::busy(tx, &tournament.connection_id, &entrant.ember_id, "")?
         {
             return Ok(None);
         }
@@ -81,7 +81,7 @@ fn start_node(
         ember_id: roster[usize::from(slot)].ember_id.clone(),
         slot,
     });
-    let match_id = matches::insert_match(
+    let match_id = ledger::insert_match(
         tx,
         ctx,
         &NewMatch {
@@ -121,7 +121,7 @@ pub(super) fn progress(
         if before[node].status == Status::Playing
             && let Some(match_id) = bracket.matches[node].clone()
         {
-            freed.extend(matches::cancel_tournament_set(
+            freed.extend(ledger::cancel_tournament_set(
                 tx,
                 ctx,
                 &match_id,
@@ -153,22 +153,22 @@ pub(super) fn progress(
     for &node in &changed {
         if bracket.states[node].status == Status::Walkover {
             let state = bracket.states[node];
-            let mut data = set_json(bracket, node);
-            data["walkover"] = true.into();
-            data["winner"] = bracket.entrant(state.winner()).map(Entrant::public).into();
-            data["loser"] = bracket.entrant(state.loser()).map(Entrant::public).into();
-            data["eliminated"] = json!(
-                bracket
+            let data = TournamentMatchCompletedData {
+                walkover: true,
+                winner: bracket.entrant(state.winner()).map(player),
+                loser: bracket.entrant(state.loser()).map(player),
+                eliminated: bracket
                     .entrant(bracket::eliminated(&bracket.plan, &bracket.states, node))
-                    .map(|entrant| &entrant.ember_id)
-            );
-            data["winner_next"] = bracket.next(node, Source::Winner).into();
+                    .map(|entrant| entrant.ember_id.clone()),
+                winner_next: bracket.next(node, Source::Winner).map(str::to_owned),
+                ..set_completed(bracket, node)
+            };
             tournament_event(
                 tx,
                 ctx,
                 tournament,
                 Kind::TournamentMatchCompleted,
-                data,
+                serde_json::to_value(data).unwrap_or_default(),
                 revision,
             )?;
         }
@@ -249,10 +249,9 @@ fn finish(
     order.sort_by_key(|&seed| (places[seed], seed));
     let placements: Vec<_> = order
         .into_iter()
-        .map(|seed| {
-            let mut player = bracket.seeds[seed].public();
-            player["placement"] = places[seed].into();
-            player
+        .map(|seed| EventPlacement {
+            ember_id: bracket.seeds[seed].ember_id.clone(),
+            placement: places[seed],
         })
         .collect();
     tournament_event(
@@ -260,7 +259,13 @@ fn finish(
         ctx,
         tournament,
         Kind::TournamentCompleted,
-        json!({ "format": tournament.format, "placements": placements }),
+        serde_json::to_value(TournamentCompletedData {
+            tournament_id: None,
+            tournament_revision: None,
+            format: Some(tournament.format),
+            placements,
+        })
+        .unwrap_or_default(),
         revision,
     )?;
     Ok(())
@@ -286,7 +291,9 @@ pub fn on_players_free(
         ids.extend(found);
     }
     for id in ids {
-        let tournament = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(tournament) = load_listed(tx, &id)? else {
+            continue;
+        };
         let mut bracket = load_bracket(tx, &tournament)?;
         progress(tx, ctx, &tournament, &mut bracket)?;
     }

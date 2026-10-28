@@ -277,7 +277,7 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
             headers.push_back(rows.size());
             const auto count = std::count_if(board->begin() + i, board->end(), [&](const netplay::rankings::BoardEntry& e) { return e.band == band; });
             auto header = InfoRow("rkb-class:" + std::to_string(band), ClassName(band), std::to_string(count), loc::T("rankings.jump"));
-            header.height = HeaderHeight;
+            header.height = HeaderHeight; header.key = band;
             rows.push_back(std::move(header));
         }
         const auto& entry = (*board)[i];
@@ -285,7 +285,7 @@ std::vector<MenuEntry> RankingsPanel::BoardRows(const ShellView& v) const {
         if (entry.listing.country.Present()) detail += "\n" + CountryName(entry.listing.country);
         auto player = InfoRow("rkb-p:" + std::to_string(i), entry.listing.name, {}, std::move(detail));
         player.userText = true; player.detailText = DetailText::Name; player.height = PlayerHeight; player.valueHighlighted = entry.own;
-        player.left = rows[headers.back()].id;
+        player.left = rows[headers.back()].id; player.key = i;
         rows.push_back(std::move(player));
     }
     // Each row's Right is the next header; a header's Left is the previous one, the top one's You.

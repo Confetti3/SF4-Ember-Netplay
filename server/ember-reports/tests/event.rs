@@ -79,7 +79,7 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
     std::fs::create_dir(&symbols).unwrap();
     let no = worker()
         .walk(
-            synthetic("SSFIV.exe"),
+            &synthetic("SSFIV.exe"),
             symbols.clone(),
             Duration::from_secs(2),
         )
@@ -120,7 +120,7 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
     std::fs::create_dir_all(&directory).unwrap();
     std::fs::write(directory.join("Launcher.exe.sym"), format!("MODULE windows x86 {debug_id} Launcher.exe\nFILE 0 launcher.cpp\nFUNC 1200 100 0 report_crash\n1200 100 42 0\n")).unwrap();
     let yes = worker()
-        .walk(synthetic("Launcher.exe"), symbols, Duration::from_secs(2))
+        .walk(&synthetic("Launcher.exe"), symbols, Duration::from_secs(2))
         .await;
     assert_eq!(yes.symbolication(), "ok");
     assert_eq!(
@@ -252,7 +252,7 @@ async fn failed_walk_preserves_raw_facts_and_worker_slot() {
         .await
         .unwrap();
     let walk = worker()
-        .walk(bytes, temp.0.clone(), Duration::from_secs(1))
+        .walk(&bytes, temp.0.clone(), Duration::from_secs(1))
         .await;
     assert_eq!(walk.symbolication(), "walk_failed");
     assert_eq!(walk.code, Some(0xc0000005));
@@ -277,7 +277,7 @@ async fn input_budget_preserves_exception_without_walking_excess_threads() {
         }
     }
     let walk = worker()
-        .walk(bytes, temp.0.clone(), Duration::from_secs(1))
+        .walk(&bytes, temp.0.clone(), Duration::from_secs(1))
         .await;
     assert_eq!(walk.symbolication(), "input_budget");
     assert_eq!(walk.code, Some(0xc0000005));

@@ -5,18 +5,9 @@
 #include <string.h>
 
 #include "../common/sf4e__StateHash.hxx"
+#include "test_support.hxx"
 
 using namespace sf4e::statehash;
-
-static int g_failures = 0;
-
-#define CHECK(cond)                                                          \
-	do {                                                                     \
-		if (!(cond)) {                                                       \
-			printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);           \
-			g_failures++;                                                    \
-		}                                                                    \
-	} while (0)
 
 // A stand-in for engine state with padding and a pointer, mirroring the
 // hazards the encoder must be independent of.
@@ -42,22 +33,22 @@ static uint64_t HashFake(const FakeState& s) {
 
 static void TestDeterminism() {
 	FakeState s = { 7, 1234, (void*)0xdeadbeef, 1.5f, 100, -3 };
-	CHECK(HashFake(s) == HashFake(s));
+	EXPECT(HashFake(s) == HashFake(s));
 }
 
 static void TestFieldSensitivity() {
 	FakeState s = { 7, 1234, 0, 1.5f, 100, -3 };
 	FakeState t = s;
 	t.b = 1235;
-	CHECK(HashFake(s) != HashFake(t));
+	EXPECT(HashFake(s) != HashFake(t));
 
 	t = s;
 	t.pos = 1.5000001f;
-	CHECK(HashFake(s) != HashFake(t));
+	EXPECT(HashFake(s) != HashFake(t));
 
 	t = s;
 	t.fixInt = -4;
-	CHECK(HashFake(s) != HashFake(t));
+	EXPECT(HashFake(s) != HashFake(t));
 }
 
 static void TestPaddingIndependence() {
@@ -76,7 +67,7 @@ static void TestPaddingIndependence() {
 	s1->pos = 3.25f; s2->pos = 3.25f;
 	s1->fixFrac = 5; s2->fixFrac = 5;
 	s1->fixInt = -1; s2->fixInt = -1;
-	CHECK(HashFake(*s1) == HashFake(*s2));
+	EXPECT(HashFake(*s1) == HashFake(*s2));
 }
 
 static void TestAddressIndependence() {
@@ -88,7 +79,7 @@ static void TestAddressIndependence() {
 	a->b = 77; b->b = 77;
 	a->processLocalPointer = a; // self-referencing pointers differ
 	b->processLocalPointer = b;
-	CHECK(HashFake(*a) == HashFake(*b));
+	EXPECT(HashFake(*a) == HashFake(*b));
 	free(a);
 	free(b);
 }
@@ -100,35 +91,35 @@ static void TestCanonicalByteEncoding() {
 	a.U32(0x01020304u);
 	Hasher b;
 	b.U8(0x04); b.U8(0x03); b.U8(0x02); b.U8(0x01);
-	CHECK(a.Value() == b.Value());
+	EXPECT(a.Value() == b.Value());
 
 	Hasher c;
 	c.U16(0xBEEF);
 	Hasher d;
 	d.U8(0xEF); d.U8(0xBE);
-	CHECK(c.Value() == d.Value());
+	EXPECT(c.Value() == d.Value());
 
 	Hasher e;
 	e.U64(0x1122334455667788ULL);
 	Hasher f;
 	f.U32(0x55667788u); f.U32(0x11223344u);
-	CHECK(e.Value() == f.Value());
+	EXPECT(e.Value() == f.Value());
 
 	// Fixed = U16(frac) then I16(int), two's complement.
 	Hasher g1;
 	g1.Fixed(0x0005, -1);
 	Hasher g2;
 	g2.U16(0x0005); g2.U16(0xFFFF);
-	CHECK(g1.Value() == g2.Value());
+	EXPECT(g1.Value() == g2.Value());
 }
 
 static void TestKnownVector() {
 	// FNV-1a 64 reference: empty = offset basis; "a" = 0xaf63dc4c8601ec8c.
 	Hasher e;
-	CHECK(e.Value() == 14695981039346656037ULL);
+	EXPECT(e.Value() == 14695981039346656037ULL);
 	Hasher a;
 	a.U8('a');
-	CHECK(a.Value() == 0xaf63dc4c8601ec8cULL);
+	EXPECT(a.Value() == 0xaf63dc4c8601ec8cULL);
 }
 
 static void TestFloatBitPattern() {
@@ -137,14 +128,14 @@ static void TestFloatBitPattern() {
 	Hasher p, n;
 	p.F32(0.0f);
 	n.F32(-0.0f);
-	CHECK(p.Value() != n.Value());
+	EXPECT(p.Value() != n.Value());
 }
 
 static void TestOrderSensitivity() {
 	Hasher ab, ba;
 	ab.U8(1); ab.U8(2);
 	ba.U8(2); ba.U8(1);
-	CHECK(ab.Value() != ba.Value());
+	EXPECT(ab.Value() != ba.Value());
 }
 
 int main() {
@@ -157,8 +148,8 @@ int main() {
 	TestFloatBitPattern();
 	TestOrderSensitivity();
 
-	if (g_failures) {
-		printf("%d failure(s)\n", g_failures);
+	if (TEST_FAILURES()) {
+		printf("%d failure(s)\n", TEST_FAILURES());
 		return 1;
 	}
 	printf("state_hash_test: all tests passed\n");

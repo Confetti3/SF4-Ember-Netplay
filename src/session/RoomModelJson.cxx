@@ -13,8 +13,7 @@ nlohmann::json RoomAuthority::Checkpoint() const {
     json ages = json::array();
     for (std::size_t i = 0; i < TableCount; ++i) {
         const auto& table = snapshot_.tables[i];
-        ages.push_back(!table.resultPending ? std::uint64_t(0) : recoveryPaused_
-            ? resultPendingSince_[i] : nowMs_ >= resultPendingSince_[i] ? nowMs_ - resultPendingSince_[i] : 0);
+        ages.push_back(!table.resultPending ? std::uint64_t(0) : TimerAge(resultPendingSince_[i]));
     }
     std::map<MemberId, std::uint64_t> chatTimes = lastChatMs_;
     json terminalReceipts = json::array();
@@ -34,12 +33,8 @@ nlohmann::json RoomAuthority::Checkpoint() const {
     json holdAges = json::array(), readyAges = json::array();
     bool readyAged = false;
     for (std::size_t i = 0; i < TableCount; ++i) {
-        const auto since = startHeldSince_[i];
-        holdAges.push_back(!snapshot_.tables[i].spectatorHold ? std::uint64_t(0) : recoveryPaused_
-            ? since : nowMs_ >= since ? nowMs_ - since : 0);
-        const auto readySince = readyWaitingSince_[i];
-        const auto readyAge = !readyWaitingFor_[i] ? std::uint64_t(0) : recoveryPaused_
-            ? readySince : nowMs_ >= readySince ? nowMs_ - readySince : 0;
+        holdAges.push_back(!snapshot_.tables[i].spectatorHold ? std::uint64_t(0) : TimerAge(startHeldSince_[i]));
+        const auto readyAge = !readyWaitingFor_[i] ? std::uint64_t(0) : TimerAge(readyWaitingSince_[i]);
         readyAges.push_back(readyAge);
         readyAged = readyAged || readyAge != 0;
     }
@@ -150,7 +145,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             const auto age = holdAges.at(i).get<std::uint64_t>();
             if (!restored.snapshot_.tables[i].spectatorHold) continue;
             if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
-            restored.startHeldSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
+            restored.startHeldSince_[i] = restored.TimerFromAge(age);
         }
         // A live room's permit ages run on from its permit clock. Without one,
         // as in a paused room, they wait for this process's next
@@ -318,7 +313,7 @@ bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
             const auto age = readyAges.at(i).get<std::uint64_t>();
             if (!restored.recoveryPaused_ && age > restored.nowMs_) return false;
             if (restored.readyWaitingFor_[i])
-                restored.readyWaitingSince_[i] = restored.recoveryPaused_ ? age : restored.nowMs_ - age;
+                restored.readyWaitingSince_[i] = restored.TimerFromAge(age);
         }
         *this = std::move(restored);
         return true;

@@ -54,7 +54,16 @@ struct DiscardedControlStream {
 		}
 		platform::HelperMessage frame;
 		for (int budget = 0; budget < 128 && helper.TryReceive(frame); ++budget) {
-			const auto event = nlohmann::json::parse(frame.payload);
+			// Chunks and messages come as raw-body frames: a JSON header and the body.
+			std::size_t headerSize = 0;
+			const auto kind = platform::helper_frame::SplitPayload(frame.payload, headerSize);
+			CHECK(kind != platform::helper_frame::PayloadKind::Invalid);
+			const bool hasBody = kind == platform::helper_frame::PayloadKind::Raw;
+			const char* const header = frame.payload.data() + (hasBody ? platform::helper_frame::RawPrefix : 0);
+			const auto event = hasBody ? nlohmann::json::parse(header, header + headerSize)
+				: nlohmann::json::parse(frame.payload);
+			const std::optional<std::string_view> body = hasBody ? std::optional<std::string_view>(std::string_view(
+				header + headerSize, frame.payload.size() - platform::helper_frame::RawPrefix - headerSize)) : std::nullopt;
 			const auto type = event.value("type", std::string());
 			if (type == "checkpoint_begin") {
 				CHECK(!receiver.Active());
@@ -65,11 +74,13 @@ struct DiscardedControlStream {
 				// the normal identity, length and digest validator above.
 				std::size_t offset = 0;
 				if (receiver.Active()) {
-					CHECK(type == "checkpoint_chunk" ? receiver.Chunk(event) : receiver.End(event));
+					CHECK(type == "checkpoint_chunk" ? receiver.Chunk(event, body) : receiver.End(event));
 					offset = receiver.Offset();
 				} else if (type == "checkpoint_chunk") {
 					std::string bytes;
-					CHECK(coordination::Decode(event.at("data"), bytes, coordination::CheckpointChunk));
+					if (body) bytes.assign(body->data(), body->size());
+					else CHECK(coordination::Decode(event.at("data"), bytes, coordination::CheckpointChunk));
+					CHECK(!bytes.empty() && bytes.size() <= coordination::CheckpointChunk);
 					offset = event.at("offset").get<std::size_t>() + bytes.size();
 					CHECK(offset <= coordination::MaximumCheckpoint);
 				} else {
@@ -89,7 +100,8 @@ struct DiscardedControlStream {
 					receiver.Reset();
 				}
 			} else if (type == "message") {
-				auto payload = nlohmann::json::parse(event.at("payload").get<std::string>());
+				auto payload = body ? nlohmann::json::parse(body->data(), body->data() + body->size())
+					: nlohmann::json::parse(event.at("payload").get<std::string>());
 				const auto payloadType = payload.value("type", std::string());
 				const bool terminal = payloadType == "game_end" || (payloadType == "room_event" &&
 					payload.at("event").at("kind") == static_cast<int>(room::Event::Kind::MatchEnded));

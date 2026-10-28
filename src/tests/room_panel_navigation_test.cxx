@@ -9,10 +9,14 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <memory>
+#include <new>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -20,9 +24,36 @@
 #include <utility>
 #include <vector>
 
+// Counts heap allocations while `countAllocations` is set: the room a drawn
+// frame shows must not be copied again while it has not changed (RoomCarry).
+static std::atomic<bool> countAllocations{false};
+static std::atomic<std::size_t> allocations{0};
+void* operator new(std::size_t size) {
+    if (countAllocations.load(std::memory_order_relaxed)) allocations.fetch_add(1, std::memory_order_relaxed);
+    if (void* block = std::malloc(size ? size : 1)) return block;
+    throw std::bad_alloc();
+}
+void operator delete(void* block) noexcept { std::free(block); }
+void operator delete(void* block, std::size_t) noexcept { std::free(block); }
+
 namespace {
 void Check(bool value, const char* message) {
     if (!value) throw std::runtime_error(message);
+}
+template <typename Work> std::size_t AllocationsOf(Work&& work) {
+    allocations = 0; countAllocations = true;
+    work();
+    countAllocations = false;
+    return allocations.load();
+}
+// A notice with no heading is not an error; ShowError is.
+void TestNoticeWithoutHeadingIsNotAnError() {
+    using namespace sf4e::ui;
+    GameMenu menu;
+    menu.ShowNotice("Advice");
+    Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
+    menu.ShowError("Ready failed");
+    Check(menu.NoticeError(), "An error notice did not read as one");
 }
 }
 
@@ -708,14 +739,7 @@ int main() try {
         view.room.members[1].training = false; ++view.room.revision; targets.clear(); frame(); frame();
         Check(!targets.count("table-0/banner"), "The Training call stayed on the card after the opponent came back");
     }
-    // A notice with no heading is not an error; ShowError is.
-    {
-        GameMenu menu;
-        menu.ShowNotice("Advice");
-        Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
-        menu.ShowError("Ready failed");
-        Check(menu.NoticeError(), "An error notice did not read as one");
-    }
+    TestNoticeWithoutHeadingIsNotAnError();
     // Both fighters are ready and a locked-in spectator holds the start.
     shell.Navigation().Home(); shell.Navigation().Push("room-table");
     view.room.tables[0].phase = room::TablePhase::Ready; view.room.tables[0].spectatorHold = true;
@@ -1396,6 +1420,115 @@ int main() try {
         "A server-owned room not joined from the list offers an invitation or a room link");
     view.room.serverOwned = false;
 
+    // Idle times and countdowns count on from the room's stamp where they are
+    // read (ShellView::roomElapsedMs), giving what the overlay's in-place
+    // patch of the room gave, so the room a frame shows is never changed.
+    {
+        const auto patched = [](room::Snapshot copy, std::uint64_t elapsedMs) {
+            const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, room::MaximumIdleSeconds));
+            for (auto& member : copy.members)
+                if (member.status != room::MemberStatus::Playing)
+                    member.idleSeconds = (std::min)(member.idleSeconds + since, room::MaximumIdleSeconds);
+            for (auto& table : copy.tables) {
+                if (table.holdRemainingMs)
+                    table.holdRemainingMs = elapsedMs < table.holdRemainingMs ? static_cast<std::uint32_t>(table.holdRemainingMs - elapsedMs) : 1;
+                if (table.readyRemainingMs)
+                    table.readyRemainingMs = elapsedMs < table.readyRemainingMs ? static_cast<std::uint32_t>(table.readyRemainingMs - elapsedMs) : 1;
+            }
+            return copy;
+        };
+        ShellView stamped = view;
+        stamped.room.closed = false;
+        auto& ready = stamped.room.tables[1];
+        ready.p1 = 1; ready.p2 = 2; ready.phase = room::TablePhase::Waiting; ready.ready[0] = true; ready.ready[1] = false;
+        auto& held = stamped.room.tables[2];
+        held.p1 = 1; held.p2 = 2; held.phase = room::TablePhase::Ready; held.spectatorHold = true; held.ready[0] = held.ready[1] = true;
+        const std::uint32_t idles[] = {0, 59, 61, 3599, 7u * 24 * 60 * 60 - 5};
+        const room::MemberStatus statuses[] = {room::MemberStatus::Idle, room::MemberStatus::Playing, room::MemberStatus::Seated};
+        const std::uint64_t elapsed[] = {0, 1, 999, 1000, 4321, 29999, 31000, 900000, 7ull * 24 * 60 * 60 * 1000};
+        for (const std::uint32_t remaining : {0u, 1u, 999u, 6200u, 30000u, 34000u}) {
+            ready.readyRemainingMs = remaining; held.holdRemainingMs = remaining;
+            for (const auto ms : elapsed) {
+                ShellView before = stamped; before.room = patched(stamped.room, ms);
+                ShellView after = stamped; after.roomElapsedMs = ms;
+                const auto deadlineBefore = room_controls::DescribeReadyDeadline(before, before.room.tables[1]);
+                const auto deadlineAfter = room_controls::DescribeReadyDeadline(after, after.room.tables[1]);
+                Check(deadlineBefore.seconds == deadlineAfter.seconds && deadlineBefore.seat == deadlineAfter.seat &&
+                    deadlineBefore.text == deadlineAfter.text, "The Ready deadline read differently from the room's stamp");
+                Check(room_controls::HoldStatus(before, before.room.tables[2]) == room_controls::HoldStatus(after, after.room.tables[2]) &&
+                    room_controls::HoldText(before, before.room.tables[2]) == room_controls::HoldText(after, after.room.tables[2]),
+                    "The held start counted down differently from the room's stamp");
+                Check(RoomRemainingMs(remaining, ms) == before.room.tables[1].readyRemainingMs, "A countdown read differently from the room's stamp");
+                for (const auto idle : idles) for (const auto status : statuses) {
+                    room::Snapshot one; one.members.resize(1);
+                    one.members[0].idleSeconds = idle; one.members[0].status = status;
+                    Check(RoomIdleSeconds(one.members[0], ms) == patched(one, ms).members[0].idleSeconds,
+                        "An idle time read differently from the room's stamp");
+                }
+            }
+        }
+    }
+    // The drawn frame's room is lent from the last frame's copy: copied once
+    // per change of the published room, not once per frame.
+    {
+        room::Snapshot published = view.room;
+        published.roomEpoch = 77; published.revision = 5; published.name = "Friday night training room";
+        published.members.clear();
+        for (int i = 0; i < 6; ++i) {
+            room::Member member; member.id = 100 + i; member.name = "Room member number " + std::to_string(i);
+            member.status = room::MemberStatus::Idle; published.members.push_back(member);
+        }
+        published.tables[0].p1 = 100; published.tables[0].p2 = 101; published.tables[0].queue = {102, 103};
+        published.tables[0].spectators = {104, 105};
+        published.chat.clear();
+        for (int i = 0; i < 25; ++i) {
+            room::ChatMessage line; line.sequence = static_cast<std::uint64_t>(i + 1); line.sender = 100 + i % 6;
+            line.text = "A chat line long enough to need its own block, number " + std::to_string(i);
+            published.chat.push_back(line);
+        }
+        // What each drawn frame cost before: a fresh copy of the room.
+        const auto copied = AllocationsOf([&] { ShellView frameView; frameView.room = published; });
+        // The runtime publishes one immutable room per change and shares it.
+        const auto shared = std::make_shared<const room::Snapshot>(published);
+        RoomCarry carry;
+        ShellView first;
+        carry.Lend(first, shared);
+        Check(carry.Copies() == 1 && first.room.name == published.name && first.room.chat.size() == 25 &&
+            first.room.members.size() == 6, "The first frame was not lent the published room");
+        carry.Return(first);
+        std::size_t unchanged = 0;
+        for (int frameIndex = 0; frameIndex < 3; ++frameIndex) {
+            ShellView next;
+            unchanged += AllocationsOf([&] { carry.Lend(next, shared); });
+            Check(next.room.chat.size() == 25 && next.room.chat.back().text == published.chat.back().text &&
+                next.room.members[5].name == published.members[5].name, "A frame was lent another room");
+            unchanged += AllocationsOf([&] { carry.Return(next); });
+        }
+        Check(carry.Copies() == 1 && unchanged == 0, "An unchanged room was copied again for a frame");
+        std::cout << "Room view per drawn frame: " << copied << " allocations copied, " << unchanged / 3 << " lent.\n";
+        // Another published room is copied, even one equal in every field
+        // (a resend at the same revision, or class emblems shown).
+        auto emblems = published; emblems.members[2].badge = SkillBadge::OfClass(3, true);
+        const auto shown = std::make_shared<const room::Snapshot>(emblems);
+        ShellView next; carry.Lend(next, shown);
+        Check(carry.Copies() == 2 && next.room.members[2].badge.HasClass(), "A class emblem shown was not copied");
+        carry.Return(next);
+        const auto resent = std::make_shared<const room::Snapshot>(published);
+        carry.Lend(next, resent);
+        Check(carry.Copies() == 3 && !next.room.members[2].badge.Present(), "A resent room was not copied");
+        carry.Return(next);
+        // No room is the empty one, copied once.
+        carry.Lend(next, nullptr);
+        Check(carry.Copies() == 4 && !next.room.roomEpoch && next.room.members.empty(), "No room was not lent the empty room");
+        carry.Return(next); carry.Lend(next, nullptr);
+        Check(carry.Copies() == 4, "The empty room was copied again");
+        carry.Return(next);
+        // A frame that did not give the room back is never lent it again as is.
+        carry.Lend(next, resent); carry.Return(next);
+        ShellView other; carry.Lend(other, resent); carry.Lend(next, resent);
+        Check(carry.Copies() == 6 && next.room.members.size() == 6, "A room lent twice was not copied");
+        carry.Return(next);
+    }
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;

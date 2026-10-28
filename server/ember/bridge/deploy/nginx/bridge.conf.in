@@ -89,6 +89,20 @@ server {
         proxy_pass http://127.0.0.1:@PORT@;
     }
 
+    # The room list the helper fetches for the in-game Public rooms screen:
+    # a JSON array of up to 100 rooms, polled every 15 s. Same budget and
+    # upstream as the catch-all below, with the answer compressed for clients
+    # that ask for it. The query string (build_id, detail) rides on the
+    # unchanged request URI.
+    location = /v1/rooms {
+        limit_req zone=ember_bridge burst=100 nodelay;
+        gzip on;
+        gzip_types application/json;
+        gzip_vary on;
+        gzip_proxied any;
+        proxy_pass http://127.0.0.1:@PORT@;
+    }
+
     location / {
         limit_req zone=ember_bridge burst=100 nodelay;
         proxy_pass http://127.0.0.1:@PORT@;

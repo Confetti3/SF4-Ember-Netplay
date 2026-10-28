@@ -58,7 +58,7 @@ async fn the_host_stays_the_only_voter_as_sixteen_members_are_admitted() {
         let (mut actor, _events) = host_actor(&own, true).await;
         let recovery = actor.recovery.clone().unwrap();
         assert_eq!(
-            recovery.applied_voter_ids().await,
+            recovery.coordinator.store().applied_voters().await,
             BTreeSet::from([recovery.incarnation])
         );
         let mut learners = Vec::new();
@@ -86,11 +86,11 @@ async fn the_host_stays_the_only_voter_as_sixteen_members_are_admitted() {
             // The same admission of a third member makes a private room three
             // voters; here the set never changes.
             assert_eq!(
-                recovery.applied_voter_ids().await,
+                recovery.coordinator.store().applied_voters().await,
                 BTreeSet::from([recovery.incarnation]),
                 "{count} members"
             );
-            assert_eq!(recovery.applied_member_ids().await.len(), count + 1);
+            assert_eq!(recovery.coordinator.store().applied_members().await.len(), count + 1);
             assert_eq!(actor.voters(), crate::service::seats::Voters::Host);
             learners.push(learner);
         }
@@ -463,7 +463,7 @@ async fn a_public_host_leaving_performs_no_handoff() {
             .await
             .unwrap();
         let both = BTreeSet::from([recovery.incarnation, learner.incarnation]);
-        while learner.applied_voter_ids().await != both {
+        while learner.coordinator.store().applied_voters().await != both {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
         let (_commands, mut command_rx) = mpsc::channel(IPC_QUEUE_CAPACITY);
@@ -482,7 +482,7 @@ async fn a_public_host_leaving_performs_no_handoff() {
         assert!(actor.retirement_started.is_none() && actor.recovery.is_none());
         assert!(actor.room.is_none() && !actor.departure_failed);
         // Nobody was promoted or asked to campaign.
-        assert_eq!(learner.applied_voter_ids().await, both);
+        assert_eq!(learner.coordinator.store().applied_voters().await, both);
         assert_eq!(
             learner.coordinator.current_leader(),
             Some(recovery.incarnation)

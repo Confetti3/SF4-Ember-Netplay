@@ -893,7 +893,6 @@ pub async fn approve(
             }
         })
         .await?;
-    state.committed();
     match approved {
         Some(true) => Ok(ok(&json!({ "approved": true }))),
         Some(false) => Err(ApiFailure::new(

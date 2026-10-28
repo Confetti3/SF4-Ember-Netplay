@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <nlohmann/json.hpp>
 
@@ -137,6 +138,7 @@ int main(int argc, char** argv) {
 	diag::SetEnabled(true);
 	Series step, checkpointBuild, broadcast, journal, propose, commitTotal, commitSend, compact, importDecode, importApply;
 	std::size_t proposalBytes = 0, sentBytes = 0, sentMessages = 0;
+	std::size_t proposalMin = (std::numeric_limits<std::size_t>::max)(), proposalMax = 0;
 	for (int i = 0; i < iterations; ++i) {
 		auto& d = diag::G();
 		committed.clear();
@@ -163,6 +165,7 @@ int main(int argc, char** argv) {
 		checkpointBuild.Add(d.frameMs[diag::OP_ROOM_CHECKPOINT_BUILD]);
 		const auto proposal = server.PendingProposal();
 		proposalBytes = proposal->encoded.size();
+		proposalMin = (std::min)(proposalMin, proposalBytes); proposalMax = (std::max)(proposalMax, proposalBytes);
 		const auto encoded = proposal->encoded;
 		d.OnOuterFrame(0.0);
 		t0 = diag::NowMs();
@@ -187,6 +190,16 @@ int main(int argc, char** argv) {
 	}
 	std::printf("RoomHostBench: 16 members, 4 tables, 100 chat messages, %d Ready/Unready commits\n", iterations);
 	std::printf("  proposal %zu bytes; live send %zu messages / %zu bytes per commit\n", proposalBytes, sentMessages, sentBytes);
+	{
+		// The encoded proposal crosses the pipe and Raft on every commit; the
+		// effect journal is most of it.
+		const auto& history = server.CommittedEffectHistory();
+		const auto withCopy = std::count_if(history.begin(), history.end(),
+			[](const session::EffectEnvelope& effect) { return !effect.publicPayload.is_null(); });
+		std::printf("  encoded proposal min=%zu max=%zu last=%zu bytes; effect journal %zu entries (%zu with a replay copy), %zu bytes\n",
+			proposalMax ? proposalMin : std::size_t(0), proposalMax, proposalBytes,
+			history.size(), static_cast<std::size_t>(withCopy), session::EffectJournalBytes(history));
+	}
 	std::printf(" owner (host game thread):\n");
 	step.Print("step"); broadcast.Print("  broadcast"); journal.Print("  journal");
 	propose.Print("propose"); checkpointBuild.Print("  checkpoint_build");

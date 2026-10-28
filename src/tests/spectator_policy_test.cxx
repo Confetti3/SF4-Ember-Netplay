@@ -23,11 +23,11 @@ int main() {
 		CHECK((policy.Handles() == std::vector<int>{1001}));
 	}
 	{
-		// At a tournament match's bound table the deadline is two seconds: a
-		// watcher that has not synchronized then is dropped, one that has is
-		// kept, and any other table keeps the five.
+		// At a tournament match's bound table the deadline is five seconds, as
+		// at any other table (it was two until 2026-10-23): a watcher that has
+		// not synchronized then is dropped, and one that has is kept.
 		CHECK(SpectatorPolicy::SyncDeadlineFor(false) == SpectatorPolicy::SyncDeadlineMs && SpectatorPolicy::SyncDeadlineMs == 5000);
-		CHECK(SpectatorPolicy::SyncDeadlineFor(true) == SpectatorPolicy::BoundSyncDeadlineMs && SpectatorPolicy::BoundSyncDeadlineMs == 2000);
+		CHECK(SpectatorPolicy::SyncDeadlineFor(true) == SpectatorPolicy::BoundSyncDeadlineMs && SpectatorPolicy::BoundSyncDeadlineMs == 5000);
 		SpectatorPolicy policy;
 		policy.Start(0, {1000, 1001}, SpectatorPolicy::SyncDeadlineFor(true));
 		policy.OnFighterSynchronized(1000);
@@ -207,7 +207,6 @@ int main() {
 		// At a tournament match's bound table the watcher gives up when P1 does.
 		CHECK(SpectatorPolicy::EntryGate(false, true, bound - 1, SpectatorPolicy::SyncDeadlineFor(true)) == Step::Wait);
 		CHECK(SpectatorPolicy::EntryGate(false, true, bound, SpectatorPolicy::SyncDeadlineFor(true)) == Step::SitOut);
-		CHECK(SpectatorPolicy::EntryGate(false, true, bound, SpectatorPolicy::SyncDeadlineFor(false)) == Step::Wait);
 	}
 	{
 		// A spectator client's own link: the stream ends once, exactly

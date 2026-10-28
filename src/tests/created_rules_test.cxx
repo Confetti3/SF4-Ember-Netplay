@@ -6,11 +6,10 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include "test_support.hxx"
 
 using namespace sf4e;
 using netplay::CreatedRules;
-static int failures = 0;
-#define CHECK(condition) do { if (!(condition)) { std::printf("FAIL line %d: %s\n", __LINE__, #condition); ++failures; } } while (false)
 
 namespace {
 room::Rules Chosen() {
@@ -30,7 +29,7 @@ struct Room {
 	bool canSend = true;
 	std::uint64_t nextActionId = 1;
 	Room() {
-		CHECK(authority.SetServerOwned());
+		EXPECT(authority.SetServerOwned());
 		creator = Join("emb1-creator", 1);
 		rules.Start(Chosen(), now);
 	}
@@ -38,7 +37,7 @@ struct Room {
 		room::MemberProfile profile;
 		profile.admission.account = account;
 		const auto joined = authority.Join(account, room::ConnectionRef{"host", std::to_string(peer)}, false, profile);
-		CHECK(joined.accepted);
+		EXPECT(joined.accepted);
 		return joined.accepted ? joined.snapshot.members.back().id : 0;
 	}
 	// One runtime tick: the action it sends, if any, as the client would queue it.
@@ -82,11 +81,11 @@ static void TestOneTableAtATime() {
 	Room room;
 	for (int table = 0; table < static_cast<int>(room::TableCount); ++table) {
 		const auto sent = room.Run(500);
-		CHECK(sent.size() == 1 && sent.front().table == table);
-		if (sent.size() == 1) CHECK(room.Apply(sent.front()));
+		EXPECT(sent.size() == 1 && sent.front().table == table);
+		if (sent.size() == 1) EXPECT(room.Apply(sent.front()));
 	}
-	CHECK(room.AllChosen());
-	CHECK(room.Run(5000).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
+	EXPECT(room.AllChosen());
+	EXPECT(room.Run(5000).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
 }
 
 // A seat taken before the action lands: refused as stale, sent again at the
@@ -95,67 +94,67 @@ static void TestOneTableAtATime() {
 static void TestStaleAndFenced() {
 	Room room;
 	auto sent = room.Run(100);
-	CHECK(sent.size() == 1 && room.Apply(sent.front()));
+	EXPECT(sent.size() == 1 && room.Apply(sent.front()));
 	sent = room.Run(100);
-	CHECK(sent.size() == 1 && sent.front().table == 1);
+	EXPECT(sent.size() == 1 && sent.front().table == 1);
 	const auto guest = room.Join("emb1-guest", 2);
-	CHECK(room.authority.Apply(guest, room.Made(guest, 1, room::ActionKind::Queue)).accepted);
-	CHECK(!room.Apply(sent.front()));
+	EXPECT(room.authority.Apply(guest, room.Made(guest, 1, room::ActionKind::Queue)).accepted);
+	EXPECT(!room.Apply(sent.front()));
 	const auto again = room.Run(100);
-	CHECK(again.size() == 1 && again.front().table == 1 && again.front().tableRevision == room.Table(1).revision);
-	CHECK(room.Apply(again.front()));
+	EXPECT(again.size() == 1 && again.front().table == 1 && again.front().tableRevision == room.Table(1).revision);
+	EXPECT(room.Apply(again.front()));
 	sent = room.Run(100);
-	CHECK(sent.size() == 1 && sent.front().table == 2);
+	EXPECT(sent.size() == 1 && sent.front().table == 2);
 	// Lost on its way; control is fenced for two seconds.
 	room.canSend = false;
-	CHECK(room.Run(2000).empty());
+	EXPECT(room.Run(2000).empty());
 	room.canSend = true;
 	const auto resent = room.Run(100);
-	CHECK(resent.size() == 1 && resent.front().table == 2);
-	CHECK(room.Apply(resent.front()));
+	EXPECT(resent.size() == 1 && resent.front().table == 2);
+	EXPECT(room.Apply(resent.front()));
 	sent = room.Run(100);
-	CHECK(sent.size() == 1 && sent.front().table == 3 && room.Apply(sent.front()));
-	CHECK(room.AllChosen() && room.Run(3000).empty());
+	EXPECT(sent.size() == 1 && sent.front().table == 3 && room.Apply(sent.front()));
+	EXPECT(room.AllChosen() && room.Run(3000).empty());
 }
 
 // Nothing is sent after the deadline, or once the creator is no longer host.
 static void TestDeadlineAndHostChange() {
 	{
 		Room room;
-		CHECK(room.Run(100).size() == 1);
+		EXPECT(room.Run(100).size() == 1);
 		room.Run(CreatedRules::DeadlineMs);
-		CHECK(!room.rules.Active() && std::string(room.rules.Ended()) == "deadline");
-		CHECK(room.Run(5000).empty());
+		EXPECT(!room.rules.Active() && std::string(room.rules.Ended()) == "deadline");
+		EXPECT(room.Run(5000).empty());
 	}
 	{
 		Room room;
 		auto sent = room.Run(100);
-		CHECK(sent.size() == 1 && room.Apply(sent.front()));
+		EXPECT(sent.size() == 1 && room.Apply(sent.front()));
 		const auto guest = room.Join("emb1-guest", 2);
-		CHECK(room.authority.TransferHost(room.creator, guest).accepted);
-		CHECK(room.Run(5000).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "room_changed");
+		EXPECT(room.authority.TransferHost(room.creator, guest).accepted);
+		EXPECT(room.Run(5000).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "room_changed");
 	}
 	{
 		// Someone else moderates: nothing is sent at all.
 		room::RoomAuthority authority("Open Mic", 8, 9, room::PublicRoomRules());
-		CHECK(authority.SetServerOwned());
+		EXPECT(authority.SetServerOwned());
 		room::MemberProfile first, second;
 		first.admission.account = "emb1-first"; second.admission.account = "emb1-creator";
-		CHECK(authority.Join("First", room::ConnectionRef{"host", "1"}, false, first).accepted);
+		EXPECT(authority.Join("First", room::ConnectionRef{"host", "1"}, false, first).accepted);
 		const auto joined = authority.Join("Creator", room::ConnectionRef{"host", "2"}, false, second);
 		CreatedRules rules;
 		rules.Start(Chosen(), 0);
 		room::Action action;
-		CHECK(!rules.Next(authority.SnapshotFor(joined.snapshot.members.back().id), true, 0, action));
-		CHECK(!rules.Active() && std::string(rules.Ended()) == "not_host");
+		EXPECT(!rules.Next(authority.SnapshotFor(joined.snapshot.members.back().id), true, 0, action));
+		EXPECT(!rules.Active() && std::string(rules.Ended()) == "not_host");
 	}
 	{
 		// Never admitted: it does not wait for ever.
 		CreatedRules rules;
 		rules.Start(Chosen(), 0);
 		room::Action action;
-		CHECK(!rules.Next(room::Snapshot(), true, CreatedRules::JoinMs - 1, action) && rules.Active());
-		CHECK(!rules.Next(room::Snapshot(), true, CreatedRules::JoinMs, action) && !rules.Active());
+		EXPECT(!rules.Next(room::Snapshot(), true, CreatedRules::JoinMs - 1, action) && rules.Active());
+		EXPECT(!rules.Next(room::Snapshot(), true, CreatedRules::JoinMs, action) && !rules.Active());
 	}
 }
 
@@ -165,37 +164,37 @@ static void TestConfirmedTablesStayDone() {
 	{
 		Room room;
 		auto sent = room.Run(100);
-		CHECK(sent.size() == 1 && room.Apply(sent.front()));
+		EXPECT(sent.size() == 1 && room.Apply(sent.front()));
 		sent = room.Run(100);
-		CHECK(sent.size() == 1 && sent.front().table == 1);
+		EXPECT(sent.size() == 1 && sent.front().table == 1);
 		// Table 2's is still on its way when the host puts table 1 back.
 		auto back = room.Made(room.creator, 0, room::ActionKind::SetRules);
 		back.rules = room::PublicRoomRules();
-		CHECK(room.authority.Apply(room.creator, back).accepted && room.Table(0).rules == room::PublicRoomRules());
-		CHECK(room.Run(5000).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "edited");
-		CHECK(room.Table(0).rules == room::PublicRoomRules());
+		EXPECT(room.authority.Apply(room.creator, back).accepted && room.Table(0).rules == room::PublicRoomRules());
+		EXPECT(room.Run(5000).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "edited");
+		EXPECT(room.Table(0).rules == room::PublicRoomRules());
 	}
 	{
 		// The host's own SetRules, seen as they send it, ends it at once.
 		Room room;
-		CHECK(room.Run(100).size() == 1);
+		EXPECT(room.Run(100).size() == 1);
 		room.rules.ObservePlayer(room.Made(room.creator, 2, room::ActionKind::SetRules));
-		CHECK(!room.rules.Active() && room.Run(5000).empty());
+		EXPECT(!room.rules.Active() && room.Run(5000).empty());
 	}
 	{
 		// A pending table set by hand to something else ends it too.
 		Room room;
-		CHECK(room.Run(100).size() == 1);
+		EXPECT(room.Run(100).size() == 1);
 		auto own = room.Made(room.creator, 3, room::ActionKind::SetRules);
 		own.rules.format = room::SetFormat::Ft5;
-		CHECK(room.authority.Apply(room.creator, own).accepted);
-		CHECK(room.Run(5000).empty() && room.Table(3).rules.format == room::SetFormat::Ft5);
+		EXPECT(room.authority.Apply(room.creator, own).accepted);
+		EXPECT(room.Run(5000).empty() && room.Table(3).rules.format == room::SetFormat::Ft5);
 	}
 	{
 		// Rules equal to the default need nothing sent.
 		Room room;
 		room.rules.Start(room::PublicRoomRules(), room.now);
-		CHECK(room.Run(1000).empty() && std::string(room.rules.Ended()) == "done");
+		EXPECT(room.Run(1000).empty() && std::string(room.rules.Ended()) == "done");
 	}
 }
 
@@ -204,7 +203,7 @@ int main() {
 	TestStaleAndFenced();
 	TestDeadlineAndHostChange();
 	TestConfirmedTablesStayDone();
-	if (failures) return 1;
+	if (TEST_FAILURES()) return 1;
 	std::puts("CreatedRules test passed");
 	return 0;
 }

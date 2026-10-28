@@ -23,8 +23,9 @@ use crate::{
     auth::{self, Role, Service},
     ctx::Ctx,
     error::{ApiFailure, Result},
+    events::Viewer,
     http::{Body, GENERAL_BODY, ok},
-    routes::{ledger::load, matches::service_viewer, play::room::peek, policy, sessions::Nothing},
+    routes::{ledger::load, play::room::peek, policy, sessions::Nothing},
 };
 
 /// What a route's path names, and the connection that owns it.
@@ -72,7 +73,7 @@ impl Scope {
 /// not exist.
 fn standing(tx: &Transaction<'_>, service: &Service, scope: Scope) -> Result<Resolved> {
     let resolved = scope.resolve(tx)?;
-    if !service_viewer(service)?.sees(&resolved.tenant_id, &resolved.connection_id) {
+    if !Viewer::of_service(service)?.sees(&resolved.tenant_id, &resolved.connection_id) {
         return Err(ApiFailure::not_found());
     }
     Ok(resolved)

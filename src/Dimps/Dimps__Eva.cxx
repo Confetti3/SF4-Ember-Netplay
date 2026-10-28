@@ -87,44 +87,8 @@ size_t IEmTaskFunctor::GetDescendantFunctorSizeByVtable(DWORD functorVtable) {
 	}
 }
 
-DWORD* Task::Get0x8(Task* t) {
-	return (DWORD*)((unsigned int)t + 0x8);
-}
-
-DWORD* Task::GetFlags(Task* t) {
-	return (DWORD*)((unsigned int)t + 0x4);
-}
-
-DWORD* Task::GetPhase(Task* t) {
-	return (DWORD*)((unsigned int)t + 0x2c);
-}
-
 DWORD* Task::GetState(Task* t) {
 	return (DWORD*)((unsigned int)t + 0x28);
-}
-
-IEmTaskFunctor** Task::GetCancelFunctor(Task* t) {
-	return (IEmTaskFunctor**)((unsigned int)t + 0x18);
-}
-
-Task** Task::GetNext(Task* t) {
-	return (Task**)((unsigned int)t + 0x20);
-}
-
-Task** Task::GetPrevious(Task* t) {
-	return (Task**)((unsigned int)t + 0x1c);
-}
-
-int* Task::GetPriority(Task* t) {
-	return (int*)((unsigned int)t + 0xc);
-}
-
-void** Task::GetTaskData(Task* t) {
-	return (void**)((unsigned int)t + 0x30);
-}
-
-IEmTaskFunctor** Task::GetWorkFunctor(Task* t) {
-	return (IEmTaskFunctor**)((unsigned int)t + 0x14);
 }
 
 void TaskCore::Locate(HMODULE peRoot) {
@@ -136,18 +100,6 @@ void TaskCore::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetNumUsed) = (PVOID)(peRootOffset + 0x28ecf0);
 	*(PVOID*)(&publicMethods.GetTaskName) = (PVOID)(peRootOffset + 0x2d55c0);
 	*(PVOID*)(&publicMethods.ReclaimCancelledTasks) = (PVOID)(peRootOffset + 0x2d5cf0);
-}
-
-Task** TaskCore::GetTaskBuffer(TaskCore* c) {
-	return *(Task***)((unsigned int)c + 0x38);
-}
-
-size_t* TaskCore::GetTaskDataSize(TaskCore* c) {
-	return (size_t*)((unsigned int)c + 0x24);
-}
-
-Task* TaskCore::GetTaskHead(TaskCore* c) {
-	return *(Task**)((unsigned int)c + 0x48);
 }
 
 void TaskCoreRegistry::Locate(HMODULE peRoot) {

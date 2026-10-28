@@ -222,6 +222,12 @@ struct SelectionArt::Impl {
     std::deque<Job> jobs;
     std::deque<Pixels> completed;
     std::map<std::string, Entry> entries;
+    // The keys a request is built in, kept from one request to the next:
+    // screens request every visible image on every frame, and the same
+    // strings are then made without an allocation. imageKey names the
+    // packaged file (ImagePaths), requestKey the entry asked for. Used only
+    // on the drawing thread, and a request's key is read only until it returns.
+    std::string imageKey, requestKey;
     bool stop = false;
     std::thread worker;
     std::uint64_t frame = 0;
@@ -409,7 +415,7 @@ void SelectionArt::Pump() {
 SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
     const auto* fighter = selection::FindFighter(fighterId);
     if (!fighter) return {};
-    const std::string key = std::string(fighter->code) + "/portrait";
+    const std::string& key = impl_->imageKey.assign(fighter->code).append("/portrait");
     const auto paths = [&] {
         auto list = impl_->ImagePaths(key);
         const std::wstring code(fighter->code, fighter->code + 3);
@@ -423,12 +429,12 @@ SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
         return list;
     };
     Impl::Policy portrait; portrait.cropToContent = portrait.reportAbsence = true;
-    return impl_->Request(key + (large ? "-large" : "-thumb"), paths, large ? MaximumImageSide : ThumbnailSide, portrait);
+    return impl_->Request(impl_->requestKey.assign(key).append(large ? "-large" : "-thumb"), paths, large ? MaximumImageSide : ThumbnailSide, portrait);
 }
 SelectionImage SelectionArt::Appearance(int fighterId, int costume, int color) {
     const auto* fighter = selection::FindFighter(fighterId);
     if (!fighter || !selection::ColorInRange(fighterId, costume, color)) return {};
-    const std::string key = std::string(fighter->code) + "/costume-" + std::to_string(costume) + "/color-" + std::to_string(color);
+    const std::string& key = impl_->imageKey.assign(fighter->code).append("/costume-").append(std::to_string(costume)).append("/color-").append(std::to_string(color));
     if (selection::IsCustomCostume(costume) || selection::IsCustomColor(color))
         return impl_->Request(key, [&] { return impl_->CustomCostumePaths(fighter->code, costume, color); });
     const auto result = impl_->Request(key, [&] { return impl_->ImagePaths(key); });
@@ -439,7 +445,7 @@ SelectionImage SelectionArt::Appearance(int fighterId, int costume, int color) {
 SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
     const auto* fighter = selection::FindFighter(fighterId);
     if (!fighter || ultra < 0 || ultra > 1) return {};
-    const std::string key = std::string(fighter->code) + "/ultra-" + std::to_string(ultra);
+    const std::string& key = impl_->imageKey.assign(fighter->code).append("/ultra-").append(std::to_string(ultra));
     return impl_->Request(key, [&] { return impl_->ImagePaths(key); });
 }
 SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {

@@ -85,11 +85,10 @@ std::string ReportTime(std::int64_t time) {
     if(localtime_s(&local,&at)!=0||!std::strftime(text,sizeof(text),"%Y-%m-%d %H:%M",&local))return "-";
     return text;
 }
-// The width of the list: the whole window on a narrow one, else the left pane.
-float PublicListWidth() {
+}
+float ApplicationShell::PublicListWidth() {
     const float available=ImGui::GetContentRegionAvail().x;
     return available>=820*Scale()?available*.53f:available;
-}
 }
 std::string TrainingReadyText(int seconds) { return loc::Tf("room.training_call.ready_in",seconds); }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
@@ -176,7 +175,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
    if(profileSavePending_&&!preferencesDirty_){
-    profileSavePending_=false;error_.clear();notice_=loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name);noticeTone_=Tone::Success;noticeUntil_=ImGui::GetTime()+3;
+    profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name),Tone::Success,ImGui::GetTime()+3);
     if(nav.Screen()=="main-character")nav.Return();
    }
   }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
@@ -228,11 +227,11 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   rows[2].info=true;
   rows[1].value=selection::FindFighter(preferences_.mainFighter)->name;
   rows[2].value=record.available?loc::Tf("profile.record_value",record.wins,record.losses):loc::T("common.unavailable");
-  rows.push_back(Value("share-steam",loc::T("profile.share_steam"),preferences_.shareSteamProfile?loc::T("common.on"):loc::T("common.off"),loc::T("profile.share_steam_detail"),v.canEditPreferences));
+  rows.push_back(OnOffValue(preferences_,"share-steam",loc::T("profile.share_steam"),loc::T("profile.share_steam_detail"),v.canEditPreferences));
  }else if(screen=="main-character"){
   title=loc::T("profile.choose_main_title");
   for(const int id:selection::RosterDisplayOrder){rows.push_back(Row("main-"+std::to_string(id),selection::FindFighter(id)->name,v.canEditPreferences?loc::T("profile.choose_main_detail"):loc::T("profile.leave_room_to_edit"),v.canEditPreferences));
-   rows.back().hint=loc::T("menu.hint.save_main");}
+   rows.back().hint=loc::T("menu.hint.save_main");rows.back().key=static_cast<std::uint64_t>(id);}
  }else if(screen=="online"){
   // A room needs a controller and networking; a row blocked by one says which.
   const char* blocked=!v.controllerReady?loc::T("room.controller_required"):v.network==netplay::NetworkAvailability::Unavailable?loc::T("runtime.networking_unavailable"):nullptr;
@@ -253,11 +252,12 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    opening?ConfirmRow("cancel-open",loc::T("room.stop_joining_action"),loc::T("room.stop_joining"),true):Row("join-now",loc::T("online.join"),loc::T("room.join_pasted"),v.canOpenRoom&&invitation_[0]),
    TextRow("invite-text",loc::T("room.edit_invitation"),invitation_,sizeof(invitation_)-1,v.canOpenRoom)};
   rows[0].hint=loc::T("menu.hint.paste");if(!opening)rows[1].hint=loc::T("online.join");
- }else if(PublicRoomsPanel::Owns(screen)){
-  title=loc::T("screen.public_rooms");rows=publicRooms_.Rows(v,identity_.UsableBridge(v),identity_.Waiting(),identity_.PublicSetup(),PublicListWidth());
- }else if(RankingsPanel::Owns(screen)){rows=rankings_.Rows(v,screen,identity_.Waiting(),title);
+ }else if(const ScreenPanel* owner=OwnerOf(screen)){
+  // The panels' screens (public rooms, rankings, replays, Ember ID) build their own rows.
+  rows=owner->Rows(ScreenFrame{*this,v,screen},idle,title);
+  // A match link's row is focused once the matches screen lists it.
+  if(screen=="tournament-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
  }else if(screen.compare(0,4,"room")==0){title=v.room.name.empty()?loc::T("screen.room"):v.room.name;NoteUserText(v.room.name);rows=RoomEntries(v);
- }else if(ReplaysPanel::Owns(screen)){rows=replays_.Rows(v,screen,idle,title);
  }else if(screen=="settings"){
   title=loc::T("settings.title");rows={Row("player",loc::T("screen.player"),loc::T("settings.player_detail")),Row("defaults",loc::T("screen.defaults"),loc::T("settings.defaults_detail")),Row("interface",loc::T("settings.interface"),loc::T("settings.interface_detail")),Row("training-replays",loc::T("settings.training_replays"),loc::T("settings.training_replays_detail")),Row("discord",loc::T("screen.discord"),loc::T("settings.discord_detail")),
    Row("problem-reports",loc::T("reports.settings_title"),loc::T("reports.settings_detail")),Row("about",loc::T("home.about"),loc::T("home.about_detail"))};
@@ -269,7 +269,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="problem-reports"){
   // The setting's pane says what a report holds; Select reads it in full.
   title=loc::T("reports.settings_title");
-  auto send=Value("send-reports",loc::T("reports.setting"),preferences_.sendProblemReports?loc::T("common.on"):loc::T("common.off"),
+  auto send=OnOffValue(preferences_,"send-reports",loc::T("reports.setting"),
    loc::Tf("reports.setting_detail",reports::AutomaticPerDay)+"\n\n"+loc::T("reports.payload")+"\n\n"+loc::T("reports.what_is_sent"),v.canEditPreferences);
   send.reading=true;
   rows={send,Row("sent-reports",loc::T("reports.sent_list"),loc::T("reports.sent_list_detail"))};
@@ -295,40 +295,38 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   const char* hudSizes[]={loc::T("size.small"),loc::T("size.standard"),loc::T("size.large")};
   const auto languageValue=languagePreference_=="auto"?loc::Tf("settings.language.system_with",loc::NativeName(loc::Active())):
    std::string(loc::NativeName(loc::ResolveLocale(languagePreference_,{},{})));
-  rows={Value("hud",loc::T("settings.match_hud"),preferences_.showMatchHud?loc::T("common.on"):loc::T("common.off"),reason,v.canEditPreferences),
+  rows={OnOffValue(preferences_,"hud",loc::T("settings.match_hud"),reason,v.canEditPreferences),
    Value("hud-layout",loc::T("settings.match_hud_layout"),MatchStripLayoutName(preferences_.matchHudLayout),loc::T("settings.match_hud_layout_detail"),v.canEditPreferences),
    Value("hud-name-offset",loc::T("settings.name_offset"),MatchHudNameOffsetText(preferences_.matchHudNameOffset),loc::T("settings.name_offset_detail"),v.canEditPreferences&&preferences_.matchHudLayout==1),
    Value("hud-size",loc::T("settings.match_hud_size"),hudSizes[(std::max)(0,(std::min)(2,preferences_.matchHudSize))],loc::T("settings.match_hud_size_detail"),v.canEditPreferences),
    Value("hud-position",loc::T("settings.match_hud_position"),MatchStripAnchorName(preferences_.matchHudAnchor),loc::T("settings.match_hud_position_detail"),v.canEditPreferences),
    Value("hud-spacing",loc::T("settings.edge_spacing"),preferences_.matchHudRaised?loc::T("spacing.raised"):loc::T("spacing.normal"),loc::T("settings.edge_spacing_detail"),v.canEditPreferences),
-   Value("ready-sound",loc::T("settings.ready_sound"),preferences_.readySound?loc::T("common.on"):loc::T("common.off"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"ready-sound",loc::T("settings.ready_sound"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
-   Value("shortcut-hint",loc::T("settings.shortcut_hint"),preferences_.showShortcutHint?loc::T("common.on"):loc::T("common.off"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
-   Value("class-emblems",loc::T("settings.class_emblems"),preferences_.classEmblems?loc::T("common.on"):loc::T("common.off"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"shortcut-hint",loc::T("settings.shortcut_hint"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"class-emblems",loc::T("settings.class_emblems"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),
    Value("language",loc::T("settings.language"),languageValue,languageSaveError_.empty()?std::string(loc::T("settings.language.detail")):languageSaveError_,true)};
   // Select lists the languages by their own names; browsing them changes nothing.
   rows.back().choices=LanguageChoices();rows.back().chosen=languagePreference_;
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
-  rows={Value("match-frame-meter",loc::T("settings.match_frame_meter"),preferences_.matchFrameMeter?loc::T("common.on"):loc::T("common.off"),
+  rows={OnOffValue(preferences_,"match-frame-meter",loc::T("settings.match_frame_meter"),
     loc::T(match_frame_meter::Allowed(v.room.serverOwned)?"settings.match_frame_meter_detail":"settings.match_frame_meter_private"),v.canEditPreferences),
-   Value("training-auto-ready",loc::T("settings.training_auto_ready"),preferences_.trainingAutoReady?loc::T("common.on"):loc::T("common.off"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
-   Value("replay-save-watched",loc::T("replays.save_watched"),preferences_.recordWatched?loc::T("common.on"):loc::T("common.off"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
-   Value("replay-share",loc::T("replays.share"),preferences_.shareReplays?loc::T("common.on"):loc::T("common.off"),loc::T("replays.share_detail"),v.canEditPreferences)};
+   OnOffValue(preferences_,"training-auto-ready",loc::T("settings.training_auto_ready"),loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),v.canEditPreferences),
+   OnOffValue(preferences_,"replay-save-watched",loc::T("replays.save_watched"),loc::T("replays.save_watched_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"replay-share",loc::T("replays.share"),loc::T("replays.share_detail"),v.canEditPreferences),
+   OnOffValue(preferences_,"watched-picture",loc::T("settings.watched_picture"),loc::T("settings.watched_picture_detail"),v.canEditPreferences)};
  }else if(screen=="discord"){
-  title=loc::T("discord.title");rows={Value("presence",loc::T("discord.show_activity"),preferences_.discordPresence?loc::T("common.on"):loc::T("common.off"),v.discordStatus,v.canEditPreferences),
-   Value("invites",loc::T("discord.allow_invitations"),preferences_.discordInvites?loc::T("common.on"):loc::T("common.off"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
+  title=loc::T("discord.title");rows={OnOffValue(preferences_,"presence",loc::T("discord.show_activity"),v.discordStatus,v.canEditPreferences),
+   OnOffValue(preferences_,"invites",loc::T("discord.allow_invitations"),preferences_.discordPresence?loc::T("discord.invitation_detail"):loc::T("discord.enable_first"),v.canEditPreferences&&preferences_.discordPresence),
    // The account tournaments use, which may not be the one in the Discord app.
    identity_.TournamentAccountRow(v)};
  }else if(screen=="discord-invitation"){
   title=loc::T("discord.invitation_title");rows={Row("invite-cancel",loc::T("discord.cancel_invitation"),loc::T("discord.cancel_invitation_detail"))};
   if(v.discordConfirm)rows.push_back(ConfirmRow("invite-switch",loc::T("discord.switch_room"),v.discordCanSwitch?loc::T("discord.switch_room_detail"):loc::T("discord.wait_game"),v.discordCanSwitch));
   else rows.push_back(Row("invite-wait",loc::T("discord.invitation_pending"),loc::T("discord.invitation_pending_detail"),false));
- }else if(IdentityPanel::Owns(screen)){
-  rows=identity_.Rows(v,screen,title);
-  if(screen=="tournament-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
@@ -450,9 +448,12 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // The failed language save is about the row on the Interface screen, so it
  // speaks there only, and every other report below outranks it.
  if(!languageSaveError_.empty()&&screen=="interface"){status=languageSaveError_;statusTone=Tone::Error;}
- if(IdentityPanel::Owns(screen)){std::string own;Tone ownTone=Tone::Neutral;if(identity_.Status(own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
- if(PublicRoomsPanel::Owns(screen)||screen=="create"){std::string own=status;Tone ownTone=statusTone;if(publicRooms_.Status(v,screen,own,ownTone,ImGui::GetTime())){status=own;statusTone=ownTone;}}
- if(RankingsPanel::Owns(screen)){std::string own=status;Tone ownTone=statusTone;if(rankings_.Status(v,screen,own,ownTone)){status=own;statusTone=ownTone;}}
+ // The panel that owns the screen has its say here, under every report below.
+ // Create is the shell's screen, but its line also says how a public room
+ // being created stands, which the public rooms panel knows.
+ const ScreenPanel* owner=OwnerOf(screen);
+ if(!owner&&screen=="create")owner=OwnerOf("public-rooms");
+ if(owner)owner->Status(ScreenFrame{*this,v,screen},status,statusTone);
  if(v.controllerUnavailable){status=loc::T(v.session.room==RoomState::Idle?"controller.disconnected":"controller.disconnected_room");statusTone=Tone::Error;}
  if(v.session.room==RoomState::Opening&&v.session.openingStalled){status=loc::T("room.opening_stalled");statusTone=Tone::Error;}
  const std::string sessionProblem=SessionProblem(v.session);
@@ -476,7 +477,6 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
      ((!RoomActionsAvailable(v)&&!RoomCheckpointPending(v))||(roomUpdateVisible_&&!seatedTableStatus)) && !committedMatchStatus &&
      !v.controllerUnavailable&&sessionProblem.empty()&&v.error.empty()&&error_.empty())))
   {status=RoomWaitReason(v);statusTone=Tone::Pending;}
- if(ReplaysPanel::Owns(screen))replays_.Status(v,screen,status,statusTone);
  return {status,statusTone};
 }
 void ApplicationShell::PublishPlayerCard(const ShellView& v) {
@@ -492,17 +492,9 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
- // The retry row a failed save adds to every screen stays the shell's.
- if(IdentityPanel::Owns(screen)&&a.id!="retry-save"){identity_.Activate(a,v,nav);return;}
- if(PublicRoomsPanel::Owns(screen)){
-  if(a.id=="pr-quick"){QuickJoin(v);return;}
-  // The confirmed setup runs in the Ember ID panel; a locked ID is unlocked on its own screen first.
-  if(a.id=="pr-setup"){identity_.SetUpPublicRooms(v);error_.clear();return;}
-  if(a.id=="pr-setup-id"){identity_.ClearPublicSetup();nav.Push("identity");return;}
-  if(publicRooms_.Activate(a,nav))return;
- }
- if(RankingsPanel::Owns(screen)){if(a.id==DiscordConnectScreen){identity_.Activate(a,v,nav);return;}if(rankings_.Activate(a,v,nav))return;}
- if(ReplaysPanel::Owns(screen)&&replays_.Activate(a,v,nav,submit,error_))return;
+ // The panel that owns the screen takes its own rows; a row it does not take
+ // goes on to the shell's below.
+ if(const ScreenPanel* owner=OwnerOf(screen))if(owner->Activate(ScreenFrame{*this,v,screen},a,submit))return;
  if(ControllerActivate(a,v,submit))return;
  // An opening room keeps its own screen, with its Stop row, until it joins.
  if(a.id=="online")nav.Push(idle?"online":v.session.room==RoomState::Opening?OpeningScreen(v):"room");
@@ -556,14 +548,15 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
 }
 void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const std::string& screen,const Submit& submit) {
  using namespace netplay;
+ const ScreenPanel* owner=OwnerOf(screen);
+ // The room's screens first, then the panel that owns the screen; what neither takes is the shell's.
  if(screen.compare(0,4,"room")==0)RoomAction(a,v,submit);
- else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
+ else if(owner&&owner->Adjust(ScreenFrame{*this,v,screen},a)){}
  else if(a.id=="invite-text")std::snprintf(invitation_,sizeof(invitation_),"%s",a.text.c_str());
  else if(a.id=="language")SetLanguage(std::string(loc::NextPreference(languagePreference_,a.delta)));
  else if(a.id=="launch-update-check")SetLaunchCheck(a.delta>0);
  else if(a.id=="channel"){if(!v.services.pending)channelPick_.Step(v.services.channel,a.delta);}
  else if(a.id=="country-search")countryPicker_.Search(a.text);
- else if(ReplaysPanel::Owns(screen))replays_.Accept(a);
  else if(CreateAdjust(a)){}
  else{
   auto prior=preferences_;
@@ -579,26 +572,10 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="hud-size")preferences_.matchHudSize=(std::max)(0,(std::min)(2,preferences_.matchHudSize+a.delta));
   else if(a.id=="hud-position")preferences_.matchHudAnchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,preferences_.matchHudAnchor+a.delta));
   else if(a.id=="hud-spacing")preferences_.matchHudRaised=a.delta>0;
-  else if(a.id=="ready-sound")preferences_.readySound=a.delta>0;
-  else if(a.id=="class-emblems")preferences_.classEmblems=a.delta>0;
-  else if(a.id=="training-auto-ready")preferences_.trainingAutoReady=a.delta>0;
-  else if(a.id=="match-frame-meter")preferences_.matchFrameMeter=a.delta>0;
-  else if(a.id=="background-play")preferences_.backgroundPlay=a.delta>0;
-  else if(a.id=="lower-input-lag")preferences_.lowerInputLag=a.delta>0;
-  else if(a.id=="lower-keyboard-lag")preferences_.lowerKeyboardLag=a.delta>0;
+  else if(AdjustOnOff(preferences_,a.id,a.delta)){}
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
-  else if(a.id=="faster-display")preferences_.fasterDisplay=a.delta>0;
-  else if(a.id=="borderless")preferences_.borderless=a.delta>0;
-  else if(a.id=="game-reads-pads")preferences_.controllerLayer=a.delta<0;
-  else if(a.id=="replay-save-watched")preferences_.recordWatched=a.delta>0;
-  else if(a.id=="replay-share")preferences_.shareReplays=a.delta>0;
-  else if(a.id=="share-steam")preferences_.shareSteamProfile=a.delta>0;
   else if(a.id=="ready-volume")preferences_.readySoundVolume=(std::max)(10,(std::min)(100,preferences_.readySoundVolume+10*a.delta));
   else if(a.id=="scale")preferences_.interfaceScale=(std::max)(1.f,(std::min)(1.5f,preferences_.interfaceScale+.05f*a.delta));
-  else if(a.id=="shortcut-hint")preferences_.showShortcutHint=a.delta>0;
-  else if(a.id=="hud")preferences_.showMatchHud=a.delta>0;else if(a.id=="presence")preferences_.discordPresence=a.delta>0;
-  else if(a.id=="invites")preferences_.discordInvites=a.delta>0;
-  else if(a.id=="send-reports")preferences_.sendProblemReports=a.delta>0;
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
@@ -742,11 +719,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  identity_.Update(v,nav.Screen(),submit,now);
  publicRooms_.Update(v,nav.Screen(),identity_.UsableBridge(v),identity_.Waiting(),submit,now);
  UpdatePublicBridge(v,nav.Screen());
- {std::string said;if(publicRooms_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ {std::string said;if(publicRooms_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  rankings_.Update(v,nav.Screen(),identity_.UsableBridge(v),RankingsPanel::OwnListing(preferences_,v.automaticCountry),submit);
- {std::string said;if(rankings_.TakeSaid(said)){notice_=said;noticeTone_=Tone::Error;noticeUntil_=now+6;}}
+ {std::string said;if(rankings_.TakeSaid(said)){ShowNotice(said,Tone::Error,now+6);}}
  // The setup finished while the player waited or looked away: say so once, and the list is already on its way.
- if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();notice_=loc::T("public.setup_done");noticeTone_=Tone::Success;noticeUntil_=now+4;}
+ if(identity_.PublicSetup().step==PublicSetupStep::Done){identity_.ClearPublicSetup();ShowNotice(loc::T("public.setup_done"),Tone::Success,now+4);}
  // A tournament match that ended is announced wherever the player is: the
  // room it was played in closes with it.
  if(v.tournament.phase!=tournamentPhase_){
@@ -754,11 +731,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // One ended for a lost connection says so in the same words on both sides:
   // the tournament is setting up a new match, which Ember does not start itself.
   if(v.tournament.phase==Phase::Finished&&v.tournament.reason==netplay::tournament::ConnectionLostReason){
-   notice_=loc::T("tournament.connection_lost_notice");noticeTone_=Tone::Pending;noticeUntil_=now+30;
+   ShowNotice(loc::T("tournament.connection_lost_notice"),Tone::Pending,now+30);
   }
-  else if(v.tournament.phase==Phase::Finished){notice_=loc::T("tournament.done_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;}
+  else if(v.tournament.phase==Phase::Finished){ShowNotice(loc::T("tournament.done_notice"),Tone::Success,now+12);}
   else if(v.tournament.phase==Phase::Failed){
-   notice_=loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason));noticeTone_=Tone::Error;noticeUntil_=now+20;
+   ShowNotice(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,now+20);
   }
   tournamentPhase_=v.tournament.phase;
  }
@@ -767,9 +744,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   using netplay::tournament::WatchNotice;
   watchNoticeSequence_=v.tournament.watch.noticeSequence;
   switch(v.tournament.watch.notice){
-  case WatchNotice::Finished:notice_=loc::T("tournament.watch.finished_notice");noticeTone_=Tone::Success;noticeUntil_=now+12;break;
-  case WatchNotice::Removed:notice_=loc::T("tournament.watch.removed_notice");noticeTone_=Tone::Error;noticeUntil_=now+20;break;
-  case WatchNotice::RoomClosed:notice_=loc::T("tournament.watch.room_closed_notice");noticeTone_=Tone::Pending;noticeUntil_=now+12;break;
+  case WatchNotice::Finished:ShowNotice(loc::T("tournament.watch.finished_notice"),Tone::Success,now+12);break;
+  case WatchNotice::Removed:ShowNotice(loc::T("tournament.watch.removed_notice"),Tone::Error,now+20);break;
+  case WatchNotice::RoomClosed:ShowNotice(loc::T("tournament.watch.room_closed_notice"),Tone::Pending,now+12);break;
   default:break;
   }
  }
@@ -789,7 +766,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // A match newly assigned is announced outside a room, so the player never
  // has to go looking for it.
  if(v.session.room==RoomState::Idle&&identity_.TakeAssigned(v)){
-  notice_=loc::T("tournament.assigned_notice");noticeTone_=Tone::Success;noticeUntil_=now+15;
+  ShowNotice(loc::T("tournament.assigned_notice"),Tone::Success,now+15);
  }
  // A Discord connect link opens Connect Discord for its service, where the
  // player decides. In a room it waits until the room closes.
@@ -797,7 +774,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   connectLinkSequence_=v.tournament.connect.sequence;pendingConnect_=v.tournament.connect.bridge;
   // In a room the link waits, and so is no longer fresh when it opens.
   if(v.session.room!=RoomState::Idle)pendingConnectStale_=true;
-  if(v.session.room!=RoomState::Idle){notice_=loc::T("connect.link_waiting");noticeTone_=Tone::Pending;noticeUntil_=now+15;}
+  if(v.session.room!=RoomState::Idle){ShowNotice(loc::T("connect.link_waiting"),Tone::Pending,now+15);}
  }
  if(!pendingConnect_.empty()&&v.session.room==RoomState::Idle){
   // A link the player just clicked goes on by itself; one that arrived
@@ -865,22 +842,21 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const int columns=screen=="main-character"?roster.columns:
   publicToolbar?(PublicListWidth()>=600*Scale()?4:2):1;
  GameMenu::Card portraits;
- // The public rooms' toolbar, room cards and state cards are drawn by PublicRoomsCards; the rest stay plain rows.
- // The cards get the setup and each card's phase from the panels that own them, not from the rows.
- const PublicSetupView publicSetup=PublicRoomsPanel::Owns(screen)?identity_.PublicSetup():PublicSetupView{};
+ // The panel that owns the screen paints its rows (public rooms' toolbar and
+ // cards, the rankings) and its detail pane; the shell's screens stay plain rows.
+ const ScreenPanel* owner=OwnerOf(screen);
+ const ScreenFrame frame{*this,v,screen};
  menu_.cardRounding=0;menu_.compactDetailLines=0;menu_.wideListShare=screen=="main-character"?roster.listShare:.53f;
  if(PublicRoomsPanel::Owns(screen)){
   menu_.cardRounding=PublicCardRounding;
   // With the toolbar and the cards to show, a narrow layout gives them the screen, not the detail text.
   menu_.compactDetailLines=publicToolbar?2:0;
-  portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
-   return DrawPublicCard(v,publicRooms_,publicSetup,publicRooms_.PhaseOf(e.id),e,min,max,e.id==menu_.navigation.Focus(),now);};
  }
- if(RankingsPanel::Owns(screen))portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return DrawRankingsRow(v,e,min,max);};
+ if(owner)portraits=owner->Card(frame,now);
  if(screen==CountryPicker::Screen)portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return countryPicker_.DrawRow(e,v.automaticCountry,min,max);};
  if(screen=="main-character")portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){
   if(e.id.compare(0,5,"main-")!=0)return false;
-  const int id=std::stoi(e.id.substr(5));DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
+  const int id=static_cast<int>(e.key);DrawMainPortrait(id,id==v.preferences.mainFighter,min,max);return true;
  };
  GameMenu::Detail profilePreview;
  if(screen=="controllers")profilePreview=[&](const std::string& id){
@@ -892,7 +868,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const auto space=ImGui::GetContentRegionAvail();const float size=(std::min)(220*Scale(),(std::min)(space.x,space.y-12*Scale()));
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
- if(PublicRoomsPanel::Owns(screen))profilePreview=[&](const std::string& id){DrawPublicPreview(v,publicRooms_,id);};
+ if(owner)profilePreview=owner->Detail(frame);
  GameMenu::Body board;
  if(screen=="interface")profilePreview=[&](const std::string&){
   ImGui::TextUnformatted(loc::T("settings.preview"));
@@ -953,15 +929,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // behind it is locked there, so Ember stays up (F10 can still hide it).
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
+  // In a room its shortcuts work from every screen, before any panel's.
   if(inRoom)RoomShortcut(a,v);
-  else if(PublicRoomsPanel::Owns(screen))publicRooms_.Shortcut(a,v);
-  else if(RankingsPanel::Owns(screen))rankings_.Shortcut(a);
+  else if(owner)owner->Shortcut(frame,a);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
-  else if(IdentityPanel::Owns(screen))identity_.Accept(a,v);
-  else if(PublicRoomsPanel::Owns(screen))publicRooms_.Choose(a);
+  else if(owner&&owner->Choose(frame,a,submit)){}
   else if(a.id=="language")SetLanguage(a.text);
-  else if(ReplaysPanel::Owns(screen))replays_.Choose(a,v,menu_.navigation,submit,error_);
   else if(screen=="controllers")HandleActivate(a,v,screen,idle,submit);
  }else if(a.kind==MenuAction::Activate){
   HandleActivate(a,v,screen,idle,submit);

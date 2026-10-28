@@ -414,6 +414,14 @@ void SortJourney(){
  // The order does not wobble from one refresh to the next.
  j.List({Placed("p","use1",2,8,10),Placed("n","use1",2,8,20),Placed("x","euc1",1,8,5),Placed("m","use1",5,8,9),Placed("f","use1",4,4,6),Placed("l","use1",1,8,7,true)});
  Check(Shown(j)=="pnmxlf","The same rooms in another bridge order were sorted differently");
+ // The order is kept between frames for one refresh, but what the list holds decides it: rooms
+ // changed under the same refresh count are sorted again, and a new count with the same rooms
+ // keeps the order.
+ for(auto& room:h.view.publicRooms.rooms)if(room.id=="n")room.members=7;
+ h.Frame(0,2);
+ Check(Shown(j)=="pmnxlf",(std::string("A room that filled up under the same refresh kept its place: ")+Shown(j)).c_str());
+ ++h.view.publicRooms.listed;h.Frame(0,2);
+ Check(Shown(j)=="pmnxlf","A new refresh count with the same rooms changed the order");
 }
 
 // Quick join asks for the first room that can be joined, in the player's region when

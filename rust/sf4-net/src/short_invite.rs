@@ -254,9 +254,12 @@ fn client() -> Option<&'static reqwest::Client> {
             .with_root_certificates(roots)
             .with_no_client_auth();
             tls.alpn_protocols = vec![b"http/1.1".to_vec()];
+            // Sealed records are small and random, so compression gains
+            // nothing; without it the body read is the body sent.
             reqwest::Client::builder()
                 .tls_backend_preconfigured(tls)
                 .http1_only()
+                .no_gzip()
                 .redirect(reqwest::redirect::Policy::none())
                 .connect_timeout(CONNECT_TIMEOUT)
                 .timeout(REQUEST_TIMEOUT)
@@ -299,7 +302,7 @@ pub async fn publish(
 
 /// Fetches and opens the record for `keys`.
 pub async fn fetch(service: &str, keys: &Keys) -> Result<String, ShortError> {
-    let response = client()
+    let mut response = client()
         .ok_or(ShortError::Unavailable)?
         .get(format!("{service}{}", keys.locator_text()))
         .send()
@@ -316,10 +319,19 @@ pub async fn fetch(service: &str, keys: &Keys) -> Result<String, ShortError> {
     {
         return Err(ShortError::Malformed);
     }
-    let sealed = response
-        .bytes()
+    // Read in chunks and stop past the bound, so a body without a length
+    // (chunked) cannot grow without one either.
+    let mut sealed = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|_| ShortError::Unavailable)?;
+        .map_err(|_| ShortError::Unavailable)?
+    {
+        if sealed.len() + chunk.len() > MAX_SEALED_BYTES {
+            return Err(ShortError::Malformed);
+        }
+        sealed.extend_from_slice(&chunk);
+    }
     let plaintext = open(keys, &sealed).ok_or(ShortError::Malformed)?;
     String::from_utf8(plaintext).map_err(|_| ShortError::Malformed)
 }
@@ -485,5 +497,52 @@ mod tests {
         assert!(!loopback_service("https://example.com/s/v1/"));
         assert!(!loopback_service("http://127.0.0.1.example.com/s/v1/"));
         assert!(!loopback_service("http://192.168.1.2:80/"));
+    }
+
+    /// A record sent without a length (chunked) is read up to the bound and
+    /// no further, and the request never offers a compressed answer, so the
+    /// bytes counted are the bytes the service sent.
+    #[tokio::test]
+    async fn a_record_without_a_length_is_held_to_the_bound() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let keys = derive("7K3M0X1RT9PZ").unwrap();
+        let sealed = seal(&keys, b"sf4e3:chunked").unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let service = format!("http://{}/s/v1/", listener.local_addr().unwrap());
+        let offered_gzip = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let offered = offered_gzip.clone();
+        let bodies = [sealed.clone(), vec![b'x'; MAX_SEALED_BYTES + 1]];
+        tokio::spawn(async move {
+            for body in bodies {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                let mut buffer = [0; 1024];
+                while !request.windows(4).any(|end| end == b"\r\n\r\n") {
+                    match socket.read(&mut buffer).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(read) => request.extend_from_slice(&buffer[..read]),
+                    }
+                }
+                if String::from_utf8_lossy(&request)
+                    .to_ascii_lowercase()
+                    .contains("gzip")
+                {
+                    offered.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                let mut answer =
+                    b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n"
+                        .to_vec();
+                for part in body.chunks(body.len() / 2 + 1) {
+                    answer.extend_from_slice(format!("{:x}\r\n", part.len()).as_bytes());
+                    answer.extend_from_slice(part);
+                    answer.extend_from_slice(b"\r\n");
+                }
+                answer.extend_from_slice(b"0\r\n\r\n");
+                let _ = socket.write_all(&answer).await;
+            }
+        });
+        assert_eq!(fetch(&service, &keys).await.unwrap(), "sf4e3:chunked");
+        assert_eq!(fetch(&service, &keys).await, Err(ShortError::Malformed));
+        assert!(!offered_gzip.load(std::sync::atomic::Ordering::SeqCst));
     }
 }

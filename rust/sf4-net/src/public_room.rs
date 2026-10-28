@@ -10,7 +10,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     io,
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use ember_protocol::{
@@ -22,6 +21,7 @@ use iroh::{Endpoint, EndpointAddr, EndpointId, endpoint::Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    identity::unix_now,
     invite::{Invite, RoomProof},
     transport::{self, ControlChannel},
 };
@@ -81,10 +81,7 @@ pub(crate) fn hex(bytes: &[u8]) -> String {
 }
 
 fn now() -> io::Result<u64> {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_secs())
-        .map_err(|_| refused())
+    unix_now().ok_or_else(refused)
 }
 
 /// A member's seat: the account the endpoint was admitted with and, once the
@@ -177,9 +174,11 @@ impl AdmissionPolicy {
         held: &BTreeMap<EmberId, EndpointId>,
     ) -> io::Result<bool> {
         let endpoint = remote.to_string();
-        let rejoining = self.members.get(&remote).is_some_and(|seat| {
-            seat.incarnation.is_some() && seat.account == ticket.ember_id
-        }) && ticket.room_id == room
+        let rejoining = self
+            .members
+            .get(&remote)
+            .is_some_and(|seat| seat.incarnation.is_some() && seat.account == ticket.ember_id)
+            && ticket.room_id == room
             && ticket.endpoint_id == endpoint;
         let welcome = rejoining
             || (ticket.admits(room, &endpoint, now)
@@ -200,15 +199,7 @@ impl AdmissionPolicy {
     pub fn is_banned(&self, account: &EmberId) -> bool {
         self.banned.contains(account)
     }
-}
 
-/// A public room's host side: the key its tickets verify under and the
-/// accounts it has banned for the room's life.
-pub(crate) struct PublicHost {
-    policy: AdmissionPolicy,
-}
-
-impl PublicHost {
     /// `ticket_key` is the bridge's public key as `/v1/signing-keys` publishes
     /// it (43 characters of unpadded base64url); `creator` is the Ember ID the
     /// room was created for. `None` when any field is malformed.
@@ -223,38 +214,20 @@ impl PublicHost {
         let kid_valid =
             !ticket_kid.is_empty() && ticket_kid.len() <= MAX_KID && ticket_kid.is_ascii();
         (kid_valid && is_prefixed_id(bridge_id, "brg")).then(|| Self {
-            policy: AdmissionPolicy {
-                key,
-                kid: ticket_kid.to_owned(),
-                bridge_id: bridge_id.to_owned(),
-                banned: Arc::new(BTreeSet::new()),
-                members: Arc::new(BTreeMap::new()),
-                creator,
-                opened: false,
-            },
+            key,
+            kid: ticket_kid.to_owned(),
+            bridge_id: bridge_id.to_owned(),
+            banned: Arc::new(BTreeSet::new()),
+            members: Arc::new(BTreeMap::new()),
+            creator,
+            opened: false,
         })
     }
 
+    /// A snapshot for an accept task. The seat and ban sets are shared copy
+    /// on write.
     pub fn policy(&self) -> AdmissionPolicy {
-        self.policy.clone()
-    }
-
-    /// The decision on a verified `ticket` against the room's current state,
-    /// for `remote` at `now`; see `AdmissionPolicy::decide`.
-    pub fn decide(
-        &self,
-        ticket: &RoomTicket,
-        room: &str,
-        remote: EndpointId,
-        now: u64,
-        held: &BTreeMap<EmberId, EndpointId>,
-    ) -> io::Result<bool> {
-        self.policy.decide(ticket, room, remote, now, held)
-    }
-
-    #[cfg(test)]
-    pub fn is_banned(&self, account: &EmberId) -> bool {
-        self.policy.is_banned(account)
+        self.clone()
     }
 
     /// Records that a control from `endpoint` was installed under `account`.
@@ -262,11 +235,11 @@ impl PublicHost {
     /// return past its ticket until `sync_members` binds it to the member's
     /// coordination admission. A bound seat keeps its account.
     pub fn admit_member(&mut self, endpoint: EndpointId, account: EmberId) {
-        self.policy.opened = true;
-        match self.policy.members.get(&endpoint) {
+        self.opened = true;
+        match self.members.get(&endpoint) {
             Some(seat) if seat.incarnation.is_some() || seat.account == account => {}
             _ => {
-                Arc::make_mut(&mut self.policy.members).insert(
+                Arc::make_mut(&mut self.members).insert(
                     endpoint,
                     Seat {
                         account,
@@ -289,7 +262,6 @@ impl PublicHost {
         connected: &BTreeSet<EndpointId>,
     ) {
         let synced: BTreeMap<EndpointId, Seat> = self
-            .policy
             .members
             .iter()
             .filter_map(|(endpoint, seat)| {
@@ -313,8 +285,8 @@ impl PublicHost {
                 ))
             })
             .collect();
-        if synced != *self.policy.members {
-            self.policy.members = Arc::new(synced);
+        if synced != *self.members {
+            self.members = Arc::new(synced);
         }
     }
 
@@ -330,16 +302,20 @@ impl PublicHost {
     /// nothing. Once `MAX_BANS` accounts are held another is refused and
     /// every existing ban stays.
     pub fn ban(&mut self, account: EmberId) -> Result<(), BanLimit> {
-        if self.policy.banned.contains(&account) {
+        if self.banned.contains(&account) {
             return Ok(());
         }
-        if self.policy.banned.len() >= MAX_BANS {
+        if self.banned.len() >= MAX_BANS {
             return Err(BanLimit);
         }
-        Arc::make_mut(&mut self.policy.banned).insert(account);
+        Arc::make_mut(&mut self.banned).insert(account);
         Ok(())
     }
 }
+
+/// A public room's host side: the admission policy, which also holds the key
+/// its tickets verify under and the accounts it has banned for the room's life.
+pub(crate) type PublicHost = AdmissionPolicy;
 
 /// The ban set is full.
 #[derive(Debug, PartialEq, Eq)]
@@ -387,6 +363,33 @@ pub(crate) async fn accept_public_control_at(
     .await
 }
 
+/// Where a ticket-presenting dial goes.
+enum Target {
+    /// `transport::connect_control_at` this address, which the invitation's
+    /// own is by default.
+    Address(EndpointAddr),
+    /// `transport::connect_control_to_with` this address alone.
+    Direct(EndpointAddr),
+}
+
+/// `transport::connect_control` and its variants presenting a ticket.
+async fn connect(
+    endpoint: &Endpoint,
+    invite: &Invite,
+    ticket: &SignedRoomTicket,
+    target: Target,
+) -> io::Result<ControlChannel> {
+    let proof = PublicRoomProof::new(invite.proof(), ticket.clone());
+    match target {
+        Target::Address(address) => {
+            transport::connect_control_at(endpoint, address, invite, &proof, true).await
+        }
+        Target::Direct(address) => {
+            transport::connect_control_to_with(endpoint, address, &proof, true).await
+        }
+    }
+}
+
 /// `transport::connect_control` presenting a ticket.
 pub(crate) async fn connect_public(
     endpoint: &Endpoint,
@@ -403,8 +406,7 @@ pub(crate) async fn connect_public_at(
     invite: &Invite,
     ticket: &SignedRoomTicket,
 ) -> io::Result<ControlChannel> {
-    let proof = PublicRoomProof::new(invite.proof(), ticket.clone());
-    transport::connect_control_at(endpoint, address, invite, &proof, true).await
+    connect(endpoint, invite, ticket, Target::Address(address)).await
 }
 
 /// `transport::connect_control_to` presenting a ticket.
@@ -414,8 +416,7 @@ pub(crate) async fn connect_public_to(
     invite: &Invite,
     ticket: &SignedRoomTicket,
 ) -> io::Result<ControlChannel> {
-    let proof = PublicRoomProof::new(invite.proof(), ticket.clone());
-    transport::connect_control_to_with(endpoint, address, &proof, true).await
+    connect(endpoint, invite, ticket, Target::Direct(address)).await
 }
 
 /// The local-harness form of `connect_public` over an existing connection.

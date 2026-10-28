@@ -1,4 +1,8 @@
 $ErrorActionPreference = 'Stop'
+# Public-network and live Discord checks require a separate explicit run. The build receipt names them
+# (testsExcluded), so testsPassed never implies they ran (ledger A-015). build-current.ps1 and
+# run-package-tests.ps1 both exclude exactly these.
+$EmberExcludedTests = 'Iroh(Room|Game|Authorized|Recovery)|CustomRoom(FourTables|Spectators)|DiscordSmoke'
 function Get-SourceFingerprint([string]$SourceRoot) {
     $paths = [string[]]@(& git -C $SourceRoot ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE) { throw 'Source inventory failed' }
@@ -60,11 +64,32 @@ function Invoke-DefaultTests([object]$Ctest, [string]$BuildRoot, [string]$Exclud
     $ran = @(foreach ($file in @($junit, $rerunJunit) | Where-Object { Test-Path -LiteralPath $_ }) {
         ([xml](Get-Content -Raw -LiteralPath $file)).testsuite.testcase | Where-Object { $_.status -eq 'run' -and !$_.failure } | ForEach-Object { $_.name }
     })
-    $missing = @('HelperRust','EmberRust','BridgeSdk') | Where-Object { $_ -notin $ran }
+    # The helper and Ember Rust suites, the SDK and the publisher's PowerShell suites (cmake/sf4e_test_targets.cmake;
+    # build-current.ps1 no longer runs those scripts itself). A CMake edit cannot drop one silently, and
+    # scripts/test-build-provenance.ps1 names the same set in its fake CTest.
+    $missing = @('HelperRust','EmberRust','BridgeSdk','BuildProvenance','NightlyPublication','NightlyPaths','PackageFiles') | Where-Object { $_ -notin $ran }
     if ($missing) { throw "Default CTest did not run: $($missing -join ', ')" }
     $passedOnRerun
 }
-function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot) {
+# Only a Nightly build trusts the staging bridge. A receipt without the field predates
+# the check, so it is refused like a mismatch; rebuild the checkout to record it.
+function Assert-ReceiptChannel([object]$Receipt, [string]$Channel) {
+    $expected = $Channel -ceq 'nightly'
+    if ($Receipt.stagingBridge -isnot [bool] -or $Receipt.stagingBridge -ne $expected) {
+        throw "The build receipt's staging bridge setting does not match the $Channel channel; rebuild with scripts/build-current.ps1."
+    }
+    # The channel alone does not prove a Stable build: a checkout whose parent folder has no
+    # build-target.json reads its own file, which names only the top-level (stable) entry, so a
+    # Nightly checkout set up that way reads as stable. A Stable build comes only from release.
+    if ($Channel -ceq 'stable' -and [string]$Receipt.branch -cne 'release') {
+        throw "The build receipt is from branch '$($Receipt.branch)'; Stable builds come only from the release branch."
+    }
+}
+
+# -SkipFingerprint leaves out only the fresh fingerprint of the tree (about 2-3 s); the receipt's own paths,
+# the self-test flags, the staged binary hashes and the dependency checks all still run. A caller uses it only
+# when it re-establishes freshness itself shortly after (Invoke-NightlyPublish does, with Assert-NightlySource).
+function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$StageRoot, [switch]$SkipFingerprint) {
     Assert-CMakeSource $SourceRoot $BuildRoot
     $receipt = Get-Content -LiteralPath (Join-Path $BuildRoot 'build-provenance.json') -Raw | ConvertFrom-Json
     if ($receipt.sourceRoot -ne $SourceRoot -or $receipt.buildRoot -ne $BuildRoot -or $receipt.stageRoot -ne $StageRoot) { throw 'Build receipt path mismatch' }
@@ -73,7 +98,7 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     if ($receipt.selfTest -ne $false -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_SELFTEST:BOOL=ON' -Quiet)) {
         throw 'The build has the in-game self-test; rebuild with scripts/build-current.ps1 without -SelfTest'
     }
-    if ($receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
+    if (!$SkipFingerprint -and $receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
     foreach ($binary in $receipt.binaries) {
         if ((Get-FileHash -LiteralPath (Join-Path $StageRoot $binary.path)).Hash -ne $binary.sha256) { throw "Staged binary changed: $($binary.path)" }
     }

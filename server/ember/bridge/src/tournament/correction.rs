@@ -3,7 +3,7 @@
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
-    event::Kind,
+    event::{EventScore, Kind, TournamentMatchCompletedData},
     matches::Score,
     tournament::{self as bracket, Blocked, Source, Status},
 };
@@ -13,13 +13,13 @@ use serde_json::json;
 use super::{
     closed, load,
     progress::progress,
-    state::{Entrant, load_bracket, save, set_json},
+    state::{load_bracket, player, save, set_completed, set_json},
     touch, tournament_event,
 };
 use crate::{
     ctx::Ctx,
     error::{ApiFailure, Result},
-    routes::matches,
+    routes::ledger,
 };
 
 /// Called by the match code in the transaction that completes a tournament set.
@@ -52,31 +52,35 @@ pub fn on_match_completed(
     let revision = touch(tx, &tournament.id, ctx.now)?;
     let state = bracket.states[node];
     let eliminated = bracket::eliminated(&bracket.plan, &bracket.states, node);
-    let mut data = set_json(&bracket, node);
-    data["match_id"] = match_id.into();
-    data["walkover"] = false.into();
-    data["winner"] = bracket.entrant(state.winner()).map(Entrant::public).into();
-    data["loser"] = bracket.entrant(state.loser()).map(Entrant::public).into();
-    data["scores"] = json!(scores);
-    data["eliminated"] = json!(bracket.entrant(eliminated).map(|entrant| &entrant.ember_id));
-    data["winner_next"] = bracket.next(node, Source::Winner).into();
-    data["loser_next"] = if eliminated.is_some() {
-        None
-    } else {
-        bracket.next(node, Source::Loser)
-    }
-    .into();
+    let data = TournamentMatchCompletedData {
+        match_id: Some(match_id.to_owned()),
+        walkover: false,
+        winner: bracket.entrant(state.winner()).map(player),
+        loser: bracket.entrant(state.loser()).map(player),
+        scores: Some(scores.iter().map(EventScore::from).collect()),
+        eliminated: bracket
+            .entrant(eliminated)
+            .map(|entrant| entrant.ember_id.clone()),
+        winner_next: bracket.next(node, Source::Winner).map(str::to_owned),
+        // Present, and `null` when the loser leaves or has no next set.
+        loser_next: Some(if eliminated.is_some() {
+            None
+        } else {
+            bracket.next(node, Source::Loser).map(str::to_owned)
+        }),
+        ..set_completed(&bracket, node)
+    };
     tournament_event(
         tx,
         ctx,
         &tournament,
         Kind::TournamentMatchCompleted,
-        data,
+        serde_json::to_value(data).unwrap_or_default(),
         revision,
     )?;
     let tournament = load(tx, tournament_id)?.ok_or_else(ApiFailure::unavailable)?;
     let freed = progress(tx, ctx, &tournament, &mut bracket)?;
-    matches::release_players(tx, ctx, &tournament.connection_id, &freed)
+    ledger::release_players(tx, ctx, &tournament.connection_id, &freed)
 }
 
 /// Called by the match code before any correction of a tournament set that
@@ -132,7 +136,7 @@ pub fn on_reopen(
     let mut games = vec![false; bracket.plan.len()];
     for (later, id) in bracket.matches.iter().enumerate() {
         if let Some(id) = id {
-            games[later] = matches::has_games(tx, id)?;
+            games[later] = ledger::has_games(tx, id)?;
         }
     }
     let cancelled = match bracket::reopen(&bracket.plan, &mut bracket.states, node, |later| {
@@ -159,7 +163,7 @@ pub fn on_reopen(
         if let Some(id) = bracket.matches[later].take() {
             // The caller hands these players on once the reopened set's
             // match is active again, so its own players stay reserved for it.
-            freed.extend(matches::cancel_tournament_set(
+            freed.extend(ledger::cancel_tournament_set(
                 tx,
                 ctx,
                 &id,

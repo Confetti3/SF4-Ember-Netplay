@@ -5,9 +5,25 @@
 //! IDs are assigned by the sending application, never by QUIC write counts.
 use std::io;
 
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+/// Heads every IPC frame, QUIC control frame and game packet. It never
+/// changes for an IPC change; `IPC_VERSION` does.
 pub const VERSION: u16 = 1;
+/// The game-to-helper IPC contract. It is never in a frame header: the helper
+/// sends it after `SF4N` in its answer to the pipe's authentication frame, and
+/// the game opens a room only with a helper of its own version, so a game and
+/// a helper from different builds fail closed when they connect.
+pub const IPC_VERSION: u16 = 2;
+/// First payload byte of an IPC frame that carries a JSON header and a raw
+/// body: this byte, the header's length as a big-endian u32, the header, then
+/// the body. A JSON payload starts with `{`, so the kinds cannot be confused.
+/// The body is a field the header leaves out: `data` of a checkpoint chunk,
+/// `payload` of a room message or send.
+pub const IPC_RAW_BODY: u8 = 0;
+const RAW_PREFIX: usize = 1 + 4;
 pub const CONTROL_ALPN: &[u8] = b"sf4e/control/1";
 pub const GAME_ALPN: &[u8] = b"sf4e/game/1";
 pub const MAX_CONTROL_PAYLOAD: usize = 64 * 1024;
@@ -18,6 +34,16 @@ pub const GAME_HEADER: usize = 2 + 16 + 8;
 // UDP's protocol ceiling is an allocation bound, not a promise that QUIC's MTU
 // supports this size. Every send also checks the current QUIC datagram limit.
 pub const MAX_UDP_PAYLOAD: usize = 65_507;
+
+/// What the end of a service's command input means.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OnEof {
+    /// The IPC connection is lost, as when the game's pipe closes.
+    LostIpc,
+    /// The parent is gone or has closed its end: stop as if sent
+    /// `Command::Shutdown`.
+    Shutdown,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ControlFrame {
@@ -86,13 +112,82 @@ async fn write_frame<W: AsyncWrite + Unpin>(
     {
         return Err(invalid("invalid control frame"));
     }
-    writer
-        .write_u32((CONTROL_HEADER + frame.payload.len()) as u32)
-        .await?;
-    writer.write_u16(VERSION).await?;
-    writer.write_u64(frame.message_id).await?;
-    writer.write_all(&frame.payload).await?;
+    // One buffer and one write: on an unbuffered pipe each small header write
+    // would be a call of its own.
+    let mut bytes = Vec::with_capacity(4 + CONTROL_HEADER + frame.payload.len());
+    bytes.extend_from_slice(&((CONTROL_HEADER + frame.payload.len()) as u32).to_be_bytes());
+    bytes.extend_from_slice(&VERSION.to_be_bytes());
+    bytes.extend_from_slice(&frame.message_id.to_be_bytes());
+    bytes.extend_from_slice(&frame.payload);
+    writer.write_all(&bytes).await?;
     writer.flush().await
+}
+
+/// An IPC frame's payload, as `split_ipc_payload` finds it.
+#[derive(Debug, PartialEq, Eq)]
+pub enum IpcPayload<'a> {
+    Json(&'a [u8]),
+    Raw { header: &'a [u8], body: &'a [u8] },
+}
+
+/// Tells a JSON payload from a raw-body one and splits the latter. A raw
+/// payload needs a JSON object header and a body of at least one byte.
+pub fn split_ipc_payload(payload: &[u8]) -> io::Result<IpcPayload<'_>> {
+    if payload.first() != Some(&IPC_RAW_BODY) {
+        return Ok(IpcPayload::Json(payload));
+    }
+    let length = payload
+        .get(1..RAW_PREFIX)
+        .map(|bytes| u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize)
+        .ok_or_else(|| invalid("truncated raw-body IPC payload"))?;
+    let header_end = RAW_PREFIX
+        .checked_add(length)
+        .filter(|end| length >= 2 && *end < payload.len())
+        .ok_or_else(|| invalid("raw-body IPC header out of bounds"))?;
+    let header = &payload[RAW_PREFIX..header_end];
+    if header[0] != b'{' {
+        return Err(invalid("raw-body IPC header is not an object"));
+    }
+    Ok(IpcPayload::Raw {
+        header,
+        body: &payload[header_end..],
+    })
+}
+
+/// The payload of a raw-body IPC frame: `header` (a JSON object without the
+/// body's field) and `body` as they are, within `MAX_IPC_PAYLOAD`.
+pub fn raw_ipc_payload(header: &[u8], body: &[u8]) -> io::Result<Vec<u8>> {
+    let size = RAW_PREFIX + header.len() + body.len();
+    if header.len() < 2 || header[0] != b'{' || body.is_empty() || size > MAX_IPC_PAYLOAD {
+        return Err(invalid("invalid raw-body IPC payload"));
+    }
+    let mut payload = Vec::with_capacity(size);
+    payload.push(IPC_RAW_BODY);
+    payload.extend_from_slice(&(header.len() as u32).to_be_bytes());
+    payload.extend_from_slice(header);
+    payload.extend_from_slice(body);
+    Ok(payload)
+}
+
+/// Bytes in an IPC message: unpadded URL-safe base64 in a JSON payload, and
+/// the bytes themselves as the body of a raw-body frame.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct IpcBytes(pub Vec<u8>);
+
+impl Serialize for IpcBytes {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&URL_SAFE_NO_PAD.encode(&self.0))
+    }
+}
+
+impl<'de> Deserialize<'de> for IpcBytes {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let encoded = std::borrow::Cow::<str>::deserialize(deserializer)?;
+        URL_SAFE_NO_PAD
+            .decode(encoded.as_bytes())
+            .map(IpcBytes)
+            .map_err(|_| serde::de::Error::custom("invalid base64 bytes"))
+    }
 }
 
 /// A fresh room instance plus match generation prevents rematch packet replay.
@@ -211,6 +306,138 @@ mod tests {
         };
         assert!(write_control(&mut bytes, &invalid).await.is_err());
         assert!(bytes.is_empty());
+    }
+
+    /// A writer that keeps each write call apart.
+    #[derive(Default)]
+    struct Calls {
+        writes: Vec<Vec<u8>>,
+        flushes: usize,
+    }
+
+    impl AsyncWrite for Calls {
+        fn poll_write(
+            mut self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> std::task::Poll<io::Result<usize>> {
+            self.writes.push(buf.to_vec());
+            std::task::Poll::Ready(Ok(buf.len()))
+        }
+
+        fn poll_flush(
+            mut self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<io::Result<()>> {
+            self.flushes += 1;
+            std::task::Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
+    /// A frame is the length, the version, the message ID and the payload,
+    /// handed to the stream in one write and one flush.
+    #[tokio::test]
+    async fn a_frame_is_written_whole_with_one_write_and_one_flush() {
+        let payload = br#"{"type":"status"}"#.to_vec();
+        let mut expected = ((CONTROL_HEADER + payload.len()) as u32)
+            .to_be_bytes()
+            .to_vec();
+        expected.extend(VERSION.to_be_bytes());
+        expected.extend(0x0102_0304_0506_0708u64.to_be_bytes());
+        expected.extend(&payload);
+        let frame = ControlFrame {
+            message_id: 0x0102_0304_0506_0708,
+            payload,
+        };
+        for control in [true, false] {
+            let mut calls = Calls::default();
+            if control {
+                write_control(&mut calls, &frame).await.unwrap();
+            } else {
+                write_ipc(&mut calls, &frame).await.unwrap();
+            }
+            assert_eq!(calls.writes, [expected.clone()]);
+            assert_eq!(calls.flushes, 1);
+        }
+        // A frame the bound refuses reaches the stream in no part.
+        let mut calls = Calls::default();
+        let oversized = ControlFrame {
+            message_id: 1,
+            payload: vec![0; MAX_CONTROL_PAYLOAD + 1],
+        };
+        assert!(write_control(&mut calls, &oversized).await.is_err());
+        assert!(calls.writes.is_empty() && calls.flushes == 0);
+    }
+
+    #[test]
+    fn raw_body_payloads_split_back_and_json_passes_through() {
+        let header = br#"{"type":"checkpoint_chunk","offset":0}"#;
+        let body = [0u8, 255, b'{', b'"', 0];
+        let payload = raw_ipc_payload(header, &body).unwrap();
+        assert_eq!(payload[0], IPC_RAW_BODY);
+        assert_eq!(
+            split_ipc_payload(&payload).unwrap(),
+            IpcPayload::Raw {
+                header: &header[..],
+                body: &body[..],
+            }
+        );
+        let json = br#"{"type":"status"}"#;
+        assert_eq!(
+            split_ipc_payload(json).unwrap(),
+            IpcPayload::Json(&json[..])
+        );
+        // A raw frame whose body would push it past the IPC bound is refused
+        // before anything is built.
+        assert!(raw_ipc_payload(header, &vec![1; MAX_IPC_PAYLOAD]).is_err());
+        assert!(raw_ipc_payload(header, &[]).is_err());
+        assert!(raw_ipc_payload(b"[1]", &body).is_err());
+    }
+
+    #[test]
+    fn malformed_raw_body_payloads_fail() {
+        let mut no_body = vec![IPC_RAW_BODY];
+        no_body.extend(2u32.to_be_bytes());
+        no_body.extend(b"{}");
+        let mut not_object = vec![IPC_RAW_BODY];
+        not_object.extend(2u32.to_be_bytes());
+        not_object.extend(b"[]x");
+        let mut too_long = vec![IPC_RAW_BODY];
+        too_long.extend(u32::MAX.to_be_bytes());
+        too_long.extend(b"{}x");
+        let mut too_short = vec![IPC_RAW_BODY];
+        too_short.extend(1u32.to_be_bytes());
+        too_short.extend(b"{x");
+        for payload in [
+            vec![IPC_RAW_BODY],
+            vec![IPC_RAW_BODY, 0, 0, 0],
+            no_body,
+            not_object,
+            too_long,
+            too_short,
+        ] {
+            assert!(split_ipc_payload(&payload).is_err(), "{payload:?}");
+        }
+    }
+
+    #[test]
+    fn ipc_bytes_are_base64_in_json() {
+        let bytes = IpcBytes(vec![0, 1, 2, 250, 255]);
+        let text = serde_json::to_string(&bytes).unwrap();
+        assert_eq!(text, "\"AAEC-v8\"");
+        assert_eq!(serde_json::from_str::<IpcBytes>(&text).unwrap(), bytes);
+        assert!(serde_json::from_str::<IpcBytes>("\"not base64!\"").is_err());
+        assert_eq!(
+            serde_json::from_str::<IpcBytes>("\"\"").unwrap(),
+            IpcBytes::default()
+        );
     }
 
     #[test]

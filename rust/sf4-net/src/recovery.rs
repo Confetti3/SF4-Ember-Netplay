@@ -8,17 +8,22 @@
 
 use std::{collections::BTreeSet, io, time::Duration};
 
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use iroh::{EndpointAddr, EndpointId};
 use openraft::{BasicNode, ChangeMembers};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use tokio::task::JoinHandle;
 
 use crate::{
-    coordination::{AdminEntry, Committed, Coordinator, Ownership, ProbeReservation, Proposal},
+    coordination::{AdminEntry, Coordinator, Ownership, ProbeReservation, Proposal},
     coordination_iroh::IrohRpc,
 };
+
+mod departure;
+mod transfer;
+pub use crate::probe::{
+    ProbeResult, recommended_delay, summarize_datagram_probe, summarize_probe,
+};
+pub use transfer::{CheckpointTransfer, IncomingTransfer, hex_digest, sha256};
 
 pub const MAX_CHECKPOINT_BYTES: usize = crate::coordination::MAX_CHECKPOINT;
 pub const CHECKPOINT_CHUNK_BYTES: usize = 16 * 1024;
@@ -73,30 +78,25 @@ pub struct RecoverySession {
 }
 
 impl RecoverySession {
-    /// A new helper process always receives a random Raft node identity.  A
-    /// stopped process is therefore admitted as a learner instead of being
-    /// allowed to reuse a stale vote.
+    /// Tests only: `host_in` for a private room on the default port.
+    #[cfg(test)]
     pub async fn host(
         room: [u8; 16],
         primary_endpoint: EndpointId,
         relay_only: bool,
     ) -> io::Result<Self> {
-        Self::host_on(room, primary_endpoint, relay_only, None).await
+        Self::host_in(room, primary_endpoint, relay_only, None, false).await
     }
 
-    /// `host` with the coordination endpoint on exactly `port`, or the default
-    /// policy for `None`. A port that cannot be bound fails the host.
-    pub async fn host_on(
-        room: [u8; 16],
-        primary_endpoint: EndpointId,
-        relay_only: bool,
-        port: Option<u16>,
-    ) -> io::Result<Self> {
-        Self::host_in(room, primary_endpoint, relay_only, port, false).await
-    }
-
-    /// `host_on` for the host of a server-owned room when `server_owned`: its
-    /// only voter for the room's whole life.
+    /// A new helper process always receives a random Raft node identity.  A
+    /// stopped process is therefore admitted as a learner instead of being
+    /// allowed to reuse a stale vote.
+    ///
+    /// The coordination endpoint is on exactly `port`, or on the default
+    /// policy for `None`; a port that cannot be bound fails the host. When
+    /// `server_owned`, this is the host of a server-owned room: its only voter
+    /// for the room's whole life. A flag rather than an `Ownership`, since a
+    /// host is never a `Member`.
     pub async fn host_in(
         room: [u8; 16],
         primary_endpoint: EndpointId,
@@ -143,9 +143,8 @@ impl RecoverySession {
         Ok(session)
     }
 
-    /// A join starts with a fresh learner and only the committed host route.
-    /// The host later receives this process's coordination admission over the
-    /// authenticated control stream and adds the learner through Raft.
+    /// Tests only: `join_in` a private room.
+    #[cfg(test)]
     pub async fn join(
         room: [u8; 16],
         primary_endpoint: EndpointId,
@@ -164,8 +163,14 @@ impl RecoverySession {
         .await
     }
 
-    /// `join` into a server-owned room when `server_owned`: the learner takes
-    /// the log from `host_incarnation` only, and never votes or campaigns.
+    /// A join starts with a fresh learner and only the committed host route.
+    /// The host later receives this process's coordination admission over the
+    /// authenticated control stream and adds the learner through Raft.
+    ///
+    /// When `server_owned`, the room is server-owned: the learner takes the
+    /// log from `host_incarnation` only, and never votes or campaigns. A flag
+    /// rather than an `Ownership`, whose `Member` would name the host a second
+    /// time.
     pub async fn join_in(
         room: [u8; 16],
         primary_endpoint: EndpointId,
@@ -272,7 +277,7 @@ impl RecoverySession {
     }
 
     async fn validate_admission_history(&self, admission: &Admission) -> io::Result<()> {
-        let (members, history) = self.coordinator.applied_membership_provenance().await;
+        let (members, history) = self.coordinator.store().applied_membership_provenance().await;
         if history.contains(&admission.incarnation) && !members.contains(&admission.incarnation) {
             self.rpc.retire(admission.incarnation).await;
             return Err(io::Error::other("retired coordination incarnation"));
@@ -283,7 +288,7 @@ impl RecoverySession {
     pub async fn add_learner(&self, admission: &Admission) -> io::Result<()> {
         let _membership = self.coordinator.membership_operations.lock().await;
         self.validate_admission_history(admission).await?;
-        let (members, history) = self.coordinator.applied_membership_provenance().await;
+        let (members, history) = self.coordinator.store().applied_membership_provenance().await;
         let retired = history.difference(&members).count();
         if !history.contains(&admission.incarnation)
             && (history.len() >= crate::coordination::MAX_MEMBER_HISTORY
@@ -323,7 +328,7 @@ impl RecoverySession {
         }
         self.require_voters_allowed(&voters)?;
         let _membership = self.coordinator.membership_operations.lock().await;
-        let applied = self.coordinator.applied_member_ids().await;
+        let applied = self.coordinator.store().applied_members().await;
         if !voters.is_subset(&applied) {
             return Err(io::Error::other("stable voter is not an applied member"));
         }
@@ -352,7 +357,7 @@ impl RecoverySession {
             .ensure_linearizable()
             .await
             .map_err(|_| io::Error::other("room quorum unavailable"))?;
-        if self.committed().await.revision() != revision {
+        if self.coordinator.store().committed().await.revision() != revision {
             return Ok(false);
         }
         self.promote_voters(voters).await?;
@@ -407,7 +412,7 @@ impl RecoverySession {
     pub async fn state(&self) -> AuthorityState {
         let metrics = self.coordinator.raft().metrics().borrow().clone();
         // Runs every second: the shared value hashes its checkpoint once.
-        let committed = self.coordinator.committed().await;
+        let committed = self.coordinator.store().committed().await;
         let (revision, digest) = (committed.revision(), committed.digest());
         let leader_id = metrics.current_leader.unwrap_or_default();
         let leader = metrics
@@ -451,137 +456,6 @@ impl RecoverySession {
         }
     }
 
-    pub async fn committed(&self) -> std::sync::Arc<Committed> {
-        self.coordinator.committed().await
-    }
-
-    pub fn voter_ids(&self) -> BTreeSet<u64> {
-        self.coordinator.voter_ids()
-    }
-
-    pub async fn applied_voter_ids(&self) -> BTreeSet<u64> {
-        self.coordinator.applied_voter_ids().await
-    }
-
-    pub async fn applied_joint_goal(&self) -> Option<BTreeSet<u64>> {
-        self.coordinator.applied_joint_goal().await
-    }
-
-    pub async fn finish_joint_membership(&self) -> io::Result<bool> {
-        self.coordinator.finish_joint_membership().await
-    }
-
-    pub async fn applied_member_ids(&self) -> BTreeSet<u64> {
-        self.coordinator.applied_member_ids().await
-    }
-
-    pub async fn applied_membership_provenance(&self) -> (BTreeSet<u64>, BTreeSet<u64>) {
-        self.coordinator.applied_membership_provenance().await
-    }
-
-    /// Confirm that a successor has installed the committed authority claim
-    /// before this process closes its coordination and primary routes.
-    pub async fn confirm_successor(
-        &self,
-        successor: u64,
-        minimum_term: u64,
-        minimum_revision: u64,
-    ) -> io::Result<()> {
-        let claim = self.rpc.authority_claim(successor).await?;
-        if claim.incarnation != successor
-            || claim.leader != Some(successor)
-            || claim.term < minimum_term
-            || claim.revision < minimum_revision
-        {
-            return Err(io::Error::other("successor authority claim not committed"));
-        }
-        Ok(())
-    }
-
-    /// A removed leader can retain a stale leader view. Query every remaining
-    /// admitted voter so a slow follower cannot hide the elected successor.
-    pub async fn confirm_available_successor(
-        &self,
-        minimum_term: u64,
-        minimum_revision: u64,
-    ) -> io::Result<()> {
-        let mut candidates = self.applied_voter_ids().await;
-        candidates.remove(&self.incarnation);
-        let recovery = self.clone();
-        first_confirmed_successor(candidates, move |successor| {
-            let recovery = recovery.clone();
-            async move {
-                recovery
-                    .confirm_successor(successor, minimum_term, minimum_revision)
-                    .await
-            }
-        })
-        .await
-    }
-
-    /// Confirm a follower's committed removal through the current leader.
-    /// OpenRaft's retain=false membership change may stop replicating to the
-    /// departing process before its local metrics learn that it is no longer
-    /// a voter.  The authenticated leader claim is therefore the final proof
-    /// used by a healthy non-leader departure.
-    pub async fn confirm_departure(
-        &self,
-        minimum_term: u64,
-        minimum_revision: u64,
-    ) -> io::Result<()> {
-        let successor = self
-            .coordinator
-            .current_leader()
-            .filter(|id| *id != self.incarnation)
-            .ok_or_else(|| io::Error::other("successor authority unavailable"))?;
-        let claim = self.rpc.authority_claim(successor).await?;
-        if claim.incarnation != successor
-            || claim.leader != Some(successor)
-            || claim.term < minimum_term
-            || claim.revision < minimum_revision
-            // An empty set is also rejected so a pre-membership/legacy
-            // authority response cannot be mistaken for learner exclusion.
-            || claim.members.is_empty()
-            || claim.members.contains(&self.incarnation)
-            || claim.voters.contains(&self.incarnation)
-        {
-            return Err(io::Error::other("departure remains in committed quorum"));
-        }
-        Ok(())
-    }
-
-    /// Confirm that this helper is the sole committed voter after its
-    /// successor has already retired. This covers an explicit final room
-    /// teardown where two healthy helpers issue Leave together: the former
-    /// leader remains available for a short authority-read grace window, but
-    /// there is no successor quorum left to confirm a second departure.
-    pub async fn confirm_singleton_departure(
-        &self,
-        minimum_term: u64,
-        minimum_revision: u64,
-    ) -> io::Result<()> {
-        let successor = self
-            .coordinator
-            .current_leader()
-            .filter(|id| *id != self.incarnation)
-            .or_else(|| {
-                self.voter_ids()
-                    .into_iter()
-                    .find(|id| *id != self.incarnation)
-            })
-            .ok_or_else(|| io::Error::other("former authority route unavailable"))?;
-        let claim = self.rpc.authority_claim(successor).await?;
-        if claim.term < minimum_term
-            || claim.revision < minimum_revision
-            || claim.leader != Some(self.incarnation)
-            || claim.voters.len() != 1
-            || !claim.voters.contains(&self.incarnation)
-        {
-            return Err(io::Error::other("singleton authority not committed"));
-        }
-        Ok(())
-    }
-
     pub fn propose(&self, transfer: &CheckpointTransfer) -> io::Result<Proposal> {
         if transfer.room != self.room
             || transfer.bytes.len() > MAX_CHECKPOINT_BYTES
@@ -590,8 +464,10 @@ impl RecoverySession {
         {
             return Err(io::Error::other("invalid checkpoint proposal"));
         }
-        let checkpoint = String::from_utf8(transfer.bytes.clone())
-            .map_err(|_| io::Error::other("checkpoint must be UTF-8 JSON"))?;
+        let checkpoint = transfer
+            .text
+            .clone()
+            .ok_or_else(|| io::Error::other("checkpoint must be UTF-8 JSON"))?;
         Ok(Proposal {
             // Preserve the native SessionProposal request as the Raft request
             // identity. Followers use this exact value when replaying the
@@ -634,8 +510,8 @@ impl RecoverySession {
                     source_incarnation, target_incarnation, term, request
                 ),
                 term,
-                base: self.committed().await.revision(),
-                checkpoint: String::new(),
+                base: self.coordinator.store().committed().await.revision(),
+                checkpoint: "".into(),
                 admin: Some(AdminEntry::ProbeReservation(ProbeReservation {
                     room: self.room,
                     source_incarnation,
@@ -653,28 +529,6 @@ impl RecoverySession {
         Ok(())
     }
 
-    pub async fn probe_reserved(
-        &self,
-        source_incarnation: u64,
-        target_incarnation: u64,
-        request: u64,
-        pair_revision: u64,
-        term: u64,
-        expires: u64,
-    ) -> bool {
-        self.coordinator
-            .probe_reserved(
-                self.room,
-                source_incarnation,
-                target_incarnation,
-                request,
-                pair_revision,
-                term,
-                expires,
-            )
-            .await
-    }
-
     pub async fn probe_pair_bound(
         &self,
         source_incarnation: u64,
@@ -684,6 +538,7 @@ impl RecoverySession {
         pair_revision: u64,
     ) -> bool {
         self.coordinator
+            .store()
             .probe_pair_bound(
                 source_incarnation,
                 target_incarnation,
@@ -706,7 +561,7 @@ impl Drop for RecoverySession {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Admission {
     pub room: [u8; 16],
@@ -727,159 +582,6 @@ impl Admission {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct CheckpointTransfer {
-    pub room: [u8; 16],
-    pub transfer: u64,
-    pub term: u64,
-    pub base_revision: u64,
-    pub revision: u64,
-    pub bytes: Vec<u8>,
-    pub digest: [u8; 32],
-}
-
-impl CheckpointTransfer {
-    pub fn new(
-        room: [u8; 16],
-        transfer: u64,
-        term: u64,
-        base_revision: u64,
-        revision: u64,
-        bytes: Vec<u8>,
-    ) -> io::Result<Self> {
-        if bytes.is_empty() || bytes.len() > MAX_CHECKPOINT_BYTES {
-            return Err(io::Error::other("checkpoint size out of bounds"));
-        }
-        Ok(Self {
-            room,
-            transfer,
-            term,
-            base_revision,
-            revision,
-            digest: sha256(&bytes),
-            bytes,
-        })
-    }
-    pub fn digest_hex(&self) -> String {
-        hex_digest(&self.digest)
-    }
-    pub fn encode_chunk(&self, offset: usize) -> io::Result<String> {
-        let end = offset
-            .checked_add(CHECKPOINT_CHUNK_BYTES)
-            .unwrap_or(self.bytes.len())
-            .min(self.bytes.len());
-        if offset >= end || offset > self.bytes.len() {
-            return Err(io::Error::other("invalid checkpoint chunk offset"));
-        }
-        Ok(URL_SAFE_NO_PAD.encode(&self.bytes[offset..end]))
-    }
-}
-
-#[derive(Debug)]
-pub struct IncomingTransfer {
-    pub room: [u8; 16],
-    pub transfer: u64,
-    pub term: u64,
-    pub base_revision: u64,
-    pub revision: u64,
-    pub length: usize,
-    pub digest: [u8; 32],
-    pub bytes: Vec<u8>,
-    pub started: tokio::time::Instant,
-}
-
-impl IncomingTransfer {
-    pub(crate) fn validate_begin(
-        room: [u8; 16],
-        transfer: u64,
-        term: u64,
-        base_revision: u64,
-        revision: u64,
-        length: usize,
-        digest: &str,
-    ) -> io::Result<[u8; 32]> {
-        if room == [0; 16]
-            || transfer == 0
-            || term == 0
-            || revision != base_revision.saturating_add(1)
-            || !(1..=MAX_CHECKPOINT_BYTES).contains(&length)
-        {
-            return Err(io::Error::other("invalid checkpoint transfer"));
-        }
-        parse_digest(digest)
-    }
-
-    pub fn begin(
-        room: [u8; 16],
-        transfer: u64,
-        term: u64,
-        base_revision: u64,
-        revision: u64,
-        length: usize,
-        digest: &str,
-    ) -> io::Result<Self> {
-        let digest = Self::validate_begin(
-            room,
-            transfer,
-            term,
-            base_revision,
-            revision,
-            length,
-            digest,
-        )?;
-        Ok(Self {
-            room,
-            transfer,
-            term,
-            base_revision,
-            revision,
-            length,
-            digest,
-            bytes: Vec::with_capacity(length),
-            started: tokio::time::Instant::now(),
-        })
-    }
-    pub fn push(&mut self, offset: usize, encoded: &str) -> io::Result<usize> {
-        if encoded.len() > 24 * 1024 {
-            return Err(io::Error::other("checkpoint chunks must be contiguous"));
-        }
-        let decoded = URL_SAFE_NO_PAD
-            .decode(encoded)
-            .map_err(|_| io::Error::other("invalid checkpoint base64"))?;
-        let end = offset
-            .checked_add(decoded.len())
-            .ok_or_else(|| io::Error::other("checkpoint chunk exceeds bounds"))?;
-        if decoded.is_empty() || decoded.len() > CHECKPOINT_CHUNK_BYTES || end > self.length {
-            return Err(io::Error::other("checkpoint chunk exceeds bounds"));
-        }
-        if offset == self.bytes.len() {
-            self.bytes.extend_from_slice(&decoded);
-        } else if offset > self.bytes.len()
-            || end > self.bytes.len()
-            || self.bytes[offset..end] != decoded
-        {
-            return Err(io::Error::other("checkpoint chunks must be contiguous"));
-        }
-        // Exact retries acknowledge only the replayed chunk end. Returning the
-        // retained body's full offset would violate the sender's four-credit
-        // in-flight fence when the checkpoint spans more than one window.
-        Ok(end)
-    }
-    pub fn finish(self) -> io::Result<CheckpointTransfer> {
-        if self.bytes.len() != self.length || sha256(&self.bytes) != self.digest {
-            return Err(io::Error::other("checkpoint digest mismatch"));
-        }
-        CheckpointTransfer::new(
-            self.room,
-            self.transfer,
-            self.term,
-            self.base_revision,
-            self.revision,
-            self.bytes,
-        )
-    }
-}
-
 /// How many voters a room of `member_count` keeps. Two voters tolerate no
 /// loss at all: when either one's game or connection dies the other can never
 /// commit again, so the room freezes for good. A room of two therefore keeps
@@ -893,55 +595,6 @@ pub fn stable_voter_count(member_count: usize) -> usize {
     }
 }
 
-// RTT bands from players' experience: one frame through 80 ms, then one
-// more frame per 70 ms, capped at five (InputDelay.hxx: MaximumInputDelay).
-// Never 0: that is only a player's own choice (InputDelay.hxx:
-// RecommendedInputDelayMinimum).
-const DELAY_FIRST_BAND_MS: u64 = 80;
-const DELAY_BAND_STEP_MS: u64 = 70;
-const DELAY_BAND_MAX: u64 = 5;
-
-fn delay_band(rtt_us: u64) -> u8 {
-    // Round to the nearest whole millisecond, with half milliseconds up:
-    // 80.499 ms counts as 80, and 80.500 ms counts as 81. Avoid overflow.
-    let rtt_ms = rtt_us / 1_000 + u64::from(rtt_us % 1_000 >= 500);
-    (1 + rtt_ms
-        .saturating_sub(DELAY_FIRST_BAND_MS)
-        .div_ceil(DELAY_BAND_STEP_MS))
-    .min(DELAY_BAND_MAX) as u8
-}
-
-/// Recommend 1..=5 frames from the displayed median's player-experience
-/// RTT band, tolerating one worse band at p95 so occasional spikes do not
-/// overstate the typical ping. A tail more than one band worse raises it.
-pub fn recommended_delay(p50_rtt_us: u64, p95_rtt_us: u64) -> u8 {
-    delay_band(p50_rtt_us).max(delay_band(p95_rtt_us) - 1)
-}
-
-pub fn sha256(bytes: &[u8]) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hasher.finalize().into()
-}
-
-pub fn hex_digest(bytes: &[u8; 32]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn parse_digest(value: &str) -> io::Result<[u8; 32]> {
-    if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err(io::Error::other("invalid SHA-256 digest"));
-    }
-    let mut digest = [0; 32];
-    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
-    debug_assert!(remainder.is_empty());
-    for (index, pair) in pairs.iter().enumerate() {
-        digest[index] = u8::from_str_radix(std::str::from_utf8(pair).unwrap_or(""), 16)
-            .map_err(|_| io::Error::other("invalid SHA-256 digest"))?;
-    }
-    Ok(digest)
-}
-
 fn fresh_incarnation() -> u64 {
     loop {
         let value = rand::random::<u64>();
@@ -951,123 +604,9 @@ fn fresh_incarnation() -> u64 {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProbeResult {
-    pub sample_count: u32,
-    pub loss_count: u32,
-    pub p95_rtt_us: u64,
-    pub recommended_delay: u8,
-    pub status: String,
-}
-
-pub fn summarize_probe(samples_us: &[u64], duration: Duration) -> ProbeResult {
-    let mut sorted = samples_us.to_vec();
-    sorted.sort_unstable();
-    let sample_count = sorted.len() as u32;
-    let expected = (duration.as_millis() / PROBE_INTERVAL.as_millis()) as u32;
-    let loss_count = expected.saturating_sub(sample_count);
-    let (p50, p95) = if sorted.is_empty() {
-        (0, 0)
-    } else {
-        // Match probe.rs's displayed p50; retain the existing p95 index.
-        (
-            sorted[((sorted.len() - 1) * 50).div_ceil(100)],
-            sorted[((sorted.len() - 1) * 95).div_ceil(100)],
-        )
-    };
-    ProbeResult {
-        sample_count,
-        loss_count,
-        p95_rtt_us: p95,
-        recommended_delay: recommended_delay(p50, p95),
-        status: if sample_count >= expected * 4 / 5 {
-            "ready".into()
-        } else {
-            "unavailable".into()
-        },
-    }
-}
-
-async fn first_confirmed_successor<F, Fut>(candidates: BTreeSet<u64>, confirm: F) -> io::Result<()>
-where
-    F: Fn(u64) -> Fut,
-    Fut: std::future::Future<Output = io::Result<()>> + Send + 'static,
-{
-    let mut claims = tokio::task::JoinSet::new();
-    for candidate in candidates {
-        claims.spawn(confirm(candidate));
-    }
-    while let Some(result) = claims.join_next().await {
-        if matches!(result, Ok(Ok(()))) {
-            return Ok(());
-        }
-    }
-    Err(io::Error::other("successor authority unavailable"))
-}
-
-/// Separate absent replies from packets the local scheduler never sent.
-pub fn summarize_datagram_probe(samples_us: &[u64], expected: u32, sent: u32) -> ProbeResult {
-    let mut result = summarize_probe(samples_us, Duration::from_millis(u64::from(expected) * 50));
-    result.loss_count = sent.saturating_sub(result.sample_count);
-    if expected == 0 {
-        result.status = "unavailable".into();
-    } else if sent < expected {
-        result.status = "local_overload".into();
-    }
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[tokio::test]
-    async fn elected_successor_is_not_hidden_by_a_stalled_first_voter() {
-        tokio::time::timeout(
-            Duration::from_millis(200),
-            first_confirmed_successor(BTreeSet::from([1, 2, 3]), |candidate| async move {
-                match candidate {
-                    1 => std::future::pending().await,
-                    2 => Err(io::Error::other("not the elected leader")),
-                    _ => Ok(()),
-                }
-            }),
-        )
-        .await
-        .expect("first voter blocked the elected successor")
-        .unwrap();
-        assert!(
-            first_confirmed_successor(BTreeSet::from([1, 2]), |_| async {
-                Err(io::Error::other("no quorum claim"))
-            })
-            .await
-            .is_err()
-        );
-        assert!(
-            first_confirmed_successor(BTreeSet::new(), |_| async { Ok(()) })
-                .await
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn unsent_probe_packets_are_not_reported_as_network_loss() {
-        assert_eq!(summarize_datagram_probe(&[], 0, 0).status, "unavailable");
-        let result = summarize_datagram_probe(&[1_000; 60], 100, 75);
-        assert_eq!(result.loss_count, 15);
-        assert_eq!(result.status, "local_overload");
-    }
-
-    #[test]
-    fn long_probe_requires_eighty_percent_of_the_long_workload() {
-        let poor = summarize_probe(&[1_000; 100], Duration::from_secs(30));
-        assert_eq!(poor.status, "unavailable");
-        assert_eq!(poor.loss_count, 500);
-        let enough = summarize_probe(&[1_000; 480], Duration::from_secs(30));
-        assert_eq!(enough.status, "ready");
-        assert_eq!(enough.loss_count, 120);
-    }
 
     #[test]
     fn stable_voters_skip_two_and_four_and_cap_at_five() {
@@ -1079,145 +618,4 @@ mod tests {
         assert_eq!(stable_voter_count(16), 5);
     }
 
-    #[test]
-    fn transfer_is_contiguous_and_sha256_bound() {
-        let bytes = vec![9; CHECKPOINT_CHUNK_BYTES + 3];
-        let source = CheckpointTransfer::new([4; 16], 2, 7, 8, 9, bytes).unwrap();
-        let mut incoming = IncomingTransfer::begin(
-            source.room,
-            source.transfer,
-            source.term,
-            source.base_revision,
-            source.revision,
-            source.bytes.len(),
-            &source.digest_hex(),
-        )
-        .unwrap();
-        let first = source.encode_chunk(0).unwrap();
-        assert_eq!(incoming.push(0, &first).unwrap(), CHECKPOINT_CHUNK_BYTES);
-        assert_eq!(
-            incoming.push(0, &first).unwrap(),
-            CHECKPOINT_CHUNK_BYTES,
-            "an exact retained chunk returns only its own end offset"
-        );
-        assert!(
-            incoming
-                .push(0, &URL_SAFE_NO_PAD.encode(vec![8; CHECKPOINT_CHUNK_BYTES]))
-                .is_err(),
-            "a changed retry must not receive credit for retained bytes"
-        );
-        assert_eq!(
-            incoming
-                .push(
-                    CHECKPOINT_CHUNK_BYTES,
-                    &source.encode_chunk(CHECKPOINT_CHUNK_BYTES).unwrap(),
-                )
-                .unwrap(),
-            source.bytes.len()
-        );
-        assert_eq!(incoming.finish().unwrap().bytes, source.bytes);
-    }
-
-    #[test]
-    fn probe_summary_enforces_sample_loss_and_delay_boundaries() {
-        let below = summarize_probe(&[1_000; 79], PROBE_DURATION);
-        assert_eq!(below.sample_count, 79);
-        assert_eq!(below.loss_count, 21);
-        assert_eq!(below.status, "unavailable");
-        assert_eq!(below.recommended_delay, 1);
-
-        let threshold = summarize_probe(&[66_667; 80], PROBE_DURATION);
-        assert_eq!(threshold.sample_count, 80);
-        assert_eq!(threshold.loss_count, 20);
-        assert_eq!(threshold.status, "ready");
-        assert_eq!(threshold.recommended_delay, 1);
-
-        let complete = summarize_probe(&[400_000; 100], PROBE_DURATION);
-        assert_eq!(complete.sample_count, 100);
-        assert_eq!(complete.loss_count, 0);
-        assert_eq!(complete.status, "ready");
-        assert_eq!(complete.recommended_delay, 5);
-
-        let empty = summarize_probe(&[], PROBE_DURATION);
-        assert_eq!(empty.status, "unavailable");
-        assert_eq!(empty.recommended_delay, 1);
-    }
-
-    #[test]
-    fn probe_delay_uses_player_bands() {
-        for (rtt_us, delay) in [
-            (0, 1),
-            (1_000, 1),
-            (80_000, 1),
-            (81_000, 2),
-            (150_000, 2),
-            (151_000, 3),
-            (220_000, 3),
-            (221_000, 4),
-            (290_000, 4),
-            (291_000, 5),
-            (360_000, 5),
-            (361_000, 5),
-            (640_000, 5),
-            (641_000, 5),
-            (711_000, 5),
-            (u64::MAX, 5),
-        ] {
-            let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
-            assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
-        }
-    }
-
-    #[test]
-    fn probe_delay_rounds_half_milliseconds_up() {
-        for (rtt_us, delay) in [
-            (80_400, 1),
-            (80_499, 1),
-            (80_500, 2),
-            (150_499, 2),
-            (150_500, 3),
-            (220_499, 3),
-            (220_500, 4),
-            (290_499, 4),
-            (290_500, 5),
-        ] {
-            let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
-            assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
-        }
-    }
-
-    #[test]
-    fn probe_delay_tolerates_one_worse_tail_band() {
-        for (p50, p95, delay) in [
-            (80_000, 150_000, 1),
-            (80_000, 151_000, 2),
-            (80_000, 221_000, 3),
-            (151_000, 151_000, 3),
-        ] {
-            let mut samples = [p50; 100];
-            samples[..10].fill(p95);
-            let result = summarize_probe(&samples, PROBE_DURATION);
-            assert_eq!(result.p95_rtt_us, p95);
-            assert_eq!(result.recommended_delay, delay, "p50 {p50}, p95 {p95}");
-        }
-    }
-
-    #[test]
-    fn probe_delay_median_uses_the_displayed_percentile_index() {
-        // With an even sample count the displayed p50 selects the upper middle.
-        let result = summarize_probe(&[80_000, 151_000], PROBE_DURATION);
-        assert_eq!(result.recommended_delay, 3);
-    }
-
-    #[test]
-    fn datagram_probe_delay_uses_the_same_bands_for_checks_and_benchmarks() {
-        for expected in [100, 600] {
-            let mut samples = vec![80_000; expected as usize];
-            samples[..expected as usize / 10].fill(150_000);
-            let result = summarize_datagram_probe(&samples, expected, expected);
-            assert_eq!(result.status, "ready");
-            assert_eq!(result.loss_count, 0);
-            assert_eq!(result.recommended_delay, 1);
-        }
-    }
 }

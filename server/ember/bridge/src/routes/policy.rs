@@ -21,8 +21,13 @@ pub fn of(tx: &Transaction<'_>, connection_id: &str) -> Result<Policy> {
         )
         .optional()?
         .ok_or_else(ApiFailure::unavailable)?;
-    let disputes = Disputes::parse(&disputes).ok_or_else(ApiFailure::unavailable)?;
-    Ok(Policy::of(&kind, disputes))
+    of_record(&kind, &disputes).ok_or_else(ApiFailure::unavailable)
+}
+
+/// The policy a connection's record gives: its `kind` and `disputes`. None
+/// for a disputes setting this bridge does not know.
+pub fn of_record(kind: &str, disputes: &str) -> Option<Policy> {
+    Some(Policy::of(kind, Disputes::parse(disputes)?))
 }
 
 /// Refuses the generic match, lobby and tournament routes to a connection

@@ -67,6 +67,7 @@ if(WIN32)
             add_test(NAME HelperProcess COMMAND HelperProcessTest "${SF4E_HELPER_EXECUTABLE}")
             set_tests_properties(HelperProcess PROPERTIES TIMEOUT 90)
             sf4e_test_locks(HelperProcess loopback_udp_ports ember_processes)
+            sf4e_test_labels(LABELS unit helper TESTS HelperProcess)
             # The helper's own tests belong to the same gate as the C++ tests,
             # so a build receipt with testsPassed covers them (ledger A-015).
             # A separate target dir keeps the release helper from rebuilding.
@@ -85,6 +86,7 @@ if(WIN32)
                 WORKING_DIRECTORY "${SF4E_HELPER_SOURCE}")
             set_tests_properties(HelperRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(HelperRust loopback_udp_ports ember_processes)
+            sf4e_test_labels(LABELS helper rust TESTS HelperRust)
             # The identity protocol and tournament bridge workspace. The bridge
             # is not shipped to players; its tests still gate the build. The SDK
             # test builds into the same target directory and runs that bridge.
@@ -95,14 +97,17 @@ if(WIN32)
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/server/ember")
             set_tests_properties(EmberRust PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(EmberRust ember_processes)
+            sf4e_test_labels(LABELS rust TESTS EmberRust)
             find_program(SF4E_NPM_EXECUTABLE NAMES npm.cmd npm REQUIRED)
+            find_program(SF4E_NODE_EXECUTABLE NAMES node REQUIRED)
             add_test(NAME BridgeSdk
                 COMMAND ${CMAKE_COMMAND} "-DSOURCE=${CMAKE_SOURCE_DIR}"
-                    "-DCARGO=${SF4E_CARGO_EXECUTABLE}" "-DNPM=${SF4E_NPM_EXECUTABLE}"
+                    "-DCARGO=${SF4E_CARGO_EXECUTABLE}" "-DNPM=${SF4E_NPM_EXECUTABLE}" "-DNODE=${SF4E_NODE_EXECUTABLE}"
                     "-DEMBER_TARGET=${SF4E_EMBER_TARGET_DIR}" "-DJOBS=${SF4E_CARGO_TEST_JOBS}"
                     -P "${CMAKE_SOURCE_DIR}/cmake/RunSdkTests.cmake")
             set_tests_properties(BridgeSdk PROPERTIES TIMEOUT 1800 PROCESSORS ${SF4E_CARGO_TEST_JOBS})
             sf4e_test_locks(BridgeSdk ember_processes)
+            sf4e_test_labels(LABELS sdk TESTS BridgeSdk)
         endif()
     endif()
 endif()

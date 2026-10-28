@@ -41,6 +41,11 @@ namespace sf4e {
 	// Nonzero while P1 holds a finished battle's GGPO session open so its
 	// spectators can finish: the tick after which it closes regardless.
 	static ULONGLONG s_spectatorDrainUntil = 0;
+	// The deadline and the battle hooks' drain flag (fSystem::drainingSpectators) end together.
+	static void EndSpectatorDrain() {
+		s_spectatorDrainUntil = 0;
+		fSystem::drainingSpectators = false;
+	}
 
 	void NetplayFacade::NotifyGameReady() { NotifyRuntimeGameReady(); }
 
@@ -192,7 +197,7 @@ namespace sf4e {
         if (DrainingSpectators() && (GetTickCount64() >= s_spectatorDrainUntil || !fSystem::SpectatorStreamCount())) {
             spdlog::info("NetplayFacade: closing deferred GGPO session spectators={}", fSystem::SpectatorStreamCount());
             fSystem::RetireGgpoSession("deferred_close");
-            s_spectatorDrainUntil = 0;
+            EndSpectatorDrain();
         }
     }
 
@@ -214,7 +219,7 @@ namespace sf4e {
 			fUserApp::server->Close();
 			fUserApp::server.reset();
 		}
-		s_spectatorDrainUntil = 0;
+		EndSpectatorDrain();
 		s_coordinationHealthy = s_sessionClientHealthy = true;
 		s_verificationLostAtFrame = -1;
 		// Keep an Error visible across the shutdown (it explains why the
@@ -232,11 +237,11 @@ namespace sf4e {
 	}
 
 	void NetplayFacade::CancelDeferredGgpoClose() {
-		s_spectatorDrainUntil = 0;
+		EndSpectatorDrain();
 	}
 
 	bool NetplayFacade::DrainingSpectators() {
-		return s_spectatorDrainUntil && fSystem::ggpo;
+		return fSystem::drainingSpectators;
 	}
 
 	void NetplayFacade::NotifyMatchEnded() {
@@ -249,7 +254,7 @@ namespace sf4e {
 		const std::size_t spectators = IsControlPlaneLost() || !fUserApp::netplay ?
 			0 : fSystem::SpectatorStreamCount();
 		if (!spectators) {
-			s_spectatorDrainUntil = 0;
+			EndSpectatorDrain();
 			return;
 		}
 		// The hold only has to deliver P1's last frames: a spectator plays out its
@@ -257,6 +262,7 @@ namespace sf4e {
 		// any spectator with DropQueueFrames or more frames unacknowledged, so a
 		// live one has received everything well inside this bound.
 		s_spectatorDrainUntil = GetTickCount64() + 10000;
+		fSystem::drainingSpectators = true;
 		spdlog::info("NetplayFacade: deferring GGPO close for {} spectator streams", spectators);
 	}
 

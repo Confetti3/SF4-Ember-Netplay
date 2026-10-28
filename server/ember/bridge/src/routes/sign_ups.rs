@@ -123,7 +123,6 @@ pub async fn sign_up(
             Ok(Ok((open, ember_id, username, name, participant)))
         })
         .await?;
-    state.committed();
     let (open, ember_id, username, name, participant) = signed.map_err(ApiFailure::invalid)?;
     if participant.is_some() {
         return Ok(ok(&json!({ "signed_up": true })));
@@ -179,7 +178,6 @@ pub async fn sign_up(
             Ok(())
         })
         .await?;
-    state.committed();
     Ok(json(StatusCode::CREATED, &json!({ "signed_up": true })))
 }
 
@@ -220,7 +218,6 @@ pub async fn withdraw(
             Ok(row.map(|row| (ember_id, row)))
         })
         .await?;
-    state.committed();
     let (ember_id, (status, organizer, site, tournament, participant)) =
         found.ok_or_else(ApiFailure::not_found)?;
     if status != "draft" {
@@ -257,6 +254,5 @@ pub async fn withdraw(
             Ok(())
         })
         .await?;
-    state.committed();
     Ok(ok(&json!({ "signed_up": false })))
 }

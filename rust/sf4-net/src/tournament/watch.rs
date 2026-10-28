@@ -13,16 +13,23 @@ use ember_protocol::{
 use serde_json::{Value, json};
 
 use super::{
-    Failure, Outcome, Shared,
+    Code, Failure, Outcome, Shared,
     bridges::Approved,
-    client::{self, answer, refusal},
-    play::{Need, check_match_id, features, send_proven},
+    client::{self, Body, BridgeCall, Refusals, Verb},
+    play::{Need, check_match_id, features},
 };
 
 /// The refusals the game words apart, from the bridge's `details.reason`:
 /// the match is over, the caller plays in it, the organizer has not opened it
 /// to the caller, or has denied the caller this match.
 const REASONS: [&str; 4] = ["finished", "fighter", "not_allowed", "revoked"];
+/// A refusal is the bridge's own reason when it names one the game words, and
+/// its error code otherwise. A bridge without the routes is not told apart:
+/// it is never asked (`serves_watch`).
+const REFUSALS: Refusals<'static> = Refusals {
+    reasons: &REASONS,
+    missing: None,
+};
 
 /// Asks to watch `match_id` with this helper run's endpoint. The answer is
 /// the room to join, or why to wait and for how long.
@@ -40,21 +47,19 @@ pub async fn watch_match(
     };
     request
         .check()
-        .map_err(|_| Failure::new("invalid_request"))?;
-    let command = serde_json::to_value(&request).map_err(|_| Failure::new("internal"))?;
+        .map_err(|_| Failure::new(Code::InvalidRequest))?;
+    let command = serde_json::to_value(&request).map_err(|_| Failure::new(Code::Internal))?;
     if !serves_watch(shared, &client::approved(shared, bridge_id)?).await? {
-        return Err(Failure::new("watch_unsupported"));
+        return Err(Failure::new(Code::WatchUnsupported));
     }
-    client::with_session(shared, bridge_id, |bridge, token| {
-        let command = command.clone();
-        async move {
-            let path = format!("/v1/matches/{match_id}/watch");
-            let (status, body) =
-                send_proven(shared, &bridge, &token, Action::MatchWatch, &path, command).await?;
-            present(reply(status, &body)?).map(Some)
-        }
-    })
-    .await
+    let path = format!("/v1/matches/{match_id}/watch");
+    let call = BridgeCall::new(Verb::Post, &path, &[200])
+        .body(Body::Proven {
+            action: Action::MatchWatch,
+            command: &command,
+        })
+        .refusals(REFUSALS);
+    present(client::request(shared, bridge_id, &call).await?).map(Some)
 }
 
 /// Stops watching `match_id`, so the bridge drops this watcher at once
@@ -65,21 +70,16 @@ pub async fn unwatch_match(shared: &Arc<Shared>, bridge_id: &str, match_id: &str
     if !serves_watch(shared, &client::approved(shared, bridge_id)?).await? {
         return Ok(Some(json!({})));
     }
-    client::with_session(shared, bridge_id, |bridge, token| async move {
-        let path = format!("/v1/matches/{match_id}/watch/leave");
-        let (status, body) = send_proven(
-            shared,
-            &bridge,
-            &token,
-            Action::MatchUnwatch,
-            &path,
-            json!({}),
-        )
-        .await?;
-        reply(status, &body)?;
-        Ok(Some(json!({})))
-    })
-    .await
+    let path = format!("/v1/matches/{match_id}/watch/leave");
+    let command = json!({});
+    let call = BridgeCall::new(Verb::Post, &path, &[200])
+        .body(Body::Proven {
+            action: Action::MatchUnwatch,
+            command: &command,
+        })
+        .refusals(REFUSALS);
+    client::request(shared, bridge_id, &call).await?;
+    Ok(Some(json!({})))
 }
 
 /// Whether the bridge serves the watch routes, from the capabilities this run
@@ -89,19 +89,9 @@ async fn serves_watch(shared: &Arc<Shared>, bridge: &Approved) -> Result<bool, F
     Ok(features(shared, bridge, Need::Watch).await?.watch)
 }
 
-/// The bridge's answer as JSON when it is a success. A refusal is the
-/// bridge's own reason when it names one the game words, and its error code
-/// otherwise.
-fn reply(status: u16, body: &[u8]) -> Result<Value, Failure> {
-    if status == 200 {
-        return answer(status, body, &[200]);
-    }
-    Err(refusal(status, body, &REASONS))
-}
-
 /// The watch answer for the game, in the claim answer's `role` shape.
 fn present(value: Value) -> Result<Value, Failure> {
-    let invalid = || Failure::new("bridge_invalid_response");
+    let invalid = || Failure::new(Code::BridgeInvalidResponse);
     match serde_json::from_value::<WatchAnswer>(value).map_err(|_| invalid())? {
         WatchAnswer::Waiting {
             retry_after,
@@ -134,6 +124,10 @@ mod tests {
         },
     };
 
+    fn reply(status: u16, body: &[u8]) -> Result<Value, Failure> {
+        client::answer(status, body, &[200], &REFUSALS)
+    }
+
     fn refusal(status: u16, code: &str, reason: Option<&str>) -> Result<Value, Failure> {
         let details = reason.map_or(json!({}), |reason| json!({ "reason": reason }));
         let body = json!({ "error": {
@@ -146,17 +140,23 @@ mod tests {
     fn a_refusal_names_the_bridges_reason_or_its_code() {
         for reason in REASONS {
             assert_eq!(
-                refusal(403, "forbidden", Some(reason)).unwrap_err().0,
+                refusal(403, "forbidden", Some(reason))
+                    .unwrap_err()
+                    .as_str(),
                 reason
             );
         }
         // A reason the game does not word falls back to the error code.
         assert_eq!(
-            refusal(403, "forbidden", Some("other")).unwrap_err().0,
+            refusal(403, "forbidden", Some("other"))
+                .unwrap_err()
+                .as_str(),
             "forbidden"
         );
         assert_eq!(
-            refusal(422, "incompatible_build", None).unwrap_err().0,
+            refusal(422, "incompatible_build", None)
+                .unwrap_err()
+                .as_str(),
             "incompatible_build"
         );
         assert_eq!(
@@ -178,13 +178,29 @@ mod tests {
             waiting.unwrap(),
             json!({ "role": "waiting", "retry_after": 10, "reason": "full" })
         );
+        // A field a newer bridge adds is ignored; the game sees the answer
+        // without it.
+        let extra = present(
+            json!({ "state": "room", "room_id": "a".repeat(32), "invitation": "x", "binding": null }),
+        );
+        assert_eq!(
+            extra.unwrap(),
+            json!({ "role": "room", "room_id": "a".repeat(32), "invitation": "x" })
+        );
+        // A known field of the wrong type, or a value no bridge sends, is
+        // still refused.
         for bad in [
             json!({ "state": "room", "room_id": "A".repeat(32), "invitation": "sf4e3:x" }),
             json!({ "state": "room", "room_id": "a".repeat(32), "invitation": "" }),
             json!({ "state": "waiting", "retry_after": 10, "reason": "later" }),
-            json!({ "state": "room", "room_id": "a".repeat(32), "invitation": "x", "binding": null }),
+            json!({ "state": "room", "room_id": 7, "invitation": "sf4e3:x" }),
+            json!({ "state": "waiting", "retry_after": "10", "reason": "full" }),
+            json!({ "state": "waiting", "retry_after": -1, "reason": "full" }),
         ] {
-            assert_eq!(present(bad).unwrap_err().0, "bridge_invalid_response");
+            assert_eq!(
+                present(bad).unwrap_err().as_str(),
+                "bridge_invalid_response"
+            );
         }
     }
 
@@ -239,19 +255,19 @@ mod tests {
         let watch = || watch_match(&shared, &pin.bridge_id, &match_id, "b1");
         let unwatch = || unwatch_match(&shared, &pin.bridge_id, &match_id);
 
-        assert_eq!(watch().await.unwrap_err().0, "watch_unsupported");
-        assert_eq!(watch().await.unwrap_err().0, "watch_unsupported");
+        assert_eq!(watch().await.unwrap_err().as_str(), "watch_unsupported");
+        assert_eq!(watch().await.unwrap_err().as_str(), "watch_unsupported");
         assert_eq!(count(), 2, "only the capabilities were read");
         // Nothing to stop, and no session opened to say so.
         assert_eq!(unwatch().await.unwrap(), Some(json!({})));
         assert_eq!(count(), 3, "only the capabilities were read");
 
         mode.store(2, Ordering::SeqCst);
-        assert_ne!(watch().await.unwrap_err().0, "watch_unsupported");
+        assert_ne!(watch().await.unwrap_err().as_str(), "watch_unsupported");
         let after = count();
         assert!(after > 4, "the watch went on to open a session");
         mode.store(1, Ordering::SeqCst);
-        assert_ne!(watch().await.unwrap_err().0, "watch_unsupported");
+        assert_ne!(watch().await.unwrap_err().as_str(), "watch_unsupported");
         // The bridge that was seen to serve it is not asked again to stop.
         let before = count();
         let _ = unwatch().await;
@@ -285,6 +301,7 @@ mod tests {
             build_id: "b1".into(),
             ready: None,
             watch: None,
+            held_binding: None,
         };
         let sent = std::sync::Mutex::new(Vec::new());
         let send = |fails: bool| {
@@ -292,7 +309,7 @@ mod tests {
             move |command: Value| async move {
                 sent.lock().unwrap().push(command.get("watch").cloned());
                 if fails {
-                    Err(Failure::new("bridge_unavailable"))
+                    Err(Failure::Bridge("bridge_unavailable".into()))
                 } else {
                     Ok(json!({}))
                 }

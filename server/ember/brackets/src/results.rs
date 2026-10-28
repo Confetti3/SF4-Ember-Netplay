@@ -17,14 +17,11 @@ use axum::{
 };
 use ember_protocol::{
     Error, json,
-    partner::{RESULT_TYPE, result_id},
+    partner::{MatchResult, RESULT_TYPE, result_id},
     webhook::{self, Headers, Secret},
 };
 
-use crate::{
-    Connector, log,
-    sets::{Received, ResultView},
-};
+use crate::{Connector, log, sets::Received};
 
 pub(crate) const MAX_BODY: usize = 64 * 1024;
 
@@ -83,7 +80,7 @@ impl Gate {
         }
         // Signed by the bridge from here on: a refusal is permanent, and
         // means the bridge and this connector disagree on the format.
-        let result: ResultView = json::parse_as(body, MAX_BODY)
+        let result: MatchResult = json::parse_as(body, MAX_BODY)
             .map_err(|_| self.refuse(StatusCode::BAD_REQUEST, "its body is not a match result"))?;
         if result.kind != RESULT_TYPE || headers.id != result_id(&result.match_id) {
             return Err(self.refuse(StatusCode::BAD_REQUEST, "it is not a match result"));

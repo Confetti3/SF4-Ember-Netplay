@@ -71,6 +71,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/players/{ember_id}/record", get(records::record))
         .route("/v1/matches", post(matches::create))
         .route("/v1/matches/{id}", get(matches::get))
+        .route("/v1/matches/{id}/link", get(matches::link))
         .route("/v1/matches/{id}/cancel", post(matches::cancel))
         .route("/v1/matches/{id}/adjudications", post(matches::adjudicate))
         .route("/v1/matches/{id}/claims", post(play::claim_route))
@@ -131,6 +132,7 @@ pub fn router(state: AppState) -> Router {
             get(ranking::standing).put(ranking::choose),
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
+        .route("/v1/ranking/board/public", get(ranking::public_board))
         .route("/v1/lobbies", post(lobbies::create))
         .route("/v1/lobbies/{id}", get(lobbies::get))
         .route("/v1/lobbies/{id}/queue", post(lobbies::join))
@@ -253,24 +255,20 @@ async fn access_log(request: Request, next: Next) -> Response {
 /// `maintenance_once` forever.
 pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<()>) {
     let ctx = Ctx::of(&state);
-    match state
+    if let Err(error) = state
         .db
         .write(move |tx| blumint::end_unkeyed(tx, &ctx))
         .await
     {
-        Ok(()) => state.committed(),
-        Err(error) => {
-            eprintln!("maintenance: could not end the unkeyed BluMint matches: {error:?}")
-        }
+        eprintln!("maintenance: could not end the unkeyed BluMint matches: {error:?}")
     }
     let now = state.now();
-    match state
+    if let Err(error) = state
         .db
         .write(move |tx| delivery::status::resume(tx, now))
         .await
     {
-        Ok(()) => state.committed(),
-        Err(error) => eprintln!("maintenance: could not record the restart: {error:?}"),
+        eprintln!("maintenance: could not record the restart: {error:?}")
     }
     let _ = resumed.send(());
     loop {
@@ -291,7 +289,8 @@ pub async fn maintenance_once(state: &AppState) {
     let ctx = Ctx::of(state);
     let now = ctx.now;
     let cutoff = now.saturating_sub(RETENTION_SECS);
-    let done = state
+    // A failed pass changes nothing and the next one tries again.
+    let _ = state
         .db
         .write(move |tx| {
             reports::expire(tx, &ctx)?;
@@ -316,7 +315,4 @@ pub async fn maintenance_once(state: &AppState) {
             Ok(())
         })
         .await;
-    if done.is_ok() {
-        state.committed();
-    }
 }

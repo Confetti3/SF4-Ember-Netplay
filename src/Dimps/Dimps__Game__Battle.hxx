@@ -119,7 +119,9 @@ namespace Dimps {
 				struct Unit {
 					char pad[0x18];
 
-					static Eva::Task** GetPauseTask(Unit* u);
+					static Eva::Task** GetPauseTask(Unit* u) {
+						return (Eva::Task**)((unsigned int)u + 0x14);
+					}
 				};
 			}
 
@@ -196,9 +198,15 @@ namespace Dimps {
 					static __publicMethods publicMethods;
 					static __staticMethods staticMethods;
 
-					static AdapterPool* GetAdapterPool(SoundPlayerManager* m);
-					static CriPlayerAdapter** GetAdapters(SoundPlayerManager* m);
-					static int* GetNumAdapters(SoundPlayerManager* m);
+					static AdapterPool* GetAdapterPool(SoundPlayerManager* m) {
+						return (AdapterPool*)((unsigned int)m + 0xc);
+					}
+					static CriPlayerAdapter** GetAdapters(SoundPlayerManager* m) {
+						return (CriPlayerAdapter**)((unsigned int)m + 0x4);
+					}
+					static int* GetNumAdapters(SoundPlayerManager* m) {
+						return (int*)((unsigned int)m + 0x8);
+					}
 				};
 
 				struct Unit {
@@ -212,7 +220,9 @@ namespace Dimps {
 					static void Locate(HMODULE peRoot);
 					static __publicMethods publicMethods;
 
-					static SoundPlayerManager** GetManagerArray(Unit* u);
+					static SoundPlayerManager** GetManagerArray(Unit* u) {
+						return (SoundPlayerManager**)((unsigned int)u + 0xc);
+					}
 				};
 			}
 		}

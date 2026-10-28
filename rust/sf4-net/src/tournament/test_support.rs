@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicU8, AtomicUsize, Ordering},
 };
 
-use ember_protocol::play::{CLAIM_READY_FEATURE, WATCH_FEATURE};
+use ember_protocol::play::{CLAIM_READY_FEATURE, CLAIM_UNCHANGED_FEATURE, WATCH_FEATURE};
 use serde_json::{Value, json};
 
 use super::{Shared, builtin::Builtin, client, play::State};
@@ -24,7 +24,8 @@ pub(super) fn capabilities_json(features: &[&str]) -> Value {
 }
 
 /// A bridge origin on loopback whose `/v1/capabilities` answers as `mode`
-/// says: 0 fails, 1 lists neither `ready` nor watching, 2 lists both. It
+/// says: 0 fails, 1 lists neither `ready` nor watching, 2 lists both, 3
+/// lists both and answering a claim's held binding. It
 /// answers every path so, and counts each request.
 pub(super) async fn capabilities_server(mode: Arc<AtomicU8>) -> (String, Arc<AtomicUsize>) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -49,6 +50,12 @@ pub(super) async fn capabilities_server(mode: Arc<AtomicU8>) -> (String, Arc<Ato
             let features: &[&str] = match mode.load(Ordering::SeqCst) {
                 1 => &["matches.play"],
                 2 => &["matches.play", CLAIM_READY_FEATURE, WATCH_FEATURE],
+                3 => &[
+                    "matches.play",
+                    CLAIM_READY_FEATURE,
+                    WATCH_FEATURE,
+                    CLAIM_UNCHANGED_FEATURE,
+                ],
                 _ => {
                     let _ = socket
                         .write_all(b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
@@ -76,6 +83,7 @@ pub(super) fn shared_pinning(dir: &std::path::Path, builtins: &[Builtin]) -> Arc
             false,
             crate::identity::Cost::DEFAULT,
         )),
+        status_sent: std::sync::Mutex::new(None),
         bridges: std::sync::Mutex::new(super::bridges::Store::open(dir.join("bridges"), builtins)),
         client: client::Client::new(),
         http: Arc::new(tokio::sync::Semaphore::new(1)),

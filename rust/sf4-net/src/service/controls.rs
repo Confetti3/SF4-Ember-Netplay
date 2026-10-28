@@ -1,6 +1,20 @@
 //! Control-peer connections, the coordination handshake and inbound control frames.
 use super::*;
 
+/// A control connection from an endpoint that already has a worker. It is not
+/// started until that worker has delivered every frame it received, so the old
+/// connection's frames, a departure among them, reach the native side under
+/// the old control identity and ahead of anything the replacement sends.
+pub(super) struct ParkedControl {
+    pub(super) epoch: u64,
+    pub(super) channel: ControlChannel,
+    pub(super) joined_invite: Option<Invite>,
+    /// Id of the worker this candidate waits behind, or None when the peer
+    /// had no worker. Only that worker may be replaced by this candidate.
+    pub(super) behind: Option<u64>,
+    pub(super) since: Instant,
+}
+
 impl Actor {
     /// Announce this member's departure on the controls still named in
     /// `pending`. The committed leader retires the native seat immediately;
@@ -19,18 +33,18 @@ impl Actor {
         let Ok(payload) = serde_json::to_string(&message) else {
             return true;
         };
-        for (peer, control) in &self.controls {
-            if !pending.contains(peer) {
-                continue;
-            }
-            let id = self.next_transport_message;
-            self.next_transport_message = self.next_transport_message.saturating_add(1);
-            let frame = ControlFrame {
-                message_id: id,
-                payload: payload.clone().into_bytes(),
-            };
-            if control.try_send(frame).is_ok() {
-                pending.remove(peer);
+        let peers: Vec<_> = self
+            .controls
+            .keys()
+            .filter(|peer| pending.contains(*peer))
+            .copied()
+            .collect();
+        for peer in peers {
+            if self
+                .send_frame(Some(peer), payload.clone().into_bytes())
+                .is_ok()
+            {
+                pending.remove(&peer);
             }
         }
         pending.retain(|peer| self.controls.contains_key(peer));
@@ -119,14 +133,7 @@ impl Actor {
         let Ok(payload) = serde_json::to_string(&message) else {
             return;
         };
-        let id = self.next_transport_message;
-        self.next_transport_message = self.next_transport_message.saturating_add(1);
-        if let Some(control) = self.controls.get(&peer) {
-            let _ = control.try_send(ControlFrame {
-                message_id: id,
-                payload: payload.into_bytes(),
-            });
-        }
+        let _ = self.send_frame(Some(peer), payload.into_bytes());
         // A fresh control route may have missed an earlier retirement
         // broadcast.  Replay the durable tombstone set only from the
         // committed leader; followers must not impersonate membership
@@ -294,7 +301,7 @@ impl Actor {
         {
             return;
         }
-        let voters = recovery.applied_voter_ids().await;
+        let voters = recovery.coordinator.store().applied_voters().await;
         let candidate = voters.into_iter().find(|incarnation| {
             *incarnation != lost_leader
                 && !self.pending_retired_incarnations.contains(incarnation)
@@ -305,11 +312,23 @@ impl Actor {
         }
     }
 
+    /// Tests only: one peer's Membership frame, as the pump sends it.
+    #[cfg(test)]
     pub(super) fn send_membership_control(
         &mut self,
         peer: EndpointId,
         retired_before_retry: &BTreeSet<u64>,
     ) -> bool {
+        let Some(payload) = self.membership_payload(retired_before_retry) else {
+            return false;
+        };
+        self.send_frame_if_queued(peer, payload)
+    }
+
+    /// The Membership frame this leader publishes: the same for every peer,
+    /// since neither the admissions nor the retirements depend on who
+    /// receives them.
+    fn membership_payload(&self, retired_before_retry: &BTreeSet<u64>) -> Option<Vec<u8>> {
         let mut retired = retired_before_retry.clone();
         retired.extend(self.pending_retired_incarnations.iter().copied());
         retired.extend(self.retired_incarnations.iter().copied());
@@ -320,25 +339,52 @@ impl Actor {
                 .cloned()
                 .collect(),
         );
-        let Ok(payload) = serde_json::to_string(&CoordinationControl::Membership {
+        serde_json::to_string(&CoordinationControl::Membership {
             admissions,
             retired: retired.into_iter().collect(),
-        }) else {
-            return false;
-        };
-        let id = self.next_transport_message;
-        let sent = self.controls.get(&peer).is_some_and(|control| {
-            control
-                .try_send(ControlFrame {
-                    message_id: id,
-                    payload: payload.into_bytes(),
-                })
-                .is_ok()
-        });
+        })
+        .ok()
+        .map(String::into_bytes)
+    }
+
+    /// Sends `payload` to `peer`'s control as the next transport message. The
+    /// id is used up whether or not the frame is queued, and with no `peer`,
+    /// as every frame but a membership publication's is.
+    pub(super) fn send_frame(
+        &mut self,
+        peer: Option<EndpointId>,
+        payload: Vec<u8>,
+    ) -> Result<(), &'static str> {
+        let message_id = self.next_transport_message;
+        self.next_transport_message = self.next_transport_message.saturating_add(1);
+        self.queue_frame(peer, message_id, payload)
+    }
+
+    /// `send_frame` that uses the id up only once the frame is queued: the
+    /// membership publication's rule.
+    fn send_frame_if_queued(&mut self, peer: EndpointId, payload: Vec<u8>) -> bool {
+        let sent = self
+            .queue_frame(Some(peer), self.next_transport_message, payload)
+            .is_ok();
         if sent {
             self.next_transport_message = self.next_transport_message.saturating_add(1);
         }
         sent
+    }
+
+    fn queue_frame(
+        &self,
+        peer: Option<EndpointId>,
+        message_id: u64,
+        payload: Vec<u8>,
+    ) -> Result<(), &'static str> {
+        peer.and_then(|peer| self.controls.get(&peer))
+            .ok_or("missing")?
+            .try_send(ControlFrame {
+                message_id,
+                payload,
+            })
+            .map_err(QueueError::label)
     }
 
     pub(super) fn queue_membership_publication(&mut self) {
@@ -363,12 +409,20 @@ impl Actor {
             .iter()
             .copied()
             .collect::<Vec<_>>();
+        // Serialized once, for the first peer it goes to, and copied to the
+        // rest.
+        let mut payload: Option<Option<Vec<u8>>> = None;
         for peer in peers {
             if !self.controls.contains_key(&peer) {
                 self.pending_membership_publications.remove(&peer);
                 continue;
             }
-            if self.send_membership_control(peer, &BTreeSet::new()) {
+            let frame = payload
+                .get_or_insert_with(|| self.membership_payload(&BTreeSet::new()))
+                .clone();
+            if let Some(frame) = frame
+                && self.send_frame_if_queued(peer, frame)
+            {
                 self.pending_membership_publications.remove(&peer);
             }
         }
@@ -443,7 +497,6 @@ impl Actor {
                     // Accepted here and now: the authority's own binding.
                     self.bind_control_session(peer, admission.incarnation)?;
                     self.last_coordination_state = None;
-                    self.last_control_rebound = None;
                     // Complete the reciprocal authenticated binding now that
                     // the guest has a live coordination endpoint.
                     self.send_coordination_control(peer);
@@ -482,7 +535,11 @@ impl Actor {
                 {
                     return Err(failed("retired coordination incarnation"));
                 }
-                let (applied, applied_history) = recovery.applied_membership_provenance().await;
+                let (applied, applied_history) = recovery
+                    .coordinator
+                    .store()
+                    .applied_membership_provenance()
+                    .await;
                 if admission.incarnation != recovery.incarnation
                     && !applied.contains(&admission.incarnation)
                     && (self
@@ -541,7 +598,11 @@ impl Actor {
                 let Some(recovery) = self.recovery.clone() else {
                     return Ok(false);
                 };
-                let (applied, applied_history) = recovery.applied_membership_provenance().await;
+                let (applied, applied_history) = recovery
+                    .coordinator
+                    .store()
+                    .applied_membership_provenance()
+                    .await;
                 let leader_primary = if let Some(leader) = recovery.coordinator.current_leader() {
                     self.admissions
                         .get(&leader)
@@ -604,9 +665,7 @@ impl Actor {
                     }
                     accepted.push(admission);
                 }
-                self.last_coordination_state = None;
-                self.last_control_rebound = None;
-                self.emit_coordination_state().await?;
+                self.republish_coordination_state().await?;
                 self.queue_admission_operation(peer, accepted, false, None)?;
                 Ok(true)
             }
@@ -655,7 +714,7 @@ impl Actor {
         }
         if let Some(recovery) = &self.recovery
             && recovery
-                .applied_member_ids()
+                .coordinator.store().applied_members()
                 .await
                 .contains(&recovery.incarnation)
         {
@@ -979,8 +1038,82 @@ impl Actor {
             })?;
         }
         self.send_coordination_control(peer);
-        self.last_coordination_state = None;
-        self.last_control_rebound = None;
-        self.emit_coordination_state().await
+        self.republish_coordination_state().await
+    }
+}
+
+impl Actor {
+    /// `Command::Send`: a native message to `peer`, on `control` when it
+    /// names one.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn send_native(
+        &mut self,
+        id: u64,
+        epoch: u64,
+        peer: EndpointId,
+        message_id: u64,
+        payload: String,
+        control: u64,
+    ) -> io::Result<()> {
+        if !self.matches(epoch) {
+            self.error(id, "stale_epoch")?;
+            return Ok(());
+        }
+        let current = self.controls.get(&peer).map(ControlWorker::id);
+        if control != 0 && current != Some(control) {
+            let reason = if current.is_some() {
+                "replaced"
+            } else {
+                "missing"
+            };
+            self.control_send_failed(id, peer, reason)?;
+            return Ok(());
+        }
+        if payload.is_empty() || payload.len() > MAX_CONTROL_PAYLOAD {
+            self.error(id, "invalid_control_size")?;
+            return Ok(());
+        }
+        let Ok(wire_payload) = serde_json::to_string(&NativeControlMessage {
+            kind: "native_control".into(),
+            message_id,
+            payload,
+        }) else {
+            self.error(id, "control_send_failed")?;
+            return Ok(());
+        };
+        if wire_payload.len() > MAX_CONTROL_PAYLOAD {
+            self.error(id, "invalid_control_size")?;
+            return Ok(());
+        }
+        let result = self.send_frame(Some(peer), wire_payload.into_bytes());
+        if let Err(reason) = result {
+            self.control_send_failed(id, peer, reason)?;
+        } else {
+            self.emit(Event::Sent {
+                request_id: id,
+                epoch,
+                message_id,
+            })?;
+        }
+        Ok(())
+    }
+
+    /// `Command::CloseControl`. It never closes separately authorized
+    /// gameplay connections.
+    pub(super) fn close_control_command(
+        &mut self,
+        id: u64,
+        epoch: u64,
+        peer: EndpointId,
+    ) -> io::Result<()> {
+        if !self.matches(epoch) {
+            self.error(id, "stale_epoch")?;
+            return Ok(());
+        }
+        if self.controls.contains_key(&peer) {
+            self.close_control(peer)?;
+        }
+        // Never closes separately authorized gameplay connections.
+        Ok(())
     }
 }

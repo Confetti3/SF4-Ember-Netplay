@@ -211,8 +211,8 @@ pub async fn measure(
     let mut sorted = samples.clone();
     sorted.sort_unstable();
     if !sorted.is_empty() {
-        metrics.p50_rtt_us = sorted[((sorted.len() - 1) * 50).div_ceil(100)];
-        metrics.p99_rtt_us = sorted[((sorted.len() - 1) * 99).div_ceil(100)];
+        metrics.p50_rtt_us = percentile(&sorted, 50);
+        metrics.p99_rtt_us = percentile(&sorted, 99);
     }
     Ok(Measurement {
         samples,
@@ -281,11 +281,211 @@ pub fn route(connection: &Connection) -> String {
     crate::invite::public_route(remote)
 }
 
+/// The sample at `percent` of the sorted, non-empty `sorted`: the index
+/// rounds up, so an even count's p50 is the upper middle.
+fn percentile(sorted: &[u64], percent: usize) -> u64 {
+    sorted[((sorted.len() - 1) * percent).div_ceil(100)]
+}
+
+// RTT bands from players' experience: one frame through 80 ms, then one
+// more frame per 70 ms, capped at five (InputDelay.hxx: MaximumInputDelay).
+// Never 0: that is only a player's own choice (InputDelay.hxx:
+// RecommendedInputDelayMinimum).
+const DELAY_FIRST_BAND_MS: u64 = 80;
+const DELAY_BAND_STEP_MS: u64 = 70;
+const DELAY_BAND_MAX: u64 = 5;
+
+fn delay_band(rtt_us: u64) -> u8 {
+    // Round to the nearest whole millisecond, with half milliseconds up:
+    // 80.499 ms counts as 80, and 80.500 ms counts as 81. Avoid overflow.
+    let rtt_ms = rtt_us / 1_000 + u64::from(rtt_us % 1_000 >= 500);
+    (1 + rtt_ms
+        .saturating_sub(DELAY_FIRST_BAND_MS)
+        .div_ceil(DELAY_BAND_STEP_MS))
+    .min(DELAY_BAND_MAX) as u8
+}
+
+/// Recommend 1..=5 frames from the displayed median's player-experience
+/// RTT band, tolerating one worse band at p95 so occasional spikes do not
+/// overstate the typical ping. A tail more than one band worse raises it.
+pub fn recommended_delay(p50_rtt_us: u64, p95_rtt_us: u64) -> u8 {
+    delay_band(p50_rtt_us).max(delay_band(p95_rtt_us) - 1)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProbeResult {
+    pub sample_count: u32,
+    pub loss_count: u32,
+    pub p95_rtt_us: u64,
+    pub recommended_delay: u8,
+    pub status: String,
+}
+
+pub fn summarize_probe(samples_us: &[u64], duration: Duration) -> ProbeResult {
+    let mut sorted = samples_us.to_vec();
+    sorted.sort_unstable();
+    let sample_count = sorted.len() as u32;
+    let expected = (duration.as_millis() / crate::recovery::PROBE_INTERVAL.as_millis()) as u32;
+    let loss_count = expected.saturating_sub(sample_count);
+    let (p50, p95) = if sorted.is_empty() {
+        (0, 0)
+    } else {
+        // The displayed p50 (`measure`'s); the existing p95 index.
+        (percentile(&sorted, 50), percentile(&sorted, 95))
+    };
+    ProbeResult {
+        sample_count,
+        loss_count,
+        p95_rtt_us: p95,
+        recommended_delay: recommended_delay(p50, p95),
+        status: if sample_count >= expected * 4 / 5 {
+            "ready".into()
+        } else {
+            "unavailable".into()
+        },
+    }
+}
+
+/// Separate absent replies from packets the local scheduler never sent.
+pub fn summarize_datagram_probe(samples_us: &[u64], expected: u32, sent: u32) -> ProbeResult {
+    let mut result = summarize_probe(samples_us, Duration::from_millis(u64::from(expected) * 50));
+    result.loss_count = sent.saturating_sub(result.sample_count);
+    if expected == 0 {
+        result.status = "unavailable".into();
+    } else if sent < expected {
+        result.status = "local_overload".into();
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::recovery::PROBE_DURATION;
     use iroh::{Endpoint, EndpointAddr, endpoint::presets};
     use std::net::Ipv4Addr;
+
+    #[test]
+    fn unsent_probe_packets_are_not_reported_as_network_loss() {
+        assert_eq!(summarize_datagram_probe(&[], 0, 0).status, "unavailable");
+        let result = summarize_datagram_probe(&[1_000; 60], 100, 75);
+        assert_eq!(result.loss_count, 15);
+        assert_eq!(result.status, "local_overload");
+    }
+
+    #[test]
+    fn long_probe_requires_eighty_percent_of_the_long_workload() {
+        let poor = summarize_probe(&[1_000; 100], Duration::from_secs(30));
+        assert_eq!(poor.status, "unavailable");
+        assert_eq!(poor.loss_count, 500);
+        let enough = summarize_probe(&[1_000; 480], Duration::from_secs(30));
+        assert_eq!(enough.status, "ready");
+        assert_eq!(enough.loss_count, 120);
+    }
+
+    #[test]
+    fn probe_summary_enforces_sample_loss_and_delay_boundaries() {
+        let below = summarize_probe(&[1_000; 79], PROBE_DURATION);
+        assert_eq!(below.sample_count, 79);
+        assert_eq!(below.loss_count, 21);
+        assert_eq!(below.status, "unavailable");
+        assert_eq!(below.recommended_delay, 1);
+
+        let threshold = summarize_probe(&[66_667; 80], PROBE_DURATION);
+        assert_eq!(threshold.sample_count, 80);
+        assert_eq!(threshold.loss_count, 20);
+        assert_eq!(threshold.status, "ready");
+        assert_eq!(threshold.recommended_delay, 1);
+
+        let complete = summarize_probe(&[400_000; 100], PROBE_DURATION);
+        assert_eq!(complete.sample_count, 100);
+        assert_eq!(complete.loss_count, 0);
+        assert_eq!(complete.status, "ready");
+        assert_eq!(complete.recommended_delay, 5);
+
+        let empty = summarize_probe(&[], PROBE_DURATION);
+        assert_eq!(empty.status, "unavailable");
+        assert_eq!(empty.recommended_delay, 1);
+    }
+
+    #[test]
+    fn probe_delay_uses_player_bands() {
+        for (rtt_us, delay) in [
+            (0, 1),
+            (1_000, 1),
+            (80_000, 1),
+            (81_000, 2),
+            (150_000, 2),
+            (151_000, 3),
+            (220_000, 3),
+            (221_000, 4),
+            (290_000, 4),
+            (291_000, 5),
+            (360_000, 5),
+            (361_000, 5),
+            (640_000, 5),
+            (641_000, 5),
+            (711_000, 5),
+            (u64::MAX, 5),
+        ] {
+            let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
+            assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
+        }
+    }
+
+    #[test]
+    fn probe_delay_rounds_half_milliseconds_up() {
+        for (rtt_us, delay) in [
+            (80_400, 1),
+            (80_499, 1),
+            (80_500, 2),
+            (150_499, 2),
+            (150_500, 3),
+            (220_499, 3),
+            (220_500, 4),
+            (290_499, 4),
+            (290_500, 5),
+        ] {
+            let result = summarize_probe(&[rtt_us; 100], PROBE_DURATION);
+            assert_eq!(result.recommended_delay, delay, "RTT {rtt_us} us");
+        }
+    }
+
+    #[test]
+    fn probe_delay_tolerates_one_worse_tail_band() {
+        for (p50, p95, delay) in [
+            (80_000, 150_000, 1),
+            (80_000, 151_000, 2),
+            (80_000, 221_000, 3),
+            (151_000, 151_000, 3),
+        ] {
+            let mut samples = [p50; 100];
+            samples[..10].fill(p95);
+            let result = summarize_probe(&samples, PROBE_DURATION);
+            assert_eq!(result.p95_rtt_us, p95);
+            assert_eq!(result.recommended_delay, delay, "p50 {p50}, p95 {p95}");
+        }
+    }
+
+    #[test]
+    fn probe_delay_median_uses_the_displayed_percentile_index() {
+        // With an even sample count the displayed p50 selects the upper middle.
+        let result = summarize_probe(&[80_000, 151_000], PROBE_DURATION);
+        assert_eq!(result.recommended_delay, 3);
+    }
+
+    #[test]
+    fn datagram_probe_delay_uses_the_same_bands_for_checks_and_benchmarks() {
+        for expected in [100, 600] {
+            let mut samples = vec![80_000; expected as usize];
+            samples[..expected as usize / 10].fill(150_000);
+            let result = summarize_datagram_probe(&samples, expected, expected);
+            assert_eq!(result.status, "ready");
+            assert_eq!(result.loss_count, 0);
+            assert_eq!(result.recommended_delay, 1);
+        }
+    }
 
     #[test]
     fn a_move_between_direct_addresses_of_the_peer_is_not_a_route_change() {

@@ -13,8 +13,8 @@ use crate::{
     audit::audit,
     config::Policy,
     ctx::Ctx,
-    error::{ApiFailure, Result},
-    routes::ledger::{Match, bump, load, match_event, participants, release},
+    error::Result,
+    routes::ledger::{Match, bump, load_listed, match_event, participants, release},
 };
 
 /// Matches expired in one pass; the rest wait for the next.
@@ -73,7 +73,9 @@ pub fn expire_stale(tx: &Transaction<'_>, ctx: &Ctx) -> Result<()> {
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for id in ids {
-        let found = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;
+        let Some(found) = load_listed(tx, &id)? else {
+            continue;
+        };
         expire_and_release(tx, ctx, &found)?;
     }
     Ok(())

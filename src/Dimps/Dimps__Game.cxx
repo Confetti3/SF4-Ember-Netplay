@@ -89,23 +89,3 @@ void Control::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.Enable_0x577910 = (PVOID)(peRootOffset + 0x177910);
 	*(PVOID*)&publicMethods.Enable_0x588450 = (PVOID)(peRootOffset + 0x188450);
 }
-
-DWORD* Control::GetEnabled(Control* c) {
-	return (DWORD*)((unsigned int)c + 0x18);
-}
-
-ProgressData::NextBattleType* ProgressData::GetNextBattleType(ProgressData* data) {
-	return (NextBattleType*)((unsigned int)data + 0xec);
-}
-
-ProgressData::BattleTypeSettings* ProgressData::GetBattleTypeSettings(ProgressData* data) {
-	return (BattleTypeSettings*)((unsigned int)data + 0xf0);
-}
-
-int* SingleNodeControl::GetCurrentFrame(SingleNodeControl* c) {
-	return (int*)((unsigned int)c + 0x28);
-}
-
-Dimps::Eva::IEmSpriteNode** SingleNodeControl::GetSpriteNode(SingleNodeControl* c) {
-	return (Dimps::Eva::IEmSpriteNode**)((unsigned int)c + 0x1c);
-}

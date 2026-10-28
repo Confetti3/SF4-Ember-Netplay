@@ -18,7 +18,7 @@ use crate::{
     delivery,
     error::{ApiFailure, Result},
     http::{Body, PROOF_BODY, idempotency_key, ok},
-    routes::matches::{idempotent as idempotent_request, into_response},
+    routes::idempotency::idempotent as idempotent_request,
     util::{new_id, random},
 };
 
@@ -141,7 +141,7 @@ pub async fn create(
     } else {
         body["secret_redacted"] = true.into();
     }
-    Ok(into_response((status, body)))
+    Ok(crate::http::json(status, &body))
 }
 
 fn owned(tx: &rusqlite::Transaction<'_>, service: &Service, id: &str) -> Result<()> {

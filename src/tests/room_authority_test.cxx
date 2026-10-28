@@ -4,14 +4,14 @@ static void TestCommittedDepartureCheckpoint() {
     RoomAuthority source("Departure", 16, 92);
     const auto host = Join(source, 0, true), guest = Join(source, 1);
     const auto leave = TableAction(source, guest, 0, ActionKind::Leave);
-    CHECK(leave.actionId != 0 && source.Apply(guest, leave).accepted);
-    CHECK(source.SnapshotFor(guest).localMember == 0);
+    EXPECT(leave.actionId != 0 && source.Apply(guest, leave).accepted);
+    EXPECT(source.SnapshotFor(guest).localMember == 0);
     RoomAuthority replica("Replica");
-    CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(source.Checkpoint().dump())));
-    CHECK(replica.SnapshotView().members.size() == 1 && replica.SnapshotView().host == host);
-    CHECK(source.Apply(host, TableAction(source, host, 0, ActionKind::Leave)).accepted);
-    CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(source.Checkpoint().dump())));
-    CHECK(replica.SnapshotView().members.empty());
+    EXPECT(replica.RestoreCheckpoint(nlohmann::json::parse(source.Checkpoint().dump())));
+    EXPECT(replica.SnapshotView().members.size() == 1 && replica.SnapshotView().host == host);
+    EXPECT(source.Apply(host, TableAction(source, host, 0, ActionKind::Leave)).accepted);
+    EXPECT(replica.RestoreCheckpoint(nlohmann::json::parse(source.Checkpoint().dump())));
+    EXPECT(replica.SnapshotView().members.empty());
 }
 
 static void TestAuthorityRecovery() {
@@ -19,41 +19,41 @@ static void TestAuthorityRecovery() {
     auto host = Join(original, 0, true), p1 = Join(original, 1), p2 = Join(original, 2);
     auto kicked = Join(original, 3);
     Action ban = TableAction(original, host, 0, ActionKind::Kick); ban.target = kicked;
-    CHECK(original.Apply(host, ban).accepted);
-    for (auto member : {p1, p2}) CHECK(original.Apply(member, TableAction(original, member, 0, ActionKind::Queue)).accepted);
-    for (auto member : {p1, p2}) CHECK(original.Apply(member, TableAction(original, member, 0, ActionKind::Ready)).accepted);
-    CHECK(original.BeginMatch(0, p1, p2).accepted);
+    EXPECT(original.Apply(host, ban).accepted);
+    for (auto member : {p1, p2}) EXPECT(original.Apply(member, TableAction(original, member, 0, ActionKind::Queue)).accepted);
+    for (auto member : {p1, p2}) EXPECT(original.Apply(member, TableAction(original, member, 0, ActionKind::Ready)).accepted);
+    EXPECT(original.BeginMatch(0, p1, p2).accepted);
     original.AdvanceTime(1000);
     Action report = TableAction(original, p1, 0, ActionKind::RecordResult);
     report.matchGeneration = original.SnapshotView().tables[0].matchGeneration;
     report.result = MatchResult::P1Win;
-    CHECK(original.Apply(p1, report).accepted);
+    EXPECT(original.Apply(p1, report).accepted);
     const auto checkpoint = nlohmann::json::parse(original.Checkpoint().dump());
     RoomAuthority restored("Unchanged");
-    CHECK(restored.RestoreCheckpoint(checkpoint));
-    CHECK(restored.Checkpoint() == checkpoint);
+    EXPECT(restored.RestoreCheckpoint(checkpoint));
+    EXPECT(restored.Checkpoint() == checkpoint);
 	const auto duplicateReport = restored.Apply(p1, report);
-	CHECK(!duplicateReport.accepted && duplicateReport.reason == RejectReason::DuplicateResult);
-    CHECK(!restored.Join("New name", Peer(3)).accepted);
-    CHECK(!restored.TransferHost(p2, p1).accepted);
-    CHECK(restored.TransferHost(host, p1).accepted);
-    CHECK(restored.Leave(host).accepted && !restored.SnapshotView().closed);
-    CHECK(restored.SnapshotView().tables[0].matchGeneration == report.matchGeneration);
+	EXPECT(!duplicateReport.accepted && duplicateReport.reason == RejectReason::DuplicateResult);
+    EXPECT(!restored.Join("New name", Peer(3)).accepted);
+    EXPECT(!restored.TransferHost(p2, p1).accepted);
+    EXPECT(restored.TransferHost(host, p1).accepted);
+    EXPECT(restored.Leave(host).accepted && !restored.SnapshotView().closed);
+    EXPECT(restored.SnapshotView().tables[0].matchGeneration == report.matchGeneration);
     auto second = TableAction(restored, p2, 0, ActionKind::RecordResult);
     second.matchGeneration = report.matchGeneration; second.result = report.result;
-    CHECK(restored.Apply(p2, second).accepted);
-    CHECK(restored.SnapshotView().tables[0].score[0] == 1);
+    EXPECT(restored.Apply(p2, second).accepted);
+    EXPECT(restored.SnapshotView().tables[0].score[0] == 1);
     restored.Apply(p2, second);
-    CHECK(restored.SnapshotView().tables[0].score[0] == 1);
-    CHECK(Join(restored, 4) > kicked);
+    EXPECT(restored.SnapshotView().tables[0].score[0] == 1);
+    EXPECT(Join(restored, 4) > kicked);
     const auto unchanged = restored.Checkpoint();
     for (const auto* key : {"version", "next_member", "next_match", "actions", "reporters"}) {
         auto invalid = checkpoint; invalid[key] = "invalid";
-        CHECK(!restored.RestoreCheckpoint(invalid)); CHECK(restored.Checkpoint() == unchanged);
+        EXPECT(!restored.RestoreCheckpoint(invalid)); EXPECT(restored.Checkpoint() == unchanged);
     }
-    RoomAuthority timed("Deadline"); CHECK(timed.RestoreCheckpoint(checkpoint));
-    CHECK(timed.AdvanceTime(30999).empty());
-    CHECK(!timed.AdvanceTime(31000).empty());
+    RoomAuthority timed("Deadline"); EXPECT(timed.RestoreCheckpoint(checkpoint));
+    EXPECT(timed.AdvanceTime(30999).empty());
+    EXPECT(!timed.AdvanceTime(31000).empty());
 }
 
 static void TestRelativeTimerRecovery() {
@@ -61,44 +61,44 @@ static void TestRelativeTimerRecovery() {
 	Join(source, 0, true);
 	const auto p1 = Join(source, 1);
 	const auto p2 = Join(source, 2);
-	CHECK(source.Apply(p1, TableAction(source, p1, 0, ActionKind::Queue)).accepted);
-	CHECK(source.Apply(p2, TableAction(source, p2, 0, ActionKind::Queue)).accepted);
-	CHECK(source.Apply(p1, TableAction(source, p1, 0, ActionKind::Ready)).accepted);
-	CHECK(source.Apply(p2, TableAction(source, p2, 0, ActionKind::Ready)).accepted);
-	CHECK(source.BeginMatch(0, p1, p2).accepted);
+	EXPECT(source.Apply(p1, TableAction(source, p1, 0, ActionKind::Queue)).accepted);
+	EXPECT(source.Apply(p2, TableAction(source, p2, 0, ActionKind::Queue)).accepted);
+	EXPECT(source.Apply(p1, TableAction(source, p1, 0, ActionKind::Ready)).accepted);
+	EXPECT(source.Apply(p2, TableAction(source, p2, 0, ActionKind::Ready)).accepted);
+	EXPECT(source.BeginMatch(0, p1, p2).accepted);
 	Action finished = TableAction(source, p1, 0, ActionKind::MatchFinished);
 	finished.matchGeneration = source.SnapshotView().tables[0].matchGeneration;
-	CHECK(source.Apply(p1, finished).accepted);
-	CHECK(source.AdvanceTime(9000).empty());
+	EXPECT(source.Apply(p1, finished).accepted);
+	EXPECT(source.AdvanceTime(9000).empty());
 	auto chat=TableAction(source,p1,0,ActionKind::Chat);chat.text="Before recovery";
-	CHECK(source.Apply(p1,chat).accepted);
-	CHECK(source.AdvanceTime(10000).empty());
+	EXPECT(source.Apply(p1,chat).accepted);
+	EXPECT(source.AdvanceTime(10000).empty());
 	source.PauseForRecovery();
 	const auto checkpoint = source.Checkpoint();
-	CHECK(checkpoint.at("recovery_paused").get<bool>());
-	CHECK(checkpoint.at("result_age").at(0).get<std::uint64_t>() == 10000);
-	CHECK(checkpoint.at("result_since").at(0).get<std::uint64_t>() == 0);
-	CHECK(checkpoint.at("chat_times").at(0).at(1).get<std::uint64_t>() == 1000);
+	EXPECT(checkpoint.at("recovery_paused").get<bool>());
+	EXPECT(checkpoint.at("result_age").at(0).get<std::uint64_t>() == 10000);
+	EXPECT(checkpoint.at("result_since").at(0).get<std::uint64_t>() == 0);
+	EXPECT(checkpoint.at("chat_times").at(0).at(1).get<std::uint64_t>() == 1000);
 	RoomAuthority restored("Restored timers");
-	CHECK(restored.RestoreCheckpoint(checkpoint));
-	CHECK(restored.RecoveryPaused());
+	EXPECT(restored.RestoreCheckpoint(checkpoint));
+	EXPECT(restored.RecoveryPaused());
 	// Forwarding an already paused checkpoint through another helper must
 	// preserve durations even though its receiving monotonic clock is zero.
-	CHECK(restored.Checkpoint() == checkpoint);
-	CHECK(restored.RestoreCheckpoint(nlohmann::json::parse(restored.Checkpoint().dump())));
-	CHECK(restored.Checkpoint() == checkpoint);
+	EXPECT(restored.Checkpoint() == checkpoint);
+	EXPECT(restored.RestoreCheckpoint(nlohmann::json::parse(restored.Checkpoint().dump())));
+	EXPECT(restored.Checkpoint() == checkpoint);
 	RoomAuthority healthyFollower("Healthy follower timers");
-	CHECK(healthyFollower.RestoreCheckpoint(checkpoint));
+	EXPECT(healthyFollower.RestoreCheckpoint(checkpoint));
 	healthyFollower.AdvancePausedTimers(20000);
 	const auto agedCheckpoint = healthyFollower.Checkpoint();
-	CHECK(agedCheckpoint.at("result_age").at(0).get<std::uint64_t>() == 30000);
-	CHECK(agedCheckpoint.at("chat_times").at(0).at(1).get<std::uint64_t>() == 1000);
-	CHECK(!healthyFollower.AdvanceTime(500).empty());
-	CHECK(healthyFollower.SnapshotView().tables[0].phase == TablePhase::Paused);
-	CHECK(restored.AdvanceTime(500).empty()); // receiving clock is lower
-	CHECK(restored.AdvanceTime(29999).empty());
-	CHECK(!restored.AdvanceTime(30000).empty()); // age is retained across recovery
-	CHECK(restored.SnapshotView().tables[0].phase == TablePhase::Paused);
+	EXPECT(agedCheckpoint.at("result_age").at(0).get<std::uint64_t>() == 30000);
+	EXPECT(agedCheckpoint.at("chat_times").at(0).at(1).get<std::uint64_t>() == 1000);
+	EXPECT(!healthyFollower.AdvanceTime(500).empty());
+	EXPECT(healthyFollower.SnapshotView().tables[0].phase == TablePhase::Paused);
+	EXPECT(restored.AdvanceTime(500).empty()); // receiving clock is lower
+	EXPECT(restored.AdvanceTime(29999).empty());
+	EXPECT(!restored.AdvanceTime(30000).empty()); // age is retained across recovery
+	EXPECT(restored.SnapshotView().tables[0].phase == TablePhase::Paused);
 }
 
 static void TestUnlimitedRematch() {
@@ -110,32 +110,32 @@ static void TestUnlimitedRematch() {
 	const MemberId p4 = Join(authority, 4);
 	for (const auto member : {p1, p2, p3, p4}) {
 		Action queue = TableAction(authority, member, 0, ActionKind::Queue);
-		CHECK(authority.Apply(member, queue).accepted);
+		EXPECT(authority.Apply(member, queue).accepted);
 	}
 	Action rules = TableAction(authority, host, 0, ActionKind::SetRules);
 	rules.rules.format = SetFormat::Unlimited; // no set length: the pair stays seated
 	rules.rules.roundCount = 5; // a rules change that is not a new set
-	CHECK(authority.Apply(host, rules).accepted);
+	EXPECT(authority.Apply(host, rules).accepted);
 	const auto before = authority.SnapshotView().tables[0];
 	for (int game = 1; game <= 8; ++game) {
 		for (const auto member : {before.p1, before.p2}) {
 			Action ready = TableAction(authority, member, 0, ActionKind::Ready);
-			CHECK(authority.Apply(member, ready).accepted);
+			EXPECT(authority.Apply(member, ready).accepted);
 		}
-		CHECK(authority.BeginMatch(0, before.p1, before.p2).accepted);
+		EXPECT(authority.BeginMatch(0, before.p1, before.p2).accepted);
 		const auto generation = authority.SnapshotView().tables[0].matchGeneration;
-		CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+		EXPECT(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
 		for (const auto member : authority.TerminalMembers(0, generation)) {
 			Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
 			acknowledgment.matchGeneration = generation;
-			CHECK(authority.Apply(member, acknowledgment).accepted);
+			EXPECT(authority.Apply(member, acknowledgment).accepted);
 		}
 		const auto& after = authority.SnapshotView().tables[0];
-		CHECK(after.p1 == before.p1 && after.p2 == before.p2);
-		CHECK(after.phase == TablePhase::Waiting && !after.ready[0] && !after.ready[1]);
-		CHECK(after.score[0] == static_cast<std::uint32_t>(game) && after.score[1] == 0);
+		EXPECT(after.p1 == before.p1 && after.p2 == before.p2);
+		EXPECT(after.phase == TablePhase::Waiting && !after.ready[0] && !after.ready[1]);
+		EXPECT(after.score[0] == static_cast<std::uint32_t>(game) && after.score[1] == 0);
 	}
-	CHECK(authority.SnapshotView().tables[0].queue.size() == 2);
+	EXPECT(authority.SnapshotView().tables[0].queue.size() == 2);
 }
 
 // A seat that changes fighter takes back the other seat's Ready, as an
@@ -146,46 +146,46 @@ static void TestFighterChangeWithdrawsOpponentReady() {
 	Join(authority, 0, true);
 	const MemberId p1 = Join(authority, 1);
 	const MemberId p2 = Join(authority, 2);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto seated = authority.SnapshotView().tables[0];
 	bool withdrew = true;
 	// A first fighter changes no matchup: the table revision stays.
 	auto revision = authority.SnapshotView().tables[0].revision;
-	CHECK(authority.SetMemberFighter(seated.p1, 0, &withdrew) && !withdrew);
-	CHECK(authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew);
-	CHECK(authority.SnapshotView().tables[0].revision == revision);
-	CHECK(!authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew); // unchanged
+	EXPECT(authority.SetMemberFighter(seated.p1, 0, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew);
+	EXPECT(authority.SnapshotView().tables[0].revision == revision);
+	EXPECT(!authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew); // unchanged
 	// p1 readies; p2 changes a fighter it showed: p1's Ready is taken back.
 	Action ready = TableAction(authority, seated.p1, 0, ActionKind::Ready);
 	ready.inputDelay = 2;
-	CHECK(authority.Apply(seated.p1, ready).accepted);
+	EXPECT(authority.Apply(seated.p1, ready).accepted);
 	revision = authority.SnapshotView().tables[0].revision;
-	CHECK(authority.SetMemberFighter(seated.p2, 3, &withdrew) && withdrew);
+	EXPECT(authority.SetMemberFighter(seated.p2, 3, &withdrew) && withdrew);
 	{
 		const auto& after = authority.SnapshotView().tables[0];
-		CHECK(!after.ready[0] && !after.ready[1] && after.phase == TablePhase::Waiting);
-		CHECK(after.revision > revision);
-		CHECK(!FindMember(authority.SnapshotView(), seated.p1)->delayLocked);
+		EXPECT(!after.ready[0] && !after.ready[1] && after.phase == TablePhase::Waiting);
+		EXPECT(after.revision > revision);
+		EXPECT(!FindMember(authority.SnapshotView(), seated.p1)->delayLocked);
 	}
 	// A Ready pressed before the withdrawal carries the old table revision.
 	Action late = ready; late.actionId += 7;
-	CHECK(authority.Apply(seated.p1, late).reason == RejectReason::StaleTable);
+	EXPECT(authority.Apply(seated.p1, late).reason == RejectReason::StaleTable);
 	// The race: p1 presses Ready against p2's fighter 3, then p2's change
 	// to 4 arrives first with nobody ready. The Ready still cannot pass.
 	Action raced = TableAction(authority, seated.p1, 0, ActionKind::Ready);
-	CHECK(authority.SetMemberFighter(seated.p2, 4, &withdrew) && !withdrew);
-	CHECK(authority.Apply(seated.p1, raced).reason == RejectReason::StaleTable);
-	CHECK(!authority.SnapshotView().tables[0].ready[0]);
+	EXPECT(authority.SetMemberFighter(seated.p2, 4, &withdrew) && !withdrew);
+	EXPECT(authority.Apply(seated.p1, raced).reason == RejectReason::StaleTable);
+	EXPECT(!authority.SnapshotView().tables[0].ready[0]);
 	// A seat that is itself ready takes nothing back, the other direction
 	// works the same way, and a member without a seat changes nothing.
-	CHECK(authority.Apply(seated.p2, TableAction(authority, seated.p2, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.SetMemberFighter(seated.p2, 5, &withdrew) && !withdrew);
-	CHECK(authority.SnapshotView().tables[0].ready[1]);
-	CHECK(authority.SetMemberFighter(seated.p1, 6, &withdrew) && withdrew);
-	CHECK(!authority.SnapshotView().tables[0].ready[1]);
+	EXPECT(authority.Apply(seated.p2, TableAction(authority, seated.p2, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.SetMemberFighter(seated.p2, 5, &withdrew) && !withdrew);
+	EXPECT(authority.SnapshotView().tables[0].ready[1]);
+	EXPECT(authority.SetMemberFighter(seated.p1, 6, &withdrew) && withdrew);
+	EXPECT(!authority.SnapshotView().tables[0].ready[1]);
 	const MemberId bystander = Join(authority, 3);
-	CHECK(authority.SetMemberFighter(bystander, 7, &withdrew) && !withdrew);
-	CHECK(authority.SetMemberFighter(bystander, 8, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberFighter(bystander, 7, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberFighter(bystander, 8, &withdrew) && !withdrew);
 }
 
 // Idle time: counted from a member's last room action or join, reported in
@@ -198,12 +198,12 @@ static void TestIdleTimeIsStampedPerSnapshot() {
 	const auto idleOf = [&](MemberId member) {
 		return FindMember(authority.SnapshotFor(host), member)->idleSeconds;
 	};
-	CHECK(idleOf(guest) == 0);
+	EXPECT(idleOf(guest) == 0);
 	authority.AdvanceTime(500 + 125 * 1000);
-	CHECK(idleOf(guest) == 125 && idleOf(host) == 125);
-	CHECK(FindMember(authority.SnapshotCopy(), guest)->idleSeconds == 0);
-	CHECK(authority.Apply(guest, TableAction(authority, guest, 0, ActionKind::Queue)).accepted);
-	CHECK(idleOf(guest) == 0 && idleOf(host) == 125);
+	EXPECT(idleOf(guest) == 125 && idleOf(host) == 125);
+	EXPECT(FindMember(authority.SnapshotCopy(), guest)->idleSeconds == 0);
+	EXPECT(authority.Apply(guest, TableAction(authority, guest, 0, ActionKind::Queue)).accepted);
+	EXPECT(idleOf(guest) == 0 && idleOf(host) == 125);
 	// Sent as idle_s only when there is something to say.
 	const auto sent = nlohmann::json(authority.SnapshotFor(host));
 	bool sawHost = false, sawGuest = false;
@@ -211,25 +211,25 @@ static void TestIdleTimeIsStampedPerSnapshot() {
 		if (member.at("id") == host) { sawHost = member.at("idle_s") == 125; }
 		if (member.at("id") == guest) { sawGuest = !member.contains("idle_s"); }
 	}
-	CHECK(sawHost && sawGuest);
-	CHECK(sent.get<Snapshot>().members.size() == 2);
-	CHECK(FindMember(sent.get<Snapshot>(), host)->idleSeconds == 125);
+	EXPECT(sawHost && sawGuest);
+	EXPECT(sent.get<Snapshot>().members.size() == 2);
+	EXPECT(FindMember(sent.get<Snapshot>(), host)->idleSeconds == 125);
 	// A member in a game stays active however long the game runs.
 	const MemberId other = Join(authority, 2);
-	CHECK(authority.Apply(other, TableAction(authority, other, 0, ActionKind::Queue)).accepted);
-	for (const auto member : {guest, other}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, authority.SnapshotView().tables[0].p1, authority.SnapshotView().tables[0].p2).accepted);
+	EXPECT(authority.Apply(other, TableAction(authority, other, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {guest, other}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, authority.SnapshotView().tables[0].p1, authority.SnapshotView().tables[0].p2).accepted);
 	authority.AdvanceTime(500 + 600 * 1000);
-	CHECK(idleOf(guest) == 0 && idleOf(other) == 0 && idleOf(host) == 600);
+	EXPECT(idleOf(guest) == 0 && idleOf(other) == 0 && idleOf(host) == 600);
 	// Members who come and go leave no activity behind.
 	for (int cycle = 0; cycle < 20; ++cycle) {
 		const MemberId visitor = Join(authority, 10 + cycle);
-		CHECK(authority.Apply(visitor, TableAction(authority, visitor, 0, ActionKind::Leave)).accepted);
+		EXPECT(authority.Apply(visitor, TableAction(authority, visitor, 0, ActionKind::Leave)).accepted);
 	}
-	CHECK(authority.TrackedActivity() == authority.SnapshotView().members.size());
+	EXPECT(authority.TrackedActivity() == authority.SnapshotView().members.size());
 	// A huge gap reads as the cap.
 	authority.AdvanceTime(500 + 600 * 1000 + 30ull * 24 * 60 * 60 * 1000);
-	CHECK(idleOf(host) == MaximumIdleSeconds);
+	EXPECT(idleOf(host) == MaximumIdleSeconds);
 }
 
 static void TestMatchFinishedAndSeatLifecycle() {
@@ -238,49 +238,49 @@ static void TestMatchFinishedAndSeatLifecycle() {
 	const MemberId p1 = Join(authority, 1);
 	const MemberId p2 = Join(authority, 2);
 	const MemberId p3 = Join(authority, 3);
-	for (const auto member : {p1, p2, p3}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2, p3}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto initial = authority.SnapshotView().tables[0];
-	for (const auto member : {initial.p1, initial.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, initial.p1, initial.p2).accepted);
+	for (const auto member : {initial.p1, initial.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, initial.p1, initial.p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
-	CHECK(!authority.HasDueTimerTransition(0)); // no pending result
+	EXPECT(!authority.HasDueTimerTransition(0)); // no pending result
 	Action finished = TableAction(authority, p1, 0, ActionKind::MatchFinished);
 	finished.matchGeneration = generation;
-	CHECK(authority.Apply(p1, finished).accepted);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Playing);
-	CHECK(!authority.HasDueTimerTransition(0));
-	CHECK(authority.AdvanceTime(10000).empty());
-	CHECK(!authority.HasDueTimerTransition(9999)); // backward clock input
-	CHECK(!authority.HasDueTimerTransition(10000)); // equal clock input
-	CHECK(!authority.HasDueTimerTransition(29999)); // immediately before deadline
-	CHECK(authority.HasDueTimerTransition(30000)); // exact deadline
+	EXPECT(authority.Apply(p1, finished).accepted);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Playing);
+	EXPECT(!authority.HasDueTimerTransition(0));
+	EXPECT(authority.AdvanceTime(10000).empty());
+	EXPECT(!authority.HasDueTimerTransition(9999)); // backward clock input
+	EXPECT(!authority.HasDueTimerTransition(10000)); // equal clock input
+	EXPECT(!authority.HasDueTimerTransition(29999)); // immediately before deadline
+	EXPECT(authority.HasDueTimerTransition(30000)); // exact deadline
 	const auto timeout = authority.AdvanceTime(30000);
-	CHECK(!timeout.empty() && authority.SnapshotView().tables[0].phase == TablePhase::Paused);
-	CHECK(authority.SnapshotView().tables[0].resultPending);
-	CHECK(!authority.HasDueTimerTransition(60000)); // paused but still pending
+	EXPECT(!timeout.empty() && authority.SnapshotView().tables[0].phase == TablePhase::Paused);
+	EXPECT(authority.SnapshotView().tables[0].resultPending);
+	EXPECT(!authority.HasDueTimerTransition(60000)); // paused but still pending
 	const auto unresolved = authority.SnapshotView().tables[0];
 	Action pausedRules = TableAction(authority, host, 0, ActionKind::SetRules);
 	pausedRules.rules.roundTime = 300;
-	CHECK(!authority.Apply(host, pausedRules).accepted);
+	EXPECT(!authority.Apply(host, pausedRules).accepted);
 	const auto afterPausedRules = authority.SnapshotView().tables[0];
-	CHECK(afterPausedRules.phase == TablePhase::Paused && afterPausedRules.matchGeneration == unresolved.matchGeneration);
-	CHECK(afterPausedRules.resultPending == unresolved.resultPending && afterPausedRules.score[0] == unresolved.score[0] &&
+	EXPECT(afterPausedRules.phase == TablePhase::Paused && afterPausedRules.matchGeneration == unresolved.matchGeneration);
+	EXPECT(afterPausedRules.resultPending == unresolved.resultPending && afterPausedRules.score[0] == unresolved.score[0] &&
 		afterPausedRules.score[1] == unresolved.score[1]);
 	Action staleCancel = TableAction(authority, host, 0, ActionKind::CancelResult);
 	staleCancel.matchGeneration = generation + 1;
-	CHECK(!authority.Apply(host, staleCancel).accepted);
+	EXPECT(!authority.Apply(host, staleCancel).accepted);
 	Action cancel = staleCancel;
 	cancel.matchGeneration = generation;
-	CHECK(authority.Apply(host, cancel).accepted);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Waiting);
+	EXPECT(authority.Apply(host, cancel).accepted);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Waiting);
 
 	// A waiting fighter can leave its seat and the next FIFO member fills it;
 	// readiness and scores must not leak across that transition.
 	const auto waiting = authority.SnapshotView().tables[0];
 	Action unseat = TableAction(authority, waiting.p1, 0, ActionKind::Unqueue);
-	CHECK(authority.Apply(waiting.p1, unseat).accepted);
+	EXPECT(authority.Apply(waiting.p1, unseat).accepted);
 	const auto after = authority.SnapshotView().tables[0];
-	CHECK(after.p1 != waiting.p1 && after.p1 != 0 && !after.ready[0] && !after.ready[1]);
+	EXPECT(after.p1 != waiting.p1 && after.p1 != 0 && !after.ready[0] && !after.ready[1]);
 }
 
 static void TestSnapshotBound() {
@@ -293,10 +293,10 @@ static void TestSnapshotBound() {
 		chat.roomEpoch = authority.SnapshotView().roomEpoch;
 		chat.text.assign(256, 'x');
 		chat.actionId = static_cast<ActionId>(i + 1);
-		CHECK(authority.Apply(host, chat).accepted);
+		EXPECT(authority.Apply(host, chat).accepted);
 		authority.AdvanceTime(static_cast<std::uint64_t>(i + 1) * 1000);
 	}
-	CHECK(nlohmann::json(authority.SnapshotView()).dump().size() < 65536);
+	EXPECT(nlohmann::json(authority.SnapshotView()).dump().size() < 65536);
 }
 
 static void TestDepartureRecoveryAndSnapshotValidation() {
@@ -306,33 +306,33 @@ static void TestDepartureRecoveryAndSnapshotValidation() {
 	const MemberId p2 = Join(authority, 2);
 	const MemberId p3 = Join(authority, 3);
 	const MemberId p4 = Join(authority, 4);
-	for (const auto member : {p1, p2, p3, p4}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2, p3, p4}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto seated = authority.SnapshotView().tables[0];
-	for (const auto member : {seated.p1, seated.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, seated.p1, seated.p2).accepted);
-	CHECK(authority.SnapshotView().tables[0].spectators.size() == 2);
+	for (const auto member : {seated.p1, seated.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, seated.p1, seated.p2).accepted);
+	EXPECT(authority.SnapshotView().tables[0].spectators.size() == 2);
 
 	// A watcher/queued member can disappear without touching the frozen fighter
 	// pair. The next fighter departure aborts that generation and seats FIFO.
-	CHECK(authority.Leave(p3).accepted);
-	CHECK(authority.SnapshotView().tables[0].p1 == p1 && authority.SnapshotView().tables[0].p2 == p2);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Playing);
+	EXPECT(authority.Leave(p3).accepted);
+	EXPECT(authority.SnapshotView().tables[0].p1 == p1 && authority.SnapshotView().tables[0].p2 == p2);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Playing);
 	const auto leaving = authority.Leave(p2);
-	CHECK(leaving.accepted);
-	CHECK(std::any_of(leaving.events.begin(), leaving.events.end(), [](const Event& event) { return event.kind == Event::Kind::MatchEnded; }));
+	EXPECT(leaving.accepted);
+	EXPECT(std::any_of(leaving.events.begin(), leaving.events.end(), [](const Event& event) { return event.kind == Event::Kind::MatchEnded; }));
 	const auto recovered = authority.SnapshotView().tables[0];
-	CHECK(recovered.p1 == p1 && recovered.p2 == p4 && recovered.phase == TablePhase::Waiting);
-	CHECK(recovered.score[0] == 0 && recovered.score[1] == 0 && !recovered.ready[0] && !recovered.ready[1]);
+	EXPECT(recovered.p1 == p1 && recovered.p2 == p4 && recovered.phase == TablePhase::Waiting);
+	EXPECT(recovered.score[0] == 0 && recovered.score[1] == 0 && !recovered.ready[0] && !recovered.ready[1]);
 	RoomAuthority departedRestore("Active departure restore");
-	CHECK(departedRestore.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
-	CHECK(departedRestore.PendingTerminalEvents(p1).size() == 1);
+	EXPECT(departedRestore.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	EXPECT(departedRestore.PendingTerminalEvents(p1).size() == 1);
 
 	// Pre-start spectators leaving a waiting table do not pause or strand it.
 	const MemberId p5 = Join(authority, 5);
 	Action watch = TableAction(authority, p5, 0, ActionKind::Watch);
-	CHECK(authority.Apply(p5, watch).accepted);
-	CHECK(authority.Leave(p5).accepted);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Waiting);
+	EXPECT(authority.Apply(p5, watch).accepted);
+	EXPECT(authority.Leave(p5).accepted);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Waiting);
 
 	// Decoder bounds reject forged IDs/table slots rather than narrowing them
 	// into a valid-looking snapshot.
@@ -341,51 +341,51 @@ static void TestDepartureRecoveryAndSnapshotValidation() {
 	badMember["members"][0]["name"] = std::string(33, 'x');
 	bool threw = false;
 	try { (void)badMember.get<Snapshot>(); } catch (const std::exception&) { threw = true; }
-	CHECK(threw);
+	EXPECT(threw);
 	auto badTable = encoded;
 	badTable["tables"][0]["id"] = 4;
 	threw = false;
 	try { (void)badTable.get<Snapshot>(); } catch (const std::exception&) { threw = true; }
-	CHECK(threw);
+	EXPECT(threw);
 	auto badRoster = encoded;
 	badRoster["tables"][0]["queue"] = nlohmann::json::array({999999999999ULL});
 	threw = false;
 	try { (void)badRoster.get<Snapshot>(); } catch (const std::exception&) { threw = true; }
-	CHECK(threw);
+	EXPECT(threw);
 
 	(void)host;
 }
 
 static void TestProfileMain() {
     RoomAuthority authority("Profiles",16,70);
-    CHECK(!authority.Join("Invalid",Peer(0),true,{44}).accepted);
-    CHECK(!authority.Join("Invalid",Peer(0),true,{-2}).accepted);
-    CHECK(authority.Join("Main",Peer(0),true,{11,sf4e::NetworkLink::Wireless,sf4e::NatClass::Strict}).accepted);
+    EXPECT(!authority.Join("Invalid",Peer(0),true,{44}).accepted);
+    EXPECT(!authority.Join("Invalid",Peer(0),true,{-2}).accepted);
+    EXPECT(authority.Join("Main",Peer(0),true,{11,sf4e::NetworkLink::Wireless,sf4e::NatClass::Strict}).accepted);
     const auto host=authority.SnapshotView().host;
-    CHECK(authority.SetMemberFighter(host,2));
+    EXPECT(authority.SetMemberFighter(host,2));
     const auto encoded=nlohmann::json(authority.SnapshotView()).dump();
     const auto decoded=nlohmann::json::parse(encoded).get<Snapshot>();
-    CHECK(decoded.members[0].mainFighter==11&&decoded.members[0].fighter==2);
-    RoomAuthority restored("Restore");CHECK(restored.RestoreCheckpoint(authority.Checkpoint()));
-    CHECK(restored.SnapshotView().members[0].mainFighter==11);
-    CHECK(decoded.members[0].link==sf4e::NetworkLink::Wireless&&restored.SnapshotView().members[0].link==sf4e::NetworkLink::Wireless);
+    EXPECT(decoded.members[0].mainFighter==11&&decoded.members[0].fighter==2);
+    RoomAuthority restored("Restore");EXPECT(restored.RestoreCheckpoint(authority.Checkpoint()));
+    EXPECT(restored.SnapshotView().members[0].mainFighter==11);
+    EXPECT(decoded.members[0].link==sf4e::NetworkLink::Wireless&&restored.SnapshotView().members[0].link==sf4e::NetworkLink::Wireless);
     // An older peer omits the link, and a newer one may name a kind this build
     // does not know: both read as Unknown rather than refusing the member.
     auto member=nlohmann::json(decoded.members[0]);member.erase("main_fighter");member.erase("link");
-    CHECK(member.get<Member>().mainFighter==-1&&member.get<Member>().link==sf4e::NetworkLink::Unknown);
-    member["link"]=7;CHECK(member.get<Member>().link==sf4e::NetworkLink::Unknown);
+    EXPECT(member.get<Member>().mainFighter==-1&&member.get<Member>().link==sf4e::NetworkLink::Unknown);
+    member["link"]=7;EXPECT(member.get<Member>().link==sf4e::NetworkLink::Unknown);
     // The same holds for how the member's network treats a direct connection.
-    CHECK(decoded.members[0].nat==sf4e::NatClass::Strict&&restored.SnapshotView().members[0].nat==sf4e::NatClass::Strict);
-    member.erase("nat");CHECK(member.get<Member>().nat==sf4e::NatClass::Unknown);
-    member["nat"]=9;CHECK(member.get<Member>().nat==sf4e::NatClass::Unknown);
-    member["nat"]=static_cast<int>(sf4e::NatClass::NoUdp);CHECK(member.get<Member>().nat==sf4e::NatClass::NoUdp);
-    CHECK(authority.Join("Future",Peer(1),false,{-1,static_cast<sf4e::NetworkLink>(7)}).accepted);
-    CHECK(authority.SnapshotView().members.back().link==sf4e::NetworkLink::Unknown);
-    CHECK(authority.Join("FutureNat",Peer(2),false,{-1,sf4e::NetworkLink::Unknown,static_cast<sf4e::NatClass>(9)}).accepted);
-    CHECK(authority.SnapshotView().members.back().nat==sf4e::NatClass::Unknown);
+    EXPECT(decoded.members[0].nat==sf4e::NatClass::Strict&&restored.SnapshotView().members[0].nat==sf4e::NatClass::Strict);
+    member.erase("nat");EXPECT(member.get<Member>().nat==sf4e::NatClass::Unknown);
+    member["nat"]=9;EXPECT(member.get<Member>().nat==sf4e::NatClass::Unknown);
+    member["nat"]=static_cast<int>(sf4e::NatClass::NoUdp);EXPECT(member.get<Member>().nat==sf4e::NatClass::NoUdp);
+    EXPECT(authority.Join("Future",Peer(1),false,{-1,static_cast<sf4e::NetworkLink>(7)}).accepted);
+    EXPECT(authority.SnapshotView().members.back().link==sf4e::NetworkLink::Unknown);
+    EXPECT(authority.Join("FutureNat",Peer(2),false,{-1,sf4e::NetworkLink::Unknown,static_cast<sf4e::NatClass>(9)}).accepted);
+    EXPECT(authority.SnapshotView().members.back().nat==sf4e::NatClass::Unknown);
     for(const nlohmann::json invalid:{nlohmann::json(-2),nlohmann::json(44),nlohmann::json(1.5),nlohmann::json(UINT64_MAX)}){
         member["main_fighter"]=invalid;bool rejected=false;
-        try{member.get<Member>();}catch(...){rejected=true;}CHECK(rejected);
+        try{member.get<Member>();}catch(...){rejected=true;}EXPECT(rejected);
     }
 }
 
@@ -395,50 +395,50 @@ static void TestTerminalLifecycleGate() {
 	const auto p1 = Join(authority, 1);
 	const auto p2 = Join(authority, 2);
 	const auto spectator = Join(authority, 3);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	Action watch = TableAction(authority, spectator, 0, ActionKind::Watch);
-	CHECK(authority.Apply(spectator, watch).accepted);
+	EXPECT(authority.Apply(spectator, watch).accepted);
 	const auto seated = authority.SnapshotView().tables[0];
-	for (const auto member : {seated.p1, seated.p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	for (const auto member : {seated.p1, seated.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	Action first = TableAction(authority, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation; first.result = MatchResult::P1Win;
-	CHECK(authority.Apply(p1, first).accepted);
+	EXPECT(authority.Apply(p1, first).accepted);
 	Action second = TableAction(authority, p2, 0, ActionKind::RecordResult);
 	second.matchGeneration = generation; second.result = MatchResult::P1Win;
-	CHECK(authority.Apply(p2, second).accepted);
+	EXPECT(authority.Apply(p2, second).accepted);
 
 	// A member cannot stage a new native generation while any of its frozen
 	// spectator/fighter receipts still drain; this also prevents local outcome
 	// state from being overwritten by a different table's terminal event.
 	Action ready = TableAction(authority, p1, 0, ActionKind::Ready);
-	CHECK(!authority.Apply(p1, ready).accepted);
+	EXPECT(!authority.Apply(p1, ready).accepted);
 	ready = TableAction(authority, p2, 0, ActionKind::Ready);
-	CHECK(!authority.Apply(p2, ready).accepted);
-	CHECK(authority.PendingTerminalEvents(spectator).size() == 1);
+	EXPECT(!authority.Apply(p2, ready).accepted);
+	EXPECT(authority.PendingTerminalEvents(spectator).size() == 1);
 	Action crossTableQueue = TableAction(authority, p1, 1, ActionKind::Queue);
 	const auto crossTableResult = authority.Apply(p1, crossTableQueue);
-	CHECK(!crossTableResult.accepted && crossTableResult.reason == RejectReason::TerminalLedgerFull);
+	EXPECT(!crossTableResult.accepted && crossTableResult.reason == RejectReason::TerminalLedgerFull);
 
 	// The frozen incarnation is the authorization boundary for the ACK. A
 	// rebind of the same numeric member cannot release an older native slot.
 	authority.SetMemberIncarnation(spectator, 2);
 	Action spectatorAck = TableAction(authority, spectator, 0, ActionKind::AcknowledgeTerminal);
 	spectatorAck.matchGeneration = generation;
-	CHECK(!authority.Apply(spectator, spectatorAck).accepted);
+	EXPECT(!authority.Apply(spectator, spectatorAck).accepted);
 	authority.SetMemberIncarnation(spectator, 1);
-	CHECK(authority.Apply(spectator, spectatorAck).accepted);
+	EXPECT(authority.Apply(spectator, spectatorAck).accepted);
 	for (const auto member : {p1, p2}) {
 		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
 		acknowledgment.matchGeneration = generation;
-		CHECK(authority.Apply(member, acknowledgment).accepted);
+		EXPECT(authority.Apply(member, acknowledgment).accepted);
 	}
 	ready = TableAction(authority, p1, 0, ActionKind::Ready);
-	CHECK(authority.Apply(p1, ready).accepted);
+	EXPECT(authority.Apply(p1, ready).accepted);
 	ready = TableAction(authority, p2, 0, ActionKind::Ready);
-	CHECK(authority.Apply(p2, ready).accepted);
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.Apply(p2, ready).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 }
 
 // Diverged peers report different results, which pauses the table at once.
@@ -451,68 +451,68 @@ static void TestFighterAbandonsDisputedResult() {
 	const auto p1 = Join(authority, 1);
 	const auto p2 = Join(authority, 2);
 	const auto spectator = Join(authority, 3);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
-	CHECK(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	Action first = TableAction(authority, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation; first.result = MatchResult::P1Win;
-	CHECK(authority.Apply(p1, first).accepted);
+	EXPECT(authority.Apply(p1, first).accepted);
 	Action second = TableAction(authority, p2, 0, ActionKind::RecordResult);
 	second.matchGeneration = generation; second.result = MatchResult::P2Win;
 	const auto disputed = authority.Apply(p2, second);
-	CHECK(disputed.accepted && authority.SnapshotView().tables[0].phase == TablePhase::Paused);
+	EXPECT(disputed.accepted && authority.SnapshotView().tables[0].phase == TablePhase::Paused);
 
-	CHECK(!authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Unqueue)).accepted);
-	CHECK(!authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Ready)).accepted);
+	EXPECT(!authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Unqueue)).accepted);
+	EXPECT(!authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Ready)).accepted);
 	Action spectatorAbort = TableAction(authority, spectator, 0, ActionKind::AbortMatch);
 	spectatorAbort.matchGeneration = generation;
-	CHECK(!authority.Apply(spectator, spectatorAbort).accepted);
+	EXPECT(!authority.Apply(spectator, spectatorAbort).accepted);
 	Action staleAbort = TableAction(authority, p2, 0, ActionKind::AbortMatch);
 	staleAbort.matchGeneration = generation + 1;
-	CHECK(!authority.Apply(p2, staleAbort).accepted);
+	EXPECT(!authority.Apply(p2, staleAbort).accepted);
 
 	Action abandon = TableAction(authority, p2, 0, ActionKind::AbortMatch);
 	abandon.matchGeneration = generation;
-	CHECK(authority.Apply(p2, abandon).accepted);
+	EXPECT(authority.Apply(p2, abandon).accepted);
 	const auto released = authority.SnapshotView().tables[0];
-	CHECK(released.phase == TablePhase::Waiting && !released.resultPending);
-	CHECK(released.p1 == p1 && released.p2 == p2);
-	CHECK(released.score[0] == 0 && released.score[1] == 0);
-	CHECK(released.matchGeneration == generation);
+	EXPECT(released.phase == TablePhase::Waiting && !released.resultPending);
+	EXPECT(released.p1 == p1 && released.p2 == p2);
+	EXPECT(released.score[0] == 0 && released.score[1] == 0);
+	EXPECT(released.matchGeneration == generation);
 	Action replayedAbandon = TableAction(authority, p1, 0, ActionKind::AbortMatch);
 	replayedAbandon.matchGeneration = generation;
-	CHECK(authority.Apply(p1, replayedAbandon).accepted); // idempotent replay of the same terminal
-	CHECK(authority.SnapshotView().tables[0].score[0] == 0 && authority.SnapshotView().tables[0].score[1] == 0);
+	EXPECT(authority.Apply(p1, replayedAbandon).accepted); // idempotent replay of the same terminal
+	EXPECT(authority.SnapshotView().tables[0].score[0] == 0 && authority.SnapshotView().tables[0].score[1] == 0);
 
 	// The table stays fenced until every frozen recipient acknowledges. (A new
 	// action id: the replay above did not advance the revision.)
 	Action earlyReady = TableAction(authority, p1, 0, ActionKind::Ready);
 	++earlyReady.actionId;
 	const auto earlyReadyResult = authority.Apply(p1, earlyReady);
-	CHECK(!earlyReadyResult.accepted && earlyReadyResult.reason == RejectReason::TerminalLedgerFull);
+	EXPECT(!earlyReadyResult.accepted && earlyReadyResult.reason == RejectReason::TerminalLedgerFull);
 	for (const auto member : {p1, p2, spectator}) {
 		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
 		acknowledgment.matchGeneration = generation;
-		CHECK(authority.Apply(member, acknowledgment).accepted);
+		EXPECT(authority.Apply(member, acknowledgment).accepted);
 	}
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
-	CHECK(authority.SnapshotView().host == host);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.SnapshotView().host == host);
 
 	// A fighter can also leave the seat once the abandoned game has drained.
 	const auto nextGeneration = authority.SnapshotView().tables[0].matchGeneration;
 	Action nextAbort = TableAction(authority, p1, 0, ActionKind::AbortMatch);
 	nextAbort.matchGeneration = nextGeneration;
-	CHECK(authority.Apply(p1, nextAbort).accepted);
+	EXPECT(authority.Apply(p1, nextAbort).accepted);
 	for (const auto member : {p1, p2, spectator}) {
 		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
 		acknowledgment.matchGeneration = nextGeneration;
-		CHECK(authority.Apply(member, acknowledgment).accepted);
+		EXPECT(authority.Apply(member, acknowledgment).accepted);
 	}
-	CHECK(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Unqueue)).accepted);
-	CHECK(authority.SnapshotView().tables[0].p1 != p1);
+	EXPECT(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Unqueue)).accepted);
+	EXPECT(authority.SnapshotView().tables[0].p1 != p1);
 }
 
 static void TestTerminalReceiptSurvivesCompaction() {
@@ -522,41 +522,41 @@ static void TestTerminalReceiptSurvivesCompaction() {
 	RoomAuthority departed("Retired fighter", 8, 204);
 	Join(departed, 0, true);
 	const auto departedP1 = Join(departed, 1), departedP2 = Join(departed, 2);
-	for (const auto member : {departedP1, departedP2}) CHECK(departed.Apply(member, TableAction(departed, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {departedP1, departedP2}) EXPECT(departed.Apply(member, TableAction(departed, member, 0, ActionKind::Queue)).accepted);
 	const auto departedTable = departed.SnapshotView().tables[0];
-	for (const auto member : {departedTable.p1, departedTable.p2}) CHECK(departed.Apply(member, TableAction(departed, member, 0, ActionKind::Ready)).accepted);
-	CHECK(departed.BeginMatch(0, departedP1, departedP2).accepted);
+	for (const auto member : {departedTable.p1, departedTable.p2}) EXPECT(departed.Apply(member, TableAction(departed, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(departed.BeginMatch(0, departedP1, departedP2).accepted);
 	const auto departedGeneration = departed.SnapshotView().tables[0].matchGeneration;
 	Action departedFirst = TableAction(departed, departedP1, 0, ActionKind::RecordResult);
 	departedFirst.matchGeneration = departedGeneration; departedFirst.result = MatchResult::P1Win;
-	CHECK(departed.Apply(departedP1, departedFirst).accepted);
+	EXPECT(departed.Apply(departedP1, departedFirst).accepted);
 	Action departedSecond = TableAction(departed, departedP2, 0, ActionKind::RecordResult);
 	departedSecond.matchGeneration = departedGeneration; departedSecond.result = MatchResult::P1Win;
-	CHECK(departed.Apply(departedP2, departedSecond).accepted);
-	CHECK(departed.Leave(departedP2).accepted);
+	EXPECT(departed.Apply(departedP2, departedSecond).accepted);
+	EXPECT(departed.Leave(departedP2).accepted);
 	RoomAuthority departedRestored("Retired fighter restore");
-	CHECK(departedRestored.RestoreCheckpoint(nlohmann::json::parse(departed.Checkpoint().dump())));
-	CHECK(departedRestored.PendingTerminalEvents(departedP1).size() == 1);
+	EXPECT(departedRestored.RestoreCheckpoint(nlohmann::json::parse(departed.Checkpoint().dump())));
+	EXPECT(departedRestored.PendingTerminalEvents(departedP1).size() == 1);
 
 	RoomAuthority source("Terminal receipt", 16, 203);
 	Join(source, 0, true);
 	const auto p1 = Join(source, 1);
 	const auto p2 = Join(source, 2);
-	for (const auto member : {p1, p2}) CHECK(source.Apply(member, TableAction(source, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(source.Apply(member, TableAction(source, member, 0, ActionKind::Queue)).accepted);
 	const auto seated = source.SnapshotView().tables[0];
-	for (const auto member : {seated.p1, seated.p2}) CHECK(source.Apply(member, TableAction(source, member, 0, ActionKind::Ready)).accepted);
-	CHECK(source.BeginMatch(0, p1, p2).accepted);
+	for (const auto member : {seated.p1, seated.p2}) EXPECT(source.Apply(member, TableAction(source, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(source.BeginMatch(0, p1, p2).accepted);
 	const auto generation = source.SnapshotView().tables[0].matchGeneration;
 	Action first = TableAction(source, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation;
 	first.result = MatchResult::P1Win;
-	CHECK(source.Apply(p1, first).accepted);
+	EXPECT(source.Apply(p1, first).accepted);
 	Action second = TableAction(source, p2, 0, ActionKind::RecordResult);
 	second.matchGeneration = generation;
 	second.result = MatchResult::P1Win;
-	CHECK(source.Apply(p2, second).accepted);
-	CHECK(source.SnapshotView().tables[0].phase == TablePhase::Waiting);
-	CHECK(source.Checkpoint().at("terminal_receipts").size() == 1);
+	EXPECT(source.Apply(p2, second).accepted);
+	EXPECT(source.SnapshotView().tables[0].phase == TablePhase::Waiting);
+	EXPECT(source.Checkpoint().at("terminal_receipts").size() == 1);
 
 	// Drive a different table through more than the generic journal's old
 	// retention span. The completed fighter pair and outcome must stay in the
@@ -565,25 +565,25 @@ static void TestTerminalReceiptSurvivesCompaction() {
 		Action unrelated = TableAction(source, source.SnapshotView().host, 1, ActionKind::SetRules);
 		unrelated.rules = source.SnapshotView().tables[1].rules;
 		unrelated.rules.editionSelect = (i & 1) != 0;
-		CHECK(source.Apply(source.SnapshotView().host, unrelated).accepted);
+		EXPECT(source.Apply(source.SnapshotView().host, unrelated).accepted);
 	}
 	const auto checkpoint = nlohmann::json::parse(source.Checkpoint().dump());
 	RoomAuthority restored("Restored terminal receipt");
-	CHECK(restored.RestoreCheckpoint(checkpoint));
-	CHECK(restored.SnapshotView().tables[0].score[0] == 1);
+	EXPECT(restored.RestoreCheckpoint(checkpoint));
+	EXPECT(restored.SnapshotView().tables[0].score[0] == 1);
 
 	Action late = TableAction(restored, p2, 0, ActionKind::RecordResult);
 	late.actionId = 900001;
 	late.matchGeneration = generation;
 	late.result = MatchResult::P1Win;
 	const auto replay = restored.Apply(p2, late);
-	CHECK(replay.accepted && replay.terminalReplay);
-	CHECK(std::any_of(replay.events.begin(), replay.events.end(), [](const Event& event) {
+	EXPECT(replay.accepted && replay.terminalReplay);
+	EXPECT(std::any_of(replay.events.begin(), replay.events.end(), [](const Event& event) {
 		return event.kind == Event::Kind::MatchEnded && event.terminalReplay;
 	}));
-	CHECK(restored.SnapshotView().tables[0].score[0] == 1);
+	EXPECT(restored.SnapshotView().tables[0].score[0] == 1);
 	const auto replayCheckpoint = restored.Checkpoint();
-	CHECK(std::none_of(replayCheckpoint.at("terminal_receipts").at(0).at("recipients").begin(),
+	EXPECT(std::none_of(replayCheckpoint.at("terminal_receipts").at(0).at("recipients").begin(),
 		replayCheckpoint.at("terminal_receipts").at(0).at("recipients").end(),
 		[](const nlohmann::json& recipient) { return recipient.at("acknowledged").get<bool>(); }));
 
@@ -592,39 +592,39 @@ static void TestTerminalReceiptSurvivesCompaction() {
 	late.matchGeneration = generation;
 	late.result = MatchResult::P1Win;
 	const auto duplicateReplay = restored.Apply(p1, late);
-	CHECK(duplicateReplay.accepted && duplicateReplay.terminalReplay);
-	CHECK(restored.SnapshotView().tables[0].score[0] == 1);
+	EXPECT(duplicateReplay.accepted && duplicateReplay.terminalReplay);
+	EXPECT(restored.SnapshotView().tables[0].score[0] == 1);
 	for (const auto member : source.TerminalMembers(0, generation)) {
 		Action acknowledgment = TableAction(source, member, 0, ActionKind::AcknowledgeTerminal);
 		acknowledgment.matchGeneration = generation;
-		CHECK(source.Apply(member, acknowledgment).accepted);
+		EXPECT(source.Apply(member, acknowledgment).accepted);
 	}
 
 	// Cancel/abort teardown has the same durable replay path even when the
 	// moderator is not one of the two frozen fighters.
-	for (const auto member : {p1, p2}) CHECK(source.Apply(member, TableAction(source, member, 0, ActionKind::Ready)).accepted);
-	CHECK(source.BeginMatch(0, p1, p2).accepted);
+	for (const auto member : {p1, p2}) EXPECT(source.Apply(member, TableAction(source, member, 0, ActionKind::Ready)).accepted);
+	EXPECT(source.BeginMatch(0, p1, p2).accepted);
 	const auto cancelledGeneration = source.SnapshotView().tables[0].matchGeneration;
 	Action cancel = TableAction(source, source.SnapshotView().host, 0, ActionKind::CancelResult);
 	cancel.matchGeneration = cancelledGeneration;
-	CHECK(source.Apply(source.SnapshotView().host, cancel).accepted);
+	EXPECT(source.Apply(source.SnapshotView().host, cancel).accepted);
 	RoomAuthority cancelRestored("Restored cancel receipt");
-	CHECK(cancelRestored.RestoreCheckpoint(nlohmann::json::parse(source.Checkpoint().dump())));
+	EXPECT(cancelRestored.RestoreCheckpoint(nlohmann::json::parse(source.Checkpoint().dump())));
 	Action lateCancel = TableAction(cancelRestored, cancelRestored.SnapshotView().host, 0, ActionKind::CancelResult);
 	lateCancel.actionId = 900003;
 	lateCancel.matchGeneration = cancelledGeneration;
 	const auto cancelReplay = cancelRestored.Apply(cancelRestored.SnapshotView().host, lateCancel);
-	CHECK(cancelReplay.accepted && cancelReplay.terminalReplay);
+	EXPECT(cancelReplay.accepted && cancelReplay.terminalReplay);
 
 	// The first receipt was acknowledged, then pruned when this later
 	// generation was stored. A lost action reply must still be recoverable only
 	// for the same member incarnation and exact old table/generation key.
 	Action lateOldAck = TableAction(source, p1, 0, ActionKind::AcknowledgeTerminal);
 	lateOldAck.actionId = 900004; lateOldAck.matchGeneration = generation;
-	CHECK(source.Apply(p1, lateOldAck).accepted);
+	EXPECT(source.Apply(p1, lateOldAck).accepted);
 	Action unknownAck = lateOldAck;
 	unknownAck.actionId = 900005; unknownAck.matchGeneration = generation + 100000;
-	CHECK(!source.Apply(p1, unknownAck).accepted);
+	EXPECT(!source.Apply(p1, unknownAck).accepted);
 }
 
 // A spectator still retiring its session keeps its own receipt row but no
@@ -637,15 +637,15 @@ static void TestChatAfterSenderLeaves() {
 	const auto guest = Join(authority, 1);
 	Action chat = TableAction(authority, guest, 0, ActionKind::Chat);
 	chat.text = "hello";
-	CHECK(authority.Apply(guest, chat).accepted);
-	CHECK(authority.Apply(guest, TableAction(authority, guest, 0, ActionKind::Leave)).accepted);
+	EXPECT(authority.Apply(guest, chat).accepted);
+	EXPECT(authority.Apply(guest, TableAction(authority, guest, 0, ActionKind::Leave)).accepted);
 	Snapshot parsed;
 	bool readable = true;
 	try { nlohmann::json(authority.SnapshotFor(host)).get_to(parsed); } catch (const std::exception&) { readable = false; }
-	CHECK(readable && parsed.chat.empty());
+	EXPECT(readable && parsed.chat.empty());
 	// A successor restores the room.
 	RoomAuthority replica("Replica");
-	CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	EXPECT(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
 	// State from an older owner that kept the departed sender's line still reads.
 	auto legacy = nlohmann::json(authority.SnapshotFor(host));
 	nlohmann::json orphan = nlohmann::json::object();
@@ -654,7 +654,7 @@ static void TestChatAfterSenderLeaves() {
 	legacy["chat"].push_back(orphan);
 	readable = true;
 	try { legacy.get_to(parsed); } catch (const std::exception& error) { std::printf("legacy chat: %s\n", error.what()); readable = false; }
-	CHECK(readable && parsed.chat.empty());
+	EXPECT(readable && parsed.chat.empty());
 }
 
 static void TestSpectatorDoesNotHoldTable() {
@@ -663,11 +663,11 @@ static void TestSpectatorDoesNotHoldTable() {
 	const auto p1 = Join(authority, 1);
 	const auto p2 = Join(authority, 2);
 	const auto spectator = Join(authority, 3);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
-	CHECK(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
 	const auto begin = [&]() {
-		for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
+		EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 		return authority.SnapshotView().tables[0].matchGeneration;
 	};
 	const auto acknowledge = [&](MemberId member, std::uint64_t generation) {
@@ -677,61 +677,61 @@ static void TestSpectatorDoesNotHoldTable() {
 	};
 
 	const auto first = begin();
-	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
-	CHECK(authority.EndMatch(0, first, MatchResult::P1Win).accepted);
-	CHECK(authority.MatchRoster(0).empty());
-	CHECK(authority.SnapshotFor(p1).terminalPending[0]);
-	CHECK(acknowledge(p1, first) && acknowledge(p2, first));
+	EXPECT((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
+	EXPECT(authority.EndMatch(0, first, MatchResult::P1Win).accepted);
+	EXPECT(authority.MatchRoster(0).empty());
+	EXPECT(authority.SnapshotFor(p1).terminalPending[0]);
+	EXPECT(acknowledge(p1, first) && acknowledge(p2, first));
 	// Only the spectator is still retiring generation one.
-	CHECK(!authority.SnapshotFor(p1).terminalPending[0]);
-	CHECK(authority.SnapshotFor(spectator).localTerminalPending && !authority.SnapshotFor(p1).localTerminalPending);
+	EXPECT(!authority.SnapshotFor(p1).terminalPending[0]);
+	EXPECT(authority.SnapshotFor(spectator).localTerminalPending && !authority.SnapshotFor(p1).localTerminalPending);
 
 	const auto second = begin();
-	CHECK(second > first);
-	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2}));
+	EXPECT(second > first);
+	EXPECT((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2}));
 	// The spectator stays in the room view, and its own gates still hold.
 	const auto& table = authority.SnapshotView().tables[0];
-	CHECK(std::find(table.spectators.begin(), table.spectators.end(), spectator) != table.spectators.end());
-	CHECK(authority.PendingTerminalEvents(spectator).size() == 1);
+	EXPECT(std::find(table.spectators.begin(), table.spectators.end(), spectator) != table.spectators.end());
+	EXPECT(authority.PendingTerminalEvents(spectator).size() == 1);
 	const auto crossTable = authority.Apply(spectator, TableAction(authority, spectator, 1, ActionKind::Watch));
-	CHECK(!crossTable.accepted && crossTable.reason == RejectReason::TerminalLedgerFull);
+	EXPECT(!crossTable.accepted && crossTable.reason == RejectReason::TerminalLedgerFull);
 
 	// A successor restores the same frozen roster and receipt state.
 	RoomAuthority replica("Replica");
-	CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
-	CHECK(replica.MatchRoster(0) == authority.MatchRoster(0));
-	CHECK(!replica.SnapshotFor(p1).terminalPending[0] && replica.SnapshotFor(spectator).localTerminalPending);
+	EXPECT(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	EXPECT(replica.MatchRoster(0) == authority.MatchRoster(0));
+	EXPECT(!replica.SnapshotFor(p1).terminalPending[0] && replica.SnapshotFor(spectator).localTerminalPending);
 
-	CHECK(authority.EndMatch(0, second, MatchResult::P2Win).accepted);
+	EXPECT(authority.EndMatch(0, second, MatchResult::P2Win).accepted);
 	// A late duplicate completion never awards a second score.
-	CHECK(!authority.EndMatch(0, second, MatchResult::P2Win).accepted);
-	CHECK(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
+	EXPECT(!authority.EndMatch(0, second, MatchResult::P2Win).accepted);
+	EXPECT(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 1);
 	// Generation two's receipt never included the spectator.
-	CHECK((authority.TerminalMembers(0, second) == std::vector<MemberId>{p1, p2}));
-	CHECK(!acknowledge(spectator, second));
-	CHECK(acknowledge(p1, second) && acknowledge(p2, second));
+	EXPECT((authority.TerminalMembers(0, second) == std::vector<MemberId>{p1, p2}));
+	EXPECT(!acknowledge(spectator, second));
+	EXPECT(acknowledge(p1, second) && acknowledge(p2, second));
 
 	// Once it acknowledges generation one, the spectator joins the next roster.
-	CHECK(acknowledge(spectator, first));
-	CHECK(!authority.SnapshotFor(spectator).localTerminalPending);
+	EXPECT(acknowledge(spectator, first));
+	EXPECT(!authority.SnapshotFor(spectator).localTerminalPending);
 	const auto third = begin();
-	CHECK(third > second);
-	CHECK((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
+	EXPECT(third > second);
+	EXPECT((authority.MatchRoster(0) == std::vector<MemberId>{p1, p2, spectator}));
 
 	// Leaving is not admission. The member the room is waiting on is exactly
 	// the one that needs to leave, so Unwatch stays open while its receipt is
 	// outstanding, and Unqueue stays open for anyone else at the table.
 	const auto queuer = Join(authority, 4);
-	CHECK(authority.Apply(queuer, TableAction(authority, queuer, 0, ActionKind::Queue)).accepted);
-	CHECK(authority.EndMatch(0, third, MatchResult::P1Win).accepted);
-	CHECK(authority.SnapshotFor(spectator).localTerminalPending);
-	CHECK(authority.SnapshotFor(queuer).terminalPending[0]);
-	CHECK(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Unwatch)).accepted);
-	CHECK(authority.Apply(queuer, TableAction(authority, queuer, 0, ActionKind::Unqueue)).accepted);
+	EXPECT(authority.Apply(queuer, TableAction(authority, queuer, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.EndMatch(0, third, MatchResult::P1Win).accepted);
+	EXPECT(authority.SnapshotFor(spectator).localTerminalPending);
+	EXPECT(authority.SnapshotFor(queuer).terminalPending[0]);
+	EXPECT(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Unwatch)).accepted);
+	EXPECT(authority.Apply(queuer, TableAction(authority, queuer, 0, ActionKind::Unqueue)).accepted);
 	// Departure does not release the receipt, and admission is still fenced.
-	CHECK(authority.SnapshotFor(spectator).localTerminalPending);
+	EXPECT(authority.SnapshotFor(spectator).localTerminalPending);
 	const auto rejoin = authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch));
-	CHECK(!rejoin.accepted && rejoin.reason == RejectReason::TerminalLedgerFull);
+	EXPECT(!rejoin.accepted && rejoin.reason == RejectReason::TerminalLedgerFull);
 }
 
 // The place, seat-opening and hold rules the room panel reads are the model's:
@@ -746,60 +746,60 @@ static void TestPlaceAndSeatRules() {
 		action.seat = static_cast<std::int8_t>(seat);
 		return authority.Apply(member, action);
 	};
-	CHECK(PlaceOf(authority.SnapshotView(), idle).kind == Place::Kind::None);
-	CHECK(SeatOpenNow(authority.SnapshotView().tables[1], 0) && SeatOpenNow(authority.SnapshotView().tables[1], 1));
-	CHECK(!SeatOpenNow(authority.SnapshotView().tables[1], -1) && !SeatOpenNow(authority.SnapshotView().tables[1], 2));
-	CHECK(act(first, 0, ActionKind::Queue).accepted && act(second, 0, ActionKind::Queue).accepted);
-	CHECK(act(queued, 0, ActionKind::Queue).accepted && act(watcher, 0, ActionKind::Watch).accepted);
+	EXPECT(PlaceOf(authority.SnapshotView(), idle).kind == Place::Kind::None);
+	EXPECT(SeatOpenNow(authority.SnapshotView().tables[1], 0) && SeatOpenNow(authority.SnapshotView().tables[1], 1));
+	EXPECT(!SeatOpenNow(authority.SnapshotView().tables[1], -1) && !SeatOpenNow(authority.SnapshotView().tables[1], 2));
+	EXPECT(act(first, 0, ActionKind::Queue).accepted && act(second, 0, ActionKind::Queue).accepted);
+	EXPECT(act(queued, 0, ActionKind::Queue).accepted && act(watcher, 0, ActionKind::Watch).accepted);
 	const auto& snapshot = authority.SnapshotView();
 	const auto seatOf = PlaceOf(snapshot, first), secondSeat = PlaceOf(snapshot, second);
-	CHECK(seatOf.kind == Place::Kind::Seat && seatOf.table == 0 && seatOf.seat == 0);
-	CHECK(secondSeat.kind == Place::Kind::Seat && secondSeat.table == 0 && secondSeat.seat == 1);
+	EXPECT(seatOf.kind == Place::Kind::Seat && seatOf.table == 0 && seatOf.seat == 0);
+	EXPECT(secondSeat.kind == Place::Kind::Seat && secondSeat.table == 0 && secondSeat.seat == 1);
 	const auto waiting = PlaceOf(snapshot, queued);
-	CHECK(waiting.kind == Place::Kind::Queue && waiting.table == 0 && waiting.seat == -1);
+	EXPECT(waiting.kind == Place::Kind::Queue && waiting.table == 0 && waiting.seat == -1);
 	// Watching is not a place, since Queue and Watch both end it.
-	CHECK(PlaceOf(snapshot, watcher).kind == Place::Kind::None && PlaceOf(snapshot, 99).kind == Place::Kind::None);
+	EXPECT(PlaceOf(snapshot, watcher).kind == Place::Kind::None && PlaceOf(snapshot, 99).kind == Place::Kind::None);
 	// The seat rule is the authority's: a full table has no open seat, and a
 	// named seat behind a queue is refused.
-	CHECK(!SeatOpenNow(snapshot.tables[0], 0) && !SeatOpenNow(snapshot.tables[0], 1));
-	CHECK(!act(idle, 0, ActionKind::Queue, 0).accepted);
-	CHECK(act(idle, 1, ActionKind::Queue, 1).accepted);
-	CHECK(SeatOpenNow(authority.SnapshotView().tables[1], 0) && !SeatOpenNow(authority.SnapshotView().tables[1], 1));
+	EXPECT(!SeatOpenNow(snapshot.tables[0], 0) && !SeatOpenNow(snapshot.tables[0], 1));
+	EXPECT(!act(idle, 0, ActionKind::Queue, 0).accepted);
+	EXPECT(act(idle, 1, ActionKind::Queue, 1).accepted);
+	EXPECT(SeatOpenNow(authority.SnapshotView().tables[1], 0) && !SeatOpenNow(authority.SnapshotView().tables[1], 1));
 	// A queued member's Watch at its own table is refused: the panel offers none.
 	const auto refused = act(queued, 0, ActionKind::Watch);
-	CHECK(!refused.accepted && refused.reason == RejectReason::AlreadySeated);
-	CHECK(!WatchesByChoice(authority.SnapshotView().tables[0], queued));
+	EXPECT(!refused.accepted && refused.reason == RejectReason::AlreadySeated);
+	EXPECT(!WatchesByChoice(authority.SnapshotView().tables[0], queued));
 
 	Table table;
 	table.p1 = first; table.p2 = second; table.phase = TablePhase::Waiting;
-	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::None && ChangingFighterHold(table, 0, false) == SeatHold::None);
+	EXPECT(LeavingSeatHold(table, 0, false, false) == SeatHold::None && ChangingFighterHold(table, 0, false) == SeatHold::None);
 	// This client's own game can outlast the table's Waiting phase.
-	CHECK(LeavingSeatHold(table, 0, true, false) == SeatHold::InProgress);
-	CHECK(LeavingSeatHold(table, 0, true, true) == SeatHold::InProgress);
+	EXPECT(LeavingSeatHold(table, 0, true, false) == SeatHold::InProgress);
+	EXPECT(LeavingSeatHold(table, 0, true, true) == SeatHold::InProgress);
 	table.ready[0] = true;
-	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::None);
-	CHECK(ChangingFighterHold(table, 0, false) == SeatHold::UnreadyFirst && ChangingFighterHold(table, 1, false) == SeatHold::None);
-	CHECK(LeavingSeatHold(table, 0, true, false) == SeatHold::UnreadyFirst);
+	EXPECT(LeavingSeatHold(table, 0, false, false) == SeatHold::None);
+	EXPECT(ChangingFighterHold(table, 0, false) == SeatHold::UnreadyFirst && ChangingFighterHold(table, 1, false) == SeatHold::None);
+	EXPECT(LeavingSeatHold(table, 0, true, false) == SeatHold::UnreadyFirst);
 	// A held start is a Ready that can still be taken back, not a game.
 	table.ready[1] = true; table.phase = TablePhase::Ready; table.spectatorHold = true;
-	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::UnreadyFirst && LeavingSeatHold(table, 1, false, false) == SeatHold::UnreadyFirst);
-	CHECK(ChangingFighterHold(table, 1, false) == SeatHold::UnreadyFirst);
+	EXPECT(LeavingSeatHold(table, 0, false, false) == SeatHold::UnreadyFirst && LeavingSeatHold(table, 1, false, false) == SeatHold::UnreadyFirst);
+	EXPECT(ChangingFighterHold(table, 1, false) == SeatHold::UnreadyFirst);
 	table.spectatorHold = false;
-	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::InProgress && ChangingFighterHold(table, 0, false) == SeatHold::InProgress);
+	EXPECT(LeavingSeatHold(table, 0, false, false) == SeatHold::InProgress && ChangingFighterHold(table, 0, false) == SeatHold::InProgress);
 	table.phase = TablePhase::Playing;
-	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::InProgress);
-	CHECK(LeavingSeatHold(table, 0, false, true) == SeatHold::AwaitingResult && ChangingFighterHold(table, 0, true) == SeatHold::AwaitingResult);
+	EXPECT(LeavingSeatHold(table, 0, false, false) == SeatHold::InProgress);
+	EXPECT(LeavingSeatHold(table, 0, false, true) == SeatHold::AwaitingResult && ChangingFighterHold(table, 0, true) == SeatHold::AwaitingResult);
 	table.resultPending = true;
-	CHECK(ChangingFighterHold(table, 0, false) == SeatHold::AwaitingResult);
+	EXPECT(ChangingFighterHold(table, 0, false) == SeatHold::AwaitingResult);
 	table.phase = TablePhase::Paused;
-	CHECK(LeavingSeatHold(table, 0, false, false) == SeatHold::Unresolved && ChangingFighterHold(table, 1, false) == SeatHold::Unresolved);
+	EXPECT(LeavingSeatHold(table, 0, false, false) == SeatHold::Unresolved && ChangingFighterHold(table, 1, false) == SeatHold::Unresolved);
 
 	Table fresh;
-	CHECK(!CostOfLeavingSeat(fresh));
+	EXPECT(!CostOfLeavingSeat(fresh));
 	fresh.score[1] = 2;
-	CHECK(CostOfLeavingSeat(fresh).score && !CostOfLeavingSeat(fresh).handsOver);
+	EXPECT(CostOfLeavingSeat(fresh).score && !CostOfLeavingSeat(fresh).handsOver);
 	fresh.score[1] = 0; fresh.queue = {queued};
-	CHECK(!CostOfLeavingSeat(fresh).score && CostOfLeavingSeat(fresh).handsOver);
+	EXPECT(!CostOfLeavingSeat(fresh).score && CostOfLeavingSeat(fresh).handsOver);
 }
 
 static void TestReadyDelaysShareTheHigherValue() {
@@ -807,28 +807,28 @@ static void TestReadyDelaysShareTheHigherValue() {
 	Join(authority, 0, true);
 	const MemberId p1 = Join(authority, 1);
 	const MemberId p2 = Join(authority, 2);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto ready = [&](MemberId member, std::uint8_t delay) {
 		Action action = TableAction(authority, member, 0, ActionKind::Ready);
 		action.inputDelay = delay;
-		CHECK(authority.Apply(member, action).accepted);
+		EXPECT(authority.Apply(member, action).accepted);
 	};
 	// Each fighter keeps their own choice; the match uses the higher one.
 	ready(p1, 1); ready(p2, 5);
 	const auto& first = authority.SnapshotView().tables[0];
-	CHECK(first.inputDelay[0] == 1 && first.inputDelay[1] == 5);
-	CHECK(MatchDelay(first) == 5);
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(first.inputDelay[0] == 1 && first.inputDelay[1] == 5);
+	EXPECT(MatchDelay(first) == 5);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
-	CHECK(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
+	EXPECT(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
 	for (const auto member : authority.TerminalMembers(0, generation)) {
 		Action acknowledgment = TableAction(authority, member, 0, ActionKind::AcknowledgeTerminal);
 		acknowledgment.matchGeneration = generation;
-		CHECK(authority.Apply(member, acknowledgment).accepted);
+		EXPECT(authority.Apply(member, acknowledgment).accepted);
 	}
 	// A rematch takes both fresh choices; the earlier higher value does not stick.
 	ready(p1, 4); ready(p2, 2);
-	CHECK(MatchDelay(authority.SnapshotView().tables[0]) == 4);
+	EXPECT(MatchDelay(authority.SnapshotView().tables[0]) == 4);
 }
 
 // 0 frames is a delay a fighter can choose: Ready at 0 is recorded as 0, the
@@ -838,19 +838,19 @@ static void TestReadyDelayZero() {
 	Join(authority, 0, true);
 	const MemberId p1 = Join(authority, 1);
 	const MemberId p2 = Join(authority, 2);
-	for (const auto member : {p1, p2}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	for (const auto member : {p1, p2}) {
 		Action action = TableAction(authority, member, 0, ActionKind::Ready);
 		action.inputDelay = 0;
-		CHECK(authority.Apply(member, action).accepted);
+		EXPECT(authority.Apply(member, action).accepted);
 	}
 	const auto& table = authority.SnapshotView().tables[0];
-	CHECK(table.inputDelay[0] == 0 && table.inputDelay[1] == 0 && MatchDelay(table) == 0);
-	CHECK(FindMember(authority.SnapshotView(), p1)->frozenDelay == 0);
+	EXPECT(table.inputDelay[0] == 0 && table.inputDelay[1] == 0 && MatchDelay(table) == 0);
+	EXPECT(FindMember(authority.SnapshotView(), p1)->frozenDelay == 0);
 	RoomAuthority restored("Delay", 4, 1);
-	CHECK(restored.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
-	CHECK(MatchDelay(restored.SnapshotView().tables[0]) == 0 && FindMember(restored.SnapshotView(), p2)->frozenDelay == 0);
-	CHECK(MatchDelay(0, 0) == 0 && MatchDelay(0, 3) == 3 && MatchDelay(3, 0) == 3);
+	EXPECT(restored.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	EXPECT(MatchDelay(restored.SnapshotView().tables[0]) == 0 && FindMember(restored.SnapshotView(), p2)->frozenDelay == 0);
+	EXPECT(MatchDelay(0, 0) == 0 && MatchDelay(0, 3) == 3 && MatchDelay(3, 0) == 3);
 }
 
 // Auto's connection check names the seated pair at the table revision this
@@ -863,19 +863,19 @@ static void TestProbePairCommitted() {
 	const MemberId p1 = Join(authority, 1);
 	const MemberId p2 = Join(authority, 2);
 	const MemberId watcher = Join(authority, 3);
-	CHECK(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Queue)).accepted);
 	const Table oneSeat = authority.SnapshotView().tables[0];
-	CHECK(!ProbePairCommitted(oneSeat, oneSeat));
-	CHECK(authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Queue)).accepted);
+	EXPECT(!ProbePairCommitted(oneSeat, oneSeat));
+	EXPECT(authority.Apply(p2, TableAction(authority, p2, 0, ActionKind::Queue)).accepted);
 	const Table seated = authority.SnapshotView().tables[0];
-	CHECK(ProbePairCommitted(seated, seated));
+	EXPECT(ProbePairCommitted(seated, seated));
 	// The committed copy still shows the table before the second seat.
-	CHECK(!ProbePairCommitted(seated, oneSeat));
-	CHECK(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
+	EXPECT(!ProbePairCommitted(seated, oneSeat));
+	EXPECT(authority.Apply(watcher, TableAction(authority, watcher, 0, ActionKind::Watch)).accepted);
 	const Table watched = authority.SnapshotView().tables[0];
-	CHECK(watched.revision != seated.revision && watched.p1 == seated.p1 && watched.p2 == seated.p2);
+	EXPECT(watched.revision != seated.revision && watched.p1 == seated.p1 && watched.p2 == seated.p2);
 	// Same pair, another revision either way: the check waits for both to agree.
-	CHECK(!ProbePairCommitted(seated, watched) && !ProbePairCommitted(watched, seated) && ProbePairCommitted(watched, watched));
+	EXPECT(!ProbePairCommitted(seated, watched) && !ProbePairCommitted(watched, seated) && ProbePairCommitted(watched, watched));
 }
 
 int main() {
@@ -888,8 +888,8 @@ int main() {
 	RoomAuthority authority("Test room", 16, 77);
 	const MemberId host = Join(authority, 0, true);
 	const MemberId guest = Join(authority, 1);
-	CHECK(authority.SnapshotView().host == host);
-	CHECK(authority.SnapshotView().members.size() == 2);
+	EXPECT(authority.SnapshotView().host == host);
+	EXPECT(authority.SnapshotView().members.size() == 2);
 
 	// Four tables can seat independent pairs without touching each other's
 	// revisions or membership state.
@@ -898,69 +898,69 @@ int main() {
 		const MemberId p2 = Join(authority, table * 2 + 3);
 		for (const auto member : {p1, p2}) {
 			Action queue = TableAction(authority, member, static_cast<std::uint8_t>(table), ActionKind::Queue);
-			CHECK(authority.Apply(member, queue).accepted);
+			EXPECT(authority.Apply(member, queue).accepted);
 		}
 		const auto& snapshot = authority.SnapshotView();
-		CHECK(snapshot.tables[table].p1 != 0 && snapshot.tables[table].p2 != 0);
+		EXPECT(snapshot.tables[table].p1 != 0 && snapshot.tables[table].p2 != 0);
 	}
-	CHECK(authority.SnapshotView().tables[0].p1 != 0);
-	CHECK(authority.SnapshotView().tables[1].p1 != 0);
+	EXPECT(authority.SnapshotView().tables[0].p1 != 0);
+	EXPECT(authority.SnapshotView().tables[1].p1 != 0);
 
 	// A stale command for table zero is rejected only by table zero's
 	// revision; activity on table one does not invalidate it.
 	const auto beforeTableZero = authority.SnapshotView().tables[0].revision;
 	const auto beforeRoomRevision = authority.SnapshotView().revision;
 	Action watch = TableAction(authority, guest, 1, ActionKind::Watch);
-	CHECK(authority.Apply(guest, watch).accepted);
-	CHECK(authority.SnapshotView().tables[0].revision == beforeTableZero);
-	CHECK(authority.SnapshotView().revision > beforeRoomRevision);
+	EXPECT(authority.Apply(guest, watch).accepted);
+	EXPECT(authority.SnapshotView().tables[0].revision == beforeTableZero);
+	EXPECT(authority.SnapshotView().revision > beforeRoomRevision);
 
 	const auto table0 = authority.SnapshotView().tables[0];
 	const MemberId p1 = table0.p1;
 	const MemberId p2 = table0.p2;
 	Action ready1 = TableAction(authority, p1, 0, ActionKind::Ready);
-	CHECK(authority.Apply(p1, ready1).accepted);
+	EXPECT(authority.Apply(p1, ready1).accepted);
 	Action ready2 = TableAction(authority, p2, 0, ActionKind::Ready);
-	CHECK(authority.Apply(p2, ready2).accepted);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Ready);
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.Apply(p2, ready2).accepted);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Ready);
+	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
-	CHECK(generation != 0);
+	EXPECT(generation != 0);
 
 	Action first = TableAction(authority, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation;
 	first.result = MatchResult::P1Win;
-	CHECK(authority.Apply(p1, first).accepted);
+	EXPECT(authority.Apply(p1, first).accepted);
 	Action duplicate = first;
 	const auto duplicateResult = authority.Apply(p1, duplicate);
-	CHECK(!duplicateResult.accepted && duplicateResult.reason == RejectReason::DuplicateResult);
-	CHECK(authority.Apply(p2, [&]() { Action action = TableAction(authority, p2, 0, ActionKind::RecordResult); action.matchGeneration = generation; action.result = MatchResult::P2Win; return action; }()).accepted);
-	CHECK(authority.SnapshotView().tables[0].phase == TablePhase::Paused);
+	EXPECT(!duplicateResult.accepted && duplicateResult.reason == RejectReason::DuplicateResult);
+	EXPECT(authority.Apply(p2, [&]() { Action action = TableAction(authority, p2, 0, ActionKind::RecordResult); action.matchGeneration = generation; action.result = MatchResult::P2Win; return action; }()).accepted);
+	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Paused);
 	Action cancel = TableAction(authority, host, 0, ActionKind::CancelResult);
 	cancel.matchGeneration = generation;
-	CHECK(authority.Apply(host, cancel).accepted);
+	EXPECT(authority.Apply(host, cancel).accepted);
 
 	// JSON round trips retain the explicit table and seat model.
-    CHECK(authority.SetMemberFighter(host,12));
-    CHECK(!authority.SetMemberFighter(host,44));
-    CHECK(!authority.SetMemberFighter(9999,0));
+    EXPECT(authority.SetMemberFighter(host,12));
+    EXPECT(!authority.SetMemberFighter(host,44));
+    EXPECT(!authority.SetMemberFighter(9999,0));
 	nlohmann::json encoded = authority.SnapshotView();
 	Snapshot decoded = encoded.get<Snapshot>();
-	CHECK(decoded.tables[0].id == 0 && decoded.tables[3].id == 3);
-    CHECK(decoded.members.front().fighter==12);
+	EXPECT(decoded.tables[0].id == 0 && decoded.tables[3].id == 3);
+    EXPECT(decoded.members.front().fighter==12);
     auto oldMember=encoded["members"][0];oldMember.erase("fighter");
-    CHECK(oldMember.get<Member>().fighter==-1);
+    EXPECT(oldMember.get<Member>().fighter==-1);
     auto badMember=encoded["members"][0];badMember["fighter"]=44;
     bool rejectedFighter=false;try{badMember.get<Member>();}catch(...){rejectedFighter=true;}
-    CHECK(rejectedFighter);
+    EXPECT(rejectedFighter);
 
 	// Kicked connection identity cannot rejoin under another display name.
 	Action kick = TableAction(authority, host, 1, ActionKind::Kick);
 	kick.revision = authority.SnapshotView().revision;
 	kick.target = guest;
-	CHECK(authority.Apply(host, kick).accepted);
+	EXPECT(authority.Apply(host, kick).accepted);
 	const auto rejected = authority.Join("Guest renamed", Peer(1));
-	CHECK(!rejected.accepted && rejected.reason == RejectReason::MemberKicked);
+	EXPECT(!rejected.accepted && rejected.reason == RejectReason::MemberKicked);
 
 	TestUnlimitedRematch();
 	TestMatchFinishedAndSeatLifecycle();
@@ -976,7 +976,7 @@ int main() {
 	TestRelativeTimerRecovery();
 	TestTerminalReceiptSurvivesCompaction();
 
-	if (failures) return 1;
+	if (TEST_FAILURES()) return 1;
 	std::puts("RoomAuthority test passed");
 	return 0;
 }

@@ -8,10 +8,9 @@
 #include <stdexcept>
 #include <chrono>
 #include <utility>
+#include "test_support.hxx"
 
 namespace {
-void Check(bool ok,int line) { if(!ok)throw std::runtime_error("Problem report check failed at "+std::to_string(line)); }
-#define CHECK(value) Check((value),__LINE__)
 using namespace sf4e::reports;
 Report Fixture() {
     Report report; report.meta={"crash","1.2.3","beta",std::string(64,'a'),"abc123-dirty","Windows 10.0 build 26100"};
@@ -28,25 +27,25 @@ void Redaction() {
         "192.168.1.45", "2001:db8::1234", "::1", "fe80::abcd%12", "2001:db8:0:1:2:3:4:5",
         "Kate@example.com", "AbCdEfGhIjKlMnOpQrStUv"}) {
         const auto redacted=RedactLine("before "+secret+" after");
-        CHECK(redacted.find(secret)==std::string::npos); CHECK(redacted.find("before ")==0); CHECK(redacted.compare(redacted.size()-6,6," after")==0);
+        CHECK_OR_THROW(redacted.find(secret)==std::string::npos); CHECK_OR_THROW(redacted.find("before ")==0); CHECK_OR_THROW(redacted.compare(redacted.size()-6,6," after")==0);
     }
-    CHECK(RedactLine("ip:fe80::abcd%12")=="ip:[ip]");
-    CHECK(RedactLine("(ip:fe80::abcd%12),")=="(ip:[ip]),");
-    CHECK(RedactLine("ip:fe80::abcd.")=="ip:[ip].");
-    CHECK(RedactLine("[::ffff:192.168.1.45]")=="[[ip]]");
-    CHECK(RedactLine("(7K3M-OX1R-T9PZ), 7K3M0XIRT9PZ!")=="([invite]), [invite]!");
-    CHECK(RedactLine("7K3M--OX1R-T9PZ")=="[invite]");
-    CHECK(RedactLine("x7K3M0XIRT9PZy")=="x7K3M0XIRT9PZy");
-    CHECK(RedactLine("7K3M-OX1R-T9P")=="7K3M-OX1R-T9P");
-    CHECK(RedactLine("ip:fe80::")=="ip:[ip]");
-    CHECK(RedactLine(R"(C:\Users\Kate)")==R"(C:\Users\<user>)");
-    CHECK(RedactLine(R"("C:\Users\Kate",)")==R"("C:\Users\<user>",)");
-    CHECK(RedactLine(R"((D:/Users/Kate);)")==R"((D:/Users/<user>);)");
-    CHECK(RedactLine(R"("C:\Users\Kate Smith")")==R"("C:\Users\<user>")");
-    CHECK(RedactLine(R"(C:\Users\Kate Smith\logs)")==R"(C:\Users\<user>\logs)");
-    CHECK(RedactLine("C:\\Users\\Kate\\logs\\sf4e.log")=="C:\\Users\\<user>\\logs\\sf4e.log");
-    CHECK(RedactLine("D:/Users/Someone/logs")=="D:/Users/<user>/logs");
-    CHECK(RedactLine(R"(C:\\Users\\Kate\\logs)")==R"(C:\\Users\\<user>\\logs)");
+    CHECK_OR_THROW(RedactLine("ip:fe80::abcd%12")=="ip:[ip]");
+    CHECK_OR_THROW(RedactLine("(ip:fe80::abcd%12),")=="(ip:[ip]),");
+    CHECK_OR_THROW(RedactLine("ip:fe80::abcd.")=="ip:[ip].");
+    CHECK_OR_THROW(RedactLine("[::ffff:192.168.1.45]")=="[[ip]]");
+    CHECK_OR_THROW(RedactLine("(7K3M-OX1R-T9PZ), 7K3M0XIRT9PZ!")=="([invite]), [invite]!");
+    CHECK_OR_THROW(RedactLine("7K3M--OX1R-T9PZ")=="[invite]");
+    CHECK_OR_THROW(RedactLine("x7K3M0XIRT9PZy")=="x7K3M0XIRT9PZy");
+    CHECK_OR_THROW(RedactLine("7K3M-OX1R-T9P")=="7K3M-OX1R-T9P");
+    CHECK_OR_THROW(RedactLine("ip:fe80::")=="ip:[ip]");
+    CHECK_OR_THROW(RedactLine(R"(C:\Users\Kate)")==R"(C:\Users\<user>)");
+    CHECK_OR_THROW(RedactLine(R"("C:\Users\Kate",)")==R"("C:\Users\<user>",)");
+    CHECK_OR_THROW(RedactLine(R"((D:/Users/Kate);)")==R"((D:/Users/<user>);)");
+    CHECK_OR_THROW(RedactLine(R"("C:\Users\Kate Smith")")==R"("C:\Users\<user>")");
+    CHECK_OR_THROW(RedactLine(R"(C:\Users\Kate Smith\logs)")==R"(C:\Users\<user>\logs)");
+    CHECK_OR_THROW(RedactLine("C:\\Users\\Kate\\logs\\sf4e.log")=="C:\\Users\\<user>\\logs\\sf4e.log");
+    CHECK_OR_THROW(RedactLine("D:/Users/Someone/logs")=="D:/Users/<user>/logs");
+    CHECK_OR_THROW(RedactLine(R"(C:\\Users\\Kate\\logs)")==R"(C:\\Users\\<user>\\logs)");
     const std::pair<const char*,const char*> boundaries[]={
         {R"(profile=C:\Users\Kate Smith)",R"(profile=C:\Users\<user>)"},
         {R"(profile=C:\Users\Kate status=ready; other=D:/cache)",R"(profile=C:\Users\<user> status=ready; other=D:/cache)"},
@@ -80,57 +79,57 @@ void Redaction() {
     };
     // Exact output checks cover both secret removal and every original gap,
     // wrapper and final suffix, including secrets cut at the end of a line.
-    for(const auto& test:boundaries) CHECK(RedactLine(test.first)==test.second);
+    for(const auto& test:boundaries) CHECK_OR_THROW(RedactLine(test.first)==test.second);
     for(const std::string line:{"Game exited with code 0xc0000005", "RTT 42 ms, input delay 3", "sf4e::Session ready at 12:34:56",
-        "Windows 10.0 build 26100", "module.dll+0x1234", "https://github.com/owner/repo", "No credentials here."}) CHECK(RedactLine(line)==line);
+        "Windows 10.0 build 26100", "module.dll+0x1234", "https://github.com/owner/repo", "No credentials here."}) CHECK_OR_THROW(RedactLine(line)==line);
 }
 void Tails() {
-    CHECK(Utf8Tail(std::string(LogLimit,'a')).size()==LogLimit);
-    CHECK(Utf8Tail("prefix"+std::string(LogLimit,'b'))==std::string(LogLimit,'b'));
+    CHECK_OR_THROW(Utf8Tail(std::string(LogLimit,'a')).size()==LogLimit);
+    CHECK_OR_THROW(Utf8Tail("prefix"+std::string(LogLimit,'b'))==std::string(LogLimit,'b'));
     const std::string utf8="\xF0\x9F\x8C\x9F";
-    CHECK(Utf8Tail("abc"+utf8+"def",6)=="def");
-    CHECK(Utf8Tail(utf8+std::string(LogLimit-2,'x'))==std::string(LogLimit-2,'x'));
-    CHECK(Utf8Tail(std::string("a\0b",3))=="a?b");
-    CHECK(Utf8Tail("abc\xFF")=="abc?"); CHECK(Utf8Tail("abc\xE2\x82")=="abc??");
-    CHECK(CharacterCount(utf8+"abc")==4);
+    CHECK_OR_THROW(Utf8Tail("abc"+utf8+"def",6)=="def");
+    CHECK_OR_THROW(Utf8Tail(utf8+std::string(LogLimit-2,'x'))==std::string(LogLimit-2,'x'));
+    CHECK_OR_THROW(Utf8Tail(std::string("a\0b",3))=="a?b");
+    CHECK_OR_THROW(Utf8Tail("abc\xFF")=="abc?"); CHECK_OR_THROW(Utf8Tail("abc\xE2\x82")=="abc??");
+    CHECK_OR_THROW(CharacterCount(utf8+"abc")==4);
 }
 void MultipartCases() {
     auto report=Fixture(); Submission submission{"A problem after joining.",true}; Multipart body; std::string error;
-    CHECK(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    CHECK(body.contentType=="multipart/form-data; boundary=EmberTestBoundary");
-    CHECK(body.body.find("--EmberTestBoundary\r\nContent-Disposition: form-data; name=\"meta\"\r\n") == 0);
-    CHECK(body.body.find("name=\"log\"; filename=\"sf4e.log\"")!=std::string::npos);
-    CHECK(body.body.find("name=\"minidump\"; filename=\"crash.dmp\"")!=std::string::npos);
-    CHECK(body.body.find(report.minidump)!=std::string::npos);
-    const std::string ending="--EmberTestBoundary--\r\n"; CHECK(body.body.compare(body.body.size()-ending.size(),ending.size(),ending)==0);
+    CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    CHECK_OR_THROW(body.contentType=="multipart/form-data; boundary=EmberTestBoundary");
+    CHECK_OR_THROW(body.body.find("--EmberTestBoundary\r\nContent-Disposition: form-data; name=\"meta\"\r\n") == 0);
+    CHECK_OR_THROW(body.body.find("name=\"log\"; filename=\"sf4e.log\"")!=std::string::npos);
+    CHECK_OR_THROW(body.body.find("name=\"minidump\"; filename=\"crash.dmp\"")!=std::string::npos);
+    CHECK_OR_THROW(body.body.find(report.minidump)!=std::string::npos);
+    const std::string ending="--EmberTestBoundary--\r\n"; CHECK_OR_THROW(body.body.compare(body.body.size()-ending.size(),ending.size(),ending)==0);
     const auto meta=MetaJson(report.meta,submission.comment);
-    CHECK(meta.size()==11&&meta["schema"]==1&&meta["kind"]=="crash"&&meta["build_id"]==std::string(64,'a'));
-    CHECK(meta["app_version"]=="1.2.3"&&meta["channel"]=="beta"&&meta["source_revision"]=="abc123-dirty");
-    CHECK(meta["windows_version"]=="Windows 10.0 build 26100"&&meta["exit_code"]==0xC0000005u);
-    CHECK(meta["exception_code"]=="0xc0000005"&&meta["crash_address"]=="0x401234"&&meta["comment"]==submission.comment);
-    submission.includeDump=false; CHECK(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    CHECK(body.body.find("name=\"minidump\"")==std::string::npos);
-    report.logs[0].text=std::string(LogLimit,'x'); CHECK(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report.logs[0].text+='x'; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error)); CHECK(body.body.empty());
+    CHECK_OR_THROW(meta.size()==11&&meta["schema"]==1&&meta["kind"]=="crash"&&meta["build_id"]==std::string(64,'a'));
+    CHECK_OR_THROW(meta["app_version"]=="1.2.3"&&meta["channel"]=="beta"&&meta["source_revision"]=="abc123-dirty");
+    CHECK_OR_THROW(meta["windows_version"]=="Windows 10.0 build 26100"&&meta["exit_code"]==0xC0000005u);
+    CHECK_OR_THROW(meta["exception_code"]=="0xc0000005"&&meta["crash_address"]=="0x401234"&&meta["comment"]==submission.comment);
+    submission.includeDump=false; CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    CHECK_OR_THROW(body.body.find("name=\"minidump\"")==std::string::npos);
+    report.logs[0].text=std::string(LogLimit,'x'); CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report.logs[0].text+='x'; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error)); CHECK_OR_THROW(body.body.empty());
     report=Fixture(); report.minidump="MDMP"+std::string(DumpLimit-4,'\0'); submission.includeDump=true;
-    CHECK(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report.minidump+='x'; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report=Fixture(); report.minidump="BAD!"; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report=Fixture(); report.logs.push_back(report.logs.front()); CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report=Fixture(); report.logs[0].name="../sf4e.log"; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report=Fixture(); report.logs[0].text="EmberTestBoundary"; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report=Fixture(); CHECK(!BuildMultipart(report,submission,"bad\r\nboundary",body,error));
-    report.meta.buildId="bad"; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    report=Fixture(); report.meta.channel="prerelease"; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report.minidump+='x'; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report=Fixture(); report.minidump="BAD!"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report=Fixture(); report.logs.push_back(report.logs.front()); CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report=Fixture(); report.logs[0].name="../sf4e.log"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report=Fixture(); report.logs[0].text="EmberTestBoundary"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report=Fixture(); CHECK_OR_THROW(!BuildMultipart(report,submission,"bad\r\nboundary",body,error));
+    report.meta.buildId="bad"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    report=Fixture(); report.meta.channel="prerelease"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     report=Fixture(); report.meta.kind="problem"; report.meta.exitCode.reset(); report.meta.exceptionCode.reset(); report.meta.crashAddress.reset();
-    CHECK(MetaJson(report.meta,"").size()==7); submission.comment=" \t\n"; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    submission.comment=std::string(2000,'a'); CHECK(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
-    submission.comment+='a'; CHECK(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    CHECK_OR_THROW(MetaJson(report.meta,"").size()==7); submission.comment=" \t\n"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    submission.comment=std::string(2000,'a'); CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    submission.comment+='a'; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     submission.comment.clear(); for(int i=0;i<2000;++i)submission.comment+="\xF0\x9F\x8C\x9F";
-    CHECK(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     using sf4e::updates::UpdateChannel;
-    CHECK(std::string(ReportChannel(UpdateChannel::Stable))=="stable"&&std::string(ReportChannel(UpdateChannel::Beta))=="beta");
-    CHECK(std::string(ReportChannel(UpdateChannel::Nightly))=="nightly");
+    CHECK_OR_THROW(std::string(ReportChannel(UpdateChannel::Stable))=="stable"&&std::string(ReportChannel(UpdateChannel::Beta))=="beta");
+    CHECK_OR_THROW(std::string(ReportChannel(UpdateChannel::Nightly))=="nightly");
 }
 void Collection() {
     const auto path=std::filesystem::temp_directory_path()/std::filesystem::path("ember-report-test-"+
@@ -142,25 +141,25 @@ void Collection() {
     write("sf4e-crash.log","kind=unhandled_exception code=0xC0000005 address=0x401234 module=Sidecar.dll\n");
     write("small.dmp","MDMPpayload"); CrashContext context; context.smallDump=path/"small.dmp"; context.started=(std::filesystem::file_time_type::min)();
     auto report=Collect(path,Fixture().meta,context,{});
-    CHECK(report.logs.size()==2&&report.logs[0].text.find("private")==std::string::npos);
-    CHECK(report.logs[0].text.find("Game ready")!=std::string::npos&&report.logs[0].text.size()<=LogLimit);
-    CHECK(report.meta.exceptionCode==0xC0000005u&&report.meta.crashAddress==0x401234&&report.minidump=="MDMPpayload");
-    context.started=(std::filesystem::file_time_type::max)(); report=Collect(path,Fixture().meta,context,{}); CHECK(!report.meta.exceptionCode);
-    write("small.dmp","MDMP"+std::string(DumpLimit,'x')); report=Collect(path,Fixture().meta,context,{}); CHECK(report.minidump.empty());
+    CHECK_OR_THROW(report.logs.size()==2&&report.logs[0].text.find("private")==std::string::npos);
+    CHECK_OR_THROW(report.logs[0].text.find("Game ready")!=std::string::npos&&report.logs[0].text.size()<=LogLimit);
+    CHECK_OR_THROW(report.meta.exceptionCode==0xC0000005u&&report.meta.crashAddress==0x401234&&report.minidump=="MDMPpayload");
+    context.started=(std::filesystem::file_time_type::max)(); report=Collect(path,Fixture().meta,context,{}); CHECK_OR_THROW(!report.meta.exceptionCode);
+    write("small.dmp","MDMP"+std::string(DumpLimit,'x')); report=Collect(path,Fixture().meta,context,{}); CHECK_OR_THROW(report.minidump.empty());
     // A tail cut through an invitation/profile/address discards the partial
     // first line, rather than offering an unrecognizable secret fragment.
     write("sf4e.log", "7K3M-OX1R-T9PZ C:\\Users\\Kate ip:fe80::abcd%12 " + std::string(LogLimit,'x') + "\nSafe line\n");
     report=Collect(path,Fixture().meta,context,{});
-    CHECK(report.logs[0].text=="Safe line\n");
+    CHECK_OR_THROW(report.logs[0].text=="Safe line\n");
     // An oversized single line has no complete suffix line to offer.
     write("sf4e.log","sf4e3:ABCD profile=C:\\Users\\Kate Smith "+std::string(LogLimit,'x'));
-    report=Collect(path,Fixture().meta,context,{}); CHECK(report.logs[0].text.empty());
+    report=Collect(path,Fixture().meta,context,{}); CHECK_OR_THROW(report.logs[0].text.empty());
     // A complete line that fits exactly is redacted without tail discarding.
     const std::string last="\n(sf4e3:ABCD), next\n";
     write("sf4e.log",std::string(LogLimit-last.size(),' ')+last);
     report=Collect(path,Fixture().meta,context,{});
-    CHECK(report.logs[0].text==std::string(LogLimit-last.size(),' ')+"\n([invite]), next\n");
-    bool cancelled=false; try { Collect(path,Fixture().meta,context,[]{return true;}); } catch (const std::runtime_error&) { cancelled=true; } CHECK(cancelled);
+    CHECK_OR_THROW(report.logs[0].text==std::string(LogLimit-last.size(),' ')+"\n([invite]), next\n");
+    bool cancelled=false; try { Collect(path,Fixture().meta,context,[]{return true;}); } catch (const std::runtime_error&) { cancelled=true; } CHECK_OR_THROW(cancelled);
     // A log rotated, replaced or cut short after its tail was read: the partial
     // first line is still dropped, decided from the file as it was read.
     const std::string rotated="sf4e3:ABCD C:\\Users\\Kate "+std::string(LogLimit,'x')+"\nSafe line\n";
@@ -168,12 +167,12 @@ void Collection() {
         write("sf4e.log",rotated);
         report=Collect(path,Fixture().meta,context,{},{},[&](const std::filesystem::path& read){
             if(read.filename()=="sf4e.log") write("sf4e.log",after);});
-        CHECK(report.logs[0].text=="Safe line\n");
+        CHECK_OR_THROW(report.logs[0].text=="Safe line\n");
     }
     write("sf4e.log",rotated);
     report=Collect(path,Fixture().meta,context,{},{},[&](const std::filesystem::path& read){
         if(read.filename()=="sf4e.log") std::filesystem::remove(read);});
-    CHECK(report.logs[0].text=="Safe line\n");
+    CHECK_OR_THROW(report.logs[0].text=="Safe line\n");
 }
 // The account's names wherever one stands alone: the profile folder in its
 // long and 8.3 forms, the user and PC names and the player name, in any case
@@ -206,7 +205,7 @@ void AccountRedaction() {
         {"K said OK to Alpha and Kal","<user> said OK to Alpha and Kal"}};
     for(const auto& test:shortCases) if(RedactLine(test.first,shortNames)!=test.second) throw std::runtime_error("Short name redaction gave: "+RedactLine(test.first,shortNames));
     // The other rules still apply beside the names.
-    CHECK(RedactLine("Kate joined sf4e3:ABCD from 192.168.1.45",account)=="<user> joined [invite] from [ip]");
+    CHECK_OR_THROW(RedactLine("Kate joined sf4e3:ABCD from 192.168.1.45",account)=="<user> joined [invite] from [ip]");
     // Unicode names match in any case from the one form Windows gives, and
     // punctuation in any script ends a word; glued to another letter of its
     // script a name is part of a longer word, as with ASCII.
@@ -238,7 +237,7 @@ void AccountRedaction() {
         {R"({"n":"\ud801\udc28Strasse"})",R"({"n":"\ud801\udc28Strasse"})"}};
     for(const auto& test:folding) if(RedactLine(test.first,street)!=test.second) throw std::runtime_error("Folding redaction gave: "+RedactLine(test.first,street));
     // Part of what one character folds to is not a match.
-    CHECK(RedactLine("a Stra\xC3\x9F" "e b",strass)=="a Stra\xC3\x9F" "e b");
+    CHECK_OR_THROW(RedactLine("a Stra\xC3\x9F" "e b",strass)=="a Stra\xC3\x9F" "e b");
     // Inside JSON strings: escaped quotes and backslashes, and hex escapes in
     // either case, are read as the characters they stand for.
     Account escaped; escaped.names={"A\"B","C\\D","Zo\xC3\xAB",cyrillic};
@@ -268,18 +267,18 @@ void SentRecord() {
         r.attempt=std::string(16,'0'+i%10); r.dump=i%2==0; r.automatic=i%5==0;
         Append(sent,r);
     }
-    CHECK(sent.size()==SentKept&&sent.front().time==1010&&sent.back().time==1059);
+    CHECK_OR_THROW(sent.size()==SentKept&&sent.front().time==1010&&sent.back().time==1059);
     const auto again=ParseSent(SentJson(sent));
-    CHECK(again.has_value()&&again->size()==sent.size());
+    CHECK_OR_THROW(again.has_value()&&again->size()==sent.size());
     for(std::size_t i=0;i<again->size();++i) {
         const auto& a=(*again)[i]; const auto& b=sent[i];
-        CHECK(a.time==b.time&&a.status==b.status&&a.id==b.id&&a.reason==b.reason&&a.kind==b.kind&&a.attempt==b.attempt&&a.dump==b.dump&&a.automatic==b.automatic);
+        CHECK_OR_THROW(a.time==b.time&&a.status==b.status&&a.id==b.id&&a.reason==b.reason&&a.kind==b.kind&&a.attempt==b.attempt&&a.dump==b.dump&&a.automatic==b.automatic);
     }
-    CHECK(ParseSent(R"({"schema":1,"reports":[]})").has_value()&&ParseSent(R"({"schema":1,"reports":[]})")->empty());
+    CHECK_OR_THROW(ParseSent(R"({"schema":1,"reports":[]})").has_value()&&ParseSent(R"({"schema":1,"reports":[]})")->empty());
     // Anything this code would not write is unreadable as a whole, never a
     // shorter record: a damaged entry must not give the day's sends back.
     const std::string entry=R"({"time":5,"status":"received","kind":"crash","id":"","reason":"","attempt":"","dump":false,"automatic":true})";
-    CHECK(ParseSent(R"({"schema":1,"reports":[)"+entry+"]}").has_value());
+    CHECK_OR_THROW(ParseSent(R"({"schema":1,"reports":[)"+entry+"]}").has_value());
     for(const std::string bad:{std::string(""),std::string("[]"),std::string(R"({"schema":2,"reports":[]})"),
         R"({"schema":1,"reports":[)"+entry+",3]}",
         std::string(R"({"schema":1,"reports":[{"time":"6","status":"received","kind":"crash","id":"","reason":"","attempt":"","dump":false,"automatic":true}]})"),
@@ -291,7 +290,7 @@ void SentRecord() {
         std::string(R"({"schema":1,"reports":[{"time":18446744073709551615,"status":"received","kind":"crash","id":"","reason":"","attempt":"","dump":false,"automatic":true}]})"),
         std::string(R"({"schema":1,"reports":[{"time":9223372036854775808,"status":"received","kind":"crash","id":"","reason":"","attempt":"","dump":false,"automatic":true}]})"),
         std::string(SentFileLimit+1,' ')})
-        CHECK(!ParseSent(bad).has_value());
+        CHECK_OR_THROW(!ParseSent(bad).has_value());
 }
 void Timestamps() {
     // The largest time the record can hold is read, and as a time ahead of now
@@ -299,37 +298,37 @@ void Timestamps() {
     const auto entry=[](const char* time){return std::string(R"({"schema":1,"reports":[{"time":)")+time+
         R"(,"status":"received","kind":"crash","id":"","reason":"","attempt":"","dump":false,"automatic":true}]})";};
     const auto largest=ParseSent(entry("9223372036854775807"));
-    CHECK(largest.has_value()&&largest->size()==1&&(*largest)[0].time==(std::numeric_limits<std::int64_t>::max)());
+    CHECK_OR_THROW(largest.has_value()&&largest->size()==1&&(*largest)[0].time==(std::numeric_limits<std::int64_t>::max)());
     std::vector<Record> future(3,(*largest)[0]);
-    CHECK(!AutomaticAllowed(future,1'000'000));
-    CHECK(!ParseSent(entry("18446744073709551615")).has_value()&&!ParseSent(entry("9223372036854775808")).has_value());
-    CHECK(ParseSent(entry("-5")).has_value());
+    CHECK_OR_THROW(!AutomaticAllowed(future,1'000'000));
+    CHECK_OR_THROW(!ParseSent(entry("18446744073709551615")).has_value()&&!ParseSent(entry("9223372036854775808")).has_value());
+    CHECK_OR_THROW(ParseSent(entry("-5")).has_value());
 }
 void AutomaticCap() {
     const std::int64_t now=1'000'000;
     std::vector<Record> sent;
-    CHECK(AutomaticAllowed(sent,now));
+    CHECK_OR_THROW(AutomaticAllowed(sent,now));
     Record old; old.time=now-24*60*60;
     for(int i=0;i<10;++i) Append(sent,old);
-    CHECK(AutomaticAllowed(sent,now));
+    CHECK_OR_THROW(AutomaticAllowed(sent,now));
     Record recent; recent.time=now-60;
     Append(sent,recent); Append(sent,recent);
-    CHECK(AutomaticAllowed(sent,now));
+    CHECK_OR_THROW(AutomaticAllowed(sent,now));
     // A clock set back counts the report from "the future" too.
     Record ahead; ahead.time=now+3600; Append(sent,ahead);
-    CHECK(!AutomaticAllowed(sent,now));
+    CHECK_OR_THROW(!AutomaticAllowed(sent,now));
 }
 void SubmissionDefaults() {
     // Every report starts without the dump.
-    CHECK(!Submission{}.includeDump);
+    CHECK_OR_THROW(!Submission{}.includeDump);
 }
 void SettingKey() {
     using sf4e::netplay::BoolPreferences;
     using sf4e::netplay::PlayerPreferences;
     const auto found=std::find_if(std::begin(BoolPreferences),std::end(BoolPreferences),
         [](const sf4e::netplay::BoolPreference& p){return p.member==&PlayerPreferences::sendProblemReports;});
-    CHECK(found!=std::end(BoolPreferences)&&std::string(found->key)=="sendProblemReports");
-    CHECK(!PlayerPreferences().sendProblemReports);
+    CHECK_OR_THROW(found!=std::end(BoolPreferences)&&std::string(found->key)=="sendProblemReports");
+    CHECK_OR_THROW(!PlayerPreferences().sendProblemReports);
 }
 }
 int main() {

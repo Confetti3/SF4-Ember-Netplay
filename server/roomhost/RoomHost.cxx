@@ -173,75 +173,103 @@ void RoomHost::Attach() {
 	spdlog::info("RoomHost: authority attached room={} capacity={}", HexLower(config_.roomId).substr(0, 8), config_.capacity);
 }
 
-// `banned` is the committed moderation view. The room model has already removed
-// and banned the account; the helper's ban is the outer door. It closes the
-// member's control at once, so it waits a moment for the kick's commit to carry
-// the removal notice to that member.
-void RoomHost::ForwardBans(const std::vector<std::string>& banned, std::uint64_t nowMs) {
+bool RoomReporter::Report(const SessionServer& server, const room::Snapshot& snapshot, std::uint64_t appliedRevision,
+	const std::string& invitation, const Emit& emit, std::uint64_t nowMs) {
+	if (haveReported_ && snapshot.revision == reportedSnapshotRevision_ && appliedRevision == reportedAppliedRevision_ &&
+		invitation == reported_.invitation) return true;
+	reportedSnapshotRevision_ = snapshot.revision;
+	reportedAppliedRevision_ = appliedRevision;
+	Status current;
+	current.members = snapshot.members.size();
+	for (const auto& table : snapshot.tables)
+		if (table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Paused) ++current.tablesPlaying;
+	current.invitation = invitation;
+	// Committed bans only: a kick still in an uncommitted candidate could be
+	// discarded, and neither the bridge nor the helper can take a ban back.
+	auto committed = server.CommittedServerOwned();
+	current.banned = std::move(committed.banned);
+	current.details = DetailsOf(snapshot);
+	current.games = std::move(committed.wonGames);
+	// Bans only ever grow, and only with a commit: one not given to the helper
+	// yet waits from now.
+	for (const auto& account : current.banned)
+		if (!forwardedBans_.count(account)) pendingBans_.emplace(account, nowMs);
+	if (haveReported_ && current == reported_) return true;
+	const auto line = StatusLine(current);
+	// The supervisor kills a child whose line is over its limit; the caller ends the room instead.
+	if (line.size() > MaximumStatusLineBytes) return false;
+	emit(line);
+	reported_ = std::move(current);
+	haveReported_ = true;
+	return true;
+}
+
+// The waiting bans are a subset of the committed ones and in the same order
+// (both sorted), so the helper is asked in the order the committed list names them.
+void RoomReporter::ForwardBans(const SessionServer& server, const Ban& ban, std::uint64_t nowMs) {
 	constexpr std::uint64_t NoticeMs = 1000;
-	for (const auto& account : banned) {
-		if (forwardedBans_.count(account)) continue;
-		const auto seen = pendingBans_.emplace(account, nowMs).first->second;
-		if (nowMs - seen < NoticeMs || server_->HasRecoveryCandidate() || server_->PendingProposal()) continue;
-		// Retried next tick when the helper's queue is full.
-		if (!room_->BanAccount(account)) continue;
-		forwardedBans_.insert(account);
-		pendingBans_.erase(account);
+	for (auto pending = pendingBans_.begin(); pending != pendingBans_.end();) {
+		if (nowMs - pending->second < NoticeMs || server.HasRecoveryCandidate() || server.PendingProposal() ||
+			// Retried next tick when the helper's queue is full.
+			!ban(pending->first)) { ++pending; continue; }
+		forwardedBans_.insert(pending->first);
+		pending = pendingBans_.erase(pending);
 		spdlog::info("RoomHost: account banned");
 	}
 }
 
-void RoomHost::Report(std::uint64_t nowMs) {
+// The supervisor treats an empty invitation as a protocol error, and the room
+// hides its invitation while control reconnects: keep the last one.
+void RoomHost::NoteInvitation() {
 	if (!room_->Invitation().empty()) invitation_ = room_->Invitation();
-	if (invitation_.empty()) return;
-	if (!hosted_) {
-		const auto& network = room_->Network();
-		if (network.relay.empty() && nowMs - readySinceMs_ < RegionWaitMs) return;
-		emit_(HostedLine(invitation_, network.relay.empty() ? "other" : network.relay));
-		hosted_ = true;
-	}
-	const auto* snapshot = server_->RoomSnapshot();
-	if (!snapshot) return;
-	// Everything reported comes from the snapshot (which moves its revision on
-	// every change), the committed bans (which change with a commit) and the
-	// invitation. While none has moved and no ban or commit is pending, the
-	// report would compare equal, so the copies below are not made.
-	const auto appliedRevision = recovery_.AppliedRevision();
-	if (haveReported_ && snapshot->revision == reportedSnapshotRevision_ && appliedRevision == reportedAppliedRevision_ &&
-		invitation_ == reported_.invitation && pendingBans_.empty() && !server_->HasRecoveryCandidate() &&
-		!server_->PendingProposal() && (closing_ || !snapshot->closed)) return;
-	reportedSnapshotRevision_ = snapshot->revision;
-	reportedAppliedRevision_ = appliedRevision;
-	Status current;
-	current.members = snapshot->members.size();
-	for (const auto& table : snapshot->tables)
-		if (table.phase == room::TablePhase::Playing || table.phase == room::TablePhase::Paused) ++current.tablesPlaying;
-	current.invitation = invitation_;
-	// Committed bans only: a kick still in an uncommitted candidate could be
-	// discarded, and neither the bridge nor the helper can take a ban back.
-	auto committed = server_->CommittedServerOwned();
-	current.banned = std::move(committed.banned);
-	current.details = DetailsOf(*snapshot);
-	current.games = std::move(committed.wonGames);
-	ForwardBans(current.banned, nowMs);
-	// The model can close the room on its own; treat it like a close request
-	// whose commit has already been applied.
-	if (snapshot->closed && !closing_) { closing_ = true; closeApplied_ = true; closeStartedMs_ = nowMs; closeReason_ = "room_closed"; }
-	if (haveReported_ && current == reported_) return;
-	const auto line = StatusLine(current);
-	// The supervisor kills a child whose line is over its limit; end the room instead.
-	if (line.size() > MaximumStatusLineBytes) { Fail("status_too_large"); return; }
-	emit_(line);
-	reported_ = std::move(current);
-	haveReported_ = true;
 }
 
-bool RoomHost::Quiet() const {
-	if (!hosted_ || closing_ || !server_ || !pendingBans_.empty() || recoveryFailedSinceMs_) return false;
-	if (room_->ProposalInFlight() || room_->CheckpointPending()) return false;
-	if (server_->HasRecoveryCandidate() || server_->PendingProposal()) return false;
+// The hosted line, once there is an invitation and a region (or the region wait
+// is over). True once it has been said.
+bool RoomHost::EmitHosted(std::uint64_t nowMs) {
+	if (invitation_.empty()) return false;
+	if (hosted_) return true;
+	const auto& network = room_->Network();
+	if (network.relay.empty() && nowMs - readySinceMs_ < RegionWaitMs) return false;
+	emit_(HostedLine(invitation_, network.relay.empty() ? "other" : network.relay));
+	hosted_ = true;
+	return true;
+}
+
+// The model can close the room on its own; treat it like a close request whose
+// commit has already been applied.
+void RoomHost::DetectModelClose(const room::Snapshot& snapshot, std::uint64_t nowMs) {
+	if (snapshot.closed && !closing_) { closing_ = true; closeApplied_ = true; closeStartedMs_ = nowMs; closeReason_ = "room_closed"; }
+}
+
+void RoomHost::Report(std::uint64_t nowMs) {
+	NoteInvitation();
+	if (!EmitHosted(nowMs)) return;
 	const auto* snapshot = server_->RoomSnapshot();
-	return snapshot && snapshot->members.empty() && !snapshot->closed;
+	if (!snapshot) return;
+	reporter_.ForwardBans(*server_, [this](const std::string& account) { return room_->BanAccount(account); }, nowMs);
+	DetectModelClose(*snapshot, nowMs);
+	if (!reporter_.Report(*server_, *snapshot, recovery_.AppliedRevision(), invitation_, emit_, nowMs)) Fail("status_too_large");
+}
+
+std::uint64_t RoomHost::WaitMs(std::uint64_t nowMs) const {
+	if (!hosted_ || closing_ || !server_ || reporter_.BansPending() || recoveryFailedSinceMs_) return TickWaitMs;
+	if (room_->ProposalInFlight() || room_->CheckpointPending()) return TickWaitMs;
+	if (server_->HasRecoveryCandidate() || server_->PendingProposal()) return TickWaitMs;
+	const auto* snapshot = server_->RoomSnapshot();
+	if (!snapshot || snapshot->closed) return TickWaitMs;
+	// A game being started, played or resolved is paced by the tick.
+	for (const auto& table : snapshot->tables)
+		if (table.phase == room::TablePhase::Ready || table.phase == room::TablePhase::Playing ||
+			table.phase == room::TablePhase::Paused) return TickWaitMs;
+	// Work that finishes without a helper event: a transfer under way, a reply
+	// or marker parked until the helper takes it, and queued messages the
+	// server has yet to read.
+	const auto recovery = room_->RecoveryState();
+	if (recovery.checkpointActive || recovery.pendingCheckpointAck || recovery.pendingCommittedMarker ||
+		recovery.pendingPublicEffects || recovery.pendingTerminalReplays || recovery.terminalReplaysInFlight ||
+		recovery.serverQueueMessages || recovery.clientQueueMessages) return TickWaitMs;
+	return IdleWaitMs(server_->NextRoomDueMs(nowMs));
 }
 
 bool RoomHost::Tick(std::uint64_t nowMs) {

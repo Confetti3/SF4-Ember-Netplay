@@ -4,6 +4,138 @@
 //! reuses it, and a check the peer runs never touches ours.
 use super::*;
 
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct ProbeAuthorizationKey {
+    pub(super) epoch: u64,
+    pub(super) room: [u8; 16],
+    pub(super) incarnation: u64,
+    pub(super) peer: EndpointId,
+    pub(super) target_incarnation: u64,
+    pub(super) request: u64,
+    pub(super) pair_revision: u64,
+    pub(super) benchmark: bool,
+}
+
+/// A probe reservation whose Raft entry this replica had not applied yet when
+/// the control frame arrived.
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct ProbeReservationKey {
+    pub(super) epoch: u64,
+    pub(super) peer: EndpointId,
+    /// The control worker that presented the frame, or 0 when the peer had
+    /// none. A wait that ends unapplied may close only this exact control.
+    pub(super) control: u64,
+    pub(super) request: u64,
+    pub(super) pair_revision: u64,
+    pub(super) expires: u64,
+}
+
+pub(super) struct ProbeAuthorization {
+    pub(super) term: u64,
+    pub(super) leader: Option<u64>,
+    pub(super) revision: u64,
+    pub(super) expires: u64,
+    /// When the authorization stops being usable, on this PC's monotonic
+    /// clock, counted from when it was requested.
+    pub(super) deadline: tokio::time::Instant,
+}
+
+#[derive(Clone)]
+pub(super) struct PendingProbeInvalidation {
+    pub(super) request: u64,
+    pub(super) pair_revision: u64,
+    pub(super) route: String,
+}
+
+/// Permission for a peer to open a probe connection to this helper, installed
+/// by the peer's reservation. It covers only probes this helper answers.
+pub(super) struct ProbePermission {
+    pub(super) request: u64,
+    pub(super) pair_revision: u64,
+    pub(super) expires: tokio::time::Instant,
+}
+
+/// A check this helper runs against a peer, from its command until its
+/// completion. The peer may check us at the same time, with the same request
+/// id and pair revision, so this is kept apart from `ProbePermission`.
+pub(super) struct OwnProbe {
+    pub(super) request: u64,
+    pub(super) pair_revision: u64,
+}
+
+pub(super) struct ProbeCompletion {
+    pub(super) peer: EndpointId,
+    pub(super) request: u64,
+    pub(super) pair_revision: u64,
+    pub(super) samples_us: Vec<u64>,
+    pub(super) connection: Option<Connection>,
+    pub(super) report: bool,
+    pub(super) route_changed: bool,
+    /// The route the measurement observed; unset when it must be read from
+    /// `connection`.
+    pub(super) route: Option<String>,
+    pub(super) metrics: crate::probe::Metrics,
+}
+
+/// Why a check this helper was asked to run did not start: the
+/// `probe_failure` code of its `probe_unavailable` error, which the native
+/// side reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub(super) enum ProbeFailure {
+    /// Another epoch or room, or no request id.
+    StaleRequest = 1,
+    NoTaskSlot = 2,
+    /// No control the reservation could go out on.
+    NoRoute = 3,
+    /// A check of the same peer is already running.
+    AlreadyChecking = 4,
+    NoCoordination = 5,
+    /// The peer has no admission in this room.
+    NotAdmitted = 6,
+    /// The room was not writable under a current leader.
+    AuthorityUnavailable = 7,
+    /// The committed seats do not hold the pair.
+    PairUnavailable = 8,
+    /// The reservation was not committed.
+    ReservationFailed = 9,
+    /// The pair or the peer's admission changed while it was reserved.
+    Superseded = 10,
+    /// Another proposal held the leader.
+    ProposalBusy = 11,
+}
+
+impl ProbeFailure {
+    /// The error a reservation task ends with for this failure, read back
+    /// with `of`.
+    fn error(self) -> io::Error {
+        io::Error::other(ProbeRefused(self))
+    }
+
+    fn of(error: &io::Error) -> Option<Self> {
+        error
+            .get_ref()?
+            .downcast_ref::<ProbeRefused>()
+            .map(|refused| refused.0)
+    }
+}
+
+/// `ProbeFailure::error`'s payload, written as the text it always had.
+#[derive(Debug)]
+struct ProbeRefused(ProbeFailure);
+
+impl std::fmt::Display for ProbeRefused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self.0 {
+            ProbeFailure::AuthorityUnavailable => "probe authority unavailable",
+            ProbeFailure::PairUnavailable => "probe pair unavailable",
+            _ => "probe unavailable",
+        })
+    }
+}
+
+impl std::error::Error for ProbeRefused {}
+
 /// How a reservation that arrived ahead of its committed entry ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ReservationWait {
@@ -50,17 +182,10 @@ impl Actor {
         }) else {
             return;
         };
-        let id = self.next_transport_message;
-        self.next_transport_message = self.next_transport_message.saturating_add(1);
         // A member of a server-owned room has no control to another member;
         // its host relays the reservation (`relay_probe_reservation`).
         let route = self.probe_reservation_route(peer);
-        if let Some(control) = route.and_then(|route| self.controls.get(&route)) {
-            let _ = control.try_send(ControlFrame {
-                message_id: id,
-                payload: payload.into_bytes(),
-            });
-        }
+        let _ = self.send_frame(route, payload.into_bytes());
     }
 
     pub(super) fn pump_probe_invalidations(&mut self) {
@@ -131,19 +256,19 @@ impl Actor {
         benchmark: bool,
     ) -> io::Result<()> {
         if !self.matches(epoch) || self.room != Some(room) || request == 0 {
-            return self.probe_error(1);
+            return self.probe_error(ProbeFailure::StaleRequest);
         }
         if self.tasks.len() >= MAX_TASKS {
-            return self.probe_error(2);
+            return self.probe_error(ProbeFailure::NoTaskSlot);
         }
         if self.probe_reservation_route(peer).is_none() {
-            return self.probe_error(3);
+            return self.probe_error(ProbeFailure::NoRoute);
         }
         if self.own_probes.contains_key(&peer) {
-            return self.probe_error(4);
+            return self.probe_error(ProbeFailure::AlreadyChecking);
         }
         let Some(recovery) = self.recovery.clone() else {
-            return self.probe_error(5);
+            return self.probe_error(ProbeFailure::NoCoordination);
         };
         let Some(target_incarnation) = self
             .admissions
@@ -151,7 +276,7 @@ impl Actor {
             .find(|admission| admission.primary_endpoint == peer && admission.room == room)
             .map(|admission| admission.incarnation)
         else {
-            return self.probe_error(6);
+            return self.probe_error(ProbeFailure::NotAdmitted);
         };
         let key = ProbeAuthorizationKey {
             epoch,
@@ -183,7 +308,7 @@ impl Actor {
                     || recovery.coordinator.current_term() != state.term
                     || recovery.coordinator.current_leader().is_none()
                 {
-                    return Err(failed("probe authority unavailable"));
+                    return Err(ProbeFailure::AuthorityUnavailable.error());
                 }
                 if !recovery
                     .probe_pair_bound(
@@ -195,7 +320,7 @@ impl Actor {
                     )
                     .await
                 {
-                    return Err(failed("probe pair unavailable"));
+                    return Err(ProbeFailure::PairUnavailable.error());
                 }
                 // Stamped on this PC's wall clock, as 1.1.0 builds expect, but
                 // only ever matched: the room's entry and the peer's frame
@@ -216,7 +341,7 @@ impl Actor {
                 Ok(ProbeAuthorization {
                     term: state.term,
                     leader: recovery.coordinator.current_leader(),
-                    revision: recovery.committed().await.revision(),
+                    revision: recovery.coordinator.store().committed().await.revision(),
                     expires,
                     deadline,
                 })
@@ -241,7 +366,7 @@ impl Actor {
             return Ok(());
         };
         let valid = if let Ok(authorization) = &result {
-            let committed_revision = recovery.committed().await.revision();
+            let committed_revision = recovery.coordinator.store().committed().await.revision();
             key.epoch == self.epoch
                 && self.room == Some(key.room)
                 && recovery.room == key.room
@@ -272,12 +397,13 @@ impl Actor {
         let authorization = match result {
             Ok(authorization) => authorization,
             Err(error) => {
-                let reason = match error.to_string().as_str() {
-                    "probe authority unavailable" => 7,
-                    "probe pair unavailable" => 8,
-                    "room proposal busy" => 11,
-                    _ => 9,
-                };
+                let reason = ProbeFailure::of(&error).unwrap_or(
+                    if crate::coordination::is_proposal_busy(&error) {
+                        ProbeFailure::ProposalBusy
+                    } else {
+                        ProbeFailure::ReservationFailed
+                    },
+                );
                 self.own_probes.remove(&key.peer);
                 self.probe_error(reason)?;
                 return Ok(());
@@ -285,7 +411,7 @@ impl Actor {
         };
         if !valid {
             self.own_probes.remove(&key.peer);
-            self.probe_error(10)?;
+            self.probe_error(ProbeFailure::Superseded)?;
             return Ok(());
         }
         // Native code discards its recommendation when it requests a check, so
@@ -504,15 +630,19 @@ impl Actor {
         // replaced the seats: the check is stale, not invalid, and is dropped
         // with no permission and no closed control.
         let reserved = move |recovery: crate::recovery::RecoverySession| async move {
+            let reservation = crate::coordination::ProbeReservation {
+                room: recovery.room,
+                source_incarnation,
+                target_incarnation,
+                request,
+                pair_revision,
+                term,
+                expires,
+            };
             recovery
-                .probe_reserved(
-                    source_incarnation,
-                    target_incarnation,
-                    request,
-                    pair_revision,
-                    term,
-                    expires,
-                )
+                .coordinator
+                .store()
+                .probe_reserved(&reservation)
                 .await
         };
         let settled = move |recovery: crate::recovery::RecoverySession| async move {

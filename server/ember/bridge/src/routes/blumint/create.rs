@@ -12,7 +12,7 @@ use ember_protocol::{
     api::ErrorCode,
     json as wire,
     matches::{MAX_GAMES_TO_WIN, Participant, Rules},
-    play::{PROFILE, play_deep_link, play_url},
+    play::{PROFILE, play_url},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,10 @@ use crate::{
     ctx::Ctx,
     error::ApiFailure,
     http::{Body, idempotency_key},
-    routes::matches::{NewMatch, busy, idempotent, insert_match, into_response},
+    routes::{
+        idempotency::idempotent,
+        ledger::{NewMatch, busy, insert_match},
+    },
 };
 
 #[derive(Deserialize)]
@@ -176,8 +179,8 @@ pub async fn create(
             make(tx, &ctx, &connection_id, &key, &set, &digest)
         })
         .await?;
-    state.committed();
-    Ok(into_response(answer))
+    let (status, body) = answer;
+    Ok(crate::http::json(status, &body))
 }
 
 /// The set BluMint asks for, and the digest a key's requests are compared by.
@@ -225,13 +228,10 @@ fn make(
         let id = insert(tx, ctx, &tenant_id, connection_id, key, set, digest)?;
         Ok((
             StatusCode::OK,
-            // BluMint links the match straight to Ember; the play page, which
-            // also offers Ember to a player without it, rides beside it.
-            json!({
-                "matchId": id,
-                "matchUrl": play_deep_link(&ctx.config.bridge_id, &id),
-                "pageUrl": play_url(&ctx.config.bridge_id, &id),
-            }),
+            // The play page, not the ember: link it opens: BluMint closes a
+            // match whose matchUrl is not https as replaced, and the page also
+            // serves players on a phone or without Ember.
+            json!({ "matchId": id, "matchUrl": play_url(&ctx.config.bridge_id, &id) }),
         ))
     });
     // A key used for a different request is refused by the generic code, as

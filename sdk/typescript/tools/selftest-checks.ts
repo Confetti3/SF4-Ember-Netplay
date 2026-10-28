@@ -1,10 +1,8 @@
 // What the tournament self-test's coordinator (tools/selftest-bridge.ts)
 // decides from what the games and the bridge say, apart from any I/O, so it
 // can be tested without either. docs/design/TOURNAMENT_SELFTEST.md.
-import { isEmberId, type Json, type MatchResult } from "../src/index.ts";
-
-type Body = { [key: string]: Json };
-const isBody = (value: Json | undefined): value is Body => typeof value === "object" && value !== null && !Array.isArray(value);
+import { isEmberId, type MatchResult } from "../src/index.ts";
+import { type Body, isBody } from "./body.ts";
 
 /** A game's `ember-id` file: its Ember ID and the build it runs. */
 export interface GameIdentity {

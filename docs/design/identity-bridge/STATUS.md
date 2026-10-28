@@ -159,6 +159,20 @@ lists queue rotation and multi-table scheduling as future work.
   set waits until their match ends, and lobbies do not seat a player whose bracket set is
   waiting. A correction reopens a set and clears what it fed while no later set has a
   game; finished tournaments are final.
+- **Claims that name the binding they hold.** A bridge that lists `matches.claim_unchanged`
+  in its capabilities `features` reads an optional `held_binding` on a claim: the unpadded
+  base64url SHA-256 of the canonical bytes of the signed binding the helper holds and has
+  verified for that match (the same bytes the signature covers). When the room's binding
+  still has exactly that digest, the claim is answered with the `unchanged` role, which
+  carries `room_id` and `invitation` and leaves the binding out; the helper presents its
+  held binding to the game as it would a `room` answer. In every other case the answer is
+  `room`, as before. A helper sends the field only to a bridge that lists the feature and
+  only when it holds a verified binding, so a helper that does not send `held_binding` gets
+  the answer it always got, and an older helper, which would refuse an answer role it does
+  not know, never sees `unchanged`. A binding's `issued_at` is the time the room was
+  published, not the time of the answer, so a renewal that changes nothing names the same
+  bytes and the same signature. Nothing reads `issued_at` of a binding; a permit carries
+  its own.
 
 ## Deviations from the specification
 
@@ -331,7 +345,7 @@ Tournament play on `feat/tournament-play` (same machine and toolchain):
 | RESULT-14, RESULT-15 | helper spool `no_folder_means_not_saved`; `TournamentPlay` (a report that could not be saved stops the match, leaves the room and starts no further game, with the reason shown) | Automated, partial: a full disk is not simulated |
 | RESULT-17 | bridge `a_publish_retry_and_a_silent_game` (review only after the start window plus 30 minutes) | Automated, partial |
 | Discord sign-in | bridge `discord` tests (one-use and expiring sign-ins, denied and refused codes, the latest sign-in winning, moves confirmed first, sign-ins ended by a newer one or Cancel, a bridge without Discord); helper `only_discords_sign_in_page_is_opened`; `IdentityJourney` (`DiscordAndFirstLink`) | Automated, pass; Discord itself not reached |
-| BluMint (WP7) | bridge `blumint` tests against a stand-in BluMint: lookup, creation and its refusals, `a_busy_player_is_refused_until_their_match_ends`, registration; close: `a_closed_match_sends_nothing`, `a_close_finds_its_match_once_the_creation_answer_is_forgotten`, `a_close_naming_another_connections_key_ends_nothing`, `closing_a_match_that_has_ended_changes_nothing`. `blumint_reports` tests: progress (`a_progress_report_follows_each_game_that_does_not_end_the_set`, `a_game_blumint_has_been_told_of_cannot_be_voided`), results and restarts (`cancelled_and_disputed_matches_are_restarted_on_blumint`, `a_report_is_settled_as_blumints_answer_to_it_says`), the lifetime cap (`a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry`, `a_game_open_at_a_blumint_matchs_cap_does_not_hold_its_players`), starting wins (`starting_wins_continue_the_set`), presence (`a_status_follows_each_change_of_presence`, `a_player_reads_ready_once_their_ember_says_they_pressed_ready`, `a_player_whose_ember_stops_claiming_reads_as_absent`, the restart and clock cases, `a_player_refused_for_their_build_reads_as_present`) and revocation (`moving_discord_mid_set_restarts_the_set_from_the_games_won`) | Automated, pass; BluMint's live API not reached |
+| BluMint (WP7) | bridge `blumint` tests against a stand-in BluMint: lookup, creation and its refusals, `a_busy_player_is_refused_until_their_match_ends`, registration; close: `a_closed_match_sends_nothing`, `a_close_finds_its_match_once_the_creation_answer_is_forgotten`, `a_close_naming_another_connections_key_ends_nothing`, `closing_a_match_that_has_ended_changes_nothing`. `blumint_results` and `blumint_presence` tests: progress (`a_progress_report_follows_each_game_that_does_not_end_the_set`, `a_game_blumint_has_been_told_of_cannot_be_voided`), results and restarts (`cancelled_and_disputed_matches_are_restarted_on_blumint`, `a_report_is_settled_as_blumints_answer_to_it_says`), the lifetime cap (`a_blumint_match_lives_at_most_a_day_whatever_the_bridge_expiry`, `a_game_open_at_a_blumint_matchs_cap_does_not_hold_its_players`), starting wins (`starting_wins_continue_the_set`), presence (`a_status_follows_each_change_of_presence`, `a_player_reads_ready_once_their_ember_says_they_pressed_ready`, `a_player_whose_ember_stops_claiming_reads_as_absent`, the restart and clock cases, `a_player_refused_for_their_build_reads_as_present`) and revocation (`moving_discord_mid_set_restarts_the_set_from_the_games_won`) | Automated, pass; BluMint's live API not reached |
 | Match links (WP6) | bridge `a_match_has_one_play_link_for_both_players`; helper `play_a_set_through_two_helpers`; `JoinLink`; `TournamentFuzz`; `ShellJourney`; SDK `play.test.ts` | Automated, pass; real browser and Proton not run |
 | Fuzzing (WP8) | `TournamentFuzz` (helper answers, links, the state machine, a bound room; seeded, with coverage checks); protocol `fuzz` module | Automated, pass; it found one ordering bug, fixed in `707d030` |
 

@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export PATH="$HOME/.cargo/bin:$PATH"
+# The folder is removed on exit, so it must be exactly one revision's.
+[[ "$1" =~ ^[0-9a-f]{40}$ ]] || { echo "Expected a 40-character source revision, got: $1" >&2; exit 1; }
 build_root="$HOME/ember-nightly-build/$1"
 export CARGO_TARGET_DIR="$HOME/ember-nightly-build/cargo-target"
 mkdir -p "$build_root"
+# The sources are only needed until the binaries are copied out (the last command); the shared
+# CARGO_TARGET_DIR keeps cargo incremental, so nothing is kept per Nightly.
+trap 'rm -rf -- "$build_root"' EXIT
 tar -xzf "$2" -C "$build_root"
 cd "$build_root"
 bash server/roomhost/build-linux.sh . ./sf4e-room-host
