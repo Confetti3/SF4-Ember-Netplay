@@ -2,6 +2,7 @@
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__MenuMusic.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
@@ -273,6 +274,7 @@ void StartHelper() {
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
+    MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.

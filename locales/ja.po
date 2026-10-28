@@ -1226,6 +1226,12 @@ msgstr "アナウンスをテスト"
 msgid "settings.ready_sound_test_detail"
 msgstr "この音量で一度再生します。"
 
+msgid "settings.lobby_music"
+msgstr "エンドレスロビーBGM"
+
+msgid "settings.lobby_music_detail"
+msgstr "メインメニューで専用BGMの代わりにランダムなステージBGMかキャラBGMを流し、対戦ごとに曲が変わります。変更は次の対戦後に反映されます。"
+
 msgid "settings.shortcut_hint"
 msgstr "メニューのショートカット表示"
 

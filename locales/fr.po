@@ -1226,6 +1226,12 @@ msgstr "Tester l'annonce"
 msgid "settings.ready_sound_test_detail"
 msgstr "Joue l'annonce une fois à ce volume."
 
+msgid "settings.lobby_music"
+msgstr "Musique de salon sans fin"
+
+msgid "settings.lobby_music_detail"
+msgstr "Le menu principal joue le thème d'un niveau ou d'un personnage au hasard au lieu de sa propre musique, un nouveau après chaque combat. Un changement s'applique après le prochain combat."
+
 msgid "settings.shortcut_hint"
 msgstr "Rappel du raccourci du menu"
 

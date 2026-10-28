@@ -1226,6 +1226,12 @@ msgstr "Melding testen"
 msgid "settings.ready_sound_test_detail"
 msgstr "Speelt de melding één keer af op dit volume."
 
+msgid "settings.lobby_music"
+msgstr "Eindeloze lobbymuziek"
+
+msgid "settings.lobby_music_detail"
+msgstr "Het hoofdmenu speelt het thema van een willekeurig level of personage in plaats van zijn eigen muziek, na elke match een nieuw. Een wijziging geldt na de volgende match."
+
 msgid "settings.shortcut_hint"
 msgstr "Hint voor menusnelkoppeling"
 

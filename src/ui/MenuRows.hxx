@@ -35,7 +35,7 @@ inline constexpr OnOffRow OnOffRows[] = {
     {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},{"watched-picture",&netplay::PlayerPreferences::watchedPicture,false},
     {"presence",&netplay::PlayerPreferences::discordPresence,false},{"invites",&netplay::PlayerPreferences::discordInvites,false},
     {"share-steam",&netplay::PlayerPreferences::shareSteamProfile,false},{"send-reports",&netplay::PlayerPreferences::sendProblemReports,false},
-    {"background-play",&netplay::PlayerPreferences::backgroundPlay,false},{"lower-input-lag",&netplay::PlayerPreferences::lowerInputLag,false},
+    {"background-play",&netplay::PlayerPreferences::backgroundPlay,false},{"lobby-music",&netplay::PlayerPreferences::endlessLobbyMusic,false},{"lower-input-lag",&netplay::PlayerPreferences::lowerInputLag,false},
     {"lower-keyboard-lag",&netplay::PlayerPreferences::lowerKeyboardLag,false},{"faster-display",&netplay::PlayerPreferences::fasterDisplay,false},
     {"borderless",&netplay::PlayerPreferences::borderless,false},{"game-reads-pads",&netplay::PlayerPreferences::controllerLayer,true},
 };
