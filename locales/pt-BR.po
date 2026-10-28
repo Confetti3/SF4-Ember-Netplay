@@ -6436,7 +6436,19 @@ msgid "room.v2.hide_picture"
 msgstr "Ocultar imagem"
 
 msgid "room.v2.hide_detail"
-msgstr "Traga de volta em Mais… ou Configurações > Interface > Layout da sala."
+msgstr "Recolhe até o título. Mostrar abre de novo."
+
+msgid "room.v2.show"
+msgstr "Mostrar"
+
+msgid "room.v2.show_detail"
+msgstr "Abre no tamanho completo."
+
+msgid "room.v2.copy_invite"
+msgstr "Convite"
+
+msgid "room.v2.copy_link"
+msgstr "Link curto"
 
 msgid "settings.room_show_members_detail"
 msgstr "O painel Membros da sala. Oculto, o bate-papo ocupa a coluna, ou as mesas toda a largura."

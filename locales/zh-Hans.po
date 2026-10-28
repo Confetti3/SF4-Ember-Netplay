@@ -6917,7 +6917,19 @@ msgid "room.v2.hide_picture"
 msgstr "隐藏画面"
 
 msgid "room.v2.hide_detail"
-msgstr "可在“更多…”或 设置 > 界面 > 房间布局 中恢复。"
+msgstr "折叠为标题。点“显示”即可重新展开。"
+
+msgid "room.v2.show"
+msgstr "显示"
+
+msgid "room.v2.show_detail"
+msgstr "展开为完整大小。"
+
+msgid "room.v2.copy_invite"
+msgstr "邀请"
+
+msgid "room.v2.copy_link"
+msgstr "短链接"
 
 msgid "settings.room_show_members_detail"
 msgstr "房间界面的成员面板。隐藏后由聊天占用该列，两者都隐藏时对战台占满整个宽度。"

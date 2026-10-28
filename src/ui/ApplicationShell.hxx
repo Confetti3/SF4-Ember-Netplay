@@ -492,10 +492,11 @@ private:
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
     // The V2 room board's tables and its members-over-chat column in `area`, as the
-    // player's layout grips set them (PlayerPreferences::roomColumn); a hidden panel's
-    // box is empty and the other takes the column, or the tables the width when both
-    // are hidden. RoomGrips draws the grips on the edges shown, after the panes, and a
-    // drag sets them again.
+    // player's layout grips set them (PlayerPreferences::roomColumn); a folded panel's
+    // box is its heading's strip and the other takes the column, or, both folded, the
+    // two strips stand in a narrow column. RoomGrips draws the grips on the edges
+    // shown, after the panes, and a drag sets them again.
+    static constexpr float FoldedPanelHeight = 48, FoldedColumnWidth = 280;
     void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat) const;
     void RoomGrips(v2::Box area);
     // Settings' picture of that layout, with the same grips.

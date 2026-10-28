@@ -6916,7 +6916,19 @@ msgid "room.v2.hide_picture"
 msgstr "Nascondi immagine"
 
 msgid "room.v2.hide_detail"
-msgstr "Puoi riaverlo da Altro… o Impostazioni > Interfaccia > Disposizione della stanza."
+msgstr "Lo riduce alla sua intestazione. Mostra lo riapre."
+
+msgid "room.v2.show"
+msgstr "Mostra"
+
+msgid "room.v2.show_detail"
+msgstr "Lo riapre a grandezza piena."
+
+msgid "room.v2.copy_invite"
+msgstr "Invito"
+
+msgid "room.v2.copy_link"
+msgstr "Link breve"
 
 msgid "settings.room_show_members_detail"
 msgstr "Il pannello Membri della stanza. Se nascosto, la chat prende la colonna, o i tavoli tutta la larghezza."

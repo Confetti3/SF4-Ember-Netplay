@@ -6916,7 +6916,19 @@ msgid "room.v2.hide_picture"
 msgstr "Masquer l'image"
 
 msgid "room.v2.hide_detail"
-msgstr "Réaffichez-le depuis Plus… ou Paramètres > Interface > Disposition du salon."
+msgstr "Le replie sur son titre. Afficher le déplie à nouveau."
+
+msgid "room.v2.show"
+msgstr "Afficher"
+
+msgid "room.v2.show_detail"
+msgstr "Le déplie en entier."
+
+msgid "room.v2.copy_invite"
+msgstr "Invitation"
+
+msgid "room.v2.copy_link"
+msgstr "Lien court"
 
 msgid "settings.room_show_members_detail"
 msgstr "Le panneau Membres du salon. Masqué, le chat prend la colonne, ou les tables toute la largeur."

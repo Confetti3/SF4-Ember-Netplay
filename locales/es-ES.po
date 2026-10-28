@@ -6917,7 +6917,19 @@ msgid "room.v2.hide_picture"
 msgstr "Ocultar imagen"
 
 msgid "room.v2.hide_detail"
-msgstr "Vuelve a mostrarlo desde Más… o Ajustes > Interfaz > Disposición de la sala."
+msgstr "Lo pliega a su encabezado. Mostrar lo despliega de nuevo."
+
+msgid "room.v2.show"
+msgstr "Mostrar"
+
+msgid "room.v2.show_detail"
+msgstr "Lo despliega a su tamaño completo."
+
+msgid "room.v2.copy_invite"
+msgstr "Invitación"
+
+msgid "room.v2.copy_link"
+msgstr "Enlace corto"
 
 msgid "settings.room_show_members_detail"
 msgstr "El panel Miembros de la sala. Si se oculta, el chat ocupa la columna, o las mesas todo el ancho."

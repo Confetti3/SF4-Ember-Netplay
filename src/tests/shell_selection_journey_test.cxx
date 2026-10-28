@@ -23,8 +23,8 @@ void MemberPopout(){
  h.Press(MenuInput::Select);h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="room-member"&&h.shell.Navigation().Confirming(),"Kick from the popout did not ask first");
 }
-// V2: the Members panel's Hide takes its rows off the board and saves it;
-// its heading stays reachable, as a button, and More… brings it back.
+// V2: the Members panel's Hide folds it to its heading and saves it; Show on
+// that heading unfolds it again, and More… can too.
 void RoomPartsHide(){
  using namespace sf4e;
  Harness h;h.view.preferences.lookV2=true;h.Frame();
@@ -36,6 +36,12 @@ void RoomPartsHide(){
  h.view.preferences=saved->preferences;h.Frame();
  bool gone=false;try{h.FocusOn("member-2");}catch(const std::runtime_error&){gone=true;}
  Check(gone,"A hidden Members panel's rows are still on the board");
+ h.Choose("room-show-members");h.Wait(1);h.Frame();
+ const auto shown=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+ Check(shown!=h.actions.rend()&&shown->preferences.roomShowMembers,"Show on the folded Members panel did not unfold it");
+ h.view.preferences=shown->preferences;
+ h.Frame();
+ h.Choose("room-hide-members");h.Wait(1);h.Frame();
  h.Choose("room-more");
  Check(h.shell.Navigation().Choosing(),"More… did not open");
 }

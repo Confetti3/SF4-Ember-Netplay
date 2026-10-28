@@ -6916,7 +6916,19 @@ msgid "room.v2.hide_picture"
 msgstr "Ukryj obraz"
 
 msgid "room.v2.hide_detail"
-msgstr "Przywrócisz to w Więcej… albo Ustawienia > Interfejs > Układ pokoju."
+msgstr "Zwija do nagłówka. Pokaż rozwija z powrotem."
+
+msgid "room.v2.show"
+msgstr "Pokaż"
+
+msgid "room.v2.show_detail"
+msgstr "Rozwija do pełnego rozmiaru."
+
+msgid "room.v2.copy_invite"
+msgstr "Zaproszenie"
+
+msgid "room.v2.copy_link"
+msgstr "Krótki link"
 
 msgid "settings.room_show_members_detail"
 msgstr "Panel Uczestnicy w pokoju. Gdy jest ukryty, czat zajmuje kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."

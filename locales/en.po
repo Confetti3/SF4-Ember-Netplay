@@ -6551,7 +6551,19 @@ msgid "room.v2.hide_picture"
 msgstr "Hide picture"
 
 msgid "room.v2.hide_detail"
-msgstr "Bring it back from More… or Settings > Interface > Room layout."
+msgstr "Folds it to its heading. Show unfolds it again."
+
+msgid "room.v2.show"
+msgstr "Show"
+
+msgid "room.v2.show_detail"
+msgstr "Unfolds it to its full size."
+
+msgid "room.v2.copy_invite"
+msgstr "Invitation"
+
+msgid "room.v2.copy_link"
+msgstr "Short link"
 
 msgid "settings.room_show_members_detail"
 msgstr "The room board's Members panel. Hidden, Chat takes the column, or the tables the full width."

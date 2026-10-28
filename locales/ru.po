@@ -6917,7 +6917,19 @@ msgid "room.v2.hide_picture"
 msgstr "Скрыть картинку"
 
 msgid "room.v2.hide_detail"
-msgstr "Вернуть можно через «Ещё…» или Настройки > Интерфейс > Раскладка комнаты."
+msgstr "Сворачивает до заголовка. «Показать» разворачивает обратно."
+
+msgid "room.v2.show"
+msgstr "Показать"
+
+msgid "room.v2.show_detail"
+msgstr "Разворачивает полностью."
+
+msgid "room.v2.copy_invite"
+msgstr "Приглашение"
+
+msgid "room.v2.copy_link"
+msgstr "Короткая ссылка"
 
 msgid "settings.room_show_members_detail"
 msgstr "Панель участников комнаты. Если она скрыта, столбец занимает чат, а если скрыты обе — столы на всю ширину."
