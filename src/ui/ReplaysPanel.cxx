@@ -21,6 +21,43 @@ const platform::replays::ArchivedReplay* Find(const ShellView& v,const std::stri
 std::vector<platform::replays::ArchivedSet> SetsOf(const ShellView& v){return v.replays.archive?platform::replays::Sets(*v.replays.archive):std::vector<platform::replays::ArchivedSet>{};}
 // A set's row names it by its last game: the date and the players.
 std::string SetLabel(const platform::replays::ArchivedSet& set){const auto& last=*set.games.back();return ReplayRowLabel(last.label,last.names,last.fighters);}
+using Replay=platform::replays::ArchivedReplay;
+// The archive's sets, newest first: two or more matches the same two named
+// players played one after another, each within half an hour of the next (as
+// an export counts its set). Each set's matches are newest first.
+std::vector<std::vector<const Replay*>> Sets(const ShellView& v){
+ std::vector<std::vector<const Replay*>> sets;
+ if(!v.replays.archive)return sets;
+ const Replay* last=nullptr;
+ for(const auto& r:*v.replays.archive){
+  const bool same=last&&!r.names[0].empty()&&!r.names[1].empty()&&last->time>=r.time&&last->time-r.time<=1800&&
+   ((r.names[0]==last->names[0]&&r.names[1]==last->names[1])||(r.names[0]==last->names[1]&&r.names[1]==last->names[0]));
+  if(!same)sets.emplace_back();
+  sets.back().push_back(&r);last=&r;
+ }
+ sets.erase(std::remove_if(sets.begin(),sets.end(),[](const std::vector<const Replay*>& set){return set.size()<2;}),sets.end());
+ return sets;
+}
+// A set's wins for its newest match's player 1 and 2, from each match's winner.
+std::pair<int,int> SetScore(const std::vector<const Replay*>& set){
+ std::pair<int,int> wins;
+ for(const auto* r:set){
+  if(!r->summary||!r->summary->scored||r->summary->score[0]==r->summary->score[1])continue;
+  const std::string& winner=r->names[r->summary->score[0]>r->summary->score[1]?0:1];
+  ++(winner==set.front()->names[0]?wins.first:wins.second);
+ }
+ return wins;
+}
+// The fighters' names, "Ryu vs Ken".
+std::string FightersText(const Replay& r){
+ const auto name=[&](int side){const auto* f=selection::FindFighter(r.fighters[side]);return std::string(f?f->name:loc::T("common.unavailable"));};
+ return loc::Tf("replays.fighters",name(0),name(1));
+}
+// The replay a Replays row is of: "replay:<file>", or a set's newest, "set:<file>".
+const Replay* RowReplay(const ShellView& v,const std::string& id){
+ if(id.compare(0,7,"replay:")==0)return Find(v,id.substr(7));
+ return id.compare(0,4,"set:")==0?Find(v,id.substr(4)):nullptr;
+}
 }
 ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
  Wants wants;wants.listing=screen=="replays"||screen=="replay-sets"||screen=="replay-set";

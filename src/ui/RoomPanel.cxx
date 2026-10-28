@@ -250,6 +250,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  MenuNavigation& nav=c.nav;
  const bool mutableRoom=c.mutableRoom;
  const bool host=c.host;
+ const room::Place& place=c.place;
  const bool tournamentRoom=c.tournamentRoom;
  const room::Member* const local=c.local;
  // A short wide board folds the room's settings and invitation copies into
@@ -648,7 +649,7 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  card.latency=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
  card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
  const auto status=MemberStatusText(v.room,*m,false,true);
- const auto idle=IdleText(*m);
+ const auto idle=IdleText(*m,v.roomElapsedMs);
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
  return card;
 }
