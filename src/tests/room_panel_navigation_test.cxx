@@ -962,6 +962,13 @@ int main() try {
         ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeight() * .5f);
     click(back);
     Check(shell.Navigation().Screen() == "room", "Mouse Back did not return to the board");
+    frame();
+    const auto other = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id != "table-0" && entry.enabled; });
+    Check(other != rows.end(), "The board offered nothing besides the own table");
+    focus(other->id.c_str()); frame();
+    const auto beforeBody = actions.size(); click(targets.at("table-0"));
+    Check(actions.size() == beforeBody, "A first click on the own seat's card readied the player");
+    Check(shell.Navigation().Focus() == "table-0", "A first click on the own seat's card did not focus it");
     shell.Navigation().Push("room-table"); frame(); requireMenuFrame = false;
 
     // Room-control refreshes must not move controls under a held pointer or
