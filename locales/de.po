@@ -1296,6 +1296,12 @@ msgstr "Ansage testen"
 msgid "settings.ready_sound_test_detail"
 msgstr "Spielt die Ansage einmal in dieser Lautstärke ab."
 
+msgid "settings.lobby_music"
+msgstr "Endlose Lobby-Musik"
+
+msgid "settings.lobby_music_detail"
+msgstr "Das Hauptmenü spielt statt seiner eigenen Musik das Thema einer zufälligen Stage oder eines zufälligen Charakters, nach jedem Kampf ein neues. Eine Änderung gilt nach dem nächsten Kampf."
+
 msgid "settings.shortcut_hint"
 msgstr "Hinweis zum Menükürzel"
 
@@ -2522,6 +2528,8 @@ msgstr "Ein Kampfteilnehmer hat den Raum verlassen. Das Spiel endet."
 msgid "update.github_unreachable"
 msgstr "GitHub nicht erreichbar. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
 
+msgid "update.rate_limited"
+msgstr "GitHub begrenzt gerade die Update-Abfragen. Warten Sie einige Minuten und versuchen Sie es erneut."
 
 msgid "update.no_zip_asset"
 msgstr "Neuestes Release enthält kein SF4 Ember Netplay-ZIP."
@@ -2585,8 +2593,8 @@ msgstr "Im heruntergeladenen Paket fehlen Launcher.exe oder Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Staging-Pfad nicht lesbar."
 
-msgid "update.validation_failed"
-msgstr "Paketprüfung fehlgeschlagen (erforderliche Dateien fehlen)."
+msgid "update.validation_detail"
+msgstr "Update-Prüfung fehlgeschlagen: {0}\nInstallierte Dateien wurden nicht ersetzt."
 
 msgid "update.cancelled"
 msgstr "Update vor der Installation abgebrochen."

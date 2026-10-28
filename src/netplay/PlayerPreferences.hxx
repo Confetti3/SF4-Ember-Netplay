@@ -71,6 +71,9 @@ struct PlayerPreferences {
     // The game's sound and the pads keep working while another window, such
     // as OBS, is in front (sf4e__BackgroundPlay.cxx).
     bool backgroundPlay = false;
+    // The main menu plays a stage or character theme, another one after every
+    // match, instead of its own track (sf4e__MenuMusic.cxx).
+    bool endlessLobbyMusic = true;
     // Experimental (sf4e__InputLag.cxx): the battle reads each input in the
     // frame it was made instead of the next. A room's match does so only when
     // both fighters have it on, for them and whoever watches; offline battles

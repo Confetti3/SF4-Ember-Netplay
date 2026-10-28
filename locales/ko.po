@@ -1296,6 +1296,12 @@ msgstr "알림 테스트"
 msgid "settings.ready_sound_test_detail"
 msgstr "이 음량으로 한 번 재생합니다."
 
+msgid "settings.lobby_music"
+msgstr "엔드리스 로비 음악"
+
+msgid "settings.lobby_music_detail"
+msgstr "메인 메뉴에서 기본 음악 대신 무작위 스테이지 테마나 캐릭터 테마를 재생하며, 대전이 끝날 때마다 바뀝니다. 변경은 다음 대전 후에 적용됩니다."
+
 msgid "settings.shortcut_hint"
 msgstr "메뉴 단축키 안내"
 
@@ -2522,6 +2528,8 @@ msgstr "대전 참가자가 방을 나갔습니다. 대전이 종료됩니다."
 msgid "update.github_unreachable"
 msgstr "GitHub에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
+msgid "update.rate_limited"
+msgstr "GitHub에서 업데이트 확인을 일시적으로 제한하고 있습니다. 몇 분 후에 다시 시도하세요."
 
 msgid "update.no_zip_asset"
 msgstr "최신 릴리스에 SF4 Ember Netplay ZIP 파일이 없습니다."
@@ -2585,8 +2593,8 @@ msgstr "다운로드한 패키지에 Launcher.exe 또는 Sidecar.dll이 없습�
 msgid "update.staging_path_failed"
 msgstr "설치 준비 경로를 읽지 못했습니다."
 
-msgid "update.validation_failed"
-msgstr "다운로드한 패키지 검증에 실패했습니다(필수 파일 누락)."
+msgid "update.validation_detail"
+msgstr "업데이트 검증 실패: {0}\n설치된 파일은 변경되지 않았습니다."
 
 msgid "update.cancelled"
 msgstr "설치 전에 업데이트를 취소했습니다."

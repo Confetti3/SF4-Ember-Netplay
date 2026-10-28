@@ -1,12 +1,12 @@
 #pragma once
-#include "../common/ReportHttpRequest.hxx"
+#include "../common/AsyncHttpRequest.hxx"
 #include <atomic>
 #include <chrono>
 #include <thread>
 #include <vector>
 
 namespace report_transport_tests {
-using sf4e::detail::ReportHttpRequest;
+using sf4e::detail::AsyncHttpRequest;
 struct Fake {
     WINHTTP_STATUS_CALLBACK callback = nullptr;
     DWORD_PTR context = 0;
@@ -82,9 +82,9 @@ inline void Run() {
     // The production coordinator has no request polling/closing thread.
     for (int stage = 0; stage <= 4; ++stage) {
         Fake fake; fake.cancelDuring = stage;
-        sf4e::detail::ReportHttpApi api{Fake::Option, Fake::Callback, Fake::Send, Fake::Write, Fake::Receive, Fake::Read, Fake::Close};
+        sf4e::detail::AsyncHttpApi api{Fake::Option, Fake::Callback, Fake::Send, Fake::Write, Fake::Receive, Fake::Read, Fake::Close};
         {
-            ReportHttpRequest request(reinterpret_cast<HINTERNET>(&fake), api);
+            AsyncHttpRequest request(reinterpret_cast<HINTERNET>(&fake), api);
             CHECK(request.Initialize());
             const auto cancel = [&] { return fake.cancelled.load(); };
             bool ok = request.Send(L"Content-Type: text/plain\r\n", 4, cancel);
@@ -109,9 +109,9 @@ inline void Run() {
     // still ends at its one deadline, not after a fresh wait for each step.
     {
         Fake fake;
-        sf4e::detail::ReportHttpApi api{Fake::Option, Fake::Callback, Fake::Send, Fake::Write, Fake::Receive, Fake::Read, Fake::Close};
+        sf4e::detail::AsyncHttpApi api{Fake::Option, Fake::Callback, Fake::Send, Fake::Write, Fake::Receive, Fake::Read, Fake::Close};
         const auto started = std::chrono::steady_clock::now();
-        ReportHttpRequest request(reinterpret_cast<HINTERNET>(&fake), api, std::chrono::milliseconds(150));
+        AsyncHttpRequest request(reinterpret_cast<HINTERNET>(&fake), api, std::chrono::milliseconds(150));
         CHECK(request.Initialize());
         const auto never = [] { return false; };
         bool ok = request.Send(L"Content-Type: text/plain\r\n", 40, never);

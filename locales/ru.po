@@ -1296,6 +1296,12 @@ msgstr "Проверить объявление"
 msgid "settings.ready_sound_test_detail"
 msgstr "Один раз воспроизводит объявление с этой громкостью."
 
+msgid "settings.lobby_music"
+msgstr "Бесконечная музыка лобби"
+
+msgid "settings.lobby_music_detail"
+msgstr "В главном меню вместо его музыки играет случайная тема арены или бойца, после каждого матча новая. Изменение вступает в силу после следующего матча."
+
 msgid "settings.shortcut_hint"
 msgstr "Подсказка клавиши меню"
 
@@ -2522,6 +2528,8 @@ msgstr "Участник матча покинул лобби. Бой завер
 msgid "update.github_unreachable"
 msgstr "Не удалось связаться с GitHub. Проверьте интернет и повторите попытку."
 
+msgid "update.rate_limited"
+msgstr "GitHub сейчас ограничивает проверку обновлений. Подождите несколько минут и повторите попытку."
 
 msgid "update.no_zip_asset"
 msgstr "В последнем выпуске нет ZIP-пакета SF4 Ember Netplay."
@@ -2585,8 +2593,8 @@ msgstr "В загруженном пакете нет Launcher.exe или Sideca
 msgid "update.staging_path_failed"
 msgstr "Не удалось прочитать временный путь."
 
-msgid "update.validation_failed"
-msgstr "Загруженный пакет не прошёл проверку: отсутствуют нужные файлы."
+msgid "update.validation_detail"
+msgstr "Ошибка проверки обновления: {0}\nУстановленные файлы не заменены."
 
 msgid "update.cancelled"
 msgstr "Обновление отменено до установки."

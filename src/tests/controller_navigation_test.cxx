@@ -281,6 +281,11 @@ void TrainingPadChord(){
  // Start first is the game's pause: Back under it does nothing here.
  step(start);e=step(both);Check(!e.Any(),"Back pressed under Start acted");
  Check(!step(both,false,1).Any()&&!step(start).Any()&&!step(0).Any(),"Start then Back reset, saved or opened");
+ // Back under the game's pause menu is the menu's, also when the pause ends
+ // before Back is let go or held long enough to save.
+ e=pad.Update(back,false,now+=1.0/60,TrainingCall::None,true);Check(!e.Any(),"Back under the pause acted");
+ Check(!step(back,false,.1).Any()&&!step(0).Any(),"Back pressed under the pause reset after it");
+ pad.Update(back,false,now+=1.0/60,TrainingCall::None,true);Check(!step(back,false,1).Any()&&!step(0).Any(),"Back held from under the pause saved");
  // After a reset of the gesture, a Back still held counts only once pressed again.
  step(back);pad.Reset();Check(!step(back,false,1).Any()&&!step(0).Any(),"A Back held through a reset acted");
  Check(step(back).down,"Back did not work again after a reset");step(0);

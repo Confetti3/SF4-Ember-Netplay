@@ -4,6 +4,7 @@
 #include "../platform/ReplayPath.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__MenuMusic.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
@@ -419,6 +420,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
             Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+			MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");

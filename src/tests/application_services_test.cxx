@@ -46,7 +46,7 @@ int main() {
         CHECK(sf4e::HttpPostReport("github.com","multipart/form-data","body",{}).request.error==sf4e::HttpErrorKind::InvalidArgs);
         CHECK(sf4e::HttpPostReport("embernetplay.link.evil","multipart/form-data","body",{}).request.error==sf4e::HttpErrorKind::InvalidArgs);
         CHECK(sf4e::HttpPostReport("embernetplay.link","multipart/form-data","body",[]{return true;}).cancelled);
-        CHECK(std::string(sf4e::ReportIntakeHost)=="embernetplay.link"&&std::wstring(sf4e::ReportIntakePath)==L"/report/v1");
+        CHECK(std::string(sf4e::ReportIntakeHost)=="embernetplay.link"&&std::string(sf4e::ReportIntakePath)=="/report/v1");
         view.probeState=4; view.probeFailure=8;
         CHECK(DescribeDiagnostics(view).find("Check rejection: Seat or table revision changed")!=std::string::npos);
         view.probeFailure=999;

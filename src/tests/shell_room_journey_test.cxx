@@ -409,11 +409,14 @@ static void RoomBoardJourneys() {
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  Check(h.actions.size()==count+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Enter in the chat box did not send");
   h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
- h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=true;h.Frame();h.Screen("interface");h.Choose("hud");h.Press(MenuInput::Left);
+ h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=h.view.lobbyMusicAvailable=true;h.Frame();h.Screen("interface");h.Choose("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
+ Check(h.actions.back().preferences.endlessLobbyMusic,"Endless lobby music was not on by default");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");h.Choose("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.endlessLobbyMusic,"Turning off endless lobby music did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.fasterDisplay&&h.actions.back().preferences.backgroundPlay,"Faster display did not save off");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("borderless");h.Press(MenuInput::Right);h.Frame(0,45);

@@ -107,6 +107,8 @@ add_executable(CountriesTest "src/tests/countries_test.cxx")
 target_link_libraries(CountriesTest PRIVATE sf4e_localization nlohmann_json::nlohmann_json)
 add_test(NAME Countries COMMAND CountriesTest "${CMAKE_SOURCE_DIR}" "$<TARGET_FILE_DIR:Sidecar>")
 
+sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS sf4e_selection STD 17 TIMEOUT 15)
+
 # It takes 2 s alone. Its saves are flushed writes, which take up to ten
 # times as long while other tests and builds use the disk.
 sf4e_add_unit_test(NAME SettingsStore SOURCES "src/tests/settings_store_test.cxx" LIBS sf4e_settings sf4e_durable_file TIMEOUT 60)
@@ -179,6 +181,7 @@ set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 
 sf4e_add_unit_test(NAME NetworkLink SOURCES "src/tests/network_link_test.cxx" LIBS sf4e_common TIMEOUT 30)
 sf4e_add_unit_test(NAME HttpPostCancel SOURCES "src/tests/http_post_cancel_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
+sf4e_add_unit_test(NAME HttpUpdateMetadata SOURCES "src/tests/http_update_metadata_test.cxx" STD 17 LIBS sf4e_common ws2_32 TIMEOUT 60)
 
 sf4e_add_unit_test(NAME SessionClientTransport SOURCES "src/tests/session_client_transport_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)
 sf4e_add_unit_test(NAME IrohMatchSession SOURCES "src/tests/iroh_match_session_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)

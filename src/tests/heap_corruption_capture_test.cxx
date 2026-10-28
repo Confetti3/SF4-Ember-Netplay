@@ -157,6 +157,8 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
     channel.reportEnabled = true;
 	CHECK(channel.Create(true));
 	const std::wstring logs = TempDirectory();
+	// A record left by an earlier crash, which this one replaces.
+	std::ofstream(Narrow(logs + L"\\sf4e-crash.log"), std::ios::binary) << "kind=unhandled_exception code=0xC0000005 left-by-an-earlier-crash\n";
 	wchar_t self[MAX_PATH] = {};
 	GetModuleFileNameW(nullptr, self, MAX_PATH);
 	wchar_t command[2048] = {};
@@ -201,6 +203,7 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 	record << in.rdbuf();
 	in.close();
 	CHECK(Count(record.str(), "kind=heap_corruption code=0xC0000374") == 1);
+	CHECK(record.str().find("left-by-an-earlier-crash") == std::string::npos);
 	CHECK(record.str().find("the last line before the corruption") != std::string::npos);
 	DeleteFileW(dump.c_str());
     DeleteFileW(channel.reportWritten.c_str());
