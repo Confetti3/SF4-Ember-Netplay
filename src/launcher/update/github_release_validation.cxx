@@ -128,18 +128,6 @@ namespace launcher {
 			return IsAllowedUpdateHost(host);
 		}
 
-
-
-
-
-
-		bool ValidateStagedPackage(const wchar_t* stagingDir, const std::atomic<bool>& cancel, const Progress& progress, std::string* reason) {
-			std::string error;
-			if (launcher::ValidatePackageFolder(stagingDir, error, cancel, progress)) return true;
-            if (reason) *reason = error;
-			AppendUpdateLog(("package rejected: " + error).c_str());
-			return false;
-		}
 		static bool IsPathUnderRoot(const wchar_t* root, const wchar_t* candidate) {
 			wchar_t rootFull[MAX_PATH * 2] = { 0 };
 			wchar_t candidateFull[MAX_PATH * 2] = { 0 };

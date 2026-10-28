@@ -23,7 +23,7 @@ inline void Previews(const std::filesystem::path& root) {
     fixture.logs = {{"sf4e.log", "redacted preview"}};
     WorkflowState state; int collected = 0, uploaded = 0;
     bool cancelled = false;
-    sf4e::HttpPostResult response;
+    sf4e::HttpResponse response;
     WorkflowDependencies dependencies;
     dependencies.history = std::make_shared<ReportHistory>(root / L"previews.json");
     dependencies.identity = [](const std::function<bool()>&) { return Known(); };
@@ -99,7 +99,7 @@ inline void Previews(const std::filesystem::path& root) {
 inline void Records(const std::filesystem::path& root) {
     Report crash; crash.meta = {"crash", "1.2.3", "nightly", std::string(64, 'c'), "revision", "Windows test"};
     crash.logs = {{"sf4e.log", "log"}}; crash.minidump = "MDMP" + std::string(32, 'd');
-    sf4e::HttpPostResult response; std::string lastBody; int uploads = 0; bool publishes = true;
+    sf4e::HttpResponse response; std::string lastBody; int uploads = 0; bool publishes = true;
     WorkflowDependencies dependencies;
     dependencies.history = std::make_shared<ReportHistory>(root / L"records.json", [&](const std::filesystem::path& path, const std::string& text) {
         if (!publishes) return false;
@@ -161,7 +161,7 @@ inline void Automatic(const std::filesystem::path& root) {
     std::optional<bool> on = true; bool saves = true, identityOk = true;
     int uploads = 0, turnedOn = 0, collected = 0, progressed = 0; std::string lastBody;
     std::filesystem::path dumpAsked = L"unset";
-    sf4e::HttpPostResult response; response.request.ok = true; response.body = "{\"id\":\"" + std::string(32, 'f') + "\"}";
+    sf4e::HttpResponse response; response.request.ok = true; response.body = "{\"id\":\"" + std::string(32, 'f') + "\"}";
     WorkflowDependencies dependencies;
     const auto path = root / L"automatic.json";
     dependencies.history = std::make_shared<ReportHistory>(path);

@@ -2458,6 +2458,8 @@ msgstr "Un combattant a quitté le salon. Le combat va se terminer."
 msgid "update.github_unreachable"
 msgstr "Impossible de joindre GitHub. Vérifiez votre connexion Internet et réessayez."
 
+msgid "update.rate_limited"
+msgstr "GitHub limite actuellement la recherche de mises à jour. Patientez quelques minutes et réessayez."
 
 msgid "update.no_zip_asset"
 msgstr "La dernière version n'a pas d'archive ZIP SF4 Ember Netplay."

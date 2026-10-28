@@ -2458,6 +2458,8 @@ msgstr "Matchdeelnemer verliet de kamer. De partij eindigt."
 msgid "update.github_unreachable"
 msgstr "GitHub is niet bereikbaar. Controleer je internetverbinding en probeer opnieuw."
 
+msgid "update.rate_limited"
+msgstr "GitHub beperkt op dit moment het zoeken naar updates. Wacht een paar minuten en probeer opnieuw."
 
 msgid "update.no_zip_asset"
 msgstr "Nieuwste release mist een SF4 Ember Netplay-ZIP."

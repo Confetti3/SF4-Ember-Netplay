@@ -2458,6 +2458,8 @@ msgstr "Účastník zápasu opustil místnost. Hra skončí."
 msgid "update.github_unreachable"
 msgstr "GitHub není dostupný. Zkontrolujte internetové připojení a zkuste to znovu."
 
+msgid "update.rate_limited"
+msgstr "GitHub právě omezuje kontrolu aktualizací. Počkejte několik minut a zkuste to znovu."
 
 msgid "update.no_zip_asset"
 msgstr "Nejnovější vydání nemá ZIP balíček SF4 Ember Netplay."

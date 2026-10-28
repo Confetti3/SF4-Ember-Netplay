@@ -422,7 +422,12 @@ namespace launcher {
 		return UpdateChannel::Stable;
 	}
 
-	UpdateCheckResult CheckForUpdate(UpdateChannel channel, const std::atomic<bool>& cancel, int budgetMs) {
+	// The whole release list request, however slowly GitHub answers, and the
+	// most of it that is read.
+	static constexpr std::chrono::seconds UpdateCheckBudget{15};
+	static constexpr std::size_t UpdateCheckMaxBytes = 1024 * 1024;
+
+	UpdateCheckResult CheckForUpdate(UpdateChannel channel, const std::atomic<bool>& cancel) {
 		UpdateCheckResult result;
 		char installed[64] = { 0 };
 		ReadInstalledVersion(installed, sizeof(installed));
@@ -436,13 +441,24 @@ namespace launcher {
 		char path[256] = { 0 };
 		snprintf(path, sizeof(path), "/repos/%s/releases?per_page=20", repo);
 
-        std::string body;
-		if (!HttpGetUpdateMetadata("api.github.com", 443, true, path, budgetMs, [&] { return cancel.load(); }, body)) {
+		// Redirects are refused. GitHub answers the API for a renamed or
+		// transferred repository with a 301, so if the repository is ever
+		// renamed, an installed build shows "GitHub unreachable" until its
+		// repository name here is updated.
+		const auto response = HttpBoundedRequest("GET", "api.github.com", 443, true, path,
+			"Accept: application/vnd.github+json\r\n", {}, UpdateCheckMaxBytes, UpdateCheckBudget, [&] { return cancel.load(); });
+		const int status = response.request.statusCode;
+		// GitHub answers a caller over its rate limit with 403 or 429.
+		if (status == 403 || status == 429) {
+			result.error = loc::T("update.rate_limited");
+			return result;
+		}
+		if (!response.request.ok || status != 200 || response.body.empty()) {
 			result.error = loc::T("update.github_unreachable");
 			return result;
 		}
 
-		return ParseGithubReleases(body, installed, channel);
+		return ParseGithubReleases(response.body, installed, channel);
 	}
 
 	// A string field of a release or asset; GitHub sends null for an empty one.
@@ -717,10 +733,10 @@ namespace launcher {
 			return result;
 		}
 		AppendUpdateLog(("staging dir: " + std::string(stagingUtf8)).c_str());
-        std::string validationReason;
-		if (!ValidateStagedPackage(stagingDir, cancel, progress, &validationReason)) {
-			AppendUpdateLog(("package validation failed: "+validationReason).c_str());
-			return stopped(loc::Tf("update.validation_detail",validationReason));
+		std::string validationError;
+		if (!ValidatePackageFolder(stagingDir, validationError, cancel, progress)) {
+			AppendUpdateLog(("package validation failed: " + validationError).c_str());
+			return stopped(loc::Tf("update.validation_detail", validationError));
 		}
 		AppendUpdateLog("package validation ok");
 

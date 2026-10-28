@@ -2459,6 +2459,8 @@ msgstr "Участник матча покинул лобби. Бой завер
 msgid "update.github_unreachable"
 msgstr "Не удалось связаться с GitHub. Проверьте интернет и повторите попытку."
 
+msgid "update.rate_limited"
+msgstr "GitHub сейчас ограничивает проверку обновлений. Подождите несколько минут и повторите попытку."
 
 msgid "update.no_zip_asset"
 msgstr "В последнем выпуске нет ZIP-пакета SF4 Ember Netplay."

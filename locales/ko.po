@@ -2458,6 +2458,8 @@ msgstr "대전 참가자가 방을 나갔습니다. 대전이 종료됩니다."
 msgid "update.github_unreachable"
 msgstr "GitHub에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요."
 
+msgid "update.rate_limited"
+msgstr "GitHub에서 업데이트 확인을 일시적으로 제한하고 있습니다. 몇 분 후에 다시 시도하세요."
 
 msgid "update.no_zip_asset"
 msgstr "최신 릴리스에 SF4 Ember Netplay ZIP 파일이 없습니다."

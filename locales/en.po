@@ -2423,6 +2423,8 @@ msgstr "A match participant left the room. The game will end."
 
 msgid "update.github_unreachable"
 msgstr "Could not reach GitHub. Check your internet connection and try again."
+msgid "update.rate_limited"
+msgstr "GitHub is limiting update checks right now. Wait a few minutes and try again."
 msgid "update.no_zip_asset"
 msgstr "Latest release has no SF4 Ember Netplay ZIP asset."
 msgid "update.parse_failed"

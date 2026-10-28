@@ -2458,6 +2458,8 @@ msgstr "Un participante ha salido de la sala. La partida terminará."
 msgid "update.github_unreachable"
 msgstr "No se pudo acceder a GitHub. Revisa tu conexión e inténtalo de nuevo."
 
+msgid "update.rate_limited"
+msgstr "GitHub está limitando ahora la búsqueda de actualizaciones. Espera unos minutos e inténtalo de nuevo."
 
 msgid "update.no_zip_asset"
 msgstr "La versión más reciente no tiene un ZIP de SF4 Ember Netplay."

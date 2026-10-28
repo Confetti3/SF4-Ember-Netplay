@@ -2458,6 +2458,8 @@ msgstr "対戦参加者がルームから退出しました。ゲームを終了
 msgid "update.github_unreachable"
 msgstr "GitHubに接続できませんでした。インターネット接続を確認して再試行してください。"
 
+msgid "update.rate_limited"
+msgstr "GitHubが更新の確認を一時的に制限しています。数分待ってから再試行してください。"
 
 msgid "update.no_zip_asset"
 msgstr "最新リリースにSF4 Ember NetplayのZIPファイルがありません。"

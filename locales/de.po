@@ -2458,6 +2458,8 @@ msgstr "Ein Kampfteilnehmer hat den Raum verlassen. Das Spiel endet."
 msgid "update.github_unreachable"
 msgstr "GitHub nicht erreichbar. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
 
+msgid "update.rate_limited"
+msgstr "GitHub begrenzt gerade die Update-Abfragen. Warten Sie einige Minuten und versuchen Sie es erneut."
 
 msgid "update.no_zip_asset"
 msgstr "Neuestes Release enthält kein SF4 Ember Netplay-ZIP."
