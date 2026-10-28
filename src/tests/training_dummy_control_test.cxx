@@ -491,27 +491,36 @@ int main() {
                 play(shortDummy, charge, 0, shortBlock, Left);
                 Require(play(shortDummy, charge, 0, shortBlock, Left).move < 0, "A short blockstun charged a hold");
             }
-            for (const char* move : {"[4]6P", "[2]8K"}) {
+            // "[1]7K" charges down and back, and keeps back through the release.
+            for (const char* move : {"[4]6P", "[2]8K", "[1]7K"}) {
                 const auto reply = Plan({move});
                 const auto& frames = reply.moves;
                 const unsigned back = move[1] == '4' ? Left : Down;
                 int hold = 0;
-                while (hold < static_cast<int>(frames.size()) && frames[hold].raw == back) ++hold;
-                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && Lead(reply) == ChargeFrames + 3,
-                    "A charge was held too briefly for some fighter, or its lead misread");
+                while (hold < static_cast<int>(frames.size()) && (frames[hold].raw & back) == back) ++hold;
+                // The charge is the reply's leading hold, on its last frame:
+                // only the release and the button lead into the free frame.
+                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && reply.hold == ChargeFrames - 1 && Lead(reply) == 3,
+                    "A charge was held too briefly for some fighter, or was not the reply's leading hold");
+                if (move[1] == '1') {
+                    bool backKept = true;
+                    for (int frame = 0; frame <= reply.anchor; ++frame) backKept = backKept && (frames[frame].raw & Left);
+                    Require(backKept, "A down-back charge let go of back before its button");
+                }
                 for (const int timing : {-1, 0, 2}) {
                     // Getting up, and a blockstun with the charge held back
-                    // through it, each long enough to charge in: the first time
-                    // replied to as it ends; timed, the button lands on the free
-                    // frame, plus timing, charged.
+                    // through it, each long enough to charge in: the charge
+                    // begins with the stun, so even the first time the move
+                    // comes out charged as it ends, later by timing; timed,
+                    // the button lands on the free frame, plus timing.
                     const std::pair<unsigned, int> stuns[] = {{static_cast<unsigned>(ActorStatus::Rise), 100}, {static_cast<unsigned>(ActorStatus::DamageGuard), 90}};
                     for (const auto& stun : stuns) {
                         const int length = stun.second;
                         Dummy dummy;
                         const auto held = statuses(stun.first, length, 0u, 0);
                         const Run first = play(dummy, reply, timing, held, back);
-                        Require(first.free == 5 + length && first.button == first.free + 1 + ChargeFrames + 3 && first.move == first.button + 1 &&
-                            !first.dropped, "A charge reply to a stun not seen before was not played as it ended");
+                        Require(first.free == 5 + length && first.button + 1 == first.free + (std::max)(Lead(reply) + 2, timing) && first.move == first.button + 1 &&
+                            !first.dropped, "A charge reply to a stun not seen before was not charged through it and played as it ended");
                         const Run timed = play(dummy, reply, timing, held, back);
                         Require(timed.button + 1 == timed.free + timing && !timed.dropped,
                             "A charge reply's button did not land on the free frame, plus timing");
@@ -528,6 +537,32 @@ int main() {
                             "A charge reply over a short blockstun was dropped in guard stance, started late or came out uncharged");
                     }
                 }
+            }
+            {
+                // A knockdown as the game plays it: the hit, lying down, getting
+                // up, shorter each than the charge. A charge replying on getting
+                // up holds from the hit through all three, so it comes out
+                // charged the first time too; a hit that ends standing lets it go.
+                auto reply = Plan({"[2]8K"});
+                reply.when = 3;
+                std::vector<unsigned> knockdown(5, 0u);
+                knockdown.insert(knockdown.end(), 33, ActorStatus::Damage);
+                knockdown.insert(knockdown.end(), 19, ActorStatus::Down);
+                knockdown.insert(knockdown.end(), 30, ActorStatus::Rise);
+                knockdown.insert(knockdown.end(), 120, 0u);
+                for (const int timing : {-1, 0, 2}) {
+                    Dummy dummy;
+                    const Run first = play(dummy, reply, timing, knockdown, Down);
+                    Require(first.free == 87 && first.read[6] == Down && first.button + 1 == first.free + (std::max)(Lead(reply) + 2, timing) &&
+                        first.move == first.button + 1 && !first.dropped, "A charge reply did not hold from the hit through a knockdown not seen before");
+                    const Run timed = play(dummy, reply, timing, knockdown, Down);
+                    Require(timed.button + 1 == timed.free + timing && (timing < 0 || timed.move == timed.button + 1) && !timed.dropped,
+                        "A charge reply's button did not meet the end of a timed knockdown");
+                }
+                Dummy standing;
+                const Run hit = play(standing, reply, 0, statuses(ActorStatus::Damage, 33, 0u, 0), Down);
+                Require(hit.read[6] == Down && hit.dropped && hit.move < 0 && hit.ended >= 0 && hit.ended <= 40,
+                    "A charge reply on getting up went on after a hit that ended standing");
             }
         }
         std::puts("Training dummy control checks passed.");

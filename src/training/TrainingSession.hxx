@@ -175,7 +175,8 @@ inline int ReplyLead(const ReplySchedule& schedule) {
 // frames from now to that free frame, -1 while not known. free: frames since
 // that free frame (0 on it), -1 while held or before any stun; out: what it
 // came out of while free counts. stretch: counts the hits, blocks and
-// reactions, so a change says the wait began again.
+// reactions, so a change says the wait began again; a knockdown is one with
+// the hit that began it.
 struct DummySeen { int freed = 0, held = 0, until = -1, free = -1, out = 0; unsigned stretch = 0; };
 // What the dummy's status holds it in, numbered as DummyPlan::when: 1 hit
 // or dizzy, 2 blockstun, 3 knocked down or getting up, 0 free. Not the
@@ -195,26 +196,31 @@ inline int DummyHold(const FighterSample& dummy) {
 }
 // Fed the dummy once per simulated frame. The game does not say how long a
 // stun lasts, so each one is timed the first time it is seen, from its last
-// hit or change of reaction to the free frame, and known from then on.
+// hit or change of reaction to the free frame, and known from then on;
+// where the dummy's script tells the length (scripted), that comes first.
 // Limitation: one length per attacking move and reaction; a counter hit's
 // extra frames replace it until the plain hit is seen again. Key on the hit's
 // own data if the two ever have to be told apart.
 class DummyWatch {
 public:
-    // attacker: the other fighter's action id.
-    DummySeen Observe(const FighterSample& dummy, int attacker) {
+    // attacker: the other fighter's action id. scripted: frames to the free
+    // frame by the dummy's script, -1 when it does not tell.
+    DummySeen Observe(const FighterSample& dummy, int attacker, int scripted = -1) {
         DummySeen seen; seen.stretch = stretch_;
         const int hold = DummyHold(dummy), held = (std::max)(0, hold);
         if (held) {
             if (!from_ || dummy.status != last_.status || dummy.action != last_.action || dummy.actionFrame < last_.actionFrame ||
                 dummy.comboDamage > last_.comboDamage) {
+                // A knockdown goes on from the hit that began it, lying down
+                // into getting up: one stretch, each part timed on its own.
+                if (!from_ || held != 3 || dummy.comboDamage > last_.comboDamage) ++stretch_;
                 // Getting up takes the same time whatever knocked the dummy down.
-                ++stretch_; elapsed_ = 0; key_ = Key(dummy.status, dummy.action, held == 3 ? -1 : attacker);
+                elapsed_ = 0; key_ = Key(dummy.status, dummy.action, held == 3 ? -1 : attacker);
             } else ++elapsed_;
             from_ = held; last_ = dummy;
             const auto known = learned_.find(key_);
             seen.held = held; seen.stretch = stretch_;
-            if (known != learned_.end()) seen.until = (std::max)(0, known->second - elapsed_);
+            seen.until = scripted >= 0 || known == learned_.end() ? scripted : (std::max)(0, known->second - elapsed_);
             free_ = -1;
         } else if (from_ && hold < 0) ++elapsed_;
         else if (from_) {

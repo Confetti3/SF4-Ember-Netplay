@@ -45,7 +45,8 @@ inline unsigned ChosenButtons(const Step& step) {
 // How the reply is laid out in time, the reply anchored at the dummy's free
 // frame (ReplyDue): holds and waits with a count before the first move lead
 // into it; a hold with no count there is its leading hold (WaitReply), its
-// length the stun's; the first move's anchor meets the free frame plus the
+// length the stun's, and so is a first move's charge, on its last frame and
+// in place of a hold before it; the first move's anchor meets the free frame plus the
 // timing and its "@N". Each later move waits on the one before (a link for
 // the dummy to be free, a cancel for the hit, a follow-up a few frames), its
 // "@N" counted from that cue, or lands on a frame of the reply ("#N", a later
@@ -103,7 +104,12 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // its frames before its own input hold.
         const bool after = follows, afterLead = pending && !after;
         const unsigned idle = after ? pending : 0;
-        if (afterLead) { compiled.hold = static_cast<int>(out.size()); wait(training::WaitReply, pending, 0); }
+        // A first move's charge is its leading hold: the reply begins with
+        // the stun and its last charge frame repeats until the move is due,
+        // so the charge goes in during a stun not timed yet and only the
+        // release and the button lead into the free frame.
+        const bool chargeHold = !after && step.charge && !step.air;
+        if (afterLead && !chargeHold) { compiled.hold = static_cast<int>(out.size()); wait(training::WaitReply, pending, 0); }
         if (!after) compiled.offset = timing;
         pending = 0;
         const auto gap = [&](int frames) { push(idle, frames); };
@@ -215,6 +221,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         if (timed) gap(step.at + (after ? timing : 0) - anchor - static_cast<int>(out.size()));
         for (int i = 0; i < static_cast<int>(own.size()); ++i) {
             if (i == anchor && !after) compiled.anchor = static_cast<int>(out.size());
+            if (chargeHold && i == ChargeFrames - 1) { compiled.hold = static_cast<int>(out.size()); own[i].wait = training::WaitReply; }
             add(own[i]);
         }
     }

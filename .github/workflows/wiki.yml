@@ -1,0 +1,83 @@
+name: Wiki
+# The wiki is built from the player docs here plus the open pull requests with
+# the wiki label that change them. Pull requests open, merge and get labelled
+# without a push, so a daily run keeps the "Coming soon" notes current.
+on:
+  push:
+    branches: [nightly]
+    paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
+  pull_request:
+    paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
+  schedule:
+    - cron: "40 5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  build:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Scheduled runs start on the default branch, but the wiki follows nightly.
+      REF: ${{ github.event_name == 'push' && github.sha || 'refs/heads/nightly' }}
+    steps:
+      - name: Check out nightly or the pushed commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$REF"
+          git checkout --detach FETCH_HEAD
+      - name: Build and check the wiki
+        run: |
+          python3 scripts/wiki/test_wiki.py
+          python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
+      # Publishing waits until the repository variable WIKI_PUBLISH is "true", so a
+      # fork can stage the wiki on its own before the main repository turns it on.
+      - name: Publish the wiki
+        if: vars.WIKI_PUBLISH == 'true'
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: python3 scripts/wiki/publish.py --repo "$GITHUB_REPOSITORY"
+  dry-run:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - name: Check out the pull request and its base
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA" "$BASE"
+          git checkout --detach "$GITHUB_SHA"
+          git worktree add --detach build/base "$BASE"
+      - name: Build the wiki from the base and from the change and show what changes
+        run: |
+          python3 scripts/wiki/test_wiki.py
+          python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p build/wiki-base
+          if [ -f build/base/scripts/wiki/build.py ]; then
+            python3 build/base/scripts/wiki/build.py --out "$PWD/build/wiki-base"
+          fi
+          {
+            echo '```diff'
+            diff -ru -x 'banner-*.svg' build/wiki-base build/wiki || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

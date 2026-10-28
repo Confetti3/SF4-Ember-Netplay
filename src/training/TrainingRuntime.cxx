@@ -438,6 +438,21 @@ const bac::File& FighterScripts(Native* system, unsigned side) {
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
     return scriptFiles[side];
 }
+// Frames until the dummy is free, by its script, -1 when it does not tell:
+// getting up, which plays its script alone, and a hit or block on the ground,
+// once its reaction moves after hitstop (before: the frame before). The
+// script reaches its end on the dummy's last held frame.
+int ScriptedFrames(Native* system, const FighterSample& dummy, const FighterSample& before) {
+    const auto& scripts = FighterScripts(system, 1).scripts;
+    if (!dummy.valid || dummy.action < 0 || dummy.action >= static_cast<int>(scripts.size())) return -1;
+    const bac::Script& script = scripts[dummy.action];
+    int frames = -1;
+    if (dummy.status == ActorStatus::Rise) frames = bac::GameFrames(script, dummy.actionFrame, script.interruptible > 0 ? script.interruptible : script.total);
+    else if ((dummy.status == ActorStatus::Damage || dummy.status == ActorStatus::DamageGuard) && (dummy.posture == 0 || dummy.posture == 1) &&
+        before.valid && before.status == dummy.status && before.action == dummy.action)
+        frames = bac::StunFrames(script, dummy.actionFrame, dummy.actionFrame - before.actionFrame);
+    return frames < 0 ? -1 : frames + 1;
+}
 // Both fighters as the game holds them after an update. Only reads.
 // files: whether a move without attack frames may take them from the
 // fighter's script file.
@@ -550,7 +565,7 @@ void AfterUpdate(Native* system) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
         if (commitInput) for (int side = 0; side < 2; ++side) fighters[side].input = output[side].raw & FightButtons;
         // The dummy as its stun is timed, for a reply's wait now and its decision below.
-        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action);
+        const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action, ScriptedFrames(system, fighters[1], playbackSeen[1]));
         // A playback's waiting frames read the fight: the fighter playing it
         // in a neutral state, and a hit on the other one landing this frame.
         {
