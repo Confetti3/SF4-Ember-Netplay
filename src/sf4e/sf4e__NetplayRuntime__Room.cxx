@@ -842,12 +842,12 @@ void ResolvePendingIntents(bool helperReady) {
 			runtime->error = loc::T("runtime.room_catchup_timeout");
 		}
 	// A Ready ends without a notice once the room shows its seat is gone (the
-	// player stood up, or was removed). Left armed, it ran out its budget and
+	// player stood up, or was removed) or the other seat empty. Left armed, it ran out its budget and
 	// blamed the previous match. Only the committed room decides this: a leave
 	// the room refuses keeps the press.
 	if (runtime->attached && UserApp::netplay &&
 		netplay::DropReadyWithoutSeat(runtime->readyIntent, UserApp::netplay->client.GetRoomSnapshot()))
-		spdlog::info("Ready: dropped, the seat it was pressed from is gone");
+		spdlog::info("Ready: dropped, its seat or the opponent's is empty");
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
 	if (runtime->readyIntent.Expired(now)) FailReady(loc::T("runtime.ready.previous_match_timeout"));

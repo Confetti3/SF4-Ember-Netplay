@@ -93,10 +93,14 @@ private:
     Completion completion_;
 };
 
-// A Ready belongs to the seat it was pressed from. Ends one that is parked or
-// awaiting its commit once the room gives this client no seat; true if it did.
+// A Ready belongs to the seat it was pressed from, facing an opponent. Ends
+// one that is parked or awaiting its commit once the room gives this client no
+// seat, or empties the other seat (a Rematch held through the WIN when the
+// opponent then left): the room takes no Ready there, so it would only run out
+// its budget. True if it did.
 template <typename Intent, typename RoomSnapshot> bool DropReadyWithoutSeat(Intent& ready, const RoomSnapshot& room) {
-    if (!ready.Active() || !LocalLeftSeat(room)) return false;
+    if (!ready.Active() || !room.roomEpoch) return false;
+    if (!LocalLeftSeat(room) && SeatOpponent(room, static_cast<std::uint8_t>(PlaceOf(room, room.localMember).table), room.localMember)) return false;
     ready.Clear();
     return true;
 }

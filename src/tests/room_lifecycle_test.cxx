@@ -391,6 +391,14 @@ static void TestLeavingTheSeatEndsItsReady() {
 	parked.Defer(2, generation, 0, Intent::Budget::Timed);
 	CHECK(PlaceOf(authority.SnapshotView(), fighter).kind == Place::Kind::Queue);
 	CHECK(sf4e::netplay::DropReadyWithoutSeat(parked, authority.SnapshotFor(fighter)) && !parked.Active());
+	// The opponent leaves the table: the seat stays, but the room takes no Ready
+	// facing an empty seat, so the press ends instead of stalling.
+	CHECK(act(fighter, ActionKind::Unqueue));
+	auto alone = sent();
+	CHECK(!sf4e::netplay::DropReadyWithoutSeat(alone, authority.SnapshotFor(third)) && alone.AwaitingCommit());
+	CHECK(act(second, ActionKind::Unqueue));
+	CHECK(PlaceOf(authority.SnapshotView(), third).kind == Place::Kind::Seat);
+	CHECK(sf4e::netplay::DropReadyWithoutSeat(alone, authority.SnapshotFor(third)) && !alone.Active());
 	// No longer a member (the snapshot names no local member).
 	auto removed = sent();
 	CHECK(sf4e::netplay::DropReadyWithoutSeat(removed, authority.SnapshotFor(9999)) && !removed.Active());
