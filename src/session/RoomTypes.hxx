@@ -55,6 +55,8 @@ constexpr std::uint64_t SpectatorStartHoldMs = 10000;
 // A waiting fighter's inactivity limit. room.ready_timeout.you and
 // room.ready_timeout.other quote its remaining seconds; the last 30 s are shown.
 constexpr std::uint64_t ReadyTimeoutMs = 90000;
+// How long "is typing" stands after a member last said so.
+constexpr std::uint64_t TypingMs = 5000;
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -108,9 +110,12 @@ enum class ActionKind : std::uint8_t {
 	// nothing else. Appended so older authorities reject it as an unknown
 	// kind.
 	SetTraining,
+	// A member started (Action::typing) or stopped typing in chat. Shown to
+	// the others for TypingMs and nothing else.
+	Typing,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetTraining;
+constexpr ActionKind LastActionKind = ActionKind::Typing;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -221,6 +226,9 @@ struct Member {
     // so the room's own state and checkpoints keep zero, and zero is not
     // serialized.
     std::uint32_t idleSeconds = 0;
+    // Milliseconds the member's "is typing" still stands, stamped per
+    // recipient like idleSeconds; zero when they are not typing.
+    std::uint32_t typingMs = 0;
 };
 
 // The set a table finished last: who sat where for its deciding game, and the
@@ -356,6 +364,8 @@ struct Action {
 	// SetTraining: the member is in Training. On the wire it travels as "locked", so peers
 	// that predate this field still read it.
 	bool inTraining = false;
+	// Typing: the member is typing in chat. Travels as "locked" too.
+	bool typing = false;
 	MatchResult result = MatchResult::Abort;
 	std::uint64_t matchGeneration = 0;
 	std::uint8_t inputDelay = 2;

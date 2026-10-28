@@ -71,6 +71,9 @@ Result RoomAuthority::ApplyChat(MemberId member, const Action& action) {
 	snapshot_.chat.push_back(chat);
 	if (snapshot_.chat.size() > MaximumChatMessages) snapshot_.chat.erase(snapshot_.chat.begin());
 	lastChatMs_[member] = nowMs_;
+	// The message is what they were typing.
+	const auto typing = typing_.find(member);
+	if (typing != typing_.end()) typing->second.second = false;
 	TouchRoom();
 	return Accept({Event{Event::Kind::ChatMessage, 0, 0, member, MatchResult::Abort}});
 }
@@ -88,6 +91,19 @@ Result RoomAuthority::ApplySetTraining(MemberId member, const Action& action) {
 	Member* item = Find(member);
 	if (!item) return Reject(RejectReason::UnknownMember);
 	if (item->training != action.inTraining) { item->training = action.inTraining; TouchRoom(); }
+	return Accept();
+}
+
+// Every accepted Typing goes to every member, so a start comes at most once a
+// second and a stop only for a member shown as typing. It moves no revision:
+// it is only shown, and must not make a host's room action stale.
+Result RoomAuthority::ApplyTyping(MemberId member, const Action& action) {
+	if (!Find(member)) return Reject(RejectReason::UnknownMember);
+	const auto said = typing_.find(member);
+	const bool recent = said != typing_.end() && nowMs_ >= said->second.first && nowMs_ - said->second.first < 1000;
+	if (action.typing ? recent : !TypingLeftMs(member)) return Reject(RejectReason::InvalidChat);
+	if (action.typing) typing_[member] = {nowMs_, true};
+	else said->second.second = false;
 	return Accept();
 }
 
@@ -454,6 +470,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Chat) return ApplyChat(member, action);
 	if (action.kind == ActionKind::Rename) return ApplyRename(member, action);
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
+	if (action.kind == ActionKind::Typing) return ApplyTyping(member, action);
 	Table* table = FindTable(action.table);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	Member* item = Find(member);

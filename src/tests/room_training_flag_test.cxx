@@ -118,7 +118,7 @@ int main() {
 		EXPECT(lockBack.locked && !lockBack.inTraining);
 		// A kind past the last known one is still refused.
 		nlohmann::json unknown = action;
-		unknown["kind"] = static_cast<int>(ActionKind::SetTraining) + 1;
+		unknown["kind"] = static_cast<int>(LastActionKind) + 1;
 		bool refused = false;
 		try { (void)unknown.get<Action>(); } catch (const std::exception&) { refused = true; }
 		EXPECT(refused);
