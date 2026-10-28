@@ -1758,6 +1758,12 @@ msgstr "Je wedstrijd staat klaar"
 msgid "training.key.detail"
 msgstr "Links en Rechts kiezen de toets die dit tijdens het gevecht doet. Uit laat het zonder toets."
 
+msgid "training.key.pad_back"
+msgstr "View op de controller"
+
+msgid "training.key.pad_back.detail"
+msgstr "View (Share, Create, Minus, Select) kort indrukken herstelt de positie, ingedrukt houden slaat haar op. Uit laat View aan het gevecht, voor een plink op een knop die ook View stuurt; de toetsen hierboven werken nog."
+
 msgid "training.dummy.action"
 msgstr "Dummy"
 

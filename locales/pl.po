@@ -1758,6 +1758,12 @@ msgstr "Twój mecz jest gotowy"
 msgid "training.key.detail"
 msgstr "Lewo i Prawo wybierają klawisz, który robi to podczas walki. Wyłączone zostawia bez klawisza."
 
+msgid "training.key.pad_back"
+msgstr "View na padzie"
+
+msgid "training.key.pad_back.detail"
+msgstr "Krótkie View (Share, Create, Minus, Select) resetuje pozycję, przytrzymanie ją zapisuje. Wyłączone zostawia View walce, do plinku na przycisku, który też wysyła View; klawisze powyżej nadal działają."
+
 msgid "training.dummy.action"
 msgstr "Manekin"
 

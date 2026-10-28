@@ -1758,6 +1758,12 @@ msgstr "대전이 준비되었습니다"
 msgid "training.key.detail"
 msgstr "좌우로 대전 중에 이 동작을 하는 키를 고릅니다. 끄기는 키 없이 둡니다."
 
+msgid "training.key.pad_back"
+msgstr "패드의 View"
+
+msgid "training.key.pad_back.detail"
+msgstr "View (Share, Create, Minus, Select)을 짧게 누르면 위치를 초기화하고, 길게 누르면 저장합니다. 끄면 View은 대전으로 넘어가 View도 보내는 버튼으로 플링크할 수 있습니다. 위의 키는 그대로 작동합니다."
+
 msgid "training.dummy.action"
 msgstr "더미"
 

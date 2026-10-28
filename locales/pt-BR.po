@@ -2062,6 +2062,12 @@ msgstr "Sua partida está pronta"
 msgid "training.key.detail"
 msgstr "Esquerda e Direita escolhem a tecla que faz isso durante a luta. Desativado deixa sem tecla."
 
+msgid "training.key.pad_back"
+msgstr "View no controle"
+
+msgid "training.key.pad_back.detail"
+msgstr "Tocar em View (Share, Create, Minus, Select) redefine a posição e segurar salva. Desligado deixa o View para a luta, para um plink num botão que também envia View; as teclas acima continuam funcionando."
+
 msgid "training.dummy.action"
 msgstr "Boneco"
 

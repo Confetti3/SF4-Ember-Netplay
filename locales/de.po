@@ -1758,6 +1758,12 @@ msgstr "Dein Match ist bereit"
 msgid "training.key.detail"
 msgstr "Links und Rechts wählen die Taste, die dies im Kampf auslöst. Aus lässt es ohne Taste."
 
+msgid "training.key.pad_back"
+msgstr "View am Pad"
+
+msgid "training.key.pad_back.detail"
+msgstr "Kurz View (Share, Create, Minus, Select) setzt die Position zurück, Halten speichert sie. Aus lässt View dem Kampf, für einen Plink auf einer Taste, die auch View sendet; die Tasten oben funktionieren weiter."
+
 msgid "training.dummy.action"
 msgstr "Dummy"
 

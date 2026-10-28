@@ -1758,6 +1758,12 @@ msgstr "Tu partida está lista"
 msgid "training.key.detail"
 msgstr "Izquierda y Derecha eligen la tecla que hace esto durante el combate. Desactivado la deja sin tecla."
 
+msgid "training.key.pad_back"
+msgstr "View en el mando"
+
+msgid "training.key.pad_back.detail"
+msgstr "Pulsar View (Share, Create, Minus, Select) restablece la posición y mantenerlo la guarda. Desactivado deja View al combate, para un plink con un botón que también envía View; las teclas de arriba siguen funcionando."
+
 msgid "training.dummy.action"
 msgstr "Muñeco"
 

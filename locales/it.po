@@ -1758,6 +1758,12 @@ msgstr "La tua partita è pronta"
 msgid "training.key.detail"
 msgstr "Sinistra e Destra scelgono il tasto che fa questo durante lo scontro. Disattivato lo lascia senza tasto."
 
+msgid "training.key.pad_back"
+msgstr "View sul controller"
+
+msgid "training.key.pad_back.detail"
+msgstr "Premere View (Share, Create, Minus, Select) ripristina la posizione, tenerlo premuto la salva. Disattivato lascia View al combattimento, per un plink su un tasto che invia anche View; i tasti sopra funzionano ancora."
+
 msgid "training.dummy.action"
 msgstr "Manichino"
 

@@ -1758,6 +1758,12 @@ msgstr "Your match is ready"
 msgid "training.key.detail"
 msgstr "Left and Right pick the key that does this over the fight. Off leaves it without one."
 
+msgid "training.key.pad_back"
+msgstr "View on the pad"
+
+msgid "training.key.pad_back.detail"
+msgstr "A tap of View (Share, Create, Minus, Select) resets the position and a hold saves it. Off leaves View to the fight, for a plink on a button that also sends View; the keys above still work."
+
 msgid "training.dummy.action"
 msgstr "Dummy"
 

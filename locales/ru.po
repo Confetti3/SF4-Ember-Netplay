@@ -1758,6 +1758,12 @@ msgstr "Ваш матч готов"
 msgid "training.key.detail"
 msgstr "Влево и Вправо выбирают клавишу, которая делает это во время боя. «Выкл.» оставляет без клавиши."
 
+msgid "training.key.pad_back"
+msgstr "View на геймпаде"
+
+msgid "training.key.pad_back.detail"
+msgstr "Короткое нажатие View (Share, Create, Minus, Select) сбрасывает позицию, удержание сохраняет её. «Выкл.» оставляет View бою — для плинка на кнопке, которая тоже шлёт View; клавиши выше продолжают работать."
+
 msgid "training.dummy.action"
 msgstr "Манекен"
 

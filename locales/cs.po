@@ -1758,6 +1758,12 @@ msgstr "Tvůj zápas je připraven"
 msgid "training.key.detail"
 msgstr "Vlevo a Vpravo vyberou klávesu, která to během souboje provede. Vypnuto ji nechá bez klávesy."
 
+msgid "training.key.pad_back"
+msgstr "View na ovladači"
+
+msgid "training.key.pad_back.detail"
+msgstr "Klepnutí na View (Share, Create, Minus, Select) obnoví pozici, podržení ji uloží. Vypnuto nechá View zápasu, pro plink na tlačítku, které posílá i View; klávesy výše fungují dál."
+
 msgid "training.dummy.action"
 msgstr "Figurína"
 

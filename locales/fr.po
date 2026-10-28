@@ -1758,6 +1758,12 @@ msgstr "Votre match est prêt"
 msgid "training.key.detail"
 msgstr "Gauche et Droite choisissent la touche qui fait cela pendant le combat. Désactivé la laisse sans touche."
 
+msgid "training.key.pad_back"
+msgstr "View sur la manette"
+
+msgid "training.key.pad_back.detail"
+msgstr "Un appui sur View (Share, Create, Minus, Select) réinitialise la position, un maintien l'enregistre. Désactivé laisse View au combat, pour un plink sur un bouton qui envoie aussi View ; les touches ci-dessus marchent toujours."
+
 msgid "training.dummy.action"
 msgstr "Mannequin"
 

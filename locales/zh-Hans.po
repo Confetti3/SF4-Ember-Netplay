@@ -1758,6 +1758,12 @@ msgstr "你的对战已就绪"
 msgid "training.key.detail"
 msgstr "左右选择在对战中执行此操作的按键。关闭则不设按键。"
 
+msgid "training.key.pad_back"
+msgstr "手柄上的 View"
+
+msgid "training.key.pad_back.detail"
+msgstr "轻按 View (Share, Create, Minus, Select) 重置位置，长按保存位置。关闭后 View 交给对战，可用同时发送 View 的按键进行 plink；上面的按键仍然有效。"
+
 msgid "training.dummy.action"
 msgstr "木桩"
 
