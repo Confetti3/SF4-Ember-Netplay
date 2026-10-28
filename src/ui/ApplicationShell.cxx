@@ -404,7 +404,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
    const bool local=id==v.room.localMember;
    if(member!=v.room.members.end())NoteUserText(member->name);
    return (local?std::string(loc::T("room.you")):member==v.room.members.end()?std::string(loc::T("room.player")):member->name)+
-    (table.ready[side]&&!finishedGame?loc::T("room.ready_suffix"):local&&v.readyRequested?loc::T("room.readying_suffix"):loc::T("room.not_ready_suffix"));
+    (table.ready[side]&&!finishedGame?loc::T("room.ready_suffix"):local&&v.readyPress!=netplay::ReadyPress::None?loc::T("room.readying_suffix"):loc::T("room.not_ready_suffix"));
   };
   status=state(table.p1,0)+" | "+state(table.p2,1);
   // Table phases carry their own tone: an unresolved result is a problem

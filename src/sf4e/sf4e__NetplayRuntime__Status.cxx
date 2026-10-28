@@ -265,7 +265,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
         fields.leavePending = runtime->leave.leaveRequested;
         fields.terminalPending = runtime->teardown.terminalAckPending;
         fields.authorityWritable = !snapshot.session.coordinated || snapshot.session.authorityWritable;
-        fields.readyRequested = snapshot.readyRequested; fields.readyGate = snapshot.readyGate;
+        fields.readyRequested = snapshot.readyPress != netplay::ReadyPress::None; fields.readyGate = snapshot.readyGate;
         if (runtime->room) fields.probe = runtime->room->Probe().status;
         fields.probeFailure = runtime->room ? runtime->room->Probe().failureReason : 0U;
         fields.probeRoute = snapshot.probeRoute;
@@ -627,7 +627,8 @@ PostPublishState Publish() {
         snapshot.delayLocked = gates.delayLocked; snapshot.canProbe = gates.canProbe; snapshot.canApplyDelay = gates.canApplyDelay;
         snapshot.localSlot = gates.localSlot; snapshot.selectedDelay = gates.selectedDelay;
     }
-    snapshot.readyRequested = runtime->readyIntent.Armed();
+    snapshot.readyPress = runtime->readyIntent.Parked() ? netplay::ReadyPress::Held :
+        runtime->readyIntent.Armed() ? netplay::ReadyPress::Sent : netplay::ReadyPress::None;
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
     snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;

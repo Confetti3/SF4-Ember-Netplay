@@ -18,7 +18,7 @@ const char* LeaveBlockerKey(room::SeatHold hold);
 // it: the member the room is waiting on can be exactly the one that needs to
 // leave. RoomAuthority accepts Unqueue and Unwatch while a receipt is
 // outstanding, so neither is fenced here.
-bool TerminalFenced(const room::Snapshot& snapshot, room::ActionKind kind, std::size_t table);
+bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table);
 const char* TerminalPendingReason();
 // One description of Leave room for both screens, stating what it costs.
 std::string LeaveRoomDetail(const ShellView& v);
