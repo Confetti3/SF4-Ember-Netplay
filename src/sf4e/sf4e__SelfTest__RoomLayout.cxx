@@ -78,7 +78,7 @@ void TickRoomLayout() {
 	}
 	case Stage::Opening:
 		if (now->session.room == netplay::RoomState::Joined) {
-			Say(true, "room", now->room.name);
+			Say(true, "room", now->room ? now->room->name : std::string());
 			Say(!now->canEditPreferences, "settings locked", now->canEditPreferences ? "the room left the settings open" : "");
 			run.Enter(Stage::Save);
 		}
