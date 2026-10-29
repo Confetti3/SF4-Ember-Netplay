@@ -7,6 +7,7 @@ void ControllerJourneys();
 void ButtonLayoutJourneys();
 void KeyboardJourneys();
 void RightClickBack();
+void HomeCardRight();
 void MemberPopout();
 void RoomPartsHide();
 void PresentationJourneys();

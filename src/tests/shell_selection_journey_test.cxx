@@ -11,6 +11,15 @@ void RightClickBack(){
  h.Screen("replays");rightClick();
  Check(h.shell.Navigation().Screen()=="home","A right click in V2 did not go back");
 }
+// V2: Right on Home's list reaches the player card beside it, Left goes back.
+void HomeCardRight(){
+ using namespace sf4e;
+ Harness h;h.view.preferences.lookV2=true;h.Frame();
+ h.Screen("home");h.FocusOn("settings");h.Press(MenuInput::Right);
+ Check(h.shell.Navigation().Focus()=="awards","Right on Home did not reach the player card");
+ h.Press(MenuInput::Left);
+ Check(h.shell.Navigation().Focus()=="online","Left on the player card did not go back to the top of the list");
+}
 // V2: a member's actions open at their row; Kick still asks first, on the member's page.
 void MemberPopout(){
  using namespace sf4e;
