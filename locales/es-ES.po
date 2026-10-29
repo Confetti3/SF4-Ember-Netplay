@@ -514,6 +514,12 @@ msgstr "Grabar al sparring"
 msgid "screen.input_history"
 msgstr "Hist. comandos"
 
+msgid "match.loading_title"
+msgstr "Iniciando partida…"
+
+msgid "match.loading_detail"
+msgstr "Espera. La partida empezará automáticamente; no hace falta pulsar ningún botón."
+
 msgid "room.wait.leaving"
 msgstr "Saliendo de la sala. Esperando a que se cierre la conexión..."
 

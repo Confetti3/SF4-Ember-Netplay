@@ -514,6 +514,12 @@ msgstr "Enreg. mannequin"
 msgid "screen.input_history"
 msgstr "Historique"
 
+msgid "match.loading_title"
+msgstr "Démarrage du match…"
+
+msgid "match.loading_detail"
+msgstr "Veuillez patienter. Le match démarrera automatiquement ; vous n'avez pas besoin d'appuyer sur un bouton."
+
 msgid "room.wait.leaving"
 msgstr "Sortie du salon. Attente de la fermeture de la connexion..."
 

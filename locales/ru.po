@@ -514,6 +514,12 @@ msgstr "Запись манекена"
 msgid "screen.input_history"
 msgstr "История нажатий"
 
+msgid "match.loading_title"
+msgstr "Начало матча…"
+
+msgid "match.loading_detail"
+msgstr "Подождите. Матч начнётся автоматически; нажимать кнопки не нужно."
+
 msgid "room.wait.leaving"
 msgstr "Выход из лобби. Ожидание закрытия соединения..."
 

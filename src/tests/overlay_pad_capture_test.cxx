@@ -129,5 +129,12 @@ int main() {
         std::error_code ignored;
         std::filesystem::remove_all(directory, ignored);
     }
+    pads.Place(MenuContext::MatchLoading, true);
+    CHECK(Overlay::CapturesMenuInput() && pads.Takes() && !pads.StartOpens());
+    CHECK(!pads.BlocksNativeObserver(true));
+    pads.Reset(); CHECK(Overlay::CapturesMenuInput());
+    pads.Place(MenuContext::WatchedMatch, true);
+    CHECK(!Overlay::CapturesMenuInput() && pads.StartOpens());
+    CHECK(pads.BlocksNativeObserver(true));
     return 0;
 }

@@ -514,6 +514,12 @@ msgstr "Dummy-Aufnahme"
 msgid "screen.input_history"
 msgstr "Input-Verlauf"
 
+msgid "match.loading_title"
+msgstr "Match wird gestartet…"
+
+msgid "match.loading_detail"
+msgstr "Bitte warten. Das Match startet automatisch; es müssen keine Tasten gedrückt werden."
+
 msgid "room.wait.leaving"
 msgstr "Raum wird verlassen. Verbindung wird geschlossen..."
 
