@@ -289,6 +289,42 @@ static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapsh
 	sf4e::selection::ToNative(pick, trainingDummy);
 }
 
+// Both visible and background shell actions carry the same current selection
+// and command fields (including a pending identity answer that opens a room).
+static sf4e::NetplayFacade::RuntimeCommand ToRuntimeCommand(sf4e::ui::ShellAction action,
+    const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
+    sf4e::NetplayFacade::RuntimeCommand request;
+    request.command = std::move(action.command);
+        request.transport = action.transport;
+        request.training = action.training; request.leaveWatchedGame = action.leaveWatchedGame;
+        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
+        request.updateOffer = std::move(action.updateOffer); request.updateChannel = action.updateChannel;
+        request.replay = std::move(action.replay);
+        request.reportSubmission = std::move(action.reportSubmission);
+        request.inputAction = action.inputAction; request.discordAction = action.discordAction;
+        request.padAction = action.padAction;
+        request.discordRevision = action.discordRevision;
+    request.displayName = snapshot.preferences.displayName;
+    request.preferences = std::move(action.preferences);
+    request.roomAction = std::move(action.roomAction);
+        request.selectedDelay=action.selectedDelay;
+        request.previewSoundVolume=action.previewSoundVolume;
+        request.identity = std::move(action.identity);
+        request.shortInvitation=action.shortInvitation;
+        request.roomSettings=action.roomSettings;
+        request.tournament = std::move(action.tournament);
+        request.publicTicket = std::move(action.publicTicket);
+        request.createdRules = action.createdRules;
+        request.practiceRoom = action.practiceRoom;
+        request.arcadeRoom = action.arcadeRoom;
+        request.delayPolicy = action.delayPolicy;
+    request.character = lobbyConditions;
+    request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
+    request.stage = lobbyStageID;
+    request.randomPool = lobbyRandomPool;
+    return request;
+}
+
 // Hidden, the shell still takes identity answers, ends a cancelled Discord
 // sign-in on its service and keeps the room chat. The room is read where the
 // published snapshot holds it, not copied, since this runs every match frame;
@@ -296,18 +332,13 @@ static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapsh
 static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
     sf4e::ui::ShellView view;
     view.session = snapshot.session;
+    view.preferences = snapshot.preferences;
     view.roomNotices = snapshot.roomNotices;
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
-    shell.Background(view, snapshot.Room(), [](sf4e::ui::ShellAction action) {
-        sf4e::NetplayFacade::RuntimeCommand request;
-        request.command = std::move(action.command);
-        request.identity = std::move(action.identity);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.arcadeRoom = action.arcadeRoom;
-        return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+    shell.Background(view, snapshot.Room(), [&](sf4e::ui::ShellAction action) {
+        return sf4e::NetplayFacade::SubmitRuntimeCommand(ToRuntimeCommand(std::move(action), snapshot));
     });
 }
 static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
@@ -368,6 +399,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.localSlot = snapshot.localSlot;
 	view.invitation = snapshot.invitation;
 	view.shortInvitation = snapshot.shortInvitation;
+    view.lanRooms = snapshot.lanRooms;
+    view.transport = snapshot.transport;
 	view.shortInvitationPending = snapshot.shortInvitationPending;
 	view.shortInvitationFailures = snapshot.shortInvitationFailures;
 	view.pendingJoinLink = snapshot.pendingJoinLink;
@@ -473,35 +506,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			presentation.Close("Training select");
 			return true;
 		}
-		sf4e::NetplayFacade::RuntimeCommand request;
-		request.command = std::move(action.command);
-        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
-        request.updateOffer = std::move(action.updateOffer); request.updateChannel = action.updateChannel;
-        request.replay = std::move(action.replay);
-        request.reportSubmission = std::move(action.reportSubmission);
-        request.inputAction = action.inputAction; request.discordAction = action.discordAction;
-        request.padAction = action.padAction;
-        request.discordRevision = action.discordRevision;
-		request.displayName = snapshot.preferences.displayName;
-		request.preferences = std::move(action.preferences);
-		request.roomAction = std::move(action.roomAction);
-        request.selectedDelay=action.selectedDelay;
-        request.previewSoundVolume=action.previewSoundVolume;
-        request.identity = std::move(action.identity);
-        request.shortInvitation=action.shortInvitation;
-        request.roomSettings=action.roomSettings;
-        request.tournament = std::move(action.tournament);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.practiceRoom = action.practiceRoom;
-        request.arcadeRoom = action.arcadeRoom;
-        request.delayPolicy = action.delayPolicy;
-		request.character = lobbyConditions;
-		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
-		request.stage = lobbyStageID;
-		request.randomPool = lobbyRandomPool;
-		request.training = action.training;
-		request.leaveWatchedGame = action.leaveWatchedGame;
+        auto request = ToRuntimeCommand(action, snapshot);
 		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
 		// Training from a room or Home: the menu closes behind it while the runtime
 		// sends the game on.
@@ -516,6 +521,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
 #endif
     );
+    if (shell.LanDrawn()) sf4e::NetplayFacade::NoteLanBrowser();
     if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
     if (shell.SelectionDrawn()) sf4e::NetplayFacade::NoteFighterSelector(view.room.roomEpoch);
     if (shell.ChatTyping()) sf4e::NetplayFacade::NoteChatTyping(view.room.roomEpoch);

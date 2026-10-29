@@ -256,7 +256,9 @@ async fn a_fifth_concurrent_incoming_is_refused_before_tls() {
     }
     assert_eq!(a.actor.latency.openings_in.len(), MAX_PENDING);
     assert_eq!(permits(&a.actor), 0);
-    let stranger = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let stranger = bind_latency(&local_net(&lookup), crate::transport::Transport::Online)
+        .await
+        .unwrap();
     let to = loopback(a.latency_endpoint());
     let dial = tokio::spawn(connect(stranger.clone(), to, dialer()));
     accept_one(&mut a.actor).await;
@@ -284,7 +286,9 @@ async fn a_stranger_is_closed_right_after_tls_and_the_permit_waits_for_the_slot(
     let (lookup, mut members) = room(2).await;
     let (a, b) = members.split_at_mut(1);
     let (a, b) = (&mut a[0], &b[0]);
-    let stranger = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let stranger = bind_latency(&local_net(&lookup), crate::transport::Transport::Online)
+        .await
+        .unwrap();
     let connection = dial_into(&mut a.actor, &stranger, dialer()).await;
     assert!(
         refused(&connection).await,

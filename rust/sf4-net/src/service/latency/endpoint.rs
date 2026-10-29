@@ -6,7 +6,6 @@ use iroh::{
     Endpoint,
     endpoint::{
         Builder, ConnectOptions, IdleTimeout, PortmapperConfig, QuicTransportConfig, VarInt,
-        presets,
     },
 };
 use tokio::time::timeout;
@@ -21,18 +20,20 @@ const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 /// How latency endpoints are built. Production uses the N0 preset; tests
 /// give a local relay and address lookup instead, or none at all.
 #[derive(Clone)]
-pub(crate) struct LatencyNet(Option<Arc<dyn Fn() -> Builder + Send + Sync>>);
+pub(crate) struct LatencyNet(
+    Option<Arc<dyn Fn(crate::transport::Transport) -> Builder + Send + Sync>>,
+);
 
 impl Default for LatencyNet {
     fn default() -> Self {
-        Self(Some(Arc::new(|| Endpoint::builder(presets::N0))))
+        Self(Some(Arc::new(crate::transport::endpoint_builder)))
     }
 }
 
 impl LatencyNet {
     #[cfg(test)]
     pub(crate) fn new(builder: impl Fn() -> Builder + Send + Sync + 'static) -> Self {
-        Self(Some(Arc::new(builder)))
+        Self(Some(Arc::new(move |_| builder())))
     }
 
     /// Tests only: binds nothing, so a room has no latency route.
@@ -41,8 +42,8 @@ impl LatencyNet {
         Self(None)
     }
 
-    fn builder(&self) -> Option<Builder> {
-        self.0.as_ref().map(|builder| builder())
+    fn builder(&self, policy: crate::transport::Transport) -> Option<Builder> {
+        self.0.as_ref().map(|builder| builder(policy))
     }
 }
 
@@ -71,14 +72,17 @@ pub(crate) fn dial_options() -> ConnectOptions {
 
 /// Binds a latency endpoint on a random port with port mapping off; a
 /// relay-only one has no IP transport at all.
-pub(crate) async fn bind_latency(net: &LatencyNet, relay_only: bool) -> io::Result<Endpoint> {
+pub(crate) async fn bind_latency(
+    net: &LatencyNet,
+    policy: crate::transport::Transport,
+) -> io::Result<Endpoint> {
     let builder = net
-        .builder()
+        .builder(policy)
         .ok_or_else(|| io::Error::other("latency_off"))?
         .alpns(vec![LATENCY_ALPN.to_vec()])
         .transport_config(latency_transport(1))
         .portmapper_config(PortmapperConfig::Disabled);
-    let builder = if relay_only {
+    let builder = if policy == crate::transport::Transport::RelayOnly {
         builder.clear_ip_transports()
     } else {
         builder
@@ -119,8 +123,11 @@ impl Drop for LatencyEndpoint {
 /// `LATENCY_BIND_TIMEOUT`. It does not wait for its relay: the region hint is
 /// sent only if the relay is known by then. None when it could not bind; the
 /// room goes on without a latency route.
-pub(crate) async fn bind_for_room(net: LatencyNet, relay_only: bool) -> Option<LatencyEndpoint> {
-    let endpoint = timeout(LATENCY_BIND_TIMEOUT, bind_latency(&net, relay_only))
+pub(crate) async fn bind_for_room(
+    net: LatencyNet,
+    policy: crate::transport::Transport,
+) -> Option<LatencyEndpoint> {
+    let endpoint = timeout(LATENCY_BIND_TIMEOUT, bind_latency(&net, policy))
         .await
         .ok()?
         .ok()?;

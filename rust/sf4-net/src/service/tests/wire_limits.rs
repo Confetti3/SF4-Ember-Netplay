@@ -109,7 +109,7 @@ async fn ipc_service_rejects_malformed_and_replayed_commands() {
             async {
                 let endpoint = endpoint().await;
                 let (server, mut client) = tokio::io::duplex(1024);
-                let service = tokio::spawn(run(server, endpoint, false));
+                let service = tokio::spawn(run(server, endpoint, crate::transport::Transport::Online));
                 if replay {
                     let status = ControlFrame {
                         message_id: 2,

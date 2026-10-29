@@ -6,6 +6,7 @@
 #include "../common/ReplayRequest.hxx"
 #include "../common/RoomRules.hxx"
 #include "../netplay/TableSetup.hxx"
+#include "../netplay/RoomTransport.hxx"
 #include "../common/SteamId.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/UpdateChannel.hxx"
@@ -27,6 +28,7 @@
 namespace sf4e { namespace ui {
 
 struct RuntimeRequest {
+    netplay::RoomKind transport=netplay::RoomKind::Online;
     netplay::Command command{netplay::CommandKind::HostRoom};
     platform::ServiceAction service = platform::ServiceAction::None;
     // With ShowReplayFile: the archived replay, as its row names it, whose folder opens.

@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "Hra po LAN"
+
+msgid "lan.detail"
+msgstr "Najít místnosti ve stejné místní síti. Internet není potřeba."
+
+msgid "lan.host"
+msgstr "Vytvořit LAN místnost"
+
+msgid "lan.host_detail"
+msgstr "Kdokoli v této místní síti může místnost najít a připojit se. Steam a podporovaná hra jsou stále potřeba."
+
+msgid "lan.incompatible"
+msgstr "Jiná verze Ember. Oba hráči potřebují stejný balíček."
+
+msgid "lan.full"
+msgstr "Místnost je plná"
+
+msgid "lan.join_detail"
+msgstr "Připojit se do místnosti přes místní síť."
+
+msgid "lan.unavailable"
+msgstr "Vyhledávání LAN není dostupné. Zkontrolujte síť a firewall."
+
+msgid "lan.searching"
+msgstr "Hledání LAN místností"
+
+msgid "lan.search_detail"
+msgstr "Připojte oba počítače ke stejné síti nebo hotspotu. Izolace sítě pro hosty nebo firewall může bránit vyhledávání."
+
+msgid "lan.join_failed"
+msgstr "Připojení do LAN místnosti selhalo. Hostitel mohl odejít nebo je připojení blokováno."
+
 msgid "common.back"
 msgstr "Zpět"
 

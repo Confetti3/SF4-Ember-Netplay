@@ -730,7 +730,7 @@ async fn a_probe_reservation_wait_does_not_block_the_actor() {
                 remote.id(),
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();

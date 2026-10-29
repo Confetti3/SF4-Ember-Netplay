@@ -70,7 +70,8 @@ pub(super) async fn next(events: &mut mpsc::Receiver<Event>, kind: &str) -> Even
 pub(in crate::service) fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Event>) -> Actor {
     Actor {
         endpoint,
-        relay_only: false,
+        transport: crate::transport::Transport::Online,
+        lan: Default::default(),
         epoch: 0,
         opening: false,
         room: None,
@@ -439,7 +440,7 @@ impl ReservationFixture {
             remote.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();

@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "LAN-spel"
+
+msgid "lan.detail"
+msgstr "Zoek kamers op hetzelfde lokale netwerk. Internet is niet nodig."
+
+msgid "lan.host"
+msgstr "LAN-kamer maken"
+
+msgid "lan.host_detail"
+msgstr "Iedereen op dit lokale netwerk kan deze kamer vinden en meedoen. Steam en de ondersteunde game blijven vereist."
+
+msgid "lan.incompatible"
+msgstr "Andere Ember-versie. Beide spelers hebben hetzelfde pakket nodig."
+
+msgid "lan.full"
+msgstr "Kamer vol"
+
+msgid "lan.join_detail"
+msgstr "Via het lokale netwerk deelnemen aan deze kamer."
+
+msgid "lan.unavailable"
+msgstr "LAN-zoeken niet beschikbaar. Controleer je netwerk en firewall."
+
+msgid "lan.searching"
+msgstr "Zoeken naar LAN-kamers"
+
+msgid "lan.search_detail"
+msgstr "Verbind beide pc’s met hetzelfde netwerk of dezelfde hotspot. Gastnetwerkisolatie of een firewall kan het zoeken blokkeren."
+
+msgid "lan.join_failed"
+msgstr "Kan niet deelnemen aan de LAN-kamer. De host is mogelijk vertrokken of de verbinding is geblokkeerd."
+
 msgid "common.back"
 msgstr "Terug"
 

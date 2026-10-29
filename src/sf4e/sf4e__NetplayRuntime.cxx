@@ -611,6 +611,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.preferences=runtime->preferences;
         replacement.practiceRoom=runtime->practiceRoom;
         replacement.arcadeRoom=runtime->arcadeRoom;
+        replacement.transport=runtime->room?netplay::KindOfTransport(runtime->room->Transport()):netplay::RoomKind::Online;
         replacement.delayPolicy=runtime->delayPolicy;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
@@ -824,6 +825,7 @@ void TickRuntime() {
 	SayTyping();
 	TakeJoinLink();
 	TickMemberLatency();
+    TickLan();
 	PublishAndTickDiscordInvite();
 }
 

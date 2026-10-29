@@ -238,11 +238,17 @@ pub(super) async fn member_on(
     actor.latency.net = net;
     actor.epoch = 1;
     actor.room = Some(ROOM);
-    let recovery = RecoverySession::host_in(ROOM, primary.id(), false, None, false)
-        .await
-        .expect("recovery");
+    let recovery = RecoverySession::host_in(
+        ROOM,
+        primary.id(),
+        crate::transport::Transport::Online,
+        None,
+        false,
+    )
+    .await
+    .expect("recovery");
     actor.install_recovery(recovery.clone()).await;
-    let latency = bind_latency(&actor.latency.net, relay_only)
+    let latency = bind_latency(&actor.latency.net, if relay_only { crate::transport::Transport::RelayOnly } else { crate::transport::Transport::Online })
         .await
         .expect("latency endpoint");
     if let Some(lookup) = lookup {
@@ -817,7 +823,7 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     let lookup = MemoryLookup::new();
     let net = local_net(&lookup);
     // Dropped: closed.
-    let endpoint = bind_latency(&net, false).await.unwrap();
+    let endpoint = bind_latency(&net, crate::transport::Transport::Online).await.unwrap();
     drop(LatencyEndpoint::new(endpoint.clone()));
     timeout(Duration::from_secs(5), async {
         while !endpoint.is_closed() {
@@ -830,7 +836,7 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     // A task aborted while it holds the endpoint closes it.
     let (sender, receiver) = tokio::sync::oneshot::channel();
     let task = tokio::spawn(async move {
-        let guard = bind_for_room(net, false).await.expect("bound");
+        let guard = bind_for_room(net, crate::transport::Transport::Online).await.expect("bound");
         let _ = sender.send(guard.endpoint().clone());
         std::future::pending::<()>().await;
         drop(guard);
@@ -849,11 +855,15 @@ async fn the_endpoint_guard_closes_an_obsolete_or_aborted_tasks_endpoint() {
     let (events, _events) = mpsc::channel(IPC_QUEUE_CAPACITY);
     let mut actor = test_actor(primary_endpoint().await, events);
     actor.epoch = 2;
-    let stale = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let stale = bind_latency(&local_net(&lookup), crate::transport::Transport::Online)
+        .await
+        .unwrap();
     actor.latency_adopt(1, Some(LatencyEndpoint::new(stale.clone())));
     assert!(actor.latency.endpoint.is_none());
     actor.opening = true;
-    let failed_host = bind_latency(&local_net(&lookup), false).await.unwrap();
+    let failed_host = bind_latency(&local_net(&lookup), crate::transport::Transport::Online)
+        .await
+        .unwrap();
     actor
         .completed_hosted(
             2,

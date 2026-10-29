@@ -35,7 +35,7 @@ async fn a_rejoining_incarnation_supersedes_the_older_one_of_its_endpoint() {
                 remote.id(),
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();
@@ -51,7 +51,7 @@ async fn a_rejoining_incarnation_supersedes_the_older_one_of_its_endpoint() {
                 remote.id(),
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();

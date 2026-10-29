@@ -372,6 +372,7 @@ async fn host_public_marks_the_room_server_owned_and_refuses_a_bad_key() {
             .command_now(Request {
                 id: 4,
                 command: Command::Host {
+                    transport: crate::transport::RoomKind::Online,
                     epoch: 4,
                     build: BUILD.into(),
                 },
@@ -478,7 +479,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
         .local_addr()
         .unwrap()
         .port();
-    let session = crate::recovery::RecoverySession::host_in([5; 16], own.id(), false, Some(free), false)
+    let session = crate::recovery::RecoverySession::host_in([5; 16], own.id(), crate::transport::Transport::Online, Some(free), false)
         .await
         .unwrap();
     // The port is held by the coordination endpoint now.
@@ -488,7 +489,7 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
     let held = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).unwrap();
     let held_port = held.local_addr().unwrap().port();
     assert!(
-        crate::recovery::RecoverySession::host_in([6; 16], own.id(), false, Some(held_port), false)
+        crate::recovery::RecoverySession::host_in([6; 16], own.id(), crate::transport::Transport::Online, Some(held_port), false)
             .await
             .is_err()
     );
@@ -512,9 +513,10 @@ async fn the_coordination_endpoint_binds_the_given_port_or_hosting_fails() {
 }
 
 #[test]
-fn connected_serializes_as_before_without_an_account() {
+fn connected_reports_transport_and_omits_absent_account() {
     let peer = iroh::SecretKey::generate().public();
     let event = Event::Connected {
+        transport: crate::transport::Transport::Online,
         epoch: 4,
         peer,
         room: [7; 16],
@@ -528,10 +530,11 @@ fn connected_serializes_as_before_without_an_account() {
     let room = serde_json::to_string(&[7u8; 16]).unwrap();
     assert_eq!(
         serde_json::to_string(&event).unwrap(),
-        format!(r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9}}"#)
+        format!(r#"{{"type":"connected","transport":"online","epoch":4,"peer":{peer_text},"room":{room},"control":9}}"#)
     );
     let account = identity(1).ember_id().to_string();
     let event = Event::Connected {
+        transport: crate::transport::Transport::Online,
         epoch: 4,
         peer,
         room: [7; 16],
@@ -544,10 +547,11 @@ fn connected_serializes_as_before_without_an_account() {
     assert_eq!(
         serde_json::to_string(&event).unwrap(),
         format!(
-            r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}"}}"#
+            r#"{{"type":"connected","transport":"online","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}"}}"#
         )
     );
     let event = Event::Connected {
+        transport: crate::transport::Transport::Online,
         epoch: 4,
         peer,
         room: [7; 16],
@@ -560,7 +564,7 @@ fn connected_serializes_as_before_without_an_account() {
     assert_eq!(
         serde_json::to_string(&event).unwrap(),
         format!(
-            r#"{{"type":"connected","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}","badge":{{"band":5,"settled":false}}}}"#
+            r#"{{"type":"connected","transport":"online","epoch":4,"peer":{peer_text},"room":{room},"control":9,"account":"{account}","badge":{{"band":5,"settled":false}}}}"#
         )
     );
 }

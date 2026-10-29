@@ -47,6 +47,8 @@ fn short_join(epoch: u64, invitation: &str, build: &str) -> Request {
     Request {
         id: 40 + epoch,
         command: Command::Join {
+            transport: crate::transport::RoomKind::Online,
+            lan_host: None,
             epoch,
             invitation: invitation.into(),
             build: build.into(),

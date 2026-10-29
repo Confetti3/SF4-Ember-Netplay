@@ -19,10 +19,10 @@ std::string CutUtf8(std::string text,std::size_t limit) {
 std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const std::string& screen,bool opening,const char* reason,std::string& title) {
  using namespace netplay;
  std::vector<MenuEntry> rows;
- title=screen=="create"?loc::T("room.create_title"):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
+ title=screen=="create"?(lanCreate_?loc::T("lan.host"):loc::T("room.create_title")):loc::T("settings.gameplay_defaults_title");const bool can=screen=="create"?v.canOpenRoom:v.canEditPreferences;
  // A public room is made by the service with the public default rules; the
  // ones chosen here follow once the creator is in it as host (netplay::CreatedRules).
- const bool publicRoom=screen=="create"&&preferences_.roomPublic;
+ const bool publicRoom=screen=="create"&&!lanCreate_&&preferences_.roomPublic;
  const std::string bridge=publicRoom?identity_.UsableBridge(v):std::string();
  // A saved template sets the rows below; they can still be changed after.
  const auto& templates=preferences_.roomTemplates;
@@ -38,12 +38,12 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  // Auto's style, under the delay row while Auto is chosen.
  if(screen=="defaults"&&preferences_.autoInputDelay)
   rows.push_back(Value("auto-style",loc::T("settings.auto_delay_style"),AutoDelayStyleName(preferences_.autoDelayStyle),loc::T("settings.auto_delay_style.detail"),can));
- if(screen=="create")rows.push_back(Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
+ if(screen=="create")rows.push_back(lanCreate_?InfoRow("lan-mode",loc::T("lan.title"),"",loc::T("lan.host_detail")):Value("visibility",loc::T("public.visibility"),loc::T(publicRoom?"public.visibility.public":"public.visibility.private"),loc::T("public.visibility_detail"),can));
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
  // Any new room has a type; only a private one can be a Practice room, which
  // has no round time to choose.
- const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
+ const bool privateCreate=screen=="create"&&!publicRoom&&!lanCreate_,practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
  if(screen=="create")rows.push_back(RoomTypeRow(createArcade_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
@@ -61,7 +61,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,createArcade_);}
+ else if(a.id=="host"&&!lanCreate_&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,createArcade_);}
  else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
   createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
@@ -122,7 +122,7 @@ void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::st
 // one place that asks: once per stay in such a state, when no service is
 // selected, and not over a request the panel is still waiting on.
 void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& screen) {
- const bool needed=PublicRoomsPanel::Owns(screen)||RankingsPanel::Owns(screen)||(screen=="create"&&preferences_.roomPublic);
+ const bool needed=PublicRoomsPanel::Owns(screen)||RankingsPanel::Owns(screen)||(screen=="create"&&!lanCreate_&&preferences_.roomPublic);
  if(!needed){publicBridgeAsked_=false;return;}
  if(publicBridgeAsked_)return;
  if(identity_.UsableBridge(v).empty()){
@@ -134,7 +134,7 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 
 // Create public room opens Create on Public, which stays the default until changed.
 void ApplicationShell::OpenCreate() {
- createPractice_=false;createArcade_=room::ClassicRoom;createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
+ lanCreate_=false;createPractice_=false;createArcade_=room::ClassicRoom;createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
 }
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}

@@ -180,7 +180,7 @@ int wmain(int argc, wchar_t** argv) {
 		CHECK(false);
 	};
 	wait([&]() { return std::all_of(helpers.begin(), helpers.end(), [](const platform::HelperClient& helper) { return helper.State() == platform::HelperState::Connected; }); });
-	CHECK(rooms[0]->Host("authorized-match-test"));
+	CHECK(rooms[0]->Host("authorized-match-test",sf4e::netplay::RoomKind::Online));
 	wait([&]() { return rooms[0]->GetState() == session::IrohRoom::State::Ready; });
 	for (std::size_t i = 0; i < Count; ++i) recoveryPeers[i].room = rooms[i];
 	std::vector<test::IrohServerPeer*> joiningPeers;

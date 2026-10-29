@@ -1,4 +1,6 @@
 #pragma once
+#include "../netplay/LanRooms.hxx"
+#include "../netplay/RoomTransport.hxx"
 #include "../ui/ControllerNavigation.hxx"
 #include "../ui/ReplaysView.hxx"
 #include "../ui/ChatTranscript.hxx"
@@ -100,6 +102,7 @@ namespace sf4e {
 		enum class JoinKind : std::uint8_t { Private, Public, Observer };
 
 		struct RuntimeCommand {
+            netplay::RoomKind transport=netplay::RoomKind::Online;
 			netplay::Command command;
             platform::ServiceAction service = platform::ServiceAction::None;
             // With ShowReplayFile: the archived replay whose folder opens.
@@ -269,6 +272,8 @@ namespace sf4e {
 			std::string shortInvitation;
 			bool shortInvitationPending = false;
 			std::uint64_t shortInvitationFailures = 0;
+            std::shared_ptr<const netplay::LanRooms> lanRooms = std::make_shared<const netplay::LanRooms>();
+    netplay::RoomTransport transport=netplay::RoomTransport::Online;
 			// The newest room link opened from the browser, as an https link.
 			std::string pendingJoinLink;
 			std::uint64_t pendingJoinSequence = 0;
@@ -351,6 +356,7 @@ namespace sf4e {
 		// was drawn this frame. The runtime asks for each member's ping only
 		// while the board is drawn (netplay/LatencyBoard.hxx).
 		void NoteLatencyBoard(std::uint64_t roomGeneration);
+        void NoteLanBrowser();
 		// Any thread: Ember's fighter selector was drawn this frame in room
 		// `roomGeneration`. A player called back from Training does not lose
 		// the time they have to ready while choosing (session/TrainingCall.hxx).

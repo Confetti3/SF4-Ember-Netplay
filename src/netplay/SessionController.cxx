@@ -1,4 +1,5 @@
 #include "SessionController.hxx"
+#include "../common/EndpointIdentity.hxx"
 
 #include <limits>
 
@@ -114,7 +115,7 @@ Decision SessionController::Execute(const Command& command) {
         if (state_.room != RoomState::Idle || state_.match != MatchState::None
             || state_.generation.room == std::numeric_limits<uint64_t>::max()) { return Decision(); }
         const bool host = command.kind == CommandKind::HostRoom;
-        if (!host && (command.invitation.empty() || command.invitation.size() > MaxInviteLength)) { return Decision(); }
+        if (!host && (command.lanHost.empty() ? (command.invitation.empty() || command.invitation.size() > MaxInviteLength) : (!command.invitation.empty() || !IsEndpointIdentity(command.lanHost)))) { return Decision(); }
         ResetRoom();
         ++state_.generation.room;
         state_.generation.match = 0;

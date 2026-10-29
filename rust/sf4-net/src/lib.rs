@@ -7,6 +7,7 @@ pub mod identity;
 pub mod invite;
 #[cfg(windows)]
 pub mod ipc;
+pub mod lan;
 pub mod probe;
 pub(crate) mod public_room;
 pub mod recovery;

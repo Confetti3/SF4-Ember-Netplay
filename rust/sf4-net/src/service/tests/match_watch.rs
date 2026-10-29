@@ -283,6 +283,8 @@ async fn a_proof_says_observer_only_when_it_is_one() {
     assert!(!read.observer);
     // The IPC join likewise.
     let join = |observer| Command::Join {
+        transport: crate::transport::RoomKind::Online,
+        lan_host: None,
         epoch: 1,
         invitation: "x".into(),
         build: "b".into(),
@@ -310,6 +312,8 @@ async fn a_watcher_joins_with_the_full_invitation_only() {
     let invite =
         Invite::create(key(), test_relay(), "test-build".into(), now().unwrap(), 60).unwrap();
     let join = Command::Join {
+        transport: crate::transport::RoomKind::Online,
+        lan_host: None,
         epoch: 1,
         invitation: invite.short_code(),
         build: "test-build".into(),
@@ -480,6 +484,8 @@ async fn a_watchers_join_tells_the_room_it_only_watches() {
         let join = |epoch, observer| Request {
             id: epoch,
             command: Command::Join {
+                transport: crate::transport::RoomKind::Online,
+                lan_host: None,
                 epoch,
                 invitation: fixture.invite.encode().unwrap(),
                 build: "test-build".into(),

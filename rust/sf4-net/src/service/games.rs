@@ -58,11 +58,19 @@ impl Actor {
         result: io::Result<Connection>,
     ) -> io::Result<()> {
         if let Ok(connection) = result {
-            if epoch != self.epoch || self.tasks.len() >= MAX_TASKS {
+            if epoch != self.epoch {
                 connection.close(1u32.into(), b"obsolete room");
                 return Ok(());
             }
             let peer = connection.remote_id();
+            if connection.alpn() == crate::lan::ALPN {
+                self.lan.accept(connection, self.room_invite.as_ref().or(self.hosted.as_ref()));
+                return Ok(());
+            }
+            if self.tasks.len() >= MAX_TASKS {
+                connection.close(1u32.into(), b"room busy");
+                return Ok(());
+            }
             if connection.alpn() == CONTROL_ALPN && self.server_owned() {
                 self.accept_public_incoming(epoch, connection);
             } else if connection.alpn() == CONTROL_ALPN && !self.admits_control(&peer) {

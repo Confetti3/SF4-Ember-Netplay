@@ -40,7 +40,7 @@ impl Actor {
         let Ok(updated) = current.renewed(now, INVITE_LIFETIME) else {
             return;
         };
-        let (Ok(invitation), Ok(secret)) = (updated.encode(), updated.encode_discord()) else {
+        let (Ok(invitation), Ok(secret)) = (updated.encode(), if updated.is_lan() { Ok(None) } else { updated.encode_discord().map(Some) }) else {
             return;
         };
         if !self.emit_bulk(Event::DiscordInvite {
@@ -62,7 +62,7 @@ impl Actor {
         let session = crate::recovery::RecoverySession::host_in(
             invite.room(),
             self.endpoint.id(),
-            self.relay_only,
+            self.transport,
             self.coordination_port,
             self.is_public_host(),
         )
@@ -88,7 +88,7 @@ impl Actor {
             self.endpoint.id(),
             invite.authority_incarnation(),
             coordination_address,
-            self.relay_only,
+            self.transport,
             self.server_owned(),
         )
         .await?;
@@ -395,7 +395,7 @@ impl Actor {
                 state.term.max(1),
                 admission.incarnation,
             )
-            && let (Ok(invitation), Ok(secret)) = (updated.encode(), updated.encode_discord())
+            && let (Ok(invitation), Ok(secret)) = (updated.encode(), if updated.is_lan() { Ok(None) } else { updated.encode_discord().map(Some) })
             && self.emit_bulk(Event::DiscordInvite {
                 epoch: self.epoch,
                 invitation,

@@ -17,6 +17,8 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/Rankings.hxx"
+#include "../netplay/LanRooms.hxx"
+#include "../netplay/RoomTransport.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../session/RoomModel.hxx"
@@ -89,6 +91,8 @@ struct ShellView {
     std::string probeRelay, probeOpponent;
     NatClass probeOpponentNat=NatClass::Unknown;
     NetworkSummary netReport;
+    std::shared_ptr<const netplay::LanRooms> lanRooms = std::make_shared<const netplay::LanRooms>();
+    netplay::RoomTransport transport=netplay::RoomTransport::Online;
     std::uint64_t probeP50Us=0, probeP95Us=0, probeP99Us=0, probeJitterUs=0;
     bool probeBenchmark=false;
     unsigned probeSamples=0, probeLost=0, probeSent=0, probeExpected=0;
@@ -322,6 +326,7 @@ public:
     bool NoticeOpen() const { return menu_.NoticeOpen(); }
     // The last Draw drew the room board, whose ping the runtime asks for only while it is drawn.
     bool BoardDrawn() const { return boardDrawn_; }
+    bool LanDrawn() const { return lanDrawn_; }
     // The last Draw drew the fighter selector.
     bool SelectionDrawn() const { return selectionDrawn_; }
     // The last Draw had the player writing a chat draft, which the runtime tells the room.
@@ -365,6 +370,8 @@ public:
         identity_.SetAnnouncedStore(std::move(loader), std::move(saver));
     }
 private:
+    bool lanCreate_=false;
+    bool lanDrawn_=false;
     LanguageSaver languageSaver_;
     UpdateCheckSaver updateCheckSaver_;
     GameMenu menu_;

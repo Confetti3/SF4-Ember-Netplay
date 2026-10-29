@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "Jeu en réseau local"
+
+msgid "lan.detail"
+msgstr "Rechercher des salles sur le même réseau local. Internet non requis."
+
+msgid "lan.host"
+msgstr "Créer une salle LAN"
+
+msgid "lan.host_detail"
+msgstr "Toute personne sur ce réseau local peut trouver et rejoindre cette salle. Steam et le jeu pris en charge restent nécessaires."
+
+msgid "lan.incompatible"
+msgstr "Version Ember différente. Les deux joueurs doivent utiliser le même paquet."
+
+msgid "lan.full"
+msgstr "Salle complète"
+
+msgid "lan.join_detail"
+msgstr "Rejoindre cette salle via le réseau local."
+
+msgid "lan.unavailable"
+msgstr "Recherche LAN indisponible. Vérifiez le réseau et le pare-feu."
+
+msgid "lan.searching"
+msgstr "Recherche de salles LAN"
+
+msgid "lan.search_detail"
+msgstr "Connectez les deux PC au même réseau ou point d’accès. L’isolation du réseau invité ou un pare-feu peut bloquer la recherche."
+
+msgid "lan.join_failed"
+msgstr "Impossible de rejoindre la salle LAN. L’hôte est peut-être parti ou la connexion est bloquée."
+
 msgid "common.back"
 msgstr "Retour"
 

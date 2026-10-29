@@ -46,7 +46,7 @@ async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
                 follower_primary.id(),
                 host_recovery.incarnation,
                 host_recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();
@@ -97,7 +97,7 @@ async fn an_unconfirmed_departure_is_released_by_the_next_epoch() {
             // The native client has left locally; its next room releases this one,
             // but the departed vote lingers for the grace: the host can still
             // commit the removal that the departure never got.
-            assert!(follower.begin(2, "test-build"));
+            assert!(follower.begin(2, "test-build", crate::transport::Transport::Online).await);
             assert_eq!(follower.room, None);
             assert!(!follower.departure_failed);
             assert!(follower.recovery.is_none());
@@ -155,7 +155,7 @@ async fn an_abandoned_coordinated_room_keeps_its_vote_for_the_grace() {
             assert!(actor.recovery.is_some());
             assert!(actor.controls.is_empty() && actor.hosted.is_none());
             // The next room begins at once; the old route lingers on its own.
-            assert!(actor.begin(2, "test-build"));
+            assert!(actor.begin(2, "test-build", crate::transport::Transport::Online).await);
             assert!(actor.recovery.is_none() && actor.room.is_none());
             assert!(actor.retirement_started.is_none());
             assert!(recovery.coordinator.current_leader().is_some());
@@ -307,7 +307,7 @@ async fn a_confirmed_departure_is_not_reconciled_on_every_refresh() {
                 departed_primary.id(),
                 recovery.incarnation,
                 recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();
@@ -455,7 +455,7 @@ async fn learner_follower() -> LearnerFollower {
         fixture.remote.id(),
         fixture.recovery.incarnation,
         fixture.recovery.coordination_address.clone(),
-        false,
+        crate::transport::Transport::Online,
     )
     .await
     .unwrap();
@@ -627,7 +627,7 @@ async fn removing_a_voter_does_not_wait_for_an_unreachable_voter() {
                     primary.id(),
                     recovery.incarnation,
                     recovery.coordination_address.clone(),
-                    false,
+                    crate::transport::Transport::Online,
                 )
                 .await
                 .unwrap();
