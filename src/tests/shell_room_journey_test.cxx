@@ -659,6 +659,15 @@ void PostMatchJourneys() {
  click("table-0");Check(h.shell.Navigation().Choosing(),"After the prompt a click on the table did not open the seat chooser");
  const auto sat=h.actions.size();click("table-0/0");
  Check(h.actions.size()==sat+1&&h.actions.back().roomAction.kind==room::ActionKind::Queue,"After the prompt a click on Play as P1 did nothing");
+ // Rematch chosen, then the room goes away before the room shows the Ready
+ // (the host closed it, a kick, a Discord invite): the prompt closes without
+ // reading the table it no longer has.
+ t.p1=1;t.p2=2;h.view.room.members[0].table=h.view.room.members[1].table=0;h.view.room.members[0].seat=0;h.view.room.members[1].seat=1;
+ t.matchGeneration=9;t.phase=room::TablePhase::Playing;t.ready[0]=t.ready[1]=false;++h.view.room.revision;h.Screen("room");h.view.matchResult=false;h.Frame();
+ win();Check(h.shell.Navigation().Screen()=="post-match"&&row("again").enabled,"The WIN after a new seat opened no prompt");
+ h.Choose("again");h.view.session.room=netplay::RoomState::Closing;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","A chosen Rematch kept the prompt over a room that was closing");
+ h.view.session.room=netplay::RoomState::Joined;
  SetMenuCardProbe({});
  SetMenuEntriesProbe({});
 }

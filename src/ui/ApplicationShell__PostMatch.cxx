@@ -80,7 +80,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // The press counts until the room shows it: the runtime holds it while
         // the WIN plays out and resends it after. A Ready the room takes back
         // later can be pressed again.
-        if (p.chose && Readied(*t, mine, p.generation)) p.chose = false;
+        if (t && p.chose && Readied(*t, mine, p.generation)) p.chose = false;
         if (p.left) {
             if (!Fighting(v.session.match) || v.atMainMenu) ClosePostMatch(v, p.after, open);
             return;
