@@ -14,6 +14,18 @@ static Decision CommandNow(SessionController& controller, CommandKind kind, cons
     command.kind = kind; command.generation = controller.GetSnapshot().generation; command.invitation = invite;
     return controller.Execute(command);
 }
+static void TestTypedLanJoin() {
+    SessionController controller;
+    Command join{CommandKind::JoinInvite};
+    join.generation=controller.GetSnapshot().generation;
+    join.lanHost="invalid";
+    EXPECT(!controller.Execute(join).accepted);
+    join.lanHost=std::string(64,'a');join.invitation="pasted invitation";
+    EXPECT(!controller.Execute(join).accepted);
+    join.invitation.clear();
+    EXPECT(controller.Execute(join).effect==Effect::JoinInvite);
+    EXPECT(!controller.Execute(join).accepted);
+}
 static Decision EventNow(SessionController& controller, EventKind kind) {
     Event event;
     event.kind = kind; event.generation = controller.GetSnapshot().generation;
@@ -159,6 +171,7 @@ static void TestServerOwnedRoomIsNeverReplaced() {
 }
 
 int main() {
+    TestTypedLanJoin();
     TestMatchEndedFromPreparing();
     TestServerOwnedRoomIsNeverReplaced();
     TestNextGrantNeedsTheOldMatchEnded();

@@ -435,9 +435,10 @@ void EmberIdFromOnline(){
  h.Screen("home");
  Check(!h.row("identity"),"Home still has its own Ember ID row");
  h.Screen("online");
- Check(h.row("identity")&&h.index("identity")==h.index("public-rooms")+1&&h.index("rankings")==h.index("identity")+1&&
+ Check(h.row("lan")&&h.index("lan")==h.index("public-rooms")+1&&
+  h.row("identity")&&h.index("identity")==h.index("lan")+1&&h.index("rankings")==h.index("identity")+1&&
   h.index("relay")==h.index("rankings")+1&&h.index("network")==h.index("relay")+1,
-  "Ember ID and Rankings are not between Public rooms and the route rows on Online play");
+  "LAN, Ember ID and Rankings are not between Public rooms and the route rows on Online play");
  Check(!h.row("identity")->info&&h.row("relay")->info&&h.row("network")->info,"The route rows lost their information role");
  h.Choose("identity");Check(h.shell.Navigation().Screen()=="identity"&&h.trail()=="home>online>identity","Ember ID on Online play did not open its screen");
  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"The Ember ID screen did not read Ember's own service");

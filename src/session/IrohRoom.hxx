@@ -1,4 +1,6 @@
 #pragma once
+#include "../netplay/RoomTransport.hxx"
+#include "../netplay/LanRooms.hxx"
 
 #include "SessionTransport.hxx"
 #include "../platform/HelperClient.hxx"
@@ -109,10 +111,10 @@ public:
 	// IrohMatchSessionTest; the destructor follows them so a subclass is never
 	// deleted through this base without running its own.
 	virtual ~IrohRoom() = default;
-	bool Host(const std::string& build);
+	bool Host(const std::string& build,netplay::RoomKind transport);
 	// `observer`: the join is a tournament match's watcher, which the room's
 	// helper admits only into a room that names it (the helper's `join` type).
-	bool Join(const std::string& invitation, const std::string& build, bool observer = false);
+	bool Join(const std::string& invitation, const std::string& build, bool observer = false,netplay::RoomKind kind=netplay::RoomKind::Online,const std::string& lanHost={});
 	// Join a server-owned room: like Join, with the bridge's signed ticket as received.
 	bool JoinPublic(const std::string& invitation, const nlohmann::json& ticket, const std::string& build);
 	// Host a server-owned room under the id the bridge issued its tickets for.
@@ -145,6 +147,11 @@ public:
 	// invitation instead. Returns false, and counts a failure, when no
 	// request could be sent.
 	bool RequestShortInvitation();
+    void WatchLan(bool wanted);
+    void PublishLanRoom(const std::string& name,unsigned members,unsigned capacity);
+    netplay::RoomTransport Transport() const { return lan_.transport; }
+    bool IsLan() const { return lan_.transport==netplay::RoomTransport::Lan; }
+    std::shared_ptr<const netplay::LanRooms> LanRooms() const { return lan_.rooms; }
 	const std::string& ShortInvitation() const { return room_.state == State::Degraded ? NoInvitation() : room_.shortInvitation; }
 	bool ShortInvitationPending() const { return room_.shortPending; }
 	std::uint64_t ShortInvitationFailures() const { return shortFailures_; }
@@ -508,6 +515,17 @@ private:
 	LatencySubscription latency_;
 	std::optional<std::uint16_t> localUdpPort_;
 	NetworkSummary network_;
+    struct LanState {
+        std::shared_ptr<const netplay::LanRooms> rooms = std::make_shared<const netplay::LanRooms>();
+        netplay::LanBrowserLease lease;
+        std::uint64_t receivedAt = 0, publishAt = 0;
+        netplay::RoomTransport transport = netplay::RoomTransport::Online;
+        void BeginEpoch() {
+            // View ids outlive epochs so delayed discovery events stay stale.
+            auto stopped = lease; stopped.Stop();
+            *this = LanState{}; lease = stopped;
+        }
+    } lan_;
 	netplay::IdentityView identity_;
 	// Bounded: a runtime that stopped draining cannot grow it without limit.
 	std::deque<TournamentAnswer> tournamentAnswers_;

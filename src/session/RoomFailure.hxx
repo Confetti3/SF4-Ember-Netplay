@@ -12,6 +12,8 @@ namespace session {
 
 enum class FailureStage {
 	Unknown,
+    LanUnavailable,
+    LanJoinFailed,
 	RelayUnreachable, // this PC's home relay never came online
 	HostUnreachable,  // no connection to the host opened, directly or through a relay
 	ControlLost,      // connected to the host, then the link kept dropping
@@ -24,6 +26,8 @@ enum class FailureStage {
 };
 
 inline FailureStage FailureStageFromHelper(const std::string& code, const std::string& reason) {
+    if(code=="lan_unavailable")return FailureStage::LanUnavailable;
+    if(code=="lan_join_failed")return FailureStage::LanJoinFailed;
 	if (code == "invalid_or_incompatible_invitation") {
 		if (reason == "expired") return FailureStage::InviteExpired;
 		if (reason == "other_build" || reason == "old_version") return FailureStage::InviteOtherBuild;
@@ -53,6 +57,8 @@ inline const char* FailureReasonLabel(const std::string& code, const std::string
 // Untranslated names for logs.
 inline const char* FailureStageLabel(FailureStage stage) {
 	switch (stage) {
+    case FailureStage::LanUnavailable: return "lan_unavailable";
+    case FailureStage::LanJoinFailed: return "lan_join_failed";
 	case FailureStage::RelayUnreachable: return "relay_unreachable";
 	case FailureStage::HostUnreachable: return "host_unreachable";
 	case FailureStage::ControlLost: return "control_lost";

@@ -85,6 +85,7 @@ bool IrohRoom::Begin(bool host) {
 	// the decode tickets, so a previous room's decode still in flight finds no
 	// pending entry and is dropped on arrival.
 	room_ = EpochState{};
+    lan_.BeginEpoch();
 	sender_ = CheckpointSender{};
 	replica_ = CommittedReplica{};
 	departure_.BeginEpoch();
@@ -96,14 +97,15 @@ bool IrohRoom::Begin(bool host) {
 	return Command("{\"type\":\"status\"}");
 }
 
-bool IrohRoom::Host(const std::string& build) {
+bool IrohRoom::Host(const std::string& build,netplay::RoomKind transport) {
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(true)) return false;
-	departure_.roomCommandQueued = Command(json{{"type", "host"}, {"epoch", epoch_}, {"build", build}}.dump());
+	departure_.roomCommandQueued = Command(json{{"type", "host"}, {"epoch", epoch_}, {"build", build},{"transport",netplay::RoomKindName(transport)}}.dump());
 	return departure_.roomCommandQueued;
 }
 
 bool IrohRoom::RequestShortInvitation() {
+    if(IsLan())return false;
 	if (!room_.shortInvitation.empty() || room_.shortPending) return true;
 	// A failed send is the request's failure, not the room's.
 	const bool open = room_.state == State::Ready || room_.state == State::Hosting || room_.state == State::Joining;
@@ -113,12 +115,39 @@ bool IrohRoom::RequestShortInvitation() {
 	return true;
 }
 
-bool IrohRoom::Join(const std::string& invitation, const std::string& build, bool observer) {
+void IrohRoom::WatchLan(bool wanted) {
+    const auto now=GetTickCount64();
+    if(!wanted){
+        const auto view=lan_.lease.Active();
+        if(view&&helper_.Send(json{{"type","lan_watch"},{"view",view},{"on",false}}.dump())){
+            lan_.lease.Stop();lan_.rooms=std::make_shared<const netplay::LanRooms>();
+        }
+        return;
+    }
+    const auto view=lan_.lease.Due(now);
+    if(view&&helper_.Send(json{{"type","lan_watch"},{"view",view},{"on",true}}.dump())){
+        if(!lan_.lease.Active()){lan_.rooms=std::make_shared<const netplay::LanRooms>();lan_.receivedAt=now;}
+        lan_.lease.Sent(view,now);
+    }
+    if(now-lan_.receivedAt>netplay::LanBrowserLease::ExpiryMs && lan_.rooms->status!="unavailable") {
+        auto unavailable=std::make_shared<netplay::LanRooms>(); unavailable->status="unavailable"; lan_.rooms=std::move(unavailable);
+    }
+}
+
+void IrohRoom::PublishLanRoom(const std::string& name,unsigned members,unsigned capacity) {
+    const auto now=GetTickCount64();
+    if(!IsLan()||room_.state!=State::Ready||now<lan_.publishAt||members<1||members>capacity||capacity>16)return;
+    if(helper_.Send(json{{"type","lan_room"},{"epoch",epoch_},{"name",name},{"members",members},{"capacity",capacity}}.dump()))lan_.publishAt=now+1000;
+}
+
+bool IrohRoom::Join(const std::string& invitation, const std::string& build, bool observer,netplay::RoomKind kind,const std::string& lanHost) {
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(false)) return false;
 	json request = {{"type", "join"}, {"epoch", epoch_}, {"invitation", invitation}, {"build", build}};
 	// Left out when false, so a plain join is the message every helper reads.
 	if (observer) request["observer"] = true;
+    request["transport"]=netplay::RoomKindName(kind);
+    if(!lanHost.empty())request["lan_host"]=lanHost;
 	departure_.roomCommandQueued = Command(request.dump());
 	return departure_.roomCommandQueued;
 }
@@ -872,6 +901,10 @@ void IrohRoom::Poll() {
 				spdlog::info("Room: helper UDP port {}", *localUdpPort_ ? std::to_string(*localUdpPort_) : "random");
 				continue;
 			}
+            if(type=="lan_rooms") {
+                if(lan_.lease.Active()&&event.at("view").get<std::uint64_t>()==lan_.lease.Active()){lan_.rooms=std::make_shared<const netplay::LanRooms>(netplay::ReadLanRooms(event));lan_.receivedAt=GetTickCount64();}
+                continue;
+            }
 			if (type == "network_report") {
 				// Endpoint-level, so it has no epoch.
 				auto report = ReadNetworkReport(event);
@@ -923,9 +956,9 @@ void IrohRoom::Poll() {
 			if (room_.state == State::Closing || room_.state == State::Idle || room_.state == State::Failed) continue;
 			if (ConsumeCoordinationEvent(event,type,body)) continue;
 			if (type == "discord_invite") {
-                const auto token = event.at("secret").get<std::string>();
+                const auto token = event.at("secret").is_null()?std::string():event.at("secret").get<std::string>();
                 const bool known=token.compare(0,5,"emd1:")==0 || token.compare(0,5,"emd2:")==0;
-                if (token.size()>128 || token.size()<6 || !known) {
+                if (token.empty() ? !IsLan() : (token.size()>128 || token.size()<6 || !known)) {
                     Fail("invalid_discord_invite");
                     return;
                 }
@@ -941,6 +974,7 @@ void IrohRoom::Poll() {
 				else ++shortFailures_;
 				spdlog::info("Room: short link {}", ready ? "ready" : "unavailable");
             } else if (type == "hosted" && room_.hosting && room_.state == State::Hosting) {
+                lan_.transport=netplay::ReadRoomTransport(event);
 				const auto room = event.at("room").get<std::array<std::uint8_t, 16>>();
 				if (room != room_.id) room_.localLatency = {};
 				room_.id = room;
@@ -948,6 +982,7 @@ void IrohRoom::Poll() {
 				room_.invitation = event.at("invitation").get<std::string>();
 				ReadyIfRebound();
 			} else if (type == "connected") {
+                lan_.transport=netplay::ReadRoomTransport(event);
 				if (!HandleConnected(event)) return;
 			} else if (type == "member_latency") {
 				latency_.Read(event, epoch_, room_.id);

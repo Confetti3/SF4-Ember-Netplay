@@ -116,7 +116,10 @@ pub(super) struct ShortPublished {
 
 impl Actor {
     fn current_invite(&self) -> Option<Invite> {
-        self.room_invite.clone().or_else(|| self.hosted.clone())
+        self.room_invite
+            .clone()
+            .or_else(|| self.hosted.clone())
+            .filter(|invite| !invite.is_lan())
     }
 
     fn emit_short(&self, epoch: u64, code: Option<&str>) -> io::Result<()> {

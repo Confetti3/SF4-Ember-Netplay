@@ -33,6 +33,16 @@ impl Actor {
     pub(super) fn spawn_host(&mut self, epoch: u64, build: String, room: Option<[u8; 16]>) {
         let endpoint = self.endpoint.clone();
         let latency = self.latency_binding();
+        if self.transport == transport::Transport::Lan {
+            self.tasks.spawn(async move {
+                let (result, latency) = super::latency::beside(latency, async {
+                    now().and_then(|time| Invite::create_lan(endpoint.id(), build, time))
+                })
+                .await;
+                Completion::Hosted(epoch, result, latency)
+            });
+            return;
+        }
         self.tasks.spawn(async move {
             let (result, latency) = super::latency::beside(latency, async {
                 timeout(transport::HANDSHAKE_TIMEOUT, async {
@@ -53,7 +63,7 @@ impl Actor {
         });
     }
 
-    pub(super) fn host_public(
+    pub(super) async fn host_public(
         &mut self,
         id: u64,
         epoch: u64,
@@ -61,7 +71,10 @@ impl Actor {
         room: [u8; 16],
         keys: (&str, &str, &str, &str),
     ) -> io::Result<()> {
-        if !self.begin(epoch, &build) {
+        if !self
+            .begin(epoch, &build, transport::Transport::Online)
+            .await
+        {
             return self.error_at(id, epoch, "invalid_room_state");
         }
         let (ticket_key, ticket_kid, bridge_id, creator) = keys;
@@ -75,7 +88,7 @@ impl Actor {
         Ok(())
     }
 
-    pub(super) fn join_public(
+    pub(super) async fn join_public(
         &mut self,
         id: u64,
         epoch: u64,
@@ -83,7 +96,10 @@ impl Actor {
         build: String,
         ticket: SignedRoomTicket,
     ) -> io::Result<()> {
-        if !self.begin(epoch, &build) {
+        if !self
+            .begin(epoch, &build, transport::Transport::Online)
+            .await
+        {
             return self.error_at(id, epoch, "invalid_room_state");
         }
         // Set before the join so a refused one clears it with the room.
@@ -96,10 +112,9 @@ impl Actor {
     /// The accounts of the live and waiting controls and the endpoint each
     /// came from.
     fn held_accounts(&self) -> BTreeMap<EmberId, EndpointId> {
-        let live = self
-            .controls
-            .iter()
-            .filter_map(|(peer, control)| control.account().map(|account| (account.clone(), *peer)));
+        let live = self.controls.iter().filter_map(|(peer, control)| {
+            control.account().map(|account| (account.clone(), *peer))
+        });
         let waiting = self.parked_controls.iter().filter_map(|(peer, parked)| {
             parked
                 .channel
@@ -219,9 +234,7 @@ pub(super) fn host_invite(
     room: Option<[u8; 16]>,
 ) -> io::Result<Invite> {
     match room {
-        Some(room) => {
-            Invite::create_in_room(endpoint, relay, build, now()?, INVITE_LIFETIME, room)
-        }
+        Some(room) => Invite::create_in_room(endpoint, relay, build, now()?, INVITE_LIFETIME, room),
         None => Invite::create(endpoint, relay, build, now()?, INVITE_LIFETIME),
     }
 }
@@ -251,6 +264,7 @@ impl Actor {
                 self.latency_adopt(epoch, latency);
                 let (latency, latency_relay) = self.latency_route();
                 self.emit(Event::Hosted {
+                    transport: self.transport,
                     epoch,
                     invitation: invite.encode()?,
                     room: invite.room(),
@@ -260,7 +274,7 @@ impl Actor {
                 self.emit(Event::DiscordInvite {
                     epoch,
                     invitation: invite.encode()?,
-                    secret: invite.encode_discord()?,
+                    secret: if invite.is_lan() { None } else { Some(invite.encode_discord()?) },
                 })?;
                 self.hosted = Some(invite);
                 self.room_invite = self.hosted.clone();

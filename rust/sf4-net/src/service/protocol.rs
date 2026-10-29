@@ -81,7 +81,21 @@ pub(super) enum CoordinationControl {
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
     Status,
+    /// Display metadata from the native room's committed snapshot.
+    LanRoom {
+        epoch: u64,
+        name: String,
+        capacity: u8,
+        members: u8,
+    },
+    /// Renewed by the visible browser, expires if the UI stops asking.
+    LanWatch {
+        view: u64,
+        on: bool,
+    },
     Host {
+        #[serde(default)]
+        transport: transport::RoomKind,
         epoch: u64,
         build: String,
     },
@@ -94,6 +108,10 @@ pub enum Command {
         /// true.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         observer: bool,
+        #[serde(default)]
+        transport: transport::RoomKind,
+        #[serde(default)]
+        lan_host: Option<EndpointId>,
     },
     /// Host a public (server-owned) room. `ticket_key` is the bridge's public
     /// key as `/v1/signing-keys` publishes it; members are admitted by tickets
@@ -238,10 +256,15 @@ pub enum Command {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Event {
+    LanRooms {
+        view: u64,
+        status: String,
+        rooms: Vec<crate::lan::Room>,
+    },
     DiscordInvite {
         epoch: u64,
         invitation: String,
-        secret: String,
+        secret: Option<String>,
     },
     /// The answer to `Command::ShortInvite`: `status` is `ready` with the
     /// link, or `unavailable` with an empty link when the link service could
@@ -374,6 +397,7 @@ pub enum Event {
         captive_portal: bool,
     },
     Hosted {
+        transport: transport::Transport,
         epoch: u64,
         invitation: String,
         room: [u8; 16],
@@ -385,6 +409,7 @@ pub enum Event {
         latency_relay: Option<String>,
     },
     Connected {
+        transport: transport::Transport,
         epoch: u64,
         peer: EndpointId,
         room: [u8; 16],

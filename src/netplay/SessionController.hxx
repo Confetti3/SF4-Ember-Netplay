@@ -37,6 +37,8 @@ struct Command {
     Generation generation;
     std::string invitation;
     bool benchmark = false;
+    // A discovered LAN endpoint, never an invitation or a saved paste field.
+    std::string lanHost;
 };
 
 struct Event {

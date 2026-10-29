@@ -24,6 +24,7 @@ pub const MAX_CLOCK_SKEW_SECS: u64 = 24 * 60 * 60;
 const PREFIX: &str = "sf4e2:";
 const RECOVERY_PREFIX: &str = "sf4e3:";
 const LEGACY_PREFIX: &str = "sf4e1:";
+const LAN_PREFIX: &str = "sf4l1:";
 const DISCORD_PREFIX: &str = "emd1:";
 const RECOVERY_DISCORD_PREFIX: &str = "emd2:";
 /// The bytes of a compact record before its build: all a Discord text
@@ -71,12 +72,17 @@ pub fn public_route(remote: Option<&TransportAddr>) -> String {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+enum Route { Relay(RelayUrl), Lan }
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Invite {
     version: u16,
     endpoint: EndpointId,
-    relay: RelayUrl,
+    #[serde(rename = "relay")]
+    route: Route,
     room: [u8; 16],
     capability: [u8; 32],
     expires: u64,
@@ -183,7 +189,7 @@ impl Invite {
         let invite = Self {
             version: VERSION,
             endpoint,
-            relay,
+            route: Route::Relay(relay),
             room,
             capability: rand::random(),
             expires: now.checked_add(lifetime).ok_or_else(invalid)?,
@@ -204,7 +210,7 @@ impl Invite {
             || self.expires - now > MAX_INVITE_LIFETIME_SECS + MAX_CLOCK_SKEW_SECS
             || self.build.is_empty()
             || self.build.len() > 128
-            || !relay_allowed(&self.relay)
+            || matches!(&self.route, Route::Relay(relay) if !relay_allowed(relay))
             || self.coordination_endpoint.is_some_and(|endpoint| {
                 endpoint == self.endpoint
                     || self.authority_term == 0
@@ -249,6 +255,7 @@ impl Invite {
             return Err(invalid());
         }
         let invite = Self::decode_text(text)?;
+        if invite.is_lan() != Self::is_lan_text(text) { return Err(invalid()); }
         invite.validate(now)?;
         Ok(invite)
     }
@@ -262,7 +269,7 @@ impl Invite {
         } else if let Some(payload) = text.strip_prefix(RECOVERY_PREFIX) {
             Self::decode_recovery_compact(&decode(payload)?)
         } else {
-            let bytes = decode(text.strip_prefix(LEGACY_PREFIX).ok_or_else(invalid)?)?;
+            let bytes = decode(text.strip_prefix(LEGACY_PREFIX).or_else(|| text.strip_prefix(LAN_PREFIX)).ok_or_else(invalid)?)?;
             serde_json::from_slice(&bytes).map_err(|_| invalid())
         }
     }
@@ -313,11 +320,11 @@ impl Invite {
         Ok(Self {
             version: u16::from_le_bytes(bytes[0..2].try_into().map_err(|_| invalid())?),
             endpoint: endpoint_at(2)?,
-            relay: RELAYS
+            route: Route::Relay(RELAYS
                 .get(bytes[34] as usize)
                 .ok_or_else(invalid)?
                 .parse()
-                .map_err(|_| invalid())?,
+                .map_err(|_| invalid())?),
             room: bytes[35..51].try_into().map_err(|_| invalid())?,
             capability: bytes[51..83].try_into().map_err(|_| invalid())?,
             expires: u64_at(83)?,
@@ -332,6 +339,11 @@ impl Invite {
 
     /// Call only for explicit clipboard/invite export. Never log the result.
     pub fn encode(&self) -> io::Result<String> {
+        if self.is_lan() {
+            let bytes = serde_json::to_vec(self).map_err(|_| invalid())?;
+            let text = format!("{LAN_PREFIX}{}", URL_SAFE_NO_PAD.encode(bytes));
+            return if text.len() <= MAX_INVITE_LENGTH { Ok(text) } else { Err(invalid()) };
+        }
         let bytes = self.compact_bytes()?;
         let prefix = if self.coordination_endpoint.is_some() {
             RECOVERY_PREFIX
@@ -347,11 +359,12 @@ impl Invite {
 
     /// The compact record `decode_record` reads.
     fn compact_bytes(&self) -> io::Result<Vec<u8>> {
+        let Route::Relay(route) = &self.route else { return Err(invalid()); };
         let relay = RELAYS
             .iter()
             .position(|url| {
                 url.parse::<RelayUrl>()
-                    .is_ok_and(|relay| relay == self.relay)
+                    .is_ok_and(|relay| relay == *route)
             })
             .ok_or_else(invalid)?;
         if self.build.is_empty() || self.build.len() > 128 {
@@ -373,8 +386,22 @@ impl Invite {
         Ok(bytes)
     }
 
+    fn route_address(&self, endpoint: EndpointId) -> EndpointAddr {
+        let address = EndpointAddr::new(endpoint);
+        match &self.route { Route::Relay(relay) => address.with_relay_url(relay.clone()), Route::Lan => address }
+    }
+    pub fn is_lan(&self) -> bool { matches!(self.route, Route::Lan) }
+    pub fn is_lan_text(text: &str) -> bool { text.trim().starts_with(LAN_PREFIX) }
+    pub fn create_lan(endpoint: EndpointId, build: String, now: u64) -> io::Result<Self> {
+        let lifetime = MAX_INVITE_LIFETIME_SECS;
+        if lifetime == 0 || lifetime > MAX_INVITE_LIFETIME_SECS { return Err(invalid()); }
+        let invite = Self { version: VERSION, endpoint, route: Route::Lan, room: rand::random(),
+            capability: rand::random(), expires: now.checked_add(lifetime).ok_or_else(invalid)?, build,
+            coordination_endpoint: None, authority_term: 0, authority_incarnation: 0 };
+        invite.validate(now)?; Ok(invite)
+    }
     pub fn address(&self) -> EndpointAddr {
-        EndpointAddr::new(self.endpoint).with_relay_url(self.relay.clone())
+        self.route_address(self.endpoint)
     }
 
     pub fn coordination_endpoint(&self) -> Option<EndpointId> {
@@ -383,7 +410,7 @@ impl Invite {
 
     pub fn coordination_address(&self) -> Option<EndpointAddr> {
         self.coordination_endpoint
-            .map(|endpoint| EndpointAddr::new(endpoint).with_relay_url(self.relay.clone()))
+            .map(|endpoint| self.route_address(endpoint))
     }
 
     pub fn authority_term(&self) -> u64 {
@@ -679,14 +706,14 @@ mod tests {
     fn discord_ticket_preserves_capability_and_host_checks_build_and_expiry() {
         for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
             let mut original = invite();
-            original.relay = relay;
+            original.route = Route::Relay(relay);
             original.build = "a".repeat(64);
             let token = original.encode_discord().unwrap();
             assert_eq!(token.len(), 127);
             let guest = Invite::parse_for_build(&token, 101, original.build()).unwrap();
             assert_eq!(guest.room, original.room);
             assert_eq!(guest.endpoint, original.endpoint);
-            assert_eq!(guest.relay, original.relay);
+            assert_eq!(guest.route, original.route);
             assert_eq!(guest.capability, original.capability);
             assert_eq!(guest.encode_discord().unwrap(), token);
             original.admit(&guest.proof(), 101).unwrap();
@@ -760,7 +787,7 @@ mod tests {
     fn compact_invites_preserve_every_field_and_accept_legacy() {
         for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
             let mut original = invite();
-            original.relay = relay;
+            original.route = Route::Relay(relay);
             original.build = "a".repeat(64); // Production sidecar SHA-256 string.
             let compact = original.encode().unwrap();
             let old = legacy(&original);
@@ -769,7 +796,7 @@ mod tests {
             for token in [compact, old] {
                 let decoded = Invite::parse(&token, 101).unwrap();
                 assert_eq!(decoded.endpoint, original.endpoint);
-                assert_eq!(decoded.relay, original.relay);
+                assert_eq!(decoded.route, original.route);
                 assert_eq!(decoded.expires, original.expires);
                 original.admit(&decoded.proof(), 101).unwrap();
             }
@@ -877,7 +904,7 @@ mod tests {
             "https://use1-1.relay.n0.iroh.link./extra",
         ] {
             let mut unsafe_invite = invite();
-            unsafe_invite.relay = relay.parse().unwrap();
+            unsafe_invite.route = Route::Relay(relay.parse().unwrap());
             assert!(unsafe_invite.encode().is_err());
             assert!(Invite::parse(&legacy(&unsafe_invite), 101).is_err());
         }
@@ -895,7 +922,7 @@ mod tests {
         Invite {
             version: VERSION,
             endpoint: iroh::SecretKey::from_bytes(&[7; 32]).public(),
-            relay: RELAYS[1].parse().unwrap(),
+            route: Route::Relay(RELAYS[1].parse().unwrap()),
             room: [0x11; 16],
             capability: [0x22; 32],
             expires: 1_000_000,
@@ -954,7 +981,7 @@ mod tests {
         let same = |a: &Invite, b: &Invite| {
             a.version == b.version
                 && a.endpoint == b.endpoint
-                && a.relay == b.relay
+                && a.route == b.route
                 && a.room == b.room
                 && a.capability == b.capability
                 && a.expires == b.expires

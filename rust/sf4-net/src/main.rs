@@ -17,9 +17,9 @@ fn start() -> std::io::Result<()> {
     let name = args
         .next()
         .ok_or_else(|| std::io::Error::other("missing pipe name"))?;
-    let relay_only = match args.next().as_deref() {
-        None => false,
-        Some("--relay-only") => true,
+    let transport = match args.next().as_deref() {
+        None => transport::Transport::Online,
+        Some("--relay-only") => transport::Transport::RelayOnly,
         _ => return Err(std::io::Error::other("invalid helper option")),
     };
     if args.next().is_some() || !ipc::valid_pipe_name(&name) {
@@ -34,8 +34,8 @@ fn start() -> std::io::Result<()> {
             let pipe = ipc::create_server(&name)?;
             let pipe = ipc::authenticate(pipe, &bootstrap).await?;
             drop(bootstrap);
-            let endpoint = transport::bind_endpoint_with_policy(relay_only).await?;
-            service::run(pipe, endpoint, relay_only).await
+            let endpoint = transport::bind_endpoint_with_policy(transport).await?;
+            service::run(pipe, endpoint, transport).await
         })
 }
 

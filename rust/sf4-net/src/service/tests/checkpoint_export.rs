@@ -551,7 +551,7 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
             voter_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -571,7 +571,7 @@ async fn held_checkpoint_and_admission_writes_do_not_block_actor_or_import_stale
             joining_primary.id(),
             recovery.incarnation,
             recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();

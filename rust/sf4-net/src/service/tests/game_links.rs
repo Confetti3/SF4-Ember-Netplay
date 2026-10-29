@@ -183,7 +183,7 @@ async fn closing_room_does_not_poison_new_room_on_same_endpoint() {
         .await
         .unwrap();
     let _ = next(&mut events, "room_closed").await;
-    assert!(actor.begin(2, "test-build"));
+    assert!(actor.begin(2, "test-build", crate::transport::Transport::Online).await);
     actor
         .completed(Completion::Hosted(2, Ok(replacement.clone()), None))
         .await
@@ -532,6 +532,7 @@ async fn actor_routes_cpp_control_and_keeps_gameplay_alive_when_control_closes()
                 .send(Request {
                     id: 11,
                     command: Command::Host {
+                        transport: crate::transport::RoomKind::Online,
                         epoch: 2,
                         build: "test-build".into(),
                     },

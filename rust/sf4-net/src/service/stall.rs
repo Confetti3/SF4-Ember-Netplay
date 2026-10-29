@@ -24,7 +24,12 @@ pub(super) struct Step<'a>(&'a Busy);
 
 impl Busy {
     pub(super) fn new(events: mpsc::Sender<Event>) -> Arc<Self> {
-        Arc::new(Self { origin: Instant::now(), since: AtomicU64::new(0), stage: Mutex::new(""), events })
+        Arc::new(Self {
+            origin: Instant::now(),
+            since: AtomicU64::new(0),
+            stage: Mutex::new(""),
+            events,
+        })
     }
 
     pub(super) fn enter(&self, stage: &'static str) -> Step<'_> {
@@ -102,6 +107,8 @@ impl Drop for Step<'_> {
 pub(super) fn command_stage(command: &Command) -> &'static str {
     match command {
         Command::Status => "command:status",
+        Command::LanRoom { .. } => "command:lan_room",
+        Command::LanWatch { .. } => "command:lan_watch",
         Command::Host { .. } => "command:host",
         Command::Join { .. } => "command:join",
         Command::HostPublic { .. } => "command:host_public",
@@ -127,6 +134,7 @@ pub(super) fn command_stage(command: &Command) -> &'static str {
 
 pub(super) fn completion_stage(completion: &Completion) -> &'static str {
     match completion {
+        Completion::LanInvitation(..) => "task:lan_invitation",
         Completion::GuestControl(..) => "task:guest_control",
         Completion::Incoming(..) => "task:incoming",
         Completion::ClassifiedGame(..) => "task:classified_game",
@@ -296,7 +304,12 @@ mod tests {
         }
         let mut seen = Vec::new();
         while let Ok(event) = receiver.try_recv() {
-            if let Event::HelperStall { stage, stalled_ms, ended } = event {
+            if let Event::HelperStall {
+                stage,
+                stalled_ms,
+                ended,
+            } = event
+            {
                 seen.push((stage, stalled_ms, ended));
             }
         }

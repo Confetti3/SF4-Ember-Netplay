@@ -24,7 +24,7 @@ pub struct Options {
     /// Exact UDP port for the per-room coordination endpoint when hosting;
     /// `None` keeps the default policy.
     pub coordination_port: Option<u16>,
-    pub relay_only: bool,
+    pub transport: crate::transport::Transport,
 }
 
 /// One `--<name> <u16>` value, from 1 to 65535, given at most once.
@@ -59,11 +59,11 @@ pub fn parse_args<I: IntoIterator<Item = String>>(args: I) -> Result<Options, St
                 &mut args,
                 &mut options.coordination_port,
             )?,
-            "--relay-only" if !options.relay_only => options.relay_only = true,
+            "--relay-only" if options.transport == crate::transport::Transport::Online => options.transport = crate::transport::Transport::RelayOnly,
             other => return Err(format!("unexpected argument {other:?}")),
         }
     }
-    if options.relay_only && (options.bind_port.is_some() || options.coordination_port.is_some()) {
+    if options.transport == crate::transport::Transport::RelayOnly && (options.bind_port.is_some() || options.coordination_port.is_some()) {
         return Err("a bind port cannot be combined with --relay-only".into());
     }
     // Two UDP sockets cannot share a port.
@@ -79,13 +79,13 @@ pub async fn serve<R, W>(
     input: R,
     output: W,
     endpoint: Endpoint,
-    relay_only: bool,
+    transport: crate::transport::Transport,
 ) -> io::Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    serve_on_port(input, output, endpoint, relay_only, None).await
+    serve_on_port(input, output, endpoint, transport, None).await
 }
 
 /// `serve` with the exact UDP port for the coordination endpoint of a room
@@ -94,7 +94,7 @@ pub async fn serve_on_port<R, W>(
     input: R,
     output: W,
     endpoint: Endpoint,
-    relay_only: bool,
+    transport: crate::transport::Transport,
     coordination_port: Option<u16>,
 ) -> io::Result<()>
 where
@@ -104,7 +104,7 @@ where
     service::run_on_port(
         tokio::io::join(input, output),
         endpoint,
-        relay_only,
+        transport,
         coordination_port,
         OnEof::Shutdown,
     )
@@ -142,13 +142,13 @@ pub fn main<I: IntoIterator<Item = String>>(args: I) -> i32 {
         let (input, output) = stdio_pipes()?;
         let endpoint = match options.bind_port {
             Some(port) => crate::transport::bind_endpoint_on_port(port).await?,
-            None => crate::transport::bind_endpoint_with_policy(options.relay_only).await?,
+            None => crate::transport::bind_endpoint_with_policy(options.transport).await?,
         };
         serve_on_port(
             input,
             output,
             endpoint,
-            options.relay_only,
+            options.transport,
             options.coordination_port,
         )
         .await
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(
             args(&["--stdio", "--relay-only"]),
             Ok(Options {
-                relay_only: true,
+                transport: crate::transport::Transport::RelayOnly,
                 ..Options::default()
             })
         );
@@ -234,7 +234,7 @@ mod tests {
             Ok(Options {
                 bind_port: Some(45760),
                 coordination_port: Some(45770),
-                relay_only: false
+                transport: crate::transport::Transport::Online
             })
         );
         for bad in [
@@ -312,7 +312,7 @@ mod tests {
     async fn a_shutdown_command_stops_the_service_cleanly() {
         timeout(Duration::from_secs(20), async {
             let ((mut commands, input), (mut events, output)) = (duplex(4096), duplex(4096));
-            let service = tokio::spawn(serve(input, output, endpoint().await, false));
+            let service = tokio::spawn(serve(input, output, endpoint().await, crate::transport::Transport::Online));
             wire::write_ipc(&mut commands, &command(2, r#"{"type":"shutdown"}"#))
                 .await
                 .unwrap();
@@ -330,7 +330,7 @@ mod tests {
     async fn the_end_of_input_stops_the_service_cleanly_after_earlier_commands() {
         timeout(Duration::from_secs(20), async {
             let ((mut commands, input), (mut events, output)) = (duplex(4096), duplex(4096));
-            let service = tokio::spawn(serve(input, output, endpoint().await, false));
+            let service = tokio::spawn(serve(input, output, endpoint().await, crate::transport::Transport::Online));
             wire::write_ipc(&mut commands, &command(2, r#"{"type":"status"}"#))
                 .await
                 .unwrap();
@@ -348,7 +348,7 @@ mod tests {
     async fn input_that_ends_inside_a_frame_also_stops_cleanly() {
         timeout(Duration::from_secs(20), async {
             let ((mut commands, input), (mut events, output)) = (duplex(4096), duplex(4096));
-            let service = tokio::spawn(serve(input, output, endpoint().await, false));
+            let service = tokio::spawn(serve(input, output, endpoint().await, crate::transport::Transport::Online));
             tokio::io::AsyncWriteExt::write_all(&mut commands, &[0, 0, 0, 30, 0])
                 .await
                 .unwrap();
@@ -367,7 +367,7 @@ mod tests {
     async fn a_malformed_frame_fails_the_service() {
         timeout(Duration::from_secs(20), async {
             let ((mut commands, input), (_events, output)) = (duplex(4096), duplex(4096));
-            let service = tokio::spawn(serve(input, output, endpoint().await, false));
+            let service = tokio::spawn(serve(input, output, endpoint().await, crate::transport::Transport::Online));
             // A frame length of zero is out of bounds.
             tokio::io::AsyncWriteExt::write_all(&mut commands, &[0; 16])
                 .await
@@ -386,7 +386,7 @@ mod tests {
         for ids in [&[1][..], &[2, 2], &[5, 4]] {
             timeout(Duration::from_secs(20), async {
                 let ((mut commands, input), (_events, output)) = (duplex(4096), duplex(4096));
-                let service = tokio::spawn(serve(input, output, endpoint().await, false));
+                let service = tokio::spawn(serve(input, output, endpoint().await, crate::transport::Transport::Online));
                 for &id in ids {
                     wire::write_ipc(&mut commands, &command(id, r#"{"type":"status"}"#))
                         .await

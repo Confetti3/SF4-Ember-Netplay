@@ -100,7 +100,7 @@ impl Room {
             primary.id(),
             self.recovery.incarnation,
             self.recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -228,7 +228,7 @@ async fn a_named_watcher_is_a_learner_however_many_watch() {
                 primary,
                 room.recovery.incarnation,
                 room.recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();
@@ -473,7 +473,7 @@ async fn a_fighter_back_on_a_new_endpoint_before_the_bind_leaves_the_room_commit
             back.id(),
             room.recovery.incarnation,
             room.recovery.coordination_address.clone(),
-            false,
+            crate::transport::Transport::Online,
         )
         .await
         .unwrap();
@@ -673,7 +673,7 @@ async fn a_stranger_that_keeps_presenting_admissions_is_still_retired_and_closed
                 stranger.id(),
                 room.recovery.incarnation,
                 room.recovery.coordination_address.clone(),
-                false,
+                crate::transport::Transport::Online,
             )
             .await
             .unwrap();

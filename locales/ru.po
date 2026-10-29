@@ -6,6 +6,39 @@ msgstr ""
 msgid "app.name"
 msgstr "SF4 Ember Netplay"
 
+msgid "lan.title"
+msgstr "Игра по LAN"
+
+msgid "lan.detail"
+msgstr "Поиск комнат в одной локальной сети. Интернет не требуется."
+
+msgid "lan.host"
+msgstr "Создать LAN-комнату"
+
+msgid "lan.host_detail"
+msgstr "Любой участник этой локальной сети может найти комнату и войти. Steam и поддерживаемая игра по-прежнему нужны."
+
+msgid "lan.incompatible"
+msgstr "Другая сборка Ember. Обоим игрокам нужен одинаковый пакет."
+
+msgid "lan.full"
+msgstr "Комната заполнена"
+
+msgid "lan.join_detail"
+msgstr "Войти в комнату по локальной сети."
+
+msgid "lan.unavailable"
+msgstr "Поиск LAN недоступен. Проверьте сеть и брандмауэр."
+
+msgid "lan.searching"
+msgstr "Поиск LAN-комнат"
+
+msgid "lan.search_detail"
+msgstr "Подключите оба ПК к одной сети или точке доступа. Изоляция гостевой сети или брандмауэр могут мешать поиску."
+
+msgid "lan.join_failed"
+msgstr "Не удалось войти в LAN-комнату. Хозяин мог выйти, либо соединение заблокировано."
+
 msgid "common.back"
 msgstr "Назад"
 

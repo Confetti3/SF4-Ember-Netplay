@@ -680,6 +680,8 @@ PostPublishState Publish() {
 	if (runtime->room) {
 		snapshot.invitation = runtime->room->Invitation();
 		snapshot.shortInvitation = runtime->room->ShortInvitation();
+        snapshot.lanRooms = runtime->room->LanRooms();
+        snapshot.transport = runtime->room->Transport();
 		snapshot.shortInvitationPending = runtime->room->ShortInvitationPending();
 		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
 		snapshot.memberLatency = runtime->room->MemberLatencies();
@@ -759,6 +761,7 @@ void PumpDiscordClient() {
 }
 
 static netplay::LatencyBoardPulse latencyBoard;
+static netplay::LanBrowserPulse lanBrowser;
 // The board's kind of pulse, for the fighter selector.
 static netplay::LatencyBoardPulse fighterSelector;
 
@@ -778,6 +781,16 @@ void TickMemberLatency() {
 	const auto& room = runtime->attached && UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot() : none;
 	const bool shown = latencyBoard.Shown(room.roomEpoch, GetTickCount64());
 	runtime->room->WatchLatency(netplay::LatencyWanted(shown, session.room, session.match, room, runtime->replacementPending));
+}
+
+void TickLan() {
+    if(!runtime->room)return;
+    const auto session=runtime->controller.GetSnapshot();
+    runtime->room->WatchLan(session.room==netplay::RoomState::Idle && lanBrowser.Shown(GetTickCount64()));
+    if(runtime->attached && UserApp::netplay){
+        const auto& room=UserApp::netplay->client.GetRoomSnapshot();
+        runtime->room->PublishLanRoom(room.name,static_cast<unsigned>(room.members.size()),room.capacity);
+    }
 }
 
 void PublishAndTickDiscordInvite() {
@@ -808,6 +821,8 @@ std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, boo
     // menu; until then, and while native GGPO lives, nothing is retired yet.
     return match && !ggpoLive && !recovering ? match->RetiredGeneration() : 0;
 }
+
+void NoteLanBrowser() { internal::lanBrowser.Note(GetTickCount64()); }
 
 void NoteLatencyBoard(std::uint64_t roomGeneration) {
 	internal::latencyBoard.Note(roomGeneration, GetTickCount64());

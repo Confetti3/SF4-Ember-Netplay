@@ -108,6 +108,7 @@ mod entry;
 mod events;
 mod games;
 mod join;
+mod lan;
 mod latency;
 mod members;
 mod network;
@@ -164,8 +165,14 @@ struct IncomingGame {
     deadline: tokio::time::Instant,
 }
 enum Completion {
+    LanInvitation(u64, u64, String, io::Result<String>),
     /// A join's control, with the latency endpoint bound beside it.
-    GuestControl(u64, Invite, io::Result<ControlChannel>, Option<latency::LatencyEndpoint>),
+    GuestControl(
+        u64,
+        Invite,
+        io::Result<ControlChannel>,
+        Option<latency::LatencyEndpoint>,
+    ),
     Incoming(u64, io::Result<Connection>),
     ClassifiedGame(IncomingGame, io::Result<transport::GameStream>),
     /// A hosted room's invitation, with its latency endpoint.
@@ -299,7 +306,8 @@ struct CoordinationMarker {
 
 struct Actor {
     endpoint: Endpoint,
-    relay_only: bool,
+    lan: lan::State,
+    transport: transport::Transport,
     epoch: u64,
     opening: bool,
     room: Option<[u8; 16]>,
@@ -525,6 +533,7 @@ impl Actor {
     }
 
     fn clear_room(&mut self) {
+        self.lan.unadvertise(&self.endpoint);
         if let Some(recovery) = self.recovery.take() {
             tokio::spawn(async move {
                 recovery.stop().await;
@@ -582,7 +591,7 @@ impl Actor {
         self.public = None;
         self.latency_clear();
     }
-    fn begin(&mut self, epoch: u64, build: &str) -> bool {
+    async fn begin(&mut self, epoch: u64, build: &str, policy: transport::Transport) -> bool {
         if epoch <= self.epoch || epoch > i64::MAX as u64 || build.is_empty() || build.len() > 128 {
             return false;
         }
@@ -603,6 +612,14 @@ impl Actor {
         }
         self.epoch = epoch;
         self.opening = true;
+        if policy == transport::Transport::Lan {
+            if self.start_lan(true).await.is_err() {
+                self.clear_room();
+                return false;
+            }
+        } else {
+            self.stop_lan().await;
+        }
         true
     }
     fn matches(&self, epoch: u64) -> bool {
@@ -660,8 +677,19 @@ impl Actor {
             Command::Shutdown => return Ok(false),
             // The IPC reader routes these to the tournament worker.
             Command::Tournament { .. } => self.error(id, "invalid_request")?,
-            Command::Host { epoch, build } => {
-                if !self.begin(epoch, &build) {
+            Command::LanWatch { view, on } => self.lan_watch(view, on).await?,
+            Command::LanRoom {
+                epoch,
+                name,
+                capacity,
+                members,
+            } => self.lan_room(epoch, name, capacity, members),
+            Command::Host {
+                epoch,
+                build,
+                transport,
+            } => {
+                if !self.begin(epoch, &build, transport.into()).await {
                     self.error_at(id, epoch, "invalid_room_state")?;
                     return Ok(true);
                 }
@@ -675,26 +703,32 @@ impl Actor {
                 ticket_kid,
                 bridge_id,
                 creator,
-            } => self.host_public(
-                id,
-                epoch,
-                build,
-                room,
-                (&ticket_key, &ticket_kid, &bridge_id, &creator),
-            )?,
+            } => {
+                self.host_public(
+                    id,
+                    epoch,
+                    build,
+                    room,
+                    (&ticket_key, &ticket_kid, &bridge_id, &creator),
+                )
+                .await?
+            }
             Command::JoinPublic {
                 epoch,
                 invitation,
                 ticket,
                 build,
-            } => self.join_public(id, epoch, &invitation, build, ticket)?,
+            } => {
+                self.join_public(id, epoch, &invitation, build, ticket)
+                    .await?
+            }
             Command::BanAccount { epoch, account } => self.ban_account(id, epoch, &account)?,
             Command::Join {
                 epoch,
                 invitation,
                 build,
-                observer,
-            } => self.join_command(id, epoch, &invitation, build, observer)?,
+                observer, transport, lan_host,
+            } => self.join_command(id, epoch, &invitation, build, observer, transport, lan_host).await?,
             Command::ShortInvite { epoch } => self.short_invite_command(epoch)?,
             Command::LatencyWatch { epoch, room, view, on } => self.latency_watch(epoch, room, view, on),
             Command::Send {
@@ -820,6 +854,9 @@ impl Actor {
             Completion::ShortAdopted(epoch, code, found) => {
                 self.completed_short_adopt(epoch, code, found)
             }
+            Completion::LanInvitation(epoch, id, build, result) => {
+                self.completed_lan_invitation(epoch, id, build, result)
+            }
         }
     }
 
@@ -890,6 +927,7 @@ impl Actor {
                     let _step = busy.enter("latency:outbound");
                     self.latency_outbound_done(result).await;
                 }
+                _ = self.lan.serving.join_next(), if !self.lan.serving.is_empty() => {},
                 result = self.tasks.join_next(), if !self.tasks.is_empty() => {
                     tick_now(tick.as_mut());
                     let _step = busy.enter(match &result { Some(Ok(completion)) => stall::completion_stage(completion), _ => "task" });
@@ -926,6 +964,7 @@ impl Actor {
                 },
                 _ = statistics.tick() => {
                     let _step = busy.enter("statistics");
+                    self.pump_lan().await?;
                     statistics_ticks = statistics_ticks.wrapping_add(1);
                     self.second(statistics_ticks, &busy, &mut load, &mut reported_network).await?;
                 }

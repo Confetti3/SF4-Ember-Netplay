@@ -7,7 +7,7 @@ async fn authenticated_iroh_commit_and_host_loss() {
     let mut nodes = Vec::new();
     let mut tasks = JoinSet::new();
     for id in 1..=3 {
-        let transport = IrohRpc::bind([7; 16], id, false).await.unwrap();
+        let transport = IrohRpc::bind([7; 16], id, crate::transport::Transport::Online).await.unwrap();
         let node = Arc::new(Coordinator::new(id, transport.clone()).await.unwrap());
         transports.push(transport);
         nodes.push(node);
@@ -93,9 +93,9 @@ async fn authenticated_iroh_commit_and_host_loss() {
 
 #[tokio::test]
 async fn primary_binding_is_unique_until_incarnation_revoke() {
-    let router = IrohRpc::bind([8; 16], 1, false).await.unwrap();
-    let first = IrohRpc::bind([8; 16], 2, false).await.unwrap();
-    let second = IrohRpc::bind([8; 16], 3, false).await.unwrap();
+    let router = IrohRpc::bind([8; 16], 1, crate::transport::Transport::Online).await.unwrap();
+    let first = IrohRpc::bind([8; 16], 2, crate::transport::Transport::Online).await.unwrap();
+    let second = IrohRpc::bind([8; 16], 3, crate::transport::Transport::Online).await.unwrap();
     let primary = router.identity();
 
     router
@@ -122,8 +122,8 @@ async fn primary_binding_is_unique_until_incarnation_revoke() {
 
 #[tokio::test]
 async fn own_incarnation_and_coordination_key_are_never_bound() {
-    let router = IrohRpc::bind([10; 16], 1, false).await.unwrap();
-    let peer = IrohRpc::bind([10; 16], 2, false).await.unwrap();
+    let router = IrohRpc::bind([10; 16], 1, crate::transport::Transport::Online).await.unwrap();
+    let peer = IrohRpc::bind([10; 16], 2, crate::transport::Transport::Online).await.unwrap();
 
     assert!(router.admit(1, peer.address()).await.is_err());
     assert!(router.admit(2, router.address()).await.is_err());
@@ -155,8 +155,8 @@ async fn a_helper_of_another_coordination_wire_is_refused_cleanly() {
     let version = crate::coordination::COORDINATION_WIRE_VERSION;
     assert!(ALPN.ends_with(format!("/{version}").as_bytes()));
     let room = [12; 16];
-    let server = IrohRpc::bind(room, 1, false).await.unwrap();
-    let client = IrohRpc::bind(room, 2, false).await.unwrap();
+    let server = IrohRpc::bind(room, 1, crate::transport::Transport::Online).await.unwrap();
+    let client = IrohRpc::bind(room, 2, crate::transport::Transport::Online).await.unwrap();
     server.admit(2, client.address()).await.unwrap();
     let coordinator = Arc::new(
         Coordinator::new_for_room(room, 1, server.clone())
@@ -212,8 +212,8 @@ async fn a_helper_of_another_coordination_wire_is_refused_cleanly() {
 #[tokio::test]
 async fn served_connections_and_bodies_stay_within_their_bounds() {
     let room = [12; 16];
-    let server = IrohRpc::bind(room, 1, false).await.unwrap();
-    let client = IrohRpc::bind(room, 2, false).await.unwrap();
+    let server = IrohRpc::bind(room, 1, crate::transport::Transport::Online).await.unwrap();
+    let client = IrohRpc::bind(room, 2, crate::transport::Transport::Online).await.unwrap();
     server.admit(2, client.address()).await.unwrap();
     let coordinator = Arc::new(
         Coordinator::new_for_room(room, 1, server.clone())
@@ -300,8 +300,8 @@ async fn served_connections_and_bodies_stay_within_their_bounds() {
 #[tokio::test]
 async fn concurrent_calls_share_one_dialed_connection() {
     let room = [13; 16];
-    let server = IrohRpc::bind(room, 1, false).await.unwrap();
-    let client = IrohRpc::bind(room, 2, false).await.unwrap();
+    let server = IrohRpc::bind(room, 1, crate::transport::Transport::Online).await.unwrap();
+    let client = IrohRpc::bind(room, 2, crate::transport::Transport::Online).await.unwrap();
     server.admit(2, client.address()).await.unwrap();
     client.admit(1, server.address()).await.unwrap();
     let coordinator = Arc::new(
@@ -378,8 +378,8 @@ async fn cancel_once_received<F: Future>(
 #[tokio::test]
 async fn canceled_rpc_closes_the_cached_connection_before_retry() {
     let room = [11; 16];
-    let caller = IrohRpc::bind(room, 1, false).await.unwrap();
-    let receiver = IrohRpc::bind(room, 2, false).await.unwrap();
+    let caller = IrohRpc::bind(room, 1, crate::transport::Transport::Online).await.unwrap();
+    let receiver = IrohRpc::bind(room, 2, crate::transport::Transport::Online).await.unwrap();
     caller.admit(2, receiver.address()).await.unwrap();
     let receiver_endpoint = receiver.endpoint.clone();
     let (received_tx, mut received) = tokio::sync::mpsc::unbounded_channel();
@@ -431,9 +431,9 @@ async fn canceled_rpc_closes_the_cached_connection_before_retry() {
 
 #[tokio::test]
 async fn retired_incarnation_cannot_replay_admission() {
-    let router = IrohRpc::bind([9; 16], 1, false).await.unwrap();
-    let departing = IrohRpc::bind([9; 16], 2, false).await.unwrap();
-    let replacement = IrohRpc::bind([9; 16], 3, false).await.unwrap();
+    let router = IrohRpc::bind([9; 16], 1, crate::transport::Transport::Online).await.unwrap();
+    let departing = IrohRpc::bind([9; 16], 2, crate::transport::Transport::Online).await.unwrap();
+    let replacement = IrohRpc::bind([9; 16], 3, crate::transport::Transport::Online).await.unwrap();
     let primary = router.identity();
 
     router
@@ -469,9 +469,9 @@ async fn retired_incarnation_cannot_replay_admission() {
 #[tokio::test]
 async fn unanswering_target_cannot_starve_calls_to_others() {
     let room = [14; 16];
-    let caller = IrohRpc::bind(room, 1, false).await.unwrap();
-    let live = IrohRpc::bind(room, 2, false).await.unwrap();
-    let silent = IrohRpc::bind(room, 3, false).await.unwrap();
+    let caller = IrohRpc::bind(room, 1, crate::transport::Transport::Online).await.unwrap();
+    let live = IrohRpc::bind(room, 2, crate::transport::Transport::Online).await.unwrap();
+    let silent = IrohRpc::bind(room, 3, crate::transport::Transport::Online).await.unwrap();
     live.admit(1, caller.address()).await.unwrap();
     caller.admit(2, live.address()).await.unwrap();
     caller.admit(3, silent.address()).await.unwrap();

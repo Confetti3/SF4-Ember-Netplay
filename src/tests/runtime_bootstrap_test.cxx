@@ -89,7 +89,9 @@ int wmain(int argc, wchar_t** argv) {
 	CHECK(NetplayFacade::SubmitRuntimeCommand(preferences));
 	NetplayFacade::TickRuntime();
 	CHECK(NetplayFacade::GetRuntimeSnapshot().preferences.displayName == "Player");
-	CHECK(NetplayFacade::SubmitRuntimeCommand({{netplay::CommandKind::StartOffline, snapshot.session.generation, {}}, {}}));
+	NetplayFacade::RuntimeCommand offline;
+	offline.command = {netplay::CommandKind::StartOffline, snapshot.session.generation, {}};
+	CHECK(NetplayFacade::SubmitRuntimeCommand(offline));
 	NetplayFacade::TickRuntime();
 	CHECK(NetplayFacade::GetRuntimeSnapshot().offlineRequested);
 	NetplayFacade::StopHelper();

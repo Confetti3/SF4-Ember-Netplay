@@ -487,7 +487,7 @@ impl Actor {
                         self.endpoint.id(),
                         admission.incarnation,
                         admission.coordination_address.clone(),
-                        self.relay_only,
+                        self.transport,
                         self.server_owned(),
                     )
                     .await?;
@@ -1021,6 +1021,7 @@ impl Actor {
         let badge = worker.and_then(ControlWorker::badge);
         let (latency, latency_relay) = self.latency_route();
         self.emit(Event::Connected {
+            transport: self.transport,
             epoch,
             peer,
             room,
@@ -1034,7 +1035,7 @@ impl Actor {
             self.emit(Event::DiscordInvite {
                 epoch,
                 invitation: invite.encode()?,
-                secret: invite.encode_discord()?,
+                secret: if invite.is_lan() { None } else { Some(invite.encode_discord()?) },
             })?;
         }
         self.send_coordination_control(peer);

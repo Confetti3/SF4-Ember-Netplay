@@ -474,8 +474,8 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation), static_cast<int>(command.arcadeRoom),
 				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));
 		} else runtime->createdRules.Cancel("other_room");
-		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
-			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :
+		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash,command.transport) :
+			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer, command.transport, command.command.lanHost) :
 			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 		break;
@@ -633,6 +633,7 @@ TypedCommand Classify(RuntimeCommand command) {
 		return TypedCommand(std::move(service));
 	}
 	commands::Room roomCommand;
+	roomCommand.transport = command.transport;
 	roomCommand.command = std::move(command.command);
 	roomCommand.discordRevision = command.discordRevision;
 	roomCommand.preferences = std::move(command.preferences);

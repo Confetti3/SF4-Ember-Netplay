@@ -137,6 +137,7 @@ struct Service {
 };
 // A room command: netplay::Command and what its kinds carry.
 struct Room {
+    netplay::RoomKind transport=netplay::RoomKind::Online;
     netplay::Command command;
     // With JoinInvite or LeaveRoom from a Discord invitation: re-validated here.
     std::uint64_t discordRevision = 0;
@@ -615,6 +616,7 @@ void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
 // Keeps the helper's ping subscription in step with the room board.
 void TickMemberLatency();
+void TickLan();
 // Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).
 bool FighterSelectorShown(std::uint64_t roomGeneration);
 // Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).

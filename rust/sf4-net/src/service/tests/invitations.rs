@@ -87,6 +87,8 @@ async fn a_join_through_an_invitation_to_this_helper_says_so() {
             .command_now(Request {
                 id: 6,
                 command: Command::Join {
+                    transport: crate::transport::RoomKind::Online,
+                    lan_host: None,
                     epoch: 1,
                     invitation,
                     build: "test-build".into(),
@@ -189,6 +191,8 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
     // The native client filters events by its current epoch, so a refusal
     // tagged with the helper's epoch would leave that attempt joining forever.
     let join = |epoch| Command::Join {
+        transport: crate::transport::RoomKind::Online,
+        lan_host: None,
         epoch,
         invitation: "not-an-invitation".into(),
         build: "test-build".into(),
@@ -221,11 +225,11 @@ async fn a_refused_join_names_the_epoch_it_asked_for() {
         Event::Error { epoch: 1, ref code, .. } if code == "stale_epoch"
     ));
     assert!(!actor.departure_failed);
-    assert!(!actor.begin(3, "test-build"));
+    assert!(!actor.begin(3, "test-build", crate::transport::Transport::Online).await);
     assert_eq!(actor.room, Some([7; 16]));
     // An invalid request never releases retained state either.
     actor.departure_failed = true;
-    assert!(!actor.begin(1, "test-build"));
+    assert!(!actor.begin(1, "test-build", crate::transport::Transport::Online).await);
     assert_eq!(actor.room, Some([7; 16]));
     host.close().await;
 }

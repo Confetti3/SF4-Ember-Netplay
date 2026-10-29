@@ -471,13 +471,13 @@ static void TestLocalLatencyRoute() {
 	};
 	const std::array<std::uint8_t, 16> first{{1}}, second{{2}}, third{{3}};
 	const auto connected = [&](const std::string& peer, const std::array<std::uint8_t, 16>& id, std::uint64_t control) {
-		return json{{"type", "connected"}, {"epoch", room->Epoch()}, {"peer", peer}, {"room", id}, {"control", control}};
+		return json{{"type", "connected"}, {"transport", "online"}, {"epoch", room->Epoch()}, {"peer", peer}, {"room", id}, {"control", control}};
 	};
 	const auto settlePeer = [&](const std::string& peer) { settle([&] { return room->ConnectionForIdentity(peer) != 0; }); };
 
-	CHECK(room->Host("build") && !room->LocalLatency().Valid());
+	CHECK(room->Host("build",sf4e::netplay::RoomKind::Online) && !room->LocalLatency().Valid());
 	pipe.Send({{"type", "status"}, {"request_id", 1}, {"endpoint", Hex64('a', 1)}, {"fixed_port", 0}});
-	pipe.Send({{"type", "hosted"}, {"epoch", room->Epoch()}, {"room", first}, {"invitation", "first"},
+	pipe.Send({{"type", "hosted"}, {"transport", "online"}, {"epoch", room->Epoch()}, {"room", first}, {"invitation", "first"},
 		{"latency", Route(1)}, {"latency_relay", "use1"}});
 	settle([&] { return room->Invitation() == "first"; });
 	CHECK(room->LocalLatency().endpoint == Route(1) && room->LocalLatency().relay == "use1");
@@ -521,8 +521,8 @@ static void TestLocalLatencyRoute() {
 	room->Leave();
 	pipe.Send({{"type", "room_closed"}, {"epoch", joinEpoch}});
 	settle([&] { return room->GetState() == session::IrohRoom::State::Idle; });
-	CHECK(room->Host("build") && room->Epoch() == joinEpoch + 1 && !room->LocalLatency().Valid());
-	pipe.Send({{"type", "hosted"}, {"epoch", room->Epoch()}, {"room", first}, {"invitation", "again"}});
+	CHECK(room->Host("build",sf4e::netplay::RoomKind::Online) && room->Epoch() == joinEpoch + 1 && !room->LocalLatency().Valid());
+	pipe.Send({{"type", "hosted"}, {"transport", "online"}, {"epoch", room->Epoch()}, {"room", first}, {"invitation", "again"}});
 	settle([&] { return room->Invitation() == "again"; });
 	CHECK(!room->LocalLatency().Valid());
 }

@@ -89,6 +89,8 @@ inline std::string DescribeOpeningFailure(bool hosting, session::FailureStage st
     case session::FailureStage::InviteOwnRoom: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_own_room");
     case session::FailureStage::ShortUnavailable: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_short_unavailable");
     case session::FailureStage::ShortUnknown: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.invite_short_unknown");
+    case session::FailureStage::LanUnavailable: return loc::T("lan.unavailable");
+    case session::FailureStage::LanJoinFailed: return loc::T("lan.join_failed");
     default: return hosting ? loc::T("runtime.room_host_failed") : loc::T("runtime.room_join_failed");
     }
 }
