@@ -10,30 +10,33 @@
 namespace sf4e { namespace ui {
 using namespace room_controls;
 
-// X, Y and View open the fighter, table options and chat; the same button
-// again returns to the board.
-// X, Y and View open the fighter, table options and chat; the same button
-// again returns to the board.
+// Shortcuts return to their opener; repeated visits do not create a cycle.
 void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  auto& nav=menu_.navigation;
  // Delete means something only on your own card (DrawRoomBoard).
  if(a.delta==MenuInput::Leave)return;
  const char* target=a.delta==MenuInput::Fighter?"selection":a.delta==MenuInput::Options?"room-table":"room-chat";
- if(nav.Screen()==target){nav.Home();nav.Push("room");return;}
- if(a.delta==MenuInput::Fighter){
-  const auto blocker=SelectionBlocker(v);
-  if(!blocker.empty()){
-   Refuse(blocker,[](const ShellView& now){return !SelectionBlocker(now).empty();});
-   return;
-  }
- }else if(a.delta==MenuInput::Options){
+ if(nav.Screen()==target){nav.Return();return;}
+ if(a.delta==MenuInput::Fighter){OpenRoomFighter(v);return; }else if(a.delta==MenuInput::Options){
   // The focused table on the board, otherwise the member's own.
   const bool onTable=nav.Screen()=="room"&&(nav.Focus().compare(0,6,"table-")==0||nav.Focus().compare(0,8,"cabinet-")==0);
   OpenTableOptions(v,onTable?selectedTable_:OptionsTable(v,selectedTable_));
   return;
  }
- if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_="roster";}
- nav.Home();nav.Push("room");nav.Push(target);
+ nav.PushOrUnwind(target);
+}
+void ApplicationShell::OpenRoomFighter(const ShellView& v) {
+ const auto blocker=SelectionBlocker(v);
+ if(!blocker.empty()){Refuse(blocker,[](const ShellView& now){return !SelectionBlocker(now).empty();});return;}
+ selectionFresh_=true;selectionOpenOn_="roster";menu_.navigation.PushOrUnwind("selection");
+}
+void ApplicationShell::RequestLeavePlace(const ShellView& v,const Submit& submit) {
+  const auto exit=ExitFromPlace(v);if(exit.table<0)return;
+  selectedTable_=exit.table;
+  // A seat that would lose a score or pass to the queue is asked about first;
+  // the board opens the question on the next frame, with the answer in Chosen.
+  if(exit.seat&&exit.allowed&&exit.cost){leaveAsk_=exit.table;leaveAsked_=false;return;}
+  LeavePlace(v,submit);
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
@@ -77,13 +80,18 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
   return;
  }
- if(a.kind==MenuAction::Chosen&&a.id.compare(0,8,"cabinet-")==0){if(a.text=="leave-seat")LeavePlace(v,submit);return;}
- // A seat chooser's option, exactly as the player saw it.
+ // Table and cabinet choices share named operations, without fabricated actions.
  if(a.kind==MenuAction::Chosen){
-  // More…'s choice is the row it stands for.
   if(a.id=="more"||a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
-  if(a.id.compare(0,6,"table-"))return;
-  selectedTable_=std::stoi(a.id.substr(6));
+  const bool cabinet=a.id.compare(0,8,"cabinet-")==0;
+  if(cabinet){
+   const auto place=room::PlaceOf(v.room,v.room.localMember);if(place.table<0)return;
+   selectedTable_=place.table;
+  }else if(a.id.compare(0,6,"table-")==0)selectedTable_=std::stoi(a.id.substr(6));
+  else return;
+  if(a.text=="ready"||a.text=="unready"){ToggleReady(v,submit);return;}
+  if(a.text=="selection"){OpenRoomFighter(v);return;}
+  if(a.text=="leave-place"||a.text=="cancel-start"){RequestLeavePlace(v,submit);return;}
   if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
   if(a.text=="leave-seat"){LeavePlace(v,submit);return;}
   const auto* option=FindSeatOption(a.text);
@@ -120,15 +128,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
  if(a.id=="stop-watching"){LeaveWatchedGame(v,submit);return;}
- if(a.id=="leave-place"){
-  const auto exit=ExitFromPlace(v);if(exit.table<0)return;
-  selectedTable_=exit.table;
-  // A seat that would lose a score or pass to the queue is asked about first;
-  // the board opens the question on the next frame, with the answer in Chosen.
-  if(exit.seat&&exit.allowed&&exit.cost){leaveAsk_=exit.table;leaveAsked_=false;return;}
-  LeavePlace(v,submit);
-  return;
- }
+ if(a.id=="leave-place"){RequestLeavePlace(v,submit);return;}
  if(a.id.compare(0,7,"member-")==0){selectedMember_=std::stoull(a.id.substr(7));nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
@@ -224,7 +224,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.
-  if(!HasChatText(chat_)||queuedChat_||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
+  if(!HasChatText(chat_)||ChatSendPending())return;
   queuedChat_=QueuedChat{chat_};FlushChat(v,submit);return;
  }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}

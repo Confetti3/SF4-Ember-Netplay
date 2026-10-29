@@ -323,12 +323,12 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     columns=(std::max)(1,columns);
     const double now=clock_.Update(ImGui::GetTime());
     // A newly visible component cannot reuse its parent's opening press.
-    if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.Rearm(); lastEdit_.clear(); }
+    if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.Rearm(); lastEdit_.clear(); textPrevious_=~0u; }
     lastFrame_=ImGui::GetFrameCount();
     const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
     const bool choosingAtStart=navigation.Choosing();
-    auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
+    auto menuInput=ReadMenuInput((navigation.Editing()||textOwner)&&notice_.empty(),typesText||textOwner,additionalInput); menuInput.time=now;
     const unsigned rawHeld=menuInput.held;
     if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
@@ -348,10 +348,17 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     if(toastFocused&&!noticeOpen) {toastPressed=toastGate_.Pressed(toastGate_.Held(menuInput.held)); menuInput.held=0;}
     else toastGate_.Rearm();
     held_=menuInput.held;
+    const unsigned editorHeld=noticeOpen||toastFocused?0:menuInput.held|(textOwner?(menuInput.keyboard&MenuInput::Select):0);
+    textPressed_=textOwner?(editorHeld&~textPrevious_):0;
+    textPrevious_=editorHeld;
+    if(textOwner&&!modalAtStart){
+        menuInput.held&=~(MenuInput::Up|MenuInput::Down|MenuInput::Left|MenuInput::Right|MenuInput::Select|MenuInput::Back);
+        menuInput.acceptText=false;
+    }
     // Read before a notice takes the input: the accessibility button works in one too.
     const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;
     // InputText consumes this frame's characters before the requested acceptance.
-    // The navigation model still owns the neutral gate and Back/accept ordering.
+    // The navigation model still owns the press gate and Back/accept ordering.
     {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
      navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?(open->popout?1:MenuChoiceLayout(open->choices).across):1;}
     navigation.selectSteps=v2::On();

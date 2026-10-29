@@ -753,7 +753,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.trainingCallSequence!=trainingCallSeen_||v.trainingReadySequence!=trainingReadySeen_){
   const auto place=room::PlaceOf(v.room,v.room.localMember);
   const bool seated=v.session.room==RoomState::Joined&&place.kind==room::Place::Kind::Seat&&place.table>=0&&place.table<static_cast<int>(v.room.tables.size());
-  if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
+  if(seated&&v.trainingCallSequence!=trainingCallSeen_){menu_.navigation.Home();menu_.navigation.Push("room");OpenTableOptions(v,place.table);}
   trainingCallSeen_=v.trainingCallSequence;
   // The Ready waits for the runtime's gate, and ends with the seat or the window.
   // A refused submit keeps the request, since the runtime asks for the Ready only once.
@@ -1091,13 +1091,15 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Home renders its status in the small-print line below the list instead.
  const bool stableFeedback=screen!="home";
  // With the message box holding the keyboard, F, T and C type letters, so the keys are not offered there.
- menu_.typesText=roomScreen&&screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v);
+ if(screen=="room"&&(ChatGateOf(v)==ChatGate::ReadOnly||!(v2::On()?preferences_.roomShowChat:!preferences_.roomChatHidden)))chatComposer_.Release(menu_);
+ menu_.textOwner=roomScreen&&((screen=="room-chat"&&v.room.roomEpoch&&ChatTypable(v))||chatComposer_.Typing());
+ menu_.typesText=false;
  // On the country picker a typed letter goes to a country, so letters are no shortcuts there.
  if(screen==CountryPicker::Screen){menu_.typesText=true;if(!nav.Editing())for(const ImWchar typed:ImGui::GetIO().InputQueueCharacters){const auto row=countryPicker_.Jump(typed,nav.Focus());if(row.empty())continue;
   // The board shows one letter's countries: the one typed, from now on.
   if(v2::On()&&countryPicker_.Lettered())rows=countryPicker_.BoardRows(preferences_.country,v.automaticCountry,v.canEditPreferences,row);
   nav.Focus(row,rows);}}
- if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
+ if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=(menu_.typesText||menu_.textOwner)&&keys?std::vector<LegendHint>{}:roomHints;
  else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
  else menu_.shortcutHints.clear();
  // V2: Settings is six tabs.
@@ -1136,7 +1138,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
    menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
   }else menu_.backInert=true;
- }else if(!keys)menu_.backHint=placeExit;
+ }
  if(v2::On()&&page!=screen)menu_.backHint=loc::T("settings.panel.close_action");
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.

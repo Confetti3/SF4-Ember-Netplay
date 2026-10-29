@@ -139,6 +139,9 @@ public:
     // activated it this frame, so letters, Space, Backspace and Delete are
     // text and never menu keys.
     bool typesText = false;
+    // An embedded editor takes directions, Select and Back; shortcuts still navigate.
+    bool textOwner = false;
+    unsigned TextPressed() const { return textPressed_; }
     // What Back does on this screen when it is not the usual return; empty
     // for Back.
     std::string backHint;
@@ -302,7 +305,7 @@ v2::HeaderChip noticeChip_{};
     bool noticeError_=false;
     PressGate noticeGate_,toastGate_;
     int lastFrame_ = -2;
-    unsigned held_ = 0, describeHeld_ = 0;
+    unsigned held_ = 0, describeHeld_ = 0, textPrevious_ = ~0u, textPressed_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
     // The on-screen keyboard: its key (row -1 the Recent names), capitals, the
     // pad's last buttons, whether it changed the draft this frame, and the

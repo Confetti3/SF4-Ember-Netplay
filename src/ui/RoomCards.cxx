@@ -14,14 +14,35 @@ namespace {
 // Options over a card's footer. They are real buttons, submitted before the
 // card so they own the hover and popups still block them; the card is then
 // laid out from the same origin.
-struct Strip{std::vector<ImVec2> min,max;int clicked=-1,hovered=-1;};
-Strip StripButtons(const std::string& id,ImVec2 p,float width,float h,std::size_t count) {
+struct Strip{std::vector<ImVec2> min,max;int clicked=-1,hovered=-1;float extraHeight=0;};
+Strip StripButtons(const std::string& id,ImVec2 p,float width,float h,const std::vector<TableCardOption>& options) {
+ const auto count=options.size();
  const float s=Scale();
  Strip strip;strip.min.resize(count);strip.max.resize(count);
- const float stripHeight=26*s,y=p.y+h-stripHeight-3*s,optionWidth=(width-24*s-(count-1)*8*s)/count;
+ const float stripHeight=26*s,available=width-24*s;
+ std::vector<float> widths;
+ for(const auto& option:options)widths.push_back(ImGui::GetFont()->CalcTextSizeA(14*s,FLT_MAX,0,option.label.c_str()).x+12*s);
+ std::size_t columns=count;
+ for(;columns>1;--columns){
+  bool fits=true;
+  for(std::size_t first=0;first<count;first+=columns){
+   const auto end=(std::min)(count,first+columns);float needed=(end-first-1)*8*s;
+   for(auto i=first;i<end;++i)needed+=widths[i];
+   if(needed>available){fits=false;break;}
+  }
+  if(fits)break;
+ }
+ strip.extraHeight=((count+columns-1)/columns-1)*(stripHeight+4*s);
+ float x=0,spare=0;
  ImGui::PushID(id.c_str());
  for(int i=0;i<static_cast<int>(count);++i){
-  strip.min[i]=ImVec2(p.x+12*s+i*(optionWidth+8*s),y);strip.max[i]=ImVec2(strip.min[i].x+optionWidth,y+stripHeight);
+  if(i%columns==0){
+   x=p.x+12*s;const auto end=(std::min)(count,static_cast<std::size_t>(i)+columns);
+   float needed=(end-i-1)*8*s;for(auto n=static_cast<std::size_t>(i);n<end;++n)needed+=widths[n];
+   spare=(available-needed)/(end-i);
+  }
+  const float optionWidth=widths[i]+spare,y=p.y+h-stripHeight-3*s+(i/columns)*(stripHeight+4*s);
+  strip.min[i]=ImVec2(x,y);strip.max[i]=ImVec2(x+optionWidth,y+stripHeight);x+=optionWidth+8*s;
   ImGui::SetCursorScreenPos(strip.min[i]);ImGui::PushID(i);
   if(ImGui::InvisibleButton("##strip",ImVec2(optionWidth,stripHeight)))strip.clicked=i;
   if(ImGui::IsItemHovered())strip.hovered=i;
@@ -95,13 +116,14 @@ bool DrawCardButton(const std::string& id,ImVec2 size,bool focused,bool scrollTo
  return clicked;
 }
 CardInteraction DrawTableCard(const TableCardView& card) {
- const float s=Scale(),h=card.height;
+ const float s=Scale(),contentHeight=card.height;
  const auto p=ImGui::GetCursorScreenPos();
  const float width=ImGui::GetContentRegionAvail().x;
  // Names ask the atlas for glyphs only while their card is inside the clip.
- const bool cardVisible=ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+h));
+ const bool cardVisible=ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+contentHeight));
  std::string elided;
- const Strip strip=card.options.empty()?Strip{}:StripButtons(card.id,p,width,h,card.options.size());
+ const Strip strip=card.options.empty()?Strip{}:StripButtons(card.id,p,width,contentHeight,card.options);
+ const float h=contentHeight+strip.extraHeight;
  const bool pressed=DrawCardButton(card.id,ImVec2(width,h),card.focused,card.focusChanged,card.disabled);
  const bool hovered=ImGui::IsItemHovered();
  ReportMenuCard(card.id.c_str(),p,ImVec2(p.x+width,p.y+h));
@@ -121,12 +143,12 @@ CardInteraction DrawTableCard(const TableCardView& card) {
  // between the two sides grows to fit however long the rematch run gets.
  const float gap=(std::max)(34*s,ImGui::GetFont()->CalcTextSizeA(18*s,FLT_MAX,0,card.middle.c_str()).x+12*s);
  // A banner takes a row above the footer, so the option strip never hides it.
- const float bannerHeight=card.banner.empty()?0:TableBannerHeight*s,bannerTop=p.y+h-32*s-bannerHeight;
+ const float bannerHeight=card.banner.empty()?0:TableBannerHeight*s,bannerTop=p.y+contentHeight-32*s-bannerHeight;
  // Portraits sit on the card's outer edges, mirrored, so neither crowds the
  // score. The row fills and centres in the band between header and footer.
  // The footer band holds the rules line or, over it, an option strip, so
  // portraits and names never sit under the strip.
- const float band=h-60*s-bannerHeight,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
+ const float band=contentHeight-60*s-bannerHeight,portrait=(std::min)(96*s,band),half=(width-24*s-gap)*.5f;
  const float top=p.y+28*s+(band-portrait)*.5f+portrait*.5f-20*s;
  for(int side=0;side<2;++side){
   const auto& seat=card.seats[side];
@@ -216,8 +238,8 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  const float s=Scale();
  const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
  std::string elided;
- if(ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+58*s)))NoteUserText(card.name);
- const bool pressed=DrawCardButton(card.id,ImVec2(width,58*s),card.focused,card.focusChanged,card.disabled);
+ if(ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+MemberCardHeight*s)))NoteUserText(card.name);
+ const bool pressed=DrawCardButton(card.id,ImVec2(width,MemberCardHeight*s),card.focused,card.focusChanged,card.disabled);
  const bool hovered=ImGui::IsItemHovered();
  DrawCharacterPortrait(card.mainFighter,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
  if(v2::On()){
