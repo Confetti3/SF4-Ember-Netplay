@@ -36,6 +36,19 @@ int main() {
     using sf4e::netplay::MatchState;
     using sf4e::input::MenuContext;
     using sf4e::ui::OverlayPresentation;
+    // Neither F10 nor a queued pad open may survive the loading cover.
+    for (auto state : {MatchState::Preparing, MatchState::Playing}) {
+        OverlayPresentation loading;
+        loading.Update(MenuContext::WatchedMatch, MatchState::Playing, false, true);
+        loading.Open(); CHECK(loading.Visible());
+        loading.Update(MenuContext::MatchLoading, state, false, true);
+        loading.Toggle(); loading.Open();
+        CHECK(!loading.Visible() && !loading.Available());
+        CHECK(!sf4e::input::ControllerOpensMenu(MenuContext::MatchLoading));
+        CHECK(!sf4e::input::ControllerMenuAvailable(MenuContext::MatchLoading));
+        loading.Update(MenuContext::WatchedMatch, MatchState::Playing, false, true);
+        CHECK(!loading.Visible());
+    }
     for (unsigned flags = 0; flags < 16; ++flags) {
         CHECK(sf4e::NativePauseMenuOpen(flags, -1) == false);
         CHECK(sf4e::NativePauseMenuOpen(flags, 0) == ((flags & 1) != 0));

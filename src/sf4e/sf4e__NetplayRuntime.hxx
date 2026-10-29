@@ -220,6 +220,8 @@ struct Runtime {
 	// The entry of the granted match's battle. ResetMatchEntry resets it whole.
 	struct MatchEntry {
 		bool matchEntered = false;
+		// Covers automatic preparation through native readiness, including before entry.
+		bool automaticMatchEntry = false;
 		// The generation whose battle the runtime entered, while matchEntered, and
 		// the table this member was at when it entered (the game WatchedGameNow names).
 		std::uint64_t enteredGeneration = 0;
@@ -549,6 +551,7 @@ void RetrySpectatorLockRelease();
 void PlayChallengerCall(int volumePercent);
 void RetryMatchFinished();
 void PumpResultOutbox();
+void ApplyMatchEntry(UserApp::MatchEntry entry);
 void TickMatch();
 void ReleaseFinishedMatch();
 

@@ -131,6 +131,7 @@ public:
     }
     void Place(input::MenuContext context, bool fighting) {
         std::lock_guard<std::mutex> lock(mutex_);
+        loading_ = input::Loading(context);
         const bool away = input::FightKeepsMenuAway(fighting, context);
         if (away) away_ = OverlayPresentation::AwayFrames;
         else if (input::MenuShownIn(context)) away_ = 0;
@@ -158,14 +159,18 @@ public:
     }
     // Any thread: the menu holds the pads, and it takes them, which it also
     // does where Start opens it; they are then polled behind another window.
+    // Loading holds physical input, but the native observer must advance the
+    // automatic route. Keep that exception beside the input owner.
+    bool Loading() const { std::lock_guard<std::mutex> lock(mutex_); return loading_; }
+    bool BlocksNativeObserver(bool blocked) const { std::lock_guard<std::mutex> lock(mutex_); return !loading_ && blocked; }
     bool Holds() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked(); }
     bool Takes() const { std::lock_guard<std::mutex> lock(mutex_); return HoldsLocked() || startOpens_; }
 private:
-    bool HoldsLocked() const { return away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_); }
+    bool HoldsLocked() const { return loading_ || (away_ < OverlayPresentation::AwayFrames && (shown_ || posted_ != answered_)); }
     mutable std::mutex mutex_;
     Kind kind_ = Kind::None;
     std::uint32_t posted_ = 0, answered_ = 0;
-    bool shown_ = false, startOpens_ = false;
+    bool shown_ = false, startOpens_ = false, loading_ = false;
     // Updates away from where the menu can be shown. Until the first pad
     // update nothing reads the pads, and an open asked for then holds them as
     // at the main menu.

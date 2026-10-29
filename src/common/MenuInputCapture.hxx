@@ -17,7 +17,8 @@ namespace sf4e { namespace input {
 // MatchResult: the WIN (or DRAW) screen of a room game this PC fought, at a table with
 // Instant rematch on (room::Rules::instantRematch). Ember's post-match prompt
 // opens over it by itself; Start does not open the menu there.
-enum class MenuContext { Unavailable, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch, MatchResult };
+enum class MenuContext { Unavailable, MatchLoading, MainMenu, OfflineTraining, ReplayExport, PracticeMatch, WatchedMatch, MatchResult };
+inline bool Loading(MenuContext context) { return context == MenuContext::MatchLoading; }
 // A room game Ember's menu is shown over: the one place a fight does not keep it away.
 inline bool MenuOverFight(MenuContext context) {
     return context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch || context == MenuContext::MatchResult;
@@ -26,7 +27,7 @@ inline bool MenuOverFight(MenuContext context) {
 // offline Training (opened there by Back and Start, TrainingPad.hxx), and the
 // menu opened over an export or a fight. Start opens Ember at the main menu
 // and over a fight.
-inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable; }
+inline bool ControllerMenuAvailable(MenuContext context) { return context != MenuContext::Unavailable && context != MenuContext::MatchLoading; }
 inline bool ControllerOpensMenu(MenuContext context) {
     return context == MenuContext::MainMenu || context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
 }
@@ -37,7 +38,7 @@ inline bool MenuShownIn(MenuContext context) {
 // A room game being prepared or played keeps Ember's menu away, except one
 // where the menu is shown over the fight itself.
 inline bool FightKeepsMenuAway(bool fighting, MenuContext context) {
-    return fighting && !MenuOverFight(context);
+    return context == MenuContext::MatchLoading || (fighting && !MenuOverFight(context));
 }
 // Native Pad::System publishes five adjacent uint32 input caches per player.
 // Keep assignment metadata and provider input untouched for overlay polling.

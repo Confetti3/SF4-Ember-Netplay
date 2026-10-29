@@ -514,6 +514,12 @@ msgstr "Dummy recording"
 msgid "screen.input_history"
 msgstr "Input history"
 
+msgid "match.loading_title"
+msgstr "Starting match..."
+
+msgid "match.loading_detail"
+msgstr "Please wait. The match will start automatically; no buttons are needed."
+
 msgid "room.wait.leaving"
 msgstr "Leaving room. Waiting for the connection to close..."
 
