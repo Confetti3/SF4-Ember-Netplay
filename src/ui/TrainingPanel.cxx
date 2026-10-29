@@ -608,8 +608,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  trainingMenu.tabs.clear();trainingMenu.tab=-1;
  if(v2::On()){
   OfferTrainingValues(rows);
-  trainingMenu.tabs={{"dummy",loc::T("training.dummy")},{"tools",loc::T("training.position")},{"reply",loc::T("training.reply")},
-   {"recording",loc::T("training.dummy_recording")},{"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"history",loc::T("training.input_history")}};
+  // In the home list's order, so the tabs and the list agree.
+  trainingMenu.tabs={{"recording",loc::T("training.dummy_recording")},{"history",loc::T("training.input_history")},{"frame-data",loc::T("training.frame_data")},
+   {"hud",loc::T("training.hud")},{"dummy",loc::T("training.dummy")},{"reply",loc::T("training.reply")},{"tools",loc::T("training.position")}};
   for(int i=0;i<static_cast<int>(trainingMenu.tabs.size());++i)if(trainingMenu.tabs[i].first==screen)trainingMenu.tab=i;
   if(trainingMenu.tab<0&&screen!="home")trainingMenu.tabs.clear();
  }
