@@ -6,7 +6,6 @@ use iroh::{
     Endpoint,
     endpoint::{
         Builder, ConnectOptions, IdleTimeout, PortmapperConfig, QuicTransportConfig, VarInt,
-        presets,
     },
 };
 use tokio::time::timeout;
@@ -25,7 +24,7 @@ pub(crate) struct LatencyNet(Option<Arc<dyn Fn() -> Builder + Send + Sync>>);
 
 impl Default for LatencyNet {
     fn default() -> Self {
-        Self(Some(Arc::new(|| Endpoint::builder(presets::N0))))
+        Self(Some(Arc::new(crate::transport::n0_builder)))
     }
 }
 
