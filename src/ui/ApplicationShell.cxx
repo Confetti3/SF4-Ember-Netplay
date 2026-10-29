@@ -753,7 +753,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  if(v.trainingCallSequence!=trainingCallSeen_||v.trainingReadySequence!=trainingReadySeen_){
   const auto place=room::PlaceOf(v.room,v.room.localMember);
   const bool seated=v.session.room==RoomState::Joined&&place.kind==room::Place::Kind::Seat&&place.table>=0&&place.table<static_cast<int>(v.room.tables.size());
-  if(seated&&v.trainingCallSequence!=trainingCallSeen_)OpenTableOptions(v,place.table);
+  if(seated&&v.trainingCallSequence!=trainingCallSeen_){menu_.navigation.Home();menu_.navigation.Push("room");OpenTableOptions(v,place.table);}
   trainingCallSeen_=v.trainingCallSequence;
   // The Ready waits for the runtime's gate, and ends with the seat or the window.
   // A refused submit keeps the request, since the runtime asks for the Ready only once.
@@ -1138,7 +1138,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    menu_.exitName=opening?MenuScreenLabel(OpeningScreen(v)):loc::T("screen.game");
    menu_.backHint=loc::Tf("menu.return_to",menu_.exitName);
   }else menu_.backInert=true;
- }else if(!keys)menu_.backHint=placeExit;
+ }
  if(v2::On()&&page!=screen)menu_.backHint=loc::T("settings.panel.close_action");
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.

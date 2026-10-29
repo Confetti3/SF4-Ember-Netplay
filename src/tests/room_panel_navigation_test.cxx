@@ -702,7 +702,7 @@ int main() try {
         Check(targets.count("table-0/banner") && !targets.count("table-1/banner"), "The opponent's new fighter was not drawn on the table card");
         Check(!shell.NoticeOpen(), "The opponent's new fighter opened a modal notice");
         const auto beforeChangedPress = actions.size();
-        focus("table-0"); press(MenuInput::Select);
+        focus("table-0"); press(MenuInput::Select); press(MenuInput::Select);
         Check(actions.size() == beforeChangedPress + 1, "The board did not take input while the opponent's new fighter was shown");
         shell.Navigation().Push("room-table"); frame();
         Check(row("ready").detail.compare(0, changed.size(), changed) == 0, "The Ready row did not start with the opponent's new fighter");
@@ -771,15 +771,14 @@ int main() try {
     });
     SetMenuGlyphs(3, 0x40000, 0x20000);
     shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); focus("table-0"); frame(); frame();
-    Check(strip == std::set<std::string>({std::string(sf4e::loc::T("room.unready.short")), std::string(sf4e::loc::T("room.cancel_start"))}),
-        "During the held start the seat's two controls did not read differently");
-    Check(legend.count(sf4e::loc::T("room.unready")) && legend.count(sf4e::loc::T("room.cancel_start")),
-        "The legend did not name Unready for A and Cancel the start for B during the held start");
+    Check(strip.count(sf4e::loc::T("room.unready.short"))&&strip.count(sf4e::loc::T("common.cancel")),
+        "Held start lacks Unready and Cancel choices");
     SetMenuTextProbe({});
-    const auto beforeHeldBack = actions.size();
-    press(MenuInput::Back);
-    Check(actions.size() == beforeHeldBack + 1 && actions.back().roomAction.kind == room::ActionKind::Unready &&
-        shell.Navigation().Screen() == "room", "B during the held start did not take Ready back");
+    const auto beforeHeldBack = actions.size();press(MenuInput::Back);
+    Check(actions.size()==beforeHeldBack&&shell.Navigation().Screen()=="home","Back changed a held start");
+    shell.Navigation().Push("room");frame();focus("table-0");press(MenuInput::Select);
+    press(MenuInput::Right);press(MenuInput::Right);press(MenuInput::Select);
+    Check(actions.size()==beforeHeldBack+1&&actions.back().roomAction.kind==room::ActionKind::Unready,"Cancel choice did not unready");
     view.canEditSelection = true;
     view.room.tables[0].phase = room::TablePhase::Waiting; view.room.tables[0].spectatorHold = false;
     view.room.tables[0].ready[0] = view.room.tables[0].ready[1] = false;
@@ -964,7 +963,7 @@ int main() try {
     io.AddKeyEvent(ImGuiKey_Escape, true); frame();
     io.AddKeyEvent(ImGuiKey_Escape, false); frame();
     Check(shell.Navigation().Screen() == "room", "Keyboard Back did not return to the room");
-    focus("table-0"); press(MenuInput::Select);
+    focus("table-0"); press(MenuInput::Select); press(MenuInput::Select);
     const auto beforeLeave = actions.size(); click(targets.at("unqueue"));
     Check(actions.size() == beforeLeave + 1 && actions.back().roomAction.kind == room::ActionKind::Unqueue,
         "Mouse queue exit submitted zero or duplicate actions");

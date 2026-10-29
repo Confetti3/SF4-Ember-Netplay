@@ -141,6 +141,18 @@ PlaceExit ExitFromPlace(const ShellView& v) {
     }
     return exit;
 }
+std::string DepartureDetail(const ShellView& v, bool cancelStart) {
+    const auto exit=ExitFromPlace(v);
+    if(exit.table<0)return {};
+    if(!RoomActionsAvailable(v))return RoomWaitReason(v);
+    if(!exit.allowed)return exit.blocker;
+    if(exit.unready)return loc::T(cancelStart?"room.hold.cancel_detail":"room.leave_seat.unready_first");
+    const auto& table=v.room.tables[exit.table];
+    std::string detail=exit.seat?std::string(loc::T(table.queue.empty()?"room.leave_seat.release":"room.leave_seat.next_player")):
+        loc::T("room.leave_queue")+WatchingNote(v,room::ActionKind::Unqueue);
+    if(exit.cost)detail+=" "+LeavingCostText(exit.cost,table);
+    return detail;
+}
 bool OnOwnPlace(const PlaceExit& place, const std::string& focus) {
     return place.table >= 0 && focus == (place.row.empty() ? "table-" + std::to_string(place.table) : place.row);
 }

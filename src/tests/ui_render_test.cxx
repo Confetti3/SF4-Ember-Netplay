@@ -1,3 +1,4 @@
+#include "menu_navigation_walk.hxx"
 // Render the real UI into a hidden DX9 surface; no game or network is started.
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/Theme.hxx"
@@ -1074,7 +1075,7 @@ int main(int argc, char** argv) {
             view.canReplaceRoom=true;
             // Replace room is on the board; the table page is only the table.
             page("room");draw();
-            for(int i=0;i<64&&shell.Navigation().Focus()!="replace-room";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            WalkMenuNavigation(shell.Navigation(),[&](unsigned direction){draw(nullptr,0,1);draw(nullptr,direction,1);draw(nullptr,0,1);},[&]{return shell.Navigation().Focus()=="replace-room";});
             Require(shell.Navigation().Focus()=="replace-room","Replacement action is unreachable at this viewport/DPI");
             draw("table-replacement");
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Preparing;
@@ -1107,7 +1108,7 @@ int main(int argc, char** argv) {
             // Start at the first row so the editor appended after Leave cannot strand this downward walk.
             shell.Navigation().Prefer("table-0");draw(nullptr,0,2);
             // Move to Leave by clamped navigation, then open the safe dialog.
-            for(int i=0;i<64&&shell.Navigation().Focus()!="leave";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            Require(WalkMenuNavigation(shell.Navigation(),[&](unsigned direction){draw(nullptr,0,1);draw(nullptr,direction,1);draw(nullptr,0,1);},[&]{return shell.Navigation().Focus()=="leave";}),"Leave is unreachable");
             draw(nullptr,MenuInput::Select,1);draw("leave-confirmation");
             Require(shell.Navigation().Confirming()&&!shell.Navigation().ConfirmSelected(),"Leave confirmation not safe");
             auto* confirmation=FindWindow("###ConfirmAction");

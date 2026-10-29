@@ -12,6 +12,7 @@
 #include "../ui/RecoveryMenu.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 #include "imgui_test_support.hxx"
+#include "menu_navigation_walk.hxx"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <algorithm>
@@ -52,7 +53,12 @@ struct Harness {
   const auto walk=[&](unsigned direction){
    for(int i=0;i<100&&!at();++i){const std::string before=shell.Navigation().Focus();Press(direction);if(shell.Navigation().Focus()==before)break;}
   };
-  Frame();walk(MenuInput::Up);walk(MenuInput::Down);
+  Frame();
+  if(shell.Navigation().Screen()=="room"){
+   if(WalkMenuNavigation(shell.Navigation(),[&](unsigned direction){Press(direction);},at))return;
+   throw std::runtime_error(std::string("Room item not reachable: ")+id);
+  }
+  walk(MenuInput::Up);walk(MenuInput::Down);
   // A grid's cells sit side by side, so Up and Down reach only some of them:
   // sweep each row sideways from the top.
   if(!at()){

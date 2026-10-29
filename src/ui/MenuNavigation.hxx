@@ -17,7 +17,7 @@ struct MenuInput {
     // ControllerNavigation.hxx). Start is the sample's Menu button: it opens
     // Ember, and while Ember is shown only the on-screen keyboard reads it (Done).
     // Leave is the Delete key: it leaves your seat from your own table card,
-    // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down):
+    // also available as a visible card choice. PrevTab and NextTab are LB and RB (Page Up and Down):
     // the V2 tabs over a screen (GameMenu::tabs). Describe is the accessibility
     // button, RT and F2: speech reads the focused row's description (MenuNarrator);
     // the menu itself does nothing with it.
@@ -134,7 +134,7 @@ struct MenuAction {
     std::string id, text;
     int delta = 0;
     // A Back that came from Escape or Backspace, which always goes back;
-    // only a pad's B may mean "leave my seat".
+    // renderers can distinguish it from a controller press.
     bool keyboard = false;
     // Accepted text can be a passphrase, so no copy of an action leaves it
     // behind. (With this destructor, copies stand in for moves.)
@@ -149,6 +149,13 @@ public:
     void Push(const std::string& screen) {
         if (screen.empty() || screen == Screen()) return;
         Cancel(); stack_.push_back(screen); states_[screen]; Rearm();
+    }
+    // A shortcut preserves its caller. Revisiting a page already on the path
+    // unwinds to it instead of creating a cycle in Back navigation.
+    void PushOrUnwind(const std::string& screen) {
+        const auto found = std::find(stack_.begin(), stack_.end(), screen);
+        if (found == stack_.end()) { Push(screen); return; }
+        Cancel(); stack_.erase(found + 1, stack_.end()); Rearm();
     }
     void Home() { Cancel(); stack_.resize(1); Rearm(); }
     void Cancel() {

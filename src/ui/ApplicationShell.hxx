@@ -536,13 +536,13 @@ private:
     void RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
-    // What B does on the board while your own table card is focused: leave your
-    // seat or queue place (or say why the seat cannot be left yet). Empty
-    // (plain Back) otherwise.
+    // The Delete shortcut's label on the player's own card; Back only navigates.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
+    void OpenRoomFighter(const ShellView& view);
+    void RequestLeavePlace(const ShellView& view, const Submit& submit);
     void ToggleReady(const ShellView& view, const Submit& submit);
-    // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
+    // Leaves the selected seat or queue place, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
     // Unwatch of it), once confirmed: the press names the game, and the
@@ -608,6 +608,7 @@ private:
     // stacked in one list, wide with its column, or wide on a screen under 820
     // lines, which folds its sharing and settings into More…. Only a wide
     // board shows the chat as a part of its column.
+    std::size_t boardActionColumns_=2;
     enum class BoardLayout { Stacked, Wide, WideShort } boardLayout_=BoardLayout::Wide;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;

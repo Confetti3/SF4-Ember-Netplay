@@ -368,3 +368,4 @@ add_test(NAME NightlyPaths COMMAND "${SF4E_PWSH}" -NoProfile -File scripts/test-
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 set_tests_properties(NightlyPaths PROPERTIES TIMEOUT 300)
 sf4e_test_labels(LABELS publisher script TESTS BuildProvenance NightlyPublication NightlyPaths PackageFiles)
+sf4e_add_unit_test(NAME MenuController SOURCES src/tests/menu_controller_test.cxx LIBS sf4e_ui Dimps TIMEOUT 60 LABELS ui room)
