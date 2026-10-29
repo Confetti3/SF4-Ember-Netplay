@@ -109,11 +109,18 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
         }
     }
 }
+bool ChatTranscript::IsUnread(const ChatLine& line,const std::set<room::MemberId>& muted) const {
+    return line.kind==ChatLine::Kind::Message&&line.sequence>readThrough_&&!line.own&&!muted.count(line.sender);
+}
+std::uint64_t ChatTranscript::NewestUnreadSequence(const std::set<room::MemberId>& muted) const {
+    for(auto line=lines_.rbegin();line!=lines_.rend();++line)if(IsUnread(*line,muted))return line->sequence;
+    return 0;
+}
 unsigned ChatTranscript::Unread(const std::set<room::MemberId>& muted) const {
     if (unreadKnown_ && unreadRevision_ == linesRevision_ && unreadThrough_ == readThrough_ && unreadMuted_ == muted) return unread_;
     unsigned count = 0;
     for (const auto& line : lines_)
-        if (line.kind == ChatLine::Kind::Message && line.sequence > readThrough_ && !line.own && !muted.count(line.sender)) ++count;
+        if (IsUnread(line,muted)) ++count;
     unread_ = count; unreadKnown_ = true;
     unreadRevision_ = linesRevision_; unreadThrough_ = readThrough_;
     if (unreadMuted_ != muted) unreadMuted_ = muted;

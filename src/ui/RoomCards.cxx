@@ -216,8 +216,8 @@ CardInteraction DrawMemberCard(const MemberCardView& card) {
  const float s=Scale();
  const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
  std::string elided;
- if(ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+58*s)))NoteUserText(card.name);
- const bool pressed=DrawCardButton(card.id,ImVec2(width,58*s),card.focused,card.focusChanged,card.disabled);
+ if(ImGui::IsRectVisible(p,ImVec2(p.x+width,p.y+MemberCardHeight*s)))NoteUserText(card.name);
+ const bool pressed=DrawCardButton(card.id,ImVec2(width,MemberCardHeight*s),card.focused,card.focusChanged,card.disabled);
  const bool hovered=ImGui::IsItemHovered();
  DrawCharacterPortrait(card.mainFighter,ImVec2(p.x+6*s,p.y+5*s),ImVec2(p.x+54*s,p.y+53*s));
  if(v2::On()){

@@ -79,8 +79,8 @@ void ShootChat(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const
     nav.Prefer("room-chat");
     draw("chat-unread-row",0,3);
     Require(nav.Focus()=="room-chat","The Chat row did not take the focus");
-    open("room-chat");draw(nullptr,0,1);
-    Require(shell.Transcript().Unread({})==0,"Opening Chat did not clear the count");
+    open("room-chat");draw(nullptr,0,3);
+    Require(shell.Transcript().Unread({})==0,"Showing the newest message in Chat did not clear the count");
 
     // The board as the caller left it, with the first battle slot focused again.
     view.room=saved;open("room");nav.Prefer("table-0");

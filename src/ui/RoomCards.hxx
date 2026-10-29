@@ -13,6 +13,9 @@
 namespace sf4e { namespace ui {
 // The row a table card's banner takes, unscaled.
 constexpr float TableBannerHeight=22;
+constexpr float TableCardHeight=136;
+constexpr float MemberCardHeight=58;
+constexpr float RoomExplanationHeight=64;
 
 // A member's ping (LatencyMark.hxx): its text in its band's colour, and the
 // tip that explains it. With neither, nothing is drawn.

@@ -20,6 +20,74 @@ ImGuiWindow* ActiveWindow(const char* fragment){
  for(auto* window:GImGui->Windows)if(window->Active&&std::strstr(window->Name,fragment))found=window;
  return found;
 }
+// Scrolling, focus and dialogs must not acknowledge text the player cannot see.
+void ChatReadVisibility(){
+ using namespace sf4e;
+ Harness h;JoinChatRoom(h,600);h.Screen("home");
+ std::uint64_t sequence=0;
+ const auto say=[&]{h.view.room.chat.push_back({++sequence,2,"A line of chat history"});};
+ for(int i=0;i<80;++i)say();
+ h.Frame();Check(h.shell.UnreadChat()==80,"Hidden chat was marked read");
+ h.Screen("room-chat");h.Frame(0,5);
+ Check(h.shell.UnreadChat()==0,"Visible newest chat was not marked read");
+ auto* log=ActiveWindow("Chat transcript");
+ Check(log&&log->ScrollMax.y>0,"Chat read test needs a scrolling transcript");
+ log->Scroll.y=0;log->ScrollTarget.y=FLT_MAX;h.Frame(0,2);
+ say();h.Frame(0,3);
+ Check(h.shell.UnreadChat()==1,"Chat scrolled into history read an offscreen arrival");
+ log->Scroll.y=log->ScrollMax.y;h.Frame(0,3);
+ Check(h.shell.UnreadChat()==0,"Returning to the newest message did not read it");
+ h.view.focused=false;ImGui::GetIO().AddFocusEvent(false);say();h.Frame(0,4);
+ Check(h.shell.UnreadChat()==1,"An unfocused game read chat");
+ h.view.focused=true;ImGui::GetIO().AddFocusEvent(true);h.Frame(0,3);
+ Check(h.shell.UnreadChat()==0,"Restoring focus did not read visible chat");
+ // A large arrival extends the scroll range. It is unread on that frame,
+ // even though the viewport was at the end before the arrival.
+ for(int i=0;i<20;++i)say();
+ h.Frame();Check(h.shell.UnreadChat()==20,"Previous-frame bottom read an offscreen burst");
+ h.Frame(0,4);Check(h.shell.UnreadChat()==0,"Following the newest burst did not read it");
+ h.view.readyFailure="Read test notice";h.view.readyFailureSequence=1;h.Frame(0,3);
+ Check(h.shell.NoticeOpen(),"Read test did not open a notice");say();h.Frame(0,3);
+ Check(h.shell.UnreadChat()==1,"A message behind a modal notice was marked read");
+ h.Press(MenuInput::Select);h.Frame(0,4);
+ Check(!h.shell.NoticeOpen()&&h.shell.UnreadChat()==0,"Dismissing the notice did not restore visible chat reading");
+}
+void ChatNotificationTiming(){
+ using namespace sf4e;
+ room::Snapshot room;room.roomEpoch=800;room.localMember=1;
+ ui::ChatTranscript transcript;ui::ChatNotificationState notification;
+ std::set<room::MemberId> muted;
+ std::uint64_t sequence=0;
+ const auto say=[&](room::MemberId sender){room.chat.push_back({++sequence,sender,"New message"});transcript.Update(room,{});};
+ const auto tick=[&](double now){return notification.Update(transcript,muted,now);};
+ transcript.Update(room,{});Check(!tick(99).expanded,"Joining armed a chat notification");
+ say(2);Check(tick(100).expanded&&tick(103.999).expanded,"Chat notification ended before four seconds");
+ Check(!tick(104).expanded&&tick(104).unread==1,"Expiry lost unread chat or kept the expanded notice");
+ // Duplicate snapshots, our own messages, mute changes and mode changes do not rearm.
+ transcript.Update(room,{});Check(!tick(105).expanded,"A repeated snapshot rearmed chat");
+ muted.insert(3);say(3);Check(!tick(106).expanded&&tick(106).unread==1,"Muted chat raised a notification");
+ muted.clear();Check(!tick(107).expanded&&tick(107).unread==2,"Unmuting old chat raised a notification");
+ say(1);Check(!tick(108).expanded,"Our own message raised a notification");
+ say(2);Check(tick(110).expanded,"A later message did not raise a fresh notification");
+ say(2);Check(tick(112).expanded,"A burst lost its initial notification");
+ Check(!tick(114).expanded&&tick(114).unread==4,"A burst extended the notification or cleared unread");
+ say(2);Check(!tick(115).expanded,"Continuous chatter immediately reopened the notification");
+ say(2);Check(tick(119).expanded,"A quiet interval did not permit the next notification");
+ transcript.MarkRead();Check(!tick(119.1).expanded&&tick(119.1).unread==0,"Reading did not dismiss chat attention");
+ say(2);Check(tick(120).expanded,"A new message after reading did not notify");
+ // Expiry leaves the unread count intact.
+ Check(!tick(124).expanded&&tick(124).unread==1,"A hidden notification stopped aging");
+ for(int i=0;i<210;++i)say(2);
+ Check(tick(130).expanded&&tick(130).unread==200,"A full transcript failed to notify on new sequences");
+ tick(134);say(2);
+ Check(tick(140).expanded&&tick(140).unread==200,"An unchanged capped count hid a new message");
+ room.roomEpoch=801;transcript.Update(room,{});
+ Check(!tick(141).expanded&&tick(141).unread==0,"The prior room leaked a notification");
+ say(2);Check(tick(142).expanded,"New room chat failed to notify");
+ transcript.Clear();Check(!tick(143).expanded&&tick(143).unread==0,"Leaving a room left an unread badge");
+
+}
+
 // What the transcript keeps, without a screen: messages by sequence, and a line for each change of the room.
 void TranscriptLogic(){
  using namespace sf4e;using ui::ChatLine;
@@ -117,6 +185,7 @@ void TranscriptLogic(){
 void ChatJourneys(){
  using namespace sf4e;
  TranscriptLogic();
+ ChatReadVisibility();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
@@ -219,6 +288,7 @@ void ChatJourneys(){
  Check(log->Scroll.y<bottom-20,"Holding Up did not scroll the chat back");
  const float reading=log->Scroll.y;
  say(2,"Arrives while reading");h.Frame(0,3);
+ Check(h.shell.Transcript().Unread({})==1,"Reading older chat marked a new offscreen message read");
  Check(std::fabs(log->Scroll.y-reading)<1.5f,"A new message pulled the reader away from earlier ones");
  h.Frame(MenuInput::Down,200);h.Frame(0,2);
  Check(std::fabs(log->Scroll.y-log->ScrollMax.y)<1.5f,"Holding Down did not return to the newest message");
@@ -474,5 +544,40 @@ void ChatJourneys(){
  key(ImGuiKey_Enter);
  Check(h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="brb!?"&&!h.shell.ChatTyping(),
   "A sent draft still counted as typing");
+ // An active inline editor keeps shortcuts available and leaves its draft on Back.
+ h.view.canEditSelection=true;
+ JoinChatRoom(h,90);h.Screen("room");h.Frame(0,3);
+ h.Choose("inline-chat");h.Frame(0,3);
+ Check(io.WantTextInput,"Selecting the board editor did not acquire typing");
+ io.AddInputCharactersUTF8("inline draft");h.Frame(0,2);
+ h.Press(MenuInput::Chat);h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="room-chat"&&row("compose").value=="inline draft","View from the active board editor did not open the shared draft");
+ h.Press(MenuInput::Chat);h.Frame(0,3);h.Choose("inline-chat");h.Frame(0,3);
+ h.Press(MenuInput::Options);h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="room-table","Y was swallowed by the active board editor");
+ h.Screen("room");h.Choose("inline-chat");h.Frame(0,3);h.Press(MenuInput::Fighter);h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="selection","X was swallowed by the active board editor");
+ h.Screen("room");h.Choose("inline-chat");h.Frame(0,3);h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="room","Back from the board editor left the room screen");
+ h.Choose("inline-chat");h.Frame(0,3);JoinChatRoom(h,91);h.Frame(0,3);
+ Check(!io.WantTextInput,"Replacing a room retained the active inline editor");
+ h.Screen("room-chat");h.Frame(0,3);
+ Check(row("compose").value.empty(),"Replacing a room retained the inline draft");
+ // A muted newest arrival must not keep earlier visible messages unread.
+ sequence=0;h.Screen("room-members");h.Choose("member-3");h.Choose("mute");
+ h.Screen("room");h.shell.Navigation().Prefer("table-0");h.Frame(0,2);say(2,"Read me");say(3,"Muted tail");h.Frame(0,2);
+ Check(h.shell.UnreadChat()==1,"Muting changed the visible unread count");
+ h.view.focused=false;io.AddFocusEvent(false);h.Screen("room-chat");h.Frame(0,4);
+ Check(h.shell.UnreadChat()==1,"An unfocused chat read its newest message");
+ h.view.focused=true;io.AddFocusEvent(true);h.Frame(0,4);
+ Check(h.shell.UnreadChat()==0,"A muted tail prevented visible chat being read");
+ // V2's narrow tabs must reveal the editor when the pad focuses it.
+ h.view.preferences.lookV2=true;h.view.preferences.roomShowChat=true;
+ io.DisplaySize=ImVec2(800,720);JoinChatRoom(h,92);h.Screen("room");h.Frame(0,3);
+ h.Choose("inline-chat");h.Frame(0,3);
+ Check(io.WantTextInput,"V2 narrow Chat did not reveal its selected editor");
+ io.AddInputCharactersUTF8("V2 message");h.Frame(0,2);sent=h.actions.size();key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="V2 message","V2 inline Enter did not send exactly once");
  SetMenuEntriesProbe({});
+ ChatNotificationTiming();
 }
