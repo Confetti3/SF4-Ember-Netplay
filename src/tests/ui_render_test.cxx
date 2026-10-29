@@ -1006,7 +1006,7 @@ int main(int argc, char** argv) {
              view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Playing;
              view.room.tables[0].matchGeneration=9;view.watchedGame={0,9};page("room");draw("room-watched-match");
              const bool column=WindowDrawn("Room community");const float membersTop=column?FindWindow("Member list")->Pos.y:0;
-             view.watchedPicture=ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
+             view.watchedPicture=headless?ImTextureID(1):ImGui::GetIO().Fonts->TexID;page("room");draw("room-watched-picture");
              // The wide board shows it at the top of its column, above the members; the narrow one leaves it in the corner.
              {const bool corner=WindowDrawn("Watched game");
               Require(corner!=column,column?"The wide room board shows the watched game's picture in the corner, not in its column":"The watched game's picture is missing from the narrow room board's corner");

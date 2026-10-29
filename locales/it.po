@@ -514,6 +514,12 @@ msgstr "Registra manichino"
 msgid "screen.input_history"
 msgstr "Sequenza comandi"
 
+msgid "match.loading_title"
+msgstr "Avvio dell'incontro…"
+
+msgid "match.loading_detail"
+msgstr "Attendi. L'incontro inizierà automaticamente; non è necessario premere alcun pulsante."
+
 msgid "room.wait.leaving"
 msgstr "Uscita dalla sala. Attesa chiusura connessione..."
 

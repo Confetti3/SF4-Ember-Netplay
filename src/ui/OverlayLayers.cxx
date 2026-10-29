@@ -4,7 +4,24 @@
 #include <cstring>
 
 namespace sf4e { namespace ui {
+namespace {
+// An open window or loading cover hides routine status, not urgent notices.
+void DrawMatchStatus(const MatchStripView& match, bool passive) {
+    if (passive || (match.noticeSeverity >= 2 && !match.notice.empty()) || match.predictionStalled ||
+        (match.connectionWarning && match.disconnectCountdownMs >= 0)) {
+        const int severity = match.noticeSeverity >= 2 ? 2 :
+            (match.connectionWarning || match.predictionStalled) ? 1 : match.noticeSeverity;
+        DrawMatchNotice(MatchStripStateLine(match), severity);
+    }
+}
+}
 TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training::View& training) {
+    if (view.matchLoading) {
+        DrawMatchLoading();
+        DrawControllerWarning(view.controllerWarning);
+        DrawMatchStatus(view.match, false);
+        return {};
+    }
     ChallengerBanner(training, view.challenger);
     bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;
@@ -44,15 +61,12 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         if (passive && training.watching) DrawMatchMeter(training);
         const auto& match = view.match;
         if (passive && view.showMatchHud) DrawMatchStrip(match);
-        else if (passive || (match.noticeSeverity >= 2 && !match.notice.empty()) ||
-            match.predictionStalled || (match.connectionWarning && match.disconnectCountdownMs >= 0)) {
-            // An open window suppresses telemetry, but a stalled or ending
-            // fight still explains itself using the strip's own state line.
-            const auto line = MatchStripStateLine(match);
-            const int severity = match.noticeSeverity >= 2 ? 2 :
-                (match.connectionWarning || match.predictionStalled) ? 1 : match.noticeSeverity;
-            DrawMatchNotice(line, severity);
-        }
+        else DrawMatchStatus(match, passive);
+    }
+    if (view.matchActive && passive && view.focused) {
+        if (!view.match.spectator && view.practiceMatch)
+            DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
+        else if (view.watchingHint) DrawMatchKeysNotice({"runtime.watching_hint"});
     }
     return hud;
 }

@@ -16,7 +16,7 @@ static void CheckHandoff() {
         bool shown = false;
         while (running.load()) {
             const auto taken = pads.Take();
-            if (taken.kind != MenuPads::Kind::None) shown = true;
+            if (taken.kind != sf4e::ui::MenuRequest::None) shown = true;
             else if (hide.load()) shown = false;
             pads.Publish(shown, taken);
         }
@@ -24,7 +24,7 @@ static void CheckHandoff() {
     bool held = true;
     for (int round = 0; round < 20000 && held; ++round) {
         hide = false;
-        pads.Request(MenuPads::Kind::Controls);
+        pads.Request(sf4e::ui::MenuRequest::Toggle);
         for (int read = 0; read < 50 && held; ++read) held = pads.Holds();
         hide = true;
         while (pads.Holds()) std::this_thread::yield();
@@ -36,6 +36,19 @@ int main() {
     using sf4e::netplay::MatchState;
     using sf4e::input::MenuContext;
     using sf4e::ui::OverlayPresentation;
+    // Neither F10 nor a queued pad open may survive the loading cover.
+    for (auto state : {MatchState::Preparing, MatchState::Playing}) {
+        OverlayPresentation loading;
+        loading.Update(MenuContext::WatchedMatch, MatchState::Playing, false, true);
+        loading.Open(); CHECK(loading.Visible());
+        loading.Update(MenuContext::MatchLoading, state, false, true);
+        loading.Toggle(); loading.Open();
+        CHECK(!loading.Visible() && !loading.Available());
+        CHECK(!sf4e::input::ControllerOpensMenu(MenuContext::MatchLoading));
+        CHECK(!sf4e::input::ControllerMenuAvailable(MenuContext::MatchLoading));
+        loading.Update(MenuContext::WatchedMatch, MatchState::Playing, false, true);
+        CHECK(!loading.Visible());
+    }
     for (unsigned flags = 0; flags < 16; ++flags) {
         CHECK(sf4e::NativePauseMenuOpen(flags, -1) == false);
         CHECK(sf4e::NativePauseMenuOpen(flags, 0) == ((flags & 1) != 0));
@@ -164,15 +177,15 @@ int main() {
     }
     // Game-thread open requests wait for the drawing thread and coalesce, Play first.
     {
-        using Kind = sf4e::ui::MenuPads::Kind;
+        using Kind = sf4e::ui::MenuRequest;
         sf4e::ui::MenuPads requests;
         CHECK(requests.Take().kind == Kind::None);
-        requests.Request(Kind::Controls); requests.Request(Kind::Play);
+        requests.Request(Kind::Toggle); requests.Request(Kind::Play);
         CHECK(requests.Take().kind == Kind::Play && requests.Take().kind == Kind::None);
-        requests.Request(Kind::Play); requests.Request(Kind::Controls);
+        requests.Request(Kind::Play); requests.Request(Kind::Toggle);
         CHECK(requests.Take().kind == Kind::Play);
-        requests.Request(Kind::Controls);
-        CHECK(requests.Take().kind == Kind::Controls);
+        requests.Request(Kind::Toggle);
+        CHECK(requests.Take().kind == Kind::Toggle);
     }
     {
         // The menu's hold on the pads, as the overlay and the pad update use it.
@@ -185,12 +198,12 @@ int main() {
         MenuPads pads; pads.Place(MenuContext::MainMenu, false);
         CHECK(!pads.Holds() && pads.Takes() && pads.StartOpens());
         auto taken = pads.Take();
-        pads.Request(MenuPads::Kind::Controls);          // the game thread, mid-frame
+        pads.Request(sf4e::ui::MenuRequest::Toggle);          // the game thread, mid-frame
         CHECK(pads.Holds());
         pads.Publish(shell.Visible(), taken);           // that frame: still hidden
         CHECK(!shell.Visible() && pads.Holds());
         taken = pads.Take();
-        CHECK(taken.kind == MenuPads::Kind::Controls);
+        CHECK(taken.kind == sf4e::ui::MenuRequest::Toggle);
         shell.Open();
         CHECK(pads.Holds());                            // taken, not yet published
         pads.Publish(shell.Visible(), taken);
@@ -198,9 +211,9 @@ int main() {
         // A request the menu cannot answer lets the pads go once answered.
         MenuPads refused; refused.Place(MenuContext::MainMenu, false);
         OverlayPresentation fight; fight.Update(MenuContext::MainMenu, MatchState::Preparing, false, true);
-        refused.Request(MenuPads::Kind::Controls);
+        refused.Request(sf4e::ui::MenuRequest::Toggle);
         CHECK(refused.Holds());
-        const auto none = refused.Take(); if (none.kind != MenuPads::Kind::None && fight.Available()) fight.Open();
+        const auto none = refused.Take(); if (none.kind != sf4e::ui::MenuRequest::None && fight.Available()) fight.Open();
         refused.Publish(fight.Visible(), none);
         CHECK(!refused.Holds());
         // Drawing stops with the menu shown, so its last word stays "shown":
@@ -231,7 +244,7 @@ int main() {
         for (const auto context : {MenuContext::PracticeMatch, MenuContext::WatchedMatch}) {
             MenuPads over; over.Place(context, true);
             CHECK(!over.Holds() && over.Takes() && over.StartOpens());
-            over.Request(MenuPads::Kind::Controls); CHECK(over.Holds());
+            over.Request(sf4e::ui::MenuRequest::Toggle); CHECK(over.Holds());
             over.Publish(true, over.Take()); CHECK(over.Holds());
             over.Place(context, true); CHECK(over.Holds());
             over.Place(MenuContext::Unavailable, true); CHECK(!over.Holds() && !over.Takes() && !over.StartOpens());
@@ -239,10 +252,10 @@ int main() {
         }
         // A display reset drops the opens waiting and what was shown, until a frame says again.
         MenuPads reset; reset.Place(MenuContext::MainMenu, false);
-        reset.Request(MenuPads::Kind::Play); reset.Publish(true, MenuPads::Taken{});
+        reset.Request(sf4e::ui::MenuRequest::Play); reset.Publish(true, MenuPads::Taken{});
         CHECK(reset.Holds());
         reset.Reset();
-        CHECK(!reset.Holds() && reset.Take().kind == MenuPads::Kind::None && reset.Takes());
+        CHECK(!reset.Holds() && reset.Take().kind == sf4e::ui::MenuRequest::None && reset.Takes());
     }
     {
         // A watched game's hint: for its first ten seconds, whatever the clock read when it began,

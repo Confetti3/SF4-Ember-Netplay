@@ -514,6 +514,12 @@ msgstr "Nahrávání soupeře"
 msgid "screen.input_history"
 msgstr "Historie vstupů"
 
+msgid "match.loading_title"
+msgstr "Spouštění zápasu…"
+
+msgid "match.loading_detail"
+msgstr "Počkejte prosím. Zápas se spustí automaticky; není třeba mačkat žádná tlačítka."
+
 msgid "room.wait.leaving"
 msgstr "Opouštění místnosti. Čeká se na ukončení spojení..."
 

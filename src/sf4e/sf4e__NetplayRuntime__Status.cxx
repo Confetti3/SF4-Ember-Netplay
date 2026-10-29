@@ -301,6 +301,8 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
 // Where the game is for Ember's menu (input::MenuContext): what Publish
 // says, and what PublishThrottled schedules by.
 input::MenuContext MenuContextNow(bool atMainMenu) {
+    if (runtime->entry.automaticMatchEntry && runtime->match && (runtime->match->Live() || Game::Battle::System::ggpo))
+        return input::MenuContext::MatchLoading;
     // A Practice match is this PC's to end only while it fights in it, under rollback.
     const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
     // A spectator leaves the game it watches only while its stream is live:
@@ -358,6 +360,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->teardown.pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
+    mix(runtime->entry.automaticMatchEntry);
     mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }

@@ -76,6 +76,26 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         Require(WindowDrawn("##Tooltip"),"Open window or native pause hid an open-window tooltip");
         tooltip=false;
     }
+    // Loading covers the native picture, independently of whether GGPO has
+    // started. Warnings/notices stay above it; telemetry and meters stay off.
+    battlePause.CloseBattle();
+    for (int active=0;active<2;++active) for (int alert=1;alert<=3;++alert) {
+        training=saved;training.available=training.watching=true;
+        layers={};layers.matchLoading=true;layers.matchActive=active!=0;
+        layers.showMatchHud=layers.trainingHud=true;layers.shellAvailable=true;
+        if(alert&1)layers.controllerWarning="Reconnect your controller.";
+        if(alert&2){layers.match.notice="Connection interrupted.";layers.match.noticeSeverity=2;}
+        draw(alert==3?"match-loading-warnings":"match-loading");
+        auto* background=ImGui::GetBackgroundDrawList();
+        Require(background->VtxBuffer.Size>0,"Loading cover is missing");
+        const auto* data=ImGui::GetDrawData();
+        Require(data->CmdListsCount>0&&data->CmdLists[0]==background,"Loading cover is above notice windows");
+        Require(ImGui::GetForegroundDrawList()->VtxBuffer.Size==0,"Loading leaked telemetry or a foreground cover");
+        Require(WindowDrawn("Controller warning")==((alert&1)!=0),"Loading hid the controller warning");
+        Require(WindowDrawn("Match notice")==((alert&2)!=0),"Loading hid the match notice");
+        Require(!WindowDrawn("Training frame meter")&&!WindowDrawn("Training shortcuts")&&!WindowDrawn("Ember shortcut"),
+            "Loading leaked a passive layer");
+    }
     battlePause.CloseBattle();training=saved;layers={};mode=2;draw();
     CheckExportPasses(training,layers,tooltip,mode,draw);
 }

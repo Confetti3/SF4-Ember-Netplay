@@ -514,6 +514,12 @@ msgstr "Dummyopname"
 msgid "screen.input_history"
 msgstr "Invoergeschiedenis"
 
+msgid "match.loading_title"
+msgstr "Wedstrijd wordt gestart…"
+
+msgid "match.loading_detail"
+msgstr "Even geduld. De wedstrijd begint automatisch; je hoeft geen knoppen in te drukken."
+
 msgid "room.wait.leaving"
 msgstr "Je verlaat de kamer. Wachten tot de verbinding is gesloten..."
 
