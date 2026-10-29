@@ -30,7 +30,7 @@ Do not assume a particular hotspot or multi-adapter setup works until tested.
 - `ApplicationShell` uses the existing menu rows, controller navigation and
   create-room preferences. LAN is a per-room choice; visiting it does not change
   the saved public/private preference. No new room-action schema is introduced.
-- `IrohRoom` sends `lan_watch`, `host` with an explicit transport, and `lan_room`
+- `IrohRoom` sends `lan_watch`, `host` with an explicit room kind, and `lan_room`
   through the existing helper IPC. The overlay pulses browser visibility using
   the room board's existing pulse pattern. The runtime drives a single native
   subscription, renewed every five seconds with a 15-second helper lease.
@@ -39,7 +39,9 @@ Do not assume a particular hotspot or multi-adapter setup works until tested.
   coordination and latency builders. Async `begin` consumes the opening epoch
   and chooses/restores the endpoint once. Hosted/connected events publish the
   policy through `IrohRoom`, the runtime snapshot and the shell. The shell uses
-  `CreateKind` for private/public/LAN creation and hides short links in LAN rooms.
+  one LAN-create flag beside the saved public/private preference and hides short
+  links in LAN rooms. Host and Join accept only `RoomKind::{Online, Lan}`;
+  `RelayOnly` remains an endpoint policy, not a room kind.
   Invitation text is decoded at the helper boundary, not used as UI state.
 - The helper creates a LAN endpoint from Iroh's `Minimal` preset, with relays and
   port mapping disabled. Primary, coordination and member-latency endpoints use
@@ -62,8 +64,9 @@ Do not assume a particular hotspot or multi-adapter setup works until tested.
 - The writable technical leader advertises the native room snapshot's details.
   A successor can advertise after handoff; a follower or frozen room cannot serve
   new discovery invitations. Any LAN peer can request that capability while
-  the room is advertised; discovery is not an access-control boundary. Native admission remains authoritative if the
-  displayed capacity or name changes between browsing and joining.
+  the room is advertised; discovery is not an access-control boundary. Native
+  admission remains authoritative if the displayed capacity or name changes
+  between browsing and joining.
 - Selecting a room sends a typed LAN join request with the chosen endpoint,
   without changing the pasted invitation field. An authenticated
   QUIC connection using `sf4e/lan/1` requests its full invitation, with a five-second

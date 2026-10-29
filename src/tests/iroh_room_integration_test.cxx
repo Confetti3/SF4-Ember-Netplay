@@ -56,7 +56,7 @@ int wmain(int argc, wchar_t** argv) {
 		} while (std::chrono::steady_clock::now() < deadline);
         std::cerr << "Wait " << attempt << " timed out: host_invitation=" << host->Invitation().substr(0,12) << "/" << host->DiscordInvitation().substr(0,12)
             << " guest_invitation=" << guest->Invitation().substr(0,12) << "/" << guest->DiscordInvitation().substr(0,12)
-            << " lan_view=" << guest->LanRooms().status << "/" << guest->LanRooms()->rooms.size()
+            << " lan_view=" << guest->LanRooms()->status << "/" << guest->LanRooms()->rooms.size()
             << " host=" << static_cast<int>(host->GetState())
             << " error=" << host->Error() << " term=" << host->Coordination().term
             << " revision=" << host->Coordination().revision << " writable=" << host->Coordination().writable
