@@ -8127,3 +8127,6 @@ msgstr "{0} contre {1}"
 
 msgid "room.matchup_detail"
 msgstr "Bornes {0} et {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Enregistrez votre délai de saisie avant de prendre place. Il sera appliqué lorsque vous vous déclarerez prêt la prochaine fois ; le match que vous regardez ne changera pas."

@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "../netplay/UnseatedInputDelay.hxx"
 #include "Theme.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
@@ -559,6 +560,10 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     if(AbandonableAt(v,t)==AbandonableGame::Unresolved)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
      loc::T("room.abandon_result.detail"),mutableRoom));
    }else{
+    const bool delayEditable=netplay::CanSaveUnseatedInputDelay(v.session,s);
+    rows.push_back(Value("input-delay",loc::T("settings.input_delay"),v.preferences.autoInputDelay?
+     std::string(loc::T("settings.input_delay.auto")):FramesText(v.preferences.inputDelay),
+     loc::T("settings.delay_future_detail"),delayEditable));
     SelectionRows(rows,v);
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.

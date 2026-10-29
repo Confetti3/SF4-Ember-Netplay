@@ -7644,3 +7644,6 @@ msgstr "{0} vs. {1}"
 
 msgid "room.matchup_detail"
 msgstr "Máquinas {0} y {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Guarda tu retraso de entrada antes de sentarte. Se aplicará la próxima vez que te marques como listo; no cambia la partida que estás observando."

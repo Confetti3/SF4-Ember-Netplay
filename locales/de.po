@@ -8127,3 +8127,6 @@ msgstr "{0} vs. {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaten {0} und {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Speichere deine Eingabeverzögerung, bevor du Platz nimmst. Sie gilt, wenn du dich das nächste Mal bereit meldest; das beobachtete Match bleibt unverändert."

@@ -8127,3 +8127,6 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Kasten {0} en {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Sla je invoervertraging op voordat je plaatsneemt. Deze geldt zodra je je de volgende keer gereed meldt; de wedstrijd die je bekijkt verandert niet."

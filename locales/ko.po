@@ -8128,3 +8128,6 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "기체 {0}, {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "착석하기 전에 입력 지연을 저장하세요. 다음에 준비 완료를 선택할 때 적용되며, 관전 중인 대전에는 영향을 주지 않습니다."

@@ -8128,3 +8128,6 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "筐体 {0} と {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "着席する前に入力遅延を保存できます。次に準備完了にしたときに適用され、観戦中の対戦には影響しません。"

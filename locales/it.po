@@ -8127,3 +8127,6 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Cabinati {0} e {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Salva il ritardo di input prima di sederti. Verrà applicato la prossima volta che ti dichiari pronto; non modifica la partita che stai guardando."

@@ -1,3 +1,4 @@
+#include "../netplay/UnseatedInputDelay.hxx"
 #include "sf4e__NetplayRuntime.hxx"
 #include "../netplay/ControllerRestore.hxx"
 #include "sf4e__Gamepads.hxx"
@@ -209,17 +210,22 @@ bool CanEditButtonLayoutNow() {
         (gates.canEditPreferences || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle);
 }
 
-// The settings a room leaves open (PlayerPreferences::CopyRoomSettings), when
-// the menu may change button layouts now.
-void SaveRoomSettings(const netplay::PlayerPreferences& from) {
-    if (!CanEditButtonLayoutNow()) return;
-    auto preferences = runtime->preferences;
-    preferences.CopyRoomSettings(from);
-    if (!preferences.Valid()) return;
-    if (OverlayPrefs::SavePlayerPreferences(preferences)) {
-        runtime->preferences = std::move(preferences);
-        Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
-    } else runtime->error = loc::T("runtime.preferences_queue_failed");
+// Both room preference edits share copying and persistence. Their eligibility
+// is checked here against the game thread's current state, after dequeue.
+void SaveRoomSettings(const netplay::PlayerPreferences& from, int selectedDelay) {
+    const bool delay=selectedDelay!=-1;
+    if(delay) {
+        if(!runtime->attached || !UserApp::netplay ||
+            !netplay::CanSaveUnseatedInputDelay(runtime->controller.GetSnapshot(),UserApp::netplay->client.GetRoomSnapshot())) return;
+    } else if(!CanEditButtonLayoutNow()) return;
+    auto preferences=runtime->preferences;
+    if(!preferences.CopyRoomSettings(from,selectedDelay) || !preferences.Valid()) return;
+    if(OverlayPrefs::SavePlayerPreferences(preferences)) {
+        runtime->preferences=std::move(preferences);
+        if(delay) {
+            if(!runtime->preferences.autoInputDelay)runtime->selectedDelay=runtime->preferences.inputDelay;
+        } else Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+    } else runtime->error=loc::T("runtime.preferences_queue_failed");
 }
 
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {
