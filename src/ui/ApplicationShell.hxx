@@ -1,4 +1,5 @@
 #pragma once
+#include "ChatComposer.hxx"
 #include <imgui.h>
 #include "RoomCards.hxx"
 #include "../common/ReplayInputDetails.hxx"
@@ -74,6 +75,8 @@ struct ShellView {
     // player wear; empty until the backend fills it, so all locked.
     std::vector<std::string> earnedAwards;
     netplay::LobbySettings lobbySettings;
+    // Persistent window focus from the host; ImGui AppFocusLost lasts one frame.
+    bool focused = true;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
     bool canEditSelection = false;
@@ -625,6 +628,11 @@ std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_
     // The Chat screen's message box, and the room left in the message at the right of the note line
     // under it (`noteHeight` tall). A tournament match's watcher has neither.
     void DrawChatBox(float x,float width,bool typable,float noteHeight);
+    void DrawRoomChat(const ShellView& view,MenuAction& action,float height);
+    void DrawComposer(const ShellView& view,MenuAction& action,float width,bool inlineBox);
+    bool ChatSendPending() const;
+    void ResetRoomChat(const room::Snapshot& room);
+    ChatComposer chatComposer_;
     // The room left in the message, in bytes, which the counter says.
     int ChatBytesLeft() const;
     ChatTranscript transcript_;
@@ -654,9 +662,7 @@ std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_
     // When the message box was last edited, and whether this frame's draft counts as typing (ChatTyping).
     double chatEditedAt_ = -1e9;
     bool chatTyping_ = false;
-    // The text the message box last held. ImGui ignores the buffer it is given while the box has the
-    // keyboard, so a draft the shell changed (sent, or a new room) is handed to the box again.
-    std::string chatBoxText_;
+
     std::size_t chatShown_=0;
     double saveAt_ = 0;
     double lastUiTime_ = -1;

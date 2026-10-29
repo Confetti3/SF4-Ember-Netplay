@@ -312,6 +312,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
 }
 static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
 	sf4e::ui::ShellView view;
+    view.focused = focused.load();
     view.controllerAvailable = controllerNavigation.Available();
     view.controllerUnavailable = controllerNavigation.Unavailable();
     view.controllerFocus = controllerNavigation.FocusRequested();
