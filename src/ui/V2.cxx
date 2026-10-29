@@ -356,6 +356,8 @@ int Tabs(const std::vector<std::string>& labels, int current) {
     draw->PushClipRect(start, ImVec2(start.x + width, start.y + height + s), true);
     for (int i = 0; i < static_cast<int>(labels.size()); ++i) {
         const float w = ImGui::CalcTextSize(labels[i].c_str()).x + 2 * pad;
+        // A tab that does not fit whole stays out instead of showing a cut word; the cap steps to it.
+        if (x < start.x - s || x + w > start.x + width + s) { x += w; continue; }
         ImGui::SetCursorScreenPos(ImVec2(x, start.y));
         ImGui::PushID(i);
         if (ImGui::InvisibleButton("##tab", ImVec2(w, height))) pressed = i;
