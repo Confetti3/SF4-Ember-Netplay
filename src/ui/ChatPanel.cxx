@@ -202,6 +202,7 @@ void ApplicationShell::DrawChatLog(const ShellView& view, bool compact) {
         const auto bottom = ImGui::GetItemRectMax();
         const bool attended = !compact || chatComposer_.Typing() || ImGui::IsWindowHovered() || menu_.navigation.Focus() == "inline-chat";
         if (newest != transcript_.Lines().rend() && line.sequence == newest->sequence && attended && view.focused && !ImGui::GetIO().AppFocusLost &&
+            !menu_.NoticeOpen() && !menu_.navigation.Asking() && !ImGui::GetTopMostPopupModal() &&
             ImGui::IsItemVisible() && bottom.y <= bounds.Max.y && ImGui::GetItemRectMin().y >= bounds.Min.y)
             transcript_.MarkRead();
         if (line.own) {

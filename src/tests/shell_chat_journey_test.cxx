@@ -20,6 +20,39 @@ ImGuiWindow* ActiveWindow(const char* fragment){
  for(auto* window:GImGui->Windows)if(window->Active&&std::strstr(window->Name,fragment))found=window;
  return found;
 }
+// Scrolling, focus and dialogs must not acknowledge text the player cannot see.
+void ChatReadVisibility(){
+ using namespace sf4e;
+ Harness h;JoinChatRoom(h,600);h.Screen("home");
+ std::uint64_t sequence=0;
+ const auto say=[&]{h.view.room.chat.push_back({++sequence,2,"A line of chat history"});};
+ for(int i=0;i<80;++i)say();
+ h.Frame();Check(h.shell.UnreadChat()==80,"Hidden chat was marked read");
+ h.Screen("room-chat");h.Frame(0,5);
+ Check(h.shell.UnreadChat()==0,"Visible newest chat was not marked read");
+ auto* log=ActiveWindow("Chat transcript");
+ Check(log&&log->ScrollMax.y>0,"Chat read test needs a scrolling transcript");
+ log->Scroll.y=0;log->ScrollTarget.y=FLT_MAX;h.Frame(0,2);
+ say();h.Frame(0,3);
+ Check(h.shell.UnreadChat()==1,"Chat scrolled into history read an offscreen arrival");
+ log->Scroll.y=log->ScrollMax.y;h.Frame(0,3);
+ Check(h.shell.UnreadChat()==0,"Returning to the newest message did not read it");
+ h.view.focused=false;ImGui::GetIO().AddFocusEvent(false);say();h.Frame(0,4);
+ Check(h.shell.UnreadChat()==1,"An unfocused game read chat");
+ h.view.focused=true;ImGui::GetIO().AddFocusEvent(true);h.Frame(0,3);
+ Check(h.shell.UnreadChat()==0,"Restoring focus did not read visible chat");
+ // A large arrival extends the scroll range. It is unread on that frame,
+ // even though the viewport was at the end before the arrival.
+ for(int i=0;i<20;++i)say();
+ h.Frame();Check(h.shell.UnreadChat()==20,"Previous-frame bottom read an offscreen burst");
+ h.Frame(0,4);Check(h.shell.UnreadChat()==0,"Following the newest burst did not read it");
+ h.view.readyFailure="Read test notice";h.view.readyFailureSequence=1;h.Frame(0,3);
+ Check(h.shell.NoticeOpen(),"Read test did not open a notice");say();h.Frame(0,3);
+ Check(h.shell.UnreadChat()==1,"A message behind a modal notice was marked read");
+ h.Press(MenuInput::Select);h.Frame(0,4);
+ Check(!h.shell.NoticeOpen()&&h.shell.UnreadChat()==0,"Dismissing the notice did not restore visible chat reading");
+}
+
 // What the transcript keeps, without a screen: messages by sequence, and a line for each change of the room.
 void TranscriptLogic(){
  using namespace sf4e;using ui::ChatLine;
@@ -117,6 +150,7 @@ void TranscriptLogic(){
 void ChatJourneys(){
  using namespace sf4e;
  TranscriptLogic();
+ ChatReadVisibility();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
