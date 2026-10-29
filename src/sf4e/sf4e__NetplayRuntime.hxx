@@ -123,6 +123,8 @@ struct PreviewSound { netplay::Command command; int previewSoundVolume = -1; };
 struct Replay { netplay::Command command; replay::Request replay; };
 struct ShortInvitation { netplay::Command command; };
 struct Pad { netplay::Command command; gamepads::ControllerRequest padAction; };
+// Save only the settings a room leaves open, from `preferences` (RuntimeRequest::roomSettings).
+struct RoomSettings { netplay::Command command; netplay::PlayerPreferences preferences; };
 struct Input { netplay::Command command; input::Action inputAction = input::Action::None; };
 struct Service {
     netplay::Command command;
@@ -156,11 +158,11 @@ struct Room {
 }
 using TypedCommand = std::variant<commands::Identity, commands::Tournament, commands::Training, commands::LeaveWatchedGame,
     commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
-    commands::Input, commands::Service, commands::Room>;
+    commands::RoomSettings, commands::Input, commands::Service, commands::Room>;
 // The one place that decides which family a submitted command is. A command
 // with several families' fields set is the first of: identity, tournament,
 // Training from the room, leave the watched game, Discord invite action, sound
-// preview, replay, short link, pad request, input action, service, else a room
+// preview, replay, short link, pad request, room settings save, input action, service, else a room
 // command. So the hidden shell's submit, which fills identity and a room
 // command together, is an identity request.
 TypedCommand Classify(RuntimeCommand command);

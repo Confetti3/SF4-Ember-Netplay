@@ -143,7 +143,7 @@ int main() {
 	std::string detail;
 	std::printf("This machine's link: %s\n", NetworkLinkLabel(DetectNetworkLink(&detail)));
 	std::printf("  %s\n", detail.c_str());
-	EXPECT(detail.find("route=if") == 0 || detail == "no default route" || detail == "wine");
+	EXPECT(detail.find("route=if") == 0 || detail == "no default route");
 	if (TEST_FAILURES()) return 1;
 	std::puts("NetworkLink test passed");
 	return 0;

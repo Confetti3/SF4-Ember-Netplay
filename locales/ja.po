@@ -1344,6 +1344,12 @@ msgstr "アナウンスをテスト"
 msgid "settings.ready_sound_test_detail"
 msgstr "この音量で一度再生します。"
 
+msgid "settings.lobby_music"
+msgstr "エンドレスロビーBGM"
+
+msgid "settings.lobby_music_detail"
+msgstr "メインメニューで専用BGMの代わりにランダムなステージBGMかキャラBGMを流し、対戦ごとに曲が変わります。変更は次の対戦後に反映されます。"
+
 msgid "settings.shortcut_hint"
 msgstr "メニューのショートカット表示"
 
@@ -2576,6 +2582,8 @@ msgstr "対戦参加者がルームから退出しました。ゲームを終了
 msgid "update.github_unreachable"
 msgstr "GitHubに接続できませんでした。インターネット接続を確認して再試行してください。"
 
+msgid "update.rate_limited"
+msgstr "GitHubが更新の確認を一時的に制限しています。数分待ってから再試行してください。"
 
 msgid "update.no_zip_asset"
 msgstr "最新リリースにSF4 Ember NetplayのZIPファイルがありません。"
@@ -2639,8 +2647,8 @@ msgstr "ダウンロードしたパッケージにLauncher.exeまたはSidecar.d
 msgid "update.staging_path_failed"
 msgstr "仮配置先のパスを読み取れませんでした。"
 
-msgid "update.validation_failed"
-msgstr "ダウンロードしたパッケージの検証に失敗しました（必須ファイルがありません）。"
+msgid "update.validation_detail"
+msgstr "更新の検証に失敗しました: {0}\nインストール済みのファイルは変更されていません。"
 
 msgid "update.cancelled"
 msgstr "インストール前に更新をキャンセルしました。"

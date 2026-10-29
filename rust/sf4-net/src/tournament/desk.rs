@@ -11,13 +11,7 @@ use serde_json::{Map, Value, json};
 
 use super::{
     Code, Failure, Outcome, Shared, browser,
-    client::{Body, BridgeCall, Refusals, Verb, answer, fetch, request, with_session},
-};
-
-/// A route an older bridge does not have: a 404 naming no reason.
-const UNSUPPORTED: Refusals<'static> = Refusals {
-    reasons: &[],
-    missing: Some(Code::Unsupported),
+    client::{self, Body, BridgeCall, Refusals, Verb, with_session},
 };
 
 const EVENTS: &str = "/v1/organizer/events";
@@ -38,43 +32,46 @@ const MAX_TEXT: usize = 64;
 /// set's players, score and games: the bridge keeps up to 1024 sets.
 const MAX_SETS_ANSWER: usize = 1024 * 1024;
 
+fn invalid_request() -> Failure {
+    Failure::new(Code::InvalidRequest)
+}
+
 /// The organizer's events, or `event`'s sets with what the desk shows of
 /// each, when `event` is given.
 pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) -> Outcome {
     let path = match event {
         None => EVENTS.to_owned(),
         Some(event) if is_prefixed_id(event, "oev") => format!("{EVENTS}/{event}/sets"),
-        Some(_) => return Err(Failure::new(Code::InvalidRequest)),
+        Some(_) => return Err(invalid_request()),
     };
+    // An event's sets outgrow the 64 KiB of other answers from about 90 sets
+    // on; what goes to the game is cut down below.
+    let listing = BridgeCall::new(Verb::Get, &path, &[200]).limit(if event.is_some() {
+        MAX_SETS_ANSWER
+    } else {
+        client::MAX_RESPONSE
+    });
+    // Whether Tournament Mode is the player's yet, on a bridge that takes
+    // organizers by invitation; a bridge without the route takes everyone.
+    let access = BridgeCall::new(Verb::Get, ACCESS, &[200]).refusals(Refusals {
+        reasons: &[],
+        missing: Some(Code::Unsupported),
+    });
     with_session(shared, bridge_id, |bridge, token| {
-        let path = path.clone();
+        let (listing, access) = (&listing, &access);
         async move {
-            // An event's sets outgrow the 64 KiB of other answers from
-            // about 90 sets on; what goes to the game is cut down below.
-            let (status, body) = shared
-                .client
-                .call_bounded(
-                    reqwest::Method::GET,
-                    &format!("{}{path}", bridge.origin),
-                    Some(&token),
-                    None,
-                    "application/json",
-                    if event.is_some() { MAX_SETS_ANSWER } else { 64 * 1024 },
-                )
-                .await?;
+            let (status, body) = client::send(shared, &bridge, Some(&token), listing).await?;
             let found = if status == 200 {
                 large_answer(&body)?
             } else {
-                answer(status, &body, &[200], &Refusals::NONE)?
+                client::answer(status, &body, &[200], &Refusals::NONE)?
             };
             if event.is_some() {
-                return Ok(Some(json!({ "event": event, "sets": sets(&found["sets"]) })));
+                return Ok(Some(
+                    json!({ "event": event, "sets": sets(&found["sets"]) }),
+                ));
             }
-            // Whether Tournament Mode is the player's yet, on a bridge that
-            // takes organizers by invitation; a bridge without the route
-            // takes everyone.
-            let call = BridgeCall::new(Verb::Get, ACCESS, &[200]).refusals(UNSUPPORTED);
-            let access = match fetch(shared, &bridge, Some(&token), &call).await {
+            let access = match client::fetch(shared, &bridge, Some(&token), access).await {
                 Ok(found) => json!({
                     "invite_only": found["invite_only"].as_bool().unwrap_or(false),
                     "allowed": found["allowed"].as_bool().unwrap_or(true),
@@ -84,7 +81,9 @@ pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) ->
                 }
                 Err(failure) => return Err(failure),
             };
-            Ok(Some(json!({ "events": events(&found["events"]), "access": access })))
+            Ok(Some(
+                json!({ "events": events(&found["events"]), "access": access }),
+            ))
         }
     })
     .await
@@ -102,51 +101,52 @@ fn large_answer(body: &[u8]) -> Result<Value, Failure> {
 /// and sent with `command` as its body.
 pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, command: Value) -> Outcome {
     if !is_action(path) || !command.is_object() {
-        return Err(Failure::new(Code::InvalidRequest));
+        return Err(invalid_request());
     }
     // A sign-up the bridge took is 201 Created; a set's action 200.
     let call = BridgeCall::new(Verb::Post, path, &[200, 201]).body(Body::Proven {
         action: Action::SiteConnect,
         command: &command,
     });
-    request(shared, bridge_id, &call).await?;
+    client::request(shared, bridge_id, &call).await?;
     Ok(None)
 }
 
 /// The player's web desk sessions, after noting them seen (`seen`) or
 /// ending them all (`end`, proven with `site.remove`).
 pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -> Outcome {
-    let empty = json!({});
-    let empty = &empty;
-    with_session(shared, bridge_id, |bridge, token| async move {
-        if end {
-            let call = BridgeCall::new(Verb::Delete, WEB, &[200]).body(Body::Proven {
-                action: Action::SiteRemove,
-                command: &empty,
-            });
-            fetch(shared, &bridge, Some(&token), &call).await?;
-        } else if seen {
-            let path = format!("{WEB}/seen");
-            let call = BridgeCall::new(Verb::Post, &path, &[200]).body(Body::Json(b"{}"));
-            fetch(shared, &bridge, Some(&token), &call).await?;
+    let command = json!({});
+    let end_all = BridgeCall::new(Verb::Delete, WEB, &[200]).body(Body::Proven {
+        action: Action::SiteRemove,
+        command: &command,
+    });
+    let seen_path = format!("{WEB}/seen");
+    let note_seen = BridgeCall::new(Verb::Post, &seen_path, &[200]).body(Body::Json(b"{}"));
+    let list = BridgeCall::new(Verb::Get, WEB, &[200]);
+    with_session(shared, bridge_id, |bridge, token| {
+        let (end_all, note_seen, list) = (&end_all, &note_seen, &list);
+        async move {
+            if end {
+                client::fetch(shared, &bridge, Some(&token), end_all).await?;
+            } else if seen {
+                client::fetch(shared, &bridge, Some(&token), note_seen).await?;
+            }
+            let found = client::fetch(shared, &bridge, Some(&token), list).await?;
+            let sessions: Vec<Value> = found["sessions"]
+                .as_array()
+                .map(Vec::as_slice)
+                .unwrap_or_default()
+                .iter()
+                .take(20)
+                .map(|session| {
+                    kept(
+                        session,
+                        &["site", "browser", "started_at", "last_used_at", "new"],
+                    )
+                })
+                .collect();
+            Ok(Some(json!({ "sessions": sessions })))
         }
-        let call = BridgeCall::new(Verb::Get, WEB, &[200]);
-        let found = fetch(shared, &bridge, Some(&token), &call).await?;
-        let list = found["sessions"]
-            .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        let sessions: Vec<Value> = list
-            .iter()
-            .take(20)
-            .map(|session| {
-                kept(
-                    session,
-                    &["site", "browser", "started_at", "last_used_at", "new"],
-                )
-            })
-            .collect();
-        Ok(Some(json!({ "sessions": sessions })))
     })
     .await
 }
@@ -154,24 +154,26 @@ pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -
 /// A one-time handoff to the web desk, proven with `site.connect`: its link
 /// opens in this PC's browser, and its token stays in the helper.
 pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    let empty = json!({});
-    let empty = &empty;
-    with_session(shared, bridge_id, |bridge, token| async move {
-        let call = BridgeCall::new(Verb::Post, HANDOFF, &[201]).body(Body::Proven {
-            action: Action::SiteConnect,
-            command: &empty,
-        });
-        let made = fetch(shared, &bridge, Some(&token), &call).await?;
-        let link = made["token"].as_str().unwrap_or_default();
-        let well_formed = (16..=64).contains(&link.len())
-            && link
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
-        if !well_formed {
-            return Err(Failure::new(Code::BridgeInvalidResponse));
+    let command = json!({});
+    let call = BridgeCall::new(Verb::Post, HANDOFF, &[201]).body(Body::Proven {
+        action: Action::SiteConnect,
+        command: &command,
+    });
+    with_session(shared, bridge_id, |bridge, token| {
+        let call = &call;
+        async move {
+            let made = client::fetch(shared, &bridge, Some(&token), call).await?;
+            let link = made["token"].as_str().unwrap_or_default();
+            let well_formed = (16..=64).contains(&link.len())
+                && link
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
+            if !well_formed {
+                return Err(Failure::new(Code::BridgeInvalidResponse));
+            }
+            browser::open(&format!("{}/desk/h/{link}", bridge.origin))?;
+            Ok(Some(json!({ "desk": format!("{}/desk", bridge.origin) })))
         }
-        browser::open(&format!("{}/desk/h/{link}", bridge.origin))?;
-        Ok(Some(json!({ "desk": format!("{}/desk", bridge.origin) })))
     })
     .await
 }
@@ -194,11 +196,12 @@ pub async fn code_info(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Out
         return Err(Failure::new(Code::DeskCodeRefused));
     };
     let path = format!("{DEVICE}?code={code}");
+    // A 404 is a code the bridge does not know, whatever it says.
     let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(Refusals {
         reasons: &[],
         missing: Some(Code::DeskCodeRefused),
     });
-    let found = request(shared, bridge_id, &call).await?;
+    let found = client::request(shared, bridge_id, &call).await?;
     info(&found).map(Some)
 }
 
@@ -225,6 +228,9 @@ fn info(found: &Value) -> Result<Value, Failure> {
     }))
 }
 
+/// The bridge's reason for a code approved with the wrong number.
+const NUMBER_WRONG: &str = "number_wrong";
+
 /// Approves `code`, shown by another device's browser at the desk, with
 /// `number`, the one that device shows now (`code_info`), proven with
 /// `site.connect`: that browser, and only it, signs in to the desk. A wrong
@@ -243,12 +249,12 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: 
             command: &command,
         })
         .refusals(Refusals {
-            reasons: &["number_wrong"],
+            reasons: &[NUMBER_WRONG],
             missing: Some(Code::DeskCodeRefused),
         });
-    match request(shared, bridge_id, &call).await {
+    match client::request(shared, bridge_id, &call).await {
         Ok(_) => Ok(Some(json!({ "approved": true }))),
-        Err(Failure::Bridge(reason)) if reason == "number_wrong" => {
+        Err(Failure::Bridge(reason)) if reason == NUMBER_WRONG => {
             Err(Failure::new(Code::DeskNumberWrong))
         }
         Err(failure) => Err(failure),
@@ -259,33 +265,44 @@ pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: 
 /// from the organizer's listing there; nothing for a site that says none.
 /// Read when the organizer opens an event, not polled: each read is one
 /// request to the site.
-pub async fn site_state(shared: &Arc<Shared>, bridge_id: &str, site: &str, tournament: &str) -> Outcome {
+pub async fn site_state(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    site: &str,
+    tournament: &str,
+) -> Outcome {
     let valid = |text: &str| {
         (1..=64).contains(&text.len())
-            && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+            && text
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
     };
     if !valid(site) || !valid(tournament) {
-        return Err(Failure::new(Code::InvalidRequest));
+        return Err(invalid_request());
     }
     let path = format!("/v1/organizer/tournaments?site={site}");
-    let found = request(shared, bridge_id, &BridgeCall::new(Verb::Get, &path, &[200])).await?;
-    {
-        let listed = found["tournaments"].as_array().map(Vec::as_slice).unwrap_or_default();
-        let Some(event) = listed.iter().find(|each| each["id"] == tournament) else {
-            return Ok(Some(json!({ "state": null, "actions": [] })));
-        };
-        let actions: Vec<&str> = event["actions"]
-            .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or_default()
-            .iter()
-            .filter_map(Value::as_str)
-            .filter(|name| name.len() <= 32)
-            .take(8)
-            .collect();
-        let state = event["state"].as_str().filter(|state| state.len() <= 32);
-        Ok(Some(json!({ "tournament": tournament, "state": state, "actions": actions })))
-    }
+    let call = BridgeCall::new(Verb::Get, &path, &[200]);
+    let found = client::request(shared, bridge_id, &call).await?;
+    let listed = found["tournaments"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let Some(event) = listed.iter().find(|each| each["id"] == tournament) else {
+        return Ok(Some(json!({ "state": null, "actions": [] })));
+    };
+    let actions: Vec<&str> = event["actions"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter_map(Value::as_str)
+        .filter(|name| name.len() <= 32)
+        .take(8)
+        .collect();
+    let state = event["state"].as_str().filter(|state| state.len() <= 32);
+    Ok(Some(
+        json!({ "tournament": tournament, "state": state, "actions": actions }),
+    ))
 }
 
 /// Redeems `code`, an invite to Tournament Mode, for the player's Ember ID.
@@ -295,6 +312,7 @@ pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcom
         return Err(Failure::new(Code::InviteInvalid));
     }
     let command = json!({ "code": code });
+    // `invite_invalid` is the bridge's own word and passes through as it is.
     let call = BridgeCall::new(Verb::Post, REDEEM, &[200])
         .body(Body::Proven {
             action: Action::SiteConnect,
@@ -304,7 +322,7 @@ pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcom
             reasons: &["invite_invalid"],
             missing: Some(Code::InvitesUnsupported),
         });
-    request(shared, bridge_id, &call).await?;
+    client::request(shared, bridge_id, &call).await?;
     Ok(Some(json!({ "allowed": true })))
 }
 
@@ -375,7 +393,12 @@ fn events(found: &Value) -> Value {
     let list = found.as_array().map(Vec::as_slice).unwrap_or_default();
     list.iter()
         .take(32)
-        .map(|event| kept(event, &["id", "title", "status", "site", "starts_at", "tournament"]))
+        .map(|event| {
+            kept(
+                event,
+                &["id", "title", "status", "site", "starts_at", "tournament"],
+            )
+        })
         .collect()
 }
 
@@ -434,7 +457,9 @@ mod tests {
             "{EVENTS}/{EVENT}/matches/{MATCH}/adjudications"
         )));
         assert!(is_action(&format!("/v1/events/{EVENT}/sign-up")));
-        assert!(is_action(&format!("{EVENTS}/{EVENT}/transitions/open_sign_ups")));
+        assert!(is_action(&format!(
+            "{EVENTS}/{EVENT}/transitions/open_sign_ups"
+        )));
         for path in [
             format!("{EVENTS}/{EVENT}/transitions/Open"),
             format!("{EVENTS}/{EVENT}/transitions/../x"),

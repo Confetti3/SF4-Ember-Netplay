@@ -170,8 +170,9 @@ void FollowPositions(Native* system) {
 // The game's Training menu settings live in Training::Manager; the dummy
 // driver reads them every frame, so a write there is the whole change.
 using Manager = Dimps::Game::Battle::Training::Manager;
+Manager* TrainingManager() { return Manager::staticMethods.GetSingleton ? Manager::staticMethods.GetSingleton() : nullptr; }
 int* DummyOptions() {
-    Manager* manager = Manager::staticMethods.GetSingleton ? Manager::staticMethods.GetSingleton() : nullptr;
+    Manager* manager = TrainingManager();
     static bool warned = false;
     if (!manager && !warned) { warned = true; spdlog::warn("Training: the game's training options are not reachable; dummy settings stay as they are"); }
     return manager ? Manager::GetOptions(manager) : nullptr;
@@ -202,7 +203,7 @@ bool RestoreCheckpoint(Native* system) {
     sf4e::replay::Capture(*Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton(), checkpoint.d.replayRecorder);
     const bool restored = Battle::SaveState::Load(&checkpoint);
     if (options) options[Manager::OPT_ACTION] = action;
-    Manager* manager = Manager::staticMethods.GetSingleton ? Manager::staticMethods.GetSingleton() : nullptr;
+    Manager* manager = TrainingManager();
     Manager::RecorderState* recorderState = manager ? Manager::GetRecorderState(manager) : nullptr;
     if (recorderState && *recorderState == Manager::REC_PLAYING) *recorderState = Manager::REC_PLAYBACK_ARMED;
     if (dummyControl.Rewind()) ReturnDummyControl(system);

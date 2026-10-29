@@ -346,6 +346,7 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
    OnOffValue(preferences_,"ready-sound",loc::T("settings.ready_sound"),loc::T("settings.ready_sound_detail"),v.canEditPreferences),
    Value("ready-volume",loc::T("settings.ready_sound_volume"),std::to_string(preferences_.readySoundVolume)+"%",loc::T("settings.ready_sound_volume_detail"),v.canEditPreferences&&preferences_.readySound),
    Row("ready-test",loc::T("settings.ready_sound_test"),loc::T("settings.ready_sound_test_detail"),v.canEditPreferences&&preferences_.readySound),
+   OnOffValue(preferences_,"lobby-music",loc::T("settings.lobby_music"),loc::T("settings.lobby_music_detail"),v.canEditPreferences&&v.lobbyMusicAvailable),
    OnOffValue(preferences_,"shortcut-hint",loc::T("settings.shortcut_hint"),loc::T("settings.shortcut_hint_detail"),v.canEditPreferences),
    OnOffValue(preferences_,"class-emblems",loc::T("settings.class_emblems"),loc::T("settings.class_emblems_detail"),v.canEditPreferences),
    Value("scale",loc::T("settings.interface_size"),size,reason,v.canEditPreferences),

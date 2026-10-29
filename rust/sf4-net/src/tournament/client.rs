@@ -22,7 +22,8 @@ use zeroize::Zeroizing;
 
 use super::{Code, Failure, Locked, Outcome, Shared, bridges::Approved, sites};
 
-const MAX_RESPONSE: usize = 64 * 1024;
+pub(super) const MAX_RESPONSE: usize = 64 * 1024;
+const JSON: &str = "application/json";
 /// How long creating a room may take. The bridge waits up to 30 s for the
 /// supervisor, and the room host it starts may take up to 25 s to report
 /// hosted, so the ordinary request timeout would give up on a room that is
@@ -95,7 +96,7 @@ impl Client {
             .map(|session| session.token.clone())
     }
 
-    /// Sends one request and reads at most `MAX_RESPONSE` bytes back.
+    /// Sends one JSON request and reads at most `MAX_RESPONSE` bytes back.
     pub(super) async fn call(
         &self,
         method: reqwest::Method,
@@ -103,47 +104,14 @@ impl Client {
         token: Option<&str>,
         body: Option<Vec<u8>>,
     ) -> Result<(u16, Vec<u8>), Failure> {
-        self.call_within(method, url, token, body, None).await
-    }
-
-    /// `call` with `timeout` as the request's total time in place of the
-    /// client's own.
-    pub(super) async fn call_within(
-        &self,
-        method: reqwest::Method,
-        url: &str,
-        token: Option<&str>,
-        body: Option<Vec<u8>>,
-        timeout: Option<Duration>,
-    ) -> Result<(u16, Vec<u8>), Failure> {
-        self.send(
-            method,
-            url,
-            token,
-            body,
-            "application/json",
-            MAX_RESPONSE,
-            timeout,
-        )
-        .await
-    }
-
-    /// `call` with a body of `content_type` and at most `max` bytes back.
-    pub(super) async fn call_bounded(
-        &self,
-        method: reqwest::Method,
-        url: &str,
-        token: Option<&str>,
-        body: Option<Vec<u8>>,
-        content_type: &str,
-        max: usize,
-    ) -> Result<(u16, Vec<u8>), Failure> {
-        self.send(method, url, token, body, content_type, max, None)
+        self.exchange(method, url, token, body, JSON, MAX_RESPONSE, None)
             .await
     }
 
+    /// One request with a body of `content_type`, `max` bytes read back at
+    /// most, and `timeout` as its total time in place of the client's own.
     #[allow(clippy::too_many_arguments)]
-    async fn send(
+    pub(super) async fn exchange(
         &self,
         method: reqwest::Method,
         url: &str,
@@ -386,6 +354,11 @@ pub(super) enum Body<'a> {
     None,
     /// A JSON body the session token alone authorizes.
     Json(&'a [u8]),
+    /// A body of another type, which the session token alone authorizes.
+    Raw {
+        content_type: &'a str,
+        bytes: &'a [u8],
+    },
     /// A command proven by the identity for `action`, sent with its proof.
     Proven {
         action: Action,
@@ -419,6 +392,8 @@ pub(super) struct BridgeCall<'a> {
     success: &'a [u16],
     refusals: Refusals<'a>,
     timeout: Option<Duration>,
+    /// The most bytes of the bridge's answer read.
+    limit: usize,
 }
 
 impl<'a> BridgeCall<'a> {
@@ -430,6 +405,7 @@ impl<'a> BridgeCall<'a> {
             success,
             refusals: Refusals::NONE,
             timeout: None,
+            limit: MAX_RESPONSE,
         }
     }
 
@@ -448,6 +424,11 @@ impl<'a> BridgeCall<'a> {
             ..self
         }
     }
+
+    /// The most bytes of the answer read, in place of the usual 64 KiB.
+    pub(super) fn limit(self, limit: usize) -> Self {
+        Self { limit, ..self }
+    }
 }
 
 /// Sends `call` to `bridge`, proving its command first when it carries one,
@@ -459,24 +440,31 @@ pub(super) async fn send(
     token: Option<&str>,
     call: &BridgeCall<'_>,
 ) -> Result<(u16, Vec<u8>), Failure> {
-    let body = match call.body {
-        Body::None => None,
-        Body::Json(bytes) => Some(bytes.to_vec()),
+    let (body, content_type) = match call.body {
+        Body::None => (None, JSON),
+        Body::Json(bytes) => (Some(bytes.to_vec()), JSON),
+        Body::Raw {
+            content_type,
+            bytes,
+        } => (Some(bytes.to_vec()), content_type),
         Body::Proven { action, command } => {
             let method = call
                 .verb
                 .proven()
                 .ok_or_else(|| Failure::new(Code::Internal))?;
-            Some(prove(shared, bridge, token, action, method, call.path, command).await?)
+            let proven = prove(shared, bridge, token, action, method, call.path, command).await?;
+            (Some(proven), JSON)
         }
     };
     shared
         .client
-        .call_within(
+        .exchange(
             call.verb.http(),
             &format!("{}{}", bridge.origin, call.path),
             token,
             body,
+            content_type,
+            call.limit,
             call.timeout,
         )
         .await
@@ -559,7 +547,7 @@ pub(super) fn read<T: DeserializeOwned>(
 }
 
 /// The failure for an answer that is not a success of its route.
-fn refused(status: u16, body: &[u8], refusals: &Refusals<'_>) -> Failure {
+pub(super) fn refused(status: u16, body: &[u8], refusals: &Refusals<'_>) -> Failure {
     let failure = refusal(status, body, refusals.reasons);
     match refusals.missing {
         Some(missing) if status == 404 && !refusals.reasons.contains(&failure.as_str()) => {

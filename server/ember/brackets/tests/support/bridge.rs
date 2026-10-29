@@ -69,6 +69,8 @@ impl TestBridge {
                 config.integration_secrets =
                     Some(config.database.with_file_name("integrations.json"));
                 config.sign_in_sites = sites;
+                config.desk =
+                    Some(serde_json::from_value(json!({ "connection": CONNECTION })).unwrap());
                 config.tenants = tenants;
                 config.desk = Some(ember_bridge::config::Desk {
                     connection: CONNECTION.into(),

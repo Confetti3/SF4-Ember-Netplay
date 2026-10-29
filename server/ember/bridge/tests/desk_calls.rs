@@ -11,7 +11,8 @@ use std::{
 };
 
 use axum::{Router, body::Bytes, extract::Path, routing::post};
-use common::{Bridge, Player, challonge::*, sign_in, sites::connect_discord};
+use common::challonge::*;
+use common::{Bridge, Player, sign_in, sites::connect_discord};
 use ember_protocol::challenge::{Action, Method};
 use reqwest::StatusCode;
 use serde_json::{Value as Json, json};

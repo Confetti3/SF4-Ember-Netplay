@@ -165,6 +165,8 @@ namespace sf4e {
             gamepads::SetupSnapshot padSetup;
             gamepads::Layer padLayer = gamepads::Layer::Failed;
             bool padLayerPending = false, runningControllerLayer = true;
+            // The menu music entry is the supported one (MenuMusic::Available).
+            bool lobbyMusicAvailable = false;
             std::vector<gamepads::PadView> pads;
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;

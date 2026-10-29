@@ -27,7 +27,7 @@ use crate::{
         },
     },
     linking::Site,
-    util::{outbound_client, read_bounded},
+    util::{Outbound, outbound_client, read_bounded},
 };
 
 /// What a proof authorizes on a sign-in's routes.
@@ -376,11 +376,16 @@ impl OAuth {
 
     /// Exchanges the code and reads who signed in, or None on any failure.
     /// The tokens come back too; a player sign-in drops them.
-    pub async fn user(&self, redirect_uri: &str, code: &str) -> Option<(SignedIn, Tokens)> {
-        let client = outbound_client().build().ok()?;
+    pub async fn user(
+        &self,
+        http: &Outbound,
+        redirect_uri: &str,
+        code: &str,
+    ) -> Option<(SignedIn, Tokens)> {
+        let client = http.client().ok()?;
         let tokens = self
             .tokens(
-                &client,
+                client,
                 &self.token_url,
                 [
                     ("grant_type", "authorization_code"),
@@ -389,7 +394,7 @@ impl OAuth {
                 ],
             )
             .await?;
-        let body = send(&client, &self.user, &tokens.access, MAX_ANSWER).await?;
+        let body = send(client, &self.user, &tokens.access, MAX_ANSWER).await?;
         let user = match &self.read {
             Read::Discord => discord_user(&body),
             Read::Pointers {

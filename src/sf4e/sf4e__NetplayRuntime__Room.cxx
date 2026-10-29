@@ -4,6 +4,7 @@
 #include "../platform/ReplayPath.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__MenuMusic.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__CustomContent.hxx"
@@ -141,6 +142,10 @@ static DispatchOutcome Handle(commands::ShortInvitation& command, bool, Attempt)
 static DispatchOutcome Handle(commands::Pad& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
     HandleControllerRequest(command.padAction); return DispatchOutcome::Dropped;
+}
+static DispatchOutcome Handle(commands::RoomSettings& command, bool, Attempt) {
+	if (!Current(command.command)) return DispatchOutcome::Dropped;
+    SaveRoomSettings(command.preferences); return DispatchOutcome::Dropped;
 }
 static DispatchOutcome Handle(commands::Input& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
@@ -429,6 +434,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
             Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+			MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");
@@ -610,6 +616,10 @@ TypedCommand Classify(RuntimeCommand command) {
 	if (command.padAction.kind != gamepads::ControllerRequest::Kind::None) {
 		commands::Pad pad; pad.command = std::move(command.command); pad.padAction = std::move(command.padAction);
 		return TypedCommand(std::move(pad));
+	}
+	if (command.roomSettings) {
+		commands::RoomSettings settings; settings.command = std::move(command.command); settings.preferences = std::move(command.preferences);
+		return TypedCommand(std::move(settings));
 	}
 	if (command.inputAction != input::Action::None) {
 		commands::Input inputCommand; inputCommand.command = std::move(command.command); inputCommand.inputAction = command.inputAction;

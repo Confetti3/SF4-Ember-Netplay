@@ -986,12 +986,12 @@ mod tests {
             reconcile,
             phases: PhaseWatch::default(),
             last_read: None,
-            finished: false,
-            played_out: false,
-            window_end_logged: false,
             seen: BTreeMap::new(),
             whole_at: None,
             shaped: None,
+            finished: false,
+            played_out: false,
+            window_end_logged: false,
         }
     }
 

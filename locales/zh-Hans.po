@@ -1344,6 +1344,12 @@ msgstr "试听播报"
 msgid "settings.ready_sound_test_detail"
 msgstr "以此音量播放一次。"
 
+msgid "settings.lobby_music"
+msgstr "无尽大厅音乐"
+
+msgid "settings.lobby_music_detail"
+msgstr "主菜单播放随机场地或角色的主题曲而非自身音乐，每场对战后更换。更改在下一场对战后生效。"
+
 msgid "settings.shortcut_hint"
 msgstr "菜单快捷键提示"
 
@@ -2576,6 +2582,8 @@ msgstr "一名参赛玩家离开房间，对战即将结束。"
 msgid "update.github_unreachable"
 msgstr "无法连接 GitHub。请检查网络后重试。"
 
+msgid "update.rate_limited"
+msgstr "GitHub 暂时限制了更新检查。请等待几分钟后重试。"
 
 msgid "update.no_zip_asset"
 msgstr "最新发行版没有 SF4 Ember Netplay ZIP 文件。"
@@ -2639,8 +2647,8 @@ msgstr "下载包缺少 Launcher.exe 或 Sidecar.dll。"
 msgid "update.staging_path_failed"
 msgstr "无法读取暂存路径。"
 
-msgid "update.validation_failed"
-msgstr "下载包验证失败（缺少必需文件）。"
+msgid "update.validation_detail"
+msgstr "更新验证失败：{0}\n已安装的文件未被替换。"
 
 msgid "update.cancelled"
 msgstr "更新在安装前取消。"

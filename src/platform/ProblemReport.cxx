@@ -405,11 +405,11 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     Report report; report.meta=std::move(meta);
     // A crash report carries the crash record only when this crash wrote it:
     // an older one would name another crash, and the tracker would group it there.
-    std::error_code recordError;
-    const bool attachCrashRecord=report.meta.kind!="crash"||
-        (std::filesystem::last_write_time(directory/L"sf4e-crash.log",recordError)>=crash.started&&!recordError);
+    bool attachCrashRecord=true;
     if (report.meta.kind=="crash") {
         report.meta.exitCode=crash.exitCode; report.meta.exceptionCode=crash.exceptionCode; report.meta.crashAddress=crash.address;
+        std::error_code ec;
+        attachCrashRecord=std::filesystem::last_write_time(directory/L"sf4e-crash.log",ec)>=crash.started&&!ec;
         if (attachCrashRecord) {
             std::ifstream file(directory/L"sf4e-crash.log",std::ios::binary); std::array<char,2048> bytes{};
             file.read(bytes.data(),static_cast<std::streamsize>(bytes.size()));

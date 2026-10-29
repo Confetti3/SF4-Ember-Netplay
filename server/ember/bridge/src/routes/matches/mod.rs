@@ -11,8 +11,7 @@ pub use adjudicate::adjudicate;
 pub(crate) use adjudicate::{AdjudicationCommand, adjudicate_for};
 pub use cancel::cancel;
 pub use create::create;
-pub(crate) use read::visible;
-pub use read::{assignments, get, link};
+pub use read::{assignments, get, link, visible};
 
 use crate::error::{ApiFailure, Result};
 

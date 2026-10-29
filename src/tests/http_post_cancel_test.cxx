@@ -15,6 +15,7 @@
 #include <string>
 #include <thread>
 
+#include "loopback_server.hxx"
 #include "test_support.hxx"
 
 using Clock = std::chrono::steady_clock;
@@ -25,67 +26,44 @@ namespace {
 // until the client goes.
 class FakeIntake {
 public:
-    explicit FakeIntake(bool answer) : answer_(answer) {
-        listener_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        sockaddr_in address{};
-        address.sin_family = AF_INET;
-        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        CHECK(listener_ != INVALID_SOCKET && bind(listener_, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
-        int length = sizeof(address);
-        CHECK(getsockname(listener_, reinterpret_cast<sockaddr*>(&address), &length) == 0 && listen(listener_, 4) == 0);
-        port_ = ntohs(address.sin_port);
-        thread_ = std::thread([this] { Serve(); });
-    }
-    ~FakeIntake() {
-        closesocket(listener_);
-        thread_.join();
-    }
-    int Port() const { return port_; }
+    explicit FakeIntake(bool answer) : server_([this, answer](SOCKET client) { Serve(client, answer); }) {}
+    int Port() const { return server_.Port(); }
     bool Received() const { return received_.load(); }
-    int Connections() const { return connections_.load(); }
+    int Connections() const { return server_.Connections(); }
 private:
-    void Serve() {
+    void Serve(SOCKET client, bool answer) {
+        std::string request;
+        char buffer[4096];
+        std::size_t expected = std::string::npos;
         for (;;) {
-            const SOCKET client = accept(listener_, nullptr, nullptr);
-            if (client == INVALID_SOCKET) return;
-            ++connections_;
-            std::string request;
-            char buffer[4096];
-            std::size_t expected = std::string::npos;
-            for (;;) {
-                const int got = recv(client, buffer, sizeof(buffer), 0);
-                if (got <= 0) break;
-                request.append(buffer, static_cast<std::size_t>(got));
-                const auto head = request.find("\r\n\r\n");
-                if (head == std::string::npos) continue;
-                if (expected == std::string::npos) {
-                    const auto at = request.find("Content-Length: ");
-                    expected = head + 4 + (at == std::string::npos ? 0 : std::strtoul(request.c_str() + at + 16, nullptr, 10));
-                }
-                if (request.size() < expected) continue;
-                received_ = true;
-                if (answer_) {
-                    const std::string reply = "HTTP/1.1 202 Accepted\r\nContent-Type: application/json\r\nContent-Length: 41\r\n"
-                        "Connection: close\r\n\r\n{\"id\":\"0123456789abcdef0123456789abcdef\"}";
-                    send(client, reply.data(), static_cast<int>(reply.size()), 0);
-                    break;
-                }
-                // Silent: wait for the client to give up or go.
-                while (recv(client, buffer, sizeof(buffer), 0) > 0) {}
-                break;
+            const int got = recv(client, buffer, sizeof(buffer), 0);
+            if (got <= 0) return;
+            request.append(buffer, static_cast<std::size_t>(got));
+            const auto head = request.find("\r\n\r\n");
+            if (head == std::string::npos) continue;
+            if (expected == std::string::npos) {
+                const auto at = request.find("Content-Length: ");
+                expected = head + 4 + (at == std::string::npos ? 0 : std::strtoul(request.c_str() + at + 16, nullptr, 10));
             }
-            closesocket(client);
+            if (request.size() < expected) continue;
+            received_ = true;
+            if (answer) {
+                const std::string reply = "HTTP/1.1 202 Accepted\r\nContent-Type: application/json\r\nContent-Length: 41\r\n"
+                    "Connection: close\r\n\r\n{\"id\":\"0123456789abcdef0123456789abcdef\"}";
+                send(client, reply.data(), static_cast<int>(reply.size()), 0);
+                return;
+            }
+            // Silent: wait for the client to give up or go.
+            while (recv(client, buffer, sizeof(buffer), 0) > 0) {}
+            return;
         }
     }
-    bool answer_;
-    SOCKET listener_ = INVALID_SOCKET;
-    int port_ = 0;
     std::atomic<bool> received_{false};
-    std::atomic<int> connections_{0};
-    std::thread thread_;
+    // Last, so it only starts serving once the rest is built.
+    sf4e_test::LoopbackServer server_;
 };
 
-sf4e::HttpPostResult Post(int port, const std::atomic<bool>* cancel) {
+sf4e::HttpResponse Post(int port, const std::atomic<bool>* cancel) {
     // The upload's own waits are 20 seconds, so only a cancel ends a silent post quickly.
     return sf4e::testing::HttpPostReportLoopback(port, "multipart/form-data; boundary=test", std::string(200 * 1024, 'x'),
         [cancel] { return cancel && cancel->load(); });
@@ -96,7 +74,7 @@ sf4e::HttpPostResult Post(int port, const std::atomic<bool>* cancel) {
 static void TestCancelEndsAPendingAnswer() {
     FakeIntake intake(false);
     std::atomic<bool> cancel{false}, done{false};
-    sf4e::HttpPostResult result;
+    sf4e::HttpResponse result;
     std::thread post([&] { result = Post(intake.Port(), &cancel); done = true; });
     const auto deadline = Clock::now() + std::chrono::seconds(10);
     while (!intake.Received() && Clock::now() < deadline) std::this_thread::sleep_for(std::chrono::milliseconds(10));

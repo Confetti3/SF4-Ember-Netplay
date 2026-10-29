@@ -8,14 +8,15 @@
 #include <utility>
 
 namespace sf4e { namespace detail {
-// The whole upload, from sending the request to reading the last byte of the
-// answer, finishes within this or ends as a timeout. Each step gets only what
-// is left of it, so slow progress cannot hold the services worker longer.
-constexpr std::chrono::seconds ReportPostBudget{60};
+// The whole request, from sending it to reading the last byte of the answer,
+// finishes within its budget (this unless the caller gives one) or ends as a
+// timeout. Each step gets only what is left of it, so slow progress cannot
+// hold the services worker longer.
+constexpr std::chrono::seconds DefaultRequestBudget{60};
 // Only the worker calls request APIs or closes the handle. Each async call
 // returns before we wait/cancel; callbacks only publish completion data.
 // The API seam drives this same lifecycle in offline transport tests.
-struct ReportHttpApi {
+struct AsyncHttpApi {
     decltype(&WinHttpSetOption) option = WinHttpSetOption;
     decltype(&WinHttpSetStatusCallback) callback = WinHttpSetStatusCallback;
     decltype(&WinHttpSendRequest) send = WinHttpSendRequest;
@@ -24,14 +25,14 @@ struct ReportHttpApi {
     decltype(&WinHttpReadData) read = WinHttpReadData;
     decltype(&WinHttpCloseHandle) close = WinHttpCloseHandle;
 };
-class ReportHttpRequest {
+class AsyncHttpRequest {
 public:
-    explicit ReportHttpRequest(HINTERNET request, ReportHttpApi api = {},
-        std::chrono::steady_clock::duration budget = ReportPostBudget)
+    explicit AsyncHttpRequest(HINTERNET request, AsyncHttpApi api = {},
+        std::chrono::steady_clock::duration budget = DefaultRequestBudget)
         : request_(request), api_(api), deadline_(std::chrono::steady_clock::now() + budget) {}
-    ~ReportHttpRequest() { Close(); }
-    ReportHttpRequest(const ReportHttpRequest&) = delete;
-    ReportHttpRequest& operator=(const ReportHttpRequest&) = delete;
+    ~AsyncHttpRequest() { Close(); }
+    AsyncHttpRequest(const AsyncHttpRequest&) = delete;
+    AsyncHttpRequest& operator=(const AsyncHttpRequest&) = delete;
     bool Initialize() {
         DWORD_PTR context = reinterpret_cast<DWORD_PTR>(this);
         // Install the context first: if callback installation fails, no async
@@ -77,7 +78,7 @@ private:
     template<class Start> bool Perform(DWORD completion, const std::function<bool()>& cancel, Start start) {
         if (!request_ || !registered_) return false;
         if (cancel && cancel()) { cancelled_ = true; error_ = ERROR_WINHTTP_OPERATION_CANCELLED; Close(); return false; }
-        // Nothing new starts once the whole upload's time is spent.
+        // Nothing new starts once the whole request's time is spent.
         if (std::chrono::steady_clock::now() >= deadline_) { error_ = ERROR_WINHTTP_TIMEOUT; Close(); return false; }
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -106,7 +107,7 @@ private:
     }
     static void CALLBACK Callback(HINTERNET, DWORD_PTR context, DWORD status, void* information, DWORD length) {
         if (!context) return;
-        auto& self = *reinterpret_cast<ReportHttpRequest*>(context);
+        auto& self = *reinterpret_cast<AsyncHttpRequest*>(context);
         std::lock_guard<std::mutex> lock(self.mutex_);
         if (status == WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING) self.closed_ = true;
         else if (status == WINHTTP_CALLBACK_STATUS_REQUEST_ERROR) {
@@ -119,7 +120,7 @@ private:
         self.wake_.notify_all();
     }
     HINTERNET request_;
-    ReportHttpApi api_;
+    AsyncHttpApi api_;
     mutable std::mutex mutex_;
     std::condition_variable wake_;
     bool registered_ = false, completed_ = false, closed_ = false, cancelled_ = false;

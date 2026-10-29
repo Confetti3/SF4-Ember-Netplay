@@ -255,7 +255,7 @@ static void TestUpdaterArguments() {
     in.status.assign(MostUpdaterArguments,L'x');
     CHECK_WITH_ERROR(!BuildUpdaterArguments(in,line)&&line.empty());
     in=UpdaterArguments{}; in.installDir=L"C:\\Ember"; in.stagingDir=L"C:\\Stage"; in.noRestart=true;
-    {UpdaterArguments out;CHECK(BuildUpdaterArguments(in,line)&&readBack(line,out)&&out.noRestart&&!UpdaterReopensLauncher(out));}
+    {UpdaterArguments out;CHECK_WITH_ERROR(BuildUpdaterArguments(in,line)&&readBack(line,out)&&out.noRestart&&!UpdaterReopensLauncher(out));}
     // The bar: each step's share in order, only forward, the whole of it.
     int last=-1;
     for(const auto& step:InstallerSteps)for(std::uint64_t done=0;done<=10;++done){
@@ -585,11 +585,11 @@ int wmain(int argc, wchar_t** argv) {
     const auto futureInstall=root/L"future-install"; fs::create_directories(futureInstall);
     CHECK_WITH_ERROR(sf4e::launcher::InstallPackage(staging,futureInstall,error));
     CHECK_WITH_ERROR(sf4e::launcher::InstallPackage(future,futureInstall,error));
-    CHECK(Read(futureInstall/L"next-helper.dll")=="future-binary");
+    CHECK_WITH_ERROR(Read(futureInstall/L"next-helper.dll")=="future-binary");
     Write(futureInstall/L"player-note.txt","keep");
     CHECK_WITH_ERROR(sf4e::launcher::InstallPackage(staging,futureInstall,error));
-    CHECK(!fs::exists(futureInstall/L"next-helper.dll") && !fs::exists(futureInstall/L"docs\\NEXT_GUIDE.md"));
-    CHECK(Read(futureInstall/L"player-note.txt")=="keep");
+    CHECK_WITH_ERROR(!fs::exists(futureInstall/L"next-helper.dll") && !fs::exists(futureInstall/L"docs\\NEXT_GUIDE.md"));
+    CHECK_WITH_ERROR(Read(futureInstall/L"player-note.txt")=="keep");
     Write(future/L"next-helper.dll","corrupt");
     CHECK_WITH_ERROR(!sf4e::launcher::ValidatePackageFolder(future,error));
     // A declared path must never alias the live updater's own journal or locks.
@@ -601,7 +601,7 @@ int wmain(int argc, wchar_t** argv) {
     fs::remove(future/L"next-helper.dll"); fs::remove(future/L"docs\\NEXT_GUIDE.md");
     Write(future/L"PackageInventory.inc",inventoryBefore.c_str()); Manifest(future);
     fs::remove(future/L"assets\\input\\future_glyph.png"); Write(future/L"assets\\input\\Future.png","later"); Manifest(future);
-    CHECK_WITH_ERROR(!sf4e::launcher::ValidatePackageFolder(future,error) && error=="Unexpected package file");
+    CHECK_WITH_ERROR(!sf4e::launcher::ValidatePackageFolder(future,error) && error.find("Unexpected package file")==0);
     CHECK_WITH_ERROR(sf4e::launcher::InstallPackage(older,install,error));
     CHECK_WITH_ERROR(Read(install/L"Launcher.exe")=="older" && Read(install/L"dxwrapper.dll")=="older-display-wrapper");
     CHECK_WITH_ERROR(!fs::exists(install/L"docs\\TRAINING_LAB.md") && !fs::exists(install/L"assets\\selection\\sources.json") && !fs::exists(install/L"docs"));

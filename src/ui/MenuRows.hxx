@@ -45,11 +45,10 @@ inline constexpr OnOffRow OnOffRows[] = {
     {"hud",&netplay::PlayerPreferences::showMatchHud,false},{"ready-sound",&netplay::PlayerPreferences::readySound,false},
     {"shortcut-hint",&netplay::PlayerPreferences::showShortcutHint,false},{"class-emblems",&netplay::PlayerPreferences::classEmblems,false},
     {"match-frame-meter",&netplay::PlayerPreferences::matchFrameMeter,false},{"training-auto-ready",&netplay::PlayerPreferences::trainingAutoReady,false},
-    {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},
-    {"replay-share",&netplay::PlayerPreferences::shareReplays,false},
+    {"replay-save-watched",&netplay::PlayerPreferences::recordWatched,false},{"replay-share",&netplay::PlayerPreferences::shareReplays,false},
     {"presence",&netplay::PlayerPreferences::discordPresence,false},{"invites",&netplay::PlayerPreferences::discordInvites,false},
     {"share-steam",&netplay::PlayerPreferences::shareSteamProfile,false},{"send-reports",&netplay::PlayerPreferences::sendProblemReports,false},
-    {"background-play",&netplay::PlayerPreferences::backgroundPlay,false},{"lower-input-lag",&netplay::PlayerPreferences::lowerInputLag,false},
+    {"background-play",&netplay::PlayerPreferences::backgroundPlay,false},{"lobby-music",&netplay::PlayerPreferences::endlessLobbyMusic,false},{"lower-input-lag",&netplay::PlayerPreferences::lowerInputLag,false},
     {"lower-keyboard-lag",&netplay::PlayerPreferences::lowerKeyboardLag,false},{"faster-display",&netplay::PlayerPreferences::fasterDisplay,false},
     {"borderless",&netplay::PlayerPreferences::borderless,false},{"game-reads-pads",&netplay::PlayerPreferences::controllerLayer,true},
 };

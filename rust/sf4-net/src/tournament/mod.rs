@@ -372,6 +372,14 @@ requests! {
     SiteRemove => "site_remove", Bridge;
     SiteCancel => "site_cancel", Bridge;
     AssignmentList => "assignment_list", Bridge;
+    DeskRead => "desk_read", Bridge;
+    DeskAct => "desk_act", Bridge;
+    DeskWeb => "desk_web", Bridge;
+    DeskHandoff => "desk_handoff", Bridge;
+    DeskApprove => "desk_approve", Bridge;
+    DeskCodeInfo => "desk_code_info", Bridge;
+    DeskRedeem => "desk_redeem", Bridge;
+    DeskSiteState => "desk_site_state", Bridge;
     MatchClaim => "match_claim", Bridge;
     RoomPublish => "room_publish", Bridge;
     RoomList => "room_list", Bridge;
@@ -383,18 +391,10 @@ requests! {
     GamePrepare => "game_prepare", Bridge;
     GameReport => "game_report", Bridge;
     MatchLeave => "match_leave", Local;
-    MatchWatch => "match_watch", Bridge;
-    DeskRead => "desk_read", Bridge;
-    DeskAct => "desk_act", Bridge;
-    DeskWeb => "desk_web", Bridge;
-    DeskHandoff => "desk_handoff", Bridge;
-    DeskApprove => "desk_approve", Bridge;
-    DeskCodeInfo => "desk_code_info", Bridge;
-    DeskRedeem => "desk_redeem", Bridge;
-    DeskSiteState => "desk_site_state", Bridge;
     ReplaySend => "replay_send", Bridge;
     ReplayArchive => "replay_archive", Bridge;
     ReplayPack => "replay_pack", Bridge;
+    MatchWatch => "match_watch", Bridge;
     MatchUnwatch => "match_unwatch", Bridge;
 }
 
@@ -442,7 +442,7 @@ pub enum Code {
     ServiceUnavailable,
     SignInOff,
     TooManyBridges,
-    UnknownPermit,
+        UnknownPermit,
     Unsupported,
     UnsupportedBridge,
     UntrustedSignature,
@@ -1340,6 +1340,8 @@ mod tests {
             (Code::BrowserUnavailable, "browser_unavailable"),
             (Code::ChallengeMismatch, "challenge_mismatch"),
             (Code::Corrupt, "corrupt"),
+            (Code::DeskCodeRefused, "desk_code_refused"),
+            (Code::DeskNumberWrong, "desk_number_wrong"),
             (Code::FileUnreadable, "file_unreadable"),
             (Code::IdentityBusy, "identity_busy"),
             (Code::IdentityUnavailable, "identity_unavailable"),
@@ -1348,7 +1350,10 @@ mod tests {
             (Code::InvalidName, "invalid_name"),
             (Code::InvalidOrigin, "invalid_origin"),
             (Code::InvalidPath, "invalid_path"),
+            (Code::InvalidReplay, "invalid_replay"),
             (Code::InvalidRequest, "invalid_request"),
+            (Code::InviteInvalid, "invite_invalid"),
+            (Code::InvitesUnsupported, "invites_unsupported"),
             (Code::Io, "io"),
             (Code::MatchLeft, "match_left"),
             (Code::NotABridge, "not_a_bridge"),
@@ -1358,11 +1363,13 @@ mod tests {
             (Code::PermitMismatch, "permit_mismatch"),
             (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
             (Code::RankingUnavailable, "ranking_unavailable"),
+            (Code::ReplaysUnsupported, "replays_unsupported"),
             (Code::ReportNotSaved, "report_not_saved"),
             (Code::RoomsUnavailable, "rooms_unavailable"),
             (Code::ServiceUnavailable, "service_unavailable"),
             (Code::SignInOff, "sign_in_off"),
             (Code::TooManyBridges, "too_many_bridges"),
+            (Code::Unsupported, "unsupported"),
             (Code::UnknownPermit, "unknown_permit"),
             (Code::UnsupportedBridge, "unsupported_bridge"),
             (Code::UntrustedSignature, "untrusted_signature"),

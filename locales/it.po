@@ -1344,6 +1344,12 @@ msgstr "Prova annuncio"
 msgid "settings.ready_sound_test_detail"
 msgstr "Riproduce l'annuncio una volta a questo volume."
 
+msgid "settings.lobby_music"
+msgstr "Musica della lobby infinita"
+
+msgid "settings.lobby_music_detail"
+msgstr "Il menu principale riproduce il tema di un livello o di un personaggio casuale al posto della sua musica, uno nuovo dopo ogni partita. Una modifica vale dalla prossima partita."
+
 msgid "settings.shortcut_hint"
 msgstr "Suggerimento scorciatoia menu"
 
@@ -2576,6 +2582,8 @@ msgstr "Un partecipante ha lasciato la sala. La partita finirà."
 msgid "update.github_unreachable"
 msgstr "Impossibile raggiungere GitHub. Controlla la connessione e riprova."
 
+msgid "update.rate_limited"
+msgstr "GitHub sta limitando la ricerca di aggiornamenti. Attendi qualche minuto e riprova."
 
 msgid "update.no_zip_asset"
 msgstr "L'ultima versione non ha un file ZIP SF4 Ember Netplay."
@@ -2639,8 +2647,8 @@ msgstr "Nel pacchetto scaricato manca Launcher.exe o Sidecar.dll."
 msgid "update.staging_path_failed"
 msgstr "Percorso preparazione illeggibile."
 
-msgid "update.validation_failed"
-msgstr "Pacchetto scaricato non valido (mancano file richiesti)."
+msgid "update.validation_detail"
+msgstr "Verifica aggiornamento fallita: {0}\nI file installati non sono stati sostituiti."
 
 msgid "update.cancelled"
 msgstr "Aggiornamento annullato."

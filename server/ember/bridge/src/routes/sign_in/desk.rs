@@ -167,7 +167,9 @@ pub(super) async fn callback(
             "Ember is asking this site too often right now. Try again in a while.",
         );
     }
-    let Some((SignedIn::User(user), _)) = oauth.user(&redirect_uri(&state, &site), &code).await
+    let Some((SignedIn::User(user), _)) = oauth
+        .user(&state.http, &redirect_uri(&state, &site), &code)
+        .await
     else {
         return finished(
             &format!("{name} did not answer"),

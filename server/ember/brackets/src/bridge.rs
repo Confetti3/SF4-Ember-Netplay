@@ -361,10 +361,6 @@ impl BridgeClient {
         self.client.post(path)
     }
 
-    fn put(&self, path: &str) -> reqwest::RequestBuilder {
-        self.client.put(path)
-    }
-
     /// The players connected to these accounts, asked for in lookups of at
     /// most `MAX_LOOKUP` accounts, Discord's and sites' together. The
     /// bridge finds nothing for an ID its site's accounts cannot have. It
@@ -475,6 +471,7 @@ impl BridgeClient {
         sets: &serde_json::Value,
     ) -> Result<(), BridgeError> {
         let request = self
+            .client
             .put(&format!("/v1/desk/events/{event}/sets"))
             .json(sets);
         let _: serde_json::Value = self.answer(request).await?;

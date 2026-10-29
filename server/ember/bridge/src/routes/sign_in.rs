@@ -379,8 +379,7 @@ pub(super) async fn begin(
         }
         Starter::Desk(ember_id) => {
             let ctx = Ctx::of(state);
-            let slot = state.db.write(move |tx| work(tx, &ctx, &ember_id)).await?;
-            slot
+            state.db.write(move |tx| work(tx, &ctx, &ember_id)).await?
         }
     };
     slot.into_iter().for_each(Slot::keep);
@@ -528,7 +527,10 @@ async fn callback(
         end_claimed(&state, &site, hash, now).await;
         return pages.busy();
     }
-    let (user, tokens) = match oauth.user(&redirect_uri(&state, &site), &code).await {
+    let (user, tokens) = match oauth
+        .user(&state.http, &redirect_uri(&state, &site), &code)
+        .await
+    {
         Some((SignedIn::User(user), tokens)) => (user, tokens),
         Some((SignedIn::Unusable(username), _)) => {
             end_claimed(&state, &site, hash, now).await;

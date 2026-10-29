@@ -2,6 +2,7 @@
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__MenuMusic.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
@@ -293,6 +294,7 @@ void StartHelper() {
     }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
+    MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.

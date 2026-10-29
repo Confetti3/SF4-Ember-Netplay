@@ -193,6 +193,7 @@ fn queue(tx: &Transaction<'_>, now: u64, called: &Called, kind: &str, body: &Val
             now
         ],
     )?;
+    crate::db::queued();
     Ok(())
 }
 
