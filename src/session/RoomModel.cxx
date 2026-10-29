@@ -39,6 +39,10 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.serverOwned = snapshot_.serverOwned;
 		result.practice = snapshot_.practice;
 		result.delayPolicy = snapshot_.delayPolicy;
+		result.arcade = snapshot_.arcade;
+		result.cabinets = snapshot_.cabinets;
+		result.streaks = snapshot_.streaks;
+		result.topSlot = snapshot_.topSlot;
 		result.host = snapshot_.host;
 		result.localMember = snapshot_.localMember;
 		result.members = snapshot_.members;

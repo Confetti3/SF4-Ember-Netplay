@@ -255,6 +255,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // V2: the player's card is a row too (drawn as the card); Select opens the awards wall.
   if(v2::On())rows.push_back(Row("awards",loc::T("awards.card"),loc::T("awards.card_detail")));
   if(developer)rows.push_back(Row("developer","Developer","Development tools."));
+  // V2: Right on the list reaches the card beside it, Left goes back to the list's top.
+  if(v2::On())for(auto& r:rows)if(r.id=="awards")r.left=rows.front().id;else r.right="awards";
  }else if(screen=="profile"){
   title=loc::T("profile.title");const auto& record=v.preferences.record;
   rows={TextRow("name",loc::T("profile.player_name"),preferences_.displayName,31,v.canEditPreferences),

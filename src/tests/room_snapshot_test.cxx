@@ -45,26 +45,33 @@ static void TestSnapshotWithoutChat() {
 	RoomAuthority authority("Without chat", 8, 313);
 	const auto host = Join(authority, 0, true);
 	const auto p1 = Join(authority, 1), p2 = Join(authority, 2), queuer = Join(authority, 3);
-	const auto same = [&]() {
+	const auto same = [&](RoomAuthority& room) {
 		for (const auto member : {host, p1, p2, queuer, MemberId(9999)}) {
-			auto expected = nlohmann::json(authority.SnapshotFor(member));
+			auto expected = nlohmann::json(room.SnapshotFor(member));
 			expected["chat"] = nlohmann::json::array();
-			EXPECT(nlohmann::json(authority.SnapshotFor(member, false)) == expected);
-			EXPECT(nlohmann::json(authority.SnapshotFor(member, true)) == nlohmann::json(authority.SnapshotFor(member)));
-			EXPECT(authority.SnapshotFor(member, false).chat.empty());
+			EXPECT(nlohmann::json(room.SnapshotFor(member, false)) == expected);
+			EXPECT(nlohmann::json(room.SnapshotFor(member, true)) == nlohmann::json(room.SnapshotFor(member)));
+			EXPECT(room.SnapshotFor(member, false).chat.empty());
 		}
 	};
-	same();
+	same(authority);
 	for (const auto member : {p1, p2, queuer}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	Action chat = TableAction(authority, p1, 0, ActionKind::Chat);
 	chat.text = "hello";
 	EXPECT(authority.Apply(p1, chat).accepted);
 	EXPECT(!authority.SnapshotFor(host).chat.empty());
-	same();
+	same(authority);
 	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	same();
+	same(authority);
 	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
-	same();
+	same(authority);
+	// A King of the hill room's type and cabinets, with someone seated.
+	RoomAuthority king("King", 16, 314, Rules(), false, DelayPolicy::Shared, KingRoom);
+	EXPECT(Join(king, 0, true) == host);
+	Action sit = TableAction(king, host, 2, ActionKind::Queue);
+	sit.seat = 1;
+	EXPECT(king.Apply(host, sit).accepted && nlohmann::json(king.SnapshotView()).contains("arcade"));
+	same(king);
 }
 
 int main() {
