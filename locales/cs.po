@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Zobrazit chat"
 msgid "room.part_detail"
 msgstr "Skryje tuto část sloupce nebo ji vrátí. Tažením čar mezi deskou, členy a chatem změníte jejich velikost."
-msgid "room.more"
-msgstr "Další…"
-msgid "room.more.detail"
-msgstr "Nastavení místnosti a pozvánka do ní."
 msgid "room.members_summary"
 msgstr "{0} hraje · {1} sleduje"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uv
 msgid "menu.pages"
 msgstr "Stránky"
 
-msgid "room.controls_detail"
-msgstr "Tvůj ovladač a jeho tlačítka, aniž bys opustil místnost."
 
 msgid "settings.picture_corner"
 msgstr "Roh obrazu"
@@ -8127,3 +8121,15 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaty {0} a {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Uložte si zpoždění vstupu ještě před usednutím. Použije se, až příště potvrdíte připravenost; sledovaný zápas se nezmění."
+
+msgid "room.invite"
+msgstr "Pozvat"
+
+msgid "room.invite.detail"
+msgstr "Pozvěte někoho do této místnosti."
+
+msgid "room.personal_settings"
+msgstr "Osobní nastavení"

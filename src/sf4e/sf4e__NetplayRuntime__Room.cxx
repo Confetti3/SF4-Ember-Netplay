@@ -145,7 +145,7 @@ static DispatchOutcome Handle(commands::Pad& command, bool, Attempt) {
 }
 static DispatchOutcome Handle(commands::RoomSettings& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
-    SaveRoomSettings(command.preferences); return DispatchOutcome::Dropped;
+    SaveRoomSettings(command.preferences, command.selectedDelay); return DispatchOutcome::Dropped;
 }
 static DispatchOutcome Handle(commands::Input& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
@@ -240,7 +240,7 @@ static DispatchOutcome Handle(commands::Service& command, bool helperReady, Atte
 // effect is applied here.
 static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
-	if (command.roomSettings) { SaveRoomSettings(command.preferences); return DispatchOutcome::Dropped; }
+	if (command.roomSettings) { SaveRoomSettings(command.preferences, command.selectedDelay); return DispatchOutcome::Dropped; }
 	const auto kind = command.command.kind;
     // Recheck queued invite work after callbacks and controller changes.
     // A replacement or Cancel must also invalidate a queued Join/Leave.
@@ -516,14 +516,9 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
             if(peer.empty() || probe.peer!=peer || probe.pairRevision!=revision) break;
             selected=probe.recommended;
         }
-        const bool automatic=selected==AutoInputDelayChoice;
-        if(!automatic) {
-            if(selected<MinimumInputDelay || selected>MaximumInputDelay) break;
-            runtime->selectedDelay=selected;
-            runtime->preferences.inputDelay=selected;
-        }
-        // A chosen number turns Auto off; choosing Auto keeps the number saved.
-        runtime->preferences.autoInputDelay=automatic;
+        if(!runtime->preferences.ChooseInputDelay(selected)) break;
+        const bool automatic=runtime->preferences.autoInputDelay;
+        if(!automatic) runtime->selectedDelay=selected;
         if(automatic) runtime->autoDelayCheck.Want(GetTickCount64());
         UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
         if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
@@ -618,7 +613,7 @@ TypedCommand Classify(RuntimeCommand command) {
 		return TypedCommand(std::move(pad));
 	}
 	if (command.roomSettings) {
-		commands::RoomSettings settings; settings.command = std::move(command.command); settings.preferences = std::move(command.preferences);
+		commands::RoomSettings settings; settings.command = std::move(command.command); settings.preferences = std::move(command.preferences); settings.selectedDelay = command.selectedDelay;
 		return TypedCommand(std::move(settings));
 	}
 	if (command.inputAction != input::Action::None) {

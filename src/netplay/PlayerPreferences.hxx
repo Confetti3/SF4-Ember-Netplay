@@ -213,12 +213,21 @@ struct PlayerPreferences {
     int roomSideWidth = 50;
     int roomMemberShare = 56;
     bool roomMembersHidden = false, roomChatHidden = false;
-    // Takes `from`'s button layouts and room board column, the settings a room
-    // leaves open, as they change nothing about play (ShellAction::roomSettings).
-    void CopyRoomSettings(const PlayerPreferences& from) {
+    // Auto keeps the saved manual number; -1 (apply a recommendation) is not a preference.
+    bool ChooseInputDelay(int selected) {
+        if (selected != AutoInputDelayChoice && (selected < MinimumInputDelay || selected > MaximumInputDelay)) return false;
+        autoInputDelay = selected == AutoInputDelayChoice;
+        if (!autoInputDelay) inputDelay = selected;
+        return true;
+    }
+    // A room-settings request edits either the local layout or a future input
+    // delay. It never copies the sender's whole profile over the runtime's.
+    bool CopyRoomSettings(const PlayerPreferences& from, int selectedDelay = -1) {
+        if (selectedDelay != -1) return ChooseInputDelay(selectedDelay);
         buttonLayouts = from.buttonLayouts;
         roomSideWidth = from.roomSideWidth; roomMemberShare = from.roomMemberShare;
         roomMembersHidden = from.roomMembersHidden; roomChatHidden = from.roomChatHidden;
+        return true;
     }
     SpeechPreferences speech;
     LobbySettings lobby;

@@ -1,4 +1,5 @@
 #include "ApplicationShell.hxx"
+#include "../netplay/UnseatedInputDelay.hxx"
 #include "Theme.hxx"
 #include "MenuRows.hxx"
 #include "RoomFeedback.hxx"
@@ -178,6 +179,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
   const bool host=mutableRoom&&s.localMember&&s.localMember==room::ActingHost(s);
+ if(nav.Screen()=="room-delay"){
+  const auto own=room::PlaceOf(s,s.localMember);
+  if(own.kind==room::Place::Kind::Seat&&own.table!=selectedTable_)LoadTableRules(v,own.table);
+ }
   // A room bound to a tournament match seats its two fighters at table 0 by
   // itself and keeps everyone else out; the room refuses seat, watch, rules
   // and kick changes there, so they are not offered.
@@ -215,6 +220,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  else if(screen=="room-member")RoomMemberRows(rows,c);
  else if(screen=="room-chat")RoomChatRows(rows,c);
  else if(screen=="room-admin")RoomAdminRows(rows,c);
+ else if(screen=="room-settings")RoomSettingsRows(rows,c);
+ else if(screen=="room-delay")RoomDelayRows(rows,c);
+ else if(screen=="room-rules")RoomRulesRows(rows,c);
+ else if(screen=="room-invite")RoomInviteRows(rows,c);
  // V2: a member's actions open at their row, not on a page of their own.
  if(v2::On())for(auto& row:rows){
   if(row.id.compare(0,7,"member-"))continue;
@@ -254,12 +263,6 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  const room::Place& place=c.place;
  const bool tournamentRoom=c.tournamentRoom;
  const room::Member* const local=c.local;
- // A short wide board folds the room's settings and invitation copies into
- // one More… row, so members and chat keep their height; each is one of its choices.
- MenuEntry more=Row("more",loc::T("room.more"),loc::T("room.more.detail"));
- const auto share=[&](MenuEntry e){
-  if(boardLayout_==BoardLayout::WideShort)more.choices.push_back({e.id,e.label,e.detail,e.enabled});else rows.push_back(std::move(e));
- };
   if(s.roomEpoch){
    const auto mine=room::PlaceOf(s,s.localMember);
    const int ownCabinet=room::CabinetOf(s,s.localMember);
@@ -355,29 +358,14 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
    // hidden or shown for this player.
    rows.push_back(Row("members-part",loc::T(preferences_.roomMembersHidden?"room.show_members":"room.hide_members"),loc::T("room.part_detail")));
    if(boardLayout_!=BoardLayout::Stacked)rows.push_back(Row("chat-part",loc::T(preferences_.roomChatHidden?"room.show_chat":"room.hide_chat"),loc::T("room.part_detail")));
-   // Changing fighter needs a seat, so it lives in the table options (and X).
-   rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
-   // V2: the controller and its buttons, one press from the board.
-   if(v2::On())rows.push_back(Row("room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")));
-   share(Row("room-admin",loc::T("room.settings"),loc::T(host?"room.settings.detail":"room.settings.host_only"),host));
+   rows.push_back(Row("room-settings",loc::T("home.settings"),loc::T("home.settings_detail")));
   }else{
    rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
   }
-  // A tournament room admits only its two fighters, who reach it through the
-  // tournament service, so there is no invitation to hand out. A public room
-  // admits by the service's ticket, so its invitation would admit nobody.
-  // The tournament's own room is never shared, from its first claim: the window
-  // before its binding lands has no tournament snapshot yet.
-  if(!tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
-   share(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
-   // Once made, the detail shows the link itself so it can be read out.
-   share(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
-    v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
-  }
-  // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
-  if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
+  if((!tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive())||
+     (s.serverOwned&&!publicRooms_.RoomLink().empty()))
+   rows.push_back(Row("room-invite",loc::T("room.invite"),loc::T("room.invite.detail")));
   if(s.roomEpoch)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
-  if(!more.choices.empty())rows.push_back(more);
   rows.push_back(ConfirmRow("leave",loc::T(v.session.room==netplay::RoomState::Closing?"room.leaving":"room.leave"),
    LeaveRoomDetail(v),v.session.room!=netplay::RoomState::Closing));
   // A public room has no replacement: when its host is gone the room closes.
@@ -453,26 +441,11 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   }
   if(moreAsk_){moreAsk_=false;nav.Ask("room-more",rows);}
 }
-void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+void ApplicationShell::RoomRulesRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
  using namespace room;
- const ShellView& v=c.v;
- const room::Snapshot& s=c.s;
- const bool mutableRoom=c.mutableRoom;
- const bool host=c.host;
- const bool boundTable=c.boundTable;
- const room::Member* const local=c.local;
- const room::Table& t=c.t;
- const bool active=c.active;
- const room::Place& place=c.place;
- const bool seated=c.seated;
- const bool elsewhere=c.elsewhere;
- const bool queued=c.queued;
- const bool watching=c.watching;
-   const std::string reason=!mutableRoom?RoomWaitReason(v):
-    loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
-  // The table's rules: the host edits them in place and applies them in one
-  // press (applying clears Ready), everyone else reads them on one line.
-  const auto rulesRows=[&]{
+ const auto& v=c.v; const auto& s=c.s; const auto& t=c.t;
+ const bool host=c.host,boundTable=c.boundTable,active=c.active,mutableRoom=c.mutableRoom;
+
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    // An Arcade room's rules are the room's, set when it was created.
    if(!host||boundTable||s.arcade){
@@ -491,26 +464,20 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
    rows.back().detail=std::string(loc::T("room.table_name.detail"))+"\n"+loc::T("menu.edit_detail");rows.back().userText=true;
    // The host edits the rules in place, so the summary above is not shown to them.
    if(s.delayPolicy==room::DelayPolicy::Own)rows.push_back(ReadOnlyValue("delay-policy",loc::T("room.delay_policy"),loc::T("room.delay_policy.own"),loc::T("room.delay_policy.detail")));
-  };
-  if(seated){
-   const bool ready=room::ReadyCancellable(t,place.seat);
-    const auto readyControl=DescribeReady(v,t,place.seat);
-    // A Training call's window or the room's Ready timeout: the row says how
-    // long there is to ready.
-    const auto deadline=DescribeReadyDeadline(v,t);
-    const auto timeout=deadline.seat==place.seat?deadline.text:std::string();
-    rows.push_back(Row("ready",readyControl.label,timeout.empty()?readyControl.detail:timeout+"\n"+readyControl.detail,readyControl.kind!=ReadyControl::None));
-    if(t.spectatorHold||!timeout.empty())rows.back().detailText=DetailText::Name;
-   // Under Ready, in the order a player reads them: their own pick (fighter,
-   // Ultra, appearance, fighter options), then the match (P1's stage and the
-   // table's rules), then their connection, then leaving.
-   SelectionRows(rows,v);
-   const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
-   const bool stageOwner=v.localSlot==0;
-   rows.push_back(Value("stage",loc::T("selection.stage"),v.stageName,
-    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner));
-   rows.back().adjustable=false;rows.back().opens=true;
-   rulesRows();
+}
+void ApplicationShell::RoomDelayRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const auto& v=c.v; const auto& s=c.s; const auto& t=c.t;
+ const bool host=c.host,boundTable=c.boundTable,active=c.active,mutableRoom=c.mutableRoom;
+ if(!c.seated){
+    const bool delayEditable=netplay::CanSaveUnseatedInputDelay(v.session,s);
+    rows.push_back(Value("input-delay",loc::T("settings.input_delay"),v.preferences.autoInputDelay?
+     std::string(loc::T("settings.input_delay.auto")):FramesText(v.preferences.inputDelay),
+     loc::T("settings.delay_future_detail"),delayEditable));
+  return;
+ }
+ const bool ready=room::ReadyCancellable(t,c.place.seat);
+ const std::string reason=!mutableRoom?RoomWaitReason(v):loc::T("room.choose_action");
     // One delay row: Left and Right choose it, Select takes the recommendation.
     // Auto sits before the smallest delay. It shows a number once the check
     // has measured this opponent, or once Ready has locked one.
@@ -541,10 +508,72 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
      !delayEditable?loc::T("room.check_connection.finish_match"):check.detail,
      v.canProbe&&delayEditable&&!check.checking));
     if(check.namesPlayer)rows.back().detailText=DetailText::Name;
-    // The same departure rule as B on the board. Leaving that gives up a score
-    // asks first, and says what it gives up.
-    // During a held start B takes Ready back; this row only ever leaves, so it
-    // waits for Ready to be taken back first.
+
+}
+void ApplicationShell::RoomInviteRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ const auto& v=c.v; const auto& s=c.s; const bool tournamentRoom=c.tournamentRoom;
+  // A tournament room admits only its two fighters, who reach it through the
+  // tournament service, so there is no invitation to hand out. A public room
+  // admits by the service's ticket, so its invitation would admit nobody.
+  // The tournament's own room is never shared, from its first claim: the window
+  // before its binding lands has no tournament snapshot yet.
+  if(!tournamentRoom&&!s.serverOwned&&!v.tournament.MatchRoomActive()){
+   rows.push_back(Row("copy",loc::T("room.copy_invitation"),loc::T("room.copy_invitation.detail"),!v.invitation.empty()));
+   // Once made, the detail shows the link itself so it can be read out.
+   rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
+    v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
+  }
+  // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
+  if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
+}
+void ApplicationShell::RoomSettingsRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ rows.push_back(Row("room-delay",loc::T("settings.input_delay"),loc::T("settings.delay_future_detail")));
+ rows.push_back(Row("room-rules",loc::T("room.table_rules"),loc::Tf("room.table_options.detail",selectedTable_+1)));
+ rows.push_back(Row("room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host));
+ rows.push_back(Row("room-personal-settings",loc::T("room.personal_settings"),loc::T("home.settings_detail")));
+}
+
+void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
+ using namespace room;
+ const ShellView& v=c.v;
+ const room::Snapshot& s=c.s;
+ const bool mutableRoom=c.mutableRoom;
+ const bool host=c.host;
+ const bool boundTable=c.boundTable;
+ const room::Member* const local=c.local;
+ const room::Table& t=c.t;
+ const bool active=c.active;
+ const room::Place& place=c.place;
+ const bool seated=c.seated;
+ const bool elsewhere=c.elsewhere;
+ const bool queued=c.queued;
+ const bool watching=c.watching;
+   const std::string reason=!mutableRoom?RoomWaitReason(v):
+    loc::T(elsewhere?"room.leave_current_table":"room.choose_action");
+  // The table's rules: the host edits them in place and applies them in one
+  // press (applying clears Ready), everyone else reads them on one line.
+
+  if(seated){
+   const bool ready=room::ReadyCancellable(t,place.seat);
+    const auto readyControl=DescribeReady(v,t,place.seat);
+    // A Training call's window or the room's Ready timeout: the row says how
+    // long there is to ready.
+    const auto deadline=DescribeReadyDeadline(v,t);
+    const auto timeout=deadline.seat==place.seat?deadline.text:std::string();
+    rows.push_back(Row("ready",readyControl.label,timeout.empty()?readyControl.detail:timeout+"\n"+readyControl.detail,readyControl.kind!=ReadyControl::None));
+    if(t.spectatorHold||!timeout.empty())rows.back().detailText=DetailText::Name;
+   // Under Ready, in the order a player reads them: their own pick (fighter,
+   // Ultra, appearance, fighter options), then the match (P1's stage and the
+   // table's rules), then their connection, then leaving.
+   SelectionRows(rows,v);
+   const bool canChange=mutableRoom&&v.canEditSelection&&!s.localTerminalPending;
+   const bool stageOwner=v.localSlot==0;
+   rows.push_back(Value("stage",loc::T("selection.stage"),v.stageName,
+    !canChange?SelectionBlocker(v):loc::T(stageOwner?"selection.p1_stage":"selection.only_p1_stage"),canChange&&stageOwner));
+   rows.back().adjustable=false;rows.back().opens=true;
+   RoomRulesRows(rows,c);
+    RoomDelayRows(rows,c);
+    // The table row only leaves a seat; a held start must first be unreadied.
     const auto leave=ExitFromPlace(v);
     const bool leaves=leave.allowed&&!leave.unready;
     std::string leaveDetail=leaves?loc::T(t.queue.empty()?"room.leave_seat.release":"room.leave_seat.next_player"):
@@ -559,6 +588,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     if(AbandonableAt(v,t)==AbandonableGame::Unresolved)rows.push_back(ConfirmRow("abandon-result",loc::T("room.abandon_result"),
      loc::T("room.abandon_result.detail"),mutableRoom));
    }else{
+    RoomDelayRows(rows,c);
     SelectionRows(rows,v);
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.
@@ -579,7 +609,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
      rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),
       mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason,mutableRoom));
     }
-    rulesRows();
+    RoomRulesRows(rows,c);
   }
   if(t.phase==TablePhase::Paused)rows.push_back(ConfirmRow("cancel-result",loc::T("room.cancel_unresolved"),loc::T("room.cancel_unresolved.detail"),host));
   // A table can be left in Playing when neither fighter's finish report
@@ -1283,9 +1313,12 @@ const char* ApplicationShell::PlaceExitLabel(const ShellView& v) const {
  const auto place=ExitFromPlace(v);
  return OnOwnPlace(place,menu_.navigation.Focus())?place.label:"";
 }
+void ApplicationShell::LoadTableRules(const ShellView& v,int table) {
+ selectedTable_=table;rulesDirty_=false;rulesRevision_=v.room.tables[table].revision;tableRules_=v.room.tables[table].rules;
+}
 void ApplicationShell::OpenTableOptions(const ShellView& v,int table) {
  auto& nav=menu_.navigation;
- selectedTable_=table;rulesDirty_=false;rulesRevision_=v.room.tables[table].revision;tableRules_=v.room.tables[table].rules;
+ LoadTableRules(v,table);
  nav.Home();nav.Push("room");nav.Push("room-table");
 }
 void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {

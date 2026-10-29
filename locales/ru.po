@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Показать чат"
 msgid "room.part_detail"
 msgstr "Скрывает эту часть колонки или возвращает её. Перетащите линии между доской, участниками и чатом, чтобы изменить их размер."
-msgid "room.more"
-msgstr "Ещё…"
-msgid "room.more.detail"
-msgstr "Настройки комнаты и приглашение в неё."
 msgid "room.members_summary"
 msgstr "{0} играют · {1} смотрят"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Для телевизора в другом конце комнаты: �
 msgid "menu.pages"
 msgstr "Страницы"
 
-msgid "room.controls_detail"
-msgstr "Ваш контроллер и его кнопки, не выходя из комнаты."
 
 msgid "settings.picture_corner"
 msgstr "Угол картинки"
@@ -8127,3 +8121,15 @@ msgstr "{0} против {1}"
 
 msgid "room.matchup_detail"
 msgstr "Автоматы {0} и {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Сохраните задержку ввода, прежде чем занимать место. Она применится, когда вы в следующий раз подтвердите готовность; просматриваемый матч не изменится."
+
+msgid "room.invite"
+msgstr "Пригласить"
+
+msgid "room.invite.detail"
+msgstr "Пригласить игрока в эту комнату."
+
+msgid "room.personal_settings"
+msgstr "Личные настройки"

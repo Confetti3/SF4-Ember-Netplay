@@ -663,7 +663,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="delay"){
    // Auto sits before the smallest delay. Choosing it keeps the number; leaving it starts at the smallest.
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
-   preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
+   preferences_.ChooseInputDelay(next);
   }
   else if(a.id=="auto-style")preferences_.autoDelayStyle=(std::max)(0,(std::min)(AutoDelayStyles-1,preferences_.autoDelayStyle+a.delta));
   else if(a.id=="hud-layout")preferences_.matchHudLayout=(std::max)(0,(std::min)(1,preferences_.matchHudLayout+a.delta));

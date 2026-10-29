@@ -372,10 +372,10 @@ void CopyLinkJourney(){
  h.view.room.roomEpoch=10;h.view.room.localMember=1;h.view.room.host=1;h.view.room.name="Open Mic";h.view.room.revision=3;h.view.room.serverOwned=true;
  for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
- h.Screen("room");h.Frame(0,2);
+ h.Screen("room");h.Frame(0,2);h.Choose("room-invite");
  Check(j.row("copy-room-link")&&j.row("copy-room-link")->enabled&&j.row("copy-room-link")->label==loc::T("public.copy_link")&&
   j.row("copy-room-link")->detail==loc::Tf("public.copy_link_detail",link),"A public room joined from the list offers no room link");
- Check(!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room offered an invitation to copy");
+ Check(!j.row("copy")&&!j.row("copy-short"),"A public room offered an invitation to copy");
  g_clipboard="before";const auto actions=h.actions.size();
  h.Choose("copy-room-link");
  Check(g_clipboard==link,"Copy room link did not put the page link on the clipboard");

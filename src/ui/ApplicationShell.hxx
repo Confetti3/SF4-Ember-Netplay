@@ -528,6 +528,11 @@ private:
     struct RoomScreenRows;
     void RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void LoadTableRules(const ShellView& view,int table);
+    void RoomRulesRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomDelayRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomSettingsRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
+    void RoomInviteRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomMembersRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomChatRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);

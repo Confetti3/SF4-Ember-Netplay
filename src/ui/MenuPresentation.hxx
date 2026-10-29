@@ -23,6 +23,8 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"room",loc::T("screen.room")},{"room-table",loc::T("screen.table")},
         {"room-members",loc::T("screen.members")},{"room-member",loc::T("screen.member")},{"room-chat",loc::T("screen.chat")},
         {"room-admin",loc::T("screen.room_settings")},
+        {"room-settings",loc::T("home.settings")},{"room-delay",loc::T("settings.input_delay")},
+        {"room-rules",loc::T("room.table_rules")},{"room-invite",loc::T("room.invite")},
         {"roster",loc::T("selection.fighter")},{"appearance",loc::T("selection.appearance")},
         {"costumes",loc::T("selection.costume_gallery")},{"colors",loc::T("selection.color_gallery")},
         {"ultra",loc::T("selection.ultra_combo")},{"stage",loc::T("selection.stage")},{"options",loc::T("selection.additional_options")},

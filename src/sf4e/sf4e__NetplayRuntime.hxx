@@ -124,7 +124,7 @@ struct Replay { netplay::Command command; replay::Request replay; };
 struct ShortInvitation { netplay::Command command; };
 struct Pad { netplay::Command command; gamepads::ControllerRequest padAction; };
 // Save only the settings a room leaves open, from `preferences` (RuntimeRequest::roomSettings).
-struct RoomSettings { netplay::Command command; netplay::PlayerPreferences preferences; };
+struct RoomSettings { netplay::Command command; netplay::PlayerPreferences preferences; int selectedDelay = -1; };
 struct Input { netplay::Command command; input::Action inputAction = input::Action::None; };
 struct Service {
     netplay::Command command;
@@ -595,7 +595,7 @@ std::string DeviceName(const input::Device& device);
 std::string ControllerLabel(const input::Device& device);
 void CaptureMenuInput();
 void HandleControllerRequest(const gamepads::ControllerRequest& request);
-void SaveRoomSettings(const netplay::PlayerPreferences& from);
+void SaveRoomSettings(const netplay::PlayerPreferences& from, int selectedDelay = -1);
 bool CanChooseControllerNow();
 // The buttons that confirm and go back in Ember's menus for a device: the
 // binding of its pad's Ember layout (runtime->pads), else the game's own.

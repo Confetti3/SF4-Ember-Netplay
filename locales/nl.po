@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Chat tonen"
 msgid "room.part_detail"
 msgstr "Verbergt dit deel van de kolom of toont het weer. Sleep de lijnen tussen het bord, de leden en de chat om ze groter of kleiner te maken."
-msgid "room.more"
-msgstr "Meer…"
-msgid "room.more.detail"
-msgstr "Kamerinstellingen en de uitnodiging voor de kamer."
 msgid "room.members_summary"
 msgstr "{0} spelen · {1} kijken"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, bin
 msgid "menu.pages"
 msgstr "Pagina's"
 
-msgid "room.controls_detail"
-msgstr "Je controller en zijn knoppen, zonder de kamer te verlaten."
 
 msgid "settings.picture_corner"
 msgstr "Hoek van het beeld"
@@ -8127,3 +8121,15 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Kasten {0} en {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Sla je invoervertraging op voordat je plaatsneemt. Deze geldt zodra je je de volgende keer gereed meldt; de wedstrijd die je bekijkt verandert niet."
+
+msgid "room.invite"
+msgstr "Uitnodigen"
+
+msgid "room.invite.detail"
+msgstr "Nodig iemand uit voor deze kamer."
+
+msgid "room.personal_settings"
+msgstr "Persoonlijke instellingen"

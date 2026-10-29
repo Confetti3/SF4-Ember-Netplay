@@ -1,6 +1,7 @@
 // What the room board's rows and shortcuts do when chosen: the board draws
 // them (RoomPanel.cxx), this sends them on.
 #include "ApplicationShell.hxx"
+#include "../netplay/UnseatedInputDelay.hxx"
 #include "MenuRows.hxx"
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
@@ -116,6 +117,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else OpenTableOptions(v,selectedTable_);
   return;
  }
+ if(a.id=="room-settings"){LoadTableRules(v,selectedTable_);nav.Push(a.id);return;}
+ if(a.id=="room-delay"){LoadTableRules(v,OptionsTable(v,selectedTable_));nav.Push(a.id);return;}
+ if(a.id=="room-rules"){LoadTableRules(v,selectedTable_);nav.Push(a.id);return;}
+ if(a.id=="room-invite"){nav.Push(a.id);return;}
+ if(a.id=="room-personal-settings"){nav.Push("settings");return;}
  if(a.id=="options"){OpenTableOptions(v,OptionsTable(v,selectedTable_));return;}
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
@@ -154,6 +160,13 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    return;}
   if(a.id=="check-connection"){sendDelay(netplay::CommandKind::CheckConnection,-1);return;}
   if(a.id=="input-delay"){
+   if(room::PlaceOf(v.room,v.room.localMember).kind!=room::Place::Kind::Seat){
+    if(a.kind!=MenuAction::Adjust||!netplay::CanSaveUnseatedInputDelay(v.session,v.room))return;
+    ShellAction request;request.command.generation=v.session.generation;request.roomSettings=true;
+    request.selectedDelay=StepInputDelay(v.preferences.autoInputDelay,v.preferences.inputDelay,a.delta);
+    if(!submit(std::move(request)))error_=loc::T("error.queue_failed");else error_.clear();
+    return;
+   }
    // Select takes the recommendation; Left and Right choose a delay, or Auto before the smallest.
    const int selected=a.kind==MenuAction::Adjust?StepInputDelay(v.preferences.autoInputDelay,v.selectedDelay,a.delta):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;

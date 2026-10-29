@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Mostra chat"
 msgid "room.part_detail"
 msgstr "Nasconde questa parte della colonna o la mostra di nuovo. Trascina le linee tra il tabellone, i membri e la chat per ridimensionarli."
-msgid "room.more"
-msgstr "Altro…"
-msgid "room.more.detail"
-msgstr "Impostazioni della stanza e il suo invito."
 msgid "room.members_summary"
 msgstr "{0} in gioco · {1} spettatori"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Per una TV dall'altra parte della stanza: tutto un quarto più grande, e
 msgid "menu.pages"
 msgstr "Pagine"
 
-msgid "room.controls_detail"
-msgstr "Il tuo controller e i suoi tasti, senza lasciare la stanza."
 
 msgid "settings.picture_corner"
 msgstr "Angolo dell'immagine"
@@ -8127,3 +8121,15 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Cabinati {0} e {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Salva il ritardo di input prima di sederti. Verrà applicato la prossima volta che ti dichiari pronto; non modifica la partita che stai guardando."
+
+msgid "room.invite"
+msgstr "Invita"
+
+msgid "room.invite.detail"
+msgstr "Invita qualcuno in questa stanza."
+
+msgid "room.personal_settings"
+msgstr "Impostazioni personali"

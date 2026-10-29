@@ -356,7 +356,7 @@ void RoomLinks(){
  platform.Platform_GetClipboardTextFn=[](ImGuiContext*){return g_clipboard.c_str();};
  const std::string full="sf4e3:full-invitation",link="https://embernetplay.link/j#7K3M-0X1R-T9PZ";
  h.view.session.room=netplay::RoomState::Joined;h.view.invitation=full;
- h.Screen("room");
+ h.Screen("room");h.Choose("room-invite");
  auto before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
  Check(h.actions.size()==before+1&&h.actions.back().shortInvitation,"Copy short link did not ask for the link");
  Check(g_clipboard.empty(),"Copy short link copied before the link existed");
@@ -371,6 +371,7 @@ void RoomLinks(){
  ++h.view.shortInvitationFailures;h.Frame();
  Check(g_clipboard==full,"A failed short link did not copy the full invitation");
  // A room link waits while the room is open, then fills the Join screen.
+ h.Press(MenuInput::Back);
  h.view.pendingJoinLink=link;h.view.pendingJoinSequence=1;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="room","A room link moved the player out of the room");
  before=h.actions.size();
