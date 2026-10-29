@@ -1800,6 +1800,9 @@ msgstr "反击按键落在木桩第一个可行动帧之后的帧数。硬直的
 msgid "training.key.reset"
 msgstr "重置键"
 
+msgid "training.key.save"
+msgstr "保存键"
+
 msgid "training.challenger"
 msgstr "你的对战已就绪"
 

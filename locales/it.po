@@ -1800,6 +1800,9 @@ msgstr "Frame dopo il primo frame libero del manichino in cui cade il tasto dell
 msgid "training.key.reset"
 msgstr "Tasto Ripristina"
 
+msgid "training.key.save"
+msgstr "Tasto Salva"
+
 msgid "training.challenger"
 msgstr "La tua partita è pronta"
 

@@ -2104,6 +2104,9 @@ msgstr "Frames depois do primeiro frame livre do boneco em que cai o botão da r
 msgid "training.key.reset"
 msgstr "Tecla Restaurar"
 
+msgid "training.key.save"
+msgstr "Tecla Salvar"
+
 msgid "training.challenger"
 msgstr "Sua partida está pronta"
 

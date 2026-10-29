@@ -1800,6 +1800,9 @@ msgstr "Frames na het eerste vrije frame van de dummy waarop de knop van het ant
 msgid "training.key.reset"
 msgstr "Toets herstellen"
 
+msgid "training.key.save"
+msgstr "Toets opslaan"
+
 msgid "training.challenger"
 msgstr "Je wedstrijd staat klaar"
 

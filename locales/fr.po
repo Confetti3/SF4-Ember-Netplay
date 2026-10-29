@@ -1800,6 +1800,9 @@ msgstr "Frames après la première frame libre du mannequin où tombe le bouton 
 msgid "training.key.reset"
 msgstr "Touche Rétablir"
 
+msgid "training.key.save"
+msgstr "Touche Enregistrer"
+
 msgid "training.challenger"
 msgstr "Votre match est prêt"
 

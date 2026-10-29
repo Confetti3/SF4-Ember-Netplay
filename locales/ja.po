@@ -1800,6 +1800,9 @@ msgstr "ダミーが動ける最初のフレームから、反撃のボタンが
 msgid "training.key.reset"
 msgstr "位置を戻すキー"
 
+msgid "training.key.save"
+msgstr "位置を保存するキー"
+
 msgid "training.challenger"
 msgstr "対戦の準備ができました"
 

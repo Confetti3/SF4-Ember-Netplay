@@ -1800,6 +1800,9 @@ msgstr "Liczba klatek po pierwszej wolnej klatce manekina, w której trafia przy
 msgid "training.key.reset"
 msgstr "Klawisz przywracania"
 
+msgid "training.key.save"
+msgstr "Klawisz zapisu"
+
 msgid "training.challenger"
 msgstr "Twój mecz jest gotowy"
 

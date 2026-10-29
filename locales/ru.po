@@ -1800,6 +1800,9 @@ msgstr "Число кадров после первого свободного �
 msgid "training.key.reset"
 msgstr "Клавиша позиции"
 
+msgid "training.key.save"
+msgstr "Клавиша сохранения"
+
 msgid "training.challenger"
 msgstr "Ваш матч готов"
 

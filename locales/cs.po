@@ -1800,6 +1800,9 @@ msgstr "Počet snímků po prvním volném snímku figuríny, na který padne tl
 msgid "training.key.reset"
 msgstr "Klávesa obnovení"
 
+msgid "training.key.save"
+msgstr "Klávesa uložení"
+
 msgid "training.challenger"
 msgstr "Tvůj zápas je připraven"
 

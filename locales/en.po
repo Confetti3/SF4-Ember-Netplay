@@ -1800,6 +1800,9 @@ msgstr "Frames after the dummy's first free frame that the reply's button lands.
 msgid "training.key.reset"
 msgstr "Reset key"
 
+msgid "training.key.save"
+msgstr "Save key"
+
 msgid "training.challenger"
 msgstr "Your match is ready"
 

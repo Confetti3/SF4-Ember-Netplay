@@ -1800,6 +1800,9 @@ msgstr "더미가 움직일 수 있는 첫 프레임 뒤 반격 버튼이 들어
 msgid "training.key.reset"
 msgstr "위치 복원 키"
 
+msgid "training.key.save"
+msgstr "위치 저장 키"
+
 msgid "training.challenger"
 msgstr "대전이 준비되었습니다"
 

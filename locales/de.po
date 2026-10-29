@@ -1800,6 +1800,9 @@ msgstr "Frames nach dem ersten freien Frame des Dummys, auf die die Taste der An
 msgid "training.key.reset"
 msgstr "Taste Zurücksetzen"
 
+msgid "training.key.save"
+msgstr "Taste Speichern"
+
 msgid "training.challenger"
 msgstr "Dein Match ist bereit"
 

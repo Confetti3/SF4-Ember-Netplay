@@ -227,8 +227,7 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         Row("save-pos",loc::T("training.position.save"),loc::T("training.position.save.detail"),view.ready),
         Row("reset-pos",loc::T("training.position.reset"),loc::T("training.position.reset.detail"),view.ready&&view.checkpoint),
         Value("key-0",loc::T("training.key.reset"),KeyName(ResetKey),loc::T("training.key.detail")),
-        // Named by the row it presses, so it needs no words of its own.
-        Value("key-1",loc::T("training.position.save"),KeyName(SaveKey),loc::T("training.key.detail")),
+        Value("key-1",loc::T("training.key.save"),KeyName(SaveKey),loc::T("training.key.detail")),
         Value("pad-back",loc::T("training.key.pad_back"),loc::T(lab.padBack?"common.on":"common.off"),loc::T("training.key.pad_back.detail"))};
 }
 void HandleTools(const MenuAction& a,const training::View& view,const TrainingSubmit& submit) {
