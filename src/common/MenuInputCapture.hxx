@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstring>
+#include "PadKind.hxx"
 namespace sf4e { namespace input {
 // Where the game is for Ember's menu.
 // ReplayExport: a replay is being exported in the game's battle log. Ember's
@@ -12,7 +13,7 @@ namespace sf4e { namespace input {
 // Start or F10 opens Ember's menu over the fight, where a fighter ends it
 // (End practice). The game has no pause under rollback for Start to open.
 // WatchedMatch: a room game this PC only watches, under rollback. Start or
-// F10 opens Ember's menu over it, where the spectator leaves the game (Stop
+// F10 toggles Ember's menu over it, where the spectator leaves the game (Stop
 // watching); the game keeps running underneath, as it does for the fighters.
 // MatchResult: the WIN (or DRAW) screen of a room game this PC fought, at a table with
 // Instant rematch on (room::Rules::instantRematch). Ember's post-match prompt
@@ -31,6 +32,9 @@ inline bool ControllerMenuAvailable(MenuContext context) { return context != Men
 inline bool ControllerOpensMenu(MenuContext context) {
     return context == MenuContext::MainMenu || context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
 }
+// Practice keeps Start open-only: a fighter opens the menu to end the game,
+// and a second Start there is a mispress.
+inline bool StartTogglesMenu(MenuContext context) { return context == MenuContext::WatchedMatch; }
 // Where Ember's menu can be shown: offline Training has its own controls.
 inline bool MenuShownIn(MenuContext context) {
     return context == MenuContext::MainMenu || context == MenuContext::ReplayExport || MenuOverFight(context);
@@ -56,6 +60,28 @@ inline void ClearNativeMenuInputs(void* system, unsigned allowed = 0) {
         std::memcpy(address,&value,sizeof(value));
     }
 }
+// Start is sampled on the game thread, before native input is cleared. A
+// press is consumed even while the menu is shown, so closing it cannot make
+// the same held press open it again. A changed owner or context needs neutral.
+class MenuStartInput {
+public:
+    bool Update(MenuContext context, int type, int index, bool connected,
+        unsigned mapped, unsigned physical, bool enabled) {
+        const bool changed = context != context_ || type != type_ || index != index_;
+        context_ = context; type_ = type; index_ = index;
+        if (changed || !connected || !enabled || !ControllerOpensMenu(context)) armed_ = false;
+        else if (!mapped && !physical) armed_ = true;
+        else if (armed_ && StartHeld(type,mapped,physical)) {
+            armed_ = false;
+            return true;
+        }
+        return false;
+    }
+private:
+    MenuContext context_ = MenuContext::Unavailable;
+    int type_ = -1, index_ = -1;
+    bool armed_ = false;
+};
 class MenuInputCapture {
 public:
     bool Update(bool capture,unsigned held) {

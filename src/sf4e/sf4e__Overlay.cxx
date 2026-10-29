@@ -129,13 +129,13 @@ bool Overlay::CapturesMenuInput() { return sf4e::input::CapturesInput(s_menuPads
 bool Overlay::HasInputFocus() { return focused.load(); }
 sf4e::ui::MenuPads& Overlay::MenuPads() { return s_menuPads; }
 sf4e::ui::OverlayLifecycle& Overlay::Lifecycle() { return s_lifecycle; }
-// Start at the main menu or over a fight (input::ControllerOpensMenu).
+// Start opens the menu, or hides it over a watched game.
 // The request holds the pads at once, until the frame that takes it has
 // shown the menu (MenuPads), so the press never reaches the native menu or
 // the fight. Behind another window it counts only where a pad update has
 // placed the game where Start opens the menu.
-void Overlay::RequestMainControls() {
-    if (focused || s_menuPads.StartOpens()) s_menuPads.Request(sf4e::ui::MenuPads::Kind::Controls);
+void Overlay::RequestMenuStart() {
+    if (focused || s_menuPads.StartOpens()) s_menuPads.Request(sf4e::ui::MenuRequest::Toggle);
 }
 void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
     if(!focused) return;
@@ -165,10 +165,10 @@ static int OnMainMenuModeSelected(int mode) {
     }
     // Training offline starts from Ember's Training select, which sends the game on.
     if (mode == rMainMenu::MainMenuItemID::MMI_TRAINING && lock == sf4e::input::NativeMenuLock::None) {
-        s_menuPads.Request(sf4e::ui::MenuPads::Kind::Training); return 1;
+        s_menuPads.Request(sf4e::ui::MenuRequest::Training); return 1;
     }
     if (mode != rMainMenu::MainMenuItemID::MMI_NETWORK) return 0;
-    s_menuPads.Request(sf4e::ui::MenuPads::Kind::Play); return 1;
+    s_menuPads.Request(sf4e::ui::MenuRequest::Play); return 1;
 }
 // Which thread creates and frees the overlay, against the one that draws it.
 // Freeing it on another thread while a frame draws would use a freed context;
@@ -558,12 +558,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     presentation.Update(snapshot.menuContext, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
-    if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
-        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" :
-            openRequest.kind == sf4e::ui::MenuPads::Kind::Training ? "the Training item" : "Start");
-        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
-        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Training) shell.ShowTraining();
-    }
+    presentation.Apply(openRequest.kind, snapshot.menuContext);
+    if (openRequest.kind == sf4e::ui::MenuRequest::Play && presentation.Available()) shell.ShowPlay();
+    if (openRequest.kind == sf4e::ui::MenuRequest::Training && presentation.Available()) shell.ShowTraining();
     // The WIN screen of a room game this PC fought: the post-match prompt opens over it, once per game.
     static bool matchResultShown = false;
     const bool matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
@@ -626,9 +623,6 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
-    // Start opens Ember at the main menu and over a fight (a Practice match
-    // or a watched game); in Training and over an export it is the game's pause.
-    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
     unsigned menuButtons = controllerNavigation.Buttons();
     // The menu self-test presses the menu's buttons itself, with the menu shown.

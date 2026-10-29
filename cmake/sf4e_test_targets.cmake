@@ -124,6 +124,7 @@ sf4e_add_unit_test(NAME ProblemReport SOURCES "src/tests/problem_report_test.cxx
 # scenarios still run in the order ui_render_test.cxx calls them.
 add_executable(UiRenderTest "src/tests/ui_render_test.cxx" "src/tests/ui_render_match_hud.cxx" "src/tests/ui_render_overlay.cxx")
 target_compile_definitions(UiRenderTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
+sf4e_add_unit_test(NAME MenuStart SOURCES src/tests/menu_start_test.cxx STD 17)
 sf4e_add_unit_test(NAME ControllerNavigation SOURCES src/tests/controller_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME MenuButtons SOURCES src/tests/menu_buttons_test.cxx LIBS sf4e_ui Dimps sf4e_settings STD 17 LABELS ui)
 sf4e_add_unit_test(NAME GamepadPrompts SOURCES src/tests/gamepad_prompts_test.cxx LIBS sf4e_ui STD 17 LABELS ui)
