@@ -757,6 +757,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool trainingOpen = s_trainingControls.Open();
     layers.trainingControlsOpen = trainingOpen; layers.nativePaused = nativePaused;
     layers.focused = focused; layers.trainingHud = trainingHud;
+    layers.chat = shell.UpdateChatNotification(GetTickCount64() / 1000.0);
     layers.matchActive = frame->ggpoSessionActive; layers.matchWaitsForMenu = snapshot.matchWaitsForMenu;
     layers.showMatchHud = snapshot.preferences.showMatchHud;
     // Waiting in Training from a room: where the player stands there, and on

@@ -54,6 +54,13 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
             DrawMatchNotice(line, severity);
         }
     }
+    // Passive spectator chat yields to warnings, not routine informational text.
+    // Training owns its existing count; fighters never receive this extra widget.
+    const auto& match=view.match;
+    const bool chatShown=passive&&view.focused&&view.matchActive&&view.showMatchHud&&match.spectator&&!view.exporting&&
+        view.controllerWarning.empty()&&!match.predictionStalled&&!match.connectionWarning&&
+        !(match.noticeSeverity>=1&&!match.notice.empty());
+    if(chatShown) DrawChatNotification(view.chat,match);
     return hud;
 }
 
