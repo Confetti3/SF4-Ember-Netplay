@@ -8127,3 +8127,6 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaty {0} i {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Zapisz opóźnienie wejścia przed zajęciem miejsca. Zostanie zastosowane przy następnym zgłoszeniu gotowości; nie zmieni oglądanego meczu."

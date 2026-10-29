@@ -7759,3 +7759,6 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Cabinets {0} and {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Save your input delay before taking a seat. This applies when you next ready up; it does not change the match you are watching."

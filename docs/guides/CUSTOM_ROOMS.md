@@ -264,3 +264,12 @@ See [CUSTOM_ROOMS_STATUS.md](../validation/CUSTOM_ROOMS_STATUS.md) for the exact
 evidence. Local
 component and synthetic helper tests do not establish native gameplay,
 multi-machine acceptance, or installation acceptance.
+
+### Saved input delay before a seat
+
+In a room, open **Table options** and adjust **Input delay** while idle, queued,
+or watching. This saves Auto or a manual delay for your next Ready. It does not
+change the game you are watching. Once seated, the same row follows the existing
+ready and match locks, connection check and room delay policy. Auto keeps your
+last manual number. A request queued before a seat arrives is rejected if that
+seat is already yours when the runtime handles it.

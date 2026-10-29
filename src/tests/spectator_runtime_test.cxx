@@ -10,6 +10,7 @@
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"
 #include "../common/NextBattleRequest.hxx"
+#include "../netplay/UnseatedInputDelay.hxx"
 #include "../Dimps/Dimps.hxx"
 #include <winsock2.h>
 #include <algorithm>
@@ -117,6 +118,47 @@ struct RuntimeRoom {
 		return count;
 	}
 };
+
+// A queued save must not turn into a live delay edit when a seat arrives before
+// the runtime consumes it. Reject it before the settings writer is reached.
+void TestUnseatedDelaySave() {
+    namespace internal = sf4e::NetplayFacade::internal;
+    netplay::PlayerPreferences saved, stale;
+    saved.displayName = "Current"; saved.inputDelay = 3; saved.autoInputDelay = false;
+    stale.displayName = "Stale"; stale.roomSideWidth = 60; stale.inputDelay = 5;
+    CHECK(saved.CopyRoomSettings(stale, 0));
+    CHECK(saved.inputDelay == 0 && !saved.autoInputDelay && saved.displayName == "Current" && saved.roomSideWidth == 50);
+    CHECK(saved.CopyRoomSettings(stale, AutoInputDelayChoice));
+    CHECK(saved.autoInputDelay && saved.inputDelay == 0);
+    CHECK(!saved.CopyRoomSettings(stale, 6));
+    CHECK(saved.autoInputDelay && saved.inputDelay == 0);
+    CHECK(saved.CopyRoomSettings(stale));
+    CHECK(saved.roomSideWidth == 60 && saved.autoInputDelay && saved.inputDelay == 0);
+    RuntimeRoom r;
+    room::RoomAuthority authority("Delay settings", 16, 83);
+    const auto joined = authority.Join("Local", {"host", "local"}, true);
+    CHECK(joined.accepted);
+    const auto member = joined.snapshot.members.back().id;
+    auto live = authority.SnapshotFor(member);
+    r.Snapshot(live);
+    CHECK(netplay::CanSaveUnseatedInputDelay(r.runtime->controller.GetSnapshot(), r.Client().GetRoomSnapshot()));
+    NetplayFacade::RuntimeCommand request; request.roomSettings = true; request.selectedDelay = 0;
+    const auto typed = internal::Classify(request);
+    CHECK(std::get<internal::commands::RoomSettings>(typed).selectedDelay == 0);
+    r.runtime->preferences.inputDelay = 3; r.runtime->preferences.autoInputDelay = false;
+    r.runtime->selectedDelay = 3;
+    room::Action seat; seat.kind = room::ActionKind::Queue; seat.roomEpoch = live.roomEpoch;
+    seat.revision = live.revision; seat.table = 0; seat.tableRevision = live.tables[0].revision; seat.actionId = 1;
+    CHECK(authority.Apply(member, seat).accepted);
+    live = authority.SnapshotFor(member);
+    r.Snapshot(live);
+    CHECK(!netplay::CanSaveUnseatedInputDelay(r.runtime->controller.GetSnapshot(), r.Client().GetRoomSnapshot()));
+    internal::SaveRoomSettings(stale, 0);
+    CHECK(r.runtime->preferences.inputDelay == 3 && !r.runtime->preferences.autoInputDelay && r.runtime->selectedDelay == 3);
+    r.runtime->attached = false;
+    internal::SaveRoomSettings(stale, 0);
+    CHECK(r.runtime->preferences.inputDelay == 3);
+}
 
 // A spectator, by choice or queued, saw one game end (the room's own end event,
 // through the runtime) and retired it, and is taken into the next, whose setup
@@ -991,6 +1033,7 @@ int main() {
 	TestSpectatorSitOutNotice();
 	TestEnteredBattleRequestCancelled();
 	TestGatesMatchPublished();
+    TestUnseatedDelaySave();
 	TestGatesAreCurrent();
 	TestUnreadyWithdrawsAParkedReady();
 	std::cout << "Spectator runtime tests passed\n";

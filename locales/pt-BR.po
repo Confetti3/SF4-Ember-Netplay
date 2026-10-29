@@ -7644,3 +7644,6 @@ msgstr "{0} vs. {1}"
 
 msgid "room.matchup_detail"
 msgstr "Fliperamas {0} e {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "Salve seu atraso de entrada antes de se sentar. Ele será aplicado na próxima vez que você ficar pronto; não altera a partida que está assistindo."

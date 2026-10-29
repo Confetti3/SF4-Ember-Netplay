@@ -8128,3 +8128,6 @@ msgstr "{0} 对 {1}"
 
 msgid "room.matchup_detail"
 msgstr "机台 {0} 和 {1}"
+
+msgid "settings.delay_future_detail"
+msgstr "入座前即可保存输入延迟。此设置将在下次准备就绪时生效，不会改变正在观战的对局。"

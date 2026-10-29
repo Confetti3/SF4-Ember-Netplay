@@ -400,11 +400,23 @@ int main() try {
             const bool queued = status == room::MemberStatus::Queued;
             becomes(status);
             shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
-            Check(rows[0].id == "selection" && rows[1].id == "ultra" && rows[2].id == "appearance" &&
-                rows[3].id == "fighter-options" && rows[4].id == (queued ? "unqueue" : "queue"),
+            Check(rows[0].id == "input-delay" && rows[1].id == "selection" && rows[2].id == "ultra" && rows[3].id == "appearance" &&
+                rows[4].id == "fighter-options" && rows[5].id == (queued ? "unqueue" : "queue"),
                 "Unseated pick rows are missing or not above Queue/Watch");
+            Check(row("input-delay").enabled && row("input-delay").adjustable &&
+                row("input-delay").detail == loc::T("settings.delay_future_detail"), "Unseated delay is not explained");
+            focus("input-delay"); const auto beforeDelay = actions.size(); press(MenuInput::Right);
+            Check(actions.size() == beforeDelay + 1 && actions.back().roomSettings &&
+                actions.back().selectedDelay == StepInputDelay(view.preferences.autoInputDelay, view.preferences.inputDelay, 1),
+                "Unseated delay did not use the room-settings save path");
+            Check(actions.back().command.kind != netplay::CommandKind::ApplyDelay, "Future delay altered the watched match");
+            view.session.readyPending = true; frame();
+            Check(!row("input-delay").enabled, "Pending ready still permits a future-delay save");
+            const auto blockedDelay = actions.size(); press(MenuInput::Right);
+            Check(actions.size() == blockedDelay, "Blocked delay submitted a request");
+            view.session.readyPending = false; frame();
             focus("selection");
-            walk(MenuInput::Down, {"ultra", "appearance", "fighter-options", rows[4].id});
+            walk(MenuInput::Down, {"ultra", "appearance", "fighter-options", rows[5].id});
             walk(MenuInput::Up, {"fighter-options", "appearance", "ultra", "selection"});
             Check(at("stage") == -1, "An unseated member was offered Stage");
             Check(row("selection").value == view.fighterName && row("ultra").value == view.ultraName &&
