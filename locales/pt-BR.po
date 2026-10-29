@@ -2617,10 +2617,6 @@ msgid "room.show_chat"
 msgstr "Mostrar bate-papo"
 msgid "room.part_detail"
 msgstr "Oculta esta parte da coluna ou a mostra de novo. Arraste as linhas entre o quadro, os membros e o bate-papo para mudar o tamanho."
-msgid "room.more"
-msgstr "Mais…"
-msgid "room.more.detail"
-msgstr "Configurações da sala e o convite para ela."
 msgid "room.members_summary"
 msgstr "{0} jogando · {1} assistindo"
 msgid "room.chat"
@@ -7029,8 +7025,6 @@ msgstr "Para uma TV do outro lado da sala: tudo um quarto maior, dentro de uma m
 msgid "menu.pages"
 msgstr "Páginas"
 
-msgid "room.controls_detail"
-msgstr "Seu controle e os botões dele, sem sair da sala."
 
 msgid "settings.picture_corner"
 msgstr "Canto da imagem"
@@ -7647,3 +7641,12 @@ msgstr "Fliperamas {0} e {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "Salve seu atraso de entrada antes de se sentar. Ele será aplicado na próxima vez que você ficar pronto; não altera a partida que está assistindo."
+
+msgid "room.invite"
+msgstr "Convidar"
+
+msgid "room.invite.detail"
+msgstr "Convide alguém para esta sala."
+
+msgid "room.personal_settings"
+msgstr "Configurações pessoais"

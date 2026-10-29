@@ -120,6 +120,36 @@ int main() try {
     };
     const auto focus = [&](const char* id) { shell.Navigation().Focus(id, rows); };
 
+    // Settings stays directly on both boards; its children belong to RoomEntries,
+    // and Back returns to the opener. Invitation links have their own page.
+    const auto originalView=view;
+    for(const bool modern:{false,true}) {
+        view=originalView;view.preferences.lookV2=modern;
+        shell.Navigation().Home();shell.Navigation().Push("room");frame();
+        const auto offers=[&](const char* id){return std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+        Check(offers("room-settings")&&offers("room-invite"),"Settings or Invite is hidden from the board");
+        Check(!offers("options")&&!offers("room-admin")&&!offers("room-controls")&&!offers("copy"),"Duplicate board settings or invite actions remain");
+        focus("room-settings");press(MenuInput::Select);
+        Check(shell.Navigation().Screen()=="room-settings","Settings did not open its room page");
+        Check(offers("room-delay")&&offers("room-rules")&&offers("room-admin")&&offers("room-personal-settings"),"Settings lost a category");
+        focus("room-delay");press(MenuInput::Select);
+        Check(shell.Navigation().Screen()=="room-delay"&&offers("input-delay")&&offers("check-connection"),"Input delay is not directly reachable");
+        // A seat arriving elsewhere while this page is open moves the complete
+        // table/rules context, not just the index used by delay.
+        view.room.tables[0].p1=0;view.room.tables[1].id=1;view.room.tables[1].p1=1;
+        view.room.tables[1].revision=43;view.room.tables[1].rules.roundCount=5;
+        view.room.members[0].table=1;frame();
+        press(MenuInput::Back);focus("room-rules");press(MenuInput::Select);
+        Check(shell.Navigation().Screen()=="room-rules"&&row("rounds").value=="5","Seat arrival left stale rules on the new table");
+        press(MenuInput::Back);focus("room-personal-settings");press(MenuInput::Select);
+        Check(shell.Navigation().Screen()=="settings","Personal settings did not use the existing screen");
+        press(MenuInput::Back);Check(shell.Navigation().Screen()=="room-settings","Personal settings lost its opener");
+        press(MenuInput::Back);focus("room-invite");press(MenuInput::Select);
+        Check(shell.Navigation().Screen()=="room-invite"&&offers("copy")&&offers("copy-short"),"Invite lost the existing copy actions");
+        press(MenuInput::Back);Check(shell.Navigation().Screen()=="room","Invite Back did not return to board");
+    }
+    view=originalView;
+    shell.Navigation().Home();shell.Navigation().Push("room-delay");frame();
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room-table"); frame();
     Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& entry) { return entry.id == "benchmark-connection"; }),
         "The removed 30 second benchmark row is still offered");
@@ -1457,7 +1487,10 @@ int main() try {
     };
     view.session.room = netplay::RoomState::Joined; view.canEditSelection = true;
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
-    Check(offers("copy") && !offers("copy-room-link"), "A private room offers a room link or lost its invitation row");
+    Check(offers("room-invite") && !offers("copy-room-link"), "A private room lost its Invite entry");
+    focus("room-invite");press(MenuInput::Select);
+    Check(offers("copy") && !offers("copy-room-link"), "A private Invite page lost its invitation row");
+    press(MenuInput::Back);
     view.room.serverOwned = true; frame(); frame();
     Check(!offers("copy") && !offers("copy-short") && !offers("copy-room-link") && offers("leave"),
         "A server-owned room not joined from the list offers an invitation or a room link");

@@ -267,9 +267,21 @@ multi-machine acceptance, or installation acceptance.
 
 ### Saved input delay before a seat
 
-In a room, open **Table options** and adjust **Input delay** while idle, queued,
+In a room, open **Settings**, then **Input delay** while idle, queued,
 or watching. This saves Auto or a manual delay for your next Ready. It does not
 change the game you are watching. Once seated, the same row follows the existing
 ready and match locks, connection check and room delay policy. Auto keeps your
 last manual number. A request queued before a seat arrives is rejected if that
 seat is already yours when the runtime handles it.
+
+### Room Settings and Invite
+
+The room board has one **Settings** button in both looks. It opens **Input delay**,
+**Table rules**, **Room settings** (host only), and **Personal settings**, which
+links to Ember's existing settings screen. Back returns to the page you opened
+from. Table rules use the currently selected table; the delay page follows your
+own seat if you acquire one while it is open. Existing table controls still offer
+quick access to their rules, fighter, stage and connection controls.
+
+**Invite** holds the room's existing invitation and short-link copy actions, or
+the public room's page link. Tournament rooms do not offer an invitation.

@@ -2828,10 +2828,6 @@ msgid "room.show_chat"
 msgstr "显示聊天"
 msgid "room.part_detail"
 msgstr "隐藏这一部分或让它回来。用鼠标移动面板、成员和聊天之间的线，可改变它们的大小。"
-msgid "room.more"
-msgstr "更多…"
-msgid "room.more.detail"
-msgstr "房间设置和房间邀请。"
 msgid "room.members_summary"
 msgstr "{0} 人对战中 · {1} 人观战"
 msgid "room.chat"
@@ -7513,8 +7509,6 @@ msgstr "适合房间另一头的电视：所有内容放大四分之一，并保
 msgid "menu.pages"
 msgstr "页面"
 
-msgid "room.controls_detail"
-msgstr "不离开房间即可设置控制器和按键。"
 
 msgid "settings.picture_corner"
 msgstr "画面位置"
@@ -8131,3 +8125,12 @@ msgstr "机台 {0} 和 {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "入座前即可保存输入延迟。此设置将在下次准备就绪时生效，不会改变正在观战的对局。"
+
+msgid "room.invite"
+msgstr "邀请"
+
+msgid "room.invite.detail"
+msgstr "邀请玩家加入此房间。"
+
+msgid "room.personal_settings"
+msgstr "个人设置"

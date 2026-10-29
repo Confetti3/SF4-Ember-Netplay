@@ -2732,10 +2732,6 @@ msgid "room.show_chat"
 msgstr "Show chat"
 msgid "room.part_detail"
 msgstr "Hides this part of the column or brings it back. Drag the lines between the board, the members and the chat to resize them."
-msgid "room.more"
-msgstr "More…"
-msgid "room.more.detail"
-msgstr "Room settings and the room's invitation."
 msgid "room.members_summary"
 msgstr "{0} playing · {1} watching"
 msgid "room.chat"
@@ -7145,8 +7141,6 @@ msgstr "For a TV across the room: everything a quarter larger, kept inside a 5% 
 msgid "menu.pages"
 msgstr "Pages"
 
-msgid "room.controls_detail"
-msgstr "Your controller and its buttons, without leaving the room."
 
 msgid "settings.picture_corner"
 msgstr "Picture corner"
@@ -7762,3 +7756,12 @@ msgstr "Cabinets {0} and {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "Save your input delay before taking a seat. This applies when you next ready up; it does not change the match you are watching."
+
+msgid "room.invite"
+msgstr "Invite"
+
+msgid "room.invite.detail"
+msgstr "Invite someone to this room."
+
+msgid "room.personal_settings"
+msgstr "Personal settings"

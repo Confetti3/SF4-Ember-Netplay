@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Chat einblenden"
 msgid "room.part_detail"
 msgstr "Blendet diesen Teil der Spalte aus oder wieder ein. Zieh die Linien zwischen Brett, Mitgliedern und Chat, um ihre Größe zu ändern."
-msgid "room.more"
-msgstr "Mehr…"
-msgid "room.more.detail"
-msgstr "Raumeinstellungen und die Einladung in den Raum."
 msgid "room.members_summary"
 msgstr "{0} spielen · {1} schauen zu"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Für einen Fernseher quer durch den Raum: alles ein Viertel größer, in
 msgid "menu.pages"
 msgstr "Seiten"
 
-msgid "room.controls_detail"
-msgstr "Ihr Controller und seine Tasten, ohne den Raum zu verlassen."
 
 msgid "settings.picture_corner"
 msgstr "Ecke des Bildes"
@@ -8130,3 +8124,12 @@ msgstr "Automaten {0} und {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "Speichere deine Eingabeverzögerung, bevor du Platz nimmst. Sie gilt, wenn du dich das nächste Mal bereit meldest; das beobachtete Match bleibt unverändert."
+
+msgid "room.invite"
+msgstr "Einladen"
+
+msgid "room.invite.detail"
+msgstr "Jemanden in diesen Raum einladen."
+
+msgid "room.personal_settings"
+msgstr "Persönliche Einstellungen"

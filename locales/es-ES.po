@@ -2828,10 +2828,6 @@ msgid "room.show_chat"
 msgstr "Mostrar chat"
 msgid "room.part_detail"
 msgstr "Oculta esta parte de la columna o la vuelve a mostrar. Arrastra las líneas entre el tablero, los miembros y el chat para cambiar su tamaño."
-msgid "room.more"
-msgstr "Más…"
-msgid "room.more.detail"
-msgstr "Ajustes de la sala y su invitación."
 msgid "room.members_summary"
 msgstr "{0} jugando · {1} mirando"
 msgid "room.chat"
@@ -7513,8 +7509,6 @@ msgstr "Para una TV al otro lado de la habitación: todo un cuarto más grande, 
 msgid "menu.pages"
 msgstr "Páginas"
 
-msgid "room.controls_detail"
-msgstr "Tu mando y sus botones, sin salir de la sala."
 
 msgid "settings.picture_corner"
 msgstr "Esquina de la imagen"
@@ -8131,3 +8125,12 @@ msgstr "Máquinas {0} y {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "Guarda tu retraso de entrada antes de sentarte. Se aplicará la próxima vez que te marques como listo; no cambia la partida que estás observando."
+
+msgid "room.invite"
+msgstr "Invitar"
+
+msgid "room.invite.detail"
+msgstr "Invita a alguien a esta sala."
+
+msgid "room.personal_settings"
+msgstr "Ajustes personales"

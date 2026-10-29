@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Afficher le chat"
 msgid "room.part_detail"
 msgstr "Masque cette partie de la colonne ou la réaffiche. Faites glisser les lignes entre le tableau, les membres et le chat pour les redimensionner."
-msgid "room.more"
-msgstr "Plus…"
-msgid "room.more.detail"
-msgstr "Les réglages du salon et son invitation."
 msgid "room.members_summary"
 msgstr "{0} en jeu · {1} spectateurs"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Pour une TV à l'autre bout de la pièce : tout est un quart plus grand,
 msgid "menu.pages"
 msgstr "Pages"
 
-msgid "room.controls_detail"
-msgstr "Votre manette et ses boutons, sans quitter le salon."
 
 msgid "settings.picture_corner"
 msgstr "Coin de l'image"
@@ -8130,3 +8124,12 @@ msgstr "Bornes {0} et {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "Enregistrez votre délai de saisie avant de prendre place. Il sera appliqué lorsque vous vous déclarerez prêt la prochaine fois ; le match que vous regardez ne changera pas."
+
+msgid "room.invite"
+msgstr "Inviter"
+
+msgid "room.invite.detail"
+msgstr "Inviter une personne dans ce salon."
+
+msgid "room.personal_settings"
+msgstr "Paramètres personnels"

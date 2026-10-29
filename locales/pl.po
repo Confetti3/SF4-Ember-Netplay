@@ -2827,10 +2827,6 @@ msgid "room.show_chat"
 msgstr "Pokaż czat"
 msgid "room.part_detail"
 msgstr "Ukrywa tę część kolumny albo ją przywraca. Przeciągnij linie między tablicą, uczestnikami i czatem, aby zmienić ich rozmiar."
-msgid "room.more"
-msgstr "Więcej…"
-msgid "room.more.detail"
-msgstr "Ustawienia pokoju i zaproszenie do niego."
 msgid "room.members_summary"
 msgstr "{0} gra · {1} ogląda"
 msgid "room.chat"
@@ -7512,8 +7508,6 @@ msgstr "Do telewizora po drugiej stronie pokoju: wszystko o jedną czwartą wię
 msgid "menu.pages"
 msgstr "Strony"
 
-msgid "room.controls_detail"
-msgstr "Twój kontroler i jego przyciski, bez wychodzenia z pokoju."
 
 msgid "settings.picture_corner"
 msgstr "Róg obrazu"
@@ -8130,3 +8124,12 @@ msgstr "Automaty {0} i {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "Zapisz opóźnienie wejścia przed zajęciem miejsca. Zostanie zastosowane przy następnym zgłoszeniu gotowości; nie zmieni oglądanego meczu."
+
+msgid "room.invite"
+msgstr "Zaproś"
+
+msgid "room.invite.detail"
+msgstr "Zaproś kogoś do tego pokoju."
+
+msgid "room.personal_settings"
+msgstr "Ustawienia osobiste"

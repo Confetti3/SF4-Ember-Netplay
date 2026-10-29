@@ -82,7 +82,7 @@ void KeyboardJourneys(){
  key(ImGuiKey_Delete);
  Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"Delete on your own card did not leave the seat");
  // Delete anywhere else does nothing.
- before=h.actions.size();h.FocusOn("copy");key(ImGuiKey_Delete);
+ before=h.actions.size();h.FocusOn("room-invite");key(ImGuiKey_Delete);
  Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="room","Delete away from your card did something");
  // T and C open table options and chat, and again return to the board.
  key(ImGuiKey_T);Check(h.shell.Navigation().Screen()=="room-table","T did not open the table options");

@@ -2828,10 +2828,6 @@ msgid "room.show_chat"
 msgstr "チャットを表示"
 msgid "room.part_detail"
 msgstr "列のこの部分を隠すか、元に戻します。ボード、メンバー、チャットの間の線をドラッグすると大きさを変えられます。"
-msgid "room.more"
-msgstr "その他…"
-msgid "room.more.detail"
-msgstr "ルームの設定と招待。"
 msgid "room.members_summary"
 msgstr "{0} 人がプレイ中 · {1} 人が観戦中"
 msgid "room.chat"
@@ -7513,8 +7509,6 @@ msgstr "離れた場所のテレビ向け：すべてを4分の1大きくし、�
 msgid "menu.pages"
 msgstr "ページ"
 
-msgid "room.controls_detail"
-msgstr "ルームを出ずに、コントローラーとボタンを設定します。"
 
 msgid "settings.picture_corner"
 msgstr "画面の位置"
@@ -8131,3 +8125,12 @@ msgstr "筐体 {0} と {1}"
 
 msgid "settings.delay_future_detail"
 msgstr "着席する前に入力遅延を保存できます。次に準備完了にしたときに適用され、観戦中の対戦には影響しません。"
+
+msgid "room.invite"
+msgstr "招待"
+
+msgid "room.invite.detail"
+msgstr "このルームにプレイヤーを招待します。"
+
+msgid "room.personal_settings"
+msgstr "個人設定"

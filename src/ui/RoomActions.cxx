@@ -117,6 +117,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else OpenTableOptions(v,selectedTable_);
   return;
  }
+ if(a.id=="room-settings"){LoadTableRules(v,selectedTable_);nav.Push(a.id);return;}
+ if(a.id=="room-delay"){LoadTableRules(v,OptionsTable(v,selectedTable_));nav.Push(a.id);return;}
+ if(a.id=="room-rules"){LoadTableRules(v,selectedTable_);nav.Push(a.id);return;}
+ if(a.id=="room-invite"){nav.Push(a.id);return;}
+ if(a.id=="room-personal-settings"){nav.Push("settings");return;}
  if(a.id=="options"){OpenTableOptions(v,OptionsTable(v,selectedTable_));return;}
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
