@@ -191,7 +191,8 @@ opens under the field.
 
 ## TV mode and text size
 
-In Settings, Accessibility, Text and language:
+In Settings, Accessibility, Text and language (TV mode is also under
+Interface, Look):
 
 - **Interface size** makes all of Ember larger, from 1.00x to 1.50x in steps
   of 0.05. Left and Right change it.
