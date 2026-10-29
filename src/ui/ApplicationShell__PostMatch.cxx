@@ -75,34 +75,36 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
     if (postMatch_) {
         auto& p = *postMatch_;
         const bool here = v.session.room == RoomState::Joined && p.table < static_cast<int>(snapshot.tables.size());
-        const auto* t = here ? &snapshot.tables[p.table] : nullptr;
-        const int mine = t ? SeatOf(*t, snapshot.localMember) : -1, theirs = t ? SeatOf(*t, p.opponent) : -1;
+        // The room gone (closed, a kick, an invite switch): nothing to answer, no seat to leave.
+        if (!here) { ClosePostMatch(v, AfterPostMatch::None, open); return; }
+        const auto& t = snapshot.tables[p.table];
+        const int mine = SeatOf(t, snapshot.localMember), theirs = SeatOf(t, p.opponent);
         // The press counts until the room shows it: the runtime holds it while
         // the WIN plays out and resends it after. A Ready the room takes back
         // later can be pressed again.
-        if (t && p.chose && Readied(*t, mine, p.generation)) p.chose = false;
+        if (p.chose && Readied(t, mine, p.generation)) p.chose = false;
         if (p.left) {
             if (!Fighting(v.session.match) || v.atMainMenu) ClosePostMatch(v, p.after, open);
             return;
         }
-        const bool ready = mine >= 0 && (p.chose || Readied(*t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None);
+        const bool ready = mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None);
         // Both chose Rematch: the room starts the next game at once, and the
         // prompt covers the room and the game's main menu until the game
         // loads. The snapshot can bring the other Ready and the new game
         // together. Over the WIN the other's choice arrives with their inputs,
         // and the battle restarts in place.
-        if (t && !p.starting && ready && theirs >= 0 &&
-            (Readied(*t, theirs, p.generation) || t->matchGeneration != p.generation || (v.rematchChoices >> theirs & 1))) {
+        if (!p.starting && ready && theirs >= 0 &&
+            (Readied(t, theirs, p.generation) || t.matchGeneration != p.generation || (v.rematchChoices >> theirs & 1))) {
             p.starting = true; p.until = now + StartGraceSeconds;
         }
-        if (!t || (p.starting ? (v.session.match == MatchState::Playing && t->matchGeneration != p.generation) || now >= p.until :
-            t->matchGeneration != p.generation)) ClosePostMatch(v, AfterPostMatch::None, open);
+        if (p.starting ? (v.session.match == MatchState::Playing && t.matchGeneration != p.generation) || now >= p.until :
+            t.matchGeneration != p.generation) ClosePostMatch(v, AfterPostMatch::None, open);
         // Having chosen, wait for the opponent's answer: their own timer, and the
         // WIN they still play out, end later than this one.
         else if (!p.starting && ready && theirs >= 0) { if (now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open); }
         // A WIN cut short ends the game before the timer: no answer by then is no answer.
         else if (!p.starting && (now >= p.until || ready || (!Fighting(v.session.match) && v.atMainMenu)))
-            ClosePostMatch(v, ready || KeepsSeat(snapshot, *t, p.generation) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
+            ClosePostMatch(v, ready || KeepsSeat(snapshot, t, p.generation) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
     }
     // What the prompt left to do waits for the game's end, in the room.
     if (!open || postMatch_ || afterPostMatch_ == AfterPostMatch::None || Fighting(v.session.match) || !v.atMainMenu) return;
