@@ -135,7 +135,6 @@ the token the bridge hands it (never written to its own database).
   opens it on the desk. It is drawn from the sets the bridge already reads,
   so it needs every set of the phase, not only the open ones (commit 2's
   read adds the rest).
-- A nightly build lists the nightly bridge (`ember-bridge.fraccie.be`).
 
 ## 4a. Creating a tournament on the Ember website
 

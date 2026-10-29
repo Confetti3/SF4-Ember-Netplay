@@ -1,6 +1,5 @@
-//! Bridges this build trusts without an approval: Ember's staging bridge and
-//! the tournament desk's nightly bridge in Nightly builds (cargo feature
-//! `staging-bridge`), none otherwise. Each is
+//! Bridges this build trusts without an approval: Ember's staging bridge in
+//! Nightly builds (cargo feature `staging-bridge`), none otherwise. It is
 //! pinned by its bridge ID, origin and Ed25519 signing keys. The helper never
 //! replaces those keys from the network, and before each new session checks
 //! that the origin still describes the pinned bridge (`Client::check_pin`).
@@ -55,39 +54,21 @@ mod staging {
     pub const STAGING_KEY_KID: &str = "fGpBMbqH-Jnx5h0M";
     pub const STAGING_KEY_X: &str = "OXhVSHlgdGw7UY-q44K7j6dzeO7gM2_fe97bThpjST0";
     pub const STAGING_ORIGIN: &str = "https://bridge-staging.embernetplay.link";
-
-    /// The tournament desk's nightly bridge, read the same way from
-    /// `https://ember-bridge.fraccie.be` (docs/design/TOURNAMENT_DESK.md).
-    pub const NIGHTLY_BRIDGE_ID: &str = "brg_c8cdd19b-daaf-4966-bd51-622a512c20eb";
-    pub const NIGHTLY_KEY_KID: &str = "2hFcGdKzKEPXypWi";
-    pub const NIGHTLY_KEY_X: &str = "63_GNkVXtK1iQpalE0sSKtd-LpxLybT7MrwR9Dok8ns";
-    pub const NIGHTLY_ORIGIN: &str = "https://ember-bridge.fraccie.be";
 }
 
 /// The bridges this build trusts out of the box.
 pub fn builtins() -> Vec<Builtin> {
     #[cfg(feature = "staging-bridge")]
     {
-        vec![
-            Builtin {
-                bridge_id: staging::STAGING_BRIDGE_ID.into(),
-                origin: staging::STAGING_ORIGIN.into(),
-                display_name: "Ember bridge (staging)".into(),
-                keys: vec![(
-                    staging::STAGING_KEY_KID.into(),
-                    staging::STAGING_KEY_X.into(),
-                )],
-            },
-            Builtin {
-                bridge_id: staging::NIGHTLY_BRIDGE_ID.into(),
-                origin: staging::NIGHTLY_ORIGIN.into(),
-                display_name: "Ember bridge (nightly)".into(),
-                keys: vec![(
-                    staging::NIGHTLY_KEY_KID.into(),
-                    staging::NIGHTLY_KEY_X.into(),
-                )],
-            },
-        ]
+        vec![Builtin {
+            bridge_id: staging::STAGING_BRIDGE_ID.into(),
+            origin: staging::STAGING_ORIGIN.into(),
+            display_name: "Ember bridge (staging)".into(),
+            keys: vec![(
+                staging::STAGING_KEY_KID.into(),
+                staging::STAGING_KEY_X.into(),
+            )],
+        }]
     }
     #[cfg(not(feature = "staging-bridge"))]
     {
@@ -126,11 +107,6 @@ mod tests {
             store.pins(staging::STAGING_BRIDGE_ID)
                 && store.get(staging::STAGING_BRIDGE_ID).is_some(),
             "the staging pin is not trusted"
-        );
-        assert!(
-            store.pins(staging::NIGHTLY_BRIDGE_ID)
-                && store.get(staging::NIGHTLY_BRIDGE_ID).is_some(),
-            "the nightly pin is not trusted"
         );
         let _ = std::fs::remove_dir_all(dir);
     }
