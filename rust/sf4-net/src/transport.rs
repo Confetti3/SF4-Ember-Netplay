@@ -23,6 +23,7 @@ use crate::{
 };
 
 pub mod fixed_port;
+mod os_dns;
 mod with_proof;
 pub(crate) use with_proof::{accept_control_with, connect_public_on_proof};
 
@@ -85,10 +86,12 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
 }
 
 /// Every production endpoint starts here: the N0 preset's address lookup
-/// with this build's relays (`invite::relay_map`) in place of iroh's, and
-/// `ActiveRelays` beside that lookup.
+/// with this build's relays (`invite::relay_map`) in place of iroh's,
+/// `ActiveRelays` beside that lookup, and host addresses through the OS
+/// resolver (`os_dns`).
 pub(crate) fn endpoint_builder() -> Builder {
     Endpoint::builder(presets::N0)
+        .dns_resolver(os_dns::resolver())
         .relay_mode(RelayMode::Custom(crate::invite::relay_map()))
         .address_lookup(ActiveRelays)
 }
