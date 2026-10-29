@@ -347,7 +347,7 @@ void GameMenu::DrawNoticeModal(bool noticeOpen) {
         }
         ImGui::EndPopup();
     }
-    if(noticeOpen&&notice_.empty()) navigation.NeutralGate();
+    if(noticeOpen&&notice_.empty()) navigation.Rearm();
 }
 namespace {
 // The on-screen keyboard's keys (Keyboard.dc.html), its rows top to bottom.

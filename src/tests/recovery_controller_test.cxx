@@ -122,7 +122,7 @@ void ReleaseAndHotPlug(){
     Check(map.Update(Sticks({Stick(6,0xFFFFFFFFu,0,true)}))==0&&map.Update(resting)==Left,"A released axis stayed blocked");
     Check(map.Update(Pad(0,PadA))==0,"A button held through a hot-plug pressed Select");
     Check(map.Update(Pad(0))==0&&map.Update(Pad(0,PadA))==Select,"The hot-plugged pad did not work after release");
-    MenuNavigation nav("recovery");const std::vector<MenuEntry> rows{{"a"},{"b"}};nav.NeutralGate();
+    MenuNavigation nav("recovery");const std::vector<MenuEntry> rows{{"a"},{"b"}};nav.Rearm();
     RecoveryControllerMap gate;
     for(int i=0;i<3;++i){MenuInput in;in.held=gate.Update(resting);nav.Update(in,rows);}
     auto press=resting;press.pads[1]={true,0,0,0};

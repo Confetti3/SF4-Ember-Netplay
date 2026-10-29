@@ -62,8 +62,9 @@ class ControllerNavigation {
 public:
     // Call before ImGui::NewFrame, after the platform backend. Only this adapter
     // supplies gamepad keys; physical keyboard input remains independently owned.
-    // While not enabled (a device being assigned) nothing is read, and a
-    // button held when it is enabled again waits for its release.
+    // While not enabled (a device being assigned) nothing is read. A button
+    // held when the menu shows or is enabled again waits for its release
+    // (PressGate); the others count at once.
     void Update(const ControllerSample& sample, bool atMainMenu, bool visible, bool enabled);
     void Reset();
     bool MenuGuard() const { return menuGuard_; }
@@ -75,11 +76,11 @@ public:
     bool Unavailable() const { return !available_ && (deviceType_ == input::PadXInput || deviceType_ == input::PadDirectInput); }
 private:
     int deviceType_ = -1, deviceIndex_ = -1;
-    bool armed_ = false, wasVisible_ = false, draining_ = false;
+    bool wasVisible_ = false, draining_ = false;
     bool menuGuard_ = false, backRequested_ = false, focusRequested_ = false, available_ = false;
     bool widgetBack_ = false;
     bool menuArmed_ = false, openRequested_ = false;
-    std::uint32_t previous_ = 0;
+    PressGate gate_;
     std::uint32_t output_ = 0;
 };
 

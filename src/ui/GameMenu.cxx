@@ -323,7 +323,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     columns=(std::max)(1,columns);
     const double now=clock_.Update(ImGui::GetTime());
     // A newly visible component cannot reuse its parent's opening press.
-    if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.NeutralGate(); lastEdit_.clear(); }
+    if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.Rearm(); lastEdit_.clear(); }
     lastFrame_=ImGui::GetFrameCount();
     const bool modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
@@ -336,17 +336,17 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // neither activate the focused row nor leak into the list behind it.
     const bool noticeOpen=!notice_.empty();
     if(noticeOpen) {
-        const unsigned pressed=menuInput.held&~noticePrevious_; noticePrevious_=menuInput.held;
+        const unsigned pressed=noticeGate_.Pressed(noticeGate_.Held(menuInput.held));
         if(pressed&(MenuInput::Up|MenuInput::Left)) noticeSelected_=(std::max)(0,noticeSelected_-1);
         if(pressed&(MenuInput::Down|MenuInput::Right)) noticeSelected_=(std::min)(static_cast<int>(noticeButtons_.size())-1,noticeSelected_+1);
         // Back always declines: only Select takes the highlighted button.
         if(pressed&MenuInput::Back) DismissNotice(NoticeResult::Dismissed);
         else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
-    } else noticePrevious_=~0u;
+    } else noticeGate_.Rearm();
     toastPressed=0;
-    if(toastFocused&&!noticeOpen) {toastPressed=menuInput.held&~toastPrevious_; toastPrevious_=menuInput.held; menuInput.held=0;}
-    else toastPrevious_=~0u;
+    if(toastFocused&&!noticeOpen) {toastPressed=toastGate_.Pressed(toastGate_.Held(menuInput.held)); menuInput.held=0;}
+    else toastGate_.Rearm();
     held_=menuInput.held;
     // Read before a notice takes the input: the accessibility button works in one too.
     const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;

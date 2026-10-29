@@ -47,7 +47,7 @@ void ApplicationShell::CancelLayoutCapture(const ShellView& view, const Submit& 
     layoutCapture_.Read(ImGui::GetTime(), {}, layoutPad_->has, LayoutCancel::State);
     LayoutLog(view, submit, fmt::format("layout capture for id {} {} cancelled (state)", layoutPad_->id,
         layoutCaptureFunction_ ? "assign " + LayoutCaptureRow(layoutCaptureFunction_) : std::string("pick")));
-    layoutNeutral_ = true; menu_.navigation.NeutralGate();
+    layoutNeutral_ = true; menu_.navigation.Rearm();
 }
 void ApplicationShell::OpenButtonLayout(const PadView& pad) {
     layoutPad_ = pad; layoutChanged_ = false; layoutAbsent_ = pad.state == RowState::Absent;
@@ -164,6 +164,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     *layoutPad_ = pad;
     if (nav.Screen() == "button-layout-button" && !editable) { nav.Return(); nav.Focus("edit-button", ButtonLayoutRows(pad, false)); }
     bool editor = nav.Screen() == "button-layout-button";
+    // Capture waits for every button up, unlike the menu's gate: a held one would be bound.
     if (layoutNeutral_ && pad.held.empty()) layoutNeutral_ = false;
     SetGameplayLayoutPrompts(view);
     const bool capturing = layoutCapture_.Active();
@@ -201,11 +202,11 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         const auto captureName = layoutCaptureFunction_ ? "assign " + captureRow : std::string("pick");
         if (press.cancelled != LayoutCancel::None) {
             LayoutLog(view, submit, fmt::format("layout capture for id {} {} cancelled ({})", pad.id, captureName, CancelName(press.cancelled)));
-            nav.NeutralGate(); layoutNeutral_ = true;
+            nav.Rearm(); layoutNeutral_ = true;
         } else if (press.button) {
             const auto button = *press.button;
             LayoutLog(view, submit, fmt::format("layout capture for id {} {} took {}", pad.id, captureName, LayoutGlyphs[button]));
-            layoutNeutral_ = true; nav.NeutralGate();
+            layoutNeutral_ = true; nav.Rearm();
             if (boundCapture) ChangeBoundButton(pad, *boundCapture, button, view, submit);
             else if (!captureMask) { layoutButton_ = button; nav.Push("button-layout-button"); nav.Focus("bit-lp", ButtonEditorRows(pad, button, true)); }
             else {

@@ -668,6 +668,22 @@ void PostMatchJourneys() {
  h.Choose("again");h.view.session.room=netplay::RoomState::Closing;h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match","A chosen Rematch kept the prompt over a room that was closing");
  h.view.session.room=netplay::RoomState::Joined;
+ // A direction still held from the fight when the WIN opens the prompt must
+ // not keep the confirm pressed beside it from choosing Rematch.
+ t.matchGeneration=10;t.phase=room::TablePhase::Playing;h.view.matchResult=false;h.Frame();
+ h.view.matchResult=true;h.Frame(MenuInput::Down);
+ Check(h.shell.Navigation().Screen()=="post-match"&&h.shell.Navigation().Focus()=="again","The WIN with a direction held opened no prompt on Rematch");
+ const auto held=h.actions.size();h.Frame(MenuInput::Down|MenuInput::Select);
+ Check(h.actions.size()==held+1&&h.actions.back().command.kind==Kind::Rematch,"Rematch pressed beside a held direction was swallowed");
+ // Back to room chosen over the WIN keeps the prompt up; the room going away
+ // closes it with nothing left to do, so no seat is left once the game is over.
+ h.view.session.room=netplay::RoomState::Closing;h.Frame();h.view.session.room=netplay::RoomState::Joined;
+ t.matchGeneration=11;t.phase=room::TablePhase::Playing;t.ready[0]=t.ready[1]=false;h.view.matchResult=false;h.Frame();
+ win();h.Choose("back");Check(h.shell.Navigation().Screen()=="post-match"&&row("pm-you").value==loc::T("postmatch.back"),"Back over the WIN closed the prompt early");
+ const auto gone=h.actions.size();h.view.session.room=netplay::RoomState::Closing;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","Back chosen kept the prompt over a room that was closing");
+ h.view.session.room=netplay::RoomState::Joined;gameOver();h.Frame();
+ Check(h.actions.size()==gone,"A prompt closed with its room still left the seat afterwards");
  SetMenuCardProbe({});
  SetMenuEntriesProbe({});
 }

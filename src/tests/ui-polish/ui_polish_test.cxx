@@ -46,7 +46,7 @@ static void TestDraftAndConfirmation() {
 }
 static void TestDeferredText() {
     auto entries=Entries(); MenuNavigation nav; nav.Reconcile(entries); nav.Choose(entries);
-    nav.NeutralGate();
+    nav.Rearm();
     CHECK(nav.Update({MenuInput::Select,0,true},entries,1,true,true).kind==MenuAction::None);
     CHECK(nav.Editing());
     nav.Update({0,.1},entries,1,true,true);
@@ -65,7 +65,7 @@ static void TestNavigation() {
     nav.Update({MenuInput::Select,0},entries); CHECK(!nav.Editing());
     nav.Update({0,.1},entries); nav.Update({MenuInput::Down,.2},entries);
     CHECK(nav.Focus()=="leave");
-    nav.NeutralGate(); nav.Update({0,10},entries); nav.Update({MenuInput::Down,10.01},entries);
+    nav.Rearm(); nav.Update({0,10},entries); nav.Update({MenuInput::Down,10.01},entries);
     CHECK(nav.Focus()=="delay");
     nav.Focus("name",entries);
     nav.Update({MenuInput::Down,10.10},entries); CHECK(nav.Focus()=="name");

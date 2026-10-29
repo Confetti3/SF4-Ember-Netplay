@@ -238,7 +238,7 @@ public:
     void ShowError(std::string text) { ShowNotice(std::move(text)); noticeError_=true; }
     bool NoticeError() const { return !notice_.empty()&&noticeError_; }
     // Closes the notice without an answer.
-    void CloseNotice() { notice_.clear(); noticeSelected_=0; noticeResult_=NoticeResult::None; navigation.NeutralGate(); }
+    void CloseNotice() { notice_.clear(); noticeSelected_=0; noticeResult_=NoticeResult::None; navigation.Rearm(); }
     bool NoticeOpen() const { return !notice_.empty(); }
     // How the last notice closed, once; None while it is open or nobody closed one.
     NoticeResult TakeNoticeResult() { const auto result=noticeResult_; noticeResult_=NoticeResult::None; return result; }
@@ -300,7 +300,7 @@ v2::HeaderChip noticeChip_{};
     int noticeSelected_=0;
     NoticeResult noticeResult_=NoticeResult::None;
     bool noticeError_=false;
-    unsigned noticePrevious_=~0u,toastPrevious_=~0u;
+    PressGate noticeGate_,toastGate_;
     int lastFrame_ = -2;
     unsigned held_ = 0, describeHeld_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);

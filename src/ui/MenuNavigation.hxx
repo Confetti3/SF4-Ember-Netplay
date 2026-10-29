@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/WipeText.hxx"
+#include "PressGate.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -147,15 +148,17 @@ public:
     const std::string& Parent() const { return stack_.size()>1 ? stack_[stack_.size()-2] : stack_.front(); }
     void Push(const std::string& screen) {
         if (screen.empty() || screen == Screen()) return;
-        Cancel(); stack_.push_back(screen); states_[screen]; NeutralGate();
+        Cancel(); stack_.push_back(screen); states_[screen]; Rearm();
     }
-    void Home() { Cancel(); stack_.resize(1); NeutralGate(); }
+    void Home() { Cancel(); stack_.resize(1); Rearm(); }
     void Cancel() {
         const bool modal = mode_ != Modal::None;
         mode_ = Modal::None; modalId_.clear(); WipeText(draft_); choiceIds_.clear();
-        if (modal) NeutralGate();
+        if (modal) Rearm();
     }
-    void NeutralGate() { previous_=~0u; armed_=false; direction_=0; nextRepeat_=0; }
+    // A screen opening (pushed, returned to, a modal closing): what is held
+    // now counts once released, see PressGate.
+    void Rearm() { gate_.Rearm(); direction_=0; nextRepeat_=0; }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     // The one open modal, if any; it belongs to the entry named by modalId_.
     // Confirming, Choosing, Editing and Reading each name exactly one mode.
@@ -228,7 +231,7 @@ public:
     }
     MenuAction Return() {
         if (mode_ != Modal::None) { Cancel(); return {}; }
-        if (stack_.size()>1) { stack_.pop_back(); NeutralGate(); return {MenuAction::Returned}; }
+        if (stack_.size()>1) { stack_.pop_back(); Rearm(); return {MenuAction::Returned}; }
         return {MenuAction::Close};
     }
     MenuAction Choose(const std::vector<MenuEntry>& entries) {
@@ -285,8 +288,10 @@ public:
         unsigned held=in.held;
         if((held&3)==3) held&=~3u;
         if((held&12)==12) held&=~12u;
-        if(!armed_) { previous_=held; armed_=held==0; return {}; }
-        const auto pressed=held&~previous_; previous_=held;
+        const bool opening=!gate_.Armed();
+        held=gate_.Held(held);
+        if(opening) return {};
+        const auto pressed=gate_.Pressed(held);
         // Renderers finish the current screen before committing a return, so
         // the outgoing frame still has its body, focus and scroll state.
         if(pressed&MenuInput::Back) {
@@ -374,9 +379,10 @@ private:
     Modal mode_=Modal::None;
     std::string modalId_,draft_;
     std::vector<std::string> choiceIds_;
-    bool confirmSelected_=false, armed_=true, editAccept_=true, secret_=false;
+    bool confirmSelected_=false, editAccept_=true, secret_=false;
+    PressGate gate_{true};
     std::size_t choiceIndex_=0;
-    unsigned previous_=0,direction_=0;
+    unsigned direction_=0;
     double nextRepeat_=0;
 };
 } }

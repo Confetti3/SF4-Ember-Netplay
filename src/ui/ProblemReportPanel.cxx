@@ -9,7 +9,7 @@ void ProblemReportPanel::Open(std::uint64_t preparation) {
     preparation_ = preparation;
     submission_={}; menu_.navigation=MenuNavigation("report");
     menu_.navigation.Prefer("report-close");
-    menu_.navigation.NeutralGate();
+    menu_.navigation.Rearm();
     menu_.fitStatus=true;
     menu_.rootName=loc::T("reports.title"); menu_.backHint=loc::T("reports.dont_send");
 }

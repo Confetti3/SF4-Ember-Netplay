@@ -14,10 +14,9 @@ void ControllerNavigation::Update(const ControllerSample& sample,bool available,
     else if(menuArmed_&&(sample.buttons&ControllerSample::Menu)){
         openRequested_=!visible;menuArmed_=false;
     }
-    if(!visible||!enabled||!sample.connected||changed){armed_=false;previous_=0;return;}
-    if(!armed_){armed_=sample.buttons==0;previous_=0;return;}
-    output_=sample.buttons;
-    const auto pressed=output_&~previous_;previous_=output_;
+    if(!visible||!enabled||!sample.connected||changed){gate_.Rearm();return;}
+    output_=gate_.Held(sample.buttons);
+    const auto pressed=gate_.Pressed(output_);
     backRequested_=(pressed&ControllerSample::Back)!=0;
     focusRequested_=pressed!=0;
 }

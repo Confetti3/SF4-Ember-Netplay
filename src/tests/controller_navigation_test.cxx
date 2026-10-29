@@ -140,7 +140,13 @@ void NavigationModel() {
  nav.Update({MenuInput::Down,time+1.1},rows);Check(nav.Focus()=="1","Immediate direction press");
  nav.Update({MenuInput::Down,time+1.2},rows);Check(nav.Focus()=="1","Repeat too early");
  nav.Update({MenuInput::Down,time+1.5},rows);Check(nav.Focus()=="2","Direction did not repeat");
- nav.NeutralGate();nav.Update({MenuInput::Select,time+2},rows);Check(nav.Update({0,time+3},rows).kind==MenuAction::None,"Neutral gate");
+ nav.Rearm();nav.Update({MenuInput::Select,time+2},rows);Check(nav.Update({0,time+3},rows).kind==MenuAction::None,"Neutral gate");
+ // A direction held when a screen opens waits for its release; a press beside
+ // it counts at once, and the direction counts again once released.
+ nav.Focus("0",rows);nav.Rearm();nav.Update({MenuInput::Down,time+4},rows);nav.Update({MenuInput::Down,time+5},rows);
+ Check(nav.Focus()=="0","A direction held at the gate moved focus");
+ Check(nav.Update({MenuInput::Down|MenuInput::Select,time+5.1},rows).kind==MenuAction::Activate,"Select beside a held direction was swallowed");
+ nav.Focus("0",rows);nav.Update({0,time+6},rows);nav.Update({MenuInput::Down,time+6.1},rows);Check(nav.Focus()!="0","A released direction did not count again");
  // A choice returns the option the player saw, by id. One whose options
  // change meaning closes rather than send something never picked, and Back
  // cancels without choosing either side.
@@ -208,6 +214,14 @@ void NativeCapture() {
  device.buttons=16;adapter.Update(device,true,true,true);Check(adapter.Buttons()==16,"Assigned device input missing");
  adapter.Update(device,true,true,false);Check(!adapter.Buttons(),"Focus loss not gated");
  adapter.Update(device,true,true,true);Check(!adapter.Buttons(),"Held refocus input activated");
+ // A direction held from the fight when the menu shows waits for its release,
+ // but a confirm pressed beside it counts at once.
+ adapter.Update(device,true,true,false);device.buttons=ControllerSample::Down;adapter.Update(device,true,true,true);
+ Check(!adapter.Buttons(),"Held opening direction activated");
+ device.buttons=ControllerSample::Down|ControllerSample::Confirm;adapter.Update(device,true,true,true);
+ Check(adapter.Buttons()==ControllerSample::Confirm,"A press beside a held direction was swallowed");
+ device.buttons=0;adapter.Update(device,true,true,true);device.buttons=ControllerSample::Down;adapter.Update(device,true,true,true);
+ Check(adapter.Buttons()==ControllerSample::Down,"A released direction did not count again");
  device.buttons=0;adapter.Update(device,true,true,true);device.buttons=32;
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
