@@ -89,12 +89,6 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
     }
     const std::string value = e.value.empty() ? loc::T("common.not_set") : e.value;
     const ImU32 shown = e.valueHighlighted ? col.accent : text;
-    if (!MenuValueIsNumber(e)) {
-        const std::string fit = Fit(value, box.W() - 20 * s, ImGui::GetFontSize(), ImGui::GetFont());
-        d->AddText(ImVec2(box.max.x - 18 * s - ImGui::CalcTextSize(fit.c_str()).x, y), shown, fit.c_str());
-        Chevron(d, ImVec2(box.max.x - 6 * s, box.min.y + h * .5f), 6 * s, enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
-        return;
-    }
     const std::string fit = Fit(value, box.W() - 40 * s, ImGui::GetFontSize(), ImGui::GetFont());
     const ImU32 arrow = enabled ? col.accent : col.muted;
     d->AddText(ImVec2(box.min.x, y), arrow, "<");
@@ -102,6 +96,13 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
     d->AddText(ImVec2(box.max.x - 10 * s, y), arrow, ">");
 }
 
+// Where a click on a value steps it: a number's either half, a word's arrows
+// only (the word itself opens its list); a switch never.
+static int MenuValueStep(const MenuEntry& e, float mx, float vx, float width) {
+    if (!e.adjustable || !e.enabled || MenuValueIsToggle(e) || width <= 0 || mx < vx) return 0;
+    if (!MenuValueIsNumber(e) && mx >= vx + 24 * Scale() && mx <= vx + width - 24 * Scale()) return 0;
+    return mx < vx + width * .5f ? -1 : 1;
+}
 void DrawMenuRow(ImDrawList* d, const MenuEntry& e, v2::Box r, bool enabled, float valueWidth, float inset) {
     const float s = Scale(), font = ImGui::GetFontSize(), y = r.min.y + (r.H() - font) * .5f, right = r.max.x - inset;
     const auto& c = v2::Colors();
@@ -111,7 +112,7 @@ void DrawMenuRow(ImDrawList* d, const MenuEntry& e, v2::Box r, bool enabled, flo
     v2::Text(d, ImVec2(r.min.x + inset, y), right - value - 8 * s - r.min.x - inset, e.label, font, text);
     if (e.userText || e.text) NoteUserText(e.value);
     if (e.adjustable) { DrawMenuValue(d, e, {ImVec2(right - valueWidth, r.min.y), ImVec2(right, r.max.y)}, enabled, text); return; }
-    // A fixed value, then the chevron of a row Select opens (an info row has none), as DrawMenuValue draws them.
+    // A fixed value, then the chevron of a row Select opens (an info row has none).
     const float end = e.info ? right : right - 18 * s;
     if (!e.value.empty()) {
         const std::string shown = Fit(e.value, valueWidth - 20 * s, font, ImGui::GetFont());
@@ -132,7 +133,7 @@ EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, con
         nav.Focus(e.id, rows);
         // The value's ends step it; anything else on the row is Select.
         const float mx = ImGui::GetMousePos().x, vx = b.max.x - 14 * Scale() - valueWidth;
-        const int step = valueWidth > 0 && MenuValueIsNumber(e) && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
+        const int step = MenuValueStep(e, mx, vx, valueWidth);
         action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : nav.Choose(rows);
     } else if (hovered && (mouse.x != 0 || mouse.y != 0) && !nav.Choosing()) nav.Focus(e.id, rows);
     return {pressed, hovered};
@@ -355,7 +356,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (pressed && listEnabled && !modalAtStart && !navigation.Editing() && !navigation.Asking()) {
                 navigation.Focus(e.id, entries);
                 const float mx = ImGui::GetMousePos().x, vx = c.max.x - 16 * s - valueWidth;
-                const int step = MenuValueIsNumber(e) && e.enabled && mx >= vx ? (mx < vx + valueWidth * .5f ? -1 : 1) : 0;
+                const int step = MenuValueStep(e, mx, vx, valueWidth);
                 action = step ? MenuAction{MenuAction::Adjust, e.id, {}, step} : navigation.Choose(entries);
             } else if (listEnabled && pointerMoved && hovered && !navigation.Choosing()) navigation.Focus(e.id, entries);
             if (focused) {
@@ -450,7 +451,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         hints.push_back({MenuSelectGlyph(), primary}); does.push_back(1);
     }
     if (!backInert) { hints.push_back({MenuBackGlyph(), choosing ? loc::T("common.cancel") : backHint.empty() ? loc::T("common.back") : backHint}); does.push_back(2); }
-    if (MenuValueIsNumber(shown) && shown.enabled && !choosing) { hints.push_back({KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust")}); does.push_back(0); }
+    if (shown.adjustable && !MenuValueIsToggle(shown) && shown.enabled && !choosing) { hints.push_back({KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust")}); does.push_back(0); }
     for (const auto& h : shortcutHints) { hints.push_back({h.glyph, h.label}); does.push_back(0); }
     // Tabs step with LB and RB (Page Up and Down on the keyboard).
     if (!tabs.empty() && !choosing) {

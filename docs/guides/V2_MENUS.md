@@ -86,11 +86,13 @@ Rows that hold a value come in three kinds.
 - **Numbers**, such as Speech rate or Interface size: Left and Right step
   them, and the hint bar says Adjust. With the mouse, click the arrow at
   either end.
-- **Choices**, such as Language: A or Enter opens a panel on the row with
-  every choice, the current one ticked, and how many there are. Move with
-  the D-pad or arrows and press A to pick; B or Escape keeps the old value.
-  With the mouse, click a choice, or right-click to close it. Left and Right
-  on the row still step through the choices without opening it.
+- **Choices**, such as Language, show arrows like numbers: Left and Right
+  step through the choices, and the hint bar says Adjust. A or Enter opens
+  a panel on the row with every choice, the current one ticked, and how
+  many there are. Move with the D-pad or arrows and press A to pick; B or
+  Escape keeps the old value. With the mouse, click an arrow to step, or
+  the choice itself to open the panel; click a choice in it, or right-click
+  to close it.
 
 ## Popouts
 
