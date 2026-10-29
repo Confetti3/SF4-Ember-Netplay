@@ -1318,7 +1318,7 @@ void ApplicationShell::LoadTableRules(const ShellView& v,int table) {
 }
 void ApplicationShell::OpenTableOptions(const ShellView& v,int table) {
  auto& nav=menu_.navigation;
- selectedTable_=table;rulesDirty_=false;rulesRevision_=v.room.tables[table].revision;tableRules_=v.room.tables[table].rules;
+ LoadTableRules(v,table);
  nav.Home();nav.Push("room");nav.Push("room-table");
 }
 void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
