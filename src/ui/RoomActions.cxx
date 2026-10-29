@@ -224,7 +224,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.
-  if(!HasChatText(chat_)||queuedChat_||(ChatInFlight(ImGui::GetTime())&&pendingChat_->text==chat_))return;
+  if(!HasChatText(chat_)||ChatSendPending())return;
   queuedChat_=QueuedChat{chat_};FlushChat(v,submit);return;
  }
  else if(a.id=="ready"){ToggleReady(v,submit);return;}

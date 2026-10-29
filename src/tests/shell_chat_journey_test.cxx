@@ -219,6 +219,7 @@ void ChatJourneys(){
  Check(log->Scroll.y<bottom-20,"Holding Up did not scroll the chat back");
  const float reading=log->Scroll.y;
  say(2,"Arrives while reading");h.Frame(0,3);
+ Check(h.shell.Transcript().Unread({})==1,"Reading older chat marked a new offscreen message read");
  Check(std::fabs(log->Scroll.y-reading)<1.5f,"A new message pulled the reader away from earlier ones");
  h.Frame(MenuInput::Down,200);h.Frame(0,2);
  Check(std::fabs(log->Scroll.y-log->ScrollMax.y)<1.5f,"Holding Down did not return to the newest message");
@@ -474,5 +475,39 @@ void ChatJourneys(){
  key(ImGuiKey_Enter);
  Check(h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="brb!?"&&!h.shell.ChatTyping(),
   "A sent draft still counted as typing");
+ // An active inline editor keeps shortcuts available and leaves its draft on Back.
+ h.view.canEditSelection=true;
+ JoinChatRoom(h,90);h.Screen("room");h.Frame(0,3);
+ h.Choose("inline-chat");h.Frame(0,3);
+ Check(io.WantTextInput,"Selecting the board editor did not acquire typing");
+ io.AddInputCharactersUTF8("inline draft");h.Frame(0,2);
+ h.Press(MenuInput::Chat);h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="room-chat"&&row("compose").value=="inline draft","View from the active board editor did not open the shared draft");
+ h.Press(MenuInput::Chat);h.Frame(0,3);h.Choose("inline-chat");h.Frame(0,3);
+ h.Press(MenuInput::Options);h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="room-table","Y was swallowed by the active board editor");
+ h.Screen("room");h.Choose("inline-chat");h.Frame(0,3);h.Press(MenuInput::Fighter);h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="selection","X was swallowed by the active board editor");
+ h.Screen("room");h.Choose("inline-chat");h.Frame(0,3);h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="room","Back from the board editor left the room screen");
+ h.Choose("inline-chat");h.Frame(0,3);JoinChatRoom(h,91);h.Frame(0,3);
+ Check(!io.WantTextInput,"Replacing a room retained the active inline editor");
+ h.Screen("room-chat");h.Frame(0,3);
+ Check(row("compose").value.empty(),"Replacing a room retained the inline draft");
+ // A muted newest arrival must not keep earlier visible messages unread.
+ sequence=0;h.Screen("room-members");h.Choose("member-3");h.Choose("mute");
+ h.Screen("room");h.shell.Navigation().Prefer("table-0");h.Frame(0,2);say(2,"Read me");say(3,"Muted tail");h.Frame(0,2);
+ Check(h.shell.UnreadChat()==1,"Muting changed the visible unread count");
+ h.view.focused=false;io.AddFocusEvent(false);h.Screen("room-chat");h.Frame(0,4);
+ Check(h.shell.UnreadChat()==1,"An unfocused chat read its newest message");
+ h.view.focused=true;io.AddFocusEvent(true);h.Frame(0,4);
+ Check(h.shell.UnreadChat()==0,"A muted tail prevented visible chat being read");
+ // V2's narrow tabs must reveal the editor when the pad focuses it.
+ h.view.preferences.lookV2=true;h.view.preferences.roomShowChat=true;
+ io.DisplaySize=ImVec2(800,720);JoinChatRoom(h,92);h.Screen("room");h.Frame(0,3);
+ h.Choose("inline-chat");h.Frame(0,3);
+ Check(io.WantTextInput,"V2 narrow Chat did not reveal its selected editor");
+ io.AddInputCharactersUTF8("V2 message");h.Frame(0,2);sent=h.actions.size();key(ImGuiKey_Enter);
+ Check(h.actions.size()==sent+1&&h.actions.back().roomAction.text=="V2 message","V2 inline Enter did not send exactly once");
  SetMenuEntriesProbe({});
 }

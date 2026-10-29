@@ -97,7 +97,7 @@ add_library(sf4e_ui STATIC
     src/ui/ApplicationShell.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
     src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/FighterSelector.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
-    src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx
+    src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx src/ui/ChatComposer.cxx
     src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp
     src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx
     src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx src/ui/ApplicationShell__Screens.cxx

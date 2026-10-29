@@ -3,6 +3,8 @@
 #include <imgui_internal.h>
 #include "Theme.hxx"
 #include "RoomFeedback.hxx"
+#include "RoomControls.hxx"
+#include "RoomBoardLayout.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cctype>
@@ -25,13 +27,6 @@ std::string EventText(const ChatLine& line) {
     default: return {};
     }
 }
-// ImGui selects the whole box when the keyboard focus lands on it, which would
-// have the next letter replace a kept draft. The caret goes to the end instead.
-int CaretToEnd(ImGuiInputTextCallbackData* data) {
-    bool* fresh = static_cast<bool*>(data->UserData);
-    if (*fresh) { *fresh = false; data->CursorPos = data->BufTextLen; data->SelectionStart = data->SelectionEnd = data->CursorPos; }
-    return 0;
-}
 const char* ChatGateName(ChatGate gate) {
     switch (gate) {
     case ChatGate::NotJoined: return "not joined";
@@ -41,10 +36,7 @@ const char* ChatGateName(ChatGate gate) {
     default: return "writable";
     }
 }
-bool HasText(const char* text) {
-    for (; *text; ++text) if (!std::isspace(static_cast<unsigned char>(*text))) return true;
-    return false;
-}
+
 }
 float UnreadBadgeWidth(unsigned count) {
     const float s = Scale(), height = 18 * s;
@@ -66,6 +58,8 @@ void DrawUnreadBadge(float right, float top, unsigned count) {
 // between two snapshots. Only the session's room state and the room notices
 // are read from `v`.
 void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& room) {
+    const auto epoch = v.session.room == netplay::RoomState::Idle ? 0 : room.roomEpoch;
+    if (roomEpoch_ != epoch) { ResetRoomChat(room); roomEpoch_ = epoch; chatComposer_.Release(menu_); }
     if (v.session.room == netplay::RoomState::Idle || !room.roomEpoch) { transcript_.Clear(); pendingChat_.reset(); queuedChat_.reset(); muted_.clear(); mutedEpoch_ = 0; return; }
     // Seen here whether the shell is drawn or hidden (Background), so a mute
     // never outlives its room, and the unread count never leaves out a
@@ -92,17 +86,18 @@ void ApplicationShell::ObserveChat(const ShellView& v, const room::Snapshot& roo
 // The drawn frame's, wherever the player is, so a message that arrives while
 // they are on Home still counts. Only the Chat screen on view reads it.
 void ApplicationShell::UpdateChat(const ShellView& v, const Submit& submit) {
+    chatComposer_.ObserveScreen(menu_);
     const bool onChat = menu_.navigation.Screen() == "room-chat";
     if (!onChat) chatOpen_ = false;
     chatTyping_ = false;
     ObserveChat(v, v.room);
-    if (onChat) transcript_.MarkRead();
+
     NoteChatGate(ChatGateOf(v), ImGui::GetTime());
     FlushChat(v, submit);
 }
 
 // A message entered while the room could not take it waits here, and goes out once the room can. It is
-// let go, with the draft left in the box, only if the room closes or is left first. Only a drawn frame has
+// discarded with the draft if the room closes or is left first. Only a drawn frame has
 // the room to send into, so one still waiting while Ember is hidden goes when it is shown again.
 void ApplicationShell::FlushChat(const ShellView& v, const Submit& submit) {
     if (!queuedChat_) return;
@@ -150,9 +145,12 @@ std::string ApplicationShell::ChatTypingText(const ShellView& v) const {
 }
 
 // The transcript's lines in the current child, oldest first.
-void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
+void ApplicationShell::DrawChatLog(const ShellView& view, bool compact) {
     const float s = Scale();
     bool any = false;
+    const auto newest = std::find_if(transcript_.Lines().rbegin(), transcript_.Lines().rend(), [&](const ChatLine& line) {
+        return line.kind == ChatLine::Kind::Message && !muted_.count(line.sender);
+    });
     // The sender of the message just above with nothing between, whose name is not repeated.
     room::MemberId above = 0;
     for (const auto& line : transcript_.Lines()) {
@@ -200,6 +198,12 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
         }
         ImGui::TextWrapped("%s", line.text.c_str());
         if (ImGui::IsItemVisible()) NoteUserText(line.text, UserTextRole::Chat);
+        const auto bounds = ImGui::GetCurrentWindow()->ClipRect;
+        const auto bottom = ImGui::GetItemRectMax();
+        const bool attended = !compact || chatComposer_.Typing() || ImGui::IsWindowHovered() || menu_.navigation.Focus() == "inline-chat";
+        if (newest != transcript_.Lines().rend() && line.sequence == newest->sequence && attended && view.focused && !ImGui::GetIO().AppFocusLost &&
+            ImGui::IsItemVisible() && bottom.y <= bounds.Max.y && ImGui::GetItemRectMin().y >= bounds.Min.y)
+            transcript_.MarkRead();
         if (line.own) {
             const ImVec2 end = ImGui::GetCursorScreenPos();
             draw->ChannelsSetCurrent(0);
@@ -217,7 +221,7 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
 // box under it. Typing goes straight into the box and Enter sends (the
 // compose row's Select); Up and Down scroll the conversation with the keys or
 // the pad, as the mouse wheel does.
-void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<MenuEntry>&, MenuNavigation&, MenuAction&, float height,
+void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<MenuEntry>&, MenuNavigation&, MenuAction& action, float height,
                                       const MenuVisualFeedback&) {
     const float s = Scale(), spacing = ImGui::GetStyle().ItemSpacing.y;
     const ChatGate gate = ChatGateOf(v);
@@ -229,7 +233,8 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     // (or why nothing can be sent) with the room left in the message at its right.
     const float counterWidth = box ? ImGui::CalcTextSize(loc::Tf("chat.remaining", ChatBytesLeft()).c_str()).x + 12 * s : 0.f;
     // The box sits under a line kept for who is typing, so it never moves when that shows.
-    const float boxHeight = box ? ImGui::GetFrameHeight() + ImGui::GetTextLineHeight() + spacing : 0.f;
+    const bool showTyping = height >= RoomChatMinimumHeight() + 4 * ImGui::GetTextLineHeightWithSpacing();
+    const float boxHeight = box ? ImGui::GetFrameHeight() + (showTyping ? ImGui::GetTextLineHeight() + spacing : 0.f) : 0.f;
     std::string note = loc::T("chat.detail");
     Tone noteTone = Tone::Neutral;
     // The box takes typing whatever the fence does. What it says follows the status line's held feedback
@@ -274,12 +279,16 @@ void ApplicationShell::DrawChatScreen(const ShellView& v, const std::vector<Menu
     ImGui::PopStyleColor(); ImGui::PopStyleVar();
 
     if (box) {
-        const std::string typing = FitLabel(ChatTypingText(v), width);
+        if (showTyping) {
+            const std::string typing = FitLabel(ChatTypingText(v), width);
+            ImGui::SetCursorPosX(x);
+            ImGui::PushStyleColor(ImGuiCol_Text, palette::Muted);
+            ImGui::TextUnformatted(typing.c_str());
+            ImGui::PopStyleColor();
+            if (!typing.empty()) NoteUserText(typing);
+        }
         ImGui::SetCursorPosX(x);
-        ImGui::PushStyleColor(ImGuiCol_Text, palette::Muted);
-        ImGui::TextUnformatted(typing.c_str());
-        ImGui::PopStyleColor();
-        if (!typing.empty()) NoteUserText(typing);
+        DrawComposer(v, action, width, false);
         DrawChatBox(x, width, gate != ChatGate::NotJoined, noteHeight);
     }
     ImGui::SetCursorPosX(x);
@@ -302,30 +311,6 @@ void ApplicationShell::DrawChatBox(float x, float width, bool typable, float not
     const std::string counter = loc::Tf("chat.remaining", left);
     const float counterWidth = ImGui::CalcTextSize(counter.c_str()).x;
     ReportMenuText("chat-remaining", lineHeight, lineHeight, counterWidth, width * .4f);
-    // The message box keeps the keyboard whenever nothing else holds it. It edits
-    // a copy, so Escape (which ImGui answers by restoring the text from when the
-    // box was last entered) cannot take the draft back with it.
-    ImGui::SetCursorPosX(x);
-    ImGui::SetNextItemWidth(width);
-    char buffer[sizeof(chat_)];
-    std::memcpy(buffer, chat_, sizeof(buffer));
-    bool fresh = false;
-    if (chatBoxText_ != chat_)
-        if (auto* state = ImGui::GetInputTextState(ImGui::GetID("##chat-draft"))) state->ReloadUserBufAndMoveToEnd();
-    ImGui::BeginDisabled(!typable);
-    if (typable && !menu_.NoticeOpen() && !ImGui::IsAnyItemActive()) { ImGui::SetKeyboardFocusHere(); fresh = true; }
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4 * s);
-    const bool edited = ImGui::InputTextWithHint("##chat-draft", loc::T("chat.hint"), buffer, sizeof(buffer), ImGuiInputTextFlags_CallbackAlways, CaretToEnd, &fresh);
-    ImGui::PopStyleVar();
-    const ImVec2 boxMin = ImGui::GetItemRectMin(), boxMax = ImGui::GetItemRectMax();
-    if (ImGui::IsItemActive()) ImGui::GetWindowDrawList()->AddRect(boxMin, boxMax, palette::Ember, 4 * s, 0, 2 * s);
-    ImGui::EndDisabled();
-    ReportMenuCard("chat-box", boxMin, boxMax);
-    if (edited && !ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { std::snprintf(chat_, sizeof(chat_), "%s", buffer); chatEditedAt_ = ImGui::GetTime(); }
-    // Typing is a draft edited in the last 4 seconds and not already on its way.
-    chatTyping_ = typable && HasText(chat_) && !pendingChat_ && !queuedChat_ && ImGui::GetTime() - chatEditedAt_ < 4;
-    chatBoxText_ = chat_;
-    NoteUserText(chat_, UserTextRole::Draft);
     // The counter, at the right of the note line under the box; the cursor stays at that line.
     ImGui::SetCursorPosX(x);
     const ImVec2 at = ImGui::GetCursorScreenPos();
@@ -335,5 +320,33 @@ void ApplicationShell::DrawChatBox(float x, float width, bool typable, float not
     draw->PushClipRect(at, ImVec2(at.x + width, at.y + noteHeight), true);
     draw->AddText(ImVec2(at.x + width - counterWidth, at.y), counterColor, counter.c_str());
     draw->PopClipRect();
+}
+bool ApplicationShell::ChatSendPending() const {
+    return queuedChat_ || (ChatInFlight(ImGui::GetTime()) && pendingChat_->text == chat_);
+}
+void ApplicationShell::DrawComposer(const ShellView& v, MenuAction& action, float width, bool inlineBox) {
+    const std::string before = chat_;
+    const bool activate = action.kind == MenuAction::Activate && action.id == "inline-chat";
+    if (activate) action = {};
+    const auto result = chatComposer_.Draw(menu_, chat_, v.room.roomEpoch, width,
+        inlineBox ? "inline-chat" : "chat-box", inlineBox, ChatTypable(v), ChatSendPending(), activate);
+    if (before != chat_) chatEditedAt_ = ImGui::GetTime();
+    chatTyping_ = chatComposer_.Typing() && result != ChatComposer::Result::Sent && ChatTypable(v) && room_controls::HasChatText(chat_) && !ChatSendPending() && ImGui::GetTime() - chatEditedAt_ < 4;
+    if (result == ChatComposer::Result::Sent) action = {MenuAction::Activate, "compose"};
+    else if (result == ChatComposer::Result::Released) action = inlineBox ? MenuAction{} : MenuAction{MenuAction::Back};
+}
+void ApplicationShell::DrawRoomChat(const ShellView& v, MenuAction& action, float height) {
+    const bool box = ChatGateOf(v) != ChatGate::ReadOnly;
+    const float reserve = box ? RoomChatComposerHeight() : 0;
+    ImGui::BeginChild("Inline transcript", ImVec2(0, (std::max)(1.f, height - reserve)), 0, ImGuiWindowFlags_NoNavInputs);
+    const bool follow = !chatShown_ || ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 1;
+    DrawChatLog(v, true);
+    if (follow) ImGui::SetScrollHereY(1.f);
+    chatShown_ = transcript_.Lines().size();
+    ImGui::EndChild();
+    if (box) {
+        ImGui::TextUnformatted(FitLabel(ChatTypingText(v), ImGui::GetContentRegionAvail().x).c_str());
+        DrawComposer(v, action, ImGui::GetContentRegionAvail().x, true);
+    }
 }
 } }
