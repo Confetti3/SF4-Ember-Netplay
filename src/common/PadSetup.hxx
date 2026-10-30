@@ -4,6 +4,7 @@
 #include <array>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sf4e { namespace gamepads {
 // A stick step maps the whole axis its push lands on (5.3).
@@ -27,6 +28,25 @@ inline constexpr int UpStep = 0, DownStep = 1, LeftStep = 2, RightStep = 3, LkSt
 static_assert(std::string_view(SetupSteps[UpStep].target) == "dpup" && std::string_view(SetupSteps[DownStep].target) == "dpdown" &&
     std::string_view(SetupSteps[LeftStep].target) == "dpleft" && std::string_view(SetupSteps[RightStep].target) == "dpright" &&
     std::string_view(SetupSteps[LkStep].target) == "a" && std::string_view(SetupSteps[MkStep].target) == "b", "named steps moved");
+// Whether a mapping string binds every target the wizard requires. SDL's built-in
+// database has entries that leave some out (HJC QanBa Joystick Plus: no triggers),
+// and such a pad is not mapped until Ember's setup records the rest. A field that
+// is not "target:input" (GUID, name, hints) and a target with no input is skipped.
+inline bool MapsRequiredSteps(std::string_view mapping) {
+    std::vector<std::string_view> bound;
+    while (!mapping.empty()) {
+        const auto field = mapping.substr(0, mapping.find(','));
+        mapping.remove_prefix((std::min)(mapping.size(), field.size() + 1));
+        const auto colon = field.find(':');
+        if (colon == std::string_view::npos || colon + 1 == field.size()) continue;
+        auto target = field.substr(0, colon);
+        if (!target.empty() && (target.front() == '+' || target.front() == '-')) target.remove_prefix(1);
+        bound.push_back(target);
+    }
+    return std::all_of(SetupSteps.begin(), SetupSteps.end(), [&](const SetupStep& step) {
+        return !step.required || std::find(bound.begin(), bound.end(), step.target) != bound.end();
+    });
+}
 using SetupInputs = std::array<std::optional<RawInput>, SetupSteps.size()>;
 // A raw input as SDL binds it (RawBinding's text): a half axis from 0, a
 // trigger axis whole and inverted when it rests high, a hat by its direction bit.

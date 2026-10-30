@@ -7,7 +7,7 @@ Engineering decisions are fixed (SDL3 gamepad layer, Ember answers the game's XI
 
 Terms used below:
 
-- **Recognised pad**: SDL opens it as a gamepad (built-in mapping, or a mapping the player saved with the wizard). Ember serves it to the game in an XInput slot.
+- **Recognised pad**: SDL opens it as a gamepad (built-in mapping, or a mapping the player saved with the wizard). Ember serves it to the game in an XInput slot. An SDL built-in mapping that lacks a button the wizard requires (its non-optional steps, 5.3) does not count: the pad is unmapped until the wizard records the rest, and the mapping the player saves then replaces SDL's.
 - **Unmapped pad**: SDL sees it as a joystick with no gamepad mapping. The game keeps reading it through DirectInput, as today.
 - **Gameplay controller**: the device in `input::Assignment::Selected()`. It drives Ember's menus and is bound to the match side.
 - **Slot**: one of the game's four XInput indices 0 to 3. The player sees them as "game slot 1" to "game slot 4".

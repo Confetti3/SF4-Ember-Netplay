@@ -1,4 +1,5 @@
 #include "../common/GamepadSlots.hxx"
+#include "../common/PadSetup.hxx"
 #include "../common/XInputMapping.hxx"
 #include "../netplay/ControllerRestore.hxx"
 #include "test_support.hxx"
@@ -112,6 +113,37 @@ static void Eligibility() {
         CHECK(native.Update({stick}).pads[0].status == Status::GameRead);
         CHECK(native.Update({stick}, {}, {stick.identity.guid}).pads[0].status == Status::Unmapped);
     }
+}
+
+// SDL's database entry for the HJC QanBa Joystick Plus (03000000300f00001210000000000000)
+// binds no triggers or Back, so HK would have no button: it counts as not mapped.
+// What the wizard marks optional (3P, 3K, Back, stick clicks and axes) may be missing.
+static void RequiredStepMappings() {
+    const std::string qanba = "QanBa Joystick Plus,a:b0,b:b1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b4,rightshoulder:b5,start:b9,x:b2,y:b3";
+    const std::string xbox = "030000005e040000ff02000000007801,Xbox Controller,a:b0,b:b1,back:b6,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b10,"
+        "leftshoulder:b4,leftstick:b8,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b9,righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3,face:abxy,platform:Windows,";
+    CHECK(!MapsRequiredSteps(qanba) && MapsRequiredSteps(xbox) && !MapsRequiredSteps(""));
+    // Dropping a step's target fails exactly when the step is required; an empty input binds nothing.
+    // So a GameCube adapter's mapping, with no leftshoulder, still passes.
+    for (const auto& step : SetupSteps) {
+        std::string missing = xbox;
+        const auto at = missing.find(std::string(",") + step.target + ":");
+        CHECK(at != std::string::npos);
+        missing.erase(at + 1, missing.find(',', at + 1) - at);
+        CHECK(MapsRequiredSteps(missing) == !step.required);
+        CHECK(MapsRequiredSteps(missing + step.target + ":,") == !step.required);
+    }
+    // The Qanba text with HK added passes, with or without a sign on the target; a hint is no binding.
+    CHECK(MapsRequiredSteps(qanba + ",lefttrigger:a4,righttrigger:a5") && MapsRequiredSteps(qanba + ",+righttrigger:b6"));
+    CHECK(!MapsRequiredSteps(qanba + ",lefttrigger:b6,hint:righttrigger:=1"));
+    // The same pad, mapped by that text, waits for Ember's setup instead of taking a slot.
+    Slots slots;
+    auto stick = Controller(1);
+    stick.mapped = MapsRequiredSteps(qanba);
+    auto pads = slots.Update({stick, Controller(2)});
+    CHECK(pads.pads[0].status == Status::Unmapped && Slot(pads, 1) == -1 && Slot(pads, 2) == 0);
+    stick.mapped = MapsRequiredSteps(xbox);
+    CHECK(Slots().Update({stick}).pads[0].status == Status::Slotted);
 }
 
 // SDL and the game both take DirectInput pads exclusively, so SDL holds one raw
@@ -311,6 +343,6 @@ static void Mapping() {
 }
 
 int main() {
-    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); RawHandles(); SteamPairing(); SteamByGuid(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
+    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); RequiredStepMappings(); RawHandles(); SteamPairing(); SteamByGuid(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
     std::cout << "Gamepad slots and XInput mapping passed\n";
 }

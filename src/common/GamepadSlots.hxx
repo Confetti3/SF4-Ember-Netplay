@@ -19,6 +19,7 @@ struct Pad {
     Identity identity;
     std::uint16_t vid = 0, pid = 0;
     Type type = Type::Unknown;
+    // SDL maps every button the setup wizard requires, or Ember's own setup maps the pad (MapsRequiredSteps).
     bool mapped = false;
     bool hasEmberMapping = false;
     // SDL maps the pad without an Ember setup (an Ember mapping hides SDL's own).

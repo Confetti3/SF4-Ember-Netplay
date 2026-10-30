@@ -85,6 +85,13 @@ std::string MappingForGuid(const std::string& guid) {
     return text;
 }
 
+// The mapping SDL applies to this device now (the same one SDL_IsGamepad found), or empty.
+std::string MappingForId(Id id) {
+    char* mapping = SDL_GetGamepadMappingForID(id);
+    auto text = Text(mapping); SDL_free(mapping);
+    return text;
+}
+
 std::string IdentityTag(const Identity& identity) {
     return fmt::format("{:08x}", IdentityHash(identity));
 }
@@ -144,12 +151,15 @@ void Rebuild() {
         pad.id = ids[i];
         pad.vid = SDL_GetJoystickVendorForID(pad.id); pad.pid = SDL_GetJoystickProductForID(pad.id);
         pad.type = PadType(pad.id);
-        pad.mapped = SDL_IsGamepad(pad.id);
         pad.arcadeStick = SDL_GetJoystickTypeForID(pad.id) == SDL_JOYSTICK_TYPE_ARCADE_STICK;
         char guid[33];
         SDL_GUIDToString(SDL_GetJoystickGUIDForID(pad.id), guid, sizeof(guid));
         pad.identity = {guid, "", Text(SDL_GetJoystickPathForID(pad.id)), Text(SDL_GetJoystickNameForID(pad.id))};
-        pad.sdlMapping = savedEmberMappingGuids.count(pad.identity.guid) ? sdlMappedGuids.count(pad.identity.guid) != 0 : pad.mapped;
+        const bool emberSetUp = savedEmberMappingGuids.count(pad.identity.guid) != 0;
+        const bool sdlMaps = SDL_IsGamepad(pad.id);
+        // A mapping Ember saved stands as it is, even with skipped steps; SDL's own must bind every required wizard step.
+        pad.mapped = sdlMaps && (emberSetUp || MapsRequiredSteps(MappingForId(pad.id)));
+        pad.sdlMapping = emberSetUp ? sdlMappedGuids.count(pad.identity.guid) != 0 : sdlMaps;
         pads.push_back(std::move(pad));
     }
     SDL_free(ids);
