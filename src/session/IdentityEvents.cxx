@@ -1,4 +1,5 @@
 #include "IdentityEvents.hxx"
+#include "../common/Utf8Text.hxx"
 #include <nlohmann/json.hpp>
 
 namespace sf4e { namespace session {
@@ -63,7 +64,7 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         view.removedBridges.clear();
         for (const auto& removed : data.value("removed", nlohmann::json::array()))
             if (removed.is_string() && view.removedBridges.size() < 64)
-                view.removedBridges.push_back(removed.get<std::string>().substr(0, 64));
+                view.removedBridges.push_back(Utf8Trim(removed.get<std::string>(), 64));
     } else if (view.op == "bridge_inspect") {
         const auto profile = data.value("profile", nlohmann::json::object());
         view.inspected = {Text(profile, "bridge_id", 64), Text(profile, "origin"), Text(profile, "display_name", 64)};
@@ -157,7 +158,7 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
     } else if (view.op == "desk_site_state") {
         view.deskSiteState = {Text(data, "tournament", 64), Text(data, "state", 32), {}};
         for (const auto& action : data.value("actions", nlohmann::json::array()))
-            if (action.is_string() && view.deskSiteState.actions.size() < 8) view.deskSiteState.actions.push_back(action.get<std::string>().substr(0, 32));
+            if (action.is_string() && view.deskSiteState.actions.size() < 8) view.deskSiteState.actions.push_back(Utf8Trim(action.get<std::string>(), 32));
     } else if (view.op == "desk_read") {
         // Whether Tournament Mode is the player's: by invitation, and redeemed.
         if (const auto access = data.find("access"); access != data.end() && access->is_object())

@@ -15,6 +15,7 @@
 #include "sf4e__SessionServer.hxx"
 #include "RoomMessageQueue.hxx"
 #include "RoomMessageTag.hxx"
+#include "../common/JsonDump.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -416,7 +417,7 @@ int SessionServer::Step()
 
 void SessionServer::Respond(session::Connection client, const nlohmann::json& msg, bool retainPublicReplay) {
 	if (_recovery.Enabled() && !_recoveryFlushing) { JournalEffect(client, msg, retainPublicReplay); return; }
-	if (!_transport || !_transport->Send(client, msg.dump())) _transportFailed = true;
+	if (!_transport || !_transport->Send(client, DumpJson(msg))) _transportFailed = true;
 }
 
 void SessionServer::EnableMatchAuthorization(std::array<std::uint8_t, 16> room, session::MatchAuthority::Identity identity,
@@ -446,7 +447,7 @@ sf4e::session::MatchAuthority::Send SessionServer::MatchSender() {
 			_afterDataMessages.emplace_back(connection, message); return true;
 		}
 		if (_recovery.Enabled() && !_recoveryFlushing) { JournalEffect(connection, message); return true; }
-		const bool sent = _transport && _transport->Send(connection, message.dump());
+		const bool sent = _transport && _transport->Send(connection, DumpJson(message));
 		if (!sent) _transportFailed = true;
 		return sent;
 	};

@@ -407,6 +407,37 @@ int main() {
 		assert(!ActiveRosterRow(malformed.at("members"), self, active));
 		assert(!ActiveRosterRow(nlohmann::json::object(), self, active));
 	}
+	// Text that is not UTF-8 must not abort the game thread. A strict dump
+	// throws on it; DumpJson writes U+FFFD in its place, and the digest, the
+	// size and the proposal's bytes all come from that same text, so a peer
+	// that parses it and dumps again gets the same bytes and the same digest.
+	{
+		EffectEnvelope bad = effect;
+		bad.type = "\xFF";
+		bad.publicPayload = nlohmann::json{{"type", "room_event"}, {"text", std::string("caf\xC3")}};
+		bool strictThrows = false;
+		try { nlohmann::json(bad).dump(); } catch (const nlohmann::json::type_error&) { strictThrows = true; }
+		assert(strictThrows);
+		std::string dumped;
+		bool threw = false;
+		try { dumped = sf4e::DumpJson(nlohmann::json(bad)); } catch (...) { threw = true; }
+		assert(!threw && !dumped.empty() && dumped.find("\xEF\xBF\xBD") != std::string::npos);
+		bad.payloadDigest = sf4e::session::PayloadDigest(bad.publicPayload);
+		EffectEnvelope peer;
+		nlohmann::json::parse(sf4e::DumpJson(nlohmann::json(bad))).get_to(peer);
+		assert(sf4e::DumpJson(nlohmann::json(peer)) == sf4e::DumpJson(nlohmann::json(bad)));
+		assert(sf4e::session::PayloadDigest(peer.publicPayload) == bad.payloadDigest);
+		SessionProposal proposal;
+		proposal.request = 1; proposal.term = 9; proposal.baseRevision = 4;
+		proposal.checkpoint = nlohmann::json{{"name", std::string("x\xC3")}};
+		proposal.effects = {bad};
+		const auto encodedEffects = sf4e::DumpJson(nlohmann::json(proposal.effects));
+		proposal.effectsDigest = sf4e::session::recovery_detail::Sha256(encodedEffects);
+		const auto wire = sf4e::session::EncodeSessionProposal(proposal, encodedEffects);
+		assert(wire.size() == sf4e::DumpJson(nlohmann::json(proposal)).size());
+		const auto decodedProposal = sf4e::session::DecodeSessionProposal(nlohmann::json::parse(wire));
+		assert(sf4e::session::EffectsDigest(decodedProposal.effects) == proposal.effectsDigest);
+	}
 	std::cout << "Session recovery gate test passed\n";
 	return 0;
 }

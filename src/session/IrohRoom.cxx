@@ -2,6 +2,7 @@
 #include "IdentityEvents.hxx"
 #include <spdlog/spdlog.h>
 #include "HelperErrorScope.hxx"
+#include "../common/JsonDump.hxx"
 #include "../common/InputDelay.hxx"
 #include "RoomMessageQueue.hxx"
 #include "RoomMessageTag.hxx"
@@ -581,7 +582,7 @@ IrohRoom::EffectVerdict IrohRoom::DeliverCommitted(Message& message, const Effec
     if(recipient==replica_.effectRecipients.end() || recipient->second.host!=token.endpoint.host ||
         recipient->second.user!=token.endpoint.user ||
         !replica_.deliveredEffects.insert({token.term,token.sequence}).second) return EffectVerdict::Drop;
-    message.payload=payload.dump();
+    message.payload=DumpJson(payload);
     message.body=std::make_shared<json>(std::move(payload));
     return EffectVerdict::Deliver;
 }
@@ -629,7 +630,7 @@ IrohRoom::EffectVerdict IrohRoom::AuthorizedEffect(Message& message) {
                 queued->second.type!=key.type || !replica_.deliveredTerminalReplays.insert(key).second) return EffectVerdict::Drop;
             payload.erase("_terminal_replay");
             replica_.terminalReplayInFlight.erase(queued);
-            message.payload=payload.dump();
+            message.payload=DumpJson(payload);
             message.body=std::make_shared<json>(std::move(payload));
             return EffectVerdict::Deliver;
         }
@@ -664,7 +665,7 @@ void IrohRoom::PumpCommittedEffects() {
             {"member",effect.key.member},{"endpoint",effect.key.endpoint},{"incarnation",effect.key.incarnation},
             {"type",effect.key.type},{"room_epoch",effect.roomEpoch},
             {"activation_revision",effect.activationRevision},{"payload_digest",effect.payloadDigest}};
-        auto bytes=payload.dump();
+        auto bytes=DumpJson(payload);
         if(bytes.size()>MaximumPayload) { Fail("terminal_replay_payload"); return; }
         if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) {
             replica_.pendingTerminalReplayEffects.push_front(std::move(effect)); break;
@@ -679,7 +680,7 @@ void IrohRoom::PumpCommittedEffects() {
         const auto& effect=replica_.pendingPublicEffects.front();
         if(replica_.deliveredEffects.count({effect.term,effect.sequence})) {replica_.pendingPublicEffects.pop_front(); continue;}
         auto payload=effect.publicPayload; payload["_commit"]=EffectCommitToken(effect);
-        auto bytes=payload.dump();
+        auto bytes=DumpJson(payload);
         if(bytes.size()>MaximumPayload) {replica_.pendingPublicEffects.pop_front(); continue;}
         if(bytes.size()>MaximumQueuedBytes-room_.queuedBytes) break;
         room_.queuedBytes+=bytes.size();

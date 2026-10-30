@@ -1,4 +1,5 @@
 #include "room_authority_support.hxx"
+#include "../common/Utf8Text.hxx"
 
 static void TestCommittedDepartureCheckpoint() {
     RoomAuthority source("Departure", 16, 92);
@@ -969,6 +970,18 @@ static void TestTableName() {
     RoomAuthority replica("Replica");
     CHECK(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())) && replica.SnapshotView().tables[1].name == "Beginners");
     CHECK(named(host, "", 40) && authority.SnapshotView().tables[1].name.empty());
+    // A name cut at the byte limit inside a character is refused as it stands;
+    // Utf8Trim cuts before that character instead, and its name is accepted.
+    const std::string euroName = std::string(MaximumTableNameBytes - 1, 'a') + "\xE2\x82\xAC";
+    const std::string cutName = euroName.substr(0, MaximumTableNameBytes);
+    CHECK(!sf4e::IsWellFormedUtf8(cutName) && !named(host, cutName, 50));
+    const std::string trimmedName = sf4e::Utf8Trim(euroName, MaximumTableNameBytes);
+    CHECK(trimmedName == std::string(MaximumTableNameBytes - 1, 'a') && sf4e::IsWellFormedUtf8(trimmedName));
+    CHECK(named(host, trimmedName, 60) && authority.SnapshotView().tables[1].name == trimmedName);
+    CHECK(!nlohmann::json(authority.SnapshotFor(guest)).dump().empty() && !authority.Checkpoint().dump().empty());
+    // Bytes that are no character become U+FFFD, and the cut still lands on a boundary.
+    CHECK(sf4e::Utf8Trim(std::string("a\xFF") + "b", 8) == std::string("a\xEF\xBF\xBD") + "b");
+    CHECK(sf4e::Utf8Trim(std::string("a\xFF") + "b", 3) == "a" && sf4e::Utf8Trim("\xC3", 8) == "\xEF\xBF\xBD");
 }
 
 int main() {

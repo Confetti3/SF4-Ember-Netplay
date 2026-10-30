@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "RoomModel.hxx"
+#include "../common/Utf8Text.hxx"
 
 namespace sf4e { namespace room { namespace detail {
 
@@ -24,29 +25,9 @@ inline std::uint64_t AddCapped(std::uint64_t value, std::uint64_t elapsed, std::
 	return value >= maximum || elapsed >= maximum - value ? maximum : value + elapsed;
 }
 
+// Room text is well-formed UTF-8 without NUL.
 inline bool IsValidUtf8(const std::string& text) {
-	const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
-	std::size_t i = 0;
-	while (i < text.size()) {
-		const unsigned char c = bytes[i++];
-		if (c == 0) return false;
-		if (c < 0x80) continue;
-		std::size_t count = 0;
-		std::uint32_t code = 0;
-		std::uint32_t minimum = 0;
-		if ((c & 0xe0) == 0xc0) { count = 1; code = c & 0x1f; minimum = 0x80; }
-		else if ((c & 0xf0) == 0xe0) { count = 2; code = c & 0x0f; minimum = 0x800; }
-		else if ((c & 0xf8) == 0xf0) { count = 3; code = c & 0x07; minimum = 0x10000; }
-		else return false;
-		if (i + count > text.size()) return false;
-		for (std::size_t j = 0; j < count; ++j) {
-			const unsigned char continuation = bytes[i++];
-			if ((continuation & 0xc0) != 0x80) return false;
-			code = (code << 6) | (continuation & 0x3f);
-		}
-		if (code < minimum || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return false;
-	}
-	return true;
+	return text.find('\0') == std::string::npos && IsWellFormedUtf8(text);
 }
 
 inline bool IsSingleLineText(const std::string& text) {

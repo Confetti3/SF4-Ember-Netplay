@@ -16,6 +16,7 @@
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__SessionServer.hxx"
 #include "RoomMessageQueue.hxx"
+#include "../common/JsonDump.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -71,10 +72,10 @@ void SessionServer::HandleSessionHello(session::Connection conn, const json& msg
 	// not room effects. An admitted hello is journaled with the room
 	// member so it cannot expose a provisional roster before commit.
 	if (admitted) Respond(conn, json(cidMsg));
-	else if (!_transport || !_transport->Send(conn, json(cidMsg).dump())) _transportFailed = true;
+	else if (!_transport || !_transport->Send(conn, DumpJson(json(cidMsg)))) _transportFailed = true;
 	if (!admitted && !hello.admission.is_null() && !hello.admission.empty()) {
 		SessionProtocol::SessionJoinReject reject; reject.result = admissionResult;
-		if (!_transport || !_transport->Send(conn, json(reject).dump())) _transportFailed = true;
+		if (!_transport || !_transport->Send(conn, DumpJson(json(reject)))) _transportFailed = true;
 	}
 }
 

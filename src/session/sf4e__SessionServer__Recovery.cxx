@@ -16,6 +16,7 @@
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__SessionServer.hxx"
 #include "RoomMessageQueue.hxx"
+#include "../common/JsonDump.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -159,7 +160,7 @@ void SessionServer::CancelPrecommittedGenerations() {
 
 void SessionServer::JournalEffect(session::Connection client, const json& payload, bool retainPublicReplay) {
 	if (!_recovery.Enabled() || _recoveryFlushing) {
-		if (!_transport || !_transport->Send(client, payload.dump())) _transportFailed = true;
+		if (!_transport || !_transport->Send(client, DumpJson(payload))) _transportFailed = true;
 		return;
 	}
 	if (!_recoveryCandidateReady) BeginRecoveryCandidate();
@@ -200,7 +201,7 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	envelope.type = payload.value("type", std::string());
 	// Encoded once: for the digest here, the journal size below, and the live
 	// send in ApplyCommit.
-	std::string encoded = payload.dump();
+	std::string encoded = DumpJson(payload);
 	envelope.payloadDigest = session::recovery_detail::Sha256(encoded);
 	const auto type = envelope.type;
 	const bool publicReplay = type == "room_snapshot" || type == "room_result" || type == "room_event" ||
@@ -254,7 +255,7 @@ void SessionServer::JournalEffect(session::Connection client, const json& payloa
 	effects.push_back({session::EffectEnvelope{}, client, std::move(encoded), 0});
 	for (std::size_t i = 0; i < effects.size(); ++i) {
 		effects[i].envelope = std::move(prospective[i]);
-		effects[i].envelopeBytes = nlohmann::json(effects[i].envelope).dump().size();
+		effects[i].envelopeBytes = DumpJson(nlohmann::json(effects[i].envelope)).size();
 	}
 	_candidate.bytes = prospectiveBytes;
 }
@@ -312,7 +313,7 @@ bool SessionServer::ProposeCheckpoint(std::uint64_t request, std::uint64_t term,
 	proposal.request = request; proposal.term = term; proposal.baseRevision = baseRevision;
 	proposal.checkpoint = std::move(local); proposal.effects = _candidate.Envelopes();
 	// The effects are encoded once, for their digest and inside the proposal.
-	const auto encodedEffects = json(proposal.effects).dump();
+	const auto encodedEffects = DumpJson(json(proposal.effects));
 	proposal.effectsDigest = session::recovery_detail::Sha256(encodedEffects);
 	proposal.encoded = session::EncodeSessionProposal(proposal, encodedEffects);
 	if (proposal.encoded.size() > kRecoveryProposalBytes) return false;
@@ -349,7 +350,7 @@ bool SessionServer::ApplyCommit(std::uint64_t request, std::uint64_t term, std::
 	// Sizes are unknown once after a restore; measure the inherited journal once.
 	if (_committedEffectSizes.size() != _committedEffectHistory.size()) {
 		_committedEffectSizes.clear();
-		for (const auto& effect : _committedEffectHistory) _committedEffectSizes.push_back(json(effect).dump().size());
+		for (const auto& effect : _committedEffectHistory) _committedEffectSizes.push_back(DumpJson(json(effect)).size());
 	}
 	for (auto& effect : _candidate.effects) {
 		_committedEffectHistory.push_back(std::move(effect.envelope));

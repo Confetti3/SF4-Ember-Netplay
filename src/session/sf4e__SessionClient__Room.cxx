@@ -13,6 +13,7 @@
 #include <spdlog/spdlog.h>
 #include <ggponet.h>
 
+#include "../common/JsonDump.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
@@ -287,7 +288,7 @@ session::SendResult SessionClient::SendRoomAction(room::Action action, std::uint
 		RememberSentRoomAction(action);
 		if (auto* retry=RetryRecord(action.kind)) {
 			retry->actionId=action.actionId;
-			retry->payload=payload.dump();
+			retry->payload=DumpJson(payload);
 		}
 		if (actionId) *actionId=action.actionId;
 	}
@@ -363,7 +364,7 @@ session::SendResult SessionClient::RetryRoomLifecycleAction(room::Action action,
 	message.action = action;
 	json payload = message;
 	const auto* retry=RetryRecord(expectedKind);
-	if(!retry || retry->actionId!=actionId || retry->payload!=payload.dump())
+	if(!retry || retry->actionId!=actionId || retry->payload!=DumpJson(payload))
 		return session::SendResult::InvalidPayload;
 	return Send(payload, nullptr);
 }

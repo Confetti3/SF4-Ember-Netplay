@@ -1,6 +1,7 @@
 // Room model persistence: checkpoints and the JSON wire form of room types.
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
+#include "../common/JsonDump.hxx"
 #include "../common/SkillBadgeJson.hxx"
 
 namespace sf4e { namespace room {
@@ -82,14 +83,14 @@ nlohmann::json RoomAuthority::Checkpoint() const {
     if (!recoveryPaused_ && permits_.clockKnown && permitHeld) state["permit_clock"] = permits_.clockMs;
     if (startPending) state["start_window"] = std::move(startWindows);
     if (snapshot_.serverOwned) SaveServerOwned(state);
-    if (state.dump().size() > MaximumCheckpointBytes) throw std::length_error("room checkpoint too large");
+    if (DumpJson(state).size() > MaximumCheckpointBytes) throw std::length_error("room checkpoint too large");
     return state;
 }
 
 bool RoomAuthority::RestoreCheckpoint(const nlohmann::json& state) {
     try {
         using nlohmann::json;
-        if (!state.is_object() || state.dump().size() > MaximumCheckpointBytes) return false;
+        if (!state.is_object() || DumpJson(state).size() > MaximumCheckpointBytes) return false;
         const auto version = ReadInt(state, "version", 1, 2);
         if (version != 1 && version != 2) return false;
         RoomAuthority restored("Recovering room");

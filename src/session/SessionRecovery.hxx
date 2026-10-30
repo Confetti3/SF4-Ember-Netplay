@@ -21,6 +21,7 @@
 #include <nlohmann/json.hpp>
 
 #include "RoomModel.hxx"
+#include "../common/JsonDump.hxx"
 #include "../common/Sha256.hxx"
 
 namespace sf4e { namespace session {
@@ -48,7 +49,7 @@ inline bool IsSha256(const std::string& value) {
 } // namespace recovery_detail
 
 inline EffectDigest PayloadDigest(const nlohmann::json& payload) {
-	return recovery_detail::Sha256(payload.dump());
+	return recovery_detail::Sha256(DumpJson(payload));
 }
 
 struct AuthorityStamp {
@@ -105,15 +106,15 @@ inline nlohmann::json EffectCommitToken(const EffectEnvelope& effect) {
 		{"private_payload", effect.privatePayload} };
 }
 
-// Encoded size of json(effect).dump() when its replay copy, if any, encodes to
+// Encoded size of DumpJson(json(effect)) when its replay copy, if any, encodes to
 // payloadBytes bytes, without encoding that copy again. Object keys are sorted
 // and "public_payload" is never the first, so the copy adds exactly
 // `,"public_payload":` plus its own bytes.
 inline std::size_t EncodedEnvelopeBytes(EffectEnvelope& effect, std::size_t payloadBytes) {
-	if (effect.privatePayload || effect.publicPayload.is_null()) return nlohmann::json(effect).dump().size();
+	if (effect.privatePayload || effect.publicPayload.is_null()) return DumpJson(nlohmann::json(effect)).size();
 	auto copy = std::move(effect.publicPayload);
 	effect.publicPayload = nullptr;
-	const auto bytes = nlohmann::json(effect).dump().size();
+	const auto bytes = DumpJson(nlohmann::json(effect)).size();
 	effect.publicPayload = std::move(copy);
 	return bytes + sizeof(",\"public_payload\":") - 1 + payloadBytes;
 }
@@ -121,7 +122,7 @@ inline std::size_t EncodedEnvelopeBytes(EffectEnvelope& effect, std::size_t payl
 // The live wire form of a committed effect: its already encoded payload object
 // with the commit token added, so the payload is not copied or encoded again.
 inline std::string CommittedEffectWire(const EffectEnvelope& effect, const std::string& encodedPayload) {
-	std::string wire = "{\"_commit\":" + EffectCommitToken(effect).dump();
+	std::string wire = "{\"_commit\":" + DumpJson(EffectCommitToken(effect));
 	if (encodedPayload.size() > 2) { wire += ','; wire.append(encodedPayload, 1, std::string::npos); }
 	else wire += '}';
 	return wire;
@@ -195,7 +196,7 @@ inline void DropSupersededProjectionPayloads(std::vector<EffectEnvelope>& histor
 		const bool newestChat = snapshot && ChatBearingSnapshot(effect) && laterChat.insert(effect.recipient).second;
 		if (!superseded[index] || effect.publicPayload.is_null() || newestChat) continue;
 		effect.publicPayload = nullptr;
-		encoded[index] = nlohmann::json(effect).dump().size();
+		encoded[index] = DumpJson(nlohmann::json(effect)).size();
 	}
 	std::size_t kept = 0;
 	for (std::size_t index = 0; index < history.size(); ++index) {
@@ -212,7 +213,7 @@ inline std::size_t EffectJournalBytes(const std::vector<EffectEnvelope>& history
 	std::size_t bytes = 2; // JSON array brackets.
 	for (std::size_t i = 0; i < history.size(); ++i) {
 		if (i) ++bytes; // comma
-		bytes += nlohmann::json(history[i]).dump().size();
+		bytes += DumpJson(nlohmann::json(history[i])).size();
 	}
 	return bytes;
 }
@@ -225,20 +226,20 @@ inline std::size_t ShedOptionalEffectPayloads(std::vector<EffectEnvelope>& histo
 	encoded.reserve(history.size());
 	std::size_t bytes = history.empty() ? 2 : history.size() + 1;
 	for (const auto& effect : history) {
-		const auto size = nlohmann::json(effect).dump().size();
+		const auto size = DumpJson(nlohmann::json(effect)).size();
 		encoded.push_back(size); bytes += size;
 	}
 	for (std::size_t i = 0; i < history.size() && bytes > targetBytes; ++i) {
 		if (!SupersedableProjection(history[i]) || history[i].publicPayload.is_null()) continue;
 		history[i].publicPayload = nullptr;
-		const auto size = nlohmann::json(history[i]).dump().size();
+		const auto size = DumpJson(nlohmann::json(history[i])).size();
 		bytes -= encoded[i] - size;
 		encoded[i] = size;
 	}
 	return bytes;
 }
 
-// encoded[i] is json(history[i]).dump().size() and is kept in step with
+// encoded[i] is DumpJson(json(history[i])).size() and is kept in step with
 // history, so an owner that tracks it avoids re-encoding its whole journal on
 // every commit. Both vectors are left compacted.
 inline void CompactEffectJournal(std::vector<EffectEnvelope>& history, std::vector<std::size_t>& encoded) {
@@ -288,7 +289,7 @@ inline void CompactEffectJournal(std::vector<EffectEnvelope>& history, std::vect
 			if (payload != history.end()) {
 				const auto index = static_cast<std::size_t>(std::distance(history.begin(), payload));
 				payload->publicPayload = nullptr;
-				const auto size = nlohmann::json(*payload).dump().size();
+				const auto size = DumpJson(nlohmann::json(*payload)).size();
 				bytes -= encoded[index] - size;
 				encoded[index] = size;
 				continue;
@@ -302,7 +303,7 @@ inline void CompactEffectJournal(std::vector<EffectEnvelope>& history, std::vect
 inline void CompactEffectJournal(std::vector<EffectEnvelope>& history) {
 	std::vector<std::size_t> encoded;
 	encoded.reserve(history.size());
-	for (const auto& effect : history) encoded.push_back(nlohmann::json(effect).dump().size());
+	for (const auto& effect : history) encoded.push_back(DumpJson(nlohmann::json(effect)).size());
 	CompactEffectJournal(history, encoded);
 }
 
@@ -325,7 +326,7 @@ struct SessionProposal {
 	nlohmann::json checkpoint;
 	std::vector<EffectEnvelope> effects;
 	EffectDigest effectsDigest;
-	// Local only, never serialized: json(*this).dump() as produced when the
+	// Local only, never serialized: DumpJson(json(*this)) as produced when the
 	// owner bounded the proposal's size, so sending it does not encode again.
 	std::string encoded;
 
@@ -351,13 +352,13 @@ inline void to_json(nlohmann::json& value, const SessionProposal& proposal) {
 		{"effects", proposal.effects}, {"effects_digest", proposal.effectsDigest} };
 }
 
-// Exactly json(proposal).dump() (keys in the same sorted order), given the
+// Exactly DumpJson(json(proposal)) (keys in the same sorted order), given the
 // effects already encoded, without building a JSON copy of the checkpoint.
 inline std::string EncodeSessionProposal(const SessionProposal& proposal, const std::string& encodedEffects) {
 	return "{\"base_revision\":" + std::to_string(proposal.baseRevision) +
-		",\"checkpoint\":" + proposal.checkpoint.dump() +
+		",\"checkpoint\":" + DumpJson(proposal.checkpoint) +
 		",\"effects\":" + encodedEffects +
-		",\"effects_digest\":" + nlohmann::json(proposal.effectsDigest).dump() +
+		",\"effects_digest\":" + DumpJson(nlohmann::json(proposal.effectsDigest)) +
 		",\"request\":" + std::to_string(proposal.request) +
 		",\"term\":" + std::to_string(proposal.term) + ",\"version\":1}";
 }

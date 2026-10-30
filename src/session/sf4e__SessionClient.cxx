@@ -10,6 +10,7 @@
 #include <spdlog/spdlog.h>
 #include <ggponet.h>
 
+#include "../common/JsonDump.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
@@ -350,7 +351,7 @@ int SessionClient::Step()
 
 
 		else if (type == SessionProtocol::MT_FORWARD) {
-			spdlog::debug("Received forwarded message: {}", msg.dump());
+			spdlog::debug("Received forwarded message: {}", DumpJson(msg));
 		}
 		else {
 			spdlog::warn("Client: got unrecognized message type: {}", (int)type);
@@ -364,7 +365,7 @@ int SessionClient::Step()
 
 session::SendResult SessionClient::Send(nlohmann::json& msg, int64_t* outMessageNum) {
 	if (!_transport) return session::SendResult::NotConnected;
-	return _transport->Send(msg.dump(), true, outMessageNum);
+	return _transport->Send(DumpJson(msg), true, outMessageNum);
 }
 
 // The legacy lobby and pre-battle messages: sent, and a refused send logged

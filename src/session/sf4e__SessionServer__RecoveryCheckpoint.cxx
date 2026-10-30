@@ -16,6 +16,7 @@
 #include "sf4e__SessionProtocol.hxx"
 #include "sf4e__SessionServer.hxx"
 #include "RoomMessageQueue.hxx"
+#include "../common/JsonDump.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -56,14 +57,14 @@ json SessionServer::Checkpoint() const {
 		{"authorized", _matchAuthorizationConfigured}, {"authorization_room", _matchAuthorizationRoom},
 		{"match_authorities", authorities},
 		{"legacy_authority", _matchAuthority ? _matchAuthority->Checkpoint() : json(nullptr)}};
-	if (value.dump().size() > room::RoomAuthority::MaximumCheckpointBytes)
+	if (DumpJson(value).size() > room::RoomAuthority::MaximumCheckpointBytes)
 		throw std::length_error("room checkpoint exceeds replication limit");
 	return value;
 }
 
 bool SessionServer::RestoreCheckpoint(const json& value) {
 	try {
-		if (value.dump().size() > room::RoomAuthority::MaximumCheckpointBytes || value.at("version") != 1 ||
+		if (DumpJson(value).size() > room::RoomAuthority::MaximumCheckpointBytes || value.at("version") != 1 ||
 			value.at("identity") != _identity || value.at("build") != _sidecarHash ||
 			value.at("authorized") != _matchAuthorizationConfigured ||
 			value.at("authorization_room").get<decltype(_matchAuthorizationRoom)>() != _matchAuthorizationRoom)
@@ -294,7 +295,7 @@ json SessionServer::RecoveryCheckpoint() const {
 bool SessionServer::RestoreRecoveryCheckpoint(const json& value) {
 	try {
 		auto history = value.value("effect_journal", std::vector<session::EffectEnvelope>{});
-		// The same size as json(history).dump(), without a JSON copy of the journal.
+		// The same size as DumpJson(json(history)), without a JSON copy of the journal.
 		if (session::EffectJournalBytes(history) > session::MaxEffectJournalBytes) return RefuseRestore("effect_journal");
 		const auto authority = value.value("authority", json::object());
 		if (authority.empty()) return RestoreRecoveryState(value, std::move(history), nullptr);
