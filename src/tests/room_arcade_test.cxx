@@ -71,8 +71,8 @@ static void TestFirstComeFirstPaired() {
 	for (const auto& t : authority.SnapshotView().tables) CHECK(t.phase == TablePhase::Waiting && t.queue.empty());
 }
 
-// After a set nobody leaves: Ready waits for both Rematches, then the pair
-// plays again.
+// Two players, so nobody waits alone: after a set the pair stays, Ready waits
+// for both Rematches, then the pair plays again.
 static void TestRematchBoth() {
 	auto authority = Arcade();
 	const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
@@ -92,32 +92,76 @@ static void TestRematchBoth() {
 
 // One Rematch and one New opponent part the pair: each plays whoever waited
 // longest, or waits for the next to sit, never with the other again while
-// someone else waits.
+// someone else waits. One who sits down while a pair chooses waits alone.
 static void TestRematchOneRepairs() {
 	auto authority = Arcade();
 	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3), e = Join(authority, 4);
-	Sit(authority, a, 0); Sit(authority, b, 5); Sit(authority, c, 7);
+	Sit(authority, a, 0); Sit(authority, b, 5);
 	Beat(authority, a);
 	CHECK(Choose(authority, a, ActionKind::Rematch).accepted);
-	CHECK(authority.SnapshotView().tables[TableOf(authority, a)].deciding);
+	Sit(authority, c, 7);
+	CHECK(Waits(authority, c) && authority.SnapshotView().tables[TableOf(authority, a)].deciding);
 	CHECK(Choose(authority, b, ActionKind::NewOpponent).accepted);
 	CHECK(Paired(authority, b, c) && Waits(authority, a));
 	CHECK(Choose(authority, a, ActionKind::Rematch).reason == RejectReason::WrongPhase);
-	// Nobody else waits: both wait, apart, and the next two to sit play them
-	// in the order they began to wait.
+	// Two pairs and nobody alone: a finished pair chooses again. On New
+	// opponent both wait, apart, and the next to sit plays the one who began
+	// to wait first.
+	Sit(authority, d, 15);
+	CHECK(Paired(authority, d, a));
 	Beat(authority, b);
 	CHECK(Choose(authority, c, ActionKind::NewOpponent).accepted);
-	CHECK(Paired(authority, c, a) && Waits(authority, b));
-	Sit(authority, d, 15);
-	CHECK(Paired(authority, d, b));
-	Beat(authority, d);
-	CHECK(Choose(authority, d, ActionKind::NewOpponent).accepted);
-	CHECK(Waits(authority, d) && Waits(authority, b) && !Paired(authority, d, b));
+	CHECK(Waits(authority, c) && Waits(authority, b) && !Paired(authority, c, b) && Paired(authority, d, a));
 	Sit(authority, e, 8);
-	CHECK(Paired(authority, e, d) && Waits(authority, b));
-	// Standing up leaves the cabinet; the opponent waits again.
+	CHECK(Paired(authority, e, c) && Waits(authority, b));
+	// Standing up leaves the cabinet; the opponent plays the one waiting.
 	CHECK(Choose(authority, e, ActionKind::Unqueue).accepted);
-	CHECK(authority.SnapshotView().cabinets[8] == 0 && TableOf(authority, e) < 0 && Paired(authority, d, b));
+	CHECK(authority.SnapshotView().cabinets[8] == 0 && TableOf(authority, e) < 0 && Paired(authority, c, b));
+}
+
+// A real arcade rotates: the winner stays at their table and plays whoever
+// has waited alone longest; the loser waits, nobody chooses, and the loser
+// plays the next one to sit down, not the winner.
+static void TestArcadeWinnerPlaysWaiter() {
+	auto authority = Arcade();
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3);
+	Sit(authority, a, 0); Sit(authority, b, 9); Sit(authority, c, 2);
+	CHECK(Paired(authority, a, b) && Waits(authority, c));
+	const int table = TableOf(authority, a);
+	Beat(authority, a);
+	const auto& room = authority.SnapshotView();
+	CHECK(Paired(authority, a, c) && TableOf(authority, a) == table && Waits(authority, b));
+	CHECK(room.tables[TableOf(authority, b)].waitingSince != 0);
+	for (const auto& t : room.tables) CHECK(!t.deciding);
+	Sit(authority, d, 4);
+	CHECK(Paired(authority, d, b) && Paired(authority, a, c));
+}
+
+// Two pairs and nobody alone: the pair that finishes stays and chooses, and
+// the other pair plays on.
+static void TestArcadePairsChoose() {
+	auto authority = Arcade();
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3);
+	Sit(authority, a, 0); Sit(authority, b, 1); Sit(authority, c, 2); Sit(authority, d, 3);
+	Beat(authority, a);
+	const auto& room = authority.SnapshotView();
+	CHECK(Paired(authority, a, b) && room.tables[TableOf(authority, a)].deciding);
+	const auto& other = room.tables[TableOf(authority, c)];
+	CHECK(Paired(authority, c, d) && !other.deciding && other.phase == TablePhase::Waiting);
+}
+
+// Five players, two pairs and one alone: each finished set rotates, since its
+// loser is then the one waiting alone for the next set to end.
+static void TestArcadeFiveRotate() {
+	auto authority = Arcade();
+	const MemberId a = Join(authority, 0, true), b = Join(authority, 1), c = Join(authority, 2), d = Join(authority, 3), e = Join(authority, 4);
+	Sit(authority, a, 0); Sit(authority, b, 1); Sit(authority, c, 2); Sit(authority, d, 3); Sit(authority, e, 4);
+	CHECK(Paired(authority, a, b) && Paired(authority, c, d) && Waits(authority, e));
+	Beat(authority, a);
+	CHECK(Paired(authority, a, e) && Paired(authority, c, d) && Waits(authority, b));
+	Beat(authority, c);
+	CHECK(Paired(authority, c, b) && Paired(authority, a, e) && Waits(authority, d));
+	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding);
 }
 
 // King of the hill: the winner stays and plays the longest waiting, the loser
@@ -242,8 +286,11 @@ int main() {
 		TestFirstComeFirstPaired();
 		TestRematchBoth();
 		TestRematchOneRepairs();
+		TestArcadeWinnerPlaysWaiter();
+		TestArcadePairsChoose();
+		TestArcadeFiveRotate();
 		TestKingStreaksAndCrown();
-	TestKingTwoPlayers();
+		TestKingTwoPlayers();
 		TestRulesAreTheRooms();
 		TestArcadeOnTheWire();
 		TestPublicArcade();

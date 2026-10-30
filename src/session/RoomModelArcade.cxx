@@ -58,27 +58,30 @@ void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
 	JoinTable(member, *table);
 }
 
-// A set is over. Arcade: the pair stays and each chooses Rematch or New
-// opponent. King of the hill: the winner stays and plays whoever waited
-// longest, the loser waits for the next one, and the streaks and the top
-// slot follow. With nobody else at a cabinet the loser challenges again.
+// A set is over. The winner stays and plays whoever has waited longest alone,
+// here; the loser waits for the next one (PairArcade), not the winner. With
+// nobody waiting alone the pair stays: an Arcade pair chooses Rematch or New
+// opponent. King of the hill moves the streaks and the top slot, and while
+// anyone else sits at a cabinet the winner waits here for them instead.
 void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser) {
-	if (snapshot_.arcade == ArcadeRoom) {
-		table.deciding = true; table.rematch[0] = table.rematch[1] = false;
+	const bool king = snapshot_.arcade == KingRoom;
+	if (king) {
+		const int won = CabinetOf(snapshot_, winner), lost = CabinetOf(snapshot_, loser);
+		if (won >= 0 && snapshot_.streaks[won] < 0xFFFF) ++snapshot_.streaks[won];
+		if (lost >= 0) snapshot_.streaks[lost] = 0;
+		CrownTopSlot();
+		TouchRoom();
+	}
+	Table* const challenger = Waiter(winner, loser, &table);
+	const bool parts = challenger || (king && std::any_of(snapshot_.cabinets.begin(), snapshot_.cabinets.end(),
+		[&](MemberId m) { return m && m != winner && m != loser; }));
+	if (!parts) {
+		table.deciding = !king; table.rematch[0] = table.rematch[1] = false;
 		return;
 	}
-	const int won = CabinetOf(snapshot_, winner), lost = CabinetOf(snapshot_, loser);
-	if (won >= 0 && snapshot_.streaks[won] < 0xFFFF) ++snapshot_.streaks[won];
-	if (lost >= 0) snapshot_.streaks[lost] = 0;
-	CrownTopSlot();
 	if (table.p1 == loser) table.p1 = 0; else table.p2 = 0;
 	ClearReadiness(table);
-	if (std::none_of(snapshot_.cabinets.begin(), snapshot_.cabinets.end(), [&](MemberId m) { return m && m != winner && m != loser; })) {
-		JoinTable(loser, table);
-		TouchRoom();
-		return;
-	}
-	if (Table* challenger = Waiter(winner, loser, &table)) {
+	if (challenger) {
 		const MemberId next = Lone(*challenger);
 		challenger->p1 = challenger->p2 = 0; challenger->waitingSince = 0;
 		Touch(*challenger);

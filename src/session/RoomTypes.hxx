@@ -285,9 +285,9 @@ struct Table {
 	MemberId streakHolder = 0;
 	std::uint32_t streak = 0;
 	bool resultPending = false;
-	// An Arcade room's pair after a set (Snapshot::arcade): each fighter's
-	// Rematch so far. Nobody readies until both chose it; New opponent from
-	// either parts the pair.
+	// An Arcade room's pair after a set that nobody waited alone for
+	// (Snapshot::arcade): each fighter's Rematch so far. Nobody readies until
+	// both chose it; New opponent from either parts the pair.
 	bool deciding = false;
 	bool rematch[2] = { false, false };
 	// An Arcade room's table with one fighter waiting alone: when they began

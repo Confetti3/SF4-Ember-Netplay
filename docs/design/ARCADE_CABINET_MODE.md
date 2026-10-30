@@ -24,20 +24,28 @@ or King of the hill. Any type can be private or public.
 3. Arcade: sit at any free cabinet. First come, first paired: whoever sits
    down plays the player who has waited longest. Between games a player may
    move to another free cabinet, keeping opponent and streak.
-4. After a set nobody leaves their seat. Each chooses Rematch or New
-   opponent. Both Rematch: they play again. New opponent from either: each
-   plays whoever waited longest (not each other), or waits for the next one
-   who sits.
-5. King of the hill: every pair plays at once. The winner stays and plays
-   whoever waited longest; the loser waits for the next one. The top slot
-   stays with its holder until someone beats that streak or beats them.
+4. After a set, as at a real arcade, the winner stays at the table and plays
+   whoever has waited alone longest; the loser waits for the next one who
+   sits down, not the winner. With three players the winner plays the third
+   and the loser waits. Only when nobody waits alone does the pair stay:
+   each chooses Rematch or New opponent. Both Rematch: they play again. New
+   opponent from either: each plays whoever waited longest (not each other),
+   or waits for the next one who sits. One who sits down while a pair
+   chooses waits alone until a set ends or the pair parts.
+5. King of the hill rotates the same way, with streaks: every pair plays at
+   once. When nobody waits alone the winner still waits for the next one free
+   while anyone else sits at a cabinet; with nobody else there the loser
+   challenges again. The top slot stays with its holder until someone beats
+   that streak or beats them.
 
 ## How it is built
 
 - Snapshot::arcade is the room::RoomType. Snapshot::cabinets holds who sits
   at each cabinet, Snapshot::streaks each cabinet's streak, topSlot the
   crown. A table is a pair, not a place: Table::deciding and rematch hold the
-  choice after a set, waitingSince orders the players waiting alone.
+  choice after a set nobody waited alone for, waitingSince orders the players
+  waiting alone. RoomAuthority::ArcadeSetEnded rotates both types through one
+  path; only the streaks and what happens with nobody waiting differ.
 - RoomModelArcade.cxx seats, pairs, parts and crowns. Queue names a cabinet
   as table + seat * TableCount; Unqueue stands up. Rematch and NewOpponent
   are table actions. SetRules is refused.
