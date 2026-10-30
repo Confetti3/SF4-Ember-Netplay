@@ -15,9 +15,12 @@ void ButtonPromptJourneys() {
  };
  const auto prompts=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="button-prompts";});
  Check(prompts!=rows.begin()&&(prompts-1)->id=="keyboard"&&(prompts+1)->id=="controls","Button prompts row is not between Keyboard and Fighting buttons");
- Check(row().adjustable&&row().enabled&&row().choices.empty()&&row().label=="Button prompts","Button prompts is not a standard enabled Value");
+ Check(row().adjustable&&row().enabled&&!row().choices.empty()&&row().label=="Button prompts","Button prompts is not a standard enabled Value with its values offered");
  Check(row().value=="Automatic"&&row().detail.find("Showing PlayStation buttons.")!=std::string::npos&&MenuPromptBrand()==h.view.gameplayBrand,"Automatic did not detect the gameplay pad");
- const auto beforeSelect=h.actions.size(); h.Choose("button-prompts");Check(h.actions.size()==beforeSelect,"Select activated Button prompts");
+ // Select opens the values in a panel and changes nothing; Back closes it.
+ const auto beforeSelect=h.actions.size(); h.Choose("button-prompts");
+ Check(h.actions.size()==beforeSelect&&h.shell.Navigation().Choosing(),"Select did not open Button prompts' values, or activated it");
+ h.Press(MenuInput::Back);Check(!h.shell.Navigation().Choosing()&&h.shell.Navigation().Screen()=="player","Back did not close Button prompts' values");
  const ButtonPrompts choices[]={ButtonPrompts::Xbox,ButtonPrompts::PlayStation,ButtonPrompts::Nintendo};
  const PromptBrand brands[]={{Brand::Xbox},{Brand::PlayStation,PlayStationArt::PS4},{Brand::Nintendo}};
  for(unsigned i=0;i<3;++i) {
@@ -43,10 +46,7 @@ void ButtonPromptJourneys() {
  h.view.canEditPreferences=true;h.view.gameplayBrand={Brand::Stick};h.Frame();
  Check(row().value=="Automatic"&&row().detail.find("Showing Fight buttons buttons.")!=std::string::npos,"Automatic Stick has the wrong value");
  h.FocusOn("controls");
- std::set<std::string> legend;
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
- h.Frame();Check(legend.count("LK Select")&&legend.count("MK Back"),"Stick legend did not print fight names");
- SetMenuTextProbe({});SetMenuEntriesProbe({});
+ SetMenuEntriesProbe({});
  h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","Button prompts Back did not leave Player");
  // Detection is about the assigned gameplay pad, independent of the keyboard
  // being used last to navigate, which continues to show keyboard prompts.

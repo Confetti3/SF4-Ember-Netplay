@@ -68,10 +68,6 @@ constexpr int MaxMatchHudAnchor = 5;
 constexpr int PictureSmall = 0, PictureBig = 1, PictureOff = 2;
 constexpr int MinRoomColumn = 28, MaxRoomColumn = 60, DefaultRoomColumn = 36, RoomColumnStep = 4;
 constexpr int MinRoomSplit = 26, MaxRoomSplit = 74, DefaultRoomSplit = 56, RoomSplitStep = 6;
-constexpr int MinRoomSideWidth = 35;
-constexpr int MaxRoomSideWidth = 60;
-constexpr int MinRoomMemberShare = 20;
-constexpr int MaxRoomMemberShare = 80;
 
 // A room saved to open again (Create › Template, Room settings › Save as
 // template): the room's own settings and each table's rules and name.
@@ -133,11 +129,9 @@ struct PlayerPreferences {
     // Public room classes show beside players' names on this screen. Off hides
     // them here only: games still count and others still see this player's.
     bool classEmblems = true;
-    // Ember's V2 look (Settings > Interface > Look); off keeps the classic one.
-    bool lookV2 = false;
-    // TV mode (Settings > Interface, V2 look): a quarter larger, inside a 5% safe area.
+    // TV mode (Settings > Interface): a quarter larger, inside a 5% safe area.
     bool tvMode = false;
-    // The first-run welcome (speech, language, controller, look) was shown or
+    // The first-run welcome (speech, language, controller) was shown or
     // skipped. A profile saved before it existed counts as welcomed; a fresh
     // install is set false when the runtime loads it (StartHelper).
     bool welcomed = true;
@@ -206,19 +200,10 @@ struct PlayerPreferences {
     // on in Settings, Problem reports, or chooses Always send after a crash.
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
-    // The room board's members and chat column: its share of the board's width
-    // in percent (MinRoomSideWidth to MaxRoomSideWidth) and the members' share
-    // of its height (MinRoomMemberShare to MaxRoomMemberShare), as the player
-    // dragged them, and which of the two they hid.
-    int roomSideWidth = 50;
-    int roomMemberShare = 56;
-    bool roomMembersHidden = false, roomChatHidden = false;
-    // Takes `from`'s button layouts and room board column, the settings a room
-    // leaves open, as they change nothing about play (ShellAction::roomSettings).
+    // Takes `from`'s button layouts, the settings a room leaves open, as they
+    // change nothing about play (ShellAction::roomSettings).
     void CopyRoomSettings(const PlayerPreferences& from) {
         buttonLayouts = from.buttonLayouts;
-        roomSideWidth = from.roomSideWidth; roomMemberShare = from.roomMemberShare;
-        roomMembersHidden = from.roomMembersHidden; roomChatHidden = from.roomChatHidden;
     }
     SpeechPreferences speech;
     LobbySettings lobby;
@@ -237,8 +222,8 @@ struct PlayerPreferences {
         if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
         if (buttonLayouts.size() > 32 || !std::all_of(buttonLayouts.begin(), buttonLayouts.end(), [](const gamepads::StoredLayout& layout) { return gamepads::ValidLayout(layout.buttons) && gamepads::ValidBoundButtons(layout.bound) && gamepads::ValidExtraCopies(layout.extras); })) return false;
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
-            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) || roomSideWidth < MinRoomSideWidth || roomSideWidth > MaxRoomSideWidth ||
-            roomMemberShare < MinRoomMemberShare || roomMemberShare > MaxRoomMemberShare || !lobby.Valid() ||
+            matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) ||
+            !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;

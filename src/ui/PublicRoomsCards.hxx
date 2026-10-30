@@ -10,7 +10,6 @@ namespace sf4e { namespace ui {
 struct ShellView;
 
 // The corner radius of the public rooms' cards and toolbar cells, in unscaled pixels.
-// GameMenu rounds its own background and focus mark to it (GameMenu::cardRounding).
 constexpr float PublicCardRounding = 4;
 
 // A room from a bridge that sends no details: nothing to show under its name and place,

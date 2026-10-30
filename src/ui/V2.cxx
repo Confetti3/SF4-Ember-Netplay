@@ -9,7 +9,6 @@
 
 namespace sf4e { namespace ui { namespace v2 {
 namespace {
-bool on = false;
 float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
 }
 float ChipFont() { return ImGui::GetFontSize() * .78f; }
@@ -23,9 +22,6 @@ std::string Fit(const std::string& text, float width, float size, ImFont* font, 
     font->CalcTextSizeA(size, (std::max)(0.f, width - font->CalcTextSizeA(size, FLT_MAX, 0, "...").x), 0, text.c_str(), nullptr, &end);
     return std::string(text.c_str(), end) + "...";
 }
-
-bool On() { return on; }
-void SetOn(bool value) { on = value; }
 
 namespace {
 constexpr Palette EmberPalette{IM_COL32(20, 19, 18, 255), IM_COL32(25, 23, 21, 255), IM_COL32(33, 30, 27, 255), IM_COL32(56, 45, 36, 255),
@@ -77,7 +73,8 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
         d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
         x += w + (compact ? 12 : 24) * s;
     }
-    const std::string fitted = Fit(status, (std::max)(0.f, right - x - icon), size);
+    // The status is cut to the bar's room; the probe measures labels, as a status was never measured.
+    const std::string fitted = Fit(status, (std::max)(0.f, right - x - icon), size, nullptr, false);
     const float left = right - TextWidth(fitted, size) - icon, mid = bar.min.y + bar.H() * .5f;
     d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), mid - size * .5f), tone, fitted.c_str());
     if (bell) {
@@ -161,7 +158,7 @@ float Grip(const char* id, ImVec2 from, ImVec2 to) {
 }
 
 ImVec4 BoardGround(bool seeThrough) {
-    return on ? ImGui::ColorConvertU32ToFloat4(color::Alpha(Colors().panel, seeThrough ? .6f : .84f)) : BoardPanelColor(seeThrough);
+    return ImGui::ColorConvertU32ToFloat4(color::Alpha(Colors().panel, seeThrough ? .6f : .84f));
 }
 
 float ChipWidth(const std::string& text) { return TextWidth(text, ChipFont()) + 16 * Scale(); }
@@ -209,9 +206,9 @@ float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32
     draw->AddText(HeadingFont(), 14 * Scale(), at, tone, text.c_str());
     return TextWidth(text, 14 * Scale(), HeadingFont());
 }
-float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font, bool centred) {
+float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font, bool centred, bool probe) {
     if (!font) font = ImGui::GetFont();
-    const std::string shown = Fit(text, width, size, font);
+    const std::string shown = Fit(text, width, size, font, probe);
     const float w = TextWidth(shown, size, font);
     draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
     return w;
@@ -248,8 +245,7 @@ float WordsHeight(float width, const std::string& detail) {
     return 36 * s + Paragraph(nullptr, ImVec2(), width - 32 * s, detail, 15 * s, 0);
 }
 void Wrapped(const std::string& text) {
-    if (On()) Paragraph(text, ImGui::GetFontSize(), ImGui::GetColorU32(ImGuiCol_Text));
-    else ImGui::TextWrapped("%s", text.c_str());
+    Paragraph(text, ImGui::GetFontSize(), ImGui::GetColorU32(ImGuiCol_Text));
 }
 void Fact(const std::string& key, const std::string& value) {
     const float s = Scale(), w = ImGui::GetContentRegionAvail().x, h = ImGui::GetFontSize() + 20 * s, room = w - 24 * s;
@@ -312,7 +308,8 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
         draw->AddText(ImGui::GetFont(), eyebrowSize, ImVec2(x, y), Colors().muted, Fit(eyebrow, room, eyebrowSize).c_str());
         y += eyebrowHeight;
     }
-    draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont()).c_str());
+    // A title may be a player's own words (a room's name), so the probe leaves it out.
+    draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont(), false).c_str());
     draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
     draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, height + 8 * s));
@@ -514,7 +511,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     float y = t.y;
     const float marks = DrawNameMarks(draw, x, y + (line - nameSize) * .5f, nameSize, tag.marks).width;
     NoteUserText(tag.name);
-    draw->AddText(HeadingFont(), nameSize, ImVec2(x + marks, y + (line - nameSize) * .5f), c.text, Fit(tag.name, room - marks, nameSize, HeadingFont()).c_str());
+    draw->AddText(HeadingFont(), nameSize, ImVec2(x + marks, y + (line - nameSize) * .5f), c.text, Fit(tag.name, room - marks, nameSize, HeadingFont(), false).c_str());
     y += line + 8 * s;
     // The title on its plate: a slanted bar with the accent's stripe at its start.
     if (!tag.title.empty()) {
@@ -571,7 +568,7 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     float x = at.x + DrawNameMarks(draw, at.x, middle, nameSize, tag.marks).width;
     const float nameMax = nameRoom - (!twoLines && title ? titleWidth : 0) - (!twoLines && status ? statusWidth : 0);
     NoteUserText(tag.name);
-    const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont);
+    const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont, false);
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
     if (!ping.empty()) Chip(draw, ImVec2(at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);

@@ -28,7 +28,7 @@ void ApplicationShell::ClosePadSetup(const ShellView& view, bool controllers) {
     if (controllers && setupPad_) nav.Focus("pad-" + std::to_string(setupPad_->id), ControllerRows(view.padLayer, view.pads, view.canChangeController, view.canEditPreferences));
     if (reopenScreen_ && *reopenScreen_ == "pad-setup") reopenScreen_.reset();
     setupPad_.reset(); setupStarting_ = false;
-    menu_.listEnabled = true; menu_.ownsBack = false; menu_.customDetail = false; menu_.compactDetailHeight = 0; menu_.additionalInput = 0; menu_.shortcutHints.clear();
+    menu_.listEnabled = true; menu_.ownsBack = false; menu_.customDetail = false; menu_.additionalInput = 0; menu_.shortcutHints.clear();
     SetMenuGlyphs(view.inputDevice.type, view.menuButtons, view.promptBrand);
     SetGameplayLayoutPrompts(view);
 }
@@ -121,7 +121,7 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
     }
     menu_.shortcutHints = capture ? PadSetupLegend(state) : std::vector<LegendHint>{};
     menu_.backHint = capture ? loc::T("common.cancel") : loc::T("pad_setup.cancel");
-    menu_.footerNote.clear(); menu_.typesText = false; menu_.wideListShare = .46f; menu_.compactDetailHeight = 280;
+    menu_.footerNote.clear(); menu_.typesText = false;
     if (capture) SetMenuGlyphs(input::PadKeyboard, 0, 0);
     else {
         // The draft's own inputs select and go back here, whatever the

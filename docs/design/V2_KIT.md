@@ -12,7 +12,6 @@ sheet these parts follow.
 
 | Part | Use it for | Call |
 | --- | --- | --- |
-| Switch | Whether the V2 look is on (Classic otherwise) | `v2::On()` |
 | Palette | Every colour: ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live, danger, ready | `v2::Colors().accent` |
 | Alpha | A palette colour at an alpha | `v2::color::Alpha(c.border, .6f)` |
 | Margins | Side margin and padding for a width | `v2::Pad`, `v2::SideMargin` |
@@ -73,12 +72,11 @@ sheet these parts follow.
 1. Compose the screen from the kit. If a part is missing, add it to the kit
    (short doc comment above it, in the V2.hxx style) and use it from at least
    two screens. Do not draw a button, panel, heading or row by hand.
-2. Rows stay `MenuEntry`. Navigation, speech and the Classic look all read the
+2. Rows stay `MenuEntry`. Navigation and speech read the
    same rows; the board only decides where each row is drawn. Every box that
    is a row goes through `PressEntry`.
 3. No colour literals and no `palette::` colours in a V2 path: use
-   `v2::Colors()`. Classic keeps
-   `palette::`.
+   `v2::Colors()`.
 4. Every line of text goes through `v2::Text`, `v2::Fit` or a part that uses
    them, never through `PushClipRect` alone, so the lab's text probe sees what
    is cut.

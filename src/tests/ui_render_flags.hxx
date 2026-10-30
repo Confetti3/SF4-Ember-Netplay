@@ -43,7 +43,9 @@ void ShootFlags(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,sf4e
     SetUserGlyphRetention(std::chrono::milliseconds(10000));
     page("settings");rebuild();draw("flags-settings");
     page(CountryPicker::Screen);rebuild();draw("flags-country-picker");
-    Require(shell.Navigation().Focus()=="country-search","The country picker did not open on its first row");
+    // Lettered, the picker is a board that opens on Automatic; a language with
+    // too many initials for a grid keeps the list, which opens on its search.
+    Require(shell.Navigation().Focus()=="country-auto"||shell.Navigation().Focus()=="country-search","The country picker did not open on its first row");
     // A typed letter goes to the first country that starts with it: here the
     // first character of Namibia's name in the language on show.
     const std::string namibia=loc::T("country.NA");
@@ -53,9 +55,6 @@ void ShootFlags(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,sf4e
     for(int i=1;i<length;++i)typed=(typed<<6)|(static_cast<unsigned char>(namibia[i])&0x3Fu);
     ImGui::GetIO().AddInputCharacter(typed);draw(nullptr,0,2);rebuild();draw("flags-country-letter");
     Require(shell.Navigation().Focus().compare(0,8,"country-")==0&&shell.Navigation().Focus().size()==10,"A typed letter did not reach a country");
-    // Right goes on to the next letter (in English, where N is followed by O).
-    const auto onN=shell.Navigation().Focus();draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-    if(namibia=="Namibia")Require(onN=="country-NA"&&shell.Navigation().Focus()=="country-OM","Right did not go to the next letter");
     SetUserGlyphRebuildInterval(std::chrono::milliseconds(250));
     view.preferences=savedPreferences;view.automaticCountry=savedAutomatic;view.canEditPreferences=savedEdit;
     for(std::size_t i=0;i<view.room.members.size();++i)view.room.members[i].country=before[i];

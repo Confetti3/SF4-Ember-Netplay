@@ -174,7 +174,7 @@ void DiscordWaitsForItsService(){
  open("brg_1",6,id.bridges[0]);id.discordUser.clear();id.discordName.clear();h.answer();
  h.Choose("id-discord-connect");h.answer();
  h.Screen("linked-accounts");for(int i=0;i<8;++i)h.answer();
- h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==other,"Selecting the other service did not inspect it");
  id.inspected=id.bridges[1];id.inspectedDiscord=true;h.answer();
  Check(h.until(IdentityOp::DiscordStatus)&&h.sent().back()->bridge=="brg_2","The other service's account was not read");
@@ -901,7 +901,7 @@ void OnboardingRecovers(){
    id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};h.Frame();
    // The player selects the other service for its matches.
    h.Screen("tournament-matches");for(int i=0;i<6;++i)h.answer();
-   h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+   h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    for(int i=0;i<6;++i)h.answer();
    Check(h.row("id-bridge")&&h.row("id-bridge")->value=="Other","The other service was not selected");
    // The Ember ID screen reads Ember's own Discord account.

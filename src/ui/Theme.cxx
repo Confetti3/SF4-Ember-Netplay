@@ -49,7 +49,6 @@ std::optional<loc::Locale> CatalogInAtlas(loc::Locale active) {
 // What the current atlas holds, and the script-font ranges it was built from,
 // which ImGui reads by pointer and so must outlive the build.
 std::optional<loc::Locale> atlasCatalog;
-bool atlasEm = false;
 float interfaceSize = 1.f;
 ImVector<ImWchar> scriptRanges[ScriptFontCount];
 
@@ -163,7 +162,7 @@ void NoteUserText(const std::string& utf8, UserTextRole role) {
     }
 }
 void SetAtlasBuildLog(std::function<void(const char*)> log) { atlasBuildLog = std::move(log); }
-bool ApplyTheme(float displayScale, float interfaceScale, bool em) {
+bool ApplyTheme(float displayScale, float interfaceScale) {
     interfaceSize = interfaceScale;
     const float scale = (std::max)(1.f, (std::min)(displayScale * interfaceScale, 3.f));
     auto& io = ImGui::GetIO();
@@ -177,13 +176,12 @@ bool ApplyTheme(float displayScale, float interfaceScale, bool em) {
     const bool userGlyphsDue = userGlyphsAdded && (!userGlyphBuildSeen || now - lastUserGlyphBuild >= rebuildInterval);
     if (io.Fonts->Fonts.Size == 3 &&
         std::fabs(io.Fonts->Fonts[0]->FontSize * io.Fonts->Fonts[0]->Scale - BodySize) < .01f &&
-        std::fabs(io.FontGlobalScale - scale) < .001f && atlasCatalog == catalog && atlasEm == em && !userGlyphsDue)
+        std::fabs(io.FontGlobalScale - scale) < .001f && atlasCatalog == catalog && !userGlyphsDue)
         return false;
     io.FontDefault = nullptr;
     io.Fonts->Clear();
     BuildScriptRanges(catalog, wantedUserGlyphs);
     atlasCatalog = catalog;
-    atlasEm = em;
     if (userGlyphsAdded) { lastUserGlyphBuild = now; userGlyphBuildSeen = true; }
     atlasUserGlyphs = wantedUserGlyphs;
     // The catalog's font merges first so it draws the Han characters Japanese
@@ -213,10 +211,10 @@ bool ApplyTheme(float displayScale, float interfaceScale, bool em) {
         config.OversampleH = dense ? 1 : 3; config.OversampleV = dense ? 1 : 2;
         const auto* data = i == 1 ? fonts::Heading : fonts::Body;
         const int bytes = static_cast<int>(i == 1 ? sizeof(fonts::Heading) : sizeof(fonts::Body));
-        // V2 sizes text as the design boards do, by the em (CSS font-size), where
+        // Text is sized as the design boards do, by the em (CSS font-size), where
         // ImGui sizes it by its line span: Inter's span is 1.21 em, so the body and
         // heading fonts bake that much larger, lifted to stay centred on their size.
-        if (em && i != 2) spans[i] = (std::max)(1.f, FontLineSpanEm(data, static_cast<std::size_t>(bytes)));
+        if (i != 2) spans[i] = (std::max)(1.f, FontLineSpanEm(data, static_cast<std::size_t>(bytes)));
         const float baked = std::round(sizes[i] * spans[i]);
         config.GlyphOffset.y = -baked * (spans[i] - 1) / (2 * spans[i]);
         std::snprintf(config.Name, sizeof(config.Name), "%s %.0fpx",
@@ -376,25 +374,6 @@ void Header(const char* title, const char* subtitle, bool brand) {
     ImGui::Dummy(ImVec2(0, 8*s));
 }
 void Section(const char* title) { ImGui::Spacing(); ImGui::SeparatorText(title); }
-void MenuHeader(const char* title, bool home) {
-    const float s=Scale();const auto p=ImGui::GetCursorScreenPos();
-    auto* draw=ImGui::GetWindowDrawList();auto* atlas=ImGui::GetIO().Fonts;
-    ImVec2 uv0,uv1;atlas->CalcCustomRectUV(atlas->GetCustomRectByIndex(0),&uv0,&uv1);
-    const bool titleScreen=home&&ImGui::GetWindowWidth()>=1000*s;
-    const float mark=(titleScreen?88:48)*s;
-    draw->AddImage(atlas->TexID,p,ImVec2(p.x+mark,p.y+mark),uv0,uv1);
-    const char* label=home?"EMBER":title;
-    const float width=ImGui::GetContentRegionAvail().x-mark-16*s;
-    const float font=(std::max)(18*s,(std::min)(titleScreen?68*s:home?38*s:28*s,width*HeadingFont()->FontSize/(std::max)(1.f,HeadingFont()->CalcTextSizeA(HeadingFont()->FontSize,FLT_MAX,0,label).x)));
-    draw->AddText(HeadingFont(),font,ImVec2(p.x+mark+12*s,p.y+4*s),palette::Ivory,label,nullptr,width);
-    const char* subtitle=loc::T("brand.subtitle");
-    if(home)draw->AddText(ImGui::GetFont(),12*s,ImVec2(p.x+mark+14*s,p.y+(titleScreen?76:42)*s),palette::Ember,subtitle,nullptr,width);
-    const float textHeight=home?(titleScreen?76:42)*s+ImGui::GetFont()->CalcTextSizeA(12*s,FLT_MAX,width,subtitle).y:
-        HeadingFont()->CalcTextSizeA(font,FLT_MAX,width,label).y+8*s;
-    const float height=(std::max)(titleScreen?102*s:home?64*s:56*s,textHeight);
-    if(!home)draw->AddLine(ImVec2(p.x,p.y+height),ImVec2(p.x+ImGui::GetContentRegionAvail().x,p.y+height),IM_COL32(255,135,56,70));
-    ImGui::Dummy(ImVec2(0,height+8*s));
-}
 void Status(const char* text, Tone tone) {
     const float s = Scale();
     const auto origin = ImGui::GetCursorScreenPos();

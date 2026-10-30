@@ -16,7 +16,7 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"showMatchHud", &PlayerPreferences::showMatchHud}, {"matchHudRaised", &PlayerPreferences::matchHudRaised},
     {"showShortcutHint", &PlayerPreferences::showShortcutHint},
     {"readySound", &PlayerPreferences::readySound}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady},
-    {"classEmblems", &PlayerPreferences::classEmblems}, {"lookV2", &PlayerPreferences::lookV2}, {"tvMode", &PlayerPreferences::tvMode},
+    {"classEmblems", &PlayerPreferences::classEmblems}, {"tvMode", &PlayerPreferences::tvMode},
     {"welcomed", &PlayerPreferences::welcomed},
     {"roomShowMembers", &PlayerPreferences::roomShowMembers}, {"roomShowChat", &PlayerPreferences::roomShowChat},
     {"matchFrameMeter", &PlayerPreferences::matchFrameMeter}, {"backgroundPlay", &PlayerPreferences::backgroundPlay}, {"endlessLobbyMusic", &PlayerPreferences::endlessLobbyMusic},
@@ -25,7 +25,6 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"controllerLayer", &PlayerPreferences::controllerLayer},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"shareReplays", &PlayerPreferences::shareReplays}, {"discordPresence", &PlayerPreferences::discordPresence},
     {"discordInvites", &PlayerPreferences::discordInvites}, {"shareSteamProfile", &PlayerPreferences::shareSteamProfile}, {"sendProblemReports", &PlayerPreferences::sendProblemReports},
-    {"roomMembersHidden", &PlayerPreferences::roomMembersHidden}, {"roomChatHidden", &PlayerPreferences::roomChatHidden},
 };
 
 } }

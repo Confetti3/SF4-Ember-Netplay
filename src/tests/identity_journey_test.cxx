@@ -289,8 +289,11 @@ void TournamentRoom(){
  const auto sent=h.actions.size();h.FocusOn("table-0");h.Press(MenuInput::Back);
  for(std::size_t i=sent;i<h.actions.size();++i)
   Check(h.actions[i].roomAction.kind!=room::ActionKind::Unqueue,"B on a tournament seat tried to leave it");
- h.Screen("room");h.Choose("room-members");h.Choose("member-2");
- Check(h.has("mute")&&!h.has("kick"),"A tournament room offers Kick");
+ // A member's actions are the choices on their row.
+ h.Screen("room");h.Choose("room-members");h.Frame();
+ {const auto* member=h.row("member-2");
+  const auto offers=[&](const char* id){return member&&std::any_of(member->choices.begin(),member->choices.end(),[&](const MenuChoice& c){return c.id==id;});};
+  Check(offers("mute")&&!offers("kick"),"A tournament room offers Kick");}
 }
 // Settings > Discord names the Discord account tournaments use: the one on the
 // selected service, read again each time the screen opens, or Not connected
@@ -329,7 +332,7 @@ void TournamentAccount(){
  Check(account()->value==loc::T("identity.discord_none")&&!account()->userText,"A disconnected account is still named");
  // Another selected service: its own account, and Connect Discord for it.
  h.Screen("linked-accounts");for(int i=0;i<8;++i)h.answer();
- h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ h.FocusOn("id-bridge");h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  id.inspected=id.bridges[1];h.until(IdentityOp::DiscordStatus);
  id.discordUser="111";id.discordName="sam";h.answer();
  open();

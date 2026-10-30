@@ -18,7 +18,7 @@
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training", "room-host", "room-guest", "room-layout", "replay", "tournament-host", "tournament-guest", "menu")]
+    [ValidateSet("training", "room-host", "room-guest", "replay", "tournament-host", "tournament-guest", "menu")]
     [string]$Test = "training",
     # The room tests: the file the host writes its invitation to, and the
     # guest reads it from once the runner has copied it across.

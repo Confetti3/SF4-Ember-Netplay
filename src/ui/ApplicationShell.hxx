@@ -150,9 +150,6 @@ struct ShellView {
     // the table page's rows; ultraSteps and colorSteps when there is more than
     // one to step through.
     std::string fighterName, ultraName, appearanceName, fighterOptionsName, stageName;
-    // Home's Fighter select hint in short forms ("Ken", "Alt 1, color 3",
-    // "U1"); none when no fighter is chosen, and Home shows selectionSummary.
-    std::string hintFighter, hintAppearance, hintUltra;
     bool ultraSteps = false, colorSteps = false;
     std::string selectionLockReason;
     // A Ready press in flight, and the last failure with a sequence that
@@ -257,10 +254,6 @@ private:
     bool lent_ = false, filled_ = false;
 };
 
-// The count on a Chat control: a rounded badge ending at `right` (screen x), its top at `top`, the
-// height of a line of text. UnreadBadgeWidth is what it takes, for the text beside it to leave room.
-float UnreadBadgeWidth(unsigned count);
-void DrawUnreadBadge(float right,float top,unsigned count);
 // "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
 std::string TrainingReadyText(int seconds);
 
@@ -306,7 +299,7 @@ public:
     bool SelectingDummy() const { return selectionForDummy_ && menu_.navigation.Screen() == "selection" && menu_.navigation.Parent() == "training"; }
     MenuNavigation& Navigation() { return menu_.navigation; }
     // A notice from outside the shell (the lab's toasts): the status line's
-    // for `seconds`, and a toast in V2.
+    // for `seconds`, and a toast.
     // A kind and up to two actions go on its toast.
     void Say(std::string text, Tone tone, double seconds, ToastKind kind = ToastKind::None, std::vector<ToastAction> actions = {}) {
         noticeExtra_ = {text, kind, std::move(actions)}; notice_ = std::move(text); noticeTone_ = tone; noticeUntil_ = ImGui::GetTime() + seconds;
@@ -392,15 +385,15 @@ private:
     void UpdatePublicBridge(const ShellView& view,const std::string& screen);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
-    // V2 Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
+    // Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
     static std::vector<std::pair<std::string,std::string>> SettingsTabs();
     static bool SettingsTab(const std::string& screen);
     // The tab a screen belongs to ("tab-matches" for its panel "tab-matches/1"), and the rows whose panel shows a preview.
     static std::string SettingsTabOf(const std::string& screen);
     static bool SettingsPreview(const std::string& id);
-    // V2's Settings tab (GameMenu body): the rail of panels, the shown panel's rows and preview, the focused row's words.
+    // A Settings tab (GameMenu body): the rail of panels, the shown panel's rows and preview, the focused row's words.
     void DrawSettingsBoard(const std::vector<MenuEntry>& entries,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,const GameMenu::Detail& preview);
-    // V2 value panels (ApplicationShell__Values.cxx): each value row's values as choices.
+    // Value panels (ApplicationShell__Values.cxx): each value row's values as choices.
     static void OfferValues(std::vector<MenuEntry>& rows);
     std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
@@ -419,13 +412,13 @@ private:
     void UpdateLaunchCheck(const ShellView& view,double now,const Submit& submit);
     void FinishUpdatePrompt(NoticeResult result,const Submit& submit);
     void SetLaunchCheck(bool enabled);
-    // News: the channel's releases, newest first, under a tab for all and V2's
-    // tabs for each kind there is (news-updates, news-changelog), and in V2 Update
+    // News: the channel's releases, newest first, under a tab for all and
+    // tabs for each kind there is (news-updates, news-changelog), and Update
     // now under the release the launch check offers (ApplicationShell__Updates.cxx).
     static bool NewsScreen(const std::string& screen) { return screen=="news"||screen=="news-updates"||screen=="news-changelog"; }
     std::vector<MenuEntry> NewsRows(const ShellView& view,const std::string& screen,std::string& title) const;
     void NewsTabs(const ShellView& view,const std::string& screen);
-    // V2: a release's card (its kind, New, date and title), and its pane: the
+    // A release's card (its kind, New, date and title), and its pane: the
     // hero band, the notes a line each and the Update now button when offered.
     bool DrawNewsCard(const ShellView& view,const MenuEntry& row,ImVec2 min,ImVec2 max) const;
     void DrawNewsDetail(const ShellView& view,const std::string& id,const std::vector<MenuEntry>& rows);
@@ -494,7 +487,7 @@ private:
     // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
     std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
-    // V2's Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
+    // Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
     // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
     static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
     static const v2::Award* WornAward(const ShellView& v, const std::string& id);
@@ -582,11 +575,11 @@ private:
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;
-    // A member's card as the room board and the V2 Members list draw it; no id when `row` names no member.
+    // A member's card as the room board and the Members list draw it; no id when `row` names no member.
     MemberCardView RoomMemberCard(const ShellView& view,const MenuEntry& row) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
-    // The V2 room board's tables and its members-over-chat column in `area`, as the
+    // The room board's tables and its members-over-chat column in `area`, as the
     // player's layout grips set them (PlayerPreferences::roomColumn); a folded panel's
     // box is its heading's strip and the other takes the column, or, both folded, the
     // two strips stand in a narrow column. RoomGrips draws the grips on the edges
@@ -598,15 +591,13 @@ private:
     void RoomGrips(v2::Box area);
     // Settings' picture of that layout, with the same grips.
     void DrawRoomLayoutPreview();
-    // A room's V2 board in its type's layout, in place of the table cards (RoomPanelArcade.cxx).
+    // A room's board in its type's layout, in place of the table cards (RoomPanelArcade.cxx).
     void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
                          room::RoomType type);
     std::string roomBoardFocus_;
-    // How the board last laid itself out, which the next frame's rows follow:
-    // stacked in one list, wide with its column, or wide on a screen under 820
-    // lines, which folds its sharing and settings into More…. Only a wide
-    // board shows the chat as a part of its column.
-    enum class BoardLayout { Stacked, Wide, WideShort } boardLayout_=BoardLayout::Wide;
+    // The board was last drawn wide on a screen under 820 lines, so the next
+    // frame's rows fold the room's sharing and settings into More….
+    bool shortBoard_=false;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
 // The Settings tab's rows by panel, its header's path and the focus last drawn (SettingsTabRows, DrawSettingsBoard).
@@ -673,7 +664,7 @@ std::string memberAsk_;
     double roomUpdateUntil_ = 0;
     double roomUpdateStarted_ = -1;
     bool roomUpdateVisible_ = false;
-    // The V2 room board drew the watched game's picture, cinema style, so the corner window stays away.
+    // The room board drew the watched game's picture, cinema style, so the corner window stays away.
     bool boardPicture_ = false;
     // The same, kept to the next frame, for the room's rows (its Hide row).
     bool pictureOnBoard_ = false;
@@ -738,7 +729,7 @@ std::string memberAsk_;
     std::array<LiveGame,room::TableCount> liveGames_;
     std::string notice_;
     double noticeUntil_=0;
-    // The notices and refusals said lately, newest first: V2's toasts while
+    // The notices and refusals said lately, newest first: the toasts while
     // they last and the Notifications screen's rows (ApplicationShell__Toasts.cxx).
     struct Toast { unsigned id; std::string text; Tone tone; double at, until; ToastKind kind; std::vector<ToastAction> actions; };
     std::deque<Toast> toasts_;

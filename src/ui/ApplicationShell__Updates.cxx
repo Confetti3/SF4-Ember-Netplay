@@ -30,15 +30,14 @@ std::vector<MenuEntry> ApplicationShell::NewsRows(const ShellView& v,const std::
   // Each release reads in full; the notes are plain text already (PlainReleaseNotes).
   rows.push_back(Row("news-"+std::to_string(i),n.title,(n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag)+"\n\n"+n.notes));
   rows.back().reading=true;
-  if(!v2::On())continue;
-  // V2: the card says the kind and whether it is newer than this PC's version; Update now follows the offered release.
+  // The card says the kind and whether it is newer than this PC's version; Update now follows the offered release.
   rows.back().value=std::string(NewsKind(n))+(n.newer?std::string(" \xC2\xB7 ")+loc::T("news.new"):"");rows.back().height=84;
   if(offer&&offer->tag==n.tag)rows.push_back(ConfirmRow("news-update-now",loc::T("updates.launch_now"),loc::Tf("news.update_now_detail",n.title),v.canEditPreferences&&!v.services.pending));
  }
  if(rows.empty())rows.push_back(Row("news-none",loc::T("news.none"),loc::T("news.none_detail"),false));
  return rows;
 }
-// V2: All, then a tab for each kind of release the list has.
+// All, then a tab for each kind of release the list has.
 void ApplicationShell::NewsTabs(const ShellView& v,const std::string& screen) {
  const auto& news=v.services.update.news;
  const auto any=[&](bool stable){return std::any_of(news.begin(),news.end(),[&](const launcher::ReleaseNews& n){return n.stable==stable;});};

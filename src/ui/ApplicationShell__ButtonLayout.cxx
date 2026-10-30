@@ -137,7 +137,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         if (layoutPad_) {
             CancelLayoutCapture(view, submit);
             menu_.listEnabled = true; menu_.ownsBack = false; menu_.customDetail = false;
-            menu_.additionalInput = 0; menu_.compactDetailHeight = 0; menu_.listCard = {};
+            menu_.additionalInput = 0; menu_.listCard = {};
             if (nav.Screen() != "pad-setup") layoutPad_.reset();
         }
         return false;
@@ -186,7 +186,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     menu_.shortcutHints = capturing ? std::vector<LegendHint>{{"Start", loc::T("common.cancel")}, {"Esc", loc::T("common.cancel")}} : std::vector<LegendHint>{};
     if (capturing) SetMenuPromptBrand(ResolvePrompts(preferences_.buttonPrompts, input::PadXInput, pad.brand), NamesOf(pad.table));
     menu_.backHint = capturing ? loc::T("common.cancel") : "";
-    menu_.footerNote.clear(); menu_.typesText = false; menu_.wideListShare = .46f; menu_.compactDetailHeight = 360;
+    menu_.footerNote.clear(); menu_.typesText = false;
     const auto status = saveFailed_ ? loc::T("common.save_failed") : preferencesDirty_ || saveQueued_ || view.settingsPending ? loc::T("common.saving") : loc::T("common.saved");
     const bool notice = !notice_.empty() && ImGui::GetTime() < noticeUntil_;
     const auto message = !error_.empty() ? error_ : notice ? notice_ + "\n" + status : std::string(status);
@@ -194,7 +194,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         message.c_str(), [&](const std::string&) {
             if (editor) DrawButtonEditorDetail(pad, preferences_.buttonPrompts, layoutButton_);
             else DrawButtonLayoutDetail(pad, preferences_.buttonPrompts, capturing);
-        }, 1, {}, {}, 0, 100, false, !error_.empty() || saveFailed_ ? Tone::Error : notice ? noticeTone_ : preferencesDirty_ || saveQueued_ || view.settingsPending ? Tone::Pending : Tone::Neutral);
+        }, 1, {}, {}, false, 100, !error_.empty() || saveFailed_ ? Tone::Error : notice ? noticeTone_ : preferencesDirty_ || saveQueued_ || view.settingsPending ? Tone::Pending : Tone::Neutral);
     AnswerDialog(submit);
     if (capturing) {
         const auto cancel = !editable ? LayoutCancel::State : ImGui::IsKeyPressed(ImGuiKey_Escape, false) ? LayoutCancel::Escape : action.kind == MenuAction::Back ? LayoutCancel::Back : LayoutCancel::None;

@@ -5,7 +5,7 @@
 // V2: the right mouse button is Back, and closes an open value panel first.
 void RightClickBack(){
  using namespace sf4e;
- Harness h;h.view.preferences.lookV2=true;h.Frame();
+ Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto rightClick=[&]{io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();};
  h.Screen("replays");rightClick();
@@ -14,7 +14,7 @@ void RightClickBack(){
 // V2: Right on Home's list reaches the player card beside it, Left goes back.
 void HomeCardRight(){
  using namespace sf4e;
- Harness h;h.view.preferences.lookV2=true;h.Frame();
+ Harness h;h.Frame();
  h.Screen("home");h.FocusOn("settings");h.Press(MenuInput::Right);
  Check(h.shell.Navigation().Focus()=="awards","Right on Home did not reach the player card");
  h.Press(MenuInput::Left);
@@ -23,7 +23,7 @@ void HomeCardRight(){
 // V2: a member's actions open at their row; Kick still asks first, on the member's page.
 void MemberPopout(){
  using namespace sf4e;
- Harness h;h.view.preferences.lookV2=true;h.Frame();
+ Harness h;h.Frame();
  JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
  for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
  h.Screen("room");h.FocusOn("member-2");h.Press(MenuInput::Select);
@@ -36,7 +36,7 @@ void MemberPopout(){
 // that heading unfolds it again, and More… can too.
 void RoomPartsHide(){
  using namespace sf4e;
- Harness h;h.view.preferences.lookV2=true;h.Frame();
+ Harness h;h.Frame();
  JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
  for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
  h.Screen("room");h.Choose("room-hide-members");h.Wait(1);h.Frame();
@@ -68,12 +68,8 @@ void KeyboardJourneys(){
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
  h.view.room.tables[0].p1=1;
  h.Screen("room");h.FocusOn("table-0");
- std::set<std::string> legend;
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
- h.Frame();SetMenuTextProbe({});
+ h.Frame();
  Check(KeyboardPrompts(),"A keyboard player does not see keyboard prompts");
- Check(legend.count(loc::T("room.leave_seat"))&&legend.count(loc::T("room.legend_fighter"))&&legend.count(loc::T("common.back")),
-  "The keyboard legend lacks Delete's Leave seat, F's Fighter or Escape's Back");
  // Escape on your own card goes back to Home and keeps the seat.
  auto before=h.actions.size();key(ImGuiKey_Escape);
  Check(h.shell.Navigation().Screen()=="home"&&h.actions.size()==before,"Escape on your own card left the seat");
@@ -93,47 +89,29 @@ void KeyboardJourneys(){
  h.Frame(0,4);io.AddInputCharactersUTF8("fct");h.Frame();key(ImGuiKey_F);key(ImGuiKey_T);key(ImGuiKey_Backspace);key(ImGuiKey_Space);
  Check(h.shell.Navigation().Screen()=="room-chat","Typing in chat pressed a menu key");
  key(ImGuiKey_Escape);Check(h.shell.Navigation().Screen()=="room","Escape did not return to the board");
- // F opens fighter select on the roster, at the current fighter; picking
- // one goes on to its Ultra, and the Ultra returns to the room.
+ // F opens fighter select's board at the current fighter; Right and Enter
+ // pick the next one there, and Back returns to the room.
  FighterSelector selector;selection::Pick pick;pick.fighter=4;pick.edition=14;
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
  key(ImGuiKey_F);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster"&&selector.Navigation().Focus()=="fighter-4",
-  "F did not open the roster at the current fighter");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home"&&selector.Navigation().Focus()=="fighter-4",
+  "F did not open the board at the current fighter");
  key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(pick.fighter==DisplayedAfter(4)&&selector.Navigation().Screen()=="ultra","Picking a fighter did not go on to its Ultra");
- key(ImGuiKey_RightArrow);key(ImGuiKey_KeypadEnter);
- Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room","Picking the Ultra did not return to the room");
- // Back from the roster returns to the room as well.
- key(ImGuiKey_F);key(ImGuiKey_Backspace);
- Check(h.shell.Navigation().Screen()=="room","Back from the roster did not return to the room");
- // Select on the table page's Ultra opens the Ultra cards, and picking one
- // returns to the table page.
- h.view.ultraSteps=true;h.view.ultraName="Ultra II";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="ultra"&&selector.Navigation().Focus()=="ultra-1",
-  "Select on the table's Ultra did not open the Ultra cards at the saved one");
- key(ImGuiKey_LeftArrow);key(ImGuiKey_Enter);
- Check(pick.ultra==0&&h.shell.Navigation().Screen()=="room-table","Picking an Ultra did not return to the table page");
- // Select on the table page's Appearance opens the costume cards at the saved
- // costume; a costume goes on to its colors, and a color returns to the table page.
+ Check(pick.fighter==DisplayedAfter(4)&&h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home","Picking a fighter did not stay on the board");
+ key(ImGuiKey_Backspace);
+ Check(h.shell.Navigation().Screen()=="room","Back from the board did not return to the room");
+ // Select on the table page's Ultra or Appearance opens the board on that row,
+ // and Back returns to the table page.
  selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
  h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);};
+ h.view.ultraSteps=true;h.view.ultraName="Ultra II";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home"&&selector.Navigation().Focus()=="ultra",
+  "Select on the table's Ultra did not open the board on its Ultra");
+ key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
  h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-0",
-  "Select on the table's Appearance did not open the costume cards at the saved one");
- key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(pick.costume==1&&selector.Navigation().Screen()=="colors"&&selector.Navigation().Focus()=="color-"+std::to_string(pick.color),
-  "Picking a costume did not go on to its colors at the kept color");
- const auto colors=selection::AllowedColors(pick.fighter,1,available);
- Check(colors.size()>1&&pick.color==colors[0],"The test costume has too few colors");
- key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(pick.color==colors[1]&&h.shell.Navigation().Screen()=="room-table","Picking a color did not return to the table page");
- // Back from the colors goes to the costumes, and Back from there to the table page.
- h.FocusOn("appearance");key(ImGuiKey_Enter);key(ImGuiKey_Enter);
- Check(selector.Navigation().Screen()=="colors","Picking the saved costume again did not open its colors");
- key(ImGuiKey_Backspace);Check(selector.Navigation().Screen()=="costumes","Back from the colors did not return to the costumes");
- key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the costumes did not return to the table page");
- Check(pick.costume==1&&pick.color==colors[1],"Backing out of the galleries changed the pick");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home"&&selector.Navigation().Focus()=="costume",
+  "Select on the table's Appearance did not open the board on its costume");
+ key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
  // The rest of the pick is on the table page too: Additional options opens its
  // page (personal action, win quote and the others), and Back returns.
  h.FocusOn("fighter-options");key(ImGuiKey_Enter);
@@ -178,7 +156,7 @@ void PresentationJourneys(){
   if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
  });h.Frame();SetMenuCardProbe({});
  auto& io=ImGui::GetIO();io.AddMousePosEvent(otherRow.x,otherRow.y);h.Frame();
- Check(h.shell.Navigation().Focus()=="look","Mouse hover stole controller focus");
+ Check(h.shell.Navigation().Focus()=="hud","Mouse hover stole controller focus");
  io.AddMousePosEvent(leftArrow.x,leftArrow.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();
  io.AddMouseButtonEvent(0,false);h.Frame(0,40);
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Visible value arrows did not adjust on click");
@@ -284,12 +262,13 @@ void AppearanceGalleries(){
  Check(pick.ultra==2&&selector.Navigation().Screen()=="home","Ultra Double did not save");
  selector.Navigation().Push("ultra");frame();frame();
  Check(pick.ultra==2&&ultras[2].value=="SAVED","Reopening Ultra lost saved selection");
- // On the home page Left and Right change the Ultra in place, and Select
- // still opens the cards.
+ // On the home board Left and Right change the Ultra in place, and Select
+ // opens its values in a panel.
  selector.Navigation().Home();frame();selector.Navigation().Focus("ultra",ultras);frame();
  Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="home","Left on Ultra Combo did not step back to Ultra II");
  Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
- press(MenuInput::Select);Check(selector.Navigation().Screen()=="ultra","Select on Ultra Combo did not open the cards");
+ press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="home","Select on Ultra Combo did not open its values");
+ press(MenuInput::Back);
  // Picking a fighter goes on to its Ultra, focused on the one it has; Back
  // there keeps the new fighter and returns to the roster.
  selector.Navigation().Home();selector.Navigation().Push("roster");frame();frame();

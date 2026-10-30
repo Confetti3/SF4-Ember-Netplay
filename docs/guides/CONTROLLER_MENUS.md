@@ -76,9 +76,9 @@ F5 toggles the passive training meter, F6 the controls, F7 standby, record and s
 
 When a room calls you back from Training, the banner offers Go now: Enter, or View on an Xbox pad, leaves at once instead of after its two seconds. That View press only goes now; it does not also reset or save the position. During the call Back and Start do not open the training controls, and that Start does not pause the game. Other pads are shown Enter, and their Select still resets and saves.
 
-## The V2 look
+## Ember's menus
 
-Settings > Interface > Look switches between Classic and V2 (preview). V2 changes only how the screens look: every row and shortcut above works the same. What V2 adds:
+The screens have a few things in common, and every row and shortcut above works the same on all of them:
 
 - Tabs, such as Settings' six: LB and RB step them, Page Up and Page Down on the keyboard; with the mouse, click a tab or the LB and RB marks at the strip's ends.
 - The header's Back button and the right mouse button both go back, as B and Escape do. Back first closes an open panel, popout or question.
@@ -88,7 +88,7 @@ Settings > Interface > Look switches between Classic and V2 (preview). V2 change
 - The on-screen keyboard: with a pad, a text row opens a keyboard. The D-pad moves, A types, X deletes, Y adds a space, LB switches capitals, Start is Done and B cancels.
 - Toasts: a new toast with buttons takes the focus. A or Enter takes its first button, B or Escape its Later, and any other press goes on as usual.
 
-See [V2 menus](V2_MENUS.md) for every V2 screen with pictures.
+See [V2 menus](V2_MENUS.md) for every screen with pictures.
 
 ## Runtime acceptance checklist
 

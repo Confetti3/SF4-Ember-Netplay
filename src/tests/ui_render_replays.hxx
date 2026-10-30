@@ -22,17 +22,8 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     view.replays.archive=std::make_shared<const std::vector<platform::replays::ArchivedReplay>>(std::vector<platform::replays::ArchivedReplay>{alice,other,both,older});
     view.replays.ready=true;view.replays.notice=loc::T("replays.added");
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
-    // Each replay's row draws its two fighters, player 1 on the left, and no other row draws one.
-    std::vector<std::pair<int,float>> faces;
-    SetPortraitProbe([&](int fighter,ImVec2 min,ImVec2){faces.emplace_back(fighter,min.x);});
     // The first replay is focused, so a narrow window scrolls the list to it.
-    page("replays");shell.Navigation().Focus("replay:a",rows);draw("replays-portraits");
-    // One frame's faces: a narrow window may scroll the last rows out of view, which then draw none.
-    faces.clear();draw(nullptr,0,1);
-    Require(faces.size()>=2&&faces.size()%2==0,"Replay rows did not draw two portraits each");
-    Require(faces[0].first==0&&faces[1].first==1&&faces[0].second<faces[1].second,"Replay portraits were not player 1 left, player 2 right");
-    Require(faces.size()<8||(faces[6].first==12&&faces[7].first==-1),"A replay with one fighter unknown did not keep its side");
-    SetPortraitProbe({});
+    page("replays");shell.Navigation().Focus("replay:a",rows);draw("replays-cards");
     Require(rows.size()==6&&rows[2].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
         rows[3].value==loc::T("replays.spectated")&&rows[4].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay tags changed");
     shell.Navigation().Focus("replay:a",rows);

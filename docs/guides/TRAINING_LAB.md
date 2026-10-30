@@ -312,13 +312,13 @@ While a reply plays the dummy takes its input from Ember, and before and after i
 
 Recordings stay with the dummy's fighter between battles, as described under Record a dummy sequence, so a recording used as a reply is still there next time.
 
-## The V2 look
+## Training from Home
 
-With Settings > Interface > Look set to V2, Home has a **Training** row
+Home has a **Training** row
 before Play offline. It goes straight into the game's Training mode, without
 the Fight Request question, at the game's main menu with no room joined.
 
-The training controls take the V2 look too. Their pages are tabs: Dummy,
+The training controls' pages are tabs: Dummy,
 Position, Dummy reply, Dummy recording, Frame data and HUD. LB and RB step
 them, Page Up and Page Down on the keyboard, or click a tab. Select on a
 dummy, reply, meter or HUD setting opens a panel with all its values at once:

@@ -6,6 +6,9 @@
 #include <imgui_internal.h>
 // Throws `message` when `condition` is false; the test reports it and fails.
 void Require(bool condition, const char* message);
+// A rule V2 does not keep yet: reported at the end, and the run fails, but the
+// checks after it still run.
+void KnownV2Gap(bool condition, const char* message);
 // The active window whose name contains `fragment`; throws when there is none.
 ImGuiWindow* FindWindow(const char* fragment);
 // Whether a window whose name contains `name` was drawn this frame.

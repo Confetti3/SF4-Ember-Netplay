@@ -11,7 +11,6 @@
 
 namespace sf4e { namespace ui {
 namespace {
-std::string BadgeText(unsigned count) { return count > 99 ? "99+" : std::to_string(count); }
 // A line of what happened in the room, in the player's language now.
 std::string EventText(const ChatLine& line) {
     const std::string name = line.name.empty() ? std::string(loc::T("room.player")) : line.name;
@@ -46,20 +45,6 @@ bool HasText(const char* text) {
     return false;
 }
 }
-float UnreadBadgeWidth(unsigned count) {
-    const float s = Scale(), height = 18 * s;
-    return (std::max)(height, ImGui::GetFont()->CalcTextSizeA(13 * s, FLT_MAX, 0, BadgeText(count).c_str()).x + 12 * s);
-}
-void DrawUnreadBadge(float right, float top, unsigned count) {
-    const float s = Scale(), height = 18 * s, size = 13 * s, width = UnreadBadgeWidth(count);
-    const auto text = BadgeText(count);
-    auto* d = ImGui::GetWindowDrawList();
-    const ImVec2 min(right - width, top), max(right, top + height);
-    d->AddRectFilled(min, max, palette::Ember, height * .5f);
-    const auto measured = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text.c_str());
-    d->AddText(ImGui::GetFont(), size, ImVec2(min.x + (width - measured.x) * .5f, min.y + (height - measured.y) * .5f), IM_COL32(20, 19, 18, 255), text.c_str());
-}
-
 // Every frame, drawn or hidden (Background), so the transcript sees each room
 // snapshot whatever the player has open: the room drops a departed member's
 // messages, and a join, a leave or a game won shows only as a difference
@@ -183,8 +168,8 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
             const std::string name = line.name.empty() ? std::string(loc::T("room.member_left")) : line.name;
             const char* you = loc::T("room.you");
             const float tag = 12 * s, tagWidth = ImGui::GetFont()->CalcTextSizeA(tag, FLT_MAX, 0, you).x + 10 * s;
-            // V2: other people's names in the brand's accent.
-            ImGui::PushStyleColor(ImGuiCol_Text, line.own ? ToneColor(Tone::Success) : v2::On() ? ImGui::ColorConvertU32ToFloat4(v2::Colors().accent) : ToneColor(Tone::Pending));
+            // Other people's names in the brand's accent.
+            ImGui::PushStyleColor(ImGuiCol_Text, line.own ? ToneColor(Tone::Success) : ImGui::ColorConvertU32ToFloat4(v2::Colors().accent));
             ImGui::TextUnformatted(FitLabel(name, width - (line.own ? tagWidth + 6 * s : 0)).c_str());
             ImGui::PopStyleColor();
             if (ImGui::IsItemVisible()) NoteUserText(line.name);

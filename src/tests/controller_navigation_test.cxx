@@ -672,8 +672,8 @@ void GoNowBehind(){
  Check(!chord.events.open&&!controls.Open(),"The controls opened behind another window");
 }
 // The rules every GameMenu screen shares with the room: an open dialog owns
-// the legend (Select names its highlighted button, Back cancels, shortcuts
-// go), pad Select accepts a draft, information rows offer no Select, a reader
+// the input (Select takes its highlighted button, Back cancels), pad Select
+// accepts a draft, information rows offer no Select, a reader
 // scrolls and closes, a list choice opens on the saved option, and only a
 // moving pointer takes the selection.
 void DialogContract(){
@@ -683,19 +683,16 @@ void DialogContract(){
  auto info=Row("record","Record","12 wins");info.info=true;
  auto reader=Row("licence","Licence","Long text");reader.reading=true;
  std::vector<MenuEntry> rows={ConfirmRow("leave","Leave room","Disconnect"),TextRow("name","Name","Kate",31),info,reader,language};
- std::set<std::string> legend;std::map<std::string,ImVec2> centres;std::map<std::string,std::pair<ImVec2,ImVec2>> boxes;
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
+ std::map<std::string,ImVec2> centres;std::map<std::string,std::pair<ImVec2,ImVec2>> boxes;
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){centres[id]=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);boxes[id]={min,max};});
- auto frame=[&](unsigned held=0){legend.clear();imgui.io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();
+ auto frame=[&](unsigned held=0){imgui.io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();
   ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Dialog test",nullptr,ImGuiWindowFlags_NoDecoration);
   const auto a=menu.Draw("TEST",rows);ImGui::End();ImGui::Render();return a;};
  auto press=[&](unsigned held){frame();const auto a=frame(held);frame();return a;};
- auto has=[&](const char* label){return legend.count(label)!=0;};
  frame();frame();
- Check(has("Review")&&has("Back")&&has("Fighter"),"Plain legend lost its Select, Back or shortcut");
  press(MenuInput::Select);frame();
- Check(menu.navigation.Confirming()&&has("Cancel")&&!has("Fighter")&&!has("Review"),"A confirmation did not take over the legend");
- press(MenuInput::Right);frame();Check(has("Leave room"),"The legend did not name the highlighted confirmation button");
+ Check(menu.navigation.Confirming(),"Select did not open the confirmation");
+ press(MenuInput::Right);frame();Check(menu.navigation.ConfirmSelected(),"Right did not highlight the confirmation's action");
  press(MenuInput::Back);Check(!menu.navigation.Confirming(),"Back did not cancel the confirmation");
  // The opening press can arrive with pointer movement over the action button.
  // Preserve Cancel until a later movement deliberately selects that button.
@@ -713,19 +710,23 @@ void DialogContract(){
  Check(confirmed.kind==MenuAction::Activate&&confirmed.id=="leave","Explicit pointer selection did not confirm the action");
  imgui.io.AddMousePosEvent(1,1);frame();
  menu.navigation.Focus("name",rows);press(MenuInput::Select);frame();
- Check(menu.navigation.Editing()&&has("Accept")&&has("Cancel"),"The editor legend does not say Accept and Cancel");
- const auto accepted=press(MenuInput::Select);
- Check(accepted.kind==MenuAction::TextAccepted&&accepted.text=="Kate","Controller Select did not accept the draft");
- // A pointer moved onto Cancel keeps that highlight; the legend says so, and
- // the controller's Select then cancels rather than accepting.
+ Check(menu.navigation.Editing(),"Select did not open the editor");
+ // The pad types on the on-screen keyboard, where Start is Done.
+ const auto accepted=press(MenuInput::Start);
+ Check(accepted.kind==MenuAction::TextAccepted&&accepted.text=="Kate","Controller Start did not accept the draft");
+ // With the keyboard's prompts the editor has Cancel and Accept buttons: a
+ // pointer moved onto Cancel keeps that highlight, and Select then cancels
+ // rather than accepting.
+ SetMenuGlyphs(sf4e::input::PadKeyboard,0,0);
  press(MenuInput::Select);imgui.io.AddMousePosEvent(1,1);frame();
  {const auto at=centres.at("edit/0");imgui.io.AddMousePosEvent(at.x,at.y);frame();frame();}
- Check(menu.navigation.Editing()&&!menu.navigation.EditAccepts()&&has("Cancel edit"),"The pointer's Cancel highlight was not kept or shown");
+ Check(menu.navigation.Editing()&&!menu.navigation.EditAccepts(),"The pointer's Cancel highlight was not kept");
  Check(press(MenuInput::Select).kind==MenuAction::None&&!menu.navigation.Editing(),"Select after the pointer chose Cancel accepted the draft");
+ SetMenuGlyphs(3,0x40000,0x20000);
  imgui.io.AddMousePosEvent(1,1);frame();
  menu.ShowNotice(NoticeDialog{"Advice","Heading",{{"OK"},{"Don't show again",NoticeResult::HideGameSettings}}});frame();frame();
- Check(has("OK")&&has("Close")&&!has("Fighter"),"A notice kept the screen's legend");
- press(MenuInput::Right);frame();Check(has("Don't show again"),"The notice legend did not follow its highlighted button");
+ Check(menu.NoticeOpen(),"The notice did not open");
+ press(MenuInput::Right);
  press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::HideGameSettings&&!menu.NoticeOpen(),"The notice's second button was not taken");
  Check(menu.TakeNoticeResult()==NoticeResult::None,"A notice result was read twice");
  // The first button is highlighted first and Select takes it; Back never takes the highlighted one.
@@ -736,42 +737,32 @@ void DialogContract(){
  // More than two buttons stop at both ends, and a new notice drops an answer nobody took.
  menu.ShowNotice(NoticeDialog{"Three","Heading",{{"First"},{"Second",NoticeResult::CreatePublicRoom},{"Third",NoticeResult::OpenButtonLayout}}});frame();frame();
  press(MenuInput::Left);press(MenuInput::Right);press(MenuInput::Right);press(MenuInput::Right);frame();
- Check(has("Third"),"The last button was not reached or was passed");
  press(MenuInput::Select);Check(menu.TakeNoticeResult()==NoticeResult::OpenButtonLayout,"The third button's result was lost");
  menu.ShowNotice("One");frame();frame();press(MenuInput::Select);menu.ShowNotice("Two");
  Check(menu.TakeNoticeResult()==NoticeResult::None,"A new notice inherited the last one's result");
  menu.CloseNotice();frame();frame();
  menu.navigation.Focus("record",rows);frame();frame();
- Check(!has("Review")&&!has("Select")&&press(MenuInput::Select).kind==MenuAction::None,"An information row offers Select");
- menu.navigation.Focus("licence",rows);frame();frame();Check(has("Read"),"A reader row does not say Read");
- press(MenuInput::Select);frame();Check(menu.navigation.Reading()&&has("Close"),"Select did not open the reader");
+ Check(press(MenuInput::Select).kind==MenuAction::None,"An information row offers Select");
+ menu.navigation.Focus("licence",rows);frame();frame();
+ press(MenuInput::Select);frame();Check(menu.navigation.Reading(),"Select did not open the reader");
  frame(MenuInput::Down);frame(MenuInput::Down);
  Check(press(MenuInput::Back).kind==MenuAction::None&&!menu.navigation.Reading()&&menu.navigation.Screen()=="home","Back did more than close the reader");
- menu.navigation.Focus("language",rows);frame();frame();Check(has("Choose"),"A choice row does not say Choose");
+ menu.navigation.Focus("language",rows);frame();frame();
  press(MenuInput::Select);Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==1,"The choice did not open on the saved option");
- press(MenuInput::Down);const auto chosen=press(MenuInput::Select);
- Check(chosen.kind==MenuAction::Chosen&&chosen.id=="language"&&chosen.text=="c","Down and Select did not choose the next option");
+ // Three options sit side by side, so Right steps to the next.
+ press(MenuInput::Right);const auto chosen=press(MenuInput::Select);
+ Check(chosen.kind==MenuAction::Chosen&&chosen.id=="language"&&chosen.text=="c","Right and Select did not choose the next option");
  // A click is one intent: the value's middle opens the list without changing
- // it, its arrow adjusts without opening, and the list's own Cancel closes it.
+ // it, its arrow adjusts without opening, and Back closes the list.
  const auto click=[&](ImVec2 at){imgui.io.AddMousePosEvent(at.x,at.y);frame();imgui.io.AddMouseButtonEvent(0,true);const auto a=frame();
   imgui.io.AddMouseButtonEvent(0,false);const auto b=frame();frame();return a.kind!=MenuAction::None?a:b;};
  const auto row=boxes.at("language");const float y=(row.first.y+row.second.y)*.5f;
  auto a=click(ImVec2(row.second.x-110,y));
  Check(a.kind!=MenuAction::Adjust&&menu.navigation.Choosing(),"Clicking the language value changed it or did not open the list");
- a=click(centres.at("choice-cancel/0"));
- Check(a.kind==MenuAction::None&&!menu.navigation.Choosing(),"The list's Cancel chose something or left it open");
+ a=press(MenuInput::Back);
+ Check(a.kind==MenuAction::None&&!menu.navigation.Choosing(),"Back chose something or left the list open");
  a=click(ImVec2(row.second.x-12,y));
  Check(a.kind==MenuAction::Adjust&&a.delta==1&&!menu.navigation.Choosing(),"The language arrow did not only step the value");
- // Narrow, the value stacks under the label: a click on the label opens the
- // list, and only the value's own line holds the arrows.
- imgui.io.DisplaySize=ImVec2(400,900);frame();frame();
- const auto narrow=boxes.at("language");
- a=click(ImVec2(narrow.first.x+10,narrow.first.y+10));
- Check(a.kind!=MenuAction::Adjust&&menu.navigation.Choosing(),"A click on a stacked row's label adjusted it");
- press(MenuInput::Back);
- a=click(ImVec2(narrow.first.x+12,narrow.second.y-12));
- Check(a.kind==MenuAction::Adjust&&a.delta==-1&&!menu.navigation.Choosing(),"A stacked row's left arrow did not step down");
- imgui.io.DisplaySize=ImVec2(1280,960);frame();frame();
  // The pointer: resting it on a row changes nothing; moving it there selects.
  menu.navigation.Focus("leave",rows);imgui.io.AddMousePosEvent(1,1);frame();frame();
  const auto target=centres.at("record");imgui.io.AddMousePosEvent(target.x,target.y);frame();
@@ -792,30 +783,6 @@ void DialogContract(){
   Check(menu.navigation.ReadingId()=="second"&&top(),"A second reader inherited the first one's scroll");
   press(MenuInput::Back);menu.navigation.Focus("first",rows);press(MenuInput::Select);frame();
   Check(top(),"A reread document did not open at its heading");
-  press(MenuInput::Back);}
- // A long list opens on the saved option in view, however it was scrolled
- // when it last closed, by Back or by the mouse's Cancel.
- {auto many=Row("many","Many","Pick one");
-  for(int i=0;i<30;++i)many.choices.push_back({"o"+std::to_string(i),"Option "+std::to_string(i)});
-  many.chosen="o1";rows={many};menu.navigation.Focus("many",rows);frame();frame();
-  const auto visible=[&]{const auto list=boxes.at("choice-list");const auto option=boxes.at("choice/o1");
-   return option.first.y>=list.first.y-.5f&&option.second.y<=list.second.y+.5f;};
-  for(const bool mouse:{false,true}){
-   press(MenuInput::Select);frame();Check(menu.navigation.Choosing()&&visible(),"A long list did not open on its saved option");
-   // The pointer comes to rest where the list opens, so the wheel scrolls it
-   // without the pointer moving the highlight off the saved option.
-   const auto list=boxes.at("choice-list");press(MenuInput::Back);
-   imgui.io.AddMousePosEvent((list.first.x+list.second.x)*.5f,(list.first.y+list.second.y)*.5f);frame();frame();
-   press(MenuInput::Select);frame();Check(menu.navigation.ChoiceIndex()==1,"A resting pointer moved the list's highlight");
-   for(int i=0;i<6;++i){imgui.io.AddMouseWheelEvent(0,-5);frame();}
-   Check(!visible(),"The wheel did not scroll the saved option away");
-   if(mouse){const auto at=centres.at("choice-cancel/0");imgui.io.AddMousePosEvent(at.x,at.y);frame();
-    imgui.io.AddMouseButtonEvent(0,true);frame();imgui.io.AddMouseButtonEvent(0,false);frame();}
-   else press(MenuInput::Back);
-   Check(!menu.navigation.Choosing(),"The long list did not close");
-  }
-  press(MenuInput::Select);frame();
-  Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==1&&visible(),"A reopened list selected its saved option out of view");
   press(MenuInput::Back);}
  // A notice over an editor owns Enter; the editor resumes with its draft.
  rows={TextRow("name","Name","Kate",31)};menu.navigation.Focus("name",rows);
@@ -847,21 +814,6 @@ void SelectPrecedence(){
  nav.Cancel();nav.Focus("asked",rows);nav.Choose(rows);
  Check(nav.Choosing()&&!nav.Confirming()&&!nav.Reading(),"A confirmation with choices did not open as a choice");
 }
-// The training flyout has no choice dialog: a row that carries choices must do
-// nothing, not draw a confirmation whose buttons are dead or pick an option.
-void FlyoutIgnoresChoices(){
- HeadlessImGui imgui;GameMenu menu;
- auto pick=Row("pick","Pick","x");pick.choices={{"a","A"},{"b","B"}};
- std::vector<MenuEntry> rows={pick};
- int chosen=0;
- auto frame=[&](unsigned held=0){imgui.io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();
-  ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Flyout test",nullptr,ImGuiWindowFlags_NoDecoration);
-  const auto a=menu.Draw("TEST",rows,"",{},1,{},{},1.f);ImGui::End();ImGui::Render();if(a.kind==MenuAction::Chosen)++chosen;};
- auto press=[&](unsigned held){frame();frame(held);frame();};
- frame();frame();
- press(MenuInput::Select);Check(!menu.navigation.Choosing()&&!menu.navigation.Confirming(),"A flyout row with choices opened a dialog");
- press(MenuInput::Select);Check(chosen==0,"A flyout row with choices picked an option");
-}
 void ScreenNames(){
  for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer","discord","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","awards-icons","accessibility","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
@@ -888,5 +840,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();FlyoutIgnoresChoices();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

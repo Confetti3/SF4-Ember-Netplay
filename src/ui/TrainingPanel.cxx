@@ -149,7 +149,7 @@ int StepDummy(int kind,int value,int delta) {
     const auto& choices=DummyChoices(kind);
     const auto found=std::find(choices.begin(),choices.end(),value);
     if(found==choices.end()) return choices[0];
-    // A jump of more than one (a value picked in V2's panel) lands where it was picked.
+    // A jump of more than one (a value picked in its panel) lands where it was picked.
     const int n=static_cast<int>(choices.size());
     return choices[((static_cast<int>(found-choices.begin())+delta)%n+n)%n];
 }
@@ -450,9 +450,9 @@ void DrawTrainingFlyout(const training::View& view,const TrainingSubmit& submit)
     const float unit=(std::min)(Scale(),(std::min)(size.x/500.f,size.y/500.f));
     ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y*.5f),ImGuiCond_Always,ImVec2(.5f,.5f));
     ImGui::SetNextWindowSize(size,ImGuiCond_Always);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,v2::On()?ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel,.97f)):ImVec4(.075f,.07f,.065f,.97f));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,ImGui::ColorConvertU32ToFloat4(v2::color::Alpha(v2::Colors().panel,.97f)));
     ImGui::PushStyleColor(ImGuiCol_Border,ImVec4(1,.53f,.22f,.8f));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,v2::On()?4*unit:ImGui::GetStyle().WindowRounding);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,4*unit);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(16*unit,12*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(10*unit,6*unit));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(8*unit,6*unit));
@@ -603,25 +603,22 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
  // A recorded reply with no slot that can be one would do nothing; the page says so.
  else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&!v.replyable){status=loc::T("training.reply.no_recordings_on");statusTone=Tone::Pending;}
- // V2: every value in a panel, and the lab's pages as tabs that LB and RB step through.
- trainingMenu.tabs.clear();trainingMenu.tab=-1;
- if(v2::On()){
-  OfferTrainingValues(rows);
-  // In the home list's order, so the tabs and the list agree.
-  trainingMenu.tabs={{"recording",loc::T("training.dummy_recording")},{"history",loc::T("training.input_history")},{"frame-data",loc::T("training.frame_data")},
-   {"hud",loc::T("training.hud")},{"dummy",loc::T("training.dummy")},{"reply",loc::T("training.reply")},{"tools",loc::T("training.position")}};
-  for(int i=0;i<static_cast<int>(trainingMenu.tabs.size());++i)if(trainingMenu.tabs[i].first==screen)trainingMenu.tab=i;
-  if(trainingMenu.tab<0&&screen!="home")trainingMenu.tabs.clear();
- }
- trainingMenu.wideListShare=screen=="recording"?.65f:screen=="dummy"||screen=="reply"||screen=="tools"||screen=="hud"||screen=="meter-settings"||screen=="meter-classic"?.58f:.5f;
+ // Every value in a panel, and the lab's pages as tabs that LB and RB step through.
+ trainingMenu.tab=-1;
+ OfferTrainingValues(rows);
+ // In the home list's order, so the tabs and the list agree.
+ trainingMenu.tabs={{"recording",loc::T("training.dummy_recording")},{"history",loc::T("training.input_history")},{"frame-data",loc::T("training.frame_data")},
+  {"hud",loc::T("training.hud")},{"dummy",loc::T("training.dummy")},{"reply",loc::T("training.reply")},{"tools",loc::T("training.position")}};
+ for(int i=0;i<static_cast<int>(trainingMenu.tabs.size());++i)if(trainingMenu.tabs[i].first==screen)trainingMenu.tab=i;
+ if(trainingMenu.tab<0&&screen!="home")trainingMenu.tabs.clear();
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
- },recordingGrid?2:1,{},GameMenu::Body{},ImGui::GetFontSize()/ImGui::GetFont()->FontSize,recordingGrid?30:100,false,statusTone);
+ },recordingGrid?2:1,{},GameMenu::Body{},true,recordingGrid?30:100,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
- // A V2 tab names its page; the pages are the lab's, one level under it.
+ // A tab names its page; the pages are the lab's, one level under it.
  if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(screen!="home")nav.Return();if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;

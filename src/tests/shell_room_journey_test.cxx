@@ -11,7 +11,7 @@ void RetrySaveOnPanelScreens() {
  using namespace sf4e;
  for(const char* screen:{"identity","rankings","replays"}){
   Harness h;h.Frame();
-  h.Screen("interface");h.Choose("scale");h.Press(MenuInput::Right);
+  h.Screen("interface");h.FocusOn("scale");h.Press(MenuInput::Right);
   h.view.settingsError="Disk unavailable";h.Frame(0,45);
   h.Screen(screen);
   const auto mark=static_cast<std::ptrdiff_t>(h.actions.size());
@@ -36,16 +36,11 @@ void RoomShortcutOnPanelScreen() {
 static void RoomBoardJourneys() {
  using namespace sf4e;
  Harness h;h.Frame();
- // Back names where it goes: out of Ember from an idle Home, and while a
- // controller is being captured, the cancel it is.
- std::set<std::string> legend;
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
- SetMenuGlyphs(3,0x40000,0x20000);legend.clear();h.Frame();Check(legend.count("Return to SF4"),"Idle Home's Back does not say it returns to SF4");
+ SetMenuGlyphs(3,0x40000,0x20000);h.Frame();
  // Outside a room Back at Home still hides Ember, and sends nothing.
  {const auto before=h.actions.size();h.Press(MenuInput::Back);Check(!h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==before,"Back on an idle Home did not hide Ember");h.open=true;}
- h.Screen("player");h.view.inputCapture=input::Capture::ReleaseAll;legend.clear();h.Frame();
- Check(legend.count("Cancel")&&!legend.count("Back"),"Controller assignment's Back does not say it cancels");
- SetMenuTextProbe({});h.Press(MenuInput::Back);
+ h.Screen("player");h.view.inputCapture=input::Capture::ReleaseAll;h.Frame();
+ h.Press(MenuInput::Back);
  Check(h.shell.Navigation().Screen()=="assignment"&&h.actions.back().inputAction==input::Action::Cancel,"Assignment Back did not only cancel capture");
  h.view.inputCapture=input::Capture::Idle;h.Frame();Check(h.shell.Navigation().Screen()=="player","Assignment lost return destination");
  h.Screen("home");h.Choose("online");Check(h.shell.Navigation().Screen()=="online","Online route");
@@ -127,9 +122,12 @@ static void RoomBoardJourneys() {
  h.view.preferences.mainFighter=8;h.view.selectedFighter=0;
  h.view.room.members[1].mainFighter=9;h.view.room.members[1].fighter=2;
  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
+ // The Members list shows each member's saved main, not the fighter they battle with.
+ h.Screen("room-members");
  std::vector<int> portraits;SetPortraitProbe([&](int fighter,ImVec2,ImVec2){portraits.push_back(fighter);});
  h.Frame();SetPortraitProbe({});
- Check(portraits==std::vector<int>({0,2,8,9}),"Member portraits must use saved mains, not battle fighters");
+ Check(portraits==std::vector<int>({8,9}),"Member portraits must use saved mains, not battle fighters");
+ h.Screen("room");
  h.view.room.tables[0].p1=h.view.room.tables[0].p2=0;
  // A on an empty table opens the seat chooser: P1 left, P2 right, B cancels.
  h.Choose("table-2");Check(h.shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
@@ -165,10 +163,11 @@ static void RoomBoardJourneys() {
  {const auto at=centres.at("table-3/0");ImGui::GetIO().AddMousePosEvent(at.x,at.y);h.Frame();h.Frame();}
  h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(h.actions.size()==raced+1&&h.actions.back().roomAction.seat==1,"A resting cursor overrode the pad's choice");
- // The header button cancels a choice for a mouse, sending nothing.
+ // The right mouse button cancels a choice, sending nothing.
  click("table-3");Check(h.shell.Navigation().Choosing(),"Clicking a table did not open its chooser");
- raced=h.actions.size();click("menu-back");
- Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The header did not cancel the chooser");
+ raced=h.actions.size();
+ {auto& io=ImGui::GetIO();io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();}
+ Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The right mouse button did not cancel the chooser");
  click("table-3");click("table-3/1");
  Check(h.actions.size()==raced+1&&h.actions.back().roomAction.table==3&&h.actions.back().roomAction.seat==1,"Clicking P2 in the chooser did not take it");
  ImGui::GetIO().AddMousePosEvent(-1,-1);
@@ -186,14 +185,6 @@ static void RoomBoardJourneys() {
  h.Press(MenuInput::Options);Check(h.shell.Navigation().Screen()=="room","Y again did not return to the board");
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View did not open chat");
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room","View again did not return to the board");
- // The members hide from their heading and come back, and the choice is
- // saved on its own, as a room locks the other settings.
- h.view.canEditPreferences=false;h.view.atMainMenu=true;
- h.Choose("members-part");h.Frame(0,45);
- Check(h.actions.back().roomSettings&&h.actions.back().preferences.roomMembersHidden,"Hiding the members did not save in the room");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("members-part");h.Frame(0,45);
- Check(h.actions.back().roomSettings&&!h.actions.back().preferences.roomMembersHidden,"Showing the members did not save in the room");
- h.view.preferences=h.actions.back().preferences;h.view.canEditPreferences=true;h.Frame();
  // X opens the real fighter selector, which hands its shortcuts back: X
  // there returns to the board and View goes on to chat.
  FighterSelector selector;selection::Pick pick;
@@ -202,24 +193,22 @@ static void RoomBoardJourneys() {
  // The selector names the board as its way back and shows the room's shortcuts.
  Check(EmbeddedReturnContext().exitName=="Room"&&EmbeddedReturnContext().shortcutHints.size()==3,
   "The fighter selector does not know it returns to the room or which shortcuts it forwards");
- // X opens the selector on the roster, to change the fighter; leaving it on
- // another sub-page and coming back by X opens the roster again.
- Check(selector.Navigation().Screen()=="roster","X did not open the selector on the roster");
- selector.Navigation().Home();selector.Navigation().Push("appearance");selector.Navigation().Push("costumes");h.Frame();
+ // X opens the selector's board on the fighter, to change it; leaving it on
+ // a sub-page and coming back by X opens the board again.
+ Check(selector.Navigation().Screen()=="home"&&selector.Navigation().Focus().compare(0,8,"fighter-")==0,"X did not open the selector on the fighter");
+ selector.Navigation().Home();selector.Navigation().Push("options");h.Frame();
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X on a selector sub-page did not return to the board");
  h.Press(MenuInput::Fighter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="roster","X reopened the selector on the sub-page it was left on");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home","X reopened the selector on the sub-page it was left on");
  h.Press(MenuInput::Fighter);Check(h.shell.Navigation().Screen()=="room","X in fighter selection did not return to the board");
  h.Press(MenuInput::Fighter);h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View in fighter selection did not open chat");
  h.Press(MenuInput::Chat);h.selection=[]{};h.view.canEditSelection=false;
  // B on the board with no seat goes to Home, and B there does nothing rather
  // than dropping to the game's own menu.
  h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","B on the board did not reach Home");
- // Home in a room does not offer a way back to the game, and Back there does
- // nothing: Ember stays up, the room is kept and nothing is sent, because the
- // game's own menu behind it is locked.
- legend.clear();SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});h.Frame();SetMenuTextProbe({});
- Check(!legend.count("Return to SF4")&&!legend.count("Back")&&legend.count("Select"),"Home in a room offers Back, or lost its Select");
+ // Back at Home in a room does nothing: Ember stays up, the room is kept and
+ // nothing is sent, because the game's own menu behind it is locked.
+ h.Frame();
  raced=h.actions.size();h.Press(MenuInput::Back);
  Check(h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==raced&&h.view.session.room==netplay::RoomState::Joined,
   "B at Home in a room hid Ember, left Home, or sent a command");
@@ -307,10 +296,9 @@ static void RoomBoardJourneys() {
  h.Press(MenuInput::Back);h.Press(MenuInput::Options);Check(h.shell.Navigation().Screen()=="room","Y again did not return to the board");
  seatTable.queue.clear();
  // A that cannot ready, unready or rematch names no action: the card keeps its
- // state on the strip, A does nothing, and the legend has no A.
- std::vector<MenuEntry> boardRows;std::set<std::string> boardLegend;
+ // state on the strip and A does nothing.
+ std::vector<MenuEntry> boardRows;
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){boardRows=rows;});
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))boardLegend.insert(id+7);});
  const auto seatCard=[&]()->const MenuEntry&{return *std::find_if(boardRows.begin(),boardRows.end(),[](const MenuEntry& e){return e.id=="table-2";});};
  seatTable.ready[0]=false;h.Frame();
  Check(!seatCard().info&&seatCard().hint==loc::T("room.ready_up"),"A seat that can ready lost its Ready action");
@@ -320,8 +308,7 @@ static void RoomBoardJourneys() {
  for(const auto phase:{room::TablePhase::Ready,room::TablePhase::Playing,room::TablePhase::Paused}){
   seatTable.phase=phase;h.Frame();
   Check(seatCard().info&&!seatCard().hint.empty(),"A seat with nothing to send still offered an action");
-  boardLegend.clear();h.Frame();
-  Check(!boardLegend.count(seatCard().hint),"The legend named a state as A's action");
+  h.Frame();
   raced=h.actions.size();h.Press(MenuInput::Select);
   Check(h.actions.size()==raced,"A on a seat with nothing to send sent something");
  }
@@ -366,8 +353,8 @@ static void RoomBoardJourneys() {
  SetMenuStatusProbe({});
  h.Press(MenuInput::Back);Check(h.open&&h.shell.Navigation().Screen()=="home","B at Home in a room hid Ember");
  h.Screen("room");
- // Walking down past other tables to the toolbar still opens your own table.
- h.FocusOn("table-2");h.Choose("options");
+ // Walking past other tables to More... still opens your own table's options.
+ h.FocusOn("table-2");h.Choose("room-more");h.Press(MenuInput::Select);
  std::vector<MenuEntry> optionRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
  Check(h.shell.Navigation().Screen()=="room-table"&&std::any_of(optionRows.begin(),optionRows.end(),[](const MenuEntry& e){return e.id=="ready";}),
   "Table options opened a table the player only passed");
@@ -411,26 +398,27 @@ static void RoomBoardJourneys() {
  Check(h.actions.size()==count,"Stale confirmation cancelled a different game");h.Press(MenuInput::Back);
  h.Screen("room");h.Choose("leave");count=h.actions.size();h.Press(MenuInput::Select);Check(h.actions.size()==count,"Leave default was not Cancel");
  h.Choose("leave");h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.size()==count+1&&h.actions.back().command.kind==Kind::LeaveRoom,"Confirmed leave");
-  h.Screen("room");h.Choose("room-members");h.Choose("member-2");h.Choose("kick");
+  // Kick, third of a member's actions, asks first on the member's page.
+  h.Screen("room");h.Choose("room-members");h.Choose("member-2");h.Press(MenuInput::Down);h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Frame(0,2);
   h.view.room.members.pop_back();h.Frame();h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.back().command.kind==Kind::LeaveRoom,"Removed member was kicked");
  h.Screen("room");h.Choose("room-chat");h.Frame(0,4);ImGui::GetIO().AddInputCharactersUTF8("Hello");h.Frame();
  count=h.actions.size();h.Press(MenuInput::Down);Check(h.actions.size()==count,"Scrolling the chat sent it");
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  Check(h.actions.size()==count+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Enter in the chat box did not send");
   h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
- h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=h.view.lobbyMusicAvailable=true;h.Frame();h.Screen("interface");h.Choose("hud");h.Press(MenuInput::Left);
+ h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=h.view.lobbyMusicAvailable=true;h.Frame();h.Screen("interface");h.FocusOn("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
  Check(h.actions.back().preferences.endlessLobbyMusic,"Endless lobby music was not on by default");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");h.Choose("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");h.FocusOn("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.endlessLobbyMusic,"Turning off endless lobby music did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.fasterDisplay&&h.actions.back().preferences.backgroundPlay,"Faster display did not save off");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.Choose("borderless");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("borderless");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.borderless&&!h.actions.back().preferences.fasterDisplay,"Borderless did not save on");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("settings");h.Choose("training-replays");h.Choose("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("settings");h.Choose("training-replays");h.FocusOn("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  // Show my Steam profile to room members: on until the player turns it off, saved with the other preferences.
@@ -441,9 +429,9 @@ static void RoomBoardJourneys() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.shareSteamProfile,"Showing the Steam profile did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("interface");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not save"); // Split by default; Left steps to the Ember strip.
  {std::vector<MenuEntry> stripRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){stripRows=rows;});h.view.preferences=h.actions.back().preferences;h.Frame();SetMenuEntriesProbe({});
   const auto offset=std::find_if(stripRows.begin(),stripRows.end(),[](const MenuEntry& e){return e.id=="hud-name-offset";});
@@ -451,13 +439,13 @@ static void RoomBoardJourneys() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not step back to Split");
  // Name height: Left moves the plates up two units at a time, to the limit and no further, and Right back down.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-name-offset");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-name-offset");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudNameOffset==-2,"Name height did not save");
  for(int i=0;i<40;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
  Check(h.actions.back().preferences.matchHudNameOffset==-netplay::MaxMatchHudNameOffset,"Name height went past its limit");
  for(int i=0;i<30;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
  Check(h.actions.back().preferences.matchHudNameOffset==0,"Name height did not step back to Default");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not step back to Bottom center");
@@ -468,17 +456,17 @@ static void RoomBoardJourneys() {
  Check(h.actions.back().preferences.matchHudAnchor==4,"HUD position did not step back from Top center");
  for(int i=0;i<netplay::MaxMatchHudAnchor+2;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
  Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not return to Bottom center");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
  // A new profile is on Auto. Right from Auto starts at 0 frames, and Left from 0 returns to Auto, keeping the number.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("defaults");h.Choose("delay");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("defaults");h.FocusOn("delay");
  Check(h.view.preferences.autoInputDelay,"A new profile did not start on Auto");
  h.Press(MenuInput::Right);h.Frame(0,45);
  Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Leaving Auto did not start at 0 frames");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Auto delay did not save");
  h.Screen("interface");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("scale");h.Press(MenuInput::Right);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);
  {std::vector<MenuEntry> saveRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){saveRows=rows;});h.Frame();SetMenuEntriesProbe({});
   const auto retry=std::find_if(saveRows.begin(),saveRows.end(),[](const MenuEntry& e){return e.id=="retry-save";});
@@ -515,8 +503,10 @@ static void RoomBoardJourneys() {
  h.Choose("main-character");h.Press(MenuInput::Right);h.accept=false;h.Press(MenuInput::Select);h.Frame(0,40);
  Check(h.shell.Navigation().Screen()=="main-character","Failed portrait save closed the roster");
  bool retryLabel=false;
+ // The card's label as the text probe sees it (v2::Fit).
+ const std::string retryId=std::string("v2/")+loc::T("settings.retry_save");
  SetMenuTextProbe([&](const char* id,float,float,float width,float available){
-  if(std::strcmp(id,"retry-save")==0)retryLabel=width>0&&width<=available;
+  if(retryId==id)retryLabel=width>0&&width<=available;
  });
  h.Frame();SetMenuTextProbe({});
  Check(retryLabel,"Portrait save retry has no visible label");

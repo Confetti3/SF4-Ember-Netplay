@@ -43,11 +43,11 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   if(!toasts_.front().actions.empty())fresh=toastCount_;
   if(toasts_.size()>ToastsKept)toasts_.pop_back();
   // Speech reads a toast once, as it appears.
-  if(v2::On())SayMenuNotice(text);
+  SayMenuNotice(text);
  };
  take(notice_,noticeTone_,noticeUntil_,noticeSeen_,ToastKind::None);
  take(error_,Tone::Error,now+6,errorSeen_,ToastKind::System);
- if(!v2::On()||listed){toastFocus_=0;return;}
+ if(listed){toastFocus_=0;return;}
  if(fresh&&!overMatch)toastFocus_=fresh;
  // Stacked at the board's right corner, newest on top: under the match HUD's
  // bars over a match, ending on the hint bar over the menus.

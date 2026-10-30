@@ -3,16 +3,16 @@
 // be tried at every screen size in seconds. Keyboard, mouse and an XInput pad
 // work as in the game.
 //
-// F1 lab bar · F2 next size · F3 Look (Classic/V2) · F4 text size · F5 in a room · F6 picture · F12 screenshot
+// F1 lab bar · F2 next size · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
-// --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk) with V2 on, a created room joined at once,
+// --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
 //   and writes each step there; exits 3 when a step fails
-// UiLab.exe [--size WxH] [--scale 1.25] [--v2] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -126,13 +126,12 @@ unsigned KeyBit(const std::string& key) {
     return 0;
 }
 // A ShellView with a player, a controller and nothing running.
-ui::ShellView FakeView(bool v2) {
+ui::ShellView FakeView() {
     ui::ShellView view;
     view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canOpenRoom = view.helperReady = true;
     view.controller = "Xbox pad";
     view.preferences.displayName = "FRaccie";
     view.automaticCountry = CountryCode::Parsed("BE");
-    view.preferences.lookV2 = v2;
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
     // The card's title and icon, and Home's news, as the backend and the release check give them.
     view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
@@ -273,7 +272,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     for (int i = 1; i < argc; ++i) { std::wstring a = wide[i]; args.emplace_back(a.begin(), a.end()); }
     int width = 1280, height = 800;
     float textSize = 1;
-    bool v2 = false, tv = false;  // --tv: TV mode
+    bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string shot, keys, screen, recovery, check, walkFile;
     bool inRoom = false, pip = false;
@@ -289,7 +288,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--size" && more) std::sscanf(args[++i].c_str(), "%dx%d", &width, &height);
         else if (args[i] == "--scale" && more) textSize = static_cast<float>(std::atof(args[++i].c_str()));
-        else if (args[i] == "--v2") v2 = true;
         else if (args[i] == "--tv") tv = true;
         else if (args[i] == "--keys" && more) keys = args[++i];
         else if (args[i] == "--shot" && more) shot = args[++i];
@@ -312,7 +310,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--welcome") welcome = true;
         else if (args[i] == "--pad") pad = true;
         else if (args[i] == "--check" && more) check = args[++i];
-        else if (args[i] == "--walk" && more) { walkFile = args[++i]; v2 = true; }
+        else if (args[i] == "--walk" && more) walkFile = args[++i];
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -336,7 +334,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     ui::SetMenuArt(&art);
 
     ui::ApplicationShell shell;
-    ui::ShellView view = FakeView(v2);
+    ui::ShellView view = FakeView();
     view.preferences.pictureMode = pictureMode;
     view.preferences.roomShowMembers = hidePanes != "members" && hidePanes != "both";
     view.preferences.roomShowChat = hidePanes != "chat" && hidePanes != "both";
@@ -419,9 +417,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
         if (msg.message == WM_QUIT) break;
         if (resizeW && resizeH) { Reset(resizeW, resizeH); width = resizeW; height = resizeH; resizeW = resizeH = 0; }
-        // The V2 scale rule, max(DPI, height / 1080), which the picture-scale branch brings to the game.
-        const bool tvScale = ui::v2::On() && view.preferences.tvMode;
-        if (ui::ApplyTheme((std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd), height / 1080.f), textSize * (tvScale ? 1.25f : 1.f), ui::v2::On())) ImGui_ImplDX9_InvalidateDeviceObjects();
+        // The game's scale rule, max(DPI, height / 1080), and a quarter larger in TV mode.
+        if (ui::ApplyTheme((std::max)(ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd), height / 1080.f), textSize * (view.preferences.tvMode ? 1.25f : 1.f))) ImGui_ImplDX9_InvalidateDeviceObjects();
         art.Pump();
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame();
         // Scripted shots keep the real mouse out of it: hovering a card focuses it.
@@ -446,9 +443,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ui::SetMenuGlyphs(pad || real ? input::PadXInput : input::PadKeyboard, input::MenuButtons{});
         if (ImGui::IsKeyPressed(ImGuiKey_F1)) bar = !bar;
         if (ImGui::IsKeyPressed(ImGuiKey_F2)) { size = (size + 1) % std::size(Sizes); ResizeWindow(hwnd, Sizes[size].w, Sizes[size].h); }
-        if (ImGui::IsKeyPressed(ImGuiKey_F3)) view.preferences.lookV2 = !view.preferences.lookV2;
         if (ImGui::IsKeyPressed(ImGuiKey_F4)) textSize = textSize >= 1.5f ? 1 : textSize + .25f;
-        if (ImGui::IsKeyPressed(ImGuiKey_F5)) { const bool look = view.preferences.lookV2; inRoom = !inRoom; view = FakeView(look); if (inRoom) JoinRoom(view); }
+        if (ImGui::IsKeyPressed(ImGuiKey_F5)) { inRoom = !inRoom; view = FakeView(); if (inRoom) JoinRoom(view); }
         if (frame == 2 && !screen.empty()) shell.Navigation().Push(screen);
         // The WIN screen comes once the room board has settled and the art is in, so a shot
         // shows the prompt's first seconds.
@@ -464,21 +460,19 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         }
         if (listAsked) { listAsked = false; PublicRooms(view); }
         if (hostAsked) { hostAsked = false; JoinRoom(view); }
-        if (leaveAsked) { leaveAsked = false; view = FakeView(view.preferences.lookV2); }
+        if (leaveAsked) { leaveAsked = false; view = FakeView(); }
         const bool snap = ImGui::IsKeyPressed(ImGuiKey_F12);
         // The menu art stands in for a watched game's picture (F6).
         if (ImGui::IsKeyPressed(ImGuiKey_F6)) pip = !pip;
         view.watchedPicture = pip && view.preferences.pictureMode != netplay::PictureOff ? art.MenuBackdrop().texture : ImTextureID{};
         if (!recovery.empty()) {
-            ui::v2::SetOn(view.preferences.lookV2);
             ui::DrawRecoveryMenu(recoveryMenu, recoveryState, recovery == "launch" ? loc::T("launcher.recovery_opened") : "", recovery != "launch", ui::Tone::Error, true);
         } else if (trainingPanel) {
             const auto* vp = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
             ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop(false);
+            ui::DrawMenuBackdrop();
             ImGui::End();
-            ui::v2::SetOn(view.preferences.lookV2);
             // A Training battle with two recordings, as the render test's.
             training::View lab;
             lab.available = lab.ready = lab.checkpoint = true; lab.generation = 1;
@@ -487,7 +481,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             lab.dummy.action = 1; lab.dummy.guard = 2; lab.dummy.counterHit = 0; lab.dummy.quickStand = 1; lab.dummy.super = 0; lab.dummy.revenge = 0;
             ui::DrawTrainingFlyout(lab, [](const training::Command&) { return true; });
         } else if (playback) {
-            ui::v2::SetOn(view.preferences.lookV2);
             // The board's replay: paused at half speed in round 2, the lanes on.
             namespace in = replayinputs;
             ui::ReplayHudView replay;
@@ -502,16 +495,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             const auto* vp = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
             ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop(view.preferences.lookV2);
+            ui::DrawMenuBackdrop();
             ImGui::End();
         } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
             const auto* vp = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
             ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop(view.preferences.lookV2);
+            ui::DrawMenuBackdrop();
             ImGui::End();
-            ui::v2::SetOn(view.preferences.lookV2);
             ui::MatchStripView strip;
             strip.names[0] = "FRaccie"; strip.names[1] = "Akira";
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
@@ -523,7 +515,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
                 const auto* vp = ImGui::GetMainViewport();
                 ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
                 ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-                ui::DrawMenuBackdrop(false);
+                ui::DrawMenuBackdrop();
                 ImGui::End();
             }
             shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
@@ -533,8 +525,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ImGui::SetNextWindowPos(ImVec2(8, 8), ImGuiCond_Always, ImVec2(0, 0));
             ImGui::SetNextWindowBgAlpha(.85f);
             ImGui::Begin("Lab", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
-            ImGui::Text("%dx%d  text %.2f  %s", width, height, textSize, view.preferences.lookV2 ? "V2" : "Classic");
-            ImGui::TextDisabled("F1 bar  F2 size  F3 look  F4 text  F5 room  F6 picture  F12 shot");
+            ImGui::Text("%dx%d  text %.2f", width, height, textSize);
+            ImGui::TextDisabled("F1 bar  F2 size  F4 text  F5 room  F6 picture  F12 shot");
             ImGui::End();
         }
         ImGui::EndFrame();

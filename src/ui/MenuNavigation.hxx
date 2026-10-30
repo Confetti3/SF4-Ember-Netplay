@@ -99,10 +99,6 @@ struct MenuEntry {
     // as its builder set it, so the row's card reads it instead of parsing
     // the id back. The id stays the row's name for focus and probes.
     std::uint64_t key = 0;
-    // Home draws these, when there are any, in place of detail on its help
-    // line: each label over its value, one column per pair (Fighter select's
-    // fighter, costume and color, Ultra). detail still says it all in one line.
-    std::vector<std::pair<std::string, std::string>> columns;
 };
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a

@@ -32,12 +32,13 @@ struct ReplayHudView {
     // The frame meter over the replay; drawn during an export as well.
     bool meter = false;
 };
-// The strip: state, speed, place in the round and the controls' legend, one
-// row under the frame meter's band, between the two super meters.
+// The strip: a button per control, its keys over what it does, then the
+// place in the round, at the bottom centre.
 void DrawReplayStrip(const ReplayHudView& view);
 // Two narrow columns below the life bars, player 1 at the left edge of the
 // game's picture and player 2 at the right.
 void DrawReplayLanes(const ReplayHudView& view);
-// At most this wide, at 720p, in pixels; it scales like the training HUD.
-constexpr float ReplayStripMostWidth = 460, ReplayStripMostHeight = 30;
+// The band under the frame meter that the "replay controls unavailable"
+// notice sits below, at 720p, in pixels; it scales like the training HUD.
+constexpr float ReplayStripMostHeight = 30;
 } }

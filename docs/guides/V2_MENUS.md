@@ -1,24 +1,20 @@
 # Ember's V2 menus
 
-V2 is Ember's new look. It is a preview and still being built. It changes
-only how the screens look: every row, setting and shortcut of the Classic look
-is still there, and works the same with a controller, a stick, the keyboard
-and the mouse. Speech reads V2 as it reads Classic.
+This is how Ember's menus look. Every row, setting and shortcut works the
+same with a controller, a stick, the keyboard and the mouse, and speech reads
+every screen.
 
 This guide shows each part of V2 and says how to use it. The buttons are
 named as on an Xbox pad; on a stick, Light kick selects and Medium kick goes
 back (see [Controller menus](CONTROLLER_MENUS.md)).
 
-## Choose the look
+## Open Ember
 
-Open Ember (F10, or Start at the game's main menu). Go to Settings, then
-Interface, then Look, and choose Classic or V2 (preview). A fresh install
-asks this on its first run. You can switch back at any time; your settings,
-rooms and records stay as they are.
+Press F10, or Start at the game's main menu.
 
 ## Home
 
-![Home in V2](v2/home.png)
+![Home](v2/home.png)
 
 Home lists Online play, Fighter select, Profile, Settings, Training, Play
 offline, Replays, News and Notifications. On the right are your player card
@@ -120,12 +116,12 @@ right. The room's actions run along the bottom: Ready up, Wait in Training,
 Controllers, More… and Leave room.
 
 - A table card's own buttons (Ready up, Leave seat) are on the card. Select
-  the card with A for the seat chooser, as in Classic.
+  the card with A for the seat chooser.
 - Members are grouped: Playing, At a table, Watching and In the room. Each
   shows their flag, name, state and ping, such as Direct 46 ms or Relay
   59 ms.
-- Chat's Type a message box is at the bottom of the chat. The shortcuts work
-  as in Classic: X or F for your fighter, Y or T for Table options, View or C
+- Chat's Type a message box is at the bottom of the chat. The shortcuts are
+  X or F for your fighter, Y or T for Table options, View or C
   for Chat, Delete to leave your seat (see [Controller
   menus](CONTROLLER_MENUS.md#play-online)).
 
@@ -173,9 +169,8 @@ notice as a row, with the same buttons. Select one to act on it.
 
 ![The welcome](v2/welcome.png)
 
-A fresh install opens on a short welcome, four steps: speech, language,
-controller and look. Each answer is a row: move to it and press A, or click
-it. Next goes on, Back returns to the previous step, and Skip goes straight
+A fresh install opens on a short welcome, three steps: speech, language and
+controller. Each answer is a row: move to it and press A, or click it. Next goes on, Back returns to the previous step, and Skip goes straight
 to Home. Everything here is also in Settings.
 
 ## The on-screen keyboard
@@ -201,16 +196,15 @@ Interface, Look):
 - **TV mode** is for a TV across the room: everything a quarter larger, kept
   inside a 5% safe area at the screen's edges.
 
-## Speech in V2
+## Speech
 
-Speech reads V2 as it reads Classic: the screen's name, the row you move to
-and its value, and a row's description when you press the accessibility
-button (RT, or F2). In V2 it also reads:
+Speech reads the screen's name, the row you move to and its value, and a
+row's description when you press the accessibility button (RT, or F2). It
+also reads:
 
 - a Settings panel's name and the values it holds when you move to it, then
   its rows once you open it;
-- a choice panel or popout's question, then the choice you are on, as
-  Classic's questions;
+- a choice panel or popout's question, then the choice you are on;
 - each toast once, as it appears;
 - the key you are on in the on-screen keyboard;
 - the welcome on first run. Its first question is spoken even before speech
@@ -221,9 +215,9 @@ Speech. See [Accessibility](ACCESSIBILITY.md).
 
 ## Training
 
-![Training controls in V2](v2/training.png)
+![Training controls](v2/training.png)
 
-In V2 the training controls' pages are tabs: Dummy, Position, Dummy reply,
+The training controls' pages are tabs: Dummy, Position, Dummy reply,
 Dummy recording, Frame data and HUD. LB and RB (Page Up and Page Down) step
 them. Select on a setting shows all its values at once. On an Xbox pad, R3
 (press the right stick) opens and closes the controls too. See [Training

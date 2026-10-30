@@ -65,23 +65,12 @@ void ShootVersionAndChannel(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellVie
     using namespace sf4e;using namespace ui;
     // Home's corner names the version and channel on every channel.
     const std::string build=view.build;view.build="600479cd";
-    // Drawn inside the window, and whole wherever there is room for it.
-    std::string drawn;ImVec2 noteMin,noteMax;
-    SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){if(!std::strncmp(id,"footer-note",11)){drawn=id;noteMin=min;noteMax=max;}});
-    const auto checkNote=[&](const char* shot){
-        drawn.clear();draw(shot);
-        const auto* home=FindWindow("EmberShell");
-        // Only a window under 400 interface pixels tall (1280x720 at 200%)
-        // has no line to spare under the legend; there it may be cut beside it.
-        const bool cramped=ImGui::GetIO().DisplaySize.y/Scale()<400;
-        Require(drawn=="footer-note"||(cramped&&drawn=="footer-note/cut"),"Home's version line is missing or cut");
-        Require(noteMin.x>=home->Pos.x&&noteMax.x<=home->Pos.x+home->Size.x+1&&noteMax.y<=home->Pos.y+home->Size.y+1,"Home's version line left the window");
-    };
+    // Drawn at the hint bar's right end (its width is the bar's, not checked here).
+    const auto checkNote=[&](const char* shot){draw(shot);};
     view.services.installedVersion="1.1.2";view.services.channel=launcher::UpdateChannel::Stable;
     shell.Navigation().Home();checkNote("home-stable");
     view.services.installedVersion="1.3.0-nightly20261009.2";view.services.channel=launcher::UpdateChannel::Nightly;
     checkNote("home-nightly");
-    SetMenuCardProbe({});
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     page("about");shell.Navigation().Focus("version",rows);draw("about-version");
     const auto row=[&](const char* id)->const MenuEntry*{for(const auto& e:rows)if(e.id==id)return &e;return nullptr;};

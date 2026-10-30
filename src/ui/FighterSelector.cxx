@@ -247,11 +247,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const auto& embedded=EmbeddedReturnContext();
  if(TakeEmbeddedFresh()){
   nav.Home();openOn_=embedded.openOn;
-  // V2's board has the fighter, the costume and the Ultra on one screen: it opens on that row.
-  if(v2::On()&&(openOn_=="roster"||openOn_=="ultra"||openOn_=="costumes"))nav.Prefer(openOn_=="roster"?"fighter-"+std::to_string(pick.fighter):openOn_=="ultra"?"ultra":"costume");
-  else if(openOn_=="roster"){nav.Push("roster");nav.Prefer("fighter-"+std::to_string(pick.fighter));}
-  else if(openOn_=="ultra"){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));}
-  else if(openOn_=="costumes"){nav.Push("costumes");nav.Prefer("costume-"+std::to_string(pick.costume));}
+  // The board has the fighter, the costume and the Ultra on one screen: it opens on that row.
+  if(openOn_=="roster"||openOn_=="ultra"||openOn_=="costumes")nav.Prefer(openOn_=="roster"?"fighter-"+std::to_string(pick.fighter):openOn_=="ultra"?"ultra":"costume");
   else if(openOn_=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));}
   else if(openOn_=="options")nav.Push("options");
   else openOn_.clear();
@@ -274,10 +271,10 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // The option rows step with Left and Right and save as they change; Select does nothing on them.
  const char* adjusts=loc::T(editable?"selection.adjust_saves":"selection.locked_detail");
  std::vector<MenuEntry> rows;
- std::string title=loc::T("selection.title");int columns=1;float cardHeight=100;menu_.wideListShare=.53f;
- // V2: one board (Fighter.dc.html), the grid eight across and beside it the
+ std::string title=loc::T("selection.title");int columns=1;float cardHeight=100;
+ // Home is one board (Fighter.dc.html), the grid eight across and beside it the
  // preview, the value rows and Ready; the pages stay for the stage and options.
- const bool board=v2::On()&&screen=="home";
+ const bool board=screen=="home";
  if(board){
   const int count=FighterCount;
   for(int i=0;i<count;++i){
@@ -308,15 +305,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   rows.back().left="fighter-"+std::to_string(pick.fighter);
   for(auto it=rows.begin()+count;it!=rows.end();++it)it->wide=true;
   columns=BoardColumns;
-  // A focus from no row of the board (a first visit, Classic's) starts on the saved fighter.
+  // A focus from no row of the board (a first visit) starts on the saved fighter.
   if(std::none_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==nav.Focus();}))nav.Prefer("fighter-"+std::to_string(pick.fighter));
- }else if(screen=="home"){
-  rows={Row("roster",loc::T("selection.fighter"),FindFighter(pick.fighter)->name),Row("appearance",loc::T("selection.appearance"),loc::Tf("selection.appearance_value",CostumeLabel(pick,installed),pick.color+1)),
-   Value("ultra",loc::T("selection.ultra_combo"),UltraName(pick),loc::T(editable?"selection.ultra_row.detail":"selection.locked_detail")),
-   Row("stage",loc::T("selection.stage"),stageId?StageLabel(*stageId,installed):loc::T("selection.p1_stage"),stageId!=nullptr),
-   Row("options",loc::T("selection.additional_options"),loc::T("selection.additional_options.detail"))};
-  // Left and Right change the Ultra here; Select shows them with their inputs.
-  rows[2].opens=true;rows[2].adjustable=editable&&AllowedUltras(pick.fighter,pick.edition).size()>1;
  }else if(screen=="roster"){
   page_=Page::Fighter;title=loc::T("selection.choose_fighter");
   // USFIV's own select order, 15 across when the list has the room for it.
@@ -328,7 +318,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    rows.back().key=static_cast<std::uint64_t>(id);
   }
   const auto grid=LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
-  columns=grid.columns;cardHeight=grid.cardHeight;menu_.wideListShare=grid.listShare;
+  columns=grid.columns;cardHeight=grid.cardHeight;
  }else if(screen=="appearance"){
   page_=Page::Appearance;title=loc::T("selection.appearance_title");
   rows={Row("costumes",loc::T("selection.costume_gallery"),CostumeLabel(pick,installed)),
@@ -486,13 +476,11 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const std::string status=!selectionError.empty()?selectionError:
   loc::T(!editable?"selection.status_locked":selectSaves?"selection.status_editable":
    screen=="home"||screen=="appearance"?"selection.status_browse":"selection.status_adjust");
- // stableStatus: the galleries must not shift under a highlight when the
- // status grows from one line to two.
  GameMenu::Body body;
  if(board)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){
   DrawBoard(entries,navigation,action,height,feedback,pick,art,readAvailability);};
- const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,body,0,
-  screen=="costumes"||screen=="colors"?180.f:cardHeight,true,selectionError.empty()?Tone::Neutral:Tone::Error);
+ const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,body,false,
+  screen=="costumes"||screen=="colors"?180.f:cardHeight,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  // Opened for one change, Back from its page goes back to where it came from.
  if(!openOn_.empty()&&a.kind==MenuAction::Returned&&screen==openOn_)ForwardMenuAction({MenuAction::Close});
@@ -511,7 +499,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // The Ultra comes next, when the fighter has more than one.
    // The Ultra comes next; the next frame drops the step if this fighter,
    // with its own saved pick restored, has only one.
-   // On V2's board the Ultra is a row beside the grid.
+   // On the board the Ultra is a row beside the grid.
    if(!board){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));focusSavedUltra_=ultraStepPending_=true;}
   }else if(editable&&a.id.compare(0,6,"ultra-")==0){pick.ultra=std::stoi(a.id.substr(6));changed=true;finish();}
   else if(editable&&a.id.compare(0,8,"costume-")==0){

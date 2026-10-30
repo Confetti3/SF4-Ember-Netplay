@@ -18,7 +18,6 @@ std::vector<std::string> Words(std::initializer_list<const char*> keys) {
 std::vector<std::string> ValueLabels(const std::string& id, const std::string& value) {
     std::vector<std::string> labels;
     if (value == loc::T("common.on") || value == loc::T("common.off")) return Words({"common.off", "common.on"});
-    if (id == "look") return Words({"settings.look.classic", "settings.look.v2"});
     if (id == "hud-spacing") return Words({"spacing.normal", "spacing.raised"});
     if (id == "delay-policy") return Words({"room.delay_policy.shared", "room.delay_policy.own"});
     if (id == "room-type") return Words({"room.type.classic", "room.type.arcade", "room.type.king"});

@@ -507,24 +507,24 @@ void FilterJourney(){
  Check(Shown(j)=="abc","The list is filtered before a filter is chosen");
  h.view.netReport.relay="use1";h.Frame(0,2);
  Check(j.row("pr-filter")->choices[1].enabled&&j.row("pr-filter")->choices[1].detail.empty(),"Near me stays disabled with a region");
- // Near me: only the rooms in the player's region; the status says how many of how many.
+ // Near me (the choices sit side by side, so Right steps them): only the rooms in the player's region; the status says how many of how many.
  h.Choose("pr-filter");Check(h.shell.Navigation().Choosing(),"The filter did not open its choices");
- h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(!h.shell.Navigation().Choosing()&&j.row("pr-filter")->chosen=="near"&&j.row("pr-filter")->label==loc::Tf("public.filter_label",loc::T("public.filter.near")),"Choosing Near me did not set the filter");
  Check(Shown(j)=="ac","Near me lists rooms that are not near");
  relist();
  Check(j.status==loc::Tf("public.status_filtered",std::size_t(2),std::size_t(3),loc::T("public.updated_now")),"The status does not say how many of the rooms are shown");
  // Free seats: rooms that can be joined, near ones first.
- h.Choose("pr-filter");h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ h.Choose("pr-filter");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(j.row("pr-filter")->chosen=="seats"&&Shown(j)=="ab","Free seats lists a room without one");
  // Back to all rooms, the status then counts them all.
- h.Choose("pr-filter");h.Press(MenuInput::Up);h.Press(MenuInput::Up);h.Press(MenuInput::Select);
+ h.Choose("pr-filter");h.Press(MenuInput::Left);h.Press(MenuInput::Left);h.Press(MenuInput::Select);
  Check(j.row("pr-filter")->chosen=="all"&&Shown(j)=="abc","Choosing all rooms did not list every room");
  relist();
  Check(j.status==loc::Tf("public.status_listed",std::size_t(3),loc::T("public.updated_now")),"The status does not count the rooms listed");
  // A filter with nothing to show: the card says so, and its action lists everything again.
  j.List({Placed("c","use1",4,4,3),Placed("d","use1",2,2,4,true)});
- h.Choose("pr-filter");h.Press(MenuInput::Down);h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ h.Choose("pr-filter");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(j.row("pr-filter")->chosen=="seats"&&Shown(j).empty()&&j.row("pr-show-all")&&j.row("pr-show-all")->label==loc::T("public.none_filtered")&&
   j.row("pr-show-all")->hint==loc::T("public.show_all")&&j.row("pr-show-all")->wide&&j.row("pr-show-all")->height==110&&!j.row("pr-none")&&!j.row("pr-error"),
   "A filter with nothing to show has no card for it");
@@ -539,7 +539,7 @@ void FilterJourney(){
  h.Choose("pr-show-all");
  Check(j.row("pr-filter")->chosen=="all"&&Shown(j)=="cd"&&!j.row("pr-show-all"),"Show all rooms did not clear the filter");
  // The choice lasts for the visit, and Near me falls back to all rooms when the region is lost.
- h.Choose("pr-filter");h.Press(MenuInput::Down);h.Press(MenuInput::Select);
+ h.Choose("pr-filter");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
  Check(j.row("pr-filter")->chosen=="near","The filter was forgotten on leaving Public rooms");
  h.view.netReport.relay="";h.Frame(0,2);

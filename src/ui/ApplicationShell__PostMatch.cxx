@@ -156,7 +156,6 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         title = next ? loc::Tf("postmatch.king.next", next->name) : std::string(loc::T("postmatch.king.waiting"));
     }
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
-    const std::string status = chosen ? std::string() : loc::Tf("postmatch.seconds_left", seconds);
     const auto state = [](bool ready, bool seated) {
         return std::string(loc::T(!seated ? "postmatch.state.left" : ready ? "postmatch.state.ready" : "postmatch.state.choosing"));
     };
@@ -183,76 +182,74 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const bool keys = KeyboardPrompts();
     menu_.shortcutHints = {{keys ? "F" : "X", loc::T("postmatch.character_select")}};
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
-    // V2: the two fighters with their answers beside the countdown ring, the
+    // The two fighters with their answers beside the countdown ring, the
     // focused button's words, and the three buttons in a row, over the dimmed
     // WIN screen. B is the Back to room button, so the header has no Back.
     GameMenu::Body board;
-    if (v2::On()) {
-        menu_.backInert = true; menu_.headerChips.clear();
-        menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(t.score);
-        const auto* vp = ImGui::GetMainViewport();
-        ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), IM_COL32(20, 19, 18, 140));
-        board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
-            const float s = Scale(), rowHeight = 52 * s;
-            const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
-            const ImVec2 at = ImGui::GetCursorScreenPos(); const float width = ImGui::GetContentRegionAvail().x;
-            // The countdown beside the two rows: a ring that empties over the ten
-            // seconds, red for the last three.
-            const float ring = 64 * s;
-            const ImVec2 centre(at.x + width - ring * .5f, at.y + rowHeight + 4 * s);
-            d->AddCircle(centre, 26 * s, c.button, 48, 5 * s);
-            if (!p.starting && !p.left && seconds > 0) {
-                const float left = static_cast<float>((std::min)(1.0, (std::max)(0.0, (p.until - now) / PostMatchSeconds)));
-                d->PathArcTo(centre, 26 * s, -1.5707963f, -1.5707963f + 6.2831853f * left, 48);
-                d->PathStroke(seconds <= 3 ? c.danger : c.accent, 0, 5 * s);
-                const std::string number = std::to_string(seconds);
-                const ImVec2 size = HeadingFont()->CalcTextSizeA(24 * s, FLT_MAX, 0, number.c_str());
-                d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
+    menu_.backInert = true; menu_.headerChips.clear();
+    menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(t.score);
+    const auto* vp = ImGui::GetMainViewport();
+    ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), IM_COL32(20, 19, 18, 140));
+    board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
+        const float s = Scale(), rowHeight = 52 * s;
+        const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
+        const ImVec2 at = ImGui::GetCursorScreenPos(); const float width = ImGui::GetContentRegionAvail().x;
+        // The countdown beside the two rows: a ring that empties over the ten
+        // seconds, red for the last three.
+        const float ring = 64 * s;
+        const ImVec2 centre(at.x + width - ring * .5f, at.y + rowHeight + 4 * s);
+        d->AddCircle(centre, 26 * s, c.button, 48, 5 * s);
+        if (!p.starting && !p.left && seconds > 0) {
+            const float left = static_cast<float>((std::min)(1.0, (std::max)(0.0, (p.until - now) / PostMatchSeconds)));
+            d->PathArcTo(centre, 26 * s, -1.5707963f, -1.5707963f + 6.2831853f * left, 48);
+            d->PathStroke(seconds <= 3 ? c.danger : c.accent, 0, 5 * s);
+            const std::string number = std::to_string(seconds);
+            const ImVec2 size = HeadingFont()->CalcTextSizeA(24 * s, FLT_MAX, 0, number.c_str());
+            d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
+        }
+        const struct { const room::Member* m; bool ready, seated; std::string word; } players[] = {
+            {local, chosen, mine >= 0, mineWord}, {opponent, theyChose, theirs >= 0, theirWord}};
+        // A tag's line, as v2::Tag sets it, to centre the tag in its row.
+        const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
+        float y = at.y;
+        for (const auto& player : players) {
+            const v2::Box r{ImVec2(at.x, y), ImVec2(at.x + width - ring - 16 * s, y + rowHeight)};
+            d->AddRectFilled(r.min, r.max, c.ink, 4 * s); d->AddRect(r.min, r.max, c.border, 4 * s, 0, s);
+            const std::string& word = player.word;
+            const ImU32 tone = !player.seated ? c.danger : &player == players && p.left ? c.muted :
+                player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
+            const float chip = v2::ChipWidth(word);
+            if (player.m) {
+                v2::TagView tag; tag.name = player.m->name; tag.marks = {player.m->country, player.m->badge};
+                tag.ping = LatencyMarkFor(v.memberLatency, *player.m, v.room.localMember);
+                v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + (rowHeight - line) * .5f), r.W() - chip - 36 * s, tag, v2::TagSize::S);
             }
-            const struct { const room::Member* m; bool ready, seated; std::string word; } players[] = {
-                {local, chosen, mine >= 0, mineWord}, {opponent, theyChose, theirs >= 0, theirWord}};
-            // A tag's line, as v2::Tag sets it, to centre the tag in its row.
-            const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
-            float y = at.y;
-            for (const auto& player : players) {
-                const v2::Box r{ImVec2(at.x, y), ImVec2(at.x + width - ring - 16 * s, y + rowHeight)};
-                d->AddRectFilled(r.min, r.max, c.ink, 4 * s); d->AddRect(r.min, r.max, c.border, 4 * s, 0, s);
-                const std::string& word = player.word;
-                const ImU32 tone = !player.seated ? c.danger : &player == players && p.left ? c.muted :
-                    player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
-                const float chip = v2::ChipWidth(word);
-                if (player.m) {
-                    v2::TagView tag; tag.name = player.m->name; tag.marks = {player.m->country, player.m->badge};
-                    tag.ping = LatencyMarkFor(v.memberLatency, *player.m, v.room.localMember);
-                    v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + (rowHeight - line) * .5f), r.W() - chip - 36 * s, tag, v2::TagSize::S);
-                }
-                v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);
-                y += rowHeight + 8 * s;
-            }
-            // What the focused button does, in the room the longest one takes, so
-            // the buttons stay put while the focus moves.
-            float words = 0;
-            for (int i = 0; i < 3; ++i) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, entries[i].detail, 17 * s, c.muted));
-            const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
-            if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
-            y += words + 24 * s;
-            // The buttons, each with its pad or key glyph, set apart from the players' rows.
-            const char* glyphs[] = {MenuSelectGlyph(), keys ? "F" : "X", MenuBackGlyph()};
-            const float w = (width - 24 * s) / 3, glyph = 26 * s, font = 17 * s;
-            for (int i = 0; i < 3; ++i) {
-                const auto& e = entries[i];
-                const v2::Box b{ImVec2(at.x + i * (w + 12 * s), y), ImVec2(at.x + i * (w + 12 * s) + w, y + rowHeight)};
-                const bool hovered = PressEntry(nav, entries, e, b, action).hovered, enabled = feedback.Enabled(e);
-                v2::Button(d, b, "", v2::ButtonKind::Secondary, e.id == nav.Focus(), hovered, enabled);
-                const float text = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x;
-                const float x = b.min.x + (b.W() - glyph - 10 * s - text) * .5f;
-                DrawPromptGlyph(d, glyphs[i], ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
-                d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 10 * s, b.min.y + (rowHeight - font) * .5f), enabled ? c.text : c.muted, e.label.c_str());
-            }
-            ImGui::SetCursorScreenPos(ImVec2(at.x, y + rowHeight)); ImGui::Dummy(ImVec2(width, 0));
-        };
-    }
-    const auto a = menu_.Draw(title.c_str(), rows, v2::On() ? "" : status.c_str(), {}, v2::On() ? 3 : 1, {}, board, 0, 70, true, Tone::Pending);
+            v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);
+            y += rowHeight + 8 * s;
+        }
+        // What the focused button does, in the room the longest one takes, so
+        // the buttons stay put while the focus moves.
+        float words = 0;
+        for (int i = 0; i < 3; ++i) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, entries[i].detail, 17 * s, c.muted));
+        const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
+        if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
+        y += words + 24 * s;
+        // The buttons, each with its pad or key glyph, set apart from the players' rows.
+        const char* glyphs[] = {MenuSelectGlyph(), keys ? "F" : "X", MenuBackGlyph()};
+        const float w = (width - 24 * s) / 3, glyph = 26 * s, font = 17 * s;
+        for (int i = 0; i < 3; ++i) {
+            const auto& e = entries[i];
+            const v2::Box b{ImVec2(at.x + i * (w + 12 * s), y), ImVec2(at.x + i * (w + 12 * s) + w, y + rowHeight)};
+            const bool hovered = PressEntry(nav, entries, e, b, action).hovered, enabled = feedback.Enabled(e);
+            v2::Button(d, b, "", v2::ButtonKind::Secondary, e.id == nav.Focus(), hovered, enabled);
+            const float text = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x;
+            const float x = b.min.x + (b.W() - glyph - 10 * s - text) * .5f;
+            DrawPromptGlyph(d, glyphs[i], ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
+            d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 10 * s, b.min.y + (rowHeight - font) * .5f), enabled ? c.text : c.muted, e.label.c_str());
+        }
+        ImGui::SetCursorScreenPos(ImVec2(at.x, y + rowHeight)); ImGui::Dummy(ImVec2(width, 0));
+    };
+    const auto a = menu_.Draw(title.c_str(), rows, "", {}, 3, {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).

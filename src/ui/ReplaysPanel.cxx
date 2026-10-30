@@ -152,7 +152,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   // A row is its file, not its place: the list is listed again while a row's choices are open.
   // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
-  if(r.archive)for(const auto& replay:*r.archive){rows.push_back(ReplayRow(v,replay,idle));if(v2::On())rows.back().height=72;}
+  if(r.archive)for(const auto& replay:*r.archive){rows.push_back(ReplayRow(v,replay,idle));rows.back().height=72;}
  }
  return rows;
 }

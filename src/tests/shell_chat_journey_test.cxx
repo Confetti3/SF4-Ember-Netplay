@@ -141,9 +141,9 @@ void ChatJourneys(){
  // The unread count: others' messages, not our own or a muted member's, on the Chat row and the board.
  say(2,"Anyone here?");say(1,"Yes, me");say(3,"Hello");h.Frame();
  Check(row("room-chat").value=="2"&&row("room-chat").detail.find(loc::Tf("room.chat.unread",2))!=std::string::npos,"The Chat row does not count messages from others");
- h.Screen("room-members");h.Choose("member-3");h.Choose("mute");h.Screen("room");h.Frame();
+ h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Select);h.Screen("room");h.Frame();
  Check(row("room-chat").value=="1","A muted member's message still counts as unread");
- h.Screen("room-members");h.Choose("member-3");h.Choose("mute");h.Screen("room");h.Frame();
+ h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Select);h.Screen("room");h.Frame();
  Check(row("room-chat").value=="2","Unmuting did not bring the count back");
  // Opening Chat clears it; so does reading it where the keyboard opens it.
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View did not open chat");
@@ -152,12 +152,9 @@ void ChatJourneys(){
  say(2,"Another");h.Frame();Check(row("room-chat").value=="1","A message after reading did not count");
  h.Screen("home");say(2,"While on Home");h.Frame();h.Screen("room");h.Frame();
  Check(row("room-chat").value=="2","Messages that arrived away from the room screens did not count");
- // The message box is live as soon as the screen opens: letters, F, T and C are text, and the keys are not advertised.
- std::set<std::string> legend;
+ // The message box is live as soon as the screen opens: letters, F, T and C are text.
  h.Screen("room");h.Press(MenuInput::Chat);h.Frame(0,4);
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))legend.insert(id+7);});
- h.Frame();SetMenuTextProbe({});
- Check(!legend.count(loc::T("room.legend_fighter"))&&legend.count(loc::T("common.back")),"The chat legend offers keys that type letters, or lacks Back");
+ h.Frame();
  Check(!row("compose").enabled&&row("compose").value.empty(),"An empty draft offers Send");
  io.AddInputCharactersUTF8("fct ");h.Frame(0,2);key(ImGuiKey_F);key(ImGuiKey_Space);
  Check(h.shell.Navigation().Screen()=="room-chat"&&row("compose").value=="fct ","Typing in chat pressed a menu key or was lost");
@@ -291,9 +288,7 @@ void ChatJourneys(){
  sequence=0;JoinChatRoom(h,30);h.view.session.coordinated=true;h.view.session.authorityWritable=true;
  h.Screen("room");h.Frame();h.Frame(MenuInput::Chat);
  const auto flip=[&]{h.view.session.authorityWritable=!h.view.session.authorityWritable;};
- // What each frame offered: the keys that type letters are never advertised, and Send follows the draft alone.
- std::set<std::string> offered;
- SetMenuTextProbe([&](const char* id,float,float,float,float){if(!std::strncmp(id,"legend/",7))offered.insert(id+7);});
+ // Send follows the draft alone, whatever the fence does.
  const auto flicker=[&](const std::string& text){
   for(const char c:text){
    flip();
@@ -309,8 +304,6 @@ void ChatJourneys(){
  flip();h.Frame(0,3);
  flicker("fct xtc f");
  h.Frame(0,2);
- SetMenuTextProbe({});
- Check(!offered.count(loc::T("room.legend_fighter"))&&offered.count(loc::T("common.back")),"The fence flipping changed the keys the chat legend offers");
  const std::string drafted=row("compose").value;
  Check(drafted.size()>=9&&drafted.compare(drafted.size()-9,9,"fct xtc f")==0,"Characters were lost while the fence flipped under the message box");
  // With the box not yet active, the keys are still text on this screen.
@@ -453,7 +446,7 @@ void ChatJourneys(){
  Check(typing()==loc::Tf("chat.typing.one","Peer")&&box.x==quiet.x&&box.y==quiet.y,"One member typing was not named, or moved the box");
  members[2].typingMs=4000;Check(typing()==loc::Tf("chat.typing.two","Peer","Third"),"Two members typing were not both named");
  members[3].typingMs=4000;Check(typing()==loc::T("chat.typing.many"),"Three members typing were not several people");
- h.Screen("room-members");h.Choose("member-3");h.Choose("mute");h.Screen("room-chat");h.Frame();
+ h.Screen("room-members");h.Choose("member-3");h.Press(MenuInput::Select);h.Screen("room-chat");h.Frame();
  Check(typing()==loc::Tf("chat.typing.two","Peer","Fourth"),"A muted member was listed as typing");
  for(auto& m:members)m.typingMs=0;
  Check(typing().empty(),"Typing stayed after it ran out");

@@ -27,8 +27,6 @@ constexpr ImU32 Muted = IM_COL32(181, 169, 155, 255);
 // success status are the same green rather than two near-identical ones.
 constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 }
-// The focused button of a modal dialog, and the other one.
-inline ImVec4 DialogButtonColor(bool selected) { return selected ? ImVec4(.5f,.25f,.1f,1) : ImVec4(.15f,.14f,.13f,1); }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
 // Ember over a game the player watches (ShellView::SeeThrough) lets the game
@@ -40,16 +38,15 @@ constexpr float WatchedMatchWindowAlpha = .72f;
 constexpr float WatchedPictureShare = .25f;
 // The same for a PlayerPreferences::pictureSpot: small (this share), medium or large.
 inline float WatchedPictureShareFor(int spot) { const float shares[] = {WatchedPictureShare, .33f, .42f}; return shares[spot / 4 < 0 ? 0 : spot / 4 > 2 ? 2 : spot / 4]; }
-// The picture's copy, at the largest share it is shown: the V2 room board's cinema picture.
+// The picture's copy, at the largest share it is shown: the room board's cinema picture.
 constexpr float WatchedPictureTaken = .62f;
-inline ImVec4 BoardPanelColor(bool seeThrough) { return ImVec4(.08f,.075f,.07f,seeThrough ? .6f : .84f); }
 
 // Call between frames. A true result requires backend font texture recreation.
 // Text is drawn at `displayScale` times the player's Interface size (Scale()):
 // over the game the larger of Windows' DPI scale and the picture's height over
-// 1080 lines, in the recovery window Windows' DPI scale alone. With `em` (the
-// V2 look) a size passed with a font is its em, as on the design boards.
-bool ApplyTheme(float displayScale, float interfaceScale = 1.f, bool em = false);
+// 1080 lines, in the recovery window Windows' DPI scale alone. A size passed
+// with a font is its em, as on the design boards.
+bool ApplyTheme(float displayScale, float interfaceScale = 1.f);
 // What player text is, from most to least worth atlas space when more distinct
 // characters are on screen than the atlas can hold.
 enum class UserTextRole { Name, Chat, Draft };
@@ -86,7 +83,6 @@ ImFont* DiagnosticFont();
 const char* FontLicense();
 ImVec4 ToneColor(Tone tone);
 void Header(const char* title, const char* subtitle = nullptr, bool brand = false);
-void MenuHeader(const char* title, bool home = false);
 void Section(const char* title);
 void Status(const char* text, Tone tone = Tone::Neutral);
 void Text(const char* format, ...);

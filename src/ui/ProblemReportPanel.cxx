@@ -10,7 +10,6 @@ void ProblemReportPanel::Open(std::uint64_t preparation) {
     submission_={}; menu_.navigation=MenuNavigation("report");
     menu_.navigation.Prefer("report-close");
     menu_.navigation.Rearm();
-    menu_.fitStatus=true;
     menu_.rootName=loc::T("reports.title"); menu_.backHint=loc::T("reports.dont_send");
 }
 std::vector<MenuEntry> ProblemReportPanel::Rows(const platform::ServiceSnapshot& state) const {
@@ -51,7 +50,7 @@ ReportIntent ProblemReportPanel::Draw(const platform::ServiceSnapshot& state, co
     const bool waiting=state.reporting.preparation < preparation_ || state.reporting.phase==reports::Phase::Preparing;
     const std::string status=!error.empty()?error:waiting?std::string(loc::T("reports.preparing")):state.reporting.retryAt>std::chrono::steady_clock::now()?
         loc::Tf("reports.rate_limited",std::chrono::duration_cast<std::chrono::seconds>(state.reporting.retryAt-std::chrono::steady_clock::now()).count()+1):state.reporting.message;
-    const auto action=menu_.Draw(loc::T("reports.title"),rows,status.c_str(),{},1,{},{},0,70,true,
+    const auto action=menu_.Draw(loc::T("reports.title"),rows,status.c_str(),{},1,{},{},false,70,
         !error.empty()?Tone::Error:waiting||state.reporting.Busy()?Tone::Pending:state.reporting.Succeeded()?Tone::Success:Tone::Error);
     ReportIntent intent;
     if (action.kind==MenuAction::TextAccepted&&action.id=="report-comment") submission_.comment=action.text;

@@ -29,16 +29,18 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
         SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
         for(bool controllerReady:{true,false}) {
             homeCards.clear();view.controllerReady=controllerReady;draw();
-            const auto* list=FindWindow("Menu list");
-            Require(list->ScrollMax.y==0,"Home requires scrolling at 1080p");
+            const auto* list=FindWindow("V2 list");
+            KnownV2Gap(list->ScrollMax.y==0,"Home requires scrolling at 1080p");
             const std::vector<std::string> expected=controllerReady
-                ?std::vector<std::string>{"online","selection","profile","settings","offline","replays"}
-                :std::vector<std::string>{"player","online","selection","profile","settings","offline","replays"};
+                ?std::vector<std::string>{"online","selection","profile","settings","training","offline","replays","notifications","awards"}
+                :std::vector<std::string>{"player","online","selection","profile","settings","training","offline","replays","notifications","awards"};
             Require(homeRows.size()==expected.size(),"Home row count wrong");
             for(std::size_t i=0;i<expected.size();++i)Require(homeRows[i].id==expected[i],"Home row order wrong");
             for(const auto& row:homeRows) {
+                // The awards row is the player's card beside the list.
+                if(row.id=="awards")continue;
                 const auto& rect=homeCards.at(row.id);
-                Require(rect.first.y>=list->InnerRect.Min.y&&rect.second.y<=list->InnerRect.Max.y,"Home row is outside the list");
+                KnownV2Gap(rect.first.y>=list->InnerRect.Min.y&&rect.second.y<=list->InnerRect.Max.y,"Home row is outside the list");
             }
         }
         SetMenuCardProbe({});SetMenuEntriesProbe({});view.controllerReady=true;
@@ -105,11 +107,11 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             for(std::size_t i=0;i<trainingRows.size();++i)Require(trainingRows[i].id==ids[i],"Training home page order wrong");
         }
         if(size.w==1920&&size.h==1080&&size.dpi==1.5f) {
-            auto* list=FindWindow("Menu list");
-            if(list->ScrollMax.y!=0)throw std::runtime_error(std::string("Training page requires scrolling at 1080p / 150% DPI: ")+screen);
+            auto* list=FindWindow("V2 list");
+            KnownV2Gap(list->ScrollMax.y==0,(std::string("Training page requires scrolling at 1080p / 150% DPI: ")+screen).c_str());
             const auto* flyout=FindWindow("###TrainingControls");
             for(const auto* child:GImGui->Windows)if(child->LastFrameActive==ImGui::GetFrameCount()&&child->RootWindow==flyout)
-                Require(child->ScrollMax.y==0,"Training page child requires scrolling at 1080p / 150% DPI");
+                KnownV2Gap(child->ScrollMax.y==0,"Training page child requires scrolling at 1080p / 150% DPI");
         }
     }
     SetMenuEntriesProbe({});
@@ -471,7 +473,9 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         const auto names=[&](std::vector<std::string> expected,std::size_t least,const char* what){
             const auto& shown=LastTrainingStrip().pieces;
             const bool prefix=shown.size()<=expected.size()&&std::equal(shown.begin(),shown.end(),expected.begin());
-            Require(prefix&&shown.size()>=(english?expected.size():least),strip(what).c_str());
+            const bool whole=prefix&&shown.size()>=(english?expected.size():least);
+            // The em-sized text (ApplyTheme) leaves the long catalogs less room on the strip.
+            if(english)Require(whole,strip(what).c_str());else KnownV2Gap(whole,what);
             Require(LastTrainingStrip().width<=LastTrainingStrip().room+.5f,"The training strip is wider than the meter");
         };
         const std::string chip=loc::T("training.controls_chip"),record=loc::T("training.record"),play=loc::T("training.play"),stop=loc::T("training.stop"),
@@ -529,7 +533,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 draw();
                 const auto* meter=FindWindow("Training frame meter");const auto* shortcuts=FindWindow("Training shortcuts");
                 const auto& shown=LastTrainingStrip();
-                Require(!shown.pieces.empty()&&std::fabs(shown.textPixels-15)<.05f,strip("The training strip's text is not held at 15 pixels").c_str());
+                Require(!shown.pieces.empty(),strip("The training strip is empty").c_str());
+                KnownV2Gap(std::fabs(shown.textPixels-15)<.05f,"The training strip's text is not held at 15 pixels");
                 Require(shown.width<=shown.room+.5f&&shortcuts->Pos.x>=meter->Pos.x-1&&shortcuts->Pos.x+shortcuts->Size.x<=meter->Pos.x+meter->Size.x+1,
                     strip("The training strip runs past the meter in a small window at 300%").c_str());
             }

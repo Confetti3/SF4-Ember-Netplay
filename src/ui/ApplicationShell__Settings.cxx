@@ -1,8 +1,8 @@
-// Settings in the V2 look: six tabs, each a rail of panels made from the
-// classic Settings pages' own rows. A tab's screen ("tab-matches") has one row
-// per panel; Select opens the panel as its own screen ("tab-matches/1"), so
-// Back closes it. Every row keeps its id, so the same handlers serve both
-// looks; only where a row is shown changes.
+// Settings: six tabs, each a rail of panels made from the Settings pages' own
+// rows (BuildRows: "player", "interface", ...). A tab's screen ("tab-matches")
+// has one row per panel; Select opens the panel as its own screen
+// ("tab-matches/1"), so Back closes it. Every row keeps its id, so the pages'
+// handlers serve the tabs.
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
 #include "Theme.hxx"
@@ -27,7 +27,7 @@ std::vector<MenuEntry> ApplicationShell::SettingsTabRows(const ShellView& v, con
     const DrawSelection& selection, const DrawSelection& developer, std::string& title) {
     std::vector<MenuEntry> rows;
     std::string ignored;
-    // A classic page's rows under `group`, those `keep` takes.
+    // A page's rows under `group`, those `keep` takes.
     const auto add = [&](const char* page, const char* group, bool (*keep)(const std::string&) = nullptr) {
         for (auto& row : BuildRows(v, page, idle, opening, selection, developer, ignored)) {
             if (keep && !keep(row.id)) continue;
@@ -46,7 +46,7 @@ std::vector<MenuEntry> ApplicationShell::SettingsTabRows(const ShellView& v, con
         add("defaults", loc::T("screen.defaults"));
         add("training-replays", loc::T("settings.training_replays"));
     } else if (tab == "tab-interface") {
-        add("interface", loc::T("settings.group.look"), [](const std::string& id) { return id == "look" || id == "tv"; });
+        add("interface", loc::T("settings.group.look"), [](const std::string& id) { return id == "tv"; });
         add("interface", loc::T("settings.match_hud"), [](const std::string& id) { return id.compare(0, 3, "hud") == 0; });
         add("interface", loc::T("settings.group.room_layout"), [](const std::string& id) { return id.compare(0, 8, "arrange-") == 0; });
         add("interface", loc::T("settings.group.sounds"), [](const std::string& id) { return id.compare(0, 5, "ready") == 0; });
@@ -87,7 +87,7 @@ std::vector<MenuEntry> ApplicationShell::SettingsTabRows(const ShellView& v, con
     return shown;
 }
 
-// V2's Settings tab, as the design's board: the rail of panels on the left
+// A Settings tab, as the design's board: the rail of panels on the left
 // (360 px wide with all closed, 220 while one is open), the panel's rows in a
 // section beside it with its preview, and the focused row's words under them.
 // Narrow, the rail and the open panel each take the whole width in turn.

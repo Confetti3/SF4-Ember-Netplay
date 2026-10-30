@@ -209,7 +209,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"showMatchHud", &PlayerPreferences::showMatchHud, true}, {"matchHudRaised", &PlayerPreferences::matchHudRaised, false},
         {"showShortcutHint", &PlayerPreferences::showShortcutHint, true},
         {"readySound", &PlayerPreferences::readySound, true}, {"trainingAutoReady", &PlayerPreferences::trainingAutoReady, false},
-        {"classEmblems", &PlayerPreferences::classEmblems, true}, {"lookV2", &PlayerPreferences::lookV2, false}, {"tvMode", &PlayerPreferences::tvMode, false},
+        {"classEmblems", &PlayerPreferences::classEmblems, true}, {"tvMode", &PlayerPreferences::tvMode, false},
         {"welcomed", &PlayerPreferences::welcomed, true},
         {"roomShowMembers", &PlayerPreferences::roomShowMembers, true}, {"roomShowChat", &PlayerPreferences::roomShowChat, true},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false}, {"endlessLobbyMusic", &PlayerPreferences::endlessLobbyMusic, true},
@@ -218,7 +218,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"shareReplays", &PlayerPreferences::shareReplays, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false},
-        {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}, {"roomMembersHidden", &PlayerPreferences::roomMembersHidden, false}, {"roomChatHidden", &PlayerPreferences::roomChatHidden, false}};
+        {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
     for (const auto& entry : expected) {
         const auto found = std::find_if(std::begin(sf4e::netplay::BoolPreferences), std::end(sf4e::netplay::BoolPreferences),

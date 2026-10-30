@@ -258,8 +258,6 @@ void WatcherRoom() {
  {
   Bound h(true);
   // The board's member cards, as drawn.
-  std::map<std::string, std::string> cards;
-  SetMenuCardTextProbe([&](const std::string& id, const std::string& text) { cards[id] = text; });
   h.Screen("room");
   h.Frame(0, 2);
   Check(h.status == loc::T("room.tournament_watching"), "A watcher's room does not say it is watching");
@@ -267,9 +265,6 @@ void WatcherRoom() {
   Check(h.row("member-3") && h.row("member-3")->detail == loc::Tf("room.member_status", std::string(loc::T("room.member.watcher")) + " / j25zrhe6-pmdhvlja"),
    "A watcher is not tagged with its Ember ID");
   Check(h.row("member-1")->detail == loc::Tf("room.member_status_host", loc::T("room.status.seated")), "A fighter's row changed");
-  const auto watcherLine = loc::Tf("room.member_status", std::string(loc::T("room.member.watcher")) + " / j25zrhe6-pmdhvlja");
-  Check(cards["member-3"] == watcherLine, "A watcher's card is not tagged with its Ember ID");
-  Check(cards["member-1"] == loc::Tf("room.board_status_host_slot", loc::T("room.status.seated"), 1), "A fighter's card changed");
   Check(!h.has("copy") && !h.has("copy-short"), "A bound room offers its invitation");
   // An identifier with no key shape is shown whole.
   Check(ShortEmberId("emb1_watcher1") == "emb1_watcher1" && ShortEmberId("emb1_j25zrhe6yjirrt6lgivzsqfrlszk3sqwxwoa6k2xtkugpmdhvlja") == "j25zrhe6-pmdhvlja",
@@ -281,11 +276,11 @@ void WatcherRoom() {
   // Holding the host field with no fighter left, it has none of the host's rows.
   h.Screen("room");
   h.view.room.host = 3; h.view.room.members[0].host = false; h.view.room.members[2].host = true;
-  cards.clear();
   h.Frame(0, 2);
-  Check(h.row("room-admin") && !h.row("room-admin")->enabled, "A watcher holding the host field can change the room");
-  Check(cards["member-3"] == watcherLine, "A watcher holding the host field shows as HOST on its card");
-  SetMenuCardTextProbe({});
+  // The room's settings are a choice of More...
+  const auto* more = h.row("room-more");
+  const auto admin = more ? std::find_if(more->choices.begin(), more->choices.end(), [](const MenuChoice& c) { return c.id == "room-admin"; }) : std::vector<MenuChoice>::const_iterator{};
+  Check(more && admin != more->choices.end() && !admin->enabled, "A watcher holding the host field can change the room");
   // Nor is it told it hosts when it leaves.
   Check(room_controls::LeaveRoomDetail(h.view).find(loc::T("room.leave.host")) == std::string::npos, "A watcher holding the host field is warned it hosts the room");
  }
@@ -307,12 +302,17 @@ void WatcherRoom() {
   Check(h.status == loc::Tf("room.tournament_status_watched", 2, 1), "A fighter's room does not count its watchers");
   Check(h.row("table-0") && h.row("table-0")->choices.empty(), "A fighter is offered the seat chooser");
   Check(ChatGateOf(h.view) == ChatGate::Writable && ChatTypable(h.view), "A fighter cannot type in the chat");
+  // A member's actions are the choices on their row.
   h.Choose("room-members");
-  h.Choose("member-3");
-  Check(h.row("transfer-host") && !h.row("transfer-host")->enabled, "A watcher can be handed the host");
-  h.Press(MenuInput::Back);
-  h.Choose("member-2");
-  Check(h.row("transfer-host") && h.row("transfer-host")->enabled, "A fighter cannot be handed the host");
+  h.Frame();
+  const auto handable = [&](const char* member) {
+   const auto* row = h.row(member);
+   if (!row) return -1;
+   const auto it = std::find_if(row->choices.begin(), row->choices.end(), [](const MenuChoice& c) { return c.id == "transfer-host"; });
+   return it == row->choices.end() ? -1 : it->enabled ? 1 : 0;
+  };
+  Check(handable("member-3") == 0, "A watcher can be handed the host");
+  Check(handable("member-2") == 1, "A fighter cannot be handed the host");
   // No watchers left: the fighters' line is as it was.
   h.Screen("room");
   h.view.room.tournament.watchers.clear();

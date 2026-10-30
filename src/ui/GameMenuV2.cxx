@@ -1,9 +1,8 @@
-// The V2 look of a menu screen (the V2 Overhaul design), cut from the window
+// A menu screen as the V2 Overhaul design draws it, cut from the window
 // with v2::Box: the hint bar off the bottom, the brand or the title and its
 // tabs off the top, then the cards with a detail pane (or, on Home, the
 // player's card) beside them. A value's choices open in a panel on its card.
-// Input, navigation and the dialogs are GameMenu's own, so a screen behaves
-// the same in either look.
+// Input, navigation and the dialogs are GameMenu::Draw's.
 #include "GameMenu.hxx"
 #include "MenuGlyphs.hxx"
 #include "MenuPresentation.hxx"
@@ -18,7 +17,7 @@
 namespace sf4e { namespace ui {
 namespace {
 using v2::Fit;
-// A title written in capitals, as the classic headers are.
+// A title written in capitals ("SETTINGS").
 bool IsCapitals(const char* text) {
     bool letter = false;
     for (; *text; ++text) { if (*text >= 'a' && *text <= 'z') return false; letter |= *text >= 'A' && *text <= 'Z'; }
@@ -55,7 +54,8 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
     const float labelSize = (home ? 20 : 18) * s, detailSize = 15 * s;
     const bool second = twoLines && !e.detail.empty();
     const float labelY = second ? c.min.y + 10 * s : c.min.y + (h - labelSize) * .5f;
-    d->AddText(labelFont, labelSize, ImVec2(left, labelY), text, Fit(e.label, labelRoom, labelSize, labelFont).c_str());
+    // A player's own words may elide; the probe measures only interface strings.
+    d->AddText(labelFont, labelSize, ImVec2(left, labelY), text, Fit(e.label, labelRoom, labelSize, labelFont, !e.userText).c_str());
     if (second) {
         NoteDetailText(e.detail, e.detailText);
         // A card's detail may shorten: the detail pane and speech give it whole.
@@ -68,7 +68,8 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
         v2::Chip(d, ImVec2(right - valueText, c.min.y + (h - ImGui::GetFontSize() * .78f - 8 * s) * .5f), e.value, v2::Colors().accent);
     } else if (valueText > 0) {
         if (e.userText || e.text) NoteUserText(e.value);
-        const std::string shown = Fit(e.value, valueText, ImGui::GetFontSize(), ImGui::GetFont());
+        // A value may elide (the detail pane says it whole); the probe measures labels.
+        const std::string shown = Fit(e.value, valueText, ImGui::GetFontSize(), ImGui::GetFont(), false);
         d->AddText(ImVec2(right - ImGui::CalcTextSize(shown.c_str()).x, valueY), e.valueHighlighted ? v2::Colors().accent : v2::Colors().muted, shown.c_str());
     }
     if (chevron) Chevron(d, ImVec2(c.max.x - 22 * s, c.min.y + h * .5f), 6 * s, enabled ? v2::Colors().muted : v2::color::Alpha(v2::Colors().muted, .5f));
@@ -89,7 +90,7 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
     }
     const std::string value = e.value.empty() ? loc::T("common.not_set") : e.value;
     const ImU32 shown = e.valueHighlighted ? col.accent : text;
-    const std::string fit = Fit(value, box.W() - 40 * s, ImGui::GetFontSize(), ImGui::GetFont());
+    const std::string fit = Fit(value, box.W() - 40 * s, ImGui::GetFontSize(), ImGui::GetFont(), false);
     const ImU32 arrow = enabled ? col.accent : col.muted;
     d->AddText(ImVec2(box.min.x, y), arrow, "<");
     d->AddText(ImVec2(box.min.x + (box.W() - ImGui::CalcTextSize(fit.c_str()).x) * .5f, y), shown, fit.c_str());
@@ -109,13 +110,13 @@ void DrawMenuRow(ImDrawList* d, const MenuEntry& e, v2::Box r, bool enabled, flo
     const ImU32 text = enabled ? c.text : c.muted;
     // A switch takes only its own width, so its label has the rest.
     const float value = MenuValueIsToggle(e) ? 36 * s : e.adjustable || !e.value.empty() ? valueWidth : -inset - 8 * s;
-    v2::Text(d, ImVec2(r.min.x + inset, y), right - value - 8 * s - r.min.x - inset, e.label, font, text);
+    v2::Text(d, ImVec2(r.min.x + inset, y), right - value - 8 * s - r.min.x - inset, e.label, font, text, nullptr, false, !e.userText);
     if (e.userText || e.text) NoteUserText(e.value);
     if (e.adjustable) { DrawMenuValue(d, e, {ImVec2(right - valueWidth, r.min.y), ImVec2(right, r.max.y)}, enabled, text); return; }
     // A fixed value, then the chevron of a row Select opens (an info row has none).
     const float end = e.info ? right : right - 18 * s;
     if (!e.value.empty()) {
-        const std::string shown = Fit(e.value, valueWidth - 20 * s, font, ImGui::GetFont());
+        const std::string shown = Fit(e.value, valueWidth - 20 * s, font, ImGui::GetFont(), false);
         d->AddText(ImVec2(end - ImGui::CalcTextSize(shown.c_str()).x, y), e.valueHighlighted ? c.accent : e.info ? c.muted : text, shown.c_str());
     }
     if (!e.info) Chevron(d, ImVec2(right - 6 * s, r.min.y + r.H() * .5f), 6 * s, enabled ? c.muted : v2::color::Alpha(c.muted, .5f));
@@ -158,7 +159,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     const bool narrow = v2::Narrow(size.x, s), changed = lastScreen_ != navigation.Screen();
     const float side = flyout ? 16 * s : v2::SideMargin(size.x, s), pad = flyout ? 12 * s : v2::Pad(size.x, s);
     // A flyout (the training controls) sits over the fight: no art behind it.
-    if (backdrop && !flyout) DrawMenuBackdrop(true);
+    if (backdrop && !flyout) DrawMenuBackdrop();
     bool backRequested = false;
     const auto focusedEntry = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == navigation.Focus(); });
     const auto mouse = ImGui::GetIO().MouseDelta;
@@ -176,7 +177,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         v2::CutTop(content, mark, 24 * s);
     } else {
         ImGui::BeginGroup();
-        // Classic titles are capitals ("SETTINGS"); the V2 header names the screen as the menus do.
+        // A title in capitals gives way to the screen's name as the menus write it.
         // A flyout's root is named by its owner (rootName), its pages as the menus name them.
         const char* named = navigation.Screen() == navigation.Root() && !rootName.empty() ? rootName.c_str() : MenuScreenName(navigation.Screen());
         // Its Back button is the hint bar's Back, so it closes an open question first.
@@ -351,6 +352,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             const bool pressed = ImGui::InvisibleButton("##card", ImVec2(w, h));
             const bool hovered = ImGui::IsItemHovered();
             ImGui::PopID();
+            ReportMenuCard(e.id.c_str(), c.min, c.max);
             // The value's ends step it; anything else on the card is Select.
             const float valueWidth = e.adjustable ? (std::min)(220 * s, w * .4f) : 0;
             if (pressed && listEnabled && !modalAtStart && !navigation.Editing() && !navigation.Asking()) {
@@ -365,7 +367,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             }
             if (!ImGui::IsItemVisible()) continue;
             v2::CardGround(ld, c, focused, hovered, e.valueHighlighted);
-            // A screen's own drawing of its rows (portraits, flags, rankings), as Classic draws them.
+            // A screen's own drawing of its rows (portraits, flags, rankings).
             if (card && card(e, c.min, c.max)) { if (focused) v2::Focus(ld, c.min, c.max, !cell); continue; }
             DrawCardContent(ld, e, c, enabled, twoLines && !cell, home, valueWidth, listWidth > 0);
             if (focused) v2::Focus(ld, c.min, c.max, !cell);
@@ -402,7 +404,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
                 for (std::size_t i = 0; i < shown; ++i) {
                     const float y = box.min.y + head + i * item;
                     NoteUserText(news[i].title);
-                    d->AddText(HeadingFont(), 16 * s, ImVec2(box.min.x + 16 * s, y + 10 * s), c.text, Fit(news[i].title, box.W() - 32 * s, 16 * s, HeadingFont()).c_str());
+                    d->AddText(HeadingFont(), 16 * s, ImVec2(box.min.x + 16 * s, y + 10 * s), c.text, Fit(news[i].title, box.W() - 32 * s, 16 * s, HeadingFont(), false).c_str());
                     d->AddText(ImGui::GetFont(), 13 * s, ImVec2(box.min.x + 16 * s, y + 32 * s), c.muted, news[i].meta.c_str());
                     d->AddLine(ImVec2(box.min.x, y + item), ImVec2(box.max.x, y + item), v2::color::Alpha(c.border, .6f), s);
                 }

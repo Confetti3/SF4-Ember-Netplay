@@ -286,10 +286,6 @@ void StartHelper() {
             runtime->preferences.mainFighter=main>=0&&main<sf4e::selection::FighterCount?main:0;
             const float scale = saved.value("interfaceScale", 1.f);
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
-            const int side = saved.contains("roomSideWidth") && saved["roomSideWidth"].is_number_integer() ? saved["roomSideWidth"].get<int>() : 50;
-            runtime->preferences.roomSideWidth = side >= netplay::MinRoomSideWidth && side <= netplay::MaxRoomSideWidth ? side : 50;
-            const int members = saved.contains("roomMemberShare") && saved["roomMemberShare"].is_number_integer() ? saved["roomMemberShare"].get<int>() : 56;
-            runtime->preferences.roomMemberShare = members >= netplay::MinRoomMemberShare && members <= netplay::MaxRoomMemberShare ? members : 56;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.

@@ -30,24 +30,6 @@ SkillBadge Shown(const Standing& standing) {
     return standing.kind == Standing::Kind::Ranked && standing.classesShown ? standing.badge : SkillBadge();
 }
 
-// Your class: its emblem at heading size, then "Your class", the heading and the line.
-void DrawStandingCard(const MenuEntry& e, const Standing& standing, ImVec2 min, ImVec2 max) {
-    const float s = Scale(), pad = 16 * s, font = ImGui::GetFontSize(), heading = font * 1.5f;
-    const SkillBadge badge = Shown(standing);
-    // "Your class" heads a class or a placing rating, not the developer mark.
-    const bool ranked = badge.HasClass() || badge.kind == SkillBadge::Kind::Placing;
-    const float x = min.x + pad, emblem = Marks(x, min.y + (max.y - min.y - heading * 1.4f) * .5f, heading * 1.4f, {CountryCode(), badge});
-    const float left = x + emblem, width = max.x - pad - left;
-    float y = min.y + 12 * s;
-    if (ranked) {
-        DrawCardLine(ImVec2(left, y), font * .8f, palette::Muted, loc::T("rankings.your_class"), width, "rk-standing-label", font);
-        y += font * .8f + 2 * s;
-    }
-    DrawCardLine(ImVec2(left, y), heading, palette::Ivory, e.label, width, "rk-standing", heading * 1.2f);
-    y += heading + 4 * s;
-    DrawCardParagraph(ImVec2(left, y), font * .85f, palette::Muted, e.detail, width, max.y - 8 * s - y, "rk-standing-detail");
-}
-
 // A row with marks before its label and, on the right, before its value. A
 // player's own name may elide; an interface label must fit. `own` puts the
 // You chip before the value's place.
@@ -104,10 +86,10 @@ bool StateCard(const std::string& id) {
     return false;
 }
 
-// V2 (the Rankings design board): your class as a big emblem beside your tag,
+// The Rankings design board: your class as a big emblem beside your tag,
 // its name and its line; you and the board's players as S tags, you with the
 // You chip; a class's heading in the accent with its count. False for the
-// rest, which draw as Classic does.
+// rest (the state cards, Board as), which DrawRankingsRow draws plainly.
 bool DrawV2Row(const MenuEntry& e, const Standing* standing, const std::vector<netplay::rankings::BoardEntry>* board, ImVec2 min, ImVec2 max) {
     const float s = Scale(), h = max.y - min.y;
     const auto& c = v2::Colors();
@@ -172,16 +154,11 @@ bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 
     if (!known) return false;
     // A board of hundreds paints only the rows in view.
     if (!ImGui::IsRectVisible(min, max)) return true;
-    if (v2::On() && DrawV2Row(e, standing, board, min, max)) return true;
+    if (DrawV2Row(e, standing, board, min, max)) return true;
     if (StateCard(e.id)) DrawStateCard(e, min, max);
-    else if (e.id == "rk-standing" && standing) DrawStandingCard(e, *standing, min, max);
     else if (e.id == "rk-board-as") {
         const bool listed = standing && standing->listed && e.value == standing->listing.name;
         DrawMarkedRow(e, min, max, {}, {listed ? standing->listing.country : CountryCode(), {}}, false);
-    } else if (e.id == "rkb-you") DrawMarkedRow(e, min, max, {}, {CountryCode(), standing ? Shown(*standing) : SkillBadge()}, false);
-    else if (StartsWith(e.id, "rkb-class:")) {
-        const auto badge = SkillBadge::OfClass(static_cast<std::uint8_t>(e.key), true);
-        DrawMarkedRow(e, min, max, {CountryCode(), badge}, {}, false);
     } else {
         const auto index = static_cast<std::size_t>(e.key);
         if (!board || index >= board->size()) return false;

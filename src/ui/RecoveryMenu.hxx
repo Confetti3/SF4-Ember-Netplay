@@ -192,32 +192,17 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
     const std::string& status=service?state.message:message;
     const Tone tone=service?(state.pending?Tone::Pending:state.succeeded?Tone::Success:Tone::Error):
         !message.empty()?messageTone:state.pending?Tone::Pending:Tone::Neutral;
-    // stableStatus: GameMenu only draws the status line for a flyout or a
-    // stable-status screen, which recovery is not. fitStatus: launcher messages
-    // run to several lines and name the files to move and the folders to look in.
-    menu.fitStatus=true;
-    // V2: the words and the update's progress on the left, the rows as cards
-    // on the right with Retry or a found update marked as the thing to do. Too
+    // The words and the update's progress on the left, the rows as cards on
+    // the right with Retry or a found update marked as the thing to do. Too
     // narrow for the column, the status goes to the hint bar.
-    const bool look=v2::On();
     const float s=Scale(),width=vp->Size.x;
-    const bool column=look&&!v2::Narrow(width,s)&&width-2*v2::SideMargin(width,s)>=820*s;
-    menu.paneLeft=menu.customDetail=look;menu.backdrop=!look;menu.listWidth=look?520.f:0;
-    if(look)for(auto& row:rows)row.valueHighlighted=row.id=="install"||(row.id=="retry"&&!updates);
+    const bool column=!v2::Narrow(width,s)&&width-2*v2::SideMargin(width,s)>=820*s;
+    menu.paneLeft=menu.customDetail=true;menu.backdrop=false;menu.listWidth=520.f;
+    for(auto& row:rows)row.valueHighlighted=row.id=="install"||(row.id=="retry"&&!updates);
     const auto action=menu.Draw(updates?loc::T("updates.title"):loc::T("recovery.title"),rows,column?"":status.c_str(),[&](const std::string& id){
-        if(look){
-            const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
-            DrawRecoveryPane(state,status,tone,row==rows.end()?nullptr:&*row);
-            return;
-        }
-        if(!state.pending)return;
-        // An installing update with no total (extracting, or a step just begun) gets Dear ImGui's moving bar.
-        if(state.stageTotal)ImGui::ProgressBar((std::min)(1.f,float(state.stageDone)/state.stageTotal),ImVec2(-1,0));
-        else if(state.lastAction==platform::ServiceAction::InstallUpdate)ImGui::ProgressBar(-1.f*float(ImGui::GetTime()),ImVec2(-1,0));
-        if(state.updateStage!=launcher::UpdateStage::Downloading||!state.stageDone)return;
-        const auto progress=loc::Tf("updates.downloaded_mb",state.stageDone/1048576.0);
-        ImGui::TextWrapped("%s",progress.c_str());
-    },1,{},{},0,100,true,tone);
+        const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
+        DrawRecoveryPane(state,status,tone,row==rows.end()?nullptr:&*row);
+    },1,{},{},false,100,tone);
     ImGui::End();
     if(action.kind==MenuAction::Close)return RecoveryChoice::Close;
     if(action.kind==MenuAction::Adjust&&action.id=="channel"&&channelPick&&!state.pending)channelPick->Step(state.channel,action.delta);

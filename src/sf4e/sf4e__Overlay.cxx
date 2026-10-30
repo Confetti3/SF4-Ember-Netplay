@@ -423,10 +423,6 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
     view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
-    if (fighter) {
-        view.hintFighter = fighter->name; view.hintUltra = sf4e::ui::ShortUltraLabel(summaryPick.ultra);
-        view.hintAppearance = sf4e::ui::ShortAppearanceLabel(summaryPick, snapshot.installedContent.get());
-    }
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
@@ -544,12 +540,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
-    // V2 sizes text by the em, a quarter larger in TV mode; v2::On() is still last frame's look.
-    const bool lookV2 = sf4e::ui::v2::On();
-    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale * (lookV2 && snapshot.preferences.tvMode ? 1.25f : 1.f), lookV2))
+    // Text is a quarter larger in TV mode.
+    if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale * (snapshot.preferences.tvMode ? 1.25f : 1.f)))
         ImGui_ImplDX9_InvalidateDeviceObjects();
-    // The look the HUD and the menus draw in (Settings > Interface > Look); the shell follows its own edits sooner.
-    sf4e::ui::v2::SetOn(snapshot.preferences.lookV2);
     // A replay being exported can be followed or cancelled from Ember's menu,
     // so the menu stays available over the battle log while it runs; a
     // Practice match's fighter ends the game from it, and a spectator leaves

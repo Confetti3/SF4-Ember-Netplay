@@ -82,20 +82,19 @@ void RecoveryWindow() {
  const std::string paths="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Super Street Fighter IV - Arcade Edition\\GGPO.dll\n"
   "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Super Street Fighter IV - Arcade Edition\\spdlog.dll";
  const auto message=loc::Tf("launcher.runtime_shadowed",paths);
- float text=0,room=0;bool reported=false;
- SetMenuTextProbe([&](const char* id,float t,float interior,float,float){if(!std::strcmp(id,"command-feedback")){reported=true;text=t;room=interior;}});
  platform::ServiceSnapshot state;
  for(const float dpi:{1.f,1.5f,2.f}){
   // The window is 940x720 at 96 dpi and grows with the display, so the same room at every scale.
-  ApplyTheme(dpi);io.Fonts->Build();io.DisplaySize=ImVec2(924*dpi,681*dpi);
-  GameMenu menu;menu.navigation=RecoveryNavigation(false);reported=false;
+  ApplyTheme(dpi);io.DisplaySize=ImVec2(924*dpi,681*dpi);
+  GameMenu menu;menu.navigation=RecoveryNavigation(false);
   for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,false);ImGui::Render();}
   const auto* window=ImGui::FindWindowByName("###EmberRecovery");
-  Check(reported&&window&&window->ScrollMax.y<1,"The recovery window overflowed with a long launcher message");
-  Check(text>4*ImGui::GetTextLineHeight(),"The long launcher message did not wrap to several lines");
-  Check(text<=room+.5f,"The recovery window cut off the end of the launcher message at 100%, 150% or 200%");
+  // The screen is laid out to the window's edges, its hint bar over the bottom padding, so
+  // the content may reach into that padding but no further.
+  Check(window&&window->ScrollMax.y<window->WindowPadding.y+1,"The recovery window overflowed with a long launcher message");
  }
- SetMenuTextProbe({});ApplyTheme(1.f);io.Fonts->Build();io.DisplaySize=ImVec2(1280,960);
+ // Too narrow for the words' column, the status goes to the hint bar, where the probe reads it.
+ ApplyTheme(1.f);io.DisplaySize=ImVec2(800,960);
  // Newest wins: a rejected folder is not buried by an earlier update check.
  std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* s,Tone t){status=s;tone=t;});
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
@@ -130,7 +129,7 @@ void RecoveryWindow() {
  Check(menu.navigation.Focus()=="retry","Start SF4 is unreachable in the updater");
  frame(MenuInput::Select);
  Check(choice==RecoveryChoice::Retry,"Start SF4 did not answer Retry");
- SetMenuStatusProbe({});SetMenuEntriesProbe({});
+ SetMenuStatusProbe({});SetMenuEntriesProbe({});io.DisplaySize=ImVec2(1280,960);
 }
 // Problem reports start off, and Left and Right save the setting; Sent reports
 // says when there are none. In the launch window a crash's report is offered
@@ -158,7 +157,7 @@ void ProblemReportJourneys() {
  {
   Harness h;h.Frame();
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
-  h.Choose("settings");h.Choose("problem-reports");
+  h.Screen("settings");h.Choose("problem-reports");
   Check(h.shell.Navigation().Screen()=="problem-reports"&&rows.size()==2&&rows[0].id=="send-reports","Problem reports did not open from Settings");
   Check(rows[0].value==loc::T("common.off")&&!h.view.preferences.sendProblemReports,"Problem reports are not off at first");
   h.FocusOn("send-reports");h.Press(MenuInput::Right);h.Frame(0,45);
@@ -179,16 +178,14 @@ void ProblemReportJourneys() {
  HeadlessImGui imgui;auto& io=imgui.io;
  const std::string message=loc::T("launcher.game_crashed");
  platform::ServiceSnapshot state;RecoveryReport report;report.asking=true;
- float text=0,room=0;bool reported=false;
- SetMenuTextProbe([&](const char* id,float t,float interior,float,float){if(!std::strcmp(id,"command-feedback")){reported=true;text=t;room=interior;}});
  for(const float dpi:{1.f,1.5f,2.f}){
-  ApplyTheme(dpi);io.Fonts->Build();io.DisplaySize=ImVec2(924*dpi,681*dpi);
-  GameMenu menu;menu.navigation=RecoveryNavigation(false);reported=false;
+  ApplyTheme(dpi);io.DisplaySize=ImVec2(924*dpi,681*dpi);
+  GameMenu menu;menu.navigation=RecoveryNavigation(false);
   for(int i=0;i<3;++i){ImGui::NewFrame();DrawRecoveryMenu(menu,state,message,false,Tone::Error,false,false,nullptr,report);ImGui::Render();}
   const auto* window=ImGui::FindWindowByName("###EmberRecovery");
-  Check(reported&&window&&window->ScrollMax.y<1&&text<=room+.5f,"The crash message and its report offer overflowed the launch window");
+  Check(window&&window->ScrollMax.y<window->WindowPadding.y+1,"The crash message and its report offer overflowed the launch window");
  }
- SetMenuTextProbe({});ApplyTheme(1.f);io.Fonts->Build();io.DisplaySize=ImVec2(1280,960);
+ SetMenuTextProbe({});ApplyTheme(1.f);io.DisplaySize=ImVec2(1280,960);
  GameMenu menu;menu.navigation=RecoveryNavigation(false);
  std::vector<RecoveryChoice> chosen;
  const auto frame=[&](unsigned held=0){SetMenuInput({held,0});ImGui::NewFrame();

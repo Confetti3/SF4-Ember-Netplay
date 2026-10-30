@@ -25,37 +25,33 @@ void SetMenuGlyphs(int deviceType,const input::MenuButtons& buttons,gamepads::Pr
 void SetMenuSpeech(const netplay::SpeechPreferences& speech);
 // How many descriptions the accessibility button has read since the last call.
 int TakeMenuDescribes();
-// Says a notice that shows on its own (a V2 toast) once, after what speech is saying, with speech on.
+// Says a notice that shows on its own (a toast) once, after what speech is saying, with speech on.
 void SayMenuNotice(const std::string& text);
 // The accessibility button's name on the device the player last used ("RT", "R2", "F2").
 std::string AccessibilityKeyName();
 struct PlayerCardView {
-    std::string name, fighterName;
-    int fighter=0, inputDelay=0, members=0, activeTables=0;
-    bool controllerReady=false, connected=false;
-    std::uint64_t wins=0,losses=0;
-    bool recordAvailable=true;
+    std::string name;
     // The flag before the name: the country the player shows, or none.
     CountryCode country;
-    // V2: the card as the L tag draws it (title, icon, facts).
+    // The card as the L tag draws it (title, icon, facts).
     v2::TagView profile;
 };
 void SetMenuPlayerCard(PlayerCardView view);
 const PlayerCardView& MenuPlayerCard();
-// V2 Home's news: the newest releases, a title and a "date · version" line each.
+// Home's news: the newest releases, a title and a "date · version" line each.
 struct MenuNewsItem { std::string title, meta; };
 void SetMenuNews(std::vector<MenuNewsItem> news);
-// V2 value rows (the Settings board): On and Off as a switch Select flips, a
+// Value rows (the Settings board): On and Off as a switch Select flips, a
 // number between the arrows that step it, anything else its value and a
 // chevron, Select opening every choice in a popup. DrawMenuValue draws one
 // right-aligned in `box`.
 bool MenuValueIsToggle(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
-// A value row's words on a V2 board (Create, Settings, Fighter select): the
+// A value row's words on a board (Create, Settings, Fighter select): the
 // label `inset` from the left, and at the right the value in `valueWidth`
 // (DrawMenuValue), or a fixed value and the chevron when Select opens it.
 void DrawMenuRow(ImDrawList* draw, const MenuEntry& e, v2::Box row, bool enabled, float valueWidth, float inset);
-// A row's box on a V2 board as a button: the moving pointer focuses the row,
+// A row's box on a board as a button: the moving pointer focuses the row,
 // and a press focuses it and is Select on it, or steps its value when it lands
 // on one end of the `valueWidth` at the row's right (14 px in from its edge).
 // Nothing answers while a question or the keyboard is open. With `scroll` the
@@ -69,16 +65,15 @@ const std::vector<MenuNewsItem>& MenuNews();
 const char* MenuSelectGlyph();
 const char* MenuBackGlyph();
 // The menu art behind a full-window menu, under a tint; false without art.
-bool DrawMenuBackdrop(bool v2);
+bool DrawMenuBackdrop();
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
 float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,bool rightAligned=false);
-// USFIV's select grid for the fighter pickers: 15 across (RosterDisplayOrder) when
-// the list is wide enough for readable cards, else the width-based columns in the
-// same order. cardHeight is in unscaled pixels, as GameMenu::Draw takes it;
-// listShare is the part of a wide window the list takes (GameMenu::wideListShare).
-struct RosterGrid { int columns; float cardHeight; float listShare; };
+// The fighter pickers' select grid (RosterDisplayOrder): up to eight across beside
+// the preview, fewer on a narrow window. cardHeight is in unscaled pixels, as
+// GameMenu::Draw takes it.
+struct RosterGrid { int columns; float cardHeight; };
 RosterGrid LayOutRosterGrid(float windowWidth);
 // `backing` fills the tile behind the art, which is transparent around the fighter.
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
@@ -122,18 +117,16 @@ bool TakeEmbeddedFresh();
 enum class NoticeResult { None, Dismissed, Acknowledged, CreatePublicRoom, HideGameSettings, OpenButtonLayout, LeaveButtonLayout, UpdateNow, SkipUpdate };
 struct NoticeButton { std::string label; NoticeResult result=NoticeResult::Acknowledged; };
 // selected: the button highlighted when the notice opens (the first by default).
-// V2 shows `eyebrow` beside Ember's mark and `chip` at the top right.
+// The card shows `eyebrow` beside Ember's mark and `chip` at the top right.
 // asked: the player's own action opened it, so speech reads it at once
 // instead of announcing it (MenuNarrator).
 struct NoticeDialog { std::string text,heading; std::vector<NoticeButton> buttons; int selected=0; std::string eyebrow; v2::HeaderChip chip{}; bool asked=false; };
 class GameMenu {
 public:
     MenuNavigation navigation;
-    // The Xbox X/Y/View hints for the screen being drawn; other devices have
-    // no such buttons, so they are shown only for an Xbox pad (or the keyboard),
-    // less any button the player made Select or Back.
+    // The X/Y/View hints for the screen being drawn, in the hint bar.
     std::vector<LegendHint> shortcutHints;
-    // V2: the screen the hint bar's bell and status open (a Shortcut to it); empty for none.
+    // The screen the hint bar's bell and status open (a Shortcut to it); empty for none.
     std::string statusLeads;
     // A text box on this screen holds the keyboard whether or not ImGui has
     // activated it this frame, so letters, Space, Backspace and Delete are
@@ -156,31 +149,25 @@ public:
     // The menu art and its shade behind a full-window menu; left out where
     // what is under the window shows through it.
     bool backdrop = true;
-    // Small print in the bottom right corner, beside the legend or on a line
-    // of its own under it when the two would crowd each other: Home's (and the
-    // launcher window's) version and channel, in Muted. Empty for none.
+    // Small print in the hint bar's right end while there is no status: Home's
+    // (and the launcher window's) version and channel, in Muted. Empty for none.
     std::string footerNote;
-    // A stable status is normally one or two lines beside or under the header.
-    // With this set it is drawn whole, wrapped, in a block that grows to its
-    // text (up to most of the window, then it scrolls), so a long launcher
-    // message keeps the paths and steps it names.
-    bool fitStatus=false;
-    // V2 only: the tabs over this screen, each a screen id and its label, and
+    // The tabs over this screen, each a screen id and its label, and
     // the one shown. Pressing one, or LB/RB (Page Up/Down) to a neighbour, returns a
     // Shortcut whose id names it; the owner switches. Empty for none.
     std::vector<std::pair<std::string,std::string>> tabs;
-    // V2 only: the words over the title (where the screen sits, as "ONLINE PLAY · HOST") and the
+    // The words over the title (where the screen sits, as "ONLINE PLAY · HOST") and the
     // chips at the header's right end. Empty for none.
     std::string eyebrow;
     std::vector<v2::HeaderChip> headerChips;
-    // V2 only: the cards' width (unscaled) beside the detail pane, each card with the
+    // The cards' width (unscaled) beside the detail pane, each card with the
     // first line of its detail and its value as a chip (Online play, Join); 0 for the usual split.
     float listWidth=0;
-    // V2 only: the detail pane's width (unscaled) beside the cards (Public rooms); 0 for the usual split.
+    // The detail pane's width (unscaled) beside the cards (Public rooms); 0 for the usual split.
     float paneWidth=0;
-    // V2 only: the detail pane on the cards' left, on the screen's own ground (launch recovery).
+    // The detail pane on the cards' left, on the screen's own ground (launch recovery).
     bool paneLeft=false;
-    // V2 only: a body's focused card and the column it sits in, where a value's
+    // A body's focused card and the column it sits in, where a value's
     // choices open as they do on the cards. The body sets them each frame.
     struct { v2::Box card, column; } bodyChoices;
     int tab=-1;
@@ -190,16 +177,6 @@ public:
     // the buttons newly pressed are left in toastPressed for the toast to answer.
     bool toastFocused=false;
     unsigned toastPressed=0;
-    // The corner radius, in unscaled pixels, of the rows and grid cells that a Card
-    // draws; 0 keeps them square. A card of rounded corners paints its own focus outline.
-    float cardRounding=0;
-    // When above 0, a narrow layout's detail pane (above the list) takes at most this
-    // many lines and leaves out the row's label, which its card already shows.
-    int compactDetailLines=0;
-    // The part of a wide window the list takes beside its detail pane.
-    float wideListShare=.53f;
-    // A custom detail can request more room above a compact list, leaving one row visible.
-    float compactDetailHeight=0;
     // A card over the list while the screen waits for something outside the
     // menu (a button capture): measure gives the height its content needs at a
     // content width, draw fills it. It sits centred on the list, or centred in
@@ -220,7 +197,7 @@ public:
     // statusTone is the status line's severity. The shell's only feedback
     // channel is this string, so a failure must not read like ordinary text.
     MenuAction Draw(const char* title,const std::vector<MenuEntry>& entries,
-                    const char* status = "",const Detail& detail = {},int columns=1,const Card& card = {},const Body& body = {},float flyoutScale=0,float cardHeight=100,bool stableStatus=false,
+                    const char* status = "",const Detail& detail = {},int columns=1,const Card& card = {},const Body& body = {},bool flyout=false,float cardHeight=100,
                     Tone statusTone=Tone::Neutral,bool home=false);
     // A modal notice: owns menu input until a button, Back or the header's Close
     // ends it. A notice has one or more buttons, each with its own result;
@@ -246,17 +223,11 @@ public:
     // that scrolls with them.
     unsigned Held() const { return held_; }
 private:
-    // Home's help and status lines, reserved whether or not they are empty:
-    // three when the window is tall enough, so a row's columns can put their
-    // labels over their values, else two, where the columns give way to the
-    // row's one-line detail. Unscaled height; it reads the current window.
-    static constexpr float HomeLineHeight=18;
-    static int HomeLines();
-    // The V2 look's screen (GameMenuV2.cxx): the same entries, input and
-    // dialogs as Draw, laid out as the V2 design's cards, panes and hint bar.
+    // The screen's drawing (GameMenuV2.cxx): Draw's entries, input and
+    // dialogs laid out as the V2 design's cards, panes and hint bar.
     MenuAction DrawV2(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,
         const Body& body,float cardHeight,Tone statusTone,bool home,bool flyout,MenuAction action,unsigned held,bool modalAtStart,bool choosingAtStart,bool acceptEditText,bool noticeOpen);
-    // The dialogs over the screen, then the frame's bookkeeping and its answer; both looks end here.
+    // The dialogs over the screen, then the frame's bookkeeping and its answer.
     MenuAction Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen);
     // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,
     // AnswerConfirmation) live in MenuDialogs.cxx.
@@ -265,9 +236,6 @@ private:
     bool DialogLegend(const std::vector<MenuEntry>& entries,std::string& select,std::string& back) const;
     std::vector<DialogButton> ConfirmationButtons(const std::vector<MenuEntry>& entries) const;
     void AnswerConfirmation(const std::vector<MenuEntry>& entries,int clicked,int selected,MenuAction& action);
-    void DrawHomeStatusLine(const std::vector<MenuEntry>& entries,const char* status,Tone statusTone,float homeMargin);
-    // Veils the body between top and bottom (screen y), not the header or legend.
-    void DrawFlyoutConfirmation(const std::vector<MenuEntry>& entries,float unit,float top,float bottom,MenuAction& action);
     // listCard over the list (listMin to listMax), clear of the focused row (rowMin to rowMax) where it can be.
     void DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 rowMax,float unit);
     void DrawConfirmationModal(const std::vector<MenuEntry>& entries,MenuAction& action);
@@ -275,7 +243,7 @@ private:
     void DrawReader(const std::vector<MenuEntry>& entries,const Detail& detail,float height,unsigned held);
     void DrawChoiceModal(const std::vector<MenuEntry>& entries,MenuAction& action);
     void DrawNoticeModal(bool noticeOpen);
-    // The editor's keys. With the on-screen keyboard (V2, the pad used last)
+    // The editor's keys. With the on-screen keyboard (the pad used last)
     // the pad types: directions move over the keys, Select presses one, X
     // deletes, Y spaces, LB switches capitals and Start is Done; B still cancels.
     void ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input);
@@ -291,7 +259,7 @@ private:
     void Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
-    // Where an open popout sits (V2 Values); set on the frame it opens.
+    // Where an open popout sits (Values); set on the frame it opens.
 ImVec2 popoutAt_{};bool popoutOpen_=false,popoutClose_=false;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};

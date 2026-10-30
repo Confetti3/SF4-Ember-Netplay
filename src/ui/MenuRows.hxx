@@ -20,10 +20,10 @@ inline std::string AutoDelayDetail(int style) {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&
-        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&a.roomSideWidth==b.roomSideWidth&&a.roomMemberShare==b.roomMemberShare&&
+        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
 }
-// Only what a room leaves open changed: button layouts and the room board's column.
+// Only what a room leaves open changed: the button layouts.
 inline bool OnlyRoomSettingsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
     auto compared = a;
     compared.CopyRoomSettings(b);

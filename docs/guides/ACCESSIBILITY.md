@@ -138,10 +138,10 @@ pause in Ember while Steam is speaking.
 - Japanese, Korean and Chinese have no natural voice yet, so the system
   voice speaks them.
 
-## The V2 look
+## Ember's menus
 
-Speech works the same in Ember's V2 look (Settings, Interface, Look). V2
-also reads:
+Speech reads the screen's name, the row you move to and its value. It also
+reads:
 
 - a Settings panel's name and the values it holds when you move to it;
 - a choice panel's or popout's question, then the choice you are on;
@@ -150,9 +150,9 @@ also reads:
 
 A fresh install opens on a welcome. Its first question, "Do you want Ember
 to speak?", is spoken even before speech is on: press A or Enter on "Yes,
-read menus aloud". In V2, Settings, Accessibility has Speech as its first
+read menus aloud". Settings, Accessibility has Speech as its first
 panel, and Text and language holds Interface size and TV mode, which make
-everything larger. See [V2 menus](V2_MENUS.md#speech-in-v2).
+everything larger. See [V2 menus](V2_MENUS.md#speech).
 
 ## Credits
 

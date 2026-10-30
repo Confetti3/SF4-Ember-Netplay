@@ -127,7 +127,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    if(hovered||focused)lit=table;
    v2::RowGround(d,chip,focused,hovered);
    d->AddCircleFilled(ImVec2(chip.min.x+14*s,(chip.min.y+chip.max.y)*.5f),5*s,PairColor(table));
-   v2::Text(d,ImVec2(chip.min.x+26*s,chip.min.y+(chip.H()-13*s)*.5f),w-32*s,text,13*s,hovered||focused?c.text:c.muted);
+   v2::Text(d,ImVec2(chip.min.x+26*s,chip.min.y+(chip.H()-13*s)*.5f),w-32*s,text,13*s,hovered||focused?c.text:c.muted,nullptr,false,!e->userText);
    if(focused)v2::Focus(d,chip.min,chip.max,false);
   }
  }
@@ -204,8 +204,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const float ss=(std::min)(11*s,screen.H()*.3f),mid=(screen.min.y+screen.max.y)*.5f;
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}
-  v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-ss*.5f:mid-ss-1*s),screen.W()-4*s,first,ss,tone,HeadingFont(),true);
-  if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),screen.W()-4*s,second,ss,paired&&!t->deciding?pair:tone,HeadingFont(),true);
+  v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-ss*.5f:mid-ss-1*s),screen.W()-4*s,first,ss,tone,HeadingFont(),true,!paired);
+  if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),screen.W()-4*s,second,ss,paired&&!t->deciding?pair:tone,HeadingFont(),true,!paired);
   // The name plate: the player's tag, its edge in the pair's colour.
   d->AddRectFilled(plate.min,plate.max,c.frame);
   if(paired)d->AddRect(plate.min,plate.max,pair,0,0,s);

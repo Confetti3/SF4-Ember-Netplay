@@ -5059,7 +5059,7 @@ msgid "room.type.classic_detail"
 msgstr "Players queue at a table and play there."
 
 msgid "room.type.arcade_detail"
-msgstr "Sixteen cabinets: sit at any free one and play whoever has waited longest. After a set, both choose Rematch to play again, or each plays the next one waiting."
+msgstr "Sixteen cabinets: sit at any free one. After a set the winner plays whoever has waited longest and the loser waits. When nobody waits, the two choose Rematch or New opponent."
 
 msgid "room.arcade_status"
 msgstr "Arcade room / invitation only"
@@ -5107,7 +5107,7 @@ msgid "room.new_opponent"
 msgstr "New opponent"
 
 msgid "room.new_opponent_detail"
-msgstr "Stay seated and play whoever has waited longest, or wait for the next player to sit down."
+msgstr "Nobody else was waiting, so you two choose. Play whoever has waited longest instead, or wait for the next player to sit down."
 
 msgid "room.rematch_ask"
 msgstr "Rematch?"

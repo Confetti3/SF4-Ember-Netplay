@@ -1,8 +1,7 @@
 #pragma once
-// Ember's V2 look (the V2 Overhaul design canvas): one switch, the layout rules
-// and the small set of parts every V2 screen is built from. Presentation only:
-// nothing here reads or changes navigation, so a screen draws the same entries
-// in either look and the player can switch between them at any time.
+// Ember's look (the V2 Overhaul design canvas): the layout rules and the small
+// set of parts every screen is built from. Presentation only: nothing here
+// reads or changes navigation.
 #include "NameMarks.hxx"
 #include "RoomCards.hxx"
 #include <imgui.h>
@@ -11,10 +10,6 @@
 #include <vector>
 
 namespace sf4e { namespace ui { namespace v2 {
-// The player's Settings > Interface > Look. Set once per frame from their preferences.
-bool On();
-void SetOn(bool on);
-
 // The palette roles of Theme.cxx by name, so V2
 // parts never write a literal: grounds from ink to hover, the accent that
 // marks focus and the thing to act on, text, the red of a LIVE mark, the
@@ -52,8 +47,8 @@ inline Box CutLeft(Box& from, float size, float gap = 0) { size = (std::min)(siz
 inline Box CutRight(Box& from, float size, float gap = 0) { size = (std::min)(size, from.W()); Box cut{{from.max.x - size, from.min.y}, from.max}; from.max.x = (std::max)(from.min.x, cut.min.x - gap); return cut; }
 inline Box Inset(Box b, float x, float y) { return {{b.min.x + x, b.min.y + y}, {b.max.x - x, b.max.y - y}}; }
 
-// A board panel's ground (the room's, Chat's): the brand's panel in V2, else
-// BoardPanelColor; lighter over a game the player watches.
+// A board panel's ground (the room's, Chat's): the brand's panel, lighter over
+// a game the player watches.
 ImVec4 BoardGround(bool seeThrough);
 // A panel's ground inside a board (Create's and Settings' panels, the room's
 // members and chat): the brand's panel at .94, .78 over a game the player watches.
@@ -68,7 +63,7 @@ float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32
 // `text` at `size` in `font` (the current one when none), fitted to `width`
 // with Fit, so the text probe sees it; `centred` centres it in `width`.
 // Returns the width drawn.
-float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false);
+float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false, bool probe = true);
 // The chevron of a row whose Select opens something: `size` from its tip to
 // each end, its tip pointing right at `at.x + size * .6`.
 void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);
@@ -118,7 +113,7 @@ void Fact(const std::string& key, const std::string& value);
 void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
 // The same drawn at `at` across `width`, for code without a cursor. Returns its height.
 float Paragraph(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
-// ImGui::TextWrapped in the current font and colour, as a Paragraph in V2.
+// A Paragraph in the current font, size and colour, at the cursor.
 void Wrapped(const std::string& text);
 
 // A soft glow round a box (a seat lit up): rings fading out over `reach`, starting at `strength` alpha.

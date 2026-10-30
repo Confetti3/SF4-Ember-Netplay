@@ -11,29 +11,28 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-// The Training settings have their own screen. Offline, Training is the
-// game's own mode under Play offline: Home has no Training row, and Play
-// offline sends the game nowhere further.
+// The Training settings have their own screen. Home has a Training row, and
+// Play offline sends the game nowhere further.
 void TrainingSettingsAndHome() {
  using namespace sf4e;
  using Kind=netplay::CommandKind;
  Harness h;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
- const std::vector<std::string> settings={"player","country","defaults","interface","training-replays","accessibility","discord","problem-reports","about"};
- Check(rows.size()==settings.size(),"Settings row count changed");
- for(std::size_t i=0;i<settings.size();++i)Check(rows[i].id==settings[i],"Settings order changed");
- h.Choose("interface");
- const std::vector<std::string> interfaceRows={"look","hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","lobby-music","shortcut-hint","class-emblems","scale","language"};
- Check(rows.size()==interfaceRows.size(),"Interface no longer has its 15 rows");
+ Check(h.shell.Navigation().Screen()=="tab-player","Settings did not open on its Player tab");
+ h.Screen("interface");
+ const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","lobby-music","shortcut-hint","class-emblems","scale","tv","language",
+  "arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"};
+ Check(rows.size()==interfaceRows.size(),"Interface no longer has its 22 rows");
  Check(!std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="lobby-music";})->enabled,"Endless lobby music was offered without the game's menu entry");
  for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
- h.Press(MenuInput::Back);h.Choose("training-replays");
- Check(rows.size()==5&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture","Training and replays settings order wrong");
+ h.Screen("training-replays");
+ Check(rows.size()==7&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture"&&
+  rows[5].id=="picture-corner"&&rows[6].id=="picture-size","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
- h.Choose("match-frame-meter");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.FocusOn("match-frame-meter");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.matchFrameMeter,"Match frame meter did not save from new screen");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Choose("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  // Speech starts off, and its other rows wait for it. (Turning it on here
@@ -43,12 +42,14 @@ void TrainingSettingsAndHome() {
  // Country opens its picker on the saved choice; a country saves and goes back to Settings.
  h.Screen("settings");h.Choose("country");
  Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");
+ // The board shows one letter's countries: typing J shows Japan's.
+ ImGui::GetIO().AddInputCharactersUTF8("J");h.Frame();h.Frame();
  h.shell.Navigation().Focus("country-JP",rows);h.Press(MenuInput::Select);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.country==CountryPreference::Of(CountryCode::Parsed("JP")),"A picked country did not save");
  Check(h.shell.Navigation().Screen()=="settings","Choosing a country did not go back to Settings");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("home");
- Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home still has its own Training row");
+ Check(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home lost its Training row");
  SetMenuEntriesProbe({});h.Choose("offline");
  Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::StartOffline&&h.actions.back().training==TrainingEntry::None,"Play offline asked for Training");
  // The game's own Training item opens Ember's select: your fighter, the dummy, the stage, then Start.
@@ -92,7 +93,7 @@ void TrainingFromRoom() {
  SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});h.Frame();
  const auto training=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="room-training";});
- Check(training!=rows.end()&&training->label==loc::T("room.training")&&std::next(training)->id=="leave","Wait in Training label or position wrong");
+ Check(training!=rows.end()&&training->label==loc::T("room.training")&&rows.back().id=="leave","Wait in Training label or position wrong");
  // The room's status line says it is a Practice room.
  Check(status==loc::T("room.private_status"),"A private room's status changed");
  h.view.room.practice=true;h.Frame();
@@ -459,15 +460,15 @@ void TrainingJourneys() {
  // row steps from Crouch to Jump, rather than from the temporary Stand.
  press(MenuInput::Back);choose("dummy");
  v.mode=training::Mode::Playback;v.dummy.action=1;
- choose("dummy-action");commands.clear();press(MenuInput::Right);
+ reach("dummy-action");commands.clear();press(MenuInput::Right);
  Check(commands.size()==1&&commands.back().action==training::Action::DummyState&&commands.back().dummy.action==2,
   "Dummy action row did not edit the logical playback setting");
  press(MenuInput::Back);choose("reply");
- commands.clear();choose("reply-timing");press(MenuInput::Right);
+ commands.clear();reach("reply-timing");press(MenuInput::Right);
  Check(commands.empty(),"Editing reply settings submitted an invalid saved reply as an empty typed plan");
  const auto saved=[&]{std::ifstream file(folder/"training.json");nlohmann::json practice;file>>practice;return practice;};
  // Even unreadable loaded text must allow Off to reach the runtime.
- choose("reply");press(MenuInput::Right);
+ reach("reply");press(MenuInput::Right);
  Check(commands.size()==1&&runtimePlan.when==0&&!training::DummyReplies(runtimePlan,1,0)&&
   saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="not a move","Invalid loaded text prevented Reply Off");
  const auto edit=[&](const char* text){choose("reply-moves");
@@ -480,14 +481,14 @@ void TrainingJourneys() {
   Check(!TrainingNavigation().Editing(),"Reply editor did not accept its draft");};
  // Start with a valid enabled reply, then accept a nonempty line with no
  // moves. Rejection must preserve the editor, file and runtime together.
- edit("623HP");choose("reply");press(MenuInput::Right);
+ edit("623HP");reach("reply");press(MenuInput::Right);
  Check(runtimePlan.when==1&&!runtimePlan.moves.empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
  const auto active=saved();const auto activeFrames=runtimePlan.moves.size();commands.clear();
  edit("> ,");
  Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.moves.size()==activeFrames&&
   !TrainingNotice(failed).empty()&&failed,"Rejected reply partially changed saved settings or runtime");
  choose("reply-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);
- choose("reply");press(MenuInput::Left);
+ reach("reply");press(MenuInput::Left);
  Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.moves.empty()&&
   !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="623HP",
   "Reply Off disagreed with the saved settings or runtime after a rejected edit");

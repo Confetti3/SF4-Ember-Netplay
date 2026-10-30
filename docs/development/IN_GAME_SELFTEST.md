@@ -93,22 +93,6 @@ to go live. The host then ends the game and both leave the room. Hosting,
 the names the two sides take and the controller a room needs write Ember's
 settings, so the script copies them first and puts them back after the run.
 
-## The room layout test
-
-One PC checks that the room board's column settings (its width, the
-members' share and which part is hidden) are saved from inside a room,
-where the player's other settings are locked:
-
-```powershell
-scripts\run-selftest.ps1 -PackageDir <stage> -Test room-layout
-```
-
-It opens a private room, sends the column's settings the way the board
-sends them, and checks that the runtime takes them and that `settings.json`,
-which the next start reads, holds them. It then puts the old values back
-and leaves. Like the other room tests, the script copies Ember's settings
-first and puts them back after the run.
-
 ## The tournament test
 
 Two PCs play one match of a local test bridge end to end: each creates an
@@ -169,12 +153,12 @@ and the saves were copied before the run.
 
 ## The menu test
 
-`-Test menu` turns the Look to V2 and walks Ember's menus by the buttons a
+`-Test menu` walks Ember's menus by the buttons a
 player presses (`ui::MenuWalk`): Home, Settings, a panel and the language
 popup, Online play, Create, a room opened, a member's popout, the room left
 with Leave and Yes, then Training from Home. The walk runs on the overlay's
 frames; each step logs the screen and row it reached. The test then waits for
-the Training battle and puts the player's Look back. It needs the helper, as
+the Training battle. It needs the helper, as
 a room is opened. The UI lab plays the same walk on made-up data
 (`UiLab --walk <file>`), so a changed menu shows up there first.
 

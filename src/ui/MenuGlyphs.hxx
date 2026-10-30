@@ -135,39 +135,4 @@ inline std::string SpokenButton(const char* glyph,gamepads::PromptBrand brand=Me
 }
 // A screen's own button, shown after the standard ones.
 struct LegendHint { const char* glyph; std::string label; };
-inline float MenuLegend(float width,const char* select,const char* back,bool draw,bool adjustable,SelectionArt* art,float scale=0,
-                        const char* primary=loc::T("menu.select"),const std::vector<LegendHint>& extras={},const char* backText=nullptr,
-                        float* lastRowEnd=nullptr,bool standard=true,bool offerBack=true) {
-    const bool keyboard=!std::strcmp(select,"Enter")||!std::strcmp(select,"Ctrl+Enter");
-    std::vector<LegendHint> hints;
-    if(standard) hints={{keyboard?"arrows":"dpad",loc::T("menu.navigate")}};
-    if(primary)hints.push_back({select,primary});
-    const char* backWord=backText&&*backText?backText:loc::T("common.back");
-    if(standard&&offerBack) hints.push_back({back,backWord});
-    if(adjustable)hints.push_back({keyboard?"keys-horizontal":"horizontal",loc::T("menu.adjust")});
-    hints.insert(hints.end(),extras.begin(),extras.end());
-    for(auto& hint:hints)hint.label=PromptLabel(hint.glyph,hint.label,MenuPromptBrand());
-    const float s=scale>0?scale:Scale(),height=38*s,size=32*s;
-    float measuredLabels=0;
-    for(const auto& hint:hints)measuredLabels+=ImGui::GetFont()->CalcTextSizeA(16*s,FLT_MAX,0,hint.label.c_str()).x;
-    const float fixed=hints.size()*(size+32*s);
-    const float font=(std::max)(11*s,(std::min)(16*s,16*s*(std::max)(1.f,width-fixed)/(std::max)(1.f,measuredLabels)));
-    float x=0,y=0;const auto start=ImGui::GetCursorScreenPos();
-    for(const auto& hint:hints){
-        const float w=size+8*s+ImGui::GetFont()->CalcTextSizeA(font,FLT_MAX,0,hint.label.c_str()).x+24*s;
-        if(x&&x+w>width){x=0;y+=height;}
-        if(draw){
-            // The font shrinks and rows wrap, so only a hint wider than the
-            // whole legend can be cut off.
-            if(MenuProbesActive())ReportMenuText(("legend/"+hint.label).c_str(),font,height,w,width);
-            auto* d=ImGui::GetWindowDrawList();
-            DrawPromptGlyph(d,hint.glyph,ImVec2(start.x+x,start.y+y),size,art,s);
-            d->AddText(ImGui::GetFont(),font,ImVec2(start.x+x+size+8*s,start.y+y+(size-font)*.5f),palette::Ivory,hint.label.c_str());
-        }
-        x+=w;
-    }
-    // Where the last row's last label ends, for what shares that row.
-    if(lastRowEnd)*lastRowEnd=(std::max)(0.f,x-24*s);
-    return y+height;
-}
 } }

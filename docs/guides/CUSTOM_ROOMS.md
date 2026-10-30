@@ -235,9 +235,9 @@ New room invitations use `sf4e3:` and Discord invitations use compact `emd2:`
 secrets. Copy a fresh invitation after an authority change; old authority
 references and expired invitations are rejected.
 
-## The room in the V2 look
+## The room board
 
-With Settings > Interface > Look set to V2, the room is one board: tables on
+The room is one board: tables on
 the left, members and chat on the right, and Ready up, Wait in Training,
 Controllers, More… and Leave room along the bottom. A table card has its own
 Ready up and Leave seat buttons. Members are grouped as Playing, At a table,

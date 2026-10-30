@@ -2,7 +2,7 @@
 #include "../ui/ControllersScreen.hxx"
 namespace {
 // The summary's Select and Back are the newly recorded LK and MK, and its
-// legend names them, while the stick's installed menu buttons (buttons 3 and
+// hint bar's glyphs name them, while the stick's installed menu buttons (buttons 3 and
 // 2: its record is unknown, so the game's generic default) do nothing until
 // Save; after it, ordinary menus take the installed buttons again.
 void GameplayTargetSummary() {
@@ -36,13 +36,9 @@ void GameplayTargetSummary() {
         navigation.Update(sample, true, true, !assigning && !(setup.active && (setup.mode == SetupMode::Capture || targetIsGameplay)));
         h.Frame(navigation.Buttons());
     };
-    std::set<std::string> legend;
-    SetMenuTextProbe([&](const char* id, float, float, float, float) { if (!std::strncmp(id, "legend/", 7)) legend.insert(id + 7); });
     tick(0); tick(0);
     const auto advertised = RawInputName(*setup.recorded[LkStep]), advertisedBack = RawInputName(*setup.recorded[MkStep]);
-    const auto names = [&](const std::string& text) { return std::any_of(legend.begin(), legend.end(), [&](const std::string& hint) { return hint.find(text) != std::string::npos; }); };
-    Check(names(advertised) && names(advertisedBack), "The summary did not advertise the recorded LK and MK");
-    SetMenuTextProbe({});
+    Check(MenuSelectGlyph() == advertised && MenuBackGlyph() == advertisedBack, "The summary did not advertise the recorded LK and MK");
     const auto before = h.actions.size();
     tick(sample.menu.confirm, {{RawKind::Button, 2}}); tick(0);
     Check(h.actions.size() == before && h.shell.Navigation().Focus() == "save", "The installed confirm selected through the gameplay target during summary");
@@ -61,11 +57,8 @@ void GameplayTargetSummary() {
     h.view.menuButtons = sample.menu; h.Frame();
     Check(h.shell.Navigation().Screen() != "pad-setup", "Save did not close the summary");
     ImGui::GetIO().AddKeyEvent(ImGuiKey_DownArrow, false); NoteMenuDevice(0); NoteMenuDevice(MenuInput::Down); NoteMenuDevice(0);
-    legend.clear();
-    SetMenuTextProbe([&](const char* id, float, float, float, float) { if (!std::strncmp(id, "legend/", 7)) legend.insert(id + 7); });
     SetMenuGlyphs(input::PadDirectInput, sample.menu); h.Frame();
-    SetMenuTextProbe({});
-    Check(names("LK") && names("MK") && !names(advertised), "After Save the legend did not name the installed buttons");
+    Check(MenuSelectGlyph() == std::string("LK") && MenuBackGlyph() == std::string("MK"), "After Save the hint bar did not name the installed buttons");
     navigation.Reset();
     sample.buttons = 0; navigation.Update(sample, true, true, true); h.Frame(navigation.Buttons());
     sample.buttons = ControllerButtons(0, sample.deviceType, sample.menu.back, sample.menu);
