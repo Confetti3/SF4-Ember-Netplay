@@ -333,8 +333,9 @@ public:
         const int picked = v2::SpotMap("##picture-spot", {{1 - c, c}, {c, c}, {1 - c, 1 - c}, {c, 1 - c}}, corner, {share, share});
         if (picked >= 0 && picked != corner && v.CanEditRoomSettings()) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
     }
-    // The room board as the layout arranges it, with the grips that drag it.
-    static void RoomLayoutPicture(Shell& s, const ShellView&) { s.DrawRoomLayoutPreview(); }
+    // The room board as the layout arranges it, with the grips that drag it
+    // while its rows are open.
+    static void RoomLayoutPicture(Shell& s, const ShellView& v) { s.DrawRoomLayoutPreview(v.CanEditRoomSettings()); }
 
     // A tab's screen: its panels built once for the frame, then a row per
     // panel, or the open panel's own rows.
@@ -383,6 +384,13 @@ public:
     // The letters board, where the language's initials fit a grid. A typed
     // letter goes to its first country, and the board shows that letter's.
     static Entries CountryRows(Shell& s, const ShellView& v, std::string& title);
+    // The failed language save is about the row on the Accessibility tab (Text
+    // and language), so it speaks there only; every report the shell puts
+    // after the panels' word outranks it.
+    void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
+        const auto& error = f.shell.languageSaveError_;
+        if (!error.empty() && SettingsTabOf(f.screen) == "tab-access") { status = error; tone = Tone::Error; }
+    }
     bool ReportsSave(const std::string& screen) const override {
         // About and the sent reports have no Saved line.
         return Owns(screen) && screen != "about" && screen != "sent-reports";
@@ -487,6 +495,15 @@ const ScreenPanel& ApplicationShell::SettingsOwner() {
 }
 bool ApplicationShell::SettingsTab(const std::string& screen) { return screen.compare(0, 4, "tab-") == 0; }
 std::string ApplicationShell::SettingsTabOf(const std::string& screen) { return screen.substr(0, screen.find('/')); }
+void ApplicationShell::ShowTab(const std::string& screen) {
+    auto& nav = menu_.navigation;
+    const std::string tab = SettingsTabOf(screen);
+    // The tab shown leaves with the panel open on it; at the root the tab is pushed.
+    nav.Replace(tab, SettingsTabOf(nav.Screen()) != nav.Screen() ? 2 : 1);
+    if (tab == screen) return;
+    nav.Prefer(screen);
+    nav.Push(screen);
+}
 
 MenuEntry ApplicationShell::LanguageRow() const {
     const auto value = languagePreference_ == "auto" ? loc::Tf("settings.language.system_with", loc::NativeName(loc::Active())) :
@@ -562,6 +579,7 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
             const float grows = v2::HeadingHeight(heading, room, size) - size;
             const v2::Box h{ImVec2(rail.min.x, y), ImVec2(rail.max.x, y + (open ? 52 : 64) * s + grows)};
             y = h.max.y + 8 * s;
+            ReportMenuCard(id.c_str(), h.min, h.max);
             const auto [pressed, hovered] = PressEntry(nav, entries, head, h, action, false, {}, false);
             if (pressed) {
                 if (!open) { nav.Focus(id, entries); action = nav.Choose(entries); }

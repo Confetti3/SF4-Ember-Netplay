@@ -66,9 +66,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
- // The board's parts: More…'s switches (which keep it open on them), its picture choice, and each panel's Hide.
+ // The board's parts: More…'s switches (which keep it open on them), its
+ // picture choice, and each panel's Hide. They are the board's layout, which
+ // changes only while the room leaves its settings open (ShellView::CanEditRoomSettings).
  if((a.kind==MenuAction::Chosen&&a.id=="room-more")||a.kind==MenuAction::Activate){
-  const std::string& id=a.kind==MenuAction::Chosen?a.text:a.id;auto& p=preferences_;bool changed=true;
+  const std::string& id=a.kind==MenuAction::Chosen?a.text:a.id;auto p=preferences_;bool changed=true;
   if(id=="room-show-members"||id=="room-hide-members")p.roomShowMembers=id=="room-show-members"&&!p.roomShowMembers;
   else if(id=="room-show-chat"||id=="room-hide-chat")p.roomShowChat=id=="room-show-chat"&&!p.roomShowChat;
   else if(id=="room-hide-picture")p.pictureMode=netplay::PictureOff;
@@ -76,6 +78,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   else if(id=="room-picture"){morePicture_=moreAsk_=true;return;}
   else changed=false;
   if(changed){
+   if(!v.CanEditRoomSettings())return;
+   preferences_=p;
    if(a.kind==MenuAction::Chosen&&id.compare(0,10,"room-show-")==0){moreAsk_=true;moreChosen_=id;}
    // A panel's Hide or Show gives the focus to the button that takes its place.
    else if(a.kind==MenuAction::Activate&&id.compare(0,5,"room-")==0&&id!="room-hide-picture")

@@ -59,13 +59,13 @@ std::string SessionProblem(const netplay::Snapshot& session) {
     default:return {};
     }
 }
-// The room's own status line: the kind of room it is, and whether it is locked.
 // Whether the edited preferences may be saved now: all of them while they are
 // open, else in a room only when what changed is the room's own set
 // (ShellView::CanEditRoomSettings, OnlyRoomSettingsChanged): the save's one gate.
 bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
  return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
 }
+// The room's own status line: the kind of room it is, and whether it is locked.
 const char* RoomStatusKey(const room::Snapshot& room) {
     if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
     if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
@@ -187,8 +187,6 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(const ScreenPanel* owner=ScreenOf(screen)){
   // The panels' screens build their own rows (ScreenOf).
   rows=owner->Rows(ScreenFrame{*this,v,screen},idle,title);
-  // A match link's row is focused once the matches screen lists it.
-  if(screen=="tournament-matches"){const auto focus=identity_.TakeFocus(rows);if(!focus.empty())nav.Focus(focus,rows);}
  }else if(screen=="home"){
   rows={Row("online",loc::T("home.online"),idle?loc::T("home.online_detail"):loc::T("home.return_room")),
    Row("selection",loc::T("home.fighter_select"),v.canEditSelection?v.selectionSummary:
@@ -315,9 +313,6 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
  // still win below.
  if(!notice_.empty()&&!saveFailed_){status=notice_;statusTone=noticeTone_;}
  if(!v.padHint.empty()&&statusTone!=Tone::Error){status=v.padHint;statusTone=Tone::Neutral;}
- // The failed language save is about the row on the Accessibility tab (Text
- // and language), so it speaks there only, and every other report below outranks it.
- if(!languageSaveError_.empty()&&SettingsTabOf(screen)=="tab-access"){status=languageSaveError_;statusTone=Tone::Error;}
  // The panel that draws the screen has its say here, under every report below.
  if(owner)owner->Status(ScreenFrame{*this,v,screen},status,statusTone);
  if(v.controllerUnavailable){status=loc::T(v.session.room==RoomState::Idle?"controller.disconnected":"controller.disconnected_room");statusTone=Tone::Error;}
@@ -368,6 +363,8 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
 }
 void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,const std::string& screen,bool idle,const Submit& submit) {
  using namespace netplay; auto& nav=menu_.navigation;
+ // Retry saving is the shell's own row on every screen (MenuEntry::footer), before any panel's.
+ if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();return;}
  // The panel that owns the screen takes its own rows; a row it does not take
  // goes on to the shell's below.
  if(const ScreenPanel* owner=ScreenOf(screen))if(owner->Activate(ScreenFrame{*this,v,screen},a,submit))return;
@@ -397,7 +394,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host"||a.id=="delete-template")CreateActivate(a,v,submit);
  else if(a.id=="settings")nav.Push("tab-player");
- else if(SettingsTab(a.id))nav.Push(a.id);
+ else if(SettingsTab(a.id))ShowTab(a.id);
  else if(a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
@@ -408,7 +405,6 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
  else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
  else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
- else if(a.id=="retry-save"){saveFailed_=false;retrySave_=true;preferencesDirty_=true;saveAt_=0;error_.clear();}
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
@@ -511,6 +507,11 @@ void ApplicationShell::SetLanguage(std::string preference) {
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  CancelLayoutCapture(v,submit);
+ // The save goes on while Ember is hidden, as it does while it shows: any
+ // edit left unsaved (a room's open settings, or any setting at an idle main
+ // menu) goes out when its gate opens (MaySave), and the runtime's
+ // acknowledgment is taken here too, so the profile's Saved notice and its
+ // Return from the main-character screen are done when Ember shows again.
  UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
@@ -698,7 +699,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  menu_.eyebrow.clear();menu_.headerChips.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit))return false;
  // The room board shows a Big picture in its tables' place instead (this frame's word, boardPicture_).
- if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot,v.CanEditRoomSettings())){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  pictureOnBoard_=boardPicture_;boardPicture_=false;
  // Room shortcuts work from every screen of a joined room, including the
  // embedded fighter selector, which forwards what it does not handle.
@@ -733,9 +734,11 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
  if(saveFailed_){
   // The store's own diagnostic is English and goes to the log (the runtime
-  // writes it there); the row says it in the player's language.
+  // writes it there); the row says it in the player's language. It is the
+  // shell's own (MenuEntry::footer: the menu draws it, never a screen's
+  // body), open whenever the save's one gate (MaySave) lets the retry go.
   const std::string reason=v.settingsError.empty()&&!error_.empty()?error_:std::string(loc::T("error.settings_not_saved"));
-  rows.push_back(Row("retry-save",loc::T("settings.retry_save"),reason,v.canEditPreferences&&!v.settingsPending));rows.back().wide=true;
+  rows.push_back(Row("retry-save",loc::T("settings.retry_save"),reason,MaySave(v,preferences_)&&!v.settingsPending));rows.back().wide=rows.back().footer=true;
  }
  const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
@@ -803,13 +806,11 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   // The hint bar's bell opens Notifications over the screen shown.
   if(a.id=="notifications")nav.Push(a.id);
   // A tab names the page it shows, and replaces the screen it is on, whatever
-  // is open on it (a reader, a choice). A Settings panel's screen sits on its
-  // tab's: a panel replaces the panel open, or opens over its tab; a tab
-  // replaces the tab, and the panel open on it too.
+  // is open on it (a reader, a choice); a Settings panel's head on the rail
+  // names the panel (ShowTab).
   else if(!a.id.empty()){
    if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());
-   const bool onPanel=SettingsTabOf(screen)!=screen,toPanel=SettingsTabOf(a.id)!=a.id;
-   nav.Replace(a.id,(onPanel?1:0)+(toPanel?0:1));
+   ShowTab(a.id);
   }
   // In a room its shortcuts work from every screen, before any panel's.
   else if(inRoom)RoomShortcut(a,v);

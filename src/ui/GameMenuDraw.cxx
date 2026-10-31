@@ -14,6 +14,7 @@
 #include <array>
 #include <cfloat>
 #include <cstring>
+#include <iterator>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -311,15 +312,40 @@ void GameMenu::DrawHeader(Frame& f, v2::Box& content, bool narrow) {
 }
 
 void GameMenu::DrawBody(Frame& f, v2::Box content) {
+    const float s = Scale(), card = 64 * s, gap = 8 * s;
+    // The shell's own rows (MenuEntry::footer) are never the body's: they
+    // stand under it as cards of two lines, their label and why, in a band of
+    // their own, placed (PressEntry) so the pad reaches them from the body's
+    // rows by where they are drawn.
+    std::vector<const MenuEntry*> footer;
+    std::vector<MenuEntry> own;
+    for (const auto& e : f.entries) if (e.footer) footer.push_back(&e);
+    if (!footer.empty()) std::copy_if(f.entries.begin(), f.entries.end(), std::back_inserter(own), [](const MenuEntry& e) { return !e.footer; });
+    const v2::Box band = footer.empty() ? v2::Box{} : v2::CutBottom(content, footer.size() * (card + gap) - gap, 12 * s);
+    const bool inert = (f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming();
     ImGui::SetCursorScreenPos(content.min);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
     ImGui::BeginChild("Body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs);
-    ImGui::BeginDisabled((f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming());
+    ImGui::BeginDisabled(inert);
     bodyChoices = {};
-    f.body(f.entries, navigation, f.action, content.H(), feedback_);
+    f.body(footer.empty() ? f.entries : own, navigation, f.action, content.H(), feedback_);
     ImGui::EndDisabled();
     ImGui::EndChild();
     ImGui::PopStyleColor();
+    ImGui::BeginDisabled(inert);
+    auto* d = ImGui::GetWindowDrawList();
+    float y = band.min.y;
+    for (const MenuEntry* e : footer) {
+        const v2::Box box{ImVec2(band.min.x, y), ImVec2(band.max.x, y + card)};
+        y = box.max.y + gap;
+        const MenuRowLayout layout = CardLayout(*e, box, CardShare(*e, box.W(), card, false, false));
+        ReportMenuCard(e->id.c_str(), box.min, box.max);
+        const bool hovered = PressEntry(navigation, f.entries, *e, box, f.action, false, layout).hovered, focused = e->id == navigation.Focus();
+        v2::CardGround(d, box, focused, hovered);
+        DrawCardContent(d, *e, box, layout, feedback_.Enabled(*e), true, false, false);
+        if (focused) v2::Focus(d, box.min, box.max);
+    }
+    ImGui::EndDisabled();
     f.valuePanel = DrawValuePanel(f, bodyChoices.card, bodyChoices.column);
 }
 
@@ -613,18 +639,23 @@ void GameMenu::DrawHintBar(Frame& f, v2::Box bar) {
     // on the right. An open dialog names its own Select and Back
     // (DialogLegend) and owns the input, so the screen's shortcuts, its tab
     // steps and the bell wait for it to close; a list that takes no input (a
-    // capture) shows only the screen's own hints. A popup's own buttons take
-    // the pointer from the bar (ImGui's modal), so under one the hints are its
-    // buttons' names only.
+    // capture) shows only the screen's own hints. A popup (a notice, the
+    // editor, a confirmation, a choice drawn as one: Finish) takes the pointer
+    // from the bar, so under one the hints are its buttons' names, as labels;
+    // the reader and a board's value panel are no popups, and theirs are buttons.
     std::vector<v2::Hint> hints;
     std::vector<unsigned> presses;
-    const auto hint = [&](const char* glyph, std::string label, unsigned press) { hints.push_back({glyph, std::move(label)}); presses.push_back(press); };
+    const auto hint = [&](const char* glyph, std::string label, unsigned press, bool labelOnly = false) {
+        hints.push_back({glyph, std::move(label), labelOnly});
+        presses.push_back(press);
+    };
     const MenuEntry* focused = FocusedIn(f.entries, navigation.Focus());
     std::string dialogSelect, dialogBack;
     const bool dialog = DialogLegend(f.entries, dialogSelect, dialogBack);
     if (dialog) {
-        if (!dialogSelect.empty()) hint(MenuSelectGlyph(), dialogSelect, MenuInput::Select);
-        hint(MenuBackGlyph(), dialogBack, MenuInput::Back);
+        const bool popup = !notice_.empty() || navigation.Editing() || navigation.Confirming() || (navigation.Choosing() && !f.body && !f.valuePanel);
+        if (!dialogSelect.empty()) hint(MenuSelectGlyph(), dialogSelect, MenuInput::Select, popup);
+        hint(MenuBackGlyph(), dialogBack, MenuInput::Back, popup);
     } else if (listEnabled) {
         MenuEntry shown;
         if (focused) { shown = *focused; shown.enabled = feedback_.Enabled(*focused); }

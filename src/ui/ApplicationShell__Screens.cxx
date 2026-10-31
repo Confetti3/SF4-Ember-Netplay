@@ -20,7 +20,13 @@ class ApplicationShell::IdentityScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return IdentityPanel::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
-        return f.shell.identity_.Rows(f.view, f.screen, title);
+        auto rows = f.shell.identity_.Rows(f.view, f.screen, title);
+        // A match link's row is focused once the matches screen lists it.
+        if (f.screen == "tournament-matches") {
+            const auto focus = f.shell.identity_.TakeFocus(rows);
+            if (!focus.empty()) f.shell.menu_.navigation.Focus(focus, rows);
+        }
+        return rows;
     }
     // The panel's own line, when it has one, replaces the shell's.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
@@ -28,8 +34,6 @@ public:
         if (f.shell.identity_.Status(own, ownTone, ImGui::GetTime())) { status = own; tone = ownTone; }
     }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
-        // The retry row a failed save adds to every screen stays the shell's.
-        if (a.id == "retry-save") return false;
         f.shell.identity_.Activate(a, f.view, f.shell.menu_.navigation);
         return true;
     }

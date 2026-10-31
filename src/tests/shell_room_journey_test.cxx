@@ -4,22 +4,6 @@
 #include <iterator>
 #include <map>
 namespace {
-// The retry row a failed save adds to every screen stays the shell's on the
-// panels' screens too: the Ember ID panel never takes it, and the rankings and
-// replays panels, which do not know it, hand it on to the shell.
-void RetrySaveOnPanelScreens() {
- using namespace sf4e;
- for(const char* screen:{"identity","rankings","replays"}){
-  Harness h;h.Frame();
-  h.Screen("tab-access/text");h.FocusOn("scale");h.Press(MenuInput::Right);
-  h.view.settingsError="Disk unavailable";h.Frame(0,45);
-  h.Screen(screen);
-  const auto mark=static_cast<std::ptrdiff_t>(h.actions.size());
-  h.Choose("retry-save");h.Frame();
-  const bool saved=std::any_of(h.actions.begin()+mark,h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
-  Check(saved&&h.shell.Navigation().Screen()==screen,"The retry row on a panel's screen did not retry the save");
- }
-}
 // In a room its shortcuts come before any panel's, on a panel's own screen
 // too: Y on Rankings opens the table options, not the rankings refresh.
 void RoomShortcutOnPanelScreen() {
@@ -617,7 +601,6 @@ static void RoomBoardJourneys() {
 // context on its way out and leaves the outer one without any.
 void RoomJourneys() {
  RoomBoardJourneys();
- RetrySaveOnPanelScreens();
  RoomShortcutOnPanelScreen();
  TableNameCommitNamesTable();
  NarrowBoardTabsStep();

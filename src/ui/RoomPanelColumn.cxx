@@ -28,12 +28,13 @@ void ApplicationShell::ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members
  else if(showMembers){members=chat;chat=v2::CutBottom(members,strip,16*s);}
  else{members=v2::CutTop(chat,strip,16*s);if(!showChat)chat.max.y=chat.min.y+strip;}
 }
-void ApplicationShell::RoomGrips(v2::Box area) {
+void ApplicationShell::RoomGrips(v2::Box area,bool editable) {
  v2::Box tables,members,chat;ArrangeRoom(area,tables,members,chat);
  const float column=(tables.max.x+members.min.x)*.5f,split=(members.max.y+chat.min.y)*.5f;
  const bool hasColumn=preferences_.roomShowMembers||preferences_.roomShowChat,hasSplit=preferences_.roomShowMembers&&preferences_.roomShowChat;
- const float x=hasColumn?v2::Grip("##room-column",ImVec2(column,area.min.y),ImVec2(column,area.max.y)):NAN;
- const float y=hasSplit?v2::Grip("##room-split",ImVec2(chat.min.x,split),ImVec2(chat.max.x,split)):NAN;
+ // An inert grip is never held, so nothing below changes.
+ const float x=hasColumn?v2::Grip("##room-column",ImVec2(column,area.min.y),ImVec2(column,area.max.y),editable):NAN;
+ const float y=hasSplit?v2::Grip("##room-split",ImVec2(chat.min.x,split),ImVec2(chat.max.x,split),editable):NAN;
  // The pointer's share, snapped to the grip's steps from its default.
  const auto snap=[](float percent,int low,int high,int base,int step){return (std::max)(low,(std::min)(high,base+static_cast<int>(std::lround((percent-base)/step))*step));};
  auto next=preferences_;
@@ -41,7 +42,7 @@ void ApplicationShell::RoomGrips(v2::Box area) {
  if(!std::isnan(y))next.roomSplit=snap((y-members.min.y)/(chat.max.y-members.min.y)*100,netplay::MinRoomSplit,netplay::MaxRoomSplit,netplay::DefaultRoomSplit,netplay::RoomSplitStep);
  if(next.roomColumn!=preferences_.roomColumn||next.roomSplit!=preferences_.roomSplit){preferences_=next;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
 }
-void ApplicationShell::DrawRoomLayoutPreview() {
+void ApplicationShell::DrawRoomLayoutPreview(bool editable) {
  // Customise.dc.html: the tables as four cards, members over chat with their shares, and the grips.
  const float s=Scale(),w=ImGui::GetContentRegionAvail().x,h=(std::max)(120*s,(std::min)(w*.6f,ImGui::GetContentRegionAvail().y-8*s));
  const auto p=ImGui::GetCursorScreenPos();const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
@@ -61,7 +62,7 @@ void ApplicationShell::DrawRoomLayoutPreview() {
  const auto folded=[&](const v2::Box& b,const char* key){d->AddRectFilled(b.min,b.max,c.panel,4*s);heading(v2::Inset(b,10*s,8*s),loc::T(key));};
  if(preferences_.roomShowMembers)pane(members,"room.members",both?preferences_.roomSplit:100,3);else folded(members,"room.members");
  if(preferences_.roomShowChat)pane(chat,"room.chat",both?100-preferences_.roomSplit:100,2);else folded(chat,"room.chat");
- RoomGrips(inside);
+ RoomGrips(inside,editable);
  ImGui::SetCursorScreenPos(p);ImGui::Dummy(ImVec2(w,h));
 }
 

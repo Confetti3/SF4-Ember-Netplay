@@ -45,7 +45,7 @@ float RoomBoardFrame::HideButton(ImDrawList* d,const MenuEntry& e,ImVec2 corner)
  const v2::Box b{ImVec2(corner.x-w,corner.y),ImVec2(corner.x,corner.y+32*s)};
  const bool hovered=Press(e,b),focused=e.id==focus;
  v2::CardGround(d,b,focused,hovered,false);
- v2::Text(d,ImVec2(b.min.x+10*s,b.min.y+9*s),w-20*s,label,14*s,hovered||focused?c.text:c.muted);
+ v2::Text(d,ImVec2(b.min.x+10*s,b.min.y+9*s),w-20*s,label,14*s,e.enabled&&(hovered||focused)?c.text:c.muted);
  if(focused)v2::Focus(d,b.min,b.max);
  return w;
 }
@@ -350,7 +350,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   if(narrow&&!showChat)chat.max.y=chat.min.y+FoldedPanelHeight*s;
   DrawRoomChatPanel(f,chat,showChat,unread);
  }
- if(!narrow&&!ultra)RoomGrips(area);
+ if(!narrow&&!ultra)RoomGrips(area,v.CanEditRoomSettings());
  columnPicture_=false;
  ImGui::PopStyleColor();
  ImGui::PopStyleColor();ImGui::PopStyleVar();roomBoardFocus_=nav.Focus();

@@ -8,7 +8,7 @@ int main() {
   ButtonPromptJourneys(); ControllerJourneys(); ButtonLayoutJourneys(); RoomJourneys(); PostMatchJourneys(); ArcadeJourneys(); ReplayJourneys(); TrainingSettingsAndHome(); TrainingFromRoom(); PracticeRoomCreate(); DelayPolicyCreate(); DelayPolicyInRoom(); TrainingInRoom();
   KeyboardJourneys(); RightClickBack(); HomeCardRight(); MemberPopout(); RoomPartsHide(); ChatJourneys(); NoticeOverDialogs(); LanguageSaveFailure(); UpdateLaunchJourneys();
   SessionReports(); RecoveryWindow(); ProblemReportJourneys(); SelectorPages(); SelectorFromHome();
-  DeveloperSelectors(); TrainingJourneys(); PresentationJourneys(); AppearanceGalleries(); V2AuditJourneys();
+  DeveloperSelectors(); TrainingJourneys(); PresentationJourneys(); AppearanceGalleries(); V2AuditJourneys(); SettingsJourneys();
   std::cout << "Shell journeys through the renderer passed.\n";
   return 0;
  } catch (const std::exception& e) {

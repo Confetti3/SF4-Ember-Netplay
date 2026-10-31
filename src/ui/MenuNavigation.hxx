@@ -60,6 +60,10 @@ struct MenuEntry {
     // every entry after it form the grid's footer, one full-width row each
     // (MenuGridCells).
     bool wide = false;
+    // One of the shell's own actions (Retry saving), not the screen's: a
+    // screen with a body of its own never sees it, and the menu draws it in a
+    // footer under that body (GameMenu::DrawBody); a list draws it as a card.
+    bool footer = false;
     // The label is a player's own text (a member's name), which may be
     // elided; an interface label must fit, and the render probe checks it.
     bool userText = false;
@@ -440,8 +444,10 @@ public:
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
-        // A board moves by where it drew its rows; a list by their order.
-        if(const MenuRect* at=Placed(e.id)) {
+        // A board moves by where it drew its rows; a list by their order, and
+        // so does a screen that placed this row alone (a footer under a body
+        // that places none), where no other row lies any way.
+        if(const MenuRect* at=placed_.size()>1?Placed(e.id):nullptr) {
             const int dy=direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0;
             auto to=Nearest(*at,delta,dy,entries);
             if(to==entries.size()&&s.edge==MenuEdge::Flow) to=NextPlaced(s.index,delta+dy,entries);

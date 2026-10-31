@@ -118,10 +118,11 @@ void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act
 // rows and cards are CardGround's.
 void RowGround(ImDrawList* draw, Box row, bool focused, bool hovered);
 // The hint bar along the bottom: each hint is a glyph and its words, and also
-// a button (touch, mouse). `status` sits at the right end in `tone`; with
-// `bell` it follows a bell and is a button too, pressed as hints.size().
+// a button (touch, mouse), unless it is only a label (`label`: a dialog that
+// takes the pointer itself is open). `status` sits at the right end in `tone`;
+// with `bell` it follows a bell and is a button too, pressed as hints.size().
 // Returns the hint pressed, or -1.
-struct Hint { const char* glyph; std::string label; };
+struct Hint { const char* glyph; std::string label; bool labelOnly = false; };
 int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone, bool bell = false);
 // A state word on its tone at 18 %: "Ready", "Live", "D 42 ms". Returns its width.
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
@@ -178,9 +179,11 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
 // A layout grip (Customise.dc.html) on the edge from `from` to `to`, straight
 // across or down: a line along the edge and a dot on its middle, which the mouse
 // drags across the edge. Returns the pointer's position along that drag (x for
-// an edge down the screen, y for one across) while held, else NAN. The pad and
-// keys set the same layout in Settings > Interface > Room layout.
-float Grip(const char* id, ImVec2 from, ImVec2 to);
+// an edge down the screen, y for one across) while held, else NAN. Not `live`,
+// it is drawn muted and takes no pointer (the layout cannot change now). The
+// pad and keys set the same layout in Settings > Interface > Room layout. Its
+// box is reported (ReportMenuCard) under `id`.
+float Grip(const char* id, ImVec2 from, ImVec2 to, bool live);
 
 // A title's tier, from the lowest: its plate and stripe colours, and its icon's ink.
 enum class Tier { None, Ash, Copper, Silver, Gold, Ember };

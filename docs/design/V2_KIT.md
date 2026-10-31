@@ -106,7 +106,12 @@ read as one column), goes on to the next placed row in row order (Down,
 Right) or the previous (Up, Left). A
 GameMenu list draws its own cards and places nothing, so lists, grids and
 their footers keep moving by row order (a flyout list too tall for its
-height is drawn in two columns and still moves in reading order). Before the geometry come a row's
+height is drawn in two columns and still moves in reading order). The
+shell's own rows (`MenuEntry::footer`: Retry saving) belong to no body:
+`GameMenu::DrawBody` hands the body the rest and draws them as cards in a band
+under it, placed, so Down from the body's lowest row reaches them; a screen
+whose only placed row is one of them (a body that places nothing) moves by
+row order. Before the geometry come a row's
 explicit `left/right/up/down` (only on a screen that places nothing: a
 GameMenu list, Home's player card, Rankings) and a value row's Left/Right,
 which adjust it. A row that is not drawn is not placed, so
@@ -120,7 +125,10 @@ rule: it wraps at both ends, and from no current tab RB goes to the first and
 LB to the last. `GameMenu::tabs` steps with it; a screen without
 `GameMenu::tabs` gets LB/RB as a Shortcut whose `TabDelta` is -1 or 1, for a
 body with a strip of its own to take (and clear); a step nobody takes is
-dropped before Draw returns.
+dropped before Draw returns. A tab or a Settings panel opens through
+`ApplicationShell::ShowTab`: the panel's tab takes the place of the tab shown,
+focused on the panel's head, and the panel goes over it, so Back from a panel
+opened on another's rail lands on its own head.
 
 ## Rules for a new screen
 

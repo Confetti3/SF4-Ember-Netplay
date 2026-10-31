@@ -178,8 +178,10 @@ void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,int leaveAsk)
 }
 // The Members panel: each member under their group's heading, so the pad
 // walks them in the order they are drawn, then the heading, which opens the
-// Members list, and the panel's Hide; folded, the heading and its Show.
-void MembersPanelRows(std::vector<MenuEntry>& rows,const room::Snapshot& s,bool shown){
+// Members list, and the panel's Hide; folded, the heading and its Show. Hide
+// and Show change the board's layout, so they are `open` as its settings are
+// (ShellView::CanEditRoomSettings), and so are Chat's.
+void MembersPanelRows(std::vector<MenuEntry>& rows,const room::Snapshot& s,bool shown,bool open){
  if(shown){
   std::vector<const room::Member*> members;for(const auto& m:s.members)members.push_back(&m);
   std::stable_sort(members.begin(),members.end(),[](const room::Member* a,const room::Member* b){return MemberGroup(a->status)<MemberGroup(b->status);});
@@ -190,16 +192,16 @@ void MembersPanelRows(std::vector<MenuEntry>& rows,const room::Snapshot& s,bool 
   }
  }
  rows.push_back(Row("room-members",loc::T("room.members"),loc::Tf("room.member_count",s.members.size(),s.capacity)));
- rows.push_back(shown?Row("room-hide-members",loc::T("room.v2.hide_members"),loc::T("room.v2.hide_detail")):
-  Row("room-show-members",std::string(loc::T("room.members"))+" \xC2\xB7 "+loc::T("room.v2.show"),loc::T("room.v2.show_detail")));
+ rows.push_back(shown?Row("room-hide-members",loc::T("room.v2.hide_members"),loc::T("room.v2.hide_detail"),open):
+  Row("room-show-members",std::string(loc::T("room.members"))+" \xC2\xB7 "+loc::T("room.v2.show"),loc::T("room.v2.show_detail"),open));
 }
 // The Chat panel: its message box, which opens Chat, and the panel's Hide;
 // folded, its heading's Show alone.
-void ChatPanelRows(std::vector<MenuEntry>& rows,unsigned unread,bool shown){
- if(!shown){rows.push_back(Row("room-show-chat",std::string(loc::T("room.chat"))+" \xC2\xB7 "+loc::T("room.v2.show"),loc::T("room.v2.show_detail")));return;}
+void ChatPanelRows(std::vector<MenuEntry>& rows,unsigned unread,bool shown,bool open){
+ if(!shown){rows.push_back(Row("room-show-chat",std::string(loc::T("room.chat"))+" \xC2\xB7 "+loc::T("room.v2.show"),loc::T("room.v2.show_detail"),open));return;}
  rows.push_back(Row("room-chat",loc::T("room.chat"),(unread?loc::Tf("room.chat.unread",unread)+" ":std::string())+loc::T("room.chat.detail")));
  if(unread)rows.back().value=std::to_string(unread);
- rows.push_back(Row("room-hide-chat",loc::T("room.v2.hide_chat"),loc::T("room.v2.hide_detail")));
+ rows.push_back(Row("room-hide-chat",loc::T("room.v2.hide_chat"),loc::T("room.v2.hide_detail"),open));
 }
 }
 bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, const Submit& submit) {
@@ -362,10 +364,10 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // panel, the Chat panel, the picture's Hide, then the action bar (Room.dc.html).
  if(s.roomEpoch){
   if(s.arcade)CabinetRows(rows,v,c.mutableRoom,leaveAsk_);else TableCardRows(rows,v,leaveAsk_);
-  MembersPanelRows(rows,s,preferences_.roomShowMembers);
-  ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat);
+  MembersPanelRows(rows,s,preferences_.roomShowMembers,v.CanEditRoomSettings());
+  ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
- if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail")));
+ if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail"),v.CanEditRoomSettings()));
  // The action bar: Ready when seated, Training, the invitation's two copy
  // buttons side by side, More…, the asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
@@ -390,8 +392,10 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
  // More… (a popout): the table options, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…
  // stays open on; or, chosen from it, the picture's Small, Big and Off in its
- // place, on the one in effect.
+ // place, on the one in effect. The switches and the picture's choices are
+ // the board's layout, open as its settings are (ShellView::CanEditRoomSettings).
  {
+  const bool layoutOpen=v.CanEditRoomSettings();
   MenuEntry more=Row("room-more",loc::T("room.v2.more"),loc::T("room.v2.more_detail"));more.popout=true;
   if(!moreAsk_&&!nav.Choosing()){morePicture_=false;moreChosen_.clear();}
   more.chosen=moreChosen_;
@@ -399,7 +403,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   if(morePicture_){
    more.label=loc::T("room.v2.picture");more.chosen="picture-"+std::to_string(preferences_.pictureMode);
    const char* const details[]={"room.v2.picture_small_detail","room.v2.picture_big_detail","room.v2.picture_off_detail"};
-   for(int i=0;i<3;++i)more.choices.push_back({"picture-"+std::to_string(i),loc::T(pictureNames[i]),loc::T(details[i])});
+   for(int i=0;i<3;++i)more.choices.push_back({"picture-"+std::to_string(i),loc::T(pictureNames[i]),loc::T(details[i]),layoutOpen});
   }else{
    if(s.roomEpoch){
     // Changing fighter needs a seat, so it lives in the table options (and X).
@@ -409,9 +413,9 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});
    }
    const auto shownPart=[&](const char* part,bool on){return loc::Tf("room.v2.part_state",loc::T(part),loc::T(on?"common.on":"common.off"));};
-   more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail")});
-   more.choices.push_back({"room-show-chat",shownPart("room.chat",preferences_.roomShowChat),loc::T("room.v2.part_detail")});
-   more.choices.push_back({"room-picture",loc::Tf("room.v2.part_state",loc::T("room.v2.picture"),loc::T(pictureNames[preferences_.pictureMode])),loc::T("room.v2.picture_detail")});
+   more.choices.push_back({"room-show-members",shownPart("room.members",preferences_.roomShowMembers),loc::T("room.v2.part_detail"),layoutOpen});
+   more.choices.push_back({"room-show-chat",shownPart("room.chat",preferences_.roomShowChat),loc::T("room.v2.part_detail"),layoutOpen});
+   more.choices.push_back({"room-picture",loc::Tf("room.v2.part_state",loc::T("room.v2.picture"),loc::T(pictureNames[preferences_.pictureMode])),loc::T("room.v2.picture_detail"),layoutOpen});
   }
   rows.push_back(std::move(more));
  }

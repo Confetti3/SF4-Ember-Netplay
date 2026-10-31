@@ -80,11 +80,12 @@ struct ShellView {
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
     // The settings a room leaves open (PlayerPreferences::CopyRoomSettings: the
     // room board's layout and the watched game's picture) can change now: with
-    // every preference open, or in a room at the main menu between games, where
-    // the shell saves them alone (UpdatePreferenceSave) and the runtime takes
-    // them (CanEditButtonLayoutNow). Every Settings row and picture for those fields asks this.
+    // every preference open, or in a room whenever this player is not fighting,
+    // watching a game included (the picture exists only then), where the shell
+    // saves them alone (UpdatePreferenceSave) and the runtime takes them at once
+    // (SaveRoomSettings). Every row, grip and picture for those fields asks this.
     bool CanEditRoomSettings() const {
-        return canEditPreferences || (atMainMenu && session.room != netplay::RoomState::Idle && !netplay::Fighting(session.match));
+        return canEditPreferences || (session.room != netplay::RoomState::Idle && !netplay::Fighting(session.match));
     }
     int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
     bool autoDelayMeasured=false;
@@ -422,6 +423,11 @@ private:
     // belongs to ("tab-matches" for its panel "tab-matches/defaults").
     static bool SettingsTab(const std::string& screen);
     static std::string SettingsTabOf(const std::string& screen);
+    // A tab's page takes the place of the tab shown and of whatever is open on
+    // it. A Settings panel ("tab-matches/defaults") stands on its tab's page,
+    // focused on the panel's head, so Back from the panel lands there: the one
+    // way a tab or a panel opens (a tab, a rail head, Select on a head).
+    void ShowTab(const std::string& screen);
     // Left or Right on a Settings value row that is no on/off switch; false for any other row.
     static bool AdjustSetting(netplay::PlayerPreferences& preferences,const MenuAction& action);
     // The installed version label, or the build's hash for a copy without one (a developer build).
@@ -629,14 +635,15 @@ private:
     // player's layout grips set them (PlayerPreferences::roomColumn); a folded panel's
     // box is its heading's strip and the other takes the column, or, both folded, the
     // two strips stand in a narrow column. RoomGrips draws the grips on the edges
-    // shown, after the panes, and a drag sets them again.
+    // shown, after the panes, and a drag sets them again while `editable`
+    // (ShellView::CanEditRoomSettings); otherwise they are drawn inert.
     static constexpr float FoldedPanelHeight = 48, FoldedColumnWidth = 280;
     void ArrangeRoom(v2::Box area,v2::Box& tables,v2::Box& members,v2::Box& chat,v2::Box* picture=nullptr) const;
     // The room's Small picture: a panel at the column's top, over Members.
     bool columnPicture_ = false;
-    void RoomGrips(v2::Box area);
+    void RoomGrips(v2::Box area,bool editable);
     // Settings' picture of that layout, with the same grips.
-    void DrawRoomLayoutPreview();
+    void DrawRoomLayoutPreview(bool editable);
     // A room's board in its type's layout, in place of the table cards (RoomPanelArcade.cxx).
     void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
                          room::RoomType type);

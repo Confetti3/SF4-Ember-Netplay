@@ -87,9 +87,9 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
         const auto& h = hints[i];
         const std::string label = compact ? std::string() : PromptLabel(h.glyph, h.label, MenuPromptBrand());
         const float w = glyph + (label.empty() ? 0 : 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x);
-        if (PressedOn({ImVec2(x, bar.min.y), ImVec2(x + w, bar.max.y)}).pressed) pressed = i;
+        if (!h.labelOnly && PressedOn({ImVec2(x, bar.min.y), ImVec2(x + w, bar.max.y)}).pressed) pressed = i;
         DrawPromptGlyph(d, h.glyph, ImVec2(x, bar.min.y + (bar.H() - glyph) * .5f), glyph, MenuArt(), s);
-        d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
+        d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), h.labelOnly ? Colors().muted : Colors().text, label.c_str());
         x += w + (compact ? 12 : 24) * s;
     }
     // The status takes a second line where one does not hold it (Home's
@@ -159,22 +159,28 @@ int SpotMap(const char* id, const std::vector<ImVec2>& spots, int current, ImVec
     return ImGui::IsItemDeactivated() && hovered ? nearest : -1;
 }
 
-float Grip(const char* id, ImVec2 from, ImVec2 to) {
+float Grip(const char* id, ImVec2 from, ImVec2 to, bool live) {
     const float s = Scale(), reach = 22 * s;
     const bool down = from.x == to.x;
     const ImVec2 mid((from.x + to.x) * .5f, (from.y + to.y) * .5f);
-    ImGui::SetCursorScreenPos(down ? ImVec2(from.x - reach, from.y) : ImVec2(from.x, from.y - reach));
-    ImGui::InvisibleButton(id, down ? ImVec2(2 * reach, (std::max)(1.f, to.y - from.y)) : ImVec2((std::max)(1.f, to.x - from.x), 2 * reach));
-    const bool held = ImGui::IsItemActive(), hovered = ImGui::IsItemHovered();
+    const ImVec2 at = down ? ImVec2(from.x - reach, from.y) : ImVec2(from.x, from.y - reach);
+    const ImVec2 size = down ? ImVec2(2 * reach, (std::max)(1.f, to.y - from.y)) : ImVec2((std::max)(1.f, to.x - from.x), 2 * reach);
+    ReportMenuCard(id, at, ImVec2(at.x + size.x, at.y + size.y));
+    bool held = false, hovered = false;
+    if (live) {
+        ImGui::SetCursorScreenPos(at);
+        ImGui::InvisibleButton(id, size);
+        held = ImGui::IsItemActive(); hovered = ImGui::IsItemHovered();
+    }
     if (held || hovered) ImGui::SetMouseCursor(down ? ImGuiMouseCursor_ResizeEW : ImGuiMouseCursor_ResizeNS);
     auto* d = ImGui::GetWindowDrawList();
     const auto& c = Colors();
-    const ImU32 line = held ? c.accent : hovered ? color::Alpha(c.accent, .7f) : color::Alpha(c.accent, .35f);
+    const ImU32 line = !live ? color::Alpha(c.muted, .35f) : held ? c.accent : hovered ? color::Alpha(c.accent, .7f) : color::Alpha(c.accent, .35f);
     d->AddLine(from, to, line, 4 * s);
     d->AddCircleFilled(mid, 18 * s, held ? c.accent : c.button);
     d->AddCircle(mid, 18 * s, line, 0, s);
     // Three dots at rest; held, the two ways it moves.
-    const ImU32 ink = held ? c.ink : c.text;
+    const ImU32 ink = held ? c.ink : live ? c.text : c.muted;
     if (held) for (float side : {-1.f, 1.f}) {
         const ImVec2 tip = down ? ImVec2(mid.x + side * 10 * s, mid.y) : ImVec2(mid.x, mid.y + side * 10 * s);
         const ImVec2 a = down ? ImVec2(tip.x - side * 6 * s, mid.y - 6 * s) : ImVec2(mid.x - 6 * s, tip.y - side * 6 * s);

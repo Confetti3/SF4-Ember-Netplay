@@ -30,3 +30,4 @@ void SelectorPages();
 void SelectorFromHome();
 void DeveloperSelectors();
 void V2AuditJourneys();
+void SettingsJourneys();

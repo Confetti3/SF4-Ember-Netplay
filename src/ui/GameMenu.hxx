@@ -300,7 +300,8 @@ private:
     // Parts of Draw (GameMenuDraw.cxx), each in its box cut from the window.
     // The title or Home's brand, and the tabs; `content` loses what they take.
     void DrawHeader(Frame& f, v2::Box& content, bool narrow);
-    // A screen's own body in place of the cards, and its value panel.
+    // A screen's own body in place of the cards, the footer of the shell's
+    // own rows (MenuEntry::footer) under it, and its value panel.
     void DrawBody(Frame& f, v2::Box content);
     // The cards and, beside them, the focused card's detail or Home's player
     // card and news; then the value panel and the list card over them.
