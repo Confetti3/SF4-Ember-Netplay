@@ -211,6 +211,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  if(a.id=="mute"){if(muted_.count(selectedMember_))muted_.erase(selectedMember_);else muted_.insert(selectedMember_);return;}
  if(a.id=="room-capacity"){roomCapacity_=(std::max)(2,(std::min)(16,roomCapacity_+a.delta));return;}
+ if(a.id=="room-tables"){roomTableCount_=(std::max)(1,(std::min)(static_cast<int>(TableCount),roomTableCount_+a.delta));return;}
  if(AdjustRule(tableRules_,a)){rulesDirty_=!(tableRules_==v.room.tables[selectedTable_].rules);return;}
  Action request;request.table=static_cast<std::uint8_t>(selectedTable_);
  if(a.id=="queue")request.kind=ActionKind::Queue;
@@ -232,6 +233,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  }
  else if(a.id=="apply-name"){request.kind=ActionKind::Rename;request.text=roomName_;}
  else if(a.id=="apply-capacity"){request.kind=ActionKind::SetCapacity;request.capacity=static_cast<std::uint8_t>(roomCapacity_);}
+ else if(a.id=="apply-tables"){
+  // A table taken away must be empty; the room says so too, but nothing is sent that it would refuse.
+  if(!room::TableCountAllowed(v.room,static_cast<std::size_t>(roomTableCount_))){error_=loc::T("room.action_rejected");return;}
+  request.kind=ActionKind::SetTableCount;request.tableCount=static_cast<std::uint8_t>(roomTableCount_);
+ }
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.

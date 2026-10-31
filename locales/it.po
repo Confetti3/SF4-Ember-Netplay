@@ -2211,6 +2211,9 @@ msgstr "Sinistra e Destra lo cambiano e la scelta viene salvata subito."
 msgid "selection.locked_detail"
 msgstr "Selezione bloccata. Torna al tuo tavolo per vedere lo stato."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Hai vinto l'ultimo set, quindi tieni questo lottatore. Puoi ancora cambiare l'Ultra Combo, il costume e il colore."
+
 msgid "selection.title"
 msgstr "SEL. PERSONAGGIO"
 
@@ -3243,6 +3246,14 @@ msgstr "Applica capienza"
 
 msgid "room.apply_capacity.detail"
 msgstr "Invia questa capienza."
+msgid "room.tables"
+msgstr "Tavoli"
+msgid "room.tables_detail"
+msgstr "Quanti tavoli ha la sala, da 1 a {0}. L'host può cambiarlo in seguito in Impostazioni sala."
+msgid "room.tables.detail"
+msgstr "Aggiungi tavoli fino a {0}. Un tavolo si può togliere solo se nessuno ci gioca, aspetta o guarda."
+msgid "room.apply_tables"
+msgstr "Applica tavoli"
 
 msgid "profile.main_badge"
 msgstr "PRINCIPALE"
@@ -4648,6 +4659,12 @@ msgstr "Rivincita immediata"
 msgid "rules.instant_rematch.detail"
 msgstr "Dopo ogni partita entrambi i lottatori scelgono Rivincita, Seleziona personaggio o Torna alla stanza sulla schermata WIN, per 10 secondi."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Il vincitore tiene il lottatore"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Come in una vera sala giochi, chi vince il set resta con il lottatore con cui ha vinto. Possono cambiare solo l'Ultra Combo, il costume e il colore."
+
 msgid "postmatch.choose"
 msgstr "Un'altra?"
 
@@ -4698,6 +4715,12 @@ msgstr "Seleziona personaggio"
 
 msgid "postmatch.character_select.detail"
 msgstr "Scegli un altro lottatore nella stanza, poi Pronto."
+
+msgid "postmatch.rotate.winner"
+msgstr "Hai vinto: resti al tuo cabinato e affronti chi si siede dopo."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} resta al cabinato. Affronti il prossimo giocatore libero."
 
 msgid "postmatch.back"
 msgstr "Torna alla stanza"

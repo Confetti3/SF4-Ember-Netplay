@@ -2211,6 +2211,9 @@ msgstr "Izquierda y Derecha lo cambian y se guarda al instante."
 msgid "selection.locked_detail"
 msgstr "Selección bloqueada. Vuelve a tu mesa para ver el estado."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Has ganado el último set, así que conservas este luchador. Aún puedes cambiar el Ultra Combo, el traje y el color."
+
 msgid "selection.title"
 msgstr "SELECCIÓN PERSONAJE"
 
@@ -3244,6 +3247,14 @@ msgstr "Aplicar capacidad"
 
 msgid "room.apply_capacity.detail"
 msgstr "Envía esta capacidad."
+msgid "room.tables"
+msgstr "Mesas"
+msgid "room.tables_detail"
+msgstr "Cuántas mesas tiene la sala, de 1 a {0}. El anfitrión puede cambiarlo después en Ajustes de la sala."
+msgid "room.tables.detail"
+msgstr "Añade mesas hasta {0}. Una mesa solo se puede quitar cuando nadie juega, espera ni mira en ella."
+msgid "room.apply_tables"
+msgstr "Aplicar mesas"
 
 msgid "profile.main_badge"
 msgstr "PPAL."
@@ -4649,6 +4660,12 @@ msgstr "Revancha inmediata"
 msgid "rules.instant_rematch.detail"
 msgstr "Tras cada partida, los dos luchadores eligen Revancha, Selección de personaje o Volver a la sala en la pantalla WIN, durante 10 segundos."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "El ganador conserva su luchador"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Como en un salón recreativo de verdad, quien gana el set sigue con el luchador con el que ganó. Solo pueden cambiar el Ultra Combo, el traje y el color."
+
 msgid "postmatch.choose"
 msgstr "¿Otra?"
 
@@ -4699,6 +4716,12 @@ msgstr "Selección de personaje"
 
 msgid "postmatch.character_select.detail"
 msgstr "Elige otro luchador en la sala y marca Listo."
+
+msgid "postmatch.rotate.winner"
+msgstr "Has ganado: te quedas en tu máquina y juegas contra quien se siente después."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} se queda en la máquina. Juegas contra el siguiente jugador libre."
 
 msgid "postmatch.back"
 msgstr "Volver a la sala"

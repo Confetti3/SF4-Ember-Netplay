@@ -181,7 +181,7 @@ inline RecoveryChoice DrawRecoveryMenu(GameMenu& menu,const platform::ServiceSna
         loc::T(updates?"updates.close_detail":"recovery.close_detail")));
     // The launch window names the version in its corner, as Home does; the
     // updater has its own rows for it.
-    menu.footerNote=updates?std::string():VersionLine(state.installedVersion,state.channel);
+    menu.footerNote=updates?std::string():VersionLine(state.installedVersion);
     // Back on the root closes the window, so the legend says so.
     menu.backHint=updates?loc::T("updates.back_close"):loc::T("recovery.back_close");
     const auto* vp=ImGui::GetMainViewport();

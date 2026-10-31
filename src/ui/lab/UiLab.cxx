@@ -507,6 +507,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ui::MatchStripView strip;
             strip.names[0] = "FRaccie"; strip.names[1] = "Akira";
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
+            // Their classes as a public room shows them: B+, and Master not played lately (faint).
+            strip.badges[0] = SkillBadge::OfClass(6, true); strip.badges[1] = SkillBadge::OfClass(9, false);
             strip.pingMs = 96; strip.rollbackFrames = 2; strip.appliedDelay = 2; strip.layout = hud; strip.spectators = 3; strip.score = "2 - 1";
             ui::DrawMatchStrip(strip);
             if (toasts) shell.Background(view, view.room, submit);

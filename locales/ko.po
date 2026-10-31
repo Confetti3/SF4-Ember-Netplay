@@ -2211,6 +2211,9 @@ msgstr "좌/우로 바꾸면 바로 저장됩니다."
 msgid "selection.locked_detail"
 msgstr "선택이 잠겼습니다. 현재 상태를 보려면 테이블로 돌아가세요."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "지난 세트에서 이겼으므로 이 캐릭터를 유지합니다. 울트라 콤보, 코스튬, 색상은 계속 바꿀 수 있습니다."
+
 msgid "selection.title"
 msgstr "캐릭터 선택"
 
@@ -3244,6 +3247,14 @@ msgstr "정원 적용"
 
 msgid "room.apply_capacity.detail"
 msgstr "이 정원을 제출합니다."
+msgid "room.tables"
+msgstr "테이블 수"
+msgid "room.tables_detail"
+msgstr "방의 테이블 수입니다(1~{0}). 방장은 나중에 방 설정에서 바꿀 수 있습니다."
+msgid "room.tables.detail"
+msgstr "테이블은 {0}개까지 추가할 수 있습니다. 테이블은 아무도 없을 때만 줄일 수 있습니다."
+msgid "room.apply_tables"
+msgstr "테이블 수 적용"
 
 msgid "profile.main_badge"
 msgstr "주 캐릭터"
@@ -4649,6 +4660,12 @@ msgstr "즉시 재대전"
 msgid "rules.instant_rematch.detail"
 msgstr "매 게임 후 WIN 화면에서 10초 동안 두 캐릭터가 재대전, 캐릭터 선택, 방으로 돌아가기 중에서 고릅니다."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "승자는 캐릭터 유지"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "실제 오락실처럼 세트 승자는 이긴 캐릭터로 계속합니다. 울트라 콤보, 코스튬, 색상만 바꿀 수 있습니다."
+
 msgid "postmatch.choose"
 msgstr "한 판 더?"
 
@@ -4699,6 +4716,12 @@ msgstr "캐릭터 선택"
 
 msgid "postmatch.character_select.detail"
 msgstr "방에서 다른 캐릭터를 고른 뒤 준비하세요."
+
+msgid "postmatch.rotate.winner"
+msgstr "이겼으므로 기기에 남아 다음에 앉는 플레이어와 대전합니다."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} 님이 기기에 남습니다. 다음으로 비는 플레이어와 대전합니다."
 
 msgid "postmatch.back"
 msgstr "방으로 돌아가기"

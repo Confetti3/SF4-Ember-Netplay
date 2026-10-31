@@ -324,6 +324,61 @@ void DelayPolicyInRoom() {
  Check(row("delay-policy")==rows.end(),"A Shared room's host was shown the delay row");
  SetMenuEntriesProbe({});
 }
+// A private Classic room's tables: chosen on Create (four to begin with, kept
+// with the defaults, carried by Create room), offered for no Arcade or public
+// room, and changed in the room by its host, never past an occupied table.
+void TableCountCreate() {
+ using namespace sf4e;
+ using Kind=netplay::CommandKind;
+ Harness h;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
+ h.Screen("online");h.Choose("create");
+ Check(row("tables")!=rows.end()&&row("tables")->value=="4"&&row("tables")->label==loc::T("room.tables")&&
+  row("tables")->detail==loc::Tf("room.tables_detail",static_cast<int>(room::TableCount)),"Create did not offer four tables");
+ h.Choose("host");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().tableCount==4,"Create room did not ask for four tables");
+ Check(!netplay::RoomPreferences(h.actions.back().preferences).contains("tableCount"),"Four tables were written to the saved defaults");
+ h.Screen("online");h.Choose("create");h.FocusOn("tables");
+ for(int i=0;i<6;++i)h.Press(MenuInput::Right);
+ Check(row("tables")->value=="8","Tables did not stop at eight");
+ h.Press(MenuInput::Left);h.Press(MenuInput::Left);
+ h.Choose("host");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().tableCount==6,"Create room did not ask for six tables");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"The table count did not reach the saved defaults");
+ // Kept: Create opens on six again. An Arcade room plays at every table and a
+ // public room opens at four, so neither offers the row.
+ h.Screen("online");h.Choose("create");
+ Check(row("tables")->value=="6","The table count was forgotten when Create opened again");
+ h.FocusOn("room-type");h.Press(MenuInput::Right);
+ Check(row("tables")==rows.end(),"An Arcade room offered a table count");
+ h.Choose("host");
+ Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==room::ClassicTableCount,"An Arcade room asked for a table count");
+ h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
+ Check(row("tables")==rows.end(),"Public Create offered a table count");
+ h.Press(MenuInput::Left);
+ // In the room: the host's settings offer the count and send it.
+ room::Member me,other;me.id=1;me.name="Me";me.host=true;other.id=2;other.name="Other";
+ JoinedRoom(h,12);h.view.session.control=netplay::Health::Healthy;
+ h.view.room.members={me,other};h.view.room.host=1;h.view.room.tableCount=6;
+ other.table=5;other.status=room::MemberStatus::Queued;h.view.room.members[1]=other;h.view.room.tables[5].queue={2};
+ h.Frame();h.Screen("room-admin");
+ Check(row("room-tables")!=rows.end()&&row("room-tables")->value=="6"&&row("apply-tables")!=rows.end()&&!row("apply-tables")->enabled,
+  "Room settings did not show six tables, or offered to apply the same count");
+ // Fewer tables than the queued member's is not offered; one more is.
+ h.FocusOn("room-tables");h.Press(MenuInput::Left);h.Press(MenuInput::Left);
+ Check(row("room-tables")->value=="4"&&!row("apply-tables")->enabled,"Room settings offered to take away an occupied table");
+ h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Right);
+ Check(row("room-tables")->value=="7"&&row("apply-tables")->enabled,"Room settings did not offer a seventh table");
+ const auto before=h.actions.size();
+ h.Choose("apply-tables");
+ Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::RoomAction&&h.actions.back().roomAction.kind==room::ActionKind::SetTableCount&&
+  h.actions.back().roomAction.tableCount==7,"Apply tables did not send the count");
+ // An Arcade room's settings have no count.
+ h.view.room.arcade=room::ArcadeRoom;h.Frame();
+ Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"An Arcade room's settings offered a table count");
+ SetMenuEntriesProbe({});
+}
 void TrainingJourneys() {
  using namespace sf4e;
  HeadlessImGui imgui;auto& io=imgui.io;

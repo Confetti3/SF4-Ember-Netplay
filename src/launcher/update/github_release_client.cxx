@@ -400,11 +400,6 @@ namespace launcher {
 		return running;
 	}
 
-	ReleaseKind ClassifyReleaseKind(const Version& version) {
-		if (!version.prerelease) return ReleaseKind::Stable;
-		return version.word == "nightly" ? ReleaseKind::Nightly : ReleaseKind::Beta;
-	}
-
 	const char* UpdateChannelName(UpdateChannel channel) { return GetUpdateChannelInfo(channel).stored; }
 	const char* UpdateChannelRepo(UpdateChannel channel) { return GetUpdateChannelInfo(channel).repo; }
 

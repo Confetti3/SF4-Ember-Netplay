@@ -6,10 +6,12 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade, std::uint8_t tableCount) {
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = practice;
 	snapshot_.arcade = arcade;
+	snapshot_.tableCount = InRange<std::uint8_t>(tableCount, 1, static_cast<std::uint8_t>(TableCount))
+		? tableCount : static_cast<std::uint8_t>(ClassicTableCount);
 	snapshot_.delayPolicy = delayPolicy;
 	snapshot_.roomEpoch = roomEpoch == 0 ? 1 : roomEpoch;
 	snapshot_.name = (!name.empty() && name.size() <= MaximumRoomNameBytes && IsValidUtf8(name) && IsSingleLineText(name))
@@ -40,6 +42,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.practice = snapshot_.practice;
 		result.delayPolicy = snapshot_.delayPolicy;
 		result.arcade = snapshot_.arcade;
+		result.tableCount = snapshot_.tableCount;
 		result.cabinets = snapshot_.cabinets;
 		result.streaks = snapshot_.streaks;
 		result.topSlot = snapshot_.topSlot;
@@ -89,10 +92,17 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 	return result;
 }
 
-bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady) {
+bool RoomAuthority::FighterAllowed(MemberId member,int fighter,int edition) const {
+    if(!KeepsFighter(snapshot_,member))return true;
+    const auto& table=snapshot_.tables[PlaceOf(snapshot_,member).table];
+    return (table.keptFighter<0||fighter==table.keptFighter)&&(table.keptEdition<0||edition==table.keptEdition);
+}
+bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady,int edition) {
     if(withdrewOpponentReady)*withdrewOpponentReady=false;
     auto* value=Find(member);
     if(value)NoteActive(member);
+    // The edition rides along unannounced: only a keeper's set end reads it.
+    if(value&&edition>=0)value->edition=edition;
     if(!value||fighter<0||fighter>=44||value->fighter==fighter)return false;
     const int previous=value->fighter;
     value->fighter=fighter;
@@ -331,6 +341,15 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 	table.lastSet.winnerSeat = static_cast<std::uint8_t>(winnerSeat);
 	const MemberId winner = table.lastSet.Winner();
 	const MemberId loser = table.lastSet.Loser();
+	// Each member's record in the room, as the boards show it.
+	const auto count = [](std::uint16_t& sets) { if (sets != UINT16_MAX) ++sets; };
+	if (auto* member = Find(winner)) count(member->setsWon);
+	if (auto* member = Find(loser)) count(member->setsLost);
+	// Rules::winnerKeepsFighter: the winner keeps the fighter and edition they won with.
+	const Member* kept = snapshot_.arcade && table.rules.winnerKeepsFighter ? Find(winner) : nullptr;
+	table.keeper = kept && kept->fighter >= 0 ? winner : 0;
+	table.keptFighter = table.keeper ? kept->fighter : -1;
+	table.keptEdition = table.keeper ? kept->edition : -1;
 	if (table.streakHolder == winner) {
 		if (table.streak != (std::numeric_limits<std::uint32_t>::max)()) ++table.streak;
 	} else {
@@ -395,6 +414,7 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 		bool spectatorsChanged = false;
 		if (table.p1 == member) { table.p1 = 0; table.ready[0] = false; changed = true; }
 		if (table.p2 == member) { table.p2 = 0; table.ready[1] = false; changed = true; }
+		if (table.keeper == member) { table.keeper = 0; table.keptFighter = table.keptEdition = -1; }
 		const auto oldQueueSize = table.queue.size();
 		table.queue.erase(std::remove(table.queue.begin(), table.queue.end(), member), table.queue.end());
 		queueChanged = oldQueueSize != table.queue.size();

@@ -90,15 +90,23 @@ void KeyboardJourneys(){
  Check(h.shell.Navigation().Screen()=="room-chat","Typing in chat pressed a menu key");
  key(ImGuiKey_Escape);Check(h.shell.Navigation().Screen()=="room","Escape did not return to the board");
  // F opens fighter select's board at the current fighter; Right and Enter
- // pick the next one there, and Back returns to the room.
+ // pick the next one there, the change it was opened for, so the room comes
+ // back; Back from the board returns to the room too.
  FighterSelector selector;selection::Pick pick;pick.fighter=4;pick.edition=14;
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
  key(ImGuiKey_F);
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home"&&selector.Navigation().Focus()=="fighter-4",
   "F did not open the board at the current fighter");
  key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
- Check(pick.fighter==DisplayedAfter(4)&&h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home","Picking a fighter did not stay on the board");
+ Check(pick.fighter==DisplayedAfter(4)&&h.shell.Navigation().Screen()=="room","Picking a fighter from the room did not return to it");
+ key(ImGuiKey_F);Check(h.shell.Navigation().Screen()=="selection","F did not open the board again");
  key(ImGuiKey_Backspace);
+ // An Arcade room that keeps its winner on their fighter: the grid picks nothing.
+ h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true,{},nullptr,nullptr,true);};
+ const int kept=pick.fighter;key(ImGuiKey_F);key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(pick.fighter==kept&&h.shell.Navigation().Screen()=="selection","A winner who keeps their fighter could pick another");
+ key(ImGuiKey_Backspace);
+ h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};
  Check(h.shell.Navigation().Screen()=="room","Back from the board did not return to the room");
  // Select on the table page's Ultra or Appearance opens the board on that row,
  // and Back returns to the table page.

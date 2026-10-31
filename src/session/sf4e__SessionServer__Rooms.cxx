@@ -30,9 +30,9 @@ using Dimps::Math::FixedPoint;
 using sf4e::SessionServer;
 
 void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capacity,
-	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy, room::RoomType arcade) {
+	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy, room::RoomType arcade, std::uint8_t tableCount) {
 	if (_roomAuthority || !name.size()) return;
-	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice, delayPolicy, arcade));
+	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice, delayPolicy, arcade, tableCount));
 	_roomMatchData.clear();
 	for (auto& authority : _roomMatchAuthorities) authority.reset();
 	if (_matchAuthorizationConfigured) {
@@ -367,6 +367,17 @@ void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_
 }
 
 std::uint8_t SessionServer::RoomTableFor(session::Connection connection) const {
+	// A seated member acts at their seat's table. In an Arcade room someone
+	// else's action can move them there (a set's end pairs the one waiting, a
+	// seat left behind follows its waiter), which the table they last chose
+	// does not know: their fighter, stage and seed would go to the old table.
+	if (_roomAuthority) {
+		if (const auto member = roomMembers.find(connection); member != roomMembers.end()) {
+			const auto place = room::PlaceOf(_roomAuthority->SnapshotView(), member->second);
+			if (place.kind == room::Place::Kind::Seat && place.table >= 0 && place.table < static_cast<int>(room::TableCount))
+				return static_cast<std::uint8_t>(place.table);
+		}
+	}
 	const auto selected = roomSelectedTables.find(connection);
 	return selected == roomSelectedTables.end() || selected->second >= room::TableCount ? 0 : selected->second;
 }

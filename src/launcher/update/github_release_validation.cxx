@@ -6,33 +6,6 @@
 
 namespace sf4e {
 namespace launcher {
-	// Up to nine digits, so the number fits an int without overflow.
-	static bool ReadNumber(const char*& p, int& out) {
-		const char* start = p;
-		while (*p >= '0' && *p <= '9') p++;
-		if (p == start || p - start > 9) return false;
-		out = 0;
-		for (const char* d = start; d < p; d++) out = out * 10 + (*d - '0');
-		return true;
-	}
-
-	std::optional<Version> ParseVersion(const char* text) {
-		if (!text) return std::nullopt;
-		const char* p = text;
-		if (*p == 'v' || *p == 'V') p++;
-		Version version;
-		if (!ReadNumber(p, version.major) || *p++ != '.' || !ReadNumber(p, version.minor) || *p++ != '.' || !ReadNumber(p, version.patch)) return std::nullopt;
-		if (*p == '\0') return version;
-		if (*p++ != '-' || *p == '\0') return std::nullopt;
-		version.prerelease = true;
-		for (const char* c = p; *c; c++)
-			if (!isalnum(static_cast<unsigned char>(*c)) && *c != '.' && *c != '-') return std::nullopt;
-		while (isalpha(static_cast<unsigned char>(*p))) version.word += static_cast<char>(tolower(static_cast<unsigned char>(*p++)));
-		if (*p >= '0' && *p <= '9' && !ReadNumber(p, version.number)) return std::nullopt;
-		version.rest = p;
-		return version;
-	}
-
 	// Nightly revision components may exceed an int. Compare their digit
 	// counts and contents after leading zeroes, without numeric conversion.
 	static int CompareNightlyRest(std::string_view a, std::string_view b) {

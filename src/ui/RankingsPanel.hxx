@@ -21,7 +21,10 @@ enum class Tone;
 // The bridge counts every ranking request against one small budget, and reading
 // the standing marks the class as shown, so nothing here refreshes by itself:
 // the standing is read when the player opens Rankings, the board when they open
-// it, and either again on Options. While the player takes part and classes are
+// it, and either again on Options. The profile card shows the standing's
+// class, so away from these screens the standing is also read once a session
+// for each service and Ember ID (ReadForProfile), as a first visit would.
+// While the player takes part and classes are
 // shown, opening Rankings also sends the name and flag rooms show for them, when
 // the board lists them otherwise: nobody is listed before seeing this page.
 class RankingsPanel {
@@ -69,9 +72,12 @@ private:
     std::vector<MenuEntry> BoardRows(const ShellView& view) const;
     void Choose(bool ranked);
     void TakeAnswers(const ShellView& view, bool owned);
+    void ReadForProfile(const ShellView& view, const std::string& bridge, const Submit& submit);
     void Say(std::string text) { said_ = std::move(text); }
 
     std::string bridge_, lastScreen_, said_;
+    // The service and Ember ID whose standing ReadForProfile asked for, or found loaded.
+    std::string profileRead_;
     netplay::rankings::Listing own_;
     bool wantStanding_ = false, wantBoard_ = false;
     // The visit sent its listing already, so an answer that still differs cannot loop.

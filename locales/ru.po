@@ -2211,6 +2211,9 @@ msgstr "Влево и вправо меняют значение, оно сра�
 msgid "selection.locked_detail"
 msgstr "Выбор заблокирован. Вернитесь в свою ячейку, чтобы узнать состояние."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Вы выиграли последний сет, поэтому остаётесь с этим бойцом. Ultra Combo, костюм и цвет по-прежнему можно менять."
+
 msgid "selection.title"
 msgstr "ВЫБОР БОЙЦА"
 
@@ -3243,6 +3246,14 @@ msgstr "Применить лимит"
 
 msgid "room.apply_capacity.detail"
 msgstr "Задать лимит лобби."
+msgid "room.tables"
+msgstr "Ячейки"
+msgid "room.tables_detail"
+msgstr "Сколько ячеек в лобби, от 1 до {0}. Ведущий может изменить это позже в настройках лобби."
+msgid "room.tables.detail"
+msgstr "Можно добавить до {0} ячеек. Ячейку можно убрать, только если в ней никто не играет, не ждёт и не смотрит."
+msgid "room.apply_tables"
+msgstr "Применить ячейки"
 
 msgid "profile.main_badge"
 msgstr "ОСНОВНОЙ"
@@ -4648,6 +4659,12 @@ msgstr "Мгновенный реванш"
 msgid "rules.instant_rematch.detail"
 msgstr "После каждой игры оба бойца 10 секунд выбирают на экране WIN: Реванш, Выбор бойца или Назад в комнату."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Победитель сохраняет бойца"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Как в настоящем игровом зале, победитель сета остаётся с бойцом, которым победил. Менять можно только Ultra Combo, костюм и цвет."
+
 msgid "postmatch.choose"
 msgstr "Ещё раз?"
 
@@ -4698,6 +4715,12 @@ msgstr "Выбор бойца"
 
 msgid "postmatch.character_select.detail"
 msgstr "Выберите другого бойца в комнате, затем Готов."
+
+msgid "postmatch.rotate.winner"
+msgstr "Вы победили: остаётесь у своего автомата и играете с тем, кто сядет следующим."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} остаётся у автомата. Вы играете со следующим свободным игроком."
 
 msgid "postmatch.back"
 msgstr "Назад в комнату"

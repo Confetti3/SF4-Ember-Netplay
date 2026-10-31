@@ -236,8 +236,31 @@ void BoardJourney() {
 }
 }
 
+// Away from Rankings, the profile card's standing is read once a session: a
+// read the queue refused is asked again, and once one goes out, no more.
+void ProfileReadJourney() {
+ Journey j;
+ auto& id = j.h.view.identity;
+ const std::string emberId = id.emberId;
+ // The service becomes usable on Home; with no Ember ID known yet nothing is read.
+ id.emberId.clear();
+ j.h.Screen("home"); j.h.Frame(0, 2); j.answerIdentityUntilIdle();
+ Check(Sent(j, Op::RankingStanding).empty(), "The standing was read before the Ember ID was known");
+ id.emberId = emberId;
+ j.h.accept = false; j.h.Frame();
+ Check(Sent(j, Op::RankingStanding).size() == 1, "Home did not ask for the standing");
+ j.h.accept = true; j.h.Frame();
+ Check(Sent(j, Op::RankingStanding).size() == 2, "A refused read was not asked again");
+ j.h.Frame(0, 30);
+ Check(Sent(j, Op::RankingStanding).size() == 2, "The standing was read again after one went out");
+ // A failed read is not tried again either, and nothing is listed without a visit.
+ AnswerStanding(j, Standing(), "unavailable"); j.h.Frame(0, 30);
+ Check(Sent(j, Op::RankingStanding).size() == 2 && Sent(j, Op::RankingChoose).empty(), "Home read again after a failure, or sent a listing");
+}
+
 int main() {
  try {
+  ProfileReadJourney();
   StandingJourney(); ChoiceJourney(); DeveloperJourney(); LeaveDuringChoiceJourney(); FreshnessJourney(); HiddenDuringChoiceJourney(); NoAccountJourney(); UnavailableJourney(); BoardJourney();
   std::cout << "Rankings journeys passed.\n";
   return 0;

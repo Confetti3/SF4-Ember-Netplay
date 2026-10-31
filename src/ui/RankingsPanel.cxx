@@ -107,7 +107,8 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     // still answered, and said, wherever the player is.
     else { wantStanding_ = wantBoard_ = false; if (pending_ && !pending_->sent) pending_.reset(); }
     TakeAnswers(v, owned);
-    if (!owned || bridge_.empty()) return;
+    if (!owned) { ReadForProfile(v, bridge, submit); return; }
+    if (bridge_.empty()) return;
     ShellAction action;
     action.command.generation = v.session.generation;
     if (pending_ && !pending_->sent) {
@@ -127,6 +128,25 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     action.tournament.op = standing ? Command::Op::RankingStanding : Command::Op::RankingBoard;
     action.tournament.bridgeId = bridge_;
     if (!submit(std::move(action))) Say(loc::T("error.queue_failed"));
+}
+
+// The profile card shows the class the standing carries. Away from Rankings,
+// the standing is read once a session for each service and Ember ID, as one
+// visit would read it, so the card has it without one; nothing is listed by
+// it, since only a visit sends the listing. A read the queue refused is
+// asked again next frame; one that went out and failed is not said and not
+// tried again: the card then shows no class until Rankings is opened.
+void RankingsPanel::ReadForProfile(const ShellView& v, const std::string& bridge, const Submit& submit) {
+    if (bridge.empty() || v.identity.emberId.empty()) return;
+    const auto& status = v.rankings;
+    std::string key = bridge + "\n" + v.identity.emberId;
+    if (key == profileRead_ || status.choosing || status.standing.loading) return;
+    if (status.bridge == bridge && status.emberId == v.identity.emberId && status.standing.loaded) { profileRead_ = std::move(key); return; }
+    ShellAction action;
+    action.command.generation = v.session.generation;
+    action.tournament.op = Command::Op::RankingStanding;
+    action.tournament.bridgeId = bridge;
+    if (submit(std::move(action))) profileRead_ = std::move(key);
 }
 
 // A value installed, by a read or a choice, may be published to the board; a

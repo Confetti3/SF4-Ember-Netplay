@@ -2211,6 +2211,9 @@ msgstr "Lewo i Prawo zmieniają to i od razu zapisują."
 msgid "selection.locked_detail"
 msgstr "Wybór zablokowany. Wróć do stołu po aktualny stan."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Wygrana w ostatnim secie: zostajesz przy tej postaci. Nadal możesz zmienić Ultra Combo, kostium i kolor."
+
 msgid "selection.title"
 msgstr "WYBÓR POSTACI"
 
@@ -3243,6 +3246,14 @@ msgstr "Zatwierdź limit"
 
 msgid "room.apply_capacity.detail"
 msgstr "Wyślij tę pojemność."
+msgid "room.tables"
+msgstr "Stoły"
+msgid "room.tables_detail"
+msgstr "Ile stołów ma pokój, od 1 do {0}. Host może to później zmienić w Ustawieniach pokoju."
+msgid "room.tables.detail"
+msgstr "Stoły można dodawać do {0}. Stół można usunąć tylko wtedy, gdy nikt przy nim nie gra, nie czeka ani nie ogląda."
+msgid "room.apply_tables"
+msgstr "Zatwierdź stoły"
 
 msgid "profile.main_badge"
 msgstr "GŁÓWNA"
@@ -4648,6 +4659,12 @@ msgstr "Natychmiastowy rewanż"
 msgid "rules.instant_rematch.detail"
 msgstr "Po każdej grze obaj zawodnicy wybierają na ekranie WIN przez 10 sekund: Rewanż, Wybór postaci albo Powrót do pokoju."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Zwycięzca zachowuje postać"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Jak w prawdziwym salonie gier zwycięzca seta zostaje przy postaci, którą wygrał. Zmienić można tylko Ultra Combo, kostium i kolor."
+
 msgid "postmatch.choose"
 msgstr "Jeszcze raz?"
 
@@ -4698,6 +4715,12 @@ msgstr "Wybór postaci"
 
 msgid "postmatch.character_select.detail"
 msgstr "Wybierz inną postać w pokoju, potem Gotowe."
+
+msgid "postmatch.rotate.winner"
+msgstr "Wygrana: zostajesz przy automacie i grasz z tym, kto usiądzie następny."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} zostaje przy automacie. Grasz z następnym wolnym graczem."
 
 msgid "postmatch.back"
 msgstr "Powrót do pokoju"

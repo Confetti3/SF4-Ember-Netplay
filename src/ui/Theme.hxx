@@ -2,6 +2,7 @@
 #include <functional>
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
+#include "../common/SkillBadge.hxx"
 #include "MenuNavigation.hxx"
 #include "FontMetrics.hxx"
 #include <array>
@@ -117,6 +118,12 @@ const char* NetworkLinkName(NetworkLink link);
 struct MatchStripView {
     std::string names[2];
     NetworkLink links[2] = {};
+    // Each fighter's mark as their room shows it (NameMarks.hxx): the class
+    // emblem, "?" while placing, or the developer mark; none for a player
+    // with no badge, outside a public room, or with class emblems hidden.
+    // Drawn beside the name on the side away from the "vs" (strip) or the
+    // Ember rule's side (split).
+    SkillBadge badges[2];
     // Running win count (SetScoreText) shown in place of "vs"; empty when there is none.
     std::string score;
     unsigned rollbackFrames = 0;

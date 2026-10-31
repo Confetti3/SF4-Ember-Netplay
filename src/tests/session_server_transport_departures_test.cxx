@@ -507,6 +507,185 @@ static void TestRejoinAfterPreStartDeparture() {
 	CHECK(ApplyAsRejoinedMember(fixture, {withFrozen, cleanup}, spectator) == 2);
 }
 
+// In an Arcade room another member's action can move a player to another
+// table (a seat left behind follows the one waiting alone). The fighter that
+// player sends must reach the table they sit at now, not the one they last
+// acted at, or their game starts with the default fighter.
+static void TestArcadeFighterFollowsSeat() {
+	auto* transport = new MockTransport();
+	SessionServer server("arcade-room", "build", true, 3, {0, 99},
+		std::unique_ptr<session::ServerTransport>(transport));
+	std::array<std::uint8_t, 16> room = {};
+	room[0] = 1;
+	server.EnableMatchAuthorization(room, [](session::Connection connection) {
+		std::string identity(64, '0');
+		identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+		return identity;
+	});
+	server.EnableCustomRooms("Arcade test", 16, 9, room::Rules(), false, room::DelayPolicy::Shared, room::ArcadeRoom);
+	CHECK(server.Listen(0) == 0);
+	auto step = [&]() { CHECK(server.Step() == 0); };
+	for (session::Connection connection = 1; connection <= 4; ++connection) {
+		transport->Push(connection, json(protocol::SessionHelloMsg()));
+		step();
+		protocol::SessionJoinRequest request;
+		request.username = std::string("Member") + std::to_string(connection);
+		request.sidecarHash = "build";
+		request.port = 30000;
+		request.customRooms = true;
+		request.roomProtocol = room::ProtocolVersion;
+		transport->Push(connection, json(request));
+		step();
+		CHECK(server.roomMembers.count(connection) == 1);
+	}
+	std::map<session::Connection, std::uint64_t> actionIds;
+	auto action = [&](session::Connection connection, room::ActionKind kind, std::uint8_t table, std::int8_t seat = 0) {
+		room::Action value;
+		const auto* snapshot = server.RoomSnapshot();
+		value.kind = kind;
+		value.roomEpoch = snapshot->roomEpoch;
+		value.revision = snapshot->revision;
+		value.table = table;
+		value.seat = seat;
+		value.tableRevision = snapshot->tables[table].revision;
+		value.actionId = ++actionIds[connection];
+		protocol::RoomActionMessage message;
+		message.action = value;
+		transport->Push(connection, json(message));
+		step();
+	};
+	const auto placeOf = [&](session::Connection connection) { return room::PlaceOf(*server.RoomSnapshot(), server.roomMembers.at(connection)); };
+	const auto fighterOf = [&](session::Connection connection) {
+		for (const auto& m : server.RoomSnapshot()->members) if (m.id == server.roomMembers.at(connection)) return m.fighter;
+		return -2;
+	};
+	action(2, room::ActionKind::Queue, 0);  // cabinet 1: waits alone
+	action(3, room::ActionKind::Queue, 1);  // cabinet 2: plays member 2
+	CHECK(placeOf(2).kind == room::Place::Kind::Seat && placeOf(3).kind == room::Place::Kind::Seat && placeOf(2).table == placeOf(3).table);
+	action(4, room::ActionKind::Queue, 2);  // cabinet 3: waits alone at another table
+	const int paired = placeOf(3).table;
+	CHECK(placeOf(4).kind == room::Place::Kind::Seat && placeOf(4).table != paired);
+	action(2, room::ActionKind::Unqueue, static_cast<std::uint8_t>(placeOf(2).table));  // member 2 stands up
+	CHECK(placeOf(3).kind == room::Place::Kind::Seat && placeOf(3).table != paired && placeOf(3).table == placeOf(4).table);
+	protocol::PreBattleSetChara pick;
+	pick.chara = protocol::MatchData{}.chara[0];
+	pick.chara.charaID = 9;
+	transport->Push(3, json(pick));
+	step();
+	CHECK(fighterOf(3) == 9);
+}
+
+// An Arcade room that keeps its winners on their fighters: the host takes no
+// other fighter from the set's winner, and refuses their Ready while the
+// match data the game would start from holds anything but the kept fighter
+// (here cleared to the default, as a new pairing's data is).
+static void TestArcadeKeeperReady() {
+	auto* transport = new MockTransport();
+	SessionServer server("arcade-keeper", "build", true, 3, {0, 99},
+		std::unique_ptr<session::ServerTransport>(transport));
+	std::array<std::uint8_t, 16> room = {};
+	room[0] = 1;
+	server.EnableMatchAuthorization(room, [](session::Connection connection) {
+		std::string identity(64, '0');
+		identity[63] = "0123456789abcdef"[static_cast<std::size_t>(connection) & 15];
+		return identity;
+	});
+	room::Rules rules;
+	rules.format = room::SetFormat::Ft1;
+	rules.winnerKeepsFighter = true;
+	server.EnableCustomRooms("Keeper test", 16, 9, rules, false, room::DelayPolicy::Shared, room::ArcadeRoom);
+	CHECK(server.Listen(0) == 0);
+	auto step = [&]() { CHECK(server.Step() == 0); };
+	for (session::Connection connection = 1; connection <= 2; ++connection) {
+		transport->Push(connection, json(protocol::SessionHelloMsg()));
+		step();
+		protocol::SessionJoinRequest request;
+		request.username = std::string("Member") + std::to_string(connection);
+		request.sidecarHash = "build";
+		request.port = 30000;
+		request.customRooms = true;
+		request.roomProtocol = room::ProtocolVersion;
+		transport->Push(connection, json(request));
+		step();
+	}
+	std::map<session::Connection, std::uint64_t> actionIds;
+	auto action = [&](session::Connection connection, room::ActionKind kind, std::uint8_t table) {
+		room::Action value;
+		const auto* snapshot = server.RoomSnapshot();
+		value.kind = kind;
+		value.roomEpoch = snapshot->roomEpoch;
+		value.revision = snapshot->revision;
+		value.table = table;
+		value.seat = 0;
+		value.tableRevision = snapshot->tables[table].revision;
+		value.actionId = ++actionIds[connection];
+		protocol::RoomActionMessage message;
+		message.action = value;
+		transport->outgoing.clear();
+		transport->Push(connection, json(message));
+		step();
+	};
+	auto refused = [&](session::Connection connection) {
+		for (const auto& sent : transport->outgoing)
+			if (sent.first == connection && sent.second.value("type", std::string()) == "room_result")
+				return !sent.second.at("result").value("accepted", true);
+		return false;
+	};
+	auto pick = [&](session::Connection connection, int fighter) {
+		protocol::PreBattleSetChara chara;
+		chara.chara = protocol::MatchData{}.chara[0];
+		chara.chara.charaID = fighter;
+		transport->Push(connection, json(chara));
+		step();
+	};
+	action(1, room::ActionKind::Queue, 0);
+	action(2, room::ActionKind::Queue, 1);
+	const auto a = server.roomMembers.at(1), b = server.roomMembers.at(2);
+	const auto place = room::PlaceOf(*server.RoomSnapshot(), a);
+	CHECK(place.kind == room::Place::Kind::Seat);
+	const auto table = static_cast<std::uint8_t>(place.table);
+	pick(1, 5);
+	pick(2, 7);
+	// Member 1 wins the set; the room keeps them on fighter 5.
+	auto& authority = *server._roomAuthority;
+	const auto seated = authority.SnapshotView().tables[table];
+	for (const auto fighter : {seated.p1, seated.p2}) {
+		room::Action ready;
+		ready.kind = room::ActionKind::Ready;
+		ready.roomEpoch = authority.SnapshotView().roomEpoch;
+		ready.revision = authority.SnapshotView().revision;
+		ready.table = table;
+		ready.tableRevision = authority.SnapshotView().tables[table].revision;
+		CHECK(authority.Apply(fighter, ready).accepted);
+	}
+	CHECK(authority.BeginMatch(table, seated.p1, seated.p2).accepted);
+	const auto generation = authority.SnapshotView().tables[table].matchGeneration;
+	CHECK(authority.EndMatch(table, generation, seated.p1 == a ? room::MatchResult::P1Win : room::MatchResult::P2Win).accepted);
+	for (const auto recipient : authority.TerminalMembers(table, generation)) {
+		room::Action ack;
+		ack.kind = room::ActionKind::AcknowledgeTerminal;
+		ack.roomEpoch = authority.SnapshotView().roomEpoch;
+		ack.revision = authority.SnapshotView().revision;
+		ack.table = table;
+		ack.tableRevision = authority.SnapshotView().tables[table].revision;
+		ack.matchGeneration = generation;
+		CHECK(authority.Apply(recipient, ack).accepted);
+	}
+	CHECK(room::KeepsFighter(authority.SnapshotView(), a) && !room::KeepsFighter(authority.SnapshotView(), b));
+	const int side = seated.p1 == a ? 0 : 1;
+	// Another fighter from the keeper is not taken.
+	pick(1, 9);
+	CHECK(server._roomMatchData[table].chara[side].charaID == 5);
+	// Over cleared match data their Ready is refused; with the kept fighter sent again it is taken.
+	server._roomMatchData[table].chara[side] = protocol::MatchData{}.chara[0];
+	action(1, room::ActionKind::Ready, table);
+	CHECK(refused(1) && !authority.SnapshotView().tables[table].ready[side]);
+	pick(1, 5);
+	action(1, room::ActionKind::Ready, table);
+	CHECK(!refused(1) && authority.SnapshotView().tables[table].ready[side]);
+	(void)b;
+}
+
 int main() {
 	for (const auto stage : {SetupStage::Preparing, SetupStage::P1Prepared, SetupStage::FightersPrepared,
 		SetupStage::AllPrepared, SetupStage::Started})
@@ -514,5 +693,7 @@ int main() {
 	TestRejoinAfterPreStartDeparture();
 	TestServerOwnedRoom();
 	TestCustomRoomDepartures();
+	TestArcadeFighterFollowsSeat();
+	TestArcadeKeeperReady();
 	std::cout << "Session server mock transport departures tests passed\n";
 }

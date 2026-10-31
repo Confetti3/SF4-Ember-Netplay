@@ -128,7 +128,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
     // What the prompt left to do waits for the game's end, in the room.
     if (!open || postMatch_ || afterPostMatch_ == AfterPostMatch::None || Fighting(v.session.match) || !v.atMainMenu) return;
     if (afterPostMatch_ == AfterPostMatch::FighterSelect) {
-        nav.Home(); nav.Push("room"); nav.Push("selection"); selectionFresh_ = true;
+        nav.Home(); nav.Push("room"); nav.Push("selection"); selectionFresh_ = true; selectionOpenOn_ = "roster";
         afterPostMatch_ = AfterPostMatch::None;
         return;
     }
@@ -210,8 +210,14 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
             again && !chosen));
-    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
-    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
+    // After a rotation nothing is left to choose, so each button first says
+    // what the room did: the winner plays whoever sits down next, the loser
+    // the next player free.
+    std::string rotation;
+    if (rotates && !p.left && t.lastSet.generation == p.generation)
+        rotation = std::string(t.lastSet.Winner() == v.room.localMember ? loc::T("postmatch.rotate.winner") : loc::Tf("postmatch.rotate.loser", name)) + "\n";
+    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), rotation + loc::T("postmatch.character_select.detail"), !p.left));
+    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
     if (deciding) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);

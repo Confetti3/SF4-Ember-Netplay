@@ -3,15 +3,20 @@
 #include <string>
 
 #include "NetworkLink.hxx"
+#include "SkillBadge.hxx"
 
 namespace sf4e {
-// One fighter of a native match as the HUD shows it. Name and link are taken
-// together when the match starts, so a room that has moved on (a new pair at
-// the table while a spectator still watches the old game) cannot put one
-// player's link beside another player's name.
+// One fighter of a native match as the HUD shows it. Name, link and badge are
+// taken together when the match starts, so a room that has moved on (a new
+// pair at the table while a spectator still watches the old game) cannot put
+// one player's link or class beside another player's name.
 struct MatchSide {
     std::string name;
     NetworkLink link = NetworkLink::Unknown;
+    // The class mark as the room shows it on this player's screen (the
+    // runtime's shown room): none outside a public room this client joined as
+    // public, and none while the player hides class emblems.
+    SkillBadge badge;
 };
 
 // The set score the HUD shows beside a match's names. A fighter sees the

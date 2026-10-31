@@ -125,9 +125,13 @@ enum class ActionKind : std::uint8_t {
 	// The host of a new public room makes it an Arcade room
 	// (Action::roomType) with the rules of all its tables, while alone in it.
 	SetRoomType,
+	// The host of a Classic room changes how many tables it has
+	// (Action::tableCount, 1 to TableCount); a table taken away must be
+	// empty. Appended so older authorities reject it as an unknown kind.
+	SetTableCount,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetRoomType;
+constexpr ActionKind LastActionKind = ActionKind::SetTableCount;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -204,8 +208,10 @@ struct Member {
 	// Authenticated endpoint incarnation captured in native match receipts.
 	// Older snapshots omit it and restore the protocol default of one.
 	std::uint64_t incarnation = 1;
-    // Last validated fighter shared through the existing pre-battle message.
+    // Last validated fighter shared through the existing pre-battle message,
+    // and its edition (-1 until one is shared).
     int fighter = -1;
+    int edition = -1;
     // Profile identity, independent from the fighter chosen for this table.
     int mainFighter = -1;
     NetworkLink link = NetworkLink::Unknown;
@@ -241,6 +247,11 @@ struct Member {
     // Milliseconds the member's "is typing" still stands, stamped per
     // recipient like idleSeconds; zero when they are not typing.
     std::uint32_t typingMs = 0;
+    // The sets this member has won and lost in the room since joining, kept
+    // by the authority as each set ends (CompleteSet). Written only when not
+    // zero, so a state without them reads as before.
+    std::uint16_t setsWon = 0;
+    std::uint16_t setsLost = 0;
 };
 
 // The set a table finished last: who sat where for its deciding game, and the
@@ -283,6 +294,13 @@ struct Table {
 	// or stops fighting at this table.
 	SetRecord lastSet;
 	MemberId streakHolder = 0;
+	// Rules::winnerKeepsFighter in an Arcade or King room: the last set's
+	// winner keeps the fighter and edition they won with (kept*, -1 unknown)
+	// while they stay at this table; 0 once they lose a set here or leave
+	// it. Written only when set.
+	MemberId keeper = 0;
+	int keptFighter = -1;
+	int keptEdition = -1;
 	std::uint32_t streak = 0;
 	bool resultPending = false;
 	// An Arcade room's pair after a set that nobody waited alone for, with
@@ -351,6 +369,12 @@ struct Snapshot {
 	// place. Its rules are the room's, set when it is created. Serialized only
 	// when not Classic, with the three fields below.
 	RoomType arcade = ClassicRoom;
+	// How many tables a Classic room plays at, the first ones (TablesInPlay):
+	// chosen when it is created and changed by its host (SetTableCount). An
+	// Arcade or King of the hill room plays at all of them whatever this says.
+	// Serialized only when not ClassicTableCount, so a room at the default
+	// has the wire form it had before.
+	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
 	// Who sits at each cabinet (0: free), the sets each has won in a row in
 	// King of the hill, and its top slot: the cabinet with the longest current
 	// streak, -1 for none, which keeps it until someone beats that streak or
@@ -422,6 +446,8 @@ struct Action {
 	bool continued = false;
 	// SetRoomType: the type. Written only when set.
 	RoomType roomType = ClassicRoom;
+	// SetTableCount: the count. Written only when set.
+	std::uint8_t tableCount = 0;
 };
 
 struct Event {

@@ -138,7 +138,7 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 }
 
 
-bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::RandomPool* randomPool,const selection::InstalledContent* installed) {
+bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::RandomPool* randomPool,const selection::InstalledContent* installed,bool fighterKept) {
  using namespace selection;
  bool changed=false;auto& nav=menu_.navigation;
  // A selector the shell has just opened starts on its board, not on the page
@@ -150,7 +150,10 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   nav.Home();openOn_.clear();
   const auto& openOn=embedded.openOn;
   // The board has the fighter, the costume and the Ultra on one screen: it opens on that row.
+  // Opened for the roster (a room's Fighter, the post-match Character select),
+  // a fighter picked is the change it was opened for, as a stage is.
   if(openOn=="roster"||openOn=="ultra"||openOn=="costumes")nav.Prefer(openOn=="roster"?"fighter-"+std::to_string(pick.fighter):openOn=="ultra"?"ultra":"costume");
+  if(openOn=="roster")openOn_=openOn;
   else if(openOn=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));openOn_=openOn;}
   else if(openOn=="options"){nav.Push("options");openOn_=openOn;}
  }
@@ -163,6 +166,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const char* locked=loc::T(editable?"selection.select_saves":"selection.locked_detail");
  // The option rows step with Left and Right and save as they change; Select does nothing on them.
  const char* adjusts=loc::T(editable?"selection.adjust_saves":"selection.locked_detail");
+ // The edition, on the board and on the options page alike: a kept fighter
+ // keeps its edition too.
+ const auto editionRow=[&]{
+  return Value("edition",loc::T("selection.edition"),FindEdition(pick.edition)->name,
+   fighterKept?loc::T("selection.winner_keeps_fighter"):editionSelect?adjusts:loc::T("selection.usfiv_rules"),editable&&editionSelect&&!fighterKept);
+ };
  std::vector<MenuEntry> rows;
  std::string title=loc::T("selection.title");int columns=1;
  // Home is one board (Fighter.dc.html), the grid eight across and beside it the
@@ -178,7 +187,9 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   // columns, and across to the rows beside it where they are level.
   for(const int id:RosterDisplayOrder){
    const bool owned=!readAvailability||!FighterLocked(id,readAvailability(id));
-   rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,owned?locked:loc::T("selection.not_owned"),editable&&owned),"menu.hint.save_fighter",editable&&owned));
+   const bool choosable=editable&&owned&&!fighterKept;
+   rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,
+    !owned?loc::T("selection.not_owned"):fighterKept?loc::T("selection.winner_keeps_fighter"):locked,choosable),"menu.hint.save_fighter",choosable));
   }
   // Words open every choice in a panel, a number keeps its arrows (OfferSteps).
   const auto offer=[&](MenuEntry e,const std::vector<int>& ids,const std::function<std::string(int)>& name){
@@ -192,7 +203,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   rows.back().wide=true;
   offer(Value("ultra",loc::T("selection.ultra_combo"),ShortUltraLabel(pick.ultra),adjusts,editable&&AllowedUltras(pick.fighter,pick.edition).size()>1),AllowedUltras(pick.fighter,pick.edition),
    [](int ultra){return std::string(ShortUltraLabel(ultra));});
-  offer(Value("edition",loc::T("selection.edition"),FindEdition(pick.edition)->name,editionSelect?adjusts:loc::T("selection.usfiv_rules"),editable&&editionSelect),AllowedEditions(pick.fighter,editionSelect),
+  offer(editionRow(),AllowedEditions(pick.fighter,editionSelect),
    [](int edition){return std::string(FindEdition(edition)->name);});
   rows.push_back(Row("stage",loc::T("selection.stage"),stageId?loc::T("selection.choose_battlefield"):loc::T("selection.p1_stage"),stageId!=nullptr));
   rows.back().value=stageId?StageLabel(*stageId,installed):std::string();
@@ -235,7 +246,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   columns=stageColumns;
  }else{
   title=loc::T("selection.options_title");
-  rows={Value("edition",loc::T("selection.edition"),FindEdition(pick.edition)->name,editionSelect?adjusts:loc::T("selection.usfiv_rules"),editable&&editionSelect),
+  rows={editionRow(),
    Value("action",loc::T("selection.personal_action"),pick.personalAction==255?loc::T("common.none"):std::to_string(pick.personalAction+1),adjusts,editable&&availability.ready),
    Value("quote",loc::T("selection.win_quote"),pick.winQuote==255?loc::T("selection.random"):std::to_string(pick.winQuote+1),adjusts,editable),
    Value("handicap",loc::T("selection.handicap"),HandicapLabel(pick.handicap),adjusts,editable)};
@@ -276,7 +287,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // What the status line promises depends on the page: Select saves a stage
  // card, opens a page from the board, and does nothing on the option rows.
  const std::string status=!selectionError.empty()?selectionError:
-  loc::T(!editable?"selection.status_locked":screen=="stage"||pool?"selection.status_editable":
+  loc::T(!editable?"selection.status_locked":fighterKept&&board?"selection.winner_keeps_fighter":screen=="stage"||pool?"selection.status_editable":
    board?"selection.status_browse":"selection.status_adjust");
  GameMenu::Body body;
  if(board)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback& feedback){
@@ -292,24 +303,27 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // The page disables the last game stage left; the pool refuses it too.
    if(randomPool->Toggle(*pooled))changed=true;
   }
-  else if(const auto fighter=RowKey<int>(a.id,"fighter-");fighter&&editable&&*fighter<FighterCount){
+  else if(const auto fighter=RowKey<int>(a.id,"fighter-");fighter&&editable&&!fighterKept&&*fighter<FighterCount){
    pick.fighter=*fighter;const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next,installed);changed=true;
+   if(openOn_=="roster")ForwardMenuAction({MenuAction::Close});
   }else if(const auto stage=RowKey<int>(a.id,"stage-");stage&&editable&&stageId){
    *stageId=*stage;changed=true;
    // Opened for this one change, the pick is it: back to where it was opened from.
    // From the board the stage page stays.
-   if(!openOn_.empty())ForwardMenuAction({MenuAction::Close});
+   if(openOn_=="stage")ForwardMenuAction({MenuAction::Close});
   }
  }else if(editable&&a.kind==MenuAction::Adjust){
+  bool stepped=true;
   if(a.id=="ultra")Step(pick.ultra,AllowedUltras(pick.fighter,pick.edition),a.delta);
   else if(a.id=="costume")Step(pick.costume,AllowedCostumes(pick.fighter,availability,installed),a.delta);
   else if(a.id=="color")Step(pick.color,AllowedColors(pick.fighter,pick.costume,availability,installed),a.delta);
-  else if(a.id=="edition")Step(pick.edition,AllowedEditions(pick.fighter,editionSelect),a.delta);
+  else if(a.id=="edition"&&!fighterKept)Step(pick.edition,AllowedEditions(pick.fighter,editionSelect),a.delta);
   else if(a.id=="action")Step(pick.personalAction,AllowedPersonalActions(availability),a.delta);
   else if(a.id=="quote")Step(pick.winQuote,{255,0,1,2,3,4,5,6,7,8,9,10},a.delta);
   else if(a.id=="handicap")Step(pick.handicap,{0,1,2,3,4},a.delta);
-  Normalize(pick,editionSelect,&availability,installed);changed=true;
+  else stepped=false;
+  if(stepped){Normalize(pick,editionSelect,&availability,installed);changed=true;}
  }
  return changed;
 }

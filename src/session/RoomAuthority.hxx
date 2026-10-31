@@ -8,10 +8,13 @@ class RoomAuthority {
 public:
 	// practice, delayPolicy and arcade are the room's for its life
 	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
-	// changes them later.
+	// changes them later. tableCount is how many tables a Classic room starts
+	// with (Snapshot::tableCount), which its host can change (SetTableCount);
+	// out of range it is ClassicTableCount.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
-		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom);
+		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom,
+		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount));
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -41,7 +44,11 @@ public:
     // so no Ready given against the old matchup is accepted later, and the
     // other seat's Ready is taken back as an Unready would
     // (*withdrewOpponentReady). False when nothing changed.
-    bool SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady=nullptr);
+    bool SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady=nullptr,int edition=-1);
+    // Whether `member` may play `fighter` in `edition`: a table's keeper
+    // (KeepsFighter) only the ones they won with. The host asks before it
+    // takes a fighter.
+    bool FighterAllowed(MemberId member,int fighter,int edition) const;
     // Members whose last activity is tracked; never more than the roster.
     std::size_t TrackedActivity() const { return lastActiveMs_.size(); }
 
@@ -167,6 +174,7 @@ private:
 	// One rule per action kind, called from Apply() after its shared checks.
 	Result ApplyClose(MemberId member);
 	Result ApplySetCapacity(MemberId member, const Action& action);
+	Result ApplySetTableCount(MemberId member, const Action& action);
 	Result ApplyLock(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);

@@ -146,6 +146,8 @@ namespace sf4e {
             room::RoomType arcadeRoom = room::ClassicRoom;
             // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
             room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+            // With HostRoom: how many tables a Classic room opens with (room::Snapshot::tableCount).
+            std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

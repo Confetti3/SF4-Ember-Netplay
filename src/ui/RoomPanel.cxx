@@ -280,9 +280,11 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
  using namespace room;
  auto& nav=menu_.navigation; const auto& s=v.room;
  if(roomEpoch_!=s.roomEpoch){roomEpoch_=s.roomEpoch;chat_[0]=0;selectedTable_=0;rulesDirty_=false;leaveAsk_=-1;leaveAsked_=false;
-  std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;
+  std::snprintf(roomName_,sizeof(roomName_),"%s",s.name.c_str());roomCapacity_=s.capacity;roomTableCount_=static_cast<int>(TablesInPlay(s));
   if(const auto* local=Member(s,s.localMember))if(local->table>=0&&local->table<static_cast<int>(s.tables.size()))selectedTable_=local->table;
  }
+ // The host took the selected table away: the board starts again at the first.
+ if(!s.arcade&&selectedTable_>=static_cast<int>(TablesInPlay(s)))selectedTable_=0;
  std::vector<MenuEntry> rows;
   const bool mutableRoom=RoomActionsAvailable(v);
   const bool actingHost=s.localMember&&s.localMember==room::ActingHost(s);
@@ -476,6 +478,8 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":s.arcade?"room.rules.arcade":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),s.arcade?SetLengthText(t.rules.format):SetSummaryText(t.rules),
      t.rules.format==room::SetFormat::Unlimited||s.arcade?loc::T("rules.set_length.detail"):RotationDetail(t.rules.rotation)));
+    if(s.arcade)rows.push_back(ReadOnlyValue("winner-keeps-fighter",loc::T("rules.winner_keeps_fighter"),
+     loc::T(t.rules.winnerKeepsFighter?"common.on":"common.off"),loc::T("rules.winner_keeps_fighter.detail")));
     return;
    }
    RuleRows(rows,tableRules_,host&&!active,!host?reason.c_str():loc::T(active?"room.rules.finish_game":"room.rules.apply_note"),s.practice);
@@ -634,9 +638,17 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
  const bool host=c.host;
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
+  // A private Classic room's host adds tables, or takes away empty ones
+  // (room::TableCountAllowed). An Arcade room plays at all of them; a public
+  // or tournament room keeps the tables it opened with.
+  const bool tables=TableCountChangeable(s);
+  if(tables)rows.push_back(Value("room-tables",loc::T("room.tables"),std::to_string(roomTableCount_),
+   loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
+  if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),
+   host&&roomTableCount_!=static_cast<int>(TablesInPlay(s))&&TableCountAllowed(s,static_cast<std::size_t>(roomTableCount_))));
   // Kept on this PC for Create › Template; anyone may keep the room they are in.
   rows.push_back(TextRow("save-template",loc::T("room.save_template"),"",32));
   rows.back().detail=std::string(loc::T("room.save_template.detail"))+"\n"+loc::T("menu.edit_detail");
@@ -651,6 +663,8 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  const auto status=MemberStatusText(v.room,*m,false,true);
  const auto idle=IdleText(*m,v.roomElapsedMs);
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
+ // Their sets in this room since joining, once they have played one.
+ if(m->setsWon||m->setsLost)card.status+=" \xC2\xB7 "+loc::Tf("profile.record_value",static_cast<int>(m->setsWon),static_cast<int>(m->setsLost));
  return card;
 }
 const char* ApplicationShell::PlaceExitLabel(const ShellView& v) const {

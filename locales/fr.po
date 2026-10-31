@@ -2211,6 +2211,9 @@ msgstr "Gauche et droite modifient ce réglage, enregistré aussitôt."
 msgid "selection.locked_detail"
 msgstr "Sélection verrouillée. Retournez à votre table pour voir son état."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Vous avez gagné le dernier set : vous gardez ce combattant. Vous pouvez encore changer l'Ultra Combo, le costume et la couleur."
+
 msgid "selection.title"
 msgstr "SÉLECTION PERSONNAGE"
 
@@ -3243,6 +3246,14 @@ msgstr "Valider la capacité"
 
 msgid "room.apply_capacity.detail"
 msgstr "Envoyer cette capacité."
+msgid "room.tables"
+msgstr "Tables"
+msgid "room.tables_detail"
+msgstr "Nombre de tables du salon, de 1 à {0}. L'hôte peut le changer plus tard dans Paramètres du salon."
+msgid "room.tables.detail"
+msgstr "Ajoutez jusqu'à {0} tables. Une table ne peut être retirée que si personne n'y joue, n'y attend ni n'y regarde."
+msgid "room.apply_tables"
+msgstr "Valider les tables"
 
 msgid "profile.main_badge"
 msgstr "PERSO"
@@ -4648,6 +4659,12 @@ msgstr "Revanche immédiate"
 msgid "rules.instant_rematch.detail"
 msgstr "Après chaque partie, les deux combattants choisissent Revanche, Sélection personnage ou Retour au salon sur l'écran WIN, pendant 10 secondes."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Le vainqueur garde son combattant"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Comme dans une vraie salle d'arcade, le vainqueur d'un set garde le combattant avec lequel il a gagné. Seuls l'Ultra Combo, le costume et la couleur peuvent changer."
+
 msgid "postmatch.choose"
 msgstr "On remet ça ?"
 
@@ -4698,6 +4715,12 @@ msgstr "Sélection personnage"
 
 msgid "postmatch.character_select.detail"
 msgstr "Choisissez un autre combattant dans le salon, puis Prêt."
+
+msgid "postmatch.rotate.winner"
+msgstr "Vous avez gagné : vous restez à votre borne et affrontez le prochain qui s'assoit."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} reste à la borne. Vous affrontez le prochain joueur libre."
 
 msgid "postmatch.back"
 msgstr "Retour au salon"

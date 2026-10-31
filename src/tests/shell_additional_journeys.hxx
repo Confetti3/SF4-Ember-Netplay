@@ -18,6 +18,7 @@ void TrainingFromRoom();
 void PracticeRoomCreate();
 void DelayPolicyCreate();
 void DelayPolicyInRoom();
+void TableCountCreate();
 void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();

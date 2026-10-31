@@ -193,7 +193,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom, runtime->tableCount);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -608,6 +608,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.practiceRoom=runtime->practiceRoom;
         replacement.arcadeRoom=runtime->arcadeRoom;
         replacement.delayPolicy=runtime->delayPolicy;
+        replacement.tableCount=runtime->tableCount;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }

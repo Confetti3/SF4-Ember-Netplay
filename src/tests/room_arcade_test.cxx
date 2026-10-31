@@ -294,6 +294,50 @@ static void TestArcadePracticeRoom() {
 	CHECK(authority.SnapshotView().practice && Paired(authority, a, b));
 }
 
+// The room's option keeps a set's winner on their fighter (KeepsFighter)
+// while they stay at the table, never the loser, and never without the
+// option; each member's sets won and lost count up and cross the wire.
+static void TestWinnerKeepsFighterAndRecords() {
+	for (const bool option : {true, false}) {
+		Rules rules;
+		rules.format = SetFormat::Ft1;
+		rules.winnerKeepsFighter = option;
+		RoomAuthority authority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, ArcadeRoom);
+		const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
+		Sit(authority, a, 0); Sit(authority, b, 9);
+		CHECK(authority.SetMemberFighter(a, 5, nullptr, 14) && authority.SetMemberFighter(b, 7, nullptr, 14));
+		CHECK(!KeepsFighter(authority.SnapshotView(), a) && !KeepsFighter(authority.SnapshotView(), b));
+		Beat(authority, a);
+		const auto& room = authority.SnapshotView();
+		CHECK(KeepsFighter(room, a) == option && !KeepsFighter(room, b));
+		// The host takes only the kept fighter and edition from the keeper;
+		// anything from the loser, and any Ultra or look (not checked here).
+		CHECK(authority.FighterAllowed(a, 5, 14) && authority.FighterAllowed(a, 6, 14) == !option &&
+			authority.FighterAllowed(a, 5, 13) == !option && authority.FighterAllowed(b, 9, 13));
+		const auto* winner = FindMember(room, a);
+		const auto* loser = FindMember(room, b);
+		CHECK(winner && loser && winner->setsWon == 1 && winner->setsLost == 0 && loser->setsWon == 0 && loser->setsLost == 1);
+		const auto wire = nlohmann::json(room);
+		const auto restored = wire.get<Snapshot>();
+		CHECK(FindMember(restored, a)->setsWon == 1 && FindMember(restored, b)->setsLost == 1);
+		CHECK(restored.tables[TableOf(authority, a)].rules.winnerKeepsFighter == option);
+		// Off, the rule is not written, so the wire stays as it was.
+		CHECK(wire.at("tables")[TableOf(authority, a)].at("rules").contains("winner_keeps_fighter") == option);
+		CHECK(restored.tables[TableOf(authority, a)].keeper == (option ? a : 0) && KeepsFighter(restored, a) == option);
+		// Standing up ends it: sitting down again, even at the same table, keeps nothing.
+		CHECK(Choose(authority, a, ActionKind::Unqueue).accepted);
+		CHECK(!KeepsFighter(authority.SnapshotView(), a) && authority.FighterAllowed(a, 6, 13));
+		Sit(authority, a, 0);
+		CHECK(!KeepsFighter(authority.SnapshotView(), a));
+	}
+	// Never in a Classic room, whatever its rules say.
+	Rules rules;
+	rules.winnerKeepsFighter = true;
+	Snapshot classic;
+	classic.tables[0].rules = rules;
+	CHECK(!KeepsFighter(classic, 1));
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -308,6 +352,7 @@ int main() {
 		TestKingTwoPlayers();
 		TestRulesAreTheRooms();
 		TestArcadeOnTheWire();
+		TestWinnerKeepsFighterAndRecords();
 		TestPublicArcade();
 		TestArcadePracticeRoom();
 	} catch (const std::exception& error) {

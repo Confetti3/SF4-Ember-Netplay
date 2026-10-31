@@ -21,6 +21,10 @@ bool MatchHudTouchesBox(const sf4e::ui::MatchStripBounds& bounds,const sf4e::ui:
 // and over the K.O. sign, the state line below the timer, three sizes, the Ember strip and the split
 // panel shrinking to the band or falling back to Bottom center, and the name offset.
 void CheckMatchHudTopCenter();
+// Each fighter's class mark (geometry only, with the "?" pill, which needs no game art): a
+// plate grows by its mark and keeps to the PLAYER label and short of the streak text; no mark
+// leaves a plate as it was; the strip's panel does not move.
+void CheckMatchHudBadges();
 // One drawn frame of the HUD, in a window of w by h: it never takes input, the Ember
 // strip stays inside the safe band and on its anchored half, and the split layout keeps
 // its name labels inside the 16:9 game image where the game's own HUD leaves room.
@@ -208,6 +212,7 @@ void ShootMatchHud(sf4e::ui::MatchStripView& matchStrip,const Draw& draw,const R
     }
     matchStrip.nameOffset=0;matchStrip.anchor=0;
     CheckMatchHudTopCenter();
+    CheckMatchHudBadges();
     matchStrip.layout=0;matchStrip.spectator=false;matchStrip.size=0;
 }
 }

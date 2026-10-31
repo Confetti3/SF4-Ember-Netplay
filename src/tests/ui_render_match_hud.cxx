@@ -137,6 +137,36 @@ void CheckMatchHudTopCenter(){
     Require(std::string(MatchStripAnchorName(sf4e::netplay::MaxMatchHudAnchor))==sf4e::loc::T("hud_position.top_center")&&
         std::string(MatchStripAnchorName(99))==sf4e::loc::T("hud_position.top_center"),"Top center has no name");
 }
+void CheckMatchHudBadges(){
+    using namespace sf4e::ui;
+    const float windows[][2]={{1280,720},{1920,1080},{3440,1440}};
+    for(const auto& window:windows){
+        const ImVec2 size(window[0],window[1]);
+        const float gs=(std::min)(window[1]/720.f,window[0]/1280.f),gx0=(window[0]-1280*gs)*.5f;
+        for(const char* name:{"P1","A name long enough to be cut short"}){
+            MatchStripView plain;plain.names[0]=plain.names[1]=name;plain.layout=1;
+            MatchStripView marked=plain;marked.badges[0]=marked.badges[1]=sf4e::SkillBadge::Placing();
+            const auto a=MatchStripGeometry(plain,ImVec2(0,0),size),b=MatchStripGeometry(marked,ImVec2(0,0),size);
+            // A long name is cut shorter to make room, so only a short one's plate must not shrink.
+            const bool shortName=std::string(name)=="P1";
+            for(int side=0;side<2;++side){
+                Require(!shortName||b.names[side].x1-b.names[side].x0>=a.names[side].x1-a.names[side].x0,"Match HUD name plate shrank for a class mark");
+                Require(b.names[side].y0==a.names[side].y0&&b.names[side].y1==a.names[side].y1,"Match HUD class mark moved a name plate's row");
+            }
+            Require(std::abs(b.names[0].x0-(gx0+146*gs))<=1&&std::abs(b.names[1].x1-(gx0+1134*gs))<=1,"Match HUD class mark moved a plate off its PLAYER label");
+            Require(b.names[0].x1<=gx0+420*gs+1&&b.names[1].x0>=gx0+860*gs-1,"Match HUD class mark pushed a plate to the streak text or the timer");
+            plain.layout=marked.layout=0;
+            const auto c=MatchStripGeometry(plain,ImVec2(0,0),size),d=MatchStripGeometry(marked,ImVec2(0,0),size);
+            Require(c.panel.x0==d.panel.x0&&c.panel.x1==d.panel.x1&&c.panel.y0==d.panel.y0,"Match HUD class marks moved the Ember strip");
+        }
+        // A short name with a mark is wider than without; with none the two are the same plate.
+        MatchStripView one;one.names[0]=one.names[1]="A rather long name";one.layout=1;
+        MatchStripView marked=one;marked.badges[1]=sf4e::SkillBadge::Placing();
+        const auto a=MatchStripGeometry(one,ImVec2(0,0),size),b=MatchStripGeometry(marked,ImVec2(0,0),size);
+        Require(a.names[0].x0==b.names[0].x0&&a.names[0].x1==b.names[0].x1,"Match HUD class mark on one side changed the other plate");
+        Require(b.names[1].x1-b.names[1].x0>a.names[1].x1-a.names[1].x0,"Match HUD name plate kept no room for its class mark");
+    }
+}
 bool MatchHudShotCaptured(const char* shot,int w,int h,float dpi){
     const std::string name=shot?shot:"";
     return (name=="match-hud"||name=="match-hud-split")&&((w==1280&&h==720&&dpi==1)||

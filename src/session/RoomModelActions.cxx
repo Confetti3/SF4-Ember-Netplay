@@ -19,6 +19,26 @@ Result RoomAuthority::ApplySetCapacity(MemberId member, const Action& action) {
 	snapshot_.capacity = action.capacity; TouchRoom(); return Accept();
 }
 
+// A private Classic room (TableCountChangeable) grows to any count up to
+// TableCount. It shrinks only past tables nobody is at and whose last game is
+// wholly over: every recipient of its terminal receipt, an ending spectator as
+// much as a fighter, has acknowledged it. So no place, game or result is lost
+// with them. A table taken away keeps its rules and name, which it has again
+// if the room grows back.
+Result RoomAuthority::ApplySetTableCount(MemberId member, const Action& action) {
+	if (!IsHost(member)) return Reject(RejectReason::NotHost);
+	if (!TableCountChangeable(snapshot_)) return Reject(RejectReason::Unauthorized);
+	if (action.tableCount < 1 || action.tableCount > TableCount) return Reject(RejectReason::InvalidCapacity);
+	if (!TableCountAllowed(snapshot_, action.tableCount)) return Reject(RejectReason::WrongPhase);
+	for (const auto& receipt : terminalReceipts_) {
+		if (receipt.table < action.tableCount || receipt.table >= TablesInPlay(snapshot_) || receipt.acknowledged) continue;
+		if (std::any_of(receipt.recipients.begin(), receipt.recipients.end(), [](const TerminalRecipient& recipient) { return !recipient.acknowledged; }))
+			return Reject(RejectReason::TerminalLedgerFull);
+	}
+	if (snapshot_.tableCount != action.tableCount) { snapshot_.tableCount = action.tableCount; TouchRoom(); }
+	return Accept();
+}
+
 Result RoomAuthority::ApplyLock(MemberId member, const Action& action) {
 	if (!IsHost(member)) return Reject(RejectReason::NotHost);
 	snapshot_.locked = action.locked; TouchRoom(); return Accept();
@@ -454,7 +474,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.protocolVersion != ProtocolVersion) return Reject(RejectReason::StaleRoom);
 	if (snapshot_.closed && action.kind != ActionKind::Leave) return Reject(RejectReason::Closed);
 	if (action.roomEpoch != snapshot_.roomEpoch) return Reject(RejectReason::StaleRoom);
-	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::Lock ||
+	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::SetTableCount || action.kind == ActionKind::Lock ||
 		action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
@@ -488,6 +508,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::Close) return ApplyClose(member);
 	if (action.kind == ActionKind::TransferHost) return TransferHost(member, action.target);
 	if (action.kind == ActionKind::SetCapacity) return ApplySetCapacity(member, action);
+	if (action.kind == ActionKind::SetTableCount) return ApplySetTableCount(member, action);
 	if (action.kind == ActionKind::Lock) return ApplyLock(member, action);
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
@@ -497,6 +518,10 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::SetTraining) return ApplySetTraining(member, action);
 	if (action.kind == ActionKind::Typing) return ApplyTyping(member, action);
 	if (action.kind == ActionKind::SetRoomType) return ApplySetRoomType(member, action);
+	// An acknowledgement names its receipt, which outlives the game and can
+	// outlive the table being in play (SetTableCount), so it is matched against
+	// the receipt alone.
+	if (action.kind == ActionKind::AcknowledgeTerminal) return ApplyAcknowledgeTerminal(member, action);
 	Table* table = FindTable(action.table);
 	if (!table) return Reject(RejectReason::UnknownTable);
 	if (action.kind == ActionKind::NameTable) return ApplyNameTable(member, action, table);
@@ -530,7 +555,6 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 			}
 		}
 	}
-	if (action.kind == ActionKind::AcknowledgeTerminal) return ApplyAcknowledgeTerminal(member, action);
 	// Seating and rules at a bound table come from the binding alone.
 	const bool seatingOrRules = action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue ||
 		action.kind == ActionKind::Watch || action.kind == ActionKind::Unwatch || action.kind == ActionKind::SetRules;

@@ -36,6 +36,9 @@ Table* RoomAuthority::Waiter(MemberId member, MemberId parted, const Table* exce
 
 // `member` takes the open seat at `table`: a new pair at 0-0, or one waiting.
 void RoomAuthority::JoinTable(MemberId member, Table& table) {
+	// Moved to another table, a keeper keeps nothing (Table::keeper).
+	for (auto& other : snapshot_.tables)
+		if (&other != &table && other.keeper == member) { other.keeper = 0; other.keptFighter = other.keptEdition = -1; }
 	if (!table.p1) table.p1 = member; else table.p2 = member;
 	ClearReadiness(table);
 	table.score[0] = table.score[1] = 0;

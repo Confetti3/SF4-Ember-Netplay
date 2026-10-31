@@ -867,6 +867,8 @@ std::string memberAsk_;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;
+    // Room settings' Tables value, before Apply tables sends it.
+    int roomTableCount_ = static_cast<int>(room::ClassicTableCount);
     char roomName_[65] = {}, chat_[257] = {};
     room::Rules tableRules_;
     bool rulesDirty_ = false;

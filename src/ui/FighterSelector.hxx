@@ -29,9 +29,12 @@ public:
     // be able to say what is wrong once they arrive.
     // randomPool, given with stageId, adds the Random stage pool page. installed
     // adds the custom costumes, colors and stages installed on this PC.
+    // fighterKept: an Arcade room keeps this player, its last winner, on their
+    // fighter (room::KeepsFighter); the fighter and its edition cannot change.
     bool Draw(selection::Pick& pick, bool editionSelect, SelectionArt* art, const AvailabilityReader& readAvailability,
               int* stageId = nullptr, bool editable = true, const std::string& selectionError = {},
-              selection::RandomPool* randomPool = nullptr, const selection::InstalledContent* installed = nullptr);
+              selection::RandomPool* randomPool = nullptr, const selection::InstalledContent* installed = nullptr,
+              bool fighterKept = false);
 private:
     // The board (Fighter.dc.html): its grid eight across, the preview and the rows beside it.
     static constexpr int BoardColumns = 8;

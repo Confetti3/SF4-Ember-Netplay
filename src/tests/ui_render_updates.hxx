@@ -74,8 +74,8 @@ void ShootVersionAndChannel(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellVie
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     page("about");shell.Navigation().Focus("version",rows);draw("about-version");
     const auto row=[&](const char* id)->const MenuEntry*{for(const auto& e:rows)if(e.id==id)return &e;return nullptr;};
-    Require(row("version")&&row("version")->value==VersionLine(view.services.installedVersion,view.services.channel)&&
-        row("version")->detail.find("600479cd")!=std::string::npos,"Help and about does not show the version, channel and build");
+    Require(row("version")&&row("version")->value==VersionLine(view.services.installedVersion)&&
+        row("version")->detail.find("600479cd")!=std::string::npos,"Help and about does not show the version, its kind and the build");
     // Later shots open the controls from the screen's first row.
     shell.Navigation().Focus("help",rows);draw();SetMenuEntriesProbe({});
     view.services=platform::ServiceSnapshot{};view.build=build;shell.Navigation().Home();draw();

@@ -461,6 +461,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
 		runtime->arcadeRoom = decision.effect == netplay::Effect::HostRoom ? command.arcadeRoom : room::ClassicRoom;
 		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
+		runtime->tableCount = decision.effect == netplay::Effect::HostRoom ? command.tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -493,6 +494,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
         runtime->arcadeRoom=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
         runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
+        runtime->tableCount=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -642,6 +644,7 @@ TypedCommand Classify(RuntimeCommand command) {
 	roomCommand.practiceRoom = command.practiceRoom;
 	roomCommand.arcadeRoom = command.arcadeRoom;
 	roomCommand.delayPolicy = command.delayPolicy;
+	roomCommand.tableCount = command.tableCount;
 	roomCommand.character = command.character;
 	roomCommand.stage = command.stage;
 	roomCommand.randomPool = std::move(command.randomPool);

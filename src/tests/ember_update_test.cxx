@@ -166,11 +166,16 @@ int main(int argc, char** argv) {
         CHECK(ClassifyChannelMove(UpdateChannel::Nightly, UpdateChannel::Beta) == ChannelMove::GoesBack);
         CHECK(ClassifyChannelMove(UpdateChannel::Nightly, UpdateChannel::Stable) == ChannelMove::GoesBack);
     }
-    // One line names the version and channel on Home, in the launcher window and in Help and about.
-    CHECK(sf4e::ui::VersionLine("1.2.0", UpdateChannel::Nightly) == "Ember 1.2.0 \xC2\xB7 Nightly");
-    CHECK(sf4e::ui::VersionLine("1.1.2", UpdateChannel::Stable) == "Ember 1.1.2 \xC2\xB7 Stable");
-    CHECK(sf4e::ui::VersionLine("1.2.0-rc1", UpdateChannel::Beta) == "Ember 1.2.0-rc1 \xC2\xB7 Beta");
-    CHECK(sf4e::ui::VersionLine("", UpdateChannel::Stable).empty());
+    // One line names the version and the kind of build it is on Home, in the
+    // launcher window and in Help and about, whatever channel the updates follow.
+    CHECK(sf4e::ui::VersionLine("1.2.0") == "Ember 1.2.0 \xC2\xB7 Stable");
+    CHECK(sf4e::ui::VersionLine("1.2.0-rc1") == "Ember 1.2.0-rc1 \xC2\xB7 Beta");
+    CHECK(sf4e::ui::VersionLine("1.5.0-nightly20261031") == "Ember 1.5.0-nightly20261031 \xC2\xB7 Nightly");
+    CHECK(sf4e::ui::VersionLine("1.5.0-nightly20261031.2") == "Ember 1.5.0-nightly20261031.2 \xC2\xB7 Nightly");
+    // The word's case does not matter, as for the update check.
+    const auto upper = sf4e::ui::VersionLine("1.5.0-Nightly20261031");
+    CHECK(upper.size() > 7 && upper.compare(upper.size() - 7, 7, "Nightly") == 0);
+    CHECK(sf4e::ui::VersionLine("").empty());
     // Release notes read as plain text: Markdown marks go, links read as
     // their text, and what is left is only ever text, never markup or a format.
     {

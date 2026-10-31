@@ -180,8 +180,37 @@ struct Place {
 	int position = 0;
 };
 // The tables a room's members can sit at, watch or set rules for; the others
-// stay empty.
-inline std::size_t TablesInPlay(const Snapshot& room) { return room.arcade ? TableCount : ClassicTableCount; }
+// stay empty. A Classic room's host chooses how many (Snapshot::tableCount).
+inline std::size_t TablesInPlay(const Snapshot& room) {
+	if (room.arcade) return TableCount;
+	return room.tableCount < 1 ? 1 : room.tableCount > TableCount ? TableCount : room.tableCount;
+}
+// Nobody sits, queues or watches at `table` and no game of it is under way or
+// waiting on its result: a Classic room's host may take it away (SetTableCount).
+inline bool TableEmpty(const Table& table) {
+	return !table.p1 && !table.p2 && table.queue.empty() && table.spectators.empty() && table.watchingNext.empty() &&
+		table.endingWatchers.empty() && table.phase != TablePhase::Playing && table.phase != TablePhase::Paused &&
+		!table.resultPending && !table.permitGeneration;
+}
+// Whether the room has a table count its host may change (SetTableCount): a
+// private Classic room. An Arcade or King of the hill room plays at every
+// table, and a public or tournament room keeps the tables it opened with. The
+// authority and the Create and Room settings rows all ask this; Create asks
+// of the room it is about to open.
+inline bool TableCountChangeable(RoomType type, bool serverOwned, bool tournament) {
+	return type == ClassicRoom && !serverOwned && !tournament;
+}
+inline bool TableCountChangeable(const Snapshot& room) {
+	return TableCountChangeable(room.arcade, room.serverOwned, room.tournament.Active());
+}
+// Whether the host may set the room to `count` tables now: any count up to
+// TableCount in a room whose count can change, as long as each table it takes
+// away is empty.
+inline bool TableCountAllowed(const Snapshot& room, std::size_t count) {
+	if (!TableCountChangeable(room) || count < 1 || count > TableCount) return false;
+	for (std::size_t i = count; i < TablesInPlay(room); ++i) if (!TableEmpty(room.tables[i])) return false;
+	return true;
+}
 
 // The cabinet `member` sits at in an Arcade room, or -1.
 inline int CabinetOf(const Snapshot& room, MemberId member) {
@@ -206,6 +235,16 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 		}
 	}
 	return place;
+}
+
+// In an Arcade or King of the hill room whose rules keep winners on their
+// fighters (Rules::winnerKeepsFighter), whether `member` is the keeper of
+// the table they sit at (Table::keeper): until they lose a set there or
+// leave it, only the Ultra and the look change.
+inline bool KeepsFighter(const Snapshot& room, MemberId member) {
+	if (!room.arcade || !member) return false;
+	const auto place = PlaceOf(room, member);
+	return place.kind == Place::Kind::Seat && room.tables[place.table].keeper == member;
 }
 
 // The member in the other seat of `table` from `local`'s point of view, or

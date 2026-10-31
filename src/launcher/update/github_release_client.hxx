@@ -5,6 +5,7 @@
 #include <functional>
 #include <optional>
 #include <cstdint>
+#include "../../common/ReleaseVersion.hxx"
 #include "../../common/UpdateChannel.hxx"
 #include "PackageInstaller.hxx"
 
@@ -47,13 +48,10 @@ namespace launcher {
 	// and is never offered or compared. A pre-release sorts before the finished
 	// release of its number, then by its word, its number and the rest.
 	// Dot-separated numeric Nightly revisions in the rest sort numerically.
-	struct Version {
-		int major = 0, minor = 0, patch = 0;
-		bool prerelease = false;
-		std::string word, rest;
-		int number = 0;
-	};
-	std::optional<Version> ParseVersion(const char* text);
+	// One reading of a release's version for the updater and the version line (common/ReleaseVersion.hxx).
+	using updates::Version;
+	using updates::ParseVersion;
+	using updates::ClassifyReleaseKind;
 	int CompareVersions(const Version& a, const Version& b);
 
 	using updates::ReleaseKind;
@@ -63,7 +61,6 @@ namespace launcher {
 	using updates::kUpdateChannels;
 	using updates::GetUpdateChannelInfo;
 	using updates::ParseSavedUpdateChannel;
-	ReleaseKind ClassifyReleaseKind(const Version& version);
 
 	const char* UpdateChannelName(UpdateChannel channel);
 	const char* UpdateChannelRepo(UpdateChannel channel);

@@ -2211,6 +2211,9 @@ msgstr "Vlevo a vpravo to změní a hned uloží."
 msgid "selection.locked_detail"
 msgstr "Výběr je uzamčen. Aktuální stav najdete u svého stolu."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Poslední set je tvůj, takže si tohoto bojovníka ponecháš. Ultra Combo, kostým a barvu můžeš dál měnit."
+
 msgid "selection.title"
 msgstr "VÝBĚR POSTAVY"
 
@@ -3243,6 +3246,14 @@ msgstr "Použít kapacitu"
 
 msgid "room.apply_capacity.detail"
 msgstr "Odeslat tuto kapacitu."
+msgid "room.tables"
+msgstr "Stoly"
+msgid "room.tables_detail"
+msgstr "Kolik stolů místnost má, od 1 do {0}. Hostitel to může později změnit v Nastavení místnosti."
+msgid "room.tables.detail"
+msgstr "Stoly lze přidat až do počtu {0}. Stůl lze odebrat, jen když u něj nikdo nehraje, nečeká ani nesleduje."
+msgid "room.apply_tables"
+msgstr "Použít stoly"
 
 msgid "profile.main_badge"
 msgstr "HLAVNÍ"
@@ -4648,6 +4659,12 @@ msgstr "Okamžitá odveta"
 msgid "rules.instant_rematch.detail"
 msgstr "Po každé hře si oba bojovníci na obrazovce WIN po dobu 10 sekund vyberou Odvetu, Výběr postavy nebo Zpět do místnosti."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Vítěz si ponechá bojovníka"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Jako ve skutečné herně zůstává vítěz setu u bojovníka, se kterým vyhrál. Změnit lze jen Ultra Combo, kostým a barvu."
+
 msgid "postmatch.choose"
 msgstr "Ještě jednou?"
 
@@ -4698,6 +4715,12 @@ msgstr "Výběr postavy"
 
 msgid "postmatch.character_select.detail"
 msgstr "Vyber v místnosti jiného bojovníka, pak Připraven."
+
+msgid "postmatch.rotate.winner"
+msgstr "Vyhra: zůstáváš u svého automatu a hraješ s tím, kdo si sedne další."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} zůstává u automatu. Hraješ s dalším volným hráčem."
 
 msgid "postmatch.back"
 msgstr "Zpět do místnosti"

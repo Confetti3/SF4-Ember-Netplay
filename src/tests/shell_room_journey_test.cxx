@@ -646,7 +646,11 @@ void ArcadeJourneys() {
   // The buttons are the rows: Character select and Back to room, each its own action.
   Check(rows.size()==2&&rows[0].id=="fighter"&&rows[1].id=="back","King of the hill's buttons were not Character select and Back to room");
   Check(words["pm-you"]==loc::T("postmatch.king.stays")&&words["pm-opponent"]==loc::T("postmatch.king.waits"),"The set's winner and loser were not shown");
-  Check(row("back")->detail==loc::T("postmatch.back.keep_seat"),"Back after a King of the hill set said it gives up the seat");
+  // Nothing is left to choose, so the buttons say what the room did.
+  Check(row("fighter")->detail.rfind(loc::T("postmatch.rotate.winner"),0)==0&&row("back")->detail.rfind(loc::T("postmatch.rotate.winner"),0)==0,
+   "The winner was not told they stay on for the next challenger");
+  const std::string keep=loc::T("postmatch.back.keep_seat");const auto& back=row("back")->detail;
+  Check(back.size()>=keep.size()&&back.compare(back.size()-keep.size(),keep.size(),keep)==0,"Back after a King of the hill set said it gives up the seat");
   for(const char* id:{"fighter","back"}){k.FocusOn(id);k.Press(MenuInput::Down);
    Check(k.shell.Navigation().Focus()==id,"Down left the post-match buttons");}
   const auto sent=k.actions.size();k.Wait(11);

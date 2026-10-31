@@ -4,6 +4,8 @@
 #include "SelectionArt.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
+#include <imgui_internal.h>
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 
@@ -45,24 +47,44 @@ Mark MarkOf(const SkillBadge& badge) {
     }
     return mark;
 }
-float EmblemSide(float fontSize) { return std::round(fontSize * 1.1f); }
-// An emblem is drawn EmblemSide tall at its own shape (the class emblems are
-// square, the developer mark wide).
-float EmblemWidth(const SelectionImage& emblem, float fontSize) {
-    const float side = EmblemSide(fontSize);
-    return emblem.height > 0 ? std::round(side * emblem.width / emblem.height) : side;
+// How big a mark is drawn: `side` tall, a pill's word `pillText` in `font`
+// with a border `border` wide. Beside menu text all of it follows the text
+// (Beside); the match HUD gives the height and font (Alone).
+struct MarkSize { float side, pillText; ImFont* font; float border; };
+MarkSize Beside(float fontSize) {
+    return {std::round(fontSize * 1.1f), std::round(fontSize * .78f), ImGui::GetFont(), std::round(Scale())};
+}
+MarkSize Alone(float side, ImFont* font) {
+    side = std::round(side);
+    return {side, std::round(side * .7f), font, (std::max)(1.f, std::round(side / 18))};
+}
+// An emblem is drawn `side` tall at its own shape (the class emblems are
+// square, the developer mark wide); a pill fits its word.
+float MarkWidth(const Mark& mark, const MarkSize& size) {
+    if (mark.emblem.texture)
+        return mark.emblem.height > 0 ? std::round(size.side * mark.emblem.width / mark.emblem.height) : size.side;
+    return std::round(size.font->CalcTextSizeA(size.pillText, FLT_MAX, 0, mark.pill.c_str()).x + size.pillText * .9f);
+}
+// A drawn mark with its top left at `at` (rounded to whole pixels); returns its box.
+ImRect PaintMark(ImDrawList* d, ImVec2 at, const Mark& mark, const MarkSize& size) {
+    const float width = MarkWidth(mark, size);
+    const ImVec2 min(std::round(at.x), std::round(at.y)), max(min.x + width, min.y + size.side);
+    if (mark.emblem.texture) {
+        d->AddImage(mark.emblem.texture, min, max, mark.emblem.uvMin, mark.emblem.uvMax,
+            mark.faded ? IM_COL32(255, 255, 255, 115) : IM_COL32_WHITE);
+    } else {
+        const float rounding = size.side * .5f;
+        const float textWidth = size.font->CalcTextSizeA(size.pillText, FLT_MAX, 0, mark.pill.c_str()).x;
+        d->AddRectFilled(min, max, PillFill, rounding);
+        d->AddRect(min, max, PillBorder, rounding, 0, size.border);
+        d->AddText(size.font, size.pillText, ImVec2(std::round(min.x + (width - textWidth) * .5f), std::round(min.y + (size.side - size.pillText) * .5f)),
+            palette::Ivory, mark.pill.c_str());
+    }
+    return ImRect(min, max);
 }
 float Gap() { return std::round(5 * Scale()); }
-float PillTextSize(float fontSize) { return std::round(fontSize * .78f); }
-float PillWidth(const std::string& pill, float fontSize) {
-    const float size = PillTextSize(fontSize);
-    return std::round(ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, pill.c_str()).x + size * .9f);
-}
-float MarkWidth(const Mark& mark, float fontSize) {
-    return mark.emblem.texture ? EmblemWidth(mark.emblem, fontSize) : PillWidth(mark.pill, fontSize);
-}
-// The room a drawn mark takes, its gap included.
-float MarkSlot(const Mark& mark, float fontSize) { return mark.Drawn() ? MarkWidth(mark, fontSize) + Gap() : 0; }
+// The room a drawn mark takes beside text, its gap included.
+float MarkSlot(const Mark& mark, float fontSize) { return mark.Drawn() ? MarkWidth(mark, Beside(fontSize)) + Gap() : 0; }
 
 std::string MarkTip(const SkillBadge& badge) {
     if (badge.kind == SkillBadge::Kind::Placing) return loc::T("rankings.placing");
@@ -91,22 +113,21 @@ DrawnMarks DrawNameMarks(ImDrawList* d, float x, float textTop, float fontSize, 
     drawn.width = flag.width;
     const Mark mark = MarkOf(marks.badge);
     if (!mark.Drawn()) return drawn;
-    const float side = EmblemSide(fontSize), width = MarkWidth(mark, fontSize);
-    const ImVec2 min(std::round(x + drawn.width), std::round(textTop + (fontSize - side) * .5f)), max(min.x + width, min.y + side);
-    if (mark.emblem.texture) {
-        d->AddImage(mark.emblem.texture, min, max, mark.emblem.uvMin, mark.emblem.uvMax,
-            mark.faded ? IM_COL32(255, 255, 255, 115) : IM_COL32_WHITE);
-    } else {
-        const float size = PillTextSize(fontSize), rounding = side * .5f;
-        const float textWidth = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, mark.pill.c_str()).x;
-        d->AddRectFilled(min, max, PillFill, rounding);
-        d->AddRect(min, max, PillBorder, rounding, 0, std::round(Scale()));
-        d->AddText(ImGui::GetFont(), size, ImVec2(std::round(min.x + (width - textWidth) * .5f), std::round(min.y + (side - size) * .5f)),
-            palette::Ivory, mark.pill.c_str());
-    }
+    const auto size = Beside(fontSize);
+    const ImRect box = PaintMark(d, ImVec2(x + drawn.width, textTop + (fontSize - size.side) * .5f), mark, size);
     drawn.width += MarkSlot(mark, fontSize);
-    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(min, max))
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseHoveringRect(box.Min, box.Max))
         drawn.tip = MarkTip(marks.badge);
     return drawn;
+}
+
+float BadgeWidth(const SkillBadge& badge, float side, ImFont* font) {
+    const Mark mark = MarkOf(badge);
+    return mark.Drawn() ? MarkWidth(mark, Alone(side, font)) : 0;
+}
+
+float DrawBadge(ImDrawList* d, ImVec2 at, float side, ImFont* font, const SkillBadge& badge) {
+    const Mark mark = MarkOf(badge);
+    return mark.Drawn() ? PaintMark(d, at, mark, Alone(side, font)).GetWidth() : 0;
 }
 } }

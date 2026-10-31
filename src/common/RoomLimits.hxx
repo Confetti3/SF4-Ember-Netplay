@@ -6,7 +6,8 @@ namespace sf4e { namespace room {
 // watches the same table. The legacy protocol retains its four-user bound.
 constexpr std::size_t MaxMembers = 16;
 // Every room has eight tables, one for each pair of its sixteen members. A
-// Classic room plays at the first four (room::TablesInPlay).
+// Classic room plays at the first few of them, four unless its host chose
+// otherwise (room::Snapshot::tableCount, room::TablesInPlay).
 constexpr std::size_t TableCount = 8;
 constexpr std::size_t ClassicTableCount = 4;
 // An Arcade room's one-player cabinets, one for each member.

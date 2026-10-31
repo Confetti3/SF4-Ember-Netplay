@@ -100,6 +100,16 @@ country flag and leads the name on table seats and in the Members list
 tooltip names the class; a faint emblem's adds that the player has not played
 lately. A player without a Discord account or not taking part shows nothing.
 
+The same marks follow each fighter into a public room's match: on the match
+HUD beside the name, on the Ember strip between the link glyph and the name,
+and on the split layout's plates between the Ember rule and the name
+(`src/ui/MatchHud.cxx`). They are taken with the name and link when the match
+starts, from the room as the runtime shows it, so a private room's host
+cannot put one there and hiding emblems hides them too. The player's own
+profile card (Home, Awards, Profile) shows the class of their standing; the
+standing is read once a session for each service and Ember ID, away from
+Rankings, so the card has it without a visit. That read lists nobody.
+
 The game has no art for the two marks that are not classes:
 
 - **"?"**: the player's rating is still placing, shown as a word in a small

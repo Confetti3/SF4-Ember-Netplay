@@ -50,6 +50,15 @@ or King of the hill. Any type can be private or public.
    (a start held for a spectator, the Ready timeout, a Training call) on the
    cabinet's screen and in its row's words. The pad moves between cabinets,
    matchups, members and the room's actions by where they are drawn.
+8. Winner keeps fighter, a room option set when it is created (off by
+   default): as at a real arcade, a set's winner stays with the fighter they
+   won with until they lose a set at that table or leave it. Fighter select
+   locks the grid and the edition for them; the Ultra Combo, costume and
+   color still change.
+9. Every member's sets won and lost in the room since joining show on their
+   member card ("3 W / 1 L"), whatever the set length.
+10. Fighter select opened from the room (its Fighter shortcut, or the
+   prompt's Character select) closes on a fighter picked and lands on Ready.
 
 ## How it is built
 
@@ -68,6 +77,14 @@ or King of the hill. Any type can be private or public.
 - RoomPanelArcade.cxx draws the board from the V2 kit; the rows are
   cabinet-N in RoomPanel.cxx. Every cabinet and matchup goes through
   PressEntry, so MenuNavigation moves between them by their boxes.
+- Rules::winnerKeepsFighter carries option 8 (written only when on);
+  room::KeepsFighter is the one test, and the overlay passes it to
+  FighterSelector. Member::setsWon and setsLost count in CompleteSet.
+- The room host routes a member's fighter, stage and seed to the table they
+  sit at now (SessionServer::RoomTableFor reads the seat first): rotation
+  moves players by other members' actions, and the table they last acted at
+  went stale, so a moved player's pick was dropped and they played as Ryu.
+  This needs a room host build on the servers to take effect.
 - The post-match prompt (ApplicationShell__PostMatch.cxx) reads
   Table::deciding: its Rematch and New opponent are RoomAction's, the cabinet's
   own answer; KeepsSeat holds every cabinet in an Arcade or King room.

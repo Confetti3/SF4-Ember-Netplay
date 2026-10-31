@@ -46,14 +46,25 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
  if(screen=="create")rows.push_back(RoomTypeRow(createArcade_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
+ // A private Classic room's tables, kept with the room defaults; an Arcade
+ // room plays at all of them, and a public one opens at the default.
+ if(screen=="create"&&room::TableCountChangeable(createArcade_,publicRoom,false))rows.push_back(Value("tables",loc::T("room.tables"),std::to_string(preferences_.roomTableCount),
+  loc::Tf("room.tables_detail",static_cast<int>(room::TableCount)),can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
- // An Arcade pair rematches after every set, so nobody stays or rotates.
- if(arcade)rows.erase(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="rotation";}));
+ // An Arcade pair rematches after every set, so nobody stays or rotates; the
+ // room may keep its winners on their fighters instead.
+ if(arcade){
+  rows.erase(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="rotation";}));
+  rows.push_back(WinnerKeepsFighterRow((publicRoom?preferences_.publicTableRules:preferences_.tableRules).winnerKeepsFighter,can,reason));
+ }
  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
-  if(!opening)rows.back().hint=loc::T(publicRoom?"public.create":"online.create");}
+  if(!opening)rows.back().hint=loc::T(publicRoom?"public.create":"online.create");
+  // Down from the foot of the Rules panel is the button, even where the Room
+  // panel beside it reaches lower (a Practice room's has no round time).
+  if(rows.size()>=2)rows[rows.size()-2].down=rows.back().id;}
  return rows;
 }
 // Opening Create, and the rows on it that start a room.
@@ -87,7 +98,7 @@ void ApplicationShell::ApplyRoomTemplate(int index) {
  // A copy: preferences_ is replaced below.
  const auto saved=preferences_.roomTemplates[index];
  auto next=preferences_;
- next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;
+ next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;next.roomTableCount=saved.tableCount;
  (saved.isPublic?next.publicTableRules:next.tableRules)=saved.tables.rules[0];
  if(!next.Valid()){error_=loc::T("error.invalid_value");return;}
  preferences_=std::move(next);preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
@@ -104,6 +115,7 @@ netplay::TableSetup ApplicationShell::CreateTables(const room::Rules& rules) con
 void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
  netplay::RoomTemplate saved;
  saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;
+ saved.tableCount=room.arcade?static_cast<int>(room::ClassicTableCount):static_cast<int>(room::TablesInPlay(room));
  for(const auto& table:room.tables)if(table.id<room::TableCount){saved.tables.rules[table.id]=table.rules;saved.tables.names[table.id]=table.name;}
  if(!saved.Valid()){error_=loc::T("error.invalid_value");return;}
  auto& templates=preferences_.roomTemplates;

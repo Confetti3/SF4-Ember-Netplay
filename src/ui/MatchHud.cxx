@@ -6,6 +6,7 @@
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "MenuProbes.hxx"
+#include "NameMarks.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include <algorithm>
@@ -163,16 +164,22 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     // pair lopsided whenever the names differed in length.
     // The names share whatever the middle label (a running score can be wide) leaves.
     const auto versus=view.score.empty()?std::string(loc::T("match.versus_short")):view.score;
-    // Each side's link mark sits on the outer side of its name.
-    const auto gap=12*s,vsWidth=TextWidth(16*s,versus),nameWidth=(w-30*s-2*gap-vsWidth-2*glyphSpace)*.5f;
+    // Each side's link mark sits on the outer side of its name, and its class
+    // mark between the two, the name's height.
+    const float badgeSide=20*s,badgeGap=5*s;
+    float badgeSpace[2];
+    for(int side=0;side<2;++side){const float b=BadgeWidth(view.badges[side],badgeSide,font);badgeSpace[side]=b>0?b+badgeGap:0;}
+    const auto gap=12*s,vsWidth=TextWidth(16*s,versus),nameWidth=(w-30*s-2*gap-vsWidth-2*glyphSpace-badgeSpace[0]-badgeSpace[1])*.5f;
     const auto left=FitText(view.names[0],nameWidth,20*s),right=FitText(view.names[1],nameWidth,20*s);
     const auto leftWidth=TextWidth(20*s,left),rightWidth=TextWidth(20*s,right);
-    auto x=p.x+(w-(glyphSpace+leftWidth+gap+vsWidth+gap+rightWidth+glyphSpace))*.5f;
+    auto x=p.x+(w-(glyphSpace+badgeSpace[0]+leftWidth+gap+vsWidth+gap+rightWidth+badgeSpace[1]+glyphSpace))*.5f;
     DrawNetworkLinkGlyph(draw,ImVec2(x,p.y+7*s),glyph,view.links[0]);x+=glyphSpace;
+    if(badgeSpace[0]>0){DrawBadge(draw,ImVec2(x,p.y+4.5f*s),badgeSide,font,view.badges[0]);x+=badgeSpace[0];}
     text(x,p.y+4*s,left,20*s,IM_COL32(243,235,221,255));x+=leftWidth+gap;
     text(x,p.y+6*s,versus,16*s,IM_COL32(255,135,56,230));x+=vsWidth+gap;
-    text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));
-    DrawNetworkLinkGlyph(draw,ImVec2(x+rightWidth+glyphGap,p.y+7*s),glyph,view.links[1]);
+    text(x,p.y+4*s,right,20*s,IM_COL32(243,235,221,255));x+=rightWidth;
+    if(badgeSpace[1]>0){DrawBadge(draw,ImVec2(x+badgeGap,p.y+4.5f*s),badgeSide,font,view.badges[1]);x+=badgeSpace[1];}
+    DrawNetworkLinkGlyph(draw,ImVec2(x+glyphGap,p.y+7*s),glyph,view.links[1]);
     const auto cells=MatchTelemetryCells(view);
     const float column=(w-24*s)/3;
     for(int i=0;i<3;++i){
@@ -195,16 +202,21 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
 // Same Ember language as the strip (Inter, the dark translucent panel, the link
 // glyphs, an Ember rule), only arranged around the game's own HUD.
 struct Plate {
-    std::string name;NetworkLink link=NetworkLink::Unknown;
+    std::string name;NetworkLink link=NetworkLink::Unknown;SkillBadge badge;
     float x0=0,y0=0,x1=0,y1=0,k=1,font=SplitName;bool right=false;
+    // The class mark's height and the room it takes before the name, its gap included; 0 for none.
+    float badgeSide=0,badgeSpace=0;
 };
 // `edge` is the plate's outer edge (its left side for P1, right for P2); the
 // link glyph always sits on the inner side of the name, and a long name is cut
-// to make room for it. The plate is at least minWidth wide and spans
-// y..y+height, whatever the name.
+// to make room for it. The class mark leads the name from the Ember rule. The
+// plate is at least minWidth wide and spans y..y+height, whatever the name.
 Plate MakePlate(const MatchStripView& view,int side,float edge,float y,float k,float maxWidth,float minWidth,float height){
-    Plate p;p.right=side==1;p.k=k;p.font=SplitName*k;p.link=view.links[side];
-    const float frame=21*k+6*k+p.font*.9f; // rule and padding, gap, glyph
+    Plate p;p.right=side==1;p.k=k;p.font=SplitName*k;p.link=view.links[side];p.badge=view.badges[side];
+    p.badgeSide=height*.78f;
+    const float badge=BadgeWidth(p.badge,p.badgeSide,DiagnosticFont());
+    p.badgeSpace=badge>0?badge+5*k:0;
+    const float frame=21*k+6*k+p.font*.9f+p.badgeSpace; // rule and padding, gap, glyph, class mark
     p.name=FitText(view.names[side],(std::max)(0.f,maxWidth-frame),p.font);
     const float w=(std::max)(minWidth,frame+TextWidth(p.font,p.name));
     p.x0=p.right?edge-w:edge;p.x1=p.x0+w;p.y0=y;p.y1=y+height;
@@ -221,9 +233,13 @@ void DrawPlate(ImDrawList* draw,const Plate& p,bool withLink=true){
     // The name starts at the Ember rule and the glyph follows it, so a plate wider
     // than its name leaves the room on the inner side.
     const float nameWidth=TextWidth(p.font,p.name);
-    const float nameX=p.right?p.x1-14*k-nameWidth:p.x0+14*k;
+    const float nameX=p.right?p.x1-14*k-p.badgeSpace-nameWidth:p.x0+14*k+p.badgeSpace;
     const float glyphX=p.right?nameX-gap-glyph:nameX+nameWidth+gap;
     if(withLink)DrawNetworkLinkGlyph(draw,ImVec2(glyphX,p.y0+(p.y1-p.y0-glyph)*.5f),glyph,p.link);
+    if(p.badgeSpace>0){
+        const float badgeX=p.right?p.x1-14*k-(p.badgeSpace-5*k):p.x0+14*k;
+        DrawBadge(draw,ImVec2(badgeX,p.y0+(p.y1-p.y0-p.badgeSide)*.5f),p.badgeSide,DiagnosticFont(),p.badge);
+    }
     if(p.name.empty())return;
     auto* font=DiagnosticFont();
     const float textY=p.y0+(p.y1-p.y0-p.font)*.5f;

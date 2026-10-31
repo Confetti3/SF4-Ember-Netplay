@@ -2211,6 +2211,9 @@ msgstr "Links en rechts wijzigen dit en slaan meteen op."
 msgid "selection.locked_detail"
 msgstr "Keuze vergrendeld. Ga terug naar je tafel voor de huidige status."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Je hebt de laatste set gewonnen, dus je houdt deze vechter. De Ultra Combo, het kostuum en de kleur kun je nog wel veranderen."
+
 msgid "selection.title"
 msgstr "PERSONAGE KIEZEN"
 
@@ -3243,6 +3246,14 @@ msgstr "Capaciteit toepassen"
 
 msgid "room.apply_capacity.detail"
 msgstr "Verstuur deze capaciteit."
+msgid "room.tables"
+msgstr "Tafels"
+msgid "room.tables_detail"
+msgstr "Hoeveel tafels de kamer heeft, van 1 tot {0}. De host kan dit later wijzigen in Kamerinstellingen."
+msgid "room.tables.detail"
+msgstr "Voeg tafels toe tot {0}. Een tafel kan alleen weg als niemand er speelt, wacht of kijkt."
+msgid "room.apply_tables"
+msgstr "Tafels toepassen"
 
 msgid "profile.main_badge"
 msgstr "HOOFD"
@@ -4648,6 +4659,12 @@ msgstr "Directe rematch"
 msgid "rules.instant_rematch.detail"
 msgstr "Na elk potje kiezen beide vechters op het WIN-scherm 10 seconden lang Rematch, Personage kiezen of Terug naar de room."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Winnaar houdt vechter"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Zoals in een echte speelhal blijft de winnaar van een set bij de vechter waarmee hij won. Alleen de Ultra Combo, het kostuum en de kleur kunnen veranderen."
+
 msgid "postmatch.choose"
 msgstr "Nog een keer?"
 
@@ -4698,6 +4715,12 @@ msgstr "Personage kiezen"
 
 msgid "postmatch.character_select.detail"
 msgstr "Kies een andere vechter in de room en meld je daarna klaar."
+
+msgid "postmatch.rotate.winner"
+msgstr "Je hebt gewonnen: je blijft bij je kast en speelt tegen wie er hierna gaat zitten."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} blijft bij de kast. Jij speelt tegen de volgende vrije speler."
 
 msgid "postmatch.back"
 msgstr "Terug naar de room"

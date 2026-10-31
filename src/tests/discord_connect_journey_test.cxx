@@ -490,7 +490,14 @@ void HomeGuides(){
  id.bridges={{"brg_1",ember,"Ember"}};h.Frame(0,2);
  Check(h.sent().back()->op==IdentityOp::BridgeList,"Home did not learn the services");
  h.answer();h.Frame(0,2);
- Check(!h.played().empty()&&h.played().back()->op==Command::Op::Refresh&&h.played().back()->bridgeId=="brg_1","Home did not read the matches");
+ const auto playedOp=[&](Command::Op op){const auto all=h.played();
+  return std::count_if(all.begin(),all.end(),[&](const Command* c){return c->op==op&&c->bridgeId=="brg_1";});};
+ Check(playedOp(Command::Op::Refresh)>=1,"Home did not read the matches");
+ // The profile card's class: the standing is read once, with no visit to Rankings, and not again.
+ Check(playedOp(Command::Op::RankingStanding)==1,"Home did not read the standing for the profile card");
+ h.Frame(0,30);
+ Check(playedOp(Command::Op::RankingStanding)==1,"Home read the standing again");
+ Check(playedOp(Command::Op::RankingChoose)==0,"Home sent a ranking listing without a visit to Rankings");
  Check(!h.row("home-matches"),"Home shows a matches row with no match ready");
  h.Screen("online");
  Check(h.row("identity")->detail==loc::T("home.identity_detail"),"Ember ID says to start with an ID and a service");

@@ -286,7 +286,7 @@ public:
             ConfirmRow("community", loc::T("about.discord"), outcome({ServiceAction::OpenCommunity}, loc::Tf("about.discord_detail", platform::CommunityInvite)), !v.services.pending),
             // The version on this PC and the channel its update checks use, as Home's
             // corner shows them, above the check itself; the build in its pane.
-            InfoRow("version", loc::T("updates.installed_version"), VersionLine(InstalledVersion(v), v.services.channel),
+            InfoRow("version", loc::T("updates.installed_version"), VersionLine(InstalledVersion(v)),
                 v.build.empty() ? std::string(loc::T("updates.installed_version_detail")) : loc::Tf("about.version_detail", v.build)),
             ChannelRow(v.services.channel, &s.channelPick_, v.services.pending),
             Row("updates", loc::T("updates.check"), outcome({ServiceAction::CheckUpdates, ServiceAction::InstallUpdate, ServiceAction::OpenRecovery}, loc::T("about.updates_detail")), !v.services.pending),
@@ -615,10 +615,13 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     for (const auto& e : entries) if (e.id == focus) words = &e;
     v2::Box column = body;
     if (const float cap = (width / s > 1700 ? 1400 : 1100) * s; column.W() > cap) column.max.x = column.min.x + cap;
-    // The words' bar: the design's height, taller when they wrap past it.
-    const float wrapped = words ? v2::WordsHeight(column.W(), words->detail) : 0;
+    // The words' bar: the design's height, taller when they wrap past it. A
+    // row Select opens in the reader (the controls, credits, font licence)
+    // shows only its first paragraph here; the whole text waits for Select.
+    const std::string detail = !words ? std::string() : words->reading ? words->detail.substr(0, words->detail.find('\n')) : words->detail;
+    const float wrapped = words ? v2::WordsHeight(column.W(), detail) : 0;
     const v2::Box bar = v2::CutBottom(column, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
-    v2::Words(d, bar, words ? words->label : std::string(), words ? words->detail : std::string(), true);
+    v2::Words(d, bar, words ? words->label : std::string(), detail, true);
     if (!shown) return;
     v2::Box section = v2::Panel(d, column, loc::T(shown->panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
 

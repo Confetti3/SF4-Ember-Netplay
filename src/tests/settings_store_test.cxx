@@ -705,6 +705,35 @@ int main() {
             CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
         }
     }
+    // A private Classic room's table count is a room default and a template's:
+    // written only when it is not four, and four when the key is missing.
+    {
+        CHECK(!result["roomDefaults"].contains("tableCount") && restored.roomTableCount == 4);
+        auto six = defaults;
+        six.roomTableCount = 6;
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Six tables"; saved.roomName = "Big room"; saved.tableCount = 2;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        six.roomTemplates = {saved};
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(six)}};
+        CHECK(document["roomDefaults"].at("tableCount") == 6 && document["roomDefaults"]["templates"][0].at("tableCount") == 2);
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomTableCount == 6 && read.roomTemplates.size() == 1 &&
+            read.roomTemplates[0] == saved && read.roomTemplates[0].tableCount == 2);
+        auto plain = document;
+        plain["roomDefaults"].erase("tableCount");
+        plain["roomDefaults"]["templates"][0].erase("tableCount");
+        CHECK(sf4e::netplay::ReadRoomPreferences(plain, read) && read.roomTableCount == 4 && read.roomTemplates[0].tableCount == 4);
+        for (const Json& invalid : {Json(0), Json(9), Json("6"), Json(2.5)}) {
+            auto bad = document;
+            bad["roomDefaults"]["tableCount"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+        }
+        // A template whose count cannot be read is left out, and the defaults still load.
+        auto badTemplate = document;
+        badTemplate["roomDefaults"]["templates"][0]["tableCount"] = 12;
+        CHECK(sf4e::netplay::ReadRoomPreferences(badTemplate, read) && read.roomTableCount == 6 && read.roomTemplates.empty());
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},

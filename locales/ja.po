@@ -2211,6 +2211,9 @@ msgstr "左右で変更すると、すぐに保存されます。"
 msgid "selection.locked_detail"
 msgstr "選択はロック中です。現在の状態は対戦席に戻って確認してください。"
 
+msgid "selection.winner_keeps_fighter"
+msgstr "前のセットに勝ったので、このキャラクターのまま続けます。ウルトラコンボ、コスチューム、カラーは変更できます。"
+
 msgid "selection.title"
 msgstr "キャラクター選択"
 
@@ -3244,6 +3247,14 @@ msgstr "定員を適用"
 
 msgid "room.apply_capacity.detail"
 msgstr "この定員を送信します。"
+msgid "room.tables"
+msgstr "対戦席の数"
+msgid "room.tables_detail"
+msgstr "ルームの対戦席の数です（1～{0}）。ホストはあとでルーム設定から変更できます。"
+msgid "room.tables.detail"
+msgstr "対戦席は{0}まで追加できます。対戦席を減らせるのは、そこに誰もいないときだけです。"
+msgid "room.apply_tables"
+msgstr "対戦席の数を適用"
 
 msgid "profile.main_badge"
 msgstr "メイン"
@@ -4649,6 +4660,12 @@ msgstr "即再戦"
 msgid "rules.instant_rematch.detail"
 msgstr "各試合の後、WIN画面で10秒間、両者が再戦・キャラクター選択・ルームに戻るから選びます。"
 
+msgid "rules.winner_keeps_fighter"
+msgstr "勝者はキャラクター固定"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "本物のゲームセンターのように、セットの勝者は勝ったキャラクターのまま続けます。変更できるのはウルトラコンボ、コスチューム、カラーだけです。"
+
 msgid "postmatch.choose"
 msgstr "もう一戦？"
 
@@ -4699,6 +4716,12 @@ msgstr "キャラクター選択"
 
 msgid "postmatch.character_select.detail"
 msgstr "ルームで別のキャラを選んでから準備完了にします。"
+
+msgid "postmatch.rotate.winner"
+msgstr "勝ったので筐体に残り、次に座ったプレイヤーと対戦します。"
+
+msgid "postmatch.rotate.loser"
+msgstr "{0}が筐体に残ります。あなたは次に空いたプレイヤーと対戦します。"
 
 msgid "postmatch.back"
 msgstr "ルームに戻る"

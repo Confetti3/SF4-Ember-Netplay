@@ -77,16 +77,18 @@ struct RoomTemplate {
     int capacity = 16;
     bool isPublic = false, practice = false;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+    // How many tables a private Classic room opens with (room::Snapshot::tableCount).
+    int tableCount = static_cast<int>(room::ClassicTableCount);
     TableSetup tables;
     bool Valid() const {
         if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
-            (isPublic && practice) || !tables.Valid()) return false;
+            (isPublic && practice) || tableCount < 1 || tableCount > static_cast<int>(room::TableCount) || !tables.Valid()) return false;
         for (unsigned char c : name + roomName) if (c < 32 || c == 127) return false;
         return true;
     }
     bool operator==(const RoomTemplate& rhs) const {
         return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
-            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tables == rhs.tables;
+            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && tables == rhs.tables;
     }
 };
 constexpr std::size_t MaxRoomTemplates = 12;
@@ -224,6 +226,8 @@ struct PlayerPreferences {
     bool roomPublic = false;
     // Whose input delay a room created here plays at (room::Snapshot::delayPolicy).
     room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Shared;
+    // How many tables a private Classic room created here opens with (room::Snapshot::tableCount).
+    int roomTableCount = static_cast<int>(room::ClassicTableCount);
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.
@@ -235,7 +239,8 @@ struct PlayerPreferences {
         if (!gamepads::Valid(buttonPrompts) || displayName.empty() || displayName.size() >= 32 || mainFighter<0 || mainFighter>=selection::FighterCount || inputDelay < MinimumInputDelay || inputDelay > MaximumInputDelay || autoDelayStyle < 0 || autoDelayStyle >= AutoDelayStyles ||
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) ||
             !lobby.Valid() ||
-            roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers)) return false;
+            roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) ||
+            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
         return country.Valid() && speech.Valid() && tableRules.Valid() && publicTableRules.Valid();

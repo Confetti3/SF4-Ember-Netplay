@@ -94,6 +94,23 @@ void SessionServer::HandleRoomAction(session::Connection conn, const json& msg, 
 	const auto priorSnapshot = _roomAuthority->SnapshotCopy();
 	if (actionMessage.action.kind == room::ActionKind::Leave) CaptureFrozenMember(roomMember->second, priorSnapshot);
 	else if (actionMessage.action.kind == room::ActionKind::Kick) CaptureFrozenMember(actionMessage.action.target, priorSnapshot);
+	// A table's keeper readies only over the fighter and edition they won with,
+	// as the match data the game starts from holds them: a pick the host
+	// refused (HandleSetChara) or a pairing's cleared data would start them
+	// as someone else.
+	if (actionMessage.action.kind == room::ActionKind::Ready && actionMessage.action.table < room::TableCount) {
+		const auto& chara = _roomMatchData[actionMessage.action.table].chara;
+		const int side = RoomSideFor(conn, actionMessage.action.table);
+		if (side >= 0 && !_roomAuthority->FighterAllowed(roomMember->second, chara[side].charaID, selection::FromNative(chara[side]).edition)) {
+			SessionProtocol::RoomResultMessage refused;
+			refused.result.accepted = false;
+			refused.result.reason = room::RejectReason::Unauthorized;
+			refused.actionId = actionMessage.action.actionId;
+			refused.result.snapshot = _roomAuthority->SnapshotFor(roomMember->second);
+			Respond(conn, json(refused));
+			return;
+		}
+	}
 	auto result = _roomAuthority->Apply(roomMember->second, actionMessage.action);
 	std::vector<room::Event> events = result.events;
 	const bool duplicateTerminalAcknowledgment = result.accepted &&
@@ -384,15 +401,20 @@ void SessionServer::HandleSetChara(session::Connection conn, const json& msg) {
 		return;
 	}
 	auto& matchData = _roomAuthority ? _roomMatchData[tableId] : _matchData;
+	const room::MemberId sender = side == 0 ? table.p1 : table.p2;
+	const int edition = selection::FromNative(request.chara).edition;
+	if (_roomAuthority && !_roomAuthority->FighterAllowed(sender, request.chara.charaID, edition)) {
+		spdlog::info("Server: table {} seat {} keeps the fighter it won with; refused fighter {}", tableId, side, request.chara.charaID);
+		return;
+	}
 	if ((_roomAuthority ? table.ready[side] : matchData.readyMessageNum[side] != -1) ||
 		!selection::Valid(selection::FromNative(request.chara), _roomAuthority ? table.rules.editionSelect : _lobbyData.editionSelect)) {
 		spdlog::info("Server: rejected unavailable or locked character selection from {}", conn);
 		return;
 	}
 	matchData.chara[side] = request.chara;
-    const room::MemberId sender=side==0?table.p1:table.p2;
     bool withdrew=false;
-    if(_roomAuthority&&_roomAuthority->SetMemberFighter(sender,request.chara.charaID,&withdrew)){
+    if(_roomAuthority&&_roomAuthority->SetMemberFighter(sender,request.chara.charaID,&withdrew,edition)){
         if(withdrew)spdlog::info("Server: table {} seat {} changed fighter to {}; the other seat's Ready was taken back",tableId,side,request.chara.charaID);
         BroadcastRoomState({});
     }

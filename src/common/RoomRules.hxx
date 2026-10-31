@@ -48,6 +48,10 @@ struct Rules {
     // After each game both fighters are asked Rematch, Character select or
     // Back to room over the WIN screen (ui/PostMatchPrompt.hxx).
     bool instantRematch = true;
+    // An Arcade or King of the hill room's option, as at a real arcade: a
+    // set's winner stays with the fighter they won with and may change only
+    // the Ultra and the look (room::KeepsFighter). Off reads as before.
+    bool winnerKeepsFighter = false;
     // The one test of a set of rules, for the room that applies them, the
     // wire and saved room defaults that read them, and the settings that
     // write them.
@@ -57,7 +61,8 @@ struct Rules {
     }
     bool operator==(const Rules& rhs) const {
         return format == rhs.format && rotation == rhs.rotation && editionSelect == rhs.editionSelect &&
-            roundCount == rhs.roundCount && roundTime == rhs.roundTime && instantRematch == rhs.instantRematch;
+            roundCount == rhs.roundCount && roundTime == rhs.roundTime && instantRematch == rhs.instantRematch &&
+            winnerKeepsFighter == rhs.winnerKeepsFighter;
     }
 };
 // A public room's tables start at first to 2, winner stays, so its queue

@@ -258,7 +258,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter], installed) ? std::string() :
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
-		stageId ? &stagedPool : nullptr, installed);
+		stageId ? &stagedPool : nullptr, installed, snapshot.room && sf4e::room::KeepsFighter(*snapshot.room, snapshot.room->localMember));
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
@@ -492,6 +492,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.practiceRoom = action.practiceRoom;
         request.arcadeRoom = action.arcadeRoom;
         request.delayPolicy = action.delayPolicy;
+        request.tableCount = action.tableCount;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;
@@ -800,7 +801,11 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     }
     if (layers.matchActive) {
         auto& strip = layers.match;
-        for (int side = 0; side < 2; ++side) { strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link; }
+        // Each fighter's rank as rooms show it; Class emblems off hides it mid-match too.
+        for (int side = 0; side < 2; ++side) {
+            strip.names[side] = status.matchSides[side].name; strip.links[side] = status.matchSides[side].link;
+            strip.badges[side] = snapshot.preferences.classEmblems ? status.matchSides[side].badge : sf4e::SkillBadge();
+        }
         if (status.hasMatchScore) strip.score = sf4e::ui::SetScoreText(status.matchScore);
         strip.rollbackFrames = status.rollbackFrames;
         strip.pingMs = status.pingMs; strip.appliedDelay = status.appliedDelay;

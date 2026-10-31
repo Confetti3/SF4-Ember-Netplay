@@ -2211,6 +2211,9 @@ msgstr "按左／右更改，会立即保存。"
 msgid "selection.locked_detail"
 msgstr "选择已锁定。请返回对战席查看当前状态。"
 
+msgid "selection.winner_keeps_fighter"
+msgstr "你赢了上一局，因此保留这个角色。仍可更改终极组合、服装和颜色。"
+
 msgid "selection.title"
 msgstr "角色选择"
 
@@ -3244,6 +3247,14 @@ msgstr "应用人数上限"
 
 msgid "room.apply_capacity.detail"
 msgstr "提交此人数上限。"
+msgid "room.tables"
+msgstr "对战席数"
+msgid "room.tables_detail"
+msgstr "房间的对战席数量（1 至 {0}）。房主之后可在房间设置中更改。"
+msgid "room.tables.detail"
+msgstr "对战席最多可增加到 {0} 个。只有在没有人使用时才能减少对战席。"
+msgid "room.apply_tables"
+msgstr "应用对战席数"
 
 msgid "profile.main_badge"
 msgstr "主角"
@@ -4649,6 +4660,12 @@ msgstr "即时再战"
 msgid "rules.instant_rematch.detail"
 msgstr "每局结束后，双方在 WIN 画面有 10 秒选择再战、角色选择或返回房间。"
 
+msgid "rules.winner_keeps_fighter"
+msgstr "胜者保留角色"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "就像真正的街机厅，一局的胜者继续使用获胜的角色，只能更改终极组合、服装和颜色。"
+
 msgid "postmatch.choose"
 msgstr "再来一局？"
 
@@ -4699,6 +4716,12 @@ msgstr "角色选择"
 
 msgid "postmatch.character_select.detail"
 msgstr "在房间里选择其他角色，然后准备。"
+
+msgid "postmatch.rotate.winner"
+msgstr "你赢了，留在你的机台，与下一位坐下的玩家对战。"
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} 留在机台。你将与下一位空闲的玩家对战。"
 
 msgid "postmatch.back"
 msgstr "返回房间"

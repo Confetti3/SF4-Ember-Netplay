@@ -21,7 +21,7 @@ inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::P
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&
         a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
-        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
+        a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomTableCount==b.roomTableCount&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
 }
 // Only what a room leaves open changed (PlayerPreferences::CopyRoomSettings):
 // the button layouts, the room board's layout and the watched game's picture.
@@ -140,6 +140,12 @@ inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool 
     rows.push_back(Value("instant-rematch",loc::T("rules.instant_rematch"),loc::T(rules.instantRematch?"common.on":"common.off"),
         enabled?loc::T("rules.instant_rematch.detail"):reason,enabled));
 }
+// An Arcade or King of the hill room's option: the set's winner keeps their
+// fighter (room::Rules::winnerKeepsFighter).
+inline MenuEntry WinnerKeepsFighterRow(bool on,bool enabled,const char* reason) {
+    return Value("winner-keeps-fighter",loc::T("rules.winner_keeps_fighter"),loc::T(on?"common.on":"common.off"),
+        enabled?loc::T("rules.winner_keeps_fighter.detail"):reason,enabled);
+}
 // Create's choice of a Practice room, fixed for the room's life (room::Snapshot::practice).
 inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
     return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
@@ -168,6 +174,7 @@ inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     }
     else if(a.id=="rotation"&&rules.format!=room::SetFormat::Unlimited) Step(rules.rotation,{0,1,2},a.delta);
     else if(a.id=="instant-rematch") rules.instantRematch=a.delta>0;
+    else if(a.id=="winner-keeps-fighter") rules.winnerKeepsFighter=a.delta>0;
     else return false;
     return true;
 }

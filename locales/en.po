@@ -2211,6 +2211,9 @@ msgstr "Left and Right change this and save it at once."
 msgid "selection.locked_detail"
 msgstr "Selection is locked. Return to your table for the current status."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "You won the last set, so you keep this fighter. You can still change the Ultra Combo, costume and color."
+
 msgid "selection.title"
 msgstr "FIGHTER SELECT"
 
@@ -2977,6 +2980,14 @@ msgid "room.apply_capacity"
 msgstr "Apply capacity"
 msgid "room.apply_capacity.detail"
 msgstr "Submit this capacity."
+msgid "room.tables"
+msgstr "Tables"
+msgid "room.tables_detail"
+msgstr "How many tables the room has, from 1 to {0}. The host can change it later in Room settings."
+msgid "room.tables.detail"
+msgstr "Add tables up to {0}. A table can be taken away only while nobody plays, waits or watches at it."
+msgid "room.apply_tables"
+msgstr "Apply tables"
 msgid "profile.main_badge"
 msgstr "MAIN"
 msgid "common.not_set"
@@ -4283,6 +4294,12 @@ msgstr "Instant rematch"
 msgid "rules.instant_rematch.detail"
 msgstr "After each game both fighters choose Rematch, Character select or Back to room over the WIN screen, for 10 seconds."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Winner keeps fighter"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "As at a real arcade, a set's winner stays with the fighter they won with. Only the Ultra Combo, costume and color can change."
+
 msgid "postmatch.choose"
 msgstr "Play again?"
 
@@ -4333,6 +4350,12 @@ msgstr "Character select"
 
 msgid "postmatch.character_select.detail"
 msgstr "Choose another fighter in the room, then Ready."
+
+msgid "postmatch.rotate.winner"
+msgstr "You won, so you stay at your cabinet and play whoever sits down next."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} stays at the cabinet. You play the next player who is free."
 
 msgid "postmatch.back"
 msgstr "Back to room"

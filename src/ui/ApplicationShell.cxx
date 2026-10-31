@@ -102,6 +102,8 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
+    // An Arcade room plays at every table; only a Classic one has a count to choose.
+    if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
     // Opened from a template: the runtime sets its tables once the room is up.
     if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
@@ -453,6 +455,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   auto prior=preferences_;
   if(a.id=="name")preferences_.displayName=a.text;else if(a.id=="room-name")preferences_.roomName=a.text;
   else if(a.id=="capacity")preferences_.roomCapacity=(std::max)(2,(std::min)(16,preferences_.roomCapacity+a.delta));
+  else if(a.id=="tables")preferences_.roomTableCount=(std::max)(1,(std::min)(static_cast<int>(room::TableCount),preferences_.roomTableCount+a.delta));
   else if(a.id=="delay"){
    // Auto sits before the smallest delay. Choosing it keeps the number; leaving it starts at the smallest.
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
@@ -713,7 +716,11 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   TakeForwardedMenuAction();
   selection();selectionDrawn_=true;
   const auto forwarded=TakeForwardedMenuAction();
-  if(forwarded.kind==MenuAction::Close)nav.Return();
+  // Done choosing (a fighter picked, Ready with): seated in a room, back on its Ready.
+  if(forwarded.kind==MenuAction::Close){
+   nav.Return();
+   if(inRoom&&room::PlaceOf(v.room,v.room.localMember).kind==room::Place::Kind::Seat)nav.Prefer("ready");
+  }
   else if(forwarded.kind==MenuAction::Shortcut&&inRoom)RoomShortcut(forwarded,v);
   return false;
  }
@@ -768,7 +775,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // from Home, out of Ember or back to the room; on the board, out of your seat (RoomScreens).
  menu_.exitName.clear();menu_.backHint.clear();
  // Home's corner says which version this is and which channel it follows.
- menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v),v.services.channel):std::string();
+ menu_.footerNote=screen=="home"?VersionLine(InstalledVersion(v)):std::string();
  if(screen=="home"){
   // In a room Back does nothing here (the game's own menu is locked behind
   // Ember), so Home offers no way out and the legend no Back.

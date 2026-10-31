@@ -2159,6 +2159,9 @@ msgstr "Ultra Combo"
 msgid "selection.ultra_row.detail"
 msgstr "Esquerda e Direita trocam o Ultra aqui. Selecionar mostra cada Ultra com seu comando."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Você venceu o último set, então mantém este lutador. Ainda pode mudar o Ultra Combo, o traje e a cor."
+
 msgid "selection.ultra_double"
 msgstr "Ultra Duplo"
 msgid "selection.ultra_one"
@@ -2883,6 +2886,14 @@ msgid "room.apply_capacity"
 msgstr "Aplicar capacidade"
 msgid "room.apply_capacity.detail"
 msgstr "Envie esta capacidade."
+msgid "room.tables"
+msgstr "Mesas"
+msgid "room.tables_detail"
+msgstr "Quantas mesas a sala tem, de 1 a {0}. O anfitrião pode mudar isso depois em Configurações da sala."
+msgid "room.tables.detail"
+msgstr "Adicione mesas até {0}. Uma mesa só pode ser removida quando ninguém joga, espera ou assiste nela."
+msgid "room.apply_tables"
+msgstr "Aplicar mesas"
 msgid "profile.main_badge"
 msgstr "PRINCIPAL"
 msgid "common.not_set"
@@ -4189,6 +4200,12 @@ msgstr "Revanche imediata"
 msgid "rules.instant_rematch.detail"
 msgstr "Depois de cada partida, os dois lutadores escolhem Revanche, Seleção de lutador ou Voltar à sala na tela WIN, por 10 segundos."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Vencedor mantém o lutador"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Como num fliperama de verdade, quem vence o set continua com o lutador com que venceu. Só o Ultra Combo, o traje e a cor podem mudar."
+
 msgid "postmatch.choose"
 msgstr "Mais uma?"
 
@@ -4239,6 +4256,12 @@ msgstr "Seleção de lutador"
 
 msgid "postmatch.character_select.detail"
 msgstr "Escolha outro lutador na sala e marque Pronto."
+
+msgid "postmatch.rotate.winner"
+msgstr "Você venceu: continua no seu gabinete e enfrenta quem sentar em seguida."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} continua no gabinete. Você enfrenta o próximo jogador livre."
 
 msgid "postmatch.back"
 msgstr "Voltar à sala"

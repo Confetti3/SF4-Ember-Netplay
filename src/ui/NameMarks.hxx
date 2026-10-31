@@ -27,4 +27,10 @@ std::string ClassName(std::uint8_t band);
 float NameMarksWidth(const NameMarks& marks, float fontSize);
 // The marks on a line of text of `fontSize` whose top is `textTop`, from `x`.
 DrawnMarks DrawNameMarks(ImDrawList* drawList, float x, float textTop, float fontSize, const NameMarks& marks);
+// A badge alone, as the match HUD draws it on its own scale: `side` tall, a
+// pill's word in `font`, no gap and no tooltip. Its width, 0 when nothing
+// draws (no badge, or a class whose emblem has not loaded).
+float BadgeWidth(const SkillBadge& badge, float side, ImFont* font);
+// Draws it with its top left at `at`; returns its width.
+float DrawBadge(ImDrawList* drawList, ImVec2 at, float side, ImFont* font, const SkillBadge& badge);
 } }

@@ -2211,6 +2211,9 @@ msgstr "Links und Rechts ändern dies und speichern sofort."
 msgid "selection.locked_detail"
 msgstr "Auswahl gesperrt. Status am Tisch prüfen."
 
+msgid "selection.winner_keeps_fighter"
+msgstr "Du hast das letzte Set gewonnen und behältst diesen Kämpfer. Ultra Combo, Kostüm und Farbe kannst du weiter ändern."
+
 msgid "selection.title"
 msgstr "CHARAKTERAUSWAHL"
 
@@ -3243,6 +3246,14 @@ msgstr "Kapazität übernehmen"
 
 msgid "room.apply_capacity.detail"
 msgstr "Diese Kapazität übernehmen."
+msgid "room.tables"
+msgstr "Tische"
+msgid "room.tables_detail"
+msgstr "Wie viele Tische der Raum hat, von 1 bis {0}. Der Host kann das später in Raumeinstellungen ändern."
+msgid "room.tables.detail"
+msgstr "Bis zu {0} Tische hinzufügen. Ein Tisch lässt sich nur entfernen, solange dort niemand spielt, wartet oder zuschaut."
+msgid "room.apply_tables"
+msgstr "Tische übernehmen"
 
 msgid "profile.main_badge"
 msgstr "HAUPT"
@@ -4648,6 +4659,12 @@ msgstr "Sofort-Revanche"
 msgid "rules.instant_rematch.detail"
 msgstr "Nach jedem Spiel wählen beide Kämpfer auf dem WIN-Bildschirm 10 Sekunden lang Revanche, Charakterauswahl oder Zurück in den Raum."
 
+msgid "rules.winner_keeps_fighter"
+msgstr "Sieger behält Kämpfer"
+
+msgid "rules.winner_keeps_fighter.detail"
+msgstr "Wie in einer echten Spielhalle bleibt der Sieger eines Sets bei dem Kämpfer, mit dem er gewonnen hat. Nur Ultra Combo, Kostüm und Farbe lassen sich ändern."
+
 msgid "postmatch.choose"
 msgstr "Noch eine Runde?"
 
@@ -4698,6 +4715,12 @@ msgstr "Charakterauswahl"
 
 msgid "postmatch.character_select.detail"
 msgstr "Wähle im Raum einen anderen Kämpfer, dann Bereit."
+
+msgid "postmatch.rotate.winner"
+msgstr "Du hast gewonnen: Du bleibst an deinem Automaten und spielst gegen den Nächsten, der sich setzt."
+
+msgid "postmatch.rotate.loser"
+msgstr "{0} bleibt am Automaten. Du spielst gegen den nächsten freien Spieler."
 
 msgid "postmatch.back"
 msgstr "Zurück in den Raum"

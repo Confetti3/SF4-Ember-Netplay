@@ -11,9 +11,11 @@ namespace sf4e { namespace netplay {
 // the public default.
 // One set of table rules, whole: ReadTableRules reads it back.
 inline nlohmann::json TableRulesJson(const room::Rules& rules) {
-    return {{"format", static_cast<int>(rules.format)}, {"rotation", static_cast<int>(rules.rotation)},
+    nlohmann::json json{{"format", static_cast<int>(rules.format)}, {"rotation", static_cast<int>(rules.rotation)},
         {"editionSelect", rules.editionSelect}, {"roundCount", rules.roundCount}, {"roundTime", rules.roundTime},
         {"instantRematch", rules.instantRematch}};
+    if (rules.winnerKeepsFighter) json["winnerKeepsFighter"] = true;
+    return json;
 }
 // The private room's rules sit beside the room's own fields, the public room's under "publicRules".
 inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
@@ -22,6 +24,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     json["publicRules"] = TableRulesJson(value.publicTableRules);
     // Only Own is written; a document without the key reads as Shared.
     if (value.roomDelayPolicy == room::DelayPolicy::Own) json["delay"] = "own";
+    // Only a count other than the default four is written.
+    if (value.roomTableCount != static_cast<int>(room::ClassicTableCount)) json["tableCount"] = value.roomTableCount;
     if (!value.roomTemplates.empty()) {
         auto& templates = json["templates"] = nlohmann::json::array();
         for (const auto& saved : value.roomTemplates) {
@@ -33,6 +37,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
             }
             templates.push_back({{"name", saved.name}, {"room", saved.roomName}, {"capacity", saved.capacity}, {"public", saved.isPublic},
                 {"practice", saved.practice}, {"delay", saved.delayPolicy == room::DelayPolicy::Own ? "own" : "shared"}, {"tables", std::move(tables)}});
+            if (saved.tableCount != static_cast<int>(room::ClassicTableCount)) templates.back()["tableCount"] = saved.tableCount;
         }
     }
     return json;
@@ -45,7 +50,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
 inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     for (const char* key : {"format", "rotation", "roundCount", "roundTime"})
         if (object.contains(key) && !object[key].is_number_integer()) return false;
-    for (const char* key : {"editionSelect", "instantRematch"})
+    for (const char* key : {"editionSelect", "instantRematch", "winnerKeepsFighter"})
         if (object.contains(key) && !object[key].is_boolean()) return false;
     const auto number = [&](const char* key, std::int64_t current, std::int64_t largest, std::int64_t& read) {
         read = object.value(key, current);
@@ -63,6 +68,7 @@ inline bool ReadTableRules(const nlohmann::json& object, room::Rules& rules) {
     rules.roundTime = static_cast<std::uint16_t>(time);
     rules.editionSelect = object.value("editionSelect", rules.editionSelect);
     rules.instantRematch = object.value("instantRematch", rules.instantRematch);
+    rules.winnerKeepsFighter = object.value("winnerKeepsFighter", rules.winnerKeepsFighter);
     return rules.Valid();
 }
 
@@ -80,6 +86,7 @@ inline std::vector<RoomTemplate> ReadRoomTemplates(const nlohmann::json& default
             saved.capacity = item.at("capacity").get<int>(); saved.isPublic = item.at("public").get<bool>();
             saved.practice = item.value("practice", false);
             saved.delayPolicy = item.value("delay", std::string()) == "own" ? room::DelayPolicy::Own : room::DelayPolicy::Shared;
+            saved.tableCount = item.value("tableCount", static_cast<int>(room::ClassicTableCount));
             const auto& tables = item.at("tables");
             if (!tables.is_array() || tables.size() != room::TableCount) continue;
             bool read = true;
@@ -113,6 +120,10 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         const auto capacity = defaults.value("capacity", static_cast<std::int64_t>(candidate.roomCapacity));
         if (capacity < 2 || capacity > static_cast<std::int64_t>(room::MaxMembers)) return false;
         candidate.roomCapacity = static_cast<int>(capacity);
+        if (defaults.contains("tableCount") && !defaults["tableCount"].is_number_integer()) return false;
+        const auto tableCount = defaults.value("tableCount", static_cast<std::int64_t>(room::ClassicTableCount));
+        if (tableCount < 1 || tableCount > static_cast<std::int64_t>(room::TableCount)) return false;
+        candidate.roomTableCount = static_cast<int>(tableCount);
         candidate.roomPublic = defaults.value("public", candidate.roomPublic);
         candidate.roomDelayPolicy = defaults.value("delay", std::string()) == "own" ? room::DelayPolicy::Own : room::DelayPolicy::Shared;
         if (!ReadTableRules(defaults, candidate.tableRules)) return false;
