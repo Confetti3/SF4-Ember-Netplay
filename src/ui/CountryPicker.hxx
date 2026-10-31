@@ -35,12 +35,13 @@ public:
     // Draws a country row, and Automatic's, with its flag before the name; false
     // for the other rows, which draw as usual (GameMenu::Card).
     bool DrawRow(const MenuEntry& entry, const CountryCode& automatic, ImVec2 min, ImVec2 max) const;
-    // V2's board (Country.dc.html): Automatic and Hidden, the letters the names
+    // The board (Country.dc.html): Automatic and Hidden, the letters the names
     // start with seven across, and two across the countries of the focused
-    // letter (or of the focused country's). Up, Down, Left and Right go across
-    // the grids; Select on a letter goes to its first country (a letter's row
-    // is "letter-" and that country's code). False where the language has too
-    // many initials for a grid (CJK): the list stays.
+    // letter (or of the focused country's). The pad moves by where the rows
+    // are drawn, staying at the board's edges; Select on a letter goes to its
+    // first country (a letter's row is "letter-" and that country's code).
+    // False where the language has too many initials for a grid (CJK): the
+    // list stays.
     bool Lettered() const;
     std::vector<MenuEntry> BoardRows(const CountryPreference& current, const CountryCode& automatic, bool enabled, const std::string& focused);
     void DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, const CountryCode& automatic);
@@ -51,6 +52,9 @@ private:
     std::vector<const Name*> Shown() const;
     std::string search_, boardFocus_;
     wchar_t letter_ = 0;
+    // The pointer moved on the board's last frame (DrawBoard), so a letter it
+    // focused was passed over, not chosen (BoardRows).
+    bool pointerMoving_ = false;
     mutable std::vector<Name> names_;
     mutable std::string namesKey_;
 };

@@ -412,15 +412,6 @@ msgstr "Uložit hlavní postavu"
 msgid "menu.hint.save_fighter"
 msgstr "Uložit postavu"
 
-msgid "menu.hint.save_costume"
-msgstr "Uložit kostým"
-
-msgid "menu.hint.save_color"
-msgstr "Uložit barvu"
-
-msgid "menu.hint.save_ultra"
-msgstr "Uložit Ultra"
-
 msgid "menu.hint.save_stage"
 msgstr "Uložit scénu"
 
@@ -753,9 +744,6 @@ msgstr "Hráč, ovladač, výchozí pravidla, rozhraní, jazyk, trénink a Disco
 
 msgid "home.about"
 msgstr "Nápověda"
-
-msgid "home.about_detail"
-msgstr "Ovládání, diagnostika, aktualizace a tvůrci."
 
 msgid "home.offline"
 msgstr "Hrát offline"
@@ -1165,24 +1153,6 @@ msgstr "Připojit se pomocí vložené pozvánky."
 msgid "room.edit_invitation"
 msgstr "Upravit pozvánku"
 
-msgid "settings.title"
-msgstr "NASTAVENÍ"
-
-msgid "settings.player_detail"
-msgstr "Zobrazované jméno, přiřazení ovladače a hraní na pozadí."
-
-msgid "settings.defaults_detail"
-msgstr "Zpoždění a výchozí nastavení místností."
-
-msgid "settings.interface"
-msgstr "Rozhraní"
-
-msgid "settings.interface_detail"
-msgstr "Jazyk, HUD zápasu a velikost rozhraní."
-
-msgid "settings.discord_detail"
-msgstr "Aktivita a pozvánky."
-
 msgid "player.title"
 msgstr "HRÁČ A OVLADAČ"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "Hra vyplní obrazovku v okně bez rámečku, vykreslená v nativním rozlišení obrazovky v poměru 16:9, s černými pruhy na širší nebo vyšší obrazovce. Když je zapnuto, Alt+Enter ani vlastní volby rozlišení a celé obrazovky ve hře nic nedělají; hra si tam vaši volbu ponechá na dobu, kdy bude vypnuto. Týká se jen tohoto PC. Změny se projeví při dalším spuštění hry."
 
 
-
-msgid "settings.interface_title"
-msgstr "ROZHRANÍ"
 
 msgid "size.small"
 msgstr "Malé"
@@ -1367,9 +1334,6 @@ msgstr "Účet Discord, který zná váš turnajový web, například BluMint. M
 
 msgid "discord.invitation_title"
 msgstr "POZVÁNKA DISCORD"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Zrušit pozvánku"
@@ -2226,9 +2190,6 @@ msgstr "75 %"
 msgid "selection.original"
 msgstr "Původní"
 
-msgid "selection.alternate"
-msgstr "Alternativní {0}"
-
 msgid "selection.alternate_pack"
 msgstr "Alternativní {0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "DRŽET"
-
 msgid "selection.stage"
 msgstr "Scéna"
 
@@ -2292,50 +2250,8 @@ msgstr "Další možnosti"
 msgid "selection.additional_options.detail"
 msgstr "Edice, provokace, vítězná fráze a handicap."
 
-msgid "selection.choose_fighter"
-msgstr "VYBRAT POSTAVU"
-
-msgid "selection.appearance_title"
-msgstr "VZHLED"
-
-msgid "selection.costume_gallery"
-msgstr "Galerie kostýmů"
-
-msgid "selection.color_gallery"
-msgstr "Galerie barev"
-
-msgid "selection.color_preview"
-msgstr "Barva {0} / Procházet náhledy."
-
-msgid "selection.costume_gallery_title"
-msgstr "GALERIE KOSTÝMŮ"
-
-msgid "selection.color_gallery_title"
-msgstr "GALERIE BAREV"
-
-msgid "selection.loading_choices"
-msgstr "Načítání možností"
-
-msgid "selection.loading_choices.detail"
-msgstr "Čeká se na dostupné kostýmy a barvy ze hry."
-
-msgid "selection.no_colors"
-msgstr "Pro tento kostým nejsou odemčené barvy."
-
 msgid "selection.not_owned"
 msgstr "Na Steamu nevlastníte."
-
-msgid "selection.not_owned_badge"
-msgstr "NEVLASTNÍTE"
-
-msgid "selection.color"
-msgstr "Barva {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "ULTRA COMBO"
-
-msgid "selection.ultra_double.detail"
-msgstr "Obě Ultra Combo se sníženým poškozením či účinkem."
 
 msgid "selection.saved"
 msgstr "ULOŽENO"
@@ -2397,26 +2313,8 @@ msgstr "VYNECHÁNO"
 msgid "selection.handicap"
 msgstr "Handicap"
 
-msgid "selection.saved_value"
-msgstr "Uloženo: {0}"
-
-msgid "selection.ultra_selected"
-msgstr "Toto Ultra je vybrané."
-
-msgid "selection.preview_save"
-msgstr "Jen náhled: uložte tlačítkem Vybrat."
-
-msgid "selection.preview_locked"
-msgstr "Jen náhled: výběr je uzamčen."
-
-msgid "selection.saved_appearance"
-msgstr "Uloženo: {0} / Barva {1}"
-
 msgid "selection.saved_full"
 msgstr "Uloženo: {0} / {1} / Barva {2}"
-
-msgid "selection.preview_save_short"
-msgstr "Jen náhled: uložte tlačítkem Vybrat"
 
 msgid "selection.status_editable"
 msgstr "Vybrat uloží / Zpět o úroveň výš."
@@ -5179,21 +5077,6 @@ msgstr "Náběh --"
 msgid "settings.training_replays"
 msgstr "Trénink a záznamy"
 
-msgid "settings.training_replays_detail"
-msgstr "Měřič snímků v zápasech, automatická připravenost po tréninku a výběr ukládaných zápasů."
-
-msgid "settings.training_replays_title"
-msgstr "TRÉNINK A ZÁZNAMY"
-
-msgid "settings.accessibility"
-msgstr "Přístupnost"
-
-msgid "settings.accessibility_detail"
-msgstr "Hlas, který čte nabídky Emberu nahlas."
-
-msgid "settings.accessibility_title"
-msgstr "PŘÍSTUPNOST"
-
 msgid "speech.setting"
 msgstr "Hlas"
 
@@ -5673,9 +5556,6 @@ msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se ode
 
 msgid "reports.settings_title"
 msgstr "Hlášení problémů"
-
-msgid "reports.settings_detail"
-msgstr "Co obsahuje hlášení o pádu a odeslaná hlášení."
 
 msgid "reports.sent_list"
 msgstr "Odeslaná hlášení"

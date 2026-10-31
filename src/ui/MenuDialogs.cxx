@@ -32,8 +32,8 @@ bool Stacked(const std::vector<DialogButton>& buttons) {
 }
 // The Settings board's choice popup: up to three side by side, four as two by two, more three across.
 std::size_t MenuChoiceColumns(std::size_t count) { return count<=3?(std::max<std::size_t>)(1,count):count==4?2:3; }
-MenuChoiceGrid MenuChoiceLayout(const std::vector<MenuChoice>& choices) {
-    const float s=Scale(),gap=6*s,room=(std::min)(720*s,ImGui::GetMainViewport()->Size.x*.6f);
+MenuChoiceGrid MenuChoiceLayout(const std::vector<MenuChoice>& choices,float within) {
+    const float s=Scale(),gap=6*s,screen=(std::min)(720*s,ImGui::GetMainViewport()->Size.x*.6f),room=within>0?(std::min)(screen,within):screen;
     float longest=0;
     for(const auto& c:choices)longest=(std::max)(longest,ImGui::CalcTextSize(c.label.c_str()).x);
     // The tick, the padding either side.
@@ -335,7 +335,7 @@ bool GameMenu::PressKey(const MenuEntry& entry,const std::string& key) {
     if(key=="done")return true;
     if(key=="shift")capitals_=!capitals_;
     else if(key=="delete"){while(!draft.empty()&&(static_cast<unsigned char>(draft.back())&0xC0)==0x80)draft.pop_back();if(!draft.empty())draft.pop_back();}
-    else if(const int n=RowIndex(key,"recent-");n>=0){const auto& recent=recentText_[entry.id];if(n<static_cast<int>(recent.size()))draft=recent[n];}
+    else if(const auto n=RowKey<std::size_t>(key,"recent-")){const auto& recent=recentText_[entry.id];if(*n<recent.size())draft=recent[*n];}
     else{
         std::string typed=key=="space"?" ":key;
         if(capitals_)typed[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(typed[0])));

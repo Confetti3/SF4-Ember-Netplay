@@ -87,7 +87,17 @@ void NativeReader() {
  // A stick confirms on its third button and goes back on its second, as the game's menus do.
  Check(ControllerButtons(0x40,PadDirectInput,1u<<18)==MenuInput::Select&&ControllerButtons(0x80,PadDirectInput,1u<<17)==MenuInput::Back,"A stick lost the game's menu buttons");
  Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==MenuInput::PrevTab&&ControllerButtons(0x400,PadDirectInput,1u<<21)==MenuInput::NextTab,"A stick's LP and HP do not step the tabs");
- Check(ControllerButtons(0x430,PadDirectInput,1u<<20)==0&&ControllerButtons(0x10,PadXInput,0)==0,"3P on a stick, or an Xbox pad's LP function, stepped a tab");
+ {MenuButtons threePunch;threePunch.lightPunch|=1u<<20;threePunch.heavyPunch|=1u<<20;
+  Check(ControllerButtons(0x430,PadDirectInput,1u<<20,threePunch)==0&&ControllerButtons(0x10,PadXInput,0)==0,"3P on a stick, or an Xbox pad's LP function, stepped a tab");}
+ // A stick whose Select is the button that gives LP and whose Back gives HP:
+ // each press is Select or Back alone, and no tab glyph names those buttons.
+ {MenuButtons rebound;rebound.confirm=rebound.lightPunch;rebound.back=rebound.heavyPunch;
+  Check(ControllerButtons(0x10,PadDirectInput,rebound.lightPunch,rebound)==MenuInput::Select&&ControllerButtons(0x400,PadDirectInput,rebound.heavyPunch,rebound)==MenuInput::Back,
+   "A stick's Select or Back on its LP or HP button also stepped a tab");
+  Check(!MenuShortcutGlyph(MenuInput::PrevTab,PadDirectInput,rebound)&&!MenuShortcutGlyph(MenuInput::NextTab,PadDirectInput,rebound),"A stick named a tab button that selects or goes back");
+  // A second button that also gives LP still steps, and is still named.
+  rebound.lightPunch|=1u<<22;
+  Check(ControllerButtons(0x10,PadDirectInput,1u<<22,rebound)==MenuInput::PrevTab&&!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab,PadDirectInput,rebound),"LP"),"A stick's other LP button lost the tab step");}
  {MenuButtons onLb;onLb.confirm=xinput::LB;
   Check(ControllerButtons(0,PadXInput,xinput::LB,onLb)==MenuInput::Select&&!MenuShortcutGlyph(MenuInput::PrevTab,PadXInput,onLb)&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab,PadXInput,onLb),"RB"),"LB bound to Select still stepped or named a tab");
   Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab,PadDirectInput,{}),"LP")&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab,PadDirectInput,{}),"HP")&&!MenuShortcutGlyph(MenuInput::Fighter,PadDirectInput,{}),"A stick names buttons it does not have");
@@ -768,6 +778,34 @@ void DialogContract(){
  Check(a.kind==MenuAction::None&&!menu.navigation.Choosing(),"Back chose something or left the list open");
  a=click(ImVec2(row.second.x-12,y));
  Check(a.kind==MenuAction::Adjust&&a.delta==1&&!menu.navigation.Choosing(),"The language arrow did not only step the value");
+ // Narrow, a long label puts the value under it: a click on the label, even
+ // straight over the value's arrow, opens the list; only the value's own line
+ // steps it. A card and a board's row (GameMenu::DrawBoardRow) alike.
+ {const std::string label=rows[4].label;rows[4].label="A language with a name long enough to need a line of its own";
+  imgui.io.DisplaySize=ImVec2(400,900);frame();frame();
+  const auto stacked=boxes.at("language");
+  a=click(ImVec2(stacked.second.x-12,stacked.first.y+10));
+  Check(a.kind!=MenuAction::Adjust&&menu.navigation.Choosing(),"A click on a stacked card's label over its arrow adjusted it");
+  press(MenuInput::Back);
+  a=click(ImVec2(stacked.second.x-12,stacked.second.y-12));
+  Check(a.kind==MenuAction::Adjust&&a.delta==1&&!menu.navigation.Choosing(),"A stacked card's right arrow did not step it");
+  v2::Box drawn{};
+  const GameMenu::Body board=[&](const std::vector<MenuEntry>& entries,MenuNavigation&,MenuAction& action,float,const MenuVisualFeedback&){
+   drawn=menu.DrawBoardRow(entries,entries[4],ImGui::GetCursorScreenPos(),ImGui::GetContentRegionAvail().x,action,{}).box;};
+  const auto once=[&]{imgui.io.DeltaTime=1.f/60;SetMenuInput({0,0});ImGui::NewFrame();
+   ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Dialog test",nullptr,ImGuiWindowFlags_NoDecoration);
+   const auto r=menu.Draw("TEST",rows,"",{},1,{},board);ImGui::End();ImGui::Render();return r;};
+  const auto boardClick=[&](ImVec2 at){
+   imgui.io.AddMousePosEvent(at.x,at.y);once();imgui.io.AddMouseButtonEvent(0,true);const auto down=once();
+   imgui.io.AddMouseButtonEvent(0,false);const auto up=once();once();return down.kind!=MenuAction::None?down:up;};
+  once();once();
+  Check(drawn.H()>50,"The board's long row kept its value beside its label");
+  a=boardClick(ImVec2(drawn.max.x-16,drawn.min.y+10));
+  Check(a.kind!=MenuAction::Adjust&&menu.navigation.Choosing(),"A click on a stacked board row's label over its arrow adjusted it");
+  press(MenuInput::Back);
+  a=boardClick(ImVec2(drawn.max.x-16,drawn.max.y-12));
+  Check(a.kind==MenuAction::Adjust&&a.delta==1&&!menu.navigation.Choosing(),"A stacked board row's right arrow did not step it");
+  rows[4].label=label;imgui.io.DisplaySize=ImVec2(1280,960);frame();frame();}
  // The pointer: resting it on a row changes nothing; moving it there selects.
  menu.navigation.Focus("leave",rows);imgui.io.AddMousePosEvent(1,1);frame();frame();
  const auto target=centres.at("record");imgui.io.AddMousePosEvent(target.x,target.y);frame();
@@ -851,6 +889,14 @@ void BoardGeometry(){
  Check(from("leave",MenuInput::Up)=="matchup-3"&&from("room-more",MenuInput::Right)=="leave","Up from Leave room is not the chip above it");
  nav.Focus("cabinet-6",rows);for(unsigned d:{MenuInput::Down,MenuInput::Down,MenuInput::Down,MenuInput::Right})press(d);
  Check(nav.Focus()=="leave","Cabinet 7 to Leave room is not four presses");
+ // At the edge the focus stays (MenuEdge::Stay); with Flow it goes on to the
+ // next or previous placed row in entry order, and stays past the ends.
+ Check(nav.Edge()==MenuEdge::Stay&&from("room-more",MenuInput::Down)=="room-more","A board's edge did not keep the focus");
+ nav.SetEdge(MenuEdge::Flow);
+ Check(from("room-more",MenuInput::Down)=="leave"&&from("cabinet-8",MenuInput::Left)=="cabinet-7"&&from("cabinet-3",MenuInput::Up)=="cabinet-2","Flow did not go on in entry order");
+ Check(from("cabinet-0",MenuInput::Left)=="cabinet-0"&&from("leave",MenuInput::Down)=="leave","Flow went past the first or last placed row");
+ Check(from("cabinet-2",MenuInput::Down)=="cabinet-10","Flow overrode a row drawn that way");
+ nav.SetEdge(MenuEdge::Stay);
  // An explicit neighbour still wins, a value row still adjusts, and a row
  // that is not placed walks the list.
  rows[0].right="leave";Check(from("cabinet-0",MenuInput::Right)=="leave","An explicit neighbour lost to the geometry");rows[0].right.clear();
@@ -878,7 +924,7 @@ void TakenPress(){
  Check(nav.Update({0,time+=.016},rows).kind==MenuAction::None&&nav.Update({MenuInput::Back,time+=.016},rows).kind==MenuAction::Close,"The next press did not go back");
 }
 void ScreenNames(){
- for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer","discord","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","awards-icons","accessibility","welcome"})
+ for(const char* screen:{"home","online","create","join","profile","main-character","selection","player","controllers","button-layout","button-layout-button","sent-reports","developer","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","awards-icons","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
 }
 void ProfileRecords(){

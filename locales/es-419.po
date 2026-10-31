@@ -412,15 +412,6 @@ msgstr "Guardar principal"
 msgid "menu.hint.save_fighter"
 msgstr "Guardar luchador"
 
-msgid "menu.hint.save_costume"
-msgstr "Guardar traje"
-
-msgid "menu.hint.save_color"
-msgstr "Guardar color"
-
-msgid "menu.hint.save_ultra"
-msgstr "Guardar Ultra"
-
 msgid "menu.hint.save_stage"
 msgstr "Guardar escenario"
 
@@ -753,9 +744,6 @@ msgstr "Jugador, control, reglas predeterminadas, interfaz, idioma, entrenamient
 
 msgid "home.about"
 msgstr "Ayuda e información"
-
-msgid "home.about_detail"
-msgstr "Controles, diagnóstico, actualizaciones y créditos."
 
 msgid "home.offline"
 msgstr "Jugar sin conexión"
@@ -1165,24 +1153,6 @@ msgstr "Entra usando la invitación pegada."
 msgid "room.edit_invitation"
 msgstr "Editar invitación"
 
-msgid "settings.title"
-msgstr "AJUSTES"
-
-msgid "settings.player_detail"
-msgstr "Nombre visible, asignación de control y juego en segundo plano."
-
-msgid "settings.defaults_detail"
-msgstr "Retraso de entrada y valores de salas nuevas."
-
-msgid "settings.interface"
-msgstr "Interfaz"
-
-msgid "settings.interface_detail"
-msgstr "Idioma, HUD de partida y tamaño de la interfaz."
-
-msgid "settings.discord_detail"
-msgstr "Actividad e invitaciones."
-
 msgid "player.title"
 msgstr "JUGADOR Y CONTROL"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "El juego llena la pantalla en una ventana sin marco, dibujado a la resolución propia de la pantalla en 16:9, con barras negras en pantallas más anchas o más altas. Mientras esté activado, Alt+Enter y las opciones de resolución y pantalla completa del propio juego no hacen nada; el juego guarda tu elección ahí para cuando esté desactivado. Solo afecta a esta PC. Los cambios se aplican la próxima vez que inicies el juego."
 
 
-
-msgid "settings.interface_title"
-msgstr "INTERFAZ"
 
 msgid "size.small"
 msgstr "Pequeño"
@@ -1367,9 +1334,6 @@ msgstr "La cuenta de Discord que conoce tu sitio de torneos, como BluMint. Puede
 
 msgid "discord.invitation_title"
 msgstr "INVITACIÓN DE DISCORD"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Cancelar invitación"
@@ -2168,8 +2132,6 @@ msgid "selection.handicap_75"
 msgstr "75%"
 msgid "selection.original"
 msgstr "Original"
-msgid "selection.alternate"
-msgstr "Alternativo {0}"
 msgid "selection.alternate_pack"
 msgstr "Alternativo {0} / {1}"
 msgid "selection.custom"
@@ -2203,8 +2165,6 @@ msgid "selection.ultra_one"
 msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
-msgid "selection.hold"
-msgstr "MANTÉN"
 msgid "selection.stage"
 msgstr "Escenario"
 msgid "selection.p1_stage"
@@ -2213,38 +2173,9 @@ msgid "selection.additional_options"
 msgstr "Opciones adicionales"
 msgid "selection.additional_options.detail"
 msgstr "Edición, acción personal, frase de victoria y ventaja."
-msgid "selection.choose_fighter"
-msgstr "ELIGE LUCHADOR"
-msgid "selection.appearance_title"
-msgstr "APARIENCIA"
-msgid "selection.costume_gallery"
-msgstr "Galería de trajes"
-msgid "selection.color_gallery"
-msgstr "Galería de colores"
-msgid "selection.color_preview"
-msgstr "Color {0} / Explora vistas individuales."
-msgid "selection.costume_gallery_title"
-msgstr "GALERÍA DE TRAJES"
-msgid "selection.color_gallery_title"
-msgstr "GALERÍA DE COLORES"
-msgid "selection.loading_choices"
-msgstr "Cargando opciones disponibles"
-msgid "selection.loading_choices.detail"
-msgstr "Esperando la disponibilidad nativa de trajes y colores."
-msgid "selection.no_colors"
-msgstr "No hay colores desbloqueados para este traje."
-
 msgid "selection.not_owned"
 msgstr "No lo tienes en Steam."
 
-msgid "selection.not_owned_badge"
-msgstr "NO ADQUIRIDO"
-msgid "selection.color"
-msgstr "Color {0}"
-msgid "selection.ultra_combo_title"
-msgstr "ULTRA COMBO"
-msgid "selection.ultra_double.detail"
-msgstr "Ambos Ultra Combos con daño o eficacia reducidos."
 msgid "selection.saved"
 msgstr "GUARDADO"
 msgid "selection.stage_title"
@@ -2292,20 +2223,8 @@ msgid "selection.random_pool_skipped"
 msgstr "OMITIDO"
 msgid "selection.handicap"
 msgstr "Ventaja"
-msgid "selection.saved_value"
-msgstr "Guardado: {0}"
-msgid "selection.ultra_selected"
-msgstr "Este Ultra está seleccionado."
-msgid "selection.preview_save"
-msgstr "Solo vista previa: presiona Seleccionar para guardar."
-msgid "selection.preview_locked"
-msgstr "Solo vista previa: la selección está bloqueada."
-msgid "selection.saved_appearance"
-msgstr "Guardado: {0} / Color {1}"
 msgid "selection.saved_full"
 msgstr "Guardado: {0} / {1} / Color {2}"
-msgid "selection.preview_save_short"
-msgstr "Solo vista previa: presiona Seleccionar para guardar"
 msgid "selection.status_editable"
 msgstr "Seleccionar guarda / Volver sube un nivel."
 msgid "selection.status_browse"
@@ -4699,21 +4618,6 @@ msgstr "Inicio --"
 msgid "settings.training_replays"
 msgstr "Entrenamiento y repeticiones"
 
-msgid "settings.training_replays_detail"
-msgstr "Medidor de frames en partidas, listo automático tras el entrenamiento y qué partidas se guardan."
-
-msgid "settings.training_replays_title"
-msgstr "ENTRENAMIENTO Y REPETICIONES"
-
-msgid "settings.accessibility"
-msgstr "Accesibilidad"
-
-msgid "settings.accessibility_detail"
-msgstr "Voz que lee en voz alta los menús de Ember."
-
-msgid "settings.accessibility_title"
-msgstr "ACCESIBILIDAD"
-
 msgid "speech.setting"
 msgstr "Voz"
 
@@ -5193,9 +5097,6 @@ msgstr "El juego falló. Enviar reportes de problemas está activado, así que s
 
 msgid "reports.settings_title"
 msgstr "Reportes de problemas"
-
-msgid "reports.settings_detail"
-msgstr "Qué contiene un reporte de fallo y los reportes enviados."
 
 msgid "reports.sent_list"
 msgstr "Reportes enviados"

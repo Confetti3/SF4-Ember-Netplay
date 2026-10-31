@@ -142,7 +142,7 @@ void ShootProblemReports(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& 
     using namespace sf4e;using namespace ui;
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     view.preferences.sendProblemReports=false;
-    page("problem-reports");
+    page("tab-about/1");
     Require(rows.size()==2&&rows[0].id=="send-reports"&&rows[1].id=="sent-reports","Problem reports rows changed");
     Require(rows[0].value==loc::T("common.off"),"Problem reports are not off by default");
     Require(rows[0].detail.find(loc::T("reports.what_is_sent"))!=std::string::npos,"The setting no longer says what a report holds");
@@ -151,7 +151,7 @@ void ShootProblemReports(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& 
     draw(nullptr,MenuInput::Select,1);draw("problem-reports-reader");
     Require(shell.Navigation().Reading(),"Select did not open what a report holds");
     draw(nullptr,MenuInput::Back,1);draw();
-    Require(!shell.Navigation().Reading()&&shell.Navigation().Screen()=="problem-reports","Back did not close the reader");
+    Require(!shell.Navigation().Reading()&&shell.Navigation().Screen()=="tab-about/1","Back did not close the reader");
     view.services.sentReports=SampleSentReports();
     page("sent-reports");
     Require(rows.size()==4&&rows[0].id=="sent-3"&&rows[3].id=="sent-0","Sent reports are not newest first");

@@ -412,15 +412,6 @@ msgstr "设为主角"
 msgid "menu.hint.save_fighter"
 msgstr "保存角色"
 
-msgid "menu.hint.save_costume"
-msgstr "保存服装"
-
-msgid "menu.hint.save_color"
-msgstr "保存颜色"
-
-msgid "menu.hint.save_ultra"
-msgstr "保存 Ultra"
-
 msgid "menu.hint.save_stage"
 msgstr "保存场地"
 
@@ -753,9 +744,6 @@ msgstr "玩家、控制器、默认对战规则、界面、语言、训练和 Di
 
 msgid "home.about"
 msgstr "帮助与关于"
-
-msgid "home.about_detail"
-msgstr "操作、诊断、更新和制作人员。"
 
 msgid "home.offline"
 msgstr "离线游玩"
@@ -1165,24 +1153,6 @@ msgstr "通过粘贴的邀请加入。"
 msgid "room.edit_invitation"
 msgstr "编辑邀请"
 
-msgid "settings.title"
-msgstr "设置"
-
-msgid "settings.player_detail"
-msgstr "显示名称、控制器分配和后台游玩。"
-
-msgid "settings.defaults_detail"
-msgstr "输入延迟和新房间默认设置。"
-
-msgid "settings.interface"
-msgstr "界面"
-
-msgid "settings.interface_detail"
-msgstr "语言、对战 HUD 和界面大小。"
-
-msgid "settings.discord_detail"
-msgstr "动态和邀请。"
-
 msgid "player.title"
 msgstr "玩家与控制器"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "游戏以无边框窗口填满屏幕，按屏幕原生分辨率以 16:9 绘制，在更宽或更高的屏幕上显示黑边。开启时，Alt+Enter 以及游戏自带的分辨率和全屏选项都不起作用；你在那里的选择会保留到关闭时使用。只影响这台电脑。更改将在下次启动游戏时生效。"
 
 
-
-msgid "settings.interface_title"
-msgstr "界面"
 
 msgid "size.small"
 msgstr "小"
@@ -1367,9 +1334,6 @@ msgstr "你的赛事网站（例如 BluMint）所知道的 Discord 账号。它�
 
 msgid "discord.invitation_title"
 msgstr "DISCORD 邀请"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "取消邀请"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "原版"
 
-msgid "selection.alternate"
-msgstr "替换版 {0}"
-
 msgid "selection.alternate_pack"
 msgstr "替换版 {0}／{1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "蓄力"
-
 msgid "selection.stage"
 msgstr "场地"
 
@@ -2292,50 +2250,8 @@ msgstr "其他选项"
 msgid "selection.additional_options.detail"
 msgstr "版本、个人行动、胜利台词和生命值调整。"
 
-msgid "selection.choose_fighter"
-msgstr "选择角色"
-
-msgid "selection.appearance_title"
-msgstr "外观"
-
-msgid "selection.costume_gallery"
-msgstr "服装图库"
-
-msgid "selection.color_gallery"
-msgstr "颜色图库"
-
-msgid "selection.color_preview"
-msgstr "颜色 {0}／浏览各项预览。"
-
-msgid "selection.costume_gallery_title"
-msgstr "服装图库"
-
-msgid "selection.color_gallery_title"
-msgstr "颜色图库"
-
-msgid "selection.loading_choices"
-msgstr "正在加载可选项"
-
-msgid "selection.loading_choices.detail"
-msgstr "等待游戏读取可用服装和颜色。"
-
-msgid "selection.no_colors"
-msgstr "此服装没有已解锁的颜色。"
-
 msgid "selection.not_owned"
 msgstr "未在 Steam 上拥有。"
-
-msgid "selection.not_owned_badge"
-msgstr "未拥有"
-
-msgid "selection.color"
-msgstr "颜色 {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "终极组合"
-
-msgid "selection.ultra_double.detail"
-msgstr "可使用两种终极组合，但伤害或效果降低。"
 
 msgid "selection.saved"
 msgstr "已保存"
@@ -2397,26 +2313,8 @@ msgstr "已跳过"
 msgid "selection.handicap"
 msgstr "生命值调整"
 
-msgid "selection.saved_value"
-msgstr "已保存：{0}"
-
-msgid "selection.ultra_selected"
-msgstr "已选择此终极组合。"
-
-msgid "selection.preview_save"
-msgstr "仅预览－按选择保存。"
-
-msgid "selection.preview_locked"
-msgstr "仅预览－选择已锁定。"
-
-msgid "selection.saved_appearance"
-msgstr "已保存：{0}／颜色 {1}"
-
 msgid "selection.saved_full"
 msgstr "已保存：{0}／{1}／颜色 {2}"
-
-msgid "selection.preview_save_short"
-msgstr "仅预览－按选择保存"
 
 msgid "selection.status_editable"
 msgstr "选择保存／返回上一级。"
@@ -5180,21 +5078,6 @@ msgstr "起手 --"
 msgid "settings.training_replays"
 msgstr "训练和录像"
 
-msgid "settings.training_replays_detail"
-msgstr "对战帧数表、从训练返回时自动准备，以及要保存哪些对战。"
-
-msgid "settings.training_replays_title"
-msgstr "训练和录像"
-
-msgid "settings.accessibility"
-msgstr "无障碍"
-
-msgid "settings.accessibility_detail"
-msgstr "朗读Ember菜单的语音。"
-
-msgid "settings.accessibility_title"
-msgstr "无障碍"
-
 msgid "speech.setting"
 msgstr "语音"
 
@@ -5674,9 +5557,6 @@ msgstr "游戏崩溃了。“发送问题报告”已打开，因此正在发送
 
 msgid "reports.settings_title"
 msgstr "问题报告"
-
-msgid "reports.settings_detail"
-msgstr "崩溃报告包含的内容，以及已发送的报告。"
 
 msgid "reports.sent_list"
 msgstr "已发送的报告"

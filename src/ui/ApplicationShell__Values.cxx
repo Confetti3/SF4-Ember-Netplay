@@ -1,4 +1,4 @@
-// V2: the shell's value rows' values, in the order Left and Right step
+// The shell's value rows' values, in the order Left and Right step
 // through them and in the words the rows show (OfferSteps). A row whose
 // values are not listed here keeps its arrows only.
 #include "ApplicationShell.hxx"

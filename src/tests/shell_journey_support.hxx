@@ -73,9 +73,12 @@ struct Harness {
 };
 // A room this player (member 1) has joined, with its tables numbered, and no
 // more: the generation, the control's health, the host, the members and their
-// seats are each journey's own, set where it joins.
+// seats are each journey's own, set where it joins. As in the runtime
+// (ComputeGates), a joined room locks the player's settings but the ones it
+// leaves open (PlayerPreferences::CopyRoomSettings).
 void JoinedRoom(Harness& h,std::uint64_t epoch){
  h.view.session.room=sf4e::netplay::RoomState::Joined;h.view.room.roomEpoch=epoch;h.view.room.localMember=1;
+ h.view.canEditPreferences=false;
  for(std::size_t i=0;i<h.view.room.tables.size();++i)h.view.room.tables[i].id=static_cast<std::uint8_t>(i);
 }
 }

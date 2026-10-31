@@ -1,8 +1,8 @@
-// The V2 room board of an Arcade or King of the hill room (Snapshot::arcade,
+// The room board of an Arcade or King of the hill room (Snapshot::arcade,
 // Arcade.dc.html): sixteen cabinets in two rows, each pair in its own colour
 // and linked by a line wherever its two cabinets stand; King of the hill the
 // same under its top slot. Every cabinet is its row. A Classic room keeps its
-// table cards (DrawRoomBoard).
+// table cards (RoomPanelTables.cxx).
 #include "ApplicationShell.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
@@ -13,6 +13,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <utility>
 
 namespace sf4e { namespace ui {
 using namespace room_controls;
@@ -79,16 +80,16 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  // Who plays whom, under the cabinets: a chip per pair in its colour. The one
  // under the pointer or focused lights its two cabinets and dims the rest.
  int lit=-1;
- std::vector<const MenuEntry*> matchups;
- for(const auto& e:rows)if(e.id.compare(0,8,"matchup-")==0)matchups.push_back(&e);
+ // Each matchup row and the table its pair plays at.
+ std::vector<std::pair<const MenuEntry*,int>> matchups;
+ for(const auto& e:rows)if(const auto table=RowKey<int>(e.id,"matchup-"))matchups.push_back({&e,*table});
  if(!matchups.empty()){
   // Four to a line, so all eight pairs of a full room fit on two.
   const std::size_t per=4,lines=(matchups.size()+per-1)/per;
   const v2::Box strip=v2::CutBottom(board,lines*30*s+6*s,8*s);
   const float w=(strip.W()-12*s-(per-1)*8*s)/per;
   for(std::size_t k=0;k<matchups.size();++k){
-   const auto* e=matchups[k];
-   const int table=RowIndex(e->id,"matchup-");
+   const auto* e=matchups[k].first;const int table=matchups[k].second;
    const std::string text=e->label+(e->value.empty()?std::string():"  "+e->value);
    const float x=strip.min.x+6*s+(k%per)*(w+8*s),y=strip.min.y+4*s+(k/per)*30*s;
    const v2::Box chip{ImVec2(x,y),ImVec2(x+w,y+26*s)};

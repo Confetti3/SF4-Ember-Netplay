@@ -4,6 +4,7 @@
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
 #include "MenuGlyphs.hxx"
+#include "RowId.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../training/MoveInputs.hxx"
@@ -181,7 +182,7 @@ void PickReply(const training::View& view,const TrainingSubmit& submit,int step)
     lab.pickCustom=pick==ReplyCustom; lab.replyMoves=text; SavePractice();
     SendPlan(view,submit);
 }
-// V2: a value row's values in the order Left and Right step through them, in
+// A value row's values in the order Left and Right step through them, in
 // the words the row shows (OfferSteps), so Select opens them all at once. The
 // reply's pick list keeps Select for its moves' field.
 void OfferTrainingValues(std::vector<MenuEntry>& rows) {
@@ -646,11 +647,10 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  }
  if(a.kind!=MenuAction::Activate&&a.kind!=MenuAction::Adjust)return;
  Command command;command.generation=v.generation;command.requestId=nextRequest++;
- if(a.id.compare(0,5,"slot-")==0){
-  const int slot=std::stoi(a.id.substr(5));
-  command.slot=slot;
+ if(const auto slot=RowKey<int>(a.id,"slot-");slot&&*slot<SlotCount){
+  command.slot=*slot;
   if(a.kind==MenuAction::Adjust){command.action=Action::SlotOn;command.on=a.delta>0;}
-  else if(v.lengths[slot]>0){command.action=Action::SlotOn;command.on=!v.on[slot];}
+  else if(v.lengths[*slot]>0){command.action=Action::SlotOn;command.on=!v.on[*slot];}
   else command.action=Action::Select;
  }
  else if(a.id=="order"&&a.kind==MenuAction::Adjust){command.action=Action::PlayOrder;command.order=a.delta>0?Order::InOrder:Order::Random;}

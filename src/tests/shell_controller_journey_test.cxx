@@ -171,7 +171,7 @@ static void ControllerSettingsJourney() {
         const auto found = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id == id; });
         Check(found != rows.end(), "Controller journey row missing"); return *found;
     };
-    h.Screen("settings"); h.Choose("player");
+    h.Screen("player");
     Check(row("controllers").value == "1 connected", "Player controller count is wrong");
     h.Choose("controllers");
     Check(h.shell.Navigation().Screen() == "controllers", "Controllers did not open from Player");

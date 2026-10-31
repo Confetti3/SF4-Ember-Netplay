@@ -7,6 +7,8 @@ namespace sf4e { namespace input {
 // The functions the game's own menus confirm and go back with: Pad::System
 // +0xCC and +0xD0, which its constructor (0x517000) sets to LK and MK.
 constexpr std::uint32_t MenuConfirmFunction = 0x40, MenuBackFunction = 0x80;
+// The fight functions a stick's tab shortcuts are named by: the ends of its top row.
+constexpr std::uint32_t LightPunchFunction = 0x10, HeavyPunchFunction = 0x400;
 // The physical buttons (bits of the raw button word) that confirm and go back
 // in Ember's menus for one device, and the prompt glyph naming each. Glyphs
 // are string literals. The default is the game's generic one: bits 18 and 17,
@@ -15,6 +17,16 @@ struct MenuButtons {
     std::uint32_t confirm = xinput::A, back = xinput::B;
     const char* confirmGlyph = "A";
     const char* backGlyph = "B";
+    // The physical buttons whose fight function includes LP, and HP: a
+    // stick's tab shortcuts (ui::MenuShortcuts), read from the fight table the
+    // game maps its buttons through. The default is the generic layout,
+    // buttons 4 and 6. Scalars, not an array: MSVC fails on brace-initialized
+    // values of a type with an array member initializer.
+    std::uint32_t lightPunch = 1u << 19, heavyPunch = 1u << 21;
+    // The physical buttons holding fight function `function` (LP or HP), 0 for another.
+    std::uint32_t Holding(std::uint32_t function) const {
+        return function == LightPunchFunction ? lightPunch : function == HeavyPunchFunction ? heavyPunch : 0;
+    }
 };
 // The physical buttons that start a Training recording and play a slot for one
 // device (the player's TrainingRecordButton and TrainingPlayButton), 0 for none,
@@ -46,13 +58,20 @@ inline std::uint32_t PhysicalFunction(std::uint32_t function, const std::uint32_
     if (table) for (unsigned bit = 8; bit < 32; ++bit) if (table[bit] == function) return std::uint32_t(1) << bit;
     return 0;
 }
+// Every physical bit from 8 up whose entry includes function (a 3P button holds LP).
+inline std::uint32_t PhysicalHolding(std::uint32_t function, const std::uint32_t* table) {
+    std::uint32_t bits = 0;
+    for (unsigned bit = 8; bit < 32; ++bit) if (table[bit] & function) bits |= std::uint32_t(1) << bit;
+    return bits;
+}
 // The one answer to "which buttons confirm and go back for this device".
 // menu and fight are the device's binding record tables (+0x1FC and +0x17C),
 // null when the record fails its bounds check and for an XInput pad. In
 // order: the player's binding (boundConfirm, boundBack: a physical mask, 0 for
 // none), the button holding the function in the game's menu table, the one
 // holding it in the fight table, then bits 18 and 17. A zero function reads
-// as the game's default.
+// as the game's default. The LP and HP buttons are the fight table's, else
+// the generic layout's.
 inline MenuButtons ResolveMenuButtons(int deviceType, const std::uint32_t* menu, const std::uint32_t* fight,
     std::uint32_t confirmFunction = MenuConfirmFunction, std::uint32_t backFunction = MenuBackFunction,
     std::uint32_t boundConfirm = 0, std::uint32_t boundBack = 0) {
@@ -83,6 +102,10 @@ inline MenuButtons ResolveMenuButtons(int deviceType, const std::uint32_t* menu,
     };
     result.confirmGlyph = name(result.confirm, confirmFunction, "LK");
     result.backGlyph = name(result.back, backFunction, "MK");
+    if (fight) {
+        result.lightPunch = PhysicalHolding(LightPunchFunction, fight);
+        result.heavyPunch = PhysicalHolding(HeavyPunchFunction, fight);
+    }
     return result;
 }
 } }

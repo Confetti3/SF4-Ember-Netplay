@@ -2,7 +2,7 @@
 // (on Icons), earned or locked with how to earn it, the one worn marked. Select
 // on an earned one wears it; the player's card above or beside the wall shows
 // the result. Each award is a row ("award:<id>"), so the pad, the keys and a
-// screen reader walk the wall as a list; Classic shows that list as it is.
+// screen reader walk the wall as a list.
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
 #include "Theme.hxx"
@@ -40,6 +40,39 @@ std::vector<MenuEntry> ApplicationShell::AwardRows(const ShellView& v, const std
         rows.push_back(std::move(row));
     }
     return rows;
+}
+
+// The wall under its Titles and Icons tabs, with the earned count in its header.
+class ApplicationShell::AwardsScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return AwardsScreen(screen); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.AwardRows(f.view, f.screen, title); }
+    // An earned award goes on the card: its title on the Titles tab, its icon on Icons.
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+        if (a.id.compare(0, 6, "award:") != 0) return false;
+        auto& s = f.shell;
+        if (f.view.canEditPreferences) {
+            (f.screen == "awards" ? s.preferences_.wornTitle : s.preferences_.wornIcon) = a.id.substr(6);
+            s.preferencesDirty_ = true;
+            s.saveAt_ = ImGui::GetTime() + .45;
+        }
+        return true;
+    }
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        menu.eyebrow = loc::T("home.profile");
+        menu.headerChips.push_back({EarnedCount(f.view), v2::Colors().accentLight});
+        menu.tabs = {{"awards", loc::T("awards.titles")}, {"awards-icons", loc::T("awards.icons")}};
+        menu.tab = f.screen == "awards" ? 0 : 1;
+    }
+    ScreenGrid Grid(const ScreenFrame&) const override { return {AwardColumns(), 100}; }
+    GameMenu::Body Body(const ScreenFrame& f) const override {
+        ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
+        return [s, v](const std::vector<MenuEntry>& e, MenuNavigation& n, MenuAction& a, float h, const MenuVisualFeedback& fb) { s->DrawAwardsBoard(*v, e, n, a, h, fb); };
+    }
+};
+const ScreenPanel& ApplicationShell::AwardsOwner() {
+    static const AwardsScreens awards{};
+    return awards;
 }
 
 // The card (L) with where else it shows (S, XS) on the left, the wall of tiles

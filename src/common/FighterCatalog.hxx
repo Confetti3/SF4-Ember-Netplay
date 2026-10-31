@@ -15,7 +15,6 @@ constexpr int RosterDisplayOrder[FighterCount] = {
     43, 0, 1, 3, 29, 30, 31, 16, 18, 17, 25, 26, 23, 38, 40,
     35, 34, 2, 7, 15, 12, 11, 10, 20, 22, 28, 27, 33, 39, 41,
     37, 6, 4, 5, 13, 14, 9, 8, 21, 19, 32, 24, 36, 42};
-constexpr int RosterGridColumns = 15;
 
 struct Fighter {
     const char* code;
@@ -83,16 +82,6 @@ int CostumeCount(int fighterId);      // the game's own costumes
 int ColorCount(int fighterId, int costumeId);
 const char* CostumePack(int fighterId, int costumeId);
 std::vector<int> AllowedUltras(int fighterId, int editionId);
-struct UltraCommand {
-    const char* symbols;
-    const char* condition;
-};
-// Space-separated motion/button tokens, facing right. A leading ~ means charge.
-// Double has no independent input; ask for each constituent Ultra instead.
-std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionId);
-// Facing-neutral short notation for a token string: "236 236 + PPP" is
-// "QCF x2 + PPP", "~4 6 4 6 + KKK" is "Charge B, F, B, F + KKK".
-std::string UltraNotation(const std::string& tokens);
 // The player does not own this fighter. Only 35-43 are sold separately;
 // unknown availability is not locked.
 bool FighterLocked(int fighterId, const Availability& availability);

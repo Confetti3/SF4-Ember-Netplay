@@ -1,6 +1,6 @@
 #pragma once
 // The ping a room card shows for a member (MEMBER_LATENCY.md 3.9): "~62 ms"
-// ("Relay 62 ms" in V2) in its band's colour (under 80 ms, under 150 ms, above), "..." while it is
+// ("Relay 62 ms" on the room board) in its band's colour (under 80 ms, under 150 ms, above), "..." while it is
 // measured, and only a tip when it is unavailable.
 #include "RoomCards.hxx"
 #include "Theme.hxx"

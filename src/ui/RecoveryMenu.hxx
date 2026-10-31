@@ -46,7 +46,7 @@ inline void OfferFoundUpdate(GameMenu& menu,const platform::ServiceSnapshot& sta
     if(!state.update.ok||!state.update.updateAvailable||state.pending||state.update.latestVersion==offered)return;
     offered=state.update.latestVersion;menu.navigation.Prefer("install");
 }
-// V2's left column of the launch window (Recovery.dc.html): why it opened, or
+// The left column of the launch window (Recovery.dc.html): why it opened, or
 // the latest service result; the focused row's words in a box; and while an
 // update is fetched its bar and checks (Update.dc.html: found, verified,
 // installed). The rows are the cards on the right.

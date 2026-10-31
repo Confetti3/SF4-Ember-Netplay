@@ -412,15 +412,6 @@ msgstr "Hoofdpersonage opslaan"
 msgid "menu.hint.save_fighter"
 msgstr "Personage opslaan"
 
-msgid "menu.hint.save_costume"
-msgstr "Outfit opslaan"
-
-msgid "menu.hint.save_color"
-msgstr "Kleur opslaan"
-
-msgid "menu.hint.save_ultra"
-msgstr "Ultra opslaan"
-
 msgid "menu.hint.save_stage"
 msgstr "Level opslaan"
 
@@ -753,9 +744,6 @@ msgstr "Speler, controller, standaardspelregels, interface, taal, training en Di
 
 msgid "home.about"
 msgstr "Hulp en info"
-
-msgid "home.about_detail"
-msgstr "Besturing, diagnostiek, updates en credits."
 
 msgid "home.offline"
 msgstr "Offline spelen"
@@ -1165,24 +1153,6 @@ msgstr "Betreed met de geplakte uitnodiging."
 msgid "room.edit_invitation"
 msgstr "Uitnodiging bewerken"
 
-msgid "settings.title"
-msgstr "INSTELLINGEN"
-
-msgid "settings.player_detail"
-msgstr "Schermnaam, controllertoewijzing en spelen op de achtergrond."
-
-msgid "settings.defaults_detail"
-msgstr "Invoervertraging en kamerstandaard."
-
-msgid "settings.interface"
-msgstr "Interface"
-
-msgid "settings.interface_detail"
-msgstr "Taal, Match-HUD en interfacegrootte."
-
-msgid "settings.discord_detail"
-msgstr "Activiteit en uitnodigingen."
-
 msgid "player.title"
 msgstr "SPELER EN CONTROLLER"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "Het spel vult het scherm in een venster zonder rand, getekend op de eigen resolutie van het scherm in 16:9, met zwarte balken op een breder of hoger scherm. Zolang dit aan staat, doen Alt+Enter en de eigen resolutie- en volledig-schermopties van het spel niets; het spel bewaart je keuze daar voor wanneer dit uit staat. Het geldt alleen voor deze pc. Wijzigingen gelden vanaf de volgende keer dat het spel start."
 
 
-
-msgid "settings.interface_title"
-msgstr "INTERFACE"
 
 msgid "size.small"
 msgstr "Klein"
@@ -1367,9 +1334,6 @@ msgstr "Het Discord-account dat je toernooisite kent, zoals BluMint. Het kan een
 
 msgid "discord.invitation_title"
 msgstr "DISCORD-UITNODIGING"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Uitnodiging annuleren"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "Origineel"
 
-msgid "selection.alternate"
-msgstr "Alternatief {0}"
-
 msgid "selection.alternate_pack"
 msgstr "Alternatief {0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "HOUD"
-
 msgid "selection.stage"
 msgstr "Level"
 
@@ -2292,50 +2250,8 @@ msgstr "Extra opties"
 msgid "selection.additional_options.detail"
 msgstr "Editie, persoonlijke actie, winquote en handicap."
 
-msgid "selection.choose_fighter"
-msgstr "KIES PERSONAGE"
-
-msgid "selection.appearance_title"
-msgstr "UITERLIJK"
-
-msgid "selection.costume_gallery"
-msgstr "Outfitgalerij"
-
-msgid "selection.color_gallery"
-msgstr "Kleurengalerij"
-
-msgid "selection.color_preview"
-msgstr "Kleur {0} / Bekijk afzonderlijke voorbeelden."
-
-msgid "selection.costume_gallery_title"
-msgstr "OUTFITGALERIJ"
-
-msgid "selection.color_gallery_title"
-msgstr "KLEURENGALERIJ"
-
-msgid "selection.loading_choices"
-msgstr "Beschikbare keuzes laden"
-
-msgid "selection.loading_choices.detail"
-msgstr "Wachten op beschikbare outfits en kleuren uit het spel."
-
-msgid "selection.no_colors"
-msgstr "Geen kleuren vrij voor deze outfit."
-
 msgid "selection.not_owned"
 msgstr "Niet in je bezit op Steam."
-
-msgid "selection.not_owned_badge"
-msgstr "NIET IN BEZIT"
-
-msgid "selection.color"
-msgstr "Kleur {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "ULTRA COMBO"
-
-msgid "selection.ultra_double.detail"
-msgstr "Beide Ultra Combo's, met minder schade of effect."
 
 msgid "selection.saved"
 msgstr "OPGESLAGEN"
@@ -2397,26 +2313,8 @@ msgstr "OVERGESLAGEN"
 msgid "selection.handicap"
 msgstr "Handicap"
 
-msgid "selection.saved_value"
-msgstr "Opgeslagen: {0}"
-
-msgid "selection.ultra_selected"
-msgstr "Deze Ultra is gekozen."
-
-msgid "selection.preview_save"
-msgstr "Voorbeeld - druk op Kiezen om op te slaan."
-
-msgid "selection.preview_locked"
-msgstr "Alleen voorbeeld - keuze vergrendeld."
-
-msgid "selection.saved_appearance"
-msgstr "Opgeslagen: {0} / Kleur {1}"
-
 msgid "selection.saved_full"
 msgstr "Opgeslagen: {0} / {1} / Kleur {2}"
-
-msgid "selection.preview_save_short"
-msgstr "Alleen voorbeeld - Kiezen slaat op"
 
 msgid "selection.status_editable"
 msgstr "Kiezen slaat op / Terug gaat één niveau terug."
@@ -5179,21 +5077,6 @@ msgstr "Start --"
 msgid "settings.training_replays"
 msgstr "Training en replays"
 
-msgid "settings.training_replays_detail"
-msgstr "De framemeter in wedstrijden, automatisch gereed na Training en welke wedstrijden worden opgeslagen."
-
-msgid "settings.training_replays_title"
-msgstr "TRAINING EN REPLAYS"
-
-msgid "settings.accessibility"
-msgstr "Toegankelijkheid"
-
-msgid "settings.accessibility_detail"
-msgstr "Spraak die de menu's van Ember voorleest."
-
-msgid "settings.accessibility_title"
-msgstr "TOEGANKELIJKHEID"
-
 msgid "speech.setting"
 msgstr "Spraak"
 
@@ -5673,9 +5556,6 @@ msgstr "Het spel is gecrasht. Probleemrapporten versturen staat aan, dus er word
 
 msgid "reports.settings_title"
 msgstr "Probleemrapporten"
-
-msgid "reports.settings_detail"
-msgstr "Wat een crashrapport bevat, en de verzonden rapporten."
 
 msgid "reports.sent_list"
 msgstr "Verzonden rapporten"

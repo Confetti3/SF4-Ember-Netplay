@@ -62,7 +62,7 @@ struct SpeechPreferences {
 constexpr int MaxMatchHudNameOffset = 60;
 // The match HUD positions run from 0 (bottom center) to this one (top center).
 constexpr int MaxMatchHudAnchor = 5;
-// The V2 room board's layout grips (Customise.dc.html), in percent: the members
+// The room board's layout grips (Customise.dc.html), in percent: the members
 // and chat column's share of the board's width, and the members' share of that
 // column over chat. Each snaps to its step from the default.
 constexpr int PictureSmall = 0, PictureBig = 1, PictureOff = 2;
@@ -139,10 +139,10 @@ struct PlayerPreferences {
     // instead of being given the time to ready themselves.
     bool trainingAutoReady = false;
     // The game the player watches, over Ember's menu: PictureSmall in a corner
-    // (pictureSpot) over an opaque menu, PictureBig in the V2 room board's
+    // (pictureSpot) over an opaque menu, PictureBig in the room board's
     // tables' place (a corner elsewhere), PictureOff dimmed behind the menu.
     int pictureMode = PictureSmall;
-    // The V2 room board's Members and Chat panels; hidden, the other one or
+    // The room board's Members and Chat panels; hidden, the other one or
     // the tables take their place.
     bool roomShowMembers = true, roomShowChat = true;
     // The training frame meter over the player's own matches and those they
@@ -200,10 +200,18 @@ struct PlayerPreferences {
     // on in Settings, Problem reports, or chooses Always send after a crash.
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
-    // Takes `from`'s button layouts, the settings a room leaves open, as they
-    // change nothing about play (ShellAction::roomSettings).
+    // Takes `from`'s settings a room leaves open, as they change nothing about
+    // play: the button layouts, and the room board's layout and the watched
+    // game's picture, which the board's grips, Hide and Show, More… and
+    // Settings › Interface › Room layout change in a room
+    // (ShellAction::roomSettings). The runtime saves these alone while a room
+    // locks the rest (SaveRoomSettings), and the shell sends these alone then
+    // (OnlyRoomSettingsChanged).
     void CopyRoomSettings(const PlayerPreferences& from) {
         buttonLayouts = from.buttonLayouts;
+        roomColumn = from.roomColumn; roomSplit = from.roomSplit;
+        roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat;
+        pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;
     LobbySettings lobby;

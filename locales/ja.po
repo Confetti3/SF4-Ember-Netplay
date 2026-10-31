@@ -412,15 +412,6 @@ msgstr "メインに設定"
 msgid "menu.hint.save_fighter"
 msgstr "キャラを保存"
 
-msgid "menu.hint.save_costume"
-msgstr "コスチュームを保存"
-
-msgid "menu.hint.save_color"
-msgstr "カラーを保存"
-
-msgid "menu.hint.save_ultra"
-msgstr "ウルトラを保存"
-
 msgid "menu.hint.save_stage"
 msgstr "ステージを保存"
 
@@ -464,7 +455,7 @@ msgid "screen.selection"
 msgstr "キャラクター選択"
 
 msgid "screen.player"
-msgstr "プレイヤーとコントローラー"
+msgstr "プレイヤーと操作"
 
 msgid "screen.defaults"
 msgstr "対戦の初期設定"
@@ -753,9 +744,6 @@ msgstr "プレイヤー、コントローラー、対戦の初期設定、表示
 
 msgid "home.about"
 msgstr "ヘルプ・情報"
-
-msgid "home.about_detail"
-msgstr "操作方法、診断情報、アップデート、クレジット。"
 
 msgid "home.offline"
 msgstr "オフラインで遊ぶ"
@@ -1165,26 +1153,8 @@ msgstr "貼り付けた招待で参加します。"
 msgid "room.edit_invitation"
 msgstr "招待を編集"
 
-msgid "settings.title"
-msgstr "設定"
-
-msgid "settings.player_detail"
-msgstr "表示名、コントローラーの割り当て、バックグラウンドでのプレイ。"
-
-msgid "settings.defaults_detail"
-msgstr "入力遅延と新規ルームの初期設定。"
-
-msgid "settings.interface"
-msgstr "表示"
-
-msgid "settings.interface_detail"
-msgstr "言語、対戦HUD、画面サイズ。"
-
-msgid "settings.discord_detail"
-msgstr "アクティビティと招待。"
-
 msgid "player.title"
-msgstr "プレイヤーとコントローラー"
+msgstr "プレイヤーと操作"
 
 msgid "player.change_controller"
 msgstr "コントローラーを変更"
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "ゲームが枠のないウィンドウで画面を埋め、画面本来の解像度の16:9で描画されます。横長や縦長の画面では黒帯が表示されます。オンの間は、Alt+Enterとゲーム本体の解像度・フルスクリーン設定は効きません。そこでの選択はオフにしたときのために保存されます。このPCだけに影響します。変更は次回ゲーム起動時に反映されます。"
 
 
-
-msgid "settings.interface_title"
-msgstr "表示"
 
 msgid "size.small"
 msgstr "小"
@@ -1367,9 +1334,6 @@ msgstr "BluMintなど、大会サイトが把握しているDiscordアカウン�
 
 msgid "discord.invitation_title"
 msgstr "Discordの招待"
-
-msgid "discord.title"
-msgstr "Discord"
 
 msgid "discord.cancel_invitation"
 msgstr "招待をキャンセル"
@@ -1507,7 +1471,7 @@ msgid "room.table_closed"
 msgstr "対戦席は閉鎖されました"
 
 msgid "controller.disconnected"
-msgstr "コントローラーが切断されました。再接続するか、設定 > プレイヤーとコントローラーで別のものを選んでください。"
+msgstr "コントローラーが切断されました。再接続するか、設定 > プレイヤーと操作で別のものを選んでください。"
 
 msgid "controller.none"
 msgstr "対戦用デバイスを選んでください"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "オリジナル"
 
-msgid "selection.alternate"
-msgstr "アレンジ{0}"
-
 msgid "selection.alternate_pack"
 msgstr "アレンジ{0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "タメ"
-
 msgid "selection.stage"
 msgstr "ステージ"
 
@@ -2292,50 +2250,8 @@ msgstr "追加オプション"
 msgid "selection.additional_options.detail"
 msgstr "エディション、アピール、勝利コメント、ハンディキャップ。"
 
-msgid "selection.choose_fighter"
-msgstr "キャラを選択"
-
-msgid "selection.appearance_title"
-msgstr "外見"
-
-msgid "selection.costume_gallery"
-msgstr "コスチューム一覧"
-
-msgid "selection.color_gallery"
-msgstr "カラー一覧"
-
-msgid "selection.color_preview"
-msgstr "カラー{0} / 各プレビューを確認。"
-
-msgid "selection.costume_gallery_title"
-msgstr "コスチューム一覧"
-
-msgid "selection.color_gallery_title"
-msgstr "カラー一覧"
-
-msgid "selection.loading_choices"
-msgstr "選択肢を読み込み中"
-
-msgid "selection.loading_choices.detail"
-msgstr "ゲーム本体のコスチュームとカラーの使用可否を確認中です。"
-
-msgid "selection.no_colors"
-msgstr "このコスチュームには使用可能なカラーがありません。"
-
 msgid "selection.not_owned"
 msgstr "Steamで所有していません。"
-
-msgid "selection.not_owned_badge"
-msgstr "未所有"
-
-msgid "selection.color"
-msgstr "カラー{0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "ウルトラコンボ"
-
-msgid "selection.ultra_double.detail"
-msgstr "両方のウルトラコンボを使えますが、ダメージや効果が下がります。"
 
 msgid "selection.saved"
 msgstr "保存済み"
@@ -2397,26 +2313,8 @@ msgstr "除外"
 msgid "selection.handicap"
 msgstr "ハンディキャップ"
 
-msgid "selection.saved_value"
-msgstr "保存済み：{0}"
-
-msgid "selection.ultra_selected"
-msgstr "このウルトラコンボを選択中です。"
-
-msgid "selection.preview_save"
-msgstr "プレビューのみ。Selectで保存。"
-
-msgid "selection.preview_locked"
-msgstr "プレビューのみ。選択はロック中です。"
-
-msgid "selection.saved_appearance"
-msgstr "保存済み：{0} / カラー{1}"
-
 msgid "selection.saved_full"
 msgstr "保存済み：{0} / {1} / カラー{2}"
-
-msgid "selection.preview_save_short"
-msgstr "プレビューのみ。Selectで保存"
 
 msgid "selection.status_editable"
 msgstr "Selectで保存 / 戻ると1つ前へ。"
@@ -2999,7 +2897,7 @@ msgid "room.waiting_other_seat"
 msgstr "相手がもう一方の席に着くのを待っています。待機中はキャラを変更できます。"
 
 msgid "room.controller_required"
-msgstr "設定 > プレイヤーとコントローラーで割り当てるか、再接続してください。"
+msgstr "設定 > プレイヤーと操作で割り当てるか、再接続してください。"
 
 msgid "room.ready.cancel_detail"
 msgstr "準備完了中です。選択して解除してから、キャラを変更してください。"
@@ -5178,22 +5076,7 @@ msgid "training.start_unknown"
 msgstr "発生--"
 
 msgid "settings.training_replays"
-msgstr "トレーニングとリプレイ"
-
-msgid "settings.training_replays_detail"
-msgstr "対戦中のフレームメーター、トレーニング後の自動準備、保存する対戦の設定。"
-
-msgid "settings.training_replays_title"
-msgstr "トレーニングとリプレイ"
-
-msgid "settings.accessibility"
-msgstr "アクセシビリティ"
-
-msgid "settings.accessibility_detail"
-msgstr "Emberのメニューを読み上げる音声。"
-
-msgid "settings.accessibility_title"
-msgstr "アクセシビリティ"
+msgstr "練習とリプレイ"
 
 msgid "speech.setting"
 msgstr "音声読み上げ"
@@ -5675,9 +5558,6 @@ msgstr "ゲームがクラッシュしました。「問題レポートを送信
 msgid "reports.settings_title"
 msgstr "問題レポート"
 
-msgid "reports.settings_detail"
-msgstr "クラッシュレポートの内容と送信済みのレポート。"
-
 msgid "reports.sent_list"
 msgstr "送信済みレポート"
 
@@ -5794,7 +5674,7 @@ msgid "controller.connected"
 msgstr "{0} が接続されました。"
 
 msgid "controller.connected_keyboard"
-msgstr "{0} が接続されました。キーボードでプレイしています。変更するには、設定 > プレイヤーとコントローラーの「コントローラーを変更」を使ってください。"
+msgstr "{0} が接続されました。キーボードでプレイしています。変更するには、設定 > プレイヤーと操作の「コントローラーを変更」を使ってください。"
 
 msgid "controller.connected_unmapped"
 msgstr "{0} が接続されました。Emberを開いてボタンを設定してください。"
@@ -5847,7 +5727,7 @@ msgid "controllers.game_reads"
 msgstr "ゲームがコントローラーを読みます"
 
 msgid "controllers.game_reads_detail"
-msgstr "「ゲームにコントローラーを読ませる」がオンのため、Emberではコントローラーの設定やテストができません。プレイヤーとコントローラーでオフにして、ゲームを再起動してください。"
+msgstr "「ゲームにコントローラーを読ませる」がオンのため、Emberではコントローラーの設定やテストができません。プレイヤーと操作でオフにして、ゲームを再起動してください。"
 
 msgid "controllers.none"
 msgstr "コントローラー未接続"

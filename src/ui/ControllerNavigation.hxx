@@ -2,6 +2,7 @@
 #include "MenuNavigation.hxx"
 #include "../common/PadKind.hxx"
 #include "../common/MenuButtons.hxx"
+#include <imgui.h>
 #include <cstdint>
 
 namespace sf4e { namespace ui {
@@ -30,36 +31,47 @@ static_assert((ControllerSample::Menu & (MenuInput::Up | MenuInput::Down | MenuI
     MenuInput::Select | MenuInput::Back | MenuInput::Fighter | MenuInput::Options | MenuInput::Chat)) == 0,
     "Start must not collide with a menu button");
 
-// The menu's shortcuts: the MenuInput press each is, the Xbox pad button that
-// gives it, the fight function that gives it on a DirectInput stick (0 for
-// none), and the keyboard key. A stick's shape cannot be known, so it has only
-// the two tab buttons, the ends of its top row, named by their fight notation
-// as its Select and Back are (CONTROLLER_LAYER_UX 11.14). Leave is the Delete
-// key alone: a pad leaves its seat with Back on its own card.
-struct MenuShortcut { unsigned press; std::uint32_t xinput, stick; const char* pad; const char* key; };
+// The menu's shortcuts, the one table of them: the MenuInput press each is,
+// the Xbox pad button that gives it, the fight function that gives it on a
+// DirectInput stick (0 for none), the Xbox glyph, and the keyboard key and its
+// glyph. A stick's shape cannot be known, so it has only the two tab buttons,
+// the ends of its top row, named by their fight notation as its Select and
+// Back are (CONTROLLER_LAYER_UX 11.14). Leave is the Delete key alone: a pad
+// leaves its seat with Back on its own card.
+struct MenuShortcut { unsigned press; std::uint32_t xinput, stick; const char* pad; ImGuiKey key; const char* keyName; };
 constexpr MenuShortcut MenuShortcuts[] = {
-    {MenuInput::Fighter, input::xinput::X, 0, "X", "F"}, {MenuInput::Options, input::xinput::Y, 0, "Y", "T"},
-    {MenuInput::Chat, input::xinput::View, 0, "View", "C"}, {MenuInput::Leave, 0, 0, nullptr, "Del"},
-    {MenuInput::PrevTab, input::xinput::LB, 0x10, "LB", "PgUp"}, {MenuInput::NextTab, input::xinput::RB, 0x400, "RB", "PgDn"}};
+    {MenuInput::Fighter, input::xinput::X, 0, "X", ImGuiKey_F, "F"}, {MenuInput::Options, input::xinput::Y, 0, "Y", ImGuiKey_T, "T"},
+    {MenuInput::Chat, input::xinput::View, 0, "View", ImGuiKey_C, "C"}, {MenuInput::Leave, 0, 0, nullptr, ImGuiKey_Delete, "Del"},
+    {MenuInput::PrevTab, input::xinput::LB, input::LightPunchFunction, "LB", ImGuiKey_PageUp, "PgUp"},
+    {MenuInput::NextTab, input::xinput::RB, input::HeavyPunchFunction, "RB", ImGuiKey_PageDown, "PgDn"}};
+// The physical buttons that give shortcut `s` on a pad (input::PadXInput,
+// PadDirectInput): its Xbox button, or on a stick the buttons whose fight
+// function is the shortcut's, never the pad's Select or Back. 0 where the pad
+// has none: a press of those buttons is Select or Back alone. Input
+// (ControllerButtons) and the glyphs (MenuShortcutGlyph) both read this.
+inline std::uint32_t ShortcutButtons(const MenuShortcut& s, int deviceType, const input::MenuButtons& menu) {
+    const std::uint32_t buttons = deviceType == input::PadXInput ? s.xinput : deviceType == input::PadDirectInput ? menu.Holding(s.stick) : 0;
+    return buttons & ~(menu.confirm | menu.back);
+}
 // The glyph that names shortcut `press` on a device (input::PadKeyboard,
-// PadXInput, PadDirectInput), or null where the device has no such button, as
-// on an Xbox pad whose button the player made Select or Back. The hint bar,
-// the tab strip and the on-screen keyboard draw only what this names.
+// PadXInput, PadDirectInput), or null where the device has no such button
+// (ShortcutButtons). The hint bar, the tab strip and the on-screen keyboard
+// draw only what this names.
 inline const char* MenuShortcutGlyph(unsigned press, int deviceType, const input::MenuButtons& menu) {
     for (const auto& s : MenuShortcuts) if (s.press == press) {
-        if (deviceType == input::PadKeyboard) return s.key;
-        if (deviceType == input::PadXInput) return s.xinput & ~(menu.confirm | menu.back) ? s.pad : nullptr;
-        return deviceType == input::PadDirectInput && s.stick ? input::MenuFunctionName(s.stick) : nullptr;
+        if (deviceType == input::PadKeyboard) return s.keyName;
+        if (!ShortcutButtons(s, deviceType, menu)) return nullptr;
+        return deviceType == input::PadXInput ? s.pad : input::MenuFunctionName(s.stick);
     }
     return nullptr;
 }
 // Directions use native fight-map bits, not the battle command buffer. Select
 // and Back are the device's physical menu buttons (Pad::MenuButtons): the
 // player's binding, else the ones the game's own menus use. The shortcuts are
-// MenuShortcuts, an Xbox pad's unless its button confirms or goes back. Both
-// tab buttons at once (a stick's 3P) step no tab. Start (the game's Start
-// function on DirectInput) opens Ember. RT, the fourth button of the bottom
-// row on an Xbox-layout stick too, is the accessibility button (Describe).
+// MenuShortcuts' (ShortcutButtons). Both tab buttons at once (a stick's 3P)
+// step no tab. Start (the game's Start function on DirectInput) opens Ember.
+// RT, the fourth button of the bottom row on an Xbox-layout stick too, is the
+// accessibility button (Describe).
 inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std::uint32_t physical=0,const input::MenuButtons& menu={}) {
     std::uint32_t result = 0;
     if (held & 0x1) result |= ControllerSample::Up;
@@ -70,7 +82,7 @@ inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std:
     if (physical & menu.back) result |= ControllerSample::Back;
     const auto shortcuts = physical & ~(menu.confirm | menu.back);
     for (const auto& s : MenuShortcuts)
-        if (deviceType == input::PadXInput ? (shortcuts & s.xinput) != 0 : deviceType == input::PadDirectInput && (held & s.stick)) result |= s.press;
+        if (physical & ShortcutButtons(s, deviceType, menu)) result |= s.press;
     const std::uint32_t tabs = ControllerSample::PrevTab | ControllerSample::NextTab;
     if ((result & tabs) == tabs) result &= ~tabs;
     if (deviceType == input::PadXInput ? (physical & input::xinput::Start) != 0 : (held & 0x1000) != 0) result |= ControllerSample::Menu;

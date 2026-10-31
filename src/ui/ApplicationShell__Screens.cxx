@@ -133,13 +133,14 @@ public:
     }
 };
 
-const ScreenPanel* ApplicationShell::OwnerOf(const std::string& screen) {
+const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
     // No two panels own a screen, so the order they are asked in decides nothing.
     static const PublicRoomsScreens publicRooms{};
     static const RankingsScreens rankings{};
     static const ReplaysScreens replays{};
     static const IdentityScreens identity{};
-    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &replays, &identity};
+    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
+        &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomOwner()};
     for (const ScreenPanel* owner : owners)
         if (owner->Owns(screen)) return owner;
     return nullptr;

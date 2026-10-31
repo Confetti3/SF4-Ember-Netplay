@@ -23,7 +23,8 @@ std::vector<MenuEntry> PadSetupRows(const SetupState& state) {
     return rows;
 }
 std::vector<LegendHint> PadSetupLegend(const SetupState& state) {
-    std::vector<LegendHint> hints{{"Esc", loc::T("common.cancel")}};
+    // Escape is Back when its hint is clicked.
+    std::vector<LegendHint> hints{{"Esc", loc::T("common.cancel"), MenuInput::Back}};
     if (state.step > 0) hints.push_back({"Bksp", loc::T("pad_setup.back_step")});
     if (!SetupSteps[state.step].required) hints.push_back({"Space", loc::T("pad_setup.skip")});
     if (state.step > RightStep) hints.push_back({"generic_stick_left", loc::T("pad_setup.back_step")});

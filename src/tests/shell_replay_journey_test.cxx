@@ -139,7 +139,7 @@ void ReplayJourneys() {
   h.Choose("replay-link");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replays.link,"Play it did not ask for the link's file");
   // The game's battle log came back to the main menu: Replays again, from Home.
-  h.Screen("settings");h.shell.ShowReplays();h.Frame();
+  h.Screen("tab-player");h.shell.ShowReplays();h.Frame();
   Check(h.shell.Navigation().Screen()=="replays"&&h.shell.Navigation().Parent()=="home","Returning from the battle log did not show Replays over Home");
   h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","Back from Replays did not reach Home");h.Screen("replays");
   // A notice from the last request shows on Replays only, as an error when it failed.

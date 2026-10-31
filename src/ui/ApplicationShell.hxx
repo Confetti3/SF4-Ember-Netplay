@@ -278,6 +278,8 @@ enum class ToastKind { None, Invitation, Room, Update, Match, System };
 // A toast's button: it opens `screen` at its `row`, where the player acts on
 // the notice; one without a screen is Later, which only puts the toast away.
 struct ToastAction { std::string label, screen, row; };
+// One frame of the room board (RoomPanelBoard.hxx).
+struct RoomBoardFrame;
 
 class ApplicationShell {
 public:
@@ -371,8 +373,21 @@ private:
     // the parts of a drawn frame that belong to its screens (ScreenPanel).
     // Update, Conceal and IdentityPanel::Hidden stay calls to every panel.
     class IdentityScreens; class PublicRoomsScreens; class RankingsScreens; class ReplaysScreens;
-    // The panel that owns `screen`, or null for the shell's own screens, the room's among them.
-    static const ScreenPanel* OwnerOf(const std::string& screen);
+    // The panel that draws `screen`, one of those or of the shell's own below
+    // (one table, ApplicationShell__Screens.cxx), else null for Home and the
+    // few plain ones BuildRows makes itself.
+    static const ScreenPanel* ScreenOf(const std::string& screen);
+    // The shell's own screens as panels, each beside its rows: Settings
+    // (ApplicationShell__Settings.cxx), Online play with Join and Create, the
+    // welcome and a room's screens (__ShellScreens.cxx), News (__Updates.cxx),
+    // the awards wall (__Awards.cxx) and Notifications (__Toasts.cxx).
+    class OnlineScreens; class WelcomeScreens; class RoomScreens; class NewsScreens; class AwardsScreens; class NotificationScreens;
+    static const ScreenPanel& RoomOwner();
+    static const ScreenPanel& OnlineOwner();
+    static const ScreenPanel& WelcomeOwner();
+    static const ScreenPanel& NewsOwner();
+    static const ScreenPanel& AwardsOwner();
+    static const ScreenPanel& NotificationsOwner();
     // The width of the public rooms list: the whole window on a narrow one, else the left pane.
     static float PublicListWidth();
     // Parts of Draw, in the order it runs them.
@@ -385,17 +400,26 @@ private:
     void UpdatePublicBridge(const ShellView& view,const std::string& screen);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
-    // Settings (ApplicationShell__Settings.cxx): the tabs as screen id and label, whether a screen is one, and its rows.
-    static std::vector<std::pair<std::string,std::string>> SettingsTabs();
+    // Settings and the pages it opens (ApplicationShell__Settings.cxx): six tabs
+    // of panels, each panel a heading and one row builder (SettingsPanel). A
+    // tab's panels are built once a frame (settingsPanels_), and the rail, the
+    // summaries, the open panel's rows and its picture all read that.
+    class SettingsScreens; struct SettingsPanel;
+    struct BuiltPanel { const SettingsPanel* panel; std::vector<MenuEntry> rows; };
+    std::vector<BuiltPanel> settingsPanels_;
+    // The focus the Settings board last drew: a new one scrolls into view.
+    std::string settingsFocus_;
+    static const ScreenPanel& SettingsOwner();
+    // Whether a screen is a Settings tab or one of its panels, and the tab it
+    // belongs to ("tab-matches" for its panel "tab-matches/1").
     static bool SettingsTab(const std::string& screen);
-    // The tab a screen belongs to ("tab-matches" for its panel "tab-matches/1"), and the rows whose panel shows a preview.
     static std::string SettingsTabOf(const std::string& screen);
-    static bool SettingsPreview(const std::string& id);
-    // A Settings tab (GameMenu body): the rail of panels, the shown panel's rows and preview, the focused row's words.
-    void DrawSettingsBoard(const std::vector<MenuEntry>& entries,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,const GameMenu::Detail& preview);
+    // Left or Right on a Settings value row that is no on/off switch; false for any other row.
+    static bool AdjustSetting(netplay::PlayerPreferences& preferences,const MenuAction& action);
+    // The installed version label, or the build's hash for a copy without one (a developer build).
+    static std::string InstalledVersion(const ShellView& view);
     // Value panels (ApplicationShell__Values.cxx): each value row's values as choices.
     static void OfferValues(std::vector<MenuEntry>& rows);
-    std::vector<MenuEntry> SettingsTabRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
     void PublishPlayerCard(const ShellView& view);
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
@@ -487,7 +511,6 @@ private:
     // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
     std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
-    // Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
     // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
     static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
     static const v2::Award* WornAward(const ShellView& v, const std::string& id);
@@ -495,13 +518,12 @@ private:
     static int AwardColumns();
     std::vector<MenuEntry> AwardRows(const ShellView& v, const std::string& screen, std::string& title) const;
     void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
+    // Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
     void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
     // The Create screen, a Classic room with Practice room off (createArcade_, createPractice_).
     void OpenCreate();
     // Settings > Interface > Language, also the welcome's.
     MenuEntry LanguageRow() const;
-    // The watched game's picture: Small, Big or Off (PlayerPreferences::pictureMode).
-    MenuEntry PictureModeRow(const ShellView& v) const;
     // The first-run welcome (ApplicationShell__FirstRun.cxx): speech, language,
     // controller and look, a step at a time, each a few rows, Next and Skip.
     std::vector<MenuEntry> WelcomeRows(const ShellView& view,std::string& title);
@@ -527,6 +549,8 @@ private:
     void RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScreenRows& state);
     void RoomAction(const MenuAction& action, const ShellView& view, const Submit& submit);
     void RoomShortcut(const MenuAction& action, const ShellView& view);
+    // The room's shortcut hints (Fighter, Options, Chat), those the device has.
+    static std::vector<LegendHint> RoomShortcutHints();
     // What B does on the board while your own table card is focused: leave your
     // seat or queue place (or say why the seat cannot be left yet). Empty
     // (plain Back) otherwise.
@@ -579,6 +603,15 @@ private:
     MemberCardView RoomMemberCard(const ShellView& view,const MenuEntry& row) const;
     void DrawRoomBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,float height,
                        const MenuVisualFeedback& feedback);
+    // The board's Members panel in `box` (RoomPanelColumn.cxx): its heading
+    // opens the Members list, each member stands under their group as a player
+    // tag (RoomMemberCard), and `shown` false leaves the heading alone.
+    void DrawRoomMembersPanel(const RoomBoardFrame& frame,v2::Box box,bool shown) const;
+    // The board's Chat panel in `box`: the room's last lines (DrawChatLog, in
+    // the panel's own scroll, following new ones while read at the bottom)
+    // over the message box, which opens Chat, and the unread count on its
+    // heading; `shown` false leaves the heading alone.
+    void DrawRoomChatPanel(const RoomBoardFrame& frame,v2::Box box,bool shown,unsigned unread);
     // The room board's tables and its members-over-chat column in `area`, as the
     // player's layout grips set them (PlayerPreferences::roomColumn); a folded panel's
     // box is its heading's strip and the other takes the column, or, both folded, the
@@ -595,12 +628,8 @@ private:
     void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
                          room::RoomType type);
     std::string roomBoardFocus_;
-    // The board was last drawn wide on a screen under 820 lines, so the next
-    // frame's rows fold the room's sharing and settings into More….
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
-// The Settings tab's rows by panel, its header's path and the focus last drawn (SettingsTabRows, DrawSettingsBoard).
-std::vector<MenuEntry> settingsRows_;std::string settingsEyebrow_,settingsFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its
     // own body (DrawChatScreen); the board's Recent chat panel shows the same lines. ObserveChat takes
     // in the room every frame, drawn or hidden; UpdateChat is the drawn frame's, which also reads it.

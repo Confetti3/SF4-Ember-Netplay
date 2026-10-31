@@ -197,9 +197,8 @@ std::vector<MenuEntry> CountryPicker::BoardRows(const CountryPreference& current
     // A letter the moving pointer focuses on its way to the list does not
     // swap the list under it: only one the pointer rests on, or the pad's.
     const bool letter = focused.compare(0, 7, LetterPrefix) == 0;
-    const auto moved = ImGui::GetIO().MouseDelta;
     const auto code = letter ? CountryCode::Parsed(focused.substr(7)) : RowCountry(focused);
-    if (code.Present() && !(letter && (moved.x != 0 || moved.y != 0))) letter_ = initialOf(code);
+    if (code.Present() && !(letter && pointerMoving_)) letter_ = initialOf(code);
     if (!letter_ && current.kind == CountryPreference::Kind::Code) letter_ = initialOf(current.code);
     if (!letter_ && !names.empty()) letter_ = names[0].initial;
     // Each initial once, named for its first country, and the countries of the letter shown.
@@ -212,43 +211,27 @@ std::vector<MenuEntry> CountryPicker::BoardRows(const CountryPreference& current
     }
     const auto letterId = [&](std::size_t i) { return LetterPrefix + letters[i]->code.ToString(); };
     const auto countryId = [&](std::size_t i) { return RowPrefix + shown[i]->code.ToString(); };
-    const std::string first = shown.empty() ? std::string() : countryId(0);
-    std::string focusedLetter;
-    for (std::size_t i = 0; i < letters.size(); ++i) if (letters[i]->initial == letter_) focusedLetter = letterId(i);
-    const auto neighbours = [](MenuEntry& e, std::string left, std::string right, std::string up, std::string down) {
-        // An edge keeps the focus where it is, rather than the list's next row.
-        e.left = left.empty() ? e.id : left; e.right = right.empty() ? e.id : right;
-        e.up = up.empty() ? e.id : up; e.down = down.empty() ? e.id : down;
-    };
     const char* reason = loc::T("settings.leave_room_to_edit");
     std::vector<MenuEntry> rows;
-    const auto choice = [&](std::string id, std::string label, std::string detail) -> MenuEntry& {
+    const auto choice = [&](std::string id, std::string label, std::string detail) {
         auto row = Row(std::move(id), std::move(label), enabled ? std::move(detail) : std::string(reason), enabled);
         row.valueHighlighted = row.id == RowId(current);
         row.userText = row.id != "country-hidden";
         rows.push_back(std::move(row));
-        return rows.back();
     };
-    auto& autoRow = choice("country-auto", automatic.Present() ? loc::Tf("settings.country.automatic_value", CountryName(automatic)) : std::string(loc::T("settings.country.automatic")),
+    choice("country-auto", automatic.Present() ? loc::Tf("settings.country.automatic_value", CountryName(automatic)) : std::string(loc::T("settings.country.automatic")),
         automatic.Present() ? loc::Tf("country.automatic_detail", CountryName(automatic)) : std::string(loc::T("country.automatic_none")));
-    neighbours(autoRow, {}, "country-hidden", {}, letters.empty() ? std::string() : letterId(0));
-    auto& hiddenRow = choice("country-hidden", loc::T("settings.country.hidden"), loc::T("country.hidden_detail"));
-    neighbours(hiddenRow, "country-auto", first, {}, letters.empty() ? std::string() : letterId((std::min)(std::size_t(4), letters.size() - 1)));
-    // Letters seven across, under Automatic (the first four) and Hidden.
+    choice("country-hidden", loc::T("settings.country.hidden"), loc::T("country.hidden_detail"));
+    // Letters seven across, under Automatic and Hidden (DrawBoard places them;
+    // the pad moves among them by where they are drawn).
     for (std::size_t i = 0; i < letters.size(); ++i) {
         auto row = Row(letterId(i), platform::WideToUtf8(std::wstring(1, letters[i]->initial)), loc::Tf("country.letter_detail", counts[i]));
         row.userText = true;
         row.valueHighlighted = letters[i]->initial == letter_;
-        neighbours(row, i % 7 ? letterId(i - 1) : std::string(), i % 7 < 6 && i + 1 < letters.size() ? letterId(i + 1) : first,
-            i >= 7 ? letterId(i - 7) : i % 7 < 4 ? "country-auto" : "country-hidden", i + 7 < letters.size() ? letterId(i + 7) : std::string());
         rows.push_back(std::move(row));
     }
-    // The letter's countries two across; Left from the first column goes back to the letter.
-    for (std::size_t i = 0; i < shown.size(); ++i) {
-        auto& row = choice(countryId(i), shown[i]->text, loc::T("country.choose_detail"));
-        neighbours(row, i % 2 ? countryId(i - 1) : focusedLetter, i % 2 == 0 && i + 1 < shown.size() ? countryId(i + 1) : std::string(),
-            i >= 2 ? countryId(i - 2) : "country-hidden", i + 2 < shown.size() ? countryId(i + 2) : std::string());
-    }
+    // The letter's countries, two across.
+    for (std::size_t i = 0; i < shown.size(); ++i) choice(countryId(i), shown[i]->text, loc::T("country.choose_detail"));
     return rows;
 }
 
@@ -259,6 +242,10 @@ void CountryPicker::DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation
     const auto& focus = nav.Focus();
     const bool changed = focus != boardFocus_;
     boardFocus_ = focus;
+    // Whether the pointer moves, which the next BoardRows reads: a letter it
+    // passes over on its way to the list does not swap the list.
+    const auto moved = ImGui::GetIO().MouseDelta;
+    pointerMoving_ = moved.x != 0 || moved.y != 0;
     // A card: Select under the pointer, focus where it moves; its ground, its words, its marks.
     const auto card = [&](const MenuEntry& e, v2::Box b, bool centred) {
         const bool hovered = PressEntry(nav, rows, e, b, action, changed).hovered, focused = e.id == focus;

@@ -19,7 +19,8 @@ namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
 const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;std::vector<MenuNewsItem> news;
 int menuDeviceType=0;
-// The pad's Select and Back buttons, which are no shortcuts (MenuShortcutGlyph).
+// The pad's menu buttons: Select and Back, which are no shortcuts, and a
+// stick's LP and HP buttons, which are its tab shortcuts (MenuShortcutGlyph).
 input::MenuButtons menuButtons;
 gamepads::PromptBrand promptBrand;
 gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
@@ -121,7 +122,7 @@ void ApplyMenuGlyphs(){
 }
 void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback,gamepads::PromptBrand brand){
     menuDeviceType=type;
-    menuButtons.confirm=select;menuButtons.back=back;
+    menuButtons={};menuButtons.confirm=select;menuButtons.back=back;
     promptBrand=brand;
     padSelectGlyph=PhysicalGlyph(type,select,selectFallback);
     padBackGlyph=PhysicalGlyph(type,back,backFallback);
@@ -129,6 +130,8 @@ void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFall
 }
 void SetMenuGlyphs(int type,const input::MenuButtons& buttons,gamepads::PromptBrand brand){
     SetMenuGlyphs(type,buttons.confirm,buttons.back,buttons.confirmGlyph,buttons.backGlyph,brand);
+    // A stick's LP and HP buttons too, which name its tab shortcuts (MenuShortcutGlyph).
+    menuButtons=buttons;
 }
 namespace { netplay::SpeechPreferences menuSpeech; int menuDescribes=0; }
 void SetMenuSpeech(const netplay::SpeechPreferences& speech){ menuSpeech=speech; }
@@ -150,9 +153,13 @@ void NoteMenuDevice(unsigned padHeld){
 }
 int MenuPromptDevice(){ return KeyboardPrompts()?input::PadKeyboard:menuDeviceType; }
 const char* MenuShortcutGlyph(unsigned press){ return MenuShortcutGlyph(press,MenuPromptDevice(),menuButtons); }
+std::optional<LegendHint> ShortcutHint(unsigned press,std::string label){
+    if(const char* glyph=MenuShortcutGlyph(press))return LegendHint{glyph,std::move(label),press};
+    return std::nullopt;
+}
 std::vector<LegendHint> ShortcutHints(const std::vector<std::pair<unsigned,std::string>>& shortcuts){
     std::vector<LegendHint> hints;
-    for(const auto& s:shortcuts)if(const char* glyph=MenuShortcutGlyph(s.first))hints.push_back({glyph,s.second,s.first});
+    for(const auto& s:shortcuts)if(auto hint=ShortcutHint(s.first,s.second))hints.push_back(std::move(*hint));
     return hints;
 }
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
@@ -170,14 +177,14 @@ unsigned KeyboardMenuBits(bool typesText) {
         {ImGuiKey_UpArrow,MenuInput::Up},{ImGuiKey_DownArrow,MenuInput::Down},{ImGuiKey_LeftArrow,MenuInput::Left},
         {ImGuiKey_RightArrow,MenuInput::Right},{ImGuiKey_Enter,MenuInput::Select},{ImGuiKey_KeypadEnter,MenuInput::Select},{ImGuiKey_Escape,MenuInput::Back},{ImGuiKey_F2,MenuInput::Describe}};
     // Letters, Space, Backspace and Delete belong to a text field while one
-    // is being typed in.
-    static const Mapping menuOnly[]={
-        {ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back},
-        {ImGuiKey_F,MenuInput::Fighter},{ImGuiKey_T,MenuInput::Options},{ImGuiKey_C,MenuInput::Chat},{ImGuiKey_Delete,MenuInput::Leave},{ImGuiKey_PageUp,MenuInput::PrevTab},{ImGuiKey_PageDown,MenuInput::NextTab}};
+    // is being typed in; so do the shortcuts' keys (MenuShortcuts).
+    static const Mapping menuOnly[]={{ImGuiKey_Space,MenuInput::Select},{ImGuiKey_Backspace,MenuInput::Back}};
     unsigned bits=0;
     for(const auto& mapping:always) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
-    if(!typesText&&!ImGui::GetIO().WantTextInput)
+    if(!typesText&&!ImGui::GetIO().WantTextInput) {
         for(const auto& mapping:menuOnly) if(ImGui::IsKeyDown(mapping.key)) bits|=mapping.bit;
+        for(const auto& shortcut:MenuShortcuts) if(ImGui::IsKeyDown(shortcut.key)) bits|=shortcut.press;
+    }
     return bits;
 }
 MenuInput ReadMenuInput(bool textEditing,bool typesText,unsigned additionalPad) {
@@ -194,23 +201,23 @@ MenuInput ReadMenuInput(bool textEditing,bool typesText,unsigned additionalPad) 
     value.held|=textEditing?keys&~MenuInput::Select:keys; value.keyboard=keys;
     return value;
 }
-MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,const Body& body,bool flyout,float cardHeight,Tone statusTone,bool home) {
-    columns=(std::max)(1,columns);
+void GameMenu::ReadFrame(Frame& f) {
+    const auto& entries=f.entries;
     const double now=clock_.Update(ImGui::GetTime());
     // A newly visible component cannot reuse its parent's opening press.
     if(lastFrame_!=ImGui::GetFrameCount()-1) { navigation.Rearm(); lastEdit_.clear(); }
     lastFrame_=ImGui::GetFrameCount();
-    const bool modalAtStart=navigation.Editing()||navigation.Asking();
+    f.modalAtStart=navigation.Editing()||navigation.Asking();
     // A choice belongs to the body that draws it, so the body stays live for it.
-    const bool choosingAtStart=navigation.Choosing();
+    f.choosingAtStart=navigation.Choosing();
     auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
     const unsigned rawHeld=menuInput.held;
     if(!listEnabled) menuInput.held=0;
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
     // neither activate the focused row nor leak into the list behind it.
-    const bool noticeOpen=!notice_.empty();
-    if(noticeOpen) {
+    f.noticeOpen=!notice_.empty();
+    if(f.noticeOpen) {
         const unsigned pressed=noticeGate_.Pressed(noticeGate_.Held(menuInput.held));
         if(pressed&(MenuInput::Up|MenuInput::Left)) noticeSelected_=(std::max)(0,noticeSelected_-1);
         if(pressed&(MenuInput::Down|MenuInput::Right)) noticeSelected_=(std::min)(static_cast<int>(noticeButtons_.size())-1,noticeSelected_+1);
@@ -223,27 +230,26 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // through the list's own gate, so the press it takes is spent: still held
     // once the toast lets go, it does not act on the screen. Describe stays
     // the accessibility button's.
-    const bool toast=toastFocused&&!noticeOpen;
+    const bool toast=toastFocused&&!f.noticeOpen;
     toastPressed=toast?navigation.Take(menuInput.held)&~MenuInput::Describe:0;
     if(toast)menuInput.held=0;
-    held_=menuInput.held;
+    held_=f.held=menuInput.held;
     // Read before a notice takes the input: the accessibility button works in one too.
     const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;
     // InputText consumes this frame's characters before the requested acceptance.
     // The navigation model still owns the neutral gate and Back/accept ordering.
     {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
-     navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?(open->popout?1:MenuChoiceLayout(open->choices).across):1;}
-    auto action=toast?MenuAction{}:navigation.Update(menuInput,entries,columns,true,true);
-    const bool acceptEditText=action.kind==MenuAction::SubmitText;
-    if(acceptEditText)action={};
+     // As the value panel last drew it (its column's width), else as the popup does.
+     navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?(open->popout?1:valuesAcross_?valuesAcross_:MenuChoiceLayout(open->choices).across):1;}
+    f.action=toast?MenuAction{}:navigation.Update(menuInput,entries,f.columns,true,true);
+    f.acceptEditText=f.action.kind==MenuAction::SubmitText;
+    if(f.acceptEditText)f.action={};
     feedback_.Update(navigation.Screen(),entries,now);
-    // Settled after the body: a board may take Back for itself.
-    bool backRequested=false;
-    if(statusProbe)statusProbe(status,statusTone);
+    if(statusProbe)statusProbe(f.status,f.statusTone);
     if(entriesProbe)entriesProbe(entries);
     // LB/RB step the tabs, wrapping, as a Shortcut naming the tab. Without
     // tabs the press stays as it is, for a body with a strip of its own.
-    if(const int step=TabDelta(action);step&&!tabs.empty())action=TabAction(step);
+    if(const int step=TabDelta(f.action);step&&!tabs.empty())f.action=TabAction(step);
     // An open dialog owns the header and the legend: Back cancels it, and
     // Select names the button it highlights.
     std::string dialogSelect,dialogBack;
@@ -256,27 +262,30 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     const char* primary=!listEnabled?nullptr:dialog?(dialogSelect.empty()?nullptr:dialogSelect.c_str()):MenuPrimaryHint(focusedEntry==entries.end()?nullptr:&presentationEntry);
     // The on-screen keyboard's key the pad is on is its highlighted button.
     const std::string key=SpokenKey(entries);
-    Narrate(title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,!key.empty()?key:dialog?dialogSelect:std::string(),primary,adjustable,now,describe);
-    return DrawV2(title,entries,status,detail,columns,card,body,cardHeight,statusTone,home,flyout,action,menuInput.held,modalAtStart,choosingAtStart,acceptEditText,noticeOpen);
+    Narrate(f.title,entries,focusedEntry==entries.end()?nullptr:&presentationEntry,!key.empty()?key:dialog?dialogSelect:std::string(),primary,adjustable,now,describe);
 }
-MenuAction GameMenu::Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen) {
+MenuAction GameMenu::Finish(Frame& f) {
+    const auto& entries=f.entries;
+    auto& action=f.action;
+    // A tab step that neither the tabs nor the body took does nothing.
+    if(TabDelta(action))action={};
     // A value picked in its panel (OfferSteps) is the steps to it, as Left and Right would take.
-    if(action.kind==MenuAction::Chosen&&RowIndex(action.text,"#")>=0){
+    if(const auto to=action.kind==MenuAction::Chosen?RowKey<int>(action.text,"#"):std::nullopt){
         const auto row=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==action.id;});
-        const int to=RowIndex(action.text,"#"),from=row==entries.end()?-1:RowIndex(row->chosen,"#");
-        action=from>=0&&to!=from?MenuAction{MenuAction::Adjust,action.id,{},to-from}:MenuAction{};
+        const auto from=row==entries.end()?std::nullopt:RowKey<int>(row->chosen,"#");
+        action=from&&*to!=*from?MenuAction{MenuAction::Adjust,action.id,{},*to-*from}:MenuAction{};
     }
     // A renderer popup may survive a model cancellation by one frame. Close it
     // without rendering stale controls or reading a draft that was already cleared.
     DrawConfirmationModal(entries,action);
-    if(!body)DrawChoiceModal(entries,action);
-    DrawNoticeModal(noticeOpen);
-    DrawEditModal(entries,acceptEditText,action);
+    if(!f.body&&!f.valuePanel)DrawChoiceModal(entries,action);
+    DrawNoticeModal(f.noticeOpen);
+    DrawEditModal(entries,f.acceptEditText,action);
     // The editor takes the keyboard focus when it opens, so a notice that hid it
     // hands the focus back the same way when it returns.
     lastEdit_=notice_.empty()?navigation.EditingId():std::string();
     lastFocus_=navigation.Focus(); lastScreen_=navigation.Screen();
-    if(backRequested) return ownsBack?MenuAction{MenuAction::Back}:navigation.Return();
+    if(f.backRequested) return ownsBack?MenuAction{MenuAction::Back}:navigation.Return();
     return action;
 }
 void GameMenu::DrawListCard(ImVec2 listMin,ImVec2 listMax,ImVec2 rowMin,ImVec2 rowMax,float unit) {

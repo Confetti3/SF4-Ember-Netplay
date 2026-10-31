@@ -500,7 +500,7 @@ void SiteReadsQuietly(){
  h.Choose(RowId(Challonge).c_str());Profile(h,{Challonge});h.answer(false,"service_unavailable");
  Check(h.status==loc::T("identity.failure.unreachable")&&h.row("st-retry"),"A failed read on the site's Connect screen was not said");
  const auto siteReads=h.count(IdentityOp::SiteStatus);
- h.Screen("discord");
+ h.Screen("tab-online/0");
  Check(h.until(IdentityOp::BridgeInspect),"Settings > Discord did not read the service");
  Both(h);h.answer();
  Check(h.until(IdentityOp::DiscordStatus),"Settings > Discord did not read Discord's account");

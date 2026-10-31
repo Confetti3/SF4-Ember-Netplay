@@ -53,12 +53,12 @@ public:
     // the game's), once nothing else has anything to say: only an empty
     // `status` takes it.
     bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone) const;
-    // V2: the tabs over Replays (Matches, Sets when there are any, Export video
+    // The tabs over Replays (Matches, Sets when there are any, Export video
     // with a replay to export), and the Export video tab's caption, of the
     // focused row's replay, else the newest unless one is set up already.
     std::vector<std::pair<std::string, std::string>> Tabs(const ShellView& view) const;
     void ExportFrom(const ShellView& view, const std::string& focus);
-    // V2: a match's or set's card (the players and score, the fighters, its
+    // A match's or set's card (the players and score, the fighters, its
     // tags and date) and pane (its facts and Watch now, which opens the row's
     // choices); on Export video the pane is the caption over a small screen.
     bool DrawCard(const ShellView& view, const MenuEntry& row, ImVec2 min, ImVec2 max) const;

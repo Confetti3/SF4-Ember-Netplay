@@ -17,9 +17,10 @@ using netplay::IdentityRequest;
 constexpr double AnswerSeconds = 120;
 // A failed background read of the state or services is tried again after this.
 constexpr double BackgroundRetrySeconds = 30;
-// Settings > Discord is none of these screens, but its Tournament account row
-// reads the account on the selected service each time it opens, as they do.
-constexpr const char* AccountScreen = "discord";
+// Settings' Online tab (its Discord panel, ApplicationShell::SettingsScreens)
+// is none of these screens, but its Tournament account row reads the account
+// on the selected service each time it opens, as they do.
+bool AccountScreen(const std::string& screen) { return screen.compare(0, 10, "tab-online") == 0; }
 // Requests waiting to be sent: room for the screens' usual few, and a read
 // of every sign-in site a service may list (the Ember ID screen reads them all).
 constexpr std::size_t MaxQueued = 8 + netplay::MaxSignInSites;
@@ -241,7 +242,7 @@ void IdentityPanel::Update(const ShellView& v, const std::string& screen, const 
     announced_.Save(now);
     const bool owned = Owns(screen);
     if (!owned && onScreens_) Wipe();
-    const bool entered = (owned || screen == AccountScreen) && screen != lastScreen_;
+    const bool entered = (owned || AccountScreen(screen)) && screen != lastScreen_;
     // Leaving the Connect screen while it sets up stops it: nothing opens a
     // browser page behind the player's back.
     if (Starting() && AtScreenOf(signIn_->target, lastScreen_) && !AtScreenOf(signIn_->target, screen)) CancelAttempt();
@@ -384,7 +385,7 @@ void IdentityPanel::Finish(const ShellView& v) {
         // A ready Ember ID screen shows the Discord and sign-in site accounts on
         // Ember's own service, and Settings > Discord the one on the selected service;
         // without an ID nothing holds Create back.
-        if ((lastScreen_ == "identity" || lastScreen_ == AccountScreen) && id.state == "ready") {
+        if ((lastScreen_ == "identity" || AccountScreen(lastScreen_)) && id.state == "ready") {
             IdentityRequest list; list.op = IdentityOp::BridgeList; Queue(std::move(list));
         }
         // A running Connect creates the Ember ID itself when nothing must be typed.
@@ -425,7 +426,7 @@ void IdentityPanel::Finish(const ShellView& v) {
                 bridge_ = ember ? ember->id : first ? first->id : std::string();
             }
             // Settings > Discord shows the Discord account on the one selected.
-            if (const auto* selected = FindBridge(v, bridge_); selected && lastScreen_ == AccountScreen && id.state == "ready")
+            if (const auto* selected = FindBridge(v, bridge_); selected && AccountScreen(lastScreen_) && id.state == "ready")
                 ReadAccount(*selected, AccountReads::Discord());
             break;
         }

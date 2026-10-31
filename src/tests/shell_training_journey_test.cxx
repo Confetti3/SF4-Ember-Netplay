@@ -20,13 +20,18 @@ void TrainingSettingsAndHome() {
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Choose("settings");
  Check(h.shell.Navigation().Screen()=="tab-player","Settings did not open on its Player tab");
- h.Screen("interface");
- const std::vector<std::string> interfaceRows={"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing","ready-sound","ready-volume","ready-test","lobby-music","shortcut-hint","class-emblems","scale","tv","language",
-  "arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"};
- Check(rows.size()==interfaceRows.size(),"Interface no longer has its 22 rows");
- Check(!std::find_if(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="lobby-music";})->enabled,"Endless lobby music was offered without the game's menu entry");
- for(std::size_t i=0;i<interfaceRows.size();++i)Check(rows[i].id==interfaceRows[i],"Interface order changed");
- h.Screen("training-replays");
+ // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
+ const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/0",{"tv"}},
+  {"tab-interface/1",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
+  {"tab-interface/2",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"}},
+  {"tab-interface/3",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
+ for(const auto& [screen,ids]:interfacePanels){
+  h.Screen(screen);
+  Check(rows.size()==ids.size()&&std::equal(ids.begin(),ids.end(),rows.begin(),[](const std::string& id,const MenuEntry& row){return row.id==id;}),
+   "An Interface panel's rows changed");
+ }
+ Check(!rows.back().enabled,"Endless lobby music was offered without the game's menu entry");
+ h.Screen("tab-matches/1");
  Check(rows.size()==7&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture"&&
   rows[5].id=="picture-corner"&&rows[6].id=="picture-size","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
@@ -37,16 +42,16 @@ void TrainingSettingsAndHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();
  // Speech starts off, and its other rows wait for it. (Turning it on here
  // would speak through the PC's voice.)
- h.Screen("settings");h.Choose("accessibility");
+ h.Screen("tab-access/0");
  Check(rows.size()==11&&rows[0].id=="speech"&&rows[0].enabled&&rows[0].adjustable&&!rows[1].enabled&&!rows[5].enabled,"Accessibility rows wrong while speech is off");
  // Country opens its picker on the saved choice; a country saves and goes back to Settings.
- h.Screen("settings");h.Choose("country");
+ h.Screen("tab-player/1");h.Choose("country");
  Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");
  // The board shows one letter's countries: typing J shows Japan's.
  ImGui::GetIO().AddInputCharactersUTF8("J");h.Frame();h.Frame();
  h.shell.Navigation().Focus("country-JP",rows);h.Press(MenuInput::Select);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.country==CountryPreference::Of(CountryCode::Parsed("JP")),"A picked country did not save");
- Check(h.shell.Navigation().Screen()=="settings","Choosing a country did not go back to Settings");
+ Check(h.shell.Navigation().Screen()=="tab-player/1","Choosing a country did not go back to Settings");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("home");
  Check(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home lost its Training row");
@@ -71,7 +76,7 @@ void TrainingSettingsAndHome() {
  for(const bool publicRoom:{false,true,false}){
   JoinedRoom(h,9);h.view.room.serverOwned=publicRoom;h.view.canEditPreferences=false;
   std::vector<MenuEntry> shown;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){shown=entries;});
-  h.Frame();h.Screen("training-replays");
+  h.Frame();h.Screen("tab-matches/1");
   Check(!shown.empty()&&shown[0].id=="match-frame-meter"&&!shown[0].enabled,"Frame meter row changed in a room");
   Check(shown[0].value==loc::T("common.on")&&h.view.preferences.matchFrameMeter,"A public room lost the saved frame meter choice");
   Check(shown[0].detail==loc::T(publicRoom?"settings.match_frame_meter_private":"settings.match_frame_meter_detail"),"Frame meter detail ignores the room kind");
@@ -244,7 +249,7 @@ void PracticeRoomCreate() {
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("practice-room")==rows.end()&&row("room-type")!=rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room, or no room type");
  h.Press(MenuInput::Left);
- h.Screen("defaults");
+ h.Screen("tab-matches/0");
  Check(row("practice-room")==rows.end()&&row("room-type")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room or a room type");
  SetMenuEntriesProbe({});
 }
@@ -284,7 +289,7 @@ void DelayPolicyCreate() {
  Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn back");
  h.Choose("host");
  Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay again");
- h.Screen("defaults");
+ h.Screen("tab-matches/0");
  Check(row("delay-policy")!=rows.end(),"Gameplay defaults did not offer the delay policy");
  SetMenuEntriesProbe({});
 }

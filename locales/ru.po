@@ -412,15 +412,6 @@ msgstr "Сделать основным"
 msgid "menu.hint.save_fighter"
 msgstr "Сохранить бойца"
 
-msgid "menu.hint.save_costume"
-msgstr "Сохранить костюм"
-
-msgid "menu.hint.save_color"
-msgstr "Сохранить цвет"
-
-msgid "menu.hint.save_ultra"
-msgstr "Сохранить Ультра"
-
 msgid "menu.hint.save_stage"
 msgstr "Сохранить арену"
 
@@ -753,9 +744,6 @@ msgstr "Управление, настройки боя, графические 
 
 msgid "home.about"
 msgstr "Справка и сведения"
-
-msgid "home.about_detail"
-msgstr "Управление, диагностика, обновления и авторы."
 
 msgid "home.offline"
 msgstr "Главное меню"
@@ -1165,24 +1153,6 @@ msgstr "Войти по вставленному приглашению."
 msgid "room.edit_invitation"
 msgstr "Изменить приглашение"
 
-msgid "settings.title"
-msgstr "НАСТРОЙКИ"
-
-msgid "settings.player_detail"
-msgstr "Отображаемое имя, назначение контроллера и игра в фоне."
-
-msgid "settings.defaults_detail"
-msgstr "Задержка ввода и параметры новых лобби."
-
-msgid "settings.interface"
-msgstr "Интерфейс"
-
-msgid "settings.interface_detail"
-msgstr "Язык, HUD матча и размер интерфейса."
-
-msgid "settings.discord_detail"
-msgstr "Статус и приглашения."
-
 msgid "player.title"
 msgstr "ИГРОК И КОНТРОЛЛЕР"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "Игра заполняет экран в окне без рамки и рисуется в собственном разрешении экрана в формате 16:9, с чёрными полосами на более широком или высоком экране. Пока это включено, Alt+Enter и собственные настройки разрешения и полноэкранного режима в игре ничего не делают; игра сохраняет ваш выбор там на случай, когда это будет выключено. Влияет только на этот ПК. Изменения вступят в силу при следующем запуске игры."
 
 
-
-msgid "settings.interface_title"
-msgstr "ИНТЕРФЕЙС"
 
 msgid "size.small"
 msgstr "Малый"
@@ -1367,9 +1334,6 @@ msgstr "Аккаунт Discord, который знает ваш турнирн�
 
 msgid "discord.invitation_title"
 msgstr "ПРИГЛАШЕНИЕ DISCORD"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Отменить приглашение"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "Оригинал"
 
-msgid "selection.alternate"
-msgstr "Альт. {0}"
-
 msgid "selection.alternate_pack"
 msgstr "Альт. {0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ультра I"
 msgid "selection.ultra_two"
 msgstr "Ультра II"
 
-msgid "selection.hold"
-msgstr "ДЕРЖАТЬ"
-
 msgid "selection.stage"
 msgstr "Арена"
 
@@ -2292,50 +2250,8 @@ msgstr "Дополнительные настройки"
 msgid "selection.additional_options.detail"
 msgstr "Издание, издёвка, победный клич и гандикап."
 
-msgid "selection.choose_fighter"
-msgstr "ВЫБРАТЬ БОЙЦА"
-
-msgid "selection.appearance_title"
-msgstr "ВНЕШНИЙ ВИД"
-
-msgid "selection.costume_gallery"
-msgstr "Галерея костюмов"
-
-msgid "selection.color_gallery"
-msgstr "Галерея цветов"
-
-msgid "selection.color_preview"
-msgstr "Цвет {0} / Просмотр отдельных вариантов."
-
-msgid "selection.costume_gallery_title"
-msgstr "ГАЛЕРЕЯ КОСТЮМОВ"
-
-msgid "selection.color_gallery_title"
-msgstr "ГАЛЕРЕЯ ЦВЕТОВ"
-
-msgid "selection.loading_choices"
-msgstr "Загрузка доступных вариантов"
-
-msgid "selection.loading_choices.detail"
-msgstr "Ожидание данных игры о доступных костюмах и цветах."
-
-msgid "selection.no_colors"
-msgstr "Для этого костюма нет открытых цветов."
-
 msgid "selection.not_owned"
 msgstr "Не куплено в Steam."
-
-msgid "selection.not_owned_badge"
-msgstr "НЕ КУПЛЕНО"
-
-msgid "selection.color"
-msgstr "Цвет {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "УЛЬТРА КОМБО"
-
-msgid "selection.ultra_double.detail"
-msgstr "Оба Ультра Комбо с пониженным уроном или эффектом."
 
 msgid "selection.saved"
 msgstr "СОХРАНЕНО"
@@ -2397,26 +2313,8 @@ msgstr "ПРОПУСК"
 msgid "selection.handicap"
 msgstr "Гандикап"
 
-msgid "selection.saved_value"
-msgstr "Сохранено: {0}"
-
-msgid "selection.ultra_selected"
-msgstr "Это Ультра выбрано."
-
-msgid "selection.preview_save"
-msgstr "Просмотр: «Выбрать» сохранит."
-
-msgid "selection.preview_locked"
-msgstr "Только просмотр: выбор заблокирован."
-
-msgid "selection.saved_appearance"
-msgstr "Сохранено: {0} / цвет {1}"
-
 msgid "selection.saved_full"
 msgstr "Сохранено: {0} / {1} / цвет {2}"
-
-msgid "selection.preview_save_short"
-msgstr "Только просмотр: «Выбрать» для сохранения"
 
 msgid "selection.status_editable"
 msgstr "«Выбрать» сохраняет / «Назад» возвращает."
@@ -5179,21 +5077,6 @@ msgstr "Начало: --"
 msgid "settings.training_replays"
 msgstr "Тренировка и повторы"
 
-msgid "settings.training_replays_detail"
-msgstr "Счётчик кадров в матчах, автоготовность после тренировки и выбор сохраняемых матчей."
-
-msgid "settings.training_replays_title"
-msgstr "ТРЕНИРОВКА И ПОВТОРЫ"
-
-msgid "settings.accessibility"
-msgstr "Специальные возможности"
-
-msgid "settings.accessibility_detail"
-msgstr "Голос, который читает меню Ember вслух."
-
-msgid "settings.accessibility_title"
-msgstr "СПЕЦИАЛЬНЫЕ ВОЗМОЖНОСТИ"
-
 msgid "speech.setting"
 msgstr "Озвучивание"
 
@@ -5673,9 +5556,6 @@ msgstr "Игра аварийно завершилась. Включено «О�
 
 msgid "reports.settings_title"
 msgstr "Отчёты о проблемах"
-
-msgid "reports.settings_detail"
-msgstr "Что содержит отчёт о сбое, и отправленные отчёты."
 
 msgid "reports.sent_list"
 msgstr "Отправленные отчёты"

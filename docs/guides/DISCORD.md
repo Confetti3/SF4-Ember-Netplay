@@ -1,6 +1,6 @@
 # Discord activity and invitations
 
-Ember shows your activity in Discord and lets friends join your room through Discord invitations, using the official Discord Social SDK. In Settings > Discord, **Show activity** shares your status and **Allow invitations** lets friends join through Discord. Invitations need Show activity on, and the Discord desktop app must be running.
+Ember shows your activity in Discord and lets friends join your room through Discord invitations, using the official Discord Social SDK. In Settings > Online > Discord, **Show activity** shares your status and **Allow invitations** lets friends join through Discord. Invitations need Show activity on, and the Discord desktop app must be running.
 
 ## Application setup
 

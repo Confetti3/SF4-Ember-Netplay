@@ -1,5 +1,5 @@
 #pragma once
-// Ember's look (the V2 Overhaul design canvas): the layout rules and the small
+// Ember's look (the design canvas, lab/v2-mockups): the layout rules and the small
 // set of parts every screen is built from. Presentation only: nothing here
 // reads or changes navigation.
 #include "NameMarks.hxx"
@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace sf4e { namespace ui { namespace v2 {
-// The palette roles of Theme.cxx by name, so V2
+// The palette roles of Theme.cxx by name, so the
 // parts never write a literal: grounds from ink to hover, the accent that
 // marks focus and the thing to act on, text, the red of a LIVE mark, the
 // danger tone of Leave room (Kit: Error) and the green of Ready (Kit: Success).
@@ -56,6 +56,8 @@ ImU32 PanelGround(bool seeThrough = false);
 // A titled panel (Kit: card): its ground and edge, `title` (20 px) in a 40 px
 // head with `trailing` muted at its right, and a rule under the head. `open`
 // lights the head and the edge (Settings' open panel). Returns the body.
+// A title that does not fit beside `trailing` drops it, and one that does not
+// fit alone wraps (Heading), the head growing by its second line.
 Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing = nullptr, bool open = false);
 // A group's heading (Kit: eyebrow): 14 px in the heading font, muted unless
 // `tone` says otherwise. Returns its width.
@@ -64,6 +66,21 @@ float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32
 // with Fit, so the text probe sees it; `centred` centres it in `width`.
 // Returns the width drawn.
 float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false, bool probe = true);
+// A heading at `size` in the heading font that wraps rather than cut (a
+// Settings rail head, a panel's title): one line when it fits `width`, else
+// as many whole words as the first line holds (one at least) and the rest on
+// a second line HeadingLine apart, its box growing by that line. Each line
+// goes through Text, so what still does not fit is cut and the probe reports
+// it. HeadingHeight is its height in `width`; Heading draws it and returns it.
+// In `font` when given (a row's label in the body font), else the heading font.
+constexpr float HeadingLine = 1.2f;
+float HeadingHeight(const std::string& text, float width, float size, ImFont* font = nullptr);
+float Heading(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr);
+// A head's state word at its right, in the current font (a panel's Open, a
+// rail head's Closed): it stands while the heading fits beside it on one line
+// in `room` with `gap` between, and gives way before the heading wraps.
+// Returns its width, or 0 when it gives way.
+float HeadWord(const std::string& heading, float size, const std::string& word, float room, float gap);
 // The chevron of a row whose Select opens something: `size` from its tip to
 // each end, its tip pointing right at `at.x + size * .6`.
 void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);

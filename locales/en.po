@@ -412,15 +412,6 @@ msgstr "Save main"
 msgid "menu.hint.save_fighter"
 msgstr "Save fighter"
 
-msgid "menu.hint.save_costume"
-msgstr "Save costume"
-
-msgid "menu.hint.save_color"
-msgstr "Save color"
-
-msgid "menu.hint.save_ultra"
-msgstr "Save Ultra"
-
 msgid "menu.hint.save_stage"
 msgstr "Save stage"
 
@@ -753,9 +744,6 @@ msgstr "Player, controller, gameplay defaults, interface, language, training and
 
 msgid "home.about"
 msgstr "Help & about"
-
-msgid "home.about_detail"
-msgstr "Controls, diagnostics, updates and credits."
 
 msgid "home.offline"
 msgstr "Play offline"
@@ -1165,24 +1153,6 @@ msgstr "Join using the pasted invitation."
 msgid "room.edit_invitation"
 msgstr "Edit invitation"
 
-msgid "settings.title"
-msgstr "SETTINGS"
-
-msgid "settings.player_detail"
-msgstr "Display name, controller assignment and playing in the background."
-
-msgid "settings.defaults_detail"
-msgstr "Input delay and new-room defaults."
-
-msgid "settings.interface"
-msgstr "Interface"
-
-msgid "settings.interface_detail"
-msgstr "Language, match HUD and interface size."
-
-msgid "settings.discord_detail"
-msgstr "Activity and invitations."
-
 msgid "player.title"
 msgstr "PLAYER & CONTROLLER"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "The game fills the screen in a window without a frame, drawn at the screen's own resolution in 16:9, with black bars on a wider or taller screen. While it is on, Alt+Enter and the game's own resolution and fullscreen options do nothing; the game keeps your choice there for when it is off. It only affects this PC. Changes apply the next time the game starts."
 
 
-
-msgid "settings.interface_title"
-msgstr "INTERFACE"
 
 msgid "size.small"
 msgstr "Small"
@@ -1367,9 +1334,6 @@ msgstr "The Discord account your tournament site knows, such as BluMint. It can 
 
 msgid "discord.invitation_title"
 msgstr "DISCORD INVITATION"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Cancel invitation"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "Original"
 
-msgid "selection.alternate"
-msgstr "Alternate {0}"
-
 msgid "selection.alternate_pack"
 msgstr "Alternate {0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "HOLD"
-
 msgid "selection.stage"
 msgstr "Stage"
 
@@ -2292,50 +2250,8 @@ msgstr "Additional options"
 msgid "selection.additional_options.detail"
 msgstr "Edition, personal action, win quote and handicap."
 
-msgid "selection.choose_fighter"
-msgstr "CHOOSE FIGHTER"
-
-msgid "selection.appearance_title"
-msgstr "APPEARANCE"
-
-msgid "selection.costume_gallery"
-msgstr "Costume gallery"
-
-msgid "selection.color_gallery"
-msgstr "Color gallery"
-
-msgid "selection.color_preview"
-msgstr "Color {0} / Browse individual previews."
-
-msgid "selection.costume_gallery_title"
-msgstr "COSTUME GALLERY"
-
-msgid "selection.color_gallery_title"
-msgstr "COLOR GALLERY"
-
-msgid "selection.loading_choices"
-msgstr "Loading available choices"
-
-msgid "selection.loading_choices.detail"
-msgstr "Waiting for native costume and color availability."
-
-msgid "selection.no_colors"
-msgstr "No unlocked colors for this costume."
-
 msgid "selection.not_owned"
 msgstr "Not owned on Steam."
-
-msgid "selection.not_owned_badge"
-msgstr "NOT OWNED"
-
-msgid "selection.color"
-msgstr "Color {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "ULTRA COMBO"
-
-msgid "selection.ultra_double.detail"
-msgstr "Both Ultra Combos with reduced damage or effectiveness."
 
 msgid "selection.saved"
 msgstr "SAVED"
@@ -2397,26 +2313,8 @@ msgstr "SKIPPED"
 msgid "selection.handicap"
 msgstr "Handicap"
 
-msgid "selection.saved_value"
-msgstr "Saved: {0}"
-
-msgid "selection.ultra_selected"
-msgstr "This Ultra is selected."
-
-msgid "selection.preview_save"
-msgstr "Preview only - press Select to save."
-
-msgid "selection.preview_locked"
-msgstr "Preview only - selection is locked."
-
-msgid "selection.saved_appearance"
-msgstr "Saved: {0} / Color {1}"
-
 msgid "selection.saved_full"
 msgstr "Saved: {0} / {1} / Color {2}"
-
-msgid "selection.preview_save_short"
-msgstr "Preview only - press Select to save"
 
 msgid "selection.status_editable"
 msgstr "Select saves / Back returns one level."
@@ -4814,21 +4712,6 @@ msgstr "Start --"
 msgid "settings.training_replays"
 msgstr "Training and replays"
 
-msgid "settings.training_replays_detail"
-msgstr "The frame meter in matches, Auto-ready from Training, and which matches are saved."
-
-msgid "settings.training_replays_title"
-msgstr "TRAINING AND REPLAYS"
-
-msgid "settings.accessibility"
-msgstr "Accessibility"
-
-msgid "settings.accessibility_detail"
-msgstr "Speech that reads Ember's menus aloud."
-
-msgid "settings.accessibility_title"
-msgstr "ACCESSIBILITY"
-
 msgid "speech.setting"
 msgstr "Speech"
 
@@ -5309,9 +5192,6 @@ msgstr "The game crashed. Send problem reports is on, so a report without the cr
 
 msgid "reports.settings_title"
 msgstr "Problem reports"
-
-msgid "reports.settings_detail"
-msgstr "What a crash report holds, and the reports sent."
 
 msgid "reports.sent_list"
 msgstr "Sent reports"

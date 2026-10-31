@@ -412,15 +412,6 @@ msgstr "주 캐릭터로 저장"
 msgid "menu.hint.save_fighter"
 msgstr "캐릭터 저장"
 
-msgid "menu.hint.save_costume"
-msgstr "코스튬 저장"
-
-msgid "menu.hint.save_color"
-msgstr "색상 저장"
-
-msgid "menu.hint.save_ultra"
-msgstr "울트라 저장"
-
 msgid "menu.hint.save_stage"
 msgstr "스테이지 저장"
 
@@ -753,9 +744,6 @@ msgstr "플레이어, 컨트롤러, 기본 대전 규칙, 인터페이스, 언�
 
 msgid "home.about"
 msgstr "도움말 및 정보"
-
-msgid "home.about_detail"
-msgstr "조작법, 진단, 업데이트 및 제작진 정보입니다."
 
 msgid "home.offline"
 msgstr "오프라인 플레이"
@@ -1165,24 +1153,6 @@ msgstr "붙여넣은 초대로 참가합니다."
 msgid "room.edit_invitation"
 msgstr "초대 편집"
 
-msgid "settings.title"
-msgstr "설정"
-
-msgid "settings.player_detail"
-msgstr "표시 이름, 컨트롤러 지정, 백그라운드 플레이입니다."
-
-msgid "settings.defaults_detail"
-msgstr "입력 지연 및 새 방의 기본 설정입니다."
-
-msgid "settings.interface"
-msgstr "화면"
-
-msgid "settings.interface_detail"
-msgstr "언어, 대전 HUD와 화면 크기입니다."
-
-msgid "settings.discord_detail"
-msgstr "활동 표시와 초대입니다."
-
 msgid "player.title"
 msgstr "플레이어 및 컨트롤러"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "게임이 테두리 없는 창으로 화면을 채우고, 화면 고유 해상도의 16:9로 그려집니다. 더 넓거나 높은 화면에서는 검은 띠가 표시됩니다. 켜져 있는 동안에는 Alt+Enter와 게임 자체의 해상도 및 전체 화면 옵션이 작동하지 않으며, 거기서 고른 설정은 끌 때를 위해 보관됩니다. 이 PC에만 적용됩니다. 변경 사항은 다음에 게임을 시작할 때 적용됩니다."
 
 
-
-msgid "settings.interface_title"
-msgstr "화면"
 
 msgid "size.small"
 msgstr "작게"
@@ -1367,9 +1334,6 @@ msgstr "대회 사이트(예: BluMint)가 알고 있는 Discord 계정입니다.
 
 msgid "discord.invitation_title"
 msgstr "DISCORD 초대"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "초대 취소"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "기본"
 
-msgid "selection.alternate"
-msgstr "추가 {0}"
-
 msgid "selection.alternate_pack"
 msgstr "추가 {0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "모으기"
-
 msgid "selection.stage"
 msgstr "스테이지"
 
@@ -2292,50 +2250,8 @@ msgstr "추가 옵션"
 msgid "selection.additional_options.detail"
 msgstr "에디션, 퍼스널 액션, 승리 대사 및 핸디캡입니다."
 
-msgid "selection.choose_fighter"
-msgstr "캐릭터 선택"
-
-msgid "selection.appearance_title"
-msgstr "외형"
-
-msgid "selection.costume_gallery"
-msgstr "코스튬 목록"
-
-msgid "selection.color_gallery"
-msgstr "색상 목록"
-
-msgid "selection.color_preview"
-msgstr "색상 {0} / 개별 미리 보기 탐색"
-
-msgid "selection.costume_gallery_title"
-msgstr "코스튬 목록"
-
-msgid "selection.color_gallery_title"
-msgstr "색상 목록"
-
-msgid "selection.loading_choices"
-msgstr "선택 항목 로딩 중"
-
-msgid "selection.loading_choices.detail"
-msgstr "게임의 코스튬과 색상 사용 가능 여부를 기다립니다."
-
-msgid "selection.no_colors"
-msgstr "이 코스튬에 해제된 색상이 없습니다."
-
 msgid "selection.not_owned"
 msgstr "Steam에서 보유하지 않았습니다."
-
-msgid "selection.not_owned_badge"
-msgstr "미보유"
-
-msgid "selection.color"
-msgstr "색상 {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "울트라 콤보"
-
-msgid "selection.ultra_double.detail"
-msgstr "두 울트라 콤보를 모두 사용할 수 있지만 위력이나 효과가 감소합니다."
 
 msgid "selection.saved"
 msgstr "저장됨"
@@ -2397,26 +2313,8 @@ msgstr "제외됨"
 msgid "selection.handicap"
 msgstr "핸디캡"
 
-msgid "selection.saved_value"
-msgstr "저장: {0}"
-
-msgid "selection.ultra_selected"
-msgstr "이 울트라를 선택했습니다."
-
-msgid "selection.preview_save"
-msgstr "미리 보기만 표시 중 - 선택을 눌러 저장"
-
-msgid "selection.preview_locked"
-msgstr "미리 보기만 표시 중 - 선택 잠김"
-
-msgid "selection.saved_appearance"
-msgstr "저장: {0} / 색상 {1}"
-
 msgid "selection.saved_full"
 msgstr "저장: {0} / {1} / 색상 {2}"
-
-msgid "selection.preview_save_short"
-msgstr "미리 보기 - 선택을 눌러 저장"
 
 msgid "selection.status_editable"
 msgstr "선택으로 저장 / 뒤로 한 단계 이동"
@@ -5180,21 +5078,6 @@ msgstr "발생 --"
 msgid "settings.training_replays"
 msgstr "트레이닝과 리플레이"
 
-msgid "settings.training_replays_detail"
-msgstr "대전 중 프레임 미터, 트레이닝 복귀 시 자동 준비, 저장할 대전 설정."
-
-msgid "settings.training_replays_title"
-msgstr "트레이닝과 리플레이"
-
-msgid "settings.accessibility"
-msgstr "접근성"
-
-msgid "settings.accessibility_detail"
-msgstr "Ember의 메뉴를 소리 내어 읽어 주는 음성입니다."
-
-msgid "settings.accessibility_title"
-msgstr "접근성"
-
 msgid "speech.setting"
 msgstr "음성"
 
@@ -5674,9 +5557,6 @@ msgstr "게임이 충돌했습니다. 문제 보고서 보내기가 켜져 있�
 
 msgid "reports.settings_title"
 msgstr "문제 보고서"
-
-msgid "reports.settings_detail"
-msgstr "충돌 보고서에 담기는 내용과 보낸 보고서."
 
 msgid "reports.sent_list"
 msgstr "보낸 보고서"

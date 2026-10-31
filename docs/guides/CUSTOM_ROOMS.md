@@ -270,7 +270,8 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
   column to change the column's width, and the grip between members and chat
   to share the column. With a pad or the keyboard, use Settings > Interface >
   Room layout: Column width, Members and chat, Ready-made layout and Restore
-  defaults.
+  defaults. These, each panel's Hide and Show and the picture's size are
+  saved while you are in the room; the rest of Settings is locked until you leave.
 - **Watching:** with the watched game's picture on, the board shows it large
   over one row of table cards. The column grip makes it bigger.
 

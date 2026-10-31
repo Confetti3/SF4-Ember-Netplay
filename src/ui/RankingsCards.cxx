@@ -4,6 +4,7 @@
 #include "NameMarks.hxx"
 #include "PublicRoomsCards.hxx"
 #include "RoomCards.hxx"
+#include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
@@ -90,7 +91,7 @@ bool StateCard(const std::string& id) {
 // its name and its line; you and the board's players as S tags, you with the
 // You chip; a class's heading in the accent with its count. False for the
 // rest (the state cards, Board as), which DrawRankingsRow draws plainly.
-bool DrawV2Row(const MenuEntry& e, const Standing* standing, const std::vector<netplay::rankings::BoardEntry>* board, ImVec2 min, ImVec2 max) {
+bool DrawRankingsBoardRow(const MenuEntry& e, const Standing* standing, const std::vector<netplay::rankings::BoardEntry>* board, ImVec2 min, ImVec2 max) {
     const float s = Scale(), h = max.y - min.y;
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
@@ -131,9 +132,9 @@ bool DrawV2Row(const MenuEntry& e, const Standing* standing, const std::vector<n
         return true;
     }
     if (StartsWith(e.id, "rkb-p:")) {
-        const auto index = static_cast<std::size_t>(std::stoul(e.id.substr(6)));
-        if (!board || index >= board->size()) return false;
-        const auto& entry = (*board)[index];
+        const auto index = RowKey<std::size_t>(e.id, "rkb-p:");
+        if (!board || !index || *index >= board->size()) return false;
+        const auto& entry = (*board)[*index];
         v2::TagView tag;
         tag.name = entry.listing.name; tag.marks = {entry.listing.country, SkillBadge::OfClass(entry.band, true)};
         const float x = min.x + 12 * s, right = max.x - 12 * s;
@@ -154,7 +155,7 @@ bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 
     if (!known) return false;
     // A board of hundreds paints only the rows in view.
     if (!ImGui::IsRectVisible(min, max)) return true;
-    if (DrawV2Row(e, standing, board, min, max)) return true;
+    if (DrawRankingsBoardRow(e, standing, board, min, max)) return true;
     if (StateCard(e.id)) DrawStateCard(e, min, max);
     else if (e.id == "rk-board-as") {
         const bool listed = standing && standing->listed && e.value == standing->listing.name;

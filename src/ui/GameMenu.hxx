@@ -9,6 +9,7 @@
 #include "MenuSpeech.hxx"
 #include "../common/Country.hxx"
 #include <functional>
+#include <optional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
 class SelectionArt;
@@ -47,11 +48,16 @@ void SetMenuNews(std::vector<MenuNewsItem> news);
 // right-aligned in `box`.
 bool MenuValueIsToggle(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
-// A value row's words on a board (Create, Settings, Fighter select): the
-// label `inset` from the left, and at the right the value as FitMenuRow
-// shares the row (DrawMenuValue), or a fixed value and the chevron when Select
-// opens it; a value under its label takes the row's last UnderLine.
-void DrawMenuRow(ImDrawList* draw, const MenuEntry& e, v2::Box row, bool enabled, v2::Share value, float inset);
+// A board row at `at`, `width` wide, laid out (MenuRowLayout) as FitMenuRow
+// shares it: 48 px, its words 14 px in from both ends and 8 px between label
+// and value beside it, growing by v2::UnderLine for a value under its label
+// and by another for a label wider than its whole line, which wraps. The one
+// layout a row's height, drawing and pointer read.
+MenuRowLayout LayOutBoardRow(const MenuEntry& e, ImVec2 at, float width);
+// A value row's words on a board: the label in its box (on two lines, v2::Heading,
+// where the layout wrapped it), and the value in its own (DrawMenuValue), or a
+// fixed value and the chevron when Select opens it.
+void DrawMenuRow(ImDrawList* draw, const MenuEntry& e, const MenuRowLayout& at, bool enabled);
 // The width a row's value wants: a switch its own, a value its widest word
 // (its value or any of its choices) with the arrows or chevron.
 float MenuValueWidth(const MenuEntry& e);
@@ -59,18 +65,40 @@ float MenuValueWidth(const MenuEntry& e);
 // value wants MenuValueWidth and gives way down to a floor that does not
 // depend on its word now (a control's under half the row, a fixed value's its
 // chevron's place), so rows never move as values change. Lay the row
-// out with the result: its value to PressEntry and DrawMenuRow, and the row
-// v2::UnderLine taller when the value goes under the label.
+// out with the result (LayOutBoardRow, a list's cards): its value to
+// PressEntry and DrawMenuRow, and the row v2::UnderLine taller when the value
+// goes under the label, and once more when the label alone is wider than the
+// row and wraps.
 v2::Share FitMenuRow(const MenuEntry& e, float room, float gap, bool grows = true);
 // A row's box on a board as a button: the moving pointer focuses the row,
 // and a press focuses it and is Select on it, or steps its value when it lands
-// on one end of the `valueWidth` at the row's right (14 px in from its edge).
-// Nothing answers while a question or the keyboard is open. With `scroll` the
-// focused row scrolls into view. With `choose` false a press is only reported,
-// for a box that means something else when pressed (a panel's head).
+// on the value where `layout` put it (MenuValueStep; a row with no value
+// leaves it empty). Nothing answers while a question or the keyboard is open.
+// With `scroll` the focused row scrolls into view. With `choose` false a press
+// is only reported, for a box that means something else when pressed (a
+// panel's head).
 struct EntryHit { bool pressed, hovered; };
 EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
-    bool scroll = false, float valueWidth = 0, bool choose = true);
+    bool scroll = false, const MenuRowLayout& layout = {}, bool choose = true);
+// How a board draws one value row (GameMenu::DrawBoardRow).
+struct BoardRowStyle {
+    // Where the focused row's choices open (GameMenu::bodyChoices' column).
+    v2::Box column;
+    // The words drawn as enabled (MenuVisualFeedback::Enabled).
+    bool enabled = true;
+    // The focused row scrolls into view (a focus that just changed).
+    bool scroll = false;
+    // False: a press is only reported (a closed Settings panel's rows); the
+    // row shows neither hover nor focus.
+    bool choose = true;
+    // A free-standing card (v2::CardGround) rather than a row in a panel (v2::RowGround).
+    bool card = false;
+};
+struct BoardRowHit { v2::Box box; EntryHit hit; };
+// A value row's height on a board `width` wide (LayOutBoardRow): 48 px, and
+// v2::UnderLine more when its value goes under its label and again when its
+// label wraps. For a pass that sizes a panel first.
+float BoardRowHeight(const MenuEntry& e, float width);
 const std::vector<MenuNewsItem>& MenuNews();
 // The legend's Select and Back glyphs for the device in use (SetMenuGlyphs).
 const char* MenuSelectGlyph();
@@ -79,8 +107,11 @@ const char* MenuBackGlyph();
 // PrevTab, NextTab) on the device the prompts are drawn for, or null where it
 // has no such button (ControllerNavigation.hxx, MenuShortcuts).
 const char* MenuShortcutGlyph(unsigned press);
-// A hint for each of these shortcut presses the device has, each a button
-// that presses it; the others are left out.
+// The hint for a shortcut press, a button that presses it, where the device
+// the prompts are drawn for has the shortcut (Delete's Leave only on the
+// keyboard); none elsewhere.
+std::optional<LegendHint> ShortcutHint(unsigned press, std::string label);
+// ShortcutHint for each of these presses, those the device has.
 std::vector<LegendHint> ShortcutHints(const std::vector<std::pair<unsigned, std::string>>& shortcuts);
 // The menu art behind a full-window menu, under a tint; false without art.
 bool DrawMenuBackdrop();
@@ -241,13 +272,51 @@ public:
     // The menu buttons held this frame (a notice that owns the input holds none), for a body
     // that scrolls with them.
     unsigned Held() const { return held_; }
+    // One value row on a board, `width` wide from `at`, for a body to draw:
+    // laid out once (LayOutBoardRow) for PressEntry and
+    // DrawMenuRow, on its ground with the focus marks; the focused row's
+    // choices open in style.column (bodyChoices).
+    BoardRowHit DrawBoardRow(const std::vector<MenuEntry>& rows,const MenuEntry& e,ImVec2 at,float width,MenuAction& action,const BoardRowStyle& style);
 private:
-    // The screen's drawing (GameMenuV2.cxx): Draw's entries, input and
-    // dialogs laid out as the V2 design's cards, panes and hint bar.
-    MenuAction DrawV2(const char* title,const std::vector<MenuEntry>& entries,const char* status,const Detail& detail,int columns,const Card& card,
-        const Body& body,float cardHeight,Tone statusTone,bool home,bool flyout,MenuAction action,unsigned held,bool modalAtStart,bool choosingAtStart,bool acceptEditText,bool noticeOpen);
+    // One frame of Draw: what its caller handed it and what the frame's input
+    // decided (ReadFrame), for the parts that draw the screen and Finish.
+    struct Frame {
+        const char* title; const std::vector<MenuEntry>& entries; const char* status; const Detail& detail;
+        int columns; const Card& card; const Body& body; bool flyout; float cardHeight; Tone statusTone; bool home;
+        MenuAction action{};
+        // The menu buttons held (none while a notice owns them).
+        unsigned held = 0;
+        // As the frame began: an editor or question open, a choice open, a
+        // notice open; the editor's text accepted by its keyboard gesture.
+        bool modalAtStart = false, choosingAtStart = false, noticeOpen = false, acceptEditText = false;
+        // Back asked for by the header, the hint bar or the right button; Finish answers it.
+        bool backRequested = false;
+        // A value panel or popout is open over the screen, so no choice popup.
+        bool valuePanel = false;
+    };
+    // The frame's input (GameMenu.cxx): the pad and keys, a notice's or a
+    // toast's answer, the navigation's action and what speech says.
+    void ReadFrame(Frame& f);
+    // Parts of Draw (GameMenuDraw.cxx), each in its box cut from the window.
+    // The title or Home's brand, and the tabs; `content` loses what they take.
+    void DrawHeader(Frame& f, v2::Box& content, bool narrow);
+    // A screen's own body in place of the cards, and its value panel.
+    void DrawBody(Frame& f, v2::Box content);
+    // The cards and, beside them, the focused card's detail or Home's player
+    // card and news; then the value panel and the list card over them.
+    void DrawCards(Frame& f, v2::Box content, bool narrow);
+    // The cards in `list`; returns the focused card's box.
+    v2::Box DrawCardList(Frame& f, v2::Box list, bool split);
+    void DrawHomePane(Frame& f, v2::Box pane);
+    void DrawDetailPane(Frame& f, v2::Box pane);
+    // The focused row's choices, while they are open: a panel on its card
+    // inside `column`, or a popout. False while none is open.
+    bool DrawValuePanel(Frame& f, v2::Box card, v2::Box column);
+    // The hint bar on the window's bottom edge: what the buttons do now, each
+    // also a button, and the status.
+    void DrawHintBar(Frame& f, v2::Box bar);
     // The dialogs over the screen, then the frame's bookkeeping and its answer.
-    MenuAction Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen);
+    MenuAction Finish(Frame& f);
     // The Shortcut to the tab `step` (-1, 1) away from the current one (StepTab).
     MenuAction TabAction(int step) const { return {MenuAction::Shortcut, tabs[StepTab(tab, step, static_cast<int>(tabs.size()))].first}; }
     // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,
@@ -284,6 +353,8 @@ private:
     // Where an open popout sits (Values), set on the frame it opens; whether
     // a popout or value panel is open, and closes on this frame's outside click.
     ImVec2 popoutAt_{};bool valuesOpen_=false,valuesClose_=false;
+    // How many choices across the open value panel shows (DrawValuePanel), 0 while none is open.
+    std::size_t valuesAcross_=0;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};
     std::vector<NoticeButton> noticeButtons_;

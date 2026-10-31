@@ -29,7 +29,9 @@ void EndDialogCard();
 std::size_t MenuChoiceColumns(std::size_t count);
 // The choice popup: its cells share one width that fits the longest label,
 // up to MenuChoiceColumns across; when that many of that width do not fit,
-// fewer, down to one column that Up and Down move through.
+// fewer, down to one column that Up and Down move through. The cells fit
+// in 60% of the screen (720 px at most), and in `room` when it is given (a
+// value panel's column on a board).
 struct MenuChoiceGrid { std::size_t across; float cell; };
-MenuChoiceGrid MenuChoiceLayout(const std::vector<MenuChoice>& choices);
+MenuChoiceGrid MenuChoiceLayout(const std::vector<MenuChoice>& choices, float room = 0);
 } }

@@ -69,14 +69,14 @@ whenever the dump is included. Full local dumps are never uploaded. Small
 dumps over 4 MiB are not offered. Raw dumps are kept on Ember's server for up
 to 30 days; processed reports and pending delivery have separate retention.
 
-Sending crash reports without asking is opt-in. **Settings > Problem reports >
+Sending crash reports without asking is opt-in. **Settings > About > Problem reports >
 Send problem reports** defaults to off. Choosing **Always send** in the
 launcher's crash message, after its confirmation, turns it on and sends that
 crash's report. With it on, the launcher sends each crash's report without
 asking: logs only, never a dump, and at most 3 reports in 24 hours. Every
 report sent counts toward that limit, including ones sent from a preview, and
 while the record of sent reports cannot be read nothing is sent without
-asking. Turn it off on the same screen. **Settings > Problem reports > Sent reports** lists each
+asking. Turn it off on the same screen. **Settings > About > Problem reports > Sent reports** lists each
 report this PC sent, how it went, its report ID, and whether a dump went with
 it.
 

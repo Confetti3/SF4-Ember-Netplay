@@ -49,8 +49,9 @@ struct RuntimeRequest {
     int previewSoundVolume=-1;
     // Asks for the room's short link; nothing else is sent.
     bool shortInvitation=false;
-    // Saves only the settings a room leaves open, button layouts and the room
-    // board's column, from `preferences` (PlayerPreferences::CopyRoomSettings); sent alone.
+    // Saves only the settings a room leaves open: button layouts and the room
+    // board's layout (column, split, panels, picture), from `preferences`
+    // (PlayerPreferences::CopyRoomSettings); sent alone.
     bool roomSettings=false;
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.

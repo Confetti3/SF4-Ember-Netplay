@@ -18,7 +18,7 @@ struct MenuInput {
     // Ember, and while Ember is shown only the on-screen keyboard reads it (Done).
     // Leave is the Delete key: it leaves your seat from your own table card,
     // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down,
-    // a DirectInput stick's LP and HP: MenuShortcuts): the V2 tabs over a screen
+    // a DirectInput stick's LP and HP: MenuShortcuts): the tabs over a screen
     // (GameMenu::tabs), wrapping at the ends (StepTab). Describe is the accessibility
     // button, RT and F2: speech reads the focused row's description (MenuNarrator);
     // the menu itself does nothing with it.
@@ -53,7 +53,7 @@ struct MenuEntry {
     // A value row whose Select still opens its page: Left/Right change the
     // value in place, Select shows the choices in full.
     bool opens = false;
-    // V2: its choices are actions, opened as a small menu at the row itself
+    // Its choices are actions, opened as a small menu at the row itself
     // (where it was clicked) rather than as a value panel or a page.
     bool popout = false;
     // In a grid, an ordinary action (Retry saving) under the cards: it and
@@ -86,7 +86,7 @@ struct MenuEntry {
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
     bool valueHighlighted = false;
-    // V2: the heading this row sits under; a new one starts a group of cards.
+    // The heading this row sits under; a new one starts a group of cards.
     std::string group;
     // A match's row (a replay): each side's fighter as a small native
     // portrait at that end of the row, player 1 on the left. -1 for both
@@ -105,7 +105,7 @@ struct MenuEntry {
 // legend agree. A reader wins over text, text over choices, choices over a
 // confirmation (a confirmation that also carries choices asks by choosing).
 enum class SelectOpens { Nothing, Reader, Edit, Choice, Confirm, Activate };
-// A value that is a number ("3", "100%", "-2 f"): V2 steps it with the arrows only.
+// A value that is a number ("3", "100%", "-2 f"): a click steps it on either half.
 inline bool MenuValueIsNumber(const MenuEntry& e) {
     const char c = e.value.empty() ? 0 : e.value[0];
     return e.adjustable && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && e.value.size() > 1));
@@ -125,7 +125,50 @@ inline std::size_t MenuGridCells(const std::vector<MenuEntry>& entries) {
     return static_cast<std::size_t>(std::find_if(entries.begin(), entries.end(), [](const MenuEntry& e) { return e.wide; }) - entries.begin());
 }
 // A row's box where its board drew it, in screen pixels (MenuNavigation::Place).
-struct MenuRect { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; };
+struct MenuRect {
+    float x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    bool Contains(float x, float y) const { return x >= x0 && x <= x1 && y >= y0 && y <= y1; }
+};
+// Where a value row's parts lie: the row's whole box, its label's box and its
+// value's, the value at the right end of the row's line or, `under`, on the
+// row's last line, and the label on `labelLines` lines. One layout feeds
+// drawing (DrawMenuRow, a list's cards) and the pointer (PressEntry,
+// MenuValueStep), so what is pressed is what is drawn there.
+struct MenuRowLayout { MenuRect row, label, value; bool under = false; int labelLines = 1; };
+// A row whose one-line box is `line`, with its words from `left` to `right`
+// and the value `valueWidth` wide (0 for none): under the label on a line of
+// its own, `underLine` tall, at the row's foot, else beside it with `gap`
+// between. A label on two lines (wider than its whole line, its value already
+// under it) grows the row by one more `underLine`; the label's box is all of
+// the row above the value's line.
+inline MenuRowLayout LayOutMenuRow(MenuRect line, float left, float right, float valueWidth, bool under, float underLine, float gap, int labelLines = 1) {
+    MenuRowLayout at;
+    at.under = under;
+    at.labelLines = labelLines;
+    at.row = line;
+    at.row.y1 += underLine * static_cast<float>((under ? 1 : 0) + labelLines - 1);
+    const float valueTop = under ? at.row.y1 - underLine : at.row.y0;
+    at.value = {right - valueWidth, valueTop, right, at.row.y1};
+    at.label = {left, at.row.y0, under || valueWidth <= 0 ? right : right - valueWidth - gap, under ? valueTop : at.row.y1};
+    return at;
+}
+// What a press at (x, y) does to an adjustable row laid out `at`: -1 or 1 to
+// step it, 0 for Select. Only the value's own line steps, from the value's
+// left edge to the row's right end: a switch (`toggle`, the step that flips
+// it, 0 for none) on its last `switchWidth`; a number on either half; a word
+// on its arrows, `arrowWidth` at each end (the word itself opens its list).
+inline int MenuValueStep(const MenuEntry& e, const MenuRowLayout& at, float x, float y, int toggle, float switchWidth, float arrowWidth) {
+    const MenuRect& v = at.value;
+    if (!e.adjustable || !e.enabled || v.x1 <= v.x0 || x < v.x0 || y < v.y0 || y > v.y1) return 0;
+    if (toggle) return x < v.x1 - switchWidth ? 0 : toggle;
+    if (!MenuValueIsNumber(e) && x >= v.x0 + arrowWidth && x <= v.x1 - arrowWidth) return 0;
+    return x < (v.x0 + v.x1) * .5f ? -1 : 1;
+}
+// What a direction does on a board (rows placed) when no placed row lies that
+// way: Stay keeps the focus where it is; Flow goes on to the next placed row
+// in entry order (Down, Right) or the previous one (Up, Left), for a board
+// whose panels stand side by side but read as one column (Create, the welcome).
+enum class MenuEdge { Stay, Flow };
 // The tab `delta` steps to from `current` of `count`, wrapping at both ends:
 // the one rule for LB and RB (Page Up and Down), the tab strip's end marks and
 // the hint bar's. With no current tab (-1) the next is the first and the
@@ -186,6 +229,9 @@ public:
     // nearest placed row that way (Update). A screen that places nothing (a
     // GameMenu list) keeps the list's movement.
     void Place(const std::string& id, MenuRect box) { placing_.push_back({id, box}); }
+    // What the board on this screen does at its edges (MenuEdge); Stay unless set.
+    void SetEdge(MenuEdge edge) { states_[Screen()].edge = edge; }
+    MenuEdge Edge() const { return states_.at(Screen()).edge; }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     // The one open modal, if any; it belongs to the entry named by modalId_.
     // Confirming, Choosing, Editing and Reading each name exactly one mode.
@@ -365,7 +411,9 @@ public:
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
         // A board moves by where it drew its rows; a list by their order.
         if(const MenuRect* at=Placed(e.id)) {
-            const auto to=Nearest(*at,delta,direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0,entries);
+            const int dy=direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0;
+            auto to=Nearest(*at,delta,dy,entries);
+            if(to==entries.size()&&s.edge==MenuEdge::Flow) to=NextPlaced(s.index,delta+dy,entries);
             if(to<entries.size()) { s.index=to; s.id=entries[to].id; }
             return {};
         }
@@ -426,6 +474,15 @@ private:
         }
         return best;
     }
+    // The placed entry after `from` in entry order (way 1) or before it (-1);
+    // entries.size() for none.
+    std::size_t NextPlaced(std::size_t from, int way, const std::vector<MenuEntry>& entries) const {
+        for(std::size_t i=from;way>0?i+1<entries.size():i>0;) {
+            i=way>0?i+1:i-1;
+            if(Placed(entries[i].id)) return i;
+        }
+        return entries.size();
+    }
     void Open(const MenuEntry& e) {
         mode_=e.choices.empty()?Modal::Confirm:Modal::Choice; modalId_=e.id; confirmSelected_=false; choiceIndex_=0;
         for (const auto& c : e.choices) {
@@ -439,7 +496,7 @@ private:
                 [](const std::string& id, const MenuChoice& c) { return id == c.id; });
     }
     static constexpr double RepeatDelay=.35, RepeatInterval=.085;
-    struct State { std::string id; std::size_t index=0; float scroll=0; };
+    struct State { std::string id; std::size_t index=0; float scroll=0; MenuEdge edge=MenuEdge::Stay; };
     std::vector<std::string> stack_;
     std::map<std::string,State> states_;
     // The open modal and the entry it belongs to. choiceIds_ holds the option

@@ -56,6 +56,27 @@ void Resolver() {
     CHECK(buttons.confirm == 1u << 21 && Same(buttons.confirmGlyph, "LK"));
     GlyphMatchesAction(PadDirectInput, buttons);
     CHECK(ui::ControllerButtons(0x40, PadDirectInput, 1u << 18, buttons) == 0);
+    // The stick's LP and HP buttons are its fight table's, and its tab
+    // shortcuts. Its menu table confirming on the button that gives LP and
+    // going back on the one that gives HP: those presses select and go back
+    // alone, and no tab glyph names them; a 3P button gives both and steps none.
+    {
+        auto menu = StickMenu(); menu[18] = 0x10; menu[19] = 0x40; menu[21] = 0x80; menu[17] = 0x400;
+        Table fight{}; fight[19] = 0x10; fight[21] = 0x400; fight[22] = 0x430;
+        const auto stick = ResolveMenuButtons(PadDirectInput, menu.data(), fight.data());
+        CHECK(stick.confirm == 1u << 19 && stick.back == 1u << 21);
+        CHECK(stick.lightPunch == (1u << 19 | 1u << 22) && stick.heavyPunch == (1u << 21 | 1u << 22));
+        CHECK(ui::ControllerButtons(0x10, PadDirectInput, 1u << 19, stick) == ui::ControllerSample::Confirm);
+        CHECK(ui::ControllerButtons(0x400, PadDirectInput, 1u << 21, stick) == ui::ControllerSample::Back);
+        CHECK(ui::ControllerButtons(0x430, PadDirectInput, 1u << 22, stick) == 0);
+        CHECK(Same(ui::MenuShortcutGlyph(ui::MenuInput::PrevTab, PadDirectInput, stick), "LP") && Same(ui::MenuShortcutGlyph(ui::MenuInput::NextTab, PadDirectInput, stick), "HP"));
+        fight[22] = 0;
+        const auto only = ResolveMenuButtons(PadDirectInput, menu.data(), fight.data());
+        CHECK(!ui::MenuShortcutGlyph(ui::MenuInput::PrevTab, PadDirectInput, only) && !ui::MenuShortcutGlyph(ui::MenuInput::NextTab, PadDirectInput, only));
+        // No fight table: the generic layout's buttons 4 and 6.
+        const auto generic = ResolveMenuButtons(PadDirectInput, nullptr, nullptr);
+        CHECK(generic.lightPunch == 1u << 19 && generic.heavyPunch == 1u << 21);
+    }
     // No menu entry: the fight table's LK and MK. Directions never count, nor an empty entry.
     Table none{}; Table fightOnly{}; fightOnly[2] = 0x40; fightOnly[20] = 0x40; fightOnly[23] = 0x80;
     buttons = ResolveMenuButtons(PadDirectInput, none.data(), fightOnly.data());

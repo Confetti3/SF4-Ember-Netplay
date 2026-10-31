@@ -29,7 +29,7 @@ void CheckHomeRendering(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
         SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){homeRows=rows;});
         for(bool controllerReady:{true,false}) {
             homeCards.clear();view.controllerReady=controllerReady;draw();
-            const auto* list=FindWindow("V2 list");
+            const auto* list=FindWindow("List");
             KnownV2Gap(list->ScrollMax.y==0,"Home requires scrolling at 1080p");
             const std::vector<std::string> expected=controllerReady
                 ?std::vector<std::string>{"online","selection","profile","settings","training","offline","replays","notifications","awards"}
@@ -107,7 +107,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             for(std::size_t i=0;i<trainingRows.size();++i)Require(trainingRows[i].id==ids[i],"Training home page order wrong");
         }
         if(size.w==1920&&size.h==1080&&size.dpi==1.5f) {
-            auto* list=FindWindow("V2 list");
+            auto* list=FindWindow("List");
             Require(list->ScrollMax.y==0,(std::string("Training page requires scrolling at 1080p / 150% DPI: ")+screen).c_str());
             // The flyout itself included: its hint bar on the bottom edge is no content to scroll to.
             const auto* flyout=FindWindow("###TrainingControls");

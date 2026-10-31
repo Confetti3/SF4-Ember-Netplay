@@ -16,19 +16,18 @@ void SelectorPages() {
  Check(detail("handicap")==loc::T("selection.adjust_saves")&&detail("quote")==loc::T("selection.adjust_saves")&&
   detail("handicap").find("Select saves")==std::string::npos,"An option row promised that Select saves");
  Check(status==loc::T("selection.status_adjust"),"The options page promised Select in its status");
- at("home");Check(status==loc::T("selection.status_browse"),"The selector's home promised that Select saves");
- at("appearance");Check(status==loc::T("selection.status_browse"),"The appearance page promised that Select saves");
- for(const char* page:{"roster","costumes","colors","ultra","stage"}){at(page);Check(status==loc::T("selection.status_editable"),"A page where Select saves lost that promise");}
+ at("home");Check(status==loc::T("selection.status_browse"),"The selector's board promised that Select saves");
+ for(const char* page:{"stage","random-pool"}){at(page);Check(status==loc::T("selection.status_editable"),"A page where Select saves lost that promise");}
  at("options",false);Check(detail("handicap")==loc::T("selection.locked_detail")&&status==loc::T("selection.status_locked"),"A locked options page kept its editable wording");
  SetMenuEntriesProbe({});SetMenuStatusProbe({});
 }
-// The selector the shell opens from Home starts on its first page too.
+// The selector the shell opens from Home starts on its board, whatever page it was left on.
 void SelectorFromHome() {
  using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.view.canEditSelection=true;
  h.Screen("home");h.Choose("selection");
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home","Fighter select did not open on its first page");
- selector.Navigation().Push("appearance");selector.Navigation().Push("colors");h.Frame();
+ selector.Navigation().Push("options");h.Frame();
  h.Screen("home");h.Choose("selection");
  Check(selector.Navigation().Screen()=="home","Fighter select reopened from Home on the page it was left on");
 }

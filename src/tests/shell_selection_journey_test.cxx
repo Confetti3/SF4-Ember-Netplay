@@ -32,21 +32,21 @@ void MemberPopout(){
  h.Press(MenuInput::Select);h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="room-member"&&h.shell.Navigation().Confirming(),"Kick from the popout did not ask first");
 }
-// V2: the Members panel's Hide folds it to its heading and saves it; Show on
-// that heading unfolds it again, and More… can too.
+// The Members panel's Hide folds it to its heading and saves it, in the room's
+// own request (CopyRoomSettings); Show on that heading unfolds it again, and More… can too.
 void RoomPartsHide(){
  using namespace sf4e;
  Harness h;h.Frame();
  JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
  for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
  h.Screen("room");h.Choose("room-hide-members");h.Wait(1);h.Frame();
- const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+ const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.roomSettings;});
  Check(saved!=h.actions.rend()&&!saved->preferences.roomShowMembers&&saved->preferences.roomShowChat,"Hide on the Members panel did not save it hidden");
  h.view.preferences=saved->preferences;h.Frame();
  bool gone=false;try{h.FocusOn("member-2");}catch(const std::runtime_error&){gone=true;}
  Check(gone,"A hidden Members panel's rows are still on the board");
  h.Choose("room-show-members");h.Wait(1);h.Frame();
- const auto shown=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+ const auto shown=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.roomSettings;});
  Check(shown!=h.actions.rend()&&shown->preferences.roomShowMembers,"Show on the folded Members panel did not unfold it");
  h.view.preferences=shown->preferences;
  h.Frame();
@@ -149,22 +149,22 @@ void PresentationJourneys(){
  Check(std::strcmp(MenuPrimaryHint(&text),"Edit")==0&&MenuPrimaryHint(&value)==nullptr&&std::strcmp(MenuPrimaryHint(&confirm),"Review")==0,"Contextual legend does not match action");
  text.enabled=false;Check(MenuPrimaryHint(&text)==nullptr,"Disabled field advertises submission");
  Harness h;std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});
- h.view.preferences.showMatchHud=true;h.Frame(); // The HUD defaults to off; the click below must change a saved value.
- h.Screen("interface");ImVec2 leftArrow,otherRow;
+ h.view.preferences.backgroundPlay=true;h.Frame(); // Off by default; the click below must change a saved value.
+ h.Screen("player");h.FocusOn("background-play");ImVec2 leftArrow,otherRow;
  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
-  if(std::strcmp(id,"hud")==0)leftArrow=ImVec2(min.x+(max.x-min.x)*.75f,(min.y+max.y)*.5f);
-  if(std::strcmp(id,"scale")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
+  if(std::strcmp(id,"background-play")==0)leftArrow=ImVec2(min.x+(max.x-min.x)*.75f,(min.y+max.y)*.5f);
+  if(std::strcmp(id,"button-prompts")==0)otherRow=ImVec2((min.x+max.x)*.5f,(min.y+max.y)*.5f);
  });h.Frame();SetMenuCardProbe({});
  auto& io=ImGui::GetIO();io.AddMousePosEvent(otherRow.x,otherRow.y);h.Frame();
- Check(h.shell.Navigation().Focus()=="hud","Mouse hover stole controller focus");
+ Check(h.shell.Navigation().Focus()=="background-play","Mouse hover stole controller focus");
  io.AddMousePosEvent(leftArrow.x,leftArrow.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();
  io.AddMouseButtonEvent(0,false);h.Frame(0,40);
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Visible value arrows did not adjust on click");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.backgroundPlay,"Visible value arrows did not adjust on click");
  Check(status=="Saving...","Queued settings falsely reported Saved before acknowledgement");
  h.view.preferences=h.actions.back().preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
- Check(h.shell.Navigation().Focus()=="hud-layout","Controller did not move to the row following the mouse-selected row");
+ Check(h.shell.Navigation().Focus()=="lower-input-lag","Controller did not move to the row following the mouse-selected row");
  // Gameplay defaults step through 0 frames: Left from a chosen 1 saves 0, and Left from 0 goes to Auto, keeping 0.
- h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("defaults");h.FocusOn("delay");const auto delaySaves=h.actions.size();
+ h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("tab-matches/0");h.FocusOn("delay");const auto delaySaves=h.actions.size();
  h.Press(MenuInput::Left);h.Frame(0,40);
  Check(h.actions.size()>delaySaves&&!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,
   "Gameplay defaults did not offer 0 frames of input delay");
@@ -227,72 +227,75 @@ void PresentationJourneys(){
   "The confirmed pick was not answered as Channel");
  SetMenuEntriesProbe({});
 }
+// The board's Costume, Color and Ultra rows: Left and Right step and save,
+// Select opens a row's values in a panel, and a locked pick steps nothing.
 void AppearanceGalleries(){
  using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;
- selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
- auto frame=[&](unsigned buttons=0,bool editable=true){SetMenuInput({buttons,0});ImGui::NewFrame();
-  ImGui::Begin("Gallery test");const bool changed=selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,editable);ImGui::End();ImGui::Render();return changed;};
- auto press=[&](unsigned buttons,bool editable=true){frame(0,editable);const bool changed=frame(buttons,editable);frame(0,editable);return changed;};
- selector.Navigation().Push("costumes");frame();frame();
- press(MenuInput::Right);Check(pick.costume==0,"Gallery focus committed costume");
- Check(press(MenuInput::Select)&&pick.costume==1,"Costume card did not save");
- Check(selector.Navigation().Screen()=="colors","Saving a costume did not go on to its colors");
- selector.Navigation().Return();selector.Navigation().Push("colors");frame();frame();
- press(MenuInput::Right);Check(pick.color==0,"Gallery focus committed color");
- Check(press(MenuInput::Select)&&pick.color==2,"Color gallery ignored native availability gaps");
- Check(selector.Navigation().Screen()=="home","Saving a color did not return to the selector's home");
- selector.Navigation().Push("colors");frame(0,false);frame(0,false);
- press(MenuInput::Left,false);press(MenuInput::Select,false);Check(pick.color==2,"Locked gallery saved a choice");
- available.colors[1]=0;selector.Navigation().Return();selector.Navigation().Push("costumes");frame(0,false);
+ // Three costumes, each with colors 1 and 3 only.
+ selection::Availability available;available.ready=true;available.costumes=7;available.colors[0]=available.colors[1]=available.colors[2]=5;available.personalActions=1;
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ auto frame=[&](unsigned buttons=0,bool editable=true,bool editions=false){SetMenuInput({buttons,0});ImGui::NewFrame();
+  ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);ImGui::Begin("Board test");const bool changed=selector.Draw(pick,editions,nullptr,[&](int){return available;},nullptr,editable);ImGui::End();ImGui::Render();return changed;};
+ auto press=[&](unsigned buttons,bool editable=true,bool editions=false){frame(0,editable,editions);const bool changed=frame(buttons,editable,editions);frame(0,editable,editions);return changed;};
+ auto row=[&](const char* id){const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
+  if(it==rows.end())throw std::runtime_error(std::string("The board has no row ")+id);return *it;};
+ auto focus=[&](const char* id,bool editable=true,bool editions=false){frame(0,editable,editions);selector.Navigation().Focus(id,rows);frame(0,editable,editions);};
+ frame();frame();
+ Check(selector.Navigation().Screen()=="home","Fighter select did not open on its board");
+ // The pad moves by where the board draws its rows: Down keeps the grid's
+ // column, Right from the grid's right edge reaches the rows beside it where
+ // they are level (and stays where none is), and Left from Ready reaches the grid.
+ const auto cell=[](int i){return "fighter-"+std::to_string(selection::RosterDisplayOrder[i]);};
+ focus(cell(1).c_str());press(MenuInput::Down);
+ Check(selector.Navigation().Focus()==cell(9),"Down on the grid left its column");
+ bool besideGrid=false;
+ for(int i=7;i<selection::FighterCount;i+=8){
+  focus(cell(i).c_str());press(MenuInput::Right);
+  const auto& at=selector.Navigation().Focus();
+  Check(at==cell(i)||at.rfind("fighter-",0)!=0,"Right from the grid's right edge went to another fighter");
+  besideGrid=besideGrid||at=="costume";
+ }
+ Check(besideGrid,"Right from the grid never reached the costume row");
+ focus("ready");press(MenuInput::Left);
+ Check(selector.Navigation().Focus().rfind("fighter-",0)==0,"Left from Ready did not reach the grid");
+ pick=selection::Pick{};frame();frame();
+ // Costume: Right saves the next one; Select opens every costume, and a pick there saves it.
+ focus("costume");Check(pick.costume==0,"Focusing the costume row changed the costume");
+ Check(press(MenuInput::Right)&&pick.costume==1&&selector.Navigation().Screen()=="home","Right on the costume row did not save the next costume");
+ Check(row("costume").choices.size()==3,"The costume row does not offer every owned costume");
+ press(MenuInput::Select);Check(selector.Navigation().Choosing(),"Select on the costume row did not open its values");
+ press(MenuInput::Right);Check(pick.costume==1,"Moving in the costume panel saved a costume");
+ press(MenuInput::Select);
+ Check(pick.costume==2&&!selector.Navigation().Choosing()&&selector.Navigation().Screen()=="home","A costume picked in the panel did not save");
+ focus("costume");press(MenuInput::Left);Check(pick.costume==1,"Left on the costume row did not step back");
+ // Color: the steps skip the colors the game says this costume lacks (bits 0 and 2 only).
+ focus("color");Check(press(MenuInput::Right)&&pick.color==2,"The color row ignored native availability gaps");
+ press(MenuInput::Left,false);press(MenuInput::Right,false);Check(pick.color==2,"A locked color row saved a step");
  // Missing palette data must not dereference an empty preview list.
- frame(0,false);
- available.colors[1]=5;selector.Navigation().Return();selector.Navigation().Push("ultra");frame();frame();
- std::vector<MenuEntry> ultras;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){ultras=rows;});
- frame();
- // The Ultras are photo cards; Select saves one and returns to the selector's home.
- selector.Navigation().Focus("ultra-1",ultras);frame();Check(pick.ultra==0,"Ultra focus committed a choice");
- Check(press(MenuInput::Select)&&pick.ultra==1&&selector.Navigation().Screen()=="home","Ultra II did not save and return");
- selector.Navigation().Push("ultra");frame();frame();
- Check(pick.ultra==1&&ultras.size()>=2&&ultras[1].value=="SAVED"&&ultras[0].value.empty(),"Saved Ultra has no persistent selection marker separate from focus");
+ available.colors[1]=0;frame(0,false);frame(0,false);available.colors[1]=5;
+ // Ultra: the row steps through the fighter's Ultras; Double is the last.
+ pick.ultra=0;focus("ultra");
+ Check(press(MenuInput::Right)&&pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Right on the Ultra row did not save Ultra II");
  Dimps::GameEvents::VsMode::ConfirmedCharaConditions native{};
  selection::ToNative(pick,native);pick=selection::FromNative(native);frame();
- Check(pick.ultra==1&&ultras[1].value=="SAVED","Native selection round trip lost Ultra II");
- selector.Navigation().Focus("ultra-0",ultras);press(MenuInput::Select,false);Check(pick.ultra==1,"Locked Ultra selection changed");
- selector.Navigation().Focus("ultra-2",ultras);press(MenuInput::Select);
- Check(pick.ultra==2&&selector.Navigation().Screen()=="home","Ultra Double did not save");
- selector.Navigation().Push("ultra");frame();frame();
- Check(pick.ultra==2&&ultras[2].value=="SAVED","Reopening Ultra lost saved selection");
- // On the home board Left and Right change the Ultra in place, and Select
- // opens its values in a panel.
- selector.Navigation().Home();frame();selector.Navigation().Focus("ultra",ultras);frame();
+ Check(pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Native selection round trip lost Ultra II");
+ press(MenuInput::Right,false);Check(pick.ultra==1,"A locked Ultra row saved a step");
+ press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==ShortUltraLabel(2),"Ultra Double did not save");
  Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="home","Left on Ultra Combo did not step back to Ultra II");
  Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
  press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="home","Select on Ultra Combo did not open its values");
  press(MenuInput::Back);
- // Picking a fighter goes on to its Ultra, focused on the one it has; Back
- // there keeps the new fighter and returns to the roster.
- selector.Navigation().Home();selector.Navigation().Push("roster");frame();frame();
- selector.Navigation().Focus("fighter-5",ultras);press(MenuInput::Select);
- Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra"&&selector.Navigation().Focus()=="ultra-1","Picking a fighter did not go on to its Ultra");
- press(MenuInput::Back);Check(pick.fighter==5&&pick.ultra==1&&selector.Navigation().Screen()=="roster","Back from the Ultra step lost the fighter");
- // A fighter with a single Ultra in its edition skips the step.
- auto single=[&](unsigned buttons){SetMenuInput({buttons,0});ImGui::NewFrame();ImGui::Begin("Gallery test");
-  selector.Draw(pick,true,nullptr,[&](int){return available;},nullptr,true);ImGui::End();ImGui::Render();};
- pick.fighter=0;pick.edition=13;pick.ultra=0;single(0);single(0);
- Check(selection::AllowedUltras(0,13).size()==1,"Ryu's SFIV edition should have one Ultra");
- selector.Navigation().Focus("fighter-0",ultras);single(0);single(MenuInput::Select);single(0);
- Check(pick.edition==13&&selector.Navigation().Screen()=="home","A single-Ultra fighter still asked for its Ultra");
- // The step follows the new fighter's own saved pick, which the caller
- // restores after the pick: from Ryu on SFIV to Zangief saved on Ultra, the
- // step shows; from there to a fighter saved on SFIV, it does not.
- Check(selection::AllowedUltras(5,13).size()==1,"Zangief's SFIV edition should have one Ultra");
- selector.Navigation().Home();selector.Navigation().Push("roster");single(0);single(0);
- selector.Navigation().Focus("fighter-5",ultras);single(0);single(MenuInput::Select);
- pick.edition=14;single(0);single(0);
- Check(pick.fighter==5&&selector.Navigation().Screen()=="ultra","A fighter saved on the Ultra edition skipped its Ultra");
- selector.Navigation().Home();selector.Navigation().Push("roster");single(0);single(0);
- selector.Navigation().Focus("fighter-0",ultras);single(0);single(MenuInput::Select);
- pick.edition=13;single(0);single(0);
- Check(pick.fighter==0&&selector.Navigation().Screen()=="home","A fighter saved on a single-Ultra edition still asked for its Ultra");
+ // Picking a fighter keeps the board, Ultra row and all: no separate Ultra step.
+ focus("fighter-5");press(MenuInput::Select);
+ Check(pick.fighter==5&&selector.Navigation().Screen()=="home"&&!selector.Navigation().Choosing(),"Picking a fighter left the board");
+ // The Ultra row follows the pick as the caller restores it for the new
+ // fighter: on a single-Ultra edition it has nothing to step.
+ Check(selection::AllowedUltras(0,13).size()==1&&selection::AllowedUltras(5,13).size()==1,"Ryu's and Zangief's SFIV editions should have one Ultra");
+ pick.fighter=0;pick.edition=13;pick.ultra=0;frame(0,true,true);frame(0,true,true);
+ Check(!row("ultra").enabled,"A single-Ultra fighter's Ultra row still steps");
+ focus("fighter-5",true,true);press(MenuInput::Select,true,true);pick.edition=14;frame(0,true,true);
+ Check(pick.fighter==5&&row("ultra").enabled,"A fighter saved on the Ultra edition lost its Ultra row");
+ focus("fighter-0",true,true);press(MenuInput::Select,true,true);pick.edition=13;frame(0,true,true);
+ Check(pick.fighter==0&&!row("ultra").enabled,"A fighter saved on a single-Ultra edition still offers its Ultras");
  SetMenuEntriesProbe({});
 }

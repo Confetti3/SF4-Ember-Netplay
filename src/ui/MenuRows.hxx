@@ -23,7 +23,8 @@ inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::P
         a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
 }
-// Only what a room leaves open changed: the button layouts.
+// Only what a room leaves open changed (PlayerPreferences::CopyRoomSettings):
+// the button layouts, the room board's layout and the watched game's picture.
 inline bool OnlyRoomSettingsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
     auto compared = a;
     compared.CopyRoomSettings(b);
@@ -85,7 +86,7 @@ inline MenuEntry ReadOnlyValue(std::string id,std::string label,std::string valu
 inline MenuEntry InfoRow(std::string id,std::string label,std::string value,std::string detail) {
     auto e=Row(std::move(id),std::move(label),std::move(detail)); e.value=std::move(value); e.info=true; return e;
 }
-// V2: a value row's every value, in the order Left and Right step through
+// A value row's every value, in the order Left and Right step through
 // them, as choices "#<n>", so Select opens them all in the value panel. The
 // row's own value text marks where it is; a pick comes back as the steps to
 // it (an Adjust, GameMenu::Finish), through the handler the arrows use.

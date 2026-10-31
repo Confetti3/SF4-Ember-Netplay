@@ -51,7 +51,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM
 namespace {
 using namespace sf4e;
 struct Size { int w, h; const char* name; };
-// The V2 design's screen sizes.
+// The design's screen sizes.
 const Size Sizes[] = {{1280,800,"Deck"},{1280,720,"720p"},{1366,768,"Laptop"},{1920,1080,"1080p"},{1920,1200,"16:10"},{2560,1440,"1440p"},
     {2560,1080,"21:9"},{3440,1440,"21:9 QHD"},{3840,2160,"4K"},{5120,1440,"32:9"},{1024,768,"4:3"},{800,600,"Small"},{640,720,"Narrow"}};
 IDirect3DDevice9* device = nullptr;

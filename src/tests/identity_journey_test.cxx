@@ -304,7 +304,7 @@ void TournamentAccount(){
  const std::string ember="https://bridge.embernetplay.link",other="https://tournaments.example";
  Journey h;auto& id=h.view.identity;id.known=true;id.state="disabled";
  const auto account=[&]{return h.row("tournament-account");};
- const auto open=[&]{h.Screen("settings");h.Choose("discord");};
+ const auto open=[&]{h.Screen("tab-online/0");};
  open();
  Check(account()&&h.index("tournament-account")==h.index("invites")+1,"Settings > Discord has no Tournament account row after its settings");
  Check(account()->value==loc::T("identity.discord_none")&&!account()->adjustable&&!account()->info,"Without an Ember ID the Tournament account is not Not connected");
@@ -312,9 +312,9 @@ void TournamentAccount(){
  h.FocusOn("tournament-account");h.Press(MenuInput::Right);h.Press(MenuInput::Left);
  Check(h.actions.size()==before&&account()->value==loc::T("identity.discord_none"),"Left or Right changed the Tournament account");
  h.Press(MenuInput::Select);
- Check(h.trail()=="home>settings>discord>discord-connect"&&h.row("dc-go"),"The Tournament account did not open Connect Discord");
+ Check(h.trail()=="home>tab-online/0>discord-connect"&&h.row("dc-go"),"The Tournament account did not open Connect Discord");
  h.Press(MenuInput::Back);
- Check(h.shell.Navigation().Screen()=="discord","Back from Connect Discord did not return to Settings > Discord");
+ Check(h.shell.Navigation().Screen()=="tab-online/0","Back from Connect Discord did not return to Settings > Discord");
  // With an ID and Ember's service: the account on it.
  h.ready();id.bridges={{"brg_1",ember,"Ember"},{"brg_2",other,"Other"}};
  open();

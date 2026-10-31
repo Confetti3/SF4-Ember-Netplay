@@ -1,5 +1,10 @@
 # Ultra input symbols
 
+Retired on 2026-10-30: the Ultra page that drew these symbols went with the
+Classic look, and `UltraCommands` and `UltraNotation` were deleted with it. The
+Ultra row on the fighter board names the moves only. The notes below describe
+the retired drawing and its sources, kept for a future return of the symbols.
+
 The Ultra selector displays vector motion arrows and arcade button symbols beneath each move name. Ultra Double shows both complete commands. Under the arrows, one line gives the same input in facing-neutral notation (QCF x2, Charge B, F, B, F, U, U), made by `UltraNotation`, so it reads the same whichever side the player starts on. The Ultra cards show each Ultra's photo with a badge in the top-right corner (I, II, or W for Ultra Double, which shows a large W instead of a photo); SAVED stays top-left.
 
 Notation faces right. An orange dot marks the start of a curved motion; HOLD marks a charge direction. Three P or K buttons mean simultaneous punches or kicks. LP, HP and LK indicate individual strengths in Akuma's sequence: Ultra I (Wrath of the Raging Demon) is LP, LP, forward, LK, HP. Circular motions are shown twice for 720-degree commands. Air, stance, counter and proximity conditions accompany their commands.

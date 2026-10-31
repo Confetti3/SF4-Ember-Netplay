@@ -15,11 +15,12 @@ namespace {
 // The release a News row is of ("news-<index>"), or null.
 const launcher::ReleaseNews* NewsOf(const ShellView& v,const std::string& id) {
  const auto& news=v.services.update.news;
- const int i=RowIndex(id,"news-");
- return i>=0&&static_cast<std::size_t>(i)<news.size()?&news[static_cast<std::size_t>(i)]:nullptr;
+ const auto i=RowKey<std::size_t>(id,"news-");
+ return i&&*i<news.size()?&news[*i]:nullptr;
 }
 const char* NewsKind(const launcher::ReleaseNews& n){return loc::T(n.stable?"news.kind.update":"news.tab.changelog");}
 }
+std::string ApplicationShell::InstalledVersion(const ShellView& v) { return v.services.installedVersion.empty() ? v.build : v.services.installedVersion; }
 std::vector<MenuEntry> ApplicationShell::NewsRows(const ShellView& v,const std::string& screen,std::string& title) const {
  title=loc::T("home.news");
  std::vector<MenuEntry> rows;
@@ -45,6 +46,30 @@ void ApplicationShell::NewsTabs(const ShellView& v,const std::string& screen) {
  if(any(true))menu_.tabs.push_back({"news-updates",loc::T("news.tab.updates")});
  if(any(false))menu_.tabs.push_back({"news-changelog",loc::T("news.tab.changelog")});
  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen){menu_.tab=i;menu_.eyebrow=std::string(loc::T("home.news"))+" \xC2\xB7 "+menu_.tabs[i].second;}
+}
+// News: its cards and the focused release's pane, under its tabs.
+class ApplicationShell::NewsScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return NewsScreen(screen); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NewsRows(f.view, f.screen, title); }
+    GameMenu::Card Card(const ScreenFrame& f, double) const override {
+        const ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
+        return [s, v](const MenuEntry& e, ImVec2 min, ImVec2 max) { return s->DrawNewsCard(*v, e, min, max); };
+    }
+    GameMenu::Detail Detail(const ScreenFrame& f) const override {
+        ApplicationShell* s = &f.shell; const ShellView* v = &f.view; const std::vector<MenuEntry>* rows = f.rows;
+        return [s, v, rows](const std::string& id) { s->DrawNewsDetail(*v, id, *rows); };
+    }
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        f.shell.NewsTabs(f.view, f.screen);
+        const std::string& focus = menu.navigation.Focus();
+        menu.customDetail = focus.compare(0, 5, "news-") == 0 && focus != "news-update-now" && focus != "news-none";
+        menu.listWidth = 420;
+    }
+};
+const ScreenPanel& ApplicationShell::NewsOwner() {
+    static const NewsScreens news{};
+    return news;
 }
 bool ApplicationShell::DrawNewsCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImVec2 max) const {
  const auto* n=NewsOf(v,e.id);

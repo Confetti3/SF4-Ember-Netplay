@@ -120,9 +120,8 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
             state.summaryInput.action == SetupMenuAction::Back ? MenuInput::Back : 0;
         setupMenuSequence_ = state.summaryInput.sequence;
     }
+    // While capturing the bar shows only the legend.
     menu_.shortcutHints = capture ? PadSetupLegend(state) : std::vector<LegendHint>{};
-    // While capturing the bar shows only the legend; its Escape (first) is Back when clicked.
-    if (capture) menu_.shortcutHints.front().press = MenuInput::Back;
     menu_.backHint = capture ? loc::T("common.cancel") : loc::T("pad_setup.cancel");
     menu_.footerNote.clear(); menu_.typesText = false;
     if (capture) SetMenuGlyphs(input::PadKeyboard, 0, 0);
@@ -155,7 +154,7 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
         if (action.id == "save") command = SetupCommand::Save;
         else if (action.id == "restart") command = SetupCommand::Restart;
         else if (action.id == "cancel") command = SetupCommand::Cancel;
-        else if (RowIndex(action.id, "step-") >= 0) { command = SetupCommand::Redo; step = RowIndex(action.id, "step-"); }
+        else if (const auto redo = RowKey<int>(action.id, "step-")) { command = SetupCommand::Redo; step = *redo; }
     }
     if (command == SetupCommand::None && menu_.Held()) command = SetupCommand::Activity;
     if (command != SetupCommand::None) SetupControl(command, view, submit, step);

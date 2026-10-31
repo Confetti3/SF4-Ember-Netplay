@@ -37,9 +37,6 @@ std::vector<MenuEntry> ApplicationShell::WelcomeRows(const ShellView& v, std::st
     }
     rows.push_back(Row("welcome-next", loc::T(welcomeStep_ + 1 < WelcomeSteps ? "welcome.next" : "welcome.start"), loc::T("welcome.next_detail")));
     rows.push_back(Row("welcome-skip", loc::T("welcome.skip"), loc::T("welcome.skip_detail")));
-    // Side by side on the board: Skip, then Next.
-    rows[rows.size() - 2].left = "welcome-skip";
-    rows.back().right = "welcome-next";
     return rows;
 }
 bool ApplicationShell::WelcomeActivate(const MenuAction& a) {
@@ -62,6 +59,9 @@ void ApplicationShell::DrawWelcomeBoard(const std::vector<MenuEntry>& rows, Menu
     const auto& c = v2::Colors();
     auto* d = ImGui::GetWindowDrawList();
     const auto origin = ImGui::GetCursorScreenPos();
+    // Skip and Next sit at the bottom right, away from the answers: where
+    // nothing is drawn that way, the pad goes on in row order (MenuEdge::Flow).
+    nav.SetEdge(MenuEdge::Flow);
     const std::string& focus = nav.Focus();
     const auto press = [&](const MenuEntry& e, v2::Box b) { return PressEntry(nav, rows, e, b, action).hovered; };
     float y = origin.y;

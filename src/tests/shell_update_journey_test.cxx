@@ -24,7 +24,7 @@ void UpdateLaunchJourneys() {
  // The first Home asks once; a service that has taken the request is not asked again.
  {
   Harness h; h.view.services.launchCheck = LaunchCheck::Waiting;
-  h.Screen("settings"); h.Frame(0, 30);
+  h.Screen("tab-player"); h.Frame(0, 30);
   Check(Count(h, ServiceAction::LaunchUpdateCheck) == 0, "The launch check was asked for away from Home");
   h.Screen("home"); h.Frame(0, 10);
   Check(Count(h, ServiceAction::LaunchUpdateCheck) == 1, "The first Home did not ask for the launch check once");
@@ -140,7 +140,7 @@ void UpdateLaunchJourneys() {
   Check(!h.shell.NoticeOpen(), "The question came up over a watched game");
   h.view.watchedGame = {}; h.view.inputCapture = input::Capture::Press; h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came up while a button was being assigned");
-  h.view.inputCapture = input::Capture::Idle; h.Screen("settings"); h.Frame(0, 30);
+  h.view.inputCapture = input::Capture::Idle; h.Screen("tab-player"); h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came up on a screen that is not Home");
   h.Screen("home"); h.Frame(0, 3);
   Check(h.shell.NoticeOpen(), "The question did not come up once the player was free on Home");

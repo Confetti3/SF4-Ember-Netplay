@@ -555,7 +555,7 @@ void CheckAboutReader(sf4e::ui::ApplicationShell& shell,const Draw& draw,const P
 template<class Draw,class Page>
 void CheckLanguageChoice(sf4e::ui::ApplicationShell& shell,const Draw& draw,const Page& page) {
     using namespace sf4e;using namespace ui;
-    page("interface");
+    page("tab-access/1");
     for(int i=0;i<20&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
     draw(nullptr,MenuInput::Select,1);draw("language-choice");
     Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
@@ -578,7 +578,7 @@ void CheckControllerStatusHint(sf4e::ui::ApplicationShell& shell,sf4e::ui::Shell
 template<class Draw,class Page>
 void CheckSettingsSaveErrorAndPortraitRetry(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
     using namespace sf4e;using namespace ui;
-    view.settingsError="The settings directory is temporarily unavailable.";page("settings");draw("save-error");
+    view.settingsError="The settings directory is temporarily unavailable.";page("tab-player");draw("save-error");
     page("main-character");
     for(int i=0;i<50&&shell.Navigation().Focus()!="retry-save";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
     // Down preserves the grid column; the short final row may require
@@ -586,18 +586,18 @@ void CheckSettingsSaveErrorAndPortraitRetry(sf4e::ui::ApplicationShell& shell,sf
     for(int i=0;i<8&&shell.Navigation().Focus()!="retry-save";++i){draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);}
     Require(shell.Navigation().Focus()=="retry-save","Portrait retry is unreachable");draw("portrait-save-error");
 }
-template<class Availability,class ShowGallery>
-void ShootEveryFighterGallery(sf4e::selection::Pick& pick,const Availability& availability,const ShowGallery& showGallery) {
+template<class Availability,class ShowAppearance>
+void ShootEveryAppearance(sf4e::selection::Pick& pick,const Availability& availability,const ShowAppearance& showAppearance) {
     using namespace sf4e;using namespace ui;
     const auto savedPick=pick;
     for(int id=0;id<selection::FighterCount;++id){
         const std::string code=selection::FindFighter(id)->code;
-        pick=selection::Pick{};pick.fighter=id;showGallery("costumes","gallery-"+code);
+        pick=selection::Pick{};pick.fighter=id;
         for(int costume:selection::AllowedCostumes(id,availability(id))){
-            pick.costume=costume;showGallery("colors","gallery-"+code+"-"+std::to_string(costume));
+            pick.costume=costume;showAppearance("gallery-"+code+"-"+std::to_string(costume));
         }
     }
-    pick=savedPick;std::printf("Every fighter's costume and color galleries drawn.\n");
+    pick=savedPick;std::printf("Every fighter's costumes and colors loaded and drawn on the board.\n");
 }
 template<class Draw>
 void CheckSelectOnRandomPoolRestoresStage(sf4e::ui::FighterSelector& selector,sf4e::selection::RandomPool& stagePool,const Draw& draw) {
@@ -788,17 +788,19 @@ int main(int argc, char** argv) {
                         renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2);
                 }
             };
-            const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);draw(screen);};
+            // A Settings panel's screen ("tab-matches/1") is shot without its slash.
+            const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);
+                std::string shot=screen;std::replace(shot.begin(),shot.end(),'/','-');draw(shot.c_str());};
             SetMenuGlyphs(3,0x40000,0x20000);
             ShootGameSettingsCard(view,draw);
-            for(const char* screen:{"home","profile","main-character","online","create","join","settings","player","defaults","interface","training-replays","accessibility","discord","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/0","tab-matches/1","tab-interface/1","tab-interface/2","tab-access/0","tab-access/1","tab-online/0","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
-            view.preferences.autoInputDelay=true;page("defaults");view.preferences.autoInputDelay=false;
+            view.preferences.autoInputDelay=true;page("tab-matches/0");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw("home-last-row");
@@ -809,55 +811,52 @@ int main(int argc, char** argv) {
             CheckSettingsSaveErrorAndPortraitRetry(shell,view,draw,page);
             view.settingsError.clear();shell=ApplicationShell{};
             page("selection");
-            // A gallery page once every preview on it has loaded, with its cards checked.
-            const auto showGallery=[&](const std::string& screen,const std::string& shot){
-                selector.Navigation().Home();selector.Navigation().Push(screen.c_str());
+            // The board once every color preview of the pick's costume has loaded.
+            const auto showAppearance=[&](const std::string& shot){
                 if(art){
                     const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
                     bool loaded=false;
                     do{
                         art->Pump();loaded=true;
-                        const auto a=availability(pick.fighter);
-                        const auto options=screen=="costumes"?selection::AllowedCostumes(pick.fighter,a):selection::AllowedColors(pick.fighter,pick.costume,a);
-                        for(int option:options){
-                            const auto img=screen=="costumes"?art->Appearance(pick.fighter,option,0):art->Appearance(pick.fighter,pick.costume,option);
-                            if(img.missing)throw std::runtime_error("Gallery preview asset is missing: "+shot+" "+std::to_string(option));
+                        for(int color:selection::AllowedColors(pick.fighter,pick.costume,availability(pick.fighter))){
+                            const auto img=art->Appearance(pick.fighter,pick.costume,color);
+                            if(img.missing)throw std::runtime_error("Appearance preview asset is missing: "+shot+" "+std::to_string(color));
                             loaded=loaded&&img.texture!=0;
                         }
                         if(!loaded)std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     }while(!loaded&&std::chrono::steady_clock::now()<deadline);
-                    if(!loaded)throw std::runtime_error("Gallery preview loading timed out: "+shot);
+                    if(!loaded)throw std::runtime_error("Appearance preview loading timed out: "+shot);
                 }
-                SetMenuCardProbe([](const char* id,ImVec2 min,ImVec2 max){
-                    if(!std::strcmp(id,"menu-back"))return;
-                    Require(max.y-min.y<=ImGui::GetWindowHeight()+.5f,"Gallery card taller than the scrolling pane");
-                    Require(max.y-min.y>=100,"Gallery artwork collapsed to an unreadable thumbnail");});
-                draw(shot.c_str());SetMenuCardProbe({});
+                draw(shot.c_str());
             };
-            // SF4E_UI_RENDER_GALLERY: once per run, every fighter's costumes and
-            // each costume's colors, so every preview is loaded and drawn.
+            // SF4E_UI_RENDER_GALLERY: once per run, every fighter's costumes,
+            // each with every color's preview loaded, so every preview is checked.
             if(art&&galleryRun&&!galleryShown){
                 galleryShown=true;
-                ShootEveryFighterGallery(pick,availability,showGallery);
+                ShootEveryAppearance(pick,availability,[&](const std::string& shot){selector.Navigation().Home();showAppearance(shot);});
             }
-            for(const char* screen:{"roster","appearance","costumes","colors","ultra","stage","random-pool","options"}){
-                if(std::string(screen)=="costumes"||std::string(screen)=="colors"){showGallery(screen,screen);continue;}
-                selector.Navigation().Home();selector.Navigation().Push(screen);
-                draw(screen);
-                if(std::string(screen)=="ultra"){
-                    const int savedUltra=pick.ultra;
-                    for(int ultra:{0,1,2}){
-                        pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());
-                    }
-                    pick.ultra=savedUltra;
-                }
+            // The board with its Costume and Ultra values open, then the Ultra
+            // row with each Ultra saved, then its pages.
+            const auto boardRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Prefer(row);draw();};
+            for(const char* row:{"costume","ultra"}){
+                boardRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("board-")+row+"-values");
+                Require(selector.Navigation().Choosing(),"A board row did not open its values");
+                // Select on the saved value closes the panel and keeps it.
+                draw(nullptr,MenuInput::Select,1);draw();
+            }
+            boardRow("ultra");
+            const int savedUltra=pick.ultra;
+            for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
+            pick.ultra=savedUltra;
+            for(const char* screen:{"stage","random-pool","options"}){
+                selector.Navigation().Home();selector.Navigation().Push(screen);draw(screen);
             }
             CheckSelectOnRandomPoolRestoresStage(selector,stagePool,draw);
             ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);
-            selector.Navigation().Home();selector.Navigation().Push("roster");draw();
-            // The grid opens on its first card (not Ryu in USFIV's order), so two steps right land on a fighter other than the saved Ryu.
-            const int saved=pick.fighter;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
-            Require(pick.fighter==saved,"Grid movement committed fighter");
+            // The board opens on the saved fighter; two steps right land on another.
+            const int saved=pick.fighter;boardRow(("fighter-"+std::to_string(saved)).c_str());
+            draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
+            Require(pick.fighter==saved&&selector.Navigation().Focus().rfind("fighter-",0)==0,"Grid movement committed fighter or left the grid");
             draw(nullptr,MenuInput::Select,1);draw();Require(pick.fighter!=saved,"Select did not commit focused fighter");
             const int lockedFighter=pick.fighter;
             view.canEditSelection=false;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Select,1);

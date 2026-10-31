@@ -75,7 +75,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
  const auto& r=v.replays;std::vector<MenuEntry> rows;
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
  }else if(screen=="replay-sets"){
-  // V2's Sets: a row a set, its score by who won each match; Select offers each match to watch.
+  // Sets: a row a set, its score by who won each match; Select offers each match to watch.
   title=loc::T("replays.title");
   for(const auto& set:Sets(v)){
    const auto& newest=*set.front();const auto wins=SetScore(set);

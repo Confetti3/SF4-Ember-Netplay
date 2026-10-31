@@ -412,15 +412,6 @@ msgstr "Zapisz główną"
 msgid "menu.hint.save_fighter"
 msgstr "Zapisz postać"
 
-msgid "menu.hint.save_costume"
-msgstr "Zapisz strój"
-
-msgid "menu.hint.save_color"
-msgstr "Zapisz kolor"
-
-msgid "menu.hint.save_ultra"
-msgstr "Zapisz Ultra"
-
 msgid "menu.hint.save_stage"
 msgstr "Zapisz arenę"
 
@@ -753,9 +744,6 @@ msgstr "Gracz, kontroler, domyślne reguły, interfejs, język, trening i Discor
 
 msgid "home.about"
 msgstr "Pomoc i informacje"
-
-msgid "home.about_detail"
-msgstr "Sterowanie, diagnostyka, aktualizacje i twórcy."
 
 msgid "home.offline"
 msgstr "Graj offline"
@@ -1165,24 +1153,6 @@ msgstr "Dołącz za pomocą wklejonego zaproszenia."
 msgid "room.edit_invitation"
 msgstr "Edytuj zaproszenie"
 
-msgid "settings.title"
-msgstr "USTAWIENIA"
-
-msgid "settings.player_detail"
-msgstr "Nazwa wyświetlana, przypisanie kontrolera i gra w tle."
-
-msgid "settings.defaults_detail"
-msgstr "Opóźnienie i ustawienia nowych pokojów."
-
-msgid "settings.interface"
-msgstr "Interfejs"
-
-msgid "settings.interface_detail"
-msgstr "Język, HUD walki i rozmiar interfejsu."
-
-msgid "settings.discord_detail"
-msgstr "Aktywność i zaproszenia."
-
 msgid "player.title"
 msgstr "GRACZ I KONTROLER"
 
@@ -1229,9 +1199,6 @@ msgid "player.borderless_detail"
 msgstr "Gra wypełnia ekran w oknie bez ramki, rysowana w natywnej rozdzielczości ekranu w proporcjach 16:9, z czarnymi pasami na szerszym lub wyższym ekranie. Gdy to jest włączone, Alt+Enter oraz własne opcje rozdzielczości i pełnego ekranu w grze nic nie robią; gra zachowuje tam twój wybór na czas, gdy będzie wyłączone. Dotyczy tylko tego komputera. Zmiany zadziałają przy następnym uruchomieniu gry."
 
 
-
-msgid "settings.interface_title"
-msgstr "INTERFEJS"
 
 msgid "size.small"
 msgstr "Mały"
@@ -1367,9 +1334,6 @@ msgstr "Konto Discord, które zna Twoja strona turniejowa, na przykład BluMint.
 
 msgid "discord.invitation_title"
 msgstr "ZAPROSZENIE DISCORD"
-
-msgid "discord.title"
-msgstr "DISCORD"
 
 msgid "discord.cancel_invitation"
 msgstr "Odrzuć zaproszenie"
@@ -2226,9 +2190,6 @@ msgstr "75%"
 msgid "selection.original"
 msgstr "Oryginalny"
 
-msgid "selection.alternate"
-msgstr "Alternatywny {0}"
-
 msgid "selection.alternate_pack"
 msgstr "Alternatywny {0} / {1}"
 
@@ -2277,9 +2238,6 @@ msgstr "Ultra I"
 msgid "selection.ultra_two"
 msgstr "Ultra II"
 
-msgid "selection.hold"
-msgstr "TRZYMAJ"
-
 msgid "selection.stage"
 msgstr "Arena"
 
@@ -2292,50 +2250,8 @@ msgstr "Dodatkowe opcje"
 msgid "selection.additional_options.detail"
 msgstr "Edycja, obelga, odzywka i handicap."
 
-msgid "selection.choose_fighter"
-msgstr "WYBIERZ POSTAĆ"
-
-msgid "selection.appearance_title"
-msgstr "WYGLĄD"
-
-msgid "selection.costume_gallery"
-msgstr "Galeria strojów"
-
-msgid "selection.color_gallery"
-msgstr "Galeria kolorów"
-
-msgid "selection.color_preview"
-msgstr "Kolor {0} / Przeglądaj podglądy."
-
-msgid "selection.costume_gallery_title"
-msgstr "GALERIA STROJÓW"
-
-msgid "selection.color_gallery_title"
-msgstr "GALERIA KOLORÓW"
-
-msgid "selection.loading_choices"
-msgstr "Ładowanie opcji"
-
-msgid "selection.loading_choices.detail"
-msgstr "Czekanie na dostępne stroje i kolory w grze."
-
-msgid "selection.no_colors"
-msgstr "Brak odblokowanych kolorów dla tego stroju."
-
 msgid "selection.not_owned"
 msgstr "Nie posiadasz na Steamie."
-
-msgid "selection.not_owned_badge"
-msgstr "NIEPOSIADANA"
-
-msgid "selection.color"
-msgstr "Kolor {0}"
-
-msgid "selection.ultra_combo_title"
-msgstr "ULTRA COMBO"
-
-msgid "selection.ultra_double.detail"
-msgstr "Oba Ultra Combo, ale ze zmniejszonymi obrażeniami lub skutecznością."
 
 msgid "selection.saved"
 msgstr "ZAPISANO"
@@ -2397,26 +2313,8 @@ msgstr "POMINIĘTA"
 msgid "selection.handicap"
 msgstr "Handicap"
 
-msgid "selection.saved_value"
-msgstr "Zapisano: {0}"
-
-msgid "selection.ultra_selected"
-msgstr "Wybrano to Ultra Combo."
-
-msgid "selection.preview_save"
-msgstr "Tylko podgląd: naciśnij Select, aby zapisać."
-
-msgid "selection.preview_locked"
-msgstr "Tylko podgląd: wybór zablokowany."
-
-msgid "selection.saved_appearance"
-msgstr "Zapisano: {0} / Kolor {1}"
-
 msgid "selection.saved_full"
 msgstr "Zapisano: {0} / {1} / Kolor {2}"
-
-msgid "selection.preview_save_short"
-msgstr "Podgląd: Select zapisuje"
 
 msgid "selection.status_editable"
 msgstr "Select zapisuje / Powrót wraca o poziom."
@@ -5179,21 +5077,6 @@ msgstr "Start --"
 msgid "settings.training_replays"
 msgstr "Trening i powtórki"
 
-msgid "settings.training_replays_detail"
-msgstr "Miernik klatek w meczach, automatyczna gotowość po treningu i wybór zapisywanych meczów."
-
-msgid "settings.training_replays_title"
-msgstr "TRENING I POWTÓRKI"
-
-msgid "settings.accessibility"
-msgstr "Dostępność"
-
-msgid "settings.accessibility_detail"
-msgstr "Głos, który czyta menu Embera na głos."
-
-msgid "settings.accessibility_title"
-msgstr "DOSTĘPNOŚĆ"
-
 msgid "speech.setting"
 msgstr "Głos"
 
@@ -5673,9 +5556,6 @@ msgstr "Gra uległa awarii. Opcja Wysyłaj zgłoszenia problemów jest włączon
 
 msgid "reports.settings_title"
 msgstr "Zgłoszenia problemów"
-
-msgid "reports.settings_detail"
-msgstr "Co zawiera zgłoszenie awarii i wysłane zgłoszenia."
 
 msgid "reports.sent_list"
 msgstr "Wysłane zgłoszenia"

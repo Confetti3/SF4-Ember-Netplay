@@ -1,6 +1,7 @@
 #include "ApplicationShell.hxx"
 #include "../common/Localization.hxx"
 #include "MenuRows.hxx"
+#include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "GameMenu.hxx"
@@ -160,6 +161,27 @@ void ApplicationShell::AnswerToast(double now) {
   nav.Push(act.screen);
  }
  if(!act.row.empty())nav.Prefer(act.row);
+}
+
+// Notifications: the toasts said lately. A toast's action chosen at its row
+// is done as its toast's button would (AnswerToast); the bell that leads here
+// is not shown on it.
+class ApplicationShell::NotificationScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return screen == "notifications"; }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.NotificationRows(ImGui::GetTime(), title); }
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+        const auto toast = RowKey<unsigned>(a.id, "toast-");
+        const auto action = RowKey<std::size_t>(a.text, "");
+        if (!toast || !action) return false;
+        f.shell.toastAsked_ = {*toast, *action};
+        return true;
+    }
+    void Dress(const ScreenFrame&, GameMenu& menu) const override { menu.statusLeads.clear(); }
+};
+const ScreenPanel& ApplicationShell::NotificationsOwner() {
+    static const NotificationScreens notifications{};
+    return notifications;
 }
 
 // Each said toast, newest first; one with actions offers them at its row.

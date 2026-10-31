@@ -16,7 +16,7 @@ float ChipFont() { return ImGui::GetFontSize() * .78f; }
 std::string Fit(const std::string& text, float width, float size, ImFont* font, bool probe) {
     if (!font) font = ImGui::GetFont();
     const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
-    // The text probe sees every V2 line at its full width, so the lab's check finds what this cuts.
+    // The text probe sees every line drawn here at its full width, so the lab's check finds what this cuts.
     if (probe) ReportMenuText(("v2/" + text).c_str(), size, size, measured, width);
     if (measured <= width) return text;
     const char* end = nullptr;
@@ -56,6 +56,19 @@ void RowGround(ImDrawList* draw, Box row, bool focused, bool hovered) {
     if (focused || hovered) draw->AddRectFilled(row.min, row.max, focused ? Colors().header : Colors().hover, 4 * Scale());
 }
 
+namespace {
+// A press on `b` without an item: the left button let go over it, where it
+// went down, in this window with nothing over it. The hint bar sits on the
+// window's bottom edge, past its padding, where an item would be content the
+// window scrolls to; it is the board's own edge, not content.
+struct EdgePress { bool hovered, pressed; };
+EdgePress PressedOn(Box b) {
+    const bool hovered = ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(b.min, b.max);
+    const ImVec2 down = ImGui::GetIO().MouseClickedPos[ImGuiMouseButton_Left];
+    const bool began = down.x >= b.min.x && down.x < b.max.x && down.y >= b.min.y && down.y < b.max.y;
+    return {hovered, hovered && began && ImGui::IsMouseReleased(ImGuiMouseButton_Left)};
+}
+}
 int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, ImU32 tone, bool bell) {
     const float s = Scale(), glyph = (bar.H() < 52 * s ? 26 : 30) * s, font = 16 * s;
     auto* d = ImGui::GetWindowDrawList();
@@ -74,10 +87,7 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
         const auto& h = hints[i];
         const std::string label = compact ? std::string() : PromptLabel(h.glyph, h.label, MenuPromptBrand());
         const float w = glyph + (label.empty() ? 0 : 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x);
-        ImGui::SetCursorScreenPos(ImVec2(x, bar.min.y));
-        ImGui::PushID(i);
-        if (ImGui::InvisibleButton("##hint", ImVec2(w, bar.H()))) pressed = i;
-        ImGui::PopID();
+        if (PressedOn({ImVec2(x, bar.min.y), ImVec2(x + w, bar.max.y)}).pressed) pressed = i;
         DrawPromptGlyph(d, h.glyph, ImVec2(x, bar.min.y + (bar.H() - glyph) * .5f), glyph, MenuArt(), s);
         d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
         x += w + (compact ? 12 : 24) * s;
@@ -97,9 +107,9 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     if (!bottom.empty()) d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(bottom, size), mid - size * .5f + line), tone, bottom.c_str());
     if (bell) {
         // The bell of the Toasts board's touch control: a dome on a rim, and its clapper.
-        ImGui::SetCursorScreenPos(ImVec2(left, bar.min.y));
-        if (ImGui::InvisibleButton("##hint-bell", ImVec2(right - left, bar.H()))) pressed = static_cast<int>(hints.size());
-        const ImU32 ink = ImGui::IsItemHovered() ? Colors().accent : Colors().text;
+        const EdgePress bellPress = PressedOn({ImVec2(left, bar.min.y), ImVec2(right, bar.max.y)});
+        if (bellPress.pressed) pressed = static_cast<int>(hints.size());
+        const ImU32 ink = bellPress.hovered ? Colors().accent : Colors().text;
         const float k = s * .8f, bx = left, by = mid - 11 * k;
         d->PathLineTo(ImVec2(bx + 6 * k, by + 15 * k));
         d->PathLineTo(ImVec2(bx + 6 * k, by + 10 * k));
@@ -208,16 +218,16 @@ void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font) {
 
 ImU32 PanelGround(bool seeThrough) { return color::Alpha(Colors().panel, seeThrough ? .78f : .94f); }
 Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing, bool open) {
-    const float s = Scale();
+    const float s = Scale(), size = 20 * s, room = b.W() - 32 * s;
     const auto& c = Colors();
+    const float tw = trailing ? HeadWord(title, size, trailing, room, 16 * s) : 0, titleRoom = tw > 0 ? room - 16 * s - tw : room;
     draw->AddRectFilled(b.min, b.max, PanelGround(), 4 * s);
-    const Box head = CutTop(b, 40 * s);
+    const Box head = CutTop(b, 20 * s + HeadingHeight(title, titleRoom, size));
     if (open) draw->AddRectFilled(head.min, head.max, c.header, 4 * s, ImDrawFlags_RoundCornersTop);
     draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, s);
     draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, s);
-    const float tw = trailing ? TextWidth(trailing, ImGui::GetFontSize()) : 0;
-    if (trailing) draw->AddText(ImVec2(head.max.x - 16 * s - tw, head.min.y + (head.H() - ImGui::GetFontSize()) * .5f), c.muted, trailing);
-    Text(draw, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), head.W() - 32 * s - (tw > 0 ? tw + 16 * s : 0), title, 20 * s, c.text, HeadingFont());
+    if (tw > 0) draw->AddText(ImVec2(head.max.x - 16 * s - tw, head.min.y + (head.H() - ImGui::GetFontSize()) * .5f), c.muted, trailing);
+    Heading(draw, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), titleRoom, title, size, c.text);
     return b;
 }
 float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
@@ -230,6 +240,33 @@ float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, fl
     const float w = TextWidth(shown, size, font);
     draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
     return w;
+}
+namespace {
+// A heading's two lines in `width`: all of it on the first when it fits, else
+// the most whole words that fit (the first word at least) and the rest.
+std::pair<std::string, std::string> HeadingLines(const std::string& text, float width, float size, ImFont* font) {
+    std::size_t cut = text.find(' ');
+    if (TextWidth(text, size, font) <= width || cut == std::string::npos) return {text, {}};
+    for (std::size_t next = text.find(' ', cut + 1); next != std::string::npos && TextWidth(text.substr(0, next), size, font) <= width; next = text.find(' ', next + 1)) cut = next;
+    const std::size_t rest = text.find_first_not_of(' ', cut);
+    if (rest == std::string::npos) return {text, {}};
+    return {text.substr(0, cut), text.substr(rest)};
+}
+}
+float HeadWord(const std::string& heading, float size, const std::string& word, float room, float gap) {
+    const float w = TextWidth(word, ImGui::GetFontSize());
+    return TextWidth(heading, size, HeadingFont()) + gap + w <= room ? w : 0;
+}
+float HeadingHeight(const std::string& text, float width, float size, ImFont* font) {
+    return HeadingLines(text, width, size, font ? font : HeadingFont()).second.empty() ? size : size * (1 + HeadingLine);
+}
+float Heading(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font) {
+    if (!font) font = HeadingFont();
+    const auto [first, second] = HeadingLines(text, width, size, font);
+    Text(draw, at, width, first, size, color, font);
+    if (second.empty()) return size;
+    Text(draw, ImVec2(at.x, at.y + size * HeadingLine), width, second, size, color, font);
+    return size * (1 + HeadingLine);
 }
 void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color) {
     const ImVec2 points[] = {{at.x, at.y - size}, {at.x + size * .6f, at.y}, {at.x, at.y + size}};

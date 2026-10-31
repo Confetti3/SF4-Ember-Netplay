@@ -59,20 +59,20 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   }
   return;
  }
- // V2: a member's action from their popout. Kick and Make host still ask first, on the member's page.
- if(a.kind==MenuAction::Chosen&&a.id.compare(0,7,"member-")==0){
-  selectedMember_=std::stoull(a.id.substr(7));
+ // A member's action from their popout. Kick and Make host still ask first, on the member's page.
+ if(const auto member=RowKey(a.id,"member-");member&&a.kind==MenuAction::Chosen){
+  selectedMember_=*member;
   if(a.text=="kick"||a.text=="transfer-host"){memberAsk_=a.text;menu_.navigation.Push("room-member");return;}
   RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
- // The V2 board's parts: More…'s switches (which keep it open on them), its picture choice, and each panel's Hide.
+ // The board's parts: More…'s switches (which keep it open on them), its picture choice, and each panel's Hide.
  if((a.kind==MenuAction::Chosen&&a.id=="room-more")||a.kind==MenuAction::Activate){
   const std::string& id=a.kind==MenuAction::Chosen?a.text:a.id;auto& p=preferences_;bool changed=true;
   if(id=="room-show-members"||id=="room-hide-members")p.roomShowMembers=id=="room-show-members"&&!p.roomShowMembers;
   else if(id=="room-show-chat"||id=="room-hide-chat")p.roomShowChat=id=="room-show-chat"&&!p.roomShowChat;
   else if(id=="room-hide-picture")p.pictureMode=netplay::PictureOff;
-  else if(const int mode=RowIndex(id,"picture-");mode>=0&&mode<=netplay::PictureOff)p.pictureMode=mode;
+  else if(const auto mode=RowKey<int>(id,"picture-");mode&&*mode<=netplay::PictureOff)p.pictureMode=*mode;
   else if(id=="room-picture"){morePicture_=moreAsk_=true;return;}
   else changed=false;
   if(changed){
@@ -92,7 +92,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  // A cabinet's choice is the row it stands for; Leave seat answers its question.
- if(a.kind==MenuAction::Chosen&&RowIndex(a.id,"cabinet-")>=0){
+ if(a.kind==MenuAction::Chosen&&RowKey(a.id,"cabinet-")){
   if(a.text=="leave-seat")LeavePlace(v,submit);else if(a.text!="stay")RoomAction({MenuAction::Activate,a.text},v,submit);
   return;
  }
@@ -100,8 +100,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.kind==MenuAction::Chosen){
   // More…'s choice is the row it stands for.
   if(a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
-  const int table=RowIndex(a.id,"table-");if(table<0)return;
-  selectedTable_=table;
+  const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
+  selectedTable_=*table;
   if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
   if(a.text=="leave-seat"){LeavePlace(v,submit);return;}
   const auto* option=FindSeatOption(a.text);
@@ -110,9 +110,9 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
   return;
  }
- if(const int index=RowIndex(a.id,"cabinet-");index>=0&&index<static_cast<int>(room::CabinetCount)){
+ if(const auto index=RowKey<std::size_t>(a.id,"cabinet-");index&&*index<room::CabinetCount){
   // A free cabinet: Queue names it as table + seat * TableCount.
-  const auto cabinet=static_cast<std::size_t>(index);
+  const auto cabinet=*index;
   const auto* m=room::FindMember(v.room,v.room.cabinets[cabinet]);
   if(!m){
    Action request;request.kind=ActionKind::Queue;request.table=static_cast<std::uint8_t>(cabinet%TableCount);request.seat=static_cast<std::int8_t>(cabinet/TableCount);
@@ -125,9 +125,9 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  // A matchup under the cabinets opens its pair's table options.
- if(const int table=RowIndex(a.id,"matchup-");table>=0&&table<static_cast<int>(v.room.tables.size())){OpenTableOptions(v,table);return;}
- if(const int table=RowIndex(a.id,"table-");table>=0&&table<static_cast<int>(v.room.tables.size())){
-  selectedTable_=table;
+ if(const auto table=RowKey<int>(a.id,"matchup-");table&&*table<static_cast<int>(v.room.tables.size())){OpenTableOptions(v,*table);return;}
+ if(const auto table=RowKey<int>(a.id,"table-");table&&*table<static_cast<int>(v.room.tables.size())){
+  selectedTable_=*table;
   const auto mine=room::PlaceOf(v.room,v.room.localMember);
   // A on your own seat readies; on any other card it opens that table's
   // options, which is looking, not joining: Queue and Watch there keep their
@@ -149,7 +149,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   LeavePlace(v,submit);
   return;
  }
- if(a.id.compare(0,7,"member-")==0){selectedMember_=std::stoull(a.id.substr(7));nav.Push("room-member");return;}
+ if(const auto member=RowKey(a.id,"member-")){selectedMember_=*member;nav.Push("room-member");return;}
  if(a.id=="room-members"||a.id=="room-chat"||a.id=="room-admin"){nav.Push(a.id);return;}
  if(a.id=="room-controls"){nav.Push("player");return;}
   if(a.id=="copy"){ImGui::SetClipboardText(v.invitation.c_str());error_.clear();shortCopyPending_=false;ShowNotice(loc::T("room.invitation_copied"),Tone::Success,ImGui::GetTime()+3);return;}

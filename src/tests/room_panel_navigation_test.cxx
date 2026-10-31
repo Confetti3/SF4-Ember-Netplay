@@ -181,7 +181,7 @@ int main() try {
     for(unsigned i=1;i<=40;++i)view.room.chat.push_back({i,1,"Earlier chat message for reading."});
     frame();frame();frame();
     ImGuiWindow* chatWindow=nullptr;
-    for(auto* window:GImGui->Windows)if(window->Active && std::strstr(window->Name,"V2 chat"))chatWindow=window;
+    for(auto* window:GImGui->Windows)if(window->Active && std::strstr(window->Name,"Room chat"))chatWindow=window;
     Check(chatWindow && chatWindow->ScrollMax.y>0,"Chat scroll fixture is not scrollable");
     ImGui::SetScrollY(chatWindow,0);frame();frame();
     Check(chatWindow->Scroll.y<1,"Could not scroll back to earlier chat");
@@ -233,7 +233,7 @@ int main() try {
         view.room.chat.push_back({142, 2, "Recent " + encode(0x6708) + encode(0x65E5)});
         for (int i = 0; i < 6; ++i) frame();
         ImGuiWindow* recent = nullptr;
-        for (auto* window : GImGui->Windows) if (window->Active && std::strstr(window->Name, "V2 chat")) recent = window;
+        for (auto* window : GImGui->Windows) if (window->Active && std::strstr(window->Name, "Room chat")) recent = window;
         Check(recent && recent->ScrollMax.y > 0 && recent->Scroll.y > recent->ScrollMax.y - 1,
             "The chat did not scroll to its newest messages");
         // Everything noted while the first frames still showed the top has aged out.
@@ -1055,7 +1055,7 @@ int main() try {
             const char* selected = table ? "queue" : "table-0";
             focus(selected); frame(); frame();
             const auto panel = [&]() -> ImVec4 {
-                const char* name = table ? "V2 list" : "V2 tables";
+                const char* name = table ? "List" : "Room tables";
                 for (const auto* window : ImGui::GetCurrentContext()->Windows)
                     if (window->Active && std::strstr(window->Name, name))
                         return ImVec4(window->Pos.x, window->Pos.y, window->Size.x, window->Size.y);
@@ -1645,7 +1645,8 @@ int main() try {
         for (int i = 0; i < 4 && at() != "leave"; ++i) press(MenuInput::Right);
         Check(at() == "leave", "Right along the action bar did not reach Leave room");
         focus("member-1"); frame(); press(MenuInput::Left);
-        Check(RowIndex(at(), "cabinet-") >= 0 && RowIndex(at(), "cabinet-") < 8, "Left from the first member did not reach a top-row cabinet");
+        const auto cabinet = RowKey(at(), "cabinet-");
+        Check(cabinet && *cabinet < 8, "Left from the first member did not reach a top-row cabinet");
         focus("cabinet-0"); frame(); press(MenuInput::Left);
         Check(at() == "cabinet-0", "Left on cabinet 1 moved the focus");
         // ClassicV2CardsMoveAsGrid: two cards across at this size.

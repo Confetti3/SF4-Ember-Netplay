@@ -63,7 +63,14 @@ int main() try {
     HeadlessImGui imgui; auto& io = imgui.io;
     std::vector<MenuEntry> rows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; });
+    const auto row = [&](const std::string& id) {
+        const auto found = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& entry) { return entry.id == id; });
+        Check(found != rows.end(), ("The board lost its row " + id).c_str());
+        return *found;
+    };
     for (const int fighter : {0, 43}) {
+        // The board's costume row offers every owned costume, DLC included, and
+        // a pick from its panel saves the costume's native ID.
         FighterSelector selector;
         Pick pick; pick.fighter = fighter;
         const auto availability = NativeAvailability(fighter == 0 ? 0x007f007f : 0x003f003f);
@@ -71,28 +78,28 @@ int main() try {
             SetMenuInput({buttons, 0}); ImGui::NewFrame();
             ImGui::SetNextWindowSize(io.DisplaySize);
             ImGui::Begin("Selection regression");
-            // No artwork: ownership must still yield working gallery choices.
+            // No artwork: ownership must still yield working choices.
             selector.Draw(pick, true, nullptr, [&](int) { return availability; }, nullptr, editable);
             ImGui::End(); ImGui::Render();
         };
-        selector.Navigation().Push("costumes"); frame(); frame();
-        Check(rows.size() == CostumeCount(fighter), "Missing artwork hid owned costume cards");
+        const auto press = [&](unsigned buttons) { frame(buttons); frame(); };
+        frame(); frame();
+        Check(row("costume").choices.size() == static_cast<std::size_t>(CostumeCount(fighter)), "Missing artwork hid owned costumes");
         for (int costume = BaseCostumeCount(fighter); costume < CostumeCount(fighter); ++costume) {
-            const auto id = "costume-" + std::to_string(costume);
-            const auto found = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& row) { return row.id == id; });
-            Check(found != rows.end() && found->enabled, "Owned DLC gallery card is not selectable");
-            selector.Navigation().Focus(id, rows); frame(MenuInput::Select); frame();
-            Check(pick.costume == costume, "Selecting a DLC card did not save its native ID");
+            Check(row("costume").choices[costume].enabled, "An owned DLC costume is not selectable");
+            selector.Navigation().Focus("costume", rows); press(MenuInput::Select);
+            Check(selector.Navigation().Choosing(), "Select on the costume row did not open the costumes");
+            for (int step = pick.costume; step < costume; ++step) press(MenuInput::Right);
+            press(MenuInput::Select);
+            Check(pick.costume == costume, "Picking a DLC costume did not save its native ID");
             frame(0, false); frame();
             Check(pick.costume == costume && Available(pick, true, availability),
                 "Locking or refreshing selection reset an owned DLC costume");
-            // A saved costume goes on to its colors; come back for the next card.
-            Check(selector.Navigation().Screen() == "colors", "Saving a DLC costume did not go on to its colors");
-            selector.Navigation().Return(); frame(); frame();
+            Check(row("color").enabled, "A saved DLC costume offers no colors");
         }
     }
     {
-        // An unowned fighter keeps its card in the roster, which cannot be saved.
+        // An unowned fighter keeps its card in the board's grid, which cannot be saved.
         FighterSelector selector;
         Pick pick;
         const auto reader = [](int fighter) { return NativeAvailability(fighter == 43 ? 0x0002003f : 0x000f007f); };
@@ -103,19 +110,15 @@ int main() try {
             selector.Draw(pick, true, nullptr, reader, nullptr, true);
             ImGui::End(); ImGui::Render();
         };
-        selector.Navigation().Push("roster"); frame(); frame();
-        const auto row = [&](const char* id) {
-            const auto found = std::find_if(rows.begin(), rows.end(), [&](const MenuEntry& entry) { return entry.id == id; });
-            Check(found != rows.end(), "A fighter card left the roster");
-            return *found;
-        };
-        Check(rows.size() == FighterCount, "The roster lost a card");
-        Check(!row("fighter-43").enabled && row("fighter-0").enabled, "Roster cards ignored fighter ownership");
+        frame(); frame();
+        Check(std::count_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id.rfind("fighter-", 0) == 0; }) == FighterCount,
+            "The board's grid lost a card");
+        Check(!row("fighter-43").enabled && row("fighter-0").enabled, "Grid cards ignored fighter ownership");
         selector.Navigation().Focus("fighter-43", rows); frame(MenuInput::Select); frame();
         Check(pick.fighter == 0, "Selecting an unowned fighter's card saved it");
     }
     SetMenuEntriesProbe({});
-    std::cout << "Native ownership, DLC gallery, missing art and saved costume regressions passed.\n";
+    std::cout << "Native ownership, DLC costumes, missing art and saved costume regressions passed.\n";
     return 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

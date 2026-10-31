@@ -22,8 +22,6 @@ const char* ShortUltraLabel(int ultra);
 std::string StageLabel(int stageId, const selection::InstalledContent* installed = nullptr);
 class FighterSelector {
 public:
-    enum class Page { Fighter, Appearance, Ultra, Stage };
-    Page CurrentPage() const { return page_; }
     MenuNavigation& Navigation() { return menu_.navigation; }
     using AvailabilityReader = std::function<selection::Availability(int)>;
     // selectionError explains why the current choice is not usable. The room
@@ -35,22 +33,14 @@ public:
               int* stageId = nullptr, bool editable = true, const std::string& selectionError = {},
               selection::RandomPool* randomPool = nullptr, const selection::InstalledContent* installed = nullptr);
 private:
-    // V2's board (Fighter.dc.html): its grid eight across, the preview and the rows beside it.
+    // The board (Fighter.dc.html): its grid eight across, the preview and the rows beside it.
     static constexpr int BoardColumns = 8;
     void DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback,
                    const selection::Pick& pick, SelectionArt* art, const AvailabilityReader& readAvailability);
     std::string boardFocus_;
     GameMenu menu_;
-    Page page_ = Page::Fighter;
-    // The page opened for one change (EmbeddedReturn::openOn), or empty.
+    // The page ("stage" or "options") opened for one change
+    // (EmbeddedReturn::openOn), or empty when the selector opened on its board.
     std::string openOn_;
-    // The Ultra step was just pushed: focus the Ultra the new fighter has,
-    // which the caller restores after this frame.
-    bool focusSavedUltra_ = false;
-    // A fighter was just picked. Whether its Ultra step is needed is decided
-    // on the next frame, from the pick as the caller restored it for that
-    // fighter (its own saved edition), not from the previous fighter's.
-    bool ultraStepPending_ = false;
-    std::string notice_;
 };
 } }

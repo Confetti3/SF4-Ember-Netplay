@@ -42,7 +42,7 @@ void LanguageSaveFailure() {
  h.shell.SetLanguageSaver([](const std::string&,std::string& diagnostic){diagnostic="Read-only folder";return false;});
  std::string status;Tone tone=Tone::Neutral;
  SetMenuStatusProbe([&](const char* text,Tone t){status=text;tone=t;});
- h.Screen("interface");h.FocusOn("language");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.Screen("tab-access/1");h.FocusOn("language");h.Press(MenuInput::Right);h.Frame(0,45);
  const std::string failure=loc::T("settings.language_save_failed");
  Check(status==failure&&tone==Tone::Error,"A failed language save was not reported where the language is set");
  h.Screen("join");h.Frame(0,2);Check(status!=failure,"The language save failure followed the player to another screen");
@@ -50,8 +50,8 @@ void LanguageSaveFailure() {
  Check(status==h.view.session.error,"A session error lost to a stale language save failure");
  h.view.session.error.clear();h.view.controllerUnavailable=true;h.Frame();
  Check(status==loc::T("controller.disconnected"),"A controller disconnect lost to a stale language save failure");
- h.view.controllerUnavailable=false;h.Screen("interface");h.Frame(0,2);
- Check(status==failure,"The failure did not return with the Interface screen");
+ h.view.controllerUnavailable=false;h.Screen("tab-access/1");h.Frame(0,2);
+ Check(status==failure,"The failure did not return with the Text and language panel");
  SetMenuStatusProbe({});loc::SetActive(loc::Locale::En);
 }
 // What the session reports is worded in the active language, and a replacement
@@ -157,8 +157,8 @@ void ProblemReportJourneys() {
  {
   Harness h;h.Frame();
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
-  h.Screen("settings");h.Choose("problem-reports");
-  Check(h.shell.Navigation().Screen()=="problem-reports"&&rows.size()==2&&rows[0].id=="send-reports","Problem reports did not open from Settings");
+  h.Screen("tab-about/1");
+  Check(rows.size()==2&&rows[0].id=="send-reports","Settings' Problem reports panel does not hold its two rows");
   Check(rows[0].value==loc::T("common.off")&&!h.view.preferences.sendProblemReports,"Problem reports are not off at first");
   h.FocusOn("send-reports");h.Press(MenuInput::Right);h.Frame(0,45);
   Check(!h.actions.empty()&&h.actions.back().command.kind==netplay::CommandKind::SavePreferences&&h.actions.back().preferences.sendProblemReports,
@@ -171,7 +171,7 @@ void ProblemReportJourneys() {
   h.Choose("sent-reports");
   Check(h.shell.Navigation().Screen()=="sent-reports"&&rows.size()==1&&rows[0].id=="sent-none","Sent reports does not say there are none");
   // Discord keeps only its own rows.
-  h.Screen("discord");h.Frame();
+  h.Screen("tab-online/0");h.Frame();
   Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="crash-reports"||e.id=="send-reports";}),"Discord still holds a report setting");
   SetMenuEntriesProbe({});
  }
@@ -267,13 +267,50 @@ void V2AuditJourneys() {
   h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()==seen[5],"LB on the first tab did not wrap to the last");
   h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","A tab stepped to stacked on the one it left");
   h.Screen("awards");h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()=="awards-icons","LB on Titles did not wrap to Icons");
-  h.Press(ControllerButtons(0x400,input::PadDirectInput,0,{}));Check(h.shell.Navigation().Screen()=="awards","A stick's HP did not step the tab");
+  h.Press(ControllerButtons(0x400,input::PadDirectInput,input::MenuButtons{}.heavyPunch,{}));Check(h.shell.Navigation().Screen()=="awards","A stick's HP did not step the tab");
   SetMenuGlyphs(input::PadDirectInput,input::MenuButtons{1u<<18,1u<<17,"LK","MK"});h.Frame();
   Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab),"LP")&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab),"HP"),"A stick's tab buttons are not named LP and HP");
   Check(ShortcutHints({{MenuInput::Fighter,"Fighter"},{MenuInput::Options,"Table"},{MenuInput::Chat,"Chat"}}).empty(),"A stick is offered X, Y and View");
   SetMenuGlyphs(input::PadXInput,input::MenuButtons{});h.Frame();
   const auto hints=ShortcutHints({{MenuInput::Fighter,"Fighter"},{MenuInput::Chat,"Chat"}});
   Check(hints.size()==2&&!std::strcmp(hints[0].glyph,"X")&&hints[0].press==MenuInput::Fighter&&!std::strcmp(hints[1].glyph,"View"),"An Xbox pad's shortcut hints are wrong");
+ }
+ // A stick whose Select is the button that gives LP and whose Back gives HP:
+ // on a screen with tabs and on one without, the LP button selects and the HP
+ // button goes back, neither steps a tab, and the hint bar names no tab button.
+ {
+  Harness h;h.Frame();
+  input::MenuButtons rebound{input::MenuButtons{}.lightPunch,input::MenuButtons{}.heavyPunch,"LK","MK"};
+  const unsigned select=ControllerButtons(0x10,input::PadDirectInput,rebound.confirm,rebound),back=ControllerButtons(0x400,input::PadDirectInput,rebound.back,rebound);
+  Check(select==MenuInput::Select&&back==MenuInput::Back,"A stick's LP or HP button bound to Select or Back also stepped a tab");
+  SetMenuGlyphs(input::PadDirectInput,rebound);h.Frame();
+  Check(!MenuShortcutGlyph(MenuInput::PrevTab)&&!MenuShortcutGlyph(MenuInput::NextTab),"The hint bar names a tab button that selects or goes back");
+  // With tabs (Awards): HP goes back, not on to Icons; LP selects, not back to Icons.
+  h.Screen("awards");h.Press(back);
+  Check(h.shell.Navigation().Screen()=="home","HP bound to Back did not go back from a screen with tabs");
+  h.Screen("awards");h.Press(select);
+  Check(h.shell.Navigation().Screen()!="awards-icons","LP bound to Select stepped a tab");
+  // Without tabs (Online play): LP opens the focused row, HP comes back.
+  h.Screen("online");const std::string row=h.shell.Navigation().Focus();h.Press(select);
+  Check(!row.empty()&&h.shell.Navigation().Screen()!="online","LP bound to Select did not select on a screen without tabs");
+  h.Screen("online");h.Press(back);
+  Check(h.shell.Navigation().Screen()=="home","HP bound to Back did not go back on a screen without tabs");
+  SetMenuGlyphs(input::PadXInput,input::MenuButtons{});h.Frame();
+ }
+ // The welcome on a short, wide window: Skip and Next sit at the bottom right,
+ // away from the answers, and Down from the last answer still reaches them
+ // (MenuEdge::Flow); Left and Right go between them, and Next goes on.
+ {
+  Harness h;h.imgui.io.DisplaySize=ImVec2(1920,600);h.view.preferences.welcomed=false;h.Frame();h.Frame();
+  Check(h.shell.Navigation().Screen()=="welcome"&&h.shell.Navigation().Focus()=="welcome-speech_on","A fresh install did not open on the welcome's first answer");
+  h.Press(MenuInput::Down);h.Press(MenuInput::Down);
+  const std::string reached=h.shell.Navigation().Focus();
+  Check(reached=="welcome-next"||reached=="welcome-skip","Down from the welcome's last answer did not reach Skip or Next");
+  h.FocusOn("welcome-next");h.Press(MenuInput::Left);Check(h.shell.Navigation().Focus()=="welcome-skip","Left from Next did not reach Skip");
+  h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="welcome-next","Right from Skip did not reach Next");
+  h.Press(MenuInput::Up);Check(h.shell.Navigation().Focus()!="welcome-next","Up from Next stayed on Next");
+  h.FocusOn("welcome-next");h.Press(MenuInput::Select);
+  Check(h.shell.Navigation().Screen()=="welcome"&&h.shell.Navigation().Focus()=="language","Next did not go on to the language step");
  }
  // Settings, Player: Button layout opens the gameplay pad's layout, and the
  // Settings tabs do not come with it.
@@ -292,7 +329,7 @@ void V2AuditJourneys() {
  // Select on a word value with no list of values does what the hint bar
  // says, nothing: Auto input delay stays Auto (it once stepped to 0 frames).
  {
-  Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("defaults");h.FocusOn("delay");
+  Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("tab-matches/0");h.FocusOn("delay");
   const auto before=h.actions.size();h.Press(MenuInput::Select);h.Frame(0,40);
   Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences&&!a.preferences.autoInputDelay;}),
    "Select stepped Auto input delay");

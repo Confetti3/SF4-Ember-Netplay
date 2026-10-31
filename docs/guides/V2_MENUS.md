@@ -58,7 +58,10 @@ controller has. Each hint is also a button you can click. The bell on its
 right opens Notifications.
 
 On a board, such as the room's tables and members, the D-pad moves to the
-row drawn nearest in that direction; at the board's edge it stays.
+row drawn nearest in that direction; at the board's edge it stays. On Create
+and the first-run welcome, whose panels read as one column, it goes on to the
+next row instead: Down from the foot of the Room panel reaches the Rules
+panel, and Down from the last answer reaches Skip and Next.
 
 ## Settings and its panels
 
