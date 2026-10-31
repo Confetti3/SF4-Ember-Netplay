@@ -749,6 +749,17 @@ void BoardGeometry(){
  nav.Push("list");nav.Focus("cabinet-0",rows);time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Right,time},rows);
  Check(nav.Focus()=="cabinet-0","A list row moved sideways");time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Down,time},rows);
  Check(nav.Focus()=="cabinet-1","A list without places did not walk its order");
+ // The shell's footer (MenuEntry::footer) placed alone makes no board: the
+ // list walks its order. One row a body places of its own is a board, whose
+ // edge keeps the focus.
+ std::vector<MenuEntry> list={Row("first","First",""),Row("second","Second",""),Row("retry","Retry","")};list[2].footer=true;
+ const auto moved=[&](const char* placed,unsigned held){
+  MenuNavigation n;double t=0;
+  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40});};
+  tick(0);tick(0);n.Focus(placed,list);tick(held);tick(0);return n.Focus();
+ };
+ Check(moved("retry",MenuInput::Up)=="second","A footer placed alone made the list a board");
+ Check(moved("first",MenuInput::Down)=="first","A body's one placed row walked the list's order");
 }
 // Tabs wrap at both ends, from no tab too, and only an LB or RB Shortcut is a step.
 void TabStepping(){

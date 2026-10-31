@@ -51,7 +51,8 @@ struct RuntimeRequest {
     bool shortInvitation=false;
     // Saves only the settings a room leaves open: button layouts and the room
     // board's layout (column, split, panels, picture), from `preferences`
-    // (PlayerPreferences::CopyRoomSettings); sent alone.
+    // (PlayerPreferences::CopyRoomSettings), whenever the room leaves them open
+    // (netplay::RoomSettingsOpen), watching a game included; sent alone.
     bool roomSettings=false;
     // Leave a joined room's menu for Training mode (common/TrainingEntry.hxx);
     // sent alone. The runtime decides whether it still holds.

@@ -393,7 +393,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  }
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
  else if(a.id=="create"||a.id=="pr-create"||a.id=="pr-none"||a.id=="host"||a.id=="delete-template")CreateActivate(a,v,submit);
- else if(a.id=="settings")nav.Push("tab-player");
+ else if(a.id=="settings")ShowTab("tab-player");
  else if(SettingsTab(a.id))ShowTab(a.id);
  else if(a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);

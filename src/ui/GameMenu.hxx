@@ -293,6 +293,9 @@ private:
         bool backRequested = false;
         // A value panel or popout is open over the screen, so no choice popup.
         bool valuePanel = false;
+        // A choice here opens as a popup (DrawChoiceModal): no body draws it
+        // in place and no value panel or popout holds it.
+        bool ChoicePopup() const { return !body && !valuePanel; }
     };
     // The frame's input (GameMenu.cxx): the pad and keys, a notice's or a
     // toast's answer, the navigation's action and what speech says.

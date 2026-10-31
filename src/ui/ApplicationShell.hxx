@@ -80,12 +80,13 @@ struct ShellView {
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
     // The settings a room leaves open (PlayerPreferences::CopyRoomSettings: the
     // room board's layout and the watched game's picture) can change now: with
-    // every preference open, or in a room whenever this player is not fighting,
-    // watching a game included (the picture exists only then), where the shell
+    // every preference open, or while the room leaves them open
+    // (netplay::RoomSettingsOpen, watching a game included), where the shell
     // saves them alone (UpdatePreferenceSave) and the runtime takes them at once
-    // (SaveRoomSettings). Every row, grip and picture for those fields asks this.
+    // on the same rule (SaveRoomSettings). Every row, grip and picture for those
+    // fields asks this; button layouts ask CanEditLayout, at the main menu only.
     bool CanEditRoomSettings() const {
-        return canEditPreferences || (session.room != netplay::RoomState::Idle && !netplay::Fighting(session.match));
+        return canEditPreferences || netplay::RoomSettingsOpen(session.room, session.match);
     }
     int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
     bool autoDelayMeasured=false;
@@ -426,7 +427,8 @@ private:
     // A tab's page takes the place of the tab shown and of whatever is open on
     // it. A Settings panel ("tab-matches/defaults") stands on its tab's page,
     // focused on the panel's head, so Back from the panel lands there: the one
-    // way a tab or a panel opens (a tab, a rail head, Select on a head).
+    // way a tab or a panel opens (Home's Settings, a tab, a rail head, Select
+    // on a head).
     void ShowTab(const std::string& screen);
     // Left or Right on a Settings value row that is no on/off switch; false for any other row.
     static bool AdjustSetting(netplay::PlayerPreferences& preferences,const MenuAction& action);

@@ -203,23 +203,35 @@ input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
     return buttons;
 }
 
-bool CanEditButtonLayoutNow() {
-    const auto gates = CurrentGates();
-    return AtMainMenu() && !netplay::Fighting(runtime->controller.GetSnapshot().match) &&
-        (gates.canEditPreferences || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle);
+namespace {
+// The shell's rule for the settings a room leaves open
+// (ShellView::CanEditRoomSettings), read from the gates and the controller now.
+bool CanEditRoomSettingsNow() {
+    const auto session = runtime->controller.GetSnapshot();
+    return CurrentGates().canEditPreferences || netplay::RoomSettingsOpen(session.room, session.match);
+}
 }
 
-// The settings a room leaves open (PlayerPreferences::CopyRoomSettings), when
-// the menu may change button layouts now.
+// The shell's CanEditLayout: those settings open, at the main menu, no game fought.
+bool CanEditButtonLayoutNow() {
+    return AtMainMenu() && !netplay::Fighting(runtime->controller.GetSnapshot().match) && CanEditRoomSettingsNow();
+}
+
+// The settings a room leaves open (PlayerPreferences::CopyRoomSettings), all of
+// them, on the shell's rule, a watcher's included: the shell waits to see what
+// it sent (UpdatePreferenceSave). The writer's worker saves them, so this
+// queues during a watched game as a rematch's record does (NotifyRuntimeMatchResult).
+// Only the main menu changes the pads' layouts (CanEditButtonLayoutNow); the
+// shell edits layouts only there (CanEditLayout), each one applied as it is
+// made (HandleControllerRequest), so elsewhere these are the layouts in use.
 void SaveRoomSettings(const netplay::PlayerPreferences& from) {
-    if (!CanEditButtonLayoutNow()) return;
+    if (!CanEditRoomSettingsNow()) return;
     auto preferences = runtime->preferences;
     preferences.CopyRoomSettings(from);
     if (!preferences.Valid()) return;
-    if (OverlayPrefs::SavePlayerPreferences(preferences)) {
-        runtime->preferences = std::move(preferences);
-        Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
-    } else runtime->error = loc::T("runtime.preferences_queue_failed");
+    if (!OverlayPrefs::SavePlayerPreferences(preferences)) { runtime->error = loc::T("runtime.preferences_queue_failed"); return; }
+    runtime->preferences = std::move(preferences);
+    if (CanEditButtonLayoutNow()) Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 }
 
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {

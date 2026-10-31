@@ -7,7 +7,8 @@ using namespace gamepads;
 namespace {
 bool Served(const PadView& pad) { return pad.state == RowState::Recognised || pad.state == RowState::Steam; }
 // A layout is a setting a room leaves open (ShellView::CanEditRoomSettings), edited at the
-// main menu only, with the controller layer serving the pad.
+// main menu only, with the controller layer serving the pad. The runtime takes
+// a room's layouts on the same rule (CanEditButtonLayoutNow).
 bool CanEditLayout(const ShellView& view) { return view.atMainMenu && !netplay::Fighting(view.session.match) && view.padLayer == Layer::Active && view.CanEditRoomSettings(); }
 std::vector<Identity> ConnectedLayoutPads(const ShellView& view) {
     std::vector<Identity> connected;

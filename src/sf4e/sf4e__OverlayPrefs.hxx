@@ -100,7 +100,8 @@ namespace OverlayPrefs {
 	// seconds and returns empty.
 	std::optional<gamepads::Identity> DeviceIdentity();
 	// Tests only: loads read this settings folder instead of the user's, and
-	// the cached profile and failed-read memory are cleared. Saves are unchanged.
+	// the cached profile and failed-read memory are cleared. A writer started
+	// after this (StartPersistence) saves there too; one already running is unchanged.
 	void UseDirectoryForTest(const std::wstring& directory);
 	// Start outside DllMain; keep the writer alive across D3D device resets.
 	void StartPersistence();

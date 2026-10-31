@@ -11,6 +11,11 @@ enum class RoomState { Idle, Opening, Joined, Closing, Lost };
 enum class MatchState { None, Preparing, Playing, PostMatch, Failed };
 // A game being prepared or played.
 inline bool Fighting(MatchState state) { return state == MatchState::Preparing || state == MatchState::Playing; }
+// A room leaves its own settings open (PlayerPreferences::CopyRoomSettings)
+// whenever this player is in it and not fighting, watching a game included:
+// the watched game's picture exists only then. The shell's rows and the
+// runtime's save both ask this (ShellView::CanEditRoomSettings, SaveRoomSettings).
+inline bool RoomSettingsOpen(RoomState room, MatchState match) { return room != RoomState::Idle && !Fighting(match); }
 enum class Health { Offline, Connecting, Healthy, Lost };
 enum class Recovery { None, Recovering, ReplacementOffered };
 enum class Page { Home, Host, Join, Lobby, Match, PostMatch, Settings, Diagnostics };

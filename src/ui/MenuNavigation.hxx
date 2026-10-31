@@ -445,9 +445,9 @@ public:
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
         // A board moves by where it drew its rows; a list by their order, and
-        // so does a screen that placed this row alone (a footer under a body
-        // that places none), where no other row lies any way.
-        if(const MenuRect* at=placed_.size()>1?Placed(e.id):nullptr) {
+        // so does a body that places none of its own, with only the shell's
+        // footer under it placed (BodyPlaced).
+        if(const MenuRect* at=BodyPlaced(entries)?Placed(e.id):nullptr) {
             const int dy=direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0;
             auto to=Nearest(*at,delta,dy,entries);
             if(to==entries.size()&&s.edge==MenuEdge::Flow) to=NextPlaced(s.index,delta+dy,entries);
@@ -485,6 +485,15 @@ private:
     const MenuRect* Placed(const std::string& id) const {
         for(const auto& p:placed_) if(p.first==id) return &p.second;
         return nullptr;
+    }
+    // Whether the screen's body placed a row of its own last frame: the
+    // shell's footer rows (MenuEntry::footer) are placed under any body, so
+    // they alone make no board.
+    bool BodyPlaced(const std::vector<MenuEntry>& entries) const {
+        return std::any_of(placed_.begin(),placed_.end(),[&](const std::pair<std::string,MenuRect>& p) {
+            const auto e=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& entry){return entry.id==p.first;});
+            return e!=entries.end()&&!e->footer;
+        });
     }
     // The entry placed nearest past `from` in the direction (dx, dy). Past:
     // its centre is beyond from's centre that way, and it overlaps from

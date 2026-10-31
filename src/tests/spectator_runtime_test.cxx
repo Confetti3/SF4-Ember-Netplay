@@ -1,5 +1,6 @@
 #include "session_client_mock.hxx"
 #include "iroh_test_room.hxx"
+#include "runtime_room_fixture.hxx"
 #include "../session/IrohMatchSession.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../session/RoomModel.hxx"
@@ -7,12 +8,15 @@
 #include "../sf4e/sf4e__GameEvents.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
 #include "../sf4e/sf4e__UserApp.hxx"
+#include "../sf4e/sf4e__OverlayPrefs.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"
 #include "../common/NextBattleRequest.hxx"
 #include "../Dimps/Dimps.hxx"
 #include <winsock2.h>
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 
@@ -20,7 +24,8 @@
 
 // What the netplay runtime does around a spectator's match, through its real
 // command, reply and teardown paths: a failed setup, the room's unscored end,
-// leaving a watched game, the lock-in notices, and the battle entry's cleanup.
+// leaving a watched game, the lock-in notices, the battle entry's cleanup, and
+// a watcher's room settings.
 using namespace sf4e;
 using nlohmann::json;
 namespace protocol = sf4e::SessionProtocol;
@@ -33,90 +38,7 @@ using Phase = IrohMatchSession::Phase;
 
 namespace {
 
-// The runtime with a room of its own: its client connected through a scripted
-// transport and a fake helper room, this PC a member of `authority`'s room, the
-// controller joined and healthy. The runtime itself runs without a helper or a
-// game; there is no main menu, so the test ends a recovery the way
-// ReleaseFinishedMatch would at one.
-struct RuntimeRoom {
-	platform::HelperClient helper;
-	std::shared_ptr<FakeIrohRoom> room = std::make_shared<FakeIrohRoom>(helper);
-	SessionClient::Callbacks callbacks{};
-	std::string name = "Spectator";
-	MockClient* transport = new MockClient();
-	ULONGLONG now = 1000;
-	sf4e::NetplayFacade::internal::Runtime* runtime = nullptr;
-	Dimps::GameEvents::RootEvent* (*originalRoot)() = nullptr;
-	static Dimps::GameEvents::RootEvent* NoRoot() { return nullptr; }
-
-	RuntimeRoom() {
-		sf4e::NetplayConfig config = {};
-		sf4e::NetplayFacade::InitFromPayload(config);
-		sf4e::NetplayFacade::ConfigureHelper({}, ERROR_FILE_NOT_FOUND);
-		sf4e::NetplayFacade::StartHelper();
-		originalRoot = Dimps::App::GetRootEvent;
-		Dimps::App::GetRootEvent = NoRoot;
-		sf4e::NetplayFacade::NotifyRuntimeGameReady();
-		sf4e::NetplayFacade::TickRuntime();
-		runtime = sf4e::NetplayFacade::internal::runtime;
-		CHECK(runtime);
-		sf4e::UserApp::netplay.reset(new sf4e::UserApp::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
-		auto& client = sf4e::UserApp::netplay->client;
-		CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
-		client.RequireMatchAuthorization();
-		transport->state = session::ConnectionState::Connected;
-		CHECK(client.Step() == 0);
-		protocol::SessionHelloResp hello; hello.cid = {"room", "spectator"};
-		transport->Push(json(hello));
-		CHECK(client.Step() == 0);
-		std::array<std::uint8_t, 16> id{}; id[15] = 1;
-		room->roomId = id;
-		room->localIdentity = std::string(64, 'L');
-		runtime->match.reset(new IrohMatchSession(client, room, [this] { return now; }));
-		runtime->attached = true;
-		CHECK(runtime->controller.Execute({sf4e::netplay::CommandKind::HostRoom, runtime->controller.GetSnapshot().generation, {}}).accepted);
-		sf4e::NetplayFacade::internal::Apply(sf4e::netplay::EventKind::RoomJoined);
-		CHECK(runtime->controller.GetSnapshot().control == sf4e::netplay::Health::Healthy);
-	}
-	~RuntimeRoom() {
-		runtime->attached = false;
-		runtime->match.reset();
-		sf4e::UserApp::netplay.reset();
-		sf4e::NetplayFacade::StopHelper();
-		Dimps::App::GetRootEvent = originalRoot;
-	}
-	SessionClient& Client() { return sf4e::UserApp::netplay->client; }
-	IrohMatchSession& Match() { return *runtime->match; }
-	void Deliver(const json& message) { transport->Push(message); CHECK(Client().Step() == 0); }
-	void Snapshot(const sf4e::room::Snapshot& snapshot) {
-		protocol::RoomSnapshotMessage message; message.snapshot = snapshot;
-		Deliver(json(message));
-	}
-	// The native roster for `generation`: the two fighters, then this PC; or,
-	// with `local` 0 or 1, this PC in that fighter's slot.
-	void Projection(std::uint64_t generation, std::size_t local = 2) {
-		protocol::SessionDataUpdate update;
-		update.lobbyData.members.resize(3);
-		int other = 0;
-		for (std::size_t slot = 0; slot < update.lobbyData.members.size(); ++slot) {
-			if (slot == local) update.lobbyData.members[slot].connId = Client()._cid;
-			else update.lobbyData.members[slot].connId = {"room", other++ ? "p2" : "p1"};
-		}
-		update.matchGeneration = generation;
-		Deliver(json(update));
-	}
-	json Grant(std::uint64_t generation) { return GameGrant(*room, generation, {{"room", "p1"}, {"room", "p2"}, Client()._cid}, 2); }
-	// The room actions this PC sent: Unwatch with keep_watching, for `generation`.
-	int KeptUnwatches(std::uint64_t generation) const {
-		int count = 0;
-		for (const auto& message : transport->sent) {
-			if (message.value("type", json()) != json(protocol::MT_ROOM_ACTION)) continue;
-			const auto action = message.at("action").get<sf4e::room::Action>();
-			if (action.kind == sf4e::room::ActionKind::Unwatch && action.keepWatching && action.matchGeneration == generation) ++count;
-		}
-		return count;
-	}
-};
+using sf4e::test::RuntimeRoom;
 
 // A spectator, by choice or queued, saw one game end (the room's own end event,
 // through the runtime) and retired it, and is taken into the next, whose setup
@@ -975,6 +897,79 @@ void TestUnreadyWithdrawsAParkedReady() {
 		CHECK(r.transport->sent[i].value("type", json()) != json(protocol::MT_ROOM_ACTION));
 	std::cout << "TestUnreadyWithdrawsAParkedReady passed\n";
 }
+// A watcher away from the main menu, in a joined room and fighting no game
+// here, saves the settings the room leaves open the way the shell sends them
+// (ShellView::CanEditRoomSettings, netplay::RoomSettingsOpen): the runtime takes
+// what was sent, all of it, publishes it, which is what the shell's
+// UpdatePreferenceSave waits to see, and the writer saves it. A button layout
+// itself changes at the main menu only (CanEditButtonLayoutNow).
+void TestWatcherSavesRoomSettings() {
+	namespace facade = sf4e::NetplayFacade;
+	namespace internal = facade::internal;
+	namespace prefs = sf4e::OverlayPrefs;
+	const auto directory = std::filesystem::temp_directory_path() /
+		(L"sf4e-room-settings-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
+	std::filesystem::create_directories(directory);
+	prefs::UseDirectoryForTest(directory.wstring());
+	prefs::StartPersistence();
+	{
+		RuntimeRoom r;
+		auto& runtime = *r.runtime;
+		r.Projection(1);
+		internal::SetAtMainMenuForTest(false);
+		const auto session = runtime.controller.GetSnapshot();
+		CHECK(session.room == netplay::RoomState::Joined && !netplay::Fighting(session.match));
+		CHECK(!internal::CurrentGates().canEditPreferences);
+		auto sent = runtime.preferences;
+		sent.roomColumn = sent.roomColumn == netplay::MaxRoomColumn ? netplay::MinRoomColumn : netplay::MaxRoomColumn;
+		sent.roomShowChat = !sent.roomShowChat;
+		const gamepads::Identity pad{"guid", "serial", "path", "Pad"};
+		sent.buttonLayouts.push_back({pad, gamepads::DefaultLayout});
+		facade::RuntimeCommand save;
+		save.command = {netplay::CommandKind::SavePreferences, session.generation, {}};
+		save.roomSettings = true; save.preferences = sent;
+		runtime.error.clear();
+		CHECK(facade::SubmitRuntimeCommand(std::move(save)));
+		internal::DrainCommands(true);
+		CHECK_MSG(runtime.error.empty(), "%s", runtime.error.c_str());
+		CHECK(runtime.preferences.roomColumn == sent.roomColumn && runtime.preferences.roomShowChat == sent.roomShowChat);
+		CHECK(runtime.preferences.buttonLayouts == sent.buttonLayouts);
+		internal::Publish();
+		const auto published = facade::GetRuntimeSnapshotShared();
+		CHECK(published->preferences.roomColumn == sent.roomColumn && published->preferences.roomShowChat == sent.roomShowChat);
+		CHECK(published->preferences.buttonLayouts == sent.buttonLayouts);
+		const auto deadline = GetTickCount64() + 5000;
+		while (prefs::PersistencePending() && GetTickCount64() < deadline) Sleep(10);
+		CHECK(!prefs::PersistencePending() && prefs::PersistenceError().empty());
+		std::ifstream file(directory / L"settings.json", std::ios::binary);
+		const auto saved = json::parse(file, nullptr, false);
+		CHECK(!saved.is_discarded() && saved.dump().find("\"roomColumn\":" + std::to_string(sent.roomColumn)) != std::string::npos);
+		// The pad's own layout edit: refused here, taken at the main menu.
+		gamepads::PadView served; served.id = 7; served.identity = pad; served.slot = 0;
+		runtime.pads = {served}; runtime.padLayer = gamepads::Layer::Active;
+		auto edited = gamepads::DefaultLayout; std::swap(edited[0], edited[1]);
+		const auto edit = [&] {
+			facade::RuntimeCommand layout;
+			layout.command = {netplay::CommandKind::SavePreferences, session.generation, {}};
+			layout.padAction.kind = gamepads::ControllerRequest::Kind::Layout; layout.padAction.id = served.id; layout.padAction.buttons = edited;
+			CHECK(facade::SubmitRuntimeCommand(std::move(layout)));
+			internal::DrainCommands(true);
+		};
+		edit();
+		CHECK(runtime.preferences.buttonLayouts == sent.buttonLayouts);
+		internal::SetAtMainMenuForTest(true);
+		edit();
+		const auto taken = std::find_if(runtime.preferences.buttonLayouts.begin(), runtime.preferences.buttonLayouts.end(),
+			[&](const gamepads::StoredLayout& layout) { return layout.identity == pad; });
+		CHECK(taken != runtime.preferences.buttonLayouts.end() && taken->buttons == edited);
+		internal::SetAtMainMenuForTest(std::nullopt);
+	}
+	prefs::StopPersistence();
+	prefs::UseDirectoryForTest({});
+	std::error_code ignored;
+	std::filesystem::remove_all(directory, ignored);
+	std::cout << "TestWatcherSavesRoomSettings passed\n";
+}
 }
 int main() {
 	for (const bool queued : {false, true})
@@ -993,6 +988,7 @@ int main() {
 	TestGatesMatchPublished();
 	TestGatesAreCurrent();
 	TestUnreadyWithdrawsAParkedReady();
+	TestWatcherSavesRoomSettings();
 	std::cout << "Spectator runtime tests passed\n";
 	return 0;
 }

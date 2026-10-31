@@ -303,7 +303,9 @@ namespace OverlayPrefs {
 	void StartPersistence() {
 		if (writer) return;
 		try {
-			writer = new netplay::SettingsWriter(netplay::SettingsStore::DefaultDirectory());
+			std::wstring directory;
+			{ std::lock_guard<std::mutex> lock(cacheMutex); directory = directoryOverride; }
+			writer = new netplay::SettingsWriter(directory.empty() ? netplay::SettingsStore::DefaultDirectory() : directory);
 			startupError.clear();
 		} catch (...) { startupError = "The preferences worker could not start."; }
 	}

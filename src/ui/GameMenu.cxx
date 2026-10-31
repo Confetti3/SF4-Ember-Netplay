@@ -290,7 +290,7 @@ MenuAction GameMenu::Finish(Frame& f) {
     // A renderer popup may survive a model cancellation by one frame. Close it
     // without rendering stale controls or reading a draft that was already cleared.
     DrawConfirmationModal(entries,action);
-    if(!f.body&&!f.valuePanel)DrawChoiceModal(entries,action);
+    if(f.ChoicePopup())DrawChoiceModal(entries,action);
     DrawNoticeModal(f.noticeOpen);
     DrawEditModal(entries,f.acceptEditText,action);
     // The editor takes the keyboard focus when it opens, so a notice that hid it

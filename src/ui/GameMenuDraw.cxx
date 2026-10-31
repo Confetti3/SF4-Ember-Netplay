@@ -640,7 +640,7 @@ void GameMenu::DrawHintBar(Frame& f, v2::Box bar) {
     // (DialogLegend) and owns the input, so the screen's shortcuts, its tab
     // steps and the bell wait for it to close; a list that takes no input (a
     // capture) shows only the screen's own hints. A popup (a notice, the
-    // editor, a confirmation, a choice drawn as one: Finish) takes the pointer
+    // editor, a confirmation, a choice drawn as one: Frame::ChoicePopup) takes the pointer
     // from the bar, so under one the hints are its buttons' names, as labels;
     // the reader and a board's value panel are no popups, and theirs are buttons.
     std::vector<v2::Hint> hints;
@@ -653,7 +653,7 @@ void GameMenu::DrawHintBar(Frame& f, v2::Box bar) {
     std::string dialogSelect, dialogBack;
     const bool dialog = DialogLegend(f.entries, dialogSelect, dialogBack);
     if (dialog) {
-        const bool popup = !notice_.empty() || navigation.Editing() || navigation.Confirming() || (navigation.Choosing() && !f.body && !f.valuePanel);
+        const bool popup = !notice_.empty() || navigation.Editing() || navigation.Confirming() || (navigation.Choosing() && f.ChoicePopup());
         if (!dialogSelect.empty()) hint(MenuSelectGlyph(), dialogSelect, MenuInput::Select, popup);
         hint(MenuBackGlyph(), dialogBack, MenuInput::Back, popup);
     } else if (listEnabled) {

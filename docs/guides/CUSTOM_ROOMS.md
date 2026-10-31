@@ -275,8 +275,8 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
   Room layout: Column width, Members and chat, Ready-made layout, Picture and
   Restore defaults. These, each panel's Hide and Show, and the watched game's
   picture (Picture here or in More…, and its corner and size under Settings >
-  Matches) are saved while you are in the room; the rest of Settings is locked
-  until you leave.
+  Matches) are saved while you are in the room and not fighting, watching a
+  game included; the rest of Settings is locked until you leave.
 - **Watching:** with the watched game's picture on, the board shows it large
   over one row of table cards. The column grip makes it bigger.
 
