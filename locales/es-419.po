@@ -4723,6 +4723,18 @@ msgstr "Super"
 msgid "training.data.revenge"
 msgstr "Revenge"
 
+msgid "training.data.life"
+msgstr "Vida"
+
+msgid "training.data.stun"
+msgstr "Aturdimiento"
+
+msgid "training.data.interruptible"
+msgstr "Cancelable"
+
+msgid "training.data.advantage"
+msgstr "Ventaja"
+
 msgid "training.data.juggled"
 msgstr "Conteo"
 

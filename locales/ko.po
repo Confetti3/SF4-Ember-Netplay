@@ -5185,6 +5185,18 @@ msgstr "슈퍼"
 msgid "training.data.revenge"
 msgstr "리벤지"
 
+msgid "training.data.life"
+msgstr "체력"
+
+msgid "training.data.stun"
+msgstr "스턴"
+
+msgid "training.data.interruptible"
+msgstr "캔슬 가능"
+
+msgid "training.data.advantage"
+msgstr "유리"
+
 msgid "training.data.juggled"
 msgstr "카운트"
 

@@ -5184,6 +5184,18 @@ msgstr "Super"
 msgid "training.data.revenge"
 msgstr "Revenge"
 
+msgid "training.data.life"
+msgstr "Vie"
+
+msgid "training.data.stun"
+msgstr "Étourdissement"
+
+msgid "training.data.interruptible"
+msgstr "Annulable"
+
+msgid "training.data.advantage"
+msgstr "Avantage"
+
 msgid "training.data.juggled"
 msgstr "Compte"
 

@@ -95,6 +95,8 @@ void Actor::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetUCTimeAmt_FixedPoint) = (PVOID)(peRootOffset + 0x142220);
 	*(PVOID*)(&publicMethods.GetUCTimeMax_FixedPoint) = (PVOID)(peRootOffset + 0x142240);
 	*(PVOID*)(&publicMethods.GetUCTimePct_FixedPoint) = (PVOID)(peRootOffset + 0x142260);
+	*(PVOID*)(&publicMethods.GetStunAmt_FixedPoint) = (PVOID)(peRootOffset + 0x1422e0);
+	*(PVOID*)(&publicMethods.GetStunMax_FixedPoint) = (PVOID)(peRootOffset + 0x142300);
 
 	*(PVOID*)(&publicMethods.GetCurrentRootPosition) = (PVOID)(peRootOffset + 0x12d660);
 	*(PVOID*)(&publicMethods.GetCurrentBonePositionByID) = (PVOID)(peRootOffset + 0x1427a0);

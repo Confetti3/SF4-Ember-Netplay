@@ -454,7 +454,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 auto& f=data.fighters[side];f.valid=true;f.scripts=scripts;f.script=258;
                 if(!side)f.chargeNames=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"SONICBOOM","SOMERSAULT"});f.scriptFrame=side?15.5f:16;
                 f.x=side?1.25f:-0.625f;f.y=side?0.75f:0;f.status=side?16:0;
-                f.stance=side?training::Stance::Airborne:training::Stance::Crouching;f.super=side?1000:750;f.superMax=1000;f.revenge=side?400:150;f.revengeMax=400;
+                f.stance=side?training::Stance::Airborne:training::Stance::Crouching;f.life=side?820:1000;f.lifeMax=1000;f.recoverable=side?900:1000;f.stun=side?240:0;f.stunMax=1000;f.super=side?1000:750;f.superMax=1000;f.revenge=side?400:150;f.revengeMax=400;
                 f.juggled=side?2:-1;f.juggle={1,1,side?7:0};f.rangeRule=side?training::RangeRule::None:training::RangeRule::Within;f.range=1.3f;
                 if(!side){f.charges[0]={0,training::ChargeBack,50,45};f.charges[1]={1,training::ChargeDown,55,55};f.chargeCount=2;}
             }

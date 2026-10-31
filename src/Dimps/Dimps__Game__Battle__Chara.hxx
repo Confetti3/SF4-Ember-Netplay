@@ -186,6 +186,9 @@ namespace Dimps {
 						void (Actor::* GetUCTimeAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetUCTimeMax_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetUCTimePct_FixedPoint)(Dimps::Math::FixedPoint* out);
+						// The stun gauge (+0x6c64, its top +0x6c68): a hit adds its stun, it drains while not hit.
+						void (Actor::* GetStunAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
+						void (Actor::* GetStunMax_FixedPoint)(Dimps::Math::FixedPoint* out);
 
 						float* (Actor::* GetCurrentRootPosition)();
 						float* (Actor::* GetCurrentBonePositionByID)(int boneID);

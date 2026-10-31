@@ -5185,6 +5185,18 @@ msgstr "超必杀"
 msgid "training.data.revenge"
 msgstr "复仇"
 
+msgid "training.data.life"
+msgstr "体力"
+
+msgid "training.data.stun"
+msgstr "眩晕"
+
+msgid "training.data.interruptible"
+msgstr "可取消"
+
+msgid "training.data.advantage"
+msgstr "有利"
+
 msgid "training.data.juggled"
 msgstr "计数"
 

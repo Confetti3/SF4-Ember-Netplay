@@ -20,7 +20,7 @@ using training::FighterData;
 // The meter's own colours for P1 and P2, and a stance's chip.
 constexpr ImU32 SideColor[2] = {IM_COL32(255, 120, 110, 255), IM_COL32(120, 190, 255, 255)};
 constexpr ImU32 Track = IM_COL32(255, 255, 255, 28), Rule = IM_COL32(255, 255, 255, 36);
-constexpr ImU32 Full = IM_COL32(60, 196, 110, 255), Super = IM_COL32(70, 150, 255, 255), Revenge = IM_COL32(236, 76, 60, 255);
+constexpr ImU32 Stun = IM_COL32(246, 176, 48, 255), Full = IM_COL32(60, 196, 110, 255), Super = IM_COL32(70, 150, 255, 255), Revenge = IM_COL32(236, 76, 60, 255);
 ImU32 StanceColor(training::Stance stance) {
     switch (stance) {
     case training::Stance::Crouching: return IM_COL32(80, 170, 160, 255);
@@ -74,21 +74,24 @@ struct Rows {
     // Two pairs side by side, each half the row.
     void Pairs(const std::string& a, const std::string& av, const std::string& b, const std::string& bv) {
         const float half = width * .5f, gap = 8 * s;
-        Text(left, y + (line - small) * .5f, small, palette::Muted, a);
+        Text(left, y + (line - small) * .5f, small, palette::Muted, v2::Fit(a, half - gap - Measure(av, line).x - 6 * s, small, nullptr, false));
         Right(left + half - gap, y, line, palette::Ivory, av);
-        Text(left + half + gap, y + (line - small) * .5f, small, palette::Muted, b);
+        Text(left + half + gap, y + (line - small) * .5f, small, palette::Muted, v2::Fit(b, half - gap - Measure(bv, line).x - 6 * s, small, nullptr, false));
         Right(left + width, y, line, palette::Ivory, bv);
         y += line + 2 * s;
     }
     // A label (from `indent`) and its value over a bar the row's width,
-    // filled to `share` and cut in `parts` (a gauge's bars).
-    void Bar(const std::string& label, float share, int parts, ImU32 colour, const std::string& value, float indent = 0) {
+    // filled to `share` and cut in `parts` (a gauge's bars); grey up to
+    // `behind` under the fill, as life that refills.
+    void Bar(const std::string& label, float share, int parts, ImU32 colour, const std::string& value, float indent = 0, float behind = 0) {
         const float height = 5 * s;
         Text(left + indent, y + (line - small) * .5f, small, palette::Muted, v2::Fit(label, width - indent - Measure(value, line).x - 8 * s, small, nullptr, false));
         Right(left + width, y, line, palette::Ivory, value);
         y += line + s;
         const float x0 = left, x1 = left + width, top = y;
         draw->AddRectFilled(ImVec2(x0, top), ImVec2(x1, top + height), Track, 2 * s);
+        behind = (std::max)(0.f, (std::min)(1.f, behind));
+        if (behind > 0) draw->AddRectFilled(ImVec2(x0, top), ImVec2(x0 + (x1 - x0) * behind, top + height), IM_COL32(150, 150, 150, 200), 2 * s);
         share = (std::max)(0.f, (std::min)(1.f, share));
         if (share > 0) draw->AddRectFilled(ImVec2(x0, top), ImVec2(x0 + (x1 - x0) * share, top + height), colour, 2 * s);
         for (int part = 1; part < parts; ++part) {
@@ -118,6 +121,9 @@ void Timeline(Rows& rows, const FighterData& fighter, const bac::Script& script)
     }
     for (const auto& hit : script.hits)
         if (hit.first >= 0 && hit.last > hit.first) rows.draw->AddRectFilled(ImVec2(at(static_cast<float>(hit.first)), top), ImVec2((std::max)(at(static_cast<float>(hit.last)), at(static_cast<float>(hit.first)) + rows.s), top + height), colour(training::MeterKind::Active));
+    // The frame it can be cancelled from, as a thin line.
+    if (script.interruptible > 0 && script.interruptible < script.total)
+        rows.draw->AddLine(ImVec2(at(static_cast<float>(script.interruptible)), top - rows.s), ImVec2(at(static_cast<float>(script.interruptible)), top + height + rows.s), palette::Muted, rows.s);
     if (script.total > 0) {
         const float mark = at(fighter.scriptFrame);
         rows.draw->AddRectFilled(ImVec2(mark - rows.s, top - 2 * rows.s), ImVec2(mark + rows.s, top + height + 2 * rows.s), palette::Ivory);
@@ -154,6 +160,12 @@ void Fighter(Rows& rows, const training::View& view, int side, const training::M
         rows.Right(rows.left + rows.width, rows.y, rows.line, palette::Ivory, frame);
         rows.y += rows.line + 2 * rows.s;
         if (named) Timeline(rows, fighter, *named);
+        // The frame the script can be cancelled from (its header's), and the
+        // advantage the meter measured for this fighter.
+        const auto& advantage = training::ShownAdvantage(view.meter);
+        const int frames = advantage.frames[side];
+        rows.Pairs(loc::T("training.data.interruptible"), named && named->interruptible > 0 ? std::to_string(named->interruptible) : std::string("-"),
+            loc::T("training.data.advantage"), advantage.valid ? (frames > 0 ? "+" : "") + std::to_string(frames) : std::string("-"));
         // A close or far normal's rule: the distance at which the game picks it.
         if (const char* rule = RangeRuleText(fighter.rangeRule))
             rows.Pair(loc::T("training.data.range"), loc::Tf(rule, Number("%.3f", fighter.range)));
@@ -176,9 +188,17 @@ void Fighter(Rows& rows, const training::View& view, int side, const training::M
     }
     if (options.dataGauges) {
         rows.Section("training.data.gauges");
-        // Side by side: Super in its four bars, Revenge in two halves, as the
-        // game draws them.
+        // Two a row: life with its grey part that refills and stun, then
+        // Super in its four bars and Revenge in two halves, as the game
+        // draws them.
         const float gap = 10 * rows.s, half = (rows.width - gap) * .5f;
+        const auto share = [](int amount, int top) { return top ? static_cast<float>(amount) / top : 0.f; };
+        Rows life = rows, stun = rows;
+        life.width = stun.width = half;
+        stun.left += half + gap;
+        life.Bar(loc::T("training.data.life"), share(fighter.life, fighter.lifeMax), 1, Full, std::to_string(fighter.life), 0, share(fighter.recoverable, fighter.lifeMax));
+        stun.Bar(loc::T("training.data.stun"), share(fighter.stun, fighter.stunMax), 1, Stun, std::to_string(fighter.stun));
+        rows.y = life.y;
         Rows super = rows, revenge = rows;
         super.width = revenge.width = half;
         revenge.left += half + gap;

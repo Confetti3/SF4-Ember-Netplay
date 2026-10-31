@@ -5185,6 +5185,18 @@ msgstr "スーパー"
 msgid "training.data.revenge"
 msgstr "リベンジ"
 
+msgid "training.data.life"
+msgstr "体力"
+
+msgid "training.data.stun"
+msgstr "スタン"
+
+msgid "training.data.interruptible"
+msgstr "キャンセル可能"
+
+msgid "training.data.advantage"
+msgstr "有利"
+
 msgid "training.data.juggled"
 msgstr "カウント"
 

@@ -211,6 +211,13 @@ void TickTraining() {
 		break;
 	case Stage::Struck:
 		HitAdvantage(view, "Ryu crouching LP", kHitAdvantage);
+		{
+			// The jab took life and added stun, and the Data panel read both.
+			const auto& struck = view.data.fighters[1];
+			const bool gaugesRight = view.data.valid && struck.lifeMax > 0 && struck.life < struck.lifeMax && struck.stunMax > 0 && struck.stun > 0 && struck.stun < struck.stunMax;
+			Say(gaugesRight, "Ryu crouching LP life and stun", "life " + std::to_string(struck.life) + " / " + std::to_string(struck.lifeMax) +
+				", stun " + std::to_string(struck.stun) + " / " + std::to_string(struck.stunMax));
+		}
 		// Hitstop is left out of the bars, so a hit draws the cells a whiff does.
 		SayCells(view, "Ryu crouching LP cells on hit");
 		lab.Enter(Stage::HeavyHit);

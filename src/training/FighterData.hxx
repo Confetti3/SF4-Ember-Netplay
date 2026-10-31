@@ -42,8 +42,9 @@ struct FighterData {
     // The root position, in the game's units.
     float x = 0, y = 0;
     Stance stance = Stance::Standing; unsigned status = 0;
-    // Super gauge 0 to 1000 (250 a bar) and the Revenge gauge, with their tops.
-    int super = 0, superMax = 0, revenge = 0, revengeMax = 0;
+    // Life and its grey part that refills, the stun gauge, the Super gauge
+    // 0 to 1000 (250 a bar) and the Revenge gauge, with their tops.
+    int life = 0, lifeMax = 0, recoverable = 0, stun = 0, stunMax = 0, super = 0, superMax = 0, revenge = 0, revengeMax = 0;
     // The juggle count the fighter is under, -1 when not juggled.
     int juggled = -1;
     Juggle juggle;

@@ -575,6 +575,11 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         fighter.x = root[0]; fighter.y = root[1];
         fighter.stance = fighter.status == ActorStatus::Down || fighter.status == ActorStatus::Rise ? Stance::Down :
             (actor->*Actor::publicMethods.IsAirborne)(0) ? Stance::Airborne : (actor->*Actor::publicMethods.IsCrouching)(0) ? Stance::Crouching : Stance::Standing;
+        fighter.life = amount(actor, Actor::publicMethods.GetVitalityAmt_FixedPoint);
+        fighter.lifeMax = amount(actor, Actor::publicMethods.GetVitalityMax_FixedPoint);
+        fighter.recoverable = amount(actor, Actor::publicMethods.GetRecoverableVitalityAmt_FixedPoint);
+        fighter.stun = amount(actor, Actor::publicMethods.GetStunAmt_FixedPoint);
+        fighter.stunMax = amount(actor, Actor::publicMethods.GetStunMax_FixedPoint);
         fighter.super = amount(actor, Actor::publicMethods.GetSuperComboAmt_FixedPoint);
         fighter.superMax = amount(actor, Actor::publicMethods.GetSuperComboMax_FixedPoint);
         fighter.revenge = amount(actor, Actor::publicMethods.GetRevengeAmt_FixedPoint);
