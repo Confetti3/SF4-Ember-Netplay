@@ -221,9 +221,9 @@ bool CanEditButtonLayoutNow() {
 // them, on the shell's rule, a watcher's included: the shell waits to see what
 // it sent (UpdatePreferenceSave). The writer's worker saves them, so this
 // queues during a watched game as a rematch's record does (NotifyRuntimeMatchResult).
-// Only the main menu changes the pads' layouts (CanEditButtonLayoutNow); the
-// shell edits layouts only there (CanEditLayout), each one applied as it is
-// made (HandleControllerRequest), so elsewhere these are the layouts in use.
+// The layouts go to the pads whenever they are saved: GamepadLayouts::Update
+// leaves them alone while the game holds its tables, and the shell edits them
+// only at the main menu (CanEditLayout), so elsewhere these are the layouts in use.
 void SaveRoomSettings(const netplay::PlayerPreferences& from) {
     if (!CanEditRoomSettingsNow()) return;
     auto preferences = runtime->preferences;
@@ -231,7 +231,7 @@ void SaveRoomSettings(const netplay::PlayerPreferences& from) {
     if (!preferences.Valid()) return;
     if (!OverlayPrefs::SavePlayerPreferences(preferences)) { runtime->error = loc::T("runtime.preferences_queue_failed"); return; }
     runtime->preferences = std::move(preferences);
-    if (CanEditButtonLayoutNow()) Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+    Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 }
 
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {

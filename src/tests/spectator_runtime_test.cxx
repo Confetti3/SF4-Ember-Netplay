@@ -910,6 +910,8 @@ void TestWatcherSavesRoomSettings() {
 	const auto directory = std::filesystem::temp_directory_path() /
 		(L"sf4e-room-settings-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
 	std::filesystem::create_directories(directory);
+	// A writer already running would keep the real settings folder: none may be.
+	prefs::StopPersistence();
 	prefs::UseDirectoryForTest(directory.wstring());
 	prefs::StartPersistence();
 	{
