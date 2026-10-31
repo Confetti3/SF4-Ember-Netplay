@@ -86,7 +86,12 @@ void NativeReader() {
  Check(ControllerButtons(0,PadXInput,xinput::RT,onRt)==MenuInput::Select,"RT bound to confirm also described");
  // A stick confirms on its third button and goes back on its second, as the game's menus do.
  Check(ControllerButtons(0x40,PadDirectInput,1u<<18)==MenuInput::Select&&ControllerButtons(0x80,PadDirectInput,1u<<17)==MenuInput::Back,"A stick lost the game's menu buttons");
- Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==0,"A stick's LP still selected");
+ Check(ControllerButtons(0x10,PadDirectInput,1u<<19)==MenuInput::PrevTab&&ControllerButtons(0x400,PadDirectInput,1u<<21)==MenuInput::NextTab,"A stick's LP and HP do not step the tabs");
+ Check(ControllerButtons(0x430,PadDirectInput,1u<<20)==0&&ControllerButtons(0x10,PadXInput,0)==0,"3P on a stick, or an Xbox pad's LP function, stepped a tab");
+ {MenuButtons onLb;onLb.confirm=xinput::LB;
+  Check(ControllerButtons(0,PadXInput,xinput::LB,onLb)==MenuInput::Select&&!MenuShortcutGlyph(MenuInput::PrevTab,PadXInput,onLb)&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab,PadXInput,onLb),"RB"),"LB bound to Select still stepped or named a tab");
+  Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab,PadDirectInput,{}),"LP")&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab,PadDirectInput,{}),"HP")&&!MenuShortcutGlyph(MenuInput::Fighter,PadDirectInput,{}),"A stick names buttons it does not have");
+  Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab,PadKeyboard,{}),"PgUp")&&!MenuShortcutGlyph(MenuInput::Leave,PadXInput,{}),"The keyboard's tab key or the pad's Leave is wrong");}
  // Bound to X and Y, those confirm and go back; X and Y are then no shortcuts, and A and B do nothing.
  MenuButtons moved; moved.confirm=xinput::X; moved.back=xinput::Y;
  Check(ControllerButtons(0,PadXInput,xinput::X,moved)==MenuInput::Select&&ControllerButtons(0,PadXInput,xinput::Y,moved)==MenuInput::Back,"A bound button did not select or go back");
@@ -814,6 +819,64 @@ void SelectPrecedence(){
  nav.Cancel();nav.Focus("asked",rows);nav.Choose(rows);
  Check(nav.Choosing()&&!nav.Confirming()&&!nav.Reading(),"A confirmation with choices did not open as a choice");
 }
+// A board's rows move by where they are drawn (MenuNavigation::Place). The
+// boxes are an Arcade room at 1.0x: two rows of eight cabinets, the matchup
+// chips under them, the action bar under those, the members column on the
+// right with the chat box level with the action bar. A row the board does not
+// draw is not placed.
+void BoardGeometry(){
+ std::vector<MenuEntry> rows;std::vector<std::pair<std::string,MenuRect>> boxes;
+ const auto add=[&](const std::string& id,MenuRect box){rows.push_back(Row(id,id,""));boxes.push_back({id,box});};
+ for(int c=0;c<16;++c){const float x=20.f+(c%8)*110,y=100.f+(c/8)*130;add("cabinet-"+std::to_string(c),{x,y,x+100,y+120});}
+ for(int k=0;k<4;++k)add("matchup-"+std::to_string(k),{20.f+k*220,370,230.f+k*220,410});
+ for(int m=0;m<4;++m)add("member-"+std::to_string(m),{940,100.f+m*56,1200,148.f+m*56});
+ add("room-chat",{940,430,1200,478});
+ // The Members heading over the column, its Hide button inside it.
+ add("room-members",{940,60,1200,92});add("room-hide-members",{1120,64,1196,88});
+ add("ready",{20,430,200,478});add("room-training",{210,430,390,478});add("room-more",{680,430,790,478});add("leave",{800,430,900,478});
+ rows.push_back(Row("unplaced","Not drawn",""));
+ MenuNavigation nav;double time=0;
+ const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second);return a;};
+ const auto press=[&](unsigned held){frame(held);frame(0);return nav.Focus();};
+ const auto from=[&](const char* id,unsigned held){nav.Focus(id,rows);return press(held);};
+ frame(0);frame(0);
+ Check(from("cabinet-0",MenuInput::Left)=="cabinet-0"&&from("cabinet-8",MenuInput::Left)=="cabinet-8","Left off the board's edge moved");
+ Check(from("cabinet-3",MenuInput::Up)=="cabinet-3"&&from("cabinet-7",MenuInput::Up)=="cabinet-7","Up from the top row reached the heading in the next column");
+ Check(from("member-0",MenuInput::Up)=="room-members"&&from("room-members",MenuInput::Right)=="room-hide-members"&&from("room-hide-members",MenuInput::Down)=="member-0","The heading and the button inside it are not reached");
+ Check(from("cabinet-2",MenuInput::Right)=="cabinet-3"&&from("cabinet-2",MenuInput::Down)=="cabinet-10","A cabinet's neighbours are not the ones beside and under it");
+ Check(from("cabinet-7",MenuInput::Right)=="member-0","Right from the row's end did not reach the member level with it");
+ Check(from("member-2",MenuInput::Left)=="cabinet-7"&&from("member-3",MenuInput::Left)=="cabinet-15","Left from a member did not reach the cabinet in its band");
+ Check(from("cabinet-10",MenuInput::Down)=="matchup-1","Down from the bottom row did not reach the chip under it");
+ Check(from("member-3",MenuInput::Down)=="room-chat"&&from("room-chat",MenuInput::Left)=="leave","The members column does not lead to the chat box and Leave room");
+ Check(from("leave",MenuInput::Up)=="matchup-3"&&from("room-more",MenuInput::Right)=="leave","Up from Leave room is not the chip above it");
+ nav.Focus("cabinet-6",rows);for(unsigned d:{MenuInput::Down,MenuInput::Down,MenuInput::Down,MenuInput::Right})press(d);
+ Check(nav.Focus()=="leave","Cabinet 7 to Leave room is not four presses");
+ // An explicit neighbour still wins, a value row still adjusts, and a row
+ // that is not placed walks the list.
+ rows[0].right="leave";Check(from("cabinet-0",MenuInput::Right)=="leave","An explicit neighbour lost to the geometry");rows[0].right.clear();
+ rows[20]=Value("member-0","Volume","3","");nav.Focus("member-0",rows);Check(frame(MenuInput::Right).kind==MenuAction::Adjust,"A placed value row stopped adjusting");frame(0);
+ Check(from("unplaced",MenuInput::Up)=="leave","A row that is not drawn left the list's movement");
+ // A screen that opens has no places until its board draws once: the list moves.
+ nav.Push("list");nav.Focus("cabinet-0",rows);time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Right,time},rows);
+ Check(nav.Focus()=="cabinet-0","A list row moved sideways");time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({MenuInput::Down,time},rows);
+ Check(nav.Focus()=="cabinet-1","A list without places did not walk its order");
+}
+// Tabs wrap at both ends, from no tab too, and only an LB or RB Shortcut is a step.
+void TabStepping(){
+ Check(StepTab(5,1,6)==0&&StepTab(0,-1,6)==5&&StepTab(2,1,6)==3&&StepTab(2,-1,6)==1,"Tabs do not wrap");
+ Check(StepTab(-1,1,3)==0&&StepTab(-1,-1,3)==2&&StepTab(0,1,0)==-1&&StepTab(0,1,1)==0,"A missing or single tab steps wrongly");
+ Check(TabDelta({MenuAction::Shortcut,{},{},MenuInput::PrevTab})==-1&&TabDelta({MenuAction::Shortcut,{},{},MenuInput::NextTab})==1,"LB and RB are not tab steps");
+ Check(TabDelta({MenuAction::Shortcut,"tab-about"})==0&&TabDelta({MenuAction::Shortcut,{},{},MenuInput::Fighter})==0&&TabDelta({MenuAction::Adjust,{},{},MenuInput::NextTab})==0,"Another action read as a tab step");
+}
+// A press that a toast answers is spent there: held on, it does not act on
+// the screen once the toast lets go (MenuNavigation::Take).
+void TakenPress(){
+ MenuNavigation nav;double time=0;std::vector<MenuEntry> rows={Row("a","A","")};
+ nav.Update({0,time},rows);nav.Update({0,time+=.016},rows);
+ Check(nav.Take(MenuInput::Back)==MenuInput::Back,"The toast did not get the press");
+ Check(nav.Update({MenuInput::Back,time+=.016},rows).kind==MenuAction::None&&nav.Update({MenuInput::Back,time+=.016},rows).kind==MenuAction::None,"A press the toast took went back too");
+ Check(nav.Update({0,time+=.016},rows).kind==MenuAction::None&&nav.Update({MenuInput::Back,time+=.016},rows).kind==MenuAction::Close,"The next press did not go back");
+}
 void ScreenNames(){
  for(const char* screen:{"home","online","create","join","profile","main-character","selection","settings","player","controllers","button-layout","button-layout-button","defaults","interface","training-replays","problem-reports","sent-reports","developer","discord","discord-invitation","public-rooms","rankings","rankings-board","identity","identity-backup","linked-accounts","tournament-matches","tournament-desk","desk-event","desk-set","discord-connect","sign-in-site","assignment","about","room","room-table","room-members","room-member","room-chat","room-admin","roster","appearance","costumes","colors","ultra","stage","options","frame-data","hud","dummy","reply","tools","recording","history","recovery","updates","replays","report","awards","awards-icons","accessibility","welcome"})
   if(!MenuScreenName(screen))throw std::runtime_error(std::string("Screen without a display name: ")+screen);
@@ -840,5 +903,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

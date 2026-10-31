@@ -4,6 +4,7 @@
 #include "ControllersScreen.hxx"
 #include "Theme.hxx"
 #include "MenuRows.hxx"
+#include "RowId.hxx"
 #include "RoomFeedback.hxx"
 #include "NetworkFeedback.hxx"
 #include "MenuPresentation.hxx"
@@ -352,14 +353,14 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
   // TV mode, by Text size, and the room board's layout, which its grips also drag (RoomGrips).
   rows.insert(rows.end()-1,Value("tv",loc::T("settings.tv_mode"),preferences_.tvMode?loc::T("common.on"):loc::T("common.off"),loc::T("settings.tv_mode_detail"),v.canEditPreferences));
   const int column=preferences_.roomColumn,split=preferences_.roomSplit;
-  rows.push_back(Value("arrange-column",loc::T("settings.room_column"),std::to_string(column)+"%",loc::T("settings.room_column_detail"),v.canEditPreferences));
-  rows.push_back(Value("arrange-split",loc::T("settings.room_split"),std::to_string(split)+" / "+std::to_string(100-split),loc::T("settings.room_split_detail"),v.canEditPreferences));
-  rows.push_back(Value("arrange-preset",loc::T("settings.room_preset"),loc::T(RoomPresetKeys[RoomPreset(column)]),loc::T("settings.room_preset_detail"),v.canEditPreferences));
+  rows.push_back(Value("arrange-column",loc::T("settings.room_column"),std::to_string(column)+"%",loc::T("settings.room_column_detail"),true));
+  rows.push_back(Value("arrange-split",loc::T("settings.room_split"),std::to_string(split)+" / "+std::to_string(100-split),loc::T("settings.room_split_detail"),true));
+  rows.push_back(Value("arrange-preset",loc::T("settings.room_preset"),loc::T(RoomPresetKeys[RoomPreset(column)]),loc::T("settings.room_preset_detail"),true));
   // The board's parts: hiding one gives its place to the other, or both to the tables.
-  rows.push_back(Value("arrange-members",loc::T("room.members"),loc::T(preferences_.roomShowMembers?"common.on":"common.off"),loc::T("settings.room_show_members_detail"),v.canEditPreferences));
-  rows.push_back(Value("arrange-chat",loc::T("room.chat"),loc::T(preferences_.roomShowChat?"common.on":"common.off"),loc::T("settings.room_show_chat_detail"),v.canEditPreferences));
+  rows.push_back(Value("arrange-members",loc::T("room.members"),loc::T(preferences_.roomShowMembers?"common.on":"common.off"),loc::T("settings.room_show_members_detail"),true));
+  rows.push_back(Value("arrange-chat",loc::T("room.chat"),loc::T(preferences_.roomShowChat?"common.on":"common.off"),loc::T("settings.room_show_chat_detail"),true));
   rows.push_back(PictureModeRow(v));rows.back().id="arrange-picture";
-  rows.push_back(Row("arrange-reset",loc::T("settings.room_layout_reset"),loc::T("settings.room_layout_reset_detail"),v.canEditPreferences));
+  rows.push_back(Row("arrange-reset",loc::T("settings.room_layout_reset"),loc::T("settings.room_layout_reset_detail"),true));
  }else if(screen=="training-replays"){
   title=loc::T("settings.training_replays_title");
   rows={OnOffValue(preferences_,"match-frame-meter",loc::T("settings.match_frame_meter"),
@@ -578,7 +579,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(screen==CountryPicker::Screen&&a.id.compare(0,7,"letter-")==0)nav.Prefer("country-"+a.id.substr(7));
  // A choice is saved like any setting, and the picker closes on it.
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
- else if(a.id.compare(0,5,"main-")==0&&v.canEditPreferences){preferences_.mainFighter=std::stoi(a.id.substr(5));preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
+ else if(RowIndex(a.id,"main-")>=0&&v.canEditPreferences){preferences_.mainFighter=RowIndex(a.id,"main-");preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
  else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?"roster":"";nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
@@ -728,6 +729,11 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  DrawToasts(ImGui::GetTime(),true);
 }
 
+v2::Box ApplicationShell::ShellArea() const {
+ // TV mode keeps Ember inside a 5% safe area, which a TV may crop.
+ const auto* vp=ImGui::GetMainViewport();const ImVec2 safe=preferences_.tvMode?ImVec2(vp->Size.x*.05f,vp->Size.y*.05f):ImVec2(0,0);
+ return {ImVec2(vp->Pos.x+safe.x,vp->Pos.y+safe.y),ImVec2(vp->Pos.x+vp->Size.x-safe.x,vp->Pos.y+vp->Size.y-safe.y)};
+}
 void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer) {
  using namespace netplay; auto& nav=menu_.navigation;
  boardDrawn_=false;selectionDrawn_=false;
@@ -796,7 +802,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   readyFailureSequence_=v.readyFailureSequence;
   if(readyFailureSequence_&&!v.readyFailure.empty())menu_.ShowError(v.readyFailure);
  }
- if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;nav.Push("discord-invitation");
+ // An invitation is a toast (Join opens its screen), and a row on Home while it waits: it never takes the player off what they were doing.
+ if(v.discordPending&&inviteRevision_!=v.discordRevision){inviteRevision_=v.discordRevision;
   Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
@@ -872,9 +879,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  // After every other source of a notice this frame, so the question never takes a place they are about to.
  UpdateLaunchCheck(v,now,submit);
- // TV mode keeps Ember inside a 5% safe area, which a TV may crop.
- const auto* vp=ImGui::GetMainViewport();const ImVec2 safe=preferences_.tvMode?ImVec2(vp->Size.x*.05f,vp->Size.y*.05f):ImVec2(0,0);
- ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+safe.x,vp->Pos.y+safe.y));ImGui::SetNextWindowSize(ImVec2(vp->Size.x-2*safe.x,vp->Size.y-2*safe.y));
+ const auto* vp=ImGui::GetMainViewport();const v2::Box area=ShellArea();
+ ImGui::SetNextWindowPos(area.min);ImGui::SetNextWindowSize(ImVec2(area.W(),area.H()));
  const bool postMatchScreen=nav.Screen()=="post-match";
  if(postMatchScreen){
   // A panel in the middle of the WIN screen, which stays in sight around it.
@@ -882,9 +888,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+(vp->Size.x-size.x)/2,vp->Pos.y+(vp->Size.y-size.y)/2));ImGui::SetNextWindowSize(size);
  }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
- ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(!postMatchScreen?v2::SideMargin(vp->Size.x-2*safe.x,Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
+ ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(!postMatchScreen?v2::SideMargin(area.W(),Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
+ // Each screen sets its header (eyebrow, chips), tabs and bell below, every
+ // frame; the screens drawn first (Button layout, Pad setup) have none.
+ menu_.eyebrow.clear();menu_.headerChips.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();
  if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
  // The room board shows a Big picture in its tables' place instead (this frame's word, boardPicture_).
  if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
@@ -894,8 +903,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const bool inRoom=v.session.room!=RoomState::Idle&&v.room.roomEpoch;
  SetGameplayLayoutPrompts(v);
  const bool keys=KeyboardPrompts();
- std::vector<LegendHint> roomHints=keys?std::vector<LegendHint>{{"F",loc::T("room.legend_fighter")},{"T",loc::T("room.legend_options")},{"C",loc::T("room.chat")}}:
-  std::vector<LegendHint>{{"X",loc::T("room.legend_fighter")},{"Y",loc::T("room.legend_options")},{"View",loc::T("room.chat")}};
+ // Only the shortcuts the device has (a stick has none of these).
+ const auto roomHints=ShortcutHints({{MenuInput::Fighter,loc::T("room.legend_fighter")},{MenuInput::Options,loc::T("room.legend_options")},{MenuInput::Chat,loc::T("room.chat")}});
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?roomHints:std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_});
@@ -932,10 +941,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto feedback=UpdateStatus(v,screen,opening,healthyRoom,title);
  const std::string& status=feedback.first;const Tone statusTone=feedback.second;
  const bool roomScreen=screen.compare(0,4,"room")==0;
- // Select on a value opens all its values in a panel (the room boards keep their own).
- if(!roomScreen)OfferValues(rows);
- // Each screen sets its header's eyebrow and chips below, every frame.
- menu_.eyebrow.clear();menu_.headerChips.clear();
+ // Select on a value opens all its values in a panel; one with no list of values has only its arrows.
+ OfferValues(rows);
  // Kick or Make host from a member's popout asks its question on the member's page.
  if(screen=="room-member"&&!memberAsk_.empty()){menu_.navigation.Focus(memberAsk_,rows);menu_.navigation.Choose(rows);memberAsk_.clear();}
  // A room's header says what kind of room it is, who it admits and how full it is.
@@ -995,7 +1002,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    ImGui::Dummy(ImVec2(0,v2::Tag(ImGui::GetWindowDrawList(),p,ImGui::GetContentRegionAvail().x,MenuPlayerCard().profile,v2::TagSize::L)));
    return;
   }
-  const int fighter=screen=="main-character"&&id.compare(0,5,"main-")==0?std::stoi(id.substr(5)):v.preferences.mainFighter;
+  const int fighter=screen=="main-character"&&RowIndex(id,"main-")>=0?RowIndex(id,"main-"):v.preferences.mainFighter;
   const auto space=ImGui::GetContentRegionAvail();const float size=(std::min)(220*Scale(),(std::min)(space.x,space.y-12*Scale()));
   if(size>=48*Scale()){const auto p=ImGui::GetCursorScreenPos();DrawCharacterPortrait(fighter,p,ImVec2(p.x+size,p.y+size));ImGui::Dummy(ImVec2(size,size));}
  };
@@ -1069,10 +1076,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   if(countryPicker_.Lettered())rows=countryPicker_.BoardRows(preferences_.country,v.automaticCountry,v.canEditPreferences,row);
   nav.Focus(row,rows);}}
  if(roomScreen&&v.room.roomEpoch)menu_.shortcutHints=menu_.typesText&&keys?std::vector<LegendHint>{}:roomHints;
- else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints={{keys?"T":"Y",loc::T("legend.refresh")}};
+ else if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints=ShortcutHints({{MenuInput::Options,loc::T("legend.refresh")}});
  else menu_.shortcutHints.clear();
  // Settings is six tabs.
- menu_.tabs.clear();menu_.tab=-1;
  menu_.statusLeads=screen!="notifications"?"notifications":"";
  if(SettingsTab(screen)){
   menu_.tabs=SettingsTabs();
@@ -1093,7 +1099,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  // The keyboard leaves a seat with Delete, so Escape keeps its own word.
  const char* placeExit=screen=="room"&&v.room.roomEpoch?PlaceExitLabel(v):"";
- if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit});
+ if(keys&&*placeExit)menu_.shortcutHints.insert(menu_.shortcutHints.begin(),{"Del",placeExit,MenuInput::Leave});
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat.
  menu_.exitName.clear();menu_.backHint.clear();
@@ -1117,9 +1123,10 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  menu_.ownsBack=screen=="welcome";
  if(screen=="welcome"){menu_.backInert=!welcomeStep_;menu_.backHint=loc::T("welcome.previous");}
  UpdateSpeech();
- // The newest action toast holds focus while nothing else is open: Select takes
- // its first action, Back its last (Later), and any other press leaves it.
- menu_.toastFocused=toastFocus_&&!nav.Editing()&&!nav.Reading()&&!nav.Confirming()&&!nav.Choosing()&&!menu_.NoticeOpen();
+ // The newest action toast holds focus from when it came over a free menu
+ // (DrawToasts): Select takes its first action, Back its last (Later), and
+ // any other press leaves it.
+ menu_.toastFocused=toastFocus_!=0;
  auto a=menu_.Draw(title.c_str(),rows,status.c_str(),profilePreview,columns,portraits,board,false,publicToolbar?46:screen=="main-character"?roster.cardHeight:100,statusTone,screen=="home"||screen=="welcome");
  AnswerDialog(submit);
  if(const unsigned pressed=menu_.toastPressed){
@@ -1140,14 +1147,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // A panel's screen sits on its tab's: leave it first, and the tab too unless one of its panels was picked.
   // The hint bar's bell opens Notifications over the screen shown.
   if(a.id=="notifications")nav.Push(a.id);
-  else if(!a.id.empty()){if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
+  // A tab replaces the screen it is on, whatever is open on it (a reader, a choice).
+  else if(!a.id.empty()){nav.Cancel();if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());if(page!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
+  // LB or RB that no strip took (a screen without tabs) does nothing.
+  else if(TabDelta(a)){}
   // In a room its shortcuts work from every screen, before any panel's.
   else if(inRoom)RoomShortcut(a,v);
   else if(owner)owner->Shortcut(frame,a);
  }else if(a.kind==MenuAction::Chosen){
   if(roomScreen)RoomAction(a,v,submit);
   else if(owner&&owner->Choose(frame,a,submit)){}
-  else if(screen=="notifications"&&a.id.compare(0,6,"toast-")==0)toastAsked_={static_cast<unsigned>(std::stoul(a.id.substr(6))),std::stoul(a.text)};
+  else if(screen=="notifications"&&RowIndex(a.id,"toast-")>=0&&RowIndex(a.text,"")>=0)toastAsked_={static_cast<unsigned>(RowIndex(a.id,"toast-")),static_cast<std::size_t>(RowIndex(a.text,""))};
   else if(a.id=="language")SetLanguage(a.text);
   else if(screen=="controllers")HandleActivate(a,v,screen,idle,submit);
  }else if(screen=="welcome"&&(a.kind==MenuAction::Back||a.kind==MenuAction::Activate)&&WelcomeActivate(a)){

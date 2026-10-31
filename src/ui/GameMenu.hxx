@@ -48,9 +48,20 @@ void SetMenuNews(std::vector<MenuNewsItem> news);
 bool MenuValueIsToggle(const MenuEntry& e);
 void DrawMenuValue(ImDrawList* draw, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text);
 // A value row's words on a board (Create, Settings, Fighter select): the
-// label `inset` from the left, and at the right the value in `valueWidth`
-// (DrawMenuValue), or a fixed value and the chevron when Select opens it.
-void DrawMenuRow(ImDrawList* draw, const MenuEntry& e, v2::Box row, bool enabled, float valueWidth, float inset);
+// label `inset` from the left, and at the right the value as FitMenuRow
+// shares the row (DrawMenuValue), or a fixed value and the chevron when Select
+// opens it; a value under its label takes the row's last UnderLine.
+void DrawMenuRow(ImDrawList* draw, const MenuEntry& e, v2::Box row, bool enabled, v2::Share value, float inset);
+// The width a row's value wants: a switch its own, a value its widest word
+// (its value or any of its choices) with the arrows or chevron.
+float MenuValueWidth(const MenuEntry& e);
+// How a value row's label and value share its `room` (v2::ShareLine): the
+// value wants MenuValueWidth and gives way down to a floor that does not
+// depend on its word now (a control's under half the row, a fixed value's its
+// chevron's place), so rows never move as values change. Lay the row
+// out with the result: its value to PressEntry and DrawMenuRow, and the row
+// v2::UnderLine taller when the value goes under the label.
+v2::Share FitMenuRow(const MenuEntry& e, float room, float gap, bool grows = true);
 // A row's box on a board as a button: the moving pointer focuses the row,
 // and a press focuses it and is Select on it, or steps its value when it lands
 // on one end of the `valueWidth` at the row's right (14 px in from its edge).
@@ -64,6 +75,13 @@ const std::vector<MenuNewsItem>& MenuNews();
 // The legend's Select and Back glyphs for the device in use (SetMenuGlyphs).
 const char* MenuSelectGlyph();
 const char* MenuBackGlyph();
+// The glyph of a shortcut press (MenuInput::Fighter, Options, Chat, Leave,
+// PrevTab, NextTab) on the device the prompts are drawn for, or null where it
+// has no such button (ControllerNavigation.hxx, MenuShortcuts).
+const char* MenuShortcutGlyph(unsigned press);
+// A hint for each of these shortcut presses the device has, each a button
+// that presses it; the others are left out.
+std::vector<LegendHint> ShortcutHints(const std::vector<std::pair<unsigned, std::string>>& shortcuts);
 // The menu art behind a full-window menu, under a tint; false without art.
 bool DrawMenuBackdrop();
 void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
@@ -174,7 +192,8 @@ public:
     bool listEnabled=true, ownsBack=false, customDetail=false;
     unsigned additionalInput=0;
     // A toast holds focus (the shell's toasts): the list gets no input, and
-    // the buttons newly pressed are left in toastPressed for the toast to answer.
+    // the buttons newly pressed through the list's gate (MenuNavigation::Take)
+    // are left in toastPressed for the toast to answer; a right click is Back.
     bool toastFocused=false;
     unsigned toastPressed=0;
     // A card over the list while the screen waits for something outside the
@@ -229,6 +248,8 @@ private:
         const Body& body,float cardHeight,Tone statusTone,bool home,bool flyout,MenuAction action,unsigned held,bool modalAtStart,bool choosingAtStart,bool acceptEditText,bool noticeOpen);
     // The dialogs over the screen, then the frame's bookkeeping and its answer.
     MenuAction Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen);
+    // The Shortcut to the tab `step` (-1, 1) away from the current one (StepTab).
+    MenuAction TabAction(int step) const { return {MenuAction::Shortcut, tabs[StepTab(tab, step, static_cast<int>(tabs.size()))].first}; }
     // Parts of Draw. The dialogs and their helpers (ConfirmationButtons,
     // AnswerConfirmation) live in MenuDialogs.cxx.
     // An open dialog owns the legend and the header: Select names its
@@ -252,15 +273,17 @@ private:
     bool PressKey(const MenuEntry& entry,const std::string& key);
     // The key the on-screen keyboard is on, as speech says it; empty while it is not shown.
     std::string SpokenKey(const std::vector<MenuEntry>& entries) const;
-    void DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action);
+    // The keyboard in `room` pixels of height: its keys shrink to fit.
+    void DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action,float room);
     void DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action);
     // Says what changed on this frame (MenuNarrator), with speech on. button
     // is an open dialog's highlighted button; primary is what Select does.
     void Narrate(const char* title,const std::vector<MenuEntry>& entries,const MenuEntry* focus,const std::string& button,const char* primary,bool adjustable,double now,bool describe);
     // Closes the notice with the result of the button, or Back, that did it.
     void DismissNotice(NoticeResult result) { notice_.clear(); noticeSelected_=0; noticeResult_=result; }
-    // Where an open popout sits (Values); set on the frame it opens.
-ImVec2 popoutAt_{};bool popoutOpen_=false,popoutClose_=false;
+    // Where an open popout sits (Values), set on the frame it opens; whether
+    // a popout or value panel is open, and closes on this frame's outside click.
+    ImVec2 popoutAt_{};bool valuesOpen_=false,valuesClose_=false;
 std::string lastScreen_,lastFocus_,lastEdit_,notice_,noticeHeading_,noticeEyebrow_;
 v2::HeaderChip noticeChip_{};
     std::vector<NoticeButton> noticeButtons_;
@@ -268,7 +291,7 @@ v2::HeaderChip noticeChip_{};
     int noticeSelected_=0;
     NoticeResult noticeResult_=NoticeResult::None;
     bool noticeError_=false;
-    PressGate noticeGate_,toastGate_;
+    PressGate noticeGate_;
     int lastFrame_ = -2;
     unsigned held_ = 0, describeHeld_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);

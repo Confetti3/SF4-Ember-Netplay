@@ -194,8 +194,12 @@ std::vector<MenuEntry> CountryPicker::BoardRows(const CountryPreference& current
     const auto& names = Names();
     const auto initialOf = [&](const CountryCode& code) { for (const auto& n : names) if (n.code == code) return n.initial; return wchar_t(0); };
     // The letter shown: the focused letter's or country's, else the one shown last, else the choice's.
-    const auto code = focused.compare(0, 7, LetterPrefix) == 0 ? CountryCode::Parsed(focused.substr(7)) : RowCountry(focused);
-    if (code.Present()) letter_ = initialOf(code);
+    // A letter the moving pointer focuses on its way to the list does not
+    // swap the list under it: only one the pointer rests on, or the pad's.
+    const bool letter = focused.compare(0, 7, LetterPrefix) == 0;
+    const auto moved = ImGui::GetIO().MouseDelta;
+    const auto code = letter ? CountryCode::Parsed(focused.substr(7)) : RowCountry(focused);
+    if (code.Present() && !(letter && (moved.x != 0 || moved.y != 0))) letter_ = initialOf(code);
     if (!letter_ && current.kind == CountryPreference::Kind::Code) letter_ = initialOf(current.code);
     if (!letter_ && !names.empty()) letter_ = names[0].initial;
     // Each initial once, named for its first country, and the countries of the letter shown.

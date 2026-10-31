@@ -2,6 +2,7 @@
 #include "../common/Localization.hxx"
 #include "MenuDialogs.hxx"
 #include "MenuRows.hxx"
+#include "RowId.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -14,9 +15,8 @@ namespace {
 // The release a News row is of ("news-<index>"), or null.
 const launcher::ReleaseNews* NewsOf(const ShellView& v,const std::string& id) {
  const auto& news=v.services.update.news;
- if(id.compare(0,5,"news-")!=0||id.find_first_not_of("0123456789",5)!=std::string::npos||id.size()==5)return nullptr;
- const std::size_t i=std::stoul(id.substr(5));
- return i<news.size()?&news[i]:nullptr;
+ const int i=RowIndex(id,"news-");
+ return i>=0&&static_cast<std::size_t>(i)<news.size()?&news[static_cast<std::size_t>(i)]:nullptr;
 }
 const char* NewsKind(const launcher::ReleaseNews& n){return loc::T(n.stable?"news.kind.update":"news.tab.changelog");}
 }

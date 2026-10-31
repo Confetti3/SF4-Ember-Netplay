@@ -37,6 +37,15 @@ or King of the hill. Any type can be private or public.
    while anyone else sits at a cabinet; with nobody else there the loser
    challenges again. The top slot stays with its holder until someone beats
    that streak or beats them.
+6. After a set the WIN screen's prompt asks the room's question too. While
+   the pair decides it offers Rematch and New opponent (Y), the same choices
+   as the cabinet; once the room has paired the next game it says who is next.
+   Nobody leaves the cabinet from the prompt: Back to room and no answer keep
+   it.
+7. The cabinets carry what a Classic table card's banner says about a seat
+   (a start held for a spectator, the Ready timeout, a Training call) on the
+   cabinet's screen and in its row's words. The pad moves between cabinets,
+   matchups, members and the room's actions by where they are drawn.
 
 ## How it is built
 
@@ -53,7 +62,11 @@ or King of the hill. Any type can be private or public.
   sends SetRoomType with the type and the rules of all tables
   (netplay::CreatedRules). An emptied public room goes back to Classic.
 - RoomPanelArcade.cxx draws the board from the V2 kit; the rows are
-  cabinet-N in RoomPanel.cxx.
+  cabinet-N in RoomPanel.cxx. Every cabinet and matchup goes through
+  PressEntry, so MenuNavigation moves between them by their boxes.
+- The post-match prompt (ApplicationShell__PostMatch.cxx) reads
+  Table::deciding: its Rematch and New opponent are RoomAction's, the cabinet's
+  own answer; KeepsSeat holds every cabinet in an Arcade or King room.
 
 ## Open
 

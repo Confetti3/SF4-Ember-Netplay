@@ -1,13 +1,14 @@
-// The V2 room board's tables as the room's type lays them out
-// (Snapshot::arcade, Arcade.dc.html): a Classic room's tables as the floor of
-// facing pairs; an Arcade room's sixteen cabinets in two rows, each pair in its
-// own colour and linked by a line wherever its two cabinets stand; King of the
-// hill the same under its top slot. Every cabinet and table is its row.
+// The V2 room board of an Arcade or King of the hill room (Snapshot::arcade,
+// Arcade.dc.html): sixteen cabinets in two rows, each pair in its own colour
+// and linked by a line wherever its two cabinets stand; King of the hill the
+// same under its top slot. Every cabinet is its row. A Classic room keeps its
+// table cards (DrawRoomBoard).
 #include "ApplicationShell.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "LatencyMark.hxx"
 #include "RoomControls.hxx"
+#include "RowId.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -32,16 +33,18 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  const ImVec2 origin=ImGui::GetCursorScreenPos();
  const v2::Box area{origin,ImVec2(origin.x+size.x,origin.y+size.y)};
  const ImU32 pending=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),gold=v2::TierColor(v2::Tier::Gold).stripe;
+ // A row's box: a press is Select on it, the moving pointer focuses it, and
+ // with `scroll` it scrolls into view as the focus arrives. True while hovered.
+ const auto press=[&](const MenuEntry& e,const v2::Box& b,bool scroll){
+  ReportMenuCard(e.id.c_str(),b.min,b.max);
+  const bool arrives=scroll&&focus!=roomBoardFocus_;
+  const bool hovered=PressEntry(nav,rows,e,b,action,arrives).hovered;
+  if(arrives&&e.id==focus)ImGui::SetScrollHereX(.5f);
+  return hovered;
+ };
  const auto row=[&](const std::string& id)->const MenuEntry*{
   const auto found=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
   return found==rows.end()?nullptr:&*found;
- };
- // A row's box: a press is Select, the moving pointer focuses it, and the
- // focused one's choices open beside it. True while hovered.
- const auto press=[&](const MenuEntry& e,const v2::Box& b){
-  const bool hovered=PressEntry(nav,rows,e,b,action).hovered;
-  if(e.id==focus&&nav.Choosing())menu_.bodyChoices={b,area};
-  return hovered;
  };
  const auto tag=[&](const room::Member& m,ImVec2 at,float width,v2::TagSize size,std::string status){
   v2::TagView g;g.name=m.name+(m.id==v.room.localMember?std::string(loc::T("room.suffix_you")):"");g.marks={m.country,m.badge};g.status=std::move(status);
@@ -52,41 +55,6 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const auto* f=selection::FindFighter(m.id==v.room.localMember?v.selectedFighter:m.fighter);
   return f?f->name:loc::T("room.fighter_not_shared");
  };
- if(!type){
-  // Classic: a line for each table, its two seats facing across the score.
-  const std::size_t n=room::TablesInPlay(v.room);
-  const float gap=8*s,mid=96*s,line=(std::min)(84*s,(area.H()-(n-1)*gap)/n);
-  for(std::size_t i=0;i<n;++i){
-   const auto& t=v.room.tables[i];const auto* e=row("table-"+std::to_string(i));
-   if(!e)continue;
-   const v2::Box b{ImVec2(area.min.x,area.min.y+i*(line+gap)),ImVec2(area.max.x,area.min.y+i*(line+gap)+line)};
-   const bool hovered=press(*e,b),focused=e->id==focus;const ImU32 pair=PairColor(i);
-   const float half=(b.W()-mid)*.5f;
-   const auto banner=DescribeTableBanner(v,t);
-   const room::MemberId seats[]={t.p1,t.p2};
-   for(int side=0;side<2;++side){
-    const v2::Box h{ImVec2(b.min.x+side*(half+mid),b.min.y),ImVec2(b.min.x+side*(half+mid)+half,b.max.y)};
-    v2::CardGround(d,h,focused,hovered);
-    const v2::Box in=v2::Inset(h,12*s,8*s);
-    const auto* m=room::FindMember(v.room,seats[side]);
-    if(!m){v2::Text(d,ImVec2(in.min.x,in.min.y+(in.H()-15*s)*.5f),in.W(),loc::T("room.open_seat"),15*s,c.muted);continue;}
-    d->AddRect(h.min,h.max,pair,4*s,0,s);
-    tag(*m,in.min,in.W(),v2::TagSize::S,fighterName(*m));
-    const bool about=!banner.text.empty()&&(banner.seat<0||banner.seat==side);
-    const std::string words=about?banner.text:t.ready[side]?std::string(loc::T("room.status.ready")):std::string(PhaseName(t));
-    v2::Text(d,ImVec2(in.min.x,in.max.y-14*s),in.W(),words,13*s,about?pending:c.muted);
-   }
-   const float x=b.min.x+half;
-   v2::Text(d,ImVec2(x,b.min.y+10*s),mid,loc::Tf("room.v2.table",i+1),12*s,c.muted,HeadingFont(),true);
-   if(t.p1||t.p2){
-    const std::string score=t.p1&&t.p2&&!SetScoreText(t.score).empty()?SetScoreText(t.score):"VS";
-    v2::Chip(d,ImVec2(x+(mid-v2::ChipWidth(score))*.5f,b.min.y+line*.5f-4*s),score,pair);
-   }
-   if(focused)v2::Focus(d,b.min,b.max);
-  }
-  ImGui::SetCursorScreenPos(origin);ImGui::Dummy(size);
-  return;
- }
  v2::Box board=area;
  if(type==room::KingRoom){
   // The top slot: the longest current streak, its holder and the streak.
@@ -106,7 +74,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  }
  // Real Arcade rows: two rows of eight tall cabinets, each over its stool
  // with the player's back on it; cabinet n on top, n+8 under it.
- // Where they would be too small to read, they keep their size and scroll.
+ // Where they would be too small to read, they keep their size and scroll:
+ // down under their least height, across under their least width (a narrow window).
  // Who plays whom, under the cabinets: a chip per pair in its colour. The one
  // under the pointer or focused lights its two cabinets and dims the rest.
  int lit=-1;
@@ -119,11 +88,11 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const float w=(strip.W()-12*s-(per-1)*8*s)/per;
   for(std::size_t k=0;k<matchups.size();++k){
    const auto* e=matchups[k];
-   const int table=std::stoi(e->id.substr(8));
+   const int table=RowIndex(e->id,"matchup-");
    const std::string text=e->label+(e->value.empty()?std::string():"  "+e->value);
    const float x=strip.min.x+6*s+(k%per)*(w+8*s),y=strip.min.y+4*s+(k/per)*30*s;
    const v2::Box chip{ImVec2(x,y),ImVec2(x+w,y+26*s)};
-   const bool hovered=PressEntry(nav,rows,*e,chip,action).hovered,focused=e->id==focus;
+   const bool hovered=press(*e,chip,false),focused=e->id==focus;
    if(hovered||focused)lit=table;
    v2::RowGround(d,chip,focused,hovered);
    d->AddCircleFilled(ImVec2(chip.min.x+14*s,(chip.min.y+chip.max.y)*.5f),5*s,PairColor(table));
@@ -133,14 +102,14 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  }
  // A margin for the focus and hover marks, which reach 4 px past a cabinet.
  board=v2::Inset(board,6*s,6*s);
- const float gap=8*s,band=36*s,cell=(board.W()-7*gap)/8;
- const float h=(std::max)(92*s,(std::min)((board.H()-band)/2/1.4f,240*s)),w=(std::min)(cell,h*.75f),unit=h*1.4f;
- const bool scrolls=2*unit+band>board.H();
+ const float gap=8*s,band=36*s,least=92*s,cell=(std::max)(least*.75f,(board.W()-7*gap)/8),across=8*cell+7*gap;
+ const float h=(std::max)(least,(std::min)((board.H()-band)/2/1.4f,240*s)),w=(std::min)(cell,h*.75f),unit=h*1.4f;
+ const bool sideways=across>board.W()+.5f,scrolls=2*unit+band>board.H()||sideways;
  if(scrolls){
   ImGui::SetCursorScreenPos(board.min);
-  ImGui::BeginChild("Arcade rows",ImVec2(board.W(),board.H()),0,ImGuiWindowFlags_NoNavInputs);
+  ImGui::BeginChild("Arcade rows",ImVec2(board.W(),board.H()),0,ImGuiWindowFlags_NoNavInputs|(sideways?ImGuiWindowFlags_HorizontalScrollbar:0));
   d=ImGui::GetWindowDrawList();
-  const ImVec2 inner=ImGui::GetCursorScreenPos();board={inner,ImVec2(inner.x+board.W(),inner.y+2*unit+band)};
+  const ImVec2 inner=ImGui::GetCursorScreenPos();board={inner,ImVec2(inner.x+(std::max)(board.W(),across),inner.y+2*unit+band)};
  }
  const float top=board.min.y+(std::max)(0.f,(board.H()-2*unit-band)*.5f),aisle=top+unit+band*.5f;
  const auto at=[&](int cabinet){return ImVec2(board.min.x+(cabinet%8)*(cell+gap)+(cell-w)*.5f,top+(cabinet/8)*(unit+band));};
@@ -160,7 +129,9 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const ImVec2 p=at(i);
   const v2::Box b{p,ImVec2(p.x+w,p.y+h)};
   const v2::Box spot{p,ImVec2(p.x+w,p.y+unit)};
-  const bool hovered=PressEntry(nav,rows,*e,spot,action,scrolls).hovered,focused=e->id==focus;
+  // A cabinet scrolls into view when the focus moves to it, so the wheel
+  // scrolls the rows between moves.
+  const bool hovered=press(*e,spot,scrolls),focused=e->id==focus;
   if(focused&&nav.Choosing())menu_.bodyChoices={spot,area};
   const auto* m=room::FindMember(v.room,v.room.cabinets[i]);
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
@@ -200,12 +171,20 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
   else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);
    if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?fighterName(*m):SetScoreText(t->score);tone=pair;}
+  ImU32 secondTone=paired&&!t->deciding?pair:tone;
+  // What a table card's banner says about this seat (a held start, the Ready
+  // timeout, a Training call) takes the screen's second line.
+  if(t)if(const auto banner=DescribeTableBanner(v,*t);!banner.text.empty()&&(banner.seat<0||banner.seat==side)){second=banner.text;secondTone=pending;}
   d->AddRectFilled(screen.min,screen.max,!m?c.frame:paired&&!t->deciding?c.header:v2::color::Alpha(pending,.12f),2*s);
   const float ss=(std::min)(11*s,screen.H()*.3f),mid=(screen.min.y+screen.max.y)*.5f;
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}
-  v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-ss*.5f:mid-ss-1*s),screen.W()-4*s,first,ss,tone,HeadingFont(),true,!paired);
-  if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),screen.W()-4*s,second,ss,paired&&!t->deciding?pair:tone,HeadingFont(),true,!paired);
+  // Each line at the size that fits the screen's width, down to 7 px; past
+  // that (a banner's sentence) it is cut, and the row's words carry it whole.
+  const float room=screen.W()-4*s;
+  const auto fit=[&](const std::string& line){const float w=HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,line.c_str()).x;return w>room-s?(std::max)(7*s,ss*(room-s)/w):ss;};
+  v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-fit(first)*.5f:mid-fit(first)-1*s),room,first,fit(first),tone,HeadingFont(),true,!paired);
+  if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),room,second,fit(second),secondTone,HeadingFont(),true,!paired);
   // The name plate: the player's tag, its edge in the pair's colour.
   d->AddRectFilled(plate.min,plate.max,c.frame);
   if(paired)d->AddRect(plate.min,plate.max,pair,0,0,s);

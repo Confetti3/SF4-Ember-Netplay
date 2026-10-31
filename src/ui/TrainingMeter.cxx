@@ -662,7 +662,9 @@ void ChallengerBanner(const training::View& view, const ChallengerCall& call) {
     auto* draw = ImGui::GetForegroundDrawList();
     auto* font = ImGui::GetFont();
     const char* text = loc::T("training.challenger");
-    const float size = vp->Size.y * .075f;
+    // A long translation in a narrow window shrinks to nine tenths of its width.
+    const float tall = vp->Size.y * .075f, wide = font->CalcTextSizeA(tall, FLT_MAX, 0, text).x;
+    const float size = wide > vp->Size.x * .9f ? tall * vp->Size.x * .9f / wide : tall;
     const ImVec2 extent = font->CalcTextSizeA(size, FLT_MAX, 0, text);
     const float small = size * .4f, glyph = small * 1.4f, gap = small * 1.5f;
     const auto goLabel = call.goNowGlyph ? PromptLabel(call.goNowGlyph, loc::T("training.go_now"), MenuPromptBrand()) : std::string();

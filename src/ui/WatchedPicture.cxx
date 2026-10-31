@@ -19,6 +19,9 @@ bool DrawWatchedPicture(ImTextureID picture,int& spot) {
  const auto* vp=ImGui::GetMainViewport();const float s=Scale();
  const int corner=spot%4;
  static bool moving=false,resizing=false;static ImVec2 grab;static float pulled=0;
+ // A drag lasts while its button holds the mouse: a picture gone mid-drag (its
+ // game over) let it go, so the next one does not jump to the pointer.
+ if(!ImGui::GetActiveID())moving=resizing=false;
  float share=WatchedPictureShareFor(spot);
  if(resizing)share=pulled;
  const ImVec2 size(vp->Size.x*share,vp->Size.y*share);

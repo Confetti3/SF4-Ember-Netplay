@@ -53,7 +53,7 @@ Ember reads its menus short, and only what changed.
 - A question you opened, such as leaving a room: the question, then the
   button you are on. Moving says each button.
 - The description of an item: only when you press the accessibility button,
-  unless you turn on Read descriptions automatically.
+  unless you turn on Auto-read descriptions.
 
 Moving on always cuts off what Ember was saying, so you can move fast.
 
@@ -98,7 +98,7 @@ to be on.
 - Speech rate: how fast the voice speaks, from -10 to 10. 0 is its normal
   pace.
 - Speech volume: how loud the voice speaks.
-- Read descriptions automatically: reads an item's description by itself
+- Auto-read descriptions: reads an item's description by itself
   when you stay on it for a moment. Off by default.
 - Read button hints: reads which of your buttons does what on the item.
   Off by default.

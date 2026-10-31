@@ -20,6 +20,9 @@ constexpr ImGuiWindowFlags Passive = ImGuiWindowFlags_NoDecoration | ImGuiWindow
     ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus;
 // Sized to the game viewport like the training HUD, not to the menu's scale.
 float HudScale() { return (std::max)(1.f, (std::min)(1.5f, ImGui::GetMainViewport()->Size.y / 900.f)); }
+// The strip's height, and how far its bottom edge sits above the screen's
+// (the Playback board), in pixels at HudScale 1.
+constexpr float StripHeight = 68, StripLift = 64;
 ImU32 Faded(ImU32 color, float alpha) {
     const float a = static_cast<float>((color >> IM_COL32_A_SHIFT) & 0xFF) * alpha;
     return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(a) << IM_COL32_A_SHIFT);
@@ -42,8 +45,8 @@ std::string SpeedWord(int divisor) {
 }
 // The strip (the Playback board): a button per control, its pad and
 // keyboard keys over what it does, lit while that is on, then the place in
-// the round; at the bottom centre. The keys are the legend, so it has no hint bar.
-void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place) {
+// the round; centred, its top at `top`. The keys are the legend, so it has no hint bar.
+void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place, float top) {
     const auto* vp = ImGui::GetMainViewport();
     const auto& c = v2::Colors();
     const auto padKey = [](const char* id) {
@@ -69,8 +72,8 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place)
     };
     const float room = vp->Size.x - 32 * s;
     if (measure(s) > room) s *= room / measure(s);
-    const float width = measure(s), height = 68 * s;
-    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + vp->Size.y - 64 * s), ImGuiCond_Always, ImVec2(.5f, 1));
+    const float width = measure(s), height = StripHeight * s;
+    ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, top), ImGuiCond_Always, ImVec2(.5f, 0));
     ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -103,11 +106,15 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place)
 
 void DrawReplayStrip(const ReplayHudView& view) {
     const auto* vp = ImGui::GetMainViewport();
-    const float s = HudScale(), height = ReplayStripMostHeight * s;
-    const float stripTop = vp->Pos.y + vp->Size.y * TrainingMeterBottom() + 4 * s;
+    const float s = HudScale(), height = StripHeight * s, bottom = vp->Pos.y + vp->Size.y;
+    // At the bottom centre, as the board has it, unless the frame meter
+    // reaches lower (a 720p window, or a meter the player moved down): then
+    // just under the meter, but never past the screen's edge.
+    const float meterBottom = vp->Pos.y + vp->Size.y * TrainingMeterBottom();
+    const float stripTop = (std::min)((std::max)(bottom - (StripLift + StripHeight) * s, meterBottom + 4 * s), bottom - height);
     if (view.unavailable) {
-        // Under the strip's place (the strip may be faded out), between the
-        // super meters: the frame meter sits above the strip, so the two never meet.
+        // Under the strip's place (the strip may be faded out), so it meets
+        // neither the strip nor the frame meter above it.
         ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, stripTop + height + 4 * s), ImGuiCond_Always, ImVec2(.5f, 0));
         ImGui::SetNextWindowBgAlpha(.9f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8 * s, 4 * s));
@@ -128,7 +135,7 @@ void DrawReplayStrip(const ReplayHudView& view) {
     // Paused, the frame takes the clock's place: a step moves it by one.
     const std::string place = loc::Tf("replays.controls.round", view.round + 1) + " \xC2\xB7 " +
         (view.paused ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
-    DrawStrip(view, alpha, place);
+    DrawStrip(view, alpha, place, stripTop);
 }
 
 void DrawReplayLanes(const ReplayHudView& view) {

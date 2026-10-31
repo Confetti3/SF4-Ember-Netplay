@@ -659,7 +659,7 @@ New keys for button layouts (see 11). Short fight names (LP, 3P, LP+LK) and prin
 | `button_layout.attacks` | Attacks |
 | `button_layout.throw` | Throw (LP+LK) |
 | `button_layout.focus` | Focus attack (MP+MK) |
-| `button_layout.red_focus` | Red Focus attack (LP+MP+MK) |
+| `button_layout.red_focus` | Red Focus (LP+MP+MK) |
 | `button_layout.row_detail` | Select, then press the button you want for {0}. If another button has it, the two buttons swap. |
 | `button_layout.row_missing` | No button does only this, so you cannot press it on its own. |
 | `button_layout.no_button` | No button |

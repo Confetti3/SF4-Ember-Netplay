@@ -214,3 +214,87 @@ void ProblemReportJourneys() {
  Check(!has("report")&&!has("report-always")&&has("report-status"),"The offer stayed while the report was sending");
  SetMenuEntriesProbe({});
 }
+
+// The V2 audit's menu findings (docs/reviews/2026-10-30-v2-audit-menus.md),
+// each as the player meets it.
+void V2AuditJourneys() {
+ using namespace sf4e;
+ // An invitation arrives as a toast and leaves the player where they are. A
+ // press that answers the toast is spent on it, however long it is held: B
+ // for Later does not also go back (from Home, that would hide Ember), and A
+ // for Join opens the invitation without also selecting its focused row
+ // (Cancel invitation) once the toast lets go.
+ const auto invited=[](Harness& h){
+  h.Frame();h.view.discordPending=true;h.view.discordRevision=3;h.Frame();
+  Check(h.shell.Navigation().Screen()=="home","The invitation took the player off Home");
+ };
+ {
+  Harness h;invited(h);
+  h.Frame(MenuInput::Back,4);h.Frame(0,2);
+  Check(h.shell.Navigation().Screen()=="home"&&h.open,"B held for the toast's Later also went back");
+ }
+ {
+  Harness h;invited(h);
+  h.Frame(MenuInput::Select,4);h.Frame(0,2);
+  Check(h.shell.Navigation().Screen()=="discord-invitation"&&h.shell.Navigation().Focus()=="invite-cancel","Join did not open the invitation on Cancel invitation, so this case proves nothing");
+  Check(std::none_of(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.discordAction==discord::InviteAction::Cancel;}),
+   "A held for the toast's Join also cancelled the invitation");
+ }
+ // A toast that comes while the menu is not free (a notice is open) never
+ // takes focus, then or later: once the notice is gone, B goes back.
+ {
+  Harness h;h.Frame();h.view.readyFailure="Ready failed";h.view.readyFailureSequence=1;h.Frame();
+  Check(h.shell.NoticeOpen(),"The notice did not open");
+  h.view.discordPending=true;h.view.discordRevision=3;h.Frame();
+  h.Press(MenuInput::Back);Check(!h.shell.NoticeOpen()&&h.shell.Navigation().Screen()=="home"&&h.open,"Back did not close the notice alone");
+  h.Frame(MenuInput::Back,2);h.Frame();
+  Check(!h.open,"A toast that came over a notice took the focus afterwards");
+ }
+ // The accessibility button reads a toast; it does not take its focus.
+ {
+  Harness h;invited(h);
+  h.Frame(MenuInput::Describe);h.Frame();h.Frame(MenuInput::Back,2);h.Frame();
+  Check(h.shell.Navigation().Screen()=="home"&&h.open,"RT dropped the toast's focus, so its B went back");
+ }
+ // LB and RB wrap: RB on the last tab is the first, LB on the first the
+ // last, and a DirectInput stick steps them with HP and LP, which is what
+ // the hint bar and the strip's ends name for it.
+ {
+  Harness h;h.Frame();h.Screen("tab-player");
+  std::vector<std::string> seen{h.shell.Navigation().Screen()};
+  for(int i=0;i<6;++i){h.Press(MenuInput::NextTab);seen.push_back(h.shell.Navigation().Screen());}
+  Check(seen.back()=="tab-player"&&std::set<std::string>(seen.begin(),seen.end()).size()==6,"RB does not reach every Settings tab and wrap to the first");
+  h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()==seen[5],"LB on the first tab did not wrap to the last");
+  h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="home","A tab stepped to stacked on the one it left");
+  h.Screen("awards");h.Press(MenuInput::PrevTab);Check(h.shell.Navigation().Screen()=="awards-icons","LB on Titles did not wrap to Icons");
+  h.Press(ControllerButtons(0x400,input::PadDirectInput,0,{}));Check(h.shell.Navigation().Screen()=="awards","A stick's HP did not step the tab");
+  SetMenuGlyphs(input::PadDirectInput,input::MenuButtons{1u<<18,1u<<17,"LK","MK"});h.Frame();
+  Check(!std::strcmp(MenuShortcutGlyph(MenuInput::PrevTab),"LP")&&!std::strcmp(MenuShortcutGlyph(MenuInput::NextTab),"HP"),"A stick's tab buttons are not named LP and HP");
+  Check(ShortcutHints({{MenuInput::Fighter,"Fighter"},{MenuInput::Options,"Table"},{MenuInput::Chat,"Chat"}}).empty(),"A stick is offered X, Y and View");
+  SetMenuGlyphs(input::PadXInput,input::MenuButtons{});h.Frame();
+  const auto hints=ShortcutHints({{MenuInput::Fighter,"Fighter"},{MenuInput::Chat,"Chat"}});
+  Check(hints.size()==2&&!std::strcmp(hints[0].glyph,"X")&&hints[0].press==MenuInput::Fighter&&!std::strcmp(hints[1].glyph,"View"),"An Xbox pad's shortcut hints are wrong");
+ }
+ // Settings, Player: Button layout opens the gameplay pad's layout, and the
+ // Settings tabs do not come with it.
+ {
+  Harness h;h.view.padLayer=gamepads::Layer::Active;h.view.inputDevice.type=input::PadXInput;
+  gamepads::PadView pad;pad.id=5;pad.slot=0;pad.gameplay=true;pad.identity={"guid","serial","path","Pad"};pad.name="Pad";h.view.pads={pad};h.Frame();
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+  std::string panel;
+  for(int i=0;i<8&&panel.empty();++i){h.Screen(("tab-player/"+std::to_string(i)).c_str());h.Frame();
+   if(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="controls";}))panel=h.shell.Navigation().Screen();}
+  SetMenuEntriesProbe({});
+  Check(!panel.empty(),"No Player panel holds Button layout");
+  h.Choose("controls");Check(h.shell.Navigation().Screen()=="button-layout","Button layout on the Player tab did nothing");
+  h.Press(MenuInput::NextTab);Check(h.shell.Navigation().Screen()=="button-layout","RB on Button layout stepped a Settings tab");
+ }
+ // Select on a word value with no list of values does what the hint bar
+ // says, nothing: Auto input delay stays Auto (it once stepped to 0 frames).
+ {
+  Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("defaults");h.FocusOn("delay");
+  const auto before=h.actions.size();h.Press(MenuInput::Select);h.Frame(0,40);
+  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences&&!a.preferences.autoInputDelay;}),
+   "Select stepped Auto input delay");
+ }
+}

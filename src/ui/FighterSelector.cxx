@@ -4,6 +4,7 @@
 #include <cfloat>
 #include <functional>
 #include "MenuRows.hxx"
+#include "RowId.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include <algorithm>
@@ -395,8 +396,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const auto preview=[&](const std::string& id){
   if(screen=="ultra"){
    ImGui::TextWrapped("%s",loc::Tf("selection.saved_value",UltraLabel(pick.ultra)).c_str());
-   if(id.compare(0,6,"ultra-")==0){
-    const int ultra=std::stoi(id.substr(6));
+   if(const int ultra=RowIndex(id,"ultra-");ultra>=0){
     ImGui::TextWrapped("%s",loc::T(ultra==pick.ultra?"selection.ultra_selected":editable?"selection.preview_save":"selection.preview_locked"));
     if(ultra==2){UltraMoveInput(pick.fighter,0,pick.edition);UltraMoveInput(pick.fighter,1,pick.edition);}
     else UltraMoveInput(pick.fighter,ultra,pick.edition);
@@ -407,11 +407,11 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    ImGui::TextWrapped("%s",loc::Tf("selection.saved_appearance",CostumeLabel(pick,installed),pick.color+1).c_str());return;
   }
   int focusFighter=pick.fighter,focusStage=stageId?*stageId:0,focusCostume=pick.costume,focusColor=pick.color;
-  if(id.compare(0,8,"fighter-")==0)focusFighter=std::stoi(id.substr(8));
-  if(id.compare(0,6,"stage-")==0)focusStage=std::stoi(id.substr(6));
-  if(id.compare(0,5,"pool-")==0)focusStage=std::stoi(id.substr(5));
-  if(id.compare(0,8,"costume-")==0){focusCostume=std::stoi(id.substr(8));focusColor=PreviewColor(pick.fighter,focusCostume,availability,installed);}
-  if(id.compare(0,6,"color-")==0)focusColor=std::stoi(id.substr(6));
+  // The focused row's number, where its id carries one (RowIndex).
+  const auto keyed=[&](const char* prefix,int& into){const int n=RowIndex(id,prefix);if(n>=0)into=n;return n>=0;};
+  keyed("fighter-",focusFighter);keyed("stage-",focusStage);keyed("pool-",focusStage);
+  if(keyed("costume-",focusCostume))focusColor=PreviewColor(pick.fighter,focusCostume,availability,installed);
+  keyed("color-",focusColor);
   ImGui::TextWrapped("%s",loc::Tf("selection.saved_full",FindFighter(pick.fighter)->name,CostumeLabel(pick,installed),pick.color+1).c_str());
   if(focusFighter!=pick.fighter||focusCostume!=pick.costume||focusColor!=pick.color)ImGui::TextWrapped("%s",loc::T("selection.preview_save_short"));
   const float width=(std::min)(ImGui::GetContentRegionAvail().x,300*Scale());
@@ -489,26 +489,26 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  if(a.kind==MenuAction::Activate){
   if(a.id=="ready")ForwardMenuAction({MenuAction::Close});
   else if((screen=="home"&&a.id.rfind("fighter-",0)!=0)||screen=="appearance"||a.id=="random-pool")nav.Push(a.id);
-  else if(editable&&randomPool&&a.id.compare(0,5,"pool-")==0){
+  else if(editable&&randomPool&&RowIndex(a.id,"pool-")>=0){
    // The page disables the last game stage left; the pool refuses it too.
-   if(randomPool->Toggle(std::stoi(a.id.substr(5))))changed=true;
+   if(randomPool->Toggle(RowIndex(a.id,"pool-")))changed=true;
   }
-  else if(editable&&a.id.compare(0,8,"fighter-")==0){
-   pick.fighter=std::stoi(a.id.substr(8));const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
+  else if(editable&&RowIndex(a.id,"fighter-")>=0){
+   pick.fighter=RowIndex(a.id,"fighter-");const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next,installed);changed=true;
    // The Ultra comes next, when the fighter has more than one.
    // The Ultra comes next; the next frame drops the step if this fighter,
    // with its own saved pick restored, has only one.
    // On the board the Ultra is a row beside the grid.
    if(!board){nav.Push("ultra");nav.Prefer("ultra-"+std::to_string(pick.ultra));focusSavedUltra_=ultraStepPending_=true;}
-  }else if(editable&&a.id.compare(0,6,"ultra-")==0){pick.ultra=std::stoi(a.id.substr(6));changed=true;finish();}
-  else if(editable&&a.id.compare(0,8,"costume-")==0){
+  }else if(editable&&RowIndex(a.id,"ultra-")>=0){pick.ultra=RowIndex(a.id,"ultra-");changed=true;finish();}
+  else if(editable&&RowIndex(a.id,"costume-")>=0){
    // A costume's colors come next, from the color the pick keeps.
-   pick.costume=std::stoi(a.id.substr(8));Normalize(pick,editionSelect,&availability,installed);changed=true;
+   pick.costume=RowIndex(a.id,"costume-");Normalize(pick,editionSelect,&availability,installed);changed=true;
    nav.Push("colors");nav.Prefer("color-"+std::to_string(pick.color));
-  }else if(editable&&a.id.compare(0,6,"color-")==0){pick.color=std::stoi(a.id.substr(6));changed=true;finish();}
-  else if(editable&&stageId&&a.id.compare(0,6,"stage-")==0){
-   *stageId=std::stoi(a.id.substr(6));changed=true;
+  }else if(editable&&RowIndex(a.id,"color-")>=0){pick.color=RowIndex(a.id,"color-");changed=true;finish();}
+  else if(editable&&stageId&&RowIndex(a.id,"stage-")>=0){
+   *stageId=RowIndex(a.id,"stage-");changed=true;
    // Opened for this one change, the pick is it; from its own menu the stage page stays.
    if(!openOn_.empty())finish();
   }
@@ -528,14 +528,14 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
 void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback,
  const selection::Pick& pick,SelectionArt* art,const AvailabilityReader& readAvailability) {
  using namespace selection;
- const float s=Scale(),width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),gap=6*s,rowHeight=48*s,valueWidth=220*s;
+ const float s=Scale(),width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),gap=6*s,rowHeight=48*s;
  const auto& c=v2::Colors();
  auto* d=ImGui::GetWindowDrawList();
  const auto& focus=nav.Focus();
  const bool changed=focus!=boardFocus_;
  boardFocus_=focus;
  // A box: its value's ends step it, anything else on it is Select; the moving pointer focuses it.
- const auto press=[&](const MenuEntry& e,const v2::Box& b){return PressEntry(nav,rows,e,b,action,changed,valueWidth).hovered;};
+ const auto press=[&](const MenuEntry& e,const v2::Box& b,float valueWidth=0){return PressEntry(nav,rows,e,b,action,changed,valueWidth).hovered;};
  const auto origin=ImGui::GetCursorScreenPos();
  const bool narrow=v2::Narrow(ImGui::GetWindowWidth(),s);
  const std::size_t cells=MenuGridCells(rows),lines=(cells+BoardColumns-1)/BoardColumns;
@@ -545,7 +545,8 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
  // The grid: each fighter's portrait and name; the saved one ruled, one not owned dimmed.
  for(std::size_t i=0;i<cells;++i){
   const auto& e=rows[i];
-  const int id=std::stoi(e.id.substr(8));
+  const int id=RowIndex(e.id,"fighter-");
+  if(id<0)continue;
   const float x=origin.x+(i%BoardColumns)*(cw+gap),y=origin.y+(i/BoardColumns)*(ch+gap);
   const v2::Box b{ImVec2(x,y),ImVec2(x+cw,y+ch)};
   const bool hovered=press(e,b),focused=e.id==focus;
@@ -559,14 +560,17 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
  }
  // The pane: the preview, the value rows, Ready at its foot (under the grid when narrow).
  const v2::Box pane{ImVec2(narrow?origin.x:origin.x+gridWidth+24*s,narrow?origin.y+lines*(ch+gap)+10*s:origin.y),ImVec2(origin.x+width,origin.y+height)};
- const std::size_t values=rows.size()-cells-1;
- const float readyHeight=48*s,stack=values*(rowHeight+gap)+readyHeight+12*s;
+ // Each value row as its label and value share it (FitMenuRow), a line taller with the value under the label.
+ std::vector<v2::Share> shares(rows.size());
+ float stack=48*s+12*s;
+ for(std::size_t i=cells;i<rows.size();++i)if(rows[i].id!="ready"){shares[i]=FitMenuRow(rows[i],pane.W()-28*s,8*s);stack+=rowHeight+(shares[i].under?v2::UnderLine*s:0)+gap;}
+ const float readyHeight=48*s;
  const float preview=narrow?0:(std::min)(300*s,pane.H()-stack-gap);
  float y=pane.min.y;
  if(preview>=120*s){
   // The focused fighter's portrait, else the saved fighter in their costume and colour.
   const v2::Box b{pane.min,ImVec2(pane.max.x,pane.min.y+preview)};
-  const int shown=focus.rfind("fighter-",0)==0?std::stoi(focus.substr(8)):pick.fighter;
+  const int shown=RowIndex(focus,"fighter-")>=0?RowIndex(focus,"fighter-"):pick.fighter;
   d->AddRectFilled(b.min,b.max,c.panel,4*s);
   ImageInRect(!art?Missing():shown==pick.fighter?art->Appearance(pick.fighter,pick.costume,pick.color):art->Portrait(shown,true),b.min,b.max);
   d->AddRect(b.min,b.max,c.border,4*s,0,s);
@@ -589,11 +593,11 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
    y=b.max.y;
    continue;
   }
-  const v2::Box r{ImVec2(pane.min.x,y),ImVec2(pane.max.x,y+rowHeight)};
-  y+=rowHeight+gap;
-  const bool hovered=press(e,r);
+  const v2::Box r{ImVec2(pane.min.x,y),ImVec2(pane.max.x,y+rowHeight+(shares[i].under?v2::UnderLine*s:0))};
+  y=r.max.y+gap;
+  const bool hovered=press(e,r,shares[i].value);
   v2::CardGround(d,r,focused,hovered);
-  DrawMenuRow(d,e,r,enabled,valueWidth,14*s);
+  DrawMenuRow(d,e,r,enabled,shares[i],14*s);
   if(focused){
    v2::Focus(d,r.min,r.max);
    if(!e.choices.empty())menu_.bodyChoices={r,pane};

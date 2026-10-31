@@ -54,6 +54,10 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
   if(!opening)rows.back().hint=loc::T(publicRoom?"public.create":"online.create");}
+ // Create's two panels stand side by side (DrawCreateBoard) and Left and Right
+ // change values, so Up and Down walk the rows in their order, from the Room
+ // panel on to the Rules panel and the button, not by where they are drawn.
+ for(std::size_t i=1;i<rows.size();++i){rows[i-1].down=rows[i].id;rows[i].up=rows[i-1].id;}
  return rows;
 }
 // Opening Create, and the rows on it that start a room.
@@ -157,7 +161,7 @@ void ApplicationShell::ApplyPublicDefaultName() {
 // words under them and the button that opens the room. The rows and their
 // order are RoomSetupRows'; up and down still walk them in that order.
 void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback) {
- const float s=Scale(),width=ImGui::GetContentRegionAvail().x,rowHeight=48*s,valueWidth=164*s;
+ const float s=Scale(),width=ImGui::GetContentRegionAvail().x,rowHeight=48*s;
  auto* d=ImGui::GetWindowDrawList();
  const auto focus=nav.Focus();
  const bool changed=focus!=createFocus_;
@@ -175,16 +179,18 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
  float bottom=origin.y;
  for(int i=0;i<2;++i){
   const ImVec2 at(origin.x+(across?i*(panelWidth+24*s):0),across||!i?origin.y:bottom+12*s);
-  const float inner=panels[i].size()*(rowHeight+4*s);
+  // Each row as its label and value share it (FitMenuRow), a line taller with the value under the label.
+  std::vector<v2::Share> shares;float inner=0;
+  for(const MenuEntry* row:panels[i]){shares.push_back(FitMenuRow(*row,panelWidth-52*s,8*s));inner+=rowHeight+(shares.back().under?v2::UnderLine*s:0)+4*s;}
   const v2::Box panel{at,ImVec2(at.x+panelWidth,at.y+40*s+12*s+inner)};
   float y=v2::Panel(d,panel,names[i]).min.y+8*s;
-  for(const MenuEntry* row:panels[i]){
-   const auto& e=*row;
-   const v2::Box r{ImVec2(at.x+12*s,y),ImVec2(panel.max.x-12*s,y+rowHeight)};
-   y+=rowHeight+4*s;
-   const bool focused=e.id==focus,hovered=PressEntry(nav,rows,e,r,action,changed,valueWidth).hovered;
+  for(std::size_t k=0;k<panels[i].size();++k){
+   const auto& e=*panels[i][k];const v2::Share value=shares[k];
+   const v2::Box r{ImVec2(at.x+12*s,y),ImVec2(panel.max.x-12*s,y+rowHeight+(value.under?v2::UnderLine*s:0))};
+   y=r.max.y+4*s;
+   const bool focused=e.id==focus,hovered=PressEntry(nav,rows,e,r,action,changed,value.value).hovered;
    v2::RowGround(d,r,focused,hovered);
-   DrawMenuRow(d,e,r,feedback.Enabled(e),valueWidth,14*s);
+   DrawMenuRow(d,e,r,feedback.Enabled(e),value,14*s);
    if(focused){
     v2::Focus(d,r.min,r.max);
     if(!e.choices.empty())menu_.bodyChoices={r,{panel.min,ImVec2(panel.max.x,origin.y+height)}};
@@ -194,8 +200,10 @@ void ApplicationShell::DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNa
  }
  // The focused row's words, then the button.
  const auto shown=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==focus;});
- const v2::Box words{ImVec2(origin.x,bottom+12*s),ImVec2(origin.x+width,bottom+12*s+52*s)};
- v2::Words(d,words,shown!=rows.end()?shown->label:std::string(),shown!=rows.end()?shown->detail:std::string(),false);
+ // Wrapped, in as many lines as the detail takes.
+ const std::string detail=shown!=rows.end()?shown->detail:std::string();
+ const v2::Box words{ImVec2(origin.x,bottom+12*s),ImVec2(origin.x+width,bottom+12*s+(std::max)(52*s,v2::WordsHeight(width,detail)))};
+ v2::Words(d,words,shown!=rows.end()?shown->label:std::string(),detail,true);
  float end=words.max.y;
  if(button){
   const auto& e=*button;

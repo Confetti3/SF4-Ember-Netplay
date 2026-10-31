@@ -83,25 +83,35 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     }
     return groups;
 }
+float Width(const Group& group, const Layout& layout) {
+    float width = 0;
+    for (const auto& piece : group.pieces) width += piece.before + Width(piece, layout);
+    return width;
+}
 // The groups that fit in room, in order, the first on the line without
 // space in front. Each goes whole; the first that does not end the line,
 // shortened to the room left if it shortens and keeps at least `least` of
-// its last piece's text.
+// its last piece's text. A group that shortens gives way to a whole group
+// after it (the pad's hint to the F7 pair): it shortens to leave that room
+// where it can keep `least`, and the line goes on with that group.
 std::vector<Piece> Fit(std::vector<Group> groups, float room, const Layout& layout, float& used) {
     std::vector<Piece> line;
     used = 0;
-    for (auto& group : groups) {
+    for (std::size_t i = 0; i < groups.size(); ++i) {
+        auto& group = groups[i];
         if (line.empty()) group.pieces.front().before = 0;
-        float width = 0;
-        for (const auto& piece : group.pieces) width += piece.before + Width(piece, layout);
+        const float width = Width(group, layout);
         auto& last = group.pieces.back();
         const float text = ImGui::CalcTextSize(last.text.c_str()).x, spare = room - used - (width - text);
-        const bool whole = text <= spare;
-        if (!whole && !(group.shortens && spare >= layout.least)) break;
-        if (!whole) last.text = FitLabel(last.text, spare);
+        const bool next = group.shortens && i + 1 < groups.size() && !groups[i + 1].shortens;
+        const float after = next ? Width(groups[i + 1], layout) : 0;
+        const bool whole = text <= spare - after, yields = after > 0 && !whole && spare - after >= layout.least;
+        if (!whole && !yields && text > spare && !(group.shortens && spare >= layout.least)) break;
+        const float kept = whole ? text : yields ? spare - after : (std::min)(text, spare);
+        if (kept < text) last.text = FitLabel(last.text, kept);
         used += width - text + ImGui::CalcTextSize(last.text.c_str()).x;
         line.insert(line.end(), group.pieces.begin(), group.pieces.end());
-        if (!whole) break;
+        if (!whole && !yields) break;
     }
     return line;
 }
@@ -132,7 +142,7 @@ TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, 
     // pressed then. With the shortcuts off only a notice is told.
     if (called || (!shortcuts && notice.empty())) return input;
     // At least MinText pixels, otherwise as the meter's own text.
-    const float body = ImGui::GetFont()->FontSize, text = (std::max)(MinText, .8f * body * hudScale);
+    const float body = ImGui::GetFont()->FontSize * ImGui::GetFont()->Scale, text = (std::max)(MinText, .8f * body * hudScale);
     const float unit = text / MinText;
     const ImVec2 padding(4 * unit, 3 * unit);
     ImGui::SetNextWindowPos(ImVec2(left, meterTop - 4 * hudScale), ImGuiCond_Always, ImVec2(0, 1));

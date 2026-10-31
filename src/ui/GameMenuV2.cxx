@@ -32,26 +32,41 @@ void Brand(ImDrawList* d, ImVec2 p, float mark) {
     d->AddText(HeadingFont(), size, ImVec2(x, p.y + (mark - size - 18 * s) * .5f), v2::Colors().text, "EMBER");
     d->AddText(HeadingFont(), 13 * s, ImVec2(x + 2 * s, p.y + (mark + size - 18 * s) * .5f + 4 * s), v2::Colors().accent, loc::T("brand.subtitle"));
 }
-// One entry's card: its label (and first line of detail on two-line cards), its
-// value with the arrows that step it, or a chevron when Select opens something.
+// A card's two portraits (a match's), as tall as its first line's box.
+float CardFace(const MenuEntry& e, float height) { return e.Match() ? height - 12 * Scale() : 0; }
+bool CardChevron(const MenuEntry& e) { return !e.adjustable && MenuSelectOpens(e) != SelectOpens::Nothing; }
 // With `chip` a value that is not a setting stands as an Ember chip (Online play's "B+").
-void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled, bool twoLines, bool home, float valueWidth, bool chip) {
-    const float s = Scale(), h = c.H();
+bool CardChip(const MenuEntry& e, bool chip) { return chip && !e.info && !e.value.empty() && !e.adjustable; }
+// How a card of `width` and `height` (its one-line box) shares its line
+// between the label and the value (FitMenuRow), a chip's width for a value
+// that stands as one; a card of a fixed height (`grows` false) keeps it beside.
+v2::Share CardShare(const MenuEntry& e, float width, float height, bool chip, bool grows) {
+    const float s = Scale(), face = CardFace(e, height);
+    const float room = width - 32 * s - (face > 0 ? 2 * (face + 6 * s) : 0);
+    if (!CardChip(e, chip)) return FitMenuRow(e, room, 16 * s, grows);
+    const float wanted = v2::ChipWidth(e.value) + (CardChevron(e) ? 18 * s : 0);
+    return v2::ShareLine(ImGui::CalcTextSize(e.label.c_str()).x, wanted, wanted, room, 16 * s, grows);
+}
+// One entry's card: its label (and first line of detail on two-line cards), its
+// value with the arrows that step it, or a chevron when Select opens something,
+// beside the label or under it as `value` shares the card (CardShare).
+void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled, bool twoLines, bool home, v2::Share value, bool chip) {
+    const float s = Scale();
     if (e.userText) NoteUserText(e.label);
     const ImU32 text = enabled ? v2::Colors().text : v2::color::Alpha(v2::Colors().text, .55f);
-    const float face = e.Match() ? h - 12 * s : 0;
+    // A value under its label takes the card's last line, the label and detail the rest.
+    const v2::Box line = value.under ? v2::CutBottom(c, v2::UnderLine * s) : c;
+    const float h = c.H(), face = CardFace(e, h);
     if (face > 0) {
         DrawCharacterPortrait(e.fighter1, ImVec2(c.min.x + 6 * s, c.min.y + 6 * s), ImVec2(c.min.x + 6 * s + face, c.max.y - 6 * s));
         DrawCharacterPortrait(e.fighter2, ImVec2(c.max.x - 6 * s - face, c.min.y + 6 * s), ImVec2(c.max.x - 6 * s, c.max.y - 6 * s));
     }
-    const bool chevron = !e.adjustable && MenuSelectOpens(e) != SelectOpens::Nothing;
-    const float left = c.min.x + 16 * s + (face > 0 ? face + 6 * s : 0);
-    const float right = c.max.x - 16 * s - (face > 0 ? face + 6 * s : 0) - (chevron ? 18 * s : 0);
-    chip = chip && !e.info && !e.value.empty() && !e.adjustable;
-    const float valueText = e.value.empty() || e.adjustable ? 0 : (std::min)(chip ? v2::ChipWidth(e.value) : ImGui::CalcTextSize(e.value.c_str()).x, (right - left) * .45f);
-    const float labelRoom = right - left - (e.adjustable ? valueWidth : valueText) - (valueText > 0 ? 16 * s : 0);
+    const bool chevron = CardChevron(e);
+    chip = CardChip(e, chip);
+    const float left = c.min.x + 16 * s + (face > 0 ? face + 6 * s : 0), right = c.max.x - 16 * s - (face > 0 ? face + 6 * s : 0);
+    const float labelRoom = right - left - (value.under ? 0 : value.value > 0 ? value.value + 16 * s : chevron ? 18 * s : 0);
     ImFont* labelFont = home ? HeadingFont() : ImGui::GetFont();
-    const float labelSize = (home ? 20 : 18) * s, detailSize = 15 * s;
+    const float labelSize = home ? 20 * s : ImGui::GetFontSize(), detailSize = 15 * s;
     const bool second = twoLines && !e.detail.empty();
     const float labelY = second ? c.min.y + 10 * s : c.min.y + (h - labelSize) * .5f;
     // A player's own words may elide; the probe measures only interface strings.
@@ -61,18 +76,20 @@ void DrawCardContent(ImDrawList* d, const MenuEntry& e, v2::Box c, bool enabled,
         // A card's detail may shorten: the detail pane and speech give it whole.
         d->AddText(ImGui::GetFont(), detailSize, ImVec2(left, labelY + labelSize + 4 * s), v2::Colors().muted, Fit(FirstLine(e.detail), labelRoom, detailSize, ImGui::GetFont(), false).c_str());
     }
-    const float valueY = c.min.y + (h - ImGui::GetFontSize()) * .5f;
+    // The value's box at the right end of its line, the chevron's place included.
+    const v2::Box box{ImVec2(right - value.value, line.min.y), ImVec2(right, line.max.y)};
+    const float end = chevron ? right - 18 * s : right, font = ImGui::GetFontSize();
     if (e.adjustable) {
-        DrawMenuValue(d, e, {ImVec2(right - valueWidth, c.min.y), ImVec2(right, c.max.y)}, enabled, text);
+        DrawMenuValue(d, e, box, enabled, text);
     } else if (chip) {
-        v2::Chip(d, ImVec2(right - valueText, c.min.y + (h - ImGui::GetFontSize() * .78f - 8 * s) * .5f), e.value, v2::Colors().accent);
-    } else if (valueText > 0) {
+        v2::Chip(d, ImVec2(end - v2::ChipWidth(e.value), box.min.y + (box.H() - font * .78f - 8 * s) * .5f), e.value, v2::Colors().accent);
+    } else if (value.value > 0) {
         if (e.userText || e.text) NoteUserText(e.value);
         // A value may elide (the detail pane says it whole); the probe measures labels.
-        const std::string shown = Fit(e.value, valueText, ImGui::GetFontSize(), ImGui::GetFont(), false);
-        d->AddText(ImVec2(right - ImGui::CalcTextSize(shown.c_str()).x, valueY), e.valueHighlighted ? v2::Colors().accent : v2::Colors().muted, shown.c_str());
+        const std::string shown = Fit(e.value, end - box.min.x, font, ImGui::GetFont(), false);
+        d->AddText(ImVec2(end - ImGui::CalcTextSize(shown.c_str()).x, box.min.y + (box.H() - font) * .5f), e.valueHighlighted ? v2::Colors().accent : v2::Colors().muted, shown.c_str());
     }
-    if (chevron) Chevron(d, ImVec2(c.max.x - 22 * s, c.min.y + h * .5f), 6 * s, enabled ? v2::Colors().muted : v2::color::Alpha(v2::Colors().muted, .5f));
+    if (chevron) Chevron(d, ImVec2(right - 6 * s, box.min.y + box.H() * .5f), 6 * s, enabled ? v2::Colors().muted : v2::color::Alpha(v2::Colors().muted, .5f));
 }
 }
 
@@ -97,32 +114,61 @@ void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled,
     d->AddText(ImVec2(box.max.x - 10 * s, y), arrow, ">");
 }
 
+namespace {
+// The value's word now, and what goes round it: the arrows either side of an
+// adjustable value, the chevron beside a fixed one.
+const char* ValueWord(const MenuEntry& e) { return e.value.empty() ? loc::T("common.not_set") : e.value.c_str(); }
+float ValueFrame(const MenuEntry& e) { return (e.adjustable ? 48 : 28) * Scale(); }
+}
+float MenuValueWidth(const MenuEntry& e) {
+    if (MenuValueIsToggle(e)) return 36 * Scale();
+    float words = ImGui::CalcTextSize(ValueWord(e)).x;
+    for (const auto& c : e.choices) words = (std::max)(words, ImGui::CalcTextSize(c.label.c_str()).x);
+    return words + ValueFrame(e);
+}
+v2::Share FitMenuRow(const MenuEntry& e, float room, float gap, bool grows) {
+    if (!e.adjustable && e.value.empty()) return {};
+    // What the value gives way down to depends on the row, not on the word it
+    // shows now, so stepping a value or a status changing never moves the rows:
+    // a control (arrows, a switch) to under half the row, a fixed value to its
+    // chevron's place (cut; the detail pane says it whole).
+    const float wanted = MenuValueWidth(e);
+    const float least = (std::min)(wanted, e.adjustable ? room * .45f : ValueFrame(e));
+    return v2::ShareLine(ImGui::CalcTextSize(e.label.c_str()).x, wanted, least, room, gap, grows);
+}
 // Where a click on a value steps it: a number's either half, a word's arrows
-// only (the word itself opens its list); a switch never.
+// only (the word itself opens its list), a switch's own box (which flips it,
+// so a switch that also reads is flipped on the switch and read on its label).
 static int MenuValueStep(const MenuEntry& e, float mx, float vx, float width) {
-    if (!e.adjustable || !e.enabled || MenuValueIsToggle(e) || width <= 0 || mx < vx) return 0;
+    if (!e.adjustable || !e.enabled || width <= 0 || mx < vx) return 0;
+    if (MenuValueIsToggle(e)) return mx < vx + width - 36 * Scale() ? 0 : e.value == loc::T("common.on") ? -1 : 1;
     if (!MenuValueIsNumber(e) && mx >= vx + 24 * Scale() && mx <= vx + width - 24 * Scale()) return 0;
     return mx < vx + width * .5f ? -1 : 1;
 }
-void DrawMenuRow(ImDrawList* d, const MenuEntry& e, v2::Box r, bool enabled, float valueWidth, float inset) {
-    const float s = Scale(), font = ImGui::GetFontSize(), y = r.min.y + (r.H() - font) * .5f, right = r.max.x - inset;
+void DrawMenuRow(ImDrawList* d, const MenuEntry& e, v2::Box r, bool enabled, v2::Share value, float inset) {
+    const float s = Scale(), font = ImGui::GetFontSize(), left = r.min.x + inset, right = r.max.x - inset;
     const auto& c = v2::Colors();
     const ImU32 text = enabled ? c.text : c.muted;
-    // A switch takes only its own width, so its label has the rest.
-    const float value = MenuValueIsToggle(e) ? 36 * s : e.adjustable || !e.value.empty() ? valueWidth : -inset - 8 * s;
-    v2::Text(d, ImVec2(r.min.x + inset, y), right - value - 8 * s - r.min.x - inset, e.label, font, text, nullptr, false, !e.userText);
+    // A value under its label takes the row's last line, the label the rest.
+    const v2::Box line = value.under ? v2::CutBottom(r, v2::UnderLine * s) : r;
+    // Beside it the label leaves the value its share, or a chevron its place.
+    const float beside = value.under ? 0 : value.value > 0 ? value.value + 8 * s : e.info ? 0 : 18 * s;
+    v2::Text(d, ImVec2(left, r.min.y + (r.H() - font) * .5f), right - left - beside, e.label, font, text, nullptr, false, !e.userText);
     if (e.userText || e.text) NoteUserText(e.value);
-    if (e.adjustable) { DrawMenuValue(d, e, {ImVec2(right - valueWidth, r.min.y), ImVec2(right, r.max.y)}, enabled, text); return; }
+    const v2::Box box{ImVec2(right - value.value, line.min.y), ImVec2(right, line.max.y)};
+    if (e.adjustable) { DrawMenuValue(d, e, box, enabled, text); return; }
     // A fixed value, then the chevron of a row Select opens (an info row has none).
     const float end = e.info ? right : right - 18 * s;
     if (!e.value.empty()) {
-        const std::string shown = Fit(e.value, valueWidth - 20 * s, font, ImGui::GetFont(), false);
-        d->AddText(ImVec2(end - ImGui::CalcTextSize(shown.c_str()).x, y), e.valueHighlighted ? c.accent : e.info ? c.muted : text, shown.c_str());
+        const std::string shown = Fit(e.value, value.value - 20 * s, font, ImGui::GetFont(), false);
+        d->AddText(ImVec2(end - ImGui::CalcTextSize(shown.c_str()).x, box.min.y + (box.H() - font) * .5f), e.valueHighlighted ? c.accent : e.info ? c.muted : text, shown.c_str());
     }
-    if (!e.info) Chevron(d, ImVec2(right - 6 * s, r.min.y + r.H() * .5f), 6 * s, enabled ? c.muted : v2::color::Alpha(c.muted, .5f));
+    if (!e.info) Chevron(d, ImVec2(right - 6 * s, box.min.y + box.H() * .5f), 6 * s, enabled ? c.muted : v2::color::Alpha(c.muted, .5f));
 }
 EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
     bool scroll, float valueWidth, bool choose) {
+    // Directions move between a board's rows by where they are drawn.
+    nav.Place(e.id, {b.min.x, b.min.y, b.max.x, b.max.y});
     ImGui::SetCursorScreenPos(b.min);
     ImGui::PushID(e.id.c_str());
     const bool pressed = ImGui::InvisibleButton("##entry", ImVec2(b.W(), b.H())) && !nav.Asking() && !nav.Editing();
@@ -172,7 +218,8 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     // Header: Home's brand, or the screen's title and its tabs.
     ImGui::SetCursorScreenPos(content.min);
     if (home) {
-        const float mark = (narrow ? 44 : 72) * s;
+        // A short window (TV size, 150% at 1080p) takes the small mark, so Home's rows keep the height.
+        const float mark = (narrow || content.H() < 760 * s ? 44 : 72) * s;
         Brand(d, content.min, mark);
         v2::CutTop(content, mark, 24 * s);
     } else {
@@ -182,7 +229,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         const char* named = navigation.Screen() == navigation.Root() && !rootName.empty() ? rootName.c_str() : MenuScreenName(navigation.Screen());
         // Its Back button is the hint bar's Back, so it closes an open question first.
         if (v2::Header(named && IsCapitals(title) ? named : title, eyebrow.empty() ? nullptr : eyebrow.c_str(), headerChips, backInert ? nullptr : loc::T("common.back"))
-            && !modalAtStart && !noticeOpen && !navigation.Editing()) {
+            && !noticeOpen && !navigation.Editing()) {
             if (navigation.Asking()) navigation.Cancel();
             else backRequested = true;
         }
@@ -200,23 +247,34 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
     // A value's choices: a panel on its own card, inside the cards' column, so
     // the detail pane and its preview stay in view. Picking one closes it.
     const auto Values = [&](v2::Box focusCard, v2::Box list) {
-        if (popoutClose_ && navigation.Choosing()) navigation.Cancel();
-        popoutClose_ = false;
-        if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) { popoutOpen_ = false; return false; }
+        if (valuesClose_ && navigation.Choosing()) navigation.Cancel();
+        valuesClose_ = false;
+        if (!navigation.Choosing() || focusedEntry == entries.end() || focusCard.W() <= 0 || !notice_.empty()) { valuesOpen_ = false; return false; }
         const auto& e = *focusedEntry;
         // Select on a switch flips it: no popup for two words.
         if (MenuValueIsToggle(e)) { navigation.Cancel(); action = {MenuAction::Adjust, e.id, {}, e.value == loc::T("common.on") ? -1 : 1}; return false; }
         const auto grid = MenuChoiceLayout(e.choices);
-        bool closeOutside = false;
+        // The click that opened it is not a click outside it.
+        const bool opening = !valuesOpen_;
+        valuesOpen_ = true;
         const std::size_t count = e.choices.size(), across = e.popout ? 1 : grid.across, lines = (count + across - 1) / across;
         const float row = (e.popout ? 44 : 48) * s, inner = (e.popout ? 8 : 6) * s, foot = e.popout ? 0 : 30 * s;
-        const float height = lines * row + (lines - 1) * inner + 24 * s + (e.popout ? 22 : 38) * s + foot;
+        // A value panel's head: its title (the row's label) and the count of its
+        // choices, sharing the line as a row does (v2::ShareLine) in `room`.
+        const std::string counted = loc::Tf("menu.choices_count", count);
+        const float titleWidth = HeadingFont()->CalcTextSizeA(18 * s, FLT_MAX, 0, e.label.c_str()).x, countWidth = ImGui::CalcTextSize(counted.c_str()).x;
+        const auto head = [&](float room) { return v2::ShareLine(titleWidth, countWidth, countWidth, room - 8 * s, 16 * s); };
+        // As wide as its choices, the keys under them and its head ask, inside the column.
+        const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });
+        const std::string keysLine = loc::Tf("menu.choices_keys", chosen == e.choices.end() ? e.value : chosen->label);
+        const float keys = ImGui::CalcTextSize(keysLine.c_str()).x;
+        const float panelWidth = (std::min)(list.W(), (std::max)({keys, across * grid.cell + (across - 1) * inner, titleWidth + countWidth + 24 * s}) + 24 * s);
+        const float headLine = !e.popout && head(panelWidth - 24 * s).under ? v2::UnderLine * s : 0;
+        const float height = lines * row + (lines - 1) * inner + 24 * s + (e.popout ? 22 : 38) * s + headLine + foot;
         if (e.popout) {
             // A popout opens where it was asked for: at the click, or beside the row for the pad
             // and keys, and turns back at the screen's edges.
-            if (!popoutOpen_) popoutAt_ = ImGui::IsMouseReleased(ImGuiMouseButton_Left) ? ImGui::GetMousePos() : ImVec2(focusCard.max.x - 24 * s, focusCard.min.y);
-            else closeOutside = true;
-            popoutOpen_ = true;
+            if (opening) popoutAt_ = ImGui::IsMouseReleased(ImGuiMouseButton_Left) ? ImGui::GetMousePos() : ImVec2(focusCard.max.x - 24 * s, focusCard.min.y);
             const float w = 300 * s, h = (std::min)(height, size.y - 16 * s);
             ImVec2 at = popoutAt_;
             if (at.x + w > win.x + size.x - 8 * s) at.x = (std::max)(win.x + 8 * s, at.x - w);
@@ -225,12 +283,9 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::SetNextWindowSize(ImVec2(w, h));
         } else {
             // At the column's right edge, level with the row, kept inside the column.
-            const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });
-            const float keys = ImGui::CalcTextSize(loc::Tf("menu.choices_keys", chosen == e.choices.end() ? e.value : chosen->label).c_str()).x + 24 * s;
-            const float w = (std::min)(list.W(), (std::max)(keys, across * grid.cell + (across - 1) * inner + 24 * s));
             const float top = (std::max)(list.min.y, (std::min)(focusCard.min.y, list.max.y - height));
-            ImGui::SetNextWindowPos(ImVec2(list.max.x - w - 12 * s, top));
-            ImGui::SetNextWindowSize(ImVec2(w, (std::min)(height, list.H())));
+            ImGui::SetNextWindowPos(ImVec2(list.max.x - panelWidth - 12 * s, top));
+            ImGui::SetNextWindowSize(ImVec2(panelWidth, (std::min)(height, list.H())));
         }
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12 * s, 12 * s));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * s);
@@ -250,11 +305,12 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             const auto wp = ImGui::GetWindowPos();
             pd->AddRectFilled(wp, ImVec2(wp.x + 3 * s, wp.y + ImGui::GetWindowHeight()), col.accent);
             const float avail = ImGui::GetContentRegionAvail().x;
-            const std::string counted = loc::Tf("menu.choices_count", count);
-            pd->AddText(HeadingFont(), 18 * s, ImVec2(at.x + 4 * s, at.y), col.text, Fit(e.label, avail - ImGui::CalcTextSize(counted.c_str()).x - 16 * s, 18 * s, HeadingFont()).c_str());
-            pd->AddText(ImVec2(at.x + avail - ImGui::CalcTextSize(counted.c_str()).x - 4 * s, at.y + 2 * s), col.muted, counted.c_str());
-            pd->AddLine(ImVec2(at.x, at.y + 28 * s), ImVec2(at.x + avail, at.y + 28 * s), col.border, s);
-            ImGui::Dummy(ImVec2(0, 30 * s));
+            const v2::Share share = head(avail);
+            const float under = share.under ? v2::UnderLine * s : 0;
+            v2::Text(pd, ImVec2(at.x + 4 * s, at.y), avail - 8 * s - (share.under ? 0 : countWidth + 16 * s), e.label, 18 * s, col.text, HeadingFont());
+            pd->AddText(ImVec2(at.x + avail - countWidth - 4 * s, at.y + 2 * s + under), col.muted, counted.c_str());
+            pd->AddLine(ImVec2(at.x, at.y + 28 * s + under), ImVec2(at.x + avail, at.y + 28 * s + under), col.border, s);
+            ImGui::Dummy(ImVec2(0, 30 * s + under));
         }
         const float cw = (ImGui::GetContentRegionAvail().x - inner * (across - 1)) / across;
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(inner, inner));
@@ -280,15 +336,14 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             if (selected && lastChoice_ != i) ImGui::SetScrollHereY(.5f);
         }
         lastChoice_ = navigation.ChoiceIndex();
-        // A click outside an open popout closes it. The board under it was drawn
+        // A click outside an open popout or value panel closes it. The board under it was drawn
         // while it was still open, so that click does nothing else.
         // It closes on the next frame, after the hint bar's Back has had this click.
-        popoutClose_ = closeOutside && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered();
+        valuesClose_ = !opening && navigation.Choosing() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered();
         ImGui::PopStyleVar();
         if (!e.popout && navigation.Choosing()) {
-            const auto chosen = std::find_if(e.choices.begin(), e.choices.end(), [&](const MenuChoice& o) { return o.id == e.chosen; });
             ImGui::Dummy(ImVec2(0, 2 * s));
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(col.muted), "%s", loc::Tf("menu.choices_keys", chosen == e.choices.end() ? e.value : chosen->label).c_str());
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(col.muted), "%s", keysLine.c_str());
         }
         ImGui::End();
         ImGui::PopStyleColor(2);
@@ -319,33 +374,64 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             pane = paneLeft ? v2::CutLeft(list, w, 24 * s) : v2::CutRight(list, w, 24 * s);
         }
         if (home && split) list.max.x = list.min.x + (std::min)(600 * s, list.W());
+        // Home's rows share the list's height, from two lines (64 px) down to
+        // one (52), so all of them show without a scroll where they can.
+        float homeRow = 64 * s;
+        if (home) {
+            const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && e.id == "awards"); }));
+            if (rows > 0) homeRow = (std::max)(52 * s, (std::min)(64 * s, (list.H() - 8 * s * (rows - 1)) / rows));
+        }
         // A flyout keeps to one line a card past its first page, so more of its settings show at once.
-        const bool twoLines = home || listWidth > 0 || (!split && (!flyout || navigation.Screen() == navigation.Root())), grid = columns > 1 && card;
+        const bool twoLines = home ? homeRow >= 60 * s : listWidth > 0 || (!split && (!flyout || navigation.Screen() == navigation.Root())), grid = columns > 1 && card;
         const std::size_t cells = grid ? MenuGridCells(entries) : 0;
+        const float gap = 8 * s;
+        // A card's one-line box, and how its label and value share it at `width`:
+        // a card of the list's own height grows by a line for a value under its label.
+        const auto lineOf = [&](const MenuEntry& e, bool cell) {
+            return cell ? cardHeight * s : e.height > 0 ? e.height * s : home ? homeRow : (twoLines && !e.detail.empty() ? listWidth > 0 ? 68 : 64 : 52) * s;
+        };
+        const auto shareOf = [&](const MenuEntry& e, bool cell, float width) {
+            return CardShare(e, width, lineOf(e, cell), listWidth > 0, !cell && !home && e.height <= 0);
+        };
+        const auto heightOf = [&](const MenuEntry& e, bool cell, float width) {
+            return lineOf(e, cell) + (shareOf(e, cell, width).under ? v2::UnderLine * s : 0);
+        };
+        const auto heads = [&](std::size_t i) { return !entries[i].group.empty() && (i == 0 || entries[i - 1].group != entries[i].group); };
+        // A flyout whose cards do not fit its height (Training's pages at 150%)
+        // shows them in two columns where they still have room, the first half
+        // down the left: still one list in reading order, so Down from the
+        // foot of the left column goes on to the top of the right.
+        float stacked = 0;
+        for (std::size_t i = 0; i < entries.size() && !grid; ++i) stacked += heightOf(entries[i], false, list.W()) + gap + (heads(i) ? 26 * s + gap : 0);
+        const bool halves = flyout && !grid && stacked > list.H() && list.W() >= 520 * s;
+        const std::size_t half = halves ? (entries.size() + 1) / 2 : entries.size();
         v2::Box focusCard{};
         ImGui::SetCursorScreenPos(list.min);
         if (changed) ImGui::SetNextWindowScroll(ImVec2(0, navigation.Scroll()));
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
         ImGui::BeginChild("V2 list", ImVec2(list.W(), list.H()), 0, ImGuiWindowFlags_NoNavInputs);
         auto* ld = ImGui::GetWindowDrawList();
-        const float gap = 8 * s, full = ImGui::GetContentRegionAvail().x;
+        const float full = halves ? (ImGui::GetContentRegionAvail().x - gap) * .5f : ImGui::GetContentRegionAvail().x;
         const float cellWidth = grid ? (full - gap * (columns - 1)) / columns : full;
+        const ImVec2 top = ImGui::GetCursorScreenPos();
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(gap, gap));
         for (std::size_t i = 0; i < entries.size(); ++i) {
+            if (i == half && halves) ImGui::SetCursorScreenPos(ImVec2(top.x + full + gap, top.y));
             const auto& e = entries[i];
             // Home's "awards" row is the player's card in the pane.
             if (home && split && e.id == "awards") continue;
             const bool focused = e.id == navigation.Focus(), enabled = feedback_.Enabled(e), cell = i < cells;
             if (cell && i % columns) ImGui::SameLine(0, gap);
             // A group's heading over its first card.
-            if (!cell && !e.group.empty() && (i == 0 || entries[i - 1].group != e.group)) {
-                if (i) ImGui::Dummy(ImVec2(0, 8 * s));
+            if (!cell && heads(i)) {
+                if (i && i != half) ImGui::Dummy(ImVec2(0, 8 * s));
                 const auto at = ImGui::GetCursorScreenPos();
                 v2::SectionHeading(ld, ImVec2(at.x + 2 * s, at.y + 4 * s), e.group);
                 ImGui::Dummy(ImVec2(full, 18 * s));
             }
             const float w = cell ? cellWidth : full;
-            const float h = cell ? cardHeight * s : e.height > 0 ? e.height * s : (twoLines && !e.detail.empty() ? listWidth > 0 ? 68 : 64 : 52) * s;
+            const v2::Share value = shareOf(e, cell, w);
+            const float h = lineOf(e, cell) + (value.under ? v2::UnderLine * s : 0);
             const auto p = ImGui::GetCursorScreenPos();
             const v2::Box c{p, ImVec2(p.x + w, p.y + h)};
             ImGui::PushID(e.id.c_str());
@@ -354,7 +440,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             ImGui::PopID();
             ReportMenuCard(e.id.c_str(), c.min, c.max);
             // The value's ends step it; anything else on the card is Select.
-            const float valueWidth = e.adjustable ? (std::min)(220 * s, w * .4f) : 0;
+            const float valueWidth = e.adjustable ? value.value : 0;
             if (pressed && listEnabled && !modalAtStart && !navigation.Editing() && !navigation.Asking()) {
                 navigation.Focus(e.id, entries);
                 const float mx = ImGui::GetMousePos().x, vx = c.max.x - 16 * s - valueWidth;
@@ -369,7 +455,7 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
             v2::CardGround(ld, c, focused, hovered, e.valueHighlighted);
             // A screen's own drawing of its rows (portraits, flags, rankings).
             if (card && card(e, c.min, c.max)) { if (focused) v2::Focus(ld, c.min, c.max, !cell); continue; }
-            DrawCardContent(ld, e, c, enabled, twoLines && !cell, home, valueWidth, listWidth > 0);
+            DrawCardContent(ld, e, c, enabled, twoLines && !cell, home, value, listWidth > 0);
             if (focused) v2::Focus(ld, c.min, c.max, !cell);
         }
         ImGui::PopStyleVar();
@@ -437,42 +523,61 @@ MenuAction GameMenu::DrawV2(const char* title, const std::vector<MenuEntry>& ent
         if (listCard.draw) DrawListCard(list.min, list.max, focusCard.min, focusCard.max, s);
     }
     if (action.kind == MenuAction::Back) { backRequested = true; action = {}; }
-    // The right mouse button is Back, as B and Escape: it closes an open value panel or question first.
+    // The right mouse button is Back, as B and Escape: it closes an open value
+    // panel or question first, and answers a focused toast as B does.
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !noticeOpen && !navigation.Editing()) {
-        if (navigation.Asking()) navigation.Cancel();
+        if (toastFocused) toastPressed |= MenuInput::Back;
+        else if (navigation.Asking()) navigation.Cancel();
         else if (!backInert) backRequested = true;
     }
 
-    // The hint bar: what the focused card's buttons do, each also a button; the status on the right.
-    MenuEntry shown;
-    if (focusedEntry != entries.end()) { shown = *focusedEntry; shown.enabled = feedback_.Enabled(*focusedEntry); }
+    // The hint bar: what the buttons do now, each also a button that presses
+    // it; the status on the right. An open dialog names its own Select and
+    // Back (DialogLegend); a list that takes no input (a capture) shows only
+    // the screen's own hints.
     std::vector<v2::Hint> hints;
-    std::vector<int> does;  // 1 Select, 2 Back, 3 previous tab, 4 next tab
-    const bool choosing = navigation.Choosing();
-    if (const char* primary = !listEnabled ? nullptr : choosing ? loc::T("menu.choose") : MenuPrimaryHint(focusedEntry == entries.end() ? nullptr : &shown)) {
-        hints.push_back({MenuSelectGlyph(), primary}); does.push_back(1);
+    std::vector<unsigned> presses;
+    const auto hint = [&](const char* glyph, std::string label, unsigned press) { hints.push_back({glyph, std::move(label)}); presses.push_back(press); };
+    std::string dialogSelect, dialogBack;
+    const bool dialog = DialogLegend(entries, dialogSelect, dialogBack);
+    if (dialog) {
+        if (!dialogSelect.empty()) hint(MenuSelectGlyph(), dialogSelect, MenuInput::Select);
+        hint(MenuBackGlyph(), dialogBack, MenuInput::Back);
+    } else if (listEnabled) {
+        MenuEntry shown;
+        if (focusedEntry != entries.end()) { shown = *focusedEntry; shown.enabled = feedback_.Enabled(*focusedEntry); }
+        if (const char* primary = MenuPrimaryHint(focusedEntry == entries.end() ? nullptr : &shown)) hint(MenuSelectGlyph(), primary, MenuInput::Select);
+        if (!backInert) hint(MenuBackGlyph(), backHint.empty() ? loc::T("common.back") : backHint, MenuInput::Back);
+        if (shown.adjustable && !MenuValueIsToggle(shown) && shown.enabled) hint(KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust"), MenuInput::Right);
     }
-    if (!backInert) { hints.push_back({MenuBackGlyph(), choosing ? loc::T("common.cancel") : backHint.empty() ? loc::T("common.back") : backHint}); does.push_back(2); }
-    if (shown.adjustable && !MenuValueIsToggle(shown) && shown.enabled && !choosing) { hints.push_back({KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust")}); does.push_back(0); }
-    for (const auto& h : shortcutHints) { hints.push_back({h.glyph, h.label}); does.push_back(0); }
-    // Tabs step with LB and RB (Page Up and Down on the keyboard).
-    if (!tabs.empty() && !choosing) {
-        const bool keys = KeyboardPrompts();
-        hints.push_back({keys ? "PgUp" : "LB", ""}); does.push_back(3);
-        hints.push_back({keys ? "PgDn" : "RB", loc::T("menu.pages")}); does.push_back(4);
+    for (const auto& h : shortcutHints) hint(h.glyph, h.label, h.press);
+    // Tabs step with the device's tab buttons (LB and RB, Page Up and Down).
+    if (!tabs.empty() && !dialog) {
+        const char* previous = MenuShortcutGlyph(MenuInput::PrevTab);
+        const char* next = MenuShortcutGlyph(MenuInput::NextTab);
+        if (previous) hint(previous, next ? "" : loc::T("menu.pages"), MenuInput::PrevTab);
+        if (next) hint(next, loc::T("menu.pages"), MenuInput::NextTab);
     }
     const bool hasStatus = status && *status;
     const int hit = v2::HintBar(hintBar, hints, hasStatus ? status : footerNote,
         hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(statusTone)) : v2::Colors().muted, !statusLeads.empty());
-    if (hit >= 0 && !modalAtStart && !noticeOpen) {
-        if (hit == static_cast<int>(does.size())) action = {MenuAction::Shortcut, statusLeads};
-        else if (does[hit] == 2) { if (choosing) navigation.Cancel(); else backRequested = true; }
-        else if (does[hit] == 1 && focusedEntry != entries.end() && !choosing) action = navigation.Choose(entries);
-        else if ((does[hit] == 3 || does[hit] == 4) && !modalAtStart) {
-            const int next = tab + (does[hit] == 4 ? 1 : -1);
-            if (next >= 0 && next < static_cast<int>(tabs.size())) action = {MenuAction::Shortcut, tabs[next].first};
+    // A hint pressed is its button pressed.
+    if (hit >= 0 && !noticeOpen && !navigation.Editing()) {
+        const unsigned press = hit < static_cast<int>(presses.size()) ? presses[hit] : 0;
+        if (hit == static_cast<int>(presses.size())) action = {MenuAction::Shortcut, statusLeads};
+        else if (press == MenuInput::Back) { if (navigation.Asking()) navigation.Cancel(); else backRequested = true; }
+        else if (press == MenuInput::Select) action = navigation.Choosing() ? navigation.Pick(navigation.ChoiceIndex(), entries) : navigation.Choose(entries);
+        else if (press == MenuInput::Right && focusedEntry != entries.end()) action = {MenuAction::Adjust, focusedEntry->id, {}, 1};
+        else if (press) {
+            action = {MenuAction::Shortcut, {}, {}, static_cast<int>(press)};
+            if (const int step = TabDelta(action); step && !tabs.empty()) action = TabAction(step);
         }
     }
+    // The board is its whole window, edges included (its lists and bodies scroll
+    // in their own children): the hint bar on the bottom edge, past the window's
+    // padding, is no content for the window to scroll to.
+    auto* window = ImGui::GetCurrentWindow();
+    window->DC.CursorMaxPos.y = (std::min)(window->DC.CursorMaxPos.y, window->DC.CursorStartPos.y + window->Size.y - 2 * window->WindowPadding.y);
     return Finish(entries, action, backRequested, acceptEditText, static_cast<bool>(body) || valuePanel, noticeOpen);
 }
 } }

@@ -155,7 +155,16 @@ void ChatJourneys(){
  // The message box is live as soon as the screen opens: letters, F, T and C are text.
  h.Screen("room");h.Press(MenuInput::Chat);h.Frame(0,4);
  h.Frame();
- Check(!row("compose").enabled&&row("compose").value.empty(),"An empty draft offers Send");
+ Check(row("compose").text&&row("compose").hint.empty()&&row("compose").value.empty(),"An empty draft offers Send instead of the keyboard");
+ // A pad has no keys to type with: Select on the empty box opens the keyboard
+ // (the on-screen one for a pad), and accepting it sends the message.
+ h.Press(MenuInput::Select);Check(h.shell.Navigation().Editing(),"Select on the empty message box did not open the keyboard");
+ io.AddInputCharactersUTF8("gg");h.Frame(0,2);
+ {const auto before=h.actions.size();key(ImGuiKey_Enter);
+  Check(!h.shell.Navigation().Editing()&&h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&
+   h.actions.back().roomAction.text=="gg","The message written on the keyboard was not sent");}
+ say(1,"gg");h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="room-chat"&&row("compose").value.empty(),"The keyboard's message stayed in the draft after the room had it");
  io.AddInputCharactersUTF8("fct ");h.Frame(0,2);key(ImGuiKey_F);key(ImGuiKey_Space);
  Check(h.shell.Navigation().Screen()=="room-chat"&&row("compose").value=="fct ","Typing in chat pressed a menu key or was lost");
  io.AddInputCharactersUTF8("Hel");h.Frame(0,2);
@@ -184,7 +193,7 @@ void ChatJourneys(){
  say(2,"fct Hello");h.Frame(0,2);
  Check(row("compose").value=="fct Hello","Another member's identical message cleared the draft");
  say(1,"fct Hello");h.Frame(0,2);
- Check(row("compose").value.empty()&&!row("compose").enabled,"The draft stayed after the room's chat had the message");
+ Check(row("compose").value.empty()&&row("compose").text,"The draft stayed after the room's chat had the message");
  // A send the room refuses, or that never arrives, keeps the draft and can be sent again.
  io.AddInputCharactersUTF8("Try again");h.Frame(0,2);
  sent=h.actions.size();key(ImGuiKey_Enter);

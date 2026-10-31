@@ -1,5 +1,6 @@
 #include "ApplicationShell.hxx"
 #include "PadSetupScreen.hxx"
+#include "RowId.hxx"
 
 namespace sf4e { namespace ui {
 using namespace gamepads;
@@ -120,6 +121,8 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
         setupMenuSequence_ = state.summaryInput.sequence;
     }
     menu_.shortcutHints = capture ? PadSetupLegend(state) : std::vector<LegendHint>{};
+    // While capturing the bar shows only the legend; its Escape (first) is Back when clicked.
+    if (capture) menu_.shortcutHints.front().press = MenuInput::Back;
     menu_.backHint = capture ? loc::T("common.cancel") : loc::T("pad_setup.cancel");
     menu_.footerNote.clear(); menu_.typesText = false;
     if (capture) SetMenuGlyphs(input::PadKeyboard, 0, 0);
@@ -152,7 +155,7 @@ bool ApplicationShell::DrawPadSetup(const ShellView& view, const Submit& submit)
         if (action.id == "save") command = SetupCommand::Save;
         else if (action.id == "restart") command = SetupCommand::Restart;
         else if (action.id == "cancel") command = SetupCommand::Cancel;
-        else if (action.id.compare(0, 5, "step-") == 0) { command = SetupCommand::Redo; step = std::stoi(action.id.substr(5)); }
+        else if (RowIndex(action.id, "step-") >= 0) { command = SetupCommand::Redo; step = RowIndex(action.id, "step-"); }
     }
     if (command == SetupCommand::None && menu_.Held()) command = SetupCommand::Activity;
     if (command != SetupCommand::None) SetupControl(command, view, submit, step);

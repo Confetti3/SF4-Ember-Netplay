@@ -271,7 +271,7 @@ void WatcherRoom() {
    "An Ember ID is not shortened as its fingerprint is");
   // The chat is for reading: no sending, whatever the room's state.
   Check(ChatGateOf(h.view) == ChatGate::ReadOnly && !ChatTypable(h.view), "A watcher can type in the chat");
-  h.Choose("room-chat");
+  h.Press(MenuInput::Chat);
   Check(h.shell.Navigation().Screen() == "room-chat" && h.row("compose") && !h.row("compose")->enabled, "A watcher's chat offers a message to send");
   // Holding the host field with no fighter left, it has none of the host's rows.
   h.Screen("room");

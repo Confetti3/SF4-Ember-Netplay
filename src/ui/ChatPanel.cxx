@@ -297,8 +297,10 @@ void ApplicationShell::DrawChatBox(float x, float width, bool typable, float not
     bool fresh = false;
     if (chatBoxText_ != chat_)
         if (auto* state = ImGui::GetInputTextState(ImGui::GetID("##chat-draft"))) state->ReloadUserBufAndMoveToEnd();
-    ImGui::BeginDisabled(!typable);
-    if (typable && !menu_.NoticeOpen() && !ImGui::IsAnyItemActive()) { ImGui::SetKeyboardFocusHere(); fresh = true; }
+    // While the keyboard writes a message (the compose row's editor) the box gives it the typing.
+    const bool takes = typable && !menu_.navigation.Editing();
+    ImGui::BeginDisabled(!takes);
+    if (takes && !menu_.NoticeOpen() && !ImGui::IsAnyItemActive()) { ImGui::SetKeyboardFocusHere(); fresh = true; }
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4 * s);
     const bool edited = ImGui::InputTextWithHint("##chat-draft", loc::T("chat.hint"), buffer, sizeof(buffer), ImGuiInputTextFlags_CallbackAlways, CaretToEnd, &fresh);
     ImGui::PopStyleVar();

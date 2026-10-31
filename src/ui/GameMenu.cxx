@@ -1,5 +1,7 @@
 #include "GameMenu.hxx"
 #include "V2.hxx"
+#include "ControllerNavigation.hxx"
+#include "RowId.hxx"
 #include "../common/Localization.hxx"
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
@@ -17,6 +19,8 @@ namespace sf4e { namespace ui {
 namespace { MenuInput input; MenuAction forwarded; SelectionArt* menuArt=nullptr;
 const char* selectGlyph="LK";const char* backGlyph="MK";PlayerCardView playerCard;std::vector<MenuNewsItem> news;
 int menuDeviceType=0;
+// The pad's Select and Back buttons, which are no shortcuts (MenuShortcutGlyph).
+input::MenuButtons menuButtons;
 gamepads::PromptBrand promptBrand;
 gamepads::FightNames promptNames=gamepads::NamesOf(gamepads::DefaultLayout);
 MenuTextProbe textProbe;
@@ -117,6 +121,7 @@ void ApplyMenuGlyphs(){
 }
 void SetMenuGlyphs(int type,unsigned select,unsigned back,const char* selectFallback,const char* backFallback,gamepads::PromptBrand brand){
     menuDeviceType=type;
+    menuButtons.confirm=select;menuButtons.back=back;
     promptBrand=brand;
     padSelectGlyph=PhysicalGlyph(type,select,selectFallback);
     padBackGlyph=PhysicalGlyph(type,back,backFallback);
@@ -144,6 +149,12 @@ void NoteMenuDevice(unsigned padHeld){
     ApplyMenuGlyphs();
 }
 int MenuPromptDevice(){ return KeyboardPrompts()?input::PadKeyboard:menuDeviceType; }
+const char* MenuShortcutGlyph(unsigned press){ return MenuShortcutGlyph(press,MenuPromptDevice(),menuButtons); }
+std::vector<LegendHint> ShortcutHints(const std::vector<std::pair<unsigned,std::string>>& shortcuts){
+    std::vector<LegendHint> hints;
+    for(const auto& s:shortcuts)if(const char* glyph=MenuShortcutGlyph(s.first))hints.push_back({glyph,s.second,s.first});
+    return hints;
+}
 void SetMenuArt(SelectionArt* art) { menuArt=art; }
 SelectionArt* MenuArt() { return menuArt; }
 void ForwardMenuAction(MenuAction action) { forwarded=std::move(action); }
@@ -208,9 +219,13 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
         else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);
         menuInput.held=0; menuInput.acceptText=false;
     } else noticeGate_.Rearm();
-    toastPressed=0;
-    if(toastFocused&&!noticeOpen) {toastPressed=toastGate_.Pressed(toastGate_.Held(menuInput.held)); menuInput.held=0;}
-    else toastGate_.Rearm();
+    // A focused toast answers this frame's presses in the list's place,
+    // through the list's own gate, so the press it takes is spent: still held
+    // once the toast lets go, it does not act on the screen. Describe stays
+    // the accessibility button's.
+    const bool toast=toastFocused&&!noticeOpen;
+    toastPressed=toast?navigation.Take(menuInput.held)&~MenuInput::Describe:0;
+    if(toast)menuInput.held=0;
     held_=menuInput.held;
     // Read before a notice takes the input: the accessibility button works in one too.
     const bool describe=(rawHeld&MenuInput::Describe)&&!(describeHeld_&MenuInput::Describe);describeHeld_=rawHeld;
@@ -218,8 +233,7 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     // The navigation model still owns the neutral gate and Back/accept ordering.
     {const auto open=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.DialogId();});
      navigation.choiceColumns=navigation.Choosing()&&open!=entries.end()?(open->popout?1:MenuChoiceLayout(open->choices).across):1;}
-    navigation.selectSteps=true;
-    auto action=navigation.Update(menuInput,entries,columns,true,true);
+    auto action=toast?MenuAction{}:navigation.Update(menuInput,entries,columns,true,true);
     const bool acceptEditText=action.kind==MenuAction::SubmitText;
     if(acceptEditText)action={};
     feedback_.Update(navigation.Screen(),entries,now);
@@ -227,11 +241,9 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
     bool backRequested=false;
     if(statusProbe)statusProbe(status,statusTone);
     if(entriesProbe)entriesProbe(entries);
-    // LB/RB move between the V2 tabs, as a Shortcut naming the tab; elsewhere they do nothing.
-    if(action.kind==MenuAction::Shortcut&&(action.delta==MenuInput::PrevTab||action.delta==MenuInput::NextTab)){
-        const int next=tab+(action.delta==MenuInput::NextTab?1:-1);
-        action=next>=0&&next<static_cast<int>(tabs.size())?MenuAction{MenuAction::Shortcut,tabs[next].first}:MenuAction{};
-    }
+    // LB/RB step the tabs, wrapping, as a Shortcut naming the tab. Without
+    // tabs the press stays as it is, for a body with a strip of its own.
+    if(const int step=TabDelta(action);step&&!tabs.empty())action=TabAction(step);
     // An open dialog owns the header and the legend: Back cancels it, and
     // Select names the button it highlights.
     std::string dialogSelect,dialogBack;
@@ -249,10 +261,10 @@ MenuAction GameMenu::Draw(const char* title,const std::vector<MenuEntry>& entrie
 }
 MenuAction GameMenu::Finish(const std::vector<MenuEntry>& entries,MenuAction action,bool backRequested,bool acceptEditText,bool body,bool noticeOpen) {
     // A value picked in its panel (OfferSteps) is the steps to it, as Left and Right would take.
-    if(action.kind==MenuAction::Chosen&&action.text.size()>1&&action.text[0]=='#'){
+    if(action.kind==MenuAction::Chosen&&RowIndex(action.text,"#")>=0){
         const auto row=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==action.id;});
-        const int steps=row==entries.end()||row->chosen.size()<2?0:std::stoi(action.text.substr(1))-std::stoi(row->chosen.substr(1));
-        action=steps?MenuAction{MenuAction::Adjust,action.id,{},steps}:MenuAction{};
+        const int to=RowIndex(action.text,"#"),from=row==entries.end()?-1:RowIndex(row->chosen,"#");
+        action=from>=0&&to!=from?MenuAction{MenuAction::Adjust,action.id,{},to-from}:MenuAction{};
     }
     // A renderer popup may survive a model cancellation by one frame. Close it
     // without rendering stale controls or reading a draft that was already cleared.

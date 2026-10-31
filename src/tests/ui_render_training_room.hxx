@@ -126,7 +126,7 @@ void ShootTrainingRoom(sf4e::training::View& training,sf4e::ui::OverlayLayersVie
                 Require(apart(status.first,status.second,meter.first,meter.second),"The room line and the meter overlap");
                 Require(apart(bannerMin,bannerMax,status.first,status.second)&&apart(bannerMin,bannerMax,meter.first,meter.second),
                     "The call's banner covers the room line or the meter");
-                KnownV2Gap(onScreen(status.first,status.second)&&onScreen(meter.first,meter.second)&&onScreen(bannerMin,bannerMax),
+                Require(onScreen(status.first,status.second)&&onScreen(meter.first,meter.second)&&onScreen(bannerMin,bannerMax),
                     "Part of the called member's training HUD left the screen");
                 Require(meter.second.y<=size.h*TrainingHudBottom+1,"The meter covers the game's super meters");
             }

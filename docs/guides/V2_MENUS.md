@@ -47,13 +47,18 @@ Invitation only and the member count.
   button, or the **right mouse button** anywhere. Back first closes an open
   panel, popout or question; only then does it leave the screen.
 - **Tabs**: LB and RB step to the previous and next tab; on the keyboard,
-  Page Up and Page Down. With the mouse, click a tab, or the LB and RB (PgUp
-  and PgDn) marks at the ends of the tab strip. The hint bar names these
-  buttons too.
+  Page Up and Page Down; on an arcade stick (DirectInput), LP and HP. From
+  the last tab the next is the first, and from the first the previous is the
+  last. With the mouse, click a tab, or the marks at the ends of the tab
+  strip, which show the same buttons. The hint bar names them too.
 
-The hint bar at the bottom says what your buttons do on the focused row. Each
-hint is also a button you can click. The bell on its right opens
-Notifications.
+The hint bar at the bottom says what your buttons do now: on the focused row,
+or in an open panel, reader or question. It names only buttons your
+controller has. Each hint is also a button you can click. The bell on its
+right opens Notifications.
+
+On a board, such as the room's tables and members, the D-pad moves to the
+row drawn nearest in that direction; at the board's edge it stays.
 
 ## Settings and its panels
 
@@ -78,7 +83,8 @@ Changes save by themselves. The hint bar shows Saved on the right.
 Rows that hold a value come in three kinds.
 
 - **Switches** (On or Off): A or Enter flips it. Left and Right do too. With
-  the mouse, click it.
+  the mouse, click the switch. (A switch whose row also has more to read,
+  such as Send reports, reads on its name and flips on the switch.)
 - **Numbers**, such as Speech rate or Interface size: Left and Right step
   them, and the hint bar says Adjust. With the mouse, click the arrow at
   either end.
@@ -88,7 +94,9 @@ Rows that hold a value come in three kinds.
   many there are. Move with the D-pad or arrows and press A to pick; B or
   Escape keeps the old value. With the mouse, click an arrow to step, or
   the choice itself to open the panel; click a choice in it, or right-click
-  to close it.
+  or click outside it to close it.
+- A value without a list of choices, such as Input delay's Auto, has only its
+  arrows: A or Enter leaves it as it is.
 
 ## Popouts
 
@@ -156,9 +164,13 @@ bottom right. Each has a kind (Invitation, Room, Update, Match, System), its
 age, and a shape that tells its tone: a disc when something is done, a
 triangle while waiting, a square for a refusal, a diamond for the rest.
 
-- A new toast with buttons, such as Join and Later, takes the focus. A or
-  Enter takes its first button; B or Escape takes Later. Any other press
-  leaves the toast and goes on as usual. Click a button to use it.
+- A new toast with buttons, such as Join and Later, takes the focus when it
+  arrives over a free menu: not while you type, or while a panel, reader or
+  question is open. A or Enter takes its first button; B, Escape or a right
+  click takes Later. The press is spent on the toast, however long you hold
+  it. The accessibility button (RT, F2) reads it and keeps its focus. Any
+  other press, or a click elsewhere, leaves the toast. Click a button to use
+  it.
 - Over a match, toasts only show; they never take a game button.
 - On a narrow screen only the newest one shows.
 
@@ -182,6 +194,8 @@ opens under the field.
 
 - D-pad: move between keys. A types the key.
 - X deletes, Y adds a space, LB switches capitals, Start is Done, B cancels.
+  An arcade stick has only the keys for these, and LP for capitals.
+- The keys shrink to fit a short window, so Done and the hints stay in view.
 - The Recent row holds the texts you typed in this field before.
 - With the mouse, click a key or a hint. A physical keyboard still types,
   and Enter accepts.

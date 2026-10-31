@@ -80,7 +80,7 @@ When a room calls you back from Training, the banner offers Go now: Enter, or Vi
 
 The screens have a few things in common, and every row and shortcut above works the same on all of them:
 
-- Tabs, such as Settings' six: LB and RB step them, Page Up and Page Down on the keyboard; with the mouse, click a tab or the LB and RB marks at the strip's ends.
+- Tabs, such as Settings' six: LB and RB step them, Page Up and Page Down on the keyboard, and Light punch and Heavy punch on a DirectInput stick; past the last tab they wrap to the first. With the mouse, click a tab or the marks at the strip's ends, which show the same buttons.
 - The header's Back button and the right mouse button both go back, as B and Escape do. Back first closes an open panel, popout or question.
 - Settings panels: A, Enter or a click opens the panel on the left; B, Escape or a right click closes it.
 - Values: A or Enter flips a switch; Left and Right, or a click on an arrow, step a number; A or Enter opens a choice's panel with every choice, and B keeps the old one.

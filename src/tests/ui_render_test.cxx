@@ -228,8 +228,7 @@ void RequireAtlasWithinBudget(const char* what, float dpi) {
     if (atlas.TexWidth * atlas.TexHeight <= AtlasBudgetPixels) return;
     char message[160];
     std::snprintf(message, sizeof(message), "%s at %.2fx bakes a %dx%d atlas, over the 2048x4096 budget", what, dpi, atlas.TexWidth, atlas.TexHeight);
-    // The em-sized fonts (ApplyTheme) bake each script larger than before.
-    KnownV2Gap(false, message);
+    throw std::runtime_error(message);
 }
 // Check the baked atlas, not just the source fonts' cmaps: reducing its cost
 // must keep the active catalog and the language picker in all three sizes.
@@ -883,10 +882,24 @@ int main(int argc, char** argv) {
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});
+            // The room board moves by where it draws its rows (MenuNavigation::Place):
+            // reach `id` by trying each direction from every row reached so far,
+            // as a player would, at whatever columns this viewport gives the board.
+            const auto reach=[&](const char* id){
+                std::vector<std::string> seen{shell.Navigation().Focus()};
+                for(std::size_t i=0;i<seen.size()&&shell.Navigation().Focus()!=id;++i)
+                    for(const unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
+                        shell.Navigation().Prefer(seen[i]);draw(nullptr,0,1);
+                        draw(nullptr,direction,1);draw(nullptr,0,1);
+                        const std::string at=shell.Navigation().Focus();
+                        if(at==id)return;
+                        if(std::find(seen.begin(),seen.end(),at)==seen.end())seen.push_back(at);
+                    }
+            };
             // The seat chooser on an empty table, for a member with no seat.
             view.room.tables[0].p1=5;view.room.members[0].table=-1;view.room.members[0].seat=-1;
             page("room");
-            for(int i=0;i<8&&shell.Navigation().Focus()!="table-2";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            reach("table-2");
             Require(shell.Navigation().Focus()=="table-2","An empty table is unreachable at this viewport/DPI");
             draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser");
             Require(shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
@@ -894,7 +907,7 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Back,1);draw();
             // A full table offers the queue, watching and the table's options;
             // a watcher sees Stop watching instead.
-            draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);
+            reach("table-1");
             Require(shell.Navigation().Focus()=="table-1","A full table is unreachable at this viewport/DPI");
             draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-full");
             Require(shell.Navigation().Choosing(),"A on a full table did not open the chooser");
@@ -902,7 +915,7 @@ int main(int argc, char** argv) {
             view.room.tables[1].spectators={1};
             draw(nullptr,MenuInput::Select,1);draw("room-seat-chooser-watching");
             draw(nullptr,MenuInput::Back,1);draw();view.room.tables[1].spectators.clear();
-            for(int i=0;i<8&&shell.Navigation().Focus()!="table-0";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+            reach("table-0");
             view.room.tables[0].p1=1;view.room.members[0].table=0;view.room.members[0].seat=0;
             page("room-members");
             for(int i=0;i<24&&shell.Navigation().Focus()!="member-2";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
@@ -1048,7 +1061,7 @@ int main(int argc, char** argv) {
             view.canReplaceRoom=true;
             // Replace room is on the board; the table page is only the table.
             page("room");draw();
-            for(int i=0;i<64&&shell.Navigation().Focus()!="replace-room";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            reach("replace-room");
             Require(shell.Navigation().Focus()=="replace-room","Replacement action is unreachable at this viewport/DPI");
             draw("table-replacement");
             view.room.tables[0].phase=room::TablePhase::Playing;view.session.match=netplay::MatchState::Preparing;
@@ -1068,8 +1081,8 @@ int main(int argc, char** argv) {
             view.controllerReady=view.canReady=true;
             const auto roomTitle=view.room.name;view.room.name=std::string(64,'W');page("room");draw("room-long-title");view.room.name=roomTitle;
             page("room");
-            // Move to Leave by clamped navigation, then open the safe dialog.
-            for(int i=0;i<64&&shell.Navigation().Focus()!="leave";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
+            // Move to Leave by the board's navigation, then open the safe dialog.
+            reach("leave");
             draw(nullptr,MenuInput::Select,1);draw("leave-confirmation");
             Require(shell.Navigation().Confirming()&&!shell.Navigation().ConfirmSelected(),"Leave confirmation not safe");
             auto* confirmation=FindWindow("###ConfirmAction");

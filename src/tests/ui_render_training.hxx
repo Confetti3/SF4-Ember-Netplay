@@ -108,10 +108,11 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         if(size.w==1920&&size.h==1080&&size.dpi==1.5f) {
             auto* list=FindWindow("V2 list");
-            KnownV2Gap(list->ScrollMax.y==0,(std::string("Training page requires scrolling at 1080p / 150% DPI: ")+screen).c_str());
+            Require(list->ScrollMax.y==0,(std::string("Training page requires scrolling at 1080p / 150% DPI: ")+screen).c_str());
+            // The flyout itself included: its hint bar on the bottom edge is no content to scroll to.
             const auto* flyout=FindWindow("###TrainingControls");
             for(const auto* child:GImGui->Windows)if(child->LastFrameActive==ImGui::GetFrameCount()&&child->RootWindow==flyout)
-                KnownV2Gap(child->ScrollMax.y==0,"Training page child requires scrolling at 1080p / 150% DPI");
+                Require(child->ScrollMax.y==0,(std::string("Training page window requires scrolling at 1080p / 150% DPI: ")+screen+" "+child->Name).c_str());
         }
     }
     SetMenuEntriesProbe({});
@@ -467,15 +468,18 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     // a 1080p window at the standard size, where every translation's line
     // has room for all but Hide HUD, which is last and may be left out.
     {
-        // English shows the whole line; a translation may leave out the
-        // hints after the first `least` pieces.
+        // English shows the whole line; a translation (and the padded pseudo
+        // catalog, longer than any) may leave out the hints after the first
+        // `least` pieces. A shortened piece (the pad's hint, cut so the F7
+        // pair keeps its place) counts as shown.
         const bool english=std::string(loc::T("training.record"))=="Record";
         const auto names=[&](std::vector<std::string> expected,std::size_t least,const char* what){
             const auto& shown=LastTrainingStrip().pieces;
-            const bool prefix=shown.size()<=expected.size()&&std::equal(shown.begin(),shown.end(),expected.begin());
+            const auto same=[](const std::string& piece,const std::string& meant){
+                return piece==meant||(piece.size()>3&&piece.compare(piece.size()-3,3,"...")==0&&meant.compare(0,piece.size()-3,piece,0,piece.size()-3)==0);};
+            const bool prefix=shown.size()<=expected.size()&&std::equal(shown.begin(),shown.end(),expected.begin(),same);
             const bool whole=prefix&&shown.size()>=(english?expected.size():least);
-            // The em-sized text (ApplyTheme) leaves the long catalogs less room on the strip.
-            if(english)Require(whole,strip(what).c_str());else KnownV2Gap(whole,what);
+            Require(whole,strip(what).c_str());
             Require(LastTrainingStrip().width<=LastTrainingStrip().room+.5f,"The training strip is wider than the meter");
         };
         const std::string chip=loc::T("training.controls_chip"),record=loc::T("training.record"),play=loc::T("training.play"),stop=loc::T("training.stop"),

@@ -38,7 +38,4 @@ void DrawReplayStrip(const ReplayHudView& view);
 // Two narrow columns below the life bars, player 1 at the left edge of the
 // game's picture and player 2 at the right.
 void DrawReplayLanes(const ReplayHudView& view);
-// The band under the frame meter that the "replay controls unavailable"
-// notice sits below, at 720p, in pixels; it scales like the training HUD.
-constexpr float ReplayStripMostHeight = 30;
 } }

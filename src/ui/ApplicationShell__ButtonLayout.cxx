@@ -57,7 +57,8 @@ void ApplicationShell::OpenButtonLayout(const PadView& pad) {
 }
 bool ApplicationShell::ControllerActivate(const MenuAction& action, const ShellView& view, const Submit& submit) {
     const auto& screen = menu_.navigation.Screen();
-    if (screen == "player" && action.id == "controls") {
+    // Button layout opens the gameplay pad's layout from wherever its row is (Settings, Player).
+    if (action.id == "controls") {
         const auto pad = std::find_if(view.pads.begin(), view.pads.end(), [](const PadView& pad) { return pad.gameplay; });
         if (pad != view.pads.end() && view.atMainMenu && !netplay::Fighting(view.session.match) && view.padLayer == Layer::Active && view.inputDevice.type != input::PadKeyboard) OpenButtonLayout(*pad);
         return true;
@@ -183,7 +184,9 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     }
     menu_.listEnabled = !capturing; menu_.ownsBack = true; menu_.customDetail = capturing;
     menu_.additionalInput = !capturing && !layoutNeutral_ && !pad.gameplay ? TargetInput(pad) : 0;
-    menu_.shortcutHints = capturing ? std::vector<LegendHint>{{"Start", loc::T("common.cancel")}, {"Esc", loc::T("common.cancel")}} : std::vector<LegendHint>{};
+    // While a press is captured every pad button but Start binds, so the bar
+    // offers only Start and Escape; each hint is Back (cancel) when clicked.
+    menu_.shortcutHints = capturing ? std::vector<LegendHint>{{"Start", loc::T("common.cancel"), MenuInput::Back}, {"Esc", loc::T("common.cancel"), MenuInput::Back}} : std::vector<LegendHint>{};
     if (capturing) SetMenuPromptBrand(ResolvePrompts(preferences_.buttonPrompts, input::PadXInput, pad.brand), NamesOf(pad.table));
     menu_.backHint = capturing ? loc::T("common.cancel") : "";
     menu_.footerNote.clear(); menu_.typesText = false;

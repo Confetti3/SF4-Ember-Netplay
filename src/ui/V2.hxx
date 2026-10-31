@@ -75,6 +75,14 @@ void Chevron(ImDrawList* draw, ImVec2 at, float size, ImU32 color);
 // With no label the caller draws its own (Header's Back: a chevron and a word).
 enum class ButtonKind { Primary, Secondary, Danger };
 void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, bool focused, bool hovered, bool enabled = true);
+// A bar of buttons (the room's actions) in `width`: BarLines is the fewest
+// lines over which the places, shared out evenly in order, each get the width
+// their labels `need` with `gap` between; BarPlaces lays them out in `bar`,
+// each line `height` tall and the next `gap` under it. Along a line the places
+// share it evenly, a place that needs more taking that and the rest sharing
+// what is left.
+int BarLines(float width, const std::vector<float>& need, float gap);
+std::vector<Box> BarPlaces(Box bar, const std::vector<float>& need, float gap, int lines, float height);
 // The focused row's words under a board: its `label` over its `detail` on the
 // frame's ground in `b`, the detail's first line, or all of it wrapped with
 // `wrap`. WordsHeight is the height that shows `detail` wrapped in `width`.
@@ -102,6 +110,17 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone);
 float ChipWidth(const std::string& text);
 float ChipFont();
+// How a label and its value share a line (a value row, a card, a fact, a
+// panel's title and its count): the label is never cut for its value. Beside
+// the label the value takes the `value` it wants; where that leaves the label
+// short it gives way down to `least` and takes what is left (cut where it is
+// less than it wants); where even that does not fit it goes under the label,
+// on a line of its own across `room`, and its row grows by UnderLine. In a
+// row that cannot grow (`grows` false) it stays beside the label in what is left.
+struct Share { float value = 0; bool under = false; };
+Share ShareLine(float label, float value, float least, float room, float gap, bool grows = true);
+// What a value under its label adds to its row, in logical pixels.
+constexpr float UnderLine = 26;
 // `text` cut with "..." to `width` at `size` (the current font when none). The
 // text probe is told its full width unless `probe` is false (a line shown whole elsewhere).
 std::string Fit(const std::string& text, float width, float size, ImFont* font = nullptr, bool probe = true);
@@ -127,7 +146,8 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height);
 // a button of that word leads the header; returns true when it was pressed.
 struct HeaderChip { std::string text; ImU32 tone; };
 bool Header(const char* title, const char* eyebrow = nullptr, const std::vector<HeaderChip>& chips = {}, const char* back = nullptr);
-// Horizontal tabs under the header; the current one is filled and underlined.
+// Horizontal tabs under the header; the current one is filled and underlined,
+// the device's tab buttons at the ends step them, wrapping (StepTab).
 // Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.
 int Tabs(const std::vector<std::string>& labels, int current);
 

@@ -97,7 +97,7 @@ killed with SIGKILL, exit at once; FIFO removed both times.
 14. A move says the row's name; its value only for rows the player changes
     (adjustable or with choices); no "Unavailable", no row count. A new
     screen says its title. Descriptions only on F2, or after a 1.5 s stop
-    when "Read descriptions automatically" is on (off by default). A notice
+    when "Auto-read descriptions" is on (off by default). A notice
     that opens by itself stays quiet until the player moves in it or presses
     F2. Pad describe button: open (no free menu button yet; X/Y/View are
     screen shortcuts).

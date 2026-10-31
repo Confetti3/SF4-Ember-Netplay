@@ -50,7 +50,7 @@ sheet these parts follow.
 | Chevron | A row whose Select opens something | `v2::Chevron(d, at, size, color)` |
 | Glow | A seat lit up: dim when free, brighter when taken, the pair's colour when playing | `v2::Glow(d, min, max, color, strength, reach, rounding)` |
 | Header | A screen's brand, eyebrow, title, chips and Back | `v2::Header(title, eyebrow, chips, back)` |
-| Tabs | Horizontal tabs under the header | `v2::Tabs(labels, current)` |
+| Tabs | Horizontal tabs under the header; the end marks step them, wrapping | `v2::Tabs(labels, current)` |
 | HintBar | The bottom bar: glyph hints and the status | `v2::HintBar(bar, hints, status, tone, bell)` |
 | SpotMap, Grip | Picking a spot, dragging a layout edge | `v2::SpotMap`, `v2::Grip` |
 | Tag | A player: XS, S, M, L | `v2::Tag(d, at, width, view, v2::TagSize::S)` |
@@ -62,10 +62,41 @@ sheet these parts follow.
 | Part | Use it for | Call |
 | --- | --- | --- |
 | PressEntry | A row's box as a button: pointer focuses, press is Select (or steps a number), scrolls into view | `PressEntry(nav, rows, e, box, action, focusChanged, valueWidth)` |
-| DrawMenuRow | A value row's words: label left, value right (arrows, switch or chevron) | `DrawMenuRow(d, e, box, enabled, valueWidth, 14 * s)` |
+| DrawMenuRow | A value row's words: label left, value right (arrows, switch or chevron), or under it when both do not fit | `DrawMenuRow(d, e, box, enabled, FitMenuRow(e, room, gap), 14 * s)` |
+| FitMenuRow | How a row's label and value share its line: the value wants `MenuValueWidth(e)`, gives way to a floor, then goes under the label (the row grows by `v2::UnderLine`) | `FitMenuRow(e, room, gap, grows)` |
+| ShareLine | The same rule for any label and value pair (a fact, a panel's title and count) | `v2::ShareLine(label, value, least, room, gap, grows)` |
+| BarLines, BarPlaces | A bar of buttons on as few lines as their labels allow, each place as wide as it needs | `v2::BarPlaces(bar, need, gap, v2::BarLines(width, need, gap), height)` |
 | DrawMenuValue | Only the value part of a row | `DrawMenuValue(d, e, box, enabled, textColor)` |
 | Cards, detail, value panel | A list screen with no board of its own | `GameMenu::DrawV2` draws the rows itself |
 | Value panel on a board | The choices of a board's focused row | set `menu_.bodyChoices = {rowBox, columnBox}` |
+| Tab step | LB/RB (PgUp/PgDn, a stick's LP/HP) on a strip of your own | `if (int step = TabDelta(action)) { current = StepTab(current, step, count); action = {}; }` |
+| Shortcut hints | Hints for X, Y, View, Delete, LB, RB that the device has, each a button | `ShortcutHints({{MenuInput::Options, label}})`, one glyph `MenuShortcutGlyph(press)` |
+
+### Moving on a board
+
+A screen takes part by drawing its rows itself: every box a body hands to
+`PressEntry` is placed (`MenuNavigation::Place(id, MenuRect)`), and on the next
+frame the D-pad moves from a placed focus to the placed row nearest in that
+direction (its centre past the focus's centre, and either overlapping the
+focus across or at least as far past its edge as it is off to the side;
+nearest by the gap along the axis plus twice the offset across; ties to the
+earlier row). No row that way: the focus stays. A
+GameMenu list draws its own cards and places nothing, so lists, grids and
+their footers keep moving by row order (a flyout list too tall for its
+height is drawn in two columns and still moves in reading order). Before the geometry come a row's
+explicit `left/right/up/down` (for a screen that truly needs one) and a value
+row's Left/Right, which adjust it. A row that is not drawn is not placed, so
+the pad reaches exactly what the mouse can. Do not wire neighbours by id on a
+board; draw the rows where they belong.
+
+### Tabs
+
+`StepTab(current, delta, count)` (MenuNavigation.hxx) is the one stepping
+rule: it wraps at both ends, and from no current tab RB goes to the first and
+LB to the last. `GameMenu::tabs` steps with it; a screen without
+`GameMenu::tabs` gets LB/RB as a Shortcut whose `TabDelta` is -1 or 1, for a
+body with a strip of its own to take (and clear); a step nobody takes does
+nothing.
 
 ## Rules for a new screen
 
@@ -74,7 +105,8 @@ sheet these parts follow.
    two screens. Do not draw a button, panel, heading or row by hand.
 2. Rows stay `MenuEntry`. Navigation and speech read the
    same rows; the board only decides where each row is drawn. Every box that
-   is a row goes through `PressEntry`.
+   is a row goes through `PressEntry`, which is also how the D-pad finds it
+   (Moving on a board).
 3. No colour literals and no `palette::` colours in a V2 path: use
    `v2::Colors()`.
 4. Every line of text goes through `v2::Text`, `v2::Fit` or a part that uses

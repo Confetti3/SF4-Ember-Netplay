@@ -22,7 +22,7 @@ The implementation checks below do not establish two-machine gameplay acceptance
 
 ## Step 1, built: the frame meter in a match
 
-A setting, **Frame meter in matches**, off by default. With it on, the
+A setting, **Match frame meter**, off by default. With it on, the
 training frame meter is drawn over the player's own matches and over matches
 they watch. Only that player sees it.
 

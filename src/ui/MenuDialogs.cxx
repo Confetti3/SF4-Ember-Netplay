@@ -1,6 +1,7 @@
 #include "MenuDialogs.hxx"
 #include "V2.hxx"
 #include "GameMenu.hxx"
+#include "RowId.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
 #include <imgui_internal.h>
@@ -8,6 +9,8 @@
 #include <cctype>
 #include <cfloat>
 #include <cstring>
+#include <iterator>
+#include <utility>
 
 namespace sf4e { namespace ui {
 std::string FitLabel(const std::string& text,float width) {
@@ -314,6 +317,9 @@ const std::vector<std::vector<const char*>> KeyRows={{"1","2","3","4","5","6","7
     {"a","s","d","f","g","h","j","k","l","-"},{"shift","z","x","c","v","b","n","m","_","delete"},{"space","done"}};
 // The column straight above or below `column` of row `from` in row `to`: Space
 // sits over the first six letter keys, Done over the rest.
+// The pad's typing shortcuts: X deletes, Y spaces, LB switches capitals
+// (MenuShortcuts names each on the device, or leaves it out).
+constexpr std::pair<unsigned,const char*> KeyboardShortcuts[]={{MenuInput::Fighter,"delete"},{MenuInput::Options,"space"},{MenuInput::PrevTab,"shift"}};
 int KeyBelow(int from,int to,int column,int count) {
     if(to==4)return column<6?0:1;
     if(from==4)return column?7:3;
@@ -329,7 +335,7 @@ bool GameMenu::PressKey(const MenuEntry& entry,const std::string& key) {
     if(key=="done")return true;
     if(key=="shift")capitals_=!capitals_;
     else if(key=="delete"){while(!draft.empty()&&(static_cast<unsigned char>(draft.back())&0xC0)==0x80)draft.pop_back();if(!draft.empty())draft.pop_back();}
-    else if(key.compare(0,7,"recent-")==0)draft=recentText_[entry.id][std::stoul(key.substr(7))];
+    else if(const int n=RowIndex(key,"recent-");n>=0){const auto& recent=recentText_[entry.id];if(n<static_cast<int>(recent.size()))draft=recent[n];}
     else{
         std::string typed=key=="space"?" ":key;
         if(capitals_)typed[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(typed[0])));
@@ -371,14 +377,17 @@ void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& in
     const std::string key=keyRow_<0?"recent-"+std::to_string(keyColumn_):KeyRows[keyRow_][keyColumn_];
     bool done=pressed&MenuInput::Start;
     if(pressed&MenuInput::Select)done|=PressKey(*entry,key);
-    if(pressed&MenuInput::Fighter)PressKey(*entry,"delete");
-    if(pressed&MenuInput::Options)PressKey(*entry,"space");
-    if(pressed&MenuInput::PrevTab)PressKey(*entry,"shift");
+    for(const auto& [press,name]:KeyboardShortcuts)if(pressed&press)PressKey(*entry,name);
     input.held&=MenuInput::Back;input.acceptText|=done;
 }
-void GameMenu::DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action) {
+void GameMenu::DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>& entries,MenuAction& action,float room) {
     const float s=Scale();const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
-    const float width=ImGui::GetContentRegionAvail().x,gap=6*s,h=52*s,key=(std::min)(76*s,(width-9*gap)/10);
+    const auto& recent=recentText_[entry.id];
+    // The keys share what height the window leaves, up to the board's 52 px,
+    // as they share its width up to 76 px: the Recent row and the hints keep theirs.
+    const float recentHeight=recent.empty()?0:48*s,hintHeight=50*s,gap=6*s;
+    const float h=(std::max)(12*s,(std::min)(52*s,(room-recentHeight-hintHeight)/5-gap));
+    const float width=ImGui::GetContentRegionAvail().x,key=(std::min)(76*s,(width-9*gap)/10);
     const auto mouse=ImGui::GetIO().MouseDelta;const bool moved=mouse.x!=0||mouse.y!=0;
     std::string clicked;
     // A key's ground, its focus and the pointer: moving over a key focuses it, a click presses it.
@@ -398,7 +407,6 @@ void GameMenu::DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>&
         d->AddText(HeadingFont(),size,ImVec2(b.min.x+(b.W()-w)*.5f,b.min.y+(b.H()-size)*.5f),tone,text);
     };
     auto at=ImGui::GetCursorScreenPos();
-    const auto& recent=recentText_[entry.id];
     if(!recent.empty()){
         // The Recent names: the texts this field took before, one press away.
         const char* named=loc::T("keyboard.recent");const float rh=36*s;
@@ -437,31 +445,38 @@ void GameMenu::DrawKeyboard(const MenuEntry& entry,const std::vector<MenuEntry>&
                 const ImVec2 cap[]={{m.x-u*1.6f,m.y},{m.x-u*.6f,m.y-u},{m.x+u*1.4f,m.y-u},{m.x+u*1.4f,m.y+u},{m.x-u*.6f,m.y+u}};
                 d->AddPolyline(cap,5,tone,ImDrawFlags_Closed,2*s);
                 d->AddLine(ImVec2(m.x,m.y-u*.4f),ImVec2(m.x+u*.8f,m.y+u*.4f),tone,2*s);d->AddLine(ImVec2(m.x+u*.8f,m.y-u*.4f),ImVec2(m.x,m.y+u*.4f),tone,2*s);
-            }else if(id=="space"||done)label(b,loc::T(done?"keyboard.done":"keyboard.space"),17*s,tone);
-            else{std::string shown=id;if(capitals_)shown[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(shown[0])));label(b,shown.c_str(),20*s,tone);}
+            }else if(id=="space"||done)label(b,loc::T(done?"keyboard.done":"keyboard.space"),(std::min)(17*s,h*.5f),tone);
+            else{std::string shown=id;if(capitals_)shown[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(shown[0])));label(b,shown.c_str(),(std::min)(20*s,h*.6f),tone);}
         }
         at.y+=h+gap;
     }
-    // What the pad's buttons do, each also a button for the mouse.
-    const std::vector<v2::Hint> hints{{MenuSelectGlyph(),loc::T("keyboard.type")},{"X",loc::T("keyboard.delete")},{"Y",loc::T("keyboard.space")},
-        {"LB",loc::T("keyboard.capitals")},{"Start",loc::T("keyboard.done")},{MenuBackGlyph(),loc::T("common.cancel")}};
-    const int hint=v2::HintBar({ImVec2(at.x-24*s,at.y+6*s),ImVec2(at.x+width+24*s,at.y+50*s)},hints,"",c.muted);
-    ImGui::SetCursorScreenPos(ImVec2(at.x,at.y+50*s));ImGui::Dummy(ImVec2(width,0));
-    const char* hinted[]={"","delete","space","shift","done",""};
+    // What the pad's buttons do, each also a button for the mouse: the
+    // shortcuts only where the device has them (MenuShortcutGlyph).
+    std::vector<v2::Hint> hints{{MenuSelectGlyph(),loc::T("keyboard.type")}};
+    std::vector<std::string> hinted{""};
+    static const char* const keyNames[]={"keyboard.delete","keyboard.space","keyboard.capitals"};
+    for(std::size_t i=0;i<std::size(KeyboardShortcuts);++i)if(const char* glyph=MenuShortcutGlyph(KeyboardShortcuts[i].first)){hints.push_back({glyph,loc::T(keyNames[i])});hinted.push_back(KeyboardShortcuts[i].second);}
+    hints.push_back({"Start",loc::T("keyboard.done")});hinted.push_back("done");
+    hints.push_back({MenuBackGlyph(),loc::T("common.cancel")});
+    const int hint=v2::HintBar({ImVec2(at.x-24*s,at.y+6*s),ImVec2(at.x+width+24*s,at.y+hintHeight)},hints,"",c.muted);
+    ImGui::SetCursorScreenPos(ImVec2(at.x,at.y+hintHeight));ImGui::Dummy(ImVec2(width,0));
     if(hint==0&&keyRow_>=0)clicked=KeyRows[keyRow_][keyColumn_];
     else if(hint==0)clicked="recent-"+std::to_string(keyColumn_);
-    else if(hint>0&&hint<5)clicked=hinted[hint];
-    if(hint==5)navigation.Cancel();
+    else if(hint>0&&hint<static_cast<int>(hinted.size()))clicked=hinted[hint];
+    else if(hint==static_cast<int>(hinted.size()))navigation.Cancel();
     if(!clicked.empty()&&PressKey(entry,clicked)&&entry.enabled)action=navigation.AcceptText(entries);
 }
 void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEditText,MenuAction& action) {
     const std::string editPopup=std::string(loc::T("edit.title"))+"###EditText";
     if(navigation.Editing()&&notice_.empty()) ImGui::OpenPopup(editPopup.c_str());
     const float s=Scale();const auto& c=v2::Colors();
-    // The on-screen keyboard's card sits at the bottom, under the field, as on the Deck.
+    // The on-screen keyboard's card sits at the bottom, under the field, as on
+    // the Deck: inside the window the menu draws in, so inside TV mode's safe
+    // area too, 24 px off its foot and 16 px off its top.
     const bool keyboard=OnScreenKeyboard(navigation.Editing()?FindEntry(entries,navigation.EditingId()):nullptr);
-    if(keyboard){const auto* vp=ImGui::GetMainViewport();ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+vp->Size.x*.5f,vp->Pos.y+vp->Size.y-24*s),ImGuiCond_Always,ImVec2(.5f,1));}
-    if(BeginDialogPopup(editPopup.c_str(),keyboard?1040:720,c.border)) {
+    const ImVec2 area=ImGui::GetWindowPos(),areaSize=ImGui::GetWindowSize();
+    if(keyboard)ImGui::SetNextWindowPos(ImVec2(area.x+areaSize.x*.5f,area.y+areaSize.y-24*s),ImGuiCond_Always,ImVec2(.5f,1));
+    if(BeginDialogPopup(editPopup.c_str(),keyboard?(std::min)(1040.f,(areaSize.x-40*s)/s):720,c.border)) {
         if(!navigation.Editing()) ImGui::CloseCurrentPopup();
         else {
             const auto* entry=FindEntry(entries,navigation.EditingId());
@@ -491,7 +506,10 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             if(changed) navigation.Draft(draft.data());
             if(secret) WipeText(draft.data(),draft.size());
             if(keyboard&&entry){
-                ImGui::Dummy(ImVec2(0,4*s));DrawKeyboard(*entry,entries,action);
+                ImGui::Dummy(ImVec2(0,4*s));
+                // The card's height left for the keys: the window less its margins, the field above and the padding below.
+                const float above=ImGui::GetCursorScreenPos().y-ImGui::GetWindowPos().y;
+                DrawKeyboard(*entry,entries,action,areaSize.y-40*s-above-22*s-ImGui::GetStyle().ItemSpacing.y);
                 if(canAccept&&acceptEditText)action=navigation.AcceptText(entries);
             }else{
                 ImGui::TextWrapped("%s",instructions);

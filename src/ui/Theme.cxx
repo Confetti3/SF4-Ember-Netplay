@@ -195,13 +195,21 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
         if (!drawsCatalog(font) && scriptRanges[font].Size > 1) mergeOrder.push_back(font);
     const float sizes[] = {BodySize, 28.f, 16.f};
     float spans[] = {1.f, 1.f, 1.f};
+    // The atlas has to fit the game's 32-bit address space (2048x4096 for the
+    // fullest catalog with MaxUserGlyphs), so nothing bakes denser than two
+    // texels per logical pixel: from 200% up (4K with a larger interface
+    // size, or 300% DPI) the atlas stays the 200% one and FontGlobalScale
+    // draws its glyphs larger. The diagnostic font's Latin keeps its own
+    // density for the scaled match strip.
+    constexpr float MaxBakedDensity = 2.f;
+    const float bakedDensity = (std::min)(scale, MaxBakedDensity);
     for (int i = 0; i < 3; ++i) {
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
         config.GlyphRanges = UiGlyphRanges;
         // Keep logical sizes integral: ImGui 1.91 truncates SizePixels. Baking at
         // display density then scaling metrics preserves fractional display scales.
-        config.RasterizerDensity = i == 2 ? (std::max)(3.5f,scale) : scale;
+        config.RasterizerDensity = i == 2 ? (std::max)(3.5f, scale) : bakedDensity;
         // ImGui stores an oversampled glyph at the oversampled size, so 3x2 costs
         // six times the atlas area. A font baked at two texels or more per logical
         // pixel (the diagnostic font always, body text from 200%) has the
@@ -218,19 +226,16 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
         const float baked = std::round(sizes[i] * spans[i]);
         config.GlyphOffset.y = -baked * (spans[i] - 1) / (2 * spans[i]);
         std::snprintf(config.Name, sizeof(config.Name), "%s %.0fpx",
-            i == 1 ? "Inter SemiBold" : "Inter Regular", baked*scale);
+            i == 1 ? "Inter SemiBold" : "Inter Regular", baked * config.RasterizerDensity);
         io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), bytes, baked, &config);
         for (const auto font : mergeOrder) {
             ImFontConfig merged;
             merged.MergeMode = true;
             merged.FontDataOwnedByAtlas = false;
             merged.GlyphRanges = scriptRanges[font].Data;
-            // Dense CJK outlines need no oversampling. The diagnostic and
-            // heading fonts cap their CJK glyphs at 2x even at 300%: the
-            // diagnostic font's extra density is for the scaled match strip,
-            // and the heading's 28 px copy of a Han catalog is the largest
-            // part of the atlas, which with 512 player characters overran
-            // the 2048x4096 budget. Body glyphs bake at the display's density.
+            // Dense CJK outlines need no oversampling, and keep to the
+            // density cap even in the diagnostic font: a Han catalog in three
+            // sizes is most of the atlas.
             merged.OversampleH = merged.OversampleV = 1;
             // Noto Sans CJK sets more line space per em than Inter, so at Inter's
             // size its glyphs look small beside Latin text. Matching the line
@@ -242,8 +247,8 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
             const float fit = interSpan > 0 && cjkSpan > 0 ? (std::max)(1.f, (std::min)(cjkSpan / interSpan, 1.3f)) : 1.f;
             const float mergedSize = baked * fit;
             merged.GlyphOffset.y = config.GlyphOffset.y;
-            merged.RasterizerDensity = i == 0 ? config.RasterizerDensity : (std::min)(config.RasterizerDensity, 2.f);
-            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize*scale);
+            merged.RasterizerDensity = (std::min)(config.RasterizerDensity, MaxBakedDensity);
+            std::snprintf(merged.Name, sizeof(merged.Name), "Noto Sans CJK %.0fpx", mergedSize * merged.RasterizerDensity);
             io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(source.data), static_cast<int>(source.bytes), mergedSize, &merged);
         }
     }

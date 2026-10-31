@@ -17,8 +17,9 @@ struct MenuInput {
     // ControllerNavigation.hxx). Start is the sample's Menu button: it opens
     // Ember, and while Ember is shown only the on-screen keyboard reads it (Done).
     // Leave is the Delete key: it leaves your seat from your own table card,
-    // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down):
-    // the V2 tabs over a screen (GameMenu::tabs). Describe is the accessibility
+    // which a pad does with B. PrevTab and NextTab are LB and RB (Page Up and Down,
+    // a DirectInput stick's LP and HP: MenuShortcuts): the V2 tabs over a screen
+    // (GameMenu::tabs), wrapping at the ends (StepTab). Describe is the accessibility
     // button, RT and F2: speech reads the focused row's description (MenuNarrator);
     // the menu itself does nothing with it.
     enum Button : unsigned { Up=1, Down=2, Left=4, Right=8, Select=16, Back=32, Start=64, Fighter=128, Options=256, Chat=512, Leave=1024, PrevTab=2048, NextTab=4096, Describe=8192 };
@@ -123,6 +124,17 @@ inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
 inline std::size_t MenuGridCells(const std::vector<MenuEntry>& entries) {
     return static_cast<std::size_t>(std::find_if(entries.begin(), entries.end(), [](const MenuEntry& e) { return e.wide; }) - entries.begin());
 }
+// A row's box where its board drew it, in screen pixels (MenuNavigation::Place).
+struct MenuRect { float x0 = 0, y0 = 0, x1 = 0, y1 = 0; };
+// The tab `delta` steps to from `current` of `count`, wrapping at both ends:
+// the one rule for LB and RB (Page Up and Down), the tab strip's end marks and
+// the hint bar's. With no current tab (-1) the next is the first and the
+// previous the last; with no tabs it is -1.
+inline int StepTab(int current, int delta, int count) {
+    if (count <= 0) return -1;
+    if (current < 0 || current >= count) return delta < 0 ? count - 1 : 0;
+    return ((current + delta) % count + count) % count;
+}
 struct MenuAction {
     // Shortcut: a Fighter/Options/Chat/Leave press, its button in delta.
     // Chosen: a choice entry's option, its id in text.
@@ -136,6 +148,14 @@ struct MenuAction {
     // behind. (With this destructor, copies stand in for moves.)
     ~MenuAction() { WipeText(text); }
 };
+// The step an LB or RB press (Page Up or Down) asks of a tab strip: -1 or 1
+// for a Shortcut whose button is PrevTab or NextTab, else 0. GameMenu's tabs
+// read it, and so does a body with a strip of its own (the room board's
+// narrow tabs), then StepTab.
+inline int TabDelta(const MenuAction& a) {
+    if (a.kind != MenuAction::Shortcut || !a.id.empty()) return 0;
+    return a.delta == MenuInput::PrevTab ? -1 : a.delta == MenuInput::NextTab ? 1 : 0;
+}
 class MenuNavigation {
 public:
     explicit MenuNavigation(const std::string& root = "home") : stack_{root} { states_[root]; }
@@ -153,8 +173,19 @@ public:
         if (modal) Rearm();
     }
     // A screen opening (pushed, returned to, a modal closing): what is held
-    // now counts once released, see PressGate.
-    void Rearm() { gate_.Rearm(); direction_=0; nextRepeat_=0; }
+    // now counts once released, see PressGate. The rows placed so far were
+    // the old screen's.
+    void Rearm() { gate_.Rearm(); direction_=0; nextRepeat_=0; placing_.clear(); placed_.clear(); }
+    // This frame's presses through the screen's gate, for a reader that
+    // answers them in the screen's place (a focused toast). What it takes
+    // stays held for the screen, so the next frame does not see it again:
+    // one press is spent once.
+    unsigned Take(unsigned held) { unsigned counted=0, pressed=0; return Read(held,counted,pressed) ? pressed : 0; }
+    // Where a board drew a row this frame; PressEntry places every box it is
+    // given. The next frame's directions move from a placed focus to the
+    // nearest placed row that way (Update). A screen that places nothing (a
+    // GameMenu list) keeps the list's movement.
+    void Place(const std::string& id, MenuRect box) { placing_.push_back({id, box}); }
     const std::string& Focus() const { return states_.at(Screen()).id; }
     // The one open modal, if any; it belongs to the entry named by modalId_.
     // Confirming, Choosing, Editing and Reading each name exactly one mode.
@@ -182,8 +213,6 @@ public:
     std::size_t ChoiceIndex() const { return choiceIndex_; }
     // How many options an open choice shows on a row (MenuChoiceColumns); its owner sets it.
     std::size_t choiceColumns = 1;
-    // Select steps a value that has no choices on (V2; GameMenu sets it each frame).
-    bool selectSteps = false;
     void ChoiceIndex(std::size_t index) { if (index < choiceIds_.size()) choiceIndex_ = index; }
     const std::string& EditingId() const { return Editing() ? modalId_ : NoId(); }
     // The entry an open confirmation or choice belongs to.
@@ -239,8 +268,7 @@ public:
         case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
-        // V2: Select on a word value with no list of choices steps it on; numbers keep their arrows.
-        case SelectOpens::Nothing: if (selectSteps && e.adjustable && e.enabled && !e.info && !MenuValueIsNumber(e)) return {MenuAction::Adjust,e.id,{},1}; break;
+        case SelectOpens::Nothing: break;
         }
         return {};
     }
@@ -281,13 +309,8 @@ public:
     MenuAction Update(MenuInput in,const std::vector<MenuEntry>& entries,int columns=1,bool deferBack=false,bool deferText=false) {
         Reconcile(entries);
         columns = (std::max)(1, columns);
-        unsigned held=in.held;
-        if((held&3)==3) held&=~3u;
-        if((held&12)==12) held&=~12u;
-        const bool opening=!gate_.Armed();
-        held=gate_.Held(held);
-        if(opening) return {};
-        const auto pressed=gate_.Pressed(held);
+        unsigned held=0, pressed=0;
+        if(!Read(in.held,held,pressed)) return {};
         // Renderers finish the current screen before committing a return, so
         // the outgoing frame still has its body, focus and scroll state.
         if(pressed&MenuInput::Back) {
@@ -308,27 +331,29 @@ public:
         }
         const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat|MenuInput::Leave|MenuInput::PrevTab|MenuInput::NextTab);
         if(shortcut&&mode_==Modal::None) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
-        if(Choosing()) {
-            // In a grid of options (choiceColumns), Up and Down move a row; Left and Right one option.
-            const std::size_t up=pressed&MenuInput::Up?choiceColumns:pressed&MenuInput::Left?1:0;
-            const std::size_t down=pressed&MenuInput::Down?choiceColumns:pressed&MenuInput::Right?1:0;
-            if(up&&choiceIndex_>=up) choiceIndex_-=up;
-            if(down&&choiceIndex_+down<choiceIds_.size()) choiceIndex_+=down;
-            return pressed&MenuInput::Select ? Pick(choiceIndex_,entries) : MenuAction{};
-        }
-        if(Confirming()) {
-            if(pressed&(MenuInput::Up|MenuInput::Left)) confirmSelected_=false;
-            if(pressed&(MenuInput::Down|MenuInput::Right)) confirmSelected_=true;
-            if(pressed&MenuInput::Select) return Confirm(confirmSelected_,entries);
-            return {};
-        }
-        if(pressed&MenuInput::Select) return Choose(entries);
-        // A diagonal should move through the list, not accidentally adjust a value.
+        // A held direction steps at once, then repeats: in the list, a choice
+        // and a question alike. A diagonal moves vertically, never adjusting a value by accident.
         const unsigned direction=(held&3) ? (held&3) : (held&12);
         bool move=direction && direction!=direction_;
         if(move) nextRepeat_=in.time+RepeatDelay;
         else if(direction && in.time>=nextRepeat_) { move=true; nextRepeat_=in.time+RepeatInterval; }
         direction_=direction;
+        const unsigned stepped=move?direction:0;
+        if(Choosing()) {
+            // In a grid of options (choiceColumns), Up and Down move a row; Left and Right one option.
+            const std::size_t up=stepped&MenuInput::Up?choiceColumns:stepped&MenuInput::Left?1:0;
+            const std::size_t down=stepped&MenuInput::Down?choiceColumns:stepped&MenuInput::Right?1:0;
+            if(up&&choiceIndex_>=up) choiceIndex_-=up;
+            if(down&&choiceIndex_+down<choiceIds_.size()) choiceIndex_+=down;
+            return pressed&MenuInput::Select ? Pick(choiceIndex_,entries) : MenuAction{};
+        }
+        if(Confirming()) {
+            if(stepped&(MenuInput::Up|MenuInput::Left)) confirmSelected_=false;
+            if(stepped&(MenuInput::Down|MenuInput::Right)) confirmSelected_=true;
+            if(pressed&MenuInput::Select) return Confirm(confirmSelected_,entries);
+            return {};
+        }
+        if(pressed&MenuInput::Select) return Choose(entries);
         if(!move||entries.empty()) return {};
         auto& s=states_[Screen()]; const auto& e=entries[s.index];
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
@@ -338,6 +363,12 @@ public:
         // A grid's footer rows sit under its cards, one per line.
         const int cells=columns>1?static_cast<int>(MenuGridCells(entries)):count;
         if(delta&&e.adjustable&&(columns==1||index>=cells)) return e.enabled ? MenuAction{MenuAction::Adjust,e.id,{},delta} : MenuAction{};
+        // A board moves by where it drew its rows; a list by their order.
+        if(const MenuRect* at=Placed(e.id)) {
+            const auto to=Nearest(*at,delta,direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0,entries);
+            if(to<entries.size()) { s.index=to; s.id=entries[to].id; }
+            return {};
+        }
         if(index>=cells) {
             if(direction&MenuInput::Up) index=index>cells?index-1:cells-1;
             else if((direction&MenuInput::Down)&&index+1<count) ++index;
@@ -354,6 +385,47 @@ public:
     }
 private:
     static const std::string& NoId() { static const std::string none; return none; }
+    // The frame's input, read once a frame by Update or Take: the buttons that
+    // count (PressGate; Up with Down and Left with Right cancel) and, of
+    // those, the ones newly down. False on the frame the screen opens, which
+    // counts nothing. The rows placed last frame become the ones moved among.
+    bool Read(unsigned raw, unsigned& held, unsigned& pressed) {
+        placed_.swap(placing_); placing_.clear();
+        if((raw&3)==3) raw&=~3u;
+        if((raw&12)==12) raw&=~12u;
+        const bool opening=!gate_.Armed();
+        held=gate_.Held(raw); pressed=gate_.Pressed(held);
+        return !opening;
+    }
+    const MenuRect* Placed(const std::string& id) const {
+        for(const auto& p:placed_) if(p.first==id) return &p.second;
+        return nullptr;
+    }
+    // The entry placed nearest past `from` in the direction (dx, dy). Past:
+    // its centre is beyond from's centre that way, and it overlaps from
+    // across (a button inside a heading counts) or lies at least as far past
+    // from's edge as it lies off to the side, so a heading in the next column
+    // is not Up from the top row. Nearest: the gap along that axis plus twice
+    // the offset across it, ties to the earlier entry. entries.size() for
+    // none: the board's edge, where the focus stays.
+    std::size_t Nearest(const MenuRect& from, int dx, int dy, const std::vector<MenuEntry>& entries) const {
+        struct Span { float min, max; float Centre() const { return (min+max)*.5f; } };
+        const auto along=[&](const MenuRect& r) { return dx ? Span{r.x0,r.x1} : Span{r.y0,r.y1}; };
+        const auto across=[&](const MenuRect& r) { return dx ? Span{r.y0,r.y1} : Span{r.x0,r.x1}; };
+        const auto apart=[](Span a, Span b) { return (std::max)(0.f, (std::max)(b.min-a.max, a.min-b.max)); };
+        const float way=static_cast<float>(dx ? dx : dy);
+        const Span f=along(from);
+        std::size_t best=entries.size(); float bestScore=0;
+        for(std::size_t i=0;i<entries.size();++i) {
+            const MenuRect* r=Placed(entries[i].id);
+            if(!r || r==&from) continue;
+            const float gap=apart(f,along(*r)), offset=apart(across(from),across(*r));
+            if((along(*r).Centre()-f.Centre())*way<=0 || gap<offset) continue;
+            const float score=gap+2*offset;
+            if(best==entries.size() || score<bestScore) { best=i; bestScore=score; }
+        }
+        return best;
+    }
     void Open(const MenuEntry& e) {
         mode_=e.choices.empty()?Modal::Confirm:Modal::Choice; modalId_=e.id; confirmSelected_=false; choiceIndex_=0;
         for (const auto& c : e.choices) {
@@ -378,6 +450,9 @@ private:
     bool confirmSelected_=false, editAccept_=true, secret_=false;
     PressGate gate_{true};
     std::size_t choiceIndex_=0;
+    // The rows placed this frame, and those placed on the last, which this
+    // frame's directions read.
+    std::vector<std::pair<std::string,MenuRect>> placing_, placed_;
     unsigned direction_=0;
     double nextRepeat_=0;
 };

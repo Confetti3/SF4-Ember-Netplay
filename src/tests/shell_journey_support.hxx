@@ -53,20 +53,20 @@ struct Harness {
    for(int i=0;i<100&&!at();++i){const std::string before=shell.Navigation().Focus();Press(direction);if(shell.Navigation().Focus()==before)break;}
   };
   Frame();walk(MenuInput::Up);walk(MenuInput::Down);
-  // A grid's cells sit side by side, so Up and Down reach only some of them:
-  // sweep each row sideways from the top.
-  if(!at()){
-   walk(MenuInput::Up);
-   for(int row=0;row<100&&!at();++row){
-    for(int i=0;i<8&&!at();++i)Press(MenuInput::Left);
-    for(int i=0;i<8&&!at();++i)Press(MenuInput::Right);
+  // A grid's cells sit side by side and a board moves by where its rows are
+  // drawn, so Up and Down reach only some of them: from each row reached so
+  // far, try each direction, until the item is reached or no new row is.
+  // Every hop is a press; returning to a row already reached is not.
+  std::vector<std::string> reached{shell.Navigation().Focus()};
+  for(std::size_t i=0;i<reached.size()&&i<400&&!at();++i)
+   for(unsigned direction:{MenuInput::Up,MenuInput::Down,MenuInput::Left,MenuInput::Right}){
+    shell.Navigation().Prefer(reached[i]);Frame();
+    Press(direction);
     if(at())break;
-    const std::string before=shell.Navigation().Focus();
-    Press(MenuInput::Down);
-    if(shell.Navigation().Focus()==before)break;
+    const std::string now=shell.Navigation().Focus();
+    if(std::find(reached.begin(),reached.end(),now)==reached.end())reached.push_back(now);
    }
-  }
-  if(!at())throw std::runtime_error(std::string("Journey item not reachable: ")+id+" on "+shell.Navigation().Screen()+" focused "+shell.Navigation().Focus());
+  if(!at()){std::string all;for(const auto& r:reached)all+=" "+r;throw std::runtime_error(std::string("Journey item not reachable: ")+id+" on "+shell.Navigation().Screen()+" focused "+shell.Navigation().Focus()+"; reached:"+all);}
  }
  void Choose(const char* id){FocusOn(id);Press(MenuInput::Select);}
  void Screen(const char* id){shell.Navigation().Home();if(std::string(id)!="home")shell.Navigation().Push(id);Frame();}

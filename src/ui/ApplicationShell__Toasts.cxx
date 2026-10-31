@@ -48,14 +48,20 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
  take(notice_,noticeTone_,noticeUntil_,noticeSeen_,ToastKind::None);
  take(error_,Tone::Error,now+6,errorSeen_,ToastKind::System);
  if(listed){toastFocus_=0;return;}
- if(fresh&&!overMatch)toastFocus_=fresh;
+ // A toast takes focus once, as it comes, and only over a free menu: nothing
+ // open, nothing being typed. One that came over a match or a dialog waits
+ // in its card and in Notifications.
+ const auto& nav=menu_.navigation;
+ const bool menuFree=nav.Mode()==MenuNavigation::Modal::None&&!menu_.NoticeOpen()&&!menu_.typesText;
+ if(fresh&&!overMatch&&menuFree)toastFocus_=fresh;
  // Stacked at the board's right corner, newest on top: under the match HUD's
- // bars over a match, ending on the hint bar over the menus.
- const auto& c=v2::Colors();const auto* view=ImGui::GetMainViewport();
- const float s=Scale(),side=v2::SideMargin(view->Size.x,s),w=(std::min)(420*s,view->Size.x-2*side);
+ // bars over a match, ending on the hint bar over the menus. Inside TV
+ // mode's safe area, as the board is (ShellArea).
+ const auto& c=v2::Colors();const v2::Box view=ShellArea();
+ const float s=Scale(),side=v2::SideMargin(view.W(),s),w=(std::min)(420*s,view.W()-2*side);
  // A narrow screen has room for the newest only.
- const std::size_t most=v2::Narrow(view->Size.x,s)?1:3;
- const float size=17*s,icon=28*s,pad=14*s,x=view->Pos.x+view->Size.x-side-w,button=40*s,keySize=11*s,labelSize=15*s;
+ const std::size_t most=v2::Narrow(view.W(),s)?1:3;
+ const float size=17*s,icon=28*s,pad=14*s,x=view.max.x-side-w,button=40*s,keySize=11*s,labelSize=15*s;
  ImFont* font=HeadingFont();
  // A dialog open over the menus takes every click and key, so the buttons
  // wait for it to close.
@@ -76,8 +82,8 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
   shown.push_back(std::move(e));
  }
  if(toastFocus_&&(shown.empty()||shown[0].t->id!=toastFocus_||overMatch))toastFocus_=0;
- float y=view->Pos.y+110*s;
- if(!overMatch){y=view->Pos.y+view->Size.y-72*s;for(const auto& e:shown)y-=e.h+8*s;y+=8*s;}
+ float y=view.min.y+110*s;
+ if(!overMatch){y=view.max.y-72*s;for(const auto& e:shown)y-=e.h+8*s;y+=8*s;}
  static const char* const kinds[]={"","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
  auto* d=ImGui::GetForegroundDrawList();
  for(const auto& e:shown){

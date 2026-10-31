@@ -134,5 +134,6 @@ inline std::string SpokenButton(const char* glyph,gamepads::PromptBrand brand=Me
     return word;
 }
 // A screen's own button, shown after the standard ones.
-struct LegendHint { const char* glyph; std::string label; };
+// A hint with a press (a MenuInput button) is also a button that presses it.
+struct LegendHint { const char* glyph; std::string label; unsigned press = 0; };
 } }

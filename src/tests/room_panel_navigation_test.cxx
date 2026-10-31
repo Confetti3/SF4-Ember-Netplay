@@ -4,6 +4,7 @@
 #include "../ui/MenuRows.hxx"
 #include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
+#include "../ui/RowId.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/V2.hxx"
 #include "imgui_test_support.hxx"
@@ -41,15 +42,6 @@ void operator delete(void* block, std::size_t) noexcept { std::free(block); }
 namespace {
 void Check(bool value, const char* message) {
     if (!value) throw std::runtime_error(message);
-}
-// A rule V2's room board does not keep yet. It is reported and fails the run
-// at the end, so the checks after it still run.
-bool knownGapFailed = false;
-void KnownV2Gap(bool value, const char* message) {
-    static std::set<std::string> said;
-    if (value) return;
-    knownGapFailed = true;
-    if (said.insert(message).second) std::cerr << "KNOWN V2 GAP: " << message << '\n';
 }
 template <typename Work> std::size_t AllocationsOf(Work&& work) {
     allocations = 0; countAllocations = true;
@@ -995,7 +987,7 @@ int main() try {
     Check(other != rows.end(), "The board offered nothing besides the own table");
     focus(other->id.c_str()); frame();
     const auto beforeBody = actions.size(); click(targets.at("table-0"));
-    KnownV2Gap(actions.size() == beforeBody, "A first click on the own seat's card readied the player");
+    Check(actions.size() == beforeBody, "A first click on the own seat's card readied the player");
     Check(shell.Navigation().Focus() == "table-0", "A first click on the own seat's card did not focus it");
     shell.Navigation().Push("room-table"); frame(); requireMenuFrame = false;
 
@@ -1089,7 +1081,7 @@ int main() try {
                     "Repeated room-control refresh changed page or focus");
                 if (table) {
                     Check(row("queue").enabled != recovering, "Refresh lost the queue eligibility fence");
-                    KnownV2Gap(std::abs(targets.at("queue").y - baselineQueue.y) < 1,
+                    Check(std::abs(targets.at("queue").y - baselineQueue.y) < 1,
                         "Repeated room-control refresh moved Queue under the pointer");
                 }
                 if (recovering) Check(menuStatus.find("recovering") != std::string::npos,
@@ -1613,9 +1605,79 @@ int main() try {
         Check(shell.Navigation().Screen() == "online" && ImGui::GetDrawData()->TotalVtxCount == drawn, "A header gathered its chips over frames");
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);
     }
+    // The board moves by where it draws its rows (MenuNavigation::Place), not by
+    // their order: an Arcade room's cabinets, matchups, members and action bar,
+    // and a Classic room's cards, move as the grid they are drawn in.
+    {
+        view = ShellView{};
+        view.controllerReady = true; view.canReady = true; view.canEditSelection = true;
+        view.session.room = netplay::RoomState::Joined; view.session.control = netplay::Health::Healthy;
+        view.session.generation.room = 3;
+        view.room.roomEpoch = 12; view.room.localMember = 1; view.room.host = 1; view.room.capacity = 16;
+        for (std::size_t i = 0; i < view.room.tables.size(); ++i) view.room.tables[i].id = static_cast<std::uint8_t>(i);
+        for (int i = 0; i < 4; ++i) {
+            room::Member m; m.id = static_cast<room::MemberId>(i + 1); m.name = "Player " + std::to_string(i + 1); m.table = i / 2; m.seat = i % 2;
+            view.room.members.push_back(m);
+        }
+        for (int t = 0; t < 2; ++t) {
+            view.room.tables[t].p1 = static_cast<room::MemberId>(2 * t + 1); view.room.tables[t].p2 = static_cast<room::MemberId>(2 * t + 2);
+            view.room.tables[t].phase = room::TablePhase::Waiting;
+        }
+        // Two pairs: Player 1 at cabinet 1 against Player 2 at 9, Player 3 at 3 against Player 4 at 11.
+        view.room.cabinets[0] = 1; view.room.cabinets[8] = 2; view.room.cabinets[2] = 3; view.room.cabinets[10] = 4;
+        const auto board = [&](room::RoomType type, float scale, ImVec2 size) {
+            view.room.arcade = type; ++view.room.revision;
+            ApplyTheme(scale); io.DisplaySize = size;
+            shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
+        };
+        const auto at = [&] { return shell.Navigation().Focus(); };
+        const auto onBar = [&] {
+            for (const char* id : {"ready", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
+            return false;
+        };
+        // ArcadeBoardReachesActionBarByGeometry: from cabinet 7 three Downs reach
+        // the action bar under it and Right goes on to Leave room; Left from a
+        // member reaches a cabinet; the board's edges are its only dead ends.
+        board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+        focus("cabinet-6"); frame();
+        for (int i = 0; i < 3; ++i) press(MenuInput::Down);
+        Check(onBar(), "Down, Down, Down from cabinet 7 did not reach the action bar");
+        for (int i = 0; i < 4 && at() != "leave"; ++i) press(MenuInput::Right);
+        Check(at() == "leave", "Right along the action bar did not reach Leave room");
+        focus("member-1"); frame(); press(MenuInput::Left);
+        Check(RowIndex(at(), "cabinet-") >= 0 && RowIndex(at(), "cabinet-") < 8, "Left from the first member did not reach a top-row cabinet");
+        focus("cabinet-0"); frame(); press(MenuInput::Left);
+        Check(at() == "cabinet-0", "Left on cabinet 1 moved the focus");
+        // ClassicV2CardsMoveAsGrid: two cards across at this size.
+        board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
+        focus("table-0"); frame(); press(MenuInput::Right);
+        Check(at() == "table-1", "Right from table 1 did not reach table 2 beside it");
+        focus("table-0"); frame(); press(MenuInput::Down);
+        Check(at() == "table-2", "Down from table 1 did not reach table 3 under it");
+        // V2BoardDrawsEveryFocusableRow: wide, short (1280x720), narrow and
+        // ultra-wide, every row the pad can focus is drawn as a box the mouse can press.
+        const std::pair<float, ImVec2> sizes[] = {{1.f, {1920, 1080}}, {1.f, {1280, 720}}, {1.5f, {1280, 720}}, {1.f, {3840, 1080}}};
+        for (const auto type : {room::ArcadeRoom, room::ClassicRoom})
+            for (const auto& [scale, size] : sizes) {
+                board(type, scale, size);
+                const auto shown = rows;
+                for (const auto& e : shown) {
+                    focus(e.id.c_str()); targets.clear(); frame(); frame();
+                    if (!targets.count(e.id)) {
+                        std::cerr << "type " << int(type) << " scale " << scale << " size " << size.x << "x" << size.y << " row " << e.id << '\n';
+                        Check(false, "A room-board row the pad can focus was not drawn");
+                    }
+                }
+            }
+        // ArcadeTopRowUpStays: nothing is above the top row.
+        board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+        focus("cabinet-3"); frame(); press(MenuInput::Up);
+        if (at() != "cabinet-3") std::cerr << "Up on cabinet 4 went to " << at() << std::endl;
+        Check(at() == "cabinet-3", "Up on a top-row cabinet moved the focus");
+        ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);
+    }
 
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
-    if (knownGapFailed) return 1;
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;
 } catch (const std::exception& error) {

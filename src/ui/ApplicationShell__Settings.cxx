@@ -183,20 +183,22 @@ void ApplicationShell::DrawSettingsBoard(const std::vector<MenuEntry>& entries, 
     ImGui::SetCursorScreenPos(list.min);
     ImGui::BeginChild("settings rows", ImVec2(list.W(), list.H()), 0, ImGuiWindowFlags_NoNavInputs);
     auto* ld = ImGui::GetWindowDrawList();
-    const float rowHeight = 48 * s, valueWidth = (std::min)(196 * s, list.W() * .45f);
+    const float rowHeight = 48 * s;
     for (std::size_t i = panels[current].first; i < panels[current].second; ++i) {
         // The open panel's rows are the screen's entries, with their values offered.
         const auto live = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& x) { return x.id == settingsRows_[i].id; });
         const MenuEntry& e = live != entries.end() ? *live : settingsRows_[i];
         const auto p = ImGui::GetCursorScreenPos();
-        const v2::Box r{p, ImVec2(p.x + list.W(), p.y + rowHeight)};
+        // The row as its label and value share it (FitMenuRow), a line taller with the value under the label.
+        const v2::Share value = FitMenuRow(e, list.W() - 28 * s, 8 * s);
+        const v2::Box r{p, ImVec2(p.x + list.W(), p.y + rowHeight + (value.under ? v2::UnderLine * s : 0))};
         const bool focused = open && e.id == focus;
         // While closed a row opens its panel; while open its value's ends step it, anything else on it is Select.
-        const auto [pressed, hovered] = PressEntry(nav, entries, e, r, action, focused && changed, valueWidth, open);
+        const auto [pressed, hovered] = PressEntry(nav, entries, e, r, action, focused && changed, value.value, open);
         ImGui::SetCursorScreenPos(ImVec2(p.x, r.max.y + 4 * s));
         if (pressed && !open) action = {MenuAction::Shortcut, tab + "/" + std::to_string(current)};
         v2::RowGround(ld, r, focused, open && hovered);
-        DrawMenuRow(ld, e, r, open && feedback.Enabled(e), valueWidth, 14 * s);
+        DrawMenuRow(ld, e, r, open && feedback.Enabled(e), value, 14 * s);
         if (focused) {
             v2::Focus(ld, r.min, r.max);
             if (!e.choices.empty()) menu_.bodyChoices = {r, list};

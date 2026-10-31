@@ -144,7 +144,7 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 ### In an online match
 
-**Settings > Frame meter in matches** (off by default) draws the meter over your own online matches and the ones you watch, with the style, frames shown and Meter settings chosen in the Training lab (angled, 60 frames, 20 seconds of history and Start over, until changed). Only you see it. It reads the game and changes nothing in it. It shows a frame once the other player's inputs for it have arrived, so it trails the fight by the frames still predicted and never shows one that is later played differently. The controls, recordings and hotkeys of Training are not there. A projectile move without attack frames in its script shows no startup in a match.
+**Settings > Match frame meter** (off by default) draws the meter over your own online matches and the ones you watch, with the style, frames shown and Meter settings chosen in the Training lab (angled, 60 frames, 20 seconds of history and Start over, until changed). Only you see it. It reads the game and changes nothing in it. It shows a frame once the other player's inputs for it have arrived, so it trails the fight by the frames still predicted and never shows one that is later played differently. The controls, recordings and hotkeys of Training are not there. A projectile move without attack frames in its script shows no startup in a match.
 
 ### Training with another player
 
@@ -154,7 +154,7 @@ To practise with another player, create a private room with **Practice room** on
 
 Nobody is knocked out, so every game in a Practice room takes the longest round time, 9999, and does not end on its own while you practise; its tables have no round time to choose. To end the game, either fighter presses Start or F10 during the fight: Ember opens on the room board at **End practice**, and confirming it ends the game for both with no result and the notice "Practice ended". Both stay seated and can ready again. While Ember is open over the fight your fighter stands still; closing Ember (B back to Home and B again, or F10) returns you to the fight. The match HUD names those keys. Leaving the room also ends the game. There is no shared position save/reset in rollback matches; the match HUD says so. The position keys and pad Back apply only in offline Training; a Practice room does not enable them.
 
-There is no dummy and no recording in a Practice room: the other player is the dummy. A Practice match always shows the frame meter, to both players and everyone watching, whether **Frame meter in matches** is on or off; a public room still never shows it.
+There is no dummy and no recording in a Practice room: the other player is the dummy. A Practice match always shows the frame meter, to both players and everyone watching, whether **Match frame meter** is on or off; a public room still never shows it.
 
 ### Opt-in frame-meter capture
 

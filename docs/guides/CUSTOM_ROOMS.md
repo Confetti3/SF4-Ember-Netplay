@@ -129,6 +129,15 @@ the seat, and B says why. While a start is held for a locked-in spectator, B
 cancels the start by taking Ready back. An unresolved game does not award a win or erase earlier
 wins for the same pair.
 
+After a game you fought, Ember asks over the WIN screen for ten seconds:
+**Rematch** (**Next game** inside a set), **Character select** (X, or F) or
+**Back to room** (B). Rematch is your Ready, so when both of you choose it the
+next game starts without a stop on the board; while someone waits in the queue
+after a set there is no Rematch. **Back to room** keeps your seat, not ready,
+so a B pressed through the WIN costs nothing; you leave a seat only with Leave
+seat. No answer keeps the seat inside a set; after a set it gives the seat up,
+so whoever waits gets it.
+
 Queued members automatically watch each game while retaining their queue
 positions. B on your queue card, or **Leave queue**, leaves the queue at once.
 Leaving the queue during a game lets you finish watching it; the place ends with
@@ -238,16 +247,25 @@ references and expired invitations are rejected.
 ## The room board
 
 The room is one board: tables on
-the left, members and chat on the right, and Ready up, Wait in Training,
-Controllers, More… and Leave room along the bottom. A table card has its own
-Ready up and Leave seat buttons. Members are grouped as Playing, At a table,
+the left, members and chat on the right, and Ready up, Wait in Training, Copy
+invite and Copy link (a private room), More… and Leave room along the bottom.
+A table card has its own Ready up and Leave seat buttons: a click on your own
+card selects it, and its buttons act. Members are grouped as Playing, At a table,
 Watching and In the room, each with a ping such as Direct 46 ms or Relay
 59 ms.
 
 - **Member actions:** select a member with A (Enter, or a click). Mute
   member, Steam profile and, for the host, Kick member and Transfer host open
   as a popout. Kick and Transfer host still ask first.
-- **More…** holds Table options, Room settings and the invitation links.
+- **Moving:** the D-pad and arrows go where the board draws things: the
+  cards as the grid they stand in, Right past the last card to the members,
+  Down from the tables to the actions under them. On a narrow screen the board
+  shows Board, Members or Chat under tabs; LB and RB (Page Up and Page Down)
+  step them, round again at either end.
+- **More…** holds Table options, Controllers and Room settings, at every
+  screen size.
+- **Chat:** typing goes straight into the message box. With a pad, select the
+  empty box for the on-screen keyboard; accepting it sends the message.
 - **Layout:** drag the grip on the line between the tables and the right
   column to change the column's width, and the grip between members and chat
   to share the column. With a pad or the keyboard, use Settings > Interface >

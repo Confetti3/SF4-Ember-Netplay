@@ -597,7 +597,6 @@ private:
     std::string roomBoardFocus_;
     // The board was last drawn wide on a screen under 820 lines, so the next
     // frame's rows fold the room's sharing and settings into More….
-    bool shortBoard_=false;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
 // The Settings tab's rows by panel, its header's path and the focus last drawn (SettingsTabRows, DrawSettingsBoard).
@@ -742,6 +741,9 @@ std::string memberAsk_;
     unsigned toastFocus_=0;
     std::pair<unsigned,std::size_t> toastAsked_{0,0};
     void DrawToasts(double now,bool overMatch,bool listed=false);
+    // Where Ember draws: the screen, inside TV mode's 5% safe area. The shell's
+    // window, and the toasts over it or over a match.
+    v2::Box ShellArea() const;
     void AnswerToast(double now);
     std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
     // Copy short link was pressed before the link existed: copy it when it

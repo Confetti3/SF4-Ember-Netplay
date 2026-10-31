@@ -6,6 +6,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 
 namespace sf4e { namespace ui { namespace v2 {
 namespace {
@@ -21,6 +22,14 @@ std::string Fit(const std::string& text, float width, float size, ImFont* font, 
     const char* end = nullptr;
     font->CalcTextSizeA(size, (std::max)(0.f, width - font->CalcTextSizeA(size, FLT_MAX, 0, "...").x), 0, text.c_str(), nullptr, &end);
     return std::string(text.c_str(), end) + "...";
+}
+
+Share ShareLine(float label, float value, float least, float room, float gap, bool grows) {
+    if (value <= 0) return {};
+    if (label + gap + value <= room) return {value, false};
+    if (label + gap + least <= room) return {room - label - gap, false};
+    if (!grows) return {(std::max)(0.f, room - label - gap), false};
+    return {(std::min)(value, room), true};
 }
 
 namespace {
@@ -73,10 +82,19 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
         d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 8 * s, bar.min.y + (bar.H() - font) * .5f), Colors().text, label.c_str());
         x += w + (compact ? 12 : 24) * s;
     }
-    // The status is cut to the bar's room; the probe measures labels, as a status was never measured.
-    const std::string fitted = Fit(status, (std::max)(0.f, right - x - icon), size, nullptr, false);
-    const float left = right - TextWidth(fitted, size) - icon, mid = bar.min.y + bar.H() * .5f;
-    d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(fitted, size), mid - size * .5f), tone, fitted.c_str());
+    // The status takes a second line where one does not hold it (Home's
+    // version on a narrow screen), broken at the last space that lets the
+    // first fit, and is cut to the bar's room only beyond that. The probe
+    // measures labels, as a status was never measured.
+    const float room = (std::max)(0.f, right - x - icon), mid = bar.min.y + bar.H() * .5f;
+    std::string first = status, second;
+    for (auto space = status.rfind(' '); TextWidth(status, size) > room && space != std::string::npos && space > 0; space = status.rfind(' ', space - 1))
+        if (TextWidth(status.substr(0, space), size) <= room) { first = status.substr(0, space); second = status.substr(space + 1); break; }
+    const std::string top = Fit(first, room, size, nullptr, false), bottom = Fit(second, room, size, nullptr, false);
+    const float shown = (std::max)(TextWidth(top, size), TextWidth(bottom, size)), left = right - shown - icon;
+    const float line = bottom.empty() ? 0 : size * .6f;
+    d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(top, size), mid - size * .5f - line), tone, top.c_str());
+    if (!bottom.empty()) d->AddText(ImGui::GetFont(), size, ImVec2(right - TextWidth(bottom, size), mid - size * .5f + line), tone, bottom.c_str());
     if (bell) {
         // The bell of the Toasts board's touch control: a dome on a rim, and its clapper.
         ImGui::SetCursorScreenPos(ImVec2(left, bar.min.y));
@@ -231,6 +249,47 @@ void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, 
     if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
     else if (focused) Focus(draw, b.min, b.max);
 }
+namespace {
+// The places on line `line` of `lines`: the first and how many, shared out evenly in order.
+std::pair<std::size_t, std::size_t> BarLine(std::size_t places, int lines, int line) {
+    const std::size_t per = places / lines, extra = places % lines, at = static_cast<std::size_t>(line);
+    return {at * per + (std::min)(at, extra), per + (at < extra)};
+}
+}
+int BarLines(float width, const std::vector<float>& need, float gap) {
+    const int places = static_cast<int>(need.size());
+    for (int lines = 1; lines < places; ++lines) {
+        bool fits = true;
+        for (int line = 0; line < lines && fits; ++line) {
+            const auto [first, count] = BarLine(need.size(), lines, line);
+            float used = (count - 1) * gap;
+            for (std::size_t i = first; i < first + count; ++i) used += need[i];
+            fits = used <= width;
+        }
+        if (fits) return lines;
+    }
+    return (std::max)(1, places);
+}
+std::vector<Box> BarPlaces(Box bar, const std::vector<float>& need, float gap, int lines, float height) {
+    std::vector<Box> places(need.size());
+    for (int line = 0; line < lines; ++line) {
+        const auto [first, count] = BarLine(need.size(), lines, line);
+        if (!count) continue;
+        // The even share, raised past what the places that need more take.
+        std::vector<float> wants(need.begin() + first, need.begin() + first + count);
+        std::sort(wants.begin(), wants.end(), std::greater<float>());
+        float rest = bar.W() - (count - 1) * gap, share = rest / count;
+        for (std::size_t k = 0; k < count && wants[k] > share; ++k) { rest -= wants[k]; share = rest / (count - k - 1 ? count - k - 1 : 1); }
+        float x = bar.min.x;
+        const float y = bar.min.y + line * (height + gap);
+        for (std::size_t i = first; i < first + count; ++i) {
+            const float w = (std::max)(need[i], share);
+            places[i] = {ImVec2(x, y), ImVec2(x + w, y + height)};
+            x += w + gap;
+        }
+    }
+    return places;
+}
 void Words(ImDrawList* draw, Box b, const std::string& label, const std::string& detail, bool wrap) {
     const float s = Scale(), x = b.min.x + 16 * s, w = b.W() - 32 * s;
     const auto& c = Colors();
@@ -248,15 +307,18 @@ void Wrapped(const std::string& text) {
     Paragraph(text, ImGui::GetFontSize(), ImGui::GetColorU32(ImGuiCol_Text));
 }
 void Fact(const std::string& key, const std::string& value) {
-    const float s = Scale(), w = ImGui::GetContentRegionAvail().x, h = ImGui::GetFontSize() + 20 * s, room = w - 24 * s;
+    const float s = Scale(), w = ImGui::GetContentRegionAvail().x, font = ImGui::GetFontSize(), room = w - 24 * s;
+    const float wanted = TextWidth(value, font);
+    const Share share = ShareLine(TextWidth(key, font), wanted, wanted, room, 16 * s);
+    const float h = font + 20 * s + (share.under ? UnderLine * s : 0);
     const auto p = ImGui::GetCursorScreenPos();
     auto* d = ImGui::GetWindowDrawList();
     d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
     d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, s);
-    const std::string shown = Fit(value, room * .6f, ImGui::GetFontSize());
-    const float vw = TextWidth(shown, ImGui::GetFontSize());
-    d->AddText(ImVec2(p.x + 12 * s, p.y + 10 * s), Colors().muted, Fit(key, room - vw - 16 * s, ImGui::GetFontSize()).c_str());
-    d->AddText(ImVec2(p.x + w - 12 * s - vw, p.y + 10 * s), Colors().text, shown.c_str());
+    const std::string shown = Fit(value, share.value, font);
+    const float vw = TextWidth(shown, font);
+    Text(d, ImVec2(p.x + 12 * s, p.y + 10 * s), share.under ? room : room - vw - 16 * s, key, font, Colors().muted);
+    d->AddText(ImVec2(p.x + w - 12 * s - vw, p.y + 10 * s + (share.under ? UnderLine * s : 0)), Colors().text, shown.c_str());
     ImGui::Dummy(ImVec2(w, h));
 }
 
@@ -305,7 +367,15 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     const float room = right - x;
     float y = p.y + (height - 10 * s - eyebrowHeight - titleSize) * .5f;
     if (eyebrow) {
-        draw->AddText(ImGui::GetFont(), eyebrowSize, ImVec2(x, y), Colors().muted, Fit(eyebrow, room, eyebrowSize).c_str());
+        // The path gives way from the left a whole part at a time (EMBER ·
+        // ONLINE · PRIVATE ROOM keeps PRIVATE ROOM), and is left out when not
+        // even its last part fits; it is never cut.
+        std::string path = eyebrow;
+        while (!path.empty() && TextWidth(path, eyebrowSize) > room) {
+            const auto part = path.find(" \xC2\xB7 ");
+            path = part == std::string::npos ? std::string() : path.substr(part + 4);
+        }
+        if (!path.empty()) draw->AddText(ImGui::GetFont(), eyebrowSize, ImVec2(x, y), Colors().muted, Fit(path, room, eyebrowSize).c_str());
         y += eyebrowHeight;
     }
     // A title may be a player's own words (a room's name), so the probe leaves it out.
@@ -322,23 +392,23 @@ int Tabs(const std::vector<std::string>& labels, int current) {
     const float full = ImGui::GetContentRegionAvail().x;
     auto* draw = ImGui::GetWindowDrawList();
     int pressed = -1;
-    // The keys that step the tabs sit at the strip's ends (LB and RB, Page Up and Down
-    // on the keyboard), each also a button to the previous or next tab.
-    // Keyboard keys are wider caps, so "PgUp" and "PgDn" read at full size.
-    const bool keys = KeyboardPrompts();
-    const float cap = (keys ? 40 : 30) * s, capRoom = labels.size() > 1 ? cap + 12 * s : 0;
+    // The device's tab buttons sit at the strip's ends (LB and RB, Page Up and
+    // Down, a stick's LP and HP: MenuShortcutGlyph), each also a button to the
+    // previous or next tab, wrapping at the ends (StepTab). A device without
+    // one shows the keyboard's key, which steps the tabs too. Keyboard keys
+    // are wider caps, so "PgUp" and "PgDn" read at full size.
+    const char* glyphs[] = {MenuShortcutGlyph(MenuInput::PrevTab), MenuShortcutGlyph(MenuInput::NextTab)};
+    if (!glyphs[0]) glyphs[0] = "PgUp";
+    if (!glyphs[1]) glyphs[1] = "PgDn";
+    const float cap = (KeyCapGlyph(glyphs[0]) ? 40 : 30) * s, capRoom = labels.size() > 1 ? cap + 12 * s : 0;
     if (capRoom > 0) {
-        const char* glyphs[] = {keys ? "PgUp" : "LB", keys ? "PgDn" : "RB"};
         for (int side = 0; side < 2; ++side) {
             const ImVec2 at(side ? origin.x + full - cap : origin.x, origin.y + (height - cap) * .5f);
             ImGui::SetCursorScreenPos(at);
             ImGui::PushID(side ? "##next-tab" : "##previous-tab");
-            const int to = current + (side ? 1 : -1);
-            if (ImGui::InvisibleButton("##cap", ImVec2(cap, cap)) && to >= 0 && to < static_cast<int>(labels.size())) pressed = to;
+            if (ImGui::InvisibleButton("##cap", ImVec2(cap, cap))) pressed = StepTab(current, side ? 1 : -1, static_cast<int>(labels.size()));
             ImGui::PopID();
-            // Dimmed at an end with nowhere to go.
-            const bool can = to >= 0 && to < static_cast<int>(labels.size());
-            DrawPromptGlyph(draw, glyphs[side], at, cap, MenuArt(), s, 0, MenuPromptBrand(), can ? 1.f : .35f);
+            DrawPromptGlyph(draw, glyphs[side], at, cap, MenuArt(), s, 0, MenuPromptBrand());
         }
     }
     const ImVec2 start(origin.x + capRoom, origin.y);

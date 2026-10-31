@@ -5,6 +5,7 @@
 #include "Theme.hxx"
 #include "MenuGlyphs.hxx"
 #include "V2.hxx"
+#include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cmath>
@@ -13,8 +14,11 @@
 // Rematch (Next game inside an unfinished set), Character select or Back to
 // room, for PostMatchSeconds. A Rematch is the room's own Ready, so when both
 // fighters choose it the next game starts with no stop on the room board.
-// Back to room and no answer leave the seat after a set or with no set
-// length, so whoever waits gets it; inside a set the seat is kept, not ready.
+// An Arcade pair that decides after a set (Table::deciding) answers the room's
+// own question instead: Rematch or New opponent.
+// Back to room never gives up the seat, so a Back mashed through the WIN costs
+// nothing; leaving it is the board's Leave seat. No answer gives it up only
+// where a set hands seats over by the queue (KeepsSeat).
 namespace sf4e { namespace ui {
 namespace {
 constexpr double PostMatchSeconds = 10;
@@ -31,10 +35,18 @@ int SeatOf(const room::Table& t, room::MemberId member) {
 bool MidSet(const room::Table& t, std::uint64_t generation) {
     return t.rules.format != room::SetFormat::Unlimited && t.lastSet.generation != generation;
 }
-// King of the hill keeps everyone at their cabinet after a set: the winner
-// stays on, the loser waits for the next opponent (ArcadeSetEnded).
+// No answer gives the seat to whoever waits only in a Classic room after a
+// set. An Arcade or King of the hill room keeps everyone at their cabinet and
+// rotates them itself (ArcadeSetEnded); a set's game keeps both seats.
 bool KeepsSeat(const room::Snapshot& room, const room::Table& t, std::uint64_t generation) {
-    return room.arcade == room::KingRoom || MidSet(t, generation);
+    return room.arcade != room::ClassicRoom || MidSet(t, generation);
+}
+// The glyph of the press each button answers to, drawn on it; none where the
+// device has no such button (MenuShortcutGlyph).
+const char* ButtonGlyph(const std::string& id) {
+    if (id == "fighter") return MenuShortcutGlyph(MenuInput::Fighter);
+    if (id == "new-opponent") return MenuShortcutGlyph(MenuInput::Options);
+    return id == "back" ? MenuBackGlyph() : MenuSelectGlyph();
 }
 // A seat's Ready for the next game. The room clears the Readies that started
 // this one only when its match ends, after the WIN of a game that may go on in place.
@@ -135,10 +147,15 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto& t = v.room.tables[p.table];
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const bool midSet = MidSet(t, p.generation);
-    // King of the hill after a set: nothing to choose, the room pairs the next game.
-    const bool rotates = v.room.arcade == room::KingRoom && !midSet;
-    const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None));
-    const bool theyChose = p.starting || Readied(t, theirs, p.generation);
+    // An Arcade or King of the hill room after a set: the pair decides when
+    // nobody waited alone (Arcade only); otherwise the room has already paired
+    // the next game, so there is nothing to choose.
+    const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
+    const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
+    const bool rotates = cabinets && !deciding;
+    const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
+        (deciding && t.rematch[mine])));
+    const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
     const auto* opponent = room::FindMember(v.room, p.opponent);
     const auto* local = room::FindMember(v.room, v.room.localMember);
     const std::string name = opponent ? opponent->name : loc::T("room.player");
@@ -156,8 +173,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         title = next ? loc::Tf("postmatch.king.next", next->name) : std::string(loc::T("postmatch.king.waiting"));
     }
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
-    const auto state = [](bool ready, bool seated) {
-        return std::string(loc::T(!seated ? "postmatch.state.left" : ready ? "postmatch.state.ready" : "postmatch.state.choosing"));
+    const auto state = [&](bool ready, bool seated) {
+        return std::string(loc::T(!seated ? "postmatch.state.left" : !ready ? "postmatch.state.choosing" : deciding ? "room.rematch_chosen" : "postmatch.state.ready"));
     };
     // This PC's row: its choice, Back to room or Character select once made.
     std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
@@ -168,19 +185,22 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         if (!p.left) mineWord = word(v.room.localMember);
         theirWord = word(p.opponent);
     }
+    // The buttons are the prompt's only rows: the answers there are now. A
+    // deciding pair's Rematch and New opponent are the room's own choice (the
+    // cabinet's), with Character select on X alone there.
     std::vector<MenuEntry> rows;
-    if (!rotates) {
+    if (deciding) {
+        rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
+        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"), loc::T("room.new_opponent_detail"), !p.left));
+    } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
             again && !chosen));
-        if (chosen && !p.left) rows.back().value = loc::T("postmatch.state.ready");
-    }
-    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
-    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "postmatch.back.leave_seat"), !p.left));
-    rows.push_back(InfoRow("pm-you", local ? local->name : loc::T("room.player"), mineWord, ""));
-    rows.push_back(InfoRow("pm-opponent", name, theirWord, ""));
-    const bool keys = KeyboardPrompts();
-    menu_.shortcutHints = {{keys ? "F" : "X", loc::T("postmatch.character_select")}};
+    if (!deciding) rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
+    rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
+    std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
+    if (deciding) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
+    menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
     // focused button's words, and the three buttons in a row, over the dimmed
@@ -207,8 +227,9 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             const ImVec2 size = HeadingFont()->CalcTextSizeA(24 * s, FLT_MAX, 0, number.c_str());
             d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
         }
-        const struct { const room::Member* m; bool ready, seated; std::string word; } players[] = {
-            {local, chosen, mine >= 0, mineWord}, {opponent, theyChose, theirs >= 0, theirWord}};
+        // The two fighters' answers are pictures of the state, not rows: the title says them too.
+        const struct { const char* id; const room::Member* m; bool ready, seated; std::string word; } players[] = {
+            {"pm-you", local, chosen, mine >= 0, mineWord}, {"pm-opponent", opponent, theyChose, theirs >= 0, theirWord}};
         // A tag's line, as v2::Tag sets it, to centre the tag in its row.
         const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
         float y = at.y;
@@ -225,31 +246,33 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
                 v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + (rowHeight - line) * .5f), r.W() - chip - 36 * s, tag, v2::TagSize::S);
             }
             v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);
+            ReportMenuCardText(player.id, word);
             y += rowHeight + 8 * s;
         }
         // What the focused button does, in the room the longest one takes, so
         // the buttons stay put while the focus moves.
         float words = 0;
-        for (int i = 0; i < 3; ++i) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, entries[i].detail, 17 * s, c.muted));
+        for (const auto& e : entries) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, c.muted));
         const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
         if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
         y += words + 24 * s;
-        // The buttons, each with its pad or key glyph, set apart from the players' rows.
-        const char* glyphs[] = {MenuSelectGlyph(), keys ? "F" : "X", MenuBackGlyph()};
-        const float w = (width - 24 * s) / 3, glyph = 26 * s, font = 17 * s;
-        for (int i = 0; i < 3; ++i) {
+        // The buttons in a row, each with the glyph of its own press, set apart from the players' rows.
+        const float n = static_cast<float>(entries.size()), w = (width - (n - 1) * 12 * s) / n, glyph = 26 * s, font = 17 * s;
+        for (std::size_t i = 0; i < entries.size(); ++i) {
             const auto& e = entries[i];
             const v2::Box b{ImVec2(at.x + i * (w + 12 * s), y), ImVec2(at.x + i * (w + 12 * s) + w, y + rowHeight)};
             const bool hovered = PressEntry(nav, entries, e, b, action).hovered, enabled = feedback.Enabled(e);
             v2::Button(d, b, "", v2::ButtonKind::Secondary, e.id == nav.Focus(), hovered, enabled);
-            const float text = ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x;
-            const float x = b.min.x + (b.W() - glyph - 10 * s - text) * .5f;
-            DrawPromptGlyph(d, glyphs[i], ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
-            d->AddText(ImGui::GetFont(), font, ImVec2(x + glyph + 10 * s, b.min.y + (rowHeight - font) * .5f), enabled ? c.text : c.muted, e.label.c_str());
+            const char* press = ButtonGlyph(e.id);
+            const float mark = press ? glyph + 10 * s : 0, room = b.W() - mark - 24 * s;
+            const float text = (std::min)(room, ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x);
+            const float x = b.min.x + (b.W() - mark - text) * .5f;
+            if (press) DrawPromptGlyph(d, press, ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
+            v2::Text(d, ImVec2(x + mark, b.min.y + (rowHeight - font) * .5f), room, e.label, font, enabled ? c.text : c.muted);
         }
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + rowHeight)); ImGui::Dummy(ImVec2(width, 0));
     };
-    const auto a = menu_.Draw(title.c_str(), rows, "", {}, 3, {}, board, false, 70, Tone::Pending);
+    const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(rows.size()), {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
@@ -258,13 +281,15 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         if (!netplay::Fighting(v.session.match)) { ClosePostMatch(v, after, open); return; }
         postMatch_->left = true; postMatch_->after = after;
     };
-    const auto back = [&] { leave(KeepsSeat(v.room, t, p.generation) || chosen ? AfterPostMatch::None : AfterPostMatch::LeaveSeat); };
-    if (a.kind == MenuAction::Back) back();
+    if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
+    // The room's Rematch or New opponent: the same answer as the cabinet's (RoomAction).
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && deciding) RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     else if (a.kind == MenuAction::Activate) {
         if (a.id == "again" && again && !chosen) { postMatch_->chose = true; selectedTable_ = p.table; Send(netplay::CommandKind::Rematch, v, submit); }
+        else if (a.id == "rematch" || a.id == "new-opponent") RoomAction(a, v, submit);
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
-        else if (a.id == "back") back();
+        else if (a.id == "back") leave(AfterPostMatch::None);
     }
 }
 } }

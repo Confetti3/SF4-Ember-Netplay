@@ -49,7 +49,7 @@ void ShootReplayControls(sf4e::training::View& training,sf4e::ui::OverlayLayersV
     replay.armed=true;replay.unavailable=false;replay.divisor=1;replay.pad=false;replay.meter=true;training.watching=true;
     draw("replay-strip-meter");checkStrip("Replay strip missing under the meter");
     Require(WindowDrawn("Training frame meter"),"A replay asked for with the meter did not draw it");
-    KnownV2Gap(FindWindow("Training frame meter")->Pos.y+FindWindow("Training frame meter")->Size.y<=FindWindow("Replay strip")->Pos.y+1,"Replay strip overlaps the frame meter");
+    Require(FindWindow("Training frame meter")->Pos.y+FindWindow("Training frame meter")->Size.y<=FindWindow("Replay strip")->Pos.y+1,"Replay strip overlaps the frame meter");
     // The "works during the fight" chip with the meter and the strip both shown: it meets neither and stays on screen.
     replay.unavailable=true;draw("replay-strip-unavailable-meter");
     {
@@ -59,7 +59,7 @@ void ShootReplayControls(sf4e::training::View& training,sf4e::ui::OverlayLayersV
             return a->Pos.x+a->Size.x<=b->Pos.x+.5f||b->Pos.x+b->Size.x<=a->Pos.x+.5f||a->Pos.y+a->Size.y<=b->Pos.y+.5f||b->Pos.y+b->Size.y<=a->Pos.y+.5f;
         };
         Require(apart(chip,meter),"The replay controls chip overlaps the frame meter");
-        KnownV2Gap(apart(chip,strip),"The replay controls chip overlaps the strip");
+        Require(apart(chip,strip),"The replay controls chip overlaps the strip");
         const auto* vp=ImGui::GetMainViewport();
         Require(chip->Pos.x>=vp->Pos.x&&chip->Pos.x+chip->Size.x<=vp->Pos.x+vp->Size.x&&chip->Pos.y>=vp->Pos.y&&chip->Pos.y+chip->Size.y<=vp->Pos.y+vp->Size.y,
             "The replay controls chip left the screen");

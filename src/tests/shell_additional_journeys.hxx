@@ -29,3 +29,4 @@ void ProblemReportJourneys();
 void SelectorPages();
 void SelectorFromHome();
 void DeveloperSelectors();
+void V2AuditJourneys();
