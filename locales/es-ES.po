@@ -234,9 +234,6 @@ msgstr "Recuperación"
 msgid "screen.updates"
 msgstr "Actualizaciones"
 
-msgid "updates.downloaded_mb"
-msgstr "Descargados {0:.1f} MB"
-
 msgid "updates.downloaded_of_mb"
 msgstr "Descargados {0:.1f} MB de {1:.1f} MB"
 
@@ -435,9 +432,6 @@ msgstr "Incluir fase"
 
 msgid "menu.hint.paste"
 msgstr "Pegar"
-
-msgid "menu.navigate"
-msgstr "Moverse"
 
 msgid "menu.adjust"
 msgstr "Ajustar"
@@ -717,12 +711,6 @@ msgstr "Vuelve a tu sala actual."
 
 msgid "home.fighter_select"
 msgstr "Selección de personaje"
-
-msgid "home.selection_costume_color"
-msgstr "Traje, color"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt. {0}"
@@ -1025,7 +1013,7 @@ msgid "replays.set_import_failed"
 msgstr "Ese archivo no es un paquete de set completo, así que no se ha importado nada."
 
 msgid "settings.training_auto_ready"
-msgstr "Ponerme listo al llamarme del Entrenamiento"
+msgstr "Listo automático desde Entrenamiento"
 
 msgid "settings.training_auto_ready_detail"
 msgstr "Cuando la sala te llama del entrenamiento, se te marca como listo al instante. Desactivado te da {0} segundos antes de perder tu asiento."
@@ -1608,47 +1596,14 @@ msgstr "Separación {0} / valores de ejemplo"
 msgid "match.preview_position"
 msgstr "Posición: {0}"
 
-msgid "card.player"
-msgstr "JUGADOR"
-
 msgid "card.choose_fighter"
 msgstr "Elige personaje"
-
-msgid "card.controller_ready"
-msgstr "MANDO LISTO"
-
-msgid "card.assign_controller"
-msgstr "ASIGNAR MANDO"
-
-msgid "card.wins"
-msgstr "{0}  VICT."
-
-msgid "card.no_wins"
-msgstr "-- VICT."
-
-msgid "card.losses"
-msgstr "{0}  DERROTAS"
-
-msgid "card.no_losses"
-msgstr "-- DERROTAS"
-
-msgid "card.no_win_rate"
-msgstr "-- % VICT."
-
-msgid "card.win_rate"
-msgstr "{0}% VICT."
 
 msgid "training.lab"
 msgstr "Entrenamiento"
 
-msgid "menu.back_to"
-msgstr "< Atrás / {0}"
-
 msgid "menu.return_to"
 msgstr "Volver a {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Menú de práctica"
@@ -2818,22 +2773,6 @@ msgstr "Miembros"
 msgid "room.member_count"
 msgstr "{0} / {1} miembros."
 
-msgid "room.hide_members"
-msgstr "Ocultar miembros"
-msgid "room.show_members"
-msgstr "Mostrar miembros"
-msgid "room.hide_chat"
-msgstr "Ocultar chat"
-msgid "room.show_chat"
-msgstr "Mostrar chat"
-msgid "room.part_detail"
-msgstr "Oculta esta parte de la columna o la vuelve a mostrar. Arrastra las líneas entre el tablero, los miembros y el chat para cambiar su tamaño."
-msgid "room.more"
-msgstr "Más…"
-msgid "room.more.detail"
-msgstr "Ajustes de la sala y su invitación."
-msgid "room.members_summary"
-msgstr "{0} jugando · {1} mirando"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -2939,9 +2878,6 @@ msgstr "La partida anterior aún está terminando. Podrás sustituir la sala cua
 msgid "room.updating"
 msgstr "Actualizando sala..."
 
-msgid "room.battle_slot"
-msgstr "MESA DE COMBATE {0}"
-
 msgid "room.table_name"
 msgstr "Nombre de la mesa"
 
@@ -2974,9 +2910,6 @@ msgstr "Guardar como plantilla"
 
 msgid "room.save_template.detail"
 msgstr "Guarda los ajustes de esta sala, y las reglas y el nombre de cada mesa, en este PC para Crear sala > Plantilla. El mismo nombre la sobrescribe."
-
-msgid "room.looking_for_fight"
-msgstr "Buscando rival"
 
 msgid "room.fighter_not_shared"
 msgstr "Personaje no revelado"
@@ -3019,9 +2952,6 @@ msgstr "CHAT"
 
 msgid "room.no_messages"
 msgstr "Aún no hay mensajes. Elige Chat para escribir."
-
-msgid "room.table_explanation"
-msgstr "{0} / Tú: {1}\nCola: {2} / Viendo: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Invitación copiada."
@@ -4851,9 +4781,6 @@ msgstr "Empieza la siguiente partida"
 msgid "postmatch.opponent_left"
 msgstr "{0} ha dejado el asiento"
 
-msgid "postmatch.seconds_left"
-msgstr "{0} s para elegir"
-
 msgid "postmatch.rematch"
 msgstr "Revancha"
 
@@ -4880,9 +4807,6 @@ msgstr "Volver a la sala"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Volver a la sala. Conservas tu asiento, sin Listo. No responder en 10 segundos hace lo mismo."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Deja tu asiento y mira desde la sala. No responder en 10 segundos hace lo mismo."
 
 msgid "postmatch.state.choosing"
 msgstr "Eligiendo"
@@ -5519,9 +5443,6 @@ msgstr "Reproducir"
 
 msgid "replays.controls.pause"
 msgstr "Pausa"
-
-msgid "replays.controls.paused"
-msgstr "En pausa"
 
 msgid "replays.controls.step"
 msgstr "Avanzar"
@@ -7384,9 +7305,6 @@ msgstr "Las clasificaciones salen de las partidas en salas públicas. Primero co
 msgid "rankings.loading"
 msgstr "Cargando tu clase..."
 
-msgid "rankings.your_class"
-msgstr "Tu clase"
-
 msgid "rankings.placing"
 msgstr "Calibrando"
 
@@ -7491,18 +7409,6 @@ msgstr "Emblemas de clase"
 
 msgid "settings.class_emblems_detail"
 msgstr "Muestra la clase de cada jugador junto a su nombre en las salas públicas. Desactivado las oculta solo en tu pantalla. Los demás siguen viendo la tuya y tus partidas siguen contando."
-
-msgid "settings.look"
-msgstr "Aspecto"
-
-msgid "settings.look.classic"
-msgstr "Clásico"
-
-msgid "settings.look.v2"
-msgstr "V2 (vista previa)"
-
-msgid "settings.look_detail"
-msgstr "El nuevo aspecto de Ember, todavía en desarrollo. Puedes volver cuando quieras: solo cambia cómo se ven las pantallas."
 
 msgid "settings.tv_mode"
 msgstr "Modo TV"
@@ -7882,24 +7788,6 @@ msgstr "Ember muestra en todas partes los dibujos de los botones de ese mando."
 
 msgid "welcome.controller_ready"
 msgstr "Listo: {0}."
-
-msgid "welcome.look_title"
-msgstr "¿Qué aspecto quieres?"
-
-msgid "welcome.look_text"
-msgstr "Puedes cambiarlo cuando quieras en Ajustes: solo cambia cómo se ven las pantallas."
-
-msgid "welcome.look_classic"
-msgstr "Clásico"
-
-msgid "welcome.look_classic_detail"
-msgstr "Los menús de Ember de siempre."
-
-msgid "welcome.look_v2"
-msgstr "V2 (vista previa)"
-
-msgid "welcome.look_v2_detail"
-msgstr "El nuevo aspecto de Ember, aún en desarrollo."
 
 msgid "welcome.chosen"
 msgstr "Elegido"

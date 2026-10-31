@@ -234,9 +234,6 @@ msgstr "Recovery"
 msgid "screen.updates"
 msgstr "Updates"
 
-msgid "updates.downloaded_mb"
-msgstr "Downloaded {0:.1f} MB"
-
 msgid "updates.downloaded_of_mb"
 msgstr "Downloaded {0:.1f} MB of {1:.1f} MB"
 
@@ -435,9 +432,6 @@ msgstr "Include stage"
 
 msgid "menu.hint.paste"
 msgstr "Paste"
-
-msgid "menu.navigate"
-msgstr "Navigate"
 
 msgid "menu.adjust"
 msgstr "Adjust"
@@ -695,7 +689,7 @@ msgid "controller.assign_title"
 msgstr "ASSIGN CONTROLLER"
 
 msgid "controller.cancel_assignment"
-msgstr "Cancel controller assignment"
+msgstr "Cancel assignment"
 
 msgid "controller.press_button"
 msgstr "Press a button on your chosen controller."
@@ -717,12 +711,6 @@ msgstr "Return to your current room."
 
 msgid "home.fighter_select"
 msgstr "Fighter select"
-
-msgid "home.selection_costume_color"
-msgstr "Costume, color"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt {0}"
@@ -947,7 +935,7 @@ msgid "replays.player"
 msgstr "{0} ({1})"
 
 msgid "replays.open_log"
-msgstr "Open the game's Battle Log"
+msgstr "Open the Battle Log"
 
 msgid "replays.open_log_detail"
 msgstr "Leaves Ember's menu for the game's Battle Log, where replays play."
@@ -1031,7 +1019,7 @@ msgid "settings.training_auto_ready_detail"
 msgstr "When the room calls you back from Training, you are readied at once. Off gives you {0} seconds to ready before you lose your seat."
 
 msgid "settings.match_frame_meter"
-msgstr "Frame meter in matches"
+msgstr "Match frame meter"
 
 msgid "settings.match_frame_meter_detail"
 msgstr "Shows the frame meter over online matches you play or watch. Only you see it. It can trail the fight by a few frames."
@@ -1608,47 +1596,14 @@ msgstr "{0} spacing / sample values"
 msgid "match.preview_position"
 msgstr "Position: {0}"
 
-msgid "card.player"
-msgstr "PLAYER"
-
 msgid "card.choose_fighter"
 msgstr "Choose your fighter"
-
-msgid "card.controller_ready"
-msgstr "CONTROLLER READY"
-
-msgid "card.assign_controller"
-msgstr "ASSIGN CONTROLLER"
-
-msgid "card.wins"
-msgstr "{0}  WINS"
-
-msgid "card.no_wins"
-msgstr "-- WINS"
-
-msgid "card.losses"
-msgstr "{0}  LOSSES"
-
-msgid "card.no_losses"
-msgstr "-- LOSSES"
-
-msgid "card.no_win_rate"
-msgstr "-- WIN %"
-
-msgid "card.win_rate"
-msgstr "{0}% WIN"
 
 msgid "training.lab"
 msgstr "Training lab"
 
-msgid "menu.back_to"
-msgstr "< Back / {0}"
-
 msgid "menu.return_to"
 msgstr "Return to {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Training controls"
@@ -2722,22 +2677,6 @@ msgid "room.members"
 msgstr "Members"
 msgid "room.member_count"
 msgstr "{0} / {1} members."
-msgid "room.hide_members"
-msgstr "Hide members"
-msgid "room.show_members"
-msgstr "Show members"
-msgid "room.hide_chat"
-msgstr "Hide chat"
-msgid "room.show_chat"
-msgstr "Show chat"
-msgid "room.part_detail"
-msgstr "Hides this part of the column or brings it back. Drag the lines between the board, the members and the chat to resize them."
-msgid "room.more"
-msgstr "More…"
-msgid "room.more.detail"
-msgstr "Room settings and the room's invitation."
-msgid "room.members_summary"
-msgstr "{0} playing · {1} watching"
 msgid "room.chat"
 msgstr "Chat"
 msgid "room.chat.detail"
@@ -2811,10 +2750,6 @@ msgid "room.replace.waiting"
 msgstr "The previous match is still closing. Replacement will be available when it finishes."
 msgid "room.updating"
 msgstr "Updating room..."
-msgid "room.battle_slot"
-msgstr "BATTLE SLOT {0}"
-msgid "room.looking_for_fight"
-msgstr "Looking for a fight"
 msgid "room.fighter_not_shared"
 msgstr "Fighter not shared"
 msgid "room.suffix_you"
@@ -2843,8 +2778,6 @@ msgid "room.chat_heading"
 msgstr "CHAT"
 msgid "room.no_messages"
 msgstr "No messages yet. Select Chat to compose."
-msgid "room.table_explanation"
-msgstr "{0} / You: {1}\nQueue: {2} / Watching: {3}"
 msgid "room.invitation_copied"
 msgstr "Invitation copied."
 msgid "room.short_invitation_copied"
@@ -4482,9 +4415,6 @@ msgstr "Starting the next game"
 msgid "postmatch.opponent_left"
 msgstr "{0} left the seat"
 
-msgid "postmatch.seconds_left"
-msgstr "{0} s to choose"
-
 msgid "postmatch.rematch"
 msgstr "Rematch"
 
@@ -4511,9 +4441,6 @@ msgstr "Back to room"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Back to the room. You keep your seat, not ready. No answer in 10 seconds does the same."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Leave your seat and watch from the room. No answer in 10 seconds does the same."
 
 msgid "postmatch.state.choosing"
 msgstr "Choosing"
@@ -4924,7 +4851,7 @@ msgid "speech.volume_detail"
 msgstr "How loud the voice speaks."
 
 msgid "speech.details"
-msgstr "Read descriptions automatically"
+msgstr "Auto-read descriptions"
 
 msgid "speech.details_detail"
 msgstr "Reads a row's description by itself once you stay on it for a moment. Off, F2 reads it when you ask."
@@ -5150,9 +5077,6 @@ msgstr "Play"
 
 msgid "replays.controls.pause"
 msgstr "Pause"
-
-msgid "replays.controls.paused"
-msgstr "Paused"
 
 msgid "replays.controls.step"
 msgstr "Step"
@@ -5897,7 +5821,7 @@ msgid "button_layout.focus"
 msgstr "Focus attack (MP+MK)"
 
 msgid "button_layout.red_focus"
-msgstr "Red Focus attack (LP+MP+MK)"
+msgstr "Red Focus (LP+MP+MK)"
 
 msgid "button_layout.row_detail"
 msgstr "Select, then press the button you want for {0}. If another button has it, the two buttons swap."
@@ -7016,9 +6940,6 @@ msgstr "Rankings come from public room games. Set up public rooms first."
 msgid "rankings.loading"
 msgstr "Loading your class..."
 
-msgid "rankings.your_class"
-msgstr "Your class"
-
 msgid "rankings.placing"
 msgstr "Placing"
 
@@ -7123,18 +7044,6 @@ msgstr "Class emblems"
 
 msgid "settings.class_emblems_detail"
 msgstr "Shows each player's class beside their name in public rooms. Off hides them on your screen only. Others still see yours, and your games still count."
-
-msgid "settings.look"
-msgstr "Look"
-
-msgid "settings.look.classic"
-msgstr "Classic"
-
-msgid "settings.look.v2"
-msgstr "V2 (preview)"
-
-msgid "settings.look_detail"
-msgstr "Ember's new look, still being built. Switch back at any time: only how screens look changes."
 
 msgid "settings.tv_mode"
 msgstr "TV mode"
@@ -7513,24 +7422,6 @@ msgstr "Ember shows that controller's button pictures everywhere."
 
 msgid "welcome.controller_ready"
 msgstr "Ready: {0}."
-
-msgid "welcome.look_title"
-msgstr "Which look do you want?"
-
-msgid "welcome.look_text"
-msgstr "You can switch at any time in Settings: only how screens look changes."
-
-msgid "welcome.look_classic"
-msgstr "Classic"
-
-msgid "welcome.look_classic_detail"
-msgstr "Ember's menus as they have always been."
-
-msgid "welcome.look_v2"
-msgstr "V2 (preview)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Ember's new look, still being built."
 
 msgid "welcome.chosen"
 msgstr "Chosen"

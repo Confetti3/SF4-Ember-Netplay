@@ -234,9 +234,6 @@ msgstr "Obnovení"
 msgid "screen.updates"
 msgstr "Aktualizace"
 
-msgid "updates.downloaded_mb"
-msgstr "Staženo {0:.1f} MB"
-
 msgid "updates.downloaded_of_mb"
 msgstr "Staženo {0:.1f} MB z {1:.1f} MB"
 
@@ -435,9 +432,6 @@ msgstr "Zařadit scénu"
 
 msgid "menu.hint.paste"
 msgstr "Vložit"
-
-msgid "menu.navigate"
-msgstr "Pohyb"
 
 msgid "menu.adjust"
 msgstr "Upravit"
@@ -717,12 +711,6 @@ msgstr "Vrátit se do aktuální místnosti."
 
 msgid "home.fighter_select"
 msgstr "Výběr postavy"
-
-msgid "home.selection_costume_color"
-msgstr "Kostým, barva"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt. {0}"
@@ -1608,47 +1596,14 @@ msgstr "Odstup {0} / vzorové hodnoty"
 msgid "match.preview_position"
 msgstr "Pozice: {0}"
 
-msgid "card.player"
-msgstr "HRÁČ"
-
 msgid "card.choose_fighter"
 msgstr "Vyberte postavu"
-
-msgid "card.controller_ready"
-msgstr "OVLADAČ PŘIPRAVEN"
-
-msgid "card.assign_controller"
-msgstr "PŘIŘADIT OVLADAČ"
-
-msgid "card.wins"
-msgstr "VÝHRY: {0}"
-
-msgid "card.no_wins"
-msgstr "VÝHRY: --"
-
-msgid "card.losses"
-msgstr "PROHRY: {0}"
-
-msgid "card.no_losses"
-msgstr "PROHRY: --"
-
-msgid "card.no_win_rate"
-msgstr "VÝHRY: -- %"
-
-msgid "card.win_rate"
-msgstr "VÝHRY: {0} %"
 
 msgid "training.lab"
 msgstr "Trénink"
 
-msgid "menu.back_to"
-msgstr "< Zpět / {0}"
-
 msgid "menu.return_to"
 msgstr "Zpět do: {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Ovládání tréninku"
@@ -1657,7 +1612,7 @@ msgid "training.hide_hint"
 msgstr "Skrýt HUD"
 
 msgid "training.controls_chip"
-msgstr "Ovládání tréninku"
+msgstr "Ovládání"
 
 msgid "training.pad_hint"
 msgstr "Klepnutí obnoví, podržení uloží"
@@ -2817,22 +2772,6 @@ msgstr "Členové"
 msgid "room.member_count"
 msgstr "Členové: {0} / {1}."
 
-msgid "room.hide_members"
-msgstr "Skrýt členy"
-msgid "room.show_members"
-msgstr "Zobrazit členy"
-msgid "room.hide_chat"
-msgstr "Skrýt chat"
-msgid "room.show_chat"
-msgstr "Zobrazit chat"
-msgid "room.part_detail"
-msgstr "Skryje tuto část sloupce nebo ji vrátí. Tažením čar mezi deskou, členy a chatem změníte jejich velikost."
-msgid "room.more"
-msgstr "Další…"
-msgid "room.more.detail"
-msgstr "Nastavení místnosti a pozvánka do ní."
-msgid "room.members_summary"
-msgstr "{0} hraje · {1} sleduje"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -2938,9 +2877,6 @@ msgstr "Předchozí zápas se stále uzavírá. Místnost bude možné nahradit 
 msgid "room.updating"
 msgstr "Úprava místnosti..."
 
-msgid "room.battle_slot"
-msgstr "BOJOVÝ STŮL {0}"
-
 msgid "room.table_name"
 msgstr "Název stolu"
 
@@ -2973,9 +2909,6 @@ msgstr "Uložit jako šablonu"
 
 msgid "room.save_template.detail"
 msgstr "Uloží nastavení této místnosti a pravidla a název každého stolu na tomto PC pro Vytvořit místnost > Šablona. Stejný název ji přepíše."
-
-msgid "room.looking_for_fight"
-msgstr "Hledá se souboj"
 
 msgid "room.fighter_not_shared"
 msgstr "Postava zatím neznámá"
@@ -3018,9 +2951,6 @@ msgstr "CHAT"
 
 msgid "room.no_messages"
 msgstr "Zatím žádné zprávy. Vyberte Chat a napište zprávu."
-
-msgid "room.table_explanation"
-msgstr "{0} / Vy: {1}\nFronta: {2} / Sleduje: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Pozvánka zkopírována."
@@ -4850,9 +4780,6 @@ msgstr "Další hra začíná"
 msgid "postmatch.opponent_left"
 msgstr "{0}: místo uvolněno"
 
-msgid "postmatch.seconds_left"
-msgstr "Na výběr zbývá: {0} s"
-
 msgid "postmatch.rematch"
 msgstr "Odveta"
 
@@ -4879,9 +4806,6 @@ msgstr "Zpět do místnosti"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Zpět do místnosti. Místo ti zůstane, bez připravenosti. Žádná odpověď do 10 sekund udělá totéž."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Uvolni místo a sleduj z místnosti. Žádná odpověď do 10 sekund udělá totéž."
 
 msgid "postmatch.state.choosing"
 msgstr "Vybírá"
@@ -5043,7 +4967,7 @@ msgid "public.filter_label"
 msgstr "Zobrazit: {0}"
 
 msgid "public.filter.all"
-msgstr "Všechny místnosti"
+msgstr "Všechny"
 
 msgid "public.filter.near"
 msgstr "Poblíž"
@@ -5518,9 +5442,6 @@ msgstr "Přehrát"
 
 msgid "replays.controls.pause"
 msgstr "Pozastavit"
-
-msgid "replays.controls.paused"
-msgstr "Pozastaveno"
 
 msgid "replays.controls.step"
 msgstr "Krok"
@@ -7383,9 +7304,6 @@ msgstr "Žebříčky vycházejí ze her ve veřejných místnostech. Nejdřív n
 msgid "rankings.loading"
 msgstr "Načítání vaší třídy..."
 
-msgid "rankings.your_class"
-msgstr "Vaše třída"
-
 msgid "rankings.placing"
 msgstr "Zařazování"
 
@@ -7490,18 +7408,6 @@ msgstr "Emblémy tříd"
 
 msgid "settings.class_emblems_detail"
 msgstr "Zobrazuje třídu každého hráče u jeho jména ve veřejných místnostech. Vypnutí je skryje jen na vaší obrazovce. Ostatní vaši třídu stále vidí a vaše hry se stále počítají."
-
-msgid "settings.look"
-msgstr "Vzhled"
-
-msgid "settings.look.classic"
-msgstr "Klasický"
-
-msgid "settings.look.v2"
-msgstr "V2 (náhled)"
-
-msgid "settings.look_detail"
-msgstr "Nový vzhled Emberu, který ještě vzniká. Kdykoli můžete přepnout zpět: mění se jen vzhled obrazovek."
 
 msgid "settings.tv_mode"
 msgstr "Režim TV"
@@ -7881,24 +7787,6 @@ msgstr "Ember všude ukazuje obrázky tlačítek tohoto ovladače."
 
 msgid "welcome.controller_ready"
 msgstr "Připraveno: {0}."
-
-msgid "welcome.look_title"
-msgstr "Jaký vzhled chcete?"
-
-msgid "welcome.look_text"
-msgstr "Kdykoli to můžete přepnout v Nastavení: mění se jen vzhled obrazovek."
-
-msgid "welcome.look_classic"
-msgstr "Klasický"
-
-msgid "welcome.look_classic_detail"
-msgstr "Nabídky Emberu tak, jak byly vždy."
-
-msgid "welcome.look_v2"
-msgstr "V2 (náhled)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Nový vzhled Emberu, stále ve vývoji."
 
 msgid "welcome.chosen"
 msgstr "Zvoleno"

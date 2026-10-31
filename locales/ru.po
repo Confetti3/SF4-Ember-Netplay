@@ -234,9 +234,6 @@ msgstr "Восстановление"
 msgid "screen.updates"
 msgstr "Обновления"
 
-msgid "updates.downloaded_mb"
-msgstr "Загружено: {0:.1f} МБ"
-
 msgid "updates.downloaded_of_mb"
 msgstr "Загружено: {0:.1f} из {1:.1f} МБ"
 
@@ -435,9 +432,6 @@ msgstr "Включить арену"
 
 msgid "menu.hint.paste"
 msgstr "Вставить"
-
-msgid "menu.navigate"
-msgstr "Перемещение"
 
 msgid "menu.adjust"
 msgstr "Настроить"
@@ -717,12 +711,6 @@ msgstr "Вернуться в текущее лобби"
 
 msgid "home.fighter_select"
 msgstr "Выбор бойца"
-
-msgid "home.selection_costume_color"
-msgstr "Костюм, цвет"
-
-msgid "home.selection_ultra"
-msgstr "Ультра"
 
 msgid "home.selection_alternate"
 msgstr "Альт. {0}"
@@ -1608,47 +1596,14 @@ msgstr "Отступ: {0} / пример значений"
 msgid "match.preview_position"
 msgstr "Положение: {0}"
 
-msgid "card.player"
-msgstr "ИГРОК"
-
 msgid "card.choose_fighter"
 msgstr "Выберите бойца"
-
-msgid "card.controller_ready"
-msgstr "КОНТРОЛЛЕР ГОТОВ"
-
-msgid "card.assign_controller"
-msgstr "НАЗНАЧИТЬ КОНТРОЛЛЕР"
-
-msgid "card.wins"
-msgstr "ПОБЕД: {0}"
-
-msgid "card.no_wins"
-msgstr "ПОБЕД: --"
-
-msgid "card.losses"
-msgstr "ПОРАЖЕНИЙ: {0}"
-
-msgid "card.no_losses"
-msgstr "ПОРАЖЕНИЙ: --"
-
-msgid "card.no_win_rate"
-msgstr "ПОБЕД: --%"
-
-msgid "card.win_rate"
-msgstr "ПОБЕД: {0}%"
 
 msgid "training.lab"
 msgstr "Тренировка"
 
-msgid "menu.back_to"
-msgstr "< Назад / {0}"
-
 msgid "menu.return_to"
 msgstr "Вернуться: {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Управление тренировкой"
@@ -1657,7 +1612,7 @@ msgid "training.hide_hint"
 msgstr "Скрыть HUD"
 
 msgid "training.controls_chip"
-msgstr "Меню тренировки"
+msgstr "Меню"
 
 msgid "training.pad_hint"
 msgstr "Нажать: вернуть, держать: сохранить"
@@ -2817,22 +2772,6 @@ msgstr "Участники"
 msgid "room.member_count"
 msgstr "Участников: {0} / {1}."
 
-msgid "room.hide_members"
-msgstr "Скрыть участников"
-msgid "room.show_members"
-msgstr "Показать участников"
-msgid "room.hide_chat"
-msgstr "Скрыть чат"
-msgid "room.show_chat"
-msgstr "Показать чат"
-msgid "room.part_detail"
-msgstr "Скрывает эту часть колонки или возвращает её. Перетащите линии между доской, участниками и чатом, чтобы изменить их размер."
-msgid "room.more"
-msgstr "Ещё…"
-msgid "room.more.detail"
-msgstr "Настройки комнаты и приглашение в неё."
-msgid "room.members_summary"
-msgstr "{0} играют · {1} смотрят"
 msgid "room.chat"
 msgstr "Чат"
 
@@ -2938,9 +2877,6 @@ msgstr "Прошлый матч ещё закрывается. Замена ст
 msgid "room.updating"
 msgstr "Обновление лобби..."
 
-msgid "room.battle_slot"
-msgstr "ЯЧЕЙКА БОЯ {0}"
-
 msgid "room.table_name"
 msgstr "Название стола"
 
@@ -2973,9 +2909,6 @@ msgstr "Сохранить как шаблон"
 
 msgid "room.save_template.detail"
 msgstr "Сохраняет настройки этой комнаты, а также правила и название каждого стола, на этом ПК для «Создать комнату > Шаблон». То же имя перезаписывает его."
-
-msgid "room.looking_for_fight"
-msgstr "Ищет бой"
 
 msgid "room.fighter_not_shared"
 msgstr "Боец не показан"
@@ -3018,9 +2951,6 @@ msgstr "ЧАТ"
 
 msgid "room.no_messages"
 msgstr "Сообщений пока нет. Выберите «Чат», чтобы написать."
-
-msgid "room.table_explanation"
-msgstr "{0} / Вы: {1}\nОчередь: {2} / Зрители: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Приглашение скопировано."
@@ -4850,9 +4780,6 @@ msgstr "Следующая игра начинается"
 msgid "postmatch.opponent_left"
 msgstr "{0}: не за столом"
 
-msgid "postmatch.seconds_left"
-msgstr "Осталось на выбор: {0} с"
-
 msgid "postmatch.rematch"
 msgstr "Реванш"
 
@@ -4879,9 +4806,6 @@ msgstr "Назад в комнату"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Назад в комнату. Место остаётся за вами, без готовности. Без ответа за 10 секунд будет так же."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Встаньте и смотрите из комнаты. Без ответа за 10 секунд будет так же."
 
 msgid "postmatch.state.choosing"
 msgstr "Выбирает"
@@ -5518,9 +5442,6 @@ msgstr "Пуск"
 
 msgid "replays.controls.pause"
 msgstr "Пауза"
-
-msgid "replays.controls.paused"
-msgstr "На паузе"
 
 msgid "replays.controls.step"
 msgstr "Шаг"
@@ -7383,9 +7304,6 @@ msgstr "Рейтинги строятся по играм в открытых л
 msgid "rankings.loading"
 msgstr "Загрузка вашего класса..."
 
-msgid "rankings.your_class"
-msgstr "Ваш класс"
-
 msgid "rankings.placing"
 msgstr "Определяется"
 
@@ -7490,18 +7408,6 @@ msgstr "Эмблемы классов"
 
 msgid "settings.class_emblems_detail"
 msgstr "Показывает класс каждого игрока рядом с его именем в открытых лобби. Если выключено, они скрыты только на вашем экране. Другие по-прежнему видят ваш класс, и ваши игры засчитываются."
-
-msgid "settings.look"
-msgstr "Внешний вид"
-
-msgid "settings.look.classic"
-msgstr "Классический"
-
-msgid "settings.look.v2"
-msgstr "V2 (предпросмотр)"
-
-msgid "settings.look_detail"
-msgstr "Новый внешний вид Ember, он ещё в работе. Вернуться можно в любой момент: меняется только вид экранов."
 
 msgid "settings.tv_mode"
 msgstr "Режим ТВ"
@@ -7881,24 +7787,6 @@ msgstr "Ember везде показывает кнопки этого контр
 
 msgid "welcome.controller_ready"
 msgstr "Готов: {0}."
-
-msgid "welcome.look_title"
-msgstr "Какой вид вам нужен?"
-
-msgid "welcome.look_text"
-msgstr "Переключить можно в любой момент в настройках: меняется только вид экранов."
-
-msgid "welcome.look_classic"
-msgstr "Классический"
-
-msgid "welcome.look_classic_detail"
-msgstr "Меню Ember, как всегда."
-
-msgid "welcome.look_v2"
-msgstr "V2 (предпросмотр)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Новый вид Ember, ещё в разработке."
 
 msgid "welcome.chosen"
 msgstr "Выбрано"

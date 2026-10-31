@@ -23,7 +23,7 @@ Ember offers the languages USF4 itself supports, plus Latin American Spanish:
 
 ## Adding text
 
-- Use a dotted ID that describes ownership and purpose, such as `room.copy_invitation` or `updates.downloaded_mb`.
+- Use a dotted ID that describes ownership and purpose, such as `room.copy_invitation` or `updates.channel`.
 - Add the same ID with a non-empty `msgstr` to `en.po` and to every other catalog here, in the same position.
 - Reference IDs as string literals in `T("area.key")` or `Tf("area.key", ...)` so the source-coverage test can find them.
 - Use positional `{0}`, `{1}`, and later placeholders. Every translation must preserve the English placeholder set. Do not use printf placeholders.

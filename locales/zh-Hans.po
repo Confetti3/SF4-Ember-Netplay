@@ -234,9 +234,6 @@ msgstr "恢复"
 msgid "screen.updates"
 msgstr "更新"
 
-msgid "updates.downloaded_mb"
-msgstr "已下载 {0:.1f} MB"
-
 msgid "updates.downloaded_of_mb"
 msgstr "已下载 {0:.1f} MB / {1:.1f} MB"
 
@@ -435,9 +432,6 @@ msgstr "加入场地"
 
 msgid "menu.hint.paste"
 msgstr "粘贴"
-
-msgid "menu.navigate"
-msgstr "导航"
 
 msgid "menu.adjust"
 msgstr "调整"
@@ -717,12 +711,6 @@ msgstr "返回当前房间。"
 
 msgid "home.fighter_select"
 msgstr "角色选择"
-
-msgid "home.selection_costume_color"
-msgstr "服装、颜色"
-
-msgid "home.selection_ultra"
-msgstr "终极组合"
 
 msgid "home.selection_alternate"
 msgstr "替换版 {0}"
@@ -1608,47 +1596,14 @@ msgstr "{0} 间距／示例数值"
 msgid "match.preview_position"
 msgstr "位置：{0}"
 
-msgid "card.player"
-msgstr "玩家"
-
 msgid "card.choose_fighter"
 msgstr "选择角色"
-
-msgid "card.controller_ready"
-msgstr "控制器就绪"
-
-msgid "card.assign_controller"
-msgstr "分配控制器"
-
-msgid "card.wins"
-msgstr "{0} 胜"
-
-msgid "card.no_wins"
-msgstr "-- 胜"
-
-msgid "card.losses"
-msgstr "{0} 负"
-
-msgid "card.no_losses"
-msgstr "-- 负"
-
-msgid "card.no_win_rate"
-msgstr "-- 胜率"
-
-msgid "card.win_rate"
-msgstr "胜率 {0}%"
 
 msgid "training.lab"
 msgstr "训练室"
 
-msgid "menu.back_to"
-msgstr "< 返回／{0}"
-
 msgid "menu.return_to"
 msgstr "返回{0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "训练操作"
@@ -2818,22 +2773,6 @@ msgstr "成员"
 msgid "room.member_count"
 msgstr "成员：{0}／{1}。"
 
-msgid "room.hide_members"
-msgstr "隐藏成员"
-msgid "room.show_members"
-msgstr "显示成员"
-msgid "room.hide_chat"
-msgstr "隐藏聊天"
-msgid "room.show_chat"
-msgstr "显示聊天"
-msgid "room.part_detail"
-msgstr "隐藏这一部分或让它回来。用鼠标移动面板、成员和聊天之间的线，可改变它们的大小。"
-msgid "room.more"
-msgstr "更多…"
-msgid "room.more.detail"
-msgstr "房间设置和房间邀请。"
-msgid "room.members_summary"
-msgstr "{0} 人对战中 · {1} 人观战"
 msgid "room.chat"
 msgstr "聊天"
 
@@ -2939,9 +2878,6 @@ msgstr "上一场对战仍在关闭，完成后即可重建。"
 msgid "room.updating"
 msgstr "正在更新房间..."
 
-msgid "room.battle_slot"
-msgstr "对战位 {0}"
-
 msgid "room.table_name"
 msgstr "桌名"
 
@@ -2974,9 +2910,6 @@ msgstr "另存为模板"
 
 msgid "room.save_template.detail"
 msgstr "将此房间的设置以及每张桌子的规则和名称保存在这台电脑上，供“创建房间 > 模板”使用。同名会覆盖。"
-
-msgid "room.looking_for_fight"
-msgstr "寻找对手"
 
 msgid "room.fighter_not_shared"
 msgstr "角色未共享"
@@ -3019,9 +2952,6 @@ msgstr "聊天"
 
 msgid "room.no_messages"
 msgstr "暂无消息。选择聊天以编写。"
-
-msgid "room.table_explanation"
-msgstr "{0}／您：{1}\n排队：{2}／观战：{3}"
 
 msgid "room.invitation_copied"
 msgstr "邀请已复制。"
@@ -4851,9 +4781,6 @@ msgstr "下一局即将开始"
 msgid "postmatch.opponent_left"
 msgstr "{0} 离开了席位"
 
-msgid "postmatch.seconds_left"
-msgstr "剩余 {0} 秒"
-
 msgid "postmatch.rematch"
 msgstr "再战"
 
@@ -4880,9 +4807,6 @@ msgstr "返回房间"
 
 msgid "postmatch.back.keep_seat"
 msgstr "返回房间。保留你的席位，未准备。10 秒内不回应效果相同。"
-
-msgid "postmatch.back.leave_seat"
-msgstr "离开席位，在房间里观战。10 秒内不回应效果相同。"
 
 msgid "postmatch.state.choosing"
 msgstr "选择中"
@@ -5519,9 +5443,6 @@ msgstr "播放"
 
 msgid "replays.controls.pause"
 msgstr "暂停"
-
-msgid "replays.controls.paused"
-msgstr "已暂停"
 
 msgid "replays.controls.step"
 msgstr "逐帧"
@@ -7384,9 +7305,6 @@ msgstr "排行榜来自公开房间的对战。请先设置公开房间。"
 msgid "rankings.loading"
 msgstr "正在加载你的等级..."
 
-msgid "rankings.your_class"
-msgstr "你的等级"
-
 msgid "rankings.placing"
 msgstr "定级中"
 
@@ -7491,18 +7409,6 @@ msgstr "等级徽章"
 
 msgid "settings.class_emblems_detail"
 msgstr "在公开房间中，于每位玩家名字旁显示其等级。关闭后仅在你的屏幕上隐藏。其他人仍能看到你的等级，你的对战也仍会计入。"
-
-msgid "settings.look"
-msgstr "外观"
-
-msgid "settings.look.classic"
-msgstr "经典"
-
-msgid "settings.look.v2"
-msgstr "V2（预览）"
-
-msgid "settings.look_detail"
-msgstr "Ember 正在制作中的新外观。可随时切换回去：只改变界面的样子。"
 
 msgid "settings.tv_mode"
 msgstr "电视模式"
@@ -7882,24 +7788,6 @@ msgstr "Ember 会在各处显示该控制器的按钮图示。"
 
 msgid "welcome.controller_ready"
 msgstr "已就绪：{0}。"
-
-msgid "welcome.look_title"
-msgstr "你想要哪种外观？"
-
-msgid "welcome.look_text"
-msgstr "你可以随时在设置中切换：只会改变画面的外观。"
-
-msgid "welcome.look_classic"
-msgstr "经典"
-
-msgid "welcome.look_classic_detail"
-msgstr "一如既往的 Ember 菜单。"
-
-msgid "welcome.look_v2"
-msgstr "V2（预览）"
-
-msgid "welcome.look_v2_detail"
-msgstr "Ember 的新外观，仍在制作中。"
 
 msgid "welcome.chosen"
 msgstr "已选择"

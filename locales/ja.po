@@ -234,9 +234,6 @@ msgstr "復旧"
 msgid "screen.updates"
 msgstr "アップデート"
 
-msgid "updates.downloaded_mb"
-msgstr "{0:.1f} MBダウンロード済み"
-
 msgid "updates.downloaded_of_mb"
 msgstr "{1:.1f} MB中 {0:.1f} MBダウンロード済み"
 
@@ -435,9 +432,6 @@ msgstr "ステージを含める"
 
 msgid "menu.hint.paste"
 msgstr "貼り付け"
-
-msgid "menu.navigate"
-msgstr "移動"
 
 msgid "menu.adjust"
 msgstr "調整"
@@ -717,12 +711,6 @@ msgstr "現在のルームに戻る"
 
 msgid "home.fighter_select"
 msgstr "キャラクター選択"
-
-msgid "home.selection_costume_color"
-msgstr "コスチューム・カラー"
-
-msgid "home.selection_ultra"
-msgstr "ウルトラ"
 
 msgid "home.selection_alternate"
 msgstr "アレンジ{0}"
@@ -1025,7 +1013,7 @@ msgid "replays.set_import_failed"
 msgstr "このファイルは完全なセットパックではないため、何も読み込まれませんでした。"
 
 msgid "settings.training_auto_ready"
-msgstr "トレーニングから呼ばれたら自動で準備完了"
+msgstr "トレーニングから呼ばれたら自動準備完了"
 
 msgid "settings.training_auto_ready_detail"
 msgstr "ルームがトレーニングから呼び戻すと、すぐに準備完了にします。オフでは、席を失うまでに{0}秒の準備時間があります。"
@@ -1608,47 +1596,14 @@ msgstr "余白{0} / サンプル値"
 msgid "match.preview_position"
 msgstr "位置: {0}"
 
-msgid "card.player"
-msgstr "プレイヤー"
-
 msgid "card.choose_fighter"
 msgstr "キャラを選択"
-
-msgid "card.controller_ready"
-msgstr "コントローラー準備完了"
-
-msgid "card.assign_controller"
-msgstr "コントローラーを割り当て"
-
-msgid "card.wins"
-msgstr "{0}勝"
-
-msgid "card.no_wins"
-msgstr "--勝"
-
-msgid "card.losses"
-msgstr "{0}敗"
-
-msgid "card.no_losses"
-msgstr "--敗"
-
-msgid "card.no_win_rate"
-msgstr "勝率--%"
-
-msgid "card.win_rate"
-msgstr "勝率{0}%"
 
 msgid "training.lab"
 msgstr "トレーニングラボ"
 
-msgid "menu.back_to"
-msgstr "< 戻る / {0}"
-
 msgid "menu.return_to"
 msgstr "{0}に戻る"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "トレーニング操作"
@@ -1657,7 +1612,7 @@ msgid "training.hide_hint"
 msgstr "HUDを隠す"
 
 msgid "training.controls_chip"
-msgstr "トレーニング操作"
+msgstr "操作"
 
 msgid "training.pad_hint"
 msgstr "押す：位置を戻す　長押し：保存"
@@ -2818,22 +2773,6 @@ msgstr "メンバー"
 msgid "room.member_count"
 msgstr "メンバー{0}/{1}人。"
 
-msgid "room.hide_members"
-msgstr "メンバーを隠す"
-msgid "room.show_members"
-msgstr "メンバーを表示"
-msgid "room.hide_chat"
-msgstr "チャットを隠す"
-msgid "room.show_chat"
-msgstr "チャットを表示"
-msgid "room.part_detail"
-msgstr "列のこの部分を隠すか、元に戻します。ボード、メンバー、チャットの間の線をドラッグすると大きさを変えられます。"
-msgid "room.more"
-msgstr "その他…"
-msgid "room.more.detail"
-msgstr "ルームの設定と招待。"
-msgid "room.members_summary"
-msgstr "{0} 人がプレイ中 · {1} 人が観戦中"
 msgid "room.chat"
 msgstr "チャット"
 
@@ -2939,9 +2878,6 @@ msgstr "前の対戦を終了中です。完了するとルームを作り直せ
 msgid "room.updating"
 msgstr "ルームを更新中..."
 
-msgid "room.battle_slot"
-msgstr "対戦席{0}"
-
 msgid "room.table_name"
 msgstr "テーブル名"
 
@@ -2974,9 +2910,6 @@ msgstr "テンプレートとして保存"
 
 msgid "room.save_template.detail"
 msgstr "このルームの設定と各テーブルのルール・名前を、ルーム作成 > テンプレート用にこのPCに保存します。同じ名前なら上書きします。"
-
-msgid "room.looking_for_fight"
-msgstr "対戦相手を募集中"
 
 msgid "room.fighter_not_shared"
 msgstr "キャラは非公開"
@@ -3019,9 +2952,6 @@ msgstr "チャット"
 
 msgid "room.no_messages"
 msgstr "メッセージはまだありません。チャットを選んで入力してください。"
-
-msgid "room.table_explanation"
-msgstr "{0} / あなた：{1}\n順番待ち：{2} / 観戦：{3}"
 
 msgid "room.invitation_copied"
 msgstr "招待をコピーしました。"
@@ -4851,9 +4781,6 @@ msgstr "次の試合を開始"
 msgid "postmatch.opponent_left"
 msgstr "{0}が席を離れました"
 
-msgid "postmatch.seconds_left"
-msgstr "残り{0}秒"
-
 msgid "postmatch.rematch"
 msgstr "再戦"
 
@@ -4880,9 +4807,6 @@ msgstr "ルームに戻る"
 
 msgid "postmatch.back.keep_seat"
 msgstr "ルームに戻ります。席はそのまま、準備完了ではありません。10秒間応答がなくても同じです。"
-
-msgid "postmatch.back.leave_seat"
-msgstr "席を離れてルームから観戦します。10秒間応答がなくても同じです。"
 
 msgid "postmatch.state.choosing"
 msgstr "選択中"
@@ -5044,7 +4968,7 @@ msgid "public.filter_label"
 msgstr "表示：{0}"
 
 msgid "public.filter.all"
-msgstr "すべてのルーム"
+msgstr "全ルーム"
 
 msgid "public.filter.near"
 msgstr "近く"
@@ -5446,7 +5370,7 @@ msgid "room.arcade_waiting"
 msgstr "待機中"
 
 msgid "room.cabinet_free"
-msgstr "コインを入れてください"
+msgstr "コイン投入"
 
 msgid "room.type.king"
 msgstr "キング・オブ・ザ・ヒル"
@@ -5519,9 +5443,6 @@ msgstr "再生"
 
 msgid "replays.controls.pause"
 msgstr "一時停止"
-
-msgid "replays.controls.paused"
-msgstr "一時停止中"
 
 msgid "replays.controls.step"
 msgstr "コマ送り"
@@ -7384,9 +7305,6 @@ msgstr "ランキングは公開ルームの対戦で決まります。先に公
 msgid "rankings.loading"
 msgstr "クラスを読み込み中..."
 
-msgid "rankings.your_class"
-msgstr "あなたのクラス"
-
 msgid "rankings.placing"
 msgstr "判定中"
 
@@ -7491,18 +7409,6 @@ msgstr "クラスエンブレム"
 
 msgid "settings.class_emblems_detail"
 msgstr "公開ルームで各プレイヤーの名前の横にクラスを表示します。オフにすると自分の画面でのみ非表示になります。ほかの人にはあなたのクラスが表示され、対戦もカウントされます。"
-
-msgid "settings.look"
-msgstr "外観"
-
-msgid "settings.look.classic"
-msgstr "クラシック"
-
-msgid "settings.look.v2"
-msgstr "V2（プレビュー）"
-
-msgid "settings.look_detail"
-msgstr "制作中の Ember の新しい外観です。いつでも元に戻せます。変わるのは画面の見た目だけです。"
 
 msgid "settings.tv_mode"
 msgstr "テレビモード"
@@ -7882,24 +7788,6 @@ msgstr "Ember はどこでもそのコントローラーのボタン画像を表
 
 msgid "welcome.controller_ready"
 msgstr "準備完了: {0}。"
-
-msgid "welcome.look_title"
-msgstr "どの見た目にしますか？"
-
-msgid "welcome.look_text"
-msgstr "設定でいつでも切り替えられます。変わるのは画面の見た目だけです。"
-
-msgid "welcome.look_classic"
-msgstr "クラシック"
-
-msgid "welcome.look_classic_detail"
-msgstr "これまでどおりの Ember のメニュー。"
-
-msgid "welcome.look_v2"
-msgstr "V2（プレビュー）"
-
-msgid "welcome.look_v2_detail"
-msgstr "Ember の新しい見た目。まだ制作中です。"
 
 msgid "welcome.chosen"
 msgstr "選択中"

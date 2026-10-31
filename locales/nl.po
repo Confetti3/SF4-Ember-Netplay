@@ -234,9 +234,6 @@ msgstr "Herstel"
 msgid "screen.updates"
 msgstr "Updates"
 
-msgid "updates.downloaded_mb"
-msgstr "{0:.1f} MB gedownload"
-
 msgid "updates.downloaded_of_mb"
 msgstr "{0:.1f} MB van {1:.1f} MB gedownload"
 
@@ -435,9 +432,6 @@ msgstr "Level opnemen"
 
 msgid "menu.hint.paste"
 msgstr "Plakken"
-
-msgid "menu.navigate"
-msgstr "Navigeren"
 
 msgid "menu.adjust"
 msgstr "Aanpassen"
@@ -717,12 +711,6 @@ msgstr "Keer terug naar je huidige kamer."
 
 msgid "home.fighter_select"
 msgstr "Personage kiezen"
-
-msgid "home.selection_costume_color"
-msgstr "Outfit, kleur"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt. {0}"
@@ -1608,47 +1596,14 @@ msgstr "{0} afstand / voorbeeldwaarden"
 msgid "match.preview_position"
 msgstr "Positie: {0}"
 
-msgid "card.player"
-msgstr "SPELER"
-
 msgid "card.choose_fighter"
 msgstr "Kies je personage"
-
-msgid "card.controller_ready"
-msgstr "CONTROLLER KLAAR"
-
-msgid "card.assign_controller"
-msgstr "CONTROLLER TOEWIJZEN"
-
-msgid "card.wins"
-msgstr "{0}  GEWONNEN"
-
-msgid "card.no_wins"
-msgstr "-- GEWONNEN"
-
-msgid "card.losses"
-msgstr "{0}  VERLOREN"
-
-msgid "card.no_losses"
-msgstr "-- VERLOREN"
-
-msgid "card.no_win_rate"
-msgstr "-- WIN %"
-
-msgid "card.win_rate"
-msgstr "{0}% WINST"
 
 msgid "training.lab"
 msgstr "Trainingslab"
 
-msgid "menu.back_to"
-msgstr "< Terug / {0}"
-
 msgid "menu.return_to"
 msgstr "Terug naar {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Trainingsbesturing"
@@ -2817,22 +2772,6 @@ msgstr "Leden"
 msgid "room.member_count"
 msgstr "{0} / {1} leden."
 
-msgid "room.hide_members"
-msgstr "Leden verbergen"
-msgid "room.show_members"
-msgstr "Leden tonen"
-msgid "room.hide_chat"
-msgstr "Chat verbergen"
-msgid "room.show_chat"
-msgstr "Chat tonen"
-msgid "room.part_detail"
-msgstr "Verbergt dit deel van de kolom of toont het weer. Sleep de lijnen tussen het bord, de leden en de chat om ze groter of kleiner te maken."
-msgid "room.more"
-msgstr "Meer…"
-msgid "room.more.detail"
-msgstr "Kamerinstellingen en de uitnodiging voor de kamer."
-msgid "room.members_summary"
-msgstr "{0} spelen · {1} kijken"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -2938,9 +2877,6 @@ msgstr "De vorige match wordt nog afgesloten. Daarna kun je de kamer vervangen."
 msgid "room.updating"
 msgstr "Kamer bijwerken..."
 
-msgid "room.battle_slot"
-msgstr "MATCHTAFEL {0}"
-
 msgid "room.table_name"
 msgstr "Tafelnaam"
 
@@ -2973,9 +2909,6 @@ msgstr "Opslaan als sjabloon"
 
 msgid "room.save_template.detail"
 msgstr "Bewaart de instellingen van deze kamer, en de regels en naam van elke tafel, op deze pc voor Kamer maken > Sjabloon. Dezelfde naam overschrijft het."
-
-msgid "room.looking_for_fight"
-msgstr "Tegenstander zoeken"
 
 msgid "room.fighter_not_shared"
 msgstr "Personage nog onbekend"
@@ -3018,9 +2951,6 @@ msgstr "CHAT"
 
 msgid "room.no_messages"
 msgstr "Nog geen berichten. Kies Chat om iets te schrijven."
-
-msgid "room.table_explanation"
-msgstr "{0} / Jij: {1}\nWachtrij: {2} / Kijken: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Uitnodiging gekopieerd."
@@ -4850,9 +4780,6 @@ msgstr "Volgende potje start"
 msgid "postmatch.opponent_left"
 msgstr "{0} heeft de plek verlaten"
 
-msgid "postmatch.seconds_left"
-msgstr "{0} s om te kiezen"
-
 msgid "postmatch.rematch"
 msgstr "Rematch"
 
@@ -4879,9 +4806,6 @@ msgstr "Terug naar de room"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Terug naar de room. Je houdt je plek, niet klaar. Geen antwoord binnen 10 seconden doet hetzelfde."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Verlaat je plek en kijk mee vanuit de room. Geen antwoord binnen 10 seconden doet hetzelfde."
 
 msgid "postmatch.state.choosing"
 msgstr "Kiest"
@@ -5046,7 +4970,7 @@ msgid "public.filter.all"
 msgstr "Alle kamers"
 
 msgid "public.filter.near"
-msgstr "Bij mij in de buurt"
+msgstr "In de buurt"
 
 msgid "public.filter.seats"
 msgstr "Vrije plekken"
@@ -5518,9 +5442,6 @@ msgstr "Afspelen"
 
 msgid "replays.controls.pause"
 msgstr "Pauze"
-
-msgid "replays.controls.paused"
-msgstr "Gepauzeerd"
 
 msgid "replays.controls.step"
 msgstr "Stap"
@@ -7383,9 +7304,6 @@ msgstr "Ranglijsten komen uit potjes in openbare kamers. Stel eerst openbare kam
 msgid "rankings.loading"
 msgstr "Je klasse laden..."
 
-msgid "rankings.your_class"
-msgstr "Je klasse"
-
 msgid "rankings.placing"
 msgstr "Wordt ingedeeld"
 
@@ -7490,18 +7408,6 @@ msgstr "Klasse-emblemen"
 
 msgid "settings.class_emblems_detail"
 msgstr "Toont de klasse van elke speler naast zijn naam in openbare kamers. Uit verbergt ze alleen op jouw scherm. Anderen zien de jouwe nog steeds en je potjes tellen nog steeds mee."
-
-msgid "settings.look"
-msgstr "Uiterlijk"
-
-msgid "settings.look.classic"
-msgstr "Klassiek"
-
-msgid "settings.look.v2"
-msgstr "V2 (voorproef)"
-
-msgid "settings.look_detail"
-msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw. Je kunt altijd terugschakelen: alleen hoe de schermen eruitzien verandert."
 
 msgid "settings.tv_mode"
 msgstr "Tv-modus"
@@ -7881,24 +7787,6 @@ msgstr "Ember toont overal de knopafbeeldingen van die controller."
 
 msgid "welcome.controller_ready"
 msgstr "Klaar: {0}."
-
-msgid "welcome.look_title"
-msgstr "Welk uiterlijk wil je?"
-
-msgid "welcome.look_text"
-msgstr "Je kunt altijd wisselen in Instellingen: alleen hoe de schermen eruitzien verandert."
-
-msgid "welcome.look_classic"
-msgstr "Klassiek"
-
-msgid "welcome.look_classic_detail"
-msgstr "De menu's van Ember zoals ze altijd waren."
-
-msgid "welcome.look_v2"
-msgstr "V2 (voorproef)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Het nieuwe uiterlijk van Ember, nog in aanbouw."
 
 msgid "welcome.chosen"
 msgstr "Gekozen"

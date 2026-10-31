@@ -234,9 +234,6 @@ msgstr "Récupération"
 msgid "screen.updates"
 msgstr "Mises à jour"
 
-msgid "updates.downloaded_mb"
-msgstr "{0:.1f} Mo téléchargés"
-
 msgid "updates.downloaded_of_mb"
 msgstr "{0:.1f} Mo sur {1:.1f} Mo téléchargés"
 
@@ -435,9 +432,6 @@ msgstr "Inclure le niveau"
 
 msgid "menu.hint.paste"
 msgstr "Coller"
-
-msgid "menu.navigate"
-msgstr "Naviguer"
 
 msgid "menu.adjust"
 msgstr "Régler"
@@ -717,12 +711,6 @@ msgstr "Retourner à votre salon actuel."
 
 msgid "home.fighter_select"
 msgstr "Sélection personnage"
-
-msgid "home.selection_costume_color"
-msgstr "Costume, couleur"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt. {0}"
@@ -1025,7 +1013,7 @@ msgid "replays.set_import_failed"
 msgstr "Ce fichier n'est pas un pack de set complet, rien n'a donc été importé."
 
 msgid "settings.training_auto_ready"
-msgstr "Me mettre prêt à l'appel depuis l'Entraînement"
+msgstr "Prêt automatique depuis l'Entraînement"
 
 msgid "settings.training_auto_ready_detail"
 msgstr "Quand le salon vous rappelle de l'entraînement, vous êtes immédiatement déclaré prêt. Désactivé, vous avez {0} secondes avant de perdre votre place."
@@ -1608,47 +1596,14 @@ msgstr "Espacement {0} / valeurs d'exemple"
 msgid "match.preview_position"
 msgstr "Position : {0}"
 
-msgid "card.player"
-msgstr "JOUEUR"
-
 msgid "card.choose_fighter"
 msgstr "Choisissez votre perso"
-
-msgid "card.controller_ready"
-msgstr "MANETTE PRÊTE"
-
-msgid "card.assign_controller"
-msgstr "ATTRIBUER MANETTE"
-
-msgid "card.wins"
-msgstr "{0}  VICTOIRES"
-
-msgid "card.no_wins"
-msgstr "-- VICTOIRES"
-
-msgid "card.losses"
-msgstr "{0}  DÉFAITES"
-
-msgid "card.no_losses"
-msgstr "-- DÉFAITES"
-
-msgid "card.no_win_rate"
-msgstr "-- % VICT."
-
-msgid "card.win_rate"
-msgstr "{0} % VICT."
 
 msgid "training.lab"
 msgstr "Entraînement"
 
-msgid "menu.back_to"
-msgstr "< Retour / {0}"
-
 msgid "menu.return_to"
 msgstr "Retour à {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Commandes entraînement"
@@ -1660,7 +1615,7 @@ msgid "training.controls_chip"
 msgstr "Entraînement"
 
 msgid "training.pad_hint"
-msgstr "Appui : rétablir, maintien : sauver"
+msgstr "Appui : rétablir, tenir : sauver"
 
 msgid "training.hint.reset"
 msgstr "Rétablir"
@@ -2817,22 +2772,6 @@ msgstr "Membres"
 msgid "room.member_count"
 msgstr "{0} / {1} membres."
 
-msgid "room.hide_members"
-msgstr "Masquer les membres"
-msgid "room.show_members"
-msgstr "Afficher les membres"
-msgid "room.hide_chat"
-msgstr "Masquer le chat"
-msgid "room.show_chat"
-msgstr "Afficher le chat"
-msgid "room.part_detail"
-msgstr "Masque cette partie de la colonne ou la réaffiche. Faites glisser les lignes entre le tableau, les membres et le chat pour les redimensionner."
-msgid "room.more"
-msgstr "Plus…"
-msgid "room.more.detail"
-msgstr "Les réglages du salon et son invitation."
-msgid "room.members_summary"
-msgstr "{0} en jeu · {1} spectateurs"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -2938,9 +2877,6 @@ msgstr "Le combat précédent se ferme encore. Le remplacement sera possible ens
 msgid "room.updating"
 msgstr "Mise à jour..."
 
-msgid "room.battle_slot"
-msgstr "TABLE DE COMBAT {0}"
-
 msgid "room.table_name"
 msgstr "Nom de la table"
 
@@ -2973,9 +2909,6 @@ msgstr "Enregistrer comme modèle"
 
 msgid "room.save_template.detail"
 msgstr "Garde les réglages de ce salon, ainsi que les règles et le nom de chaque table, sur ce PC pour Créer un salon > Modèle. Le même nom le remplace."
-
-msgid "room.looking_for_fight"
-msgstr "En quête d'un combat"
 
 msgid "room.fighter_not_shared"
 msgstr "Perso pas encore révélé"
@@ -3018,9 +2951,6 @@ msgstr "CHAT"
 
 msgid "room.no_messages"
 msgstr "Aucun message. Sélectionnez Chat pour écrire."
-
-msgid "room.table_explanation"
-msgstr "{0} / Vous : {1}\nFile : {2} / Spectateurs : {3}"
 
 msgid "room.invitation_copied"
 msgstr "Invitation copiée."
@@ -4850,9 +4780,6 @@ msgstr "La partie suivante démarre"
 msgid "postmatch.opponent_left"
 msgstr "{0} a quitté sa place"
 
-msgid "postmatch.seconds_left"
-msgstr "{0} s pour choisir"
-
 msgid "postmatch.rematch"
 msgstr "Revanche"
 
@@ -4879,9 +4806,6 @@ msgstr "Retour au salon"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Retour au salon. Vous gardez votre place, pas prêt. Sans réponse en 10 secondes, c'est pareil."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Quittez votre place et regardez depuis le salon. Sans réponse en 10 secondes, c'est pareil."
 
 msgid "postmatch.state.choosing"
 msgstr "Choisit"
@@ -5518,9 +5442,6 @@ msgstr "Lecture"
 
 msgid "replays.controls.pause"
 msgstr "Pause"
-
-msgid "replays.controls.paused"
-msgstr "En pause"
 
 msgid "replays.controls.step"
 msgstr "Avancer"
@@ -7383,9 +7304,6 @@ msgstr "Les classements viennent des matchs en salon public. Configurez d'abord 
 msgid "rankings.loading"
 msgstr "Chargement de votre classe..."
 
-msgid "rankings.your_class"
-msgstr "Votre classe"
-
 msgid "rankings.placing"
 msgstr "Placement"
 
@@ -7441,7 +7359,7 @@ msgid "rankings.minutes"
 msgstr "{0} min"
 
 msgid "rankings.board_as"
-msgstr "Au classement sous le nom"
+msgstr "Classé sous le nom"
 
 msgid "rankings.board_as_detail"
 msgstr "Le nom et le drapeau que les salons affichent pour vous. Modifiez-les dans Profil et Paramètres. Le classement prend en compte un changement à la prochaine ouverture de Classements."
@@ -7490,18 +7408,6 @@ msgstr "Emblèmes de classe"
 
 msgid "settings.class_emblems_detail"
 msgstr "Affiche la classe de chaque joueur à côté de son nom dans les salons publics. Désactivé, elles sont masquées sur votre écran seulement. Les autres voient toujours la vôtre, et vos matchs comptent toujours."
-
-msgid "settings.look"
-msgstr "Apparence"
-
-msgid "settings.look.classic"
-msgstr "Classique"
-
-msgid "settings.look.v2"
-msgstr "V2 (aperçu)"
-
-msgid "settings.look_detail"
-msgstr "La nouvelle apparence d'Ember, encore en construction. Vous pouvez revenir en arrière à tout moment : seul l'aspect des écrans change."
 
 msgid "settings.tv_mode"
 msgstr "Mode TV"
@@ -7881,24 +7787,6 @@ msgstr "Ember affiche partout les images des boutons de cette manette."
 
 msgid "welcome.controller_ready"
 msgstr "Prête : {0}."
-
-msgid "welcome.look_title"
-msgstr "Quel style voulez-vous ?"
-
-msgid "welcome.look_text"
-msgstr "Vous pouvez changer à tout moment dans Paramètres : seul l'aspect des écrans change."
-
-msgid "welcome.look_classic"
-msgstr "Classique"
-
-msgid "welcome.look_classic_detail"
-msgstr "Les menus d'Ember tels qu'ils ont toujours été."
-
-msgid "welcome.look_v2"
-msgstr "V2 (aperçu)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Le nouveau style d'Ember, encore en construction."
 
 msgid "welcome.chosen"
 msgstr "Choisi"

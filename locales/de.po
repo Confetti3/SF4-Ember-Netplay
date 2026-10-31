@@ -234,9 +234,6 @@ msgstr "Starthilfe"
 msgid "screen.updates"
 msgstr "Updates"
 
-msgid "updates.downloaded_mb"
-msgstr "{0:.1f} MB heruntergeladen"
-
 msgid "updates.downloaded_of_mb"
 msgstr "{0:.1f} MB von {1:.1f} MB heruntergeladen"
 
@@ -435,9 +432,6 @@ msgstr "Stage aufnehmen"
 
 msgid "menu.hint.paste"
 msgstr "Einfügen"
-
-msgid "menu.navigate"
-msgstr "Navigieren"
 
 msgid "menu.adjust"
 msgstr "Anpassen"
@@ -717,12 +711,6 @@ msgstr "Zum aktuellen Raum zurückkehren."
 
 msgid "home.fighter_select"
 msgstr "Charakterauswahl"
-
-msgid "home.selection_costume_color"
-msgstr "Kleidung, Farbe"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt. {0}"
@@ -1608,47 +1596,14 @@ msgstr "{0} Abstand / Beispielwerte"
 msgid "match.preview_position"
 msgstr "Position: {0}"
 
-msgid "card.player"
-msgstr "SPIELER"
-
 msgid "card.choose_fighter"
 msgstr "Charakter wählen"
-
-msgid "card.controller_ready"
-msgstr "CONTROLLER BEREIT"
-
-msgid "card.assign_controller"
-msgstr "CONTROLLER ZUWEISEN"
-
-msgid "card.wins"
-msgstr "{0}  SIEGE"
-
-msgid "card.no_wins"
-msgstr "-- SIEGE"
-
-msgid "card.losses"
-msgstr "{0}  NIEDERLAGEN"
-
-msgid "card.no_losses"
-msgstr "-- NIEDERLAGEN"
-
-msgid "card.no_win_rate"
-msgstr "-- SIEG %"
-
-msgid "card.win_rate"
-msgstr "{0}% SIEGE"
 
 msgid "training.lab"
 msgstr "Trainingslabor"
 
-msgid "menu.back_to"
-msgstr "< Zurück / {0}"
-
 msgid "menu.return_to"
 msgstr "Zurück zu {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Trainingssteuerung"
@@ -1657,7 +1612,7 @@ msgid "training.hide_hint"
 msgstr "HUD ausblenden"
 
 msgid "training.controls_chip"
-msgstr "Trainingssteuerung"
+msgstr "Steuerung"
 
 msgid "training.pad_hint"
 msgstr "Tippen: zurück, halten: sichern"
@@ -2817,22 +2772,6 @@ msgstr "Mitglieder"
 msgid "room.member_count"
 msgstr "{0} / {1} Mitglieder."
 
-msgid "room.hide_members"
-msgstr "Mitglieder ausblenden"
-msgid "room.show_members"
-msgstr "Mitglieder einblenden"
-msgid "room.hide_chat"
-msgstr "Chat ausblenden"
-msgid "room.show_chat"
-msgstr "Chat einblenden"
-msgid "room.part_detail"
-msgstr "Blendet diesen Teil der Spalte aus oder wieder ein. Zieh die Linien zwischen Brett, Mitgliedern und Chat, um ihre Größe zu ändern."
-msgid "room.more"
-msgstr "Mehr…"
-msgid "room.more.detail"
-msgstr "Raumeinstellungen und die Einladung in den Raum."
-msgid "room.members_summary"
-msgstr "{0} spielen · {1} schauen zu"
 msgid "room.chat"
 msgstr "Chat"
 
@@ -2938,9 +2877,6 @@ msgstr "Der vorige Kampf wird noch geschlossen. Danach kann der Raum ersetzt wer
 msgid "room.updating"
 msgstr "Raum-Update..."
 
-msgid "room.battle_slot"
-msgstr "KAMPFTISCH {0}"
-
 msgid "room.table_name"
 msgstr "Tischname"
 
@@ -2973,9 +2909,6 @@ msgstr "Als Vorlage speichern"
 
 msgid "room.save_template.detail"
 msgstr "Speichert die Einstellungen dieses Raums sowie Regeln und Namen jedes Tisches auf diesem PC für Raum erstellen > Vorlage. Derselbe Name überschreibt sie."
-
-msgid "room.looking_for_fight"
-msgstr "Suche nach Kampf"
 
 msgid "room.fighter_not_shared"
 msgstr "Figur noch nicht gezeigt"
@@ -3018,9 +2951,6 @@ msgstr "CHAT"
 
 msgid "room.no_messages"
 msgstr "Noch keine Nachrichten. Chat zum Schreiben wählen."
-
-msgid "room.table_explanation"
-msgstr "{0} / Sie: {1}\nWarteschlange: {2} / Zuschauer: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Einladung kopiert."
@@ -4850,9 +4780,6 @@ msgstr "Nächstes Spiel startet"
 msgid "postmatch.opponent_left"
 msgstr "{0} hat den Platz verlassen"
 
-msgid "postmatch.seconds_left"
-msgstr "{0} s zum Wählen"
-
 msgid "postmatch.rematch"
 msgstr "Revanche"
 
@@ -4879,9 +4806,6 @@ msgstr "Zurück in den Raum"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Zurück in den Raum. Du behältst deinen Platz, nicht bereit. Keine Antwort in 10 Sekunden bewirkt dasselbe."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Verlasse deinen Platz und schau im Raum zu. Keine Antwort in 10 Sekunden bewirkt dasselbe."
 
 msgid "postmatch.state.choosing"
 msgstr "Wählt"
@@ -5518,9 +5442,6 @@ msgstr "Abspielen"
 
 msgid "replays.controls.pause"
 msgstr "Pause"
-
-msgid "replays.controls.paused"
-msgstr "Pausiert"
 
 msgid "replays.controls.step"
 msgstr "Schritt"
@@ -7383,9 +7304,6 @@ msgstr "Ranglisten stammen aus Spielen in öffentlichen Räumen. Richten Sie zue
 msgid "rankings.loading"
 msgstr "Ihre Klasse wird geladen..."
 
-msgid "rankings.your_class"
-msgstr "Ihre Klasse"
-
 msgid "rankings.placing"
 msgstr "Einstufung"
 
@@ -7490,18 +7408,6 @@ msgstr "Klassen-Embleme"
 
 msgid "settings.class_emblems_detail"
 msgstr "Zeigt die Klasse jedes Spielers neben seinem Namen in öffentlichen Räumen. Aus blendet sie nur auf Ihrem Bildschirm aus. Andere sehen Ihre weiterhin, und Ihre Spiele zählen weiter."
-
-msgid "settings.look"
-msgstr "Aussehen"
-
-msgid "settings.look.classic"
-msgstr "Klassisch"
-
-msgid "settings.look.v2"
-msgstr "V2 (Vorschau)"
-
-msgid "settings.look_detail"
-msgstr "Embers neues Aussehen, noch im Aufbau. Sie können jederzeit zurückwechseln: Nur das Aussehen der Bildschirme ändert sich."
 
 msgid "settings.tv_mode"
 msgstr "TV-Modus"
@@ -7881,24 +7787,6 @@ msgstr "Ember zeigt überall die Tastenbilder dieses Controllers."
 
 msgid "welcome.controller_ready"
 msgstr "Bereit: {0}."
-
-msgid "welcome.look_title"
-msgstr "Welches Aussehen möchtest du?"
-
-msgid "welcome.look_text"
-msgstr "Du kannst jederzeit in den Einstellungen wechseln: Nur das Aussehen der Bildschirme ändert sich."
-
-msgid "welcome.look_classic"
-msgstr "Klassisch"
-
-msgid "welcome.look_classic_detail"
-msgstr "Embers Menüs, wie sie immer waren."
-
-msgid "welcome.look_v2"
-msgstr "V2 (Vorschau)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Embers neues Aussehen, noch im Aufbau."
 
 msgid "welcome.chosen"
 msgstr "Gewählt"

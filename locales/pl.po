@@ -234,9 +234,6 @@ msgstr "Odzyskiwanie"
 msgid "screen.updates"
 msgstr "Aktualizacje"
 
-msgid "updates.downloaded_mb"
-msgstr "Pobrano {0:.1f} MB"
-
 msgid "updates.downloaded_of_mb"
 msgstr "Pobrano {0:.1f} MB z {1:.1f} MB"
 
@@ -435,9 +432,6 @@ msgstr "Uwzględnij arenę"
 
 msgid "menu.hint.paste"
 msgstr "Wklej"
-
-msgid "menu.navigate"
-msgstr "Nawiguj"
 
 msgid "menu.adjust"
 msgstr "Dostosuj"
@@ -717,12 +711,6 @@ msgstr "Wróć do bieżącego pokoju."
 
 msgid "home.fighter_select"
 msgstr "Wybór postaci"
-
-msgid "home.selection_costume_color"
-msgstr "Strój, kolor"
-
-msgid "home.selection_ultra"
-msgstr "Ultra"
 
 msgid "home.selection_alternate"
 msgstr "Alt. {0}"
@@ -1608,47 +1596,14 @@ msgstr "{0} odstęp / przykład"
 msgid "match.preview_position"
 msgstr "Położenie: {0}"
 
-msgid "card.player"
-msgstr "GRACZ"
-
 msgid "card.choose_fighter"
 msgstr "Wybierz postać"
-
-msgid "card.controller_ready"
-msgstr "KONTROLER GOTOWY"
-
-msgid "card.assign_controller"
-msgstr "PRZYPISZ KONTROLER"
-
-msgid "card.wins"
-msgstr "{0} ZW."
-
-msgid "card.no_wins"
-msgstr "-- ZW."
-
-msgid "card.losses"
-msgstr "{0} POR."
-
-msgid "card.no_losses"
-msgstr "-- POR."
-
-msgid "card.no_win_rate"
-msgstr "-- % ZW."
-
-msgid "card.win_rate"
-msgstr "{0}% ZW."
 
 msgid "training.lab"
 msgstr "Trening"
 
-msgid "menu.back_to"
-msgstr "< Powrót / {0}"
-
 msgid "menu.return_to"
 msgstr "Wróć do: {0}"
-
-msgid "menu.flyout_title"
-msgstr "EMBER / {0}"
 
 msgid "training.controls"
 msgstr "Sterowanie treningiem"
@@ -1657,10 +1612,10 @@ msgid "training.hide_hint"
 msgstr "Ukryj HUD"
 
 msgid "training.controls_chip"
-msgstr "Sterowanie treningiem"
+msgstr "Sterowanie"
 
 msgid "training.pad_hint"
-msgstr "Stuknij: przywróć, przytrzymaj: zapisz"
+msgstr "Stuknij: przywróć, trzymaj: zapisz"
 
 msgid "training.hint.reset"
 msgstr "Przywróć"
@@ -2817,22 +2772,6 @@ msgstr "Uczestnicy"
 msgid "room.member_count"
 msgstr "Uczestnicy: {0} / {1}."
 
-msgid "room.hide_members"
-msgstr "Ukryj uczestników"
-msgid "room.show_members"
-msgstr "Pokaż uczestników"
-msgid "room.hide_chat"
-msgstr "Ukryj czat"
-msgid "room.show_chat"
-msgstr "Pokaż czat"
-msgid "room.part_detail"
-msgstr "Ukrywa tę część kolumny albo ją przywraca. Przeciągnij linie między tablicą, uczestnikami i czatem, aby zmienić ich rozmiar."
-msgid "room.more"
-msgstr "Więcej…"
-msgid "room.more.detail"
-msgstr "Ustawienia pokoju i zaproszenie do niego."
-msgid "room.members_summary"
-msgstr "{0} gra · {1} ogląda"
 msgid "room.chat"
 msgstr "Czat"
 
@@ -2938,9 +2877,6 @@ msgstr "Poprzednia walka wciąż się zamyka. Po jej zamknięciu będzie można 
 msgid "room.updating"
 msgstr "Aktualizacja pokoju..."
 
-msgid "room.battle_slot"
-msgstr "STÓŁ WALKI {0}"
-
 msgid "room.table_name"
 msgstr "Nazwa stołu"
 
@@ -2973,9 +2909,6 @@ msgstr "Zapisz jako szablon"
 
 msgid "room.save_template.detail"
 msgstr "Zachowuje ustawienia tego pokoju oraz zasady i nazwę każdego stołu na tym komputerze dla Utwórz pokój > Szablon. Ta sama nazwa go nadpisuje."
-
-msgid "room.looking_for_fight"
-msgstr "Szukam walki"
 
 msgid "room.fighter_not_shared"
 msgstr "Postać nieujawniona"
@@ -3018,9 +2951,6 @@ msgstr "CZAT"
 
 msgid "room.no_messages"
 msgstr "Brak wiadomości. Wybierz Czat, aby napisać."
-
-msgid "room.table_explanation"
-msgstr "{0} / Ty: {1}\nKolejka: {2} / Widzowie: {3}"
 
 msgid "room.invitation_copied"
 msgstr "Zaproszenie skopiowane."
@@ -4850,9 +4780,6 @@ msgstr "Następna gra się zaczyna"
 msgid "postmatch.opponent_left"
 msgstr "{0}: opuszcza miejsce"
 
-msgid "postmatch.seconds_left"
-msgstr "Czas na wybór: {0} s"
-
 msgid "postmatch.rematch"
 msgstr "Rewanż"
 
@@ -4879,9 +4806,6 @@ msgstr "Powrót do pokoju"
 
 msgid "postmatch.back.keep_seat"
 msgstr "Powrót do pokoju. Miejsce zostaje, bez gotowości. Brak odpowiedzi przez 10 sekund działa tak samo."
-
-msgid "postmatch.back.leave_seat"
-msgstr "Opuść miejsce i oglądaj z pokoju. Brak odpowiedzi przez 10 sekund działa tak samo."
 
 msgid "postmatch.state.choosing"
 msgstr "Wybiera"
@@ -5518,9 +5442,6 @@ msgstr "Odtwórz"
 
 msgid "replays.controls.pause"
 msgstr "Pauza"
-
-msgid "replays.controls.paused"
-msgstr "Wstrzymano"
 
 msgid "replays.controls.step"
 msgstr "Krok"
@@ -7383,9 +7304,6 @@ msgstr "Rankingi powstają z gier w pokojach publicznych. Najpierw skonfiguruj p
 msgid "rankings.loading"
 msgstr "Wczytywanie Twojej klasy..."
 
-msgid "rankings.your_class"
-msgstr "Twoja klasa"
-
 msgid "rankings.placing"
 msgstr "Ustalanie"
 
@@ -7490,18 +7408,6 @@ msgstr "Emblematy klas"
 
 msgid "settings.class_emblems_detail"
 msgstr "Pokazuje klasę każdego gracza obok jego nazwy w pokojach publicznych. Wyłączenie ukrywa je tylko na Twoim ekranie. Inni nadal widzą Twoją, a Twoje gry nadal się liczą."
-
-msgid "settings.look"
-msgstr "Wygląd"
-
-msgid "settings.look.classic"
-msgstr "Klasyczny"
-
-msgid "settings.look.v2"
-msgstr "V2 (podgląd)"
-
-msgid "settings.look_detail"
-msgstr "Nowy wygląd Embera, wciąż w budowie. Możesz wrócić w każdej chwili: zmienia się tylko wygląd ekranów."
 
 msgid "settings.tv_mode"
 msgstr "Tryb TV"
@@ -7881,24 +7787,6 @@ msgstr "Ember wszędzie pokazuje obrazki przycisków tego kontrolera."
 
 msgid "welcome.controller_ready"
 msgstr "Gotowy: {0}."
-
-msgid "welcome.look_title"
-msgstr "Jaki wygląd wybierasz?"
-
-msgid "welcome.look_text"
-msgstr "Możesz to zmienić w dowolnej chwili w Ustawieniach: zmienia się tylko wygląd ekranów."
-
-msgid "welcome.look_classic"
-msgstr "Klasyczny"
-
-msgid "welcome.look_classic_detail"
-msgstr "Menu Embera takie jak zawsze."
-
-msgid "welcome.look_v2"
-msgstr "V2 (podgląd)"
-
-msgid "welcome.look_v2_detail"
-msgstr "Nowy wygląd Embera, wciąż w budowie."
 
 msgid "welcome.chosen"
 msgstr "Wybrane"
