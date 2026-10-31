@@ -662,7 +662,7 @@ int main(int argc, char** argv) {
         bool galleryShown = false;
         const std::vector<Size> sizes = chosenW > 0 ? std::vector<Size>{{chosenW,chosenH,chosenScale}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
-            std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
+            std::vector<Size>{{1280,720,1}, {1280,800,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
         std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
             renderer.hardwareVertices ? "DX9" : "DX9, vertices on the CPU");
         int frames = 0;
