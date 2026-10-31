@@ -440,6 +440,11 @@ async fn throwaway_ember_ids_spend_at_most_a_days_share() {
         with_secret(),
     )
     .await;
+    // The budgets follow the UTC calendar, so the day moved on below must stay
+    // in the same month whatever day the test runs: start at 2100-01-10 12:00.
+    const MID_MONTH: i64 = 4_103_265_600;
+    bridge.clock.freeze();
+    bridge.clock.advance(MID_MONTH - bridge.clock.now() as i64);
     // Each new Ember ID starts a sign-in and answers it with a made-up code,
     // which Challonge refuses after the bridge has spent the exchange.
     let mut players = Vec::new();
