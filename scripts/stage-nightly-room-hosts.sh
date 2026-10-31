@@ -22,6 +22,8 @@ case "$6" in
     prepare)
         mkdir -p "$root"
         mkdir "$incoming"
+        # The folder scp copies into, as install-symbols.sh prints its own.
+        echo "$incoming"
         ;;
     commit)
         trap 'rm -rf -- "$incoming"' EXIT

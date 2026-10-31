@@ -80,7 +80,7 @@ std::uint64_t RetrySeconds(const std::string& header) {
     return (std::max)(std::uint64_t(1), (std::min)(seconds, std::uint64_t(86400)));
 }
 bool SamePreview(const WorkflowState& state, const Submission& input) {
-    return state.preview && input.preview == state.preview && state.id.empty() &&
+    return state.preview && input.preview == state.preview && !state.delivered &&
         state.phase != Phase::Preparing && std::chrono::steady_clock::now() >= state.retryAt;
 }
 bool ValidId(const std::string& id) {
@@ -124,7 +124,7 @@ Outcome Upload(const Multipart& multipart, WorkflowState& state, Record& record,
     case Outcome::Received: {
         const auto answer = nlohmann::json::parse(uploaded.body, nullptr, false);
         const auto id = answer.is_object() && answer.contains("id") && answer["id"].is_string() ? answer["id"].get<std::string>() : std::string();
-        record.status = Status::Received;
+        record.status = Status::Received; state.delivered = true;
         if (ValidId(id)) {
             state.id = record.id = id; state.phase = Phase::Sent; state.message = loc::Tf("reports.sent", id);
         } else { state.phase = Phase::Failed; state.message = loc::T("reports.invalid_response"); record.reason = "no_id"; }
@@ -133,7 +133,7 @@ Outcome Upload(const Multipart& multipart, WorkflowState& state, Record& record,
     case Outcome::Incomplete:
         // The intake holds the report; only its receipt is missing, which the player is told.
         state.phase = Phase::Failed; state.message = loc::T("reports.invalid_response");
-        record.status = Status::Received; record.reason = "incomplete";
+        record.status = Status::Received; record.reason = "incomplete"; state.delivered = true;
         break;
     case Outcome::Cancelled:
         state.phase = Phase::Cancelled; state.message = loc::T("reports.cancelled");

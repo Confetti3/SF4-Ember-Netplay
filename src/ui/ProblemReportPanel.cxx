@@ -25,9 +25,9 @@ std::vector<MenuEntry> ProblemReportPanel::Rows(const platform::ServiceSnapshot&
         for (const auto& log:report->logs) reading("report-"+log.name,log.name,log.text,log.text.size());
         if (!report->minidump.empty()) {
             rows.push_back(Value("report-dump",loc::T("reports.dump"),submission_.includeDump?loc::Tf("reports.bytes",report->minidump.size()):
-                std::string(loc::T("common.off")),std::string("minidump: crash.dmp\n")+loc::T("reports.dump_detail"),!state.reporting.Busy()&&state.reporting.id.empty()));
+                std::string(loc::T("common.off")),std::string("minidump: crash.dmp\n")+loc::T("reports.dump_detail"),!state.reporting.Busy()&&!state.reporting.delivered));
         }
-        if (state.reporting.id.empty()) {
+        if (!state.reporting.delivered) {
             rows.push_back(TextRow("report-comment",loc::T("reports.comment"),submission_.comment,8000,!state.reporting.Busy()));
             rows.back().multiline=true;
             rows.back().detail=loc::T(report->meta.kind=="problem"?"reports.comment_required":"reports.comment_optional");
@@ -40,8 +40,8 @@ std::vector<MenuEntry> ProblemReportPanel::Rows(const platform::ServiceSnapshot&
             rows.back().cancelLabel=loc::T("reports.dont_send");
         }
     }
-    const bool accepted=report&&!state.reporting.id.empty();
-    if (accepted) rows.push_back(Row("report-copy",loc::T("reports.copy_id"),state.reporting.id));
+    const bool accepted=report&&state.reporting.delivered;
+    if (accepted&&!state.reporting.id.empty()) rows.push_back(Row("report-copy",loc::T("reports.copy_id"),state.reporting.id));
     rows.push_back(Row("report-close",loc::T(accepted?"common.close":"reports.dont_send"),loc::T("reports.close_detail")));
     return rows;
 }

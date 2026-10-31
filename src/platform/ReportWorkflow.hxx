@@ -15,6 +15,9 @@ struct WorkflowState {
     std::uint64_t preparation = 0;
     std::shared_ptr<const Report> preview;
     std::string id, message;
+    // The intake has this preview, with or without the id it answers with
+    // (a 202 whose receipt broke off or held no valid id): it is not sent again.
+    bool delivered = false;
     std::chrono::steady_clock::time_point retryAt{};
     // How the last send went, once it reached the network.
     std::optional<Record> record;

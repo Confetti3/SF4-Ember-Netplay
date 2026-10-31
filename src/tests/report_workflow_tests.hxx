@@ -68,10 +68,7 @@ inline void Previews(const std::filesystem::path& root) {
     state = ReportWorkflow::Execute(submission, state, cancel, dependencies);
     CHECK(state.phase == Phase::Cancelled && state.preview == preview && uploaded == before);
     cancelled = false; CHECK(ReportWorkflow::Begin(submission, state));
-    response.request.ok = true; response.body = "{\"id\":\"bad\"}";
-    state = ReportWorkflow::Execute(submission, state, cancel, dependencies);
-    CHECK(state.phase == Phase::Failed && state.id.empty());
-    CHECK(ReportWorkflow::Begin(submission, state));
+    response.request.ok = true;
     response.body = "{\"id\":\"" + std::string(32, 'b') + "\"}";
     // A receipt wins a cancellation that raced completion/teardown.
     dependencies.upload = [&](const Multipart&, const std::function<bool()>&) { cancelled = true; return response; };
@@ -85,7 +82,7 @@ inline void Previews(const std::filesystem::path& root) {
     CHECK(state.phase == Phase::Cancelled && !state.preview && collected == 1 && !state.record);
     // Every send that reached the network is in the record, completed.
     const auto history = dependencies.history->Load();
-    CHECK(history.readable && history.sent.size() == 5);
+    CHECK(history.readable && history.sent.size() == 4);
     CHECK(std::none_of(history.sent.begin(), history.sent.end(), [](const Record& r) { return r.status == Status::Pending || r.automatic; }));
     CHECK(history.sent.back().status == Status::Received && history.sent.back().id == std::string(32, 'b') && history.sent.back().kind == "problem");
     // Without the player's names nothing is prepared.
@@ -160,6 +157,19 @@ inline void Records(const std::filesystem::path& root) {
     send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::Refused && state.record->reason == "http_503");
     prepare(); response = {}; response.request.statusCode = 202; response.request.error = sf4e::HttpErrorKind::ReceiveFailed;
     send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::Received && state.record->reason == "incomplete" && state.record->id.empty());
+    // The intake holds that report though no id came back, so the preview is
+    // not sent again: Begin refuses and nothing is uploaded.
+    {
+        const auto sentBefore = uploads; Submission again; again.preview = state.preview;
+        CHECK(state.delivered && !ReportWorkflow::Begin(again, state) && uploads == sentBefore);
+    }
+    // The same for a 202 that held no valid id.
+    prepare(); response = {}; response.request.ok = true; response.request.statusCode = 202; response.body = "{}";
+    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::Received && state.record->reason == "no_id" && state.id.empty() && state.delivered);
+    {
+        const auto sentBefore = uploads; Submission again; again.preview = state.preview;
+        CHECK(!ReportWorkflow::Begin(again, state) && uploads == sentBefore);
+    }
     // A 429 is a rate limit even when the rest of its answer timed out.
     prepare(); response = {}; response.request.statusCode = 429; response.request.error = sf4e::HttpErrorKind::Timeout;
     send({"", false, nullptr}); CHECK(state.phase == Phase::Retry && state.record->reason == "rate_limit");
@@ -275,7 +285,12 @@ inline void Automatic(const std::filesystem::path& root) {
         const auto before = uploads;
         run(AutomaticCrash::Consent::Existing);
         CHECK(state.phase != Phase::Sent && uploads == before + 1 && hasDump(bodies.back()) && state.record && state.record->dump);
-        CHECK(dependencies.history->Load().sent.size() == 1);
+        history = dependencies.history->Load();
+        CHECK(history.sent.size() == 1);
+        // A 202 is stored by the intake: Received, not an unsent report.
+        if (first.request.statusCode == 202)
+            CHECK(state.record->status == Status::Received && state.record->reason == "incomplete" &&
+                history.sent[0].status == Status::Received && history.sent[0].reason == "incomplete");
     }
     // A dump the report cannot carry, here one past the limit: refused as the
     // report is built, so the report goes without it.

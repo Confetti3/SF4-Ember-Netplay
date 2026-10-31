@@ -272,26 +272,23 @@ function Invoke-NightlyHostStage([object]$Destination, [string]$BuildId, [object
     # The prepared copy, not the checkout: the source may move on once the record exists.
     # The token outlives interrupted runs, so a retry finds and removes exactly its directory.
     Invoke-EmberStagedUpload $Destination.hostName "$($Destination.root) $BuildId $($Binaries[0].sha256) $($Binaries[1].sha256) $token" `
-        (Read-NightlyPinnedText $StagingScript) @($Binaries | ForEach-Object path) "~/$($Destination.root)/.incoming-$BuildId-$token/" 'Nightly room-host pair' | Out-Null
+        (Read-NightlyPinnedText $StagingScript) @($Binaries | ForEach-Object path) 'Nightly room-host pair' | Out-Null
 }
 
 # One staged upload over ssh, shared by the room hosts and the symbols: the pinned $Script runs on $HostName as
 # `bash -s -- <$Arguments> <phase>`. cleanup removes whatever an earlier attempt left in the upload folder,
-# prepare makes it, scp copies $Paths into $Incoming (an empty $Incoming means the folder path prepare printed),
+# prepare makes it and prints its absolute path as the last line, scp copies $Paths into that folder,
 # commit installs them, and cleanup runs again whatever happened. A cleanup failure after an earlier failure is
 # only a warning, so the error that stopped the upload is the one thrown; the phase advances only after a
 # confirmed cleanup. Returns commit's output.
-function Invoke-EmberStagedUpload([string]$HostName, [string]$Arguments, [string]$Script, [string[]]$Paths, [string]$Incoming, [string]$What) {
+function Invoke-EmberStagedUpload([string]$HostName, [string]$Arguments, [string]$Script, [string[]]$Paths, [string]$What) {
     $remote = { param($Phase, $Failure) Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $HostName, "bash -s -- $Arguments $Phase") $Failure -InputText $Script }
     $stageError = $null
     try {
         & $remote cleanup "Could not recover the previous $What upload." | Out-Null
         $prepared = @(& $remote prepare "Could not prepare the $What upload." | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
-        if (!$Incoming) {
-            if (!$prepared.Count -or $prepared[-1] -cnotmatch '^/\S+$') { throw "The $What upload did not report its folder." }
-            $Incoming = "$($prepared[-1])/"
-        }
-        Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes', '-r') + $Paths + @("${HostName}:$Incoming")) "Could not upload the $What." | Out-Null
+        if (!$prepared.Count -or $prepared[-1] -cnotmatch '^/\S+$') { throw "The $What upload did not report its folder." }
+        Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes', '-r') + $Paths + @("${HostName}:$($prepared[-1])/")) "Could not upload the $What." | Out-Null
         & $remote commit "Could not install the uploaded $What."
     } catch { $stageError = $_; throw }
     finally {

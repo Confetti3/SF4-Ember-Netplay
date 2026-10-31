@@ -172,7 +172,9 @@ try {
             if ($Command -eq 'ssh') {
                 Check ($Arguments[-1] -match '^bash -s -- (ember-rooms(?:-box)?) ([0-9a-f]{64}) [0-9a-f]{64} [0-9a-f]{64} ([0-9a-f]{32}) (prepare|commit|cleanup)$') 'Unexpected host staging command'
                 $root, $build, $token, $operation = $Matches[1], $Matches[2], $Matches[3], $Matches[4]
-                $key = "$($Arguments[-2]):~/$root/.incoming-$build-$token/"
+                # The staging script prints the folder it made, as install-symbols.sh does, and scp must use that path.
+                $folder = "/home/katie/$root/.incoming-$build-$token"
+                $key = "$($Arguments[-2]):$folder/"
                 $record = Get-Content $statePath -Raw | ConvertFrom-Json
                 $destination = $record.destinations | Where-Object hostName -CEQ $Arguments[-2]
                 Check ($destination.uploadToken -ceq $token) 'Upload token was not persisted before remote mutation'
@@ -195,6 +197,7 @@ try {
             }
             if ($script:failOn -and $text -like $script:failOn) { $script:failOn = ''; throw 'injected staging failure' }
             if ($Command -eq 'ssh' -and $operation -eq 'commit') { $script:remoteUploads.Remove($key) }
+            if ($Command -eq 'ssh' -and $operation -eq 'prepare') { return $folder }
             if ($Command -eq 'scp' -and $script:failOn -eq 'dirty-after-upload') { $script:failOn=''; $script:dirty=@(' M tracked.cxx') }
             return
         }
@@ -491,8 +494,8 @@ try {
         $record = Get-Content $statePath -Raw | ConvertFrom-Json
         $token = $record.destinations[0].uploadToken
         Check ($token -ceq $pending.destinations[0].uploadToken -and $script:remoteUploads.Count -eq 1) 'Failed cleanup lost upload recovery identity'
-        $abandoned = "vps:~/ember-rooms/.incoming-$($pending.buildId)-$token/"
-        $unrelated = "vps:~/ember-rooms/.incoming-$($pending.buildId)-$([Guid]::NewGuid().ToString('N'))/"
+        $abandoned = "vps:/home/katie/ember-rooms/.incoming-$($pending.buildId)-$token/"
+        $unrelated = "vps:/home/katie/ember-rooms/.incoming-$($pending.buildId)-$([Guid]::NewGuid().ToString('N'))/"
         $script:remoteUploads[$unrelated] = @('unrelated partial upload')
         $script:failCleanupAfter = ''
         Resume-Pending
@@ -515,7 +518,7 @@ try {
             $pending = New-Pending
             $destination = $pending.destinations[$hostIndex]
             # Abrupt process death skips finally: the recorded token and remote partial bytes survive.
-            $abandoned = "$($destination.hostName):~/$($destination.root)/.incoming-$($pending.buildId)-$($destination.uploadToken)/"
+            $abandoned = "$($destination.hostName):/home/katie/$($destination.root)/.incoming-$($pending.buildId)-$($destination.uploadToken)/"
             $script:remoteUploads[$abandoned] = @('interrupted scp bytes')
             Resume-Pending
             Check ($script:remoteUploads.Count -eq 0) 'Interrupted upload was not recovered'

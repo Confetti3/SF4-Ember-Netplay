@@ -138,7 +138,7 @@ function Expand-EmberSymbolArchive([object]$Archive, [string]$Channel, [string]$
 function Publish-EmberSymbols([object]$Archive, [string]$Channel, [string]$Label, [string]$Installer, [string]$Server = 'vps') {
     $contents = Expand-EmberSymbolArchive $Archive $Channel $Label
     try {
-        Invoke-EmberStagedUpload $Server "$Channel $Label" $Installer $contents.folders '' "$Channel $Label symbols" | Out-Host
+        Invoke-EmberStagedUpload $Server "$Channel $Label" $Installer $contents.folders "$Channel $Label symbols" | Out-Host
     } finally { Remove-Item -LiteralPath $contents.directory -Recurse -Force }
     Write-Host "Symbols for $Channel $Label are on ${Server}."
 }

@@ -173,6 +173,8 @@ Nightly prune and an old archive must not bring old rules back.
 
 A publication interrupted across the update that added the Symbols step does not get one: an old Stable record already at `staged` publishes without it, and an old Nightly record at `prepared` has no symbol archive and must be deleted to restart.
 
+The same goes for a record at `prepared` made before the room-host staging script printed its upload folder: it pins the old script, which prints nothing on `prepare`, and the upload stops with "did not report its folder". Delete `dist/nightly-pending.json` and publish again; the new record pins the current script. An `.incoming-*` folder the old attempt left on a host is only a partial upload and can be removed by hand.
+
 GitHub publication reads the release and its tag, takes the one step the
 recorded release still needs (create the draft, remove an interrupted zero-byte
 upload, upload a missing asset, or publish), then reads the release again. Every
