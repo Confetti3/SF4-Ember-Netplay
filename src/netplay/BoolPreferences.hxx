@@ -24,7 +24,7 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"fasterDisplay", &PlayerPreferences::fasterDisplay}, {"borderless", &PlayerPreferences::borderless},
     {"controllerLayer", &PlayerPreferences::controllerLayer},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"shareReplays", &PlayerPreferences::shareReplays}, {"discordPresence", &PlayerPreferences::discordPresence},
-    {"discordInvites", &PlayerPreferences::discordInvites}, {"shareSteamProfile", &PlayerPreferences::shareSteamProfile}, {"sendProblemReports", &PlayerPreferences::sendProblemReports},
+    {"discordInvites", &PlayerPreferences::discordInvites}, {"shareSteamProfile", &PlayerPreferences::shareSteamProfile}, {"sendProblemReportsWithDump", &PlayerPreferences::sendProblemReports},
 };
 
 } }

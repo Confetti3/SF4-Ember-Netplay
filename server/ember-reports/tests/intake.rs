@@ -448,7 +448,7 @@ async fn queue_saturation_returns_503_and_permits_release() {
     let temp = Temp::new();
     let state = app(&temp).await;
     let mut active = Vec::new();
-    for _ in 0..4 {
+    for _ in 0..Limits::default().workers {
         active.push(
             state
                 .gate
@@ -557,7 +557,7 @@ async fn refusals_send_their_wire_reason() {
     );
     // Fill every worker and queue slot, then use the fifth and sixth requests
     // from this address.
-    let held = (0..4 + 32)
+    let held = (0..Limits::default().workers + Limits::default().queue)
         .map(|_| state.gate.reserve().unwrap())
         .collect::<Vec<_>>();
     assert_eq!(

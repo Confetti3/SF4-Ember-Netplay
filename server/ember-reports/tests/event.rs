@@ -3,7 +3,7 @@ use ember_reports::{
     event::{self, EVENT_BYTES},
     intake::{self, Kind},
     limits::Gate,
-    symbolicate::{Frame, Thread, Walk, WalkStatus},
+    symbolicate::{Frame, SYMBOL_BYTES, Thread, Walk, WalkStatus},
 };
 use serde_json::{Value, json};
 use std::{path::PathBuf, time::Duration};
@@ -147,6 +147,66 @@ async fn synthetic_crash_symbolicated_and_module_offset_events() {
     assert_eq!(event["release"], "0.8.0");
     assert_eq!(event["environment"], "beta");
     assert_eq!(event["tags"]["build_id"], "a".repeat(12));
+}
+
+// Launcher.exe's symbol file in the store, exactly `bytes` long: the
+// synthetic crash's function and line, padded with FILE records.
+fn launcher_symbols(symbols: &std::path::Path, bytes: usize) -> PathBuf {
+    let directory = symbols.join("Launcher.exe").join(SYNTHETIC_DEBUG_ID);
+    std::fs::create_dir_all(&directory).unwrap();
+    let mut text =
+        format!("MODULE windows x86 {SYNTHETIC_DEBUG_ID} Launcher.exe\nFILE 0 launcher.cpp\n");
+    let function = "FUNC 1200 100 0 report_crash\n1200 100 42 0\n";
+    let mut index = 1;
+    while text.len() + function.len() + 64 < bytes {
+        text += &format!("FILE {index} padding{index}.cpp\n");
+        index += 1;
+    }
+    let last = format!("FILE {index} ");
+    let fill = bytes - text.len() - function.len() - last.len() - 1;
+    text += &format!("{last}{}\n{function}", "p".repeat(fill));
+    assert_eq!(text.len(), bytes);
+    let path = directory.join("Launcher.exe.sym");
+    std::fs::write(&path, text).unwrap();
+    path
+}
+
+// Sidecar.sym outgrew the first 8 MiB cap: a file just past it now loads, and
+// one past the current cap is skipped before it is read.
+#[tokio::test]
+async fn symbol_files_load_past_the_old_cap_and_stop_at_the_current_one() {
+    let temp = Temp::new();
+    let symbols = temp.0.join("symbols");
+    let path = launcher_symbols(&symbols, 8 * 1024 * 1024 + 1);
+    let loaded = worker()
+        .walk(
+            &synthetic("Launcher.exe"),
+            symbols.clone(),
+            Duration::from_secs(10),
+        )
+        .await;
+    assert_eq!(loaded.symbolication(), "ok");
+    assert_eq!(
+        loaded.crash_frames[0].function.as_deref(),
+        Some("report_crash")
+    );
+    std::fs::File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_len(SYMBOL_BYTES as u64 + 1)
+        .unwrap();
+    let skipped = worker()
+        .walk(&synthetic("Launcher.exe"), symbols, Duration::from_secs(10))
+        .await;
+    assert_eq!(
+        skipped.symbolication(),
+        format!(
+            "partial: symbols over budget for Launcher.exe/{SYNTHETIC_DEBUG_ID}/Launcher.exe.sym"
+        )
+    );
+    assert!(skipped.crash_frames[0].function.is_none());
+    assert_eq!(skipped.crash_frames[0].offset, 0x1234);
 }
 
 #[cfg(target_os = "linux")]

@@ -1,4 +1,5 @@
-"""Exercise setup's post-reload check without installing or contacting a server.
+"""Exercise setup's post-reload check and install-symbols.sh's store handling
+without installing or contacting a server.
 
 Run with: python3 tests/deploy_setup.py (requires Bash).
 """
@@ -7,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 
 
@@ -106,6 +108,85 @@ ETC=/etc/ember-reports
         self.assertIn("Report HTTPS route did not answer 405 within 10 seconds.", result.stderr)
         self.assertIn("restored", result.stderr)
         self.assertNotIn("installed.", result.stdout)
+
+
+class SymbolInstall(unittest.TestCase):
+    """install-symbols.sh on a scratch store and manifest folder."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        root = Path(self.temp.name)
+        self.store = root / "symbols"
+        self.manifests = root / "manifests"
+        self.store.mkdir()
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def run_phase(self, channel, label, phase):
+        script = Path(__file__).parents[1] / "deploy/install-symbols.sh"
+        return subprocess.run(
+            [shutil.which("bash"), "-s", "--", channel, label, phase],
+            input=script.read_text(), capture_output=True, text=True, timeout=10,
+            env={**os.environ, "EMBER_SYMBOL_STORE": self.store.as_posix(),
+                 "EMBER_SYMBOL_MANIFESTS": self.manifests.as_posix()},
+        )
+
+    def install(self, channel, label, modules):
+        prepared = self.run_phase(channel, label, "prepare")
+        self.assertEqual(prepared.returncode, 0, prepared.stderr)
+        incoming = Path(prepared.stdout.strip())
+        self.assertEqual(incoming.parent, self.store)
+        for module in modules:
+            folder = incoming / module
+            folder.mkdir(parents=True)
+            name = module.split("/")[0].removesuffix(".pdb")
+            (folder / f"{name}.sym").write_text(f"MODULE windows x86 {module.split('/')[1]} {name}.pdb\n")
+        committed = self.run_phase(channel, label, "commit")
+        cleaned = self.run_phase(channel, label, "cleanup")
+        self.assertEqual(cleaned.returncode, 0, cleaned.stderr)
+        self.assertFalse(incoming.exists())
+        return committed
+
+    def test_upload_moves_into_store_and_records_the_release(self):
+        result = self.install("stable", "1.4.1", ["Sidecar.pdb/AA1", "GGPO.pdb/BB1"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.store / "Sidecar.pdb/AA1/Sidecar.sym").is_file())
+        self.assertEqual((self.manifests / "stable-1.4.1.txt").read_text().split(),
+                         ["GGPO.pdb/BB1", "Sidecar.pdb/AA1"])
+        # The same symbols again: kept as they are, listed again.
+        again = self.install("nightly", "1.5.0-nightly20261030", ["GGPO.pdb/BB1"])
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertEqual((self.manifests / "nightly-1.5.0-nightly20261030.txt").read_text().split(),
+                         ["GGPO.pdb/BB1"])
+        self.assertEqual(sorted(p.name for p in self.store.iterdir()), ["GGPO.pdb", "Sidecar.pdb"])
+
+    def test_old_nightly_symbols_go_unless_another_release_lists_them(self):
+        self.assertEqual(self.install("stable", "1.4.1", ["GGPO.pdb/BB1"]).returncode, 0)
+        old = self.install("nightly", "1.5.0-nightly20260901", ["Sidecar.pdb/CC1", "GGPO.pdb/BB1"])
+        self.assertEqual(old.returncode, 0, old.stderr)
+        stale = time.time() - 50 * 24 * 3600
+        for manifest in self.manifests.glob("*.txt"):
+            os.utime(manifest, (stale, stale))
+        result = self.install("nightly", "1.5.0-nightly20261030", ["Sidecar.pdb/DD1", "GGPO.pdb/BB1"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.store / "Sidecar.pdb/CC1").exists())
+        self.assertTrue((self.store / "Sidecar.pdb/DD1/Sidecar.sym").is_file())
+        # Listed by a Stable release, however old, and by the new Nightly.
+        self.assertTrue((self.store / "GGPO.pdb/BB1/GGPO.sym").is_file())
+        self.assertEqual(sorted(p.name for p in self.manifests.glob("*.txt")),
+                         ["nightly-1.5.0-nightly20261030.txt", "stable-1.4.1.txt"])
+
+    def test_bad_input_installs_nothing(self):
+        for channel, label in [("beta", "1.4.1"), ("stable", "1.4.1;rm"), ("stable", "../1.4.1")]:
+            result = self.run_phase(channel, label, "prepare")
+            self.assertEqual(result.returncode, 2, result.stderr)
+        empty = self.install("stable", "1.4.1", [])
+        self.assertNotEqual(empty.returncode, 0)
+        odd = self.install("stable", "1.4.2", ["Sidecar.pdb/not-hex"])
+        self.assertNotEqual(odd.returncode, 0)
+        self.assertEqual(list(self.store.iterdir()), [])
+        self.assertFalse(self.manifests.exists())
 
 
 if __name__ == "__main__":

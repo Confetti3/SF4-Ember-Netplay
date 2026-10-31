@@ -119,10 +119,11 @@ permits stay held until work exits, including worker termination and reaping.
 Parsing and walking run in a short-lived child of the same binary, invoked as
 `ember-reports symbolicate <symbols-directory>`. The dump arrives on stdin and
 JSON frames leave on stdout. Before exec the Linux parent installs hard/soft
-`RLIMIT_AS` of **64 MiB**, `RLIMIT_CPU` of the configured processing seconds
-(rounded up, at least one second), and zero core-file size. Four children have
-at most 256 MiB of address space combined, leaving headroom within the service's
-512 MiB cgroup. The parent enforces the wall deadline across pipe I/O, walking
+`RLIMIT_AS` of **512 MiB**, `RLIMIT_CPU` of the configured processing seconds
+(rounded up, at least one second), and zero core-file size. A walk parses its
+symbol files in memory: Sidecar's 29.8 MiB file peaks near 100 MiB. Two
+children (the default `workers`) at their limit leave headroom within the
+service's 1536 MiB cgroup. The parent enforces the wall deadline across pipe I/O, walking
 and process exit, kills on timeout/error, and waits for reaping before releasing
 admission. Worker stdout is capped at 8 MiB. An exhausted or crashed child
 leaves intake and outbox delivery running and emits fixed raw exception facts
@@ -133,8 +134,8 @@ streams, excluding arbitrary extension streams and annotations. Input budgets
 are 64 directory entries, 128 threads, 256 modules and 1024 memory ranges. List
 streams must use the exact unpadded layout; module names and CodeView records
 are capped at 1024 bytes with their referenced ranges checked before parsing.
-Symbol files must be canonical paths within the symbol store, at most 8 MiB
-each and 16 MiB total per walk. Missing, unreadable, rejected, oversized or corrupt
+Symbol files must be canonical paths within the symbol store, at most 64 MiB
+each and 96 MiB total per walk. Missing, unreadable, rejected, oversized or corrupt
 symbols leave frames as module+offset. A successful walk with any symbol lookup
 problems reports `extra.symbolication = "partial: symbols <problem> for
 <store-relative name>; ..."`; `ok` means the requested symbols loaded without

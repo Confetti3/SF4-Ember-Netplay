@@ -5468,7 +5468,7 @@ msgid "reports.setting"
 msgstr "Envoyer les rapports de problèmes"
 
 msgid "reports.setting_detail"
-msgstr "Oui : après un plantage, le lanceur envoie son rapport sans demander, {0} par jour au plus et jamais avec le vidage. Non : il demande d'abord."
+msgstr "Oui : après un plantage, le lanceur envoie son rapport sans demander, avec le petit vidage si le plantage en a écrit un, {0} par jour au plus. Non : il demande d'abord."
 
 msgid "reports.problem"
 msgstr "Signaler un problème"
@@ -5552,7 +5552,7 @@ msgid "launcher.game_crashed_files"
 msgstr "Le jeu a planté. Envoyez à l'équipe SF4 Ember Netplay les fichiers de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log et sf4e-crash-*.dmp), puis réessayez."
 
 msgid "launcher.game_crashed_sending"
-msgstr "Le jeu a planté. Envoyer les rapports de problèmes est activé : un rapport sans le vidage est en cours d'envoi. Les fichiers se trouvent aussi dans %APPDATA%\\sf4e\\logs."
+msgstr "Le jeu a planté. Envoyer les rapports de problèmes est activé : son rapport est en cours d'envoi, avec le petit vidage si le plantage en a écrit un. Les fichiers se trouvent aussi dans %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Rapports de problèmes"
@@ -5576,7 +5576,7 @@ msgid "reports.send_always"
 msgstr "Toujours envoyer"
 
 msgid "reports.send_always_detail"
-msgstr "Envoie ce rapport et, désormais, le rapport de chaque plantage suivant sans demander. Les rapports envoyés sans demande n'incluent jamais de vidage. {0} au plus partent sans demander en 24 heures, et chaque rapport envoyé compte. Désactivez-le dans Paramètres, Rapports de problèmes."
+msgstr "Envoie ce rapport et, désormais, le rapport de chaque plantage suivant sans demander, avec le petit vidage si le plantage en a écrit un. Le vidage contient de la mémoire brute des threads du jeu et peut contenir des informations privées qui, contrairement aux journaux, ne sont pas retirées. {0} au plus partent sans demander en 24 heures, et chaque rapport envoyé compte. Désactivez-le dans Paramètres, Rapports de problèmes."
 
 msgid "reports.dump_included"
 msgstr "Vidage : inclus."
@@ -5612,7 +5612,7 @@ msgid "reports.not_sent"
 msgstr "Le rapport n'a pas pu être envoyé. Il ne sera pas renvoyé."
 
 msgid "reports.what_is_sent"
-msgstr "Les invitations, jetons, adresses réseau, e-mail, ainsi que votre nom d'utilisateur Windows, dossier de profil, nom de PC et nom de joueur sont retirés des journaux.\n\nUn rapport que vous envoyez vous-même est d'abord affiché en entier, et le petit vidage ne part que si vous l'activez dans cet aperçu. Les rapports envoyés sans demande n'incluent jamais de vidage.\n\nJamais envoyés : vos autres fichiers, vos replays ou les vidages complets du plantage."
+msgstr "Les invitations, jetons, adresses réseau, e-mail, ainsi que votre nom d'utilisateur Windows, dossier de profil, nom de PC et nom de joueur sont retirés des journaux.\n\nUn rapport de plantage contient aussi le petit vidage si le plantage en a écrit un. Il contient de la mémoire brute des threads du jeu, qui n'est pas filtrée. Un rapport que vous envoyez vous-même est d'abord affiché en entier, et vous pouvez désactiver Petit vidage dans cet aperçu. Les rapports envoyés sans demande l'incluent.\n\nJamais envoyés : vos autres fichiers, vos replays ou les vidages complets du plantage."
 
 msgid "reports.send_once_detail"
 msgstr "Ouvre un aperçu de ce que contient ce rapport. Rien n'est envoyé tant que vous ne choisissez pas Envoyer."
@@ -5621,7 +5621,7 @@ msgid "reports.crash_report"
 msgstr "Rapport de plantage"
 
 msgid "reports.payload"
-msgstr "Les rapports vont à embernetplay.link. Chacun contient la version et le build d'Ember, la version de Windows, les données du plantage et la fin expurgée de sf4e.log, launcher.log, sf4e-crash.log et sf4-net.log."
+msgstr "Les rapports vont à embernetplay.link. Chacun contient la version et le build d'Ember, la version de Windows, les données du plantage, la fin expurgée de sf4e.log, launcher.log, sf4e-crash.log et sf4-net.log, et le petit vidage si le plantage en a écrit un."
 
 msgid "reports.status.unknown"
 msgstr "Inconnu"

@@ -86,6 +86,68 @@ function Assert-ReceiptChannel([object]$Receipt, [string]$Channel) {
     }
 }
 
+# Breakpad symbols for a published build (build-current.ps1 -Symbols): the modules of the game process that
+# have PDBs, Sidecar.dll and the vcpkg DLLs it loads, in the store layout the report server reads
+# (server/ember-reports/deploy/README.md, Symbols). Mozilla dump_syms runs in WSL Ubuntu from ~/.cargo/bin
+# (cargo install dump_syms --locked). Get-EmberDumpSyms checks for it, so a -Symbols build stops before it
+# compiles anything, and returns a runner that takes dump_syms's arguments with Windows paths.
+function Get-EmberDumpSyms {
+    $linuxHome = "$(& wsl -d Ubuntu --exec printenv HOME)".Trim()
+    if ($LASTEXITCODE -or !$linuxHome.StartsWith('/')) { throw 'Symbols need WSL Ubuntu, which did not start.' }
+    $tool = "$linuxHome/.cargo/bin/dump_syms"
+    & wsl -d Ubuntu --exec test -x $tool
+    if ($LASTEXITCODE) { throw "dump_syms is not installed in WSL Ubuntu at $tool (cargo install dump_syms --locked)." }
+    {
+        $arguments = @(foreach ($argument in $args) {
+            if ($argument -match '^[A-Za-z]:[\\/]') { "$(& wsl -d Ubuntu --exec wslpath -a $argument)".Trim() } else { $argument }
+        })
+        & wsl -d Ubuntu --exec $tool @arguments
+        if ($LASTEXITCODE) { throw "dump_syms failed: $($args -join ' ')" }
+    }.GetNewClosure()
+}
+# Writes the store to <build>\symbols, replacing an earlier one, and returns what the receipt records: the
+# store, the tool's version and each module's <debug file>/<DEBUGID>. Each DLL is read from the copy beside its
+# PDB, which must be the staged binary in $Binaries (the receipt's) byte for byte: a staged copy has no PDB
+# beside it, and dump_syms then writes exported names only. A symbol file without functions means the PDB was
+# not read, and stops the build.
+function New-EmberSymbols([string]$BuildRoot, [object[]]$Binaries, [scriptblock]$DumpSyms) {
+    $vcpkg = Join-Path $BuildRoot 'dependencies/x86-windows-wchar-filenames/bin'
+    $sources = [ordered]@{'Sidecar.dll'=(Join-Path $BuildRoot 'Sidecar.dll')}
+    foreach ($name in 'GGPO.dll', 'spdlog.dll', 'fmt.dll', 'zlib1.dll') { $sources[$name] = Join-Path $vcpkg $name }
+    $store = Join-Path $BuildRoot 'symbols'
+    if (Test-Path -LiteralPath $store) { Remove-Item -LiteralPath $store -Recurse -Force }
+    New-Item -ItemType Directory -Path $store | Out-Null
+    $written = { @(Get-ChildItem -LiteralPath $store -Recurse -File -Filter '*.sym' | ForEach-Object FullName) }
+    $modules = foreach ($source in $sources.GetEnumerator()) {
+        $staged = @($Binaries | Where-Object { $_.path -ceq $source.Key })
+        if ($staged.Count -ne 1 -or (Get-FileHash -LiteralPath $source.Value).Hash -ne $staged[0].sha256) {
+            throw "$($source.Value) is not the staged $($source.Key), so its symbols would not match the release."
+        }
+        $before = & $written
+        & $DumpSyms '-s' $store $source.Value
+        $made = @(& $written | Where-Object { $_ -notin $before })
+        if ($made.Count -ne 1) { throw "dump_syms wrote no symbol file for $($source.Key)." }
+        if (!(Select-String -LiteralPath $made[0] -Pattern '^FUNC ' -Quiet)) { throw "dump_syms wrote no functions for $($source.Key): its PDB was not read." }
+        $id = Split-Path $made[0] -Parent
+        "$(Split-Path (Split-Path $id -Parent) -Leaf)/$(Split-Path $id -Leaf)"
+    }
+    [ordered]@{store=$store;generator="$(& $DumpSyms '--version')".Trim();modules=@($modules)}
+}
+# A published build carries its symbols. Returns the store, refusing a receipt without Sidecar's symbols
+# (a build without -Symbols records none) or a store that lost a module since.
+function Assert-ReceiptSymbols([object]$Receipt) {
+    $symbols = $Receipt.symbols
+    if (!$symbols -or !@($symbols.modules | Where-Object { $_ -like 'Sidecar.pdb/*' }).Count) {
+        throw 'The build receipt has no Sidecar symbols; rebuild with scripts/build-current.ps1 -Symbols.'
+    }
+    foreach ($module in $symbols.modules) {
+        if (!(Test-Path -LiteralPath (Join-Path $symbols.store $module) -PathType Container)) {
+            throw "The symbol store no longer holds $module; rebuild with scripts/build-current.ps1 -Symbols."
+        }
+    }
+    return $symbols.store
+}
+
 # -SkipFingerprint leaves out only the fresh fingerprint of the tree (about 2-3 s); the receipt's own paths,
 # the self-test flags, the staged binary hashes and the dependency checks all still run. A caller uses it only
 # when it re-establishes freshness itself shortly after (Invoke-NightlyPublish does, with Assert-NightlySource).

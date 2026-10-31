@@ -78,6 +78,54 @@ catch { if ($_.Exception.Message -notlike 'CMake source mismatch*') { throw } }
 [IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'current feature')
 Write-Output 'PASS the receipt check without the fresh fingerprint still refuses a changed binary and a foreign CMake source'
 
+# Symbols (build-current.ps1 -Symbols): each module comes from the copy beside its PDB, which must be the staged
+# binary; a symbol file without functions (its PDB not read) stops the build; a receipt without Sidecar's
+# symbols, or whose store lost one, is refused for publishing. A fake dump_syms writes one module per call.
+$symbolBuild = Join-Path $fixture 'symbol-build'
+$vcpkgBin = Join-Path $symbolBuild 'dependencies/x86-windows-wchar-filenames/bin'
+New-Item -ItemType Directory -Path $vcpkgBin | Out-Null
+$symbolBinaries = @(foreach ($name in 'Sidecar.dll', 'GGPO.dll', 'spdlog.dll', 'fmt.dll', 'zlib1.dll', 'Launcher.exe') {
+    $path = if ($name -in 'Sidecar.dll', 'Launcher.exe') { Join-Path $symbolBuild $name } else { Join-Path $vcpkgBin $name }
+    [IO.File]::WriteAllText($path, "fixture $name")
+    [pscustomobject]@{path=$name;sha256=(Get-FileHash -LiteralPath $path).Hash}
+})
+$symbolRecord = 'FUNC 1000 10 0 main'
+$fakeDumpSyms = {
+    if ($args[0] -ceq '--version') { return 'dump_syms 2.3.9' }
+    if ($args[0] -cne '-s' -or $args.Count -ne 3) { throw "Unexpected dump_syms arguments: $args" }
+    $name = [IO.Path]::GetFileNameWithoutExtension($args[2])
+    $directory = Join-Path $args[1] "$name.pdb/0123456789ABCDEF0123456789ABCDEF1"
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $directory "$name.sym") -Value @("MODULE windows x86 0123456789ABCDEF0123456789ABCDEF1 $name.pdb", $symbolRecord)
+}
+$symbols = New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms
+$expectedModules = @('Sidecar', 'GGPO', 'spdlog', 'fmt', 'zlib1' | ForEach-Object { "$_.pdb/0123456789ABCDEF0123456789ABCDEF1" })
+if (($symbols.modules -join ',') -cne ($expectedModules -join ',') -or $symbols.generator -cne 'dump_syms 2.3.9' -or
+    $symbols.store -ne (Join-Path $symbolBuild 'symbols')) { throw "Symbols recorded wrongly: $($symbols | ConvertTo-Json)" }
+# The receipt as build-current.ps1 writes it and packaging reads it back.
+$symbolReceipt = [pscustomobject]@{symbols=$symbols} | ConvertTo-Json -Depth 4 | ConvertFrom-Json
+if ((Assert-ReceiptSymbols $symbolReceipt) -ne $symbols.store) { throw 'The receipt symbols were not accepted' }
+Write-Output 'PASS symbols come from the PDB-side copies of the staged binaries and are recorded in the receipt'
+function Expect-SymbolFailure([string]$Expected, [scriptblock]$Run) {
+    try { & $Run | Out-Null; throw 'Unexpected acceptance' }
+    catch { if ($_.Exception.Message -notlike $Expected) { throw } }
+}
+$symbolRecord = 'PUBLIC 1000 0 main'
+Expect-SymbolFailure 'dump_syms wrote no functions for Sidecar.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms }
+$symbolRecord = 'FUNC 1000 10 0 main'
+[IO.File]::WriteAllText((Join-Path $vcpkgBin 'GGPO.dll'), 'another build')
+Expect-SymbolFailure '*is not the staged GGPO.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms }
+[IO.File]::WriteAllText((Join-Path $vcpkgBin 'GGPO.dll'), 'fixture GGPO.dll')
+Expect-SymbolFailure 'dump_syms wrote no symbol file for Sidecar.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries {} }
+$symbols = New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms
+foreach ($receipt in @([pscustomobject]@{symbols=$null}, [pscustomobject]@{sourceRoot='predates the field'},
+    [pscustomobject]@{symbols=[pscustomobject]@{store=$symbols.store;modules=@($expectedModules | Select-Object -Skip 1)}})) {
+    Expect-SymbolFailure 'The build receipt has no Sidecar symbols*' { Assert-ReceiptSymbols $receipt }
+}
+Remove-Item -LiteralPath (Join-Path $symbols.store 'zlib1.pdb') -Recurse
+Expect-SymbolFailure 'The symbol store no longer holds zlib1.pdb/*' { Assert-ReceiptSymbols ([pscustomobject]@{symbols=$symbols}) }
+Write-Output 'PASS a module without functions or not the staged binary stops the build, and a receipt without symbols is refused'
+
 # A fake CTest whose first run fails HelperRust; a rerun fails it again only when $failAgain says so, and a
 # first run leaves out the test $omit names. Its tests are the ones a receipt with testsPassed must show as run
 # (the $missing list of Invoke-DefaultTests): the helper and Ember Rust suites, the SDK and the publisher's suites.

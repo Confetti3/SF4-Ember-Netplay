@@ -46,7 +46,8 @@ IPAddressDeny=any
 IPAddressAllow=localhost
 # The service only reads trusted, owner-uploaded symbols.
 ReadOnlyPaths=/var/lib/ember-reports/symbols
-MemoryMax=512M
+# Two symbolicate workers at their 512 MiB address-space limit plus intake.
+MemoryMax=1536M
 MemorySwapMax=0
 TasksMax=32
 LimitNOFILE=256

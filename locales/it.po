@@ -5468,7 +5468,7 @@ msgid "reports.setting"
 msgstr "Invia segnalazioni di problemi"
 
 msgid "reports.setting_detail"
-msgstr "Sì: dopo un crash, il launcher invia la segnalazione senza chiedere, al massimo {0} al giorno e mai con il dump del crash. No: chiede prima."
+msgstr "Sì: dopo un crash, il launcher invia la segnalazione senza chiedere, con il dump piccolo se il crash ne ha scritto uno, al massimo {0} al giorno. No: chiede prima."
 
 msgid "reports.problem"
 msgstr "Segnala un problema"
@@ -5552,7 +5552,7 @@ msgid "launcher.game_crashed_files"
 msgstr "Il gioco si è bloccato. Invia al team di SF4 Ember Netplay i file in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp), poi riprova."
 
 msgid "launcher.game_crashed_sending"
-msgstr "Il gioco si è bloccato. Invia segnalazioni di problemi è attivo, quindi è in invio una segnalazione senza il dump del crash. I file sono anche in %APPDATA%\\sf4e\\logs."
+msgstr "Il gioco si è bloccato. Invia segnalazioni di problemi è attivo, quindi è in invio la sua segnalazione, con il dump piccolo se il crash ne ha scritto uno. I file sono anche in %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Segnalazioni di problemi"
@@ -5576,7 +5576,7 @@ msgid "reports.send_always"
 msgstr "Invia sempre"
 
 msgid "reports.send_always_detail"
-msgstr "Invia questa segnalazione e, da ora in poi, quella di ogni crash successivo senza chiedere. Le segnalazioni inviate senza chiedere non includono mai un dump. Al massimo {0} partono senza chiedere in 24 ore, e ogni segnalazione inviata conta. Puoi disattivarlo in Impostazioni, Segnalazioni di problemi."
+msgstr "Invia questa segnalazione e, da ora in poi, quella di ogni crash successivo senza chiedere, con il dump piccolo se il crash ne ha scritto uno. Il dump contiene memoria grezza dei thread del gioco e può contenere dati privati che, a differenza dei log, non vengono rimossi. Al massimo {0} partono senza chiedere in 24 ore, e ogni segnalazione inviata conta. Puoi disattivarlo in Impostazioni, Segnalazioni di problemi."
 
 msgid "reports.dump_included"
 msgstr "Dump del crash: incluso."
@@ -5612,7 +5612,7 @@ msgid "reports.not_sent"
 msgstr "Impossibile inviare la segnalazione. Non verrà inviata di nuovo."
 
 msgid "reports.what_is_sent"
-msgstr "Inviti, token, indirizzi di rete, e-mail e il tuo nome utente Windows, la cartella del profilo, il nome del PC e il nome giocatore vengono rimossi dai log.\n\nUna segnalazione inviata da te viene prima mostrata per intero, e il dump piccolo parte solo se lo attivi in quell'anteprima. Le segnalazioni inviate senza chiedere non includono mai un dump.\n\nMai inviati: i tuoi altri file, i tuoi replay o i dump completi del crash."
+msgstr "Inviti, token, indirizzi di rete, e-mail e il tuo nome utente Windows, la cartella del profilo, il nome del PC e il nome giocatore vengono rimossi dai log.\n\nUna segnalazione di crash include anche il dump piccolo se il crash ne ha scritto uno. Contiene memoria grezza dei thread del gioco, che non viene filtrata. Una segnalazione inviata da te viene prima mostrata per intero, e in quell'anteprima puoi disattivare Dump piccolo. Le segnalazioni inviate senza chiedere lo includono.\n\nMai inviati: i tuoi altri file, i tuoi replay o i dump completi del crash."
 
 msgid "reports.send_once_detail"
 msgstr "Apre un'anteprima di ciò che contiene questa segnalazione. Non viene inviato nulla finché non scegli Invia."
@@ -5621,7 +5621,7 @@ msgid "reports.crash_report"
 msgstr "Segnalazione di crash"
 
 msgid "reports.payload"
-msgstr "Le segnalazioni vanno a embernetplay.link. Ognuna contiene la versione e la build di Ember, la versione di Windows, i dati del crash e la parte finale oscurata di sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log."
+msgstr "Le segnalazioni vanno a embernetplay.link. Ognuna contiene la versione e la build di Ember, la versione di Windows, i dati del crash, la parte finale oscurata di sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log, più il dump piccolo se il crash ne ha scritto uno."
 
 msgid "reports.status.unknown"
 msgstr "Sconosciuta"

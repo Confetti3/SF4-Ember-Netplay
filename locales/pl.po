@@ -5468,7 +5468,7 @@ msgid "reports.setting"
 msgstr "Wysyłaj zgłoszenia problemów"
 
 msgid "reports.setting_detail"
-msgstr "Wł.: po awarii launcher wysyła zgłoszenie bez pytania, najwyżej {0} dziennie i nigdy ze zrzutem awarii. Wył.: najpierw pyta."
+msgstr "Wł.: po awarii launcher wysyła zgłoszenie bez pytania, z małym zrzutem, jeśli awaria go zapisała, najwyżej {0} dziennie. Wył.: najpierw pyta."
 
 msgid "reports.problem"
 msgstr "Zgłoś problem"
@@ -5552,7 +5552,7 @@ msgid "launcher.game_crashed_files"
 msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log i sf4e-crash-*.dmp), a potem spróbuj ponownie."
 
 msgid "launcher.game_crashed_sending"
-msgstr "Gra uległa awarii. Opcja Wysyłaj zgłoszenia problemów jest włączona, więc wysyłane jest zgłoszenie bez zrzutu awarii. Pliki są też w %APPDATA%\\sf4e\\logs."
+msgstr "Gra uległa awarii. Opcja Wysyłaj zgłoszenia problemów jest włączona, więc wysyłane jest zgłoszenie z małym zrzutem, jeśli awaria go zapisała. Pliki są też w %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Zgłoszenia problemów"
@@ -5576,7 +5576,7 @@ msgid "reports.send_always"
 msgstr "Zawsze wysyłaj"
 
 msgid "reports.send_always_detail"
-msgstr "Wysyła to zgłoszenie, a od teraz także zgłoszenie każdej kolejnej awarii bez pytania. Zgłoszenia wysyłane bez pytania nigdy nie zawierają zrzutu. W ciągu 24 godzin bez pytania wyjdzie najwyżej {0}, a liczy się każde wysłane zgłoszenie. Wyłączysz to w: Ustawienia, Zgłoszenia problemów."
+msgstr "Wysyła to zgłoszenie, a od teraz także zgłoszenie każdej kolejnej awarii bez pytania, z małym zrzutem, jeśli awaria go zapisała. Zrzut zawiera surową pamięć wątków gry i może zawierać prywatne dane, które w przeciwieństwie do logów nie są z niego usuwane. W ciągu 24 godzin bez pytania wyjdzie najwyżej {0}, a liczy się każde wysłane zgłoszenie. Wyłączysz to w: Ustawienia, Zgłoszenia problemów."
 
 msgid "reports.dump_included"
 msgstr "Zrzut awarii: dołączony."
@@ -5612,7 +5612,7 @@ msgid "reports.not_sent"
 msgstr "Nie udało się wysłać zgłoszenia. Nie zostanie wysłane ponownie."
 
 msgid "reports.what_is_sent"
-msgstr "Zaproszenia, tokeny, adresy sieciowe, e-mail oraz Twoja nazwa użytkownika Windows, folder profilu, nazwa komputera i nazwa gracza są usuwane z logów.\n\nZgłoszenie wysyłane przez Ciebie jest najpierw pokazane w całości, a mały zrzut trafia tylko wtedy, gdy włączysz go w tym podglądzie. Zgłoszenia wysyłane bez pytania nigdy nie zawierają zrzutu.\n\nNigdy nie wysyłamy: Twoich innych plików, powtórek ani pełnych zrzutów awarii."
+msgstr "Zaproszenia, tokeny, adresy sieciowe, e-mail oraz Twoja nazwa użytkownika Windows, folder profilu, nazwa komputera i nazwa gracza są usuwane z logów.\n\nZgłoszenie awarii zawiera też mały zrzut, jeśli awaria go zapisała. Jest w nim surowa pamięć wątków gry, która nie jest filtrowana. Zgłoszenie wysyłane przez Ciebie jest najpierw pokazane w całości, a w tym podglądzie możesz wyłączyć mały zrzut. Zgłoszenia wysyłane bez pytania go zawierają.\n\nNigdy nie wysyłamy: Twoich innych plików, powtórek ani pełnych zrzutów awarii."
 
 msgid "reports.send_once_detail"
 msgstr "Otwiera podgląd dokładnie tego, co zawiera to zgłoszenie. Nic nie jest wysyłane, dopóki nie wybierzesz Wyślij."
@@ -5621,7 +5621,7 @@ msgid "reports.crash_report"
 msgstr "Zgłoszenie awarii"
 
 msgid "reports.payload"
-msgstr "Zgłoszenia trafiają na embernetplay.link. Każde zawiera wersję i build Ember, wersję Windows, dane o awarii oraz zanonimizowaną końcówkę plików sf4e.log, launcher.log, sf4e-crash.log i sf4-net.log."
+msgstr "Zgłoszenia trafiają na embernetplay.link. Każde zawiera wersję i build Ember, wersję Windows, dane o awarii, zanonimizowaną końcówkę plików sf4e.log, launcher.log, sf4e-crash.log i sf4-net.log oraz mały zrzut, jeśli awaria go zapisała."
 
 msgid "reports.status.unknown"
 msgstr "Nieznane"

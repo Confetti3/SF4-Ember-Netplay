@@ -5469,7 +5469,7 @@ msgid "reports.setting"
 msgstr "문제 보고서 보내기"
 
 msgid "reports.setting_detail"
-msgstr "켜기: 충돌 후 런처가 묻지 않고 보고서를 보냅니다(하루 최대 {0}건, 크래시 덤프는 제외). 끄기: 먼저 묻습니다."
+msgstr "켜기: 충돌 후 런처가 묻지 않고 보고서를 보냅니다(하루 최대 {0}건, 작은 덤프가 있으면 포함). 끄기: 먼저 묻습니다."
 
 msgid "reports.problem"
 msgstr "문제 보고"
@@ -5553,7 +5553,7 @@ msgid "launcher.game_crashed_files"
 msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."
 
 msgid "launcher.game_crashed_sending"
-msgstr "게임이 충돌했습니다. 문제 보고서 보내기가 켜져 있어 크래시 덤프 없이 보고서를 보내는 중입니다. 파일은 %APPDATA%\\sf4e\\logs 폴더에도 있습니다."
+msgstr "게임이 충돌했습니다. 문제 보고서 보내기가 켜져 있어 보고서를 보내는 중입니다(작은 덤프가 있으면 포함). 파일은 %APPDATA%\\sf4e\\logs 폴더에도 있습니다."
 
 msgid "reports.settings_title"
 msgstr "문제 보고서"
@@ -5577,7 +5577,7 @@ msgid "reports.send_always"
 msgstr "항상 보내기"
 
 msgid "reports.send_always_detail"
-msgstr "이 보고서를 보내고, 이후 충돌의 보고서도 묻지 않고 보냅니다. 묻지 않고 보내는 보고서에는 덤프가 포함되지 않습니다. 묻지 않고 보내는 보고서는 24시간에 최대 {0}건이며, 보낸 보고서는 모두 이 수에 포함됩니다. 설정의 문제 보고서에서 끌 수 있습니다."
+msgstr "이 보고서를 보내고, 이후 충돌의 보고서도 묻지 않고 보냅니다. 작은 덤프가 있으면 함께 보냅니다. 덤프에는 게임 스레드의 메모리가 그대로 들어 있으며, 로그와 달리 개인 정보가 제거되지 않습니다. 묻지 않고 보내는 보고서는 24시간에 최대 {0}건이며, 보낸 보고서는 모두 이 수에 포함됩니다. 설정의 문제 보고서에서 끌 수 있습니다."
 
 msgid "reports.dump_included"
 msgstr "크래시 덤프: 포함"
@@ -5613,7 +5613,7 @@ msgid "reports.not_sent"
 msgstr "보고서를 보내지 못했습니다. 다시 보내지 않습니다."
 
 msgid "reports.what_is_sent"
-msgstr "초대, 토큰, 네트워크 주소, 이메일, Windows 사용자 이름, 프로필 폴더, PC 이름, 플레이어 이름은 로그에서 제거됩니다.\n\n직접 보내는 보고서는 먼저 전체가 표시되며, 작은 덤프는 그 미리보기에서 켰을 때만 전송됩니다. 묻지 않고 보내는 보고서에는 덤프가 포함되지 않습니다.\n\n전송되지 않는 것: 다른 파일, 리플레이, 전체 크래시 덤프."
+msgstr "초대, 토큰, 네트워크 주소, 이메일, Windows 사용자 이름, 프로필 폴더, PC 이름, 플레이어 이름은 로그에서 제거됩니다.\n\n충돌 보고서에는 작은 덤프가 있으면 그것도 포함됩니다. 덤프에는 게임 스레드의 메모리가 그대로 들어 있으며 아무것도 제거되지 않습니다. 직접 보내는 보고서는 먼저 전체가 표시되며, 그 미리보기에서 작은 덤프를 끌 수 있습니다. 묻지 않고 보내는 보고서에는 포함됩니다.\n\n전송되지 않는 것: 다른 파일, 리플레이, 전체 크래시 덤프."
 
 msgid "reports.send_once_detail"
 msgstr "이 보고서에 들어갈 내용을 그대로 보여 주는 미리보기를 엽니다. 보내기를 선택하기 전에는 아무것도 전송되지 않습니다."
@@ -5622,7 +5622,7 @@ msgid "reports.crash_report"
 msgstr "크래시 보고서"
 
 msgid "reports.payload"
-msgstr "보고서는 embernetplay.link로 전송됩니다. 각 보고서에는 Ember 버전과 빌드, Windows 버전, 충돌 정보, 개인정보를 가린 sf4e.log, launcher.log, sf4e-crash.log, sf4-net.log의 끝부분이 들어갑니다."
+msgstr "보고서는 embernetplay.link로 전송됩니다. 각 보고서에는 Ember 버전과 빌드, Windows 버전, 충돌 정보, 개인정보를 가린 sf4e.log, launcher.log, sf4e-crash.log, sf4-net.log의 끝부분이 들어가며, 작은 덤프가 있으면 그것도 포함됩니다."
 
 msgid "reports.status.unknown"
 msgstr "알 수 없음"

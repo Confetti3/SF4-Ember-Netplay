@@ -5468,7 +5468,7 @@ msgid "reports.setting"
 msgstr "Odesílat hlášení problémů"
 
 msgid "reports.setting_detail"
-msgstr "ZAP: po pádu spouštěč odešle hlášení bez ptaní, nejvýše {0} denně a nikdy s výpisem pádu. VYP: nejdřív se zeptá."
+msgstr "ZAP: po pádu spouštěč odešle hlášení bez ptaní, s malým výpisem, pokud ho pád zapsal, nejvýše {0} denně. VYP: nejdřív se zeptá."
 
 msgid "reports.problem"
 msgstr "Nahlásit problém"
@@ -5552,7 +5552,7 @@ msgid "launcher.game_crashed_files"
 msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."
 
 msgid "launcher.game_crashed_sending"
-msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení bez výpisu pádu. Soubory jsou také ve složce %APPDATA%\\sf4e\\logs."
+msgstr "Hra spadla. Odesílání hlášení problémů je zapnuté, proto se odesílá hlášení s malým výpisem, pokud ho pád zapsal. Soubory jsou také ve složce %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Hlášení problémů"
@@ -5576,7 +5576,7 @@ msgid "reports.send_always"
 msgstr "Odesílat vždy"
 
 msgid "reports.send_always_detail"
-msgstr "Odešle toto hlášení a od teď i hlášení každého dalšího pádu bez ptaní. Hlášení odeslaná bez ptaní nikdy neobsahují výpis. Bez ptaní jich za 24 hodin odejde nejvýše {0} a počítá se každé odeslané hlášení. Vypnete to v: Nastavení, Hlášení problémů."
+msgstr "Odešle toto hlášení a od teď i hlášení každého dalšího pádu bez ptaní, s malým výpisem, pokud ho pád zapsal. Výpis obsahuje surovou paměť vláken hry a může obsahovat soukromé údaje, které se z něj na rozdíl od logů neodstraňují. Bez ptaní jich za 24 hodin odejde nejvýše {0} a počítá se každé odeslané hlášení. Vypnete to v: Nastavení, Hlášení problémů."
 
 msgid "reports.dump_included"
 msgstr "Výpis pádu: přiložen."
@@ -5612,7 +5612,7 @@ msgid "reports.not_sent"
 msgstr "Hlášení se nepodařilo odeslat. Znovu se neodešle."
 
 msgid "reports.what_is_sent"
-msgstr "Z logů se odstraní pozvánky, tokeny, síťové adresy, e-mail a vaše uživatelské jméno Windows, složka profilu, název počítače a jméno hráče.\n\nHlášení, které odesíláte sami, se nejdřív zobrazí celé a malý výpis se odešle jen po zapnutí v tomto náhledu. Hlášení odeslaná bez dotazu výpis nikdy neobsahují.\n\nNikdy se neodesílají: vaše další soubory, vaše záznamy ani úplné výpisy pádu."
+msgstr "Z logů se odstraní pozvánky, tokeny, síťové adresy, e-mail a vaše uživatelské jméno Windows, složka profilu, název počítače a jméno hráče.\n\nHlášení o pádu obsahuje také malý výpis, pokud ho pád zapsal. Je v něm surová paměť vláken hry, která se nefiltruje. Hlášení, které odesíláte sami, se nejdřív zobrazí celé a malý výpis v tomto náhledu můžete vypnout. Hlášení odeslaná bez ptaní ho obsahují.\n\nNikdy se neodesílají: vaše další soubory, vaše záznamy ani úplné výpisy pádu."
 
 msgid "reports.send_once_detail"
 msgstr "Otevře náhled přesně toho, co hlášení obsahuje. Nic se neodešle, dokud nezvolíte Odeslat."
@@ -5621,7 +5621,7 @@ msgid "reports.crash_report"
 msgstr "Hlášení o pádu"
 
 msgid "reports.payload"
-msgstr "Hlášení jdou na embernetplay.link. Každé obsahuje verzi a sestavení Emberu, verzi Windows, údaje o pádu a upravený konec souborů sf4e.log, launcher.log, sf4e-crash.log a sf4-net.log."
+msgstr "Hlášení jdou na embernetplay.link. Každé obsahuje verzi a sestavení Emberu, verzi Windows, údaje o pádu, upravený konec souborů sf4e.log, launcher.log, sf4e-crash.log a sf4-net.log a malý výpis, pokud ho pád zapsal."
 
 msgid "reports.status.unknown"
 msgstr "Neznámé"

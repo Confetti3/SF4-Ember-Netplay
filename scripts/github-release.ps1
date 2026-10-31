@@ -11,12 +11,16 @@ $PSNativeCommandUseErrorActionPreference = $false
 . (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
 . (Join-Path $PSScriptRoot 'Packaging.ps1')
 $source = Split-Path $PSScriptRoot -Parent
-# The packaging functions return what they made; their console output stays out of the result.
+# The packaging functions return what they made; their console output stays out of the result. The release's
+# symbols go to the report server once it is packaged (upload-symbols.ps1, which refuses a build that
+# release-team-build.ps1 did not make with them).
 $operations = @{
     Target = { param($SourceRoot) Get-EmberBuildTarget $SourceRoot }
     Package = {
         param($OutDirectory, $Label)
-        New-EmberPackage -OutDir $OutDirectory -VersionLabel $Label
+        $package = New-EmberPackage -OutDir $OutDirectory -VersionLabel $Label
+        & (Join-Path $PSScriptRoot 'upload-symbols.ps1') -Label $Label | Out-Host
+        $package
     }
     Upgrade = {
         param($From, $To, $BaseZip, $TargetZip, $OutDirectory)

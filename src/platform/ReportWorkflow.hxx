@@ -31,7 +31,8 @@ struct Preparation {
     std::optional<CrashContext> crash;
     updates::UpdateChannel channel = updates::UpdateChannel::Stable;
 };
-// A crash's report sent without a press: logs only, no comment, no dump.
+// A crash's report sent without a press: the logs and the small dump when the
+// crash wrote one, no comment.
 // Existing: Send problem reports was already on, which the worker checks.
 // Confirmed: the player just confirmed Always send, which the worker saves
 // before anything is sent.
@@ -69,10 +70,11 @@ public:
     static WorkflowState Execute(const Operation& operation, WorkflowState state,
         const std::function<bool()>& cancelled, const WorkflowDependencies& dependencies = {});
 };
-// Send problem reports (netplay/BoolPreferences.hxx) as saved, or nothing when
-// the settings cannot be read; TurnReportsOn saves it on, as Always send asks.
-std::optional<bool> ReportsOn();
-bool TurnReportsOn();
+// Send problem reports (netplay/BoolPreferences.hxx) as saved in
+// `settingsDirectory`, or nothing when the settings cannot be read;
+// TurnReportsOn saves it on, as Always send asks.
+std::optional<bool> ReportsOn(const std::wstring& settingsDirectory);
+bool TurnReportsOn(const std::wstring& settingsDirectory);
 // The player name from the settings in `settingsDirectory` and the Windows
 // account. Settings busy in another process are tried again until `wait` is
 // spent; anything still unread fails the whole identity, so a report is

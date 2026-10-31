@@ -13,7 +13,8 @@ try {
     if ($LASTEXITCODE) { throw 'Could not read the current branch.' }
     Assert-EmberStableBranch $branch 'Stable release packaging'
     if (!$SkipBuild) {
-        & (Join-Path $PSScriptRoot 'build-current.ps1') -VisualStudioPath $VisualStudioPath -VcpkgRoot $VcpkgRoot -DiscordSdkArchive $DiscordSdkArchive
+        # With its symbols: github-release.ps1 publishes only a build that has them.
+        & (Join-Path $PSScriptRoot 'build-current.ps1') -Symbols -VisualStudioPath $VisualStudioPath -VcpkgRoot $VcpkgRoot -DiscordSdkArchive $DiscordSdkArchive
     }
     $package = New-EmberPackage -OutDir $OutDir -VersionLabel $VersionLabel
     Write-Host "Verified local package: $($package.zipPath)"

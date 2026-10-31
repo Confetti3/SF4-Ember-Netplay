@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <algorithm>
 #include <atomic>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -121,11 +122,12 @@ inline void Records(const std::filesystem::path& root) {
         state = ReportWorkflow::Execute(submission, state, {}, dependencies);
     };
     response.request.ok = true; response.body = "{\"id\":\"" + std::string(32, 'e') + "\"}";
-    // Not ticked: no dump. Ticked: the dump goes and the record says so.
+    // Small dump turned off: no dump. As the preview starts, on: the dump goes
+    // and the record says so.
     prepare(); send({"", false, nullptr});
     CHECK(lastBody.find("name=\"minidump\"") == std::string::npos && state.record && !state.record->dump && !state.record->automatic);
     CHECK(state.record->status == Status::Received && state.record->id == std::string(32, 'e') && state.record->kind == "crash");
-    prepare(); send({"", true, nullptr});
+    prepare(); send({});
     CHECK(lastBody.find("name=\"minidump\"") != std::string::npos && state.record && state.record->dump);
     // Refusals and failures are recorded with a short reason only.
     prepare(); response = {}; response.request.statusCode = 429;
@@ -154,25 +156,41 @@ inline void Records(const std::filesystem::path& root) {
 }
 
 // A crash's report sent without a press: allowed by the saved setting or by
-// Always send, counted before anything is read, logs only, sent once.
+// Always send, counted before anything is read, with the small dump when the
+// crash wrote one, sent once. Only when the dump keeps it out does it go once
+// more, without the dump, as the same counted send.
 inline void Automatic(const std::filesystem::path& root) {
-    Report crash; crash.meta = {"crash", "1.2.3", "nightly", std::string(64, 'c'), "revision", "Windows test"};
-    crash.logs = {{"sf4e.log", "log"}}; crash.minidump = "MDMP" + std::string(32, 'd');
+    // The real collection over a logs folder and the crash's small dump.
+    const auto logs = root / L"automatic-logs";
+    std::filesystem::create_directories(logs);
+    { std::ofstream file(logs / L"sf4e.log", std::ios::binary); file << "log\n"; }
+    const std::string dump = "MDMP" + std::string(32, 'd');
+    const auto writeDump = [&] { std::ofstream file(root / L"small.dmp", std::ios::binary | std::ios::trunc); file << dump; };
+    writeDump();
     std::optional<bool> on = true; bool saves = true, identityOk = true;
-    int uploads = 0, turnedOn = 0, collected = 0, progressed = 0; std::string lastBody;
+    int uploads = 0, turnedOn = 0, collected = 0, progressed = 0; std::vector<std::string> bodies;
     std::filesystem::path dumpAsked = L"unset";
-    sf4e::HttpResponse response; response.request.ok = true; response.body = "{\"id\":\"" + std::string(32, 'f') + "\"}";
+    sf4e::HttpResponse received; received.request.ok = true; received.body = "{\"id\":\"" + std::string(32, 'f') + "\"}";
+    // Answers in order, then 202 for every later upload.
+    std::deque<sf4e::HttpResponse> answers;
     WorkflowDependencies dependencies;
     const auto path = root / L"automatic.json";
     dependencies.history = std::make_shared<ReportHistory>(path);
     dependencies.reportsOn = [&] { return on; };
     dependencies.turnReportsOn = [&] { ++turnedOn; return saves; };
     dependencies.identity = [&](const std::function<bool()>&) { return identityOk ? Known() : Identity{}; };
-    dependencies.collect = [&](const Preparation& preparation, const Account&, const std::function<bool()>&) {
-        ++collected; dumpAsked = preparation.crash ? preparation.crash->smallDump : L"none"; return crash;
+    dependencies.collect = [&](const Preparation& preparation, const Account& account, const std::function<bool()>& cancelled) {
+        ++collected; dumpAsked = preparation.crash ? preparation.crash->smallDump : L"none";
+        return Collect(logs, Metadata{"crash", "1.2.3", "nightly", std::string(64, 'c'), "revision", "Windows test"},
+            preparation.crash.value_or(CrashContext{}), cancelled, account);
     };
-    dependencies.upload = [&](const Multipart& body, const std::function<bool()>&) { ++uploads; lastBody = body.body; return response; };
+    dependencies.upload = [&](const Multipart& body, const std::function<bool()>&) {
+        ++uploads; bodies.push_back(body.body);
+        if (answers.empty()) return received;
+        const auto answer = answers.front(); answers.pop_front(); return answer;
+    };
     dependencies.progress = [&](const WorkflowState& shown) { ++progressed; CHECK(shown.automatic && shown.authorized && shown.phase == Phase::Submitting); };
+    const auto hasDump = [](const std::string& body) { return body.find("name=\"minidump\"; filename=\"crash.dmp\"") != std::string::npos; };
     CrashContext context; context.exitCode = 0xC0000005u; context.smallDump = root / L"small.dmp";
     WorkflowState state;
     const auto run = [&](AutomaticCrash::Consent consent) {
@@ -187,45 +205,91 @@ inline void Automatic(const std::filesystem::path& root) {
         CHECK(state.offer && !state.authorized && state.phase == Phase::Idle && uploads == 0 && collected == 0 && turnedOn == 0);
         CHECK(!std::filesystem::exists(path));
     }
-    // On: counted, logs only (the dump is never even asked for), sent once.
+    // On: counted, the crash's small dump read and sent with it, once.
     on = true; run(AutomaticCrash::Consent::Existing);
     CHECK(state.phase == Phase::Sent && !state.offer && state.authorized && uploads == 1 && progressed == 1);
-    CHECK(dumpAsked.empty() && lastBody.find("name=\"minidump\"") == std::string::npos && lastBody.find("\"comment\"") == std::string::npos);
-    CHECK(state.record && state.record->automatic && !state.record->dump && state.record->status == Status::Received);
+    CHECK(dumpAsked == context.smallDump && hasDump(bodies.back()) && bodies.back().find(dump) != std::string::npos);
+    CHECK(bodies.back().find("\"comment\"") == std::string::npos);
+    CHECK(state.record && state.record->automatic && state.record->dump && state.record->status == Status::Received);
     auto history = dependencies.history->Load();
-    CHECK(history.sent.size() == 1 && history.sent[0].status == Status::Received && history.sent[0].automatic);
+    CHECK(history.sent.size() == 1 && history.sent[0].status == Status::Received && history.sent[0].automatic && history.sent[0].dump);
     // Without the player's names nothing is sent, and the counted send is closed as not sent.
     identityOk = false; run(AutomaticCrash::Consent::Existing);
     CHECK(state.phase == Phase::Failed && uploads == 1 && state.record && state.record->status == Status::NotSent && state.record->reason == "not_prepared");
     identityOk = true;
-    // The day's third, then the limit: offered instead.
-    run(AutomaticCrash::Consent::Existing); CHECK(state.phase == Phase::Sent && uploads == 2);
+    // The day's third, its dump gone from the PC: the report still goes,
+    // without it. Then the limit: offered instead.
+    std::filesystem::remove(context.smallDump);
+    run(AutomaticCrash::Consent::Existing);
+    CHECK(state.phase == Phase::Sent && uploads == 2 && !hasDump(bodies.back()) && state.record && !state.record->dump);
     run(AutomaticCrash::Consent::Existing);
     CHECK(state.offer && uploads == 2 && dependencies.history->Load().sent.size() == 3);
     // Always send saves the setting first; the limit still holds.
     run(AutomaticCrash::Consent::Confirmed);
     CHECK(turnedOn == 1 && state.offer && uploads == 2 && !state.message.empty());
+    // A crash that wrote no small dump at all: the report goes without one.
     std::filesystem::remove(path);
+    const auto withDump = context; context.smallDump.clear();
     run(AutomaticCrash::Consent::Confirmed);
-    CHECK(turnedOn == 2 && state.phase == Phase::Sent && uploads == 3 && state.record->automatic && !state.record->dump);
+    CHECK(turnedOn == 2 && state.phase == Phase::Sent && uploads == 3 && dumpAsked.empty() && !hasDump(bodies.back()));
+    CHECK(state.record->automatic && !state.record->dump);
+    context = withDump; writeDump();
     // Always send that cannot be saved sends nothing and offers the report.
     saves = false; run(AutomaticCrash::Consent::Confirmed);
     CHECK(turnedOn == 3 && state.offer && state.phase == Phase::Failed && uploads == 3 && dependencies.history->Load().sent.size() == 1);
     saves = true;
+    // The intake timed out or refused the size with the dump: the same report
+    // once more without it, under the one reservation. A rate limit or any
+    // other refusal is not about the dump, so nothing goes again.
+    const auto answer = [](int status, sf4e::HttpErrorKind error) {
+        sf4e::HttpResponse refused; refused.request.statusCode = status; refused.request.error = error; return refused;
+    };
+    for (const auto& first : {answer(408, sf4e::HttpErrorKind::HttpStatus), answer(413, sf4e::HttpErrorKind::HttpStatus),
+        answer(0, sf4e::HttpErrorKind::Timeout)}) {
+        std::filesystem::remove(path); answers = {first};
+        const auto before = uploads;
+        run(AutomaticCrash::Consent::Existing);
+        CHECK(state.phase == Phase::Sent && uploads == before + 2 && hasDump(bodies[bodies.size() - 2]) && !hasDump(bodies.back()));
+        CHECK(state.record && state.record->status == Status::Received && !state.record->dump);
+        history = dependencies.history->Load();
+        CHECK(history.sent.size() == 1 && history.sent[0].status == Status::Received && !history.sent[0].dump);
+    }
+    for (const auto& first : {answer(429, sf4e::HttpErrorKind::HttpStatus), answer(400, sf4e::HttpErrorKind::HttpStatus),
+        answer(0, sf4e::HttpErrorKind::ConnectFailed)}) {
+        std::filesystem::remove(path); answers = {first};
+        const auto before = uploads;
+        run(AutomaticCrash::Consent::Existing);
+        CHECK(state.phase != Phase::Sent && uploads == before + 1 && hasDump(bodies.back()) && state.record && state.record->dump);
+        CHECK(dependencies.history->Load().sent.size() == 1);
+    }
+    // A dump the report cannot carry, here one past the limit: refused as the
+    // report is built, so the report goes without it.
+    std::filesystem::remove(path);
+    const auto collectFile = dependencies.collect;
+    dependencies.collect = [&](const Preparation& preparation, const Account& account, const std::function<bool()>& cancelled) {
+        auto report = collectFile(preparation, account, cancelled);
+        report.minidump = "MDMP" + std::string(DumpLimit - 3, 'x'); return report;
+    };
+    const auto before = uploads;
+    run(AutomaticCrash::Consent::Existing);
+    CHECK(state.phase == Phase::Sent && uploads == before + 1 && !hasDump(bodies.back()) && !state.record->dump);
+    dependencies.collect = collectFile;
+    std::filesystem::remove(path);
     // A record that cannot be read never gives the allowance back: neither a
     // damaged entry nor times past what the record can hold.
     const std::string overflow = R"({"time":18446744073709551615,"status":"received","kind":"crash","id":"","reason":"","attempt":"","dump":false,"automatic":true})";
     for (const std::string damage : {std::string("{\"schema\":1,\"reports\":[3]}"),
         "{\"schema\":1,\"reports\":[" + overflow + "," + overflow + "," + overflow + "]}"}) {
         { std::ofstream file(path, std::ios::binary | std::ios::trunc); file << damage; }
+        const auto sentBefore = uploads, collectedBefore = collected;
         run(AutomaticCrash::Consent::Existing);
-        CHECK(state.offer && !state.authorized && uploads == 3 && collected == 3);
+        CHECK(state.offer && !state.authorized && uploads == sentBefore && collected == collectedBefore);
     }
     // A preview keeps the offer; a send from it ends the offer.
     Preparation preview; preview.crash = context;
     CHECK(ReportWorkflow::Begin(preview, state) && state.offer && !state.automatic);
     state = ReportWorkflow::Execute(preview, state, {}, dependencies);
-    CHECK(state.offer && state.phase == Phase::Preview && state.preview->minidump == crash.minidump);
+    CHECK(state.offer && state.phase == Phase::Preview && state.preview->minidump == dump);
     Submission submission{"", false, state.preview};
     CHECK(ReportWorkflow::Begin(submission, state) && !state.offer);
 }
@@ -326,6 +390,25 @@ inline void HistoryStore(const std::filesystem::path& root) {
     }
 }
 
+// Send problem reports is saved under the key it took when reports began to
+// carry the small dump. The setting saved before, under the old key, reads as
+// off, so the next crash asks again; Always send writes only the new key.
+inline void Consent(const std::filesystem::path& root) {
+    const auto directory = root / L"consent";
+    std::filesystem::create_directories(directory);
+    {
+        std::ofstream file(directory / L"settings.json", std::ios::binary | std::ios::trunc);
+        file << R"({"schemaVersion":1,"profile":{},"netplay":{"sendProblemReports":true},"overlay":{},"legacyLauncher":{}})";
+    }
+    CHECK(ReportsOn(directory.wstring()) == false);
+    CHECK(TurnReportsOn(directory.wstring()) && ReportsOn(directory.wstring()) == true);
+    nlohmann::json saved; std::string error;
+    CHECK(sf4e::netplay::SettingsStore(directory.wstring()).LoadLauncher(saved, error));
+    CHECK(saved["sendProblemReportsWithDump"] == true && saved["sendProblemReports"] == true);
+    // Settings that cannot be read are neither on nor off.
+    CHECK(!ReportsOn(L"") && !TurnReportsOn(L""));
+}
+
 // The player's names come from the settings, waited for while another process
 // holds them; when they stay unreadable, there is no identity at all.
 inline void Identities(const std::filesystem::path& root) {
@@ -357,6 +440,6 @@ inline void Identities(const std::filesystem::path& root) {
 }
 
 inline void Run(const std::filesystem::path& root) {
-    Previews(root); Records(root); Automatic(root); HistoryStore(root); Identities(root);
+    Previews(root); Records(root); Automatic(root); Consent(root); HistoryStore(root); Identities(root);
 }
 }

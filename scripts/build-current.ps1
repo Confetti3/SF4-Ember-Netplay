@@ -1,4 +1,4 @@
-param([switch]$SkipTests, [switch]$SelfTest, [switch]$CompilerCache, [string]$VisualStudioPath = '', [string]$VcpkgRoot = '',
+param([switch]$SkipTests, [switch]$SelfTest, [switch]$CompilerCache, [switch]$Symbols, [string]$VisualStudioPath = '', [string]$VcpkgRoot = '',
       [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -6,6 +6,10 @@ $repo = Split-Path $PSScriptRoot -Parent
 $target = Get-EmberBuildTarget $repo
 $tools = Get-EmberToolPaths $repo $VisualStudioPath $VcpkgRoot
 . (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
+# -Symbols, which only the publish paths pass, writes the release's Breakpad symbols to <build>\symbols after
+# staging and records them in the receipt (New-EmberSymbols). Every other build stays free of dump_syms and of
+# its pass over Sidecar's PDB, and its receipt says symbols: null.
+$dumpSyms = if ($Symbols) { Get-EmberDumpSyms }
 # The scripts' own suites (test-build-provenance.ps1, test-package-files.ps1, test-nightly-publication.ps1 and
 # test-nightly-paths.ps1) are CTest entries (cmake/sf4e_test_targets.cmake) that Invoke-DefaultTests requires.
 $build = Join-Path $repo $target.buildDirectory
@@ -67,10 +71,11 @@ if ((Get-FileHash -LiteralPath (Join-Path $stage 'GGPO.dll')).Hash -ne $dependen
 $binaries = foreach ($file in Get-ChildItem -LiteralPath $stage -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll' }) {
     [pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $file.FullName).Hash}
 }
+$symbolStore = if ($Symbols) { New-EmberSymbols $build @($binaries) $dumpSyms }
 $components = @(
     [ordered]@{name='Windows native build and local staging';platform='windows';status='passed'},
     [ordered]@{name='Default CTest including helper Rust, Ember Rust, BridgeSdk and the publisher script suites (BuildProvenance, NightlyPublication, NightlyPaths, PackageFiles)';platform='windows';status=$(if ($SkipTests) {'unexecuted'} else {'passed'})},
     [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
     [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
     [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt;symbols=$symbolStore} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')

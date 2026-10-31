@@ -46,8 +46,9 @@ template<class Draw> void ShootReports(sf4e::ui::ProblemReportPanel& panel,sf4e:
     auto rows=panel.Rows(state);
     const auto send=FindRow(rows,"report-send");
     Require(send!=rows.end()&&!send->enabled,"Problem report sent without a comment");
-    // The small dump is off until ticked for this report.
-    Require(FindRow(rows,"report-dump")!=rows.end()&&FindRow(rows,"report-dump")->value==loc::T("common.off"),"The small dump was on before it was ticked");
+    // The small dump is on as the preview opens, showing its size.
+    Require(FindRow(rows,"report-dump")!=rows.end()&&FindRow(rows,"report-dump")->value==loc::Tf("reports.bytes",report.minidump.size()),
+        "The small dump was not on as the preview opened");
     panel.Navigation().Focus("report-sf4e.log",rows);draw(nullptr,ui::MenuInput::Select,1);draw("report-log-reader");
     Require(panel.Navigation().Reading(),"Report log did not use the shared reader");
     draw(nullptr,ui::MenuInput::Back,1);draw();
@@ -88,18 +89,10 @@ template<class Draw> void ShootReports(sf4e::ui::ProblemReportPanel& panel,sf4e:
     panel.Navigation().Focus("report-comment",rows);draw("report-problem-comment");
     const auto ready=FindRow(rows,"report-send");
     Require(ready!=rows.end()&&ready->enabled,"Report consent was unavailable after entering a comment");
-    Require(ready->detail.find(loc::T("reports.dump_warning"))==std::string::npos,"Final confirmation warned of a dump that is not included");
-    // Without the dump: the confirmation starts on Don't send.
-    panel.Navigation().Focus("report-send",rows);draw(nullptr,ui::MenuInput::Select,1);draw("report-consent");
-    Require(panel.Navigation().Confirming()&&!panel.Navigation().ConfirmSelected(),"Report consent default was Send");
-    draw(nullptr,ui::MenuInput::Back,1);draw();
-    // Ticked for this report: the row shows its size and the confirmation warns.
-    panel.Navigation().Focus("report-dump",panel.Rows(state));draw(nullptr,ui::MenuInput::Right,1);draw();
-    const auto included=panel.Rows(state);
-    const auto withDump=FindRow(included,"report-send");
-    Require(FindRow(included,"report-dump")->value!=loc::T("common.off")&&withDump->detail.find(loc::T("reports.dump_warning"))!=std::string::npos,
-        "Ticking Small dump did not reach the confirmation");
-    panel.Navigation().Focus("report-send",included);draw(nullptr,ui::MenuInput::Select,1);draw("report-consent-dump");
+    // With the dump, as the preview opened: the confirmation warns and starts
+    // on Don't send.
+    Require(ready->detail.find(loc::T("reports.dump_warning"))!=std::string::npos,"Final confirmation does not warn of the included dump");
+    panel.Navigation().Focus("report-send",rows);draw(nullptr,ui::MenuInput::Select,1);draw("report-consent-dump");
     Require(panel.Navigation().Confirming()&&!panel.Navigation().ConfirmSelected(),"Report consent with the dump default was Send");
     // A fresh confirm press declines; selecting Send earlier must not survive
     // a cancellation or an error/retry reopening of the confirmation.
@@ -109,10 +102,18 @@ template<class Draw> void ShootReports(sf4e::ui::ProblemReportPanel& panel,sf4e:
     draw(nullptr,ui::MenuInput::Right,1);draw();
     Require(panel.Navigation().ConfirmSelected(),"Report consent could not explicitly select Send");
     draw(nullptr,ui::MenuInput::Back,1);draw();
-    // Left takes the dump out again.
+    // Left takes the dump out: the row says Off and the confirmation stops warning.
     panel.Navigation().Focus("report-dump",panel.Rows(state));draw(nullptr,ui::MenuInput::Left,1);draw();
     const auto excluded=panel.Rows(state);
-    Require(FindRow(excluded,"report-send")->detail.find(loc::T("reports.dump_warning"))==std::string::npos,"Excluded dump retained inclusion warning");
+    Require(FindRow(excluded,"report-dump")->value==loc::T("common.off")&&FindRow(excluded,"report-send")->detail.find(loc::T("reports.dump_warning"))==std::string::npos,
+        "Turning Small dump off did not reach the confirmation");
+    // Without the dump: the confirmation starts on Don't send too.
+    panel.Navigation().Focus("report-send",excluded);draw(nullptr,ui::MenuInput::Select,1);draw("report-consent");
+    Require(panel.Navigation().Confirming()&&!panel.Navigation().ConfirmSelected(),"Report consent default was Send");
+    draw(nullptr,ui::MenuInput::Back,1);draw();
+    // Right puts it back.
+    panel.Navigation().Focus("report-dump",panel.Rows(state));draw(nullptr,ui::MenuInput::Right,1);draw();
+    Require(FindRow(panel.Rows(state),"report-send")->detail.find(loc::T("reports.dump_warning"))!=std::string::npos,"Turning Small dump on again did not reach the confirmation");
     state.reporting.phase=reports::Phase::Submitting;state.reporting.message=loc::T("reports.sending");draw("report-sending");
     state.reporting.phase=reports::Phase::Retry;state.reporting.retryAt=std::chrono::steady_clock::now()+std::chrono::seconds(600);draw("report-rate-limit");
     state.reporting.retryAt={};draw();
@@ -142,7 +143,7 @@ void ShootProblemReports(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& 
     using namespace sf4e;using namespace ui;
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     view.preferences.sendProblemReports=false;
-    page("tab-about/1");
+    page("tab-about/reports");
     Require(rows.size()==2&&rows[0].id=="send-reports"&&rows[1].id=="sent-reports","Problem reports rows changed");
     Require(rows[0].value==loc::T("common.off"),"Problem reports are not off by default");
     Require(rows[0].detail.find(loc::T("reports.what_is_sent"))!=std::string::npos,"The setting no longer says what a report holds");
@@ -151,7 +152,7 @@ void ShootProblemReports(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& 
     draw(nullptr,MenuInput::Select,1);draw("problem-reports-reader");
     Require(shell.Navigation().Reading(),"Select did not open what a report holds");
     draw(nullptr,MenuInput::Back,1);draw();
-    Require(!shell.Navigation().Reading()&&shell.Navigation().Screen()=="tab-about/1","Back did not close the reader");
+    Require(!shell.Navigation().Reading()&&shell.Navigation().Screen()=="tab-about/reports","Back did not close the reader");
     view.services.sentReports=SampleSentReports();
     page("sent-reports");
     Require(rows.size()==4&&rows[0].id=="sent-3"&&rows[3].id=="sent-0","Sent reports are not newest first");
@@ -212,11 +213,11 @@ void ShootCrashReportOffer(sf4e::ui::GameMenu& menu,sf4e::platform::ServiceSnaps
     state.pending=true;state.lastAction=platform::ServiceAction::SendReport;state.message=loc::T("reports.sending");
     draw("crash-report-sending");
     Require(FindRow(rows,"report")==rows.end()&&FindRow(rows,"report-status")!=rows.end(),"The offer stayed while the report was sending");
-    state.pending=false;report.sending=false;report.outcome=SampleSentReports().front();report.outcome->dump=false;report.outcome->automatic=true;
+    state.pending=false;report.sending=false;report.outcome=SampleSentReports().front();report.outcome->dump=true;report.outcome->automatic=true;
     state.succeeded=true;state.message=loc::Tf("reports.sent",report.outcome->id);
     draw("crash-report-sent");
     Require(FindRow(rows,"report-status")->value==loc::T("reports.status.received"),"The sent report's row lost its status");
-    Require(FindRow(rows,"report-status")->detail.find(loc::T("reports.dump_not_included"))!=std::string::npos,"An automatic report does not say the dump stayed");
+    Require(FindRow(rows,"report-status")->detail.find(loc::T("reports.dump_included"))!=std::string::npos,"An automatic report does not say the dump went");
     SetMenuEntriesProbe({});
     report={};state={};message=before;menu=GameMenu{};menu.navigation=RecoveryNavigation(false);
 }

@@ -10,7 +10,7 @@
     "global_reports": 300,
     "global_window_secs": 3600,
     "tracked_addresses": 4096,
-    "workers": 4,
+    "workers": 2,
     "queue": 32,
     "upload_secs": 20,
     "queue_wait_secs": 60,

@@ -74,23 +74,37 @@ outside its mount namespace.
 
 ## Symbols
 
-Generate symbols from the **exact release binary and matching PDB**, on the
-build machine that has that PDB. `dump_syms -s` creates the store layout:
+Symbols come from the **exact release binary and matching PDB**, on the build
+machine that has that PDB, and only for the modules a game crash dump shows:
+`Sidecar.dll` and the vcpkg DLLs it loads, `GGPO.dll`, `spdlog.dll`,
+`fmt.dll` and `zlib1.dll`. Launcher.exe, Updater.exe and sf4-net.exe are
+separate processes and never appear in a game dump; SSFIV.exe and
+`discord_partner_sdk.dll` have no PDB.
 
-```sh
-umask 002
-dump_syms -s symbols Launcher.exe
-dump_syms -s symbols Sidecar.dll
-dump_syms -s symbols Updater.exe
-dump_syms -s symbols sf4-net.exe
-chmod -R g+rX symbols/
-scp -r symbols/. vps:/var/lib/ember-reports/symbols/
-# On the VPS as katie, also fix modes preserved by scp (including old uploads):
-umask 002
-chmod -R g+rX /var/lib/ember-reports/symbols/
-```
+The publish paths do this themselves. `scripts/build-current.ps1 -Symbols`
+(passed by `publish-nightly.ps1` and `release-team-build.ps1`) runs Mozilla
+`dump_syms -s` in WSL Ubuntu (`~/.cargo/bin/dump_syms`, from
+`cargo install dump_syms --locked`) on each DLL beside its PDB, checks that it
+is the staged binary and that the symbol file has functions, writes the store
+layout to `build/current/symbols` and records it in `build-provenance.json`.
+Once a release has its label, `publish-nightly.ps1` and `github-release.ps1`
+run `scripts/upload-symbols.ps1`, which refuses a build without Sidecar's
+symbols and sends [install-symbols.sh](install-symbols.sh) over
+`ssh vps` as katie:
 
-These options refer to [Mozilla's dump_syms](https://github.com/mozilla/dump_syms/blob/main/src/main.rs).
+1. `prepare` makes `/var/lib/ember-reports/symbols/.incoming-<channel>-<label>`;
+2. scp copies the store's folders there;
+3. `commit` sets group read on them, moves each complete `<debug file>/<DEBUGID>`
+   folder into the store with a rename (one already there is kept), writes
+   `~/symbols-manifests/<channel>-<label>.txt` and deletes the folders of
+   Nightly releases older than 45 days that no other release lists;
+4. `cleanup` removes the upload folder.
+
+Stable symbols are never pruned. To upload by hand, for example after a
+publish that failed before its upload, run
+`pwsh -File scripts/upload-symbols.ps1 -Label <version>` from the checkout
+whose build it was. These options refer to
+[Mozilla's dump_syms](https://github.com/mozilla/dump_syms/blob/main/src/main.rs).
 
 Preserve the tool's case/layout: `<module debug filename>/<DEBUGID>/<module>.sym`.
 For Windows PDBs this can be `Sidecar.pdb/<GUID-and-age>/Sidecar.sym`, rather
@@ -99,20 +113,19 @@ debug filename and identifier, stripping `.pdb` from the symbol leaf. Executable
 debug names can instead use `Launcher.exe/<DEBUGID>/Launcher.exe.sym`. The
 synthetic test exercises actual local-path loading with that layout.
 
-In production, scp into a temporary sibling first, ensure directories are
-group-traversable and files group-readable, then move complete DEBUGID
-directories into the store on the VPS. This prevents partially uploaded `.sym`
-files being read. scp's modes are not controlled by the service's UMask. Symbol
-uploads need `umask 002` and `chmod -R g+rX` on the uploaded tree before moving
-complete directories into the store. If the service cannot read a `.sym`, the
+The upload folder inside the store keeps partly uploaded `.sym` files from
+being read, and scp's modes are not controlled by the service's UMask, so
+install-symbols.sh runs with `umask 002` and `chmod -R g+rX` before the move.
+If the service cannot read a `.sym`, the
 event's `extra.symbolication` reports `partial: symbols unreadable for
 <store-relative name>` (alongside missing or other per-module problems), and
 the journal contains one `ember-reports: symbols unreadable: <store-relative name>`
 line per affected file per walk. These diagnostics omit absolute paths, report
 IDs, addresses, contents and credentials. Fix the group permissions and resubmit
 the dump to symbolicate it; already-built events are not rewritten.
-Symbol files above 8 MiB, or beyond 16 MiB total for a report, are skipped. Only
-trusted build accounts should belong to `ember-symbols`.
+Symbol files above 64 MiB, or beyond 96 MiB total for a report, are skipped
+(Sidecar.sym measured 29.8 MiB at 1.5.0). Only trusted build accounts should
+belong to `ember-symbols`.
 
 SSFIV.exe has no symbols. Its frames remain `SSFIV.exe+0x<RVA>`; add its static
 0x400000 image base to locate the IDA effective address in the matching binary.

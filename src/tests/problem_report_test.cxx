@@ -1,5 +1,5 @@
 #include "../platform/ProblemReport.hxx"
-#include "../netplay/BoolPreferences.hxx"
+#include "../netplay/BoolPreferenceJson.hxx"
 #include <algorithm>
 #include <limits>
 #include <filesystem>
@@ -115,6 +115,11 @@ void MultipartCases() {
     CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     report.minidump+='x'; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     report=Fixture(); report.minidump="BAD!"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    // A dump whose bytes hold the boundary cannot go; the same report without
+    // the dump can, as a report sent without a press then goes.
+    report=Fixture(); report.minidump="MDMP--EmberTestBoundary"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    submission.includeDump=false; CHECK_OR_THROW(BuildMultipart(report,submission,"EmberTestBoundary",body,error));
+    CHECK_OR_THROW(body.body.find("name=\"minidump\"")==std::string::npos); submission.includeDump=true;
     report=Fixture(); report.logs.push_back(report.logs.front()); CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     report=Fixture(); report.logs[0].name="../sf4e.log"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
     report=Fixture(); report.logs[0].text="EmberTestBoundary"; CHECK_OR_THROW(!BuildMultipart(report,submission,"EmberTestBoundary",body,error));
@@ -320,16 +325,25 @@ void AutomaticCap() {
     CHECK_OR_THROW(!AutomaticAllowed(sent,now));
 }
 void SubmissionDefaults() {
-    // Every report starts without the dump.
-    CHECK_OR_THROW(!Submission{}.includeDump);
+    // Every preview starts with the small dump on; the player can turn it off.
+    CHECK_OR_THROW(Submission{}.includeDump);
 }
 void SettingKey() {
     using sf4e::netplay::BoolPreferences;
     using sf4e::netplay::PlayerPreferences;
     const auto found=std::find_if(std::begin(BoolPreferences),std::end(BoolPreferences),
         [](const sf4e::netplay::BoolPreference& p){return p.member==&PlayerPreferences::sendProblemReports;});
-    CHECK_OR_THROW(found!=std::end(BoolPreferences)&&std::string(found->key)=="sendProblemReports");
+    CHECK_OR_THROW(found!=std::end(BoolPreferences)&&std::string(found->key)=="sendProblemReportsWithDump");
     CHECK_OR_THROW(!PlayerPreferences().sendProblemReports);
+    // The setting saved before reports carried the dump is not read, and
+    // never written again.
+    PlayerPreferences old; old.sendProblemReports=true;
+    sf4e::netplay::ReadBoolPreferences({{"sendProblemReports",true}},old);
+    CHECK_OR_THROW(!old.sendProblemReports);
+    PlayerPreferences now; sf4e::netplay::ReadBoolPreferences({{"sendProblemReportsWithDump",true}},now);
+    CHECK_OR_THROW(now.sendProblemReports);
+    nlohmann::json written; sf4e::netplay::WriteBoolPreferences(now,written);
+    CHECK_OR_THROW(written["sendProblemReportsWithDump"]==true&&!written.contains("sendProblemReports"));
 }
 }
 int main() {

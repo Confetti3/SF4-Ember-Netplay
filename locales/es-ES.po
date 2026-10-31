@@ -5469,7 +5469,7 @@ msgid "reports.setting"
 msgstr "Enviar informes de problemas"
 
 msgid "reports.setting_detail"
-msgstr "Sí: tras un fallo, el iniciador envía el informe sin preguntar, como máximo {0} al día y nunca con el volcado del fallo. No: pregunta antes."
+msgstr "Sí: tras un fallo, el iniciador envía el informe sin preguntar, con el volcado pequeño si el fallo lo generó, como máximo {0} al día. No: pregunta antes."
 
 msgid "reports.problem"
 msgstr "Informar de un problema"
@@ -5553,7 +5553,7 @@ msgid "launcher.game_crashed_files"
 msgstr "El juego se ha bloqueado. Envía al equipo de SF4 Ember Netplay los archivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log y sf4e-crash-*.dmp) y vuelve a intentarlo."
 
 msgid "launcher.game_crashed_sending"
-msgstr "El juego se ha bloqueado. Enviar informes de problemas está activado, así que se está enviando un informe sin el volcado del fallo. Los archivos también están en %APPDATA%\\sf4e\\logs."
+msgstr "El juego se ha bloqueado. Enviar informes de problemas está activado, así que se está enviando su informe, con el volcado pequeño si el fallo lo generó. Los archivos también están en %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Informes de problemas"
@@ -5577,7 +5577,7 @@ msgid "reports.send_always"
 msgstr "Enviar siempre"
 
 msgid "reports.send_always_detail"
-msgstr "Envía este informe y, a partir de ahora, el de cada fallo siguiente sin preguntar. Los informes enviados sin preguntar nunca incluyen un volcado. Como máximo salen {0} sin preguntar en 24 horas, y cada informe enviado cuenta. Desactívalo en Ajustes, Informes de problemas."
+msgstr "Envía este informe y, a partir de ahora, el de cada fallo siguiente sin preguntar, con el volcado pequeño si el fallo lo generó. El volcado contiene memoria sin procesar de los hilos del juego y puede incluir datos privados que, a diferencia de los registros, no se quitan. Como máximo salen {0} sin preguntar en 24 horas, y cada informe enviado cuenta. Desactívalo en Ajustes, Informes de problemas."
 
 msgid "reports.dump_included"
 msgstr "Volcado del fallo: incluido."
@@ -5613,7 +5613,7 @@ msgid "reports.not_sent"
 msgstr "No se ha podido enviar el informe. No se volverá a enviar."
 
 msgid "reports.what_is_sent"
-msgstr "De los registros se quitan invitaciones, tokens, direcciones de red, correo, y tu nombre de usuario de Windows, carpeta de perfil, nombre del PC y nombre de jugador.\n\nUn informe que envías tú se muestra completo primero, y el volcado pequeño solo va si lo activas en esa vista previa. Los informes enviados sin preguntar nunca incluyen un volcado.\n\nNunca se envía: tus otros archivos, tus repeticiones ni los volcados completos del bloqueo."
+msgstr "De los registros se quitan invitaciones, tokens, direcciones de red, correo, y tu nombre de usuario de Windows, carpeta de perfil, nombre del PC y nombre de jugador.\n\nUn informe de fallo también lleva el volcado pequeño si el fallo lo generó. Contiene memoria sin procesar de los hilos del juego, que no se filtra. Un informe que envías tú se muestra completo primero, y en esa vista previa puedes desactivar Volcado pequeño. Los informes enviados sin preguntar lo incluyen.\n\nNunca se envía: tus otros archivos, tus repeticiones ni los volcados completos del bloqueo."
 
 msgid "reports.send_once_detail"
 msgstr "Abre una vista previa de lo que contiene este informe. No se envía nada hasta que elijas Enviar."
@@ -5622,7 +5622,7 @@ msgid "reports.crash_report"
 msgstr "Informe de bloqueo"
 
 msgid "reports.payload"
-msgstr "Los informes van a embernetplay.link. Cada uno incluye la versión y la compilación de Ember, la versión de Windows, los datos del bloqueo y el final censurado de sf4e.log, launcher.log, sf4e-crash.log y sf4-net.log."
+msgstr "Los informes van a embernetplay.link. Cada uno incluye la versión y la compilación de Ember, la versión de Windows, los datos del bloqueo, el final censurado de sf4e.log, launcher.log, sf4e-crash.log y sf4-net.log, y el volcado pequeño si el bloqueo generó uno."
 
 msgid "reports.status.unknown"
 msgstr "Desconocido"

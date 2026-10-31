@@ -217,7 +217,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
         {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"shareReplays", &PlayerPreferences::shareReplays, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
-        {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReports", &PlayerPreferences::sendProblemReports, false},
+        {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReportsWithDump", &PlayerPreferences::sendProblemReports, false},
         {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));
     for (const auto& entry : expected) {
@@ -475,7 +475,7 @@ int main() {
         CHECK(retired["netplay"]["matchHudAnchor"]==4&&retired["legacyLauncher"]["unknownPreference"]=="retain");
     }
     CHECK(discordDefaults.discordPresence && discordDefaults.discordInvites);
-    CHECK(!discordDefaults.sendProblemReports && !result.value("sendProblemReports",false));
+    CHECK(!discordDefaults.sendProblemReports && !result.value("sendProblemReportsWithDump",false));
     CHECK(discordDefaults.inputDelay == 2);
     discordDefaults.inputDelay = 0; CHECK(discordDefaults.Valid());
     discordDefaults.inputDelay = 1; CHECK(discordDefaults.Valid());

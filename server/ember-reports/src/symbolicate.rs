@@ -17,8 +17,12 @@ use std::{
 
 pub const FRAMES: usize = 64;
 pub const THREADS: usize = 128;
-const SYMBOL_BYTES: usize = 8 * 1024 * 1024;
-const TOTAL_SYMBOL_BYTES: usize = 16 * 1024 * 1024;
+// Sidecar.sym, with file and line records, measured 29.8 MiB at 1.5.0
+// (dump_syms 2.3.9); the cap leaves it room to double. A walk reads Sidecar's
+// and its DLLs' files together. The worker's memory (worker.rs) holds a parse
+// of the largest.
+pub const SYMBOL_BYTES: usize = 64 * 1024 * 1024;
+const TOTAL_SYMBOL_BYTES: usize = 96 * 1024 * 1024;
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Frame {

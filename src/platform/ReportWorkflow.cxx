@@ -94,8 +94,9 @@ std::string ReasonCode(const std::string& body) {
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; })) return {};
     return reason;
 }
-// Sends `multipart` once and reads the answer into the state and the record.
-void Upload(const Multipart& multipart, WorkflowState& state, Record& record, const std::function<bool()>& cancelled,
+// Sends `multipart` once, reads the answer into the state and the record and
+// returns it.
+HttpResponse Upload(const Multipart& multipart, WorkflowState& state, Record& record, const std::function<bool()>& cancelled,
     const WorkflowDependencies& dependencies) {
     const auto uploaded = dependencies.upload ? dependencies.upload(multipart, cancelled) :
         HttpPostReport(ReportIntakeHost, multipart.contentType, multipart.body, cancelled);
@@ -122,6 +123,13 @@ void Upload(const Multipart& multipart, WorkflowState& state, Record& record, co
             if (record.reason.empty()) record.reason = "http_" + std::to_string(uploaded.request.statusCode);
         } else { record.status = Status::NotSent; record.reason = uploaded.request.error == HttpErrorKind::Timeout ? "timeout" : "no_connection"; }
     }
+    return uploaded;
+}
+// The upload ran out of time or was too large for the intake: without the
+// dump the same report may still get through.
+bool DumpInTheWay(const HttpResponse& answer) {
+    return !answer.cancelled && (answer.request.statusCode == 408 || answer.request.statusCode == 413 ||
+        (answer.request.statusCode == 0 && answer.request.error == HttpErrorKind::Timeout));
 }
 }
 bool ReportWorkflow::Begin(const Operation& operation, WorkflowState& state) {
@@ -186,12 +194,12 @@ WorkflowState ReportWorkflow::Execute(const Operation& operation, WorkflowState 
             const bool confirmed = automatic->consent == AutomaticCrash::Consent::Confirmed;
             // Allowed by the saved setting, or by Always send once it is saved.
             if (confirmed) {
-                if (!(dependencies.turnReportsOn ? dependencies.turnReportsOn() : TurnReportsOn())) {
+                if (!(dependencies.turnReportsOn ? dependencies.turnReportsOn() : TurnReportsOn(netplay::SettingsStore::DefaultDirectory()))) {
                     state.phase = Phase::Failed; state.message = loc::T("reports.always_failed"); state.offer = true;
                     return state;
                 }
             } else {
-                const auto on = dependencies.reportsOn ? dependencies.reportsOn() : ReportsOn();
+                const auto on = dependencies.reportsOn ? dependencies.reportsOn() : ReportsOn(netplay::SettingsStore::DefaultDirectory());
                 if (!on || !*on) { state.phase = Phase::Idle; state.offer = true; return state; }
             }
             // Counted before anything is read or sent; without a count, offered.
@@ -210,19 +218,26 @@ WorkflowState ReportWorkflow::Execute(const Operation& operation, WorkflowState 
                 if (isCancelled()) cancel(); else { state.phase = Phase::Failed; state.message = loc::T("reports.identity_failed"); }
                 return state;
             }
-            // Logs only: the small dump is never read for a report sent without a press.
-            Preparation logsOnly{automatic->crash, automatic->channel};
-            logsOnly.crash->smallDump.clear();
-            auto report = collect(logsOnly, who.account);
-            report.minidump.clear();
+            // With the small dump when the crash wrote one; a missing or
+            // unreadable dump leaves the report without it (Collect).
+            auto report = collect(Preparation{automatic->crash, automatic->channel}, who.account);
             if (isCancelled()) { notSent("cancelled"); cancel(); return state; }
             state.preview = std::make_shared<const Report>(std::move(report));
-            Multipart multipart; std::string error;
-            if (!BuildMultipart(*state.preview, Submission{std::string(), false, state.preview}, Boundary(), multipart, error)) {
+            // Sends the report, and says whether that settled it. It is sent
+            // once more without the dump when the dump alone keeps it out:
+            // refused as it is built, or too slow or too large for the intake.
+            // Both tries are the one counted send.
+            Record record = attempt;
+            const auto settled = [&](bool withDump) {
+                Multipart multipart; std::string error;
+                if (!BuildMultipart(*state.preview, Submission{std::string(), withDump, state.preview}, Boundary(), multipart, error)) return false;
+                record = attempt; record.dump = withDump && !state.preview->minidump.empty();
+                const auto answer = Upload(multipart, state, record, cancelled, dependencies);
+                return !record.dump || !DumpInTheWay(answer) || isCancelled();
+            };
+            if (!settled(true) && !settled(false)) {
                 notSent("invalid"); state.phase = Phase::Failed; state.message = loc::T("reports.invalid"); return state;
             }
-            Record record = attempt;
-            Upload(multipart, state, record, cancelled, dependencies);
             finish(record);
             return state;
         }
@@ -253,21 +268,20 @@ WorkflowState ReportWorkflow::Execute(const Operation& operation, WorkflowState 
     }
     return state;
 }
-std::optional<bool> ReportsOn() {
-    const auto saved = LoadSettings(netplay::SettingsStore::DefaultDirectory(), {}, std::chrono::milliseconds(3000));
+std::optional<bool> ReportsOn(const std::wstring& settingsDirectory) {
+    const auto saved = LoadSettings(settingsDirectory, {}, std::chrono::milliseconds(3000));
     if (!saved) return std::nullopt;
     const char* key = SendReportsKey();
     if (!saved->contains(key)) return false;
     if (!(*saved)[key].is_boolean()) return std::nullopt;
     return (*saved)[key].get<bool>();
 }
-bool TurnReportsOn() {
-    const auto directory = netplay::SettingsStore::DefaultDirectory();
-    if (directory.empty()) return false;
+bool TurnReportsOn(const std::wstring& settingsDirectory) {
+    if (settingsDirectory.empty()) return false;
     const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(3000);
     for (;;) {
         std::string error;
-        try { if (netplay::SettingsStore(directory).SaveLauncher({{SendReportsKey(), true}}, error)) return true; } catch (...) {}
+        try { if (netplay::SettingsStore(settingsDirectory).SaveLauncher({{SendReportsKey(), true}}, error)) return true; } catch (...) {}
         if (std::chrono::steady_clock::now() >= until) return false;
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }

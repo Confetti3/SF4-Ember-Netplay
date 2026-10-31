@@ -32,12 +32,12 @@ struct CrashContext {
     std::filesystem::path smallDump;
     std::filesystem::file_time_type started = (std::filesystem::file_time_type::max)();
 };
-// A report the player sends from its preview. The small dump goes only with
-// the player's tick for this report, so it is off until set. A report sent
+// A report the player sends from its preview. The small dump goes with it
+// unless the player turns Small dump off for this report. A report sent
 // without a press is not a Submission (ReportWorkflow.hxx: AutomaticCrash).
 struct Submission {
     std::string comment;
-    bool includeDump = false;
+    bool includeDump = true;
     std::shared_ptr<const Report> preview;
 };
 struct Multipart { std::string contentType, body; };

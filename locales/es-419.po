@@ -5009,7 +5009,7 @@ msgid "reports.setting"
 msgstr "Enviar reportes de problemas"
 
 msgid "reports.setting_detail"
-msgstr "Activado: tras un fallo, el iniciador envía el reporte sin preguntar, como máximo {0} al día y nunca con el volcado del fallo. Desactivado: pregunta antes."
+msgstr "Activado: tras un fallo, el iniciador envía el reporte sin preguntar, con el volcado pequeño si el fallo lo generó, como máximo {0} al día. Desactivado: pregunta antes."
 
 msgid "reports.problem"
 msgstr "Reportar un problema"
@@ -5093,7 +5093,7 @@ msgid "launcher.game_crashed_files"
 msgstr "El juego falló. Envía al equipo de SF4 Ember Netplay los archivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log y sf4e-crash-*.dmp) y vuelve a intentarlo."
 
 msgid "launcher.game_crashed_sending"
-msgstr "El juego falló. Enviar reportes de problemas está activado, así que se está enviando un reporte sin el volcado del fallo. Los archivos también están en %APPDATA%\\sf4e\\logs."
+msgstr "El juego falló. Enviar reportes de problemas está activado, así que se está enviando su reporte, con el volcado pequeño si el fallo lo generó. Los archivos también están en %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Reportes de problemas"
@@ -5117,7 +5117,7 @@ msgid "reports.send_always"
 msgstr "Enviar siempre"
 
 msgid "reports.send_always_detail"
-msgstr "Envía este reporte y, desde ahora, el de cada fallo siguiente sin preguntar. Los reportes enviados sin preguntar nunca incluyen un volcado. Como máximo {0} salen sin preguntar en 24 horas, y cada reporte enviado cuenta. Desactívalo en Ajustes, Reportes de problemas."
+msgstr "Envía este reporte y, desde ahora, el de cada fallo siguiente sin preguntar, con el volcado pequeño si el fallo lo generó. El volcado contiene memoria sin procesar de los hilos del juego y puede incluir datos privados que, a diferencia de los registros, no se quitan. Como máximo {0} salen sin preguntar en 24 horas, y cada reporte enviado cuenta. Desactívalo en Ajustes, Reportes de problemas."
 
 msgid "reports.dump_included"
 msgstr "Volcado del fallo: incluido."
@@ -5153,7 +5153,7 @@ msgid "reports.not_sent"
 msgstr "No se pudo enviar el reporte. No se volverá a enviar."
 
 msgid "reports.what_is_sent"
-msgstr "De los registros se quitan invitaciones, tokens, direcciones de red, correo, y tu nombre de usuario de Windows, carpeta de perfil, nombre del PC y nombre de jugador.\n\nUn reporte que envías tú se muestra completo primero, y el volcado pequeño solo va si lo activas en esa vista previa. Los reportes enviados sin preguntar nunca incluyen un volcado.\n\nNunca se envía: tus otros archivos, tus repeticiones ni los volcados completos del fallo."
+msgstr "De los registros se quitan invitaciones, tokens, direcciones de red, correo, y tu nombre de usuario de Windows, carpeta de perfil, nombre del PC y nombre de jugador.\n\nUn reporte de fallo también lleva el volcado pequeño si el fallo lo generó. Contiene memoria sin procesar de los hilos del juego, que no se filtra. Un reporte que envías tú se muestra completo primero, y en esa vista previa puedes desactivar Volcado pequeño. Los reportes enviados sin preguntar lo incluyen.\n\nNunca se envía: tus otros archivos, tus repeticiones ni los volcados completos del fallo."
 
 msgid "reports.send_once_detail"
 msgstr "Abre una vista previa de lo que contiene este reporte. No se envía nada hasta que elijas Enviar."
@@ -5162,7 +5162,7 @@ msgid "reports.crash_report"
 msgstr "Reporte de fallo"
 
 msgid "reports.payload"
-msgstr "Los reportes van a embernetplay.link. Cada uno incluye la versión y la compilación de Ember, la versión de Windows, los datos del fallo y el final censurado de sf4e.log, launcher.log, sf4e-crash.log y sf4-net.log."
+msgstr "Los reportes van a embernetplay.link. Cada uno incluye la versión y la compilación de Ember, la versión de Windows, los datos del fallo, el final censurado de sf4e.log, launcher.log, sf4e-crash.log y sf4-net.log, y el volcado pequeño si el fallo generó uno."
 
 msgid "reports.status.unknown"
 msgstr "Desconocido"

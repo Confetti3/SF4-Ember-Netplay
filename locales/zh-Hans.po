@@ -5469,7 +5469,7 @@ msgid "reports.setting"
 msgstr "发送问题报告"
 
 msgid "reports.setting_detail"
-msgstr "开：崩溃后，启动器不经询问直接发送报告，每天最多 {0} 份，且从不包含崩溃转储。关：先询问。"
+msgstr "开：崩溃后，启动器不经询问直接发送报告，有小型转储时一并发送，每天最多 {0} 份。关：先询问。"
 
 msgid "reports.problem"
 msgstr "报告问题"
@@ -5553,7 +5553,7 @@ msgid "launcher.game_crashed_files"
 msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"
 
 msgid "launcher.game_crashed_sending"
-msgstr "游戏崩溃了。“发送问题报告”已打开，因此正在发送不含崩溃转储的报告。文件也位于 %APPDATA%\\sf4e\\logs。"
+msgstr "游戏崩溃了。“发送问题报告”已打开，因此正在发送报告，有小型转储时一并发送。文件也位于 %APPDATA%\\sf4e\\logs。"
 
 msgid "reports.settings_title"
 msgstr "问题报告"
@@ -5577,7 +5577,7 @@ msgid "reports.send_always"
 msgstr "始终发送"
 
 msgid "reports.send_always_detail"
-msgstr "发送此报告，并且以后每次崩溃的报告都不经询问直接发送。未经询问发送的报告从不包含转储。24 小时内未经询问最多发送 {0} 份，每份已发送的报告都计入其中。可在“设置”的“问题报告”中关闭。"
+msgstr "发送此报告，并且以后每次崩溃的报告都不经询问直接发送，有小型转储时一并发送。转储含有游戏线程的原始内存，可能包含个人信息，且不会像日志那样去除。24 小时内未经询问最多发送 {0} 份，每份已发送的报告都计入其中。可在“设置”的“问题报告”中关闭。"
 
 msgid "reports.dump_included"
 msgstr "崩溃转储：已包含。"
@@ -5613,7 +5613,7 @@ msgid "reports.not_sent"
 msgstr "无法发送报告。不会再次发送。"
 
 msgid "reports.what_is_sent"
-msgstr "邀请、令牌、网络地址、email，以及你的 Windows 用户名、个人资料文件夹、电脑名称和玩家名称都会从日志中去除。\n\n你自己发送的报告会先完整显示，小型转储只有在该预览中开启时才会发送。未经询问发送的报告从不包含转储。\n\n绝不发送：你的其他文件、录像或完整的崩溃转储。"
+msgstr "邀请、令牌、网络地址、email，以及你的 Windows 用户名、个人资料文件夹、电脑名称和玩家名称都会从日志中去除。\n\n崩溃报告在有小型转储时也会包含它。转储含有游戏线程的原始内存，不会去除任何内容。你自己发送的报告会先完整显示，你可以在该预览中关闭“小型转储”。未经询问发送的报告会包含它。\n\n绝不发送：你的其他文件、录像或完整的崩溃转储。"
 
 msgid "reports.send_once_detail"
 msgstr "打开预览，显示此报告包含的全部内容。选择“发送”之前不会发送任何内容。"
@@ -5622,7 +5622,7 @@ msgid "reports.crash_report"
 msgstr "崩溃报告"
 
 msgid "reports.payload"
-msgstr "报告会发送到 embernetplay.link。每份报告包含 Ember 版本和构建号、Windows 版本、崩溃信息，以及已去除隐私信息的 sf4e.log、launcher.log、sf4e-crash.log 和 sf4-net.log 的末尾部分。"
+msgstr "报告会发送到 embernetplay.link。每份报告包含 Ember 版本和构建号、Windows 版本、崩溃信息，以及已去除隐私信息的 sf4e.log、launcher.log、sf4e-crash.log 和 sf4-net.log 的末尾部分，有小型转储时也会包含它。"
 
 msgid "reports.status.unknown"
 msgstr "未知"

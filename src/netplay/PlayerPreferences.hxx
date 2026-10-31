@@ -195,9 +195,12 @@ struct PlayerPreferences {
     // they join a room; nothing is sent while it is Hidden or Windows names none.
     CountryPreference country;
     bool discordPresence = true, discordInvites = true;
-    // The launcher sends a crash's report without asking, logs only and at most
-    // three a day (platform/ReportWorkflow.hxx). Off until the player turns it
-    // on in Settings, Problem reports, or chooses Always send after a crash.
+    // The launcher sends a crash's report without asking, with the small dump
+    // and at most three a day (platform/ReportWorkflow.hxx). Off until the
+    // player turns it on in Settings, Problem reports, or chooses Always send
+    // after a crash. Saved as sendProblemReportsWithDump: the setting saved
+    // before reports carried the dump, under sendProblemReports, is not read,
+    // so every player is asked again.
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
     // Takes `from`'s settings a room leaves open, as they change nothing about

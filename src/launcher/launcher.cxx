@@ -777,8 +777,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         sf4e::crash::DumpChannel dumps;
         sf4e::reports::CrashContext reportCrash;
         reportCrash.started = std::filesystem::file_time_type::clock::now();
-        // The small dump a report may carry. It stays on this PC unless the
-        // player turns it on in a report's preview.
+        // The small dump a crash's report carries: sent without asking when
+        // Send problem reports is on, and from a preview unless the player
+        // turns Small dump off.
         dumps.reportEnabled = true;
         if (!dumps.Create()) spdlog::warn("Could not create the crash dump channel (Win32 {})", GetLastError());
         // A game started by a normal process cannot reach a Steam that runs as

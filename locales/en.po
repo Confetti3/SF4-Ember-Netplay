@@ -5104,7 +5104,7 @@ msgid "reports.setting"
 msgstr "Send problem reports"
 
 msgid "reports.setting_detail"
-msgstr "On: after a crash, the launcher sends its report without asking, at most {0} a day, and never with the crash dump. Off: it asks first."
+msgstr "On: after a crash, the launcher sends its report without asking, with the small dump when the crash wrote one, at most {0} a day. Off: it asks first."
 
 msgid "reports.problem"
 msgstr "Report a problem"
@@ -5188,7 +5188,7 @@ msgid "launcher.game_crashed_files"
 msgstr "The game crashed. Please send the files in %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log and sf4e-crash-*.dmp) to the SF4 Ember Netplay team, then retry."
 
 msgid "launcher.game_crashed_sending"
-msgstr "The game crashed. Send problem reports is on, so a report without the crash dump is being sent. The files are also in %APPDATA%\\sf4e\\logs."
+msgstr "The game crashed. Send problem reports is on, so its report is being sent, with the small dump if the crash wrote one. The files are also in %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Problem reports"
@@ -5212,7 +5212,7 @@ msgid "reports.send_always"
 msgstr "Always send"
 
 msgid "reports.send_always_detail"
-msgstr "Send this report now and each later crash's report without asking. Reports sent without asking never include a dump. At most {0} go without asking in 24 hours, and every report sent counts toward that. Turn this off in Settings > Problem reports."
+msgstr "Send this report now and each later crash's report without asking, with the small dump when the crash wrote one. The dump holds raw memory from the game's threads and can contain private details that log redaction does not remove. At most {0} go without asking in 24 hours, and every report sent counts toward that. Turn this off in Settings > Problem reports."
 
 msgid "reports.dump_included"
 msgstr "Crash dump: included."
@@ -5248,7 +5248,7 @@ msgid "reports.not_sent"
 msgstr "The report could not be sent. It will not be sent again."
 
 msgid "reports.what_is_sent"
-msgstr "Invitations, tokens, network addresses, email, and your Windows user name, profile folder, PC name and player name are taken out of the logs.\n\nA report you send yourself is shown in full first, and the small dump goes only when you turn it on in that preview. Reports sent without asking never include a dump.\n\nNever sent: your other files, your replays, or the full crash dumps."
+msgstr "Invitations, tokens, network addresses, email, and your Windows user name, profile folder, PC name and player name are taken out of the logs.\n\nA crash report also carries the small dump when the crash wrote one. It holds raw memory from the game's threads, which is not filtered. A report you send yourself is shown in full first, and you can turn Small dump off in that preview. Reports sent without asking include it.\n\nNever sent: your other files, your replays, or the full crash dumps."
 
 msgid "reports.send_once_detail"
 msgstr "Opens a preview of exactly what this report holds. Nothing is sent until you choose Send."
@@ -5257,7 +5257,7 @@ msgid "reports.crash_report"
 msgstr "Crash report"
 
 msgid "reports.payload"
-msgstr "Reports go to embernetplay.link. Each holds the Ember version and build, the Windows version, the crash details, and redacted tails of sf4e.log, launcher.log, sf4e-crash.log and sf4-net.log."
+msgstr "Reports go to embernetplay.link. Each holds the Ember version and build, the Windows version, the crash details, redacted tails of sf4e.log, launcher.log, sf4e-crash.log and sf4-net.log, and the small crash dump when the crash wrote one."
 
 msgid "reports.status.unknown"
 msgstr "Unknown"

@@ -5468,7 +5468,7 @@ msgid "reports.setting"
 msgstr "Problemberichte senden"
 
 msgid "reports.setting_detail"
-msgstr "Ein: Nach einem Absturz sendet der Launcher den Bericht ohne Nachfrage, höchstens {0} pro Tag und nie mit dem Absturz-Dump. Aus: Er fragt zuerst."
+msgstr "Ein: Nach einem Absturz sendet der Launcher den Bericht ohne Nachfrage, mit dem kleinen Dump, wenn der Absturz einen geschrieben hat, höchstens {0} pro Tag. Aus: Er fragt zuerst."
 
 msgid "reports.problem"
 msgstr "Problem melden"
@@ -5552,7 +5552,7 @@ msgid "launcher.game_crashed_files"
 msgstr "Das Spiel ist abgestürzt. Bitte die Dateien aus %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log und sf4e-crash-*.dmp) an das SF4-Ember-Netplay-Team senden und erneut versuchen."
 
 msgid "launcher.game_crashed_sending"
-msgstr "Das Spiel ist abgestürzt. Problemberichte senden ist eingeschaltet, daher wird ein Bericht ohne Absturz-Dump gesendet. Die Dateien liegen auch in %APPDATA%\\sf4e\\logs."
+msgstr "Das Spiel ist abgestürzt. Problemberichte senden ist eingeschaltet, daher wird der Bericht gesendet, mit dem kleinen Dump, wenn der Absturz einen geschrieben hat. Die Dateien liegen auch in %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Problemberichte"
@@ -5576,7 +5576,7 @@ msgid "reports.send_always"
 msgstr "Immer senden"
 
 msgid "reports.send_always_detail"
-msgstr "Sendet diesen Bericht und ab jetzt den Bericht jedes weiteren Absturzes ohne Nachfrage. Ohne Nachfrage gesendete Berichte enthalten nie einen Dump. Höchstens {0} gehen in 24 Stunden ohne Nachfrage raus, und jeder gesendete Bericht zählt mit. Abschalten unter Einstellungen, Problemberichte."
+msgstr "Sendet diesen Bericht und ab jetzt den Bericht jedes weiteren Absturzes ohne Nachfrage, mit dem kleinen Dump, wenn der Absturz einen geschrieben hat. Der Dump enthält rohen Speicher der Threads des Spiels und kann private Angaben enthalten, die anders als in den Logs nicht entfernt werden. Höchstens {0} gehen in 24 Stunden ohne Nachfrage raus, und jeder gesendete Bericht zählt mit. Abschalten unter Einstellungen, Problemberichte."
 
 msgid "reports.dump_included"
 msgstr "Absturz-Dump: enthalten."
@@ -5612,7 +5612,7 @@ msgid "reports.not_sent"
 msgstr "Der Bericht konnte nicht gesendet werden. Er wird nicht erneut gesendet."
 
 msgid "reports.what_is_sent"
-msgstr "Einladungen, Tokens, Netzwerkadressen, E-Mail sowie Ihr Windows-Benutzername, Profilordner, PC-Name und Spielername werden aus den Logs entfernt.\n\nEinen selbst gesendeten Bericht sehen Sie zuerst vollständig; der kleine Dump geht nur mit, wenn Sie ihn in dieser Vorschau einschalten. Ohne Nachfrage gesendete Berichte enthalten nie einen Dump.\n\nNie gesendet werden: Ihre anderen Dateien, Ihre Replays oder die vollständigen Absturz-Dumps."
+msgstr "Einladungen, Tokens, Netzwerkadressen, E-Mail sowie Ihr Windows-Benutzername, Profilordner, PC-Name und Spielername werden aus den Logs entfernt.\n\nEin Absturzbericht enthält außerdem den kleinen Dump, wenn der Absturz einen geschrieben hat. Darin steht roher Speicher der Threads des Spiels, der nicht gefiltert wird. Einen selbst gesendeten Bericht sehen Sie zuerst vollständig, und in dieser Vorschau können Sie Kleiner Dump ausschalten. Ohne Nachfrage gesendete Berichte enthalten ihn.\n\nNie gesendet werden: Ihre anderen Dateien, Ihre Replays oder die vollständigen Absturz-Dumps."
 
 msgid "reports.send_once_detail"
 msgstr "Öffnet eine Vorschau genau dessen, was dieser Bericht enthält. Nichts wird gesendet, bis Sie Senden wählen."
@@ -5621,7 +5621,7 @@ msgid "reports.crash_report"
 msgstr "Absturzbericht"
 
 msgid "reports.payload"
-msgstr "Berichte gehen an embernetplay.link. Jeder enthält die Ember-Version und den Build, die Windows-Version, die Absturzdaten und geschwärzte Enden von sf4e.log, launcher.log, sf4e-crash.log und sf4-net.log."
+msgstr "Berichte gehen an embernetplay.link. Jeder enthält die Ember-Version und den Build, die Windows-Version, die Absturzdaten, geschwärzte Enden von sf4e.log, launcher.log, sf4e-crash.log und sf4-net.log sowie den kleinen Dump, wenn der Absturz einen geschrieben hat."
 
 msgid "reports.status.unknown"
 msgstr "Unbekannt"

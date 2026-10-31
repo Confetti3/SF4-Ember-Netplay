@@ -5009,7 +5009,7 @@ msgid "reports.setting"
 msgstr "Enviar relatórios de problemas"
 
 msgid "reports.setting_detail"
-msgstr "Ligado: após uma falha, o inicializador envia o relatório sem perguntar, no máximo {0} por dia, e nunca com o dump da falha. Desligado: ele pergunta antes."
+msgstr "Ligado: após uma falha, o inicializador envia o relatório sem perguntar, com o dump pequeno se a falha gerou um, no máximo {0} por dia. Desligado: ele pergunta antes."
 
 msgid "reports.problem"
 msgstr "Relatar um problema"
@@ -5093,7 +5093,7 @@ msgid "launcher.game_crashed_files"
 msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."
 
 msgid "launcher.game_crashed_sending"
-msgstr "O jogo travou. Enviar relatórios de problemas está ligado, então um relatório sem o dump da falha está sendo enviado. Os arquivos também estão em %APPDATA%\\sf4e\\logs."
+msgstr "O jogo travou. Enviar relatórios de problemas está ligado, então o relatório está sendo enviado, com o dump pequeno se a falha gerou um. Os arquivos também estão em %APPDATA%\\sf4e\\logs."
 
 msgid "reports.settings_title"
 msgstr "Relatórios de problemas"
@@ -5117,7 +5117,7 @@ msgid "reports.send_always"
 msgstr "Sempre enviar"
 
 msgid "reports.send_always_detail"
-msgstr "Envia este relatório e, a partir de agora, o relatório de cada falha seguinte sem perguntar. Relatórios enviados sem perguntar nunca incluem dump. No máximo {0} saem sem perguntar em 24 horas, e todo relatório enviado conta. Desligue em Configurações, Relatórios de problemas."
+msgstr "Envia este relatório e, a partir de agora, o relatório de cada falha seguinte sem perguntar, com o dump pequeno se a falha gerou um. O dump contém memória bruta das threads do jogo e pode conter dados privados que, ao contrário dos logs, não são removidos. No máximo {0} saem sem perguntar em 24 horas, e todo relatório enviado conta. Desligue em Configurações, Relatórios de problemas."
 
 msgid "reports.dump_included"
 msgstr "Dump da falha: incluído."
@@ -5153,7 +5153,7 @@ msgid "reports.not_sent"
 msgstr "Não foi possível enviar o relatório. Ele não será enviado de novo."
 
 msgid "reports.what_is_sent"
-msgstr "Convites, tokens, endereços de rede, e-mail e seu nome de usuário do Windows, pasta de perfil, nome do PC e nome de jogador são removidos dos logs.\n\nUm relatório que você mesmo envia é mostrado por inteiro antes, e o dump pequeno só vai se você ativá-lo nessa prévia. Relatórios enviados sem perguntar nunca incluem dump.\n\nNunca enviados: seus outros arquivos, seus replays ou os dumps completos da falha."
+msgstr "Convites, tokens, endereços de rede, e-mail e seu nome de usuário do Windows, pasta de perfil, nome do PC e nome de jogador são removidos dos logs.\n\nUm relatório de falha também leva o dump pequeno se a falha gerou um. Ele contém memória bruta das threads do jogo, que não é filtrada. Um relatório que você mesmo envia é mostrado por inteiro antes, e nessa prévia você pode desligar Dump pequeno. Relatórios enviados sem perguntar o incluem.\n\nNunca enviados: seus outros arquivos, seus replays ou os dumps completos da falha."
 
 msgid "reports.send_once_detail"
 msgstr "Abre uma prévia do que este relatório contém. Nada é enviado até você escolher Enviar."
@@ -5162,7 +5162,7 @@ msgid "reports.crash_report"
 msgstr "Relatório de falha"
 
 msgid "reports.payload"
-msgstr "Os relatórios vão para embernetplay.link. Cada um contém a versão e a build do Ember, a versão do Windows, os dados da falha e o final editado de sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log."
+msgstr "Os relatórios vão para embernetplay.link. Cada um contém a versão e a build do Ember, a versão do Windows, os dados da falha, o final editado de sf4e.log, launcher.log, sf4e-crash.log e sf4-net.log, e o dump pequeno se a falha gerou um."
 
 msgid "reports.status.unknown"
 msgstr "Desconhecido"

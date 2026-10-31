@@ -13,8 +13,8 @@ namespace sf4e { namespace ui {
 // `message` (Error unless it only explains why the window opened). `canStart`
 // adds a Start SF4 row to the updater, answered with true like Retry.
 // `crash` is the crash that opened the window: with Send problem reports on
-// its report goes at once, logs only, unless the day's automatic reports are
-// used up; otherwise it is offered, and goes only from its preview or Always send.
+// its report goes at once, logs and the small dump, unless the day's automatic
+// reports are used up; otherwise it is offered, and goes only from its preview or Always send.
 // `offer` is the update the player accepted in the game (--install-offer): with
 // `updates`, the window's own check runs as always, and the download starts at
 // once only if that check finds exactly this release (InstallOfferGate).

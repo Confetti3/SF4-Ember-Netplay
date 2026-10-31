@@ -4,9 +4,12 @@ use crate::symbolicate::{Walk, WalkStatus, raw_facts};
 use std::io;
 use std::{path::PathBuf, time::Duration};
 
-// Four workers consume at most 256 MiB of address space in total, leaving
-// headroom for intake/delivery inside the service's 512 MiB cgroup.
-pub const MEMORY_BYTES: u64 = 64 * 1024 * 1024;
+// A walk parses its symbol files in memory: with Sidecar's 29.8 MiB file it
+// peaks near 100 MiB and with a 60 MiB file near 180 MiB, so the symbolicate.rs
+// caps (96 MiB of files a walk) fit with room. Two workers at this limit leave
+// headroom for intake/delivery inside the service's 1536 MiB cgroup
+// (deploy/ember-reports.service).
+pub const MEMORY_BYTES: u64 = 512 * 1024 * 1024;
 #[cfg(target_os = "linux")]
 const OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 

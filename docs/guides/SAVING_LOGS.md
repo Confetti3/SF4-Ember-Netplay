@@ -59,8 +59,9 @@ name are redacted; review the text for anything else you want to keep private.
 Problem reports require a comment, limited to 2000 characters. The comment is
 sent as written, and a report with a comment always waits for **Send**.
 
-A crash report can include a **Small dump**. It is off for every report until
-you turn it on in that report's preview. It contains unfiltered thread stack
+A crash report includes a **Small dump** when the crash wrote one. It is on
+when a report's preview opens, and you can turn it off there for that report.
+It contains unfiltered thread stack
 bytes and module paths, which can expose private memory, complete credentials
 or invitations, usernames, directory paths and other identifiers. Log
 redaction does not sanitize these bytes. The dump contents are not shown in
@@ -73,10 +74,16 @@ Sending crash reports without asking is opt-in. **Settings > About > Problem rep
 Send problem reports** defaults to off. Choosing **Always send** in the
 launcher's crash message, after its confirmation, turns it on and sends that
 crash's report. With it on, the launcher sends each crash's report without
-asking: logs only, never a dump, and at most 3 reports in 24 hours. Every
+asking, with the small dump when the crash wrote one, and at most 3 reports in
+24 hours. A report whose dump is missing still goes, without it. If the
+upload with the dump runs out of time or is too large for the server, the same
+report is sent once more without the dump, and it still counts once. Every
 report sent counts toward that limit, including ones sent from a preview, and
 while the record of sent reports cannot be read nothing is sent without
-asking. Turn it off on the same screen. **Settings > About > Problem reports > Sent reports** lists each
+asking. Turn it off on the same screen. The setting was saved under a new name
+when reports began to carry the small dump, so a **Send problem reports**
+turned on before that reads as off and the launcher asks again at the next
+crash. **Settings > About > Problem reports > Sent reports** lists each
 report this PC sent, how it went, its report ID, and whether a dump went with
 it.
 

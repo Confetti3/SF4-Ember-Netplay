@@ -22,11 +22,15 @@ $operations = @{
     ToolPaths = { param($SourceRoot, $VisualStudio) Get-EmberToolPaths $SourceRoot $VisualStudio '' }
     Build = {
         param($VisualStudio, $DiscordSdk)
-        & (Join-Path $PSScriptRoot 'build-current.ps1') -VisualStudioPath $VisualStudio -DiscordSdkArchive $DiscordSdk
+        & (Join-Path $PSScriptRoot 'build-current.ps1') -Symbols -VisualStudioPath $VisualStudio -DiscordSdkArchive $DiscordSdk
     }
+    # The release's symbols go to the report server once it has its label (upload-symbols.ps1, which refuses
+    # a build without them); a dry run sends nothing.
     Package = {
         param($OutDir, $Label)
-        New-EmberPackage -OutDir $OutDir -VersionLabel $Label
+        $package = New-EmberPackage -OutDir $OutDir -VersionLabel $Label
+        if (!$WhatIf) { & (Join-Path $PSScriptRoot 'upload-symbols.ps1') -Label $Label | Out-Host }
+        $package
     }
     Installer = {
         param($PackageDir, $Label, $OutDir, $VisualStudio)
