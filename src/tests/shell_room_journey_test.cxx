@@ -622,19 +622,25 @@ void ArcadeJourneys() {
    a.actions.back().roomAction.seat==0,"A paired member could not move to cabinet 1");
  }
  {
-  // King of the hill after a set: nothing to choose, the set's winner stays on
-  // and its loser waits, and no answer keeps the seat.
+  // King of the hill after a set with another pair in the room: the winner
+  // waits for the next one free and the loser leaves the table, so there is
+  // nothing to choose; the set's winner stays on, its loser waits, and no
+  // answer keeps the seat.
   Harness k;JoinedRoom(k,15);k.view.session.generation.room=1;k.view.session.control=netplay::Health::Healthy;
   k.view.room.host=1;k.view.room.revision=3;k.view.room.arcade=room::KingRoom;
   room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;k.view.room.members.push_back(local);
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;k.view.room.members.push_back(peer);
+  room::Member third;third.id=3;third.name="Third";third.table=1;third.seat=0;k.view.room.members.push_back(third);
+  room::Member fourth;fourth.id=4;fourth.name="Fourth";fourth.table=1;fourth.seat=1;k.view.room.members.push_back(fourth);
   auto& t=k.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
-  k.view.room.cabinets[0]=1;k.view.room.cabinets[8]=2;
+  k.view.room.tables[1].p1=3;k.view.room.tables[1].p2=4;
+  k.view.room.cabinets[0]=1;k.view.room.cabinets[8]=2;k.view.room.cabinets[1]=3;k.view.room.cabinets[9]=4;
   k.Screen("room");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
   const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
   t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.score[0]=t.score[1]=0;
+  t.p2=0;k.view.room.members[1].table=-1;k.view.room.members[1].seat=-1;
   k.view.session.match=netplay::MatchState::Playing;k.view.atMainMenu=false;k.view.matchResult=true;k.Frame();
   Check(k.shell.Navigation().Screen()=="post-match"&&row("again")==rows.end()&&row("back")!=rows.end(),"King of the hill offered a Rematch after a set");
   // The buttons are the rows: Character select and Back to room, each its own action.
@@ -685,6 +691,12 @@ void ArcadeJourneys() {
   const auto readied=a.actions.size();a.Screen("room");a.Choose("ready");
   Check(a.actions.size()==readied+1&&a.actions.back().roomAction.kind==room::ActionKind::Rematch,
    "Ready after a missed Arcade prompt was not the table's Rematch");
+  // Another pair's cabinet focused last (the board's selected table follows
+  // it): Ready still answers this player's own table.
+  a.FocusOn("cabinet-1");a.shell.Navigation().Focus("ready",rows);
+  const auto elsewhere=a.actions.size();a.Press(MenuInput::Select);
+  Check(a.actions.size()==elsewhere+1&&a.actions.back().roomAction.kind==room::ActionKind::Rematch&&a.actions.back().roomAction.table==0,
+   "Ready with another pair's cabinet focused answered that pair's table");
   setOver(6);
   const auto chose=a.actions.size();a.Choose("rematch");
   Check(a.actions.size()==chose+1&&a.actions.back().command.kind==Kind::RoomAction&&a.actions.back().roomAction.kind==room::ActionKind::Rematch&&
@@ -697,6 +709,57 @@ void ArcadeJourneys() {
   const auto backed=a.actions.size();a.Press(MenuInput::Back);a.Press(MenuInput::Back);gameOver();
   Check(!leftCabinet(backed),"Back to room after an Arcade set left the cabinet");
   SetMenuEntriesProbe({});
+ }
+ for(const auto type:{room::ArcadeRoom,room::KingRoom}){
+  // A pair alone in an Arcade or King room stays together after a set and
+  // readies again: the prompt offers the ordinary Rematch and names no winner
+  // who stays or loser who waits (ARCADE_CABINET_MODE.md, items 4 to 6). It
+  // does so before the room has the result too, which an Unlimited game that
+  // may go on in place only sends once it has. A Rematch the runtime refuses
+  // is offered again, and an opponent who leaves the cabinets has left.
+  Harness a;JoinedRoom(a,17);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=type;
+  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
+  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
+  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+  t.rules.format=room::SetFormat::Unlimited;
+  a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;
+  a.Screen("room");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
+  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+  const std::string mode=type==room::ArcadeRoom?"Arcade":"King of the hill";
+  const auto offered=[&]{return a.shell.Navigation().Screen()=="post-match"&&row("again")!=rows.end()&&row("again")->enabled&&
+   row("rematch")==rows.end()&&row("new-opponent")==rows.end();};
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+  Check(offered(),("A lone pair in "+mode+" was not offered the ordinary Rematch before the room had the result").c_str());
+  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=1;t.score[0]=t.score[1]=0;a.Frame();
+  Check(offered(),("A lone pair in "+mode+" was not offered the ordinary Rematch").c_str());
+  Check(words["pm-you"]!=loc::T("postmatch.king.waits")&&words["pm-opponent"]!=loc::T("postmatch.king.stays"),
+   ("A lone pair in "+mode+" was shown a winner who stays and a loser who waits").c_str());
+  const auto sent=a.actions.size();a.Choose("again");
+  Check(a.actions.size()==sent+1&&a.actions.back().command.kind==Kind::Rematch,("A lone pair's Rematch in "+mode+" was not sent").c_str());
+  Check(row("again")!=rows.end()&&!row("again")->enabled,("A lone pair in "+mode+" was offered Rematch again while it was on its way").c_str());
+  a.view.readyFailure="Assign a controller first.";a.view.readyFailureSequence=1;a.Frame();
+  Check(row("again")!=rows.end()&&row("again")->enabled,("A refused Rematch in "+mode+" was not offered again").c_str());
+  // With the opponent's Rematch already in, the start the prompt promised is
+  // taken back with a refusal too.
+  a.Press(MenuInput::Select);  // the refusal's notice
+  a.view.rematchChoices=2;const auto again=a.actions.size();a.Choose("again");a.Frame();
+  Check(a.actions.size()==again+1&&a.actions.back().command.kind==Kind::Rematch,("A lone pair's second Rematch in "+mode+" was not sent").c_str());
+  Check(!row("again")->enabled,("A lone pair in "+mode+" was offered Rematch again while starting").c_str());
+  a.view.readyFailureSequence=2;a.Frame();
+  Check(row("again")->enabled,("A refused Rematch in "+mode+" stayed starting with the opponent's Rematch in").c_str());
+  a.view.rematchChoices=0;
+  // The opponent gone from the cabinets has left; that is no rotation. Nor
+  // when the room then pairs this player with one who waited alone.
+  t.p2=0;a.view.room.members[1].table=-1;a.view.room.members[1].seat=-1;a.view.room.cabinets[8]=0;a.Frame();
+  Check(words["pm-opponent"]==loc::T("postmatch.state.left"),("An opponent who left a lone pair in "+mode+" was shown as rotated").c_str());
+  room::Member third;third.id=3;third.name="Third";third.table=1;third.seat=0;a.view.room.members.push_back(third);
+  a.view.room.cabinets[1]=3;a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=1;t.p1=0;
+  a.view.room.members[0].table=1;a.view.room.members[0].seat=1;a.Frame();
+  Check(words["pm-opponent"]==loc::T("postmatch.state.left"),("An opponent who left in "+mode+" was shown as rotated once this player moved on").c_str());
+  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
  }
 }
 // The post-match prompt over the WIN screen: Rematch sends the room's Ready
@@ -756,6 +819,13 @@ void PostMatchJourneys() {
  Check(!h.open&&h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==before,"No answer did not close the prompt over WIN");
  gameOver();h.Frame();
  Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"No answer after the game did not leave the seat");
+ // A Rematch the runtime refuses as the game ends, the opponent's already in,
+ // is still an answer: the seat stays.
+ h.view.matchResult=false;h.Frame();win();h.view.rematchChoices=2;const auto refused=h.actions.size();h.Choose("again");h.Frame();
+ h.view.readyFailure="Assign a controller first.";++h.view.readyFailureSequence;gameOver();h.Frame();
+ Check(h.actions.size()>refused&&std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(refused),h.actions.end(),
+  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"A refused Rematch gave up the seat once the game was over");
+ h.view.rematchChoices=0;h.Press(MenuInput::Select);  // the refusal's notice
  // Back to room over the WIN: the prompt shows that choice until the game is
  // over, and keeps the seat, so a Back mashed through the WIN costs nothing.
  // The game over, the result does not open a new prompt.

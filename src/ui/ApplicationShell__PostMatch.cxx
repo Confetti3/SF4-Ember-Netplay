@@ -72,6 +72,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             const auto& t = snapshot.tables[place.table];
             PostMatchPrompt prompt;
             prompt.table = place.table; prompt.generation = t.matchGeneration; prompt.until = now + PostMatchSeconds;
+            prompt.failures = v.readyFailureSequence;
             // A set the result has already ended rotated its seats: the opponent is the set's.
             const bool ended = t.lastSet.generation == t.matchGeneration;
             const auto p1 = ended ? t.lastSet.p1 : t.p1, p2 = ended ? t.lastSet.p2 : t.p2;
@@ -95,6 +96,12 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // the WIN plays out and resends it after. A Ready the room takes back
         // later can be pressed again.
         if (p.chose && Readied(t, mine, p.generation)) p.chose = false;
+        // A Rematch the runtime refused (it says why) is offered again while
+        // the next game has not begun, with the start it promised taken back.
+        if (v.readyFailureSequence != p.failures) {
+            p.failures = v.readyFailureSequence;
+            if (t.matchGeneration == p.generation) p.chose = p.starting = false;
+        }
         if (p.left) {
             if (!Fighting(v.session.match) || v.atMainMenu) ClosePostMatch(v, p.after, open);
             return;
@@ -116,7 +123,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         else if (!p.starting && ready && theirs >= 0) { if (now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open); }
         // A WIN cut short ends the game before the timer: no answer by then is no answer.
         else if (!p.starting && (now >= p.until || ready || (!Fighting(v.session.match) && v.atMainMenu)))
-            ClosePostMatch(v, ready || KeepsSeat(snapshot, t, p.generation) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
+            ClosePostMatch(v, ready || p.answered || KeepsSeat(snapshot, t, p.generation) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
     }
     // What the prompt left to do waits for the game's end, in the room.
     if (!open || postMatch_ || afterPostMatch_ == AfterPostMatch::None || Fighting(v.session.match) || !v.atMainMenu) return;
@@ -148,11 +155,16 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const bool midSet = MidSet(t, p.generation);
     // An Arcade or King of the hill room after a set: the pair decides when
-    // nobody waited alone (Arcade only); otherwise the room has already paired
-    // the next game, so there is nothing to choose.
+    // nobody waited alone but others sit at the cabinets (Arcade only). Once
+    // one of them has left the table for their cabinet the room has paired
+    // someone new, so there is nothing to choose (an opponent gone from the
+    // cabinets has left, as in a Classic room). A pair still seated together (nobody else to play,
+    // or the result still on its way, as in an Unlimited game that may go on
+    // in place) has the ordinary Rematch, as a Classic pair does.
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
-    const bool rotates = cabinets && !deciding;
+    const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
+    const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
         (deciding && t.rematch[mine])));
     const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
@@ -179,11 +191,12 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // This PC's row: its choice, Back to room or Character select once made.
     std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
     std::string theirWord = state(theyChose, theirs >= 0);
-    // The set's winner stays on and its loser waits, once the room has the result.
+    // The set's winner stays on and its loser waits, once the room has the
+    // result; an opponent gone from the cabinets has left all the same.
     if (rotates && t.lastSet.generation == p.generation) {
         const auto word = [&](room::MemberId m) { return std::string(loc::T(m == t.lastSet.Winner() ? "postmatch.king.stays" : "postmatch.king.waits")); };
         if (!p.left) mineWord = word(v.room.localMember);
-        theirWord = word(p.opponent);
+        if (!opponentGone) theirWord = word(p.opponent);
     }
     // The buttons are the prompt's only rows: the answers there are now. A
     // deciding pair's Rematch and New opponent are the room's own choice (the
@@ -287,7 +300,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // The room's Rematch or New opponent: the same answer as the cabinet's (RoomAction).
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && deciding) RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     else if (a.kind == MenuAction::Activate) {
-        if (a.id == "again" && again && !chosen) { postMatch_->chose = true; selectedTable_ = p.table; Send(netplay::CommandKind::Rematch, v, submit); }
+        if (a.id == "again" && again && !chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = Send(netplay::CommandKind::Rematch, v, submit); }
         else if (a.id == "rematch" || a.id == "new-opponent") RoomAction(a, v, submit);
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);

@@ -663,19 +663,24 @@ void ApplicationShell::OpenTableOptions(const ShellView& v,int table) {
  nav.Home();nav.Push("room");nav.Push("room-table");
 }
 void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
- const auto* local=Member(v.room,v.room.localMember);
- const auto control=DescribeReady(v,v.room.tables[selectedTable_],local?local->seat:-1);
+ // Ready is this PC's own seat, whatever table or cabinet the board has
+ // focused (selectedTable_ follows the focus); unseated, the focused table
+ // says why not.
+ const auto mine=room::PlaceOf(v.room,v.room.localMember);
+ const bool seated=mine.kind==room::Place::Kind::Seat;
+ const int table=seated?mine.table:selectedTable_,seat=seated?mine.seat:-1;
+ const auto control=DescribeReady(v,v.room.tables[table],seat);
  if(control.kind==ReadyControl::Unready){
-  room::Action request;request.table=static_cast<std::uint8_t>(selectedTable_);
-  request.kind=room::ActionKind::Unready;request.seat=local->seat;
+  room::Action request;request.table=static_cast<std::uint8_t>(table);
+  request.kind=room::ActionKind::Unready;request.seat=static_cast<std::int8_t>(seat);
   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
- }else if(control.kind==ReadyControl::Rematch&&v.room.tables[selectedTable_].deciding){
-  room::Action request;request.table=static_cast<std::uint8_t>(selectedTable_);request.kind=room::ActionKind::Rematch;
+ }else if(control.kind==ReadyControl::Rematch&&v.room.tables[table].deciding){
+  room::Action request;request.table=static_cast<std::uint8_t>(table);request.kind=room::ActionKind::Rematch;
   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
  }else if(control.kind!=ReadyControl::None)
   Send(control.kind==ReadyControl::Rematch?netplay::CommandKind::Rematch:netplay::CommandKind::Ready,v,submit);
  else if(!control.refusal.empty())
-  Refuse(control.refusal,[table=selectedTable_,seat=local?local->seat:-1](const ShellView& now){
+  Refuse(control.refusal,[table,seat](const ShellView& now){
    return DescribeReady(now,now.room.tables[table],seat).kind==ReadyControl::None;});
 }
 void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {

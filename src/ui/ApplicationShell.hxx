@@ -605,6 +605,10 @@ private:
         std::uint64_t generation = 0;
         double until = 0;
         bool chose = false, starting = false;
+        // The runtime's Ready failures seen so far: a new one takes back the
+        // choice, but the player still answered (no seat left for no answer).
+        std::uint64_t failures = 0;
+        bool answered = false;
         // Back to room or Character select over the WIN: the prompt shows the
         // choice until the game is over, then does `after`.
         bool left = false;

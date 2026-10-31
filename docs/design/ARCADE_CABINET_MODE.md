@@ -41,7 +41,9 @@ or King of the hill. Any type can be private or public.
    that streak or beats them.
 6. After a set the WIN screen's prompt asks the room's question too. While
    the pair decides it offers Rematch and New opponent (Y), the same choices
-   as the cabinet; once the room has paired the next game it says who is next.
+   as the cabinet; a pair still seated together (nobody else to play, or the
+   result not in yet) gets the ordinary Rematch, which readies again; once
+   one of them has left the table it says who is next.
    Nobody leaves the cabinet from the prompt: Back to room and no answer keep
    it.
 7. The cabinets carry what a Classic table card's banner says about a seat
