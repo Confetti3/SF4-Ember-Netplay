@@ -8,12 +8,7 @@ namespace {
 // them: a name is never cut inside a character.
 std::string Text(const nlohmann::json& object, const char* key, std::size_t limit = 256) {
     const auto it = object.find(key);
-    if (it == object.end() || !it->is_string()) return {};
-    const auto& value = it->get_ref<const std::string&>();
-    std::size_t end = 0;
-    for (std::size_t characters = 0; end < value.size() && characters < limit; ++characters)
-        do ++end; while (end < value.size() && (static_cast<unsigned char>(value[end]) & 0xC0) == 0x80);
-    return value.substr(0, end);
+    return it == object.end() || !it->is_string() ? std::string() : Utf8Head(it->get_ref<const std::string&>(), limit);
 }
 
 // The account at `data.account`, its user ID kept to `idLimit` characters;

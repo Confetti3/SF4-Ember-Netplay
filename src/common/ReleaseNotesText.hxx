@@ -1,5 +1,7 @@
 #pragma once
+#include "Utf8Text.hxx"
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -39,27 +41,13 @@ inline bool Displayed(unsigned codepoint) {
 inline std::string DrawableUtf8(const std::string& text) {
     std::string out;out.reserve(text.size());
     for(std::size_t i=0;i<text.size();) {
-        const auto lead=static_cast<unsigned char>(text[i]);
-        if(lead<0x80) {
-            if(lead=='\n')out+='\n';
-            else if(lead=='\t')out+=' ';
-            else if(lead>=0x20&&lead!=0x7F)out+=static_cast<char>(lead);
-            ++i;continue;
-        }
-        const int length=lead>=0xF0&&lead<=0xF4?4:lead>=0xE0&&lead<=0xEF?3:lead>=0xC2&&lead<=0xDF?2:0;
-        if(!length||i+length>text.size()){++i;continue;}
-        unsigned codepoint=lead&(0xFFu>>(length+1));
-        bool valid=true;
-        for(int n=1;n<length;++n) {
-            const auto next=static_cast<unsigned char>(text[i+n]);
-            if((next&0xC0)!=0x80){valid=false;break;}
-            codepoint=(codepoint<<6)|(next&0x3Fu);
-        }
-        if(!valid){++i;continue;}
-        // Valid: not overlong, not a surrogate, not past U+10FFFF.
-        const unsigned least[]={0,0,0x80,0x800,0x10000};
-        valid=codepoint>=least[length]&&codepoint<=0x10FFFF&&!(codepoint>=0xD800&&codepoint<=0xDFFF);
-        if(valid&&Displayed(codepoint))out.append(text,i,length);
+        std::uint32_t codepoint=0;
+        const std::size_t length=Utf8CharacterBytes(text,i,&codepoint);
+        if(!length){++i;continue;}
+        if(codepoint=='\n')out+='\n';
+        else if(codepoint=='\t')out+=' ';
+        else if(codepoint<0x80){if(codepoint>=0x20&&codepoint!=0x7F)out+=static_cast<char>(codepoint);}
+        else if(Displayed(codepoint))out.append(text,i,length);
         i+=length;
     }
     return out;

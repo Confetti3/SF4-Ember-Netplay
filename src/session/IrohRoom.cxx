@@ -77,7 +77,7 @@ bool IrohRoom::Begin(bool host) {
 	// The previous epoch's abandon must reach the helper before this epoch's
 	// command, or the helper answers the new room with leave_in_progress.
 	if (departure_.abandonPending) {
-		if (!helper_.Send(json{{"type", "leave"}, {"epoch", departure_.abandonEpoch}, {"abandon", true}}.dump())) return false;
+		if (!helper_.Send(DumpJson(json{{"type", "leave"}, {"epoch", departure_.abandonEpoch}, {"abandon", true}}))) return false;
 		departure_.abandonPending = false;
 	}
 	++epoch_;
@@ -100,7 +100,7 @@ bool IrohRoom::Begin(bool host) {
 bool IrohRoom::Host(const std::string& build) {
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(true)) return false;
-	departure_.roomCommandQueued = Command(json{{"type", "host"}, {"epoch", epoch_}, {"build", build}}.dump());
+	departure_.roomCommandQueued = Command(DumpJson(json{{"type", "host"}, {"epoch", epoch_}, {"build", build}}));
 	return departure_.roomCommandQueued;
 }
 
@@ -109,7 +109,7 @@ bool IrohRoom::RequestShortInvitation() {
 	// A failed send is the request's failure, not the room's.
 	const bool open = room_.state == State::Ready || room_.state == State::Hosting || room_.state == State::Joining;
 	if (!open || room_.invitation.empty() ||
-		!helper_.Send(json{{"type", "short_invite"}, {"epoch", epoch_}}.dump())) { ++shortFailures_; return false; }
+		!helper_.Send(DumpJson(json{{"type", "short_invite"}, {"epoch", epoch_}}))) { ++shortFailures_; return false; }
 	room_.shortPending = true;
 	return true;
 }
@@ -120,7 +120,7 @@ bool IrohRoom::Join(const std::string& invitation, const std::string& build, boo
 	json request = {{"type", "join"}, {"epoch", epoch_}, {"invitation", invitation}, {"build", build}};
 	// Left out when false, so a plain join is the message every helper reads.
 	if (observer) request["observer"] = true;
-	departure_.roomCommandQueued = Command(request.dump());
+	departure_.roomCommandQueued = Command(DumpJson(request));
 	return departure_.roomCommandQueued;
 }
 
@@ -128,8 +128,8 @@ bool IrohRoom::JoinPublic(const std::string& invitation, const json& ticket, con
 	if (build.empty() || build.size() > 128) return false;
 	if (!Begin(false)) return false;
 	room_.publicMember = true;
-	departure_.roomCommandQueued = Command(json{{"type", "join_public"}, {"epoch", epoch_},
-		{"invitation", invitation}, {"ticket", ticket}, {"build", build}}.dump());
+	departure_.roomCommandQueued = Command(DumpJson(json{{"type", "join_public"}, {"epoch", epoch_},
+		{"invitation", invitation}, {"ticket", ticket}, {"build", build}}));
 	return departure_.roomCommandQueued;
 }
 
@@ -152,7 +152,7 @@ void IrohRoom::Leave(bool abandon) {
 	// A rejected local enqueue never introduced this epoch to the helper.
 	// Waiting for a Leave acknowledgment for that epoch would hang cancellation.
 	if (!departure_.roomCommandQueued) { room_.state = State::Idle; return; }
-	departure_.pending = !helper_.Send(json{{"type", "leave"}, {"epoch", epoch_},{"abandon",departure_.abandon}}.dump());
+	departure_.pending = !helper_.Send(DumpJson(json{{"type", "leave"}, {"epoch", epoch_},{"abandon",departure_.abandon}}));
 }
 
 bool IrohRoom::CloseFailedRoom(bool ggpoOwnsSocket) {
@@ -184,9 +184,9 @@ bool IrohRoom::PrepareGame(const std::string& peer, std::uint64_t generation,
 	for (auto game = room_.games.begin(); game != room_.games.end();) {
 		if (game->second.state == GameState::Closed) game = room_.games.erase(game); else ++game;
 	}
-	if (!Command(json{{"type", "prepare_game"}, {"epoch", epoch_}, {"peer", peer}, {"room", room_.id},
+	if (!Command(DumpJson(json{{"type", "prepare_game"}, {"epoch", epoch_}, {"peer", peer}, {"room", room_.id},
 		{"generation", generation}, {"capability", capability}, {"local_port", localPort},
-		{"max_packet", maxPacket}, {"dial", dial}}.dump())) return false;
+		{"max_packet", maxPacket}, {"dial", dial}}))) return false;
 	GameSnapshot snapshot; snapshot.state = GameState::Preparing; snapshot.generation = generation; snapshot.maxPacket = maxPacket;
 	room_.games[peer] = snapshot;
 	return true;
@@ -211,7 +211,7 @@ IrohRoom::PeerEnd IrohRoom::EndPeerCommand(const std::string& peer, std::uint64_
 		room_.games.erase(game);
 		return PeerEnd::Ended;
 	}
-	const auto command = json{{"type", "end_peer"}, {"epoch", epoch_}, {"peer", peer}, {"generation", generation}}.dump();
+	const auto command = DumpJson(json{{"type", "end_peer"}, {"epoch", epoch_}, {"peer", peer}, {"generation", generation}});
 	if (failWhenFull) { if (!Command(command)) return PeerEnd::Refused; }
 	else if (helper_.State() != platform::HelperState::Connected) return PeerEnd::Refused;
 	// A connected helper refuses a command only while its queue is full.
@@ -228,12 +228,12 @@ bool IrohRoom::EndMatch(std::uint64_t generation) {
 	// before the caller reaches Abort. Preserve the generation fence while
 	// making teardown idempotent so the room can return to Idle.
 	if (room_.games.empty()) {
-		if (!Command(json{{"type", "end_match"}, {"epoch", epoch_}, {"generation", generation}}.dump())) return false;
+		if (!Command(DumpJson(json{{"type", "end_match"}, {"epoch", epoch_}, {"generation", generation}}))) return false;
 		room_.closedGeneration = generation;
 		return true;
 	}
 	for (const auto& game : room_.games) if (game.second.generation != generation) return false;
-	if (!Command(json{{"type", "end_match"}, {"epoch", epoch_}, {"generation", generation}}.dump())) return false;
+	if (!Command(DumpJson(json{{"type", "end_match"}, {"epoch", epoch_}, {"generation", generation}}))) return false;
 	for (const auto& game : room_.games)
 		spdlog::info("Room: end_match sent generation={} peer={} state={}", generation, PeerTag(game.first),
 			static_cast<int>(game.second.state));
@@ -384,14 +384,14 @@ bool IrohRoom::SendTournament(const std::string& request, std::uint64_t* request
 
 bool IrohRoom::RequestProbe(const std::string& peer, std::uint64_t request, std::uint64_t pairRevision, bool benchmark) {
     if (!room_.coordination.writable || !IsEndpointIdentity(peer) || peer==localIdentity_ || !request) return false;
-    if (!helper_.Send(json{{"type","probe_request"},{"epoch",epoch_},{"room",room_.id},
-        {"peer",peer},{"request",request},{"pair_revision",pairRevision},{"benchmark",benchmark}}.dump())) return false;
+    if (!helper_.Send(DumpJson(json{{"type","probe_request"},{"epoch",epoch_},{"room",room_.id},
+        {"peer",peer},{"request",request},{"pair_revision",pairRevision},{"benchmark",benchmark}}))) return false;
     room_.probe={}; room_.probe.peer=peer; room_.probe.request=request; room_.probe.pairRevision=pairRevision; room_.probe.status="checking"; room_.probe.benchmark=benchmark; room_.probe.deadlineMs=GetTickCount64()+(benchmark?50000:25000);
     return true;
 }
 void IrohRoom::WatchLatency(bool wanted) {
     const auto watch=[&](std::uint64_t view, bool on) {
-        return helper_.Send(json{{"type","latency_watch"},{"epoch",epoch_},{"room",room_.id},{"view",view},{"on",on}}.dump());
+        return helper_.Send(DumpJson(json{{"type","latency_watch"},{"epoch",epoch_},{"room",room_.id},{"view",view},{"on",on}}));
     };
     if (!wanted || !epoch_ || room_.id==std::array<std::uint8_t,16>{} || (room_.state!=State::Ready && room_.state!=State::Degraded)) {
         if (const auto view=latency_.Stop()) watch(view, false);
@@ -413,7 +413,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         const auto& transfer=replica_.checkpointReceiver.Identity();
         replica_.pendingCheckpointAck=json{{"type","checkpoint_ack"},{"epoch",epoch_},{"room",room_.id},
             {"transfer",transfer.transfer},{"offset",offset}};
-        if (helper_.Send(replica_.pendingCheckpointAck.dump())) replica_.pendingCheckpointAck=nullptr;
+        if (helper_.Send(DumpJson(replica_.pendingCheckpointAck))) replica_.pendingCheckpointAck=nullptr;
     };
     if (type=="coordination_state") {
         const auto term=event.at("term").get<std::uint64_t>();
@@ -520,7 +520,7 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
             replica_.checkpointReceiver.Adopt(sender_.identity,sender_.bytes,GetTickCount64());
         replica_.pendingCheckpointAck=json{{"type","checkpoint_ack"},{"epoch",epoch_},{"room",room_.id},
             {"transfer",transfer},{"offset",own ? sender_.identity.length : std::size_t(0)}};
-        if (helper_.Send(replica_.pendingCheckpointAck.dump())) replica_.pendingCheckpointAck=nullptr;
+        if (helper_.Send(DumpJson(replica_.pendingCheckpointAck))) replica_.pendingCheckpointAck=nullptr;
         if (!own) return true;
         // From here it is a received transfer whose committed marker arrived.
         return ConsumeCoordinationEvent(event,"checkpoint_committed");
@@ -811,9 +811,9 @@ void IrohRoom::Poll() {
 	// Teardown must survive temporary command backpressure. Retry on later
 	// game ticks while continuing to drain events; never block the game thread.
 	if (departure_.pending && GetTickCount64()>=departure_.retryAt &&
-        helper_.Send(json{{"type", "leave"}, {"epoch", epoch_},{"abandon",departure_.abandon}}.dump())) departure_.pending = false;
+        helper_.Send(DumpJson(json{{"type", "leave"}, {"epoch", epoch_},{"abandon",departure_.abandon}}))) departure_.pending = false;
 	if (departure_.abandonPending && GetTickCount64() >= departure_.abandonRetryAt) {
-		if (helper_.Send(json{{"type", "leave"}, {"epoch", departure_.abandonEpoch}, {"abandon", true}}.dump())) departure_.abandonPending = false;
+		if (helper_.Send(DumpJson(json{{"type", "leave"}, {"epoch", departure_.abandonEpoch}, {"abandon", true}}))) departure_.abandonPending = false;
 		else departure_.abandonRetryAt = GetTickCount64() + 500;
 	}
 	if (room_.state == State::Closing && departure_.deadline && GetTickCount64() >= departure_.deadline) {
@@ -828,7 +828,7 @@ void IrohRoom::Poll() {
 			departure_.abandon = true;
 			spdlog::warn("Room: departure not confirmed after {} ms; abandoning the helper room", LeaveTimeoutMs);
 			departure_.abandonEpoch = epoch_; departure_.abandonRetryAt = GetTickCount64() + 500;
-			departure_.abandonPending = !helper_.Send(json{{"type", "leave"}, {"epoch", departure_.abandonEpoch}, {"abandon", true}}.dump());
+			departure_.abandonPending = !helper_.Send(DumpJson(json{{"type", "leave"}, {"epoch", departure_.abandonEpoch}, {"abandon", true}}));
 		}
 		CloseAllGames();
 		departure_.roomCommandQueued = false; departure_.pending = false; departure_.deadline = 0;

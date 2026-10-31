@@ -1,6 +1,8 @@
 #pragma once
-// The one way room and recovery code serializes JSON that can carry text from
-// a player or a peer.
+// The one way room and recovery code serializes JSON: every recovery dump and
+// every message IrohRoom sends the helper, whether it carries a player's or a
+// peer's text (a build, an invitation, a ticket, an account, a peer identity)
+// or only numbers, so there is no message to remember as the safe one.
 
 #include <string>
 #include <nlohmann/json.hpp>

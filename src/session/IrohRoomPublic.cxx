@@ -16,8 +16,8 @@ bool IrohRoom::HostPublic(const std::string& build, const std::string& ticketKey
 	// The tickets already name this id, so the helper is told rather than asked.
 	room_.id = roomId;
 	room_.publicHost = true;
-	departure_.roomCommandQueued = Command(json{{"type", "host_public"}, {"epoch", epoch_}, {"build", build}, {"room", roomId},
-		{"ticket_key", ticketKey}, {"ticket_kid", ticketKid}, {"bridge_id", bridgeId}, {"creator", creator}}.dump());
+	departure_.roomCommandQueued = Command(DumpJson(json{{"type", "host_public"}, {"epoch", epoch_}, {"build", build}, {"room", roomId},
+		{"ticket_key", ticketKey}, {"ticket_kid", ticketKid}, {"bridge_id", bridgeId}, {"creator", creator}}));
 	return departure_.roomCommandQueued;
 }
 
@@ -29,7 +29,7 @@ Admission IrohRoom::PeerAdmission(Connection connection) const {
 bool IrohRoom::BanAccount(const std::string& account) {
 	if (!room_.hosting || account.empty() || (room_.state != State::Ready && room_.state != State::Degraded)) return false;
 	// Not Command(): a full helper queue delays the ban, it does not fail the room.
-	return helper_.Send(json{{"type", "ban_account"}, {"epoch", epoch_}, {"account", account}}.dump());
+	return helper_.Send(DumpJson(json{{"type", "ban_account"}, {"epoch", epoch_}, {"account", account}}));
 }
 
 } }

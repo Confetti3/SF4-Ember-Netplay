@@ -334,8 +334,8 @@ SendResult IrohRoom::SendRemote(Connection connection, const std::string& payloa
 	// that endpoint has since connected again for a session this room has
 	// not been told about, instead of delivering old numbering into it.
 	// The payload goes as the frame's raw body, not escaped into the header.
-	const auto header = json{{"type", "send"}, {"epoch", epoch_}, {"peer", peer->second.identity},
-		{"control", *peer->second.control}, {"message_id", messageId}}.dump();
+	const auto header = DumpJson(json{{"type", "send"}, {"epoch", epoch_}, {"peer", peer->second.identity},
+		{"control", *peer->second.control}, {"message_id", messageId}});
 	if (!Command(platform::helper_frame::EncodeRawBody(header, payload.data(), payload.size()))) return SendResult::QueueFull;
 	++peer->second.nextId;
 	if (id) *id = messageId;

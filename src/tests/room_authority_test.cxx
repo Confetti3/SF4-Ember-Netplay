@@ -982,6 +982,18 @@ static void TestTableName() {
     // Bytes that are no character become U+FFFD, and the cut still lands on a boundary.
     CHECK(sf4e::Utf8Trim(std::string("a\xFF") + "b", 8) == std::string("a\xEF\xBF\xBD") + "b");
     CHECK(sf4e::Utf8Trim(std::string("a\xFF") + "b", 3) == "a" && sf4e::Utf8Trim("\xC3", 8) == "\xEF\xBF\xBD");
+    // The decoder hands out the code point of what it accepts, and Utf8Head cuts by characters.
+    std::uint32_t code = 0;
+    CHECK(sf4e::Utf8CharacterBytes("A", 0, &code) == 1 && code == 'A');
+    CHECK(sf4e::Utf8CharacterBytes("\xC3\xA9", 0, &code) == 2 && code == 0xE9);
+    CHECK(sf4e::Utf8CharacterBytes("\xE2\x82\xAC", 0, &code) == 3 && code == 0x20AC);
+    CHECK(sf4e::Utf8CharacterBytes("\xF0\x9F\x8E\x89", 0, &code) == 4 && code == 0x1F389);
+    code = 7;
+    CHECK(sf4e::Utf8CharacterBytes("\xE0\x80\xAF", 0, &code) == 0 && sf4e::Utf8CharacterBytes("\xED\xA0\x80", 0) == 0 &&
+        sf4e::Utf8CharacterBytes("\xF4\x90\x80\x80", 0) == 0 && sf4e::Utf8CharacterBytes("\xE2\x82", 0) == 0 && code == 7);
+    CHECK(sf4e::Utf8Head("a\xC3\xA9\xE2\x82\xAC" "d", 3) == "a\xC3\xA9\xE2\x82\xAC" && sf4e::Utf8Head("abc", 0).empty() &&
+        sf4e::Utf8Head("ab", 9) == "ab");
+    CHECK(sf4e::Utf8Head("a\xFF" "bc", 3) == "a\xEF\xBF\xBD" "b" && sf4e::Utf8Head("\x80\x80", 1) == "\xEF\xBF\xBD");
 }
 
 int main() {

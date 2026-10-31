@@ -149,6 +149,9 @@ void Names() {
     sf4e::session::ApplyTournamentEvent(Inspected(nlohmann::json::array({SiteEntry("a", name), SiteEntry("b", twoByte)})), view);
     Check(view.signInSites.size() == 2 && view.signInSites[0].name == name.substr(0, 64 * 3), "A long name was not kept to 64 characters");
     Check(view.signInSites[1].name == std::string(63, 'a') + "\xc3\xa9", "A name was cut inside a character");
+    // A byte that is no character reads as U+FFFD and counts as one.
+    sf4e::session::ApplyTournamentEvent(Inspected(nlohmann::json::array({SiteEntry("c", std::string("ab\xff") + "cd")})), view);
+    Check(view.signInSites.size() == 1 && view.signInSites[0].name == std::string("ab\xef\xbf\xbd") + "cd", "A stray byte was not replaced");
     nlohmann::json status = {{"request_id", 2}, {"op", "site_status"}, {"ok", true}};
     status["data"]["account"] = {{"user_id", "1"}, {"username", name}};
     sf4e::session::ApplyTournamentEvent(status, view);

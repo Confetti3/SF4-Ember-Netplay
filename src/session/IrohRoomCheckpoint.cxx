@@ -2,6 +2,7 @@
 #include "IrohRoom.hxx"
 #include "RoomMessageQueue.hxx"
 #include "sf4e__SessionProtocol.hxx"
+#include "../common/JsonDump.hxx"
 #include "../common/RoomLimits.hxx"
 #include "../common/EnvFlag.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
@@ -292,7 +293,7 @@ bool IrohRoom::ReadyForMatch() const {
 void IrohRoom::PumpCheckpoint() {
     diag::ScopedTimer timer(diag::OP_ROOM_PROPOSE);
     const auto now=GetTickCount64();
-    if (!replica_.pendingCheckpointAck.is_null() && helper_.Send(replica_.pendingCheckpointAck.dump())) replica_.pendingCheckpointAck=nullptr;
+    if (!replica_.pendingCheckpointAck.is_null() && helper_.Send(DumpJson(replica_.pendingCheckpointAck))) replica_.pendingCheckpointAck=nullptr;
     if (replica_.checkpointReceiver.Expired(now) && replica_.pendingCommittedMarker.is_null()) {
         ++replica_.checkpointTimeouts;
         replica_.checkpointReceiver.Reset();
@@ -308,7 +309,7 @@ void IrohRoom::PumpCheckpoint() {
     if (!sender_.begun) {
         auto message=sender_.identity.Envelope("checkpoint_begin");
         message["length"]=sender_.identity.length; message["digest"]=sender_.identity.digest;
-        if (!helper_.Send(message.dump())) return;
+        if (!helper_.Send(DumpJson(message))) return;
         sender_.begun=true;
     }
     unsigned budget=4;
@@ -318,13 +319,13 @@ void IrohRoom::PumpCheckpoint() {
         // The chunk goes as the frame's raw body, copied once from the proposal.
         const auto size=(std::min)(coordination::CheckpointChunk,sender_.bytes.size()-sender_.sent);
         message["offset"]=sender_.sent;
-        if (!helper_.Send(platform::helper_frame::EncodeRawBody(message.dump(),sender_.bytes.data()+sender_.sent,size))) return;
+        if (!helper_.Send(platform::helper_frame::EncodeRawBody(DumpJson(message),sender_.bytes.data()+sender_.sent,size))) return;
         sender_.sent+=size;
     }
     if (!sender_.ended && sender_.acknowledged==sender_.bytes.size()) {
         auto message=sender_.identity.Envelope("checkpoint_end");
         message["length"]=sender_.identity.length; message["digest"]=sender_.identity.digest;
-        if (helper_.Send(message.dump())) sender_.ended=true;
+        if (helper_.Send(DumpJson(message))) sender_.ended=true;
     }
 }
 
