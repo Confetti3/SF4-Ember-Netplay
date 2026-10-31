@@ -11,7 +11,7 @@ void RetrySaveOnPanelScreens() {
  using namespace sf4e;
  for(const char* screen:{"identity","rankings","replays"}){
   Harness h;h.Frame();
-  h.Screen("tab-access/1");h.FocusOn("scale");h.Press(MenuInput::Right);
+  h.Screen("tab-access/text");h.FocusOn("scale");h.Press(MenuInput::Right);
   h.view.settingsError="Disk unavailable";h.Frame(0,45);
   h.Screen(screen);
   const auto mark=static_cast<std::ptrdiff_t>(h.actions.size());
@@ -69,9 +69,10 @@ void NarrowBoardTabsStep() {
  ImGui::GetIO().DisplaySize=ImVec2(1280,960);
 }
 // A room locks the player's settings but those it leaves open
-// (PlayerPreferences::CopyRoomSettings), the board's layout among them: Column
-// changed with the pad in a room goes out at once in the room's own request,
-// and once the runtime's snapshot holds it the next change goes out too.
+// (PlayerPreferences::CopyRoomSettings), the board's layout and the watched
+// game's picture: Column changed with the pad in a room goes out at once in the
+// room's own request, once the runtime's snapshot holds it the next change goes
+// out too, and Picture goes out the same way.
 void RoomLayoutSavesInRoom() {
  using namespace sf4e;
  Harness h;h.Frame();
@@ -87,7 +88,7 @@ void RoomLayoutSavesInRoom() {
  const auto lockedSave=[&](std::size_t from){
   return std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
  };
- h.Screen("tab-interface/2");h.FocusOn("arrange-column");
+ h.Screen("tab-interface/room-layout");h.FocusOn("arrange-column");
  const auto first=h.actions.size();
  h.Press(MenuInput::Right);h.Wait(1);h.Frame();
  auto sent=roomSaves(first);
@@ -101,6 +102,28 @@ void RoomLayoutSavesInRoom() {
  sent=roomSaves(second);
  Check(!lockedSave(second)&&sent.size()==1&&sent[0].preferences.roomColumn==netplay::DefaultRoomColumn+2*netplay::RoomColumnStep,
   "Once the snapshot held the first change, the next one in the room was not saved");
+ // The watched game's picture is one of them too (ShellView::CanEditRoomSettings):
+ // every Room layout row is open in the room, and Picture goes out the same way.
+ h.view.preferences=sent[0].preferences;
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.Frame();
+ const auto open=[&](const char* id){
+  const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});
+  return e!=rows.end()&&e->enabled;
+ };
+ for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"})
+  Check(open(id),"A Room layout row was locked in a room");
+ h.FocusOn("arrange-picture");
+ const auto third=h.actions.size();
+ h.Press(MenuInput::Right);h.Wait(1);h.Frame();
+ sent=roomSaves(third);
+ Check(!lockedSave(third)&&sent.size()==1&&sent[0].preferences.pictureMode==netplay::PictureBig&&
+  sent[0].preferences.roomColumn==netplay::DefaultRoomColumn+2*netplay::RoomColumnStep,"Picture changed in a room was not saved by the room's own request");
+ // Matches names the same picture: its rows are open there, the rest of the panel is not.
+ h.view.preferences=sent[0].preferences;h.Screen("tab-matches/training-replays");h.Frame();
+ Check(open("watched-picture")&&open("picture-corner")&&open("picture-size")&&!open("replay-share"),
+  "The watched picture's rows on Matches did not follow the room's open settings");
+ SetMenuEntriesProbe({});
 }
 static void RoomBoardJourneys() {
  using namespace sf4e;
@@ -478,19 +501,19 @@ static void RoomBoardJourneys() {
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
  Check(h.actions.size()==count+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Enter in the chat box did not send");
   h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
- h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=h.view.lobbyMusicAvailable=true;h.Frame();h.Screen("tab-interface/1");h.FocusOn("hud");h.Press(MenuInput::Left);
+ h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=h.view.lobbyMusicAvailable=true;h.Frame();h.Screen("tab-interface/match-hud");h.FocusOn("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
  h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
  Check(h.actions.back().preferences.endlessLobbyMusic,"Endless lobby music was not on by default");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-interface/3");h.FocusOn("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-interface/sounds");h.FocusOn("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.endlessLobbyMusic,"Turning off endless lobby music did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.fasterDisplay&&h.actions.back().preferences.backgroundPlay,"Faster display did not save off");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("borderless");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.borderless&&!h.actions.back().preferences.fasterDisplay,"Borderless did not save on");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-matches/1");h.FocusOn("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-matches/training-replays");h.FocusOn("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  // Show my Steam profile to room members: on until the player turns it off, saved with the other preferences.
@@ -500,7 +523,7 @@ static void RoomBoardJourneys() {
  Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.shareSteamProfile,"Hiding the Steam profile did not save");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.shareSteamProfile,"Showing the Steam profile did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-interface/1");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-interface/match-hud");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
  h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
@@ -531,13 +554,13 @@ static void RoomBoardJourneys() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
  // A new profile is on Auto. Right from Auto starts at 0 frames, and Left from 0 returns to Auto, keeping the number.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-matches/0");h.FocusOn("delay");
+ h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-matches/defaults");h.FocusOn("delay");
  Check(h.view.preferences.autoInputDelay,"A new profile did not start on Auto");
  h.Press(MenuInput::Right);h.Frame(0,45);
  Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Leaving Auto did not start at 0 frames");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
  Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Auto delay did not save");
- h.Screen("tab-access/1");
+ h.Screen("tab-access/text");
  h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);
  {std::vector<MenuEntry> saveRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){saveRows=rows;});h.Frame();SetMenuEntriesProbe({});

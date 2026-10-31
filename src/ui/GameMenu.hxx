@@ -367,9 +367,16 @@ v2::HeaderChip noticeChip_{};
     unsigned held_ = 0, describeHeld_ = 0;
     std::size_t lastChoice_ = ~std::size_t(0);
     // The on-screen keyboard: its key (row -1 the Recent names), capitals, the
-    // pad's last buttons, whether it changed the draft this frame, and the
+    // gate its presses come through, whether it changed the draft this frame, and the
     // texts accepted this session by entry (ponytail: not saved across launches).
-    int keyRow_=1,keyColumn_=0;bool capitals_=false,keyTyped_=false;unsigned keyHeld_=~0u;
+    int keyRow_=1,keyColumn_=0;bool capitals_=false,keyTyped_=false;PressGate keyGate_;
+    // The directions' repeat for the notice and the on-screen keyboard, which
+    // read them in the list's place (never both at once); the list's own is
+    // the navigation's.
+    DirectionRepeat dialogRepeat_;
+    // The button a hint pressed on this frame, which the next frame's input
+    // carries (DrawHintBar, ReadFrame).
+    unsigned hintPress_=0;
     std::map<std::string,std::vector<std::string>> recentText_;
     UiClock clock_;
     MenuVisualFeedback feedback_;

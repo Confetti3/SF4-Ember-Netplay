@@ -843,6 +843,85 @@ void DialogContract(){
  }
  SetMenuTextProbe({});SetMenuCardProbe({});
 }
+// A hint on the bar presses its button: the click is read on the next frame
+// as the pad's press is, by whatever owns the input then. An open choice's
+// Select hint picks its highlighted option; the screen's shortcuts wait while
+// it is open, as their buttons do; and a confirmation's popup takes the
+// pointer, so under it the hints only name its buttons.
+void HintPresses(){
+ HeadlessImGui imgui;GameMenu menu;SetMenuGlyphs(3,0x40000,0x20000);
+ imgui.io.DisplaySize=ImVec2(1280,960);
+ menu.shortcutHints={{"X","Fighter",MenuInput::Fighter}};
+ auto language=Value("language","Language","B","Pick one");language.choices={{"a","A"},{"b","B"},{"c","C"}};language.chosen="b";
+ std::vector<MenuEntry> rows={language,ConfirmRow("leave","Leave room","Disconnect")};
+ // A board, so the choice opens as a value panel beside its row, not as a popup.
+ const GameMenu::Body board=[&](const std::vector<MenuEntry>& entries,MenuNavigation&,MenuAction& action,float,const MenuVisualFeedback&){
+  for(const auto& e:entries){const auto at=ImGui::GetCursorScreenPos();const auto box=menu.DrawBoardRow(entries,e,at,400,action,{}).box;ImGui::SetCursorScreenPos(ImVec2(at.x,box.max.y+8));}};
+ auto frame=[&](unsigned held=0){imgui.io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Hint test",nullptr,ImGuiWindowFlags_NoDecoration);
+  const auto a=menu.Draw("TEST",rows,"",{},1,{},board);ImGui::End();ImGui::Render();return a;};
+ auto press=[&](unsigned held){frame();const auto a=frame(held);frame();return a;};
+ // A click at x on the bar, and the first thing the menu did with it.
+ const float barY=imgui.io.DisplaySize.y-28*Scale(),firstX=v2::SideMargin(imgui.io.DisplaySize.x,Scale())+10;
+ auto click=[&](float x){imgui.io.AddMousePosEvent(x,barY);frame();imgui.io.AddMouseButtonEvent(0,true);MenuAction a=frame();
+  imgui.io.AddMouseButtonEvent(0,false);for(int i=0;i<3;++i){const auto b=frame();if(a.kind==MenuAction::None)a=b;}return a;};
+ frame();frame();
+ // The Fighter hint is the bar's last, so a sweep from the right meets it first.
+ float fighterX=-1;
+ for(float x=imgui.io.DisplaySize.x-40;x>0&&fighterX<0;x-=8){
+  const auto a=click(x);
+  if(a.kind==MenuAction::Shortcut&&a.delta==static_cast<int>(MenuInput::Fighter))fighterX=x;
+  else Check(a.kind==MenuAction::None,"A click right of the bar's last hint did something");
+ }
+ Check(fighterX>0,"The Fighter hint did not press Fighter");
+ // With no dialog open the first hint is Select on the focused row: it opens the row's values.
+ menu.navigation.Focus("language",rows);
+ Check(click(firstX).kind==MenuAction::None&&menu.navigation.Choosing(),"The Select hint did not open the row's values");
+ Check(press(MenuInput::Fighter).kind==MenuAction::None&&menu.navigation.Choosing(),"The Fighter button acted while the choice was open");
+ // Nowhere on the bar does a click press a shortcut while a choice is open
+ // (a click off its panel closes it, so it opens again for each).
+ for(float x=imgui.io.DisplaySize.x-40;x>0;x-=8){
+  if(!menu.navigation.Choosing()){menu.navigation.Focus("language",rows);press(MenuInput::Select);}
+  Check(menu.navigation.Choosing(),"The choice did not open again");
+  Check(click(x).kind!=MenuAction::Shortcut,"A hint pressed a shortcut while the choice was open");
+ }
+ // The choice's Select hint picks the option the pad has highlighted.
+ menu.navigation.Focus("language",rows);press(MenuInput::Select);press(MenuInput::Right);
+ Check(menu.navigation.Choosing()&&menu.navigation.ChoiceIndex()==2,"Right did not highlight the third option");
+ const auto picked=click(firstX);
+ Check(picked.kind==MenuAction::Chosen&&picked.id=="language"&&picked.text=="c"&&!menu.navigation.Choosing(),"The choice's Select hint did not pick its highlighted option");
+ // A confirmation: a click on the bar under it answers nothing, and its own Select still does.
+ menu.navigation.Focus("leave",rows);press(MenuInput::Select);frame();press(MenuInput::Right);
+ Check(menu.navigation.Confirming()&&menu.navigation.ConfirmSelected(),"The confirmation did not open on its action");
+ const auto under=click(firstX);
+ Check(under.kind==MenuAction::None&&menu.navigation.Confirming()&&menu.navigation.ConfirmSelected(),"A click on the bar under the confirmation answered it");
+ const auto confirmed=press(MenuInput::Select);
+ Check(confirmed.kind==MenuAction::Activate&&confirmed.id=="leave","The confirmation's Select did not answer it");
+}
+// A held direction repeats in a notice and on the on-screen keyboard as it
+// does in a list and a choice (DirectionRepeat): once at once, then on.
+void DialogRepeat(){
+ HeadlessImGui imgui;GameMenu menu;SetMenuGlyphs(3,0x40000,0x20000);
+ std::vector<MenuEntry> rows={TextRow("name","Name","",31)};
+ auto frame=[&](unsigned held=0){imgui.io.DeltaTime=1.f/60;SetMenuInput({held,0});ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(0,0));ImGui::SetNextWindowSize(imgui.io.DisplaySize);ImGui::Begin("Repeat test",nullptr,ImGuiWindowFlags_NoDecoration);
+  const auto a=menu.Draw("TEST",rows);ImGui::End();ImGui::Render();return a;};
+ auto press=[&](unsigned held){frame();const auto a=frame(held);frame();return a;};
+ // Over half a second is the first step, one after the delay and more after it: past a third button.
+ const auto hold=[&](unsigned held){for(int i=0;i<40;++i)frame(held);frame();};
+ frame();frame();
+ menu.ShowNotice(NoticeDialog{"Three","Heading",{{"First"},{"Second",NoticeResult::CreatePublicRoom},{"Third",NoticeResult::OpenButtonLayout}}});frame();frame();
+ hold(MenuInput::Right);press(MenuInput::Select);
+ Check(menu.TakeNoticeResult()==NoticeResult::OpenButtonLayout,"Holding Right in a notice stepped once");
+ frame();frame();
+ // The on-screen keyboard opens on q; holding Right walks past w.
+ press(MenuInput::Select);frame();
+ Check(menu.navigation.Editing(),"Select did not open the editor");
+ hold(MenuInput::Right);press(MenuInput::Select);
+ const std::string typed=menu.navigation.Draft();
+ Check(typed.size()==1&&typed!="q"&&typed!="w","Holding Right on the on-screen keyboard stepped once");
+ press(MenuInput::Back);Check(!menu.navigation.Editing(),"Back did not close the editor");
+}
 // Every screen a Back button can name has a name of its own, not its id.
 // What Select opens is decided in one place, so the legend and navigation
 // agree for a row that carries more than one behaviour.
@@ -949,5 +1028,5 @@ void ProfileRecords(){
   "Record after the exact total limit was accepted");
 }
 }
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

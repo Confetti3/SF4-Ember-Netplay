@@ -18,7 +18,8 @@ struct MenuButtons {
     const char* confirmGlyph = "A";
     const char* backGlyph = "B";
     // The physical buttons whose fight function includes LP, and HP: a
-    // stick's tab shortcuts (ui::MenuShortcuts), read from the fight table the
+    // stick's tab shortcuts (ui::MenuShortcuts, which leave out a button in
+    // both, a 3P), read from the fight table the
     // game maps its buttons through. The default is the generic layout,
     // buttons 4 and 6. Scalars, not an array: MSVC fails on brace-initialized
     // values of a type with an array member initializer.

@@ -136,7 +136,10 @@ next game starts without a stop on the board; while someone waits in the queue
 after a set there is no Rematch. **Back to room** keeps your seat, not ready,
 so a B pressed through the WIN costs nothing; you leave a seat only with Leave
 seat. No answer keeps the seat inside a set; after a set it gives the seat up,
-so whoever waits gets it.
+so whoever waits gets it. When an Arcade set ends with nobody waiting, the pair
+decides: the prompt asks **Rematch** or **New opponent** (Y), with **Character
+select** and **Back to room** beside them, so a stick without X or Y reaches
+every answer with the D-pad.
 
 Queued members automatically watch each game while retaining their queue
 positions. B on your queue card, or **Leave queue**, leaves the queue at once.
@@ -269,9 +272,11 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
 - **Layout:** drag the grip on the line between the tables and the right
   column to change the column's width, and the grip between members and chat
   to share the column. With a pad or the keyboard, use Settings > Interface >
-  Room layout: Column width, Members and chat, Ready-made layout and Restore
-  defaults. These, each panel's Hide and Show and the picture's size are
-  saved while you are in the room; the rest of Settings is locked until you leave.
+  Room layout: Column width, Members and chat, Ready-made layout, Picture and
+  Restore defaults. These, each panel's Hide and Show, and the watched game's
+  picture (Picture here or in More…, and its corner and size under Settings >
+  Matches) are saved while you are in the room; the rest of Settings is locked
+  until you leave.
 - **Watching:** with the watched game's picture on, the board shows it large
   over one row of table cards. The column grip makes it bigger.
 

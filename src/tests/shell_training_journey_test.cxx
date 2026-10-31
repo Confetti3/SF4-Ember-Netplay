@@ -21,17 +21,17 @@ void TrainingSettingsAndHome() {
  h.Choose("settings");
  Check(h.shell.Navigation().Screen()=="tab-player","Settings did not open on its Player tab");
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
- const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/0",{"tv"}},
-  {"tab-interface/1",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
-  {"tab-interface/2",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"}},
-  {"tab-interface/3",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
+ const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},
+  {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
+  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"}},
+  {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
  for(const auto& [screen,ids]:interfacePanels){
   h.Screen(screen);
   Check(rows.size()==ids.size()&&std::equal(ids.begin(),ids.end(),rows.begin(),[](const std::string& id,const MenuEntry& row){return row.id==id;}),
    "An Interface panel's rows changed");
  }
  Check(!rows.back().enabled,"Endless lobby music was offered without the game's menu entry");
- h.Screen("tab-matches/1");
+ h.Screen("tab-matches/training-replays");
  Check(rows.size()==7&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture"&&
   rows[5].id=="picture-corner"&&rows[6].id=="picture-size","Training and replays settings order wrong");
  Check(rows[1].detail==loc::Tf("settings.training_auto_ready_detail",room::TrainingCall::ReadyWindowMs/1000),"Auto-ready detail lost runtime deadline");
@@ -42,16 +42,16 @@ void TrainingSettingsAndHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();
  // Speech starts off, and its other rows wait for it. (Turning it on here
  // would speak through the PC's voice.)
- h.Screen("tab-access/0");
+ h.Screen("tab-access/speech");
  Check(rows.size()==11&&rows[0].id=="speech"&&rows[0].enabled&&rows[0].adjustable&&!rows[1].enabled&&!rows[5].enabled,"Accessibility rows wrong while speech is off");
  // Country opens its picker on the saved choice; a country saves and goes back to Settings.
- h.Screen("tab-player/1");h.Choose("country");
+ h.Screen("tab-player/country");h.Choose("country");
  Check(h.shell.Navigation().Screen()=="country"&&h.shell.Navigation().Focus()=="country-auto","The country picker did not open on Automatic");
  // The board shows one letter's countries: typing J shows Japan's.
  ImGui::GetIO().AddInputCharactersUTF8("J");h.Frame();h.Frame();
  h.shell.Navigation().Focus("country-JP",rows);h.Press(MenuInput::Select);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.country==CountryPreference::Of(CountryCode::Parsed("JP")),"A picked country did not save");
- Check(h.shell.Navigation().Screen()=="tab-player/1","Choosing a country did not go back to Settings");
+ Check(h.shell.Navigation().Screen()=="tab-player/country","Choosing a country did not go back to Settings");
  h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("home");
  Check(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="training";}),"Home lost its Training row");
@@ -76,7 +76,7 @@ void TrainingSettingsAndHome() {
  for(const bool publicRoom:{false,true,false}){
   JoinedRoom(h,9);h.view.room.serverOwned=publicRoom;h.view.canEditPreferences=false;
   std::vector<MenuEntry> shown;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){shown=entries;});
-  h.Frame();h.Screen("tab-matches/1");
+  h.Frame();h.Screen("tab-matches/training-replays");
   Check(!shown.empty()&&shown[0].id=="match-frame-meter"&&!shown[0].enabled,"Frame meter row changed in a room");
   Check(shown[0].value==loc::T("common.on")&&h.view.preferences.matchFrameMeter,"A public room lost the saved frame meter choice");
   Check(shown[0].detail==loc::T(publicRoom?"settings.match_frame_meter_private":"settings.match_frame_meter_detail"),"Frame meter detail ignores the room kind");
@@ -249,7 +249,7 @@ void PracticeRoomCreate() {
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("practice-room")==rows.end()&&row("room-type")!=rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room, or no room type");
  h.Press(MenuInput::Left);
- h.Screen("tab-matches/0");
+ h.Screen("tab-matches/defaults");
  Check(row("practice-room")==rows.end()&&row("room-type")==rows.end()&&row("time")!=rows.end(),"Gameplay defaults offered Practice room or a room type");
  SetMenuEntriesProbe({});
 }
@@ -289,7 +289,7 @@ void DelayPolicyCreate() {
  Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn back");
  h.Choose("host");
  Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay again");
- h.Screen("tab-matches/0");
+ h.Screen("tab-matches/defaults");
  Check(row("delay-policy")!=rows.end(),"Gameplay defaults did not offer the delay policy");
  SetMenuEntriesProbe({});
 }
@@ -384,6 +384,21 @@ void TrainingJourneys() {
   TakeForwardedMenuAction();padPress(MenuInput::Back);
   Check(TakeForwardedMenuAction().kind==MenuAction::Close,"Pad Back at the root did not close the training controls");
   SetMenuGlyphs(1,0,0);
+ }
+ // A tab clicked over a page's reader (Frame data, a player's) replaces that
+ // page, reader and all, so one Back reaches the lab.
+ {
+  ImVec2 stripMin{},stripMax{};
+  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){if(!std::strcmp(id,"tabs")){stripMin=min;stripMax=max;}});
+  choose("frame-data");choose("p1");
+  Check(TrainingNavigation().Screen()=="frame-data"&&TrainingNavigation().Reading(),"A player's frame data did not open in its reader");
+  // The strip's right end steps to the next tab (Training HUD).
+  const ImVec2 next(stripMax.x-15,stripMin.y+22*Scale());
+  io.AddMousePosEvent(next.x,next.y);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();frame();
+  SetMenuCardProbe({});
+  Check(TrainingNavigation().Screen()=="hud"&&!TrainingNavigation().Reading(),"The tab clicked over the reader did not open");
+  press(MenuInput::Back);
+  Check(TrainingNavigation().Screen()=="home","Back from a tab clicked over a reader did not reach the lab");
  }
  choose("recording");choose("record");press(MenuInput::Select);Check(commands.empty(),"Overwrite default not Cancel");
  choose("record");

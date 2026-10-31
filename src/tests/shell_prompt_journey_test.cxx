@@ -1,5 +1,42 @@
 #include "shell_journey_support.hxx"
-void ButtonPromptJourneys() {
+namespace {
+// A deciding Arcade pair's prompt on a DirectInput stick, which has no
+// Fighter or Options shortcut (MenuShortcuts): every answer is a row, so
+// Character select is reached with the D-pad and chosen with Select.
+void DecidingPromptOnStick() {
+ using namespace sf4e;
+ Harness a;a.view.inputDevice.type=input::PadDirectInput;
+ input::MenuButtons stick;stick.confirm=1u<<18;stick.back=1u<<17;stick.confirmGlyph="LK";stick.backGlyph="MK";
+ SetMenuGlyphs(input::PadDirectInput,stick);
+ NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
+ Check(!MenuShortcutGlyph(MenuInput::Fighter)&&!MenuShortcutGlyph(MenuInput::Options),"The stick was given a Fighter or Options shortcut");
+ JoinedRoom(a,16);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+ a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+ room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
+ auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+ a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;
+ a.Screen("room");
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
+ // The set is over and the pair decides.
+ t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.deciding=true;t.rematch[0]=t.rematch[1]=false;
+ a.view.matchResult=false;a.Frame();
+ a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+ std::vector<std::string> ids;for(const auto& e:rows)ids.push_back(e.id);
+ Check(a.shell.Navigation().Screen()=="post-match"&&ids==std::vector<std::string>{"rematch","new-opponent","fighter","back"},
+  "A deciding Arcade prompt's buttons were not Rematch, New opponent, Character select and Back to room");
+ const auto sent=a.actions.size();
+ a.FocusOn("fighter");a.Press(MenuInput::Select);
+ Check(words["pm-you"]==loc::T("postmatch.character_select")&&a.actions.size()==sent,"Character select chosen by D-pad and Select on a stick was not taken");
+ // Once the game is over the room opens on fighter select.
+ a.view.matchResult=false;a.view.session.match=netplay::MatchState::PostMatch;a.view.atMainMenu=true;t.phase=room::TablePhase::Waiting;a.open=true;a.Frame(0,5);
+ Check(a.shell.Navigation().Screen()=="selection","Character select from a deciding prompt did not open fighter select");
+ SetMenuEntriesProbe({});SetMenuCardTextProbe({});
+ SetMenuGlyphs(input::PadKeyboard,0,0);
+}
+}
+static void ButtonPromptsRow() {
  using namespace sf4e;
  using namespace sf4e::gamepads;
  Harness h; h.view.inputDevice.type=input::PadXInput;
@@ -55,4 +92,9 @@ void ButtonPromptJourneys() {
  ImGui::GetIO().AddKeyEvent(ImGuiKey_UpArrow,false);h.Frame();
  NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
  SetMenuGlyphs(input::PadKeyboard,0,0);
+}
+// Each journey has its own harness, one ImGui context at a time.
+void ButtonPromptJourneys() {
+ ButtonPromptsRow();
+ DecidingPromptOnStick();
 }

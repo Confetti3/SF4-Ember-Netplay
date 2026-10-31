@@ -213,14 +213,26 @@ void GameMenu::ReadFrame(Frame& f) {
     auto menuInput=ReadMenuInput(navigation.Editing()&&notice_.empty(),typesText,additionalInput); menuInput.time=now;
     const unsigned rawHeld=menuInput.held;
     if(!listEnabled) menuInput.held=0;
+    // A hint pressed on the last frame (DrawHintBar) is its button pressed on
+    // this one, and whatever owns the input answers it as it answers the
+    // button. It counts even while the list takes no input (a capture's
+    // Cancel hint is one), and is the key the hint named while the prompts
+    // are the keyboard's (an Escape always goes back).
+    menuInput.held|=hintPress_;
+    if(KeyboardPrompts()) menuInput.keyboard|=hintPress_;
+    hintPress_=0;
+    // The notice, else the on-screen keyboard, reads the directions in the
+    // list's place, through one repeat; with neither open it starts afresh.
+    {const auto editing=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& e){return e.id==navigation.EditingId();});
+     if(notice_.empty()&&!OnScreenKeyboard(editing==entries.end()?nullptr:&*editing)) dialogRepeat_.Reset();}
     ReadEditInput(entries,menuInput);
     // A notice owns the input until dismissed, so the dismissing press can
     // neither activate the focused row nor leak into the list behind it.
     f.noticeOpen=!notice_.empty();
     if(f.noticeOpen) {
-        const unsigned pressed=noticeGate_.Pressed(noticeGate_.Held(menuInput.held));
-        if(pressed&(MenuInput::Up|MenuInput::Left)) noticeSelected_=(std::max)(0,noticeSelected_-1);
-        if(pressed&(MenuInput::Down|MenuInput::Right)) noticeSelected_=(std::min)(static_cast<int>(noticeButtons_.size())-1,noticeSelected_+1);
+        const unsigned held=noticeGate_.Held(menuInput.held), pressed=noticeGate_.Pressed(held), stepped=dialogRepeat_.Step(held,now);
+        if(stepped&(MenuInput::Up|MenuInput::Left)) noticeSelected_=(std::max)(0,noticeSelected_-1);
+        if(stepped&(MenuInput::Down|MenuInput::Right)) noticeSelected_=(std::min)(static_cast<int>(noticeButtons_.size())-1,noticeSelected_+1);
         // Back always declines: only Select takes the highlighted button.
         if(pressed&MenuInput::Back) DismissNotice(NoticeResult::Dismissed);
         else if(pressed&MenuInput::Select) DismissNotice(noticeButtons_[noticeSelected_].result);

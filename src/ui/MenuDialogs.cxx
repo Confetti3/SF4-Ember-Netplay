@@ -329,20 +329,28 @@ int KeyBelow(int from,int to,int column,int count) {
 bool GameMenu::OnScreenKeyboard(const MenuEntry* editing) const {
     return editing&&!editing->multiline&&navigation.Editing()&&notice_.empty()&&!KeyboardPrompts();
 }
+namespace {
+// A copy of a draft, which may be a passphrase: wiped whichever way its scope
+// ends, its whole buffer, so a moved-from short string leaves nothing either.
+struct WipedText {
+    std::string text;
+    ~WipedText() { WipeText(text); }
+};
+}
 bool GameMenu::PressKey(const MenuEntry& entry,const std::string& key) {
-    std::string draft=navigation.Draft();
-    const std::size_t limit=(std::min)(std::size_t(4096),entry.textLimit);
     if(key=="done")return true;
-    if(key=="shift")capitals_=!capitals_;
-    else if(key=="delete"){while(!draft.empty()&&(static_cast<unsigned char>(draft.back())&0xC0)==0x80)draft.pop_back();if(!draft.empty())draft.pop_back();}
-    else if(const auto n=RowKey<std::size_t>(key,"recent-")){const auto& recent=recentText_[entry.id];if(*n<recent.size())draft=recent[*n];}
+    if(key=="shift"){capitals_=!capitals_;return false;}
+    const std::size_t limit=(std::min)(std::size_t(4096),entry.textLimit);
+    WipedText draft{navigation.Draft()};
+    if(key=="delete"){auto& d=draft.text;while(!d.empty()&&(static_cast<unsigned char>(d.back())&0xC0)==0x80)d.pop_back();if(!d.empty())d.pop_back();}
+    else if(const auto n=RowKey<std::size_t>(key,"recent-")){const auto& recent=recentText_[entry.id];if(*n<recent.size())draft.text=recent[*n];}
     else{
-        std::string typed=key=="space"?" ":key;
-        if(capitals_)typed[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(typed[0])));
-        if(draft.size()+typed.size()<=limit)draft+=typed;
+        WipedText typed{key=="space"?" ":key};
+        if(capitals_)typed.text[0]=static_cast<char>(std::toupper(static_cast<unsigned char>(typed.text[0])));
+        if(draft.text.size()+typed.text.size()<=limit)draft.text+=typed.text;
     }
-    keyTyped_=draft!=navigation.Draft();
-    if(keyTyped_)navigation.Draft(std::move(draft));
+    keyTyped_=draft.text!=navigation.Draft();
+    if(keyTyped_)navigation.Draft(std::move(draft.text));
     return false;
 }
 std::string GameMenu::SpokenKey(const std::vector<MenuEntry>& entries) const {
@@ -355,24 +363,26 @@ std::string GameMenu::SpokenKey(const std::vector<MenuEntry>& entries) const {
     return capitals_?std::string(1,static_cast<char>(std::toupper(static_cast<unsigned char>(key[0])))):key;
 }
 void GameMenu::ReadEditInput(const std::vector<MenuEntry>& entries,MenuInput& input) {
-    const unsigned pressed=input.held&~keyHeld_;keyHeld_=input.held;
-    if(!navigation.Editing()) return;
+    if(!navigation.Editing()) { keyGate_.Rearm(); return; }
     const auto* entry=FindEntry(entries,navigation.EditingId());
     // Match InputTextMultiline's default: either Enter inserts a newline,
     // Ctrl with either Enter validates. Single-line editors accept either key.
     const bool enter=ImGui::IsKeyPressed(ImGuiKey_Enter,false)||ImGui::IsKeyPressed(ImGuiKey_KeypadEnter,false);
     input.acceptText|=entry&&enter&&(!entry->multiline||ImGui::GetIO().KeyCtrl);
-    if(!OnScreenKeyboard(entry))return;
-    // The pad types; only Back (Cancel) still reaches the editor's model.
+    if(!OnScreenKeyboard(entry)) { keyGate_.Rearm(); return; }
+    // The pad types; only Back (Cancel) still reaches the editor's model. A
+    // button held as the keyboard shows counts once released (PressGate), and
+    // a held direction walks the keys as it walks a list (DirectionRepeat).
+    const unsigned held=keyGate_.Held(input.held), pressed=keyGate_.Pressed(held), stepped=dialogRepeat_.Step(held,input.time);
     const int recent=static_cast<int>(recentText_[entry->id].size()),top=recent?-1:0;
     const auto count=[&](int row){return row<0?recent:static_cast<int>(KeyRows[row].size());};
-    if(pressed&(MenuInput::Up|MenuInput::Down)){
-        const int row=(std::max)(top,(std::min)(4,keyRow_+(pressed&MenuInput::Up?-1:1)));
+    if(stepped&(MenuInput::Up|MenuInput::Down)){
+        const int row=(std::max)(top,(std::min)(4,keyRow_+(stepped&MenuInput::Up?-1:1)));
         if(row!=keyRow_){keyColumn_=row<0||keyRow_<0?0:KeyBelow(keyRow_,row,keyColumn_,count(row));keyRow_=row;}
     }
     keyRow_=(std::max)(top,keyRow_);
-    if(pressed&MenuInput::Left)keyColumn_=(std::max)(0,keyColumn_-1);
-    if(pressed&MenuInput::Right)keyColumn_=(std::min)(count(keyRow_)-1,keyColumn_+1);
+    if(stepped&MenuInput::Left)keyColumn_=(std::max)(0,keyColumn_-1);
+    if(stepped&MenuInput::Right)keyColumn_=(std::min)(count(keyRow_)-1,keyColumn_+1);
     keyColumn_=(std::min)(keyColumn_,count(keyRow_)-1);
     const std::string key=keyRow_<0?"recent-"+std::to_string(keyColumn_):KeyRows[keyRow_][keyColumn_];
     bool done=pressed&MenuInput::Start;

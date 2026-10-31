@@ -41,7 +41,7 @@ void ShootFlags(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,sf4e
     SetUserGlyphRebuildInterval(std::chrono::milliseconds(0));
     SetUserGlyphRetention(std::chrono::milliseconds(0));std::this_thread::sleep_for(std::chrono::milliseconds(2));rebuild();
     SetUserGlyphRetention(std::chrono::milliseconds(10000));
-    page("tab-player/1");rebuild();draw("flags-settings");
+    page("tab-player/country");rebuild();draw("flags-settings");
     page(CountryPicker::Screen);rebuild();draw("flags-country-picker");
     // Lettered, the picker is a board that opens on Automatic; a language with
     // too many initials for a grid keeps the list, which opens on its search.

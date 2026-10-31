@@ -178,6 +178,30 @@ inline int StepTab(int current, int delta, int count) {
     if (current < 0 || current >= count) return delta < 0 ? count - 1 : 0;
     return ((current + delta) % count + count) % count;
 }
+// The steps a held direction gives, the one rule for every reader of the
+// directions (a list or board, a choice, a question, a notice, the on-screen
+// keyboard): one at once, then again after RepeatDelay and every
+// RepeatInterval while it stays held. Up and Down win over Left and Right, so
+// a diagonal moves vertically, never adjusting a value by accident. Give it
+// the directions that count (through the reader's PressGate) every frame the
+// reader reads them; Reset when the reader opens.
+class DirectionRepeat {
+public:
+    static constexpr double RepeatDelay=.35, RepeatInterval=.085;
+    // The direction bits (MenuInput::Up, Down, Left, Right) to step on this frame.
+    unsigned Step(unsigned held, double time) {
+        const unsigned direction=(held&3) ? (held&3) : (held&12);
+        bool step=direction && direction!=direction_;
+        if(step) next_=time+RepeatDelay;
+        else if(direction && time>=next_) { step=true; next_=time+RepeatInterval; }
+        direction_=direction;
+        return step?direction:0;
+    }
+    void Reset() { direction_=0; next_=0; }
+private:
+    unsigned direction_=0;
+    double next_=0;
+};
 struct MenuAction {
     // Shortcut: a Fighter/Options/Chat/Leave press, its button in delta.
     // Chosen: a choice entry's option, its id in text.
@@ -209,6 +233,17 @@ public:
         if (screen.empty() || screen == Screen()) return;
         Cancel(); stack_.push_back(screen); states_[screen]; Rearm();
     }
+    // `screen` takes the place of the top `depth` screens, the root never
+    // among them: whatever is open on the screen shown (a reader, a choice)
+    // closes, those screens leave the stack and `screen` is pushed, so Back
+    // from it goes where Back from the first of them went. A tab replacing the
+    // tab shown is depth 1 (at the root it is pushed); 0 is Push.
+    void Replace(const std::string& screen, std::size_t depth = 1) {
+        Cancel();
+        stack_.resize(stack_.size() - (std::min)(depth, stack_.size() - 1));
+        if (!screen.empty() && screen != Screen()) { stack_.push_back(screen); states_[screen]; }
+        Rearm();
+    }
     void Home() { Cancel(); stack_.resize(1); Rearm(); }
     void Cancel() {
         const bool modal = mode_ != Modal::None;
@@ -218,7 +253,7 @@ public:
     // A screen opening (pushed, returned to, a modal closing): what is held
     // now counts once released, see PressGate. The rows placed so far were
     // the old screen's.
-    void Rearm() { gate_.Rearm(); direction_=0; nextRepeat_=0; placing_.clear(); placed_.clear(); }
+    void Rearm() { gate_.Rearm(); repeat_.Reset(); placing_.clear(); placed_.clear(); }
     // This frame's presses through the screen's gate, for a reader that
     // answers them in the screen's place (a focused toast). What it takes
     // stays held for the screen, so the next frame does not see it again:
@@ -378,13 +413,8 @@ public:
         const unsigned shortcut=pressed&(MenuInput::Fighter|MenuInput::Options|MenuInput::Chat|MenuInput::Leave|MenuInput::PrevTab|MenuInput::NextTab);
         if(shortcut&&mode_==Modal::None) return {MenuAction::Shortcut,{},{},static_cast<int>(shortcut&(~shortcut+1))};
         // A held direction steps at once, then repeats: in the list, a choice
-        // and a question alike. A diagonal moves vertically, never adjusting a value by accident.
-        const unsigned direction=(held&3) ? (held&3) : (held&12);
-        bool move=direction && direction!=direction_;
-        if(move) nextRepeat_=in.time+RepeatDelay;
-        else if(direction && in.time>=nextRepeat_) { move=true; nextRepeat_=in.time+RepeatInterval; }
-        direction_=direction;
-        const unsigned stepped=move?direction:0;
+        // and a question alike (DirectionRepeat).
+        const unsigned stepped=repeat_.Step(held,in.time);
         if(Choosing()) {
             // In a grid of options (choiceColumns), Up and Down move a row; Left and Right one option.
             const std::size_t up=stepped&MenuInput::Up?choiceColumns:stepped&MenuInput::Left?1:0;
@@ -400,7 +430,8 @@ public:
             return {};
         }
         if(pressed&MenuInput::Select) return Choose(entries);
-        if(!move||entries.empty()) return {};
+        if(!stepped||entries.empty()) return {};
+        const unsigned direction=stepped;
         auto& s=states_[Screen()]; const auto& e=entries[s.index];
         int delta=(direction&MenuInput::Left)?-1:(direction&MenuInput::Right)?1:0;
         const auto& neighbor=delta<0?e.left:delta>0?e.right:direction&MenuInput::Up?e.up:e.down;
@@ -495,7 +526,6 @@ private:
             std::equal(choiceIds_.begin(), choiceIds_.end(), e.choices.begin(),
                 [](const std::string& id, const MenuChoice& c) { return id == c.id; });
     }
-    static constexpr double RepeatDelay=.35, RepeatInterval=.085;
     struct State { std::string id; std::size_t index=0; float scroll=0; MenuEdge edge=MenuEdge::Stay; };
     std::vector<std::string> stack_;
     std::map<std::string,State> states_;
@@ -510,7 +540,6 @@ private:
     // The rows placed this frame, and those placed on the last, which this
     // frame's directions read.
     std::vector<std::pair<std::string,MenuRect>> placing_, placed_;
-    unsigned direction_=0;
-    double nextRepeat_=0;
+    DirectionRepeat repeat_;
 };
 } }

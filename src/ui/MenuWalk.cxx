@@ -14,7 +14,7 @@ struct Step { const char* name; const char* focus; const char* screen; Kind kind
 const Step Steps[] = {
     {"home", nullptr, "home", Kind::Arrive, 20},
     {"settings", "settings", "tab-player", Kind::Open, 5},
-    {"settings panel", "tab-access/1", "tab-access/1", Kind::Open, 5},
+    {"settings panel", "tab-access/text", "tab-access/text", Kind::Open, 5},
     {"value popup", "language", nullptr, Kind::Popup, 5},
     {"settings back", nullptr, "home", Kind::Back, 5},
     {"online", "online", "online", Kind::Open, 5},

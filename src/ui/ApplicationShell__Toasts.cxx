@@ -33,7 +33,7 @@ void ToneMark(ImDrawList* d,ImVec2 c,float r,Tone tone,ImU32 ink) {
 // over a match the newest one's buttons only show their keys. Over the menus
 // a new action toast holds focus until another press or click (Draw), and
 // the Notifications rows carry the same words and actions.
-void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
+void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool focusable) {
  unsigned fresh=0;
  const auto take=[&](const std::string& text,Tone tone,double until,std::string& seen,ToastKind kind){
   if(text==seen)return;
@@ -49,11 +49,12 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed) {
  take(notice_,noticeTone_,noticeUntil_,noticeSeen_,ToastKind::None);
  take(error_,Tone::Error,now+6,errorSeen_,ToastKind::System);
  if(listed){toastFocus_=0;return;}
- // A toast takes focus once, as it comes, and only over a free menu: nothing
- // open, nothing being typed. One that came over a match or a dialog waits
- // in its card and in Notifications.
+ // A toast takes focus once, as it comes, and only over the shell's own free
+ // menu: nothing open, nothing being typed. One that came over a match, a
+ // dialog or an embedded screen (fighter select, a report) waits in its card
+ // and in Notifications.
  const auto& nav=menu_.navigation;
- const bool menuFree=nav.Mode()==MenuNavigation::Modal::None&&!menu_.NoticeOpen()&&!menu_.typesText;
+ const bool menuFree=focusable&&nav.Mode()==MenuNavigation::Modal::None&&!menu_.NoticeOpen()&&!menu_.typesText;
  if(fresh&&!overMatch&&menuFree)toastFocus_=fresh;
  // Stacked at the board's right corner, newest on top: under the match HUD's
  // bars over a match, ending on the hint bar over the menus. Inside TV

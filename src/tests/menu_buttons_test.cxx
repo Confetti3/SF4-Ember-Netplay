@@ -59,7 +59,8 @@ void Resolver() {
     // The stick's LP and HP buttons are its fight table's, and its tab
     // shortcuts. Its menu table confirming on the button that gives LP and
     // going back on the one that gives HP: those presses select and go back
-    // alone, and no tab glyph names them; a 3P button gives both and steps none.
+    // alone. A 3P button holds both, so it steps neither tab, and no tab
+    // glyph is left to name a button that does nothing.
     {
         auto menu = StickMenu(); menu[18] = 0x10; menu[19] = 0x40; menu[21] = 0x80; menu[17] = 0x400;
         Table fight{}; fight[19] = 0x10; fight[21] = 0x400; fight[22] = 0x430;
@@ -69,10 +70,23 @@ void Resolver() {
         CHECK(ui::ControllerButtons(0x10, PadDirectInput, 1u << 19, stick) == ui::ControllerSample::Confirm);
         CHECK(ui::ControllerButtons(0x400, PadDirectInput, 1u << 21, stick) == ui::ControllerSample::Back);
         CHECK(ui::ControllerButtons(0x430, PadDirectInput, 1u << 22, stick) == 0);
-        CHECK(Same(ui::MenuShortcutGlyph(ui::MenuInput::PrevTab, PadDirectInput, stick), "LP") && Same(ui::MenuShortcutGlyph(ui::MenuInput::NextTab, PadDirectInput, stick), "HP"));
+        CHECK(!ui::MenuShortcutGlyph(ui::MenuInput::PrevTab, PadDirectInput, stick) && !ui::MenuShortcutGlyph(ui::MenuInput::NextTab, PadDirectInput, stick));
         fight[22] = 0;
         const auto only = ResolveMenuButtons(PadDirectInput, menu.data(), fight.data());
         CHECK(!ui::MenuShortcutGlyph(ui::MenuInput::PrevTab, PadDirectInput, only) && !ui::MenuShortcutGlyph(ui::MenuInput::NextTab, PadDirectInput, only));
+    }
+    // A stick with Select and Back elsewhere and a 3P button beside its own LP
+    // and HP: LP and HP step the tabs and are named, 3P steps neither, and the
+    // LP and HP buttons pressed together cancel.
+    {
+        Table fight{}; fight[19] = 0x10; fight[21] = 0x400; fight[22] = 0x430;
+        const auto stick = ResolveMenuButtons(PadDirectInput, StickMenu().data(), fight.data());
+        CHECK(stick.confirm == 1u << 18 && stick.back == 1u << 17);
+        CHECK(Same(ui::MenuShortcutGlyph(ui::MenuInput::PrevTab, PadDirectInput, stick), "LP") && Same(ui::MenuShortcutGlyph(ui::MenuInput::NextTab, PadDirectInput, stick), "HP"));
+        CHECK(ui::ControllerButtons(0x10, PadDirectInput, 1u << 19, stick) == ui::ControllerSample::PrevTab);
+        CHECK(ui::ControllerButtons(0x400, PadDirectInput, 1u << 21, stick) == ui::ControllerSample::NextTab);
+        CHECK(ui::ControllerButtons(0x430, PadDirectInput, 1u << 22, stick) == 0);
+        CHECK(ui::ControllerButtons(0x410, PadDirectInput, 1u << 19 | 1u << 21, stick) == 0);
         // No fight table: the generic layout's buttons 4 and 6.
         const auto generic = ResolveMenuButtons(PadDirectInput, nullptr, nullptr);
         CHECK(generic.lightPunch == 1u << 19 && generic.heavyPunch == 1u << 21);

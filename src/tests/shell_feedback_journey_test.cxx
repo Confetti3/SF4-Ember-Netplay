@@ -42,7 +42,7 @@ void LanguageSaveFailure() {
  h.shell.SetLanguageSaver([](const std::string&,std::string& diagnostic){diagnostic="Read-only folder";return false;});
  std::string status;Tone tone=Tone::Neutral;
  SetMenuStatusProbe([&](const char* text,Tone t){status=text;tone=t;});
- h.Screen("tab-access/1");h.FocusOn("language");h.Press(MenuInput::Right);h.Frame(0,45);
+ h.Screen("tab-access/text");h.FocusOn("language");h.Press(MenuInput::Right);h.Frame(0,45);
  const std::string failure=loc::T("settings.language_save_failed");
  Check(status==failure&&tone==Tone::Error,"A failed language save was not reported where the language is set");
  h.Screen("join");h.Frame(0,2);Check(status!=failure,"The language save failure followed the player to another screen");
@@ -50,7 +50,7 @@ void LanguageSaveFailure() {
  Check(status==h.view.session.error,"A session error lost to a stale language save failure");
  h.view.session.error.clear();h.view.controllerUnavailable=true;h.Frame();
  Check(status==loc::T("controller.disconnected"),"A controller disconnect lost to a stale language save failure");
- h.view.controllerUnavailable=false;h.Screen("tab-access/1");h.Frame(0,2);
+ h.view.controllerUnavailable=false;h.Screen("tab-access/text");h.Frame(0,2);
  Check(status==failure,"The failure did not return with the Text and language panel");
  SetMenuStatusProbe({});loc::SetActive(loc::Locale::En);
 }
@@ -157,7 +157,7 @@ void ProblemReportJourneys() {
  {
   Harness h;h.Frame();
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
-  h.Screen("tab-about/1");
+  h.Screen("tab-about/reports");
   Check(rows.size()==2&&rows[0].id=="send-reports","Settings' Problem reports panel does not hold its two rows");
   Check(rows[0].value==loc::T("common.off")&&!h.view.preferences.sendProblemReports,"Problem reports are not off at first");
   h.FocusOn("send-reports");h.Press(MenuInput::Right);h.Frame(0,45);
@@ -171,7 +171,7 @@ void ProblemReportJourneys() {
   h.Choose("sent-reports");
   Check(h.shell.Navigation().Screen()=="sent-reports"&&rows.size()==1&&rows[0].id=="sent-none","Sent reports does not say there are none");
   // Discord keeps only its own rows.
-  h.Screen("tab-online/0");h.Frame();
+  h.Screen("tab-online/discord");h.Frame();
   Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="crash-reports"||e.id=="send-reports";}),"Discord still holds a report setting");
   SetMenuEntriesProbe({});
  }
@@ -228,6 +228,20 @@ void V2AuditJourneys() {
   h.Frame();h.view.discordPending=true;h.view.discordRevision=3;h.Frame();
   Check(h.shell.Navigation().Screen()=="home","The invitation took the player off Home");
  };
+ // One that comes over an embedded screen (fighter select) is taken there at
+ // once, not when another screen next draws, and takes no focus from the
+ // selector: back on Home its row already says it, and B goes back.
+ {
+  Harness h;h.Frame();h.Screen("selection");
+  Check(h.shell.Navigation().Screen()=="selection","Fighter select did not open");
+  h.view.discordPending=true;h.view.discordRevision=3;h.Frame();
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  h.shell.Navigation().Home();h.Frame();SetMenuEntriesProbe({});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said over fighter select waited for another screen");
+  h.Press(MenuInput::Back);
+  Check(!h.open,"A toast said over fighter select took the focus from it");
+ }
  {
   Harness h;invited(h);
   h.Frame(MenuInput::Back,4);h.Frame(0,2);
@@ -318,18 +332,16 @@ void V2AuditJourneys() {
   Harness h;h.view.padLayer=gamepads::Layer::Active;h.view.inputDevice.type=input::PadXInput;
   gamepads::PadView pad;pad.id=5;pad.slot=0;pad.gameplay=true;pad.identity={"guid","serial","path","Pad"};pad.name="Pad";h.view.pads={pad};h.Frame();
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
-  std::string panel;
-  for(int i=0;i<8&&panel.empty();++i){h.Screen(("tab-player/"+std::to_string(i)).c_str());h.Frame();
-   if(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="controls";}))panel=h.shell.Navigation().Screen();}
+  h.Screen("tab-player/controls");h.Frame();
   SetMenuEntriesProbe({});
-  Check(!panel.empty(),"No Player panel holds Button layout");
+  Check(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="controls";}),"The Player panel does not hold Button layout");
   h.Choose("controls");Check(h.shell.Navigation().Screen()=="button-layout","Button layout on the Player tab did nothing");
   h.Press(MenuInput::NextTab);Check(h.shell.Navigation().Screen()=="button-layout","RB on Button layout stepped a Settings tab");
  }
  // Select on a word value with no list of values does what the hint bar
  // says, nothing: Auto input delay stays Auto (it once stepped to 0 frames).
  {
-  Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("tab-matches/0");h.FocusOn("delay");
+  Harness h;h.view.preferences.autoInputDelay=true;h.Frame();h.Screen("tab-matches/defaults");h.FocusOn("delay");
   const auto before=h.actions.size();h.Press(MenuInput::Select);h.Frame(0,40);
   Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(before),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences&&!a.preferences.autoInputDelay;}),
    "Select stepped Auto input delay");

@@ -299,7 +299,11 @@ void GameMenu::DrawHeader(Frame& f, v2::Box& content, bool narrow) {
     if (!tabs.empty()) {
         std::vector<std::string> labels;
         for (const auto& t : tabs) labels.push_back(t.second);
+        const ImVec2 strip = ImGui::GetCursorScreenPos();
+        const float stripWidth = ImGui::GetContentRegionAvail().x;
         const int hit = v2::Tabs(labels, tab);
+        // The strip as the probes find it, its step marks at its ends.
+        ReportMenuCard("tabs", strip, ImVec2(strip.x + stripWidth, ImGui::GetCursorScreenPos().y));
         if (hit >= 0 && hit != tab && !f.modalAtStart) f.action = {MenuAction::Shortcut, tabs[hit].first};
     }
     ImGui::EndGroup();
@@ -607,8 +611,11 @@ bool GameMenu::DrawValuePanel(Frame& f, v2::Box focusCard, v2::Box list) {
 void GameMenu::DrawHintBar(Frame& f, v2::Box bar) {
     // What the buttons do now, each also a button that presses it; the status
     // on the right. An open dialog names its own Select and Back
-    // (DialogLegend); a list that takes no input (a capture) shows only the
-    // screen's own hints.
+    // (DialogLegend) and owns the input, so the screen's shortcuts, its tab
+    // steps and the bell wait for it to close; a list that takes no input (a
+    // capture) shows only the screen's own hints. A popup's own buttons take
+    // the pointer from the bar (ImGui's modal), so under one the hints are its
+    // buttons' names only.
     std::vector<v2::Hint> hints;
     std::vector<unsigned> presses;
     const auto hint = [&](const char* glyph, std::string label, unsigned press) { hints.push_back({glyph, std::move(label)}); presses.push_back(press); };
@@ -625,27 +632,24 @@ void GameMenu::DrawHintBar(Frame& f, v2::Box bar) {
         if (!backInert) hint(MenuBackGlyph(), backHint.empty() ? loc::T("common.back") : backHint, MenuInput::Back);
         if (shown.adjustable && !MenuValueIsToggle(shown) && shown.enabled) hint(KeyboardPrompts() ? "keys-horizontal" : "horizontal", loc::T("menu.adjust"), MenuInput::Right);
     }
-    for (const auto& h : shortcutHints) hint(h.glyph, h.label, h.press);
-    // Tabs step with the device's tab buttons (LB and RB, Page Up and Down).
-    if (!tabs.empty() && !dialog) {
-        const char* previous = MenuShortcutGlyph(MenuInput::PrevTab);
-        const char* next = MenuShortcutGlyph(MenuInput::NextTab);
-        if (previous) hint(previous, next ? "" : loc::T("menu.pages"), MenuInput::PrevTab);
-        if (next) hint(next, loc::T("menu.pages"), MenuInput::NextTab);
+    if (!dialog) {
+        for (const auto& h : shortcutHints) hint(h.glyph, h.label, h.press);
+        // Tabs step with the device's tab buttons (LB and RB, Page Up and Down).
+        if (!tabs.empty()) {
+            const char* previous = MenuShortcutGlyph(MenuInput::PrevTab);
+            const char* next = MenuShortcutGlyph(MenuInput::NextTab);
+            if (previous) hint(previous, next ? "" : loc::T("menu.pages"), MenuInput::PrevTab);
+            if (next) hint(next, loc::T("menu.pages"), MenuInput::NextTab);
+        }
     }
-    const bool hasStatus = f.status && *f.status;
+    const bool hasStatus = f.status && *f.status, bell = !statusLeads.empty() && !dialog;
     const int hit = v2::HintBar(bar, hints, hasStatus ? f.status : footerNote,
-        hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(f.statusTone)) : v2::Colors().muted, !statusLeads.empty());
-    // A hint pressed is its button pressed.
-    if (hit < 0 || f.noticeOpen || navigation.Editing()) return;
-    const unsigned press = hit < static_cast<int>(presses.size()) ? presses[hit] : 0;
+        hasStatus ? ImGui::ColorConvertFloat4ToU32(ToneColor(f.statusTone)) : v2::Colors().muted, bell);
+    // The bell opens its screen; a hint pressed is its button pressed, which
+    // the next frame reads as it reads the pad (ReadFrame), so whatever owns
+    // the input then (a choice, a reader, a toast, the list) answers it as it
+    // answers the button.
     if (hit == static_cast<int>(presses.size())) f.action = {MenuAction::Shortcut, statusLeads};
-    else if (press == MenuInput::Back) { if (navigation.Asking()) navigation.Cancel(); else f.backRequested = true; }
-    else if (press == MenuInput::Select) f.action = navigation.Choosing() ? navigation.Pick(navigation.ChoiceIndex(), f.entries) : navigation.Choose(f.entries);
-    else if (press == MenuInput::Right && focused) f.action = {MenuAction::Adjust, focused->id, {}, 1};
-    else if (press) {
-        f.action = {MenuAction::Shortcut, {}, {}, static_cast<int>(press)};
-        if (const int step = TabDelta(f.action); step && !tabs.empty()) f.action = TabAction(step);
-    }
+    else if (hit >= 0) hintPress_ |= presses[hit];
 }
 } }

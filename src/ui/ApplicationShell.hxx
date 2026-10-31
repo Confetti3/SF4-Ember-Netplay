@@ -78,6 +78,14 @@ struct ShellView {
     bool canReplaceRoom = false;
     bool canEditSelection = false;
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
+    // The settings a room leaves open (PlayerPreferences::CopyRoomSettings: the
+    // room board's layout and the watched game's picture) can change now: with
+    // every preference open, or in a room at the main menu between games, where
+    // the shell saves them alone (UpdatePreferenceSave) and the runtime takes
+    // them (CanEditButtonLayoutNow). Every Settings row and picture for those fields asks this.
+    bool CanEditRoomSettings() const {
+        return canEditPreferences || (atMainMenu && session.room != netplay::RoomState::Idle && !netplay::Fighting(session.match));
+    }
     int selectedDelay=2, recommendedDelay=-1, opponentDelay=-1;
     bool autoDelayMeasured=false;
     bool delayLocked=false, canProbe=false, canApplyDelay=false;
@@ -411,7 +419,7 @@ private:
     std::string settingsFocus_;
     static const ScreenPanel& SettingsOwner();
     // Whether a screen is a Settings tab or one of its panels, and the tab it
-    // belongs to ("tab-matches" for its panel "tab-matches/1").
+    // belongs to ("tab-matches" for its panel "tab-matches/defaults").
     static bool SettingsTab(const std::string& screen);
     static std::string SettingsTabOf(const std::string& screen);
     // Left or Right on a Settings value row that is no on/off switch; false for any other row.
@@ -421,6 +429,11 @@ private:
     // Value panels (ApplicationShell__Values.cxx): each value row's values as choices.
     static void OfferValues(std::vector<MenuEntry>& rows);
     std::pair<std::string,Tone> UpdateStatus(const ShellView& view,const std::string& screen,bool opening,bool healthyRoom,std::string& title);
+    // The screen shown, inside the shell's window: an embedded one (Button
+    // layout, Pad setup, fighter select, post-match, a report) or the menu.
+    // True when the shell's own menu read the frame's input. Draw ends every
+    // frame after it the same way (the toasts).
+    bool DrawScreen(const ShellView& view,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom);
     void PublishPlayerCard(const ShellView& view);
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
@@ -769,7 +782,11 @@ std::string memberAsk_;
     // an action its buttons or rows asked for: the toast's id and the action's index.
     unsigned toastFocus_=0;
     std::pair<unsigned,std::size_t> toastAsked_{0,0};
-    void DrawToasts(double now,bool overMatch,bool listed=false);
+    // The toasts said this frame are taken and drawn; every frame ends with it
+    // (Draw's tail, Background). listed: Notifications is shown, which lists
+    // them instead. focusable: the shell's own menu read this frame's input,
+    // so a new action toast may take its focus (not over an embedded screen).
+    void DrawToasts(double now,bool overMatch,bool listed=false,bool focusable=false);
     // Where Ember draws: the screen, inside TV mode's 5% safe area. The shell's
     // window, and the toasts over it or over a match.
     v2::Box ShellArea() const;

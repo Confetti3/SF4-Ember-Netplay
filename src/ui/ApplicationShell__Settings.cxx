@@ -1,7 +1,8 @@
 // Settings: six tabs, each a rail of panels. A panel (SettingsPanel) is the
-// model: a heading, the one builder of its rows and, for a few, a picture
-// beside them. A tab's screen ("tab-matches") has one row per panel; Select
-// opens the panel as its own screen ("tab-matches/1"), so Back closes it. A
+// model: its id, a heading, the one builder of its rows and, for a few, a
+// picture beside them. A tab's screen ("tab-matches") has one row per panel;
+// Select opens the panel as its own screen, the tab and the panel's id
+// ("tab-matches/training-replays"), so Back closes it. A
 // few pages stand on their own (Page): Player from Home and a room's Controls
 // row, Controllers from Pad setup, Profile from Home, Sent reports from the
 // Problem reports panel, and About for a screen nothing else draws. Each is
@@ -24,7 +25,6 @@
 #include <algorithm>
 #include <cfloat>
 #include <cstdio>
-#include <cstdlib>
 #include <ctime>
 
 namespace sf4e { namespace ui {
@@ -57,13 +57,15 @@ std::string ReportTime(std::int64_t time) {
 const char* Reason(const ShellView& v) { return v.canEditPreferences ? loc::T("settings.auto_save") : loc::T("settings.leave_room_to_edit"); }
 }
 
-// A Settings panel: its heading (a locale key), the one builder of its rows
-// and, for a panel with something to show beside them, its picture. Each is a
-// named constant in SettingsScreens::Tabs; its screen is its place on its tab
-// ("tab-access/1"), the id the menu walk and the journeys open it by.
+// A Settings panel: its id, unique across the tabs, its heading (a locale
+// key), the one builder of its rows and, for a panel with something to show
+// beside them, its picture. Each is a named constant in SettingsScreens::Tabs;
+// its screen is its tab and its id ("tab-access/text"), the id the menu walk
+// and the journeys open it by.
 struct ApplicationShell::SettingsPanel {
     using Build = std::vector<MenuEntry> (*)(ApplicationShell&, const ShellView&);
     using Picture = void (*)(ApplicationShell&, const ShellView&);
+    const char* id;
     const char* heading;
     Build rows;
     Picture picture = nullptr;
@@ -74,15 +76,16 @@ class ApplicationShell::SettingsScreens final : public ScreenPanel {
     using Entries = std::vector<MenuEntry>;
 public:
     struct Tab { const char* screen; const char* label; std::vector<const SettingsPanel*> panels; };
-    // The tabs in order, each with its panels in order: a panel's screen is its place there.
+    // The tabs in order, each with its panels in the order its rail shows them.
     static const std::vector<Tab>& Tabs() {
-        static const SettingsPanel controls{"screen.player", &Controls}, country{"settings.country", &Country},
-            profile{"home.profile", &Profile, &ProfileCard}, defaults{"screen.defaults", &Defaults},
-            trainingReplays{"settings.training_replays", &TrainingReplays, &PictureSpot}, look{"settings.group.look", &Look},
-            matchHud{"settings.match_hud", &MatchHud, &MatchHudPicture}, roomLayout{"settings.group.room_layout", &RoomLayout, &RoomLayoutPicture},
-            sounds{"settings.group.sounds", &Sounds}, speech{"speech.setting", &Speech}, text{"settings.group.text", &Text},
-            help{"settings.group.help", &Help}, discord{"screen.discord", &Discord}, rankings{"screen.rankings", &Rankings},
-            about{"home.about", &About}, reports{"reports.settings_title", &Reports};
+        static const SettingsPanel controls{"controls", "screen.player", &Controls}, country{"country", "settings.country", &Country},
+            profile{"profile", "home.profile", &Profile, &ProfileCard}, defaults{"defaults", "screen.defaults", &Defaults},
+            trainingReplays{"training-replays", "settings.training_replays", &TrainingReplays, &PictureSpot}, look{"look", "settings.group.look", &Look},
+            matchHud{"match-hud", "settings.match_hud", &MatchHud, &MatchHudPicture},
+            roomLayout{"room-layout", "settings.group.room_layout", &RoomLayout, &RoomLayoutPicture},
+            sounds{"sounds", "settings.group.sounds", &Sounds}, speech{"speech", "speech.setting", &Speech}, text{"text", "settings.group.text", &Text},
+            help{"help", "settings.group.help", &Help}, discord{"discord", "screen.discord", &Discord}, rankings{"rankings", "screen.rankings", &Rankings},
+            about{"about", "home.about", &About}, reports{"reports", "reports.settings_title", &Reports};
         static const std::vector<Tab> tabs = {
             {"tab-player", "settings.tab.player", {&controls, &country, &profile}},
             {"tab-matches", "settings.tab.matches", {&defaults, &trainingReplays}},
@@ -97,10 +100,13 @@ public:
         for (const auto& t : Tabs()) if (tab == t.screen) return &t;
         return nullptr;
     }
-    // The open panel's place on its tab ("tab-matches/1"), or -1 on the tab itself.
-    static int OpenPanel(const std::string& screen) {
-        const auto slash = screen.find('/');
-        return slash == std::string::npos ? -1 : std::atoi(screen.c_str() + slash + 1);
+    // The built panel a panel's screen or its head's id ("tab-matches/defaults")
+    // names; null for the tab itself and for any other row (Retry saving).
+    static const BuiltPanel* Built(const Shell& s, const std::string& id) {
+        const auto slash = id.find('/');
+        if (slash == std::string::npos) return nullptr;
+        for (const auto& b : s.settingsPanels_) if (id.compare(slash + 1, std::string::npos, b.panel->id) == 0) return &b;
+        return nullptr;
     }
 
     // The pages outside the tabs, each one builder's rows.
@@ -166,19 +172,20 @@ public:
             OnOffValue(p, "training-auto-ready", loc::T("settings.training_auto_ready"), loc::Tf("settings.training_auto_ready_detail", room::TrainingCall::ReadyWindowMs / 1000), v.canEditPreferences),
             OnOffValue(p, "replay-save-watched", loc::T("replays.save_watched"), loc::T("replays.save_watched_detail"), v.canEditPreferences),
             OnOffValue(p, "replay-share", loc::T("replays.share"), loc::T("replays.share_detail"), v.canEditPreferences),
-            PictureMode(s, v)};
+            PictureMode(s, v, "watched-picture")};
         // Where the picture sits and how big (the Matches tab's map also drags it there).
         const int corners[] = {4, 3, 2, 1};
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
-        const bool shown = v.canEditPreferences && p.pictureMode != netplay::PictureOff;
+        const bool shown = v.CanEditRoomSettings() && p.pictureMode != netplay::PictureOff;
         rows.push_back(Value("picture-corner", loc::T("settings.picture_corner"), MatchStripAnchorName(corners[p.pictureSpot % 4]), loc::T("settings.picture_corner_detail"), shown));
         rows.push_back(Value("picture-size", loc::T("settings.picture_size"), sizes[p.pictureSpot / 4], loc::T("settings.picture_size_detail"), shown));
         return rows;
     }
-    // The watched game's picture: Small, Big or Off (PlayerPreferences::pictureMode).
-    static MenuEntry PictureMode(Shell& s, const ShellView& v) {
+    // The watched game's picture: Small, Big or Off (PlayerPreferences::pictureMode),
+    // as Matches and Room layout each name their row.
+    static MenuEntry PictureMode(Shell& s, const ShellView& v, const char* id) {
         const char* const names[] = {"size.small", "size.large", "room.v2.picture_none"};
-        return Value("watched-picture", loc::T("settings.watched_picture"), loc::T(names[s.preferences_.pictureMode]), loc::T("settings.watched_picture_detail"), v.canEditPreferences);
+        return Value(id, loc::T("settings.watched_picture"), loc::T(names[s.preferences_.pictureMode]), loc::T("settings.watched_picture_detail"), v.CanEditRoomSettings());
     }
     static MenuEntry Tv(Shell& s, const ShellView& v) {
         return Value("tv", loc::T("settings.tv_mode"), s.preferences_.tvMode ? loc::T("common.on") : loc::T("common.off"), loc::T("settings.tv_mode_detail"), v.canEditPreferences);
@@ -213,19 +220,19 @@ public:
         return {Value("scale", loc::T("settings.interface_size"), size, Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
-    // hiding one gives its place to the other, or both to the tables.
+    // hiding one gives its place to the other, or both to the tables. A room
+    // leaves all of it open (ShellView::CanEditRoomSettings).
     static Entries RoomLayout(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const int column = p.roomColumn, split = p.roomSplit;
-        Entries rows = {Value("arrange-column", loc::T("settings.room_column"), std::to_string(column) + "%", loc::T("settings.room_column_detail"), true),
-            Value("arrange-split", loc::T("settings.room_split"), std::to_string(split) + " / " + std::to_string(100 - split), loc::T("settings.room_split_detail"), true),
-            Value("arrange-preset", loc::T("settings.room_preset"), loc::T(RoomPresetKeys[RoomPreset(column)]), loc::T("settings.room_preset_detail"), true),
-            Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), true),
-            Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), true),
-            PictureMode(s, v),
-            Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), true)};
-        rows[5].id = "arrange-picture";
-        return rows;
+        const bool open = v.CanEditRoomSettings();
+        return {Value("arrange-column", loc::T("settings.room_column"), std::to_string(column) + "%", loc::T("settings.room_column_detail"), open),
+            Value("arrange-split", loc::T("settings.room_split"), std::to_string(split) + " / " + std::to_string(100 - split), loc::T("settings.room_split_detail"), open),
+            Value("arrange-preset", loc::T("settings.room_preset"), loc::T(RoomPresetKeys[RoomPreset(column)]), loc::T("settings.room_preset_detail"), open),
+            Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), open),
+            Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), open),
+            PictureMode(s, v, "arrange-picture"),
+            Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
     }
     static Entries Speech(Shell& s, const ShellView& v) { return s.AccessibilityRows(v); }
     static Entries Discord(Shell& s, const ShellView& v) {
@@ -324,7 +331,7 @@ public:
         const float share = WatchedPictureShareFor(p.pictureSpot), c = share * .5f + .03f;
         const int corner = p.pictureSpot % 4;
         const int picked = v2::SpotMap("##picture-spot", {{1 - c, c}, {c, c}, {1 - c, 1 - c}, {c, 1 - c}}, corner, {share, share});
-        if (picked >= 0 && picked != corner && v.canEditPreferences) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
+        if (picked >= 0 && picked != corner && v.CanEditRoomSettings()) { p.pictureSpot = p.pictureSpot / 4 * 4 + picked; s.preferencesDirty_ = true; s.saveAt_ = ImGui::GetTime() + .45; }
     }
     // The room board as the layout arranges it, with the grips that drag it.
     static void RoomLayoutPicture(Shell& s, const ShellView&) { s.DrawRoomLayoutPreview(); }
@@ -338,18 +345,20 @@ public:
             built.push_back({panel, panel->rows(s, v)});
             for (auto& row : built.back().rows) row.group = loc::T(panel->heading);
         }
-        const int open = OpenPanel(screen);
-        if (open >= 0) return open < static_cast<int>(built.size()) ? built[open].rows : Entries{};
+        if (screen != tab.screen) {
+            const BuiltPanel* open = Built(s, screen);
+            return open ? open->rows : Entries{};
+        }
         Entries heads;
-        for (std::size_t i = 0; i < built.size(); ++i) {
+        for (const auto& b : built) {
             // The head says what its panel holds: its first values, and every row's name in its detail.
             std::string summary, names;
             int values = 0;
-            for (const auto& row : built[i].rows) {
+            for (const auto& row : b.rows) {
                 names += (names.empty() ? "" : " \xC2\xB7 ") + row.label;
                 if (!row.info && !row.value.empty() && values++ < 3) summary += (summary.empty() ? "" : " \xC2\xB7 ") + row.value;
             }
-            heads.push_back(Row(screen + "/" + std::to_string(i), loc::T(built[i].panel->heading), names));
+            heads.push_back(Row(screen + "/" + b.panel->id, loc::T(b.panel->heading), names));
             heads.back().value = summary;
             heads.back().hint = loc::T("settings.panel.open_action");
         }
@@ -389,9 +398,8 @@ public:
         if (!tab) return;
         // Settings · Tab, and · Panel while one is open.
         menu.eyebrow = std::string(loc::T("home.settings")) + " \xC2\xB7 " + loc::T(tab->label);
-        const int open = OpenPanel(f.screen);
-        if (open >= 0 && open < static_cast<int>(s.settingsPanels_.size())) menu.eyebrow += std::string(" \xC2\xB7 ") + loc::T(s.settingsPanels_[open].panel->heading);
-        if (open >= 0) menu.backHint = loc::T("settings.panel.close_action");
+        if (const BuiltPanel* open = Built(s, f.screen)) menu.eyebrow += std::string(" \xC2\xB7 ") + loc::T(open->panel->heading);
+        if (f.screen != tab->screen) menu.backHint = loc::T("settings.panel.close_action");
         for (const auto& t : Tabs()) {
             if (t.screen == tab->screen) menu.tab = static_cast<int>(menu.tabs.size());
             menu.tabs.push_back({t.screen, loc::T(t.label)});
@@ -527,11 +535,9 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     const std::string& screen = nav.Screen(), tab = SettingsTabOf(screen), focus = nav.Focus();
     const bool open = tab != screen, narrow = v2::Narrow(ImGui::GetWindowWidth(), s), changed = focus != shell.settingsFocus_;
     shell.settingsFocus_ = focus;
-    // The panel shown is the open one, else the focused head's.
-    const std::string& shownId = open ? screen : focus;
-    const int current = shownId.size() > tab.size() ? std::atoi(shownId.c_str() + tab.size() + 1) : 0;
-    if (panels.empty() || current >= static_cast<int>(panels.size())) return;
-    const BuiltPanel& shown = panels[current];
+    // The panel shown is the open one, else the focused head's; none while
+    // another row (Retry saving) has the focus.
+    const BuiltPanel* shown = Built(shell, open ? screen : focus);
 
     v2::Box body{ImGui::GetCursorScreenPos(), ImVec2(ImGui::GetCursorScreenPos().x + width, ImGui::GetCursorScreenPos().y + height)};
     v2::CutTop(body, 0, 8 * s);
@@ -547,12 +553,12 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
         for (const auto& p : panels) sw = (std::min)(sw, v2::HeadWord(loc::T(p.panel->heading), size, state, rail.max.x - 10 * s - x, 10 * s));
         const float room = rail.max.x - 10 * s - x - (sw > 0 ? sw + 10 * s : 0);
         float y = rail.min.y;
-        for (int i = 0; i < static_cast<int>(panels.size()); ++i) {
-            const char* heading = loc::T(panels[i].panel->heading);
+        for (const auto& panel : panels) {
+            const char* heading = loc::T(panel.panel->heading);
             MenuEntry head;
-            head.id = tab + "/" + std::to_string(i);
+            head.id = tab + "/" + panel.panel->id;
             const std::string& id = head.id;
-            const bool isOpen = open && i == current, focused = !open && id == focus;
+            const bool isOpen = open && &panel == shown, focused = !open && id == focus;
             const float grows = v2::HeadingHeight(heading, room, size) - size;
             const v2::Box h{ImVec2(rail.min.x, y), ImVec2(rail.max.x, y + (open ? 52 : 64) * s + grows)};
             y = h.max.y + 8 * s;
@@ -595,15 +601,16 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     const float wrapped = words ? v2::WordsHeight(column.W(), words->detail) : 0;
     const v2::Box bar = v2::CutBottom(column, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
     v2::Words(d, bar, words ? words->label : std::string(), words ? words->detail : std::string(), true);
-    v2::Box section = v2::Panel(d, column, loc::T(shown.panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
+    if (!shown) return;
+    v2::Box section = v2::Panel(d, column, loc::T(shown->panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
 
     // The picture, beside the rows, for a panel with something to show.
-    if (shown.panel->picture && !narrow && section.W() >= 760 * s) {
+    if (shown->panel->picture && !narrow && section.W() >= 760 * s) {
         const v2::Box pv = v2::CutRight(section, 380 * s);
         v2::SectionHeading(d, ImVec2(pv.min.x, pv.min.y + 12 * s), loc::T("settings.preview"));
         ImGui::SetCursorScreenPos(ImVec2(pv.min.x, pv.min.y + 32 * s));
         ImGui::BeginChild("settings preview", ImVec2(pv.W() - 12 * s, pv.H() - 44 * s), 0, ImGuiWindowFlags_NoNavInputs);
-        shown.panel->picture(shell, v);
+        shown->panel->picture(shell, v);
         ImGui::EndChild();
     }
     // The rows: on the Ember rule while the panel is open, dimmed while it is only shown.
@@ -613,11 +620,11 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     ImGui::BeginChild("settings rows", ImVec2(list.W(), list.H()), 0, ImGuiWindowFlags_NoNavInputs);
     // The open panel's rows are the screen's entries: its values offered, and
     // the shell's own (Retry saving). A panel only shown draws its rows as built.
-    for (const MenuEntry& e : open ? entries : shown.rows) {
+    for (const MenuEntry& e : open ? entries : shown->rows) {
         const auto p = ImGui::GetCursorScreenPos();
         // While closed a row opens its panel; while open its value's ends step it, anything else on it is Select.
         const auto row = shell.menu_.DrawBoardRow(entries, e, p, list.W(), action, {list, open && feedback.Enabled(e), open && e.id == focus && changed, open});
-        if (row.hit.pressed && !open) action = {MenuAction::Shortcut, tab + "/" + std::to_string(current)};
+        if (row.hit.pressed && !open) action = {MenuAction::Shortcut, tab + "/" + shown->panel->id};
         ImGui::SetCursorScreenPos(ImVec2(p.x, row.box.max.y + 4 * s));
     }
     ImGui::EndChild();

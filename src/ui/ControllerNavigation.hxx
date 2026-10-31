@@ -46,11 +46,14 @@ constexpr MenuShortcut MenuShortcuts[] = {
     {MenuInput::NextTab, input::xinput::RB, input::HeavyPunchFunction, "RB", ImGuiKey_PageDown, "PgDn"}};
 // The physical buttons that give shortcut `s` on a pad (input::PadXInput,
 // PadDirectInput): its Xbox button, or on a stick the buttons whose fight
-// function is the shortcut's, never the pad's Select or Back. 0 where the pad
-// has none: a press of those buttons is Select or Back alone. Input
-// (ControllerButtons) and the glyphs (MenuShortcutGlyph) both read this.
+// function is the shortcut's, never the pad's Select or Back, nor a button
+// holding both tab functions (a 3P button holds LP and HP, so it would step
+// both ways at once). 0 where the pad has none: a press of those buttons is
+// Select or Back alone. Input (ControllerButtons) and the glyphs
+// (MenuShortcutGlyph) both read this, so a glyph names only a button that acts.
 inline std::uint32_t ShortcutButtons(const MenuShortcut& s, int deviceType, const input::MenuButtons& menu) {
-    const std::uint32_t buttons = deviceType == input::PadXInput ? s.xinput : deviceType == input::PadDirectInput ? menu.Holding(s.stick) : 0;
+    const std::uint32_t buttons = deviceType == input::PadXInput ? s.xinput :
+        deviceType == input::PadDirectInput ? menu.Holding(s.stick) & ~(menu.lightPunch & menu.heavyPunch) : 0;
     return buttons & ~(menu.confirm | menu.back);
 }
 // The glyph that names shortcut `press` on a device (input::PadKeyboard,
@@ -68,8 +71,8 @@ inline const char* MenuShortcutGlyph(unsigned press, int deviceType, const input
 // Directions use native fight-map bits, not the battle command buffer. Select
 // and Back are the device's physical menu buttons (Pad::MenuButtons): the
 // player's binding, else the ones the game's own menus use. The shortcuts are
-// MenuShortcuts' (ShortcutButtons). Both tab buttons at once (a stick's 3P)
-// step no tab. Start (the game's Start function on DirectInput) opens Ember.
+// MenuShortcuts' (ShortcutButtons), which leave out a stick's 3P button. Two
+// tab buttons pressed together step no tab. Start (the game's Start function on DirectInput) opens Ember.
 // RT, the fourth button of the bottom row on an Xbox-layout stick too, is the
 // accessibility button (Describe).
 inline std::uint32_t ControllerButtons(std::uint32_t held,int deviceType=-1,std::uint32_t physical=0,const input::MenuButtons& menu={}) {

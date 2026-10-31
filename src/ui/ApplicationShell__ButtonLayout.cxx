@@ -6,8 +6,9 @@ namespace sf4e { namespace ui {
 using namespace gamepads;
 namespace {
 bool Served(const PadView& pad) { return pad.state == RowState::Recognised || pad.state == RowState::Steam; }
-bool CanEditLayout(const ShellView& view) { return view.atMainMenu && !netplay::Fighting(view.session.match) && view.padLayer == Layer::Active &&
-    (view.canEditPreferences || view.session.room != netplay::RoomState::Idle); }
+// A layout is a setting a room leaves open (ShellView::CanEditRoomSettings), edited at the
+// main menu only, with the controller layer serving the pad.
+bool CanEditLayout(const ShellView& view) { return view.atMainMenu && !netplay::Fighting(view.session.match) && view.padLayer == Layer::Active && view.CanEditRoomSettings(); }
 std::vector<Identity> ConnectedLayoutPads(const ShellView& view) {
     std::vector<Identity> connected;
     for (const auto& pad : view.pads) if (pad.state != RowState::Absent) connected.push_back(pad.identity);

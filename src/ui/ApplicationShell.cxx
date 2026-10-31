@@ -60,6 +60,12 @@ std::string SessionProblem(const netplay::Snapshot& session) {
     }
 }
 // The room's own status line: the kind of room it is, and whether it is locked.
+// Whether the edited preferences may be saved now: all of them while they are
+// open, else in a room only when what changed is the room's own set
+// (ShellView::CanEditRoomSettings, OnlyRoomSettingsChanged): the save's one gate.
+bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
+ return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
+}
 const char* RoomStatusKey(const room::Snapshot& room) {
     if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
     if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
@@ -166,7 +172,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
  if(!preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending)preferences_=v.preferences;
  SyncLayoutPaths(v);
  if(!v.settingsError.empty()&&!retrySave_&&!saveQueued_)saveFailed_=true;
- if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&(v.canEditPreferences||(v.atMainMenu&&v.session.room!=RoomState::Idle&&!netplay::Fighting(v.session.match)&&OnlyRoomSettingsChanged(v.preferences,preferences_)))&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
+ if(preferencesDirty_&&!saveQueued_&&!saveFailed_&&!v.settingsPending&&MaySave(v,preferences_)&&preferences_.Valid()&&ImGui::GetTime()>=saveAt_){
   if(SavePreferences(v,submit)){saveQueued_=true;savingPreferences_=preferences_;saveAt_=ImGui::GetTime();}else saveFailed_=true;
  }
 }
@@ -407,7 +413,10 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
  }
- else if(a.id=="arrange-reset"){preferences_.roomColumn=netplay::DefaultRoomColumn;preferences_.roomSplit=netplay::DefaultRoomSplit;preferences_.roomShowMembers=preferences_.roomShowChat=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
+ // The Room layout panel's Reset: the board's layout and the watched game's picture as a fresh install has them.
+ else if(a.id=="arrange-reset"){const netplay::PlayerPreferences fresh;preferences_.roomColumn=fresh.roomColumn;preferences_.roomSplit=fresh.roomSplit;
+  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
+  preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
   ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
@@ -502,7 +511,7 @@ void ApplicationShell::SetLanguage(std::string preference) {
 }
 void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,const Submit& submit) {
  CancelLayoutCapture(v,submit);
- if(preferencesDirty_&&OnlyRoomSettingsChanged(v.preferences,preferences_))UpdatePreferenceSave(v,submit);
+ UpdatePreferenceSave(v,submit);
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
@@ -674,11 +683,20 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(!postMatchScreen?v2::SideMargin(area.W(),Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.ownsBack=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
+ const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom);
+ ImGui::End();ImGui::PopStyleVar(2);
+ // Every screen's frame ends here, the embedded ones' too: a toast said on
+ // any of them shows at once, and one asked for is answered.
+ AnswerToast(now);
+ DrawToasts(now,false,nav.Screen()=="notifications",menuRead);
+}
+bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom) {
+ using namespace netplay; auto& nav=menu_.navigation;
  // Each screen sets its header (eyebrow, chips), tabs, bell, detail pane and
  // typing below, every frame; the screens drawn first (Button layout, Pad
  // setup) set their own.
  menu_.eyebrow.clear();menu_.headerChips.clear();menu_.tabs.clear();menu_.tab=-1;menu_.statusLeads.clear();menu_.customDetail=false;menu_.typesText=false;
- if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit)){ImGui::End();ImGui::PopStyleVar(2);return;}
+ if(DrawButtonLayout(v,submit)||DrawPadSetup(v,submit))return false;
  // The room board shows a Big picture in its tables' place instead (this frame's word, boardPicture_).
  if(v.watchedPicture&&!boardPicture_&&DrawWatchedPicture(v.watchedPicture,preferences_.pictureSpot)){preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  pictureOnBoard_=boardPicture_;boardPicture_=false;
@@ -696,12 +714,12 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   const auto forwarded=TakeForwardedMenuAction();
   if(forwarded.kind==MenuAction::Close)nav.Return();
   else if(forwarded.kind==MenuAction::Shortcut&&inRoom)RoomShortcut(forwarded,v);
-  ImGui::End();ImGui::PopStyleVar(2);return;
+  return false;
  }
  // A fresh install opens on the welcome, once (ApplicationShell__FirstRun.cxx).
  if(!preferences_.welcomed&&!welcomeOffered_&&v.canEditPreferences&&v.session.room==RoomState::Idle&&nav.Screen()=="home"){welcomeOffered_=true;welcomeStep_=0;nav.Push("welcome");}
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
- if(screen=="post-match"){DrawPostMatch(v,now,submit,open);ImGui::End();ImGui::PopStyleVar(2);return;}
+ if(screen=="post-match"){DrawPostMatch(v,now,submit,open);return false;}
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
   if(intent.service!=platform::ServiceAction::None){
@@ -709,7 +727,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
    if(!submit(std::move(action)))error_=loc::T("error.queue_failed");else error_.clear();
   }
   if(intent.close)nav.Return();
-  ImGui::End();ImGui::PopStyleVar(2);return;
+  return false;
  }
  const bool idle=v.session.room==RoomState::Idle, opening=v.session.room==RoomState::Opening;
  std::vector<MenuEntry> rows=BuildRows(v,screen,idle,opening,selection,developer,title);
@@ -726,47 +744,23 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  OfferValues(rows);
  // Kick or Make host from a member's popout asks its question on the member's page.
  if(screen=="room-member"&&!memberAsk_.empty()){menu_.navigation.Focus(memberAsk_,rows);menu_.navigation.Choose(rows);memberAsk_.clear();}
- // Public rooms say where they sit, and the player's region.
- if(PublicRoomsPanel::Owns(screen)){menu_.eyebrow=loc::T("online.eyebrow_browse");
-  if(const char* region=RelayRegionName(PublicRoomsPanel::KnownRegion(v)))menu_.headerChips.push_back({loc::Tf("public.your_region",region),palette::Ready});}
  PublishPlayerCard(v);
- // Public rooms lead with a toolbar of four cells, in one row on a wide list and two on a narrow one.
- const bool publicToolbar=PublicRoomsPanel::Owns(screen)&&!rows.empty()&&rows[0].id=="pr-quick";
  // The panel that draws the screen paints its rows (public rooms' toolbar and
- // cards, the rankings, Settings' board) and its detail pane.
+ // cards, the rankings, replays, Settings' board) and its detail pane.
  const ScreenPanel* owner=ScreenOf(screen);
  const ScreenFrame frame{*this,v,screen,&rows};
- ScreenGrid grid=owner?owner->Grid(frame):ScreenGrid{};
- if(publicToolbar)grid={PublicListWidth()>=600*Scale()?4:2,46};
- menu_.listWidth=0;menu_.paneWidth=PublicRoomsPanel::Owns(screen)?380:0;
+ const ScreenGrid grid=owner?owner->Grid(frame):ScreenGrid{};
+ menu_.listWidth=0;menu_.paneWidth=0;
  GameMenu::Card portraits=owner?owner->Card(frame,now):GameMenu::Card{};
  GameMenu::Detail profilePreview=owner?owner->Detail(frame):GameMenu::Detail{};
  GameMenu::Body board=owner?owner->Body(frame):GameMenu::Body{};
- // Replays' match and set cards and the focused one's pane, and Export video's preview.
- if((screen=="replays"||screen=="replay-sets"||screen=="replay-export")){
-  portraits=[&](const MenuEntry& e,ImVec2 min,ImVec2 max){return replays_.DrawCard(v,e,min,max);};
-  profilePreview=[&](const std::string& id){replays_.DrawDetail(v,screen,id,nav,rows);};
-  menu_.customDetail=screen=="replay-export"||nav.Focus().compare(0,7,"replay:")==0||nav.Focus().compare(0,4,"set:")==0;
-  if(screen!="replay-export")menu_.paneWidth=380;
- }
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&
   SessionProblem(v.session).empty() && v.error.empty() && error_.empty();
  for(auto& row:rows)row.pending=checkpointPending;
- if((PublicRoomsPanel::Owns(screen)&&publicRooms_.Refreshable(v))||(RankingsPanel::Owns(screen)&&rankings_.Refreshable()))menu_.shortcutHints=ShortcutHints({{MenuInput::Options,loc::T("legend.refresh")}});
- else menu_.shortcutHints.clear();
+ menu_.shortcutHints.clear();
  menu_.statusLeads=screen!="notifications"?"notifications":"";
- if(RankingsPanel::Owns(screen)){
-  // Rankings' two pages, your own and the board, are tabs.
-  menu_.tabs={{RankingsPanel::Screen,MenuScreenName(RankingsPanel::Screen)},{RankingsPanel::BoardScreen,MenuScreenName(RankingsPanel::BoardScreen)}};
-  menu_.tab=screen==RankingsPanel::Screen?0:1;
- }else if(screen=="replays"||screen=="replay-sets"||screen=="replay-export"){
-  // Replays' tabs, and whether matches watched are saved too.
-  menu_.tabs=replays_.Tabs(v);
-  for(int i=0;i<static_cast<int>(menu_.tabs.size());++i)if(menu_.tabs[i].first==screen){menu_.tab=i;menu_.eyebrow=std::string(loc::T("replays.title"))+" \xC2\xB7 "+menu_.tabs[i].second;}
-  menu_.headerChips.push_back({std::string(loc::T("replays.save_watched"))+" \xC2\xB7 "+loc::T(preferences_.recordWatched?"common.on":"common.off"),preferences_.recordWatched?palette::Ready:v2::Colors().muted});
- }
  // Back names where it goes when that is not simply the previous screen:
  // from Home, out of Ember or back to the room; on the board, out of your seat (RoomScreens).
  menu_.exitName.clear();menu_.backHint.clear();
@@ -785,8 +779,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // While a controller is being captured it cannot drive the menu, so the
  // legend shows the keyboard and names the cancel.
  if(v.inputCapture!=input::Capture::Idle){SetMenuGlyphs(input::PadKeyboard,0,0);menu_.backHint=loc::T("common.cancel");}
- // An opening public room's card is information, so the cursor waits on its Stop row.
- if(PublicRoomsPanel::Owns(screen)&&opening&&nav.Focus()=="pr-opening")nav.Focus("cancel-open",rows);
  UpdateSpeech();
  // The newest action toast holds focus from when it came over a free menu
  // (DrawToasts): Select takes its first action, Back its last (Later), and
@@ -808,12 +800,17 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // behind it is locked there, so Ember stays up (F10 can still hide it).
   if(open&&input::HomeBackHidesShell(v.session.room))*open=false;
  }else if(a.kind==MenuAction::Shortcut){
-  // A tab names the page it shows.
-  // A panel's screen sits on its tab's: leave it first, and the tab too unless one of its panels was picked.
   // The hint bar's bell opens Notifications over the screen shown.
   if(a.id=="notifications")nav.Push(a.id);
-  // A tab replaces the screen it is on, whatever is open on it (a reader, a choice).
-  else if(!a.id.empty()){nav.Cancel();if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());if(SettingsTabOf(screen)!=screen)nav.Return();if(SettingsTabOf(a.id)==a.id)nav.Return();nav.Push(a.id);}
+  // A tab names the page it shows, and replaces the screen it is on, whatever
+  // is open on it (a reader, a choice). A Settings panel's screen sits on its
+  // tab's: a panel replaces the panel open, or opens over its tab; a tab
+  // replaces the tab, and the panel open on it too.
+  else if(!a.id.empty()){
+   if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());
+   const bool onPanel=SettingsTabOf(screen)!=screen,toPanel=SettingsTabOf(a.id)!=a.id;
+   nav.Replace(a.id,(onPanel?1:0)+(toPanel?0:1));
+  }
   // In a room its shortcuts work from every screen, before any panel's.
   else if(inRoom)RoomShortcut(a,v);
   else if(owner)owner->Shortcut(frame,a);
@@ -832,8 +829,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  // Accepted text may be a passphrase; the panel kept its own copy.
  if(a.kind==MenuAction::TextAccepted)WipeText(a.text);
- AnswerToast(now);
- ImGui::End();ImGui::PopStyleVar(2);
- DrawToasts(now,false,nav.Screen()=="notifications");
+ return true;
 }
 } }

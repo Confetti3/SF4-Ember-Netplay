@@ -619,8 +619,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
  },recordingGrid?2:1,{},GameMenu::Body{},true,recordingGrid?30:100,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
- // A tab names its page; the pages are the lab's, one level under it.
- if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(screen!="home")nav.Return();if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
+ // A tab names its page; the pages are the lab's, one level under it, so
+ // one replaces another, whatever is open on it (a reader).
+ if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(a.id=="recording")ListRecordings();nav.Replace(a.id);return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}

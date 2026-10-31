@@ -187,7 +187,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     }
     // The buttons are the prompt's only rows: the answers there are now. A
     // deciding pair's Rematch and New opponent are the room's own choice (the
-    // cabinet's), with Character select on X alone there.
+    // cabinet's). Character select and Back to room are always rows, so a
+    // device without the X or Y shortcut reaches every answer with the D-pad.
     std::vector<MenuEntry> rows;
     if (deciding) {
         rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
@@ -196,14 +197,14 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
             again && !chosen));
-    if (!deciding) rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
+    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), loc::T("postmatch.character_select.detail"), !p.left));
     rows.push_back(Row("back", loc::T("postmatch.back"), loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
     if (deciding) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
-    // focused button's words, and the three buttons in a row, over the dimmed
+    // focused button's words, and the buttons in a row, over the dimmed
     // WIN screen. B is the Back to room button, so the header has no Back.
     GameMenu::Body board;
     menu_.backInert = true; menu_.headerChips.clear();

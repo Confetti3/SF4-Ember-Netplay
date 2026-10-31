@@ -555,7 +555,7 @@ void CheckAboutReader(sf4e::ui::ApplicationShell& shell,const Draw& draw,const P
 template<class Draw,class Page>
 void CheckLanguageChoice(sf4e::ui::ApplicationShell& shell,const Draw& draw,const Page& page) {
     using namespace sf4e;using namespace ui;
-    page("tab-access/1");
+    page("tab-access/text");
     for(int i=0;i<20&&shell.Navigation().Focus()!="language";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
     draw(nullptr,MenuInput::Select,1);draw("language-choice");
     Require(shell.Navigation().Choosing(),"Select on Language did not open the list");
@@ -788,19 +788,19 @@ int main(int argc, char** argv) {
                         renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2);
                 }
             };
-            // A Settings panel's screen ("tab-matches/1") is shot without its slash.
+            // A Settings panel's screen ("tab-matches/training-replays") is shot without its slash.
             const auto page=[&](const char* screen){shell.Navigation().Home();if(std::string(screen)!="home")shell.Navigation().Push(screen);
                 std::string shot=screen;std::replace(shot.begin(),shot.end(),'/','-');draw(shot.c_str());};
             SetMenuGlyphs(3,0x40000,0x20000);
             ShootGameSettingsCard(view,draw);
-            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/0","tab-matches/1","tab-interface/1","tab-interface/2","tab-access/0","tab-access/1","tab-online/0","about"})page(screen);
+            for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/defaults","tab-matches/training-replays","tab-interface/match-hud","tab-interface/room-layout","tab-access/speech","tab-access/text","tab-online/discord","about"})page(screen);
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
             ShootReplays(shell,view,draw,page);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
-            view.preferences.autoInputDelay=true;page("tab-matches/0");view.preferences.autoInputDelay=false;
+            view.preferences.autoInputDelay=true;page("tab-matches/defaults");view.preferences.autoInputDelay=false;
             page("home");
             for(int i=0;i<8;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             draw("home-last-row");
