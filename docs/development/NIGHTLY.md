@@ -164,9 +164,14 @@ installs them through the same cleanup, prepare, scp, commit and cleanup
 sequence as the room hosts (`Invoke-EmberStagedUpload`), into
 `/var/lib/ember-reports/symbols` as katie. Installing is idempotent, so a
 failed upload is simply repeated by the next run from the same archive, without
-a rebuild; the release is not announced until it succeeds. To upload an archive
-again by hand: `pwsh -File scripts/upload-symbols.ps1 -Label <label>` from the
-checkout that published it.
+a rebuild; the release is not announced until it succeeds. The retry runs the
+installer the archive carries. To upload an archive again by hand:
+`pwsh -File scripts/upload-symbols.ps1 -Label <label>` from the checkout that
+published it; that runs the checkout's current `install-symbols.sh`, not the
+archived copy, because the installer applies the store-wide lock, manifests and
+Nightly prune and an old archive must not bring old rules back.
+
+A publication interrupted across the update that added the Symbols step does not get one: an old Stable record already at `staged` publishes without it, and an old Nightly record at `prepared` has no symbol archive and must be deleted to restart.
 
 GitHub publication reads the release and its tag, takes the one step the
 recorded release still needs (create the draft, remove an interrupted zero-byte

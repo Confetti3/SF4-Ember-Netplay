@@ -69,10 +69,12 @@ the text preview; the final **Send** confirmation repeats this warning
 whenever the dump is included. Full local dumps are never uploaded. Small
 dumps over 4 MiB are not offered. Raw dumps are kept on Ember's server for up
 to 30 days; processed reports and pending delivery have separate retention.
-If the upload with the dump runs out of time, is too large for the server or
-breaks off before the server's receipt arrives, the same report is sent once
+If the upload with the dump runs out of time before the server answers, or the
+server says the upload was too slow or too large, the same report is sent once
 more without the dump, from a preview or without asking alike. It still counts
-once, and **Sent reports** shows that no dump went.
+once, and **Sent reports** shows that no dump went. If the server answered that
+it took the report but the receipt broke off, nothing is sent again: the server
+already holds that report, and **Sent reports** lists it as received without an ID.
 
 Sending crash reports without asking is opt-in. **Settings > About > Problem reports >
 Send problem reports** defaults to off. Choosing **Always send** in the

@@ -7,12 +7,12 @@
 #      publication record pins by its SHA-256. <build>\symbols is replaced by the next -Symbols build; the archive
 #      is the release's lasting copy;
 #   3. Publish-EmberSymbols, the Symbols step of the publication (Complete-EmberStaging, NightlyOperations.ps1),
-#      uploads from that archive only, so a retry or a later manual upload (upload-symbols.ps1) never needs the
-#      build again.
+#      uploads the symbols from that archive only, so a retry or a later manual upload (upload-symbols.ps1) never
+#      needs the build again. The installer it runs is the caller's: a publication retries with the archived copy,
+#      a manual upload runs the checkout's current one, because the installer owns the whole store (its lock, the
+#      manifest naming and the prune of every release's manifest) and an old archive must never apply old rules.
 # Dot-sourced by NightlyOperations.ps1; callers also dot-source BuildProvenance.ps1 (Assert-ReceiptSymbols).
 
-# The service's symbol store on the report server: setup.sh creates it and the unit mounts it read-only.
-$EmberSymbolStore = '/var/lib/ember-reports/symbols'
 # The archive's own files beside the store's <debug file>/<DEBUGID>/<name>.sym entries.
 $EmberSymbolManifest = 'symbols.json'
 $EmberSymbolInstaller = 'install-symbols.sh'
@@ -26,6 +26,11 @@ function Get-EmberSymbolArchivePath([string]$OutDirectory, [string]$Label) {
     Join-Path $OutDirectory "sf4-ember-netplay-$Label-symbols.zip"
 }
 
+# The installer of a checkout, with the line endings it runs with on the server.
+function Get-EmberSymbolInstaller([string]$SourceRoot) {
+    (Get-Content -LiteralPath (Join-Path $SourceRoot "server/ember-reports/deploy/$EmberSymbolInstaller") -Raw).Replace("`r`n", "`n")
+}
+
 # Writes the archive from the receipt's store and returns it as a pinned artifact (path, name, sha256). Every
 # entry's SHA-256 is taken from the bytes written, and the manifest records them with the channel, the label and
 # the whole build receipt. An archive is never replaced: one already there belongs to a release with this label.
@@ -34,7 +39,7 @@ function Save-EmberSymbolArchive([string]$SourceRoot, [object]$Receipt, [string]
     $store = Assert-ReceiptSymbols $Receipt
     $path = Get-EmberSymbolArchivePath $OutDirectory $Label
     if (Test-Path -LiteralPath $path) { throw "Symbol archive already exists: $path" }
-    $installer = (Get-Content -LiteralPath (Join-Path $SourceRoot "server/ember-reports/deploy/$EmberSymbolInstaller") -Raw).Replace("`r`n", "`n")
+    $installer = Get-EmberSymbolInstaller $SourceRoot
     $partial = "$path.$([Guid]::NewGuid().ToString('N')).partial"
     try {
         $zip = [IO.Compression.ZipArchive]::new([IO.File]::Open($partial, 'CreateNew', 'ReadWrite', 'None'), 'Create')
@@ -60,17 +65,33 @@ function Save-EmberSymbolArchive([string]$SourceRoot, [object]$Receipt, [string]
     Get-NightlyArtifact $path
 }
 
-# Unpacks a pinned archive into a new private folder and returns it: the folder, the store's top-level <debug file>
-# folders and the installer text. The archive's bytes are hashed once and read from memory, so nothing can change
-# between the check and the use; it must be this channel's and label's, and hold exactly the files its manifest
-# lists, each with its recorded SHA-256. The caller removes the folder.
-function Expand-EmberSymbolArchive([object]$Archive, [string]$Channel, [string]$Label) {
-    Assert-EmberSymbolLabel $Channel $Label
+# A pinned archive's bytes, read once and checked against the record, so nothing can change between the check and
+# the use.
+function Read-EmberSymbolArchive([object]$Archive) {
     $bytes = [IO.File]::ReadAllBytes($Archive.path)
     if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant() -cne $Archive.sha256) {
         throw "Prepared artifact changed: $($Archive.path)"
     }
-    $zip = [IO.Compression.ZipArchive]::new([IO.MemoryStream]::new($bytes, $false), 'Read')
+    , $bytes
+}
+
+# The installer a pinned archive carries: what a publication retries with, so one release runs one installer.
+function Get-EmberArchivedSymbolInstaller([object]$Archive) {
+    $zip = [IO.Compression.ZipArchive]::new([IO.MemoryStream]::new((Read-EmberSymbolArchive $Archive), $false), 'Read')
+    try {
+        $entry = $zip.GetEntry($EmberSymbolInstaller)
+        if (!$entry) { throw "Not a symbol archive: $($Archive.path)" }
+        $reader = [IO.StreamReader]::new($entry.Open(), [Text.UTF8Encoding]::new($false, $true), $false)
+        try { $reader.ReadToEnd() } finally { $reader.Dispose() }
+    } finally { $zip.Dispose() }
+}
+
+# Unpacks a pinned archive into a new private folder and returns it: the folder and the store's top-level
+# <debug file> folders. It must be this channel's and label's, and hold exactly the files its manifest lists, each
+# with its recorded SHA-256. The caller removes the folder.
+function Expand-EmberSymbolArchive([object]$Archive, [string]$Channel, [string]$Label) {
+    Assert-EmberSymbolLabel $Channel $Label
+    $zip = [IO.Compression.ZipArchive]::new([IO.MemoryStream]::new((Read-EmberSymbolArchive $Archive), $false), 'Read')
     try {
         $read = {
             param($Entry)
@@ -104,20 +125,20 @@ function Expand-EmberSymbolArchive([object]$Archive, [string]$Channel, [string]$
                 New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
                 [IO.File]::WriteAllBytes($target, $content)
             }
-            [pscustomobject]@{directory=$directory;installer=$strict.GetString((& $read $entries[$EmberSymbolInstaller]))
-                folders=@(Get-ChildItem -LiteralPath $directory -Directory | ForEach-Object FullName)}
+            [pscustomobject]@{directory=$directory; folders=@(Get-ChildItem -LiteralPath $directory -Directory | ForEach-Object FullName)}
         } catch { Remove-Item -LiteralPath $directory -Recurse -Force; throw }
     } finally { $zip.Dispose() }
 }
 
-# The Symbols step: installs the archive's symbols in the server's store with the archive's own installer, as katie
-# over ssh (install-symbols.sh: prepare an upload folder inside the store, scp, commit under the store's lock, clean
-# up). Installing is idempotent, so a retry after any failure repeats it whole.
-function Publish-EmberSymbols([object]$Archive, [string]$Channel, [string]$Label, [string]$Server = 'vps') {
+# The Symbols step: installs the archive's symbols in the server's store with `$Installer`, as katie over ssh
+# (install-symbols.sh: prepare an upload folder inside the store and print its path, scp into it, commit under the
+# store's lock, clean up). The caller chooses the installer: the archived copy for a publication, the checkout's
+# current one for a manual upload (see the header). Installing is idempotent, so a retry after any failure
+# repeats it whole.
+function Publish-EmberSymbols([object]$Archive, [string]$Channel, [string]$Label, [string]$Installer, [string]$Server = 'vps') {
     $contents = Expand-EmberSymbolArchive $Archive $Channel $Label
     try {
-        Invoke-EmberStagedUpload $Server "$Channel $Label" $contents.installer $contents.folders `
-            "$EmberSymbolStore/.incoming-$Channel-$Label/" "$Channel $Label symbols" | Out-Host
+        Invoke-EmberStagedUpload $Server "$Channel $Label" $Installer $contents.folders '' "$Channel $Label symbols" | Out-Host
     } finally { Remove-Item -LiteralPath $contents.directory -Recurse -Force }
     Write-Host "Symbols for $Channel $Label are on ${Server}."
 }

@@ -153,12 +153,13 @@ inline void Records(const std::filesystem::path& root) {
     publishes = false; prepare(); send({});
     CHECK(state.phase == Phase::Failed && !state.record && uploads == before && dependencies.history->Load().sent.size() == 7);
     publishes = true;
-    // A transfer that ran out of time after the status line arrived is a
-    // timeout, not a refusal; a 202 whose answer broke off is not delivered.
+    // Once a status line arrived the status decides, whatever then timed out:
+    // a 503 is a refusal, and a 202 whose answer broke off was stored by the
+    // intake, so it is Received without an id.
     prepare(); response = {}; response.request.statusCode = 503; response.request.error = sf4e::HttpErrorKind::Timeout;
-    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::NotSent && state.record->reason == "timeout");
+    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::Refused && state.record->reason == "http_503");
     prepare(); response = {}; response.request.statusCode = 202; response.request.error = sf4e::HttpErrorKind::ReceiveFailed;
-    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::NotSent && state.record->reason == "incomplete");
+    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::Received && state.record->reason == "incomplete" && state.record->id.empty());
     // A 429 is a rate limit even when the rest of its answer timed out.
     prepare(); response = {}; response.request.statusCode = 429; response.request.error = sf4e::HttpErrorKind::Timeout;
     send({"", false, nullptr}); CHECK(state.phase == Phase::Retry && state.record->reason == "rate_limit");
@@ -247,17 +248,17 @@ inline void Automatic(const std::filesystem::path& root) {
     saves = false; run(AutomaticCrash::Consent::Confirmed);
     CHECK(turnedOn == 3 && state.offer && state.phase == Phase::Failed && uploads == 3 && dependencies.history->Load().sent.size() == 1);
     saves = true;
-    // The intake timed out or refused the size with the dump, the transfer
-    // timed out (before or after a status line arrived), or the 202 broke off:
-    // the same report once more without it, under the one reservation. A rate
-    // limit, even one that then timed out, or any other refusal is not about
-    // the dump, so nothing goes again.
+    // The intake timed out or refused the size with the dump, or the transfer
+    // timed out before any status line arrived: the same report once more
+    // without it, under the one reservation. Anything after a status line
+    // means the intake read the whole request, so nothing goes again: a rate
+    // limit or other refusal, even one that then timed out, and a 202 that
+    // broke off, which the intake already stored.
     const auto answer = [](int status, sf4e::HttpErrorKind error) {
         sf4e::HttpResponse refused; refused.request.statusCode = status; refused.request.error = error; return refused;
     };
     for (const auto& first : {answer(408, sf4e::HttpErrorKind::HttpStatus), answer(413, sf4e::HttpErrorKind::HttpStatus),
-        answer(0, sf4e::HttpErrorKind::Timeout), answer(500, sf4e::HttpErrorKind::Timeout), answer(202, sf4e::HttpErrorKind::Timeout),
-        answer(202, sf4e::HttpErrorKind::ReceiveFailed)}) {
+        answer(0, sf4e::HttpErrorKind::Timeout)}) {
         std::filesystem::remove(path); answers = {first};
         const auto before = uploads;
         run(AutomaticCrash::Consent::Existing);
@@ -267,7 +268,9 @@ inline void Automatic(const std::filesystem::path& root) {
         CHECK(history.sent.size() == 1 && history.sent[0].status == Status::Received && !history.sent[0].dump);
     }
     for (const auto& first : {answer(429, sf4e::HttpErrorKind::HttpStatus), answer(429, sf4e::HttpErrorKind::Timeout),
-        answer(400, sf4e::HttpErrorKind::HttpStatus), answer(0, sf4e::HttpErrorKind::ConnectFailed)}) {
+        answer(400, sf4e::HttpErrorKind::HttpStatus), answer(0, sf4e::HttpErrorKind::ConnectFailed),
+        answer(500, sf4e::HttpErrorKind::Timeout), answer(202, sf4e::HttpErrorKind::Timeout),
+        answer(202, sf4e::HttpErrorKind::ReceiveFailed)}) {
         std::filesystem::remove(path); answers = {first};
         const auto before = uploads;
         run(AutomaticCrash::Consent::Existing);

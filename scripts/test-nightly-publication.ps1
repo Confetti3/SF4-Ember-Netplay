@@ -151,7 +151,9 @@ try {
             $channel, $label, $operation = $Matches[1], $Matches[2], $Matches[3]
             Check ($Arguments[-2] -ceq 'vps') 'Symbols went to another host'
             Check ($InputText -ceq $script:expectedInstaller) 'SSH did not receive the archived symbol installer'
-            $key = "vps:/var/lib/ember-reports/symbols/.incoming-$channel-$label/"
+            # The installer prints the folder it made, as install-symbols.sh does, and scp must use that path.
+            $folder = "/var/lib/ember-reports/symbols/.incoming-$channel-$label"
+            $key = "vps:$folder/"
             if ($operation -eq 'prepare') {
                 Check (!$script:remoteUploads.ContainsKey($key)) 'Symbol retry did not remove the abandoned upload'
                 $script:remoteUploads[$key] = @()
@@ -163,6 +165,7 @@ try {
             }
             if ($script:failOn -and $text -like $script:failOn) { $script:failOn = ''; throw 'injected staging failure' }
             if ($operation -eq 'commit') { $script:installedSymbols["$channel-$label"] = @($script:remoteUploads[$key]); $script:remoteUploads.Remove($key) }
+            if ($operation -eq 'prepare') { return $folder }
             return
         }
         if ($Command -in @('ssh', 'scp')) {
@@ -816,20 +819,41 @@ try {
         Reset-Fake
         $archive = Save-EmberSymbolArchive $source $script:receipt 'nightly' '1.2.0-nightly20261008' $dist
         Reject { Save-EmberSymbolArchive $source $script:receipt 'nightly' '1.2.0-nightly20261008' $dist } '*Symbol archive already exists*'
-        Reject { Publish-EmberSymbols $archive 'stable' '1.2.0-nightly20261008' } '*is for nightly 1.2.0-nightly20261008, not stable*'
+        Reject { Publish-EmberSymbols $archive 'stable' '1.2.0-nightly20261008' $script:expectedInstaller } '*is for nightly 1.2.0-nightly20261008, not stable*'
         $zip = [IO.Compression.ZipFile]::Open($archive.path, 'Update')
         try {
             $entry = $zip.GetEntry('Sidecar.pdb/0123456789ABCDEF0123456789ABCDEF1/Sidecar.sym')
             $stream = $entry.Open()
             try { $stream.SetLength(0); $stream.Write([byte[]](65, 10), 0, 2) } finally { $stream.Dispose() }
         } finally { $zip.Dispose() }
-        Reject { Publish-EmberSymbols (Get-NightlyArtifact $archive.path) 'nightly' '1.2.0-nightly20261008' } '*Symbol archive entry changed: Sidecar.pdb/*'
+        Reject { Publish-EmberSymbols (Get-NightlyArtifact $archive.path) 'nightly' '1.2.0-nightly20261008' $script:expectedInstaller } '*Symbol archive entry changed: Sidecar.pdb/*'
         Check (@($script:commands | Where-Object command -in @('ssh', 'scp')).Count -eq 0) 'A wrong or rewritten archive reached a host'
         Reset-Fake
         $script:receipt.symbols = $null
         Reject { Invoke-Publish } '*no Sidecar symbols*'
         Check ((Test-Ran 'op Build') -and !(Test-Ran 'op Package')) 'A build without symbols reached packaging'
         Pass 'a receipt without symbols stops before packaging, and an archive must match its manifest, channel and label'
+
+        # A manual upload of an older archive runs the checkout's current installer, not the one the archive
+        # carries; a publication's retry runs the archived one.
+        Reset-Fake
+        $oldLabel = '1.1.9-nightly20260901'
+        $oldArchive = Save-EmberSymbolArchive $source $script:receipt 'nightly' $oldLabel $dist
+        $archivedInstaller = $script:expectedInstaller
+        Check ((Get-EmberArchivedSymbolInstaller $oldArchive) -ceq $archivedInstaller) 'The archive did not give back the installer it carries'
+        $currentInstaller = "#!/usr/bin/env bash`n# a later installer with other store rules`n"
+        Write-Fixture (Join-Path $source 'server/ember-reports/deploy/install-symbols.sh') $currentInstaller.Replace("`n", "`r`n")
+        Check ((Get-EmberSymbolInstaller $source) -ceq $currentInstaller) 'The checkout''s installer was not read with LF endings'
+        $script:expectedInstaller = $currentInstaller
+        Publish-EmberSymbols $oldArchive 'nightly' $oldLabel (Get-EmberSymbolInstaller $source) | Out-Null
+        Check (($script:installedSymbols["nightly-$oldLabel"] -join ',') -ceq 'GGPO.pdb,Sidecar.pdb') 'The manual upload did not install the archive''s symbols'
+        Check ((Get-EmberArchivedSymbolInstaller $oldArchive) -ceq $archivedInstaller) 'The manual upload changed the archive'
+        $script:expectedInstaller = $archivedInstaller
+        Publish-EmberSymbols $oldArchive 'nightly' $oldLabel (Get-EmberArchivedSymbolInstaller $oldArchive) | Out-Null
+        Write-Fixture (Join-Path $source 'server/ember-reports/deploy/install-symbols.sh') "#!/usr/bin/env bash`r`n# inert symbol installer fixture`r`n"
+        Check (@($script:commands | Where-Object { $_.command -eq 'scp' -and $_.argv[-1] -cne "vps:/var/lib/ember-reports/symbols/.incoming-nightly-$oldLabel/" }).Count -eq 0) 'scp did not use the folder that prepare printed'
+        Reject { Publish-EmberSymbols $oldArchive 'nightly' $oldLabel '#!/bin/bash' } '*did not receive the archived symbol installer*'
+        Pass 'a manual upload installs an old archive with the current installer, a publication with the archived one, and scp goes where prepare said'
 
         Reset-Fake
         Invoke-Publish @{SkipRoomHosts=$true}

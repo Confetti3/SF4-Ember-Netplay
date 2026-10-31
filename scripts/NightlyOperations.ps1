@@ -277,15 +277,20 @@ function Invoke-NightlyHostStage([object]$Destination, [string]$BuildId, [object
 
 # One staged upload over ssh, shared by the room hosts and the symbols: the pinned $Script runs on $HostName as
 # `bash -s -- <$Arguments> <phase>`. cleanup removes whatever an earlier attempt left in the upload folder,
-# prepare makes it, scp copies $Paths into $Incoming, commit installs them, and cleanup runs again whatever
-# happened. A cleanup failure after an earlier failure is only a warning, so the error that stopped the upload is
-# the one thrown; the phase advances only after a confirmed cleanup. Returns commit's output.
+# prepare makes it, scp copies $Paths into $Incoming (an empty $Incoming means the folder path prepare printed),
+# commit installs them, and cleanup runs again whatever happened. A cleanup failure after an earlier failure is
+# only a warning, so the error that stopped the upload is the one thrown; the phase advances only after a
+# confirmed cleanup. Returns commit's output.
 function Invoke-EmberStagedUpload([string]$HostName, [string]$Arguments, [string]$Script, [string[]]$Paths, [string]$Incoming, [string]$What) {
     $remote = { param($Phase, $Failure) Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $HostName, "bash -s -- $Arguments $Phase") $Failure -InputText $Script }
     $stageError = $null
     try {
         & $remote cleanup "Could not recover the previous $What upload." | Out-Null
-        & $remote prepare "Could not prepare the $What upload." | Out-Null
+        $prepared = @(& $remote prepare "Could not prepare the $What upload." | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
+        if (!$Incoming) {
+            if (!$prepared.Count -or $prepared[-1] -cnotmatch '^/\S+$') { throw "The $What upload did not report its folder." }
+            $Incoming = "$($prepared[-1])/"
+        }
         Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes', '-r') + $Paths + @("${HostName}:$Incoming")) "Could not upload the $What." | Out-Null
         & $remote commit "Could not install the uploaded $What."
     } catch { $stageError = $_; throw }
@@ -535,7 +540,8 @@ function Complete-EmberStaging([object]$Pending, [string]$StatePath) {
     foreach ($destination in $Pending.destinations) {
         Invoke-NightlyHostStage $destination $Pending.buildId $Pending.binaries $Pending.stagingScript
     }
-    Publish-EmberSymbols $Pending.symbols (Get-EmberReleasePlan $Pending).channel $Pending.label
+    # A retry installs with the installer this release archived.
+    Publish-EmberSymbols $Pending.symbols (Get-EmberReleasePlan $Pending).channel $Pending.label (Get-EmberArchivedSymbolInstaller $Pending.symbols)
     $Pending.phase = 'staged'
     Save-NightlyState $StatePath $Pending
 }

@@ -3,7 +3,8 @@
 # beside the package (dist/sf4-ember-netplay-<label>-symbols.zip, SymbolPublication.ps1), for example to restore
 # the store or after a publication you stopped by hand. Publishing does this itself, in its Symbols step; this is
 # only the manual way in. Run it from the checkout that published the release: its channel names the symbols.
-# Nothing is rebuilt and the build folder is not read.
+# Nothing is rebuilt and the build folder is not read. The symbols are the archive's; the installer is this
+# checkout's current one, so an old archive is installed under today's store policy (lock, manifests, prune).
 param([Parameter(Mandatory = $true)][string]$Label, [string]$OutDir = 'dist', [string]$Server = 'vps')
 $ErrorActionPreference = 'Stop'
 # Native exits are checked by Invoke-NightlyCommand.
@@ -16,4 +17,4 @@ if (![IO.Path]::IsPathRooted($OutDir)) { $OutDir = Join-Path $repo $OutDir }
 $archive = Get-EmberSymbolArchivePath $OutDir $Label
 if (!(Test-Path -LiteralPath $archive -PathType Leaf)) { throw "No symbol archive for $Label at $archive." }
 # The archive's manifest holds every file's SHA-256; the archive itself is taken as it is now.
-Publish-EmberSymbols (Get-NightlyArtifact $archive) (Get-EmberBuildTarget $repo).channel $Label $Server
+Publish-EmberSymbols (Get-NightlyArtifact $archive) (Get-EmberBuildTarget $repo).channel $Label (Get-EmberSymbolInstaller $repo) $Server
