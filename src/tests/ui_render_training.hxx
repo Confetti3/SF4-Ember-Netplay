@@ -82,7 +82,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","data","dummy","reply","tools"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="hitboxes")Require(trainingRows.size()==4&&trainingRows[0].id=="hitboxes-shown","Hitboxes page lost its switch or one of its parts");
@@ -90,7 +90,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==8&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes","HUD page lost its size, one of its parts or Hitboxes");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==9&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes"&&trainingRows[8].id=="data","HUD page lost its size, one of its parts, Hitboxes or the Data panel");
+        if(std::string(screen)=="data")Require(trainingRows.size()==9&&trainingRows[0].id=="data-shown"&&trainingRows[1].id=="data-fighters"&&trainingRows[2].id=="data-opacity","Data panel page lost its switch, fighters, background or one of its parts");
         // The reply plays the slots that are on, so its page has no slot of its own.
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
         // Each slot says whether it is on, or that it is empty, with its frames in the detail.
@@ -441,6 +442,46 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             cancel.advantage=training::FrameAdvantage{};cancel.advantage.pending=true;cancel.advantage.attacker=0;
             Require(TrainingFrameData(cancel,0).find(label("training.last_focus_forward",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
                 "Frame data's last reading lost its cancel");
+        }
+        // The Data panel: both fighters', then P1's and P2's alone, each
+        // under its life bar, every part shown, inside the screen and clear
+        // of the frame meter.
+        {
+            training::DataView data;data.valid=true;data.frame=12345;data.distance=1.875f;
+            for(int side=0;side<2;++side){
+                auto scripts=std::make_shared<bac::File>();scripts->scripts.resize(259);
+                auto& script=scripts->scripts[258];script.name=side?"A_TATSU_FL_NEW":"5HP";script.total=26;script.hits={{15,16,0,1,4},{16,20,0,1,5}};
+                auto& f=data.fighters[side];f.valid=true;f.scripts=scripts;f.script=258;
+                if(!side)f.chargeNames=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"SONICBOOM","SOMERSAULT"});f.scriptFrame=side?15.5f:16;
+                f.x=side?1.25f:-0.625f;f.y=side?0.75f:0;f.status=side?16:0;
+                f.stance=side?training::Stance::Airborne:training::Stance::Crouching;f.super=side?1000:750;f.superMax=1000;f.revenge=side?400:150;f.revengeMax=400;
+                f.juggled=side?2:-1;f.juggle={1,1,side?7:0};f.rangeRule=side?training::RangeRule::None:training::RangeRule::Within;f.range=1.3f;
+                if(!side){f.charges[0]={0,training::ChargeBack,50,45};f.charges[1]={1,training::ChargeDown,55,55};f.chargeCount=2;}
+            }
+            const auto savedData=training.data;training.data=data;training.meter=runs;
+            for(int fighters=0;fighters<training::DataFighters;++fighters){
+                training::MeterOptions shown;shown.data=true;shown.dataFighters=static_cast<training::DataFighter>(fighters);SetTrainingMeterOptions(shown);
+                draw(fighters==0?"training-data-both":fighters==1?"training-data-p1":"training-data-p2");
+                const auto* meterWindow=FindWindow("Training frame meter");const auto* strip=FindWindow("Training shortcuts");
+                for(int side=0;side<2;++side){
+                    const char* name=side?"Training data P2":"Training data P1";
+                    const bool expected=fighters==0||fighters==side+1;
+                    Require(WindowDrawn(name)==expected,"The Data panel was drawn for the wrong fighter");
+                    if(!expected)continue;
+                    const auto* panel=FindWindow(name);
+                    Require(panel->Pos.x>=0&&panel->Pos.x+panel->Size.x<=size.w+1&&panel->Pos.y>=0&&panel->Pos.y+panel->Size.y<=size.h+1,"The Data panel left the screen");
+                    for(const auto* hud:{meterWindow,strip}){
+                        const bool apart=panel->Pos.y+panel->Size.y<=hud->Pos.y+1||panel->Pos.x+panel->Size.x<=hud->Pos.x+1||hud->Pos.x+hud->Size.x<=panel->Pos.x+1;
+                        Require(apart,"The Data panel covered the frame meter or its shortcuts");
+                    }
+                }
+            }
+            // Off, or before the game has read anything, it is not drawn.
+            SetTrainingMeterOptions({});draw();
+            Require(!WindowDrawn("Training data"),"The Data panel was drawn while off");
+            training::MeterOptions shown;shown.data=true;SetTrainingMeterOptions(shown);training.data=training::DataView{};draw();
+            Require(!WindowDrawn("Training data"),"The Data panel was drawn with nothing read");
+            training.data=savedData;
         }
         SetTrainingMeterOptions({});training.meter=savedMeter;
     }

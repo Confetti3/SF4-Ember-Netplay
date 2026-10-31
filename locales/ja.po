@@ -5095,6 +5095,114 @@ msgstr "骨格"
 msgid "training.hitboxes.part.detail"
 msgstr "当たり判定のこの部分を対戦の上に表示します。"
 
+msgid "training.data"
+msgstr "データパネル"
+
+msgid "training.data.detail"
+msgstr "各キャラのスクリプト、位置、姿勢、ゲージ、空中コンボ数、溜めを、ゲームが毎フレーム持つ値のまま対戦の横に表示します。"
+
+msgid "training.data.fighters"
+msgstr "表示キャラ"
+
+msgid "training.data.fighters.detail"
+msgstr "両キャラのパネルをそれぞれ体力ゲージの下に、または片方だけ表示します。"
+
+msgid "training.data.fighters.both"
+msgstr "両方"
+
+msgid "training.data.fighters.p1"
+msgstr "P1のみ"
+
+msgid "training.data.fighters.p2"
+msgstr "P2のみ"
+
+msgid "training.data.opacity"
+msgstr "背景"
+
+msgid "training.data.opacity.detail"
+msgstr "パネルの背景の濃さです。"
+
+msgid "training.data.move"
+msgstr "技"
+
+msgid "training.data.position"
+msgstr "位置"
+
+msgid "training.data.state"
+msgstr "状態"
+
+msgid "training.data.gauges"
+msgstr "ゲージ"
+
+msgid "training.data.juggle"
+msgstr "空中コンボ"
+
+msgid "training.data.charge"
+msgstr "溜め"
+
+msgid "training.data.part.detail"
+msgstr "データパネルのこの部分を表示します。"
+
+msgid "training.data.frame"
+msgstr "フレーム {0}"
+
+msgid "training.data.range"
+msgstr "間合い"
+
+msgid "training.data.range_from"
+msgstr "遠距離、{0} 以上"
+
+msgid "training.data.range_within"
+msgstr "近距離、{0} まで"
+
+msgid "training.data.height_from"
+msgstr "高さ {0} 以上"
+
+msgid "training.data.height_within"
+msgstr "高さ {0} まで"
+
+msgid "training.data.distance"
+msgstr "距離"
+
+msgid "training.data.standing"
+msgstr "立ち"
+
+msgid "training.data.crouching"
+msgstr "しゃがみ"
+
+msgid "training.data.airborne"
+msgstr "空中"
+
+msgid "training.data.down"
+msgstr "ダウン"
+
+msgid "training.data.status"
+msgstr "状態 {0}"
+
+msgid "training.data.super"
+msgstr "スーパー"
+
+msgid "training.data.revenge"
+msgstr "リベンジ"
+
+msgid "training.data.juggled"
+msgstr "カウント"
+
+msgid "training.data.none"
+msgstr "なし"
+
+msgid "training.data.juggle_start"
+msgstr "開始"
+
+msgid "training.data.juggle_add"
+msgstr "加算"
+
+msgid "training.data.juggle_limit"
+msgstr "上限"
+
+msgid "training.data.no_charge"
+msgstr "溜め技なし"
+
 msgid "training.color_key"
 msgstr "色の凡例"
 

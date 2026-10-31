@@ -5,6 +5,7 @@
 #include "TrainingCapture.hxx"
 #include "FighterPlacement.hxx"
 #include "BacFile.hxx"
+#include "FighterData.hxx"
 #include "GameFiles.hxx"
 #include "ConfirmedSamples.hxx"
 #include "DummyReply.hxx"
@@ -12,6 +13,7 @@
 #include <atomic>
 #include "../common/FighterCatalog.hxx"
 #include "../Dimps/Dimps__Game__Battle__Camera.hxx"
+#include "../Dimps/Dimps__Game__Battle__Command.hxx"
 #include "../Dimps/Dimps__Game__Battle__Effect.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__Game__Battle__Training.hxx"
@@ -62,11 +64,17 @@ constexpr int LeaveFrames = 120;
 LeaveCountdown leaving;
 // The call that stands for this battle, as the room's call owner last set it (SetCall).
 CallControl callControl;
-// Each fighter's script file, for the moves whose native header names no
-// attack frames: a fireball's hitbox is in the effect the move spawns.
-// scriptFighter: whose file is held, -1 none. Kept across battles.
-bac::File scriptFiles[2];
-int scriptFighter[2] = {-1, -1};
+// Each fighter's own files: its scripts, for the moves whose native header
+// names no attack frames (a fireball's hitbox is in the effect the move
+// spawns) and for the Data panel; and its charges' names, read only once the
+// Data panel asks. fighter, namesFor: whose files are held, -1 none. Kept
+// across battles.
+struct HeldFiles {
+    int fighter = -1, namesFor = -1;
+    SharedScripts scripts = std::make_shared<bac::File>();
+    SharedNames names = std::make_shared<std::vector<std::string>>();
+};
+HeldFiles heldFiles[2];
 // The meter in a rollback match: asked for by the player, and fed only
 // frames whose inputs are confirmed. watching is read on the game thread
 // and set from the overlay's.
@@ -77,6 +85,8 @@ std::atomic<bool> meterContinuous{false};
 // Whether Hitboxes is on (ShowHitBoxes): the boxes are read only then, since
 // reading them walks the game's box lists every frame.
 std::atomic<bool> hitBoxesShown{false};
+// Whether the Data panel is shown (ShowData): its readings are taken only then.
+std::atomic<bool> dataShown{false};
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -84,8 +94,9 @@ void ApplyMeterSettings() {
 #ifdef SF4E_SELFTEST
 // The in-game self-test's: the lab also runs in an offline Versus battle.
 bool versusForTest = false;
-// The self-test's: the boxes are read whatever Hitboxes says.
-bool boxesForTest = false;
+// The self-test's: the boxes and the Data panel's values are read whatever
+// Hitboxes and Data say.
+bool boxesForTest = false, dataForTest = false;
 #endif
 // Where the lab runs: a Training battle (and the self-test's Versus battle,
 // in a self-test build), not while the battle is being left. The one rule for
@@ -106,6 +117,14 @@ bool BoxesWanted() {
     if (boxesForTest) return true;
 #endif
     return hitBoxesShown;
+}
+// Whether the Data panel's values are read this frame: while it shows, and
+// always in a self-test that checks them.
+bool DataWanted() {
+#ifdef SF4E_SELFTEST
+    if (dataForTest) return true;
+#endif
+    return dataShown;
 }
 bool matchShown = false;
 ConfirmedSamples confirmed;
@@ -421,30 +440,49 @@ int BattleFighter(Native* system, int side) {
     const int id = Dimps::Game::Request::GetFighterId(*request, side);
     return selection::FindFighter(id) ? id : -1;
 }
-// Two files under a megabyte, read in the battle's first sampled frame; move
-// the read to a worker if that frame is ever seen to stutter.
-const bac::File& FighterScripts(Native* system, unsigned side) {
-    const int id = BattleFighter(system, static_cast<int>(side));
-    if (id == scriptFighter[side]) return scriptFiles[side];
-    scriptFighter[side] = id; scriptFiles[side] = {};
+// A fighter's own file (".bac", ".bcm") from the game folder; false with a
+// reason when there is no fighter or it cannot be read.
+bool ReadFighterFile(int id, const char* extension, std::vector<std::uint8_t>& bytes, std::string& code, std::string& error) {
     const auto* fighter = selection::FindFighter(id);
-    if (!fighter) return scriptFiles[side];
+    if (!fighter) { error = "no fighter"; return false; }
     wchar_t program[32768] = {};
     GetModuleFileNameW(nullptr, program, 32768);
-    const std::string code = fighter->code;
+    code = fighter->code;
     const auto folder = CommandFolder(std::filesystem::path(program).parent_path(), code);
+    return ReadFile(folder / (code + extension), bac::MaxBytes, bytes, error);
+}
+// Two files under a megabyte, read in the battle's first sampled frame; move
+// the read to a worker if that frame is ever seen to stutter.
+const SharedScripts& FighterScripts(Native* system, unsigned side) {
+    HeldFiles& held = heldFiles[side];
+    const int id = BattleFighter(system, static_cast<int>(side));
+    if (id == held.fighter) return held.scripts;
+    held.fighter = id;
+    auto scripts = std::make_shared<bac::File>();
     std::vector<std::uint8_t> bytes;
-    std::string error;
-    if (!ReadFile(folder / (code + ".bac"), bac::MaxBytes, bytes, error) || !bac::Read(bytes.data(), bytes.size(), scriptFiles[side], error))
+    std::string code, error;
+    if (id >= 0 && (!ReadFighterFile(id, ".bac", bytes, code, error) || !bac::Read(bytes.data(), bytes.size(), *scripts, error)))
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
-    return scriptFiles[side];
+    held.scripts = std::move(scripts);
+    return held.scripts;
+}
+const SharedNames& ChargeNames(Native* system, unsigned side) {
+    HeldFiles& held = heldFiles[side];
+    const int id = BattleFighter(system, static_cast<int>(side));
+    if (id == held.namesFor) return held.names;
+    held.namesFor = id;
+    std::vector<std::uint8_t> bytes;
+    std::string code, error;
+    held.names = std::make_shared<std::vector<std::string>>(id >= 0 && ReadFighterFile(id, ".bcm", bytes, code, error) ?
+        ReadChargeNames(bytes.data(), bytes.size()) : std::vector<std::string>());
+    return held.names;
 }
 // Frames until the dummy is free, by its script, -1 when it does not tell:
 // getting up, which plays its script alone, and a hit or block on the ground,
 // once its reaction moves after hitstop (before: the frame before). The
 // script reaches its end on the dummy's last held frame.
 int ScriptedFrames(Native* system, const FighterSample& dummy, const FighterSample& before) {
-    const auto& scripts = FighterScripts(system, 1).scripts;
+    const auto& scripts = FighterScripts(system, 1)->scripts;
     if (!dummy.valid || dummy.action < 0 || dummy.action >= static_cast<int>(scripts.size())) return -1;
     const bac::Script& script = scripts[dummy.action];
     int frames = -1;
@@ -485,7 +523,7 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
                 sample.lastActiveFrame = script[1];
                 sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
             } else if (files && script && script[3] <= 4096 &&
-                bac::ProjectileBoundary(FighterScripts(system, side), sample.action, sample.firstActiveFrame, sample.lastActiveFrame)) {
+                bac::ProjectileBoundary(*FighterScripts(system, side), sample.action, sample.firstActiveFrame, sample.lastActiveFrame)) {
                 if (sample.firstActiveFrame < script[3]) sample.boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
                 else sample.firstActiveFrame = sample.lastActiveFrame = -1;
             }
@@ -508,6 +546,56 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
         sample.valid = true;
     }
     return fighters;
+}
+// The Data panel's readings after an update, on top of the meter's own
+// readings of the fighters (ReadFighters). Only reads.
+DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
+    using Actor = Dimps::Game::Battle::Chara::Actor;
+    using Unit = Dimps::Game::Battle::Chara::Unit;
+    namespace Command = Dimps::Game::Battle::Command;
+    DataView data;
+    Unit* unit = (system->*Native::publicMethods.GetCharaUnit)();
+    if (!unit) return data;
+    auto* commands = (Command::Unit*)(system->*Native::publicMethods.GetUnitByIndex)(Native::U_COMMAND);
+    data.frame = Native::GetNumFramesSimulated_FixedPoint(system)->integral;
+    const auto amount = [](Actor* actor, void (Actor::*method)(Dimps::Math::FixedPoint*)) {
+        Dimps::Math::FixedPoint value{};
+        (actor->*method)(&value);
+        return static_cast<int>(std::lround(Dimps::Math::FixedToFloat(&value)));
+    };
+    for (unsigned side = 0; side < 2; ++side) {
+        Actor* actor = (unit->*Unit::publicMethods.GetActorByIndex)(side);
+        const FighterSample& sample = samples[side];
+        if (!actor || !sample.valid) continue;
+        auto& fighter = data.fighters[side];
+        fighter.valid = true;
+        fighter.status = sample.status; fighter.script = sample.action; fighter.scriptFrame = sample.actionFrame;
+        fighter.scripts = FighterScripts(system, side); fighter.chargeNames = ChargeNames(system, side);
+        const float* root = (actor->*Actor::publicMethods.GetCurrentRootPosition)();
+        fighter.x = root[0]; fighter.y = root[1];
+        fighter.stance = fighter.status == ActorStatus::Down || fighter.status == ActorStatus::Rise ? Stance::Down :
+            (actor->*Actor::publicMethods.IsAirborne)(0) ? Stance::Airborne : (actor->*Actor::publicMethods.IsCrouching)(0) ? Stance::Crouching : Stance::Standing;
+        fighter.super = amount(actor, Actor::publicMethods.GetSuperComboAmt_FixedPoint);
+        fighter.superMax = amount(actor, Actor::publicMethods.GetSuperComboMax_FixedPoint);
+        fighter.revenge = amount(actor, Actor::publicMethods.GetRevengeAmt_FixedPoint);
+        fighter.revengeMax = amount(actor, Actor::publicMethods.GetRevengeMax_FixedPoint);
+        fighter.juggled = Actor::GetJuggleCount(actor);
+        fighter.juggle = JuggleOf(*fighter.scripts, fighter.script, fighter.scriptFrame);
+        if (fighter.status == ActorStatus::Skill)
+            if (const unsigned char* move = (actor->*Actor::publicMethods.GetCommandMove)()) {
+                const unsigned short rule = Command::GetMoveRange(move, fighter.range);
+                fighter.rangeRule = rule <= static_cast<unsigned short>(RangeRule::HeightWithin) ? static_cast<RangeRule>(rule) : RangeRule::None;
+            }
+        auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
+        int count = 0;
+        const auto* states = impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+        for (int i = 0; states && i < count && fighter.chargeCount < MaxCharges; ++i)
+            if (const unsigned short* record = states[i].record)
+                fighter.charges[fighter.chargeCount++] = {static_cast<std::size_t>(i), record[0], record[3], states[i].held};
+    }
+    data.valid = data.fighters[0].valid && data.fighters[1].valid;
+    if (data.valid) data.distance = std::fabs(data.fighters[1].x - data.fighters[0].x);
+    return data;
 }
 // The boxes and the camera as the game holds them now. Game thread, in a fight.
 BoxView ReadBoxes(Native* system) {
@@ -562,8 +650,12 @@ void AfterUpdate(Native* system) {
     const auto delta = static_cast<std::uint16_t>(afterFrame - beforeFrame);
     // The input this update read is the next simulated frame's.
     if (delta != 0) dummyControl.Simulated();
+    // The fighters as this update left them, read once for the meter and the Data panel.
+    std::array<FighterSample, 2> sampled;
+    bool fightersRead = false;
     if (sampling && delta == 1) {
         std::array<FighterSample, 2> fighters = ReadFighters(system, true);
+        sampled = fighters; fightersRead = true;
         if (commitInput) for (int side = 0; side < 2; ++side) fighters[side].input = output[side].raw & FightButtons;
         // The dummy as its stun is timed, for a reply's wait now and its decision below.
         const DummySeen seen = dummyWatch.Observe(fighters[1], fighters[0].action, ScriptedFrames(system, fighters[1], playbackSeen[1]));
@@ -634,11 +726,13 @@ void AfterUpdate(Native* system) {
     const View view = session.GetView();
     BoxView boxes;
     if (view.available && view.ready && BoxesWanted()) boxes = ReadBoxes(system);
+    DataView data;
+    if (view.available && view.ready && DataWanted()) data = ReadData(system, fightersRead ? sampled : ReadFighters(system, false));
     std::lock_guard<std::mutex> lock(mutex);
     // Whether the match meter shows is ObserveMatch's: a replay's held frame (a slower speed, a pause) runs only
     // this, and must not hide the meter until the next played frame.
     const bool watching = published.watching, replayInputs = published.replayInputs;
-    published = view; published.meter = meter.View(); published.boxes = std::move(boxes);
+    published = view; published.meter = meter.View(); published.boxes = std::move(boxes); published.data = std::move(data);
     published.watching = watching; published.replayInputs = replayInputs;
     if (published.available) published.dummy = ReadDummyState(published.dummy);
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
@@ -653,10 +747,12 @@ unsigned ClearReservedInputBits(unsigned raw) {
 #ifdef SF4E_SELFTEST
 void AllowOfflineVersusForTest() { versusForTest = true; }
 void ReadHitBoxesForTest() { boxesForTest = true; }
+void ReadDataForTest() { dataForTest = true; }
 #endif
 void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
+void ShowData(bool shown) { dataShown = shown; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.

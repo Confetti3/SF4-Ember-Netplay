@@ -51,6 +51,10 @@ unsigned char* Actor::GetAttackBoxes(const void* object, unsigned list, unsigned
 	return count ? *(unsigned char**)(head + 0x20) : nullptr;
 }
 
+int Actor::GetJuggleCount(const Actor* a) {
+	return *(const int*)((const unsigned char*)a + 0x6c7c);
+}
+
 void Actor::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
 	*(PVOID*)(&publicMethods.GetActorID) = (PVOID)(peRootOffset + 0x16c6a0);
@@ -65,6 +69,8 @@ void Actor::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetActionScript) = (PVOID)(peRootOffset + 0x12da50);
 	*(PVOID*)(&publicMethods.GetCommandMove) = (PVOID)(peRootOffset + 0x1423b0);
 	*(PVOID*)(&publicMethods.GetFramesUntilActionable) = (PVOID)(peRootOffset + 0x142480);
+	*(PVOID*)(&publicMethods.IsAirborne) = (PVOID)(peRootOffset + 0x139f40);
+	*(PVOID*)(&publicMethods.IsCrouching) = (PVOID)(peRootOffset + 0x13a020);
 
 	*(PVOID*)(&publicMethods.GetVitalityAmt_FixedPoint) = (PVOID)(peRootOffset + 0x141ee0);
 	*(PVOID*)(&publicMethods.GetVitalityMax_FixedPoint) = (PVOID)(peRootOffset + 0x141f00);

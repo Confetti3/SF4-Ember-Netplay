@@ -10,6 +10,7 @@
 #include <utility>
 #include "HitBoxes.hxx"
 #include "FrameMeter.hxx"
+#include "FighterData.hxx"
 #include "RecordingBank.hxx"
 #include "RecordingTypes.hxx"
 
@@ -453,6 +454,8 @@ struct View {
     DummyState dummy;
     // The fighters' boxes after the last simulated frame; offline Training only.
     BoxView boxes;
+    // The Data panel's readings, while it is shown (ShowData).
+    DataView data;
 };
 
 // P1's pad plays the dummy: on standby and while recording.

@@ -5095,6 +5095,114 @@ msgstr "身体线条"
 msgid "training.hitboxes.part.detail"
 msgstr "在对战上方绘制这部分判定框。"
 
+msgid "training.data"
+msgstr "数据面板"
+
+msgid "training.data.detail"
+msgstr "在对战旁显示每名角色的脚本、位置、姿态、能量槽、浮空连段计数和蓄力，即游戏每帧持有的数值。"
+
+msgid "training.data.fighters"
+msgstr "显示角色"
+
+msgid "training.data.fighters.detail"
+msgstr "两名角色的面板各在其体力条下方，或只显示一名。"
+
+msgid "training.data.fighters.both"
+msgstr "两者"
+
+msgid "training.data.fighters.p1"
+msgstr "仅P1"
+
+msgid "training.data.fighters.p2"
+msgstr "仅P2"
+
+msgid "training.data.opacity"
+msgstr "背景"
+
+msgid "training.data.opacity.detail"
+msgstr "面板背景的不透明度。"
+
+msgid "training.data.move"
+msgstr "招式"
+
+msgid "training.data.position"
+msgstr "位置"
+
+msgid "training.data.state"
+msgstr "状态"
+
+msgid "training.data.gauges"
+msgstr "能量槽"
+
+msgid "training.data.juggle"
+msgstr "浮空连段"
+
+msgid "training.data.charge"
+msgstr "蓄力"
+
+msgid "training.data.part.detail"
+msgstr "显示数据面板的这一部分。"
+
+msgid "training.data.frame"
+msgstr "帧 {0}"
+
+msgid "training.data.range"
+msgstr "距离条件"
+
+msgid "training.data.range_from"
+msgstr "远距离，{0} 以上"
+
+msgid "training.data.range_within"
+msgstr "近距离，{0} 以内"
+
+msgid "training.data.height_from"
+msgstr "高度 {0} 以上"
+
+msgid "training.data.height_within"
+msgstr "高度 {0} 以内"
+
+msgid "training.data.distance"
+msgstr "距离"
+
+msgid "training.data.standing"
+msgstr "站立"
+
+msgid "training.data.crouching"
+msgstr "下蹲"
+
+msgid "training.data.airborne"
+msgstr "空中"
+
+msgid "training.data.down"
+msgstr "倒地"
+
+msgid "training.data.status"
+msgstr "状态 {0}"
+
+msgid "training.data.super"
+msgstr "超必杀"
+
+msgid "training.data.revenge"
+msgstr "复仇"
+
+msgid "training.data.juggled"
+msgstr "计数"
+
+msgid "training.data.none"
+msgstr "无"
+
+msgid "training.data.juggle_start"
+msgstr "起始"
+
+msgid "training.data.juggle_add"
+msgstr "增加"
+
+msgid "training.data.juggle_limit"
+msgstr "上限"
+
+msgid "training.data.no_charge"
+msgstr "无蓄力招式"
+
 msgid "training.color_key"
 msgstr "颜色图例"
 

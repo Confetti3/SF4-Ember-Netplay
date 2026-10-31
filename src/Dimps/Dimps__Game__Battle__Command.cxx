@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <cstring>
 
 #include "Dimps__Game__Battle__Command.hxx"
 
@@ -12,6 +13,17 @@ Unit::__publicMethods Unit::publicMethods;
 void Command::Locate(HMODULE peRoot) {
 	CommandImpl::Locate(peRoot);
 	Unit::Locate(peRoot);
+}
+
+const CommandImpl::ChargeState* CommandImpl::GetChargeStates(const CommandImpl* impl, int& count) {
+	const auto* base = (const unsigned char*)impl;
+	count = *(const int*)(base + 0x1598);
+	return *(const ChargeState* const*)(base + 0x1594);
+}
+
+unsigned short Command::GetMoveRange(const unsigned char* move, float& distance) {
+	std::memcpy(&distance, move + 0x14, sizeof distance);
+	return *(const unsigned short*)(move + 4);
 }
 
 void CommandImpl::Locate(HMODULE peRoot) {

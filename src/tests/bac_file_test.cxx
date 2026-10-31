@@ -1,4 +1,5 @@
 #include "../training/BacFile.hxx"
+#include "../training/FighterData.hxx"
 #include "game_file_test_support.hxx"
 #include "test_support.hxx"
 #include <map>
@@ -46,6 +47,8 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
                 const std::size_t at = data.size();
                 data.resize(at + 44);
                 data[at + 26] = i < row.hits.size() ? 1 : 0;
+                // A juggle limit and add a box (Hit::limit, Hit::add): 7 and 2, a guard's 0.
+                data[at + 33] = i < row.hits.size() ? 7 : 0; data[at + 34] = i < row.hits.size() ? 2 : 0;
                 Set32(data, at + 40, static_cast<std::uint32_t>(i < row.hits.size() ? row.hits[i] : row.guards[i - row.hits.size()]));
             }
             list(10, row.effects.size() + 1, row.spawnAt);
@@ -85,6 +88,67 @@ int main() {
     CHECK(model.scripts.size() == 7 && model.effects.size() == 4);
     CHECK(model.effects[0].canHit && !model.effects[1].canHit && !model.effects[2].canHit);
     CHECK(model.scripts[6].effects.empty() && !model.scripts[6].canHit);
+    // A hitbox that can hit keeps its juggle values and hit-data row; a guard box is no hit.
+    CHECK(model.scripts[3].hits.size() == 1 && model.scripts[3].hits[0].limit == 7 &&
+        model.scripts[3].hits[0].add == 2 && model.scripts[3].hits[0].data == 10 && model.effects[1].hits.empty());
+    // With no name or hit-data table (offset 0) nothing is named and no juggle start is read.
+    CHECK(model.scripts[3].name.empty() && model.juggleStart.empty());
+    {
+        // Names at +0x1C, one a script, and two hit-data rows at +0x24 (count
+        // at +0x10), the second's juggle start 3; a name past the end is left empty.
+        Bytes named = bytes;
+        const std::size_t table = named.size();
+        named.resize(table + 4 * 7);
+        const std::size_t text = named.size();
+        const char words[] = "STAND\0CROUCH\0";
+        named.insert(named.end(), words, words + sizeof words - 1);
+        Set32(named, table, static_cast<std::uint32_t>(text)); Set32(named, table + 4, static_cast<std::uint32_t>(text + 6));
+        Set32(named, table + 8, 0xFFFFFFF0u);
+        Set32(named, 0x1C, static_cast<std::uint32_t>(table));
+        const std::size_t rows = named.size();
+        named.resize(rows + 8 + 2 * 12 * 0x50);
+        Set32(named, rows, static_cast<std::uint32_t>(rows + 8)); Set32(named, rows + 4, static_cast<std::uint32_t>(rows + 8 + 12 * 0x50));
+        named[rows + 8 + 12 * 0x50 + 0x2C] = 3;
+        Set32(named, 0x24, static_cast<std::uint32_t>(rows)); Set32(named, 0x10, 2);
+        bac::File read;
+        CHECK(ReadExact(named, named.size(), read, error));
+        CHECK(read.scripts[0].name == "STAND" && read.scripts[1].name == "CROUCH" && read.scripts[2].name.empty());
+        CHECK(read.juggleStart.size() == 2 && read.juggleStart[0] == 0 && read.juggleStart[1] == 3);
+    }
+    // The Data panel's juggle values: the hit active at a frame, else the next, else the last.
+    {
+        bac::File file; file.juggleStart = {0, 3};
+        bac::Script script;
+        script.hits = {{5, 7, 0, 1, 0}, {9, 11, 7, 2, 1}};
+        file.scripts = {script, bac::Script{}};
+        CHECK(training::HitAt(script, 2)->first == 5 && training::HitAt(script, 5)->first == 5 && training::HitAt(script, 7)->first == 9);
+        CHECK(training::HitAt(script, 20)->first == 9 && !training::HitAt(bac::Script{}, 0));
+        const auto juggle = training::JuggleOf(file, 0, 10);
+        CHECK(juggle.start == 3 && juggle.add == 2 && juggle.limit == 7);
+        CHECK(training::JuggleOf(file, 1, 0).limit == -1 && training::JuggleOf(file, 5, 0).start == -1 && training::JuggleOf(file, -1, 0).add == -1);
+    }
+    // A command file's charge names, as Guile's.
+    {
+        Bytes bcm(0x20);
+        std::memcpy(bcm.data(), "#BCM", 4);
+        bcm[0x10] = 2;
+        const std::size_t names = bcm.size();
+        bcm.resize(names + 8);
+        const std::size_t text = bcm.size();
+        const char words[] = "SONICBOOM\0SOMERSAULT\0";
+        bcm.insert(bcm.end(), words, words + sizeof words - 1);
+        Set32(bcm, names, static_cast<std::uint32_t>(text)); Set32(bcm, names + 4, static_cast<std::uint32_t>(text + 10));
+        Set32(bcm, 0x1C, static_cast<std::uint32_t>(names));
+        const auto charges = training::ReadChargeNames(bcm.data(), bcm.size());
+        CHECK(charges.size() == 2 && charges[0] == "SONICBOOM" && charges[1] == "SOMERSAULT");
+        // Cut short: no table, or a name that runs off the file is left empty.
+        for (std::size_t size = 0; size < bcm.size(); ++size) {
+            const auto cut = training::ReadChargeNames(bcm.data(), size);
+            CHECK(cut.empty() || (cut.size() == 2 && (cut[1].empty() || cut[1] == "SOMERSAULT")));
+        }
+        Bytes other = bcm; other[1] = 'X';
+        CHECK(training::ReadChargeNames(other.data(), other.size()).empty() && training::ReadChargeNames(nullptr, 64).empty());
+    }
     int first = -1, last = -1;
     CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
     // List 4 sets how many script frames a game frame plays: Balrog getting up

@@ -556,6 +556,13 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Value("hud-inputs",loc::T("training.meter.hud_inputs"),loc::T(InputDisplayChoices[static_cast<int>(lab.meter.inputs)].label),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Row("hitboxes",loc::T("training.hitboxes"),loc::T("training.hitboxes.detail")));
+  rows.push_back(Row("data",loc::T("training.data"),loc::T("training.data.detail")));
+ }else if(screen=="data"){
+  LoadPractice();
+  rows.push_back(Value("data-shown",loc::T("training.data"),loc::T(lab.meter.data?"common.on":"common.off"),loc::T("training.data.detail")));
+  rows.push_back(Value("data-fighters",loc::T("training.data.fighters"),loc::T(DataFighterChoices[static_cast<int>(lab.meter.dataFighters)].label),loc::T("training.data.fighters.detail")));
+  rows.push_back(Value("data-opacity",loc::T("training.data.opacity"),std::to_string(lab.meter.dataOpacity)+"%",loc::T("training.data.opacity.detail")));
+  for(const auto& part:DataParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.data.part.detail")));
  }else if(screen=="hitboxes"){
   LoadPractice();
   rows.push_back(Value("hitboxes-shown",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail")));
@@ -626,7 +633,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
- if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic"||a.id=="hitboxes")){nav.Push(a.id);return;}
+ if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic"||a.id=="hitboxes"||a.id=="data")){nav.Push(a.id);return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-scroll"){lab.meter.smooth=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-after-pause"){lab.meter.continuous=a.delta>0;SavePractice();return;}
@@ -635,9 +642,13 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-inputs"){Step(lab.meter.inputs,{0,1,2,3},a.delta);SavePractice();return;}
  if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&a.id=="hitboxes-shown"){lab.meter.hitboxes=a.delta>0;SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-shown"){lab.meter.data=a.delta>0;SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-fighters"){Step(lab.meter.dataFighters,{0,1,2},a.delta);SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-opacity"){Step(lab.meter.dataOpacity,{std::begin(DataOpacities),std::end(DataOpacities)},a.delta);SavePractice();return;}
  const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&turn(HudParts))return;
  if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&turn(HitboxParts))return;
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&turn(DataParts))return;
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&turn(ClassicParts))return;
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
   // Angled, Flat, then Classic; 60, 90, then 120 frames; Recovery Off, then On.

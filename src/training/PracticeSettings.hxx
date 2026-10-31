@@ -40,10 +40,19 @@ constexpr HudPart ClassicParts[] = {{"classic_data", "training.meter.classic_dat
 // The parts of Hitboxes, on its page.
 constexpr HudPart HitboxParts[] = {{"hitboxes_hurt", "training.hitboxes.hurt", &MeterOptions::hurtBoxes},
     {"hitboxes_throw", "training.hitboxes.throw", &MeterOptions::throwBoxes}, {"hitboxes_skeleton", "training.hitboxes.skeleton", &MeterOptions::skeleton}};
-// The input displays: each one's name in training.json and its label.
-struct InputDisplayChoice { const char* key; const char* label; };
-constexpr InputDisplayChoice InputDisplayChoices[InputDisplays] = {{"off", "common.off"}, {"stick", "training.meter.inputs_stick"},
+// A choice's name in training.json and its label.
+struct NamedChoice { const char* key; const char* label; };
+// The input displays.
+constexpr NamedChoice InputDisplayChoices[InputDisplays] = {{"off", "common.off"}, {"stick", "training.meter.inputs_stick"},
     {"arrows", "training.meter.inputs_arrows"}, {"both", "training.meter.inputs_both"}};
+// The parts of the Data panel, on its page.
+constexpr HudPart DataParts[] = {{"data_move", "training.data.move", &MeterOptions::dataMove},
+    {"data_position", "training.data.position", &MeterOptions::dataPosition}, {"data_state", "training.data.state", &MeterOptions::dataState},
+    {"data_gauges", "training.data.gauges", &MeterOptions::dataGauges}, {"data_juggle", "training.data.juggle", &MeterOptions::dataJuggle},
+    {"data_charge", "training.data.charge", &MeterOptions::dataCharge}};
+// Whose Data panel shows.
+constexpr NamedChoice DataFighterChoices[DataFighters] = {{"both", "training.data.fighters.both"}, {"p1", "training.data.fighters.p1"},
+    {"p2", "training.data.fighters.p2"}};
 // The meter's drawing options: angled unless the style is "flat", the
 // recovery number only for a literal true, 60 frames shown unless 90 or 120
 // is saved, every part of the HUD unless it is saved as a literal false, and
@@ -63,12 +72,17 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
     for (int choice = 0; choice < InputDisplays; ++choice) if (inputs == InputDisplayChoices[choice].key) options.inputs = static_cast<InputDisplay>(choice);
     options.smooth = meter.value("scroll", nlohmann::json()) == "smooth";
     options.hitboxes = meter.value("hitboxes", nlohmann::json(false)) == true;
+    options.data = meter.value("data", nlohmann::json(false)) == true;
+    const auto fighters = meter.value("data_fighters", nlohmann::json()), opacity = meter.value("data_opacity", nlohmann::json());
+    for (int choice = 0; choice < DataFighters; ++choice) if (fighters == DataFighterChoices[choice].key) options.dataFighters = static_cast<DataFighter>(choice);
+    for (const int choice : DataOpacities) if (opacity.is_number_integer() && opacity == choice) options.dataOpacity = choice;
     const auto position = meter.value("position", nlohmann::json()), barHeight = meter.value("bar_height", nlohmann::json());
     for (const int choice : MeterPositions) if (position.is_number_integer() && position == choice) options.position = choice;
     for (const int choice : ClassicBarHeights) if (barHeight.is_number_integer() && barHeight == choice) options.barHeight = choice;
     for (const auto& part : HudParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     for (const auto& part : ClassicParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     for (const auto& part : HitboxParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
+    for (const auto& part : DataParts) options.*part.shown = meter.value(part.key, nlohmann::json(true)) != false;
     const auto size = meter.value("hud_size", nlohmann::json());
     for (int choice = 0; choice < HudSizes; ++choice) if (size.is_number_integer() && size == choice) options.size = choice;
     return options;
@@ -76,10 +90,12 @@ inline MeterOptions ReadMeterOptions(const nlohmann::json& meter) {
 inline nlohmann::json MeterOptionsJson(const MeterOptions& options) {
     nlohmann::json meter{{"style", options.style == MeterStyle::Classic ? "classic" : options.style == MeterStyle::Flat ? "flat" : "angled"}, {"hud_recovery", options.recovery}, {"frames_shown", options.shown}, {"hud_size", options.size}, {"history_frames", options.history}, {"after_pause", options.continuous ? "continue" : "start_over"}, {"scroll", options.smooth ? "smooth" : "pages"},
         {"hud_inputs", InputDisplayChoices[static_cast<int>(options.inputs)].key},
-        {"position", options.position}, {"bar_height", options.barHeight}, {"hitboxes", options.hitboxes}};
+        {"position", options.position}, {"bar_height", options.barHeight}, {"hitboxes", options.hitboxes},
+        {"data", options.data}, {"data_fighters", DataFighterChoices[static_cast<int>(options.dataFighters)].key}, {"data_opacity", options.dataOpacity}};
     for (const auto& part : HudParts) meter[part.key] = options.*part.shown;
     for (const auto& part : ClassicParts) meter[part.key] = options.*part.shown;
     for (const auto& part : HitboxParts) meter[part.key] = options.*part.shown;
+    for (const auto& part : DataParts) meter[part.key] = options.*part.shown;
     return meter;
 }
 // Old replies accepted these shared names without a fighter database.

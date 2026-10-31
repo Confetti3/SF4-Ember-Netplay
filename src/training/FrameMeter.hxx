@@ -184,6 +184,9 @@ constexpr int MeterStyles = 3;
 // Each fighter's input display beside the meter (InputDisplayChoices).
 enum class InputDisplay { Off, Stick, Arrows, Both };
 constexpr int InputDisplays = 4;
+// Whose Data panel shows, each under its own life bar: both fighters', P1's or P2's.
+enum class DataFighter { Both, P1, P2 };
+constexpr int DataFighters = 3;
 struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
     InputDisplay inputs = InputDisplay::Off;
     bool classicData = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
@@ -194,6 +197,10 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     // The fighters' boxes are drawn over the fight, and of those the boxes
     // where a strike or a throw lands and the skeleton.
     bool hitboxes = false, hurtBoxes = true, throwBoxes = true, skeleton = true;
+    // The Data panel (TrainingData.cxx): shown, whose (DataFighters), how solid
+    // its ground is (DataOpacities, percent) and which of its parts show.
+    bool data = false; DataFighter dataFighters = DataFighter::Both; int dataOpacity = 80;
+    bool dataMove = true, dataPosition = true, dataState = true, dataGauges = true, dataJuggle = true, dataCharge = true;
     // The bars slide a frame at a time, and a held meter steps back MeterSlideStep
     // frames a notch, instead of a page at a time.
     bool smooth = false;
@@ -202,6 +209,7 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     // the classic bars' height (ClassicBarHeights, at the HUD's scale).
     int position = 82, barHeight = 16; };
 constexpr int MeterPositions[] = {12, 25, 40, 55, 70, 82, 92};
+constexpr int DataOpacities[] = {40, 60, 80, 100};
 constexpr std::size_t MeterSlideStep = 10;
 constexpr int ClassicBarHeights[] = {12, 16, 22};
 inline bool GroundedRecoveryState(unsigned status) {

@@ -1,0 +1,262 @@
+#include "TrainingPanel.hxx"
+#include "Theme.hxx"
+#include "V2.hxx"
+#include "../common/Localization.hxx"
+#include "../training/PracticeSettings.hxx"
+#include <algorithm>
+#include <cfloat>
+#include <climits>
+#include <cmath>
+#include <cstdio>
+#include <string>
+
+// The Data panel: each fighter's script, position, state, gauges, juggle and
+// charges as the game holds them this frame (training::DataView), for those
+// who write frame data down. Drawn over the fight beside the frame meter,
+// never taking input.
+namespace sf4e { namespace ui {
+namespace {
+using training::FighterData;
+// The meter's own colours for P1 and P2, and a stance's chip.
+constexpr ImU32 SideColor[2] = {IM_COL32(255, 120, 110, 255), IM_COL32(120, 190, 255, 255)};
+constexpr ImU32 Track = IM_COL32(255, 255, 255, 28), Rule = IM_COL32(255, 255, 255, 36);
+constexpr ImU32 Full = IM_COL32(60, 196, 110, 255), Super = IM_COL32(70, 150, 255, 255), Revenge = IM_COL32(236, 76, 60, 255);
+ImU32 StanceColor(training::Stance stance) {
+    switch (stance) {
+    case training::Stance::Crouching: return IM_COL32(80, 170, 160, 255);
+    case training::Stance::Airborne: return IM_COL32(90, 150, 240, 255);
+    case training::Stance::Down: return IM_COL32(150, 92, 196, 255);
+    default: return IM_COL32(120, 120, 120, 255);
+    }
+}
+const char* StanceName(training::Stance stance) {
+    switch (stance) {
+    case training::Stance::Crouching: return "training.data.crouching";
+    case training::Stance::Airborne: return "training.data.airborne";
+    case training::Stance::Down: return "training.data.down";
+    default: return "training.data.standing";
+    }
+}
+const char* RangeRuleText(training::RangeRule rule) {
+    switch (rule) {
+    case training::RangeRule::From: return "training.data.range_from";
+    case training::RangeRule::Within: return "training.data.range_within";
+    case training::RangeRule::HeightFrom: return "training.data.height_from";
+    case training::RangeRule::HeightWithin: return "training.data.height_within";
+    default: return nullptr;
+    }
+}
+std::string Number(const char* format, double value) { char text[32]; std::snprintf(text, sizeof text, format, value); return text; }
+std::string Count(int value) { return value < 0 ? std::string("-") : std::to_string(value); }
+
+// A block of rows drawn straight on the window, `width` wide from its left
+// edge; Dummy at the end makes the window as tall as what was drawn.
+struct Rows {
+    ImDrawList* draw; float s, left, width, y, line, small;
+    ImVec2 Measure(const std::string& text, float size) const { return ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()); }
+    void Text(float x, float top, float size, ImU32 colour, const std::string& text) const { draw->AddText(ImGui::GetFont(), size, ImVec2(x, top), colour, text.c_str()); }
+    void Right(float right, float top, float size, ImU32 colour, const std::string& text) const { Text(right - Measure(text, size).x, top, size, colour, text); }
+    // A section's name in Ember small capitals and a rule to the edge.
+    void Section(const char* id) {
+        y += 4 * s;
+        const std::string name = loc::T(id);
+        Text(left, y, small, palette::Ember, name);
+        const float after = left + Measure(name, small).x + 6 * s;
+        draw->AddLine(ImVec2(after, y + small * .55f), ImVec2(left + width, y + small * .55f), Rule, s);
+        y += small + 3 * s;
+    }
+    // A label on the left and its value on the right of the row.
+    void Pair(const std::string& label, const std::string& value, ImU32 colour = palette::Ivory) {
+        Text(left, y + (line - small) * .5f, small, palette::Muted, label);
+        Right(left + width, y, line, colour, value);
+        y += line + 2 * s;
+    }
+    // Two pairs side by side, each half the row.
+    void Pairs(const std::string& a, const std::string& av, const std::string& b, const std::string& bv) {
+        const float half = width * .5f, gap = 8 * s;
+        Text(left, y + (line - small) * .5f, small, palette::Muted, a);
+        Right(left + half - gap, y, line, palette::Ivory, av);
+        Text(left + half + gap, y + (line - small) * .5f, small, palette::Muted, b);
+        Right(left + width, y, line, palette::Ivory, bv);
+        y += line + 2 * s;
+    }
+    // A label (from `indent`) and its value over a bar the row's width,
+    // filled to `share` and cut in `parts` (a gauge's bars).
+    void Bar(const std::string& label, float share, int parts, ImU32 colour, const std::string& value, float indent = 0) {
+        const float height = 5 * s;
+        Text(left + indent, y + (line - small) * .5f, small, palette::Muted, v2::Fit(label, width - indent - Measure(value, line).x - 8 * s, small, nullptr, false));
+        Right(left + width, y, line, palette::Ivory, value);
+        y += line + s;
+        const float x0 = left, x1 = left + width, top = y;
+        draw->AddRectFilled(ImVec2(x0, top), ImVec2(x1, top + height), Track, 2 * s);
+        share = (std::max)(0.f, (std::min)(1.f, share));
+        if (share > 0) draw->AddRectFilled(ImVec2(x0, top), ImVec2(x0 + (x1 - x0) * share, top + height), colour, 2 * s);
+        for (int part = 1; part < parts; ++part) {
+            const float at = x0 + (x1 - x0) * part / parts;
+            draw->AddLine(ImVec2(at, top), ImVec2(at, top + height), IM_COL32(0, 0, 0, 200), 1.5f * s);
+        }
+        y += height + 5 * s;
+    }
+};
+
+// The script as a line, its frames left to right in the frame meter's
+// colours: startup up to its first hitbox, active where its hitboxes are,
+// recovery after the last, and the frame it is on as an ivory mark.
+void Timeline(Rows& rows, const FighterData& fighter, const bac::Script& script) {
+    const float height = 7 * rows.s;
+    const float x0 = rows.left, x1 = rows.left + rows.width, top = rows.y + 2 * rows.s;
+    rows.draw->AddRectFilled(ImVec2(x0, top), ImVec2(x1, top + height), Track, 2 * rows.s);
+    const float total = static_cast<float>((std::max)(1, script.total));
+    const auto at = [&](float frame) { return x0 + (x1 - x0) * (std::max)(0.f, (std::min)(1.f, frame / total)); };
+    const auto colour = [](training::MeterKind kind) { training::MeterCell cell; cell.kind = kind; return TrainingCellColor(cell, true); };
+    int first = INT_MAX, last = -1;
+    for (const auto& hit : script.hits)
+        if (hit.first >= 0 && hit.last > hit.first) first = (std::min)(first, hit.first), last = (std::max)(last, hit.last);
+    if (last >= 0) {
+        rows.draw->AddRectFilled(ImVec2(x0, top), ImVec2(at(static_cast<float>(first)), top + height), colour(training::MeterKind::Startup), 2 * rows.s);
+        rows.draw->AddRectFilled(ImVec2(at(static_cast<float>(last)), top), ImVec2(x1, top + height), colour(training::MeterKind::Recovery), 2 * rows.s);
+    }
+    for (const auto& hit : script.hits)
+        if (hit.first >= 0 && hit.last > hit.first) rows.draw->AddRectFilled(ImVec2(at(static_cast<float>(hit.first)), top), ImVec2((std::max)(at(static_cast<float>(hit.last)), at(static_cast<float>(hit.first)) + rows.s), top + height), colour(training::MeterKind::Active));
+    if (script.total > 0) {
+        const float mark = at(fighter.scriptFrame);
+        rows.draw->AddRectFilled(ImVec2(mark - rows.s, top - 2 * rows.s), ImVec2(mark + rows.s, top + height + 2 * rows.s), palette::Ivory);
+    }
+    rows.y += height + 7 * rows.s;
+}
+
+void Fighter(Rows& rows, const training::View& view, int side, const training::MeterOptions& options) {
+    const auto& data = view.data;
+    const FighterData& fighter = data.fighters[side];
+    // The fighter's tag and the battle's frame count.
+    const char tag[3] = {'P', static_cast<char>('1' + side), 0};
+    rows.Text(rows.left, rows.y, rows.line * 1.1f, SideColor[side], tag);
+    rows.Right(rows.left + rows.width, rows.y + (rows.line * 1.1f - rows.small) * .5f, rows.small, palette::Muted,
+        loc::Tf("training.data.frame", data.frame));
+    rows.y += rows.line * 1.1f + 2 * rows.s;
+    if (options.dataMove) {
+        rows.Section("training.data.move");
+        // The script's name and number, and the frame it is on of its total.
+        const bac::Script* named = fighter.Script();
+        const int total = named ? named->total : 0;
+        const std::string script = "#" + std::to_string(fighter.script);
+        const std::string frame = (std::fabs(fighter.scriptFrame - std::round(fighter.scriptFrame)) < .01f ? Number("%.0f", fighter.scriptFrame) : Number("%.2f", fighter.scriptFrame)) +
+            (total > 0 ? " / " + std::to_string(total) : std::string());
+        // The name comes first; the number shows when there is room for it too.
+        const float room = rows.width - rows.Measure(frame, rows.line).x - 8 * rows.s;
+        float x = rows.left;
+        if (named && !named->name.empty()) {
+            const std::string name = v2::Fit(named->name, room, rows.line, nullptr, false);
+            rows.Text(x, rows.y, rows.line, palette::Ivory, name);
+            x += rows.Measure(name, rows.line).x + 6 * rows.s;
+        }
+        if (x + rows.Measure(script, rows.small).x <= rows.left + room) rows.Text(x, rows.y + (rows.line - rows.small) * .5f, rows.small, palette::Muted, script);
+        rows.Right(rows.left + rows.width, rows.y, rows.line, palette::Ivory, frame);
+        rows.y += rows.line + 2 * rows.s;
+        if (named) Timeline(rows, fighter, *named);
+        // A close or far normal's rule: the distance at which the game picks it.
+        if (const char* rule = RangeRuleText(fighter.rangeRule))
+            rows.Pair(loc::T("training.data.range"), loc::Tf(rule, Number("%.3f", fighter.range)));
+    }
+    if (options.dataPosition) {
+        rows.Section("training.data.position");
+        rows.Pairs("X", Number("%.3f", fighter.x), "Y", Number("%.3f", fighter.y));
+        rows.Pair(loc::T("training.data.distance"), Number("%.3f", data.distance));
+    }
+    if (options.dataState) {
+        rows.Section("training.data.state");
+        // The stance as a coloured chip, the game's own status number beside it.
+        const std::string stance = loc::T(StanceName(fighter.stance));
+        const ImVec2 size = rows.Measure(stance, rows.small);
+        const ImVec2 chip(rows.left, rows.y + 1 * rows.s);
+        rows.draw->AddRectFilled(chip, ImVec2(chip.x + size.x + 12 * rows.s, chip.y + rows.line - 2 * rows.s), StanceColor(fighter.stance), 3 * rows.s);
+        rows.Text(chip.x + 6 * rows.s, rows.y + (rows.line - rows.small) * .5f, rows.small, IM_COL32(255, 255, 255, 255), stance);
+        rows.Right(rows.left + rows.width, rows.y + (rows.line - rows.small) * .5f, rows.small, palette::Muted, loc::Tf("training.data.status", fighter.status));
+        rows.y += rows.line + 2 * rows.s;
+    }
+    if (options.dataGauges) {
+        rows.Section("training.data.gauges");
+        // Side by side: Super in its four bars, Revenge in two halves, as the
+        // game draws them.
+        const float gap = 10 * rows.s, half = (rows.width - gap) * .5f;
+        Rows super = rows, revenge = rows;
+        super.width = revenge.width = half;
+        revenge.left += half + gap;
+        super.Bar(loc::T("training.data.super"), fighter.superMax ? static_cast<float>(fighter.super) / fighter.superMax : 0.f, 4, Super, std::to_string(fighter.super));
+        revenge.Bar(loc::T("training.data.revenge"), fighter.revengeMax ? static_cast<float>(fighter.revenge) / fighter.revengeMax : 0.f, 2, Revenge, std::to_string(fighter.revenge));
+        rows.y = super.y;
+    }
+    if (options.dataJuggle) {
+        rows.Section("training.data.juggle");
+        // The fighter's own juggle count while it is juggled, then the move's
+        // hit: the count a launch sets, what each hit adds, and the count up
+        // to which it still connects, each in a cell of its own.
+        const float gap = 4 * rows.s, cell = (rows.width - 3 * gap) / 4, height = rows.small + rows.line + 6 * rows.s;
+        const std::pair<const char*, std::string> values[] = {
+            {"training.data.juggled", fighter.juggled < 0 ? std::string(loc::T("training.data.none")) : std::to_string(fighter.juggled)},
+            {"training.data.juggle_start", Count(fighter.juggle.start)}, {"training.data.juggle_add", Count(fighter.juggle.add)},
+            {"training.data.juggle_limit", Count(fighter.juggle.limit)}};
+        for (int i = 0; i < 4; ++i) {
+            const float x = rows.left + (cell + gap) * i;
+            rows.draw->AddRectFilled(ImVec2(x, rows.y), ImVec2(x + cell, rows.y + height), i ? Track : IM_COL32(255, 255, 255, 44), 3 * rows.s);
+            const std::string label = v2::Fit(loc::T(values[i].first), cell - 4 * rows.s, rows.small, nullptr, false);
+            rows.Text(x + (cell - rows.Measure(label, rows.small).x) * .5f, rows.y + 2 * rows.s, rows.small, palette::Muted, label);
+            const ImU32 colour = !i && fighter.juggled < 0 ? palette::Muted : palette::Ivory;
+            rows.Text(x + (cell - rows.Measure(values[i].second, rows.line).x) * .5f, rows.y + rows.small + 3 * rows.s, rows.line, colour, values[i].second);
+        }
+        rows.y += height + 3 * rows.s;
+    }
+    if (options.dataCharge) {
+        rows.Section("training.data.charge");
+        if (!fighter.chargeCount) rows.Pair(loc::T("training.data.no_charge"), std::string());
+        // Each charge by its name in the command file after an arrow for the
+        // directions it holds (back, down or down-back, as on a P1 stick),
+        // green once it is full.
+        const float icon = rows.small * .8f;
+        for (std::size_t i = 0; i < fighter.chargeCount; ++i) {
+            const auto& charge = fighter.charges[i];
+            const bool back = (charge.directions & training::ChargeBack) != 0, down = (charge.directions & training::ChargeDown) != 0;
+            const float x0 = rows.left, y0 = rows.y + (rows.line - icon) * .5f, x1 = x0 + icon, y1 = y0 + icon;
+            if (back && down) rows.draw->AddTriangleFilled(ImVec2(x0, y0), ImVec2(x0, y1), ImVec2(x1, y1), palette::Ivory);
+            else if (back) rows.draw->AddTriangleFilled(ImVec2(x0, (y0 + y1) * .5f), ImVec2(x1, y0), ImVec2(x1, y1), palette::Ivory);
+            else if (down) rows.draw->AddTriangleFilled(ImVec2(x0, y0), ImVec2(x1, y0), ImVec2((x0 + x1) * .5f, y1), palette::Ivory);
+            const bool full = charge.required > 0 && charge.held >= charge.required;
+            rows.Bar(fighter.ChargeName(charge.index), charge.required ? static_cast<float>(charge.held) / charge.required : 0.f, 1,
+                full ? Full : palette::Ember, std::to_string(charge.held) + " / " + std::to_string(charge.required), icon + 4 * rows.s);
+        }
+    }
+}
+}
+
+void DrawTrainingData(const training::View& view) {
+    const auto options = TrainingMeterOptions();
+    if (!options.data || !view.data.valid) return;
+    const float hudScale = TrainingHudScale();
+    const auto* vp = ImGui::GetMainViewport();
+    // As wide as the room beside the centred meter allows, up to 250 at the
+    // HUD's scale, so the two never meet wherever the meter sits.
+    const float margin = vp->Size.x * .02f, top = vp->Pos.y + vp->Size.y * .17f, padding = 10 * hudScale;
+    const float room = (vp->Size.x - TrainingMeterWidth(hudScale)) * .5f - margin - 2 * padding - 12 * hudScale;
+    const float width = (std::max)(170 * hudScale, (std::min)(250 * hudScale, room));
+    // Each fighter's panel under its own life bar.
+    const auto window = [&](const char* name, ImVec2 at, ImVec2 pivot, int side) {
+        ImGui::SetNextWindowPos(at, ImGuiCond_Always, pivot);
+        ImGui::SetNextWindowBgAlpha(options.dataOpacity / 100.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padding, 8 * hudScale));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4 * hudScale);
+        if (ImGui::Begin(name, nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) {
+            const ImVec2 start = ImGui::GetCursorScreenPos();
+            const float line = 15 * hudScale;
+            Rows rows{ImGui::GetWindowDrawList(), hudScale, start.x, width, start.y, line, line * .78f};
+            Fighter(rows, view, side, options);
+            ImGui::Dummy(ImVec2(width, rows.y - start.y));
+        }
+        ImGui::End();
+        ImGui::PopStyleVar(3);
+    };
+    if (options.dataFighters != training::DataFighter::P2) window("Training data P1", ImVec2(vp->Pos.x + margin, top), ImVec2(0, 0), 0);
+    if (options.dataFighters != training::DataFighter::P1) window("Training data P2", ImVec2(vp->Pos.x + vp->Size.x - margin, top), ImVec2(1, 0), 1);
+}
+} }

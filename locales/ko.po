@@ -5095,6 +5095,114 @@ msgstr "골격"
 msgid "training.hitboxes.part.detail"
 msgstr "히트박스의 이 부분을 대전 위에 그립니다."
 
+msgid "training.data"
+msgstr "데이터 패널"
+
+msgid "training.data.detail"
+msgstr "각 캐릭터의 스크립트, 위치, 자세, 게이지, 저글 카운트, 모으기를 게임이 매 프레임 가진 값 그대로 대전 옆에 보여 줍니다."
+
+msgid "training.data.fighters"
+msgstr "캐릭터"
+
+msgid "training.data.fighters.detail"
+msgstr "두 캐릭터의 패널을 각각 체력 게이지 아래에, 또는 한쪽만 표시합니다."
+
+msgid "training.data.fighters.both"
+msgstr "둘 다"
+
+msgid "training.data.fighters.p1"
+msgstr "P1만"
+
+msgid "training.data.fighters.p2"
+msgstr "P2만"
+
+msgid "training.data.opacity"
+msgstr "배경"
+
+msgid "training.data.opacity.detail"
+msgstr "패널 배경의 불투명도입니다."
+
+msgid "training.data.move"
+msgstr "기술"
+
+msgid "training.data.position"
+msgstr "위치"
+
+msgid "training.data.state"
+msgstr "상태"
+
+msgid "training.data.gauges"
+msgstr "게이지"
+
+msgid "training.data.juggle"
+msgstr "저글"
+
+msgid "training.data.charge"
+msgstr "모으기"
+
+msgid "training.data.part.detail"
+msgstr "데이터 패널의 이 부분을 보여 줍니다."
+
+msgid "training.data.frame"
+msgstr "프레임 {0}"
+
+msgid "training.data.range"
+msgstr "거리 조건"
+
+msgid "training.data.range_from"
+msgstr "원거리, {0} 이상"
+
+msgid "training.data.range_within"
+msgstr "근거리, {0} 까지"
+
+msgid "training.data.height_from"
+msgstr "높이 {0} 이상"
+
+msgid "training.data.height_within"
+msgstr "높이 {0} 까지"
+
+msgid "training.data.distance"
+msgstr "거리"
+
+msgid "training.data.standing"
+msgstr "서기"
+
+msgid "training.data.crouching"
+msgstr "앉기"
+
+msgid "training.data.airborne"
+msgstr "공중"
+
+msgid "training.data.down"
+msgstr "다운"
+
+msgid "training.data.status"
+msgstr "상태 {0}"
+
+msgid "training.data.super"
+msgstr "슈퍼"
+
+msgid "training.data.revenge"
+msgstr "리벤지"
+
+msgid "training.data.juggled"
+msgstr "카운트"
+
+msgid "training.data.none"
+msgstr "없음"
+
+msgid "training.data.juggle_start"
+msgstr "시작"
+
+msgid "training.data.juggle_add"
+msgstr "추가"
+
+msgid "training.data.juggle_limit"
+msgstr "한계"
+
+msgid "training.data.no_charge"
+msgstr "모으기 기술 없음"
+
 msgid "training.color_key"
 msgstr "색상 설명"
 

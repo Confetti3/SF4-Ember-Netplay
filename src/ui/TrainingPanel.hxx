@@ -108,6 +108,8 @@ struct TrainingHudInput { bool open = false, pointer = false; };
 // notice, the replay strip) goes with it.
 constexpr float TrainingHudBottom = .82f;
 float TrainingMeterBottom();
+// The meter's width at this viewport and HUD scale, centred on the screen.
+float TrainingMeterWidth(float hudScale);
 // The passive HUD's size: it follows the game's window, smaller with a smaller
 // or narrower one down to the smallest text that still reads, times the HUD
 // size picked on the HUD page and the player's Interface size. Windows' DPI is
@@ -133,6 +135,8 @@ const TrainingStripShown& LastTrainingStrip();
 constexpr const char* FrameMeterWindow = "Training frame meter";
 // The fighters' boxes over the fight, when Hitboxes on the lab's HUD page is on.
 void DrawTrainingBoxes(const training::View& view);
+// The Data panel (TrainingData.cxx), while it is on and the game has read it.
+void DrawTrainingData(const training::View& view);
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
 // Over a fight Ember's menu opens over (input::MenuOverFight): the lines that

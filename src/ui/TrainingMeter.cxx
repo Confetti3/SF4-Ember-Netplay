@@ -847,7 +847,7 @@ void DrawMatchMeter(const training::View& view) {
     // whose file has every input.
     auto options = TrainingMeterOptions();
     options.classicInputs = options.classicInputs && view.replayInputs;
-    MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
+    MeterWindow(view, hudScale, TrainingMeterWidth(hudScale), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
 }
 void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
     const auto* vp=ImGui::GetMainViewport();
@@ -943,11 +943,12 @@ static void DrawInputDisplay(const training::View& view, InputDisplay shown, flo
 }
 static_assert(training::MeterOptions{}.position == static_cast<int>(TrainingHudBottom * 100 + .5f), "The meter's default place left the super meters' edge");
 float TrainingMeterBottom() { return TrainingMeterOptions().position / 100.f; }
+float TrainingMeterWidth(float hudScale) { return (std::min)(620 * hudScale, ImGui::GetMainViewport()->Size.x * .75f); }
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
-    const float width = (std::min)(620 * hudScale, vp->Size.x * .75f);
+    const float width = TrainingMeterWidth(hudScale);
     // The game's super meters and their SUPER! banners start about 17% above
     // the bottom edge and scale with the height, so the meter sits just above
     // them unless the player moved it (MeterOptions::position).

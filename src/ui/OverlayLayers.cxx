@@ -12,6 +12,7 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     if (training.available && view.trainingHud) DrawTrainingBoxes(training);
     if (passive && view.focused && training.available && view.trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
+        DrawTrainingData(training);
         hud = DrawTrainingHud(training, view.challenger.called);
         if (hud.open) passive = false;
     }

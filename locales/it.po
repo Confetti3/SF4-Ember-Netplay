@@ -5094,6 +5094,114 @@ msgstr "Scheletro"
 msgid "training.hitboxes.part.detail"
 msgstr "Disegna questa parte delle hitbox sopra il combattimento."
 
+msgid "training.data"
+msgstr "Pannello dati"
+
+msgid "training.data.detail"
+msgstr "Mostra script, posizione, postura, barre, contatore di juggle e cariche di ogni lottatore accanto al combattimento, come il gioco li tiene a ogni frame."
+
+msgid "training.data.fighters"
+msgstr "Lottatori"
+
+msgid "training.data.fighters.detail"
+msgstr "I pannelli di entrambi i lottatori, ognuno sotto la sua barra della vita, o uno solo."
+
+msgid "training.data.fighters.both"
+msgstr "Entrambi"
+
+msgid "training.data.fighters.p1"
+msgstr "Solo P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Solo P2"
+
+msgid "training.data.opacity"
+msgstr "Sfondo"
+
+msgid "training.data.opacity.detail"
+msgstr "Quanto è coprente lo sfondo del pannello."
+
+msgid "training.data.move"
+msgstr "Mossa"
+
+msgid "training.data.position"
+msgstr "Posizione"
+
+msgid "training.data.state"
+msgstr "Stato"
+
+msgid "training.data.gauges"
+msgstr "Barre"
+
+msgid "training.data.juggle"
+msgstr "Juggle"
+
+msgid "training.data.charge"
+msgstr "Carica"
+
+msgid "training.data.part.detail"
+msgstr "Mostra questa parte del pannello dati."
+
+msgid "training.data.frame"
+msgstr "Frame {0}"
+
+msgid "training.data.range"
+msgstr "Distanza d'uso"
+
+msgid "training.data.range_from"
+msgstr "Lontano, da {0}"
+
+msgid "training.data.range_within"
+msgstr "Vicino, fino a {0}"
+
+msgid "training.data.height_from"
+msgstr "Altezza da {0}"
+
+msgid "training.data.height_within"
+msgstr "Altezza fino a {0}"
+
+msgid "training.data.distance"
+msgstr "Distanza"
+
+msgid "training.data.standing"
+msgstr "In piedi"
+
+msgid "training.data.crouching"
+msgstr "Accovacciato"
+
+msgid "training.data.airborne"
+msgstr "In aria"
+
+msgid "training.data.down"
+msgstr "A terra"
+
+msgid "training.data.status"
+msgstr "Stato {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.juggled"
+msgstr "Conteggio"
+
+msgid "training.data.none"
+msgstr "Nessuno"
+
+msgid "training.data.juggle_start"
+msgstr "Inizio"
+
+msgid "training.data.juggle_add"
+msgstr "Aggiunta"
+
+msgid "training.data.juggle_limit"
+msgstr "Limite"
+
+msgid "training.data.no_charge"
+msgstr "Nessuna mossa a carica"
+
 msgid "training.color_key"
 msgstr "Legenda colori"
 

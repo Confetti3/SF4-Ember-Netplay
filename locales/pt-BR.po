@@ -4633,6 +4633,114 @@ msgstr "Esqueleto"
 msgid "training.hitboxes.part.detail"
 msgstr "Desenha esta parte das hitboxes sobre a luta."
 
+msgid "training.data"
+msgstr "Painel de dados"
+
+msgid "training.data.detail"
+msgstr "Mostra o script, a posição, a postura, as barras, o contador de malabarismo e as cargas de cada lutador ao lado da luta, como o jogo os mantém a cada frame."
+
+msgid "training.data.fighters"
+msgstr "Lutadores"
+
+msgid "training.data.fighters.detail"
+msgstr "Os painéis dos dois lutadores, cada um sob sua barra de vida, ou só um."
+
+msgid "training.data.fighters.both"
+msgstr "Ambos"
+
+msgid "training.data.fighters.p1"
+msgstr "Só P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Só P2"
+
+msgid "training.data.opacity"
+msgstr "Fundo"
+
+msgid "training.data.opacity.detail"
+msgstr "Opacidade do fundo do painel."
+
+msgid "training.data.move"
+msgstr "Golpe"
+
+msgid "training.data.position"
+msgstr "Posição"
+
+msgid "training.data.state"
+msgstr "Estado"
+
+msgid "training.data.gauges"
+msgstr "Barras"
+
+msgid "training.data.juggle"
+msgstr "Malabarismo"
+
+msgid "training.data.charge"
+msgstr "Carga"
+
+msgid "training.data.part.detail"
+msgstr "Mostra esta parte do painel de dados."
+
+msgid "training.data.frame"
+msgstr "Frame {0}"
+
+msgid "training.data.range"
+msgstr "Alcance"
+
+msgid "training.data.range_from"
+msgstr "Longe, a partir de {0}"
+
+msgid "training.data.range_within"
+msgstr "Perto, até {0}"
+
+msgid "training.data.height_from"
+msgstr "Altura a partir de {0}"
+
+msgid "training.data.height_within"
+msgstr "Altura até {0}"
+
+msgid "training.data.distance"
+msgstr "Distância"
+
+msgid "training.data.standing"
+msgstr "Em pé"
+
+msgid "training.data.crouching"
+msgstr "Agachado"
+
+msgid "training.data.airborne"
+msgstr "No ar"
+
+msgid "training.data.down"
+msgstr "Caído"
+
+msgid "training.data.status"
+msgstr "Estado {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.juggled"
+msgstr "Contagem"
+
+msgid "training.data.none"
+msgstr "Nenhum"
+
+msgid "training.data.juggle_start"
+msgstr "Início"
+
+msgid "training.data.juggle_add"
+msgstr "Soma"
+
+msgid "training.data.juggle_limit"
+msgstr "Limite"
+
+msgid "training.data.no_charge"
+msgstr "Sem golpes de carga"
+
 msgid "training.color_key"
 msgstr "Legenda de cores"
 

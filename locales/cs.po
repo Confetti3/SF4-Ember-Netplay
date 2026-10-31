@@ -5094,6 +5094,114 @@ msgstr "Kostra"
 msgid "training.hitboxes.part.detail"
 msgstr "Kreslí tuto část hitboxů přes souboj."
 
+msgid "training.data"
+msgstr "Datový panel"
+
+msgid "training.data.detail"
+msgstr "Ukazuje skript, pozici, postoj, ukazatele, počítadlo žonglování a nabití každého bojovníka vedle souboje, jak je hra drží v každém snímku."
+
+msgid "training.data.fighters"
+msgstr "Bojovníci"
+
+msgid "training.data.fighters.detail"
+msgstr "Panely obou bojovníků, každý pod jeho ukazatelem života, nebo jen jeden."
+
+msgid "training.data.fighters.both"
+msgstr "Oba"
+
+msgid "training.data.fighters.p1"
+msgstr "Jen P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Jen P2"
+
+msgid "training.data.opacity"
+msgstr "Pozadí"
+
+msgid "training.data.opacity.detail"
+msgstr "Jak krycí je pozadí panelu."
+
+msgid "training.data.move"
+msgstr "Útok"
+
+msgid "training.data.position"
+msgstr "Pozice"
+
+msgid "training.data.state"
+msgstr "Stav"
+
+msgid "training.data.gauges"
+msgstr "Ukazatele"
+
+msgid "training.data.juggle"
+msgstr "Žonglování"
+
+msgid "training.data.charge"
+msgstr "Nabíjení"
+
+msgid "training.data.part.detail"
+msgstr "Ukazuje tuto část datového panelu."
+
+msgid "training.data.frame"
+msgstr "Snímek {0}"
+
+msgid "training.data.range"
+msgstr "Dosah"
+
+msgid "training.data.range_from"
+msgstr "Daleko, od {0}"
+
+msgid "training.data.range_within"
+msgstr "Blízko, do {0}"
+
+msgid "training.data.height_from"
+msgstr "Výška od {0}"
+
+msgid "training.data.height_within"
+msgstr "Výška do {0}"
+
+msgid "training.data.distance"
+msgstr "Vzdálenost"
+
+msgid "training.data.standing"
+msgstr "Stojí"
+
+msgid "training.data.crouching"
+msgstr "Krčí se"
+
+msgid "training.data.airborne"
+msgstr "Ve vzduchu"
+
+msgid "training.data.down"
+msgstr "Leží"
+
+msgid "training.data.status"
+msgstr "Stav {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.juggled"
+msgstr "Počet"
+
+msgid "training.data.none"
+msgstr "Žádné"
+
+msgid "training.data.juggle_start"
+msgstr "Začátek"
+
+msgid "training.data.juggle_add"
+msgstr "Přírůstek"
+
+msgid "training.data.juggle_limit"
+msgstr "Limit"
+
+msgid "training.data.no_charge"
+msgstr "Žádné nabíjecí útoky"
+
 msgid "training.color_key"
 msgstr "Význam barev"
 

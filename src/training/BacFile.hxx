@@ -11,8 +11,9 @@
 #include "ByteReader.hxx"
 
 // The game's script files (<CODE>.bac), read only as far as the frame meter
-// needs: which effect scripts it spawns (a fireball's hitbox lives in one),
-// when they spawn and whether they can hit, and how fast a script plays.
+// and the Data panel need: which effect scripts it spawns (a fireball's
+// hitbox lives in one), when they spawn and whether they can hit, how fast a
+// script plays, its name, and its hitboxes' juggle values.
 // Owns only the model and its byte layout; it knows nothing of the game or
 // the overlay.
 namespace sf4e { namespace bac {
@@ -30,12 +31,19 @@ struct Speed { int from; float speed; };
 // command covers, {-1, -1} when the file gives none.
 // speeds: its list 4. last, interruptible, total: its header's last attack,
 // interruptible and last frames, in script frames.
+// A hitbox of list 7 that can hit, from script frame first up to last: the
+// juggle count up to which it still hits an airborne foe (limit), what it
+// adds to that count (add), and its row of the hit data (data).
+struct Hit { int first = -1, last = -1; int limit = 0, add = 0; std::int32_t data = -1; };
 struct Script {
     bool canHit = false; std::vector<std::int32_t> effects; std::vector<std::array<int, 2>> spawns;
     std::vector<Speed> speeds; int last = 0, interruptible = 0, total = 0;
+    std::string name; std::vector<Hit> hits;
 };
 // scripts: indexed by action id. An empty slot is an empty Script.
-struct File { std::vector<Script> scripts, effects; };
+// juggleStart: by hit-data row, the juggle count a launch on a standing foe
+// sets (its s16 at +0x2C, Actor::processPendingHit), -1 when unread.
+struct File { std::vector<Script> scripts, effects; std::vector<int> juggleStart; };
 
 namespace detail {
 constexpr std::size_t HeaderSize = 0x28, ScriptHeader = 0x18, ListSize = 12, FlowSize = 8, HitboxSize = 44, EtcSize = 32;
@@ -81,7 +89,12 @@ inline bool Table(const ByteReader& in, std::size_t count, std::uint64_t table, 
                 if (type == Hitbox) {
                     // Type 0 is the box that makes the foe guard; it never hits.
                     const auto id = static_cast<std::int32_t>(in.U32(record + 40));
-                    if (in.data[record + 26] && id >= 0) out[i].canHit = true;
+                    if (in.data[record + 26] && id >= 0) {
+                        out[i].canHit = true;
+                        const bool timed = frames && in.Has(frames + k * 4, 4);
+                        out[i].hits.push_back({timed ? in.U16(frames + k * 4) : -1, timed ? in.U16(frames + k * 4 + 2) : -1,
+                            static_cast<std::int8_t>(in.data[record + 33]), static_cast<std::int8_t>(in.data[record + 34]), id});
+                    }
                 } else if (type == Speeds) {
                     float speed;
                     std::memcpy(&speed, in.data + record, sizeof speed);
@@ -113,6 +126,17 @@ inline bool Read(const std::uint8_t* bytes, std::size_t size, File& model, std::
     std::uint64_t used = 0;
     if (!Table(in, in.U16(0x0C), in.U32(0x14), file.scripts, used, error) ||
         !Table(in, in.U16(0x0E), in.U32(0x18), file.effects, used, error)) return false;
+    // Names: a table of offsets at +0x1C, one a script, to zero-ended text.
+    // A name that runs off the file or past 64 bytes is left empty.
+    const std::uint64_t names = in.U32(0x1C);
+    for (std::size_t i = 0; names && i < file.scripts.size() && in.Has(names + i * 4, 4); ++i) file.scripts[i].name = in.Text(in.U32(names + i * 4), 64);
+    // Hit data: a table of offsets at +0x24, its count at +0x10, each row
+    // twelve situations of 0x50 bytes; the first is a standing foe's.
+    const std::uint64_t rows = in.U32(0x24), count = in.U32(0x10);
+    for (std::uint64_t i = 0; rows && i < count && i < 4096 && in.Has(rows + i * 4, 4); ++i) {
+        const std::uint64_t row = in.U32(rows + i * 4);
+        file.juggleStart.push_back(row && in.Has(row + 0x2C, 2) ? static_cast<std::int16_t>(in.U16(row + 0x2C)) : -1);
+    }
     model = std::move(file);
     return true;
 }

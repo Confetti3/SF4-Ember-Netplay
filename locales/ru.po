@@ -5094,6 +5094,114 @@ msgstr "Скелет"
 msgid "training.hitboxes.part.detail"
 msgstr "Рисует эту часть хитбоксов поверх боя."
 
+msgid "training.data"
+msgstr "Панель данных"
+
+msgid "training.data.detail"
+msgstr "Показывает скрипт, позицию, стойку, шкалы, счётчик жонглирования и заряды каждого бойца рядом с боем, как их держит игра в каждом кадре."
+
+msgid "training.data.fighters"
+msgstr "Бойцы"
+
+msgid "training.data.fighters.detail"
+msgstr "Панели обоих бойцов, каждая под его полосой здоровья, или только одна."
+
+msgid "training.data.fighters.both"
+msgstr "Оба"
+
+msgid "training.data.fighters.p1"
+msgstr "Только P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Только P2"
+
+msgid "training.data.opacity"
+msgstr "Фон"
+
+msgid "training.data.opacity.detail"
+msgstr "Насколько плотный фон панели."
+
+msgid "training.data.move"
+msgstr "Приём"
+
+msgid "training.data.position"
+msgstr "Позиция"
+
+msgid "training.data.state"
+msgstr "Состояние"
+
+msgid "training.data.gauges"
+msgstr "Шкалы"
+
+msgid "training.data.juggle"
+msgstr "Жонглирование"
+
+msgid "training.data.charge"
+msgstr "Заряд"
+
+msgid "training.data.part.detail"
+msgstr "Показывает эту часть панели данных."
+
+msgid "training.data.frame"
+msgstr "Кадр {0}"
+
+msgid "training.data.range"
+msgstr "Дистанция"
+
+msgid "training.data.range_from"
+msgstr "Далеко, от {0}"
+
+msgid "training.data.range_within"
+msgstr "Близко, до {0}"
+
+msgid "training.data.height_from"
+msgstr "Высота от {0}"
+
+msgid "training.data.height_within"
+msgstr "Высота до {0}"
+
+msgid "training.data.distance"
+msgstr "Расстояние"
+
+msgid "training.data.standing"
+msgstr "Стоит"
+
+msgid "training.data.crouching"
+msgstr "Присел"
+
+msgid "training.data.airborne"
+msgstr "В воздухе"
+
+msgid "training.data.down"
+msgstr "Лежит"
+
+msgid "training.data.status"
+msgstr "Статус {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.juggled"
+msgstr "Счёт"
+
+msgid "training.data.none"
+msgstr "Нет"
+
+msgid "training.data.juggle_start"
+msgstr "Начало"
+
+msgid "training.data.juggle_add"
+msgstr "Прибавка"
+
+msgid "training.data.juggle_limit"
+msgstr "Предел"
+
+msgid "training.data.no_charge"
+msgstr "Нет приёмов с зарядом"
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 

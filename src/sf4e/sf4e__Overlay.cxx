@@ -699,6 +699,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::SetMeterHistory(meterOptions.history, meterOptions.continuous);
     // The fighters' boxes are read only while Hitboxes is on and the HUD (F5) shows them.
     sf4e::training::ShowHitBoxes(meterOptions.hitboxes && trainingHud);
+    // And the Data panel's readings while it shows.
+    sf4e::training::ShowData(meterOptions.data && trainingHud);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();

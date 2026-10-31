@@ -50,6 +50,9 @@ struct Lab : Steps<Stage> {
 	// where it can be hit, and on how many frames Player 1's attack box was live.
 	bool boxesRead = false, hurt[2] = {};
 	int hitFrames = 0;
+	// And the Data panel's values: Player 1 was seen crouching in a named
+	// script with its hit read from the .bac.
+	bool dataRead = false, crouched = false, named = false, hitRead = false;
 } s_lab;
 
 void WatchBoxes(const training::BoxView& boxes) {
@@ -61,6 +64,16 @@ void WatchBoxes(const training::BoxView& boxes) {
 		if (box.kind == training::BoxKind::Hit && box.side == 0) hit = true;
 	}
 	if (hit) s_lab.hitFrames++;
+}
+
+void WatchData(const training::DataView& data) {
+	if (!data.valid || !data.fighters[0].valid) return;
+	const auto& ryu = data.fighters[0];
+	s_lab.dataRead = true;
+	s_lab.crouched = s_lab.crouched || ryu.stance == training::Stance::Crouching;
+	const bac::Script* script = ryu.Script();
+	s_lab.named = s_lab.named || (script && !script->name.empty());
+	s_lab.hitRead = s_lab.hitRead || (script && !script->hits.empty());
 }
 
 // Ryu against Ryu on the first stage.
@@ -110,6 +123,16 @@ void Measure(const training::View& view) {
 	Say(boxesRight, "Ryu crouching LP hitboxes", !s_lab.boxesRead ? "no boxes were read" :
 		std::string("hurt boxes ") + (s_lab.hurt[0] && s_lab.hurt[1] ? "on both" : "missing") + ", attack box live on " +
 		std::to_string(s_lab.hitFrames) + " frames" + (boxesRight ? "" : ", expected hurt boxes on both and 2 frames"));
+	// Back at rest: both stand apart, Ryu has full gauges' room and no charge moves.
+	const auto& data = view.data;
+	const auto& ryu = data.fighters[0];
+	const bool restRight = data.valid && ryu.stance == training::Stance::Standing && data.fighters[1].stance == training::Stance::Standing &&
+		ryu.superMax == 1000 && ryu.revengeMax > 0 && ryu.juggled < 0 && !ryu.chargeCount && data.distance > 0 && std::fabs(ryu.x - view.x[0]) < .001f;
+	const bool dataRight = s_lab.dataRead && s_lab.crouched && s_lab.named && s_lab.hitRead && restRight;
+	Say(dataRight, "Ryu crouching LP data", !s_lab.dataRead ? "nothing was read" :
+		std::string(s_lab.crouched ? "crouched" : "never crouched") + ", script " + (s_lab.named ? "named" : "unnamed") + ", hit " + (s_lab.hitRead ? "read" : "not read") +
+		", then " + (restRight ? "at rest" : "stances " + std::to_string(static_cast<int>(ryu.stance)) + " and " + std::to_string(static_cast<int>(data.fighters[1].stance)) + ", super max " + std::to_string(ryu.superMax) + ", revenge max " + std::to_string(ryu.revengeMax) + ", juggled " + std::to_string(ryu.juggled) +
+		", " + std::to_string(ryu.chargeCount) + " charges, distance " + std::to_string(data.distance) + ", x " + std::to_string(ryu.x) + " against " + std::to_string(view.x[0])));
 }
 
 // The advantage measured once both recovered, and the hit's own
@@ -139,6 +162,7 @@ bool StartTraining() {
 	training::AllowOfflineVersusForTest();
 	// The crouching LP's boxes are checked whether or not Hitboxes is on.
 	training::ReadHitBoxesForTest();
+	training::ReadDataForTest();
 	if (!GameEvents::VsPreBattle::GoToVersus(settings, SetFighters)) { Say(false, "battle", "the main menu was not in front"); return false; }
 	s_lab.Enter(Stage::ToBattle);
 	return true;
@@ -149,8 +173,8 @@ void TickTraining() {
 	lab.waited++;
 	const training::View view = training::ReadView();
 	const bool neutral = view.meter.current[0].valid && training::ClassifyStatus(view.meter.current[0].status) == training::Phase::Neutral;
-	// The crouching LP's boxes, while it plays.
-	if ((lab.stage == Stage::Starting || lab.stage == Stage::Settling) && lab.then == Stage::Measure) WatchBoxes(view.boxes);
+	// The crouching LP's boxes and Data panel values, while it plays.
+	if ((lab.stage == Stage::Starting || lab.stage == Stage::Settling) && lab.then == Stage::Measure) { WatchBoxes(view.boxes); WatchData(view.data); }
 	switch (lab.stage) {
 	case Stage::ToBattle:
 		// Fought with whatever fighters the save had, every number below would point the wrong way.

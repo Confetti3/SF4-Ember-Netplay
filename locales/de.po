@@ -5094,6 +5094,114 @@ msgstr "Skelett"
 msgid "training.hitboxes.part.detail"
 msgstr "Zeichnet diesen Teil der Hitboxen über den Kampf."
 
+msgid "training.data"
+msgstr "Datenanzeige"
+
+msgid "training.data.detail"
+msgstr "Zeigt Skript, Position, Haltung, Leisten, Jonglierzähler und Aufladungen beider Kämpfer neben dem Kampf, wie das Spiel sie in jedem Frame hält."
+
+msgid "training.data.fighters"
+msgstr "Kämpfer"
+
+msgid "training.data.fighters.detail"
+msgstr "Die Anzeigen beider Kämpfer, jede unter ihrer Lebensleiste, oder nur eine."
+
+msgid "training.data.fighters.both"
+msgstr "Beide"
+
+msgid "training.data.fighters.p1"
+msgstr "Nur P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Nur P2"
+
+msgid "training.data.opacity"
+msgstr "Hintergrund"
+
+msgid "training.data.opacity.detail"
+msgstr "Wie deckend der Hintergrund der Anzeige ist."
+
+msgid "training.data.move"
+msgstr "Angriff"
+
+msgid "training.data.position"
+msgstr "Position"
+
+msgid "training.data.state"
+msgstr "Zustand"
+
+msgid "training.data.gauges"
+msgstr "Leisten"
+
+msgid "training.data.juggle"
+msgstr "Jonglieren"
+
+msgid "training.data.charge"
+msgstr "Aufladen"
+
+msgid "training.data.part.detail"
+msgstr "Zeigt diesen Teil der Datenanzeige."
+
+msgid "training.data.frame"
+msgstr "Frame {0}"
+
+msgid "training.data.range"
+msgstr "Reichweite"
+
+msgid "training.data.range_from"
+msgstr "Weit, ab {0}"
+
+msgid "training.data.range_within"
+msgstr "Nah, bis {0}"
+
+msgid "training.data.height_from"
+msgstr "Höhe ab {0}"
+
+msgid "training.data.height_within"
+msgstr "Höhe bis {0}"
+
+msgid "training.data.distance"
+msgstr "Abstand"
+
+msgid "training.data.standing"
+msgstr "Stehend"
+
+msgid "training.data.crouching"
+msgstr "Hockend"
+
+msgid "training.data.airborne"
+msgstr "In der Luft"
+
+msgid "training.data.down"
+msgstr "Am Boden"
+
+msgid "training.data.status"
+msgstr "Status {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.juggled"
+msgstr "Zähler"
+
+msgid "training.data.none"
+msgstr "Keiner"
+
+msgid "training.data.juggle_start"
+msgstr "Start"
+
+msgid "training.data.juggle_add"
+msgstr "Zuwachs"
+
+msgid "training.data.juggle_limit"
+msgstr "Grenze"
+
+msgid "training.data.no_charge"
+msgstr "Keine Aufladeangriffe"
+
 msgid "training.color_key"
 msgstr "Farblegende"
 

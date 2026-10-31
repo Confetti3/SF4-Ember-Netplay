@@ -50,6 +50,8 @@ unsigned ClearReservedInputBits(unsigned raw);
 void AllowOfflineVersusForTest();
 // Reads the fighters' boxes whether or not Hitboxes is on. Game thread.
 void ReadHitBoxesForTest();
+// Reads the Data panel's values whether or not it shows. Game thread.
+void ReadDataForTest();
 #endif
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
@@ -59,6 +61,8 @@ void SetMeterHistory(int frames, bool continuous);
 // Whether Hitboxes is on (MeterOptions::hitboxes); the fighters' boxes are
 // read only while it is. Any thread.
 void ShowHitBoxes(bool shown);
+// Whether the Training Data panel is shown: its readings are taken only then.
+void ShowData(bool shown);
 void CloseBattle();
 void StopCapture();
 // The override exists only during one native offline training update.

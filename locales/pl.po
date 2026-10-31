@@ -5094,6 +5094,114 @@ msgstr "Szkielet"
 msgid "training.hitboxes.part.detail"
 msgstr "Rysuje tę część hitboksów na walce."
 
+msgid "training.data"
+msgstr "Panel danych"
+
+msgid "training.data.detail"
+msgstr "Pokazuje skrypt, pozycję, postawę, paski, licznik żonglerki i ładowania każdego wojownika obok walki, tak jak gra trzyma je w każdej klatce."
+
+msgid "training.data.fighters"
+msgstr "Wojownicy"
+
+msgid "training.data.fighters.detail"
+msgstr "Panele obu wojowników, każdy pod swoim paskiem życia, albo tylko jeden."
+
+msgid "training.data.fighters.both"
+msgstr "Obaj"
+
+msgid "training.data.fighters.p1"
+msgstr "Tylko P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Tylko P2"
+
+msgid "training.data.opacity"
+msgstr "Tło"
+
+msgid "training.data.opacity.detail"
+msgstr "Jak kryjące jest tło panelu."
+
+msgid "training.data.move"
+msgstr "Ruch"
+
+msgid "training.data.position"
+msgstr "Pozycja"
+
+msgid "training.data.state"
+msgstr "Stan"
+
+msgid "training.data.gauges"
+msgstr "Paski"
+
+msgid "training.data.juggle"
+msgstr "Żonglerka"
+
+msgid "training.data.charge"
+msgstr "Ładowanie"
+
+msgid "training.data.part.detail"
+msgstr "Pokazuje tę część panelu danych."
+
+msgid "training.data.frame"
+msgstr "Klatka {0}"
+
+msgid "training.data.range"
+msgstr "Zasięg"
+
+msgid "training.data.range_from"
+msgstr "Daleko, od {0}"
+
+msgid "training.data.range_within"
+msgstr "Blisko, do {0}"
+
+msgid "training.data.height_from"
+msgstr "Wysokość od {0}"
+
+msgid "training.data.height_within"
+msgstr "Wysokość do {0}"
+
+msgid "training.data.distance"
+msgstr "Odległość"
+
+msgid "training.data.standing"
+msgstr "Stoi"
+
+msgid "training.data.crouching"
+msgstr "Kuca"
+
+msgid "training.data.airborne"
+msgstr "W powietrzu"
+
+msgid "training.data.down"
+msgstr "Leży"
+
+msgid "training.data.status"
+msgstr "Stan {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.juggled"
+msgstr "Licznik"
+
+msgid "training.data.none"
+msgstr "Brak"
+
+msgid "training.data.juggle_start"
+msgstr "Start"
+
+msgid "training.data.juggle_add"
+msgstr "Przyrost"
+
+msgid "training.data.juggle_limit"
+msgstr "Limit"
+
+msgid "training.data.no_charge"
+msgstr "Brak ruchów z ładowaniem"
+
 msgid "training.color_key"
 msgstr "Legenda kolorów"
 
