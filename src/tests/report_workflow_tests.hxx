@@ -153,6 +153,15 @@ inline void Records(const std::filesystem::path& root) {
     publishes = false; prepare(); send({});
     CHECK(state.phase == Phase::Failed && !state.record && uploads == before && dependencies.history->Load().sent.size() == 7);
     publishes = true;
+    // A transfer that ran out of time after the status line arrived is a
+    // timeout, not a refusal; a 202 whose answer broke off is not delivered.
+    prepare(); response = {}; response.request.statusCode = 503; response.request.error = sf4e::HttpErrorKind::Timeout;
+    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::NotSent && state.record->reason == "timeout");
+    prepare(); response = {}; response.request.statusCode = 202; response.request.error = sf4e::HttpErrorKind::ReceiveFailed;
+    send({"", false, nullptr}); CHECK(state.phase == Phase::Failed && state.record->status == Status::NotSent && state.record->reason == "incomplete");
+    // A 429 is a rate limit even when the rest of its answer timed out.
+    prepare(); response = {}; response.request.statusCode = 429; response.request.error = sf4e::HttpErrorKind::Timeout;
+    send({"", false, nullptr}); CHECK(state.phase == Phase::Retry && state.record->reason == "rate_limit");
 }
 
 // A crash's report sent without a press: allowed by the saved setting or by
@@ -238,14 +247,17 @@ inline void Automatic(const std::filesystem::path& root) {
     saves = false; run(AutomaticCrash::Consent::Confirmed);
     CHECK(turnedOn == 3 && state.offer && state.phase == Phase::Failed && uploads == 3 && dependencies.history->Load().sent.size() == 1);
     saves = true;
-    // The intake timed out or refused the size with the dump: the same report
-    // once more without it, under the one reservation. A rate limit or any
-    // other refusal is not about the dump, so nothing goes again.
+    // The intake timed out or refused the size with the dump, the transfer
+    // timed out (before or after a status line arrived), or the 202 broke off:
+    // the same report once more without it, under the one reservation. A rate
+    // limit, even one that then timed out, or any other refusal is not about
+    // the dump, so nothing goes again.
     const auto answer = [](int status, sf4e::HttpErrorKind error) {
         sf4e::HttpResponse refused; refused.request.statusCode = status; refused.request.error = error; return refused;
     };
     for (const auto& first : {answer(408, sf4e::HttpErrorKind::HttpStatus), answer(413, sf4e::HttpErrorKind::HttpStatus),
-        answer(0, sf4e::HttpErrorKind::Timeout)}) {
+        answer(0, sf4e::HttpErrorKind::Timeout), answer(500, sf4e::HttpErrorKind::Timeout), answer(202, sf4e::HttpErrorKind::Timeout),
+        answer(202, sf4e::HttpErrorKind::ReceiveFailed)}) {
         std::filesystem::remove(path); answers = {first};
         const auto before = uploads;
         run(AutomaticCrash::Consent::Existing);
@@ -254,8 +266,8 @@ inline void Automatic(const std::filesystem::path& root) {
         history = dependencies.history->Load();
         CHECK(history.sent.size() == 1 && history.sent[0].status == Status::Received && !history.sent[0].dump);
     }
-    for (const auto& first : {answer(429, sf4e::HttpErrorKind::HttpStatus), answer(400, sf4e::HttpErrorKind::HttpStatus),
-        answer(0, sf4e::HttpErrorKind::ConnectFailed)}) {
+    for (const auto& first : {answer(429, sf4e::HttpErrorKind::HttpStatus), answer(429, sf4e::HttpErrorKind::Timeout),
+        answer(400, sf4e::HttpErrorKind::HttpStatus), answer(0, sf4e::HttpErrorKind::ConnectFailed)}) {
         std::filesystem::remove(path); answers = {first};
         const auto before = uploads;
         run(AutomaticCrash::Consent::Existing);
@@ -292,6 +304,28 @@ inline void Automatic(const std::filesystem::path& root) {
     CHECK(state.offer && state.phase == Phase::Preview && state.preview->minidump == dump);
     Submission submission{"", false, state.preview};
     CHECK(ReportWorkflow::Begin(submission, state) && !state.offer);
+    // The preview sends the same way: with the dump the player left on, too
+    // large for the intake, it goes once more without it under one record.
+    std::filesystem::remove(path); answers = {answer(413, sf4e::HttpErrorKind::HttpStatus)};
+    auto sentBefore = uploads;
+    state = ReportWorkflow::Execute(Submission{"", true, state.preview}, state, {}, dependencies);
+    CHECK(state.phase == Phase::Sent && uploads == sentBefore + 2 && hasDump(bodies[bodies.size() - 2]) && !hasDump(bodies.back()));
+    CHECK(state.record && !state.record->dump && !state.record->automatic);
+    history = dependencies.history->Load();
+    CHECK(history.sent.size() == 1 && history.sent[0].status == Status::Received && !history.sent[0].dump);
+    // And a dump the report cannot carry is left out as the preview's report is built.
+    dependencies.collect = [&](const Preparation& preparation, const Account& account, const std::function<bool()>& cancelled) {
+        auto report = collectFile(preparation, account, cancelled);
+        report.minidump = "MDMP" + std::string(DumpLimit - 3, 'x'); return report;
+    };
+    CHECK(ReportWorkflow::Begin(preview, state));
+    state = ReportWorkflow::Execute(preview, state, {}, dependencies);
+    submission = Submission{"", true, state.preview};
+    CHECK(ReportWorkflow::Begin(submission, state));
+    sentBefore = uploads;
+    state = ReportWorkflow::Execute(submission, state, {}, dependencies);
+    CHECK(state.phase == Phase::Sent && uploads == sentBefore + 1 && !hasDump(bodies.back()) && state.record && !state.record->dump);
+    dependencies.collect = collectFile;
 }
 
 // The record itself: missing is empty, damaged is unreadable and refuses,
@@ -392,7 +426,10 @@ inline void HistoryStore(const std::filesystem::path& root) {
 
 // Send problem reports is saved under the key it took when reports began to
 // carry the small dump. The setting saved before, under the old key, reads as
-// off, so the next crash asks again; Always send writes only the new key.
+// off, so the next crash asks again; Always send writes only the new key. The
+// old key stays, since Stable reads it from the same file until it ships this
+// (BoolPreferences.hxx); that release retires it and flips the check that the
+// saved settings still hold it.
 inline void Consent(const std::filesystem::path& root) {
     const auto directory = root / L"consent";
     std::filesystem::create_directories(directory);

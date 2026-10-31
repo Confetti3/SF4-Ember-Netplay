@@ -18,6 +18,8 @@ the key in a root-owned 0600 file on the VPS without exposing it in shell
 arguments, then run:
 
 ```sh
+# Upgrading: a kept config.json must have "workers" of at most 2 first.
+sudo grep '"workers"' /etc/ember-reports/config.json && sudoedit /etc/ember-reports/config.json
 sudo bash ~/ember-reports/setup.sh /root/bugsink-report-key
 sudoedit /etc/ember-reports/config.json
 # Set project_id to the actual Bugsink project ID. Restart after edits.
@@ -27,6 +29,10 @@ sudo systemctl restart ember-reports
 The owner runs setup with sudo. It creates the dedicated user/groups, adds
 katie to `ember-symbols`, installs the binary/unit/key, creates config only if
 missing, and includes the exact report location in the existing HTTPS site.
+Each symbolicate worker may use 512 MiB of the unit's `MemoryMax=1536M`, so
+`limits.workers` is at most 2: the service refuses to start with more, and
+setup stops before replacing anything when a kept config.json asks for more
+(the four-worker default of the first release did).
 It runs `nginx -t` before reload and checks the local listener using GET (405).
 After reload it polls HTTPS `/report/v1` through local nginx with
 `--resolve embernetplay.link:443:127.0.0.1`, preserving certificate checks and
@@ -83,28 +89,41 @@ separate processes and never appear in a game dump; SSFIV.exe and
 
 The publish paths do this themselves. `scripts/build-current.ps1 -Symbols`
 (passed by `publish-nightly.ps1` and `release-team-build.ps1`) runs Mozilla
-`dump_syms -s` in WSL Ubuntu (`~/.cargo/bin/dump_syms`, from
-`cargo install dump_syms --locked`) on each DLL beside its PDB, checks that it
-is the staged binary and that the symbol file has functions, writes the store
-layout to `build/current/symbols` and records it in `build-provenance.json`.
-Once a release has its label, `publish-nightly.ps1` and `github-release.ps1`
-run `scripts/upload-symbols.ps1`, which refuses a build without Sidecar's
-symbols and sends [install-symbols.sh](install-symbols.sh) over
-`ssh vps` as katie:
+`dump_syms -s` in WSL Ubuntu (`~/.cargo/bin/dump_syms`, exactly version 2.3.9:
+`cargo install dump_syms --locked --version 2.3.9`; any other version stops the
+build before it compiles) on each DLL beside its PDB, checks that it is the
+staged binary and that the symbol file has functions, writes the store layout to
+`build/current/symbols` and records it in `build-provenance.json`.
 
-1. `prepare` makes `/var/lib/ember-reports/symbols/.incoming-<channel>-<label>`;
-2. scp copies the store's folders there;
-3. `commit` sets group read on them, moves each complete `<debug file>/<DEBUGID>`
-   folder into the store with a rename (one already there is kept), writes
-   `~/symbols-manifests/<channel>-<label>.txt` and deletes the folders of
-   Nightly releases older than 45 days that no other release lists;
-4. `cleanup` removes the upload folder.
+Publishing (`scripts/SymbolPublication.ps1`, called by `Invoke-NightlyPublish`
+and `Invoke-StablePublish`) then:
 
-Stable symbols are never pruned. To upload by hand, for example after a
-publish that failed before its upload, run
-`pwsh -File scripts/upload-symbols.ps1 -Label <version>` from the checkout
-whose build it was. These options refer to
-[Mozilla's dump_syms](https://github.com/mozilla/dump_syms/blob/main/src/main.rs).
+1. refuses a build without Sidecar's symbols right after the build, before
+   anything is packaged;
+2. after the package and its checks, keeps the release's symbols in
+   `dist/sf4-ember-netplay-<label>-symbols.zip`: the store, `symbols.json` (channel,
+   label, the whole build receipt and every file's SHA-256) and the
+   [install-symbols.sh](install-symbols.sh) that installs them. The publication
+   record pins it by its SHA-256; it is never a release asset;
+3. in the Symbols step, after Nightly's room hosts and before the release is
+   announced, unpacks that archive, checks every file and sends its
+   install-symbols.sh over `ssh vps` as katie:
+   1. `cleanup` and `prepare` make an empty
+      `/var/lib/ember-reports/symbols/.incoming-<channel>-<label>`;
+   2. scp copies the store's folders there;
+   3. `commit` sets group read on them and checks every entry, then, holding a
+      lock on the store, moves each complete `<debug file>/<DEBUGID>` folder in
+      with a rename (one already there is kept), writes
+      `~/symbols-manifests/<channel>-<label>.txt` and deletes the folders of
+      Nightly releases older than 45 days that no other release lists;
+   4. `cleanup` removes the upload folder.
+
+A failed upload leaves the release unannounced; running the publish again
+repeats the Symbols step from the same archive, without a rebuild. Stable
+symbols are never pruned. To upload an archive again by hand, for example to
+restore the store, run `pwsh -File scripts/upload-symbols.ps1 -Label <label>`
+from the checkout that published it (it reads only `dist`). These options refer
+to [Mozilla's dump_syms](https://github.com/mozilla/dump_syms/blob/main/src/main.rs).
 
 Preserve the tool's case/layout: `<module debug filename>/<DEBUGID>/<module>.sym`.
 For Windows PDBs this can be `Sidecar.pdb/<GUID-and-age>/Sidecar.sym`, rather

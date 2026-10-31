@@ -3,6 +3,7 @@ without installing or contacting a server.
 
 Run with: python3 tests/deploy_setup.py (requires Bash).
 """
+import fcntl
 import os
 from pathlib import Path
 import shutil
@@ -132,7 +133,7 @@ class SymbolInstall(unittest.TestCase):
                  "EMBER_SYMBOL_MANIFESTS": self.manifests.as_posix()},
         )
 
-    def install(self, channel, label, modules):
+    def upload(self, channel, label, modules):
         prepared = self.run_phase(channel, label, "prepare")
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
         incoming = Path(prepared.stdout.strip())
@@ -142,11 +143,20 @@ class SymbolInstall(unittest.TestCase):
             folder.mkdir(parents=True)
             name = module.split("/")[0].removesuffix(".pdb")
             (folder / f"{name}.sym").write_text(f"MODULE windows x86 {module.split('/')[1]} {name}.pdb\n")
+        return incoming
+
+    def install(self, channel, label, modules):
+        incoming = self.upload(channel, label, modules)
         committed = self.run_phase(channel, label, "commit")
         cleaned = self.run_phase(channel, label, "cleanup")
         self.assertEqual(cleaned.returncode, 0, cleaned.stderr)
         self.assertFalse(incoming.exists())
         return committed
+
+    def age_manifests(self):
+        stale = time.time() - 50 * 24 * 3600
+        for manifest in self.manifests.glob("*.txt"):
+            os.utime(manifest, (stale, stale))
 
     def test_upload_moves_into_store_and_records_the_release(self):
         result = self.install("stable", "1.4.1", ["Sidecar.pdb/AA1", "GGPO.pdb/BB1"])
@@ -165,9 +175,7 @@ class SymbolInstall(unittest.TestCase):
         self.assertEqual(self.install("stable", "1.4.1", ["GGPO.pdb/BB1"]).returncode, 0)
         old = self.install("nightly", "1.5.0-nightly20260901", ["Sidecar.pdb/CC1", "GGPO.pdb/BB1"])
         self.assertEqual(old.returncode, 0, old.stderr)
-        stale = time.time() - 50 * 24 * 3600
-        for manifest in self.manifests.glob("*.txt"):
-            os.utime(manifest, (stale, stale))
+        self.age_manifests()
         result = self.install("nightly", "1.5.0-nightly20261030", ["Sidecar.pdb/DD1", "GGPO.pdb/BB1"])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.store / "Sidecar.pdb/CC1").exists())
@@ -185,8 +193,85 @@ class SymbolInstall(unittest.TestCase):
         self.assertNotEqual(empty.returncode, 0)
         odd = self.install("stable", "1.4.2", ["Sidecar.pdb/not-hex"])
         self.assertNotEqual(odd.returncode, 0)
+        # Every entry is checked before any moves: a valid first entry stays
+        # out of the store when the second is invalid.
+        second = self.install("stable", "1.4.3", ["GGPO.pdb/BB1", "Sidecar.pdb/not-hex"])
+        self.assertEqual(second.returncode, 4, second.stderr)
         self.assertEqual(list(self.store.iterdir()), [])
         self.assertFalse(self.manifests.exists())
+
+    def test_prune_never_follows_a_manifest_entry_outside_the_store(self):
+        # A manifest edited by hand: an entry naming an upload folder or the
+        # store's parent is never deleted.
+        outside = self.store.parent / "outside/AA1"
+        hidden = self.store / ".incoming-stable-1.4.1/AA1"
+        for folder in (outside, hidden):
+            folder.mkdir(parents=True)
+        self.manifests.mkdir()
+        (self.manifests / "nightly-1.5.0-nightly20260901.txt").write_text(
+            ".incoming-stable-1.4.1/AA1\n../outside/AA1\n")
+        self.age_manifests()
+        result = self.install("nightly", "1.5.0-nightly20261030", ["Sidecar.pdb/DD1"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(outside.is_dir() and hidden.is_dir())
+        self.assertFalse((self.manifests / "nightly-1.5.0-nightly20260901.txt").exists())
+
+    def commit_in_background(self, channel, label):
+        script = Path(__file__).parents[1] / "deploy/install-symbols.sh"
+        process = subprocess.Popen(
+            [shutil.which("bash"), "-s", "--", channel, label, "commit"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env={**os.environ, "EMBER_SYMBOL_STORE": self.store.as_posix(),
+                 "EMBER_SYMBOL_MANIFESTS": self.manifests.as_posix()},
+        )
+        process.stdin.write(script.read_text())
+        process.stdin.close()
+        return process
+
+    def test_a_shared_dependency_survives_a_stable_commit_and_a_nightly_prune(self):
+        # GGPO.pdb/BB1 is listed by an expired Nightly manifest, and a Stable
+        # release lists it too while a Nightly commit prunes. Commit holds the
+        # store's lock from its checks for folders already there to its prune,
+        # so the two run one after the other, and either order keeps BB1.
+        for stable_first in (True, False):
+            with self.subTest(stable_first=stable_first):
+                shutil.rmtree(self.store)
+                shutil.rmtree(self.manifests, ignore_errors=True)
+                self.store.mkdir()
+                old = self.install("nightly", "1.5.0-nightly20260901", ["GGPO.pdb/BB1", "Sidecar.pdb/CC1"])
+                self.assertEqual(old.returncode, 0, old.stderr)
+                self.age_manifests()
+                self.upload("stable", "1.4.1", ["GGPO.pdb/BB1", "Sidecar.pdb/AA1"])
+                self.upload("nightly", "1.5.0-nightly20261030", ["Sidecar.pdb/DD1"])
+                order = [("stable", "1.4.1"), ("nightly", "1.5.0-nightly20261030")]
+                if not stable_first:
+                    order.reverse()
+                lock = os.open(self.store, os.O_RDONLY)
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX)
+                    waiting = self.commit_in_background(*order[0])
+                    time.sleep(0.5)
+                    # Nothing moved, nothing recorded, nothing pruned while
+                    # another holds the store.
+                    self.assertIsNone(waiting.poll())
+                    self.assertFalse((self.store / "Sidecar.pdb/AA1").exists())
+                    self.assertFalse((self.store / "Sidecar.pdb/DD1").exists())
+                    self.assertTrue((self.store / "Sidecar.pdb/CC1").exists())
+                    self.assertEqual(sorted(p.name for p in self.manifests.glob("*.txt")),
+                                     ["nightly-1.5.0-nightly20260901.txt"])
+                finally:
+                    fcntl.flock(lock, fcntl.LOCK_UN)
+                    os.close(lock)
+                _, error = waiting.communicate(timeout=10)
+                self.assertEqual(waiting.returncode, 0, error)
+                second = self.run_phase(*order[1], "commit")
+                self.assertEqual(second.returncode, 0, second.stderr)
+                for channel, label in order:
+                    self.run_phase(channel, label, "cleanup")
+                self.assertTrue((self.store / "GGPO.pdb/BB1/GGPO.sym").is_file())
+                self.assertFalse((self.store / "Sidecar.pdb/CC1").exists())
+                self.assertIn("GGPO.pdb/BB1", (self.manifests / "stable-1.4.1.txt").read_text().split())
+                self.assertEqual(sorted(p.name for p in self.store.iterdir()), ["GGPO.pdb", "Sidecar.pdb"])
 
 
 if __name__ == "__main__":

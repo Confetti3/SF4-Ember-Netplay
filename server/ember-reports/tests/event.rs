@@ -209,6 +209,26 @@ async fn symbol_files_load_past_the_old_cap_and_stop_at_the_current_one() {
     assert_eq!(skipped.crash_frames[0].offset, 0x1234);
 }
 
+// The caps and the worker's memory are only coupled through this test: a file
+// just under SYMBOL_BYTES must parse inside the real worker's RLIMIT_AS
+// (worker::MEMORY_BYTES), so raising a cap without the limit fails here.
+// Linux only: other platforms never walk in a worker.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn symbol_file_at_the_cap_symbolicates_within_the_worker_memory_limit() {
+    let temp = Temp::new();
+    let symbols = temp.0.join("symbols");
+    launcher_symbols(&symbols, SYMBOL_BYTES - 1);
+    let walked = worker()
+        .walk(&synthetic("Launcher.exe"), symbols, Duration::from_secs(60))
+        .await;
+    assert_eq!(walked.symbolication(), "ok");
+    assert_eq!(
+        walked.crash_frames[0].function.as_deref(),
+        Some("report_crash")
+    );
+}
+
 #[cfg(target_os = "linux")]
 #[tokio::test]
 async fn unreadable_symbols_report_partial_and_log_only_store_relative_name() {

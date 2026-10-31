@@ -6,7 +6,13 @@
 # The draft, verify, publish release machine is shared: Invoke-StablePublish (run by
 # github-release.ps1) uses it for Stable, bound to the Stable repository by its channel.
 # Retention stays Nightly-only.
+# A publication record moves through three phases for either channel: 'prepared' (every
+# local file made and pinned by its SHA-256: the package, installer, notes, symbol archive
+# and, for Nightly, the room hosts), 'staged' (everything off GitHub confirmed: Nightly's
+# room hosts and both channels' symbols, Complete-EmberStaging) and 'published'. A retry
+# continues from the recorded phase with the recorded files and never rebuilds.
 . (Join-Path $PSScriptRoot 'PackageFiles.ps1')
+. (Join-Path $PSScriptRoot 'SymbolPublication.ps1')
 
 function Invoke-NightlyNative([string]$Command, [string[]]$Arguments, [string]$InputText) {
     # Bytes, not the string: a piped string gets a CRLF after its last line,
@@ -143,7 +149,7 @@ function Get-NightlyLabel([string]$BaseLabel, [string[]]$ExistingTags, [string]$
     while ($true) {
         $destination = Join-Path $OutDirectory "sf4-ember-netplay-$label"
         $localCollision = $false
-        foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256')) {
+        foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256', '-symbols.zip')) {
             if (Test-Path -LiteralPath "$destination$extension") { $localCollision = $true; break }
         }
         if ($ExistingTags -notcontains "v$label" -and !$localCollision) { return $label }
@@ -264,26 +270,30 @@ function Invoke-NightlyHostStage([object]$Destination, [string]$BuildId, [object
     if ($token -cnotmatch '^[0-9a-f]{32}$') { throw 'Invalid room-host upload token.' }
     Assert-NightlyArtifacts $Binaries
     # The prepared copy, not the checkout: the source may move on once the record exists.
-    $payload = Read-NightlyPinnedText $StagingScript
-    $remote = "bash -s -- $($Destination.root) $BuildId $($Binaries[0].sha256) $($Binaries[1].sha256) $token"
+    # The token outlives interrupted runs, so a retry finds and removes exactly its directory.
+    Invoke-EmberStagedUpload $Destination.hostName "$($Destination.root) $BuildId $($Binaries[0].sha256) $($Binaries[1].sha256) $token" `
+        (Read-NightlyPinnedText $StagingScript) @($Binaries | ForEach-Object path) "~/$($Destination.root)/.incoming-$BuildId-$token/" 'Nightly room-host pair' | Out-Null
+}
+
+# One staged upload over ssh, shared by the room hosts and the symbols: the pinned $Script runs on $HostName as
+# `bash -s -- <$Arguments> <phase>`. cleanup removes whatever an earlier attempt left in the upload folder,
+# prepare makes it, scp copies $Paths into $Incoming, commit installs them, and cleanup runs again whatever
+# happened. A cleanup failure after an earlier failure is only a warning, so the error that stopped the upload is
+# the one thrown; the phase advances only after a confirmed cleanup. Returns commit's output.
+function Invoke-EmberStagedUpload([string]$HostName, [string]$Arguments, [string]$Script, [string[]]$Paths, [string]$Incoming, [string]$What) {
+    $remote = { param($Phase, $Failure) Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $HostName, "bash -s -- $Arguments $Phase") $Failure -InputText $Script }
     $stageError = $null
     try {
-        # The token outlives interrupted runs, so start by removing whatever an earlier
-        # attempt left in its directory. Cleanup is idempotent.
-        Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote cleanup") 'Could not recover the previous host upload.' -InputText $payload | Out-Null
-        Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote prepare") 'Could not prepare host upload.' -InputText $payload | Out-Null
-        Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes') + @($Binaries | ForEach-Object path) +
-            @("$($Destination.hostName):~/$($Destination.root)/.incoming-$BuildId-$token/")) 'Could not upload the Nightly room-host pair.' | Out-Null
-        Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote commit") 'Remote pair verification or atomic staging failed.' -InputText $payload | Out-Null
+        & $remote cleanup "Could not recover the previous $What upload." | Out-Null
+        & $remote prepare "Could not prepare the $What upload." | Out-Null
+        Invoke-NightlyCommand scp (@('-o', 'BatchMode=yes', '-r') + $Paths + @("${HostName}:$Incoming")) "Could not upload the $What." | Out-Null
+        & $remote commit "Could not install the uploaded $What."
     } catch { $stageError = $_; throw }
     finally {
-        # The phase advances only after this confirmed cleanup; until then the recorded
-        # token lets a retry find and remove exactly this directory.
-        try {
-            Invoke-NightlyCommand ssh @('-o', 'BatchMode=yes', $Destination.hostName, "$remote cleanup") 'Could not clean the host upload.' -InputText $payload | Out-Null
-        } catch {
+        try { & $remote cleanup "Could not clean up the $What upload." | Out-Null }
+        catch {
             if (!$stageError) { throw }
-            Write-Warning "Upload cleanup failed; a retry removes it using the recorded token: $($_.Exception.Message)"
+            Write-Warning "The $What upload folder was not removed; the next attempt removes it first: $($_.Exception.Message)"
         }
     }
 }
@@ -515,6 +525,21 @@ function Invoke-NightlyRetention([string]$Repository, [string]$CleanupPath) {
     return $pruned
 }
 
+# Everything a release needs off GitHub before it is announced, from the recorded files only: Nightly's room hosts
+# (identical pairs are accepted), then the Symbols step (Publish-EmberSymbols). The record moves from 'prepared' to
+# 'staged' only once all of it is confirmed, so a retry repeats exactly this, and a 'staged' record goes straight
+# on to the release.
+function Complete-EmberStaging([object]$Pending, [string]$StatePath) {
+    if ($Pending.phase -cne 'prepared') { return }
+    if ($Pending.symbols.sha256 -cnotmatch '^[0-9a-f]{64}$') { throw 'Pending work must include its symbol archive.' }
+    foreach ($destination in $Pending.destinations) {
+        Invoke-NightlyHostStage $destination $Pending.buildId $Pending.binaries $Pending.stagingScript
+    }
+    Publish-EmberSymbols $Pending.symbols (Get-EmberReleasePlan $Pending).channel $Pending.label
+    $Pending.phase = 'staged'
+    Save-NightlyState $StatePath $Pending
+}
+
 # $Snapshot is the clean snapshot this run captured. Unfinished work is checked against
 # it once here; after that every remote step uses only the pinned, hashed files.
 function Complete-NightlyPublication([object]$Pending, [string]$StatePath, [string]$CleanupPath, [object]$Snapshot) {
@@ -530,13 +555,8 @@ function Complete-NightlyPublication([object]$Pending, [string]$StatePath, [stri
             throw 'Pending room-host work must include its prepared staging script.'
         }
         Assert-NightlyPendingSource $Pending $Snapshot
-        Assert-NightlyArtifacts (@($Pending.assets) + @($Pending.notes) + @($Pending.binaries) + @($Pending.stagingScript))
-        # Repeat staging after an interruption. Identical pairs are accepted.
-        foreach ($destination in $Pending.destinations) {
-            Invoke-NightlyHostStage $destination $Pending.buildId $Pending.binaries $Pending.stagingScript
-        }
-        $Pending.phase = 'staged'
-        Save-NightlyState $StatePath $Pending
+        Assert-NightlyArtifacts (@($Pending.assets) + @($Pending.notes) + @($Pending.binaries) + @($Pending.stagingScript) + @($Pending.symbols))
+        Complete-EmberStaging $Pending $StatePath
         $url = Publish-NightlyRelease $Pending
         $Pending.phase = 'published'
         Save-NightlyState $StatePath $Pending
@@ -592,7 +612,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
         if ($WhatIf) {
             if ($pending.phase -ne 'published') {
                 Assert-NightlyPendingSource $pending $snapshot
-                Assert-NightlyArtifacts (@($pending.assets) + @($pending.notes) + @($pending.binaries) + @($pending.stagingScript))
+                Assert-NightlyArtifacts (@($pending.assets) + @($pending.notes) + @($pending.binaries) + @($pending.stagingScript) + @($pending.symbols))
             }
             Write-Host "WhatIf: would finish $($pending.tag) and retention; preserving pending work."
         } else {
@@ -678,6 +698,8 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     $buildDirectory = Join-Path $CheckoutRoot $nightlyTarget.buildDirectory
     $stageDirectory = Join-Path $CheckoutRoot $nightlyTarget.installDirectory
     $receipt = Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot
+    # A publication carries its symbols: a build without them stops here, before anything is packaged.
+    Assert-ReceiptSymbols $receipt | Out-Null
     $package = & $Operations.Package $OutDirectory $nightlyLabel
     $releaseAssets = @($package.zipPath, "$($package.zipPath).sha256")
     $installerPath = & $Operations.Installer $package.folderPath $nightlyLabel $OutDirectory $VisualStudioPath
@@ -685,6 +707,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     if ($package.gitRev -cne $sourceRevision) { throw 'Packaged source revision changed.' }
     # Packaging fingerprinted the tree seconds ago and Assert-NightlySource does again before the pending record.
     Assert-NightlyBuildSnapshot $CheckoutRoot $buildDirectory $stageDirectory $snapshot $package.folderPath -SkipFingerprint | Out-Null
+    $symbolArchive = Save-EmberSymbolArchive $CheckoutRoot $receipt 'nightly' $nightlyLabel $OutDirectory
     # GetHash reads every on-disk byte through BCrypt SHA256, formatting each
     # digest byte with %02hhx: 64 lowercase hex characters, no prefix or separators.
     $publicBuildId = Get-FileSha256 (Join-Path $stageDirectory 'Sidecar.dll')
@@ -734,6 +757,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
             notes=(Get-NightlyArtifact $notesPath)
             binaries=@($hostBinaries | ForEach-Object { Get-NightlyArtifact $_ })
             stagingScript=$(if ($stagingScriptPath) { Get-NightlyArtifact $stagingScriptPath } else { $null })
+            symbols=$symbolArchive
         }
         Save-NightlyState $statePath $pending
         $prunedTags = @(Complete-NightlyPublication $pending $statePath $cleanupPath $snapshot)
@@ -745,6 +769,7 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     Write-Host "Release URL: $releaseUrl"
     Write-Host "Public rooms build: $publicBuildId"
     Write-Host "Notes: $notesPath"
+    Write-Host "Symbols (kept locally): $($symbolArchive.path)"
     foreach ($asset in $releaseAssets) {
         Write-Host "Asset: $asset  SHA-256: $(Get-FileSha256 $asset)"
     }
@@ -752,12 +777,13 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
 }
 
 # The whole Stable release below github-release.ps1. $Operations supplies what packages
-# (scriptblocks: Target, Package, Upgrade, Installer); git and gh go through Invoke-NightlyCommand.
-# The repository is the Stable channel's, never an argument. The tag is pushed first, the release
-# is made as a draft, every asset is read back against its recorded SHA-256, and only then is it
-# published (and made Latest). The prepared record in the output folder lets a run that stopped
-# partway, such as a failed large upload, continue with the same files; no other run may reuse a
-# draft. $SourceRoot, $OutDirectory and $NotesFile are absolute or relative to $SourceRoot.
+# (scriptblocks: Target, Package, Upgrade, Installer); git, gh, ssh and scp go through Invoke-NightlyCommand.
+# The repository is the Stable channel's, never an argument. The tag is pushed first, the build's
+# symbols are checked before anything is packaged and archived beside the package, the Symbols step
+# uploads them, the release is made as a draft, every asset is read back against its recorded SHA-256,
+# and only then is it published (and made Latest). The prepared record in the output folder lets a run
+# that stopped partway, such as a failed symbol or large upload, continue with the same files; no other
+# run may reuse a draft. $SourceRoot, $OutDirectory and $NotesFile are absolute or relative to $SourceRoot.
 function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDirectory, [string]$NotesFile,
                               [string]$PreviousVersion, [hashtable]$Operations) {
     $target = & $Operations.Target $SourceRoot
@@ -793,8 +819,8 @@ function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDir
             $pending.snapshot.revision -cne $revision) {
             throw "The pending release record $pendingPath does not match this tag, repository and source commit; check the draft, then remove the record."
         }
-        Assert-NightlyArtifacts (@($pending.assets) + @($pending.notes))
-        Write-Host "Resuming $Tag from $pendingPath; nothing is repackaged."
+        Assert-NightlyArtifacts (@($pending.assets) + @($pending.notes) + @($pending.symbols))
+        Write-Host "Resuming $Tag from $pendingPath at $($pending.phase); nothing is repackaged."
     } else {
         $state = Get-EmberTagState $repository $Tag
         if ($state.release) { throw 'The release already exists; refusing to replace published assets.' }
@@ -816,6 +842,10 @@ function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDir
             $baseHash = Get-FileSha256 $baseZip
             if (!$published -or !$published.digest -or $published.digest -ine "sha256:$baseHash") { throw 'Local previous package does not match the published release asset.' }
         }
+        # A publication carries its symbols (release-team-build.ps1 builds with them): a build without them stops
+        # here, before anything is packaged. Packaging fingerprints the tree right after.
+        $receipt = Assert-BuildReceipt $SourceRoot (Join-Path $SourceRoot $target.buildDirectory) (Join-Path $SourceRoot $target.installDirectory) -SkipFingerprint
+        Assert-ReceiptSymbols $receipt | Out-Null
         $package = & $Operations.Package $OutDirectory $version
         $assets = @($package.zipPath, "$($package.zipPath).sha256")
         if (!$prerelease) {
@@ -825,17 +855,18 @@ function Invoke-StablePublish([string]$SourceRoot, [string]$Tag, [string]$OutDir
         $installerPath = & $Operations.Installer $package.folderPath $version $OutDirectory
         $assets += @($installerPath, "$installerPath.sha256")
         if ($package.gitRev -cne $revision) { throw 'Packaged source revision changed.' }
+        if ($receipt.sourceFingerprint -cne $package.sourceFingerprint) { throw 'The build receipt changed while packaging.' }
         Assert-NightlyCleanHead $SourceRoot $revision 'Stable publication' | Out-Null
-        # 'staged' is the phase Publish-EmberRelease takes: Stable has no host staging, so the
-        # hashed files are ready as soon as they are packaged.
         $pending = [pscustomobject]@{
-            channel='stable';repository=$repository;tag=$Tag;label=$version;phase='staged';prerelease=$prerelease
+            channel='stable';repository=$repository;tag=$Tag;label=$version;phase='prepared';prerelease=$prerelease
             snapshot=[pscustomobject]@{revision=$revision;fingerprint=[string]$package.sourceFingerprint}
             assets=@($assets | ForEach-Object { Get-NightlyArtifact $_ })
             notes=(Get-NightlyArtifact $NotesFile)
+            symbols=(Save-EmberSymbolArchive $SourceRoot $receipt 'stable' $version $OutDirectory)
         }
         Save-NightlyState $pendingPath $pending
     }
+    Complete-EmberStaging $pending $pendingPath
     $url = Publish-EmberRelease $pending
     Remove-Item -LiteralPath $pendingPath
     Write-Host "Published: $url"

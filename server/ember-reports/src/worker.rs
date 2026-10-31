@@ -6,10 +6,16 @@ use std::{path::PathBuf, time::Duration};
 
 // A walk parses its symbol files in memory: with Sidecar's 29.8 MiB file it
 // peaks near 100 MiB and with a 60 MiB file near 180 MiB, so the symbolicate.rs
-// caps (96 MiB of files a walk) fit with room. Two workers at this limit leave
-// headroom for intake/delivery inside the service's 1536 MiB cgroup
-// (deploy/ember-reports.service).
+// caps (96 MiB of files a walk) fit with room.
 pub const MEMORY_BYTES: u64 = 512 * 1024 * 1024;
+// The service's whole memory: MemoryMax in deploy/ember-reports.service, which
+// a test reads back. Intake, delivery and the runtime keep INTAKE_MEMORY_BYTES
+// of it; the rest is the walks', so Config::validate refuses more workers than
+// MAX_WORKERS rather than let a cgroup OOM kill intake along with a walk.
+pub const SERVICE_MEMORY_BYTES: u64 = 1536 * 1024 * 1024;
+pub const INTAKE_MEMORY_BYTES: u64 = 512 * 1024 * 1024;
+pub const MAX_WORKERS: usize =
+    ((SERVICE_MEMORY_BYTES - INTAKE_MEMORY_BYTES) / MEMORY_BYTES) as usize;
 #[cfg(target_os = "linux")]
 const OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 

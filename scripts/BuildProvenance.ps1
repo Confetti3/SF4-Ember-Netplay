@@ -88,29 +88,41 @@ function Assert-ReceiptChannel([object]$Receipt, [string]$Channel) {
 
 # Breakpad symbols for a published build (build-current.ps1 -Symbols): the modules of the game process that
 # have PDBs, Sidecar.dll and the vcpkg DLLs it loads, in the store layout the report server reads
-# (server/ember-reports/deploy/README.md, Symbols). Mozilla dump_syms runs in WSL Ubuntu from ~/.cargo/bin
-# (cargo install dump_syms --locked). Get-EmberDumpSyms checks for it, so a -Symbols build stops before it
-# compiles anything, and returns a runner that takes dump_syms's arguments with Windows paths.
+# (server/ember-reports/deploy/README.md, Symbols). Mozilla dump_syms runs in WSL Ubuntu from ~/.cargo/bin,
+# exactly the release $EmberDumpSymsVersion names, so every publisher writes the same records. Get-EmberDumpSyms
+# checks the tool and its version, so a -Symbols build stops before it compiles anything, and returns a runner
+# that takes dump_syms's arguments with Windows paths.
+$EmberDumpSymsVersion = '2.3.9'
+function Assert-EmberDumpSymsVersion([string]$Reported) {
+    if ($Reported.Trim() -cne "dump_syms $EmberDumpSymsVersion") {
+        throw "Symbols are made with dump_syms $EmberDumpSymsVersion, but WSL Ubuntu has '$($Reported.Trim())'; install it with: cargo install dump_syms --locked --version $EmberDumpSymsVersion"
+    }
+}
 function Get-EmberDumpSyms {
     $linuxHome = "$(& wsl -d Ubuntu --exec printenv HOME)".Trim()
     if ($LASTEXITCODE -or !$linuxHome.StartsWith('/')) { throw 'Symbols need WSL Ubuntu, which did not start.' }
     $tool = "$linuxHome/.cargo/bin/dump_syms"
     & wsl -d Ubuntu --exec test -x $tool
-    if ($LASTEXITCODE) { throw "dump_syms is not installed in WSL Ubuntu at $tool (cargo install dump_syms --locked)." }
-    {
+    if ($LASTEXITCODE) { throw "dump_syms is not installed in WSL Ubuntu at $tool (cargo install dump_syms --locked --version $EmberDumpSymsVersion)." }
+    $runner = {
         $arguments = @(foreach ($argument in $args) {
             if ($argument -match '^[A-Za-z]:[\\/]') { "$(& wsl -d Ubuntu --exec wslpath -a $argument)".Trim() } else { $argument }
         })
         & wsl -d Ubuntu --exec $tool @arguments
         if ($LASTEXITCODE) { throw "dump_syms failed: $($args -join ' ')" }
     }.GetNewClosure()
+    Assert-EmberDumpSymsVersion "$(& $runner '--version')"
+    $runner
 }
 # Writes the store to <build>\symbols, replacing an earlier one, and returns what the receipt records: the
-# store, the tool's version and each module's <debug file>/<DEBUGID>. Each DLL is read from the copy beside its
-# PDB, which must be the staged binary in $Binaries (the receipt's) byte for byte: a staged copy has no PDB
-# beside it, and dump_syms then writes exported names only. A symbol file without functions means the PDB was
-# not read, and stops the build.
+# store, the tool's version and each module's <debug file>/<DEBUGID>. The version is checked before anything is
+# written. Each DLL is read from the copy beside its PDB, which must be the staged binary in $Binaries (the
+# receipt's) byte for byte: a staged copy has no PDB beside it, and dump_syms then writes exported names only.
+# A symbol file without functions means the PDB was not read, and stops the build. The tool's own console
+# output goes to the host, never into the recorded modules.
 function New-EmberSymbols([string]$BuildRoot, [object[]]$Binaries, [scriptblock]$DumpSyms) {
+    $generator = "$(& $DumpSyms '--version')".Trim()
+    Assert-EmberDumpSymsVersion $generator
     $vcpkg = Join-Path $BuildRoot 'dependencies/x86-windows-wchar-filenames/bin'
     $sources = [ordered]@{'Sidecar.dll'=(Join-Path $BuildRoot 'Sidecar.dll')}
     foreach ($name in 'GGPO.dll', 'spdlog.dll', 'fmt.dll', 'zlib1.dll') { $sources[$name] = Join-Path $vcpkg $name }
@@ -124,14 +136,14 @@ function New-EmberSymbols([string]$BuildRoot, [object[]]$Binaries, [scriptblock]
             throw "$($source.Value) is not the staged $($source.Key), so its symbols would not match the release."
         }
         $before = & $written
-        & $DumpSyms '-s' $store $source.Value
+        & $DumpSyms '-s' $store $source.Value | Out-Host
         $made = @(& $written | Where-Object { $_ -notin $before })
         if ($made.Count -ne 1) { throw "dump_syms wrote no symbol file for $($source.Key)." }
         if (!(Select-String -LiteralPath $made[0] -Pattern '^FUNC ' -Quiet)) { throw "dump_syms wrote no functions for $($source.Key): its PDB was not read." }
         $id = Split-Path $made[0] -Parent
         "$(Split-Path (Split-Path $id -Parent) -Leaf)/$(Split-Path $id -Leaf)"
     }
-    [ordered]@{store=$store;generator="$(& $DumpSyms '--version')".Trim();modules=@($modules)}
+    [ordered]@{store=$store;generator=$generator;modules=@($modules)}
 }
 # A published build carries its symbols. Returns the store, refusing a receipt without Sidecar's symbols
 # (a build without -Symbols records none) or a store that lost a module since.

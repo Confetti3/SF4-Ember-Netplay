@@ -335,8 +335,9 @@ void SettingKey() {
         [](const sf4e::netplay::BoolPreference& p){return p.member==&PlayerPreferences::sendProblemReports;});
     CHECK_OR_THROW(found!=std::end(BoolPreferences)&&std::string(found->key)=="sendProblemReportsWithDump");
     CHECK_OR_THROW(!PlayerPreferences().sendProblemReports);
-    // The setting saved before reports carried the dump is not read, and
-    // never written again.
+    // The setting saved before reports carried the dump is neither read nor
+    // written; settings.json keeps it while Stable, which shares the file,
+    // still reads it (BoolPreferences.hxx).
     PlayerPreferences old; old.sendProblemReports=true;
     sf4e::netplay::ReadBoolPreferences({{"sendProblemReports",true}},old);
     CHECK_OR_THROW(!old.sendProblemReports);

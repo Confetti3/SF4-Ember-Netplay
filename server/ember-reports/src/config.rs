@@ -101,8 +101,12 @@ impl Config {
             return Err("state_dir must be absolute");
         }
         let l = &self.limits;
+        if l.workers > crate::worker::MAX_WORKERS {
+            return Err(
+                "limits.workers is over 2: each symbolicate worker may use 512 MiB of the service's 1536 MiB; set workers to 2",
+            );
+        }
         if l.workers == 0
-            || l.workers > 4
             || l.queue > 32
             || l.per_address == 0
             || l.per_address > 5

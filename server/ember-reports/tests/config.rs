@@ -46,6 +46,49 @@ fn config_rejects_a_bind_port_nginx_does_not_proxy_to() {
     assert!(config.validate().is_ok());
 }
 
+// Each walk may use MEMORY_BYTES of the unit's MemoryMax, so the workers are
+// bounded by that one budget: a config.json kept from the four-worker default
+// stops the service with a message that names the fix.
+#[test]
+fn workers_fit_the_service_memory_budget() {
+    use ember_reports::worker::{
+        INTAKE_MEMORY_BYTES, MAX_WORKERS, MEMORY_BYTES, SERVICE_MEMORY_BYTES,
+    };
+    assert_eq!(MAX_WORKERS, 2);
+    assert!(MAX_WORKERS as u64 * MEMORY_BYTES + INTAKE_MEMORY_BYTES <= SERVICE_MEMORY_BYTES);
+    let mut config = Config {
+        state_dir: std::env::temp_dir().join("ember-reports"),
+        ..Config::default()
+    };
+    assert_eq!(config.limits.workers, MAX_WORKERS);
+    config.limits.workers = MAX_WORKERS + 1;
+    let refused = config.validate().unwrap_err();
+    // The message spells the numbers out; they must stay the constants'.
+    let mib = |bytes: u64| format!("{} MiB", bytes / 1024 / 1024);
+    assert!(
+        refused.contains(&format!("over {MAX_WORKERS}"))
+            && refused.contains(&mib(MEMORY_BYTES))
+            && refused.contains(&mib(SERVICE_MEMORY_BYTES))
+            && refused.contains(&format!("set workers to {MAX_WORKERS}")),
+        "{refused}"
+    );
+    config.limits.workers = MAX_WORKERS;
+    assert!(config.validate().is_ok());
+    let unit = deploy_file("deploy/ember-reports.service");
+    assert!(
+        unit.contains(&format!(
+            "\nMemoryMax={}M\n",
+            SERVICE_MEMORY_BYTES / 1024 / 1024
+        )),
+        "MemoryMax must equal SERVICE_MEMORY_BYTES"
+    );
+    let example: serde_json::Value =
+        serde_json::from_str(&deploy_file("deploy/config.example.json")).unwrap();
+    assert_eq!(example["limits"]["workers"], MAX_WORKERS);
+    // setup.sh refuses a kept config.json over the bound before it installs.
+    assert!(deploy_file("deploy/setup.sh").contains(&format!("max_workers = {MAX_WORKERS}")));
+}
+
 fn deploy_file(path: &str) -> String {
     std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path)).unwrap()
 }

@@ -69,15 +69,17 @@ the text preview; the final **Send** confirmation repeats this warning
 whenever the dump is included. Full local dumps are never uploaded. Small
 dumps over 4 MiB are not offered. Raw dumps are kept on Ember's server for up
 to 30 days; processed reports and pending delivery have separate retention.
+If the upload with the dump runs out of time, is too large for the server or
+breaks off before the server's receipt arrives, the same report is sent once
+more without the dump, from a preview or without asking alike. It still counts
+once, and **Sent reports** shows that no dump went.
 
 Sending crash reports without asking is opt-in. **Settings > About > Problem reports >
 Send problem reports** defaults to off. Choosing **Always send** in the
 launcher's crash message, after its confirmation, turns it on and sends that
 crash's report. With it on, the launcher sends each crash's report without
 asking, with the small dump when the crash wrote one, and at most 3 reports in
-24 hours. A report whose dump is missing still goes, without it. If the
-upload with the dump runs out of time or is too large for the server, the same
-report is sent once more without the dump, and it still counts once. Every
+24 hours. A report whose dump is missing still goes, without it. Every
 report sent counts toward that limit, including ones sent from a preview, and
 while the record of sent reports cannot be read nothing is sent without
 asking. Turn it off on the same screen. The setting was saved under a new name

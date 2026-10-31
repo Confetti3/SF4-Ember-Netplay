@@ -47,8 +47,10 @@ It runs the normal build and local tests, packages the full ZIP and installer
 with SHA-256 sidecars. A Nightly build runs any failed CTest entry once more,
 one at a time; if it then passes, the receipt lists it under
 `testsPassedOnRerun` and the release notes name it. A second failure stops the
-publish, and Stable builds never rerun. Publication has four phases: prepare the artifacts,
-verify host staging, verify and publish the GitHub draft, then finish retention.
+publish, and Stable builds never rerun. The build runs `build-current.ps1 -Symbols`, and a
+receipt without Sidecar's Breakpad symbols stops the run before anything is packaged.
+Publication has four phases: prepare the artifacts (including the symbol archive), verify
+host staging and upload the symbols, verify and publish the GitHub draft, then finish retention.
 It keeps the newest 14 matching Nightlies; unrelated releases are excluded
 from both the changelog baseline and retention.
 The Nightly repository must exist with **one initial commit on its default
@@ -59,6 +61,9 @@ Prepare the [normal Windows build tools](BUILDING.md), authenticate `gh`, and
 set `SF4E_DISCORD_SDK_ARCHIVE`, `SF4E_VISUAL_STUDIO_PATH` (if discovery is
 insufficient) and `VCPKG_ROOT` in the task user's environment. WSL Ubuntu,
 user `kate`, needs the [Linux room-host prerequisites](../../server/roomhost/README.md).
+WSL Ubuntu also needs Mozilla `dump_syms` at exactly the pinned version
+(`cargo install dump_syms --locked --version 2.3.9`; `$EmberDumpSymsVersion` in
+`scripts/BuildProvenance.ps1`), checked before anything compiles.
 SSH alias `vps` must work with `BatchMode=yes`; `server1` is optional. If its
 initial probe succeeds, server1 becomes a required destination for that run
 and its retries.
@@ -124,9 +129,13 @@ when publishing.
 
 Before the first remote mutation, `dist/nightly-pending.json` records the
 label, clean source snapshot, artifact hashes, host destinations with their
-upload tokens, and a pinned copy of `stage-nightly-room-hosts.sh` (LF line
-endings, hashed, kept beside the room-host binaries). SSH always receives that
-pinned copy, never the checkout's script. An ordinary retry finishes this
+upload tokens, a pinned copy of `stage-nightly-room-hosts.sh` (LF line
+endings, hashed, kept beside the room-host binaries) and, as `symbols`, the
+symbol archive `dist/sf4-ember-netplay-<label>-symbols.zip` with its hash. SSH
+always receives the pinned copies, never the checkout's scripts. The record's
+`phase` is `prepared` until the room hosts are staged and the symbols uploaded,
+`staged` once both are confirmed, and `published` once the release is public;
+a retry continues from that phase. An ordinary retry finishes this
 recorded release using the same files and label, including after an uncertain
 draft/upload/publication result. It does not fetch or rebuild unfinished
 publication work, even with `-Force`. A retry checks once, at the start, that the
@@ -143,6 +152,21 @@ then cleanup again: the first cleanup removes whatever an interrupted attempt
 left in that exact directory. If the final cleanup fails after a successful
 commit, the run stops before publication and a retry repeats the staging.
 Cleanup is idempotent and never sweeps other temporary directories.
+
+The symbol archive is made once the package and installer have passed their
+checks: the build's symbol store (`build/current/symbols`, which the next
+`-Symbols` build replaces), a `symbols.json` with the channel, label, whole
+build receipt and every file's SHA-256, and the `install-symbols.sh` that
+installs it. It stays in `dist` as the release's lasting copy and is never a
+release asset. The Symbols step runs after host staging and before the draft:
+it unpacks the pinned archive, checks every file against `symbols.json` and
+installs them through the same cleanup, prepare, scp, commit and cleanup
+sequence as the room hosts (`Invoke-EmberStagedUpload`), into
+`/var/lib/ember-reports/symbols` as katie. Installing is idempotent, so a
+failed upload is simply repeated by the next run from the same archive, without
+a rebuild; the release is not announced until it succeeds. To upload an archive
+again by hand: `pwsh -File scripts/upload-symbols.ps1 -Label <label>` from the
+checkout that published it.
 
 GitHub publication reads the release and its tag, takes the one step the
 recorded release still needs (create the draft, remove an interrupted zero-byte
@@ -177,8 +201,10 @@ The draft, verify and publish steps are shared with Stable: `Publish-EmberReleas
 takes its repository, tag rules, pre-release flag and Latest handling from the
 record's channel (`nightly`, or `stable` for `scripts/github-release.ps1`), and the
 repository for a channel is fixed in `NightlyOperations.ps1`, never read from a
-parameter or the pending record. Retention, host staging and the pending state in
-`dist/nightly-pending.json` stay Nightly-only; a record without a channel is Nightly.
+parameter or the pending record. Stable's record (`dist/release-pending-<tag>.json`)
+uses the same phases and the same Symbols step. Retention, host staging and the
+pending state in `dist/nightly-pending.json` stay Nightly-only; a record without a
+channel is Nightly.
 
 `publish-nightly.ps1` only takes the lock, starts the transcript and calls
 `Invoke-NightlyPublish` in `NightlyOperations.ps1` with the build, package,

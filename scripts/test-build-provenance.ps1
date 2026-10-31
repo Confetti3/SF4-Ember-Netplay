@@ -90,9 +90,14 @@ $symbolBinaries = @(foreach ($name in 'Sidecar.dll', 'GGPO.dll', 'spdlog.dll', '
     [pscustomobject]@{path=$name;sha256=(Get-FileHash -LiteralPath $path).Hash}
 })
 $symbolRecord = 'FUNC 1000 10 0 main'
+$fakeVersion = 'dump_syms 2.3.9'
+$generated = 0
 $fakeDumpSyms = {
-    if ($args[0] -ceq '--version') { return 'dump_syms 2.3.9' }
+    if ($args[0] -ceq '--version') { return $fakeVersion }
     if ($args[0] -cne '-s' -or $args.Count -ne 3) { throw "Unexpected dump_syms arguments: $args" }
+    $script:generated++
+    # A line on stdout, as a later dump_syms might print: it must not reach the receipt.
+    'stray dump_syms stdout'
     $name = [IO.Path]::GetFileNameWithoutExtension($args[2])
     $directory = Join-Path $args[1] "$name.pdb/0123456789ABCDEF0123456789ABCDEF1"
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
@@ -101,7 +106,7 @@ $fakeDumpSyms = {
 $symbols = New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms
 $expectedModules = @('Sidecar', 'GGPO', 'spdlog', 'fmt', 'zlib1' | ForEach-Object { "$_.pdb/0123456789ABCDEF0123456789ABCDEF1" })
 if (($symbols.modules -join ',') -cne ($expectedModules -join ',') -or $symbols.generator -cne 'dump_syms 2.3.9' -or
-    $symbols.store -ne (Join-Path $symbolBuild 'symbols')) { throw "Symbols recorded wrongly: $($symbols | ConvertTo-Json)" }
+    $symbols.store -ne (Join-Path $symbolBuild 'symbols') -or $generated -ne 5) { throw "Symbols recorded wrongly: $($symbols | ConvertTo-Json)" }
 # The receipt as build-current.ps1 writes it and packaging reads it back.
 $symbolReceipt = [pscustomobject]@{symbols=$symbols} | ConvertTo-Json -Depth 4 | ConvertFrom-Json
 if ((Assert-ReceiptSymbols $symbolReceipt) -ne $symbols.store) { throw 'The receipt symbols were not accepted' }
@@ -110,13 +115,33 @@ function Expect-SymbolFailure([string]$Expected, [scriptblock]$Run) {
     try { & $Run | Out-Null; throw 'Unexpected acceptance' }
     catch { if ($_.Exception.Message -notlike $Expected) { throw } }
 }
+# Only the pinned dump_syms release makes symbols: another version is refused before anything is generated or the
+# previous store is removed, by New-EmberSymbols and by the preflight of a -Symbols build (Get-EmberDumpSyms, here
+# against a fake WSL).
+$fakeVersion = 'dump_syms 2.3.8'
+$generated = 0
+Expect-SymbolFailure "*has 'dump_syms 2.3.8'*cargo install dump_syms --locked --version 2.3.9" { New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms }
+if ($generated -or !(Test-Path -LiteralPath (Join-Path $symbols.store 'Sidecar.pdb'))) { throw 'An unsupported dump_syms generated symbols or removed the store' }
+function wsl {
+    $command = @($args | Select-Object -Skip 3)
+    $global:LASTEXITCODE = 0
+    if ($command[0] -ceq 'printenv') { return '/home/fixture' }
+    if ($command[0] -ceq 'test') { return }
+    if ($command[0] -ceq '/home/fixture/.cargo/bin/dump_syms' -and $command[1] -ceq '--version') { return $fakeVersion }
+    throw "Unexpected wsl call: $args"
+}
+Expect-SymbolFailure "*has 'dump_syms 2.3.8'*--version 2.3.9" { Get-EmberDumpSyms }
+$fakeVersion = 'dump_syms 2.3.9'
+if ((Get-EmberDumpSyms) -isnot [scriptblock]) { throw 'The pinned dump_syms was not accepted at preflight' }
+Remove-Item Function:wsl
+Write-Output 'PASS only the pinned dump_syms version makes symbols, refused before generation and at build preflight'
 $symbolRecord = 'PUBLIC 1000 0 main'
 Expect-SymbolFailure 'dump_syms wrote no functions for Sidecar.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms }
 $symbolRecord = 'FUNC 1000 10 0 main'
 [IO.File]::WriteAllText((Join-Path $vcpkgBin 'GGPO.dll'), 'another build')
 Expect-SymbolFailure '*is not the staged GGPO.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms }
 [IO.File]::WriteAllText((Join-Path $vcpkgBin 'GGPO.dll'), 'fixture GGPO.dll')
-Expect-SymbolFailure 'dump_syms wrote no symbol file for Sidecar.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries {} }
+Expect-SymbolFailure 'dump_syms wrote no symbol file for Sidecar.dll*' { New-EmberSymbols $symbolBuild $symbolBinaries { if ($args[0] -ceq '--version') { $fakeVersion } } }
 $symbols = New-EmberSymbols $symbolBuild $symbolBinaries $fakeDumpSyms
 foreach ($receipt in @([pscustomobject]@{symbols=$null}, [pscustomobject]@{sourceRoot='predates the field'},
     [pscustomobject]@{symbols=[pscustomobject]@{store=$symbols.store;modules=@($expectedModules | Select-Object -Skip 1)}})) {

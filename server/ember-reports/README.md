@@ -109,8 +109,10 @@ supply one parseable `X-Real-IP`; otherwise the transport address is used.
 nginx overwrites that header. The in-memory address table has 4096 entries and
 refuses new addresses while full. No address is persisted or logged.
 
-Four requests upload/process at once; 32 wait without reading their bodies;
-the 37th gets 503. Queue waiting expires after 60 s and upload after 20 s.
+Two requests (`workers`) upload/process at once; 32 wait without reading their
+bodies; the 35th gets 503. `workers` may be lowered but never raised above 2:
+each walk may use 512 MiB of the unit's 1536 MiB (`worker::MAX_WORKERS`), and
+the service refuses to start with more. Queue waiting expires after 60 s and upload after 20 s.
 The complete body, including multipart epilogue, is bounded and read before
 validation; axum and an HTTP body layer also enforce the cap. After upload,
 bounded processing/storage completes even if the client disconnects. Worker

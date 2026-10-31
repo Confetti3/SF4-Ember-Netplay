@@ -13,7 +13,7 @@ try {
     $existingTags = @("v$baseLabel", "v$baseLabel.2")
     if ((Get-NightlyLabel $baseLabel $existingTags $outDirectory) -cne "$baseLabel.3") { throw 'Remote tag collisions were not skipped' }
     $existingTags = @()
-    foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256')) {
+    foreach ($extension in @('', '.zip', '.zip.sha256', '-setup.exe', '-setup.exe.sha256', '-symbols.zip')) {
         $fixture = Join-Path $outDirectory "sf4-ember-netplay-$baseLabel$extension"
         $fixtures += $fixture
         if (!$extension) {

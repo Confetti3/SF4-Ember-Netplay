@@ -4,6 +4,8 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 . (Join-Path $PSScriptRoot 'NightlyOperations.ps1')
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
+# Assert-ReceiptSymbols; the receipt checks and the fingerprint are faked below.
+. (Join-Path $PSScriptRoot 'BuildProvenance.ps1')
 $originalCulture = [cultureinfo]::CurrentCulture
 try {
     # A day-first culture for the whole run: nothing here may depend on the build PC's date format.
@@ -102,7 +104,8 @@ try {
         $script:currentBranch = 'nightly'
         $script:showFails = $false
         $script:gameRunning = $false
-        $script:receipt = [pscustomobject]@{sourceFingerprint=$snapshot.fingerprint;baseRevision=$snapshot.revision}
+        $script:receipt = [pscustomobject]@{sourceFingerprint=$snapshot.fingerprint;baseRevision=$snapshot.revision;symbols=$symbolReceipt}
+        $script:installedSymbols = @{}
         if (Test-Path -LiteralPath $dist) { Remove-Item -LiteralPath $dist -Recurse }
         New-Item -ItemType Directory -Path $dist | Out-Null
     }
@@ -144,6 +147,24 @@ try {
             if (!$script:serverAvailable) { throw 'server unavailable' }
             return
         }
+        if ($Command -eq 'ssh' -and $Arguments[-1] -match '^bash -s -- (stable|nightly) (\S+) (prepare|commit|cleanup)$') {
+            $channel, $label, $operation = $Matches[1], $Matches[2], $Matches[3]
+            Check ($Arguments[-2] -ceq 'vps') 'Symbols went to another host'
+            Check ($InputText -ceq $script:expectedInstaller) 'SSH did not receive the archived symbol installer'
+            $key = "vps:/var/lib/ember-reports/symbols/.incoming-$channel-$label/"
+            if ($operation -eq 'prepare') {
+                Check (!$script:remoteUploads.ContainsKey($key)) 'Symbol retry did not remove the abandoned upload'
+                $script:remoteUploads[$key] = @()
+            } elseif ($operation -eq 'cleanup') {
+                $previous = $script:commands[$script:commands.Count - 2]
+                if ($script:failCleanupAfter -and "$($previous.command) $($previous.argv -join ' ')" -like $script:failCleanupAfter) { throw 'injected upload cleanup failure' }
+                $script:remoteUploads.Remove($key)
+                return
+            }
+            if ($script:failOn -and $text -like $script:failOn) { $script:failOn = ''; throw 'injected staging failure' }
+            if ($operation -eq 'commit') { $script:installedSymbols["$channel-$label"] = @($script:remoteUploads[$key]); $script:remoteUploads.Remove($key) }
+            return
+        }
         if ($Command -in @('ssh', 'scp')) {
             if ($Command -eq 'ssh') {
                 Check ($Arguments[-1] -match '^bash -s -- (ember-rooms(?:-box)?) ([0-9a-f]{64}) [0-9a-f]{64} [0-9a-f]{64} ([0-9a-f]{32}) (prepare|commit|cleanup)$') 'Unexpected host staging command'
@@ -165,7 +186,9 @@ try {
             } else {
                 $key = $Arguments[-1]
                 Check ($script:remoteUploads.ContainsKey($key)) 'Upload directory was not prepared'
-                $script:remoteUploads[$key] = @('partial host bytes')
+                $sources = @($Arguments | Select-Object -Skip 3 | Select-Object -SkipLast 1)
+                Check ($Arguments[2] -ceq '-r' -and $sources.Count -and !@($sources | Where-Object { !(Test-Path -LiteralPath $_) }).Count) 'scp did not copy existing local files'
+                $script:remoteUploads[$key] = @($sources | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object)
             }
             if ($script:failOn -and $text -like $script:failOn) { $script:failOn = ''; throw 'injected staging failure' }
             if ($Command -eq 'ssh' -and $operation -eq 'commit') { $script:remoteUploads.Remove($key) }
@@ -320,6 +343,7 @@ try {
             assets=@(Get-NightlyArtifact $assetPath);notes=(Get-NightlyArtifact $notesPath);
             binaries=@((Get-NightlyArtifact $hostPath), (Get-NightlyArtifact $netPath));
             stagingScript=(Get-NightlyArtifact $stagerPath);
+            symbols=(Save-EmberSymbolArchive $source $script:receipt 'nightly' '1.2.0-nightly20261008' $dist);
             destinations=@([pscustomobject]@{hostName='vps';root='ember-rooms';uploadToken=[Guid]::NewGuid().ToString('N')},
                            [pscustomobject]@{hostName='server1';root='ember-rooms-box';uploadToken=[Guid]::NewGuid().ToString('N')})}
         Save-NightlyState $statePath $pending
@@ -351,6 +375,23 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $source 'scripts') -Force | Out-Null
     Write-Fixture (Join-Path $source 'CMakeLists.txt') "project(SF4E`n    VERSION 1.2.0`n)`n"
     Write-Fixture (Join-Path $source 'scripts/stage-nightly-room-hosts.sh') "#!/usr/bin/env bash`r`n# inert checkout staging fixture`r`n"
+    # The symbol installer the archive carries, with LF endings whatever the checkout has; and the build's symbols.
+    New-Item -ItemType Directory -Path (Join-Path $source 'server/ember-reports/deploy') -Force | Out-Null
+    Write-Fixture (Join-Path $source 'server/ember-reports/deploy/install-symbols.sh') "#!/usr/bin/env bash`r`n# inert symbol installer fixture`r`n"
+    $script:expectedInstaller = "#!/usr/bin/env bash`n# inert symbol installer fixture`n"
+    $symbolStore = Join-Path $fixture 'symbols'
+    $symbolModules = @('Sidecar.pdb/0123456789ABCDEF0123456789ABCDEF1', 'GGPO.pdb/FEDCBA9876543210FEDCBA98765432101')
+    foreach ($module in $symbolModules) {
+        New-Item -ItemType Directory -Path (Join-Path $symbolStore $module) -Force | Out-Null
+        $name = $module.Split('.')[0]
+        Write-Fixture (Join-Path $symbolStore "$module/$name.sym") "MODULE windows x86 $($module.Split('/')[1]) $name.pdb`nFUNC 1000 10 0 main`n"
+    }
+    $symbolReceipt = [pscustomobject]@{store=$symbolStore;generator='dump_syms 2.3.9';modules=$symbolModules}
+    $symbolLabel = 'nightly-1.2.0-nightly20261008'
+    function Get-SymbolPhases([string]$Channel, [int]$Skip = 0) {
+        @($script:commands | Select-Object -Skip $Skip | Where-Object { $_.command -in @('ssh', 'scp') -and ($_.argv -join ' ') -match "(-- $Channel |symbols/)" } |
+            ForEach-Object { if ($_.command -eq 'scp') { 'scp' } else { ($_.argv[-1] -split ' ')[-1] } }) -join ','
+    }
     function Add-Step([string]$Name) { $script:commands.Add([pscustomobject]@{command='op';argv=@($Name);inputText=''}) }
     $operations = @{
         Target = { param($Root) [pscustomobject]@{channel='nightly';branch='nightly';githubRepo=$repository;buildDirectory='build';installDirectory='build/stage'} }
@@ -431,8 +472,9 @@ try {
             Resume-Pending
             Check (!$script:remoteReleases[$pending.tag].draft -and !(Test-Path $statePath)) 'Staging retry did not finish same artifact identity'
             $scpCalls = @($script:commands | Where-Object command -eq 'scp')
-            Check (@($scpCalls | Where-Object { $_.argv[-1] -notmatch '/\.incoming-[0-9a-f]{64}-[0-9a-f]{32}/$' }).Count -eq 0) 'scp wrote into scanned builds'
-            $vps = @($script:commands | Select-Object -Skip $before | Where-Object { $_.command -in @('ssh', 'scp') -and ($_.argv -join ' ') -match '\bvps\b' } |
+            Check (@($scpCalls | Where-Object { $_.argv[-1] -notmatch '(/\.incoming-[0-9a-f]{64}-[0-9a-f]{32}|^vps:/var/lib/ember-reports/symbols/\.incoming-nightly-1\.2\.0-nightly20261008)/$' }).Count -eq 0) 'scp wrote into scanned builds'
+            Check ((Get-SymbolPhases 'nightly' $before) -ceq 'cleanup,prepare,scp,commit,cleanup') "Symbol order was $(Get-SymbolPhases 'nightly' $before)"
+            $vps = @($script:commands | Select-Object -Skip $before | Where-Object { $_.command -in @('ssh', 'scp') -and ($_.argv -join ' ') -match '\bvps\b.*ember-rooms' } |
                 ForEach-Object { if ($_.command -eq 'scp') { 'scp' } else { ($_.argv[-1] -split ' ')[-1] } })
             Check (($vps -join ',') -ceq 'cleanup,prepare,scp,commit,cleanup') "Staging order was $($vps -join ',')"
         }
@@ -501,7 +543,7 @@ try {
         $pending.stagingScript = $null
         Save-NightlyState $statePath $pending
         Resume-Pending
-        Check (@($script:commands | Where-Object command -in @('ssh','scp')).Count -eq 0) 'Skipped host preparation performed staging'
+        Check (!(Test-Ran '*ember-rooms*') -and $script:installedSymbols.ContainsKey($symbolLabel)) 'Skipped host preparation performed staging, or skipped the symbols'
         Pass 'callable publication requires the staged phase and host work requires its VPS destination and staging script'
 
         Reset-Fake
@@ -702,6 +744,7 @@ try {
             'gh release list *', 'gh api repos/*/git/matching-refs/tags/v1.2.0-nightly20261008 *', 'git * fetch origin release',
             'git * log *', 'op Build', 'op Package', 'op Installer', 'git * archive *', 'op LinuxBuild', 'ssh * server1 true',
             'ssh *vps* cleanup', 'ssh *vps* prepare', 'scp *', 'ssh *vps* commit', 'ssh *server1* commit',
+            'ssh *vps bash -s -- nightly 1.2.0-nightly20261008 prepare', 'scp *symbols*', 'ssh *vps bash -s -- nightly 1.2.0-nightly20261008 commit',
             'gh release create v1.2.0-nightly20261008 *', 'gh release upload *', 'gh release edit *')
         $last = -1
         foreach ($pattern in $order) {
@@ -711,6 +754,8 @@ try {
         }
         $release = $script:remoteReleases['v1.2.0-nightly20261008']
         Check (!$release.draft -and @($release.assets).Count -eq 4 -and !(Test-Path $statePath)) 'Fresh run did not publish its four assets'
+        Check (($script:installedSymbols[$symbolLabel] -join ',') -ceq 'GGPO.pdb,Sidecar.pdb') 'The Symbols step did not install the build''s symbols'
+        Check (@($release.assets | Where-Object name -like '*symbols*').Count -eq 0) 'The symbol archive became a release asset'
         Check ($release.body -like "*Source: $($snapshot.revision)*- Fix a fixture bug*") 'Release notes lack the source and subjects'
         Check ($release.body -notlike '*run once more*') 'Release notes name a rerun the build did not have'
         Check ($script:fingerprintCalls -eq 2) "Fresh run fingerprinted the source $($script:fingerprintCalls) times"
@@ -726,11 +771,70 @@ try {
         Check (!(Test-Ran 'ssh *') -and !(Test-Ran 'scp *')) 'Dry run reached a host'
         Check (!(Test-Ran 'gh release create*') -and !(Test-Ran 'gh release delete*') -and !(Test-Ran 'gh api --method*')) 'Dry run changed GitHub'
         Check (!(Test-Path $statePath) -and $script:remoteReleases.Count -eq 0) 'Dry run left a pending record or release'
-        Pass 'a dry run prepares everything locally and records or changes nothing remote'
+        Check (Test-Path -LiteralPath (Get-EmberSymbolArchivePath $dist '1.2.0-nightly20261008')) 'Dry run did not keep the symbol archive'
+        Pass 'a dry run prepares everything locally, the symbol archive too, and records or changes nothing remote'
+
+        # The Symbols step after the room hosts and before the release: a failed upload leaves the record prepared
+        # with nothing announced, and the next run finishes from the recorded package and archive.
+        Reset-Fake
+        $script:expectedStager = "#!/usr/bin/env bash`n# inert checkout staging fixture`n"
+        $script:failOn = 'ssh * nightly * commit'
+        Reject { Invoke-Publish } '*Could not install the uploaded nightly 1.2.0-nightly20261008 symbols*injected staging failure*'
+        $record = Get-Content $statePath -Raw | ConvertFrom-Json
+        Check ($record.phase -ceq 'prepared' -and $record.symbols.path -ceq (Get-EmberSymbolArchivePath $dist '1.2.0-nightly20261008')) 'A failed symbol upload lost the prepared record or its archive'
+        Check ($script:remoteReleases.Count -eq 0 -and $script:remoteUploads.Count -eq 0) 'A failed symbol upload announced the release or left its upload'
+        $archiveHash = $record.symbols.sha256
+        Invoke-Publish
+        Check (@(Get-CommandLabels | Where-Object { $_ -in @('op Build', 'op Package', 'op Installer') }).Count -eq 3) 'The retry rebuilt or repackaged'
+        Check ((Get-NightlyArtifact $record.symbols.path).sha256 -ceq $archiveHash -and ($script:installedSymbols[$symbolLabel] -join ',') -ceq 'GGPO.pdb,Sidecar.pdb') 'The retry did not upload the recorded archive'
+        Check (!$script:remoteReleases['v1.2.0-nightly20261008'].draft -and !(Test-Path $statePath)) 'The retry did not publish'
+        Pass 'a symbol upload that fails once leaves the release unannounced, and the next run completes from the recorded package and archive'
+
+        Reset-Fake
+        $pending = New-Pending
+        $script:failOn = 'ssh * nightly * commit'
+        $script:failCleanupAfter = 'ssh * nightly * commit'
+        Reject { Resume-Pending 3>$null } '*Could not install the uploaded*injected staging failure*'
+        $script:failCleanupAfter = ''
+        Resume-Pending
+        Check ($script:remoteUploads.Count -eq 0 -and !$script:remoteReleases[$pending.tag].draft) 'The symbol retry left its upload or did not publish'
+        Reset-Fake
+        $pending = New-Pending
+        Set-Content -LiteralPath $pending.symbols.path -Value 'changed after preparation'
+        Reject { Resume-Pending } '*Prepared artifact changed*'
+        Check (@($script:commands | Where-Object command -in @('ssh', 'scp')).Count -eq 0) 'A changed symbol archive reached a host'
+        Reset-Fake
+        $pending = New-Pending
+        $pending.symbols = $null
+        Save-NightlyState $statePath $pending
+        Reject { Resume-Pending } '*must include its symbol archive*'
+        Check (@($script:commands | Where-Object command -in @('ssh', 'scp')).Count -eq 0) 'A record without its symbol archive reached a host'
+        Pass 'a failed cleanup never hides the failed symbol install, and a changed or missing archive stops before any host'
+
+        # The archive holds exactly what its manifest lists; a manual upload of a rewritten one, or of another
+        # channel's, stops before any host.
+        Reset-Fake
+        $archive = Save-EmberSymbolArchive $source $script:receipt 'nightly' '1.2.0-nightly20261008' $dist
+        Reject { Save-EmberSymbolArchive $source $script:receipt 'nightly' '1.2.0-nightly20261008' $dist } '*Symbol archive already exists*'
+        Reject { Publish-EmberSymbols $archive 'stable' '1.2.0-nightly20261008' } '*is for nightly 1.2.0-nightly20261008, not stable*'
+        $zip = [IO.Compression.ZipFile]::Open($archive.path, 'Update')
+        try {
+            $entry = $zip.GetEntry('Sidecar.pdb/0123456789ABCDEF0123456789ABCDEF1/Sidecar.sym')
+            $stream = $entry.Open()
+            try { $stream.SetLength(0); $stream.Write([byte[]](65, 10), 0, 2) } finally { $stream.Dispose() }
+        } finally { $zip.Dispose() }
+        Reject { Publish-EmberSymbols (Get-NightlyArtifact $archive.path) 'nightly' '1.2.0-nightly20261008' } '*Symbol archive entry changed: Sidecar.pdb/*'
+        Check (@($script:commands | Where-Object command -in @('ssh', 'scp')).Count -eq 0) 'A wrong or rewritten archive reached a host'
+        Reset-Fake
+        $script:receipt.symbols = $null
+        Reject { Invoke-Publish } '*no Sidecar symbols*'
+        Check ((Test-Ran 'op Build') -and !(Test-Ran 'op Package')) 'A build without symbols reached packaging'
+        Pass 'a receipt without symbols stops before packaging, and an archive must match its manifest, channel and label'
 
         Reset-Fake
         Invoke-Publish @{SkipRoomHosts=$true}
-        Check (!(Test-Ran 'op LinuxBuild') -and !(Test-Ran 'git * archive *') -and !(Test-Ran 'ssh *') -and !(Test-Ran 'scp *')) 'Skipped room hosts were built or staged'
+        Check (!(Test-Ran 'op LinuxBuild') -and !(Test-Ran 'git * archive *') -and !(Test-Ran '*ember-rooms*') -and !(Test-Ran 'ssh * server1 true')) 'Skipped room hosts were built or staged'
+        Check ($script:installedSymbols.ContainsKey($symbolLabel)) 'A run without room hosts skipped the symbols'
         Check (!$script:remoteReleases['v1.2.0-nightly20261008'].draft -and !(Test-Path $statePath)) 'A run without room hosts did not publish'
         Pass 'a run without room hosts publishes without building, pinning or staging them'
 
@@ -884,6 +988,7 @@ try {
         Initialize-Stable
         Invoke-Stable
         $order = @('git * status *', 'gh api graphql *', 'gh release view v1.1.0 *', 'op Package', 'op Upgrade', 'op Installer',
+            'ssh *vps bash -s -- stable 1.2.0 prepare', 'scp *symbols*', 'ssh *vps bash -s -- stable 1.2.0 commit',
             'gh release create v1.2.0 *', 'gh release upload *', 'gh release edit v1.2.0 *')
         $last = -1
         foreach ($pattern in $order) {
@@ -899,8 +1004,24 @@ try {
         Check ($release.name -ceq 'SF4 Ember Netplay v1.2.0' -and $release.body -ceq 'Stable fixture notes') 'Stable title or notes changed'
         Check (!(Test-Path $stablePending)) 'A finished Stable release left its pending record'
         Check ($script:lastNotesFile -and !(Test-Path -LiteralPath $script:lastNotesFile)) 'The private notes copy was left behind'
-        Check (!(Test-Ran 'ssh *') -and !(Test-Ran 'scp *') -and !(Test-Ran 'gh api --method*') -and !(Test-Ran 'gh release delete*') -and !(Test-Ran 'gh release list*')) 'Stable publication staged hosts or ran retention'
-        Pass 'Stable publishes through draft, upload, read-back and publish; Latest is set only at publish and retention is not involved'
+        Check (!(Test-Ran '*ember-rooms*') -and !(Test-Ran 'gh api --method*') -and !(Test-Ran 'gh release delete*') -and !(Test-Ran 'gh release list*')) 'Stable publication staged hosts or ran retention'
+        Check (($script:installedSymbols['stable-1.2.0'] -join ',') -ceq 'GGPO.pdb,Sidecar.pdb' -and (Test-Path -LiteralPath (Get-EmberSymbolArchivePath $dist '1.2.0'))) 'Stable did not archive and install its symbols'
+        Check (@($release.assets | Where-Object name -like '*symbols*').Count -eq 0) 'The Stable symbol archive became a release asset'
+        Pass 'Stable archives and uploads its symbols, then publishes through draft, upload, read-back and publish; Latest is set only at publish and retention is not involved'
+
+        Initialize-Stable
+        $script:failOn = 'ssh * stable * commit'
+        Reject { Invoke-Stable } '*Could not install the uploaded stable 1.2.0 symbols*injected staging failure*'
+        $record = Get-Content $stablePending -Raw | ConvertFrom-Json
+        Check ($record.phase -ceq 'prepared' -and $record.symbols.sha256 -and $script:remoteReleases.Count -eq 1) 'A failed Stable symbol upload lost its record or reached the release'
+        Invoke-Stable
+        Check (@(Get-CommandLabels | Where-Object { $_ -like 'op Package' }).Count -eq 1 -and ($script:installedSymbols['stable-1.2.0'] -join ',') -ceq 'GGPO.pdb,Sidecar.pdb') 'The Stable retry repackaged or skipped the symbols'
+        Check (!$script:remoteReleases['v1.2.0'].draft -and !(Test-Path $stablePending)) 'The Stable retry did not publish'
+        Initialize-Stable
+        $script:receipt.symbols = $null
+        Reject { Invoke-Stable } '*no Sidecar symbols*'
+        Check (!(Test-Ran 'op *') -and !(Test-Ran 'gh release create*')) 'A Stable build without symbols reached packaging'
+        Pass 'a Stable symbol upload that fails once is finished by the next run without repackaging, and a build without symbols is refused before packaging'
 
         Initialize-Stable 'v1.2.0-rc1'
         Invoke-Stable 'v1.2.0-rc1' ''
@@ -1000,7 +1121,7 @@ try {
         $workspace = Join-Path $fixture 'workspace'
         $nightlyScripts = Join-Path $workspace 'sf4-nightly/scripts'
         New-Item -ItemType Directory -Path $nightlyScripts -Force | Out-Null
-        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'Packaging.ps1', 'PackageGuide.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
+        foreach ($name in @('github-release.ps1', 'BuildEnvironment.ps1', 'NightlyOperations.ps1', 'SymbolPublication.ps1', 'Packaging.ps1', 'PackageGuide.ps1', 'PackageFiles.ps1', 'BuildProvenance.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $nightlyScripts }
         @{sourceDirectory='sf4-current';buildDirectory='build/current';installDirectory='build/current/stage';
           channels=@{nightly=@{sourceDirectory='sf4-nightly';buildDirectory='build/current';installDirectory='build/current/stage';branch='nightly';githubRepo=$repository}}} |
             ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $workspace 'build-target.json')

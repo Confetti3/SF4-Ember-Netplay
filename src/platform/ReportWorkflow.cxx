@@ -94,42 +94,99 @@ std::string ReasonCode(const std::string& body) {
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; })) return {};
     return reason;
 }
+// How one upload ended. A complete answer (the intake's 202, PostReport) is
+// Received. Otherwise a cancel comes first, then a 429. A transfer that ran
+// out of time is TimedOut even when its status line had already arrived, and
+// a 202 whose answer did not arrive whole is Incomplete: without the receipt
+// the report counts as not delivered. Any other status is Refused.
+enum class Outcome { Received, Cancelled, RateLimited, TimedOut, Incomplete, Refused, NoConnection };
+Outcome Classify(const HttpResponse& answer, bool cancelled) {
+    if (answer.request.ok) return Outcome::Received;
+    if (answer.cancelled || cancelled) return Outcome::Cancelled;
+    if (answer.request.statusCode == 429) return Outcome::RateLimited;
+    if (answer.request.error == HttpErrorKind::Timeout) return Outcome::TimedOut;
+    if (answer.request.statusCode == 202) return Outcome::Incomplete;
+    return answer.request.statusCode > 0 ? Outcome::Refused : Outcome::NoConnection;
+}
 // Sends `multipart` once, reads the answer into the state and the record and
 // returns it.
 HttpResponse Upload(const Multipart& multipart, WorkflowState& state, Record& record, const std::function<bool()>& cancelled,
     const WorkflowDependencies& dependencies) {
     const auto uploaded = dependencies.upload ? dependencies.upload(multipart, cancelled) :
         HttpPostReport(ReportIntakeHost, multipart.contentType, multipart.body, cancelled);
-    if (uploaded.request.ok) {
+    switch (const auto outcome = Classify(uploaded, cancelled && cancelled())) {
+    case Outcome::Received: {
         const auto answer = nlohmann::json::parse(uploaded.body, nullptr, false);
         const auto id = answer.is_object() && answer.contains("id") && answer["id"].is_string() ? answer["id"].get<std::string>() : std::string();
         record.status = Status::Received;
         if (ValidId(id)) {
             state.id = record.id = id; state.phase = Phase::Sent; state.message = loc::Tf("reports.sent", id);
         } else { state.phase = Phase::Failed; state.message = loc::T("reports.invalid_response"); record.reason = "no_id"; }
-    } else if (uploaded.cancelled || (cancelled && cancelled())) {
+        break;
+    }
+    case Outcome::Cancelled:
         state.phase = Phase::Cancelled; state.message = loc::T("reports.cancelled");
         record.status = Status::NotSent; record.reason = "cancelled";
-    } else if (uploaded.request.statusCode == 429) {
+        break;
+    case Outcome::RateLimited: {
         const auto seconds = RetrySeconds(uploaded.retryAfter);
         state.phase = Phase::Retry; state.retryAt = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
         state.message = loc::Tf("reports.rate_limited", seconds);
         record.status = Status::Refused; record.reason = "rate_limit";
-    } else {
+        break;
+    }
+    case Outcome::Refused:
         state.phase = Phase::Failed;
         state.message = loc::T(uploaded.request.statusCode == 503 ? "reports.unavailable" : "reports.failed");
-        if (uploaded.request.statusCode > 0) {
-            record.status = Status::Refused; record.reason = ReasonCode(uploaded.body);
-            if (record.reason.empty()) record.reason = "http_" + std::to_string(uploaded.request.statusCode);
-        } else { record.status = Status::NotSent; record.reason = uploaded.request.error == HttpErrorKind::Timeout ? "timeout" : "no_connection"; }
+        record.status = Status::Refused; record.reason = ReasonCode(uploaded.body);
+        if (record.reason.empty()) record.reason = "http_" + std::to_string(uploaded.request.statusCode);
+        break;
+    case Outcome::TimedOut: case Outcome::Incomplete: case Outcome::NoConnection:
+        state.phase = Phase::Failed; state.message = loc::T("reports.failed");
+        record.status = Status::NotSent;
+        record.reason = outcome == Outcome::TimedOut ? "timeout" : outcome == Outcome::Incomplete ? "incomplete" : "no_connection";
+        break;
     }
     return uploaded;
 }
-// The upload ran out of time or was too large for the intake: without the
-// dump the same report may still get through.
-bool DumpInTheWay(const HttpResponse& answer) {
-    return !answer.cancelled && (answer.request.statusCode == 408 || answer.request.statusCode == 413 ||
-        (answer.request.statusCode == 0 && answer.request.error == HttpErrorKind::Timeout));
+// The intake ran out of time for the body (408) or found it too large (413),
+// the transfer timed out, or the receipt never arrived whole: without the dump
+// the same report may still get through. A cancel or a 429 is never the dump.
+bool DumpInTheWay(const HttpResponse& answer, bool cancelled) {
+    switch (Classify(answer, cancelled)) {
+    case Outcome::TimedOut: case Outcome::Incomplete: return true;
+    case Outcome::Refused: return answer.request.statusCode == 408 || answer.request.statusCode == 413;
+    default: return false;
+    }
+}
+// A report as it goes: with the small dump when the submission asks for it and
+// the report has one, or without it when the dump alone stops the build (its
+// bytes may hold the boundary). Nothing when it cannot be built at all.
+struct Outgoing { Multipart multipart; bool dump = false; };
+std::optional<Outgoing> Build(const Report& report, Submission submission) {
+    for (bool dump = submission.includeDump && !report.minidump.empty();; dump = false) {
+        Outgoing outgoing; std::string error;
+        outgoing.dump = submission.includeDump = dump;
+        if (BuildMultipart(report, submission, Boundary(), outgoing.multipart, error)) return outgoing;
+        if (!dump) return std::nullopt;
+    }
+}
+// Sends `outgoing` and settles `record`, the counted attempt, from the answer.
+// When the dump kept the report out (DumpInTheWay), the same report goes once
+// more without it, as the same counted send; sending less than the player
+// allowed is always within their consent. Should that build fail, the first
+// answer stands. The automatic send and the one from the preview both go here.
+void Send(const Outgoing& outgoing, const Report& report, Submission submission, Record& record, WorkflowState& state,
+    const std::function<bool()>& cancelled, const WorkflowDependencies& dependencies) {
+    const Record attempt = record;
+    record.dump = outgoing.dump;
+    const auto answer = Upload(outgoing.multipart, state, record, cancelled, dependencies);
+    if (!outgoing.dump || !DumpInTheWay(answer, cancelled && cancelled())) return;
+    submission.includeDump = false;
+    if (const auto lighter = Build(report, submission)) {
+        record = attempt; record.dump = false;
+        Upload(lighter->multipart, state, record, cancelled, dependencies);
+    }
 }
 }
 bool ReportWorkflow::Begin(const Operation& operation, WorkflowState& state) {
@@ -223,35 +280,23 @@ WorkflowState ReportWorkflow::Execute(const Operation& operation, WorkflowState 
             auto report = collect(Preparation{automatic->crash, automatic->channel}, who.account);
             if (isCancelled()) { notSent("cancelled"); cancel(); return state; }
             state.preview = std::make_shared<const Report>(std::move(report));
-            // Sends the report, and says whether that settled it. It is sent
-            // once more without the dump when the dump alone keeps it out:
-            // refused as it is built, or too slow or too large for the intake.
-            // Both tries are the one counted send.
+            const Submission send{std::string(), true, state.preview};
+            const auto outgoing = Build(*state.preview, send);
+            if (!outgoing) { notSent("invalid"); state.phase = Phase::Failed; state.message = loc::T("reports.invalid"); return state; }
             Record record = attempt;
-            const auto settled = [&](bool withDump) {
-                Multipart multipart; std::string error;
-                if (!BuildMultipart(*state.preview, Submission{std::string(), withDump, state.preview}, Boundary(), multipart, error)) return false;
-                record = attempt; record.dump = withDump && !state.preview->minidump.empty();
-                const auto answer = Upload(multipart, state, record, cancelled, dependencies);
-                return !record.dump || !DumpInTheWay(answer) || isCancelled();
-            };
-            if (!settled(true) && !settled(false)) {
-                notSent("invalid"); state.phase = Phase::Failed; state.message = loc::T("reports.invalid"); return state;
-            }
+            Send(*outgoing, *state.preview, send, record, state, cancelled, dependencies);
             finish(record);
             return state;
         }
         const auto& submission = std::get<Submission>(operation);
-        Multipart multipart; std::string error;
         // Revalidate at the actual upload boundary, even if Begin accepted it.
-        if (!SamePreview(state, submission) || !BuildMultipart(*state.preview, submission, Boundary(), multipart, error)) {
-            state.phase = Phase::Failed; state.message = loc::T("reports.invalid"); return state;
-        }
+        std::optional<Outgoing> outgoing;
+        if (SamePreview(state, submission)) outgoing = Build(*state.preview, submission);
+        if (!outgoing) { state.phase = Phase::Failed; state.message = loc::T("reports.invalid"); return state; }
         if (isCancelled()) { cancel(); return state; }
         // Counted before the upload starts. A record that cannot be read
         // already stops every automatic send, so this one goes uncounted.
-        Record attempt; attempt.kind = state.preview->meta.kind;
-        attempt.dump = submission.includeDump && !state.preview->minidump.empty();
+        Record attempt; attempt.kind = state.preview->meta.kind; attempt.dump = outgoing->dump;
         const auto reservation = history->Reserve(attempt, false, Now());
         if (reservation == Reservation::Failed || reservation == Reservation::LimitReached) {
             state.phase = Phase::Failed; state.message = loc::T("reports.history_failed"); return state;
@@ -259,7 +304,7 @@ WorkflowState ReportWorkflow::Execute(const Operation& operation, WorkflowState 
         if (reservation == Reservation::Reserved) reserved = attempt;
         else attempt.time = Now();
         Record record = attempt;
-        Upload(multipart, state, record, cancelled, dependencies);
+        Send(*outgoing, *state.preview, submission, record, state, cancelled, dependencies);
         finish(record);
     } catch (...) {
         notSent(isCancelled() ? "cancelled" : "failed");

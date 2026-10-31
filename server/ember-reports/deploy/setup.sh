@@ -26,13 +26,22 @@ done
 [[ -f "$SITE" ]] || { echo "Missing HTTPS site $SITE." >&2; exit 1; }
 getent passwd katie >/dev/null || { echo "Owner account katie does not exist." >&2; exit 1; }
 for tool in python3 nginx systemctl curl; do command -v "$tool" >/dev/null; done
-# Check without printing the key, even on validation failure.
-python3 - "$KEY" "$SRC/config.example.json" <<'PY'
+# Check without printing the key, even on validation failure. A kept
+# config.json must also fit the service's memory: each symbolicate worker may
+# use 512 MiB of MemoryMax=1536M (worker.rs MAX_WORKERS), and the service
+# refuses to start with more, so stop here, before anything is replaced.
+python3 - "$KEY" "$SRC/config.example.json" "$ETC/config.json" <<'PY'
 import json, pathlib, re, sys
 key = pathlib.Path(sys.argv[1]).read_bytes()
 if len(key) > 256 or not re.fullmatch(rb'[A-Za-z0-9]{1,128}\s*', key):
     sys.exit('Invalid credential file.')
 json.loads(pathlib.Path(sys.argv[2]).read_text())
+max_workers = 2
+kept = pathlib.Path(sys.argv[3])
+if kept.exists():
+    workers = json.loads(kept.read_text()).get('limits', {}).get('workers', max_workers)
+    if not isinstance(workers, int) or workers > max_workers:
+        sys.exit(f'{kept} has "workers": {workers}; set it to {max_workers} (sudoedit {kept}) and run setup again.')
 PY
 
 getent group ember-symbols >/dev/null || groupadd --system ember-symbols

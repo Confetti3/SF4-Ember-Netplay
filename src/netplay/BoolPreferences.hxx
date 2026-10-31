@@ -24,6 +24,13 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"fasterDisplay", &PlayerPreferences::fasterDisplay}, {"borderless", &PlayerPreferences::borderless},
     {"controllerLayer", &PlayerPreferences::controllerLayer},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"shareReplays", &PlayerPreferences::shareReplays}, {"discordPresence", &PlayerPreferences::discordPresence},
+    // Send problem reports is saved as sendProblemReportsWithDump since reports
+    // carry the small dump, so everyone who agreed to logs only is asked again.
+    // The old sendProblemReports key stays in settings.json for now: Stable and
+    // Nightly share %APPDATA%\sf4e (SettingsStore::DefaultDirectory), and
+    // retiring it here would switch off a dual install's Stable consent. The
+    // Stable release that ships this key adds sendProblemReports to ObsoleteKeys
+    // (SettingsStore.cxx) and flips the Consent case in report_workflow_tests.hxx.
     {"discordInvites", &PlayerPreferences::discordInvites}, {"shareSteamProfile", &PlayerPreferences::shareSteamProfile}, {"sendProblemReportsWithDump", &PlayerPreferences::sendProblemReports},
 };
 
