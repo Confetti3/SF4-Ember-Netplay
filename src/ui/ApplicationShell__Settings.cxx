@@ -10,6 +10,7 @@
 // handlers serve both.
 #include "ApplicationShell.hxx"
 #include "ControllersScreen.hxx"
+#include "LineIcons.hxx"
 #include "MenuRows.hxx"
 #include "RowId.hxx"
 #include "Theme.hxx"
@@ -58,15 +59,16 @@ const char* Reason(const ShellView& v) { return v.canEditPreferences ? loc::T("s
 }
 
 // A Settings panel: its id, unique across the tabs, its heading (a locale
-// key), the one builder of its rows and, for a panel with something to show
-// beside them, its picture. Each is a named constant in SettingsScreens::Tabs;
-// its screen is its tab and its id ("tab-access/text"), the id the menu walk
+// key), the icon on its rail head, the one builder of its rows and, for a
+// panel with something to show beside them, its picture. Each is a named
+// constant in SettingsScreens::Tabs; its screen is its tab and its id ("tab-access/text"), the id the menu walk
 // and the journeys open it by.
 struct ApplicationShell::SettingsPanel {
     using Build = std::vector<MenuEntry> (*)(ApplicationShell&, const ShellView&);
     using Picture = void (*)(ApplicationShell&, const ShellView&);
     const char* id;
     const char* heading;
+    LineIcon icon;
     Build rows;
     Picture picture = nullptr;
 };
@@ -78,14 +80,16 @@ public:
     struct Tab { const char* screen; const char* label; std::vector<const SettingsPanel*> panels; };
     // The tabs in order, each with its panels in the order its rail shows them.
     static const std::vector<Tab>& Tabs() {
-        static const SettingsPanel controls{"controls", "screen.player", &Controls}, country{"country", "settings.country", &Country},
-            profile{"profile", "home.profile", &Profile, &ProfileCard}, defaults{"defaults", "screen.defaults", &Defaults},
-            trainingReplays{"training-replays", "settings.training_replays", &TrainingReplays, &PictureSpot}, look{"look", "settings.group.look", &Look},
-            matchHud{"match-hud", "settings.match_hud", &MatchHud, &MatchHudPicture},
-            roomLayout{"room-layout", "settings.group.room_layout", &RoomLayout, &RoomLayoutPicture},
-            sounds{"sounds", "settings.group.sounds", &Sounds}, speech{"speech", "speech.setting", &Speech}, text{"text", "settings.group.text", &Text},
-            help{"help", "settings.group.help", &Help}, discord{"discord", "screen.discord", &Discord}, rankings{"rankings", "screen.rankings", &Rankings},
-            about{"about", "home.about", &About}, reports{"reports", "reports.settings_title", &Reports};
+        using I = LineIcon;
+        static const SettingsPanel controls{"controls", "screen.player", I::User, &Controls}, country{"country", "settings.country", I::World, &Country},
+            profile{"profile", "home.profile", I::Id, &Profile, &ProfileCard}, defaults{"defaults", "screen.defaults", I::Adjustments, &Defaults},
+            trainingReplays{"training-replays", "settings.training_replays", I::Movie, &TrainingReplays, &PictureSpot},
+            look{"look", "settings.group.look", I::Palette, &Look}, matchHud{"match-hud", "settings.match_hud", I::LayoutNavbar, &MatchHud, &MatchHudPicture},
+            roomLayout{"room-layout", "settings.group.room_layout", I::LayoutDashboard, &RoomLayout, &RoomLayoutPicture},
+            sounds{"sounds", "settings.group.sounds", I::Volume, &Sounds}, speech{"speech", "speech.setting", I::Speakerphone, &Speech},
+            text{"text", "settings.group.text", I::Typography, &Text}, help{"help", "settings.group.help", I::Help, &Help},
+            discord{"discord", "screen.discord", I::Discord, &Discord}, rankings{"rankings", "screen.rankings", I::ChartBar, &Rankings},
+            about{"about", "home.about", I::Info, &About}, reports{"reports", "reports.settings_title", I::Bug, &Reports};
         static const std::vector<Tab> tabs = {
             {"tab-player", "settings.tab.player", {&controls, &country, &profile}},
             {"tab-matches", "settings.tab.matches", {&defaults, &trainingReplays}},
@@ -558,7 +562,7 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
 
     v2::Box body{ImGui::GetCursorScreenPos(), ImVec2(ImGui::GetCursorScreenPos().x + width, ImGui::GetCursorScreenPos().y + height)};
     v2::CutTop(body, 0, 8 * s);
-    // The rail: a head per panel with its arrow, name, and while all are closed
+    // The rail: a head per panel with its icon, name, and while all are closed
     // its summary and state word. The heading gives way last: the state word
     // drops first (from every head, so the column stays even), then a heading
     // too wide for its room wraps and its head grows (v2::Heading).
@@ -588,15 +592,11 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
             d->AddRectFilled(h.min, h.max, focused || isOpen ? c.header : hovered ? c.hover : v2::PanelGround(), 4 * s);
             d->AddRect(h.min, h.max, isOpen ? c.accentLight : c.border, 4 * s, 0, s);
             if (isOpen) d->AddRectFilled(h.min, ImVec2(h.min.x + 4 * s, h.max.y), c.accent, 4 * s, ImDrawFlags_RoundCornersLeft);
-            // The arrow: right while closed, down and filled while open.
-            const ImVec2 a(h.min.x + 10 * s, h.min.y + (h.H() - 28 * s) * .5f), m(a.x + 14 * s, a.y + 14 * s);
-            if (isOpen) {
-                d->AddRectFilled(a, ImVec2(a.x + 28 * s, a.y + 28 * s), c.accent, 4 * s);
-                d->AddTriangleFilled(ImVec2(m.x - 4 * s, m.y - 2 * s), ImVec2(m.x + 4 * s, m.y - 2 * s), ImVec2(m.x, m.y + 3 * s), c.ink);
-            } else {
-                d->AddRect(a, ImVec2(a.x + 28 * s, a.y + 28 * s), c.muted, 4 * s, 0, s);
-                d->AddTriangleFilled(ImVec2(m.x - 2 * s, m.y - 4 * s), ImVec2(m.x + 3 * s, m.y), ImVec2(m.x - 2 * s, m.y + 4 * s), c.text);
-            }
+            // The panel's icon on its tile: Ember and filled while open.
+            const ImVec2 a(h.min.x + 10 * s, h.min.y + (h.H() - 28 * s) * .5f), tileEnd(a.x + 28 * s, a.y + 28 * s);
+            if (isOpen) d->AddRectFilled(a, tileEnd, c.accent, 4 * s);
+            else d->AddRect(a, tileEnd, c.muted, 4 * s, 0, s);
+            DrawLineIcon(d, panel.panel->icon, ImVec2(a.x + 5 * s, a.y + 5 * s), 18 * s, isOpen ? c.ink : c.text);
             if (open) v2::Heading(d, ImVec2(x, h.min.y + (h.H() - size - grows) * .5f), room, heading, size, c.text);
             else {
                 if (sw > 0) v2::Text(d, ImVec2(h.max.x - 10 * s - sw, h.min.y + (h.H() - font) * .5f), sw, state, font, c.muted);

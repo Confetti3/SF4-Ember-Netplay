@@ -58,7 +58,9 @@ embedded = [('Unicode Character Database data (problem-report redaction tables, 
              'src/platform/ReportUnicodeTables.hxx) and Unicode CLDR data via ICU '
              '(country names in locales/*.po)', repo / 'src' / 'platform' / 'Unicode-License.txt'),
             ('Noto Sans CJK subsets (src/ui/fonts/NotoSansCJK{jp,kr,sc}-Subset.otf, embedded in the '
-             'interface)', repo / 'src' / 'ui' / 'fonts' / 'NotoSansCJK-OFL.txt')]
+             'interface)', repo / 'src' / 'ui' / 'fonts' / 'NotoSansCJK-OFL.txt'),
+            ('Tabler Icons outline paths (src/ui/LineIcons.inc, the interface line icons)',
+             repo / 'src' / 'ui' / 'TablerIcons-MIT.txt')]
 for name, license_path in embedded:
     sections.append(f'\n=== {name} ===\n' + license_path.read_text(encoding='utf-8'))
 args.output.parent.mkdir(parents=True, exist_ok=True)

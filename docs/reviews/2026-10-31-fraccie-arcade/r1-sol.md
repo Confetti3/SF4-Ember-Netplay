@@ -1,0 +1,17 @@
+1. **P1 — Ready sends the Rematch vote to the focused table instead of the local player’s pair.** [src/ui/RoomPanel.cxx:672](/C:/Users/Kate/Desktop/sf4/sf4-nightly/src/ui/RoomPanel.cxx:672)
+
+   With two deciding pairs, sit at table 0, focus another pair’s cabinet, then activate the board’s Ready button. `DrawRoomBoard` updates `selectedTable_` when another cabinet receives focus (`RoomPanelTables.cxx:256–259`). The Ready row still describes the local player’s table (`RoomPanel.cxx:374`), but `ToggleReady` describes and sends the request against `selectedTable_`, borrowing the local member’s seat index from a different table. The new branch therefore sends Rematch to table 1, where `ApplyRematch` rejects it as `NotSeated`. The enabled control fails to record the local player’s answer.
+
+   **Fix:** Resolve the local player’s `PlaceOf` once and use its table and seat for both description and dispatch. Reuse the existing `"rematch"` action path in `RoomActions.cxx:92–95`, which already targets `mine.table`, instead of constructing another request from board selection. Add a journey that focuses another pair before pressing Ready and checks the outgoing table. The added test at `shell_room_journey_test.cxx:685` leaves the selected table at the local table and misses this failure.
+
+2. **P2 — The newly non-deciding lone pair is misclassified as having rotated by the post-match prompt.** [src/session/RoomModelArcade.cxx:81](/C:/Users/Kate/Desktop/sf4/sf4-nightly/src/session/RoomModelArcade.cxx:81)
+
+   After a two-player Arcade set, this change correctly keeps the pair together and sets `deciding=false`. However, `DrawPostMatch` still equates an Arcade set with `!deciding` to rotation (`ApplicationShell__PostMatch.cxx:153–155`). Consequently, the prompt removes the ordinary Rematch/Ready button (`:193–199`) and labels the loser as waiting (`:183–186`), although both players remain paired and may ready immediately. The player must return to the board to continue, and the prompt describes the wrong outcome.
+
+   **Fix:** Distinguish an unchanged pair awaiting readiness from an actual rotation. For the retained Arcade pair, offer the normal Rematch command through the existing validated Ready path; show rotation wording only when the matchup actually changed or a fighter waits alone. Add a lone-pair shell journey covering both fighters’ wording and the continuation action. `TestArcadeTwoPlayers` verifies only the authority state, so it cannot catch this regression.
+
+The cabinet-count rule itself uses authoritative seating: spectators and unseated members do not count; seated players count regardless of fighter-selection progress; committed departures clear their cabinets. The UI consumes the serialized `deciding` flag, so this change introduces no separate host/member calculation of that rule. Skipping controller and fighter checks for a Rematch **vote** is appropriate: voting does not set readiness or start a match, and subsequent Ready still passes through those checks.
+
+No changed file crosses 1,000 lines. Review was limited to `5f522b83..5f97dc62` and relevant surrounding code. The scoped diff passes `git diff --check`. No files were edited, no build or tests were run, and the existing untracked review directory was preserved.
+
+VERDICT: CHANGES REQUIRED

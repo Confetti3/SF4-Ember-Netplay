@@ -1,0 +1,10 @@
+No remaining P1, P2, or P3 findings in the scoped changes.
+
+- **r2.1 is resolved.** The centralized cleanup in [LineIcons.cxx:49](/C:/Users/Kate/Desktop/sf4/sf4-nightly/src/ui/LineIcons.cxx:49) removes adjacent near-duplicates and the repeated closing endpoint before stroking. Float32 geometry traces covered all 29 icons across 2,175 combinations of size, scale, and screen position, with no remaining duplicate edges or closing-seam defects. Microphone’s `a … h 0 a …` sequences pass. Help and Info retain their dots at 18 pixels; lone pen points receive no caps.
+- **r2.2 is resolved.** The exact command-token match in [build-line-icons.mjs:73](/C:/Users/Kate/Desktop/sf4/sf4-nightly/scripts/build-line-icons.mjs:73) accepts valid exponent-led implicit repeats and rejects both previous bypasses: an unsupported ellipse and an incomplete cubic following such a repeat.
+- **Round 1 fixes still hold.** The actual normalization function rejects unsupported implicit arcs, zero-radius and coincident-endpoint arcs, and embedded newlines. All 29 checked-in entries normalize unchanged. Inspection and in-memory traces covered 530 operations and 146 arcs, including relative/absolute commands, implicit repeats, post-`Z` continuation, `S` reflection, leading decimals, and all four large/sweep combinations.
+- **Structure, mappings, and notices pass.** `LineIcons` owns the rendering concern cleanly; the X-macro keeps enum and path order aligned. `v2::Icon` remains a justified compatibility boundary for the 12 persisted indices. Panel choices and award mappings fit the existing catalog names across all 14 locales. Settings remains 650 lines, V2 shrinks from 703 to 627, and the renderer is 108 lines. The notice collector carries the checked-in license text, consistent with the [Tabler 3.19.0 license](https://raw.githubusercontent.com/tabler/tabler-icons/v3.19.0/LICENSE), through the existing package notices path.
+
+The scoped `git diff --check` passed. No files were edited and no build was run. Geometry evidence comes from in-memory traces and source inspection; live rendering acceptance was not performed.
+
+VERDICT: APPROVE
