@@ -529,8 +529,9 @@ int main() {
             // A meter cell tells an attack's startup, active and recovery frames apart by the script's boundary.
             FighterSample attack; attack.valid = true; attack.status = 16; attack.firstActiveFrame = 4; attack.lastActiveFrame = 7;
             const auto at = [&](float frame) { attack.actionFrame = frame; return ClassifyMeter(attack); };
-            // The counter is read after the update: a script active from frame 4 has four startup cells.
-            Require(at(4) == MeterKind::Startup && at(5) == MeterKind::Active && at(7) == MeterKind::Active && at(8) == MeterKind::Recovery, "Attack frames misfiled");
+            // The counter is read after the update: a script active from frame 4
+            // has a startup of 4, three startup cells and its fourth frame active.
+            Require(at(3) == MeterKind::Startup && at(4) == MeterKind::Active && at(6) == MeterKind::Active && at(7) == MeterKind::Recovery, "Attack frames misfiled");
             // A move of 4 startup, 3 active, 4 recovery frames, blocked on its first active frame with two frames of hitstop.
             FrameMeter counted; std::array<FighterSample, 2> pair;
             const auto step = [&](int tick, unsigned status, float frame, unsigned other) {
@@ -541,9 +542,9 @@ int main() {
             };
             int tick = 0;
             step(tick++, 0, 0, 0);
-            for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f, 5.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 5 ? 22 : 0), ++tick;
+            for (float frame : {1.f, 2.f, 3.f, 4.f, 4.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 4 ? 22 : 0), ++tick;
             Require(counted.View().startupFrames[0] == 4, "The startup frames before the first active one miscounted");
-            Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 3, "A live move's active or recovery cells miscounted, or hitstop counted");
+            Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 4, "A live move's active or recovery cells miscounted, or hitstop counted");
             Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
             step(tick++, 0, 0, 22);
             Require(counted.View().moves[0].seen && !counted.View().moves[0].live && counted.View().moves[0].recovery == 4 && !counted.View().moves[1].seen, "A finished move lost its frames");
@@ -633,16 +634,16 @@ int main() {
             Require(counted.View().advantage.valid && counted.View().advantage.knockdown && counted.View().advantage.frames[0] == 6, "A throw's knockdown advantage miscounted");
             // Down again, and an attack that first is active in the frame before the other is seen up,
             // the frame it can be hit on: a meaty that meets it with its first active frame.
-            for (int down = 0; down < 3; ++down) step(tick++, 0, 0, 19);
-            for (float frame : {1.f, 2.f, 3.f, 4.f, 5.f}) step(tick++, 16, frame, 20);
-            step(tick++, 16, 6, 0);
+            for (int down = 0; down < 4; ++down) step(tick++, 0, 0, 19);
+            for (float frame : {1.f, 2.f, 3.f, 4.f}) step(tick++, 16, frame, 20);
+            step(tick++, 16, 5, 0);
             Require(counted.View().meatyValid[0] && counted.View().meatyFrames[0] == 0 && !counted.View().meatyValid[1], "Meaty timing miscounted");
             Require(counted.View().frames.back().fighters[1].wake && !counted.View().frames.back().fighters[0].wake && !counted.View().frames[counted.View().frames.size() - 2].fighters[1].wake, "The first frame up was not marked, or more than it");
         }
         {
-            // The omitted recovery frame belongs to completion, even when
-            // first=3, last=5 and frames 1..5 contain no Recovery cell.
-            // Guard posture completes a move; hit and blockstun interrupt it.
+            // A move's recovery is its recovery cells: first=3, last=5 is 2
+            // startup, 2 active and from frame 5 recovery cells. Ending it,
+            // in a guard, a hit, blockstun or standing, adds none.
             for (unsigned finish : {0u, 3u, 14u, 15u, 21u, 22u}) for (int cells : {0, 2}) {
                 FrameMeter counted; std::array<FighterSample, 2> pair;
                 for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
@@ -650,17 +651,15 @@ int main() {
                 pair[0].status = 16; pair[0].action = 100; pair[0].firstActiveFrame = 3; pair[0].lastActiveFrame = 5;
                 for (int frame = 1; frame <= 5; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
                 Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 &&
-                    counted.View().moves[0].live && counted.View().moves[0].recovery == 0, "Zero-cell recovery fixture miscounted");
-                for (const auto& frame : counted.View().frames) Require(ClassifyMeter(frame.fighters[0]) != MeterKind::Recovery, "Zero-cell fixture contains a recovery cell");
+                    counted.View().moves[0].live && counted.View().moves[0].recovery == 1, "A move's first recovery cell miscounted");
                 for (int cell = 1; cell <= cells; ++cell) {
                     pair[0].actionFrame = static_cast<float>(5 + cell); counted.Observe(5 + cell, pair);
                 }
-                Require(counted.View().moves[0].recovery == cells, "Live recovery cells miscounted");
+                const int recovery = 1 + cells;
+                Require(counted.View().moves[0].recovery == recovery, "Live recovery cells miscounted");
                 pair[0].status = finish; pair[0].action = 0; pair[0].actionFrame = 0;
                 counted.Observe(6 + cells, pair);
-                const int recovery = cells + (finish == 21 || finish == 22 ? 0 : 1);
-                Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == recovery,
-                    "Completion omitted or repeated the one recovery frame, or counted interruption as completion");
+                Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == recovery, "Ending a move changed its recovery");
                 counted.Observe(7 + cells, pair);
                 pair[0].status = 0; counted.Observe(8 + cells, pair);
                 Require(counted.View().moves[0].recovery == recovery, "A later recovered state changed completed recovery");

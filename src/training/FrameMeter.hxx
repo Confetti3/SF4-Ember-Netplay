@@ -129,12 +129,10 @@ inline bool RecoveryCutShort(const FighterSample& move) {
 // What a meter cell shows. An attack is told apart by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
 // alone when the script gives none.
-// The cells follow the frame data's own numbers, for a player who reads the
-// two side by side: a crouching jab with a startup of 3 has three startup
-// cells. Frame data counts the frame a move first hits on as startup, so that
-// third cell is its first active frame, the active cells stand one frame
-// late, and the recovery has one cell less than its number (3, 2 and 6 cells
-// for 3, 2 and 7). A completed MoveFrames::recovery is the number, not the cell count.
+// The cells are the frames as they play, as Street Fighter 6's meter draws
+// them: frame data counts the frame a move first hits on as startup, so a
+// crouching jab of 3, 2 and 7 has 2 startup cells, then 2 active and 7
+// recovery cells, and the numbers above the bars stay the frame data's.
 // Checked in the game by the in-game self-test.
 // Limitation: one active stretch per action, so a multi-hit move's gaps
 // between hits read as active. Read every hit box if they have to show.
@@ -157,8 +155,8 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     case Phase::Down: return sample.status == S::Rise ? MeterKind::Rise : MeterKind::Down;
     case Phase::Attack:
         if (sample.firstActiveFrame < 0 || sample.lastActiveFrame <= sample.firstActiveFrame) return MeterKind::Attack;
-        return sample.actionFrame - 1 < sample.firstActiveFrame ? MeterKind::Startup :
-            sample.actionFrame - 1 < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
+        return sample.actionFrame < sample.firstActiveFrame ? MeterKind::Startup :
+            sample.actionFrame < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
     default: return MeterKind::Unknown;
     }
 }
@@ -510,16 +508,7 @@ public:
                 // A throw that connected goes on in the sequence.
                 move.live = true;
                 if (sample.throwRecovery) move.recovery = ++recoveryCells_[side];
-            } else {
-                // Startup includes the first active frame, shifting the cells
-                // one frame late. At normal completion count the recovery
-                // frame with no cell, even when no Recovery cell was seen.
-                // Throws count their sequence directly; interruptions do not
-                // establish a completed move's recovery.
-                if (move.live && sample.valid && previous.valid && previous.status == ActorStatus::Skill && move.active > 0 &&
-                    GroundedRecoveryState(sample.status)) move.recovery = recoveryCells_[side] + 1;
-                move.live = false;
-            }
+            } else move.live = false;
             if (sample.valid && previous.valid) {
                 const bool down = ClassifyStatus(sample.status) == Phase::Down;
                 // A knockdown starts a new meaty reading; the attack that caused it is not one.

@@ -29,8 +29,8 @@ constexpr int kRecorded = 8 * kSecond;
 enum class Stage { ToBattle, Move, Starting, Settling, Measure, Hit, Struck, HeavyHit, HeavyStruck, Record, Standby, Recording, Replaying, SavePosition, Dash, Dashed, Reset, Done };
 
 // Ryu's crouching LP: startup 3, active 2, recovery 7. The numbers on the
-// meter's line have to be these. Its cells follow the startup number
-// (FrameMeter.hxx: ClassifyMeter), so the recovery has one cell less.
+// meter's line have to be these, and its cells 2, 2 and 7 (FrameMeter.hxx:
+// ClassifyMeter): frame data counts the first active frame as startup.
 constexpr int kStartup = 3, kActive = 2, kRecovery = 7;
 // And +5 on hit, against a standing fighter.
 constexpr int kHitAdvantage = 5;
@@ -108,9 +108,9 @@ void Play(const char* moves, const std::string& what, Stage then, Stage otherwis
 
 void SayCells(const training::View& view, const char* what) {
 	const Cells cells = CountCells(view.meter, 0);
-	const bool cellsRight = cells.startup == kStartup && cells.active == kActive && cells.recovery == kRecovery - 1;
+	const bool cellsRight = cells.startup == kStartup - 1 && cells.active == kActive && cells.recovery == kRecovery;
 	Say(cellsRight, what, std::to_string(cells.startup) + ", " + std::to_string(cells.active) + " and " +
-		std::to_string(cells.recovery) + " cells" + (cellsRight ? "" : ", expected 3, 2 and 6"));
+		std::to_string(cells.recovery) + " cells" + (cellsRight ? "" : ", expected 2, 2 and 7"));
 }
 
 void Measure(const training::View& view) {
