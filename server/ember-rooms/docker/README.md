@@ -119,7 +119,8 @@ Docker Engine with the compose plugin, then:
   SIGTERM, on which the supervisor drains (no new rooms, open rooms until
   empty or `drain_secs`, 600 by default), then exits. Keep the grace period
   above the drain plus 10 s, as the unit's `TimeoutStopSec` is.
-- `MALLOC_ARENA_MAX=2` for every process in the container, as in the unit.
+- `MALLOC_ARENA_MAX=1`, `MALLOC_MMAP_THRESHOLD_` and `MALLOC_TRIM_THRESHOLD_`
+  (128 KiB) for every process in the container, as in the unit.
 - Logs: `docker compose logs -f`; the supervisor logs one line per room
   start and stop and never the secret or an invitation.
 

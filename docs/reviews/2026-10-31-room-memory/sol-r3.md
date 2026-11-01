@@ -1,0 +1,12 @@
+APPROVE
+
+No P0–P3 findings in the scoped working-tree changes, including the new capacity document. Both Round 2 findings are resolved.
+
+The deployment fix captures the effective limits before installing the new unit, compares the staged limits against that snapshot, and verifies values after applying and restoring them. Both rollback paths restore the snapshot. The test stub now preserves runtime properties across restarts, and the new assertions check the effective `2048` upgrade and `777` rollback values. This matches systemd’s documented runtime-property behavior. ([setup.sh:558](/C:/Users/Kate/Desktop/sf4/sf4-nightly/server/ember-rooms/deploy/setup.sh:558), [test-setup.sh:210](/C:/Users/Kate/Desktop/sf4/sf4-nightly/server/ember-rooms/deploy/test-setup.sh:210), [systemctl documentation](https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#set-property%20UNIT%20PROPERTY=VALUE%E2%80%A6))
+
+The CPU snippet now measures the service cgroup’s cumulative `usage_usec` and divides by the five sampled room counts’ average, resolving the disappearing-process-counter error. Its arithmetic and the 2.8% promotion gate are consistent with the four-vCPU target. ([Capacity document:80](/C:/Users/Kate/Desktop/sf4/sf4-nightly/docs/development/PUBLIC_ROOM_CAPACITY_2026-10-31.md:80), [kernel documentation](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html))
+
+The allocator constants, ABI, values and call ordering are correct. The hooks precede application thread creation; the source and cached-dependency inspection found no production initializer starting threads before them. The platform guards exclude Windows and musl appropriately. The unit and image settings agree with the hooks, and the 40 MB warning arithmetic, `4500M` limit and `TasksMax=2048` agree with the capacity guidance. No changed file crosses 1,000 lines. ([glibc constants](https://raw.githubusercontent.com/bminor/glibc/master/malloc/malloc.h), [allocator documentation](https://sourceware.org/glibc/manual/latest/html_node/Malloc-Tunable-Parameters.html))
+
+Validation: the scoped `git diff --check`, Bash syntax checks on LF-normalized contents of both scripts, and direct checks of the limit-comparison parser passed. I reused your reported **113/113 deployment tests** and clippy results. I did not rerun the deployment suite, build Linux binaries or perform live acceptance testing. No files were changed.
+

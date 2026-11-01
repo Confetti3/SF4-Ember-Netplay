@@ -66,9 +66,11 @@ COPY server/ember-rooms/deploy/config.example.json /usr/local/lib/ember-rooms/co
 COPY --chmod=0755 server/ember-rooms/docker/entrypoint.sh /usr/local/lib/ember-rooms/docker-entrypoint.sh
 # As for build-linux.sh: a CRLF entrypoint would not start.
 RUN sed -i 's/\r$//' /usr/local/lib/ember-rooms/docker-entrypoint.sh
-# MALLOC_ARENA_MAX: as in deploy/ember-rooms.service, for the supervisor and
-# every room host and helper it starts.
-ENV MALLOC_ARENA_MAX=2 \
+# The malloc settings: as in deploy/ember-rooms.service, for the supervisor
+# and every room host and helper it starts.
+ENV MALLOC_ARENA_MAX=1 \
+    MALLOC_MMAP_THRESHOLD_=131072 \
+    MALLOC_TRIM_THRESHOLD_=131072 \
     HOME=/var/lib/ember-rooms \
     EMBER_ROOMS_BUILD_ID=${BUILD_ID}
 LABEL org.opencontainers.image.title="ember-rooms" \

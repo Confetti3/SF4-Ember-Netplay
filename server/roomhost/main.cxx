@@ -16,6 +16,9 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
 
 using namespace sf4e;
 
@@ -79,6 +82,14 @@ struct Input {
 }
 
 int main() {
+#if defined(__GLIBC__)
+	// The same allocator limits as the helper (sf4-net main.rs): glibc would
+	// otherwise keep each freed checkpoint copy, and a server runs one host per
+	// room. Set before any other thread starts.
+	mallopt(M_ARENA_MAX, 1);
+	mallopt(M_MMAP_THRESHOLD, 128 * 1024);
+	mallopt(M_TRIM_THRESHOLD, 128 * 1024);
+#endif
 	// Every library line goes to stderr: stdout carries only the protocol.
 	spdlog::set_default_logger(spdlog::stderr_logger_mt("room-host"));
 	spdlog::flush_on(spdlog::level::info);

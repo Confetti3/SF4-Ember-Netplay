@@ -40,6 +40,34 @@ json.dump({"markers": markers, "max_rooms": c.get("max_rooms", 8),
 PY
 }
 case "$1" in
+    # Runtime properties last until reboot, across restarts, and win over the
+    # unit: kept in $STUB_STATE.props, one KEY=VALUE per line.
+    set-property)
+        shift 3
+        for pair in "$@"; do
+            grep -v "^${pair%%=*}=" "$STUB_STATE.props" 2>/dev/null > "$STUB_STATE.props.new"
+            echo "$pair" >> "$STUB_STATE.props.new"
+            mv "$STUB_STATE.props.new" "$STUB_STATE.props"
+        done
+        ;;
+    # The effective limit: a runtime property, else the installed unit's line,
+    # in bytes as systemctl prints them.
+    show)
+        shift 2
+        while [ $# -gt 0 ]; do
+            [ "$1" = -p ] && { shift; continue; }
+            value=$(sed -n "s/^$1=//p" "$STUB_STATE.props" 2>/dev/null | tail -n 1)
+            [ -n "$value" ] || value=$(sed -n "s/^$1=//p" "$EMBER_ROOMS_ROOT/etc/systemd/system/ember-rooms.service" 2>/dev/null | head -n 1)
+            case "$value" in
+                *K) value=$(( ${value%K} * 1024 )) ;;
+                *M) value=$(( ${value%M} * 1024 * 1024 )) ;;
+                *G) value=$(( ${value%G} * 1024 * 1024 * 1024 )) ;;
+                "") value=infinity ;;
+            esac
+            echo "$1=$value"
+            shift
+        done
+        ;;
     restart)
         [ "${STUB_NO_RECOVER:-0}" = 1 ] && { echo down > "$STUB_STATE"; exit 0; }
         grep -q BADSTART "$bin" 2>/dev/null && { echo down > "$STUB_STATE"; exit 1; }
@@ -99,6 +127,8 @@ check() {
     fi
 }
 same() { cmp -s "$1" "$2"; }
+# The limit the fake service runs with (the stub's systemctl show).
+effective_is() { test "$("$T/stubs/systemctl" show ember-rooms -p "$1")" = "$1=$2"; }
 absent() { [ ! -e "$1" ]; }
 mentions() { grep -q -- "$1" "$OUT"; }
 failed() { [ "$RC" -ne 0 ]; }
@@ -180,8 +210,13 @@ echo "4. new supervisor answers nothing on /health"
 stage_supervisor "v2 BADHEALTH"
 stage_build bbb222 two
 { cat "$HERE/ember-rooms.service"; echo "# changed"; } > "$STAGE/ember-rooms.service"
+# The service runs with a runtime limit the old unit does not say.
+echo "TasksMax=777" > "$STUB_STATE.props"
 run_setup
 check "fails" failed
+check "the new limits were set before the restart" grep -q "set-property --runtime ember-rooms MemoryMax=4500M MemorySwapMax=1G TasksMax=2048" "$STUB_LOG"
+check "the limits it ran with are put back, not the old unit's" effective_is TasksMax 777
+rm -f "$STUB_STATE.props"
 check "says the previous installation was restored" mentions "Restored the previous supervisor binary, unit and config.json"
 check "supervisor back byte for byte" same "$T/snap1/exec" "$LIB/ember-rooms"
 check "unit back byte for byte" same "$T/snap1/unit" "$UNIT"
@@ -243,18 +278,18 @@ check "config no longer lists it" config_lacks aaa111
 echo "10. --max-rooms sets the room limit"
 config_max() { python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["max_rooms"] == int(sys.argv[2]) else 1)' "$CONFIG" "$1"; }
 # Resource warning tests control the unit independently of the production budget.
-sed -i 's/^MemoryMax=.*/MemoryMax=3000M/' "$STAGE/ember-rooms.service"
+sed -i 's/^MemoryMax=.*/MemoryMax=1200M/' "$STAGE/ember-rooms.service"
 run_setup --max-rooms 31
 check "exits 0" succeeded
 check "max_rooms is 31" config_max 31
 check "says what changed" mentions "max_rooms 10 -> 31"
-check "warns that MemoryMax is too small" mentions "needs about 3100M of memory"
+check "warns that MemoryMax is too small" mentions "needs about 1240M of memory"
 check "restarts a supervisor that cannot reload" mentions "does not answer GET /limits"
 check "config lists the new build" config_lists bbb222
 sed -i 's/^MemoryMax=.*/MemoryMax=4500M/' "$STAGE/ember-rooms.service"
 run_setup --max-rooms 31
 check "sufficient resource fixture exits 0" succeeded
-check "sufficient memory does not warn" bash -c '! grep -q "needs about 3100M of memory" "$1"' _ "$OUT"
+check "sufficient memory does not warn" bash -c '! grep -q "needs about 1240M of memory" "$1"' _ "$OUT"
 snapshot snap10
 
 echo "11. --max-rooms past the port range is refused before any change"
@@ -339,10 +374,14 @@ check "unit installed" same "$STAGE/ember-rooms.service" "$UNIT"
 echo "17. any other unit change restarts"
 { cat "$STAGE/ember-rooms.service"; echo "Nice=1"; } > "$STAGE/ember-rooms.service.new"
 mv "$STAGE/ember-rooms.service.new" "$STAGE/ember-rooms.service"
+# A runtime limit from an earlier reload outlives a restart and wins over the
+# unit, so the restart has to set the unit's own limits the same way.
+echo "TasksMax=1024" >> "$STUB_STATE.props"
 run_setup
 check "exits 0" succeeded
 check "restarted" restarts_are 2
 check "says why" mentions "the unit changed beyond its resource limits"
+check "the restarted service runs with the unit's limits" effective_is TasksMax 2048
 run_setup --restart
 check "--restart restarts" restarts_are 3
 check "says why" mentions "--restart was given"

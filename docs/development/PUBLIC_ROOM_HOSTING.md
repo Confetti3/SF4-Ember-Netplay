@@ -19,6 +19,12 @@ server is on order. Players have asked for something closer to 100, and some
 for 200; what that takes is under "Can one server hold 200 rooms?" below.
 The service can also run as a container ([server/ember-rooms/docker](../../server/ember-rooms/docker/README.md)).
 
+**Update 2026-10-31:** the VPS is now 4 vCPU and 8 GB, and a room of 4
+members measures about 29 MB and 3% of a vCPU after the allocator fix. The
+target is 100 rooms on the VPS alone, starting at 80; see
+[PUBLIC_ROOM_CAPACITY_2026-10-31.md](PUBLIC_ROOM_CAPACITY_2026-10-31.md). The
+figures below are from early October.
+
 ## What one room costs
 
 Each public room is two processes: `sf4e-room-host` and its network helper
@@ -160,8 +166,11 @@ Done in October 2026, shipping with the next client release:
   coordination refresh reads a digest
   hashed once per revision instead of copying and rehashing the checkpoint,
   and a headless helper no longer probes for a gateway port mapping.
-- **Memory.** `MALLOC_ARENA_MAX=2` in the unit and the image, so glibc does
-  not keep one arena per thread at its peak; the room host built with LTO,
+- **Memory.** One malloc arena with fixed 128 KiB mmap and trim thresholds,
+  set by the room host and helper themselves (mallopt) and in the unit and
+  the image for older builds, so glibc hands back the roughly 9 MB each
+  joining member's sync used to leave held in the helper (a room rejoined
+  ten times went from 55 MB to 15 MB, 2026-10-31); the room host built with LTO,
   section garbage collection and no symbols; a received commit's bytes moved
   from the receiver to the decoder instead of copied twice. What a helper
   holds (two endpoints and their relay, DNS and address-publication state,

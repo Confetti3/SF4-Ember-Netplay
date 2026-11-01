@@ -231,6 +231,30 @@ wait_health() {
 unit_limits() {
     sed -n 's/^\(MemoryMax\|MemorySwapMax\|TasksMax\)=\(.*\)$/\1=\2/p' "$1" | tr '\n' ' '
 }
+# The limits the service runs with now, as "MemoryMax=... MemorySwapMax=...
+# TasksMax=..." in systemctl's own units: the unit's, unless set-property
+# --runtime changed them (that lasts until reboot, across restarts). Empty when
+# systemctl cannot say.
+effective_limits() {
+    systemctl show ember-rooms -p MemoryMax -p MemorySwapMax -p TasksMax 2>/dev/null | grep -E '^(MemoryMax|MemorySwapMax|TasksMax)=' | tr '\n' ' '
+}
+# Succeeds when the limits in $1 (unit_limits form: sizes with K, M or G, or
+# infinity) are those in $2 (effective_limits form), by default the ones the
+# service runs with now.
+limits_match() {
+    python3 - "$1" "${2-$(effective_limits)}" <<'PY'
+import sys
+def parse(text):
+    out = {}
+    for pair in text.split():
+        key, _, value = pair.partition("=")
+        scale = {"K": 1 << 10, "M": 1 << 20, "G": 1 << 30, "T": 1 << 40}.get(value[-1:], 1)
+        out[key] = value if value in ("infinity", "") else int(value[:-1] if scale > 1 else value) * scale
+    return out
+wanted, running = parse(sys.argv[1]), parse(sys.argv[2])
+sys.exit(0 if all(running.get(key) == value for key, value in wanted.items()) else 1)
+PY
+}
 # The unit's lines that a reload cannot apply: all but comments, blank lines,
 # ExecReload and the resource limits.
 unit_core() {
@@ -297,7 +321,7 @@ rollback() {
         local count
         BIND=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("bind", "127.0.0.1:47830"))' "$CONFIG" 2>/dev/null || echo 127.0.0.1:47830)
         # shellcheck disable=SC2086
-        [ -n "$old_limits" ] && { systemctl set-property --runtime ember-rooms $old_limits || ok=0; }
+        [ -n "$old_limits" ] && { systemctl set-property --runtime ember-rooms $old_limits && limits_match "$old_limits" || ok=0; }
         count=$(reload_count)
         systemctl reload ember-rooms || ok=0
         if [ "$ok" -eq 1 ] && [ -n "$count" ] && wait_reloaded "$count"; then
@@ -317,6 +341,8 @@ rollback() {
         return
     fi
     BIND=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("bind", "127.0.0.1:47830"))' "$CONFIG" 2>/dev/null || echo 127.0.0.1:47830)
+    # shellcheck disable=SC2086
+    [ -n "$old_limits" ] && { systemctl set-property --runtime ember-rooms $old_limits && limits_match "$old_limits" || ok=0; }
     systemctl restart ember-rooms || ok=0
     if [ "$ok" -eq 1 ] && wait_health; then
         echo "Restored the previous supervisor binary, unit and config.json, and it answers on /health. See: sudo journalctl -u ember-rooms -n 30" >&2
@@ -463,16 +489,15 @@ if [ "$BUILD_COUNT" -eq 0 ]; then
     echo "note: no builds yet, so every room request is refused as unsupported_build." >&2
     echo "      Stage one under ~/ember-rooms/builds/<build_id>/ and run this script again." >&2
 fi
-# A room measured about 8 tasks and up to 100 MB on the VPS (room host plus
-# helper, the helper growing with the room's age); the warnings leave room for
-# growth.
+# A room measured about 8 tasks and about 29 MB (room host plus helper, 4
+# members, 2026-10-31); the warnings leave room for growth.
 tasks=$(sed -n 's/^TasksMax=//p' "$SRC/ember-rooms.service" | head -n 1)
 if [ -n "$tasks" ] && [ "$tasks" -lt $((MAX_ROOMS * 16)) ] 2>/dev/null; then
     echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 16)) tasks but the unit allows $tasks; raise TasksMax in the unit." >&2
 fi
 memory=$(sed -n 's/^MemoryMax=\([0-9][0-9]*\)M$/\1/p' "$SRC/ember-rooms.service" | head -n 1)
-if [ -n "$memory" ] && [ "$memory" -lt $((MAX_ROOMS * 100)) ]; then
-    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 100))M of memory but the unit allows ${memory}M; past it the rooms swap and stall." >&2
+if [ -n "$memory" ] && [ "$memory" -lt $((MAX_ROOMS * 40)) ]; then
+    echo "warning: max_rooms $MAX_ROOMS needs about $((MAX_ROOMS * 40))M of memory but the unit allows ${memory}M; past it the rooms swap and stall." >&2
 fi
 
 # Firewall: each room uses two UDP ports from the range.
@@ -528,6 +553,9 @@ PY
     fi
 fi
 
+# What a failed run puts back: the limits the service ran with, not the old
+# unit's lines, which a runtime property may have overridden.
+[ "$had_unit" -eq 1 ] && old_limits=$(effective_limits)
 inst root root -m 0644 "$SRC/ember-rooms.service" "$UNIT.new"
 mv -f "$UNIT.new" "$UNIT"
 systemctl daemon-reload
@@ -537,10 +565,9 @@ if [ "$mode" = reload ]; then
     echo "apply: reload (rooms keep running)"
     touched=reloaded
     new_limits=$(unit_limits "$SRC/ember-rooms.service")
-    if [ "$new_limits" != "$(unit_limits "$backup/ember-rooms.service")" ]; then
-        old_limits=$(unit_limits "$backup/ember-rooms.service")
+    if [ -n "$new_limits" ] && ! limits_match "$new_limits" "$old_limits"; then
         # shellcheck disable=SC2086
-        if ! systemctl set-property --runtime ember-rooms $new_limits; then
+        if ! systemctl set-property --runtime ember-rooms $new_limits || ! limits_match "$new_limits"; then
             echo "Could not set $new_limits on the running service." >&2
             exit 1
         fi
@@ -564,6 +591,18 @@ else
         fi
     fi
     touched=restarted
+    # An earlier reload may have set the limits with set-property --runtime,
+    # which outlives a restart and wins over the unit. Set the unit's own
+    # limits the same way, so the restarted service runs with them.
+    new_limits=$(unit_limits "$SRC/ember-rooms.service")
+    if [ "$had_unit" -eq 1 ] && [ -n "$new_limits" ] && ! limits_match "$new_limits" "$old_limits"; then
+        # shellcheck disable=SC2086
+        if ! systemctl set-property --runtime ember-rooms $new_limits || ! limits_match "$new_limits"; then
+            echo "Could not set $new_limits on the service." >&2
+            exit 1
+        fi
+        echo "limits: $new_limits"
+    fi
     if ! systemctl restart ember-rooms; then
         echo "ember-rooms did not restart." >&2
         exit 1

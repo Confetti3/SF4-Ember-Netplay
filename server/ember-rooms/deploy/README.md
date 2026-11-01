@@ -27,17 +27,15 @@ size holds and hosting options are in
 | `/var/lib/ember-rooms/` | state for the room hosts |
 | `/etc/systemd/system/ember-rooms.service` | the unit |
 
-The unit allows 2400 MB of memory, 1 GB of swap and 512 tasks for the supervisor and all
-rooms together, and the example config starts at `max_rooms` 10. A room (room
-host plus helper) measured about 100 MB and 8 tasks on the VPS in October
-2026. The machine has 3.8 GB and 2 cores and also runs the bridge (its own 256 MB limit)
-and the short-link service (96 MB); each unit has its own limit, so a full
-room supervisor cannot starve the bridge. Measure a room's memory (`systemctl
-status ember-rooms` shows the total) before raising `max_rooms`; budget
-`MemoryMax` at about 100 MB per room (with 20 busy rooms on 2026-10-06 they
-averaged 57 MB, but a helper grows with the room's age), or move to a larger
-machine. setup.sh warns when `MemoryMax` or `TasksMax` looks too small for
-`max_rooms`.
+The unit allows 4500 MB of memory, 1 GB of swap and 2048 tasks for the
+supervisor and all rooms together, and the example config starts at
+`max_rooms` 10. A room of 4 members (room host plus helper) measured about
+29 MB and 8 tasks on 2026-10-31, and about 3% of a vCPU on the VPS. The bridge
+and the short-link service have their own unit limits, so a full room
+supervisor cannot starve them. Budget `MemoryMax` at 40 MB per room and check
+`systemctl status ember-rooms` before raising `max_rooms`. setup.sh warns when
+`MemoryMax` or `TasksMax` looks too small for `max_rooms`. Sizing and the
+VPS target: `docs/development/PUBLIC_ROOM_CAPACITY_2026-10-31.md`.
 
 To change the room limit on an installed server, stage this folder and run
 setup.sh with `--max-rooms`. It refuses a limit the port range cannot hold
@@ -210,7 +208,7 @@ again. To stop it: `sudo systemctl disable --now ember-rooms-idle.timer`.
 ## Firewall
 
 Each room uses two UDP ports from `port_range` (45800 to 45899 by default),
-so 8 rooms hold 16 of them and the range has room to spare. setup.sh opens the
+so the default range holds 50 rooms; widen it before `max_rooms` goes past 50. setup.sh opens the
 range in ufw only if ufw is active, and says so if it is not. If the hosting
 provider has its own firewall in front of the machine, open the same UDP range
 there; setup.sh cannot see or change that. If you change `port_range`, run

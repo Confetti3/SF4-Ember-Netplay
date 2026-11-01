@@ -41,8 +41,36 @@ fn start() -> std::io::Result<()> {
 
 #[cfg(unix)]
 fn main() {
+    return_freed_memory();
     std::process::exit(sf4_net::stdio::main(std::env::args().skip(1)));
 }
+
+/// A room server runs one helper per room. glibc keeps a freed block that it
+/// took from its heap, and raises its mmap threshold to the largest block
+/// freed so far, so the short-lived buffers of every member that joins
+/// (about 9 MB) stayed held for good: a room rejoined four times sat at
+/// 50 MB instead of 10. One arena, a fixed 128 KiB mmap threshold and a
+/// 128 KiB trim threshold hand those blocks back as soon as they are freed.
+/// Set before the runtime starts any thread.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn return_freed_memory() {
+    unsafe extern "C" {
+        fn mallopt(param: std::ffi::c_int, value: std::ffi::c_int) -> std::ffi::c_int;
+    }
+    const M_TRIM_THRESHOLD: std::ffi::c_int = -1;
+    const M_MMAP_THRESHOLD: std::ffi::c_int = -3;
+    const M_ARENA_MAX: std::ffi::c_int = -8;
+    // SAFETY: mallopt only changes allocator tuning; it is called before any
+    // other thread exists.
+    unsafe {
+        mallopt(M_ARENA_MAX, 1);
+        mallopt(M_MMAP_THRESHOLD, 128 * 1024);
+        mallopt(M_TRIM_THRESHOLD, 128 * 1024);
+    }
+}
+
+#[cfg(all(unix, not(all(target_os = "linux", target_env = "gnu"))))]
+fn return_freed_memory() {}
 
 #[cfg(not(any(windows, unix)))]
 fn main() {
