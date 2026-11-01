@@ -11,8 +11,10 @@ namespace sf4e { namespace ui {
 struct ControllerSample {
     // Every button but Menu carries MenuInput's value, because the overlay
     // hands a sample's buttons to the menu unchanged; the asserts below hold
-    // the two enums together. Menu (Start) opens Ember; once it is shown it
-    // reaches the menu as MenuInput::Start, which only the on-screen keyboard reads.
+    // the two enums together. Menu (Start) is the game thread's: its request
+    // opens Ember, and over a fight closes it (input::StartPress, sf4e__Pad).
+    // While the menu is shown it also reaches the menu as MenuInput::Start,
+    // which only the on-screen keyboard reads.
     enum Button : std::uint32_t { Up = 1, Down = 2, Left = 4, Right = 8, Confirm = 16, Back = 32, Menu = 64,
         Fighter = 128, Options = 256, Chat = 512, PrevTab = 2048, NextTab = 4096, Describe = 8192 };
     int deviceType = -1, deviceIndex = -1;
@@ -104,7 +106,6 @@ public:
     void Reset();
     bool MenuGuard() const { return menuGuard_; }
     bool BackRequested() const { return backRequested_; }
-    bool OpenRequested() const { return openRequested_; }
     bool FocusRequested() const { return focusRequested_; }
     bool Available() const { return available_; }
     std::uint32_t Buttons() const { return output_; }
@@ -114,7 +115,6 @@ private:
     bool wasVisible_ = false, draining_ = false;
     bool menuGuard_ = false, backRequested_ = false, focusRequested_ = false, available_ = false;
     bool widgetBack_ = false;
-    bool menuArmed_ = false, openRequested_ = false;
     PressGate gate_;
     std::uint32_t output_ = 0;
 };

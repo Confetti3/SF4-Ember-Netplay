@@ -310,6 +310,8 @@ public:
     // draws the dummy's pick in it.
     bool SelectingDummy() const { return selectionForDummy_ && menu_.navigation.Screen() == "selection" && menu_.navigation.Parent() == "training"; }
     MenuNavigation& Navigation() { return menu_.navigation; }
+    // A text field is being edited, on the menu or the problem report's own panel.
+    bool TextEntryOpen() const { return menu_.navigation.Editing() || (menu_.navigation.Screen() == "report" && reportPanel_.Navigation().Editing()); }
     // A notice from outside the shell (the lab's toasts): the status line's
     // for `seconds`, and a toast.
     // A kind and up to two actions go on its toast.

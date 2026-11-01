@@ -30,6 +30,20 @@ inline bool ControllerMenuAvailable(MenuContext context) { return context != Men
 inline bool ControllerOpensMenu(MenuContext context) {
     return context == MenuContext::MainMenu || context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
 }
+// Where Start closes Ember's menu again, back to the full game: over a fight,
+// as F10 does. At the main menu Ember is the menu, so Start keeps it.
+inline bool ControllerClosesMenu(MenuContext context) {
+    return context == MenuContext::PracticeMatch || context == MenuContext::WatchedMatch;
+}
+// The drawing thread's answer to Start's request (StartPress), the one place
+// that decides it: a hidden menu opens; a shown one closes over a fight
+// (ControllerClosesMenu) unless a text field is being edited, where Start
+// belongs to the editor (the on-screen keyboard's Done), and otherwise stays.
+enum class StartAnswer { None, Open, Close };
+inline StartAnswer AnswerStart(bool visible, MenuContext context, bool textEntry) {
+    if (!visible) return StartAnswer::Open;
+    return ControllerClosesMenu(context) && !textEntry ? StartAnswer::Close : StartAnswer::None;
+}
 // Where Ember's menu can be shown: offline Training has its own controls.
 inline bool MenuShownIn(MenuContext context) {
     return context == MenuContext::MainMenu || context == MenuContext::ReplayExport || MenuOverFight(context);
@@ -47,6 +61,22 @@ inline unsigned NativeMenuHeld(const void* system) {
     return held;
 }
 constexpr unsigned NativeStart = 0x200;
+// Start on the pad the game polls (sf4e__Pad), where it may open Ember now
+// (connected, owning the menu, nothing being captured, ControllerOpensMenu):
+// the one detector of Start's press. A press counts once, after every button
+// was up, whatever the menu shows, so a Start still held after it closed the
+// menu never counts again. Each counted press asks for the menu, and the
+// drawing thread decides what it does (AnswerStart).
+struct StartPress {
+    bool armed = false;
+    bool Update(bool allowed, unsigned physical) {
+        if (!allowed) { armed = false; return false; }
+        if (!physical) { armed = true; return false; }
+        if (!armed || !(physical & NativeStart)) return false;
+        armed = false;
+        return true;
+    }
+};
 inline void ClearNativeMenuInputs(void* system, unsigned allowed = 0) {
     auto* bytes=static_cast<unsigned char*>(system);
     for(unsigned side=0;side<2;++side)for(unsigned cache=0;cache<5;++cache) {

@@ -29,6 +29,7 @@ public:
     ReportIntent Draw(const platform::ServiceSnapshot& state, const std::string& error = {});
     std::vector<MenuEntry> Rows(const platform::ServiceSnapshot& state) const;
     MenuNavigation& Navigation() { return menu_.navigation; }
+    const MenuNavigation& Navigation() const { return menu_.navigation; }
 private:
     GameMenu menu_;
     reports::Submission submission_;

@@ -213,6 +213,10 @@ void NativeCapture() {
  Check(ControllerMenuAvailable(MenuContext::MatchResult)&&!sf4e::input::ControllerOpensMenu(MenuContext::MatchResult)&&
   sf4e::input::MenuShownIn(MenuContext::MatchResult)&&sf4e::input::MenuOverFight(MenuContext::MatchResult),"The post-match prompt could not show over WIN");
  Check(!sf4e::input::MenuShownIn(MenuContext::OfflineTraining),"Ember's menu was shown over offline Training's controls");
+ // Start closes the menu again only over a fight it opens it over; at the main
+ // menu Ember is the menu, and the post-match prompt is not Start's.
+ for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::MatchResult})
+  Check(sf4e::input::ControllerClosesMenu(context)==(context==MenuContext::PracticeMatch||context==MenuContext::WatchedMatch),"Start closed the menu where it should not, or not over a fight");
  for(const auto context:{MenuContext::Unavailable,MenuContext::MainMenu,MenuContext::OfflineTraining,MenuContext::ReplayExport,
   MenuContext::PracticeMatch,MenuContext::WatchedMatch,MenuContext::MatchResult}){
   Check(sf4e::input::FightKeepsMenuAway(true,context)==!sf4e::input::MenuOverFight(context)&&!sf4e::input::FightKeepsMenuAway(false,context),
@@ -241,15 +245,39 @@ void NativeCapture() {
  adapter.Update(device,true,true,true);adapter.Update(device,true,false,true);Check(adapter.MenuGuard(),"Main-menu suppression not drained");
  device.buttons=0;adapter.Update(device,true,false,true);Check(!adapter.MenuGuard(),"Main menu never released");
  // The overlay enables the adapter whatever the window's focus (only a device
- // being assigned stops it): behind another window Start opens the hidden
- // menu and the shown menu takes presses, with no refocus between.
+ // being assigned stops it): behind another window the shown menu takes
+ // presses, with no refocus between. Start is not the adapter's: the game
+ // thread's StartPress owns it.
  ControllerNavigation behind;ControllerSample pad{0,0,true,0};
- behind.Update(pad,true,false,true);behind.Update(pad,true,false,true);
- pad.buttons=ControllerSample::Menu;behind.Update(pad,true,false,true);
- Check(behind.OpenRequested(),"Start did not open the menu behind another window");
- pad.buttons=0;behind.Update(pad,true,true,true);
+ behind.Update(pad,true,false,true);behind.Update(pad,true,true,true);
  pad.buttons=ControllerSample::Down;behind.Update(pad,true,true,true);
  Check(behind.Buttons()==ControllerSample::Down&&behind.FocusRequested(),"The shown menu ignored the pad behind another window");
+ // StartPress: a press after every button was up asks once, whatever the
+ // menu shows; a held Start never asks again, so the Start that closed the
+ // menu does not open it. AnswerStart decides what each ask does.
+ {
+  using sf4e::input::StartPress;constexpr unsigned start=sf4e::input::NativeStart,other=1;
+  StartPress press;
+  Check(!press.Update(true,start),"Start held from before counted");
+  press.Update(true,0);
+  Check(press.Update(true,start),"Start did not ask for the menu");
+  Check(!press.Update(true,start)&&!press.Update(true,start|other),"A held Start asked again");
+  press.Update(true,0);
+  Check(!press.Update(true,other),"Another button asked for the menu");
+  Check(press.Update(true,other|start),"Start pressed over another button did not ask");
+  press.Update(true,0);
+  Check(!press.Update(false,start),"A pad that may not open Ember asked");
+  Check(!press.Update(true,start),"A Start held while the pad could not open Ember counted once it could");
+ }
+ // AnswerStart: a hidden menu opens; a shown one closes over a fight, but not
+ // while a text field is open (Start is the keyboard's Done) or at the main menu.
+ {
+  using sf4e::input::AnswerStart;using sf4e::input::StartAnswer;
+  Check(AnswerStart(false,MenuContext::WatchedMatch,false)==StartAnswer::Open&&AnswerStart(false,MenuContext::MainMenu,true)==StartAnswer::Open,"Start did not open a hidden menu");
+  Check(AnswerStart(true,MenuContext::WatchedMatch,false)==StartAnswer::Close&&AnswerStart(true,MenuContext::PracticeMatch,false)==StartAnswer::Close,"Start did not close the menu over a fight");
+  Check(AnswerStart(true,MenuContext::WatchedMatch,true)==StartAnswer::None,"Start closed the menu while a text field was open");
+  Check(AnswerStart(true,MenuContext::MainMenu,false)==StartAnswer::None,"Start closed the main menu");
+ }
 }
 // The menu reads the pad from the runtime's published snapshot, published as
 // netplay::PublishCadence says. Over a Practice fight or a watched game the

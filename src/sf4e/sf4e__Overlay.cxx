@@ -568,11 +568,23 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     presentation.Update(snapshot.menuContext, snapshot.session.match, snapshot.offlineRequested, focused);
     s_menuAvailable = presentation.Available();
     const auto openRequest = s_menuPads.Take();
-    if (openRequest.kind != sf4e::ui::MenuPads::Kind::None && presentation.Available()) {
-        presentation.Open(openRequest.kind == sf4e::ui::MenuPads::Kind::Play ? "the Network item" :
-            openRequest.kind == sf4e::ui::MenuPads::Kind::Training ? "the Training item" : "Start");
-        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Play) shell.ShowPlay();
-        if (openRequest.kind == sf4e::ui::MenuPads::Kind::Training) shell.ShowTraining();
+    // The Network and Training items open the menu on their pages; Start's
+    // request (Controls) opens it, or over a fight closes it (input::AnswerStart).
+    switch (openRequest.kind) {
+    case sf4e::ui::MenuPads::Kind::None: break;
+    case sf4e::ui::MenuPads::Kind::Play:
+        if (presentation.Available()) { presentation.Open("the Network item"); shell.ShowPlay(); }
+        break;
+    case sf4e::ui::MenuPads::Kind::Training:
+        if (presentation.Available()) { presentation.Open("the Training item"); shell.ShowTraining(); }
+        break;
+    case sf4e::ui::MenuPads::Kind::Controls:
+        switch (sf4e::input::AnswerStart(presentation.Visible(), snapshot.menuContext, shell.TextEntryOpen())) {
+        case sf4e::input::StartAnswer::Open: if (presentation.Available()) presentation.Open("Start"); break;
+        case sf4e::input::StartAnswer::Close: presentation.Close("Start"); break;
+        case sf4e::input::StartAnswer::None: break;
+        }
+        break;
     }
     // The WIN screen of a room game this PC fought: the post-match prompt opens over it, once per game.
     static bool matchResultShown = false;
@@ -636,9 +648,6 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     });
     controllerNavigation.Update(snapshot.menuController, sf4e::input::ControllerMenuAvailable(snapshot.menuContext),
         presentation.Visible() || s_trainingControls.Open(), !assigning && !(setup.active && (setup.mode == gamepads::SetupMode::Capture || targetIsGameplay)));
-    // Start opens Ember at the main menu and over a fight (a Practice match
-    // or a watched game); in Training and over an export it is the game's pause.
-    if (controllerNavigation.OpenRequested() && presentation.Available() && sf4e::input::ControllerOpensMenu(snapshot.menuContext)) presentation.Open("Start");
     ImGui::NewFrame();
     unsigned menuButtons = controllerNavigation.Buttons();
     // The menu self-test presses the menu's buttons itself, with the menu shown.
