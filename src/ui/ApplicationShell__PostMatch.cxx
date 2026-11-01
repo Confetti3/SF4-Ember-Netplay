@@ -286,10 +286,27 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         const int lines = v2::BarLines(width, needs, gap);
         const float barHeight = lines * (rowHeight + gap) - gap;
         const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, needs, gap, lines, rowHeight);
+        // A wrapped bar can reach below the panel, so the focused button scrolls
+        // into view when the focus moves, the button moves in the panel's content
+        // (the bar or the words over it took another line) or the panel changes
+        // size; a scroll of the player's own stays put between.
+        PostMatchBarView shown;
+        shown.focus = nav.Focus();
+        const ImVec2 panel = ImGui::GetWindowSize();
+        shown.panelWidth = std::round(panel.x); shown.panelHeight = std::round(panel.y);
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            if (entries[i].id != shown.focus) continue;
+            // In whole pixels, so the player's own scroll never reads as a move.
+            const float top = ImGui::GetWindowPos().y - ImGui::GetScrollY();
+            shown.top = std::round(places[i].min.y - top); shown.bottom = std::round(places[i].max.y - top);
+        }
+        const bool reveal = !(shown == postMatchBarShown_);
+        postMatchBarShown_ = shown;
         for (std::size_t i = 0; i < entries.size(); ++i) {
             const auto& e = entries[i];
             const v2::Box& b = places[i];
-            const bool hovered = PressEntry(nav, entries, e, b, action).hovered, enabled = feedback.Enabled(e);
+            ReportMenuCard(e.id.c_str(), b.min, b.max);
+            const bool hovered = PressEntry(nav, entries, e, b, action, reveal).hovered, enabled = feedback.Enabled(e);
             v2::Button(d, b, "", v2::ButtonKind::Secondary, e.id == nav.Focus(), hovered, enabled);
             const char* press = ButtonGlyph(e.id);
             const float mark = press ? glyph + 10 * s : 0, room = b.W() - mark - 24 * s;
@@ -298,7 +315,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             if (press) DrawPromptGlyph(d, press, ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
             v2::Text(d, ImVec2(x + mark, b.min.y + (rowHeight - font) * .5f), room, e.label, font, enabled ? c.text : c.muted);
         }
-        ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 0));
+        // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
+        ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
     };
     const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(rows.size()), {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();

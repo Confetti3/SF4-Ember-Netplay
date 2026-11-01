@@ -17,7 +17,7 @@ Where it stands:
 |---|---|---|---|
 | Memory | 40 MB a room, 4.0 GB | 29 MB a room, 2.9 GB | yes |
 | CPU | 2.8 vCPU at 70%, so 2.8% a room | about 2.9% a room on the VPS today, 2.9 vCPU | not yet; see below |
-| Ports | 200 UDP ports | `port_range` 45800-45899 holds 50 rooms | widen first |
+| Ports | 200 UDP ports | `port_range` 45800-45899 holds 50 rooms; 45900-45999 is server1's | widen down to 45700 first |
 | Tasks | 1600 at the setup check of 16 a room | `TasksMax` 2048 | yes |
 | Upload | about 65 Mbit/s if every room is busy | 20 Mbit/s with 11 rooms today | yes on 1 Gbit/s unmetered |
 
@@ -71,10 +71,15 @@ threshold and a 128 KiB trim threshold the same runs stayed flat.
 1. Stage the updated `server/ember-rooms/deploy` and run setup.sh. The unit's
    environment changed, so this restarts the supervisor with a drain (rooms
    run until empty, at most 10 minutes).
-2. Widen `port_range` in `/etc/ember-rooms/config.json` to `[45800, 45999]`
-   and run setup.sh again with `--max-rooms 80`. It adds the ufw rule for the
-   new range. Open the same UDP range in the IONOS cloud firewall if one is
-   in front of the VPS, and remove the old ufw rule by hand.
+2. Widen `port_range` downwards to `[45700, 45899]`: 45900-45999 belongs to
+   server1's room box, which the VPS forwards through the tunnel. Add
+   45700-45799 to the reserved ports in `/etc/sysctl.d/60-ember-tunnel.conf`
+   (`45700-45999`, as `setup-vps.sh` in the private ember-tunnel repo now
+   writes) and apply it with `sysctl --system`, set the range in
+   `/etc/ember-rooms/config.json`, and run setup.sh with `--max-rooms 80`. It
+   adds the ufw rule for the new range; remove the old `45800:45899` rule by
+   hand and open UDP 45700-45799 in the IONOS Cloud Panel firewall, which sits
+   in front of ufw.
 3. During a week at 80, on busy evenings, measure the rooms' CPU over an
    interval rather than with `ps` (which averages over each process's life).
    The service's cgroup counts the CPU of every room host and helper,

@@ -92,11 +92,17 @@ int main() try {
     bool requireMenuFrame = false;
     float step = 1.0f / 60.0f;
     std::map<std::string, ImVec2> targets;
+    // Whether each card, as last reported, lay whole inside the clip it was drawn under.
+    std::map<std::string, bool> inView;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; ++menuDraws; });
     SetMenuStatusProbe([&](const char* status, Tone) { menuStatus = status; });
     SetMenuCardProbe([&](const char* id, ImVec2 min, ImVec2 max) {
         ++cardDraws;
         targets[id] = ImVec2((min.x + max.x) * .5f, (min.y + max.y) * .5f);
+        const auto* d = ImGui::GetWindowDrawList();
+        const ImVec2 lo = d->GetClipRectMin(), hi = d->GetClipRectMax();
+        // The clip is whole pixels, the card not: a pixel's slack.
+        inView[id] = min.x >= lo.x - 1 && min.y >= lo.y - 1 && max.x <= hi.x + 1 && max.y <= hi.y + 1;
     });
     const auto frame = [&](unsigned buttons = 0) {
         const auto beforeDraws = menuDraws;
@@ -1670,6 +1676,24 @@ int main() try {
                     }
                 }
             }
+        // ArcadeFocusStaysInViewWhenBarFollows: focus on Ready, then on a
+        // bottom-row cabinet, in the wide board whose bar stands fixed; the
+        // screen shrinks to 1280x720 at 150%, where the bar follows the
+        // floor in its scroll. The focus is unchanged, and still in view.
+        for (const char* id : {"ready", "cabinet-8"}) {
+            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            focus(id); frame(); frame();
+            Check(at() == id && inView[id], "The wide Arcade board's fixture row was out of view");
+            // The floor's scroll at its top, as a new one's is: ImGui keeps the
+            // scroll of an earlier check's floor, which could show the row by chance.
+            for (auto* w : GImGui->Windows) if (std::strstr(w->Name, "Arcade floor")) ImGui::SetScrollY(w, 0);
+            ApplyTheme(1.5f); io.DisplaySize = ImVec2(1280, 720); frame(); frame(); frame();
+            const bool follows = std::any_of(GImGui->Windows.begin(), GImGui->Windows.end(),
+                [](const ImGuiWindow* w) { return w->Active && std::strstr(w->Name, "Arcade floor"); });
+            Check(follows, "The shrunk Arcade board's bar did not follow the floor");
+            if (at() != id || !inView[id]) std::cerr << "focus " << at() << " in view " << inView[id] << '\n';
+            Check(at() == id && inView[id], "The focused row went out of view when the Arcade bar began to follow the floor");
+        }
         // ArcadeTopRowUpStays: nothing is above the top row.
         board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
         focus("cabinet-3"); frame(); press(MenuInput::Up);

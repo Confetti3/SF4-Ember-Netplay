@@ -615,6 +615,17 @@ private:
         AfterPostMatch after = AfterPostMatch::None;
     };
     std::optional<PostMatchPrompt> postMatch_;
+    // The prompt's focused button last frame, where it stood in the panel's
+    // content (not scrolled) and the panel's size: a change scrolls the button
+    // into view.
+    struct PostMatchBarView {
+        std::string focus;
+        float top = 0, bottom = 0, panelWidth = 0, panelHeight = 0;
+        bool operator==(const PostMatchBarView& o) const {
+            return focus == o.focus && top == o.top && bottom == o.bottom && panelWidth == o.panelWidth && panelHeight == o.panelHeight;
+        }
+    };
+    PostMatchBarView postMatchBarShown_;
     bool matchResultSeen_ = false;
     unsigned gamesInPlaceSeen_ = 0;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
@@ -653,13 +664,22 @@ private:
     // A room's board in its type's layout, in place of the table cards
     // (RoomPanelArcade.cxx), `size` big. `scrolled`: it stands in a scroll of
     // the room board's with the room's actions after it, which then follows the
-    // focus to the cabinets and matchups as it does to the actions.
+    // focus to the cabinets and matchups as it does to the actions. `reveal`:
+    // the focused row scrolls into view this frame (RoomBoardFrame::focusChanged).
     void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
-                         room::RoomType type,bool scrolled);
+                         room::RoomType type,bool scrolled,bool reveal);
     // The height that board needs `width` wide for its top slot, both rows of
     // cabinets at their least size and the matchups under them.
     static float ArcadeBoardHeight(const ShellView& view,const std::vector<MenuEntry>& rows,float width);
     std::string roomBoardFocus_;
+    // Whether the room's action bar followed the tables in their scroll last
+    // frame, and the tables' size: a change shows the focused row again.
+    struct RoomTablesShape {
+        bool follows = false;
+        float width = 0, height = 0;
+        bool operator==(const RoomTablesShape& o) const { return follows == o.follows && width == o.width && height == o.height; }
+    };
+    RoomTablesShape roomTablesShape_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;
     // The room chat: what the room said and did, kept here (ChatTranscript). The Chat screen is its

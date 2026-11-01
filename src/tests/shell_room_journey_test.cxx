@@ -722,6 +722,55 @@ void ArcadeJourneys() {
   Check(!leftCabinet(backed),"Back to room after an Arcade set left the cabinet");
   SetMenuEntriesProbe({});
  }
+ {
+  // PostMatchFocusedButtonInView: the Arcade decision's four buttons, on a
+  // narrow screen at 150% text where their bar takes two lines and reaches
+  // below the prompt's panel. Each one the pad focuses is scrolled into view,
+  // inside the clip it is drawn under.
+  Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
+  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+  a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
+  a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;a.view.room.cabinets[9]=4;
+  a.imgui.io.DisplaySize=ImVec2(640,720);ApplyTheme(1.f,1.5f);
+  a.Screen("room");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  std::map<std::string,bool> inView;std::map<std::string,float> top,content;
+  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
+   const auto* d=ImGui::GetWindowDrawList();const ImVec2 lo=d->GetClipRectMin(),hi=d->GetClipRectMax();
+   // The clip is whole pixels, the button not: a pixel's slack.
+   inView[id]=min.x>=lo.x-1&&min.y>=lo.y-1&&max.x<=hi.x+1&&max.y<=hi.y+1;top[id]=min.y;content[id]=min.y-ImGui::GetWindowPos().y+ImGui::GetScrollY();});
+  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.deciding=true;
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+  const char* const buttons[]={"rematch","new-opponent","fighter","back"};
+  Check(a.shell.Navigation().Screen()=="post-match"&&rows.size()==4,"The Arcade decision prompt did not open with its four buttons");
+  a.Frame(0,2);
+  float lowest=0,highest=1e9f;for(const char* id:buttons){lowest=(std::max)(lowest,top[id]);highest=(std::min)(highest,top[id]);}
+  Check(lowest>highest+1,"The post-match fixture's buttons did not take two lines");
+  for(const char* id:buttons){
+   a.FocusOn(id);a.Frame(0,3);
+   Check(a.shell.Navigation().Screen()=="post-match"&&a.shell.Navigation().Focus()==id&&inView[id],
+    (std::string("A focused post-match button was out of view: ")+id).c_str());
+  }
+  // The prompt's own scroll, in the window the buttons are drawn in.
+  ImGuiWindow* panel=nullptr;
+  for(auto* w:GImGui->Windows)if(w->Active&&std::strstr(w->Name,"/Body_"))panel=w;
+  Check(panel&&panel->ScrollMax.y>0,"The post-match fixture's panel did not scroll");
+  // A scroll of the player's own stays put while nothing else changes.
+  ImGui::SetScrollY(panel,0);a.Frame(0,3);
+  Check(panel->Scroll.y<1&&a.shell.Navigation().Focus()=="back"&&!inView["back"],"The post-match panel snapped back from the player's own scroll");
+  ImGui::SetScrollY(panel,panel->ScrollMax.y);a.Frame(0,3);
+  Check(inView["back"],"The post-match fixture could not scroll Back into view");
+  // Narrower, the words over the bar take another line and Back moves down,
+  // its bar still on two lines and the focus unchanged: it is shown again.
+  const float before=content["back"];
+  a.imgui.io.DisplaySize=ImVec2(560,720);a.Frame(0,3);
+  float low=0,high=1e9f;for(const char* id:buttons){low=(std::max)(low,top[id]);high=(std::min)(high,top[id]);}
+  Check(low>high+1&&content["back"]>before+1,"The narrower post-match fixture did not move Back down on a two-line bar");
+  Check(a.shell.Navigation().Focus()=="back"&&inView["back"],"Back moved down in the post-match panel and stayed out of view");
+  SetMenuEntriesProbe({});SetMenuCardProbe({});ApplyTheme(1.f);
+ }
  for(const auto type:{room::ArcadeRoom,room::KingRoom}){
   // A pair alone in an Arcade or King room stays together after a set and
   // readies again: the prompt offers the ordinary Rematch and names no winner

@@ -172,10 +172,10 @@ float ApplicationShell::ArcadeBoardHeight(const ShellView& v,const std::vector<M
 }
 
 void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,ImVec2 size,
-                                       room::RoomType type,bool scrolled) {
+                                       room::RoomType type,bool scrolled,bool reveal) {
  const float s=Scale();const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
  const auto focus=nav.Focus();
- const bool focusMoved=focus!=roomBoardFocus_;
+ const bool focusMoved=reveal;
  const ImVec2 origin=ImGui::GetCursorScreenPos();
  const v2::Box area{origin,ImVec2(origin.x+size.x,origin.y+size.y)};
  const ImU32 pending=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),gold=v2::TierColor(v2::Tier::Gold).stripe;

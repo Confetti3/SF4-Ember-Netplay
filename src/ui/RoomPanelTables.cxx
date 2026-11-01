@@ -249,7 +249,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
  const float s=Scale();
- const RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s};
+ RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s};
  const auto& focus=f.focus;
  const unsigned unread=transcript_.Unread(muted_);
  const auto origin=ImGui::GetCursorScreenPos();
@@ -328,6 +328,12 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // shorter board it follows the floor in its scroll.
   const float floorHeight=v.room.arcade?ArcadeBoardHeight(v,rows,tables.W()):cardHeight;
   const bool follows=tables.H()-bar.Height(tables.W())-38*s<floorHeight;
+  // A board that starts or stops scrolling, or changes size, can leave the
+  // focused row out of sight with the focus unchanged: it scrolls back into
+  // view as it does when the focus moves. A scroll of the player's own stays
+  // put between.
+  const RoomTablesShape shape{follows,tables.W(),tables.H()};
+  if(!(shape==roomTablesShape_)){f.focusChanged=true;roomTablesShape_=shape;}
   if(!follows){const float width=tables.W();bar.Draw(d,v2::CutBottom(tables,bar.Height(width),12*s).min,width,tables);}
   ImGui::SetCursorScreenPos(v2::CutBottom(tables,18*s,8*s).min);
   DrawFocusedLine(f,13*s);
@@ -342,13 +348,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   if(v.room.arcade){
    ImGui::SetCursorScreenPos(tables.min);
-   if(!follows)DrawArcadeBoard(v,rows,nav,action,ImVec2(tables.W(),tables.H()),v.room.arcade,false);
+   if(!follows)DrawArcadeBoard(v,rows,nav,action,ImVec2(tables.W(),tables.H()),v.room.arcade,false,f.focusChanged);
    else{
     // The floor at its least height in a scroll of its own, the bar after it, as DrawTableCards does.
     ImGui::BeginChild("Arcade floor",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
     const ImVec2 start=ImGui::GetCursorScreenPos();
     const float width=ImGui::GetContentRegionAvail().x,height=ArcadeBoardHeight(v,rows,width);
-    DrawArcadeBoard(v,rows,nav,action,ImVec2(width,height),v.room.arcade,true);
+    DrawArcadeBoard(v,rows,nav,action,ImVec2(width,height),v.room.arcade,true,f.focusChanged);
     bar.Draw(ImGui::GetWindowDrawList(),ImVec2(start.x,start.y+height+12*s),width,tables);
     ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(width,height+12*s+bar.Height(width)));
     ImGui::EndChild();
