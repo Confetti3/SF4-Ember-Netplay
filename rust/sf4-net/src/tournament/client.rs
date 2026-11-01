@@ -559,11 +559,22 @@ pub(super) fn refused(status: u16, body: &[u8], refusals: &Refusals<'_>) -> Fail
 
 /// The failure for a bridge's refusal: its `details.reason` when that is one
 /// of `reasons`, which a caller words apart, else its error code, or
-/// `http_<status>` when the body names none.
+/// `http_<status>` when the body names none. A listed reason with a
+/// `details.cause` is `<reason>_<cause>` when `reasons` lists that too; a
+/// reason that is not listed never takes a cause, so `room` and `full` are
+/// not `room_full`.
 pub(super) fn refusal(status: u16, body: &[u8], reasons: &[&str]) -> Failure {
     let error = serde_json::from_slice::<ApiError>(body).ok();
     let reason = error.as_ref().and_then(|error| {
-        let reason = error.error.details.get("reason")?.as_str()?;
+        let details = &error.error.details;
+        let reason = details.get("reason")?.as_str()?;
+        let cause = details.get("cause").and_then(|cause| cause.as_str());
+        if let (true, Some(cause)) = (reasons.contains(&reason), cause) {
+            let caused = format!("{reason}_{cause}");
+            if reasons.contains(&caused.as_str()) {
+                return Some(caused);
+            }
+        }
         // Tournament Mode by invitation is the same answer wherever an
         // organizer is turned away, so the game always words it.
         (reasons.contains(&reason) || reason == "invite_required").then(|| reason.to_owned())

@@ -4842,6 +4842,12 @@ msgstr "Ce salon n'est pas encore ouvert."
 msgid "public.failure.room_limit"
 msgstr "La limite de salons publics est atteinte. Réessayez plus tard."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "Vous avez déjà un salon public ouvert. Vous pourrez en créer un autre quand tout le monde l'aura quitté."
+
+msgid "public.failure.room_limit_network"
+msgstr "Votre réseau a déjà ouvert le nombre maximal de salons publics. Réessayez quand l'un d'eux sera fermé."
+
 msgid "public.failure.unsupported_build"
 msgstr "Les salons publics ne sont pas encore disponibles pour cette version."
 

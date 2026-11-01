@@ -108,7 +108,7 @@ void JoinJourney(){
  // Each refusal, in words, and none joins.
  const std::pair<const char*,const char*> refusals[]={
   {"room_full","public.failure.room_full"},{"banned","public.failure.banned"},{"room_not_found","public.failure.room_not_found"},{"room_not_open","public.failure.room_not_open"},
-  {"room_limit","public.failure.room_limit"},{"unsupported_build","public.failure.unsupported_build"},{"invalid_name","public.failure.invalid_name"},{"rooms_unavailable","public.failure.rooms_unavailable"},
+  {"room_limit","public.failure.room_limit"},{"room_limit_own_room","public.failure.room_limit_own_room"},{"room_limit_network","public.failure.room_limit_network"},{"unsupported_build","public.failure.unsupported_build"},{"invalid_name","public.failure.invalid_name"},{"rooms_unavailable","public.failure.rooms_unavailable"},
   {"room_locked","public.failure.room_locked"},{"unavailable","public.failure.unavailable"},{"untrusted_signature","public.failure.untrusted"},{"binding_mismatch","public.failure.untrusted"},
   {"internal","public.failure.internal"},{"helper_unavailable","public.failure.helper"}};
  for(const auto& refusal:refusals){
@@ -212,6 +212,10 @@ void CreateJourney(){
  // A refusal says why on Create and the player can try again.
  h.Choose("host");j.Admit("room_limit");
  Check(j.status==loc::T("public.failure.room_limit")&&j.row("host")->enabled&&j.joins()==1,"A refused create did not say why");
+ // A room of the player's own still open is told apart from a full room server.
+ h.Choose("host");j.Admit("room_limit_own_room");
+ Check(j.status==loc::T("public.failure.room_limit_own_room")&&j.status!=loc::T("public.failure.room_limit")&&j.row("host")->enabled&&j.joins()==1,
+  "A create refused for the player's own open room did not say so");
  // Without a trusted service Create cannot send, and says why.
  h.view.identity.bridges.clear();h.Screen("home");h.Screen("create");j.answerIdentityUntilIdle();
  Check(j.row("host")&&!j.row("host")->enabled&&j.row("host")->detail==loc::T("public.create_needs_id"),"Create public room was offered without an Ember ID");

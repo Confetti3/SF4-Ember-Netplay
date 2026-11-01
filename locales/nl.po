@@ -4842,6 +4842,12 @@ msgstr "Deze kamer is nog niet open."
 msgid "public.failure.room_limit"
 msgstr "De limiet voor openbare kamers is bereikt. Probeer het later opnieuw."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "Je hebt al een openbare kamer open. Je kunt een nieuwe maken zodra iedereen die heeft verlaten."
+
+msgid "public.failure.room_limit_network"
+msgstr "Je netwerk heeft al het maximale aantal openbare kamers open. Probeer het opnieuw als er een sluit."
+
 msgid "public.failure.unsupported_build"
 msgstr "Openbare kamers zijn voor deze versie nog niet beschikbaar."
 

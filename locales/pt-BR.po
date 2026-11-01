@@ -4381,6 +4381,12 @@ msgstr "Essa sala ainda não está aberta."
 msgid "public.failure.room_limit"
 msgstr "O limite de salas públicas foi atingido. Tente novamente mais tarde."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "Você já tem uma sala pública aberta. Você poderá criar outra quando todos saírem dela."
+
+msgid "public.failure.room_limit_network"
+msgstr "Sua rede já tem o máximo de salas públicas abertas. Tente novamente quando uma for fechada."
+
 msgid "public.failure.unsupported_build"
 msgstr "As salas públicas ainda não estão disponíveis nesta versão."
 

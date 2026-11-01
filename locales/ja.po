@@ -4843,6 +4843,12 @@ msgstr "このルームはまだ開いていません。"
 msgid "public.failure.room_limit"
 msgstr "公開ルームの上限に達しました。しばらくしてからもう一度お試しください。"
 
+msgid "public.failure.room_limit_own_room"
+msgstr "公開ルームをすでに開いています。全員が退出すると、新しいルームを作成できます。"
+
+msgid "public.failure.room_limit_network"
+msgstr "お使いのネットワークで開ける公開ルームの上限に達しています。ルームが閉じてからもう一度お試しください。"
+
 msgid "public.failure.unsupported_build"
 msgstr "公開ルームはこのバージョンではまだ利用できません。"
 

@@ -6,7 +6,7 @@ use ember_protocol::{
     EmberId, Error as ProtocolError,
     event::Kind,
     play::MAX_INVITATION,
-    rooms::{CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_LIMIT},
+    rooms::{CreateRoom, INVALID_NAME, LIMIT_NETWORK, LIMIT_OWN_ROOM, NOT_LINKED, ROOM_LIMIT},
 };
 use std::time::Duration;
 
@@ -213,7 +213,7 @@ fn reserve(
         )
         .optional()?;
     if let Some((existing, created_by)) = existing {
-        let refusal = refuse(ROOM_LIMIT);
+        let refusal = refuse(ROOM_LIMIT).detail("cause", LIMIT_OWN_ROOM);
         return Err(match connection_id {
             Some(connection_id) if created_by.as_deref() == Some(connection_id) => {
                 refusal.detail("room_id", existing)
@@ -222,16 +222,19 @@ fn reserve(
         });
     }
     // Only then the owner's limit, which a new room would count against.
+    // A connection's limit is its operator's, so its refusal names no cause.
     let full = match owner {
-        Owner::Address(address) => open("creator_address", address)? >= ROOMS_PER_ADDRESS,
+        Owner::Address(address) => (open("creator_address", address)? >= ROOMS_PER_ADDRESS)
+            .then(|| refuse(ROOM_LIMIT).detail("cause", LIMIT_NETWORK)),
         Owner::Connection {
             connection_id,
             max_open,
             ..
-        } => open("connection_id", connection_id)? >= i64::from(*max_open),
+        } => (open("connection_id", connection_id)? >= i64::from(*max_open))
+            .then(|| refuse(ROOM_LIMIT)),
     };
-    if full {
-        return Err(refuse(ROOM_LIMIT));
+    if let Some(refusal) = full {
+        return Err(refusal);
     }
     tx.execute(
         "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, creator_address, created_at,

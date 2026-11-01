@@ -29,9 +29,15 @@ use super::{
 const MAX_LISTED: usize = 100;
 /// The longest build ID the bridge accepts.
 const MAX_BUILD: usize = 128;
+/// A create refused for the player's own limit rather than the room
+/// server's: an open room of their own, or their network's rooms.
+const ROOM_LIMIT_OWN_ROOM: &str = "room_limit_own_room";
+const ROOM_LIMIT_NETWORK: &str = "room_limit_network";
 /// Refusals of the room routes that the game acts on.
-const REASONS: [&str; 8] = [
+const REASONS: [&str; 10] = [
     ROOM_LIMIT,
+    ROOM_LIMIT_OWN_ROOM,
+    ROOM_LIMIT_NETWORK,
     UNSUPPORTED_BUILD,
     INVALID_NAME,
     ROOM_NOT_FOUND,
@@ -254,6 +260,7 @@ async fn verify(
 
 #[cfg(test)]
 mod tests {
+    use ember_protocol::rooms::{LIMIT_NETWORK, LIMIT_OWN_ROOM};
     use serde_json::json;
 
     use super::*;
@@ -353,11 +360,44 @@ mod tests {
             }}))
             .unwrap()
         };
-        assert_eq!(REASONS.len(), 8);
+        assert_eq!(REASONS.len(), 10);
         assert!(REASONS.contains(&"room_locked"));
         for reason in REASONS {
             let body = refusal("stale_revision", Some(reason));
             assert_eq!(reply(409, &body, 201).unwrap_err().as_str(), reason);
+        }
+        // A room limit that names whose limit it is: the player's own room or
+        // their network's. A cause the game does not know leaves `room_limit`.
+        let caused = |cause: &str| {
+            serde_json::to_vec(&json!({ "error": {
+                "code": "stale_revision", "message": "m", "retryable": false, "request_id": "req_1",
+                "details": { "reason": ROOM_LIMIT, "cause": cause },
+            }}))
+            .unwrap()
+        };
+        for (cause, code) in [
+            (LIMIT_OWN_ROOM, "room_limit_own_room"),
+            (LIMIT_NETWORK, "room_limit_network"),
+            ("something_new", "room_limit"),
+        ] {
+            assert_eq!(reply(409, &caused(cause), 201).unwrap_err().as_str(), code);
+        }
+        // A cause on another reason is not read.
+        let body = serde_json::to_vec(&json!({ "error": {
+            "code": "stale_revision", "message": "m", "retryable": false, "request_id": "req_1",
+            "details": { "reason": ROOM_FULL, "cause": LIMIT_OWN_ROOM },
+        }}))
+        .unwrap();
+        assert_eq!(reply(409, &body, 201).unwrap_err().as_str(), "room_full");
+        // A reason the game does not know takes no cause, even when the two
+        // spell a known one: `room` and `full` are not `room_full`.
+        for (reason, cause) in [("room", "full"), ("room", "limit_network")] {
+            let body = serde_json::to_vec(&json!({ "error": {
+                "code": "stale_revision", "message": "m", "retryable": false, "request_id": "req_1",
+                "details": { "reason": reason, "cause": cause },
+            }}))
+            .unwrap();
+            assert_eq!(reply(409, &body, 201).unwrap_err().as_str(), "stale_revision");
         }
         // The reason wins over the status, so a missing room is not "no rooms".
         let body = refusal("not_found", Some(ROOM_NOT_FOUND));

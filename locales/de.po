@@ -4842,6 +4842,12 @@ msgstr "Dieser Raum ist noch nicht geöffnet."
 msgid "public.failure.room_limit"
 msgstr "Das Limit für öffentliche Räume ist erreicht. Versuchen Sie es später erneut."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "Sie haben bereits einen öffentlichen Raum offen. Einen weiteren können Sie erstellen, sobald alle ihn verlassen haben."
+
+msgid "public.failure.room_limit_network"
+msgstr "In Ihrem Netzwerk sind bereits so viele öffentliche Räume offen wie erlaubt. Versuchen Sie es erneut, wenn einer geschlossen wird."
+
 msgid "public.failure.unsupported_build"
 msgstr "Öffentliche Räume sind für diese Version noch nicht verfügbar."
 

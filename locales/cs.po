@@ -4842,6 +4842,12 @@ msgstr "Tato místnost zatím není otevřená."
 msgid "public.failure.room_limit"
 msgstr "Byl dosažen limit veřejných místností. Zkuste to znovu později."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "Už máte otevřenou veřejnou místnost. Další můžete vytvořit, až z ní všichni odejdou."
+
+msgid "public.failure.room_limit_network"
+msgstr "Z vaší sítě je už otevřeno nejvíc veřejných místností, kolik je povoleno. Zkuste to znovu, až se některá zavře."
+
 msgid "public.failure.unsupported_build"
 msgstr "Veřejné místnosti zatím nejsou v této verzi dostupné."
 

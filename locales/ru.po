@@ -4842,6 +4842,12 @@ msgstr "Это лобби ещё не открыто."
 msgid "public.failure.room_limit"
 msgstr "Достигнут лимит открытых лобби. Повторите попытку позже."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "У вас уже открыто лобби. Новое можно создать, когда из него все выйдут."
+
+msgid "public.failure.room_limit_network"
+msgstr "Из вашей сети уже открыто максимальное число лобби. Повторите попытку, когда одно из них закроется."
+
 msgid "public.failure.unsupported_build"
 msgstr "Открытые лобби пока недоступны в этой версии."
 

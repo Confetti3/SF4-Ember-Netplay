@@ -9,7 +9,7 @@ use std::sync::Arc;
 use common::{
     Bridge, code,
     public_rooms::{
-        create_room, create_room_with, listing, open_room, player, reason, send, start, ticket,
+        cause, create_room, create_room_with, listing, open_room, player, reason, send, start, ticket,
     },
     supervisor::{BUILD, ENDPOINT, Gate, enable, fake_supervisor, report, secrets},
 };
@@ -219,7 +219,9 @@ async fn one_open_room_per_creator_and_two_per_address() {
     let first = open_room(&bridge, &kate, "198.51.100.1", 4).await;
     let (status, body) = create_room(&bridge, &kate, "198.51.100.9", "Again", 4).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    // Still `room_limit` for older games; the cause tells newer ones whose limit.
     assert_eq!(reason(&body), "room_limit");
+    assert_eq!(cause(&body), "own_room");
 
     // Two creators behind one address fill it; the third is turned away.
     open_room(&bridge, &sam, "198.51.100.2", 4).await;
@@ -227,6 +229,7 @@ async fn one_open_room_per_creator_and_two_per_address() {
     let (status, body) = create_room(&bridge, &lee, "198.51.100.2", "Third", 4).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(reason(&body), "room_limit");
+    assert_eq!(cause(&body), "network");
     // An IPv6 address counts by its /64.
     open_room(&bridge, &lee, "2001:db8:1:2::1", 4).await;
     assert_eq!(fake.lock().unwrap().created.len(), 4);
@@ -368,6 +371,8 @@ async fn the_supervisors_refusals_reach_the_player_and_free_the_creator() {
         let (got, body) = create_room(&bridge, &kate, "198.51.100.1", "Room", 4).await;
         assert_eq!(got, status, "{body}");
         assert_eq!(reason(&body), refusal);
+        // The room server's own limit is not the player's.
+        assert_eq!(cause(&body), "");
     }
     fake.lock().unwrap().refuse = None;
     open_room(&bridge, &kate, "198.51.100.1", 4).await;

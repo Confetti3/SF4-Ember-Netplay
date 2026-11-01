@@ -4843,6 +4843,12 @@ msgstr "该房间尚未开放。"
 msgid "public.failure.room_limit"
 msgstr "已达到公开房间数量上限，请稍后再试。"
 
+msgid "public.failure.room_limit_own_room"
+msgstr "你已经开了一个公开房间。等所有人都离开后，才能再创建一个。"
+
+msgid "public.failure.room_limit_network"
+msgstr "你的网络已达到可开启的公开房间数量上限，请等有房间关闭后再试。"
+
 msgid "public.failure.unsupported_build"
 msgstr "此版本暂不支持公开房间。"
 

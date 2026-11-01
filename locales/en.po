@@ -4475,6 +4475,12 @@ msgstr "That room is not open yet."
 msgid "public.failure.room_limit"
 msgstr "The limit on public rooms was reached. Try again later."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "You already have a public room open. You can make another once everyone has left it."
+
+msgid "public.failure.room_limit_network"
+msgstr "Your network already has the most public rooms it can open. Try again when one closes."
+
 msgid "public.failure.unsupported_build"
 msgstr "Public rooms are not available for this version yet."
 

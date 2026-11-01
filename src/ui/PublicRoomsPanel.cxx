@@ -147,6 +147,8 @@ std::string PublicRoomsPanel::FailureText(const std::string& code) {
         {"room_full", "public.failure.room_full"}, {"banned", "public.failure.banned"},
         {"room_not_found", "public.failure.room_not_found"}, {"room_not_open", "public.failure.room_not_open"},
         {"room_limit", "public.failure.room_limit"},
+        // The player's own limit, which waiting does not lift, apart from the room server's.
+        {"room_limit_own_room", "public.failure.room_limit_own_room"}, {"room_limit_network", "public.failure.room_limit_network"},
         {"unsupported_build", "public.failure.unsupported_build"}, {"invalid_name", "public.failure.invalid_name"},
         {"rooms_unavailable", "public.failure.rooms_unavailable"},
         {"room_locked", "public.failure.room_locked"}, {"unavailable", "public.failure.unavailable"},

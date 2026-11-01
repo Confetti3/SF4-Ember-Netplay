@@ -130,3 +130,8 @@ pub async fn open_room(bridge: &Bridge, creator: &Player, ip: &str, capacity: u8
 pub fn reason(body: &Json_) -> &str {
     body["error"]["details"]["reason"].as_str().unwrap_or("")
 }
+
+/// A `room_limit` refusal's cause, or "" when it names none.
+pub fn cause(body: &Json_) -> &str {
+    body["error"]["details"]["cause"].as_str().unwrap_or("")
+}

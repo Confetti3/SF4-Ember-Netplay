@@ -31,6 +31,12 @@ pub use ticket::{RoomTicket, SignedRoomTicket};
 
 /// Refusal reasons of the room routes.
 pub const ROOM_LIMIT: &str = "room_limit";
+/// A `room_limit` refusal's `details.cause` when it is the player's limit,
+/// not the room server's: the creator already has an open room, or their
+/// network has as many as one address may open. Clients that predate it read
+/// the plain `room_limit`.
+pub const LIMIT_OWN_ROOM: &str = "own_room";
+pub const LIMIT_NETWORK: &str = "network";
 pub const UNSUPPORTED_BUILD: &str = "unsupported_build";
 pub const INVALID_NAME: &str = "invalid_name";
 pub const ROOM_NOT_FOUND: &str = "room_not_found";

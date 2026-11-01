@@ -4843,6 +4843,12 @@ msgstr "그 방은 아직 열리지 않았습니다."
 msgid "public.failure.room_limit"
 msgstr "공개 방 개수 제한에 도달했습니다. 나중에 다시 시도하세요."
 
+msgid "public.failure.room_limit_own_room"
+msgstr "이미 공개 방을 열어 두었습니다. 모두가 방을 나가면 새 방을 만들 수 있습니다."
+
+msgid "public.failure.room_limit_network"
+msgstr "사용 중인 네트워크에서 열 수 있는 공개 방 수를 모두 채웠습니다. 방이 닫힌 뒤 다시 시도하세요."
+
 msgid "public.failure.unsupported_build"
 msgstr "공개 방은 아직 이 버전에서 사용할 수 없습니다."
 
