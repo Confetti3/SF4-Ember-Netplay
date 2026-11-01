@@ -105,6 +105,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","return"};
             Require(trainingRows.size()==8,"Training home lost a tool page");
             for(std::size_t i=0;i<trainingRows.size();++i)Require(trainingRows[i].id==ids[i],"Training home page order wrong");
+            // In two columns where one is too short for them, as in one: every card in a place of its own.
+            std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+            SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){cards[id]={from,to};});draw();SetMenuCardProbe({});
+            for(auto a=cards.begin();a!=cards.end();++a)for(auto b=std::next(a);b!=cards.end();++b)
+                Require(a->second.second.x<=b->second.first.x+.5f||b->second.second.x<=a->second.first.x+.5f||
+                    a->second.second.y<=b->second.first.y+.5f||b->second.second.y<=a->second.first.y+.5f,("Training home cards overlap: "+a->first+" and "+b->first).c_str());
         }
         if(size.w==1920&&size.h==1080&&size.dpi==1.5f) {
             auto* list=FindWindow("List");

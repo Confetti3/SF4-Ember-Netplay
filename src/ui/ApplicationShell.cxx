@@ -69,6 +69,7 @@ bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
 const char* RoomStatusKey(const room::Snapshot& room) {
     if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
     if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
+    if(room.arcade==room::KingRoom)return room.locked?"room.king_locked_status":"room.king_status";
     if(room.arcade)return room.locked?"room.arcade_locked_status":"room.arcade_status";
     return room.locked?"room.locked_status":"room.private_status";
 }

@@ -276,11 +276,19 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
         if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
         y += words + 24 * s;
-        // The buttons in a row, each with the glyph of its own press, set apart from the players' rows.
-        const float n = static_cast<float>(entries.size()), w = (width - (n - 1) * 12 * s) / n, glyph = 26 * s, font = 17 * s;
+        // The buttons in a bar, each with the glyph of its own press, set apart from
+        // the players' rows: on one line where every label fits beside its glyph, else
+        // on as few as let them (v2::BarLines), as the room's action bar does.
+        const float glyph = 26 * s, font = 17 * s, gap = 12 * s;
+        std::vector<float> needs;
+        for (const auto& e : entries)
+            needs.push_back((ButtonGlyph(e.id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x + 24 * s);
+        const int lines = v2::BarLines(width, needs, gap);
+        const float barHeight = lines * (rowHeight + gap) - gap;
+        const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, needs, gap, lines, rowHeight);
         for (std::size_t i = 0; i < entries.size(); ++i) {
             const auto& e = entries[i];
-            const v2::Box b{ImVec2(at.x + i * (w + 12 * s), y), ImVec2(at.x + i * (w + 12 * s) + w, y + rowHeight)};
+            const v2::Box& b = places[i];
             const bool hovered = PressEntry(nav, entries, e, b, action).hovered, enabled = feedback.Enabled(e);
             v2::Button(d, b, "", v2::ButtonKind::Secondary, e.id == nav.Focus(), hovered, enabled);
             const char* press = ButtonGlyph(e.id);
@@ -290,7 +298,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             if (press) DrawPromptGlyph(d, press, ImVec2(x, b.min.y + (rowHeight - glyph) * .5f), glyph, MenuArt(), s);
             v2::Text(d, ImVec2(x + mark, b.min.y + (rowHeight - font) * .5f), room, e.label, font, enabled ? c.text : c.muted);
         }
-        ImGui::SetCursorScreenPos(ImVec2(at.x, y + rowHeight)); ImGui::Dummy(ImVec2(width, 0));
+        ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 0));
     };
     const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(rows.size()), {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();

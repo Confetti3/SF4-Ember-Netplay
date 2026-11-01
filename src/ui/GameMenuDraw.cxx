@@ -418,7 +418,9 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
     const ImVec2 top = ImGui::GetCursorScreenPos();
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(gap, gap));
     for (std::size_t i = 0; i < entries.size(); ++i) {
-        if (i == half && halves) ImGui::SetCursorScreenPos(ImVec2(top.x + full + gap, top.y));
+        // The right column starts at the top again; its indent keeps each card after
+        // the first there, where a new line would take it back to the left column.
+        if (i == half && halves) { ImGui::SetCursorScreenPos(top); ImGui::Indent(full + gap); }
         const auto& e = entries[i];
         // Home's "awards" row is the player's card in the pane.
         if (home && split && e.id == "awards") continue;
@@ -456,6 +458,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         DrawCardContent(ld, e, c, layout, enabled, twoLines && !cell, home, listWidth > 0);
         if (focused) v2::Focus(ld, c.min, c.max, !cell);
     }
+    if (halves) ImGui::Unindent(full + gap);
     ImGui::PopStyleVar();
     navigation.Scroll() = ImGui::GetScrollY();
     ImGui::EndChild();

@@ -638,13 +638,16 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     if (open) d->AddRectFilled(section.min, ImVec2(section.min.x + 3 * s, section.max.y), c.accent);
     const v2::Box list = v2::Inset(section, 12 * s, 8 * s);
     ImGui::SetCursorScreenPos(list.min);
-    ImGui::BeginChild("settings rows", ImVec2(list.W(), list.H()), 0, ImGuiWindowFlags_NoNavInputs);
+    // A long panel's scrollbar stands in the section's margin right of the
+    // rows, so it never covers the focus mark's right edge.
+    ImGui::BeginChild("settings rows", ImVec2(section.max.x - list.min.x, list.H()), 0, ImGuiWindowFlags_NoNavInputs);
+    const float rowWidth = (std::min)(list.W(), ImGui::GetContentRegionAvail().x);
     // The open panel's rows are the screen's entries: its values offered, and
     // the shell's own (Retry saving). A panel only shown draws its rows as built.
     for (const MenuEntry& e : open ? entries : shown->rows) {
         const auto p = ImGui::GetCursorScreenPos();
         // While closed a row opens its panel; while open its value's ends step it, anything else on it is Select.
-        const auto row = shell.menu_.DrawBoardRow(entries, e, p, list.W(), action, {list, open && feedback.Enabled(e), open && e.id == focus && changed, open});
+        const auto row = shell.menu_.DrawBoardRow(entries, e, p, rowWidth, action, {list, open && feedback.Enabled(e), open && e.id == focus && changed, open});
         if (row.hit.pressed && !open) action = {MenuAction::Shortcut, tab + "/" + shown->panel->id};
         ImGui::SetCursorScreenPos(ImVec2(p.x, row.box.max.y + 4 * s));
     }

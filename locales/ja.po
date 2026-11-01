@@ -2839,6 +2839,12 @@ msgstr "ホスト / {0} / 席{1}"
 msgid "room.board_status_slot"
 msgstr "{0} / 席{1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "ホスト / {0} / 筐体{1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / 筐体{1}"
+
 msgid "room.board_status_host"
 msgstr "ホスト / {0}"
 
@@ -5265,6 +5271,12 @@ msgstr "アーケードルーム / 招待のみ"
 
 msgid "room.arcade_locked_status"
 msgstr "アーケードルーム（ロック中） / 招待のみ"
+
+msgid "room.king_status"
+msgstr "キング・オブ・ザ・ヒル / 招待のみ"
+
+msgid "room.king_locked_status"
+msgstr "キング・オブ・ザ・ヒル（ロック中） / 招待のみ"
 
 msgid "room.arcade_sit"
 msgstr "席に着く"

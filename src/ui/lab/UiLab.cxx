@@ -138,6 +138,8 @@ ui::ShellView FakeView() {
     // The awards earned (six of eleven), the Weekly top 8 worn (--screen awards).
     view.earnedAwards = {"entrant", "launch-night", "weekly-top16", "rollback-regular", "weekly-top8", "organizer"};
     view.preferences.wornTitle = view.preferences.wornIcon = "weekly-top8";
+    // The installed build, which Home's corner and Help and about name with its kind (VersionLine).
+    view.services.installedVersion = "1.5.0";
     view.services.update.news = {{"v1.3.0", "Ember 1.3.0", "2026-10-21", "New menus: categories, panels and choices.\n- Spectators keep watching through Alt+Enter.", ""},
         {"v1.2.1", "Ember 1.2.1", "2026-10-17", "Fixes for rollback saves.", ""}, {"v1.2.0", "Ember 1.2.0", "2026-10-14", "Borderless window setting.", ""}};
     view.services.update.news.insert(view.services.update.news.begin() + 1, {"v1.3.0-nightly.12", "Nightly 1.3.0.12", "2026-10-19", "Room board fits Steam Deck.\n- Speech for menus.", ""});
@@ -174,6 +176,8 @@ void JoinRoom(ui::ShellView& view) {
         m.country = CountryCode::Parsed(countries[i - 1]);
         if (i <= 4) { m.table = (i - 1) / 2; m.seat = (i - 1) % 2; m.status = i < 3 ? room::MemberStatus::Seated : room::MemberStatus::Playing; }
         m.link = static_cast<NetworkLink>(i % 3);
+        // Sets won and lost in the room, on the cards of those who have played one.
+        if (i <= 6) { m.setsWon = static_cast<std::uint16_t>(i % 4); m.setsLost = static_cast<std::uint16_t>(i % 3); }
         // Class marks and pings, as a public room shows them.
         m.badge = i == 2 ? SkillBadge::Developer() : i == 3 ? SkillBadge::Placing() : i < 9 ? SkillBadge::OfClass(static_cast<std::uint8_t>(i), i % 2 == 0) : SkillBadge{};
         if (i > 1) { session::MemberLatency l; l.incarnation = m.incarnation; l.state = session::MemberLatency::State::Value; l.rttMs = 20 + i * 13 % 190; l.relay = i % 3 == 0; view.memberLatency[m.id] = l; }

@@ -30,7 +30,7 @@ void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  const float x=min.x+16*s+face,w=max.x-x-44*s;
  v2::Tag(d,ImVec2(x,min.y+5*s),w,{card.label,{},{},card.marks,card.latency},v2::TagSize::S);
  std::string elided;
- DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.status,14*s,palette::Muted);
+ DrawCardText(elided,ImVec2(x,max.y-20*s),w,card.record.empty()?card.status:card.status+" \xC2\xB7 "+card.record,14*s,palette::Muted);
  DrawNetworkLinkGlyph(d,ImVec2(max.x-30*s,min.y+(h-16*s)*.5f),16*s,card.link);
  NoteUserText(card.name);
 }

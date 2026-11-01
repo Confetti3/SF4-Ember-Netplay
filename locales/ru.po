@@ -2838,6 +2838,12 @@ msgstr "ВЕДУЩИЙ / {0} / Место {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / Место {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "ВЕДУЩИЙ / {0} / Автомат {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / Автомат {1}"
+
 msgid "room.board_status_host"
 msgstr "ВЕДУЩИЙ / {0}"
 
@@ -5264,6 +5270,12 @@ msgstr "Аркадная комната / только по приглашени
 
 msgid "room.arcade_locked_status"
 msgstr "Аркадная комната закрыта / только по приглашению"
+
+msgid "room.king_status"
+msgstr "Царь горы / только по приглашению"
+
+msgid "room.king_locked_status"
+msgstr "Царь горы закрыт / только по приглашению"
 
 msgid "room.arcade_sit"
 msgstr "Сесть"

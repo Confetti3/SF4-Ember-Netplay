@@ -620,6 +620,14 @@ void ArcadeJourneys() {
   a.Screen("room");const auto sent=a.actions.size();a.Choose("cabinet-0");
   Check(a.actions.size()==sent+1&&a.actions.back().roomAction.kind==room::ActionKind::Queue&&a.actions.back().roomAction.table==0&&
    a.actions.back().roomAction.seat==0,"A paired member could not move to cabinet 1");
+  // The status line names the room's type: Arcade, or King of the hill, locked or not.
+  std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});a.Frame();
+  Check(status==loc::T("room.arcade_status"),"An Arcade room's status line did not say so");
+  a.view.room.arcade=room::KingRoom;a.Frame();
+  Check(status==loc::T("room.king_status"),"A King of the hill room's status line called it an Arcade room");
+  a.view.room.locked=true;a.Frame();
+  Check(status==loc::T("room.king_locked_status"),"A locked King of the hill room's status line did not say so");
+  SetMenuStatusProbe({});
  }
  {
   // King of the hill after a set with another pair in the room: the winner

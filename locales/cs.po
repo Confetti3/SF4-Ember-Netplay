@@ -2838,6 +2838,12 @@ msgstr "HOSTITEL / {0} / Místo {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / Místo {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "HOSTITEL / {0} / Automat {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / Automat {1}"
+
 msgid "room.board_status_host"
 msgstr "HOSTITEL / {0}"
 
@@ -5264,6 +5270,12 @@ msgstr "Místnost herny / jen na pozvání"
 
 msgid "room.arcade_locked_status"
 msgstr "Místnost herny zamčená / jen na pozvání"
+
+msgid "room.king_status"
+msgstr "Král kopce / jen na pozvání"
+
+msgid "room.king_locked_status"
+msgstr "Král kopce zamčený / jen na pozvání"
 
 msgid "room.arcade_sit"
 msgstr "Posadit se"

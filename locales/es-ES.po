@@ -2839,6 +2839,12 @@ msgstr "ANFIT. / {0} / Asiento {1}"
 msgid "room.board_status_slot"
 msgstr "{0}/Asiento {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "ANFIT. / {0} / Máquina {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0}/Máquina {1}"
+
 msgid "room.board_status_host"
 msgstr "ANFIT. / {0}"
 
@@ -5265,6 +5271,12 @@ msgstr "Sala recreativa / solo por invitación"
 
 msgid "room.arcade_locked_status"
 msgstr "Sala recreativa cerrada / solo por invitación"
+
+msgid "room.king_status"
+msgstr "Rey de la colina / solo por invitación"
+
+msgid "room.king_locked_status"
+msgstr "Rey de la colina cerrado / solo por invitación"
 
 msgid "room.arcade_sit"
 msgstr "Sentarse"

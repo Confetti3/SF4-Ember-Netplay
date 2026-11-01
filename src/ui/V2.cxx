@@ -624,4 +624,12 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     if (status) Chip(draw, ImVec2(x2, second), tag.status, Colors().muted);
     return line + 4 * s + chipHeight;
 }
+float TagWidth(const TagView& tag, TagSize size) {
+    const float s = Scale(), gap = 8 * s;
+    const float font = size == TagSize::XS ? ImGui::GetFontSize() * .85f : ImGui::GetFontSize();
+    // As Tag lays the line out: the ping with its route above XS.
+    const std::string& ping = size != TagSize::XS && !tag.ping.routed.empty() ? tag.ping.routed : tag.ping.text;
+    return NameMarksWidth(tag.marks, font) + TextWidth(tag.name, font, ImGui::GetFont()) + (tag.title.empty() ? 0 : gap + TextWidth(tag.title, font)) +
+        (tag.status.empty() ? 0 : gap + ChipWidth(tag.status)) + (ping.empty() ? 0 : gap + ChipWidth(ping));
+}
 } } }

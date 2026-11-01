@@ -31,19 +31,22 @@ SkillBadge Shown(const Standing& standing) {
     return standing.kind == Standing::Kind::Ranked && standing.classesShown ? standing.badge : SkillBadge();
 }
 
-// A row with marks before its label and, on the right, before its value. A
-// player's own name may elide; an interface label must fit. `own` puts the
-// You chip before the value's place.
+// A row with marks before its label and, on the right, before its value, its
+// words 16 px in as every card's (CardLayout). A player's own name may elide;
+// an interface label must fit, so a value beside one (Board as's name) takes
+// only what the label leaves. `own` puts the You chip before the value's place.
 void DrawMarkedRow(const MenuEntry& e, ImVec2 min, ImVec2 max, const NameMarks& left, const NameMarks& right, bool own) {
-    const float s = Scale(), pad = ImGui::GetStyle().FramePadding.x, font = ImGui::GetFontSize(), top = min.y + (max.y - min.y - font) * .5f;
+    const float s = Scale(), pad = 16 * s, font = ImGui::GetFontSize(), top = min.y + (max.y - min.y - font) * .5f;
     auto* d = ImGui::GetWindowDrawList();
+    const float x = min.x + pad + NameMarksWidth(left, font), labelNeed = e.userText ? 0 : Measure(font, e.label) + 8 * s;
     float end = max.x - pad;
     if (!e.value.empty()) {
         if (e.userText) NoteUserText(e.value);
-        const float valueWidth = Measure(font, e.value);
-        end -= valueWidth;
-        d->AddText(ImVec2(end, top), e.valueHighlighted ? palette::Ember : palette::Ivory, e.value.c_str());
-        end -= Marks(end - NameMarksWidth(right, font), top, font, right) + 8 * s;
+        const float marks = NameMarksWidth(right, font);
+        const std::string value = v2::Fit(e.value, (std::max)(0.f, end - x - labelNeed - marks), font, nullptr, false);
+        end -= Measure(font, value);
+        d->AddText(ImVec2(end, top), e.valueHighlighted ? palette::Ember : palette::Ivory, value.c_str());
+        end -= Marks(end - marks, top, font, right) + 8 * s;
     }
     if (own) {
         const std::string you = loc::T("rankings.you");
@@ -52,7 +55,8 @@ void DrawMarkedRow(const MenuEntry& e, ImVec2 min, ImVec2 max, const NameMarks& 
         DrawChip(ImVec2(end, min.y + (max.y - min.y - 20 * s) * .5f), you.c_str(), palette::Ember, ChipFill, "rkb-you-chip", chip);
         end -= 8 * s;
     }
-    const float x = min.x + pad + Marks(min.x + pad, top, font, left), width = end - x;
+    Marks(min.x + pad, top, font, left);
+    const float width = end - x;
     const ImU32 color = own ? palette::Ember : e.info && !e.userText ? palette::Ivory : ImGui::GetColorU32(ImGuiCol_Text);
     if (e.userText) {
         NoteUserText(e.label);
@@ -107,14 +111,23 @@ bool DrawRankingsBoardRow(const MenuEntry& e, const Standing* standing, const st
         return w + 12 * s;
     };
     if (e.id == "rk-standing" && standing) {
-        const float pad = 20 * s, emblem = 80 * s;
+        // The emblem gives a narrow card's words most of its width.
+        const float pad = 20 * s, emblem = (std::min)(80 * s, (max.x - min.x) * .2f);
         const NameMarks marks{CountryCode(), Shown(*standing)};
         const float mark = NameMarksWidth(marks, emblem), x = min.x + pad + (mark > 0 ? mark + 14 * s : 0), room = max.x - pad - x;
         DrawNameMarks(d, min.x + pad, min.y + (h - emblem) * .5f, emblem, marks);
-        float y = min.y + (h - 26 * s - 26 * s - 20 * s) * .5f;
+        // The class's name under the tag, smaller where its line is too short
+        // for it, down to 12 px and then on two lines; then the detail's first
+        // line, cut to the card, while there is room for it (the detail pane
+        // says it whole).
+        const float wide = HeadingFont()->CalcTextSizeA(20 * s, FLT_MAX, 0, e.label.c_str()).x;
+        const float size = wide > room ? (std::max)(12 * s, 20 * s * room / wide) : 20 * s;
+        const float label = v2::HeadingHeight(e.label, room, size, HeadingFont());
+        const bool line = label <= size;
+        float y = min.y + (h - 30 * s - (line ? 42 * s : label)) * .5f;
         y += v2::Tag(d, ImVec2(x, y), room, you, v2::TagSize::S) + 4 * s;
-        d->AddText(HeadingFont(), 20 * s, ImVec2(x, y), c.text, e.label.c_str());
-        d->AddText(ImGui::GetFont(), 16 * s, ImVec2(x, y + 26 * s), c.muted, e.detail.substr(0, e.detail.find('\n')).c_str());
+        v2::Heading(d, ImVec2(x, y), room, e.label, size, c.text, HeadingFont());
+        if (line) v2::Text(d, ImVec2(x, y + 26 * s), room, e.detail.substr(0, e.detail.find('\n')), 16 * s, c.muted, ImGui::GetFont(), false, false);
         return true;
     }
     if (e.id == "rkb-you") {
@@ -137,7 +150,7 @@ bool DrawRankingsBoardRow(const MenuEntry& e, const Standing* standing, const st
         const auto& entry = (*board)[*index];
         v2::TagView tag;
         tag.name = entry.listing.name; tag.marks = {entry.listing.country, SkillBadge::OfClass(entry.band, true)};
-        const float x = min.x + 12 * s, right = max.x - 12 * s;
+        const float x = min.x + 16 * s, right = max.x - 16 * s;
         v2::Tag(d, ImVec2(x, min.y + (h - 26 * s) * .5f), (entry.own ? right - chip(right) : right) - x, tag, v2::TagSize::S);
         return true;
     }

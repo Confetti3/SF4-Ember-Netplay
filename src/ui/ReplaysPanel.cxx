@@ -88,8 +88,9 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    rows.back().chosen=rows.back().choices.front().id;
   }
  }else if(screen=="replay-export"){
-  // Each part of the caption on or off, with its text; Generate sends it with the export.
-  title=loc::T("export.title");
+  // Each part of the caption on or off, with its text; Generate sends it with the
+  // export. A tab of Replays, it keeps their title; the eyebrow names the tab.
+  title=loc::T("replays.title");
   const auto onOff=[](bool on){return std::string(on?loc::T("common.on"):loc::T("common.off"));};
   const int one=1,two=2;
   for(const auto* text:{&caption_.name[0],&caption_.name[1],&caption_.text})NoteUserText(*text);

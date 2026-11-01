@@ -2838,6 +2838,12 @@ msgstr "HOST / {0} / Plek {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / Plek {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "HOST / {0} / Kast {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / Kast {1}"
+
 msgid "room.board_status_host"
 msgstr "HOST / {0}"
 
@@ -5264,6 +5270,12 @@ msgstr "Arcadekamer / alleen op uitnodiging"
 
 msgid "room.arcade_locked_status"
 msgstr "Arcadekamer op slot / alleen op uitnodiging"
+
+msgid "room.king_status"
+msgstr "King of the hill / alleen op uitnodiging"
+
+msgid "room.king_locked_status"
+msgstr "King of the hill op slot / alleen op uitnodiging"
 
 msgid "room.arcade_sit"
 msgstr "Gaan zitten"

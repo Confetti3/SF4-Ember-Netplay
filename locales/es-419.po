@@ -2575,6 +2575,10 @@ msgid "room.board_status_host_slot"
 msgstr "ANFITRIÓN / {0} / Espacio {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / Espacio {1}"
+msgid "room.board_status_host_cabinet"
+msgstr "ANFITRIÓN / {0} / Máquina {1}"
+msgid "room.board_status_cabinet"
+msgstr "{0} / Máquina {1}"
 msgid "room.board_status_host"
 msgstr "ANFITRIÓN / {0}"
 msgid "room.board_status"
@@ -4805,6 +4809,12 @@ msgstr "Sala arcade / solo por invitación"
 
 msgid "room.arcade_locked_status"
 msgstr "Sala arcade cerrada / solo por invitación"
+
+msgid "room.king_status"
+msgstr "Rey de la colina / solo por invitación"
+
+msgid "room.king_locked_status"
+msgstr "Rey de la colina cerrado / solo por invitación"
 
 msgid "room.arcade_sit"
 msgstr "Sentarse"

@@ -2838,6 +2838,12 @@ msgstr "HÔTE / {0} / Place {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / Place {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "HÔTE / {0} / Borne {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / Borne {1}"
+
 msgid "room.board_status_host"
 msgstr "HÔTE / {0}"
 
@@ -5264,6 +5270,12 @@ msgstr "Salon arcade / sur invitation"
 
 msgid "room.arcade_locked_status"
 msgstr "Salon arcade verrouillé / sur invitation"
+
+msgid "room.king_status"
+msgstr "Roi de la colline / sur invitation"
+
+msgid "room.king_locked_status"
+msgstr "Roi de la colline verrouillé / sur invitation"
 
 msgid "room.arcade_sit"
 msgstr "S'asseoir"

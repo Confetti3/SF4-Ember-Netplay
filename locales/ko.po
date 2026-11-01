@@ -2839,6 +2839,12 @@ msgstr "방장 / {0} / 슬롯 {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / 슬롯 {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "방장 / {0} / 기기 {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / 기기 {1}"
+
 msgid "room.board_status_host"
 msgstr "방장 / {0}"
 
@@ -5265,6 +5271,12 @@ msgstr "아케이드 방 / 초대 전용"
 
 msgid "room.arcade_locked_status"
 msgstr "아케이드 방 잠김 / 초대 전용"
+
+msgid "room.king_status"
+msgstr "킹 오브 더 힐 / 초대 전용"
+
+msgid "room.king_locked_status"
+msgstr "킹 오브 더 힐 잠김 / 초대 전용"
 
 msgid "room.arcade_sit"
 msgstr "자리에 앉기"

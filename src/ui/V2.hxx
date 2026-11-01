@@ -224,4 +224,6 @@ struct TagView {
 };
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
+// The width an XS or S tag needs on its one line for nothing in it to give way.
+float TagWidth(const TagView& tag, TagSize size);
 } } }

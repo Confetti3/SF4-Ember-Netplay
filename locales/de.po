@@ -2838,6 +2838,12 @@ msgstr "HOST / {0} / Slot {1}"
 msgid "room.board_status_slot"
 msgstr "{0} / Slot {1}"
 
+msgid "room.board_status_host_cabinet"
+msgstr "HOST / {0} / Automat {1}"
+
+msgid "room.board_status_cabinet"
+msgstr "{0} / Automat {1}"
+
 msgid "room.board_status_host"
 msgstr "HOST / {0}"
 
@@ -5264,6 +5270,12 @@ msgstr "Arcade-Raum / nur mit Einladung"
 
 msgid "room.arcade_locked_status"
 msgstr "Arcade-Raum gesperrt / nur mit Einladung"
+
+msgid "room.king_status"
+msgstr "King of the Hill / nur mit Einladung"
+
+msgid "room.king_locked_status"
+msgstr "King of the Hill gesperrt / nur mit Einladung"
 
 msgid "room.arcade_sit"
 msgstr "Hinsetzen"

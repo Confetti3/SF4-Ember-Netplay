@@ -5,6 +5,7 @@
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "GameMenu.hxx"
+#include "MenuGlyphs.hxx"
 #include <imgui_internal.h>
 #include <algorithm>
 #include <utility>
@@ -63,7 +64,7 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
  const float s=Scale(),side=v2::SideMargin(view.W(),s),w=(std::min)(420*s,view.W()-2*side);
  // A narrow screen has room for the newest only.
  const std::size_t most=v2::Narrow(view.W(),s)?1:3;
- const float size=17*s,icon=28*s,pad=14*s,x=view.max.x-side-w,button=40*s,keySize=11*s,labelSize=15*s;
+ const float size=17*s,icon=28*s,pad=14*s,x=view.max.x-side-w,button=40*s,keySize=26*s,labelSize=15*s;
  ImFont* font=HeadingFont();
  // A dialog open over the menus takes every click and key, so the buttons
  // wait for it to close.
@@ -118,10 +119,10 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
    float bx=left;
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
+    // The key's prompt glyph, as the hint bar and the post-match buttons draw it.
     const char* key=first?MenuSelectGlyph():MenuBackGlyph();
-    const float keyW=(std::max)(40*s,ImGui::GetFont()->CalcTextSizeA(keySize,FLT_MAX,0,key).x+12*s);
     const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,t.actions[i].label.c_str()).x;
-    const ImVec2 p(bx,line),q(bx+12*s+keyW+8*s+labelW+12*s,line+button);
+    const ImVec2 p(bx,line),q(bx+12*s+keySize+8*s+labelW+12*s,line+button);
     bool hovered=false;
     if(!overMatch){
      ImGui::SetCursorScreenPos(p);ImGui::PushID(static_cast<int>(i));
@@ -130,11 +131,9 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
     }
     d->AddRectFilled(p,q,hovered?c.hover:first?c.button:v2::color::Alpha(c.button,0),4*s);
     d->AddRect(p,q,first?c.hover:c.border,4*s,0,s);
-    const ImVec2 k(p.x+12*s,p.y+9*s);
-    d->AddRectFilled(k,{k.x+keyW,k.y+22*s},c.ink,11*s);
-    d->AddRect(k,{k.x+keyW,k.y+22*s},c.hover,11*s,0,s);
-    d->AddText(ImGui::GetFont(),keySize,{k.x+(keyW-ImGui::GetFont()->CalcTextSizeA(keySize,FLT_MAX,0,key).x)*.5f,k.y+(22*s-keySize)*.5f},c.text,key);
-    d->AddText(font,labelSize,{k.x+keyW+8*s,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
+    const ImVec2 k(p.x+12*s,p.y+(button-keySize)*.5f);
+    DrawPromptGlyph(d,key,k,keySize,MenuArt(),s);
+    d->AddText(font,labelSize,{k.x+keySize+8*s,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
     bx=q.x+8*s;
    }
    if(!overMatch){ImGui::End();ImGui::PopStyleVar();}
@@ -198,7 +197,8 @@ std::vector<MenuEntry> ApplicationShell::NotificationRows(double now,std::string
   if(!row.choices.empty()){row.info=false;row.popout=true;}
   rows.push_back(std::move(row));
  }
- if(rows.empty())rows.push_back(Row("toasts-none",loc::T("notifications.none"),loc::T("notifications.none_detail"),false));
+ // None yet: a row that says so and what will come, as Sent reports' empty list does.
+ if(rows.empty())rows.push_back(InfoRow("toasts-none",loc::T("notifications.none"),"",loc::T("notifications.none_detail")));
  return rows;
 }
 } }

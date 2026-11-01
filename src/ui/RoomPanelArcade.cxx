@@ -13,6 +13,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <optional>
 #include <utility>
 
 namespace sf4e { namespace ui {
@@ -28,6 +29,20 @@ ImU32 PairColor(std::size_t table) {
 // A cabinet's place in its row, as a share of its own height: the cabinet and
 // the gap under it that the pair lines run through.
 constexpr float CabinetReach=1.1f;
+// The floor's measures: the gap between cabinets, the aisle between the two
+// rows, a cabinet's least height (under it the rows scroll), King of the
+// hill's top slot banner, and a line of matchups, four to a line so all eight
+// pairs of a full room fit on two.
+constexpr float CabinetGap=8,Aisle=36,LeastCabinet=92,TopSlotHeight=48,MatchupLine=30;
+constexpr std::size_t MatchupsPerLine=4;
+float MatchupStripHeight(std::size_t matchups,float s){return matchups?((matchups+MatchupsPerLine-1)/MatchupsPerLine)*MatchupLine*s+6*s:0;}
+std::size_t MatchupCount(const std::vector<MenuEntry>& rows){
+ return static_cast<std::size_t>(std::count_if(rows.begin(),rows.end(),[](const MenuEntry& e){return RowKey<int>(e.id,"matchup-").has_value();}));
+}
+// A cabinet's cell in rows `width` wide, which keeps three quarters of its
+// least height however narrow they are; the rows scroll across past that.
+float CabinetCell(float width,float s){return (std::max)(LeastCabinet*s*.75f,(width-7*CabinetGap*s)/8);}
+bool RowsScrollAcross(float width,float s){return 8*CabinetCell(width,s)+7*CabinetGap*s>width+.5f;}
 // `a` toward `b` by `t` (0 to 1): the shades of a part between two of the palette's roles.
 ImU32 Mix(ImU32 a,ImU32 b,float t) {
     const ImVec4 x=ImGui::ColorConvertU32ToFloat4(a),y=ImGui::ColorConvertU32ToFloat4(b);
@@ -148,20 +163,32 @@ void DrawCabinet(ImDrawList* d,v2::Box b,const Cabinet& k,float s,ImU32 marqueeG
 }
 }
 
+float ApplicationShell::ArcadeBoardHeight(const ShellView& v,const std::vector<MenuEntry>& rows,float width) {
+ const float s=Scale(),strip=MatchupStripHeight(MatchupCount(rows),s);
+ // As DrawArcadeBoard lays it out: the banner, the matchups, the focus margin
+ // round the rows, and a scrollbar under rows that scroll across.
+ return (v.room.arcade==room::KingRoom?(TopSlotHeight+8)*s:0)+(strip>0?strip+8*s:0)+12*s+
+  2*LeastCabinet*s*CabinetReach+Aisle*s+(RowsScrollAcross(width-12*s,s)?ImGui::GetStyle().ScrollbarSize:0);
+}
+
 void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,ImVec2 size,
-                                       room::RoomType type) {
+                                       room::RoomType type,bool scrolled) {
  const float s=Scale();const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
  const auto focus=nav.Focus();
+ const bool focusMoved=focus!=roomBoardFocus_;
  const ImVec2 origin=ImGui::GetCursorScreenPos();
  const v2::Box area{origin,ImVec2(origin.x+size.x,origin.y+size.y)};
  const ImU32 pending=ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),gold=v2::TierColor(v2::Tier::Gold).stripe;
+ // Where the focus arrived this frame, for the scroll that holds the board.
+ std::optional<float> arrivedAt;
  // A row's box: a press is Select on it, the moving pointer focuses it, and
  // with `scroll` it scrolls into view as the focus arrives. True while hovered.
  const auto press=[&](const MenuEntry& e,const v2::Box& b,bool scroll){
   ReportMenuCard(e.id.c_str(),b.min,b.max);
-  const bool arrives=scroll&&focus!=roomBoardFocus_;
+  const bool arrives=scroll&&focusMoved;
   const bool hovered=PressEntry(nav,rows,e,b,action,arrives).hovered;
   if(arrives&&e.id==focus)ImGui::SetScrollHereX(.5f);
+  if(focusMoved&&e.id==focus)arrivedAt=(b.min.y+b.max.y)*.5f;
   return hovered;
  };
  const auto row=[&](const std::string& id)->const MenuEntry*{
@@ -180,7 +207,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  v2::Box board=area;
  if(type==room::KingRoom){
   // The top slot: the longest current streak, its holder and the streak.
-  const v2::Box banner=v2::CutTop(board,48*s,8*s);
+  const v2::Box banner=v2::CutTop(board,TopSlotHeight*s,8*s);
   v2::CardGround(d,banner,false,false,true);
   v2::Icon(d,v2::IconCount-1,ImVec2(banner.min.x+14*s,banner.min.y+10*s),28*s,gold);
   float x=banner.min.x+58*s;
@@ -204,15 +231,14 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  // Each matchup row and the table its pair plays at.
  std::vector<std::pair<const MenuEntry*,int>> matchups;
  for(const auto& e:rows)if(const auto table=RowKey<int>(e.id,"matchup-"))matchups.push_back({&e,*table});
- // Four to a line, so all eight pairs of a full room fit on two.
- const std::size_t per=4,lines=(matchups.size()+per-1)/per;
- const float stripHeight=matchups.empty()?0:lines*30*s+6*s;
+ const std::size_t per=MatchupsPerLine;
+ const float stripHeight=MatchupStripHeight(matchups.size(),s);
  const auto drawMatchups=[&](v2::Box strip,bool scroll){
   const float w=(strip.W()-12*s-(per-1)*8*s)/per;
   for(std::size_t k=0;k<matchups.size();++k){
    const auto* e=matchups[k].first;const int table=matchups[k].second;
    const std::string text=e->label+(e->value.empty()?std::string():"  "+e->value);
-   const float x=strip.min.x+6*s+(k%per)*(w+8*s),y=strip.min.y+4*s+(k/per)*30*s;
+   const float x=strip.min.x+6*s+(k%per)*(w+8*s),y=strip.min.y+4*s+(k/per)*MatchupLine*s;
    const v2::Box chip{ImVec2(x,y),ImVec2(x+w,y+26*s)};
    const bool hovered=press(*e,chip,scroll),focused=e->id==focus;
    if(hovered||focused)lit=table;
@@ -222,7 +248,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    if(focused)v2::Focus(d,chip.min,chip.max,false);
   }
  };
- const float gap=8*s,band=36*s,least=92*s;
+ const float gap=CabinetGap*s,band=Aisle*s,least=LeastCabinet*s;
  // On a board too short for even one row of cabinets over the matchups (a
  // narrow window), the matchups scroll with the rows, under them.
  const bool stacked=!matchups.empty()&&board.H()-stripHeight-8*s-12*s<least*CabinetReach;
@@ -230,9 +256,11 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  // A margin for the focus and hover marks, which reach 4 px past a cabinet.
  board=v2::Inset(board,6*s,6*s);
  const float shown=board.W();
- const float cell=(std::max)(least*.75f,(board.W()-7*gap)/8),across=8*cell+7*gap;
- const float h=(std::max)(least,(std::min)((board.H()-band)/2/CabinetReach,240*s)),w=(std::min)(cell,h*.8f),unit=h*CabinetReach;
- const bool sideways=across>board.W()+.5f,scrolls=stacked||2*unit+band>board.H()||sideways;
+ // Rows that scroll across keep their scrollbar's height out of the cabinets'.
+ const bool sideways=RowsScrollAcross(board.W(),s);
+ const float cell=CabinetCell(board.W(),s),across=8*cell+7*gap,scrollbar=sideways?ImGui::GetStyle().ScrollbarSize:0;
+ const float h=(std::max)(least,(std::min)((board.H()-band-scrollbar)/2/CabinetReach,240*s)),w=(std::min)(cell,h*.8f),unit=h*CabinetReach;
+ const bool scrolls=stacked||2*unit+band+scrollbar>board.H()+.5f||sideways;
  if(scrolls){
   ImGui::SetCursorScreenPos(board.min);
   ImGui::BeginChild("Arcade rows",ImVec2(board.W(),(std::max)(board.H(),1.f)),0,ImGuiWindowFlags_NoNavInputs|(sideways?ImGuiWindowFlags_HorizontalScrollbar:0));
@@ -313,11 +341,12 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const auto fit=[&](const std::string& line){const float w=HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,line.c_str()).x;return w>room-s?(std::max)(7*s,ss*(room-s)/w):ss;};
   v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-fit(first)*.5f:mid-fit(first)-1*s),room,first,fit(first),tone,HeadingFont(),true,!paired);
   if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),room,second,fit(second),secondTone,HeadingFont(),true,!paired);
-  // The name plate: the player's tag, its edge in the pair's colour.
+  // The name plate: the player's tag, its edge in the pair's colour. A small
+  // cabinet's plate gives the name the flag's room (Members still shows it).
   const v2::Box& plate=k.plate;
   if(paired)d->AddRect(plate.min,plate.max,pair,2*s,0,s);
   if(m){
-   v2::TagView g;g.name=m->name;g.marks={m->country,{}};
+   v2::TagView g;g.name=m->name;g.marks={k.detail?m->country:CountryCode(),{}};
    v2::Tag(d,ImVec2(plate.min.x+2*s,plate.min.y+(plate.H()-ImGui::GetFontSize())*.5f-2*s),plate.W()-4*s,g,v2::TagSize::XS);
   }
   if(focused)v2::Focus(d,ImVec2(b.min.x-4*s,b.min.y-4*s),ImVec2(b.max.x+4*s,p.y+unit),false);
@@ -325,6 +354,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   if(lit>=0&&!picked)d->AddRectFilled(ImVec2(b.min.x-2*s,b.min.y-2*s),ImVec2(b.max.x+2*s,p.y+unit),v2::color::Alpha(c.ink,.6f),2*s);
  }
  if(scrolls){ImGui::SetCursorScreenPos(board.min);ImGui::Dummy(ImVec2(board.W(),board.H()+(stacked?8*s+stripHeight:0)));ImGui::EndChild();}
+ // The scroll holding the board brings the row the focus arrived on into view.
+ if(scrolled&&arrivedAt)ImGui::SetScrollFromPosY(*arrivedAt-ImGui::GetWindowPos().y,.5f);
  ImGui::SetCursorScreenPos(origin);ImGui::Dummy(size);
 }
 

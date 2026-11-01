@@ -650,9 +650,15 @@ private:
     void RoomGrips(v2::Box area,bool editable);
     // Settings' picture of that layout, with the same grips.
     void DrawRoomLayoutPreview(bool editable);
-    // A room's board in its type's layout, in place of the table cards (RoomPanelArcade.cxx).
+    // A room's board in its type's layout, in place of the table cards
+    // (RoomPanelArcade.cxx), `size` big. `scrolled`: it stands in a scroll of
+    // the room board's with the room's actions after it, which then follows the
+    // focus to the cabinets and matchups as it does to the actions.
     void DrawArcadeBoard(const ShellView& view,const std::vector<MenuEntry>& rows,MenuNavigation& navigation,MenuAction& action,ImVec2 size,
-                         room::RoomType type);
+                         room::RoomType type,bool scrolled);
+    // The height that board needs `width` wide for its top slot, both rows of
+    // cabinets at their least size and the matchups under them.
+    static float ArcadeBoardHeight(const ShellView& view,const std::vector<MenuEntry>& rows,float width);
     std::string roomBoardFocus_;
     // The Create board's focus last frame: a new one scrolls into view.
     std::string createFocus_, awardsFocus_;

@@ -70,14 +70,18 @@ int MemberGroup(room::MemberStatus status) {
     }
 }
 // A member's status line, wherever it shows: on the board's card, with its
-// slot and lock-in, or after the name in a member row, with a local mute. A
-// watcher's is its tag instead, and HOST goes only with the host's powers.
+// slot (in an Arcade room the cabinet the floor numbers) and lock-in, or after
+// the name in a member row, with a local mute. A watcher's is its tag instead,
+// and HOST goes only with the host's powers.
 std::string MemberStatusText(const room::Snapshot& s, const room::Member& m, bool muted, bool board) {
     if (room::IsWatcher(s, m.id)) return loc::Tf(muted ? "room.member_status_muted" : "room.member_status", WatcherTag(s, m));
     const bool host = m.id == room::ActingHost(s);
-    if (board)
-        return loc::Tf(m.table >= 0 ? (host ? "room.board_status_host_slot" : "room.board_status_slot") : (host ? "room.board_status_host" : "room.board_status"),
-            StatusName(m.status), m.table + 1) + (m.spectatorLocked ? loc::T("room.suffix_locked_in") : "");
+    if (board) {
+        const int cabinet = s.arcade ? room::CabinetOf(s, m.id) : -1;
+        const char* key = cabinet >= 0 ? (host ? "room.board_status_host_cabinet" : "room.board_status_cabinet") :
+            m.table >= 0 ? (host ? "room.board_status_host_slot" : "room.board_status_slot") : (host ? "room.board_status_host" : "room.board_status");
+        return loc::Tf(key, StatusName(m.status), cabinet >= 0 ? cabinet + 1 : m.table + 1) + (m.spectatorLocked ? loc::T("room.suffix_locked_in") : "");
+    }
     return loc::Tf(host ? (muted ? "room.member_status_host_muted" : "room.member_status_host") : (muted ? "room.member_status_muted" : "room.member_status"),
         StatusName(m.status));
 }
@@ -664,7 +668,7 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  const auto idle=IdleText(*m,v.roomElapsedMs);
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;
  // Their sets in this room since joining, once they have played one.
- if(m->setsWon||m->setsLost)card.status+=" \xC2\xB7 "+loc::Tf("profile.record_value",static_cast<int>(m->setsWon),static_cast<int>(m->setsLost));
+ if(m->setsWon||m->setsLost)card.record=loc::Tf("profile.record_value",static_cast<int>(m->setsWon),static_cast<int>(m->setsLost));
  return card;
 }
 const char* ApplicationShell::PlaceExitLabel(const ShellView& v) const {

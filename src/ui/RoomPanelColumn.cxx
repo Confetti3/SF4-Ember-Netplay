@@ -99,6 +99,8 @@ void ApplicationShell::DrawRoomMembersPanel(const RoomBoardFrame& f,v2::Box box,
   v2::RowGround(md,r,focused,hovered);
   const auto view=RoomMemberCard(f.v,e);
   v2::TagView tag;tag.name=view.name;tag.marks=view.marks;tag.ping=view.latency;tag.status=view.status;
+  // The sets record joins the status where both fit, so a narrow column keeps the status.
+  if(!view.record.empty()){auto both=tag;both.status+=" \xC2\xB7 "+view.record;if(v2::TagWidth(both,v2::TagSize::S)<=r.W()-20*s)tag=std::move(both);}
   v2::Tag(md,ImVec2(r.min.x+10*s,r.min.y+8*s),r.W()-20*s,tag,v2::TagSize::S);
   if(focused)v2::Focus(md,r.min,r.max);
   if(focused&&e.popout)f.choices={r,b};

@@ -34,6 +34,9 @@ struct TableCardOption {
 
 struct MemberCardView {
     std::string id,name,label,status;
+    // Their sets won and lost in the room ("2 W / 1 L"), none before the first:
+    // after the status, and on the board's list only where it fits beside it.
+    std::string record;
     int mainFighter=-1;
     NetworkLink link=NetworkLink::Unknown;
     // Its flag and class go before the name.
