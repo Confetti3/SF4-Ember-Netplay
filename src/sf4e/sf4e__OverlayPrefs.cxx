@@ -121,7 +121,8 @@ namespace OverlayPrefs {
 
 	void Clamp(Data& data) {
         DropRemovedCustom(data);
-        ClampChara(data.lobby, data.lobbyEditionSelect);
+        // The edition rule is the overlay's to apply (FollowEditionRule), not the file's.
+        ClampChara(data.lobby, true);
         ClampChara(data.trainingDummy, true);
         for (int id = 0; id < selection::FighterCount; ++id) {
             data.fighters[id].charaID = static_cast<uint8_t>(id);
@@ -129,12 +130,34 @@ namespace OverlayPrefs {
             // fighter normalizes it against the room's rule at that time.
             ClampChara(data.fighters[id], true);
         }
-        if (data.lobby.charaID < data.fighters.size()) data.fighters[data.lobby.charaID] = data.lobby;
+        // The lobby may have been saved under a room without Edition Select.
+        Remember(data, false);
         data.stageID = selection::NormalizeStageChoice(data.stageID);
         data.randomPool = selection::RandomPool(std::vector<std::int64_t>(data.randomPool.Excluded().begin(), data.randomPool.Excluded().end()));
         if (data.lobbyRoundCountIdx < 0 || data.lobbyRoundCountIdx >= ROUND_COUNT_OPTIONS) data.lobbyRoundCountIdx = 1;
         if (data.lobbyRoundTimeIdx < 0 || data.lobbyRoundTimeIdx >= ROUND_TIME_OPTIONS) data.lobbyRoundTimeIdx = 2;
     }
+
+	void Remember(Data& data, bool editionSelect) {
+		if (data.lobby.charaID >= data.fighters.size()) return;
+		auto& memory = data.fighters[data.lobby.charaID];
+		const auto kept = memory;
+		memory = data.lobby;
+		if (editionSelect) return;
+		// The edition chosen under Edition Select stays, and so does its Ultra
+		// unless the one picked now is also that edition's, so the memory is
+		// always a pair the game accepts.
+		memory.unc_edition = kept.unc_edition;
+		const auto ultras = selection::AllowedUltras(memory.charaID, memory.unc_edition);
+		if (std::find(ultras.begin(), ultras.end(), memory.ultraCombo) == ultras.end()) memory.ultraCombo = kept.ultraCombo;
+	}
+
+	bool FollowEditionRule(CharaPick& lobby, const std::array<CharaPick, selection::FighterCount>& fighters, bool editionSelect) {
+		const CharaPick before = lobby;
+		if (editionSelect && lobby.charaID < fighters.size()) lobby.unc_edition = fighters[lobby.charaID].unc_edition;
+		ClampChara(lobby, editionSelect);
+		return !(lobby == before);
+	}
 
 	void FromJson(const nlohmann::json& j, Data& out) {
 		netplay::ReadBoolPreferences(j, out, boolPreferences);

@@ -143,8 +143,81 @@ static int CheckPerFighterPicks() {
     return failures;
 }
 
+// A fighter's edition is remembered for rooms with Edition Select, and a room
+// without it plays Ultra without losing that memory. Pure; needs no device.
+static int CheckEditionMemory() {
+    namespace Prefs = sf4e::OverlayPrefs;
+    int failures = 0;
+    const auto check = [&](bool value, const char* message) {
+        if (!value) { ++failures; std::printf("FAIL: %s\n", message); }
+    };
+    constexpr int ultra = sf4e::selection::UltraEdition, arcade = 2;
+    Prefs::Data data;
+    // Ryu as Arcade Edition, chosen in a room with Edition Select.
+    data.lobby.charaID = 0; data.lobby.unc_edition = arcade;
+    Prefs::Remember(data, true);
+    check(data.fighters[0].unc_edition == arcade, "an edition chosen under Edition Select was not remembered");
+    // A room without it: the pick plays Ultra, and saving there keeps the memory.
+    check(Prefs::FollowEditionRule(data.lobby, data.fighters, false) && data.lobby.unc_edition == ultra,
+        "a room without Edition Select did not play Ultra");
+    data.lobby.costume = 1;
+    Prefs::Remember(data, false);
+    check(data.fighters[0].unc_edition == arcade && data.fighters[0].costume == 1,
+        "saving under a room without Edition Select lost the edition or the edit");
+    // A Double Ultra picked under Ultra is not Arcade Edition's, so the memory
+    // keeps the Ultra Arcade Edition Ryu was played with; one AE has is taken.
+    data.fighters[0].ultraCombo = 1; data.lobby.ultraCombo = 2;
+    Prefs::Remember(data, false);
+    check(data.fighters[0].unc_edition == arcade && data.fighters[0].ultraCombo == 1,
+        "the memory kept an edition with an Ultra that edition does not have");
+    data.lobby.ultraCombo = 0;
+    Prefs::Remember(data, false);
+    check(data.fighters[0].ultraCombo == 0, "an Ultra the remembered edition has was not remembered");
+    // Back in a room with it, the remembered edition returns.
+    check(Prefs::FollowEditionRule(data.lobby, data.fighters, true) && data.lobby.unc_edition == arcade,
+        "a room with Edition Select did not bring back the remembered edition");
+    check(!Prefs::FollowEditionRule(data.lobby, data.fighters, true), "following the same rule again changed the pick");
+    // A lobby saved under a room without it keeps the memory across a restart.
+    data.lobby.unc_edition = ultra;
+    Prefs::Data loaded;
+    Prefs::FromJson(Prefs::ToJson(data), loaded);
+    Prefs::Clamp(loaded);
+    check(loaded.fighters[0].unc_edition == arcade, "loading a lobby saved under Ultra lost the remembered edition");
+    // Frame by frame, as the overlay runs them: an editable frame follows the
+    // rule and then remembers under it; a locked frame (Training, a game) does
+    // neither. A rule that turns on or off while locked never puts the forced
+    // Ultra into the memory, and the edition is right once editing comes back.
+    {
+        Prefs::Data live;
+        live.lobby.charaID = 0; live.lobby.unc_edition = arcade;
+        Prefs::Remember(live, true);
+        const auto frame = [&](bool editable, bool editionSelect) {
+            if (!editable) return;
+            Prefs::FollowEditionRule(live.lobby, live.fighters, editionSelect);
+            Prefs::Remember(live, editionSelect);
+        };
+        frame(true, false);
+        check(live.lobby.unc_edition == ultra && live.fighters[0].unc_edition == arcade, "a room without Edition Select did not play Ultra");
+        for (int locked = 0; locked < 3; ++locked) frame(false, true);
+        check(live.lobby.unc_edition == ultra && live.fighters[0].unc_edition == arcade, "a locked rule change reached the pick or the memory");
+        frame(true, true);
+        check(live.lobby.unc_edition == arcade, "the remembered edition did not return once the selection could be edited");
+        for (int locked = 0; locked < 3; ++locked) frame(false, false);
+        check(live.lobby.unc_edition == arcade && live.fighters[0].unc_edition == arcade, "a rule turned off while locked changed the pick early");
+        frame(true, false);
+        check(live.lobby.unc_edition == ultra && live.fighters[0].unc_edition == arcade, "the rule turned off did not play Ultra, or lost the memory");
+    }
+    // An edition the fighter never had falls back to Ultra: fighter 43 is
+    // only in Ultra and Omega.
+    loaded.lobby.charaID = 43; loaded.lobby.unc_edition = ultra;
+    loaded.fighters[43].unc_edition = arcade;
+    Prefs::FollowEditionRule(loaded.lobby, loaded.fighters, true);
+    check(loaded.lobby.unc_edition == ultra, "an edition the fighter cannot use was restored as it was");
+    return failures;
+}
+
 int main() {
-    if (CheckPerFighterPicks()) return 1;
+    if (CheckPerFighterPicks() || CheckEditionMemory()) return 1;
     HWND window = CreateWindowW(L"STATIC", L"Ember display reset regression", WS_OVERLAPPEDWINDOW,
         0, 0, 640, 480, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     if (!window) return 2;

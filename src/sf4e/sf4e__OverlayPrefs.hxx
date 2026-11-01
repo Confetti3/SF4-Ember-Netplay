@@ -45,7 +45,9 @@ namespace OverlayPrefs {
 		// Lobby: the current selection, which every consumer reads.
 		CharaPick lobby;
 		// What each fighter last used, indexed by charaID. Switching fighter
-		// restores that fighter's entry; fighters[lobby.charaID] equals lobby.
+		// restores that fighter's entry; fighters[lobby.charaID] equals lobby,
+		// but for the edition, which keeps the last one chosen under Edition
+		// Select (Remember).
 		std::array<CharaPick, selection::FighterCount> fighters;
 		// Training's other side (Training select).
 		CharaPick trainingDummy;
@@ -82,6 +84,17 @@ namespace OverlayPrefs {
 		const CharaPick& in
 	);
 	void Clamp(Data& data);
+	// The lobby pick into its fighter's memory: every edit is remembered for
+	// the fighter it was made on. Under a rule without Edition Select the pick
+	// plays Ultra because it must, so the memory keeps the edition last chosen
+	// under Edition Select, with the Ultra it was played with unless the one
+	// picked since is also that edition's.
+	void Remember(Data& data, bool editionSelect);
+	// The lobby pick under the edition rule it now plays by (the room's, or
+	// Edition Select outside a room): without Edition Select it plays Ultra;
+	// with it, its fighter's remembered edition comes back. Returns whether
+	// `lobby` changed.
+	bool FollowEditionRule(CharaPick& lobby, const std::array<CharaPick, selection::FighterCount>& fighters, bool editionSelect);
 	// The settings file's "overlay" section. FromJson accepts a section written
 	// before per-fighter picks existed and remembers its one pick for that
 	// fighter. Neither clamps; Load and Save do.

@@ -81,7 +81,10 @@ static sf4e::ui::ApplicationShell shell;
 // The room the drawn shell shows, kept across frames (DrawApplicationHome).
 static sf4e::ui::RoomCarry s_roomCarry;
 static sf4e::ui::OverlayPresentation presentation;
-static sf4e::OverlayPrefs::Data s_prefs;
+// The picks as this session has them (the per-fighter memory included), and
+// as the settings writer last accepted them. A save the writer refuses is
+// tried again the next frame; the session keeps its picks meanwhile.
+static sf4e::OverlayPrefs::Data s_prefs, s_savedPrefs;
 // The menu takes the keys and the mouse: shown, with the focus.
 static std::atomic<bool> capture{false};
 // The menu's opens and its hold on the pads, focus or not (OverlayPresentation.hxx).
@@ -235,9 +238,13 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
     shell.SetChatLog([](const std::string& line) { spdlog::info("{}", line); });
 	fMainMenu::OnModeSelectedOverride = OnMainMenuModeSelected;
 
+	// The picks are read once: a display Reset initializes the overlay again,
+	// and the session's own picks (s_prefs) outlive it.
+	static bool picksLoaded = false;
 	sf4e::OverlayPrefs::Data prefs{};
-	if (sf4e::OverlayPrefs::Load(prefs)) {
-		s_prefs = prefs;
+	if (!picksLoaded && sf4e::OverlayPrefs::Load(prefs)) {
+		picksLoaded = true;
+		s_prefs = s_savedPrefs = prefs;
         sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, prefs.lobby);
         sf4e::OverlayPrefs::ToConfirmed(trainingDummy, prefs.trainingDummy);
         lobbyMenuCharaID = prefs.lobby.charaID; lobbyStageID = prefs.stageID;
@@ -245,11 +252,17 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	}
 }
 
+// The edition rule the lobby pick plays by: the room's (its table's) in a room,
+// Edition Select outside one.
+static bool EditionSelectNow(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
+	return snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
+}
+
 void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, int& menuCharaID, int* stageId,
 	const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
 	auto pick = sf4e::selection::FromNative(charaConditions);
 	pick.fighter = menuCharaID;
-	const bool editionSelect = snapshot.session.room == sf4e::netplay::RoomState::Joined ? snapshot.lobbySettings.editionSelect : true;
+	const bool editionSelect = EditionSelectNow(snapshot);
     int stagedStage = stageId ? *stageId : 0;
     sf4e::selection::RandomPool stagedPool = lobbyRandomPool;
     const sf4e::selection::InstalledContent* installed = snapshot.installedContent.get();
@@ -332,7 +345,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canReplaceRoom = snapshot.canReplaceRoom;
 	view.canReady = snapshot.canReady;
 	view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
-		snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
+		EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
 	view.canEditSelection = snapshot.canEditSelection;
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyPress = snapshot.readyPress; view.readyFailure = snapshot.readyFailure;
@@ -435,7 +448,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
         snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()).size() > 1;
     if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
-        snapshot.lobbySettings.editionSelect, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()))
+        EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()))
         view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
     if (!sf4e::selection::Available(sf4e::selection::FromNative(trainingDummy), true,
         snapshot.fighterAvailability[trainingDummy.charaID], snapshot.installedContent.get()))
@@ -541,6 +554,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
     const auto& snapshot = *frame->runtime;
     const auto& status = frame->netplay;
+    // Whether the pick may change this frame, and the edition rule it plays by:
+    // read once for the follow below and the save at the end of the frame.
+    const bool pickEditable = snapshot.canEditSelection, pickEditionSelect = EditionSelectNow(snapshot);
     // Text is a quarter larger in TV mode.
     if (sf4e::ui::ApplyTheme(OverlayScale(), snapshot.preferences.interfaceScale * (snapshot.preferences.tvMode ? 1.25f : 1.f)))
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -641,6 +657,17 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Every overlay frame, since the training panel draws art with the menu
     // closed. Pump returns at once when nothing drew art since the last pump.
     if (s_selectionArt) s_selectionArt->Pump();
+    // While the selection can be edited the lobby pick follows the edition rule
+    // it plays by, so a room without Edition Select can be readied at once and
+    // one with it brings back the fighter's own edition. While it is locked
+    // (Training, a game) neither this nor the save below touches the edition,
+    // so a rule that changes meanwhile is taken up when it can be edited again.
+    if (pickEditable) {
+        sf4e::OverlayPrefs::CharaPick lobby;
+        sf4e::OverlayPrefs::FromConfirmed(lobby, lobbyConditions);
+        if (sf4e::OverlayPrefs::FollowEditionRule(lobby, s_prefs.fighters, pickEditionSelect))
+            sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, lobby);
+    }
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
@@ -869,9 +896,10 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::OverlayPrefs::FromConfirmed(prefs.lobby, lobbyConditions); prefs.stageID = lobbyStageID;
     sf4e::OverlayPrefs::FromConfirmed(prefs.trainingDummy, trainingDummy);
     prefs.randomPool = lobbyRandomPool;
-    // Every edit is remembered for the fighter it was made on.
-    if (prefs.lobby.charaID < prefs.fighters.size()) prefs.fighters[prefs.lobby.charaID] = prefs.lobby;
-    if (prefs != s_prefs && sf4e::OverlayPrefs::Save(prefs)) s_prefs = prefs;
+    // Every edit is remembered for the fighter it was made on (OverlayPrefs::Remember).
+    if (pickEditable) sf4e::OverlayPrefs::Remember(prefs, pickEditionSelect);
+    s_prefs = prefs;
+    if (prefs != s_savedPrefs && sf4e::OverlayPrefs::Save(prefs)) s_savedPrefs = prefs;
     // An export takes its picture between the layers its video holds and
     // the rest of Ember, so the menu and the HUD are never in it.
     ImGui::Render();
