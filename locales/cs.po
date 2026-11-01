@@ -7508,6 +7508,12 @@ msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, neb
 msgid "settings.room_show_chat_detail"
 msgstr "Panel Chat v místnosti. Když je skrytý, sloupec zaberou členové, nebo stoly celou šířku."
 
+msgid "settings.chat_filter"
+msgstr "Filtr chatu"
+
+msgid "settings.chat_filter_detail"
+msgstr "Skryje v chatu místnosti nadávky a urážky za hvězdičky, jen na vaší obrazovce. Zprávy se dál odesílají tak, jak byly napsány."
+
 msgid "room.v2.unread"
 msgstr "Nepřečtené: {0}"
 

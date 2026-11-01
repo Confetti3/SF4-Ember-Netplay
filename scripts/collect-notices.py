@@ -60,7 +60,10 @@ embedded = [('Unicode Character Database data (problem-report redaction tables, 
             ('Noto Sans CJK subsets (src/ui/fonts/NotoSansCJK{jp,kr,sc}-Subset.otf, embedded in the '
              'interface)', repo / 'src' / 'ui' / 'fonts' / 'NotoSansCJK-OFL.txt'),
             ('Tabler Icons outline paths (src/ui/LineIcons.inc, the interface line icons)',
-             repo / 'src' / 'ui' / 'TablerIcons-MIT.txt')]
+             repo / 'src' / 'ui' / 'TablerIcons-MIT.txt'),
+            ('List of Dirty, Naughty, Obscene, and Otherwise Bad Words by Shutterstock and contributors '
+             '(assets/chat-filter, the room chat filter word lists, embedded in the interface)',
+             repo / 'assets' / 'chat-filter' / 'LICENSE')]
 for name, license_path in embedded:
     sections.append(f'\n=== {name} ===\n' + license_path.read_text(encoding='utf-8'))
 args.output.parent.mkdir(parents=True, exist_ok=True)

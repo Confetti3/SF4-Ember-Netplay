@@ -24,7 +24,8 @@ inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::P
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomTableCount==b.roomTableCount&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
 }
 // Only what a room leaves open changed (PlayerPreferences::CopyRoomSettings):
-// the button layouts, the room board's layout and the watched game's picture.
+// the button layouts, the room board's layout, the chat filter and the watched
+// game's picture.
 inline bool OnlyRoomSettingsChanged(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
     auto compared = a;
     compared.CopyRoomSettings(b);
@@ -51,7 +52,7 @@ inline constexpr OnOffRow OnOffRows[] = {
     {"share-steam",&netplay::PlayerPreferences::shareSteamProfile,false},{"send-reports",&netplay::PlayerPreferences::sendProblemReports,false},
     {"background-play",&netplay::PlayerPreferences::backgroundPlay,false},{"lobby-music",&netplay::PlayerPreferences::endlessLobbyMusic,false},{"lower-input-lag",&netplay::PlayerPreferences::lowerInputLag,false},
     {"lower-keyboard-lag",&netplay::PlayerPreferences::lowerKeyboardLag,false},{"faster-display",&netplay::PlayerPreferences::fasterDisplay,false},
-    {"borderless",&netplay::PlayerPreferences::borderless,false},{"game-reads-pads",&netplay::PlayerPreferences::controllerLayer,true},
+    {"borderless",&netplay::PlayerPreferences::borderless,false},{"chat-filter",&netplay::PlayerPreferences::chatFilter,false},{"game-reads-pads",&netplay::PlayerPreferences::controllerLayer,true},
 };
 constexpr bool SavedOnOff(bool netplay::PlayerPreferences::* member) {
     for(const auto& p:netplay::BoolPreferences) if(p.member==member) return true;

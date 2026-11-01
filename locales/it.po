@@ -7508,6 +7508,12 @@ msgstr "Il pannello Membri della stanza. Se nascosto, la chat prende la colonna,
 msgid "settings.room_show_chat_detail"
 msgstr "Il pannello Chat della stanza. Se nascosto, i membri prendono la colonna, o i tavoli tutta la larghezza."
 
+msgid "settings.chat_filter"
+msgstr "Filtro chat"
+
+msgid "settings.chat_filter_detail"
+msgstr "Nasconde parolacce e insulti nella chat della sala con asterischi, solo sul tuo schermo. I messaggi vengono comunque inviati così come sono stati scritti."
+
 msgid "room.v2.unread"
 msgstr "{0} da leggere"
 

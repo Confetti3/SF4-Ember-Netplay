@@ -1,0 +1,437 @@
+# Entries of the LDNOOBW lists that the chat filter leaves alone. The lists
+# were made to keep search suggestions clean, so they hold everyday words a
+# game chat needs: "that sucks", Spanish "con" (with), Portuguese "comer" (to
+# eat), Japanese 女の子 (girl). Each line is a list entry as written there;
+# case does not matter. Words for who someone is (gay, lesbian, bisexual) are
+# never hidden. Mild words the English list leaves out (idiot, hell, damn) are
+# left alone in the other languages too.
+
+# Words of one list that are everyday words in another language: German
+# "bitte" (please) and English "bite" are French entries, "cu" (see you) is
+# Portuguese, Portuguese "fica" (stays) and "topa" (up for it) are Italian,
+# Italian "bimbo" (child) is German, and 13点 and 十三点 (13:00) are Shanghai
+# slang only in a sentence.
+bitte
+bite
+cu
+fica
+topa
+bimbo
+# "LUL" is the Twitch laugh, typed all the time in game chat (Dutch entry).
+lul
+# Czech "padlo" (fell, dropped: "spojení mi padlo", my connection dropped) is
+# a Russian entry.
+padlo
+# "Shota" is a common Japanese given name (翔太). German "dick" (thick) stays
+# hidden: the English insult is the commoner of the two in game chat.
+shota
+13点
+十三点
+
+# English
+suck
+sucks
+butt
+domination
+hardcore
+hard core
+escort
+sex
+sexy
+sexual
+sexually
+sexuality
+erotic
+nude
+nudity
+xx
+god damn
+how to kill
+how to murder
+big black
+girl on
+girl on top
+tied up
+tight white
+taste my
+tongue in a
+hot chick
+huge fat
+blonde action
+brunette action
+blonde on blonde action
+playboy
+swinger
+voyeur
+eunuch
+twinkie
+scat
+snatch
+poof
+skeet
+jelly donut
+negro
+
+# Czech
+bordel
+debil
+žrát
+píchat
+čumět
+dršťka
+držka
+
+# German
+bonze
+fratze
+mufti
+nackt
+popel
+pinkeln
+kimme
+lümmel
+reudig
+vollpfosten
+
+# Spanish
+Asesinato
+asno
+Caca
+concha
+Drogas
+Fiesta de salchichas
+Heroína
+Idiota
+Imbécil
+infierno
+maldito
+martillo
+Nazi
+Orina
+Pedo
+Pis
+Racista
+Sádico
+Sexo
+Trio
+
+# French
+con
+baiser
+bordel
+bourré
+bourrée
+folle
+gueule
+jouir
+meuf
+péter
+pipi
+caca
+déconne
+déconner
+negro
+gerbe
+gerber
+tanche
+ramoner
+
+# Italian
+balle
+battere
+biga
+cadavere
+casci
+cozza
+fava
+monta
+montare
+pesce
+regina
+tirare
+porca
+porca miseria
+porco
+vacca
+spagnola
+mona
+mannaggia
+palle
+palloso
+patacca
+pomiciare
+pompa
+quaglia
+tarzanello
+zio cantante
+nave scuola
+sega
+sbattere
+imbecille
+lecchino
+ruffiano
+rompiballe
+rompipalle
+pippa
+pippone
+pirla
+lofare
+loffa
+loffare
+bagnarsi
+brinca
+pincare
+
+# Dutch
+godverdomme
+gadverdamme
+anita
+asbak
+balen
+bekken
+beurt
+boemelen
+buffelen
+del
+dombo
+eikel
+engerd
+flikken
+gat
+gedoogzone
+gras maaien
+griet
+hol
+huisdealer
+johny
+kanen
+knor
+klooien
+kwakkie
+lummel
+mafketel
+matje
+muts
+nicht
+opzouten
+paal
+palen
+penoze
+poep
+poepen
+poot
+pot
+potverdorie
+publiciteitsgeil
+raaskallen
+remsporen
+reutelen
+schatje
+slempen
+spuiten
+standje
+stootje
+sufferd
+toeter
+tongzoeng
+vergallen
+watje
+welzijnsmafia
+wippen
+zeiken
+zuigen
+zuiplap
+de hond uitlaten
+de ballen
+de pijp uitgaan
+driehoog achter wonen
+aardappels afgieten
+een halve man en een paardekop
+bedonderen
+belazeren
+brugpieper
+boerenpummel
+broekhoesten
+krentekakker
+klootjesvolk
+galbak
+graftak
+afrossen
+aftrekken
+naakt
+
+# Polish
+debil
+jajko
+jajco
+syf
+dmuchać
+rzygać
+pierdzieć
+duperele
+
+# Portuguese
+aborto
+amador
+aranha
+ariano
+bissexual
+burro
+cerveja
+cocaína
+comer
+consolo
+dum raio
+frango assado
+heroína
+heterosexual
+homosexual
+homem gay
+inferno
+lésbica
+mama
+saco
+torneira
+passar um cheque
+bumbum
+gozar
+chupar
+pau
+pinto
+
+# Russian
+gol
+byk
+uboy
+какая разница
+другой дразнится
+на фиг
+фига
+офигеть
+хрен
+голый
+обнаженный
+мент
+бугор
+хапать
+секс
+
+# Japanese
+3p
+sm
+xx
+いたずら
+なめ
+グロ
+ラバー
+ファンタジー
+フック
+嫌い
+女の子
+人種
+支配
+拷問
+殺人事件
+殺し方
+殺人方法
+エスコート
+ハードコア
+誘惑
+毛深い
+両性
+両性具有
+平手打ち
+女子高生
+女装
+ぽっちゃり
+覗き
+噴出
+スリット
+ラティーナ
+しばり
+縛り
+奴隷
+女王様
+人妻
+卍
+レズビアン
+ボーイズラブ
+やおい
+セクシーな
+ヌード
+宦官
+カント
+お尻
+おしり
+オシリ
+両刀
+脱衣
+挿入
+自己愛性
+コカイン
+エクスタシー
+エロティック
+エロティズム
+フェティッシュ
+プレイボーイ
+ローター
+ぶっかけ
+
+# Chinese
+13.
+成人
+激情
+祖宗
+私服
+九游
+刚度
+处女
+老母
+笨蛋
+月经
+卵子
+屁股
+打飞机
+后庭
+# Two characters matched anywhere: everyday sentences contain these, as
+# 今日你 (today you), 我妈妈的 (my mother's), 靠背椅 (a backrest chair) and
+# 姑娘的 (the girl's) do; the longer insults that start the same stay listed.
+日你
+你妈
+你全家
+他妈
+你娘
+他娘
+娘的
+妈的
+妈妈的
+他奶奶
+老二
+靠背
+靠爸
+靠母
+干你
+插你
+打炮
+吹箫
+野鸡
+你老闆
+粉腸
+硬膠
+老味
+撒尿
+白痴
+白癡
+情色
+
+# Korean
+미친
+망가
+노모
+유모
+하드코어
+야사
+자위
+호로
+보지
+자지

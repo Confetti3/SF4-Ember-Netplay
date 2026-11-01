@@ -95,7 +95,7 @@ void RoomLayoutSavesInRoom() {
   const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});
   return e!=rows.end()&&e->enabled;
  };
- for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"})
+ for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","chat-filter","arrange-picture","arrange-reset"})
   Check(open(id),"A Room layout row was locked in a room");
  h.FocusOn("arrange-picture");
  const auto third=h.actions.size();

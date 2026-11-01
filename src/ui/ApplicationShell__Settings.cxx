@@ -224,8 +224,9 @@ public:
         return {Value("scale", loc::T("settings.interface_size"), size, Reason(v), v.canEditPreferences), Tv(s, v), s.LanguageRow()};
     }
     // The room board's layout, which its grips also drag (RoomGrips). Its parts:
-    // hiding one gives its place to the other, or both to the tables. A room
-    // leaves all of it open (ShellView::CanEditRoomSettings).
+    // hiding one gives its place to the other, or both to the tables. With the
+    // chat panel, its filter. A room leaves all of it open
+    // (ShellView::CanEditRoomSettings).
     static Entries RoomLayout(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const int column = p.roomColumn, split = p.roomSplit;
@@ -235,6 +236,7 @@ public:
             Value("arrange-preset", loc::T("settings.room_preset"), loc::T(RoomPresetKeys[RoomPreset(column)]), loc::T("settings.room_preset_detail"), open),
             Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), open),
             Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), open),
+            OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open),
             PictureMode(s, v, "arrange-picture"),
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
     }

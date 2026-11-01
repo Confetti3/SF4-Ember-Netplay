@@ -1,0 +1,23 @@
+# Ember's own short list: stems hidden inside any word of spaced text, for the
+# compounds and endings LDNOOBW leaves out (fucked, fuckface, bullshitter,
+# shithead). Only stems no ordinary word contains belong here, in any language
+# Ember's players write in Latin letters: "shit" alone is inside Japanese
+# romaji (gozaimashita, doushite), and so is "shitt" (shitteru, shitto, where
+# a doubled consonant is a small tsu), so its stems are ones romaji never
+# writes. Matched as written; case does not matter.
+fuck
+shitti
+shitted
+shith
+shitf
+shitl
+shitb
+bullshit
+dipshit
+horseshit
+bitch
+whore
+asshole
+faggot
+cocksuck
+dickhead

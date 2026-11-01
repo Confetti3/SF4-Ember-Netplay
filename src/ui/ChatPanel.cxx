@@ -183,8 +183,9 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
                 ImGui::Dummy(ImVec2(tagWidth, lineHeight));
             }
         }
-        ImGui::TextWrapped("%s", line.text.c_str());
-        if (ImGui::IsItemVisible()) NoteUserText(line.text, UserTextRole::Chat);
+        const std::string& text = preferences_.chatFilter ? line.filtered : line.text;
+        ImGui::TextWrapped("%s", text.c_str());
+        if (ImGui::IsItemVisible()) NoteUserText(text, UserTextRole::Chat);
         if (line.own) {
             const ImVec2 end = ImGui::GetCursorScreenPos();
             draw->ChannelsSetCurrent(0);

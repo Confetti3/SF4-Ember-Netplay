@@ -7047,6 +7047,12 @@ msgstr "O painel Membros da sala. Oculto, o bate-papo ocupa a coluna, ou as mesa
 msgid "settings.room_show_chat_detail"
 msgstr "O painel Bate-papo da sala. Oculto, os membros ocupam a coluna, ou as mesas toda a largura."
 
+msgid "settings.chat_filter"
+msgstr "Filtro do bate-papo"
+
+msgid "settings.chat_filter_detail"
+msgstr "Esconde palavrões e ofensas no bate-papo da sala com asteriscos, só na sua tela. As mensagens continuam sendo enviadas como foram escritas."
+
 msgid "room.v2.unread"
 msgstr "{0} não lidas"
 

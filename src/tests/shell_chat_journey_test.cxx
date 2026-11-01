@@ -3,6 +3,7 @@
 // The room chat through the shell: the transcript a client keeps, the unread
 // count, and the Chat screen's message box.
 #include "../ui/ChatTranscript.hxx"
+#include "../ui/ChatFilter.hxx"
 #include <cmath>
 
 namespace {
@@ -113,10 +114,96 @@ void TranscriptLogic(){
   moved[before+2].kind==ChatLine::Kind::Joined&&moved[before+2].sender==9&&moved[before+3].kind==ChatLine::Kind::Joined&&moved[before+3].sender==3,
   "Members who left or joined together were not announced once each, in order");
 }
+// The chat filter: listed words hidden one star per character, ordinary words
+// that contain them or that the lists hold by mistake left alone.
+void FilterLogic(){
+ using sf4e::ui::FilterChat;
+ const std::pair<const char*,const char*> cases[]={
+  {"what the fuck","what the ****"},{"FuCkInG lag","******* lag"},{"5h1t","****"},{"fuuuuck","*******"},
+  {"fuckface, bullshitter","********, ***********"},{"blow job","**** ***"},{"ass asses","*** *****"},
+  // Ordinary words around a listed one, and entries the allow list takes back.
+  {"class pass assess Scunthorpe cocky spices","class pass assess Scunthorpe cocky spices"},
+  {"that sucks, hardcore domination","that sucks, hardcore domination"},{"as","as"},{"ping 455","ping 455"},
+  // Other languages: whole words where words have spaces, anywhere in Japanese and Chinese.
+  {"voy con mi amigo","voy con mi amigo"},{"hijo de puta","**** ** ****"},{"comer cerveja","comer cerveja"},
+  {"\xD0\xB1\xD0\xBB\xD1\x8F\xD0\xB4\xD1\x8C!","*****!"},  // блядь!
+  {"\xD0\xBA\xD0\xB0\xD0\xBA\xD0\xB0\xD1\x8F \xD1\x80\xD0\xB0\xD0\xB7\xD0\xBD\xD0\xB8\xD1\x86\xD0\xB0","\xD0\xBA\xD0\xB0\xD0\xBA\xD0\xB0\xD1\x8F \xD1\x80\xD0\xB0\xD0\xB7\xD0\xBD\xD0\xB8\xD1\x86\xD0\xB0"},  // какая разница
+  {"\xE4\xBD\xA0\xE4\xBB\x96\xE5\xA6\x88\xE7\x9A\x84","\xE4\xBD\xA0***"},  // 你他妈的
+  {"\xE6\x80\xA7\xE8\x83\xBD\xE5\xBE\x88\xE5\xA5\xBD","\xE6\x80\xA7\xE8\x83\xBD\xE5\xBE\x88\xE5\xA5\xBD"},  // 性能很好
+  {"\xE5\xA5\xB3\xE3\x81\xAE\xE5\xAD\x90","\xE5\xA5\xB3\xE3\x81\xAE\xE5\xAD\x90"},  // 女の子
+  {"\xEC\x94\xA8\xEB\xB0\x9C","**"},  // 씨발
+  {"\xEB\xAF\xB8\xEC\xB9\x9C \xEC\xBD\xA4\xEB\xB3\xB4","\xEB\xAF\xB8\xEC\xB9\x9C \xEC\xBD\xA4\xEB\xB3\xB4"},  // 미친 콤보
+  // Every match counts: the longest phrase, phrases starting with a number, and Japanese entries with their spaces.
+  {"fuck buttons","**** *******"},
+  {"nsfw images","**** ******"},
+  {"2 girls 1 cup","* ***** * ***"},
+  {"g \xE3\x82\xB9\xE3\x83\x9D\xE3\x83\x83\xE3\x83\x88","* ****"},  // g スポット
+  // Full-width text is read as its ASCII form: a number stays a number, a symbol stands in for a letter.
+  {"ping \xEF\xBC\x94\xEF\xBC\x95\xEF\xBC\x95","ping \xEF\xBC\x94\xEF\xBC\x95\xEF\xBC\x95"},  // ping ４５５
+  {"\xEF\xBC\xA0ss","***"},  // ＠ss
+  {"",""},
+  // Everyday chat in every language Ember speaks stays as written, against all the lists at once.
+  {"gg wp, rematch?","gg wp, rematch?"},
+  {"my ping is bad today","my ping is bad today"},
+  {"nice combo, take a bite of that","nice combo, take a bite of that"},
+  {"cu later","cu later"},
+  {"bitte warten","bitte warten"},
+  {"Danke, gute Spiele!","Danke, gute Spiele!"},
+  {"Merci, bien jou\xC3\xA9","Merci, bien jou\xC3\xA9"},  // Merci, bien joué
+  {"Grazie, bella partita","Grazie, bella partita"},
+  {"Gracias por la partida, otra?","Gracias por la partida, otra?"},
+  {"Obrigado pela partida","Obrigado pela partida"},
+  {"Bedankt, goed gespeeld","Bedankt, goed gespeeld"},
+  {"Dzi\xC4\x99ki za gr\xC4\x99","Dzi\xC4\x99ki za gr\xC4\x99"},  // Dzięki za grę
+  {"D\xC3\xADky za hru","D\xC3\xADky za hru"},  // Díky za hru
+  {"\xD0\xA1\xD0\xBF\xD0\xB0\xD1\x81\xD0\xB8\xD0\xB1\xD0\xBE \xD0\xB7\xD0\xB0 \xD0\xB8\xD0\xB3\xD1\x80\xD1\x83","\xD0\xA1\xD0\xBF\xD0\xB0\xD1\x81\xD0\xB8\xD0\xB1\xD0\xBE \xD0\xB7\xD0\xB0 \xD0\xB8\xD0\xB3\xD1\x80\xD1\x83"},  // Спасибо за игру
+  {"13\xE7\x82\xB9\xE8\xA7\x81","13\xE7\x82\xB9\xE8\xA7\x81"},  // 13点见
+  {"\xE5\xA5\xB3\xE3\x81\xAE\xE5\xAD\x90\xE3\x81\xAE\xE3\x82\xAD\xE3\x83\xA3\xE3\x83\xA9\xE3\x81\x8C\xE5\xA5\xBD\xE3\x81\x8D","\xE5\xA5\xB3\xE3\x81\xAE\xE5\xAD\x90\xE3\x81\xAE\xE3\x82\xAD\xE3\x83\xA3\xE3\x83\xA9\xE3\x81\x8C\xE5\xA5\xBD\xE3\x81\x8D"},  // 女の子のキャラが好き
+  {"\xEC\xA2\x8B\xEC\x9D\x80 \xEA\xB2\x8C\xEC\x9E\x84\xEC\x9D\xB4\xEC\x97\x88\xEC\x96\xB4\xEC\x9A\x94","\xEC\xA2\x8B\xEC\x9D\x80 \xEA\xB2\x8C\xEC\x9E\x84\xEC\x9D\xB4\xEC\x97\x88\xEC\x96\xB4\xEC\x9A\x94"},  // 좋은 게임이었어요
+  {"\xE4\xBD\xA0\xE5\xA5\xBD\xEF\xBC\x8C\xE5\x86\x8D\xE6\x9D\xA5\xE4\xB8\x80\xE5\xB1\x80","\xE4\xBD\xA0\xE5\xA5\xBD\xEF\xBC\x8C\xE5\x86\x8D\xE6\x9D\xA5\xE4\xB8\x80\xE5\xB1\x80"},  // 你好，再来一局
+  // @ and $ stand in for letters, never digits, so these are words, not numbers.
+  {"@$$","***"},
+  {"@55","***"},
+  {"fica na sala","fica na sala"},
+  {"\xE4\xBB\x8A\xE6\x97\xA5\xE4\xBD\xA0\xE6\x9C\x89\xE7\xA9\xBA\xE5\x90\x97","\xE4\xBB\x8A\xE6\x97\xA5\xE4\xBD\xA0\xE6\x9C\x89\xE7\xA9\xBA\xE5\x90\x97"},  // 今日你有空吗
+  {"\xE8\xBF\x99\xE6\x98\xAF\xE6\x88\x91\xE5\xA6\x88\xE5\xA6\x88\xE7\x9A\x84\xE6\x89\x8B\xE6\x9C\xBA","\xE8\xBF\x99\xE6\x98\xAF\xE6\x88\x91\xE5\xA6\x88\xE5\xA6\x88\xE7\x9A\x84\xE6\x89\x8B\xE6\x9C\xBA"},  // 这是我妈妈的手机
+  {"\xE9\x9D\xA0\xE8\x83\x8C\xE6\xA4\x85","\xE9\x9D\xA0\xE8\x83\x8C\xE6\xA4\x85"},  // 靠背椅
+  {"\xE5\xA7\x91\xE5\xA8\x98\xE7\x9A\x84\xE6\x89\x8B\xE6\x9C\xBA","\xE5\xA7\x91\xE5\xA8\x98\xE7\x9A\x84\xE6\x89\x8B\xE6\x9C\xBA"},  // 姑娘的手机
+  {"\xE4\xBB\x96\xE5\xA5\xB6\xE5\xA5\xB6\xE6\x9D\xA5\xE4\xBA\x86","\xE4\xBB\x96\xE5\xA5\xB6\xE5\xA5\xB6\xE6\x9D\xA5\xE4\xBA\x86"},  // 他奶奶来了
+  {"\xE3\x81\x8A\xE5\xB0\xBB\xE3\x81\x8C\xE7\x97\x9B\xE3\x81\x84","\xE3\x81\x8A\xE5\xB0\xBB\xE3\x81\x8C\xE7\x97\x9B\xE3\x81\x84"},  // お尻が痛い
+  {"\xE3\x82\xAB\xE3\x83\xBC\xE3\x83\x89\xE3\x82\x92\xE6\x8C\xBF\xE5\x85\xA5\xE3\x81\x99\xE3\x82\x8B","\xE3\x82\xAB\xE3\x83\xBC\xE3\x83\x89\xE3\x82\x92\xE6\x8C\xBF\xE5\x85\xA5\xE3\x81\x99\xE3\x82\x8B"},  // カードを挿入する
+  {"il mio bimbo dorme","il mio bimbo dorme"},
+  {"topa jogar mais uma?","topa jogar mais uma?"},
+  {"\xE4\xBD\xA0\xE5\x85\xA8\xE5\xAE\xB6\xE9\x83\xBD\xE6\x9D\xA5\xE5\x90\x97","\xE4\xBD\xA0\xE5\x85\xA8\xE5\xAE\xB6\xE9\x83\xBD\xE6\x9D\xA5\xE5\x90\x97"},  // 你全家都来吗
+  {"schei\xC3\x9F""e","*******"},  // scheiße
+  {"Schei\xC3\x9F""e","*******"},  // Scheiße
+  {"SCHEI\xE1\xBA\x9E""E","*******"},  // SCHEIẞE
+  // Stems hide compounds the lists leave out, but never the romaji or English words that contain them.
+  {"shithead, shitting, fuuuucks","********, ********, ********"},
+  {"arigatou gozaimashita","arigatou gozaimashita"},{"otsukaresama deshita","otsukaresama deshita"},{"doushite?","doushite?"},
+  {"shitteru? shitte shitto","shitteru? shitte shitto"},{"spojen\xC3\xAD mi padlo","spojen\xC3\xAD mi padlo"},
+  // An entry written with three of a letter is hidden as written, and stretched.
+  {"xxx xxxxx","*** *****"},{"fuuuucked shiiiithead","********* ***********"},{"gg Shota","gg Shota"},
+  {"sniggering LUL","sniggering LUL"},
+  // A stretched word matches run by run: connnn is not coon, Bobbb is not boob.
+  {"connnn Bobbb","connnn Bobbb"},
+  {"\xFF fuck","\xFF fuck"}};
+ for(const auto& c:cases)Check(FilterChat(c.first)==c.second,(std::string("The chat filter showed \"")+c.first+"\" as \""+FilterChat(c.first)+"\"").c_str());
+ // A message at the room's longest, 256 bytes, ends in a listed word.
+ const std::string longest=std::string(252,'a')+" ass";
+ Check(longest.size()==256&&FilterChat(longest)==std::string(252,'a')+" ***","The chat filter missed a listed word at the end of the longest message");
+ // The transcript keeps both: what was written, and what the filter shows.
+ sf4e::room::Snapshot s;s.roomEpoch=6;s.localMember=1;
+ sf4e::room::Member m;m.id=2;m.name="Peer";s.members.push_back(m);
+ s.chat.push_back({1,2,"oh shit"});
+ sf4e::ui::ChatTranscript t;t.Update(s,{});
+ Check(t.Lines().back().text=="oh shit"&&t.Lines().back().filtered=="oh ****","A chat line did not keep its text and its filtered text");
+}
 }
 void ChatJourneys(){
  using namespace sf4e;
  TranscriptLogic();
+ FilterLogic();
  Harness h;h.Frame();
  auto& io=ImGui::GetIO();
  const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};

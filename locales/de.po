@@ -7508,6 +7508,12 @@ msgstr "Das Mitglieder-Feld der Raumansicht. Ausgeblendet nimmt der Chat die Spa
 msgid "settings.room_show_chat_detail"
 msgstr "Das Chat-Feld der Raumansicht. Ausgeblendet nehmen die Mitglieder die Spalte ein oder die Tische die ganze Breite."
 
+msgid "settings.chat_filter"
+msgstr "Chatfilter"
+
+msgid "settings.chat_filter_detail"
+msgstr "Verdeckt Schimpfwörter und Beleidigungen im Raumchat mit Sternchen, nur auf Ihrem Bildschirm. Nachrichten werden weiter so gesendet, wie sie geschrieben wurden."
+
 msgid "room.v2.unread"
 msgstr "{0} ungelesen"
 

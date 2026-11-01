@@ -19,6 +19,7 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"classEmblems", &PlayerPreferences::classEmblems}, {"tvMode", &PlayerPreferences::tvMode},
     {"welcomed", &PlayerPreferences::welcomed},
     {"roomShowMembers", &PlayerPreferences::roomShowMembers}, {"roomShowChat", &PlayerPreferences::roomShowChat},
+    {"chatFilter", &PlayerPreferences::chatFilter},
     {"matchFrameMeter", &PlayerPreferences::matchFrameMeter}, {"backgroundPlay", &PlayerPreferences::backgroundPlay}, {"endlessLobbyMusic", &PlayerPreferences::endlessLobbyMusic},
     {"lowerInputLag", &PlayerPreferences::lowerInputLag}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag},
     {"fasterDisplay", &PlayerPreferences::fasterDisplay}, {"borderless", &PlayerPreferences::borderless},

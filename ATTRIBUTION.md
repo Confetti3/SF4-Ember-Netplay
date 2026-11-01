@@ -141,6 +141,18 @@ and the selected asset directories are recorded in `assets/input/README.md`.
 The Ember menu background was generated specifically for this project. Its
 generation prompt and content hash are recorded in `assets/brand/README.md`.
 
+## Chat filter word lists
+
+The room chat's filter uses the
+[List of Dirty, Naughty, Obscene, and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)
+by Shutterstock and its contributors, licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The lists are kept
+unmodified in `assets/chat-filter`; Ember's own allow list and stems change
+which words the filter hides. The distributed licence is
+`assets/chat-filter/LICENSE`, included in
+`notices/THIRD_PARTY_LICENSES.txt`; the source commit and file hashes are recorded
+in `assets/chat-filter/README.md`.
+
 ## Country flags
 
 Country flags are rendered from the 4x3 SVGs of

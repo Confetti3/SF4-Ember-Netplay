@@ -97,7 +97,7 @@ add_library(sf4e_ui STATIC
     src/ui/ApplicationShell.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
     src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/FighterSelector.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
-    src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatPanel.cxx
+    src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx
     src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp
     src/ui/TrainingPanel.cxx src/ui/TrainingMeter.cxx src/ui/TrainingShortcuts.cxx src/ui/IdentityPanel.cxx src/ui/IdentityPanel__Watch.cxx src/ui/IdentityConnect.cxx src/ui/IdentitySignIn.cxx src/ui/IdentityMatches.cxx src/ui/IdentityDesk.cxx src/ui/PublicRoomsPanel.cxx src/ui/PublicRoomsCards.cxx src/ui/PublicRoomsSetup.cxx src/ui/RankingsPanel.cxx src/ui/RankingsCards.cxx src/ui/MatchAnnouncements.cxx
     src/ui/OverlayLayers.cxx src/ui/ReplayPlaybackHud.cxx src/ui/TrainingInRoom.cxx src/ui/ApplicationShell__Screens.cxx
@@ -114,6 +114,7 @@ target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(sf4e_ui PUBLIC sf4e_problem_report)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_chat_filter.cmake")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
 target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 

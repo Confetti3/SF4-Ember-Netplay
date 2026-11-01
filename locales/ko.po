@@ -7509,6 +7509,12 @@ msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차�
 msgid "settings.room_show_chat_detail"
 msgstr "방 화면의 채팅 패널입니다. 숨기면 참가자가 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
 
+msgid "settings.chat_filter"
+msgstr "채팅 필터"
+
+msgid "settings.chat_filter_detail"
+msgstr "방 채팅의 욕설과 혐오 표현을 내 화면에서만 별표로 가립니다. 메시지는 쓴 그대로 전송됩니다."
+
 msgid "room.v2.unread"
 msgstr "읽지 않음 {0}"
 

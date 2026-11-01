@@ -7508,6 +7508,12 @@ msgstr "Panel Uczestnicy w pokoju. Gdy jest ukryty, czat zajmuje kolumnę, a gdy
 msgid "settings.room_show_chat_detail"
 msgstr "Panel Czat w pokoju. Gdy jest ukryty, uczestnicy zajmują kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."
 
+msgid "settings.chat_filter"
+msgstr "Filtr czatu"
+
+msgid "settings.chat_filter_detail"
+msgstr "Ukrywa przekleństwa i obelgi na czacie pokoju pod gwiazdkami, tylko na Twoim ekranie. Wiadomości nadal są wysyłane tak, jak zostały napisane."
+
 msgid "room.v2.unread"
 msgstr "Nieprzeczytane: {0}"
 

@@ -7508,6 +7508,12 @@ msgstr "Le panneau Membres du salon. Masqué, le chat prend la colonne, ou les t
 msgid "settings.room_show_chat_detail"
 msgstr "Le panneau Chat du salon. Masqué, les membres prennent la colonne, ou les tables toute la largeur."
 
+msgid "settings.chat_filter"
+msgstr "Filtre du chat"
+
+msgid "settings.chat_filter_detail"
+msgstr "Masque les grossièretés et les insultes du chat du salon par des astérisques, sur votre écran uniquement. Les messages sont toujours envoyés tels qu'ils ont été écrits."
+
 msgid "room.v2.unread"
 msgstr "{0} non lu(s)"
 

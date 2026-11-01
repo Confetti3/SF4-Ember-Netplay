@@ -7509,6 +7509,12 @@ msgstr "ルーム画面のメンバー欄です。隠すとチャットが列を
 msgid "settings.room_show_chat_detail"
 msgstr "ルーム画面のチャット欄です。隠すとメンバーが列を使い、両方隠すとテーブルが全幅を使います。"
 
+msgid "settings.chat_filter"
+msgstr "チャットフィルター"
+
+msgid "settings.chat_filter_detail"
+msgstr "ルームチャットの暴言や差別的な言葉を、自分の画面でだけ * で隠します。メッセージは書かれたとおりに送信されます。"
+
 msgid "room.v2.unread"
 msgstr "未読 {0} 件"
 

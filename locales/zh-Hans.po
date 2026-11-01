@@ -7509,6 +7509,12 @@ msgstr "房间界面的成员面板。隐藏后由聊天占用该列，两者都
 msgid "settings.room_show_chat_detail"
 msgstr "房间界面的聊天面板。隐藏后由成员占用该列，两者都隐藏时对战台占满整个宽度。"
 
+msgid "settings.chat_filter"
+msgstr "聊天过滤"
+
+msgid "settings.chat_filter_detail"
+msgstr "在房间聊天中用星号遮住脏话和侮辱性词语，只在你的屏幕上生效。消息仍按原样发送。"
+
 msgid "room.v2.unread"
 msgstr "{0} 条未读"
 

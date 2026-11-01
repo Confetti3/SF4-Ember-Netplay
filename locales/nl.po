@@ -7508,6 +7508,12 @@ msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de 
 msgid "settings.room_show_chat_detail"
 msgstr "Het paneel Chat op het kamerbord. Verborgen neemt Leden de kolom, of de tafels de volle breedte."
 
+msgid "settings.chat_filter"
+msgstr "Chatfilter"
+
+msgid "settings.chat_filter_detail"
+msgstr "Verbergt scheldwoorden en beledigingen in de kamerchat achter sterretjes, alleen op je eigen scherm. Berichten worden nog steeds verstuurd zoals ze zijn geschreven."
+
 msgid "room.v2.unread"
 msgstr "{0} ongelezen"
 

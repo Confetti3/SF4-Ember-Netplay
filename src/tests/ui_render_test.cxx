@@ -875,6 +875,8 @@ int main(int argc, char** argv) {
                 view.room.members.push_back(m);}
             const char* sampleChat[]={"Welcome! Grab a table or join a queue.","Good games. I'll watch the next one.","Ready for another set?","Let's run it back!"};
             for(int i=0;i<20;++i)view.room.chat.push_back({static_cast<std::uint64_t>(i+1),static_cast<room::MemberId>(i%16+1),readmeShots?sampleChat[i%4]:"Ready for the next set? This is a longer chat message for narrow-layout inspection."});
+            // The newest message has words the chat filter hides, so the chat shots show its stars.
+            if(!readmeShots)view.room.chat.back().text="That combo was fucking clean, holy shit. GGs!";
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");

@@ -7141,6 +7141,12 @@ msgstr "The room board's Members panel. Hidden, Chat takes the column, or the ta
 msgid "settings.room_show_chat_detail"
 msgstr "The room board's Chat panel. Hidden, Members takes the column, or the tables the full width."
 
+msgid "settings.chat_filter"
+msgstr "Chat filter"
+
+msgid "settings.chat_filter_detail"
+msgstr "Hides swearing and slurs in room chat behind stars, on your screen only. Messages are still sent as written."
+
 msgid "room.v2.unread"
 msgstr "{0} unread"
 

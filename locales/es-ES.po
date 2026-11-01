@@ -7509,6 +7509,12 @@ msgstr "El panel Miembros de la sala. Si se oculta, el chat ocupa la columna, o 
 msgid "settings.room_show_chat_detail"
 msgstr "El panel Chat de la sala. Si se oculta, los miembros ocupan la columna, o las mesas todo el ancho."
 
+msgid "settings.chat_filter"
+msgstr "Filtro del chat"
+
+msgid "settings.chat_filter_detail"
+msgstr "Oculta palabrotas e insultos del chat de la sala con asteriscos, solo en tu pantalla. Los mensajes se siguen enviando tal como se escribieron."
+
 msgid "room.v2.unread"
 msgstr "{0} sin leer"
 

@@ -1,4 +1,5 @@
 #include "ChatTranscript.hxx"
+#include "ChatFilter.hxx"
 #include <algorithm>
 
 namespace sf4e { namespace ui {
@@ -57,6 +58,7 @@ bool ChatTranscript::Update(const room::Snapshot& snapshot, const std::vector<Ro
         const auto name = names_.find(message.sender);
         if (name != names_.end()) line.name = name->second;
         line.text = message.text;
+        line.filtered = FilterChat(line.text);
         line.own = snapshot.localMember && message.sender == snapshot.localMember;
         Append(std::move(line));
         lastSequence_ = message.sequence;

@@ -147,6 +147,9 @@ struct PlayerPreferences {
     // The room board's Members and Chat panels; hidden, the other one or
     // the tables take their place.
     bool roomShowMembers = true, roomShowChat = true;
+    // Room chat is shown with listed words hidden (ui::FilterChat). Only this
+    // player's screen changes; the room still holds what was written.
+    bool chatFilter = true;
     // The training frame meter over the player's own matches and those they
     // watch. It only reads the game and shows confirmed frames.
     bool matchFrameMeter = false;
@@ -206,8 +209,8 @@ struct PlayerPreferences {
     bool sendProblemReports = false;
     float interfaceScale = 1.f;
     // Takes `from`'s settings a room leaves open, as they change nothing about
-    // play: the button layouts, and the room board's layout and the watched
-    // game's picture, which the board's grips, Hide and Show, More… and
+    // play: the button layouts, the room board's layout, the chat filter and
+    // the watched game's picture, which the board's grips, Hide and Show, More… and
     // Settings › Interface › Room layout change in a room
     // (ShellAction::roomSettings). The shell sends these alone while a room
     // locks the rest (OnlyRoomSettingsChanged), and the runtime saves these
@@ -215,7 +218,7 @@ struct PlayerPreferences {
     void CopyRoomSettings(const PlayerPreferences& from) {
         buttonLayouts = from.buttonLayouts;
         roomColumn = from.roomColumn; roomSplit = from.roomSplit;
-        roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat;
+        roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat; chatFilter = from.chatFilter;
         pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;

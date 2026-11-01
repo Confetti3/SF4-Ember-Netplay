@@ -23,7 +23,7 @@ void TrainingSettingsAndHome() {
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
  const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},
   {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
-  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-picture","arrange-reset"}},
+  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","chat-filter","arrange-picture","arrange-reset"}},
   {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
  for(const auto& [screen,ids]:interfacePanels){
   h.Screen(screen);
@@ -31,6 +31,12 @@ void TrainingSettingsAndHome() {
    "An Interface panel's rows changed");
  }
  Check(!rows.back().enabled,"Endless lobby music was offered without the game's menu entry");
+ // The chat filter starts on, and Left turns it off and saves it.
+ h.Screen("tab-interface/room-layout");
+ Check(h.view.preferences.chatFilter,"The chat filter did not start on");
+ h.FocusOn("chat-filter");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.chatFilter,"Turning the chat filter off did not save it");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
  h.Screen("tab-matches/training-replays");
  Check(rows.size()==7&&rows[0].id=="match-frame-meter"&&rows[1].id=="training-auto-ready"&&rows[2].id=="replay-save-watched"&&rows[3].id=="replay-share"&&rows[4].id=="watched-picture"&&
   rows[5].id=="picture-corner"&&rows[6].id=="picture-size","Training and replays settings order wrong");

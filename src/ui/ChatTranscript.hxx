@@ -24,6 +24,8 @@ struct ChatLine {
     room::MemberId sender = 0;
     std::string name;
     std::string text;
+    // The text as the chat filter shows it (FilterChat), worked out once.
+    std::string filtered;
     bool own = false;
     // Results and Ready timeouts: the table (from 0). Results: the score with
     // the winner's first.
