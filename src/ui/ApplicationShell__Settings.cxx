@@ -615,17 +615,15 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     // The section and, under it, the focused row's words (the panel's while closed).
     const MenuEntry* words = nullptr;
     for (const auto& e : entries) if (e.id == focus) words = &e;
-    v2::Box column = body;
-    if (const float cap = (width / s > 1700 ? 1400 : 1100) * s; column.W() > cap) column.max.x = column.min.x + cap;
     // The words' bar: the design's height, taller when they wrap past it. A
     // row Select opens in the reader (the controls, credits, font licence)
     // shows only its first paragraph here; the whole text waits for Select.
     const std::string detail = !words ? std::string() : words->reading ? words->detail.substr(0, words->detail.find('\n')) : words->detail;
-    const float wrapped = words ? v2::WordsHeight(column.W(), detail) : 0;
-    const v2::Box bar = v2::CutBottom(column, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
+    const float wrapped = words ? v2::WordsHeight(body.W(), detail) : 0;
+    const v2::Box bar = v2::CutBottom(body, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
     v2::Words(d, bar, words ? words->label : std::string(), detail, true);
     if (!shown) return;
-    v2::Box section = v2::Panel(d, column, loc::T(shown->panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
+    v2::Box section = v2::Panel(d, body, loc::T(shown->panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
 
     // The picture, beside the rows, for a panel with something to show.
     if (shown->panel->picture && !narrow && section.W() >= 760 * s) {
