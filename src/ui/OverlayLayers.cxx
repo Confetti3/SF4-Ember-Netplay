@@ -8,8 +8,9 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     ChallengerBanner(training, view.challenger);
     bool passive = PassiveOverlayShown(view.shellVisible, view.trainingControlsOpen, view.nativePaused);
     TrainingHudInput hud;
-    // Behind the HUD, and under the training controls too, so turning them on there shows them.
-    if (training.available && view.trainingHud) DrawTrainingBoxes(training);
+    // Behind the HUD, and under the training controls too, so turning them on there shows them;
+    // never over the game's pause menu, which the controls may be opened over.
+    if (training.available && view.trainingHud && !view.nativePaused) DrawTrainingBoxes(training);
     if (passive && view.focused && training.available && view.trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
         DrawTrainingData(training);

@@ -35,6 +35,15 @@ void CheckOverlayVisibility(sf4e::training::View& training,sf4e::ui::OverlayLaye
         for(const char* window:{"Training frame meter","Training shortcuts","Training room status","Ember shortcut","Ember match waiting","Ember controller"})
             Require(WindowDrawn(window)==passive,"Open window or native pause did not gate a passive training layer or hint");
         Require(!foreground(),"Training visibility fixture unexpectedly drew a foreground layer");
+        // The fighters' boxes show with the HUD and under Ember's menu or the training controls, never under the game's pause menu.
+        const auto meter=TrainingMeterOptions();auto boxesOn=meter;boxesOn.hitboxes=true;SetTrainingMeterOptions(boxesOn);
+        reset();training.available=true;layers.trainingHud=true;
+        training.boxes.valid=true;training.boxes.view[0]=training.boxes.view[5]=training.boxes.view[10]=training.boxes.view[15]=1;
+        std::copy(std::begin(training.boxes.view),std::end(training.boxes.view),training.boxes.projection);
+        training.boxes.boxes={{{-.2f,.2f,.2f,-.2f},{-.2f,-.2f,.2f,.2f},training::BoxKind::Hit,0}};draw();
+        Require((ImGui::GetBackgroundDrawList()->VtxBuffer.Size>0)==(state!=3),"The fighters' boxes were drawn over the game's pause menu, or hidden without it");
+        if(state==3){layers.trainingControlsOpen=true;draw();Require(ImGui::GetBackgroundDrawList()->VtxBuffer.Size==0,"The fighters' boxes were drawn over the game's pause menu under the training controls");}
+        SetTrainingMeterOptions(meter);
         for(int layout:{0,1}) {
             reset();training.watching=true;layers.matchActive=layers.showMatchHud=true;
             layers.match.layout=layout;layers.match.names[0]="Player One";layers.match.names[1]="Player Two";
