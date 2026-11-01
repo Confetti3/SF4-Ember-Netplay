@@ -231,6 +231,40 @@ inline void PruneDumps(const wchar_t* directory, size_t keep, const wchar_t* pro
 	prune(heap, HeapDumpsKept);
 }
 
+// A game that stops answering writes no dump of its own. Windows calls its
+// window hung after 5 seconds without a message read (WindowNudge.hxx); the
+// launcher dumps it FreezeDumpAfterMs later, about 15 seconds stuck, within
+// FreezeDumpWaitMs (half a second on a 32 MB dump), so a crash request that
+// comes meanwhile still finds the launcher before the game gives up on it.
+constexpr ULONGLONG FreezeDumpAfterMs = 10000;
+constexpr DWORD FreezeDumpWaitMs = 5000;
+
+class FreezeWatch {
+public:
+	enum class Window { Unknown, Answering, Hung };
+	enum class Step { None, Dump, Answered };
+	// What to do at nowMs (a monotonic clock): Dump once per freeze, and
+	// Answered when a window dumped for it reads messages again. A window
+	// that cannot be seen leaves the watch as it was.
+	Step Next(Window window, ULONGLONG nowMs) {
+		if (window == Window::Unknown) return Step::None;
+		if (window == Window::Answering) {
+			const bool answered = dumped_;
+			hung_ = dumped_ = false;
+			return answered ? Step::Answered : Step::None;
+		}
+		if (!hung_) { hung_ = true; since_ = nowMs; }
+		if (dumped_ || nowMs - since_ < FreezeDumpAfterMs) return Step::None;
+		dumped_ = true;
+		return Step::Dump;
+	}
+private:
+	bool hung_ = false;
+	bool dumped_ = false;
+	ULONGLONG since_ = 0;
+};
+inline FreezeWatch::Window UnseenWindow() { return FreezeWatch::Window::Unknown; }
+
 // The launcher's end: two events and the page that carries the request.
 struct DumpChannel {
 	HANDLE request = nullptr;
@@ -263,6 +297,40 @@ struct DumpChannel {
 		}
 		view = nullptr;
 	}
+	// Writes the report dump, when enabled, and the full dump, both within
+	// `deadline`. `pointers` are in launcher memory, or null for a game that
+	// only stopped: then every thread is written as it stands.
+	bool Capture(HANDLE process, const wchar_t* directory, DWORD threadId, EXCEPTION_POINTERS* pointers,
+		DumpWriter writer, ULONGLONG deadline) {
+		reportWritten.clear();
+		const DWORD processId = GetProcessId(process);
+		HANDLE fullFile = ReserveDump(process, processId, directory, pointers, false, written);
+		if (reportEnabled && written[0]) {
+			const auto path = ReportDumpPath(written);
+			const MINIDUMP_TYPE type = ReportDumpType;
+			if (PublishDump(CreateDumpFile(path.c_str()), path.c_str(), process, processId, threadId, pointers, false,
+				{ &type, 1, ReportDumpLimit, deadline, writer })) reportWritten = path;
+		}
+		const MINIDUMP_TYPE types[] = { exceptionCode == HeapCorruptionCode ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
+		const bool ok = PublishDump(fullFile, written, process, processId, threadId, pointers, false, { types, 3, 0, deadline, writer });
+		if (!ok) written[0] = L'\0';
+		return ok;
+	}
+	// The dump of a game that stopped answering (FreezeWatch), in place of
+	// any earlier one, so the report of the exit that follows carries it.
+	// True when either file was written, as for a request.
+	bool ServeFreeze(HANDLE process, const wchar_t* directory) {
+		exceptionCode = 0; crashAddress = 0;
+		return Capture(process, directory, 0, nullptr, MiniDumpWriteDump, GetTickCount64() + FreezeDumpWaitMs) || !reportWritten.empty();
+	}
+	// A game that answered after its freeze dump was only slow: the dump
+	// goes, so it neither reaches a later report nor takes a crash dump's place.
+	void ForgetFreeze() {
+		if (written[0]) DeleteFileW(written);
+		if (!reportWritten.empty()) DeleteFileW(reportWritten.c_str());
+		written[0] = L'\0';
+		reportWritten.clear();
+	}
 	// Writes the dump the game asked for into `directory`, then lets the game
 	// go on dying.
     // Optional writer/deadline parameters are a bounded fault-injection seam;
@@ -291,18 +359,8 @@ struct DumpChannel {
                     local = { &record, &context }; pointers = &local;
                 }
             }
-            const DWORD processId = GetProcessId(process);
-            HANDLE fullFile = ReserveDump(process, processId, directory, pointers, false, written);
-            if (reportEnabled && written[0]) {
-                const auto path = ReportDumpPath(written);
-                const MINIDUMP_TYPE type = ReportDumpType;
-                if (PublishDump(CreateDumpFile(path.c_str()), path.c_str(), process, processId, asked.threadId, pointers, false,
-                    { &type, 1, ReportDumpLimit, deadline, writer })) reportWritten = path;
-            }
-            const MINIDUMP_TYPE types[] = { exceptionCode == HeapCorruptionCode ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
-            ok = PublishDump(fullFile, written, process, processId, asked.threadId, pointers, false, { types, 3, 0, deadline, writer });
+            ok = Capture(process, directory, asked.threadId, pointers, writer, deadline);
         }
-        if (!ok) written[0] = L'\0';
         // Either artifact means the request captured evidence. Track the paths
         // independently; a full failure does not discard a completed report.
         view->written = ok || !reportWritten.empty() ? 1 : 0;
@@ -310,14 +368,21 @@ struct DumpChannel {
         return ok;
     }
 	// Waits for `process` to exit, writing each dump it asks for on the way;
-	// `served(ok)` hears of each request, with the file in `written`.
-	// Without a channel it only waits.
-	template <typename Served> void ServeUntilExit(HANDLE process, const wchar_t* directory, Served served) {
+	// `served(ok, freeze)` hears of each, with the file in `written`. About
+	// once a second `window()` tells how the game's window answers, for the
+	// freeze dumps (FreezeWatch). Without a channel it only waits.
+	template <typename Served, typename WindowState = FreezeWatch::Window (*)()>
+	void ServeUntilExit(HANDLE process, const wchar_t* directory, Served served, WindowState window = UnseenWindow) {
+		FreezeWatch freeze;
 		for (;;) {
 			const HANDLE waits[] = { process, request };
-			const DWORD woke = WaitForMultipleObjects(view ? 2 : 1, waits, FALSE, INFINITE);
-			if (woke != WAIT_OBJECT_0 + 1) return;
-			served(Serve(process, directory));
+			const DWORD woke = WaitForMultipleObjects(view ? 2 : 1, waits, FALSE, view ? 1000 : INFINITE);
+			if (woke != WAIT_TIMEOUT && woke != WAIT_OBJECT_0 + 1) return;
+			// A game that asks for a dump is answering too.
+			const FreezeWatch::Step step = freeze.Next(woke == WAIT_TIMEOUT ? window() : FreezeWatch::Window::Answering, GetTickCount64());
+			if (step == FreezeWatch::Step::Answered) ForgetFreeze();
+			if (step == FreezeWatch::Step::Dump) served(ServeFreeze(process, directory), true);
+			if (woke == WAIT_OBJECT_0 + 1) served(Serve(process, directory), false);
 		}
 	}
 };
