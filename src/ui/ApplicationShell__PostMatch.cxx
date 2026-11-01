@@ -35,6 +35,21 @@ int SeatOf(const room::Table& t, room::MemberId member) {
 bool MidSet(const room::Table& t, std::uint64_t generation) {
     return t.rules.format != room::SetFormat::Unlimited && t.lastSet.generation != generation;
 }
+// The room has taken this game's result: the game is no longer live at its
+// generation (the table left Playing and Paused, or moved on to another game).
+bool ResultIn(const room::Table& t, std::uint64_t generation) {
+    return !(t.matchGeneration == generation && (t.phase == room::TablePhase::Playing || t.phase == room::TablePhase::Paused));
+}
+// Table::keeper describes this game once the room has its result, or before
+// it when the game cannot have ended the set (neither seat was a win from the
+// goal); until then a keeper may be the last set's, not this one's. A rematch
+// played on in the same battle stays live, so for its few seconds of Starting
+// the score already counts this game (a short, harmless lag).
+bool KeeperKnown(const room::Table& t, std::uint64_t generation) {
+    if (ResultIn(t, generation)) return true;
+    return t.rules.format != room::SetFormat::Unlimited &&
+        (std::max)(t.score[0], t.score[1]) + 1 < static_cast<std::uint32_t>(t.rules.format);
+}
 // No answer gives the seat to whoever waits only in a Classic room after a
 // set. An Arcade or King of the hill room keeps everyone at their cabinet and
 // rotates them itself (ArcadeSetEnded); a set's game keeps both seats.
@@ -51,8 +66,7 @@ const char* ButtonGlyph(const std::string& id) {
 // A seat's Ready for the next game. The room clears the Readies that started
 // this one only when its match ends, after the WIN of a game that may go on in place.
 bool Readied(const room::Table& t, int seat, std::uint64_t generation) {
-    const bool live = t.matchGeneration == generation && (t.phase == room::TablePhase::Playing || t.phase == room::TablePhase::Paused);
-    return seat >= 0 && !live && t.ready[seat];
+    return seat >= 0 && ResultIn(t, generation) && t.ready[seat];
 }
 }
 
@@ -128,7 +142,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
     // What the prompt left to do waits for the game's end, in the room.
     if (!open || postMatch_ || afterPostMatch_ == AfterPostMatch::None || Fighting(v.session.match) || !v.atMainMenu) return;
     if (afterPostMatch_ == AfterPostMatch::FighterSelect) {
-        nav.Home(); nav.Push("room"); nav.Push("selection"); selectionFresh_ = true; selectionOpenOn_ = "roster";
+        nav.Home(); nav.Push("room"); nav.Push("selection"); selectionFresh_ = true; selectionOpenOn_ = RoomSelectionStart(v.room);
         afterPostMatch_ = AfterPostMatch::None;
         return;
     }
@@ -216,7 +230,11 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     std::string rotation;
     if (rotates && !p.left && t.lastSet.generation == p.generation)
         rotation = std::string(t.lastSet.Winner() == v.room.localMember ? loc::T("postmatch.rotate.winner") : loc::Tf("postmatch.rotate.loser", name)) + "\n";
-    rows.push_back(Row("fighter", loc::T("postmatch.character_select"), rotation + loc::T("postmatch.character_select.detail"), !p.left));
+    // A winner who keeps the fighter (Rules::winnerKeepsFighter) is told so here,
+    // not only once the fighter select refuses another fighter.
+    const bool keeps = KeeperKnown(t, p.generation) && room::KeepsFighter(v.room, v.room.localMember);
+    rows.push_back(Row("fighter", loc::T("postmatch.character_select"),
+        rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left));
     rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
     if (deciding) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});

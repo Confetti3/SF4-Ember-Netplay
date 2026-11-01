@@ -32,7 +32,7 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
   OpenTableOptions(v,onTable?selectedTable_:OptionsTable(v,selectedTable_));
   return;
  }
- if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_="roster";}
+ if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_=RoomSelectionStart(v.room);}
  nav.Home();nav.Push("room");nav.Push(target);
 }
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {

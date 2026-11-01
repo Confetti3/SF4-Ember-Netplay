@@ -89,8 +89,10 @@ std::string MemberStatusText(const room::Snapshot& s, const room::Member& m, boo
 // opens its page; Left and Right step only the Ultra and color in place.
 void SelectionRows(std::vector<MenuEntry>& rows,const ShellView& v) {
  const bool canChange=RoomActionsAvailable(v)&&v.canEditSelection&&!v.room.localTerminalPending;
+ // A winner who keeps the fighter still opens the page, for the Ultra and the look.
+ const bool keeps=room::KeepsFighter(v.room,v.room.localMember);
  rows.push_back(Row("selection",loc::T("selection.fighter"),canChange?
-  std::string(loc::T("room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
+  std::string(loc::T(keeps?"selection.winner_keeps_fighter":"room.change_fighter.detail"))+"\n"+v.selectionSummary:SelectionBlocker(v),canChange));
  rows.back().value=v.fighterName;
  const auto stepRow=[&](const char* id,const char* label,const std::string& value,const char* detail,bool steps){
   rows.push_back(Value(id,label,value,canChange?detail:SelectionBlocker(v),canChange));

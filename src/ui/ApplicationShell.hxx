@@ -224,6 +224,11 @@ inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t e
     const auto since = static_cast<std::uint32_t>((std::min<std::uint64_t>)(elapsedMs / 1000, room::MaximumIdleSeconds));
     return (std::min)(member.idleSeconds + since, room::MaximumIdleSeconds);
 }
+// Where the fighter select opens from a room: on the roster, or on the Ultra
+// for a winner who keeps the fighter (room::KeepsFighter), whose roster is locked.
+inline const char* RoomSelectionStart(const room::Snapshot& room) {
+    return room::KeepsFighter(room, room.localMember) ? "ultra" : "roster";
+}
 // A member's "is typing" `elapsedMs` after the room stamped it; gone once it ran out.
 inline std::uint32_t RoomTypingMs(const room::Member& member, std::uint64_t elapsedMs) {
     return elapsedMs < member.typingMs ? static_cast<std::uint32_t>(member.typingMs - elapsedMs) : 0;

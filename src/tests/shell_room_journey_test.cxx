@@ -657,6 +657,24 @@ void ArcadeJourneys() {
   // Nothing is left to choose, so the buttons say what the room did.
   Check(row("fighter")->detail.rfind(loc::T("postmatch.rotate.winner"),0)==0&&row("back")->detail.rfind(loc::T("postmatch.rotate.winner"),0)==0,
    "The winner was not told they stay on for the next challenger");
+  // The winner who keeps the fighter is told so once the room has the set's result.
+  Check(row("fighter")->detail.find(loc::T("selection.winner_keeps_fighter"))==std::string::npos,"A winner who is not the keeper was told they keep the fighter");
+  t.keeper=1;t.phase=room::TablePhase::Waiting;k.Frame();
+  Check(row("fighter")->detail.find(loc::T("selection.winner_keeps_fighter"))!=std::string::npos,"The set's winner was not told they keep the fighter");
+  t.phase=room::TablePhase::Playing;
+  // Before the result, a keeper from the last set is not this game's: a game a
+  // win from the goal may have ended the set the other way.
+  t.lastSet.generation=4;t.rules.format=room::SetFormat::Ft2;t.score[0]=1;k.Frame();
+  Check(row("fighter")->detail.find(loc::T("selection.winner_keeps_fighter"))==std::string::npos,"The last set's keeper was told they keep the fighter before the result");
+  // A game that cannot end the set (0-0 in FT2) leaves the keeper known before the result.
+  t.score[0]=0;k.Frame();
+  Check(row("fighter")->detail.find(loc::T("selection.winner_keeps_fighter"))!=std::string::npos,"The keeper was not told before the result of a game that cannot end the set");
+  t.score[0]=1;
+  // Once the result of a game inside the set is in, the keeper still keeps it.
+  t.phase=room::TablePhase::Waiting;k.Frame();
+  Check(row("fighter")->detail.find(loc::T("selection.winner_keeps_fighter"))!=std::string::npos,"The keeper lost the sentence once a game inside the set was in");
+  t.phase=room::TablePhase::Playing;
+  t.lastSet.generation=5;t.score[0]=0;t.rules.format=room::SetFormat::Unlimited;t.keeper=0;k.Frame();
   const std::string keep=loc::T("postmatch.back.keep_seat");const auto& back=row("back")->detail;
   Check(back.size()>=keep.size()&&back.compare(back.size()-keep.size(),keep.size(),keep)==0,"Back after a King of the hill set said it gives up the seat");
   for(const char* id:{"fighter","back"}){k.FocusOn(id);k.Press(MenuInput::Down);

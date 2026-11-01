@@ -359,6 +359,17 @@ int main() try {
         "The table page does not show the fighter and a steppable Ultra");
     Check(row("appearance").value == "Original / Color 1" && row("appearance").adjustable && row("appearance").enabled,
         "The table page does not show a steppable appearance");
+    // An Arcade winner who keeps the fighter is told so on the Fighter row,
+    // which still opens the page for the Ultra and the look.
+    {
+        const auto place = room::PlaceOf(view.room, view.room.localMember);
+        Check(place.kind == room::Place::Kind::Seat, "The table page fixture is not seated");
+        view.room.arcade = room::ArcadeRoom; view.room.tables[place.table].keeper = view.room.localMember; frame();
+        Check(row("selection").enabled && row("selection").detail.find(loc::T("selection.winner_keeps_fighter")) != std::string::npos,
+            "The Fighter row did not tell the winner they keep the fighter");
+        view.room.arcade = room::ClassicRoom; view.room.tables[place.table].keeper = 0; frame();
+        Check(row("selection").detail.find(loc::T("room.change_fighter.detail")) != std::string::npos, "The Fighter row lost its usual detail");
+    }
     // Under Ready: the player's own pick, then the match (stage and the table's
     // rules), then the connection, then leaving.
     const auto at = [&](const char* id) {
