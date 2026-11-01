@@ -124,10 +124,10 @@ async fn create_list_and_join_a_public_room() {
         refused(joiner.ticket(&bridge_id, &room_id, "build-2").await),
         "unsupported_build"
     );
-    // One open room per Ember ID.
+    // One open room per Ember ID, said as the player's own room.
     assert_eq!(
         refused(kate.create(&bridge_id, "Second room", 4).await),
-        "room_limit"
+        "room_limit_own_room"
     );
     report(&supervisor, &room_id, 2, &[]);
     ember_bridge::poll_rooms(&running.state).await;
