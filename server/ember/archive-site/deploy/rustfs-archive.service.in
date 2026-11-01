@@ -1,0 +1,47 @@
+[Unit]
+Description=Ember replay archive bucket (rustfs)
+After=network.target
+
+[Service]
+# RUSTFS_ACCESS_KEY and RUSTFS_SECRET_KEY, read by systemd as root.
+EnvironmentFile=/etc/rustfs-archive/rustfs.env
+Environment=RUSTFS_ADDRESS=127.0.0.1:@S3_PORT@
+Environment=RUSTFS_CONSOLE_ENABLE=false
+WorkingDirectory=/var/lib/rustfs-archive
+ExecStart=/usr/local/lib/rustfs-archive/rustfs /var/lib/rustfs-archive/data
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65536
+User=rustfs-archive
+Group=rustfs-archive
+StateDirectory=rustfs-archive
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ReadWritePaths=/var/lib/rustfs-archive
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+MemoryMax=2G
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

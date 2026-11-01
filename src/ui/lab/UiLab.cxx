@@ -148,7 +148,7 @@ ui::ShellView FakeView() {
     auto archive = std::make_shared<std::vector<platform::replays::ArchivedReplay>>();
     const auto replay = [&](const char* file, const char* date, std::uint64_t time, const char* a, const char* b, int fa, int fb, int sa, int sb, bool spectated, bool seen) {
         platform::replays::ArchivedReplay r; r.path = file; r.label = date; r.time = time; r.names[0] = a; r.names[1] = b; r.fighters[0] = fa; r.fighters[1] = fb;
-        r.spectated = spectated; r.watched = seen; r.summary = replayinputs::Summary{}; r.summary->scored = true; r.summary->score[0] = sa; r.summary->score[1] = sb;
+        r.provenance = spectated ? replayfiles::Provenance::Spectated : replayfiles::Provenance::Played; r.watched = seen; r.summary = replayinputs::Summary{}; r.summary->scored = true; r.summary->score[0] = sa; r.summary->score[1] = sb;
         r.summary->rounds = static_cast<std::uint32_t>(sa + sb); r.summary->frames = 60 * 75 * r.summary->rounds; archive->push_back(r);
     };
     replay("C:/replays/4.replay", "2026-10-21 21:14", 5000, "FRaccie", "Katie", 0, 16, 2, 1, false, false);

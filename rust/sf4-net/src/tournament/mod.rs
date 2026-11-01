@@ -23,11 +23,13 @@ mod test_support;
 mod watch;
 
 use std::{
+    future::Future,
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
         atomic::{AtomicU64, Ordering},
     },
+    time::Duration,
 };
 
 use ember_protocol::{
@@ -347,6 +349,16 @@ macro_rules! requests {
     };
 }
 
+impl Request {
+    /// How long the request has from when it comes in, waits for the queue
+    /// and an HTTP slot included: a replay's REPLAY_BUDGET, on which the
+    /// game's wait for its answer rests (ReplaySender). None for the rest.
+    fn budget(&self) -> Option<Duration> {
+        matches!(self, Self::ReplaySend { .. } | Self::ReplayArchive { .. })
+            .then_some(replays::REPLAY_BUDGET)
+    }
+}
+
 requests! {
     IdentityStatus => "identity_status", Identity;
     IdentityEnable => "identity_enable", Identity;
@@ -567,7 +579,30 @@ struct Job {
     /// can tell whether a request came before one another lane ran first
     /// (a claim queued before a `match_leave`).
     order: u64,
+    /// When a request with a budget (`Request::budget`) gives up, set as it
+    /// is submitted.
+    deadline: Option<tokio::time::Instant>,
     request: Request,
+}
+
+/// The answer of a job past its deadline: no bridge answered in time, which
+/// the game tries again later.
+fn too_late() -> Failure {
+    Failure::new(Code::BridgeUnreachable)
+}
+
+/// `work` cut off at `deadline`, and never started once that has passed (a
+/// job that waited too long for its turn).
+async fn within<T>(
+    deadline: tokio::time::Instant,
+    work: impl Future<Output = Result<T, Failure>>,
+) -> Result<T, Failure> {
+    if tokio::time::Instant::now() >= deadline {
+        return Err(too_late());
+    }
+    tokio::time::timeout_at(deadline, work)
+        .await
+        .unwrap_or_else(|_| Err(too_late()))
 }
 
 /// Where the IPC reader submits requests: one queue per lane, so a request
@@ -594,6 +629,9 @@ impl Handle {
     pub fn submit(&self, request_id: u64, request: Request) {
         let op = request.op();
         let order = self.order.fetch_add(1, Ordering::SeqCst);
+        let deadline = request
+            .budget()
+            .map(|budget| tokio::time::Instant::now() + budget);
         let queue = match request.lane() {
             Lane::Identity => &self.identity,
             Lane::Local => &self.local,
@@ -603,6 +641,7 @@ impl Handle {
             .try_send(Job {
                 request_id,
                 order,
+                deadline,
                 request,
             })
             .is_err()
@@ -773,19 +812,33 @@ fn spawn_with(
         });
         // Bridge jobs start only when an HTTP slot is free, so their bounded
         // channel is the only place they wait, and in order, since the
-        // semaphore is fair; the set owns every running one.
+        // semaphore is fair; the set owns every running one. A job with a
+        // deadline gets only what is left of it after those waits.
         let mut running = tokio::task::JoinSet::new();
         while let Some(job) = bridge_queue.recv().await {
-            let Ok(permit) = shared.http.clone().acquire_owned().await else {
-                break;
-            };
             while running.try_join_next().is_some() {}
             let shared = shared.clone();
             let events = events.clone();
+            let op = job.request.op();
+            let now = tokio::time::Instant::now();
+            if job.deadline.is_some_and(|at| now >= at) {
+                // Too late already: answered without a slot, nothing sent.
+                running.spawn(async move {
+                    let outcome = Err(too_late());
+                    respond(&events, &shared, job.request_id, op, outcome, None).await;
+                });
+                continue;
+            }
+            let Ok(permit) = shared.http.clone().acquire_owned().await else {
+                break;
+            };
             running.spawn(async move {
                 let _permit = permit;
-                let op = job.request.op();
-                let outcome = bridge_request(&shared, job.order, job.request).await;
+                let work = bridge_request(&shared, job.order, job.request);
+                let outcome = match job.deadline {
+                    Some(deadline) => within(deadline, work).await,
+                    None => work.await,
+                };
                 respond(&events, &shared, job.request_id, op, outcome, None).await;
             });
         }
@@ -1319,6 +1372,101 @@ mod tests {
         }
         failed.sort_unstable();
         assert_eq!(failed, [1, 2, 3, 4, 5]);
+        drop(handle);
+        let _ = tokio::time::timeout(Duration::from_secs(10), task).await;
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // A replay's deadline is set as it is submitted: what it waited for a turn
+    // comes off its time, and once that is gone its work is never started.
+    #[tokio::test(start_paused = true)]
+    async fn a_replay_deadline_counts_its_wait_for_a_turn() {
+        let replay: Request = serde_json::from_value(
+            json!({ "op": "replay_archive", "path": "C:/r.emberreplay", "sides": {} }),
+        )
+        .unwrap();
+        let bridge_list: Request = serde_json::from_value(json!({ "op": "bridge_list" })).unwrap();
+        assert_eq!(replay.budget(), Some(replays::REPLAY_BUDGET));
+        assert_eq!(bridge_list.budget(), None);
+        let deadline = tokio::time::Instant::now() + replays::REPLAY_BUDGET;
+        let queued = Duration::from_secs(30);
+        tokio::time::sleep(queued).await;
+        let started = tokio::time::Instant::now();
+        let cut = within(deadline, std::future::pending::<Outcome>()).await;
+        assert!(matches!(cut, Err(Failure::Local(Code::BridgeUnreachable))));
+        assert_eq!(started.elapsed(), replays::REPLAY_BUDGET - queued);
+        let polled = std::sync::atomic::AtomicBool::new(false);
+        let late: Outcome = within(deadline, async {
+            polled.store(true, Ordering::SeqCst);
+            Ok(None)
+        })
+        .await;
+        assert!(matches!(late, Err(Failure::Local(Code::BridgeUnreachable))));
+        assert!(!polled.load(Ordering::SeqCst));
+    }
+
+    // Replay jobs whose deadline passes while they wait, one for an HTTP slot
+    // and one still in the queue behind it, answer the retryable failure and
+    // never run: run, a missing file would answer otherwise.
+    #[tokio::test]
+    async fn a_replay_job_past_its_deadline_is_never_run() {
+        let mut seed = [0; 16];
+        getrandom::fill(&mut seed).unwrap();
+        let dir =
+            std::env::temp_dir().join(ember_protocol::encoding::prefixed_id("sf4-net-late", seed));
+        let (sender, mut events) = mpsc::channel(64);
+        let (handle, task) = spawn_in(
+            sender,
+            dir.join("identity"),
+            dir.join("tournament"),
+            false,
+            "a".repeat(64),
+            Box::new(|| None),
+            Vec::new(),
+        );
+        assert_eq!(answer(&mut events).await.0, 0);
+        let (origin, taken, silent) = silent_origin().await;
+        for id in 1..=4 {
+            let inspect = json!({ "op": "bridge_inspect", "origin": origin });
+            handle.submit(id, serde_json::from_value(inspect).unwrap());
+        }
+        let started = tokio::time::Instant::now();
+        while taken.load(Ordering::SeqCst) < HTTP_CONCURRENCY {
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "bridge requests not sent"
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        let missing = dir
+            .join("missing.emberreplay")
+            .to_string_lossy()
+            .into_owned();
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
+        for id in [5, 6] {
+            let request = json!({ "op": "replay_archive", "path": missing, "sides": {} });
+            let job = Job {
+                request_id: id,
+                order: 0,
+                deadline: Some(deadline),
+                request: serde_json::from_value(request).unwrap(),
+            };
+            assert!(handle.bridge.try_send(job).is_ok());
+        }
+        tokio::time::sleep(Duration::from_millis(400)).await;
+        silent.abort();
+        let mut late = Vec::new();
+        for _ in 0..6 {
+            let (id, op, ok, reason) = answer(&mut events).await;
+            assert!(!ok);
+            assert_eq!(reason.as_deref(), Some("bridge_unreachable"), "{op}");
+            if op == "replay_archive" {
+                late.push(id);
+            }
+        }
+        late.sort_unstable();
+        assert_eq!(late, [5, 6]);
+        assert_eq!(taken.load(Ordering::SeqCst), HTTP_CONCURRENCY);
         drop(handle);
         let _ = tokio::time::timeout(Duration::from_secs(10), task).await;
         let _ = std::fs::remove_dir_all(dir);

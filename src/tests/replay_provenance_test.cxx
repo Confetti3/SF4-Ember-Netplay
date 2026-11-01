@@ -14,7 +14,7 @@ static Bytes Saved(unsigned time) {
 static RecordingBoundary Start(unsigned time, const char* name) {
  RecordingBoundary event;
  event.kind = RecordingBoundary::Kind::Start; event.recordingEnabled = true; event.time = time;
- event.names = {{name, "Opponent"}, false}; event.fighters[0] = 2; event.fighters[1] = 3;
+ event.names = {{name, "Opponent"}, Provenance::Played}; event.fighters[0] = 2; event.fighters[1] = 3;
  return event;
 }
 static RecordingSnapshot Slots(const Bytes& body) { return {"account", "archive", {{body, Sidecar(body)}}}; }
@@ -123,7 +123,7 @@ static void TestDisabledAndDormantRecordings() {
   [&](const RecordingBoundary& event) { std::lock_guard<std::mutex> lock(observedMutex); lastTime = static_cast<unsigned>(event.time); observed.notify_all(); },
   [&](const char*) { ++logs; });
  const auto wait = [&](unsigned time) { std::unique_lock<std::mutex> lock(observedMutex); CHECK(observed.wait_for(lock, std::chrono::seconds(2), [&] { return lastTime == time; })); };
- auto disabled = Start(10, "Spectator"); disabled.recordingEnabled = false; disabled.names.spectated = true;
+ auto disabled = Start(10, "Spectator"); disabled.recordingEnabled = false; disabled.names.provenance = Provenance::Spectated;
  worker.Post(disabled); wait(10);
  RecordingBoundary end; end.time = 20; worker.Post(end); wait(20);
  CHECK(reads == 0 && writes == 0);

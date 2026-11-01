@@ -361,6 +361,43 @@ static void ControllerLayerRoundTrip(const Path& root) {
     CHECK(store.LoadOverlay(saved, error) && saved["controllerLayer"] == false);
     CHECK(store.LoadLauncher(saved, error) && saved["controllerMappings"].empty());
 }
+// Share my replays carries its cutoff with it wherever preferences are taken
+// (docs/design/REPLAY_ARCHIVE.md): off clears it, on from off starts it then,
+// and a load that finds sharing on with none starts it at load, so no game
+// saved before the player had the setting is sent.
+static void ShareReplaysConsent(const Path& root) {
+    using namespace sf4e::netplay;
+    PlayerPreferences on; on.shareReplaysSince = 100;
+    auto off = on; off.shareReplays = false;
+    // At load: the default-on first run, and settings from before the cutoff.
+    CHECK(PlayerPreferences{}.shareReplays && PlayerPreferences{}.shareReplaysSince == 0 && ShareReplaysSince(true, 0, 500) == 500);
+    CHECK(ShareReplaysSince(true, 100, 500) == 100 && ShareReplaysSince(false, 100, 500) == 0);
+    // Taking edits: off clears it, on from off starts it now, on kept keeps it.
+    const auto cleared = AcceptedPreferences(on, off, 200);
+    CHECK(!cleared.shareReplays && cleared.shareReplaysSince == 0);
+    const auto restarted = AcceptedPreferences(cleared, on, 300); // the edited copy still says 100
+    CHECK(restarted.shareReplays && restarted.shareReplaysSince == 300);
+    CHECK(AcceptedPreferences(restarted, on, 400).shareReplaysSince == 300);
+    // Off and on again before anything is sent: the later cutoff.
+    CHECK(AcceptedPreferences(AcceptedPreferences(on, off, 250), on, 260).shareReplaysSince == 260);
+    // A stale cutoff left on an off setting is not taken up again.
+    auto stale = off; stale.shareReplaysSince = 100;
+    CHECK(AcceptedPreferences(stale, on, 270).shareReplaysSince == 270);
+    // Neither the edited copy's cutoff nor its match record wins.
+    auto edited = on; edited.shareReplaysSince = 1; edited.record.available = !on.record.available;
+    const auto taken = AcceptedPreferences(on, edited, 500);
+    CHECK(taken.shareReplaysSince == 100 && taken.record.available == on.record.available);
+    // The cutoff a load starts is saved alone and read back beside the rest.
+    const auto folder = root / L"share-replays";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring());
+    std::string error; Json loaded;
+    CHECK(store.SaveLauncher({{"shareReplays", true}, {"displayName", "Sharer"}}, error));
+    CHECK(store.SaveLauncher({{"shareReplaysSince", std::uint64_t{1793000000}}}, error) && store.LoadLauncher(loaded, error));
+    CHECK(loaded["shareReplaysSince"].is_number_unsigned() && loaded["shareReplaysSince"].get<std::uint64_t>() == 1793000000 &&
+        loaded["shareReplays"] == true && loaded["displayName"] == "Sharer");
+}
+
 int main() {
     // Each run owns a fresh temporary subtree; never consult real AppData.
     const auto root = MakeTempRoot(L"sf4e-settings-test-");
@@ -750,6 +787,7 @@ int main() {
     CountryRoundTrips(root);
     SpeechRoundTrips(root);
     ControllerLayerRoundTrip(root);
+    ShareReplaysConsent(root);
     RemoveTempRoot(root);
     std::cout << "Settings migration, preservation, independent updates and atomic failure checks passed\n";
 }

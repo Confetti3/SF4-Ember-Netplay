@@ -295,8 +295,8 @@ impl Flow {
     /// one and sending the replay of each that counts. An `Abort` is a game
     /// cut off before its end, which both report so.
     /// Each set starts a while after the last, its players signed in to
-    /// Ember afresh.
-    async fn play(&mut self, external: &str, games: &[Outcome]) {
+    /// Ember afresh. Returns each game's replay, saved as it was played.
+    async fn play(&mut self, external: &str, games: &[Outcome]) -> Vec<Vec<u8>> {
         self.advance(61);
         let match_id = self.match_of(external).await;
         let found = self.snapshot(&match_id).await;
@@ -317,17 +317,25 @@ impl Flow {
             &self.players[&seated[1]],
         );
         let binding = play::bound(&seats, &match_id).await;
+        let mut replays = Vec::new();
         for (n, &game) in games.iter().enumerate() {
-            let replay = play::replay(n as u8);
+            // Each game of the whole event is its own replay, by its generation,
+            // saved a second after the set's last, so its pack keeps their order.
             self.generation += 1;
+            let saved_at = self.bridge.clock.now() as u32 + n as u32;
+            let replay = play::replay_saved(self.generation as u8, saved_at);
+            replays.push(replay.clone());
             let permit = play::permit(&seats, &match_id, &binding, self.generation).await;
             for player in [seats.1, seats.2] {
                 let n = (2 * n + usize::from(player.id() == seats.2.id())) as u8;
                 let (status, sent) =
                     play::report(&seats, player, player, &match_id, &permit, n, game).await;
                 assert_eq!(status, StatusCode::CREATED, "{sent}");
-                // Each fighter's game sends the replay of a game that counts.
-                if game != Abort {
+            }
+            // Once both reports confirm a game that counts, each fighter's
+            // game sends its replay.
+            if game != Abort {
+                for player in [seats.1, seats.2] {
                     let status = play::send_replay(&seats, player, &match_id, &replay, 1).await;
                     assert!(status.is_success(), "{status}");
                 }
@@ -335,6 +343,7 @@ impl Flow {
         }
         let played = self.snapshot(&match_id).await;
         assert_eq!(played["state"], "completed", "{played}");
+        replays
     }
 }
 
@@ -562,7 +571,8 @@ async fn an_organizer_runs_a_double_elimination_bracket_and_a_startgg_event() {
 
     // Set 1: the second game is cut off and both say so; it counts for
     // nobody, and Player 1 wins 2-1 on the three games played to the end.
-    flow.play("challonge:30201:1", &[P1Win, Abort, P2Win, P1Win])
+    let replays = flow
+        .play("challonge:30201:1", &[P1Win, Abort, P2Win, P1Win])
         .await;
     flow.play("challonge:30201:2", &[P2Win, P2Win]).await;
     let first = flow
@@ -579,7 +589,7 @@ async fn an_organizer_runs_a_double_elimination_bracket_and_a_startgg_event() {
     let (header, games) = play::pack(&seats, p1.token(), first["match_id"].as_str().unwrap()).await;
     assert_eq!(
         games,
-        vec![play::replay(0), play::replay(2), play::replay(3)]
+        vec![replays[0].clone(), replays[2].clone(), replays[3].clone()]
     );
     assert_eq!(
         (&header["score"], &header["rooms"]),

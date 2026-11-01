@@ -394,8 +394,8 @@ fn tournament_match_completed_by_a_played_set() {
         let mut data = set_json(0, Side::Winners, 1, "Winners round 1");
         data["match_id"] = match_id.into();
         data["walkover"] = false.into();
-        data["winner"] = Some(&a).map(public).into();
-        data["loser"] = Some(&b).map(public).into();
+        data["winner"] = Some(public(&a)).into();
+        data["loser"] = Some(public(&b)).into();
         data["scores"] = json!(scores);
         data["eliminated"] = json!(eliminated);
         data["winner_next"] = winner_next.into();

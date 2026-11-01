@@ -14,7 +14,7 @@ struct Detail {
  std::string label, names[2];
  std::uint64_t time = 0;
  int fighters[2] = {-1, -1};
- bool spectated = false;
+ replayfiles::Provenance provenance = replayfiles::Provenance::Unknown;
  Match match;
  Summary summary;
  std::vector<std::string> logs;
@@ -72,14 +72,14 @@ public:
    }
    const auto names = replayfiles::ReadBodyNames(archive, read.Body());
    if (kept_ && kept_->file == file && read.contents == identity_ &&
-    names.players[0] == kept_->names[0] && names.players[1] == kept_->names[1] && names.spectated == kept_->spectated) {
+    names.players[0] == kept_->names[0] && names.players[1] == kept_->names[1] && names.provenance == kept_->provenance) {
     result.state = DetailState::Ready; result.value = kept_; return result;
    }
    auto detail = std::make_shared<Detail>();
    detail->file = file;
    detail->label = replayfiles::ReplayDateLabel(read.time); detail->time = read.time;
    for (int side = 0; side < 2; ++side) { detail->names[side] = names.players[side]; detail->fighters[side] = read.fighters[side]; }
-   detail->spectated = names.spectated;
+   detail->provenance = names.provenance;
    if (!Parse(read.contents.data(), read.contents.size(), detail->match)) { result.state = DetailState::Unreadable; return result; }
    detail->summary = Summarize(detail->match);
    for (const auto& round : detail->match.rounds) detail->logs.push_back(Log(round));

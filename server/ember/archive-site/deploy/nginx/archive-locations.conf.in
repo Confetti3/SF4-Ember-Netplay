@@ -1,0 +1,106 @@
+    @REDIRECT@
+    # The page and its files, from @WEBROOT@. An alias, so the same locations
+    # serve the site at a host root and under a path prefix (@PREFIX@).
+    location @PREFIX@/ {
+        alias @WEBROOT@/;
+        index index.html;
+        include snippets/ember-archive-headers.conf;
+        add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" always;
+        add_header Cache-Control "no-cache";
+    }
+    location @PREFIX@/assets/ {
+        alias @WEBROOT@/assets/;
+        include snippets/ember-archive-headers.conf;
+        add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" always;
+        expires 1h;
+    }
+
+    # The listing. GET and HEAD only; at most 2 requests a second per
+    # address, 6 at once on the bridge, and an answer is reused for 15
+    # seconds, so a burst does not reach the bridge. A stale answer is
+    # served while the bridge is slow or down.
+    location = @PREFIX@/v1/archive {
+        if ($request_method !~ ^(GET|HEAD)$) {
+            add_header Allow "GET, HEAD" always;
+            return 405;
+        }
+        include snippets/ember-archive-headers.conf;
+        client_max_body_size 1k;
+        limit_req_status 429;
+        limit_conn_status 429;
+        limit_req zone=@ZONE@_list_req burst=10 nodelay;
+        limit_conn @ZONE@_list_total 6;
+
+        # The bridge's route, whatever the prefix; the query goes with it.
+        proxy_pass http://@ZONE@_bridge/v1/archive;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_connect_timeout 2s;
+        proxy_send_timeout 10s;
+        proxy_read_timeout 10s;
+
+        proxy_cache @ZONE@_list_cache;
+        proxy_cache_key $request_uri;
+        proxy_cache_valid 200 15s;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 5s;
+        proxy_cache_use_stale error timeout updating http_502 http_503 http_504;
+        proxy_ignore_headers Cache-Control Expires Set-Cookie;
+        proxy_hide_header Cache-Control;
+        proxy_hide_header Set-Cookie;
+        add_header Cache-Control "public, max-age=15";
+        add_header X-Cache $upstream_cache_status;
+    }
+
+    # The bucket, read only: a game by its digest, a set's pack by its match
+    # ID, and nothing else, so the bucket can never be listed. Other methods
+    # are refused, any other path under it is 404, and the query string is
+    # not passed on (an S3 request can override response headers with it).
+    # rustfs answers 403 for a missing key because the policy allows no
+    # listing; that reads as 404 here.
+    location ~ "^@PREFIX@/@BUCKET@/(?<@ZONE@_object>games/[0-9a-f]{64}\.emberreplay|sets/emt_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.emberpack)$" {
+        if ($request_method !~ ^(GET|HEAD|OPTIONS)$) {
+            add_header Allow "GET, HEAD, OPTIONS" always;
+            return 405;
+        }
+        include snippets/ember-archive-headers.conf;
+        add_header Content-Type "application/octet-stream" always;
+        add_header Content-Disposition "attachment" always;
+        add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+        add_header Cache-Control $@ZONE@_file_cache;
+        client_max_body_size 1k;
+        limit_req_status 429;
+        limit_conn_status 429;
+        limit_req zone=@ZONE@_files burst=40 nodelay;
+        limit_conn @ZONE@_files_per_ip 8;
+
+        proxy_pass http://127.0.0.1:@S3_PORT@/@BUCKET@/$@ZONE@_object;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host 127.0.0.1:@S3_PORT@;
+        proxy_set_header Authorization "";
+        proxy_set_header Cookie "";
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 30s;
+        proxy_hide_header Content-Type;
+        proxy_hide_header Content-Disposition;
+        proxy_hide_header Cache-Control;
+        proxy_hide_header x-request-id;
+        proxy_hide_header x-amz-request-id;
+        proxy_hide_header x-amz-id-2;
+        proxy_intercept_errors on;
+        error_page 403 404 = @@ZONE@_missing;
+    }
+    location @PREFIX@/@BUCKET@ {
+        include snippets/ember-archive-headers.conf;
+        return 404;
+    }
+    location @@ZONE@_missing {
+        include snippets/ember-archive-headers.conf;
+        default_type text/plain;
+        return 404 "Not found\n";
+    }

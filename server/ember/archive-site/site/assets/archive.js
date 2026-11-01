@@ -1,4 +1,4 @@
-// Ember replay archive: lists /v1/archive (the bridge, behind this site's
+// Ember replay archive: lists v1/archive (the bridge, behind this site's
 // proxy), groups games into events and sets, and filters by one value each
 // for event, fighter, country and round, every choice in one popup grid.
 // Filters live in the address, so a filtered page can be shared.
@@ -27,7 +27,7 @@ const el = (tag, props = {}, ...children) => {
   return node;
 };
 
-const state = { filter: {}, games: [], sets: {}, events: [], countries: [], more: false, groups: [], openSet: null };
+const state = { filter: {}, games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null };
 
 function readAddress() {
   const params = new URLSearchParams(location.search);
@@ -44,20 +44,35 @@ function writeAddress() {
   history.replaceState(null, '', query ? '?' + query : location.pathname);
 }
 
+// Each page after the first is asked for with the cursor the last answer
+// gave, so games sharing a timestamp are never skipped. A newer request
+// A first page starts a new generation: the cursor and the button go at
+// once, an older answer is dropped when it arrives, and "Older replays" does
+// nothing while any page is loading.
+let requested = 0;
 async function load(append) {
+  if (append && (!state.next || state.loading)) return;
   const params = new URLSearchParams(state.filter);
-  if (append && state.games.length) params.set('before', state.games[state.games.length - 1].saved_at);
+  if (append) params.set('cursor', state.next);
+  else { state.next = null; state.more = false; $('more').hidden = true; }
+  const mine = ++requested;
+  state.loading = true;
   $('events').setAttribute('aria-busy', 'true');
   try {
-    const response = await fetch('/v1/archive?' + params);
+    const response = await fetch('v1/archive?' + params);
     if (!response.ok) throw new Error(response.status);
     const listed = await response.json();
+    if (mine !== requested) return;
     state.games = append ? state.games.concat(listed.games) : listed.games;
     Object.assign(state.sets, listed.sets);
     state.events = listed.events;
     state.countries = listed.countries;
-    state.more = listed.more;
+    state.next = listed.next || null;
+    state.more = state.next !== null;
+    state.loading = false;
   } catch {
+    if (mine !== requested) return;
+    state.loading = false;
     $('summary').textContent = 'The archive did not answer. Try again in a minute.';
     $('events').removeAttribute('aria-busy');
     return;
@@ -81,7 +96,7 @@ function group(games) {
     let key = online ? null : game.set;
     if (online) {
       const last = [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
-      key = last ? last.key : game.crc;
+      key = last ? last.key : game.digest;
     }
     if (!event.sets.has(key)) event.sets.set(key, { key, pair, event: event.title, online, games: [] });
     event.sets.get(key).games.push(game);
@@ -129,7 +144,7 @@ function renderList() {
   const sets = state.groups.reduce((n, event) => n + event.sets.length, 0);
   $('summary').textContent = state.games.length
     ? `${sets} ${sets === 1 ? 'set' : 'sets'} · ${state.games.length} ${state.games.length === 1 ? 'game' : 'games'}${state.more ? ' (newest first)' : ''}`
-    : 'No replays match. Clear a filter above.';
+    : state.more ? 'None of the newest replays match. Look further back with Older replays.' : 'No replays match. Clear a filter above.';
   $('events').replaceChildren(...state.groups.map((event) => el('section', { className: 'event' },
     el('div', { className: 'event-head' }, el('h2', { textContent: event.title }),
       el('span', { className: 'note', textContent: event.sets.length + (event.sets.length === 1 ? ' set' : ' sets') })),
@@ -160,7 +175,7 @@ function renderSet(set) {
   $('set-meta').textContent = `${day(first.saved_at)} · ${set.games.length} ${set.games.length === 1 ? 'game' : 'games'} · ${Math.ceil(size / 1024)} KB${first.phase ? ' · ' + first.phase : ''}`;
   const actions = [];
   const pack = !set.online && state.sets[set.key];
-  if (pack) actions.push(el('a', { className: 'btn main', href: pack.pack, download: '', textContent: 'Download set (.emberpack)' }));
+  if (pack && pack.pack) actions.push(el('a', { className: 'btn main', href: pack.pack, download: '', textContent: 'Download set (.emberpack)' }));
   const copy = el('button', { type: 'button', className: 'btn', textContent: 'Copy link' });
   copy.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(location.href); copy.textContent = 'Link copied'; } catch { copy.textContent = location.href; }

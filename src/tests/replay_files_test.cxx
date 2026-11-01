@@ -152,7 +152,7 @@ static void TestVerifiedArchiveAndSnapshots() {
  CHECK(files::ReadArchive(archive, true, read) == files::ArchiveState::Valid && read.SameBody(other));
  CHECK(!files::VerifyBackup(indexed, folder, body, proof));
  CHECK(files::VerifyBackup(indexed, folder, other, proof));
- sf4e::replayfiles::ReplayNames names{{"Ann", "Bob"}, false}, named;
+ sf4e::replayfiles::ReplayNames names{{"Ann", "Bob"}, files::Provenance::Played}, named;
  CHECK(!files::NamesForBody(files::BindNames(body, names), read.Body(), named));
  save(archive, exported);
  CHECK(files::VerifyBackup(indexed, folder, body, proof));
@@ -187,9 +187,15 @@ static void TestBodyBoundProvenance() {
  after[0].checksum.clear(); CHECK(!files::RecordedBody(before, after, 1000, 5001, fighters));
  after[0].checksum = Sidecar(body);
  after[1] = after[0]; CHECK(!files::RecordedBody(before, after, 1000, 5001, fighters)); // ambiguous
- files::ReplayNames names{{"Ann", "Bob"}, true}, read;
+ files::ReplayNames names{{"Ann", "Bob"}, files::Provenance::Spectated}, read;
  const Bytes note = files::BindNames(body, names);
- CHECK(files::NamesForBody(note, body, read) && read.players[1] == "Bob" && read.spectated);
+ CHECK(files::NamesForBody(note, body, read) && read.players[1] == "Bob" && read.provenance == files::Provenance::Spectated);
+ // Only a note says how this PC took part: played is its own state, and
+ // names that know neither are never written down as either.
+ files::ReplayNames played = names; played.provenance = files::Provenance::Played;
+ CHECK(files::NamesForBody(files::BindNames(body, played), body, read) && read.provenance == files::Provenance::Played);
+ played.provenance = files::Provenance::Unknown; CHECK(files::BindNames(body, played).empty());
+ CHECK(files::ReplayNames{}.provenance == files::Provenance::Unknown);
  // Same fighters and timestamp, or a renamed external/account file, cannot
  // borrow this note unless its complete body is identical.
  const Bytes unrelated = SameCrcDifferentBody(body);
@@ -209,7 +215,7 @@ static void TestBodyBoundProvenance() {
  WriteU32(v1.data()+8, static_cast<std::uint32_t>(body.size())); WriteU32(v1.data()+12, 3); WriteU32(v1.data()+16, 3);
  v1.push_back(1); v1.insert(v1.end(), body.begin(), body.end());
  for (char c : std::string("AnnBob")) v1.push_back(static_cast<std::uint8_t>(c));
- CHECK(files::NamesForBody(v1, body, read) && read.players[0] == "Ann" && read.players[1] == "Bob" && read.spectated && !read.set.Tagged() && read.set.revision == 0);
+ CHECK(files::NamesForBody(v1, body, read) && read.players[0] == "Ann" && read.players[1] == "Bob" && read.provenance == files::Provenance::Spectated && !read.set.Tagged() && read.set.revision == 0);
  v1[7] = '3'; CHECK(!files::NamesForBody(v1, body, read));
 }
 static void TestNamesPublicationRefusesExistingTargets() {
@@ -218,7 +224,7 @@ static void TestNamesPublicationRefusesExistingTargets() {
  const auto folder = fs::temp_directory_path() / ("ember-names-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
  CHECK(fs::create_directory(folder));
  const Bytes body = Replay(2, 800), other = SameCrcDifferentBody(body);
- files::ReplayNames names{{"Ann", "Bob"}, false};
+ files::ReplayNames names{{"Ann", "Bob"}, files::Provenance::Played};
  const auto path = folder / "body.names";
  const auto save = [&](const Bytes& bytes) { std::ofstream file(path, std::ios::binary); file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()); CHECK(file.good()); };
  unsigned writes = 0;
@@ -443,30 +449,50 @@ static void TestArchiveFolderContainment() {
  fs::remove_all(folder);
 }
 #endif
-// A set's games: sent oldest first, never one this PC only watched, and
-// grouped by set with the rooms they took; a pack splits back into them.
+// A sender as SendSetReplays keeps it; with `archives` false, one told that
+// none of the player's bridges keeps an archive.
+static sf4e::platform::replays::ReplaySender Sending(bool archives) {
+ sf4e::platform::replays::ReplaySender sending;
+ if (!archives) { sending.Sent(1, "x", false, 0); sending.Take(1, false, "replays_unsupported", 0); }
+ return sending;
+}
+// A set's games: sent oldest first, only ones this PC played, and grouped
+// by set with the rooms they took; a pack splits back into them.
 static void TestSetReplays() {
  namespace sets = sf4e::platform::replays;
+ using sf4e::replayfiles::Provenance;
  const auto game = [](const char* match, std::uint64_t revision, const char* file) {
-  sets::ArchivedReplay replay; replay.path = file; replay.set = {"brg_bridge", match, revision}; return replay;
+  sets::ArchivedReplay replay; replay.path = file; replay.set = {"brg_bridge", match, revision}; replay.provenance = Provenance::Played; return replay;
  };
  // A listing is newest first.
  std::vector<sets::ArchivedReplay> archive{game("emt_b", 1, "b1"), sets::ArchivedReplay{"casual"}, game("emt_a", 2, "a3"), game("emt_a", 1, "a2"), game("emt_a", 1, "a1"), game("emt_c", 1, "c1")};
  // A set imported from a pack is listed, and never sent.
  archive[5].set.bridgeId.clear();
- archive[4].sent = true; archive[3].spectated = true;
+ archive[4].sent = true; archive[3].provenance = Provenance::Spectated;
  CHECK(sets::NextToSend(archive) == &archive[2]);
+ // One whose note is not read (Unknown) is not taken as played.
+ archive[2].provenance = Provenance::Unknown; CHECK(sets::NextToSend(archive) == &archive[0]);
+ archive[2].provenance = Provenance::Played;
  archive[2].sent = true; CHECK(sets::NextToSend(archive) == &archive[0]);
  archive[0].sent = true; CHECK(!sets::NextToSend(archive));
  // Games outside a set go to the replay archive, Ember's own files only,
- // and only those saved since sharing came on.
- CHECK(!sets::NextToArchive(archive, 0));
+ // only ones this PC played, only those saved since sharing came on, and
+ // none while it is off (0).
+ CHECK(!sets::NextToArchive(archive, 1));
  archive.push_back(sets::ArchivedReplay{"old.emberreplay"}); archive.insert(archive.begin(), sets::ArchivedReplay{"new.emberreplay"});
  archive.back().time = 100; archive[0].time = 200;
- CHECK(sets::NextToArchive(archive, 0) == &archive.back());
+ CHECK(!sets::NextToArchive(archive, 1)); // no note says either was played
+ archive.back().provenance = archive[0].provenance = Provenance::Played;
+ CHECK(sets::NextToArchive(archive, 1) == &archive.back() && !sets::NextToArchive(archive, 0));
  CHECK(sets::NextToArchive(archive, 150) == &archive[0] && !sets::NextToArchive(archive, 201));
- archive.back().spectated = true; CHECK(sets::NextToArchive(archive, 0) == &archive[0]);
- archive[0].sent = true; CHECK(!sets::NextToArchive(archive, 0));
+ archive.back().provenance = Provenance::Spectated; CHECK(sets::NextToArchive(archive, 1) == &archive[0]);
+ // A set's game goes first, sharing or not; the others only while some
+ // bridge keeps an archive.
+ CHECK(sets::NextReplay(archive, 1, Sending(true), 0) == &archive[0] && !sets::NextReplay(archive, 1, Sending(false), 0) && !sets::NextReplay(archive, 0, Sending(true), 0));
+ archive[1].sent = false;
+ CHECK(sets::NextReplay(archive, 1, Sending(true), 0) == &archive[1] && sets::NextReplay(archive, 0, Sending(false), 0) == &archive[1]);
+ archive[1].sent = true;
+ archive[0].sent = true; CHECK(!sets::NextToArchive(archive, 1));
  archive.erase(archive.begin()); archive.pop_back();
  CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
  const auto listed = sets::Sets(archive);
@@ -483,11 +509,141 @@ static void TestSetReplays() {
  Bytes torn = pack; torn.back() ^= 1; CHECK(!sets::UnpackSet(torn, games, header));
  Bytes huge = pack; WriteU32(huge.data() + 8, 0xFFFFFFFFu); CHECK(!sets::UnpackSet(huge, games, header));
  const auto named = sets::PackNames(R"({"match_id":"emt_b","names":[null,"Bob"]})");
- CHECK(named.set.matchId == "emt_b" && named.players[0].empty() && named.players[1] == "Bob" && named.spectated);
+ CHECK(named.set.matchId == "emt_b" && named.players[0].empty() && named.players[1] == "Bob" && named.provenance == Provenance::Spectated);
  CHECK(sets::PackNames("[1]").set.matchId.empty() && sets::PackNames(R"({"names":["A"]})").players[0].empty());
+}
+// A game listed before its note is written down is not yet known to be
+// played here, and is not shared until a later listing reads the note.
+static void TestListingAheadOfItsNote() {
+ namespace fs = std::filesystem;
+ namespace files = sf4e::replayfiles;
+ namespace sets = sf4e::platform::replays;
+ const auto archive = fs::temp_directory_path() / ("ember-note-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+ CHECK(fs::create_directory(archive));
+ const Bytes body = Replay(2, 800);
+ const auto listing = [&] {
+  sets::ArchivedReplay listed; listed.path = archive / "a.emberreplay"; listed.time = 10;
+  listed.provenance = files::ReadBodyNames(archive, body).provenance;
+  return std::vector<sets::ArchivedReplay>{listed};
+ };
+ const auto write = [&](const Bytes& note) {
+  std::ofstream file(files::NamesPath(archive, body), std::ios::binary); file.write(reinterpret_cast<const char*>(note.data()), note.size()); CHECK(file.good());
+ };
+ CHECK(listing()[0].provenance == files::Provenance::Unknown && !sets::NextToArchive(listing(), 1));
+ CHECK(fs::create_directory(archive / ".names"));
+ write({'E','M','B','R','N','A','M','2'}); // torn
+ CHECK(listing()[0].provenance == files::Provenance::Unknown && !sets::NextToArchive(listing(), 1));
+ write(files::BindNames(body, {{"Ann", "Bob"}, files::Provenance::Played}));
+ const auto later = listing();
+ CHECK(later[0].provenance == files::Provenance::Played && sets::NextToArchive(later, 1) == &later[0]);
+ fs::remove_all(archive);
+}
+// One replay request out at a time: never replaced while it may be live,
+// given up only after the helper's own budget is long spent, and its late
+// answer ignored.
+static void TestReplaySender() {
+ using Sender = sf4e::platform::replays::ReplaySender;
+ Sender sending;
+ CHECK(sending.Poll(1000) == Sender::Step::Send);
+ sending.Sent(7, "a.emberreplay", false, 1000);
+ // Long after the minute between looks, it is still out.
+ CHECK(sending.Poll(1000 + Sender::kAgainMs) == Sender::Step::Wait && sending.Poll(1000 + Sender::kAnswerMs - 1) == Sender::Step::Wait);
+ CHECK(Sender::kAnswerMs >= 3 * 45000); // the helper's REPLAY_BUDGET
+ // An answer to some other request settles nothing.
+ CHECK(sending.Take(8, true, "", 2000) == Sender::Answer::NotOurs && sending.Poll(3000) == Sender::Step::Wait);
+ // A failure is tried again a minute after its answer.
+ CHECK(sending.Take(7, false, "bridge_unreachable", 50000) == Sender::Answer::Again);
+ CHECK(sending.Poll(50000 + Sender::kAgainMs - 1) == Sender::Step::Wait && sending.Poll(50000 + Sender::kAgainMs) == Sender::Step::Send);
+ // No answer in kAnswerMs: given up, as a failure; its late answer is ignored.
+ sending.Sent(9, "a.emberreplay", false, 200000);
+ CHECK(sending.Poll(200000 + Sender::kAnswerMs) == Sender::Step::GaveUp && sending.Path() == "a.emberreplay");
+ CHECK(sending.Poll(200000 + Sender::kAnswerMs + 1) == Sender::Step::Wait);
+ CHECK(sending.Take(9, true, "", 200000 + Sender::kAnswerMs + 2) == Sender::Answer::NotOurs);
+ const std::uint64_t again = 200000 + Sender::kAnswerMs + Sender::kAgainMs;
+ CHECK(sending.Poll(again) == Sender::Step::Send);
+ // Taken, or refused for good: the next one shortly.
+ sending.Sent(10, "b.emberreplay", true, again);
+ CHECK(sending.Take(0, true, "", again) == Sender::Answer::NotOurs);
+ CHECK(sending.Take(10, false, "not_found", again + 1) == Sender::Answer::Done && sending.Set() && sending.Path() == "b.emberreplay");
+ CHECK(sending.Take(10, true, "", again + 2) == Sender::Answer::NotOurs);
+ CHECK(sending.Poll(again + Sender::kNextMs) == Sender::Step::Wait && sending.Poll(again + 1 + Sender::kNextMs) == Sender::Step::Send);
+ // No bridge keeps an archive: only sets' games go from then on.
+ CHECK(sending.Archives());
+ sending.Sent(11, "c.emberreplay", false, again + Sender::kAgainMs);
+ CHECK(sending.Take(11, false, "replays_unsupported", again + Sender::kAgainMs) == Sender::Answer::NoArchive && !sending.Archives());
+ // A set's game the bridge is busy with is tried again a minute later, never
+ // settled; a closed set settles it for the set alone.
+ const std::uint64_t set = again + 2 * Sender::kAgainMs;
+ for (const char* retried : {"service_unavailable", "http_503"}) {
+  CHECK(!sf4e::platform::replays::SendSettled(retried));
+  sending.Sent(12, "d.emberreplay", true, set);
+  CHECK(sending.Take(12, false, retried, set) == Sender::Answer::Again);
+  CHECK(sending.Poll(set + Sender::kAgainMs - 1) == Sender::Step::Wait && sending.Poll(set + Sender::kAgainMs) == Sender::Step::Send);
+ }
+ sending.Sent(13, "d.emberreplay", true, set);
+ CHECK(sending.Take(13, false, "set_closed", set) == Sender::Answer::SetClosed && sending.Path() == "d.emberreplay");
+ CHECK(sending.Poll(set + Sender::kNextMs) == Sender::Step::Send);
+}
+// A set's game its bridge refused for a closed set is done for the set and
+// goes to the replay archive as any other game would: while sharing is on,
+// and only one saved since it came on. A set's other final refusals keep it
+// the set's alone.
+static void TestClosedSetGoesToTheArchive() {
+ namespace sets = sf4e::platform::replays;
+ sets::ArchivedReplay game; game.path = "g.emberreplay"; game.time = 200; game.set = {"brg_bridge", "emt_a", 1};
+ game.provenance = sf4e::replayfiles::Provenance::Played;
+ std::vector<sets::ArchivedReplay> archive{game};
+ CHECK(sets::ForItsSet(archive[0]) && sets::NextToSend(archive) == &archive[0] && !sets::NextToArchive(archive, 1));
+ archive[0].setClosed = true;
+ CHECK(!sets::ForItsSet(archive[0]) && !sets::NextToSend(archive));
+ CHECK(sets::NextToArchive(archive, 100) == &archive[0] && sets::NextReplay(archive, 100, Sending(true), 0) == &archive[0]);
+ CHECK(!sets::NextToArchive(archive, 0) && !sets::NextToArchive(archive, 201) && !sets::NextReplay(archive, 100, Sending(false), 0));
+ archive[0].sent = true; CHECK(!sets::NextReplay(archive, 100, Sending(true), 0));
+ archive[0] = game; archive[0].sent = true; // refused for good otherwise
+ CHECK(!sets::NextToSend(archive) && !sets::NextToArchive(archive, 1));
+}
+// A set's game its bridge has not confirmed yet (held for review) is put
+// aside for ten minutes and the others go meanwhile, a later set's game and
+// online games; then it is offered again. A plain retryable failure keeps
+// the same replay, a minute later.
+static void TestUnconfirmedReplayWaits() {
+ namespace sets = sf4e::platform::replays;
+ using Sender = sets::ReplaySender;
+ const auto game = [](const char* file, std::uint64_t time, bool set) {
+  sets::ArchivedReplay replay; replay.path = file; replay.time = time; replay.provenance = sf4e::replayfiles::Provenance::Played;
+  if (set) replay.set = {"brg_bridge", "emt_a", 1};
+  return replay;
+ };
+ // Newest first: an online game, a later set game, the held one.
+ std::vector<sets::ArchivedReplay> archive{game("online.emberreplay", 300, false), game("later.emberreplay", 200, true), game("held.emberreplay", 100, true)};
+ Sender sending;
+ const std::uint64_t at = 1000;
+ CHECK(sets::NextReplay(archive, 1, sending, at) == &archive[2]);
+ sending.Sent(1, archive[2].path, true, at);
+ CHECK(sending.Take(1, false, "replay_unconfirmed", at) == Sender::Answer::Unconfirmed && sending.Aside(archive[2].path, at));
+ CHECK(sending.Poll(at + Sender::kNextMs) == Sender::Step::Send);
+ CHECK(sets::NextReplay(archive, 1, sending, at + Sender::kNextMs) == &archive[1]);
+ archive[1].sent = true;
+ CHECK(sets::NextReplay(archive, 1, sending, at + Sender::kNextMs) == &archive[0]);
+ archive[0].sent = true;
+ CHECK(!sets::NextReplay(archive, 1, sending, at + Sender::kUnconfirmedMs - 1));
+ CHECK(sets::NextReplay(archive, 1, sending, at + Sender::kUnconfirmedMs) == &archive[2] && !sending.Aside(archive[2].path, at + Sender::kUnconfirmedMs));
+ // Any other retryable failure keeps that replay first, a minute later.
+ const std::uint64_t later = at + Sender::kUnconfirmedMs;
+ sending.Sent(2, archive[2].path, true, later);
+ CHECK(sending.Take(2, false, "bridge_unreachable", later) == Sender::Answer::Again && !sending.Aside(archive[2].path, later));
+ CHECK(sending.Poll(later + Sender::kAgainMs - 1) == Sender::Step::Wait && sending.Poll(later + Sender::kAgainMs) == Sender::Step::Send);
+ CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[2]);
+ // Unconfirmed on the replay archive's route is no set's word: a plain failure.
+ sending.Sent(3, archive[0].path, false, later);
+ CHECK(sending.Take(3, false, "replay_unconfirmed", later) == Sender::Answer::Again && !sending.Aside(archive[0].path, later));
 }
 int main() {
  TestSetReplays();
+ TestListingAheadOfItsNote();
+ TestReplaySender();
+ TestClosedSetGoesToTheArchive();
+ TestUnconfirmedReplayWaits();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();

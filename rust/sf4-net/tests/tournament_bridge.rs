@@ -664,13 +664,14 @@ async fn play_a_set_through_two_helpers() {
 
     // Both fighters' games send each game's replay; the set keeps one of
     // each, and either fighter saves the set's pack.
+    // Saved now: the bridge takes a set's game only from inside its match.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as u32;
     for n in [1u8, 2] {
         let path = dirs.0.join(format!("game-{n}.emberreplay"));
-        std::fs::write(
-            &path,
-            ember_protocol::replays::wrap(&[n; 64], 1_800_000_000 + u32::from(n)),
-        )
-        .unwrap();
+        std::fs::write(&path, ember_protocol::replays::wrap(&[n; 64], now + u32::from(n))).unwrap();
         for (worker, kept) in [(&mut host, true), (&mut guest, false)] {
             let (ok, reason, _, sent) = worker
                 .ask(json!({ "op": "replay_send", "bridge_id": bridge_id, "match_id": match_id, "revision": "1", "path": path }))

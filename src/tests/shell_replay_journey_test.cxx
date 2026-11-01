@@ -69,7 +69,7 @@ void InputsReplacementJourney(Harness& h) {
   std::ofstream out(file,std::ios::binary|std::ios::trunc);out.write(reinterpret_cast<const char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()));out.close();Check(!out.fail(),"Replacement fixture write");
  };
  const auto a=body(0,in::LP,1800000000),b=body(25,in::MP,1800000060);
- save(path,a);save(files::NamesPath(folder,a),files::BindNames(a,{{"Ann","Bob"},false}));
+ save(path,a);save(files::NamesPath(folder,a),files::BindNames(a,{{"Ann","Bob"},files::Provenance::Played}));
  in::DetailCache cache;
  const auto file=path.u8string();const auto first=cache.Read(file,1,folder);
  Check(first.value!=nullptr,"Original detail unreadable");
@@ -77,7 +77,7 @@ void InputsReplacementJourney(Harness& h) {
  for(int side=0;side<2;++side)row.fighters[side]=first.value->fighters[side];
  const auto rowLabel=ReplayLabel(row.label,row.names,row.fighters);
  const auto written=fs::last_write_time(path);
- save(path,b);fs::last_write_time(path,written);save(files::NamesPath(folder,b),files::BindNames(b,{{"Carol","Dave"},true}));
+ save(path,b);fs::last_write_time(path,written);save(files::NamesPath(folder,b),files::BindNames(b,{{"Carol","Dave"},files::Provenance::Spectated}));
  // The listing still holds A when Inputs requests the current body B.
  OpenInputs(h,row,true);
  h.view.replays.detail=cache.Read(file,h.shell.ReplayInputsRevision(),folder);
@@ -102,7 +102,7 @@ void ReplayJourneys() {
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {
   auto shown=Listed("C:\\r\\a.emberreplay","2026-10-06 21:32");
-  shown.watched=shown.spectated=true;shown.summary=replayinputs::Summary{};shown.summary->scored=true;shown.summary->score[0]=2;shown.summary->score[1]=1;
+  shown.watched=true;shown.provenance=sf4e::replayfiles::Provenance::Spectated;shown.summary=replayinputs::Summary{};shown.summary->scored=true;shown.summary->score[0]=2;shown.summary->score[1]=1;
   shown.fighters[0]=0;shown.fighters[1]=99;shown.names[0]="Ann";
   List(h,{shown});h.view.replays.ready=true;
   // Only the Replays screen asks the lister for a listing; Home asks for nothing.

@@ -15,7 +15,11 @@ struct SetTag {
  std::uint64_t revision = 0;
  bool Tagged() const { return !bridgeId.empty() && !matchId.empty(); }
 };
-struct ReplayNames { std::string players[2]; bool spectated = false; SetTag set; };
+// How this PC took part in a replay's match, as the note bound to its body
+// says. Unknown is every replay without one: none written yet, unreadable, or
+// a game put back and saved again. Only a Played game is ever shared.
+enum class Provenance { Unknown, Played, Spectated };
+struct ReplayNames { std::string players[2]; Provenance provenance = Provenance::Unknown; SetTag set; };
 struct RecordedSlot { replayslots::Bytes body, checksum; };
 
 // Native metadata has no verified Ember session/player identity. At the
@@ -39,18 +43,19 @@ inline const replayslots::Bytes* RecordedBody(const std::vector<RecordedSlot>& b
  }
  return found;
 }
-// EMBRNAM2: magic, body size, the two name sizes, spectated (byte 20), the
-// match and bridge IDs' sizes and the revision (low, high), then body, names,
-// match ID and bridge ID. EMBRNAM1 is the same without the tag (a 21-byte head).
+// EMBRNAM2: magic, body size, the two name sizes, spectated (byte 20; 0 is
+// played), the match and bridge IDs' sizes and the revision (low, high), then
+// body, names, match ID and bridge ID. EMBRNAM1 is the same without the tag (a
+// 21-byte head). A note always says played or spectated, never Unknown.
 constexpr std::size_t kNamesHead = 37, kMostId = 64, kMostNamesBytes = replayslots::kLargestReplay + kNamesHead + 2048 + 2 * kMostId;
 inline replayslots::Bytes BindNames(const replayslots::Bytes& body, const ReplayNames& names) {
- if (body.size() > replayslots::kLargestReplay || names.players[0].size() > 1024 || names.players[1].size() > 1024 ||
+ if (names.provenance == Provenance::Unknown || body.size() > replayslots::kLargestReplay || names.players[0].size() > 1024 || names.players[1].size() > 1024 ||
   names.set.matchId.size() > kMostId || names.set.bridgeId.size() > kMostId) return {};
  replayslots::Bytes out{'E','M','B','R','N','A','M','2'};
  out.resize(kNamesHead);
  replayslots::WriteU32(out.data()+8, static_cast<std::uint32_t>(body.size()));
  for(int side=0;side<2;++side) replayslots::WriteU32(out.data()+12+side*4, static_cast<std::uint32_t>(names.players[side].size()));
- out[20] = names.spectated ? 1 : 0;
+ out[20] = names.provenance == Provenance::Spectated ? 1 : 0;
  replayslots::WriteU32(out.data()+21, static_cast<std::uint32_t>(names.set.matchId.size()));
  replayslots::WriteU32(out.data()+25, static_cast<std::uint32_t>(names.set.bridgeId.size()));
  replayslots::WriteU32(out.data()+29, static_cast<std::uint32_t>(names.set.revision));
@@ -71,7 +76,7 @@ inline bool NamesForBody(const replayslots::Bytes& note, const replayslots::Byte
   note.size()!=head+body.size()+p1+p2+match+bridge || std::memcmp(note.data()+head,body.data(),body.size())) return false;
  ReplayNames names;
  const auto* text=reinterpret_cast<const char*>(note.data()+head+body.size());
- names.players[0].assign(text,p1);names.players[1].assign(text+p1,p2);names.spectated=note[20]!=0;
+ names.players[0].assign(text,p1);names.players[1].assign(text+p1,p2);names.provenance=note[20]?Provenance::Spectated:Provenance::Played;
  if(tagged){
   names.set.matchId.assign(text+p1+p2,match);names.set.bridgeId.assign(text+p1+p2+match,bridge);
   names.set.revision=replayslots::ReadU32(note.data()+29)|std::uint64_t{replayslots::ReadU32(note.data()+33)}<<32;

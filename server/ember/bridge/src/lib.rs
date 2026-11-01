@@ -5,6 +5,7 @@
 //! publishes signed events. It is not a gameplay relay. Every request body
 //! goes through `ember_protocol::json`'s strict profile; there is no lenient
 //! JSON extractor anywhere in this crate.
+mod archive;
 mod audit;
 mod auth;
 pub mod config;
@@ -133,10 +134,16 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
         tokio::spawn(delivery::run(state.clone(), delivery::calls::Calls)),
         tokio::spawn(delivery::run(state.clone(), delivery::dms::Dms)),
     ];
-    if state.config.archive.is_some() {
+    // The configuration's validation read the endpoint the same way.
+    if let Some(Ok(bucket)) = state.config.archive.as_ref().map(s3::Bucket::new) {
+        let bucket = Arc::new(bucket);
         workers.push(tokio::spawn(delivery::run(
             state.clone(),
-            delivery::archive::Archive,
+            delivery::archive::Archive(bucket.clone()),
+        )));
+        workers.push(tokio::spawn(delivery::run(
+            state.clone(),
+            delivery::packs::Packs(bucket),
         )));
     }
     if routes::rooms::enabled(&state) {

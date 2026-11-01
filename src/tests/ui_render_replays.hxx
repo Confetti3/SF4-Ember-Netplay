@@ -16,8 +16,8 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     for(int side=0;side<2;side++){said.stats[side].frames=said.frames;said.stats[side].actions=700-side*40;said.stats[side].jumps=18;said.stats[side].crouched=said.frames*(54-side*23)/100;for(int b=0;b<6;b++)said.stats[side].presses[b]=101-b*14-side*9;}
     platform::replays::ArchivedReplay alice,other,both,older;
     alice.path="a";alice.label="2026-10-05 23:35";alice.names[0]="Alice";alice.names[1]="Bob";alice.watched=alice.video=true;alice.summary=said;alice.fighters[0]=0;alice.fighters[1]=1;
-    other.path="b";other.label="2026-10-05 23:36";other.spectated=true;other.fighters[0]=2;other.fighters[1]=3;
-    both.path="c";both.label="2026-10-05 23:40";both.names[0]="Carol";both.names[1]="Dave";both.spectated=both.watched=true;both.summary=said;both.fighters[0]=8;both.fighters[1]=30;
+    other.path="b";other.label="2026-10-05 23:36";other.provenance=sf4e::replayfiles::Provenance::Spectated;other.fighters[0]=2;other.fighters[1]=3;
+    both.path="c";both.label="2026-10-05 23:40";both.names[0]="Carol";both.names[1]="Dave";both.provenance=sf4e::replayfiles::Provenance::Spectated;both.watched=true;both.summary=said;both.fighters[0]=8;both.fighters[1]=30;
     older.path="d";older.label="2026-10-04 20:12";older.fighters[0]=12;older.fighters[1]=-1;
     view.replays.archive=std::make_shared<const std::vector<platform::replays::ArchivedReplay>>(std::vector<platform::replays::ArchivedReplay>{alice,other,both,older});
     view.replays.ready=true;view.replays.notice=loc::T("replays.added");

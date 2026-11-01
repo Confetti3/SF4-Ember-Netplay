@@ -1,150 +1,31 @@
-//! The public replay archive (docs/design/REPLAY_ARCHIVE.md). Every game a
-//! player sends is kept once by its CRC: a tournament set's games through
-//! the set's replay route (`replays::put`), any other game through
-//! `PUT /v1/replays/{crc}`. `delivery::archive` stores each in the
-//! archive's bucket, tournament games first; `GET /v1/archive` lists the
-//! stored ones for the archive page, which downloads them from the bucket.
+//! The public replay archive's routes (docs/design/REPLAY_ARCHIVE.md): any
+//! game a player sends, `PUT /v1/replays/{crc}`, which `crate::archive`
+//! keeps, and `GET /v1/archive`, the stored games for the archive page,
+//! which downloads them from the bucket.
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::{
-    EmberId,
-    replays::{self, Sides},
-    rooms::{is_country, is_player_name},
-};
+use ember_protocol::replays::{self, Replay, Sides};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
     AppState,
-    ctx::Ctx,
+    archive::{self, Admission, Attribution},
     error::{ApiFailure, Result},
     http::{Body, json as respond},
-    routes::{
-        ledger::{load, scores},
-        play::playing,
-        replays::described,
-    },
+    routes::{ledger::scores, play::playing},
 };
 
-/// Replays one player may send in a day: far more than anyone plays.
-const SENT_PER_DAY: i64 = 3000;
-/// What replays waiting for the bucket may take on the bridge together.
-const MAX_WAITING: i64 = 2 << 30;
-/// Games one listing holds; `before` pages further back.
-const LISTED: i64 = 400;
-
-fn name(name: &Option<String>) -> Option<String> {
-    name.as_deref()
-        .map(str::trim)
-        .filter(|name| is_player_name(name))
-        .map(str::to_owned)
-}
-
-fn country(code: &Option<String>) -> Option<String> {
-    code.clone().filter(|code| is_country(code))
-}
-
-/// Keeps the whole replay `replay` (its CRC `crc` checked) for the archive,
-/// sent by `sender`, when the bridge has one. A game it already holds only
-/// gains the sender's country and, sent for the set `set`, the set, whose
-/// games go to the bucket first.
-pub fn keep(
-    tx: &Transaction<'_>,
-    ctx: &Ctx,
-    crc: &str,
-    replay: &[u8],
-    sender: &EmberId,
-    sides: &Sides,
-    set: Option<&str>,
-) -> Result<()> {
-    if ctx.config.archive.is_none() {
-        return Ok(());
-    }
-    let set = match set {
-        Some(id) => {
-            let found = load(tx, id)?.ok_or_else(ApiFailure::not_found)?;
-            Some((id, described(tx, &found)?))
-        }
-        None => None,
-    };
-    let set = set.as_ref().map(|(id, described)| (*id, described));
-    let own = country(&sides.country);
-    let side = sides.side.filter(|side| *side < 2);
-    let held = tx
-        .query_row("SELECT 1 FROM archive_games WHERE crc = ?1", [crc], |_| {
-            Ok(())
-        })
-        .optional()?
-        .is_some();
-    let names = [name(&sides.a), name(&sides.b)];
-    let (round, phase) = set.map_or((None, None), |(_, described)| {
-        let text = |key: &str| {
-            described
-                .metadata
-                .get(key)
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-        };
-        (text("round_label"), text("phase"))
-    });
-    if held {
-        if let (Some(country), Some(side)) = (&own, side) {
-            let column = if side == 0 { "country_a" } else { "country_b" };
-            tx.execute(
-                &format!(
-                    "UPDATE archive_games SET {column} = COALESCE({column}, ?2) WHERE crc = ?1"
-                ),
-                params![crc, country],
-            )?;
-        }
-        if let Some((id, described)) = set {
-            tx.execute(
-                "UPDATE archive_games SET priority = 0, match_id = ?2, event_title = ?3, round_label = ?4, phase = ?5
-                 WHERE crc = ?1 AND match_id IS NULL",
-                params![crc, id, described.tournament, round, phase],
-            )?;
-        }
-        return Ok(());
-    }
-    let saved_at = replays::saved_at(crc, replay)
-        .ok_or_else(|| ApiFailure::invalid("That is not a whole replay."))?;
-    let [fighter_a, fighter_b] = replays::fighters(replay);
-    // A set's players by the desk's names when the game sent none.
-    let fallback =
-        |slot: usize| set.and_then(|(_, described)| described.names.get(slot).cloned().flatten());
-    let [name_a, name_b] = [0, 1].map(|slot| names[slot].clone().or_else(|| fallback(slot)));
-    let [country_a, country_b] =
-        [0, 1].map(|slot| own.clone().filter(|_| side == Some(slot as u8)));
-    tx.execute(
-        "INSERT INTO archive_games (crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
-            match_id, event_title, round_label, phase, sent_by, priority, replay, next_attempt_at, received_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17)",
-        params![
-            crc,
-            saved_at,
-            replay.len(),
-            fighter_a,
-            fighter_b,
-            name_a,
-            name_b,
-            country_a,
-            country_b,
-            set.map(|(id, _)| id),
-            set.and_then(|(_, described)| described.tournament.clone()),
-            round,
-            phase,
-            sender.as_str(),
-            if set.is_some() { 0 } else { 1 },
-            replay,
-            ctx.now
-        ],
-    )?;
-    Ok(())
-}
+/// Games one listing holds at most.
+const LISTED: usize = 400;
+/// Stored games one listing looks through at most, so a selective filter
+/// over a large archive holds the database only briefly. Its `next` goes
+/// on from the last game it looked at, so a page can hold fewer games.
+const SCANNED: i64 = 5000;
 
 /// `PUT /v1/replays/{crc}?a=&b=&side=&country=`: a player, with their play
 /// session, sends a game's `.emberreplay` for the archive. 201 when it is
@@ -160,40 +41,33 @@ pub async fn put(
         return Err(ApiFailure::not_found());
     }
     let player = playing(&state, &headers).await?;
-    let replay = body.0;
-    replays::saved_at(&crc, &replay)
+    let file = body.0;
+    let replay = Replay::parse(&file)
+        .filter(|replay| replay.crc_name() == crc)
         .ok_or_else(|| ApiFailure::invalid("That is not a whole replay with this CRC."))?;
-    let ctx = Ctx::of(&state);
-    let status = state
+    let now = state.now();
+    let admitted = state
         .db
         .write(move |tx| {
-            let held = tx
-                .query_row("SELECT 1 FROM archive_games WHERE crc = ?1", [&crc], |_| Ok(()))
-                .optional()?
-                .is_some();
-            if !held {
-                let (sent, waiting): (i64, i64) = tx.query_row(
-                    "SELECT (SELECT COUNT(*) FROM archive_games WHERE sent_by = ?1 AND received_at > ?2),
-                            (SELECT COALESCE(SUM(size), 0) FROM archive_games WHERE state = 'pending')",
-                    params![player.ember_id.as_str(), ctx.now.saturating_sub(86_400)],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )?;
-                if sent >= SENT_PER_DAY {
-                    return Err(ApiFailure::rate_limited(3600));
-                }
-                // Full until the bucket takes what waits; the game sends it again later.
-                if waiting + replay.len() as i64 > MAX_WAITING {
-                    return Err(ApiFailure::unavailable());
-                }
-            }
-            keep(tx, &ctx, &crc, &replay, &player.ember_id, &sides, None)?;
-            Ok(if held { StatusCode::OK } else { StatusCode::CREATED })
+            archive::admit(
+                tx,
+                now,
+                &file,
+                &replay,
+                &player.ember_id,
+                Attribution::Online(&sides),
+            )
         })
         .await?;
+    let status = match admitted {
+        Admission::New => StatusCode::CREATED,
+        Admission::Held => StatusCode::OK,
+        Admission::Refused(refused) => return Err(refused.into()),
+    };
     Ok(respond(status, &json!({})))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct Filter {
     /// An event's title, or `online` for games of no tournament set.
     #[serde(default)]
@@ -208,100 +82,345 @@ pub struct Filter {
     /// Part of a player's name or an event's title.
     #[serde(default)]
     q: Option<String>,
-    /// Only games saved before this time (unix seconds), to page back.
+    /// A listing's `next`, to go on from where it stopped.
     #[serde(default)]
-    before: Option<u64>,
+    cursor: Option<String>,
+}
+
+/// A place in the archive's order, newest first: a game's save time and
+/// digest. The listing hands it out as `{saved_at}.{digest}`.
+#[derive(Clone, Debug, PartialEq)]
+struct Cursor {
+    saved_at: i64,
+    digest: String,
+}
+
+impl Cursor {
+    /// Before every game.
+    fn first() -> Self {
+        Self {
+            saved_at: i64::MAX,
+            digest: String::new(),
+        }
+    }
+
+    fn parse(text: &str) -> Option<Self> {
+        let (saved_at, digest) = text.split_once('.')?;
+        (digest.len() == 64
+            && digest
+                .bytes()
+                .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
+        .then(|| {
+            Some(Self {
+                saved_at: saved_at.parse().ok()?,
+                digest: digest.to_owned(),
+            })
+        })
+        .flatten()
+    }
+
+    fn text(&self) -> String {
+        format!("{}.{}", self.saved_at, self.digest)
+    }
+}
+
+/// One page of the listing: its games' rows and where the next page starts.
+struct Page {
+    games: Vec<Listed>,
+    next: Option<Cursor>,
+}
+
+struct Listed {
+    digest: String,
+    crc: String,
+    saved_at: i64,
+    size: u64,
+    fighters: [u8; 2],
+    names: [Option<String>; 2],
+    countries: [Option<String>; 2],
+    set: Option<String>,
+    event: Option<String>,
+    round: Option<String>,
+    phase: Option<String>,
+}
+
+/// The stored games after `cursor` that `filter` keeps, newest first: up
+/// to `listed` of them among the next `scanned` stored games.
+fn page(
+    tx: &Transaction<'_>,
+    filter: &Filter,
+    cursor: &Cursor,
+    listed: usize,
+    scanned: i64,
+) -> Result<Page> {
+    // The last game this page may look at, when that many are left.
+    let last: Option<Cursor> = tx
+        .query_row(
+            "SELECT saved_at, digest FROM archive_games
+             WHERE state = 'stored' AND (saved_at, digest) < (?1, ?2)
+             ORDER BY saved_at DESC, digest DESC LIMIT 1 OFFSET ?3",
+            params![cursor.saved_at, cursor.digest, scanned - 1],
+            |row| {
+                Ok(Cursor {
+                    saved_at: row.get(0)?,
+                    digest: row.get(1)?,
+                })
+            },
+        )
+        .optional()?;
+    let floor = last.clone().unwrap_or(Cursor {
+        saved_at: i64::MIN,
+        digest: String::new(),
+    });
+    let like = filter
+        .q
+        .as_deref()
+        .map(str::trim)
+        .filter(|q| !q.is_empty() && q.len() <= 64)
+        .map(|q| {
+            format!(
+                "%{}%",
+                q.replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            )
+        });
+    let mut games = tx
+        .prepare(
+            "SELECT digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
+                    match_id, event_title, round_label, phase
+             FROM archive_games WHERE state = 'stored'
+               AND (saved_at, digest) < (?1, ?2) AND (saved_at, digest) >= (?3, ?4)
+               AND (?5 IS NULL OR (?5 = 'online' AND match_id IS NULL) OR event_title = ?5)
+               AND (?6 IS NULL OR fighter_a = ?6 OR fighter_b = ?6)
+               AND (?7 IS NULL OR country_a = ?7 OR country_b = ?7)
+               AND (?8 IS NULL
+                    OR (?8 = 'top8' AND phase LIKE 'Top%')
+                    OR (?8 = 'pools' AND match_id IS NOT NULL AND COALESCE(phase, '') NOT LIKE 'Top%')
+                    OR (?8 = 'winners' AND round_label LIKE 'Winners%')
+                    OR (?8 = 'losers' AND round_label LIKE 'Losers%')
+                    OR (?8 = 'grand' AND round_label LIKE 'Grand%'))
+               AND (?9 IS NULL OR name_a LIKE ?9 ESCAPE '\\' OR name_b LIKE ?9 ESCAPE '\\'
+                    OR event_title LIKE ?9 ESCAPE '\\')
+             ORDER BY saved_at DESC, digest DESC LIMIT ?10",
+        )?
+        .query_map(
+            params![
+                cursor.saved_at,
+                cursor.digest,
+                floor.saved_at,
+                floor.digest,
+                filter.event,
+                filter.fighter,
+                filter.country,
+                filter.round,
+                like,
+                listed + 1
+            ],
+            |row| {
+                Ok(Listed {
+                    digest: row.get(0)?,
+                    crc: row.get(1)?,
+                    saved_at: row.get(2)?,
+                    size: row.get(3)?,
+                    fighters: [row.get(4)?, row.get(5)?],
+                    names: [row.get(6)?, row.get(7)?],
+                    countries: [row.get(8)?, row.get(9)?],
+                    set: row.get(10)?,
+                    event: row.get(11)?,
+                    round: row.get(12)?,
+                    phase: row.get(13)?,
+                })
+            },
+        )?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let next = if games.len() > listed {
+        games.truncate(listed);
+        games.last().map(|game| Cursor {
+            saved_at: game.saved_at,
+            digest: game.digest.clone(),
+        })
+    } else {
+        last
+    };
+    Ok(Page { games, next })
 }
 
 /// `GET /v1/archive`: the stored games the filter keeps, newest first, with
 /// no credential, as the archive page shows them: each game's file in the
-/// bucket, and each tournament set's score and pack. Also every event and
-/// country the archive holds, for the page's filters.
+/// bucket, and each tournament set's score and pack once the bucket holds
+/// it. `next`, when there is more to look through, is the `cursor` that
+/// goes on. Also the events and countries of the archive's games, for the
+/// page's filters.
 pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -> Result<Response> {
     let Some(archive) = state.config.archive.clone() else {
         return Err(ApiFailure::not_found());
+    };
+    let cursor = match filter.cursor.as_deref() {
+        None => Cursor::first(),
+        Some(text) => Cursor::parse(text)
+            .ok_or_else(|| ApiFailure::invalid("That is not a cursor of this listing."))?,
     };
     let base = archive.public_base;
     let listed = state
         .db
         .read(move |tx| {
-            let like = filter.q.as_deref().map(str::trim).filter(|q| !q.is_empty() && q.len() <= 64).map(|q| {
-                format!("%{}%", q.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"))
-            });
-            let mut games = Vec::new();
+            let Page { games, next } = page(tx, &filter, &cursor, LISTED, SCANNED)?;
             let mut sets = serde_json::Map::new();
-            let rows = tx
-                .prepare(
-                    "SELECT crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
-                            match_id, event_title, round_label, phase
-                     FROM archive_games WHERE state = 'stored'
-                       AND (?1 IS NULL OR (?1 = 'online' AND match_id IS NULL) OR event_title = ?1)
-                       AND (?2 IS NULL OR fighter_a = ?2 OR fighter_b = ?2)
-                       AND (?3 IS NULL OR country_a = ?3 OR country_b = ?3)
-                       AND (?4 IS NULL
-                            OR (?4 = 'top8' AND phase LIKE 'Top%')
-                            OR (?4 = 'pools' AND match_id IS NOT NULL AND COALESCE(phase, '') NOT LIKE 'Top%')
-                            OR (?4 = 'winners' AND round_label LIKE 'Winners%')
-                            OR (?4 = 'losers' AND round_label LIKE 'Losers%')
-                            OR (?4 = 'grand' AND round_label LIKE 'Grand%'))
-                       AND (?5 IS NULL OR name_a LIKE ?5 ESCAPE '\\' OR name_b LIKE ?5 ESCAPE '\\'
-                            OR event_title LIKE ?5 ESCAPE '\\')
-                       AND (?6 IS NULL OR saved_at < ?6)
-                     ORDER BY saved_at DESC LIMIT ?7",
-                )?
-                .query_map(
-                    params![filter.event, filter.fighter, filter.country, filter.round, like, filter.before, LISTED + 1],
-                    |row| {
-                        Ok((
-                            row.get::<_, String>(0)?,
-                            row.get::<_, u64>(1)?,
-                            row.get::<_, u64>(2)?,
-                            [row.get::<_, Option<u8>>(3)?, row.get(4)?],
-                            [row.get::<_, Option<String>>(5)?, row.get(6)?],
-                            [row.get::<_, Option<String>>(7)?, row.get(8)?],
-                            row.get::<_, Option<String>>(9)?,
-                            row.get::<_, Option<String>>(10)?,
-                            row.get::<_, Option<String>>(11)?,
-                            row.get::<_, Option<String>>(12)?,
-                        ))
-                    },
-                )?
-                .collect::<rusqlite::Result<Vec<_>>>()?;
-            let more = rows.len() as i64 > LISTED;
-            for (crc, saved_at, size, fighters, names, countries, set, event, round, phase) in
-                rows.into_iter().take(LISTED as usize)
-            {
-                if let Some(id) = &set
-                    && !sets.contains_key(id)
-                {
-                    let score = scores(tx, id).map(|(wins, _)| wins).unwrap_or([0, 0]);
-                    sets.insert(id.clone(), json!({ "score": score, "pack": format!("{base}/sets/{id}.emberpack") }));
+            for id in games.iter().filter_map(|game| game.set.as_ref()) {
+                if !sets.contains_key(id) {
+                    sets.insert(id.clone(), set_listed(tx, &base, id)?);
                 }
-                games.push(json!({
-                    "crc": crc, "url": format!("{base}/games/{crc}.emberreplay"), "saved_at": saved_at, "size": size,
-                    "fighters": fighters, "names": names, "countries": countries,
-                    "set": set, "event": event, "round": round, "phase": phase,
-                }));
             }
-            // Both lists read the whole table, which is fine for some hundred
-            // thousand games; past that they want an index of their own.
+            let games: Vec<Value> = games
+                .into_iter()
+                .map(|game| {
+                    json!({
+                        "digest": game.digest, "crc": game.crc,
+                        "url": format!("{base}/games/{}.emberreplay", game.digest),
+                        "saved_at": game.saved_at, "size": game.size, "fighters": game.fighters,
+                        "names": game.names, "countries": game.countries,
+                        "set": game.set, "event": game.event, "round": game.round, "phase": game.phase,
+                    })
+                })
+                .collect();
             let events = tx
-                .prepare(
-                    "SELECT event_title FROM archive_games WHERE state = 'stored' AND event_title IS NOT NULL
-                     GROUP BY event_title ORDER BY MAX(saved_at) DESC LIMIT 100",
-                )?
+                .prepare("SELECT title FROM archive_events ORDER BY last_saved_at DESC LIMIT 100")?
                 .query_map([], |row| row.get::<_, String>(0))?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let countries = tx
-                .prepare(
-                    "SELECT country_a FROM archive_games WHERE state = 'stored' AND country_a IS NOT NULL
-                     UNION SELECT country_b FROM archive_games WHERE state = 'stored' AND country_b IS NOT NULL
-                     ORDER BY 1",
-                )?
+                .prepare("SELECT code FROM archive_countries ORDER BY code")?
                 .query_map([], |row| row.get::<_, String>(0))?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
-            Ok(json!({ "games": games, "sets": sets, "events": events, "countries": countries, "more": more }))
+            Ok(json!({
+                "games": games, "sets": sets, "events": events, "countries": countries,
+                "more": next.is_some(), "next": next.map(|next| next.text()),
+            }))
         })
         .await?;
     Ok(respond(StatusCode::OK, &listed))
+}
+
+/// What the listing says of set `id`: its score, and its pack's address
+/// once the bucket holds one.
+fn set_listed(tx: &Transaction<'_>, base: &str, id: &str) -> Result<Value> {
+    let score = scores(tx, id).map(|(wins, _)| wins).unwrap_or([0, 0]);
+    let packed: bool = tx
+        .query_row(
+            "SELECT uploaded_version > 0 FROM archive_sets WHERE match_id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()?
+        .unwrap_or(false);
+    let pack = packed.then(|| format!("{base}/sets/{id}.emberpack"));
+    Ok(json!({ "score": score, "pack": pack }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Db;
+
+    /// Stored games `(saved_at, digest letter, fighter)`.
+    async fn archive_of(games: &'static [(i64, char, u8)]) -> Db {
+        let db = Db::open(std::path::Path::new(":memory:")).unwrap();
+        db.write(move |tx| {
+            for (saved_at, letter, fighter) in games {
+                tx.execute(
+                    "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority,
+                        state, next_attempt_at, received_at)
+                     VALUES (?1, '00000000', ?2, 1, ?3, ?3, 'emb_p1', 1, 'stored', 0, 0)",
+                    params![letter.to_string().repeat(64), saved_at, fighter],
+                )?;
+            }
+            Ok(())
+        })
+        .await
+        .unwrap();
+        db
+    }
+
+    /// Every game `filter` keeps, page by page, and the pages' sizes.
+    async fn every_page(
+        db: &Db,
+        filter: Filter,
+        listed: usize,
+        scanned: i64,
+    ) -> (Vec<char>, Vec<usize>) {
+        let filter = std::sync::Arc::new(filter);
+        let (mut seen, mut sizes, mut cursor) = (Vec::new(), Vec::new(), Some(Cursor::first()));
+        while let Some(at) = cursor {
+            let filter = filter.clone();
+            let Page { games, next } = db
+                .read(move |tx| page(tx, &filter, &at, listed, scanned))
+                .await
+                .unwrap();
+            sizes.push(games.len());
+            seen.extend(games.iter().map(|game| game.digest.chars().next().unwrap()));
+            // Each page's cursor reads back as itself.
+            cursor = next.map(|next| Cursor::parse(&next.text()).unwrap());
+        }
+        (seen, sizes)
+    }
+
+    /// Games saved in the same second, across a page's end, are each listed
+    /// once, in one order.
+    #[tokio::test]
+    async fn pages_part_at_a_game_not_at_a_second() {
+        let db = archive_of(&[
+            (5, 'a', 1),
+            (5, 'b', 1),
+            (5, 'c', 1),
+            (5, 'd', 1),
+            (4, 'e', 1),
+            (6, 'f', 1),
+        ])
+        .await;
+        let (seen, sizes) = every_page(&db, Filter::default(), 2, 100).await;
+        assert_eq!(seen, ['f', 'd', 'c', 'b', 'a', 'e']);
+        assert_eq!(sizes, [2, 2, 2]);
+    }
+
+    /// A filter that keeps few games looks through a bounded stretch per
+    /// page, and goes on from where it stopped.
+    #[tokio::test]
+    async fn a_selective_filter_looks_through_a_bounded_stretch() {
+        let db = archive_of(&[
+            (1, 'a', 9),
+            (2, 'b', 1),
+            (3, 'c', 1),
+            (4, 'd', 1),
+            (5, 'e', 9),
+            (6, 'f', 1),
+        ])
+        .await;
+        let filter = Filter {
+            fighter: Some(9),
+            ..Filter::default()
+        };
+        let (seen, sizes) = every_page(&db, filter, 10, 2).await;
+        assert_eq!(seen, ['e', 'a']);
+        assert_eq!(sizes, [1, 0, 1, 0]);
+    }
+
+    #[test]
+    fn only_a_listings_cursor_reads() {
+        let digest = "0".repeat(64);
+        assert_eq!(
+            Cursor::parse(&format!("12.{digest}")),
+            Some(Cursor {
+                saved_at: 12,
+                digest: digest.clone()
+            })
+        );
+        for text in [
+            "12",
+            "x.{digest}",
+            &format!("12.{}", &digest[1..]),
+            &format!("12.{}", digest.to_uppercase().replace('0', "A")),
+        ] {
+            assert_eq!(Cursor::parse(text), None, "{text}");
+        }
+    }
 }

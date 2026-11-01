@@ -9,7 +9,8 @@ use std::sync::Arc;
 use common::{
     Bridge, code,
     public_rooms::{
-        cause, create_room, create_room_with, listing, open_room, player, reason, send, start, ticket,
+        cause, create_room, create_room_with, listing, open_room, player, reason, send, start,
+        ticket,
     },
     supervisor::{BUILD, ENDPOINT, Gate, enable, fake_supervisor, report, secrets},
 };

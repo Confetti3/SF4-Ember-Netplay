@@ -289,7 +289,7 @@ names_only_staging() {
 staging_site_from() {
     sed -e 's/bridge\.embernetplay\.link/bridge-staging.embernetplay.link/g' -e 's/47820/47821/g' \
         -e 's/ember_bridge_blumint_/ember_bridge_staging_blumint_/g' \
-        -e 's/(ember_bridge here)/(ember_bridge_staging here)/' "$1" | cmp -s - "$2"
+        -e 's/(ember_bridge here)/(ember_bridge_staging here)/' -e 's#/snippets/ember-bridge-archive#/snippets/ember-bridge-staging-archive#' "$1" | cmp -s - "$2"
 }
 # A bridge database holding one row naming its bridge.
 make_database() {
@@ -580,6 +580,18 @@ check "a site ID that cannot be one exits 2" exited 2
 run "$SDIR/set-integration-secret.sh" -- site discord
 check "discord as a site ID exits 2" exited 2
 check "beside discord's" config_is "$R/var/lib/$S/integrations.json" discord_client_secret '"staging-secret"'
+printf 'pasted-archive-secret\n' > "$INPUT"
+run "$SDIR/set-integration-secret.sh" -- archive
+check "the archive's pasted exits 0" succeeded
+check "the archive's stored for staging" config_is "$R/var/lib/$S/integrations.json" archive_secret_key '"pasted-archive-secret"'
+printf 'RUSTFS_ACCESS_KEY=emberarchive\nRUSTFS_SECRET_KEY=filed-archive-secret\n' > "$T/rustfs.env"
+run "$SDIR/set-integration-secret.sh" -- archive "$T/rustfs.env"
+check "the archive's from its credentials file exits 0" succeeded
+check "the archive's read from the file" config_is "$R/var/lib/$S/integrations.json" archive_secret_key '"filed-archive-secret"'
+printf 'RUSTFS_ACCESS_KEY=emberarchive\n' > "$T/rustfs.env"
+run "$SDIR/set-integration-secret.sh" -- archive "$T/rustfs.env"
+check "a credentials file without the key exits 1" exited 1
+check "the archive's kept" config_is "$R/var/lib/$S/integrations.json" archive_secret_key '"filed-archive-secret"'
 run "$SDIR/set-integration-secret.sh" INSTANCE= -- discord
 check "a disagreeing INSTANCE exits 2" exited 2
 check "nothing ran" nothing_logged

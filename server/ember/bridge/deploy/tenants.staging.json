@@ -6,6 +6,12 @@
     "client_id": "1546980049692135514"
   },
   "integration_secrets": "integrations.json",
+  "archive": {
+    "endpoint": "http://127.0.0.1:9400",
+    "bucket": "replays",
+    "access_key": "emberarchive",
+    "public_base": "https://bridge-staging.embernetplay.link/archive/replays"
+  },
   "sign_in_sites": [
     {
       "id": "challonge",

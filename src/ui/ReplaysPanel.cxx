@@ -165,7 +165,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
  row.userText=true;for(const auto& name:replay.names)NoteUserText(name);
  const auto known=[&](int side){return selection::FindFighter(replay.fighters[side])?replay.fighters[side]:-1;};
  row.fighter1=known(0);row.fighter2=known(1);
- row.value=ReplayTagsText(replay.spectated,replay.watched,replay.video);
+ row.value=ReplayTagsText(replay.provenance==replayfiles::Provenance::Spectated,replay.watched,replay.video);
  // The score leads the value; the replay's own account of the match leads the detail.
  if(const auto& summary=replay.summary){
   const std::string score=ScoreText(*summary);
@@ -371,7 +371,7 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  const float dateWidth=ImGui::CalcTextSize(r->label.c_str()).x;
  d->AddText(ImVec2(right-dateWidth,min.y+(max.y-min.y-ImGui::GetFontSize())*.5f),c.muted,r->label.c_str());
  right-=dateWidth+14*s;
- const std::string tags=set?std::string():ReplayTagsText(r->spectated,r->watched,r->video);
+ const std::string tags=set?std::string():ReplayTagsText(r->provenance==replayfiles::Provenance::Spectated,r->watched,r->video);
  if(!tags.empty()){right-=v2::ChipWidth(tags);v2::Chip(d,ImVec2(right,min.y+(max.y-min.y-ImGui::GetFontSize()*.78f-8*s)*.5f),tags,c.muted);right-=14*s;}
  // The players and the score between them (a set's by match), the fighters or the set's length under them.
  std::string score=r->summary?ScoreText(*r->summary):std::string();

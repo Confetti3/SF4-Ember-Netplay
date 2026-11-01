@@ -1,0 +1,33 @@
+# Replay archive site @HOST@: request budgets, the short cache of the listing
+# and the bounded upstream. nginx wants these in the http block, so this file
+# is in conf.d; every name carries the site's prefix (@ZONE@), so two archive
+# sites on one server never share a budget.
+
+# The listing is a scan of the archive in the bridge, and a person pages it
+# a few times a minute: 2 requests a second per address, a burst of 10 for a
+# page that loads at once.
+limit_req_zone $binary_remote_addr zone=@ZONE@_list_req:1m rate=2r/s;
+# Replay downloads are small files from local disk; this is a courtesy limit.
+limit_req_zone $binary_remote_addr zone=@ZONE@_files:1m rate=20r/s;
+limit_conn_zone $binary_remote_addr zone=@ZONE@_files_per_ip:1m;
+# Listing requests the bridge works on at once, for the whole site.
+limit_conn_zone $server_name zone=@ZONE@_list_total:1m;
+
+# Every listing request that reaches the bridge, for 15 seconds, so a burst
+# of the same page is one query. Several clients missing together wait for
+# the first (proxy_cache_lock).
+proxy_cache_path /var/lib/nginx/@ZONE@ levels=1:2 keys_zone=@ZONE@_list_cache:1m max_size=20m inactive=2m use_temp_path=off;
+
+# The bridge, with a hard ceiling on connections as well.
+upstream @ZONE@_bridge {
+    server 127.0.0.1:@BRIDGE_PORT@ max_conns=8;
+    keepalive 4;
+}
+
+# How long a browser and a shared cache may keep a bucket file. A game's name
+# is its content digest, so it never changes; a set's pack is written again
+# as games join the set.
+map $uri $@ZONE@_file_cache {
+    ~^@PREFIX@/@BUCKET@/games/ "public, max-age=31536000, immutable";
+    default            "public, max-age=300";
+}

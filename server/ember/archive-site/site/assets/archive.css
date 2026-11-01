@@ -1,6 +1,6 @@
 /* Ember replay archive. Palette and type from src/ui/Theme.cxx, as site.css. */
-@font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(/assets/fonts/inter-latin-400.woff2) format("woff2")}
-@font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(/assets/fonts/inter-latin-600.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:400;font-display:swap;src:url(fonts/inter-latin-400.woff2) format("woff2")}
+@font-face{font-family:Inter;font-weight:600;font-display:swap;src:url(fonts/inter-latin-600.woff2) format("woff2")}
 :root{--bg:#141312;--panel:#211e1b;--row:#191715;--chip:#382d24;--line:#443a31;--edge:#76502f;--ink:#f3ebdd;--muted:#b5a99b;--accent:#ff8738;--focus:#3a2a1f;--win:#a4cea0}
 *{box-sizing:border-box}
 html{container-type:inline-size}
@@ -8,6 +8,7 @@ body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px/1
 button,input{font:inherit;color:inherit}
 a{color:var(--accent)}a:hover{color:#ffb16f}
 .hidden{position:absolute;left:-9999px}
+[hidden]{display:none!important}
 .top{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
 .brand>span{display:flex;flex-direction:column;line-height:1.1}

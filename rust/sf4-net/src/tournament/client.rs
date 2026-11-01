@@ -390,7 +390,7 @@ pub(super) struct BridgeCall<'a> {
     path: &'a str,
     body: Body<'a>,
     success: &'a [u16],
-    refusals: Refusals<'a>,
+    pub(super) refusals: Refusals<'a>,
     timeout: Option<Duration>,
     /// The most bytes of the bridge's answer read.
     limit: usize,

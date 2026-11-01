@@ -235,7 +235,7 @@ static void TestDetailFailureBoundary() {
   out.write(reinterpret_cast<const char*>(contents.data()), static_cast<std::streamsize>(contents.size()));
   out.close(); CHECK(!out.fail());
  };
- const auto oldNote = sf4e::replayfiles::BindNames(replay, {{"Ann", "Bob"}, false});
+ const auto oldNote = sf4e::replayfiles::BindNames(replay, {{"Ann", "Bob"}, sf4e::replayfiles::Provenance::Played});
  note(replay, oldNote);
 	const auto utf8 = [](const fs::path& path) {
 		const auto encoded = path.u8string();
@@ -272,9 +272,9 @@ static void TestDetailFailureBoundary() {
  CHECK(changed.value->label == sf4e::replayfiles::ReplayDateLabel(1800000060) && changed.value->label != ready.value->label);
  CHECK(changed.value->time == 1800000060 && changed.value->fighters[0] == 0 && changed.value->summary.players[0].fighter == 0);
  CHECK(ready.value->names[0] == "Ann" && ready.value->fighters[0] == 25);
- note(replaced, sf4e::replayfiles::BindNames(replaced, {{"Carol", "Dave"}, true}));
+ note(replaced, sf4e::replayfiles::BindNames(replaced, {{"Carol", "Dave"}, sf4e::replayfiles::Provenance::Spectated}));
  auto renamed = cache.Read(path, 30, folder);
- CHECK(renamed.value && renamed.value != changed.value && renamed.value->names[0] == "Carol" && renamed.value->names[1] == "Dave" && renamed.value->spectated);
+ CHECK(renamed.value && renamed.value != changed.value && renamed.value->names[0] == "Carol" && renamed.value->names[1] == "Dave" && renamed.value->provenance == sf4e::replayfiles::Provenance::Spectated);
  CHECK(changed.value->names[0].empty());
  CHECK(ready.value->match.rounds[0].runs[0].inputs[0] == LP); // older publication stays immutable
  save(Bytes(replay.begin(), replay.end() - 1));

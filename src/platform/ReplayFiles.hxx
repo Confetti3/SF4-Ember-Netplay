@@ -117,8 +117,11 @@ void NoteMatchEnd(bool confirmed);
 // Remembers that an archived replay was played with Watch now (watched.txt in
 // the archive, one file name per line), so the list can say so.
 void MarkWatched(const std::filesystem::path& file);
-// The same for a set's replay its bridge has (sent.txt).
+// The same for a replay its set's bridge or the replay archive has (sent.txt),
+// and for a set's replay its bridge refused because the set is closed
+// (closed.txt), which the replay archive may still take.
 void MarkSent(const std::filesystem::path& file);
+void MarkSetClosed(const std::filesystem::path& file);
 
 // Where a set's pack is saved: packs\<matchId>.emberpack in the archive, the
 // folder made. Empty when there is no archive or the ID is not a plain one.
@@ -131,16 +134,19 @@ std::size_t ImportSetPack(const std::filesystem::path& pack);
 // The archive, newest first. label is the save time in local time, fighters
 // the two native fighter IDs from the replay's record (-1 when the file
 // holds none), names the players Ember noted (empty when it noted none),
-// spectated whether this PC only watched that match, watched whether
-// it was played with Watch now before, and sent whether its set's bridge or the
-// replay archive has it, or refused it for good.
+// provenance whether this PC played or only watched that match (Unknown when
+// Ember noted neither), watched whether
+// it was played with Watch now before, sent whether its set's bridge or the
+// replay archive has it, or refused it for good, and setClosed whether its
+// set's bridge refused it for a closed set: done for the set only.
 struct ArchivedReplay {
 	std::filesystem::path path;
 	std::string label;
 	std::uint64_t time = 0;
 	int fighters[2] = {-1, -1};
 	std::string names[2];
-	bool spectated = false, watched = false, sent = false;
+	replayfiles::Provenance provenance = replayfiles::Provenance::Unknown;
+	bool watched = false, sent = false, setClosed = false;
 	// The tournament set it was a game of, or none.
 	replayfiles::SetTag set;
 	// An exported video (<name>.mp4) is beside it.

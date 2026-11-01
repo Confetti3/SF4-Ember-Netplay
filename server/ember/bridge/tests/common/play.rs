@@ -13,6 +13,8 @@ use serde_json::{Value as Json, json};
 
 use super::{Bridge, Player};
 
+use ember_bridge::Config;
+
 pub const BUILD: &str = "build-1";
 pub const ROOM: &str = "0123456789abcdef0123456789abcdef";
 
@@ -313,10 +315,18 @@ pub async fn bound_as(f: &impl Table, id: &str, watch: bool) -> Json {
     serde_json::to_value(binding).unwrap()
 }
 
-/// Game `n`'s replay, as the game archives it, saved `n` seconds after the
-/// set's first.
-pub fn replay(n: u8) -> Vec<u8> {
-    ember_protocol::replays::wrap(&[n; 64], 1_800_000_000 + u32::from(n))
+/// Game `n`'s replay on `bridge`, as the game archives it, saved `n`
+/// seconds after the bridge started, by its own clock: its sets are played
+/// from then.
+pub fn replay_of(bridge: &Bridge, n: u8) -> Vec<u8> {
+    ember_protocol::replays::wrap(&[n; 64], bridge.started_at + u32::from(n))
+}
+
+/// Game `n`'s replay as the game archives it, saved at `saved_at` (unix
+/// seconds, by the bridge's clock): a set's game takes only a replay saved
+/// while it was played.
+pub fn replay_saved(n: u8, saved_at: u32) -> Vec<u8> {
+    ember_protocol::replays::wrap(&[n; 64], saved_at)
 }
 
 /// `sender` sends a game's replay, played under room revision `revision`.
@@ -412,4 +422,77 @@ pub async fn create_match(
         .await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
     created["match_id"].as_str().unwrap().to_owned()
+}
+
+/// Two fighters linked to a provider on a bridge of their own, with an
+/// organizer of its first tenant: the play and set replay tests' table.
+pub struct Fixture {
+    pub bridge: Bridge,
+    pub provider: String,
+    pub organizer: String,
+    pub a: Player,
+    pub b: Player,
+    pub links: [Json; 2],
+}
+
+pub async fn fixture() -> Fixture {
+    fixture_with(|_| {}).await
+}
+
+pub async fn fixture_with(adjust: impl FnOnce(&mut Config)) -> Fixture {
+    let bridge = Bridge::start_with(adjust, Default::default()).await;
+    let provider = bridge.provider("mock-a").await;
+    let organizer = bridge.organizer("t1").await;
+    let mut a = bridge.player(31);
+    let mut b = bridge.player(32);
+    bridge.open_session(&mut a).await;
+    bridge.open_session(&mut b).await;
+    let link_a = bridge.link(&provider, &a, "mock-a", "fighter-a").await;
+    let link_b = bridge.link(&provider, &b, "mock-a", "fighter-b").await;
+    Fixture {
+        bridge,
+        provider,
+        organizer,
+        a,
+        b,
+        links: [link_a, link_b],
+    }
+}
+
+/// A match of the fixture's two fighters, made by its provider.
+pub async fn create(f: &Fixture, external: &str, profile: &str, games_to_win: u8) -> String {
+    create_match(
+        &f.bridge,
+        &f.provider,
+        &f.links,
+        [&f.a, &f.b],
+        external,
+        profile,
+        games_to_win,
+    )
+    .await
+}
+
+impl Table for Fixture {
+    fn bridge(&self) -> &Bridge {
+        &self.bridge
+    }
+
+    fn a(&self) -> &Player {
+        &self.a
+    }
+
+    fn b(&self) -> &Player {
+        &self.b
+    }
+}
+
+/// The match as its provider reads it.
+pub async fn state(f: &Fixture, id: &str) -> Json {
+    let (status, found) = f
+        .bridge
+        .get(&f.provider, &format!("/v1/matches/{id}"))
+        .await;
+    assert_eq!(status, StatusCode::OK, "{found}");
+    found
 }

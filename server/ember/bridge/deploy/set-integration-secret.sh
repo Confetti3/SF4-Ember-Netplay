@@ -12,6 +12,10 @@
 #       The API key BluMint issued for that connection, such as blumint-partner-staging.
 #   sudo bash ~/ember-bridge/set-integration-secret.sh result <connection-id>
 #       The secret that connection's results are signed with (ember-bridge result-secret).
+#   sudo bash ~/ember-bridge/set-integration-secret.sh archive [/etc/rustfs-archive/rustfs.env]
+#       The replay archive bucket's secret key (archive_secret_key). With the
+#       archive's credentials file (server/ember/archive-site/deploy) it is
+#       read from there, RUSTFS_SECRET_KEY, instead of pasted.
 # These store the production bridge's secrets. The copy in another
 # instance's folder stores that instance's, as setup.sh picks its bridge:
 #   sudo bash ~/ember-bridge-staging/set-integration-secret.sh discord
@@ -41,12 +45,18 @@ case "${1:-}" in
     result)
         [[ "${2:-}" =~ ^[a-z][a-z0-9-]{0,63}$ ]] || { echo "usage: set-integration-secret.sh result <connection-id>" >&2; exit 2; }
         what="result secret for $2"; key="result_secrets/$2" ;;
-    *) echo "usage: set-integration-secret.sh discord | rooms | site <site-id> | blumint <connection-id> | result <connection-id>" >&2; exit 2 ;;
+    archive) what="replay archive secret key"; key=archive ;;
+    *) echo "usage: set-integration-secret.sh discord | rooms | site <site-id> | blumint <connection-id> | result <connection-id> | archive [credentials file]" >&2; exit 2 ;;
 esac
 [ -d "$STATE" ] || { echo "Install $NAME first (setup.sh)." >&2; exit 1; }
 
-read -r -s -p "Paste the $what, then press Enter: " secret
-echo
+if [ "$key" = archive ] && [ -n "${2:-}" ]; then
+    secret=$(sed -n 's/^RUSTFS_SECRET_KEY=//p' "$2")
+    [ -n "$secret" ] || { echo "No RUSTFS_SECRET_KEY in $2." >&2; exit 1; }
+else
+    read -r -s -p "Paste the $what, then press Enter: " secret
+    echo
+fi
 
 # Root hands the secret over on stdin; the service account writes its own file.
 WRITE=$(cat <<'PY'
@@ -65,6 +75,10 @@ elif key == "rooms":
     data.pop("rooms_supervisor_secret", None)
     if secret:
         data["rooms_supervisor_secret"] = secret
+elif key == "archive":
+    data.pop("archive_secret_key", None)
+    if secret:
+        data["archive_secret_key"] = secret
 else:
     table, connection = key.split("/", 1)
     keys = data.setdefault(table, {})

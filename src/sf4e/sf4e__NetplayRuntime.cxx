@@ -288,6 +288,16 @@ void StartHelper() {
             runtime->preferences.interfaceScale = scale >= 1.f && scale <= 1.5f ? scale : 1.f;
         } catch (...) { runtime->error = loc::T("runtime.interface_preferences_failed"); }
     }
+    {
+        // Sharing covers games saved since it came on: on with no cutoff (the
+        // default-on first run, or older settings) starts it now, saved here
+        // since the preferences writer starts later, so no older game is sent.
+        auto& preferences = runtime->preferences;
+        const auto loaded = preferences.shareReplaysSince;
+        preferences.shareReplaysSince = netplay::ShareReplaysSince(preferences.shareReplays, loaded, static_cast<std::uint64_t>(_time64(nullptr)));
+        if (preferences.shareReplaysSince != loaded && !store.SaveLauncher({{"shareReplaysSince", preferences.shareReplaysSince}}, settingsError))
+            spdlog::warn("Replays: when sharing came on could not be saved: {}", settingsError);
+    }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
     MenuMusic::Use(runtime->preferences.endlessLobbyMusic);

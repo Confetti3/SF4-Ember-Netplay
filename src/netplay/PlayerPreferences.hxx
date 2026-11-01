@@ -190,7 +190,8 @@ struct PlayerPreferences {
     // (docs/design/REPLAY_ARCHIVE.md). A tournament set's games always do.
     bool shareReplays = true;
     // When sharing came on (unix seconds), 0 while it is off: only games saved
-    // since go to the archive. The game thread keeps it (SendSetReplays).
+    // since go to the archive. Set only where preferences are loaded and
+    // accepted (ShareReplaysSince), never by the sending (SendSetReplays).
     std::uint64_t shareReplaysSince = 0;
     // Room members can open this player's Steam profile from the room's member
     // screen. Sent when they join a room; nothing is sent when it is off.
@@ -249,5 +250,22 @@ struct PlayerPreferences {
         return country.Valid() && speech.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
+
+// Share my replays' cutoff once `sharing` is taken over a cutoff of `since`
+// (0 while it was off): off clears it; on keeps the one it has, or starts one
+// `now`: just turned on, or on at load with none (the default-on first run,
+// or settings saved before there was a cutoff).
+inline std::uint64_t ShareReplaysSince(bool sharing, std::uint64_t since, std::uint64_t now) {
+    return !sharing ? 0 : since ? since : now;
+}
+
+// The player's edited preferences as the game thread takes them over
+// `current`, in one step: the match record stays the game thread's, and the
+// sharing cutoff follows Share my replays, never the edited copy's.
+inline PlayerPreferences AcceptedPreferences(const PlayerPreferences& current, PlayerPreferences wanted, std::uint64_t now) {
+    wanted.record = current.record;
+    wanted.shareReplaysSince = ShareReplaysSince(wanted.shareReplays, current.shareReplays ? current.shareReplaysSince : 0, now);
+    return wanted;
+}
 
 } }

@@ -90,6 +90,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     ),
     (48, include_str!("../migrations/048_organizer_invites.sql")),
     (49, include_str!("../migrations/049_archive_games.sql")),
+    (50, include_str!("../migrations/050_archive_identity.sql")),
 ];
 
 #[derive(Clone)]
@@ -768,5 +769,48 @@ mod tests {
             .query_row("SELECT watch FROM match_claims", [], |row| row.get(0))
             .unwrap();
         assert!(!watch);
+    }
+
+    #[test]
+    fn archive_games_kept_by_crc_give_way_to_games_kept_by_digest() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..49]).unwrap();
+        // A game 049 still holds and one it stored, whose replay is gone.
+        connection
+            .execute_batch(
+                "INSERT INTO archive_games (crc, saved_at, size, sent_by, priority, replay, next_attempt_at, received_at)
+                   VALUES ('0badf00d', 1, 200, 'emb_p1', 1, x'00', 1, 1);
+                 INSERT INTO archive_games (crc, saved_at, size, sent_by, priority, state, next_attempt_at, received_at, stored_at)
+                   VALUES ('0badf00e', 1, 200, 'emb_p1', 1, 'stored', 1, 1, 2);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let count = |table: &str| -> i64 {
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap()
+        };
+        assert_eq!(count("archive_games"), 0);
+        assert_eq!(count("archive_sets"), 0);
+        // Two games with one CRC are two games.
+        connection
+            .execute_batch(
+                "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority, replay, next_attempt_at, received_at)
+                   VALUES ('aa', '0badf00d', 1, 200, 1, 2, 'emb_p1', 1, x'00', 1, 1),
+                          ('bb', '0badf00d', 1, 200, 1, 2, 'emb_p1', 1, x'01', 1, 1);",
+            )
+            .unwrap();
+        assert_eq!(count("archive_games"), 2);
+        connection
+            .prepare("SELECT attempt_id, archived FROM match_replays")
+            .unwrap();
+        connection
+            .prepare("SELECT title, last_saved_at FROM archive_events UNION ALL SELECT code, 0 FROM archive_countries")
+            .unwrap();
     }
 }

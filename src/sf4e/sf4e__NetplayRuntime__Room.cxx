@@ -428,9 +428,8 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		break;
 	}
 	case netplay::Effect::SavePreferences:
-        // UI drafts cannot replace the game-thread-owned match record.
-        command.preferences.record=runtime->preferences.record;
-        command.preferences.shareReplaysSince=runtime->preferences.shareReplaysSince;
+        // UI drafts cannot replace the game-thread-owned match record or sharing cutoff.
+        command.preferences=netplay::AcceptedPreferences(runtime->preferences,std::move(command.preferences),static_cast<std::uint64_t>(_time64(nullptr)));
 		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
 			runtime->preferences = command.preferences;
             Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
@@ -451,8 +450,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	case netplay::Effect::HostRoom:
 	case netplay::Effect::JoinInvite: {
 		if (decision.effect == netplay::Effect::HostRoom) {
-            command.preferences.record=runtime->preferences.record;
-			runtime->preferences = command.preferences;
+			runtime->preferences = netplay::AcceptedPreferences(runtime->preferences, command.preferences, static_cast<std::uint64_t>(_time64(nullptr)));
 			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences))
 				runtime->error = loc::T("runtime.room_defaults_save_failed");
 		}

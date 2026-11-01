@@ -3,6 +3,7 @@
 // 4b): the next one to send to the set's bridge, the sets for Replays ›
 // Tournaments, and a set's pack split back into its games.
 #include "ReplayFiles.hxx"
+#include "ReplaySender.hxx"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <string>
@@ -10,30 +11,41 @@
 
 namespace sf4e { namespace platform { namespace replays {
 
+// Only a game its note says this PC played is ever sent: one it watched, or
+// one without a note yet (Unknown), never is.
+inline bool PlayedHere(const ArchivedReplay& replay) { return replay.provenance == replayfiles::Provenance::Played; }
+
+// Where a replay goes: its set's bridge while it is a set's game that bridge
+// has not refused for a closed set; otherwise the replay archive, under the
+// player's sharing like any game outside a set.
+inline bool ForItsSet(const ArchivedReplay& replay) { return replay.set.Tagged() && !replay.setClosed; }
+
 // The oldest replay of a set this PC played that its bridge may not have yet,
-// or null. `archive` is a listing, newest first.
-inline const ArchivedReplay* NextToSend(const std::vector<ArchivedReplay>& archive) {
+// and `sending` has not put aside at `nowMs`, or null. `archive` is a
+// listing, newest first.
+inline const ArchivedReplay* NextToSend(const std::vector<ArchivedReplay>& archive, const ReplaySender& sending = {}, std::uint64_t nowMs = 0) {
 	for (auto at = archive.rbegin(); at != archive.rend(); ++at)
-		if (at->set.Tagged() && !at->spectated && !at->sent) return &*at;
+		if (ForItsSet(*at) && PlayedHere(*at) && !at->sent && !sending.Aside(at->path, nowMs)) return &*at;
 	return nullptr;
 }
 
-// The oldest game this PC played outside any set, saved at or after `since`
-// (unix seconds), that the replay archive may not have yet, or null. Only
-// Ember's own files: the archive takes no other.
+// The oldest game this PC played that goes to the replay archive, saved at
+// or after `since` (unix seconds; 0 while sharing is off, which sends none),
+// that the archive may not have yet, or null. Only Ember's own files: the
+// archive takes no other.
 inline const ArchivedReplay* NextToArchive(const std::vector<ArchivedReplay>& archive, std::uint64_t since) {
+	if (!since) return nullptr;
 	for (auto at = archive.rbegin(); at != archive.rend(); ++at)
-		if (!at->set.Tagged() && !at->spectated && !at->sent && at->time >= since && at->path.extension() == L".emberreplay") return &*at;
+		if (!ForItsSet(*at) && PlayedHere(*at) && !at->sent && at->time >= since && at->path.extension() == L".emberreplay") return &*at;
 	return nullptr;
 }
 
-// A refusal of a send that sending it again cannot change: the bridge has
-// no such set for this player, or the file is not a replay it takes. Any
-// other failure is tried again later.
-inline bool SendSettled(const std::string& code) {
-	for (const char* settled : {"invalid_request", "invalid_replay", "not_found", "forbidden", "unsupported_rules", "corrupt", "file_unreadable", "invalid_path", "replays_unsupported"})
-		if (code == settled) return true;
-	return false;
+// What `sending` sends next at `nowMs`: a set's game first, one it put
+// aside waiting, then, while some bridge of the player's keeps an archive,
+// any other game sharing covers.
+inline const ArchivedReplay* NextReplay(const std::vector<ArchivedReplay>& archive, std::uint64_t since, const ReplaySender& sending, std::uint64_t nowMs) {
+	if (const auto* set = NextToSend(archive, sending, nowMs)) return set;
+	return sending.Archives() ? NextToArchive(archive, since) : nullptr;
 }
 
 // One set: its games oldest first, and how many rooms they were played in.
@@ -93,7 +105,7 @@ inline bool UnpackSet(const replayslots::Bytes& pack, std::vector<replayslots::B
 // games count as watched, not played here.
 inline replayfiles::ReplayNames PackNames(const std::string& header) {
 	replayfiles::ReplayNames names;
-	names.spectated = true;
+	names.provenance = replayfiles::Provenance::Spectated;
 	const auto said = nlohmann::json::parse(header, nullptr, false);
 	if (!said.is_object()) return names;
 	if (said.contains("match_id") && said["match_id"].is_string()) names.set.matchId = said["match_id"].get<std::string>();

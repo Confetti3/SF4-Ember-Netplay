@@ -103,6 +103,15 @@ server {
         proxy_pass http://127.0.0.1:@PORT@;
     }
 
+    # The replay archive's listing is served only where its cache and limits
+    # are (server/ember/archive-site/deploy): the archive's own site, or, for
+    # an archive under /archive/ on this host, the snippet its setup.sh
+    # installs, included below. A glob that matches nothing is fine in nginx.
+    location = /v1/archive {
+        return 404;
+    }
+    include /etc/nginx/snippets/@NAME@-archive*.conf;
+
     location / {
         limit_req zone=ember_bridge burst=100 nodelay;
         proxy_pass http://127.0.0.1:@PORT@;

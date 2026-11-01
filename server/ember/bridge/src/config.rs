@@ -521,12 +521,7 @@ impl Config {
             ));
         }
         if let Some(archive) = &self.archive {
-            if url::Url::parse(&archive.endpoint)
-                .ok()
-                .is_none_or(|url| !matches!(url.scheme(), "http" | "https") || url.path() != "/")
-            {
-                return Err("archive.endpoint must be an http(s) origin".into());
-            }
+            crate::s3::origin(&archive.endpoint)?;
             if !archive.public_base.starts_with("https://") || archive.public_base.ends_with('/') {
                 return Err("archive.public_base must be an https URL without a trailing /".into());
             }

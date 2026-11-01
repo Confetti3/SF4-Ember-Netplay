@@ -1,0 +1,12 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReplayRead",
+      "Effect": "Allow",
+      "Principal": { "AWS": ["*"] },
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::@BUCKET@/games/*", "arn:aws:s3:::@BUCKET@/sets/*"]
+    }
+  ]
+}

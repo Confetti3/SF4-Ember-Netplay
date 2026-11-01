@@ -38,6 +38,9 @@ use zeroize::Zeroizing;
 pub struct Bridge {
     loopback: Loopback,
     pub client: Client,
+    /// When it started, by its own clock, which the tests' sets are played
+    /// after (`play::replay_of`).
+    pub started_at: u32,
 }
 
 impl Deref for Bridge {
@@ -89,6 +92,7 @@ impl Bridge {
         )
         .await;
         Self {
+            started_at: loopback.clock.now() as u32,
             loopback,
             client: Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
