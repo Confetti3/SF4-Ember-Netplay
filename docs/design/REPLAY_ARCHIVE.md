@@ -56,11 +56,21 @@ record's.
 
 ## Which game it is
 
-A game is known by the SHA-256 of its replay, the bytes after the record and
-the slot's two bytes. Those two are the saving PC's own (its slot number), so
-both players' copies of one game are one game, and two games whose CRCs
-collide are two. The CRC is only the native name the game is sent under; the
-bridge checks it against the file.
+A game is known by what was played: the SHA-256 of its two fighters and the
+replay from 0x320 on, its round records and input streams
+(`replays::Replay::game`). Both players' PCs save the same game, but each
+writes its own values into the replay's header before 0x320 (the time it was
+played, and fields in each player's block), so the two copies differ there
+and nowhere else. The archive keeps a game once, as the copy that came first,
+under that copy's digest, the SHA-256 of its whole replay (the bytes after
+the record and the slot's two bytes, which hold the saving PC's slot
+number). Two games whose CRCs collide are two. A replay too short to hold a
+round is known by its digest. The CRC is only the native name the game is
+sent under; the bridge checks it against the file.
+
+A game whose two PCs disagreed on a round's starting state (a desync) has
+round records that differ, so its two copies stay two games, each with one
+side named; they do not play back the same.
 
 A copy of a game the archive already holds changes nothing (200), whoever
 sends it and whatever it says, with exceptions below: a set's own players, and
@@ -75,9 +85,9 @@ game's first sender.
   bridge ignores a name for the side that is not the sender's, so an older game
   that sends both names names no opponent. A copy that does not say its side
   names no one. A side with no name yet takes the name a later copy
-  gives it, only from an account other than the first sender, never for the
-  side the first sender said was theirs, and one account names one side;
-  nothing else a later copy says is taken. The archive cannot check that the
+  gives it, and that copy's country with it, only from an account other than
+  the first sender, never for the side the first sender said was theirs, and
+  one account names one side; nothing else a later copy says is taken. The archive cannot check that the
   account played the side it names, so any account with a play session can
   name an empty side of a game it downloaded; this is inherent to a public
   archive. `sent_by` records whose word the first copy is, `sent_side` the
@@ -226,6 +236,17 @@ Both routes go through one admission, in the transaction that keeps the game:
   archive site reaches the bridge on loopback.
 - A set keeps one replay per CRC (`match_replays`), so a CRC collision within
   one set is still one game there.
+
+Migration 054 added `archive_games.game`. Games kept before it have none,
+and both players' copies of a game were kept as two games, each naming its
+own sender's side. The `duplicates::Read` delivery queue reads each such copy
+back from the bucket and folds it into its game (`archive::duplicates`): a
+set's copy, or else the copy that reached the bridge first, is kept, and
+every other online copy names its sides on it by the same rules as a late
+copy, then becomes a `duplicate`, which the listing never shows.
+`duplicates::Remove` deletes a duplicate's file from the bucket, after any
+upload of it still leased is over, and then its row. A set's copy is never
+removed.
 
 Migration 050 rebuilt `archive_games` around the digest. It kept none of the
 games 049 held: a stored one no longer has its replay, so its digest cannot
