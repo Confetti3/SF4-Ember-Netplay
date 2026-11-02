@@ -1,15 +1,15 @@
 # SF4 Ember Netplay v1.5.0
 
-v1.5.0 gives Ember a new look, with a new Home, Settings and room board, and adds Arcade and King of the hill rooms, where players sit at cabinets and the winner stays on. After a room game both players can choose a rematch that starts at once, without going back to the room. Ember's menus can be read aloud, the Steam Deck has its own installer, and Training opens on a select screen for your fighter, the dummy and the stage. Room chat hides swearing on your screen, and crash reports can now carry a small crash dump.
+v1.5.0 gives Ember a new look, with a new Home, Settings and room board, and adds Arcade and King of the hill rooms, where players sit at cabinets and the winner stays on. After a room game both players can choose a rematch that starts at once, without going back to the room. Ember's menus can be read aloud, and Training opens on a select screen for your fighter, the dummy and the stage. Room chat hides swearing on your screen, and crash reports can now carry a small crash dump.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
 ## Updating
 
 - **From 1.4.1 on Windows, update in Ember.** Ember offers the update at launch. Settings, recordings and replays stay.
-- **On Linux and Steam Deck, update from 1.4.1 in Ember too.** From 1.3.x, update with the zip, as for 1.4.0. For a new install on a Steam Deck, the new installer in `docs/guides/STEAM_DECK.md` does the steps for you.
+- **On Linux and Steam Deck, update from 1.4.1 in Ember too.** From 1.3.x, update with the zip, as for 1.4.0.
 - **The zip and setup.exe are on the [release page](https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.5.0)** with their `.sha256` files. Setup now also updates an existing Ember folder, through the same updater Ember uses, so from an older version on Windows you can run `sf4-ember-netplay-1.5.0-setup.exe` over your install. For a new install, use an empty folder.
-- **Everyone in a room needs 1.5.0.** This includes spectators. 1.4.1 and 1.5.0 cannot share a room and say so when they meet.
+- **Everyone in a room needs 1.5.0.** This includes spectators. 1.4.1 and 1.5.0 cannot share a room.
 - **Ember asks again before sending problem reports.** Reports now carry a small crash dump, so the old Send problem reports choice no longer counts. If it was on, Ember asks at your next crash.
 - **Going back to 1.4.1 keeps your settings.** 1.4.1 then asks before sending a problem report, since 1.5.0 retires its setting, and it ignores the export video choices 1.5.0 remembers.
 
@@ -70,7 +70,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ### Steam Deck and Linux
 
-- **A Steam Deck installer.** (FRaccie) It installs Ember into the game's Proton folder without the Windows steps and adds an SF4 Ember Netplay tile next to plain USF4. `docs/guides/STEAM_DECK.md` shows each step, and `docs/guides/LINUX.md` covers installing by hand under Proton on other Linux systems.
+- **Guides for Steam Deck and Linux.** (FRaccie) `docs/guides/STEAM_DECK.md` and `docs/guides/LINUX.md` cover installing Ember under Proton.
 - **Under Wine and Proton the room shows the right link,** Wi-Fi or cable. (FRaccie)
 
 ### Crash reports and updates
