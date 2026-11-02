@@ -962,10 +962,10 @@ msgid "replays.export_set"
 msgstr "Export set videos"
 
 msgid "replays.export_set_detail"
-msgstr "Sets up the first game's video, its caption counting the set so far. Once a video is made, the next game's follows by itself; after a failed one, Next video of the set at the top of Replays goes on."
+msgstr "Sets up the first game's video, its caption counting the set so far. Once a video is made, the next game's follows by itself; after a failed one, Next video at the top of Replays goes on."
 
 msgid "replays.next_video"
-msgstr "Next video of the set ({0} of {1})"
+msgstr "Next video ({0} of {1})"
 
 msgid "replays.next_video_detail"
 msgstr "Sets up this game's video: check its caption, then Generate video."
