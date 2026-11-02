@@ -7,7 +7,11 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::replays::{self, Replay, Sides};
+use ember_protocol::{
+    EmberId,
+    api::ErrorCode,
+    replays::{self, Replay, Sides},
+};
 use rusqlite::{OptionalExtension, Transaction, named_params, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -35,6 +39,9 @@ const SCANNED: i64 = 5000;
 /// `PUT /v1/replays/{crc}?a=&b=&side=&country=`: a player, with their play
 /// session, sends a game's `.emberreplay` for the archive. 201 when it is
 /// new, 200 when the archive already holds it. Off (404) without an archive.
+/// Only a player signed in with Discord shares their games (403
+/// `discord_required` otherwise, which every game takes as final for the
+/// file); a tournament set's games go through the set's own route.
 pub async fn put(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -54,6 +61,7 @@ pub async fn put(
     let admitted = state
         .db
         .write(move |tx| {
+            signed_in_with_discord(tx, &player.ember_id)?;
             archive::admit(
                 tx,
                 now,
@@ -70,6 +78,26 @@ pub async fn put(
         Admission::Refused(refused) => return Err(refused.into()),
     };
     Ok(respond(status, &json!({})))
+}
+
+/// Refuses a player with no Discord account (`discord_required`).
+fn signed_in_with_discord(tx: &Transaction<'_>, player: &EmberId) -> Result<()> {
+    let signed_in = tx
+        .query_row(
+            "SELECT 1 FROM discord_accounts WHERE ember_id = ?1",
+            [player.as_str()],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if signed_in {
+        return Ok(());
+    }
+    Err(ApiFailure::new(
+        ErrorCode::Forbidden,
+        "Sign in with Discord to share replays to the archive.",
+    )
+    .detail("reason", "discord_required"))
 }
 
 #[derive(Deserialize, Default)]

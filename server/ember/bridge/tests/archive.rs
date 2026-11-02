@@ -151,6 +151,10 @@ async fn fixture_with(adjust: impl FnOnce(&mut ember_bridge::Config) + Send + 's
     bridge.open_session(&mut b).await;
     let link_a = bridge.link(&provider, &a, "mock-a", "fighter-a").await;
     let link_b = bridge.link(&provider, &b, "mock-a", "fighter-b").await;
+    // Only a player signed in with Discord shares online games.
+    for (player, account) in [(&a, "41"), (&b, "42")] {
+        common::seed::link_discord(bridge.state(), account, player.id().as_str(), "player").await;
+    }
     Fixture {
         bridge,
         provider,
@@ -558,6 +562,7 @@ async fn a_late_name_cannot_come_from_the_first_sender_or_fill_both_sides() {
     let f = fixture().await;
     let mut c = f.bridge.player(44);
     f.bridge.open_session(&mut c).await;
+    connect(&f, &c, "44").await;
     // The first sender names itself, then resends the game as the other
     // side to name an opponent who shared nothing.
     let one = game(21, [1, 2]);
@@ -824,6 +829,48 @@ async fn folding_waits_for_every_copy_to_be_read() {
     let list = listed(&f, "").await;
     assert_eq!(games(&list).len(), 2);
     assert_eq!(listed_game(&list, &ann)["names"], json!(["Ann", "Bob"]));
+}
+
+/// A player shares online games only while signed in with Discord; a
+/// tournament set's games are archived whoever sends them.
+#[tokio::test]
+async fn only_a_player_signed_in_with_discord_shares_online_games() {
+    let f = fixture().await;
+    disconnect(&f, &f.b).await;
+    let online = game(41, [1, 2]);
+    let crc = replays::crc_name(&online).unwrap();
+    let refused = f
+        .bridge
+        .client
+        .put(f.bridge.url(&format!("/v1/replays/{crc}?a=&b=Bob&side=1")))
+        .bearer_auth(f.b.token())
+        .body(online.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    let body: Json = serde_json::from_slice(&refused.bytes().await.unwrap()).unwrap();
+    let reason = &body["error"]["details"]["reason"];
+    assert_eq!(reason, "discord_required", "{body}");
+    let kept = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
+    assert_eq!(count(&f, kept, &digest(&online)).await, 0);
+    // Nor does a copy of a game the archive holds name their side.
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&online), "a=&b=Bob&side=1").await,
+        StatusCode::FORBIDDEN
+    );
+    // A set's game is archived from either player.
+    let id = set(&f, "discord-set", 1).await;
+    assert_eq!(
+        send_to_set(&f, &f.b, &id, &replay_of(&f.bridge, 1), "side=1").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 2).await;
+    assert_eq!(listed_game(&list, &online)["names"], json!(["Ann", null]));
 }
 
 /// Only a desk event's set has its games archived: the organizer accepted
@@ -1452,8 +1499,20 @@ async fn without_an_archive_nothing_is_taken() {
 }
 
 /// Connects `player` to Discord account `account`.
+/// Signs `player` in with Discord account `account`, in place of the one
+/// they had.
 async fn connect(f: &Fixture, player: &Player, account: &str) {
+    disconnect(f, player).await;
     common::seed::link_discord(f.bridge.state(), account, player.id().as_str(), "player").await;
+}
+
+async fn disconnect(f: &Fixture, player: &Player) {
+    sql(
+        f,
+        "DELETE FROM discord_accounts WHERE ember_id = ?1",
+        vec![player.id().to_string()],
+    )
+    .await;
 }
 
 /// Gives Discord account `account` its ranking choice (`listed` under a

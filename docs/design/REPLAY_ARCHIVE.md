@@ -79,6 +79,11 @@ game's first sender.
 
 ## Who says what
 
+- **Who may share.** Only a player signed in with Discord shares online
+  games: `PUT /v1/replays/{crc}` refuses anyone else with 403 `forbidden`,
+  `details.reason` `discord_required`, which a 1.5.0 game takes as final for
+  that file, so its games are never shared. A tournament set's games go
+  through the set's route and are archived whoever sends them.
 - **Online games.** The first copy to arrive says its sender's side and that
   side's name and country. A name is only ever taken from its own player's
   copy: the game sends its own name alone (the other side empty), and the
