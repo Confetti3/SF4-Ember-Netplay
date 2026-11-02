@@ -10,6 +10,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/InstalledContent.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../common/TrainingStage.hxx"
@@ -518,8 +519,8 @@ bool fTrainingMode::ChangeDummy(int fighter) {
 	if (!mode) return false;
 	TrainingSides sides;
 	for (int i = 0; i < 2; i++) sides.sides[i] = rTrainingMode::GetSelection(mode, i)->conditions;
-	sides.sides[1].charaID = static_cast<BYTE>(fighter);
-	sides.sides[1].costume = sides.sides[1].color = 0;
+	// Training offers every edition, as Training select's dummy does.
+	sf4e::selection::ChangeFighter(sides.sides[1], fighter, true);
 	pendingSides = sides;
 	return true;
 }
