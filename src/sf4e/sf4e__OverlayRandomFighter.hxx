@@ -4,11 +4,12 @@
 #include <string>
 
 // Random on the fighter grid, for the overlay's own pick (docs/design/RANDOM_FIGHTER.md).
+// The runtime owns the roll; the overlay tells it the pick and shows the roll.
 namespace sf4e { namespace overlay {
-// Drawing thread, every frame: rolls `lobby` (its fighter is `lobbyFighter`)
-// when a Random pick asks for it (room::RandomFighterWatch), in the rolled
-// fighter's remembered look under `editionSelect`, and notes the pick for the
-// runtime (NetplayFacade::NoteRandomFighter).
+// Drawing thread, every frame: notes the pick for the runtime
+// (NetplayFacade::NoteRandomFighter), and takes each new roll it publishes
+// into `lobby` (its fighter is `lobbyFighter`) in the rolled fighter's
+// remembered look under `editionSelect`, as choosing it on the grid would.
 void FollowRandomFighter(const NetplayFacade::RuntimeSnapshot& snapshot, const OverlayPrefs::Data& prefs,
                          Dimps::GameEvents::VsMode::ConfirmedCharaConditions& lobby, int& lobbyFighter, bool editionSelect);
 // Training from Home plays the fighter in hand: a Random pick rolls again.

@@ -555,7 +555,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 
 // Validates and applies one command, by its family.
 static DispatchOutcome Dispatch(TypedCommand command, bool helperReady, Attempt attempt) {
-	return std::visit([&](auto& family) { return Handle(family, helperReady, attempt); }, command);
+	return std::visit([&](auto& family) { return Handle(family, helperReady, attempt); }, internal::WithRandomFighter(command));
 }
 
 // A sent Ready completes when the committed seat flag arrives, or when the

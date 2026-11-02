@@ -224,6 +224,9 @@ namespace sf4e {
 			// The fighter the opponent changed to since this player last
 			// readied (-1: none); the sequence changes per change.
 			int opponentChangedFighter = -1;
+			// A Random pick's rolled fighter (-1 before a roll) and the count of rolls.
+			int randomFighter = -1;
+			std::uint64_t randomRoll = 0;
 			std::uint64_t opponentChangeSequence = 0;
 			// Called out of Training: the sequences change when the table is
 			// to be shown and when the player is to be readied, and the
@@ -360,10 +363,14 @@ namespace sf4e {
 		// Any thread: the player is writing a chat draft in room `roomGeneration`
 		// this frame. The runtime tells the room they are typing (Typing).
 		void NoteChatTyping(std::uint64_t roomGeneration);
-		// Any thread, every frame: whether the player's pick is Random, and the
-		// fighter it rolled for the next game. The runtime shows the room each
-		// roll and plays no rematch in place for a Random pick.
-		void NoteRandomFighter(bool random, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& rolled);
+		// Any thread, every frame: whether the player's pick is Random, the pick
+		// as the overlay has it, and the look remembered for each fighter. The
+		// runtime rolls the next game's fighter (RuntimeSnapshot::randomFighter),
+		// sends it with every Ready and plays no rematch in place for it.
+		void NoteRandomFighter(bool random, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& lobby,
+			const std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, selection::FighterCount>& remembered);
+		// Any thread: Training from Home played the rolled fighter; the next roll comes at once.
+		void NoteRandomFighterPlayed();
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
 		// a Room entry, the same session at the main menu and the room's own gate

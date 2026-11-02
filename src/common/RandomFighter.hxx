@@ -6,7 +6,7 @@
 
 namespace sf4e { namespace selection {
 // Random on the fighter grid: the player's pick is a fighter rolled for each
-// game (room::RandomFighterWatch says when), each fighter they may play as
+// game (room::RandomFighterPick owns it), each fighter they may play as
 // likely as any other.
 
 // The fighters a roll may land on: every fighter the player's Steam licences

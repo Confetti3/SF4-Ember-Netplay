@@ -42,19 +42,25 @@ argument, and its tests pass their own.
 
 ## When it rolls
 
-`session/RandomFighterWatch.hxx` decides. The fighter in hand is always one
-not yet played:
+The runtime owns the next game's fighter (`session/RandomFighterPick.hxx`,
+kept by `sf4e__NetplayRuntime__RandomFighter.cxx`); the overlay only tells it
+the pick and the look remembered for each fighter, and shows each roll. The
+fighter in hand is always one not yet played:
 
 - Random rolls when it is chosen, and when it is loaded with the saved picks.
-- It rolls again as soon as each game the player fights at a room table is
-  over: its WIN is on screen, or the room has its result, whichever comes
-  first. A seat taken later finds that fresh roll; sitting down rolls
-  nothing more.
-- In a room whose winners keep their fighters, a game that may end the set
-  waits for the room's result, which says whether the player keeps theirs.
+- It rolls again once each game the player fights at a room table has its
+  result in the room. The keeper rule reads the room's settled state: a
+  winner who now keeps their fighter keeps it. A seat taken later finds that
+  fresh roll; sitting down rolls nothing more.
 - Training from Home plays the fighter in hand; it rolls again after.
   Training from a room's table does not: the player practises the fighter
   they will play.
+- Every Ready and Rematch takes its fighter from the runtime as it is
+  dispatched, fresh or parked. A Rematch pressed over the WIN, before the
+  room has the result, waits parked with the fighter just played; once the
+  battle closes and the result is in, it sends the new roll in that
+  fighter's remembered look. A Ready pressed with the rolled fighter keeps
+  the look it was pressed with.
 
 A seat's fighter reaches the room host only through the pre-battle message
 (`SessionServer::HandleSetChara`), refused while that seat is Ready or the

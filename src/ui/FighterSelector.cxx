@@ -324,7 +324,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    if(randomPool->Toggle(*pooled))changed=true;
   }
   else if(a.id=="random-fighter"&&random){
-   // Chosen, Random rolls its fighter (room::RandomFighterWatch) and the board stays.
+   // Chosen, Random rolls its fighter (room::RandomFighterPick) and the board stays.
    if(!*random&&editable&&!fighterKept){
     *random=true;changed=true;
     if(openOn_=="roster")ForwardMenuAction({MenuAction::Close});
