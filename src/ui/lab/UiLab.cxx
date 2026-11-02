@@ -486,6 +486,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             lab.lengths[0] = 120; lab.lengths[2] = 45; lab.on[0] = true; lab.playable = lab.replyable = 1u;
             // The dummy crouching and blocking everything, as the game reports it.
             lab.dummy.action = 1; lab.dummy.guard = 2; lab.dummy.counterHit = 0; lab.dummy.quickStand = 1; lab.dummy.super = 0; lab.dummy.revenge = 0;
+            // A Combo check half way: a 3-hit combo, Ryu and E. Honda done, Dhalsim next.
+            lab.check.frames = 132; lab.check.hits = 3; lab.check.running = true;
+            lab.check.runs = {{0, false, true, 3}, {0, true, true, 3}, {3, false, true, 2}, {3, true, true, 3}, {7, false}, {7, true}};
             ui::DrawTrainingFlyout(lab, [](const training::Command&) { return true; });
         } else if (playback) {
             // The board's replay: paused at half speed in round 2, the lanes on.

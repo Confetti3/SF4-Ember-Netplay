@@ -8105,3 +8105,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Cabinati {0} e {1}"
+
+msgid "training.combo_check"
+msgstr "Verifica combo"
+
+msgid "training.combo_check.detail"
+msgstr "Esegue la tua combo contro altri lottatori come manichino, in piedi e accovacciati, e mostra quanti colpi sono andati a segno su ciascuno."
+
+msgid "training.combo_check.record"
+msgstr "La tua combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Seleziona, poi esegui la tua combo come giocatore 1. La registrazione termina un secondo dopo l'ultima pressione e conta i colpi andati a segno."
+
+msgid "training.combo_check.recording"
+msgstr "Registrazione"
+
+msgid "training.combo_check.none"
+msgstr "Nessuna"
+
+msgid "training.combo_check.hits"
+msgstr "{0} colpi"
+
+msgid "training.combo_check.start_from"
+msgstr "Partenza"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Dove stanno i due lottatori all'inizio di ogni prova. La distanza resta quella registrata."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Dove eri"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Centro"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Angolo"
+
+msgid "training.combo_check.fighters"
+msgstr "Lottatori manichino"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "I lottatori contro cui viene eseguita la combo. Seleziona per attivarne o disattivarne uno."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} su {1}"
+
+msgid "training.combo_check.all"
+msgstr "Tutti"
+
+msgid "training.combo_check.all.detail"
+msgstr "Attiva tutti i lottatori, o li disattiva tutti se sono tutti attivi."
+
+msgid "training.combo_check.stance"
+msgstr "Posizione"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Se ogni lottatore viene provato in piedi, accovacciato o entrambi."
+
+msgid "training.combo_check.stance.standing"
+msgstr "In piedi"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Accovacciato"
+
+msgid "training.combo_check.stance.both"
+msgstr "Entrambi"
+
+msgid "training.combo_check.speed"
+msgstr "Velocità"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Veloce esegue ogni prova fino a otto volte più rapidamente. Caricare ogni lottatore richiede comunque qualche secondo."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normale"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Veloce"
+
+msgid "training.combo_check.start"
+msgstr "Avvia verifica"
+
+msgid "training.combo_check.start.detail"
+msgstr "Carica a turno ogni lottatore come manichino ed esegue la tua combo. Le impostazioni del manichino tornano alla fine."
+
+msgid "training.combo_check.stop"
+msgstr "Ferma verifica"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Ferma la verifica. I risultati finora restano."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} in piedi"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} accovacciato"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} colpi su {1}"
+
+msgid "training.combo_check.run.waiting"
+msgstr "In attesa"
+
+msgid "training.combo_check.run.landed"
+msgstr "Tutti i colpi a segno."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Non tutti i colpi a segno."

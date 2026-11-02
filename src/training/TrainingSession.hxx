@@ -36,12 +36,12 @@ enum class Mode { Idle, Standby, Recording, Playback };
 // Escape, opening the controls and losing the focus send; it ends whatever
 // the session does when it runs, keeping a recording (TrainingCommands.hxx
 // gives it a place of its own in the queue). SlotOn and PlayOrder change
-// which slots play (RecordingBank.hxx). ComboRecord, ComboTally, ComboLoad
+// which slots play (RecordingBank.hxx). ComboRecord, ComboStart, ComboStop
 // and ComboPlay are Combo check's (ComboCheck.hxx): record Player 1's combo,
-// start counting hits again, load another fighter (slot) as the dummy, and
-// play frames once on Player 1, leaving the slots alone.
+// check it against other dummies (check) or stop that, and play frames once
+// on Player 1, leaving the slots alone (the check's own runs).
 enum class Action { Select, AdvanceRecording, Record, AdvancePlayback, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
-    Interrupt, SlotOn, PlayOrder, ComboRecord, ComboTally, ComboLoad, ComboPlay };
+    Interrupt, SlotOn, PlayOrder, ComboRecord, ComboStart, ComboStop, ComboPlay };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
@@ -347,6 +347,8 @@ struct Command {
     float place[2] = {0, 0};
     // DummyPlan: the whole plan, replacing the one before.
     DummyPlan plan;
+    // ComboStart: the fighters and how they are checked.
+    combo_check::Settings check;
 };
 // The results of the last few commands sent with a request id. Several can
 // be applied in one game frame, and the overlay may read only the frame
@@ -557,9 +559,10 @@ public:
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::ExportSlot: case Action::ComboTally: return true;
-        // Recorded and loaded only while nothing plays and the fight runs.
-        case Action::ComboRecord: case Action::ComboLoad: return view_.ready && view_.mode == Mode::Idle;
+        case Action::Place: case Action::ExportSlot: return true;
+        // Recorded and started only while nothing plays and the fight runs.
+        case Action::ComboRecord: case Action::ComboStart: return view_.ready && view_.mode == Mode::Idle;
+        case Action::ComboStop: Stop(); return true;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         // Standby is dropped and a recording kept, whatever the mode is by the time it runs.
         case Action::Stop: case Action::Interrupt: Stop(); return true;

@@ -86,7 +86,7 @@ int main() {
             seen.playing = false; seen.free = true;
             for (int i = 1; i < SettlePolls; ++i) Require(runner.Next(seen).what == Do::Wait, "The run's end settles");
             Require(runner.Next(seen).what == Do::Finished && !runner.Running(), "The last run done, the check is finished");
-            Require(runner.Runs()[0].done && runner.Runs()[0].hits == 2 && !Landed(runner.Runs()[0], combo), "2 of 3 hits is a miss");
+            Require(runner.Runs()[0].done && runner.Runs()[0].hits == 2 && !Landed(runner.Runs()[0], combo.hits), "2 of 3 hits is a miss");
         }
         {
             Settings settings; settings.fighters = {1, 2, 3};

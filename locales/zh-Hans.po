@@ -8106,3 +8106,111 @@ msgstr "{0} 对 {1}"
 
 msgid "room.matchup_detail"
 msgstr "机台 {0} 和 {1}"
+
+msgid "training.combo_check"
+msgstr "连段检查"
+
+msgid "training.combo_check.detail"
+msgstr "将你的连段以其他角色作为木桩，在站立和下蹲时播放，并显示每个角色被打中了多少下。"
+
+msgid "training.combo_check.record"
+msgstr "你的连段"
+
+msgid "training.combo_check.record.detail"
+msgstr "选择后以1P打出你的连段。最后一次按键一秒后录制结束，并统计命中次数。"
+
+msgid "training.combo_check.recording"
+msgstr "录制中"
+
+msgid "training.combo_check.none"
+msgstr "暂无"
+
+msgid "training.combo_check.hits"
+msgstr "{0}连击"
+
+msgid "training.combo_check.start_from"
+msgstr "起始位置"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "每次开始时两名角色所站的位置。两者间距保持录制时的样子。"
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "录制时的位置"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "中间"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "版边"
+
+msgid "training.combo_check.fighters"
+msgstr "木桩角色"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "你的连段要对其播放的角色。选择可开启或关闭。"
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0}/{1}"
+
+msgid "training.combo_check.all"
+msgstr "全部角色"
+
+msgid "training.combo_check.all.detail"
+msgstr "开启所有角色；若已全部开启则全部关闭。"
+
+msgid "training.combo_check.stance"
+msgstr "姿势"
+
+msgid "training.combo_check.stance.detail"
+msgstr "每个角色以站立、下蹲或两者进行检查。"
+
+msgid "training.combo_check.stance.standing"
+msgstr "站立"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "下蹲"
+
+msgid "training.combo_check.stance.both"
+msgstr "两者"
+
+msgid "training.combo_check.speed"
+msgstr "速度"
+
+msgid "training.combo_check.speed.detail"
+msgstr "快速最多以八倍速度播放每次尝试。载入每个角色仍需几秒。"
+
+msgid "training.combo_check.speed.normal"
+msgstr "普通"
+
+msgid "training.combo_check.speed.fast"
+msgstr "快速"
+
+msgid "training.combo_check.start"
+msgstr "开始检查"
+
+msgid "training.combo_check.start.detail"
+msgstr "依次载入每个角色作为木桩并播放你的连段。检查结束后木桩设置会恢复。"
+
+msgid "training.combo_check.stop"
+msgstr "停止检查"
+
+msgid "training.combo_check.stop.detail"
+msgstr "停止检查。已有结果保留。"
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} 站立"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} 下蹲"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0}/{1}命中"
+
+msgid "training.combo_check.run.waiting"
+msgstr "等待中"
+
+msgid "training.combo_check.run.landed"
+msgstr "全部命中。"
+
+msgid "training.combo_check.run.dropped"
+msgstr "未全部命中。"

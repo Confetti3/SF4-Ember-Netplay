@@ -8105,3 +8105,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaty {0} i {1}"
+
+msgid "training.combo_check"
+msgstr "Test combosa"
+
+msgid "training.combo_check.detail"
+msgstr "Odtwarza twoje combo na innych postaciach jako manekinie, stojących i kucających, i pokazuje, ile ciosów weszło na każdej."
+
+msgid "training.combo_check.record"
+msgstr "Twoje combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Wybierz, potem wykonaj combo jako gracz 1. Nagrywanie kończy się sekundę po ostatnim przycisku i liczy ciosy, które weszły."
+
+msgid "training.combo_check.recording"
+msgstr "Nagrywanie"
+
+msgid "training.combo_check.none"
+msgstr "Brak"
+
+msgid "training.combo_check.hits"
+msgstr "{0} ciosów"
+
+msgid "training.combo_check.start_from"
+msgstr "Start z"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Gdzie stoją obie postacie na początku próby. Odległość między nimi zostaje jak w nagraniu."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Gdzie stałeś"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Środek"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Róg"
+
+msgid "training.combo_check.fighters"
+msgstr "Postacie manekina"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Postacie, na których odtwarzane jest combo. Wybór włącza lub wyłącza jedną."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} z {1}"
+
+msgid "training.combo_check.all"
+msgstr "Wszystkie"
+
+msgid "training.combo_check.all.detail"
+msgstr "Włącza wszystkie postacie, albo wyłącza wszystkie, gdy wszystkie są włączone."
+
+msgid "training.combo_check.stance"
+msgstr "Postawa"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Czy każda postać jest testowana stojąc, kucając czy oba."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Stojąc"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Kucając"
+
+msgid "training.combo_check.stance.both"
+msgstr "Oba"
+
+msgid "training.combo_check.speed"
+msgstr "Szybkość"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Szybko odtwarza każdą próbę do ośmiu razy szybciej. Wczytanie każdej postaci nadal trwa kilka sekund."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normalna"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Szybka"
+
+msgid "training.combo_check.start"
+msgstr "Rozpocznij test"
+
+msgid "training.combo_check.start.detail"
+msgstr "Wczytuje po kolei każdą postać jako manekina i odtwarza na niej twoje combo. Ustawienia manekina wracają po teście."
+
+msgid "training.combo_check.stop"
+msgstr "Zatrzymaj test"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Zatrzymuje test. Dotychczasowe wyniki zostają."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} stojąc"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} kucając"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} z {1} ciosów"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Czeka"
+
+msgid "training.combo_check.run.landed"
+msgstr "Weszły wszystkie ciosy."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Nie weszły wszystkie ciosy."

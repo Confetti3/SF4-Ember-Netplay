@@ -65,16 +65,6 @@ private:
     std::size_t last_ = 0;
 };
 
-// What the runtime reads of the fight for Combo check, published each frame.
-// dummy: the dummy's fighter, -1 unknown. best: HitTally::Best. free: both
-// fighters free. recording: a Recorder is armed. comboId moves on with each
-// recording that ends (the combo itself: TrainingRuntime LastCombo).
-struct FightView {
-    int dummy = -1, best = 0;
-    bool free = false, recording = false;
-    std::uint64_t comboId = 0;
-};
-
 enum class Start { Recorded, Middle, Corner };
 // Where the stage's walls stop a fighter: the scroll limit (5, at 0xaa720c)
 // plus the screen's half width (2.5, at 0xaa7210), each side of x 0, as
@@ -93,6 +83,20 @@ inline std::vector<Run> PlanRuns(const Settings& settings) {
     }
     return runs;
 }
+
+// What the runtime reads of the fight for Combo check, published each frame.
+// dummy: the dummy's fighter, -1 unknown. best: HitTally::Best. free: both
+// fighters free. recording: a Recorder is armed. comboId moves on with each
+// recording that ends (the combo itself: TrainingRuntime LastCombo).
+struct FightView {
+    int dummy = -1, best = 0;
+    bool free = false, recording = false;
+    std::uint64_t comboId = 0;
+    // The last combo's hits and frames as recorded; a check runs, and its runs so far.
+    int hits = 0, frames = 0;
+    bool running = false;
+    std::vector<Run> runs;
+};
 
 // Where both fighters start a run: as recorded, or with the same gap, each on
 // the side it had, around the stage's middle (x 0) or with the dummy on the
@@ -175,6 +179,6 @@ private:
 };
 
 // A run landed every hit the combo landed when it was recorded.
-inline bool Landed(const Run& run, const Combo& combo) { return run.done && combo.hits > 0 && run.hits >= combo.hits; }
+inline bool Landed(const Run& run, int hits) { return run.done && hits > 0 && run.hits >= hits; }
 
 } } }

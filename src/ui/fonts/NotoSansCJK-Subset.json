@@ -5,19 +5,19 @@
     "NotoSansCJKjp-Subset.otf": {
       "sourceSha256": "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5",
       "sha256": "e625d833573223c4995ec2bb7c8aa3927d6df6b11291bd5842d295fde95f04e4",
-      "codepoints": 3591,
+      "codepoints": 3590,
       "bytes": 691440
     },
     "NotoSansCJKkr-Subset.otf": {
       "sourceSha256": "6bcb2a0703aa137e874fc2dffa85f6c21ba9a67fa329e81b8c801663af7e992a",
       "sha256": "06ed583f71c46937aba978d61fa203baeb0be0349aeb15af155899a0585236e2",
-      "codepoints": 3408,
+      "codepoints": 3407,
       "bytes": 372428
     },
     "NotoSansCJKsc-Subset.otf": {
       "sourceSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
       "sha256": "68af91adb6df5798af277cb78251fc67ed89669e96fbc58ae8c87ad8435e289f",
-      "codepoints": 4542,
+      "codepoints": 4541,
       "bytes": 851648
     }
   }

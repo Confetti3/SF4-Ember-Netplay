@@ -11,7 +11,6 @@
 #include "sf4e__AwayAlert.hxx"
 #include "sf4e__Steam.hxx"
 #include "sf4e__SelfTest.hxx"
-#include "sf4e__ComboCheck.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -811,7 +810,6 @@ void TickRuntime() {
 	DrainRoomEvents();
 	TickTournament(helperReady);
 	TickReplays();
-	combo_check::Tick();
 	if (selftest::Running()) selftest::Tick(AtMainMenu(), NativeForegroundName());
 	PersistTerminalOutcome();
 	DrainActionReplies();

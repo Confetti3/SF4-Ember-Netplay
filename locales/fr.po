@@ -8105,3 +8105,111 @@ msgstr "{0} contre {1}"
 
 msgid "room.matchup_detail"
 msgstr "Bornes {0} et {1}"
+
+msgid "training.combo_check"
+msgstr "Vérif. de combo"
+
+msgid "training.combo_check.detail"
+msgstr "Joue ton combo contre d'autres personnages en mannequin, debout et accroupi, et montre combien de coups ont touché sur chacun."
+
+msgid "training.combo_check.record"
+msgstr "Ton combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Sélectionne, puis fais ton combo en joueur 1. L'enregistrement s'arrête une seconde après ta dernière pression et compte les coups qui ont touché."
+
+msgid "training.combo_check.recording"
+msgstr "Enregistrement"
+
+msgid "training.combo_check.none"
+msgstr "Aucun"
+
+msgid "training.combo_check.hits"
+msgstr "{0} coups"
+
+msgid "training.combo_check.start_from"
+msgstr "Départ"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Où se placent les deux personnages au début d'un essai. L'écart entre eux reste celui enregistré."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Où tu étais"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Milieu"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Coin"
+
+msgid "training.combo_check.fighters"
+msgstr "Mannequins"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Les personnages contre qui ton combo est joué. Sélectionner en active ou désactive un."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} sur {1}"
+
+msgid "training.combo_check.all"
+msgstr "Tous"
+
+msgid "training.combo_check.all.detail"
+msgstr "Active tous les personnages, ou les désactive tous s'ils sont tous actifs."
+
+msgid "training.combo_check.stance"
+msgstr "Posture"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Si chaque personnage est testé debout, accroupi ou les deux."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Debout"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Accroupi"
+
+msgid "training.combo_check.stance.both"
+msgstr "Les deux"
+
+msgid "training.combo_check.speed"
+msgstr "Vitesse"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Rapide joue chaque essai jusqu'à huit fois plus vite. Charger chaque personnage prend toujours quelques secondes."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normale"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Rapide"
+
+msgid "training.combo_check.start"
+msgstr "Lancer la vérif."
+
+msgid "training.combo_check.start.detail"
+msgstr "Charge chaque personnage tour à tour en mannequin et joue ton combo dessus. Tes réglages du mannequin reviennent à la fin."
+
+msgid "training.combo_check.stop"
+msgstr "Arrêter la vérif."
+
+msgid "training.combo_check.stop.detail"
+msgstr "Arrête la vérification. Les résultats obtenus restent."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} debout"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} accroupi"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} coups sur {1}"
+
+msgid "training.combo_check.run.waiting"
+msgstr "En attente"
+
+msgid "training.combo_check.run.landed"
+msgstr "Tous les coups ont touché."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Tous les coups n'ont pas touché."

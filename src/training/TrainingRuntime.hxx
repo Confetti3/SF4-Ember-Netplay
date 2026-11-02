@@ -67,11 +67,9 @@ void ShowHitBoxes(bool shown);
 void ShowData(bool shown);
 void CloseBattle();
 void StopCapture();
-// Combo check's Fast: while it is on and the Training fight runs, the battle
-// plays up to FastUpdates updates a frame instead of one. Any thread sets it;
-// Fast is read on the game thread after each update.
+// Combo check's Fast: while a check runs with it and the fight is on, the
+// battle plays up to FastUpdates updates a frame instead of one. Game thread.
 constexpr int FastUpdates = 8;
-void SetFast(bool on);
 bool Fast();
 // The override exists only during one native offline training update.
 bool ReadOverride(int side, Input& result);

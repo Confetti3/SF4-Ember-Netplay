@@ -7738,3 +7738,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Cabinets {0} and {1}"
+
+msgid "training.combo_check"
+msgstr "Combo check"
+
+msgid "training.combo_check.detail"
+msgstr "Plays your combo against other fighters as the dummy, standing and crouching, and shows how many of its hits landed on each."
+
+msgid "training.combo_check.record"
+msgstr "Your combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Select, then do your combo as Player 1. The recording ends one second after your last press and counts the hits that landed."
+
+msgid "training.combo_check.recording"
+msgstr "Recording"
+
+msgid "training.combo_check.none"
+msgstr "None yet"
+
+msgid "training.combo_check.hits"
+msgstr "{0} hits"
+
+msgid "training.combo_check.start_from"
+msgstr "Start from"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Where both fighters stand when a run begins. The gap between them stays as you recorded it."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Where you stood"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Middle"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Corner"
+
+msgid "training.combo_check.fighters"
+msgstr "Dummy fighters"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "The fighters your combo is played against. Select turns one on or off."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} of {1}"
+
+msgid "training.combo_check.all"
+msgstr "All fighters"
+
+msgid "training.combo_check.all.detail"
+msgstr "Turns every fighter on, or every fighter off when all are on."
+
+msgid "training.combo_check.stance"
+msgstr "Stance"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Whether each fighter is checked standing, crouching or both."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Standing"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Crouching"
+
+msgid "training.combo_check.stance.both"
+msgstr "Both"
+
+msgid "training.combo_check.speed"
+msgstr "Speed"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Fast plays each run up to eight times as fast. Loading each fighter still takes a few seconds."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Fast"
+
+msgid "training.combo_check.start"
+msgstr "Start check"
+
+msgid "training.combo_check.start.detail"
+msgstr "Loads each fighter in turn as the dummy and plays your combo on it. Your dummy settings come back when the check ends."
+
+msgid "training.combo_check.stop"
+msgstr "Stop check"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Stops the check. The results so far stay."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} standing"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} crouching"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} of {1} hits"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Waiting"
+
+msgid "training.combo_check.run.landed"
+msgstr "Every hit landed."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Not every hit landed."

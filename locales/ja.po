@@ -8106,3 +8106,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "筐体 {0} と {1}"
+
+msgid "training.combo_check"
+msgstr "コンボチェック"
+
+msgid "training.combo_check.detail"
+msgstr "あなたのコンボを他のキャラクターをダミーにして立ち・しゃがみで再生し、それぞれに何ヒットしたかを表示します。"
+
+msgid "training.combo_check.record"
+msgstr "あなたのコンボ"
+
+msgid "training.combo_check.record.detail"
+msgstr "選んでから1Pでコンボを入れてください。最後の入力から1秒で記録が終わり、当たったヒット数を数えます。"
+
+msgid "training.combo_check.recording"
+msgstr "記録中"
+
+msgid "training.combo_check.none"
+msgstr "まだありません"
+
+msgid "training.combo_check.hits"
+msgstr "{0}ヒット"
+
+msgid "training.combo_check.start_from"
+msgstr "開始位置"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "各回の開始時に両キャラクターが立つ位置。間合いは記録したときのままです。"
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "記録した位置"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "中央"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "画面端"
+
+msgid "training.combo_check.fighters"
+msgstr "ダミーキャラクター"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "コンボを再生する相手。選ぶとオン・オフが切り替わります。"
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0}/{1}"
+
+msgid "training.combo_check.all"
+msgstr "全キャラクター"
+
+msgid "training.combo_check.all.detail"
+msgstr "全キャラクターをオンにします。すべてオンのときは全てオフにします。"
+
+msgid "training.combo_check.stance"
+msgstr "姿勢"
+
+msgid "training.combo_check.stance.detail"
+msgstr "各キャラクターを立ち、しゃがみ、またはその両方でチェックします。"
+
+msgid "training.combo_check.stance.standing"
+msgstr "立ち"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "しゃがみ"
+
+msgid "training.combo_check.stance.both"
+msgstr "両方"
+
+msgid "training.combo_check.speed"
+msgstr "速度"
+
+msgid "training.combo_check.speed.detail"
+msgstr "高速では各回を最大8倍の速さで再生します。キャラクターの読み込みには数秒かかります。"
+
+msgid "training.combo_check.speed.normal"
+msgstr "通常"
+
+msgid "training.combo_check.speed.fast"
+msgstr "高速"
+
+msgid "training.combo_check.start"
+msgstr "チェック開始"
+
+msgid "training.combo_check.start.detail"
+msgstr "各キャラクターを順にダミーとして読み込み、コンボを再生します。ダミーの設定は終了後に元に戻ります。"
+
+msgid "training.combo_check.stop"
+msgstr "チェック停止"
+
+msgid "training.combo_check.stop.detail"
+msgstr "チェックを止めます。それまでの結果は残ります。"
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} 立ち"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} しゃがみ"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0}/{1}ヒット"
+
+msgid "training.combo_check.run.waiting"
+msgstr "待機中"
+
+msgid "training.combo_check.run.landed"
+msgstr "全ヒットしました。"
+
+msgid "training.combo_check.run.dropped"
+msgstr "全ヒットしませんでした。"

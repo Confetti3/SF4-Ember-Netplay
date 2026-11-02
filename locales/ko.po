@@ -8106,3 +8106,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "기체 {0}, {1}"
+
+msgid "training.combo_check"
+msgstr "콤보 체크"
+
+msgid "training.combo_check.detail"
+msgstr "내 콤보를 다른 캐릭터를 더미로 두고 서기와 앉기로 재생해, 각 캐릭터에 몇 히트가 들어갔는지 보여줍니다."
+
+msgid "training.combo_check.record"
+msgstr "내 콤보"
+
+msgid "training.combo_check.record.detail"
+msgstr "선택한 뒤 1P로 콤보를 넣으세요. 마지막 입력 1초 뒤 기록이 끝나고 들어간 히트 수를 셉니다."
+
+msgid "training.combo_check.recording"
+msgstr "기록 중"
+
+msgid "training.combo_check.none"
+msgstr "아직 없음"
+
+msgid "training.combo_check.hits"
+msgstr "{0}히트"
+
+msgid "training.combo_check.start_from"
+msgstr "시작 위치"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "각 회차가 시작될 때 두 캐릭터가 서는 위치. 간격은 기록한 그대로입니다."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "기록한 위치"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "중앙"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "구석"
+
+msgid "training.combo_check.fighters"
+msgstr "더미 캐릭터"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "콤보를 재생할 상대. 선택하면 켜거나 끕니다."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0}/{1}"
+
+msgid "training.combo_check.all"
+msgstr "모든 캐릭터"
+
+msgid "training.combo_check.all.detail"
+msgstr "모든 캐릭터를 켭니다. 모두 켜져 있으면 모두 끕니다."
+
+msgid "training.combo_check.stance"
+msgstr "자세"
+
+msgid "training.combo_check.stance.detail"
+msgstr "각 캐릭터를 서기, 앉기 또는 둘 다로 체크합니다."
+
+msgid "training.combo_check.stance.standing"
+msgstr "서기"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "앉기"
+
+msgid "training.combo_check.stance.both"
+msgstr "둘 다"
+
+msgid "training.combo_check.speed"
+msgstr "속도"
+
+msgid "training.combo_check.speed.detail"
+msgstr "빠름은 각 회차를 최대 8배 빠르게 재생합니다. 캐릭터 로딩에는 여전히 몇 초가 걸립니다."
+
+msgid "training.combo_check.speed.normal"
+msgstr "보통"
+
+msgid "training.combo_check.speed.fast"
+msgstr "빠름"
+
+msgid "training.combo_check.start"
+msgstr "체크 시작"
+
+msgid "training.combo_check.start.detail"
+msgstr "각 캐릭터를 차례로 더미로 불러와 콤보를 재생합니다. 더미 설정은 체크가 끝나면 돌아옵니다."
+
+msgid "training.combo_check.stop"
+msgstr "체크 중지"
+
+msgid "training.combo_check.stop.detail"
+msgstr "체크를 멈춥니다. 지금까지의 결과는 남습니다."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} 서기"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} 앉기"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0}/{1}히트"
+
+msgid "training.combo_check.run.waiting"
+msgstr "대기 중"
+
+msgid "training.combo_check.run.landed"
+msgstr "모든 히트가 들어갔습니다."
+
+msgid "training.combo_check.run.dropped"
+msgstr "모든 히트가 들어가지 않았습니다."

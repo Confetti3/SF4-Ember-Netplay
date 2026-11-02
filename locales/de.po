@@ -8105,3 +8105,111 @@ msgstr "{0} vs. {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaten {0} und {1}"
+
+msgid "training.combo_check"
+msgstr "Combo-Check"
+
+msgid "training.combo_check.detail"
+msgstr "Spielt deine Combo gegen andere Kämpfer als Dummy, stehend und geduckt, und zeigt, wie viele ihrer Treffer jeweils landeten."
+
+msgid "training.combo_check.record"
+msgstr "Deine Combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Auswählen, dann deine Combo als Spieler 1 ausführen. Die Aufnahme endet eine Sekunde nach deinem letzten Druck und zählt die Treffer, die landeten."
+
+msgid "training.combo_check.recording"
+msgstr "Aufnahme"
+
+msgid "training.combo_check.none"
+msgstr "Noch keine"
+
+msgid "training.combo_check.hits"
+msgstr "{0} Treffer"
+
+msgid "training.combo_check.start_from"
+msgstr "Start bei"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Wo beide Kämpfer zu Beginn eines Durchgangs stehen. Der Abstand bleibt wie aufgenommen."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Wo du standest"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Mitte"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Ecke"
+
+msgid "training.combo_check.fighters"
+msgstr "Dummy-Kämpfer"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Die Kämpfer, gegen die deine Combo gespielt wird. Auswählen schaltet einen ein oder aus."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} von {1}"
+
+msgid "training.combo_check.all"
+msgstr "Alle Kämpfer"
+
+msgid "training.combo_check.all.detail"
+msgstr "Schaltet alle Kämpfer ein, oder alle aus, wenn alle an sind."
+
+msgid "training.combo_check.stance"
+msgstr "Haltung"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Ob jeder Kämpfer stehend, geduckt oder beides geprüft wird."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Stehend"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Geduckt"
+
+msgid "training.combo_check.stance.both"
+msgstr "Beides"
+
+msgid "training.combo_check.speed"
+msgstr "Tempo"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Schnell spielt jeden Durchgang bis zu achtmal so schnell. Das Laden jedes Kämpfers dauert trotzdem ein paar Sekunden."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Schnell"
+
+msgid "training.combo_check.start"
+msgstr "Check starten"
+
+msgid "training.combo_check.start.detail"
+msgstr "Lädt jeden Kämpfer nacheinander als Dummy und spielt deine Combo gegen ihn. Deine Dummy-Einstellungen kommen nach dem Check zurück."
+
+msgid "training.combo_check.stop"
+msgstr "Check stoppen"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Stoppt den Check. Die bisherigen Ergebnisse bleiben."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} stehend"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} geduckt"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} von {1} Treffern"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Wartet"
+
+msgid "training.combo_check.run.landed"
+msgstr "Jeder Treffer landete."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Nicht jeder Treffer landete."

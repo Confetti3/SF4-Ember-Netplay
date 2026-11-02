@@ -7644,3 +7644,111 @@ msgstr "{0} vs. {1}"
 
 msgid "room.matchup_detail"
 msgstr "Fliperamas {0} e {1}"
+
+msgid "training.combo_check"
+msgstr "Verificar combo"
+
+msgid "training.combo_check.detail"
+msgstr "Executa seu combo contra outros lutadores como boneco, em pé e agachado, e mostra quantos golpes acertaram em cada um."
+
+msgid "training.combo_check.record"
+msgstr "Seu combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Selecione e faça seu combo como jogador 1. A gravação termina um segundo depois do último botão e conta os golpes que acertaram."
+
+msgid "training.combo_check.recording"
+msgstr "Gravando"
+
+msgid "training.combo_check.none"
+msgstr "Nenhum"
+
+msgid "training.combo_check.hits"
+msgstr "{0} golpes"
+
+msgid "training.combo_check.start_from"
+msgstr "Começar em"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Onde os dois lutadores ficam no início de cada tentativa. A distância entre eles fica como você gravou."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Onde você estava"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Meio"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Canto"
+
+msgid "training.combo_check.fighters"
+msgstr "Lutadores boneco"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Os lutadores contra quem seu combo é executado. Selecionar liga ou desliga um."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} de {1}"
+
+msgid "training.combo_check.all"
+msgstr "Todos"
+
+msgid "training.combo_check.all.detail"
+msgstr "Liga todos os lutadores, ou desliga todos se todos estiverem ligados."
+
+msgid "training.combo_check.stance"
+msgstr "Postura"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Se cada lutador é testado em pé, agachado ou ambos."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Em pé"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Agachado"
+
+msgid "training.combo_check.stance.both"
+msgstr "Ambos"
+
+msgid "training.combo_check.speed"
+msgstr "Velocidade"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Rápido executa cada tentativa até oito vezes mais rápido. Carregar cada lutador ainda leva alguns segundos."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Rápido"
+
+msgid "training.combo_check.start"
+msgstr "Iniciar"
+
+msgid "training.combo_check.start.detail"
+msgstr "Carrega cada lutador por vez como boneco e executa seu combo nele. Suas configurações do boneco voltam no fim."
+
+msgid "training.combo_check.stop"
+msgstr "Parar"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Para a verificação. Os resultados até agora ficam."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} em pé"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} agachado"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} de {1} golpes"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Aguardando"
+
+msgid "training.combo_check.run.landed"
+msgstr "Todos os golpes acertaram."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Nem todos os golpes acertaram."

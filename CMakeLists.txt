@@ -225,7 +225,6 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Overlay.hxx"
     "src/sf4e/sf4e__Overlay.cxx"
     "src/training/TrainingRuntime.cxx"
-    "src/sf4e/sf4e__ComboCheck.cxx"
     "src/training/TrainingCapture.cxx"
     "src/sf4e/sf4e__OverlayPrefs.hxx"
     "src/sf4e/sf4e__OverlayPrefs.cxx"

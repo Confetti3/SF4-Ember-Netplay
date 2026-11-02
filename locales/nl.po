@@ -8105,3 +8105,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Kasten {0} en {1}"
+
+msgid "training.combo_check"
+msgstr "Combocheck"
+
+msgid "training.combo_check.detail"
+msgstr "Speelt je combo tegen andere vechters als dummy, staand en gehurkt, en toont hoeveel van de hits op elk raakten."
+
+msgid "training.combo_check.record"
+msgstr "Je combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Kies dit en doe dan je combo als speler 1. De opname stopt een seconde na je laatste druk en telt de hits die raakten."
+
+msgid "training.combo_check.recording"
+msgstr "Opnemen"
+
+msgid "training.combo_check.none"
+msgstr "Nog geen"
+
+msgid "training.combo_check.hits"
+msgstr "{0} hits"
+
+msgid "training.combo_check.start_from"
+msgstr "Begin vanaf"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Waar beide vechters staan als een poging begint. De afstand tussen hen blijft zoals je hem opnam."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Waar je stond"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Midden"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Hoek"
+
+msgid "training.combo_check.fighters"
+msgstr "Dummyvechters"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "De vechters waartegen je combo gespeeld wordt. Kiezen zet er een aan of uit."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} van {1}"
+
+msgid "training.combo_check.all"
+msgstr "Alle vechters"
+
+msgid "training.combo_check.all.detail"
+msgstr "Zet elke vechter aan, of elke vechter uit als ze allemaal aan staan."
+
+msgid "training.combo_check.stance"
+msgstr "Houding"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Of elke vechter staand, gehurkt of allebei getest wordt."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Staand"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Gehurkt"
+
+msgid "training.combo_check.stance.both"
+msgstr "Allebei"
+
+msgid "training.combo_check.speed"
+msgstr "Snelheid"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Snel speelt elke poging tot acht keer zo snel. Elke vechter laden duurt nog steeds een paar seconden."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normaal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Snel"
+
+msgid "training.combo_check.start"
+msgstr "Check starten"
+
+msgid "training.combo_check.start.detail"
+msgstr "Laadt elke vechter om de beurt als dummy en speelt je combo erop. Je dummy-instellingen komen terug als de check klaar is."
+
+msgid "training.combo_check.stop"
+msgstr "Check stoppen"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Stopt de check. De resultaten tot nu toe blijven."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} staand"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} gehurkt"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} van {1} hits"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Wacht"
+
+msgid "training.combo_check.run.landed"
+msgstr "Elke hit raakte."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Niet elke hit raakte."

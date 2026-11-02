@@ -8105,3 +8105,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaty {0} a {1}"
+
+msgid "training.combo_check"
+msgstr "Kontrola komba"
+
+msgid "training.combo_check.detail"
+msgstr "Přehraje tvé kombo proti dalším bojovníkům jako figuríně, ve stoje i v podřepu, a ukáže, kolik zásahů na každém dopadlo."
+
+msgid "training.combo_check.record"
+msgstr "Tvé kombo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Vyber a pak proveď kombo jako hráč 1. Nahrávání skončí sekundu po posledním stisku a spočítá zásahy, které dopadly."
+
+msgid "training.combo_check.recording"
+msgstr "Nahrávání"
+
+msgid "training.combo_check.none"
+msgstr "Zatím žádné"
+
+msgid "training.combo_check.hits"
+msgstr "{0} zásahů"
+
+msgid "training.combo_check.start_from"
+msgstr "Začít od"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Kde oba bojovníci stojí na začátku pokusu. Vzdálenost mezi nimi zůstane jako v nahrávce."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Kde jsi stál"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Střed"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Roh"
+
+msgid "training.combo_check.fighters"
+msgstr "Bojovníci figuríny"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Bojovníci, proti kterým se kombo přehraje. Výběr jednoho zapne nebo vypne."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} z {1}"
+
+msgid "training.combo_check.all"
+msgstr "Všichni"
+
+msgid "training.combo_check.all.detail"
+msgstr "Zapne všechny bojovníky, nebo všechny vypne, když jsou všichni zapnutí."
+
+msgid "training.combo_check.stance"
+msgstr "Postoj"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Zda se každý bojovník zkouší ve stoje, v podřepu nebo obojí."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Ve stoje"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "V podřepu"
+
+msgid "training.combo_check.stance.both"
+msgstr "Obojí"
+
+msgid "training.combo_check.speed"
+msgstr "Rychlost"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Rychle přehraje každý pokus až osmkrát rychleji. Načtení každého bojovníka i tak trvá pár sekund."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normální"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Rychle"
+
+msgid "training.combo_check.start"
+msgstr "Spustit kontrolu"
+
+msgid "training.combo_check.start.detail"
+msgstr "Načte postupně každého bojovníka jako figurínu a přehraje na něm tvé kombo. Nastavení figuríny se po kontrole vrátí."
+
+msgid "training.combo_check.stop"
+msgstr "Zastavit kontrolu"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Zastaví kontrolu. Dosavadní výsledky zůstanou."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} ve stoje"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} v podřepu"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} z {1} zásahů"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Čeká"
+
+msgid "training.combo_check.run.landed"
+msgstr "Dopadly všechny zásahy."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Nedopadly všechny zásahy."
