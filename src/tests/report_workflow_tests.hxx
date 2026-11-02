@@ -444,10 +444,8 @@ inline void HistoryStore(const std::filesystem::path& root) {
 
 // Send problem reports is saved under the key it took when reports began to
 // carry the small dump. The setting saved before, under the old key, reads as
-// off, so the next crash asks again; Always send writes only the new key. The
-// old key stays, since Stable reads it from the same file until it ships this
-// (BoolPreferences.hxx); that release retires it and flips the check that the
-// saved settings still hold it.
+// off, so the next crash asks again; Always send writes only the new key, and
+// the old key is retired from the file (ObsoleteKeys, Stable 1.5.0).
 inline void Consent(const std::filesystem::path& root) {
     const auto directory = root / L"consent";
     std::filesystem::create_directories(directory);
@@ -459,7 +457,7 @@ inline void Consent(const std::filesystem::path& root) {
     CHECK(TurnReportsOn(directory.wstring()) && ReportsOn(directory.wstring()) == true);
     nlohmann::json saved; std::string error;
     CHECK(sf4e::netplay::SettingsStore(directory.wstring()).LoadLauncher(saved, error));
-    CHECK(saved["sendProblemReportsWithDump"] == true && saved["sendProblemReports"] == true);
+    CHECK(saved["sendProblemReportsWithDump"] == true && !saved.contains("sendProblemReports"));
     // Settings that cannot be read are neither on nor off.
     CHECK(!ReportsOn(L"") && !TurnReportsOn(L""));
 }
