@@ -110,6 +110,8 @@ struct Rows {
 // ivory mark.
 void Timeline(Rows& rows, const FighterData& fighter, const bac::Script& script) {
     const float height = 7 * rows.s;
+    // A measuring pass needs only the timeline's height.
+    if (!rows.draw) { rows.y += height + 7 * rows.s; return; }
     const float x0 = rows.left, x1 = rows.left + rows.width, top = rows.y + 2 * rows.s;
     rows.Rect(ImVec2(x0, top), ImVec2(x1, top + height), Track, 2 * rows.s);
     const float total = static_cast<float>((std::max)(1, script.total));

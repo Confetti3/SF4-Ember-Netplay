@@ -2,6 +2,7 @@
 #include "BacFile.hxx"
 #include "ByteReader.hxx"
 #include "FrameMeter.hxx"
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -82,7 +83,8 @@ inline Juggle JuggleOf(const bac::File& file, int script, float at) {
 // (ClassifyMeter), in runs of one kind: by its own hits, a gap between two
 // recovery; else, with no hit, by the fireball it spawns when that comes out
 // before the script ends, as the runtime reads it. None for a script with
-// neither. Script frames, not the game frames the meter counts.
+// neither. Script frames, not the game frames the meter counts. The cost follows
+// the number of hit and spawn boundaries, not the script's length.
 struct ScriptRun { int from, to; MeterKind kind; };
 inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
     std::vector<ScriptRun> runs;
@@ -91,11 +93,19 @@ inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
     const bool hits = bac::HitPhase(now, 0) >= 0;
     int first = -1, last = -1;
     if (!hits && !(now.hits.empty() && bac::ProjectileBoundary(file, script, first, last) && first < now.total)) return runs;
-    for (int frame = 0; frame < now.total; ++frame) {
-        const float at = static_cast<float>(frame);
+    // The kind changes only where a hitbox or the spawn begins or ends, so each stretch
+    // between two boundaries is read once, at its first frame.
+    std::vector<int> cuts{0, now.total};
+    if (hits) for (const auto& hit : now.hits) { cuts.push_back(hit.first); cuts.push_back(hit.last); }
+    else { cuts.push_back(first); cuts.push_back(last); }
+    for (int& cut : cuts) cut = (std::max)(0, (std::min)(now.total, cut));
+    std::sort(cuts.begin(), cuts.end());
+    cuts.erase(std::unique(cuts.begin(), cuts.end()), cuts.end());
+    for (std::size_t i = 0; i + 1 < cuts.size(); ++i) {
+        const float at = static_cast<float>(cuts[i]);
         const MeterKind kind = hits ? HitPhaseKind(bac::HitPhase(now, at)) : BoundaryKind(at, first, last);
-        if (runs.empty() || runs.back().kind != kind) runs.push_back({frame, frame + 1, kind});
-        else runs.back().to = frame + 1;
+        if (runs.empty() || runs.back().kind != kind) runs.push_back({cuts[i], cuts[i + 1], kind});
+        else runs.back().to = cuts[i + 1];
     }
     return runs;
 }
