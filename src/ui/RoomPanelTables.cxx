@@ -53,10 +53,12 @@ float RoomBoardFrame::HideButton(ImDrawList* d,const MenuEntry& e,ImVec2 corner)
 
 SeatLook SeatLookOf(const ShellView& v,const room::Member& m) {
  const bool own=m.id==v.room.localMember;
- const int picked=own?v.selectedFighter:m.fighter;
+ const int picked=own?v.selectedPick.fighter:m.fighter;
  SeatLook look;look.picked=picked>=0;look.fighter=look.picked?picked:own?v.preferences.mainFighter:m.mainFighter;
  look.random=own&&v.selectedRandom;
- if(look.picked&&picked==m.fighter){look.costume=m.costume;look.color=m.color;look.ultra=m.ultra;}
+ if(!look.picked)return look;
+ if(own){look.costume=v.selectedPick.costume;look.color=v.selectedPick.color;look.ultra=v.selectedPick.ultra;}
+ else{look.costume=m.costume;look.color=m.color;look.ultra=m.ultra;}
  return look;
 }
 FighterArt RoomFighterArt(const netplay::PlayerPreferences& preferences) {

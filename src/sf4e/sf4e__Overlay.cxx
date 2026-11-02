@@ -434,8 +434,8 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (replayWants.detail) sf4e::platform::replays::WantDetail(replayWants.detailFile, replayWants.detailRevision);
     view.replays = snapshot.replays;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
-    view.selectedFighter=lobbyMenuCharaID; view.selectedRandom=s_prefs.lobbyRandom;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
+    view.selectedPick = summaryPick; view.selectedRandom = s_prefs.lobbyRandom;
     view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom),
         sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     const auto* dummy = sf4e::selection::FindFighter(trainingDummy.charaID);

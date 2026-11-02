@@ -1,5 +1,6 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include "../ui/RoomPanelBoard.hxx"
 #include <algorithm>
 #include <iterator>
 #include <map>
@@ -211,7 +212,7 @@ static void RoomBoardJourneys() {
  h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="member-2","Member focus order changed");
  h.view.room.members.pop_back();h.Frame();Check(h.shell.Navigation().Focus()=="room-members","Disappeared member did not choose nearest entry");
  h.view.room.members.push_back(peer);h.Press(MenuInput::Left);h.Screen("room");
- h.view.preferences.mainFighter=8;h.view.selectedFighter=0;
+ h.view.preferences.mainFighter=8;h.view.selectedPick.fighter=0;
  h.view.room.members[1].mainFighter=9;h.view.room.members[1].fighter=2;
  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
  // The Members list shows each member's saved main, not the fighter they battle with.
@@ -220,6 +221,20 @@ static void RoomBoardJourneys() {
  h.Frame();SetPortraitProbe({});
  Check(portraits==std::vector<int>({8,9}),"Member portraits must use saved mains, not battle fighters");
  h.Screen("room");
+ // Your own seat shows your pick's costume, colour and Ultra at once, before
+ // Ready shares them; a Random pick names the fighter it rolled.
+ h.view.selectedPick.costume=1;h.view.selectedPick.color=3;h.view.selectedPick.ultra=1;
+ std::vector<FighterPicture> seats;SetPortraitProbe([&](const FighterPicture& picture,ImVec2,ImVec2){seats.push_back(picture);});
+ h.Frame();SetPortraitProbe({});
+ Check(std::any_of(seats.begin(),seats.end(),[](const FighterPicture& p){return p.fighter==0&&p.art==FighterArt::Character&&p.costume==1&&p.color==3;}),
+  "Your own seat did not show your pick's costume and colour before Ready");
+ const auto ownLook=SeatLookOf(h.view,h.view.room.members[0]);
+ Check(SeatCaption(ownLook)==loc::Tf("room.seat_look",selection::FindFighter(0)->name,ShortCostumeLabel(h.view.selectedPick),UltraLabel(1)),
+  "Your own seat's line did not name your pick's costume and Ultra");
+ h.view.selectedRandom=true;
+ Check(SeatCaption(SeatLookOf(h.view,h.view.room.members[0])).rfind(loc::Tf("selection.random_fighter",selection::FindFighter(0)->name),0)==0,
+  "Your own Random seat did not name the fighter it rolled");
+ h.view.selectedRandom=false;h.view.selectedPick=selection::Pick{};
  h.view.room.tables[0].p1=h.view.room.tables[0].p2=0;
  // A on an empty table opens the seat chooser: P1 left, P2 right, B cancels.
  h.Choose("table-2");Check(h.shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");

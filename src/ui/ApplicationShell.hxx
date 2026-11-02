@@ -3,6 +3,7 @@
 #include "RoomCards.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
@@ -178,8 +179,10 @@ struct ShellView {
     std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
     int trainingReadySeconds = 0;
     bool canTrain = false;
-    int selectedFighter = 0;
-    // The pick is Random: selectedFighter is the fighter it rolled (docs/design/RANDOM_FIGHTER.md).
+    // This PC's own pick, so its seat on the room board shows the fighter,
+    // costume, colour and Ultra at once, before Ready shares them.
+    selection::Pick selectedPick;
+    // The pick is Random: selectedPick is the fighter it rolled (docs/design/RANDOM_FIGHTER.md).
     bool selectedRandom = false;
     // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
     // Ember's menu is open over the fight, and End practice ends the game.
