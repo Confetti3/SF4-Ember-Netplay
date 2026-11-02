@@ -2,13 +2,14 @@
 // Guides (.md) ship rewritten by Get-PackageGuide (scripts/PackageGuide.ps1), not copied.
 SF4E_PACKAGE_REQUIRED("Launcher.exe")
 SF4E_PACKAGE_REQUIRED("Sidecar.dll")
-SF4E_PACKAGE_REQUIRED("speech_relay.py")
 SF4E_PACKAGE_REQUIRED("Updater.exe")
 SF4E_PACKAGE_REQUIRED("sf4-net.exe")
 SF4E_PACKAGE_REQUIRED("ember-discord.exe")
 SF4E_PACKAGE_REQUIRED("discord_partner_sdk.dll")
 SF4E_PACKAGE_REQUIRED("discord-build.json")
 SF4E_PACKAGE_REQUIRED("notices\\Discord-SDK.txt")
+// Embedded in Sidecar.dll since 1.5.0 (a Nightly package had it as a file).
+SF4E_PACKAGE_OBSOLETE("speech_relay.py")
 SF4E_PACKAGE_OBSOLETE("dxwrapper.dll")
 SF4E_PACKAGE_OBSOLETE("dxwrapper.ini")
 SF4E_PACKAGE_OBSOLETE("dxwrapper.License.txt")

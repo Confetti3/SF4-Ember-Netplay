@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # Ember's voice on Linux and the Steam Deck (src/platform/SpeechLinux.hxx).
+# Embedded in Sidecar.dll (cmake/sf4e_speech_relay.cmake), not a package file: Ember writes it to the prefix temp
+# folder as ember-speech-relay.py and runs that copy.
 # Ember starts it on the host once a session with the FIFO to read, and talks
 # to it in lines of tab-separated fields:
 #   SAY <interrupt 0|1> <rate -10..10> <volume 0..100> <language tag> (<key> <text>)...

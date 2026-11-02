@@ -1,6 +1,7 @@
 #include "Speech.hxx"
 #include "SpeechLinux.hxx"
 #include "Utf8.hxx"
+#include "SpeechRelayScript.hxx"
 #include "../common/AwayAlert.hxx"
 #include "../common/Localization.hxx"
 #include <sapi.h>
@@ -65,14 +66,6 @@ std::string UnixPath(const std::wstring& path) {
     HeapFree(GetProcessHeap(), 0, name);
     return result;
 }
-// This DLL's folder, which holds speech_relay.py.
-std::wstring ModuleFolder() {
-    HMODULE module = nullptr;
-    wchar_t path[MAX_PATH] = {};
-    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&Next), &module);
-    const std::wstring file(path, GetModuleFileNameW(module, path, MAX_PATH));
-    return file.substr(0, file.find_last_of(L'\\') + 1);
-}
 
 // The relay on the host (SpeechLinux.hxx). Its FIFO lives in the prefix's
 // temporary folder, which the container and the host both see under the same
@@ -81,7 +74,18 @@ void RunLinux(UnixSpawn spawn) {
     wchar_t folder[MAX_PATH] = {}, bus[512] = {};
     GetTempPathW(MAX_PATH, folder);
     GetEnvironmentVariableW(L"DBUS_SESSION_BUS_ADDRESS", bus, 512);
-    const std::string unixFolder = UnixPath(folder), script = UnixPath(ModuleFolder() + L"speech_relay.py");
+    const std::string unixFolder = UnixPath(folder);
+    // The relay script is embedded in this binary (SpeechRelayScript.hxx), never a package file: an
+    // older updater refuses a package file it does not know. Written beside the tick, anew each run.
+    const std::wstring scriptFile = std::wstring(folder) + L"ember-speech-relay.py";
+    bool scriptWritten = false;
+    const HANDLE scriptHandle = CreateFileW(scriptFile.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    if (scriptHandle != INVALID_HANDLE_VALUE) {
+        DWORD written = 0;
+        scriptWritten = WriteFile(scriptHandle, relayScript, static_cast<DWORD>(sizeof(relayScript) - 1), &written, nullptr) && written == sizeof(relayScript) - 1;
+        CloseHandle(scriptHandle);
+    }
+    const std::string script = scriptWritten && !unixFolder.empty() ? unixFolder + "/ember-speech-relay.py" : std::string();
     // Unique per run: a relay of an earlier run with the same process id may still be leaving.
     const std::string name = "ember-speech-" + std::to_string(GetCurrentProcessId()) + "-" + std::to_string(GetTickCount64());
     const bool container = GetFileAttributesW(L"Z:\\run\\host\\usr\\bin\\busctl") != INVALID_FILE_ATTRIBUTES;

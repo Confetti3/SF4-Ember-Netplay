@@ -118,6 +118,21 @@ function Copy-PackageFile([string]$Source, [string]$Destination) {
     Copy-Item -LiteralPath $Source -Destination $Destination
 }
 
+# The oldest Stable updater still in players' hands. Its launcher validates a downloaded package against its
+# own compiled inventory before it runs any newer Updater.exe, and refuses a file it does not know ("Unexpected
+# package file"). scripts/fixtures/PackageInventory-v1.4.1.inc is that release's src/common/PackageInventory.inc
+# (git show v1.4.1:src/common/PackageInventory.inc). Move the floor only after a Stable that accepts the
+# package's own inventory (1dc44dd40) has replaced 1.4.1 for players, and replace the fixture in the same change.
+$EmberOldestUpdaterInventory = Join-Path $PSScriptRoot 'fixtures/PackageInventory-v1.4.1.inc'
+function Get-EmberNewFilesOldUpdaterRejects([string[]]$NewPaths) {
+    $listed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($match in [regex]::Matches((Get-Content -LiteralPath $EmberOldestUpdaterInventory -Raw), 'SF4E_PACKAGE_(?:REQUIRED|OPTIONAL)\("([^"]+)"\)')) {
+        $null = $listed.Add($match.Groups[1].Value.Replace('\\', '\'))
+    }
+    # Selection art (generated from the catalogs) and glyph/flag art are also accepted by pattern (PackageInventory.hxx).
+    @($NewPaths | Where-Object { !$listed.Contains($_) -and $_ -notmatch '^assets\\selection\\' -and $_ -notmatch '^assets\\input\\[a-z0-9_-]{1,64}\.png$' -and $_ -notmatch '^assets\\flags\\[a-z0-9_-]{1,64}\.(png|json)$' })
+}
+
 # Build and validate a small hash-addressed upgrade between two complete packages.
 # Returns zipPath and folderPath.
 function New-EmberUpgradePackage([Parameter(Mandatory=$true)][string]$FromVersion,
@@ -161,6 +176,8 @@ function New-EmberUpgradePackage([Parameter(Mandatory=$true)][string]$FromVersio
         [Array]::Sort($changed, [StringComparer]::Ordinal)
         [Array]::Sort($removed, [StringComparer]::Ordinal)
         if (!$changed.Count) { throw 'The package manifests contain no upgrade work.' }
+        $rejected = Get-EmberNewFilesOldUpdaterRejects @($changed | Where-Object { !$before.ContainsKey($_) })
+        if ($rejected) { throw "The oldest supported Stable updater (1.4.1) refuses new package files: $($rejected -join ', '). Embed them in a binary instead of shipping a new path." }
         $unchanged = @($after.Keys | Where-Object { $before.ContainsKey($_) -and $before[$_] -ieq $after[$_] }).Count
 
         Copy-Item -LiteralPath $baseManifestPath -Destination (Join-Path $destination 'base-manifest.txt')
