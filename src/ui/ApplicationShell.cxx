@@ -604,7 +604,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
- replays_.Update(v,nav);
+ replays_.Update(v,nav,submit);
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);

@@ -9,7 +9,7 @@
 #include <vector>
 namespace {
 template<class Draw,class Page>
-void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
+void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page,std::vector<std::string>& exportsStarted) {
     using namespace sf4e;using namespace ui;
     page("replays");replayinputs::Summary said;said.scored=true;said.score[0]=2;said.score[1]=1;said.rounds=3;said.frames=131*60;
     said.players[0]={1,2,9,-1,1,0};said.players[1]={2,0,0,-1,0,0};
@@ -38,6 +38,17 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     shell.Navigation().Focus("set:a",rows);draw(nullptr,MenuInput::Select,1);draw();draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Select,1);draw("replay-set");
     Require(shell.Navigation().Screen()=="replay-set"&&rows.size()==2&&rows[0].id=="replay:e"&&rows[1].id=="replay:a","Pick a game did not list the set's games");
     draw(nullptr,MenuInput::Back,1);draw();
+    // Export set videos: the first game's caption is set up and sent by hand; once its video is saved the next game's export follows by itself.
+    shell.Navigation().Focus("set:a",rows);draw(nullptr,MenuInput::Select,1);draw();
+    for(int i=0;i<2;++i){draw(nullptr,MenuInput::Right,1);draw();}
+    draw(nullptr,MenuInput::Select,1);draw();
+    Require(shell.Navigation().Screen()=="replay-export","Export set videos did not open the first game's caption");
+    shell.Navigation().Focus("cap-generate",rows);draw(nullptr,MenuInput::Select,1);draw();
+    Require(exportsStarted==std::vector<std::string>{"e"},"Generate did not send the set's first game");
+    view.replays.videos=1;draw();draw();
+    Require(exportsStarted==(std::vector<std::string>{"e","a set 0-1"}),"The set's next video did not follow the one made with the set so far");
+    view.replays.videos=2;draw();draw();
+    Require(exportsStarted.size()==2,"A set with no game left sent another export");
     page("replays");
     shell.Navigation().Focus("replay:a",rows);
     draw(nullptr,MenuInput::Select,1);draw("replay-choices");

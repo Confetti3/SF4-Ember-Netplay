@@ -41,9 +41,10 @@ public:
     Wants Wanted(const std::string& screen) const;
     // Every frame, before the rows: a new replay link takes the menu to its
     // question, only with no room open; in a room it waits until it is left.
-    // Tournaments (replay-sets) lists the sets the archive holds, and a set's
-    // own screen (replay-set) its games (platform/ReplaySets.hxx).
-    void Update(const ShellView& view, MenuNavigation& navigation);
+    // Once a set's video is made, the set's next game is exported by itself.
+    // Sets (replay-sets) lists the sets the archive holds, and a set's own
+    // screen (replay-set) its games (platform/ReplaySets.hxx).
+    void Update(const ShellView& view, MenuNavigation& navigation, const Submit& submit);
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
     // when a request could not be queued.
@@ -75,6 +76,7 @@ private:
     void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
     void OpenExport(const ShellView& view, const platform::replays::ArchivedReplay& replay);
     void NextVideo(const ShellView& view, MenuNavigation& nav);
+    bool Generate(const ShellView& view, const Submit& submit);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
     // drawing the screen never reads, parses or counts the replay.
@@ -102,8 +104,10 @@ private:
     // game row on Replays, and how many the set has.
     std::vector<std::string> setQueue_;
     std::size_t setGames_ = 0;
-    // The queue makes videos (set-export), not watches.
+    // The queue makes videos (set-export), not watches: the videos saved
+    // when its last one was sent, so the next game follows the one made.
     bool setExport_ = false;
+    std::uint64_t videosSeen_ = 0;
     // The set whose games replay-set lists.
     std::string setShown_;
     // A set pack was last asked for here (Save set pack, a pack link's Import):

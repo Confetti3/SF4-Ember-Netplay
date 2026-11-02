@@ -63,11 +63,18 @@ ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
  if(screen=="replay-inputs"){wants.detail=true;wants.detailFile=inputsFile_;wants.detailRevision=inputsRevision_;}
  return wants;
 }
-void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav) {
+void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav,const Submit& submit) {
  sets_=v.replays.archive?platform::replays::Sets(*v.replays.archive):std::vector<Set>{};
  // In a room the menu is the room's: the link waits until it is left.
  const auto& link=v.replays.link;
  if(link!=linkSeen_&&(link.empty()||v.session.room==netplay::RoomState::Idle)){linkSeen_=link;if(!link.empty()&&nav.Screen()!="replays")Show(nav);}
+ // Export set videos: a video made sends the next game's export with the
+ // same caption parts, its set counted so far, once the game is back at
+ // its menu. A video that failed leaves the Next video row to go on from.
+ if(setExport_&&!setQueue_.empty()&&v.replays.videos!=videosSeen_&&v.replays.ready&&v.session.room==netplay::RoomState::Idle){
+  videosSeen_=v.replays.videos;
+  if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,*shown);if(Generate(v,submit))setQueue_.erase(setQueue_.begin());}
+ }
 }
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
@@ -236,6 +243,11 @@ void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,c
  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
  if(!submit(std::move(r)))error=loc::T("error.queue_failed");
 }
+// Sends the export set up: the replay, its caption and the frame meter row.
+bool ReplaysPanel::Generate(const ShellView& v,const Submit& submit) {
+ ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;
+ return submit(std::move(r));
+}
 bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigation& nav,const Submit& submit,std::string& error) {
  // Any other request from these screens takes the status line back from Show in folder.
  if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=false;
@@ -245,8 +257,7 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigatio
   return true;
  }
  if(a.id=="cap-generate"){
-  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;
-  if(!submit(std::move(r)))error=loc::T("error.queue_failed");else nav.Return();
+  if(!Generate(v,submit))error=loc::T("error.queue_failed");else nav.Return();
   return true;
  }
  if(a.id=="export-cancel"){
@@ -291,7 +302,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
    }else if(a.text=="set-export"){
     // The first game's caption now; each next one from the Next video row on Replays.
     setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
-    setGames_=setQueue_.size();setExport_=true;
+    setGames_=setQueue_.size();setExport_=true;videosSeen_=v.replays.videos;
     NextVideo(v,nav);
    }else if(a.text=="set-watch"&&v.replays.ready){
     // The first game now; each next one from the Next game row on Replays, where the log comes back to.

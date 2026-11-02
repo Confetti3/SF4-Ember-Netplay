@@ -962,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Setvideo's exporteren"
 
 msgid "replays.export_set_detail"
-msgstr "Zet om de beurt een video van elke game klaar, met een onderschrift dat de set tot dan telt. Is er één gemaakt, dan zet Volgende video van de set bovenaan Replays de volgende klaar."
+msgstr "Zet de video van de eerste wedstrijd klaar, met het bijschrift dat de set tot dan telt. Als een video klaar is, volgt die van de volgende wedstrijd vanzelf; na een mislukte gaat Volgende video van de set bovenaan Replays verder."
 
 msgid "replays.next_video"
 msgstr "Volgende video van de set ({0} van {1})"

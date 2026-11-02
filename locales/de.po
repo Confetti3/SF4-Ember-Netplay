@@ -962,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Set-Videos exportieren"
 
 msgid "replays.export_set_detail"
-msgstr "Bereitet nacheinander ein Video jedes Spiels vor, die Beschriftung zählt den bisherigen Set-Stand. Ist eines fertig, bereitet Nächstes Video des Sets oben in Replays das nächste vor."
+msgstr "Richtet das Video des ersten Matches ein, die Beschriftung zählt den Satz bis dahin. Ist ein Video fertig, folgt das des nächsten Matches von selbst; nach einem fehlgeschlagenen geht Nächstes Video des Satzes oben in Replays weiter."
 
 msgid "replays.next_video"
 msgstr "Nächstes Video des Sets ({0} von {1})"

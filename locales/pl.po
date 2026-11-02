@@ -962,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Eksportuj wideo setu"
 
 msgid "replays.export_set_detail"
-msgstr "Po kolei przygotowuje wideo każdej gry, z podpisem liczącym dotychczasowy wynik setu. Gdy jedno jest gotowe, Następne wideo setu na górze Powtórek przygotuje kolejne."
+msgstr "Przygotowuje wideo pierwszego meczu z podpisem liczącym set do tej pory. Gdy wideo jest gotowe, wideo następnego meczu następuje samo; po nieudanym Następne wideo setu u góry Replayów kontynuuje."
 
 msgid "replays.next_video"
 msgstr "Następne wideo setu ({0} z {1})"

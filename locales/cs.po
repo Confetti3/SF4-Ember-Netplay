@@ -962,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Exportovat videa setu"
 
 msgid "replays.export_set_detail"
-msgstr "Postupně připraví video každé hry, s popiskem, který počítá dosavadní stav setu. Až je jedno hotové, další připraví Další video setu nahoře v Záznamech."
+msgstr "Připraví video první hry s titulkem počítajícím set do té chvíle. Jakmile je video hotové, video další hry následuje samo; po neúspěšném pokračuje Další video setu nahoře v Záznamech."
 
 msgid "replays.next_video"
 msgstr "Další video setu ({0} z {1})"

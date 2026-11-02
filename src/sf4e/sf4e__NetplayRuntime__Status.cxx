@@ -625,6 +625,7 @@ PostPublishState Publish() {
 	snapshot.replays.meterShown = snapshot.replays.playback.playback && snapshot.replays.playback.meter;
 	if (snapshot.replays.playback.playback) snapshot.replays.lanes = replayplayback::GetLanes();
 	snapshot.replays.exportStage = replays.exportStage; snapshot.replays.exportFrames = replays.exportFrames; snapshot.replays.exportTotal = replays.exportTotal;
+	snapshot.replays.videos = replays.videos;
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.replays.detail = platform::replays::LatestDetail();

@@ -962,7 +962,7 @@ msgid "replays.export_set"
 msgstr "导出对局视频"
 
 msgid "replays.export_set_detail"
-msgstr "依次为每一局准备视频，字幕会显示到该局为止的比分。一个完成后，回放顶部的“对局下一个视频”会准备下一个。"
+msgstr "设置第一场对战的视频，字幕显示到目前为止的局分。一个视频完成后，下一场对战的视频会自动继续；若有失败，可从回放顶部的“本局的下一个视频”继续。"
 
 msgid "replays.next_video"
 msgstr "对局下一个视频（{0}/{1}）"

@@ -962,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Exportar videos del set"
 
 msgid "replays.export_set_detail"
-msgstr "Prepara un video de cada partida por turno, con un texto que cuenta el set hasta ese momento. Cuando uno esté listo, Siguiente video del set, arriba en Repeticiones, prepara el siguiente."
+msgstr "Prepara el video de la primera partida, con el subtítulo contando el set hasta ahí. Cuando se hace un video, el de la siguiente partida sigue solo; tras uno fallido, Siguiente video del set arriba en Replays continúa."
 
 msgid "replays.next_video"
 msgstr "Siguiente video del set ({0} de {1})"
