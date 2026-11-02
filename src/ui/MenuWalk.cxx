@@ -61,10 +61,11 @@ unsigned MenuWalk::Frame(const MenuNavigation& nav, const Say& say) {
         if (Matches(nav.Focus(), s.focus)) { seeking_ = false; frames_ = 0; from_ = nav.Screen(); return Press(B::Select); }
         if (++presses_ > 60) return Fail(std::string("no row ") + s.focus + " on " + nav.Screen(), say);
         // Down walks the column, then Up from where it stopped; then the next tab, or on a
-        // room's board the next column (Right on a setting would change it).
+        // room's board the next column (Right on a setting would change it), and then the
+        // next tab: a narrow board shows Members and Chat behind RB, not to the right.
         const std::string at = nav.Screen() + "/" + nav.Focus();
         const bool board = nav.Screen().compare(0, 4, "room") == 0;
-        if (at == before_) direction_ = direction_ == B::Down ? B::Up : direction_ != B::Up ? B::Down : board ? B::Right : B::NextTab;
+        if (at == before_) direction_ = direction_ == B::Down ? B::Up : direction_ == B::Up ? (board ? B::Right : B::NextTab) : direction_ == B::Right ? B::NextTab : B::Down;
         else if (direction_ != B::Up) direction_ = B::Down;
         before_ = at;
         return Press(direction_);
