@@ -13,8 +13,9 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
     if (training.available && view.trainingHud && !view.nativePaused) DrawTrainingBoxes(training);
     if (passive && view.focused && training.available && view.trainingHud) {
         DrawTrainingRoomStatus(view.trainingRoom);
-        DrawTrainingData(training);
+        // The Data panel goes where the HUD leaves room.
         hud = DrawTrainingHud(training, view.challenger.called);
+        DrawTrainingData(training, hud.area);
         if (hud.open) passive = false;
     }
     const auto hint = [](const char* name, const char* text, float top, float alpha = 1) {

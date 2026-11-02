@@ -462,22 +462,40 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 if(!side){f.charges[0]={0,training::ChargeBack,50,45};f.charges[1]={1,training::ChargeDown,55,55};f.chargeCount=2;}
             }
             const auto savedData=training.data;training.data=data;training.meter=runs;
-            for(int fighters=0;fighters<training::DataFighters;++fighters){
-                training::MeterOptions shown;shown.data=true;shown.dataFighters=static_cast<training::DataFighter>(fighters);SetTrainingMeterOptions(shown);
-                draw(fighters==0?"training-data-both":fighters==1?"training-data-p1":"training-data-p2");
-                const auto* meterWindow=FindWindow("Training frame meter");const auto* strip=FindWindow("Training shortcuts");
+            // Every HUD size here; then Large at 1280x800, where there is no room beside the
+            // meter, with every charge row and the input displays on, and the meter moved up.
+            const ImVec2 screen=io.DisplaySize;
+            const auto check=[&](const training::MeterOptions& shown,const char* shot){
+                SetTrainingMeterOptions(shown);draw(shot);
+                const float w=io.DisplaySize.x,h=io.DisplaySize.y;
+                std::vector<const ImGuiWindow*> hud{FindWindow("Training frame meter"),FindWindow("Training shortcuts")};
+                if(shown.inputs!=training::InputDisplay::Off)for(const char* name:InputDisplayWindows)hud.push_back(FindWindow(name));
                 for(int side=0;side<2;++side){
                     const char* name=side?"Training data P2":"Training data P1";
-                    const bool expected=fighters==0||fighters==side+1;
+                    const bool expected=shown.dataFighters==training::DataFighter::Both||static_cast<int>(shown.dataFighters)==side+1;
                     Require(WindowDrawn(name)==expected,"The Data panel was drawn for the wrong fighter");
                     if(!expected)continue;
                     const auto* panel=FindWindow(name);
-                    Require(panel->Pos.x>=0&&panel->Pos.x+panel->Size.x<=size.w+1&&panel->Pos.y>=0&&panel->Pos.y+panel->Size.y<=size.h+1,"The Data panel left the screen");
-                    for(const auto* hud:{meterWindow,strip}){
-                        const bool apart=panel->Pos.y+panel->Size.y<=hud->Pos.y+1||panel->Pos.x+panel->Size.x<=hud->Pos.x+1||hud->Pos.x+hud->Size.x<=panel->Pos.x+1;
-                        Require(apart,"The Data panel covered the frame meter or its shortcuts");
+                    Require(panel->Pos.x>=0&&panel->Pos.x+panel->Size.x<=w+1&&panel->Pos.y>=0&&panel->Pos.y+panel->Size.y<=h+1,"The Data panel left the screen");
+                    for(const auto* other:hud){
+                        const bool apart=panel->Pos.y+panel->Size.y<=other->Pos.y+1||other->Pos.y+other->Size.y<=panel->Pos.y+1||
+                            panel->Pos.x+panel->Size.x<=other->Pos.x+1||other->Pos.x+other->Size.x<=panel->Pos.x+1;
+                        Require(apart,"The Data panel covered the frame meter, its shortcuts or an input display");
                     }
                 }
+            };
+            for(int fighters=0;fighters<training::DataFighters;++fighters)for(int hudSize=0;hudSize<training::HudSizes;++hudSize){
+                training::MeterOptions shown;shown.data=true;shown.dataFighters=static_cast<training::DataFighter>(fighters);shown.size=hudSize;
+                check(shown,hudSize!=1?nullptr:fighters==0?"training-data-both":fighters==1?"training-data-p1":"training-data-p2");
+            }
+            {
+                for(auto& f:training.data.fighters){f.chargeCount=training::MaxCharges;for(std::size_t i=0;i<training::MaxCharges;++i)f.charges[i]={i%2,training::ChargeBack,60,static_cast<int>(i*8)};}
+                io.DisplaySize=ImVec2(1280,800);
+                training::MeterOptions shown;shown.data=true;shown.size=2;
+                check(shown,"training-data-large-1280x800");
+                shown.inputs=training::InputDisplay::Both;check(shown,nullptr);
+                for(const int position:training::MeterPositions){shown.position=position;check(shown,position==40?"training-data-large-1280x800-meter-40":nullptr);}
+                io.DisplaySize=screen;training.data=data;
             }
             // Off, or before the game has read anything, it is not drawn.
             SetTrainingMeterOptions({});draw();

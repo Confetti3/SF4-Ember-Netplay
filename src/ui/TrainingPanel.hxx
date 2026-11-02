@@ -98,10 +98,24 @@ constexpr float TrainingRoomStatusTop = .26f;
 // Where a member waiting in Training stands in their room, on one muted line.
 // Passive: takes no input.
 void DrawTrainingRoomStatus(const TrainingRoomStatus& status);
+// The screen the training HUD's windows cover: the meter, the shortcut strip
+// over it and the input displays beside it, in the viewport's pixels. An area
+// with no width covers nothing.
+struct TrainingHudArea {
+    float left = 0, top = 0, right = 0, bottom = 0;
+    // Grows to cover other too.
+    void Cover(const TrainingHudArea& other) {
+        if (other.right <= other.left) return;
+        if (right <= left) { *this = other; return; }
+        left = left < other.left ? left : other.left; top = top < other.top ? top : other.top;
+        right = right > other.right ? right : other.right; bottom = bottom > other.bottom ? bottom : other.bottom;
+    }
+};
 // Passive, except for the chip that opens the controls.
 // pointer: the pointer is over the chip, so the overlay takes
-// the mouse (only) from the game.
-struct TrainingHudInput { bool open = false, pointer = false; };
+// the mouse (only) from the game. area: what the HUD drew, which the Data
+// panel keeps clear of.
+struct TrainingHudInput { bool open = false, pointer = false; TrainingHudArea area; };
 // Bottom edge of the frame meter as a fraction of the viewport height: just
 // above the game's super meters, where MeterOptions::position puts it by
 // default, or where the player moved it. What sits under the meter (the keys
@@ -122,7 +136,8 @@ constexpr float TrainingHudBackground = .62f;
 // not drawn then.
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false);
 // The strip of keys over the meter (TrainingShortcuts.cxx): its left edge at
-// left, its bottom just above meterTop, and no wider than width.
+// left, its bottom just above meterTop, and no wider than width. The result's
+// area is the strip's.
 TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, float left, float meterTop, float width, float hudScale);
 // What the HUD's shortcut strip drew in its last call, for the render tests:
 // its text height in pixels, the width its line took and the width it had,
@@ -135,8 +150,9 @@ const TrainingStripShown& LastTrainingStrip();
 constexpr const char* FrameMeterWindow = "Training frame meter";
 // The fighters' boxes over the fight, when Hitboxes on the lab's HUD page is on.
 void DrawTrainingBoxes(const training::View& view);
-// The Data panel (TrainingData.cxx), while it is on and the game has read it.
-void DrawTrainingData(const training::View& view);
+// The Data panel (TrainingData.cxx), while it is on and the game has read it,
+// clear of the HUD's area (DrawTrainingHud).
+void DrawTrainingData(const training::View& view, const TrainingHudArea& hud);
 // The frame meter alone, over a rollback match the runtime is watching.
 void DrawMatchMeter(const training::View& view);
 // Over a fight Ember's menu opens over (input::MenuOverFight): the lines that
