@@ -28,6 +28,7 @@ Noted noted;
 room::RandomFighterPick pick;
 std::mt19937 rolls{std::random_device{}()};
 std::uint64_t shownAtMs = 0;
+std::function<int()> rollForTest;
 
 Noted Take() {
 	std::lock_guard<std::mutex> lock(notedMutex);
@@ -75,6 +76,7 @@ void TickRandomFighter() {
 	const bool inRoom = runtime->attached && UserApp::netplay;
 	const auto& room = inRoom ? UserApp::netplay->client.GetRoomSnapshot() : noRoom;
 	pick.Update(from.random, room, [] {
+		if (rollForTest) return rollForTest();
 		const bool editionSelect = CurrentGates().editionSelect;
 		return selection::DrawFighter(selection::RandomCandidates(
 			[](int id) { return Dimps::Selection::ReadAvailability(id); }, editionSelect),
@@ -91,6 +93,8 @@ void TickRandomFighter() {
 	if (client.PreBattle_SetChara(Sent(from, from.lobby)) == session::SendResult::Queued)
 		spdlog::info("Room: shows the Random roll, fighter {}", pick.Fighter());
 }
+
+void SetRandomFighterRollForTest(std::function<int()> roll) { rollForTest = std::move(roll); }
 
 TypedCommand& WithRandomFighter(TypedCommand& command) {
 	auto* ready = std::get_if<commands::Room>(&command);

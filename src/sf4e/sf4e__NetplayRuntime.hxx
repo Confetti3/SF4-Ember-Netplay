@@ -632,6 +632,9 @@ RandomFighterRoll CurrentRandomFighter();
 // A Ready or Rematch of a Random pick takes the rolled fighter as it is
 // dispatched, fresh or parked; every other command is left as it is.
 TypedCommand& WithRandomFighter(TypedCommand& command);
+// Tests only: the roll draws from `roll` instead of a random engine; an empty
+// one restores the engine.
+void SetRandomFighterRollForTest(std::function<int()> roll);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

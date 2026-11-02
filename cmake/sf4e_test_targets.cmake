@@ -207,6 +207,7 @@ sf4e_add_unit_test(NAME HttpUpdateMetadata SOURCES "src/tests/http_update_metada
 sf4e_add_unit_test(NAME SessionClientTransport SOURCES "src/tests/session_client_transport_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)
 sf4e_add_unit_test(NAME IrohMatchSession SOURCES "src/tests/iroh_match_session_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)
 sf4e_add_unit_test(NAME SpectatorRuntime SOURCES "src/tests/spectator_runtime_test.cxx" STD 17 LIBS Session sf4e sf4e_localization Dimps "d3d9" LOCKS ember_runtime LABELS room)
+sf4e_add_unit_test(NAME RandomFighterRuntime SOURCES "src/tests/random_fighter_runtime_test.cxx" STD 17 LIBS Session sf4e sf4e_localization Dimps "d3d9" LOCKS ember_runtime LABELS room)
 sf4e_add_unit_test(NAME MatchProblem SOURCES "src/tests/match_problem_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
 add_executable(AbortNoticeTest "src/tests/abort_notice_test.cxx")
 target_compile_features(AbortNoticeTest PRIVATE cxx_std_17)
