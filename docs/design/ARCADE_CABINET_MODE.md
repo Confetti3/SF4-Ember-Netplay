@@ -104,7 +104,18 @@ room type but a tournament's.
 - While following, the board's action bar says Stop following with the table
   followed, and the watched picture's chip says Following the room. A
   follower never locks in, so it never holds a start; a member locked in
-  releases the lock-in first.
+  releases the lock-in first, and a lock-in that lands after following
+  started (pressed on an older snapshot) ends following, with Release
+  lock-in back in the table's options.
+- It goes on while Ember is hidden (F10), as streamers hide it to show the
+  games: ApplicationShell::Background runs it too, with the room and the
+  watched game, and the overlay sends its room actions from there.
+- The member's own watching comes first. Every Watch and Unwatch sent, the
+  member's or following's, is one watching intent (NoteWatching), and the
+  frame's presses are taken before following decides. Stop watching ends
+  following at once; if a move was still on its way, the room may take that
+  Watch before the Unwatch, so the table it landed at is left once the room
+  shows the member there. A Watch the member chooses afterwards stands.
 - When the watched table has no game Playing or Ready, and some other table
   is Playing, it moves to the lowest-numbered such table that takes another
   spectator and whose last game is not still closing. Every client chooses
@@ -124,8 +135,10 @@ room type but a tournament's.
   table, a game over, a game still closing). Nothing moves while this PC
   still shows a watched game or the room cannot take an action.
 - room::RoomFollow (session/RoomFollow.hxx) decides from each snapshot;
-  ApplicationShell::UpdateFollow sends its Watch and FollowRow draws the
-  row. The RoomFollow test (room_follow_test.cxx) covers each rule.
+  ApplicationShell::UpdateFollow sends its step and FollowRow draws the
+  row. The RoomFollow test (room_follow_test.cxx) covers each rule, and the
+  follow journeys (shell_follow_journey_test.cxx) the drawn and hidden shell,
+  a late lock-in and a Stop watching that races a move.
 
 ## Open
 

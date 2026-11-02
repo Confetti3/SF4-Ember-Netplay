@@ -260,8 +260,11 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     ShellAction request;
     request.command.kind = netplay::CommandKind::RoomAction;
     request.command.generation = view.session.generation;
+    // Sent, it is the member's watching intent, before the room answers.
+    const auto sent = action;
     request.roomAction = std::move(action);
     if (!submit(std::move(request))) { error_ = loc::T("error.queue_failed"); return false; }
+    NoteWatching(sent);
     error_.clear(); return true;
 }
 
@@ -728,6 +731,7 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
  }
  ShellAction request;request.command.generation=v.session.generation;request.leaveWatchedGame=v.watchedGame;
  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
+ follow_.StoppedWatching();
  error_.clear();
  return true;
 }

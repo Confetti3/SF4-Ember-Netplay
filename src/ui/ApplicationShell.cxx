@@ -520,6 +520,8 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
+ // Following goes on while Ember is hidden: a streamer hides it to show the games.
+ UpdateFollow(v,ImGui::GetTime(),submit);
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
@@ -585,7 +587,6 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePostMatch(v,v.room,now,submit,open);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
- UpdateFollow(v,now,submit);
  UpdateChat(v,submit);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);
@@ -691,6 +692,9 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  menu_.backInert=false;menu_.ownsBack=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
  const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom);
  ImGui::End();ImGui::PopStyleVar(2);
+ // After the frame's presses, so a Stop watching or a seat taken this frame
+ // comes before any move following would make.
+ UpdateFollow(v,now,submit);
  // Every screen's frame ends here, the embedded ones' too: a toast said on
  // any of them shows at once, and one asked for is answered.
  AnswerToast(now);

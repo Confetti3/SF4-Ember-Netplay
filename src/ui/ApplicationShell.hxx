@@ -360,9 +360,9 @@ public:
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
-    // must still finish, with only the session, identity and room notices of
-    // `view` read, and `room` taken into the chat transcript as a drawn frame
-    // takes it.
+    // must still finish and the room's following, with only the session,
+    // identity, room notices, room and watched game of `view` read, and `room`
+    // taken into the chat transcript as a drawn frame takes it.
     void Background(const ShellView& view, const room::Snapshot& room, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
@@ -600,10 +600,12 @@ private:
     // (ShellView::lockInDrops). The player's own Release gets none.
     void TrackLockIn(const ShellView& view, double now);
     // Follow the room (session/RoomFollow.hxx): this session's choice, the row
-    // that starts and stops it, and the Watch each frame's decision sends.
+    // that starts and stops it, every watching action sent (NoteWatching), and
+    // the move each frame's decision sends, drawn or hidden.
     room::RoomFollow follow_;
     MenuEntry FollowRow(const ShellView& view) const;
     void ToggleFollow(const ShellView& view, const Submit& submit);
+    void NoteWatching(const room::Action& sent);
     void UpdateFollow(const ShellView& view, double now, const Submit& submit);
     // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
     // WIN screen (ShellView::matchResult) on its own screen, "post-match". It

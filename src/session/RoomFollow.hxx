@@ -44,41 +44,81 @@ inline int NextFollowedGame(const Snapshot& room, int watched) {
 	return -1;
 }
 
-// One member's following, decided afresh from each room snapshot.
+// What following asks of the room: a Watch of `table` (a move), an Unwatch of
+// it (leaving the table a move landed at after the member stopped watching),
+// or nothing (table -1).
+struct FollowStep {
+	ActionKind kind = ActionKind::Watch;
+	int table = -1;
+	explicit operator bool() const { return table >= 0; }
+};
+// What this PC can send now: whether the room takes an action, and whether a
+// watched game still shows here. A move waits for both; a leave only for the
+// room, since an Unwatch goes mid-game.
+struct FollowGate {
+	bool roomTakesActions = false;
+	bool showingWatchedGame = false;
+};
+
+// One member's watching intent: whether it follows the room, and the Watch or
+// Unwatch it last sent, its own or following's (Watched, StoppedWatching), so
+// that what the member chose always wins over a move still on its way. It is
+// decided from each room snapshot as it comes, never the member's choices.
 class RoomFollow {
 public:
 	bool On() const { return on_; }
 	// Following starts for the room's local member.
 	void Start(const Snapshot& room) { *this = RoomFollow(); on_ = true; epoch_ = room.roomEpoch; member_ = room.localMember; }
-	void Stop() { *this = RoomFollow(); }
-	// A Watch of `table` went to the room at `nowMs`. Until the room shows it,
-	// or FollowMoveTimeoutMs passes, no other move is decided.
-	void Moved(int table, std::uint64_t nowMs) { move_ = {table, nowMs}; }
+	// Following stops; watching stays where it is.
+	void Stop() { const int leave = leave_; *this = RoomFollow(); leave_ = leave; }
+	// A Watch of `table` went to the room at `nowMs`, the member's or
+	// following's. While following, until the room shows it or
+	// FollowMoveTimeoutMs passes, no other move is decided. A watch chosen
+	// after stopping watching is the member's last word, so nothing is left.
+	void Watched(int table, std::uint64_t nowMs) { leave_ = -1; if (on_) move_ = {table, nowMs}; }
+	// The member stopped watching (Unwatch, Stop watching): following ends at
+	// once, and a move still on its way is left once the room shows the member
+	// where it landed, since the room may take that Watch before the Unwatch.
+	void StoppedWatching() { const int pending = on_ ? move_.table : -1; Stop(); leave_ = pending; }
 	// The table followed now: the one a move is on its way to, else the one
 	// watched; -1 when neither.
 	int Followed(const Snapshot& room) const { return move_.table >= 0 ? move_.table : WatchedTable(room, member_); }
 
-	// The table to Watch now, or -1. `canMove`: the room takes a Watch now and
-	// no watched game is still showing on this PC. Following ends here once
-	// the member sits down, queues, stops watching or leaves the room.
-	int Next(const Snapshot& room, std::uint64_t nowMs, bool canMove) {
-		if (!on_) return -1;
+	// What to send now. Following ends here once the member sits down, queues,
+	// stops watching, locks in or leaves the room: a lock-in that lands after
+	// following started (the press went out on an older snapshot) ends it, so
+	// following never holds a start.
+	FollowStep Next(const Snapshot& room, std::uint64_t nowMs, FollowGate gate) {
+		if (leave_ >= 0) return Leave(room, gate);
+		if (!on_) return {};
+		const auto* me = FindMember(room, member_);
 		if (room.roomEpoch != epoch_ || room.localMember != member_ || room.closed || room.tournament.Active() ||
-			!FindMember(room, member_) || PlaceOf(room, member_).kind != Place::Kind::None) { Stop(); return -1; }
+			!me || me->spectatorLocked || PlaceOf(room, member_).kind != Place::Kind::None) { Stop(); return {}; }
 		const int watched = WatchedTable(room, member_);
 		// A refused or lost move is not marked: what the room refuses for shows in
 		// the snapshot (a full table, a game over, a game still closing), and the
 		// choice below reads it again.
 		if (move_.table >= 0) {
-			if (watched != move_.table && Since(move_.sentMs, nowMs) < FollowMoveTimeoutMs) return -1;
+			if (watched != move_.table && Since(move_.sentMs, nowMs) < FollowMoveTimeoutMs) return {};
 			move_ = {};
 		}
-		if (watched < 0) { Stop(); return -1; }
-		if (Holds(watched, room.tables[watched], nowMs) || !canMove) return -1;
-		return NextFollowedGame(room, watched);
+		if (watched < 0) { Stop(); return {}; }
+		if (Holds(watched, room.tables[watched], nowMs) || !gate.roomTakesActions || gate.showingWatchedGame) return {};
+		return {ActionKind::Watch, NextFollowedGame(room, watched)};
 	}
 
 private:
+	// After the member stopped watching with a move on its way: the move's
+	// table is left once the room shows the member there, and forgotten once
+	// it shows the member watching nothing (the move was refused).
+	FollowStep Leave(const Snapshot& room, FollowGate gate) {
+		const int watched = WatchedTable(room, room.localMember);
+		if (watched < 0) { leave_ = -1; return {}; }
+		if (watched != leave_ || !gate.roomTakesActions) return {};
+		const FollowStep step{ActionKind::Unwatch, leave_};
+		leave_ = -1;
+		return step;
+	}
 	// Whether the watched table keeps the follower: a game is under way or
 	// about to start there, or the next one is still likely soon.
 	bool Holds(int index, const Table& table, std::uint64_t nowMs) {
@@ -119,6 +159,8 @@ private:
 	MemberId member_ = 0;
 	Move move_;
 	Stay stay_;
+	// The table to leave once the room shows the member there, or -1.
+	int leave_ = -1;
 };
 
 } }
