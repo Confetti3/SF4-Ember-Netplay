@@ -67,6 +67,12 @@ h1, h2 { margin: 0; font-weight: 600; }
 .f b { font-weight: 600; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .f.on { border-color: var(--accent); background: #2f2219; }
 .f .face { width: 24px; height: 24px; }
+.bar-end { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.order { display: inline-flex; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.order button { min-height: 34px; padding: 0 14px; border: 0; background: var(--panel); color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+.order button + button { border-left: 1px solid var(--line); }
+.order button[aria-pressed="true"] { background: #2f2219; color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.f .pill { margin-right: -2px; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; }
 
 /* Faces (the main site's assets/faces.webp: 96-pixel squares in native

@@ -36,7 +36,9 @@ const el = (tag, props = {}, ...children) => {
 };
 const DOWNLOAD = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-const state = { filter: {}, games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null };
+const state = { filter: {}, view: {}, games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null };
+// `filter` goes to the bridge; `view` (a class and the order) is applied here,
+// to the games loaded so far.
 
 // --- Pieces -----------------------------------------------------------------
 
@@ -121,12 +123,16 @@ function readAddress() {
   const params = new URLSearchParams(location.search);
   state.filter = {};
   for (const key of ['event', 'fighter', 'country', 'round', 'q']) if (params.get(key)) state.filter[key] = params.get(key);
+  state.view = {};
+  const band = parseInt(params.get('class'), 10);
+  if (band >= 1 && band <= CLASSES.length) state.view.class = String(band);
+  if (params.get('sort') === 'class') state.view.sort = 'class';
   $('q').value = state.filter.q || '';
   state.openSet = params.get('set');
 }
 
 function writeAddress(push) {
-  const params = new URLSearchParams(state.filter);
+  const params = new URLSearchParams({ ...state.filter, ...state.view });
   if (state.openSet) params.set('set', state.openSet);
   const query = params.toString();
   const url = query ? '?' + query : location.pathname;
@@ -209,11 +215,15 @@ const FILTERS = [
   ['fighter', 'Fighter', 'Any fighter'],
   ['country', 'Country', 'Any country'],
   ['round', 'Round', 'Any round'],
+  ['class', 'Class', 'Any class'],
 ];
+const LOCAL = ['class'];
+const chosen = (key) => (LOCAL.includes(key) ? state.view[key] : state.filter[key]);
 
 function filterValue(key) {
-  const value = state.filter[key];
+  const value = chosen(key);
   if (value == null) return null;
+  if (key === 'class') return CLASSES[+value - 1];
   if (key === 'event') return value === 'online' ? 'Online matches' : value;
   if (key === 'fighter') return fighterName(+value);
   if (key === 'country') return regionName(value);
@@ -222,7 +232,7 @@ function filterValue(key) {
 
 function renderFilters() {
   // Event and round mean something only once the archive holds a tournament set.
-  const shown = FILTERS.filter(([key]) => state.events.length || state.filter[key] != null || (key !== 'event' && key !== 'round'));
+  const shown = FILTERS.filter(([key]) => state.events.length || chosen(key) != null || (key !== 'event' && key !== 'round'));
   $('filters').replaceChildren(...shown.map(([key, label, any]) => {
     const value = filterValue(key);
     const button = el('button', { type: 'button', className: 'f' + (value ? ' on' : '') },
@@ -235,7 +245,10 @@ function renderFilters() {
     button.addEventListener('click', () => pick(key, label, any));
     return button;
   }));
-  $('clear').hidden = Object.keys(state.filter).length === 0;
+  $('clear').hidden = Object.keys(state.filter).length === 0 && !state.view.class;
+  for (const button of document.querySelectorAll('#order button')) {
+    button.setAttribute('aria-pressed', String((button.dataset.sort || '') === (state.view.sort || '')));
+  }
 }
 
 // The side `player` played in `game`.
@@ -255,7 +268,7 @@ function metSide(set, most) {
 
 // One player's games in a row: their side as in a match, then the fighters
 // they met.
-function sessionRow(set) {
+function sessionRow(set, dated) {
   const first = set.games[0], last = set.games[set.games.length - 1];
   const open = el('button', { type: 'button', className: 'open' });
   open.setAttribute('aria-label', 'Open ' + set.player + ', ' + plural(set.games.length, 'game', 'games'));
@@ -268,15 +281,24 @@ function sessionRow(set) {
         el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') })),
       metSide(set, 6)),
     el('div', { className: 'act' },
-      el('span', { className: 'meta', textContent: clock(first.saved_at) + '–' + clock(last.saved_at) }),
+      el('span', { className: 'meta', textContent: (dated ? time : clock)(first.saved_at) + '–' + clock(last.saved_at) }),
       el('span', { className: 'ghost', textContent: 'Games ›' })));
 }
 
-function matchRow(set) {
-  if (set.player && set.games.length > 1) return sessionRow(set);
+// The highest class either player in `set` shows, 0 for none.
+function bestClass(set) {
+  let best = 0;
+  for (const game of set.games) for (const band of game.classes || []) if (band > best) best = band;
+  return best;
+}
+
+function hasClass(set, band) { return set.games.some((game) => (game.classes || []).includes(band)); }
+
+function matchRow(set, dated) {
+  if (set.player && set.games.length > 1) return sessionRow(set, dated);
   const first = set.games[0];
   const set_ = known(set);
-  const when = set.online ? clock(first.saved_at) : [first.round, first.phase].filter(Boolean).join(' · ') || 'Set';
+  const when = set.online ? (dated ? time : clock)(first.saved_at) : [first.round, first.phase].filter(Boolean).join(' · ') || 'Set';
   // One game downloads from the row; a set downloads whole once packed, and
   // otherwise opens to its games.
   const action = set.games.length === 1
@@ -293,16 +315,36 @@ function matchRow(set) {
 }
 
 function renderList() {
-  const filtered = Object.keys(state.filter).length > 0;
-  $('summary').textContent = state.games.length
-    ? `${plural(state.games.length, 'game', 'games')}${state.more ? ', newest first' : ''}`
+  const filtered = Object.keys(state.filter).length > 0 || Boolean(state.view.class);
+  const band = state.view.class ? +state.view.class : 0;
+  const groups = state.groups
+    .map((event) => ({ ...event, sets: band ? event.sets.filter((set) => hasClass(set, band)) : event.sets }))
+    .filter((event) => event.sets.length);
+  const games = groups.reduce((n, event) => n + event.sets.reduce((m, set) => m + set.games.length, 0), 0);
+  const local = band || state.view.sort === 'class';
+  const among = state.more ? ` among the newest ${state.games.length}. Older replays looks further back.` : '';
+  $('summary').textContent = games
+    ? band ? `${plural(games, 'game', 'games')} with a ${CLASSES[band - 1]} player${among}`
+      : local ? `${plural(games, 'game', 'games')}, highest class first${among}`
+        : `${plural(games, 'game', 'games')}${state.more ? ', newest first' : ''}`
     : state.more ? 'None of the newest replays match. Look further back with Older replays.'
       : filtered ? 'No replays match these filters.' : 'No replays yet. Games shared from Ember show up here.';
-  $('events').replaceChildren(...state.groups.map((event) => el('section', { className: 'event' },
-    el('div', { className: 'event-head' }, el('h2', { textContent: event.title }),
-      el('span', { className: 'note', textContent: event.kind + ' · ' + plural(event.sets.reduce((n, set) => n + set.games.length, 0), 'game', 'games') })),
-    el('ol', { className: 'matches' }, ...event.sets.map(matchRow)))));
-  if (!state.games.length && filtered) {
+  if (state.view.sort === 'class') {
+    // One list, the highest class first; rows without a class last, newest first within each.
+    const sets = groups.flatMap((event) => event.sets);
+    const newest = (set) => set.games[set.games.length - 1].saved_at;
+    sets.sort((a, b) => bestClass(b) - bestClass(a) || newest(b) - newest(a));
+    $('events').replaceChildren(el('section', { className: 'event' },
+      el('div', { className: 'event-head' }, el('h2', { textContent: 'Highest class first' }),
+        el('span', { className: 'note', textContent: plural(games, 'game', 'games') })),
+      el('ol', { className: 'matches' }, ...sets.map((set) => matchRow(set, true)))));
+  } else {
+    $('events').replaceChildren(...groups.map((event) => el('section', { className: 'event' },
+      el('div', { className: 'event-head' }, el('h2', { textContent: event.title }),
+        el('span', { className: 'note', textContent: event.kind + ' · ' + plural(event.sets.reduce((n, set) => n + set.games.length, 0), 'game', 'games') })),
+      el('ol', { className: 'matches' }, ...event.sets.map((set) => matchRow(set, false))))));
+  }
+  if (!games && filtered) {
     $('events').append(el('p', {}, el('button', { type: 'button', className: 'btn', textContent: 'Clear filters', onclick: clearFilters })));
   }
   $('events').removeAttribute('aria-busy');
@@ -357,7 +399,13 @@ function render() {
 function openSet(key) { state.openSet = key; writeAddress(true); render(); scrollTo(0, 0); $('back').focus(); }
 function closeSet() { state.openSet = null; writeAddress(true); render(); }
 function refresh() { state.openSet = null; writeAddress(false); load(false); }
-function clearFilters() { state.filter = {}; $('q').value = ''; refresh(); }
+function clearFilters() { state.filter = {}; delete state.view.class; $('q').value = ''; refresh(); }
+function setView(key, value) {
+  if (value) state.view[key] = value; else delete state.view[key];
+  state.openSet = null;
+  writeAddress(false);
+  render();
+}
 
 // The popup grid: "Any" first, then every value; picking one closes it.
 function pick(key, label, any) {
@@ -366,23 +414,25 @@ function pick(key, label, any) {
     fighter: FIGHTERS.map((name, id) => [String(id), name]).sort((a, b) => a[1].localeCompare(b[1])),
     country: state.countries.map((code) => [code, regionName(code)]).sort((a, b) => a[1].localeCompare(b[1])),
     round: Object.entries(ROUNDS),
+    class: CLASSES.map((name, at) => [String(at + 1), name]).reverse(),
   }[key];
   const dialog = $('pick');
   const tiles = key === 'fighter';
   dialog.style.setProperty('--w', tiles ? '980px' : key === 'event' ? '640px' : '720px');
-  $('pick-title').textContent = tiles ? 'Fighter, played by either player' : label;
+  $('pick-title').textContent = tiles ? 'Fighter, played by either player' : key === 'class' ? 'Class, of either player (rankings today)' : label;
   const options = $('pick-options');
   options.className = 'options' + (tiles ? ' tiles' : '');
   options.style.setProperty('--cell', tiles ? '100px' : key === 'event' ? '100%' : '170px');
-  const current = state.filter[key] ?? '';
+  const current = chosen(key) ?? '';
   options.replaceChildren(...[['', any], ...choices].map(([value, text]) => {
     const button = el('button', { type: 'button', className: 'o' + (value ? '' : ' any') },
-      tiles && value ? face(+value) : key === 'country' && value ? flag(value) : null,
+      tiles && value ? face(+value) : key === 'country' && value ? flag(value) : key === 'class' && value ? pill(+value) : null,
       el('span', { textContent: text }));
     button.setAttribute('aria-pressed', String(value === current));
     button.addEventListener('click', () => {
-      if (value) state.filter[key] = value; else delete state.filter[key];
       dialog.close();
+      if (LOCAL.includes(key)) { setView(key, value); return; }
+      if (value) state.filter[key] = value; else delete state.filter[key];
       refresh();
     });
     return button;
@@ -424,6 +474,9 @@ document.addEventListener('keydown', (event) => {
 $('pick-close').addEventListener('click', () => $('pick').close());
 $('back').addEventListener('click', closeSet);
 $('clear').addEventListener('click', clearFilters);
+for (const button of document.querySelectorAll('#order button')) {
+  button.addEventListener('click', () => setView('sort', button.dataset.sort));
+}
 $('more').addEventListener('click', () => load(true));
 window.addEventListener('popstate', () => {
   const before = JSON.stringify(state.filter);
