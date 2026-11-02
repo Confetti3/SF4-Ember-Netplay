@@ -564,19 +564,21 @@ struct NotesCache {
 };
 
 // Drops the lines of `file` (cached in `cache`) for replays no longer in the
-// archive folder, when the list holds many more than the archive has.
-// Whether a replay is gone is asked of the folder itself, not of the listing,
-// so a listing that missed files cannot empty a list.
-void PruneNotes(const fs::path& file, const fs::path& folder, NotesCache& cache, std::size_t live) {
-	if (cache.unreadable || !notes::WorthPruning(cache.names.size(), live)) return;
+// archive, when the list holds many more than the archive has. "In the
+// archive" is the lister's own reach: the top folder and its subfolders
+// (notes::ReplayNames), so replays a player filed into subfolders keep their
+// marks. `walked` is that walk, taken by the caller on this lister thread
+// before the lock, so the game thread's MarkIn never waits on a filesystem
+// walk; the lock covers only the read and rewrite of one small file. A line
+// added since the cache was read is kept, whatever the walk saw.
+void PruneNotes(const fs::path& file, const std::unordered_set<std::string>& walked, bool complete, NotesCache& cache, std::size_t live) {
+	if (!complete || cache.unreadable || !notes::WorthPruning(cache.names.size(), live)) return;
 	try {
 		std::lock_guard<std::mutex> lock(NotesLock());
 		const auto bytes = replayfiles::ReadFile(file, notes::kMostBytes);
 		if (!bytes) return;
 		const std::string text = notes::Pruned(*bytes, [&](const std::string& name) {
-			std::error_code error;
-			const bool there = fs::exists(folder / Utf8ToWide(name.c_str()), error);
-			return error || there;
+			return notes::KeptAfterWalk(name, cache.names, walked);
 		});
 		fs::path partial = file; partial += L".tmp";
 		{
@@ -608,9 +610,16 @@ std::vector<ArchivedReplay> List(NotesCache (&cache)[3]) {
 		std::error_code failed;
 		replay.video = fs::exists(video.replace_extension(L".mp4"), failed);
 	}
-	PruneNotes(folders.archive / L"watched.txt", folders.archive, cache[0], archived.size());
-	PruneNotes(folders.archive / L"sent.txt", folders.archive, cache[1], archived.size());
-	PruneNotes(folders.archive / L"closed.txt", folders.archive, cache[2], archived.size());
+	// Walk the folders only when some list is worth pruning, with no lock held.
+	bool worth = false;
+	for (const NotesCache& list : cache) worth = worth || (!list.unreadable && notes::WorthPruning(list.names.size(), archived.size()));
+	if (worth) {
+		bool complete = true;
+		const auto walked = notes::ReplayNames(folders.archive, complete);
+		PruneNotes(folders.archive / L"watched.txt", walked, complete, cache[0], archived.size());
+		PruneNotes(folders.archive / L"sent.txt", walked, complete, cache[1], archived.size());
+		PruneNotes(folders.archive / L"closed.txt", walked, complete, cache[2], archived.size());
+	}
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });
 	return archived;
 }

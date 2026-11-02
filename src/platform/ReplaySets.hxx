@@ -25,7 +25,7 @@ inline bool ForItsSet(const ArchivedReplay& replay) { return replay.set.Tagged()
 // listing, newest first.
 inline const ArchivedReplay* NextToSend(const std::vector<ArchivedReplay>& archive, const ReplaySender& sending = {}, std::uint64_t nowMs = 0) {
 	for (auto at = archive.rbegin(); at != archive.rend(); ++at)
-		if (ForItsSet(*at) && PlayedHere(*at) && !at->sent && !sending.Aside(at->path, nowMs)) return &*at;
+		if (ForItsSet(*at) && PlayedHere(*at) && !at->sent && !sending.Aside(at->path, nowMs, true)) return &*at;
 	return nullptr;
 }
 

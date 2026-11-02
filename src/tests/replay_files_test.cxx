@@ -684,6 +684,16 @@ static void TestAReplayIsSentOnce() {
  Sender other;
  other.Sent(3, set.path, true, 0);
  CHECK(other.Take(3, false, "set_closed", 5) == Sender::Answer::SetClosed && !sets::NextToSend(listing, other, 10));
+ // The handoff in the same run: the next listing shows the set closed, and
+ // the same sender offers the game to the archive, once.
+ listing[0].setClosed = true;
+ CHECK(!sets::NextToSend(listing, other, 10) && sets::NextToArchive(listing, 1, other, 10) == &listing[0]);
+ CHECK(sets::NextReplay(listing, 1, other, 10) == &listing[0]);
+ other.Sent(4, set.path, false, 10);
+ CHECK(other.Take(4, true, "", 15) == Sender::Answer::Done && !sets::NextToArchive(listing, 1, other, 20));
+ // A listing from before the closing mark still holds it back from the set.
+ listing[0].setClosed = false;
+ CHECK(!sets::NextToSend(listing, other, 20));
 }
 // The marks lists (sent.txt): a name once, overlong and empty lines skipped,
 // and pruned of replays that are gone without ever losing one that is there.
@@ -703,6 +713,29 @@ static void TestNotedReplays() {
  for (int at = 0; at < 100000; ++at) big += "20261101-120000-" + std::to_string(at) + ".emberreplay\n";
  CHECK(big.size() < notes::kMostBytes && notes::Parse(text(big)).size() == 100000);
 }
+// Pruning follows the lister's reach: replays filed into subfolders count as
+// there, so their marks stay; a name for a replay gone from every folder goes.
+static void TestPruningCoversSubfolders() {
+ namespace fs = std::filesystem;
+ namespace notes = sf4e::platform::replays::notes;
+ const fs::path root = fs::temp_directory_path() / "sf4e_notes_walk";
+ std::error_code ignored; fs::remove_all(root, ignored);
+ fs::create_directories(root / "filed" / "deeper");
+ const auto touch = [](const fs::path& at) { std::ofstream(at, std::ios::binary) << "x"; };
+ touch(root / "top.emberreplay"); touch(root / "filed" / "sub.emberreplay"); touch(root / "filed" / "deeper" / "old.usf4replay"); touch(root / "filed" / "note.txt");
+ bool complete = false;
+ const auto walked = notes::ReplayNames(root, complete);
+ CHECK(complete && walked.size() == 3 && walked.count("sub.emberreplay") && walked.count("old.usf4replay") && !walked.count("note.txt"));
+ const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
+ const std::unordered_set<std::string> before{"top.emberreplay", "sub.emberreplay", "old.usf4replay", "gone.emberreplay"};
+ // "late" was marked after the list was read: kept though the walk missed it.
+ const auto after = notes::Parse(text(notes::Pruned(text("top.emberreplay\nsub.emberreplay\nold.usf4replay\ngone.emberreplay\nlate.emberreplay\n"),
+  [&](const std::string& name) { return notes::KeptAfterWalk(name, before, walked); })));
+ CHECK(after.size() == 4 && after.count("sub.emberreplay") && after.count("old.usf4replay") && after.count("late.emberreplay") && !after.count("gone.emberreplay"));
+ bool none = false;
+ CHECK(notes::ReplayNames(root / "missing", none).empty() && none);
+ fs::remove_all(root, ignored);
+}
 int main() {
  TestSetReplays();
  TestListingAheadOfItsNote();
@@ -711,6 +744,7 @@ int main() {
  TestUnconfirmedReplayWaits();
  TestAReplayIsSentOnce();
  TestNotedReplays();
+ TestPruningCoversSubfolders();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();

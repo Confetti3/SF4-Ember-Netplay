@@ -10,6 +10,7 @@
 // never make every replay look unsent.
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -47,6 +48,35 @@ std::string Pruned(const std::vector<std::uint8_t>& bytes, Keep&& keep) {
 	std::string out;
 	for (const auto& name : Parse(bytes)) if (keep(name)) { out += name; out += '\n'; }
 	return out;
+}
+
+// The file names of every replay file under `archive`, subfolders included:
+// the files the lister covers (ScanArchive), found by name alone so that a
+// replay that cannot be read now still counts as there. `complete` is false
+// when a folder could not be walked, and the names then prove nothing is gone.
+// No archive yet is an empty, complete walk. This only lists names, and is
+// meant to run on the lister's thread with no lock held.
+inline std::unordered_set<std::string> ReplayNames(const std::filesystem::path& archive, bool& complete) {
+	namespace fs = std::filesystem;
+	std::unordered_set<std::string> names;
+	complete = true;
+	std::error_code error;
+	fs::recursive_directory_iterator at(archive, error);
+	if (error) { std::error_code probe; complete = !fs::exists(archive, probe) && !probe; return names; }
+	for (const fs::recursive_directory_iterator end; at != end;) {
+		const fs::path path = at->path();
+		if (path.extension() == L".emberreplay" || path.extension() == L".usf4replay") names.insert(path.filename().generic_string());
+		at.increment(error);
+		if (error) { complete = false; break; }
+	}
+	return names;
+}
+
+// Whether a list's line is kept after a walk of the archive: its replay is in
+// the walk, or the line was not in the list when the walk began (`before`), so
+// it was marked since, for a replay the walk may have missed.
+inline bool KeptAfterWalk(const std::string& name, const std::unordered_set<std::string>& before, const std::unordered_set<std::string>& walked) {
+	return walked.count(name) != 0 || before.count(name) == 0;
 }
 
 // Whether a list of `noted` names is worth pruning against `live` replays.

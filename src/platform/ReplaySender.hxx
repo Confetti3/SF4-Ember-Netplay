@@ -78,11 +78,14 @@ public:
 		return Answer::Again;
 	}
 	bool Archives() const { return !noArchive_; }
-	// Whether the replay at `path` is not to be chosen at `nowMs`: put aside
+	// Whether the replay at `path` is not to be chosen at `nowMs` for the
+	// set's bridge (`toSet`) or for the replay archive: put aside
 	// (Unconfirmed, or after failures, for longer each time), or settled a
-	// moment ago, which the next listing of the archive may not show yet.
-	bool Aside(const std::filesystem::path& path, std::uint64_t nowMs) const {
-		if (std::find(settled_.begin(), settled_.end(), path) != settled_.end()) return true;
+	// moment ago for that same destination, which the next listing of the
+	// archive may not show yet. A game its set closed is settled for the set
+	// only, so it stays free for the archive in the same run.
+	bool Aside(const std::filesystem::path& path, std::uint64_t nowMs, bool toSet = false) const {
+		if (std::find(settled_.begin(), settled_.end(), std::make_pair(path, toSet)) != settled_.end()) return true;
 		const auto found = aside_.find(path);
 		return found != aside_.end() && nowMs < found->second;
 	}
@@ -94,7 +97,8 @@ private:
 	// before it would still show the replay unsent and choose it again.
 	void Settled() {
 		tries_.erase(path_);
-		if (std::find(settled_.begin(), settled_.end(), path_) == settled_.end()) settled_.push_back(path_);
+		const auto done = std::make_pair(path_, set_);
+		if (std::find(settled_.begin(), settled_.end(), done) == settled_.end()) settled_.push_back(done);
 		while (settled_.size() > kMostSettled) settled_.pop_front();
 	}
 	// The replay out failed in a way that may pass: it is put aside, a
@@ -118,7 +122,8 @@ private:
 	std::map<std::filesystem::path, std::uint64_t> aside_;
 	// Failures in a row per replay, and the last few replays done with.
 	std::map<std::filesystem::path, std::uint64_t> tries_;
-	std::deque<std::filesystem::path> settled_;
+	// (path, whether sent to its set).
+	std::deque<std::pair<std::filesystem::path, bool>> settled_;
 };
 
 } } }
