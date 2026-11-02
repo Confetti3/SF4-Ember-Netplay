@@ -525,7 +525,8 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
- DrawToasts(ImGui::GetTime(),true);
+ // The game is on screen: notices go into Notifications without a card over it.
+ TakeNotices(ImGui::GetTime());
 }
 
 v2::Box ApplicationShell::ShellArea() const {
@@ -698,7 +699,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  // Every screen's frame ends here, the embedded ones' too: a toast said on
  // any of them shows at once, and one asked for is answered.
  AnswerToast(now);
- DrawToasts(now,false,nav.Screen()=="notifications",menuRead);
+ DrawToasts(now,nav.Screen()=="notifications",menuRead);
 }
 bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom) {
  using namespace netplay; auto& nav=menu_.navigation;
