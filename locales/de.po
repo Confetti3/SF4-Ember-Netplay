@@ -931,14 +931,8 @@ msgstr "Verlässt Embers Menü und öffnet den Battle Log des Spiels zur Replay-
 msgid "replays.open_log_room"
 msgstr "Verlasse zuerst den Raum."
 
-msgid "replays.tournaments"
-msgstr "Turniere"
 
-msgid "replays.tournaments_detail"
-msgstr "Die Sets, die du in Turnieren gespielt hast, jeweils mit allen Spielen."
 
-msgid "replays.set_detail"
-msgstr "Auswählen, um die Spiele des Sets der Reihe nach anzusehen, eines davon zu wählen oder das Set als eine Datei zu speichern."
 
 msgid "replays.set_value"
 msgstr "{0} Replays · {1} Räume"
@@ -7817,8 +7811,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} Matches"
 
-msgid "replays.game"
-msgstr "Match {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Kämpfer"

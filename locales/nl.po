@@ -931,14 +931,8 @@ msgstr "Verlaat Embers menu en opent het Battle Log van het spel, waar replays w
 msgid "replays.open_log_room"
 msgstr "Verlaat eerst de kamer."
 
-msgid "replays.tournaments"
-msgstr "Toernooien"
 
-msgid "replays.tournaments_detail"
-msgstr "De sets die je in toernooien speelde, elk met al zijn games."
 
-msgid "replays.set_detail"
-msgstr "Selecteer om de games van de set op volgorde te bekijken, er één te kiezen of de set als één bestand te bewaren."
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} rooms"
@@ -7817,8 +7811,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} wedstrijden"
 
-msgid "replays.game"
-msgstr "Wedstrijd {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Vechters"

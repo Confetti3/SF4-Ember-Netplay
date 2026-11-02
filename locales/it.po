@@ -931,14 +931,8 @@ msgstr "Esce dal menu di Ember e apre il Battle Log del gioco, dove si riproduco
 msgid "replays.open_log_room"
 msgstr "Prima esci dalla stanza."
 
-msgid "replays.tournaments"
-msgstr "Tornei"
 
-msgid "replays.tournaments_detail"
-msgstr "I set che hai giocato nei tornei, ognuno con tutte le sue partite."
 
-msgid "replays.set_detail"
-msgstr "Seleziona per guardare le partite del set in ordine, sceglierne una o salvare il set in un unico file."
 
 msgid "replays.set_value"
 msgstr "{0} replay · {1} stanze"
@@ -7817,8 +7811,6 @@ msgstr "Set"
 msgid "replays.set_matches"
 msgstr "{0} incontri"
 
-msgid "replays.game"
-msgstr "Incontro {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Lottatori"

@@ -931,14 +931,8 @@ msgstr "Emberのメニューを離れ、リプレイを再生するゲームのB
 msgid "replays.open_log_room"
 msgstr "先にルームから退出してください。"
 
-msgid "replays.tournaments"
-msgstr "大会"
 
-msgid "replays.tournaments_detail"
-msgstr "大会でプレイしたセット。各セットにすべての試合が入っています。"
 
-msgid "replays.set_detail"
-msgstr "選択すると、セットの試合を順に再生、1試合を選択、またはセットを1つのファイルに保存できます。"
 
 msgid "replays.set_value"
 msgstr "リプレイ{0}件 · ルーム{1}件"
@@ -7818,8 +7812,6 @@ msgstr "セット"
 msgid "replays.set_matches"
 msgstr "{0} 試合"
 
-msgid "replays.game"
-msgstr "第 {0} 試合"
 
 msgid "replays.fact.fighters"
 msgstr "ファイター"

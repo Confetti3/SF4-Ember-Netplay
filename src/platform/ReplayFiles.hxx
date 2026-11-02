@@ -128,7 +128,7 @@ void MarkSetClosed(const std::filesystem::path& file);
 // Where a set's pack is saved: packs\<matchId>.emberpack in the archive, the
 // folder made. Empty when there is no archive or the ID is not a plain one.
 std::filesystem::path SetPackPath(const std::string& matchId);
-// Puts every game of a set's pack (platform/ReplaySets.hxx) into the archive,
+// Puts every game of a set's pack (platform/ReplaySetPack.hxx) into the archive,
 // as games of that set this PC watched. How many the archive holds now; 0 for
 // a file that is not a whole pack.
 std::size_t ImportSetPack(const std::filesystem::path& pack);

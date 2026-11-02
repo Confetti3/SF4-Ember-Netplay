@@ -931,14 +931,8 @@ msgstr "Выходит из меню Ember в Battle Log игры, где вос
 msgid "replays.open_log_room"
 msgstr "Сначала выйдите из лобби."
 
-msgid "replays.tournaments"
-msgstr "Турниры"
 
-msgid "replays.tournaments_detail"
-msgstr "Сеты, сыгранные вами на турнирах, каждый со всеми своими играми."
 
-msgid "replays.set_detail"
-msgstr "Выберите, чтобы посмотреть игры сета по порядку, выбрать одну из них или сохранить сет одним файлом."
 
 msgid "replays.set_value"
 msgstr "Записей: {0} · комнат: {1}"
@@ -7817,8 +7811,6 @@ msgstr "Сеты"
 msgid "replays.set_matches"
 msgstr "Матчей: {0}"
 
-msgid "replays.game"
-msgstr "Матч {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Бойцы"

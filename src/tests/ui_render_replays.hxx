@@ -14,23 +14,31 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     page("replays");replayinputs::Summary said;said.scored=true;said.score[0]=2;said.score[1]=1;said.rounds=3;said.frames=131*60;
     said.players[0]={1,2,9,-1,1,0};said.players[1]={2,0,0,-1,0,0};
     for(int side=0;side<2;side++){said.stats[side].frames=said.frames;said.stats[side].actions=700-side*40;said.stats[side].jumps=18;said.stats[side].crouched=said.frames*(54-side*23)/100;for(int b=0;b<6;b++)said.stats[side].presses[b]=101-b*14-side*9;}
-    platform::replays::ArchivedReplay alice,other,both,older;
+    platform::replays::ArchivedReplay alice,again,other,both,older;
+    again.path="e";again.label="2026-10-05 23:30";again.names[0]="Alice";again.names[1]="Bob";again.summary=said;again.summary->score[0]=1;again.summary->score[1]=2;again.fighters[0]=0;again.fighters[1]=1;
     alice.path="a";alice.label="2026-10-05 23:35";alice.names[0]="Alice";alice.names[1]="Bob";alice.watched=alice.video=true;alice.summary=said;alice.fighters[0]=0;alice.fighters[1]=1;
     other.path="b";other.label="2026-10-05 23:36";other.provenance=sf4e::replayfiles::Provenance::Spectated;other.fighters[0]=2;other.fighters[1]=3;
     both.path="c";both.label="2026-10-05 23:40";both.names[0]="Carol";both.names[1]="Dave";both.provenance=sf4e::replayfiles::Provenance::Spectated;both.watched=true;both.summary=said;both.fighters[0]=8;both.fighters[1]=30;
     older.path="d";older.label="2026-10-04 20:12";older.fighters[0]=12;older.fighters[1]=-1;older.kept=true;
-    view.replays.archive=std::make_shared<const std::vector<platform::replays::ArchivedReplay>>(std::vector<platform::replays::ArchivedReplay>{alice,other,both,older});
+    view.replays.archive=std::make_shared<const std::vector<platform::replays::ArchivedReplay>>(std::vector<platform::replays::ArchivedReplay>{alice,again,other,both,older});
     view.replays.ready=true;view.replays.notice=loc::T("replays.added");
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     // The first replay is focused, so a narrow window scrolls the list to it.
     page("replays");shell.Navigation().Focus("replay:a",rows);draw("replays-cards");
-    Require(rows.size()==8&&rows[2].id=="replay-show"&&rows[3].id=="replay-search"&&rows[4].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
-        rows[5].value==loc::T("replays.spectated")&&rows[6].value=="2-1 · "+std::string(loc::T("replays.spectated_seen"))&&rows[7].value==loc::T("replays.kept"),"Replay tags changed");
+    Require(rows.size()==9&&rows[2].id=="replay-show"&&rows[3].id=="replay-search"&&rows[4].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
+        rows[6].value==loc::T("replays.spectated")&&rows[7].value=="2-1 · "+std::string(loc::T("replays.spectated_seen"))&&rows[8].value==loc::T("replays.kept"),"Replay tags changed");
     // Show stepped to Spectated lists the two watched live; stepped back to All, every one.
     shell.Navigation().Focus("replay-show",rows);draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Right,1);draw("replays-spectated");
     Require(rows.size()==6&&rows[2].value==loc::T("replays.show.spectated")&&rows[4].id=="replay:b"&&rows[5].id=="replay:c","Show did not narrow the list to spectated matches");
     for(int i=0;i<2;++i){draw(nullptr,MenuInput::Left,1);draw();}
-    Require(rows.size()==8,"Show did not list every match again");
+    Require(rows.size()==9,"Show did not list every match again");
+    // Alice and Bob's two matches in a row are a set on the Sets tab, 1-1 by who won each; Pick a game lists them oldest first.
+    page("replay-sets");draw("replay-sets");
+    Require(rows.size()==1&&rows[0].id=="set:a"&&rows[0].label=="Alice 1-1 Bob","The set of Alice and Bob was not listed");
+    shell.Navigation().Focus("set:a",rows);draw(nullptr,MenuInput::Select,1);draw();draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Select,1);draw("replay-set");
+    Require(shell.Navigation().Screen()=="replay-set"&&rows.size()==2&&rows[0].id=="replay:e"&&rows[1].id=="replay:a","Pick a game did not list the set's games");
+    draw(nullptr,MenuInput::Back,1);draw();
+    page("replays");
     shell.Navigation().Focus("replay:a",rows);
     draw(nullptr,MenuInput::Select,1);draw("replay-choices");
     for(int i=0;i<3;++i){draw(nullptr,MenuInput::Right,1);draw();}

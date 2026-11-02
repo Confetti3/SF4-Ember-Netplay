@@ -29,7 +29,7 @@
 #include "ReplayArchiveIndex.hxx"
 #include "ReplayArchivePass.hxx"
 #include "ReplayArchiveWorker.hxx"
-#include "ReplaySets.hxx"
+#include "ReplaySetPack.hxx"
 
 #include <nlohmann/json.hpp>
 #include "../common/ReplayFileSafety.hxx"

@@ -931,14 +931,8 @@ msgstr "Sale del menú de Ember y abre el Battle Log del juego, donde se ven las
 msgid "replays.open_log_room"
 msgstr "Primero sal de la sala."
 
-msgid "replays.tournaments"
-msgstr "Torneos"
 
-msgid "replays.tournaments_detail"
-msgstr "Los sets que has jugado en torneos, cada uno con todas sus partidas."
 
-msgid "replays.set_detail"
-msgstr "Selecciona para ver las partidas del set en orden, elegir una o guardar el set como un solo archivo."
 
 msgid "replays.set_value"
 msgstr "{0} repeticiones · {1} salas"
@@ -7818,8 +7812,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} combates"
 
-msgid "replays.game"
-msgstr "Combate {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Luchadores"

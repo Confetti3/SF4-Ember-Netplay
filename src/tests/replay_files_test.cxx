@@ -2,7 +2,7 @@
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayProvenance.hxx"
 #include "../platform/ReplayFiles.hxx"
-#include "../platform/ReplaySets.hxx"
+#include "../platform/ReplaySetPack.hxx"
 #include <algorithm>
 #include <chrono>
 #include <cwctype>
@@ -509,6 +509,24 @@ static void TestSetReplays() {
  const auto listed = sets::Sets(archive);
  CHECK(listed.size() == 3 && listed[0].matchId == "emt_b" && listed[0].rooms == 1 && listed[2].matchId == "emt_c");
  CHECK(listed[1].games.size() == 3 && listed[1].games[0] == &archive[4] && listed[1].games[2] == &archive[2] && listed[1].rooms == 2);
+ // Room sets: games in a row the same two named players played within half
+ // an hour, either side, two or more of them; a lone game is no set, and
+ // the sets come last game first among the tournament ones.
+ {
+  auto room = archive;
+  for (auto& game : room) game.set = {};
+  for (std::size_t i = 0; i < room.size(); i++) { room[i].time = 10000 - i * 600; room[i].names[0] = "Ann"; room[i].names[1] = "Bo"; }
+  std::swap(room[1].names[0], room[1].names[1]);
+  room[3].names[1] = room[4].names[1] = "Cy";
+  const auto rooms = sets::Sets(room);
+  CHECK(rooms.size() == 2 && !rooms[0].Tagged() && rooms[0].games.size() == 3 && rooms[0].games[0] == &room[2] && rooms[0].games[2] == &room[0]);
+  CHECK(rooms[1].games.size() == 2 && rooms[1].games[0] == &room[4] && rooms[1].games[1] == &room[3]);
+  room[1].time = room[2].time + 1801; room[0].time = room[1].time + 1;
+  CHECK(sets::Sets(room).size() == 2 && sets::Sets(room)[0].games.size() == 2);
+  room[5].set = archive[5].set;
+  const auto mixed = sets::Sets(room);
+  CHECK(mixed.size() == 3 && mixed[0].games.size() == 2 && mixed[2].Tagged() && mixed[2].games.size() == 1);
+ }
  Bytes one, two;
  CHECK(ExportFromReplayAlone(Replay(2, 800), one) && ExportFromReplayAlone(Replay(3, 900), two));
  Bytes pack{'E','M','B','R','P','A','K','1',2,0,0,0,'{','}'};

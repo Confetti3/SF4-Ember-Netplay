@@ -39,7 +39,7 @@ inline bool IsReplayPath(const std::string& path) {
  for(char& c:ext)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
  return ext==".emberreplay"||ext==".usf4replay"||ext==".emberpack";
 }
-// A set's pack (platform/ReplaySets.hxx), which is imported rather than played.
+// A set's pack (platform/ReplaySetPack.hxx), which is imported rather than played.
 inline bool IsSetPack(const std::string& path) {
  return path.size()>10&&StartsWithFoldedReplay(path.substr(path.size()-10),".emberpack");
 }

@@ -931,14 +931,8 @@ msgstr "Opustí nabídku Emberu a otevře Battle Log hry, kde se přehrávají z
 msgid "replays.open_log_room"
 msgstr "Nejdřív opusťte místnost."
 
-msgid "replays.tournaments"
-msgstr "Turnaje"
 
-msgid "replays.tournaments_detail"
-msgstr "Sety, které jsi hrál na turnajích, každý se všemi svými hrami."
 
-msgid "replays.set_detail"
-msgstr "Vyber pro přehrání her setu popořadě, výběr jedné z nich nebo uložení setu jako jednoho souboru."
 
 msgid "replays.set_value"
 msgstr "{0} záznamů · {1} místností"
@@ -7817,8 +7811,6 @@ msgstr "Sety"
 msgid "replays.set_matches"
 msgstr "Zápasy: {0}"
 
-msgid "replays.game"
-msgstr "Zápas {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Bojovníci"

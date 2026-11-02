@@ -931,14 +931,8 @@ msgstr "Quitte le menu d'Ember pour le Battle Log du jeu, où les replays sont l
 msgid "replays.open_log_room"
 msgstr "Quittez d'abord le salon."
 
-msgid "replays.tournaments"
-msgstr "Tournois"
 
-msgid "replays.tournaments_detail"
-msgstr "Les sets que vous avez joués en tournoi, chacun avec toutes ses manches."
 
-msgid "replays.set_detail"
-msgstr "Sélectionnez pour regarder les manches du set dans l'ordre, en choisir une ou enregistrer le set en un seul fichier."
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} salons"
@@ -7817,8 +7811,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} matchs"
 
-msgid "replays.game"
-msgstr "Match {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Combattants"

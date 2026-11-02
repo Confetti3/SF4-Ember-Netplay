@@ -931,14 +931,8 @@ msgstr "Opuszcza menu Ember i otwiera Battle Log gry, gdzie odtwarzane są powt�
 msgid "replays.open_log_room"
 msgstr "Najpierw opuść pokój."
 
-msgid "replays.tournaments"
-msgstr "Turnieje"
 
-msgid "replays.tournaments_detail"
-msgstr "Sety rozegrane w turniejach, każdy ze wszystkimi swoimi grami."
 
-msgid "replays.set_detail"
-msgstr "Wybierz, aby obejrzeć gry setu po kolei, wybrać jedną z nich lub zapisać set jako jeden plik."
 
 msgid "replays.set_value"
 msgstr "Powtórki: {0} · pokoje: {1}"
@@ -7817,8 +7811,6 @@ msgstr "Sety"
 msgid "replays.set_matches"
 msgstr "Mecze: {0}"
 
-msgid "replays.game"
-msgstr "Mecz {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Postacie"

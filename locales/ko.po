@@ -931,14 +931,8 @@ msgstr "Ember 메뉴를 나가 리플레이를 재생하는 게임의 Battle Log
 msgid "replays.open_log_room"
 msgstr "먼저 방에서 나가세요."
 
-msgid "replays.tournaments"
-msgstr "대회"
 
-msgid "replays.tournaments_detail"
-msgstr "대회에서 플레이한 세트입니다. 각 세트에 모든 경기가 들어 있습니다."
 
-msgid "replays.set_detail"
-msgstr "선택하여 세트의 경기를 순서대로 보거나, 한 경기를 고르거나, 세트를 파일 하나로 저장하세요."
 
 msgid "replays.set_value"
 msgstr "리플레이 {0}개 · 룸 {1}개"
@@ -7818,8 +7812,6 @@ msgstr "세트"
 msgid "replays.set_matches"
 msgstr "매치 {0}개"
 
-msgid "replays.game"
-msgstr "{0}번째 매치"
 
 msgid "replays.fact.fighters"
 msgstr "파이터"

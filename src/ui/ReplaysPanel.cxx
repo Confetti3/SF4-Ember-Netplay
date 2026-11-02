@@ -18,45 +18,42 @@ const platform::replays::ArchivedReplay* Find(const ShellView& v,const std::stri
  if(v.replays.archive)for(const auto& shown:*v.replays.archive)if(PathOf(shown)==path)return &shown;
  return nullptr;
 }
-std::vector<platform::replays::ArchivedSet> SetsOf(const ShellView& v){return v.replays.archive?platform::replays::Sets(*v.replays.archive):std::vector<platform::replays::ArchivedSet>{};}
-// A set's row names it by its last game: the date and the players.
-std::string SetLabel(const platform::replays::ArchivedSet& set){const auto& last=*set.games.back();return ReplayRowLabel(last.label,last.names,last.fighters);}
 using Replay=platform::replays::ArchivedReplay;
-// The archive's sets, newest first: two or more matches the same two named
-// players played one after another, each within half an hour of the next (as
-// an export counts its set). Each set's matches are newest first.
-std::vector<std::vector<const Replay*>> Sets(const ShellView& v){
- std::vector<std::vector<const Replay*>> sets;
- if(!v.replays.archive)return sets;
- const Replay* last=nullptr;
- for(const auto& r:*v.replays.archive){
-  const bool same=last&&!r.names[0].empty()&&!r.names[1].empty()&&last->time>=r.time&&last->time-r.time<=1800&&
-   ((r.names[0]==last->names[0]&&r.names[1]==last->names[1])||(r.names[0]==last->names[1]&&r.names[1]==last->names[0]));
-  if(!same)sets.emplace_back();
-  sets.back().push_back(&r);last=&r;
- }
- sets.erase(std::remove_if(sets.begin(),sets.end(),[](const std::vector<const Replay*>& set){return set.size()<2;}),sets.end());
- return sets;
+using Set=platform::replays::ArchivedSet;
+// A set's row is its match ID, or for a room set its last game's file.
+std::string SetId(const Set& set){return set.Tagged()?set.matchId:PathOf(*set.games.back());}
+const Set* FindSet(const std::vector<Set>& sets,const std::string& id){
+ for(const auto& set:sets)if(SetId(set)==id)return &set;
+ return nullptr;
 }
-// A set's wins for its newest match's player 1 and 2, from each match's winner.
-std::pair<int,int> SetScore(const std::vector<const Replay*>& set){
+// The wins among a set's first games for the player named and the other, from each game's winner.
+std::pair<int,int> Wins(const std::vector<const Replay*>& games,std::size_t count,const std::string& player){
  std::pair<int,int> wins;
- for(const auto* r:set){
+ for(std::size_t i=0;i<count;i++){
+  const Replay* r=games[i];
   if(!r->summary||!r->summary->scored||r->summary->score[0]==r->summary->score[1])continue;
-  const std::string& winner=r->names[r->summary->score[0]>r->summary->score[1]?0:1];
-  ++(winner==set.front()->names[0]?wins.first:wins.second);
+  ++(r->names[r->summary->score[0]>r->summary->score[1]?0:1]==player?wins.first:wins.second);
  }
  return wins;
+}
+// A set's wins for its last game's player 1 and 2.
+std::pair<int,int> SetScore(const Set& set){return Wins(set.games,set.games.size(),set.games.back()->names[0]);}
+// A set's row names it by its last game's players with the score between them.
+std::string SetLabel(const Set& set){
+ const auto& last=*set.games.back();const auto wins=SetScore(set);
+ return ReplayPlayerName(last.names,0)+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+ReplayPlayerName(last.names,1);
 }
 // The fighters' names, "Ryu vs Ken".
 std::string FightersText(const Replay& r){
  const auto name=[&](int side){const auto* f=selection::FindFighter(r.fighters[side]);return std::string(f?f->name:loc::T("common.unavailable"));};
  return loc::Tf("replays.fighters",name(0),name(1));
 }
-// The replay a Replays row is of: "replay:<file>", or a set's newest, "set:<file>".
-const Replay* RowReplay(const ShellView& v,const std::string& id){
+// The replay a Replays row is of: "replay:<file>", or a set's last game, "set:<id>".
+const Replay* RowReplay(const ShellView& v,const std::vector<Set>& sets,const std::string& id){
  if(id.compare(0,7,"replay:")==0)return Find(v,id.substr(7));
- return id.compare(0,4,"set:")==0?Find(v,id.substr(4)):nullptr;
+ if(id.compare(0,4,"set:")!=0)return nullptr;
+ const Set* set=FindSet(sets,id.substr(4));
+ return set?set->games.back():nullptr;
 }
 }
 ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
@@ -67,6 +64,7 @@ ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
  return wants;
 }
 void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav) {
+ sets_=v.replays.archive?platform::replays::Sets(*v.replays.archive):std::vector<Set>{};
  // In a room the menu is the room's: the link waits until it is left.
  const auto& link=v.replays.link;
  if(link!=linkSeen_&&(link.empty()||v.session.room==netplay::RoomState::Idle)){linkSeen_=link;if(!link.empty()&&nav.Screen()!="replays")Show(nav);}
@@ -74,19 +72,6 @@ void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav) {
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
- }else if(screen=="replay-sets"){
-  // Sets: a row a set, its score by who won each match; Select offers each match to watch.
-  title=loc::T("replays.title");
-  for(const auto& set:Sets(v)){
-   const auto& newest=*set.front();const auto wins=SetScore(set);
-   rows.push_back(Row("set:"+PathOf(newest),newest.names[0]+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+newest.names[1],loc::Tf("replays.set_matches",set.size())));
-   rows.back().userText=true;rows.back().value=newest.label;rows.back().height=72;
-   for(std::size_t game=set.size();game-->0;){
-    const auto& r=*set[game];const std::string score=r.summary?ScoreText(*r.summary):std::string();
-    rows.back().choices.push_back({"game:"+PathOf(r),loc::Tf("replays.game",set.size()-game)+(score.empty()?"":"  "+score),loc::T("replays.watch_detail"),idle&&v.replays.ready});
-   }
-   rows.back().chosen=rows.back().choices.front().id;
-  }
  }else if(screen=="replay-export"){
   // Each part of the caption on or off, with its text; Generate sends it with the
   // export. A tab of Replays, it keeps their title; the eyebrow names the tab.
@@ -106,16 +91,18 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    Value("cap-meter",loc::T("export.meter"),onOff(meter_),loc::T("export.meter_detail")),
    Row("cap-generate",loc::T("export.generate"),loc::T("export.generate_detail"),idle&&r.ready)};
  }else if(screen=="replay-sets"){
-  // A row a set: its games and rooms, and Select to watch them in order, pick one, or save its pack.
-  title=loc::T("replays.tournaments");
-  for(const auto& set:SetsOf(v)){
+  // Sets, a card each: its players and score, and Select to watch its games in
+  // order, pick one, make their videos, or save its pack. A tournament set's
+  // card counts its games and rooms; a room set's and a pack's, its games.
+  title=loc::T("replays.title");
+  for(const auto& set:sets_){
    const auto& last=*set.games.back();
-   rows.push_back(Row("set:"+set.matchId,SetLabel(set),loc::T("replays.set_detail")));
+   rows.push_back(Row("set:"+SetId(set),SetLabel(set),set.Tagged()?loc::Tf("replays.set_value",set.games.size(),set.rooms):loc::Tf("replays.set_matches",set.games.size())));
    rows.back().userText=true;for(const auto& name:last.names)NoteUserText(name);
    const auto known=[&](int side){return selection::FindFighter(last.fighters[side])?last.fighters[side]:-1;};
    rows.back().fighter1=known(0);rows.back().fighter2=known(1);
-   rows.back().value=loc::Tf("replays.set_value",set.games.size(),set.rooms);
-   // A set imported from a pack has no service to ask for its pack.
+   rows.back().value=last.label;rows.back().height=72;
+   // Only a set its bridge holds has a pack to ask for.
    rows.back().choices={{"set-watch",loc::T("replays.watch_set"),loc::T("replays.watch_set_detail"),idle&&r.ready},{"set-pick",loc::T("replays.pick_game"),loc::T("replays.pick_game_detail")},
     {"set-export",loc::T("replays.export_set"),loc::T("replays.export_set_detail"),idle},
     {"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()}};
@@ -123,8 +110,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   }
  }else if(screen=="replay-set"){
   // One set's games, in the order they were played.
-  title=loc::T("replays.tournaments");
-  for(const auto& set:SetsOf(v))if(set.matchId==setShown_){title=SetLabel(set);for(const auto* game:set.games)rows.push_back(ReplayRow(v,*game,idle));}
+  title=loc::T("replays.title");
+  if(const Set* set=FindSet(sets_,setShown_)){title=SetLabel(*set);for(const auto* game:set->games)rows.push_back(ReplayRow(v,*game,idle));}
  }else{
   title=loc::T("replays.title");
   // A running export comes first: how far it has got, and Cancel while
@@ -148,8 +135,6 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    loc::T(setExport_?"replays.next_video_detail":"replays.watch_detail"),setExport_?idle:idle&&r.ready));
   rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&r.ready));
   rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
-  const auto sets=SetsOf(v);
-  if(!sets.empty()){rows.push_back(Row("replay-sets",loc::T("replays.tournaments"),loc::T("replays.tournaments_detail")));rows.back().value=std::to_string(sets.size());}
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   else{
    // Show and Search narrow the list (ReplayShown); with nothing left it says so.
@@ -223,10 +208,9 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
  }
 }
 // The caption an export starts from: the names Ember noted, the date and
-// score on one line, Ember's mark, and the set so far. The set is counted
-// from the archive: the matches these two played right before this one,
-// each within half an hour of the next, by who won each. A part the player
-// turned off stays off, as the frame meter row stays as it was.
+// score on one line, Ember's mark, and the set so far: the games of its set
+// (ReplaySets.hxx) before it, by who won each. A part the player turned off
+// stays off, as the frame meter row stays as it was.
 void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::ArchivedReplay& replay) {
  exportPath_=PathOf(replay);caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
@@ -234,15 +218,11 @@ void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::Archiv
  const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
  caption_.text=ReplayLabel(replay.label,replay.names,replay.fighters).substr(0,10)+(score.empty()?"":"   "+score);
  caption_.line=!lineOff_;caption_.mark=!markOff_;
- std::uint64_t next=replay.time;
- if(v.replays.archive)for(const auto& earlier:*v.replays.archive){
-  if(!caption_.names||earlier.time>=replay.time)continue;
-  if(next-earlier.time>1800)break; // newest first: nothing older continues the set
-  const bool same=earlier.names[0]==replay.names[0]&&earlier.names[1]==replay.names[1];
-  const bool swapped=earlier.names[0]==replay.names[1]&&earlier.names[1]==replay.names[0];
-  if((!same&&!swapped)||!earlier.summary||!earlier.summary->scored||earlier.summary->score[0]==earlier.summary->score[1])continue;
-  const int winner=earlier.summary->score[0]>earlier.summary->score[1]?0:1;
-  ++caption_.wins[same?winner:1-winner];next=earlier.time;
+ if(caption_.names)for(const auto& set:sets_){
+  const auto at=std::find(set.games.begin(),set.games.end(),&replay);
+  if(at==set.games.end())continue;
+  const auto wins=Wins(set.games,static_cast<std::size_t>(at-set.games.begin()),replay.names[0]);
+  caption_.wins[0]=wins.first;caption_.wins[1]=wins.second;break;
  }
  caption_.set=caption_.wins[0]+caption_.wins[1]>0&&!setOff_;
 }
@@ -259,7 +239,6 @@ void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,c
 bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigation& nav,const Submit& submit,std::string& error) {
  // Any other request from these screens takes the status line back from Show in folder.
  if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=false;
- if(a.id=="replay-sets"){nav.Push("replay-sets");return true;}
  if(a.id=="set-next"){
   if(setExport_&&!setQueue_.empty()){NextVideo(v,nav);return true;}
   if(!setQueue_.empty()&&v.replays.ready){Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());}
@@ -300,10 +279,10 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
   return;
  }
  if(a.id.compare(0,4,"set:")==0){
-  const std::string match=a.id.substr(4);
-  for(const auto& set:SetsOf(v)){
-   if(set.matchId!=match)continue;
-   if(a.text=="set-pick"){setShown_=match;nav.Push("replay-set");}
+  const std::string id=a.id.substr(4);
+  if(const Set* found=FindSet(sets_,id)){
+   const Set& set=*found;
+   if(a.text=="set-pick"){setShown_=id;nav.Push("replay-set");}
    else if(a.text=="set-pack"){
     folderAsked_=false;setAsked_=true;setNoticeAsked_=v.replays.setNotices;
     ShellAction r;r.command.generation=v.session.generation;
@@ -366,17 +345,17 @@ bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::stri
 }
 std::vector<std::pair<std::string,std::string>> ReplaysPanel::Tabs(const ShellView& v) const {
  std::vector<std::pair<std::string,std::string>> tabs{{"replays",loc::T("replays.tab.matches")}};
- if(!Sets(v).empty())tabs.push_back({"replay-sets",loc::T("replays.tab.sets")});
+ if(!sets_.empty())tabs.push_back({"replay-sets",loc::T("replays.tab.sets")});
  if(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty()))tabs.push_back({"replay-export",loc::T("export.title")});
  return tabs;
 }
 void ReplaysPanel::ExportFrom(const ShellView& v,const std::string& focus) {
- const Replay* r=RowReplay(v,focus);
+ const Replay* r=RowReplay(v,sets_,focus);
  if(!r&&exportPath_.empty()&&v.replays.archive&&!v.replays.archive->empty())r=&v.replays.archive->front();
  if(r)OpenExport(v,*r);
 }
 bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImVec2 max) const {
- const Replay* r=RowReplay(v,e.id);
+ const Replay* r=RowReplay(v,sets_,e.id);
  if(!r)return false;
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
  const bool set=e.id[0]=='s';
@@ -389,7 +368,7 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  if(!tags.empty()){right-=v2::ChipWidth(tags);v2::Chip(d,ImVec2(right,min.y+(max.y-min.y-ImGui::GetFontSize()*.78f-8*s)*.5f),tags,c.muted);right-=14*s;}
  // The players and the score between them (a set's by match), the fighters or the set's length under them.
  std::string score=r->summary?ScoreText(*r->summary):std::string();
- if(set)for(const auto& one:Sets(v))if(one.front()==r){const auto wins=SetScore(one);score=std::to_string(wins.first)+"-"+std::to_string(wins.second);}
+ if(set){if(const Set* one=FindSet(sets_,e.id.substr(4))){const auto wins=SetScore(*one);score=std::to_string(wins.first)+"-"+std::to_string(wins.second);}}
  const float x=min.x+16*s,top=min.y+10*s;
  ImGui::PushFont(HeadingFont());
  const std::string a=ReplayPlayerName(r->names,0),b=ReplayPlayerName(r->names,1);
@@ -435,7 +414,7 @@ void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const
   ImGui::Dummy(ImVec2(w,h));
   return;
  }
- const Replay* r=RowReplay(v,id);
+ const Replay* r=RowReplay(v,sets_,id);
  const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
  if(!r||row==rows.end())return;
  const bool set=id[0]=='s';
@@ -444,7 +423,7 @@ void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const
  ImGui::TextWrapped("%s",set?row->label.c_str():loc::Tf("replays.fighters",ReplayPlayerName(r->names,0),ReplayPlayerName(r->names,1)).c_str());
  ImGui::PopFont();
  ImGui::Dummy(ImVec2(0,6*s));
- if(set)v2::Fact(loc::T("replays.tab.matches"),std::to_string(row->choices.size()));
+ if(set){if(const Set* one=FindSet(sets_,id.substr(4)))v2::Fact(loc::T("replays.tab.matches"),std::to_string(one->games.size()));}
  else v2::Fact(loc::T("replays.fact.fighters"),FightersText(*r));
  v2::Fact(loc::T("replays.fact.played"),r->label);
  if(!set&&r->summary)v2::Fact(loc::T("replays.fact.length"),MatchText(*r->summary));

@@ -235,7 +235,7 @@ hangs off that id.
   at fault can't always be proven, so the game is played again from the
   start, in the same room or a new one. Only games with a confirmed result
   are tagged and sent, so a 2–1 set ends with exactly 3 complete replays.
-- **Game.** Replays › Tournaments lists sets, each with its pack (count of
+- **Game.** Replays › Sets lists sets, each with its pack (count of
   games and rooms); Watch set plays them in order; Save set pack writes the
   file; opening a `.emberpack` imports every game. The desk's set panel
   links to the same pack.
@@ -281,6 +281,6 @@ To do:
 9. Game: tag tournament replays with the set's `matchId` and room revision
    (`EMBRNAM2`), only for games with a confirmed result.
 10. Bridge: replay upload per set and the set pack.
-11. Game: upload from the outbox, Replays › Tournaments by set, and
+11. Game: upload from the outbox, Replays › Sets by set, and
     `.emberpack` save and import.
 12. Manual: the tournament mode guide.

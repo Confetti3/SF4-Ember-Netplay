@@ -931,14 +931,8 @@ msgstr "离开 Ember 菜单，打开用于播放录像的游戏 Battle Log。"
 msgid "replays.open_log_room"
 msgstr "请先离开房间。"
 
-msgid "replays.tournaments"
-msgstr "赛事"
 
-msgid "replays.tournaments_detail"
-msgstr "你在赛事中打过的对局，每个都包含其所有局。"
 
-msgid "replays.set_detail"
-msgstr "选择以按顺序观看对局的各局、挑选其中一局，或将对局保存为一个文件。"
 
 msgid "replays.set_value"
 msgstr "{0} 个回放 · {1} 个房间"
@@ -7818,8 +7812,6 @@ msgstr "系列赛"
 msgid "replays.set_matches"
 msgstr "{0} 场对战"
 
-msgid "replays.game"
-msgstr "第 {0} 场"
 
 msgid "replays.fact.fighters"
 msgstr "角色"

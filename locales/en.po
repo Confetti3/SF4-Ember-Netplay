@@ -931,14 +931,8 @@ msgstr "Leaves Ember's menu for the game's Battle Log, where replays play."
 msgid "replays.open_log_room"
 msgstr "Leave the room first."
 
-msgid "replays.tournaments"
-msgstr "Tournaments"
 
-msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
 
-msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} rooms"
@@ -7450,8 +7444,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} matches"
 
-msgid "replays.game"
-msgstr "Match {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Fighters"

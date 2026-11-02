@@ -1,6 +1,7 @@
 #pragma once
 #include "MenuNavigation.hxx"
 #include "ReplaysView.hxx"
+#include "../platform/ReplaySets.hxx"
 #include "../common/ReplayRequest.hxx"
 #include <cstdint>
 #include <functional>
@@ -91,6 +92,8 @@ private:
     // and the Search text a player's or fighter's name must contain.
     ReplayShow show_{}; // All
     std::string search_;
+    // The archive's sets (ReplaySets.hxx), once a frame from the listing Update saw.
+    std::vector<platform::replays::ArchivedSet> sets_;
     // Show in folder was the last thing asked here: the status line has its answer.
     bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.
