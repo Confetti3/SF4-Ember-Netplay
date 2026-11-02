@@ -39,12 +39,14 @@ public:
 	Result Join(const std::string& name, const ConnectionRef& connection, bool host = false, MemberProfile profile = {});
 	Result Leave(MemberId member);
 	Result Apply(MemberId member, const Action& action);
-    // The fighter a member last showed. When a seated member who has not
+    // The pick a member last showed. When a seated member who has not
     // readied changes a fighter it already showed, the table revision moves,
     // so no Ready given against the old matchup is accepted later, and the
     // other seat's Ready is taken back as an Unready would
-    // (*withdrewOpponentReady). False when nothing changed.
-    bool SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady=nullptr,int edition=-1);
+    // (*withdrewOpponentReady). A new costume, colour or Ultra on the same
+    // fighter moves only the room's revision: the matchup is the same. The
+    // edition is kept unannounced. False when nothing shown changed.
+    bool SetMemberChara(MemberId member,const Chara& chara,bool* withdrewOpponentReady=nullptr);
     // Whether `member` may play `fighter` in `edition`: a table's keeper
     // (KeepsFighter) only the ones they won with. The host asks before it
     // takes a fighter.

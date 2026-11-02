@@ -402,19 +402,19 @@ void SessionServer::HandleSetChara(session::Connection conn, const json& msg) {
 	}
 	auto& matchData = _roomAuthority ? _roomMatchData[tableId] : _matchData;
 	const room::MemberId sender = side == 0 ? table.p1 : table.p2;
-	const int edition = selection::FromNative(request.chara).edition;
-	if (_roomAuthority && !_roomAuthority->FighterAllowed(sender, request.chara.charaID, edition)) {
+	const auto pick = selection::FromNative(request.chara);
+	if (_roomAuthority && !_roomAuthority->FighterAllowed(sender, pick.fighter, pick.edition)) {
 		spdlog::info("Server: table {} seat {} keeps the fighter it won with; refused fighter {}", tableId, side, request.chara.charaID);
 		return;
 	}
 	if ((_roomAuthority ? table.ready[side] : matchData.readyMessageNum[side] != -1) ||
-		!selection::Valid(selection::FromNative(request.chara), _roomAuthority ? table.rules.editionSelect : _lobbyData.editionSelect)) {
+		!selection::Valid(pick, _roomAuthority ? table.rules.editionSelect : _lobbyData.editionSelect)) {
 		spdlog::info("Server: rejected unavailable or locked character selection from {}", conn);
 		return;
 	}
 	matchData.chara[side] = request.chara;
     bool withdrew=false;
-    if(_roomAuthority&&_roomAuthority->SetMemberFighter(sender,request.chara.charaID,&withdrew,edition)){
+    if(_roomAuthority&&_roomAuthority->SetMemberChara(sender,{pick.fighter,pick.edition,pick.costume,pick.color,pick.ultra},&withdrew)){
         if(withdrew)spdlog::info("Server: table {} seat {} changed fighter to {}; the other seat's Ready was taken back",tableId,side,request.chara.charaID);
         BroadcastRoomState({});
     }

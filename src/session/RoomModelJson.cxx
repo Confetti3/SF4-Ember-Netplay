@@ -1,6 +1,7 @@
 // Room model persistence: checkpoints and the JSON wire form of room types.
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/JsonDump.hxx"
 #include "../common/SkillBadgeJson.hxx"
 
@@ -364,6 +365,10 @@ void to_json(nlohmann::json& json, const Member& value) { json = nlohmann::json{
     if (value.training) json["training"] = true;
     if (value.setsWon) json["sets_won"] = value.setsWon;
     if (value.edition >= 0) json["edition"] = value.edition;
+    // The look of the shared fighter, only once shared; older readers skip the keys.
+    if (value.costume >= 0) json["costume"] = value.costume;
+    if (value.color >= 0) json["color"] = value.color;
+    if (value.ultra >= 0) json["ultra"] = value.ultra;
     if (value.setsLost) json["sets_lost"] = value.setsLost;
     // Only a member who showed the room a profile has the key; older readers skip it.
     if (value.steamId.Present()) json["steam_id"] = value.steamId.ToString();
@@ -389,6 +394,10 @@ void from_json(const nlohmann::json& json, Member& value) {
     value.training = json.contains("training") ? json.at("training").get<bool>() : false;
     value.setsWon = static_cast<std::uint16_t>(json.contains("sets_won") ? ReadInt(json, "sets_won", 0, UINT16_MAX) : 0);
     value.edition = json.contains("edition") ? ReadInt(json, "edition", -1, 255) : -1;
+    // A snapshot from an older room host has none of these: not shared.
+    value.costume = json.contains("costume") ? ReadInt(json, "costume", -1, selection::CostumeLimit - 1) : -1;
+    value.color = json.contains("color") ? ReadInt(json, "color", -1, selection::CostumeLimit - 1) : -1;
+    value.ultra = json.contains("ultra") ? ReadInt(json, "ultra", -1, selection::UltraChoices - 1) : -1;
     value.setsLost = static_cast<std::uint16_t>(json.contains("sets_lost") ? ReadInt(json, "sets_lost", 0, UINT16_MAX) : 0);
     value.link = json.contains("link") ? NetworkLinkFromWire(json.at("link").get<long long>()) : NetworkLink::Unknown;
     value.nat = json.contains("nat") ? NatClassFromWire(json.at("nat").get<long long>()) : NatClass::Unknown;

@@ -152,16 +152,16 @@ static void TestFighterChangeWithdrawsOpponentReady() {
 	bool withdrew = true;
 	// A first fighter changes no matchup: the table revision stays.
 	auto revision = authority.SnapshotView().tables[0].revision;
-	EXPECT(authority.SetMemberFighter(seated.p1, 0, &withdrew) && !withdrew);
-	EXPECT(authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberChara(seated.p1, {0}, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberChara(seated.p2, {1}, &withdrew) && !withdrew);
 	EXPECT(authority.SnapshotView().tables[0].revision == revision);
-	EXPECT(!authority.SetMemberFighter(seated.p2, 1, &withdrew) && !withdrew); // unchanged
+	EXPECT(!authority.SetMemberChara(seated.p2, {1}, &withdrew) && !withdrew); // unchanged
 	// p1 readies; p2 changes a fighter it showed: p1's Ready is taken back.
 	Action ready = TableAction(authority, seated.p1, 0, ActionKind::Ready);
 	ready.inputDelay = 2;
 	EXPECT(authority.Apply(seated.p1, ready).accepted);
 	revision = authority.SnapshotView().tables[0].revision;
-	EXPECT(authority.SetMemberFighter(seated.p2, 3, &withdrew) && withdrew);
+	EXPECT(authority.SetMemberChara(seated.p2, {3}, &withdrew) && withdrew);
 	{
 		const auto& after = authority.SnapshotView().tables[0];
 		EXPECT(!after.ready[0] && !after.ready[1] && after.phase == TablePhase::Waiting);
@@ -174,19 +174,19 @@ static void TestFighterChangeWithdrawsOpponentReady() {
 	// The race: p1 presses Ready against p2's fighter 3, then p2's change
 	// to 4 arrives first with nobody ready. The Ready still cannot pass.
 	Action raced = TableAction(authority, seated.p1, 0, ActionKind::Ready);
-	EXPECT(authority.SetMemberFighter(seated.p2, 4, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberChara(seated.p2, {4}, &withdrew) && !withdrew);
 	EXPECT(authority.Apply(seated.p1, raced).reason == RejectReason::StaleTable);
 	EXPECT(!authority.SnapshotView().tables[0].ready[0]);
 	// A seat that is itself ready takes nothing back, the other direction
 	// works the same way, and a member without a seat changes nothing.
 	EXPECT(authority.Apply(seated.p2, TableAction(authority, seated.p2, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.SetMemberFighter(seated.p2, 5, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberChara(seated.p2, {5}, &withdrew) && !withdrew);
 	EXPECT(authority.SnapshotView().tables[0].ready[1]);
-	EXPECT(authority.SetMemberFighter(seated.p1, 6, &withdrew) && withdrew);
+	EXPECT(authority.SetMemberChara(seated.p1, {6}, &withdrew) && withdrew);
 	EXPECT(!authority.SnapshotView().tables[0].ready[1]);
 	const MemberId bystander = Join(authority, 3);
-	EXPECT(authority.SetMemberFighter(bystander, 7, &withdrew) && !withdrew);
-	EXPECT(authority.SetMemberFighter(bystander, 8, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberChara(bystander, {7}, &withdrew) && !withdrew);
+	EXPECT(authority.SetMemberChara(bystander, {8}, &withdrew) && !withdrew);
 }
 
 // Idle time: counted from a member's last room action or join, reported in
@@ -363,7 +363,7 @@ static void TestProfileMain() {
     EXPECT(!authority.Join("Invalid",Peer(0),true,{-2}).accepted);
     EXPECT(authority.Join("Main",Peer(0),true,{11,sf4e::NetworkLink::Wireless,sf4e::NatClass::Strict}).accepted);
     const auto host=authority.SnapshotView().host;
-    EXPECT(authority.SetMemberFighter(host,2));
+    EXPECT(authority.SetMemberChara(host,{2}));
     const auto encoded=nlohmann::json(authority.SnapshotView()).dump();
     const auto decoded=nlohmann::json::parse(encoded).get<Snapshot>();
     EXPECT(decoded.members[0].mainFighter==11&&decoded.members[0].fighter==2);
@@ -1060,9 +1060,9 @@ int main() {
 	EXPECT(authority.Apply(host, cancel).accepted);
 
 	// JSON round trips retain the explicit table and seat model.
-    EXPECT(authority.SetMemberFighter(host,12));
-    EXPECT(!authority.SetMemberFighter(host,44));
-    EXPECT(!authority.SetMemberFighter(9999,0));
+    EXPECT(authority.SetMemberChara(host,{12}));
+    EXPECT(!authority.SetMemberChara(host,{44}));
+    EXPECT(!authority.SetMemberChara(9999,{0}));
 	nlohmann::json encoded = authority.SnapshotView();
 	Snapshot decoded = encoded.get<Snapshot>();
 	EXPECT(decoded.tables[0].id == 0 && decoded.tables[3].id == 3);

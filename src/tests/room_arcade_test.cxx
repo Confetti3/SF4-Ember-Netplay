@@ -305,7 +305,7 @@ static void TestWinnerKeepsFighterAndRecords() {
 		RoomAuthority authority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, ArcadeRoom);
 		const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 		Sit(authority, a, 0); Sit(authority, b, 9);
-		CHECK(authority.SetMemberFighter(a, 5, nullptr, 14) && authority.SetMemberFighter(b, 7, nullptr, 14));
+		CHECK(authority.SetMemberChara(a, {5, 14}) && authority.SetMemberChara(b, {7, 14}));
 		CHECK(!KeepsFighter(authority.SnapshotView(), a) && !KeepsFighter(authority.SnapshotView(), b));
 		Beat(authority, a);
 		const auto& room = authority.SnapshotView();
