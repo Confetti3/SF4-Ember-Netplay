@@ -372,6 +372,17 @@ static bool CaseSensitive(const std::filesystem::path& folder) {
  CloseHandle(handle);
  return set;
 }
+// A name put in a list is appended; one taken out leaves no line behind.
+static void TestNotes() {
+ namespace fs = std::filesystem;
+ const fs::path list=fs::temp_directory_path()/("ember-notes-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+".txt");
+ const auto lines=[&] { std::ifstream in(list); return std::string(std::istreambuf_iterator<char>(in), {}); };
+ sf4e::replayfiles::Note(list,"a.emberreplay",true); sf4e::replayfiles::Note(list,"b.emberreplay",true);
+ CHECK(lines()=="a.emberreplay\nb.emberreplay\n");
+ sf4e::replayfiles::Note(list,"a.emberreplay",false);
+ CHECK(lines()=="b.emberreplay\n");
+ fs::remove(list);
+}
 static void TestArchiveFolderContainment() {
  namespace fs = std::filesystem;
  using sf4e::platform::ArchiveFolderOf;
@@ -652,6 +663,7 @@ int main() {
  TestArchivePublicationPolicy();
 #ifdef _WIN32
  TestProductionArchivePublicationRefusal();
+ TestNotes();
  TestArchiveFolderContainment();
 #endif
  printf("replay_files_test: all tests passed\n");

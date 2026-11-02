@@ -18,14 +18,14 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     alice.path="a";alice.label="2026-10-05 23:35";alice.names[0]="Alice";alice.names[1]="Bob";alice.watched=alice.video=true;alice.summary=said;alice.fighters[0]=0;alice.fighters[1]=1;
     other.path="b";other.label="2026-10-05 23:36";other.provenance=sf4e::replayfiles::Provenance::Spectated;other.fighters[0]=2;other.fighters[1]=3;
     both.path="c";both.label="2026-10-05 23:40";both.names[0]="Carol";both.names[1]="Dave";both.provenance=sf4e::replayfiles::Provenance::Spectated;both.watched=true;both.summary=said;both.fighters[0]=8;both.fighters[1]=30;
-    older.path="d";older.label="2026-10-04 20:12";older.fighters[0]=12;older.fighters[1]=-1;
+    older.path="d";older.label="2026-10-04 20:12";older.fighters[0]=12;older.fighters[1]=-1;older.kept=true;
     view.replays.archive=std::make_shared<const std::vector<platform::replays::ArchivedReplay>>(std::vector<platform::replays::ArchivedReplay>{alice,other,both,older});
     view.replays.ready=true;view.replays.notice=loc::T("replays.added");
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     // The first replay is focused, so a narrow window scrolls the list to it.
     page("replays");shell.Navigation().Focus("replay:a",rows);draw("replays-cards");
     Require(rows.size()==8&&rows[2].id=="replay-show"&&rows[3].id=="replay-search"&&rows[4].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
-        rows[5].value==loc::T("replays.spectated")&&rows[6].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay tags changed");
+        rows[5].value==loc::T("replays.spectated")&&rows[6].value=="2-1 · "+std::string(loc::T("replays.spectated_seen"))&&rows[7].value==loc::T("replays.kept"),"Replay tags changed");
     // Show stepped to Spectated lists the two watched live; stepped back to All, every one.
     shell.Navigation().Focus("replay-show",rows);draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Right,1);draw("replays-spectated");
     Require(rows.size()==6&&rows[2].value==loc::T("replays.show.spectated")&&rows[4].id=="replay:b"&&rows[5].id=="replay:c","Show did not narrow the list to spectated matches");

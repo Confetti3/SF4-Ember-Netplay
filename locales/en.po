@@ -5183,6 +5183,9 @@ msgstr "Not seen yet"
 msgid "replays.show.video"
 msgstr "With video"
 
+msgid "replays.show.kept"
+msgstr "Kept"
+
 msgid "replays.search"
 msgstr "Search"
 
@@ -5194,6 +5197,21 @@ msgstr "No matches to show"
 
 msgid "replays.none_shown_detail"
 msgstr "No replay fits Show and Search. Change them to see the others."
+
+msgid "replays.keep"
+msgstr "Keep"
+
+msgid "replays.keep_detail"
+msgstr "Marks it as one to find again, under Show: Kept."
+
+msgid "replays.unkeep"
+msgstr "Stop keeping"
+
+msgid "replays.unkeep_detail"
+msgstr "Takes the mark off. The replay stays in the archive."
+
+msgid "replays.kept"
+msgstr "Kept"
 
 msgid "export.title"
 msgstr "Export video"

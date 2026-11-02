@@ -478,21 +478,22 @@ void NoteMatchEnd(bool confirmed) {
 }
 
 namespace {
-void MarkIn(const wchar_t* list, const fs::path& file) {
+void Mark(const wchar_t* list, const fs::path& file, bool on) {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return;
-		std::ofstream out(folders.archive / list, std::ios::app);
-		out << WideToUtf8(file.filename().wstring()) << '\n';
+		replayfiles::Note(folders.archive / list, WideToUtf8(file.filename().wstring()), on);
+		WantListing();
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: {} was not written: {}", WideToUtf8(list), e.what());
 	}
 }
 }
-void MarkWatched(const fs::path& file) { MarkIn(L"watched.txt", file); }
-void MarkSent(const fs::path& file) { MarkIn(L"sent.txt", file); }
-void MarkSetClosed(const fs::path& file) { MarkIn(L"closed.txt", file); }
+void MarkWatched(const fs::path& file) { Mark(L"watched.txt", file, true); }
+void MarkKept(const fs::path& file, bool kept) { Mark(L"kept.txt", file, kept); }
+void MarkSent(const fs::path& file) { Mark(L"sent.txt", file, true); }
+void MarkSetClosed(const fs::path& file) { Mark(L"closed.txt", file, true); }
 
 fs::path SetPackPath(const std::string& matchId) {
 	if (matchId.empty() || matchId.size() > replayfiles::kMostId ||
@@ -527,18 +528,6 @@ std::size_t ImportSetPack(const fs::path& pack) {
 }
 
 namespace {
-std::vector<std::string> NotedNames(const fs::path& file) {
-	std::vector<std::string> names;
-	auto bytes = replayfiles::ReadFile(file, 1 << 20);
- if (!bytes) return names;
- std::string line;
- for (auto byte : *bytes) {
-  if (byte == '\n') { if (!line.empty() && line.size() <= 4096) names.push_back(line); line.clear(); }
-  else if (line.size() <= 4096) line.push_back(static_cast<char>(byte));
- }
- if (!line.empty() && line.size() <= 4096) names.push_back(line);
-	return names;
-}
 
 // A list of marked replays, read again when its bounded file changes.
 struct NotesCache {
@@ -547,24 +536,26 @@ struct NotesCache {
 	void Read(const fs::path& file) {
 		std::error_code ignored;
 		const auto at = fs::last_write_time(file, ignored);
-		if (ignored) names.clear(); else if (at != written) names = NotedNames(file);
+		if (ignored) names.clear(); else if (at != written) names = replayfiles::NotedNames(file);
 		written = at;
 	}
 	bool Has(const fs::path& replay) const { return std::find(names.begin(), names.end(), WideToUtf8(replay.filename().wstring())) != names.end(); }
 };
 
-std::vector<ArchivedReplay> List(NotesCache (&cache)[3]) {
+std::vector<ArchivedReplay> List(NotesCache (&cache)[4]) {
 	const Folders folders = FindFolders();
 	if (folders.archive.empty()) return {};
 	cache[0].Read(folders.archive / L"watched.txt");
 	cache[1].Read(folders.archive / L"sent.txt");
 	cache[2].Read(folders.archive / L"closed.txt");
+	cache[3].Read(folders.archive / L"kept.txt");
 
 	std::vector<ArchivedReplay> archived = Index().Refresh(folders.archive);
 	for (ArchivedReplay& replay : archived) {
 		replay.watched = cache[0].Has(replay.path);
 		replay.sent = cache[1].Has(replay.path);
 		replay.setClosed = cache[2].Has(replay.path);
+		replay.kept = cache[3].Has(replay.path);
 		fs::path video = replay.path;
 		std::error_code failed;
 		replay.video = fs::exists(video.replace_extension(L".mp4"), failed);
@@ -589,7 +580,7 @@ struct Lister {
 Lister& TheLister() { static Lister* const lister = new Lister; return *lister; }
 
 void ListUntilStopped(Lister& lister) {
-	NotesCache cache[3];
+	NotesCache cache[4];
  replayinputs::DetailCache details;
 	// Two seconds between listings, however often one is asked for. One
 	// replay's detail does not wait for that.

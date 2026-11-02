@@ -5551,6 +5551,9 @@ msgstr "Aún no vistas"
 msgid "replays.show.video"
 msgstr "Con vídeo"
 
+msgid "replays.show.kept"
+msgstr "Guardadas"
+
 msgid "replays.search"
 msgstr "Buscar"
 
@@ -5562,6 +5565,21 @@ msgstr "No hay partidas para mostrar"
 
 msgid "replays.none_shown_detail"
 msgstr "Ninguna repetición coincide con Mostrar y Buscar. Cámbialos para ver las demás."
+
+msgid "replays.keep"
+msgstr "Guardar"
+
+msgid "replays.keep_detail"
+msgstr "Lo marca para encontrarlo de nuevo, en Mostrar: Guardadas."
+
+msgid "replays.unkeep"
+msgstr "Dejar de guardar"
+
+msgid "replays.unkeep_detail"
+msgstr "Quita la marca. La repetición sigue en el archivo."
+
+msgid "replays.kept"
+msgstr "Guardado"
 
 msgid "export.title"
 msgstr "Exportar vídeo"

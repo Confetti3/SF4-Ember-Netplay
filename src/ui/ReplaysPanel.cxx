@@ -172,7 +172,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
  row.userText=true;for(const auto& name:replay.names)NoteUserText(name);
  const auto known=[&](int side){return selection::FindFighter(replay.fighters[side])?replay.fighters[side]:-1;};
  row.fighter1=known(0);row.fighter2=known(1);
- row.value=ReplayTagsText(replay.provenance==replayfiles::Provenance::Spectated,replay.watched,replay.video);
+ row.value=ReplayTagsText(replay.provenance==replayfiles::Provenance::Spectated,replay.watched,replay.video,replay.kept);
  // The score leads the value; the replay's own account of the match leads the detail.
  if(const auto& summary=replay.summary){
   const std::string score=ScoreText(*summary);
@@ -183,6 +183,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
  }
  // Select offers playback, adding to the Battle Log, exporting video, reading inputs, or its file in Explorer.
  row.choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&r.ready},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&r.ready},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),r.ready},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&r.ready},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},
+  {"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")},
   {"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending}};
  row.chosen=!r.ready?"inputs":idle?"watch":"add";
  return row;
@@ -330,6 +331,9 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
   // Explorer opens on the replay's own folder: the archive, or a usf4-replay-saver folder in it.
   ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::ShowReplayFile;r.servicePath=path;
   if(!submit(std::move(r))){folderAsked_=false;error=loc::T("error.queue_failed");}
+ }else if(a.text=="keep"){
+  // The mark goes on or comes off; the listing that follows shows it.
+  if(const auto* shown=Find(v,path)){ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Keep,path};r.replay.keep=!shown->kept;if(!submit(std::move(r)))error=loc::T("error.queue_failed");}
  }else if(a.text=="inputs"){
   // Nothing is sent to the game: the screen names the file and is handed its match (InputsFile).
   if(Find(v,path)){inputsFile_=path;++inputsRevision_;nav.Push("replay-inputs");}
@@ -380,7 +384,7 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  const float dateWidth=ImGui::CalcTextSize(r->label.c_str()).x;
  d->AddText(ImVec2(right-dateWidth,min.y+(max.y-min.y-ImGui::GetFontSize())*.5f),c.muted,r->label.c_str());
  right-=dateWidth+14*s;
- const std::string tags=set?std::string():ReplayTagsText(r->provenance==replayfiles::Provenance::Spectated,r->watched,r->video);
+ const std::string tags=set?std::string():ReplayTagsText(r->provenance==replayfiles::Provenance::Spectated,r->watched,r->video,r->kept);
  if(!tags.empty()){right-=v2::ChipWidth(tags);v2::Chip(d,ImVec2(right,min.y+(max.y-min.y-ImGui::GetFontSize()*.78f-8*s)*.5f),tags,c.muted);right-=14*s;}
  // The players and the score between them (a set's by match), the fighters or the set's length under them.
  std::string score=r->summary?ScoreText(*r->summary):std::string();

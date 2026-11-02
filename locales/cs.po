@@ -5550,6 +5550,9 @@ msgstr "Zatím neviděné"
 msgid "replays.show.video"
 msgstr "S videem"
 
+msgid "replays.show.kept"
+msgstr "Ponechané"
+
 msgid "replays.search"
 msgstr "Hledat"
 
@@ -5561,6 +5564,21 @@ msgstr "Žádné zápasy k zobrazení"
 
 msgid "replays.none_shown_detail"
 msgstr "Žádný záznam neodpovídá Zobrazit a Hledat. Změňte je a uvidíte ostatní."
+
+msgid "replays.keep"
+msgstr "Ponechat"
+
+msgid "replays.keep_detail"
+msgstr "Označí ho k opětovnému nalezení, pod Zobrazit: Ponechané."
+
+msgid "replays.unkeep"
+msgstr "Přestat ponechávat"
+
+msgid "replays.unkeep_detail"
+msgstr "Odebere označení. Záznam zůstane v archivu."
+
+msgid "replays.kept"
+msgstr "Ponechán"
 
 msgid "export.title"
 msgstr "Exportovat video"

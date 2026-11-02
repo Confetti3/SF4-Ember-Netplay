@@ -115,8 +115,10 @@ void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectatin
 void NoteMatchEnd(bool confirmed);
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
-// the archive, one file name per line), so the list can say so.
+// the archive), so the list can say so.
 void MarkWatched(const std::filesystem::path& file);
+// Marks a replay the player wants to find again (kept.txt), or takes the mark off.
+void MarkKept(const std::filesystem::path& file, bool kept);
 // The same for a replay its set's bridge or the replay archive has (sent.txt),
 // and for a set's replay its bridge refused because the set is closed
 // (closed.txt), which the replay archive may still take.
@@ -138,7 +140,8 @@ std::size_t ImportSetPack(const std::filesystem::path& pack);
 // Ember noted neither), watched whether
 // it was played with Watch now before, sent whether its set's bridge or the
 // replay archive has it, or refused it for good, and setClosed whether its
-// set's bridge refused it for a closed set: done for the set only.
+// set's bridge refused it for a closed set: done for the set only. kept is
+// the player's own mark on it (MarkKept).
 struct ArchivedReplay {
 	std::filesystem::path path;
 	std::string label;
@@ -146,7 +149,7 @@ struct ArchivedReplay {
 	int fighters[2] = {-1, -1};
 	std::string names[2];
 	replayfiles::Provenance provenance = replayfiles::Provenance::Unknown;
-	bool watched = false, sent = false, setClosed = false;
+	bool watched = false, sent = false, setClosed = false, kept = false;
 	// The tournament set it was a game of, or none.
 	replayfiles::SetTag set;
 	// An exported video (<name>.mp4) is beside it.

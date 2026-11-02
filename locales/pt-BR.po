@@ -5089,6 +5089,9 @@ msgstr "Ainda não vistas"
 msgid "replays.show.video"
 msgstr "Com vídeo"
 
+msgid "replays.show.kept"
+msgstr "Guardadas"
+
 msgid "replays.search"
 msgstr "Buscar"
 
@@ -5100,6 +5103,21 @@ msgstr "Nenhuma partida para mostrar"
 
 msgid "replays.none_shown_detail"
 msgstr "Nenhum replay corresponde a Mostrar e Buscar. Altere-os para ver os outros."
+
+msgid "replays.keep"
+msgstr "Guardar"
+
+msgid "replays.keep_detail"
+msgstr "Marca-o para encontrar de novo, em Mostrar: Guardadas."
+
+msgid "replays.unkeep"
+msgstr "Deixar de guardar"
+
+msgid "replays.unkeep_detail"
+msgstr "Remove a marca. O replay fica no arquivo."
+
+msgid "replays.kept"
+msgstr "Guardado"
 
 msgid "export.title"
 msgstr "Exportar vídeo"

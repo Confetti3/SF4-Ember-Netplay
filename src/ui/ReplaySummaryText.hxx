@@ -38,8 +38,8 @@ inline std::string ReplayRowLabel(const std::string& date,const std::string name
 // through them: every replay, the matches this PC played, the ones it only
 // watched live, those not played back yet, those with a video beside them,
 // and those the player keeps.
-enum class ReplayShow { All, Mine, Spectated, Unseen, Video };
-constexpr const char* kReplayShowKeys[]={"replays.show.all","replays.show.mine","replays.show.spectated","replays.show.unseen","replays.show.video"};
+enum class ReplayShow { All, Mine, Spectated, Unseen, Video, Kept };
+constexpr const char* kReplayShowKeys[]={"replays.show.all","replays.show.mine","replays.show.spectated","replays.show.unseen","replays.show.video","replays.show.kept"};
 inline ReplayShow Stepped(ReplayShow show,int delta){
  const int last=static_cast<int>(std::size(kReplayShowKeys))-1;
  return static_cast<ReplayShow>((std::max)(0,(std::min)(last,static_cast<int>(show)+delta)));
@@ -51,7 +51,7 @@ inline std::wstring LoweredText(const std::string& text){std::wstring wide=platf
 inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplayShow show,const std::wstring& search) {
  const bool spectated=replay.provenance==replayfiles::Provenance::Spectated;
  if((show==ReplayShow::Mine&&spectated)||(show==ReplayShow::Spectated&&!spectated)||(show==ReplayShow::Unseen&&replay.watched)||
-  (show==ReplayShow::Video&&!replay.video))return false;
+  (show==ReplayShow::Video&&!replay.video)||(show==ReplayShow::Kept&&!replay.kept))return false;
  if(search.empty())return true;
  for(int side=0;side<2;side++){
   if(LoweredText(replay.names[side]).find(search)!=std::wstring::npos)return true;
@@ -61,10 +61,12 @@ inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplaySh
 }
 // What Ember knows of a replay, after its score: Spectated when this PC only
 // watched the match live, Seen once its replay was played with Watch now,
-// Video once it was exported.
-inline std::string ReplayTagsText(bool spectated,bool seen,bool video) {
+// Video once it was exported, Kept while the player keeps it.
+inline std::string ReplayTagsText(bool spectated,bool seen,bool video,bool kept) {
  std::string tags=spectated&&seen?loc::T("replays.spectated_seen"):spectated?loc::T("replays.spectated"):seen?loc::T("replays.seen"):"";
- if(video)tags=tags.empty()?std::string(loc::T("replays.video")):tags+", "+loc::T("replays.video");
+ const auto add=[&](const char* key){tags=tags.empty()?std::string(loc::T(key)):tags+", "+loc::T(key);};
+ if(video)add("replays.video");
+ if(kept)add("replays.kept");
  return tags;
 }
 // A running export against its replay: the fighting recorded so far and the

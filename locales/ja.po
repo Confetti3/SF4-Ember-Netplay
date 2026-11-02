@@ -5551,6 +5551,9 @@ msgstr "未視聴"
 msgid "replays.show.video"
 msgstr "動画あり"
 
+msgid "replays.show.kept"
+msgstr "キープ済み"
+
 msgid "replays.search"
 msgstr "検索"
 
@@ -5562,6 +5565,21 @@ msgstr "表示する対戦はありません"
 
 msgid "replays.none_shown_detail"
 msgstr "表示と検索に合うリプレイがありません。変更すると他のリプレイが見られます。"
+
+msgid "replays.keep"
+msgstr "キープ"
+
+msgid "replays.keep_detail"
+msgstr "あとで見つけられるよう印を付けます。表示: キープ済み。"
+
+msgid "replays.unkeep"
+msgstr "キープを外す"
+
+msgid "replays.unkeep_detail"
+msgstr "印を外します。リプレイはアーカイブに残ります。"
+
+msgid "replays.kept"
+msgstr "キープ済み"
 
 msgid "export.title"
 msgstr "動画を書き出す"

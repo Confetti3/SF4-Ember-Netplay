@@ -5551,6 +5551,9 @@ msgstr "尚未观看"
 msgid "replays.show.video"
 msgstr "有视频"
 
+msgid "replays.show.kept"
+msgstr "已保留"
+
 msgid "replays.search"
 msgstr "搜索"
 
@@ -5562,6 +5565,21 @@ msgstr "没有可显示的对战"
 
 msgid "replays.none_shown_detail"
 msgstr "没有符合显示和搜索的回放。更改它们以查看其他回放。"
+
+msgid "replays.keep"
+msgstr "保留"
+
+msgid "replays.keep_detail"
+msgstr "标记它以便再次找到，位于显示：已保留。"
+
+msgid "replays.unkeep"
+msgstr "取消保留"
+
+msgid "replays.unkeep_detail"
+msgstr "去掉标记。回放仍保留在存档中。"
+
+msgid "replays.kept"
+msgstr "已保留"
 
 msgid "export.title"
 msgstr "导出视频"
