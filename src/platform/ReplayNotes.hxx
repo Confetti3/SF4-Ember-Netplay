@@ -65,7 +65,12 @@ inline std::unordered_set<std::string> ReplayNames(const std::filesystem::path& 
 	if (error) { std::error_code probe; complete = !fs::exists(archive, probe) && !probe; return names; }
 	for (const fs::recursive_directory_iterator end; at != end;) {
 		const fs::path path = at->path();
-		if (path.extension() == L".emberreplay" || path.extension() == L".usf4replay") names.insert(path.filename().generic_string());
+		if (path.extension() == L".emberreplay" || path.extension() == L".usf4replay") {
+			// UTF-8, as the lists are written: a narrow string() would use the ANSI
+			// code page, which throws on a name it cannot hold (an emoji, Japanese).
+			const auto name = path.filename().u8string();
+			names.insert(std::string(name.begin(), name.end()));
+		}
 		at.increment(error);
 		if (error) { complete = false; break; }
 	}

@@ -91,7 +91,10 @@ void RunLinux(UnixSpawn spawn) {
     // older updater refuses a package file it does not know. Written beside the tick, anew each run.
     const std::wstring scriptFile = std::wstring(folder) + L"ember-speech-relay.py";
     const bool scriptWritten = WriteTempFile(scriptFile, relayScript, static_cast<DWORD>(sizeof(relayScript) - 1));
-    if (!scriptWritten) spdlog::warn("Speech: could not write the relay script {} (error {}); no relay will start", platform::WideToUtf8(scriptFile.c_str()), GetLastError());
+    if (!scriptWritten) {
+        const DWORD error = GetLastError();
+        spdlog::warn("Speech: could not write the relay script {} (error {}); no relay will start", platform::WideToUtf8(scriptFile.c_str()), error);
+    }
     else if (unixFolder.empty()) spdlog::warn("Speech: the temporary folder has no Unix path; no relay will start");
     const std::string script = scriptWritten && !unixFolder.empty() ? unixFolder + "/ember-speech-relay.py" : std::string();
     // Unique per run: a relay of an earlier run with the same process id may still be leaving.

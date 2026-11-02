@@ -723,9 +723,12 @@ static void TestPruningCoversSubfolders() {
  fs::create_directories(root / "filed" / "deeper");
  const auto touch = [](const fs::path& at) { std::ofstream(at, std::ios::binary) << "x"; };
  touch(root / "top.emberreplay"); touch(root / "filed" / "sub.emberreplay"); touch(root / "filed" / "deeper" / "old.usf4replay"); touch(root / "filed" / "note.txt");
+ // Names no ANSI code page holds walk as their UTF-8, as the lists hold them.
+ touch(root / L"\u5bfe\u6226.emberreplay"); touch(root / "filed" / L"caf\u00e9 \U0001F525.emberreplay");
  bool complete = false;
  const auto walked = notes::ReplayNames(root, complete);
- CHECK(complete && walked.size() == 3 && walked.count("sub.emberreplay") && walked.count("old.usf4replay") && !walked.count("note.txt"));
+ CHECK(walked.count("\xE5\xAF\xBE\xE6\x88\xA6.emberreplay") && walked.count("caf\xC3\xA9 \xF0\x9F\x94\xA5.emberreplay"));
+ CHECK(complete && walked.size() == 5 && walked.count("sub.emberreplay") && walked.count("old.usf4replay") && !walked.count("note.txt"));
  const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
  const std::unordered_set<std::string> before{"top.emberreplay", "sub.emberreplay", "old.usf4replay", "gone.emberreplay"};
  // "late" was marked after the list was read: kept though the walk missed it.

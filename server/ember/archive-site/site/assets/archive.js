@@ -92,10 +92,13 @@ function group(games) {
       events.set(eventKey, { title: online ? 'Online matches · ' + day(game.saved_at) : game.event || 'Tournament sets', online, sets: new Map() });
     }
     const event = events.get(eventKey);
+    // Only a game with both names joins a set: half-named games against different
+    // unnamed opponents would otherwise read as one pair.
+    const named = Boolean(game.names[0] && game.names[1]);
     const pair = [game.names[0] || '?', game.names[1] || '?'].sort().join('\n');
     let key = online ? null : game.set;
     if (online) {
-      const last = pair && [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
+      const last = named && [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
       key = last ? last.key : game.digest;
     }
     if (!event.sets.has(key)) event.sets.set(key, { key, pair, event: event.title, online, games: [] });
