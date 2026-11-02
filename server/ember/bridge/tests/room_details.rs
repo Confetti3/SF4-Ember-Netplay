@@ -73,7 +73,14 @@ async fn details_are_listed_with_detail_one_and_absent_without() {
         .iter()
         .find(|room| room["room_id"] == quiet.as_str())
         .unwrap();
-    for key in ["host_name", "fighters", "locked", "set_format", "rotation", "room_type"] {
+    for key in [
+        "host_name",
+        "fighters",
+        "locked",
+        "set_format",
+        "rotation",
+        "room_type",
+    ] {
         assert!(quiet_room.get(key).is_none(), "{key}");
     }
 }
@@ -165,7 +172,14 @@ async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
     let room = &listed["rooms"][0];
     assert_eq!(room["members"], 1);
     assert_eq!(room["name"], "Kept");
-    for key in ["host_name", "fighters", "locked", "set_format", "rotation", "room_type"] {
+    for key in [
+        "host_name",
+        "fighters",
+        "locked",
+        "set_format",
+        "rotation",
+        "room_type",
+    ] {
         assert!(room.get(key).is_none(), "{key}");
     }
 }
@@ -241,12 +255,19 @@ async fn a_room_typed_after_it_opened_lists_its_type() {
         report_details(&fake, &room_id, said.clone());
         ember_bridge::poll_rooms(bridge.state()).await;
         let detailed = raw_listing(&bridge, &sam, "?detail=1").await;
-        assert_eq!(detailed["rooms"][0]["room_type"], listed, "{said} {detailed}");
+        assert_eq!(
+            detailed["rooms"][0]["room_type"], listed,
+            "{said} {detailed}"
+        );
         let list: RoomList = serde_json::from_value(detailed).unwrap();
         list.rooms[0].check().unwrap();
     }
     // Without `detail=1` it is not there, as before.
-    assert!(raw_listing(&bridge, &sam, "").await["rooms"][0].get("room_type").is_none());
+    assert!(
+        raw_listing(&bridge, &sam, "").await["rooms"][0]
+            .get("room_type")
+            .is_none()
+    );
 }
 
 // A table that moves to a longer set shows it: first to 10 replaces first to 2.

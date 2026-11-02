@@ -250,7 +250,10 @@ async fn a_room_its_creator_left_no_longer_counts_against_them() {
     report_details(&fake, &first, json!({ "creator_in": true }));
     ember_bridge::poll_rooms(bridge.state()).await;
     let listed = listing(&bridge, &one, "").await;
-    assert!(listed.iter().any(|room| room.room_id == first), "{listed:?}");
+    assert!(
+        listed.iter().any(|room| room.room_id == first),
+        "{listed:?}"
+    );
     assert_eq!(fake.lock().unwrap().created.len(), 2);
 }
 
