@@ -124,8 +124,7 @@ void Tick(bool atMainMenu, const std::string& screen) {
 		// profile, plays, so a real key is sent from outside
 		// (scripts/run-selftest.ps1); nothing here answers the title screen.
 		WatchScreen(screen);
-		const bool replays = Requested() == Test::Replay || Requested() == Test::Export;
-		if (atMainMenu && (!replays || ReplayReady())) {
+		if (atMainMenu && ((Requested() != Test::Replay && Requested() != Test::Export) || ReplayReady())) {
 			Say(true, "main menu");
 			if (StartTest()) run.Enter(Stage::Testing); else Finish();
 		}
