@@ -704,6 +704,32 @@ int main() {
             Require(counted.View().startupFrames[0] == (input ? 7 : 12), input ? "A target combo's own startup was not counted" : "A move's own next script restarted its startup");
         }
         {
+            // Ryu's c.LP chained into c.LP: one command move plays its script twice, 2 startup,
+            // 2 active, then recovery. The second jab is a move of its own: its windup is no
+            // recovery of the first, and its hits do not take the first's in.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            int tick = 1;
+            pair[0].status = 16; pair[0].action = 210; pair[0].commandMove = 0x5000;
+            const auto jab = [&](int frames) {
+                for (int frame = 1; frame <= frames; ++frame) {
+                    pair[0].hitPhase = frame < 3 ? 0 : frame < 5 ? 1 : 3; pair[0].actionFrame = static_cast<float>(frame);
+                    counted.Observe(tick++, pair);
+                    if (frames > 6 && frame == 1)
+                        Require(counted.View().startupFrames[0] < 0 && counted.View().moves[0].active == 0, "A chained jab kept the first jab's startup or active frames");
+                }
+            };
+            jab(6);
+            Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 && counted.View().moves[0].recovery == 2, "The first jab miscounted");
+            jab(7);
+            Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 && counted.View().moves[0].recovery == 3,
+                "A normal chained into itself merged with the first into one move");
+            int begun = 0;
+            for (const auto& frame : counted.View().frames) begun += frame.cells[0].newAction && frame.cells[0].split;
+            Require(begun == 1, "The bars did not start a count where the same normal played again");
+        }
+        {
             // Adon's far HK hits twice: Ryu's reaction starts again from its first frame as the
             // second hitstop begins. That frame is hitstop, not one the reaction moved on.
             FighterSample before, after;

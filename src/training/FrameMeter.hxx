@@ -362,6 +362,12 @@ inline void MergeStopped(MeterCell& cell, const MeterCell& stopped) {
     if (stopped.hitAdvantage != NoHitAdvantage) cell.hitAdvantage = stopped.hitAdvantage;
     cell.afterStop = cell.afterStop || stopped.afterStop;
 }
+// Whether the fighter plays its script again from an earlier frame: the game
+// starts the same action over, as a normal chained into itself does (c.LP into
+// c.LP plays one command move's script twice).
+inline bool Replayed(const FighterSample& previous, const FighterSample& sample) {
+    return sample.valid && previous.valid && sample.action == previous.action && sample.actionFrame < previous.actionFrame;
+}
 // sample's cell after previous, the sample before it in the bars whose cell
 // was before; no previous for the first cell of the bars.
 inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSample* previous, const MeterCell& before) {
@@ -374,7 +380,9 @@ inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSamp
     if (cell.kind == MeterKind::Guard && sample.status != S::DamageGuard &&
         (sample.posture > 1 || cell.guardFrom == S::Jump || cell.guardFrom == S::StandToJump)) cell.kind = MeterKind::Neutral;
     if (!previous) return cell;
-    cell.newAction = sample.valid && sample.action >= 0 && sample.action != previous->action;
+    // An attack played again is a new action too; a reaction started over by the next hit is the hit's (struck).
+    cell.newAction = sample.valid && sample.action >= 0 &&
+        (sample.action != previous->action || (sample.status == S::Skill && Replayed(*previous, sample)));
     const bool action = cell.newAction && !(cell.kind == MeterKind::Guard && before.kind == MeterKind::Guard);
     const bool struck = cell.kind == MeterKind::Hit && before.kind == MeterKind::Hit && !action &&
         (sample.comboDamage > previous->comboDamage || sample.actionFrame < previous->actionFrame);
@@ -523,13 +531,14 @@ public:
             // Before a focus's own startup and move replace the move's below.
             WatchCancel(side, previous, sample);
             // Another attack within Skill: a script that opens in startup, from a new input
-            // (a target combo, a cancel). A move's own next script keeps its command move
-            // (Seth's 214K, Vega's roll), one that opens active (Balrog's headbutt) or plays
-            // out a throw goes on with the move.
+            // (a target combo, a cancel: another command move), or the same script played
+            // again (a normal chained into itself keeps its command move). A move's own next
+            // script keeps its command move (Seth's 214K, Vega's roll), one that opens active
+            // (Balrog's headbutt) or plays out a throw goes on with the move.
             const auto opens = ClassifyMeter(sample);
             const bool another = sample.valid && sample.status == ActorStatus::Skill && actionChanged &&
                 (opens == MeterKind::Startup || opens == MeterKind::Attack) &&
-                (!sample.commandMove || sample.commandMove != previous.commandMove);
+                (!sample.commandMove || sample.commandMove != previous.commandMove || Replayed(previous, sample));
             const int waiting = projectileWait_[side];
             if (!sample.valid) {
                 view_.startupFrames[side] = -1; startupPending_[side] = false; projectileWait_[side] = 0;
