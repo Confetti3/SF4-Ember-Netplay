@@ -278,21 +278,23 @@ void ApplicationShell::ToggleFollow(const ShellView& v,const Submit& submit) {
 }
 // Every Watch, Unwatch and lock-in SendRoom sends, the member's own or
 // following's, is the member's one watching intent (room::RoomFollow): a
-// Stop watching ends following at once, whatever move is still on its way.
-void ApplicationShell::NoteWatching(const room::Action& sent) {
- if(sent.kind==room::ActionKind::Watch)follow_.Watched(sent.table,static_cast<std::uint64_t>(ImGui::GetTime()*1000));
- else if(sent.kind==room::ActionKind::Unwatch)follow_.StoppedWatching();
+// Stop watching ends following at once and holds, whatever move is still on
+// its way, until the room shows the member watching nothing.
+void ApplicationShell::NoteWatching(const room::Action& sent,const room::Snapshot& room) {
+ const auto nowMs=static_cast<std::uint64_t>(ImGui::GetTime()*1000);
+ if(sent.kind==room::ActionKind::Watch)follow_.Watched(sent.table,nowMs);
+ else if(sent.kind==room::ActionKind::Unwatch)follow_.StoppedWatching(room,sent.table,nowMs);
  else if(sent.kind==room::ActionKind::LockSpectating&&sent.locked)follow_.Stop();
 }
-// After the frame's own presses, drawn or hidden (Background), the follower
-// decides from the room as this PC has it. A move waits for a room that takes
-// it and for this PC's watched game to finish showing; one that did not go
-// waits as one the room refused.
+// After the frame's own presses, drawn or hidden (Background), the watching
+// intent decides from the room as this PC has it. A move waits for a room that
+// takes it and for this PC's watched game to finish showing. A step that did
+// not go is noted as sent, so it waits as one the room refused and goes again.
 void ApplicationShell::UpdateFollow(const ShellView& v,double now,const Submit& submit) {
  const auto nowMs=static_cast<std::uint64_t>(now*1000);
  const auto step=follow_.Next(v.room,nowMs,{RoomActionsAvailable(v),v.watchedGame.Active()});
  if(!step)return;
  room::Action action;action.kind=step.kind;action.table=static_cast<std::uint8_t>(step.table);
- if(!SendRoom(std::move(action),v,submit)&&step.kind==room::ActionKind::Watch)follow_.Watched(step.table,nowMs);
+ if(!SendRoom(room::Action(action),v,submit))NoteWatching(action,v.room);
 }
 } }

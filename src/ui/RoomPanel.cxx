@@ -264,7 +264,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
     const auto sent = action;
     request.roomAction = std::move(action);
     if (!submit(std::move(request))) { error_ = loc::T("error.queue_failed"); return false; }
-    NoteWatching(sent);
+    NoteWatching(sent, view.room);
     error_.clear(); return true;
 }
 
@@ -731,7 +731,9 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
  }
  ShellAction request;request.command.generation=v.session.generation;request.leaveWatchedGame=v.watchedGame;
  if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
- follow_.StoppedWatching();
+ // Stop watching of the table, not only the rest of a finished stream or a
+ // queued member's game, is the member's watching intent.
+ if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(ImGui::GetTime()*1000));
  error_.clear();
  return true;
 }

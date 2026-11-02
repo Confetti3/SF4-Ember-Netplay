@@ -261,7 +261,7 @@ void StopWatchingBeatsMove() {
 	auto follow = Following(room);
 	EXPECT(Move(follow, room, 0) == 1);
 	follow.Watched(1, 0);
-	follow.StoppedWatching();
+	follow.StoppedWatching(room, 0, 0);
 	EXPECT(!follow.On());
 	// Neither answer is in yet.
 	EXPECT(!follow.Next(room, 100, Free));
@@ -281,7 +281,7 @@ void StopWatchingBeatsMove() {
 	auto again = Following(refused);
 	EXPECT(Move(again, refused, 0) == 1);
 	again.Watched(1, 0);
-	again.StoppedWatching();
+	again.StoppedWatching(refused, 0, 0);
 	refused.tables[0].spectators.clear();
 	EXPECT(!again.Next(refused, 100, Free));
 	Watch(refused, 1);
@@ -293,10 +293,49 @@ void StopWatchingBeatsMove() {
 	auto last = Following(chosen);
 	EXPECT(Move(last, chosen, 0) == 1);
 	last.Watched(1, 0);
-	last.StoppedWatching();
+	last.StoppedWatching(chosen, 0, 0);
 	last.Watched(1, 50);
 	Watch(chosen, 1);
 	EXPECT(!last.Next(chosen, 100, Free) && !last.On());
+}
+
+// Stop watching holds until the room shows it. Pressed twice before any
+// answer, with both Unwatches refused after the move landed, it still leaves
+// the move's table; an Unwatch that did not go is tried again after the wait;
+// it ends once nothing is watched, or with the room.
+void StopWatchingHolds() {
+	auto room = Room();
+	Seat(room.tables[1], 1, 2); Play(room.tables[1]);
+	Watch(room, 0);
+	auto follow = Following(room);
+	EXPECT(Move(follow, room, 0) == 1);
+	follow.Watched(1, 0);
+	follow.StoppedWatching(room, 0, 10);
+	follow.StoppedWatching(room, 0, 20);
+	EXPECT(!follow.On() && !follow.Next(room, 30, Free));
+	Watch(room, 1);
+	auto step = follow.Next(room, 40, Free);
+	EXPECT(step.kind == ActionKind::Unwatch && step.table == 1);
+	// It did not go: the shell notes it as tried.
+	follow.StoppedWatching(room, 1, 40);
+	EXPECT(!follow.Next(room, 40 + FollowMoveTimeoutMs - 1, Free));
+	EXPECT(!follow.Next(room, 40 + FollowMoveTimeoutMs, {false, false}));
+	step = follow.Next(room, 40 + FollowMoveTimeoutMs, {true, true});
+	EXPECT(step.kind == ActionKind::Unwatch && step.table == 1);
+	follow.StoppedWatching(room, 1, 40 + FollowMoveTimeoutMs);
+	room.tables[1].watchingNext.clear();
+	EXPECT(!follow.Next(room, 60000, Free));
+	Watch(room, 1);
+	EXPECT(!follow.Next(room, 120000, Free));
+	// Another room, or the member gone from it, ends the intent with it.
+	auto left = Room();
+	Watch(left, 2);
+	RoomFollow stopped;
+	stopped.StoppedWatching(left, 2, 0);
+	auto next = left;
+	next.roomEpoch = 7;
+	EXPECT(!stopped.Next(next, FollowMoveTimeoutMs, Free));
+	EXPECT(!stopped.Next(left, 2 * FollowMoveTimeoutMs, Free));
 }
 
 // Against the room's own authority: the move is one Watch, which takes the
@@ -350,6 +389,7 @@ int main() {
 	EndsWithAPlace();
 	LockInEndsFollowing();
 	StopWatchingBeatsMove();
+	StopWatchingHolds();
 	AuthorityTakesTheMove();
 	if (!TEST_FAILURES()) std::printf("Room follow tests passed\n");
 	return TEST_EXIT_CODE();

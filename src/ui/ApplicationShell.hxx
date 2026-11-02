@@ -610,7 +610,7 @@ private:
     room::RoomFollow follow_;
     MenuEntry FollowRow(const ShellView& view) const;
     void ToggleFollow(const ShellView& view, const Submit& submit);
-    void NoteWatching(const room::Action& sent);
+    void NoteWatching(const room::Action& sent, const room::Snapshot& room);
     void UpdateFollow(const ShellView& view, double now, const Submit& submit);
     // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
     // WIN screen (ShellView::matchResult) on its own screen, "post-match". It

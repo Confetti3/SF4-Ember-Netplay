@@ -113,9 +113,12 @@ room type but a tournament's.
 - The member's own watching comes first. Every Watch and Unwatch sent, the
   member's or following's, is one watching intent (NoteWatching), and the
   frame's presses are taken before following decides. Stop watching ends
-  following at once; if a move was still on its way, the room may take that
-  Watch before the Unwatch, so the table it landed at is left once the room
-  shows the member there. A Watch the member chooses afterwards stands.
+  following at once and holds until the room shows the member watching
+  nothing: a move still on its way may land after the member's Unwatch, so
+  an Unwatch goes for whatever table the room shows it at, again after 5 s
+  while one is refused or did not go, however often Stop watching was
+  pressed. A Watch the member chooses afterwards, a place or leaving the
+  room ends it.
 - When the watched table has no game Playing or Ready, and some other table
   is Playing, it moves to the lowest-numbered such table that takes another
   spectator and whose last game is not still closing. Every client chooses

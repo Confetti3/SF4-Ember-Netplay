@@ -148,10 +148,12 @@ void LockInLandsAfterFollow() {
  Check(f.Watches(from).empty(),"A locked-in watcher still moved");
 }
 
-// The member's own Stop watching wins over a move still on its way. Following
-// sent Watch 2; before any answer, the member stops watching table 0. The room
-// takes the Watch first, so the Unwatch finds nothing at 0: following, off
-// at once, leaves table 2 when the room shows the member there, and moves no more.
+// The member's own Stop watching wins over a move still on its way, and holds
+// until the room shows it. Following sent Watch 2; before any answer, the
+// member presses Stop watching at table 0 twice. The room takes the Watch
+// first, so both Unwatches find nothing at 0. Following, off at once, leaves
+// table 2 when the room shows the member there; that Unwatch does not go the
+// first time, and goes again after the wait. Then nothing more is sent.
 void StopWatchingBeatsMove() {
  FollowRoom f(41);auto& h=f.h;auto& tables=f.tables;
  f.TableOptions("table-0");
@@ -160,11 +162,18 @@ void StopWatchingBeatsMove() {
  h.Choose("unwatch");f.Capture();
  Check(f.Sent(room::ActionKind::Unwatch,from)==std::vector<int>{0}&&f.Row("follow-room")->label==loc::T("room.follow"),
   "Stop watching did not end following at once");
+ h.Press(MenuInput::Select);
+ Check(f.Sent(room::ActionKind::Unwatch,from)==std::vector<int>{0,0},"The second Stop watching was not sent");
+ h.accept=false;
  tables[0].spectators.clear();tables[2].watchingNext={1};h.Frame(0,3);
- Check(f.Sent(room::ActionKind::Unwatch,from)==std::vector<int>{0,2},"The move that landed after Stop watching was not left");
+ Check(f.Sent(room::ActionKind::Unwatch,from)==std::vector<int>{0,0,2},"The move that landed after Stop watching was not left");
+ h.accept=true;h.Frame(0,3);
+ Check(f.Sent(room::ActionKind::Unwatch,from).size()==3,"An Unwatch that did not go was sent again at once");
+ h.Wait(room::FollowMoveTimeoutMs/1000.f+.5f);h.Frame(0,3);
+ Check(f.Sent(room::ActionKind::Unwatch,from)==std::vector<int>{0,0,2,2},"An Unwatch that did not go was forgotten");
  tables[2].watchingNext.clear();tables[3].p1=4;tables[3].p2=5;tables[3].phase=room::TablePhase::Playing;
  h.Wait(30);h.Frame(0,3);
- Check(f.Watches(from)==std::vector<int>{2}&&f.Sent(room::ActionKind::Unwatch,from).size()==2,"Following moved after Stop watching");
+ Check(f.Watches(from)==std::vector<int>{2}&&f.Sent(room::ActionKind::Unwatch,from).size()==4,"Something was sent after the room showed Stop watching");
 }
 
 // A Stop watching pressed on the very frame a move falls due comes first.
