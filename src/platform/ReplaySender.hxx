@@ -15,6 +15,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include "../netplay/IdentityView.hxx"
 
 namespace sf4e { namespace platform { namespace replays {
 
@@ -49,9 +50,10 @@ public:
 		return Step::Send;
 	}
 	// Helper request `id`, sent at `nowMs`, carries the replay at `path`, a
-	// set's game when `set`.
+	// set's game when `set`. The Discord account in place now is the one the
+	// request goes out with.
 	void Sent(std::uint64_t id, std::filesystem::path path, bool set, std::uint64_t nowMs) {
-		request_ = id; path_ = std::move(path); set_ = set; sentMs_ = nowMs;
+		request_ = id; path_ = std::move(path); set_ = set; sentMs_ = nowMs; discordAtSend_ = discord_;
 	}
 	// What the helper's answer to request `id` settles. NotOurs for any but
 	// the request out; Done when the bridge has the replay or refused it for
@@ -69,7 +71,7 @@ public:
 		if (!id || id != request_) return Answer::NotOurs;
 		request_ = 0;
 		if (!ok && !set_ && reason == "replays_unsupported") { noArchive_ = true; nextMs_ = nowMs + kNextMs; return Answer::NoArchive; }
-		if (!ok && !set_ && reason == "discord_required") { needsDiscord_ = true; discordWhenAsked_ = discord_; nextMs_ = nowMs + kNextMs; return Answer::NeedsDiscord; }
+		if (!ok && !set_ && reason == "discord_required") { needsDiscord_ = !discord_.ConnectedSince(discordAtSend_); nextMs_ = nowMs + kNextMs; return Answer::NeedsDiscord; }
 		if (!ok && set_ && reason == "set_closed") { Settled(); nextMs_ = nowMs + kNextMs; return Answer::SetClosed; }
 		if (!ok && set_ && reason == "replay_unconfirmed") {
 			PutAside(nowMs + kUnconfirmedMs, nowMs); nextMs_ = nowMs + kNextMs;
@@ -81,11 +83,12 @@ public:
 		return Answer::Again;
 	}
 	// The Discord account the player is signed in with, as the interface
-	// reads it (empty when none), told on every look. Online sends wait for a
-	// sign-in that differs from the one in place when the archive asked for it.
-	void Discord(const std::string& account) {
+	// reads it (user empty when none), told on every look. Online sends wait
+	// for a sign-in after the one the refused request went out with; one that
+	// came before the refusal arrived already counts.
+	void Discord(const netplay::IdentityAccount& account) {
 		discord_ = account;
-		if (needsDiscord_ && !account.empty() && account != discordWhenAsked_) needsDiscord_ = false;
+		if (needsDiscord_ && discord_.ConnectedSince(discordAtSend_)) needsDiscord_ = false;
 	}
 	bool Archives() const { return !noArchive_ && !needsDiscord_; }
 	// Whether the replay at `path` is not to be chosen at `nowMs` for the
@@ -128,7 +131,7 @@ private:
 	std::uint64_t request_ = 0, sentMs_ = 0, nextMs_ = 0;
 	std::filesystem::path path_;
 	bool set_ = false, noArchive_ = false, needsDiscord_ = false;
-	std::string discord_, discordWhenAsked_;
+	netplay::IdentityAccount discord_, discordAtSend_;
 	// Put aside until then (ms); a few at most, and the past ones dropped.
 	std::map<std::filesystem::path, std::uint64_t> aside_;
 	// Failures in a row per replay, and the last few replays done with.

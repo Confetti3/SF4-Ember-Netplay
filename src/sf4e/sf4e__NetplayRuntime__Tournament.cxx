@@ -214,10 +214,7 @@ void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 	auto& sending = runtime->replaySend;
 	// The account the interface last read from the bridge, as the sign-in a
 	// new connect changes.
-	if (runtime->room) {
-		const auto account = runtime->room->Identity().Discord();
-		sending.Discord(account.user.empty() ? std::string() : account.user + ":" + std::to_string(account.connectedAt));
-	}
+	if (runtime->room) sending.Discord(runtime->room->Identity().Discord());
 	if (!helperReady) return;
 	switch (sending.Poll(nowMs)) {
 	case platform::replays::ReplaySender::Step::Wait: return;
