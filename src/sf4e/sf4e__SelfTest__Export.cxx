@@ -12,6 +12,7 @@
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/SkillBadge.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__ReplayStore.hxx"
 
@@ -20,11 +21,13 @@
 // Generate video on the Replays screen does, one after the other in this one
 // game, and writes each video's path to the result file. The job file has a
 // line a replay, its fields split by tabs:
-//   path   name 1   name 2   line   wins 1   wins 2
+//   path   name 1   name 2   line   wins 1   wins 2   class 1   class 2
 // Empty names leave the names off and an empty line the line. Wins are the
 // set score so far; "auto" for both counts it here, from each game's winner as
-// the game decides it, from 0-0; anything else leaves the score off. Ember's
-// mark is always on and the frame meter off (ember_render.py writes the file).
+// the game decides it, from 0-0; anything else leaves the score off. A class
+// is its band, 1 (D) to 10 (Grand Master), drawn on its name's plate; empty
+// for none. Ember's mark is always on and the frame meter off
+// (ember_render.py writes the file).
 namespace sf4e { namespace selftest {
 namespace {
 
@@ -87,7 +90,7 @@ std::vector<Job> ReadJobs() {
 		if (!line.empty() && line.back() == '\r') line.pop_back();
 		if (line.empty()) continue;
 		auto fields = Fields(line);
-		fields.resize(6);
+		fields.resize(8);
 		Job job;
 		job.path = fields[0];
 		replay::Caption& caption = job.caption;
@@ -99,6 +102,10 @@ std::vector<Job> ReadJobs() {
 		job.counted = fields[4] == "auto" && fields[5] == "auto";
 		caption.set = job.counted || (Number(fields[4], caption.wins[0]) && Number(fields[5], caption.wins[1]));
 		caption.mark = true;
+		for (int side = 0; side < 2; ++side) {
+			int band = 0;
+			if (Number(fields[6 + side], band) && band >= 1 && band <= SkillBadge::Classes) caption.band[side] = static_cast<std::uint8_t>(band);
+		}
 		std::error_code missing;
 		if (!fs::is_regular_file(platform::Utf8ToWide(job.path.c_str()), missing)) { Say(false, "job file", "no replay at '" + job.path + "'"); return {}; }
 		jobs.push_back(std::move(job));

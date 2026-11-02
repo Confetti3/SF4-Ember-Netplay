@@ -29,6 +29,10 @@ struct Caption {
 	bool names = false, line = false, set = false, mark = false;
 	std::string name[2], text;
 	int wins[2] = {0, 0};
+	// Each player's class on Ember's rankings, its band (common/SkillBadge.hxx:
+	// 1 for D to 10 for Grand Master), drawn as USF4's own emblem on their
+	// name's plate; 0 for none.
+	std::uint8_t band[2] = {0, 0};
 	bool Any() const { return names || line || set || mark; }
 };
 

@@ -410,6 +410,7 @@ void DrawExportCaption(const ExportCaptionView& view) {
     const float gx0=screen.pos.x+(screen.size.x-1280*gs)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
     MatchStripView plates;plates.layout=1;plates.nameOffset=view.nameOffset;
     plates.names[0]=view.names[0];plates.names[1]=view.names[1];
+    plates.badges[0]=view.badges[0];plates.badges[1]=view.badges[1];
     const auto placed=PlaceSplit(plates,screen);
     for(const auto& plate:placed.plates)if(!plate.name.empty())DrawPlate(draw,plate,false);
     auto* font=DiagnosticFont();

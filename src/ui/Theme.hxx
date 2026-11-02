@@ -202,6 +202,8 @@ std::string MatchHudNameOffsetText(int offset);
 // over the timer, and Ember's mark in the bottom right corner.
 struct ExportCaptionView {
     std::string names[2], line;
+    // Each name's class, drawn on its plate as the match HUD draws one.
+    SkillBadge badges[2];
     bool mark = false;
     int nameOffset = 0;
 };

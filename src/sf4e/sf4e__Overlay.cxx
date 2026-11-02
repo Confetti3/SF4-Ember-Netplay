@@ -813,6 +813,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         for (int side = 0; side < 2 && caption.names; ++side) {
             const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
             shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
+            const std::uint8_t band = caption.band[side];
+            if (band >= 1 && band <= sf4e::SkillBadge::Classes) shown.badges[side] = sf4e::SkillBadge::OfClass(band, true);
         }
         if (caption.line) shown.line = caption.text;
         if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
