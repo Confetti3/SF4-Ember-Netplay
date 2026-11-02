@@ -399,6 +399,16 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 			op.awaited = true;
 			spdlog::info("Replay: encoding the playback");
 		}
+		// The button guide under the replay (END, SLO MO) is the game's own
+		// reminder for a player, not part of the match: a video has none, as
+		// the game's own YouTube recording had none.
+		if (Named(state, "Battle") && op.awaited) {
+			auto* const guide = ReplayBattle::GetButtonGuide(state);
+			if (ReplayBattle::staticMethods.MovieValid(guide)) {
+				ReplayBattle::staticMethods.MovieClose(guide);
+				spdlog::info("Replay: the button guide is left out of the video");
+			}
+		}
 		// An export leaves the replay by itself: once the match has been
 		// decided for a while, the end menu's choice is made for the player
 		// (Dimps__Game.hxx, ReplayBattle). Written each tick until the state

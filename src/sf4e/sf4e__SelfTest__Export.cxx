@@ -8,6 +8,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../Dimps/Dimps__Game__Battle.hxx"
+#include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../platform/Utf8.hxx"
@@ -19,9 +21,10 @@
 // game, and writes each video's path to the result file. The job file has a
 // line a replay, its fields split by tabs:
 //   path   name 1   name 2   line   wins 1   wins 2
-// Empty names leave the names off, an empty line the line, and wins that are
-// not both numbers the set score. Ember's mark is always on and the frame
-// meter off (scripts/ember-render.ps1 writes the file).
+// Empty names leave the names off and an empty line the line. Wins are the
+// set score so far; "auto" for both counts it here, from each game's winner as
+// the game decides it, from 0-0; anything else leaves the score off. Ember's
+// mark is always on and the frame meter off (ember_render.py writes the file).
 namespace sf4e { namespace selftest {
 namespace {
 
@@ -33,6 +36,7 @@ enum class Stage { Next, Starting, Exporting, Done };
 struct Job {
 	std::string path;
 	replay::Caption caption;
+	bool counted = false;
 };
 
 struct Export : Steps<Stage> {
@@ -40,7 +44,25 @@ struct Export : Steps<Stage> {
 	std::size_t at = 0;
 	std::uint64_t id = 0;
 	int tries = 0;
+	// The set so far, as the games played have ended, and the winner of the
+	// one playing (-1 until its result is up); scored: every game ended with one.
+	int wins[2] = {0, 0}, winner = -1;
+	bool scored = true;
 } s_export;
+
+// The match's winner once the game shows its result, as the room reads it
+// (sf4e__Game__Battle__System__NativeResult.cxx); -1 before then or for a draw.
+int MatchWinner() {
+	using System = Dimps::Game::Battle::System;
+	using Dimps::Game::Battle::GameManager;
+	const DWORD* flow = System::staticVars.CurrentBattleFlow;
+	if (!flow || *flow != System::BF__MATCH_RESULT || !System::staticMethods.GetSingleton) return -1;
+	System* const system = System::staticMethods.GetSingleton();
+	GameManager* const manager = system && System::publicMethods.GetGameManager ? (system->*System::publicMethods.GetGameManager)() : nullptr;
+	if (!manager || !GameManager::publicMethods.GetNativeResultIndex) return -1;
+	const int index = (manager->*GameManager::publicMethods.GetNativeResultIndex)();
+	return index == 0 || index == 1 ? index : -1;
+}
 
 std::vector<std::string> Fields(const std::string& line) {
 	std::vector<std::string> fields;
@@ -74,7 +96,8 @@ std::vector<Job> ReadJobs() {
 		caption.name[1] = fields[2];
 		caption.line = !fields[3].empty();
 		caption.text = fields[3];
-		caption.set = Number(fields[4], caption.wins[0]) && Number(fields[5], caption.wins[1]);
+		job.counted = fields[4] == "auto" && fields[5] == "auto";
+		caption.set = job.counted || (Number(fields[4], caption.wins[0]) && Number(fields[5], caption.wins[1]));
 		caption.mark = true;
 		std::error_code missing;
 		if (!fs::is_regular_file(platform::Utf8ToWide(job.path.c_str()), missing)) { Say(false, "job file", "no replay at '" + job.path + "'"); return {}; }
@@ -104,7 +127,13 @@ void TickExport(bool atMainMenu) {
 			if (run.Late(120)) run.Fail("export " + std::to_string(run.at + 1), "the main menu never came back");
 			break;
 		}
-		const Job& job = run.jobs[run.at];
+		Job& job = run.jobs[run.at];
+		if (job.counted) {
+			job.caption.set = run.scored;
+			job.caption.wins[0] = run.wins[0];
+			job.caption.wins[1] = run.wins[1];
+		}
+		run.winner = -1;
 		replay::Request request{replay::Mode::Export, job.path, job.caption};
 		request.id = ++run.id;
 		replaystore::Start(request, atMainMenu, true);
@@ -126,13 +155,18 @@ void TickExport(bool atMainMenu) {
 		run.Fail("export " + std::to_string(run.at + 1), "not started: '" + status.notice + "'");
 		break;
 	case Stage::Exporting: {
+		const int winner = MatchWinner();
+		if (winner >= 0) run.winner = winner;
 		if (status.exportEnded != run.id || status.step != Step::Idle) {
 			if (run.Late(30 * 60)) run.Fail("export " + std::to_string(run.at + 1), "still running after half an hour");
 			break;
 		}
 		const std::string& path = run.jobs[run.at].path;
 		const std::string video = path.substr(0, path.rfind('.')) + ".mp4";
-		Say(status.exportSaved, "export " + std::to_string(run.at + 1), status.exportSaved ? "VIDEO " + video : "no video: '" + status.notice + "'");
+		if (run.winner >= 0) run.wins[run.winner]++;
+		else run.scored = false;
+		const std::string won = run.winner >= 0 ? " WINNER " + std::to_string(run.winner + 1) : " WINNER none";
+		Say(status.exportSaved, "export " + std::to_string(run.at + 1), status.exportSaved ? "VIDEO " + video + won : "no video: '" + status.notice + "'");
 		if (!status.exportSaved || ++run.at == run.jobs.size()) {
 			run.Enter(Stage::Done);
 			Finish();

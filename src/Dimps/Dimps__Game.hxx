@@ -130,6 +130,13 @@ namespace Dimps {
 			// "leave" writes was not seen, so 1 stands for it.
 			static constexpr std::size_t BattleEndChoice = 0x480;
 			static constexpr int EndChoiceLeave = 1;
+			// The Battle state's setup (0x483ED0) makes its pause menu at +0xC0
+			// (0x6309E0); the menu's list at +0xCC (0x628720) builds the button
+			// guide under the replay (END, SLO MO: 0x651A60, the movie its +0x28
+			// holds, so the state's +0x1B4). The game's own YouTube recording
+			// (+0xB4 set) makes no pause menu. Closing the movie (0x78F2B0)
+			// clears its handle as the list does before it builds a new one.
+			static constexpr std::size_t BattleButtonGuide = 0x1B4;
 			struct List;
 			struct Voice;
 			struct Movie;
@@ -149,11 +156,13 @@ namespace Dimps {
 			static int* GetSplashPhase(Splash* splash) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(splash) + SplashPhase); }
 			static Voice* GetSplashVoice(Splash* splash) { return *reinterpret_cast<Voice**>(reinterpret_cast<std::uint8_t*>(splash) + SplashVoice); }
 			static Movie* GetSplashMovie(Splash* splash, int movie) { return reinterpret_cast<Movie*>(reinterpret_cast<std::uint8_t*>(splash) + SplashMovies + movie * 8); }
+			static Movie* GetButtonGuide(void* battle) { return reinterpret_cast<Movie*>(reinterpret_cast<std::uint8_t*>(battle) + BattleButtonGuide); }
 			typedef struct __staticMethods {
 				void (__thiscall* PlayRow)(List* list);
 				void (__thiscall* FadeVoice)(Voice* voice, int frames);
 				bool (__thiscall* MovieValid)(Movie* movie);
 				void (__thiscall* MovieSignal)(Movie* movie, const char* name, int);
+				void (__thiscall* MovieClose)(Movie* movie);
 			} __staticMethods;
 
 			static void Locate(HMODULE peRoot);
