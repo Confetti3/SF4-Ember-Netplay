@@ -177,6 +177,23 @@ static void TestIdentifiedBodyRetriesWithoutScanning() {
  CHECK(refused.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  worker.Stop(); CHECK(reads == 2 && attempts == 2);
 }
+// A battle the game did not save: the names bind to the replay Ember kept,
+// with no slot to observe. Without one the names wait for a save as before.
+static void TestUnsavedReplayTakesTheNames() {
+ std::vector<std::string> log;
+ RecordingAttribution owner([&](const char* reason) { log.push_back(reason); });
+ const auto before = std::make_shared<const RecordingSnapshot>(Slots(Saved(1)));
+ unsigned published = 0;
+ const auto publish = [&](const std::filesystem::path& archive, const Bytes& body, const ReplayNames& names) {
+  CHECK(archive == "archive" && body == Saved(15) && names.players[0] == "Left"); ++published; return NamePublication::Published;
+ };
+ owner.Begin(Start(10, "Left"), before); owner.End(20, false, Saved(15));
+ CHECK(!owner.NeedsSnapshot());
+ owner.PublishIdentified(publish); CHECK(published == 1 && !owner.Pending());
+ owner.Begin(Start(30, "Left"), before); owner.End(40);
+ CHECK(owner.NeedsSnapshot());
+ owner.PublishIdentified(publish); CHECK(published == 1 && owner.Pending() && log.empty());
+}
 static void TestInvalidExistingNamesLifecycle() {
  namespace fs = std::filesystem;
  const auto folder = fs::temp_directory_path() / ("ember-provenance-refused-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -252,7 +269,7 @@ static void TestOnlyConfirmedGamesKeepTheirSet() {
  CHECK(notes[1].set.bridgeId == "brg_bridge" && notes[1].set.matchId == "emt_set" && notes[1].set.revision == 3);
 }
 int main() {
- TestOnlyConfirmedGamesKeepTheirSet();
+ TestOnlyConfirmedGamesKeepTheirSet(); TestUnsavedReplayTakesTheNames();
  TestWorkerFencesSameSecondRematchBaseline();
  TestIdentifiedBodyRetriesWithoutScanning(); TestInvalidExistingNamesLifecycle();
  TestDisabledAndDormantRecordings(); TestPermanentRefusalAndBoundedRetries();

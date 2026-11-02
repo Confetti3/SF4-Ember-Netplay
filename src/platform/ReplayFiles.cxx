@@ -153,6 +153,12 @@ replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudg
 	return {folders.archive, folders.outbox, settleBudget, settleFrom, view, SlotFiles(), PublishFile};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
+// The replays Ember kept itself (NoteMatchEnd) for the next pass to archive;
+// one that could not be written waits for the pass after. A few at most: the
+// archive not taking them is the outbox's warning already.
+constexpr std::size_t kMostUnsaved = 4;
+std::mutex& UnsavedLock() { static std::mutex lock; return lock; }
+std::vector<slots::Bytes>& Unsaved() { static std::vector<slots::Bytes> replays; return replays; }
 
 // More replays than this waiting in the outbox, about 10 MB, is worth a
 // warning: the archive has not been writable for a long while.
@@ -171,8 +177,18 @@ void RefreshIndex(const fs::path& archive) {
 replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
 	std::lock_guard<std::mutex> lock(CopyLock());
 	replayfiles::ArchiveView view(Index().Held());
-	const auto pass = replayfiles::RunPass(Target(folders, settleBudget, view), accounts, kFirstMatchSlot, kLastMatchSlot);
-	if (pass.copied) spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str());
+	const replayfiles::ArchiveTarget target = Target(folders, settleBudget, view);
+	auto pass = replayfiles::RunPass(target, accounts, kFirstMatchSlot, kLastMatchSlot);
+	{
+		std::lock_guard<std::mutex> unsavedLock(UnsavedLock());
+		auto& unsaved = Unsaved();
+		for (auto at = unsaved.begin(); at != unsaved.end();) {
+			slots::Bytes exported;
+			if (slots::ExportFromReplayAlone(*at, exported) && replayfiles::Publish(target, *at, exported)) { pass.copied++; at = unsaved.erase(at); }
+			else { pass.failed++; pass.retry = true; ++at; }
+		}
+	}
+	if (pass.copied) { spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str()); WantListing(); }
 	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
 	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
 	if (pass.failed) spdlog::warn("Replays: {} replays could not be archived or kept in the outbox yet", pass.failed);
@@ -466,13 +482,19 @@ void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectatin
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
-void NoteMatchEnd(bool confirmed) {
+void NoteMatchEnd(bool confirmed, slots::Bytes unsaved) {
+ if (!unsaved.empty()) {
+  std::lock_guard<std::mutex> lock(UnsavedLock());
+  if (Unsaved().size() < kMostUnsaved) Unsaved().push_back(unsaved);
+  else { spdlog::warn("Replays: the unfinished replay was dropped; the archive has not taken the ones before it"); unsaved.clear(); }
+ }
  try { Archiver().MatchEnded(); } catch (...) {}
  try {
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::End;
   event.confirmed = confirmed;
   event.time = static_cast<std::uint64_t>(_time64(nullptr));
+  event.body = std::move(unsaved);
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }

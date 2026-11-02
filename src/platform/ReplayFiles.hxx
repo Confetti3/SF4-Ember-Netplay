@@ -110,9 +110,12 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // A tournament game passes its set (SetTag); the names keep it only when
 // NoteMatchEnd says its result was confirmed.
 // Both also ask for an archive pass (Archive).
+// A battle the game does not save (the opponent left) passes the replay the
+// recorder holds, or nothing: the next archive pass puts it in the archive,
+// and the names bind to it.
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
 	const replayfiles::SetTag& set = {});
-void NoteMatchEnd(bool confirmed);
+void NoteMatchEnd(bool confirmed, replayslots::Bytes unsaved);
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
 // the archive), so the list can say so.

@@ -1,5 +1,7 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/BattlePause.hxx"
+#include "../Dimps/Dimps.hxx"
+#include "../Dimps/Dimps__GameEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__InputLag.hxx"
@@ -443,6 +445,32 @@ static void NoteHeapParticleNames(rSystem* system) {
     spdlog::warn("VFX: {} live particles have names on the heap (longest {}); rollback copies them raw", heapNames, longest);
 }
 
+// The replay of a netplay battle that ends without a result: the game saves a
+// replay only from its result flow, so when the opponent leaves, the recorder
+// still holds the rounds played and nothing writes them. Serialized as the
+// game's save would (0x63C410), with the round under way, when the player
+// records replays (the setting sf4e__UserApp.cxx reads at match start).
+static std::vector<std::uint8_t> UnsavedReplay() {
+    using Dimps::Game::Battle::ReplaySystem;
+    using Dimps::Game::ProgressData;
+    std::vector<std::uint8_t> replay;
+    auto* const root = Dimps::App::GetRootEvent();
+    auto* const progress = root ? *Dimps::GameEvents::RootEvent::GetProgressData(root) : nullptr;
+    if (!progress || !ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay) return replay;
+    auto* recorder = ReplaySystem::staticMethods.GetSingleton();
+    if (!recorder || recorder->mode != sf4e::replay::RecorderRecording) return replay;
+    (recorder->*ReplaySystem::publicMethods.Stop)();
+    std::uint8_t* built = (recorder->*ReplaySystem::publicMethods.BuildReplay)();
+    if (!built) return replay;
+    const std::uint32_t size = (recorder->*ReplaySystem::publicMethods.GetReplaySize)();
+    // The round count at 0x18, as the game's loader (0x5D6250) checks it.
+    const std::uint32_t rounds = size >= sf4e::replayslots::kReplayHeaderBytes ? sf4e::replayslots::ReadU32(built + 0x18) : 0;
+    if (!rounds || size > sf4e::replayslots::kLargestReplay) spdlog::warn("Replays: the unfinished replay holds no round ({} bytes)", size);
+    else replay.assign(built, built + size);
+    (recorder->*ReplaySystem::publicMethods.FreeReplay)(built);
+    return replay;
+}
+
 void fSystem::CloseBattle() {
     rSystem* _this = (rSystem*)this;
     // The engine is closing this battle, so a session retired from here on
@@ -510,7 +538,8 @@ void fSystem::CloseBattle() {
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
-    sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted);
+    const bool unfinished = netplayBattle && !s_nativeResultEmitted && !sf4e::NetplayFacade::IsRuntimeSpectator();
+    sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted, unfinished ? UnsavedReplay() : std::vector<std::uint8_t>());
     (_this->*rSystem::publicMethods.CloseBattle)();
     // After the native close, which puts back its own saved step setting.
     RestoreBattleStep();

@@ -64,7 +64,7 @@ private:
    if (reset) owner.GiveUp("recording ownership invalidated");
    for (const auto& event : events) {
     try {
-     if (event.kind == RecordingBoundary::Kind::End) owner.End(event.time, event.confirmed);
+     if (event.kind == RecordingBoundary::Kind::End) owner.End(event.time, event.confirmed, event.body);
      else {
       std::shared_ptr<const RecordingSnapshot> before;
       if (event.recordingEnabled && sequence_.load() == event.sequence) {
