@@ -43,6 +43,15 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     shell.Navigation().Focus("cap-meter",rows);draw(nullptr,MenuInput::Right,1);draw("replay-export-meter");
     Require(rows[9].value==loc::T("common.on"),"The export's Frame meter row did not turn on");
     draw(nullptr,MenuInput::Left,1);draw();
+    // Ember's mark turned off stays off on the next replay's caption; its names come from that replay.
+    shell.Navigation().Focus("cap-mark",rows);draw(nullptr,MenuInput::Left,1);draw();
+    Require(rows[8].value==loc::T("common.off"),"The export's mark row did not turn off");
+    draw(nullptr,MenuInput::Back,1);draw();
+    shell.Navigation().Focus("replay:c",rows);draw(nullptr,MenuInput::Select,1);draw();
+    for(int i=0;i<3;++i){draw(nullptr,MenuInput::Right,1);draw();}
+    draw(nullptr,MenuInput::Select,1);draw("replay-export-again");
+    Require(shell.Navigation().Screen()=="replay-export"&&rows[8].value==loc::T("common.off")&&rows[1].value=="Carol","The next export did not keep the mark off or take its own names");
+    shell.Navigation().Focus("cap-mark",rows);draw(nullptr,MenuInput::Right,1);draw();
     SetMenuEntriesProbe({});draw(nullptr,MenuInput::Back,1);draw();
     // A running export leads Replays with its progress and Cancel export,
     // which asks first with Cancel focused.

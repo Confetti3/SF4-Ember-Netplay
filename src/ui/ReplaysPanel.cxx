@@ -225,14 +225,15 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
 // The caption an export starts from: the names Ember noted, the date and
 // score on one line, Ember's mark, and the set so far. The set is counted
 // from the archive: the matches these two played right before this one,
-// each within half an hour of the next, by who won each.
+// each within half an hour of the next, by who won each. A part the player
+// turned off stays off, as the frame meter row stays as it was.
 void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::ArchivedReplay& replay) {
  exportPath_=PathOf(replay);caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
- caption_.names=!replay.names[0].empty()&&!replay.names[1].empty();
+ caption_.names=!replay.names[0].empty()&&!replay.names[1].empty()&&!namesOff_;
  const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
  caption_.text=ReplayLabel(replay.label,replay.names,replay.fighters).substr(0,10)+(score.empty()?"":"   "+score);
- caption_.line=caption_.mark=true;
+ caption_.line=!lineOff_;caption_.mark=!markOff_;
  std::uint64_t next=replay.time;
  if(v.replays.archive)for(const auto& earlier:*v.replays.archive){
   if(!caption_.names||earlier.time>=replay.time)continue;
@@ -243,7 +244,7 @@ void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::Archiv
   const int winner=earlier.summary->score[0]>earlier.summary->score[1]?0:1;
   ++caption_.wins[same?winner:1-winner];next=earlier.time;
  }
- caption_.set=caption_.wins[0]+caption_.wins[1]>0;
+ caption_.set=caption_.wins[0]+caption_.wins[1]>0&&!setOff_;
 }
 // The set's next game's caption screen, its set score counted from the
 // games before it (OpenExport); Generate there makes its video.
@@ -279,8 +280,8 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigatio
  return false;
 }
 void ReplaysPanel::Accept(const MenuAction& a) {
- if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
- else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
+ if(a.id=="cap-names"){caption_.names=a.delta>0;namesOff_=!caption_.names;}else if(a.id=="cap-line"){caption_.line=a.delta>0;lineOff_=!caption_.line;}
+ else if(a.id=="cap-set"){caption_.set=a.delta>0;setOff_=!caption_.set;}else if(a.id=="cap-mark"){caption_.mark=a.delta>0;markOff_=!caption_.mark;}
  else if(a.id=="cap-meter")meter_=a.delta>0;
  else if(a.id=="replay-show")show_=Stepped(show_,a.delta);
  else if(a.id=="replay-search")search_=a.text;

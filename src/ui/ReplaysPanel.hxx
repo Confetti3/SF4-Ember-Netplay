@@ -85,6 +85,8 @@ private:
     std::string exportPath_;
     replay::Caption caption_;
     bool meter_ = false;
+    // The caption parts the player turned off: off on the next export too.
+    bool namesOff_ = false, lineOff_ = false, setOff_ = false, markOff_ = false;
     // The list's filter (ReplaySummaryText.hxx: ReplayShown): what Show lists,
     // and the Search text a player's or fighter's name must contain.
     ReplayShow show_{}; // All
