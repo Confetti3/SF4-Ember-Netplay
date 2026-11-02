@@ -842,14 +842,16 @@ int main(int argc, char** argv) {
             }
             // The board with its Costume and Ultra values open, then the Ultra
             // row with each Ultra saved, then its pages.
+            // The board is the grid alone; a fighter's choices are on their own page.
             const auto boardRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Prefer(row);draw();};
+            const auto lookRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Prefer(row);draw();};
             for(const char* row:{"costume","ultra"}){
-                boardRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("board-")+row+"-values");
-                Require(selector.Navigation().Choosing(),"A board row did not open its values");
+                lookRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("look-")+row+"-values");
+                Require(selector.Navigation().Choosing(),"A fighter page row did not open its values");
                 // Select on the saved value closes the panel and keeps it.
                 draw(nullptr,MenuInput::Select,1);draw();
             }
-            boardRow("ultra");
+            lookRow("ultra");
             const int savedUltra=pick.ultra;
             for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
             pick.ultra=savedUltra;
@@ -863,6 +865,8 @@ int main(int argc, char** argv) {
             draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
             Require(pick.fighter==saved&&selector.Navigation().Focus().rfind("fighter-",0)==0,"Grid movement committed fighter or left the grid");
             draw(nullptr,MenuInput::Select,1);draw();Require(pick.fighter!=saved,"Select did not commit focused fighter");
+            Require(selector.Navigation().Screen()=="look","Select on a fighter did not open their page");draw("fighter-page");
+            draw(nullptr,MenuInput::Back,1);draw();Require(selector.Navigation().Screen()=="home","Back from a fighter's page did not return to the grid");
             const int lockedFighter=pick.fighter;
             view.canEditSelection=false;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Select,1);
             Require(pick.fighter==lockedFighter,"Locked fighter changed");draw("fighter-locked");view.canEditSelection=true;

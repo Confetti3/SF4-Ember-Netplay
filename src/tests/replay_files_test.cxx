@@ -500,16 +500,28 @@ static void TestSetReplays() {
  // player signs in with another account, or the same one again; sets' games go meanwhile.
  {
   sf4e::platform::replays::ReplaySender waiting;
-  waiting.Discord("");
+  using sf4e::netplay::IdentityAccount;
+  const auto account = [](const char* user, std::uint64_t at) { IdentityAccount a; a.user = user; a.connectedAt = at; return a; };
+  waiting.Discord(account("", 0));
   waiting.Sent(1, "x", false, 0);
   CHECK(waiting.Take(1, false, "discord_required", 0) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
-  waiting.Discord(""); CHECK(!waiting.Archives());
+  waiting.Discord(account("", 0)); CHECK(!waiting.Archives());
   waiting.Sent(2, "y", true, 10); CHECK(waiting.Take(2, false, "discord_required", 10) == sf4e::platform::replays::ReplaySender::Answer::Again && !waiting.Archives());
-  waiting.Discord("111:5"); CHECK(waiting.Archives());
+  waiting.Discord(account("111", 5)); CHECK(waiting.Archives());
   waiting.Sent(3, "x", false, 20);
   CHECK(waiting.Take(3, false, "discord_required", 20) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
-  waiting.Discord("111:5"); CHECK(!waiting.Archives()); // the account already read is not a new sign-in
-  waiting.Discord("111:9"); CHECK(waiting.Archives());
+  waiting.Discord(account("111", 5)); CHECK(!waiting.Archives()); // the account already read is not a new sign-in
+  waiting.Discord(account("111", 9)); CHECK(waiting.Archives());
+  // A sign-in read before the refusal arrives resumes sharing at once, and
+  // later looks at the same account leave it so.
+  waiting.Sent(4, "x", false, 30);
+  waiting.Discord(account("222", 1));
+  CHECK(waiting.Take(4, false, "discord_required", 30) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && waiting.Archives());
+  waiting.Discord(account("222", 1)); CHECK(waiting.Archives());
+  // A refusal with the sign-in unchanged still holds the archive back.
+  waiting.Sent(5, "x", false, 40);
+  CHECK(waiting.Take(5, false, "discord_required", 40) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
+  waiting.Discord(account("222", 1)); CHECK(!waiting.Archives());
  }
  const auto listed = sets::Sets(archive);
  CHECK(listed.size() == 3 && listed[0].matchId == "emt_b" && listed[0].rooms == 1 && listed[2].matchId == "emt_c");
@@ -770,6 +782,16 @@ static void TestNameTakenOut() {
  CHECK(beside == 1);
 #endif
  fs::remove(list);
+ // A list that cannot be replaced (a folder with a file in it stands there)
+ // reports the failure and leaves no partial file beside it.
+ {
+  const fs::path blocked = list.parent_path() / (list.stem().string() + "-blocked");
+  fs::create_directories(blocked);
+  std::ofstream(blocked / "inside.txt", std::ios::binary) << "x";
+  CHECK(!notes::Write(blocked, "other.emberreplay
+") && fs::is_directory(blocked) && !fs::exists(blocked.wstring() + L".tmp"));
+  std::error_code ignored; fs::remove_all(blocked, ignored);
+ }
 }
 // Pruning follows the lister's reach: replays filed into subfolders count as
 // there, so their marks stay; a name for a replay gone from every folder goes.

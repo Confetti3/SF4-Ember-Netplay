@@ -82,7 +82,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","data","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","data","dummy","reply","tools","combo-check"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="hitboxes")Require(trainingRows.size()==4&&trainingRows[0].id=="hitboxes-shown","Hitboxes page lost its switch or one of its parts");
@@ -103,8 +103,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             Require(order!=trainingRows.end()&&order->value==loc::T("training.order.random"),"The recording page lost its order row");
         }
         if(std::string(screen)=="home") {
-            const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","return"};
-            Require(trainingRows.size()==8,"Training home lost a tool page");
+            const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","combo-check","return"};
+            Require(trainingRows.size()==9,"Training home lost a tool page");
             for(std::size_t i=0;i<trainingRows.size();++i)Require(trainingRows[i].id==ids[i],"Training home page order wrong");
             // In two columns where one is too short for them, as in one: every card in a place of its own.
             std::map<std::string,std::pair<ImVec2,ImVec2>> cards;

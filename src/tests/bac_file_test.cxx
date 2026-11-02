@@ -161,6 +161,33 @@ int main() {
         file.scripts[1].total = 13;
         CHECK(runs(1).empty());
     }
+    // Runs of a long script with overlapping, out-of-order and clipped hit intervals match the
+    // classification of every frame, projectile scripts included.
+    {
+        using training::MeterKind;
+        bac::File file;
+        file.scripts.resize(2); file.effects.resize(1); file.effects[0].canHit = true;
+        file.scripts[0].total = 65535;
+        file.scripts[0].hits = {{40000, 40010, 0, 1, 0}, {5, 30, 0, 1, 0}, {20, 50, 0, 1, 0}, {70000, 70005, 0, 1, 0}, {65534, 65535, 0, 1, 0}};
+        file.scripts[1].total = 65535; file.scripts[1].effects = {0}; file.scripts[1].spawns = {{{30000, 30001}}};
+        for (int script = 0; script < 2; ++script) {
+            const auto& now = file.scripts[script];
+            int first = -1, last = -1;
+            if (script) bac::ProjectileBoundary(file, script, first, last);
+            std::vector<training::ScriptRun> expect;
+            for (int frame = 0; frame < now.total; ++frame) {
+                const float at = static_cast<float>(frame);
+                const MeterKind kind = script ? training::BoundaryKind(at, first, last) : training::HitPhaseKind(bac::HitPhase(now, at));
+                if (expect.empty() || expect.back().kind != kind) expect.push_back({frame, frame + 1, kind});
+                else expect.back().to = frame + 1;
+            }
+            const auto runs = training::ScriptRuns(file, script);
+            bool same = runs.size() == expect.size();
+            for (std::size_t i = 0; same && i < runs.size(); ++i)
+                same = runs[i].from == expect[i].from && runs[i].to == expect[i].to && runs[i].kind == expect[i].kind;
+            CHECK(same && runs.size() > 2);
+        }
+    }
     // A command file's charge names, as Guile's.
     {
         Bytes bcm(0x20);
