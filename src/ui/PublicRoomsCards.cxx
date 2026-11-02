@@ -5,6 +5,7 @@
 #include "MenuRows.hxx"
 #include "PublicRoomsPanel.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -18,7 +19,9 @@ constexpr ImU32 PillFill = IM_COL32(38, 34, 30, 255), TrackFill = IM_COL32(60, 5
     NearFill = IM_COL32(30, 44, 30, 235), Ink = IM_COL32(20, 19, 18, 255), Dimmed = IM_COL32(8, 7, 6, 120),
     Border = IM_COL32(255, 255, 255, 14), EmberFaint = IM_COL32(255, 135, 56, 40),
     StatusFill = IM_COL32(56, 51, 46, 255), MetaColor = IM_COL32(158, 147, 134, 255),
-    FaceBacking = IM_COL32(88, 80, 72, 255), FaceBorder = IM_COL32(255, 255, 255, 46);
+    FaceBacking = IM_COL32(88, 80, 72, 255), FaceBorder = IM_COL32(255, 255, 255, 46),
+    // Arcade's purple: the arcade board's violet pair colour (RoomPanelArcade.cxx, PairColor).
+    ArcadePurple = IM_COL32(201, 160, 224, 255);
 // How many faces a room card shows before "+N".
 constexpr std::size_t CardFaces = 6;
 
@@ -50,6 +53,17 @@ float Pulse(double now) { return .35f + .15f * std::sin(static_cast<float>(now) 
 float ChipWidth(const char* text, float maxWidth) {
     const float s = Scale(), pad = 7 * s;
     return Measure(FitSize(13 * s, text, maxWidth - 2 * pad), text) + 2 * pad;
+}
+
+// How a room's type is told apart at a glance: ivory Classic, purple Arcade and the gold tier's
+// gold for King of the hill (never the ember orange of the focus mark):
+// its name on a tinted chip as v2::Chip draws one, an edge down the card's left side and a faint
+// wash of the colour over the card.
+struct TypeLook { const char* name; const char* detail; ImU32 colour; };
+TypeLook LookOf(int type) {
+    if (type == room::KingRoom) return {loc::T("room.type.king"), loc::T("room.type.king_detail"), v2::TierColor(v2::Tier::Gold).stripe};
+    if (type == room::ArcadeRoom) return {loc::T("room.type.arcade"), loc::T("room.type.arcade_detail"), ArcadePurple};
+    return {loc::T("room.type.classic"), loc::T("room.type.classic_detail"), palette::Ivory};
 }
 
 bool Full(const Room& room) { return room.capacity > 0 && room.members >= room.capacity; }
@@ -153,10 +167,20 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     }
     const float left = min.x + pad, rightLimit = max.x - pad - (std::max)(pillW, barWidth) - 12 * s, lineWidth = rightLimit - left;
 
-    // Line 1: the room's name, set as the title.
+    // Line 1: the room's type on a chip, then its name, set as the title. A bridge that sends
+    // no details does not say the type, so its rooms show none.
+    const TypeLook look = LookOf(room.type);
+    float nameX = left;
+    if (room.hasDetails) {
+        d->AddRectFilled(min, max, WithAlpha(look.colour, dimmed ? .02f : .05f), rounding);
+        d->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), dimmed ? WithAlpha(look.colour, .45f) : look.colour, rounding, ImDrawFlags_RoundCornersLeft);
+        const float chip = DrawChip(ImVec2(left, nameY + (nameFont - 20 * s) * .5f + s), look.name, dimmed ? palette::Muted : look.colour,
+                                    WithAlpha(dimmed ? palette::Muted : look.colour, .18f), "pr-chip-type", lineWidth * .45f);
+        if (chip > 0) nameX += chip + 8 * s;
+    }
     if (visible) NoteUserText(e.label);
     ImGui::PushFont(HeadingFont());
-    Text(ImVec2(left, nameY), nameFont, ink, Elide(nameFont, e.label, lineWidth));
+    Text(ImVec2(nameX, nameY), nameFont, ink, Elide(nameFont, e.label, rightLimit - nameX));
     ImGui::PopFont();
 
     // Line 2: the host and the region, and a mark when the room is near.
@@ -423,20 +447,30 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
         }
         ImGui::Dummy(ImVec2(space.x, height + 8 * s));
     }
-    // The rules, how long the room has been open and who moderates it.
+    // The room's type and how it plays, the rules, and how long the room has been open.
     const double open = panel.OpenSeconds(v, *room, ImGui::GetTime());
     const bool rules = room->setFormat >= 0;
-    const float line = 18 * s, chipRow = 20 * s;
+    const float line = 18 * s, chipRow = 20 * s, inner = space.x - 2 * pad, detailSize = 14 * s;
+    const TypeLook look = LookOf(room->type);
+    // How the type plays, in a paragraph with room between its lines (v2::Paragraph measures it without a list).
+    const float detailHeight = room->hasDetails ? v2::Paragraph(nullptr, ImVec2(0, 0), inner, look.detail, detailSize, palette::Muted) : 0;
     float height = 2 * pad - 6 * s;
     int rowsCount = 0;
     const auto add = [&](float rowHeight) { height += rowHeight + 6 * s; ++rowsCount; };
+    if (room->hasDetails) add(chipRow + 6 * s + detailHeight);
     if (rules || room->ownDelay) add(chipRow);
     if (open >= 0) add(line);
     if (rowsCount == 0) return;
     const auto at = ImGui::GetCursorScreenPos();
     d->AddRectFilled(at, ImVec2(at.x + space.x, at.y + height), panelFill, rounding);
+    if (room->hasDetails) d->AddRectFilled(at, ImVec2(at.x + 4 * s, at.y + height), look.colour, rounding, ImDrawFlags_RoundCornersLeft);
     float y = at.y + pad;
-    const float inner = space.x - 2 * pad;
+    if (room->hasDetails) {
+        DrawChip(ImVec2(at.x + pad - 7 * s, y), look.name, look.colour, WithAlpha(look.colour, .18f), "pr-preview-type", inner + 7 * s);
+        y += chipRow + 6 * s;
+        ReportMenuText("pr-preview-type-detail", detailHeight, detailHeight, inner, inner);
+        y += v2::Paragraph(d, ImVec2(at.x + pad, y), inner, look.detail, detailSize, palette::Muted) + 6 * s;
+    }
     if (rules || room->ownDelay) {
         const bool sets = rules && room->setFormat != 0;
         // The chip's text, not its edge, lines up with the lines under it.

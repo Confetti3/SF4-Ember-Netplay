@@ -248,6 +248,8 @@ void PublicRooms(ui::ShellView& view) {
     list.bridge = "brg_1"; list.loading = false; list.listedAt = 1300; ++list.listed;
     list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
         room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
+    // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
+    list.rooms[0].type = room::ArcadeRoom; list.rooms[4].type = room::KingRoom;
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.

@@ -73,6 +73,15 @@ const char* RoomStatusKey(const room::Snapshot& room) {
     if(room.arcade)return room.locked?"room.arcade_locked_status":"room.arcade_status";
     return room.locked?"room.locked_status":"room.private_status";
 }
+// The status line's text. A public room's line starts with its type, so a player
+// who came in from the list still sees which kind of room they are in; a
+// private room's key says so already (RoomStatusKey).
+std::string RoomStatusText(const room::Snapshot& room) {
+    std::string status=loc::T(RoomStatusKey(room));
+    if(room.serverOwned)
+        status=std::string(loc::T(room.arcade==room::KingRoom?"room.type.king":room.arcade?"room.type.arcade":"room.type.classic"))+" · "+status;
+    return status;
+}
 }
 float ApplicationShell::PublicListWidth() {
     const float available=ImGui::GetContentRegionAvail().x;
@@ -263,7 +272,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    TournamentRoomStatus(v.room):
-   std::string(loc::T(RoomStatusKey(v.room)));
+   RoomStatusText(v.room);
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){

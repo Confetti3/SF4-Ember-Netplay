@@ -124,7 +124,7 @@ static void TestRoomListDetails() {
 	CHECK(old && old->listedAt == 0);
 	const auto plain = room(json::object());
 	CHECK(plain.createdAt == 900 && plain.hostName.empty() && plain.fighters.empty() && !plain.locked && !plain.hasDetails &&
-		plain.setFormat == -1 && plain.rotation == -1);
+		plain.setFormat == -1 && plain.rotation == -1 && plain.type == room::ClassicRoom);
 	// created_at is required, and is a number.
 	auto bare = Row(); bare.erase("created_at");
 	CHECK(!decode(bare));
@@ -151,6 +151,10 @@ static void TestRoomListDetails() {
 	CHECK(room({{"set_format", 0u}}).setFormat == 0 && room({{"rotation", 0u}}).rotation == 0);
 	for (unsigned format = 1; format <= 10; ++format) CHECK(room({{"set_format", format}}).setFormat == static_cast<int>(format));
 	CHECK(room({{"set_format", 11u}}).setFormat == -1);
+	// The room's type: Classic, Arcade or King of the hill; anything else is no detail, and the room is Classic.
+	for (unsigned type = 0; type <= 2; ++type) CHECK(room({{"room_type", type}}).type == static_cast<int>(type) && room({{"room_type", type}}).hasDetails);
+	CHECK(room({{"room_type", 3u}}).type == room::ClassicRoom && !room({{"room_type", 3u}}).hasDetails);
+	CHECK(room({{"room_type", "arcade"}}).type == room::ClassicRoom && room({{"room_type", -1}}).type == room::ClassicRoom);
 	// listed_at that is not a number is ignored.
 	const auto text = session::DecodeRoomList({{"listed_at", "soon"}, {"rooms", json::array({Row()})}});
 	CHECK(text && text->listedAt == 0);
