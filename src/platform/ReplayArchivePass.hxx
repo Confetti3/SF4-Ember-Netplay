@@ -45,6 +45,8 @@ struct ArchiveTarget {
 	ArchiveView& held;
 	SlotFileCache& slots;
 	std::function<bool(const std::filesystem::path&, const replayslots::Bytes&)> createOnly;
+	// Told why a whole slot file was passed over for good (CopySlot); optional.
+	std::function<void(const std::string&)> skipped;
 };
 
 // Whether the archive holds this replay. Unknown: a file that may hold it
@@ -199,6 +201,15 @@ inline void DrainOutbox(const ArchiveTarget& target, ArchivePass& pass) {
 // archive known not to hold it. Failed: neither.
 enum class SlotCopy { Nothing, Retry, Held, Queued, Copied, Failed };
 
+// What a field log needs to name why slot `slot`'s whole replay was never
+// archived: its size and the two fighter dwords of its header, raw. A fighter
+// of 64 or more, or a replay past kLargestReplay, is not one the game saves.
+inline std::string SkipCause(int slot, const replayslots::Bytes& replay, const char* why) {
+	const auto dword = [&](std::size_t at) { return replay.size() >= at + 4 ? replayslots::ReadU32(replay.data() + at) : 0u; };
+	return "slot " + std::to_string(slot) + " is not archived: " + why + " (" + std::to_string(replay.size()) + " bytes, fighters " +
+		std::to_string(dword(0x20)) + " and " + std::to_string(dword(0x20 + 0x150)) + ", limit " + std::to_string(replayslots::kLargestReplay) + " bytes, fighters below 64)";
+}
+
 inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::path& saves, int slot) {
 	const std::filesystem::path file = saves / std::to_wstring(slot);
 	const SlotFile current = ReadSlotFile(target.slots, file);
@@ -207,9 +218,15 @@ inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::pat
 	replayslots::ReplayHeaderInfo header;
 	if (!replayslots::ReadReplayHeader(current.replay, header)) return SlotCopy::Nothing;
 	replayslots::Bytes exported;
-	if (!ExportFromFile(current, exported))
-		return current.sidecar == replayslots::Sidecar(current.replay) ? SlotCopy::Nothing : SlotCopy::Retry;
-	if (replayslots::ArchiveName(exported).empty()) return SlotCopy::Nothing;
+	if (!ExportFromFile(current, exported)) {
+		if (current.sidecar != replayslots::Sidecar(current.replay)) return SlotCopy::Retry;
+		if (target.skipped) target.skipped(SkipCause(slot, current.replay, "the replay does not export"));
+		return SlotCopy::Nothing;
+	}
+	if (replayslots::ArchiveName(exported).empty()) {
+		if (target.skipped) target.skipped(SkipCause(slot, current.replay, "the replay has no archive name"));
+		return SlotCopy::Nothing;
+	}
 	BackupEvidence evidence;
 	const Holding holding = Holds(target, current.replay, evidence);
 	if (holding == Holding::Held) return SlotCopy::Held;

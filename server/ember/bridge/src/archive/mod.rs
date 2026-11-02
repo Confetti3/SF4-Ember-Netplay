@@ -23,8 +23,9 @@ const MAX_WAITING: i64 = 2 << 30;
 
 /// Whose word the archive takes for a game's sides.
 pub enum Attribution<'a> {
-    /// A game outside any set: the names, side and country its sender's
-    /// game gave. Only the copy that comes first is taken at its word.
+    /// A game outside any set: its sender's side, and that side's name and
+    /// country. The copy that comes first says what the game was; a later
+    /// copy only names its own player's side if it has no name yet.
     Online(&'a Sides),
     /// A game of a tournament set, sided by the set's roster.
     Set(&'a sets::SetGame),
@@ -78,8 +79,11 @@ pub fn admit(
         )
         .optional()?;
     if let Some((sent_by, set)) = held {
-        if let Attribution::Set(game) = attribution {
-            game.held(tx, now, &digest, &sent_by, set.as_deref(), sender)?;
+        match attribution {
+            Attribution::Set(game) => {
+                game.held(tx, now, &digest, &sent_by, set.as_deref(), sender)?
+            }
+            Attribution::Online(sides) => name_own_side(tx, &digest, sides)?,
         }
         return Ok(Admission::Held);
     }
@@ -154,17 +158,42 @@ fn refusal(
 }
 
 /// The names and countries of an online game's two sides as its sender's
-/// game gave them: both names, and its own country on its own side.
+/// game gave them: its own name and country on its own side, and nothing on
+/// the other. A player's name is theirs to share: an opponent who shares
+/// nothing is never named by the copy of someone who does, so what a sender
+/// says of the other side (older games sent both names) is ignored, and a
+/// copy that does not say which side is the sender's names no one.
 fn online_sides(sides: &Sides) -> ([Option<String>; 2], [Option<String>; 2]) {
-    let name = |name: &Option<String>| {
-        name.as_deref()
-            .map(str::trim)
-            .filter(|name| is_player_name(name))
-            .map(str::to_owned)
-    };
     let country = sides.country.clone().filter(|code| is_country(code));
     let countries = [0, 1].map(|side| country.clone().filter(|_| sides.side == Some(side)));
-    ([name(&sides.a), name(&sides.b)], countries)
+    ([0, 1].map(|side| own_name(sides, side)), countries)
+}
+
+/// The name `sides` gives side `side`, when that side is its sender's own.
+fn own_name(sides: &Sides, side: u8) -> Option<String> {
+    if sides.side != Some(side) {
+        return None;
+    }
+    let name = if side == 0 { &sides.a } else { &sides.b };
+    name.as_deref()
+        .map(str::trim)
+        .filter(|name| is_player_name(name))
+        .map(str::to_owned)
+}
+
+/// Adds to the online game `digest` the archive already holds the name its
+/// own player's copy gives that player's side, when the side has none yet.
+/// Each side is named only by its own player's copy; a name once given stays.
+fn name_own_side(tx: &Transaction<'_>, digest: &str, sides: &Sides) -> Result<()> {
+    for (side, column) in [(0, "name_a"), (1, "name_b")] {
+        if let Some(name) = own_name(sides, side) {
+            tx.execute(
+                &format!("UPDATE archive_games SET {column} = ?2 WHERE digest = ?1 AND match_id IS NULL AND {column} IS NULL"),
+                params![digest, name],
+            )?;
+        }
+    }
+    Ok(())
 }
 
 /// Adds stored game `digest`'s event and countries to the listing's filter

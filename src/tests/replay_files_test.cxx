@@ -3,6 +3,7 @@
 #include "../common/ReplayProvenance.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplaySets.hxx"
+#include "../platform/ReplayNotes.hxx"
 #include <algorithm>
 #include <chrono>
 #include <cwctype>
@@ -628,15 +629,79 @@ static void TestUnconfirmedReplayWaits() {
  archive[0].sent = true;
  CHECK(!sets::NextReplay(archive, 1, sending, at + Sender::kUnconfirmedMs - 1));
  CHECK(sets::NextReplay(archive, 1, sending, at + Sender::kUnconfirmedMs) == &archive[2] && !sending.Aside(archive[2].path, at + Sender::kUnconfirmedMs));
- // Any other retryable failure keeps that replay first, a minute later.
+ // Any other retryable failure puts that replay aside for longer each time
+ // (two minutes, then four, eight, ten at most), so the others go meanwhile.
  const std::uint64_t later = at + Sender::kUnconfirmedMs;
  sending.Sent(2, archive[2].path, true, later);
- CHECK(sending.Take(2, false, "bridge_unreachable", later) == Sender::Answer::Again && !sending.Aside(archive[2].path, later));
+ CHECK(sending.Take(2, false, "bridge_unreachable", later) == Sender::Answer::Again && sending.Aside(archive[2].path, later));
  CHECK(sending.Poll(later + Sender::kAgainMs - 1) == Sender::Step::Wait && sending.Poll(later + Sender::kAgainMs) == Sender::Step::Send);
- CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[2]);
+ archive[0].sent = false; archive[1].sent = false;
+ CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[1]);
+ archive[1].sent = true;
+ CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[0]);
+ CHECK(sending.Aside(archive[2].path, later + 2 * Sender::kAgainMs - 1) && !sending.Aside(archive[2].path, later + 2 * Sender::kAgainMs));
+ // It fails again: four minutes; and never past ten.
+ std::uint64_t now = later + 2 * Sender::kAgainMs;
+ for (std::uint64_t wait : {4 * Sender::kAgainMs, 8 * Sender::kAgainMs, Sender::kUnconfirmedMs, Sender::kUnconfirmedMs}) {
+  sending.Poll(now);
+  sending.Sent(3, archive[2].path, true, now);
+  CHECK(sending.Take(3, false, "bridge_not_approved", now) == Sender::Answer::Again);
+  CHECK(sending.Aside(archive[2].path, now + wait - 1) && !sending.Aside(archive[2].path, now + wait));
+  now += wait;
+ }
+ // Done with it, it is not chosen again from a listing that still shows it
+ // unsent (one taken before it was marked), though others are.
+ sending.Poll(now);
+ sending.Sent(4, archive[2].path, true, now);
+ CHECK(sending.Take(4, true, "", now) == Sender::Answer::Done);
+ CHECK(!sets::NextToSend(archive, sending, now + Sender::kNextMs) && sets::NextReplay(archive, 1, sending, now + Sender::kNextMs) == &archive[0]);
+ archive[2].sent = true;
  // Unconfirmed on the replay archive's route is no set's word: a plain failure.
- sending.Sent(3, archive[0].path, false, later);
- CHECK(sending.Take(3, false, "replay_unconfirmed", later) == Sender::Answer::Again && !sending.Aside(archive[0].path, later));
+ sending.Sent(5, archive[0].path, false, now);
+ CHECK(sending.Take(5, false, "replay_unconfirmed", now) == Sender::Answer::Again);
+}
+// An archive game is chosen once too: one marked sent a moment ago, which
+// the listing in hand does not show yet, is skipped; so is a closed set's.
+static void TestAReplayIsSentOnce() {
+ namespace sets = sf4e::platform::replays;
+ using Sender = sets::ReplaySender;
+ const auto game = [](const char* file, std::uint64_t time) {
+  sets::ArchivedReplay replay; replay.path = file; replay.time = time; replay.provenance = sf4e::replayfiles::Provenance::Played; return replay;
+ };
+ std::vector<sets::ArchivedReplay> archive{game("b.emberreplay", 200), game("a.emberreplay", 100)};
+ Sender sending;
+ CHECK(sets::NextReplay(archive, 1, sending, 0) == &archive[1]);
+ sending.Sent(1, archive[1].path, false, 0);
+ CHECK(sending.Take(1, true, "", 10) == Sender::Answer::Done);
+ // The listing was taken before the mark: A still looks unsent, B goes next.
+ CHECK(sets::NextReplay(archive, 1, sending, Sender::kNextMs) == &archive[0]);
+ sending.Sent(2, archive[0].path, false, Sender::kNextMs);
+ CHECK(sending.Take(2, true, "", Sender::kNextMs + 10) == Sender::Answer::Done);
+ CHECK(!sets::NextReplay(archive, 1, sending, 2 * Sender::kNextMs));
+ // A closed set's game is likewise not sent to the set a second time.
+ sets::ArchivedReplay set = game("s.emberreplay", 50); set.set = {"brg_bridge", "emt_a", 1};
+ std::vector<sets::ArchivedReplay> listing{set};
+ Sender other;
+ other.Sent(3, set.path, true, 0);
+ CHECK(other.Take(3, false, "set_closed", 5) == Sender::Answer::SetClosed && !sets::NextToSend(listing, other, 10));
+}
+// The marks lists (sent.txt): a name once, overlong and empty lines skipped,
+// and pruned of replays that are gone without ever losing one that is there.
+static void TestNotedReplays() {
+ namespace notes = sf4e::platform::replays::notes;
+ const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
+ const auto names = notes::Parse(text("a.emberreplay\r\nb.emberreplay\n\na.emberreplay\n" + std::string(notes::kMostLine + 10, 'x') + "\nc.emberreplay"));
+ CHECK(names.size() == 3 && names.count("a.emberreplay") && names.count("b.emberreplay") && names.count("c.emberreplay"));
+ const std::string kept = notes::Pruned(text("a\nb\nc\na\n"), [](const std::string& name) { return name != "b"; });
+ const auto after = notes::Parse(text(kept));
+ CHECK(after.size() == 2 && after.count("a") && after.count("c") && kept.size() == 4);
+ CHECK(notes::Pruned(text(""), [](const std::string&) { return true; }).empty());
+ // Pruning is only worth it once the list holds many more than the archive.
+ CHECK(!notes::WorthPruning(300, 100) && notes::WorthPruning(100 + notes::kStaleSlack + 1, 100));
+ // A list of a hundred thousand replays is still read, well under the cap.
+ std::string big;
+ for (int at = 0; at < 100000; ++at) big += "20261101-120000-" + std::to_string(at) + ".emberreplay\n";
+ CHECK(big.size() < notes::kMostBytes && notes::Parse(text(big)).size() == 100000);
 }
 int main() {
  TestSetReplays();
@@ -644,6 +709,8 @@ int main() {
  TestReplaySender();
  TestClosedSetGoesToTheArchive();
  TestUnconfirmedReplayWaits();
+ TestAReplayIsSentOnce();
+ TestNotedReplays();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();

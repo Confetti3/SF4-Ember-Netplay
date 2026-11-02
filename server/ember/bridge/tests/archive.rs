@@ -113,6 +113,15 @@ async fn fixture_with(adjust: impl FnOnce(&mut ember_bridge::Config) + Send + 's
                 access_key: "ember-test".into(),
                 public_base: "https://s3.example/replays".into(),
             });
+            // The sets these tests play are desk events' (the archive takes
+            // no other set's games).
+            for connection in &mut config.tenants[0].connections {
+                connection.kind = "direct".into();
+            }
+            config.desk = Some(ember_bridge::config::Desk {
+                connection: "mock-a".into(),
+                invite_only: false,
+            });
             adjust(config);
         },
         secrets,
@@ -430,6 +439,102 @@ async fn an_online_game_is_kept_once_as_its_first_copy_said() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
+/// An online game names a side only from that side's own player's copy: a
+/// player who shares nothing is never named by their opponent's copy, whether
+/// that copy is from a game that sends both names or one that sends its own.
+#[tokio::test]
+async fn an_opponent_is_named_only_by_their_own_copy() {
+    let f = fixture().await;
+    // An older game sent both names; only its own side's is taken.
+    let old = game(11, [1, 2]);
+    assert_eq!(
+        send(&f, &f.a, &old, "a=Ann&b=Bob&side=0&country=BE").await,
+        StatusCode::CREATED
+    );
+    // A game that sends only its own side, the other empty.
+    let new = game(12, [3, 4]);
+    assert_eq!(
+        send(&f, &f.b, &new, "a=&b=Bob&side=1").await,
+        StatusCode::CREATED
+    );
+    // A copy that does not say whose it is names no one.
+    let anonymous = game(13, [5, 6]);
+    assert_eq!(
+        send(&f, &f.a, &anonymous, "a=Ann&b=Bob").await,
+        StatusCode::CREATED
+    );
+    // The other side is named when its own player's copy of the game comes,
+    // and then only by that copy, once.
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&old), "a=&b=Bob&side=1").await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&old), "a=&b=Mallory&side=1").await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        send(&f, &f.a, &saved_elsewhere(&new), "a=Eve&b=Eve&side=0").await,
+        StatusCode::OK
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 3).await;
+    assert_eq!(listed_game(&list, &old)["names"], json!(["Ann", "Bob"]));
+    assert_eq!(listed_game(&list, &new)["names"], json!(["Eve", "Bob"]));
+    assert_eq!(listed_game(&list, &anonymous)["names"], json!([null, null]));
+    // A game nobody's copy named a side of lists it as unnamed.
+    let lone = game(14, [7, 8]);
+    assert_eq!(
+        send(&f, &f.a, &lone, "a=Ann&b=Bob&side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 4).await;
+    assert_eq!(listed_game(&list, &lone)["names"], json!(["Ann", null]));
+    assert_eq!(games(&listed(&f, "q=Mallory").await).len(), 0);
+}
+
+/// Only a desk event's set has its games archived: the organizer accepted
+/// desk access for those. A partner's set (any other connection) keeps its
+/// replays for the set, but the archive takes none, from the set's route or
+/// from the backfill.
+#[tokio::test]
+async fn only_a_desk_sets_games_are_archived() {
+    let f = fixture_with(|config| {
+        config.desk = Some(ember_bridge::config::Desk {
+            connection: "mock-b".into(),
+            invite_only: false,
+        });
+    })
+    .await;
+    let id = set(&f, "partner-set", 2).await;
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "country=BE").await,
+        StatusCode::CREATED
+    );
+    let kept = "INSERT INTO match_replays (match_id, crc, revision, saved_at, sent_by, replay, received_at)
+                VALUES (?1, ?2, 1, 1, ?3, unhex(?4), 1)";
+    let file = replay_of(&f.bridge, 2);
+    let values = vec![
+        id.clone(),
+        replays::crc_name(&file).unwrap(),
+        f.a.id().as_str().to_owned(),
+        file.iter().map(|b| format!("{b:02x}")).collect(),
+    ];
+    sql(&f, kept, values).await;
+    ember_bridge::maintain(f.bridge.state()).await;
+    let in_archive = "SELECT COUNT(*) FROM archive_games WHERE match_id = ?1 OR sent_by = ?1";
+    assert_eq!(count(&f, in_archive, &id).await, 0);
+    assert_eq!(
+        count(&f, in_archive, f.a.id().as_str()).await,
+        0,
+        "no game of the set, even unmatched"
+    );
+    // The set still holds both replays for itself, and neither waits for the
+    // archive (retention would keep it for one).
+    let held = "SELECT COUNT(*) FROM match_replays WHERE match_id = ?1 AND archived = 1";
+    assert_eq!(count(&f, held, &id).await, 2);
+    assert_eq!(games(&listed(&f, "").await).len(), 0);
+}
+
 /// Two games whose replays have one CRC are two games, each stored.
 #[tokio::test]
 async fn games_whose_crcs_collide_are_both_kept() {
@@ -522,7 +627,7 @@ async fn an_online_game_joins_a_set_only_from_its_own_sender() {
     let f = fixture().await;
     let id = set(&f, "archive-joined", 2).await;
     assert_eq!(
-        send(&f, &f.b, &replay_of(&f.bridge, 1), "a=Ann&b=Bob").await,
+        send(&f, &f.b, &replay_of(&f.bridge, 1), "a=&b=Bob&side=1").await,
         StatusCode::CREATED
     );
     assert_eq!(
@@ -543,7 +648,7 @@ async fn an_online_game_joins_a_set_only_from_its_own_sender() {
     );
     assert_eq!(
         listed_game(&list, &replay_of(&f.bridge, 1))["names"],
-        json!(["Ann", "Bob"])
+        json!([null, "Bob"])
     );
     assert_eq!(
         listed_game(&list, &replay_of(&f.bridge, 2))["set"],

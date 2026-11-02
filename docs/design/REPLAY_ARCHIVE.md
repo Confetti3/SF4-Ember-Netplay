@@ -6,8 +6,11 @@ round.
 
 ## What goes in
 
-- **Tournament sets.** A set's games always go in. An organizer turns them on
-  by accepting tournament desk access; nobody opts in per game. The game sends
+- **Tournament sets.** A desk event's set games always go in. An organizer turns
+  them on by accepting tournament desk access; nobody opts in per game. The
+  bridge archives a set's game only when the set is a match on its desk's
+  connection; a partner's or a provider's set (BluMint, say) keeps its replays
+  for the set alone and never reaches the archive, whatever its players share. The game sends
   each set game to the set's bridge (`replay_send`, `PUT
   /v1/matches/{id}/replays/{crc}`). The bridge keeps the game for the set and
   also puts the set's copy in the archive.
@@ -57,15 +60,20 @@ collide are two. The CRC is only the native name the game is sent under; the
 bridge checks it against the file.
 
 A copy of a game the archive already holds changes nothing (200), whoever
-sends it and whatever it says, with two exceptions for a set's own players
-below.
+sends it and whatever it says, with exceptions below: a set's own players, and
+an online game's side that has no name yet.
 
 ## Who says what
 
-- **Online games.** The first copy to arrive says the two names, its sender's
-  side and that side's country. Nothing else is taken from anyone, and later
-  copies add nothing. The archive cannot check these; `sent_by` records whose
-  word they are.
+- **Online games.** The first copy to arrive says its sender's side and that
+  side's name and country. A name is only ever taken from its own player's
+  copy: the game sends its own name alone (the other side empty), and the
+  bridge ignores a name for the side that is not the sender's, so an older game
+  that sends both names names no opponent. A copy that does not say its side
+  names no one. A side with no name yet takes the name its own player's later
+  copy gives; nothing else a later copy says is taken. The archive cannot check
+  these; `sent_by` records whose word they are. A side nobody's copy named is
+  shown unnamed, so a player who shares nothing is never named by the other.
 - **Set games.** The sides are the set's roster: slot 0 is P1. The names are
   the players' accounts on the event's site, as the desk shows them, never
   what a player's game sent. A player adds their own country, on their own

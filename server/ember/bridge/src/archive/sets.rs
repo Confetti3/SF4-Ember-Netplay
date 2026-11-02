@@ -135,7 +135,10 @@ impl SetGame {
 /// `archived`. Nothing when the bridge has no archive, and nothing but the
 /// mark when the set's copy is not a whole replay (one kept before the
 /// bridge read replays as the game does). The refusal, if the archive has
-/// no room for it now; the game stays unmarked then.
+/// no room for it now; the game stays unmarked then. Only a game of a desk
+/// event's match is archived (`desk_set`): the organizer accepted desk
+/// access for those, and nobody did for a partner's or a provider's, so
+/// theirs are marked `archived` and left to the set's own pack.
 pub fn keep(
     tx: &Transaction<'_>,
     ctx: &Ctx,
@@ -145,6 +148,10 @@ pub fn keep(
     country: Option<&str>,
 ) -> Result<Option<Refused>> {
     if ctx.config.archive.is_none() {
+        return Ok(None);
+    }
+    if !desk_set(ctx, found) {
+        archived(tx, &found.id, crc)?;
         return Ok(None);
     }
     let file: Vec<u8> = tx.query_row(
@@ -167,6 +174,16 @@ pub fn keep(
     }
     archived(tx, &found.id, crc)?;
     Ok(None)
+}
+
+/// Whether set `found` was made for an organizer's desk event, which is a
+/// match on the desk's connection (`config::Desk`); none on a bridge without
+/// a desk. The only sets whose games the archive takes.
+fn desk_set(ctx: &Ctx, found: &Match) -> bool {
+    ctx.config
+        .desk
+        .as_ref()
+        .is_some_and(|desk| desk.connection == found.connection_id)
 }
 
 /// Marks set `match_id`'s game `crc` as one the archive has taken in.
