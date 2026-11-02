@@ -125,25 +125,23 @@ void FollowWhileHidden() {
 }
 
 // A lock-in pressed on an older snapshot than Follow the room's press lands
-// after following started: following ends there, never holding the start,
-// and Release lock-in is in reach.
+// after following started, while following's move to table 2 is still on
+// its way: following ends there, never holding the start, and Release
+// lock-in is in reach on the next frame.
 void LockInLandsAfterFollow() {
  FollowRoom f(37);auto& h=f.h;auto& tables=f.tables;
- tables[2].phase=room::TablePhase::Waiting;
- tables[0].p1=4;tables[0].p2=5;tables[0].phase=room::TablePhase::Waiting;
  f.TableOptions("table-0");
  auto from=h.actions.size();h.Choose("lock-spectating");
  Check(f.Sent(room::ActionKind::LockSpectating,from).size()==1,"Lock in was not sent");
  h.Choose("follow-room");f.Capture();
- Check(f.Row("follow-room")->label==loc::T("room.follow.stop"),"Follow the room did not start");
- f.Local().spectatorLocked=true;
+ Check(f.Row("follow-room")->label==loc::T("room.follow.stop")&&f.Watches(from)==std::vector<int>{2},"Follow the room did not start and move");
+ f.Local().spectatorLocked=true;tables[0].p1=4;tables[0].p2=5;
  tables[0].phase=room::TablePhase::Ready;tables[0].ready[0]=tables[0].ready[1]=true;tables[0].spectatorHold=true;h.view.room.localTerminalPending=true;
  // The frame that takes the snapshot ends following after its rows; the next shows it.
  h.Frame();f.Capture();
  Check(f.Row("follow-room")->label==loc::T("room.follow")&&!f.Row("follow-room")->enabled,"A lock-in that landed left the watcher following");
  Check(f.Row("lock-spectating")&&f.Row("lock-spectating")->label==loc::T("room.unlock_spectating"),"Release lock-in was out of reach");
  tables[0].phase=room::TablePhase::Waiting;tables[0].spectatorHold=false;h.view.room.localTerminalPending=false;
- tables[2].phase=room::TablePhase::Playing;
  from=h.actions.size();h.Wait(25);h.Frame(0,3);
  Check(f.Watches(from).empty(),"A locked-in watcher still moved");
 }

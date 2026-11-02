@@ -247,6 +247,12 @@ void LockInEndsFollowing() {
 	locked.tables[0].phase = TablePhase::Waiting;
 	locked.localTerminalPending = false;
 	EXPECT(Move(follow, locked, 60000) == -1 && !follow.On());
+	// With a move to table 1 still on its way, the lock-in at table 0 ends
+	// following at once, not when the move shows or its wait runs out.
+	auto moving = Following(room);
+	moving.Watched(1, 0);
+	locked.tables[0].phase = TablePhase::Ready;
+	EXPECT(Move(moving, locked, 10) == -1 && !moving.On());
 }
 
 // Stop watching wins over a move still on its way. Watching idle table 0,

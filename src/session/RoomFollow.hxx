@@ -122,6 +122,9 @@ private:
 	// that lands after following started (the press went out on an older
 	// snapshot) ends it, so following never holds a start.
 	FollowStep Following(const Snapshot& room, std::uint64_t nowMs, FollowGate gate) {
+		// Before any wait for a move on its way, which would leave Release
+		// lock-in hidden behind following until the move showed.
+		if (FindMember(room, member_)->spectatorLocked) { *this = RoomFollow(); return {}; }
 		const int watched = WatchedTable(room, member_);
 		// A refused or lost move is not marked: what the room refuses for shows in
 		// the snapshot (a full table, a game over, a game still closing), and the
@@ -130,7 +133,7 @@ private:
 			if (watched != move_.table && Since(move_.sentMs, nowMs) < FollowMoveTimeoutMs) return {};
 			move_ = {};
 		}
-		if (watched < 0 || FindMember(room, member_)->spectatorLocked) { *this = RoomFollow(); return {}; }
+		if (watched < 0) { *this = RoomFollow(); return {}; }
 		if (Holds(watched, room.tables[watched], nowMs) || !gate.roomTakesActions || gate.showingWatchedGame) return {};
 		return {ActionKind::Watch, NextFollowedGame(room, watched)};
 	}
