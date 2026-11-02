@@ -106,7 +106,7 @@ pub(super) fn settled(record: &Record) -> (bool, u64, Option<&String>) {
     }
 }
 
-fn retry(error: String) -> Outcome {
+pub(super) fn retry(error: String) -> Outcome {
     Outcome::Retry {
         error,
         retry_after: None,

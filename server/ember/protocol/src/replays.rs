@@ -23,6 +23,12 @@ const LARGEST_BODY: usize = 51200;
 /// 0x150 after the first's).
 const BODY_MAGIC: &[u8; 4] = b"#BRP";
 const BODY_HEADER: usize = 0x174;
+/// Where the replay's round records start, and after them its input
+/// streams (`src/common/ReplayInputs.hxx`): what was played. The header
+/// before it also holds values each player's PC writes its own way (the
+/// time it was played, and fields in each player's block), so the two
+/// players' copies of one game differ only there.
+const BODY_PLAYED_FROM: usize = 0x320;
 const BODY_FIGHTER: usize = 0x20;
 const BODY_PLAYER: usize = 0x150;
 const BODY_PLAYED: usize = 0x10;
@@ -68,10 +74,12 @@ pub struct Replay {
     /// The two fighters (native IDs), P1 first.
     pub fighters: [u8; 2],
     /// The SHA-256 of the replay without the record and slot bytes around
-    /// it. Those hold the saving PC's slot number, so both players' copies
-    /// of one game have the same digest, and two games whose CRCs collide
-    /// do not.
+    /// it: this copy of the game, and the name it is kept under.
     pub digest: [u8; 32],
+    /// Which game it is, the same for both players' copies: the SHA-256 of
+    /// the two fighters and what was played (`BODY_PLAYED_FROM` on). A
+    /// replay too short to hold a round is known by its digest.
+    pub game: [u8; 32],
 }
 
 impl Replay {
@@ -97,11 +105,21 @@ impl Replay {
             return None;
         };
         let crc = crc32(body);
+        let digest: [u8; 32] = Sha256::digest(body).into();
+        let game = match body.get(BODY_PLAYED_FROM..) {
+            Some(played) => Sha256::new()
+                .chain_update([p1, p2])
+                .chain_update(played)
+                .finalize()
+                .into(),
+            None => digest,
+        };
         (u32_at(record, CRC) == crc).then(|| Self {
             crc,
             saved_at: u32_at(record, SAVED),
             fighters: [p1, p2],
-            digest: Sha256::digest(body).into(),
+            digest,
+            game,
         })
     }
 
@@ -111,11 +129,16 @@ impl Replay {
     }
 
     pub fn digest_hex(&self) -> String {
-        self.digest
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect()
+        hex(&self.digest)
     }
+
+    pub fn game_hex(&self) -> String {
+        hex(&self.game)
+    }
+}
+
+fn hex(bytes: &[u8; 32]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 /// The CRC an `.emberreplay`'s record names, as its file name and the
@@ -257,6 +280,31 @@ mod tests {
         // The saving PC's slot number is no part of the game.
         let elsewhere = with_u32(file.clone(), 8, 284);
         assert_eq!(Replay::parse(&elsewhere), Some(replay));
+    }
+
+    /// Both players' copies of one game: their headers differ where each PC
+    /// writes its own values (the time played, a player's block), what was
+    /// played does not.
+    #[test]
+    fn both_players_copies_are_one_game() {
+        let played: Vec<u8> = (0..BODY_PLAYED_FROM - BODY_HEADER + 96)
+            .map(|at| at as u8)
+            .collect();
+        let mine = made_up(&played, SAVED_AT, [20, 34]);
+        let mut theirs = with_u32(mine.clone(), HEAD + BODY_PLAYED, 7);
+        theirs[HEAD + BODY_FIGHTER + 0x14] ^= 1;
+        theirs[HEAD + BODY_PLAYED_FROM - 1] ^= 1;
+        let theirs = recrc(theirs);
+        let [mine_read, theirs_read] = [&mine, &theirs].map(|file| Replay::parse(file).unwrap());
+        assert_ne!(mine_read.digest, theirs_read.digest);
+        assert_eq!(mine_read.game, theirs_read.game);
+        // Another game played from the same header is another game.
+        let mut other = mine.clone();
+        other[HEAD + BODY_PLAYED_FROM] ^= 1;
+        assert_ne!(Replay::parse(&recrc(other)).unwrap().game, mine_read.game);
+        // A replay with no round is known by its digest.
+        let short = Replay::parse(&game()).unwrap();
+        assert_eq!(short.game, short.digest);
     }
 
     #[test]

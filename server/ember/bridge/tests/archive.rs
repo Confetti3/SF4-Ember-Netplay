@@ -23,11 +23,13 @@ use sha2::{Digest, Sha256};
 
 const DAY: i64 = 24 * 60 * 60;
 
-/// What the stand-in bucket was sent: each PUT's path and body.
+/// What the stand-in bucket holds: each PUT's path and body, less what was
+/// deleted since.
 type Stored = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
 
-/// An S3 stand-in that takes any signed PUT whose content hash is right,
-/// unless it is `refusing`.
+/// An S3 stand-in that takes any signed PUT whose content hash is right, and
+/// answers signed GETs and DELETEs of what it holds, unless it is
+/// `refusing`.
 async fn bucket(refusing: Arc<AtomicBool>) -> (String, Stored) {
     let stored: Stored = Arc::default();
     let keep = stored.clone();
@@ -47,19 +49,31 @@ async fn bucket(refusing: Arc<AtomicBool>) -> (String, Stored) {
                     .and_then(|v| v.to_str().ok())
                     .is_some_and(|v| v.starts_with("AWS4-HMAC-SHA256 Credential=ember-test/"));
                 if refusing.load(Ordering::SeqCst)
-                    || method != axum::http::Method::PUT
                     || !signed
                     || headers
                         .get("x-amz-content-sha256")
                         .and_then(|v| v.to_str().ok())
                         != Some(hash.as_str())
                 {
-                    return StatusCode::FORBIDDEN;
+                    return (StatusCode::FORBIDDEN, Vec::new());
                 }
-                keep.lock()
-                    .unwrap()
-                    .push((uri.path().to_owned(), body.to_vec()));
-                StatusCode::OK
+                let path = uri.path().to_owned();
+                let mut held = keep.lock().unwrap();
+                match method {
+                    axum::http::Method::PUT => {
+                        held.push((path, body.to_vec()));
+                        (StatusCode::OK, Vec::new())
+                    }
+                    axum::http::Method::GET => match held.iter().rev().find(|(at, _)| *at == path) {
+                        Some((_, file)) => (StatusCode::OK, file.clone()),
+                        None => (StatusCode::NOT_FOUND, Vec::new()),
+                    },
+                    axum::http::Method::DELETE => {
+                        held.retain(|(at, _)| *at != path);
+                        (StatusCode::NO_CONTENT, Vec::new())
+                    }
+                    _ => (StatusCode::FORBIDDEN, Vec::new()),
+                }
             }
         },
     );
@@ -161,6 +175,37 @@ fn saved_elsewhere(file: &[u8]) -> Vec<u8> {
 
 fn digest(file: &[u8]) -> String {
     Replay::parse(file).unwrap().digest_hex()
+}
+
+/// An online game `n` long enough to hold a round: its replay goes past the
+/// 0x320-byte header, where what was played starts.
+fn played_game(n: u8) -> Vec<u8> {
+    replays::made_up(&[n; 0x320 - 0x174 + 64], 1_800_000_000, [20, 34])
+}
+
+/// `file` as the other player's PC saved the same game: its own time played
+/// in the replay's header, so another digest, and its record's CRC to match.
+fn their_copy(file: &[u8]) -> Vec<u8> {
+    let mut copy = file.to_vec();
+    copy[HEAD + 0x10] ^= 0x5a;
+    let crc = replays::crc32(&copy[HEAD..]);
+    copy[8 + 5..8 + 9].copy_from_slice(&crc.to_le_bytes());
+    copy
+}
+
+/// The paths of the games the bucket holds.
+fn games_held(f: &Fixture) -> Vec<String> {
+    let mut held: Vec<String> = f
+        .stored
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(path, _)| path.clone())
+        .filter(|path| path.starts_with("/replays/games/"))
+        .collect();
+    held.sort();
+    held.dedup();
+    held
 }
 
 /// `file` with the last four bytes of its replay changed so that the
@@ -578,6 +623,92 @@ async fn a_late_name_cannot_come_from_the_first_sender_or_fill_both_sides() {
         by(digest(&three)).await,
         (f.b.id().to_string(), String::new())
     );
+}
+
+/// Both players' copies of one game are one game: the second copy names its
+/// own side and country, and is not kept.
+#[tokio::test]
+async fn both_players_copies_are_one_game() {
+    let f = fixture().await;
+    let mine = played_game(31);
+    let theirs = their_copy(&mine);
+    assert_ne!(digest(&mine), digest(&theirs));
+    assert_eq!(
+        send(&f, &f.a, &mine, "a=Ann&b=&side=0&country=BE").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &theirs, "a=&b=Bob&side=1&country=NL").await,
+        StatusCode::OK
+    );
+    let list = listed_when(&f, "", |list| !games(list).is_empty()).await;
+    assert_eq!(games(&list).len(), 1);
+    let listed = listed_game(&list, &mine);
+    assert_eq!(listed["names"], json!(["Ann", "Bob"]));
+    assert_eq!(listed["countries"], json!(["BE", "NL"]));
+    assert_eq!(list["countries"], json!(["BE", "NL"]));
+    assert_eq!(
+        games_held(&f),
+        vec![format!("/replays/games/{}.emberreplay", digest(&mine))]
+    );
+}
+
+/// Copies of one game kept before games were known by what was played are
+/// folded into the copy kept first, which takes the other's side, and the
+/// other copy leaves the bridge and the bucket.
+#[tokio::test]
+async fn copies_kept_before_are_folded_into_the_first() {
+    let f = fixture().await;
+    let mine = played_game(32);
+    let theirs = their_copy(&mine);
+    assert_eq!(
+        send(&f, &f.a, &mine, "a=Ann&b=&side=0&country=BE").await,
+        StatusCode::CREATED
+    );
+    listed_when(&f, "", |list| games(list).len() == 1).await;
+    // As a bridge before migration 054 kept them: each copy its own game,
+    // neither known by what was played, both stored.
+    let (first, second, b) = (digest(&mine), digest(&theirs), f.b.id().to_string());
+    f.stored.lock().unwrap().push((
+        format!("/replays/games/{second}.emberreplay"),
+        theirs.clone(),
+    ));
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute("UPDATE archive_games SET game = NULL WHERE digest = ?1", [&first])?;
+            tx.execute(
+                "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, name_b, country_b,
+                    sent_side, sent_by, priority, state, next_attempt_at, received_at, stored_at)
+                 SELECT ?1, crc, saved_at, size, fighter_a, fighter_b, 'Bob', 'NL', 1, ?2, 1, 'stored', 0,
+                    received_at + 1, received_at + 1
+                 FROM archive_games WHERE digest = ?3",
+                rusqlite::params![second, b, first],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let list = listed_when(&f, "", |list| {
+        games(list).len() == 1 && games(list)[0]["names"] == json!(["Ann", "Bob"])
+    })
+    .await;
+    assert_eq!(listed_game(&list, &mine)["countries"], json!(["BE", "NL"]));
+    for _ in 0..200 {
+        if count(&f, "SELECT COUNT(*) FROM archive_games WHERE digest = ?1", &digest(&theirs)).await == 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
+    assert_eq!(count(&f, left, &digest(&theirs)).await, 0);
+    assert_eq!(
+        games_held(&f),
+        vec![format!("/replays/games/{}.emberreplay", digest(&mine))]
+    );
+    let known = "SELECT COUNT(*) FROM archive_games WHERE game = ?1";
+    assert_eq!(count(&f, known, &Replay::parse(&mine).unwrap().game_hex()).await, 1);
 }
 
 /// Only a desk event's set has its games archived: the organizer accepted
