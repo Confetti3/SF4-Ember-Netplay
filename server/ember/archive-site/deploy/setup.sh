@@ -249,6 +249,25 @@ declare -A SOURCE=(["$LIB/rustfs"]="$BINARY" ["$UNIT"]="$work/unit" ["$HEADERS"]
     ["$ZONEFILE"]="$work/zone" ["$NGINX_FILE"]="$work/nginx-file")
 for file in $BORROWED; do TRACKED+=("$WEBROOT/assets/$file"); SOURCE["$WEBROOT/assets/$file"]="$SHORT/$file"; done
 for file in $(printf '%s\n' $PAGE | sort -r); do TRACKED+=("$WEBROOT/$file"); SOURCE["$WEBROOT/$file"]="$SITEDIR/$file"; done
+# The page's files go in with each address it loads them by naming the file's
+# own hash (?v=), so a browser that kept older files (assets are cached for an
+# hour) fetches the new ones with the new page instead of mixing the two. The
+# borrowed images and flag index first, then the stylesheet and script that
+# name them, then the page that names those.
+version() { sha256sum "$1" | cut -c1-12; }
+mkdir -p "$work/site/assets"
+sed -e "s|url(faces.webp)|url(faces.webp?v=$(version "$SHORT/faces.webp"))|" \
+    -e "s|url(flags.png)|url(flags.png?v=$(version "$SHORT/flags.png"))|" \
+    "$SITEDIR/assets/archive.css" > "$work/site/assets/archive.css"
+sed -e "s|'assets/flags.json'|'assets/flags.json?v=$(version "$SHORT/flags.json")'|" \
+    "$SITEDIR/assets/archive.js" > "$work/site/assets/archive.js"
+sed -e "s|href=\"assets/archive.css\"|href=\"assets/archive.css?v=$(version "$work/site/assets/archive.css")\"|" \
+    -e "s|src=\"assets/archive.js\"|src=\"assets/archive.js?v=$(version "$work/site/assets/archive.js")\"|" \
+    "$SITEDIR/index.html" > "$work/site/index.html"
+for file in $PAGE; do
+    cmp -s "$SITEDIR/$file" "$work/site/$file" && { echo "$file names no versioned asset; the page and setup.sh disagree." >&2; exit 1; }
+    SOURCE["$WEBROOT/$file"]="$work/site/$file"
+done
 # A random marker per install, served as install.txt. The final check asks the
 # host for this exact marker, which an older install on the name cannot have.
 INSTALL_MARKER=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
