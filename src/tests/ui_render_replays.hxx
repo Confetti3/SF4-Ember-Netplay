@@ -44,10 +44,14 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     for(int i=0;i<2;++i){draw(nullptr,MenuInput::Right,1);draw();}
     draw(nullptr,MenuInput::Select,1);draw();
     Require(shell.Navigation().Screen()=="replay-export","Export set videos did not open the first game's caption");
+    // An earlier export saves its video while the caption is open: it is not this set's.
+    view.replays.exportEnded=77;view.replays.exportSaved=true;draw();draw();
     shell.Navigation().Focus("cap-generate",rows);draw(nullptr,MenuInput::Select,1);draw();
     Require(exportsStarted==std::vector<std::string>{"e"},"Generate did not send the set's first game");
-    // The next game's export is refused: it is not counted as sent, and stays for the Next video row.
-    refuseExports=true;view.replays.videos=1;draw();draw();refuseExports=false;
+    draw();draw();
+    Require(exportsStarted==std::vector<std::string>{"e"},"An earlier export's end advanced the set before its own export ended");
+    // The first game's export (the first sent: number 1) saves its video. The next game's export is refused: it is not counted as sent, and stays for the Next video row.
+    refuseExports=true;view.replays.exportEnded=1;view.replays.exportSaved=true;draw();draw();refuseExports=false;
     Require(exportsStarted==std::vector<std::string>{"e"},"A refused export was counted as sent");
     page("replays");draw();
     Require(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="set-next";}),"A refused set export lost its game");
@@ -55,11 +59,18 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     Require(shell.Navigation().Screen()=="replay-export","Next video did not offer the refused game again");
     shell.Navigation().Focus("cap-generate",rows);draw(nullptr,MenuInput::Select,1);draw();
     Require(exportsStarted==(std::vector<std::string>{"e","a set 0-1"}),"The set's next video did not follow the one made with the set so far");
-    // Its encode fails, so no video is counted: the game stays queued rather than being dropped.
-    draw();draw();page("replays");draw();
+    // Its encode fails (export 2), then an unrelated export saves a video: the game stays queued rather than being dropped.
+    view.replays.exportEnded=2;view.replays.exportSaved=false;draw();draw();
+    view.replays.exportEnded=88;view.replays.exportSaved=true;draw();draw();page("replays");draw();
     Require(exportsStarted.size()==2&&std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="set-next";}),"A set export that made no video dropped its game");
-    view.replays.videos=2;draw();draw();
-    Require(exportsStarted.size()==2,"A set with no game left sent another export");
+    // Sent again (export 3), its video is saved: no game is left, so no export follows.
+    shell.Navigation().Focus("set-next",rows);draw(nullptr,MenuInput::Select,1);draw();
+    shell.Navigation().Focus("cap-generate",rows);draw(nullptr,MenuInput::Select,1);draw();
+    Require(exportsStarted.size()==3,"The failed game's export was not sent again");
+    view.replays.exportEnded=3;view.replays.exportSaved=true;draw();draw();
+    Require(exportsStarted.size()==3,"A set with no game left sent another export");
+    page("replays");draw();
+    Require(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="set-next";}),"A finished set offered another video");
     page("replays");
     shell.Navigation().Focus("replay:a",rows);
     draw(nullptr,MenuInput::Select,1);draw("replay-choices");

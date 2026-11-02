@@ -341,7 +341,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 			const replay::ExportEnd end = replay::ExportEndOf(capture == replaycapture::State::Done, op.cancelled);
 			op.status.notice = capture == replaycapture::State::Done ? loc::Tf(end.key, file) : std::string(loc::T(end.key));
 			op.status.noticeError = end.error;
-			if (capture == replaycapture::State::Done) ++op.status.videos;
+			op.status.exportEnded = op.request.id; op.status.exportSaved = capture == replaycapture::State::Done;
 			replaycapture::Clear();
 			op.awaited = false; op.video.clear();
 		}

@@ -85,13 +85,14 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
  // In a room the menu is the room's: the link waits until it is left.
  const auto& link=v.replays.link;
  if(link!=linkSeen_&&(link.empty()||v.session.room==netplay::RoomState::Idle)){linkSeen_=link;if(!link.empty()&&nav.Screen()!="replays")Show(nav);}
- // Export set videos: the video of the game sent (the front of the queue)
- // takes it out of the queue, and the next game's export follows with the
+ // Export set videos: the saved video of the game sent (the front of the
+ // queue) takes it out of the queue, and the next game's export follows with the
  // same caption parts, its set counted so far, once the game is back at its
  // menu. A game whose export was refused or whose video was not made stays at
  // the front for the Next video row to go on from.
- if(setStep_==SetStep::Sent&&!setQueue_.empty()&&v.replays.videos!=videosSeen_){
-  videosSeen_=v.replays.videos;setQueue_.erase(setQueue_.begin());setStep_=SetStep::Advance;
+ if(setStep_==SetStep::Sent&&v.replays.exportEnded==sentExport_){
+  if(v.replays.exportSaved&&!setQueue_.empty()){setQueue_.erase(setQueue_.begin());setStep_=SetStep::Advance;}
+  else setStep_=SetStep::Manual;
  }
  if(setStep_==SetStep::Advance&&!setQueue_.empty()&&v.replays.ready&&v.session.room==netplay::RoomState::Idle){
   setStep_=SetStep::Manual;
@@ -262,9 +263,9 @@ void ReplaysPanel::NextVideo(const ShellView& v,const netplay::PlayerPreferences
  if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);nav.Push("replay-export");}
 }
 // A set's games queued to watch or, with `exporting`, to make videos of.
-void ReplaysPanel::QueueSet(const Set& set,bool exporting,std::uint64_t videos) {
+void ReplaysPanel::QueueSet(const Set& set,bool exporting) {
  setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
- setGames_=setQueue_.size();setExport_=exporting;setStep_=SetStep::Manual;videosSeen_=videos;
+ setGames_=setQueue_.size();setExport_=exporting;setStep_=SetStep::Manual;
 }
 void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,const Submit& submit,std::string& error) {
  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
@@ -272,10 +273,11 @@ void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,c
 }
 // Sends the export set up: the replay, its caption and the frame meter row.
 bool ReplaysPanel::Generate(const ShellView& v,const Submit& submit) {
- ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;
+ ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;r.replay.id=exports_+1;
  if(!submit(std::move(r)))return false;
- // The queue's front, sent: its video is what takes it out of the queue.
- if(setExport_&&!setQueue_.empty()&&exportPath_==setQueue_.front())setStep_=SetStep::Sent;
+ ++exports_;
+ // The queue's front, sent: the end of this export is what takes it out of the queue.
+ if(setExport_&&!setQueue_.empty()&&exportPath_==setQueue_.front()){setStep_=SetStep::Sent;sentExport_=exports_;}
  return true;
 }
 bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
@@ -341,11 +343,11 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
     if(!submit(std::move(r))){setAsked_=false;error=loc::T("error.queue_failed");}
    }else if(a.text=="set-export"){
     // The first game's caption now; each next one from the Next video row on Replays.
-    QueueSet(set,true,v.replays.videos);
+    QueueSet(set,true);
     NextVideo(v,saved,nav);
    }else if(a.text=="set-watch"&&v.replays.ready){
     // The first game now; each next one from the Next game row on Replays, where the log comes back to.
-    QueueSet(set,false,v.replays.videos);
+    QueueSet(set,false);
     Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());
    }
   }

@@ -4,6 +4,7 @@
 // the game: one path and one thing to do with it. The shell makes it, the
 // runtime carries it to the game thread, and sf4e__ReplayStore runs it.
 
+#include <cstdint>
 #include <string>
 
 namespace sf4e { namespace replay {
@@ -41,6 +42,9 @@ struct Request {
 	bool meter = false;
 	// With Keep: kept, or no longer.
 	bool keep = false;
+	// With Export: the sender's number for it (not 0), which the export's
+	// end is told with (sf4e__ReplayStore.hxx: Status).
+	std::uint64_t id = 0;
 };
 
 } }

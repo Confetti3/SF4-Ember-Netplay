@@ -81,7 +81,7 @@ private:
     void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
     void OpenExport(const ShellView& view, const netplay::PlayerPreferences& saved, const platform::replays::ArchivedReplay& replay);
     void NextVideo(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& nav);
-    void QueueSet(const platform::replays::ArchivedSet& set, bool exporting, std::uint64_t videos);
+    void QueueSet(const platform::replays::ArchivedSet& set, bool exporting);
     bool Generate(const ShellView& view, const Submit& submit);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
@@ -112,13 +112,14 @@ private:
     std::size_t setGames_ = 0;
     // The queue makes videos (set-export), not watches. The game at its front
     // stays there until its video is made: Sent says its export was accepted
-    // and its video is awaited (the videos saved by then are videosSeen_);
-    // Advance, that it was made and the next game's export goes by itself.
+    // and its end is awaited (the export numbered sentExport_);
+    // Advance, that its video was saved and the next game's export goes by itself.
     // Either way a refused or failed export leaves the game to the Next video row.
+    // Only the end of the export sent counts, never another export's.
     enum class SetStep { Manual, Sent, Advance };
     bool setExport_ = false;
     SetStep setStep_ = SetStep::Manual;
-    std::uint64_t videosSeen_ = 0;
+    std::uint64_t exports_ = 0, sentExport_ = 0;
     // The set whose games replay-set lists.
     std::string setShown_;
     // A set pack was last asked for here (Save set pack, a pack link's Import):
