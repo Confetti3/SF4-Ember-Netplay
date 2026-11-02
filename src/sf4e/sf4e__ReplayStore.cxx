@@ -211,7 +211,7 @@ constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kVersusTick
 struct Operation {
 	sf4e::replaystore::Status status;
 	int waited = 0, slot = -1, splash = 0, versus = 0;
-	bool started = false, awaited = false, meter = false, cancelled = false;
+	bool started = false, awaited = false, meter = false, cancelled = false, guideCleared = false;
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
 	std::wstring video;
@@ -252,7 +252,7 @@ void FinishRequest(const sf4e::replay::Request& request, bool noRoom) {
 		return;
 	}
 	op.status.logOpens++;
-	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
+	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0; op.guideCleared = false;
 	op.clock.Reset(); op.status.exportFrames = op.status.exportTotal = 0;
 	if (exporting) {
 		// Ember's encoder writes straight next to the replay.
@@ -402,12 +402,10 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		// The button guide under the replay (END, SLO MO) is the game's own
 		// reminder for a player, not part of the match: a video has none, as
 		// the game's own YouTube recording had none.
-		if (Named(state, "Battle") && op.awaited) {
-			auto* const guide = ReplayBattle::GetButtonGuide(state);
-			if (ReplayBattle::staticMethods.MovieValid(guide) && ReplayBattle::GetGuideButtons(guide) > 0) {
-				ReplayBattle::staticMethods.ClearGuide(guide);
-				spdlog::info("Replay: the button guide is left out of the video");
-			}
+		if (Named(state, "Battle") && op.awaited && !op.guideCleared) {
+			ReplayBattle::staticMethods.ClearGuides(ReplayBattle::GetGuides(state));
+			op.guideCleared = true;
+			spdlog::info("Replay: the button guide is left out of the video");
 		}
 		// An export leaves the replay by itself: once the match has been
 		// decided for a while, the end menu's choice is made for the player

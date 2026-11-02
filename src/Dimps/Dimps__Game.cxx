@@ -50,7 +50,7 @@ void ReplayBattle::Locate(HMODULE peRoot) {
 	*(PVOID*)&staticMethods.FadeVoice = (PVOID)(peRootOffset + 0x286b50);
 	*(PVOID*)&staticMethods.MovieValid = (PVOID)(peRootOffset + 0x38ecd0);
 	*(PVOID*)&staticMethods.MovieSignal = (PVOID)(peRootOffset + 0x38daf0);
-	*(PVOID*)&staticMethods.ClearGuide = (PVOID)(peRootOffset + 0x251910);
+	*(PVOID*)&staticMethods.ClearGuides = (PVOID)(peRootOffset + 0x044780);
 }
 
 SaveDataController::__publicMethods SaveDataController::publicMethods;
