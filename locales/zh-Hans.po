@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "在 Ember 菜单上方显示观战的对局：小 显示在可拖动的角落，大 显示在房间界面的对战台位置，不显示 则在菜单后面变暗。"
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "分享我的回放"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "将你从现在起进行的对局连同双方玩家的名字和你所在的国家，发送到你的 bridge 的公开回放存档。赛事对局始终会被分享。"
 
 msgid "replays.link"
 msgstr "播放链接中的录像"
@@ -5540,7 +5540,7 @@ msgid "reports.dump"
 msgstr "小型转储"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "转储包含未经过滤的线程栈数据和模块路径，可能暴露私人内存、完整的凭据或邀请、用户名、目录路径和其他标识信息。日志脱敏不会处理它，其内容也不会显示在文本预览中。要排除它，请关闭小型转储。"
 
 msgid "reports.comment"
 msgstr "备注"
@@ -5588,7 +5588,7 @@ msgid "reports.cancelled"
 msgstr "已取消发送报告。服务器已接受的报告仍可能被保留。"
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "所含转储可能暴露私人内存、完整的凭据或邀请、用户名、目录路径和其他标识信息。其内容不会显示在文本预览中，也不会经过日志脱敏处理。仅在你接受这种风险时才发送；要排除它，请选择不发送并关闭小型转储。"
 
 msgid "launcher.game_crashed_files"
 msgstr "游戏崩溃了。请将 %APPDATA%\\sf4e\\logs 中的文件（sf4e.log、sf4e-crash.log 和 sf4e-crash-*.dmp）发送给 SF4 Ember Netplay 团队，然后重试。"

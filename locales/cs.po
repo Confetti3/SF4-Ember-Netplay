@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "Sledovaná hra nad nabídkou Emberu: Malé v rohu, které lze přetáhnout, Velké místo stolů v místnosti, Žádný – ztlumená za nabídkou."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "Sdílet mé záznamy"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, se jmény obou hráčů a vaší zemí. Turnajové zápasy se sdílejí vždy."
 
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"
@@ -5539,7 +5539,7 @@ msgid "reports.dump"
 msgstr "Malý výpis"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "Výpis obsahuje nefiltrovaná data zásobníku vláken a cesty k modulům. Může odhalit soukromou paměť, úplné přihlašovací údaje nebo pozvánky, uživatelská jména, cesty ke složkám a další identifikátory. Redakce logů ho nijak neočišťuje a jeho obsah se v textovém náhledu nezobrazuje. Chcete-li ho vyloučit, vypněte Malý výpis."
 
 msgid "reports.comment"
 msgstr "Komentář"
@@ -5587,7 +5587,7 @@ msgid "reports.cancelled"
 msgstr "Nahrávání hlášení zrušeno. Hlášení, které server už přijal, může být stále uloženo."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "Přiložený výpis může odhalit soukromou paměť, úplné přihlašovací údaje nebo pozvánky, uživatelská jména, cesty ke složkám a další identifikátory. Jeho obsah se v textovém náhledu nezobrazuje a redakce logů ho neočišťuje. Odešlete ho jen tehdy, pokud s tímto rizikem souhlasíte; chcete-li ho vyloučit, zvolte Neodesílat a vypněte Malý výpis."
 
 msgid "launcher.game_crashed_files"
 msgstr "Hra spadla. Pošlete prosím týmu SF4 Ember Netplay soubory ze složky %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log a sf4e-crash-*.dmp) a zkuste to znovu."

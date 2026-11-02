@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "관전 중인 게임을 Ember 메뉴 위에 표시: 작게는 끌어 옮길 수 있는 구석에, 크게는 방 화면의 테이블 자리에, 표시 안 함은 메뉴 뒤에 어둡게."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "내 리플레이 공유"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "지금부터 플레이하는 경기를 두 플레이어의 이름과 내 국가와 함께 브리지의 공개 리플레이 보관소로 보냅니다. 대회 경기는 항상 공유됩니다."
 
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"
@@ -5540,7 +5540,7 @@ msgid "reports.dump"
 msgstr "작은 덤프"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "덤프에는 필터링되지 않은 스레드 스택 데이터와 모듈 경로가 들어 있습니다. 개인 메모리 내용, 전체 인증 정보나 초대, 사용자 이름, 폴더 경로와 기타 식별 정보가 노출될 수 있습니다. 로그 가림 처리로는 덤프가 정리되지 않으며, 내용은 텍스트 미리보기에도 표시되지 않습니다. 제외하려면 작은 덤프를 끄세요."
 
 msgid "reports.comment"
 msgstr "의견"
@@ -5588,7 +5588,7 @@ msgid "reports.cancelled"
 msgstr "보고서 업로드를 취소했습니다. 서버가 이미 받은 보고서는 남아 있을 수 있습니다."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "포함된 덤프에는 개인 메모리 내용, 전체 인증 정보나 초대, 사용자 이름, 폴더 경로와 기타 식별 정보가 노출될 수 있습니다. 내용은 텍스트 미리보기에 표시되지 않고 로그 가림 처리로도 정리되지 않습니다. 이 위험을 받아들일 때만 보내세요. 제외하려면 보내지 않기를 선택하고 작은 덤프를 끄세요."
 
 msgid "launcher.game_crashed_files"
 msgstr "게임이 충돌했습니다. %APPDATA%\\sf4e\\logs 폴더의 파일(sf4e.log, sf4e-crash.log, sf4e-crash-*.dmp)을 SF4 Ember Netplay 팀에 보낸 뒤 다시 시도하세요."

@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "Oglądana gra nad menu Embera: Mały w rogu, który można przeciągnąć, Duży w miejscu stołów w pokoju, Brak – przyciemniona za menu."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "Udostępniaj moje powtórki"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "Wysyła mecze, które rozegrasz od teraz, do publicznego archiwum powtórek twojego bridge'a, razem z nazwami obu graczy i twoim krajem. Mecze turniejowe są zawsze udostępniane."
 
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"
@@ -5539,7 +5539,7 @@ msgid "reports.dump"
 msgstr "Mały zrzut"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "Zrzut zawiera niefiltrowane bajty stosów wątków i ścieżki modułów. Może ujawnić prywatną pamięć, pełne dane logowania lub zaproszenia, nazwy użytkowników, ścieżki folderów i inne identyfikatory. Zamazywanie danych w logach go nie oczyszcza, a jego zawartość nie jest widoczna w podglądzie tekstowym. Wyłącz Mały zrzut, aby go pominąć."
 
 msgid "reports.comment"
 msgstr "Komentarz"
@@ -5587,7 +5587,7 @@ msgid "reports.cancelled"
 msgstr "Przesyłanie anulowane. Zgłoszenie przyjęte już przez serwer może nadal być przechowywane."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "Dołączony zrzut może ujawnić prywatną pamięć, pełne dane logowania lub zaproszenia, nazwy użytkowników, ścieżki folderów i inne identyfikatory. Jego zawartość nie jest widoczna w podglądzie tekstowym ani oczyszczana przez zamazywanie danych w logach. Wyślij go tylko wtedy, gdy akceptujesz to ryzyko; aby go pominąć, wybierz Nie wysyłaj i wyłącz Mały zrzut."
 
 msgid "launcher.game_crashed_files"
 msgstr "Gra uległa awarii. Wyślij zespołowi SF4 Ember Netplay pliki z %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log i sf4e-crash-*.dmp), a potem spróbuj ponownie."

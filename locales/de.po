@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "Das Spiel, dem du zuschaust, über Embers Menü: Klein in einer Ecke, die du verschieben kannst, Groß anstelle der Tische in der Raumansicht, Keins abgedunkelt hinter dem Menü."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "Meine Replays teilen"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "Sendet die Kämpfe, die du ab jetzt spielst, an das öffentliche Replay-Archiv deiner Bridge, mit den Namen beider Spieler und deinem Land. Turnierkämpfe werden immer geteilt."
 
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"
@@ -5539,7 +5539,7 @@ msgid "reports.dump"
 msgstr "Kleiner Dump"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "Der Dump enthält ungefilterte Thread-Stack-Bytes und Modulpfade. Er kann privaten Speicher, vollständige Zugangsdaten oder Einladungen, Benutzernamen, Verzeichnispfade und andere Kennungen offenlegen. Die Log-Schwärzung bereinigt ihn nicht, und sein Inhalt wird in der Textvorschau nicht angezeigt. Schalte Kleiner Dump aus, um ihn auszuschließen."
 
 msgid "reports.comment"
 msgstr "Kommentar"
@@ -5587,7 +5587,7 @@ msgid "reports.cancelled"
 msgstr "Berichts-Upload abgebrochen. Ein vom Server schon angenommener Bericht bleibt evtl. gespeichert."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "Der enthaltene Dump kann privaten Speicher, vollständige Zugangsdaten oder Einladungen, Benutzernamen, Verzeichnispfade und andere Kennungen offenlegen. Sein Inhalt wird weder in der Textvorschau angezeigt noch durch die Log-Schwärzung bereinigt. Sende ihn nur, wenn du dieses Risiko akzeptierst; wähle Nicht senden und schalte Kleiner Dump aus, um ihn auszuschließen."
 
 msgid "launcher.game_crashed_files"
 msgstr "Das Spiel ist abgestürzt. Bitte die Dateien aus %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log und sf4e-crash-*.dmp) an das SF4-Ember-Netplay-Team senden und erneut versuchen."
@@ -7818,7 +7818,7 @@ msgid "award.launch-night.how"
 msgstr "Spiele während des Ember-Startevents"
 
 msgid "award.weekly-top16.title"
-msgstr "WEEKLY TOP 16"
+msgstr "TOP 16 DER WEEKLY"
 
 msgid "award.weekly-top16.icon"
 msgstr "Lorbeer"
@@ -7836,7 +7836,7 @@ msgid "award.rollback-regular.how"
 msgstr "Nimm in einer Saison an 10 Ember Weeklies teil"
 
 msgid "award.weekly-top8.title"
-msgstr "WEEKLY TOP 8"
+msgstr "TOP 8 DER WEEKLY"
 
 msgid "award.weekly-top8.icon"
 msgstr "Achteck 8"

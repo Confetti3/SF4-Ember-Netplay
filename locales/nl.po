@@ -941,7 +941,7 @@ msgid "replays.set_detail"
 msgstr "Selecteer om de games van de set op volgorde te bekijken, er één te kiezen of de set als één bestand te bewaren."
 
 msgid "replays.set_value"
-msgstr "{0} replays · {1} rooms"
+msgstr "{0} replays · {1} kamers"
 
 msgid "replays.watch_set"
 msgstr "Set bekijken"
@@ -5296,7 +5296,7 @@ msgid "room.cabinet_free"
 msgstr "WERP MUNT IN"
 
 msgid "room.type.king"
-msgstr "King of the hill"
+msgstr "Koning van de heuvel"
 
 msgid "room.type.king_detail"
 msgstr "Zestien kasten, alle paren spelen tegelijk: de winnaar van een set blijft zitten en speelt tegen de volgende uitdager. De langste huidige winreeks heeft de toppositie."
@@ -5539,7 +5539,7 @@ msgid "reports.dump"
 msgstr "Kleine dump"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "De dump bevat ongefilterde stackbytes van threads en modulepaden. Hij kan privégeheugen, volledige inloggegevens of uitnodigingen, gebruikersnamen, mappaden en andere identificatiegegevens blootleggen. Logredactie maakt hem niet schoon, en de inhoud wordt niet getoond in de tekstvoorbeeldweergave. Zet Kleine dump uit om hem uit te sluiten."
 
 msgid "reports.comment"
 msgstr "Opmerking"
@@ -5587,7 +5587,7 @@ msgid "reports.cancelled"
 msgstr "Uploaden geannuleerd. Een rapport dat de server al heeft geaccepteerd, kan toch bewaard blijven."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "De bijgevoegde dump kan privégeheugen, volledige inloggegevens of uitnodigingen, gebruikersnamen, mappaden en andere identificatiegegevens blootleggen. De inhoud wordt niet getoond in de tekstvoorbeeldweergave en wordt niet schoongemaakt door logredactie. Verstuur hem alleen als je dit risico accepteert; kies Niet versturen en zet Kleine dump uit om hem uit te sluiten."
 
 msgid "launcher.game_crashed_files"
 msgstr "Het spel is gecrasht. Stuur de bestanden uit %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log en sf4e-crash-*.dmp) naar het SF4 Ember Netplay-team en probeer opnieuw."
@@ -7818,7 +7818,7 @@ msgid "award.launch-night.how"
 msgstr "Speel tijdens het lanceringsevenement van Ember"
 
 msgid "award.weekly-top16.title"
-msgstr "WEEKLY TOP 16"
+msgstr "TOP 16 VAN DE WEEKLY"
 
 msgid "award.weekly-top16.icon"
 msgstr "Lauwerkrans"
@@ -7836,7 +7836,7 @@ msgid "award.rollback-regular.how"
 msgstr "Doe mee aan 10 Ember Weeklies in één seizoen"
 
 msgid "award.weekly-top8.title"
-msgstr "WEEKLY TOP 8"
+msgstr "TOP 8 VAN DE WEEKLY"
 
 msgid "award.weekly-top8.icon"
 msgstr "Achthoek 8"
