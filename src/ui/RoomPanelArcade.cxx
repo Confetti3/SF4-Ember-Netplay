@@ -75,14 +75,16 @@ Cabinet LayOutCabinet(v2::Box b,float s) {
     return k;
 }
 // `picture` on the cabinet's glass, as big as the glass holds, standing on
-// its foot, with the scanlines over it and a shade at its foot for the
-// screen's words. False while the art has no image for it.
-bool DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const FighterPicture& picture,float s) {
+// its foot, in front of the screen's own colour (a pair's, so each pair's
+// screens read apart), with the scanlines over it and a shade at its foot for
+// the screen's words. False while the art has no image for it.
+bool DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const FighterPicture& picture,ImU32 tone,float s) {
     if(glass.H()<24*s)return false;
     ReportFighterPicture(picture,glass.min,glass.max);
     const auto image=FighterImage(picture,glass.H());
     if(!image.texture||image.width<=0||image.height<=0)return false;
     const v2::Box g=v2::Inset(glass,1.5f*s,1.5f*s);
+    d->AddRectFilledMultiColor(g.min,g.max,v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.2f),v2::color::Alpha(tone,.2f));
     const float factor=(std::min)(g.W()/image.width,g.H()/image.height),w=image.width*factor,h=image.height*factor;
     const float x=(g.min.x+g.max.x-w)*.5f;
     d->AddImage(image.texture,ImVec2(x,g.max.y-h),ImVec2(x+w,g.max.y),image.uvMin,image.uvMax);
@@ -350,7 +352,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // A seated player's fighter fills the glass (Settings › Room layout ›
   // Pictures), standing on its foot, under the screen's scanlines; the
   // screen's words go to its foot, over a shade.
-  const bool pictured=m&&DrawCabinetFighter(d,screen,SeatPicture(SeatLookOf(v,*m),art),s);
+  const bool pictured=m&&DrawCabinetFighter(d,screen,SeatPicture(SeatLookOf(v,*m),art),glass,s);
   const float ss=(std::min)(15*s,screen.H()*.34f);
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}
