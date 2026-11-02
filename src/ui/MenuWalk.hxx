@@ -13,13 +13,18 @@ class MenuWalk {
 public:
     using Say = std::function<void(bool pass, const std::string& step, const std::string& detail)>;
     unsigned Frame(const MenuNavigation& nav, const Say& say);
+    // Starts the walk at the step named `step` (as its PASS/FAIL lines name it), so a
+    // rerun picks up where the last one failed. The steps on the way there that the
+    // later ones need (reaching Online play, opening the room) still run, unsaid;
+    // detours (Settings, the popups) are skipped. False for a name no step has.
+    bool StartAt(const std::string& step);
     bool Done() const { return done_; }
     bool Failed() const { return failed_; }
 private:
     unsigned Press(unsigned button);
     void Next(const MenuNavigation& nav, const Say& say);
     unsigned Fail(const std::string& detail, const Say& say);
-    std::size_t step_ = 0;
+    std::size_t step_ = 0, start_ = 0;
     bool seeking_ = true, closing_ = false, done_ = false, failed_ = false;
     int frames_ = 0, presses_ = 0, hold_ = 0, rest_ = 0;
     unsigned holding_ = 0, direction_ = MenuInput::Down;
