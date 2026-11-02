@@ -255,18 +255,18 @@ for file in $(printf '%s\n' $PAGE | sort -r); do TRACKED+=("$WEBROOT/$file"); SO
 # borrowed images and flag index first, then the stylesheet and script that
 # name them, then the page that names those.
 version() { sha256sum "$1" | cut -c1-12; }
-mkdir -p "$work/site/assets"
+mkdir -p "$work/page/assets"
 sed -e "s|url(faces.webp)|url(faces.webp?v=$(version "$SHORT/faces.webp"))|" \
     -e "s|url(flags.png)|url(flags.png?v=$(version "$SHORT/flags.png"))|" \
-    "$SITEDIR/assets/archive.css" > "$work/site/assets/archive.css"
+    "$SITEDIR/assets/archive.css" > "$work/page/assets/archive.css"
 sed -e "s|'assets/flags.json'|'assets/flags.json?v=$(version "$SHORT/flags.json")'|" \
-    "$SITEDIR/assets/archive.js" > "$work/site/assets/archive.js"
-sed -e "s|href=\"assets/archive.css\"|href=\"assets/archive.css?v=$(version "$work/site/assets/archive.css")\"|" \
-    -e "s|src=\"assets/archive.js\"|src=\"assets/archive.js?v=$(version "$work/site/assets/archive.js")\"|" \
-    "$SITEDIR/index.html" > "$work/site/index.html"
+    "$SITEDIR/assets/archive.js" > "$work/page/assets/archive.js"
+sed -e "s|href=\"assets/archive.css\"|href=\"assets/archive.css?v=$(version "$work/page/assets/archive.css")\"|" \
+    -e "s|src=\"assets/archive.js\"|src=\"assets/archive.js?v=$(version "$work/page/assets/archive.js")\"|" \
+    "$SITEDIR/index.html" > "$work/page/index.html"
 for file in $PAGE; do
-    cmp -s "$SITEDIR/$file" "$work/site/$file" && { echo "$file names no versioned asset; the page and setup.sh disagree." >&2; exit 1; }
-    SOURCE["$WEBROOT/$file"]="$work/site/$file"
+    cmp -s "$SITEDIR/$file" "$work/page/$file" && { echo "$file names no versioned asset; the page and setup.sh disagree." >&2; exit 1; }
+    SOURCE["$WEBROOT/$file"]="$work/page/$file"
 done
 # A random marker per install, served as install.txt. The final check asks the
 # host for this exact marker, which an older install on the name cannot have.
