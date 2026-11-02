@@ -268,16 +268,22 @@ static void TestStatusLineDetails() {
 	details.rotation = 2;
 	const auto line = roomhost::StatusLine({3, 1, "sf4e3:x", {}, details});
 	CHECK(json::parse(line).at("details") == json::parse(
-		R"({"name":"Late night","capacity":8,"locked":true,"host_name":"Kate","fighters":[3,255,12],"set_format":3,"rotation":2})"));
+		R"({"name":"Late night","capacity":8,"locked":true,"host_name":"Kate","fighters":[3,255,12],"set_format":3,"rotation":2,"room_type":0})"));
 	details.hostName.clear();
 	const auto bare = json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, details})).at("details");
-	CHECK(!bare.contains("host_name") && bare.size() == 6);
+	CHECK(!bare.contains("host_name") && bare.size() == 7);
 	// A room whose fighters each play at their own delay says so, and only that room.
 	auto ownDetails = details;
 	ownDetails.ownDelay = true;
 	const auto own = json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, ownDetails})).at("details");
 	CHECK(own.at("own_delay") == true && own.size() == bare.size() + 1);
 	CHECK(!(ownDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, ownDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
+	// The room's type is always said, so a Classic room reads as one, and a
+	// type set after the room opened changes the line.
+	auto kingDetails = details;
+	kingDetails.roomType = static_cast<int>(room::KingRoom);
+	CHECK(json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, kingDetails})).at("details").at("room_type") == 2);
+	CHECK(!(kingDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, kingDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
 	// A room name that is not UTF-8 is replaced instead of throwing.
 	details.name = std::string("bad\xff");
 	CHECK(json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details})).at("details").at("name").is_string());
@@ -337,6 +343,12 @@ static void TestDetailsOfSnapshot() {
 	CHECK(!roomhost::DetailsOf(snapshot).ownDelay);
 	snapshot.delayPolicy = room::DelayPolicy::Own;
 	CHECK(roomhost::DetailsOf(snapshot).ownDelay);
+	// The room's type is the snapshot's.
+	CHECK(roomhost::DetailsOf(snapshot).roomType == 0);
+	snapshot.arcade = room::ArcadeRoom;
+	CHECK(roomhost::DetailsOf(snapshot).roomType == 1);
+	snapshot.arcade = room::KingRoom;
+	CHECK(roomhost::DetailsOf(snapshot).roomType == 2);
 }
 
 // A public member's class is the one the room's ticket vouched for: it reaches

@@ -85,13 +85,15 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	details.setFormat = static_cast<int>(snapshot.tables[0].rules.format);
 	details.rotation = static_cast<int>(snapshot.tables[0].rules.rotation);
 	details.ownDelay = snapshot.delayPolicy == room::DelayPolicy::Own;
+	details.roomType = static_cast<int>(snapshot.arcade);
 	return details;
 }
 
 std::string StatusLine(const Status& status) {
 	const auto& details = status.details;
 	nlohmann::json detail{{"name", details.name}, {"capacity", details.capacity}, {"locked", details.locked},
-		{"fighters", details.fighters}, {"set_format", details.setFormat}, {"rotation", details.rotation}};
+		{"fighters", details.fighters}, {"set_format", details.setFormat}, {"rotation", details.rotation},
+		{"room_type", details.roomType}};
 	if (!details.hostName.empty()) detail["host_name"] = details.hostName;
 	// Written only for the room that has it, so any other room's line is what it was.
 	if (details.ownDelay) detail["own_delay"] = true;

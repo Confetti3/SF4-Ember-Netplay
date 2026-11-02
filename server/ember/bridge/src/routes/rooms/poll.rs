@@ -350,6 +350,7 @@ fn with_report(before: &Room, report: Report, now: u64) -> Room {
     }
     after.set_format = details.set_format.or(before.set_format);
     after.rotation = details.rotation.or(before.rotation);
+    after.room_type = details.room_type.or(before.room_type);
     if sealed.is_some() {
         after.invitation_sealed = sealed;
     }
@@ -363,7 +364,7 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
     Ok(tx.execute(
         "UPDATE rooms SET name = ?2, capacity = ?3, members = ?4, tables_playing = ?5, locked = ?6,
              host_name = ?7, fighters = ?8, set_format = ?9, rotation = ?10, own_delay = ?11,
-             invitation_sealed = ?12, opened_at = ?13
+             invitation_sealed = ?12, opened_at = ?13, room_type = ?14
          WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
         params![
             room.room_id,
@@ -379,6 +380,7 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
             room.own_delay,
             room.invitation_sealed,
             room.opened_at,
+            room.room_type,
         ],
     )? == 1)
 }
@@ -410,6 +412,7 @@ mod tests {
             locked: Some(true),
             set_format: Some(3),
             rotation: Some(1),
+            room_type: Some(1),
             own_delay: true,
         }
     }
@@ -430,7 +433,8 @@ mod tests {
         let before = room();
         let details = Details::from_value(
             &json!({ "name": "Fight Night", "capacity": 4, "locked": true, "host_name": "Player 1",
-                "fighters": [3, 4], "set_format": 3, "rotation": 1, "own_delay": true }),
+                "fighters": [3, 4], "set_format": 3, "rotation": 1, "room_type": 1,
+                "own_delay": true }),
             2,
             4,
         );
@@ -460,14 +464,16 @@ mod tests {
                 after.capacity,
                 after.locked,
                 after.set_format,
-                after.rotation
+                after.rotation,
+                after.room_type
             ),
             (
                 before.name.clone(),
                 before.capacity,
                 before.locked,
                 before.set_format,
-                before.rotation
+                before.rotation,
+                before.room_type
             )
         );
         // Without an object those stay as they were.
@@ -477,6 +483,23 @@ mod tests {
             (Some("Player 1"), true)
         );
         assert_eq!(after.tables_playing, 3);
+    }
+
+    #[test]
+    fn a_room_typed_after_it_opened_lists_the_new_type() {
+        let mut before = room();
+        before.room_type = Some(0);
+        let details = Details::from_value(&json!({ "room_type": 2 }), 2, 4);
+        assert_eq!(
+            with_report(&before, report(Some(details), 1, true), 99).room_type,
+            Some(2)
+        );
+        // A host that predates the field leaves the type as it was.
+        let silent = Details::from_value(&json!({ "rotation": 0 }), 2, 4);
+        assert_eq!(
+            with_report(&before, report(Some(silent), 1, true), 99).room_type,
+            Some(0)
+        );
     }
 
     #[test]

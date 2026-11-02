@@ -130,6 +130,14 @@ request in `rooms.own_delay` (old rows are the shared delay) and passes it to
 the supervisor in the same `POST /rooms` body; the room host's own report
 (`details.own_delay`) then decides what the listing says.
 
+A detailed listing (`detail=1`, and the public `GET /v1/rooms/public`) also
+carries `room_type`, the room model's `RoomType`: 0 Classic, 1 Arcade, 2 King
+of the hill. The creator sets it just after the room opens, so the room host
+reports it in every status line (`details.room_type`) and the bridge keeps the
+latest in `rooms.room_type`. A room host that predates the field says nothing,
+and the listing leaves it out; readers take such a room as Classic, which is
+all a host before 1.5.0 can run.
+
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
 `room_full`, `banned`, `unsupported_build`.

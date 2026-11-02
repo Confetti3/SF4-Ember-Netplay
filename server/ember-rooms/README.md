@@ -91,7 +91,7 @@ The child writes one JSON object per line to stdout:
   "banned": ["emb_..."], "details": { ... } }` whenever something changes. The
   invitation changes as it renews, so every status carries the current one.
   `details` is optional: `{ "name", "capacity", "locked", "host_name",
-  "fighters", "set_format", "rotation", "own_delay" }` as the room host sees
+  "fighters", "set_format", "rotation", "room_type", "own_delay" }` as the room host sees
   its room (`own_delay` is there only when true). The
   supervisor does not interpret it. A JSON object of at most 2 KB (unknown keys
   included) goes to the bridge in `GET /rooms`; anything else (another type, a

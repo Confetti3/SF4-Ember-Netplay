@@ -283,6 +283,7 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 	details.setFormat = 10;
 	details.rotation = 2;
 	details.ownDelay = true;
+	details.roomType = static_cast<int>(room::KingRoom);
 	const std::string invitation = "sf4e3:" + std::string(4090, 'x');
 	const auto line = roomhost::StatusLine({room::MaximumMembers, room::TableCount, invitation, banned, details, games});
 	CHECK(line.size() > 40000 && line.size() < roomhost::MaximumStatusLineBytes);

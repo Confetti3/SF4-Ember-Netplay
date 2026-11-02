@@ -4,8 +4,8 @@
 //! value under a size limit), so each field is judged here and one that does
 //! not hold is dropped by itself; a bad value never costs the room its poll.
 use ember_protocol::rooms::{
-    FIGHTER_LIMIT, MAX_CAPACITY, MAX_ROTATION, MIN_CAPACITY, NO_FIGHTER, check_host_name,
-    check_room_name, set_format_valid,
+    FIGHTER_LIMIT, MAX_CAPACITY, MAX_ROOM_TYPE, MAX_ROTATION, MIN_CAPACITY, NO_FIGHTER,
+    check_host_name, check_room_name, set_format_valid,
 };
 use serde_json::Value;
 
@@ -26,6 +26,9 @@ pub struct Details {
     pub members: u8,
     pub set_format: Option<u8>,
     pub rotation: Option<u8>,
+    /// Classic, Arcade or King of the hill (`MAX_ROOM_TYPE`). The creator
+    /// picks it just after the room opens, so a later report may change it.
+    pub room_type: Option<u8>,
     /// Whether the room host plays each fighter at their own input delay. The
     /// host writes `own_delay: true` only for such a room, so a report without
     /// it (an older host, or a room with the shared delay) reads as the shared
@@ -101,6 +104,9 @@ impl Details {
             rotation: value
                 .get("rotation")
                 .and_then(|rotation| small(rotation, MAX_ROTATION.into())),
+            room_type: value
+                .get("room_type")
+                .and_then(|kind| small(kind, MAX_ROOM_TYPE.into())),
             own_delay: value.get("own_delay").and_then(Value::as_bool) == Some(true),
         }
     }
@@ -116,7 +122,7 @@ mod tests {
     fn a_complete_report_is_read_whole() {
         let value = json!({ "name": "Late night", "capacity": 6, "locked": true,
             "host_name": "  Kate ", "fighters": [3, 255, 0], "set_format": 3, "rotation": 2,
-            "own_delay": true, "unknown": [1] });
+            "room_type": 2, "own_delay": true, "unknown": [1] });
         assert_eq!(
             Details::from_value(&value, 3, 4),
             Details {
@@ -128,6 +134,7 @@ mod tests {
                 members: 3,
                 set_format: Some(3),
                 rotation: Some(2),
+                room_type: Some(2),
                 own_delay: true,
             }
         );
@@ -167,10 +174,12 @@ mod tests {
     #[test]
     fn each_field_is_judged_alone() {
         let value = json!({ "name": "two\nlines", "capacity": 1, "locked": "yes",
-            "host_name": "x".repeat(33), "fighters": [64], "set_format": 11, "rotation": 3 });
+            "host_name": "x".repeat(33), "fighters": [64], "set_format": 11, "rotation": 3,
+            "room_type": 3 });
         assert_eq!(Details::from_value(&value, 0, 4), Details::default());
         let mixed = json!({ "name": "Fine", "capacity": 300, "locked": false, "host_name": "",
-            "fighters": [1, 2, 3], "set_format": 5, "rotation": 0 });
+            "fighters": [1, 2, 3], "set_format": 5, "rotation": 0,
+            "room_type": 1 });
         let read = Details::from_value(&mixed, 2, 4);
         assert_eq!(
             (read.name.as_deref(), read.capacity, read.locked),
@@ -178,7 +187,10 @@ mod tests {
         );
         // More fighters than members, and no host name that qualifies.
         assert_eq!((read.fighters, read.host_name), (None, None));
-        assert_eq!((read.set_format, read.rotation), (Some(5), Some(0)));
+        assert_eq!(
+            (read.set_format, read.rotation, read.room_type),
+            (Some(5), Some(0), Some(1))
+        );
     }
 
     #[test]
