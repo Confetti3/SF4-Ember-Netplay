@@ -6,6 +6,7 @@
 // F1 lab bar · F2 next size · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
+// --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
@@ -13,7 +14,7 @@
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
-// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -287,7 +288,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
-    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
+    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -308,6 +309,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--playback") playback = true;
+        else if (args[i] == "--caption") caption = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--recovery" && more) recovery = args[++i];
@@ -502,6 +504,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ui::DrawReplayStrip(replay);
             ui::DrawReplayLanes(replay);
             // After the HUD: a window that never comes to the front is put behind those made before it.
+            const auto* vp = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
+            ui::DrawMenuBackdrop();
+            ImGui::End();
+        } else if (caption) {
+            // An export's caption, as a replay video carries it.
+            ui::ExportCaptionView shown;
+            shown.names[0] = "FRaccie"; shown.names[1] = "Akira"; shown.line = "Ultra Street Fighter IV - Ember Netplay";
+            shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(7, true); shown.mark = true;
+            ui::DrawExportCaption(shown);
+            // After the caption: a window that never comes to the front is put behind those made before it.
             const auto* vp = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
             ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
