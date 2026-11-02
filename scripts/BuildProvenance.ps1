@@ -172,6 +172,11 @@ function Assert-BuildReceipt([string]$SourceRoot, [string]$BuildRoot, [string]$S
     if ($receipt.selfTest -ne $false -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_SELFTEST:BOOL=ON' -Quiet)) {
         throw 'The build has the in-game self-test; rebuild with scripts/build-current.ps1 without -SelfTest'
     }
+    # SF4E_EMBER_SERVICE moves Linked accounts and public-room tickets to another bridge; a package carries none.
+    # The field must exist (an older receipt predates the check) and be empty, and the cache must not hold a value.
+    if (!$receipt.PSObject.Properties['emberService'] -or [string]$receipt.emberService -ne '' -or (Select-String -LiteralPath (Join-Path $BuildRoot 'CMakeCache.txt') -Pattern '^SF4E_EMBER_SERVICE:[A-Z]+=.+' -Quiet)) {
+        throw 'The build points at another Ember service (SF4E_EMBER_SERVICE); rebuild with scripts/build-current.ps1'
+    }
     if (!$SkipFingerprint -and $receipt.sourceFingerprint -ne (Get-SourceFingerprint $SourceRoot)) { throw 'Source changed since verified build; rebuild with scripts/build-current.ps1' }
     foreach ($binary in $receipt.binaries) {
         if ((Get-FileHash -LiteralPath (Join-Path $StageRoot $binary.path)).Hash -ne $binary.sha256) { throw "Staged binary changed: $($binary.path)" }
