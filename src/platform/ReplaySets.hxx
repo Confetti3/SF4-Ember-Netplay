@@ -6,6 +6,7 @@
 #include "ReplaySender.hxx"
 #include <algorithm>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace sf4e { namespace platform { namespace replays {
@@ -71,21 +72,24 @@ inline bool SameSet(const ArchivedReplay& newer, const ArchivedReplay& older) {
 // first, which must outlive them.
 inline std::vector<ArchivedSet> Sets(const std::vector<ArchivedReplay>& archive) {
 	std::vector<ArchivedSet> sets;
+	std::unordered_map<std::string, std::size_t> tagged;
 	const ArchivedReplay* last = nullptr;
 	for (const auto& replay : archive) {
 		if (replay.set.matchId.empty()) {
 			if (!last || !SameSet(*last, replay)) sets.push_back({"", "", {}, 0});
-			sets.back().games.insert(sets.back().games.begin(), &replay);
+			sets.back().games.push_back(&replay);
 			last = &replay;
 			continue;
 		}
 		last = nullptr;
-		auto found = std::find_if(sets.begin(), sets.end(), [&](const ArchivedSet& set) { return set.matchId == replay.set.matchId; });
-		if (found == sets.end()) { sets.push_back({replay.set.bridgeId, replay.set.matchId, {}, 0}); found = sets.end() - 1; }
-		found->games.insert(found->games.begin(), &replay);
+		const auto found = tagged.emplace(replay.set.matchId, sets.size());
+		if (found.second) sets.push_back({replay.set.bridgeId, replay.set.matchId, {}, 0});
+		sets[found.first->second].games.push_back(&replay);
 	}
 	sets.erase(std::remove_if(sets.begin(), sets.end(), [](const ArchivedSet& set) { return !set.Tagged() && set.games.size() < 2; }), sets.end());
 	for (auto& set : sets) {
+		// Appended newest first, as the listing runs.
+		std::reverse(set.games.begin(), set.games.end());
 		std::vector<std::uint64_t> revisions;
 		for (const auto* game : set.games) revisions.push_back(game->set.revision);
 		std::sort(revisions.begin(), revisions.end());

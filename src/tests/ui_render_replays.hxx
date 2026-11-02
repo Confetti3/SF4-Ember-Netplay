@@ -5,11 +5,12 @@
 #include "../common/Localization.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/ReplaySummaryText.hxx"
+#include <algorithm>
 #include <iterator>
 #include <vector>
 namespace {
 template<class Draw,class Page>
-void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page,std::vector<std::string>& exportsStarted) {
+void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const Draw& draw,const Page& page,std::vector<std::string>& exportsStarted,bool& refuseExports) {
     using namespace sf4e;using namespace ui;
     page("replays");replayinputs::Summary said;said.scored=true;said.score[0]=2;said.score[1]=1;said.rounds=3;said.frames=131*60;
     said.players[0]={1,2,9,-1,1,0};said.players[1]={2,0,0,-1,0,0};
@@ -45,8 +46,18 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     Require(shell.Navigation().Screen()=="replay-export","Export set videos did not open the first game's caption");
     shell.Navigation().Focus("cap-generate",rows);draw(nullptr,MenuInput::Select,1);draw();
     Require(exportsStarted==std::vector<std::string>{"e"},"Generate did not send the set's first game");
-    view.replays.videos=1;draw();draw();
+    // The next game's export is refused: it is not counted as sent, and stays for the Next video row.
+    refuseExports=true;view.replays.videos=1;draw();draw();refuseExports=false;
+    Require(exportsStarted==std::vector<std::string>{"e"},"A refused export was counted as sent");
+    page("replays");draw();
+    Require(std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="set-next";}),"A refused set export lost its game");
+    shell.Navigation().Focus("set-next",rows);draw(nullptr,MenuInput::Select,1);draw();
+    Require(shell.Navigation().Screen()=="replay-export","Next video did not offer the refused game again");
+    shell.Navigation().Focus("cap-generate",rows);draw(nullptr,MenuInput::Select,1);draw();
     Require(exportsStarted==(std::vector<std::string>{"e","a set 0-1"}),"The set's next video did not follow the one made with the set so far");
+    // Its encode fails, so no video is counted: the game stays queued rather than being dropped.
+    draw();draw();page("replays");draw();
+    Require(exportsStarted.size()==2&&std::any_of(rows.begin(),rows.end(),[](const MenuEntry& row){return row.id=="set-next";}),"A set export that made no video dropped its game");
     view.replays.videos=2;draw();draw();
     Require(exportsStarted.size()==2,"A set with no game left sent another export");
     page("replays");

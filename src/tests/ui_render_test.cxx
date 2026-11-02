@@ -693,7 +693,7 @@ int main(int argc, char** argv) {
             renderer.Resize(size.w,size.h);ImGui::CreateContext();
             auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));io.DeltaTime=1.f/60;
             ApplyTheme(size.dpi);renderer.Init();
-            ApplicationShell shell;ShellView view;bool open=true;std::vector<std::string> exportsStarted;
+            ApplicationShell shell;ShellView view;bool open=true;std::vector<std::string> exportsStarted;bool refuseExports=false;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
             FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
@@ -734,7 +734,7 @@ int main(int argc, char** argv) {
                             view.identity.ok=true;view.identity.failure.clear();return true;
                         }
                         if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
-                        if(a.replay.mode==replay::Mode::Export){const auto& c=a.replay.caption;exportsStarted.push_back(a.replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
+                        if(a.replay.mode==replay::Mode::Export){if(refuseExports)return false;const auto& c=a.replay.caption;exportsStarted.push_back(a.replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
                         // A public room's ticket is answered with an admission to the room it asked for.
                         if(answerTickets&&a.tournament.op==netplay::tournament::Command::Op::RoomTicket){
                             view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
@@ -802,7 +802,7 @@ int main(int argc, char** argv) {
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
-            ShootReplays(shell,view,draw,page,exportsStarted);
+            ShootReplays(shell,view,draw,page,exportsStarted,refuseExports);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("tab-matches/defaults");view.preferences.autoInputDelay=false;
