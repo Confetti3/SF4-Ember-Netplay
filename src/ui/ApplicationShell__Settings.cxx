@@ -148,7 +148,7 @@ public:
             Row("record", loc::T("profile.record"), record.available ? loc::Tf("profile.record_detail", record.wins, record.losses) : loc::T("profile.record_unavailable"))};
         rows[2].info = true;
         rows[1].value = selection::FindFighter(p.mainFighter)->name;
-        rows[2].value = record.available ? loc::Tf("profile.record_value", record.wins, record.losses) : loc::T("common.unavailable");
+        rows[2].value = record.available ? RecordValue(record) : loc::T("common.unavailable");
         rows.push_back(OnOffValue(p, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences));
         rows.push_back(Row("awards", loc::T("screen.awards"), loc::T("awards.entry_detail")));
         rows.back().value = EarnedCount(v);
@@ -236,6 +236,7 @@ public:
             Value("arrange-preset", loc::T("settings.room_preset"), loc::T(RoomPresetKeys[RoomPreset(column)]), loc::T("settings.room_preset_detail"), open),
             Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), open),
             Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), open),
+            Value("arrange-tables", loc::T("settings.room_tables"), loc::T(p.roomTableGrid ? "settings.room_tables_grid" : "settings.room_tables_list"), loc::T("settings.room_tables_detail"), open),
             OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open),
             PictureMode(s, v, "arrange-picture"),
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
@@ -535,6 +536,7 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-preset") p.roomColumn = RoomPresets[clamp(RoomPreset(p.roomColumn) + a.delta, 0, 2)];
     else if (id == "arrange-members") p.roomShowMembers = a.delta > 0;
     else if (id == "arrange-chat") p.roomShowChat = a.delta > 0;
+    else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
     else if (id == "picture-corner") p.pictureSpot = p.pictureSpot / 4 * 4 + (p.pictureSpot % 4 + 4 + a.delta) % 4;
     else if (id == "picture-size") p.pictureSpot = p.pictureSpot % 4 + 4 * clamp(p.pictureSpot / 4 + a.delta, 0, 2);

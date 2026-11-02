@@ -17,6 +17,14 @@ inline std::string AutoDelayDetail(int style) {
     const auto range = AutoInputDelayRange(static_cast<AutoDelayStyle>((std::max)(0, (std::min)(AutoDelayStyles - 1, style))));
     return loc::Tf("room.input_delay.auto.detail", range.minimum, range.maximum);
 }
+// The record as the profile shows it, "12 W / 8 L · 60% wins": the share of
+// games won, to the nearest percent, once there is a game.
+inline std::string RecordValue(const netplay::ProfileRecord& r) {
+    const auto games = r.wins + r.losses;
+    std::string value = loc::Tf("profile.record_value", r.wins, r.losses);
+    if (games) value += " \xC2\xB7 " + loc::Tf("profile.win_rate", (r.wins * 200 + games) / (2 * games));
+    return value;
+}
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&

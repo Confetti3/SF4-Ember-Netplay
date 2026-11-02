@@ -1057,6 +1057,9 @@ msgstr "戦績を表示できません。元の設定は保持されます。"
 msgid "profile.record_value"
 msgstr "{0}勝 / {1}敗"
 
+msgid "profile.win_rate"
+msgstr "勝率{0}%"
+
 msgid "profile.choose_main_title"
 msgstr "メインキャラを選択"
 
@@ -7691,6 +7694,18 @@ msgstr "ルーム画面のメンバー欄です。隠すとチャットが列を
 
 msgid "settings.room_show_chat_detail"
 msgstr "ルーム画面のチャット欄です。隠すとメンバーが列を使い、両方隠すとテーブルが全幅を使います。"
+
+msgid "settings.room_tables"
+msgstr "テーブル"
+
+msgid "settings.room_tables_list"
+msgstr "1行に1つ"
+
+msgid "settings.room_tables_grid"
+msgstr "グリッド"
+
+msgid "settings.room_tables_detail"
+msgstr "1行に1つでは各テーブルを横いっぱいに表示し、両端にファイターを並べます。グリッドでは2つか3つを横に並べ、スクロールせずに多く表示します。"
 
 msgid "settings.chat_filter"
 msgstr "チャットフィルター"

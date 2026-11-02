@@ -1057,6 +1057,9 @@ msgstr "Stand niet beschikbaar. Je oorspronkelijke instellingen zijn bewaard."
 msgid "profile.record_value"
 msgstr "{0} W / {1} V"
 
+msgid "profile.win_rate"
+msgstr "{0}% winst"
+
 msgid "profile.choose_main_title"
 msgstr "KIES JE HOOFDPERSONAGE"
 
@@ -7690,6 +7693,18 @@ msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de 
 
 msgid "settings.room_show_chat_detail"
 msgstr "Het paneel Chat op het kamerbord. Verborgen neemt Leden de kolom, of de tafels de volle breedte."
+
+msgid "settings.room_tables"
+msgstr "Tafels"
+
+msgid "settings.room_tables_list"
+msgstr "Eén per regel"
+
+msgid "settings.room_tables_grid"
+msgstr "Raster"
+
+msgid "settings.room_tables_detail"
+msgstr "Eén per regel zet elke tafel over de hele breedte, met aan elk eind een vechter. Het raster toont er twee of drie naast elkaar, zodat er meer passen zonder te scrollen."
 
 msgid "settings.chat_filter"
 msgstr "Chatfilter"

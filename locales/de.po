@@ -1057,6 +1057,9 @@ msgstr "Bilanz nicht verfügbar. Ursprüngliche Einstellungen bleiben erhalten."
 msgid "profile.record_value"
 msgstr "{0} S / {1} N"
 
+msgid "profile.win_rate"
+msgstr "{0}% Siege"
+
 msgid "profile.choose_main_title"
 msgstr "HAUPTCHARAKTER WÄHLEN"
 
@@ -7690,6 +7693,18 @@ msgstr "Das Mitglieder-Feld der Raumansicht. Ausgeblendet nimmt der Chat die Spa
 
 msgid "settings.room_show_chat_detail"
 msgstr "Das Chat-Feld der Raumansicht. Ausgeblendet nehmen die Mitglieder die Spalte ein oder die Tische die ganze Breite."
+
+msgid "settings.room_tables"
+msgstr "Tische"
+
+msgid "settings.room_tables_list"
+msgstr "Einer pro Zeile"
+
+msgid "settings.room_tables_grid"
+msgstr "Raster"
+
+msgid "settings.room_tables_detail"
+msgstr "Einer pro Zeile legt jeden Tisch über die ganze Breite, mit einem Kämpfer an jedem Ende. Das Raster zeigt zwei oder drei nebeneinander, damit mehr ohne Blättern hineinpassen."
 
 msgid "settings.chat_filter"
 msgstr "Chatfilter"

@@ -1057,6 +1057,9 @@ msgstr "Record unavailable. The original settings are preserved."
 msgid "profile.record_value"
 msgstr "{0} W / {1} L"
 
+msgid "profile.win_rate"
+msgstr "{0}% wins"
+
 msgid "profile.choose_main_title"
 msgstr "CHOOSE YOUR MAIN"
 
@@ -7317,6 +7320,18 @@ msgstr "The room board's Members panel. Hidden, Chat takes the column, or the ta
 
 msgid "settings.room_show_chat_detail"
 msgstr "The room board's Chat panel. Hidden, Members takes the column, or the tables the full width."
+
+msgid "settings.room_tables"
+msgstr "Tables"
+
+msgid "settings.room_tables_list"
+msgstr "One per line"
+
+msgid "settings.room_tables_grid"
+msgstr "Grid"
+
+msgid "settings.room_tables_detail"
+msgstr "One per line puts each table across the board with a fighter at each end. Grid shows two or three side by side, so more fit without scrolling."
 
 msgid "settings.chat_filter"
 msgstr "Chat filter"

@@ -1057,6 +1057,9 @@ msgstr "Статистика недоступна. Исходные настро
 msgid "profile.record_value"
 msgstr "{0} П / {1} Пр"
 
+msgid "profile.win_rate"
+msgstr "Побед: {0}%"
+
 msgid "profile.choose_main_title"
 msgstr "ОСНОВНОЙ ПЕРСОНАЖ"
 
@@ -7690,6 +7693,18 @@ msgstr "Панель участников комнаты. Если она скр
 
 msgid "settings.room_show_chat_detail"
 msgstr "Панель чата комнаты. Если она скрыта, столбец занимают участники, а если скрыты обе — столы на всю ширину."
+
+msgid "settings.room_tables"
+msgstr "Столы"
+
+msgid "settings.room_tables_list"
+msgstr "По одному в строке"
+
+msgid "settings.room_tables_grid"
+msgstr "Сетка"
+
+msgid "settings.room_tables_detail"
+msgstr "По одному в строке: каждый стол во всю ширину, бойцы по краям. Сетка показывает два-три стола рядом, чтобы больше помещалось без прокрутки."
 
 msgid "settings.chat_filter"
 msgstr "Фильтр чата"

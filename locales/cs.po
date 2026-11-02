@@ -1057,6 +1057,9 @@ msgstr "Bilance není dostupná. Původní nastavení zůstala zachována."
 msgid "profile.record_value"
 msgstr "{0} V / {1} P"
 
+msgid "profile.win_rate"
+msgstr "Výhry: {0} %"
+
 msgid "profile.choose_main_title"
 msgstr "VYBRAT HLAVNÍ POSTAVU"
 
@@ -7690,6 +7693,18 @@ msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, neb
 
 msgid "settings.room_show_chat_detail"
 msgstr "Panel Chat v místnosti. Když je skrytý, sloupec zaberou členové, nebo stoly celou šířku."
+
+msgid "settings.room_tables"
+msgstr "Stoly"
+
+msgid "settings.room_tables_list"
+msgstr "Jeden na řádek"
+
+msgid "settings.room_tables_grid"
+msgstr "Mřížka"
+
+msgid "settings.room_tables_detail"
+msgstr "Jeden na řádek roztáhne každý stůl přes celou plochu a bojovníka dá na každý jeho konec. Mřížka ukáže dva nebo tři vedle sebe, takže se jich bez posouvání vejde víc."
 
 msgid "settings.chat_filter"
 msgstr "Filtr chatu"

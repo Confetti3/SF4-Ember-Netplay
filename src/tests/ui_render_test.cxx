@@ -889,6 +889,8 @@ int main(int argc, char** argv) {
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");
+            // Settings › Room layout › Tables: Grid, the cards two or three across.
+            view.preferences.roomTableGrid=true;page("room");draw("room-grid");view.preferences.roomTableGrid=false;
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});

@@ -1057,6 +1057,9 @@ msgstr "Record non disponibile. Le impostazioni originali sono conservate."
 msgid "profile.record_value"
 msgstr "{0} V / {1} S"
 
+msgid "profile.win_rate"
+msgstr "{0}% di vittorie"
+
 msgid "profile.choose_main_title"
 msgstr "SCEGLI IL MAIN"
 
@@ -7690,6 +7693,18 @@ msgstr "Il pannello Membri della stanza. Se nascosto, la chat prende la colonna,
 
 msgid "settings.room_show_chat_detail"
 msgstr "Il pannello Chat della stanza. Se nascosto, i membri prendono la colonna, o i tavoli tutta la larghezza."
+
+msgid "settings.room_tables"
+msgstr "Tavoli"
+
+msgid "settings.room_tables_list"
+msgstr "Uno per riga"
+
+msgid "settings.room_tables_grid"
+msgstr "Griglia"
+
+msgid "settings.room_tables_detail"
+msgstr "Uno per riga mostra ogni tavolo per tutta la larghezza, con un lottatore a ogni estremità. La griglia ne mostra due o tre affiancati, così ne entrano di più senza scorrere."
 
 msgid "settings.chat_filter"
 msgstr "Filtro chat"

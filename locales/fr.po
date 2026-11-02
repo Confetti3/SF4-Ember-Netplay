@@ -1057,6 +1057,9 @@ msgstr "Bilan indisponible. Les paramètres d'origine sont conservés."
 msgid "profile.record_value"
 msgstr "{0} V / {1} D"
 
+msgid "profile.win_rate"
+msgstr "{0} % de victoires"
+
 msgid "profile.choose_main_title"
 msgstr "CHOISIR VOTRE PERSO"
 
@@ -7690,6 +7693,18 @@ msgstr "Le panneau Membres du salon. Masqué, le chat prend la colonne, ou les t
 
 msgid "settings.room_show_chat_detail"
 msgstr "Le panneau Chat du salon. Masqué, les membres prennent la colonne, ou les tables toute la largeur."
+
+msgid "settings.room_tables"
+msgstr "Tables"
+
+msgid "settings.room_tables_list"
+msgstr "Une par ligne"
+
+msgid "settings.room_tables_grid"
+msgstr "Grille"
+
+msgid "settings.room_tables_detail"
+msgstr "Une par ligne étale chaque table sur toute la largeur, avec un combattant à chaque bout. La grille en montre deux ou trois côte à côte, pour en voir plus sans défiler."
 
 msgid "settings.chat_filter"
 msgstr "Filtre du chat"

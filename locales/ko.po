@@ -1057,6 +1057,9 @@ msgstr "전적을 확인할 수 없습니다. 원래 설정은 보존됩니다."
 msgid "profile.record_value"
 msgstr "{0}승 / {1}패"
 
+msgid "profile.win_rate"
+msgstr "승률 {0}%"
+
 msgid "profile.choose_main_title"
 msgstr "주 캐릭터 선택"
 
@@ -7691,6 +7694,18 @@ msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차�
 
 msgid "settings.room_show_chat_detail"
 msgstr "방 화면의 채팅 패널입니다. 숨기면 참가자가 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
+
+msgid "settings.room_tables"
+msgstr "테이블"
+
+msgid "settings.room_tables_list"
+msgstr "한 줄에 하나"
+
+msgid "settings.room_tables_grid"
+msgstr "격자"
+
+msgid "settings.room_tables_detail"
+msgstr "한 줄에 하나는 테이블마다 가로 전체를 쓰고 양 끝에 파이터를 보여 줍니다. 격자는 두세 개를 나란히 보여 주어 스크롤 없이 더 많이 보입니다."
 
 msgid "settings.chat_filter"
 msgstr "채팅 필터"

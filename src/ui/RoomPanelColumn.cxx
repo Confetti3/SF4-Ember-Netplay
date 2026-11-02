@@ -5,6 +5,7 @@
 #include "RoomPanelBoard.hxx"
 #include "Theme.hxx"
 #include "MenuProbes.hxx"
+#include "RoomCards.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -93,15 +94,12 @@ void ApplicationShell::DrawRoomMembersPanel(const RoomBoardFrame& f,v2::Box box,
  for(const auto& e:f.rows){
   if(e.id.compare(0,7,"member-"))continue;
   if(e.group!=group){group=e.group;v2::SectionHeading(md,ImVec2(start.x+4*s,y+8*s),group,c.accent);y+=30*s;}
-  const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+b.W(),y+36*s)};y+=40*s;
+  // A member is their main's face, their tag, and their status under it (DrawMemberRow).
+  const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+b.W(),y+50*s)};y+=54*s;
   const bool hovered=f.Press(e,r),focused=e.id==f.focus;
   if(!ImGui::IsItemVisible())continue;
   v2::RowGround(md,r,focused,hovered);
-  const auto view=RoomMemberCard(f.v,e);
-  v2::TagView tag;tag.name=view.name;tag.marks=view.marks;tag.ping=view.latency;tag.status=view.status;
-  // The sets record joins the status where both fit, so a narrow column keeps the status.
-  if(!view.record.empty()){auto both=tag;both.status+=" \xC2\xB7 "+view.record;if(v2::TagWidth(both,v2::TagSize::S)<=r.W()-20*s)tag=std::move(both);}
-  v2::Tag(md,ImVec2(r.min.x+10*s,r.min.y+8*s),r.W()-20*s,tag,v2::TagSize::S);
+  DrawMemberRow(RoomMemberCard(f.v,e),r.min,r.max);
   if(focused)v2::Focus(md,r.min,r.max);
   if(focused&&e.popout)f.choices={r,b};
  }

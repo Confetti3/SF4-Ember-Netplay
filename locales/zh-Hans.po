@@ -1057,6 +1057,9 @@ msgstr "战绩不可用。原设置已保留。"
 msgid "profile.record_value"
 msgstr "{0} 胜／{1} 负"
 
+msgid "profile.win_rate"
+msgstr "胜率 {0}%"
+
 msgid "profile.choose_main_title"
 msgstr "选择主角"
 
@@ -7691,6 +7694,18 @@ msgstr "房间界面的成员面板。隐藏后由聊天占用该列，两者都
 
 msgid "settings.room_show_chat_detail"
 msgstr "房间界面的聊天面板。隐藏后由成员占用该列，两者都隐藏时对战台占满整个宽度。"
+
+msgid "settings.room_tables"
+msgstr "对战台"
+
+msgid "settings.room_tables_list"
+msgstr "每行一个"
+
+msgid "settings.room_tables_grid"
+msgstr "网格"
+
+msgid "settings.room_tables_detail"
+msgstr "每行一个时，每个对战台占满整行，两端显示双方角色。网格并排显示两到三个，无需滚动即可看到更多。"
 
 msgid "settings.chat_filter"
 msgstr "聊天过滤"

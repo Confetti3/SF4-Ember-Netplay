@@ -1057,6 +1057,9 @@ msgstr "Bilans niedostępny. Oryginalne ustawienia zostały zachowane."
 msgid "profile.record_value"
 msgstr "W: {0} / P: {1}"
 
+msgid "profile.win_rate"
+msgstr "{0}% zwycięstw"
+
 msgid "profile.choose_main_title"
 msgstr "WYBIERZ GŁÓWNĄ POSTAĆ"
 
@@ -7690,6 +7693,18 @@ msgstr "Panel Uczestnicy w pokoju. Gdy jest ukryty, czat zajmuje kolumnę, a gdy
 
 msgid "settings.room_show_chat_detail"
 msgstr "Panel Czat w pokoju. Gdy jest ukryty, uczestnicy zajmują kolumnę, a gdy oba są ukryte, stoły zajmują całą szerokość."
+
+msgid "settings.room_tables"
+msgstr "Stoły"
+
+msgid "settings.room_tables_list"
+msgstr "Jeden w wierszu"
+
+msgid "settings.room_tables_grid"
+msgstr "Siatka"
+
+msgid "settings.room_tables_detail"
+msgstr "Jeden w wierszu rozciąga każdy stół na całą szerokość, z wojownikiem na każdym końcu. Siatka pokazuje dwa lub trzy obok siebie, więc więcej mieści się bez przewijania."
 
 msgid "settings.chat_filter"
 msgstr "Filtr czatu"

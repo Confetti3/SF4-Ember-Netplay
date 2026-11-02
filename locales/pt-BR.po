@@ -1057,6 +1057,9 @@ msgstr "Histórico indisponível. As configurações originais foram preservadas
 msgid "profile.record_value"
 msgstr "{0} V / {1} D"
 
+msgid "profile.win_rate"
+msgstr "{0}% de vitórias"
+
 msgid "profile.choose_main_title"
 msgstr "ESCOLHA SEU PRINCIPAL"
 
@@ -7223,6 +7226,18 @@ msgstr "O painel Membros da sala. Oculto, o bate-papo ocupa a coluna, ou as mesa
 
 msgid "settings.room_show_chat_detail"
 msgstr "O painel Bate-papo da sala. Oculto, os membros ocupam a coluna, ou as mesas toda a largura."
+
+msgid "settings.room_tables"
+msgstr "Mesas"
+
+msgid "settings.room_tables_list"
+msgstr "Uma por linha"
+
+msgid "settings.room_tables_grid"
+msgstr "Grade"
+
+msgid "settings.room_tables_detail"
+msgstr "Uma por linha mostra cada mesa na largura toda, com um lutador em cada ponta. A grade mostra duas ou três lado a lado, para caber mais sem rolar."
 
 msgid "settings.chat_filter"
 msgstr "Filtro do bate-papo"

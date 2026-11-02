@@ -358,7 +358,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
  tag.facts={{loc::T("profile.main_badge"),selection::FindFighter(preferences_.mainFighter)->name}};
- if(record.available)tag.facts.push_back({loc::T("profile.record"),loc::Tf("profile.record_value",record.wins,record.losses)});
+ if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
@@ -414,7 +414,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  }
  // The Room layout panel's Reset: the board's layout and the watched game's picture as a fresh install has them.
  else if(a.id=="arrange-reset"){const netplay::PlayerPreferences fresh;preferences_.roomColumn=fresh.roomColumn;preferences_.roomSplit=fresh.roomSplit;
-  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
+  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.roomTableGrid=fresh.roomTableGrid;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.

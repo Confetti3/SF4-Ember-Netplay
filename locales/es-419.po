@@ -1057,6 +1057,9 @@ msgstr "Registro no disponible. Se conservaron los ajustes originales."
 msgid "profile.record_value"
 msgstr "{0} V / {1} D"
 
+msgid "profile.win_rate"
+msgstr "{0}% de victorias"
+
 msgid "profile.choose_main_title"
 msgstr "ELIGE TU PRINCIPAL"
 
@@ -7223,6 +7226,18 @@ msgstr "El panel Miembros de la sala. Si se oculta, el chat ocupa la columna, o 
 
 msgid "settings.room_show_chat_detail"
 msgstr "El panel Chat de la sala. Si se oculta, los miembros ocupan la columna, o las mesas todo el ancho."
+
+msgid "settings.room_tables"
+msgstr "Mesas"
+
+msgid "settings.room_tables_list"
+msgstr "Una por línea"
+
+msgid "settings.room_tables_grid"
+msgstr "Cuadrícula"
+
+msgid "settings.room_tables_detail"
+msgstr "Una por línea muestra cada mesa a lo ancho, con un luchador en cada extremo. La cuadrícula muestra dos o tres lado a lado, para que quepan más sin desplazarse."
 
 msgid "settings.chat_filter"
 msgstr "Filtro del chat"
