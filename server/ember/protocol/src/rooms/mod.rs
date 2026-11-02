@@ -66,6 +66,12 @@ pub const FIGHTER_LIMIT: u8 = 64;
 pub const UNLIMITED_SET: u8 = 0;
 /// Winner stays, loser stays, both rotate.
 pub const MAX_ROTATION: u8 = 2;
+/// A room's type, as the room model numbers it (`room::RoomType`): Classic
+/// tables with queues, Arcade cabinets, or King of the hill.
+pub const CLASSIC_ROOM: u8 = 0;
+pub const ARCADE_ROOM: u8 = 1;
+pub const KING_ROOM: u8 = 2;
+pub const MAX_ROOM_TYPE: u8 = KING_ROOM;
 /// Accounts a server-owned room may ban in its lifetime. Bans are never
 /// evicted: the room authority closes the room instead of exceeding this.
 /// The same number is in `server/roomhost` (the C++ room model),
@@ -158,6 +164,10 @@ pub struct RoomSummary {
     /// The first table's rotation: 0 to `MAX_ROTATION`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rotation: Option<u8>,
+    /// The room's type: 0 to `MAX_ROOM_TYPE`. A room host that predates it
+    /// says nothing, and its rooms are Classic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub room_type: Option<u8>,
 }
 
 impl RoomSummary {
@@ -185,6 +195,9 @@ impl RoomSummary {
             .is_some_and(|rotation| rotation > MAX_ROTATION)
         {
             return Err(Error::InvalidField("rotation"));
+        }
+        if self.room_type.is_some_and(|kind| kind > MAX_ROOM_TYPE) {
+            return Err(Error::InvalidField("room_type"));
         }
         Ok(())
     }
@@ -364,6 +377,7 @@ mod tests {
             locked: None,
             set_format: None,
             rotation: None,
+            room_type: None,
         }
     }
 
@@ -374,6 +388,7 @@ mod tests {
             locked: Some(false),
             set_format: Some(3),
             rotation: Some(1),
+            room_type: Some(ARCADE_ROOM),
             ..summary()
         }
     }
@@ -609,6 +624,13 @@ te"
                     ..detailed()
                 },
             ),
+            (
+                "room_type",
+                RoomSummary {
+                    room_type: Some(MAX_ROOM_TYPE + 1),
+                    ..detailed()
+                },
+            ),
         ];
         for (field, room) in bad {
             assert_eq!(room.check(), Err(Error::InvalidField(field)), "{room:?}");
@@ -625,6 +647,7 @@ te"
             host_name: Some("k".repeat(32)),
             fighters: Some(vec![63, 0, 255]),
             rotation: Some(2),
+            room_type: Some(MAX_ROOM_TYPE),
             ..detailed()
         };
         assert!(edge.check().is_ok());

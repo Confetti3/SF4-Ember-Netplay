@@ -73,7 +73,14 @@ async fn details_are_listed_with_detail_one_and_absent_without() {
         .iter()
         .find(|room| room["room_id"] == quiet.as_str())
         .unwrap();
-    for key in ["host_name", "fighters", "locked", "set_format", "rotation"] {
+    for key in [
+        "host_name",
+        "fighters",
+        "locked",
+        "set_format",
+        "rotation",
+        "room_type",
+    ] {
         assert!(quiet_room.get(key).is_none(), "{key}");
     }
 }
@@ -165,7 +172,14 @@ async fn invalid_details_are_stored_as_nothing_and_the_list_stays_valid() {
     let room = &listed["rooms"][0];
     assert_eq!(room["members"], 1);
     assert_eq!(room["name"], "Kept");
-    for key in ["host_name", "fighters", "locked", "set_format", "rotation"] {
+    for key in [
+        "host_name",
+        "fighters",
+        "locked",
+        "set_format",
+        "rotation",
+        "room_type",
+    ] {
         assert!(room.get(key).is_none(), "{key}");
     }
 }
@@ -222,6 +236,38 @@ async fn a_rename_and_a_new_capacity_reach_the_listing_and_the_full_check() {
     ember_bridge::poll_rooms(bridge.state()).await;
     let rooms = listing(&bridge, &sam, "").await;
     assert_eq!((rooms[0].capacity, rooms[0].members), (8, 8));
+}
+
+// The creator types the room just after it opens: Classic, then King of the
+// hill. The listing follows, and a report that leaves the type out keeps it.
+#[tokio::test]
+async fn a_room_typed_after_it_opened_lists_its_type() {
+    let (bridge, fake) = start().await;
+    let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let room_id = open_room(&bridge, &kate, "198.51.100.1", 8).await;
+    report(&fake, &room_id, 1, 0, &[]);
+    for (said, listed) in [
+        (json!({ "set_format": 0, "room_type": 0 }), json!(0)),
+        (json!({ "set_format": 1, "room_type": 2 }), json!(2)),
+        (json!({ "set_format": 1 }), json!(2)),
+        (json!({ "set_format": 1, "room_type": 3 }), json!(2)),
+    ] {
+        report_details(&fake, &room_id, said.clone());
+        ember_bridge::poll_rooms(bridge.state()).await;
+        let detailed = raw_listing(&bridge, &sam, "?detail=1").await;
+        assert_eq!(
+            detailed["rooms"][0]["room_type"], listed,
+            "{said} {detailed}"
+        );
+        let list: RoomList = serde_json::from_value(detailed).unwrap();
+        list.rooms[0].check().unwrap();
+    }
+    // Without `detail=1` it is not there, as before.
+    assert!(
+        raw_listing(&bridge, &sam, "").await["rooms"][0]
+            .get("room_type")
+            .is_none()
+    );
 }
 
 // A table that moves to a longer set shows it: first to 10 replaces first to 2.

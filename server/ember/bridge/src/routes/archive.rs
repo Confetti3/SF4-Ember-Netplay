@@ -7,8 +7,12 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::replays::{self, Replay, Sides};
-use rusqlite::{OptionalExtension, Transaction, params};
+use ember_protocol::{
+    EmberId,
+    api::ErrorCode,
+    replays::{self, Replay, Sides},
+};
+use rusqlite::{OptionalExtension, Transaction, named_params, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -17,7 +21,12 @@ use crate::{
     archive::{self, Admission, Attribution},
     error::{ApiFailure, Result},
     http::{Body, json as respond},
-    routes::{ledger::scores, play::playing},
+    routes::{
+        ledger::scores,
+        play::playing,
+        rooms::{self, classes_shown, developers},
+    },
+    skill::ranking,
 };
 
 /// Games one listing holds at most.
@@ -30,6 +39,9 @@ const SCANNED: i64 = 5000;
 /// `PUT /v1/replays/{crc}?a=&b=&side=&country=`: a player, with their play
 /// session, sends a game's `.emberreplay` for the archive. 201 when it is
 /// new, 200 when the archive already holds it. Off (404) without an archive.
+/// Only a player signed in with Discord shares their games (403
+/// `discord_required` otherwise, which every game takes as final for the
+/// file); a tournament set's games go through the set's own route.
 pub async fn put(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -49,6 +61,7 @@ pub async fn put(
     let admitted = state
         .db
         .write(move |tx| {
+            signed_in_with_discord(tx, &player.ember_id)?;
             archive::admit(
                 tx,
                 now,
@@ -65,6 +78,26 @@ pub async fn put(
         Admission::Refused(refused) => return Err(refused.into()),
     };
     Ok(respond(status, &json!({})))
+}
+
+/// Refuses a player with no Discord account (`discord_required`).
+fn signed_in_with_discord(tx: &Transaction<'_>, player: &EmberId) -> Result<()> {
+    let signed_in = tx
+        .query_row(
+            "SELECT 1 FROM discord_accounts WHERE ember_id = ?1",
+            [player.as_str()],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if signed_in {
+        return Ok(());
+    }
+    Err(ApiFailure::new(
+        ErrorCode::Forbidden,
+        "Sign in with Discord to share replays to the archive.",
+    )
+    .detail("reason", "discord_required"))
 }
 
 #[derive(Deserialize, Default)]
@@ -142,6 +175,82 @@ struct Listed {
     event: Option<String>,
     round: Option<String>,
     phase: Option<String>,
+    /// The Ember ID that played each side, where the archive knows it: a
+    /// set's roster, or the player who sent the game or named that side.
+    /// Never listed; it only finds each side's class.
+    players: [Option<String>; 2],
+}
+
+/// SQL for the Ember ID that played side `side` (0 or 1) of an
+/// `archive_games` row: a set's roster slot, or else whoever sent the game
+/// from that side or later named it (`archive::name_own_side`).
+fn side_player(side: u8) -> String {
+    let named_by = if side == 0 {
+        "named_by_a"
+    } else {
+        "named_by_b"
+    };
+    format!(
+        "CASE WHEN match_id IS NOT NULL THEN
+             (SELECT p.ember_id FROM match_participants p JOIN matches m ON m.id = p.match_id
+              WHERE p.match_id = archive_games.match_id
+                AND p.assignment_generation = m.assignment_generation AND p.slot = {side})
+         WHEN sent_side = {side} THEN sent_by
+         ELSE {named_by} END"
+    )
+}
+
+/// What a `Filter` keeps, as SQL over `archive_games` with the named
+/// parameters `filter_params` binds. The listing's page and its count both
+/// use it, so they always agree.
+const KEEPS: &str =
+    "(:event IS NULL OR (:event = 'online' AND match_id IS NULL) OR event_title = :event)
+    AND (:fighter IS NULL OR fighter_a = :fighter OR fighter_b = :fighter)
+    AND (:country IS NULL OR country_a = :country OR country_b = :country)
+    AND (:round IS NULL
+         OR (:round = 'top8' AND phase LIKE 'Top%')
+         OR (:round = 'pools' AND match_id IS NOT NULL AND COALESCE(phase, '') NOT LIKE 'Top%')
+         OR (:round = 'winners' AND round_label LIKE 'Winners%')
+         OR (:round = 'losers' AND round_label LIKE 'Losers%')
+         OR (:round = 'grand' AND round_label LIKE 'Grand%'))
+    AND (:like IS NULL OR name_a LIKE :like ESCAPE '\\' OR name_b LIKE :like ESCAPE '\\'
+         OR event_title LIKE :like ESCAPE '\\')";
+
+/// The search text of `filter` as a LIKE pattern: anywhere in a name or an
+/// event's title, its wildcards taken literally.
+fn like_of(filter: &Filter) -> Option<String> {
+    filter
+        .q
+        .as_deref()
+        .map(str::trim)
+        .filter(|q| !q.is_empty() && q.len() <= 64)
+        .map(|q| {
+            format!(
+                "%{}%",
+                q.replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            )
+        })
+}
+
+/// How many stored games there are, and how many of them `filter` keeps.
+fn counts(tx: &Transaction<'_>, filter: &Filter) -> Result<(i64, i64)> {
+    let total = tx.query_row(
+        "SELECT COUNT(*) FROM archive_games WHERE state = 'stored'",
+        [],
+        |row| row.get(0),
+    )?;
+    let like = like_of(filter);
+    let matching = tx.query_row(
+        &format!("SELECT COUNT(*) FROM archive_games WHERE state = 'stored' AND {KEEPS}"),
+        named_params! {
+            ":event": filter.event, ":fighter": filter.fighter, ":country": filter.country,
+            ":round": filter.round, ":like": like,
+        },
+        |row| row.get(0),
+    )?;
+    Ok((total, matching))
 }
 
 /// The stored games after `cursor` that `filter` keeps, newest first: up
@@ -172,51 +281,25 @@ fn page(
         saved_at: i64::MIN,
         digest: String::new(),
     });
-    let like = filter
-        .q
-        .as_deref()
-        .map(str::trim)
-        .filter(|q| !q.is_empty() && q.len() <= 64)
-        .map(|q| {
-            format!(
-                "%{}%",
-                q.replace('\\', "\\\\")
-                    .replace('%', "\\%")
-                    .replace('_', "\\_")
-            )
-        });
+    let like = like_of(filter);
     let mut games = tx
-        .prepare(
+        .prepare(&format!(
             "SELECT digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
-                    match_id, event_title, round_label, phase
+                    match_id, event_title, round_label, phase, {side_a}, {side_b}
              FROM archive_games WHERE state = 'stored'
-               AND (saved_at, digest) < (?1, ?2) AND (saved_at, digest) >= (?3, ?4)
-               AND (?5 IS NULL OR (?5 = 'online' AND match_id IS NULL) OR event_title = ?5)
-               AND (?6 IS NULL OR fighter_a = ?6 OR fighter_b = ?6)
-               AND (?7 IS NULL OR country_a = ?7 OR country_b = ?7)
-               AND (?8 IS NULL
-                    OR (?8 = 'top8' AND phase LIKE 'Top%')
-                    OR (?8 = 'pools' AND match_id IS NOT NULL AND COALESCE(phase, '') NOT LIKE 'Top%')
-                    OR (?8 = 'winners' AND round_label LIKE 'Winners%')
-                    OR (?8 = 'losers' AND round_label LIKE 'Losers%')
-                    OR (?8 = 'grand' AND round_label LIKE 'Grand%'))
-               AND (?9 IS NULL OR name_a LIKE ?9 ESCAPE '\\' OR name_b LIKE ?9 ESCAPE '\\'
-                    OR event_title LIKE ?9 ESCAPE '\\')
-             ORDER BY saved_at DESC, digest DESC LIMIT ?10",
-        )?
+               AND (saved_at, digest) < (:before_at, :before) AND (saved_at, digest) >= (:floor_at, :floor)
+               AND {KEEPS}
+             ORDER BY saved_at DESC, digest DESC LIMIT :limit",
+            side_a = side_player(0),
+            side_b = side_player(1),
+        ))?
         .query_map(
-            params![
-                cursor.saved_at,
-                cursor.digest,
-                floor.saved_at,
-                floor.digest,
-                filter.event,
-                filter.fighter,
-                filter.country,
-                filter.round,
-                like,
-                listed + 1
-            ],
+            named_params! {
+                ":before_at": cursor.saved_at, ":before": cursor.digest,
+                ":floor_at": floor.saved_at, ":floor": floor.digest,
+                ":event": filter.event, ":fighter": filter.fighter, ":country": filter.country,
+                ":round": filter.round, ":like": like, ":limit": listed + 1,
+            },
             |row| {
                 Ok(Listed {
                     digest: row.get(0)?,
@@ -230,6 +313,7 @@ fn page(
                     event: row.get(11)?,
                     round: row.get(12)?,
                     phase: row.get(13)?,
+                    players: [row.get(14)?, row.get(15)?],
                 })
             },
         )?
@@ -251,7 +335,8 @@ fn page(
 /// bucket, and each tournament set's score and pack once the bucket holds
 /// it. `next`, when there is more to look through, is the `cursor` that
 /// goes on. Also the events and countries of the archive's games, for the
-/// page's filters.
+/// page's filters, and how many games the archive holds (`total`) and the
+/// filter keeps (`matching`), all of them, not only this page's.
 pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -> Result<Response> {
     let Some(archive) = state.config.archive.clone() else {
         return Err(ApiFailure::not_found());
@@ -262,25 +347,46 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
             .ok_or_else(|| ApiFailure::invalid("That is not a cursor of this listing."))?,
     };
     let base = archive.public_base;
+    // Classes as the public rankings board shows them, while it shows any.
+    let shown = rooms::enabled(&state) && classes_shown(&state);
+    let developers = developers(&state);
+    let now = state.now();
     let listed = state
         .db
         .read(move |tx| {
             let Page { games, next } = page(tx, &filter, &cursor, LISTED, SCANNED)?;
+            let (total, matching) = counts(tx, &filter)?;
             let mut sets = serde_json::Map::new();
             for id in games.iter().filter_map(|game| game.set.as_ref()) {
                 if !sets.contains_key(id) {
                     sets.insert(id.clone(), set_listed(tx, &base, id)?);
                 }
             }
+            let classes = if shown {
+                let players: Vec<&str> = games
+                    .iter()
+                    .flat_map(|game| game.players.iter().flatten())
+                    .map(String::as_str)
+                    .collect();
+                ranking::public_classes(tx, &players, &developers, now)?
+            } else {
+                Default::default()
+            };
             let games: Vec<Value> = games
                 .into_iter()
                 .map(|game| {
+                    let class = |side: usize| {
+                        game.players[side]
+                            .as_ref()
+                            .and_then(|player| classes.get(player).copied())
+                    };
                     json!({
                         "digest": game.digest, "crc": game.crc,
                         "url": format!("{base}/games/{}.emberreplay", game.digest),
                         "saved_at": game.saved_at, "size": game.size, "fighters": game.fighters,
                         "names": game.names, "countries": game.countries,
                         "set": game.set, "event": game.event, "round": game.round, "phase": game.phase,
+                        "classes": [class(0), class(1)],
                     })
                 })
                 .collect();
@@ -294,6 +400,7 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             Ok(json!({
                 "games": games, "sets": sets, "events": events, "countries": countries,
+                "total": total, "matching": matching,
                 "more": next.is_some(), "next": next.map(|next| next.text()),
             }))
         })

@@ -122,7 +122,7 @@ BASE=https://$HOST$PREFIX
 if [ ! -d "$SRC/site" ] && [ -d "$SRC/../site" ]; then SITEDIR="$SRC/../site"; else SITEDIR="$SRC/site"; fi
 if [ -d "$SRC/short-assets" ]; then SHORT="$SRC/short-assets"; else SHORT="$SRC/../../../ember-short/deploy/site/assets"; fi
 PAGE="index.html assets/archive.css assets/archive.js"
-BORROWED="ember-emblem.png fonts/inter-latin-400.woff2 fonts/inter-latin-600.woff2 fonts/OFL.txt"
+BORROWED="ember-emblem.png faces.webp flags.png flags.json flags-LICENSE.txt fonts/inter-latin-400.woff2 fonts/inter-latin-600.woff2 fonts/OFL.txt"
 for file in rustfs-archive.service.in bucket.sh bucket-policy.json.in nginx/archive-zone.conf.in \
     nginx/archive.conf.in nginx/archive-locations.conf.in nginx/ember-archive-headers.conf; do
     [ -f "$SRC/$file" ] || { echo "Missing $SRC/$file" >&2; exit 1; }
@@ -249,6 +249,25 @@ declare -A SOURCE=(["$LIB/rustfs"]="$BINARY" ["$UNIT"]="$work/unit" ["$HEADERS"]
     ["$ZONEFILE"]="$work/zone" ["$NGINX_FILE"]="$work/nginx-file")
 for file in $BORROWED; do TRACKED+=("$WEBROOT/assets/$file"); SOURCE["$WEBROOT/assets/$file"]="$SHORT/$file"; done
 for file in $(printf '%s\n' $PAGE | sort -r); do TRACKED+=("$WEBROOT/$file"); SOURCE["$WEBROOT/$file"]="$SITEDIR/$file"; done
+# The page's files go in with each address it loads them by naming the file's
+# own hash (?v=), so a browser that kept older files (assets are cached for an
+# hour) fetches the new ones with the new page instead of mixing the two. The
+# borrowed images and flag index first, then the stylesheet and script that
+# name them, then the page that names those.
+version() { sha256sum "$1" | cut -c1-12; }
+mkdir -p "$work/page/assets"
+sed -e "s|url(faces.webp)|url(faces.webp?v=$(version "$SHORT/faces.webp"))|" \
+    -e "s|url(flags.png)|url(flags.png?v=$(version "$SHORT/flags.png"))|" \
+    "$SITEDIR/assets/archive.css" > "$work/page/assets/archive.css"
+sed -e "s|'assets/flags.json'|'assets/flags.json?v=$(version "$SHORT/flags.json")'|" \
+    "$SITEDIR/assets/archive.js" > "$work/page/assets/archive.js"
+sed -e "s|href=\"assets/archive.css\"|href=\"assets/archive.css?v=$(version "$work/page/assets/archive.css")\"|" \
+    -e "s|src=\"assets/archive.js\"|src=\"assets/archive.js?v=$(version "$work/page/assets/archive.js")\"|" \
+    "$SITEDIR/index.html" > "$work/page/index.html"
+for file in $PAGE; do
+    cmp -s "$SITEDIR/$file" "$work/page/$file" && { echo "$file names no versioned asset; the page and setup.sh disagree." >&2; exit 1; }
+    SOURCE["$WEBROOT/$file"]="$work/page/$file"
+done
 # A random marker per install, served as install.txt. The final check asks the
 # host for this exact marker, which an older install on the name cannot have.
 INSTALL_MARKER=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
