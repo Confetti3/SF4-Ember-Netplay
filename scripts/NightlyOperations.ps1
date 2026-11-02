@@ -81,10 +81,13 @@ function Get-EmberCMakeVersion([string[]]$Lines) {
     return [pscustomobject]@{text=$Matches[1];major=[int]$Matches[2];minor=[int]$Matches[3];patch=[int]$Matches[4]}
 }
 
-# Nightly stays one minor version ahead of Stable, so every Stable release is followed by a renumber.
-function Assert-NightlyMinorAhead([object]$Nightly, [object]$Stable) {
-    if ($Nightly.major -ne $Stable.major -or $Nightly.minor -ne $Stable.minor + 1) {
-        throw "Nightly CMake version $($Nightly.text) must be one minor version ahead of Stable $($Stable.text) (expected $($Stable.major).$($Stable.minor + 1).x); renumber nightly after the Stable release."
+# Nightly stays ahead of Stable: a later patch of Stable's minor (1.5.1 after 1.5.0) or the
+# next minor (1.6.x), so every Stable release is followed by a renumber.
+function Assert-NightlyAhead([object]$Nightly, [object]$Stable) {
+    $nextMinor = $Nightly.minor -eq $Stable.minor + 1
+    $laterPatch = $Nightly.minor -eq $Stable.minor -and $Nightly.patch -gt $Stable.patch
+    if ($Nightly.major -ne $Stable.major -or !($nextMinor -or $laterPatch)) {
+        throw "Nightly CMake version $($Nightly.text) must be ahead of Stable $($Stable.text) (expected $($Stable.major).$($Stable.minor).$($Stable.patch + 1) or later, or $($Stable.major).$($Stable.minor + 1).x); renumber nightly after the Stable release."
     }
 }
 
@@ -683,13 +686,13 @@ function Invoke-NightlyPublish([string]$CheckoutRoot, [string]$OutDirectory, [ha
     } else {
         Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'cat-file', '-e', "$baseline^{commit}") 'Previous Nightly Source commit is unavailable locally; restore its history before publishing.' | Out-Null
     }
-    # The one-minor-ahead rule reads Stable's current version, so a stale origin/release must not be used.
+    # The ahead-of-Stable rule reads Stable's current version, so a stale origin/release must not be used.
     # -Local does not fetch; it fails closed when the ref or its CMakeLists.txt is missing.
     if (!$Local -and !$releaseFetched) {
         Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'fetch', 'origin', 'release') 'Could not fetch the Stable release branch for the Nightly version check.' | Out-Host
     }
     $stableLines = @(Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'show', 'origin/release:CMakeLists.txt') 'Could not read origin/release:CMakeLists.txt for the Nightly version check; fetch origin release first.')
-    Assert-NightlyMinorAhead $nightlyVersion (Get-EmberCMakeVersion ($stableLines | ForEach-Object { "$_" }))
+    Assert-NightlyAhead $nightlyVersion (Get-EmberCMakeVersion ($stableLines | ForEach-Object { "$_" }))
     $commitRange = "$baseline..$sourceRevision"
     $subjects = @(Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'log', '--first-parent', '--max-count=60', '--format=%s', $commitRange) 'Could not collect Nightly commit subjects.')
     $commitCount = [int](Invoke-NightlyCommand git @('-C', $CheckoutRoot, 'rev-list', '--first-parent', '--count', $commitRange) 'Could not count Nightly commits.')
