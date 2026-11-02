@@ -264,6 +264,20 @@ void V2AuditJourneys() {
   h.Frame(MenuInput::Back,2);h.Frame();
   Check(!h.open,"A toast that came over a notice took the focus afterwards");
  }
+ // While Ember is hidden the game is on screen: a toast said then draws no
+ // card over it, and waits in Notifications for when Ember shows.
+ {
+  Harness h;h.Frame();
+  const auto hidden=[&]{ImGui::GetIO().DeltaTime=1.f/60;ImGui::NewFrame();
+   h.shell.Background(h.view,h.view.room,[&](ShellAction a){h.actions.push_back(a);return h.accept;});ImGui::Render();};
+  hidden();h.view.discordPending=true;h.view.discordRevision=3;hidden();hidden();
+  Check(ImGui::GetForegroundDrawList()->VtxBuffer.Size==0,"A toast said while Ember was hidden drew a card over the game");
+  // Home lists it from the frame Ember shows again.
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  h.Frame(0,2);SetMenuEntriesProbe({});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said while Ember was hidden is not in Notifications");
+ }
  // The accessibility button reads a toast; it does not take its focus.
  {
   Harness h;invited(h);

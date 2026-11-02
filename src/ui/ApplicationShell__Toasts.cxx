@@ -13,6 +13,9 @@
 namespace sf4e { namespace ui {
 namespace {
 constexpr std::size_t ToastsKept=20;
+// How long a card stays up: a notice briefly, one with buttons long enough
+// to reach them. Its words stay in Notifications either way.
+constexpr double ToastSeconds=4,ActionToastSeconds=8;
 std::string Ago(double seconds) {
  const int minutes=static_cast<int>(seconds/60);
  return minutes<1?std::string(loc::T("public.updated_now")):loc::Tf("public.updated_minutes",minutes);
@@ -30,18 +33,20 @@ void ToneMark(ImDrawList* d,ImVec2 c,float r,Tone tone,ImU32 ink) {
 }
 
 // A notice or refusal is taken once, when its text first shows; one said
-// again after it lapsed is taken again. The cards never take a game button:
-// over a match the newest one's buttons only show their keys. Over the menus
-// a new action toast holds focus until another press or click (Draw), and
-// the Notifications rows carry the same words and actions.
-void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool focusable) {
+// again after it lapsed is taken again. It goes into Notifications and is
+// read out whether or not Ember shows; its card shows for ToastSeconds
+// (ActionToastSeconds with buttons), or until its own notice lapses if that
+// is sooner. Returns the id of a new toast with buttons, or 0.
+unsigned ApplicationShell::TakeNotices(double now) {
  unsigned fresh=0;
  const auto take=[&](const std::string& text,Tone tone,double until,std::string& seen,ToastKind kind){
   if(text==seen)return;
   seen=text;
   if(text.empty())return;
   const bool extra=noticeExtra_.text==text&&&seen==&noticeSeen_;
-  toasts_.push_front({++toastCount_,text,tone,now,(std::max)(until,now+4),extra?noticeExtra_.kind:kind,extra?noticeExtra_.actions:std::vector<ToastAction>{}});
+  auto actions=extra?noticeExtra_.actions:std::vector<ToastAction>{};
+  const double shown=(std::min)((std::max)(until,now+3),now+(actions.empty()?ToastSeconds:ActionToastSeconds));
+  toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions)});
   if(!toasts_.front().actions.empty())fresh=toastCount_;
   if(toasts_.size()>ToastsKept)toasts_.pop_back();
   // Speech reads a toast once, as it appears.
@@ -49,17 +54,25 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
  };
  take(notice_,noticeTone_,noticeUntil_,noticeSeen_,ToastKind::None);
  take(error_,Tone::Error,now+6,errorSeen_,ToastKind::System);
+ return fresh;
+}
+
+// The cards, over Ember's menus only: while Ember is hidden the game is on
+// screen and no card covers it (Background takes the notices alone). Over
+// the menus a new action toast holds focus until another press or click
+// (Draw), and the Notifications rows carry the same words and actions.
+void ApplicationShell::DrawToasts(double now,bool listed,bool focusable) {
+ const unsigned fresh=TakeNotices(now);
  if(listed){toastFocus_=0;return;}
  // A toast takes focus once, as it comes, and only over the shell's own free
- // menu: nothing open, nothing being typed. One that came over a match, a
- // dialog or an embedded screen (fighter select, a report) waits in its card
- // and in Notifications.
+ // menu: nothing open, nothing being typed. One that came over a dialog or
+ // an embedded screen (fighter select, a report) waits in its card and in
+ // Notifications.
  const auto& nav=menu_.navigation;
  const bool menuFree=focusable&&nav.Mode()==MenuNavigation::Modal::None&&!menu_.NoticeOpen()&&!menu_.typesText;
- if(fresh&&!overMatch&&menuFree)toastFocus_=fresh;
- // Stacked at the board's right corner, newest on top: under the match HUD's
- // bars over a match, ending on the hint bar over the menus. Inside TV
- // mode's safe area, as the board is (ShellArea).
+ if(fresh&&menuFree)toastFocus_=fresh;
+ // Stacked at the board's right corner, newest on top, ending on the hint
+ // bar. Inside TV mode's safe area, as the board is (ShellArea).
  const auto& c=v2::Colors();const v2::Box view=ShellArea();
  const float s=Scale(),side=v2::SideMargin(view.W(),s),w=(std::min)(420*s,view.W()-2*side);
  // A narrow screen has room for the newest only.
@@ -84,9 +97,8 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
   e.h=(std::max)(icon,h)+24*s;
   shown.push_back(std::move(e));
  }
- if(toastFocus_&&(shown.empty()||shown[0].t->id!=toastFocus_||overMatch))toastFocus_=0;
- float y=view.min.y+110*s;
- if(!overMatch){y=view.max.y-72*s;for(const auto& e:shown)y-=e.h+8*s;y+=8*s;}
+ if(toastFocus_&&(shown.empty()||shown[0].t->id!=toastFocus_))toastFocus_=0;
+ float y=view.max.y-72*s;for(const auto& e:shown)y-=e.h+8*s;y+=8*s;
  static const char* const kinds[]={"","toast.kind.invitation","toast.kind.room","toast.kind.update","toast.kind.match","toast.kind.system"};
  auto* d=ImGui::GetForegroundDrawList();
  for(const auto& e:shown){
@@ -107,15 +119,13 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
   d->AddText(font,size,{left,line},c.text,t.text.c_str(),nullptr,e.wrap);
   line+=font->CalcTextSizeA(size,FLT_MAX,e.wrap,t.text.c_str()).y+9*s;
   d->AddText(ImGui::GetFont(),12*s,{b.x-pad-e.timeW,a.y+14*s},c.muted,e.time.c_str());
-  // The buttons, each with its key: Select the first, Back the last. Over the
-  // menus a small window over the card takes the pointer from the list under it.
+  // The buttons, each with its key: Select the first, Back the last. A small
+  // window over the card takes the pointer from the list under it.
   if(&e==&shown[0]&&!t.actions.empty()&&!modal){
-   if(!overMatch){
-    ImGui::SetNextWindowPos(a);ImGui::SetNextWindowSize({w,e.h});
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
-    ImGui::Begin("##toast",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoFocusOnAppearing);
-    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-   }
+   ImGui::SetNextWindowPos(a);ImGui::SetNextWindowSize({w,e.h});
+   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{0,0});
+   ImGui::Begin("##toast",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoBackground|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoNav|ImGuiWindowFlags_NoFocusOnAppearing);
+   ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
    float bx=left;
    for(std::size_t i=0;i<t.actions.size();++i){
     const bool first=i==0;
@@ -123,12 +133,9 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
     const char* key=first?MenuSelectGlyph():MenuBackGlyph();
     const float labelW=font->CalcTextSizeA(labelSize,FLT_MAX,0,t.actions[i].label.c_str()).x;
     const ImVec2 p(bx,line),q(bx+12*s+keySize+8*s+labelW+12*s,line+button);
-    bool hovered=false;
-    if(!overMatch){
-     ImGui::SetCursorScreenPos(p);ImGui::PushID(static_cast<int>(i));
-     if(ImGui::InvisibleButton("##act",{q.x-p.x,button}))toastAsked_={t.id,i};
-     hovered=ImGui::IsItemHovered();ImGui::PopID();
-    }
+    ImGui::SetCursorScreenPos(p);ImGui::PushID(static_cast<int>(i));
+    if(ImGui::InvisibleButton("##act",{q.x-p.x,button}))toastAsked_={t.id,i};
+    const bool hovered=ImGui::IsItemHovered();ImGui::PopID();
     d->AddRectFilled(p,q,hovered?c.hover:first?c.button:v2::color::Alpha(c.button,0),4*s);
     d->AddRect(p,q,first?c.hover:c.border,4*s,0,s);
     const ImVec2 k(p.x+12*s,p.y+(button-keySize)*.5f);
@@ -136,7 +143,7 @@ void ApplicationShell::DrawToasts(double now,bool overMatch,bool listed,bool foc
     d->AddText(font,labelSize,{k.x+keySize+8*s,p.y+(button-labelSize)*.5f},first?c.text:c.muted,t.actions[i].label.c_str());
     bx=q.x+8*s;
    }
-   if(!overMatch){ImGui::End();ImGui::PopStyleVar();}
+   ImGui::End();ImGui::PopStyleVar();
   }
   // A click anywhere else gives focus back to the list.
   if(t.id==toastFocus_&&ImGui::IsMouseClicked(0)&&!ImGui::IsMouseHoveringRect(a,b))toastFocus_=0;

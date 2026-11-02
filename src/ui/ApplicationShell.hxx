@@ -837,13 +837,17 @@ std::string memberAsk_;
     // an action its buttons or rows asked for: the toast's id and the action's index.
     unsigned toastFocus_=0;
     std::pair<unsigned,std::size_t> toastAsked_{0,0};
-    // The toasts said this frame are taken and drawn; every frame ends with it
-    // (Draw's tail, Background). listed: Notifications is shown, which lists
-    // them instead. focusable: the shell's own menu read this frame's input,
-    // so a new action toast may take its focus (not over an embedded screen).
-    void DrawToasts(double now,bool overMatch,bool listed=false,bool focusable=false);
+    // The notices said this frame become toasts in Notifications; every frame
+    // takes them (Background alone, while the game shows without Ember).
+    // Returns a new toast with buttons, or 0.
+    unsigned TakeNotices(double now);
+    // Takes the notices and draws the toasts' cards over Ember's menus (Draw's
+    // tail). listed: Notifications is shown, which lists them instead.
+    // focusable: the shell's own menu read this frame's input, so a new
+    // action toast may take its focus (not over an embedded screen).
+    void DrawToasts(double now,bool listed=false,bool focusable=false);
     // Where Ember draws: the screen, inside TV mode's 5% safe area. The shell's
-    // window, and the toasts over it or over a match.
+    // window, and the toasts over it.
     v2::Box ShellArea() const;
     void AnswerToast(double now);
     std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;
