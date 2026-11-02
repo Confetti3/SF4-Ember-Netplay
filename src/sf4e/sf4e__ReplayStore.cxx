@@ -404,8 +404,8 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 		// the game's own YouTube recording had none.
 		if (Named(state, "Battle") && op.awaited) {
 			auto* const guide = ReplayBattle::GetButtonGuide(state);
-			if (ReplayBattle::staticMethods.MovieValid(guide)) {
-				ReplayBattle::staticMethods.MovieClose(guide);
+			if (ReplayBattle::staticMethods.MovieValid(guide) && ReplayBattle::GetGuideButtons(guide) > 0) {
+				ReplayBattle::staticMethods.ClearGuide(guide);
 				spdlog::info("Replay: the button guide is left out of the video");
 			}
 		}
