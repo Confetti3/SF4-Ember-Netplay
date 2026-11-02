@@ -50,8 +50,7 @@ impl Queue for Archive {
     }
 
     async fn attempt(&self, state: &AppState, item: &Due) -> Outcome {
-        let key = format!("games/{}.emberreplay", item.digest);
-        store(state, &self.0, &key, item.replay.clone()).await
+        store(state, &self.0, &key(&item.digest), item.replay.clone()).await
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<Due>, record: &Record) -> Result<()> {
@@ -106,7 +105,12 @@ pub(super) fn settled(record: &Record) -> (bool, u64, Option<&String>) {
     }
 }
 
-fn retry(error: String) -> Outcome {
+/// A game's file in the bucket.
+pub(super) fn key(digest: &str) -> String {
+    format!("games/{digest}.emberreplay")
+}
+
+pub(super) fn retry(error: String) -> Outcome {
     Outcome::Retry {
         error,
         retry_after: None,

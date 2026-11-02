@@ -33,7 +33,7 @@
 //!   which changes as it renews; `tables_playing`, `banned`, `details` and
 //!   `games` may be left out. `details` is the room as the room host sees it for the
 //!   listing: `{ "name", "capacity", "locked", "host_name", "fighters",
-//!   "set_format", "rotation", "own_delay" }` (`own_delay` only when true). The supervisor does not read it: it passes
+//!   "set_format", "rotation", "room_type", "creator_in", "own_delay" }` (`own_delay` only when true). The supervisor does not read it: it passes
 //!   a JSON object of at most 2 KB on to the bridge as it is, unknown keys
 //!   included, and drops anything else (another type, a larger object, one
 //!   nested deeper than the supervisor allows) without treating the line as

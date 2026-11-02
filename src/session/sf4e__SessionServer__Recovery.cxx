@@ -48,7 +48,7 @@ void SessionServer::BeginRecoveryCandidate() {
 					row.data.incarnation ? row.data.incarnation : 1);
 		}
 		_recoveryProjection = _roomAuthority->SnapshotCopy();
-		_recoveryServerOwned = {_roomAuthority->KickedAccounts(), _roomAuthority->WonGames()};
+		_recoveryServerOwned = {_roomAuthority->KickedAccounts(), _roomAuthority->WonGames(), _roomAuthority->MemberAccounts()};
 		_hasRecoveryProjection = true;
 		_candidate = {};
 		_recoveryCandidateReady = true;

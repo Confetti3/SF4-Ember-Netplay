@@ -1,12 +1,14 @@
-//! Just enough S3 for the replay archive: path-style `PUT`s signed with AWS
-//! Signature Version 4, which any S3 server (rustfs, MinIO, AWS) takes.
+//! Just enough S3 for the replay archive: path-style `PUT`s, `GET`s and
+//! `DELETE`s of one object, signed with AWS Signature Version 4, which any
+//! S3 server (rustfs, MinIO, AWS) takes.
 use hmac::{Hmac, Mac};
+use reqwest::Method;
 use sha2::{Digest, Sha256};
 use url::Url;
 
 use crate::{
     config::Archive,
-    util::{Outbound, hex},
+    util::{Outbound, hex, read_bounded},
 };
 
 /// `endpoint` as an S3 origin: http or https, a host and an optional port,
@@ -66,26 +68,66 @@ impl Bucket {
         body: Vec<u8>,
         now: u64,
     ) -> Result<(), String> {
+        self.send(Method::PUT, secret, key, body, now)
+            .await
+            .map(drop)
+    }
+
+    /// The object at `key`, at most `limit` bytes, or why it could not be
+    /// read.
+    pub async fn get(
+        &self,
+        secret: &str,
+        key: &str,
+        limit: usize,
+        now: u64,
+    ) -> Result<Vec<u8>, String> {
+        let response = self.send(Method::GET, secret, key, Vec::new(), now).await?;
+        read_bounded(response, limit)
+            .await
+            .ok_or_else(|| format!("{key}: unreadable"))
+    }
+
+    /// Deletes the object at `key`. S3 answers a delete of an object that is
+    /// already gone with success too.
+    pub async fn delete(&self, secret: &str, key: &str, now: u64) -> Result<(), String> {
+        self.send(Method::DELETE, secret, key, Vec::new(), now)
+            .await
+            .map(drop)
+    }
+
+    /// Sends a signed `method` for `key` with `body`; the error says why the
+    /// bucket did not answer with success.
+    async fn send(
+        &self,
+        method: Method,
+        secret: &str,
+        key: &str,
+        body: Vec<u8>,
+        now: u64,
+    ) -> Result<reqwest::Response, String> {
         let client = self.client.client().map_err(|_| "client".to_owned())?;
         let url = self.url(key);
-        let mut request = client
-            .put(url.clone())
-            .header("content-type", "application/octet-stream");
-        for (name, value) in self.signed_put(&url, secret, &body, now) {
+        let mut request = client.request(method.clone(), url.clone());
+        if method == Method::PUT {
+            request = request.header("content-type", "application/octet-stream");
+        }
+        for (name, value) in self.signed(&method, &url, secret, &body, now) {
             request = request.header(name, value);
         }
         match request.body(body).send().await {
-            Ok(response) if response.status().is_success() => Ok(()),
+            Ok(response) if response.status().is_success() => Ok(response),
             Ok(response) => Err(format!("{key}: status {}", response.status().as_u16())),
             Err(_) => Err(format!("{key}: unreachable")),
         }
     }
 
-    /// The headers that sign a `PUT` of `body` to `url` at `now`:
+    /// The headers that sign a `method` of `body` to `url` at `now`:
     /// x-amz-date, x-amz-content-sha256 and authorization. The signed host
     /// is the one the request sends (`authority`).
-    fn signed_put(
+    fn signed(
         &self,
+        method: &Method,
         url: &Url,
         secret: &str,
         body: &[u8],
@@ -95,7 +137,7 @@ impl Bucket {
         let day = &date[..8];
         let payload = hex(&Sha256::digest(body));
         let request = format!(
-            "PUT\n{}\n\nhost:{}\nx-amz-content-sha256:{payload}\nx-amz-date:{date}\n\nhost;x-amz-content-sha256;x-amz-date\n{payload}",
+            "{method}\n{}\n\nhost:{}\nx-amz-content-sha256:{payload}\nx-amz-date:{date}\n\nhost;x-amz-content-sha256;x-amz-date\n{payload}",
             url.path(),
             authority(url)
         );
@@ -181,7 +223,8 @@ mod tests {
             url.as_str(),
             "http://127.0.0.1:9400/replays/games/0badf00d.emberreplay"
         );
-        let headers = bucket.signed_put(
+        let headers = bucket.signed(
+            &Method::PUT,
             &url,
             "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
             b"Welcome to Amazon S3.",

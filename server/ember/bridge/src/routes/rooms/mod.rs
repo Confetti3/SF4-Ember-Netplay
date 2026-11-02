@@ -269,6 +269,10 @@ struct Room {
     locked: Option<bool>,
     set_format: Option<u8>,
     rotation: Option<u8>,
+    room_type: Option<u8>,
+    /// The room host's last word on whether the creator is a member; NULL
+    /// until a host that knows the field has said (`create::reserve`).
+    creator_in: Option<bool>,
     /// Each fighter plays at their own input delay. The creator's request when
     /// the room was reserved, then the room host's own report (`details`).
     own_delay: bool,
@@ -276,7 +280,7 @@ struct Room {
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay";
+    creator_region, own_delay, room_type, creator_in";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -300,6 +304,8 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         set_format: row.get(16)?,
         rotation: row.get(17)?,
         own_delay: row.get(19)?,
+        room_type: row.get(20)?,
+        creator_in: row.get(21)?,
     })
 }
 
@@ -342,6 +348,7 @@ impl Room {
             locked: None,
             set_format: None,
             rotation: None,
+            room_type: None,
         };
         summary.check().map_err(|_| ApiFailure::unavailable())?;
         Ok(summary)
@@ -358,6 +365,7 @@ impl Room {
             locked: self.locked,
             set_format: self.set_format,
             rotation: self.rotation,
+            room_type: self.room_type,
             ..summary.clone()
         };
         if detailed.details_valid() {

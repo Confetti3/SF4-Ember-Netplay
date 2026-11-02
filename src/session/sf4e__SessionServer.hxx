@@ -137,6 +137,8 @@ namespace sf4e {
 		struct ServerOwnedRecord {
 			std::vector<std::string> banned;
 			std::vector<WonGame> wonGames;
+			// The accounts of the members, sorted (RoomAuthority::MemberAccounts).
+			std::vector<std::string> members;
 		};
 		ServerOwnedRecord CommittedServerOwned() const;
 		std::vector<std::string> BannedAccounts() const { return CommittedServerOwned().banned; }

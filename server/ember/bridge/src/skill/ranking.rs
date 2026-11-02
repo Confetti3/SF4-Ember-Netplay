@@ -205,6 +205,47 @@ pub fn board(
     Ok(Board { players })
 }
 
+/// The class the public board shows today for each of `ember_ids` that is
+/// on it, by Ember ID: the same players and classes as `board` (taking
+/// part, listed, settled, not a developer), without its cap. Read only, so
+/// a page anyone can open never moves a stored class.
+pub fn public_classes(
+    tx: &Transaction<'_>,
+    ember_ids: &[&str],
+    developers: &[String],
+    now: u64,
+) -> Result<std::collections::HashMap<String, u8>> {
+    let mut classes = std::collections::HashMap::new();
+    if ember_ids.is_empty() {
+        return Ok(classes);
+    }
+    let wanted = serde_json::to_string(ember_ids).map_err(|_| ApiFailure::unavailable())?;
+    let mut statement = tx.prepare(
+        "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, d.ember_id, r.discord_user_id
+         FROM skill_ratings r
+         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN discord_accounts d ON d.user_id = r.discord_user_id
+         WHERE c.ranked AND c.name IS NOT NULL
+           AND d.ember_id IN (SELECT value FROM json_each(?1))",
+    )?;
+    let mut rows = statement.query([wanted])?;
+    while let Some(row) = rows.next()? {
+        let rating = Rating {
+            rating: row.get(0)?,
+            deviation: row.get(1)?,
+            volatility: row.get(2)?,
+        };
+        let played_at: u64 = row.get(3)?;
+        if developers.contains(&row.get::<_, String>(6)?)
+            || aged(rating, played_at, now).deviation > SETTLED_DEVIATION
+        {
+            continue;
+        }
+        classes.insert(row.get(5)?, shown_band(row.get(4)?, rating.rating));
+    }
+    Ok(classes)
+}
+
 fn refuse(reason: &'static str, code: ErrorCode, message: &'static str) -> ApiFailure {
     ApiFailure::new(code, message).detail("reason", reason)
 }

@@ -4,6 +4,7 @@
 // and its status line reports it only then. The same line the supervisor's own
 // tests build is parsed here.
 #include "../../server/roomhost/RoomHost.hxx"
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -78,6 +79,8 @@ void TestRoomFollowsTheConfiguration() {
 // Kept here to check that the split steps say exactly what it said, in the same
 // order and on the same ticks.
 struct OneStepReport {
+	// The room's creator, whose presence the details report.
+	std::string creator;
 	std::set<std::string> forwardedBans;
 	std::map<std::string, std::uint64_t> pendingBans;
 	std::uint64_t reportedSnapshotRevision = 0, reportedAppliedRevision = 0;
@@ -102,6 +105,8 @@ struct OneStepReport {
 		auto committed = server.CommittedServerOwned();
 		current.banned = std::move(committed.banned);
 		current.details = roomhost::DetailsOf(*snapshot);
+		current.details.creatorIn = !creator.empty() &&
+			std::binary_search(committed.members.begin(), committed.members.end(), creator);
 		current.games = std::move(committed.wonGames);
 		for (const auto& account : current.banned) {
 			if (forwardedBans.count(account)) continue;
@@ -124,7 +129,7 @@ struct OneStepReport {
 
 // The same tick through RoomReporter, in RoomHost::Report's order.
 struct SplitReport {
-	roomhost::RoomReporter reporter;
+	roomhost::RoomReporter reporter{"ember-zed"};
 	bool closing = false, failed = false;
 	std::uint64_t closeStartedMs = 0;
 	std::vector<std::string> lines, bans;
@@ -168,6 +173,7 @@ void TestReportStepsMatchTheOneStepReport() {
 	std::string invitation = "sf4e3:first";
 	bool queueFull = false;
 	OneStepReport before;
+	before.creator = "ember-zed";
 	SplitReport after;
 	const auto tick = [&](int count) {
 		for (int i = 0; i < count; ++i, now += 16) {
@@ -215,7 +221,11 @@ void TestReportStepsMatchTheOneStepReport() {
 
 	tick(3);
 	admit(1, "ember-host");
+	const auto creatorIn = [&]() { return json::parse(before.lines.back()).at("details").at("creator_in").get<bool>(); };
+	CHECK(!creatorIn());
 	admit(2, "ember-zed");
+	// The creator is in the room from their join until they are kicked.
+	CHECK(creatorIn());
 	admit(3, "ember-bob");
 	admit(4, "ember-amy");
 	admit(5, "ember-cat");
@@ -226,6 +236,7 @@ void TestReportStepsMatchTheOneStepReport() {
 	// run out, so both go on the same tick, in the committed list's order.
 	kick(2);
 	tick(20);
+	CHECK(!creatorIn());
 	kick(3);
 	queueFull = true;
 	tick(80);
@@ -283,6 +294,8 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 	details.setFormat = 10;
 	details.rotation = 2;
 	details.ownDelay = true;
+	details.roomType = static_cast<int>(room::KingRoom);
+	details.creatorIn = true;
 	const std::string invitation = "sf4e3:" + std::string(4090, 'x');
 	const auto line = roomhost::StatusLine({room::MaximumMembers, room::TableCount, invitation, banned, details, games});
 	CHECK(line.size() > 40000 && line.size() < roomhost::MaximumStatusLineBytes);

@@ -59,6 +59,9 @@ std::string ClosedLine(const std::string& reason);
 // over a SessionServer of its own.
 class RoomReporter {
 public:
+	// `creator` is the Ember ID the room was created for; the report says
+	// whether a member joined as it is in the room (RoomDetails::creatorIn).
+	explicit RoomReporter(std::string creator = std::string()) : creator_(std::move(creator)) {}
 	using Emit = std::function<void(const std::string& line)>;
 	// Asks the helper to ban an account; false when its queue is full.
 	using Ban = std::function<bool(const std::string& account)>;
@@ -82,6 +85,7 @@ public:
 	bool BansPending() const { return !pendingBans_.empty(); }
 
 private:
+	std::string creator_;
 	std::set<std::string> forwardedBans_;
 	// When each ban not yet given to the helper was first seen.
 	std::map<std::string, std::uint64_t> pendingBans_;

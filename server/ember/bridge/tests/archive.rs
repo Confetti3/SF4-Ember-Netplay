@@ -3,6 +3,8 @@
 //! digest, stored in the bucket with the set's pack, then listed for the
 //! archive page.
 mod common;
+#[path = "archive/duplicates.rs"]
+mod duplicates;
 
 use std::sync::{
     Arc, Mutex,
@@ -23,11 +25,13 @@ use sha2::{Digest, Sha256};
 
 const DAY: i64 = 24 * 60 * 60;
 
-/// What the stand-in bucket was sent: each PUT's path and body.
+/// What the stand-in bucket holds: each PUT's path and body, less what was
+/// deleted since.
 type Stored = Arc<Mutex<Vec<(String, Vec<u8>)>>>;
 
-/// An S3 stand-in that takes any signed PUT whose content hash is right,
-/// unless it is `refusing`.
+/// An S3 stand-in that takes any signed PUT whose content hash is right, and
+/// answers signed GETs and DELETEs of what it holds, unless it is
+/// `refusing`.
 async fn bucket(refusing: Arc<AtomicBool>) -> (String, Stored) {
     let stored: Stored = Arc::default();
     let keep = stored.clone();
@@ -47,19 +51,33 @@ async fn bucket(refusing: Arc<AtomicBool>) -> (String, Stored) {
                     .and_then(|v| v.to_str().ok())
                     .is_some_and(|v| v.starts_with("AWS4-HMAC-SHA256 Credential=ember-test/"));
                 if refusing.load(Ordering::SeqCst)
-                    || method != axum::http::Method::PUT
                     || !signed
                     || headers
                         .get("x-amz-content-sha256")
                         .and_then(|v| v.to_str().ok())
                         != Some(hash.as_str())
                 {
-                    return StatusCode::FORBIDDEN;
+                    return (StatusCode::FORBIDDEN, Vec::new());
                 }
-                keep.lock()
-                    .unwrap()
-                    .push((uri.path().to_owned(), body.to_vec()));
-                StatusCode::OK
+                let path = uri.path().to_owned();
+                let mut held = keep.lock().unwrap();
+                match method {
+                    axum::http::Method::PUT => {
+                        held.push((path, body.to_vec()));
+                        (StatusCode::OK, Vec::new())
+                    }
+                    axum::http::Method::GET => {
+                        match held.iter().rev().find(|(at, _)| *at == path) {
+                            Some((_, file)) => (StatusCode::OK, file.clone()),
+                            None => (StatusCode::NOT_FOUND, Vec::new()),
+                        }
+                    }
+                    axum::http::Method::DELETE => {
+                        held.retain(|(at, _)| *at != path);
+                        (StatusCode::NO_CONTENT, Vec::new())
+                    }
+                    _ => (StatusCode::FORBIDDEN, Vec::new()),
+                }
             }
         },
     );
@@ -101,7 +119,8 @@ async fn fixture_with(adjust: impl FnOnce(&mut ember_bridge::Config) + Send + 's
     let (endpoint, stored) = bucket(refusing.clone()).await;
     let secrets = ember_bridge::integrations::Secrets {
         archive_secret_key: Some(zeroize::Zeroizing::new("secret".into())),
-        ..Default::default()
+        // For the tests that turn public rooms (and so classes) on.
+        ..common::supervisor::secrets()
     };
     let bridge = Bridge::start_with(
         move |config| {
@@ -134,6 +153,10 @@ async fn fixture_with(adjust: impl FnOnce(&mut ember_bridge::Config) + Send + 's
     bridge.open_session(&mut b).await;
     let link_a = bridge.link(&provider, &a, "mock-a", "fighter-a").await;
     let link_b = bridge.link(&provider, &b, "mock-a", "fighter-b").await;
+    // Only a player signed in with Discord shares online games.
+    for (player, account) in [(&a, "41"), (&b, "42")] {
+        common::seed::link_discord(bridge.state(), account, player.id().as_str(), "player").await;
+    }
     Fixture {
         bridge,
         provider,
@@ -160,6 +183,43 @@ fn saved_elsewhere(file: &[u8]) -> Vec<u8> {
 
 fn digest(file: &[u8]) -> String {
     Replay::parse(file).unwrap().digest_hex()
+}
+
+/// What a game `n` long enough to hold a round played: its replay goes past
+/// the 0x320-byte header, where the rounds start, by more than one round's
+/// 0x88-byte record.
+fn round_stream(n: u8) -> Vec<u8> {
+    vec![n; 0x320 - 0x174 + 0x88 + 64]
+}
+
+/// An online game `n` long enough to hold a round (`round_stream`).
+fn played_game(n: u8) -> Vec<u8> {
+    replays::made_up(&round_stream(n), 1_800_000_000, [20, 34])
+}
+
+/// `file` as another PC saved the same game: its own time played (`pc`) in
+/// the replay's header, so another digest, and its record's CRC to match.
+fn copy_from(file: &[u8], pc: u8) -> Vec<u8> {
+    let mut copy = file.to_vec();
+    copy[HEAD + 0x10] ^= pc;
+    let crc = replays::crc32(&copy[HEAD..]);
+    copy[8 + 5..8 + 9].copy_from_slice(&crc.to_le_bytes());
+    copy
+}
+
+/// The paths of the games the bucket holds.
+fn games_held(f: &Fixture) -> Vec<String> {
+    let mut held: Vec<String> = f
+        .stored
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(path, _)| path.clone())
+        .filter(|path| path.starts_with("/replays/games/"))
+        .collect();
+    held.sort();
+    held.dedup();
+    held
 }
 
 /// `file` with the last four bytes of its replay changed so that the
@@ -401,14 +461,15 @@ async fn an_online_game_is_kept_once_as_its_first_copy_said() {
     );
     let listed_game = &games(&list)[0];
     assert_eq!(listed_game["names"], json!(["Ann", "Bob"]));
-    assert_eq!(listed_game["countries"], json!(["BE", null]));
+    // The second player's copy named their own side, and its country.
+    assert_eq!(listed_game["countries"], json!(["BE", "NL"]));
     assert_eq!(listed_game["fighters"], json!([20, 34]));
     assert_eq!(listed_game["crc"], replays::crc_name(&played).unwrap());
     assert_eq!(
         listed_game["url"],
         format!("https://s3.example/replays/games/{digest}.emberreplay")
     );
-    assert_eq!(list["countries"], json!(["BE"]));
+    assert_eq!(list["countries"], json!(["BE", "NL"]));
     assert_eq!((&list["more"], &list["next"]), (&json!(false), &Json::Null));
     // Stored, the replay leaves the bridge.
     let held = count(
@@ -422,7 +483,8 @@ async fn an_online_game_is_kept_once_as_its_first_copy_said() {
         ("fighter=34", 1),
         ("fighter=1", 0),
         ("country=BE", 1),
-        ("country=NL", 0),
+        ("country=NL", 1),
+        ("country=JP", 0),
         ("q=an", 1),
         ("event=online", 1),
         ("round=top8", 0),
@@ -490,6 +552,14 @@ async fn an_opponent_is_named_only_by_their_own_copy() {
     let list = listed_when(&f, "", |list| games(list).len() == 4).await;
     assert_eq!(listed_game(&list, &lone)["names"], json!(["Ann", null]));
     assert_eq!(games(&listed(&f, "q=Mallory").await).len(), 0);
+    // The counts are the whole archive's, and what the filter keeps of it.
+    let list = listed(&f, "").await;
+    assert_eq!((&list["total"], &list["matching"]), (&json!(4), &json!(4)));
+    let ann = listed(&f, "q=Ann").await;
+    assert_eq!(games(&ann).len(), 2);
+    assert_eq!((&ann["total"], &ann["matching"]), (&json!(4), &json!(2)));
+    let none = listed(&f, "q=Mallory").await;
+    assert_eq!((&none["total"], &none["matching"]), (&json!(4), &json!(0)));
 }
 
 /// A later copy names an empty side only from another account than the
@@ -500,6 +570,7 @@ async fn a_late_name_cannot_come_from_the_first_sender_or_fill_both_sides() {
     let f = fixture().await;
     let mut c = f.bridge.player(44);
     f.bridge.open_session(&mut c).await;
+    connect(&f, &c, "44").await;
     // The first sender names itself, then resends the game as the other
     // side to name an opponent who shared nothing.
     let one = game(21, [1, 2]);
@@ -569,6 +640,225 @@ async fn a_late_name_cannot_come_from_the_first_sender_or_fill_both_sides() {
         by(digest(&three)).await,
         (f.b.id().to_string(), String::new())
     );
+}
+
+/// Both players' copies of one game are one game: the second copy names its
+/// own side and country, and is not kept.
+#[tokio::test]
+async fn both_players_copies_are_one_game() {
+    let f = fixture().await;
+    let mine = played_game(31);
+    let theirs = copy_from(&mine, 1);
+    assert_ne!(digest(&mine), digest(&theirs));
+    assert_eq!(
+        send(&f, &f.a, &mine, "a=Ann&b=&side=0&country=BE").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &theirs, "a=&b=Bob&side=1&country=NL").await,
+        StatusCode::OK
+    );
+    let list = listed_when(&f, "", |list| !games(list).is_empty()).await;
+    assert_eq!(games(&list).len(), 1);
+    let listed = listed_game(&list, &mine);
+    assert_eq!(listed["names"], json!(["Ann", "Bob"]));
+    assert_eq!(listed["countries"], json!(["BE", "NL"]));
+    assert_eq!(list["countries"], json!(["BE", "NL"]));
+    assert_eq!(
+        games_held(&f),
+        vec![format!("/replays/games/{}.emberreplay", digest(&mine))]
+    );
+}
+
+/// Waits until the archive has no row left for `file`, a maintenance pass
+/// (which folds) and an hour of the bridge's clock passing each look, so
+/// retries put off come due.
+async fn removed(f: &Fixture, file: &[u8]) {
+    let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
+    for _ in 0..200 {
+        if count(f, left, &digest(file)).await == 0 {
+            return;
+        }
+        ember_bridge::maintain(f.bridge.state()).await;
+        f.bridge.clock.advance(3600);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("{} is still kept", digest(file));
+}
+
+/// A set's copy of a game is kept over another player's online copy of it,
+/// whichever came first, and the online copy leaves the bucket.
+#[tokio::test]
+async fn a_sets_copy_is_kept_over_an_online_copy() {
+    for online_first in [true, false] {
+        let f = fixture().await;
+        let id = set(&f, "kept-over-online", 1).await;
+        let set_copy = replays::wrap(&round_stream(51), f.bridge.started_at + 1);
+        let online = copy_from(&set_copy, 1);
+        if online_first {
+            let sent = send(&f, &f.b, &online, "a=&b=Bob&side=1").await;
+            assert_eq!(sent, StatusCode::CREATED);
+        }
+        let sent = send_to_set(&f, &f.a, &id, &set_copy, "side=0").await;
+        assert_eq!(sent, StatusCode::CREATED, "{online_first}");
+        if !online_first {
+            let sent = send(&f, &f.b, &online, "a=&b=Bob&side=1").await;
+            assert_eq!(sent, StatusCode::OK);
+        }
+        removed(&f, &online).await;
+        let list = listed_when(&f, "", |list| {
+            games(list).len() == 1 && games(list)[0]["set"] == id.as_str()
+        })
+        .await;
+        assert_eq!(games(&list)[0]["digest"], digest(&set_copy).as_str());
+        let online_file = format!("/replays/games/{}.emberreplay", digest(&online));
+        assert!(!games_held(&f).contains(&online_file), "{online_first}");
+    }
+}
+
+/// Keeps `file`, sent by `by`, as a copy already folded into another, its
+/// file in the bucket and not to be deleted before `until` (as while its
+/// upload is leased).
+async fn keep_duplicate(f: &Fixture, file: &[u8], by: &Player, until: u64) {
+    let path = format!("/replays/games/{}.emberreplay", digest(file));
+    f.stored.lock().unwrap().push((path, file.to_vec()));
+    let replay = Replay::parse(file).unwrap();
+    let (by, size) = (by.id().to_string(), file.len());
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority,
+                    state, next_attempt_at, received_at, game)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, 'duplicate', ?8, ?8, ?9)",
+                rusqlite::params![
+                    replay.digest_hex(),
+                    replay.crc_name(),
+                    replay.saved_at,
+                    size,
+                    replay.fighters[0],
+                    replay.fighters[1],
+                    by,
+                    until as i64,
+                    replay.game_hex(),
+                ],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+/// A copy folded away while its upload is leased keeps its file until that
+/// attempt is over, so the upload cannot land after the delete.
+#[tokio::test]
+async fn a_duplicate_waits_for_its_upload_to_be_over() {
+    let f = fixture().await;
+    let copy = played_game(52);
+    let path = format!("/replays/games/{}.emberreplay", digest(&copy));
+    keep_duplicate(&f, &copy, &f.a, f.bridge.state().now() + 60).await;
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
+    assert_eq!(count(&f, left, &digest(&copy)).await, 1);
+    assert!(games_held(&f).contains(&path));
+    f.bridge.clock.advance(61);
+    removed(&f, &copy).await;
+    assert!(!games_held(&f).contains(&path));
+}
+
+/// A set's copy of a file folded away before, still waiting to leave the
+/// bucket, takes that file's row back, and the copy that was kept is folded
+/// into it.
+#[tokio::test]
+async fn a_sets_copy_takes_back_a_duplicates_row() {
+    let f = fixture().await;
+    let id = set(&f, "takes-back", 1).await;
+    let set_copy = replays::wrap(&round_stream(53), f.bridge.started_at + 1);
+    let kept = copy_from(&set_copy, 1);
+    assert_eq!(
+        send(&f, &f.a, &kept, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    keep_duplicate(&f, &set_copy, &f.b, f.bridge.state().now() + 3600).await;
+    assert_eq!(
+        send_to_set(&f, &f.b, &id, &set_copy, "side=1").await,
+        StatusCode::CREATED
+    );
+    removed(&f, &kept).await;
+    let list = listed_when(&f, "", |list| {
+        games(list).len() == 1 && games(list)[0]["set"] == id.as_str()
+    })
+    .await;
+    assert_eq!(games(&list)[0]["digest"], digest(&set_copy).as_str());
+}
+
+/// A set's copy takes in only its own players' online copies of the game:
+/// anyone else's stays as it was.
+#[tokio::test]
+async fn a_sets_copy_leaves_other_players_copies_alone() {
+    let f = fixture().await;
+    let mut c = f.bridge.player(44);
+    f.bridge.open_session(&mut c).await;
+    connect(&f, &c, "44").await;
+    let id = set(&f, "not-theirs", 1).await;
+    let set_copy = replays::wrap(&round_stream(54), f.bridge.started_at + 1);
+    let theirs = copy_from(&set_copy, 1);
+    assert_eq!(
+        send(&f, &c, &theirs, "a=Cat&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &set_copy, "side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 2).await;
+    assert_eq!(listed_game(&list, &theirs)["names"], json!(["Cat", null]));
+    assert_eq!(listed_game(&list, &set_copy)["set"], id.as_str());
+    let theirs_file = format!("/replays/games/{}.emberreplay", digest(&theirs));
+    assert!(games_held(&f).contains(&theirs_file));
+}
+
+/// A player shares online games only while signed in with Discord; a
+/// tournament set's games are archived whoever sends them.
+#[tokio::test]
+async fn only_a_player_signed_in_with_discord_shares_online_games() {
+    let f = fixture().await;
+    disconnect(&f, &f.b).await;
+    let online = game(41, [1, 2]);
+    let crc = replays::crc_name(&online).unwrap();
+    let refused = f
+        .bridge
+        .client
+        .put(f.bridge.url(&format!("/v1/replays/{crc}?a=&b=Bob&side=1")))
+        .bearer_auth(f.b.token())
+        .body(online.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    let body: Json = serde_json::from_slice(&refused.bytes().await.unwrap()).unwrap();
+    let reason = &body["error"]["details"]["reason"];
+    assert_eq!(reason, "discord_required", "{body}");
+    let kept = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
+    assert_eq!(count(&f, kept, &digest(&online)).await, 0);
+    // Nor does a copy of a game the archive holds name their side.
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&online), "a=&b=Bob&side=1").await,
+        StatusCode::FORBIDDEN
+    );
+    // A set's game is archived from either player.
+    let id = set(&f, "discord-set", 1).await;
+    assert_eq!(
+        send_to_set(&f, &f.b, &id, &replay_of(&f.bridge, 1), "side=1").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 2).await;
+    assert_eq!(listed_game(&list, &online)["names"], json!(["Ann", null]));
 }
 
 /// Only a desk event's set has its games archived: the organizer accepted
@@ -835,6 +1125,40 @@ async fn both_routes_wait_while_the_bucket_is_behind() {
     .await;
     assert_eq!(
         send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "").await,
+        StatusCode::CREATED
+    );
+}
+
+/// Once the archive keeps 20 GiB of games it takes no more online games,
+/// still a set's games: the archive keeps every set.
+#[tokio::test]
+async fn a_full_archive_takes_only_sets_games() {
+    let f = fixture().await;
+    let id = set(&f, "archive-kept", 1).await;
+    sql(
+        &f,
+        "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority,
+            state, next_attempt_at, received_at)
+         VALUES (?1, '00000000', 1, 21474836480, 1, 2, 'emb_other', 1, 'stored', 0, 1)",
+        vec!["e".repeat(64)],
+    )
+    .await;
+    assert_eq!(
+        send(&f, &f.a, &game(1, [1, 2]), "side=0").await,
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "").await,
+        StatusCode::CREATED
+    );
+    sql(
+        &f,
+        "DELETE FROM archive_games WHERE digest = ?1",
+        vec!["e".repeat(64)],
+    )
+    .await;
+    assert_eq!(
+        send(&f, &f.a, &game(1, [1, 2]), "side=0").await,
         StatusCode::CREATED
     );
 }
@@ -1160,4 +1484,146 @@ async fn without_an_archive_nothing_is_taken() {
         .await
         .unwrap();
     assert_eq!(listed.status(), StatusCode::NOT_FOUND);
+}
+
+/// Signs `player` in with Discord account `account`, in place of the one
+/// they had.
+async fn connect(f: &Fixture, player: &Player, account: &str) {
+    disconnect(f, player).await;
+    common::seed::link_discord(f.bridge.state(), account, player.id().as_str(), "player").await;
+}
+
+async fn disconnect(f: &Fixture, player: &Player) {
+    sql(
+        f,
+        "DELETE FROM discord_accounts WHERE ember_id = ?1",
+        vec![player.id().to_string()],
+    )
+    .await;
+}
+
+/// Gives Discord account `account` its ranking choice (`listed` under a
+/// name, or not) and a rating in the middle of `band`, settled or not,
+/// played an hour ago.
+async fn ranked(f: &Fixture, account: &str, listed: bool, band: u8, settled: bool) {
+    let played_at = f.bridge.state().now() as i64 - 3600;
+    let rating = 1050.0 + 100.0 * f64::from(band);
+    let deviation = if settled { 60.0 } else { 300.0 };
+    let account = account.to_owned();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO ranking_choices (discord_user_id, ranked, name, country)
+                 VALUES (?1, 1, ?2, NULL)
+                 ON CONFLICT (discord_user_id) DO UPDATE SET name = excluded.name",
+                rusqlite::params![account, listed.then_some("Listed")],
+            )?;
+            tx.execute(
+                "INSERT INTO skill_ratings (discord_user_id, rating, deviation, volatility, band, played_at)
+                 VALUES (?1, ?2, ?3, 0.06, ?4, ?5)
+                 ON CONFLICT (discord_user_id) DO UPDATE SET deviation = excluded.deviation",
+                rusqlite::params![account, rating, deviation, band, played_at],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+/// An archive bridge with public rooms, and classes shown or not.
+async fn with_classes(shown: bool) -> Fixture {
+    let (_, url) = common::supervisor::fake_supervisor().await;
+    fixture_with(move |config| {
+        common::supervisor::enable(config, url);
+        let rooms = config.rooms.as_mut().unwrap();
+        rooms.skill_badges = shown;
+        rooms.developers = vec!["300".to_owned()];
+    })
+    .await
+}
+
+/// Each side lists the class the public rankings board shows today for the
+/// player who played it, as far as the archive knows who did: a set's
+/// roster, or the account that sent or named that side. A player who is not
+/// on the board (not listed, not settled, a developer) shows none.
+#[tokio::test]
+async fn a_side_lists_its_players_class_as_the_board_shows_it() {
+    let f = with_classes(true).await;
+    connect(&f, &f.a, "100").await;
+    connect(&f, &f.b, "200").await;
+    ranked(&f, "100", true, 7, true).await;
+    ranked(&f, "200", false, 3, true).await;
+    let online = game(21, [1, 2]);
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=Bob&side=0").await,
+        StatusCode::CREATED
+    );
+    // Who sent a copy that says no side is not known to have played either.
+    let unsided = game(22, [3, 4]);
+    assert_eq!(
+        send(&f, &f.a, &unsided, "a=Ann&b=Bob").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 2).await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
+    assert_eq!(listed_game(&list, &unsided)["classes"], json!([null, null]));
+    // The opponent names their side; their class shows once they are listed
+    // and settled, and not while they place again.
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&online), "a=&b=Bob&side=1").await,
+        StatusCode::OK
+    );
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
+    ranked(&f, "200", true, 3, true).await;
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, 3]));
+    ranked(&f, "200", true, 3, false).await;
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
+    // A set's sides are its roster's, whoever sent the game.
+    ranked(&f, "200", true, 3, true).await;
+    let id = set(&f, "archive-classes", 1).await;
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "country=BE").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 3).await;
+    assert_eq!(
+        listed_game(&list, &replay_of(&f.bridge, 1))["classes"],
+        json!([7, 3])
+    );
+    // No Ember ID or Discord account is ever listed.
+    let text = list.to_string();
+    for hidden in [f.a.id().as_str(), f.b.id().as_str(), "\"100\"", "\"200\""] {
+        assert!(!text.contains(hidden), "{hidden} in {text}");
+    }
+}
+
+/// A developer is not on the board, so their side shows no class; nor does
+/// any side while the bridge hides classes.
+#[tokio::test]
+async fn no_class_for_a_developer_or_while_classes_are_hidden() {
+    let f = with_classes(true).await;
+    connect(&f, &f.a, "300").await;
+    ranked(&f, "300", true, 7, true).await;
+    let online = game(23, [1, 2]);
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 1).await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([null, null]));
+
+    let f = with_classes(false).await;
+    connect(&f, &f.a, "100").await;
+    ranked(&f, "100", true, 7, true).await;
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 1).await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([null, null]));
 }

@@ -6,6 +6,12 @@
     "client_id": "1546980049692135514"
   },
   "integration_secrets": "integrations.json",
+  "archive": {
+    "endpoint": "http://127.0.0.1:9400",
+    "bucket": "replays-live",
+    "access_key": "emberarchive",
+    "public_base": "https://archive.embernetplay.link/replays-live"
+  },
   "tenants": [
     {
       "id": "blumint",

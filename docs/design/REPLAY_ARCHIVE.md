@@ -66,11 +66,21 @@ record's.
 
 ## Which game it is
 
-A game is known by the SHA-256 of its replay, the bytes after the record and
-the slot's two bytes. Those two are the saving PC's own (its slot number), so
-both players' copies of one game are one game, and two games whose CRCs
-collide are two. The CRC is only the native name the game is sent under; the
-bridge checks it against the file.
+A game is known by what was played: the SHA-256 of its two fighters and the
+replay from 0x320 on, its round records and input streams
+(`replays::Replay::game`). Both players' PCs save the same game, but each
+writes its own values into the replay's header before 0x320 (the time it was
+played, and fields in each player's block), so the two copies differ there
+and nowhere else. The archive keeps a game once, as the copy that came first,
+under that copy's digest, the SHA-256 of its whole replay (the bytes after
+the record and the slot's two bytes, which hold the saving PC's slot
+number). Two games whose CRCs collide are two. A replay too short to hold a
+round is known by its digest. The CRC is only the native name the game is
+sent under; the bridge checks it against the file.
+
+A game whose two PCs disagreed on a round's starting state (a desync) has
+round records that differ, so its two copies stay two games, each with one
+side named; they do not play back the same.
 
 A copy of a game the archive already holds changes nothing (200), whoever
 sends it and whatever it says, with exceptions below: a set's own players, and
@@ -79,15 +89,20 @@ game's first sender.
 
 ## Who says what
 
+- **Who may share.** Only a player signed in with Discord shares online
+  games: `PUT /v1/replays/{crc}` refuses anyone else with 403 `forbidden`,
+  `details.reason` `discord_required`, which a 1.5.0 game takes as final for
+  that file, so its games are never shared. A tournament set's games go
+  through the set's route and are archived whoever sends them.
 - **Online games.** The first copy to arrive says its sender's side and that
   side's name and country. A name is only ever taken from its own player's
   copy: the game sends its own name alone (the other side empty), and the
   bridge ignores a name for the side that is not the sender's, so an older game
   that sends both names names no opponent. A copy that does not say its side
   names no one. A side with no name yet takes the name a later copy
-  gives it, only from an account other than the first sender, never for the
-  side the first sender said was theirs, and one account names one side;
-  nothing else a later copy says is taken. The archive cannot check that the
+  gives it, and that copy's country with it, only from an account other than
+  the first sender, never for the side the first sender said was theirs, and
+  one account names one side; nothing else a later copy says is taken. The archive cannot check that the
   account played the side it names, so any account with a play session can
   name an empty side of a game it downloaded; this is inherent to a public
   archive. `sent_by` records whose word the first copy is, `sent_side` the
@@ -122,8 +137,14 @@ game's first sender.
   replay with its record's time moved into a free game's time. The set route
   takes only a participant's word for which game a replay is, and `sent_by`
   records whose word it was.
-- An online game the archive already holds joins the set only when its own
-  sender sends it for the set; nobody else's copy relabels it.
+- An online game the archive holds as the same file joins the set only when
+  its own sender sends it for the set; nobody else's copy relabels it. A set's
+  own copy of a game, recorded by a player's PC, is kept over its own
+  players' online copies of it, whichever came first: they are folded into
+  it and leave the bucket (`duplicates::fold`). Anyone else's copy stays its
+  own game. A set's player could forge
+  such a copy of another game, as with the save time above, and the set's
+  roster would then name it.
 
 ## Where it is kept
 
@@ -224,6 +245,9 @@ Both routes go through one admission, in the transaction that keeps the game:
 - The bridge takes no new game, from either route, while 2 GiB of games are
   still waiting to be stored (503). A set's game refused this way is not kept
   for the set either; the game sends it again later.
+- The archive keeps at most 20 GiB of games in all, about two million. Past it
+  no new online game is taken (503); a set's game still is, since the archive
+  keeps every set and the sets played bound them.
 - One sender's day counts only the games it sent as online games
   (`archive_games.charged`); a game that joins a set later keeps its charge.
 - `GET /v1/archive` needs no credential. The page's nginx site limits it to
@@ -233,6 +257,28 @@ Both routes go through one admission, in the transaction that keeps the game:
   archive site reaches the bridge on loopback.
 - A set keeps one replay per CRC (`match_replays`), so a CRC collision within
   one set is still one game there.
+
+Migration 054 added `archive_games.game`. Games kept before it have none,
+and both players' copies of a game were kept as two games, each naming its
+own sender's side. The `duplicates` delivery queue reads each such copy back
+from the bucket and records which game it is (`archive::duplicates`), only
+once the bucket gives back the whole replay the copy's digest names;
+anything else is tried again hourly, logged as `not settled yet`. Once no
+row is left without a `game`, maintenance folds every game kept more than
+once, a single time (`archive_fold_owed` holds its one row until then): a
+set's copy, or else the copy that reached the bridge first, is kept, and
+every other online copy, in the order they came, names its sides on it by
+the same rules as a late copy, then becomes a `duplicate`, which the listing
+never shows. Folding waits for the last copy because the copy kept decides
+which names the others may give it, and a copy read late may be the one
+that came first. A copy the bucket never gives back holds the folding until
+an operator puts its file back or deletes its row; the next maintenance pass
+folds. The same queue deletes a duplicate's file from the bucket, after any
+upload of it still leased is over, and then its row. A set's copy is never
+removed. Folding and removing duplicates stay, since a set's copy folds its
+own players' online copies; only reading copies back (the queue's unread
+copies, `fold_kept_before`, `archive_fold_owed` and the bucket's GET) can go
+once production has no row without a `game`.
 
 Migration 050 rebuilt `archive_games` around the digest. It kept none of the
 games 049 held: a stored one no longer has its replay, so its digest cannot
