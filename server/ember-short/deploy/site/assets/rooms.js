@@ -17,6 +17,14 @@
     'Hakan', 'Juri', 'Yun', 'Yang', 'Evil Ryu', 'Oni', 'Rolento', 'Elena', 'Poison', 'Hugo', 'Decapre'];
   var REGIONS = { use1: 'US East', usw1: 'US West', euc1: 'Europe', aps1: 'Asia Pacific' };
   var ROTATIONS = ['Winner stays', 'Loser stays', 'Both rotate'];
+  // Room types as the room model numbers them (room::RoomType), in the order
+  // the page lists them. A room whose host does not say is Classic: room hosts
+  // before 1.5.0 have no other kind.
+  var TYPES = [
+    { code: 0, key: 'classic', label: 'Classic', title: 'Classic rooms', about: 'Tables with a queue. Take a seat and wait your turn.' },
+    { code: 1, key: 'arcade', label: 'Arcade', title: 'Arcade', about: 'Sixteen cabinets. Sit down and play whoever has waited longest.' },
+    { code: 2, key: 'king', label: 'King of the hill', title: 'King of the hill', about: 'Arcade cabinets, and the winner stays on for the next challenger.' }
+  ];
   var VERSIONS = site.VERSIONS;
   var BRIDGE = /^brg_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
   var ROOM = /^[0-9a-f]{32}$/;
@@ -25,9 +33,10 @@
   var summary = document.getElementById('summary');
   var status = document.getElementById('status');
   var regions = document.getElementById('regions');
+  var types = document.getElementById('types');
   var openOnly = document.getElementById('open-only');
   var refreshButton = document.getElementById('refresh');
-  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, region: '', failed: false };
+  var state = { rooms: null, bridge: '', listedAt: 0, skew: 0, key: null, region: '', type: '', failed: false };
   // What the cards on screen were drawn from: the body without listed_at, and
   // whether the "could not refresh" note was showing. A refresh that changes
   // neither only updates the ages, so the cards, and the focus on them, stay.
@@ -40,6 +49,10 @@
   function versionOf(build) {
     for (var i = 0; i < VERSIONS.length; i++) if (VERSIONS[i][0] === build) return { label: VERSIONS[i][1], rank: i };
     return { label: null, rank: VERSIONS.length };
+  }
+  function typeOf(room) {
+    var code = room.room_type;
+    return typeof code === 'number' && TYPES[code] ? TYPES[code] : TYPES[0];
   }
   function full(room) { return room.capacity > 0 && room.members >= room.capacity; }
   function joinable(room) { return !room.locked && !full(room); }
@@ -76,7 +89,8 @@
   function card(room) {
     var isFull = full(room), open = joinable(room);
     var version = versionOf(room.build_id);
-    var node = el('article', 'room-card' + (open ? '' : ' dimmed'));
+    var type = typeOf(room);
+    var node = el('article', 'room-card ' + type.key + (open ? '' : ' dimmed'));
     node.setAttribute('aria-label', room.name);
 
     var head = el('div', 'room-head');
@@ -108,9 +122,15 @@
     line.appendChild(faces);
 
     var rules = el('div', 'room-rules');
-    if (typeof room.set_format === 'number' && room.set_format > 0) {
-      rules.appendChild(chip('First to ' + room.set_format, 'set'));
-      if (typeof room.rotation === 'number' && ROTATIONS[room.rotation]) rules.appendChild(chip(ROTATIONS[room.rotation]));
+    if (type.code !== 0) rules.appendChild(chip(type.label, 'type ' + type.key));
+    // An Arcade or King of the hill room with no set length plays sets of one
+    // game (room::SetGoal), and nobody rotates: the cabinets pair players.
+    if (typeof room.set_format === 'number') {
+      var setLength = type.code !== 0 ? Math.max(room.set_format, 1) : room.set_format;
+      if (setLength > 0) rules.appendChild(chip('First to ' + setLength, 'set'));
+      if (setLength > 0 && type.code === 0 && typeof room.rotation === 'number' && ROTATIONS[room.rotation]) {
+        rules.appendChild(chip(ROTATIONS[room.rotation]));
+      }
     }
     if (version.rank > 0) rules.appendChild(chip(version.label ? 'Ember ' + version.label : 'Other version', 'version'));
     line.appendChild(rules);
@@ -147,6 +167,18 @@
     return node;
   }
 
+  // The heading over one type's rooms when the page lists more than one type.
+  function groupHead(type, rooms) {
+    var players = rooms.reduce(function (sum, room) { return sum + room.members; }, 0);
+    var head = el('div', 'room-group ' + type.key);
+    var title = el('h2', 'room-group-title', type.title);
+    title.appendChild(el('span', 'room-group-count',
+      rooms.length + (rooms.length === 1 ? ' room, ' : ' rooms, ') + players + (players === 1 ? ' player' : ' players')));
+    head.appendChild(title);
+    head.appendChild(el('p', 'room-group-about', type.about));
+    return head;
+  }
+
   function message(text, detail) {
     var node = el('div', 'room-card room-message');
     node.appendChild(el('p', 'room-message-title', text));
@@ -172,6 +204,27 @@
     }
   }
 
+  // The type buttons: All types, then each type that has a room, in TYPES
+  // order. Hidden while every room is Classic and no type is chosen.
+  function typeButtons(rooms) {
+    var seen = {};
+    rooms.forEach(function (room) { seen[typeOf(room).code] = true; });
+    if (state.type !== '') seen[state.type] = true;
+    while (types.children.length > 1) types.removeChild(types.lastChild);
+    TYPES.forEach(function (type) {
+      if (!seen[type.code]) return;
+      var button = el('button', 'room-filter', type.label);
+      button.type = 'button';
+      button.setAttribute('data-type', String(type.code));
+      types.appendChild(button);
+    });
+    types.hidden = types.children.length <= 2 && state.type === '';
+    for (var i = 0; i < types.children.length; i++) {
+      var child = types.children[i];
+      child.setAttribute('aria-pressed', child.getAttribute('data-type') === state.type ? 'true' : 'false');
+    }
+  }
+
   // Rewrites the "Open for" times in place from the clock.
   function updateAges() {
     var nodes = list.querySelectorAll('.room-age');
@@ -193,13 +246,15 @@
     }
     var rooms = state.rooms.slice();
     regionButtons(rooms);
+    typeButtons(rooms);
     var players = rooms.reduce(function (sum, room) { return sum + room.members; }, 0);
     // The bridge's order (unlocked first, most free seats first), newest Ember first.
     rooms = rooms.map(function (room, index) { return { room: room, index: index, rank: versionOf(room.build_id).rank }; })
       .sort(function (a, b) { return a.rank - b.rank || a.index - b.index; })
       .map(function (entry) { return entry.room; });
     var shown = rooms.filter(function (room) {
-      return (!state.region || room.region === state.region) && (!openOnly.checked || joinable(room));
+      return (!state.region || room.region === state.region) && (!openOnly.checked || joinable(room)) &&
+        (state.type === '' || String(typeOf(room).code) === state.type);
     });
     summary.textContent = rooms.length === 0 ? 'No rooms open' :
       rooms.length + (rooms.length === 1 ? ' room, ' : ' rooms, ') + players + (players === 1 ? ' player' : ' players') +
@@ -208,9 +263,17 @@
       list.appendChild(message('No public rooms are open right now.',
         'Open one in Ember: Online play, Public rooms, Create room. This page shows it as soon as you are in it.'));
     } else if (shown.length === 0) {
-      list.appendChild(message('No rooms match these filters.', 'Choose All regions or turn off Open seats only.'));
+      list.appendChild(message('No rooms match these filters.', 'Choose All regions or All types, or turn off Open seats only.'));
     } else {
-      shown.forEach(function (room) { list.appendChild(card(room)); });
+      // Each type's rooms together under its own heading, once there is more
+      // than one type to tell apart.
+      var groups = TYPES.map(function (type) {
+        return { type: type, rooms: shown.filter(function (room) { return typeOf(room) === type; }) };
+      }).filter(function (group) { return group.rooms.length > 0; });
+      groups.forEach(function (group) {
+        if (groups.length > 1) list.appendChild(groupHead(group.type, group.rooms));
+        group.rooms.forEach(function (room) { list.appendChild(card(room)); });
+      });
     }
   }
 
@@ -268,6 +331,12 @@
     var button = event.target.closest ? event.target.closest('button') : null;
     if (!button || !regions.contains(button)) return;
     state.region = button.getAttribute('data-region') || '';
+    render();
+  });
+  types.addEventListener('click', function (event) {
+    var button = event.target.closest ? event.target.closest('button') : null;
+    if (!button || !types.contains(button)) return;
+    state.type = button.getAttribute('data-type') || '';
     render();
   });
   openOnly.addEventListener('change', render);

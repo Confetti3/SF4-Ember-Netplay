@@ -32,6 +32,9 @@
   --button: #382d24;
   --button-border: #76502f;
   --button-hover: #59402b;
+  /* Public room types: Arcade and King of the hill beside the ember Classic. */
+  --arcade: #6cc4d4;
+  --king: #f0c75a;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -326,6 +329,30 @@ footer a:hover { color: var(--ivory); }
 .room-chip.match { color: var(--ink); background: #a4cea0; }
 .room-chip.status { background: #38332e; }
 .room-chip.version { color: var(--ember-light); border: 1px solid #76502f; line-height: 18px; }
+.room-chip.type { color: var(--ink); font-weight: 600; }
+.room-chip.type.arcade { background: var(--arcade); }
+.room-chip.type.king { background: var(--king); }
+.dimmed .room-chip.type { filter: brightness(0.7); }
+
+/* Arcade and King of the hill cards carry their type's colour down the left. */
+.room-card.arcade { border-left: 3px solid var(--arcade); }
+.room-card.king { border-left: 3px solid var(--king); }
+
+/* The type buttons sit on their own row above the regions. */
+.room-types { order: -1; flex-basis: 100%; }
+.room-types .room-filter[data-type="1"][aria-pressed="true"] { background: var(--arcade); border-color: var(--arcade); }
+.room-types .room-filter[data-type="2"][aria-pressed="true"] { background: var(--king); border-color: var(--king); }
+
+/* One type's heading in the list, across the whole grid. */
+.room-group { grid-column: 1 / -1; margin: 14px 0 0; padding: 2px 0 2px 12px; border-left: 3px solid var(--ember); }
+.room-group:first-child { margin-top: 0; }
+.room-group.arcade { border-left-color: var(--arcade); }
+.room-group.king { border-left-color: var(--king); }
+.room-group-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; font-size: 1.125rem; font-weight: 600; line-height: 1.3; }
+.room-group.arcade .room-group-title { color: var(--arcade); }
+.room-group.king .room-group-title { color: var(--king); }
+.room-group-count { color: var(--muted); font-size: 0.875rem; font-weight: 400; }
+.room-group-about { margin: 2px 0 0; color: var(--muted); font-size: 0.875rem; }
 
 .room-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .room-age { color: var(--muted); font-size: 0.875rem; }
