@@ -264,9 +264,10 @@ that came first. A copy the bucket never gives back holds the folding until
 an operator puts its file back or deletes its row; the next maintenance pass
 folds. The same queue deletes a duplicate's file from the bucket, after any
 upload of it still leased is over, and then its row. A set's copy is never
-removed. The queue, the fold and the bucket's GET and DELETE are needed only
-until production has no row without a `game` and no `duplicate`; they can
-go then.
+removed. Folding and removing duplicates stay, since a set's copy folds its
+own players' online copies; only reading copies back (the queue's unread
+copies, `fold_kept_before`, `archive_fold_owed` and the bucket's GET) can go
+once production has no row without a `game`.
 
 Migration 050 rebuilt `archive_games` around the digest. It kept none of the
 games 049 held: a stored one no longer has its replay, so its digest cannot

@@ -36,6 +36,28 @@ impl Copy {
 
 pub struct Duplicates(pub Arc<Bucket>);
 
+impl Duplicates {
+    /// Reads the unread copy `digest` at `key` and records which game it is.
+    async fn read(
+        &self,
+        state: &AppState,
+        secret: &str,
+        key: &str,
+        digest: &str,
+    ) -> std::result::Result<(), String> {
+        let file = self.0.get(secret, key, MAX_REPLAY, state.now()).await?;
+        let replay = Replay::parse(&file)
+            .filter(|replay| replay.digest_hex() == digest)
+            .ok_or_else(|| format!("{key}: not the replay it was stored as"))?;
+        let (digest, game) = (digest.to_owned(), replay.game_hex());
+        state
+            .db
+            .write(move |tx| identified(tx, &digest, &game))
+            .await
+            .map_err(|error| format!("{error:?}"))
+    }
+}
+
 impl Queue for Duplicates {
     type Item = Copy;
 
@@ -69,32 +91,17 @@ impl Queue for Duplicates {
         Ok(rows)
     }
 
-    /// An unread copy is known only by the whole replay its digest names;
-    /// anything else the bucket gives back is tried again. A duplicate's file
-    /// is deleted.
+    /// An unread copy is known only by the whole replay its digest names
+    /// (`read`); anything else the bucket gives back is tried again. A
+    /// duplicate's file is deleted.
     async fn attempt(&self, state: &AppState, copy: &Copy) -> Outcome {
         let Some(secret) = &state.integrations.archive_secret_key else {
             return retry("no archive secret key".into());
         };
-        let (digest, now) = (copy.digest().to_owned(), state.now());
+        let key = key(copy.digest());
         let done = match copy {
-            Copy::Unread(_) => match self.0.get(secret, &key(&digest), MAX_REPLAY, now).await {
-                Ok(file) => {
-                    match Replay::parse(&file).filter(|replay| replay.digest_hex() == digest) {
-                        Some(replay) => {
-                            let game = replay.game_hex();
-                            state
-                                .db
-                                .write(move |tx| identified(tx, &digest, &game))
-                                .await
-                                .map_err(|error| format!("{error:?}"))
-                        }
-                        None => Err(format!("{}: not the replay it was stored as", key(&digest))),
-                    }
-                }
-                Err(error) => Err(error),
-            },
-            Copy::Duplicate(_) => self.0.delete(secret, &key(&digest), now).await,
+            Copy::Unread(digest) => self.read(state, secret, &key, digest).await,
+            Copy::Duplicate(_) => self.0.delete(secret, &key, state.now()).await,
         };
         match done {
             Ok(()) => Outcome::Delivered,

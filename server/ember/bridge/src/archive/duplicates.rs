@@ -12,8 +12,11 @@
 //! came first. A set's copy is kept whenever there is one, and names come
 //! from its roster, so a set's game is `fold`ed at once (`archive::admit`).
 //!
-//! All of this, the queue and `s3::Bucket::get` and `delete` are needed only
-//! until production holds no row with no `game` and no `duplicate`.
+//! `fold` and the removal of `duplicate`s stay: a set's copy folds its
+//! players' online copies. Only the reading back of copies kept before
+//! (`identified`, `fold_kept_before`, `archive_fold_owed`,
+//! `delivery::duplicates::Copy::Unread`, `s3::Bucket::get`) can go once
+//! production holds no row without a `game`.
 use rusqlite::{OptionalExtension, Transaction, params};
 
 use super::name_side;
@@ -47,7 +50,7 @@ pub fn fold_kept_before(tx: &Transaction<'_>) -> Result<()> {
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for game in kept_twice {
-        fold(tx, &game)?;
+        fold(tx, &game, None)?;
     }
     tx.execute("DELETE FROM archive_fold_owed", [])?;
     Ok(())
@@ -80,8 +83,10 @@ impl Copy {
 /// the bridge first, is kept, and every other online copy, in the order they
 /// came, gives it the sides it named by the rules a late copy names a side by
 /// (`name_side`, which names no side of a set's game), then becomes a
-/// `duplicate`. A set's copy is never removed.
-pub(super) fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
+/// `duplicate`. With `roster`, only the online copies its players sent are
+/// folded: a set's copy takes in its own players' copies, never anyone
+/// else's. A set's copy is never removed.
+pub(super) fn fold(tx: &Transaction<'_>, game: &str, roster: Option<&[String]>) -> Result<()> {
     let copies = tx
         .prepare(
             "SELECT digest, match_id IS NOT NULL, sent_by, sent_side, name_a, name_b, country_a, country_b,
@@ -104,7 +109,9 @@ pub(super) fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
     let Some((kept, others)) = copies.split_first() else {
         return Ok(());
     };
-    for copy in others.iter().filter(|copy| !copy.set) {
+    let folded =
+        |copy: &&Copy| !copy.set && roster.is_none_or(|players| players.contains(&copy.sent_by));
+    for copy in others.iter().filter(folded) {
         for side in [0, 1] {
             if let Some(by) = copy.namer(side) {
                 let at = usize::from(side);

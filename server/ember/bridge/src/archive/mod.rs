@@ -71,9 +71,10 @@ impl From<Refused> for ApiFailure {
 /// and only an account other than the first sender can name an empty side of
 /// an online game (`name_own_side`). A new
 /// game is taken when there is room for it (`refusal`), with what
-/// `attribution` says of its sides. A set's copy of a game is kept over
-/// another player's online copies of it, which are folded into it
+/// `attribution` says of its sides. A set's copy of a game is kept over its
+/// own players' online copies of it, which are folded into it
 /// (`duplicates::fold`); only the same file is the same online game to a set.
+/// A set's copy of a file folded away before takes that file's row back.
 pub fn admit(
     tx: &Transaction<'_>,
     now: u64,
@@ -88,7 +89,7 @@ pub fn admit(
         .query_row(
             "SELECT digest, sent_by, match_id FROM archive_games
              WHERE (digest = ?1 OR (game = ?2 AND (NOT ?3 OR match_id IS NOT NULL))) AND state != 'duplicate'
-             ORDER BY digest = ?1 DESC, match_id IS NULL, received_at LIMIT 1",
+             ORDER BY digest = ?1 DESC, match_id IS NULL, received_at, digest LIMIT 1",
             params![digest, game, for_set],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
@@ -115,7 +116,16 @@ pub fn admit(
     tx.execute(
         "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
             sent_side, match_id, event_title, round_label, phase, sent_by, charged, priority, replay, next_attempt_at, received_at, game)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?20, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19, ?21)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?20, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19, ?21)
+         ON CONFLICT (digest) DO UPDATE SET
+            name_a = excluded.name_a, name_b = excluded.name_b, country_a = excluded.country_a,
+            country_b = excluded.country_b, sent_side = excluded.sent_side, match_id = excluded.match_id,
+            event_title = excluded.event_title, round_label = excluded.round_label, phase = excluded.phase,
+            sent_by = excluded.sent_by, charged = excluded.charged, priority = excluded.priority,
+            replay = excluded.replay, received_at = excluded.received_at, named_by_a = NULL, named_by_b = NULL,
+            state = 'pending', stored_at = NULL, last_error = NULL, first_attempt_at = NULL,
+            next_attempt_at = MAX(archive_games.next_attempt_at, excluded.next_attempt_at)
+         WHERE archive_games.state = 'duplicate'",
         params![
             digest,
             replay.crc_name(),
@@ -143,7 +153,7 @@ pub fn admit(
     crate::db::queued();
     if let Some(set) = set {
         crate::delivery::packs::changed(tx, &set.match_id, now)?;
-        duplicates::fold(tx, &game)?;
+        duplicates::fold(tx, &game, Some(&set.players))?;
     }
     Ok(Admission::New)
 }
