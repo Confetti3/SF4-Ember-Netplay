@@ -129,8 +129,8 @@ void ExportChoicesJourney() {
   "The next export did not start from the saved choices");
  // Typed: Select opens the editor on the number, a number replaces it, anything else keeps it.
  h.Choose("cap-set1");
- Check(h.shell.Navigation().Editing()&&h.shell.Navigation().Draft()=="1","Select on a side's wins did not open the editor on its number");
- const auto type=[&](const char* text){h.Frame();key(ImGuiKey_Backspace);key(ImGuiKey_Backspace);io.AddInputCharactersUTF8(text);h.Frame();key(ImGuiKey_Enter);h.Frame();};
+ Check(h.shell.Navigation().Editing()&&h.shell.Navigation().Draft().empty(),"Select on a side's wins did not open an empty editor");
+ const auto type=[&](const char* text){h.Frame();io.AddInputCharactersUTF8(text);h.Frame();key(ImGuiKey_Enter);h.Frame();};
  type("0");
  Check(!h.shell.Navigation().Editing(),"Enter did not close the wins editor");
  Check(row("cap-set1").value=="0","Typed wins did not replace the number");
@@ -150,6 +150,10 @@ void ExportChoicesJourney() {
  // A replay whose names Ember does not know still starts with names off.
  auto unnamed=replay;unnamed.names[0].clear();unnamed.names[1].clear();List(h,{unnamed});h.Press(MenuInput::Back);open();
  Check(row("cap-names").value==loc::T("common.off"),"An export of unnamed players started with names on");
+ // Left there changes nothing on screen, so it saves nothing for later exports.
+ {const auto before=h.actions.size();step("cap-names",MenuInput::Left);h.Wait(1.f);
+  Check(std::none_of(h.actions.begin()+before,h.actions.end(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;}),
+   "Left on Player names already off saved a choice");}
  SetMenuEntriesProbe({});
 }
 }

@@ -295,11 +295,12 @@ bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
  const struct{const char* id;bool* part;bool P::* saved;} toggles[]={
   {"cap-names",&caption_.names,&P::exportNames},{"cap-line",&caption_.line,&P::exportLine},{"cap-set",&caption_.set,&P::exportSet},
   {"cap-mark",&caption_.mark,&P::exportMark},{"cap-meter",&meter_,&P::exportMeter}};
- for(const auto& toggle:toggles)if(a.id==toggle.id){*toggle.part=a.delta>0;return toggle.saved;}
+ // A press that changes nothing on screen (Left on a row already Off) saves nothing.
+ for(const auto& toggle:toggles)if(a.id==toggle.id){const bool on=a.delta>0;if(*toggle.part==on)return nullptr;*toggle.part=on;return toggle.saved;}
  if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
  else if(a.id=="cap-text")caption_.text=a.text;
  else if(a.id=="cap-set1"||a.id=="cap-set2"){
-  // Left and Right step the wins; Select types them, and anything but a number keeps them.
+  // Left and Right step the wins; Select types them (the editor opens empty), and anything but a number keeps them.
   int& wins=caption_.wins[a.id=="cap-set2"];
   if(a.kind!=MenuAction::TextAccepted)wins=(std::max)(0,(std::min)(MaxWins,wins+a.delta));
   else if(const auto typed=TypedWins(a.text))wins=*typed;
