@@ -788,8 +788,7 @@ static void TestNameTakenOut() {
   const fs::path blocked = list.parent_path() / (list.stem().string() + "-blocked");
   fs::create_directories(blocked);
   std::ofstream(blocked / "inside.txt", std::ios::binary) << "x";
-  CHECK(!notes::Write(blocked, "other.emberreplay
-") && fs::is_directory(blocked) && !fs::exists(blocked.wstring() + L".tmp"));
+  CHECK(!notes::Write(blocked, "other.emberreplay\n") && fs::is_directory(blocked) && !fs::exists(blocked.wstring() + L".tmp"));
   std::error_code ignored; fs::remove_all(blocked, ignored);
  }
 }

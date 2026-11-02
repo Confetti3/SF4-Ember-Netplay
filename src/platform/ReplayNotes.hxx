@@ -71,9 +71,10 @@ inline bool Write(const std::filesystem::path& list, const std::string& text) {
 		out.close();
 		if (out.fail()) { std::filesystem::remove(partial, ignored); return false; }
 	}
-	std::filesystem::rename(partial, list, ignored);
-	if (ignored) std::filesystem::remove(partial, ignored);
-	return !ignored;
+	std::error_code renamed, cleanup;
+	std::filesystem::rename(partial, list, renamed);
+	if (renamed) std::filesystem::remove(partial, cleanup);
+	return !renamed;
 #endif
 }
 // Takes a name out of a list (`bytes` is the list as read): written whole without it.
