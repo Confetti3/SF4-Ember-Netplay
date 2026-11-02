@@ -71,4 +71,10 @@ void FollowJourneys() {
  tables[2].p1=2;tables[2].p2=3;tables[2].phase=room::TablePhase::Playing;
  from=h.actions.size();h.Screen("room");h.Wait(4);h.Frame(0,3);capture();
  Check(watches(from).empty()&&!row("follow-room"),"A seat did not end following");
+ // An Arcade board's action bar offers it too, and moves the same way.
+ tables[1].p1=0;h.view.room.members[0].table=-1;h.view.room.members[0].seat=-1;tables[1].spectators={1};
+ h.view.room.arcade=room::ArcadeRoom;h.Screen("room");capture();
+ Check(row("follow-room")&&row("follow-room")->enabled,"An Arcade watcher's board did not offer Follow the room");
+ from=h.actions.size();h.Choose("follow-room");h.Frame(0,3);
+ Check(watches(from)==std::vector<int>{2},"Following in an Arcade room did not move to the pair playing");
 }
