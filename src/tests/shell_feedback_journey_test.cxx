@@ -278,6 +278,16 @@ void V2AuditJourneys() {
   const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
   Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said while Ember was hidden is not in Notifications");
  }
+ // A card with buttons stays 8 s over the menus, however briefly the status
+ // line keeps its notice, and is gone after.
+ {
+  Harness h;h.Frame();
+  h.shell.Say("Room ready",Tone::Success,2,ToastKind::Room,{{"Open","home",""}});h.Frame();
+  const auto card=[]{const auto* w=ImGui::FindWindowByName("##toast");return w&&w->Active;};
+  Check(card(),"A toast with buttons drew no card");
+  h.Wait(7.5f);h.Frame();Check(card(),"A toast with buttons left before 8 s, with its notice");
+  h.Wait(1);h.Frame();Check(!card(),"A toast with buttons stayed past 8 s");
+ }
  // The accessibility button reads a toast; it does not take its focus.
  {
   Harness h;invited(h);

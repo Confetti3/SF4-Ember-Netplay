@@ -35,25 +35,25 @@ void ToneMark(ImDrawList* d,ImVec2 c,float r,Tone tone,ImU32 ink) {
 // A notice or refusal is taken once, when its text first shows; one said
 // again after it lapsed is taken again. It goes into Notifications and is
 // read out whether or not Ember shows; its card shows for ToastSeconds
-// (ActionToastSeconds with buttons), or until its own notice lapses if that
-// is sooner. Returns the id of a new toast with buttons, or 0.
+// (ActionToastSeconds with buttons), however long the status line keeps the
+// notice. Returns the id of a new toast with buttons, or 0.
 unsigned ApplicationShell::TakeNotices(double now) {
  unsigned fresh=0;
- const auto take=[&](const std::string& text,Tone tone,double until,std::string& seen,ToastKind kind){
+ const auto take=[&](const std::string& text,Tone tone,std::string& seen,ToastKind kind){
   if(text==seen)return;
   seen=text;
   if(text.empty())return;
   const bool extra=noticeExtra_.text==text&&&seen==&noticeSeen_;
   auto actions=extra?noticeExtra_.actions:std::vector<ToastAction>{};
-  const double shown=(std::min)((std::max)(until,now+3),now+(actions.empty()?ToastSeconds:ActionToastSeconds));
+  const double shown=now+(actions.empty()?ToastSeconds:ActionToastSeconds);
   toasts_.push_front({++toastCount_,text,tone,now,shown,extra?noticeExtra_.kind:kind,std::move(actions)});
   if(!toasts_.front().actions.empty())fresh=toastCount_;
   if(toasts_.size()>ToastsKept)toasts_.pop_back();
   // Speech reads a toast once, as it appears.
   SayMenuNotice(text);
  };
- take(notice_,noticeTone_,noticeUntil_,noticeSeen_,ToastKind::None);
- take(error_,Tone::Error,now+6,errorSeen_,ToastKind::System);
+ take(notice_,noticeTone_,noticeSeen_,ToastKind::None);
+ take(error_,Tone::Error,errorSeen_,ToastKind::System);
  return fresh;
 }
 
