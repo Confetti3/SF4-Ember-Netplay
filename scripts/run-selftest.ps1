@@ -14,15 +14,20 @@
 # and Ember's replay archive: when the run is over the saves are put back from
 # the copy, which is then deleted, and the archive files the run added are
 # removed. They are run by scripts/run-tournament-selftest.ps1, which gives
-# them the bridge. Build the game with scripts\build-current.ps1 -SelfTest.
+# them the bridge. The export run is no test: it makes each replay of its -Job
+# file into a video (scripts/ember-render.ps1 runs it), and its saves are put
+# back as the tournament tests' are. Build the game with
+# scripts\build-current.ps1 -SelfTest.
 param(
     [string]$PackageDir = "",
     # The names sf4e__SelfTest.hxx knows (selftest::Test).
-    [ValidateSet("training", "room-host", "room-guest", "room-layout", "replay", "tournament-host", "tournament-guest", "menu", "combo-check")]
+    [ValidateSet("training", "room-host", "room-guest", "room-layout", "replay", "tournament-host", "tournament-guest", "menu", "combo-check", "export")]
     [string]$Test = "training",
     # The room tests: the file the host writes its invitation to, and the
     # guest reads it from once the runner has copied it across.
     [string]$Invite = "",
+    # The export run: its job file (sf4e__SelfTest__Export.cxx says the format).
+    [string]$Job = "",
     # The tournament tests: the folder the game and the bridge's runner pass
     # files through, the bridge's origin and the connection to link to.
     [string]$Exchange = "",
@@ -78,7 +83,10 @@ function Get-FileTree([string]$Root) {
 # archive files the run added removed. Steam Cloud syncs the saves as the game
 # closes and again when the game next starts, so a restored copy is uploaded as
 # an ordinary change.
+# An export imports each replay into the game's slots as Watch does, so its
+# saves are put back too; the videos it writes beside the replays stay.
 $playsToTheEnd = $Test -like "tournament-*"
+$restoresSaves = $playsToTheEnd -or $Test -eq "export"
 $archives = @((Join-Path $env:APPDATA "sf4e\replays"), (Join-Path $env:LOCALAPPDATA "sf4e\replay-outbox"))
 $archiveBefore = @(if ($playsToTheEnd) { foreach ($folder in $archives) { Get-FileTree $folder } })
 
@@ -130,6 +138,10 @@ function Get-RunLog([string]$pattern, [datetime]$since) {
 $settings = @()
 if ($Test -like "room-*" -or $Test -like "tournament-*") {
     $settings = @("settings.json", "ui-preferences.json") | ForEach-Object { Join-Path $env:APPDATA "sf4e\$_" }
+}
+if ($Test -eq "export") {
+    if (-not $Job -or -not (Test-Path $Job -PathType Leaf)) { throw "-Job is needed for export: the job file" }
+    $env:SF4E_SELFTEST_EXPORT = (Resolve-Path $Job).Path
 }
 if ($Test -eq "room-host" -or $Test -eq "room-guest") {
     if (-not $Invite) { throw "-Invite is needed for $Test" }
@@ -215,13 +227,13 @@ try {
     if (-not $process.WaitForExit(10000)) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
 }
 finally {
-    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_SITE, Env:SF4E_SELFTEST_EMBER_KEPT -ErrorAction SilentlyContinue
+    Remove-Item Env:SF4E_SELFTEST, Env:SF4E_SELFTEST_RESULT, Env:SF4E_SELFTEST_INVITE, Env:SF4E_SELFTEST_EMBER_DIR, Env:SF4E_SELFTEST_EXCHANGE, Env:SF4E_SELFTEST_BRIDGE, Env:SF4E_SELFTEST_CONNECTION, Env:SF4E_SELFTEST_SITE, Env:SF4E_SELFTEST_EMBER_KEPT, Env:SF4E_SELFTEST_EXPORT -ErrorAction SilentlyContinue
     # Nothing is put back under a game that still writes: after a timeout the
     # processes were only asked to end.
     foreach ($running in $game, $process) { if ($running) { [void]$running.WaitForExit(15000) } }
     # A file the run created is removed; one it changed is put back.
     $settings | ForEach-Object { if (Test-Path "$_.selftest") { Move-Item "$_.selftest" $_ -Force } else { Remove-Item $_ -ErrorAction SilentlyContinue } }
-    if ($playsToTheEnd) {
+    if ($restoresSaves) {
         # The saves become the copy again: files the run added go, the rest are copied back, and
         # only a folder that then matches the copy lets the copy go.
         $copy = Get-FileTree $backup
@@ -236,6 +248,8 @@ finally {
             Write-Host "Saves put back from the copy. The run changed $($changed.Count) file(s) ($(($changed | Sort-Object | Select-Object -First 12) -join ', ')) and added $($added.Count)."
         }
         else { Write-Host "The saves could not be put back; the copy is in $backup" }
+    }
+    if ($playsToTheEnd) {
         for ($i = 0; $i -lt $archives.Count; $i++) {
             $leftBehind = @((Get-FileTree $archives[$i]).Keys | Where-Object { -not $archiveBefore[$i].ContainsKey($_) })
             foreach ($name in $leftBehind) { Remove-Item (Join-Path $archives[$i] $name) -Force -ErrorAction SilentlyContinue }

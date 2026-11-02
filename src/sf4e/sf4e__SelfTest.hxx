@@ -11,7 +11,7 @@
 namespace sf4e { namespace ui { class MenuNavigation; } }
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck };
+enum class Test { None, Training, RoomHost, RoomGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck, Export };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -25,6 +25,7 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"tournament-guest") return Test::TournamentGuest;
 	if (name == L"menu") return Test::Menu;
 	if (name == L"combo-check") return Test::ComboCheck;
+	if (name == L"export") return Test::Export;
 	return Test::None;
 }
 
@@ -102,6 +103,11 @@ void TickRoomLayout();
 bool ReplayReady();
 bool StartReplay();
 void TickReplay(bool atMainMenu);
+
+// The export run (sf4e__SelfTest__Export.cxx): no test, but a video of each
+// replay its job file names. It starts as the replay test does.
+bool StartExport();
+void TickExport(bool atMainMenu);
 
 // The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
 bool StartTournament();

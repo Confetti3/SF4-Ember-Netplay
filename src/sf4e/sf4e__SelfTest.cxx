@@ -57,6 +57,7 @@ bool StartTest() {
 	case Test::TournamentHost: case Test::TournamentGuest: return StartTournament();
 	case Test::Menu: return StartMenu();
 	case Test::ComboCheck: return StartComboCheck();
+	case Test::Export: return StartExport();
 	default: return false;
 	}
 }
@@ -69,6 +70,7 @@ void TickTest(bool atMainMenu) {
 	case Test::TournamentHost: case Test::TournamentGuest: TickTournament(); break;
 	case Test::Menu: TickMenu(atMainMenu); break;
 	case Test::ComboCheck: TickComboCheck(); break;
+	case Test::Export: TickExport(atMainMenu); break;
 	default: break;
 	}
 }
@@ -122,7 +124,8 @@ void Tick(bool atMainMenu, const std::string& screen) {
 		// profile, plays, so a real key is sent from outside
 		// (scripts/run-selftest.ps1); nothing here answers the title screen.
 		WatchScreen(screen);
-		if (atMainMenu && (Requested() != Test::Replay || ReplayReady())) {
+		const bool replays = Requested() == Test::Replay || Requested() == Test::Export;
+		if (atMainMenu && (!replays || ReplayReady())) {
 			Say(true, "main menu");
 			if (StartTest()) run.Enter(Stage::Testing); else Finish();
 		}
