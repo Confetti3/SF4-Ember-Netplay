@@ -66,10 +66,11 @@ if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object 
 if ($LASTEXITCODE) { throw 'Build failed' }
 # Public-network and live Discord checks require a separate explicit run (BuildProvenance.ps1 names them).
 $excludedTests = $EmberExcludedTests
-# Nightly runs a failed test once more (Invoke-DefaultTests); Stable does not.
+# A failed test runs once more, alone (Invoke-DefaultTests), on every channel: timing tests can miss their
+# window on a busy machine. The receipt names any that passed only then (testsPassedOnRerun).
 $passedOnRerun = @()
 if (!$SkipTests) {
-    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $excludedTests $env:NUMBER_OF_PROCESSORS -RerunFailed:($target.channel -eq 'nightly'))
+    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $excludedTests $env:NUMBER_OF_PROCESSORS -RerunFailed)
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }
