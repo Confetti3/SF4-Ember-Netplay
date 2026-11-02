@@ -514,17 +514,6 @@ namespace {
 // or by a mark taken off (MarkOut), so the two never overlap: an append the
 // rewrite missed would be lost.
 std::mutex& NotesLock() { static std::mutex lock; return lock; }
-// Writes a list whole, beside it first, so a reader never sees it half written.
-bool WriteList(const fs::path& file, const std::string& text) {
-	fs::path partial = file; partial += L".tmp";
-	{
-		std::ofstream out(partial, std::ios::binary | std::ios::trunc);
-		out << text;
-		if (!out) { out.close(); std::error_code ignored; fs::remove(partial, ignored); return false; }
-	}
-	fs::rename(partial, file);
-	return true;
-}
 void MarkOut(const wchar_t* list, const fs::path& file) {
 	try {
 		const Folders folders = FindFolders();
@@ -532,7 +521,7 @@ void MarkOut(const wchar_t* list, const fs::path& file) {
 		const std::string name = WideToUtf8(file.filename().wstring());
 		std::lock_guard<std::mutex> lock(NotesLock());
 		const auto bytes = replayfiles::ReadFile(folders.archive / list, notes::kMostBytes);
-		if (bytes) WriteList(folders.archive / list, notes::Pruned(*bytes, [&](const std::string& line) { return line != name; }));
+		if (!bytes || !notes::TakeOut(folders.archive / list, *bytes, name)) spdlog::warn("Replays: {} was not written", WideToUtf8(list));
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: {} was not written: {}", WideToUtf8(list), e.what());
@@ -552,7 +541,7 @@ void MarkIn(const wchar_t* list, const fs::path& file) {
 }
 }
 void MarkWatched(const fs::path& file) { MarkIn(L"watched.txt", file); }
-void MarkKept(const fs::path& file, bool kept) { if (kept) MarkIn(L"kept.txt", file); else MarkOut(L"kept.txt", file); WantListing(); }
+void MarkKept(const fs::path& file, bool kept) { if (kept) MarkIn(L"kept.txt", file); else MarkOut(L"kept.txt", file); }
 void MarkSent(const fs::path& file) { MarkIn(L"sent.txt", file); }
 void MarkSetClosed(const fs::path& file) { MarkIn(L"closed.txt", file); }
 
@@ -628,7 +617,7 @@ void PruneNotes(const fs::path& file, const std::unordered_set<std::string>& wal
 		const std::string text = notes::Pruned(*bytes, [&](const std::string& name) {
 			return notes::KeptAfterWalk(name, cache.names, walked);
 		});
-		if (!WriteList(file, text)) return;
+		if (!notes::Write(file, text)) return;
 		cache.written = {};
 	} catch (const std::exception& e) {
 		spdlog::warn("Replays: {} was not pruned: {}", WideToUtf8(file.filename().wstring()), e.what());

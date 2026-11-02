@@ -666,7 +666,7 @@ void RunReplayRequest(const replay::Request& request) {
         SaySet(held ? loc::Tf("replays.set_imported", held) : std::string(loc::T("replays.set_import_failed")), !held);
         return;
     }
-    if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); return; }
+    if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); platform::replays::WantListing(); return; }
     replaystore::Start(request, AtMainMenu(), NoRoom());
 }
 

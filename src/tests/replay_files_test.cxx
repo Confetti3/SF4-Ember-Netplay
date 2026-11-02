@@ -731,6 +731,17 @@ static void TestNotedReplays() {
  for (int at = 0; at < 100000; ++at) big += "20261101-120000-" + std::to_string(at) + ".emberreplay\n";
  CHECK(big.size() < notes::kMostBytes && notes::Parse(text(big)).size() == 100000);
 }
+// A name taken out of a list on disk leaves no line behind; the list is written whole.
+static void TestNameTakenOut() {
+ namespace fs = std::filesystem; namespace notes = sf4e::platform::replays::notes;
+ const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
+ const fs::path list = fs::temp_directory_path() / ("ember-notes-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".txt");
+ const auto read = [&] { std::ifstream in(list, std::ios::binary); return std::string(std::istreambuf_iterator<char>(in), {}); };
+ CHECK(notes::Write(list, "a.emberreplay\nb.emberreplay\n") && read() == "a.emberreplay\nb.emberreplay\n");
+ CHECK(notes::TakeOut(list, text(read()), "a.emberreplay") && read() == "b.emberreplay\n");
+ CHECK(notes::TakeOut(list, text(read()), "b.emberreplay") && read().empty() && !fs::exists(list.wstring() + L".tmp"));
+ fs::remove(list);
+}
 // Pruning follows the lister's reach: replays filed into subfolders count as
 // there, so their marks stay; a name for a replay gone from every folder goes.
 static void TestPruningCoversSubfolders() {
@@ -766,6 +777,7 @@ int main() {
  TestAReplayIsSentOnce();
  TestNotedReplays();
  TestPruningCoversSubfolders();
+ TestNameTakenOut();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();

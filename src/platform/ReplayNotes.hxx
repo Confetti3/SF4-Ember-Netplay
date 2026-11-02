@@ -1,7 +1,7 @@
 #pragma once
 // The lists of replays the archive folder keeps beside the replays
-// (sent.txt, closed.txt, watched.txt): one file name a line, appended as
-// replays are marked. Portable, so ReplayFilesTest runs it on text.
+// (sent.txt, closed.txt, watched.txt, kept.txt): one file name a line,
+// appended as replays are marked. Portable, so ReplayFilesTest runs it on text.
 //
 // A list is bounded two ways. Lines are dropped when their replay is gone
 // (Pruned), so a list follows the archive's size; and a list that is
@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -48,6 +49,22 @@ std::string Pruned(const std::vector<std::uint8_t>& bytes, Keep&& keep) {
 	std::string out;
 	for (const auto& name : Parse(bytes)) if (keep(name)) { out += name; out += '\n'; }
 	return out;
+}
+
+// Writes a list whole, beside it first, so a reader never sees it half written.
+inline bool Write(const std::filesystem::path& list, const std::string& text) {
+	std::filesystem::path partial = list; partial += L".tmp";
+	{
+		std::ofstream out(partial, std::ios::binary | std::ios::trunc);
+		out << text;
+		if (!out) { out.close(); std::error_code ignored; std::filesystem::remove(partial, ignored); return false; }
+	}
+	std::filesystem::rename(partial, list);
+	return true;
+}
+// Takes a name out of a list (`bytes` is the list as read): written whole without it.
+inline bool TakeOut(const std::filesystem::path& list, const std::vector<std::uint8_t>& bytes, const std::string& name) {
+	return Write(list, Pruned(bytes, [&](const std::string& line) { return line != name; }));
 }
 
 // The file names of every replay file under `archive`, subfolders included:
