@@ -27,6 +27,9 @@ using MenuStatusProbe = std::function<void(const char*,Tone)>;
 void SetMenuStatusProbe(MenuStatusProbe probe);
 using MenuEntriesProbe = std::function<void(const std::vector<MenuEntry>&)>;
 void SetMenuEntriesProbe(MenuEntriesProbe probe);
+// What speech would say this frame, its parts, whether or not speech is on.
+using MenuSpeechProbe = std::function<void(const std::vector<std::string>&)>;
+void SetMenuSpeechProbe(MenuSpeechProbe probe);
 using PortraitProbe = std::function<void(int,ImVec2,ImVec2)>;
 void SetPortraitProbe(PortraitProbe probe);
 } }

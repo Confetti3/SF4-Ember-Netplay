@@ -12,6 +12,7 @@ void MemberPopout();
 void RoomPartsHide();
 void PresentationJourneys();
 void AppearanceGalleries();
+void SelectorSpeech();
 void ChatJourneys();
 void TrainingSettingsAndHome();
 void TrainingFromRoom();

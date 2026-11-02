@@ -1,5 +1,6 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include "../platform/Speech.hxx"
 #include <algorithm>
 #include <iterator>
 // V2: the right mouse button is Back, and closes an open value panel first.
@@ -305,4 +306,34 @@ void AppearanceGalleries(){
  press(MenuInput::Back,true,true);focus("fighter-0",true,true);press(MenuInput::Select,true,true);pick.edition=13;frame(0,true,true);
  Check(pick.fighter==0&&!row("ultra").enabled,"A fighter saved on a single-Ultra edition still offers its Ultras");
  SetMenuEntriesProbe({});
+}
+// What speech says on fighter select: the fighter's name on the grid, then
+// on their page the name, each row with its value, and Ready with them.
+void SelectorSpeech(){
+ using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;
+ selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ std::string said;SetMenuSpeechProbe([&](const std::vector<std::string>& parts){said+=speech::Line(parts)+" | ";});
+ auto frame=[&](unsigned buttons=0){SetMenuInput({buttons,0});ImGui::NewFrame();
+  ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);ImGui::Begin("Speech test");selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);ImGui::End();ImGui::Render();};
+ auto press=[&](unsigned buttons){said.clear();frame();frame(buttons);frame();frame();};
+ const auto heard=[&](const std::string& words){return said.find(words)!=std::string::npos;};
+ // The grid opens on the saved fighter; Right is the next in the roster's order.
+ const int at=static_cast<int>(std::find(std::begin(selection::RosterDisplayOrder),std::end(selection::RosterDisplayOrder),pick.fighter)-std::begin(selection::RosterDisplayOrder));
+ const std::string first=selection::FindFighter(pick.fighter)->name,second=selection::FindFighter(selection::RosterDisplayOrder[at+1])->name;
+ frame();frame();
+ Check(heard(first),(std::string("Fighter select did not say the fighter it opened on: ")+said).c_str());
+ press(MenuInput::Right);
+ Check(heard(second)&&!heard(first),(std::string("Moving on the grid did not say the next fighter's name: ")+said).c_str());
+ press(MenuInput::Select);
+ Check(selector.Navigation().Screen()=="look"&&heard(second)&&heard(loc::T("selection.costume")),(std::string("A fighter's page did not say their name and its first row: ")+said).c_str());
+ const auto costume=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="costume";});
+ Check(costume!=rows.end()&&heard(costume->value),(std::string("The costume row did not say its value: ")+said).c_str());
+ press(MenuInput::Down);
+ Check(heard(loc::T("selection.color_row"))&&!heard(second+","),(std::string("Down did not say the colour row alone: ")+said).c_str());
+ for(int i=0;i<10&&selector.Navigation().Focus()!="ready";++i)press(MenuInput::Down);
+ Check(heard(loc::Tf("selection.ready_with",second)),(std::string("Ready did not say who it is ready with: ")+said).c_str());
+ press(MenuInput::Back);
+ Check(selector.Navigation().Screen()=="home"&&heard(second),(std::string("Back to the grid did not say the fighter: ")+said).c_str());
+ SetMenuSpeechProbe({});SetMenuEntriesProbe({});
 }

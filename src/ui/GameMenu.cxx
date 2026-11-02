@@ -29,6 +29,7 @@ MenuCardProbe cardProbe;
 MenuCardTextProbe cardTextProbe;
 MenuStatusProbe statusProbe;
 MenuEntriesProbe entriesProbe;
+MenuSpeechProbe speechProbe;
 PortraitProbe portraitProbe;
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
@@ -85,6 +86,7 @@ void SetMenuCardTextProbe(MenuCardTextProbe probe){cardTextProbe=std::move(probe
 void ReportMenuCardText(const std::string& id,const std::string& text){if(cardTextProbe)cardTextProbe(id,text);}
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
+void SetMenuSpeechProbe(MenuSpeechProbe probe){speechProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
 void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){
     if(portraitProbe)portraitProbe(fighter,min,max);
@@ -341,6 +343,7 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
     if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
     const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&describe);
+    if(speechProbe&&!said.parts.empty())speechProbe(said.parts);
     if(!menuSpeech.enabled)return;
     if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
     if(said.chime&&menuSpeech.chime)speech::Chime(menuSpeech.chimeVolume);
