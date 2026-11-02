@@ -50,6 +50,12 @@ struct Lab {
     // How the frame meter is drawn (the Frame data page's two options).
     training::MeterOptions meter;
     std::array<int,2> keys{{1,10}};
+    // Combo check's choices (training/ComboCheck.hxx); every fighter at first.
+    training::combo_check::Settings check=[]{
+        training::combo_check::Settings settings;
+        settings.fighters.assign(std::begin(selection::RosterDisplayOrder),std::end(selection::RosterDisplayOrder));
+        return settings;
+    }();
     // The pad's Back: a tap resets, a hold saves (TrainingPad.hxx). Off leaves
     // Back to the game, for a plink on a button that also sends Back.
     bool padBack=true;
@@ -67,7 +73,9 @@ void SavePractice() {
     std::string error;
     const nlohmann::json practice{{"reply",{{"when",lab.plan.when},{"chance",lab.plan.chance},{"timing",lab.plan.timing},
         {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves},{"custom",lab.customMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]},{"pad_back",lab.padBack}}},
-        {"meter",MeterOptionsJson(lab.meter)}};
+        {"meter",MeterOptionsJson(lab.meter)},
+        {"combo_check",{{"fighters",lab.check.fighters},{"standing",lab.check.standing},{"crouching",lab.check.crouching},
+            {"start",static_cast<int>(lab.check.start)},{"fast",lab.check.fast}}}};
     if(!netplay::json_file::Publish(lab.directory,PracticeFile,practice,error)) Notice(loc::T("training.save_failed"),true);
 }
 // The plan into the game, its typed reply made into input for either facing.
@@ -104,6 +112,22 @@ void LoadPractice() {
     lab.keys=ReadPositionKeys(keys);
     lab.padBack=!keys.is_object()||keys.value("pad_back",true);
     lab.meter=ReadMeterOptions(practice.value("meter",nlohmann::json::object()));
+    // Combo check: fighters it does not know are dropped, in the roster's order.
+    const auto check=practice.value("combo_check",nlohmann::json());
+    if(check.is_object()) {
+        const auto fighters=check.value("fighters",nlohmann::json());
+        if(fighters.is_array()) {
+            lab.check.fighters.clear();
+            for(const int id:selection::RosterDisplayOrder)
+                if(std::find(fighters.begin(),fighters.end(),nlohmann::json(id))!=fighters.end()) lab.check.fighters.push_back(id);
+        }
+        lab.check.standing=check.value("standing",nlohmann::json(true))!=false;
+        lab.check.crouching=check.value("crouching",nlohmann::json(true))!=false;
+        if(!lab.check.standing&&!lab.check.crouching) lab.check.standing=lab.check.crouching=true;
+        const auto start=check.value("start",nlohmann::json(0));
+        if(start.is_number_integer()&&start>=0&&start<=2) lab.check.start=static_cast<training::combo_check::Start>(start.get<int>());
+        lab.check.fast=check.value("fast",nlohmann::json(false))==true;
+    }
 }
 // A queued save or reset can still be refused by the game, or fail there, so
 // its notice waits for the result. The latest attempt owns the notice, so an
@@ -423,13 +447,9 @@ bool HandleRecordingLibrary(const MenuAction& a,const training::View& v,const Tr
     return true;
 }
 // Combo check: the player's combo against other fighters as the dummy
-// (training/ComboCheck.hxx). Its settings last until the game closes.
+// (training/ComboCheck.hxx). Its settings are kept in training.json.
 namespace {
-training::combo_check::Settings checkSettings=[]{
- training::combo_check::Settings settings;
- for(const int fighter:selection::RosterDisplayOrder)settings.fighters.push_back(fighter);
- return settings;
-}();
+auto& checkSettings=lab.check;
 bool Checked(int fighter){return std::find(checkSettings.fighters.begin(),checkSettings.fighters.end(),fighter)!=checkSettings.fighters.end();}
 // The fighters on, in the roster's order, so the runs go as the select screen reads.
 void CheckFighter(int fighter,bool on){
@@ -720,7 +740,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  if(a.kind==MenuAction::Activate&&a.id=="check-fighters"){nav.Push(a.id);return;}
- if((screen=="combo-check"||screen=="check-fighters")&&HandleComboCheck(a))return;
+ if((screen=="combo-check"||screen=="check-fighters")&&HandleComboCheck(a)){SavePractice();return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
  if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic"||a.id=="hitboxes"||a.id=="data")){nav.Push(a.id);return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
