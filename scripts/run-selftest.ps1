@@ -15,7 +15,7 @@
 # the copy, which is then deleted, and the archive files the run added are
 # removed. They are run by scripts/run-tournament-selftest.ps1, which gives
 # them the bridge. The export run is no test: it makes each replay of its -Job
-# file into a video (scripts/ember-render.ps1 runs it), and its saves are put
+# file into a video (ember-youtube/ember_render.py runs it), and its saves are put
 # back as the tournament tests' are. Build the game with
 # scripts\build-current.ps1 -SelfTest.
 param(

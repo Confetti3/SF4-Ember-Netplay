@@ -211,7 +211,7 @@ constexpr int kPatience = 600, kSplashTicks = 120, kGoneTicks = 120, kVersusTick
 struct Operation {
 	sf4e::replaystore::Status status;
 	int waited = 0, slot = -1, splash = 0, versus = 0;
-	bool started = false, awaited = false, meter = false, cancelled = false, guideCleared = false;
+	bool started = false, awaited = false, meter = false, cancelled = false;
 	// decided: ticks the exported replay's match has been over; -1 once Ember chose to leave.
 	int decided = 0;
 	std::wstring video;
@@ -252,7 +252,7 @@ void FinishRequest(const sf4e::replay::Request& request, bool noRoom) {
 		return;
 	}
 	op.status.logOpens++;
-	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0; op.guideCleared = false;
+	op.started = false; op.splash = 0; op.versus = 0; op.decided = 0;
 	op.clock.Reset(); op.status.exportFrames = op.status.exportTotal = 0;
 	if (exporting) {
 		// Ember's encoder writes straight next to the replay.
@@ -342,6 +342,7 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 			op.status.notice = capture == replaycapture::State::Done ? loc::Tf(end.key, file) : std::string(loc::T(end.key));
 			op.status.noticeError = end.error;
 			op.status.exportEnded = op.request.id; op.status.exportSaved = capture == replaycapture::State::Done;
+			op.status.exportVideo = op.status.exportSaved ? file : std::string();
 			replaycapture::Clear();
 			op.awaited = false; op.video.clear();
 		}
@@ -393,19 +394,16 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 			if (op.waited > kGoneTicks) { replaycapture::End(); op.Enter(Step::InLog); }
 			break;
 		}
-		// The fight is loading: record from here to the log's return.
+		// The fight is loading: record from here to the log's return. The
+		// button guide under the replay (END, SLO MO) is the game's own reminder
+		// for a player, not part of the match: a video has none, as the game's
+		// own YouTube recording had none. The Battle state's start (0x484940)
+		// has filled the guide bank by its first tick, which is this one.
 		if (Named(state, "Battle") && !op.video.empty() && !op.awaited) {
 			replaycapture::Begin(op.video);
 			op.awaited = true;
-			spdlog::info("Replay: encoding the playback");
-		}
-		// The button guide under the replay (END, SLO MO) is the game's own
-		// reminder for a player, not part of the match: a video has none, as
-		// the game's own YouTube recording had none.
-		if (Named(state, "Battle") && op.awaited && !op.guideCleared) {
 			ReplayBattle::staticMethods.ClearGuides(ReplayBattle::GetGuides(state));
-			op.guideCleared = true;
-			spdlog::info("Replay: the button guide is left out of the video");
+			spdlog::info("Replay: encoding the playback, without the button guide");
 		}
 		// An export leaves the replay by itself: once the match has been
 		// decided for a while, the end menu's choice is made for the player

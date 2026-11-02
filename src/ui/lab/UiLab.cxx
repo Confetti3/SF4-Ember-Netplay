@@ -237,10 +237,20 @@ void PublicLab(ui::ShellView& view) {
     id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
     view.netReport.reported = view.netReport.relayConnected = view.netReport.udp = true; view.netReport.relay = "euc1"; view.netReport.nat = NatClass::Open;
 }
+// The menu art filling the window, standing in for the game behind a HUD or the
+// training controls. A window that never comes to the front is put behind those
+// made before it, so it is drawn after them.
+void DrawLabBackdrop() {
+    const auto* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+    ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ui::DrawMenuBackdrop();
+    ImGui::End();
+}
 void PublicRooms(ui::ShellView& view) {
     const auto room = [](const char* id, const char* name, const char* host, const char* region, unsigned members, unsigned capacity, unsigned playing) {
         netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.region = region; r.members = members; r.capacity = capacity; r.playing = playing;
-        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100;
+        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::ClassicRoom;
         for (unsigned i = 0; i < members; ++i) r.fighters.push_back(static_cast<int>(i * 5 % 44));
         return r;
     };
@@ -479,11 +489,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (!recovery.empty()) {
             ui::DrawRecoveryMenu(recoveryMenu, recoveryState, recovery == "launch" ? loc::T("launcher.recovery_opened") : "", recovery != "launch", ui::Tone::Error, true);
         } else if (trainingPanel) {
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
             // A Training battle with two recordings, as the render test's.
             training::View lab;
             lab.available = lab.ready = lab.checkpoint = true; lab.generation = 1;
@@ -506,11 +512,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ui::DrawReplayStrip(replay);
             ui::DrawReplayLanes(replay);
             // After the HUD: a window that never comes to the front is put behind those made before it.
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
         } else if (caption) {
             // An export's caption, as a replay video carries it.
             ui::ExportCaptionView shown;
@@ -518,18 +520,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(7, true); shown.mark = true;
             ui::DrawExportCaption(shown);
             // After the caption: a window that never comes to the front is put behind those made before it.
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
         } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
             ui::MatchStripView strip;
             strip.names[0] = "FRaccie"; strip.names[1] = "Akira";
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
@@ -540,11 +534,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             if (toasts) shell.Background(view, view.room, submit);
         } else {
             if (!postMatch.empty()) {
-                const auto* vp = ImGui::GetMainViewport();
-                ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-                ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-                ui::DrawMenuBackdrop();
-                ImGui::End();
+                DrawLabBackdrop();
             }
             shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
         }

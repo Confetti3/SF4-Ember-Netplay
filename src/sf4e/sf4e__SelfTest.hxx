@@ -12,6 +12,8 @@ namespace sf4e { namespace ui { class MenuNavigation; } }
 namespace sf4e { namespace selftest {
 
 enum class Test { None, Training, RoomHost, RoomGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck, Export };
+// The tests that play replays, so start only once the game's replay table is read.
+inline bool NeedsReplayTable(Test test) { return test == Test::Replay || test == Test::Export; }
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.

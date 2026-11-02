@@ -909,7 +909,7 @@ try {
         Invoke-Publish @{SkipRoomHosts=$true}
         Check (@(Get-CommandLabels | Where-Object { $_ -like 'git * fetch origin release' }).Count -eq 1) 'The Stable ref was not fetched exactly once for the version check'
         Check ((Find-Command 'git * fetch origin release') -lt (Find-Command 'git * show *')) 'The Stable version was read before its ref was fetched'
-        Pass 'a Nightly that is not one minor ahead of the fetched origin/release is refused before the build, and an unreadable Stable version fails closed'
+        Pass 'a Nightly that is not ahead of the fetched origin/release is refused before the build, and an unreadable Stable version fails closed'
 
         Reset-Fake
         $script:repositoryMode = 'missing'

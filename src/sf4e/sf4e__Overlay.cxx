@@ -807,19 +807,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
     layers.padHint = snapshot.padHint;
-    if (snapshot.replays.captionShown) {
-        const auto& caption = snapshot.replays.caption;
-        auto& shown = layers.caption;
-        for (int side = 0; side < 2 && caption.names; ++side) {
-            const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
-            shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
-            const std::uint8_t band = caption.band[side];
-            if (band >= 1 && band <= sf4e::SkillBadge::Classes) shown.badges[side] = sf4e::SkillBadge::OfClass(band, true);
-        }
-        if (caption.line) shown.line = caption.text;
-        if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
-        shown.mark = caption.mark; shown.nameOffset = snapshot.preferences.matchHudNameOffset;
-    }
+    if (snapshot.replays.captionShown)
+        layers.caption = sf4e::ui::ExportCaptionViewOf(snapshot.replays.caption, snapshot.preferences.matchHudNameOffset);
     {
         // The strip shows for a while after each control, and the chip
         // after one pressed outside the fight; both timed from the counts.

@@ -65,22 +65,15 @@ std::string SessionProblem(const netplay::Snapshot& session) {
 bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
  return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
 }
-// The room's own status line: the kind of room it is, and whether it is locked.
-const char* RoomStatusKey(const room::Snapshot& room) {
-    if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
-    if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
-    if(room.arcade==room::KingRoom)return room.locked?"room.king_locked_status":"room.king_status";
-    if(room.arcade)return room.locked?"room.arcade_locked_status":"room.arcade_status";
-    return room.locked?"room.locked_status":"room.private_status";
-}
-// The status line's text. A public room's line starts with its type, so a player
-// who came in from the list still sees which kind of room they are in; a
-// private room's key says so already (RoomStatusKey).
+// The room's own status line: the kind of room it is, and whether it is locked. A
+// public room's starts with its type, as the list showed it, so a player who came
+// in from there still sees which kind of room they are in.
 std::string RoomStatusText(const room::Snapshot& room) {
-    std::string status=loc::T(RoomStatusKey(room));
-    if(room.serverOwned)
-        status=std::string(loc::T(room.arcade==room::KingRoom?"room.type.king":room.arcade?"room.type.arcade":"room.type.classic"))+" · "+status;
-    return status;
+    if(room.serverOwned)return std::string(RoomTypeName(room.arcade))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
+    if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
+    if(room.arcade==room::KingRoom)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
+    if(room.arcade)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
+    return loc::T(room.locked?"room.locked_status":"room.private_status");
 }
 }
 float ApplicationShell::PublicListWidth() {

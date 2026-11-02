@@ -160,11 +160,19 @@ inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
     return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
         loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
 }
+// A room type's name (Classic, Arcade, King of the hill) and how it plays, wherever a room's
+// type is shown: Create's row, the public room list and a public room's status line.
+inline const char* RoomTypeName(room::RoomType type) {
+    static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
+    return loc::T(names[type]);
+}
+inline const char* RoomTypeDetail(room::RoomType type) {
+    static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
+    return loc::T(details[type]);
+}
 // Create's choice of the room's type, fixed for its life (room::Snapshot::arcade).
 inline MenuEntry RoomTypeRow(room::RoomType type,bool enabled) {
-    static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
-    static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
-    return Value("room-type",loc::T("room.type"),loc::T(names[type]),loc::T(details[type]),enabled);
+    return Value("room-type",loc::T("room.type"),RoomTypeName(type),RoomTypeDetail(type),enabled);
 }
 // Create's choice of whose input delay the room plays at, fixed for the room's life (room::Snapshot::delayPolicy).
 inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {

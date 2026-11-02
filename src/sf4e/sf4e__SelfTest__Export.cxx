@@ -12,7 +12,6 @@
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayRequest.hxx"
-#include "../common/SkillBadge.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__ReplayStore.hxx"
 
@@ -102,9 +101,10 @@ std::vector<Job> ReadJobs() {
 		job.counted = fields[4] == "auto" && fields[5] == "auto";
 		caption.set = job.counted || (Number(fields[4], caption.wins[0]) && Number(fields[5], caption.wins[1]));
 		caption.mark = true;
+		// A class is drawn only when it is a band (ExportCaptionViewOf); anything else here is none.
 		for (int side = 0; side < 2; ++side) {
 			int band = 0;
-			if (Number(fields[6 + side], band) && band >= 1 && band <= SkillBadge::Classes) caption.band[side] = static_cast<std::uint8_t>(band);
+			if (Number(fields[6 + side], band) && band <= 255) caption.band[side] = static_cast<std::uint8_t>(band);
 		}
 		std::error_code missing;
 		if (!fs::is_regular_file(platform::Utf8ToWide(job.path.c_str()), missing)) { Say(false, "job file", "no replay at '" + job.path + "'"); return {}; }
@@ -162,19 +162,26 @@ void TickExport(bool atMainMenu) {
 		run.Fail("export " + std::to_string(run.at + 1), "not started: '" + status.notice + "'");
 		break;
 	case Stage::Exporting: {
-		const int winner = MatchWinner();
-		if (winner >= 0) run.winner = winner;
-		if (status.exportEnded != run.id || status.step != Step::Idle) {
+		// The result is read only while this replay's battle records: until
+		// then the game's battle flow may still be the last game's.
+		if (status.exportStage == replay::ExportStage::Recording) {
+			const int winner = MatchWinner();
+			if (winner >= 0) run.winner = winner;
+		}
+		const bool ended = status.exportEnded == run.id;
+		// An export the store gave up before its capture (the import refused,
+		// the log or the slot never coming up) ends with no end of its own.
+		const bool dropped = !ended && status.step == Step::Idle && status.exportStage == replay::ExportStage::None;
+		if (!dropped && (!ended || status.step != Step::Idle)) {
 			if (run.Late(30 * 60)) run.Fail("export " + std::to_string(run.at + 1), "still running after half an hour");
 			break;
 		}
-		const std::string& path = run.jobs[run.at].path;
-		const std::string video = path.substr(0, path.rfind('.')) + ".mp4";
+		const bool saved = ended && status.exportSaved;
 		if (run.winner >= 0) run.wins[run.winner]++;
 		else run.scored = false;
 		const std::string won = run.winner >= 0 ? " WINNER " + std::to_string(run.winner + 1) : " WINNER none";
-		Say(status.exportSaved, "export " + std::to_string(run.at + 1), status.exportSaved ? "VIDEO " + video + won : "no video: '" + status.notice + "'");
-		if (!status.exportSaved || ++run.at == run.jobs.size()) {
+		Say(saved, "export " + std::to_string(run.at + 1), saved ? "VIDEO " + status.exportVideo + won : "no video: '" + status.notice + "'");
+		if (!saved || ++run.at == run.jobs.size()) {
 			run.Enter(Stage::Done);
 			Finish();
 		}

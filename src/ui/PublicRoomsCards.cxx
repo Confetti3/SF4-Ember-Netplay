@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <optional>
 #include <string>
 
 namespace sf4e { namespace ui {
@@ -19,9 +20,7 @@ constexpr ImU32 PillFill = IM_COL32(38, 34, 30, 255), TrackFill = IM_COL32(60, 5
     NearFill = IM_COL32(30, 44, 30, 235), Ink = IM_COL32(20, 19, 18, 255), Dimmed = IM_COL32(8, 7, 6, 120),
     Border = IM_COL32(255, 255, 255, 14), EmberFaint = IM_COL32(255, 135, 56, 40),
     StatusFill = IM_COL32(56, 51, 46, 255), MetaColor = IM_COL32(158, 147, 134, 255),
-    FaceBacking = IM_COL32(88, 80, 72, 255), FaceBorder = IM_COL32(255, 255, 255, 46),
-    // Arcade's purple: the arcade board's violet pair colour (RoomPanelArcade.cxx, PairColor).
-    ArcadePurple = IM_COL32(201, 160, 224, 255);
+    FaceBacking = IM_COL32(88, 80, 72, 255), FaceBorder = IM_COL32(255, 255, 255, 46);
 // How many faces a room card shows before "+N".
 constexpr std::size_t CardFaces = 6;
 
@@ -59,11 +58,13 @@ float ChipWidth(const char* text, float maxWidth) {
 // gold for King of the hill (never the ember orange of the focus mark):
 // its name on a tinted chip as v2::Chip draws one, an edge down the card's left side and a faint
 // wash of the colour over the card.
+// A room whose type is not known (no details, or a type this build does not know) shows none.
 struct TypeLook { const char* name; const char* detail; ImU32 colour; };
-TypeLook LookOf(int type) {
-    if (type == room::KingRoom) return {loc::T("room.type.king"), loc::T("room.type.king_detail"), v2::TierColor(v2::Tier::Gold).stripe};
-    if (type == room::ArcadeRoom) return {loc::T("room.type.arcade"), loc::T("room.type.arcade_detail"), ArcadePurple};
-    return {loc::T("room.type.classic"), loc::T("room.type.classic_detail"), palette::Ivory};
+std::optional<TypeLook> LookOf(const Room& room) {
+    if (!room.type) return std::nullopt;
+    const room::RoomType type = *room.type;
+    const ImU32 colour = type == room::KingRoom ? v2::TierColor(v2::Tier::Gold).stripe : type == room::ArcadeRoom ? palette::Purple : palette::Ivory;
+    return TypeLook{RoomTypeName(type), RoomTypeDetail(type), colour};
 }
 
 bool Full(const Room& room) { return room.capacity > 0 && room.members >= room.capacity; }
@@ -169,13 +170,12 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
 
     // Line 1: the room's type on a chip, then its name, set as the title. A bridge that sends
     // no details does not say the type, so its rooms show none.
-    const TypeLook look = LookOf(room.type);
     float nameX = left;
-    if (room.hasDetails) {
-        d->AddRectFilled(min, max, WithAlpha(look.colour, dimmed ? .02f : .05f), rounding);
-        d->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), dimmed ? WithAlpha(look.colour, .45f) : look.colour, rounding, ImDrawFlags_RoundCornersLeft);
-        const float chip = DrawChip(ImVec2(left, nameY + (nameFont - 20 * s) * .5f + s), look.name, dimmed ? palette::Muted : look.colour,
-                                    WithAlpha(dimmed ? palette::Muted : look.colour, .18f), "pr-chip-type", lineWidth * .45f);
+    if (const auto look = LookOf(room)) {
+        d->AddRectFilled(min, max, WithAlpha(look->colour, dimmed ? .02f : .05f), rounding);
+        d->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), dimmed ? WithAlpha(look->colour, .45f) : look->colour, rounding, ImDrawFlags_RoundCornersLeft);
+        const float chip = DrawChip(ImVec2(left, nameY + (nameFont - 20 * s) * .5f + s), look->name, dimmed ? palette::Muted : look->colour,
+                                    WithAlpha(dimmed ? palette::Muted : look->colour, .18f), "pr-chip-type", lineWidth * .45f);
         if (chip > 0) nameX += chip + 8 * s;
     }
     if (visible) NoteUserText(e.label);
@@ -451,25 +451,25 @@ void DrawPublicPreview(const ShellView& v, const PublicRoomsPanel& panel, const 
     const double open = panel.OpenSeconds(v, *room, ImGui::GetTime());
     const bool rules = room->setFormat >= 0;
     const float line = 18 * s, chipRow = 20 * s, inner = space.x - 2 * pad, detailSize = 14 * s;
-    const TypeLook look = LookOf(room->type);
+    const auto look = LookOf(*room);
     // How the type plays, in a paragraph with room between its lines (v2::Paragraph measures it without a list).
-    const float detailHeight = room->hasDetails ? v2::Paragraph(nullptr, ImVec2(0, 0), inner, look.detail, detailSize, palette::Muted) : 0;
+    const float detailHeight = look ? v2::Paragraph(nullptr, ImVec2(0, 0), inner, look->detail, detailSize, palette::Muted) : 0;
     float height = 2 * pad - 6 * s;
     int rowsCount = 0;
     const auto add = [&](float rowHeight) { height += rowHeight + 6 * s; ++rowsCount; };
-    if (room->hasDetails) add(chipRow + 6 * s + detailHeight);
+    if (look) add(chipRow + 6 * s + detailHeight);
     if (rules || room->ownDelay) add(chipRow);
     if (open >= 0) add(line);
     if (rowsCount == 0) return;
     const auto at = ImGui::GetCursorScreenPos();
     d->AddRectFilled(at, ImVec2(at.x + space.x, at.y + height), panelFill, rounding);
-    if (room->hasDetails) d->AddRectFilled(at, ImVec2(at.x + 4 * s, at.y + height), look.colour, rounding, ImDrawFlags_RoundCornersLeft);
+    if (look) d->AddRectFilled(at, ImVec2(at.x + 4 * s, at.y + height), look->colour, rounding, ImDrawFlags_RoundCornersLeft);
     float y = at.y + pad;
-    if (room->hasDetails) {
-        DrawChip(ImVec2(at.x + pad - 7 * s, y), look.name, look.colour, WithAlpha(look.colour, .18f), "pr-preview-type", inner + 7 * s);
+    if (look) {
+        DrawChip(ImVec2(at.x + pad - 7 * s, y), look->name, look->colour, WithAlpha(look->colour, .18f), "pr-preview-type", inner + 7 * s);
         y += chipRow + 6 * s;
         ReportMenuText("pr-preview-type-detail", detailHeight, detailHeight, inner, inner);
-        y += v2::Paragraph(d, ImVec2(at.x + pad, y), inner, look.detail, detailSize, palette::Muted) + 6 * s;
+        y += v2::Paragraph(d, ImVec2(at.x + pad, y), inner, look->detail, detailSize, palette::Muted) + 6 * s;
     }
     if (rules || room->ownDelay) {
         const bool sets = rules && room->setFormat != 0;

@@ -22,7 +22,7 @@ namespace {
 // Each pair's own colour (Arcade.dc.html), lit on both of its cabinets: content, like the tiers' colours.
 // None is orange, which stays the focus mark's.
 ImU32 PairColor(std::size_t table) {
-    static const ImU32 pairs[]={IM_COL32(127,176,224,255),IM_COL32(201,160,224,255),IM_COL32(164,206,160,255),IM_COL32(110,204,200,255),
+    static const ImU32 pairs[]={IM_COL32(127,176,224,255),palette::Purple,IM_COL32(164,206,160,255),IM_COL32(110,204,200,255),
         IM_COL32(236,128,176,255),IM_COL32(213,220,227,255),IM_COL32(206,214,110,255),IM_COL32(230,100,100,255)};
     return pairs[table%8];
 }

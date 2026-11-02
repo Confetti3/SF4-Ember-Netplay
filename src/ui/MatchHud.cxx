@@ -395,6 +395,19 @@ void DrawMatchStrip(const MatchStripView& view) {
     PaintMatchStrip(view,draw,placed.spot.pos,placed.w,placed.s);
     DrawStateLine(view,draw,placed.spot.pos.x,placed.w,placed.spot.stateTop,placed.s);
 }
+ExportCaptionView ExportCaptionViewOf(const replay::Caption& caption, int nameOffset) {
+    ExportCaptionView shown;
+    for (int side = 0; side < 2 && caption.names; ++side) {
+        const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
+        shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
+        const std::uint8_t band = caption.band[side];
+        if (band >= 1 && band <= SkillBadge::Classes) shown.badges[side] = SkillBadge::OfClass(band, true);
+    }
+    if (caption.line) shown.line = caption.text;
+    if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
+    shown.mark = caption.mark; shown.nameOffset = nameOffset;
+    return shown;
+}
 void DrawExportCaption(const ExportCaptionView& view) {
     const auto screen=MainScreen();
     // The whole screen, transparent: only the plates, the line and the mark show.

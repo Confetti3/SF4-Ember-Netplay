@@ -3,11 +3,11 @@
 Nightly is the daily test build of SF4 Ember Netplay. It may break, and its
 rooms work only with other Nightly players. FRaccie and other contributors
 merge feature branches into `nightly`. After each Stable release, merge
-`release` into `nightly`, then renumber: Nightly's CMake version stays one minor
-version ahead of Stable (Stable 1.4.x, Nightly 1.5.0). The publisher enforces
-this. It fetches `origin/release`, reads that branch's `CMakeLists.txt` and stops
-before building unless Nightly has the same major version and Stable's minor plus
-one; any patch number is accepted. If the ref or file cannot be read the run
+`release` into `nightly`, then renumber: Nightly's CMake version stays ahead of
+Stable, by a later patch of Stable's minor or by the next minor (after Stable
+1.5.0, Nightly 1.5.1 or 1.6.x). The publisher enforces this. It fetches
+`origin/release`, reads that branch's `CMakeLists.txt` and stops before building
+unless Nightly has the same major version and is ahead in one of those two ways. If the ref or file cannot be read the run
 fails closed, so `-Local` needs `origin/release` to be present already.
 
 Nightly requires **PowerShell 7 or later** (`pwsh`). The publisher, importable
