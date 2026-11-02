@@ -46,6 +46,39 @@ bool WindowDrawn(const char* name) {
     return false;
 }
 namespace {
+// What lies behind a training shot's panel: the game as it is, or under the dimming a
+// confirmation modal draws (ModalWindowDimBg is the palette's ink, 72% opaque; see MenuDialogs.cxx).
+enum class Background { Plain, ModalDim };
+constexpr unsigned GameBackground = 0x2d2f31, ModalInk = 0x141312;
+constexpr float ModalDimAlpha = static_cast<int>(.72f * 255) / 255.f;
+inline unsigned ExpectedBackground(bool dimmed, float ratio) {
+    if (!dimmed) return GameBackground;
+    const float alpha = ModalDimAlpha * (std::min)(1.f, (std::max)(0.f, ratio));
+    unsigned out = 0;
+    for (int shift = 16; shift >= 0; shift -= 8) {
+        const float game = static_cast<float>((GameBackground >> shift) & 0xff), ink = static_cast<float>((ModalInk >> shift) & 0xff);
+        out |= static_cast<unsigned>(std::lround(game + (ink - game) * alpha)) << shift;
+    }
+    return out;
+}
+// Both corners must be the expected background, within a rounding step per channel when dimmed.
+inline bool GameBackgroundHolds(unsigned first, unsigned second, bool dimmed, float ratio) {
+    const unsigned want = ExpectedBackground(dimmed, ratio);
+    const int tolerance = dimmed ? 2 : 0;
+    for (const unsigned pixel : {first, second})
+        for (int shift = 0; shift <= 16; shift += 8)
+            if (std::abs(static_cast<int>((pixel >> shift) & 0xff) - static_cast<int>((want >> shift) & 0xff)) > tolerance) return false;
+    return true;
+}
+inline void CheckBackgroundExpectation() {
+    const unsigned dim = ExpectedBackground(true, 1.f);
+    Require(GameBackgroundHolds(GameBackground, GameBackground, false, 0) && !GameBackgroundHolds(dim, dim, false, 0), "Plain background check is not exact");
+    Require(GameBackgroundHolds(dim, dim, true, 1.f) && GameBackgroundHolds(ExpectedBackground(true, .3f), ExpectedBackground(true, .3f), true, .3f), "Intended modal dim was refused");
+    Require(!GameBackgroundHolds(0x000000, 0x000000, true, 1.f), "Opaque black passed as the modal dim");
+    Require(!GameBackgroundHolds(dim + 0x000a00, dim + 0x000a00, true, 1.f), "A wrong tint passed as the modal dim");
+    Require(!GameBackgroundHolds(dim, GameBackground, true, 1.f), "Unequal corners passed as the modal dim");
+    Require(!GameBackgroundHolds(GameBackground, GameBackground, true, 1.f), "An undimmed game passed as the modal dim");
+}
 struct Renderer {
     HWND window = nullptr;
     IDirect3D9* d3d = nullptr;
@@ -106,7 +139,7 @@ struct Renderer {
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
         device->EndScene();
     }
-    void Capture(const std::string& name, int width, int height, bool trainingOverlay = false) {
+    void Capture(const std::string& name, int width, int height, bool trainingOverlay = false, Background background = Background::Plain) {
         IDirect3DSurface9 *target = nullptr, *copy = nullptr;
         Require(SUCCEEDED(device->GetRenderTarget(0, &target)), "GetRenderTarget failed");
         HRESULT result = device->CreateOffscreenPlainSurface(width, height, D3DFMT_A8R8G8B8,
@@ -118,16 +151,11 @@ struct Renderer {
         Require(SUCCEEDED(copy->LockRect(&pixels, nullptr, D3DLOCK_READONLY)), "Surface lock failed");
         if(trainingOverlay) {
             const auto at=[&](int x,int y){return *reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+y*pixels.Pitch+x*4)&0xffffff;};
-            const auto corner=at(5,5);
-            // A confirmation is a modal: it dims the whole screen on purpose, so the game stays
-            // visible but no brighter than the background, and alike at the far corner (no panel).
-            bool dimmed=false;
-            for(int shift=0;shift<=16;shift+=8)dimmed=dimmed||((corner>>shift)&0xff)<((0x2d2f31u>>shift)&0xff);
-            const bool modalDim=name.find("-confirmation-")!=std::string::npos&&dimmed&&corner==at(width-6,height-6);
-            bool brighter=false;
-            for(int shift=0;shift<=16;shift+=8)brighter=brighter||((corner>>shift)&0xff)>((0x2d2f31u>>shift)&0xff);
-            if(modalDim?brighter:corner!=0x2d2f31){char hex[16];std::snprintf(hex,sizeof(hex),"%06x",corner);
-                throw std::runtime_error("Training rendering altered the game outside its panel: "+name+" pixel(5,5)="+hex);}
+            // A modal dim is drawn at DimBgRatio of its full alpha, which is still rising a few frames in.
+            const float ratio=background==Background::ModalDim?GImGui->DimBgRatio:0.f;
+            if(!GameBackgroundHolds(at(5,5),at(width-6,height-6),background==Background::ModalDim,ratio)){
+                char hex[32];std::snprintf(hex,sizeof(hex),"%06x/%06x",at(5,5),at(width-6,height-6));
+                throw std::runtime_error("Training rendering altered the game outside its panel: "+name+" corners="+hex);}
         }
         BITMAPFILEHEADER file{}; BITMAPINFOHEADER info{};
         file.bfType = 0x4d42; file.bfOffBits = sizeof(file) + sizeof(info);
@@ -625,6 +653,7 @@ int main(int argc, char** argv) {
     try {
         const bool headless = std::getenv("SF4E_UI_RENDER_HEADLESS") != nullptr;
         Require(!headless || argc == 1, "Headless UI checks cannot capture images");
+        CheckBackgroundExpectation();
         Renderer renderer(headless);
         if (const char* stress = std::getenv("SF4E_UI_RENDER_ATLAS_STRESS")) {
             StressAtlas(renderer, std::atoi(stress), 1);
@@ -797,7 +826,7 @@ int main(int argc, char** argv) {
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
                               std::string(shot)=="table-recover-updating" || std::string(shot)=="table-recover-leaving") &&
                              ((size.w==1280&&size.dpi==1) || (size.w==1920&&size.dpi==1.5f) || size.w==640))))
-                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2);
+                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2,mode==1&&TrainingNavigation().Confirming()?Background::ModalDim:Background::Plain);
                 }
             };
             // A Settings panel's screen ("tab-matches/training-replays") is shot without its slash.
