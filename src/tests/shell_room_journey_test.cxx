@@ -191,9 +191,13 @@ static void RoomBoardJourneys() {
  for(auto& table:h.view.room.tables)table.revision=7;
  room::Member local;local.id=1;local.name="Local";h.view.room.members.push_back(local);
  room::Member peer;peer.id=2;peer.name="Peer";h.view.room.members.push_back(peer);
- // The cards move as the grid they are drawn in: Right goes to the card beside,
- // and past the last column to the members.
- h.Frame();h.Screen("room");h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-1","Right did not reach the card beside");
+ // One table per line: Down goes to the next table.
+ h.Frame();h.Screen("room");h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="table-1","Down did not reach the next table");
+ // With Tables set to Grid the cards move as the grid they are drawn in:
+ // Right goes to the card beside, and past the last column to the members.
+ h.Press(MenuInput::Up);Check(h.shell.Navigation().Focus()=="table-0","Up did not return to the first table");
+ h.view.preferences.roomTableGrid=true;h.Frame();h.Frame();
+ h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-1","Right did not reach the card beside");
  h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="member-1","Right did not enter member pane");
  h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="member-2","Member focus order changed");
  h.view.room.members.pop_back();h.Frame();Check(h.shell.Navigation().Focus()=="room-members","Disappeared member did not choose nearest entry");
