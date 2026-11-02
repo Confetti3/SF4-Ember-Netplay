@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Sdílet mé záznamy"
 
 msgid "replays.share_detail"
-msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, se jmény obou hráčů a vaší zemí. Turnajové zápasy se sdílejí vždy."
+msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, s vaším jménem a zemí (nikdy ne soupeřovým). Turnajové zápasy se sdílejí vždy."
 
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"

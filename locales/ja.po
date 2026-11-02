@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "リプレイを共有"
 
 msgid "replays.share_detail"
-msgstr "今後プレイする対戦を、両プレイヤーの名前とあなたの国とともに、bridgeの公開リプレイアーカイブへ送信します。大会の試合は常に共有されます。"
+msgstr "今後プレイする対戦を、あなたの名前と国（相手のものは含まない）とともに、bridgeの公開リプレイアーカイブへ送信します。大会の試合は常に共有されます。"
 
 msgid "replays.link"
 msgstr "リンクのリプレイを再生"

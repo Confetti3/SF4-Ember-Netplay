@@ -196,17 +196,17 @@ int main(int argc, char** argv) {
         const auto& beta = catalogs[i]["updates.channel.prerelease"];
         CHECK(catalogs[i]["updates.channel_detail"].find(beta) != std::string::npos);
     }
-    // These warnings intentionally ship in English in every catalog until
-    // translated. Both the dump row and final consent state the actual risk.
-    for (std::size_t i = 0; i < count; ++i) {
-        for (const auto* key : {"reports.dump_detail", "reports.dump_warning"}) {
-            CHECK(catalogs[i].at(key) == catalogs[0].at(key));
-            for (const auto* exposure : {"private memory", "credentials", "invitations", "paths", "identifiers"})
-                CHECK(catalogs[i].at(key).find(exposure) != std::string::npos);
-        }
-        CHECK(catalogs[i].at("reports.dump_detail").find("not shown in the text preview") != std::string::npos);
-        CHECK(catalogs[i].at("reports.dump_warning").find("not text-previewed") != std::string::npos);
+    // Both the dump row and final consent state the actual risk, in English,
+    // and every other catalog translates them (a consent the player cannot
+    // read is no consent).
+    for (const auto* key : {"reports.dump_detail", "reports.dump_warning"}) {
+        for (const auto* exposure : {"private memory", "credentials", "invitations", "paths", "identifiers"})
+            CHECK(catalogs[0].at(key).find(exposure) != std::string::npos);
+        for (std::size_t i = 1; i < count; ++i)
+            CHECK(!catalogs[i].at(key).empty() && catalogs[i].at(key) != catalogs[0].at(key));
     }
+    CHECK(catalogs[0].at("reports.dump_detail").find("not shown in the text preview") != std::string::npos);
+    CHECK(catalogs[0].at("reports.dump_warning").find("not text-previewed") != std::string::npos);
     // Updater.exe has no catalog: what it shows when the launcher passed no
     // text is the English catalog's (ASCII, so compared as bytes).
     const auto english = [](const wchar_t* text) {

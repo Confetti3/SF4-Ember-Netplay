@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "내 리플레이 공유"
 
 msgid "replays.share_detail"
-msgstr "지금부터 플레이하는 경기를 두 플레이어의 이름과 내 국가와 함께 브리지의 공개 리플레이 보관소로 보냅니다. 대회 경기는 항상 공유됩니다."
+msgstr "지금부터 플레이하는 경기를 내 이름과 국가(상대방 것은 제외)와 함께 브리지의 공개 리플레이 보관소로 보냅니다. 대회 경기는 항상 공유됩니다."
 
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"
