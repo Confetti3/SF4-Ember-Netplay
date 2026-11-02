@@ -127,8 +127,13 @@ game's first sender.
   replay with its record's time moved into a free game's time. The set route
   takes only a participant's word for which game a replay is, and `sent_by`
   records whose word it was.
-- An online game the archive already holds joins the set only when its own
-  sender sends it for the set; nobody else's copy relabels it.
+- An online game the archive holds as the same file joins the set only when
+  its own sender sends it for the set; nobody else's copy relabels it. A set's
+  own copy of a game, recorded by a player's PC, is kept over every other
+  player's online copies of it, whichever came first: they are folded into
+  it and leave the bucket (`duplicates::fold`). A set's player could forge
+  such a copy of another game, as with the save time above, and the set's
+  roster would then name it.
 
 ## Where it is kept
 
@@ -244,20 +249,24 @@ Both routes go through one admission, in the transaction that keeps the game:
 
 Migration 054 added `archive_games.game`. Games kept before it have none,
 and both players' copies of a game were kept as two games, each naming its
-own sender's side. The `duplicates::Read` delivery queue reads each such copy
-back from the bucket and records which game it is (`archive::duplicates`),
-only once the bucket gives back the whole replay the copy's digest names;
-anything else is tried again. When the last copy is known, every game kept
-more than once is folded: a set's copy, or else the copy that reached the
-bridge first, is kept, and every other online copy, in the order they came,
-names its sides on it by the same rules as a late copy, then becomes a
-`duplicate`, which the listing never shows. Folding waits for the last copy
-because the copy kept decides which names the others may give it, and a copy
-read late may be the one that came first; a copy the bucket never gives back
-holds the folding until an operator repairs or removes it.
-`duplicates::Remove` deletes a duplicate's file from the bucket, after any
+own sender's side. The `duplicates` delivery queue reads each such copy back
+from the bucket and records which game it is (`archive::duplicates`), only
+once the bucket gives back the whole replay the copy's digest names;
+anything else is tried again hourly, logged as `not settled yet`. Once no
+row is left without a `game`, maintenance folds every game kept more than
+once, a single time (`archive_fold_owed` holds its one row until then): a
+set's copy, or else the copy that reached the bridge first, is kept, and
+every other online copy, in the order they came, names its sides on it by
+the same rules as a late copy, then becomes a `duplicate`, which the listing
+never shows. Folding waits for the last copy because the copy kept decides
+which names the others may give it, and a copy read late may be the one
+that came first. A copy the bucket never gives back holds the folding until
+an operator puts its file back or deletes its row; the next maintenance pass
+folds. The same queue deletes a duplicate's file from the bucket, after any
 upload of it still leased is over, and then its row. A set's copy is never
-removed.
+removed. The queue, the fold and the bucket's GET and DELETE are needed only
+until production has no row without a `game` and no `duplicate`; they can
+go then.
 
 Migration 050 rebuilt `archive_games` around the digest. It kept none of the
 games 049 held: a stored one no longer has its replay, so its digest cannot

@@ -183,10 +183,16 @@ fn digest(file: &[u8]) -> String {
     Replay::parse(file).unwrap().digest_hex()
 }
 
-/// An online game `n` long enough to hold a round: its replay goes past the
-/// 0x320-byte header, where what was played starts.
+/// What a game `n` long enough to hold a round played: its replay goes past
+/// the 0x320-byte header, where the rounds start, by more than one round's
+/// 0x88-byte record.
+fn round_stream(n: u8) -> Vec<u8> {
+    vec![n; 0x320 - 0x174 + 0x88 + 64]
+}
+
+/// An online game `n` long enough to hold a round (`round_stream`).
 fn played_game(n: u8) -> Vec<u8> {
-    replays::made_up(&[n; 0x320 - 0x174 + 64], 1_800_000_000, [20, 34])
+    replays::made_up(&round_stream(n), 1_800_000_000, [20, 34])
 }
 
 /// `file` as another PC saved the same game: its own time played (`pc`) in
@@ -707,6 +713,8 @@ async fn keep_before(f: &Fixture, copies: Vec<KeptBefore>) {
         .state()
         .db
         .write(move |tx| {
+            // Such a bridge had not folded anything yet.
+            tx.execute("INSERT OR IGNORE INTO archive_fold_owed VALUES (1)", [])?;
             for (at, copy) in copies.iter().enumerate() {
                 let replay = Replay::parse(&copy.file).unwrap();
                 let own = |value: Option<&'static str>, side: u8| value.filter(|_| copy.side == side);
@@ -737,14 +745,16 @@ async fn keep_before(f: &Fixture, copies: Vec<KeptBefore>) {
         .unwrap();
 }
 
-/// Waits until the archive has no row left for `file`, an hour of the
-/// bridge's clock passing each look, so retries put off come due.
+/// Waits until the archive has no row left for `file`, a maintenance pass
+/// (which folds) and an hour of the bridge's clock passing each look, so
+/// retries put off come due.
 async fn removed(f: &Fixture, file: &[u8]) {
     let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
     for _ in 0..200 {
         if count(f, left, &digest(file)).await == 0 {
             return;
         }
+        ember_bridge::maintain(f.bridge.state()).await;
         f.bridge.clock.advance(3600);
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
@@ -817,8 +827,10 @@ async fn folding_waits_for_every_copy_to_be_read() {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
     assert_eq!(count(&f, known, &digest(&other)).await, 2);
+    ember_bridge::maintain(f.bridge.state()).await;
     f.bridge.clock.advance(3600);
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    ember_bridge::maintain(f.bridge.state()).await;
     let unknown = "SELECT COUNT(*) FROM archive_games WHERE game IS NULL AND digest = ?1";
     assert_eq!(count(&f, unknown, &digest(&other)).await, 1);
     assert_eq!(games(&listed(&f, "").await).len(), 3);
@@ -829,6 +841,78 @@ async fn folding_waits_for_every_copy_to_be_read() {
     let list = listed(&f, "").await;
     assert_eq!(games(&list).len(), 2);
     assert_eq!(listed_game(&list, &ann)["names"], json!(["Ann", "Bob"]));
+}
+
+/// A set's copy of a game is kept over another player's online copy of it,
+/// whichever came first, and the online copy leaves the bucket.
+#[tokio::test]
+async fn a_sets_copy_is_kept_over_an_online_copy() {
+    for online_first in [true, false] {
+        let f = fixture().await;
+        let id = set(&f, "kept-over-online", 1).await;
+        let set_copy = replays::wrap(&round_stream(51), f.bridge.started_at + 1);
+        let online = copy_from(&set_copy, 1);
+        if online_first {
+            let sent = send(&f, &f.b, &online, "a=&b=Bob&side=1").await;
+            assert_eq!(sent, StatusCode::CREATED);
+        }
+        let sent = send_to_set(&f, &f.a, &id, &set_copy, "side=0").await;
+        assert_eq!(sent, StatusCode::CREATED, "{online_first}");
+        if !online_first {
+            let sent = send(&f, &f.b, &online, "a=&b=Bob&side=1").await;
+            assert_eq!(sent, StatusCode::OK);
+        }
+        removed(&f, &online).await;
+        let list = listed_when(&f, "", |list| {
+            games(list).len() == 1 && games(list)[0]["set"] == id.as_str()
+        })
+        .await;
+        assert_eq!(games(&list)[0]["digest"], digest(&set_copy).as_str());
+        let online_file = format!("/replays/games/{}.emberreplay", digest(&online));
+        assert!(!games_held(&f).contains(&online_file), "{online_first}");
+    }
+}
+
+/// A copy folded away while its upload is leased keeps its file until that
+/// attempt is over, so the upload cannot land after the delete.
+#[tokio::test]
+async fn a_duplicate_waits_for_its_upload_to_be_over() {
+    let f = fixture().await;
+    let copy = played_game(52);
+    let path = format!("/replays/games/{}.emberreplay", digest(&copy));
+    f.stored.lock().unwrap().push((path.clone(), copy.clone()));
+    let leased_until = f.bridge.state().now() + 60;
+    let replay = Replay::parse(&copy).unwrap();
+    let (by, file) = (f.a.id().to_string(), copy.clone());
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority,
+                    state, next_attempt_at, received_at, game)
+                 VALUES (?1, ?2, ?3, ?4, 20, 34, ?5, 1, 'duplicate', ?6, ?6, ?7)",
+                rusqlite::params![
+                    replay.digest_hex(),
+                    replay.crc_name(),
+                    replay.saved_at,
+                    file.len(),
+                    by,
+                    leased_until as i64,
+                    replay.game_hex(),
+                ],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+    let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
+    assert_eq!(count(&f, left, &digest(&copy)).await, 1);
+    assert!(games_held(&f).contains(&path));
+    f.bridge.clock.advance(61);
+    removed(&f, &copy).await;
+    assert!(!games_held(&f).contains(&path));
 }
 
 /// A player shares online games only while signed in with Discord; a

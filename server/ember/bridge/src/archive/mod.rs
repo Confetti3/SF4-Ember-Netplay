@@ -71,7 +71,9 @@ impl From<Refused> for ApiFailure {
 /// and only an account other than the first sender can name an empty side of
 /// an online game (`name_own_side`). A new
 /// game is taken when there is room for it (`refusal`), with what
-/// `attribution` says of its sides.
+/// `attribution` says of its sides. A set's copy of a game is kept over
+/// another player's online copies of it, which are folded into it
+/// (`duplicates::fold`); only the same file is the same online game to a set.
 pub fn admit(
     tx: &Transaction<'_>,
     now: u64,
@@ -81,12 +83,13 @@ pub fn admit(
     attribution: Attribution<'_>,
 ) -> Result<Admission> {
     let (digest, game) = (replay.digest_hex(), replay.game_hex());
+    let for_set = matches!(attribution, Attribution::Set(_));
     let held: Option<(String, String, Option<String>)> = tx
         .query_row(
             "SELECT digest, sent_by, match_id FROM archive_games
-             WHERE (digest = ?1 OR game = ?2) AND state != 'duplicate'
+             WHERE (digest = ?1 OR (game = ?2 AND (NOT ?3 OR match_id IS NOT NULL))) AND state != 'duplicate'
              ORDER BY digest = ?1 DESC, match_id IS NULL, received_at LIMIT 1",
-            [&digest, &game],
+            params![digest, game, for_set],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )
         .optional()?;
@@ -138,8 +141,9 @@ pub fn admit(
         ],
     )?;
     crate::db::queued();
-    if let Some(game) = set {
-        crate::delivery::packs::changed(tx, &game.match_id, now)?;
+    if let Some(set) = set {
+        crate::delivery::packs::changed(tx, &set.match_id, now)?;
+        duplicates::fold(tx, &game)?;
     }
     Ok(Admission::New)
 }
@@ -206,31 +210,31 @@ fn name_own_side(
     sender: &EmberId,
     sides: &Sides,
 ) -> Result<()> {
+    let Some(side) = sides.side.filter(|side| *side < 2) else {
+        return Ok(());
+    };
     let (names, countries) = online_sides(sides);
-    match sides.side.filter(|side| *side < 2) {
-        Some(side) => name_side(tx, digest, side, &names, &countries, sender.as_str()),
-        None => Ok(()),
-    }
+    let at = usize::from(side);
+    let (name, country) = (names[at].as_deref(), countries[at].as_deref());
+    name_side(tx, digest, side, name, country, sender.as_str())
 }
 
 /// Names side `side` of the online game `digest` the archive already holds
-/// as `by`'s copy names it (`names`, `countries`), when that side has no
-/// name yet. The first sender's copy is the one that said what the game
+/// `name`, with its `country`, as `by`'s copy names it, when that side has
+/// no name yet. The first sender's copy is the one that said what the game
 /// was, so `by` adds nothing when it is the game's first sender, nor for
 /// the side the first sender said was theirs; one account names at most one
-/// side. Who gave each name is kept (`named_by_a`, `named_by_b`), and the
-/// side takes its country with its name. A name once given stays. The
-/// archive cannot check that `by` played the side it names, only that it is
-/// not the game's first sender.
+/// side. Who gave each name is kept (`named_by_a`, `named_by_b`). A name
+/// once given stays. The archive cannot check that `by` played the side it
+/// names, only that it is not the game's first sender.
 pub(crate) fn name_side(
     tx: &Transaction<'_>,
     digest: &str,
     side: u8,
-    names: &[Option<String>; 2],
-    countries: &[Option<String>; 2],
+    name: Option<&str>,
+    country: Option<&str>,
     by: &str,
 ) -> Result<()> {
-    let (name, country) = (&names[usize::from(side)], &countries[usize::from(side)]);
     let Some(name) = name else {
         return Ok(());
     };

@@ -313,6 +313,7 @@ pub async fn maintenance_once(state: &AppState) {
                 params![cutoff],
             )?;
             crate::archive::sets::backfill(tx, &ctx)?;
+            crate::archive::duplicates::fold_kept_before(tx)?;
             replays::prune(tx, &ctx)?;
             Ok(())
         })

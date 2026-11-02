@@ -11,7 +11,7 @@
 //! (`Policy::reports_progress`, BluMint), the set's score (`progress`) and
 //! the match's status (`status`). A fifth sends desk events' Discord calls
 //! (`calls`). Two more store the replay archive's games (`archive`) and
-//! its sets' packs (`packs`), and two fold the copies of one game it kept
+//! its sets' packs (`packs`), and one settles the copies of one game it kept
 //! before it knew them apart (`duplicates`).
 pub mod archive;
 pub mod calls;

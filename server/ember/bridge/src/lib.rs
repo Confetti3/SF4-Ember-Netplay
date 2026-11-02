@@ -147,11 +147,7 @@ pub fn start(state: AppState, listener: TcpListener) -> std::io::Result<Running>
         )));
         workers.push(tokio::spawn(delivery::run(
             state.clone(),
-            delivery::duplicates::Read(bucket.clone()),
-        )));
-        workers.push(tokio::spawn(delivery::run(
-            state.clone(),
-            delivery::duplicates::Remove(bucket),
+            delivery::duplicates::Duplicates(bucket),
         )));
     }
     if routes::rooms::enabled(&state) {

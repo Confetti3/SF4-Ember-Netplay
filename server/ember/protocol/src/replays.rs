@@ -29,6 +29,8 @@ const BODY_HEADER: usize = 0x174;
 /// time it was played, and fields in each player's block), so the two
 /// players' copies of one game differ only there.
 const BODY_PLAYED_FROM: usize = 0x320;
+/// One round's record, the least a replay that was played holds there.
+const ROUND_RECORD: usize = 0x88;
 const BODY_FIGHTER: usize = 0x20;
 const BODY_PLAYER: usize = 0x150;
 const BODY_PLAYED: usize = 0x10;
@@ -78,7 +80,7 @@ pub struct Replay {
     pub digest: [u8; 32],
     /// Which game it is, the same for both players' copies: the SHA-256 of
     /// the two fighters and what was played (`BODY_PLAYED_FROM` on). A
-    /// replay too short to hold a round is known by its digest.
+    /// replay too short to hold a round's record is known by its digest.
     pub game: [u8; 32],
 }
 
@@ -106,7 +108,10 @@ impl Replay {
         };
         let crc = crc32(body);
         let digest: [u8; 32] = Sha256::digest(body).into();
-        let game = match body.get(BODY_PLAYED_FROM..) {
+        let played = body
+            .get(BODY_PLAYED_FROM..)
+            .filter(|played| played.len() >= ROUND_RECORD);
+        let game = match played {
             Some(played) => Sha256::new()
                 .chain_update([p1, p2])
                 .chain_update(played)
@@ -287,7 +292,7 @@ mod tests {
     /// played does not.
     #[test]
     fn both_players_copies_are_one_game() {
-        let played: Vec<u8> = (0..BODY_PLAYED_FROM - BODY_HEADER + 96)
+        let played: Vec<u8> = (0..BODY_PLAYED_FROM - BODY_HEADER + ROUND_RECORD + 96)
             .map(|at| at as u8)
             .collect();
         let mine = made_up(&played, SAVED_AT, [20, 34]);
@@ -302,9 +307,19 @@ mod tests {
         let mut other = mine.clone();
         other[HEAD + BODY_PLAYED_FROM] ^= 1;
         assert_ne!(Replay::parse(&recrc(other)).unwrap().game, mine_read.game);
-        // A replay with no round is known by its digest.
-        let short = Replay::parse(&game()).unwrap();
-        assert_eq!(short.game, short.digest);
+        // A replay with no round's record is known by its digest.
+        for short in [
+            game(),
+            made_up(&[0; BODY_PLAYED_FROM - BODY_HEADER], SAVED_AT, [20, 34]),
+            made_up(
+                &[0; BODY_PLAYED_FROM - BODY_HEADER + ROUND_RECORD - 1],
+                SAVED_AT,
+                [20, 34],
+            ),
+        ] {
+            let short = Replay::parse(&short).unwrap();
+            assert_eq!(short.game, short.digest);
+        }
     }
 
     #[test]
