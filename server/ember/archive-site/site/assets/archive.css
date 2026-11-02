@@ -43,6 +43,8 @@ main { width: 100%; max-width: 1180px; margin: 0 auto; padding: 20px 16px 32px; 
 main > section { display: flex; flex-direction: column; gap: 14px; }
 h1, h2 { margin: 0; font-weight: 600; }
 .rule { font-size: clamp(26px, 5vw, 34px); padding-bottom: 8px; border-bottom: 1px solid var(--accent); }
+.rule .total { margin-left: 6px; color: var(--muted); font-size: 0.6em; font-weight: 400; }
+.rule .total:empty { display: none; }
 .lead { margin: 8px 0 0; color: var(--muted); }
 .label { font-size: 13px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
 .note { margin: 0; color: var(--muted); font-size: 15px; }

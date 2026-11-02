@@ -20,6 +20,9 @@ use crate::error::{ApiFailure, Result};
 const SENT_PER_DAY: i64 = 3000;
 /// What games waiting for the bucket may take on the bridge together.
 const MAX_WAITING: i64 = 2 << 30;
+/// What the archive keeps at most, every game it holds together: about a
+/// million games. Past it no online game is taken; a set's games still are.
+const MAX_KEPT: i64 = 10 << 30;
 
 /// Whose word the archive takes for a game's sides.
 pub enum Attribution<'a> {
@@ -47,13 +50,15 @@ pub enum Refused {
     SendersDay,
     /// `MAX_WAITING` of games wait for the bucket.
     Full,
+    /// The archive keeps `MAX_KEPT` of games already.
+    Kept,
 }
 
 impl From<Refused> for ApiFailure {
     fn from(refused: Refused) -> Self {
         match refused {
             Refused::SendersDay => ApiFailure::rate_limited(3600),
-            Refused::Full => ApiFailure::unavailable(),
+            Refused::Full | Refused::Kept => ApiFailure::unavailable(),
         }
     }
 }
@@ -137,8 +142,8 @@ pub fn admit(
 /// Why a new game of `size` bytes from `sender` cannot be taken now, if it
 /// cannot. The sender's daily count is of the games it paid for (`charged`,
 /// online games), and a set's games skip it (`daily` false): the games the
-/// set played bound them already. Nothing skips the bound on what waits for
-/// the bucket.
+/// set played bound them already, and so is the bound on what the archive
+/// keeps. Nothing skips the bound on what waits for the bucket.
 fn refusal(
     tx: &Transaction<'_>,
     now: u64,
@@ -146,14 +151,17 @@ fn refusal(
     size: usize,
     daily: bool,
 ) -> Result<Option<Refused>> {
-    let (sent, waiting): (i64, i64) = tx.query_row(
+    let (sent, waiting, kept): (i64, i64, i64) = tx.query_row(
         "SELECT (SELECT COUNT(*) FROM archive_games WHERE sent_by = ?1 AND charged = 1 AND received_at > ?2),
-                (SELECT COALESCE(SUM(size), 0) FROM archive_games WHERE state = 'pending')",
+                (SELECT COALESCE(SUM(size), 0) FROM archive_games WHERE state = 'pending'),
+                (SELECT COALESCE(SUM(size), 0) FROM archive_games)",
         params![sender.as_str(), now.saturating_sub(86_400)],
-        |row| Ok((row.get(0)?, row.get(1)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     )?;
     Ok(if daily && sent >= SENT_PER_DAY {
         Some(Refused::SendersDay)
+    } else if daily && kept + size as i64 > MAX_KEPT {
+        Some(Refused::Kept)
     } else if waiting + size as i64 > MAX_WAITING {
         Some(Refused::Full)
     } else {

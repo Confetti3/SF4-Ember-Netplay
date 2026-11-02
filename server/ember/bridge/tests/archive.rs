@@ -491,6 +491,14 @@ async fn an_opponent_is_named_only_by_their_own_copy() {
     let list = listed_when(&f, "", |list| games(list).len() == 4).await;
     assert_eq!(listed_game(&list, &lone)["names"], json!(["Ann", null]));
     assert_eq!(games(&listed(&f, "q=Mallory").await).len(), 0);
+    // The counts are the whole archive's, and what the filter keeps of it.
+    let list = listed(&f, "").await;
+    assert_eq!((&list["total"], &list["matching"]), (&json!(4), &json!(4)));
+    let ann = listed(&f, "q=Ann").await;
+    assert_eq!(games(&ann).len(), 2);
+    assert_eq!((&ann["total"], &ann["matching"]), (&json!(4), &json!(2)));
+    let none = listed(&f, "q=Mallory").await;
+    assert_eq!((&none["total"], &none["matching"]), (&json!(4), &json!(0)));
 }
 
 /// A later copy names an empty side only from another account than the
@@ -836,6 +844,40 @@ async fn both_routes_wait_while_the_bucket_is_behind() {
     .await;
     assert_eq!(
         send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "").await,
+        StatusCode::CREATED
+    );
+}
+
+/// Once the archive keeps 10 GiB of games it takes no more online games,
+/// still a set's games: the archive keeps every set.
+#[tokio::test]
+async fn a_full_archive_takes_only_sets_games() {
+    let f = fixture().await;
+    let id = set(&f, "archive-kept", 1).await;
+    sql(
+        &f,
+        "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority,
+            state, next_attempt_at, received_at)
+         VALUES (?1, '00000000', 1, 10737418240, 1, 2, 'emb_other', 1, 'stored', 0, 1)",
+        vec!["e".repeat(64)],
+    )
+    .await;
+    assert_eq!(
+        send(&f, &f.a, &game(1, [1, 2]), "side=0").await,
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "").await,
+        StatusCode::CREATED
+    );
+    sql(
+        &f,
+        "DELETE FROM archive_games WHERE digest = ?1",
+        vec!["e".repeat(64)],
+    )
+    .await;
+    assert_eq!(
+        send(&f, &f.a, &game(1, [1, 2]), "side=0").await,
         StatusCode::CREATED
     );
 }

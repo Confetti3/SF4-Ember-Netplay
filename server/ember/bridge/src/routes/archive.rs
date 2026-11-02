@@ -8,7 +8,7 @@ use axum::{
     response::Response,
 };
 use ember_protocol::replays::{self, Replay, Sides};
-use rusqlite::{OptionalExtension, Transaction, params};
+use rusqlite::{OptionalExtension, Transaction, named_params, params};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -172,6 +172,59 @@ fn side_player(side: u8) -> String {
     )
 }
 
+/// What a `Filter` keeps, as SQL over `archive_games` with the named
+/// parameters `filter_params` binds. The listing's page and its count both
+/// use it, so they always agree.
+const KEEPS: &str =
+    "(:event IS NULL OR (:event = 'online' AND match_id IS NULL) OR event_title = :event)
+    AND (:fighter IS NULL OR fighter_a = :fighter OR fighter_b = :fighter)
+    AND (:country IS NULL OR country_a = :country OR country_b = :country)
+    AND (:round IS NULL
+         OR (:round = 'top8' AND phase LIKE 'Top%')
+         OR (:round = 'pools' AND match_id IS NOT NULL AND COALESCE(phase, '') NOT LIKE 'Top%')
+         OR (:round = 'winners' AND round_label LIKE 'Winners%')
+         OR (:round = 'losers' AND round_label LIKE 'Losers%')
+         OR (:round = 'grand' AND round_label LIKE 'Grand%'))
+    AND (:like IS NULL OR name_a LIKE :like ESCAPE '\\' OR name_b LIKE :like ESCAPE '\\'
+         OR event_title LIKE :like ESCAPE '\\')";
+
+/// The search text of `filter` as a LIKE pattern: anywhere in a name or an
+/// event's title, its wildcards taken literally.
+fn like_of(filter: &Filter) -> Option<String> {
+    filter
+        .q
+        .as_deref()
+        .map(str::trim)
+        .filter(|q| !q.is_empty() && q.len() <= 64)
+        .map(|q| {
+            format!(
+                "%{}%",
+                q.replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            )
+        })
+}
+
+/// How many stored games there are, and how many of them `filter` keeps.
+fn counts(tx: &Transaction<'_>, filter: &Filter) -> Result<(i64, i64)> {
+    let total = tx.query_row(
+        "SELECT COUNT(*) FROM archive_games WHERE state = 'stored'",
+        [],
+        |row| row.get(0),
+    )?;
+    let like = like_of(filter);
+    let matching = tx.query_row(
+        &format!("SELECT COUNT(*) FROM archive_games WHERE state = 'stored' AND {KEEPS}"),
+        named_params! {
+            ":event": filter.event, ":fighter": filter.fighter, ":country": filter.country,
+            ":round": filter.round, ":like": like,
+        },
+        |row| row.get(0),
+    )?;
+    Ok((total, matching))
+}
+
 /// The stored games after `cursor` that `filter` keeps, newest first: up
 /// to `listed` of them among the next `scanned` stored games.
 fn page(
@@ -200,53 +253,25 @@ fn page(
         saved_at: i64::MIN,
         digest: String::new(),
     });
-    let like = filter
-        .q
-        .as_deref()
-        .map(str::trim)
-        .filter(|q| !q.is_empty() && q.len() <= 64)
-        .map(|q| {
-            format!(
-                "%{}%",
-                q.replace('\\', "\\\\")
-                    .replace('%', "\\%")
-                    .replace('_', "\\_")
-            )
-        });
+    let like = like_of(filter);
     let mut games = tx
         .prepare(&format!(
             "SELECT digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
                     match_id, event_title, round_label, phase, {side_a}, {side_b}
              FROM archive_games WHERE state = 'stored'
-               AND (saved_at, digest) < (?1, ?2) AND (saved_at, digest) >= (?3, ?4)
-               AND (?5 IS NULL OR (?5 = 'online' AND match_id IS NULL) OR event_title = ?5)
-               AND (?6 IS NULL OR fighter_a = ?6 OR fighter_b = ?6)
-               AND (?7 IS NULL OR country_a = ?7 OR country_b = ?7)
-               AND (?8 IS NULL
-                    OR (?8 = 'top8' AND phase LIKE 'Top%')
-                    OR (?8 = 'pools' AND match_id IS NOT NULL AND COALESCE(phase, '') NOT LIKE 'Top%')
-                    OR (?8 = 'winners' AND round_label LIKE 'Winners%')
-                    OR (?8 = 'losers' AND round_label LIKE 'Losers%')
-                    OR (?8 = 'grand' AND round_label LIKE 'Grand%'))
-               AND (?9 IS NULL OR name_a LIKE ?9 ESCAPE '\\' OR name_b LIKE ?9 ESCAPE '\\'
-                    OR event_title LIKE ?9 ESCAPE '\\')
-             ORDER BY saved_at DESC, digest DESC LIMIT ?10",
+               AND (saved_at, digest) < (:before_at, :before) AND (saved_at, digest) >= (:floor_at, :floor)
+               AND {KEEPS}
+             ORDER BY saved_at DESC, digest DESC LIMIT :limit",
             side_a = side_player(0),
             side_b = side_player(1),
         ))?
         .query_map(
-            params![
-                cursor.saved_at,
-                cursor.digest,
-                floor.saved_at,
-                floor.digest,
-                filter.event,
-                filter.fighter,
-                filter.country,
-                filter.round,
-                like,
-                listed + 1
-            ],
+            named_params! {
+                ":before_at": cursor.saved_at, ":before": cursor.digest,
+                ":floor_at": floor.saved_at, ":floor": floor.digest,
+                ":event": filter.event, ":fighter": filter.fighter, ":country": filter.country,
+                ":round": filter.round, ":like": like, ":limit": listed + 1,
+            },
             |row| {
                 Ok(Listed {
                     digest: row.get(0)?,
@@ -282,7 +307,8 @@ fn page(
 /// bucket, and each tournament set's score and pack once the bucket holds
 /// it. `next`, when there is more to look through, is the `cursor` that
 /// goes on. Also the events and countries of the archive's games, for the
-/// page's filters.
+/// page's filters, and how many games the archive holds (`total`) and the
+/// filter keeps (`matching`), all of them, not only this page's.
 pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -> Result<Response> {
     let Some(archive) = state.config.archive.clone() else {
         return Err(ApiFailure::not_found());
@@ -301,6 +327,7 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
         .db
         .read(move |tx| {
             let Page { games, next } = page(tx, &filter, &cursor, LISTED, SCANNED)?;
+            let (total, matching) = counts(tx, &filter)?;
             let mut sets = serde_json::Map::new();
             for id in games.iter().filter_map(|game| game.set.as_ref()) {
                 if !sets.contains_key(id) {
@@ -345,6 +372,7 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             Ok(json!({
                 "games": games, "sets": sets, "events": events, "countries": countries,
+                "total": total, "matching": matching,
                 "more": next.is_some(), "next": next.map(|next| next.text()),
             }))
         })

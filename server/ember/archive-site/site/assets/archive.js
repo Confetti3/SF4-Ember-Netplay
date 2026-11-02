@@ -36,7 +36,11 @@ const el = (tag, props = {}, ...children) => {
 };
 const DOWNLOAD = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-const state = { filter: {}, view: {}, games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null };
+const state = { filter: {}, view: {}, games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null, total: null, matching: null };
+// Pages a filtered view loads by itself, so a search or a class reaches every
+// game it keeps (400 games a page): beyond them, Older replays goes on.
+const AUTO_PAGES = 25;
+let autoPages = 0;
 // `filter` goes to the bridge; `view` (a class and the order) is applied here,
 // to the games loaded so far.
 
@@ -147,7 +151,7 @@ async function load(append) {
   if (append && (!state.next || state.loading)) return;
   const params = new URLSearchParams(state.filter);
   if (append) params.set('cursor', state.next);
-  else { state.next = null; state.more = false; $('more').hidden = true; }
+  else { state.next = null; state.more = false; $('more').hidden = true; autoPages = 0; }
   const mine = ++requested;
   state.loading = true;
   $('events').setAttribute('aria-busy', 'true');
@@ -163,6 +167,7 @@ async function load(append) {
     state.countries = listed.countries;
     state.next = listed.next || null;
     state.more = state.next !== null;
+    if (typeof listed.total === 'number') { state.total = listed.total; state.matching = listed.matching; }
   } catch {
     if (mine !== requested) return;
     state.loading = false;
@@ -176,7 +181,21 @@ async function load(append) {
   $('more').disabled = false;
   state.groups = group(state.games);
   render();
+  if (wantsMore()) { autoPages += 1; setTimeout(() => load(true), 400); }
 }
+
+// Whether the page should load the next page by itself: a search or a filter
+// the bridge applies until it has every game the filter keeps, a class or the
+// class order until it has every game, both at most AUTO_PAGES pages.
+function wantsMore() {
+  if (!state.more || autoPages >= AUTO_PAGES) return false;
+  if (state.view.class || state.view.sort === 'class') return true;
+  if (!Object.keys(state.filter).length) return false;
+  return state.matching == null || state.games.length < state.matching;
+}
+
+// "1,234 games", with the reader's own digit grouping.
+const count = (n, one, many) => n.toLocaleString() + ' ' + (n === 1 ? one : many);
 
 // Events, newest first, each with its sets: a tournament set by its ID,
 // online games by day and by the same two named players close together.
@@ -322,11 +341,16 @@ function renderList() {
     .filter((event) => event.sets.length);
   const games = groups.reduce((n, event) => n + event.sets.reduce((m, set) => m + set.games.length, 0), 0);
   const local = band || state.view.sort === 'class';
-  const among = state.more ? ` among the newest ${state.games.length}. Older replays looks further back.` : '';
+  $('total').textContent = state.total != null ? count(state.total, 'game', 'games') : '';
+  const busy = wantsMore() ? ' Loading the rest…' : '';
+  const among = state.more ? ` among the newest ${count(state.games.length, 'game', 'games')}.${busy || ' Older replays looks further back.'}` : '';
+  const server = Object.keys(state.filter).length > 0;
   $('summary').textContent = games
-    ? band ? `${plural(games, 'game', 'games')} with a ${CLASSES[band - 1]} player${among}`
-      : local ? `${plural(games, 'game', 'games')}, highest class first${among}`
-        : `${plural(games, 'game', 'games')}${state.more ? ', newest first' : ''}`
+    ? band ? `${count(games, 'game', 'games')} with a ${CLASSES[band - 1]} player${among}`
+      : local ? `${count(games, 'game', 'games')}, highest class first${among}`
+        : server && state.matching != null ? `${count(state.matching, 'game matches', 'games match')}${state.more ? `, ${count(state.games.length, 'shown', 'shown')}.${busy}` : ''}`
+          : state.total != null && state.more ? `The newest ${count(state.games.length, 'game', 'games')} of ${count(state.total, 'game', 'games')}. Older replays shows more.`
+            : `${count(games, 'game', 'games')}${state.more ? ', newest first' : ''}`
     : state.more ? 'None of the newest replays match. Look further back with Older replays.'
       : filtered ? 'No replays match these filters.' : 'No replays yet. Games shared from Ember show up here.';
   if (state.view.sort === 'class') {
@@ -404,7 +428,10 @@ function setView(key, value) {
   if (value) state.view[key] = value; else delete state.view[key];
   state.openSet = null;
   writeAddress(false);
+  autoPages = 0;
   render();
+  // A class or the class order covers every game: load the rest now.
+  if (!state.loading && wantsMore()) { autoPages += 1; load(true); }
 }
 
 // The popup grid: "Any" first, then every value; picking one closes it.
