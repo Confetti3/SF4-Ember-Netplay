@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Udostępniaj moje powtórki"
 
 msgid "replays.share_detail"
-msgstr "Wysyła mecze, które rozegrasz od teraz, do publicznego archiwum powtórek twojego bridge'a, razem z twoją nazwą i twoim krajem; przeciwnik jest podpisany tylko wtedy, gdy też udostępnia. Zorganizowane mecze turniejowe są zawsze udostępniane, z nazwami obu graczy."
+msgstr "Wysyła mecze, które rozegrasz od teraz, do publicznego archiwum powtórek twojego bridge'a, razem z twoją nazwą i twoim krajem; przeciwnik jest podpisany tylko wtedy, gdy też udostępnia. Zorganizowane mecze turniejowe są zawsze udostępniane, z nazwami obu graczy. Zarchiwizowane mecze z nazwami obu graczy mogą też trafić na kanał Embera w YouTube."
 
 msgid "replays.link"
 msgstr "Odtwórz powtórkę z linku"

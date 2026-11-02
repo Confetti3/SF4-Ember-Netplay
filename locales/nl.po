@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Mijn replays delen"
 
 msgid "replays.share_detail"
-msgstr "Stuurt de wedstrijden die je vanaf nu speelt naar het openbare replay-archief van je bridge, met je naam en je land; een tegenstander wordt alleen genoemd als die ook deelt. Georganiseerde toernooiwedstrijden worden altijd gedeeld, met de namen van beide spelers."
+msgstr "Stuurt de wedstrijden die je vanaf nu speelt naar het openbare replay-archief van je bridge, met je naam en je land; een tegenstander wordt alleen genoemd als die ook deelt. Georganiseerde toernooiwedstrijden worden altijd gedeeld, met de namen van beide spelers. Gearchiveerde wedstrijden waarin beide spelers genoemd worden, kunnen ook op Embers YouTube-kanaal verschijnen."
 
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"

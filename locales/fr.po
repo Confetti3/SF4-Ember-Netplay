@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Partager mes replays"
 
 msgid "replays.share_detail"
-msgstr "Envoie les parties que vous jouez à partir de maintenant vers l'archive publique de replays de votre bridge, avec votre nom et votre pays ; un adversaire n'est nommé que s'il partage aussi. Les parties de tournois organisés sont toujours partagées, avec le nom des deux joueurs."
+msgstr "Envoie les parties que vous jouez à partir de maintenant vers l'archive publique de replays de votre bridge, avec votre nom et votre pays ; un adversaire n'est nommé que s'il partage aussi. Les parties de tournois organisés sont toujours partagées, avec le nom des deux joueurs. Les parties archivées où les deux joueurs sont nommés peuvent aussi être diffusées sur la chaîne YouTube d'Ember."
 
 msgid "replays.link"
 msgstr "Lire le replay du lien"

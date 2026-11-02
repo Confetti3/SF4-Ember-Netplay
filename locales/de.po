@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Meine Replays teilen"
 
 msgid "replays.share_detail"
-msgstr "Sendet die Kämpfe, die du ab jetzt spielst, an das öffentliche Replay-Archiv deiner Bridge, mit deinem Namen und deinem Land; ein Gegner wird nur genannt, wenn er ebenfalls teilt. Organisierte Turnierkämpfe werden immer geteilt, mit den Namen beider Spieler."
+msgstr "Sendet die Kämpfe, die du ab jetzt spielst, an das öffentliche Replay-Archiv deiner Bridge, mit deinem Namen und deinem Land; ein Gegner wird nur genannt, wenn er ebenfalls teilt. Organisierte Turnierkämpfe werden immer geteilt, mit den Namen beider Spieler. Archivierte Kämpfe, in denen beide Spieler genannt sind, können auch auf Embers YouTube-Kanal gezeigt werden."
 
 msgid "replays.link"
 msgstr "Replay aus dem Link abspielen"
