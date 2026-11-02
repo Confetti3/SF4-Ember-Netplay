@@ -3113,6 +3113,24 @@ msgstr "관전 확정 해제"
 msgid "room.unlock_spectating.detail"
 msgstr "관전 확정 중입니다. 다음 대전이 최대 {0}초 동안 복귀를 기다립니다. 관전을 그만두거나 다른 테이블로 옮기면 해제됩니다."
 
+msgid "room.follow"
+msgstr "방 따라가기"
+
+msgid "room.follow.detail"
+msgstr "대전 중인 테이블을 관전합니다. 관전 중인 테이블이 멈추면 방의 다음 대전으로 옮깁니다."
+
+msgid "room.follow.stop"
+msgstr "따라가기 중지"
+
+msgid "room.follow.stop_detail"
+msgstr "방을 따라가는 중 · 테이블 {0}. 중지하면 관전 중인 테이블에 남습니다."
+
+msgid "room.follow.following"
+msgstr "방을 따라가는 중 · 테이블 {0}"
+
+msgid "room.follow.locked_in"
+msgstr "먼저 관전 확정 해제를 하세요. 따라가는 동안 테이블을 옮깁니다."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "관전 확정 해제됨: 관전을 그만두었습니다."
 

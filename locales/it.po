@@ -3112,6 +3112,24 @@ msgstr "Sblocca"
 msgid "room.unlock_spectating.detail"
 msgstr "Sei bloccato: la prossima partita aspetta il tuo ritorno fino a {0} secondi. Smettere di guardare o cambiare tavolo lo sblocca."
 
+msgid "room.follow"
+msgstr "Segui la sala"
+
+msgid "room.follow.detail"
+msgstr "Guarda il tavolo dove si gioca: quando il tuo si ferma, passi alla prossima partita della sala."
+
+msgid "room.follow.stop"
+msgstr "Smetti di seguire"
+
+msgid "room.follow.stop_detail"
+msgstr "Stai seguendo la sala · Tavolo {0}. Smetti per restare al tavolo che guardi."
+
+msgid "room.follow.following"
+msgstr "Stai seguendo la sala · Tavolo {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Prima sblocca: seguendo la sala passi da un tavolo all'altro."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Blocco rimosso: hai smesso di guardare."
 

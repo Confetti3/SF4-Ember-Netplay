@@ -19,6 +19,7 @@
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../session/RoomFollow.hxx"
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include "UpdateChannelPick.hxx"
@@ -598,6 +599,12 @@ private:
     // watching, moved, or took a place, or their spectator view dropped
     // (ShellView::lockInDrops). The player's own Release gets none.
     void TrackLockIn(const ShellView& view, double now);
+    // Follow the room (session/RoomFollow.hxx): this session's choice, the row
+    // that starts and stops it, and the Watch each frame's decision sends.
+    room::RoomFollow follow_;
+    MenuEntry FollowRow(const ShellView& view) const;
+    void ToggleFollow(const ShellView& view, const Submit& submit);
+    void UpdateFollow(const ShellView& view, double now, const Submit& submit);
     // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
     // WIN screen (ShellView::matchResult) on its own screen, "post-match". It
     // keeps the table and the opponent of the game it follows, and the

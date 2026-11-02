@@ -3113,6 +3113,24 @@ msgstr "観戦確定を解除"
 msgid "room.unlock_spectating.detail"
 msgstr "観戦を確定中です。次の対戦はあなたの復帰を最大{0}秒待ちます。観戦をやめるか別の対戦席に移ると解除されます。"
 
+msgid "room.follow"
+msgstr "ルームの対戦を追う"
+
+msgid "room.follow.detail"
+msgstr "対戦中の対戦席を観戦します。観戦中の対戦席が止まると、ルームの次の対戦へ移ります。"
+
+msgid "room.follow.stop"
+msgstr "追うのをやめる"
+
+msgid "room.follow.stop_detail"
+msgstr "ルームの対戦を追っています · 対戦席{0}。やめると今の対戦席に残ります。"
+
+msgid "room.follow.following"
+msgstr "ルームの対戦を追っています · 対戦席{0}"
+
+msgid "room.follow.locked_in"
+msgstr "先に観戦確定を解除してください。追う間は対戦席を移ります。"
+
 msgid "room.lock_in_ended.stopped"
 msgstr "観戦確定を解除しました：観戦をやめました。"
 

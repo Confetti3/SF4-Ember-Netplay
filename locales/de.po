@@ -3112,6 +3112,24 @@ msgstr "Festlegung aufheben"
 msgid "room.unlock_spectating.detail"
 msgstr "Sie sind festgelegt: Das nächste Spiel wartet bis zu {0} Sekunden auf Ihre Rückkehr. Zuschauen beenden oder ein Tischwechsel hebt die Festlegung auf."
 
+msgid "room.follow"
+msgstr "Dem Raum folgen"
+
+msgid "room.follow.detail"
+msgstr "Schauen Sie den Tisch, an dem gespielt wird: Endet das Spiel an Ihrem, wechseln Sie zum nächsten Spiel im Raum."
+
+msgid "room.follow.stop"
+msgstr "Nicht mehr folgen"
+
+msgid "room.follow.stop_detail"
+msgstr "Sie folgen dem Raum · Tisch {0}. Beenden, um am geschauten Tisch zu bleiben."
+
+msgid "room.follow.following"
+msgstr "Folgt dem Raum · Tisch {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Zuerst Festlegung aufheben: Beim Folgen wechseln Sie die Tische."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Festlegung aufgehoben: Sie schauen nicht mehr zu."
 

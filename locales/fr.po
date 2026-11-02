@@ -3112,6 +3112,24 @@ msgstr "Déverrouiller"
 msgid "room.unlock_spectating.detail"
 msgstr "Vous êtes verrouillé : le prochain combat attend votre retour jusqu'à {0} secondes. Arrêter de regarder ou changer de table le déverrouille."
 
+msgid "room.follow"
+msgstr "Suivre le salon"
+
+msgid "room.follow.detail"
+msgstr "Regardez la table où l'on joue : quand la vôtre s'arrête, vous passez au prochain combat du salon."
+
+msgid "room.follow.stop"
+msgstr "Ne plus suivre"
+
+msgid "room.follow.stop_detail"
+msgstr "Vous suivez le salon · Table {0}. Arrêtez pour rester à la table que vous regardez."
+
+msgid "room.follow.following"
+msgstr "Suivi du salon · Table {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Déverrouillez d'abord : suivre le salon vous fait changer de table."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Verrouillage levé : vous avez arrêté de regarder."
 

@@ -3113,6 +3113,24 @@ msgstr "取消锁定"
 msgid "room.unlock_spectating.detail"
 msgstr "已锁定观战：下一场对战最多等待你返回{0}秒。停止观战或换到其他对战席会取消锁定。"
 
+msgid "room.follow"
+msgstr "跟随房间"
+
+msgid "room.follow.detail"
+msgstr "观看正在对战的对战席：你观看的对战席停下时，移到房间里的下一场对战。"
+
+msgid "room.follow.stop"
+msgstr "停止跟随"
+
+msgid "room.follow.stop_detail"
+msgstr "正在跟随房间 · 对战席 {0}。停止后留在你观看的对战席。"
+
+msgid "room.follow.following"
+msgstr "正在跟随房间 · 对战席 {0}"
+
+msgid "room.follow.locked_in"
+msgstr "请先取消锁定：跟随时会在对战席之间移动。"
+
 msgid "room.lock_in_ended.stopped"
 msgstr "已取消锁定：你停止了观战。"
 

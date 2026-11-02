@@ -3113,6 +3113,24 @@ msgstr "Quitar fijación"
 msgid "room.unlock_spectating.detail"
 msgstr "Estás fijado: la próxima partida espera hasta {0} segundos a que vuelvas. Dejar de ver o cambiar de mesa quita la fijación."
 
+msgid "room.follow"
+msgstr "Seguir la sala"
+
+msgid "room.follow.detail"
+msgstr "Mira la mesa donde se juega: cuando la tuya se detiene, pasas a la siguiente partida de la sala."
+
+msgid "room.follow.stop"
+msgstr "Dejar de seguir"
+
+msgid "room.follow.stop_detail"
+msgstr "Sigues la sala · Mesa {0}. Deténlo para quedarte en la mesa que ves."
+
+msgid "room.follow.following"
+msgstr "Siguiendo la sala · Mesa {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Primero quita la fijación: al seguir la sala cambias de mesa."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Fijación quitada: has dejado de ver."
 

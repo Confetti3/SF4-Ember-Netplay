@@ -144,6 +144,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  // End practice is about the member's own table, wherever the board's focus is.
  if(a.id=="end-practice")selectedTable_=OptionsTable(v,selectedTable_);
  if(a.id=="stop-watching"){LeaveWatchedGame(v,submit);return;}
+ if(a.id=="follow-room"){ToggleFollow(v,submit);return;}
  if(a.id=="leave-place"){
   const auto exit=ExitFromPlace(v);if(exit.table<0)return;
   selectedTable_=exit.table;
@@ -250,5 +251,42 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(SendRoom(std::move(request),v,submit)){
   if(a.id=="apply-rules")rulesDirty_=false;
  }else if(error_.empty())error_=loc::T("room.action_rejected");
+}
+// Follow the room's row: on the board's action bar while watching, and in a
+// table's options beside Watch. A lock-in holds one table, so it is released
+// first; following never makes one.
+MenuEntry ApplicationShell::FollowRow(const ShellView& v) const {
+ if(follow_.On()){
+  const int table=follow_.Followed(v.room);
+  return Row("follow-room",loc::T("room.follow.stop"),table<0?std::string(loc::T("room.follow.detail")):loc::Tf("room.follow.stop_detail",table+1));
+ }
+ const auto* local=room::FindMember(v.room,v.room.localMember);
+ if(local&&local->spectatorLocked)return Row("follow-room",loc::T("room.follow"),loc::T("room.follow.locked_in"),false);
+ const bool open=RoomActionsAvailable(v);
+ return Row("follow-room",loc::T("room.follow"),open?std::string(loc::T("room.follow.detail")):RoomWaitReason(v),open);
+}
+// Following starts where the member watches. One that watches nothing first
+// watches the table whose options it is on, and that Watch is the first move.
+void ApplicationShell::ToggleFollow(const ShellView& v,const Submit& submit) {
+ if(follow_.On()){follow_.Stop();return;}
+ const auto row=FollowRow(v);
+ if(!row.enabled){Refuse(row.detail);return;}
+ follow_.Start(v.room);
+ if(room::WatchedTable(v.room,v.room.localMember)>=0)return;
+ room::Action watch;watch.kind=room::ActionKind::Watch;watch.table=static_cast<std::uint8_t>(selectedTable_);
+ if(SendRoom(std::move(watch),v,submit))follow_.Moved(selectedTable_,static_cast<std::uint64_t>(ImGui::GetTime()*1000));
+ else{follow_.Stop();if(error_.empty())error_=loc::T("room.action_rejected");}
+}
+// Each frame the follower decides from the room as this PC has it. A move
+// waits for a room that takes it and for this PC's watched game to finish
+// showing; one that did not go is decided again after the same wait as one
+// the room refused.
+void ApplicationShell::UpdateFollow(const ShellView& v,double now,const Submit& submit) {
+ const auto nowMs=static_cast<std::uint64_t>(now*1000);
+ const int table=follow_.Next(v.room,nowMs,RoomActionsAvailable(v)&&!v.watchedGame.Active());
+ if(table<0)return;
+ room::Action watch;watch.kind=room::ActionKind::Watch;watch.table=static_cast<std::uint8_t>(table);
+ SendRoom(std::move(watch),v,submit);
+ follow_.Moved(table,nowMs);
 }
 } }

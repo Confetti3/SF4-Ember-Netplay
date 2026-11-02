@@ -585,6 +585,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdatePostMatch(v,v.room,now,submit,open);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);
+ UpdateFollow(v,now,submit);
  UpdateChat(v,submit);
  const bool healthyRoom=UpdateRoomFeedback(v);
  UpdatePreferenceSave(v,submit);

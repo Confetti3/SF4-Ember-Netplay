@@ -3112,6 +3112,24 @@ msgstr "Снять закрепление"
 msgid "room.unlock_spectating.detail"
 msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другой ячейке."
 
+msgid "room.follow"
+msgstr "Следить за лобби"
+
+msgid "room.follow.detail"
+msgstr "Смотрите ячейку, где идёт бой: когда в вашей бой заканчивается, вы переходите к следующему бою в лобби."
+
+msgid "room.follow.stop"
+msgstr "Не следить"
+
+msgid "room.follow.stop_detail"
+msgstr "Вы следите за лобби · Ячейка {0}. Остановите, чтобы остаться у этой ячейки."
+
+msgid "room.follow.following"
+msgstr "Слежение за лобби · Ячейка {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Сначала снимите закрепление: при слежении вы переходите между ячейками."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Закрепление снято: вы перестали смотреть."
 

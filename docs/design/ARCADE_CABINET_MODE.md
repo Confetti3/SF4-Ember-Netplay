@@ -89,6 +89,44 @@ or King of the hill. Any type can be private or public.
   Table::deciding: its Rematch and New opponent are RoomAction's, the cabinet's
   own answer; KeepsSeat holds every cabinet in an Arcade or King room.
 
+## Following the room
+
+A spectator watches a table, and in an Arcade room a table is a pair, so a
+pair that parts left its spectators at an idle table while others played.
+Follow the room moves a spectator by itself to the room's next game, in every
+room type but a tournament's.
+
+- Offered beside Watch in a table's options, and on the board's action bar
+  while watching. It lasts while the member stays in the room with no seat
+  or queue place: sitting, queueing, stopping watching or leaving ends it,
+  as does Stop following, one press. It is not saved. Started while watching
+  nothing, it first watches the table whose options it was chosen from.
+- While following, the board's action bar says Stop following with the table
+  followed, and the watched picture's chip says Following the room. A
+  follower never locks in, so it never holds a start; a member locked in
+  releases the lock-in first.
+- When the watched table has no game Playing or Ready, and some other table
+  is Playing, it moves to the lowest-numbered such table that takes another
+  spectator and whose last game is not still closing. Every client chooses
+  the same one. It waits there for that table's next game (watchingNext).
+- It stays at a table that just stopped: for 3 s after a game it watched
+  while the same pair stays seated (an Arcade winner's next set starts at
+  the same table), and for up to 20 s while both seats are filled at a table
+  it came to for its next game. Without the second, a follower arriving
+  mid-game would move on as that game ended, and could go from table to
+  table without being shown a game.
+- Client side only: no room host or protocol change, so public room hosts of
+  every release take it. A move is one ordinary Watch, which already ends
+  watching elsewhere (RoomAuthority::StopWatching), so no Unwatch goes first
+  and a refused move leaves the follower watching where it was. Only one
+  move is in flight; the next is decided once the room shows it, or after
+  5 s, again from the snapshot, which shows what the room refuses for (a full
+  table, a game over, a game still closing). Nothing moves while this PC
+  still shows a watched game or the room cannot take an action.
+- room::RoomFollow (session/RoomFollow.hxx) decides from each snapshot;
+  ApplicationShell::UpdateFollow sends its Watch and FollowRow draws the
+  row. The RoomFollow test (room_follow_test.cxx) covers each rule.
+
 ## Open
 
 - Not run in the real game.

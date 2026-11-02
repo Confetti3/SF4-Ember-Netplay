@@ -63,6 +63,7 @@ sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.c
     LIBS nlohmann_json::nlohmann_json STD 17 LABELS room)
 sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play LABELS room)
 sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model LABELS room)
+sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
@@ -138,7 +139,7 @@ sf4e_add_unit_test(NAME ControllersScreen SOURCES src/tests/controllers_screen_t
 sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
 sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
 sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
-    src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
+    src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)

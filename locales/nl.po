@@ -3112,6 +3112,24 @@ msgstr "Vastlegging opheffen"
 msgid "room.unlock_spectating.detail"
 msgstr "Je bent vastgelegd: de volgende match wacht tot {0} seconden op je terugkeer. Stoppen met kijken of naar een andere tafel gaan heft dit op."
 
+msgid "room.follow"
+msgstr "Kamer volgen"
+
+msgid "room.follow.detail"
+msgstr "Kijk naar de tafel waar gespeeld wordt: stopt die van jou, dan ga je naar de volgende match in de kamer."
+
+msgid "room.follow.stop"
+msgstr "Niet meer volgen"
+
+msgid "room.follow.stop_detail"
+msgstr "Je volgt de kamer · Tafel {0}. Stop om bij de tafel te blijven waar je kijkt."
+
+msgid "room.follow.following"
+msgstr "Volgt de kamer · Tafel {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Hef eerst de vastlegging op: volgen brengt je van tafel naar tafel."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Vastlegging opgeheven: je bent gestopt met kijken."
 

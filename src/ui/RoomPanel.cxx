@@ -439,6 +439,9 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
     loc::T(viewOnly?"room.stop_watching.finished":leaveGame?"room.leave_game.detail":"room.stop_watching.detail"),
     viewOnly||RoomTakesNow(v,ActionKind::Unwatch,static_cast<std::size_t>(v.watchedGame.table))));
   }
+  // While it watches by choice, a member can follow the room, and stop. A
+  // tournament's room seats and places everyone itself.
+  if(!c.tournamentRoom&&(follow_.On()||room::WatchedTable(s,s.localMember)>=0))rows.push_back(FollowRow(v));
  }
  // A public room has no replacement: when its host is gone the room closes.
  if(v.session.recovery==netplay::Recovery::ReplacementOffered&&!s.serverOwned)
@@ -574,11 +577,14 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
      queued?"room.leave_queue":s.arcade?"room.arcade_sit":"room.join_queue");
     // A queued member has no watch choice: Watch is refused them, and the game
     // they wait out is theirs to watch until they are seated or leave the queue.
-    if(!queued&&!boundTable)tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
-     watching?"room.stop_watching":"room.watch_next");
+    if(!queued&&!boundTable){
+     tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
+      watching?"room.stop_watching":"room.watch_next");
+     if(!elsewhere&&!c.tournamentRoom)rows.push_back(FollowRow(v));
+    }
     // A watcher's lock-in is never fenced: the one still leaving the last
-    // game is exactly who it is for.
-    if(room::WatchesByChoice(t,s.localMember)){
+    // game is exactly who it is for. A follower has none, since it moves.
+    if(room::WatchesByChoice(t,s.localMember)&&!follow_.On()){
      const bool lockedIn=local&&local->spectatorLocked;
      rows.push_back(Row("lock-spectating",loc::T(lockedIn?"room.unlock_spectating":"room.lock_spectating"),
       mutableRoom?loc::Tf(lockedIn?"room.unlock_spectating.detail":"room.lock_spectating.detail",room::SpectatorStartHoldMs/1000):reason,mutableRoom));

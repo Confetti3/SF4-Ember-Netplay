@@ -3112,6 +3112,24 @@ msgstr "Cofnij potwierdzenie"
 msgid "room.unlock_spectating.detail"
 msgstr "Oglądanie potwierdzone: następny mecz poczeka na Twój powrót do {0} sekund. Przerwanie oglądania lub przejście do innego stołu je cofa."
 
+msgid "room.follow"
+msgstr "Śledź pokój"
+
+msgid "room.follow.detail"
+msgstr "Oglądaj stół, przy którym trwa mecz: gdy przy Twoim się skończy, przechodzisz do następnego meczu w pokoju."
+
+msgid "room.follow.stop"
+msgstr "Przestań śledzić"
+
+msgid "room.follow.stop_detail"
+msgstr "Śledzisz pokój · Stół {0}. Zatrzymaj, aby zostać przy oglądanym stole."
+
+msgid "room.follow.following"
+msgstr "Śledzenie pokoju · Stół {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Najpierw cofnij potwierdzenie: śledzenie przenosi Cię między stołami."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Potwierdzenie cofnięte: przestałeś oglądać."
 

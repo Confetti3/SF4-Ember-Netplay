@@ -3112,6 +3112,24 @@ msgstr "Zrušit zamčení"
 msgid "room.unlock_spectating.detail"
 msgstr "Sledování je zamčené: další zápas počká na váš návrat až {0} sekund. Ukončení sledování nebo přesun k jinému stolu zamčení zruší."
 
+msgid "room.follow"
+msgstr "Sledovat dění v místnosti"
+
+msgid "room.follow.detail"
+msgstr "Sledujte stůl, u kterého se hraje: když se u vašeho přestane hrát, přejdete k dalšímu zápasu v místnosti."
+
+msgid "room.follow.stop"
+msgstr "Přestat sledovat dění"
+
+msgid "room.follow.stop_detail"
+msgstr "Sledujete dění v místnosti · Stůl {0}. Ukončete, chcete-li zůstat u sledovaného stolu."
+
+msgid "room.follow.following"
+msgstr "Sledujete dění v místnosti · Stůl {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Nejdřív zrušte zamčení: sledování dění vás přesouvá mezi stoly."
+
 msgid "room.lock_in_ended.stopped"
 msgstr "Zamčení zrušeno: přestali jste sledovat."
 
