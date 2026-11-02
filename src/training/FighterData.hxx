@@ -1,6 +1,7 @@
 #pragma once
 #include "BacFile.hxx"
 #include "ByteReader.hxx"
+#include "FrameMeter.hxx"
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -76,6 +77,27 @@ inline Juggle JuggleOf(const bac::File& file, int script, float at) {
     juggle.add = hit->add; juggle.limit = hit->limit;
     if (hit->data >= 0 && hit->data < static_cast<int>(file.juggleStart.size())) juggle.start = file.juggleStart[hit->data];
     return juggle;
+}
+// A script's frames from 0 to its total as the frame meter colours them
+// (ClassifyMeter), in runs of one kind: by its own hits, a gap between two
+// recovery; else, with no hit, by the fireball it spawns when that comes out
+// before the script ends, as the runtime reads it. None for a script with
+// neither. Script frames, not the game frames the meter counts.
+struct ScriptRun { int from, to; MeterKind kind; };
+inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
+    std::vector<ScriptRun> runs;
+    if (script < 0 || script >= static_cast<int>(file.scripts.size())) return runs;
+    const bac::Script& now = file.scripts[script];
+    const bool hits = bac::HitPhase(now, 0) >= 0;
+    int first = -1, last = -1;
+    if (!hits && !(now.hits.empty() && bac::ProjectileBoundary(file, script, first, last) && first < now.total)) return runs;
+    for (int frame = 0; frame < now.total; ++frame) {
+        const float at = static_cast<float>(frame);
+        const MeterKind kind = hits ? HitPhaseKind(bac::HitPhase(now, at)) : BoundaryKind(at, first, last);
+        if (runs.empty() || runs.back().kind != kind) runs.push_back({frame, frame + 1, kind});
+        else runs.back().to = frame + 1;
+    }
+    return runs;
 }
 
 // The charge names of a command file (<CODE>.bcm): their count at +0x10 and

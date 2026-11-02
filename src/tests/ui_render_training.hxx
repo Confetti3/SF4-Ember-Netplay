@@ -450,7 +450,10 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             training::DataView data;data.valid=true;data.frame=12345;data.distance=1.875f;
             for(int side=0;side<2;++side){
                 auto scripts=std::make_shared<bac::File>();scripts->scripts.resize(259);
-                auto& script=scripts->scripts[258];script.name=side?"A_TATSU_FL_NEW":"5HP";script.total=26;script.hits={{15,16,0,1,4},{16,20,0,1,5}};
+                // P1's two hits with a gap between them, P2's fireball out of a script with no hit of its own.
+                auto& script=scripts->scripts[258];script.name=side?"HADOKEN_L":"5HP";script.total=26;
+                if(side){script.effects={0};script.spawns={{{12,13}}};scripts->effects.resize(1);scripts->effects[0].canHit=true;}
+                else script.hits={{15,16,0,1,4},{18,20,0,1,5}};
                 auto& f=data.fighters[side];f.valid=true;f.scripts=scripts;f.script=258;
                 if(!side)f.chargeNames=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"SONICBOOM","SOMERSAULT"});f.scriptFrame=side?15.5f:16;
                 f.x=side?1.25f:-0.625f;f.y=side?0.75f:0;f.status=side?16:0;

@@ -157,6 +157,16 @@ inline bool RecoveryCutShort(const FighterSample& move) {
 // Down is bouncing or lying, Rise getting up. Meaty is the bars' own, never
 // ClassifyMeter's: the frame a fighter is first up, and an attack active on it.
 enum class MeterKind { Neutral, Movement, Startup, Active, Recovery, Attack, Guard, Hit, Down, Rise, Sequence, Meaty, Unknown };
+// An attack's frame by where its hitboxes stand (bac::HitPhase): before them
+// startup, one out active, and a gap between two hits drawn as recovery, as
+// after the last; the gap counts in the active number (MoveFrames).
+inline MeterKind HitPhaseKind(int phase) { return phase == 0 ? MeterKind::Startup : phase == 1 ? MeterKind::Active : MeterKind::Recovery; }
+// An attack's frame by its attack boundary, first up to last: startup before
+// it, active inside it, recovery after; Attack alone with no boundary.
+inline MeterKind BoundaryKind(float frame, int first, int last) {
+    if (first < 0 || last <= first) return MeterKind::Attack;
+    return frame < first ? MeterKind::Startup : frame < last ? MeterKind::Active : MeterKind::Recovery;
+}
 inline MeterKind ClassifyMeter(const FighterSample& sample) {
     using S = ActorStatus;
     if (!sample.valid) return MeterKind::Unknown;
@@ -170,11 +180,7 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     case Phase::Hit: return MeterKind::Hit;
     case Phase::Down: return sample.status == S::Rise ? MeterKind::Rise : MeterKind::Down;
     case Phase::Attack:
-        // A gap between two hits is drawn as recovery; it counts in the active number (MoveFrames).
-        if (sample.hitPhase >= 0) return sample.hitPhase == 0 ? MeterKind::Startup : sample.hitPhase == 1 ? MeterKind::Active : MeterKind::Recovery;
-        if (sample.firstActiveFrame < 0 || sample.lastActiveFrame <= sample.firstActiveFrame) return MeterKind::Attack;
-        return sample.actionFrame < sample.firstActiveFrame ? MeterKind::Startup :
-            sample.actionFrame < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
+        return sample.hitPhase >= 0 ? HitPhaseKind(sample.hitPhase) : BoundaryKind(sample.actionFrame, sample.firstActiveFrame, sample.lastActiveFrame);
     default: return MeterKind::Unknown;
     }
 }

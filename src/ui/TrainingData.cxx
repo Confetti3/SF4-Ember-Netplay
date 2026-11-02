@@ -5,7 +5,6 @@
 #include "../training/PracticeSettings.hxx"
 #include <algorithm>
 #include <cfloat>
-#include <climits>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -102,25 +101,22 @@ struct Rows {
     }
 };
 
-// The script as a line, its frames left to right in the frame meter's
-// colours: startup up to its first hitbox, active where its hitboxes are,
-// recovery after the last, and the frame it is on as an ivory mark.
+// The script as a line, its frames left to right in the colours the frame
+// meter gives them (training::ScriptRuns), and the frame it is on as an
+// ivory mark.
 void Timeline(Rows& rows, const FighterData& fighter, const bac::Script& script) {
     const float height = 7 * rows.s;
     const float x0 = rows.left, x1 = rows.left + rows.width, top = rows.y + 2 * rows.s;
     rows.draw->AddRectFilled(ImVec2(x0, top), ImVec2(x1, top + height), Track, 2 * rows.s);
     const float total = static_cast<float>((std::max)(1, script.total));
     const auto at = [&](float frame) { return x0 + (x1 - x0) * (std::max)(0.f, (std::min)(1.f, frame / total)); };
-    const auto colour = [](training::MeterKind kind) { training::MeterCell cell; cell.kind = kind; return TrainingCellColor(cell, true); };
-    int first = INT_MAX, last = -1;
-    for (const auto& hit : script.hits)
-        if (hit.first >= 0 && hit.last > hit.first) first = (std::min)(first, hit.first), last = (std::max)(last, hit.last);
-    if (last >= 0) {
-        rows.draw->AddRectFilled(ImVec2(x0, top), ImVec2(at(static_cast<float>(first)), top + height), colour(training::MeterKind::Startup), 2 * rows.s);
-        rows.draw->AddRectFilled(ImVec2(at(static_cast<float>(last)), top), ImVec2(x1, top + height), colour(training::MeterKind::Recovery), 2 * rows.s);
+    for (const auto& run : training::ScriptRuns(*fighter.scripts, fighter.script)) {
+        training::MeterCell cell; cell.kind = run.kind;
+        // The line's own rounded ends stay round; a run of a single frame stays in sight.
+        const ImDrawFlags ends = (run.from == 0 ? ImDrawFlags_RoundCornersLeft : 0) | (run.to == script.total ? ImDrawFlags_RoundCornersRight : 0);
+        rows.draw->AddRectFilled(ImVec2(at(static_cast<float>(run.from)), top), ImVec2((std::max)(at(static_cast<float>(run.to)), at(static_cast<float>(run.from)) + rows.s), top + height),
+            TrainingCellColor(cell, true), ends ? 2 * rows.s : 0, ends);
     }
-    for (const auto& hit : script.hits)
-        if (hit.first >= 0 && hit.last > hit.first) rows.draw->AddRectFilled(ImVec2(at(static_cast<float>(hit.first)), top), ImVec2((std::max)(at(static_cast<float>(hit.last)), at(static_cast<float>(hit.first)) + rows.s), top + height), colour(training::MeterKind::Active));
     // The frame it can be cancelled from, as a thin line.
     if (script.interruptible > 0 && script.interruptible < script.total)
         rows.draw->AddLine(ImVec2(at(static_cast<float>(script.interruptible)), top - rows.s), ImVec2(at(static_cast<float>(script.interruptible)), top + height + rows.s), palette::Muted, rows.s);

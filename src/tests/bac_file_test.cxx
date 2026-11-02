@@ -138,6 +138,29 @@ int main() {
         CHECK(juggle.start == 3 && juggle.add == 2 && juggle.limit == 7);
         CHECK(training::JuggleOf(file, 1, 0).limit == -1 && training::JuggleOf(file, 5, 0).start == -1 && training::JuggleOf(file, -1, 0).add == -1);
     }
+    // The Data panel's timeline colours a script as the frame meter does: the gap between two
+    // hits as recovery, and a fireball's script from its spawn; a script with neither, none.
+    {
+        using training::MeterKind;
+        bac::File file;
+        file.scripts.resize(3); file.effects.resize(1);
+        file.scripts[0].total = 14; file.scripts[0].hits = {{5, 7, 0, 1, 0}, {9, 11, 7, 2, 1}};
+        file.scripts[1].total = 30; file.scripts[1].effects = {0}; file.scripts[1].spawns = {{{12, 13}}};
+        file.effects[0].canHit = true;
+        file.scripts[2].total = 20;
+        const auto runs = [&](int script) {
+            std::vector<std::array<int, 3>> out;
+            for (const auto& run : training::ScriptRuns(file, script)) out.push_back({{run.from, run.to, static_cast<int>(run.kind)}});
+            return out;
+        };
+        const int startup = static_cast<int>(MeterKind::Startup), active = static_cast<int>(MeterKind::Active), recovery = static_cast<int>(MeterKind::Recovery);
+        CHECK((runs(0) == std::vector<std::array<int, 3>>{{{0, 5, startup}}, {{5, 7, active}}, {{7, 9, recovery}}, {{9, 11, active}}, {{11, 14, recovery}}}));
+        CHECK((runs(1) == std::vector<std::array<int, 3>>{{{0, 13, startup}}, {{13, 14, active}}, {{14, 30, recovery}}}));
+        CHECK(runs(2).empty() && runs(7).empty());
+        // A spawn the script ends before is no attack of its own, as the runtime reads it.
+        file.scripts[1].total = 13;
+        CHECK(runs(1).empty());
+    }
     // A command file's charge names, as Guile's.
     {
         Bytes bcm(0x20);
