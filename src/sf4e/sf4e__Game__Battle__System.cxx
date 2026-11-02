@@ -359,14 +359,19 @@ void fSystem::BattleUpdate() {
         if (fSoundPlayerManager::bUsePureSounds) {
             fSoundPlayerManager::SyncState();
         }
-        sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
-        // The stress harness owns the memento keys while it runs. This branch
-        // is also taken with a live session during initial bootstrap, so it
-        // must never run alongside GGPO's own pool.
-        if (ggpo || !StressStep(_this)) {
-            (_this->*rSystem::publicMethods.BattleUpdate)();
-        }
-        sf4e::training::AfterUpdate(_this);
+        // Combo check's Fast plays several Training updates in one frame, as a
+        // rollback replays frames (training::FastUpdates).
+        int updates = 0;
+        do {
+            sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
+            // The stress harness owns the memento keys while it runs. This branch
+            // is also taken with a live session during initial bootstrap, so it
+            // must never run alongside GGPO's own pool.
+            if (ggpo || !StressStep(_this)) {
+                (_this->*rSystem::publicMethods.BattleUpdate)();
+            }
+            sf4e::training::AfterUpdate(_this);
+        } while (++updates < sf4e::training::FastUpdates && sf4e::training::Fast());
         // A replay's playback observes the recorder as this update left it
         // (the strip, the lanes and an export's progress read it). Shown with
         // the frame meter, the frame just played goes to the meter as a

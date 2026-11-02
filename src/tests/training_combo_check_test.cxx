@@ -1,5 +1,6 @@
 // Combo check's logic (training/ComboCheck.hxx): the hit tally, Player 1's
 // recording, the runs and the runner's steps against a made-up fight.
+// ComboPlay in the session: training_session_test.cxx.
 #include "../training/TrainingSession.hxx"
 #include <cstdio>
 #include <stdexcept>
@@ -18,6 +19,8 @@ int main() {
             Require(tally.Best() == 2, "A hit after the dummy was free starts a new combo");
             tally.Observe(true, true);
             Require(tally.Best() == 2, "A hit on the frame the dummy shows free still counts in its combo");
+            tally.Observe(true, false);
+            Require(tally.Best() == 3, "and the next hit makes it 3");
             tally.Reset();
             Require(tally.Best() == 0, "Reset forgets the best combo");
         }
@@ -50,6 +53,12 @@ int main() {
             float x[2];
             StartAt(combo, Start::Middle, x);
             Require(x[0] == -0.5f && x[1] == 0.5f, "The middle keeps the gap around x 0");
+            StartAt(combo, Start::Corner, x);
+            Require(x[1] == StageWall && x[0] == StageWall - 1, "The corner puts the dummy on the wall behind it");
+            combo.x[0] = 3; combo.x[1] = 2;
+            StartAt(combo, Start::Corner, x);
+            Require(x[1] == -StageWall && x[0] == 1 - StageWall, "and on the other wall when it stands on the left");
+            combo.x[0] = 2; combo.x[1] = 3;
             StartAt(combo, Start::Recorded, x);
             Require(x[0] == 2 && x[1] == 3, "Recorded keeps where they stood");
         }
@@ -70,6 +79,8 @@ int main() {
             step = runner.Next(seen);
             Require(step.what == Do::Play && step.fighter == 5 && !step.crouching, "The run starts once the fight has settled");
             Require(runner.Next(seen).what == Do::Wait, "Starting waits for the playback");
+            for (int i = 2; i < LoadPolls + SettlePolls; ++i) Require(runner.Next(seen).what == Do::Wait, "A run that never plays settles again");
+            Require(runner.Next(seen).what == Do::Play, "and is started again");
             seen.playing = true; seen.free = false; seen.best = 2;
             runner.Next(seen);
             seen.playing = false; seen.free = true;
@@ -83,17 +94,6 @@ int main() {
             Seen seen; seen.dummy = 1;
             runner.Next(seen); runner.Stop();
             Require(!runner.Running() && runner.Runs().empty(), "Stop keeps only the runs done");
-        }
-        {
-            Session session; RecordingBank bank; bank.Replace(0, {Press(0x10)});
-            session.Enter(bank); session.SetReady(true);
-            Command play; play.generation = session.GetView().generation; play.action = Action::ComboPlay; play.frames = {Press(0x20), Press(0x40)};
-            Require(session.Apply(play) && session.GetView().playbackSide == 0, "ComboPlay plays on Player 1");
-            Frame none;
-            Frame out = session.Prepare(none); Require(out[0].raw == 0x20, "Player 1 gets the combo's first frame"); session.Commit(out);
-            out = session.Prepare(none); Require(out[0].raw == 0x40, "and then its second"); session.Commit(out);
-            Require(session.GetView().mode == Mode::Idle && session.GetView().playbackSide == 1, "It plays once, then the dummy's side is back");
-            Require(session.Slot(0).size() == 1, "The slots are left alone");
         }
         std::puts("Combo check tests passed");
         return 0;

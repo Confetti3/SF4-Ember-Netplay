@@ -947,6 +947,18 @@ int main() {
             for (std::uint64_t id = 10; id < 17; ++id) acks.Note(id, true);
             Require(!acks.Find(5, accepted) && acks.Find(6, accepted) && acks.Find(16, accepted), "Acknowledgements did not keep the newest eight");
         }
+        {
+            // Combo check's ComboPlay: once on Player 1, then the dummy's side is back.
+            Session session; RecordingBank bank; bank.Replace(0, {Input{0x10, 0x10, 0, 0}});
+            session.Enter(bank); session.SetReady(true);
+            Command play; play.generation = session.GetView().generation; play.action = Action::ComboPlay; play.frames = {Input{0x20, 0x20, 0, 0}, Input{0x40, 0x40, 0, 0}};
+            Require(session.Apply(play) && session.GetView().playbackSide == 0, "ComboPlay plays on Player 1");
+            Frame none;
+            Frame out = session.Prepare(none); Require(out[0].raw == 0x20, "Player 1 gets the combo's first frame"); session.Commit(out);
+            out = session.Prepare(none); Require(out[0].raw == 0x40, "and then its second"); session.Commit(out);
+            Require(session.GetView().mode == Mode::Idle && session.GetView().playbackSide == 1, "It plays once, then the dummy's side is back");
+            Require(session.Slot(0).size() == 1, "The slots are left alone");
+        }
         std::puts("Training session and frame meter checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

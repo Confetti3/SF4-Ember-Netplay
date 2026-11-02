@@ -181,6 +181,15 @@ the Training battle. It needs the helper, as
 a room is opened. The UI lab plays the same walk on made-up data
 (`UiLab --walk <file>`), so a changed menu shows up there first.
 
+## The Combo check test
+
+`-Test combo-check` enters Training from the main menu as Training select
+does, Ryu against Ryu, and records Player 1's combo as the lab plays a typed
+one (a walk, two crouching jabs into a fireball). Combo check then plays it
+against Ryu, E. Honda and Dhalsim as the dummy, standing and crouching, each
+loaded in turn through Training's own character select, at Fast. Ryu, the
+fighter it was recorded on, has to take every hit; the others are reported.
+
 ## The title screen
 
 The title screen learns from its Start which device, and so which profile,

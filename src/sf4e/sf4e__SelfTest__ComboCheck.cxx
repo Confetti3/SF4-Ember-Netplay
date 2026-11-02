@@ -30,11 +30,7 @@ struct Lab : Steps<Stage> {
 	std::uint64_t comboId = 0;
 } s_lab;
 
-bool Send(training::Command command) {
-	command.generation = training::ReadView().generation;
-	return training::Submit(std::move(command));
-}
-bool Send(Action action) { training::Command command; command.action = action; return Send(std::move(command)); }
+using combo_check::Send;
 
 void Report() {
 	const auto& runner = combo_check::State();
@@ -79,9 +75,9 @@ void TickComboCheck() {
 	}
 	case Stage::Recording:
 		if (view.check.comboId != lab.comboId && view.mode == Mode::Idle) {
-			const auto& combo = view.check.combo;
+			const auto combo = training::LastCombo();
 			Say(combo.hits >= 3, "record", std::to_string(combo.frames.size()) + " frames, " + std::to_string(combo.hits) + " hits");
-			cc::Settings settings; settings.fighters = kFighters;
+			cc::Settings settings; settings.fighters = kFighters; settings.fast = true;
 			if (!combo_check::Start(settings)) { lab.Fail("check", "Combo check did not start"); break; }
 			lab.Enter(Stage::Checking);
 		}

@@ -68,16 +68,19 @@ private:
 // What the runtime reads of the fight for Combo check, published each frame.
 // dummy: the dummy's fighter, -1 unknown. best: HitTally::Best. free: both
 // fighters free. recording: a Recorder is armed. comboId moves on with each
-// recording that ends, and combo is the last one.
+// recording that ends (the combo itself: TrainingRuntime LastCombo).
 struct FightView {
     int dummy = -1, best = 0;
     bool free = false, recording = false;
     std::uint64_t comboId = 0;
-    Combo combo;
 };
 
-enum class Start { Recorded, Middle };
-struct Settings { std::vector<int> fighters; bool standing = true, crouching = true; Start start = Start::Recorded; };
+enum class Start { Recorded, Middle, Corner };
+// Where the stage's walls stop a fighter: the scroll limit (5, at 0xaa720c)
+// plus the screen's half width (2.5, at 0xaa7210), each side of x 0, as
+// clampToStageWalls (0x5436e0) holds them.
+constexpr float StageWall = 7.5f;
+struct Settings { std::vector<int> fighters; bool standing = true, crouching = true; Start start = Start::Recorded; bool fast = false; };
 
 // One run: a fighter as the dummy, standing or crouching, and what came of it.
 struct Run { int fighter = 0; bool crouching = false; bool done = false; int hits = 0; };
@@ -91,11 +94,14 @@ inline std::vector<Run> PlanRuns(const Settings& settings) {
     return runs;
 }
 
-// Where both fighters start a run: as recorded, or the same gap around the
-// stage's middle (x 0), each on the side it had.
+// Where both fighters start a run: as recorded, or with the same gap, each on
+// the side it had, around the stage's middle (x 0) or with the dummy on the
+// wall behind it.
 inline void StartAt(const Combo& combo, Start start, float (&x)[2]) {
+    const float gap = combo.x[1] - combo.x[0];
     x[0] = combo.x[0]; x[1] = combo.x[1];
-    if (start == Start::Middle) { const float half = (combo.x[1] - combo.x[0]) / 2; x[0] = -half; x[1] = half; }
+    if (start == Start::Middle) { x[0] = -gap / 2; x[1] = gap / 2; }
+    if (start == Start::Corner) { x[1] = gap < 0 ? -StageWall : StageWall; x[0] = x[1] - gap; }
 }
 
 // What the runner reads of the fight on each poll.
@@ -115,7 +121,8 @@ struct Step { Do what = Do::Wait; int fighter = -1; bool crouching = false; };
 
 // Polls of a free, ready fight before a run starts, and after it ends.
 constexpr int SettlePolls = 20;
-// Polls a fight may stay ready after a load was asked for, before it is asked for again.
+// Polls a fight may stay ready after a load was asked for, or a run not
+// begin playing, before it is asked for again.
 constexpr int LoadPolls = 120;
 
 class Runner {
@@ -126,7 +133,6 @@ public:
     const std::vector<Run>& Runs() const { return runs_; }
     const Combo& GetCombo() const { return combo_; }
     Start GetStart() const { return start_; }
-    std::size_t Done() const { return next_; }
     Step Next(const Seen& seen) {
         if (!Running()) return {Do::Finished};
         Run& run = runs_[next_];
@@ -144,7 +150,9 @@ public:
             state_ = State::Starting; settle_ = 0;
             return {Do::Play, run.fighter, run.crouching};
         case State::Starting:
-            if (seen.playing) state_ = State::Playing;
+            // A run Training never began playing is started again.
+            if (seen.playing) { state_ = State::Playing; settle_ = 0; }
+            else if (++settle_ >= LoadPolls) state_ = State::Settling, settle_ = 0;
             return {};
         case State::Playing:
             if (seen.playing || !seen.free) { settle_ = 0; return {}; }

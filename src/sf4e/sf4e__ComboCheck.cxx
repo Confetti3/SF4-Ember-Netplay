@@ -1,24 +1,25 @@
 #include "sf4e__ComboCheck.hxx"
 
+#include <optional>
 #include <spdlog/spdlog.h>
 
 #include "../training/TrainingRuntime.hxx"
 
 namespace sf4e { namespace combo_check {
-namespace {
 using namespace sf4e::training;
 using namespace sf4e::training::combo_check;
 
-Runner runner;
-// The dummy's settings before the check, put back after it.
-DummyState kept;
-bool restore = false;
-
 bool Send(Command command) {
-	command.generation = ReadView().generation;
+	command.generation = ReadPlace().generation;
 	return training::Submit(std::move(command));
 }
 bool Send(Action action) { Command command; command.action = action; return Send(std::move(command)); }
+
+namespace {
+
+Runner runner;
+// The dummy's settings before the check, put back after it.
+std::optional<DummyState> kept;
 
 // The dummy stands or crouches, never blocks, is never dizzied and takes no counter hits.
 DummyState RunDummy(bool crouching) {
@@ -36,7 +37,8 @@ void StartRun(const Step& step) {
 }
 
 void Finish() {
-	if (restore) { Command dummy; dummy.action = Action::DummyState; dummy.dummy = kept; Send(dummy); restore = false; }
+	SetFast(false);
+	if (kept) { Command dummy; dummy.action = Action::DummyState; dummy.dummy = *kept; Send(dummy); kept.reset(); }
 	int landed = 0;
 	for (const Run& run : runner.Runs()) landed += Landed(run, runner.GetCombo());
 	spdlog::info("Combo check: {} of {} runs landed every hit", landed, runner.Runs().size());
@@ -49,10 +51,12 @@ bool Record() { return Send(Action::ComboRecord); }
 
 bool Start(const Settings& settings) {
 	const View view = ReadView();
-	if (!view.available || view.check.combo.frames.empty() || settings.fighters.empty()) return false;
-	runner.Begin(settings, view.check.combo);
-	kept = view.dummy; restore = true;
-	spdlog::info("Combo check: {} runs, a combo of {} frames and {} hits", runner.Runs().size(), view.check.combo.frames.size(), view.check.combo.hits);
+	const Combo combo = LastCombo();
+	if (!view.available || combo.frames.empty() || settings.fighters.empty()) return false;
+	runner.Begin(settings, combo);
+	kept = view.dummy;
+	SetFast(settings.fast);
+	spdlog::info("Combo check: {} runs, a combo of {} frames and {} hits", runner.Runs().size(), combo.frames.size(), combo.hits);
 	return true;
 }
 

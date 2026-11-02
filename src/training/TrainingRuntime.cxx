@@ -92,6 +92,8 @@ std::atomic<bool> meterContinuous{false};
 std::atomic<bool> hitBoxesShown{false};
 // Whether the Data panel is shown (ShowData): its readings are taken only then.
 std::atomic<bool> dataShown{false};
+// Combo check's Fast (SetFast).
+std::atomic<bool> fast{false};
 // Training and the match meter both feed the one meter, so each applies the player's choice before it observes.
 void ApplyMeterSettings() {
     meter.SetHistory(static_cast<std::size_t>(meterHistory.load())); meter.SetContinuous(meterContinuous);
@@ -152,6 +154,8 @@ std::array<FighterSample, 2> playbackSeen;
 TrainingCapture* capture = nullptr;
 std::mutex mutex;
 View published;
+// Combo check's last recorded combo, apart from the view so it is not copied each frame.
+combo_check::Combo lastCombo;
 CommandQueue commands;
 // Separate ownership from the GGPO pool and the developer save slot.
 Battle::SaveState checkpoint;
@@ -247,7 +251,8 @@ Playing playing;
 void LogPlaying(const Playing& what, const char* change) {
     if (what.mode == Mode::Idle) return;
     const char* kind = what.mode == Mode::Standby ? "standby" : what.mode == Mode::Recording ? "recording" : what.reply ? "reply" : "playback";
-    if (what.slot == ReplySlot) spdlog::info("Training: {} of typed moves {}", kind, change);
+    // The extra slot plays the dummy's typed reply, or on Player 1 Combo check's combo (Action::ComboPlay).
+    if (what.slot == ReplySlot) spdlog::info("Training: {} of {} {}", kind, what.side == 0 ? "Combo check's combo" : "typed moves", change);
     else spdlog::info("Training: {} of slot {} on Player {} {}", kind, what.slot + 1, what.side + 1, change);
 }
 // At the start of each update, before its commands can reset the battle: a
@@ -311,6 +316,7 @@ DummyState ReadDummyState(const DummyState& fallback) {
     return state;
 }
 View ReadView() { std::lock_guard<std::mutex> lock(mutex); return published; }
+combo_check::Combo LastCombo() { std::lock_guard<std::mutex> lock(mutex); return lastCombo; }
 void SetCall(const CallControl& call) { std::lock_guard<std::mutex> lock(mutex); callControl = call; }
 Place ReadPlace() {
     std::lock_guard<std::mutex> lock(mutex);
@@ -378,8 +384,7 @@ static bool Dispatch(Native* system, const Command& command) {
     // Training's own Character Select from the pause menu, with the dummy
     // changed on the way (GameEvents::TrainingMode::ChangeDummy).
     case Action::ComboLoad:
-        if (!selection::FindFighter(command.slot)) return false;
-        sf4e::GameEvents::TrainingMode::ChangeDummy(command.slot);
+        if (!selection::FindFighter(command.slot) || !sf4e::GameEvents::TrainingMode::ChangeDummy(command.slot)) return false;
         *Native::GetBattleExitType(system) = Native::BET_PAUSE_TOCHARACTER;
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
         spdlog::info("Training: Combo check loads fighter {} as the dummy", command.slot);
@@ -703,8 +708,11 @@ void AfterUpdate(Native* system) {
         {
             const int side = session.GetView().playbackSide;
             const auto& own = fighters[side], & other = fighters[1 - side], & before = playbackSeen[1 - side];
-            const bool hit = other.valid && ((ClassifyStatus(other.status) == Phase::Hit && ClassifyStatus(before.status) != Phase::Hit) ||
-                other.comboDamage > before.comboDamage);
+            const auto hitOn = [](const FighterSample& now, const FighterSample& was) {
+                return now.valid && ((ClassifyStatus(now.status) == Phase::Hit && ClassifyStatus(was.status) != Phase::Hit) ||
+                    now.comboDamage > was.comboDamage);
+            };
+            const bool hit = hitOn(other, before);
             // How soon the script says the fighter is free again, so a link's
             // press can land on that frame: its interruptible frame, else its end.
             const int boundary = MoveRecoveryEnd(own);
@@ -713,16 +721,15 @@ void AfterUpdate(Native* system) {
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
                 session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
             // Combo check: a hit on the dummy, and Player 1's combo as it is done.
-            const auto& dummy = fighters[1], & wasDummy = playbackSeen[1];
-            const bool dummyHit = dummy.valid && ((ClassifyStatus(dummy.status) == Phase::Hit && ClassifyStatus(wasDummy.status) != Phase::Hit) ||
-                dummy.comboDamage > wasDummy.comboDamage);
+            const auto& dummy = fighters[1];
             const auto free = [](const FighterSample& fighter) { return fighter.valid && ClassifyStatus(fighter.status) == Phase::Neutral; };
-            comboTally.Observe(dummyHit, free(dummy));
+            comboTally.Observe(hitOn(dummy, playbackSeen[1]), free(dummy));
             comboView.free = free(fighters[0]) && free(dummy);
             const View& was = session.GetView();
             if (commitInput && comboRecorder.Feed(ForFacing(output[0], session.FacingRight(0)), was.x[0], was.x[1], comboTally)) {
-                comboView.combo = comboRecorder.Result(); ++comboView.comboId;
-                spdlog::info("Training: Combo check recorded {} frames, {} hits", comboView.combo.frames.size(), comboView.combo.hits);
+                { std::lock_guard<std::mutex> lock(mutex); lastCombo = comboRecorder.Result(); }
+                ++comboView.comboId;
+                spdlog::info("Training: Combo check recorded {} frames, {} hits", comboRecorder.Result().frames.size(), comboRecorder.Result().hits);
             }
             playbackSeen = fighters;
         }
@@ -806,6 +813,11 @@ void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ShowData(bool shown) { dataShown = shown; }
+void SetFast(bool on) { fast = on; }
+bool Fast() {
+    auto* system = Native::staticMethods.GetSingleton();
+    return fast && session.GetView().available && session.GetView().ready && system && LabBattle(system);
+}
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
