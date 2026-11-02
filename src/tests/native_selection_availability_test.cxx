@@ -84,6 +84,8 @@ int main() try {
         };
         const auto press = [&](unsigned buttons) { frame(buttons); frame(); };
         frame(); frame();
+        // The costume row is on the fighter's own page.
+        selector.Navigation().Push("look"); frame();
         Check(row("costume").choices.size() == static_cast<std::size_t>(CostumeCount(fighter)), "Missing artwork hid owned costumes");
         for (int costume = BaseCostumeCount(fighter); costume < CostumeCount(fighter); ++costume) {
             Check(row("costume").choices[costume].enabled, "An owned DLC costume is not selectable");

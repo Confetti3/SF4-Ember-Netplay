@@ -36,9 +36,9 @@ public:
               selection::RandomPool* randomPool = nullptr, const selection::InstalledContent* installed = nullptr,
               bool fighterKept = false);
 private:
-    // The board (Fighter.dc.html): its grid eight across, the preview and the rows beside it.
+    // The board: the grid eight across, nothing beside it (AxPick.dc.html).
     static constexpr int BoardColumns = 8;
-    void DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback,
+    void DrawBoard(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height,
                    const selection::Pick& pick, SelectionArt* art, const AvailabilityReader& readAvailability);
     std::string boardFocus_;
     GameMenu menu_;
