@@ -270,6 +270,9 @@ struct Room {
     set_format: Option<u8>,
     rotation: Option<u8>,
     room_type: Option<u8>,
+    /// The room host's last word on whether the creator is a member; NULL
+    /// until a host that knows the field has said (`create::reserve`).
+    creator_in: Option<bool>,
     /// Each fighter plays at their own input delay. The creator's request when
     /// the room was reserved, then the room host's own report (`details`).
     own_delay: bool,
@@ -277,7 +280,7 @@ struct Room {
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay, room_type";
+    creator_region, own_delay, room_type, creator_in";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -302,6 +305,7 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         rotation: row.get(17)?,
         own_delay: row.get(19)?,
         room_type: row.get(20)?,
+        creator_in: row.get(21)?,
     })
 }
 

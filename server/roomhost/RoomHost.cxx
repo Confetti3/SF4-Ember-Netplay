@@ -135,7 +135,7 @@ private:
 };
 
 RoomHost::RoomHost(std::shared_ptr<session::IrohRoom> room, Config config, Emit emit)
-	: room_(std::move(room)), config_(std::move(config)), emit_(std::move(emit)) {}
+	: room_(std::move(room)), config_(std::move(config)), emit_(std::move(emit)), reporter_(config_.creator) {}
 
 RoomHost::~RoomHost() { server_.reset(); }
 
@@ -189,6 +189,10 @@ bool RoomReporter::Report(const SessionServer& server, const room::Snapshot& sna
 	auto committed = server.CommittedServerOwned();
 	current.banned = std::move(committed.banned);
 	current.details = DetailsOf(snapshot);
+	// Committed membership, like the bans: a join or a departure still in an
+	// uncommitted candidate could be discarded.
+	current.details.creatorIn = !creator_.empty() &&
+		std::binary_search(committed.members.begin(), committed.members.end(), creator_);
 	current.games = std::move(committed.wonGames);
 	// Bans only ever grow, and only with a commit: one not given to the helper
 	// yet waits from now.

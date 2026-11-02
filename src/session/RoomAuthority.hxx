@@ -30,6 +30,9 @@ public:
 	bool ServerOwned() const { return snapshot_.serverOwned; }
 	// Accounts a kick removed for the room's life; empty unless server-owned.
 	std::vector<std::string> KickedAccounts() const;
+	// The accounts the members of a server-owned room joined as, sorted; a
+	// member who dropped and may still come back is one until it leaves.
+	std::vector<std::string> MemberAccounts() const;
 	// The newest MaximumWonGames games won between two accounts, oldest first;
 	// empty unless server-owned.
 	std::vector<WonGame> WonGames() const { return {wonGames_.begin(), wonGames_.end()}; }

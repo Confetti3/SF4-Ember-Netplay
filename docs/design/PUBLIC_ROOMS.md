@@ -162,7 +162,10 @@ pub struct RoomAdmission {
 The invitation routes the joiner to the room host. In a server-owned room the
 capability inside it admits nobody by itself; the ticket does.
 
-Limits: one open room per Ember ID as creator; per address (keyed hash of
+Limits: one open room per Ember ID as creator, counted until the room has
+opened and its host reports the creator is no longer a member
+(`details.creator_in: false`, kept in `rooms.creator_in`), so a creator who
+left a room the others still play in can open another; per address (keyed hash of
 `X-Real-IP`, IPv6 by /64) 2 open rooms and 30 ticket requests per 10 minutes;
 a server-wide room cap from supervisor configuration. Bans are rows
 `(room_id, ember_id)` written when the room host reports a kick.

@@ -93,7 +93,7 @@ std::string StatusLine(const Status& status) {
 	const auto& details = status.details;
 	nlohmann::json detail{{"name", details.name}, {"capacity", details.capacity}, {"locked", details.locked},
 		{"fighters", details.fighters}, {"set_format", details.setFormat}, {"rotation", details.rotation},
-		{"room_type", details.roomType}};
+		{"room_type", details.roomType}, {"creator_in", details.creatorIn}};
 	if (!details.hostName.empty()) detail["host_name"] = details.hostName;
 	// Written only for the room that has it, so any other room's line is what it was.
 	if (details.ownDelay) detail["own_delay"] = true;

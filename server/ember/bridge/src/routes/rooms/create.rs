@@ -204,10 +204,16 @@ fn reserve(
         }
     };
     // The creator's open room comes first, so a connection that opened it can
-    // hand out its link instead, whatever its own limit says.
+    // hand out its link instead, whatever its own limit says. A room that has
+    // opened and whose host says the creator is no longer in it is the other
+    // members' now: it no longer counts against the creator (migration 053).
+    // `IS 0`, not `= 0`: a room whose host never said (NULL) still counts.
     let existing: Option<(String, Option<String>)> = tx
         .query_row(
-            "SELECT room_id, connection_id FROM rooms WHERE creator_ember_id = ?1 AND closed_at IS NULL",
+            "SELECT room_id, connection_id FROM rooms
+             WHERE creator_ember_id = ?1 AND closed_at IS NULL
+                 AND NOT (opened_at IS NOT NULL AND creator_in IS 0)
+             ORDER BY created_at DESC LIMIT 1",
             [creator.as_str()],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )

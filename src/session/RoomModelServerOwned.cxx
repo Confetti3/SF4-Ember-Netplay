@@ -6,6 +6,8 @@
 #include "RoomModelDetail.hxx"
 #include "../common/SkillBadgeJson.hxx"
 
+#include <algorithm>
+
 namespace sf4e { namespace room {
 using namespace detail;
 
@@ -45,6 +47,13 @@ RejectReason RoomAuthority::CheckServerOwnedJoin(const MemberProfile& profile) c
 	for (const auto& entry : memberAccounts_)
 		if (entry.second == profile.admission.account) return RejectReason::NameTaken;
 	return RejectReason::None;
+}
+
+std::vector<std::string> RoomAuthority::MemberAccounts() const {
+	std::vector<std::string> accounts;
+	for (const auto& entry : memberAccounts_) accounts.push_back(entry.second);
+	std::sort(accounts.begin(), accounts.end());
+	return accounts;
 }
 
 void RoomAuthority::RememberAccount(MemberId member, std::string account) {

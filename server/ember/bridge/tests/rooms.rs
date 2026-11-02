@@ -12,7 +12,7 @@ use common::{
         cause, create_room, create_room_with, listing, open_room, player, reason, send, start,
         ticket,
     },
-    supervisor::{BUILD, ENDPOINT, Gate, enable, fake_supervisor, report, secrets},
+    supervisor::{BUILD, ENDPOINT, Gate, enable, fake_supervisor, report, report_details, secrets},
 };
 use ember_bridge::config;
 use ember_protocol::{
@@ -206,6 +206,52 @@ async fn names_and_sizes_are_checked_before_the_supervisor_is_asked() {
     assert!(fake.lock().unwrap().created.is_empty());
     // None of that used up the creator's one room.
     open_room(&bridge, &kate, "198.51.100.1", 4).await;
+}
+
+// A creator who has left a room the others still play in may open another:
+// the room counts against them only until it has opened and its host says
+// they are gone. Before it opens, or with a host that says nothing, it counts.
+#[tokio::test]
+async fn a_room_its_creator_left_no_longer_counts_against_them() {
+    let (bridge, fake) = start().await;
+    let one = player(&bridge, 1).await;
+    let first = open_room(&bridge, &one, "198.51.100.1", 4).await;
+    let refused = |body: &serde_json::Value| cause(body) == "own_room";
+
+    // Not opened yet, and its host says the creator is not in: still theirs.
+    report_details(&fake, &first, json!({ "creator_in": false }));
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let (status, body) = create_room(&bridge, &one, "198.51.100.1", "Again", 4).await;
+    assert!(status == StatusCode::CONFLICT && refused(&body), "{body}");
+
+    // Open with the creator inside, then with a host that says nothing. (A
+    // host that never says is a_create_right_after_the_creators_room_ended...)
+    report(&fake, &first, 3, 1, &[]);
+    report_details(&fake, &first, json!({ "creator_in": true }));
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let (status, body) = create_room(&bridge, &one, "198.51.100.1", "Again", 4).await;
+    assert!(status == StatusCode::CONFLICT && refused(&body), "{body}");
+    report_details(&fake, &first, json!({ "set_format": 2 }));
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let (status, body) = create_room(&bridge, &one, "198.51.100.1", "Again", 4).await;
+    assert!(status == StatusCode::CONFLICT && refused(&body), "{body}");
+
+    // The creator left; two others play on. A new room is theirs to open, and
+    // that one counts as their open room in turn.
+    report(&fake, &first, 2, 1, &[]);
+    report_details(&fake, &first, json!({ "creator_in": false }));
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let second = open_room(&bridge, &one, "198.51.100.1", 4).await;
+    assert_ne!(second, first);
+    let (status, body) = create_room(&bridge, &one, "198.51.100.1", "Third", 4).await;
+    assert!(status == StatusCode::CONFLICT && refused(&body), "{body}");
+
+    // Back in the first room, both count; the bridge keeps polling both.
+    report_details(&fake, &first, json!({ "creator_in": true }));
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let listed = listing(&bridge, &one, "").await;
+    assert!(listed.iter().any(|room| room.room_id == first), "{listed:?}");
+    assert_eq!(fake.lock().unwrap().created.len(), 2);
 }
 
 #[tokio::test]

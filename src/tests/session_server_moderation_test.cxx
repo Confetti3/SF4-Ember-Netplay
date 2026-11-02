@@ -268,10 +268,10 @@ static void TestStatusLineDetails() {
 	details.rotation = 2;
 	const auto line = roomhost::StatusLine({3, 1, "sf4e3:x", {}, details});
 	CHECK(json::parse(line).at("details") == json::parse(
-		R"({"name":"Late night","capacity":8,"locked":true,"host_name":"Kate","fighters":[3,255,12],"set_format":3,"rotation":2,"room_type":0})"));
+		R"({"name":"Late night","capacity":8,"locked":true,"host_name":"Kate","fighters":[3,255,12],"set_format":3,"rotation":2,"room_type":0,"creator_in":false})"));
 	details.hostName.clear();
 	const auto bare = json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, details})).at("details");
-	CHECK(!bare.contains("host_name") && bare.size() == 7);
+	CHECK(!bare.contains("host_name") && bare.size() == 8);
 	// A room whose fighters each play at their own delay says so, and only that room.
 	auto ownDetails = details;
 	ownDetails.ownDelay = true;
@@ -284,6 +284,11 @@ static void TestStatusLineDetails() {
 	kingDetails.roomType = static_cast<int>(room::KingRoom);
 	CHECK(json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, kingDetails})).at("details").at("room_type") == 2);
 	CHECK(!(kingDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, kingDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
+	// Whether the creator is inside is said either way, and changes the line.
+	auto creatorDetails = details;
+	creatorDetails.creatorIn = true;
+	CHECK(json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, creatorDetails})).at("details").at("creator_in") == true);
+	CHECK(!(creatorDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, creatorDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
 	// A room name that is not UTF-8 is replaced instead of throwing.
 	details.name = std::string("bad\xff");
 	CHECK(json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details})).at("details").at("name").is_string());

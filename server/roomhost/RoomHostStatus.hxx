@@ -49,10 +49,14 @@ struct RoomDetails {
 	// room::RoomType's value: 0 Classic, 1 Arcade, 2 King of the hill. The
 	// creator sets it just after the room opens, so it can change once.
 	int roomType = 0;
+	// The player who created the room is a member of it now. The bridge counts
+	// a room against its creator's one open room only while they are.
+	bool creatorIn = false;
 	bool operator==(const RoomDetails& other) const {
 		return name == other.name && hostName == other.hostName && capacity == other.capacity &&
 			locked == other.locked && fighters == other.fighters && setFormat == other.setFormat &&
-			rotation == other.rotation && ownDelay == other.ownDelay && roomType == other.roomType;
+			rotation == other.rotation && ownDelay == other.ownDelay && roomType == other.roomType &&
+			creatorIn == other.creatorIn;
 	}
 };
 constexpr int NoFighter = 255;
@@ -83,7 +87,7 @@ struct Status {
 
 // {"type":"status","members":n,"tables_playing":n,"invitation":s,"banned":[...],
 //  "details":{"name":s,"capacity":n,"locked":b,"host_name":s (only with a
-//  moderator),"fighters":[n...],"set_format":n,"rotation":n,"room_type":n,"own_delay":true (only
+//  moderator),"fighters":[n...],"set_format":n,"rotation":n,"room_type":n,"creator_in":b,"own_delay":true (only
 //  for a room whose fighters each play at their own input delay)},
 //  "games":[{"table":n,"generation":n,"winner":s,"loser":s}...] (only once the
 //  room has a won game, oldest first)}

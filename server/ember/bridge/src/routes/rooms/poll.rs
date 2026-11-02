@@ -351,6 +351,7 @@ fn with_report(before: &Room, report: Report, now: u64) -> Room {
     after.set_format = details.set_format.or(before.set_format);
     after.rotation = details.rotation.or(before.rotation);
     after.room_type = details.room_type.or(before.room_type);
+    after.creator_in = details.creator_in.or(before.creator_in);
     if sealed.is_some() {
         after.invitation_sealed = sealed;
     }
@@ -364,7 +365,8 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
     Ok(tx.execute(
         "UPDATE rooms SET name = ?2, capacity = ?3, members = ?4, tables_playing = ?5, locked = ?6,
              host_name = ?7, fighters = ?8, set_format = ?9, rotation = ?10, own_delay = ?11,
-             invitation_sealed = ?12, opened_at = ?13, room_type = ?14
+             invitation_sealed = ?12, opened_at = ?13, room_type = ?14,
+             creator_in = ?15
          WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
         params![
             room.room_id,
@@ -381,6 +383,7 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
             room.invitation_sealed,
             room.opened_at,
             room.room_type,
+            room.creator_in,
         ],
     )? == 1)
 }
@@ -413,6 +416,7 @@ mod tests {
             set_format: Some(3),
             rotation: Some(1),
             room_type: Some(1),
+            creator_in: Some(true),
             own_delay: true,
         }
     }
@@ -434,7 +438,7 @@ mod tests {
         let details = Details::from_value(
             &json!({ "name": "Fight Night", "capacity": 4, "locked": true, "host_name": "Player 1",
                 "fighters": [3, 4], "set_format": 3, "rotation": 1, "room_type": 1,
-                "own_delay": true }),
+                "creator_in": true, "own_delay": true }),
             2,
             4,
         );
