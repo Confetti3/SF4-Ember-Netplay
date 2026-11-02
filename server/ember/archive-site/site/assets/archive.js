@@ -82,7 +82,7 @@ async function load(append) {
 }
 
 // Events, newest first, each with its sets: a tournament set by its ID,
-// online games by day and by the same two players close together.
+// online games by day and by the same two named players close together.
 function group(games) {
   const events = new Map();
   for (const game of games) {
@@ -95,7 +95,7 @@ function group(games) {
     const pair = [game.names[0] || '?', game.names[1] || '?'].sort().join('\n');
     let key = online ? null : game.set;
     if (online) {
-      const last = [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
+      const last = pair && [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
       key = last ? last.key : game.digest;
     }
     if (!event.sets.has(key)) event.sets.set(key, { key, pair, event: event.title, online, games: [] });

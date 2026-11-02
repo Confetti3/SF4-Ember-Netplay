@@ -25,7 +25,8 @@ const MAX_WAITING: i64 = 2 << 30;
 pub enum Attribution<'a> {
     /// A game outside any set: its sender's side, and that side's name and
     /// country. The copy that comes first says what the game was; a later
-    /// copy only names its own player's side if it has no name yet.
+    /// copy from another account names its own side if it has no name yet
+    /// (`name_own_side`).
     Online(&'a Sides),
     /// A game of a tournament set, sided by the set's roster.
     Set(&'a sets::SetGame),
@@ -59,7 +60,9 @@ impl From<Refused> for ApiFailure {
 
 /// Offers `file`, read as `replay`, sent by `sender`, to the archive in the
 /// caller's transaction. A game the archive holds keeps what its first copy
-/// said; only a set's own player can add to it (`SetGame::held`). A new
+/// said; only a set's own player can add to a set's game (`SetGame::held`),
+/// and only an account other than the first sender can name an empty side of
+/// an online game (`name_own_side`). A new
 /// game is taken when there is room for it (`refusal`), with what
 /// `attribution` says of its sides.
 pub fn admit(
@@ -83,24 +86,24 @@ pub fn admit(
             Attribution::Set(game) => {
                 game.held(tx, now, &digest, &sent_by, set.as_deref(), sender)?
             }
-            Attribution::Online(sides) => name_own_side(tx, &digest, sides)?,
+            Attribution::Online(sides) => name_own_side(tx, &digest, &sent_by, sender, sides)?,
         }
         return Ok(Admission::Held);
     }
-    let (names, countries, set) = match attribution {
+    let (names, countries, set, sent_side) = match attribution {
         Attribution::Online(sides) => {
             let (names, countries) = online_sides(sides);
-            (names, countries, None)
+            (names, countries, None, sides.side.filter(|side| *side < 2))
         }
-        Attribution::Set(game) => (game.names.clone(), game.countries.clone(), Some(game)),
+        Attribution::Set(game) => (game.names.clone(), game.countries.clone(), Some(game), None),
     };
     if let Some(refused) = refusal(tx, now, sender, file.len(), set.is_none())? {
         return Ok(Admission::Refused(refused));
     }
     tx.execute(
         "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
-            match_id, event_title, round_label, phase, sent_by, charged, priority, replay, next_attempt_at, received_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19)",
+            sent_side, match_id, event_title, round_label, phase, sent_by, charged, priority, replay, next_attempt_at, received_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?20, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19)",
         params![
             digest,
             replay.crc_name(),
@@ -120,7 +123,8 @@ pub fn admit(
             set.is_none(),
             if set.is_some() { 0 } else { 1 },
             file,
-            now
+            now,
+            sent_side
         ],
     )?;
     crate::db::queued();
@@ -181,15 +185,37 @@ fn own_name(sides: &Sides, side: u8) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// Adds to the online game `digest` the archive already holds the name its
-/// own player's copy gives that player's side, when the side has none yet.
-/// Each side is named only by its own player's copy; a name once given stays.
-fn name_own_side(tx: &Transaction<'_>, digest: &str, sides: &Sides) -> Result<()> {
-    for (side, column) in [(0, "name_a"), (1, "name_b")] {
+/// Adds to the online game `digest` the archive already holds the name a
+/// later copy gives its own side, when that side has none yet. The first
+/// sender's copy is the one that said what the game was, so a resend from the
+/// same account adds nothing, and nor does a copy naming the side the first
+/// sender said was theirs; one account names at most one side. Who gave each
+/// name is kept (`named_by_a`, `named_by_b`). A name once given stays. The
+/// archive cannot check that the sender played the side it names, only that
+/// it is not the game's first sender.
+fn name_own_side(
+    tx: &Transaction<'_>,
+    digest: &str,
+    sent_by: &str,
+    sender: &EmberId,
+    sides: &Sides,
+) -> Result<()> {
+    if sender.as_str() == sent_by {
+        return Ok(());
+    }
+    for (side, column, by, other_by) in [
+        (0, "name_a", "named_by_a", "named_by_b"),
+        (1, "name_b", "named_by_b", "named_by_a"),
+    ] {
         if let Some(name) = own_name(sides, side) {
             tx.execute(
-                &format!("UPDATE archive_games SET {column} = ?2 WHERE digest = ?1 AND match_id IS NULL AND {column} IS NULL"),
-                params![digest, name],
+                &format!(
+                    "UPDATE archive_games SET {column} = ?2, {by} = ?3
+                     WHERE digest = ?1 AND match_id IS NULL AND {column} IS NULL
+                       AND COALESCE(sent_side, -1) != {side}
+                       AND COALESCE({other_by}, '') != ?3"
+                ),
+                params![digest, name, sender.as_str()],
             )?;
         }
     }

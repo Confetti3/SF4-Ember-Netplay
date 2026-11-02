@@ -10,7 +10,10 @@ round.
   them on by accepting tournament desk access; nobody opts in per game. The
   bridge archives a set's game only when the set is a match on its desk's
   connection; a partner's or a provider's set (BluMint, say) keeps its replays
-  for the set alone and never reaches the archive, whatever its players share. The game sends
+  for the set alone: its games never reach the archive through the set route
+  or the backfill, whatever its players share. Once such a set is closed (see
+  Where it is kept) its games can still arrive as their senders' own online games, if
+  their games share them, with only the sender's own name and no event. The game sends
   each set game to the set's bridge (`replay_send`, `PUT
   /v1/matches/{id}/replays/{crc}`). The bridge keeps the game for the set and
   also puts the set's copy in the archive.
@@ -61,7 +64,8 @@ bridge checks it against the file.
 
 A copy of a game the archive already holds changes nothing (200), whoever
 sends it and whatever it says, with exceptions below: a set's own players, and
-an online game's side that has no name yet.
+an online game's side that has no name yet, named by an account other than the
+game's first sender.
 
 ## Who says what
 
@@ -70,9 +74,14 @@ an online game's side that has no name yet.
   copy: the game sends its own name alone (the other side empty), and the
   bridge ignores a name for the side that is not the sender's, so an older game
   that sends both names names no opponent. A copy that does not say its side
-  names no one. A side with no name yet takes the name its own player's later
-  copy gives; nothing else a later copy says is taken. The archive cannot check
-  these; `sent_by` records whose word they are. A side nobody's copy named is
+  names no one. A side with no name yet takes the name a later copy
+  gives it, only from an account other than the first sender, never for the
+  side the first sender said was theirs, and one account names one side;
+  nothing else a later copy says is taken. The archive cannot check that the
+  account played the side it names, so any account with a play session can
+  name an empty side of a game it downloaded; this is inherent to a public
+  archive. `sent_by` records whose word the first copy is, `sent_side` the
+  side it claimed, and `named_by_a` / `named_by_b` who named a side later. A side nobody's copy named is
   shown unnamed, so a player who shares nothing is never named by the other.
 - **Set games.** The sides are the set's roster: slot 0 is P1. The names are
   the players' accounts on the event's site, as the desk shows them, never

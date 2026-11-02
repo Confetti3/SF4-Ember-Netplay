@@ -492,6 +492,85 @@ async fn an_opponent_is_named_only_by_their_own_copy() {
     assert_eq!(games(&listed(&f, "q=Mallory").await).len(), 0);
 }
 
+/// A later copy names an empty side only from another account than the
+/// game's first sender, never the side the first sender said was theirs, and
+/// one account names one side. The word stays attributable.
+#[tokio::test]
+async fn a_late_name_cannot_come_from_the_first_sender_or_fill_both_sides() {
+    let f = fixture().await;
+    let mut c = f.bridge.player(44);
+    f.bridge.open_session(&mut c).await;
+    // The first sender names itself, then resends the game as the other
+    // side to name an opponent who shared nothing.
+    let one = game(21, [1, 2]);
+    assert_eq!(
+        send(&f, &f.a, &one, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.a, &saved_elsewhere(&one), "a=&b=Bob&side=1").await,
+        StatusCode::OK
+    );
+    // A first sender with no usable name of its own cannot be named by
+    // anyone either: a third account naming the side the first sender
+    // claimed adds nothing.
+    let two = game(22, [3, 4]);
+    assert_eq!(
+        send(&f, &f.a, &two, "a=&b=&side=0&country=BE").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &c, &saved_elsewhere(&two), "a=Eve&b=&side=0").await,
+        StatusCode::OK
+    );
+    // One account names one side of a game, not both.
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&two), "a=&b=Bob&side=1").await,
+        StatusCode::OK
+    );
+    let three = game(23, [5, 6]);
+    assert_eq!(
+        send(&f, &f.a, &three, "side=2").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&three), "a=Bob&b=Bob&side=0").await,
+        StatusCode::OK
+    );
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&three), "a=Bob&b=Bob&side=1").await,
+        StatusCode::OK
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 3).await;
+    assert_eq!(listed_game(&list, &one)["names"], json!(["Ann", null]));
+    assert_eq!(listed_game(&list, &two)["names"], json!([null, "Bob"]));
+    assert_eq!(listed_game(&list, &three)["names"], json!(["Bob", null]));
+    // Who named each side is kept.
+    let by = |digest: String| async {
+        f.bridge
+            .state()
+            .db
+            .read(move |tx| {
+                Ok(tx.query_row(
+                    "SELECT COALESCE(named_by_a, ''), COALESCE(named_by_b, '') FROM archive_games WHERE digest = ?1",
+                    [digest],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )?)
+            })
+            .await
+            .unwrap()
+    };
+    assert_eq!(by(digest(&one)).await, (String::new(), String::new()));
+    assert_eq!(
+        by(digest(&two)).await,
+        (String::new(), f.b.id().to_string())
+    );
+    assert_eq!(
+        by(digest(&three)).await,
+        (f.b.id().to_string(), String::new())
+    );
+}
+
 /// Only a desk event's set has its games archived: the organizer accepted
 /// desk access for those. A partner's set (any other connection) keeps its
 /// replays for the set, but the archive takes none, from the set's route or
