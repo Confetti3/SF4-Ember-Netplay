@@ -83,17 +83,19 @@ function pill(band) {
 }
 
 // One side of a game: face, then name, flag and class, then the fighter.
-function side(game, at, extra = '') {
+// Drawn as side A or B (B mirrored, on the right) as `as` says, else as played.
+function side(game, at, as = at) {
   const name = game.names[at];
   const classes = game.classes || [];
-  return el('div', { className: 'side ' + (at ? 'b' : 'a') + (extra ? ' ' + extra : '') },
+  return el('div', { className: 'side ' + (as ? 'b' : 'a') },
     face(game.fighters[at]),
     el('div', { className: 'who' },
       el('div', { className: 'name-line' },
-        el('span', { className: 'name' + (name ? '' : ' unknown'), textContent: name || 'Unknown player' }),
+        // A side nobody named (its player did not share the game) shows its fighter.
+        el('span', { className: 'name' + (name ? '' : ' unknown'), textContent: name || fighterName(game.fighters[at]) }),
         flag(game.countries[at]),
         pill(classes[at])),
-      el('span', { className: 'fighter', textContent: fighterName(game.fighters[at]) })));
+      name ? el('span', { className: 'fighter', textContent: fighterName(game.fighters[at]) }) : null));
 }
 
 function known(set) { return set.online ? null : state.sets[set.key]; }
@@ -103,7 +105,7 @@ function middle(set, withMeta) {
   const set_ = known(set);
   const score = set_ ? el('span', { className: 'score', textContent: set_.score.join(' – ') }) : el('span', { className: 'score vs', textContent: 'vs' });
   return el('div', { className: 'mid' }, score,
-    withMeta ? el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') }) : null);
+    withMeta && set.games.length > 1 ? el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') }) : null);
 }
 
 function downloadLink(href, text, main) {
@@ -181,16 +183,20 @@ function group(games) {
       events.set(eventKey, { title: online ? day(game.saved_at) : game.event || 'Tournament sets', kind: online ? 'Online matches' : 'Tournament', online, sets: new Map() });
     }
     const event = events.get(eventKey);
-    // Only a game with both names joins a set: half-named games against different
-    // unnamed opponents would otherwise read as one pair.
-    const named = Boolean(game.names[0] && game.names[1]);
-    const pair = [game.names[0] || '?', game.names[1] || '?'].sort().join('\n');
+    // Online, a game with both names joins the same two players' set; a game
+    // only one side named (the other player did not share it) joins that
+    // player's session, whoever they played. Either only within SET_GAP of
+    // the group's last game.
+    const named = game.names.filter(Boolean);
+    const pair = named.length === 2 ? 'pair:' + [...named].sort().join('\n') : named.length === 1 ? 'player:' + named[0] : null;
     let key = online ? null : game.set;
     if (online) {
-      const last = named && [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
+      const last = pair && [...event.sets.values()].find((set) => set.pair === pair && set.games[set.games.length - 1].saved_at - game.saved_at <= SET_GAP);
       key = last ? last.key : game.digest;
     }
-    if (!event.sets.has(key)) event.sets.set(key, { key, pair, event: event.title, online, games: [] });
+    if (!event.sets.has(key)) {
+      event.sets.set(key, { key, pair, player: pair && pair.startsWith('player:') ? named[0] : null, event: event.title, online, games: [] });
+    }
     event.sets.get(key).games.push(game);
   }
   return [...events.values()].map((event) => ({ ...event, sets: [...event.sets.values()].map((set) => ({ ...set, games: set.games.reverse() })) }));
@@ -215,7 +221,9 @@ function filterValue(key) {
 }
 
 function renderFilters() {
-  $('filters').replaceChildren(...FILTERS.map(([key, label, any]) => {
+  // Event and round mean something only once the archive holds a tournament set.
+  const shown = FILTERS.filter(([key]) => state.events.length || state.filter[key] != null || (key !== 'event' && key !== 'round'));
+  $('filters').replaceChildren(...shown.map(([key, label, any]) => {
     const value = filterValue(key);
     const button = el('button', { type: 'button', className: 'f' + (value ? ' on' : '') },
       key === 'fighter' && value ? face(+state.filter.fighter) : null,
@@ -230,7 +238,42 @@ function renderFilters() {
   $('clear').hidden = Object.keys(state.filter).length === 0;
 }
 
+// The side `player` played in `game`.
+function sideOf(game, player) { return game.names[0] === player ? 0 : 1; }
+
+// The fighters a session's player met, each face once, as its right side.
+function metSide(set, most) {
+  const met = [];
+  for (const game of set.games) {
+    const other = game.fighters[1 - sideOf(game, set.player)];
+    if (!met.includes(other)) met.push(other);
+  }
+  return el('div', { className: 'side b met' },
+    el('div', { className: 'faces' }, ...met.slice(0, most).map((id) => face(id, 'small'))),
+    met.length > most ? el('span', { className: 'meta', textContent: '+' + (met.length - most) }) : null);
+}
+
+// One player's games in a row: their side as in a match, then the fighters
+// they met.
+function sessionRow(set) {
+  const first = set.games[0], last = set.games[set.games.length - 1];
+  const open = el('button', { type: 'button', className: 'open' });
+  open.setAttribute('aria-label', 'Open ' + set.player + ', ' + plural(set.games.length, 'game', 'games'));
+  open.addEventListener('click', () => openSet(set.key));
+  return el('li', { className: 'match session' },
+    open,
+    el('div', { className: 'versus' },
+      side(first, sideOf(first, set.player), 0),
+      el('div', { className: 'mid' }, el('span', { className: 'score vs', textContent: 'vs' }),
+        el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') })),
+      metSide(set, 6)),
+    el('div', { className: 'act' },
+      el('span', { className: 'meta', textContent: clock(first.saved_at) + '–' + clock(last.saved_at) }),
+      el('span', { className: 'ghost', textContent: 'Games ›' })));
+}
+
 function matchRow(set) {
+  if (set.player && set.games.length > 1) return sessionRow(set);
   const first = set.games[0];
   const set_ = known(set);
   const when = set.online ? clock(first.saved_at) : [first.round, first.phase].filter(Boolean).join(' · ') || 'Set';
@@ -250,15 +293,14 @@ function matchRow(set) {
 }
 
 function renderList() {
-  const sets = state.groups.reduce((n, event) => n + event.sets.length, 0);
   const filtered = Object.keys(state.filter).length > 0;
   $('summary').textContent = state.games.length
-    ? `${plural(sets, 'match', 'matches')} · ${plural(state.games.length, 'game', 'games')}${state.more ? ', newest first' : ''}`
+    ? `${plural(state.games.length, 'game', 'games')}${state.more ? ', newest first' : ''}`
     : state.more ? 'None of the newest replays match. Look further back with Older replays.'
       : filtered ? 'No replays match these filters.' : 'No replays yet. Games shared from Ember show up here.';
   $('events').replaceChildren(...state.groups.map((event) => el('section', { className: 'event' },
     el('div', { className: 'event-head' }, el('h2', { textContent: event.title }),
-      el('span', { className: 'note', textContent: event.kind + ' · ' + plural(event.sets.length, 'match', 'matches') })),
+      el('span', { className: 'note', textContent: event.kind + ' · ' + plural(event.sets.reduce((n, set) => n + set.games.length, 0), 'game', 'games') })),
     el('ol', { className: 'matches' }, ...event.sets.map(matchRow)))));
   if (!state.games.length && filtered) {
     $('events').append(el('p', {}, el('button', { type: 'button', className: 'btn', textContent: 'Clear filters', onclick: clearFilters })));
@@ -275,12 +317,16 @@ function findSet(key) {
 function renderSet(set) {
   const first = set.games[0];
   const set_ = known(set);
-  $('set-event').textContent = set.online ? 'Online match · ' + set.event : set.event;
+  const session = Boolean(set.player && set.games.length > 1);
+  $('set-event').textContent = set.online ? (session ? 'Online games · ' : 'Online match · ') + set.event : set.event;
   const size = set.games.reduce((n, game) => n + game.size, 0);
-  const title = set.online ? 'Online match' : [first.round, first.phase].filter(Boolean).join(' · ') || 'Set';
+  const title = session ? 'Games of ' + set.player : set.online ? 'Online match' : [first.round, first.phase].filter(Boolean).join(' · ') || 'Set';
   $('set-hero').replaceChildren(
     el('span', { className: 'label', textContent: title }),
-    el('div', { className: 'versus' }, side(first, 0), middle(set, false), side(first, 1)),
+    session
+      ? el('div', { className: 'versus' }, side(first, sideOf(first, set.player), 0),
+        el('div', { className: 'mid' }, el('span', { className: 'score vs', textContent: 'vs' }), el('span', { className: 'meta', textContent: plural(set.games.length, 'game', 'games') })), metSide(set, 12))
+      : el('div', { className: 'versus' }, side(first, 0), middle(set, false), side(first, 1)),
     el('p', { className: 'note', textContent: `${day(first.saved_at)} · ${plural(set.games.length, 'game', 'games')} · ${Math.ceil(size / 1024)} KB` }));
   const actions = [];
   if (set_ && set_.pack) actions.push(downloadLink(set_.pack, 'Download set (.emberpack)', true));
@@ -296,7 +342,7 @@ function renderSet(set) {
   $('set-games').replaceChildren(...set.games.map((game, i) => el('li', { className: 'game' },
     el('span', { className: 'n', textContent: 'Game ' + (i + 1) }),
     el('div', { className: 'pair' }, face(game.fighters[0]), face(game.fighters[1], 'b'),
-      el('span', { textContent: fighterName(game.fighters[0]) + ' vs ' + fighterName(game.fighters[1]) + ' · ' + time(game.saved_at) })),
+      el('span', { textContent: [0, 1].map((at) => (game.names[at] ? game.names[at] + ' (' + fighterName(game.fighters[at]) + ')' : fighterName(game.fighters[at]))).join(' vs ') + ' · ' + clock(game.saved_at) })),
     downloadLink(game.url, 'Download'))));
 }
 

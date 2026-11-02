@@ -125,6 +125,11 @@ h1, h2 { margin: 0; font-weight: 600; }
 .game .pair { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .game .pair .face { width: 36px; height: 36px; }
 .game .pair .face.b { transform: scaleX(-1); }
+.side.met { justify-content: flex-start; }
+.faces { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.face.small { width: 32px; height: 32px; }
+.side.b .face.small { transform: scaleX(-1); }
+.hero .face.small { width: 56px; height: 56px; }
 .game .pair span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* How to watch. */
