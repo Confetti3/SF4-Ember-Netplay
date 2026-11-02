@@ -1,6 +1,6 @@
-# Ember 0.8.0 interface captures
+# Ember interface captures
 
-The home, room, fighter and costume PNGs are captured directly from the production Ember UI using `UiRenderTest`
+The home, room, King of the hill, fighter and costume PNGs are captured directly from the production Ember UI using `UiRenderTest`
 with the `--readme-shots` option. The room names, members, chat and profile are fictional sample data. The game is not launched by this renderer.
 Portraits are decoded from an owned Steam installation; selection artwork comes
 from the repository's credited assets. See [attribution](../../ATTRIBUTION.md).

@@ -23,6 +23,7 @@ New-Item -ItemType Directory -Path $destination -Force | Out-Null
 $shots = [ordered]@{
     'ember-home.png'='home'
     'ember-room.png'='room'
+    'ember-king-of-the-hill.png'='room-king-full'
     'ember-fighter-selection.png'='roster'
     'ember-costumes.png'='costumes'
     'guides/user_netplay/launch-recovery.webp'='launch-recovery'
