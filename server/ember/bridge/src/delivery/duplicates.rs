@@ -34,7 +34,11 @@ impl Queue for Read {
         let Some(secret) = &state.integrations.archive_secret_key else {
             return retry("no archive secret key".into());
         };
-        let file = match self.0.get(secret, &key(digest), MAX_REPLAY, state.now()).await {
+        let file = match self
+            .0
+            .get(secret, &key(digest), MAX_REPLAY, state.now())
+            .await
+        {
             Ok(file) => file,
             Err(error) => return retry(error),
         };
@@ -47,7 +51,7 @@ impl Queue for Read {
     }
 
     fn record(&self, tx: &Transaction<'_>, leased: &Leased<String>, record: &Record) -> Result<()> {
-        reschedule(tx, leased, record, "game IS NULL")
+        release(tx, leased, record)
     }
 }
 
@@ -76,7 +80,7 @@ impl Queue for Remove {
             )?;
             return Ok(());
         }
-        reschedule(tx, leased, record, "state = 'duplicate'")
+        release(tx, leased, record)
     }
 }
 
@@ -112,18 +116,16 @@ fn lease(tx: &Transaction<'_>, due: &str, now: u64, until: u64) -> Result<Vec<Le
     Ok(rows)
 }
 
-/// Records an attempt that left the game still `waiting` (a condition on
-/// `archive_games`): when it is due again and why.
-fn reschedule(tx: &Transaction<'_>, leased: &Leased<String>, record: &Record, waiting: &str) -> Result<()> {
+/// Ends the lease of an attempt that leaves the game in the archive: it is
+/// due again when the attempt says (at once after a read, which may have
+/// left it a `duplicate` for `Remove`), with why it is not settled.
+fn release(tx: &Transaction<'_>, leased: &Leased<String>, record: &Record) -> Result<()> {
     let (_, next, error) = settled(record);
     if let Some(error) = error {
         eprintln!("archive: {} not settled yet: {error}", leased.item);
     }
     tx.execute(
-        &format!(
-            "UPDATE archive_games SET next_attempt_at = ?1, last_error = ?2
-             WHERE digest = ?3 AND attempts = ?4 AND {waiting}"
-        ),
+        "UPDATE archive_games SET next_attempt_at = ?1, last_error = ?2 WHERE digest = ?3 AND attempts = ?4",
         params![next, error, leased.item, leased.attempt],
     )?;
     Ok(())

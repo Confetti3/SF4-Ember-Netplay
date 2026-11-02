@@ -2,8 +2,8 @@
 //! `DELETE`s of one object, signed with AWS Signature Version 4, which any
 //! S3 server (rustfs, MinIO, AWS) takes.
 use hmac::{Hmac, Mac};
-use sha2::{Digest, Sha256};
 use reqwest::Method;
+use sha2::{Digest, Sha256};
 use url::Url;
 
 use crate::{
@@ -68,7 +68,9 @@ impl Bucket {
         body: Vec<u8>,
         now: u64,
     ) -> Result<(), String> {
-        self.send(Method::PUT, secret, key, body, now).await.map(drop)
+        self.send(Method::PUT, secret, key, body, now)
+            .await
+            .map(drop)
     }
 
     /// The object at `key`, at most `limit` bytes, or why it could not be

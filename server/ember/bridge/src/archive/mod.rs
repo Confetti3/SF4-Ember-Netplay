@@ -92,7 +92,9 @@ pub fn admit(
         .optional()?;
     if let Some((held, sent_by, set)) = held {
         match attribution {
-            Attribution::Set(game) => game.held(tx, now, &held, &sent_by, set.as_deref(), sender)?,
+            Attribution::Set(game) => {
+                game.held(tx, now, &held, &sent_by, set.as_deref(), sender)?
+            }
             Attribution::Online(sides) => name_own_side(tx, &held, sender, sides)?,
         }
         return Ok(Admission::Held);
@@ -198,7 +200,12 @@ fn own_name(sides: &Sides, side: u8) -> Option<String> {
 
 /// What a later copy of the online game `digest`, from `sender`, adds to
 /// it: its own side's name and country (`name_side`).
-fn name_own_side(tx: &Transaction<'_>, digest: &str, sender: &EmberId, sides: &Sides) -> Result<()> {
+fn name_own_side(
+    tx: &Transaction<'_>,
+    digest: &str,
+    sender: &EmberId,
+    sides: &Sides,
+) -> Result<()> {
     let (names, countries) = online_sides(sides);
     match sides.side.filter(|side| *side < 2) {
         Some(side) => name_side(tx, digest, side, &names, &countries, sender.as_str()),

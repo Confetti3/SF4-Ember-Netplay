@@ -64,10 +64,12 @@ async fn bucket(refusing: Arc<AtomicBool>) -> (String, Stored) {
                         held.push((path, body.to_vec()));
                         (StatusCode::OK, Vec::new())
                     }
-                    axum::http::Method::GET => match held.iter().rev().find(|(at, _)| *at == path) {
-                        Some((_, file)) => (StatusCode::OK, file.clone()),
-                        None => (StatusCode::NOT_FOUND, Vec::new()),
-                    },
+                    axum::http::Method::GET => {
+                        match held.iter().rev().find(|(at, _)| *at == path) {
+                            Some((_, file)) => (StatusCode::OK, file.clone()),
+                            None => (StatusCode::NOT_FOUND, Vec::new()),
+                        }
+                    }
                     axum::http::Method::DELETE => {
                         held.retain(|(at, _)| *at != path);
                         (StatusCode::NO_CONTENT, Vec::new())
@@ -447,14 +449,15 @@ async fn an_online_game_is_kept_once_as_its_first_copy_said() {
     );
     let listed_game = &games(&list)[0];
     assert_eq!(listed_game["names"], json!(["Ann", "Bob"]));
-    assert_eq!(listed_game["countries"], json!(["BE", null]));
+    // The second player's copy named their own side, and its country.
+    assert_eq!(listed_game["countries"], json!(["BE", "NL"]));
     assert_eq!(listed_game["fighters"], json!([20, 34]));
     assert_eq!(listed_game["crc"], replays::crc_name(&played).unwrap());
     assert_eq!(
         listed_game["url"],
         format!("https://s3.example/replays/games/{digest}.emberreplay")
     );
-    assert_eq!(list["countries"], json!(["BE"]));
+    assert_eq!(list["countries"], json!(["BE", "NL"]));
     assert_eq!((&list["more"], &list["next"]), (&json!(false), &Json::Null));
     // Stored, the replay leaves the bridge.
     let held = count(
@@ -468,7 +471,8 @@ async fn an_online_game_is_kept_once_as_its_first_copy_said() {
         ("fighter=34", 1),
         ("fighter=1", 0),
         ("country=BE", 1),
-        ("country=NL", 0),
+        ("country=NL", 1),
+        ("country=JP", 0),
         ("q=an", 1),
         ("event=online", 1),
         ("round=top8", 0),
@@ -668,7 +672,8 @@ async fn copies_kept_before_are_folded_into_the_first() {
     listed_when(&f, "", |list| games(list).len() == 1).await;
     // As a bridge before migration 054 kept them: each copy its own game,
     // neither known by what was played, both stored.
-    let (first, second, b) = (digest(&mine), digest(&theirs), f.b.id().to_string());
+    let second_digest = digest(&theirs);
+    let (first, second, b) = (digest(&mine), second_digest.clone(), f.b.id().to_string());
     f.stored.lock().unwrap().push((
         format!("/replays/games/{second}.emberreplay"),
         theirs.clone(),
@@ -695,20 +700,22 @@ async fn copies_kept_before_are_folded_into_the_first() {
     })
     .await;
     assert_eq!(listed_game(&list, &mine)["countries"], json!(["BE", "NL"]));
+    // The other copy leaves the bucket, then the bridge.
+    let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
     for _ in 0..200 {
-        if count(&f, "SELECT COUNT(*) FROM archive_games WHERE digest = ?1", &digest(&theirs)).await == 0 {
+        if count(&f, left, &second_digest).await == 0 {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    let left = "SELECT COUNT(*) FROM archive_games WHERE digest = ?1";
-    assert_eq!(count(&f, left, &digest(&theirs)).await, 0);
+    assert_eq!(count(&f, left, &second_digest).await, 0);
     assert_eq!(
         games_held(&f),
         vec![format!("/replays/games/{}.emberreplay", digest(&mine))]
     );
     let known = "SELECT COUNT(*) FROM archive_games WHERE game = ?1";
-    assert_eq!(count(&f, known, &Replay::parse(&mine).unwrap().game_hex()).await, 1);
+    let game = Replay::parse(&mine).unwrap().game_hex();
+    assert_eq!(count(&f, known, &game).await, 1);
 }
 
 /// Only a desk event's set has its games archived: the organizer accepted
