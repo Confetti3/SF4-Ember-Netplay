@@ -730,6 +730,25 @@ int main() {
             Require(begun == 1, "The bars did not start a count where the same normal played again");
         }
         {
+            // A move held in its own hitstop (armour taking a hit) while the other fighter walks
+            // on: the frames the game holds it are none of its startup, though the bars draw them.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            int tick = 1;
+            pair[0].status = 16; pair[0].action = 220; pair[1].status = ActorStatus::Forward; pair[1].action = 16;
+            const auto step = [&](float frame, int phase, bool held) {
+                pair[0].actionFrame = frame; pair[0].hitPhase = phase; pair[0].hitStop = held;
+                pair[1].actionFrame = static_cast<float>(tick);
+                counted.Observe(tick++, pair);
+            };
+            for (int frame = 1; frame <= 3; ++frame) step(static_cast<float>(frame), 0, false);
+            for (int held = 0; held < 4; ++held) step(3, 0, true);
+            step(4, 0, false); step(5, 1, false);
+            Require(counted.View().startupFrames[0] == 5, "The other fighter's moving counted a held fighter's hitstop");
+            Require(counted.View().frames.size() == 9, "Frames the other fighter moved on in were left out of the bars");
+        }
+        {
             // Adon's far HK hits twice: Ryu's reaction starts again from its first frame as the
             // second hitstop begins. That frame is hitstop, not one the reaction moved on.
             FighterSample before, after;

@@ -510,13 +510,15 @@ public:
         }
         for (int side = 0; side < 2; ++side)
             fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
-        // Both fighters still is a frame too (a landing held while the one knocked down lies
-        // still; a thrower on its last frame while its fireball's hitstop holds the other),
-        // unless the game stopped that fighter: its own hitstop, or a super's freeze.
-        const bool animated = AnimationMoved(view_.current[0], fighters[0]) || AnimationMoved(view_.current[1], fighters[1]);
+        // Each fighter is on its own clock: a frame its animation moved on in, or one it stood
+        // still in that the game did not stop it in (a landing held while the one knocked down
+        // lies still; a thrower on its last frame while its fireball's hitstop holds the other).
+        // Its own hitstop or a super's freeze stops it, whatever the other does. The bars draw
+        // a frame either fighter moved in.
         const bool freeze = Frozen(fighters[0]) || Frozen(fighters[1]);
         std::array<bool, 2> moving{};
-        for (int side = 0; side < 2; ++side) moving[side] = animated || !(freeze || fighters[side].hitStop);
+        for (int side = 0; side < 2; ++side)
+            moving[side] = AnimationMoved(view_.current[side], fighters[side]) || !(freeze || fighters[side].hitStop);
         const bool moved = moving[0] || moving[1];
         const std::int64_t now = observedFrames_++;
         const int struck = ObserveAdvantage(now, fighters);
@@ -555,7 +557,7 @@ public:
                 }
                 // Count the steps a cell is drawn for, not BAC animation ticks: normals and
                 // specials change animation speed, and a frame held while falling to land is
-                // still a frame (Gouken's 623K). Hitstop holds both fighters and is left out.
+                // still a frame (Gouken's 623K). The fighter's own hitstop is left out.
                 if (startupPending_[side] && (actionChanged || previous.status != ActorStatus::Skill || moving[side])) {
                     ++startupElapsed_[side];
                     if (sample.hitPhase >= 0 ? sample.hitPhase >= 1 : sample.firstActiveFrame >= 0 && sample.actionFrame >= sample.firstActiveFrame) {
