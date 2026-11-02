@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include "ComboCheck.hxx"
 #include "HitBoxes.hxx"
 #include "FrameMeter.hxx"
 #include "FighterData.hxx"
@@ -35,9 +36,12 @@ enum class Mode { Idle, Standby, Recording, Playback };
 // Escape, opening the controls and losing the focus send; it ends whatever
 // the session does when it runs, keeping a recording (TrainingCommands.hxx
 // gives it a place of its own in the queue). SlotOn and PlayOrder change
-// which slots play (RecordingBank.hxx). PlayOrder is the last.
+// which slots play (RecordingBank.hxx). ComboRecord, ComboTally, ComboLoad
+// and ComboPlay are Combo check's (ComboCheck.hxx): record Player 1's combo,
+// start counting hits again, load another fighter (slot) as the dummy, and
+// play frames once on Player 1, leaving the slots alone.
 enum class Action { Select, AdvanceRecording, Record, AdvancePlayback, Play, Stop, Clear, Loop, Save, Restore, ClearHistory, Load, ExportSlot, DummyState, Place, Mirror, DummyPlan,
-    Interrupt, SlotOn, PlayOrder };
+    Interrupt, SlotOn, PlayOrder, ComboRecord, ComboTally, ComboLoad, ComboPlay };
 // The dummy's behaviour as the game's Training menu sets it; each value is
 // the menu's choice index and -1 leaves that setting as it is. action: stand,
 // crouch, jump, cpu, human (Player 2's pad), then the menu's own record and
@@ -456,6 +460,8 @@ struct View {
     BoxView boxes;
     // The Data panel's readings, while it is shown (ShowData).
     DataView data;
+    // Combo check's readings of the fight.
+    combo_check::FightView check;
 };
 
 // P1's pad plays the dummy: on standby and while recording.
@@ -518,7 +524,7 @@ public:
         const auto next = view_.generation + 1;
         view_ = View{}; view_.generation = next;
         bank_ = RecordingBank{}; scratch_.clear(); playing_.clear();
-        actionable_ = hit_ = false; waited_ = waitedPast_ = 0; resumeSide_ = 1; firstOnLeft_ = true;
+        actionable_ = hit_ = once_ = false; waited_ = waitedPast_ = 0; resumeSide_ = 1; firstOnLeft_ = true;
         ++epoch_;
     }
     // Where the pickers' random order starts.
@@ -551,7 +557,9 @@ public:
     bool Apply(const Command& command) {
         if (!view_.available || command.generation != view_.generation) return false;
         switch (command.action) {
-        case Action::Place: case Action::ExportSlot: return true;
+        case Action::Place: case Action::ExportSlot: case Action::ComboTally: return true;
+        // Recorded and loaded only while nothing plays and the fight runs.
+        case Action::ComboRecord: case Action::ComboLoad: return view_.ready && view_.mode == Mode::Idle;
         case Action::DummyPlan: return ValidDummyPlan(command.plan);
         // Standby is dropped and a recording kept, whatever the mode is by the time it runs.
         case Action::Stop: case Action::Interrupt: Stop(); return true;
@@ -591,6 +599,11 @@ public:
             if (view_.mode != Mode::Idle || command.frames.empty() || (command.side != 0 && command.side != 1)) return false;
             bank_.Replace(view_.selected, command.frames); Publish();
             view_.playbackSide = command.side; return true;
+        case Action::ComboPlay:
+            if (view_.mode != Mode::Idle || command.frames.empty() || command.frames.size() > std::size_t(MaxFrames)) return false;
+            resumeSide_ = view_.playbackSide; view_.playbackSide = 0;
+            Play(SlotCount, command.frames); once_ = true;
+            return true;
         case Action::Play: case Action::AdvancePlayback: {
             Stop();
             const int slot = playPicker_.Peek(bank_.Playable(), bank_.GetOrder());
@@ -688,7 +701,7 @@ public:
             lastRaw_ = frame.raw;
             if (++view_.cursor == view_.activeLength) {
                 // Each repeat of a loop picks its slot again, from those on now.
-                const int next = view_.loop && !view_.replying ? playPicker_.Peek(bank_.Playable(), bank_.GetOrder()) : -1;
+                const int next = view_.loop && !view_.replying && !once_ ? playPicker_.Peek(bank_.Playable(), bank_.GetOrder()) : -1;
                 if (next < 0) Stop();
                 else { Play(next, bank_.Slot(next)); playPicker_.Commit(next); }
             }
@@ -706,6 +719,8 @@ private:
     unsigned lastRaw_ = 0;
     // The side a reply took over, given back when it ends.
     int resumeSide_ = 1;
+    // A ComboPlay plays: once, on Player 1, never looping into the slots.
+    bool once_ = false;
     ReplySchedule schedule_;
     std::uint64_t replies_ = 0, epoch_ = 0;
     // Player 1 stands on the left (SetPositions), as a battle starts.
@@ -725,6 +740,7 @@ private:
         scratch_.clear(); playing_.clear();
         view_.mode = Mode::Idle; view_.cursor = 0; view_.active = -1; view_.activeLength = 0; waited_ = waitedPast_ = 0; hit_ = false; lastRaw_ = 0;
         if (view_.replying) { view_.playbackSide = resumeSide_; view_.replying = false; schedule_ = {}; }
+        if (once_) { view_.playbackSide = resumeSide_; once_ = false; }
         ++epoch_;
     }
     void ClearHistory() {

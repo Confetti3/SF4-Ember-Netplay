@@ -11,7 +11,7 @@
 namespace sf4e { namespace ui { class MenuNavigation; } }
 namespace sf4e { namespace selftest {
 
-enum class Test { None, Training, RoomHost, RoomGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu };
+enum class Test { None, Training, RoomHost, RoomGuest, RoomLayout, Replay, TournamentHost, TournamentGuest, Menu, ComboCheck };
 
 // The test a name names; None for a name no test has. scripts/run-selftest.ps1
 // checks its -Test against the same names.
@@ -24,6 +24,7 @@ inline Test Parse(const std::wstring& name) {
 	if (name == L"tournament-host") return Test::TournamentHost;
 	if (name == L"tournament-guest") return Test::TournamentGuest;
 	if (name == L"menu") return Test::Menu;
+	if (name == L"combo-check") return Test::ComboCheck;
 	return Test::None;
 }
 
@@ -105,6 +106,10 @@ void TickReplay(bool atMainMenu);
 // The tournament test (sf4e__SelfTest__Tournament.cxx), both of its sides.
 bool StartTournament();
 void TickTournament();
+
+// The Combo check test (sf4e__SelfTest__ComboCheck.cxx).
+bool StartComboCheck();
+void TickComboCheck();
 
 // The menu test (sf4e__SelfTest__Menu.cxx).
 bool StartMenu();

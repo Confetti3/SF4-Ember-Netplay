@@ -65,6 +65,7 @@ bool fVsPreBattle::bSkipToVersus = false;
 std::mutex fTrainingMode::chosenLock;
 ULONGLONG fTrainingMode::chosenUntil = 0;
 std::optional<fGameEvents::TrainingSides> fTrainingMode::chosen, fTrainingMode::pendingSides;
+int fTrainingMode::pendingDummy = -1;
 
 char* fRootEvent::eventFlowDescription = R"(	Boot, 0, Title,										
 LogoCapcom, 0, LogoNvidia, BLACK, 10.0f, BLACK, 10.0f			
@@ -512,15 +513,25 @@ void fTrainingMode::Enter() {
 	if (pendingSides) spdlog::info("Training: stage {}, fighters from Ember's Training select", stage);
 }
 
+void fTrainingMode::ChangeDummy(int fighter) { pendingDummy = fighter; }
+
 void fTrainingMode::ReplaceCharaSelect(char*& eventName) {
-	if (!pendingSides || !eventName || std::strcmp(eventName, "CharaSelect") != 0) return;
-	TrainingSides sides = *pendingSides;
-	pendingSides.reset();
+	if ((!pendingSides && pendingDummy < 0) || !eventName || std::strcmp(eventName, "CharaSelect") != 0) return;
+	std::optional<TrainingSides> picked = pendingSides;
+	const int dummy = pendingDummy;
+	pendingSides.reset(); pendingDummy = -1;
 	char* query[] = { "TrainingMode" };
 	rTrainingMode* mode = (rTrainingMode*)EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), query, 1);
 	if (!mode) {
 		spdlog::warn("Training: character select asked for outside Training, the chosen fighters are dropped");
 		return;
+	}
+	TrainingSides sides;
+	if (picked) sides = *picked;
+	else {
+		for (int i = 0; i < 2; i++) sides.sides[i] = rTrainingMode::GetSelection(mode, i)->conditions;
+		sides.sides[1].charaID = static_cast<BYTE>(dummy);
+		sides.sides[1].costume = sides.sides[1].color = 0;
 	}
 	sf4e::custom::ShowInstalledLooks(sides.sides);
 	for (int i = 0; i < 2; i++) {

@@ -20,6 +20,7 @@
 #include "../Dimps/Dimps__Pad.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../Dimps/Dimps__Sound.hxx"
+#include "../sf4e/sf4e__GameEvents.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../sf4e/sf4e__InputDevices.hxx"
 #include "../sf4e/sf4e__InputLag.hxx"
@@ -52,6 +53,10 @@ static_assert(ActorStatus::Stand == NativeActor::AS_STAND && ActorStatus::Crouch
 Session session;
 // The dummy fighters' slots, kept between battles (RecordingBanks).
 RecordingBanks banks;
+// Combo check: hits on the dummy, Player 1's recording and the last one made.
+combo_check::HitTally comboTally;
+combo_check::Recorder comboRecorder;
+combo_check::FightView comboView;
 FrameMeter meter;
 std::uint64_t exportId = 0;
 int exportedSlot = -1;
@@ -368,6 +373,17 @@ static bool Dispatch(Native* system, const Command& command) {
     }
     case Action::ClearHistory: meter.Reset(); return true;
     case Action::DummyState: WriteDummyState(command.dummy); return true;
+    case Action::ComboRecord: comboRecorder.Begin(); comboTally.Reset(); return true;
+    case Action::ComboTally: comboTally.Reset(); return true;
+    // Training's own Character Select from the pause menu, with the dummy
+    // changed on the way (GameEvents::TrainingMode::ChangeDummy).
+    case Action::ComboLoad:
+        if (!selection::FindFighter(command.slot)) return false;
+        sf4e::GameEvents::TrainingMode::ChangeDummy(command.slot);
+        *Native::GetBattleExitType(system) = Native::BET_PAUSE_TOCHARACTER;
+        *Native::GetReadyState(system) = Native::RS_ISLEAVING;
+        spdlog::info("Training: Combo check loads fighter {} as the dummy", command.slot);
+        return true;
     default: return true;
     }
 }
@@ -382,6 +398,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     if (!session.GetView().available) {
         const int fighter = BattleFighter(system, 1);
         session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom());
+        comboView.dummy = fighter;
         if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
     }
     session.SetReady((system->*Native::publicMethods.IsFight)() &&
@@ -695,6 +712,18 @@ void AfterUpdate(Native* system) {
             // A reply's leading hold gives way as its first move is due.
             session.Observe(own.valid && ClassifyStatus(own.status) == Phase::Neutral, hit, until,
                 session.Replying() && ReplyFirstMoveDue(session.Schedule(), seen));
+            // Combo check: a hit on the dummy, and Player 1's combo as it is done.
+            const auto& dummy = fighters[1], & wasDummy = playbackSeen[1];
+            const bool dummyHit = dummy.valid && ((ClassifyStatus(dummy.status) == Phase::Hit && ClassifyStatus(wasDummy.status) != Phase::Hit) ||
+                dummy.comboDamage > wasDummy.comboDamage);
+            const auto free = [](const FighterSample& fighter) { return fighter.valid && ClassifyStatus(fighter.status) == Phase::Neutral; };
+            comboTally.Observe(dummyHit, free(dummy));
+            comboView.free = free(fighters[0]) && free(dummy);
+            const View& was = session.GetView();
+            if (commitInput && comboRecorder.Feed(ForFacing(output[0], session.FacingRight(0)), was.x[0], was.x[1], comboTally)) {
+                comboView.combo = comboRecorder.Result(); ++comboView.comboId;
+                spdlog::info("Training: Combo check recorded {} frames, {} hits", comboView.combo.frames.size(), comboView.combo.hits);
+            }
             playbackSeen = fighters;
         }
         // Recorded for the facing the input was prepared with, then the new positions.
@@ -760,6 +789,8 @@ void AfterUpdate(Native* system) {
     published.exportId = exportId; published.exportedSlot = exportedSlot; published.exported = exported;
     published.leavingIn = leaving.Left(); published.leavingCall = leaving.Call();
     published.acks=acks;
+    comboView.best = comboTally.Best(); comboView.recording = comboRecorder.Armed();
+    published.check = comboView;
 }
 void SetMatchPractice(bool enabled) { matchPractice = enabled; }
 bool MatchPracticeActive() { return matchPractice; }
@@ -813,6 +844,8 @@ void CloseBattle() {
     if (session.GetView().available) banks.Detach(session.TakeBank());
     session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
     matchPractice = false; dummyWatch.Reset(); replies.Reset(); replyTrace.Reset(); playbackSeen = {};
+    // The recording made stays for the next battle, where the check plays it.
+    comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.free = comboView.recording = false;
     std::lock_guard<std::mutex> lock(mutex); commands.Clear(); published = session.GetView();
 }
 } }
