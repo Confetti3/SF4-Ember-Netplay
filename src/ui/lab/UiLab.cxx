@@ -11,7 +11,8 @@
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
 //   last frame to the report, named by the shot, and exits 2 when there is any (lab/uilab-v2-check.sh tours every screen)
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
-//   and writes each step there; exits 3 when a step fails
+//   and writes each step there; exits when it is done, 3 when a step failed
+// --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
@@ -278,7 +279,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     float textSize = 1;
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
-    std::string shot, keys, screen, recovery, check, walkFile;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -315,6 +316,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--pad") pad = true;
         else if (args[i] == "--check" && more) check = args[++i];
         else if (args[i] == "--walk" && more) walkFile = args[++i];
+        else if (args[i] == "--walk-from" && more) walkFrom = args[++i];
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -361,6 +363,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     ui::MenuWalk walk;
     std::ofstream walkLog;
     if (!walkFile.empty()) walkLog.open(walkFile, std::ios::trunc);
+    if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;
@@ -542,6 +545,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (snap) { char name[64]; std::snprintf(name, sizeof(name), "uilab-%d.bmp", frame); SaveShot(name); }
         // Scripted runs give the art time to load and the last key time to settle.
         if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && (postMatch.empty() || (winFrame >= 0 && frame > winFrame + 20)) && (!walkLog.is_open() || walk.Done()) && art.MenuBackdrop().texture) { SaveShot(shot); break; }
+        // A walk without a shot ends the lab once its last step is said.
+        if (shot.empty() && walkLog.is_open() && walk.Done()) break;
         device->Present(nullptr, nullptr, nullptr, nullptr);
     }
     // Two cards overlap when they cross without one holding the other (a card and its option strip).

@@ -9,8 +9,6 @@
 #include <system_error>
 #include <utility>
 #include <optional>
-#include <string>
-#include <vector>
 
 namespace sf4e { namespace replayfiles {
 
@@ -32,29 +30,6 @@ inline std::optional<replayslots::Bytes> ReadFile(const std::filesystem::path& p
 	auto read = durable::ReadBounded(path, most);
 	if (read.status != durable::ReadStatus::Read) return std::nullopt;
 	return std::move(read.bytes);
-}
-// The archive's lists of replay file names, one per line (watched.txt,
-// kept.txt, sent.txt, closed.txt): what one holds, and a name put in (one
-// line appended) or taken out (the list written whole without it).
-inline std::vector<std::string> NotedNames(const std::filesystem::path& list) {
-	std::vector<std::string> names;
-	auto bytes = ReadFile(list, 1 << 20);
-	if (!bytes) return names;
-	std::string line;
-	for (auto byte : *bytes) {
-		if (byte == '\r') continue; // a list written in text mode
-		if (byte == '\n') { if (!line.empty() && line.size() <= 4096) names.push_back(line); line.clear(); }
-		else if (line.size() <= 4096) line.push_back(static_cast<char>(byte));
-	}
-	if (!line.empty() && line.size() <= 4096) names.push_back(line);
-	return names;
-}
-inline void Note(const std::filesystem::path& list, const std::string& name, bool on) {
-	if (on) { std::ofstream(list, std::ios::binary | std::ios::app) << name << '\n'; return; }
-	std::vector<std::string> names = NotedNames(list);
-	names.erase(std::remove(names.begin(), names.end(), name), names.end());
-	std::ofstream out(list, std::ios::binary | std::ios::trunc);
-	for (const auto& line : names) out << line << '\n';
 }
 
 // Missing files are distinct from empty files; an unreadable file cannot be replaced.

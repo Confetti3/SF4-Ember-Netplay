@@ -80,7 +80,7 @@ killed with SIGKILL, exit at once; FIFO removed both times.
    screen its title and row count; detail once, 1.5 s after the stop; hints
    off by default; position behind Read position (off).
 10. Utterances in parts; `speech::Say(parts)`, `speech::Render(parts)`.
-11. `speech_relay.py` shipped beside Sidecar (PackageInventory), Ember's own
+11. `speech_relay.py` embedded in Sidecar.dll (cmake/sf4e_speech_relay.cmake; first shipped beside it, but older updaters refuse unknown package files), Ember's own
    line protocol (`SayLine`, `RenderLine`, `ClipKey`, tested in SpeechLinux).
    Piper + medium voice downloaded once, SHA-256 checked, clip cache in
    `~/.cache/ember-speech/clips/<voice>/<key>.wav`, pre-render at nice 10.

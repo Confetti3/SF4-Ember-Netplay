@@ -3,6 +3,7 @@
 #include "../common/ReplayProvenance.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplaySetPack.hxx"
+#include "../platform/ReplayNotes.hxx"
 #include <algorithm>
 #include <chrono>
 #include <cwctype>
@@ -372,17 +373,6 @@ static bool CaseSensitive(const std::filesystem::path& folder) {
  CloseHandle(handle);
  return set;
 }
-// A name put in a list is appended; one taken out leaves no line behind.
-static void TestNotes() {
- namespace fs = std::filesystem;
- const fs::path list=fs::temp_directory_path()/("ember-notes-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+".txt");
- const auto lines=[&] { std::ifstream in(list); return std::string(std::istreambuf_iterator<char>(in), {}); };
- sf4e::replayfiles::Note(list,"a.emberreplay",true); sf4e::replayfiles::Note(list,"b.emberreplay",true);
- CHECK(lines()=="a.emberreplay\nb.emberreplay\n");
- sf4e::replayfiles::Note(list,"a.emberreplay",false);
- CHECK(lines()=="b.emberreplay\n");
- fs::remove(list);
-}
 static void TestArchiveFolderContainment() {
  namespace fs = std::filesystem;
  using sf4e::platform::ArchiveFolderOf;
@@ -657,15 +647,115 @@ static void TestUnconfirmedReplayWaits() {
  archive[0].sent = true;
  CHECK(!sets::NextReplay(archive, 1, sending, at + Sender::kUnconfirmedMs - 1));
  CHECK(sets::NextReplay(archive, 1, sending, at + Sender::kUnconfirmedMs) == &archive[2] && !sending.Aside(archive[2].path, at + Sender::kUnconfirmedMs));
- // Any other retryable failure keeps that replay first, a minute later.
+ // Any other retryable failure puts that replay aside for longer each time
+ // (two minutes, then four, eight, ten at most), so the others go meanwhile.
  const std::uint64_t later = at + Sender::kUnconfirmedMs;
  sending.Sent(2, archive[2].path, true, later);
- CHECK(sending.Take(2, false, "bridge_unreachable", later) == Sender::Answer::Again && !sending.Aside(archive[2].path, later));
+ CHECK(sending.Take(2, false, "bridge_unreachable", later) == Sender::Answer::Again && sending.Aside(archive[2].path, later));
  CHECK(sending.Poll(later + Sender::kAgainMs - 1) == Sender::Step::Wait && sending.Poll(later + Sender::kAgainMs) == Sender::Step::Send);
- CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[2]);
+ archive[0].sent = false; archive[1].sent = false;
+ CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[1]);
+ archive[1].sent = true;
+ CHECK(sets::NextReplay(archive, 1, sending, later + Sender::kAgainMs) == &archive[0]);
+ CHECK(sending.Aside(archive[2].path, later + 2 * Sender::kAgainMs - 1) && !sending.Aside(archive[2].path, later + 2 * Sender::kAgainMs));
+ // It fails again: four minutes; and never past ten.
+ std::uint64_t now = later + 2 * Sender::kAgainMs;
+ for (std::uint64_t wait : {4 * Sender::kAgainMs, 8 * Sender::kAgainMs, Sender::kUnconfirmedMs, Sender::kUnconfirmedMs}) {
+  sending.Poll(now);
+  sending.Sent(3, archive[2].path, true, now);
+  CHECK(sending.Take(3, false, "bridge_not_approved", now) == Sender::Answer::Again);
+  CHECK(sending.Aside(archive[2].path, now + wait - 1) && !sending.Aside(archive[2].path, now + wait));
+  now += wait;
+ }
+ // Done with it, it is not chosen again from a listing that still shows it
+ // unsent (one taken before it was marked), though others are.
+ sending.Poll(now);
+ sending.Sent(4, archive[2].path, true, now);
+ CHECK(sending.Take(4, true, "", now) == Sender::Answer::Done);
+ CHECK(!sets::NextToSend(archive, sending, now + Sender::kNextMs) && sets::NextReplay(archive, 1, sending, now + Sender::kNextMs) == &archive[0]);
+ archive[2].sent = true;
  // Unconfirmed on the replay archive's route is no set's word: a plain failure.
- sending.Sent(3, archive[0].path, false, later);
- CHECK(sending.Take(3, false, "replay_unconfirmed", later) == Sender::Answer::Again && !sending.Aside(archive[0].path, later));
+ sending.Sent(5, archive[0].path, false, now);
+ CHECK(sending.Take(5, false, "replay_unconfirmed", now) == Sender::Answer::Again);
+}
+// An archive game is chosen once too: one marked sent a moment ago, which
+// the listing in hand does not show yet, is skipped; so is a closed set's.
+static void TestAReplayIsSentOnce() {
+ namespace sets = sf4e::platform::replays;
+ using Sender = sets::ReplaySender;
+ const auto game = [](const char* file, std::uint64_t time) {
+  sets::ArchivedReplay replay; replay.path = file; replay.time = time; replay.provenance = sf4e::replayfiles::Provenance::Played; return replay;
+ };
+ std::vector<sets::ArchivedReplay> archive{game("b.emberreplay", 200), game("a.emberreplay", 100)};
+ Sender sending;
+ CHECK(sets::NextReplay(archive, 1, sending, 0) == &archive[1]);
+ sending.Sent(1, archive[1].path, false, 0);
+ CHECK(sending.Take(1, true, "", 10) == Sender::Answer::Done);
+ // The listing was taken before the mark: A still looks unsent, B goes next.
+ CHECK(sets::NextReplay(archive, 1, sending, Sender::kNextMs) == &archive[0]);
+ sending.Sent(2, archive[0].path, false, Sender::kNextMs);
+ CHECK(sending.Take(2, true, "", Sender::kNextMs + 10) == Sender::Answer::Done);
+ CHECK(!sets::NextReplay(archive, 1, sending, 2 * Sender::kNextMs));
+ // A closed set's game is likewise not sent to the set a second time.
+ sets::ArchivedReplay set = game("s.emberreplay", 50); set.set = {"brg_bridge", "emt_a", 1};
+ std::vector<sets::ArchivedReplay> listing{set};
+ Sender other;
+ other.Sent(3, set.path, true, 0);
+ CHECK(other.Take(3, false, "set_closed", 5) == Sender::Answer::SetClosed && !sets::NextToSend(listing, other, 10));
+ // The handoff in the same run: the next listing shows the set closed, and
+ // the same sender offers the game to the archive, once.
+ listing[0].setClosed = true;
+ CHECK(!sets::NextToSend(listing, other, 10) && sets::NextToArchive(listing, 1, other, 10) == &listing[0]);
+ CHECK(sets::NextReplay(listing, 1, other, 10) == &listing[0]);
+ other.Sent(4, set.path, false, 10);
+ CHECK(other.Take(4, true, "", 15) == Sender::Answer::Done && !sets::NextToArchive(listing, 1, other, 20));
+ // A listing from before the closing mark still holds it back from the set.
+ listing[0].setClosed = false;
+ CHECK(!sets::NextToSend(listing, other, 20));
+}
+// The marks lists (sent.txt): a name once, overlong and empty lines skipped,
+// and pruned of replays that are gone without ever losing one that is there.
+static void TestNotedReplays() {
+ namespace notes = sf4e::platform::replays::notes;
+ const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
+ const auto names = notes::Parse(text("a.emberreplay\r\nb.emberreplay\n\na.emberreplay\n" + std::string(notes::kMostLine + 10, 'x') + "\nc.emberreplay"));
+ CHECK(names.size() == 3 && names.count("a.emberreplay") && names.count("b.emberreplay") && names.count("c.emberreplay"));
+ const std::string kept = notes::Pruned(text("a\nb\nc\na\n"), [](const std::string& name) { return name != "b"; });
+ const auto after = notes::Parse(text(kept));
+ CHECK(after.size() == 2 && after.count("a") && after.count("c") && kept.size() == 4);
+ CHECK(notes::Pruned(text(""), [](const std::string&) { return true; }).empty());
+ // Pruning is only worth it once the list holds many more than the archive.
+ CHECK(!notes::WorthPruning(300, 100) && notes::WorthPruning(100 + notes::kStaleSlack + 1, 100));
+ // A list of a hundred thousand replays is still read, well under the cap.
+ std::string big;
+ for (int at = 0; at < 100000; ++at) big += "20261101-120000-" + std::to_string(at) + ".emberreplay\n";
+ CHECK(big.size() < notes::kMostBytes && notes::Parse(text(big)).size() == 100000);
+}
+// Pruning follows the lister's reach: replays filed into subfolders count as
+// there, so their marks stay; a name for a replay gone from every folder goes.
+static void TestPruningCoversSubfolders() {
+ namespace fs = std::filesystem;
+ namespace notes = sf4e::platform::replays::notes;
+ const fs::path root = fs::temp_directory_path() / "sf4e_notes_walk";
+ std::error_code ignored; fs::remove_all(root, ignored);
+ fs::create_directories(root / "filed" / "deeper");
+ const auto touch = [](const fs::path& at) { std::ofstream(at, std::ios::binary) << "x"; };
+ touch(root / "top.emberreplay"); touch(root / "filed" / "sub.emberreplay"); touch(root / "filed" / "deeper" / "old.usf4replay"); touch(root / "filed" / "note.txt");
+ // Names no ANSI code page holds walk as their UTF-8, as the lists hold them.
+ touch(root / L"\u5bfe\u6226.emberreplay"); touch(root / "filed" / L"caf\u00e9 \U0001F525.emberreplay");
+ bool complete = false;
+ const auto walked = notes::ReplayNames(root, complete);
+ CHECK(walked.count("\xE5\xAF\xBE\xE6\x88\xA6.emberreplay") && walked.count("caf\xC3\xA9 \xF0\x9F\x94\xA5.emberreplay"));
+ CHECK(complete && walked.size() == 5 && walked.count("sub.emberreplay") && walked.count("old.usf4replay") && !walked.count("note.txt"));
+ const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
+ const std::unordered_set<std::string> before{"top.emberreplay", "sub.emberreplay", "old.usf4replay", "gone.emberreplay"};
+ // "late" was marked after the list was read: kept though the walk missed it.
+ const auto after = notes::Parse(text(notes::Pruned(text("top.emberreplay\nsub.emberreplay\nold.usf4replay\ngone.emberreplay\nlate.emberreplay\n"),
+  [&](const std::string& name) { return notes::KeptAfterWalk(name, before, walked); })));
+ CHECK(after.size() == 4 && after.count("sub.emberreplay") && after.count("old.usf4replay") && after.count("late.emberreplay") && !after.count("gone.emberreplay"));
+ bool none = false;
+ CHECK(notes::ReplayNames(root / "missing", none).empty() && none);
+ fs::remove_all(root, ignored);
 }
 int main() {
  TestSetReplays();
@@ -673,6 +763,9 @@ int main() {
  TestReplaySender();
  TestClosedSetGoesToTheArchive();
  TestUnconfirmedReplayWaits();
+ TestAReplayIsSentOnce();
+ TestNotedReplays();
+ TestPruningCoversSubfolders();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();
@@ -681,7 +774,6 @@ int main() {
  TestArchivePublicationPolicy();
 #ifdef _WIN32
  TestProductionArchivePublicationRefusal();
- TestNotes();
  TestArchiveFolderContainment();
 #endif
  printf("replay_files_test: all tests passed\n");

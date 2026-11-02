@@ -7,7 +7,8 @@
 
 namespace sf4e { namespace speech {
 // Under Proton (a Steam Deck) Wine has no SAPI voice, so Ember speaks through
-// speech_relay.py, which it starts on the host once a session (RelayCommand)
+// speech_relay.py (embedded in Sidecar.dll and written to the prefix temp folder
+// when a session starts, so it is no package file), which it starts on the host once a session (RelayCommand)
 // and talks to through a FIFO. Wine has no Unix sockets and the game runs
 // inside Steam's container (pressure-vessel), which shares neither
 // speech-dispatcher's socket nor its programs, so the relay is what reaches

@@ -93,6 +93,8 @@ function New-EmberPackage([string]$BuildDir = '', [string]$InstallDir = '',
     Set-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Encoding UTF8 -Value "SF4 Ember Netplay`nRelease: $VersionLabel`nSource revision: $revision`nSee build-provenance.json for the exact source fingerprint and validation.`n"
     Add-Content -LiteralPath (Join-Path $destination 'BUILD_INFO.txt') -Value "Source: $repo`nSource fingerprint: $($receipt.sourceFingerprint)`nFeatures: $($receipt.features -join ', ')"
     Write-HashManifest $destination 'MANIFEST.txt'
+    # Every package, whatever its channel, must pass the oldest Stable updater's inventory rule.
+    Assert-EmberPackageOldUpdaterAccepts $destination
     & (Join-Path $PSScriptRoot 'tester-preflight.ps1') -PackageDir $destination -Strict | Out-Host
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Package preflight failed" }
     $validator = @((Join-Path $BuildDir 'PackageInstallerTest.exe'), (Join-Path $BuildDir 'candidate/PackageInstallerTest.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
@@ -116,6 +118,72 @@ function Get-ExtractedPackageRoot([string]$Extracted) {
 function Copy-PackageFile([string]$Source, [string]$Destination) {
     $null = New-Item -ItemType Directory -Path (Split-Path $Destination -Parent) -Force
     Copy-Item -LiteralPath $Source -Destination $Destination
+}
+
+# The oldest Stable updater still in players' hands. Its launcher validates a downloaded package against its
+# own compiled inventory before it runs any newer Updater.exe, and refuses a file it does not know ("Unexpected
+# package file"). scripts/fixtures/PackageInventory-v1.4.1.inc is that release's src/common/PackageInventory.inc
+# (git show v1.4.1:src/common/PackageInventory.inc). Move the floor only after a Stable that accepts the
+# package's own inventory (1dc44dd40) has replaced 1.4.1 for players, and replace the fixture in the same change.
+$EmberOldestUpdaterInventory = Join-Path $PSScriptRoot 'fixtures/PackageInventory-v1.4.1.inc'
+$EmberOldestUpdaterSelection = Join-Path $PSScriptRoot 'fixtures/SelectionCatalog-v1.4.1.txt'
+
+# Mirrors v1.4.1:src/common/SelectionAssetPath.hxx. The catalogs come from the fixture, not from compiled code, so the
+# fighter and stage tables are a transcription (see the fixture header); the path shapes are the validator's own.
+# Comparisons are ordinal and case-sensitive, as there.
+function Test-EmberOldUpdaterSelectionPath([string]$Path, $Stages, $Fighters) {
+    $root = 'assets\selection\'
+    if (!$Path.StartsWith($root, [StringComparison]::Ordinal)) { return $false }
+    $relative = $Path.Substring($root.Length)
+    if (@('sources.json','cutouts.json','horror-sources.json','stage-sources.json','ultra-sources.json','color-sources.json','alt-color-sources.json','README.md') -ccontains $relative) { return $true }
+    foreach ($code in $Stages) { if ($relative -ceq "stages\$code.jpg" -or $relative -ceq "stages\$code.png") { return $true } }
+    if ($relative.Length -lt 5 -or $relative[3] -ne '\') { return $false }
+    $fighter = @($Fighters | Where-Object { [string]::CompareOrdinal($_.Code, 0, $relative, 0, 3) -eq 0 }) | Select-Object -First 1
+    if (!$fighter) { return $false }
+    $image = $relative.Substring(4)
+    if (@('portrait.png','portrait.jpg','portrait-cutout.png','ultra-0.png','ultra-0.jpg','ultra-1.png','ultra-1.jpg') -ccontains $image) { return $true }
+    for ($costume = 0; $costume -lt $fighter.Costumes; $costume++) {
+        $directory = "costume-$costume\"
+        if (!$image.StartsWith($directory, [StringComparison]::Ordinal)) { continue }
+        $filename = $image.Substring($directory.Length)
+        $colors = if ($costume -lt $fighter.Base) { 12 } else { 22 }
+        for ($color = 0; $color -lt $colors; $color++) {
+            if (@("color-$color.png","color-$color.jpg","color-$color-cutout.png") -ccontains $filename) { return $true }
+        }
+        return $false
+    }
+    return $false
+}
+
+# Mirrors v1.4.1:src/common/PackageInventory.hxx IsAllowed: listed paths match case-insensitively (_wcsicmp);
+# the selection and glyph/flag patterns match case-sensitively.
+function Get-EmberNewFilesOldUpdaterRejects([string[]]$NewPaths) {
+    $listed = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($match in [regex]::Matches((Get-Content -LiteralPath $EmberOldestUpdaterInventory -Raw), 'SF4E_PACKAGE_(?:REQUIRED|OPTIONAL)\("([^"]+)"\)')) {
+        $null = $listed.Add($match.Groups[1].Value.Replace('\\', '\'))
+    }
+    $stages = [Collections.Generic.List[string]]::new()
+    $fighters = [Collections.Generic.List[object]]::new()
+    foreach ($line in Get-Content -LiteralPath $EmberOldestUpdaterSelection) {
+        $part = $line -split ' '
+        if ($part[0] -ceq 'stage') { $stages.Add($part[1]) }
+        elseif ($part[0] -ceq 'fighter') { $fighters.Add([pscustomobject]@{ Code = $part[1]; Costumes = [int]$part[2]; Base = [int]$part[3] }) }
+    }
+    @($NewPaths | Where-Object {
+        $path = $_
+        if (!$path -or $path.Contains('..') -or $path.Contains(':') -or $path[0] -eq '\' -or $path[0] -eq '/') { return $true }
+        !(Test-EmberOldUpdaterSelectionPath $path $stages $fighters) -and !$listed.Contains($path) -and
+            $path -cnotmatch '^assets\\input\\[a-z0-9_-]{1,64}\.png$' -and $path -cnotmatch '^assets\\flags\\[a-z0-9_-]{1,64}\.(png|json)$'
+    })
+}
+
+# Every file of a package folder (MANIFEST.txt included) against that rule: one 1.4.1 does not know strands its
+# players on update ("Unexpected package file"), whichever channel the package is for.
+function Assert-EmberPackageOldUpdaterAccepts([string]$PackageDir) {
+    $PackageDir = $PackageDir.TrimEnd('\', '/')
+    $paths = [string[]]@(Get-ChildItem -LiteralPath $PackageDir -File -Recurse | ForEach-Object { $_.FullName.Substring($PackageDir.Length + 1) })
+    $rejected = Get-EmberNewFilesOldUpdaterRejects $paths
+    if ($rejected) { throw "The oldest supported Stable updater (1.4.1) refuses these package files: $($rejected -join ', '). Embed them in a binary instead of shipping a new path." }
 }
 
 # Build and validate a small hash-addressed upgrade between two complete packages.
@@ -161,6 +229,8 @@ function New-EmberUpgradePackage([Parameter(Mandatory=$true)][string]$FromVersio
         [Array]::Sort($changed, [StringComparer]::Ordinal)
         [Array]::Sort($removed, [StringComparer]::Ordinal)
         if (!$changed.Count) { throw 'The package manifests contain no upgrade work.' }
+        $rejected = Get-EmberNewFilesOldUpdaterRejects @($changed | Where-Object { !$before.ContainsKey($_) })
+        if ($rejected) { throw "The oldest supported Stable updater (1.4.1) refuses new package files: $($rejected -join ', '). Embed them in a binary instead of shipping a new path." }
         $unchanged = @($after.Keys | Where-Object { $before.ContainsKey($_) -and $before[$_] -ieq $after[$_] }).Count
 
         Copy-Item -LiteralPath $baseManifestPath -Destination (Join-Path $destination 'base-manifest.txt')

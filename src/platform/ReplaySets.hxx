@@ -24,18 +24,18 @@ inline bool ForItsSet(const ArchivedReplay& replay) { return replay.set.Tagged()
 // listing, newest first.
 inline const ArchivedReplay* NextToSend(const std::vector<ArchivedReplay>& archive, const ReplaySender& sending = {}, std::uint64_t nowMs = 0) {
 	for (auto at = archive.rbegin(); at != archive.rend(); ++at)
-		if (ForItsSet(*at) && PlayedHere(*at) && !at->sent && !sending.Aside(at->path, nowMs)) return &*at;
+		if (ForItsSet(*at) && PlayedHere(*at) && !at->sent && !sending.Aside(at->path, nowMs, true)) return &*at;
 	return nullptr;
 }
 
 // The oldest game this PC played that goes to the replay archive, saved at
 // or after `since` (unix seconds; 0 while sharing is off, which sends none),
-// that the archive may not have yet, or null. Only Ember's own files: the
-// archive takes no other.
-inline const ArchivedReplay* NextToArchive(const std::vector<ArchivedReplay>& archive, std::uint64_t since) {
+// that the archive may not have yet and `sending` has not put aside at
+// `nowMs`, or null. Only Ember's own files: the archive takes no other.
+inline const ArchivedReplay* NextToArchive(const std::vector<ArchivedReplay>& archive, std::uint64_t since, const ReplaySender& sending = {}, std::uint64_t nowMs = 0) {
 	if (!since) return nullptr;
 	for (auto at = archive.rbegin(); at != archive.rend(); ++at)
-		if (!ForItsSet(*at) && PlayedHere(*at) && !at->sent && at->time >= since && at->path.extension() == L".emberreplay") return &*at;
+		if (!ForItsSet(*at) && PlayedHere(*at) && !at->sent && at->time >= since && at->path.extension() == L".emberreplay" && !sending.Aside(at->path, nowMs)) return &*at;
 	return nullptr;
 }
 
@@ -44,7 +44,7 @@ inline const ArchivedReplay* NextToArchive(const std::vector<ArchivedReplay>& ar
 // any other game sharing covers.
 inline const ArchivedReplay* NextReplay(const std::vector<ArchivedReplay>& archive, std::uint64_t since, const ReplaySender& sending, std::uint64_t nowMs) {
 	if (const auto* set = NextToSend(archive, sending, nowMs)) return set;
-	return sending.Archives() ? NextToArchive(archive, since) : nullptr;
+	return sending.Archives() ? NextToArchive(archive, since, sending, nowMs) : nullptr;
 }
 
 // One set: its games oldest first, and how many rooms they were played in.

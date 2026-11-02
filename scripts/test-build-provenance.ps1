@@ -21,7 +21,7 @@ $originalCulture = [cultureinfo]::CurrentCulture
 try {
     [cultureinfo]::CurrentCulture = 'en-US'
     $fingerprint = Get-SourceFingerprint $source
-    $record = @{sourceRoot=$source;buildRoot=$build;stageRoot=$stage;sourceFingerprint=$fingerprint;selfTest=$false;binaries=@(@{path='Sidecar.dll';sha256=(Get-FileHash (Join-Path $stage 'Sidecar.dll')).Hash})}
+    $record = @{sourceRoot=$source;buildRoot=$build;stageRoot=$stage;sourceFingerprint=$fingerprint;selfTest=$false;emberService='';binaries=@(@{path='Sidecar.dll';sha256=(Get-FileHash (Join-Path $stage 'Sidecar.dll')).Hash})}
     $record | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $build 'build-provenance.json')
     foreach ($culture in @('en-US','th-TH','tr-TR','sv-SE','nl-BE')) {
         [cultureinfo]::CurrentCulture = $culture
@@ -64,6 +64,20 @@ Expect-Rejection 'The build has the in-game self-test*'
 [IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
 Assert-BuildReceipt $source $build $stage | Out-Null
 Write-Output 'PASS self-test build refused by receipt, missing field and cache'
+# A build aimed at another Ember service is refused whether the receipt records it, omits the field, or the cache holds it.
+foreach ($service in @('https://bridge-staging.example', $null)) {
+    $tampered = $goodReceipt | ConvertFrom-Json
+    if ($null -eq $service) { $tampered.PSObject.Properties.Remove('emberService') } else { $tampered.emberService = $service }
+    $tampered | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $build 'build-provenance.json')
+    Expect-Rejection 'The build points at another Ember service*'
+}
+Set-Content (Join-Path $build 'build-provenance.json') $goodReceipt
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source`nSF4E_EMBER_SERVICE:STRING=https://bridge-staging.example")
+Expect-Rejection 'The build points at another Ember service*'
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source`nSF4E_EMBER_SERVICE:STRING=")
+Assert-BuildReceipt $source $build $stage | Out-Null
+[IO.File]::WriteAllText((Join-Path $build 'CMakeCache.txt'), "CMAKE_HOME_DIRECTORY:INTERNAL=$source")
+Write-Output 'PASS non-production Ember service refused by receipt, missing field and cache'
 # -SkipFingerprint drops only the fresh fingerprint of the tree: a changed tree passes, every other check still rejects.
 [IO.File]::WriteAllText((Join-Path $source 'feature.cxx'), 'newer feature')
 Assert-BuildReceipt $source $build $stage -SkipFingerprint | Out-Null

@@ -299,6 +299,35 @@ mod tests {
         ));
     }
 
+    /// The game names only its own side (the opponent's name is theirs to
+    /// share), the other side empty, or neither when it cannot tell which
+    /// side is its own. Both read, and go to the bridge as the game gave them.
+    #[test]
+    fn a_game_that_names_only_its_own_side_reads() {
+        for (sides, query) in [
+            (
+                json!({ "a": "", "b": "Bob", "side": 1, "country": "NL" }),
+                "/v1/replays/0badf00d?a=&b=Bob&side=1&country=NL",
+            ),
+            (
+                json!({ "a": "Ann", "b": "", "side": 0 }),
+                "/v1/replays/0badf00d?a=Ann&b=&side=0",
+            ),
+            (json!({ "a": "", "b": "" }), "/v1/replays/0badf00d?a=&b="),
+        ] {
+            let ask = json!({ "op": "replay_archive", "path": "C:/r.emberreplay", "sides": sides });
+            let Ok(Request::ReplayArchive { sides, .. }) = serde_json::from_value(ask) else {
+                panic!("replay_archive was not read");
+            };
+            assert_eq!(
+                super::target("/v1/replays/0badf00d", &sides.pairs())
+                    .ok()
+                    .as_deref(),
+                Some(query)
+            );
+        }
+    }
+
     #[test]
     fn sides_are_a_query_the_bridge_reads() {
         let sides = Sides {

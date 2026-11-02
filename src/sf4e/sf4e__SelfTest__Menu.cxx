@@ -2,6 +2,7 @@
 
 #include <atomic>
 
+#include "../platform/Utf8.hxx"
 #include "../ui/MenuWalk.hxx"
 
 // The menu test: walks the menus by the keys a player presses (ui::MenuWalk:
@@ -46,6 +47,11 @@ void TickMenu(bool atMainMenu) {
 	case Stage::Setup:
 		// A room needs a controller and the helper.
 		if (!online::SetupReady(run, *now)) break;
+		// SF4E_SELFTEST_FROM: a rerun starts at the step that failed (MenuWalk::StartAt).
+		if (const std::wstring from = Environment(L"SF4E_SELFTEST_FROM"); !from.empty() && !s_walk.StartAt(platform::WideToUtf8(from))) {
+			run.Fail("walk-from", "no step named " + platform::WideToUtf8(from));
+			break;
+		}
 		s_walking = true;
 		run.Enter(Stage::Walking);
 		break;

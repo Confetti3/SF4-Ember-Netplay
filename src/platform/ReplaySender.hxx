@@ -7,7 +7,9 @@
 // cut off long before kAnswerMs. Giving up then, as a failure, and sending
 // the replay again cannot overlap a live first copy; an answer that still
 // comes for the one given up is ignored.
+#include <algorithm>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <iterator>
 #include <map>
@@ -39,6 +41,7 @@ public:
 		if (request_) {
 			if (nowMs - sentMs_ < kAnswerMs) return Step::Wait;
 			request_ = 0; nextMs_ = nowMs + kAgainMs;
+			Failed(nowMs);
 			return Step::GaveUp;
 		}
 		if (nowMs < nextMs_) return Step::Wait;
@@ -64,30 +67,63 @@ public:
 		if (!id || id != request_) return Answer::NotOurs;
 		request_ = 0;
 		if (!ok && !set_ && reason == "replays_unsupported") { noArchive_ = true; nextMs_ = nowMs + kNextMs; return Answer::NoArchive; }
-		if (!ok && set_ && reason == "set_closed") { nextMs_ = nowMs + kNextMs; return Answer::SetClosed; }
+		if (!ok && set_ && reason == "set_closed") { Settled(); nextMs_ = nowMs + kNextMs; return Answer::SetClosed; }
 		if (!ok && set_ && reason == "replay_unconfirmed") {
-			for (auto at = aside_.begin(); at != aside_.end();) at = at->second <= nowMs ? aside_.erase(at) : std::next(at);
-			aside_[path_] = nowMs + kUnconfirmedMs; nextMs_ = nowMs + kNextMs;
+			PutAside(nowMs + kUnconfirmedMs, nowMs); nextMs_ = nowMs + kNextMs;
 			return Answer::Unconfirmed;
 		}
-		if (ok || SendSettled(reason)) { nextMs_ = nowMs + kNextMs; return Answer::Done; }
+		if (ok || SendSettled(reason)) { Settled(); nextMs_ = nowMs + kNextMs; return Answer::Done; }
 		nextMs_ = nowMs + kAgainMs;
+		Failed(nowMs);
 		return Answer::Again;
 	}
 	bool Archives() const { return !noArchive_; }
-	// Whether the replay at `path` is put aside at `nowMs` (Unconfirmed).
-	bool Aside(const std::filesystem::path& path, std::uint64_t nowMs) const {
+	// Whether the replay at `path` is not to be chosen at `nowMs` for the
+	// set's bridge (`toSet`) or for the replay archive: put aside
+	// (Unconfirmed, or after failures, for longer each time), or settled a
+	// moment ago for that same destination, which the next listing of the
+	// archive may not show yet. A game its set closed is settled for the set
+	// only, so it stays free for the archive in the same run.
+	bool Aside(const std::filesystem::path& path, std::uint64_t nowMs, bool toSet = false) const {
+		if (std::find(settled_.begin(), settled_.end(), std::make_pair(path, toSet)) != settled_.end()) return true;
 		const auto found = aside_.find(path);
 		return found != aside_.end() && nowMs < found->second;
 	}
 	const std::filesystem::path& Path() const { return path_; }
 	bool Set() const { return set_; }
 private:
+	// The replay out was done with (taken, refused for good, or its set
+	// closed). Its mark reaches a listing only after this: a listing taken
+	// before it would still show the replay unsent and choose it again.
+	void Settled() {
+		tries_.erase(path_);
+		const auto done = std::make_pair(path_, set_);
+		if (std::find(settled_.begin(), settled_.end(), done) == settled_.end()) settled_.push_back(done);
+		while (settled_.size() > kMostSettled) settled_.pop_front();
+	}
+	// The replay out failed in a way that may pass: it is put aside, a
+	// little longer each time up to kUnconfirmedMs, so a replay a bridge keeps
+	// failing (gone, no longer trusted) never holds up the others.
+	void Failed(std::uint64_t nowMs) {
+		if (tries_.size() >= kMostSettled * 4) tries_.clear();
+		const std::uint64_t tries = tries_[path_]++;
+		const std::uint64_t wait = (std::min)(kAgainMs << (std::min)(tries + 1, std::uint64_t(4)), kUnconfirmedMs);
+		PutAside(nowMs + wait, nowMs);
+	}
+	void PutAside(std::uint64_t until, std::uint64_t nowMs) {
+		for (auto at = aside_.begin(); at != aside_.end();) at = at->second <= nowMs ? aside_.erase(at) : std::next(at);
+		aside_[path_] = until;
+	}
+	static constexpr std::size_t kMostSettled = 16;
 	std::uint64_t request_ = 0, sentMs_ = 0, nextMs_ = 0;
 	std::filesystem::path path_;
 	bool set_ = false, noArchive_ = false;
 	// Put aside until then (ms); a few at most, and the past ones dropped.
 	std::map<std::filesystem::path, std::uint64_t> aside_;
+	// Failures in a row per replay, and the last few replays done with.
+	std::map<std::filesystem::path, std::uint64_t> tries_;
+	// (path, whether sent to its set).
+	std::deque<std::pair<std::filesystem::path, bool>> settled_;
 };
 
 } } }

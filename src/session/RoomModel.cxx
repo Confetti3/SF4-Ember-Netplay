@@ -628,7 +628,7 @@ Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, M
 	// first-to-N table ends the set when a win reaches N and rotates its seats.
 	// Draw/cancel/abort preserve prior wins and never award a point.
 	// ponytail: an Arcade room with no set length plays sets of one game, so its pairs still change.
-	const auto goal = (std::max)(static_cast<std::uint32_t>(table->rules.format), snapshot_.arcade ? 1u : 0u);
+	const auto goal = SetGoal(snapshot_, *table);
 	const int winnerSeat = result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
 	// Clear readiness while the fighters who readied are still seated: it also
 	// unlocks their delays.

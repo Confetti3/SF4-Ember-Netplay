@@ -18,10 +18,9 @@ using json_file::PreserveBackup;
 using json_file::Publish;
 using json_file::ReadBytes;
 constexpr int SchemaVersion = 1;
-// sendProblemReports joins these in the Stable release that ships
-// sendProblemReportsWithDump; until then Stable still reads it from the shared
-// settings (BoolPreferences.hxx).
-const char* ObsoleteKeys[] = {"relayRoomCode", "relayHostSecret", "relaySessionPort", "sessionPort", "ggpoPort", "hostPort", "joinPort", "relayHost", "relayPort", "brokerUrl", "useRelay", "netMode", "joinAddr", "roomCode", "hostSecret", "brokerBaseUrl", "lastJoinHost", "lastAdvertiseHost", "simpleUi", "defaultConnectMethod"};
+// sendProblemReports is Send problem reports from before reports carried the
+// small dump; Stable 1.5.0 retires it (BoolPreferences.hxx).
+const char* ObsoleteKeys[] = {"sendProblemReports", "relayRoomCode", "relayHostSecret", "relaySessionPort", "sessionPort", "ggpoPort", "hostPort", "joinPort", "relayHost", "relayPort", "brokerUrl", "useRelay", "netMode", "joinAddr", "roomCode", "hostSecret", "brokerBaseUrl", "lastJoinHost", "lastAdvertiseHost", "simpleUi", "defaultConnectMethod"};
 void RetireLegacy(Json& document) {
     for (const char* key : ObsoleteKeys) { document["legacyLauncher"].erase(key); document["netplay"].erase(key); }
     auto& overlay = document["overlay"];

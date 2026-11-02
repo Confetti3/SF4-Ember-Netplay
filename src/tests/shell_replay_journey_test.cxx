@@ -95,9 +95,71 @@ void InputsReplacementJourney(Harness& h) {
  Check(find("inputs-replay").label==label,"Listing refresh changed completed Inputs metadata");
  SetMenuEntriesProbe({});h.view.replays.detail={};h.Press(MenuInput::Back);fs::remove_all(folder);
 }
+// Export video's on/off rows are the player's saved choices, and a side's set
+// wins can be typed as well as stepped.
+void ExportChoicesJourney() {
+ using namespace sf4e;Harness h;h.Frame();
+ std::vector<MenuEntry> page;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){page=e;});
+ const auto row=[&](const char* id){const auto at=std::find_if(page.begin(),page.end(),[&](const MenuEntry& e){return e.id==id;});Check(at!=page.end(),"An export row is missing");return *at;};
+ auto& io=ImGui::GetIO();
+ const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
+ // The runtime takes the save the shell sends, as SettingsStore does. Rows
+ // are focused directly (Prefer), so every change is made before it is sent.
+ const auto saved=[&]{
+  const auto sent=h.actions.size();h.Wait(1.f);
+  const auto at=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;});
+  Check(at!=h.actions.rend()&&h.actions.size()>sent,"A caption choice was not saved");
+  h.view.preferences=at->preferences;h.Frame();return h.view.preferences;
+ };
+ const auto step=[&](const char* id,unsigned direction){h.shell.Navigation().Prefer(id);h.Frame();h.Press(direction);};
+ auto replay=Listed("C:\\r\\d.emberreplay","2026-11-01 18:50");replay.names[0]="A";replay.names[1]="B";replay.time=5000;
+ auto earlier=replay;earlier.path=std::filesystem::u8path("C:\\r\\e.emberreplay");earlier.time=4800;
+ earlier.summary=replayinputs::Summary{};earlier.summary->scored=true;earlier.summary->score[0]=2;earlier.summary->score[1]=0;
+ List(h,{replay,earlier});h.view.replays.ready=true;
+ const auto open=[&]{h.Screen("replays");h.Choose("replay:C:\\r\\d.emberreplay");for(int i=0;i<3;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame();
+  Check(h.shell.Navigation().Screen()=="replay-export","Export video did not open the caption's screen");};
+ open();
+ Check(row("cap-line").value==loc::T("common.on")&&row("cap-mark").value==loc::T("common.on")&&row("cap-meter").value==loc::T("common.off")&&row("cap-set1").value=="1",
+  "A first export did not start with the line and mark on and the set counted");
+ step("cap-line",MenuInput::Left);step("cap-mark",MenuInput::Left);step("cap-meter",MenuInput::Right);
+ const auto first=saved();
+ Check(!first.exportLine&&!first.exportMark&&first.exportMeter&&first.exportNames&&first.exportSet,"The caption's on/off rows were not saved as they were left");
+ h.Press(MenuInput::Back);open();
+ Check(row("cap-line").value==loc::T("common.off")&&row("cap-mark").value==loc::T("common.off")&&row("cap-meter").value==loc::T("common.on")&&row("cap-names").value==loc::T("common.on"),
+  "The next export did not start from the saved choices");
+ // Typed: Select opens the editor on the number, a number replaces it, anything else keeps it.
+ h.Choose("cap-set1");
+ Check(h.shell.Navigation().Editing()&&h.shell.Navigation().Draft().empty(),"Select on a side's wins did not open an empty editor");
+ const auto type=[&](const char* text){h.Frame();io.AddInputCharactersUTF8(text);h.Frame();key(ImGuiKey_Enter);h.Frame();};
+ type("0");
+ Check(!h.shell.Navigation().Editing(),"Enter did not close the wins editor");
+ Check(row("cap-set1").value=="0","Typed wins did not replace the number");
+ h.Choose("cap-set1");type("x");
+ Check(row("cap-set1").value=="0","Typed text that is not a number changed the wins");
+ h.FocusOn("cap-set2");h.Press(MenuInput::Right);h.Frame();
+ Check(row("cap-set2").value=="1","Right no longer steps a side's wins");
+ h.Choose("cap-generate");
+ const auto& sent=h.actions.back().replay;
+ Check(sent.mode==replay::Mode::Export&&sent.caption.wins[0]==0&&sent.caption.wins[1]==1&&!sent.caption.line&&!sent.caption.mark&&sent.caption.set&&sent.meter,
+  "Generate did not send the typed wins with the saved choices");
+ // Set score turned off stays off, even for a replay with a set before it.
+ open();step("cap-set",MenuInput::Left);
+ Check(!saved().exportSet,"Turning Set score off was not saved");
+ h.Press(MenuInput::Back);open();
+ Check(row("cap-set").value==loc::T("common.off"),"Set score did not start off once turned off");
+ // A replay whose names Ember does not know still starts with names off.
+ auto unnamed=replay;unnamed.names[0].clear();unnamed.names[1].clear();List(h,{unnamed});h.Press(MenuInput::Back);open();
+ Check(row("cap-names").value==loc::T("common.off"),"An export of unnamed players started with names on");
+ // Left there changes nothing on screen, so it saves nothing for later exports.
+ {const auto before=h.actions.size();step("cap-names",MenuInput::Left);h.Wait(1.f);
+  Check(std::none_of(h.actions.begin()+before,h.actions.end(),[](const ShellAction& a){return a.command.kind==netplay::CommandKind::SavePreferences;}),
+   "Left on Player names already off saved a choice");}
+ SetMenuEntriesProbe({});
+}
 }
 void ReplayJourneys() {
  using namespace sf4e;
+ ExportChoicesJourney();
  Harness h;h.Frame();
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {

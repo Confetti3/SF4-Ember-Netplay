@@ -9,6 +9,7 @@
 #include "../platform/Utf8.hxx"
 #include "../common/ReplayLink.hxx"
 #include <algorithm>
+#include <optional>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -19,6 +20,21 @@ const platform::replays::ArchivedReplay* Find(const ShellView& v,const std::stri
  return nullptr;
 }
 using Replay=platform::replays::ArchivedReplay;
+// A side's set wins on an export's caption: Left and Right step them, and
+// Select types them, so a long set goes back to 0 in one go.
+constexpr int MaxWins=99;
+MenuEntry WinsRow(std::string id,std::string label,int wins,bool enabled){
+ auto e=Value(std::move(id),std::move(label),std::to_string(wins),loc::T("export.set_detail"),enabled);
+ e.text=true;e.textLimit=2;return e;
+}
+// Typed wins: one or two digits, spaces around them allowed; anything else is none.
+std::optional<int> TypedWins(const std::string& text){
+ const auto first=text.find_first_not_of(' '),last=text.find_last_not_of(' ');
+ if(first==std::string::npos||last-first>1)return std::nullopt;
+ int wins=0;
+ for(auto i=first;i<=last;++i){if(text[i]<'0'||text[i]>'9')return std::nullopt;wins=wins*10+(text[i]-'0');}
+ return wins;
+}
 using Set=platform::replays::ArchivedSet;
 // A set's row is its match ID, or for a room set its last game's file.
 std::string SetId(const Set& set){return set.Tagged()?set.matchId:PathOf(*set.games.back());}
@@ -63,7 +79,7 @@ ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
  if(screen=="replay-inputs"){wants.detail=true;wants.detailFile=inputsFile_;wants.detailRevision=inputsRevision_;}
  return wants;
 }
-void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav,const Submit& submit) {
+void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit) {
  sets_=v.replays.archive?platform::replays::Sets(*v.replays.archive):std::vector<Set>{};
  // In a room the menu is the room's: the link waits until it is left.
  const auto& link=v.replays.link;
@@ -73,7 +89,7 @@ void ReplaysPanel::Update(const ShellView& v,MenuNavigation& nav,const Submit& s
  // its menu. A video that failed leaves the Next video row to go on from.
  if(setExport_&&!setQueue_.empty()&&v.replays.videos!=videosSeen_&&v.replays.ready&&v.session.room==netplay::RoomState::Idle){
   videosSeen_=v.replays.videos;
-  if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,*shown);if(Generate(v,submit))setQueue_.erase(setQueue_.begin());}
+  if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);if(Generate(v,submit))setQueue_.erase(setQueue_.begin());}
  }
 }
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
@@ -92,8 +108,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    Value("cap-line",loc::T("export.line"),onOff(caption_.line),loc::T("export.detail")),
    TextRow("cap-text",loc::T("export.line_text"),caption_.text,60,caption_.line),
    Value("cap-set",loc::T("export.set"),onOff(caption_.set),loc::T("export.set_detail")),
-   Value("cap-set1",loc::Tf("export.set_wins",one),std::to_string(caption_.wins[0]),loc::T("export.set_detail"),caption_.set),
-   Value("cap-set2",loc::Tf("export.set_wins",two),std::to_string(caption_.wins[1]),loc::T("export.set_detail"),caption_.set),
+   WinsRow("cap-set1",loc::Tf("export.set_wins",one),caption_.wins[0],caption_.set),
+   WinsRow("cap-set2",loc::Tf("export.set_wins",two),caption_.wins[1],caption_.set),
    Value("cap-mark",loc::T("export.mark"),onOff(caption_.mark),loc::T("export.detail")),
    Value("cap-meter",loc::T("export.meter"),onOff(meter_),loc::T("export.meter_detail")),
    Row("cap-generate",loc::T("export.generate"),loc::T("export.generate_detail"),idle&&r.ready)};
@@ -215,29 +231,30 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
  }
 }
 // The caption an export starts from: the names Ember noted, the date and
-// score on one line, Ember's mark, and the set so far: the games of its set
-// (ReplaySets.hxx) before it, by who won each. A part the player turned off
-// stays off, as the frame meter row stays as it was.
-void ReplaysPanel::OpenExport(const ShellView& v,const platform::replays::ArchivedReplay& replay) {
+// score on one line, Ember's mark, and the set so far, each part on or off
+// as the player last left it (`saved`): the games of its set (ReplaySets.hxx)
+// before it, by who won each. Names and set start off when Ember knows neither.
+void ReplaysPanel::OpenExport(const ShellView& v,const netplay::PlayerPreferences& saved,const platform::replays::ArchivedReplay& replay) {
  exportPath_=PathOf(replay);caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
- caption_.names=!replay.names[0].empty()&&!replay.names[1].empty()&&!namesOff_;
+ const bool named=!replay.names[0].empty()&&!replay.names[1].empty();
+ caption_.names=saved.exportNames&&named;
  const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
  caption_.text=ReplayLabel(replay.label,replay.names,replay.fighters).substr(0,10)+(score.empty()?"":"   "+score);
- caption_.line=!lineOff_;caption_.mark=!markOff_;
- if(caption_.names)for(const auto& set:sets_){
+ caption_.line=saved.exportLine;caption_.mark=saved.exportMark;meter_=saved.exportMeter;
+ if(named)for(const auto& set:sets_){
   const auto at=std::find(set.games.begin(),set.games.end(),&replay);
   if(at==set.games.end())continue;
   const auto wins=Wins(set.games,static_cast<std::size_t>(at-set.games.begin()),replay.names[0]);
   caption_.wins[0]=wins.first;caption_.wins[1]=wins.second;break;
  }
- caption_.set=caption_.wins[0]+caption_.wins[1]>0&&!setOff_;
+ caption_.set=saved.exportSet&&caption_.wins[0]+caption_.wins[1]>0;
 }
 // The set's next game's caption screen, its set score counted from the
 // games before it (OpenExport); Generate there makes its video.
-void ReplaysPanel::NextVideo(const ShellView& v,MenuNavigation& nav) {
+void ReplaysPanel::NextVideo(const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav) {
  const std::string path=setQueue_.front();setQueue_.erase(setQueue_.begin());
- if(const auto* shown=Find(v,path)){OpenExport(v,*shown);nav.Push("replay-export");}
+ if(const auto* shown=Find(v,path)){OpenExport(v,saved,*shown);nav.Push("replay-export");}
 }
 void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,const Submit& submit,std::string& error) {
  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
@@ -248,11 +265,11 @@ bool ReplaysPanel::Generate(const ShellView& v,const Submit& submit) {
  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;
  return submit(std::move(r));
 }
-bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigation& nav,const Submit& submit,std::string& error) {
+bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
  // Any other request from these screens takes the status line back from Show in folder.
  if(a.id=="cap-generate"||a.id=="export-cancel"||a.id=="replay-log")folderAsked_=setAsked_=false;
  if(a.id=="set-next"){
-  if(setExport_&&!setQueue_.empty()){NextVideo(v,nav);return true;}
+  if(setExport_&&!setQueue_.empty()){NextVideo(v,saved,nav);return true;}
   if(!setQueue_.empty()&&v.replays.ready){Watch(v,setQueue_.front(),false,submit,error);setQueue_.erase(setQueue_.begin());}
   return true;
  }
@@ -269,17 +286,27 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,MenuNavigatio
  if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error=loc::T("error.queue_failed");return true;}
  return false;
 }
-void ReplaysPanel::Accept(const MenuAction& a) {
- if(a.id=="cap-names"){caption_.names=a.delta>0;namesOff_=!caption_.names;}else if(a.id=="cap-line"){caption_.line=a.delta>0;lineOff_=!caption_.line;}
- else if(a.id=="cap-set"){caption_.set=a.delta>0;setOff_=!caption_.set;}else if(a.id=="cap-mark"){caption_.mark=a.delta>0;markOff_=!caption_.mark;}
- else if(a.id=="cap-meter")meter_=a.delta>0;
- else if(a.id=="replay-show")show_=Stepped(show_,a.delta);
+bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
+ using P=netplay::PlayerPreferences;
+ // Each on/off row and the saved choice it leaves for the next export.
+ const struct{const char* id;bool* part;bool P::* saved;} toggles[]={
+  {"cap-names",&caption_.names,&P::exportNames},{"cap-line",&caption_.line,&P::exportLine},{"cap-set",&caption_.set,&P::exportSet},
+  {"cap-mark",&caption_.mark,&P::exportMark},{"cap-meter",&meter_,&P::exportMeter}};
+ // A press that changes nothing on screen (Left on a row already Off) saves nothing.
+ for(const auto& toggle:toggles)if(a.id==toggle.id){const bool on=a.delta>0;if(*toggle.part==on)return nullptr;*toggle.part=on;return toggle.saved;}
+ if(a.id=="replay-show")show_=Stepped(show_,a.delta);
  else if(a.id=="replay-search")search_=a.text;
  else if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
  else if(a.id=="cap-text")caption_.text=a.text;
- else if(a.id=="cap-set1"||a.id=="cap-set2"){int& wins=caption_.wins[a.id=="cap-set2"];wins=(std::max)(0,(std::min)(99,wins+a.delta));}
+ else if(a.id=="cap-set1"||a.id=="cap-set2"){
+  // Left and Right step the wins; Select types them (the editor opens empty), and anything but a number keeps them.
+  int& wins=caption_.wins[a.id=="cap-set2"];
+  if(a.kind!=MenuAction::TextAccepted)wins=(std::max)(0,(std::min)(MaxWins,wins+a.delta));
+  else if(const auto typed=TypedWins(a.text))wins=*typed;
+ }
+ return nullptr;
 }
-void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation& nav,const Submit& submit,std::string& error) {
+void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
  if(a.id=="replay-link"){
   folderAsked_=false;setAsked_=a.text=="link-import";setNoticeAsked_=v.replays.setNotices;
   ShellAction r;r.command.generation=v.session.generation;
@@ -303,7 +330,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
     // The first game's caption now; each next one from the Next video row on Replays.
     setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
     setGames_=setQueue_.size();setExport_=true;videosSeen_=v.replays.videos;
-    NextVideo(v,nav);
+    NextVideo(v,saved,nav);
    }else if(a.text=="set-watch"&&v.replays.ready){
     // The first game now; each next one from the Next game row on Replays, where the log comes back to.
     setQueue_.clear();for(const auto* game:set.games)setQueue_.push_back(PathOf(*game));
@@ -330,7 +357,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,MenuNavigation&
   if(Find(v,path)){inputsFile_=path;++inputsRevision_;nav.Push("replay-inputs");}
  }else if(a.text=="export"){
   // The caption is set up first; Generate on that screen sends the export.
-  if(const auto* shown=Find(v,path)){OpenExport(v,*shown);nav.Push("replay-export");}
+  if(const auto* shown=Find(v,path)){OpenExport(v,saved,*shown);nav.Push("replay-export");}
  }else if(v.replays.ready&&(a.text=="watch"||a.text=="watch-meter")){Watch(v,path,a.text=="watch-meter",submit,error);
  }else if(v.replays.ready){
   ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Add,path};
@@ -360,10 +387,10 @@ std::vector<std::pair<std::string,std::string>> ReplaysPanel::Tabs(const ShellVi
  if(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty()))tabs.push_back({"replay-export",loc::T("export.title")});
  return tabs;
 }
-void ReplaysPanel::ExportFrom(const ShellView& v,const std::string& focus) {
+void ReplaysPanel::ExportFrom(const ShellView& v,const netplay::PlayerPreferences& saved,const std::string& focus) {
  const Replay* r=RowReplay(v,sets_,focus);
  if(!r&&exportPath_.empty()&&v.replays.archive&&!v.replays.archive->empty())r=&v.replays.archive->front();
- if(r)OpenExport(v,*r);
+ if(r)OpenExport(v,saved,*r);
 }
 bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImVec2 max) const {
  const Replay* r=RowReplay(v,sets_,e.id);

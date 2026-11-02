@@ -62,8 +62,8 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     shell.Navigation().Focus("cap-meter",rows);draw(nullptr,MenuInput::Right,1);draw("replay-export-meter");
     Require(rows[9].value==loc::T("common.on"),"The export's Frame meter row did not turn on");
     draw(nullptr,MenuInput::Left,1);draw();
-    // Ember's mark turned off stays off on the next replay's caption; its names come from that replay.
-    shell.Navigation().Focus("cap-mark",rows);draw(nullptr,MenuInput::Left,1);draw();
+    // Ember's mark turned off is saved, and stays off on the next replay's caption; its names come from that replay.
+    shell.Navigation().Focus("cap-mark",rows);draw(nullptr,MenuInput::Left,1);draw(nullptr,0,30);
     Require(rows[8].value==loc::T("common.off"),"The export's mark row did not turn off");
     draw(nullptr,MenuInput::Back,1);draw();
     shell.Navigation().Focus("replay:c",rows);draw(nullptr,MenuInput::Select,1);draw();

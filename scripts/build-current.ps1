@@ -1,6 +1,11 @@
 param([switch]$SkipTests, [switch]$SelfTest, [switch]$CompilerCache, [switch]$Symbols, [string]$VisualStudioPath = '', [string]$VcpkgRoot = '',
-      [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE)
+      [string]$DiscordSdkArchive = $env:SF4E_DISCORD_SDK_ARCHIVE,
+      [string]$EmberService = '')
 $ErrorActionPreference = 'Stop'
+# -EmberService <origin> points Linked accounts and public-room tickets of THIS build at another bridge (a staging or
+# test bridge, as docs/guides/TOURNAMENT_TEST.md needs). Without it every build clears the origin. The receipt records
+# the value, so Assert-BuildReceipt still refuses to package such a build.
+if ($EmberService -and $EmberService -notmatch '^https?://[^\s"]+$') { throw "-EmberService must be an http(s) origin, not '$EmberService'." }
 $repo = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'BuildEnvironment.ps1')
 $target = Get-EmberBuildTarget $repo
@@ -47,9 +52,13 @@ $compilerCacheOptions = if ($CompilerCache) {
     if (!$ccacheVersion -or [version]$ccacheVersion -lt [version]'4.6') { throw "-CompilerCache needs ccache 4.6 or newer; $ccache is '$ccacheVersion'." }
     "-DCMAKE_C_COMPILER_LAUNCHER=$ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=$ccache", '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded'
 } else { '-UCMAKE_C_COMPILER_LAUNCHER', '-UCMAKE_CXX_COMPILER_LAUNCHER', '-UCMAKE_MSVC_DEBUG_INFORMATION_FORMAT' }
-& $cmake -S $repo -B $build -G Ninja '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON "-DSF4E_STAGING_BRIDGE=$stagingBridge" "-DSF4E_SELFTEST=$selfTestOption" -DSF4E_BUILD_DISCORD=ON "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage" @compilerCacheOptions
+& $cmake -S $repo -B $build -G Ninja '-U*_DIR' '-UZLIB_*' '-ULIB_DETOURS' '-USF4E_JSON_INCLUDE' '-UFIND_PACKAGE_MESSAGE_DETAILS_*' "-DCMAKE_MAKE_PROGRAM=$vs/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSF4E_DEVELOPER_UI=OFF "-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x86-windows-wchar-filenames "-DVCPKG_INSTALLED_DIR=$dependencies" -DVCPKG_MANIFEST_INSTALL=OFF -DSF4E_BUILD_IROH_HELPER=ON "-DSF4E_STAGING_BRIDGE=$stagingBridge" "-DSF4E_SELFTEST=$selfTestOption" "-DSF4E_EMBER_SERVICE=$EmberService" -DSF4E_BUILD_DISCORD=ON "-DSF4E_DISCORD_SDK_ARCHIVE=$DiscordSdkArchive" "-DCMAKE_INSTALL_PREFIX=$stage" @compilerCacheOptions
 if ($LASTEXITCODE) { throw 'Configure failed' }
 Assert-CMakeSource $repo $build
+# SF4E_EMBER_SERVICE (cmake/sf4e_helper.cmake) points Linked accounts and public-room tickets at another bridge. Every
+# build clears it (above) unless -EmberService sets it, so a cache set by hand for a test build never reaches a package; the receipt records what
+# the cache holds, and Assert-BuildReceipt refuses anything but empty.
+$emberService = [string](Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | ForEach-Object { if ($_ -match '^SF4E_EMBER_SERVICE:[A-Z]+=(.*)$') { $Matches[1] } } | Select-Object -First 1)
 if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object { $_ -match '^([^#/:]+):[^=]+=.*sf4-display-dxvk' }) {
     throw 'Stale dependency cache references a different checkout'
 }
@@ -57,10 +66,11 @@ if (Get-Content -LiteralPath (Join-Path $build 'CMakeCache.txt') | Where-Object 
 if ($LASTEXITCODE) { throw 'Build failed' }
 # Public-network and live Discord checks require a separate explicit run (BuildProvenance.ps1 names them).
 $excludedTests = $EmberExcludedTests
-# Nightly runs a failed test once more (Invoke-DefaultTests); Stable does not.
+# A failed test runs once more, alone (Invoke-DefaultTests), on every channel: timing tests can miss their
+# window on a busy machine. The receipt names any that passed only then (testsPassedOnRerun).
 $passedOnRerun = @()
 if (!$SkipTests) {
-    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $excludedTests $env:NUMBER_OF_PROCESSORS -RerunFailed:($target.channel -eq 'nightly'))
+    $passedOnRerun = @(Invoke-DefaultTests $ctest $build $excludedTests $env:NUMBER_OF_PROCESSORS -RerunFailed)
 }
 & $cmake --install $build *> (Join-Path $build 'stage.log')
 if ($LASTEXITCODE) { throw 'Local staging failed' }
@@ -78,4 +88,4 @@ $components = @(
     [ordered]@{name='Supplemental service, lint and Linux checks (scripts/test-full-quality.ps1)';platform='windows/linux';status='unexecuted'},
     [ordered]@{name='Public network matrix (scripts/test-current-network.ps1)';platform='windows';status='unexecuted'},
     [ordered]@{name='Live Discord and gameplay acceptance';platform='live';status='unexecuted'})
-[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt;symbols=$symbolStore} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')
+[ordered]@{sourceRoot=$repo;buildRoot=$build;stageRoot=$stage;branch=(& git -C $repo branch --show-current);baseRevision=(& git -C $repo rev-parse HEAD);sourceFingerprint=$after;features=$target.features;stagingBridge=($stagingBridge -eq 'ON');selfTest=($selfTestOption -eq 'ON');emberService=$emberService;compilerCache=$ccacheVersion;testsPassed=(!$SkipTests);testsPassedOnRerun=$passedOnRerun;testsExcluded=$excludedTests;components=$components;builtUtc=[DateTime]::UtcNow.ToString('o');binaries=@($binaries);dependencies=$dependencyReceipt;symbols=$symbolStore} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $build 'build-provenance.json')

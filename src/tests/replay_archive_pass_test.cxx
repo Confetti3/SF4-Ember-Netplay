@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace fs = std::filesystem;
 namespace files = sf4e::replayfiles;
@@ -38,6 +39,8 @@ struct Folders {
 	Bytes list = EmptyList(), swan = EmptySwan();
 	Owner own;
 	std::atomic<bool> archiveBroken{false};
+	// What the pass said of the slots it passed over.
+	std::vector<std::string> skipped;
 	explicit Folders(const char* name) {
 		root = fs::temp_directory_path() / (std::string(name) + "-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
 		saves = root / "ssf4_savedata"; archive = root / "replays"; outbox = root / "replay-outbox";
@@ -58,7 +61,7 @@ struct Folders {
 			if (fs::exists(path)) return false;
 			Save(path, bytes);
 			return true;
-		}};
+		}, [this](const std::string& cause) { skipped.push_back(cause); }};
 	}
 	// What the game writes as a match ends: the replay and its ".0", and,
 	// unless its index is behind, the slot's record.
@@ -573,7 +576,27 @@ static void TestArchiveWorkerWithPasses() {
 	CHECK(Eventually([&] { return unlisted.Archived().size() == 1 && unlisted.Outboxed() == 0; }));
 }
 
+// A whole slot file whose header the game would not save (a fighter of 64 or
+// more) or that is too long to export is never archived, and the pass says
+// which slot and why, so a field log names the cause. A good slot says nothing.
+static void TestAPassedOverSlotIsNamed() {
+	Folders f("ember-archive-skipped");
+	Bytes bad = Match(1, 1791600000u);
+	WriteU32(bad.data() + 0x20, 200);
+	f.SaveMatch(kFirst, bad, 0, false);
+	Bytes huge = Match(2, 1791600180u);
+	huge.resize(kLargestReplay + 1, 7);
+	f.SaveMatch(kFirst + 1, huge, 0, false);
+	f.SaveMatch(kFirst + 2, Match(3, 1791600360u), 0, false);
+	const auto pass = f.Pass();
+	CHECK(pass.copied == 1 && !pass.retry && f.Archived().size() == 1);
+	CHECK(f.skipped.size() == 2);
+	CHECK(f.skipped[0].find("slot 300 ") != std::string::npos && f.skipped[0].find("fighters 200 and ") != std::string::npos);
+	CHECK(f.skipped[1].find("slot 301 ") != std::string::npos && f.skipped[1].find(std::to_string(huge.size()) + " bytes") != std::string::npos);
+}
+
 int main() {
+	TestAPassedOverSlotIsNamed();
 	TestASittingWithTheIndexBehind();
 	TestRetries();
 	TestTheOutboxOutlivesTheSlot();

@@ -115,6 +115,7 @@ target_link_libraries(sf4e_ui PUBLIC sf4e_problem_report)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_chat_filter.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_speech_relay.cmake")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
 target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 
@@ -405,8 +406,6 @@ install(
   TARGETS Launcher Sidecar Updater
   RUNTIME DESTINATION "."
 )
-# Speech under Proton: Sidecar starts it on the host (platform/SpeechLinux.hxx).
-install(FILES "src/platform/speech_relay.py" DESTINATION ".")
 install(FILES "src/ui/fonts/OFL.txt" DESTINATION "notices" RENAME "Inter-OFL.txt")
 install(FILES "src/ui/fonts/NotoSansCJK-OFL.txt" DESTINATION "notices")
 install(FILES "src/ui/backends/LICENSE.txt" DESTINATION "notices" RENAME "Dear-ImGui-MIT.txt")

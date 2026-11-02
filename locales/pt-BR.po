@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "A partida que você assiste, sobre o menu do Ember: Pequeno num canto que você pode arrastar, Grande no lugar das mesas da sala, Nenhuma escurecida atrás do menu."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "Compartilhar meus replays"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "Envia as partidas que você jogar a partir de agora para o arquivo público de replays do seu bridge, com o seu nome e o seu país; o oponente só é nomeado se também compartilhar. As partidas de torneios organizados são sempre compartilhadas, com o nome dos dois jogadores."
 
 msgid "replays.link"
 msgstr "Reproduzir o replay do link"
@@ -5243,7 +5243,7 @@ msgid "reports.dump"
 msgstr "Dump pequeno"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "O dump contém bytes não filtrados da pilha das threads e caminhos de módulos. Ele pode expor memória privada, credenciais ou convites completos, nomes de usuário, caminhos de pastas e outros identificadores. A ocultação de dados dos logs não o higieniza, e o conteúdo dele não aparece na prévia em texto. Desligue Dump pequeno para excluí-lo."
 
 msgid "reports.comment"
 msgstr "Comentário"
@@ -5291,7 +5291,7 @@ msgid "reports.cancelled"
 msgstr "Envio do relatório cancelado. Um relatório já aceito pelo servidor ainda pode ser mantido."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "O dump incluído pode expor memória privada, credenciais ou convites completos, nomes de usuário, caminhos de pastas e outros identificadores. O conteúdo dele não aparece na prévia em texto nem é higienizado pela ocultação de dados dos logs. Envie-o só se aceitar essa exposição; escolha Não enviar e desligue Dump pequeno para excluí-lo."
 
 msgid "launcher.game_crashed_files"
 msgstr "O jogo travou. Envie para a equipe do SF4 Ember Netplay os arquivos de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log e sf4e-crash-*.dmp) e tente novamente."

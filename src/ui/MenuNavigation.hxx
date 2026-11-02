@@ -108,6 +108,9 @@ struct MenuEntry {
 // What Select does on an entry, decided in one place so navigation and the
 // legend agree. A reader wins over text, text over choices, choices over a
 // confirmation (a confirmation that also carries choices asks by choosing).
+// A value row that is also text (a number that can be typed) steps with
+// Left/Right and opens its editor on Select, empty, so what is typed (on a
+// keyboard or the on-screen one) is the whole number.
 enum class SelectOpens { Nothing, Reader, Edit, Choice, Confirm, Activate };
 // A value that is a number ("3", "100%", "-2 f"): a click steps it on either half.
 inline bool MenuValueIsNumber(const MenuEntry& e) {
@@ -117,7 +120,7 @@ inline bool MenuValueIsNumber(const MenuEntry& e) {
 inline SelectOpens MenuSelectOpens(const MenuEntry& e) {
     if (!e.enabled || e.info) return SelectOpens::Nothing;
     if (e.reading) return SelectOpens::Reader;
-    if (e.adjustable && e.choices.empty() && !e.opens) return SelectOpens::Nothing;
+    if (e.adjustable && e.choices.empty() && !e.opens && !e.text) return SelectOpens::Nothing;
     if (e.text) return SelectOpens::Edit;
     if (!e.choices.empty()) return SelectOpens::Choice;
     return e.confirm ? SelectOpens::Confirm : SelectOpens::Activate;
@@ -350,7 +353,7 @@ public:
         const auto& e=entries[states_[Screen()].index];
         switch (MenuSelectOpens(e)) {
         case SelectOpens::Reader: mode_=Modal::Read; modalId_=e.id; return {};
-        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret?std::string():e.value; editAccept_=true; return {};
+        case SelectOpens::Edit: mode_=Modal::Edit; modalId_=e.id; secret_=e.secret; draft_=e.secret||e.adjustable?std::string():e.value; editAccept_=true; return {};
         case SelectOpens::Choice: case SelectOpens::Confirm: Open(e); return {};
         case SelectOpens::Activate: return {MenuAction::Activate,e.id};
         case SelectOpens::Nothing: break;

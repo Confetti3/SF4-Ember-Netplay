@@ -567,6 +567,25 @@ static void TestArcadeFighterFollowsSeat() {
 	CHECK(placeOf(4).kind == room::Place::Kind::Seat && placeOf(4).table != paired);
 	action(2, room::ActionKind::Unqueue, static_cast<std::uint8_t>(placeOf(2).table));  // member 2 stands up
 	CHECK(placeOf(3).kind == room::Place::Kind::Seat && placeOf(3).table != paired && placeOf(3).table == placeOf(4).table);
+	// The last projection member 3 was sent names the table they sit at, with
+	// the member already there as p1, so they know to wait for that seat's stage.
+	const auto lastProjection = [&](session::Connection connection) {
+		protocol::SessionDataUpdate found;
+		bool any = false;
+		for (const auto& sent : transport->outgoing) {
+			if (sent.first != connection || sent.second.at("type") != json(protocol::MT_SESSION_DATAUPDATE)) continue;
+			found = sent.second.get<protocol::SessionDataUpdate>();
+			any = true;
+		}
+		CHECK(any);
+		return found;
+	};
+	const auto projected = lastProjection(3);
+	CHECK(projected.lobbyData.members.size() >= 2);
+	if (projected.lobbyData.members.size() >= 2) {
+		CHECK(projected.lobbyData.members[0].connId == server.cidMap.at(4));
+		CHECK(projected.lobbyData.members[1].connId == server.cidMap.at(3));
+	}
 	protocol::PreBattleSetChara pick;
 	pick.chara = protocol::MatchData{}.chara[0];
 	pick.chara.charaID = 9;

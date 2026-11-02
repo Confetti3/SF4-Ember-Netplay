@@ -35,7 +35,10 @@ param(
     # against a running bridge whose accounts were connected once by a person
     # (docs/guides/TOURNAMENT_TEST.md). Without it each run makes a fresh one.
     [string]$KeptEmberDir = "",
-    [int]$TimeoutMinutes = 20
+    [int]$TimeoutMinutes = 20,
+    # The menu test: start the walk at this step (a name its PASS/FAIL lines print),
+    # so a rerun picks up where the last one failed.
+    [string]$From = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -161,6 +164,7 @@ $settings | Where-Object { Test-Path $_ } | ForEach-Object { Copy-Item $_ "$_.se
 
 $result = Join-Path $env:TEMP ("ember-selftest-" + [guid]::NewGuid().ToString("N") + ".txt")
 $env:SF4E_SELFTEST = $Test
+$env:SF4E_SELFTEST_FROM = $From
 $env:SF4E_SELFTEST_RESULT = $result
 try {
     $began = (Get-Date).AddSeconds(-1)

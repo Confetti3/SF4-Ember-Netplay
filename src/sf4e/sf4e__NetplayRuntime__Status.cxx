@@ -401,16 +401,12 @@ bool PostMatchPromptDue() {
 }
 }
 
-// A game that ends a first-to-N set ends the match: the table rotates.
+// A game that ends a first-to-N set ends the match: the table rotates. An
+// Arcade or King room with no set length plays sets of one game, as the room does.
 bool RematchInPlaceOffered(room::MatchResult result) {
     const auto* table = internal::RematchTable();
     if (!table) return false;
-    const auto goal = static_cast<std::uint32_t>(table->rules.format);
-    const int seat = result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
-    // King of the hill: a set with no length is one game, and a set's end is the
-    // room's to pair (the winner stays on), never a rematch.
-    if (UserApp::netplay->client.GetRoomSnapshot().arcade == room::KingRoom) return goal != 0 && (seat < 0 || table->score[seat] + 1 < goal);
-    return goal == 0 || seat < 0 || table->score[seat] + 1 < goal;
+    return room::RematchInPlaceOffered(UserApp::netplay->client.GetRoomSnapshot(), *table, result);
 }
 
 namespace internal {

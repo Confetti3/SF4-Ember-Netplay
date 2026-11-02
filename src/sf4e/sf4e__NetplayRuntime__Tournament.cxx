@@ -204,7 +204,8 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 // a closed set refused (MarkSetClosed) goes on to the replay archive as any
 // other game would. A set's replay its bridge has not confirmed yet
 // (replay_unconfirmed) is put aside for ten minutes while the others go. Any
-// other failure is tried again a minute after it is answered. Nothing more
+// other failure puts that replay aside too, for longer each time (two minutes
+// to ten), so one a bridge keeps failing never holds up the rest. Nothing more
 // goes while one is out (ReplaySender).
 // ponytail: the archive is listed once a minute for this, whether or not a set was played.
 void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
@@ -229,11 +230,14 @@ void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 	const bool set = platform::replays::ForItsSet(*next);
 	std::string text;
 	try {
-		// The sides' names, and this player's side, which the archive gives their country.
-		json sides{{"a", next->names[0]}, {"b", next->names[1]}};
+		// Only this player's own side: its name, which the archive gives their
+		// country. The opponent's name is theirs to share, so it never goes
+		// (the other side is empty; older versions sent both, which the bridge ignores).
+		json sides{{"a", ""}, {"b", ""}};
 		if (next->names[0] != next->names[1])
 			for (std::uint8_t side = 0; side < 2; ++side)
 				if (next->names[side] == runtime->displayName) {
+					sides[side ? "b" : "a"] = next->names[side];
 					sides["side"] = side;
 					if (const auto country = ShownCountry(preferences.country, runtime->automaticCountry); country.Present())
 						sides["country"] = country.ToString();

@@ -74,8 +74,9 @@ any `ember-2p` tournament an earlier one left.
 ### Set up once
 
 - **A self-test build** of the game (`SF4E_SELFTEST=ON`, as
-  `scripts\build-current.ps1 -SelfTest` makes it), pointed at the bridge
-  (`SF4E_EMBER_SERVICE`, and `SF4E_STAGING_BRIDGE=ON` for a staging bridge).
+  `scripts\build-current.ps1 -SelfTest` makes it), pointed at the bridge with
+  `-EmberService <bridge origin>` (a plain build clears that origin; the receipt records it, so
+  packaging refuses such a build). A Nightly checkout also trusts the staging bridge.
   The runner copies it to the other PC when it changed.
 - **The other PC**: ssh with a key, a folder for the run, and a user signed in
   at the desktop with Steam running: the game starts there through a

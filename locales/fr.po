@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "La partie que vous regardez, au-dessus du menu d'Ember : Petit dans un coin déplaçable, Grand à la place des tables du salon, Aucune assombrie derrière le menu."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "Partager mes replays"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "Envoie les parties que vous jouez à partir de maintenant vers l'archive publique de replays de votre bridge, avec votre nom et votre pays ; un adversaire n'est nommé que s'il partage aussi. Les parties de tournois organisés sont toujours partagées, avec le nom des deux joueurs."
 
 msgid "replays.link"
 msgstr "Lire le replay du lien"
@@ -5704,7 +5704,7 @@ msgid "reports.dump"
 msgstr "Petit vidage"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "Le vidage contient des octets de pile de threads non filtrés et des chemins de modules. Il peut exposer de la mémoire privée, des identifiants ou invitations complets, des noms d'utilisateur, des chemins de dossiers et d'autres identifiants. L'expurgation des journaux ne le nettoie pas, et son contenu n'apparaît pas dans l'aperçu texte. Désactivez Petit vidage pour l'exclure."
 
 msgid "reports.comment"
 msgstr "Commentaire"
@@ -5752,7 +5752,7 @@ msgid "reports.cancelled"
 msgstr "Envoi du rapport annulé. Un rapport déjà accepté par le serveur peut quand même être conservé."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "Le vidage inclus peut exposer de la mémoire privée, des identifiants ou invitations complets, des noms d'utilisateur, des chemins de dossiers et d'autres identifiants. Son contenu n'apparaît pas dans l'aperçu texte et n'est pas nettoyé par l'expurgation des journaux. Ne l'envoyez que si vous acceptez cette exposition ; choisissez Ne pas envoyer et désactivez Petit vidage pour l'exclure."
 
 msgid "launcher.game_crashed_files"
 msgstr "Le jeu a planté. Envoyez à l'équipe SF4 Ember Netplay les fichiers de %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log et sf4e-crash-*.dmp), puis réessayez."

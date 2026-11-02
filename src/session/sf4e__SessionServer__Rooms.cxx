@@ -294,9 +294,10 @@ void SessionServer::SendRoomProjection(session::Connection connection) {
 	if (!_roomAuthority) return;
 	const auto member = roomMembers.find(connection);
 	if (member == roomMembers.end()) return;
-	const auto selected = roomSelectedTables.find(connection);
-	const std::uint8_t tableId = selected == roomSelectedTables.end() ? 0 : selected->second;
-	ProjectRoomTable(connection, tableId);
+	// The table the member sits at, else the one they last chose: another
+	// member's action can seat them elsewhere, and the projection tells them
+	// whether they are p1 (who sends the stage).
+	ProjectRoomTable(connection, RoomTableFor(connection));
 }
 
 void SessionServer::ProjectRoomTable(session::Connection connection, std::uint8_t tableId) {

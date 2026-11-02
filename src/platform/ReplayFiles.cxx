@@ -13,6 +13,8 @@
 #include <fstream>
 #include <condition_variable>
 #include <map>
+#include <set>
+#include <unordered_set>
 #include <mutex>
 #include <thread>
 #include <stdexcept>
@@ -30,6 +32,7 @@
 #include "ReplayArchivePass.hxx"
 #include "ReplayArchiveWorker.hxx"
 #include "ReplaySetPack.hxx"
+#include "ReplayNotes.hxx"
 
 #include <nlohmann/json.hpp>
 #include "../common/ReplayFileSafety.hxx"
@@ -148,9 +151,16 @@ replayfiles::SlotFileCache& SlotFiles() { static replayfiles::SlotFileCache cach
 // never holds up the next reading of the slots; the next pass goes on from
 // where it stopped. The launcher's settle them all.
 constexpr std::size_t kSettleBudget = 32;
+// A slot passed over is named once per cause, since every pass meets it again.
+void SkippedSlot(const std::string& cause) {
+	static std::mutex lock;
+	static std::set<std::string> told;
+	std::lock_guard<std::mutex> guard(lock);
+	if (told.size() < 64 && told.insert(cause).second) spdlog::warn("Replays: {}", cause);
+}
 replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudget, replayfiles::ArchiveView& view) {
 	static std::size_t settleFrom = 0;
-	return {folders.archive, folders.outbox, settleBudget, settleFrom, view, SlotFiles(), PublishFile};
+	return {folders.archive, folders.outbox, settleBudget, settleFrom, view, SlotFiles(), PublishFile, SkippedSlot};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
 // The replays Ember kept itself (NoteMatchEnd) for the next pass to archive;
@@ -500,22 +510,51 @@ void NoteMatchEnd(bool confirmed, slots::Bytes unsaved) {
 }
 
 namespace {
-void Mark(const wchar_t* list, const fs::path& file, bool on) {
+// The marks lists are appended here and rewritten by the lister (PruneNotes)
+// or by a mark taken off (MarkOut), so the two never overlap: an append the
+// rewrite missed would be lost.
+std::mutex& NotesLock() { static std::mutex lock; return lock; }
+// Writes a list whole, beside it first, so a reader never sees it half written.
+bool WriteList(const fs::path& file, const std::string& text) {
+	fs::path partial = file; partial += L".tmp";
+	{
+		std::ofstream out(partial, std::ios::binary | std::ios::trunc);
+		out << text;
+		if (!out) { out.close(); std::error_code ignored; fs::remove(partial, ignored); return false; }
+	}
+	fs::rename(partial, file);
+	return true;
+}
+void MarkOut(const wchar_t* list, const fs::path& file) {
 	try {
 		const Folders folders = FindFolders();
 		if (folders.archive.empty()) return;
-		replayfiles::Note(folders.archive / list, WideToUtf8(file.filename().wstring()), on);
-		WantListing();
+		const std::string name = WideToUtf8(file.filename().wstring());
+		std::lock_guard<std::mutex> lock(NotesLock());
+		const auto bytes = replayfiles::ReadFile(folders.archive / list, notes::kMostBytes);
+		if (bytes) WriteList(folders.archive / list, notes::Pruned(*bytes, [&](const std::string& line) { return line != name; }));
+	}
+	catch (const std::exception& e) {
+		spdlog::warn("Replays: {} was not written: {}", WideToUtf8(list), e.what());
+	}
+}
+void MarkIn(const wchar_t* list, const fs::path& file) {
+	try {
+		const Folders folders = FindFolders();
+		if (folders.archive.empty()) return;
+		std::lock_guard<std::mutex> lock(NotesLock());
+		std::ofstream out(folders.archive / list, std::ios::app);
+		out << WideToUtf8(file.filename().wstring()) << '\n';
 	}
 	catch (const std::exception& e) {
 		spdlog::warn("Replays: {} was not written: {}", WideToUtf8(list), e.what());
 	}
 }
 }
-void MarkWatched(const fs::path& file) { Mark(L"watched.txt", file, true); }
-void MarkKept(const fs::path& file, bool kept) { Mark(L"kept.txt", file, kept); }
-void MarkSent(const fs::path& file) { Mark(L"sent.txt", file, true); }
-void MarkSetClosed(const fs::path& file) { Mark(L"closed.txt", file, true); }
+void MarkWatched(const fs::path& file) { MarkIn(L"watched.txt", file); }
+void MarkKept(const fs::path& file, bool kept) { if (kept) MarkIn(L"kept.txt", file); else MarkOut(L"kept.txt", file); WantListing(); }
+void MarkSent(const fs::path& file) { MarkIn(L"sent.txt", file); }
+void MarkSetClosed(const fs::path& file) { MarkIn(L"closed.txt", file); }
 
 fs::path SetPackPath(const std::string& matchId) {
 	if (matchId.empty() || matchId.size() > replayfiles::kMostId ||
@@ -550,19 +589,51 @@ std::size_t ImportSetPack(const fs::path& pack) {
 }
 
 namespace {
-
-// A list of marked replays, read again when its bounded file changes.
+// A list of marked replays, read again when its file changes. A file that
+// exists but cannot be read (too large, locked) leaves the cache Unreadable,
+// and is tried again at the next listing.
 struct NotesCache {
 	fs::file_time_type written{};
-	std::vector<std::string> names;
+	std::unordered_set<std::string> names;
+	bool unreadable = false;
 	void Read(const fs::path& file) {
 		std::error_code ignored;
 		const auto at = fs::last_write_time(file, ignored);
-		if (ignored) names.clear(); else if (at != written) names = replayfiles::NotedNames(file);
-		written = at;
+		if (ignored) { names.clear(); unreadable = false; written = {}; return; }
+		if (at == written && !unreadable) return;
+		const auto bytes = replayfiles::ReadFile(file, notes::kMostBytes);
+		if (bytes) { names = notes::Parse(*bytes); unreadable = false; written = at; }
+		else {
+			if (!unreadable) spdlog::warn("Replays: {} cannot be read; its replays are taken as marked until it can", WideToUtf8(file.filename().wstring()));
+			unreadable = true;
+		}
 	}
-	bool Has(const fs::path& replay) const { return std::find(names.begin(), names.end(), WideToUtf8(replay.filename().wstring())) != names.end(); }
+	bool Has(const fs::path& replay) const { return names.count(WideToUtf8(replay.filename().wstring())) != 0; }
 };
+
+// Drops the lines of `file` (cached in `cache`) for replays no longer in the
+// archive, when the list holds many more than the archive has. "In the
+// archive" is the lister's own reach: the top folder and its subfolders
+// (notes::ReplayNames), so replays a player filed into subfolders keep their
+// marks. `walked` is that walk, taken by the caller on this lister thread
+// before the lock, so the game thread's MarkIn never waits on a filesystem
+// walk; the lock covers only the read and rewrite of one small file. A line
+// added since the cache was read is kept, whatever the walk saw.
+void PruneNotes(const fs::path& file, const std::unordered_set<std::string>& walked, bool complete, NotesCache& cache, std::size_t live) {
+	if (!complete || cache.unreadable || !notes::WorthPruning(cache.names.size(), live)) return;
+	try {
+		std::lock_guard<std::mutex> lock(NotesLock());
+		const auto bytes = replayfiles::ReadFile(file, notes::kMostBytes);
+		if (!bytes) return;
+		const std::string text = notes::Pruned(*bytes, [&](const std::string& name) {
+			return notes::KeptAfterWalk(name, cache.names, walked);
+		});
+		if (!WriteList(file, text)) return;
+		cache.written = {};
+	} catch (const std::exception& e) {
+		spdlog::warn("Replays: {} was not pruned: {}", WideToUtf8(file.filename().wstring()), e.what());
+	}
+}
 
 std::vector<ArchivedReplay> List(NotesCache (&cache)[4]) {
 	const Folders folders = FindFolders();
@@ -575,12 +646,24 @@ std::vector<ArchivedReplay> List(NotesCache (&cache)[4]) {
 	std::vector<ArchivedReplay> archived = Index().Refresh(folders.archive);
 	for (ArchivedReplay& replay : archived) {
 		replay.watched = cache[0].Has(replay.path);
-		replay.sent = cache[1].Has(replay.path);
+		// A list that cannot be read marks everything, never nothing.
+		replay.sent = cache[1].unreadable || cache[1].Has(replay.path);
 		replay.setClosed = cache[2].Has(replay.path);
 		replay.kept = cache[3].Has(replay.path);
 		fs::path video = replay.path;
 		std::error_code failed;
 		replay.video = fs::exists(video.replace_extension(L".mp4"), failed);
+	}
+	// Walk the folders only when some list is worth pruning, with no lock held.
+	bool worth = false;
+	for (const NotesCache& list : cache) worth = worth || (!list.unreadable && notes::WorthPruning(list.names.size(), archived.size()));
+	if (worth) {
+		bool complete = true;
+		const auto walked = notes::ReplayNames(folders.archive, complete);
+		PruneNotes(folders.archive / L"watched.txt", walked, complete, cache[0], archived.size());
+		PruneNotes(folders.archive / L"sent.txt", walked, complete, cache[1], archived.size());
+		PruneNotes(folders.archive / L"closed.txt", walked, complete, cache[2], archived.size());
+		PruneNotes(folders.archive / L"kept.txt", walked, complete, cache[3], archived.size());
 	}
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });
 	return archived;

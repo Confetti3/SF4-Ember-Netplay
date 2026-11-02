@@ -89,9 +89,10 @@ try {
     [IO.File]::WriteAllText($shippedReader, (($shipped | ForEach-Object { $_.Extent.Text }) -join "`n"))
     . $shippedReader
     $inventory = "SF4E_PACKAGE_REQUIRED(`"PackageInventory.inc`")`nSF4E_PACKAGE_REQUIRED(`"app.txt`")`nSF4E_PACKAGE_REQUIRED(`"build-provenance.json`")`nSF4E_PACKAGE_REQUIRED(`"notes.txt`")`nSF4E_PACKAGE_REQUIRED(`"MANIFEST.txt`")`nSF4E_PACKAGE_REQUIRED(`"preflight.ps1`")`n"
-    function New-MiniPackage([string]$Path, [string]$App) {
+    function New-MiniPackage([string]$Path, [string]$App, [hashtable]$Extra = @{}) {
         $files = @{ 'PackageInventory.inc' = $inventory; 'app.txt' = $App; 'build-provenance.json' = '{"baseRevision":"abc"}'; 'notes.txt' = 'n'; 'preflight.ps1' = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'tester-preflight.ps1')) }
         for ($index = 0; $index -lt 44; $index++) { $files["assets\selection\f$index.png"] = "png$index" }
+        foreach ($name in $Extra.Keys) { $files[$name] = $Extra[$name] }
         New-Tree $Path $files
         Write-HashManifest $Path 'MANIFEST.txt'
     }
@@ -145,6 +146,38 @@ try {
     $inventoryManifest = Read-HashManifest (Join-Path $result[0].folderPath 'UPGRADE_MANIFEST.txt')
     Check ($inventoryManifest.ContainsKey('upgrade.json') -and $inventoryManifest.ContainsKey('payload\app.txt') -and !$inventoryManifest.ContainsKey('UPGRADE_MANIFEST.txt')) 'UPGRADE_MANIFEST.txt lists the wrong files'
     Pass 'New-EmberUpgradePackage over two small packages returns one object and writes manifest and sidecar'
+    # The floor gate: a root file the oldest supported Stable updater (1.4.1) does not know stops the upgrade, as
+    # speech_relay.py did in 1.5.0 ("Unexpected package file" on every 1.4.1 launcher).
+    Check (@(Get-EmberNewFilesOldUpdaterRejects @('Launcher.exe', 'LAUNCHER.EXE', 'notices\Discord-SDK.txt', 'assets\flags\xx.json', 'assets\input\pad-1.png',
+        'assets\selection\sources.json', 'assets\selection\README.md', 'assets\selection\stages\TRN.png', 'assets\selection\stages\JUR.jpg',
+        'assets\selection\RYU\portrait.png', 'assets\selection\RYU\portrait-cutout.png', 'assets\selection\RYU\ultra-1.jpg',
+        'assets\selection\RYU\costume-3\color-11-cutout.png', 'assets\selection\RYU\costume-6\color-21.png', 'assets\selection\RLN\costume-5\color-0.jpg')).Count -eq 0) 'the 1.4.1 floor rejected files its updater accepts'
+    # Each of these is refused by 1.4.1: unknown root file, wrong folder, too deep, art names in capitals (patterns are case-sensitive),
+    # and selection shapes outside the generated set (unknown stage or fighter, lowercase code, extra extension, stage jpeg of another
+    # case, costume or color past the catalog, a new json, traversal, rooted or drive paths).
+    $oldRefuses = @('speech_relay.py', 'assets\other\x.png', 'assets\flags\deep\x.png', 'assets\input\Pad.png', 'assets\Flags\x.png', 'assets\flags\X.json',
+        'assets\selection\xyz\portrait.png', 'assets\selection\stages\abc.png', 'assets\selection\stages\TRN.webp', 'assets\selection\stages\trn.png',
+        'assets\selection\new.json', 'assets\selection\Sources.json', 'assets\selection\RYU\portrait.webp', 'assets\selection\ryu\portrait.png',
+        'assets\selection\RYU\ultra-2.png', 'assets\selection\RYU\costume-7\color-0.png', 'assets\selection\RYU\costume-3\color-12.png',
+        'assets\selection\RLN\costume-6\color-0.png', 'assets\selection\RYU\costume-0\color-0.gif', 'assets\selection\RYU\costume-0\color-0-cutout.jpg',
+        'assets\selection\RYU\extra\portrait.png', 'assets\selection\..\Launcher.exe', 'assets\selection\RYU\portrait.png:ads', '\Launcher.exe', 'C:\x.png')
+    $stillAccepted = @($oldRefuses | Where-Object { @(Get-EmberNewFilesOldUpdaterRejects @($_)).Count -ne 1 })
+    Check ($stillAccepted.Count -eq 0) "the 1.4.1 floor accepted files its updater rejects: $($stillAccepted -join ', ')"
+    # The whole-package check that New-EmberPackage runs, whatever the channel.
+    $okPackage = Join-Path $root 'old-ok'
+    New-Tree $okPackage @{ 'Launcher.exe' = 'x'; 'MANIFEST.txt' = 'm'; 'assets/selection/RYU/portrait.png' = 'p' }
+    Assert-EmberPackageOldUpdaterAccepts $okPackage
+    $badPackage = Join-Path $root 'old-bad'
+    New-Tree $badPackage @{ 'Launcher.exe' = 'x'; 'assets/selection/Zzz/portrait.png' = 'p'; 'speech_relay.py' = 'py' }
+    Reject { Assert-EmberPackageOldUpdaterAccepts $badPackage } 'refuses these package files: .*speech_relay\.py' 'a package that holds a file 1.4.1 rejects'
+    Reject { Assert-EmberPackageOldUpdaterAccepts $badPackage } 'Zzz' 'a package that holds an unknown selection folder'
+    $folder = Join-Path $packages 'sf4-ember-netplay-1.0.2'
+    New-MiniPackage $folder 'three' @{ 'speech_relay.py' = '#!/usr/bin/env python3' }
+    Compress-Archive -LiteralPath $folder -DestinationPath "$folder.zip"
+    $null = Write-Sha256Sidecar "$folder.zip"
+    Reject { New-EmberUpgradePackage -FromVersion '1.0.1' -ToVersion '1.0.2' -BaseZip (Join-Path $packages 'sf4-ember-netplay-1.0.1.zip') `
+        -TargetZip "$folder.zip" -OutDir (Join-Path $root 'upgrade-out-new-root-file') 6>$null } 'oldest supported Stable updater.*speech_relay\.py' 'an upgrade that adds a root file 1.4.1 rejects'
+    Pass 'New-EmberUpgradePackage refuses a new package file that the 1.4.1 updater would reject'
     Write-Host 'Package file and function tests passed.'
 } finally {
     $resolved = [IO.Path]::GetFullPath($root)

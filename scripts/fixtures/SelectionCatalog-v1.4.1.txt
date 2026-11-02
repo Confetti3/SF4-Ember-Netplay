@@ -1,0 +1,76 @@
+# 1.4.1 selection catalogs, the data behind IsSelectionAssetPath (v1.4.1:src/common/SelectionAssetPath.hxx).
+# stage <code>: StageList() in StageCatalog.cxx. fighter <code> <costumes> <base>: FighterMetadata.inc, where a fighter with
+# edition bit 13 has 4 base costumes and 7 in all, else 3 and 6 (BaseCostumeCount/CostumeCount in FighterCatalog.cxx).
+# The fixture is a transcription: when the floor moves, replace it from the new floor tag in the same change.
+stage TRN
+stage CHN
+stage USA
+stage RUS
+stage BRA
+stage AFR
+stage VIE
+stage EUR
+stage RVR
+stage VCN
+stage SCO
+stage JPN
+stage LAB
+stage IND
+stage KOR
+stage BLD
+stage CNX
+stage BRX
+stage VNX
+stage JPX
+stage AFX
+stage LBX
+stage DET
+stage ELV
+stage HFP
+stage MAD
+stage BFU
+stage JUR
+fighter RYU 7 4
+fighter KEN 7 4
+fighter CNL 7 4
+fighter HND 7 4
+fighter BLK 7 4
+fighter ZGF 7 4
+fighter GUL 7 4
+fighter DSM 7 4
+fighter BSN 7 4
+fighter BLR 7 4
+fighter SGT 7 4
+fighter VEG 7 4
+fighter AGL 7 4
+fighter CHB 7 4
+fighter RIC 7 4
+fighter JHA 7 4
+fighter BOS 7 4
+fighter GKI 7 4
+fighter GKN 7 4
+fighter HWK 6 3
+fighter CMY 7 4
+fighter FLN 7 4
+fighter DJY 6 3
+fighter SKR 7 4
+fighter ROS 7 4
+fighter GEN 7 4
+fighter DAN 7 4
+fighter GUY 6 3
+fighter CDY 6 3
+fighter IBK 6 3
+fighter MKT 6 3
+fighter DDL 6 3
+fighter ADN 6 3
+fighter HKN 6 3
+fighter JRI 6 3
+fighter YUN 6 3
+fighter YAN 6 3
+fighter RYX 6 3
+fighter GKX 6 3
+fighter RLN 6 3
+fighter ELN 6 3
+fighter PSN 6 3
+fighter HUG 6 3
+fighter DCP 6 3

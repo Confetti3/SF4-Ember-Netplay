@@ -800,10 +800,10 @@ msgid "settings.watched_picture_detail"
 msgstr "Игра, которую вы смотрите, поверх меню Ember: Малый — в углу, его можно перетащить; Большой — на месте столов в комнате; Нет — затемнена за меню."
 
 msgid "replays.share"
-msgstr "Share my replays"
+msgstr "Делиться моими повторами"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with both players' names and your country. Tournament games are always shared."
+msgstr "Отправляет игры, которые вы сыграете с этого момента, в публичный архив повторов вашего bridge, с вашим именем и страной; соперник называется, только если он тоже делится. Игры организованных турниров отправляются всегда, с именами обоих игроков."
 
 msgid "replays.link"
 msgstr "Воспроизвести повтор по ссылке"
@@ -5704,7 +5704,7 @@ msgid "reports.dump"
 msgstr "Малый дамп"
 
 msgid "reports.dump_detail"
-msgstr "The dump contains unfiltered thread stack bytes and module paths. It can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Log redaction does not sanitize it, and its contents are not shown in the text preview. Turn Small dump off to exclude it."
+msgstr "Дамп содержит неотфильтрованные байты стеков потоков и пути к модулям. Он может раскрыть приватную память, полные учётные данные или приглашения, имена пользователей, пути к папкам и другие идентификаторы. Скрытие данных в логах его не очищает, а его содержимое не показывается в текстовом предпросмотре. Чтобы исключить дамп, выключите Малый дамп."
 
 msgid "reports.comment"
 msgstr "Комментарий"
@@ -5752,7 +5752,7 @@ msgid "reports.cancelled"
 msgstr "Загрузка отчёта отменена. Отчёт, уже принятый сервером, всё равно может сохраниться."
 
 msgid "reports.dump_warning"
-msgstr "The included dump can expose private memory, complete credentials or invitations, usernames, directory paths and other identifiers. Its contents are not text-previewed or sanitized by log redaction. Send it only if you accept this exposure; choose Don't send and turn Small dump off to exclude it."
+msgstr "Приложенный дамп может раскрыть приватную память, полные учётные данные или приглашения, имена пользователей, пути к папкам и другие идентификаторы. Его содержимое не показывается в текстовом предпросмотре и не очищается скрытием данных в логах. Отправляйте его, только если принимаете этот риск; чтобы исключить дамп, выберите Не отправлять и выключите Малый дамп."
 
 msgid "launcher.game_crashed_files"
 msgstr "Игра аварийно завершилась. Отправьте команде SF4 Ember Netplay файлы из %APPDATA%\\sf4e\\logs (sf4e.log, sf4e-crash.log и sf4e-crash-*.dmp) и повторите попытку."
