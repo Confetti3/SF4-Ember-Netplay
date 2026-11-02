@@ -401,8 +401,9 @@ static bool Dispatch(Native* system, const Command& command) {
     }
 }
 // The dummy stands or crouches, never blocks, is never dizzied and takes no
-// counter hits, and both fighters' Super and Revenge gauges stay full (the
-// Training menu's gauges are both sides'), so a combo that spends them plays
+// counter hits, and the Training menu's Super and Revenge gauges stay full
+// (taken to be both sides', as the combo creator takes them for Player 1's
+// combos; not yet checked in the game), so a combo that spends them plays
 // the same on every run.
 DummyState CheckDummy(bool crouching) {
     DummyState dummy; dummy.action = crouching ? 1 : 0; dummy.guard = 0; dummy.counterHit = 0; dummy.stun = 2;
