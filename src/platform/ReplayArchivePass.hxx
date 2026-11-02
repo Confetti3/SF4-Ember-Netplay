@@ -21,6 +21,8 @@
 #include <cstring>
 #include <filesystem>
 #include <functional>
+#include <iterator>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -210,6 +212,16 @@ inline std::string SkipCause(int slot, const replayslots::Bytes& replay, const c
 		std::to_string(dword(0x20)) + " and " + std::to_string(dword(0x20 + 0x150)) + ", limit " + std::to_string(replayslots::kLargestReplay) + " bytes, fighters below 64)";
 }
 
+// Keeps a whole replay and its export: held already, in the outbox, or, when
+// the outbox cannot take it, archived straight away.
+inline SlotCopy CopyReplay(const ArchiveTarget& target, const replayslots::Bytes& body, const replayslots::Bytes& exported) {
+	BackupEvidence evidence;
+	const Holding holding = Holds(target, body, evidence);
+	if (holding == Holding::Held) return SlotCopy::Held;
+	if (Enqueue(target, body, exported)) return SlotCopy::Queued;
+	return holding == Holding::Absent && Publish(target, body, exported) ? SlotCopy::Copied : SlotCopy::Failed;
+}
+
 inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::path& saves, int slot) {
 	const std::filesystem::path file = saves / std::to_wstring(slot);
 	const SlotFile current = ReadSlotFile(target.slots, file);
@@ -227,12 +239,57 @@ inline SlotCopy CopySlot(const ArchiveTarget& target, const std::filesystem::pat
 		if (target.skipped) target.skipped(SkipCause(slot, current.replay, "the replay has no archive name"));
 		return SlotCopy::Nothing;
 	}
-	BackupEvidence evidence;
-	const Holding holding = Holds(target, current.replay, evidence);
-	if (holding == Holding::Held) return SlotCopy::Held;
-	if (Enqueue(target, current.replay, exported)) return SlotCopy::Queued;
-	return holding == Holding::Absent && Publish(target, current.replay, exported) ? SlotCopy::Copied : SlotCopy::Failed;
+	return CopyReplay(target, current.replay, exported);
 }
+
+// A replay Ember kept itself, which no slot holds: through the outbox like a
+// slot's, so an archive that cannot be written does not lose it. Nothing when
+// it does not export or has no archive name.
+inline SlotCopy CopyUnsaved(const ArchiveTarget& target, const replayslots::Bytes& replay) {
+	replayslots::Bytes exported;
+	if (!replayslots::ExportFromReplayAlone(replay, exported) || replayslots::ArchiveName(exported).empty()) return SlotCopy::Nothing;
+	return CopyReplay(target, replay, exported);
+}
+
+// The replays Ember kept itself (NoteMatchEnd) on their way to the outbox. Add
+// is the game thread's: a short lock and no file. The worker's Archive takes
+// everything out under that lock and works on its own copy, so a slow disk
+// never holds up a battle closing. A replay neither the outbox nor the
+// archive took waits for the next pass, a few at most.
+class UnsavedReplays {
+public:
+	explicit UnsavedReplays(std::size_t most) : most_(most) {}
+	bool Add(replayslots::Bytes replay) {
+		std::lock_guard<std::mutex> lock(lock_);
+		if (waiting_.size() >= most_) return false;
+		waiting_.push_back(std::move(replay));
+		return true;
+	}
+	// Puts each waiting replay in the outbox (or the archive when the outbox
+	// cannot take it), counting the archived and the failed in pass. dropped
+	// counts replays lost for good: not exportable, or beyond the most kept.
+	void Archive(const ArchiveTarget& target, ArchivePass& pass, std::size_t* dropped = nullptr) {
+		std::vector<replayslots::Bytes> taken, failed;
+		{ std::lock_guard<std::mutex> lock(lock_); taken.swap(waiting_); }
+		for (auto& replay : taken) {
+			switch (CopyUnsaved(target, replay)) {
+			case SlotCopy::Copied: pass.copied++; break;
+			case SlotCopy::Failed: pass.failed++; pass.retry = true; failed.push_back(std::move(replay)); break;
+			case SlotCopy::Nothing: if (dropped) (*dropped)++; break;
+			default: break;
+			}
+		}
+		if (failed.empty()) return;
+		std::lock_guard<std::mutex> lock(lock_);
+		waiting_.insert(waiting_.begin(), std::make_move_iterator(failed.begin()), std::make_move_iterator(failed.end()));
+		if (waiting_.size() > most_) { if (dropped) *dropped += waiting_.size() - most_; waiting_.resize(most_); }
+	}
+	std::size_t Waiting() const { std::lock_guard<std::mutex> lock(lock_); return waiting_.size(); }
+private:
+	const std::size_t most_;
+	mutable std::mutex lock_;
+	std::vector<replayslots::Bytes> waiting_;
+};
 
 // One pass: the slots of each of the accounts' save folders (none at all is
 // fine), then the outbox.
