@@ -7706,6 +7706,21 @@ msgstr "Mřížka"
 msgid "settings.room_tables_detail"
 msgstr "Jeden na řádek roztáhne každý stůl přes celou plochu a bojovníka dá na každý jeho konec. Mřížka ukáže dva nebo tři vedle sebe, takže se jich bez posouvání vejde víc."
 
+msgid "settings.room_pictures"
+msgstr "Obrázky"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portréty"
+
+msgid "settings.room_pictures_characters"
+msgstr "Postavy"
+
+msgid "settings.room_pictures_detail"
+msgstr "Jak místnost ukazuje bojovníky u stolů, v Členech a na automatech v Herně. Portréty jsou obrázky z výběru postav ve hře. Postavy ukazují celého bojovníka v kostýmu a barvě, které si hráč vybral."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtr chatu"
 

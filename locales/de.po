@@ -7706,6 +7706,21 @@ msgstr "Raster"
 msgid "settings.room_tables_detail"
 msgstr "Einer pro Zeile legt jeden Tisch über die ganze Breite, mit einem Kämpfer an jedem Ende. Das Raster zeigt zwei oder drei nebeneinander, damit mehr ohne Blättern hineinpassen."
 
+msgid "settings.room_pictures"
+msgstr "Bilder"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Porträts"
+
+msgid "settings.room_pictures_characters"
+msgstr "Figuren"
+
+msgid "settings.room_pictures_detail"
+msgstr "Wie der Raum jeden Kämpfer zeigt: an den Tischen, bei den Mitgliedern und an den Arcade-Automaten. Porträts sind die Bilder der Charakterauswahl des Spiels. Figuren zeigen den ganzen Kämpfer im Kostüm und in der Farbe, die der Spieler gewählt hat."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Chatfilter"
 

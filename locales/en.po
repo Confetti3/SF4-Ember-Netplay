@@ -7333,6 +7333,21 @@ msgstr "Grid"
 msgid "settings.room_tables_detail"
 msgstr "One per line puts each table across the board with a fighter at each end. Grid shows two or three side by side, so more fit without scrolling."
 
+msgid "settings.room_pictures"
+msgstr "Pictures"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portraits"
+
+msgid "settings.room_pictures_characters"
+msgstr "Characters"
+
+msgid "settings.room_pictures_detail"
+msgstr "How the room shows each fighter, at the tables, in Members and on Arcade cabinets. Portraits are the game's select-screen art. Characters show the whole fighter, in the costume and color the player picked."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Chat filter"
 

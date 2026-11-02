@@ -7706,6 +7706,21 @@ msgstr "Griglia"
 msgid "settings.room_tables_detail"
 msgstr "Uno per riga mostra ogni tavolo per tutta la larghezza, con un lottatore a ogni estremità. La griglia ne mostra due o tre affiancati, così ne entrano di più senza scorrere."
 
+msgid "settings.room_pictures"
+msgstr "Immagini"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Ritratti"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personaggi"
+
+msgid "settings.room_pictures_detail"
+msgstr "Come la stanza mostra ogni lottatore, ai tavoli, in Membri e sui cabinati Arcade. I ritratti sono le immagini della selezione del gioco. Personaggi mostra il lottatore intero, con il costume e il colore scelti dal giocatore."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtro chat"
 

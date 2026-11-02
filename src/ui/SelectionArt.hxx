@@ -34,6 +34,13 @@ public:
     // The thumbnail unless it would be stretched: a large portrait costs
     // about sixteen times the memory.
     SelectionImage PortraitFor(int fighter, float drawnHeight) { return Portrait(fighter, drawnHeight > ThumbnailSide); }
+    // The fighter's whole figure in a costume and colour (the packaged
+    // cutout, or a custom costume's own picture), cropped to the figure: a
+    // room's Characters pictures. Falls back to the original outfit.
+    SelectionImage Character(int fighter, int costume, int color, bool large = false);
+    SelectionImage CharacterFor(int fighter, int costume, int color, float drawnHeight) {
+        return Character(fighter, costume, color, drawnHeight > ThumbnailSide);
+    }
     SelectionImage Appearance(int fighter, int costume, int color);
     SelectionImage Ultra(int fighter, int ultra);
     // RandomStageId is served from the game's character-select random tile.

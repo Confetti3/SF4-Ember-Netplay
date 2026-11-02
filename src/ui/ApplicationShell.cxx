@@ -414,7 +414,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  }
  // The Room layout panel's Reset: the board's layout and the watched game's picture as a fresh install has them.
  else if(a.id=="arrange-reset"){const netplay::PlayerPreferences fresh;preferences_.roomColumn=fresh.roomColumn;preferences_.roomSplit=fresh.roomSplit;
-  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.roomTableGrid=fresh.roomTableGrid;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
+  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.roomTableGrid=fresh.roomTableGrid;
+  preferences_.roomCharacterPictures=fresh.roomCharacterPictures;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.

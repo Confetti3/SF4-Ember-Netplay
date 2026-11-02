@@ -93,11 +93,13 @@ std::string CostumeLabel(const selection::Pick& pick, const selection::Installed
 const char* UltraLabel(int ultra) {
     return loc::T(ultra==2?"selection.ultra_double":ultra==1?"selection.ultra_two":"selection.ultra_one");
 }
-std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::InstalledContent* installed) {
+std::string ShortCostumeLabel(const selection::Pick& pick, const selection::InstalledContent* installed) {
     const std::string pack = selection::CostumePack(pick.fighter, pick.costume);
-    const std::string costume = pick.costume > 0 && pack == "Alternate" ? loc::Tf("home.selection_alternate", pick.costume) :
+    return pick.costume > 0 && pack == "Alternate" ? loc::Tf("home.selection_alternate", pick.costume) :
         pick.costume > 0 && !pack.empty() ? pack : CostumeLabel(pick, installed);
-    return loc::Tf("home.selection_appearance", costume, pick.color + 1);
+}
+std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::InstalledContent* installed) {
+    return loc::Tf("home.selection_appearance", ShortCostumeLabel(pick, installed), pick.color + 1);
 }
 const char* ShortUltraLabel(int ultra) {
     return loc::T(ultra==2?"home.selection_ultra_double":ultra==1?"home.selection_ultra_two":"home.selection_ultra_one");

@@ -6,6 +6,7 @@
 #include "MenuRows.hxx"
 #include "NetworkFeedback.hxx"
 #include "RoomFeedback.hxx"
+#include "RoomPanelBoard.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
@@ -155,8 +156,9 @@ public:
         if (f.screen != "room-members") return {};
         const ApplicationShell* s = &f.shell; const ShellView* v = &f.view;
         return [s, v](const MenuEntry& e, ImVec2 min, ImVec2 max) {
-            const auto card = s->RoomMemberCard(*v, e);
+            auto card = s->RoomMemberCard(*v, e);
             if (card.id.empty()) return false;
+            card.art = RoomFighterArt(s->preferences_);
             DrawMemberRow(card, min, max);
             return true;
         };

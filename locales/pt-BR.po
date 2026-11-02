@@ -7239,6 +7239,21 @@ msgstr "Grade"
 msgid "settings.room_tables_detail"
 msgstr "Uma por linha mostra cada mesa na largura toda, com um lutador em cada ponta. A grade mostra duas ou três lado a lado, para caber mais sem rolar."
 
+msgid "settings.room_pictures"
+msgstr "Imagens"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Retratos"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personagens"
+
+msgid "settings.room_pictures_detail"
+msgstr "Como a sala mostra cada lutador, nas mesas, em Membros e nas máquinas do Fliperama. Retratos são a arte da seleção de personagens do jogo. Personagens mostra o lutador inteiro, com o traje e a cor que o jogador escolheu."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtro do bate-papo"
 

@@ -95,7 +95,7 @@ void RoomLayoutSavesInRoom() {
   const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});
   return e!=rows.end()&&e->enabled;
  };
- for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","chat-filter","arrange-picture","arrange-reset"})
+ for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"})
   Check(open(id),"A Room layout row was locked in a room");
  h.FocusOn("arrange-picture");
  const auto third=h.actions.size();
@@ -103,6 +103,15 @@ void RoomLayoutSavesInRoom() {
  sent=roomSaves(third);
  Check(!lockedSave(third)&&sent.size()==1&&sent[0].preferences.pictureMode==netplay::PictureBig&&
   sent[0].preferences.roomColumn==netplay::DefaultRoomColumn+2*netplay::RoomColumnStep,"Picture changed in a room was not saved by the room's own request");
+ // Pictures: Characters by default; Left turns it to Portraits, saved the same way.
+ h.view.preferences=sent[0].preferences;h.Frame();
+ Check(sent[0].preferences.roomCharacterPictures,"Pictures did not default to Characters");
+ h.FocusOn("arrange-pictures");
+ const auto fourth=h.actions.size();
+ h.Press(MenuInput::Left);h.Wait(1);h.Frame();
+ sent=roomSaves(fourth);
+ Check(!lockedSave(fourth)&&sent.size()==1&&!sent[0].preferences.roomCharacterPictures&&sent[0].preferences.pictureMode==netplay::PictureBig,
+  "Pictures changed in a room was not saved by the room's own request");
  // Matches names the same picture: its rows are open there, the rest of the panel is not.
  h.view.preferences=sent[0].preferences;h.Screen("tab-matches/training-replays");h.Frame();
  Check(open("watched-picture")&&open("picture-corner")&&open("picture-size")&&!open("replay-share"),
@@ -207,7 +216,7 @@ static void RoomBoardJourneys() {
  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
  // The Members list shows each member's saved main, not the fighter they battle with.
  h.Screen("room-members");
- std::vector<int> portraits;SetPortraitProbe([&](int fighter,ImVec2,ImVec2){portraits.push_back(fighter);});
+ std::vector<int> portraits;SetPortraitProbe([&](const FighterPicture& picture,ImVec2,ImVec2){portraits.push_back(picture.fighter);});
  h.Frame();SetPortraitProbe({});
  Check(portraits==std::vector<int>({8,9}),"Member portraits must use saved mains, not battle fighters");
  h.Screen("room");

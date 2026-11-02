@@ -4,6 +4,7 @@
 // change none.
 #include "../common/NetworkLink.hxx"
 #include "NameMarks.hxx"
+#include "FighterArt.hxx"
 #include <imgui.h>
 #include <string>
 #include <vector>
@@ -38,6 +39,9 @@ struct MemberCardView {
     // after the status, and on the board's list only where it fits beside it.
     std::string record;
     int mainFighter=-1;
+    // Settings › Room layout › Pictures. A main has no costume of its own, so
+    // Characters draws it in the original outfit.
+    FighterArt art=FighterArt::Portrait;
     NetworkLink link=NetworkLink::Unknown;
     // Its flag and class go before the name.
     NameMarks marks;

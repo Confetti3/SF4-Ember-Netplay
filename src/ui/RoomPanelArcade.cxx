@@ -3,7 +3,7 @@
 // and linked by a line wherever its two cabinets stand; King of the hill the
 // same under its top slot. Every cabinet is its row. A Classic room keeps its
 // table cards (RoomPanelTables.cxx).
-#include "ApplicationShell.hxx"
+#include "RoomPanelBoard.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "LatencyMark.hxx"
@@ -73,6 +73,24 @@ Cabinet LayOutCabinet(v2::Box b,float s) {
     k.bezel=v2::Inset(body,(std::max)(1*s,w*.025f),0);
     k.screen=v2::Inset(k.bezel,(std::max)(2*s,w*.035f),(std::max)(2*s,w*.035f));
     return k;
+}
+// `picture` on the cabinet's glass, as big as the glass holds, standing on
+// its foot, with the scanlines over it and a shade at its foot for the
+// screen's words. False while the art has no image for it.
+bool DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const FighterPicture& picture,float s) {
+    if(glass.H()<24*s)return false;
+    ReportFighterPicture(picture,glass.min,glass.max);
+    const auto image=FighterImage(picture,glass.H());
+    if(!image.texture||image.width<=0||image.height<=0)return false;
+    const v2::Box g=v2::Inset(glass,1.5f*s,1.5f*s);
+    const float factor=(std::min)(g.W()/image.width,g.H()/image.height),w=image.width*factor,h=image.height*factor;
+    const float x=(g.min.x+g.max.x-w)*.5f;
+    d->AddImage(image.texture,ImVec2(x,g.max.y-h),ImVec2(x+w,g.max.y),image.uvMin,image.uvMax);
+    const auto& c=v2::Colors();
+    if(g.H()>40*s)for(float y=g.min.y+.5f*s;y<g.max.y;y+=3*s)d->AddLine(ImVec2(g.min.x,y),ImVec2(g.max.x,y),v2::color::Alpha(c.ink,.22f),(std::max)(1.f,.75f*s));
+    const float shade=g.min.y+g.H()*.45f;
+    d->AddRectFilledMultiColor(ImVec2(g.min.x,shade),g.max,v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,.85f),v2::color::Alpha(c.ink,.85f));
+    return true;
 }
 // The cabinet's shell and its fixed parts: body, marquee ground, bezel and
 // glass glowing in `glow`, control panel with its stick and six buttons, coin
@@ -200,10 +218,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   if(size!=v2::TagSize::XS)g.ping=LatencyMarkFor(v.memberLatency,m,v.room.localMember);
   return v2::Tag(d,at,width,g,size);
  };
- const auto fighterName=[&](const room::Member& m)->std::string{
-  const auto* f=selection::FindFighter(m.id==v.room.localMember?v.selectedFighter:m.fighter);
-  return f?f->name:loc::T("room.fighter_not_shared");
- };
+ const FighterArt art=RoomFighterArt(preferences_);
  v2::Box board=area;
  if(type==room::KingRoom){
   // The top slot: the longest current streak, its holder and the streak.
@@ -217,7 +232,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   if(holder){
    const std::string streak=loc::Tf("room.streak",v.room.streaks[top]);
    const float sw=v2::ChipWidth(streak);
-   tag(*holder,ImVec2(x,banner.min.y+8*s),(std::max)(0.f,banner.max.x-26*s-sw-x),v2::TagSize::S,fighterName(*holder));
+   tag(*holder,ImVec2(x,banner.min.y+8*s),(std::max)(0.f,banner.max.x-26*s-sw-x),v2::TagSize::S,SeatCaption(SeatLookOf(v,*holder)));
    v2::Chip(d,ImVec2(banner.max.x-14*s-sw,banner.min.y+12*s),streak,gold);
   }else v2::Text(d,ImVec2(x,banner.min.y+15*s),banner.max.x-14*s-x,loc::T("room.top_slot_none"),15*s,c.muted);
  }
@@ -308,7 +323,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   else if(paired&&t->deciding){first=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");tone=pending;}
   // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
   else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);
-   if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?fighterName(*m):SetScoreText(t->score);tone=pair;}
+   if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?SeatCaption(SeatLookOf(v,*m),true):SetScoreText(t->score);tone=pair;}
   ImU32 secondTone=paired&&!t->deciding?pair:tone;
   // What a table card's banner says about this seat (a held start, the Ready
   // timeout, a Training call) takes the screen's second line.
@@ -332,13 +347,19 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
   }
   const v2::Box& screen=k.screen;
-  const float ss=(std::min)(15*s,screen.H()*.34f),mid=(screen.min.y+screen.max.y)*.5f;
+  // A seated player's fighter fills the glass (Settings › Room layout ›
+  // Pictures), standing on its foot, under the screen's scanlines; the
+  // screen's words go to its foot, over a shade.
+  const bool pictured=m&&DrawCabinetFighter(d,screen,SeatPicture(SeatLookOf(v,*m),art),s);
+  const float ss=(std::min)(15*s,screen.H()*.34f);
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}
   // Each line at the size that fits the screen's width, down to 7 px; past
   // that (a banner's sentence) it is cut, and the row's words carry it whole.
   const float room=screen.W()-4*s;
   const auto fit=[&](const std::string& line){const float w=HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,line.c_str()).x;return w>room-s?(std::max)(7*s,ss*(room-s)/w):ss;};
+  // Where the lines meet: the screen's middle, or over a picture its foot.
+  const float mid=!pictured?(screen.min.y+screen.max.y)*.5f:screen.max.y-3*s-(second.empty()?fit(first)*.5f:fit(second)+1*s);
   v2::Text(d,ImVec2(screen.min.x+2*s,second.empty()?mid-fit(first)*.5f:mid-fit(first)-1*s),room,first,fit(first),tone,HeadingFont(),true,!paired);
   if(!second.empty())v2::Text(d,ImVec2(screen.min.x+2*s,mid+1*s),room,second,fit(second),secondTone,HeadingFont(),true,!paired);
   // The name plate: the player's tag, its edge in the pair's colour. A small

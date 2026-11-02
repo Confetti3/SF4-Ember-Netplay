@@ -7707,6 +7707,21 @@ msgstr "グリッド"
 msgid "settings.room_tables_detail"
 msgstr "1行に1つでは各テーブルを横いっぱいに表示し、両端にファイターを並べます。グリッドでは2つか3つを横に並べ、スクロールせずに多く表示します。"
 
+msgid "settings.room_pictures"
+msgstr "画像"
+
+msgid "settings.room_pictures_portraits"
+msgstr "ポートレート"
+
+msgid "settings.room_pictures_characters"
+msgstr "キャラクター"
+
+msgid "settings.room_pictures_detail"
+msgstr "テーブル、メンバー、アーケードの筐体でのファイターの表示方法です。ポートレートはゲームのキャラクター選択画面の絵です。キャラクターでは、プレイヤーが選んだコスチュームとカラーでファイターの全身を表示します。"
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "チャットフィルター"
 

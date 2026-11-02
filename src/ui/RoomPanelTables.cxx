@@ -13,6 +13,7 @@
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "MenuProbes.hxx"
+#include "FighterSelector.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -48,6 +49,27 @@ float RoomBoardFrame::HideButton(ImDrawList* d,const MenuEntry& e,ImVec2 corner)
  v2::Text(d,ImVec2(b.min.x+10*s,b.min.y+9*s),w-20*s,label,14*s,e.enabled&&(hovered||focused)?c.text:c.muted);
  if(focused)v2::Focus(d,b.min,b.max);
  return w;
+}
+
+SeatLook SeatLookOf(const ShellView& v,const room::Member& m) {
+ const bool own=m.id==v.room.localMember;
+ const int picked=own?v.selectedFighter:m.fighter;
+ SeatLook look;look.picked=picked>=0;look.fighter=look.picked?picked:own?v.preferences.mainFighter:m.mainFighter;
+ if(look.picked&&picked==m.fighter){look.costume=m.costume;look.color=m.color;look.ultra=m.ultra;}
+ return look;
+}
+FighterArt RoomFighterArt(const netplay::PlayerPreferences& preferences) {
+ return preferences.roomCharacterPictures?FighterArt::Character:FighterArt::Portrait;
+}
+FighterPicture SeatPicture(const SeatLook& look,FighterArt art) {
+ return {look.fighter,art,(std::max)(0,look.costume),(std::max)(0,look.color)};
+}
+std::string SeatCaption(const SeatLook& look,bool brief) {
+ const auto* fighter=look.picked?selection::FindFighter(look.fighter):nullptr;
+ if(!fighter)return loc::T("room.fighter_not_shared");
+ if(look.costume<0||look.ultra<0)return fighter->name;
+ selection::Pick pick;pick.fighter=look.fighter;pick.costume=look.costume;pick.color=(std::max)(0,look.color);
+ return loc::Tf("room.seat_look",fighter->name,ShortCostumeLabel(pick),brief?ShortUltraLabel(look.ultra):UltraLabel(look.ultra));
 }
 
 namespace {
@@ -170,10 +192,11 @@ float SideText(std::string& elided,float left,float right,float y,float width,co
  return x;
 }
 
-// A seat in `box`: the fighter's face, as tall as the box, at its outer end
+// A seat in `box`: the fighter's picture, as tall as the box, at its outer end
 // (the right one when `mirrored`), and beside it the player's tag over their
-// fighter, with Ready while they are. The face is the fighter they picked,
-// else their main. An empty seat is an empty frame and "Open seat".
+// fighter, costume and Ultra, with Ready while they are. The picture is the
+// fighter they picked, else their main (SeatLookOf). An empty seat is an
+// empty frame and "Open seat".
 void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const room::Table& t,int side,bool mirrored,bool marked,std::string& elided) {
  const auto& v=f.v;const float s=f.s,face=box.H(),gap=10*s;const auto& c=v2::Colors();
  const v2::Box tile=mirrored?v2::Box{ImVec2(box.max.x-face,box.min.y),box.max}:v2::Box{box.min,ImVec2(box.min.x+face,box.max.y)};
@@ -189,19 +212,20 @@ void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const roo
   SideText(elided,left,right,box.min.y+(face-15*s)*.5f,room,loc::T("room.open_seat"),15*s,c.muted,mirrored);
   return;
  }
- const bool own=m->id==v.room.localMember;
- const int picked=own?v.selectedFighter:m->fighter;
- DrawCharacterPortrait(picked>=0?picked:own?v.preferences.mainFighter:m->mainFighter,tile.min,tile.max,c.frame);
+ const auto look=SeatLookOf(v,*m);
+ DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,c.frame);
  if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
  v2::TagView tag;tag.name=m->name;tag.marks={m->country,m->badge};tag.ping=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
  const float tagWidth=(std::min)(room,v2::TagWidth(tag,v2::TagSize::S));
  v2::Tag(d,ImVec2(mirrored?right-tagWidth:left,top),tagWidth,tag,v2::TagSize::S);
- // The fighter, and Ready beside it (on its inner side) while the seat is ready.
- const auto* fighter=selection::FindFighter(picked);
- const std::string name=fighter?fighter->name:loc::T("room.fighter_not_shared");
+ // The fighter, costume and Ultra, and Ready beside them (on their inner
+ // side) while the seat is ready. The Ultra's short name where the long one
+ // does not fit.
  const bool ready=t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready);
  const std::string readyWord=ready?loc::T("room.status.ready"):"";
  const float chip=ready?v2::ChipWidth(readyWord)+8*s:0,y=top+tagLine+4*s;
+ std::string name=SeatCaption(look);
+ if(ImGui::GetFont()->CalcTextSizeA(fighterSize,FLT_MAX,0,name.c_str()).x>room-chip)name=SeatCaption(look,true);
  const float x=SideText(elided,mirrored?left+chip:left,right,y,room-chip,name,fighterSize,c.muted,mirrored);
  if(ready)v2::Chip(d,ImVec2(mirrored?x-chip:x+(std::min)(room-chip,ImGui::GetFont()->CalcTextSizeA(fighterSize,FLT_MAX,0,name.c_str()).x)+8*s,y+(fighterSize-v2::ChipFont()-8*s)*.5f),readyWord,palette::Ready);
 }
@@ -323,7 +347,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
  const float s=Scale();
- RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s};
+ RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s,RoomFighterArt(preferences_)};
  const auto& focus=f.focus;
  const unsigned unread=transcript_.Unread(muted_);
  const auto origin=ImGui::GetCursorScreenPos();

@@ -1,6 +1,7 @@
 #pragma once
 #include "MenuNavigation.hxx"
 #include "Theme.hxx"
+#include "FighterArt.hxx"
 #include <functional>
 #include <imgui.h>
 namespace sf4e { namespace ui {
@@ -30,6 +31,9 @@ void SetMenuEntriesProbe(MenuEntriesProbe probe);
 // What speech would say this frame, its parts, whether or not speech is on.
 using MenuSpeechProbe = std::function<void(const std::vector<std::string>&)>;
 void SetMenuSpeechProbe(MenuSpeechProbe probe);
-using PortraitProbe = std::function<void(int,ImVec2,ImVec2)>;
+// Each fighter's picture drawn this frame, and where (DrawCharacterPortrait,
+// a room cabinet's screen).
+using PortraitProbe = std::function<void(const FighterPicture&,ImVec2,ImVec2)>;
 void SetPortraitProbe(PortraitProbe probe);
+void ReportFighterPicture(const FighterPicture& picture,ImVec2 min,ImVec2 max);
 } }

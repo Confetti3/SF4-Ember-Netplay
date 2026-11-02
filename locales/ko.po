@@ -7707,6 +7707,21 @@ msgstr "격자"
 msgid "settings.room_tables_detail"
 msgstr "한 줄에 하나는 테이블마다 가로 전체를 쓰고 양 끝에 파이터를 보여 줍니다. 격자는 두세 개를 나란히 보여 주어 스크롤 없이 더 많이 보입니다."
 
+msgid "settings.room_pictures"
+msgstr "그림"
+
+msgid "settings.room_pictures_portraits"
+msgstr "초상화"
+
+msgid "settings.room_pictures_characters"
+msgstr "캐릭터"
+
+msgid "settings.room_pictures_detail"
+msgstr "테이블, 참가자, 아케이드 기기에서 파이터를 보여 주는 방식입니다. 초상화는 게임의 캐릭터 선택 화면 그림입니다. 캐릭터는 플레이어가 고른 코스튬과 색으로 파이터의 전신을 보여 줍니다."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "채팅 필터"
 

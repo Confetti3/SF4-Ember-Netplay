@@ -7706,6 +7706,21 @@ msgstr "Siatka"
 msgid "settings.room_tables_detail"
 msgstr "Jeden w wierszu rozciąga każdy stół na całą szerokość, z wojownikiem na każdym końcu. Siatka pokazuje dwa lub trzy obok siebie, więc więcej mieści się bez przewijania."
 
+msgid "settings.room_pictures"
+msgstr "Obrazki"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portrety"
+
+msgid "settings.room_pictures_characters"
+msgstr "Postacie"
+
+msgid "settings.room_pictures_detail"
+msgstr "Jak pokój pokazuje wojowników przy stołach, w Uczestnikach i na automatach w Salonie gier. Portrety to grafiki z wyboru postaci w grze. Postacie pokazują całego wojownika w stroju i kolorze wybranym przez gracza."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtr czatu"
 

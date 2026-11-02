@@ -237,6 +237,7 @@ public:
             Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), open),
             Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), open),
             Value("arrange-tables", loc::T("settings.room_tables"), loc::T(p.roomTableGrid ? "settings.room_tables_grid" : "settings.room_tables_list"), loc::T("settings.room_tables_detail"), open),
+            Value("arrange-pictures", loc::T("settings.room_pictures"), loc::T(p.roomCharacterPictures ? "settings.room_pictures_characters" : "settings.room_pictures_portraits"), loc::T("settings.room_pictures_detail"), open),
             OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open),
             PictureMode(s, v, "arrange-picture"),
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
@@ -537,6 +538,7 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-members") p.roomShowMembers = a.delta > 0;
     else if (id == "arrange-chat") p.roomShowChat = a.delta > 0;
     else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
+    else if (id == "arrange-pictures") p.roomCharacterPictures = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
     else if (id == "picture-corner") p.pictureSpot = p.pictureSpot / 4 * 4 + (p.pictureSpot % 4 + 4 + a.delta) % 4;
     else if (id == "picture-size") p.pictureSpot = p.pictureSpot % 4 + 4 * clamp(p.pictureSpot / 4 + a.delta, 0, 2);

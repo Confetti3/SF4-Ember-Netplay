@@ -7706,6 +7706,21 @@ msgstr "Raster"
 msgid "settings.room_tables_detail"
 msgstr "Eén per regel zet elke tafel over de hele breedte, met aan elk eind een vechter. Het raster toont er twee of drie naast elkaar, zodat er meer passen zonder te scrollen."
 
+msgid "settings.room_pictures"
+msgstr "Afbeeldingen"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portretten"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personages"
+
+msgid "settings.room_pictures_detail"
+msgstr "Hoe de kamer elke vechter toont, aan de tafels, bij Leden en op de Arcade-kasten. Portretten zijn de afbeeldingen uit de personagekeuze van het spel. Personages tonen de hele vechter, in het kostuum en de kleur die de speler koos."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Chatfilter"
 

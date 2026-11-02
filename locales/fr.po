@@ -7706,6 +7706,21 @@ msgstr "Grille"
 msgid "settings.room_tables_detail"
 msgstr "Une par ligne étale chaque table sur toute la largeur, avec un combattant à chaque bout. La grille en montre deux ou trois côte à côte, pour en voir plus sans défiler."
 
+msgid "settings.room_pictures"
+msgstr "Images"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portraits"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personnages"
+
+msgid "settings.room_pictures_detail"
+msgstr "Comment le salon montre chaque combattant, aux tables, dans Membres et sur les bornes Arcade. Les portraits sont les images de la sélection du jeu. Personnages montre le combattant en entier, dans le costume et la couleur choisis par le joueur."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtre du chat"
 

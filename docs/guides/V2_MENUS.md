@@ -128,6 +128,11 @@ Controllers, More… and Leave room.
 
 - A table card's own buttons (Ready up, Leave seat) are on the card. Select
   the card with A for the seat chooser.
+- Each seat shows the player's fighter, with its costume and Ultra under
+  their name, such as Ryu · Original · Ultra I. By default the picture is the
+  whole fighter in the costume and colour they picked; Settings, Interface,
+  Room layout, Pictures: Portraits shows the game's select-screen portraits
+  instead. An Arcade cabinet shows its player's fighter on its screen.
 - Members are grouped: Playing, At a table, Watching and In the room. Each
   shows their flag, name, state and ping, such as Direct 46 ms or Relay
   59 ms.
@@ -145,7 +150,8 @@ always keeps three lines.
 
 With a pad or the keyboard, set the same in Settings, Interface, Room
 layout: Column width, Members and chat, Ready-made layout (Board first,
-Balanced, Chat first) and Restore defaults. The panel shows a preview.
+Balanced, Chat first), Tables, Pictures (Characters or Portraits) and
+Restore defaults. The panel shows a preview.
 
 ### The cinema picture
 

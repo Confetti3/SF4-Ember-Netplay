@@ -7707,6 +7707,21 @@ msgstr "Cuadrícula"
 msgid "settings.room_tables_detail"
 msgstr "Una por línea muestra cada mesa a lo ancho, con un luchador en cada extremo. La cuadrícula muestra dos o tres lado a lado, para que quepan más sin desplazarse."
 
+msgid "settings.room_pictures"
+msgstr "Imágenes"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Retratos"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personajes"
+
+msgid "settings.room_pictures_detail"
+msgstr "Cómo muestra la sala a cada luchador, en las mesas, en Miembros y en las máquinas Arcade. Los retratos son el arte de la selección de personaje del juego. Personajes muestra al luchador completo, con el traje y el color que eligió el jugador."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtro del chat"
 

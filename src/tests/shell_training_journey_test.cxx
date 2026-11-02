@@ -23,7 +23,7 @@ void TrainingSettingsAndHome() {
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
  const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},
   {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
-  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","chat-filter","arrange-picture","arrange-reset"}},
+  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"}},
   {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
  for(const auto& [screen,ids]:interfacePanels){
   h.Screen(screen);

@@ -99,7 +99,8 @@ void ApplicationShell::DrawRoomMembersPanel(const RoomBoardFrame& f,v2::Box box,
   const bool hovered=f.Press(e,r),focused=e.id==f.focus;
   if(!ImGui::IsItemVisible())continue;
   v2::RowGround(md,r,focused,hovered);
-  DrawMemberRow(RoomMemberCard(f.v,e),r.min,r.max);
+  auto card=RoomMemberCard(f.v,e);card.art=f.art;
+  DrawMemberRow(card,r.min,r.max);
   if(focused)v2::Focus(md,r.min,r.max);
   if(focused&&e.popout)f.choices={r,b};
  }

@@ -7706,6 +7706,21 @@ msgstr "Сетка"
 msgid "settings.room_tables_detail"
 msgstr "По одному в строке: каждый стол во всю ширину, бойцы по краям. Сетка показывает два-три стола рядом, чтобы больше помещалось без прокрутки."
 
+msgid "settings.room_pictures"
+msgstr "Картинки"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Портреты"
+
+msgid "settings.room_pictures_characters"
+msgstr "Персонажи"
+
+msgid "settings.room_pictures_detail"
+msgstr "Как комната показывает бойцов за столами, в списке участников и на автоматах в Аркаде. Портреты — картинки из выбора персонажа в игре. Персонажи показывают бойца целиком, в костюме и цвете, выбранных игроком."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Фильтр чата"
 
