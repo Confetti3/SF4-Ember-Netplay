@@ -130,6 +130,14 @@ request in `rooms.own_delay` (old rows are the shared delay) and passes it to
 the supervisor in the same `POST /rooms` body; the room host's own report
 (`details.own_delay`) then decides what the listing says.
 
+A detailed listing (`detail=1`, and the public `GET /v1/rooms/public`) also
+carries `room_type`, the room model's `RoomType`: 0 Classic, 1 Arcade, 2 King
+of the hill. The creator sets it just after the room opens, so the room host
+reports it in every status line (`details.room_type`) and the bridge keeps the
+latest in `rooms.room_type`. A room host that predates the field says nothing,
+and the listing leaves it out; readers take such a room as Classic, which is
+all a host before 1.5.0 can run.
+
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
 `room_full`, `banned`, `unsupported_build`.
@@ -154,7 +162,10 @@ pub struct RoomAdmission {
 The invitation routes the joiner to the room host. In a server-owned room the
 capability inside it admits nobody by itself; the ticket does.
 
-Limits: one open room per Ember ID as creator; per address (keyed hash of
+Limits: one open room per Ember ID as creator, counted until the room has
+opened and its host reports the creator is no longer a member
+(`details.creator_in: false`, kept in `rooms.creator_in`), so a creator who
+left a room the others still play in can open another; per address (keyed hash of
 `X-Real-IP`, IPv6 by /64) 2 open rooms and 30 ticket requests per 10 minutes;
 a server-wide room cap from supervisor configuration. Bans are rows
 `(room_id, ember_id)` written when the room host reports a kick.

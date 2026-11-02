@@ -11,13 +11,14 @@
   var STABLE_VERSION = '1.5.0';
 
   // Sidecar build IDs of the releases public rooms run, newest first. Add the
-  // new one at each release; a room on a build not listed here says
-  // "Other version".
+  // new one at the top at each release: the rooms page lists the first one's
+  // rooms first and without a version chip. A room on a build not listed here
+  // says "Other version".
   var VERSIONS = [
-    ['fa57472adffd80ed65c943577b4cba204a5673640a167d5c94b83f89bb4fbd77', '1.3.1'],
-    ['ed1933800aa0099c4ebd435db3e2d6d174666121079301913df3ffa239de3c8d', '1.4.0'],
-    ['5161a3978f7cba2aabf1270f6a88143a6e5f87d8bd808010a60108a4fa7a1469', '1.4.1'],
     ['4801144adc6059233593e1e445f30971a76b86dfeabc804662ab4a81668e17b6', '1.5.0'],
+    ['5161a3978f7cba2aabf1270f6a88143a6e5f87d8bd808010a60108a4fa7a1469', '1.4.1'],
+    ['ed1933800aa0099c4ebd435db3e2d6d174666121079301913df3ffa239de3c8d', '1.4.0'],
+    ['fa57472adffd80ed65c943577b4cba204a5673640a167d5c94b83f89bb4fbd77', '1.3.1'],
     ['1668cadbd970fd75b019ff6c1f4f56eb6f0712c16013b3e5c50f29aac32c0b38', '1.3.0'],
     ['77b8c778dc1a4dc81ef0de4dbff808057534e920706eb65977a1d39f6eb2bd63', '1.3.0 Nightly'],
     ['900d86d6dc991a71378dd626bbe0ad1c77d1006215745cca406f96e684d4546d', '1.3.0 Nightly'],

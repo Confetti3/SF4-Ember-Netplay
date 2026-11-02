@@ -84,7 +84,7 @@ bool SessionServer::ServerOwnedRoomLeftEmpty() const {
 SessionServer::ServerOwnedRecord SessionServer::CommittedServerOwned() const {
 	if (!_roomAuthority) return {};
 	if (_hasRecoveryProjection) return _recoveryServerOwned;
-	return {_roomAuthority->KickedAccounts(), _roomAuthority->WonGames()};
+	return {_roomAuthority->KickedAccounts(), _roomAuthority->WonGames(), _roomAuthority->MemberAccounts()};
 }
 
 sf4e::session::MatchAuthority* SessionServer::RoomMatchAuthority(std::uint8_t table) {
