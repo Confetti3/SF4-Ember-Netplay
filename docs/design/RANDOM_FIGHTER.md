@@ -48,8 +48,8 @@ not yet played:
 - Random rolls when it is chosen, and when it is loaded with the saved picks.
 - It rolls again as soon as each game the player fights at a room table is
   over: its WIN is on screen, or the room has its result, whichever comes
-  first. A seat taken later finds that fresh roll, so the brief's "roll when
-  the player takes a seat" is met without rolling a second time.
+  first. A seat taken later finds that fresh roll; sitting down rolls
+  nothing more.
 - In a room whose winners keep their fighters, a game that may end the set
   waits for the room's result, which says whether the player keeps theirs.
 - Training from Home plays the fighter in hand; it rolls again after.
