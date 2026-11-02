@@ -67,6 +67,18 @@ std::string UnixPath(const std::wstring& path) {
     return result;
 }
 
+// Writes bytes to a file anew; false (with the system error in GetLastError) when any step fails.
+bool WriteTempFile(const std::wstring& file, const void* bytes, DWORD size) {
+    const HANDLE handle = CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
+    if (handle == INVALID_HANDLE_VALUE) return false;
+    DWORD written = 0;
+    const bool ok = WriteFile(handle, bytes, size, &written, nullptr) && written == size;
+    const DWORD error = GetLastError();
+    CloseHandle(handle);
+    SetLastError(ok ? ERROR_SUCCESS : error);
+    return ok;
+}
+
 // The relay on the host (SpeechLinux.hxx). Its FIFO lives in the prefix's
 // temporary folder, which the container and the host both see under the same
 // Unix path.
@@ -78,13 +90,9 @@ void RunLinux(UnixSpawn spawn) {
     // The relay script is embedded in this binary (SpeechRelayScript.hxx), never a package file: an
     // older updater refuses a package file it does not know. Written beside the tick, anew each run.
     const std::wstring scriptFile = std::wstring(folder) + L"ember-speech-relay.py";
-    bool scriptWritten = false;
-    const HANDLE scriptHandle = CreateFileW(scriptFile.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
-    if (scriptHandle != INVALID_HANDLE_VALUE) {
-        DWORD written = 0;
-        scriptWritten = WriteFile(scriptHandle, relayScript, static_cast<DWORD>(sizeof(relayScript) - 1), &written, nullptr) && written == sizeof(relayScript) - 1;
-        CloseHandle(scriptHandle);
-    }
+    const bool scriptWritten = WriteTempFile(scriptFile, relayScript, static_cast<DWORD>(sizeof(relayScript) - 1));
+    if (!scriptWritten) spdlog::warn("Speech: could not write the relay script {} (error {}); no relay will start", platform::WideToUtf8(scriptFile.c_str()), GetLastError());
+    else if (unixFolder.empty()) spdlog::warn("Speech: the temporary folder has no Unix path; no relay will start");
     const std::string script = scriptWritten && !unixFolder.empty() ? unixFolder + "/ember-speech-relay.py" : std::string();
     // Unique per run: a relay of an earlier run with the same process id may still be leaving.
     const std::string name = "ember-speech-" + std::to_string(GetCurrentProcessId()) + "-" + std::to_string(GetTickCount64());
@@ -94,9 +102,7 @@ void RunLinux(UnixSpawn spawn) {
     // The tick as a file in the same folder, for the relay to play after the parts.
     const std::wstring tick = std::wstring(folder) + L"ember-speech-tick.wav";
     const auto tickWave = away_alert::DescriptionTick();
-    const HANDLE tickFile = CreateFileW(tick.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
-    DWORD tickWritten = 0;
-    if (tickFile != INVALID_HANDLE_VALUE) { WriteFile(tickFile, tickWave.data(), static_cast<DWORD>(tickWave.size()), &tickWritten, nullptr); CloseHandle(tickFile); }
+    if (!WriteTempFile(tick, tickWave.data(), static_cast<DWORD>(tickWave.size()))) spdlog::warn("Speech: could not write the description tick (error {})", GetLastError());
     const std::string unixTick = unixFolder + "/ember-speech-tick.wav";
     const auto relayReady = [&] { return GetFileAttributesW(ready.c_str()) != INVALID_FILE_ATTRIBUTES; };
     HANDLE fifo = INVALID_HANDLE_VALUE;
@@ -113,7 +119,7 @@ void RunLinux(UnixSpawn spawn) {
             if (relayReady()) fifo = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
         }
     }
-    spdlog::info("Speech: relay {}; {}", container ? "started by the host's systemd" : "started directly",
+    if (!script.empty()) spdlog::info("Speech: relay {}; {}", container ? "started by the host's systemd" : "started directly",
         fifo == INVALID_HANDLE_VALUE ? "it did not answer" : "connected");
     // A relay that left takes its ready file with it; Wine's writes alone would not tell.
     const auto write = [&](const std::string& line) {
