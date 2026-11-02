@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "分享我的回放"
 
 msgid "replays.share_detail"
-msgstr "将你从现在起进行的对局连同你的名字和你所在的国家（绝不包括对手的），发送到你的 bridge 的公开回放存档。赛事对局始终会被分享。"
+msgstr "将你从现在起进行的对局连同你的名字和国家，发送到你的 bridge 的公开回放存档；对手的名字仅在对方也分享时才会显示。赛事对局始终会被分享，并显示双方玩家的名字。"
 
 msgid "replays.link"
 msgstr "播放链接中的录像"

@@ -196,15 +196,15 @@ int main(int argc, char** argv) {
         const auto& beta = catalogs[i]["updates.channel.prerelease"];
         CHECK(catalogs[i]["updates.channel_detail"].find(beta) != std::string::npos);
     }
-    // Both the dump row and final consent state the actual risk, in English,
-    // and every other catalog translates them (a consent the player cannot
-    // read is no consent).
-    for (const auto* key : {"reports.dump_detail", "reports.dump_warning"}) {
+    // Both the dump row and final consent state the actual risk, in English.
+    for (const auto* key : {"reports.dump_detail", "reports.dump_warning"})
         for (const auto* exposure : {"private memory", "credentials", "invitations", "paths", "identifiers"})
             CHECK(catalogs[0].at(key).find(exposure) != std::string::npos);
+    // What leaves the PC, and where to stop it, is translated in every other
+    // catalog: a consent the player cannot read is no consent.
+    for (const auto* key : {"reports.dump_detail", "reports.dump_warning", "replays.share", "replays.share_detail"})
         for (std::size_t i = 1; i < count; ++i)
             CHECK(!catalogs[i].at(key).empty() && catalogs[i].at(key) != catalogs[0].at(key));
-    }
     CHECK(catalogs[0].at("reports.dump_detail").find("not shown in the text preview") != std::string::npos);
     CHECK(catalogs[0].at("reports.dump_warning").find("not text-previewed") != std::string::npos);
     // Updater.exe has no catalog: what it shows when the launcher passed no
