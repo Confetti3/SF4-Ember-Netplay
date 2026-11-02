@@ -32,6 +32,16 @@ impl Copy {
             Self::Unread(digest) | Self::Duplicate(digest) => digest,
         }
     }
+
+    /// The state its row was leased in, which a later attempt's record
+    /// needs it still to be in: a set's copy may have taken a duplicate's
+    /// row back since.
+    fn state(&self) -> &'static str {
+        match self {
+            Self::Unread(_) => "stored",
+            Self::Duplicate(_) => "duplicate",
+        }
+    }
 }
 
 pub struct Duplicates(pub Arc<Bucket>);
@@ -125,8 +135,9 @@ impl Queue for Duplicates {
             eprintln!("archive: {digest} not settled yet: {error}");
         }
         tx.execute(
-            "UPDATE archive_games SET next_attempt_at = ?1, last_error = ?2 WHERE digest = ?3 AND attempts = ?4",
-            params![next, error, digest, leased.attempt],
+            "UPDATE archive_games SET next_attempt_at = ?1, last_error = ?2
+             WHERE digest = ?3 AND attempts = ?4 AND state = ?5",
+            params![next, error, digest, leased.attempt, leased.item.state()],
         )?;
         Ok(())
     }

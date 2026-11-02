@@ -129,9 +129,10 @@ game's first sender.
   records whose word it was.
 - An online game the archive holds as the same file joins the set only when
   its own sender sends it for the set; nobody else's copy relabels it. A set's
-  own copy of a game, recorded by a player's PC, is kept over every other
-  player's online copies of it, whichever came first: they are folded into
-  it and leave the bucket (`duplicates::fold`). A set's player could forge
+  own copy of a game, recorded by a player's PC, is kept over its own
+  players' online copies of it, whichever came first: they are folded into
+  it and leave the bucket (`duplicates::fold`). Anyone else's copy stays its
+  own game. A set's player could forge
   such a copy of another game, as with the save time above, and the set's
   roster would then name it.
 

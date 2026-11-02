@@ -153,7 +153,7 @@ pub fn admit(
     crate::db::queued();
     if let Some(set) = set {
         crate::delivery::packs::changed(tx, &set.match_id, now)?;
-        duplicates::fold(tx, &game, Some(&set.players))?;
+        duplicates::fold(tx, &game)?;
     }
     Ok(Admission::New)
 }

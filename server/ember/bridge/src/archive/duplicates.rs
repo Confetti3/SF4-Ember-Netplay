@@ -50,7 +50,7 @@ pub fn fold_kept_before(tx: &Transaction<'_>) -> Result<()> {
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for game in kept_twice {
-        fold(tx, &game, None)?;
+        fold(tx, &game)?;
     }
     tx.execute("DELETE FROM archive_fold_owed", [])?;
     Ok(())
@@ -59,7 +59,8 @@ pub fn fold_kept_before(tx: &Transaction<'_>) -> Result<()> {
 /// A kept copy of a game, as `fold` reads it.
 struct Copy {
     digest: String,
-    set: bool,
+    /// The set it is a game of, if any.
+    set: Option<String>,
     sent_by: String,
     sent_side: Option<u8>,
     names: [Option<String>; 2],
@@ -83,13 +84,13 @@ impl Copy {
 /// the bridge first, is kept, and every other online copy, in the order they
 /// came, gives it the sides it named by the rules a late copy names a side by
 /// (`name_side`, which names no side of a set's game), then becomes a
-/// `duplicate`. With `roster`, only the online copies its players sent are
-/// folded: a set's copy takes in its own players' copies, never anyone
-/// else's. A set's copy is never removed.
-pub(super) fn fold(tx: &Transaction<'_>, game: &str, roster: Option<&[String]>) -> Result<()> {
+/// `duplicate`. A set's copy takes in only the online copies its own
+/// players sent, never anyone else's, which stay games of their own. A set's
+/// copy is never removed.
+pub(super) fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
     let copies = tx
         .prepare(
-            "SELECT digest, match_id IS NOT NULL, sent_by, sent_side, name_a, name_b, country_a, country_b,
+            "SELECT digest, match_id, sent_by, sent_side, name_a, name_b, country_a, country_b,
                     named_by_a, named_by_b
              FROM archive_games WHERE game = ?1 AND state != 'duplicate'
              ORDER BY match_id IS NULL, received_at, digest",
@@ -109,8 +110,13 @@ pub(super) fn fold(tx: &Transaction<'_>, game: &str, roster: Option<&[String]>) 
     let Some((kept, others)) = copies.split_first() else {
         return Ok(());
     };
-    let folded =
-        |copy: &&Copy| !copy.set && roster.is_none_or(|players| players.contains(&copy.sent_by));
+    let roster = kept.set.as_deref().map(|id| roster(tx, id)).transpose()?;
+    let folded = |copy: &&Copy| {
+        copy.set.is_none()
+            && roster
+                .as_ref()
+                .is_none_or(|players| players.contains(&copy.sent_by))
+    };
     for copy in others.iter().filter(folded) {
         for side in [0, 1] {
             if let Some(by) = copy.namer(side) {
@@ -126,4 +132,15 @@ pub(super) fn fold(tx: &Transaction<'_>, game: &str, roster: Option<&[String]>) 
         crate::db::queued();
     }
     Ok(())
+}
+
+/// The Ember IDs of set `match_id`'s players, as it is assigned now.
+fn roster(tx: &Transaction<'_>, match_id: &str) -> Result<Vec<String>> {
+    Ok(tx
+        .prepare(
+            "SELECT p.ember_id FROM match_participants p JOIN matches m ON m.id = p.match_id
+             WHERE p.match_id = ?1 AND p.assignment_generation = m.assignment_generation",
+        )?
+        .query_map([match_id], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?)
 }

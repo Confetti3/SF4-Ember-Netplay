@@ -36,11 +36,9 @@ pub const NOT_ARCHIVED: &str =
 
 /// What the archive says of a set's game: the set, its event, round and
 /// phase, its players' names on the event's site, and the sending player's
-/// own country, each on the player's roster slot, and the roster's Ember
-/// IDs, whose online copies of the game the set's copy takes in.
+/// own country, each on the player's roster slot.
 pub struct SetGame {
     pub match_id: String,
-    pub(super) players: Vec<String>,
     pub(super) event: Option<String>,
     pub(super) round: Option<String>,
     pub(super) phase: Option<String>,
@@ -72,11 +70,6 @@ impl SetGame {
         let country = country.filter(|code| is_country(code));
         Ok(Self {
             match_id: found.id.clone(),
-            players: described
-                .players
-                .iter()
-                .map(|player| player.ember_id.to_string())
-                .collect(),
             event: described.tournament.clone(),
             round: text("round_label"),
             phase: text("phase"),

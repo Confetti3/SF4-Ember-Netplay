@@ -161,3 +161,54 @@ async fn folding_waits_for_every_copy_to_be_read() {
     assert_eq!(games(&list).len(), 2);
     assert_eq!(listed_game(&list, &ann)["names"], json!(["Ann", "Bob"]));
 }
+
+/// The fold of the games kept before takes into a set's copy only its own
+/// players' online copies, as a set's copy does when it comes: anyone
+/// else's copy of the game stays a game of its own.
+#[tokio::test]
+async fn folding_what_was_kept_before_leaves_other_players_copies_alone() {
+    let f = fixture().await;
+    let mut c = f.bridge.player(44);
+    f.bridge.open_session(&mut c).await;
+    connect(&f, &c, "44").await;
+    // A copy not read back yet holds the fold.
+    let unread = played_game(56);
+    keep_before(
+        &f,
+        vec![KeptBefore {
+            bucket: Some(b"not yet".to_vec()),
+            ..KeptBefore::new(unread.clone(), &f.a, 0, Some("Ann"), None)
+        }],
+    )
+    .await;
+    let id = set(&f, "folded-later", 1).await;
+    let set_copy = replays::wrap(&round_stream(55), f.bridge.started_at + 1);
+    let theirs = copy_from(&set_copy, 1);
+    assert_eq!(
+        send(&f, &c, &theirs, "a=Cat&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &set_copy, "side=0").await,
+        StatusCode::CREATED
+    );
+    // Once the last copy is known, the fold runs.
+    sql(
+        &f,
+        "UPDATE archive_games SET game = digest WHERE digest = ?1",
+        vec![digest(&unread)],
+    )
+    .await;
+    ember_bridge::maintain(f.bridge.state()).await;
+    let owed = count(
+        &f,
+        "SELECT COUNT(*) FROM archive_fold_owed WHERE owed = ?1",
+        "1",
+    )
+    .await;
+    assert_eq!(owed, 0);
+    let list = listed_when(&f, "", |list| games(list).len() == 3).await;
+    assert_eq!(listed_game(&list, &theirs)["names"], json!(["Cat", null]));
+    let theirs_file = format!("/replays/games/{}.emberreplay", digest(&theirs));
+    assert!(games_held(&f).contains(&theirs_file));
+}
