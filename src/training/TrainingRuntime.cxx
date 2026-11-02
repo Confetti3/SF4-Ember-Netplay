@@ -59,10 +59,9 @@ combo_check::HitTally comboTally;
 combo_check::Recorder comboRecorder;
 combo_check::FightView comboView;
 // Combo check's runs, kept across the battles it loads, and the dummy's
-// settings from before it, put back after it.
+// settings from before it, put back when it ends (EndCheck).
 combo_check::Runner comboRunner;
 std::optional<DummyState> comboKept;
-bool comboFast = false;
 FrameMeter meter;
 std::uint64_t exportId = 0;
 int exportedSlot = -1;
@@ -347,7 +346,8 @@ bool ReadOverride(int side, Input& result) {
 // apply now; only then is the game touched.
 std::array<FighterSample, 2> ReadFighters(Native* system, bool files);
 int BattleFighter(Native* system, int side);
-void FinishCheck();
+void EndCheck();
+void EndRecording();
 static bool Dispatch(Native* system, const Command& command) {
     if (!session.Apply(command)) {
         // A position that was asked for and not saved or put back is the
@@ -390,25 +390,43 @@ static bool Dispatch(Native* system, const Command& command) {
         { std::lock_guard<std::mutex> lock(mutex); combo = lastCombo; }
         if (combo.frames.empty() || command.check.fighters.empty()) return false;
         comboRunner.Begin(command.check, std::move(combo));
-        comboKept = published.dummy; comboFast = command.check.fast;
+        comboKept = published.dummy;
         spdlog::info("Training: Combo check, {} runs", comboRunner.Runs().size());
         return true;
     }
-    case Action::ComboStop: comboRunner.Stop(); FinishCheck(); return true;
+    // An interruption ends what Combo check does as it ends what the session does.
+    case Action::Interrupt: EndRecording(); EndCheck(); return true;
+    case Action::ComboStop: EndCheck(); return true;
     default: return true;
     }
 }
-// The dummy stands or crouches, never blocks, is never dizzied and takes no counter hits.
+// The dummy stands or crouches, never blocks, is never dizzied and takes no
+// counter hits, and both fighters' Super and Revenge gauges stay full (the
+// Training menu's gauges are both sides'), so a combo that spends them plays
+// the same on every run.
 DummyState CheckDummy(bool crouching) {
     DummyState dummy; dummy.action = crouching ? 1 : 0; dummy.guard = 0; dummy.counterHit = 0; dummy.stun = 2;
+    dummy.super = dummy.revenge = 7;
     return dummy;
 }
-void FinishCheck() {
-    comboFast = false;
-    if (comboKept) { WriteDummyState(*comboKept); comboKept.reset(); }
+// Combo check's end, however it comes (combo_check::Runner): the run under
+// way is dropped, the dummy's settings from before it come back, and the
+// runs done are logged. Once a check; nothing when none runs.
+void EndCheck() {
+    comboRunner.Stop();
+    if (!comboKept) return;
+    WriteDummyState(*comboKept); comboKept.reset();
     for (const auto& run : comboRunner.Runs())
         spdlog::info("Training: Combo check, fighter {} {}: {} of {} hits", run.fighter, run.crouching ? "crouching" : "standing", run.hits, comboRunner.GetCombo().hits);
 }
+// A recording that ends, by its idle frames or now: its combo is the last one.
+void KeepCombo() {
+    const combo_check::Combo& combo = comboRecorder.Result();
+    { std::lock_guard<std::mutex> lock(mutex); lastCombo = combo; }
+    ++comboView.comboId; comboView.hits = combo.hits; comboView.frames = static_cast<int>(combo.frames.size());
+    spdlog::info("Training: Combo check recorded {} frames, {} hits", combo.frames.size(), combo.hits);
+}
+void EndRecording() { if (comboRecorder.End(comboTally)) KeepCombo(); }
 // Combo check's next step, once an update while it runs (combo_check::Runner).
 void StepCheck(Native* system) {
     const View& view = session.GetView();
@@ -416,13 +434,13 @@ void StepCheck(Native* system) {
     seen.generation = view.generation; seen.ready = view.ready; seen.dummy = comboView.dummy;
     seen.playing = view.mode == Mode::Playback; seen.free = comboView.free; seen.best = comboTally.Best();
     const combo_check::Step step = comboRunner.Next(seen);
-    if (step.what == combo_check::Do::Finished) FinishCheck();
+    if (step.what == combo_check::Do::Finished) EndCheck();
     // Training's own Character Select from the pause menu, with the dummy
     // changed on the way (GameEvents::TrainingMode::ChangeDummy).
     else if (step.what == combo_check::Do::Load) {
         if (!selection::FindFighter(step.fighter) || !sf4e::GameEvents::TrainingMode::ChangeDummy(step.fighter)) {
             spdlog::warn("Training: Combo check stopped, fighter {} cannot be loaded", step.fighter);
-            comboRunner.Stop(); FinishCheck(); return;
+            EndCheck(); return;
         }
         *Native::GetBattleExitType(system) = Native::BET_PAUSE_TOCHARACTER;
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -434,8 +452,10 @@ void StepCheck(Native* system) {
         Command place = dummy; place.action = Action::Place; combo_check::StartAt(comboRunner.GetCombo(), comboRunner.GetStart(), place.place);
         Command play = dummy; play.action = Action::ComboPlay; play.frames = comboRunner.GetCombo().frames;
         comboTally.Reset();
-        if (!Dispatch(system, dummy) || !Dispatch(system, place) || !Dispatch(system, play))
+        if (!Dispatch(system, dummy) || !Dispatch(system, place) || !Dispatch(system, play)) {
             spdlog::warn("Training: Combo check, fighter {} not started", step.fighter);
+            comboRunner.NotStarted();
+        }
     }
 }
 void BeforeUpdate(Native* system, bool networkOwned) {
@@ -773,11 +793,7 @@ void AfterUpdate(Native* system) {
             comboTally.Observe(hitOn(dummy, playbackSeen[1]), free(dummy));
             comboView.free = free(fighters[0]) && free(dummy);
             const View& was = session.GetView();
-            if (commitInput && comboRecorder.Feed(ForFacing(output[0], session.FacingRight(0)), was.x[0], was.x[1], comboTally)) {
-                { std::lock_guard<std::mutex> lock(mutex); lastCombo = comboRecorder.Result(); }
-                ++comboView.comboId; comboView.hits = comboRecorder.Result().hits; comboView.frames = static_cast<int>(comboRecorder.Result().frames.size());
-                spdlog::info("Training: Combo check recorded {} frames, {} hits", comboRecorder.Result().frames.size(), comboRecorder.Result().hits);
-            }
+            if (commitInput && comboRecorder.Feed(ForFacing(output[0], session.FacingRight(0)), was.x[0], was.x[1], comboTally)) KeepCombo();
             playbackSeen = fighters;
         }
         // Recorded for the facing the input was prepared with, then the new positions.
@@ -861,7 +877,7 @@ void WatchMatches(bool enabled) { watching = enabled; }
 void SetMeterHistory(int frames, bool continuous) { meterHistory = frames; meterContinuous = continuous; }
 void ShowHitBoxes(bool shown) { hitBoxesShown = shown; }
 void ShowData(bool shown) { dataShown = shown; }
-bool Fast() { return comboFast && comboRunner.Running() && session.GetView().available && session.GetView().ready; }
+bool Fast() { return comboRunner.Fast() && session.GetView().available && session.GetView().ready; }
 void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const unsigned* inputs) {
     if (!watching) {
         // Turned off mid-match: the meter goes, and starts clean if it is asked for again.
@@ -889,8 +905,12 @@ void ObserveMatch(Native* system, int stateFrame, int lastConfirmedInput, const 
 }
 void StopCapture() { delete capture; capture = nullptr; }
 void CloseBattle() {
-    if (session.GetView().available)
+    if (session.GetView().available) {
         spdlog::info("Training: frame meter reset {} times on multi-frame updates this battle", gapResets);
+        // Combo check goes on only through the close its own load asked for;
+        // ended, the dummy's settings are put back while the battle still holds them.
+        if (!comboRunner.BattleClosed()) EndCheck();
+    }
     gapResets = 0; unfedUpdates = unfedNotReady = unfedMultiFrame = 0; leaving.Reset();
     overriding = false; sampling = false;
     if (checkpoint.used) Battle::SaveState::Free(&checkpoint);

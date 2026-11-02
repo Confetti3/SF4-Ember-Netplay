@@ -52,9 +52,16 @@ public:
         combo_.frames.push_back({input.mapped, input.raw, 0, 0});
         if (pressed) { idle_ = 0; last_ = combo_.frames.size(); } else ++idle_;
         if (idle_ < IdleStop && combo_.frames.size() < std::size_t(MaxFrames)) return false;
+        return End(tally);
+    }
+    // Ends the recording now, as IdleStop does (an interruption ends it so):
+    // true when it holds a combo, false when nothing was pressed yet.
+    bool End(const HitTally& tally) {
+        if (!armed_) return false;
+        armed_ = false;
+        if (combo_.frames.empty()) return false;
         combo_.frames.resize(last_);
         combo_.hits = tally.Best();
-        armed_ = false;
         return true;
     }
     const Combo& Result() const { return combo_; }
@@ -125,15 +132,27 @@ struct Step { Do what = Do::Wait; int fighter = -1; bool crouching = false; };
 
 // Polls of a free, ready fight before a run starts, and after it ends.
 constexpr int SettlePolls = 20;
-// Polls a fight may stay ready after a load was asked for, or a run not
-// begin playing, before it is asked for again.
+// Polls a fight may stay ready after a load was asked for before it is asked for again.
 constexpr int LoadPolls = 120;
 
+// A check from Begin to its end, the one place that says when it ends: its
+// last run done, or Stop (the player's Stop, an interruption, a fighter that
+// cannot be loaded), or the battle closing (BattleClosed) for anything but
+// the load the check itself asked for. The runs done stay to be read.
 class Runner {
 public:
-    void Begin(const Settings& settings, Combo combo) { *this = Runner{}; runs_ = PlanRuns(settings); combo_ = std::move(combo); start_ = settings.start; }
+    void Begin(const Settings& settings, Combo combo) { *this = Runner{}; runs_ = PlanRuns(settings); combo_ = std::move(combo); start_ = settings.start; fast_ = settings.fast; }
     bool Running() const { return next_ < runs_.size(); }
-    void Stop() { runs_.resize(next_); }
+    // The run under way, done or not, counts for nothing.
+    void Stop() { runs_.resize(next_); reloading_ = false; }
+    // The battle closes: the check goes on through the battle closing for the
+    // load it asked for, once; any other close ends it. False when it ended.
+    bool BattleClosed() {
+        if (reloading_) { reloading_ = false; return true; }
+        Stop(); return false;
+    }
+    // Training plays several updates a frame while the check runs (Settings::fast).
+    bool Fast() const { return fast_ && Running(); }
     const std::vector<Run>& Runs() const { return runs_; }
     const Combo& GetCombo() const { return combo_; }
     Start GetStart() const { return start_; }
@@ -143,7 +162,7 @@ public:
         if (seen.dummy != run.fighter) {
             // A load under way leaves the fight; only one that never did is asked for again.
             if (state_ == State::Loading && (!seen.ready || (seen.generation == loadedFrom_ && ++settle_ < LoadPolls))) return {};
-            state_ = State::Loading; loadedFrom_ = seen.generation; settle_ = 0;
+            state_ = State::Loading; loadedFrom_ = seen.generation; settle_ = 0; reloading_ = true;
             return {Do::Load, run.fighter};
         }
         if (!seen.ready) { settle_ = 0; return {}; }
@@ -151,13 +170,11 @@ public:
         case State::Loading: case State::Settling:
             state_ = State::Settling;
             if (!seen.free || ++settle_ < SettlePolls) return {};
-            state_ = State::Starting; settle_ = 0;
+            // The run plays from here: Training starts it in this update
+            // (NotStarted when it does not), and a clip of one frame may be
+            // over before the next poll.
+            state_ = State::Playing; settle_ = 0;
             return {Do::Play, run.fighter, run.crouching};
-        case State::Starting:
-            // A run Training never began playing is started again.
-            if (seen.playing) { state_ = State::Playing; settle_ = 0; }
-            else if (++settle_ >= LoadPolls) state_ = State::Settling, settle_ = 0;
-            return {};
         case State::Playing:
             if (seen.playing || !seen.free) { settle_ = 0; return {}; }
             if (++settle_ < SettlePolls) return {};
@@ -167,14 +184,19 @@ public:
         }
         return {};
     }
+    // Training refused the run Next asked to play: it settles and is asked for again.
+    void NotStarted() { state_ = State::Settling; settle_ = 0; }
 private:
-    enum class State { Loading, Settling, Starting, Playing };
+    enum class State { Loading, Settling, Playing };
     std::vector<Run> runs_;
     Combo combo_;
     Start start_ = Start::Recorded;
+    bool fast_ = false;
     std::size_t next_ = 0;
     State state_ = State::Settling;
     std::uint64_t loadedFrom_ = 0;
+    // A load was asked for and the battle has not yet closed for it.
+    bool reloading_ = false;
     int settle_ = 0;
 };
 
