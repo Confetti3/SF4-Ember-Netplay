@@ -740,6 +740,20 @@ static void TestNameTakenOut() {
  CHECK(notes::Write(list, "a.emberreplay\nb.emberreplay\n") && read() == "a.emberreplay\nb.emberreplay\n");
  CHECK(notes::TakeOut(list, text(read()), "a.emberreplay") && read() == "b.emberreplay\n");
  CHECK(notes::TakeOut(list, text(read()), "b.emberreplay") && read().empty() && !fs::exists(list.wstring() + L".tmp"));
+ CHECK(notes::Write(list, "keep.emberreplay\n"));
+#ifdef _WIN32
+ // A list that is open cannot be replaced: the write says so, the list keeps
+ // its marks and no partial file is left beside it.
+ {
+  std::ifstream held(list, std::ios::binary);
+  CHECK(!notes::Write(list, "other.emberreplay\n") && !notes::TakeOut(list, text("keep.emberreplay\n"), "keep.emberreplay"));
+  held.close();
+ }
+ CHECK(read() == "keep.emberreplay\n");
+ std::size_t beside = 0;
+ for (const auto& entry : fs::directory_iterator(list.parent_path())) if (entry.path().filename().wstring().rfind(list.filename().wstring(), 0) == 0) beside++;
+ CHECK(beside == 1);
+#endif
  fs::remove(list);
 }
 // Pruning follows the lister's reach: replays filed into subfolders count as

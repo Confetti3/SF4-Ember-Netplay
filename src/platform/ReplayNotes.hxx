@@ -1,7 +1,8 @@
 #pragma once
 // The lists of replays the archive folder keeps beside the replays
 // (sent.txt, closed.txt, watched.txt, kept.txt): one file name a line,
-// appended as replays are marked. Portable, so ReplayFilesTest runs it on text.
+// appended as replays are marked. Portable apart from the durable replacement
+// on Windows, so ReplayFilesTest runs it on text.
 //
 // A list is bounded two ways. Lines are dropped when their replay is gone
 // (Pruned), so a list follows the archive's size; and a list that is
@@ -15,6 +16,10 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#ifdef _WIN32
+#include "DurableFile.hxx"
+#endif
 
 namespace sf4e { namespace platform { namespace replays { namespace notes {
 
@@ -52,15 +57,24 @@ std::string Pruned(const std::vector<std::uint8_t>& bytes, Keep&& keep) {
 }
 
 // Writes a list whole, beside it first, so a reader never sees it half written.
+// The list is replaced only by a copy that was written, flushed and closed
+// whole; any failure leaves the list as it was.
 inline bool Write(const std::filesystem::path& list, const std::string& text) {
+#ifdef _WIN32
+	return static_cast<bool>(durable::PublishReplace(list, durable::PartialPath(list), text.data(), text.size()));
+#else
 	std::filesystem::path partial = list; partial += L".tmp";
+	std::error_code ignored;
 	{
 		std::ofstream out(partial, std::ios::binary | std::ios::trunc);
 		out << text;
-		if (!out) { out.close(); std::error_code ignored; std::filesystem::remove(partial, ignored); return false; }
+		out.close();
+		if (out.fail()) { std::filesystem::remove(partial, ignored); return false; }
 	}
-	std::filesystem::rename(partial, list);
-	return true;
+	std::filesystem::rename(partial, list, ignored);
+	if (ignored) std::filesystem::remove(partial, ignored);
+	return !ignored;
+#endif
 }
 // Takes a name out of a list (`bytes` is the list as read): written whole without it.
 inline bool TakeOut(const std::filesystem::path& list, const std::vector<std::uint8_t>& bytes, const std::string& name) {
