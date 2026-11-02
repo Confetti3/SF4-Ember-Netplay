@@ -1,6 +1,6 @@
 //! The archive's games kept before it knew them by `Replay::game`
 //! (`archive::duplicates`). `Read` reads each such copy back from the bucket
-//! and folds it into its game; `Remove` deletes from the bucket the copies
+//! and records which game it is; `Remove` deletes from the bucket the copies
 //! that folding left over, then their rows. A copy whose upload is still
 //! leased (`next_attempt_at` ahead) is not deleted before that attempt is
 //! over, so its file cannot land after the delete.
@@ -13,7 +13,7 @@ use super::{
     BATCH, Leased, Outcome, Queue, Record,
     archive::{retry, settled},
 };
-use crate::{AppState, archive::duplicates::fold, error::Result, s3::Bucket};
+use crate::{AppState, archive::duplicates::identified, error::Result, s3::Bucket};
 
 /// Stored games not yet known by `game`.
 pub struct Read(pub Arc<Bucket>);
@@ -28,8 +28,9 @@ impl Queue for Read {
         lease(tx, "game IS NULL AND state = 'stored'", now, until)
     }
 
-    /// Reads the copy and folds it into its game. A file that is not a
-    /// whole replay (it was one when it was taken) is known by its digest.
+    /// Reads the copy and records which game it is. The bucket's file must be
+    /// the whole replay it was stored as, its digest the copy's; anything
+    /// else is tried again, and the games kept twice wait for it.
     async fn attempt(&self, state: &AppState, digest: &String) -> Outcome {
         let Some(secret) = &state.integrations.archive_secret_key else {
             return retry("no archive secret key".into());
@@ -42,9 +43,16 @@ impl Queue for Read {
             Ok(file) => file,
             Err(error) => return retry(error),
         };
-        let game = Replay::parse(&file).map_or_else(|| digest.clone(), |replay| replay.game_hex());
-        let digest = digest.clone();
-        match state.db.write(move |tx| fold(tx, &digest, &game)).await {
+        let Some(replay) = Replay::parse(&file).filter(|replay| replay.digest_hex() == *digest)
+        else {
+            return retry(format!("{}: not the replay it was stored as", key(digest)));
+        };
+        let (digest, game) = (digest.clone(), replay.game_hex());
+        match state
+            .db
+            .write(move |tx| identified(tx, &digest, &game))
+            .await
+        {
             Ok(()) => Outcome::Delivered,
             Err(error) => retry(format!("{error:?}")),
         }

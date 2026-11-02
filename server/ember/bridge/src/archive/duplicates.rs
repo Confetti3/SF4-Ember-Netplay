@@ -1,13 +1,46 @@
 //! Games the archive kept before it knew them by `Replay::game`
 //! (migration 054): both players' copies of one game, each kept under its
 //! own digest with its own sender's side named. `delivery::duplicates` reads
-//! each such copy back from the bucket and `fold`s it into the game; the
-//! copies it leaves over are marked `duplicate`, which the listing never
-//! shows, until the bucket has deleted their files.
+//! each such copy back from the bucket and records which game it is
+//! (`identified`). Once every copy is known, each game kept more than once
+//! is `fold`ed into one row; the copies left over are marked `duplicate`,
+//! which the listing never shows, until the bucket has deleted their files.
+//!
+//! Folding waits for the last copy because which copy is kept decides which
+//! names the others may give it: a copy identified late may be the one that
+//! came first.
 use rusqlite::{Transaction, params};
 
 use super::name_side;
 use crate::error::Result;
+
+/// Records that the stored copy `digest` is of `game`, and folds every game
+/// kept more than once when it was the last copy not known yet.
+pub fn identified(tx: &Transaction<'_>, digest: &str, game: &str) -> Result<()> {
+    tx.execute(
+        "UPDATE archive_games SET game = ?2 WHERE digest = ?1 AND game IS NULL",
+        params![digest, game],
+    )?;
+    let unknown: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM archive_games WHERE game IS NULL",
+        [],
+        |row| row.get(0),
+    )?;
+    if unknown > 0 {
+        return Ok(());
+    }
+    let kept_twice = tx
+        .prepare(
+            "SELECT game FROM archive_games WHERE state != 'duplicate'
+             GROUP BY game HAVING COUNT(*) > 1",
+        )?
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for game in kept_twice {
+        fold(tx, &game)?;
+    }
+    Ok(())
+}
 
 /// A kept copy of a game, as `fold` reads it.
 struct Copy {
@@ -32,22 +65,17 @@ impl Copy {
     }
 }
 
-/// Records that the copy `digest` is of `game`, then makes that game one row
-/// again: the set's copy, or else the copy that reached the bridge first, is
-/// kept, and every other online copy gives it the sides it named, by the
-/// rules a late copy names a side by (`name_side`), and becomes a
-/// `duplicate`. A set's copy is never removed.
-pub fn fold(tx: &Transaction<'_>, digest: &str, game: &str) -> Result<()> {
-    tx.execute(
-        "UPDATE archive_games SET game = ?2 WHERE digest = ?1 AND game IS NULL",
-        params![digest, game],
-    )?;
+/// Makes `game` one row again: the set's copy, or else the copy that reached
+/// the bridge first, is kept, and every other online copy, in the order they
+/// came, gives it the sides it named by the rules a late copy names a side by
+/// (`name_side`), then becomes a `duplicate`. A set's copy is never removed.
+fn fold(tx: &Transaction<'_>, game: &str) -> Result<()> {
     let copies = tx
         .prepare(
             "SELECT digest, match_id IS NOT NULL, sent_by, sent_side, name_a, name_b, country_a, country_b,
                     named_by_a, named_by_b
              FROM archive_games WHERE game = ?1 AND state != 'duplicate'
-             ORDER BY match_id IS NULL, state != 'stored', received_at, digest",
+             ORDER BY match_id IS NULL, received_at, digest",
         )?
         .query_map([game], |row| {
             Ok(Copy {
