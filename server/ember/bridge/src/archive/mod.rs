@@ -20,9 +20,9 @@ use crate::error::{ApiFailure, Result};
 const SENT_PER_DAY: i64 = 3000;
 /// What games waiting for the bucket may take on the bridge together.
 const MAX_WAITING: i64 = 2 << 30;
-/// What the archive keeps at most, every game it holds together: about a
+/// What the archive keeps at most, every game it holds together: about two
 /// million games. Past it no online game is taken; a set's games still are.
-const MAX_KEPT: i64 = 10 << 30;
+const MAX_KEPT: i64 = 20 << 30;
 
 /// Whose word the archive takes for a game's sides.
 pub enum Attribution<'a> {

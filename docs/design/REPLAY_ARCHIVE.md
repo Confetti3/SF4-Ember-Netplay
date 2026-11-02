@@ -214,7 +214,7 @@ Both routes go through one admission, in the transaction that keeps the game:
 - The bridge takes no new game, from either route, while 2 GiB of games are
   still waiting to be stored (503). A set's game refused this way is not kept
   for the set either; the game sends it again later.
-- The archive keeps at most 10 GiB of games in all, about a million. Past it
+- The archive keeps at most 20 GiB of games in all, about two million. Past it
   no new online game is taken (503); a set's game still is, since the archive
   keeps every set and the sets played bound them.
 - One sender's day counts only the games it sent as online games

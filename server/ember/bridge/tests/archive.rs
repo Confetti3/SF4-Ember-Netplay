@@ -848,7 +848,7 @@ async fn both_routes_wait_while_the_bucket_is_behind() {
     );
 }
 
-/// Once the archive keeps 10 GiB of games it takes no more online games,
+/// Once the archive keeps 20 GiB of games it takes no more online games,
 /// still a set's games: the archive keeps every set.
 #[tokio::test]
 async fn a_full_archive_takes_only_sets_games() {
@@ -858,7 +858,7 @@ async fn a_full_archive_takes_only_sets_games() {
         &f,
         "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, priority,
             state, next_attempt_at, received_at)
-         VALUES (?1, '00000000', 1, 10737418240, 1, 2, 'emb_other', 1, 'stored', 0, 1)",
+         VALUES (?1, '00000000', 1, 21474836480, 1, 2, 'emb_other', 1, 'stored', 0, 1)",
         vec!["e".repeat(64)],
     )
     .await;
