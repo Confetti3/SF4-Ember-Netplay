@@ -101,7 +101,8 @@ async fn fixture_with(adjust: impl FnOnce(&mut ember_bridge::Config) + Send + 's
     let (endpoint, stored) = bucket(refusing.clone()).await;
     let secrets = ember_bridge::integrations::Secrets {
         archive_secret_key: Some(zeroize::Zeroizing::new("secret".into())),
-        ..Default::default()
+        // For the tests that turn public rooms (and so classes) on.
+        ..common::supervisor::secrets()
     };
     let bridge = Bridge::start_with(
         move |config| {
@@ -1160,4 +1161,135 @@ async fn without_an_archive_nothing_is_taken() {
         .await
         .unwrap();
     assert_eq!(listed.status(), StatusCode::NOT_FOUND);
+}
+
+/// Connects `player` to Discord account `account`.
+async fn connect(f: &Fixture, player: &Player, account: &str) {
+    common::seed::link_discord(f.bridge.state(), account, player.id().as_str(), "player").await;
+}
+
+/// Gives Discord account `account` its ranking choice (`listed` under a
+/// name, or not) and a rating in the middle of `band`, settled or not,
+/// played an hour ago.
+async fn ranked(f: &Fixture, account: &str, listed: bool, band: u8, settled: bool) {
+    let played_at = f.bridge.state().now() as i64 - 3600;
+    let rating = 1050.0 + 100.0 * f64::from(band);
+    let deviation = if settled { 60.0 } else { 300.0 };
+    let account = account.to_owned();
+    f.bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO ranking_choices (discord_user_id, ranked, name, country)
+                 VALUES (?1, 1, ?2, NULL)
+                 ON CONFLICT (discord_user_id) DO UPDATE SET name = excluded.name",
+                rusqlite::params![account, listed.then_some("Listed")],
+            )?;
+            tx.execute(
+                "INSERT INTO skill_ratings (discord_user_id, rating, deviation, volatility, band, played_at)
+                 VALUES (?1, ?2, ?3, 0.06, ?4, ?5)
+                 ON CONFLICT (discord_user_id) DO UPDATE SET deviation = excluded.deviation",
+                rusqlite::params![account, rating, deviation, band, played_at],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
+/// An archive bridge with public rooms, and classes shown or not.
+async fn with_classes(shown: bool) -> Fixture {
+    let (_, url) = common::supervisor::fake_supervisor().await;
+    fixture_with(move |config| {
+        common::supervisor::enable(config, url);
+        let rooms = config.rooms.as_mut().unwrap();
+        rooms.skill_badges = shown;
+        rooms.developers = vec!["300".to_owned()];
+    })
+    .await
+}
+
+/// Each side lists the class the public rankings board shows today for the
+/// player who played it, as far as the archive knows who did: a set's
+/// roster, or the account that sent or named that side. A player who is not
+/// on the board (not listed, not settled, a developer) shows none.
+#[tokio::test]
+async fn a_side_lists_its_players_class_as_the_board_shows_it() {
+    let f = with_classes(true).await;
+    connect(&f, &f.a, "100").await;
+    connect(&f, &f.b, "200").await;
+    ranked(&f, "100", true, 7, true).await;
+    ranked(&f, "200", false, 3, true).await;
+    let online = game(21, [1, 2]);
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=Bob&side=0").await,
+        StatusCode::CREATED
+    );
+    // Who sent a copy that says no side is not known to have played either.
+    let unsided = game(22, [3, 4]);
+    assert_eq!(
+        send(&f, &f.a, &unsided, "a=Ann&b=Bob").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 2).await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
+    assert_eq!(listed_game(&list, &unsided)["classes"], json!([null, null]));
+    // The opponent names their side; their class shows once they are listed
+    // and settled, and not while they place again.
+    assert_eq!(
+        send(&f, &f.b, &saved_elsewhere(&online), "a=&b=Bob&side=1").await,
+        StatusCode::OK
+    );
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
+    ranked(&f, "200", true, 3, true).await;
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, 3]));
+    ranked(&f, "200", true, 3, false).await;
+    let list = listed(&f, "").await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
+    // A set's sides are its roster's, whoever sent the game.
+    ranked(&f, "200", true, 3, true).await;
+    let id = set(&f, "archive-classes", 1).await;
+    assert_eq!(
+        send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "country=BE").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 3).await;
+    assert_eq!(
+        listed_game(&list, &replay_of(&f.bridge, 1))["classes"],
+        json!([7, 3])
+    );
+    // No Ember ID or Discord account is ever listed.
+    let text = list.to_string();
+    for hidden in [f.a.id().as_str(), f.b.id().as_str(), "\"100\"", "\"200\""] {
+        assert!(!text.contains(hidden), "{hidden} in {text}");
+    }
+}
+
+/// A developer is not on the board, so their side shows no class; nor does
+/// any side while the bridge hides classes.
+#[tokio::test]
+async fn no_class_for_a_developer_or_while_classes_are_hidden() {
+    let f = with_classes(true).await;
+    connect(&f, &f.a, "300").await;
+    ranked(&f, "300", true, 7, true).await;
+    let online = game(23, [1, 2]);
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 1).await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([null, null]));
+
+    let f = with_classes(false).await;
+    connect(&f, &f.a, "100").await;
+    ranked(&f, "100", true, 7, true).await;
+    assert_eq!(
+        send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 1).await;
+    assert_eq!(listed_game(&list, &online)["classes"], json!([null, null]));
 }

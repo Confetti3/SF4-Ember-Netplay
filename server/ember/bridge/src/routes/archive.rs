@@ -17,7 +17,12 @@ use crate::{
     archive::{self, Admission, Attribution},
     error::{ApiFailure, Result},
     http::{Body, json as respond},
-    routes::{ledger::scores, play::playing},
+    routes::{
+        ledger::scores,
+        play::playing,
+        rooms::{self, classes_shown, developers},
+    },
+    skill::ranking,
 };
 
 /// Games one listing holds at most.
@@ -142,6 +147,29 @@ struct Listed {
     event: Option<String>,
     round: Option<String>,
     phase: Option<String>,
+    /// The Ember ID that played each side, where the archive knows it: a
+    /// set's roster, or the player who sent the game or named that side.
+    /// Never listed; it only finds each side's class.
+    players: [Option<String>; 2],
+}
+
+/// SQL for the Ember ID that played side `side` (0 or 1) of an
+/// `archive_games` row: a set's roster slot, or else whoever sent the game
+/// from that side or later named it (`archive::name_own_side`).
+fn side_player(side: u8) -> String {
+    let named_by = if side == 0 {
+        "named_by_a"
+    } else {
+        "named_by_b"
+    };
+    format!(
+        "CASE WHEN match_id IS NOT NULL THEN
+             (SELECT p.ember_id FROM match_participants p JOIN matches m ON m.id = p.match_id
+              WHERE p.match_id = archive_games.match_id
+                AND p.assignment_generation = m.assignment_generation AND p.slot = {side})
+         WHEN sent_side = {side} THEN sent_by
+         ELSE {named_by} END"
+    )
 }
 
 /// The stored games after `cursor` that `filter` keeps, newest first: up
@@ -186,9 +214,9 @@ fn page(
             )
         });
     let mut games = tx
-        .prepare(
+        .prepare(&format!(
             "SELECT digest, crc, saved_at, size, fighter_a, fighter_b, name_a, name_b, country_a, country_b,
-                    match_id, event_title, round_label, phase
+                    match_id, event_title, round_label, phase, {side_a}, {side_b}
              FROM archive_games WHERE state = 'stored'
                AND (saved_at, digest) < (?1, ?2) AND (saved_at, digest) >= (?3, ?4)
                AND (?5 IS NULL OR (?5 = 'online' AND match_id IS NULL) OR event_title = ?5)
@@ -203,7 +231,9 @@ fn page(
                AND (?9 IS NULL OR name_a LIKE ?9 ESCAPE '\\' OR name_b LIKE ?9 ESCAPE '\\'
                     OR event_title LIKE ?9 ESCAPE '\\')
              ORDER BY saved_at DESC, digest DESC LIMIT ?10",
-        )?
+            side_a = side_player(0),
+            side_b = side_player(1),
+        ))?
         .query_map(
             params![
                 cursor.saved_at,
@@ -230,6 +260,7 @@ fn page(
                     event: row.get(11)?,
                     round: row.get(12)?,
                     phase: row.get(13)?,
+                    players: [row.get(14)?, row.get(15)?],
                 })
             },
         )?
@@ -262,6 +293,10 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
             .ok_or_else(|| ApiFailure::invalid("That is not a cursor of this listing."))?,
     };
     let base = archive.public_base;
+    // Classes as the public rankings board shows them, while it shows any.
+    let shown = rooms::enabled(&state) && classes_shown(&state);
+    let developers = developers(&state);
+    let now = state.now();
     let listed = state
         .db
         .read(move |tx| {
@@ -272,15 +307,31 @@ pub async fn list(State(state): State<AppState>, Query(filter): Query<Filter>) -
                     sets.insert(id.clone(), set_listed(tx, &base, id)?);
                 }
             }
+            let classes = if shown {
+                let players: Vec<&str> = games
+                    .iter()
+                    .flat_map(|game| game.players.iter().flatten())
+                    .map(String::as_str)
+                    .collect();
+                ranking::public_classes(tx, &players, &developers, now)?
+            } else {
+                Default::default()
+            };
             let games: Vec<Value> = games
                 .into_iter()
                 .map(|game| {
+                    let class = |side: usize| {
+                        game.players[side]
+                            .as_ref()
+                            .and_then(|player| classes.get(player).copied())
+                    };
                     json!({
                         "digest": game.digest, "crc": game.crc,
                         "url": format!("{base}/games/{}.emberreplay", game.digest),
                         "saved_at": game.saved_at, "size": game.size, "fighters": game.fighters,
                         "names": game.names, "countries": game.countries,
                         "set": game.set, "event": game.event, "round": game.round, "phase": game.phase,
+                        "classes": [class(0), class(1)],
                     })
                 })
                 .collect();
