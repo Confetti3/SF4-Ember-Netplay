@@ -236,6 +236,11 @@ inline void PruneDumps(const wchar_t* directory, size_t keep, const wchar_t* pro
 // launcher dumps it FreezeDumpAfterMs later, about 15 seconds stuck, within
 // FreezeDumpWaitMs (half a second on a 32 MB dump), so a crash request that
 // comes meanwhile still finds the launcher before the game gives up on it.
+// The limit is cooperative: ServeUntilExit dumps on its own wait loop, and the
+// deadline is checked between attempts and by DbgHelp's cancel callback, so a
+// write blocked inside the file system is not cut off, and the FlushFileBuffers
+// that publishes the dump (PublishDump) runs outside it. On slow or stalled
+// storage the launcher can be busy longer than this, as it can for a crash dump.
 constexpr ULONGLONG FreezeDumpAfterMs = 10000;
 constexpr DWORD FreezeDumpWaitMs = 5000;
 
