@@ -220,6 +220,13 @@ namespace Dimps {
 			static int GetFighterId(const Request* r, int player) {
 				return *(const int*)((const char*)r + (player ? 0x2C0 : 0x08));
 			}
+			// The edition the player picked for that fighter (Battle::Edition),
+			// the block's last dword (+0x2B4; +0x14 is the voice language):
+			// CommonResourceHolder::load (0x5E88E0) chooses the fighter's
+			// script folder by the two.
+			static int GetFighterEdition(const Request* r, int player) {
+				return *(const int*)((const char*)r + (player ? 0x2C0 : 0x08) + 0x2B4);
+			}
 
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;

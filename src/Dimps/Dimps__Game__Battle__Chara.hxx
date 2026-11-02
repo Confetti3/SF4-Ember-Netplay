@@ -158,6 +158,8 @@ namespace Dimps {
 						// Frames until the actor can act again, hitstop included, as the
 						// game keeps them for its input buffer: the s16 at actor +0x6E7A.
 						int (Actor::* GetFramesUntilActionable)();
+						// Nonzero while the actor is in hitstop: Action::Actor +0x270 (vf_fc).
+						int (Actor::* IsInHitStop)();
 						// Nonzero in the air (state 2, or bit 4 of actor +0xBC) and
 						// crouching (states 1, 8 and 15, or bit 2); 0 asks of the fighter now.
 						unsigned int (Actor::* IsAirborne)(int);

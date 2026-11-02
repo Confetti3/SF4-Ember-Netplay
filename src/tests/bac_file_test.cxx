@@ -16,6 +16,7 @@ struct ScriptRow {
     int spawnAt = -1;                      // first frame of every effect spawn; -1 writes no frames
     std::vector<bac::Speed> speeds;        // list 4, written in place of the skipped list
     int interruptible = 0;                 // the header's
+    Ids reflects;                          // hitboxes of type 4, which meet only fireballs
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -40,16 +41,17 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
                 for (std::size_t i = 0; framesFrom >= 0 && i < count; ++i) { Put16(data, i ? framesFrom + i - 1 : 0); Put16(data, i ? framesFrom + i : 1); }
                 Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
             };
-            list(0, row.flows.size());
+            list(0, row.flows.size(), row.flows.empty() ? -1 : 25);
             for (const auto& flow : row.flows) { Put16(data, flow[0]); Put16(data, 0); Put16(data, flow[1]); Put16(data, 0); }
-            list(7, row.hits.size() + row.guards.size());
-            for (std::size_t i = 0; i < row.hits.size() + row.guards.size(); ++i) {
+            list(7, row.hits.size() + row.guards.size() + row.reflects.size());
+            for (std::size_t i = 0; i < row.hits.size() + row.guards.size() + row.reflects.size(); ++i) {
                 const std::size_t at = data.size();
                 data.resize(at + 44);
-                data[at + 26] = i < row.hits.size() ? 1 : 0;
+                data[at + 26] = i < row.hits.size() ? 1 : i < row.hits.size() + row.guards.size() ? 0 : 4;
                 // A juggle limit and add a box (Hit::limit, Hit::add): 7 and 2, a guard's 0.
                 data[at + 33] = i < row.hits.size() ? 7 : 0; data[at + 34] = i < row.hits.size() ? 2 : 0;
-                Set32(data, at + 40, static_cast<std::uint32_t>(i < row.hits.size() ? row.hits[i] : row.guards[i - row.hits.size()]));
+                Set32(data, at + 40, static_cast<std::uint32_t>(i < row.hits.size() ? row.hits[i] :
+                    i < row.hits.size() + row.guards.size() ? row.guards[i - row.hits.size()] : row.reflects[i - row.hits.size() - row.guards.size()]));
             }
             list(10, row.effects.size() + 1, row.spawnAt);
             data.resize(data.size() + 32); // An effect command of another kind.
@@ -88,6 +90,15 @@ int main() {
     CHECK(model.scripts.size() == 7 && model.effects.size() == 4);
     CHECK(model.effects[0].canHit && !model.effects[1].canHit && !model.effects[2].canHit);
     CHECK(model.scripts[6].effects.empty() && !model.scripts[6].canHit);
+    {
+        ScriptRow reflect = Script({});
+        reflect.reflects = {124};
+        const Bytes reflecting = Scripts({{0, reflect}}, {});
+        bac::File read;
+        CHECK(ReadExact(reflecting, reflecting.size(), read, error) && read.scripts[0].hits.empty() && !read.scripts[0].canHit);
+    }
+    // Of its two jumps only kind 0 is kept, with its first frame.
+    CHECK(model.scripts[6].flows.size() == 1 && model.scripts[6].flows[0].at == 0 && model.scripts[6].flows[0].script == 3);
     // A hitbox that can hit keeps its juggle values and hit-data row; a guard box is no hit.
     CHECK(model.scripts[3].hits.size() == 1 && model.scripts[3].hits[0].limit == 7 &&
         model.scripts[3].hits[0].add == 2 && model.scripts[3].hits[0].data == 10 && model.effects[1].hits.empty());
@@ -151,6 +162,19 @@ int main() {
     }
     int first = -1, last = -1;
     CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
+    // Evil Ryu's falling fireball (421P): the effect spawned at 47 hits once it goes on in another at its
+    // frame 25, 17 game frames on at 1.5 a frame.
+    {
+        bac::File oni;
+        oni.scripts.resize(1); oni.effects.resize(2);
+        oni.scripts[0].effects = {0}; oni.scripts[0].spawns = {{{47, 48}}};
+        oni.effects[0].speeds = {{0, 1.5f}}; oni.effects[0].flows = {{25, 1}};
+        oni.effects[1].canHit = true;
+        int a = -1, b = -1, delay = -1;
+        CHECK(bac::ProjectileBoundary(oni, 0, a, b, &delay) && a == 48 && b == 49 && delay == 17);
+        oni.effects[0].flows = {{25, 0}};
+        CHECK(!bac::ProjectileBoundary(oni, 0, a, b));
+    }
     // List 4 sets how many script frames a game frame plays: Balrog getting up
     // plays 2 a frame up to 50, then 1, so it is free 29 frames on, at 54.
     {
@@ -226,5 +250,15 @@ int main() {
     CHECK(ReadExact(bad, bad.size(), untimed, error));
     first = last = -1;
     CHECK(!bac::ProjectileBoundary(untimed, 0, first, last));
+    {
+        // Ken's close MK (Omega): boxes 8 to 10 and 14 to 17, read after each update.
+        bac::Script mk;
+        mk.hits = {{8, 10}, {14, 17}};
+        CHECK(bac::HitPhase(mk, 7.5f) == 0 && bac::HitPhase(mk, 8.f) == 1 && bac::HitPhase(mk, 9.9f) == 1);
+        CHECK(bac::HitPhase(mk, 10.f) == 2 && bac::HitPhase(mk, 13.5f) == 2 && bac::HitPhase(mk, 14.f) == 1);
+        CHECK(bac::HitPhase(mk, 17.f) == 3 && bac::HitPhase(bac::Script{}, 9.f) == -1);
+        mk.hits.push_back({-1, -1});
+        CHECK(bac::HitPhase(mk, 9.f) == -1);
+    }
     return 0;
 }

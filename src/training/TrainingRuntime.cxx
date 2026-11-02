@@ -67,10 +67,10 @@ CallControl callControl;
 // Each fighter's own files: its scripts, for the moves whose native header
 // names no attack frames (a fireball's hitbox is in the effect the move
 // spawns) and for the Data panel; and its charges' names, read only once the
-// Data panel asks. fighter, namesFor: whose files are held, -1 none. Kept
-// across battles.
+// Data panel asks. fighter, namesFor: whose files are held, -1 none, and
+// edition, namesEdition: the edition they were read for. Kept across battles.
 struct HeldFiles {
-    int fighter = -1, namesFor = -1;
+    int fighter = -1, namesFor = -1, edition = -1, namesEdition = -1;
     SharedScripts scripts = std::make_shared<bac::File>();
     SharedNames names = std::make_shared<std::vector<std::string>>();
 };
@@ -440,40 +440,47 @@ int BattleFighter(Native* system, int side) {
     const int id = Dimps::Game::Request::GetFighterId(*request, side);
     return selection::FindFighter(id) ? id : -1;
 }
-// A fighter's own file (".bac", ".bcm") from the game folder; false with a
-// reason when there is no fighter or it cannot be read.
-bool ReadFighterFile(int id, const char* extension, std::vector<std::uint8_t>& bytes, std::string& code, std::string& error) {
+// The edition that fighter plays (Omega reads other files than Ultra); -1 with no request.
+int BattleEdition(Native* system, int side) {
+    auto** request = Native::GetRequest(system);
+    return request && *request ? Dimps::Game::Request::GetFighterEdition(*request, side) : -1;
+}
+// A fighter's own file (".bac", ".bcm") for its edition from the game folder;
+// false with a reason when there is no fighter or it cannot be read.
+bool ReadFighterFile(int id, int edition, const char* extension, std::vector<std::uint8_t>& bytes, std::string& code, std::string& error) {
     const auto* fighter = selection::FindFighter(id);
     if (!fighter) { error = "no fighter"; return false; }
     wchar_t program[32768] = {};
     GetModuleFileNameW(nullptr, program, 32768);
     code = fighter->code;
-    const auto folder = CommandFolder(std::filesystem::path(program).parent_path(), code);
+    const std::filesystem::path game = std::filesystem::path(program).parent_path();
+    const auto folder = CommandFolder(game, code, id, edition);
+    spdlog::info("Training: {}{} of edition {} from {}", code, extension, edition, std::filesystem::relative(folder, game).generic_string());
     return ReadFile(folder / (code + extension), bac::MaxBytes, bytes, error);
 }
 // Two files under a megabyte, read in the battle's first sampled frame; move
 // the read to a worker if that frame is ever seen to stutter.
 const SharedScripts& FighterScripts(Native* system, unsigned side) {
     HeldFiles& held = heldFiles[side];
-    const int id = BattleFighter(system, static_cast<int>(side));
-    if (id == held.fighter) return held.scripts;
-    held.fighter = id;
+    const int id = BattleFighter(system, static_cast<int>(side)), edition = BattleEdition(system, static_cast<int>(side));
+    if (id == held.fighter && edition == held.edition) return held.scripts;
+    held.fighter = id; held.edition = edition;
     auto scripts = std::make_shared<bac::File>();
     std::vector<std::uint8_t> bytes;
     std::string code, error;
-    if (id >= 0 && (!ReadFighterFile(id, ".bac", bytes, code, error) || !bac::Read(bytes.data(), bytes.size(), *scripts, error)))
+    if (id >= 0 && (!ReadFighterFile(id, edition, ".bac", bytes, code, error) || !bac::Read(bytes.data(), bytes.size(), *scripts, error)))
         spdlog::warn("Training: no projectile frames for {}: {}", code, error);
     held.scripts = std::move(scripts);
     return held.scripts;
 }
 const SharedNames& ChargeNames(Native* system, unsigned side) {
     HeldFiles& held = heldFiles[side];
-    const int id = BattleFighter(system, static_cast<int>(side));
-    if (id == held.namesFor) return held.names;
-    held.namesFor = id;
+    const int id = BattleFighter(system, static_cast<int>(side)), edition = BattleEdition(system, static_cast<int>(side));
+    if (id == held.namesFor && edition == held.namesEdition) return held.names;
+    held.namesFor = id; held.namesEdition = edition;
     std::vector<std::uint8_t> bytes;
     std::string code, error;
-    held.names = std::make_shared<std::vector<std::string>>(id >= 0 && ReadFighterFile(id, ".bcm", bytes, code, error) ?
+    held.names = std::make_shared<std::vector<std::string>>(id >= 0 && ReadFighterFile(id, edition, ".bcm", bytes, code, error) ?
         ReadChargeNames(bytes.data(), bytes.size()) : std::vector<std::string>());
     return held.names;
 }
@@ -518,15 +525,23 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
             // Native BAC action header: first/last attack boundary,
             // interruptible frame, total animation frames. Zero/zero is
             // common on recovery-only actions and is not 0f startup.
-            if (script && script[1] > script[0] && script[0] < script[3] && script[3] <= 4096) {
+            // A fireball's script has no hit of its own and its header can lag the spawn
+            // (Dee Jay's Air Slasher: header 27, spawn 14), so there the spawn decides.
+            const bac::File* file = files ? FighterScripts(system, side).get() : nullptr;
+            const bool owned = file && static_cast<std::size_t>(sample.action) < file->scripts.size();
+            if (owned && file->scripts[sample.action].hits.empty() && script && script[3] <= 4096 &&
+                bac::ProjectileBoundary(*file, sample.action, sample.firstActiveFrame, sample.lastActiveFrame, &sample.projectileDelay)) {
+                if (sample.firstActiveFrame < script[3]) sample.boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
+                else sample.firstActiveFrame = sample.lastActiveFrame = -1;
+            } else if (script && script[1] > script[0] && script[1] <= script[3] && script[3] <= 4096) {
+                // An end past the script's own marks no attack (4000 on Elena's and Rolento's jumps).
                 sample.firstActiveFrame = script[0];
                 sample.lastActiveFrame = script[1];
                 sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
-            } else if (files && script && script[3] <= 4096 &&
-                bac::ProjectileBoundary(*FighterScripts(system, side), sample.action, sample.firstActiveFrame, sample.lastActiveFrame)) {
-                if (sample.firstActiveFrame < script[3]) sample.boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
-                else sample.firstActiveFrame = sample.lastActiveFrame = -1;
+                sample.headerOnly = owned && file->scripts[sample.action].hits.empty();
             }
+            // The hits as the game puts them out, from the edition's own file.
+            if (owned) sample.hitPhase = bac::HitPhase(file->scripts[sample.action], sample.actionFrame);
             if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
             if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
         }
@@ -536,6 +551,7 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
         std::uint32_t category = 0;
         if (command) std::memcpy(&category, command + 0x28, sizeof category);
         sample.actionClass = ResolveActionClass(true, sample.status, command != nullptr, category);
+        sample.commandMove = reinterpret_cast<std::uintptr_t>(command);
         (actor->*Actor::publicMethods.GetDamage)(&value);
         sample.damage = Dimps::Math::FixedToFloat(&value);
         (actor->*Actor::publicMethods.GetComboDamage)(&value);
@@ -543,6 +559,7 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
         (actor->*Actor::publicMethods.GetVitalityAmt_FixedPoint)(&value);
         sample.health = Dimps::Math::FixedToFloat(&value);
         sample.untilActionable = (actor->*Actor::publicMethods.GetFramesUntilActionable)();
+        sample.hitStop = (actor->*Actor::publicMethods.IsInHitStop)() != 0;
         sample.valid = true;
     }
     return fighters;

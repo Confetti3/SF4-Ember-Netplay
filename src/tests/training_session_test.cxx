@@ -95,8 +95,8 @@ int main() {
         move.status = 16; move.action = 100; move.firstActiveFrame = 9;
         move.actionFrame = 3; startup.Observe(1, startupSamples);
         move.actionFrame = 6; startup.Observe(2, startupSamples);
-        startup.Observe(3, startupSamples); // A frozen animation frame.
-        move.actionFrame = 9; move.timeScale = 0; startup.Observe(4, startupSamples);
+        move.timeScale = 0; startup.Observe(3, startupSamples); // A frame frozen by a super's freeze.
+        move.actionFrame = 9; startup.Observe(4, startupSamples);
         Require(startup.View().startupFrames[0] == 3, "Startup counted BAC ticks or freeze instead of advancing frames");
         move.action = 101; move.actionFrame = 1; move.firstActiveFrame = 2; move.timeScale = 1;
         startup.Observe(5, startupSamples); move.actionFrame = 2; startup.Observe(6, startupSamples);
@@ -534,15 +534,19 @@ int main() {
             Require(at(3) == MeterKind::Startup && at(4) == MeterKind::Active && at(6) == MeterKind::Active && at(7) == MeterKind::Recovery, "Attack frames misfiled");
             // A move of 4 startup, 3 active, 4 recovery frames, blocked on its first active frame with two frames of hitstop.
             FrameMeter counted; std::array<FighterSample, 2> pair;
-            const auto step = [&](int tick, unsigned status, float frame, unsigned other) {
+            const auto step = [&](int tick, unsigned status, float frame, unsigned other, bool stop = false) {
                 for (auto& fighter : pair) { fighter = FighterSample{}; fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; fighter.action = 0; }
                 pair[0].status = status; pair[0].action = status == 16 ? 100 : 0; pair[0].actionFrame = frame; pair[0].firstActiveFrame = status == 16 ? 4 : -1; pair[0].lastActiveFrame = status == 16 ? 7 : -1;
-                pair[1].status = other; pair[1].action = other ? 200 : 0; pair[1].actionFrame = static_cast<float>(tick);
+                pair[1].status = other; pair[1].action = other ? 200 : 0;
+                // Hitstop holds both: the one struck moves on with the attacker.
+                pair[1].actionFrame = other ? frame : static_cast<float>(tick);
+                pair[0].hitStop = pair[1].hitStop = stop;
                 counted.Observe(tick, pair);
             };
             int tick = 0;
             step(tick++, 0, 0, 0);
-            for (float frame : {1.f, 2.f, 3.f, 4.f, 4.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 4 ? 22 : 0), ++tick;
+            float last = 0;
+            for (float frame : {1.f, 2.f, 3.f, 4.f, 4.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f}) step(tick, 16, frame, frame >= 4 ? 22 : 0, frame == last), ++tick, last = frame;
             Require(counted.View().startupFrames[0] == 4, "The startup frames before the first active one miscounted");
             Require(counted.View().moves[0].live && counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 4, "A live move's active or recovery cells miscounted, or hitstop counted");
             Require(counted.View().advantage.attacker == 0 && counted.View().advantage.blocked, "A blocked attack was not told from a hit");
@@ -641,6 +645,109 @@ int main() {
             Require(counted.View().frames.back().fighters[1].wake && !counted.View().frames.back().fighters[0].wake && !counted.View().frames[counted.View().frames.size() - 2].fighters[1].wake, "The first frame up was not marked, or more than it");
         }
         {
+            // Balrog's headbutt: six startup frames in one script, then a second script that
+            // opens active. Its startup is seven, not one counted again from the second script.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 346; pair[0].hitPhase = 0;
+            for (int frame = 1; frame <= 6; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 369; pair[0].hitPhase = 1; pair[0].actionFrame = 0; counted.Observe(7, pair);
+            pair[0].actionFrame = 1; counted.Observe(8, pair);
+            Require(counted.View().startupFrames[0] == 7 && counted.View().moves[0].active == 2, "A move's active second script restarted its startup");
+        }
+        {
+            // Vega's roll: the first script is active 3 frames and ends with one more, the second
+            // (same command move) winds up and hits 1, then 4 frames recover. Its frame 0 is a
+            // frame too, so 3(3)1: active 7.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            int tick = 1;
+            pair[0].status = 16; pair[0].action = 416; pair[0].commandMove = 0x1000;
+            for (int phase : {0, 1, 1, 1, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            Require(counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 1, "The first script's hits or its tail miscounted");
+            pair[0].action = 417;
+            int frame = 0;
+            for (int phase : {0, 0, 1, 3, 3, 3, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(frame++); counted.Observe(tick++, pair); }
+            Require(counted.View().startupFrames[0] == 2 && counted.View().moves[0].active == 7 && counted.View().moves[0].recovery == 4,
+                "A two-script move's gap or recovery miscounted");
+        }
+        {
+            // Poison's 236LP: the fireball spawns at script frame 33 (boundary 34) while the
+            // script plays 2 frames a step; the step from 32.99 to 34.99 spawns it, the next hits.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 443; pair[0].firstActiveFrame = 34; pair[0].lastActiveFrame = 35;
+            pair[0].boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
+            int tick = 1;
+            for (float frame : {28.99f, 30.99f, 32.99f, 34.99f}) { pair[0].actionFrame = frame; counted.Observe(tick++, pair); }
+            Require(counted.View().startupFrames[0] < 0, "A fireball hit the step it spawned");
+            pair[0].actionFrame = 36.99f; counted.Observe(tick++, pair);
+            Require(counted.View().startupFrames[0] == 5, "A fireball's startup missed the step after its spawn");
+            pair[0].actionFrame = 38.99f; counted.Observe(tick++, pair);
+            Require(counted.View().moves[0].active == 1 && counted.View().moves[0].recovery == 1, "A fireball's step after its spawn was not its active one");
+        }
+        for (const bool input : {false, true}) {
+            // Seth's 214LK plays two scripts, the second opening in startup, under one command
+            // move: one move, startup counted from the first. A target combo is a new input
+            // (another command move) and so a new move with its own startup.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 450; pair[0].hitPhase = 0; pair[0].commandMove = 0x1000;
+            // The target combo's first hit is out on frame 5; Seth's first script has none.
+            for (int frame = 1; frame <= 5; ++frame) { pair[0].hitPhase = input && frame == 5 ? 1 : 0; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 464; pair[0].commandMove = input ? 0x2000 : 0x1000;
+            for (int frame = 0; frame < 7; ++frame) { pair[0].hitPhase = frame < 6 ? 0 : 1; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(6 + frame, pair); }
+            Require(counted.View().startupFrames[0] == (input ? 7 : 12), input ? "A target combo's own startup was not counted" : "A move's own next script restarted its startup");
+        }
+        {
+            // Adon's far HK hits twice: Ryu's reaction starts again from its first frame as the
+            // second hitstop begins. That frame is hitstop, not one the reaction moved on.
+            FighterSample before, after;
+            before.valid = after.valid = true; before.action = after.action = 133;
+            before.actionFrame = 2.375f; after.actionFrame = 0;
+            Require(!AnimationMoved(before, after), "A reaction started again by a second hit counted as moving");
+            after.actionFrame = 1.2f;
+            Require(AnimationMoved(before, after), "A restarted reaction past its first frame did not count as moving");
+            before.actionFrame = 1; after.actionFrame = 1;
+            Require(!AnimationMoved(before, after), "A held frame counted as moving");
+            after.action = 134;
+            Require(AnimationMoved(before, after), "A new action past its first frame did not count as moving");
+        }
+        {
+            // Akuma's demon flip punch sends Ryu from standing straight into the bound;
+            // the hit is still contact, with his combo damage changing on it.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            pair[1].comboDamage = 320;
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 425; pair[0].posture = -1;
+            for (int frame = 1; frame <= 3; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[1].status = 18; pair[1].action = 28; pair[1].comboDamage = 130; pair[0].actionFrame = 4; counted.Observe(4, pair);
+            Require(counted.View().advantage.pending && counted.View().advantage.attacker == 0 && !counted.View().advantage.blocked,
+                "A hit straight into the bound was not contact");
+        }
+        {
+            // Adon's throw: the grab is active on frame 3, then Adon plays the throw in Skill
+            // while Ryu is held in a sequence. The throw is no new move: startup stays 3 and
+            // its frames are drawn as the sequence; once Ryu is let go the rest is recovery.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 288;
+            for (int frame = 1; frame <= 3; ++frame) { pair[0].hitPhase = frame < 3 ? 0 : 1; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 292; pair[0].hitPhase = 0; pair[1].status = 24; pair[1].action = 293;
+            for (int frame = 0; frame < 5; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(frame); counted.Observe(4 + frame, pair); }
+            Require(counted.View().startupFrames[0] == 3 && counted.View().frames.back().cells[0].kind == MeterKind::Sequence,
+                "A throw played in Skill restarted the thrower's startup, or was not drawn as its sequence");
+            pair[0].hitPhase = 3; pair[1].status = 20; pair[1].action = 34;
+            for (int frame = 5; frame < 8; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(frame); counted.Observe(4 + frame, pair); }
+            Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].recovery == 3, "A thrower's frames after the throw were not its recovery");
+        }
+        {
             // A move's recovery is its recovery cells: first=3, last=5 is 2
             // startup, 2 active and from frame 5 recovery cells. Ending it,
             // in a guard, a hit, blockstun or standing, adds none.
@@ -655,13 +762,26 @@ int main() {
                 for (int cell = 1; cell <= cells; ++cell) {
                     pair[0].actionFrame = static_cast<float>(5 + cell); counted.Observe(5 + cell, pair);
                 }
-                const int recovery = 1 + cells;
-                Require(counted.View().moves[0].recovery == recovery, "Live recovery cells miscounted");
+                Require(counted.View().moves[0].recovery == 1 + cells, "Live recovery cells miscounted");
+                // The script holds its last frame: in hitstop that is no cell; otherwise (Adon's
+                // crouching MK) it is one more.
+                pair[0].hitStop = pair[1].hitStop = true; counted.Observe(6 + cells, pair);
+                pair[0].hitStop = pair[1].hitStop = false;
+                Require(counted.View().moves[0].recovery == 1 + cells, "A frame left out of the bars was counted as recovery");
+                pair[1].actionFrame = 1; counted.Observe(7 + cells, pair);
+                Require(counted.View().moves[0].recovery == 2 + cells, "A held last frame the bars draw was not counted as recovery");
+                // Both still outside hitstop (Seth's 623HP landing while Ryu lies down) is a frame.
+                counted.Observe(8 + cells, pair);
+                Require(counted.View().moves[0].recovery == 3 + cells, "A frame both fighters held outside hitstop was not counted");
+                // So is one where only the other is in hitstop (Cody's EX Bad Stone: the rock's hit).
+                pair[1].hitStop = true; counted.Observe(9 + cells, pair); pair[1].hitStop = false;
+                const int recovery = 4 + cells;
+                Require(counted.View().moves[0].recovery == recovery, "The other fighter's hitstop held the mover's frame");
                 pair[0].status = finish; pair[0].action = 0; pair[0].actionFrame = 0;
-                counted.Observe(6 + cells, pair);
+                counted.Observe(10 + cells, pair);
                 Require(!counted.View().moves[0].live && counted.View().moves[0].recovery == recovery, "Ending a move changed its recovery");
-                counted.Observe(7 + cells, pair);
-                pair[0].status = 0; counted.Observe(8 + cells, pair);
+                counted.Observe(11 + cells, pair);
+                pair[0].status = 0; counted.Observe(12 + cells, pair);
                 Require(counted.View().moves[0].recovery == recovery, "A later recovered state changed completed recovery");
             }
         }

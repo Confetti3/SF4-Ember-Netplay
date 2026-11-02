@@ -69,6 +69,7 @@ void Actor::Locate(HMODULE peRoot) {
 	*(PVOID*)(&publicMethods.GetActionScript) = (PVOID)(peRootOffset + 0x12da50);
 	*(PVOID*)(&publicMethods.GetCommandMove) = (PVOID)(peRootOffset + 0x1423b0);
 	*(PVOID*)(&publicMethods.GetFramesUntilActionable) = (PVOID)(peRootOffset + 0x142480);
+	*(PVOID*)(&publicMethods.IsInHitStop) = (PVOID)(peRootOffset + 0x12d980);
 	*(PVOID*)(&publicMethods.IsAirborne) = (PVOID)(peRootOffset + 0x139f40);
 	*(PVOID*)(&publicMethods.IsCrouching) = (PVOID)(peRootOffset + 0x13a020);
 
