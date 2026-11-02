@@ -8,6 +8,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include "../common/Localization.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__ReplayStore.hxx"
@@ -38,6 +39,7 @@ struct Export : Steps<Stage> {
 	std::vector<Job> jobs;
 	std::size_t at = 0;
 	std::uint64_t id = 0;
+	int tries = 0;
 } s_export;
 
 std::vector<std::string> Fields(const std::string& line) {
@@ -111,8 +113,17 @@ void TickExport(bool atMainMenu) {
 		break;
 	}
 	case Stage::Starting:
-		if (status.step == Step::Idle && status.exportEnded != run.id) run.Fail("export " + std::to_string(run.at + 1), "not started: '" + status.notice + "'");
-		else run.Enter(Stage::Exporting);
+		if (status.step != Step::Idle || status.exportEnded == run.id) { run.tries = 0; run.Enter(Stage::Exporting); break; }
+		// Just after the main menu comes up the game is still reading its saves
+		// and an import is refused: asked again each second, for half a minute,
+		// as the replay test does.
+		if (status.notice == loc::T("replays.not_ready") && run.tries < 30) {
+			if (run.waited < kSecond) break;
+			run.tries++;
+			run.Enter(Stage::Next);
+			break;
+		}
+		run.Fail("export " + std::to_string(run.at + 1), "not started: '" + status.notice + "'");
 		break;
 	case Stage::Exporting: {
 		if (status.exportEnded != run.id || status.step != Step::Idle) {
