@@ -338,6 +338,35 @@ static void TestWinnerKeepsFighterAndRecords() {
 	CHECK(!KeepsFighter(classic, 1));
 }
 
+// The client offers a rematch in place only where the authority leaves the set
+// open: an Arcade room with no set length plays sets of one game, so its pair
+// must rotate rather than restart (a third player would never get a turn).
+static void TestRematchInPlaceFollowsSetGoal() {
+	Snapshot snapshot;
+	auto& table = snapshot.tables[0];
+	for (const auto type : {ArcadeRoom, KingRoom}) {
+		snapshot.arcade = type;
+		table.rules.format = SetFormat::Unlimited;
+		table.score[0] = table.score[1] = 0;
+		CHECK(SetGoal(snapshot, table) == 1);
+		CHECK(!RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));
+		CHECK(!RematchInPlaceOffered(snapshot, table, MatchResult::P2Win));
+		CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::Draw));
+	}
+	snapshot.arcade = ArcadeRoom;
+	table.rules.format = SetFormat::Ft2;
+	CHECK(SetGoal(snapshot, table) == 2);
+	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));   // 1-0 mid-set
+	table.score[0] = 1;
+	CHECK(!RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));  // wins the set
+	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P2Win));
+	// Classic rooms keep an unlimited set open.
+	snapshot.arcade = ClassicRoom;
+	table.rules.format = SetFormat::Unlimited;
+	CHECK(SetGoal(snapshot, table) == 0);
+	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -355,6 +384,7 @@ int main() {
 		TestWinnerKeepsFighterAndRecords();
 		TestPublicArcade();
 		TestArcadePracticeRoom();
+		TestRematchInPlaceFollowsSetGoal();
 	} catch (const std::exception& error) {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;

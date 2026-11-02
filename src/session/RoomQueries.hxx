@@ -264,4 +264,19 @@ inline bool LocalLeftSeat(const Snapshot& snapshot) {
 	return snapshot.roomEpoch && PlaceOf(snapshot, snapshot.localMember).kind != Place::Kind::Seat;
 }
 
+// The games that win a set at `table`: its format's, or one in an Arcade or King
+// room with no set length (the authority's rule in RoomAuthority::RecordResult).
+// 0 means the set never ends.
+inline std::uint32_t SetGoal(const Snapshot& room, const Table& table) {
+	return (std::max)(static_cast<std::uint32_t>(table.rules.format), room.arcade ? 1u : 0u);
+}
+
+// Whether the game that just ended with `result` leaves the pair to fight on in
+// place, rather than ending the set for the room to rotate.
+inline bool RematchInPlaceOffered(const Snapshot& room, const Table& table, MatchResult result) {
+	const auto goal = SetGoal(room, table);
+	const int seat = result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
+	return goal == 0 || seat < 0 || table.score[seat] + 1 < goal;
+}
+
 } }
