@@ -2,6 +2,7 @@
 
 #include <atomic>
 
+#include "../platform/Utf8.hxx"
 #include "../ui/MenuWalk.hxx"
 
 // The menu test: walks the menus by the keys a player presses (ui::MenuWalk:
