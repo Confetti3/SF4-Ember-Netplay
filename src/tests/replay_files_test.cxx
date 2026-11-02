@@ -495,7 +495,22 @@ static void TestSetReplays() {
  archive[1].sent = true;
  archive[0].sent = true; CHECK(!sets::NextToArchive(archive, 1));
  archive.erase(archive.begin()); archive.pop_back();
- CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
+ CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated") && !sets::SendSettled("discord_required"));
+ // The replay archive wanting Discord holds the other games back until the
+ // player signs in with another account, or the same one again; sets' games go meanwhile.
+ {
+  sf4e::platform::replays::ReplaySender waiting;
+  waiting.Discord("");
+  waiting.Sent(1, "x", false, 0);
+  CHECK(waiting.Take(1, false, "discord_required", 0) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
+  waiting.Discord(""); CHECK(!waiting.Archives());
+  waiting.Sent(2, "y", true, 10); CHECK(waiting.Take(2, false, "discord_required", 10) == sf4e::platform::replays::ReplaySender::Answer::Again && !waiting.Archives());
+  waiting.Discord("111:5"); CHECK(waiting.Archives());
+  waiting.Sent(3, "x", false, 20);
+  CHECK(waiting.Take(3, false, "discord_required", 20) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
+  waiting.Discord("111:5"); CHECK(!waiting.Archives()); // the account already read is not a new sign-in
+  waiting.Discord("111:9"); CHECK(waiting.Archives());
+ }
  const auto listed = sets::Sets(archive);
  CHECK(listed.size() == 3 && listed[0].matchId == "emt_b" && listed[0].rooms == 1 && listed[2].matchId == "emt_c");
  CHECK(listed[1].games.size() == 3 && listed[1].games[0] == &archive[4] && listed[1].games[2] == &archive[2] && listed[1].rooms == 2);

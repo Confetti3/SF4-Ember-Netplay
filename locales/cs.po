@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Sdílet mé záznamy"
 
 msgid "replays.share_detail"
-msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, s vaším jménem a zemí; soupeř je uveden jen tehdy, když také sdílí. Organizované turnajové zápasy se sdílejí vždy, se jmény obou hráčů. Archivované zápasy, ve kterých jsou uvedeni oba hráči, se mohou objevit i na YouTube kanálu Emberu."
+msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, s vaším jménem a zemí; soupeř je uveden jen tehdy, když také sdílí. Organizované turnajové zápasy se sdílejí vždy, se jmény obou hráčů. Archivované zápasy, ve kterých jsou uvedeni oba hráči, se mohou objevit i na YouTube kanálu Emberu. Sdílí se jen tehdy, když jste přihlášeni přes Discord (Nastavení > Online > Discord)."
 
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"

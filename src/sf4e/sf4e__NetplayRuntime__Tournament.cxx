@@ -205,11 +205,19 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 // other game would. A set's replay its bridge has not confirmed yet
 // (replay_unconfirmed) is put aside for ten minutes while the others go. Any
 // other failure puts that replay aside too, for longer each time (two minutes
-// to ten), so one a bridge keeps failing never holds up the rest. Nothing more
-// goes while one is out (ReplaySender).
+// to ten), so one a bridge keeps failing never holds up the rest. The replay
+// archive takes games only from a player signed in with Discord: refused for
+// that, other games wait for a Discord sign-in (ReplaySender::Discord) while
+// sets' games go on. Nothing more goes while one is out (ReplaySender).
 // ponytail: the archive is listed once a minute for this, whether or not a set was played.
 void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 	auto& sending = runtime->replaySend;
+	// The account the interface last read from the bridge, as the sign-in a
+	// new connect changes.
+	if (runtime->room) {
+		const auto account = runtime->room->Identity().Discord();
+		sending.Discord(account.user.empty() ? std::string() : account.user + ":" + std::to_string(account.connectedAt));
+	}
 	if (!helperReady) return;
 	switch (sending.Poll(nowMs)) {
 	case platform::replays::ReplaySender::Step::Wait: return;
@@ -266,6 +274,9 @@ bool TakeReplaySent(const session::TournamentAnswer& answer, std::uint64_t nowMs
 	} else if (settled == Answer::SetClosed) {
 		spdlog::info("Replays: the set is closed to {}; the replay archive may take it", platform::WideToUtf8(sending.Path().filename().wstring()));
 		platform::replays::MarkSetClosed(sending.Path());
+	} else if (settled == Answer::NeedsDiscord) {
+		spdlog::info("Replays: the replay archive takes games only from a player signed in with Discord; {} and the other online games wait for a sign-in",
+			platform::WideToUtf8(sending.Path().filename().wstring()));
 	} else if (settled == Answer::Unconfirmed) {
 		spdlog::info("Replays: the set's bridge has not confirmed {} yet; trying it again in {} min", platform::WideToUtf8(sending.Path().filename().wstring()),
 			platform::replays::ReplaySender::kUnconfirmedMs / 60000);

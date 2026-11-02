@@ -31,9 +31,11 @@ const REPLAY_TYPE: &str = "application/octet-stream";
 pub(super) const REPLAY_BUDGET: Duration = Duration::from_secs(45);
 
 /// A bridge without the replay routes takes none, ever: the game is told so
-/// once rather than sending again.
+/// once rather than sending again. The online archive keeps only the games
+/// of players signed in with Discord; a bridge that refuses one for that is
+/// worded `discord_required`.
 const REFUSALS: Refusals<'static> = Refusals {
-    reasons: &[],
+    reasons: &[Code::DiscordRequired.as_str()],
     missing: Some(Code::ReplaysUnsupported),
 };
 /// A set's route words two refusals apart: `set_closed`, final for the set
@@ -118,8 +120,10 @@ fn replay_put<'a>(target: &'a str, replay: &'a [u8]) -> BridgeCall<'a> {
 /// Sends the replay at `path` to the archive of the first of the player's
 /// bridges that keeps one: their own approvals, then the built-ins they
 /// used. `bridge_id` names it; `kept` is false when it already had the game.
-/// None keeps one: `replays_unsupported`, so the game stops sending; a bridge
-/// that failed otherwise is the failure, so the game tries again later. The
+/// None keeps one: a bridge that failed otherwise is the failure, so the game
+/// tries again later; else `discord_required` when one refused the player for
+/// not being signed in with Discord, so the game waits for that; else
+/// `replays_unsupported`, so the game stops sending. The
 /// worker cuts the whole of it off at the request's deadline (REPLAY_BUDGET),
 /// so no bridge is tried once that has passed.
 pub async fn archive(shared: &Arc<Shared>, path: &str, sides: &Sides) -> Outcome {
@@ -147,7 +151,8 @@ where
     F: FnMut(String) -> Fut,
     Fut: Future<Output = Result<u16, Failure>>,
 {
-    let mut failed = Failure::new(Code::ReplaysUnsupported);
+    let mut failed = None;
+    let mut discord = false;
     for bridge_id in bridges {
         match put(bridge_id.clone()).await {
             Ok(status) => {
@@ -156,10 +161,19 @@ where
                 ));
             }
             Err(Failure::Local(Code::ReplaysUnsupported)) => {}
-            Err(failure) => failed = failure,
+            Err(Failure::Bridge(reason)) if reason == Code::DiscordRequired.as_str() => {
+                discord = true;
+            }
+            Err(failure) => failed = Some(failure),
         }
     }
-    Err(failed)
+    Err(failed.unwrap_or_else(|| {
+        Failure::new(if discord {
+            Code::DiscordRequired
+        } else {
+            Code::ReplaysUnsupported
+        })
+    }))
 }
 
 /// Writes the set's pack to `path`.
@@ -226,6 +240,17 @@ mod tests {
         assert_eq!(set(400, &other), "invalid_request");
         let archive = client::refused(400, &closed, &REFUSALS).into_reason();
         assert_eq!(archive, "invalid_request");
+        let discord = body("forbidden", "discord_required");
+        assert_eq!(
+            client::refused(403, &discord, &REFUSALS).into_reason(),
+            "discord_required"
+        );
+        assert_eq!(set(403, &discord), "forbidden");
+        let forbidden = body("forbidden", "other");
+        assert_eq!(
+            client::refused(403, &forbidden, &REFUSALS).into_reason(),
+            "forbidden"
+        );
     }
 
     /// A replay request answers by its deadline, whatever its bridges do, and
@@ -276,6 +301,47 @@ mod tests {
         assert_eq!(
             kept.await.ok().flatten(),
             Some(json!({ "kept": true, "bridge_id": "brg_b" }))
+        );
+    }
+
+    /// A bridge that wants Discord does not end the search; it is the answer
+    /// only when no bridge kept the game or failed otherwise, ahead of
+    /// `replays_unsupported`.
+    #[tokio::test]
+    async fn discord_required_is_the_answer_when_no_bridge_keeps_the_game() {
+        let answer = |outcomes: Vec<Result<u16, Failure>>| async move {
+            let outcomes = Mutex::new(outcomes);
+            let bridges = (0..outcomes.lock().unwrap().len())
+                .map(|n| format!("brg_{n}"))
+                .collect();
+            first_keeping(bridges, |_| {
+                let next = outcomes.lock().unwrap().remove(0);
+                async move { next }
+            })
+            .await
+        };
+        let discord = || Err(Failure::Bridge("discord_required".to_owned()));
+        let unsupported = || Err(Failure::new(Code::ReplaysUnsupported));
+        let reason = |outcome: super::Outcome| outcome.err().map(Failure::into_reason);
+        assert_eq!(
+            reason(answer(vec![unsupported(), discord()]).await).as_deref(),
+            Some("discord_required")
+        );
+        assert_eq!(
+            reason(answer(vec![discord(), unsupported()]).await).as_deref(),
+            Some("discord_required")
+        );
+        assert_eq!(
+            reason(answer(vec![discord(), Err(Failure::new(Code::Io))]).await).as_deref(),
+            Some("io")
+        );
+        assert_eq!(
+            answer(vec![discord(), Ok(200)]).await.ok().flatten(),
+            Some(json!({ "kept": false, "bridge_id": "brg_1" }))
+        );
+        assert_eq!(
+            reason(answer(vec![unsupported()]).await).as_deref(),
+            Some("replays_unsupported")
         );
     }
 

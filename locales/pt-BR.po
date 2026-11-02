@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Compartilhar meus replays"
 
 msgid "replays.share_detail"
-msgstr "Envia as partidas que você jogar a partir de agora para o arquivo público de replays do seu bridge, com o seu nome e o seu país; o oponente só é nomeado se também compartilhar. As partidas de torneios organizados são sempre compartilhadas, com o nome dos dois jogadores. Partidas arquivadas com o nome dos dois jogadores também podem ser exibidas no canal do Ember no YouTube."
+msgstr "Envia as partidas que você jogar a partir de agora para o arquivo público de replays do seu bridge, com o seu nome e o seu país; o oponente só é nomeado se também compartilhar. As partidas de torneios organizados são sempre compartilhadas, com o nome dos dois jogadores. Partidas arquivadas com o nome dos dois jogadores também podem ser exibidas no canal do Ember no YouTube. Só são compartilhadas enquanto você estiver conectado com o Discord (Configurações > Online > Discord)."
 
 msgid "replays.link"
 msgstr "Reproduzir o replay do link"
