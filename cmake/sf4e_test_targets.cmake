@@ -74,6 +74,7 @@ sf4e_add_unit_test(NAME RoomSpectatorLock SOURCES "src/tests/room_spectator_lock
 sf4e_add_unit_test(NAME RoomReadyTimeout SOURCES "src/tests/room_ready_timeout_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME CreatedRules SOURCES "src/tests/created_rules_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME ReadyChime SOURCES "src/tests/ready_chime_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RandomFighter SOURCES "src/tests/random_fighter_test.cxx" LIBS sf4e_room_model sf4e_selection TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room training)
 sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")

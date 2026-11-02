@@ -2283,6 +2283,15 @@ msgstr "Winquote"
 msgid "selection.random"
 msgstr "Willekeurig"
 
+msgid "selection.random_card"
+msgstr "Willekeurig"
+
+msgid "selection.random_card.detail"
+msgstr "Elk spel een nieuwe vechter, geloot uit de vechters die je hebt."
+
+msgid "selection.random_fighter"
+msgstr "Willekeurig · {0}"
+
 msgid "selection.random_stage"
 msgstr "Willekeurig"
 

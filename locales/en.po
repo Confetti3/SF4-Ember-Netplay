@@ -2283,6 +2283,15 @@ msgstr "Win quote"
 msgid "selection.random"
 msgstr "Random"
 
+msgid "selection.random_card"
+msgstr "Random"
+
+msgid "selection.random_card.detail"
+msgstr "A new fighter for every game, rolled from the ones you own."
+
+msgid "selection.random_fighter"
+msgstr "Random · {0}"
+
 msgid "selection.random_stage"
 msgstr "Random"
 

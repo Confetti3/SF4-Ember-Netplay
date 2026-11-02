@@ -2283,6 +2283,15 @@ msgstr "Победный клич"
 msgid "selection.random"
 msgstr "Случайно"
 
+msgid "selection.random_card"
+msgstr "Случайно"
+
+msgid "selection.random_card.detail"
+msgstr "Новый боец в каждой игре, выбранный случайно из тех, что у вас есть."
+
+msgid "selection.random_fighter"
+msgstr "Случайно · {0}"
+
 msgid "selection.random_stage"
 msgstr "Случайно"
 

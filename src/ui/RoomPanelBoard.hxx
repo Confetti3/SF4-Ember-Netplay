@@ -18,7 +18,8 @@ namespace sf4e { namespace ui {
 // screen): the member's pick, else their main (`picked` false), with the
 // costume, colour and Ultra they shared (-1 where not). This PC's own member
 // shows this PC's own pick, so it is right as it changes.
-struct SeatLook { int fighter=-1, costume=-1, color=-1, ultra=-1; bool picked=false; };
+// random: the local player's own Random pick, named "Random · Ryu" at their seat.
+struct SeatLook { int fighter=-1, costume=-1, color=-1, ultra=-1; bool picked=false, random=false; };
 SeatLook SeatLookOf(const ShellView& v,const room::Member& m);
 // Settings › Room layout › Pictures.
 FighterArt RoomFighterArt(const netplay::PlayerPreferences& preferences);

@@ -2283,6 +2283,15 @@ msgstr "Kommentar"
 msgid "selection.random"
 msgstr "Zufällig"
 
+msgid "selection.random_card"
+msgstr "Zufällig"
+
+msgid "selection.random_card.detail"
+msgstr "Für jedes Spiel ein neuer Kämpfer, ausgelost aus denen, die du besitzt."
+
+msgid "selection.random_fighter"
+msgstr "Zufällig · {0}"
+
 msgid "selection.random_stage"
 msgstr "Zufällig"
 

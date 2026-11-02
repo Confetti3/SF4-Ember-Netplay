@@ -2283,6 +2283,15 @@ msgstr "승리 대사"
 msgid "selection.random"
 msgstr "랜덤"
 
+msgid "selection.random_card"
+msgstr "랜덤"
+
+msgid "selection.random_card.detail"
+msgstr "게임마다 보유한 캐릭터 중에서 새로 뽑습니다."
+
+msgid "selection.random_fighter"
+msgstr "랜덤 · {0}"
+
 msgid "selection.random_stage"
 msgstr "랜덤"
 

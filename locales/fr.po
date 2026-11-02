@@ -2283,6 +2283,15 @@ msgstr "Réplique"
 msgid "selection.random"
 msgstr "Aléatoire"
 
+msgid "selection.random_card"
+msgstr "Aléatoire"
+
+msgid "selection.random_card.detail"
+msgstr "Un nouveau combattant à chaque partie, tiré au sort parmi ceux que vous possédez."
+
+msgid "selection.random_fighter"
+msgstr "Aléatoire · {0}"
+
 msgid "selection.random_stage"
 msgstr "Aléatoire"
 

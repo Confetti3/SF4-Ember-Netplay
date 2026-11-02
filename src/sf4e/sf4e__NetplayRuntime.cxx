@@ -826,6 +826,7 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
+	ShowRandomFighter();
 	NoteNativeScreen();
 	SayTraining();
 	SayTyping();

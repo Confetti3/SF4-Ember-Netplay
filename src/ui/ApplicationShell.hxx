@@ -179,6 +179,8 @@ struct ShellView {
     int trainingReadySeconds = 0;
     bool canTrain = false;
     int selectedFighter = 0;
+    // The pick is Random: selectedFighter is the fighter it rolled (docs/design/RANDOM_FIGHTER.md).
+    bool selectedRandom = false;
     // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
     // Ember's menu is open over the fight, and End practice ends the game.
     bool practiceFight = false;

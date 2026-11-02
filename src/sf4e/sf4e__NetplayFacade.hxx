@@ -360,6 +360,10 @@ namespace sf4e {
 		// Any thread: the player is writing a chat draft in room `roomGeneration`
 		// this frame. The runtime tells the room they are typing (Typing).
 		void NoteChatTyping(std::uint64_t roomGeneration);
+		// Any thread, every frame: whether the player's pick is Random, and the
+		// fighter it rolled for the next game. The runtime shows the room each
+		// roll and plays no rematch in place for a Random pick.
+		void NoteRandomFighter(bool random, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& rolled);
 		// Game thread. Whether leaving for Training, asked for in session `made`,
 		// holds against `session`, whether the native main menu is up, and `room`:
 		// a Room entry, the same session at the main menu and the room's own gate

@@ -2283,6 +2283,15 @@ msgstr "胜利台词"
 msgid "selection.random"
 msgstr "随机"
 
+msgid "selection.random_card"
+msgstr "随机"
+
+msgid "selection.random_card.detail"
+msgstr "每局从你拥有的角色中重新抽取。"
+
+msgid "selection.random_fighter"
+msgstr "随机 · {0}"
+
 msgid "selection.random_stage"
 msgstr "随机"
 

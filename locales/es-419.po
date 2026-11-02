@@ -2201,6 +2201,15 @@ msgstr "Aleatorio"
 msgid "selection.random_stage.detail"
 msgstr "Un escenario diferente en cada partida."
 
+msgid "selection.random_card"
+msgstr "Aleatorio"
+
+msgid "selection.random_card.detail"
+msgstr "Un luchador nuevo en cada juego, sorteado entre los que tienes."
+
+msgid "selection.random_fighter"
+msgstr "Aleatorio · {0}"
+
 msgid "selection.random_pool"
 msgstr "Escenarios al azar"
 

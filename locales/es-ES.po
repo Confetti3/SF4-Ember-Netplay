@@ -2283,6 +2283,15 @@ msgstr "Cita triunfo"
 msgid "selection.random"
 msgstr "Al azar"
 
+msgid "selection.random_card"
+msgstr "Al azar"
+
+msgid "selection.random_card.detail"
+msgstr "Un luchador nuevo en cada partida, sorteado entre los que tienes."
+
+msgid "selection.random_fighter"
+msgstr "Al azar · {0}"
+
 msgid "selection.random_stage"
 msgstr "Al azar"
 

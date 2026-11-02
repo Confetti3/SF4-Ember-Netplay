@@ -2283,6 +2283,15 @@ msgstr "勝利コメント"
 msgid "selection.random"
 msgstr "ランダム"
 
+msgid "selection.random_card"
+msgstr "ランダム"
+
+msgid "selection.random_card.detail"
+msgstr "試合ごとに、所持しているキャラクターから新しく選ばれます。"
+
+msgid "selection.random_fighter"
+msgstr "ランダム · {0}"
+
 msgid "selection.random_stage"
 msgstr "ランダム"
 

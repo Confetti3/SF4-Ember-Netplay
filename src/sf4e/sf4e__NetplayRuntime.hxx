@@ -618,6 +618,12 @@ void TickMemberLatency();
 bool FighterSelectorShown(std::uint64_t roomGeneration);
 // Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).
 bool ChatTypingShown(std::uint64_t roomGeneration);
+// The pick is Random (NoteRandomFighter): each game is rolled for, so a
+// rematch leaves the battle instead of replaying its fighters in place.
+bool RandomFighterChosen();
+// Sends the room host the Random roll the room does not show yet, while the
+// player sits between games (room::RandomRollToShow), at most once a second.
+void ShowRandomFighter();
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

@@ -2283,6 +2283,15 @@ msgstr "Odzywka"
 msgid "selection.random"
 msgstr "Losowo"
 
+msgid "selection.random_card"
+msgstr "Losowo"
+
+msgid "selection.random_card.detail"
+msgstr "Nowa postać w każdej grze, losowana spośród tych, które posiadasz."
+
+msgid "selection.random_fighter"
+msgstr "Losowo · {0}"
+
 msgid "selection.random_stage"
 msgstr "Losowo"
 

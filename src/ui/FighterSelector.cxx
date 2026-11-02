@@ -63,6 +63,12 @@ bool ImageCard(const char* id, const char* label, const SelectionImage& image, I
     return clicked;
 }
 SelectionImage Missing() { SelectionImage image; image.missing = true; return image; }
+// The Random card's picture, as USFIV's own Random box: a large question mark.
+void RandomMark(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color) {
+    const float size = (std::min)(max.x - min.x, max.y - min.y) * .7f;
+    const auto text = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, "?");
+    draw->AddText(ImGui::GetFont(), size, ImVec2((min.x + max.x - text.x) / 2, (min.y + max.y - text.y) / 2), color, "?");
+}
 const char* HandicapLabel(int handicap) {
     static const char* const ids[]={"selection.handicap_normal","selection.handicap_one_hit","selection.handicap_25","selection.handicap_50","selection.handicap_75"};
     return loc::T(ids[(std::max)(0,(std::min)(4,handicap))]);
@@ -140,9 +146,12 @@ bool DrawStageSelector(int& nativeId, SelectionArt* art) {
 }
 
 
-bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::RandomPool* randomPool,const selection::InstalledContent* installed,bool fighterKept) {
+bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt* art,const AvailabilityReader& readAvailability,int* stageId,bool editable,const std::string& selectionError,selection::RandomPool* randomPool,const selection::InstalledContent* installed,bool fighterKept,bool* random) {
  using namespace selection;
  bool changed=false;auto& nav=menu_.navigation;
+ // The card the saved pick is: Random's, or the fighter's.
+ const bool randomSaved=random&&*random;
+ const std::string savedCard=randomSaved?"random-fighter":"fighter-"+std::to_string(pick.fighter);
  // A selector the shell has just opened starts on its board, not on the page
  // an earlier visit left it on; one it reshows resumes.
  // The parent says where Back from here goes and which of its shortcuts
@@ -154,7 +163,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   // Opened for the roster (a room's Fighter, the post-match Character select),
   // a fighter picked is the change it was opened for, as a stage is.
   // The board is the grid; the costume and the Ultra are on the fighter's own page.
-  if(openOn=="roster"){nav.Prefer("fighter-"+std::to_string(pick.fighter));openOn_=openOn;}
+  if(openOn=="roster"){nav.Prefer(savedCard);openOn_=openOn;}
   else if(openOn=="ultra"||openOn=="costumes"){nav.Push("look");nav.Prefer(openOn=="ultra"?"ultra":"costume");openOn_="look";}
   else if(openOn=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));openOn_=openOn;}
   else if(openOn=="options"){nav.Push("options");openOn_=openOn;}
@@ -194,11 +203,18 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    rows.push_back(Saving(Row("fighter-"+std::to_string(id),FindFighter(id)->name,
     !owned?loc::T("selection.not_owned"):fighterKept?loc::T("selection.winner_keeps_fighter"):locked,choosable||id==pick.fighter),"menu.hint.save_fighter",choosable));
   }
+  // Random is the last card, where USFIV's own select has it. Saved, it opens
+  // the rolled fighter's page as a saved fighter does.
+  if(random){
+   const bool choosable=editable&&!fighterKept;
+   rows.push_back(Saving(Row("random-fighter",loc::T("selection.random_card"),fighterKept?loc::T("selection.winner_keeps_fighter"):
+    editable?loc::T("selection.random_card.detail"):locked,choosable||randomSaved),"menu.hint.save_fighter",choosable));
+  }
   columns=BoardColumns;
-  // A focus from no row of the board (a first visit) starts on the saved fighter.
-  if(std::none_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==nav.Focus();}))nav.Prefer("fighter-"+std::to_string(pick.fighter));
+  // A focus from no row of the board (a first visit) starts on the saved card.
+  if(std::none_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==nav.Focus();}))nav.Prefer(savedCard);
  }else if(look){
-  title=FindFighter(pick.fighter)->name;
+  title=randomSaved?loc::Tf("selection.random_fighter",FindFighter(pick.fighter)->name):std::string(FindFighter(pick.fighter)->name);
   // Words open every choice in a panel, a number keeps its arrows (OfferSteps).
   const auto offer=[&](MenuEntry e,const std::vector<int>& ids,const std::function<std::string(int)>& name){
    std::vector<std::string> labels;for(int id:ids)labels.push_back(name(id));
@@ -295,7 +311,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    board?"selection.status_browse":"selection.status_adjust");
  GameMenu::Body body;
  if(board)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){
-  DrawBoard(entries,navigation,action,height,pick,art,readAvailability);};
+  DrawBoard(entries,navigation,action,height,pick,randomSaved,art,readAvailability);};
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,body,false,100,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  // Opened for one change, Back from its page goes back to where it came from.
@@ -307,7 +323,15 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // The page disables the last game stage left; the pool refuses it too.
    if(randomPool->Toggle(*pooled))changed=true;
   }
+  else if(a.id=="random-fighter"&&random){
+   // Chosen, Random rolls its fighter (room::RandomFighterWatch) and the board stays.
+   if(!*random&&editable&&!fighterKept){
+    *random=true;changed=true;
+    if(openOn_=="roster")ForwardMenuAction({MenuAction::Close});
+   }else if(*random)nav.Push("look");
+  }
   else if(const auto fighter=RowKey<int>(a.id,"fighter-");fighter&&editable&&!fighterKept&&*fighter<FighterCount){
+   if(random)*random=false;
    pick.fighter=*fighter;const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next,installed);changed=true;
    if(openOn_=="roster")ForwardMenuAction({MenuAction::Close});
@@ -337,7 +361,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
 }
 
 void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,
- const selection::Pick& pick,SelectionArt* art,const AvailabilityReader& readAvailability) {
+ const selection::Pick& pick,bool randomSaved,SelectionArt* art,const AvailabilityReader& readAvailability) {
  using namespace selection;
  const float s=Scale(),width=ImGui::GetContentRegionAvail().x,font=ImGui::GetFontSize(),gap=6*s;
  const auto& c=v2::Colors();
@@ -351,21 +375,23 @@ void FighterSelector::DrawBoard(const std::vector<MenuEntry>& rows,MenuNavigatio
  const std::size_t cells=MenuGridCells(rows),lines=(cells+BoardColumns-1)/BoardColumns;
  const float cw=(width-gap*(BoardColumns-1))/BoardColumns,ch=(std::max)(52*s,(std::min)(cw,(height-gap*(lines-1))/(std::max<std::size_t>)(1,lines)));
  const float label=ImGui::GetTextLineHeight()+4*s;
- // The grid: each fighter's portrait and name; the saved one ruled, one not owned dimmed.
+ // The grid: each fighter's portrait and name, then the Random card; the saved
+ // card ruled (Random's, not the fighter it rolled), a fighter not owned dimmed.
  for(std::size_t i=0;i<cells;++i){
   const auto& e=rows[i];
   const auto fighter=RowKey<int>(e.id,"fighter-");
-  if(!fighter)continue;
-  const int id=*fighter;
+  const bool randomCard=e.id=="random-fighter";
+  if(!fighter&&!randomCard)continue;
   const float x=origin.x+(i%BoardColumns)*(cw+gap),y=origin.y+(i/BoardColumns)*(ch+gap);
   const v2::Box b{ImVec2(x,y),ImVec2(x+cw,y+ch)};
-  const bool hovered=press(e,b),focused=e.id==focus;
-  v2::CardGround(d,b,focused,hovered,id==pick.fighter);
-  ImageInRect(art?art->Portrait(id):Missing(),ImVec2(b.min.x+3*s,b.min.y+3*s),ImVec2(b.max.x-3*s,b.max.y-label));
-  if(readAvailability&&FighterLocked(id,readAvailability(id)))d->AddRectFilled(b.min,b.max,v2::color::Alpha(c.ink,.65f),4*s);
+  const bool hovered=press(e,b),focused=e.id==focus,saved=randomCard?randomSaved:!randomSaved&&*fighter==pick.fighter;
+  v2::CardGround(d,b,focused,hovered,saved);
+  if(randomCard)RandomMark(d,b.min,ImVec2(b.max.x,b.max.y-label),saved?c.accent:c.text);
+  else ImageInRect(art?art->Portrait(*fighter):Missing(),ImVec2(b.min.x+3*s,b.min.y+3*s),ImVec2(b.max.x-3*s,b.max.y-label));
+  if(fighter&&readAvailability&&FighterLocked(*fighter,readAvailability(*fighter)))d->AddRectFilled(b.min,b.max,v2::color::Alpha(c.ink,.65f),4*s);
   d->AddRectFilled(ImVec2(b.min.x,b.max.y-label),b.max,v2::color::Alpha(c.ink,.85f));
   std::string elided;
-  DrawCardText(elided,ImVec2(b.min.x+4*s,b.max.y-label+2*s),cw-8*s,e.label,(std::min)(font,15*s),id==pick.fighter?c.accent:c.text,true);
+  DrawCardText(elided,ImVec2(b.min.x+4*s,b.max.y-label+2*s),cw-8*s,e.label,(std::min)(font,15*s),saved?c.accent:c.text,true);
   if(focused)v2::Focus(d,b.min,b.max,false);
  }
  ImGui::SetCursorScreenPos(ImVec2(origin.x,origin.y+lines*(ch+gap)-gap));

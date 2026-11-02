@@ -2283,6 +2283,15 @@ msgstr "Frase vittoria"
 msgid "selection.random"
 msgstr "Casuale"
 
+msgid "selection.random_card"
+msgstr "Casuale"
+
+msgid "selection.random_card.detail"
+msgstr "Un nuovo lottatore a ogni partita, estratto tra quelli che possiedi."
+
+msgid "selection.random_fighter"
+msgstr "Casuale · {0}"
+
 msgid "selection.random_stage"
 msgstr "Casuale"
 

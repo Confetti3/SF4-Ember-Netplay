@@ -2283,6 +2283,15 @@ msgstr "Vítězná fráze"
 msgid "selection.random"
 msgstr "Náhodně"
 
+msgid "selection.random_card"
+msgstr "Náhodně"
+
+msgid "selection.random_card.detail"
+msgstr "Pro každou hru nový bojovník, vylosovaný z těch, které vlastníš."
+
+msgid "selection.random_fighter"
+msgstr "Náhodně · {0}"
+
 msgid "selection.random_stage"
 msgstr "Náhodně"
 

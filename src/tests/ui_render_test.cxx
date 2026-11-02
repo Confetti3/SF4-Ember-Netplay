@@ -340,6 +340,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
 #include "ui_render_pictures.hxx"
+#include "ui_render_random_card.hxx"
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
 #include "ui_render_training_room.hxx"
@@ -697,7 +698,7 @@ int main(int argc, char** argv) {
             ApplicationShell shell;ShellView view;bool open=true;std::vector<std::string> exportsStarted;bool refuseExports=false;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
-            FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
+            FighterSelector selector;selection::Pick pick;bool randomPick=false;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
             const selection::InstalledContent* selectorContent=nullptr;
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
@@ -741,7 +742,7 @@ int main(int argc, char** argv) {
                             view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
                             view.publicRooms.admission.room.id=a.tournament.roomId;
                         }
-                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent);});
+                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent,false,&randomPick);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,recoveryMessage,recoveryUpdates,Tone::Error,false,true,&recoveryPick,recoveryReport);
                     if(mode==8)DrawReportPreviewMode(reportPanel,reportState);
@@ -860,7 +861,7 @@ int main(int argc, char** argv) {
                 selector.Navigation().Home();selector.Navigation().Push(screen);draw(screen);
             }
             CheckSelectOnRandomPoolRestoresStage(selector,stagePool,draw);
-            ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);
+            ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);ShootRandomCard(selector,randomPick,draw);
             // The board opens on the saved fighter; two steps right land on another.
             const int saved=pick.fighter;boardRow(("fighter-"+std::to_string(saved)).c_str());
             draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");

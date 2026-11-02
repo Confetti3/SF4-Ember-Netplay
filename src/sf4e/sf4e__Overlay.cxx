@@ -1,5 +1,6 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
+#include "sf4e__OverlayRandomFighter.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__SelfTest.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -271,7 +272,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter], installed) ? std::string() :
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
-		stageId ? &stagedPool : nullptr, installed, snapshot.room && sf4e::room::KeepsFighter(*snapshot.room, snapshot.room->localMember));
+		stageId ? &stagedPool : nullptr, installed, snapshot.room && sf4e::room::KeepsFighter(*snapshot.room, snapshot.room->localMember), &s_prefs.lobbyRandom);
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
@@ -433,14 +434,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (replayWants.detail) sf4e::platform::replays::WantDetail(replayWants.detailFile, replayWants.detailRevision);
     view.replays = snapshot.replays;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
-    view.selectedFighter=lobbyMenuCharaID;
+    view.selectedFighter=lobbyMenuCharaID; view.selectedRandom=s_prefs.lobbyRandom;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
-    view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
+    view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom),
         sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     const auto* dummy = sf4e::selection::FindFighter(trainingDummy.charaID);
     view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
-    view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
+    view.fighterName = sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom);
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
@@ -484,6 +485,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sides.sides[1] = trainingDummy;
 			sides.stage = sf4e::selection::ResolveStage(lobbyStageID, sf4e::localRand(), lobbyRandomPool, snapshot.installedContent->stages);
 			sf4e::GameEvents::TrainingMode::Choose(sides);
+			sf4e::overlay::RandomFighterPlayed();
 			presentation.Close("Training select");
 			return true;
 		}
@@ -682,6 +684,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (sf4e::OverlayPrefs::FollowEditionRule(lobby, s_prefs.fighters, pickEditionSelect))
             sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, lobby);
     }
+    sf4e::overlay::FollowRandomFighter(snapshot, s_prefs, lobbyConditions, lobbyMenuCharaID, pickEditionSelect);
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {

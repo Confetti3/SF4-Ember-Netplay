@@ -55,6 +55,7 @@ SeatLook SeatLookOf(const ShellView& v,const room::Member& m) {
  const bool own=m.id==v.room.localMember;
  const int picked=own?v.selectedFighter:m.fighter;
  SeatLook look;look.picked=picked>=0;look.fighter=look.picked?picked:own?v.preferences.mainFighter:m.mainFighter;
+ look.random=own&&v.selectedRandom;
  if(look.picked&&picked==m.fighter){look.costume=m.costume;look.color=m.color;look.ultra=m.ultra;}
  return look;
 }
@@ -67,9 +68,10 @@ FighterPicture SeatPicture(const SeatLook& look,FighterArt art) {
 std::string SeatCaption(const SeatLook& look,bool brief) {
  const auto* fighter=look.picked?selection::FindFighter(look.fighter):nullptr;
  if(!fighter)return loc::T("room.fighter_not_shared");
- if(look.costume<0||look.ultra<0)return fighter->name;
+ const std::string name=look.random?loc::Tf("selection.random_fighter",fighter->name):std::string(fighter->name);
+ if(look.costume<0||look.ultra<0)return name;
  selection::Pick pick;pick.fighter=look.fighter;pick.costume=look.costume;pick.color=(std::max)(0,look.color);
- return loc::Tf("room.seat_look",fighter->name,ShortCostumeLabel(pick),brief?ShortUltraLabel(look.ultra):UltraLabel(look.ultra));
+ return loc::Tf("room.seat_look",name,ShortCostumeLabel(pick),brief?ShortUltraLabel(look.ultra):UltraLabel(look.ultra));
 }
 
 namespace {
