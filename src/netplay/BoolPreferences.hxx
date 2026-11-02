@@ -25,6 +25,8 @@ inline constexpr BoolPreference BoolPreferences[] = {
     {"fasterDisplay", &PlayerPreferences::fasterDisplay}, {"borderless", &PlayerPreferences::borderless},
     {"controllerLayer", &PlayerPreferences::controllerLayer},
     {"recordWatched", &PlayerPreferences::recordWatched}, {"shareReplays", &PlayerPreferences::shareReplays}, {"discordPresence", &PlayerPreferences::discordPresence},
+    {"exportNames", &PlayerPreferences::exportNames}, {"exportLine", &PlayerPreferences::exportLine}, {"exportSet", &PlayerPreferences::exportSet},
+    {"exportMark", &PlayerPreferences::exportMark}, {"exportMeter", &PlayerPreferences::exportMeter},
     // Send problem reports is saved as sendProblemReportsWithDump since reports
     // carry the small dump, so everyone who agreed to logs only is asked again.
     // The old sendProblemReports key stays in settings.json for now: Stable and

@@ -218,6 +218,8 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"fasterDisplay", &PlayerPreferences::fasterDisplay, true}, {"borderless", &PlayerPreferences::borderless, false},
         {"controllerLayer", &PlayerPreferences::controllerLayer, true},
         {"recordWatched", &PlayerPreferences::recordWatched, true}, {"shareReplays", &PlayerPreferences::shareReplays, true}, {"discordPresence", &PlayerPreferences::discordPresence, true},
+        {"exportNames", &PlayerPreferences::exportNames, true}, {"exportLine", &PlayerPreferences::exportLine, true}, {"exportSet", &PlayerPreferences::exportSet, true},
+        {"exportMark", &PlayerPreferences::exportMark, true}, {"exportMeter", &PlayerPreferences::exportMeter, false},
         {"discordInvites", &PlayerPreferences::discordInvites, true}, {"sendProblemReportsWithDump", &PlayerPreferences::sendProblemReports, false},
         {"shareSteamProfile", &PlayerPreferences::shareSteamProfile, true}};
     CHECK(std::size(sf4e::netplay::BoolPreferences) == std::size(expected));

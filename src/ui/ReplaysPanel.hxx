@@ -2,6 +2,7 @@
 #include "MenuNavigation.hxx"
 #include "ReplaysView.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../netplay/PlayerPreferences.hxx"
 #include <cstdint>
 #include <functional>
 #include <imgui.h>
@@ -44,11 +45,14 @@ public:
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
     // when a request could not be queued.
-    bool Activate(const MenuAction& action, const ShellView& view, MenuNavigation& navigation, const Submit& submit, std::string& error);
-    // A caption page's value or text.
-    void Accept(const MenuAction& action);
+    // `saved` is the shell's copy of the player's preferences, which an export's
+    // caption page starts from (OpenExport).
+    bool Activate(const MenuAction& action, const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& navigation, const Submit& submit, std::string& error);
+    // A caption page's value or text. An on/off row returns the preference it
+    // leaves for the next export, which the shell saves; anything else, null.
+    bool netplay::PlayerPreferences::* Accept(const MenuAction& action);
     // An option chosen on a replay's row or on the link's question.
-    void Choose(const MenuAction& action, const ShellView& view, MenuNavigation& navigation, const Submit& submit, std::string& error);
+    void Choose(const MenuAction& action, const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& navigation, const Submit& submit, std::string& error);
     // The last request's outcome on the Replays screen (Show in folder's, or
     // the game's), once nothing else has anything to say: only an empty
     // `status` takes it.
@@ -57,7 +61,7 @@ public:
     // with a replay to export), and the Export video tab's caption, of the
     // focused row's replay, else the newest unless one is set up already.
     std::vector<std::pair<std::string, std::string>> Tabs(const ShellView& view) const;
-    void ExportFrom(const ShellView& view, const std::string& focus);
+    void ExportFrom(const ShellView& view, const netplay::PlayerPreferences& saved, const std::string& focus);
     // A match's or set's card (the players and score, the fighters, its
     // tags and date) and pane (its facts and Watch now, which opens the row's
     // choices); on Export video the pane is the caption over a small screen.
@@ -70,16 +74,16 @@ private:
     void InputsRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
     MenuEntry ReplayRow(const ShellView& view, const platform::replays::ArchivedReplay& replay, bool idle) const;
     void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
-    void OpenExport(const ShellView& view, const platform::replays::ArchivedReplay& replay);
-    void NextVideo(const ShellView& view, MenuNavigation& nav);
+    void OpenExport(const ShellView& view, const netplay::PlayerPreferences& saved, const platform::replays::ArchivedReplay& replay);
+    void NextVideo(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& nav);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
     // drawing the screen never reads, parses or counts the replay.
     std::string inputsFile_;
     std::uint64_t inputsRevision_ = 0;
     // The replay and caption sent when Generate video is chosen, with the
-    // frame meter when its row is on (kept from one export to the next), and
-    // the replay's length that a running export's progress is shown against.
+    // frame meter when its row is on. Its on/off parts start from the
+    // player's saved choices (OpenExport).
     std::string exportPath_;
     replay::Caption caption_;
     bool meter_ = false;

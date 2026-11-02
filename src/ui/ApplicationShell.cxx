@@ -817,7 +817,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   // is open on it (a reader, a choice); a Settings panel's head on the rail
   // names the panel (ShowTab).
   else if(!a.id.empty()){
-   if(a.id=="replay-export")replays_.ExportFrom(v,nav.Focus());
+   if(a.id=="replay-export")replays_.ExportFrom(v,preferences_,nav.Focus());
    ShowTab(a.id);
   }
   // In a room its shortcuts work from every screen, before any panel's.

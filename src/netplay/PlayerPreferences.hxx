@@ -186,6 +186,11 @@ struct PlayerPreferences {
     // A match this PC only watches is recorded too, like one it plays
     // (sf4e__UserApp.cxx: StartMatchFromLobby).
     bool recordWatched = true;
+    // Export video's caption parts and Frame meter as the player last set them,
+    // so each export starts from their choice (ReplaysPanel::OpenExport).
+    // Player names and Set score still start off for a replay whose names or
+    // set Ember does not know.
+    bool exportNames = true, exportLine = true, exportSet = true, exportMark = true, exportMeter = false;
     // Games played outside a tournament go to the public replay archive
     // (docs/design/REPLAY_ARCHIVE.md). A tournament set's games always do.
     bool shareReplays = true;

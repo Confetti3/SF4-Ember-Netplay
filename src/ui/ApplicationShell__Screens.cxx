@@ -150,14 +150,20 @@ public:
         f.shell.replays_.Status(f.view, f.screen, status, tone);
     }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
-        return f.shell.replays_.Activate(a, f.view, f.shell.menu_.navigation, submit, f.shell.error_);
+        return f.shell.replays_.Activate(a, f.view, f.shell.preferences_, f.shell.menu_.navigation, submit, f.shell.error_);
     }
+    // An export's on/off row is also kept as the player's choice for the next
+    // export, when preferences can be saved here; otherwise it is this export's only.
     bool Adjust(const ScreenFrame& f, const MenuAction& a) const override {
-        f.shell.replays_.Accept(a);
+        const auto saved = f.shell.replays_.Accept(a);
+        if (saved && f.view.canEditPreferences && f.shell.preferences_.*saved != (a.delta > 0)) {
+            f.shell.preferences_.*saved = a.delta > 0;
+            f.shell.preferencesDirty_ = true; f.shell.saveAt_ = ImGui::GetTime() + .45; f.shell.error_.clear();
+        }
         return true;
     }
     bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit& submit) const override {
-        f.shell.replays_.Choose(a, f.view, f.shell.menu_.navigation, submit, f.shell.error_);
+        f.shell.replays_.Choose(a, f.view, f.shell.preferences_, f.shell.menu_.navigation, submit, f.shell.error_);
         return true;
     }
     // The match and set cards and the focused one's pane, and Export video's
