@@ -3,9 +3,13 @@
 #include "../common/Localization.hxx"
 #include "../common/ReplayExport.hxx"
 #include "../common/ReplayInputs.hxx"
+#include "../platform/ReplayFiles.hxx"
+#include "../platform/Utf8.hxx"
 #include "FighterSelector.hxx"
 #include <algorithm>
 #include <cstdint>
+#include <cwctype>
+#include <iterator>
 #include <string>
 
 namespace sf4e { namespace ui {
@@ -29,6 +33,31 @@ inline std::string ReplayRowLabel(const std::string& date,const std::string name
   return fighter?fighter->name:loc::T("common.unavailable");
  };
  return date+"  "+loc::Tf("replays.fighters",player(0),player(1));
+}
+// What the Replays list's Show row lists, in the order Left and Right step
+// through them: every replay, the matches this PC played, the ones it only
+// watched live, those not played back yet, those with a video beside them,
+// and those the player keeps.
+enum class ReplayShow { All, Mine, Spectated, Unseen, Video };
+constexpr const char* kReplayShowKeys[]={"replays.show.all","replays.show.mine","replays.show.spectated","replays.show.unseen","replays.show.video"};
+inline ReplayShow Stepped(ReplayShow show,int delta){
+ const int last=static_cast<int>(std::size(kReplayShowKeys))-1;
+ return static_cast<ReplayShow>((std::max)(0,(std::min)(last,static_cast<int>(show)+delta)));
+}
+// A name in lower case, so Search matches it in any case.
+inline std::wstring LoweredText(const std::string& text){std::wstring wide=platform::Utf8ToWide(text.c_str());for(auto& c:wide)c=static_cast<wchar_t>(std::towlower(c));return wide;}
+// Whether the list shows a replay under that Show and a lowered Search text,
+// which a player's or a fighter's name must contain.
+inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplayShow show,const std::wstring& search) {
+ const bool spectated=replay.provenance==replayfiles::Provenance::Spectated;
+ if((show==ReplayShow::Mine&&spectated)||(show==ReplayShow::Spectated&&!spectated)||(show==ReplayShow::Unseen&&replay.watched)||
+  (show==ReplayShow::Video&&!replay.video))return false;
+ if(search.empty())return true;
+ for(int side=0;side<2;side++){
+  if(LoweredText(replay.names[side]).find(search)!=std::wstring::npos)return true;
+  if(const auto* fighter=selection::FindFighter(replay.fighters[side]))if(LoweredText(fighter->name).find(search)!=std::wstring::npos)return true;
+ }
+ return false;
 }
 // What Ember knows of a replay, after its score: Spectated when this PC only
 // watched the match live, Seen once its replay was played with Watch now,

@@ -24,8 +24,13 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries){rows=entries;});
     // The first replay is focused, so a narrow window scrolls the list to it.
     page("replays");shell.Navigation().Focus("replay:a",rows);draw("replays-cards");
-    Require(rows.size()==6&&rows[2].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
-        rows[3].value==loc::T("replays.spectated")&&rows[4].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay tags changed");
+    Require(rows.size()==8&&rows[2].id=="replay-show"&&rows[3].id=="replay-search"&&rows[4].value=="2-1 · "+std::string(loc::T("replays.seen"))+", "+loc::T("replays.video")&&
+        rows[5].value==loc::T("replays.spectated")&&rows[6].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay tags changed");
+    // Show stepped to Spectated lists the two watched live; stepped back to All, every one.
+    shell.Navigation().Focus("replay-show",rows);draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Right,1);draw("replays-spectated");
+    Require(rows.size()==6&&rows[2].value==loc::T("replays.show.spectated")&&rows[4].id=="replay:b"&&rows[5].id=="replay:c","Show did not narrow the list to spectated matches");
+    for(int i=0;i<2;++i){draw(nullptr,MenuInput::Left,1);draw();}
+    Require(rows.size()==8,"Show did not list every match again");
     shell.Navigation().Focus("replay:a",rows);
     draw(nullptr,MenuInput::Select,1);draw("replay-choices");
     for(int i=0;i<3;++i){draw(nullptr,MenuInput::Right,1);draw();}

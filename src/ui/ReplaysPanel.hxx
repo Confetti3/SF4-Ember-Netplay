@@ -10,6 +10,8 @@
 #include <vector>
 
 namespace sf4e { namespace ui {
+// What the list's Show row lists (ReplaySummaryText.hxx).
+enum class ReplayShow;
 struct ShellView;
 struct ShellAction;
 enum class Tone;
@@ -83,6 +85,10 @@ private:
     std::string exportPath_;
     replay::Caption caption_;
     bool meter_ = false;
+    // The list's filter (ReplaySummaryText.hxx: ReplayShown): what Show lists,
+    // and the Search text a player's or fighter's name must contain.
+    ReplayShow show_{}; // All
+    std::string search_;
     // Show in folder was the last thing asked here: the status line has its answer.
     bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.

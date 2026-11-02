@@ -5529,6 +5529,39 @@ msgstr "Записывает в .mp4 в полном размере изобра
 msgid "replays.video"
 msgstr "Видео"
 
+msgid "replays.show"
+msgstr "Показать"
+
+msgid "replays.show_detail"
+msgstr "Какие матчи показывает список."
+
+msgid "replays.show.all"
+msgstr "Все"
+
+msgid "replays.show.mine"
+msgstr "Мои матчи"
+
+msgid "replays.show.spectated"
+msgstr "Просмотренные"
+
+msgid "replays.show.unseen"
+msgstr "Ещё не просмотренные"
+
+msgid "replays.show.video"
+msgstr "С видео"
+
+msgid "replays.search"
+msgstr "Поиск"
+
+msgid "replays.search_detail"
+msgstr "Показывает матчи, в которых имя игрока или бойца содержит этот текст."
+
+msgid "replays.none_shown"
+msgstr "Нет матчей для показа"
+
+msgid "replays.none_shown_detail"
+msgstr "Ни один реплей не подходит под Показать и Поиск. Измените их, чтобы увидеть остальные."
+
 msgid "export.title"
 msgstr "Экспорт видео"
 

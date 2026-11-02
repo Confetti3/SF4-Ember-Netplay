@@ -40,6 +40,26 @@ int main() {
 		Check(ReplayRowLabel("d", none, known) == "d  " + loc::Tf("replays.fighters", fighter, fighter), "An unnamed replay did not fall back to its fighters");
 	}
 
+	// Show lists by what Ember knows of a replay; Search by a player's or
+	// fighter's name, in any case.
+	{
+		platform::replays::ArchivedReplay mine, watched, seen, video;
+		mine.names[0] = "Alice"; mine.names[1] = "Bob"; mine.fighters[0] = 0; mine.fighters[1] = 1;
+		watched.provenance = replayfiles::Provenance::Spectated; watched.names[0] = "Carol";
+		seen.watched = true; video.video = true; kept.kept = true;
+		using Show = ReplayShow; const std::wstring none;
+		Check(ReplayShown(mine, Show::All, none) && ReplayShown(watched, Show::All, none) && ReplayShown(seen, Show::All, none) && ReplayShown(video, Show::All, none), "All did not show every replay");
+		Check(ReplayShown(mine, Show::Mine, none) && !ReplayShown(watched, Show::Mine, none), "My matches showed a spectated one");
+		Check(!ReplayShown(mine, Show::Spectated, none) && ReplayShown(watched, Show::Spectated, none), "Spectated showed a played one");
+		Check(ReplayShown(mine, Show::Unseen, none) && !ReplayShown(seen, Show::Unseen, none), "Not seen yet showed a played-back one");
+		Check(!ReplayShown(mine, Show::Video, none) && ReplayShown(video, Show::Video, none), "With video showed one without");
+		Check(ReplayShown(mine, Show::All, LoweredText("ali")) && ReplayShown(mine, Show::All, LoweredText("BOB")) && !ReplayShown(mine, Show::All, LoweredText("carol")), "Search did not match a player's name in any case");
+		const std::string fighter = selection::FindFighter(0)->name;
+		Check(ReplayShown(mine, Show::All, LoweredText(fighter.substr(1, 2))) && !ReplayShown(watched, Show::All, LoweredText(fighter)), "Search did not match a fighter's name");
+		Check(!ReplayShown(watched, Show::Mine, LoweredText("carol")), "Search showed a replay Show hides");
+		Check(std::size(kReplayShowKeys) == static_cast<std::size_t>(Show::Video) + 1 && std::string(kReplayShowKeys[static_cast<int>(Show::Video)]) == "replays.show.video", "Show's words are not in their order");
+	}
+
 	// Progress: the fight recorded so far against the replay's length.
 	Check(ExportProgressText(62 * 60, 161 * 60) == "1:02 / 2:41", "Progress did not read elapsed / total");
 	Check(ExportProgressText(0, 161 * 60) == "0:00 / 2:41", "Progress at the start was wrong");

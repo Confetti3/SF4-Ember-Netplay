@@ -5530,6 +5530,39 @@ msgstr "ゲーム画面そのままの大きさで .mp4 として録画し、グ
 msgid "replays.video"
 msgstr "動画"
 
+msgid "replays.show"
+msgstr "表示"
+
+msgid "replays.show_detail"
+msgstr "一覧に表示する対戦。"
+
+msgid "replays.show.all"
+msgstr "すべて"
+
+msgid "replays.show.mine"
+msgstr "自分の対戦"
+
+msgid "replays.show.spectated"
+msgstr "観戦した対戦"
+
+msgid "replays.show.unseen"
+msgstr "未視聴"
+
+msgid "replays.show.video"
+msgstr "動画あり"
+
+msgid "replays.search"
+msgstr "検索"
+
+msgid "replays.search_detail"
+msgstr "プレイヤー名またはファイター名にこの文字を含む対戦を表示します。"
+
+msgid "replays.none_shown"
+msgstr "表示する対戦はありません"
+
+msgid "replays.none_shown_detail"
+msgstr "表示と検索に合うリプレイがありません。変更すると他のリプレイが見られます。"
+
 msgid "export.title"
 msgstr "動画を書き出す"
 

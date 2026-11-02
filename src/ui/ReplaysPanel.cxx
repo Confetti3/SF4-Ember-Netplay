@@ -151,9 +151,16 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   const auto sets=SetsOf(v);
   if(!sets.empty()){rows.push_back(Row("replay-sets",loc::T("replays.tournaments"),loc::T("replays.tournaments_detail")));rows.back().value=std::to_string(sets.size());}
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
-  // A row is its file, not its place: the list is listed again while a row's choices are open.
-  // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
-  if(r.archive)for(const auto& replay:*r.archive){rows.push_back(ReplayRow(v,replay,idle));rows.back().height=72;}
+  else{
+   // Show and Search narrow the list (ReplayShown); with nothing left it says so.
+   rows.push_back(Value("replay-show",loc::T("replays.show"),loc::T(kReplayShowKeys[static_cast<int>(show_)]),loc::T("replays.show_detail")));
+   rows.push_back(TextRow("replay-search",loc::T("replays.search"),search_,40));rows.back().detail=loc::T("replays.search_detail");NoteUserText(search_);
+   // A row is its file, not its place: the list is listed again while a row's choices are open.
+   // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
+   const std::size_t before=rows.size();const std::wstring search=LoweredText(search_);
+   for(const auto& replay:*r.archive)if(ReplayShown(replay,show_,search)){rows.push_back(ReplayRow(v,replay,idle));rows.back().height=72;}
+   if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
+  }
  }
  return rows;
 }
@@ -274,6 +281,8 @@ void ReplaysPanel::Accept(const MenuAction& a) {
  if(a.id=="cap-names")caption_.names=a.delta>0;else if(a.id=="cap-line")caption_.line=a.delta>0;
  else if(a.id=="cap-set")caption_.set=a.delta>0;else if(a.id=="cap-mark")caption_.mark=a.delta>0;
  else if(a.id=="cap-meter")meter_=a.delta>0;
+ else if(a.id=="replay-show")show_=Stepped(show_,a.delta);
+ else if(a.id=="replay-search")search_=a.text;
  else if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
  else if(a.id=="cap-text")caption_.text=a.text;
  else if(a.id=="cap-set1"||a.id=="cap-set2"){int& wins=caption_.wins[a.id=="cap-set2"];wins=(std::max)(0,(std::min)(99,wins+a.delta));}

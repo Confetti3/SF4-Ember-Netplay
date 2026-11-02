@@ -5530,6 +5530,39 @@ msgstr "以游戏画面的完整尺寸录制为 .mp4，由显卡编码。"
 msgid "replays.video"
 msgstr "视频"
 
+msgid "replays.show"
+msgstr "显示"
+
+msgid "replays.show_detail"
+msgstr "列表显示哪些对战。"
+
+msgid "replays.show.all"
+msgstr "全部"
+
+msgid "replays.show.mine"
+msgstr "我的对战"
+
+msgid "replays.show.spectated"
+msgstr "观战的对战"
+
+msgid "replays.show.unseen"
+msgstr "尚未观看"
+
+msgid "replays.show.video"
+msgstr "有视频"
+
+msgid "replays.search"
+msgstr "搜索"
+
+msgid "replays.search_detail"
+msgstr "显示玩家名或角色名包含此文字的对战。"
+
+msgid "replays.none_shown"
+msgstr "没有可显示的对战"
+
+msgid "replays.none_shown_detail"
+msgstr "没有符合显示和搜索的回放。更改它们以查看其他回放。"
+
 msgid "export.title"
 msgstr "导出视频"
 

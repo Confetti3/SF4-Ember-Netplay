@@ -5529,6 +5529,39 @@ msgstr "Nimmt es als .mp4 in der vollen Bildgröße des Spiels auf, kodiert von 
 msgid "replays.video"
 msgstr "Video"
 
+msgid "replays.show"
+msgstr "Anzeigen"
+
+msgid "replays.show_detail"
+msgstr "Welche Matches die Liste zeigt."
+
+msgid "replays.show.all"
+msgstr "Alle"
+
+msgid "replays.show.mine"
+msgstr "Meine Matches"
+
+msgid "replays.show.spectated"
+msgstr "Zugeschaut"
+
+msgid "replays.show.unseen"
+msgstr "Noch nicht gesehen"
+
+msgid "replays.show.video"
+msgstr "Mit Video"
+
+msgid "replays.search"
+msgstr "Suchen"
+
+msgid "replays.search_detail"
+msgstr "Zeigt die Matches, deren Spieler- oder Kämpfername dies enthält."
+
+msgid "replays.none_shown"
+msgstr "Keine Matches anzuzeigen"
+
+msgid "replays.none_shown_detail"
+msgstr "Kein Replay passt zu Anzeigen und Suchen. Ändere sie, um die anderen zu sehen."
+
 msgid "export.title"
 msgstr "Video exportieren"
 

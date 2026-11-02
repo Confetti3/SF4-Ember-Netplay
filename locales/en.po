@@ -5162,6 +5162,39 @@ msgstr "Records it as an .mp4 at the game's full picture size, encoded by your g
 msgid "replays.video"
 msgstr "Video"
 
+msgid "replays.show"
+msgstr "Show"
+
+msgid "replays.show_detail"
+msgstr "Which matches the list shows."
+
+msgid "replays.show.all"
+msgstr "All"
+
+msgid "replays.show.mine"
+msgstr "My matches"
+
+msgid "replays.show.spectated"
+msgstr "Spectated"
+
+msgid "replays.show.unseen"
+msgstr "Not seen yet"
+
+msgid "replays.show.video"
+msgstr "With video"
+
+msgid "replays.search"
+msgstr "Search"
+
+msgid "replays.search_detail"
+msgstr "Shows the matches whose player or fighter name contains this."
+
+msgid "replays.none_shown"
+msgstr "No matches to show"
+
+msgid "replays.none_shown_detail"
+msgstr "No replay fits Show and Search. Change them to see the others."
+
 msgid "export.title"
 msgstr "Export video"
 

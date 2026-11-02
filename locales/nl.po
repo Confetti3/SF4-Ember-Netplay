@@ -5529,6 +5529,39 @@ msgstr "Neemt hem op als .mp4 op de volledige beeldgrootte van het spel, gecodee
 msgid "replays.video"
 msgstr "Video"
 
+msgid "replays.show"
+msgstr "Tonen"
+
+msgid "replays.show_detail"
+msgstr "Welke wedstrijden de lijst toont."
+
+msgid "replays.show.all"
+msgstr "Alle"
+
+msgid "replays.show.mine"
+msgstr "Mijn wedstrijden"
+
+msgid "replays.show.spectated"
+msgstr "Toegekeken"
+
+msgid "replays.show.unseen"
+msgstr "Nog niet gezien"
+
+msgid "replays.show.video"
+msgstr "Met video"
+
+msgid "replays.search"
+msgstr "Zoeken"
+
+msgid "replays.search_detail"
+msgstr "Toont de wedstrijden waarvan de speler- of vechternaam dit bevat."
+
+msgid "replays.none_shown"
+msgstr "Geen wedstrijden om te tonen"
+
+msgid "replays.none_shown_detail"
+msgstr "Geen replay past bij Tonen en Zoeken. Pas ze aan om de andere te zien."
+
 msgid "export.title"
 msgstr "Video exporteren"
 

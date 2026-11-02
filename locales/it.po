@@ -5529,6 +5529,39 @@ msgstr "Lo registra come .mp4 alla dimensione piena dell'immagine del gioco, cod
 msgid "replays.video"
 msgstr "Video"
 
+msgid "replays.show"
+msgstr "Mostra"
+
+msgid "replays.show_detail"
+msgstr "Quali incontri mostra l'elenco."
+
+msgid "replays.show.all"
+msgstr "Tutti"
+
+msgid "replays.show.mine"
+msgstr "I miei incontri"
+
+msgid "replays.show.spectated"
+msgstr "Da spettatore"
+
+msgid "replays.show.unseen"
+msgstr "Non ancora visti"
+
+msgid "replays.show.video"
+msgstr "Con video"
+
+msgid "replays.search"
+msgstr "Cerca"
+
+msgid "replays.search_detail"
+msgstr "Mostra gli incontri il cui nome di giocatore o lottatore contiene questo testo."
+
+msgid "replays.none_shown"
+msgstr "Nessun incontro da mostrare"
+
+msgid "replays.none_shown_detail"
+msgstr "Nessun replay corrisponde a Mostra e Cerca. Modificali per vedere gli altri."
+
 msgid "export.title"
 msgstr "Esporta video"
 

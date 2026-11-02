@@ -5529,6 +5529,39 @@ msgstr "Nagrywa go jako .mp4 w pełnym rozmiarze obrazu gry, kodowany przez kart
 msgid "replays.video"
 msgstr "Wideo"
 
+msgid "replays.show"
+msgstr "Pokaż"
+
+msgid "replays.show_detail"
+msgstr "Które mecze pokazuje lista."
+
+msgid "replays.show.all"
+msgstr "Wszystkie"
+
+msgid "replays.show.mine"
+msgstr "Moje mecze"
+
+msgid "replays.show.spectated"
+msgstr "Oglądane"
+
+msgid "replays.show.unseen"
+msgstr "Jeszcze nieobejrzane"
+
+msgid "replays.show.video"
+msgstr "Z wideo"
+
+msgid "replays.search"
+msgstr "Szukaj"
+
+msgid "replays.search_detail"
+msgstr "Pokazuje mecze, których nazwa gracza lub wojownika zawiera ten tekst."
+
+msgid "replays.none_shown"
+msgstr "Brak meczów do pokazania"
+
+msgid "replays.none_shown_detail"
+msgstr "Żaden replay nie pasuje do Pokaż i Szukaj. Zmień je, aby zobaczyć pozostałe."
+
 msgid "export.title"
 msgstr "Eksportuj wideo"
 

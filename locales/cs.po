@@ -5529,6 +5529,39 @@ msgstr "Nahraje jej jako .mp4 v plné velikosti obrazu hry, kódovaný grafickou
 msgid "replays.video"
 msgstr "Video"
 
+msgid "replays.show"
+msgstr "Zobrazit"
+
+msgid "replays.show_detail"
+msgstr "Které zápasy seznam zobrazuje."
+
+msgid "replays.show.all"
+msgstr "Vše"
+
+msgid "replays.show.mine"
+msgstr "Moje zápasy"
+
+msgid "replays.show.spectated"
+msgstr "Sledované"
+
+msgid "replays.show.unseen"
+msgstr "Zatím neviděné"
+
+msgid "replays.show.video"
+msgstr "S videem"
+
+msgid "replays.search"
+msgstr "Hledat"
+
+msgid "replays.search_detail"
+msgstr "Zobrazí zápasy, jejichž jméno hráče nebo bojovníka obsahuje tento text."
+
+msgid "replays.none_shown"
+msgstr "Žádné zápasy k zobrazení"
+
+msgid "replays.none_shown_detail"
+msgstr "Žádný záznam neodpovídá Zobrazit a Hledat. Změňte je a uvidíte ostatní."
+
 msgid "export.title"
 msgstr "Exportovat video"
 

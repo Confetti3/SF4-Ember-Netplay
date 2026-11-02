@@ -5068,6 +5068,39 @@ msgstr "Lo graba como .mp4 al tamaño de imagen completo del juego, codificado p
 msgid "replays.video"
 msgstr "Video"
 
+msgid "replays.show"
+msgstr "Mostrar"
+
+msgid "replays.show_detail"
+msgstr "Qué partidas muestra la lista."
+
+msgid "replays.show.all"
+msgstr "Todas"
+
+msgid "replays.show.mine"
+msgstr "Mis partidas"
+
+msgid "replays.show.spectated"
+msgstr "Vistas como espectador"
+
+msgid "replays.show.unseen"
+msgstr "Aún no vistas"
+
+msgid "replays.show.video"
+msgstr "Con video"
+
+msgid "replays.search"
+msgstr "Buscar"
+
+msgid "replays.search_detail"
+msgstr "Muestra las partidas cuyo nombre de jugador o luchador contiene esto."
+
+msgid "replays.none_shown"
+msgstr "No hay partidas para mostrar"
+
+msgid "replays.none_shown_detail"
+msgstr "Ningún replay coincide con Mostrar y Buscar. Cámbialos para ver los demás."
+
 msgid "export.title"
 msgstr "Exportar video"
 
