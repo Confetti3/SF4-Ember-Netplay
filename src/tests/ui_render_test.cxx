@@ -117,8 +117,17 @@ struct Renderer {
         D3DLOCKED_RECT pixels{};
         Require(SUCCEEDED(copy->LockRect(&pixels, nullptr, D3DLOCK_READONLY)), "Surface lock failed");
         if(trainingOverlay) {
-            const auto corner=*reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+5*pixels.Pitch+5*4);
-            Require((corner&0xffffff)==0x2d2f31,"Training rendering altered the game outside its panel");
+            const auto at=[&](int x,int y){return *reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+y*pixels.Pitch+x*4)&0xffffff;};
+            const auto corner=at(5,5);
+            // A confirmation is a modal: it dims the whole screen on purpose, so the game stays
+            // visible but no brighter than the background, and alike at the far corner (no panel).
+            bool dimmed=false;
+            for(int shift=0;shift<=16;shift+=8)dimmed=dimmed||((corner>>shift)&0xff)<((0x2d2f31u>>shift)&0xff);
+            const bool modalDim=name.find("-confirmation-")!=std::string::npos&&dimmed&&corner==at(width-6,height-6);
+            bool brighter=false;
+            for(int shift=0;shift<=16;shift+=8)brighter=brighter||((corner>>shift)&0xff)>((0x2d2f31u>>shift)&0xff);
+            if(modalDim?brighter:corner!=0x2d2f31){char hex[16];std::snprintf(hex,sizeof(hex),"%06x",corner);
+                throw std::runtime_error("Training rendering altered the game outside its panel: "+name+" pixel(5,5)="+hex);}
         }
         BITMAPFILEHEADER file{}; BITMAPINFOHEADER info{};
         file.bfType = 0x4d42; file.bfOffBits = sizeof(file) + sizeof(info);
