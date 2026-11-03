@@ -116,6 +116,12 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
 	const replayfiles::SetTag& set = {});
 void NoteMatchEnd(bool confirmed, replayslots::Bytes unsaved);
+// An in-place rematch: the game before it ended with a confirmed result, and
+// the next starts in the same battle with the same players, fighters and set.
+// `ended` is the replay of the game that ended when the game did not save it
+// (it saves a battle's first game only, common/InPlaceReplays.hxx), kept and
+// named as NoteMatchEnd keeps a battle the game did not save.
+void NoteGameRestarted(replayslots::Bytes ended);
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
 // the archive), so the list can say so.

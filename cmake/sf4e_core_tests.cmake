@@ -43,6 +43,7 @@ sf4e_add_unit_test(NAME GfxActionPool SOURCES "src/tests/gfx_action_pool_test.cx
 sf4e_add_unit_test(NAME SoundReconcile SOURCES "src/tests/sound_reconcile_test.cxx")
 sf4e_add_unit_test(NAME ReusableRecords SOURCES "src/tests/reusable_records_test.cxx")
 sf4e_add_unit_test(NAME NativeMatchResult SOURCES "src/tests/native_match_result_test.cxx" STD 11 TIMEOUT 15)
+sf4e_add_unit_test(NAME InPlaceReplays SOURCES "src/tests/in_place_replays_test.cxx" STD 17 TIMEOUT 15 LABELS replay)
 sf4e_add_unit_test(NAME UiPolish SOURCES "src/tests/ui-polish/ui_polish_test.cxx" STD 14 TIMEOUT 10)
 sf4e_add_unit_test(NAME GgpoGate SOURCES "src/tests/ggpo_gate_test.cxx" "src/common/sf4e__GgpoGate.cxx" STD 11 TIMEOUT 15 LABELS ggpo)
 sf4e_add_unit_test(NAME CrashReport SOURCES "src/tests/crash_report_test.cxx" STD 11 TIMEOUT 15)

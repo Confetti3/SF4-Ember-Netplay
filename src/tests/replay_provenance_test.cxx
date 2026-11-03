@@ -268,8 +268,29 @@ static void TestOnlyConfirmedGamesKeepTheirSet() {
  CHECK(notes.size() == 2 && notes[0].players[0] == "Cut" && !notes[0].set.Tagged() && notes[0].set.revision == 0);
  CHECK(notes[1].set.bridgeId == "brg_bridge" && notes[1].set.matchId == "emt_set" && notes[1].set.revision == 3);
 }
+// An in-place rematch plays a set's games in one battle. The game saves the
+// first, which takes its names from the slot; each later one is kept by
+// Ember and takes them from its body, with the set's tag every time.
+static void TestGamesOfOneBattleEachTakeTheNames() {
+ RecordingAttribution owner;
+ std::vector<std::pair<Bytes, ReplayNames>> notes;
+ const auto publish = [&](const std::filesystem::path&, const Bytes& body, const ReplayNames& note) { notes.push_back({body, note}); return NamePublication::Published; };
+ auto game = Start(10, "Set"); game.names.set = {"brg_bridge", "emt_set", 1};
+ owner.Begin(game, std::make_shared<const RecordingSnapshot>(Slots(Saved(1))));
+ const auto saved = Slots(Saved(15));
+ owner.End(20, true);
+ game.time = 20; owner.Begin(game, std::make_shared<const RecordingSnapshot>(saved));
+ owner.ObserveSave(saved); owner.PublishIdentified(publish);
+ owner.End(30, true, Saved(25));
+ game.time = 30; owner.Begin(game, std::make_shared<const RecordingSnapshot>(saved));
+ owner.End(40, true, Saved(35));
+ owner.PublishIdentified(publish);
+ CHECK(!owner.Pending() && notes.size() == 3);
+ CHECK(notes[0].first == Saved(15) && notes[1].first == Saved(25) && notes[2].first == Saved(35));
+ for (const auto& note : notes) CHECK(note.second.players[0] == "Set" && note.second.set.matchId == "emt_set");
+}
 int main() {
- TestOnlyConfirmedGamesKeepTheirSet(); TestUnsavedReplayTakesTheNames();
+ TestGamesOfOneBattleEachTakeTheNames(); TestOnlyConfirmedGamesKeepTheirSet(); TestUnsavedReplayTakesTheNames();
  TestWorkerFencesSameSecondRematchBaseline();
  TestIdentifiedBodyRetriesWithoutScanning(); TestInvalidExistingNamesLifecycle();
  TestDisabledAndDormantRecordings(); TestPermanentRefusalAndBoundedRetries();

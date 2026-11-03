@@ -86,6 +86,9 @@ using rSystem = Dimps::Game::Battle::System;
 // Defined in sf4e__Game__Battle__System.cxx.
 extern rKey::MementoID GGPO_MEMENTO_ID;
 void EmitRollbackDiagSummary(const char* label);
+// An in-place rematch is final: the game before it gets its replay and its
+// names, and the next game its own (common/InPlaceReplays.hxx).
+void HandOverInPlaceReplay();
 
 // Defined in sf4e__Game__Battle__System__NativeResult.cxx.
 extern sf4e::native_result::Timeline s_nativeResultTimeline;

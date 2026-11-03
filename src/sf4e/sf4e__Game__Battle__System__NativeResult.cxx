@@ -89,6 +89,7 @@ void PublishConfirmedNativeMatchResult() {
         if (fight < 0) return;
         spdlog::info("Match result: game {} went on to a rematch in this battle (fight confirmed at frame {})", s_gamesReported + 1, fight);
         ReportNativeResult(*s_heldResult, true);
+        HandOverInPlaceReplay();
         s_heldResult.reset();
         s_nativeResultEmitted = false;
         s_resultFrame = fight;
