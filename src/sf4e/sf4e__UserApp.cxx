@@ -252,7 +252,10 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     if (started) {
         auto* const root = App::GetRootEvent();
         auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
-        const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
+        // A practice battle never reaches a match result, so the game saves no
+        // replay of it for the names to wait for.
+        const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0 &&
+            !netplay->client._lobbyData.trainingMode;
         // A fighter's game at a tournament table is a game of the bound set,
         // on the bridge this PC plays it through.
         sf4e::replayfiles::SetTag set;
