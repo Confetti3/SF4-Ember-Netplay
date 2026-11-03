@@ -8,7 +8,6 @@
 #include "../common/SpectatorCatchUp.hxx"
 #include "sf4e__MementoGuards.hxx"
 #include "../common/MementoGuards.hxx"
-#include "../common/InPlaceReplays.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__MenuMusic.hxx"
 
@@ -114,10 +113,6 @@ static std::vector<std::uint8_t> UnsavedReplay() {
     const auto* recorder = Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton();
     return recorder && recorder->mode == sf4e::replay::RecorderRecording ? RecorderReplay() : std::vector<std::uint8_t>();
 }
-
-// The games of this battle after its first, which the game does not save
-// (common/InPlaceReplays.hxx).
-static sf4e::replay::InPlaceReplays s_inPlaceReplays;
 
 void HandOverInPlaceReplay() {
     sf4e::platform::replays::NoteGameRestarted(s_inPlaceReplays.Continued());
@@ -568,7 +563,6 @@ void fSystem::CloseBattle() {
     }
     const bool unfinished = netplayBattle && !s_nativeResultEmitted && !sf4e::NetplayFacade::IsRuntimeSpectator();
     sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted, unfinished ? UnsavedReplay() : s_inPlaceReplays.Closed(RecorderReplay));
-    s_inPlaceReplays.Reset();
     (_this->*rSystem::publicMethods.CloseBattle)();
     // After the native close, which puts back its own saved step setting.
     RestoreBattleStep();

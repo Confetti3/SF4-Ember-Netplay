@@ -35,6 +35,7 @@
 #include "../common/Localization.hxx"
 #include "../common/sf4e__StateHash.hxx"
 #include "../common/NativeMatchResult.hxx"
+#include "../common/InPlaceReplays.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
@@ -93,6 +94,9 @@ void HandOverInPlaceReplay();
 // Defined in sf4e__Game__Battle__System__NativeResult.cxx.
 extern sf4e::native_result::Timeline s_nativeResultTimeline;
 extern bool s_nativeResultEmitted;
+// The battle's later games' replays (common/InPlaceReplays.hxx), reset with
+// the rest of the battle's result state.
+extern sf4e::replay::InPlaceReplays s_inPlaceReplays;
 void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
 bool MatchResultKnown();

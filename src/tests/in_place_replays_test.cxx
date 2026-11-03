@@ -73,11 +73,31 @@ static void TestResetStartsTheNextBattle() {
     EXPECT(replays.Closed(std::ref(recorder)).empty());
 }
 
+// A battle left without its close (a leftover session retired as the next
+// one begins) is reset with the next session: nothing it held or counted
+// reaches the next battle, whose first game is the game's own again.
+static void TestLeftoverBattleStartsClean() {
+    InPlaceReplays replays;
+    Recorder recorder{Game(1)};
+    replays.Restarting(std::ref(recorder));
+    replays.Continued();
+    recorder.game = Game(2);
+    replays.Restarting(std::ref(recorder));       // held, never handed over
+    replays.Reset();                              // the next session begins
+    recorder.game = Game(8);
+    replays.Restarting(std::ref(recorder));
+    EXPECT(replays.Continued().empty());
+    EXPECT(recorder.built == 1);
+    recorder.game = Game(9);
+    EXPECT(replays.Closed(std::ref(recorder)) == Game(9));
+}
+
 int main() {
     TestEveryGameAfterTheFirstIsKept();
     TestFirstGameIsTheGames();
     TestRestartThatNeverWentOn();
     TestResetStartsTheNextBattle();
+    TestLeftoverBattleStartsClean();
     if (TEST_FAILURES()) std::printf("%d in-place replay test(s) failed\n", TEST_FAILURES());
     else std::puts("In-place replay tests passed");
     return TEST_EXIT_CODE();
