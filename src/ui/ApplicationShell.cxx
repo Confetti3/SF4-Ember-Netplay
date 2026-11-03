@@ -125,7 +125,12 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
   nav.Cancel();
-  if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
+  // A public room's player goes back to the list they joined it from (the
+  // panel still holds the room until its own update this frame).
+  if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection"){
+   nav.Home();
+   if(publicRooms_.OpeningKind()&&previousRoomState_==RoomState::Joined){nav.Push("online");nav.Push("public-rooms");}
+  }
   error_.clear();
   Say(previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room"),Tone::Neutral,3,ToastKind::Room);
  }
