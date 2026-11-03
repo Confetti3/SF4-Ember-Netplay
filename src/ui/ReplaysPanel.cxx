@@ -237,17 +237,17 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
   rows.clear();rows.push_back(InfoRow("inputs-none",loc::T("inputs.unreadable"),"",loc::T("inputs.unreadable_detail")));
  }
 }
-// The caption an export starts from: the names Ember noted, the date and
-// score on one line, Ember's mark, and the set so far, each part on or off
-// as the player last left it (`saved`): the games of its set (ReplaySets.hxx)
-// before it, by who won each. Names and set start off when Ember knows neither.
+// The caption an export starts from: the names Ember noted, the date on one
+// line, Ember's mark, and the set so far, each part on or off as the player
+// last left it (`saved`): the games of its set (ReplaySets.hxx) before it, by
+// who won each. Names and set start off when Ember knows neither. The line
+// has no score: it is shown from the first frame, and would tell the winner.
 void ReplaysPanel::OpenExport(const ShellView& v,const netplay::PlayerPreferences& saved,const platform::replays::ArchivedReplay& replay) {
  exportPath_=PathOf(replay);caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
  const bool named=!replay.names[0].empty()&&!replay.names[1].empty();
  caption_.names=saved.exportNames&&named;
- const std::string score=replay.summary?ScoreText(*replay.summary):std::string();
- caption_.text=ReplayLabel(replay.label,replay.names,replay.fighters).substr(0,10)+(score.empty()?"":"   "+score);
+ caption_.text=ReplayLabel(replay.label,replay.names,replay.fighters).substr(0,10);
  caption_.line=saved.exportLine;caption_.mark=saved.exportMark;meter_=saved.exportMeter;
  if(named)for(const auto& set:sets_){
   const auto at=std::find(set.games.begin(),set.games.end(),&replay);

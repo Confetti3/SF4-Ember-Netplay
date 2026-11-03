@@ -219,7 +219,7 @@ void ReplayJourneys() {
    h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
    const auto& sent=h.actions.back().replay;
    Check(sent.mode==sf4e::replay::Mode::Export&&sent.path=="C:\\r\\c.emberreplay"&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
-   Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
+   Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it, with no score that tells the winner");
    Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");
    Check(!sent.meter,"Generate sent the frame meter that was off");
    // The export screen's Frame meter row goes with Generate, and is kept for the next export.
