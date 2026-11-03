@@ -6,17 +6,25 @@ namespace Chara = Dimps::Game::Battle::Chara;
 using Chara::Unit;
 using Chara::Actor;
 using Chara::Afterimage;
+using Chara::ItemCollection;
 
 Actor::__publicMethods Actor::publicMethods;
 Actor::__staticMethods Actor::staticMethods;
 
 Unit::__publicMethods Unit::publicMethods;
+ItemCollection::__publicMethods ItemCollection::publicMethods;
 Afterimage::__mementoableMethods Afterimage::mementoableMethods;
 
 void Chara::Locate(HMODULE peRoot) {
 	Actor::Locate(peRoot);
 	Afterimage::Locate(peRoot);
+	ItemCollection::Locate(peRoot);
 	Unit::Locate(peRoot);
+}
+
+void ItemCollection::Locate(HMODULE peRoot) {
+	unsigned int peRootOffset = (unsigned int)peRoot;
+	*(PVOID*)&publicMethods.GetItemByIndex = (PVOID)(peRootOffset + 0x16b3f0);
 }
 
 void Afterimage::Locate(HMODULE peRoot) {

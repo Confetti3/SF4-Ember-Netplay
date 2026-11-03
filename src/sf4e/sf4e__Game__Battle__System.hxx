@@ -123,7 +123,7 @@ namespace sf4e {
 				// 32-bit words the encoder consumes: floats by bit pattern,
 				// fixed-point as integral << 16 | fractional.
 				struct CharaSemantics {
-					static constexpr int kFields = 24;
+					static constexpr int kFields = 26;
 					static constexpr int kAction = 20;
 					static const char* const kFieldNames[kFields];
 					uint32_t v[kFields] = {};
