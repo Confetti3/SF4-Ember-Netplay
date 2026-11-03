@@ -7582,6 +7582,21 @@ msgstr "Tryb TV"
 msgid "settings.tv_mode_detail"
 msgstr "Do telewizora po drugiej stronie pokoju: wszystko o jedną czwartą większe, w bezpiecznym marginesie 5%."
 
+msgid "settings.group.game_themes"
+msgstr "Motywy w grze"
+
+msgid "settings.game_theme_menus"
+msgstr "Menu"
+
+msgid "settings.game_theme_game"
+msgstr "Oryginalny z gry"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Obrazy menu z motywu w folderze ember\\themes w folderze gry. Pliki gry pozostają bez zmian. Menu główne pokazuje go od razu."
+
+msgid "settings.game_theme_none"
+msgstr "Nie znaleziono motywów z menu. Umieść motyw z folderem ui w ember\\themes w folderze gry i uruchom grę ponownie."
+
 msgid "menu.pages"
 msgstr "Strony"
 

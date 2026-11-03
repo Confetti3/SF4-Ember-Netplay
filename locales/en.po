@@ -7210,6 +7210,21 @@ msgstr "TV mode"
 msgid "settings.tv_mode_detail"
 msgstr "For a TV across the room: everything a quarter larger, kept inside a 5% safe area at the edges."
 
+msgid "settings.group.game_themes"
+msgstr "In-game themes"
+
+msgid "settings.game_theme_menus"
+msgstr "Menus"
+
+msgid "settings.game_theme_game"
+msgstr "The game's own"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Menu pictures from a theme in the game folder's ember\\themes folder. The game's own files stay as they are. The main menu shows it at once."
+
+msgid "settings.game_theme_none"
+msgstr "No themes with menus found. Put a theme, with its ui folder inside, in the game folder's ember\\themes folder, then start the game again."
+
 msgid "menu.pages"
 msgstr "Pages"
 

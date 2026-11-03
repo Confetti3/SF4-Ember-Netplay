@@ -7583,6 +7583,21 @@ msgstr "电视模式"
 msgid "settings.tv_mode_detail"
 msgstr "适合房间另一头的电视：所有内容放大四分之一，并保持在边缘 5% 的安全区域内。"
 
+msgid "settings.group.game_themes"
+msgstr "游戏内主题"
+
+msgid "settings.game_theme_menus"
+msgstr "菜单"
+
+msgid "settings.game_theme_game"
+msgstr "游戏原版"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "从游戏文件夹 ember\\themes 中的主题读取菜单图片。游戏自身的文件保持不变。主菜单会立即显示。"
+
+msgid "settings.game_theme_none"
+msgstr "未找到含菜单的主题。请将含 ui 文件夹的主题放入游戏文件夹的 ember\\themes，然后重新启动游戏。"
+
 msgid "menu.pages"
 msgstr "页面"
 

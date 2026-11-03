@@ -7582,6 +7582,21 @@ msgstr "Režim TV"
 msgid "settings.tv_mode_detail"
 msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uvnitř bezpečného okraje 5 %."
 
+msgid "settings.group.game_themes"
+msgstr "Herní motivy"
+
+msgid "settings.game_theme_menus"
+msgstr "Menu"
+
+msgid "settings.game_theme_game"
+msgstr "Původní ze hry"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Obrázky menu z motivu ve složce ember\\themes ve složce hry. Soubory hry zůstanou beze změny. Hlavní menu ho ukáže hned."
+
+msgid "settings.game_theme_none"
+msgstr "Žádný motiv s menu nenalezen. Vložte motiv se složkou ui do ember\\themes ve složce hry a spusťte hru znovu."
+
 msgid "menu.pages"
 msgstr "Stránky"
 

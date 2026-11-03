@@ -7582,6 +7582,21 @@ msgstr "TV-Modus"
 msgid "settings.tv_mode_detail"
 msgstr "Für einen Fernseher quer durch den Raum: alles ein Viertel größer, innerhalb eines sicheren Rands von 5 %."
 
+msgid "settings.group.game_themes"
+msgstr "Spiel-Themes"
+
+msgid "settings.game_theme_menus"
+msgstr "Menüs"
+
+msgid "settings.game_theme_game"
+msgstr "Der des Spiels"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Menübilder aus einem Theme im Ordner ember\\themes des Spielordners. Die Dateien des Spiels bleiben unverändert. Das Hauptmenü zeigt es sofort."
+
+msgid "settings.game_theme_none"
+msgstr "Keine Themes mit Menüs gefunden. Lege ein Theme mit seinem ui-Ordner in ember\\themes im Spielordner ab und starte das Spiel neu."
+
 msgid "menu.pages"
 msgstr "Seiten"
 

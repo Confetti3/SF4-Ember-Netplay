@@ -7583,6 +7583,21 @@ msgstr "テレビモード"
 msgid "settings.tv_mode_detail"
 msgstr "離れた場所のテレビ向け：すべてを4分の1大きくし、画面端から5%のセーフエリア内に収めます。"
 
+msgid "settings.group.game_themes"
+msgstr "ゲーム内テーマ"
+
+msgid "settings.game_theme_menus"
+msgstr "メニュー"
+
+msgid "settings.game_theme_game"
+msgstr "ゲーム標準"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "ゲームフォルダの ember\\themes 内のテーマからメニュー画像を読み込みます。ゲームのファイルは変更されません。メインメニューにはすぐ反映されます。"
+
+msgid "settings.game_theme_none"
+msgstr "メニューを含むテーマが見つかりません。ui フォルダを含むテーマをゲームフォルダの ember\\themes に入れ、ゲームを再起動してください。"
+
 msgid "menu.pages"
 msgstr "ページ"
 

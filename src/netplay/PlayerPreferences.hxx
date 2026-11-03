@@ -167,6 +167,9 @@ struct PlayerPreferences {
     // The main menu plays a stage or character theme, another one after every
     // match, instead of its own track (sf4e__MenuMusic.cxx).
     bool endlessLobbyMusic = true;
+    // The theme the menus load their files from (sf4e__GameThemes.cxx): a folder
+    // in <game>\ember\themes, or empty for the game's own menus.
+    std::string gameThemeMenus;
     // Experimental (sf4e__InputLag.cxx): the battle reads each input in the
     // frame it was made instead of the next. A room's match does so only when
     // both fighters have it on, for them and whoever watches; offline battles

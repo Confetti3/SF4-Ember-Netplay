@@ -7582,6 +7582,21 @@ msgstr "Modalità TV"
 msgid "settings.tv_mode_detail"
 msgstr "Per una TV dall'altra parte della stanza: tutto un quarto più grande, entro un margine di sicurezza del 5%."
 
+msgid "settings.group.game_themes"
+msgstr "Temi del gioco"
+
+msgid "settings.game_theme_menus"
+msgstr "Menu"
+
+msgid "settings.game_theme_game"
+msgstr "Quello del gioco"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Immagini dei menu da un tema nella cartella ember\\themes della cartella del gioco. I file del gioco restano invariati. Il menu principale lo mostra subito."
+
+msgid "settings.game_theme_none"
+msgstr "Nessun tema con menu trovato. Metti un tema, con la sua cartella ui, in ember\\themes nella cartella del gioco e riavvia il gioco."
+
 msgid "menu.pages"
 msgstr "Pagine"
 

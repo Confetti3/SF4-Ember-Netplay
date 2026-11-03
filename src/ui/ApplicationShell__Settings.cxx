@@ -84,7 +84,7 @@ public:
         static const SettingsPanel controls{"controls", "screen.player", I::User, &Controls}, country{"country", "settings.country", I::World, &Country},
             profile{"profile", "home.profile", I::Id, &Profile, &ProfileCard}, defaults{"defaults", "screen.defaults", I::Adjustments, &Defaults},
             trainingReplays{"training-replays", "settings.training_replays", I::Movie, &TrainingReplays, &PictureSpot},
-            look{"look", "settings.group.look", I::Palette, &Look}, matchHud{"match-hud", "settings.match_hud", I::LayoutNavbar, &MatchHud, &MatchHudPicture},
+            look{"look", "settings.group.look", I::Palette, &Look}, gameThemes{"game-themes", "settings.group.game_themes", I::Brush, &GameThemeParts}, matchHud{"match-hud", "settings.match_hud", I::LayoutNavbar, &MatchHud, &MatchHudPicture},
             roomLayout{"room-layout", "settings.group.room_layout", I::LayoutDashboard, &RoomLayout, &RoomLayoutPicture},
             sounds{"sounds", "settings.group.sounds", I::Volume, &Sounds}, speech{"speech", "speech.setting", I::Speakerphone, &Speech},
             text{"text", "settings.group.text", I::Typography, &Text}, help{"help", "settings.group.help", I::Help, &Help},
@@ -93,7 +93,7 @@ public:
         static const std::vector<Tab> tabs = {
             {"tab-player", "settings.tab.player", {&controls, &country, &profile}},
             {"tab-matches", "settings.tab.matches", {&defaults, &trainingReplays}},
-            {"tab-interface", "settings.tab.interface", {&look, &matchHud, &roomLayout, &sounds}},
+            {"tab-interface", "settings.tab.interface", {&look, &gameThemes, &matchHud, &roomLayout, &sounds}},
             {"tab-access", "settings.tab.accessibility", {&speech, &text, &help}},
             {"tab-online", "settings.tab.online", {&discord, &rankings}},
             {"tab-about", "settings.tab.about", {&about, &reports}}};
@@ -195,6 +195,22 @@ public:
         return Value("tv", loc::T("settings.tv_mode"), s.preferences_.tvMode ? loc::T("common.on") : loc::T("common.off"), loc::T("settings.tv_mode_detail"), v.canEditPreferences);
     }
     static Entries Look(Shell& s, const ShellView& v) { return {Tv(s, v)}; }
+    // The menus theme (PlayerPreferences::gameThemeMenus), from the themes Ember found. A
+    // saved theme that is gone shows as the game's own, which is what the game loads.
+    static MenuEntry GameThemeMenus(Shell& s, const ShellView& v) {
+        const auto& themes = v.gameThemes;
+        const std::string& theme = s.preferences_.gameThemeMenus;
+        const bool found = std::find(themes.begin(), themes.end(), theme) != themes.end();
+        const std::string game = loc::T("settings.game_theme_game");
+        auto row = Value("game-theme-menus", loc::T("settings.game_theme_menus"), found ? theme : game,
+            loc::T(themes.empty() ? "settings.game_theme_none" : "settings.game_theme_menus_detail"), v.canEditPreferences && !themes.empty());
+        // Select lists the game's own and the themes; a pick is the steps to it (OfferSteps).
+        std::vector<std::string> labels = themes;
+        labels.insert(labels.begin(), game);
+        OfferSteps(row, labels);
+        return row;
+    }
+    static Entries GameThemeParts(Shell& s, const ShellView& v) { return {GameThemeMenus(s, v)}; }
     static Entries MatchHud(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};

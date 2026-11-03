@@ -423,6 +423,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.padSetup = snapshot.padSetup; view.atMainMenu = snapshot.atMainMenu;
     view.padLayerPending = snapshot.padLayerPending; view.runningControllerLayer = snapshot.runningControllerLayer;
     view.lobbyMusicAvailable = snapshot.lobbyMusicAvailable;
+    view.gameThemes = snapshot.gameThemes;
     view.pads = snapshot.pads; view.captureCandidate = snapshot.captureCandidate;
     view.inputCapture = snapshot.inputCapture;
     view.controllerReady = snapshot.controllerReady;

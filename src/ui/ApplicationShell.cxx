@@ -482,6 +482,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
    const int next=StepInputDelay(preferences_.autoInputDelay,preferences_.inputDelay,a.delta);
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
+  else if(a.id=="game-theme-menus"){auto names=v.gameThemes;names.insert(names.begin(),std::string());Step(preferences_.gameThemeMenus,names,a.delta);} // the game's own (empty) first
   else if(a.id=="auto-style")preferences_.autoDelayStyle=(std::max)(0,(std::min)(AutoDelayStyles-1,preferences_.autoDelayStyle+a.delta));
   else if(AdjustSetting(preferences_,a)||AdjustOnOff(preferences_,a.id,a.delta)||AdjustSpeech(a)){}
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);

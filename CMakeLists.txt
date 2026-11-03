@@ -26,6 +26,9 @@ if(WIN32)
     target_compile_features(sf4e_durable_file PUBLIC cxx_std_17)
     add_library(sf4e_custom_content_files STATIC "src/platform/CustomContentFiles.cxx")
     target_link_libraries(sf4e_custom_content_files PUBLIC sf4e_selection)
+    # Themes (platform/GameThemes.hxx): the folders of replacement menu files.
+    add_library(sf4e_game_themes STATIC "src/platform/GameThemes.cxx")
+    target_compile_features(sf4e_game_themes PRIVATE cxx_std_17)
 endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_core_tests.cmake")
 if(SF4E_CORE_TESTS_ONLY)
@@ -240,6 +243,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
     "src/sf4e/sf4e__MenuMusic.hxx"
+    "src/sf4e/sf4e__GameThemes.hxx"
+    "src/sf4e/sf4e__GameThemes.cxx"
     "src/sf4e/sf4e__MenuMusic.cxx"
     "src/sf4e/sf4e__Borderless.hxx"
     "src/sf4e/sf4e__Borderless.cxx"
@@ -290,7 +295,7 @@ if(SF4E_SELFTEST)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__RoomLayout.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Export.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx" "src/sf4e/sf4e__SelfTest__Menu.cxx" "src/sf4e/sf4e__SelfTest__ComboCheck.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_game_themes sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"

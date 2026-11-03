@@ -84,8 +84,12 @@ namespace sf4e {
 			void IdleTask(int arg);
 
 			// On the item observer (ToItemObserver), like GoToVersusMode.
-			void GoToLocalBattleLog();
-			static bool OpenLocalBattleLog();
+			void GoTo(int row);
+			// Leaves the native main menu for a row of its flow (the local
+			// battle log, or the main menu again so it loads its menu files
+			// anew), when it is the foreground event. False, doing nothing,
+			// otherwise.
+			static bool Open(int row);
 			// Leaves the battle log for the main menu (its flow row 1), the way
 			// its own Back leaves for Player Data (row 0, 0x46F910).
 			static bool LeaveLocalBattleLog();

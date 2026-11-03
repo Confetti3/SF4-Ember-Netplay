@@ -250,7 +250,7 @@ void FinishRequest(const sf4e::replay::Request& request, bool noRoom) {
  const bool import = request.mode != sf4e::replay::Mode::OpenLog;
  const bool jump = request.mode != sf4e::replay::Mode::Add;
 	if (!jump) return;
-	if (!noRoom || !sf4e::GameEvents::MainMenu::OpenLocalBattleLog()) {
+	if (!noRoom || !sf4e::GameEvents::MainMenu::Open(Dimps::GameEvents::MainMenu::FlowRowLocalBattleLog)) {
 		// A replay that was added stays added; only the jump did not happen.
 		if (!import) op.Notice("replays.not_ready", true);
 		return;

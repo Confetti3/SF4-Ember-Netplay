@@ -7583,6 +7583,21 @@ msgstr "TV 모드"
 msgid "settings.tv_mode_detail"
 msgstr "방 건너편 TV용: 모든 것을 4분의 1 더 크게 하고, 가장자리 5% 안전 영역 안에 둡니다."
 
+msgid "settings.group.game_themes"
+msgstr "게임 내 테마"
+
+msgid "settings.game_theme_menus"
+msgstr "메뉴"
+
+msgid "settings.game_theme_game"
+msgstr "게임 기본"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "게임 폴더의 ember\\themes 안 테마에서 메뉴 그림을 불러옵니다. 게임 파일은 바뀌지 않습니다. 메인 메뉴에는 바로 적용됩니다."
+
+msgid "settings.game_theme_none"
+msgstr "메뉴가 든 테마를 찾지 못했습니다. ui 폴더가 든 테마를 게임 폴더의 ember\\themes에 넣고 게임을 다시 시작하세요."
+
 msgid "menu.pages"
 msgstr "페이지"
 

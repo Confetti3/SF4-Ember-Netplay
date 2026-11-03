@@ -100,6 +100,7 @@ MainMenu, 14, Benchmark, BLACK, 30.0f, BLACK, 30.0f
 	Benchmark, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 MainMenu, 13, Manual, BLACK, 30.0f, BLACK, 30.0f			
 MainMenu, 15, LocalBattleLog, BLACK, 30.0f, BLACK, 30.0f
+MainMenu, 16, MainMenu, BLACK, 30.0f, BLACK, 30.0f
 	Manual, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 0, MainMenu, BLACK, 30.0f, BLACK, 30.0f			
 	PlayerTitleSetting, 1, Option, BLACK, 30.0f, BLACK, 30.0f			
@@ -149,27 +150,31 @@ void fGameEvents::Install() {
 
 // The main menu's own jump to Versus (0x6131A0) asks the flow for its row
 // 2, fades the menu sound, closes the menu and clears its selection. The
-// same with row 15, which Ember's flow table adds above, opens the local
-// battle log, the list of replays a Versus battle saves into.
-void fMainMenu::GoToLocalBattleLog() {
+// same with the rows Ember's flow table adds above: 15 opens the local
+// battle log, the list of replays a Versus battle saves into, and 16 the
+// main menu again, which loads its menu files anew (a theme picked on it).
+void fMainMenu::GoTo(int row) {
 	rMainMenu* const observer = reinterpret_cast<rMainMenu*>(this);
-	Dimps::GameEvents::Flow::Request(rMainMenu::GetObserverFlow(observer), rMainMenu::FlowRowLocalBattleLog);
+	Dimps::GameEvents::Flow::Request(rMainMenu::GetObserverFlow(observer), row);
 	auto* const sound = rMainMenu::GetAppSoundManager(rMainMenu::exitMethods.GetApp());
 	(sound->*rMainMenu::exitMethods.FadeOut)(*rMainMenu::exitMethods.fadeSeconds);
 	(rMainMenu::GetObserverPanel(observer)->*rMainMenu::exitMethods.Close)(0);
 	*rMainMenu::GetObserverSelection(observer) = 0;
 }
 
-// Opens the local battle log from the native main menu, when it is the
-// foreground event. False, doing nothing, otherwise.
-bool fMainMenu::OpenLocalBattleLog() {
+// The native main menu, when it is the foreground event; null otherwise.
+static fMainMenu* ForegroundMainMenu() {
 	rRootEvent* const root = Dimps::App::GetRootEvent();
-	if (!root) return false;
+	if (!root) return nullptr;
 	char* query[1] = { const_cast<char*>("MainMenu") };
 	rMainMenu* const mainMenu = reinterpret_cast<rMainMenu*>(EventBaseWithEC::FindForegroundEvent(root, query, 1));
-	if (!mainMenu) return false;
-	static_cast<fMainMenu*>(rMainMenu::ToItemObserver(mainMenu))->GoToLocalBattleLog();
-	return true;
+	return mainMenu ? static_cast<fMainMenu*>(rMainMenu::ToItemObserver(mainMenu)) : nullptr;
+}
+
+bool fMainMenu::Open(int row) {
+	fMainMenu* const menu = ForegroundMainMenu();
+	if (menu) menu->GoTo(row);
+	return menu != nullptr;
 }
 
 bool fMainMenu::LeaveLocalBattleLog() {

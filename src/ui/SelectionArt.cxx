@@ -1,6 +1,7 @@
 #include "SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../platform/GameThemes.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
 #include <d3d9.h>
@@ -419,7 +420,8 @@ SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
     const auto paths = [&] {
         auto list = impl_->ImagePaths(key);
         const std::wstring code(fighter->code, fighter->code + 3);
-        for (const wchar_t* root : {L"patch_ae2_tu3", L"patch_ae2_tu2", L"patch_ae2", L"dlc/04_ae2",
+        // The theme's menus first, as the game searches them (platform::game_themes).
+        for (const wchar_t* root : {platform::game_themes::ActiveFolder, L"patch_ae2_tu3", L"patch_ae2_tu2", L"patch_ae2", L"dlc/04_ae2",
                                    L"dlc/03_character_free", L"resource"})
             list.push_back(impl_->gameRoot + L"/" + root + L"/ui/chara_select/chara/sel_" + code + L".tex.emz");
         // Last resort when the game's portrait cannot be read or decoded: the

@@ -140,6 +140,8 @@ struct ShellView {
     bool padLayerPending = false, runningControllerLayer = true;
     // The game's menu music entry is the supported one, so Endless lobby music can be turned on.
     bool lobbyMusicAvailable = false;
+    // The themes in <game>\ember\themes with menus, by name.
+    std::vector<std::string> gameThemes;
     std::vector<gamepads::PadView> pads;
     unsigned captureCandidate = 0;
     gamepads::SetupSnapshot padSetup;

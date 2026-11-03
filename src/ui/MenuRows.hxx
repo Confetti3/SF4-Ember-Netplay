@@ -28,7 +28,7 @@ inline std::string RecordValue(const netplay::ProfileRecord& r) {
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&
-        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
+        a.buttonPrompts==b.buttonPrompts&&a.controllerMappings==b.controllerMappings&&a.buttonLayouts==b.buttonLayouts&&a.matchHudSize==b.matchHudSize&&a.matchHudAnchor==b.matchHudAnchor&&a.pictureSpot==b.pictureSpot&&a.pictureMode==b.pictureMode&&a.wornTitle==b.wornTitle&&a.wornIcon==b.wornIcon&&a.gameThemeMenus==b.gameThemeMenus&&a.roomColumn==b.roomColumn&&a.roomSplit==b.roomSplit&&a.speech==b.speech&&a.matchHudLayout==b.matchHudLayout&&a.matchHudNameOffset==b.matchHudNameOffset&&a.readySoundVolume==b.readySoundVolume&&a.interfaceScale==b.interfaceScale&&
         a.roomName==b.roomName&&a.roomCapacity==b.roomCapacity&&a.roomTableCount==b.roomTableCount&&a.roomPublic==b.roomPublic&&a.roomDelayPolicy==b.roomDelayPolicy&&a.tableRules==b.tableRules&&a.publicTableRules==b.publicTableRules&&a.roomTemplates==b.roomTemplates&&a.country==b.country;
 }
 // Only what a room leaves open changed (PlayerPreferences::CopyRoomSettings):
@@ -118,6 +118,13 @@ template<typename T> inline void Step(T& value,const std::vector<int>& choices,i
     auto it=std::find(choices.begin(),choices.end(),static_cast<int>(value));
     int index=it==choices.end()?0:static_cast<int>(it-choices.begin());
     value=static_cast<T>(choices[(std::max)(0,(std::min)(static_cast<int>(choices.size())-1,index+delta))]);
+}
+// The same over names; a name not in the list steps from the first.
+inline void Step(std::string& value,const std::vector<std::string>& choices,int delta) {
+    if(choices.empty()) return;
+    auto it=std::find(choices.begin(),choices.end(),value);
+    int index=it==choices.end()?0:static_cast<int>(it-choices.begin());
+    value=choices[(std::max)(0,(std::min)(static_cast<int>(choices.size())-1,index+delta))];
 }
 inline std::string SetLengthText(room::SetFormat format) {
     return format==room::SetFormat::Unlimited?loc::T("rules.set_length.none"):loc::Tf("rules.set_length.first_to",static_cast<int>(format));

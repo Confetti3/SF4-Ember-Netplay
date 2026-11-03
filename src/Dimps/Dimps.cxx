@@ -33,6 +33,8 @@ BYTE* Dimps::App::iconicChecks[2] = { nullptr, nullptr };
 DWORD Dimps::App::iconicImport = 0;
 float* Dimps::App::battleStepSetting = nullptr;
 void (__cdecl* Dimps::App::SetBattleStepSetting)(float) = nullptr;
+void** Dimps::App::resourcePathList = nullptr;
+void (__thiscall* Dimps::App::AddResourcePath)(void*, unsigned short, const ShortString*, unsigned short) = nullptr;
 
 void Dimps::Locate(HMODULE peRoot) {
 	unsigned int peRootOffset = (unsigned int)peRoot;
@@ -69,4 +71,6 @@ void Dimps::App::Locate(HMODULE peRoot) {
 	iconicImport = peRootOffset + 0x531378;
 	battleStepSetting = (float*)(peRootOffset + 0x6aca44);
 	SetBattleStepSetting = (void(__cdecl*)(float))(peRootOffset + 0x2b2530);
+	resourcePathList = (void**)(peRootOffset + 0x685698);
+	AddResourcePath = (void(__thiscall*)(void*, unsigned short, const ShortString*, unsigned short))(peRootOffset + 0x6740);
 }

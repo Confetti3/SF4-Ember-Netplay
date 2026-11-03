@@ -7582,6 +7582,21 @@ msgstr "Режим ТВ"
 msgid "settings.tv_mode_detail"
 msgstr "Для телевизора в другом конце комнаты: всё на четверть крупнее, внутри безопасной зоны 5% по краям."
 
+msgid "settings.group.game_themes"
+msgstr "Темы игры"
+
+msgid "settings.game_theme_menus"
+msgstr "Меню"
+
+msgid "settings.game_theme_game"
+msgstr "Как в игре"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Картинки меню из темы в папке ember\\themes в папке игры. Файлы игры не меняются. Главное меню показывает её сразу."
+
+msgid "settings.game_theme_none"
+msgstr "Темы с меню не найдены. Положите тему с папкой ui внутри в ember\\themes в папке игры и перезапустите игру."
+
 msgid "menu.pages"
 msgstr "Страницы"
 

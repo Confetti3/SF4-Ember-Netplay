@@ -7582,6 +7582,21 @@ msgstr "Tv-modus"
 msgid "settings.tv_mode_detail"
 msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
 
+msgid "settings.group.game_themes"
+msgstr "Thema's in de game"
+
+msgid "settings.game_theme_menus"
+msgstr "Menu's"
+
+msgid "settings.game_theme_game"
+msgstr "Die van de game"
+
+msgid "settings.game_theme_menus_detail"
+msgstr "Menuafbeeldingen uit een thema in de map ember\\themes in de gamemap. De bestanden van de game blijven zoals ze zijn. Het hoofdmenu toont het meteen."
+
+msgid "settings.game_theme_none"
+msgstr "Geen thema's met menu's gevonden. Zet een thema, met de map ui erin, in ember\\themes in de gamemap en start de game opnieuw."
+
 msgid "menu.pages"
 msgstr "Pagina's"
 
