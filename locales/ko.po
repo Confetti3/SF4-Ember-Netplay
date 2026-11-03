@@ -7598,6 +7598,15 @@ msgstr "게임 폴더의 ember\\themes 안 테마에서 메뉴 그림을 불러�
 msgid "settings.game_theme_none"
 msgstr "메뉴가 든 테마를 찾지 못했습니다. ui 폴더가 든 테마를 게임 폴더의 ember\\themes에 넣고 게임을 다시 시작하세요."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "배틀 HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "게임 폴더의 ember\\themes 안 테마에서 체력·슈퍼·리벤지 게이지, 타이머, 안내 문구를 불러옵니다. 게임 파일은 바뀌지 않습니다. 다음 배틀부터 적용됩니다."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "배틀 HUD가 든 테마를 찾지 못했습니다. battle\\hud 폴더가 든 테마를 게임 폴더의 ember\\themes에 넣고 게임을 다시 시작하세요."
+
 msgid "menu.pages"
 msgstr "페이지"
 

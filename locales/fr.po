@@ -7597,6 +7597,15 @@ msgstr "Images des menus prises dans un thème du dossier ember\\themes du dossi
 msgid "settings.game_theme_none"
 msgstr "Aucun thème avec des menus trouvé. Placez un thème, avec son dossier ui, dans ember\\themes du dossier du jeu, puis relancez le jeu."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD de combat"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Barres de vie, de super et de revenge, chrono et annonces pris dans un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le prochain combat l'affiche."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Aucun thème avec un HUD de combat trouvé. Placez un thème, avec son dossier battle\\hud, dans ember\\themes du dossier du jeu, puis relancez le jeu."
+
 msgid "menu.pages"
 msgstr "Pages"
 

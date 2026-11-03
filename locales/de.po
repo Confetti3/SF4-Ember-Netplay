@@ -7597,6 +7597,15 @@ msgstr "Menübilder aus einem Theme im Ordner ember\\themes des Spielordners. Di
 msgid "settings.game_theme_none"
 msgstr "Keine Themes mit Menüs gefunden. Lege ein Theme mit seinem ui-Ordner in ember\\themes im Spielordner ab und starte das Spiel neu."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "Kampf-HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Lebens-, Super- und Revenge-Leisten, Timer und Ansagen aus einem Theme im Ordner ember\\themes des Spielordners. Die Dateien des Spiels bleiben unverändert. Der nächste Kampf zeigt es."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Keine Themes mit Kampf-HUD gefunden. Lege ein Theme mit seinem battle\\hud-Ordner in ember\\themes im Spielordner ab und starte das Spiel neu."
+
 msgid "menu.pages"
 msgstr "Seiten"
 

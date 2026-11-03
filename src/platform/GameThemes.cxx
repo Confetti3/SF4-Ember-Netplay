@@ -25,7 +25,7 @@ std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t*
     return names;
 }
 
-bool Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error) {
+Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error) {
     error.clear();
     const fs::path game(gameDirectory), active = game / ActiveFolder / part;
     fs::path next = active, old = active;
@@ -51,10 +51,10 @@ bool Use(const std::wstring& gameDirectory, const wchar_t* part, const std::stri
     fs::remove_all(old, ignored);
     std::error_code moved;
     if (fs::exists(active, ignored)) fs::rename(active, old, moved);
-    if (moved) { error = moved.message(); fs::remove_all(next, ignored); return false; }
+    if (moved) { error = moved.message(); fs::remove_all(next, ignored); return Outcome::Unchanged; }
     if (fs::exists(next, ignored)) fs::rename(next, active, moved);
-    if (moved) { error = moved.message(); return false; }
+    if (moved) { error = moved.message(); return Outcome::GameOwn; }
     fs::remove_all(old, ignored);
-    return error.empty();
+    return error.empty() ? Outcome::Used : Outcome::GameOwn;
 }
 } } }

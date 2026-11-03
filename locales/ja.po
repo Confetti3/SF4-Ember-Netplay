@@ -7598,6 +7598,15 @@ msgstr "ゲームフォルダの ember\\themes 内のテーマからメニュー
 msgid "settings.game_theme_none"
 msgstr "メニューを含むテーマが見つかりません。ui フォルダを含むテーマをゲームフォルダの ember\\themes に入れ、ゲームを再起動してください。"
 
+msgid "settings.game_theme_battle_hud"
+msgstr "バトルHUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "ゲームフォルダの ember\\themes 内のテーマから体力・スーパー・リベンジゲージ、タイマー、アナウンスを読み込みます。ゲームのファイルは変更されません。次のバトルから反映されます。"
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "バトルHUDを含むテーマが見つかりません。battle\\hud フォルダを含むテーマをゲームフォルダの ember\\themes に入れ、ゲームを再起動してください。"
+
 msgid "menu.pages"
 msgstr "ページ"
 

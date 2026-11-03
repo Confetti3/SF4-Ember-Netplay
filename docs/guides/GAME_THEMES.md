@@ -1,13 +1,13 @@
 # SF4 Ember Netplay: In-game themes
 
-An in-game theme replaces how parts of the game look and sound: its menus first, and later its battle HUD and custom in-game overlays such as scoreboards. Themes are folders you put next to the game. Ember never changes the game's own files, so taking a theme away always gives you the game back as it shipped.
+An in-game theme replaces how parts of the game look and sound: its menus and battle HUD, and later custom in-game overlays such as scoreboards. Themes are folders you put next to the game. Ember never changes the game's own files, so taking a theme away always gives you the game back as it shipped.
 
-You choose themes in **Settings > Interface > In-game themes**. Each part has its own row, so you can take the menus from one theme and, once more parts are supported, the battle HUD from another.
+You choose themes in **Settings > Interface > In-game themes**. Each part has its own row, so you can take the menus from one theme and the battle HUD from another.
 
 | Part | Row | Folder in a theme | State |
 |---|---|---|---|
 | Menus | Menus | `ui\` | Works |
-| Battle HUD | Battle HUD | `battle\hud\` | Planned |
+| Battle HUD | Battle HUD | `battle\hud\` | Works |
 | In-game overlays (scoreboards, player cards) | Overlay | `overlay\` | Planned |
 
 ## Where themes go
@@ -78,6 +78,22 @@ The menus part is the game's `ui` folder: every menu and screen's pictures, layo
 
 A theme's ui folder only changes what the menus and screens show and play. Nothing in it is read by the fight itself, so it is safe online: you and your opponent can use different themes, or none.
 
+## Battle HUD: the battle\hud folder
+
+The battle HUD part is the game's `battle\hud` folder: what is drawn over a fight. The game's own copy is in `resource\battle\hud`, with newer files in the patch folders (`patch_ae2_tu2\battle\hud\CMN\cockpit.tex.emz` is the one the game uses) and the later fighters' files in `dlc\03_character_free` and `dlc\04_ae2`. A theme puts all of them in its one `battle\hud` folder, the newest copy of each.
+
+| Folder | What it is |
+|---|---|
+| `CMN\cockpit.tex.emz` | The life, super and revenge bars, the timer and the round icons (`d_common.dds`, `d_time.dds`, `d_d_text.dds`) |
+| `CMN\cockpit.ems.emz` | Where those sit on screen |
+| `CMN\announce.tex.emz` | Round calls: Round, Final, Fight, K.O., Perfect, Time over, Win, Lose, Draw |
+| `CMN\notice.tex.emz` | Messages shown during a fight |
+| `ENG\cockpit_text.tex.emz`, `ENG\cursor_text.tex.emz` | Text on the HUD, per language |
+| `ENG\<fighter>\chara.tex.emz` | Each fighter's pictures: by the life bar (`cockpit.dds`), at the round call, on the result screen, and the face |
+| `ENG\<fighter>\uc.tex.emz` | Each fighter's two Ultra pictures |
+
+A battle HUD is pictures and their places on screen. Ember's desync check looks at the fighters and the battle flow, not at the HUD. A new pick shows from the next battle.
+
 ## The files
 
 Menu files are `.emz` files: a compressed bundle of a menu's pictures (`.dds`) and its Scaleform movie (`.gfx`, which holds the layout and animations). The game also loads a bundle that is not compressed, so a modding tool that writes plain bundles works too.
@@ -92,7 +108,7 @@ A menu whose bundle the game cannot read stays empty or stops responding. Take t
 ## Picking a theme
 
 1. Put the theme folder in `ember\themes`, then start the game. Ember looks for themes when the game starts, so a theme added while it runs shows after a restart.
-2. On the main menu, open **Settings > Interface > In-game themes**. **Menus** lists **The game's own** and every theme with a `ui` folder. Left and Right step through them; Select opens the list. Settings can change it only on the main menu, outside rooms and matches.
+2. On the main menu, open **Settings > Interface > In-game themes**. **Menus** lists **The game's own** and every theme with a `ui` folder, and **Battle HUD** every theme with a `battle\hud` folder. Left and Right step through them; Select opens the list. Settings can change it only on the main menu, outside rooms and matches.
 3. The new menus show at once: the main menu fades and opens again.
 
 Ember remembers your pick. If the theme is gone the next time the game starts, Ember goes back to the game's own menus.
@@ -111,11 +127,11 @@ Ember writes what it does with themes to its log, `%APPDATA%\sf4e\logs\sf4e.log`
 
 | Log line | Meaning |
 |---|---|
-| `In-game themes: 2 with menus` | Themes Ember found at start-up |
+| `In-game themes: 2 with ui`, `In-game themes: 1 with battle\hud` | Themes Ember found at start-up, per part |
 | `In-game themes: the game searches ember\theme first` | The game was told to look in `ember\theme` |
-| `In-game themes: menus Juri` | The theme's menus were copied in |
+| `In-game themes: ui Juri` | The theme's menus were copied in (`battle\hud CvS2` for the battle HUD) |
 | `In-game themes: main menu opened again` | The main menu reloaded to show them |
-| `In-game themes: menus Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had |
+| `In-game themes: ui Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had |
 
 **Settings says no themes were found:** the theme folder needs a `ui` folder directly inside it (`ember\themes\Juri\ui`, not `ember\themes\Juri\Juri\ui`), and the game needs a restart after adding it.
 

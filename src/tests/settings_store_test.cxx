@@ -456,9 +456,9 @@ int main() {
     // The award worn on the card stays in the netplay section until the backend stores it.
     CHECK(store.SaveLauncher({{"wornTitle","organizer"},{"wornIcon","by-ear"}},error));
     CHECK(store.LoadLauncher(result,error)&&result["wornTitle"]=="organizer"&&result["wornIcon"]=="by-ear");
-    // So does the menus theme, a folder name.
-    CHECK(store.SaveLauncher({{"gameThemeMenus","Neon"}},error));
-    CHECK(store.LoadLauncher(result,error)&&result["gameThemeMenus"]=="Neon");
+    // So do the themes of each part, folder names.
+    CHECK(store.SaveLauncher({{"gameThemeMenus","Neon"},{"gameThemeBattleHud","CvS2"}},error));
+    CHECK(store.LoadLauncher(result,error)&&result["gameThemeMenus"]=="Neon"&&result["gameThemeBattleHud"]=="CvS2");
     // A profile from before 1.1.0, the wrong type, out of range, or a number past an
     // int's range (which a plain conversion would wrap into range) is Default.
     using sf4e::netplay::ReadMatchHudNameOffset;

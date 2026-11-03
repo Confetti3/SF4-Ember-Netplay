@@ -13,15 +13,22 @@ namespace sf4e { namespace platform { namespace game_themes {
 // relative to the game's.
 constexpr wchar_t Folder[] = L"ember\\themes";
 constexpr wchar_t ActiveFolder[] = L"ember\\theme";
-// The parts. Menus: the game's ui folder, which menus and screens read and a
-// match never does.
+// The parts, by folder, in netplay::GameThemePart order. Menus: the game's ui
+// folder, which menus and screens read and a match never does. Battle HUD: the
+// battle\hud folder, the life, super and revenge bars, timer and round calls a
+// battle loads as it starts. Ember's desync check (StateHash) hashes the fighters
+// and the battle flow, not the HUD.
 constexpr wchar_t Menus[] = L"ui";
+constexpr wchar_t BattleHud[] = L"battle\\hud";
+constexpr const wchar_t* Parts[] = { Menus, BattleHud };
 // The themes in <game>\ember\themes that have the part, by name. Names are UTF-8.
 std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t* part);
+// What Use did: the named part is in use (the game's own files for an empty
+// name); the game's own files are, because the theme is gone or its part could
+// not be copied; or nothing changed, because the part in use could not be moved
+// aside (the game has one of its files open). Error says why for the last two.
+enum class Outcome { Used, GameOwn, Unchanged };
 // Makes ember\theme\<part> hold the named theme's part, or nothing for an
-// empty name (the game's own files). A theme that is gone, or a part that
-// cannot be copied, leaves the game's own files too, and is false with error
-// saying why. When the part in use cannot be moved aside (the game has one of
-// its files open), nothing changes: false, and error says so.
-bool Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error);
+// empty name.
+Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error);
 } } }

@@ -367,7 +367,7 @@ std::uint64_t PublishFingerprint() {
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
     mix(runtime->preferences.autoDelayStyle); mix(runtime->preferences.matchHudSize); mix(runtime->preferences.matchHudAnchor); mix(runtime->preferences.matchHudLayout); mix(runtime->preferences.matchHudNameOffset); mix(runtime->preferences.readySoundVolume); mix(runtime->preferences.shareReplaysSince); mix(runtime->preferences.pictureSpot); mix(runtime->preferences.pictureMode); mix(runtime->preferences.roomColumn); mix(runtime->preferences.roomSplit);
-    mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon); mixString(runtime->preferences.gameThemeMenus);
+    mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon); for (const auto& theme : runtime->preferences.gameThemes) mixString(theme);
     { const auto& speech = runtime->preferences.speech; mix(speech.enabled); mix(speech.rate); mix(speech.volume); mix(speech.details); mix(speech.hints); mix(speech.position); mix(speech.chime); mix(speech.chimeVolume);
       mix(speech.introHeard); mix(speech.tick); mix(speech.describeUsed); mix(speech.remind); }
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
@@ -592,7 +592,7 @@ PostPublishState Publish() {
     snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
     snapshot.runningControllerLayer = runtime->runningControllerLayer;
     snapshot.lobbyMusicAvailable = MenuMusic::Available();
-    snapshot.gameThemes = GameThemes::Menus();
+    for (int part = 0; part < netplay::GameThemePartCount; ++part) snapshot.gameThemes[part] = GameThemes::Names(static_cast<netplay::GameThemePart>(part));
     snapshot.padSetup = Gamepads::ReadFrame().setup;
     snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
     snapshot.padHintUntil = runtime->padHintUntil;

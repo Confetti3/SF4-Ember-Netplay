@@ -169,8 +169,8 @@ namespace sf4e {
             bool padLayerPending = false, runningControllerLayer = true;
             // The menu music entry is the supported one (MenuMusic::Available).
             bool lobbyMusicAvailable = false;
-            // The themes with menus found as the game started (GameThemes::Menus).
-            std::vector<std::string> gameThemes;
+            // The themes with each part found as the game started (GameThemes::Names).
+            std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
             std::vector<gamepads::PadView> pads;
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;

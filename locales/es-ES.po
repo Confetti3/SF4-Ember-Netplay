@@ -7598,6 +7598,15 @@ msgstr "Imágenes del menú desde un tema en la carpeta ember\\themes de la carp
 msgid "settings.game_theme_none"
 msgstr "No se han encontrado temas con menús. Pon un tema, con su carpeta ui, en ember\\themes dentro de la carpeta del juego y vuelve a iniciar el juego."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD de combate"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Barras de vida, súper y revenge, reloj y anuncios desde un tema en la carpeta ember\\themes de la carpeta del juego. Los archivos del juego no cambian. El próximo combate lo muestra."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "No se han encontrado temas con HUD de combate. Pon un tema, con su carpeta battle\\hud, en ember\\themes dentro de la carpeta del juego y vuelve a iniciar el juego."
+
 msgid "menu.pages"
 msgstr "Páginas"
 

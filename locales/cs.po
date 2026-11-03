@@ -7597,6 +7597,15 @@ msgstr "Obrázky menu z motivu ve složce ember\\themes ve složce hry. Soubory 
 msgid "settings.game_theme_none"
 msgstr "Žádný motiv s menu nenalezen. Vložte motiv se složkou ui do ember\\themes ve složce hry a spusťte hru znovu."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "Bojový HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Ukazatele života, superu a revenge, časovač a hlášky z motivu ve složce ember\\themes ve složce hry. Soubory hry zůstanou beze změny. Ukáže se v příštím boji."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Žádný motiv s bojovým HUD nenalezen. Vložte motiv se složkou battle\\hud do ember\\themes ve složce hry a spusťte hru znovu."
+
 msgid "menu.pages"
 msgstr "Stránky"
 

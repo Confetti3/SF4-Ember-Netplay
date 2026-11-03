@@ -7598,6 +7598,15 @@ msgstr "从游戏文件夹 ember\\themes 中的主题读取菜单图片。游戏
 msgid "settings.game_theme_none"
 msgstr "未找到含菜单的主题。请将含 ui 文件夹的主题放入游戏文件夹的 ember\\themes，然后重新启动游戏。"
 
+msgid "settings.game_theme_battle_hud"
+msgstr "战斗 HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "从游戏文件夹 ember\\themes 中的主题读取体力、超必杀、复仇槽、计时器和播报。游戏自身的文件保持不变。下一场战斗即会显示。"
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "未找到含战斗 HUD 的主题。请将含 battle\\hud 文件夹的主题放入游戏文件夹的 ember\\themes，然后重新启动游戏。"
+
 msgid "menu.pages"
 msgstr "页面"
 

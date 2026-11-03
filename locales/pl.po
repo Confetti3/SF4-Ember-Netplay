@@ -7597,6 +7597,15 @@ msgstr "Obrazy menu z motywu w folderze ember\\themes w folderze gry. Pliki gry 
 msgid "settings.game_theme_none"
 msgstr "Nie znaleziono motywów z menu. Umieść motyw z folderem ui w ember\\themes w folderze gry i uruchom grę ponownie."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD walki"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Paski życia, super i revenge, licznik czasu i komunikaty z motywu w folderze ember\\themes w folderze gry. Pliki gry pozostają bez zmian. Następna walka go pokaże."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Nie znaleziono motywów z HUD walki. Umieść motyw z folderem battle\\hud w ember\\themes w folderze gry i uruchom grę ponownie."
+
 msgid "menu.pages"
 msgstr "Strony"
 

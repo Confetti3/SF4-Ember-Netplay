@@ -7130,6 +7130,15 @@ msgstr "Imagens do menu de um tema na pasta ember\\themes da pasta do jogo. Os a
 msgid "settings.game_theme_none"
 msgstr "Nenhum tema com menus encontrado. Coloque um tema, com a pasta ui dentro, em ember\\themes na pasta do jogo e abra o jogo de novo."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD de luta"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Barras de vida, super e revenge, cronômetro e avisos de um tema na pasta ember\\themes da pasta do jogo. Os arquivos do jogo continuam como estão. A próxima luta mostra."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Nenhum tema com HUD de luta encontrado. Coloque um tema, com a pasta battle\\hud dentro, em ember\\themes na pasta do jogo e abra o jogo de novo."
+
 msgid "menu.pages"
 msgstr "Páginas"
 

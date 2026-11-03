@@ -7225,6 +7225,15 @@ msgstr "Menu pictures from a theme in the game folder's ember\\themes folder. Th
 msgid "settings.game_theme_none"
 msgstr "No themes with menus found. Put a theme, with its ui folder inside, in the game folder's ember\\themes folder, then start the game again."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "Battle HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Life, super and revenge bars, timer and announcements from a theme in the game folder's ember\\themes folder. The game's own files stay as they are. The next battle shows it."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "No themes with a battle HUD found. Put a theme, with its battle\\hud folder inside, in the game folder's ember\\themes folder, then start the game again."
+
 msgid "menu.pages"
 msgstr "Pages"
 

@@ -7597,6 +7597,15 @@ msgstr "Картинки меню из темы в папке ember\\themes в �
 msgid "settings.game_theme_none"
 msgstr "Темы с меню не найдены. Положите тему с папкой ui внутри в ember\\themes в папке игры и перезапустите игру."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "Боевой HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Полосы здоровья, супер и реванша, таймер и объявления из темы в папке ember\\themes в папке игры. Файлы игры не меняются. Следующий бой покажет её."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Темы с боевым HUD не найдены. Положите тему с папкой battle\\hud внутри в ember\\themes в папке игры и перезапустите игру."
+
 msgid "menu.pages"
 msgstr "Страницы"
 

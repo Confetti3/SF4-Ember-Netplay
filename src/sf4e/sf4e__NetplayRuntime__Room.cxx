@@ -435,7 +435,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 			runtime->preferences = command.preferences;
             Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
 			MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
-			GameThemes::UseMenus(runtime->preferences.gameThemeMenus);
+			GameThemes::Use(runtime->preferences.gameThemes);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");

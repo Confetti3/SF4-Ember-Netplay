@@ -35,6 +35,12 @@ namespace {
 constexpr int RoomPresets[] = {28, 36, 56};
 const char* const RoomPresetKeys[] = {"settings.room_preset.board", "settings.room_preset.balanced", "settings.room_preset.chat"};
 int RoomPreset(int column) { return column <= 30 ? 0 : column >= 50 ? 2 : 1; }
+// Each in-game theme part's row, by netplay::GameThemePart: its id, name, the words
+// under it, and those it shows with no theme found.
+struct GameThemeRow { const char *id, *label, *detail, *none; };
+constexpr GameThemeRow GameThemeRows[netplay::GameThemePartCount] = {
+    {"game-theme-menus", "settings.game_theme_menus", "settings.game_theme_menus_detail", "settings.game_theme_none"},
+    {"game-theme-battle-hud", "settings.game_theme_battle_hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;
@@ -195,22 +201,26 @@ public:
         return Value("tv", loc::T("settings.tv_mode"), s.preferences_.tvMode ? loc::T("common.on") : loc::T("common.off"), loc::T("settings.tv_mode_detail"), v.canEditPreferences);
     }
     static Entries Look(Shell& s, const ShellView& v) { return {Tv(s, v)}; }
-    // The menus theme (PlayerPreferences::gameThemeMenus), from the themes Ember found. A
-    // saved theme that is gone shows as the game's own, which is what the game loads.
-    static MenuEntry GameThemeMenus(Shell& s, const ShellView& v) {
-        const auto& themes = v.gameThemes;
-        const std::string& theme = s.preferences_.gameThemeMenus;
+    // A part's theme (PlayerPreferences::gameThemes), from the themes Ember found with that
+    // part. A saved theme that is gone shows as the game's own, which is what the game loads.
+    static MenuEntry GameTheme(Shell& s, const ShellView& v, netplay::GameThemePart part) {
+        const GameThemeRow& r = GameThemeRows[part];
+        const auto& themes = v.gameThemes[part];
+        const std::string& theme = s.preferences_.gameThemes[part];
         const bool found = std::find(themes.begin(), themes.end(), theme) != themes.end();
         const std::string game = loc::T("settings.game_theme_game");
-        auto row = Value("game-theme-menus", loc::T("settings.game_theme_menus"), found ? theme : game,
-            loc::T(themes.empty() ? "settings.game_theme_none" : "settings.game_theme_menus_detail"), v.canEditPreferences && !themes.empty());
+        auto row = Value(r.id, loc::T(r.label), found ? theme : game, loc::T(themes.empty() ? r.none : r.detail), v.canEditPreferences && !themes.empty());
         // Select lists the game's own and the themes; a pick is the steps to it (OfferSteps).
         std::vector<std::string> labels = themes;
         labels.insert(labels.begin(), game);
         OfferSteps(row, labels);
         return row;
     }
-    static Entries GameThemeParts(Shell& s, const ShellView& v) { return {GameThemeMenus(s, v)}; }
+    static Entries GameThemeParts(Shell& s, const ShellView& v) {
+        Entries rows;
+        for (int part = 0; part < netplay::GameThemePartCount; ++part) rows.push_back(GameTheme(s, v, static_cast<netplay::GameThemePart>(part)));
+        return rows;
+    }
     static Entries MatchHud(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
@@ -563,6 +573,17 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "scale") p.interfaceScale = (std::max)(1.f, (std::min)(1.5f, p.interfaceScale + .05f * a.delta));
     else return false;
     return true;
+}
+
+bool ApplicationShell::AdjustGameTheme(netplay::PlayerPreferences& p, const ShellView& v, const MenuAction& a) {
+    for (int part = 0; part < netplay::GameThemePartCount; ++part) {
+        if (a.id != GameThemeRows[part].id) continue;
+        auto names = v.gameThemes[part];
+        names.insert(names.begin(), std::string()); // the game's own (empty) first
+        Step(p.gameThemes[part], names, a.delta);
+        return true;
+    }
+    return false;
 }
 
 // A Settings tab, as the design's board: the rail of panels on the left

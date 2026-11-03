@@ -274,7 +274,7 @@ void StartHelper() {
             runtime->preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
             const auto text = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
             runtime->preferences.wornTitle = text("wornTitle"); runtime->preferences.wornIcon = text("wornIcon");
-            runtime->preferences.gameThemeMenus = text("gameThemeMenus");
+            for (int part = 0; part < netplay::GameThemePartCount; ++part) runtime->preferences.gameThemes[part] = text(netplay::GameThemeKeys[part]);
             const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
             const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
             runtime->preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
@@ -307,7 +307,7 @@ void StartHelper() {
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
     MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
-    GameThemes::UseMenus(runtime->preferences.gameThemeMenus);
+    GameThemes::Use(runtime->preferences.gameThemes);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.

@@ -7597,6 +7597,15 @@ msgstr "Immagini dei menu da un tema nella cartella ember\\themes della cartella
 msgid "settings.game_theme_none"
 msgstr "Nessun tema con menu trovato. Metti un tema, con la sua cartella ui, in ember\\themes nella cartella del gioco e riavvia il gioco."
 
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD di combattimento"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Barre di vita, super e revenge, timer e annunci da un tema nella cartella ember\\themes della cartella del gioco. I file del gioco restano invariati. Il prossimo combattimento lo mostra."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Nessun tema con HUD di combattimento trovato. Metti un tema, con la sua cartella battle\\hud, in ember\\themes nella cartella del gioco e riavvia il gioco."
+
 msgid "menu.pages"
 msgstr "Pagine"
 
