@@ -87,6 +87,11 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="hitboxes")Require(trainingRows.size()==4&&trainingRows[0].id=="hitboxes-shown","Hitboxes page lost its switch or one of its parts");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
+        // A row with more than On and Off offers every value, whichever one it shows (Counter hit: On, the reply and the inputs shown: Off).
+        const auto choicesOf=[&](const char* id){for(const auto& row:trainingRows)if(row.id==id)return row.choices.size();return std::size_t(0);};
+        if(std::string(screen)=="dummy")Require(choicesOf("dummy-counter")==3,"Counter hit offered fewer values than it has");
+        if(std::string(screen)=="reply")Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");
+        if(std::string(screen)=="hud")Require(choicesOf("hud-inputs")==static_cast<std::size_t>(training::InputDisplays),"Inputs shown offered fewer values than it has");
         if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
@@ -157,6 +162,53 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
     Require(!TrainingMeterOptions().numbers&&TrainingMeterOptions().bars,"HUD page did not turn its first part off");
     SetTrainingMeterOptions({});
+    // Directions follow the cards as drawn. Down and Up step a page's rows one
+    // at a time in reading order, in one column or two; where a page stands in
+    // two columns, Left and Right cross between them from a row with no value
+    // to step (Frame data, HUD and the recording's slots at 150%).
+    {
+        std::vector<MenuEntry> rows;
+        std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+        SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+        SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){cards[id]={from,to};});
+        const auto press=[&](unsigned button){draw(nullptr,button,1);draw(nullptr,0,1);};
+        const auto reach=[&](const std::string& id){
+            for(std::size_t i=0;i<rows.size()&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);
+            Require(TrainingNavigation().Focus()==id,"A training row was unreachable by Down");};
+        for(const char* screen:{"recording","frame-data","hud","dummy","reply"}) {
+            const std::string page=screen;
+            TrainingNavigation().Home();TrainingNavigation().Push(screen);draw();
+            for(std::size_t i=0;i<rows.size();++i)press(MenuInput::Up);
+            Require(TrainingNavigation().Focus()==rows.front().id,("Up did not reach the first row of "+page).c_str());
+            const auto order=rows;
+            for(std::size_t i=1;i<order.size();++i){
+                press(MenuInput::Down);
+                Require(TrainingNavigation().Focus()==order[i].id,("Down skipped a row of "+page).c_str());
+            }
+            for(std::size_t i=order.size()-1;i>0;--i){
+                press(MenuInput::Up);
+                Require(TrainingNavigation().Focus()==order[i-1].id,("Up skipped a row of "+page).c_str());
+            }
+            float leftmost=FLT_MAX,rightmost=-FLT_MAX;
+            for(const auto& row:order){const float x=cards.at(row.id).first.x;leftmost=(std::min)(leftmost,x);rightmost=(std::max)(rightmost,x);}
+            if(rightmost-leftmost<20)continue;
+            for(const auto& row:order){
+                const auto card=cards.at(row.id);
+                if(row.adjustable||card.first.x>leftmost+1)continue;
+                reach(row.id);
+                press(MenuInput::Right);
+                const auto across=cards.at(TrainingNavigation().Focus());
+                Require(across.first.x>=card.second.x-1,("Right did not cross to the other column of "+page).c_str());
+                // Left on a row with a value steps it instead, so it comes back only from one without.
+                const auto landed=std::find_if(order.begin(),order.end(),[&](const MenuEntry& other){return other.id==TrainingNavigation().Focus();});
+                if(landed->adjustable)break;
+                press(MenuInput::Left);
+                Require(cards.at(TrainingNavigation().Focus()).first.x<=leftmost+1,("Left did not come back to the first column of "+page).c_str());
+                break;
+            }
+        }
+        SetMenuCardProbe({});SetMenuEntriesProbe({});
+    }
     // The reply's pick list: Right from the reply slot picks the first preset,
     // which is sent to the dummy as typed notation is; Left goes back.
     {

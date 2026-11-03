@@ -217,8 +217,7 @@ void OfferTrainingValues(std::vector<MenuEntry>& rows) {
     const char* sizes[]={"size.small","size.standard","size.large"};
     for(auto& e:rows) {
         std::vector<std::string> labels;
-        if(e.value==loc::T("common.on")||e.value==loc::T("common.off")) labels={loc::T("common.off"),loc::T("common.on")};
-        else if(e.id.compare(0,6,"dummy-")==0) {
+        if(e.id.compare(0,6,"dummy-")==0) {
             const std::string which=e.id.substr(6);
             const int kind=which=="action"?0:which=="guard"?1:which=="counter"?2:which=="quick"?3:4;
             for(const int value:DummyChoices(kind)) labels.push_back(DummyLabel(kind,value));
@@ -233,6 +232,9 @@ void OfferTrainingValues(std::vector<MenuEntry>& rows) {
         else if(e.id=="check-start-from") for(const char* name:StartNames) labels.push_back(loc::T(name));
         else if(e.id=="check-stance") for(const char* name:StanceNames) labels.push_back(loc::T(name));
         else if(e.id=="check-speed") labels={loc::T("training.combo_check.speed.normal"),loc::T("training.combo_check.speed.fast")};
+        else if(e.id=="hud-inputs") for(const auto& choice:InputDisplayChoices) labels.push_back(loc::T(choice.label));
+        // A row of any other name that reads On or Off is a switch; the rows above are named first because their Off or On is one of several.
+        else if(e.value==loc::T("common.on")||e.value==loc::T("common.off")) labels={loc::T("common.off"),loc::T("common.on")};
         OfferSteps(e,labels);
     }
 }
@@ -598,7 +600,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
  const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
- const bool recordingGrid=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
+ const bool compactSlots=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
  if(screen=="home"){
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
@@ -612,14 +614,13 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  }else if(screen=="recording"){
   // The slots are a list of what plays, as SF6's are: Select turns a
   // recorded slot on or off for Play and the dummy reply (Left and Right
-  // too, where a list's rows allow it), and chooses an empty one for Record.
+  // too), and chooses an empty one for Record.
   for(int slot=0;slot<SlotCount;++slot){
    const bool recorded=v.lengths[slot]>0;
    rows.push_back(Value("slot-"+std::to_string(slot),loc::Tf(slot==v.selected?"training.slot_selected":"training.slot",slot+1),
     recorded?loc::T(v.on[slot]?"common.on":"common.off"):loc::T("training.slot.empty"),
     recorded?loc::Tf("training.slot.detail",v.lengths[slot]):loc::T("training.slot.empty_detail"),ready&&v.mode==Mode::Idle));
-   // In the grid Left and Right move between the cells.
-   rows.back().adjustable=recorded&&!recordingGrid;rows.back().opens=true;
+   rows.back().adjustable=recorded;rows.back().opens=true;
   }
   // Left and Right choose the slot Record, Clear, Save and Mirror act on.
   auto record=Value("record",loc::T("training.record"),loc::Tf("training.slot",v.selected+1),
@@ -639,7 +640,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.back().opens=true;
   // A file that comes out the wrong way round is turned in one press.
   rows.push_back(Row("mirror",loc::T("training.mirror"),loc::T("training.mirror.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
-  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=recordingGrid?30:0;}
+  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=compactSlots?30:0;}
  }else if(screen=="tools"||screen=="dummy"||screen=="reply"){
   rows=ToolRows(v,screen);
  }else if(screen=="combo-check"||screen=="check-fighters"){
@@ -731,7 +732,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
- },recordingGrid?2:1,{},GameMenu::Body{},true,recordingGrid?30:100,statusTone);
+ },1,{},GameMenu::Body{},true,compactSlots?30:100,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  // A tab names its page; the pages are the lab's, one level under it, so
  // one replaces another, whatever is open on it (a reader).
