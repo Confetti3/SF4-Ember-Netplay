@@ -35,6 +35,7 @@
 #include "../common/Localization.hxx"
 #include "../common/sf4e__StateHash.hxx"
 #include "../common/NativeMatchResult.hxx"
+#include "../common/InPlaceReplays.hxx"
 #include "../session/sf4e__SessionProtocol.hxx"
 
 #include "sf4e.hxx"
@@ -86,10 +87,16 @@ using rSystem = Dimps::Game::Battle::System;
 // Defined in sf4e__Game__Battle__System.cxx.
 extern rKey::MementoID GGPO_MEMENTO_ID;
 void EmitRollbackDiagSummary(const char* label);
+// An in-place rematch is final: the game before it gets its replay and its
+// names, and the next game its own (common/InPlaceReplays.hxx).
+void HandOverInPlaceReplay();
 
 // Defined in sf4e__Game__Battle__System__NativeResult.cxx.
 extern sf4e::native_result::Timeline s_nativeResultTimeline;
 extern bool s_nativeResultEmitted;
+// The battle's later games' replays (common/InPlaceReplays.hxx), reset with
+// the rest of the battle's result state.
+extern sf4e::replay::InPlaceReplays s_inPlaceReplays;
 void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
 bool MatchResultKnown();

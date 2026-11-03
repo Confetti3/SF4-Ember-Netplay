@@ -475,22 +475,32 @@ replayfiles::ArchiveWorker& Archiver() {
 }
 }
 
+namespace {
+// The start of the battle being played, which each game an in-place rematch
+// starts in it shares. Only the game thread notes boundaries.
+std::optional<replayfiles::RecordingBoundary>& BattleStart() { static std::optional<replayfiles::RecordingBoundary> start; return start; }
+void PostStart(replayfiles::RecordingBoundary event) {
+ event.time = static_cast<std::uint64_t>(_time64(nullptr));
+ Provenance().Post(std::move(event));
+}
+}
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
  const replayfiles::SetTag& set) {
  try { Archiver().Want(); } catch (...) {}
  try {
+  BattleStart().reset();
   if (p1.size() > 1024 || p2.size() > 1024 || set.matchId.size() > replayfiles::kMostId || set.bridgeId.size() > replayfiles::kMostId) { Provenance().Invalidate(); return; }
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::Start;
-  event.time = static_cast<std::uint64_t>(_time64(nullptr));
   event.recordingEnabled = recordingEnabled;
   event.names = {{p1, p2}, spectating ? replayfiles::Provenance::Spectated : replayfiles::Provenance::Played, set}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
-  Provenance().Post(std::move(event));
+  BattleStart() = event;
+  PostStart(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 void NoteMatchEnd(bool confirmed, slots::Bytes unsaved) {
  if (!unsaved.empty()) {
-  if (!Unsaved().Add(unsaved)) spdlog::warn("Replays: the unfinished replay was dropped; the archive has not taken the ones before it");
+  if (!Unsaved().Add(unsaved)) spdlog::warn("Replays: a replay Ember kept was dropped; the archive has not taken the ones before it");
  }
  try { Archiver().MatchEnded(); } catch (...) {}
  try {
@@ -501,6 +511,12 @@ void NoteMatchEnd(bool confirmed, slots::Bytes unsaved) {
   event.body = std::move(unsaved);
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
+}
+// A restart needs a running session, whose start was noted (NoteMatchStart).
+void NoteGameRestarted(slots::Bytes ended) {
+ NoteMatchEnd(true, std::move(ended));
+ try { if (BattleStart()) PostStart(*BattleStart()); }
+ catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
 
 namespace {

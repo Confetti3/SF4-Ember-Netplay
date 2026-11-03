@@ -18,6 +18,8 @@ struct HeldResult { sf4e::room::MatchResult result; std::uint64_t captureFrame, 
 static std::optional<HeldResult> s_heldResult;
 static int s_resultFrame = -1;  // save frame of the last result published
 static unsigned s_gamesReported = 0;  // games of this battle the room heard
+// The games of this battle after its first, which the game does not save.
+sf4e::replay::InPlaceReplays s_inPlaceReplays;
 
 void ResetNativeResultMatch() {
     s_nativeResultTimeline.Reset();
@@ -25,6 +27,7 @@ void ResetNativeResultMatch() {
     s_heldResult.reset();
     s_resultFrame = -1;
     s_gamesReported = 0;
+    s_inPlaceReplays.Reset();
 }
 
 bool fSystem::ResultHeld() { return s_heldResult.has_value(); }
@@ -89,6 +92,7 @@ void PublishConfirmedNativeMatchResult() {
         if (fight < 0) return;
         spdlog::info("Match result: game {} went on to a rematch in this battle (fight confirmed at frame {})", s_gamesReported + 1, fight);
         ReportNativeResult(*s_heldResult, true);
+        HandOverInPlaceReplay();
         s_heldResult.reset();
         s_nativeResultEmitted = false;
         s_resultFrame = fight;

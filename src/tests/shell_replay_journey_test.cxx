@@ -156,10 +156,24 @@ void ExportChoicesJourney() {
    "Left on Player names already off saved a choice");}
  SetMenuEntriesProbe({});
 }
+// Watch set under Sets plays a room set's games in the order they were
+// played: the first at once, each next one from the Next game row on Replays.
+void SetWatchJourney() {
+ using namespace sf4e;Harness h;h.Frame();
+ auto last=Listed("C:\\r\\s2.emberreplay","2026-11-03 20:10");last.names[0]="A";last.names[1]="B";last.time=6000;
+ auto first=last;first.path=std::filesystem::u8path("C:\\r\\s1.emberreplay");first.time=5800;
+ List(h,{last,first});h.view.replays.ready=true;
+ h.Screen("replay-sets");
+ auto sent=h.actions.size();h.Choose("set:C:\\r\\s2.emberreplay");h.Press(MenuInput::Select);
+ Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s1.emberreplay","Watch set did not play the set's first game");
+ h.Screen("replays");sent=h.actions.size();h.Choose("set-next");
+ Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s2.emberreplay","Next game did not play the set's second game");
+}
 }
 void ReplayJourneys() {
  using namespace sf4e;
  ExportChoicesJourney();
+ SetWatchJourney();
  Harness h;h.Frame();
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {
