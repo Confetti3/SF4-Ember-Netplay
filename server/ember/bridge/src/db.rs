@@ -95,6 +95,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (52, include_str!("../migrations/052_room_type.sql")),
     (53, include_str!("../migrations/053_room_creator_in.sql")),
     (54, include_str!("../migrations/054_archive_games_once.sql")),
+    (55, include_str!("../migrations/055_archive_listing.sql")),
 ];
 
 #[derive(Clone)]
@@ -816,5 +817,120 @@ mod tests {
         connection
             .prepare("SELECT title, last_saved_at FROM archive_events UNION ALL SELECT code, 0 FROM archive_countries")
             .unwrap();
+    }
+
+    /// Migration 055 gives the games kept before it their sides' players,
+    /// their keys (stored games only) with the keys' counts, and the kept
+    /// total, before any of its triggers fire; the triggers keep them after.
+    #[test]
+    fn archive_games_kept_before_the_listing_index_are_indexed() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..54]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO tenants (id, name) VALUES ('t', 'Tenant');
+                 INSERT INTO provider_connections (id, tenant_id, kind, environment, display_name, enabled)
+                   VALUES ('c', 't', 'direct', 'staging', 'Site', 1);
+                 INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
+                   assignment_generation, state, games_to_win, rules, required_build_id, metadata,
+                   delivery_state, created_at, updated_at, expires_at, expiry_secs)
+                   VALUES ('emt_set', 't', 'c', 'set', '', 1, 2, 'completed', 2, '{}', '', '{}', 'not_required', 1, 1, 9, 9);
+                 INSERT INTO match_participants (match_id, assignment_generation, slot, participant_id, ember_id)
+                   VALUES ('emt_set', 1, 0, 'p-old', 'emb_old'), ('emt_set', 2, 0, 'p-x', 'emb_x'),
+                          ('emt_set', 2, 1, 'p-y', 'emb_y');
+                 INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, name_a, country_a,
+                   sent_by, sent_side, priority, state, next_attempt_at, received_at, game)
+                   VALUES ('aa', '1', 5, 100, 3, 3, 'Ann', 'JP', 'emb_p1', 0, 1, 'stored', 0, 0, 'g1'),
+                          ('bb', '2', 6, 200, 1, 2, NULL, NULL, 'emb_p1', NULL, 1, 'pending', 0, 0, 'g2'),
+                          ('cc', '3', 7, 300, 1, 2, 'Ann', NULL, 'emb_p2', 1, 1, 'duplicate', 0, 0, 'g1');
+                 INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, match_id, event_title,
+                   round_label, phase, sent_by, priority, state, next_attempt_at, received_at, game)
+                   VALUES ('dd', '4', 8, 400, 4, 5, 'emt_set', 'Cup', 'Winners Final', 'Top 8', 'emb_x', 0, 'stored', 0, 0, 'g3');",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let players = |digest: &str| -> (Option<String>, Option<String>) {
+            connection
+                .query_row(
+                    "SELECT player_a, player_b FROM archive_games WHERE digest = ?1",
+                    [digest],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap()
+        };
+        assert_eq!(players("aa"), (Some("emb_p1".into()), None));
+        assert_eq!(players("bb"), (None, None));
+        assert_eq!(players("cc"), (None, Some("emb_p2".into())));
+        assert_eq!(players("dd"), (Some("emb_x".into()), Some("emb_y".into())));
+        let keys = |connection: &Connection| -> Vec<(String, String)> {
+            connection
+                .prepare("SELECT lower(hex(digest)), key FROM archive_keys ORDER BY digest, key")
+                .unwrap()
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap()
+        };
+        let expected: Vec<(String, String)> = [
+            ("aa", "*"),
+            ("aa", "c:JP"),
+            ("aa", "f:3"),
+            ("aa", "n:Ann"),
+            ("aa", "o"),
+            ("aa", "t:0"),
+            ("dd", "*"),
+            ("dd", "e:Cup"),
+            ("dd", "f:4"),
+            ("dd", "f:5"),
+            ("dd", "r:top8"),
+            ("dd", "r:winners"),
+            ("dd", "t:0"),
+        ]
+        .into_iter()
+        .map(|(digest, key)| (digest.to_owned(), key.to_owned()))
+        .collect();
+        assert_eq!(keys(&connection), expected);
+        let count = |connection: &Connection, key: &str| -> Option<i64> {
+            connection
+                .query_row(
+                    "SELECT games FROM archive_key_counts WHERE key = ?1",
+                    [key],
+                    |row| row.get(0),
+                )
+                .map(Some)
+                .or_else(|error| match error {
+                    rusqlite::Error::QueryReturnedNoRows => Ok(None),
+                    error => Err(error),
+                })
+                .unwrap()
+        };
+        assert_eq!(count(&connection, "*"), Some(2));
+        assert_eq!(count(&connection, "t:0"), Some(2));
+        assert_eq!(count(&connection, "n:Ann"), Some(1));
+        let kept: (i64, i64) = connection
+            .query_row("SELECT games, bytes FROM archive_kept", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(kept, (4, 1000));
+        // From here the triggers keep them: a game stored, one deleted.
+        connection
+            .execute_batch(
+                "UPDATE archive_games SET state = 'stored' WHERE digest = 'bb';
+                 DELETE FROM archive_games WHERE digest = 'aa';",
+            )
+            .unwrap();
+        assert_eq!(count(&connection, "*"), Some(2));
+        assert_eq!(count(&connection, "n:Ann"), None);
+        assert_eq!(count(&connection, "f:1"), Some(1));
+        let kept: (i64, i64) = connection
+            .query_row("SELECT games, bytes FROM archive_kept", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(kept, (3, 900));
     }
 }

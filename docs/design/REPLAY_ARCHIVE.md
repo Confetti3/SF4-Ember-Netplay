@@ -187,18 +187,69 @@ its own, `https://archive.embernetplay.link/`. Deployment:
 
 `GET /v1/archive` takes these filters: `event` (a title, or `online`),
 `fighter` (native ID), `country`, `round` (`top8`, `pools`, `winners`,
-`losers`, `grand`), `q` (a name or event) and `cursor`. It answers with up to
-400 games, newest first by save time, then by digest, each with its digest,
-CRC and download URL. It also answers with each listed set's score, and its
-pack's URL once the bucket holds one (`null` before), and with the events and
-countries the filters can choose from.
+`losers`, `grand`), `q` (part of a name or an event's title), `class` (band 1
+to 10, either side), and `sort` (`class` for the higher class of the two
+sides first, else newest first) and `cursor`. It answers with up to 400
+games, newest first by save time, then by digest (by class: Grand Master
+games newest first, then Master, down to games with no class), each with
+its digest, CRC, download URL and each side's class. It also answers with
+each listed set's score, and its pack's URL once the bucket holds one
+(`null` before), the events and countries the filters can choose from, the
+order it used (`sort`: `class`, or `newest`, which a class order becomes
+while the bridge hides classes), and `total` (every stored game) and
+`matching` (the games the filters keep; `null` when counting them would
+read more than 100,000 games).
 
 When there is more to look through, the answer carries `next`, an opaque
 string, and `more: true`; the request with `cursor=<next>` goes on from
 there, so games saved in the same second are never skipped at a page's end.
-One listing looks through at most 5000 stored games, so a selective filter
-holds the database only briefly; a filtered page can hold fewer than 400
-games, even none, and still carry `next`.
+A cursor belongs to its order: one from the other order is refused (400).
+
+### The index
+
+A listing reads the games it lists through an index migration 055 adds,
+rather than through the games, so it costs about the same at a thousand
+games as at the 20 GiB cap (measured at a million: 2 ms for one filter or
+none, about 50 ms for three filters together, 7 to 16 ms for a search).
+
+- `archive_keys` holds a row for each stored game and each thing a listing
+  picks by: `*` (every game), `f:<fighter>`, `c:<country>`, `n:<name>`, `o`
+  (online) or `e:<event>`, `r:<round>`, `k:<class>`, and `t:<class>`, the
+  higher class of the two sides (0 for none), which the class order walks.
+  Within a key its rows are newest first, with the digest as 32 bytes.
+  `archive_key_counts` counts each key's games, so a single filter's count
+  and the total cost one read, and a search finds the names and events that
+  hold its text among those some stored game still has.
+- `archive_games.player_a` / `player_b` are the Ember IDs that played each
+  side (a set's roster as assigned now, else who sent or named that side),
+  and `class_a` / `class_b` their classes.
+- `archive_kept` counts every game the archive holds, in any state, and
+  their bytes, for the 20 GiB bound.
+
+SQLite triggers keep all of it from `archive_games` and the set rosters,
+whichever write changes them; the views `archive_game_keys` and
+`archive_side_players` say what it is, and the tests check the index
+against them after every write they make.
+
+A page walks the rows of its smallest clause (each filter is a key; a search
+is any of the names and events holding its text), newest first, and checks
+the other filters on each game. A search's keys are gathered and sorted
+when they have at most 20,000 games together; past that, every game is
+walked. One page looks at no more than 10,000 of the walked rows, so a page
+of filters common alone but rare together can hold fewer than 400 games,
+even none, and still carry `next`; the page asks for more by itself then.
+
+### Classes
+
+The classes are the public rankings board's, as `ranking::public_classes`
+reads it. Each maintenance pass, in its own transaction, compares the board
+with `archive_player_classes`, the classes the archive's games carry, and
+gives the games of each player whose class moved their new one, at most
+1,000 games a pass, so a change to many games at once (classes hidden, say)
+reaches them over several passes without holding the database. A new game
+takes its players' classes as the archive holds them when it comes in. While
+the bridge hides classes the listing shows none, filters by class to
+nothing and lists newest first.
 
 The events and countries are kept in `archive_events` and
 `archive_countries` as games are stored or join a set, so a listing does not
@@ -237,7 +288,8 @@ Both routes go through one admission, in the transaction that keeps the game:
   for the set either; the game sends it again later.
 - The archive keeps at most 20 GiB of games in all, about two million. Past it
   no new online game is taken (503); a set's game still is, since the archive
-  keeps every set and the sets played bound them.
+  keeps every set and the sets played bound them. The bound reads
+  `archive_kept`, so taking a game costs the same however many there are.
 - One sender's day counts only the games it sent as online games
   (`archive_games.charged`); a game that joins a set later keeps its charge.
 - `GET /v1/archive` needs no credential. The page's nginx site limits it to
