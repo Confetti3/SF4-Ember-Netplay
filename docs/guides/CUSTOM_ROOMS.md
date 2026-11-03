@@ -132,7 +132,8 @@ wins for the same pair.
 After a game you fought, Ember asks over the WIN screen for ten seconds:
 **Rematch** (**Next game** inside a set), **Character select** (X, or F) or
 **Back to room** (B). Rematch is your Ready, so when both of you choose it the
-next game starts without a stop on the board; while someone waits in the queue
+next game starts without a stop on the board; the WIN screen waits while
+either of you is still being asked, so an answer in the last second counts; while someone waits in the queue
 after a set there is no Rematch. **Back to room** keeps your seat, not ready,
 so a B pressed through the WIN costs nothing; you leave a seat only with Leave
 seat. No answer keeps the seat inside a set; after a set it gives the seat up,

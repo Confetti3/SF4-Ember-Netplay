@@ -1,5 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../netplay/ControllerRestore.hxx"
+#include "../common/RematchInput.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__Overlay.hxx"
@@ -329,10 +330,16 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     if(!runtime||!runtime->attached)return false;
     const bool valid=side==runtime->matchBinding.matchInputSide&&input::ReadAssignedInput(runtime->matchBinding.matchInput,side,mapped,raw);
     runtime->matchBinding.matchInputFault=!valid;
-    // A Rematch pressed over the WIN waits there as the parked Ready. A Random
-    // pick's rematch leaves the battle, so the next game plays a new roll.
-    if(valid&&Game::Battle::System::ResultHeld()&&internal::PostMatchPromptDue()&&runtime->readyIntent.Active()&&
-       !internal::RandomFighterChosen())raw|=RematchInputBit;
+    // Over a WIN the battle may go on from, the prompt's answer travels with
+    // the inputs (common/RematchInput.hxx): a Rematch pressed there, waiting as
+    // the parked Ready, or the fighter still being asked, which holds the WIN
+    // for them. A Random pick's rematch leaves the battle, so the next game
+    // plays a new roll, and nothing is held for it.
+    const bool due=Game::Battle::System::ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen();
+    const ULONGLONG now=GetTickCount64();
+    if(!due)runtime->promptDueSinceMs=0;
+    else if(!runtime->promptDueSinceMs)runtime->promptDueSinceMs=now;
+    if(valid)raw|=rematch::LocalBits(due,runtime->readyIntent.Active(),now-runtime->promptDueSinceMs);
     // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
     selftest::MatchInput(side,mapped,raw);
     return valid;

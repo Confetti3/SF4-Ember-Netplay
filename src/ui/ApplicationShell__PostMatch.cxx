@@ -21,6 +21,8 @@
 // where a set hands seats over by the queue (KeepsSeat).
 namespace sf4e { namespace ui {
 namespace {
+// The prompt's time. The game's WIN waits as long for a fighter still asked,
+// and a second more (rematch::AskingMs), so an answer in time always counts.
 constexpr double PostMatchSeconds = 10;
 // Rematch chosen: the prompt waits this long past its timer for the opponent's
 // answer, and, both having chosen, for the next game to load.

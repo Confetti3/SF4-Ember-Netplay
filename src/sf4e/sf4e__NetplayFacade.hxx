@@ -434,10 +434,8 @@ namespace sf4e {
 		};
 		bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints);
         bool BindRuntimeInput(int localSlot);
-        // The raw input bit that carries this player's Rematch over the WIN to
-        // the other game (one of TrainingRuntime.hxx's retired bits). Both set
-        // on a frame: the next game starts in this battle. Never shown to the game.
-        constexpr unsigned RematchInputBit = 0x20000000;
+        // This player's prompt over the WIN, carried to the other game in the
+        // raw input (rematch::LocalBits); never shown to the game.
         bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw);
 		void ReleaseRuntimePortToGgpo();
 		void InitFromPayload(const NetplayConfig& cfg);

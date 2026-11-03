@@ -1,6 +1,7 @@
 // Arcade and King of the hill rooms: sixteen one-player cabinets; whoever sits
 // down plays the player who has waited longest (Snapshot::arcade).
 #include "room_authority_support.hxx"
+#include "../common/RematchInput.hxx"
 
 #include <vector>
 
@@ -398,6 +399,26 @@ static void TestStandingCountsTheGameJustPlayed() {
 	CHECK(standing.score[0] == 1 && !standing.over);
 }
 
+// Over a WIN the battle may go on from, each fighter's prompt rides in their
+// input. While either is still asked the WIN waits for them, so an answer in
+// the prompt's last second, or a frame predicted without it, cannot end the
+// battle before both chose Rematch.
+static void TestWinWaitsForTheRematchAnswers() {
+	using namespace sf4e::rematch;
+	CHECK(LocalBits(false, true, 0) == 0);
+	CHECK(LocalBits(true, false, 0) == AskingBit);
+	CHECK(LocalBits(true, false, AskingMs - 1) == AskingBit);
+	CHECK(LocalBits(true, false, AskingMs) == 0);   // the prompt's time is up: no answer
+	CHECK(LocalBits(true, true, AskingMs * 3) == ChoiceBit);
+	CHECK(Decide(ChoiceBit, ChoiceBit) == Win::End);
+	CHECK(Decide(ChoiceBit, AskingBit) == Win::Hold);  // one chose, the other is still asked
+	CHECK(Decide(AskingBit, 0) == Win::Hold);
+	CHECK(Decide(ChoiceBit, 0) == Win::Run);           // the other gave no answer in time
+	CHECK(Decide(0, 0) == Win::Run);
+	// The bits sit outside the fight buttons the game reads.
+	CHECK((Bits & 0x0FFFFFFFu) == 0);
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -417,6 +438,7 @@ int main() {
 		TestArcadePracticeRoom();
 		TestRematchInPlaceFollowsSetGoal();
 		TestStandingCountsTheGameJustPlayed();
+		TestWinWaitsForTheRematchAnswers();
 	} catch (const std::exception& error) {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;
