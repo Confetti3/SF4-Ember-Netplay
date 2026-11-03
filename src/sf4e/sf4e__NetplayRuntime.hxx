@@ -241,6 +241,9 @@ struct Runtime {
 	// game is prepared: until the main menu is back with no Rematch coming, or
 	// the next battle is entered.
 	bool promptOverBattle = false;
+	// When this WIN's prompt became due, for as long as the fighter is asked
+	// (rematch::LocalBits); 0 outside such a WIN.
+	ULONGLONG promptDueSinceMs = 0;
 	// The lock release that failure owes the room. It outlives the battle: it
 	// stays pending, resent as needed, until the room confirms it, the player
 	// locks in again, or it expires, whatever the room commits meanwhile.

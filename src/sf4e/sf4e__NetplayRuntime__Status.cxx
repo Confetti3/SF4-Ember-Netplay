@@ -373,6 +373,7 @@ std::uint64_t PublishFingerprint() {
     mixString(runtime->padHint);
     mix(AtMainMenu());
     mix(Game::Battle::System::rematchChoices); mix(Game::Battle::System::GamesPlayedInPlace());
+    mix(static_cast<std::uint64_t>(Game::Battle::System::GameResult()));
     return h;
 }
 }
@@ -633,6 +634,8 @@ PostPublishState Publish() {
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     snapshot.rematchChoices = Game::Battle::System::rematchChoices;
     snapshot.gamesInPlace = Game::Battle::System::GamesPlayedInPlace();
+    if (runtime->entry.matchEntered && !LocalIsSpectator())
+        snapshot.foughtGame = {runtime->entry.enteredTable, runtime->entry.enteredGeneration, Game::Battle::System::GameResult()};
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)

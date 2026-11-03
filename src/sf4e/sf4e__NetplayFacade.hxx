@@ -176,6 +176,8 @@ namespace sf4e {
             // Over the WIN, the players who chose Rematch (bit 1 = P1, 2 = P2);
             // and the games of this battle that went on to one in place.
             unsigned rematchChoices = 0, gamesInPlace = 0;
+            // The room game this PC fights, and the result of the WIN on screen.
+            netplay::FoughtGame foughtGame;
             // The game this PC only watches now (MenuContext::WatchedMatch), by
             // its own match rather than the table, which moves on first.
             netplay::WatchedGame watchedGame;
@@ -432,10 +434,8 @@ namespace sf4e {
 		};
 		bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints);
         bool BindRuntimeInput(int localSlot);
-        // The raw input bit that carries this player's Rematch over the WIN to
-        // the other game (one of TrainingRuntime.hxx's retired bits). Both set
-        // on a frame: the next game starts in this battle. Never shown to the game.
-        constexpr unsigned RematchInputBit = 0x20000000;
+        // This player's prompt over the WIN, carried to the other game in the
+        // raw input (rematch::LocalBits); never shown to the game.
         bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw);
 		void ReleaseRuntimePortToGgpo();
 		void InitFromPayload(const NetplayConfig& cfg);

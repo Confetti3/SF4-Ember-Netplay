@@ -197,6 +197,9 @@ struct ShellView {
     // Over that WIN, the seats whose player chose Rematch (bit 1 = P1, 2 = P2),
     // and the games of the battle that went on to a rematch in place.
     unsigned rematchChoices = 0, gamesInPlace = 0;
+    // The room game this PC fights: its table and generation, kept when an
+    // Arcade room moves the set's loser on, and the WIN's result.
+    netplay::FoughtGame foughtGame;
     // That game's picture, for the menu's top right corner over an opaque
     // menu (PlayerPreferences::pictureMode); null when it is not wanted or
     // could not be taken.
@@ -365,9 +368,10 @@ public:
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
-    // must still finish and the room's following, with only the session,
-    // identity, room notices, room and watched game of `view` read, and `room`
-    // taken into the chat transcript as a drawn frame takes it.
+    // must still finish, the room's following and the post-match prompt's
+    // count of WINs, with only the session, identity, room notices, room,
+    // watched and fought games and WIN of `view` read, and `room` taken into
+    // the chat transcript as a drawn frame takes it.
     void Background(const ShellView& view, const room::Snapshot& room, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
@@ -624,8 +628,13 @@ private:
         int table = -1;
         room::MemberId opponent = 0;
         std::uint64_t generation = 0;
+        // The game's result, once the runtime has it (FoughtGame::result).
+        room::MatchResult result = room::MatchResult::Abort;
         double until = 0;
         bool chose = false, starting = false;
+        // An Arcade pair's Rematch chosen here (Table::deciding): once both
+        // chose it the room asks no more, and the prompt readies the player.
+        bool pairRematch = false;
         // The runtime's Ready failures seen so far: a new one takes back the
         // choice, but the player still answered (no seat left for no answer).
         std::uint64_t failures = 0;

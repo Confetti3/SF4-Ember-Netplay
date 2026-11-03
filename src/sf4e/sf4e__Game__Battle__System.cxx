@@ -1,5 +1,6 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/BattlePause.hxx"
+#include "../common/RematchInput.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
@@ -62,22 +63,33 @@ unsigned fSystem::rematchChoices = 0;
 // The GGPO frame that last restarted the match: a resimulated frame does not
 // count again. Games in one battle restart their own frame count; GGPO's runs on.
 static int rematchFrame = -1;
+static_assert(sf4e::rematch::Bits == sf4e::training::ReservedInputBits, "the prompt's bits are the retired Training bits");
 
 void fSystem::TakeRematchChoices(fPadSystem::Inputs inputs[2]) {
+    namespace rematch = sf4e::rematch;
     rematchChoices = 0;
-    for (int i = 0; i < 2; i++) {
-        if (inputs[i].rawOn & sf4e::NetplayFacade::RematchInputBit) rematchChoices |= 1u << i;
-        inputs[i].rawOn &= ~sf4e::NetplayFacade::RematchInputBit;
-    }
-    if (rematchChoices != 3) return;
-    // Both chose: the WIN's last wait (MATCH_RESULT step 5 until its frame
-    // 300, DRAW_RESULT step 2 until frame 30) ends on this frame, as its own
-    // timeout ends it. Both games read the same inputs on the same frame.
+    for (int i = 0; i < 2; i++)
+        if (inputs[i].rawOn & rematch::ChoiceBit) rematchChoices |= 1u << i;
+    const auto win = rematch::Decide(inputs[0].rawOn, inputs[1].rawOn);
+    for (int i = 0; i < 2; i++) inputs[i].rawOn &= ~rematch::Bits;
+    // The WIN's last wait: MATCH_RESULT step 5 until its frame 300 (0x5DDDC0),
+    // DRAW_RESULT step 2 until frame 30. It ends once the frame crosses that.
     const auto flow = *rSystem::staticVars.CurrentBattleFlow, step = *rSystem::staticVars.CurrentBattleFlowSubstate;
     const short last = flow == rSystem::BF__MATCH_RESULT && step == 5 ? 300 : flow == rSystem::BF__DRAW_RESULT && step == 2 ? 30 : 0;
+    if (!last || win == rematch::Win::Run) return;
     auto* frame = rSystem::staticVars.CurrentBattleFlowSubstateFrame;
-    if (last && frame->integral < last - 1)
-        *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 1) };
+    // Both chose: it ends on this frame, as its own timeout ends it.
+    if (win == rematch::Win::End) {
+        if (frame->integral < last - 1)
+            *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 1) };
+        return;
+    }
+    // A fighter is still being asked: the wait stays a frame short of its end,
+    // and no press in it skips the rest (0x5DD100), until they answer or their
+    // prompt's time is up.
+    if (frame->integral >= last - 2)
+        *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 2) };
+    for (int i = 0; i < 2; i++) inputs[i].mappedOn = inputs[i].rawOn = 0;
 }
 
 // The replay the recorder holds, serialized as the game's save would
