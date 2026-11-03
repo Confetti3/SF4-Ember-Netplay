@@ -124,11 +124,19 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
         return MatchEntry::Deferred;
     }
+    // The fighters and editions name the HUD's edition badges the first round
+    // shows, for a crash at the battle's start.
+    const auto& chara = client->_matchData.chara;
     spdlog::info(
-        "Netplay: starting match with rounds={} time={} training={}",
+        "Netplay: starting match with rounds={} time={} training={} edition_select={} "
+        "fighters {}/{}/{} and {}/{}/{} (fighter/costume/edition) stage={}",
         client->_lobbyData.roundCount,
         client->_lobbyData.roundTime.integral,
-        client->_lobbyData.trainingMode
+        client->_lobbyData.trainingMode,
+        client->_lobbyData.editionSelect,
+        chara[0].charaID, chara[0].costume, chara[0].unc_edition,
+        chara[1].charaID, chara[1].costume, chara[1].unc_edition,
+        client->_matchData.stageID
     );
     return MatchEntry::Entered;
 }
