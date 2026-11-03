@@ -360,6 +360,9 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const auto leave = [&](AfterPostMatch after) {
         if (p.left) return;
         if (!netplay::Fighting(v.session.match)) { ClosePostMatch(v, after, open); return; }
+        // Back or Character select takes back a pair's Rematch: the room's
+        // answer may still end its question, but it readies nobody here.
+        postMatch_->pairRematch = false;
         postMatch_->left = true; postMatch_->after = after;
     };
     if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);

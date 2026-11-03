@@ -775,6 +775,13 @@ void ArcadeJourneys() {
   Check(a.actions.size()==paired+1&&a.actions.back().command.kind==Kind::Rematch,"Both choosing Rematch did not ready the player for the next set");
   a.Frame(0,3);
   Check(a.actions.size()==paired+1&&a.shell.Navigation().Screen()=="post-match","The pair's Rematch was sent twice or the prompt left");
+  gameOver();
+  // Rematch, then Back before the other answered: once both answers end the
+  // room's question, the prompt readies nobody who last chose Back.
+  setOver(8);a.Choose("rematch");t.rematch[0]=true;a.Frame();a.Press(MenuInput::Back);
+  const auto withdrawn=a.actions.size();t.deciding=false;t.rematch[0]=false;t.phase=room::TablePhase::Waiting;a.Frame(0,3);
+  Check(std::none_of(a.actions.begin()+static_cast<std::ptrdiff_t>(withdrawn),a.actions.end(),
+   [](const ShellAction& x){return x.command.kind==Kind::Rematch;}),"A Rematch taken back with Back still readied the player");
   SetMenuEntriesProbe({});
  }
  for(const auto type:{room::ArcadeRoom,room::KingRoom}){
