@@ -2,6 +2,7 @@
 // and the v1 snapshot capture. Split from
 // sf4e__Game__Battle__System__SaveState.cxx.
 #include "sf4e__Game__Battle__System__Internal.hxx"
+#include "../common/CodyKnife.hxx"
 
 std::map<int, std::pair<StateSnapshot, fSystem::StateSnapshotMeta>> fSystem::snapshotMap;
 fSystem::HashCheckpoint fSystem::hashCheckpoints[fSystem::NUM_HASH_CHECKPOINTS];
@@ -15,7 +16,23 @@ const char* const fSystem::CharaSemantics::kFieldNames[kFields] = {
     // slowdown). A replay that keeps positions and health but lands a move
     // on a different frame differs here.
     "action", "actionFrame", "posture", "timeScale",
+    // Cody's knife (common/CodyKnife.hxx): its state and its x, zero for
+    // everyone else and until the round's fight has dropped it. Nothing else
+    // hashed shows it until he reaches for it again.
+    "knifeState", "knifeX",
 };
+
+static sf4e::knife::Words CaptureKnife(CharaUnit* unit, CharaActor* a) {
+    if ((a->*CharaActor::publicMethods.GetActorID)() != CharaActor::ID_CDY) return {};
+    if (!sf4e::knife::RoundDropApplied(*rSystem::staticVars.CurrentBattleFlow,
+            rSystem::staticVars.CurrentBattleFlowFrame->integral)) return {};
+    const uint8_t* actor = reinterpret_cast<const uint8_t*>(a);
+    Dimps::Game::Battle::Chara::ItemCollection* items = unit->lpItemCollection;
+    const void* knife = items
+        ? (items->*Dimps::Game::Battle::Chara::ItemCollection::publicMethods.GetItemByIndex)(sf4e::knife::ItemIndex(actor))
+        : nullptr;
+    return sf4e::knife::Read(static_cast<const uint8_t*>(knife));
+}
 
 // Hashing these words with Hasher::U32 is byte-for-byte what F32, I32 and
 // Fixed emit for the same values, so the v2 hash is unchanged.
@@ -60,6 +77,9 @@ fSystem::CharaSemantics fSystem::CaptureCharaSemantics(rSystem* src, int side) {
     *v++ = (a->*m.GetActionPosture)();
     (src->*rSystem::publicMethods.GetUnitTimeScale_Fixed)(&fp, side);
     *v++ = raw(&fp);
+    const sf4e::knife::Words knife = CaptureKnife(unit, a);
+    *v++ = knife.state;
+    *v++ = knife.x;
     assert(v == out.v + CharaSemantics::kFields);
     return out;
 }
@@ -68,7 +88,9 @@ fSystem::CharaSemantics fSystem::CaptureCharaSemantics(rSystem* src, int side) {
 // deliberately conservative: the frame counter, battle-flow numeric state,
 // and per-character semantic values read through engine getters (the same
 // values the legacy snapshot exchanges, which are known deterministic
-// across peers, plus action id, action frame, posture and time scale).
+// across peers, plus action id, action frame, posture and time scale, and
+// Cody's knife, read from the knife item its memento saves once the round's
+// fight has dropped it).
 // Explicitly EXCLUDED: the battle-flow function pointers,
 // the raw GameManager block (shallow pointer fields), GameMementoKey bytes,
 // sound maps (process-local pointer keys), the battle RNG (System+0x54, not

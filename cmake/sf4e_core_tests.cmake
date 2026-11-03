@@ -30,6 +30,7 @@ sf4e_add_unit_test(NAME SessionController SOURCES "src/tests/session_controller_
 sf4e_add_unit_test(NAME RollbackHud SOURCES "src/tests/rollback_hud_test.cxx")
 sf4e_add_unit_test(NAME HudMementoBounds SOURCES "src/tests/hud_memento_bounds_test.cxx")
 sf4e_add_unit_test(NAME VfxObjectMemento SOURCES "src/tests/vfx_object_memento_test.cxx")
+sf4e_add_unit_test(NAME CodyKnife SOURCES "src/tests/cody_knife_test.cxx" STD 14)
 sf4e_add_unit_test(NAME FocusGate SOURCES "src/tests/focus_gate_test.cxx")
 sf4e_add_unit_test(NAME WindowNudge SOURCES "src/tests/window_nudge_test.cxx")
 sf4e_add_unit_test(NAME AwayAlert SOURCES "src/tests/away_alert_test.cxx")
