@@ -8,6 +8,7 @@
 
 #include <windows.h>
 #include <d3d9.h>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -33,9 +34,12 @@ void Write(const fs::path& path, const std::string& bytes) {
 void Put32(std::string& bytes, std::size_t at, std::uint32_t value) { std::memcpy(&bytes[at], &value, 4); }
 // A Ranking.emz like the game's: one EMB entry `name` holding a plain 32-bit
 // BGRA DDS of `side` pixels, which Windows' DDS codec cannot read. The EMZ
-// holds it in one stored deflate block.
-std::string RankingArchive(const std::string& name, std::uint32_t side) {
+// holds it in one stored deflate block. The `margin` pixels round its edge are
+// transparent, as a crown's canvas is round the crown.
+std::string RankingArchive(const std::string& name, std::uint32_t side, std::uint32_t margin = 0) {
     std::string dds(128 + side * side * 4, '\x7f');
+    for (std::uint32_t y = 0; y < side; ++y) for (std::uint32_t x = 0; x < side; ++x)
+        if (x < margin || y < margin || x >= side - margin || y >= side - margin) std::memset(&dds[128 + (y * side + x) * 4], 0, 4);
     std::memcpy(&dds[0], "DDS ", 4);
     Put32(dds, 4, 124); Put32(dds, 8, 0x81007); Put32(dds, 12, side); Put32(dds, 16, side); Put32(dds, 20, side * side * 4);
     std::memset(&dds[24], 0, 104);
@@ -159,6 +163,16 @@ int main() {
         Write(game / L"resource" / L"ui" / L"network_mode" / L"Ranking.emz", RankingArchive("class_B.dds", 32));
         const auto emblem = Settle(art, [&] { return art.RankingEmblem("class_B.dds"); }, 2000);
         CHECK(emblem.texture && !emblem.missing && emblem.width == 32 && emblem.height == 32);
+        CHECK(logged.size() == 4);
+        // An emblem painted only inside a transparent margin (a crown on its
+        // canvas) is shown by its painting: the uv rectangle leaves the margin
+        // out, two pixels of it kept, as portraits are cropped, and the size
+        // reported is the painted 20 pixels, not the 32-pixel canvas.
+        Write(game / L"resource" / L"ui" / L"network_mode" / L"Ranking.emz", RankingArchive("class_MASTER.dds", 32, 8));
+        const auto crown = Settle(art, [&] { return art.RankingEmblem("class_MASTER.dds"); }, 2000);
+        CHECK(crown.texture && crown.width == 20 && crown.height == 20);
+        CHECK(std::abs(crown.uvMin.x - 6.f / 32) < .001f && std::abs(crown.uvMin.y - 6.f / 32) < .001f);
+        CHECK(std::abs(crown.uvMax.x - 26.f / 32) < .001f && std::abs(crown.uvMax.y - 26.f / 32) < .001f);
         CHECK(logged.size() == 4);
 
         // The shipped developer mark sits in the input art folder beside the

@@ -91,8 +91,9 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
  if(!n)return;
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();
  // The hero band across the pane's top: the kind's chip and the title over the kind's ground.
- const ImVec2 a=ImGui::GetWindowPos(),b(a.x+ImGui::GetWindowWidth(),a.y+150*s);
- d->PushClipRect(a,b,false);
+ // It scrolls with the notes, so they never pass over it.
+ const ImVec2 a(ImGui::GetWindowPos().x,ImGui::GetWindowPos().y-ImGui::GetScrollY()),b(a.x+ImGui::GetWindowWidth(),a.y+150*s);
+ d->PushClipRect(a,b,true);
  const ImU32 far=n->stable?v2::color::Alpha(c.accent,.4f):c.header;
  d->AddRectFilledMultiColor(a,b,c.header,far,far,c.header);
  d->AddLine(ImVec2(a.x,b.y-s),ImVec2(b.x,b.y-s),c.border,s);
@@ -118,7 +119,7 @@ void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,c
  }
  // Update now on the offered release, at the pane's foot: the same as its row, which asks first.
  if(!v.services.launchOffer||v.services.launchOffer->tag!=n->tag)return;
- const float button=52*s,foot=a.y+ImGui::GetWindowHeight()-16*s-button;
+ const float button=52*s,foot=ImGui::GetWindowPos().y+ImGui::GetWindowHeight()-16*s-button;
  if(ImGui::GetCursorScreenPos().y<foot)ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x,foot));
  ImGui::PushStyleColor(ImGuiCol_Button,ImGui::ColorConvertU32ToFloat4(c.accent));
  ImGui::PushStyleColor(ImGuiCol_ButtonHovered,ImGui::ColorConvertU32ToFloat4(c.accentLight));

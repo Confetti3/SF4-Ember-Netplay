@@ -33,6 +33,20 @@ void SettleRoomPictures(const Draw& draw) {
     }
     SetPortraitProbe({});
 }
+// The room board's layout grips are windows of their own, in front of the panels beside
+// them: a grip drawn on the board's list would be covered by the panels' child windows.
+inline void RequireGripsInFront() {
+    int panel=-1,grip=-1,at=0;
+    for(const auto* window:GImGui->Windows){
+        if(window->LastFrameActive==ImGui::GetFrameCount()){
+            const std::string name=window->Name;
+            if(name.find("Room members")!=std::string::npos)panel=at;
+            if(name.find("##room-column")!=std::string::npos)grip=at;
+        }
+        ++at;
+    }
+    if(grip>=0)Require(grip>panel,"The room board's column grip is under the panels beside it");
+}
 template<class Draw,class Page>
 void ShootRoomPictures(sf4e::ui::ShellView& view,const Draw& draw,const Page& page) {
     for(auto& member:view.room.members){
@@ -42,7 +56,7 @@ void ShootRoomPictures(sf4e::ui::ShellView& view,const Draw& draw,const Page& pa
     }
     view.preferences.roomTableGrid=true;page("room");SettleRoomPictures(draw);draw("room-grid");
     view.preferences.roomCharacterPictures=false;SettleRoomPictures(draw);draw("room-grid-portraits");
-    view.preferences.roomTableGrid=false;SettleRoomPictures(draw);draw("room-portraits");
+    view.preferences.roomTableGrid=false;SettleRoomPictures(draw);draw("room-portraits");RequireGripsInFront();
     view.preferences.roomCharacterPictures=true;draw();
 }
 }

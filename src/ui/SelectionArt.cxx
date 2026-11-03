@@ -473,7 +473,9 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
 }
 SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
     // Read from the game at runtime like the portraits, and never repackaged.
-    Impl::Policy emblem; emblem.reportAbsence = true;
+    // Cropped to the painted emblem: the Master and Grand Master crowns sit
+    // small and off centre in their canvases, unlike the classes' bubbles.
+    Impl::Policy emblem; emblem.cropToContent = emblem.reportAbsence = true;
     return impl_->Request("classes/" + entry, [&] {
         return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/network_mode/Ranking.emz"};
     }, NativeSide, emblem, entry);

@@ -27,7 +27,7 @@ constexpr ImU32 PillFill = IM_COL32(56, 51, 46, 255), PillBorder = IM_COL32(255,
 // has loaded; nothing for none, or a class whose emblem has not loaded.
 struct Mark {
     SelectionImage emblem;
-    bool faded = false;
+    bool faded = false, squared = false;
     std::string pill;
     bool Drawn() const { return emblem.texture || !pill.empty(); }
 };
@@ -42,6 +42,7 @@ Mark MarkOf(const SkillBadge& badge) {
     case SkillBadge::Kind::Class:
         if (auto* art = MenuArt()) mark.emblem = art->RankingEmblem(Classes[badge.band - 1].entry);
         mark.faded = !badge.settled;
+        mark.squared = true;
         break;
     default: break;
     }
@@ -58,11 +59,17 @@ MarkSize Alone(float side, ImFont* font) {
     side = std::round(side);
     return {side, std::round(side * .7f), font, (std::max)(1.f, std::round(side / 18))};
 }
-// An emblem is drawn `side` tall at its own shape (the class emblems are
-// square, the developer mark wide); a pill fits its word.
+// An emblem's painted shape: its texture less the transparent margin the art
+// is cropped of.
+float EmblemAspect(const SelectionImage& emblem) {
+    const float width = emblem.width * (emblem.uvMax.x - emblem.uvMin.x), height = emblem.height * (emblem.uvMax.y - emblem.uvMin.y);
+    return height > 0 ? width / height : 1.f;
+}
+// A class emblem takes a square slot and sits centred in it, however wide or
+// tall its art, so a crown is as big as a bubble; the developer mark is drawn
+// `side` tall at its own wide shape; a pill fits its word.
 float MarkWidth(const Mark& mark, const MarkSize& size) {
-    if (mark.emblem.texture)
-        return mark.emblem.height > 0 ? std::round(size.side * mark.emblem.width / mark.emblem.height) : size.side;
+    if (mark.emblem.texture) return mark.squared ? size.side : std::round(size.side * EmblemAspect(mark.emblem));
     return std::round(size.font->CalcTextSizeA(size.pillText, FLT_MAX, 0, mark.pill.c_str()).x + size.pillText * .9f);
 }
 // A drawn mark with its top left at `at` (rounded to whole pixels); returns its box.
@@ -70,7 +77,10 @@ ImRect PaintMark(ImDrawList* d, ImVec2 at, const Mark& mark, const MarkSize& siz
     const float width = MarkWidth(mark, size);
     const ImVec2 min(std::round(at.x), std::round(at.y)), max(min.x + width, min.y + size.side);
     if (mark.emblem.texture) {
-        d->AddImage(mark.emblem.texture, min, max, mark.emblem.uvMin, mark.emblem.uvMax,
+        // Fitted inside its slot, centred on both axes.
+        const float aspect = EmblemAspect(mark.emblem), fit = (std::min)(width, size.side * aspect), tall = fit / aspect;
+        const ImVec2 from(std::round(min.x + (width - fit) * .5f), std::round(min.y + (size.side - tall) * .5f));
+        d->AddImage(mark.emblem.texture, from, ImVec2(from.x + fit, from.y + tall), mark.emblem.uvMin, mark.emblem.uvMax,
             mark.faded ? IM_COL32(255, 255, 255, 115) : IM_COL32_WHITE);
     } else {
         const float rounding = size.side * .5f;
