@@ -47,7 +47,10 @@ namespace launcher {
 	// "1.1.0-links-sets-test1". Anything with another shape is not a version
 	// and is never offered or compared. A pre-release sorts before the finished
 	// release of its number, then by its word, its number and the rest.
-	// Dot-separated numeric Nightly revisions in the rest sort numerically.
+	// Two Nightlies go by date stamp, then dot-separated numeric revision
+	// (numerically), and only then by version number, so a Nightly line that
+	// is renumbered downward still updates. Nightly against any other kind
+	// goes by version number.
 	// One reading of a release's version for the updater and the version line (common/ReleaseVersion.hxx).
 	using updates::Version;
 	using updates::ParseVersion;

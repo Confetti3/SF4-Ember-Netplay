@@ -32,15 +32,27 @@ namespace launcher {
 		}
 	}
 
+	static int Order(long long x, long long y) { return x < y ? -1 : x > y ? 1 : 0; }
+
+	static int CompareNumbers(const Version& a, const Version& b) {
+		if (int c = Order(a.major, b.major)) return c;
+		if (int c = Order(a.minor, b.minor)) return c;
+		return Order(a.patch, b.patch);
+	}
+
 	int CompareVersions(const Version& a, const Version& b) {
-		const auto order = [](auto x, auto y) { return x < y ? -1 : x > y ? 1 : 0; };
-		if (int c = order(a.major, b.major)) return c;
-		if (int c = order(a.minor, b.minor)) return c;
-		if (int c = order(a.patch, b.patch)) return c;
+		// A Nightly's number line is only a label: it was renumbered from 1.6.0
+		// back to 1.5.1, and a build on the old line must still update. Two
+		// Nightlies go by their date stamp and revision, the number line last.
+		if (a.prerelease && b.prerelease && a.word == "nightly" && b.word == "nightly") {
+			if (int c = Order(a.number, b.number)) return c;
+			if (int c = CompareNightlyRest(a.rest, b.rest)) return c;
+			return CompareNumbers(a, b);
+		}
+		if (int c = CompareNumbers(a, b)) return c;
 		if (a.prerelease != b.prerelease) return a.prerelease ? -1 : 1;
 		if (int c = a.word.compare(b.word)) return c < 0 ? -1 : 1;
-		if (int c = order(a.number, b.number)) return c;
-		if (a.word == "nightly") return CompareNightlyRest(a.rest, b.rest);
+		if (int c = Order(a.number, b.number)) return c;
 		if (int c = a.rest.compare(b.rest)) return c < 0 ? -1 : 1;
 		return 0;
 	}
