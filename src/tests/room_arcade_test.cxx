@@ -367,6 +367,37 @@ static void TestRematchInPlaceFollowsSetGoal() {
 	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));
 }
 
+// The post-match prompt's set score counts the game just played before the
+// room has it: a game held for a rematch in place reaches the room only once
+// the next one is fought, and a set's last game only once both reports agree.
+static void TestStandingCountsTheGameJustPlayed() {
+	Snapshot snapshot;
+	snapshot.arcade = ArcadeRoom;
+	auto& table = snapshot.tables[0];
+	table.rules.format = SetFormat::Ft3;
+	table.matchGeneration = 7; table.phase = TablePhase::Playing;
+	table.score[0] = 1; table.score[1] = 0;
+	// 2-0 in a first to 3, the room still at 1-0: the set goes on.
+	auto standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 2 && standing.score[1] == 0 && !standing.over);
+	// The game that wins the set, before the room ends it.
+	table.score[0] = 2;
+	standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 3 && standing.over);
+	// A result not known yet, and a draw, count for nothing.
+	CHECK(StandingAfter(snapshot, table, 7, MatchResult::Abort).score[0] == 2 && !StandingAfter(snapshot, table, 7, MatchResult::Abort).over);
+	CHECK(StandingAfter(snapshot, table, 7, MatchResult::Draw).score[0] == 2);
+	// The room has it: the set it ended, whose score starts again at 0-0.
+	table.score[0] = 0; table.phase = TablePhase::Waiting;
+	table.lastSet.generation = 7; table.lastSet.score[0] = 3; table.lastSet.score[1] = 0;
+	standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 3 && standing.score[1] == 0 && standing.over);
+	// A game inside the set the room has counted is not counted twice.
+	table.lastSet.generation = 6; table.score[0] = 1;
+	standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 1 && !standing.over);
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -385,6 +416,7 @@ int main() {
 		TestPublicArcade();
 		TestArcadePracticeRoom();
 		TestRematchInPlaceFollowsSetGoal();
+		TestStandingCountsTheGameJustPlayed();
 	} catch (const std::exception& error) {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;

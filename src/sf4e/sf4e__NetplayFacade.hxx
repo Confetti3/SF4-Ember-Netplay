@@ -176,6 +176,8 @@ namespace sf4e {
             // Over the WIN, the players who chose Rematch (bit 1 = P1, 2 = P2);
             // and the games of this battle that went on to one in place.
             unsigned rematchChoices = 0, gamesInPlace = 0;
+            // The room game this PC fights, and the result of the WIN on screen.
+            netplay::FoughtGame foughtGame;
             // The game this PC only watches now (MenuContext::WatchedMatch), by
             // its own match rather than the table, which moves on first.
             netplay::WatchedGame watchedGame;

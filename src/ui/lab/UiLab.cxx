@@ -365,7 +365,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // Table 1's game just ended on the WIN screen: FRaccie (P1) against Akira, game 1 of a first to 2.
     if (!postMatch.empty()) {
         auto& t = view.room.tables[0];
-        t.phase = room::TablePhase::Playing; t.matchGeneration = 1; t.rules.format = room::SetFormat::Ft2; t.score[0] = 1; t.score[1] = 0;
+        t.phase = room::TablePhase::Playing; t.matchGeneration = 1; t.rules.format = room::SetFormat::Ft2; t.score[0] = t.score[1] = 0;
+        // P1 won it: the prompt counts the game the room has not been told of yet.
+        view.foughtGame = {0, 1, room::MatchResult::P1Win};
         t.ready[0] = postMatch == "you"; t.ready[1] = postMatch == "they";
         view.session.match = netplay::MatchState::Playing; view.atMainMenu = false;
     }

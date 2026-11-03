@@ -312,6 +312,9 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.session = snapshot.session;
     s_roomCarry.Lend(view, snapshot.room);
     view.watchedGame = snapshot.watchedGame;
+    // The post-match prompt goes on while Ember is hidden (UpdatePostMatch).
+    view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
+    view.gamesInPlace = snapshot.gamesInPlace; view.foughtGame = snapshot.foughtGame;
     view.roomNotices = snapshot.roomNotices;
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
@@ -363,6 +366,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
     view.rematchChoices = snapshot.rematchChoices; view.gamesInPlace = snapshot.gamesInPlace;
+    view.foughtGame = snapshot.foughtGame;
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
     if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
         const auto& size = ImGui::GetMainViewport()->Size;

@@ -279,4 +279,27 @@ inline bool RematchInPlaceOffered(const Snapshot& room, const Table& table, Matc
 	return goal == 0 || seat < 0 || table.score[seat] + 1 < goal;
 }
 
+// The set as the game `generation` at `table`, which ended with `result`,
+// leaves it: the set it ended, as the room recorded it (Table::lastSet); the
+// room's score, once the room has the result; or, while it does not yet (a
+// game held for a rematch in place, or a result still on its way), the room's
+// score with this game counted. A result not known yet counts for nothing.
+struct SetStanding {
+	std::uint32_t score[2] = {0, 0};
+	bool over = false;
+};
+inline SetStanding StandingAfter(const Snapshot& room, const Table& table, std::uint64_t generation, MatchResult result) {
+	SetStanding standing;
+	const bool ended = generation && table.lastSet.generation == generation;
+	const auto& score = ended ? table.lastSet.score : table.score;
+	standing.score[0] = score[0]; standing.score[1] = score[1];
+	standing.over = ended;
+	const bool live = table.matchGeneration == generation && (table.phase == TablePhase::Playing || table.phase == TablePhase::Paused);
+	const int seat = result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
+	if (ended || !live || seat < 0) return standing;
+	++standing.score[seat];
+	standing.over = !RematchInPlaceOffered(room, table, result);
+	return standing;
+}
+
 } }
