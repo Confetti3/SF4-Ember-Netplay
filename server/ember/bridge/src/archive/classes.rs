@@ -8,9 +8,13 @@
 //! the archive's games were last given, and records each player whose class
 //! moved as unsettled. It then gives unsettled players' games their new
 //! class, at most `ROWS_PER_PASS` games a pass, so a change that touches many
-//! games at once (classes hidden, say) holds the database only briefly each
-//! pass. The listing shows what the games carry, a pass or a few behind the
-//! board at most.
+//! games at once holds the database only briefly each pass. The listing
+//! shows what the games carry, a pass or a few behind the board at most.
+//!
+//! While the bridge hides classes the games keep the classes they carry and
+//! nothing refreshes them: the listing shows none and picks and orders by
+//! none (`routes::archive::list`), so showing them again only moves the
+//! classes that moved meanwhile.
 use std::collections::HashMap;
 
 use rusqlite::{Transaction, params};
@@ -20,15 +24,13 @@ use crate::{error::Result, skill::ranking};
 /// Games given a new class in one pass at most.
 pub(crate) const ROWS_PER_PASS: i64 = 1000;
 
-/// Brings the classes the archive's games carry towards the board's: every
-/// player on it while `shown`, no one otherwise.
+/// Brings the classes the archive's games carry towards the board's, while
+/// the bridge shows classes.
 pub fn refresh(tx: &Transaction<'_>, shown: bool, developers: &[String], now: u64) -> Result<()> {
-    let board = if shown {
-        ranking::public_classes(tx, developers, now)?
-    } else {
-        HashMap::new()
-    };
-    refresh_with(tx, &board)
+    if !shown {
+        return Ok(());
+    }
+    refresh_with(tx, &ranking::public_classes(tx, developers, now)?)
 }
 
 /// One pass towards `board`.

@@ -245,11 +245,14 @@ The classes are the public rankings board's, as `ranking::public_classes`
 reads it. Each maintenance pass, in its own transaction, compares the board
 with `archive_player_classes`, the classes the archive's games carry, and
 gives the games of each player whose class moved their new one, at most
-1,000 games a pass, so a change to many games at once (classes hidden, say)
-reaches them over several passes without holding the database. A new game
-takes its players' classes as the archive holds them when it comes in. While
-the bridge hides classes the listing shows none, filters by class to
-nothing and lists newest first.
+1,000 games a pass, so a change to many games at once reaches them over
+several passes without holding the database. A new game takes its players'
+classes as the archive holds them when it comes in. While the bridge hides
+classes the listing shows none, filters by class to nothing and lists newest
+first, and the games keep the classes they carry, unrefreshed, so showing
+classes again moves only those that moved meanwhile. The class order is by
+classes as they are on each page: a game whose class moves while someone
+pages through it can show up twice or not at all on their pages.
 
 The events and countries are kept in `archive_events` and
 `archive_countries` as games are stored or join a set, so a listing does not

@@ -36,7 +36,7 @@ const el = (tag, props = {}, ...children) => {
 };
 const DOWNLOAD = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-const state = { filter: {}, sort: '', games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null, total: null, matching: null };
+const state = { filter: {}, sort: '', order: '', games: [], sets: {}, events: [], countries: [], next: null, more: false, loading: false, groups: [], openSet: null, flags: null, total: null, matching: null };
 // Games a full answer holds. The bridge answers with fewer when a page of a
 // filter looked at all it may and found fewer: the page then asks again by
 // itself, at most AUTO_PAGES times, until a full answer's worth has come
@@ -150,8 +150,12 @@ function writeAddress(push) {
 // arrives, and "Older replays" does nothing while any page is loading. Each
 // later page is asked for with the cursor the last answer gave.
 let requested = 0;
-// What the bridge is asked for: the filter, and the order unless newest.
-const asked = () => (state.sort ? { ...state.filter, sort: state.sort } : { ...state.filter });
+// What the bridge is asked for: the filter, and the order unless newest, in
+// one key order, so two askings of the same compare equal.
+const asked = () => {
+  const all = state.sort ? { ...state.filter, sort: state.sort } : { ...state.filter };
+  return Object.fromEntries(Object.keys(all).sort().map((key) => [key, all[key]]));
+};
 const newestFirst = (a, b) => b.saved_at - a.saved_at || (a.digest < b.digest ? 1 : -1);
 async function load(append, auto = false) {
   if (append && (!state.next || state.loading)) return;
@@ -174,11 +178,16 @@ async function load(append, auto = false) {
     state.countries = listed.countries;
     state.next = listed.next || null;
     state.more = state.next !== null;
+    // The order the bridge used: the newest while it hides classes.
+    state.order = listed.sort === 'class' ? 'class' : '';
     if (typeof listed.total === 'number') { state.total = listed.total; state.matching = listed.matching; }
-  } catch {
+  } catch (error) {
     if (mine !== requested) return;
     state.loading = false;
     $('more').disabled = false;
+    // A cursor the bridge no longer takes (it began or stopped showing
+    // classes, so the order changed): start again from the top.
+    if (append && error.message === '400') { load(false); return; }
     $('summary').textContent = 'The archive did not answer. Try again in a minute.';
     $('events').replaceChildren(el('p', { className: 'note' }, el('button', { type: 'button', className: 'btn', textContent: 'Try again', onclick: () => load(false) })));
     $('events').removeAttribute('aria-busy');
@@ -187,7 +196,7 @@ async function load(append, auto = false) {
   state.loading = false;
   $('more').disabled = false;
   // Sessions and sets are told apart newest first, whatever the order.
-  state.groups = group(state.sort ? [...state.games].sort(newestFirst) : state.games);
+  state.groups = group(state.order ? [...state.games].sort(newestFirst) : state.games);
   render();
   if (wantsMore()) { autoPages += 1; setTimeout(() => load(true, true), 400); }
 }
@@ -340,7 +349,7 @@ function renderList() {
   const groups = state.groups;
   const games = state.games.length;
   $('total').textContent = state.total != null ? count(state.total, 'game', 'games') : '';
-  const order = state.sort === 'class' ? ', highest class first' : '';
+  const order = state.order === 'class' ? ', highest class first' : '';
   const busy = wantsMore() ? ' Loading more…' : '';
   // How many there are, when the bridge knows: all games, or those the filter keeps.
   const of = filtered ? state.matching : state.total;
@@ -352,7 +361,7 @@ function renderList() {
     ? shown + (state.more ? busy || ' Older replays shows more.' : '')
     : state.more ? 'None found yet.' + (busy || ' Older replays looks further.')
       : filtered ? 'No replays match these filters.' : 'No replays yet. Games shared from Ember show up here.';
-  if (state.sort === 'class') {
+  if (state.order === 'class') {
     // One list, the highest class first; rows without a class last, newest first within each.
     const sets = groups.flatMap((event) => event.sets);
     const newest = (set) => set.games[set.games.length - 1].saved_at;

@@ -16,7 +16,9 @@
 //!
 //! The class order is the newest-first order of the games whose higher class
 //! is Grand Master, then Master, down to the games with no class, each a
-//! segment the cursor names.
+//! segment the cursor names. A game whose class moves while someone pages
+//! through that order moves segment with it, so it can be listed twice or
+//! not at all on their pages; the newest order never moves.
 use rusqlite::{OptionalExtension, ToSql, Transaction};
 
 use crate::error::Result;
@@ -362,10 +364,13 @@ pub fn page(
         });
     };
     // Each segment is listed newest first: the class order's from the
-    // cursor's down to the games with no class, or the one of the newest.
+    // cursor's down to the games with no class, or the one of the newest. A
+    // game with a side of the class a filter picks is in that class's
+    // segment or a higher one, so the lower ones are not looked through.
+    let lowest = filter.class.unwrap_or(0);
     let segments: Vec<Option<u8>> = match order {
         Order::Newest => vec![None],
-        Order::Class => (0..=cursor.segment).rev().map(Some).collect(),
+        Order::Class => (lowest..=cursor.segment).rev().map(Some).collect(),
     };
     let mut games: Vec<(u8, Listed)> = Vec::new();
     let mut looked_left = limits.looked;
@@ -433,7 +438,7 @@ pub fn page(
             looked_left -= size.min(looked_left);
         }
         // This segment is done; the next one, if any, from its start.
-        if segment == 0 {
+        if segment <= lowest {
             break;
         }
         at = Cursor::start(segment - 1);

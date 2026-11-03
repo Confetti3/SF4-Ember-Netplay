@@ -826,3 +826,45 @@ async fn scale() {
     .await
     .unwrap();
 }
+
+/// Picked by class in the class order, the pages stop once the class's
+/// segment is done: no class below can hold a game with a side of it. While
+/// the bridge hides classes, a refresh leaves the games' classes as they are.
+#[tokio::test]
+async fn a_class_in_the_class_order_ends_with_its_segment() {
+    let db = archive().await;
+    db.write(|tx| {
+        for n in 0..900u32 {
+            tx.execute(
+                "INSERT INTO archive_games (digest, crc, saved_at, size, fighter_a, fighter_b, sent_by, sent_side,
+                    priority, state, next_attempt_at, received_at)
+                 VALUES (?1, '00000000', ?2, 1, 1, 2, ?3, 0, 1, 'stored', 0, 0)",
+                params![format!("{n:064x}"), n, if n % 3 == 0 { "emb_p7" } else { "emb_p3" }],
+            )?;
+        }
+        settle(tx, &HashMap::from([("emb_p7".to_owned(), 7), ("emb_p3".to_owned(), 3)]));
+        let filter = Filter { class: Some(7), ..Filter::default() };
+        let limits = Limits { listed: 400, looked: 20, ..LIMITS };
+        let (mut cursor, mut pages, mut seen) = (Cursor::first(Order::Class), Vec::new(), 0);
+        loop {
+            let Page { games, next } = page(tx, &filter, true, Order::Class, &cursor, limits)?;
+            seen += games.len();
+            pages.push(games.len());
+            let Some(next) = next else { break };
+            cursor = next;
+        }
+        assert_eq!(seen, 300);
+        // Segments 10 to 8 hold no game and are passed over; none below 7 is
+        // looked at. At most the last page is empty: the one that finds the
+        // segment's last look ended right at its end.
+        let empty = pages.iter().filter(|size| **size == 0).count();
+        assert!(empty <= 1, "{pages:?}");
+
+        classes::refresh(tx, false, &[], 0)?;
+        let classed = classes_of(tx).values().filter(|sides| sides[0].is_some()).count();
+        assert_eq!(classed, 900);
+        Ok(())
+    })
+    .await
+    .unwrap();
+}
