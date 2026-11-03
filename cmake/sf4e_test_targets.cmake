@@ -63,6 +63,7 @@ sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.c
     LIBS nlohmann_json::nlohmann_json STD 17 LABELS room)
 sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play LABELS room)
 sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model LABELS room)
+sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
@@ -73,6 +74,7 @@ sf4e_add_unit_test(NAME RoomSpectatorLock SOURCES "src/tests/room_spectator_lock
 sf4e_add_unit_test(NAME RoomReadyTimeout SOURCES "src/tests/room_ready_timeout_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME CreatedRules SOURCES "src/tests/created_rules_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME ReadyChime SOURCES "src/tests/ready_chime_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RandomFighter SOURCES "src/tests/random_fighter_test.cxx" LIBS sf4e_room_model sf4e_selection TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room training)
 sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
@@ -95,6 +97,7 @@ sf4e_add_unit_test(NAME SelectionValue SOURCES "src/tests/selection_value_test.c
 sf4e_add_unit_test(NAME MoveNotation SOURCES "src/tests/move_notation_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME HitBoxes SOURCES "src/tests/hit_boxes_test.cxx" STD 14 TIMEOUT 15)
 sf4e_add_unit_test(NAME BacFile SOURCES "src/tests/bac_file_test.cxx" STD 14 TIMEOUT 15)
+sf4e_add_unit_test(NAME GameFiles SOURCES "src/tests/game_files_test.cxx" STD 17 TIMEOUT 15 LABELS training)
 sf4e_add_unit_test(NAME PracticeSettings SOURCES "src/tests/practice_settings_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME TrainingDummyControl SOURCES "src/tests/training_dummy_control_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json LABELS training)
 
@@ -137,7 +140,7 @@ sf4e_add_unit_test(NAME ControllersScreen SOURCES src/tests/controllers_screen_t
 sf4e_add_unit_test(NAME GamepadSlotsImportPatch SOURCES src/tests/import_patch_test.cxx src/sf4e/sf4e__ImportPatch.cxx STD 17)
 sf4e_add_unit_test(NAME DirectInputFilter SOURCES src/tests/directinput_filter_test.cxx LIBS sf4e dxguid STD 17)
 sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx src/tests/shell_replay_journey_test.cxx
-    src/tests/shell_room_journey_test.cxx src/tests/shell_selection_journey_test.cxx
+    src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
@@ -204,6 +207,7 @@ sf4e_add_unit_test(NAME HttpUpdateMetadata SOURCES "src/tests/http_update_metada
 sf4e_add_unit_test(NAME SessionClientTransport SOURCES "src/tests/session_client_transport_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)
 sf4e_add_unit_test(NAME IrohMatchSession SOURCES "src/tests/iroh_match_session_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9" LABELS room)
 sf4e_add_unit_test(NAME SpectatorRuntime SOURCES "src/tests/spectator_runtime_test.cxx" STD 17 LIBS Session sf4e sf4e_localization Dimps "d3d9" LOCKS ember_runtime LABELS room)
+sf4e_add_unit_test(NAME RandomFighterRuntime SOURCES "src/tests/random_fighter_runtime_test.cxx" STD 17 LIBS Session sf4e sf4e_localization Dimps "d3d9" LOCKS ember_runtime LABELS room)
 sf4e_add_unit_test(NAME MatchProblem SOURCES "src/tests/match_problem_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
 add_executable(AbortNoticeTest "src/tests/abort_notice_test.cxx")
 target_compile_features(AbortNoticeTest PRIVATE cxx_std_17)

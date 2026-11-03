@@ -401,11 +401,13 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
     // A flyout whose cards do not fit its height (Training's pages at 150%)
     // shows them in two columns where they still have room, the first half
     // down the left: still one list in reading order, so Down from the
-    // foot of the left column goes on to the top of the right.
+    // foot of the left column goes on to the top of the right. Its cards are
+    // placed, so the directions follow where they are drawn (MenuEdge::Flow).
     float stacked = 0;
     for (std::size_t i = 0; i < entries.size() && !grid; ++i) stacked += heightOf(entries[i], false, list.W()) + gap + (heads(i) ? 26 * s + gap : 0);
     const bool halves = f.flyout && !grid && stacked > list.H() && list.W() >= 520 * s;
     const std::size_t half = halves ? (entries.size() + 1) / 2 : entries.size();
+    if (halves) navigation.SetEdge(MenuEdge::Flow);
     v2::Box focusCard{};
     ImGui::SetCursorScreenPos(list.min);
     if (changed) ImGui::SetNextWindowScroll(ImVec2(0, navigation.Scroll()));
@@ -436,6 +438,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         const float w = cell ? cellWidth : full;
         const MenuRowLayout layout = layoutOf(e, cell, ImGui::GetCursorScreenPos(), w);
         const v2::Box c = BoxOf(layout.row);
+        if (halves) navigation.Place(e.id, RectOf(c));
         ImGui::PushID(e.id.c_str());
         const bool pressed = ImGui::InvisibleButton("##card", ImVec2(c.W(), c.H()));
         const bool hovered = ImGui::IsItemHovered();

@@ -6,6 +6,7 @@
 // F1 lab bar · F2 next size · F4 text size · F5 in a room · F6 picture · F12 screenshot
 // --public: an Ember ID, a relay in Europe and five public rooms (Online play, Public rooms).
 // --playback: a replay's strip and input lanes over the art, paused at half speed
+// --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
 // --check report.txt (with --shot): appends each line cut short, text taller than its row and cards overlapping on the
@@ -13,7 +14,7 @@
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
-// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
@@ -236,10 +237,20 @@ void PublicLab(ui::ShellView& view) {
     id.known = true; id.state = "ready"; id.emberId = "emb1_lab"; id.bridges = {{"brg_1", "https://bridge.example", "Example"}};
     view.netReport.reported = view.netReport.relayConnected = view.netReport.udp = true; view.netReport.relay = "euc1"; view.netReport.nat = NatClass::Open;
 }
+// The menu art filling the window, standing in for the game behind a HUD or the
+// training controls. A window that never comes to the front is put behind those
+// made before it, so it is drawn after them.
+void DrawLabBackdrop() {
+    const auto* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
+    ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ui::DrawMenuBackdrop();
+    ImGui::End();
+}
 void PublicRooms(ui::ShellView& view) {
     const auto room = [](const char* id, const char* name, const char* host, const char* region, unsigned members, unsigned capacity, unsigned playing) {
         netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.region = region; r.members = members; r.capacity = capacity; r.playing = playing;
-        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100;
+        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::ClassicRoom;
         for (unsigned i = 0; i < members; ++i) r.fighters.push_back(static_cast<int>(i * 5 % 44));
         return r;
     };
@@ -247,6 +258,8 @@ void PublicRooms(ui::ShellView& view) {
     list.bridge = "brg_1"; list.loading = false; list.listedAt = 1300; ++list.listed;
     list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
         room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
+    // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
+    list.rooms[0].type = room::ArcadeRoom; list.rooms[4].type = room::KingRoom;
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
@@ -287,7 +300,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     int pictureMode = 0;  // --picture 0|1|2: the watched game's picture Small, Big or Off
     std::string hidePanes;  // --hide members|chat|both: the room board's panels hidden
     int hud = -1;
-    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
+    bool trainingPanel = false, update = false, publicLab = false, rankings = false, playback = false, caption = false, toasts = false;  // --toasts: three notices, one a frame  // --update: Home offers a Nightly update
     // --training: the training controls over the art  // --hud <layout>: the match HUD (0 Ember strip, 1 split) over the art instead of the menus
     for (std::size_t i = 0; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
@@ -308,6 +321,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--playback") playback = true;
+        else if (args[i] == "--caption") caption = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
         else if (args[i] == "--update") update = true;
         else if (args[i] == "--recovery" && more) recovery = args[++i];
@@ -351,7 +365,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // Table 1's game just ended on the WIN screen: FRaccie (P1) against Akira, game 1 of a first to 2.
     if (!postMatch.empty()) {
         auto& t = view.room.tables[0];
-        t.phase = room::TablePhase::Playing; t.matchGeneration = 1; t.rules.format = room::SetFormat::Ft2; t.score[0] = 1; t.score[1] = 0;
+        t.phase = room::TablePhase::Playing; t.matchGeneration = 1; t.rules.format = room::SetFormat::Ft2; t.score[0] = t.score[1] = 0;
+        // P1 won it: the prompt counts the game the room has not been told of yet.
+        view.foughtGame = {0, 1, room::MatchResult::P1Win};
         t.ready[0] = postMatch == "you"; t.ready[1] = postMatch == "they";
         view.session.match = netplay::MatchState::Playing; view.atMainMenu = false;
     }
@@ -475,17 +491,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (!recovery.empty()) {
             ui::DrawRecoveryMenu(recoveryMenu, recoveryState, recovery == "launch" ? loc::T("launcher.recovery_opened") : "", recovery != "launch", ui::Tone::Error, true);
         } else if (trainingPanel) {
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
             // A Training battle with two recordings, as the render test's.
             training::View lab;
             lab.available = lab.ready = lab.checkpoint = true; lab.generation = 1;
             lab.lengths[0] = 120; lab.lengths[2] = 45; lab.on[0] = true; lab.playable = lab.replyable = 1u;
             // The dummy crouching and blocking everything, as the game reports it.
             lab.dummy.action = 1; lab.dummy.guard = 2; lab.dummy.counterHit = 0; lab.dummy.quickStand = 1; lab.dummy.super = 0; lab.dummy.revenge = 0;
+            // A Combo check half way: a 3-hit combo, Ryu and E. Honda done, Dhalsim next.
+            lab.check.frames = 132; lab.check.hits = 3; lab.check.running = true;
+            lab.check.runs = {{0, false, true, 3}, {0, true, true, 3}, {3, false, true, 2}, {3, true, true, 3}, {7, false}, {7, true}};
             ui::DrawTrainingFlyout(lab, [](const training::Command&) { return true; });
         } else if (playback) {
             // The board's replay: paused at half speed in round 2, the lanes on.
@@ -499,18 +514,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             ui::DrawReplayStrip(replay);
             ui::DrawReplayLanes(replay);
             // After the HUD: a window that never comes to the front is put behind those made before it.
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
+        } else if (caption) {
+            // An export's caption, as a replay video carries it.
+            ui::ExportCaptionView shown;
+            shown.names[0] = "FRaccie"; shown.names[1] = "Akira"; shown.line = "Ultra Street Fighter IV - Ember Netplay";
+            shown.badges[0] = SkillBadge::OfClass(7, true); shown.badges[1] = SkillBadge::OfClass(7, true); shown.mark = true;
+            ui::DrawExportCaption(shown);
+            // After the caption: a window that never comes to the front is put behind those made before it.
+            DrawLabBackdrop();
         } else if (hud >= 0) {
             // A fight's HUD: the art stands in for the game behind it.
-            const auto* vp = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-            ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-            ui::DrawMenuBackdrop();
-            ImGui::End();
+            DrawLabBackdrop();
             ui::MatchStripView strip;
             strip.names[0] = "FRaccie"; strip.names[1] = "Akira";
             strip.links[0] = NetworkLink::Wired; strip.links[1] = NetworkLink::Wireless;
@@ -521,11 +536,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             if (toasts) shell.Background(view, view.room, submit);
         } else {
             if (!postMatch.empty()) {
-                const auto* vp = ImGui::GetMainViewport();
-                ImGui::SetNextWindowPos(vp->Pos); ImGui::SetNextWindowSize(vp->Size);
-                ImGui::Begin("Lab game", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBringToFrontOnFocus);
-                ui::DrawMenuBackdrop();
-                ImGui::End();
+                DrawLabBackdrop();
             }
             shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
         }

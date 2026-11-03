@@ -341,6 +341,8 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 			const replay::ExportEnd end = replay::ExportEndOf(capture == replaycapture::State::Done, op.cancelled);
 			op.status.notice = capture == replaycapture::State::Done ? loc::Tf(end.key, file) : std::string(loc::T(end.key));
 			op.status.noticeError = end.error;
+			op.status.exportEnded = op.request.id; op.status.exportSaved = capture == replaycapture::State::Done;
+			op.status.exportVideo = op.status.exportSaved ? file : std::string();
 			replaycapture::Clear();
 			op.awaited = false; op.video.clear();
 		}
@@ -392,11 +394,16 @@ void sf4e::replaystore::Tick(bool atMainMenu, bool noRoom) {
 			if (op.waited > kGoneTicks) { replaycapture::End(); op.Enter(Step::InLog); }
 			break;
 		}
-		// The fight is loading: record from here to the log's return.
+		// The fight is loading: record from here to the log's return. The
+		// button guide under the replay (END, SLO MO) is the game's own reminder
+		// for a player, not part of the match: a video has none, as the game's
+		// own YouTube recording had none. The Battle state's start (0x484940)
+		// has filled the guide bank by its first tick, which is this one.
 		if (Named(state, "Battle") && !op.video.empty() && !op.awaited) {
 			replaycapture::Begin(op.video);
 			op.awaited = true;
-			spdlog::info("Replay: encoding the playback");
+			ReplayBattle::staticMethods.ClearGuides(ReplayBattle::GetGuides(state));
+			spdlog::info("Replay: encoding the playback, without the button guide");
 		}
 		// An export leaves the replay by itself: once the match has been
 		// decided for a while, the end menu's choice is made for the player

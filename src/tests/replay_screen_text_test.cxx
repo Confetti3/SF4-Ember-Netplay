@@ -18,12 +18,14 @@ int main() {
 	using replay::ExportStage;
 
 	// Spectated: this PC only watched the match live. Seen: its replay was played with Watch now.
-	Check(ReplayTagsText(false, false, false).empty(), "A replay with nothing to say was tagged");
-	Check(ReplayTagsText(true, false, false) == loc::T("replays.spectated"), "A spectated match was not tagged Spectated");
-	Check(ReplayTagsText(false, true, false) == loc::T("replays.seen"), "A replay played back was not tagged Seen");
-	Check(ReplayTagsText(true, true, false) == loc::T("replays.spectated_seen"), "Spectated and seen were not one tag");
-	Check(ReplayTagsText(false, false, true) == loc::T("replays.video"), "An exported replay was not tagged Video");
-	Check(ReplayTagsText(true, true, true) == std::string(loc::T("replays.spectated_seen")) + ", " + loc::T("replays.video"), "Video did not follow the other tags");
+	Check(ReplayTagsText(false, false, false, false).empty(), "A replay with nothing to say was tagged");
+	Check(ReplayTagsText(true, false, false, false) == loc::T("replays.spectated"), "A spectated match was not tagged Spectated");
+	Check(ReplayTagsText(false, true, false, false) == loc::T("replays.seen"), "A replay played back was not tagged Seen");
+	Check(ReplayTagsText(true, true, false, false) == loc::T("replays.spectated_seen"), "Spectated and seen were not one tag");
+	Check(ReplayTagsText(false, false, true, false) == loc::T("replays.video"), "An exported replay was not tagged Video");
+	Check(ReplayTagsText(true, true, true, false) == std::string(loc::T("replays.spectated_seen")) + ", " + loc::T("replays.video"), "Video did not follow the other tags");
+	Check(ReplayTagsText(false, false, false, true) == loc::T("replays.kept"), "A kept replay was not tagged Kept");
+	Check(ReplayTagsText(false, true, true, true) == std::string(loc::T("replays.seen")) + ", " + loc::T("replays.video") + ", " + loc::T("replays.kept"), "Kept did not come last");
 	Check(std::string(loc::T("replays.spectated")) == "Spectated" && std::string(loc::T("replays.seen")) == "Seen" &&
 		std::string(loc::T("replays.spectated_seen")) == "Spectated, seen", "The English tags are not Spectated and Seen");
 
@@ -38,6 +40,27 @@ int main() {
 		const int known[2] = {0, 0};
 		const std::string fighter = selection::FindFighter(0)->name;
 		Check(ReplayRowLabel("d", none, known) == "d  " + loc::Tf("replays.fighters", fighter, fighter), "An unnamed replay did not fall back to its fighters");
+	}
+
+	// Show lists by what Ember knows of a replay; Search by a player's or
+	// fighter's name, in any case.
+	{
+		platform::replays::ArchivedReplay mine, watched, seen, video, kept;
+		mine.names[0] = "Alice"; mine.names[1] = "Bob"; mine.fighters[0] = 0; mine.fighters[1] = 1;
+		watched.provenance = replayfiles::Provenance::Spectated; watched.names[0] = "Carol";
+		seen.watched = true; video.video = true; kept.kept = true;
+		using Show = ReplayShow; const std::wstring none;
+		Check(ReplayShown(mine, Show::All, none) && ReplayShown(watched, Show::All, none) && ReplayShown(seen, Show::All, none) && ReplayShown(video, Show::All, none), "All did not show every replay");
+		Check(ReplayShown(mine, Show::Mine, none) && !ReplayShown(watched, Show::Mine, none), "My matches showed a spectated one");
+		Check(!ReplayShown(mine, Show::Spectated, none) && ReplayShown(watched, Show::Spectated, none), "Spectated showed a played one");
+		Check(ReplayShown(mine, Show::Unseen, none) && !ReplayShown(seen, Show::Unseen, none), "Not seen yet showed a played-back one");
+		Check(!ReplayShown(mine, Show::Video, none) && ReplayShown(video, Show::Video, none), "With video showed one without");
+		Check(!ReplayShown(mine, Show::Kept, none) && ReplayShown(kept, Show::Kept, none), "Kept showed one the player does not keep");
+		Check(ReplayShown(mine, Show::All, LoweredText("ali")) && ReplayShown(mine, Show::All, LoweredText("BOB")) && !ReplayShown(mine, Show::All, LoweredText("carol")), "Search did not match a player's name in any case");
+		const std::string fighter = selection::FindFighter(0)->name;
+		Check(ReplayShown(mine, Show::All, LoweredText(fighter.substr(1, 2))) && !ReplayShown(watched, Show::All, LoweredText(fighter)), "Search did not match a fighter's name");
+		Check(!ReplayShown(watched, Show::Mine, LoweredText("carol")), "Search showed a replay Show hides");
+		Check(std::size(kReplayShowKeys) == static_cast<std::size_t>(Show::Kept) + 1 && std::string(kReplayShowKeys[static_cast<int>(Show::Kept)]) == "replays.show.kept", "Show's words are not in their order");
 	}
 
 	// Progress: the fight recorded so far against the replay's length.

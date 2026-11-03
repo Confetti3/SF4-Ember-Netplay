@@ -3,6 +3,8 @@
 #include "../platform/ReplayArchiveWorker.hxx"
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <future>
 #include <fstream>
 #include <mutex>
 #include <set>
@@ -595,7 +597,74 @@ static void TestAPassedOverSlotIsNamed() {
 	CHECK(f.skipped[1].find("slot 301 ") != std::string::npos && f.skipped[1].find(std::to_string(huge.size()) + " bytes") != std::string::npos);
 }
 
+// An unfinished replay Ember kept itself goes through the outbox like a
+// slot's: with the archive unwritable it waits in the outbox, then reaches the
+// archive when it can be written; the outbox refusing it too keeps it in
+// memory for the next pass, and no more than the most are kept.
+static void TestAnUnsavedReplayWaitsInTheOutbox() {
+	Folders f("ember-archive-unsaved");
+	files::UnsavedReplays unsaved(2);
+	CHECK(unsaved.Add(Match(1, 1791600000u)));
+	f.archiveBroken = true;
+	files::ArchivePass kept;
+	files::ArchiveView view(f.own.index);
+	unsaved.Archive(f.Target(f.own, view), kept);
+	CHECK(kept.failed == 0 && kept.copied == 0 && unsaved.Waiting() == 0 && f.Outboxed() == 1 && f.Archived().empty());
+	f.archiveBroken = false;
+	CHECK(f.Pass().copied == 1 && f.Outboxed() == 0 && f.Archived().size() == 1);
+	// Neither folder takes a write: the replay stays for the pass after.
+	bool writable = false;
+	files::ArchiveView refused(f.own.index);
+	files::ArchiveTarget closed = f.Target(f.own, refused);
+	closed.createOnly = [&](const fs::path& path, const Bytes& bytes) { if (!writable) return false; Save(path, bytes); return true; };
+	CHECK(unsaved.Add(Match(2, 1791600300u)) && unsaved.Add(Match(3, 1791600600u)) && !unsaved.Add(Match(4, 1791600900u)));
+	files::ArchivePass failed;
+	unsaved.Archive(closed, failed);
+	CHECK(failed.failed == 2 && failed.retry && unsaved.Waiting() == 2 && f.Outboxed() == 0);
+	writable = true;
+	files::ArchivePass later;
+	unsaved.Archive(closed, later);
+	CHECK(later.failed == 0 && unsaved.Waiting() == 0 && f.Outboxed() == 2);
+	CHECK(f.Pass().copied == 2 && f.Archived().size() == 3);
+	// Not a replay that exports: dropped, and counted.
+	CHECK(unsaved.Add(Bytes(10, 0)));
+	std::size_t dropped = 0;
+	files::ArchivePass none;
+	unsaved.Archive(closed, none, &dropped);
+	CHECK(dropped == 1 && unsaved.Waiting() == 0);
+}
+
+// Adding a replay never waits for the archive: while the worker is inside a
+// write that does not return, the game thread's Add still completes.
+static void TestAddingDoesNotWaitForTheArchive() {
+	Folders f("ember-archive-unsaved-lock");
+	files::UnsavedReplays unsaved(4);
+	CHECK(unsaved.Add(Match(1, 1791600000u)));
+	std::mutex gate;
+	std::condition_variable opened;
+	bool inWrite = false, release = false;
+	files::ArchiveView view(f.own.index);
+	files::ArchiveTarget slow = f.Target(f.own, view);
+	slow.createOnly = [&](const fs::path&, const Bytes&) {
+		std::unique_lock<std::mutex> lock(gate);
+		inWrite = true; opened.notify_all();
+		opened.wait(lock, [&] { return release; });
+		return false;
+	};
+	files::ArchivePass pass;
+	std::thread worker([&] { unsaved.Archive(slow, pass); });
+	{ std::unique_lock<std::mutex> lock(gate); CHECK(opened.wait_for(lock, std::chrono::seconds(10), [&] { return inWrite; })); }
+	auto added = std::async(std::launch::async, [&] { return unsaved.Add(Match(2, 1791600300u)); });
+	const bool returned = added.wait_for(std::chrono::seconds(5)) == std::future_status::ready;
+	{ std::lock_guard<std::mutex> lock(gate); release = true; }
+	opened.notify_all();
+	worker.join();
+	CHECK(returned && added.get() && pass.failed == 1 && unsaved.Waiting() == 2);
+}
+
 int main() {
+	TestAnUnsavedReplayWaitsInTheOutbox();
+	TestAddingDoesNotWaitForTheArchive();
 	TestAPassedOverSlotIsNamed();
 	TestASittingWithTheIndexBehind();
 	TestRetries();

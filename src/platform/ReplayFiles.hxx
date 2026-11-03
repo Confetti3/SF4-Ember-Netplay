@@ -110,13 +110,24 @@ ImportResult CommitImport(const ImportTransaction& prepared, const Writer& write
 // A tournament game passes its set (SetTag); the names keep it only when
 // NoteMatchEnd says its result was confirmed.
 // Both also ask for an archive pass (Archive).
+// A battle the game does not save (the opponent left) passes the replay the
+// recorder holds, or nothing: the next archive pass puts it in the archive,
+// and the names bind to it.
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
 	const replayfiles::SetTag& set = {});
-void NoteMatchEnd(bool confirmed);
+void NoteMatchEnd(bool confirmed, replayslots::Bytes unsaved);
+// An in-place rematch: the game before it ended with a confirmed result, and
+// the next starts in the same battle with the same players, fighters and set.
+// `ended` is the replay of the game that ended when the game did not save it
+// (it saves a battle's first game only, common/InPlaceReplays.hxx), kept and
+// named as NoteMatchEnd keeps a battle the game did not save.
+void NoteGameRestarted(replayslots::Bytes ended);
 
 // Remembers that an archived replay was played with Watch now (watched.txt in
-// the archive, one file name per line), so the list can say so.
+// the archive), so the list can say so.
 void MarkWatched(const std::filesystem::path& file);
+// Marks a replay the player wants to find again (kept.txt), or takes the mark off.
+void MarkKept(const std::filesystem::path& file, bool kept);
 // The same for a replay its set's bridge or the replay archive has (sent.txt),
 // and for a set's replay its bridge refused because the set is closed
 // (closed.txt), which the replay archive may still take.
@@ -126,7 +137,7 @@ void MarkSetClosed(const std::filesystem::path& file);
 // Where a set's pack is saved: packs\<matchId>.emberpack in the archive, the
 // folder made. Empty when there is no archive or the ID is not a plain one.
 std::filesystem::path SetPackPath(const std::string& matchId);
-// Puts every game of a set's pack (platform/ReplaySets.hxx) into the archive,
+// Puts every game of a set's pack (platform/ReplaySetPack.hxx) into the archive,
 // as games of that set this PC watched. How many the archive holds now; 0 for
 // a file that is not a whole pack.
 std::size_t ImportSetPack(const std::filesystem::path& pack);
@@ -138,7 +149,8 @@ std::size_t ImportSetPack(const std::filesystem::path& pack);
 // Ember noted neither), watched whether
 // it was played with Watch now before, sent whether its set's bridge or the
 // replay archive has it, or refused it for good, and setClosed whether its
-// set's bridge refused it for a closed set: done for the set only.
+// set's bridge refused it for a closed set: done for the set only. kept is
+// the player's own mark on it (MarkKept).
 struct ArchivedReplay {
 	std::filesystem::path path;
 	std::string label;
@@ -146,7 +158,7 @@ struct ArchivedReplay {
 	int fighters[2] = {-1, -1};
 	std::string names[2];
 	replayfiles::Provenance provenance = replayfiles::Provenance::Unknown;
-	bool watched = false, sent = false, setClosed = false;
+	bool watched = false, sent = false, setClosed = false, kept = false;
 	// The tournament set it was a game of, or none.
 	replayfiles::SetTag set;
 	// An exported video (<name>.mp4) is beside it.

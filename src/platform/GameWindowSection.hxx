@@ -78,5 +78,13 @@ inline bool ReadGameWindow(GameWindowRecord& out, const wchar_t* name = GameWind
 	return out.pid != 0 && out.window != 0;
 }
 
+// The record's window while it is still one of the publishing process's; a
+// window that is gone since may have had its number reused. Null otherwise.
+inline HWND PublishedWindow(const GameWindowRecord& game) {
+	const HWND window = static_cast<HWND>(UlongToHandle(game.window));
+	DWORD owner = 0;
+	return IsWindow(window) && GetWindowThreadProcessId(window, &owner) && owner == game.pid ? window : nullptr;
+}
+
 } // namespace platform
 } // namespace sf4e

@@ -241,6 +241,9 @@ struct Runtime {
 	// game is prepared: until the main menu is back with no Rematch coming, or
 	// the next battle is entered.
 	bool promptOverBattle = false;
+	// When this WIN's prompt became due, for as long as the fighter is asked
+	// (rematch::LocalBits); 0 outside such a WIN.
+	ULONGLONG promptDueSinceMs = 0;
 	// The lock release that failure owes the room. It outlives the battle: it
 	// stays pending, resent as needed, until the room confirms it, the player
 	// locks in again, or it expires, whatever the room commits meanwhile.
@@ -618,6 +621,23 @@ void TickMemberLatency();
 bool FighterSelectorShown(std::uint64_t roomGeneration);
 // Whether the shell noted a chat draft being written lately in room `roomGeneration` (NoteChatTyping).
 bool ChatTypingShown(std::uint64_t roomGeneration);
+// The pick is Random (NoteRandomFighter): each game is rolled for, so a
+// rematch leaves the battle instead of replaying its fighters in place.
+bool RandomFighterChosen();
+// Each tick: rolls the next game's fighter when it is owed
+// (room::RandomFighterPick), and sends the room host a roll the room does not
+// show yet while the player sits between games (room::RandomRollToShow), at
+// most once a second.
+void TickRandomFighter();
+// The rolled fighter (-1 before a roll) and the count of rolls, for the snapshot.
+struct RandomFighterRoll { int fighter = -1; std::uint64_t serial = 0; };
+RandomFighterRoll CurrentRandomFighter();
+// A Ready or Rematch of a Random pick takes the rolled fighter as it is
+// dispatched, fresh or parked; every other command is left as it is.
+TypedCommand& WithRandomFighter(TypedCommand& command);
+// Tests only: the roll draws from `roll` instead of a random engine; an empty
+// one restores the engine.
+void SetRandomFighterRollForTest(std::function<int()> roll);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

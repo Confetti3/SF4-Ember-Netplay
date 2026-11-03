@@ -38,7 +38,7 @@ namespace OverlayPrefs {
 		Data cached;
 		bool haveCached = false;
 		std::string startupError;
-		constexpr netplay::BoolPreferenceMember<Data> boolPreferences[] = {{"controllerLayer", &Data::controllerLayer}};
+		constexpr netplay::BoolPreferenceMember<Data> boolPreferences[] = {{"controllerLayer", &Data::controllerLayer}, {"randomFighter", &Data::lobbyRandom}};
 
 		void CharaToJson(nlohmann::json& j, const CharaPick& c) {
 			j["charaID"] = c.charaID;

@@ -158,6 +158,12 @@ namespace Dimps {
 						// Frames until the actor can act again, hitstop included, as the
 						// game keeps them for its input buffer: the s16 at actor +0x6E7A.
 						int (Actor::* GetFramesUntilActionable)();
+						// Nonzero while the actor is in hitstop: Action::Actor +0x270 (vf_fc).
+						int (Actor::* IsInHitStop)();
+						// Nonzero in the air (state 2, or bit 4 of actor +0xBC) and
+						// crouching (states 1, 8 and 15, or bit 2); 0 asks of the fighter now.
+						unsigned int (Actor::* IsAirborne)(int);
+						unsigned int (Actor::* IsCrouching)(int);
 
 						void (Actor::* GetVitalityAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetVitalityMax_FixedPoint)(Dimps::Math::FixedPoint* out);
@@ -182,6 +188,9 @@ namespace Dimps {
 						void (Actor::* GetUCTimeAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetUCTimeMax_FixedPoint)(Dimps::Math::FixedPoint* out);
 						void (Actor::* GetUCTimePct_FixedPoint)(Dimps::Math::FixedPoint* out);
+						// The stun gauge (+0x6c64, its top +0x6c68): a hit adds its stun, it drains while not hit.
+						void (Actor::* GetStunAmt_FixedPoint)(Dimps::Math::FixedPoint* out);
+						void (Actor::* GetStunMax_FixedPoint)(Dimps::Math::FixedPoint* out);
 
 						float* (Actor::* GetCurrentRootPosition)();
 						float* (Actor::* GetCurrentBonePositionByID)(int boneID);
@@ -206,6 +215,8 @@ namespace Dimps {
 					// empty; count: how many. object: an Actor, or an effect object
 					// (Effect::Unit::GetFirstEffect), which keeps its lists the same way.
 					static unsigned char* GetAttackBoxes(const void* object, unsigned list, unsigned& count);
+					// The juggle count the actor is under (actor +0x6C7C), -1 when not juggled.
+					static int GetJuggleCount(const Actor* a);
 					enum { BOXES_GUARD = 0, BOXES_HIT = 1, BOXES_THROW = 2 };
 					// In an attack box: the next box, and its state, BOX_LIVE while it can touch.
 					enum { BOX_NEXT = 0xA8, BOX_STATE = 0xAC, BOX_LIVE = 2 };

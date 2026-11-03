@@ -77,9 +77,29 @@ namespace Dimps {
 						DWORD(CommandImpl::* GetCurrentFallingSwitches)();
 					} __publicMethods;
 
+					/**
+					 * A charge's state, as UpdateCharges (0x59a6a0) keeps it: its
+					 * command-file record (directions to hold at [0], frames to
+					 * hold them at [3]), frames held, frames since let go, and
+					 * frames a full charge is still kept.
+					 */
+					struct ChargeState { const unsigned short* record; int held, released, kept; };
+					static_assert(sizeof(void*) != 4 || sizeof(ChargeState) == 16, "16 bytes in the game");
+					// One state per charge of the command file, in its order
+					// (+0x1594, its count at +0x1598).
+					static const ChargeState* GetChargeStates(const CommandImpl* impl, int& count);
+
 					static void Locate(HMODULE peRoot);
 					static __publicMethods publicMethods;
 				};
+
+				/**
+				 * A command move's distance rule (Actor::GetCommandMove), as
+				 * ResolveMove reads it: its kind at +4 (0 none, 1 at least and 2
+				 * at most `distance` from the other fighter along x, 3 and 4 the
+				 * same on height), the distance at +0x14.
+				 */
+				unsigned short GetMoveRange(const unsigned char* move, float& distance);
 
 				struct Unit
 				{

@@ -251,7 +251,7 @@ way.
    themselves.
 5. **If you disconnect,** the cut-off game counts for nobody. The organizer
    decides it or has it played again; reopen the same link to go on.
-6. **Replays** of your set are under **Replays › Tournaments**, where
+6. **Replays** of your set are under **Replays › Sets**, where
    **Export set videos** makes a video of each game, the set's score in its
    caption.
 

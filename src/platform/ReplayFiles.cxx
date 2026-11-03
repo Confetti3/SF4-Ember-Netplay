@@ -31,7 +31,7 @@
 #include "ReplayArchiveIndex.hxx"
 #include "ReplayArchivePass.hxx"
 #include "ReplayArchiveWorker.hxx"
-#include "ReplaySets.hxx"
+#include "ReplaySetPack.hxx"
 #include "ReplayNotes.hxx"
 
 #include <nlohmann/json.hpp>
@@ -163,6 +163,11 @@ replayfiles::ArchiveTarget Target(const Folders& folders, std::size_t settleBudg
 	return {folders.archive, folders.outbox, settleBudget, settleFrom, view, SlotFiles(), PublishFile, SkippedSlot};
 }
 std::mutex& CopyLock() { static std::mutex lock; return lock; }
+// The replays Ember kept itself (NoteMatchEnd) for the next pass to put in the
+// outbox; one the outbox and archive both refused waits for the pass after. A
+// few at most: that is the outbox's warning already.
+constexpr std::size_t kMostUnsaved = 4;
+replayfiles::UnsavedReplays& Unsaved() { static replayfiles::UnsavedReplays replays(kMostUnsaved); return replays; }
 
 // More replays than this waiting in the outbox, about 10 MB, is worth a
 // warning: the archive has not been writable for a long while.
@@ -181,8 +186,15 @@ void RefreshIndex(const fs::path& archive) {
 replayfiles::ArchivePass ArchiveSaves(const Folders& folders, const std::vector<fs::path>& accounts, std::size_t settleBudget) {
 	std::lock_guard<std::mutex> lock(CopyLock());
 	replayfiles::ArchiveView view(Index().Held());
-	const auto pass = replayfiles::RunPass(Target(folders, settleBudget, view), accounts, kFirstMatchSlot, kLastMatchSlot);
-	if (pass.copied) spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str());
+	const replayfiles::ArchiveTarget target = Target(folders, settleBudget, view);
+	// Before the slots, so the outbox pass at the end of RunPass settles them too.
+	replayfiles::ArchivePass kept;
+	std::size_t dropped = 0;
+	Unsaved().Archive(target, kept, &dropped);
+	if (dropped) spdlog::warn("Replays: {} unfinished replays were dropped; they do not export or the archive has not taken the ones before", dropped);
+	auto pass = replayfiles::RunPass(target, accounts, kFirstMatchSlot, kLastMatchSlot);
+	pass.copied += kept.copied; pass.failed += kept.failed; pass.retry = pass.retry || kept.retry;
+	if (pass.copied) { spdlog::info(L"Replays: archived {} to {}", pass.copied, folders.archive.c_str()); WantListing(); }
 	if (pass.waiting > kOutboxWarning) spdlog::warn(L"Replays: {} replays wait in {}; the archive {} has not taken them", pass.waiting, folders.outbox.c_str(), folders.archive.c_str());
 	else if (pass.waiting) spdlog::info(L"Replays: {} replays wait in {} until the archive takes them", pass.waiting, folders.outbox.c_str());
 	if (pass.failed) spdlog::warn("Replays: {} replays could not be archived or kept in the outbox yet", pass.failed);
@@ -463,34 +475,68 @@ replayfiles::ArchiveWorker& Archiver() {
 }
 }
 
+namespace {
+// The start of the battle being played, which each game an in-place rematch
+// starts in it shares. Only the game thread notes boundaries.
+std::optional<replayfiles::RecordingBoundary>& BattleStart() { static std::optional<replayfiles::RecordingBoundary> start; return start; }
+void PostStart(replayfiles::RecordingBoundary event) {
+ event.time = static_cast<std::uint64_t>(_time64(nullptr));
+ Provenance().Post(std::move(event));
+}
+}
 void NoteMatchStart(const std::string& p1, const std::string& p2, bool spectating, int fighter1, int fighter2, bool recordingEnabled,
  const replayfiles::SetTag& set) {
  try { Archiver().Want(); } catch (...) {}
  try {
+  BattleStart().reset();
   if (p1.size() > 1024 || p2.size() > 1024 || set.matchId.size() > replayfiles::kMostId || set.bridgeId.size() > replayfiles::kMostId) { Provenance().Invalidate(); return; }
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::Start;
-  event.time = static_cast<std::uint64_t>(_time64(nullptr));
   event.recordingEnabled = recordingEnabled;
   event.names = {{p1, p2}, spectating ? replayfiles::Provenance::Spectated : replayfiles::Provenance::Played, set}; event.fighters[0] = fighter1; event.fighters[1] = fighter2;
-  Provenance().Post(std::move(event));
+  BattleStart() = event;
+  PostStart(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
-void NoteMatchEnd(bool confirmed) {
+void NoteMatchEnd(bool confirmed, slots::Bytes unsaved) {
+ if (!unsaved.empty()) {
+  if (!Unsaved().Add(unsaved)) spdlog::warn("Replays: a replay Ember kept was dropped; the archive has not taken the ones before it");
+ }
  try { Archiver().MatchEnded(); } catch (...) {}
  try {
   replayfiles::RecordingBoundary event;
   event.kind = replayfiles::RecordingBoundary::Kind::End;
   event.confirmed = confirmed;
   event.time = static_cast<std::uint64_t>(_time64(nullptr));
+  event.body = std::move(unsaved);
   Provenance().Post(std::move(event));
  } catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
 }
+// A restart needs a running session, whose start was noted (NoteMatchStart).
+void NoteGameRestarted(slots::Bytes ended) {
+ NoteMatchEnd(true, std::move(ended));
+ try { if (BattleStart()) PostStart(*BattleStart()); }
+ catch (...) { try { Provenance().Invalidate(); } catch (...) {} }
+}
 
 namespace {
-// The marks lists are appended here and rewritten by the lister (PruneNotes),
-// so the two never overlap: an append the rewrite missed would be lost.
+// The marks lists are appended here and rewritten by the lister (PruneNotes)
+// or by a mark taken off (MarkOut), so the two never overlap: an append the
+// rewrite missed would be lost.
 std::mutex& NotesLock() { static std::mutex lock; return lock; }
+void MarkOut(const wchar_t* list, const fs::path& file) {
+	try {
+		const Folders folders = FindFolders();
+		if (folders.archive.empty()) return;
+		const std::string name = WideToUtf8(file.filename().wstring());
+		std::lock_guard<std::mutex> lock(NotesLock());
+		const auto bytes = replayfiles::ReadFile(folders.archive / list, notes::kMostBytes);
+		if (!bytes || !notes::TakeOut(folders.archive / list, *bytes, name)) spdlog::warn("Replays: {} was not written", WideToUtf8(list));
+	}
+	catch (const std::exception& e) {
+		spdlog::warn("Replays: {} was not written: {}", WideToUtf8(list), e.what());
+	}
+}
 void MarkIn(const wchar_t* list, const fs::path& file) {
 	try {
 		const Folders folders = FindFolders();
@@ -505,6 +551,7 @@ void MarkIn(const wchar_t* list, const fs::path& file) {
 }
 }
 void MarkWatched(const fs::path& file) { MarkIn(L"watched.txt", file); }
+void MarkKept(const fs::path& file, bool kept) { if (kept) MarkIn(L"kept.txt", file); else MarkOut(L"kept.txt", file); }
 void MarkSent(const fs::path& file) { MarkIn(L"sent.txt", file); }
 void MarkSetClosed(const fs::path& file) { MarkIn(L"closed.txt", file); }
 
@@ -580,25 +627,20 @@ void PruneNotes(const fs::path& file, const std::unordered_set<std::string>& wal
 		const std::string text = notes::Pruned(*bytes, [&](const std::string& name) {
 			return notes::KeptAfterWalk(name, cache.names, walked);
 		});
-		fs::path partial = file; partial += L".tmp";
-		{
-			std::ofstream out(partial, std::ios::binary | std::ios::trunc);
-			out << text;
-			if (!out) { out.close(); std::error_code ignored; fs::remove(partial, ignored); return; }
-		}
-		fs::rename(partial, file);
+		if (!notes::Write(file, text)) return;
 		cache.written = {};
 	} catch (const std::exception& e) {
 		spdlog::warn("Replays: {} was not pruned: {}", WideToUtf8(file.filename().wstring()), e.what());
 	}
 }
 
-std::vector<ArchivedReplay> List(NotesCache (&cache)[3]) {
+std::vector<ArchivedReplay> List(NotesCache (&cache)[4]) {
 	const Folders folders = FindFolders();
 	if (folders.archive.empty()) return {};
 	cache[0].Read(folders.archive / L"watched.txt");
 	cache[1].Read(folders.archive / L"sent.txt");
 	cache[2].Read(folders.archive / L"closed.txt");
+	cache[3].Read(folders.archive / L"kept.txt");
 
 	std::vector<ArchivedReplay> archived = Index().Refresh(folders.archive);
 	for (ArchivedReplay& replay : archived) {
@@ -606,6 +648,7 @@ std::vector<ArchivedReplay> List(NotesCache (&cache)[3]) {
 		// A list that cannot be read marks everything, never nothing.
 		replay.sent = cache[1].unreadable || cache[1].Has(replay.path);
 		replay.setClosed = cache[2].Has(replay.path);
+		replay.kept = cache[3].Has(replay.path);
 		fs::path video = replay.path;
 		std::error_code failed;
 		replay.video = fs::exists(video.replace_extension(L".mp4"), failed);
@@ -619,6 +662,7 @@ std::vector<ArchivedReplay> List(NotesCache (&cache)[3]) {
 		PruneNotes(folders.archive / L"watched.txt", walked, complete, cache[0], archived.size());
 		PruneNotes(folders.archive / L"sent.txt", walked, complete, cache[1], archived.size());
 		PruneNotes(folders.archive / L"closed.txt", walked, complete, cache[2], archived.size());
+		PruneNotes(folders.archive / L"kept.txt", walked, complete, cache[3], archived.size());
 	}
 	std::sort(archived.begin(), archived.end(), [](const ArchivedReplay& a, const ArchivedReplay& b) { return a.time > b.time; });
 	return archived;
@@ -640,7 +684,7 @@ struct Lister {
 Lister& TheLister() { static Lister* const lister = new Lister; return *lister; }
 
 void ListUntilStopped(Lister& lister) {
-	NotesCache cache[3];
+	NotesCache cache[4];
  replayinputs::DetailCache details;
 	// Two seconds between listings, however often one is asked for. One
 	// replay's detail does not wait for that.

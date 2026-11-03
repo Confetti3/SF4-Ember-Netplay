@@ -65,13 +65,15 @@ std::string SessionProblem(const netplay::Snapshot& session) {
 bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
  return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
 }
-// The room's own status line: the kind of room it is, and whether it is locked.
-const char* RoomStatusKey(const room::Snapshot& room) {
-    if(room.serverOwned)return room.locked?"room.public_locked_status":"room.public_status";
-    if(room.practice)return room.locked?"room.practice_locked_status":"room.practice_status";
-    if(room.arcade==room::KingRoom)return room.locked?"room.king_locked_status":"room.king_status";
-    if(room.arcade)return room.locked?"room.arcade_locked_status":"room.arcade_status";
-    return room.locked?"room.locked_status":"room.private_status";
+// The room's own status line: the kind of room it is, and whether it is locked. A
+// public room's starts with its type, as the list showed it, so a player who came
+// in from there still sees which kind of room they are in.
+std::string RoomStatusText(const room::Snapshot& room) {
+    if(room.serverOwned)return std::string(RoomTypeName(room.arcade))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
+    if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
+    if(room.arcade==room::KingRoom)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
+    if(room.arcade)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
+    return loc::T(room.locked?"room.locked_status":"room.private_status");
 }
 }
 float ApplicationShell::PublicListWidth() {
@@ -123,7 +125,12 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
   nav.Cancel();
-  if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection")nav.Home();
+  // A public room's player goes back to the list they joined it from (the
+  // panel still holds the room until its own update this frame).
+  if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection"){
+   nav.Home();
+   if(publicRooms_.OpeningKind()&&previousRoomState_==RoomState::Joined){nav.Push("online");nav.Push("public-rooms");}
+  }
   error_.clear();
   Say(previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room"),Tone::Neutral,3,ToastKind::Room);
  }
@@ -263,7 +270,7 @@ std::pair<std::string,Tone> ApplicationShell::UpdateStatus(const ShellView& v,co
   const bool healthy=v.session.control==Health::Healthy;
   status=!healthy?std::string(loc::T("room.reconnecting")):v.room.tournament.Active()?
    TournamentRoomStatus(v.room):
-   std::string(loc::T(RoomStatusKey(v.room)));
+   RoomStatusText(v.room);
   if(!healthy)statusTone=Tone::Pending;
  }
  if(screen=="room-table"){
@@ -358,7 +365,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
  tag.facts={{loc::T("profile.main_badge"),selection::FindFighter(preferences_.mainFighter)->name}};
- if(record.available)tag.facts.push_back({loc::T("profile.record"),loc::Tf("profile.record_value",record.wins,record.losses)});
+ if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;
  for(const auto& n:v.services.update.news)news.push_back({n.title,n.date.empty()?n.tag:n.date+" \xC2\xB7 "+n.tag});
@@ -414,7 +421,8 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  }
  // The Room layout panel's Reset: the board's layout and the watched game's picture as a fresh install has them.
  else if(a.id=="arrange-reset"){const netplay::PlayerPreferences fresh;preferences_.roomColumn=fresh.roomColumn;preferences_.roomSplit=fresh.roomSplit;
-  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
+  preferences_.roomShowMembers=fresh.roomShowMembers;preferences_.roomShowChat=fresh.roomShowChat;preferences_.roomTableGrid=fresh.roomTableGrid;
+  preferences_.roomCharacterPictures=fresh.roomCharacterPictures;preferences_.pictureMode=fresh.pictureMode;preferences_.pictureSpot=fresh.pictureSpot;
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
@@ -520,10 +528,13 @@ void ApplicationShell::Background(const ShellView& v,const room::Snapshot& room,
  UpdatePadSetup(v,submit,false);
  Conceal();hidden_=true;
  UpdatePostMatch(v,room,ImGui::GetTime(),submit,nullptr);
+ // Following goes on while Ember is hidden: a streamer hides it to show the games.
+ UpdateFollow(v,ImGui::GetTime(),submit);
  // Not read: the player is not looking at Chat while Ember is hidden, whatever screen it was left on.
  ObserveChat(v,room);
  identity_.Hidden(v,submit,ImGui::GetTime());
- DrawToasts(ImGui::GetTime(),true);
+ // The game is on screen: notices go into Notifications without a card over it.
+ TakeNotices(ImGui::GetTime());
 }
 
 v2::Box ApplicationShell::ShellArea() const {
@@ -604,7 +615,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   Say(loc::T("discord.invitation_notice"),Tone::Pending,30,ToastKind::Invitation,{{loc::T("toast.join"),"discord-invitation","invite-switch"},{loc::T("updates.launch_later")}});}
  if(!v.discordPending&&nav.Screen()=="discord-invitation")nav.Return();
  // A replay link takes the menu to its question only with no room: in a room the menu is the room's, and the link waits until it is left.
- replays_.Update(v,nav);
+ replays_.Update(v,preferences_,nav,submit);
  if(v.inputCapture!=input::Capture::Idle&&nav.Screen()!="assignment")nav.Push("assignment");
  if(v.inputCapture==input::Capture::Idle&&nav.Screen()=="assignment")nav.Return();
  identity_.Update(v,nav.Screen(),submit,now);
@@ -690,10 +701,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  menu_.backInert=false;menu_.ownsBack=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
  const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom);
  ImGui::End();ImGui::PopStyleVar(2);
+ // After the frame's presses, so a Stop watching or a seat taken this frame
+ // comes before any move following would make.
+ UpdateFollow(v,now,submit);
  // Every screen's frame ends here, the embedded ones' too: a toast said on
  // any of them shows at once, and one asked for is answered.
  AnswerToast(now);
- DrawToasts(now,false,nav.Screen()=="notifications",menuRead);
+ DrawToasts(now,nav.Screen()=="notifications",menuRead);
 }
 bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom) {
  using namespace netplay; auto& nav=menu_.navigation;

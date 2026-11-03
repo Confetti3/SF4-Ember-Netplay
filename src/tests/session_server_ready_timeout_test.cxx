@@ -79,6 +79,7 @@ void SeatWithConditions(Room& room) {
 	for (session::Connection connection = 1; connection <= 2; ++connection) {
 		protocol::PreBattleSetChara pick; pick.chara = protocol::MatchData{}.chara[0];
 		pick.chara.charaID = connection == 1 ? 5 : 6;
+		if (connection == 2) { pick.chara.costume = 1; pick.chara.color = 3; pick.chara.ultraCombo = 1; }
 		room.Send(connection, json(pick));
 	}
 	protocol::PreBattleSetStage stage; stage.stageID = selection::StageList().back().id;
@@ -87,6 +88,10 @@ void SeatWithConditions(Room& room) {
 	room.Send(1, json(env));
 	room.Act(1, room::ActionKind::Ready);
 	CHECK(room.server._roomMatchData[0].chara[1].charaID == 6 && room.server._roomMatchData[0].rngSeed == 1234);
+	// The room shows the seat's whole pick: fighter, costume, colour and Ultra.
+	const auto& snapshot = room.server._roomAuthority->SnapshotView();
+	const auto* p2 = room::FindMember(snapshot, snapshot.tables[0].p2);
+	CHECK(p2 && p2->fighter == 6 && p2->costume == 1 && p2->color == 3 && p2->ultra == 1);
 }
 
 // P2 leaving the seat by hand and P2 timed out leave the same table and the

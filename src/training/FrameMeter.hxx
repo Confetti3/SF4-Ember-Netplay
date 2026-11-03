@@ -95,14 +95,24 @@ struct FighterSample {
     bool basicActionInhibited = true;
     int firstActiveFrame = -1;
     int lastActiveFrame = -1;
+    // Where the script's own hitboxes stand on this frame, from the edition's
+    // .bac (bac::HitPhase): -1 unknown (the header's boundary above is used),
+    // 0 none out yet, 1 one is out, 2 between two hits, 3 all done.
+    int hitPhase = -1;
     // Native BAC header: the frame the action can be interrupted from, and
     // its total frames; -1 unknown.
     int interruptibleFrame = -1, totalFrames = -1;
     BoundaryProvenance boundaryProvenance = BoundaryProvenance::None;
     ActionClass actionClass = ActionClass::Unknown;
+    // The command move (BCM) the Skill plays, compared only: an input starts a new
+    // one, a move's own next script keeps it. 0 when there is none.
+    std::uintptr_t commandMove = 0;
     // Set by the meter, not the game: the thrower, still in a throw's
     // sequence after the fighter it threw has left it.
     bool throwRecovery = false;
+    // The meter's too: an attack going on while the other is held in a sequence
+    // (Adon's throw plays its own script in Skill while Ryu is thrown).
+    bool throwing = false;
     // Also the meter's: the first sample up from a knockdown. The frame a meaty attack meets is the one before it.
     bool wake = false;
     // The side's pad this frame (FightButtons), for the classic meter's input lanes; 0 when none was read.
@@ -110,6 +120,13 @@ struct FighterSample {
     // The game's own count of frames until the fighter can act, hitstop
     // included.
     int untilActionable = 0;
+    // The game's hitstop on the fighter (Action::Actor +0x270).
+    bool hitStop = false;
+    // Game frames a fireball takes from coming out to its hit (bac::ProjectileBoundary).
+    int projectileDelay = 0;
+    // The edition's file gives the script no hit and no fireball: its header's attack
+    // frames are only the engine's phase (Engine::advance 0x52f810).
+    bool headerOnly = false;
 };
 // The frame a move's recovery ends on: where the script says the fighter is
 // free again, its interruptible frame, else its end; -1 when neither is known.
@@ -126,27 +143,34 @@ inline bool RecoveryCutShort(const FighterSample& move) {
     const int end = MoveRecoveryEnd(move);
     return end > 0 && move.actionFrame < static_cast<float>(end);
 }
-// What a meter cell shows. An attack is told apart by the script's attack
+// What a meter cell shows. An attack is told apart by its hitboxes, as the
+// game puts them out (FighterSample::hitPhase), else by the script's attack
 // boundary: before it startup, inside it active, after it recovery; Attack
-// alone when the script gives none.
-// The cells follow the frame data's own numbers, for a player who reads the
-// two side by side: a crouching jab with a startup of 3 has three startup
-// cells. Frame data counts the frame a move first hits on as startup, so that
-// third cell is its first active frame, the active cells stand one frame
-// late, and the recovery has one cell less than its number (3, 2 and 6 cells
-// for 3, 2 and 7). A completed MoveFrames::recovery is the number, not the cell count.
+// alone when the script gives neither.
+// The cells are the frames as they play, as Street Fighter 6's meter draws
+// them: frame data counts the frame a move first hits on as startup, so a
+// crouching jab of 3, 2 and 7 has 2 startup cells, then 2 active and 7
+// recovery cells, and the numbers above the bars stay the frame data's.
 // Checked in the game by the in-game self-test.
-// Limitation: one active stretch per action, so a multi-hit move's gaps
-// between hits read as active. Read every hit box if they have to show.
 // Sequence is ActorStatus::Sequence: both fighters while a throw or a cinematic plays;
 // what the thrower has left of it once the other is let go is its recovery.
 // Down is bouncing or lying, Rise getting up. Meaty is the bars' own, never
 // ClassifyMeter's: the frame a fighter is first up, and an attack active on it.
 enum class MeterKind { Neutral, Movement, Startup, Active, Recovery, Attack, Guard, Hit, Down, Rise, Sequence, Meaty, Unknown };
+// An attack's frame by where its hitboxes stand (bac::HitPhase): before them
+// startup, one out active, and a gap between two hits drawn as recovery, as
+// after the last; the gap counts in the active number (MoveFrames).
+inline MeterKind HitPhaseKind(int phase) { return phase == 0 ? MeterKind::Startup : phase == 1 ? MeterKind::Active : MeterKind::Recovery; }
+// An attack's frame by its attack boundary, first up to last: startup before
+// it, active inside it, recovery after; Attack alone with no boundary.
+inline MeterKind BoundaryKind(float frame, int first, int last) {
+    if (first < 0 || last <= first) return MeterKind::Attack;
+    return frame < first ? MeterKind::Startup : frame < last ? MeterKind::Active : MeterKind::Recovery;
+}
 inline MeterKind ClassifyMeter(const FighterSample& sample) {
     using S = ActorStatus;
     if (!sample.valid) return MeterKind::Unknown;
-    if (sample.status == S::Sequence) return sample.throwRecovery ? MeterKind::Recovery : MeterKind::Sequence;
+    if (sample.status == S::Sequence || sample.throwing) return sample.throwRecovery ? MeterKind::Recovery : MeterKind::Sequence;
     switch (ClassifyStatus(sample.status)) {
     case Phase::Neutral: return MeterKind::Neutral;
     // A jump shows as nothing: its frames are the same every time. Walks and dashes show.
@@ -156,9 +180,7 @@ inline MeterKind ClassifyMeter(const FighterSample& sample) {
     case Phase::Hit: return MeterKind::Hit;
     case Phase::Down: return sample.status == S::Rise ? MeterKind::Rise : MeterKind::Down;
     case Phase::Attack:
-        if (sample.firstActiveFrame < 0 || sample.lastActiveFrame <= sample.firstActiveFrame) return MeterKind::Attack;
-        return sample.actionFrame - 1 < sample.firstActiveFrame ? MeterKind::Startup :
-            sample.actionFrame - 1 < sample.lastActiveFrame ? MeterKind::Active : MeterKind::Recovery;
+        return sample.hitPhase >= 0 ? HitPhaseKind(sample.hitPhase) : BoundaryKind(sample.actionFrame, sample.firstActiveFrame, sample.lastActiveFrame);
     default: return MeterKind::Unknown;
     }
 }
@@ -184,6 +206,9 @@ constexpr int MeterStyles = 3;
 // Each fighter's input display beside the meter (InputDisplayChoices).
 enum class InputDisplay { Off, Stick, Arrows, Both };
 constexpr int InputDisplays = 4;
+// Whose Data panel shows, each under its own life bar: both fighters', P1's or P2's.
+enum class DataFighter { Both, P1, P2 };
+constexpr int DataFighters = 3;
 struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
     InputDisplay inputs = InputDisplay::Off;
     bool classicData = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
@@ -194,6 +219,10 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     // The fighters' boxes are drawn over the fight, and of those the boxes
     // where a strike or a throw lands and the skeleton.
     bool hitboxes = false, hurtBoxes = true, throwBoxes = true, skeleton = true;
+    // The Data panel (TrainingData.cxx): shown, whose (DataFighters), how solid
+    // its ground is (DataOpacities, percent) and which of its parts show.
+    bool data = false; DataFighter dataFighters = DataFighter::Both; int dataOpacity = 80;
+    bool dataMove = true, dataPosition = true, dataState = true, dataGauges = true, dataJuggle = true, dataCharge = true;
     // The bars slide a frame at a time, and a held meter steps back MeterSlideStep
     // frames a notch, instead of a page at a time.
     bool smooth = false;
@@ -202,6 +231,7 @@ struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = fal
     // the classic bars' height (ClassicBarHeights, at the HUD's scale).
     int position = 82, barHeight = 16; };
 constexpr int MeterPositions[] = {12, 25, 40, 55, 70, 82, 92};
+constexpr int DataOpacities[] = {40, 60, 80, 100};
 constexpr std::size_t MeterSlideStep = 10;
 constexpr int ClassicBarHeights[] = {12, 16, 22};
 inline bool GroundedRecoveryState(unsigned status) {
@@ -321,10 +351,15 @@ struct MeterCell {
 // What the game counts until a fighter it cannot time (knocked down) can act.
 constexpr int UntimedFrames = 1000;
 // Whether a fighter's animation went on from before to sample. Hitstop and a
-// super's freeze hold it; the one hit starts a new action at its first frame.
+// super's freeze hold it; the one hit starts a new action at its first frame,
+// or the same reaction again from its first frame (a move's second hit).
 inline bool AnimationMoved(const FighterSample& before, const FighterSample& sample) {
-    return !sample.valid || !before.valid || (sample.action == before.action ? sample.actionFrame != before.actionFrame : sample.actionFrame > 0);
+    if (!sample.valid || !before.valid) return true;
+    const bool restarted = sample.action != before.action || sample.actionFrame < before.actionFrame;
+    return restarted ? sample.actionFrame > 0 : sample.actionFrame > before.actionFrame;
 }
+// Whether a super's freeze holds a fighter (time scale under 1).
+inline bool Frozen(const FighterSample& sample) { return sample.valid && sample.timeScale < 1; }
 // cell, drawn after frames left out of the bars (FrameMeter::Observe),
 // takes on what they began: a new action, a split, a hit, and that they were.
 inline void MergeStopped(MeterCell& cell, const MeterCell& stopped) {
@@ -332,6 +367,12 @@ inline void MergeStopped(MeterCell& cell, const MeterCell& stopped) {
     cell.split = cell.split || stopped.split;
     if (stopped.hitAdvantage != NoHitAdvantage) cell.hitAdvantage = stopped.hitAdvantage;
     cell.afterStop = cell.afterStop || stopped.afterStop;
+}
+// Whether the fighter plays its script again from an earlier frame: the game
+// starts the same action over, as a normal chained into itself does (c.LP into
+// c.LP plays one command move's script twice).
+inline bool Replayed(const FighterSample& previous, const FighterSample& sample) {
+    return sample.valid && previous.valid && sample.action == previous.action && sample.actionFrame < previous.actionFrame;
 }
 // sample's cell after previous, the sample before it in the bars whose cell
 // was before; no previous for the first cell of the bars.
@@ -345,7 +386,9 @@ inline MeterCell ResolveMeterCell(const FighterSample& sample, const FighterSamp
     if (cell.kind == MeterKind::Guard && sample.status != S::DamageGuard &&
         (sample.posture > 1 || cell.guardFrom == S::Jump || cell.guardFrom == S::StandToJump)) cell.kind = MeterKind::Neutral;
     if (!previous) return cell;
-    cell.newAction = sample.valid && sample.action >= 0 && sample.action != previous->action;
+    // An attack played again is a new action too; a reaction started over by the next hit is the hit's (struck).
+    cell.newAction = sample.valid && sample.action >= 0 &&
+        (sample.action != previous->action || (sample.status == S::Skill && Replayed(*previous, sample)));
     const bool action = cell.newAction && !(cell.kind == MeterKind::Guard && before.kind == MeterKind::Guard);
     const bool struck = cell.kind == MeterKind::Hit && before.kind == MeterKind::Hit && !action &&
         (sample.comboDamage > previous->comboDamage || sample.actionFrame < previous->actionFrame);
@@ -424,7 +467,7 @@ public:
         history_ = (std::max)(MeterShown, frames);
         while (view_.frames.size() > history_) view_.frames.pop_front();
     }
-    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; settling_ = -1; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; recoveryCells_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = stopped_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
+    void Reset() { view_ = MeterView{}; idleFrames_ = 0; hasFrame_ = false; observedFrames_ = contactFrame_ = 0; settling_ = -1; armed_ = {}; recovered_ = {{-1, -1}}; startupElapsed_ = {}; startupPending_ = {}; projectileWait_ = {}; recoveryCells_ = {}; grounded_ = {}; grabbed_ = {}; thrower_ = {}; firstActiveAt_ = wakeAt_ = {{-1, -1}}; lastCells_ = stopped_ = {}; aside_.clear(); asideLength_ = 0; exchangeAt_ = 0; cancelling_ = {}; }
     void Observe(int frame, const std::array<FighterSample, 2>& observed) {
         // The native fixed-point integral is a wrapping 16-bit counter. It
         // becomes negative after 32767; those values must never double as
@@ -440,11 +483,49 @@ public:
             if (!fighters[side].valid || fighters[side].status != ActorStatus::Sequence) thrower_[side] = false;
             else if (!previous.valid || previous.status != ActorStatus::Sequence) thrower_[side] = previous.valid && previous.status == ActorStatus::Skill;
         }
-        for (int side = 0; side < 2; ++side)
+        for (int side = 0; side < 2; ++side) {
             fighters[side].throwRecovery = thrower_[side] && fighters[1 - side].valid && fighters[1 - side].status != ActorStatus::Sequence;
+            fighters[side].throwing = fighters[side].valid && fighters[side].status == ActorStatus::Skill &&
+                fighters[1 - side].valid && fighters[1 - side].status == ActorStatus::Sequence;
+        }
+        // A projectile comes out the step its spawn frame is passed and hits from the next
+        // step, however far that step jumps (Poison's 236LP plays 2 frames a step).
+        for (int side = 0; side < 2; ++side) {
+            auto& sample = fighters[side];
+            const auto& previous = view_.current[side];
+            if (sample.boundaryProvenance == BoundaryProvenance::BacEffectSpawn && sample.actionFrame >= sample.firstActiveFrame &&
+                (!previous.valid || previous.action != sample.action || previous.actionFrame > sample.actionFrame ||
+                 previous.actionFrame < sample.firstActiveFrame - 1)) {
+                sample.firstActiveFrame = static_cast<int>(sample.actionFrame) + 1;
+                sample.lastActiveFrame = (std::max)(sample.lastActiveFrame, sample.firstActiveFrame + 1);
+            } else if (sample.boundaryProvenance == BoundaryProvenance::BacEffectSpawn && previous.valid && previous.action == sample.action &&
+                previous.firstActiveFrame > sample.firstActiveFrame && previous.actionFrame < previous.firstActiveFrame &&
+                sample.actionFrame >= previous.actionFrame) {
+                // The step after: active, even when it jumps past the spawn's frames.
+                sample.firstActiveFrame = previous.firstActiveFrame;
+                sample.lastActiveFrame = (std::max)(sample.lastActiveFrame, static_cast<int>(sample.actionFrame) + 1);
+            }
+        }
+        // A script like that after the move has hit (El Fuerte's 214K landing) is no attack;
+        // one that opened the move keeps its header (Gouken's parry).
+        for (int side = 0; side < 2; ++side) {
+            const auto& previous = view_.current[side];
+            const bool own = previous.headerOnly && previous.action == fighters[side].action && previous.firstActiveFrame >= 0;
+            if (fighters[side].headerOnly && previous.valid && previous.status == ActorStatus::Skill && view_.moves[side].active && !own)
+                fighters[side].firstActiveFrame = fighters[side].lastActiveFrame = -1;
+        }
         for (int side = 0; side < 2; ++side)
             fighters[side].wake = fighters[side].valid && view_.current[side].valid && view_.current[side].status == ActorStatus::Rise && fighters[side].status != ActorStatus::Rise;
-        const bool moved = AnimationMoved(view_.current[0], fighters[0]) || AnimationMoved(view_.current[1], fighters[1]);
+        // Each fighter is on its own clock: a frame its animation moved on in, or one it stood
+        // still in that the game did not stop it in (a landing held while the one knocked down
+        // lies still; a thrower on its last frame while its fireball's hitstop holds the other).
+        // Its own hitstop or a super's freeze stops it, whatever the other does. The bars draw
+        // a frame either fighter moved in.
+        const bool freeze = Frozen(fighters[0]) || Frozen(fighters[1]);
+        std::array<bool, 2> moving{};
+        for (int side = 0; side < 2; ++side)
+            moving[side] = AnimationMoved(view_.current[side], fighters[side]) || !(freeze || fighters[side].hitStop);
+        const bool moved = moving[0] || moving[1];
         const std::int64_t now = observedFrames_++;
         const int struck = ObserveAdvantage(now, fighters);
         std::array<MeterCell, 2> cells;
@@ -457,61 +538,87 @@ public:
             const bool actionChanged = sample.action != previous.action || sample.actionFrame < previous.actionFrame;
             // Before a focus's own startup and move replace the move's below.
             WatchCancel(side, previous, sample);
+            // Another attack within Skill: a script that opens in startup, from a new input
+            // (a target combo, a cancel: another command move), or the same script played
+            // again (a normal chained into itself keeps its command move). A move's own next
+            // script keeps its command move (Seth's 214K, Vega's roll), one that opens active
+            // (Balrog's headbutt) or plays out a throw goes on with the move.
+            const auto opens = ClassifyMeter(sample);
+            const bool another = sample.valid && sample.status == ActorStatus::Skill && actionChanged &&
+                (opens == MeterKind::Startup || opens == MeterKind::Attack) &&
+                (!sample.commandMove || sample.commandMove != previous.commandMove || Replayed(previous, sample));
+            const int waiting = projectileWait_[side];
             if (!sample.valid) {
-                view_.startupFrames[side] = -1; startupPending_[side] = false;
+                view_.startupFrames[side] = -1; startupPending_[side] = false; projectileWait_[side] = 0;
                 view_.startupUnavailable[side] = MeasurementUnavailable::InvalidSample;
                 view_.startupBoundaryProvenance[side] = BoundaryProvenance::None;
             } else if (sample.status == ActorStatus::Skill) {
                 if (previous.valid && (previous.status != ActorStatus::Skill ||
-                    (actionChanged && sample.firstActiveFrame >= 0 && !startupPending_[side]))) {
-                    startupElapsed_[side] = 0; startupPending_[side] = true;
+                    (another && (sample.firstActiveFrame >= 0 || sample.hitPhase >= 0) && !startupPending_[side]))) {
+                    startupElapsed_[side] = 0; startupPending_[side] = true; projectileWait_[side] = 0;
                     view_.startupFrames[side] = -1;
                     view_.startupUnavailable[side] = sample.firstActiveFrame >= 0 ?
                         MeasurementUnavailable::WaitingForAttackBoundary : MeasurementUnavailable::NoAttackBoundary;
                     view_.startupBoundaryProvenance[side] = sample.boundaryProvenance;
                 }
-                // Count accepted advancing frames, not BAC animation ticks:
-                // normals and specials commonly change animation speed.
-                // A hit can enable hitstop at the end of this very step; use
-                // the observed animation advance instead of the next scale.
-                if (startupPending_[side] &&
-                    (actionChanged || previous.status != ActorStatus::Skill || sample.actionFrame > previous.actionFrame)) {
+                // Count the steps a cell is drawn for, not BAC animation ticks: normals and
+                // specials change animation speed, and a frame held while falling to land is
+                // still a frame (Gouken's 623K). The fighter's own hitstop is left out.
+                if (startupPending_[side] && (actionChanged || previous.status != ActorStatus::Skill || moving[side])) {
                     ++startupElapsed_[side];
-                    if (sample.firstActiveFrame >= 0 && sample.actionFrame >= sample.firstActiveFrame) {
+                    if (sample.hitPhase >= 0 ? sample.hitPhase >= 1 : sample.firstActiveFrame >= 0 && sample.actionFrame >= sample.firstActiveFrame) {
+                        projectileWait_[side] = sample.projectileDelay;
+                        startupPending_[side] = false;
+                    }
+                    if (!startupPending_[side] && !projectileWait_[side]) {
                         view_.startupFrames[side] = startupElapsed_[side];
                         view_.startupBoundaryProvenance[side] = sample.boundaryProvenance;
                         view_.startupUnavailable[side] = MeasurementUnavailable::None;
-                        startupPending_[side] = false;
                     }
                 }
             } else startupPending_[side] = false;
+            // A fireball on its way (Evil Ryu's falling one) hits its delay later, whatever the thrower does meanwhile.
+            if (waiting && projectileWait_[side] && moving[side]) {
+                ++startupElapsed_[side];
+                if (--projectileWait_[side] == 0) {
+                    view_.startupFrames[side] = startupElapsed_[side];
+                    view_.startupUnavailable[side] = MeasurementUnavailable::None;
+                }
+            }
             auto& move = view_.moves[side];
             if (sample.valid && sample.status == ActorStatus::Skill) {
-                const auto kind = ClassifyMeter(sample);
+                const auto kind = opens;
                 const bool began = !previous.valid || previous.status != ActorStatus::Skill;
-                // A cancel into another attack is a new move; a move's own later scripts are not.
-                if (began || (actionChanged && kind == MeterKind::Startup)) { move = MoveFrames{}; recoveryCells_[side] = 0; }
+                if (began || another) { move = MoveFrames{}; recoveryCells_[side] = 0; grabbed_[side] = false; }
+                if (began) grounded_[side] = previous.status != ActorStatus::Jump;
+                // A move that grabbed plays out the throw: its later hits (Abel's EX 236P) are no active frames.
+                grabbed_[side] = grabbed_[side] || sample.throwing;
                 move.seen = move.live = true;
-                if (began || actionChanged || sample.actionFrame > previous.actionFrame) {
+                if (began || actionChanged || moving[side]) {
                     // The attack's first active frame is what a meaty is timed by.
                     if (kind == MeterKind::Active && !move.active) { firstActiveAt_[side] = now; Meaty(side); }
-                    if (kind == MeterKind::Active) ++move.active;
-                    else if (kind == MeterKind::Recovery) move.recovery = ++recoveryCells_[side];
+                    // Frame data counts a multi-part move's active frames from its first hit to
+                    // its last, what lies between included ("1(3)3" is 7, Vega's roll 9(6)1 is 16).
+                    if (kind == MeterKind::Active && !grabbed_[side]) {
+                        move.active += 1 + (move.active ? recoveryCells_[side] : 0);
+                        recoveryCells_[side] = move.recovery = 0;
+                    }
                 }
+                // After a hit, every frame the bars draw is recovery until another hit makes it a
+                // gap: a gap between two hits, the next script's windup, a last frame held while
+                // the other fighter goes on.
+                if (sample.throwing) recoveryCells_[side] = move.recovery = 0;
+                else if (moving[side] && (kind == MeterKind::Recovery || (move.active && (kind == MeterKind::Startup || kind == MeterKind::Attack || (grabbed_[side] && kind == MeterKind::Active)))))
+                    move.recovery = ++recoveryCells_[side];
             } else if (sample.valid && sample.status == ActorStatus::Sequence && thrower_[side] && move.seen) {
                 // A throw that connected goes on in the sequence.
                 move.live = true;
                 if (sample.throwRecovery) move.recovery = ++recoveryCells_[side];
-            } else {
-                // Startup includes the first active frame, shifting the cells
-                // one frame late. At normal completion count the recovery
-                // frame with no cell, even when no Recovery cell was seen.
-                // Throws count their sequence directly; interruptions do not
-                // establish a completed move's recovery.
-                if (move.live && sample.valid && previous.valid && previous.status == ActorStatus::Skill && move.active > 0 &&
-                    GroundedRecoveryState(sample.status)) move.recovery = recoveryCells_[side] + 1;
-                move.live = false;
-            }
+            } else if (sample.valid && sample.status == ActorStatus::JumpToStand && move.live && grounded_[side]) {
+                // A move that left the ground lands in its recovery (Akuma's hyakki: 4 frames);
+                // a jump's attack does not.
+                if (moving[side]) move.recovery = ++recoveryCells_[side];
+            } else move.live = false;
             if (sample.valid && previous.valid) {
                 const bool down = ClassifyStatus(sample.status) == Phase::Down;
                 // A knockdown starts a new meaty reading; the attack that caused it is not one.
@@ -636,9 +743,8 @@ private:
             view_.advantage = {}; view_.advantage.unavailable = reason; recovered_ = {{-1, -1}}; cancelling_ = {};
         };
         for (const auto& sample : fighters) {
-            if (!sample.valid || sample.action < 0 || sample.status > ActorStatus::Sequence ||
-                sample.timeScale < 0 ||
-                sample.posture < 0) {
+            // A negative posture is a real one (in the air, thrown, Blanka's stand), not a bad read.
+            if (!sample.valid || sample.action < 0 || sample.status > ActorStatus::Sequence || sample.timeScale < 0) {
                 clear(MeasurementUnavailable::InvalidSample); armed_ = {}; return -1;
             }
         }
@@ -664,6 +770,9 @@ private:
             contacts[defender] = (sample.status == ActorStatus::Damage || sample.status == ActorStatus::DamageGuard || sample.status == ActorStatus::DamageBlow) && previous.valid &&
                 (sample.status != previous.status || sample.action != previous.action ||
                  sample.actionFrame < previous.actionFrame || sample.comboDamage > previous.comboDamage);
+            // A hit can send straight into the bound (Akuma's demon flip punch): its damage is the sign.
+            if (sample.status == ActorStatus::Bound && previous.valid && previous.status != ActorStatus::Bound &&
+                sample.comboDamage != previous.comboDamage) contacts[defender] = true;
             // A throw connects as its sequence takes both; only the thrown fighter is hit by it.
             if (sample.status == ActorStatus::Sequence && previous.valid && previous.status != ActorStatus::Sequence && armed_[1 - defender]) contacts[defender] = true;
         }
@@ -769,7 +878,12 @@ private:
     std::array<CancelChain, 2> cancelling_{};
     std::array<bool, 2> startupPending_{};
     std::array<int, 2> startupElapsed_{};
+    // Steps left until a fireball on its way can hit (Observe).
+    std::array<int, 2> projectileWait_{};
+    // Frames since the move's last hit: its recovery, or a gap once another hit follows (Observe).
     std::array<int, 2> recoveryCells_{};
+    // The move began on the ground, so a landing is its recovery (Observe).
+    std::array<bool, 2> grounded_{}, grabbed_{};
     std::array<std::int64_t, 2> recovered_{{-1, -1}};
     std::int64_t observedFrames_ = 0, contactFrame_ = 0;
     unsigned idleFrames_ = 0;

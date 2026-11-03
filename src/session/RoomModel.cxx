@@ -1,5 +1,6 @@
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
+#include "../common/FighterCatalog.hxx"
 #include <limits>
 
 namespace sf4e { namespace room {
@@ -97,13 +98,21 @@ bool RoomAuthority::FighterAllowed(MemberId member,int fighter,int edition) cons
     const auto& table=snapshot_.tables[PlaceOf(snapshot_,member).table];
     return (table.keptFighter<0||fighter==table.keptFighter)&&(table.keptEdition<0||edition==table.keptEdition);
 }
-bool RoomAuthority::SetMemberFighter(MemberId member,int fighter,bool* withdrewOpponentReady,int edition) {
+bool RoomAuthority::SetMemberChara(MemberId member,const Chara& chara,bool* withdrewOpponentReady) {
     if(withdrewOpponentReady)*withdrewOpponentReady=false;
     auto* value=Find(member);
-    if(value)NoteActive(member);
+    if(!value)return false;
+    NoteActive(member);
     // The edition rides along unannounced: only a keeper's set end reads it.
-    if(value&&edition>=0)value->edition=edition;
-    if(!value||fighter<0||fighter>=44||value->fighter==fighter)return false;
+    if(chara.edition>=0)value->edition=chara.edition;
+    const int fighter=chara.fighter;
+    if(fighter<0||fighter>=selection::FighterCount)return false;
+    // The look the board shows; a value out of range reads as not shared.
+    const auto shown=[](int v,int limit){return v>=0&&v<limit?v:-1;};
+    const int costume=shown(chara.costume,selection::CostumeLimit),color=shown(chara.color,selection::CostumeLimit),ultra=shown(chara.ultra,selection::UltraChoices);
+    const bool restyled=value->costume!=costume||value->color!=color||value->ultra!=ultra;
+    value->costume=costume;value->color=color;value->ultra=ultra;
+    if(value->fighter==fighter){if(restyled)TouchRoom();return restyled;}
     const int previous=value->fighter;
     value->fighter=fighter;
     Table* table=FindTable(static_cast<std::uint8_t>(value->table));

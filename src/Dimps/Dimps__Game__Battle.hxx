@@ -100,10 +100,21 @@ namespace Dimps {
 				typedef struct __codecMethods {
 					std::uint8_t* (sf4e::replay::Codec::* Append)(std::uint32_t value);
 				} __codecMethods;
+				// The recorder's own methods (vtable 0x954DAC) the game's save after
+				// a battle (0x63C410) uses: stop recording (+0x48), the size the
+				// recording serializes to (+0x54), the serialized #BRP replay with
+				// the current time as its date (+0x5C), and that buffer's free (+0x60).
+				typedef struct __publicMethods {
+					void (sf4e::replay::Recorder::* Stop)();
+					std::uint32_t (sf4e::replay::Recorder::* GetReplaySize)();
+					std::uint8_t* (sf4e::replay::Recorder::* BuildReplay)();
+					void (sf4e::replay::Recorder::* FreeReplay)(std::uint8_t* replay);
+				} __publicMethods;
 
 				static void Locate(HMODULE peRoot);
 				static __staticMethods staticMethods;
 				static __codecMethods codecMethods;
+				static __publicMethods publicMethods;
 			};
 
 			namespace Network {

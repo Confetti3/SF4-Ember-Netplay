@@ -82,15 +82,21 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     training.dummy.action=1;training.dummy.guard=2;training.dummy.counterHit=1;training.dummy.quickStand=3;training.dummy.super=5;training.dummy.revenge=7;
     std::vector<MenuEntry> trainingRows;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){trainingRows=rows;});
-    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","dummy","reply","tools"}){
+    for(const char* screen:{"home","recording","history","frame-data","hud","meter-settings","meter-classic","hitboxes","data","dummy","reply","tools","combo-check"}){
         TrainingNavigation().Home();if(std::string(screen)!="home")TrainingNavigation().Push(screen);draw((std::string("training-")+screen).c_str());
         for(const auto& row:trainingRows)Require(row.id!="about","Training guide row survived the page split");
         if(std::string(screen)=="hitboxes")Require(trainingRows.size()==4&&trainingRows[0].id=="hitboxes-shown","Hitboxes page lost its switch or one of its parts");
         if(std::string(screen)=="dummy")Require(trainingRows.size()==6,"Dummy page lost one of its own rows");
+        // A row with more than On and Off offers every value, whichever one it shows (Counter hit: On, the reply and the inputs shown: Off).
+        const auto choicesOf=[&](const char* id){for(const auto& row:trainingRows)if(row.id==id)return row.choices.size();return std::size_t(0);};
+        if(std::string(screen)=="dummy")Require(choicesOf("dummy-counter")==3,"Counter hit offered fewer values than it has");
+        if(std::string(screen)=="reply")Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");
+        if(std::string(screen)=="hud")Require(choicesOf("hud-inputs")==static_cast<std::size_t>(training::InputDisplays),"Inputs shown offered fewer values than it has");
         if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
-        if(std::string(screen)=="hud")Require(trainingRows.size()==8&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes","HUD page lost its size, one of its parts or Hitboxes");
+        if(std::string(screen)=="hud")Require(trainingRows.size()==9&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes"&&trainingRows[8].id=="data","HUD page lost its size, one of its parts, Hitboxes or the Data panel");
+        if(std::string(screen)=="data")Require(trainingRows.size()==9&&trainingRows[0].id=="data-shown"&&trainingRows[1].id=="data-fighters"&&trainingRows[2].id=="data-opacity","Data panel page lost its switch, fighters, background or one of its parts");
         // The reply plays the slots that are on, so its page has no slot of its own.
         if(std::string(screen)=="reply")for(const auto& row:trainingRows)Require(row.id!="reply-slot","The reply page kept a slot of its own");
         // Each slot says whether it is on, or that it is empty, with its frames in the detail.
@@ -102,8 +108,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             Require(order!=trainingRows.end()&&order->value==loc::T("training.order.random"),"The recording page lost its order row");
         }
         if(std::string(screen)=="home") {
-            const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","return"};
-            Require(trainingRows.size()==8,"Training home lost a tool page");
+            const char* ids[]={"recording","history","frame-data","hud","dummy","reply","tools","combo-check","return"};
+            Require(trainingRows.size()==9,"Training home lost a tool page");
             for(std::size_t i=0;i<trainingRows.size();++i)Require(trainingRows[i].id==ids[i],"Training home page order wrong");
             // In two columns where one is too short for them, as in one: every card in a place of its own.
             std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
@@ -156,6 +162,53 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
     Require(!TrainingMeterOptions().numbers&&TrainingMeterOptions().bars,"HUD page did not turn its first part off");
     SetTrainingMeterOptions({});
+    // Directions follow the cards as drawn. Down and Up step a page's rows one
+    // at a time in reading order, in one column or two; where a page stands in
+    // two columns, Left and Right cross between them from a row with no value
+    // to step (Frame data, HUD and the recording's slots at 150%).
+    {
+        std::vector<MenuEntry> rows;
+        std::map<std::string,std::pair<ImVec2,ImVec2>> cards;
+        SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+        SetMenuCardProbe([&](const char* id,ImVec2 from,ImVec2 to){cards[id]={from,to};});
+        const auto press=[&](unsigned button){draw(nullptr,button,1);draw(nullptr,0,1);};
+        const auto reach=[&](const std::string& id){
+            for(std::size_t i=0;i<rows.size()&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);
+            Require(TrainingNavigation().Focus()==id,"A training row was unreachable by Down");};
+        for(const char* screen:{"recording","frame-data","hud","dummy","reply"}) {
+            const std::string page=screen;
+            TrainingNavigation().Home();TrainingNavigation().Push(screen);draw();
+            for(std::size_t i=0;i<rows.size();++i)press(MenuInput::Up);
+            Require(TrainingNavigation().Focus()==rows.front().id,("Up did not reach the first row of "+page).c_str());
+            const auto order=rows;
+            for(std::size_t i=1;i<order.size();++i){
+                press(MenuInput::Down);
+                Require(TrainingNavigation().Focus()==order[i].id,("Down skipped a row of "+page).c_str());
+            }
+            for(std::size_t i=order.size()-1;i>0;--i){
+                press(MenuInput::Up);
+                Require(TrainingNavigation().Focus()==order[i-1].id,("Up skipped a row of "+page).c_str());
+            }
+            float leftmost=FLT_MAX,rightmost=-FLT_MAX;
+            for(const auto& row:order){const float x=cards.at(row.id).first.x;leftmost=(std::min)(leftmost,x);rightmost=(std::max)(rightmost,x);}
+            if(rightmost-leftmost<20)continue;
+            for(const auto& row:order){
+                const auto card=cards.at(row.id);
+                if(row.adjustable||card.first.x>leftmost+1)continue;
+                reach(row.id);
+                press(MenuInput::Right);
+                const auto across=cards.at(TrainingNavigation().Focus());
+                Require(across.first.x>=card.second.x-1,("Right did not cross to the other column of "+page).c_str());
+                // Left on a row with a value steps it instead, so it comes back only from one without.
+                const auto landed=std::find_if(order.begin(),order.end(),[&](const MenuEntry& other){return other.id==TrainingNavigation().Focus();});
+                if(landed->adjustable)break;
+                press(MenuInput::Left);
+                Require(cards.at(TrainingNavigation().Focus()).first.x<=leftmost+1,("Left did not come back to the first column of "+page).c_str());
+                break;
+            }
+        }
+        SetMenuCardProbe({});SetMenuEntriesProbe({});
+    }
     // The reply's pick list: Right from the reply slot picks the first preset,
     // which is sent to the dummy as typed notation is; Left goes back.
     {
@@ -441,6 +494,67 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             cancel.advantage=training::FrameAdvantage{};cancel.advantage.pending=true;cancel.advantage.attacker=0;
             Require(TrainingFrameData(cancel,0).find(label("training.last_focus_forward",std::string(loc::T("training.meter.block"))+" -2"))!=std::string::npos,
                 "Frame data's last reading lost its cancel");
+        }
+        // The Data panel: both fighters', then P1's and P2's alone, each
+        // under its life bar, every part shown, inside the screen and clear
+        // of the frame meter.
+        {
+            training::DataView data;data.valid=true;data.frame=12345;data.distance=1.875f;
+            for(int side=0;side<2;++side){
+                auto scripts=std::make_shared<bac::File>();scripts->scripts.resize(259);
+                // P1's two hits with a gap between them, P2's fireball out of a script with no hit of its own.
+                auto& script=scripts->scripts[258];script.name=side?"HADOKEN_L":"5HP";script.total=26;
+                if(side){script.effects={0};script.spawns={{{12,13}}};scripts->effects.resize(1);scripts->effects[0].canHit=true;}
+                else script.hits={{15,16,0,1,4},{18,20,0,1,5}};
+                auto& f=data.fighters[side];f.valid=true;f.scripts=scripts;f.script=258;
+                if(!side)f.chargeNames=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"SONICBOOM","SOMERSAULT"});f.scriptFrame=side?15.5f:16;
+                f.x=side?1.25f:-0.625f;f.y=side?0.75f:0;f.status=side?16:0;
+                f.stance=side?training::Stance::Airborne:training::Stance::Crouching;f.life=side?820:1000;f.lifeMax=1000;f.recoverable=side?900:1000;f.stun=side?240:0;f.stunMax=1000;f.super=side?1000:750;f.superMax=1000;f.revenge=side?400:150;f.revengeMax=400;
+                f.juggled=side?2:-1;f.juggle={1,1,side?7:0};f.rangeRule=side?training::RangeRule::None:training::RangeRule::Within;f.range=1.3f;
+                if(!side){f.charges[0]={0,training::ChargeBack,50,45};f.charges[1]={1,training::ChargeDown,55,55};f.chargeCount=2;}
+            }
+            const auto savedData=training.data;training.data=data;training.meter=runs;
+            // Every HUD size here; then Large at 1280x800, where there is no room beside the
+            // meter, with every charge row and the input displays on, and the meter moved up.
+            const ImVec2 screen=io.DisplaySize;
+            const auto check=[&](const training::MeterOptions& shown,const char* shot){
+                SetTrainingMeterOptions(shown);draw(shot);
+                const float w=io.DisplaySize.x,h=io.DisplaySize.y;
+                std::vector<const ImGuiWindow*> hud{FindWindow("Training frame meter"),FindWindow("Training shortcuts")};
+                if(shown.inputs!=training::InputDisplay::Off)for(const char* name:InputDisplayWindows)hud.push_back(FindWindow(name));
+                for(int side=0;side<2;++side){
+                    const char* name=side?"Training data P2":"Training data P1";
+                    const bool expected=shown.dataFighters==training::DataFighter::Both||static_cast<int>(shown.dataFighters)==side+1;
+                    Require(WindowDrawn(name)==expected,"The Data panel was drawn for the wrong fighter");
+                    if(!expected)continue;
+                    const auto* panel=FindWindow(name);
+                    Require(panel->Pos.x>=0&&panel->Pos.x+panel->Size.x<=w+1&&panel->Pos.y>=0&&panel->Pos.y+panel->Size.y<=h+1,"The Data panel left the screen");
+                    for(const auto* other:hud){
+                        const bool apart=panel->Pos.y+panel->Size.y<=other->Pos.y+1||other->Pos.y+other->Size.y<=panel->Pos.y+1||
+                            panel->Pos.x+panel->Size.x<=other->Pos.x+1||other->Pos.x+other->Size.x<=panel->Pos.x+1;
+                        Require(apart,"The Data panel covered the frame meter, its shortcuts or an input display");
+                    }
+                }
+            };
+            for(int fighters=0;fighters<training::DataFighters;++fighters)for(int hudSize=0;hudSize<training::HudSizes;++hudSize){
+                training::MeterOptions shown;shown.data=true;shown.dataFighters=static_cast<training::DataFighter>(fighters);shown.size=hudSize;
+                check(shown,hudSize!=1?nullptr:fighters==0?"training-data-both":fighters==1?"training-data-p1":"training-data-p2");
+            }
+            {
+                for(auto& f:training.data.fighters){f.chargeCount=training::MaxCharges;for(std::size_t i=0;i<training::MaxCharges;++i)f.charges[i]={i%2,training::ChargeBack,60,static_cast<int>(i*8)};}
+                io.DisplaySize=ImVec2(1280,800);
+                training::MeterOptions shown;shown.data=true;shown.size=2;
+                check(shown,"training-data-large-1280x800");
+                shown.inputs=training::InputDisplay::Both;check(shown,nullptr);
+                for(const int position:training::MeterPositions){shown.position=position;check(shown,position==40?"training-data-large-1280x800-meter-40":nullptr);}
+                io.DisplaySize=screen;training.data=data;
+            }
+            // Off, or before the game has read anything, it is not drawn.
+            SetTrainingMeterOptions({});draw();
+            Require(!WindowDrawn("Training data"),"The Data panel was drawn while off");
+            training::MeterOptions shown;shown.data=true;SetTrainingMeterOptions(shown);training.data=training::DataView{};draw();
+            Require(!WindowDrawn("Training data"),"The Data panel was drawn with nothing read");
+            training.data=savedData;
         }
         SetTrainingMeterOptions({});training.meter=savedMeter;
     }

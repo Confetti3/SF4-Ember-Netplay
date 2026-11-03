@@ -1,5 +1,6 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
+#include "sf4e__OverlayRandomFighter.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__SelfTest.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -271,7 +272,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 	const std::string selectionError = sf4e::selection::Available(pick, editionSelect, snapshot.fighterAvailability[pick.fighter], installed) ? std::string() :
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
-		stageId ? &stagedPool : nullptr, installed, snapshot.room && sf4e::room::KeepsFighter(*snapshot.room, snapshot.room->localMember));
+		stageId ? &stagedPool : nullptr, installed, snapshot.room && sf4e::room::KeepsFighter(*snapshot.room, snapshot.room->localMember), &s_prefs.lobbyRandom);
 	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
@@ -303,25 +304,33 @@ static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapsh
 }
 
 // Hidden, the shell still takes identity answers, ends a cancelled Discord
-// sign-in on its service and keeps the room chat. The room is read where the
-// published snapshot holds it, not copied, since this runs every match frame;
-// only its few notices (at most RoomNoticesKept) are.
+// sign-in on its service, keeps the room chat and follows the room. The room
+// is lent as a drawn frame lends it (copied once per change, not per match
+// frame), and only its few notices (at most RoomNoticesKept) are copied.
 static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
     sf4e::ui::ShellView view;
     view.session = snapshot.session;
+    s_roomCarry.Lend(view, snapshot.room);
+    view.watchedGame = snapshot.watchedGame;
+    // The post-match prompt goes on while Ember is hidden (UpdatePostMatch).
+    view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
+    view.gamesInPlace = snapshot.gamesInPlace; view.foughtGame = snapshot.foughtGame;
     view.roomNotices = snapshot.roomNotices;
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
-    shell.Background(view, snapshot.Room(), [](sf4e::ui::ShellAction action) {
+    shell.Background(view, view.room, [](sf4e::ui::ShellAction action) {
         sf4e::NetplayFacade::RuntimeCommand request;
         request.command = std::move(action.command);
+        request.roomAction = std::move(action.roomAction);
+        request.leaveWatchedGame = action.leaveWatchedGame;
         request.identity = std::move(action.identity);
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
         request.arcadeRoom = action.arcadeRoom;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
+    s_roomCarry.Return(view);
 }
 static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
 	sf4e::ui::ShellView view;
@@ -357,6 +366,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
     view.rematchChoices = snapshot.rematchChoices; view.gamesInPlace = snapshot.gamesInPlace;
+    view.foughtGame = snapshot.foughtGame;
     // Taken before Ember draws anything this frame, so it holds the game's picture alone.
     if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
         const auto& size = ImGui::GetMainViewport()->Size;
@@ -428,14 +438,14 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (replayWants.detail) sf4e::platform::replays::WantDetail(replayWants.detailFile, replayWants.detailRevision);
     view.replays = snapshot.replays;
     const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
-    view.selectedFighter=lobbyMenuCharaID;
     auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
-    view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", fighter ? fighter->name : sf4e::loc::T("card.choose_fighter"),
+    view.selectedPick = summaryPick; view.selectedRandom = s_prefs.lobbyRandom;
+    view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom),
         sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
     const auto* dummy = sf4e::selection::FindFighter(trainingDummy.charaID);
     view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
-    view.fighterName = fighter ? fighter->name : sf4e::loc::T("card.choose_fighter");
+    view.fighterName = sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom);
     view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
         std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
@@ -479,6 +489,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			sides.sides[1] = trainingDummy;
 			sides.stage = sf4e::selection::ResolveStage(lobbyStageID, sf4e::localRand(), lobbyRandomPool, snapshot.installedContent->stages);
 			sf4e::GameEvents::TrainingMode::Choose(sides);
+			sf4e::overlay::RandomFighterPlayed();
 			presentation.Close("Training select");
 			return true;
 		}
@@ -677,6 +688,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         if (sf4e::OverlayPrefs::FollowEditionRule(lobby, s_prefs.fighters, pickEditionSelect))
             sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, lobby);
     }
+    sf4e::overlay::FollowRandomFighter(snapshot, s_prefs, lobbyConditions, lobbyMenuCharaID, pickEditionSelect);
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
@@ -699,6 +711,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::SetMeterHistory(meterOptions.history, meterOptions.continuous);
     // The fighters' boxes are read only while Hitboxes is on and the HUD (F5) shows them.
     sf4e::training::ShowHitBoxes(meterOptions.hitboxes && trainingHud);
+    // And the Data panel's readings while it shows.
+    sf4e::training::ShowData(meterOptions.data && trainingHud);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
     const bool nativePaused = sf4e::battlePause.Paused();
@@ -797,17 +811,8 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (offerGoNow) layers.challenger.goNowGlyph = sf4e::ui::GoNowGlyph(focused ? sf4e::ui::MenuPromptDevice() : sf4e::input::PadXInput);
     layers.controllerWarning = snapshot.gameplayInputError; layers.captionShown = snapshot.replays.captionShown;
     layers.padHint = snapshot.padHint;
-    if (snapshot.replays.captionShown) {
-        const auto& caption = snapshot.replays.caption;
-        auto& shown = layers.caption;
-        for (int side = 0; side < 2 && caption.names; ++side) {
-            const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
-            shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
-        }
-        if (caption.line) shown.line = caption.text;
-        if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
-        shown.mark = caption.mark; shown.nameOffset = snapshot.preferences.matchHudNameOffset;
-    }
+    if (snapshot.replays.captionShown)
+        layers.caption = sf4e::ui::ExportCaptionViewOf(snapshot.replays.caption, snapshot.preferences.matchHudNameOffset);
     {
         // The strip shows for a while after each control, and the chip
         // after one pressed outside the fight; both timed from the counts.

@@ -6,7 +6,10 @@ std::uint32_t** costumeManager = nullptr;
 void* (__cdecl* getUserApp)() = nullptr;
 int (__thiscall* colorUnlocked)(void*, int, int) = nullptr;
 int (__thiscall* actionUnlocked)(void*, int, int) = nullptr;
+std::function<sf4e::selection::Availability(int)> availabilityForTest;
 }
+
+void SetAvailabilityForTest(std::function<sf4e::selection::Availability(int)> read) { availabilityForTest = std::move(read); }
 
 void Locate(HMODULE executable) {
     const auto base = reinterpret_cast<std::uintptr_t>(executable);
@@ -32,6 +35,7 @@ std::uint32_t CostumeAvailabilityMask(std::uint32_t nativeFlags) {
 
 sf4e::selection::Availability ReadAvailability(int fighterId) {
     using namespace sf4e::selection;
+    if (availabilityForTest) return availabilityForTest(fighterId);
     Availability result;
     if (!FindFighter(fighterId) || !costumeManager || !*costumeManager || !getUserApp || !colorUnlocked || !actionUnlocked) return result;
     const auto* app = static_cast<const unsigned char*>(getUserApp());

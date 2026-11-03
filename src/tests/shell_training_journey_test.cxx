@@ -23,7 +23,7 @@ void TrainingSettingsAndHome() {
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
  const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},
   {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
-  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","chat-filter","arrange-picture","arrange-reset"}},
+  {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"}},
   {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
  for(const auto& [screen,ids]:interfacePanels){
   h.Screen(screen);
@@ -548,6 +548,11 @@ void TrainingJourneys() {
  commands.clear();reach("reply-timing");press(MenuInput::Right);
  Check(commands.empty(),"Editing reply settings submitted an invalid saved reply as an empty typed plan");
  const auto saved=[&]{std::ifstream file(folder/"training.json");nlohmann::json practice;file>>practice;return practice;};
+ // Combo check's choices are kept in training.json with the rest.
+ press(MenuInput::Back);choose("combo-check");reach("check-speed");press(MenuInput::Right);
+ Check(saved()["combo_check"]["fast"]==true&&!saved()["combo_check"]["fighters"].empty(),
+  "Combo check's speed was not saved");
+ press(MenuInput::Left);press(MenuInput::Back);choose("reply");
  // Even unreadable loaded text must allow Off to reach the runtime.
  reach("reply");press(MenuInput::Right);
  Check(commands.size()==1&&runtimePlan.when==0&&!training::DummyReplies(runtimePlan,1,0)&&

@@ -37,14 +37,14 @@ void ShootCustomContent(sf4e::ui::FighterSelector& selector, sf4e::selection::Pi
         Require(std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& row){return row.id==id;}),"Custom selector row missing");
         selector.Navigation().Focus(id,rows);draw();
     };
-    // The board's costume panel names the installed costumes; Right steps the
+    // The fighter's page: the costume panel names the installed costumes; Right steps the
     // row onto them, and the color row onto the installed colors.
     const auto step=[&](const char* id,const int& value,int target,const char* failure){
-        selector.Navigation().Home();draw();focus(id);
+        selector.Navigation().Home();selector.Navigation().Push("look");draw();focus(id);
         for(int i=0;i<40&&value!=target;++i){draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);}
         Require(value==target,failure);
     };
-    selector.Navigation().Home();draw();focus("costume");
+    selector.Navigation().Home();selector.Navigation().Push("look");draw();focus("costume");
     Require(CostumeLabel(pick,&installed)==loc::T("selection.original"),"Custom fixture lost original costume");
     draw(nullptr,MenuInput::Select,1);draw("custom-costumes");
     Require(selector.Navigation().Choosing(),"The costume row did not open its values");

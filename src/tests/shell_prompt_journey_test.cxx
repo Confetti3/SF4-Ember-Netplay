@@ -22,7 +22,7 @@ void DecidingPromptOnStick() {
  // The set is over and the pair decides.
  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.deciding=true;t.rematch[0]=t.rematch[1]=false;
  a.view.matchResult=false;a.Frame();
- a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+ a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};a.view.matchResult=true;a.Frame();
  std::vector<std::string> ids;for(const auto& e:rows)ids.push_back(e.id);
  Check(a.shell.Navigation().Screen()=="post-match"&&ids==std::vector<std::string>{"rematch","new-opponent","fighter","back"},
   "A deciding Arcade prompt's buttons were not Rematch, New opponent, Character select and Back to room");

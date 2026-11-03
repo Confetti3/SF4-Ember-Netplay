@@ -8,6 +8,8 @@ namespace sf4e { namespace selection {
 
 constexpr int FighterCount = 44;
 constexpr int UltraEdition = 14;
+// Ultra I, Ultra II and, in Ultra's own edition, both (Pick::ultra 0 to 2).
+constexpr int UltraChoices = 3;
 // Native fighter IDs in USFIV's own character-select order, row-major with 15 to
 // a row (the game's last cell is Random, which Ember has no card for). Display
 // only: native IDs and everything saved or sent stay as they are.
@@ -111,6 +113,15 @@ template<class Native> void ToNative(const Pick& pick, Native& native) {
     native.personalAction = static_cast<std::uint8_t>(pick.personalAction);
     native.winQuote = static_cast<std::uint8_t>(pick.winQuote);
     native.handicap = static_cast<std::uint8_t>(pick.handicap);
+}
+// The same side with another fighter: its first costume and color, and the
+// edition, Ultra and the rest kept where that fighter has them, else made
+// valid for it (Normalize).
+template<class Native> void ChangeFighter(Native& native, int fighterId, bool editionSelect) {
+    Pick pick = FromNative(native);
+    pick.fighter = fighterId; pick.costume = pick.color = 0;
+    Normalize(pick, editionSelect);
+    ToNative(pick, native);
 }
 
 } }

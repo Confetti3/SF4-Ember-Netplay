@@ -13,6 +13,7 @@
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "MenuProbes.hxx"
+#include "FighterSelector.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -48,6 +49,31 @@ float RoomBoardFrame::HideButton(ImDrawList* d,const MenuEntry& e,ImVec2 corner)
  v2::Text(d,ImVec2(b.min.x+10*s,b.min.y+9*s),w-20*s,label,14*s,e.enabled&&(hovered||focused)?c.text:c.muted);
  if(focused)v2::Focus(d,b.min,b.max);
  return w;
+}
+
+SeatLook SeatLookOf(const ShellView& v,const room::Member& m) {
+ const bool own=m.id==v.room.localMember;
+ const int picked=own?v.selectedPick.fighter:m.fighter;
+ SeatLook look;look.picked=picked>=0;look.fighter=look.picked?picked:own?v.preferences.mainFighter:m.mainFighter;
+ look.random=own&&v.selectedRandom;
+ if(!look.picked)return look;
+ if(own){look.costume=v.selectedPick.costume;look.color=v.selectedPick.color;look.ultra=v.selectedPick.ultra;}
+ else{look.costume=m.costume;look.color=m.color;look.ultra=m.ultra;}
+ return look;
+}
+FighterArt RoomFighterArt(const netplay::PlayerPreferences& preferences) {
+ return preferences.roomCharacterPictures?FighterArt::Character:FighterArt::Portrait;
+}
+FighterPicture SeatPicture(const SeatLook& look,FighterArt art) {
+ return {look.fighter,art,(std::max)(0,look.costume),(std::max)(0,look.color)};
+}
+std::string SeatCaption(const SeatLook& look,bool brief) {
+ const auto* fighter=look.picked?selection::FindFighter(look.fighter):nullptr;
+ if(!fighter)return loc::T("room.fighter_not_shared");
+ const std::string name=look.random?loc::Tf("selection.random_fighter",fighter->name):std::string(fighter->name);
+ if(look.costume<0||look.ultra<0)return name;
+ selection::Pick pick;pick.fighter=look.fighter;pick.costume=look.costume;pick.color=(std::max)(0,look.color);
+ return loc::Tf("room.seat_look",name,ShortCostumeLabel(pick),brief?ShortUltraLabel(look.ultra):UltraLabel(look.ultra));
 }
 
 namespace {
@@ -161,13 +187,79 @@ std::vector<TableCardOption> StripOptions(const RoomBoardFrame& f,const MenuEntr
  return options;
 }
 
-// A Classic room's floor in `tables`: its cards, `columns` across, in their
-// own scroll when there are more than fit; with `follows`, the action bar
-// after them in that scroll.
-void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,int columns,float cardHeight,const PlaceExit& place,const RoomActionBar* follows) {
+// A table card's text drawn ending at `right` when `toRight`, else starting at
+// `left`, cut to `width`. Returns where it starts.
+float SideText(std::string& elided,float left,float right,float y,float width,const std::string& value,float size,ImU32 color,bool toRight) {
+ const float w=(std::min)(width,ImGui::GetFont()->CalcTextSizeA(size,FLT_MAX,0,value.c_str()).x);
+ const float x=toRight?right-w:left;
+ DrawCardText(elided,ImVec2(x,y),width,value,size,color);
+ return x;
+}
+
+// A seat in `box`: the fighter's picture, as tall as the box, at its outer end
+// (the right one when `mirrored`), and beside it the player's tag over their
+// fighter, costume and Ultra, with Ready while they are. The picture is the
+// fighter they picked, else their main (SeatLookOf). An empty seat is an
+// empty frame and "Open seat".
+void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const room::Table& t,int side,bool mirrored,bool marked,std::string& elided) {
+ const auto& v=f.v;const float s=f.s,face=box.H(),gap=10*s;const auto& c=v2::Colors();
+ const v2::Box tile=mirrored?v2::Box{ImVec2(box.max.x-face,box.min.y),box.max}:v2::Box{box.min,ImVec2(box.min.x+face,box.max.y)};
+ const float left=mirrored?box.min.x:tile.max.x+gap,right=mirrored?tile.min.x-gap:box.max.x,room=right-left;
+ // The tag's line and the fighter's under it, centred on the face.
+ const float tagLine=v2::ChipFont()+8*s,fighterSize=13*s,top=box.min.y+(std::max)(0.f,(face-tagLine-4*s-fighterSize)*.5f);
+ const auto* m=room::FindMember(v.room,side?t.p2:t.p1);
+ if(!m){
+  // An open seat is a place to sit: a dim tile with a plus.
+  d->AddRectFilled(tile.min,tile.max,v2::color::Alpha(c.frame,.55f),4*s);d->AddRect(tile.min,tile.max,c.border,4*s,0,s);
+  const ImVec2 mid((tile.min.x+tile.max.x)*.5f,(tile.min.y+tile.max.y)*.5f);const float arm=face*.14f;
+  d->AddLine(ImVec2(mid.x-arm,mid.y),ImVec2(mid.x+arm,mid.y),c.muted,2*s);d->AddLine(ImVec2(mid.x,mid.y-arm),ImVec2(mid.x,mid.y+arm),c.muted,2*s);
+  SideText(elided,left,right,box.min.y+(face-15*s)*.5f,room,loc::T("room.open_seat"),15*s,c.muted,mirrored);
+  return;
+ }
+ const auto look=SeatLookOf(v,*m);
+ DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,c.frame);
+ if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
+ v2::TagView tag;tag.name=m->name;tag.marks={m->country,m->badge};tag.ping=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
+ const float tagWidth=(std::min)(room,v2::TagWidth(tag,v2::TagSize::S));
+ v2::Tag(d,ImVec2(mirrored?right-tagWidth:left,top),tagWidth,tag,v2::TagSize::S);
+ // The fighter, costume and Ultra, and Ready beside them (on their inner
+ // side) while the seat is ready. The Ultra's short name where the long one
+ // does not fit.
+ const bool ready=t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready);
+ const std::string readyWord=ready?loc::T("room.status.ready"):"";
+ const float chip=ready?v2::ChipWidth(readyWord)+8*s:0,y=top+tagLine+4*s;
+ std::string name=SeatCaption(look);
+ if(ImGui::GetFont()->CalcTextSizeA(fighterSize,FLT_MAX,0,name.c_str()).x>room-chip)name=SeatCaption(look,true);
+ const float x=SideText(elided,mirrored?left+chip:left,right,y,room-chip,name,fighterSize,c.muted,mirrored);
+ if(ready)v2::Chip(d,ImVec2(mirrored?x-chip:x+(std::min)(room-chip,ImGui::GetFont()->CalcTextSizeA(fighterSize,FLT_MAX,0,name.c_str()).x)+8*s,y+(fighterSize-v2::ChipFont()-8*s)*.5f),readyWord,palette::Ready);
+}
+
+// How a Classic room's table cards lie in a floor `width` wide: one per line
+// (Settings › Room layout › Tables), else `gridColumns` across; a card wide
+// enough is a versus line, a fighter at each end and the score between, as
+// SF4's own versus screen, else the two seats one over the other.
+struct TableCardShape {int columns;bool versus;float height;};
+TableCardShape ShapeTableCards(float width,int gridColumns,bool grid,bool banners,float s) {
+ const int columns=grid?gridColumns:1;
+ const float cardWidth=(width-(columns-1)*8*s)/columns;
+ const bool versus=cardWidth>=900*s;
+ return {columns,versus,(versus?(banners?168:146):(banners?200:182))*s};
+}
+
+// A Classic room's floor in `tables`: its cards as `shape` lays them out, in
+// their own scroll when there are more than fit; with `follows`, the action
+// bar after them in that scroll.
+//  A versus card:  TABLE 1 [phase]                       rules, queue, watching
+//                  [face] name, fighter     score / strip     name, fighter [face]
+//  A grid card:    TABLE 1 [phase]                                        score
+//                  [face] name, fighter
+//                  [face] name, fighter
+//                  rules, queue, watching (or the strip)
+void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableCardShape& shape,const PlaceExit& place,const RoomActionBar* follows) {
  const auto& v=f.v;const auto& nav=f.nav;const float s=f.s;const auto& c=v2::Colors();
  const bool onOwnPlace=OnOwnPlace(place,f.focus);
  const auto pointer=ImGui::GetIO().MouseDelta;const bool pointerMoved=pointer.x!=0||pointer.y!=0;
+ const int columns=shape.columns;const bool versus=shape.versus;const float cardHeight=shape.height;
  const float cardWidth=(tables.W()-(columns-1)*8*s)/columns;
  std::string elided;
  const auto text=[&](ImVec2 p,float width,const std::string& value,float size,ImU32 color,bool centred=false){DrawCardText(elided,p,width,value,size,color,centred);};
@@ -183,8 +275,19 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,int columns,fl
   const v2::Box b{at,ImVec2(at.x+cardWidth,at.y+cardHeight)};
   const bool focused=e.id==f.focus,choosing=nav.Choosing()&&nav.DialogId()==e.id&&!e.choices.empty();
   const auto options=StripOptions(f,e,t,choosing,!nav.Asking()&&onOwnPlace&&focused,place);
+  // The seats: a versus card's at its two ends with the middle between them,
+  // a grid card's one over the other.
+  const float seatTop=b.min.y+44*s;
+  v2::Box seats[2],centre{};
+  if(versus){
+   const float half=(b.W()-28*s-360*s)*.5f,face=88*s;
+   seats[0]={ImVec2(b.min.x+14*s,seatTop),ImVec2(b.min.x+14*s+half,seatTop+face)};
+   seats[1]={ImVec2(b.max.x-14*s-half,seatTop),ImVec2(b.max.x-14*s,seatTop+face)};
+   centre={ImVec2(seats[0].max.x,seatTop),ImVec2(seats[1].min.x,seatTop+face)};
+  }else for(int side=0;side<2;++side){const float y=seatTop+side*46*s;seats[side]={ImVec2(b.min.x+14*s,y),ImVec2(b.max.x-14*s,y+40*s)};}
   // The strip's buttons go in first: the first item under the pointer is the one it is over.
-  const v2::Box strip{ImVec2(b.min.x+14*s,b.max.y-44*s),ImVec2(b.max.x-14*s,b.max.y-12*s)};
+  const v2::Box strip=versus?v2::Box{ImVec2(centre.min.x+8*s,centre.max.y-32*s),ImVec2(centre.max.x-8*s,centre.max.y)}:
+   v2::Box{ImVec2(b.min.x+14*s,b.max.y-44*s),ImVec2(b.max.x-14*s,b.max.y-12*s)};
   const float ow=options.empty()?0:(strip.W()-(options.size()-1)*8*s)/options.size();
   int over=-1,pressed=-1;
   for(std::size_t i=0;i<options.size();++i){
@@ -204,29 +307,28 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,int columns,fl
   else if(pressed==1)f.action={MenuAction::Activate,"leave-place"};
   if(!ImGui::IsItemVisible())continue;
   v2::CardGround(td,b,focused,hovered,place.table==static_cast<int>(t.id));
-  // TABLE n, its state, and the set's score (or vs) at the right.
-  float x=b.min.x+14*s,y=b.min.y+12*s;const float w=b.W()-28*s;
+  // TABLE n and its state; on a grid card the set's score (or vs) at the
+  // right, on a versus card the rules, queue and watchers there.
+  float x=b.min.x+14*s;const float y=b.min.y+12*s,w=b.W()-28*s;
   x+=v2::SectionHeading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;
   const ImU32 tone=t.phase==room::TablePhase::Playing?c.accent:t.phase==room::TablePhase::Idle||t.phase==room::TablePhase::Closed?c.muted:
    ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
-  v2::Chip(td,ImVec2(x,y),PhaseName(t),tone);
-  const std::string middle=t.phase==room::TablePhase::Closed?std::string():t.p1&&t.p2&&!SetScoreText(t.score).empty()?SetScoreText(t.score):"vs";
-  td->AddText(HeadingFont(),22*s,ImVec2(b.max.x-14*s-HeadingFont()->CalcTextSizeA(22*s,FLT_MAX,0,middle.c_str()).x,y),c.accent,middle.c_str());
-  // The two seats as player tags: fighter and Ready on each one's chip.
-  y+=32*s;
-  const room::MemberId seats[]={t.p1,t.p2};
-  for(int side=0;side<2;++side,y+=30*s){
-   const auto* m=room::FindMember(v.room,seats[side]);
-   if(!m){if(side==0||t.p1){td->AddText(ImGui::GetFont(),15*s,ImVec2(b.min.x+14*s,y+4*s),c.muted,loc::T("room.open_seat"));}continue;}
-   v2::TagView tag;tag.name=m->name;tag.marks={m->country,m->badge};tag.ping=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
-   const auto* fighter=selection::FindFighter(m->id==v.room.localMember?v.selectedFighter:m->fighter);
-   tag.status=fighter?fighter->name:loc::T("room.fighter_not_shared");
-   if(t.ready[side]&&(t.phase==room::TablePhase::Waiting||t.phase==room::TablePhase::Ready))tag.status+=std::string(" \xC2\xB7 ")+loc::T("room.status.ready");
-   v2::Tag(td,ImVec2(b.min.x+14*s,y),w,tag,v2::TagSize::S);
-  }
+  x+=v2::Chip(td,ImVec2(x,y),PhaseName(t),tone)+16*s;
+  const std::string score=t.phase==room::TablePhase::Closed?std::string():t.p1&&t.p2&&!SetScoreText(t.score).empty()?SetScoreText(t.score):"vs";
+  if(versus){
+   SideText(elided,x,b.max.x-14*s,y+4*s,b.max.x-14*s-x,TableFooter(v,t),13*s,c.muted,true);
+   // The score in the middle, over the strip while there is one.
+   const float size=36*s,scoreWidth=HeadingFont()->CalcTextSizeA(size,FLT_MAX,0,score.c_str()).x;
+   const float scoreY=options.empty()?centre.min.y+(centre.H()-size)*.5f:centre.min.y;
+   td->AddText(HeadingFont(),size,ImVec2(centre.min.x+(centre.W()-scoreWidth)*.5f,scoreY),c.accent,score.c_str());
+  }else td->AddText(HeadingFont(),22*s,ImVec2(b.max.x-14*s-HeadingFont()->CalcTextSizeA(22*s,FLT_MAX,0,score.c_str()).x,y),c.accent,score.c_str());
   const auto banner=DescribeTableBanner(v,t);
-  if(!banner.text.empty())text(ImVec2(b.min.x+14*s,y),w,banner.text,13*s,ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
-  if(options.empty())text(ImVec2(b.min.x+14*s,b.max.y-12*s-14*s),w,TableFooter(v,t),13*s,c.muted);
+  for(int side=0;side<2;++side)DrawSeat(f,td,seats[side],t,side,versus&&side==1,banner.seat==side,elided);
+  // The seat the open chooser's option would take.
+  if(choosing&&nav.ChoiceIndex()<options.size())
+   if(const int seat=options[nav.ChoiceIndex()].seat;seat==0||seat==1)v2::Focus(td,ImVec2(seats[seat].min.x-6*s,seats[seat].min.y-4*s),ImVec2(seats[seat].max.x+6*s,seats[seat].max.y+4*s),false);
+  if(!banner.text.empty())text(ImVec2(b.min.x+14*s,seats[1].max.y+6*s),w,banner.text,13*s,ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)));
+  if(!versus&&options.empty())text(ImVec2(b.min.x+14*s,b.max.y-12*s-14*s),w,TableFooter(v,t),13*s,c.muted);
   for(std::size_t i=0;i<options.size();++i){
    const v2::Box o{ImVec2(strip.min.x+i*(ow+8*s),strip.min.y),ImVec2(strip.min.x+i*(ow+8*s)+ow,strip.max.y)};
    const bool chosen=choosing&&i==nav.ChoiceIndex();
@@ -249,7 +351,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
  const float s=Scale();
- RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s};
+ RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s,RoomFighterArt(preferences_)};
  const auto& focus=f.focus;
  const unsigned unread=transcript_.Unread(muted_);
  const auto origin=ImGui::GetCursorScreenPos();
@@ -301,7 +403,9 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  const auto showPicture=[&](ImVec2 at,ImVec2 to){
   d->AddImage(v.watchedPicture,at,to);d->AddRect(at,to,c.border,0,0,s);
   const auto watched=std::find_if(v.room.tables.begin(),v.room.tables.end(),[&](const room::Table& t){return std::find(t.spectators.begin(),t.spectators.end(),v.room.localMember)!=t.spectators.end();});
-  if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
+  // A follower's says so, since the table it shows changes by itself.
+  if(watched!=v.room.tables.end())v2::Chip(d,ImVec2(at.x+8*s,at.y+8*s),follow_.On()?loc::Tf("room.follow.following",watched->id+1):
+   std::string(loc::T("room.status.watching"))+" \xC2\xB7 "+loc::Tf("room.v2.table",watched->id+1),c.accent);
   boardPicture_=true;
   if(const auto* hide=f.Find("room-hide-picture"))f.HideButton(d,*hide,ImVec2(to.x-8*s,at.y+8*s));
  };
@@ -322,7 +426,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   v2::CutTop(tables,20*s,12*s);
   // The room's actions along the bottom, then the focused row's line over them.
   const RoomActionBar bar(f,tables.W());
-  const float cardHeight=(banners?182:160)*s;
+  const auto cards=ShapeTableCards(tables.W(),ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2,preferences_.roomTableGrid,banners,s);
+  const float cardHeight=cards.height;
   // The bar stays along the bottom while the floor fits over it and the
   // focused row's line: a row of cards, or an Arcade room's whole floor. On a
   // shorter board it follows the floor in its scroll.
@@ -360,7 +465,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     ImGui::EndChild();
    }
   }
-  else DrawTableCards(f,tables,ultra||logical>=1640?3:narrow&&tables.W()<640*s?1:2,cardHeight,place,follows?&bar:nullptr);
+  else DrawTableCards(f,tables,cards,place,follows?&bar:nullptr);
  }
  // In the narrow tabs a folded panel is its heading alone.
  if(!narrow||part==1){

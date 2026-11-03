@@ -156,10 +156,24 @@ void ExportChoicesJourney() {
    "Left on Player names already off saved a choice");}
  SetMenuEntriesProbe({});
 }
+// Watch set under Sets plays a room set's games in the order they were
+// played: the first at once, each next one from the Next game row on Replays.
+void SetWatchJourney() {
+ using namespace sf4e;Harness h;h.Frame();
+ auto last=Listed("C:\\r\\s2.emberreplay","2026-11-03 20:10");last.names[0]="A";last.names[1]="B";last.time=6000;
+ auto first=last;first.path=std::filesystem::u8path("C:\\r\\s1.emberreplay");first.time=5800;
+ List(h,{last,first});h.view.replays.ready=true;
+ h.Screen("replay-sets");
+ auto sent=h.actions.size();h.Choose("set:C:\\r\\s2.emberreplay");h.Press(MenuInput::Select);
+ Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s1.emberreplay","Watch set did not play the set's first game");
+ h.Screen("replays");sent=h.actions.size();h.Choose("set-next");
+ Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s2.emberreplay","Next game did not play the set's second game");
+}
 }
 void ReplayJourneys() {
  using namespace sf4e;
  ExportChoicesJourney();
+ SetWatchJourney();
  Harness h;h.Frame();
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {
@@ -171,17 +185,17 @@ void ReplayJourneys() {
   Check(!h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"Home asked the replay workers for something");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shownRows){rows=shownRows;});h.Screen("replays");
   Check(h.shell.ReplayWants().listing&&!h.shell.ReplayWants().detail,"The Replays screen did not ask for a listing");
-  Check(rows.size()==3&&rows[0].id=="replay-log"&&rows[1].id=="replay-folder","Replays retained settings above the list");
-  Check(rows[2].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
-  Check(rows[2].id=="replay:C:\\r\\a.emberreplay"&&rows[2].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
+  Check(rows.size()==5&&rows[0].id=="replay-log"&&rows[1].id=="replay-folder"&&rows[2].id=="replay-show"&&rows[3].id=="replay-search","Replays retained settings above the list");
+  Check(rows[4].value=="2-1 · "+std::string(loc::T("replays.spectated_seen")),"Replay score and status separator wrong");
+  Check(rows[4].id=="replay:C:\\r\\a.emberreplay"&&rows[4].label==ReplayRowLabel(shown.label,shown.names,shown.fighters),"Replay row lost its file or its label");
   // The portraits show the fighters, so the label names the players: a noted name, else the fighter.
-  Check(rows[2].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
-  Check(rows[2].Match()&&rows[2].fighter1==0&&rows[2].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
+  Check(rows[4].label==shown.label+"  "+loc::Tf("replays.fighters",std::string("Ann"),std::string(loc::T("common.unavailable"))),"Replay row label did not name its players");
+  Check(rows[4].Match()&&rows[4].fighter1==0&&rows[4].fighter2==-1,"Replay row did not carry its fighters for the portraits, or kept an unknown one");
   Check(rows[0].fighter1==-1&&!rows[0].Match(),"A plain row drew portraits");
-  Check(rows[2].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
-  Check(rows[2].choices.size()==6&&rows[2].choices[0].id=="watch"&&rows[2].choices[1].id=="watch-meter"&&rows[2].choices[2].id=="add"&&rows[2].choices[3].id=="export"&&rows[2].choices[4].id=="inputs"&&rows[2].choices[5].id=="show-folder","Replay choice order wrong");
+  Check(rows[4].detail.find("LP ")==std::string::npos,"Replay list still duplicates input totals");
+  Check(rows[4].choices.size()==7&&rows[4].choices[0].id=="watch"&&rows[4].choices[1].id=="watch-meter"&&rows[4].choices[2].id=="add"&&rows[4].choices[3].id=="export"&&rows[4].choices[4].id=="inputs"&&rows[4].choices[5].id=="keep"&&rows[4].choices[6].id=="show-folder","Replay choice order wrong");
   // Show in folder asks the services for the row's own file, and its answer is the status line.
-  {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<5;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+  {const auto sent=h.actions.size();h.Choose("replay:C:\\r\\a.emberreplay");for(int i=0;i<6;++i)h.Press(MenuInput::Right);h.Press(MenuInput::Select);
    Check(h.actions.size()==sent+1&&h.actions.back().service==platform::ServiceAction::ShowReplayFile&&h.actions.back().servicePath=="C:\\r\\a.emberreplay"&&h.actions.back().replay.mode==sf4e::replay::Mode::None,"Show in folder did not ask for the replay's file");
    std::string status;Tone tone=Tone::Neutral;SetMenuStatusProbe([&](const char* text,Tone value){status=text;tone=value;});
    h.view.services.lastAction=platform::ServiceAction::ShowReplayFile;h.view.services.message="Opened C:\\r in Explorer.";h.view.services.succeeded=true;h.Frame();
@@ -219,7 +233,7 @@ void ReplayJourneys() {
    h.Choose("cap-mark");h.Press(MenuInput::Left);h.Frame();h.Choose("cap-generate");
    const auto& sent=h.actions.back().replay;
    Check(sent.mode==sf4e::replay::Mode::Export&&sent.path=="C:\\r\\c.emberreplay"&&sent.caption.names&&sent.caption.line&&!sent.caption.mark&&sent.caption.set,"Generate did not send the export with its caption");
-   Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06   2-1"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it");
+   Check(sent.caption.wins[0]==1&&sent.caption.wins[1]==1&&sent.caption.text=="2026-10-06"&&sent.caption.name[0]=="A","The caption did not start from the replay and the set before it, with no score that tells the winner");
    Check(h.shell.Navigation().Screen()=="replays","Generate did not return to the Replays screen");
    Check(!sent.meter,"Generate sent the frame meter that was off");
    // The export screen's Frame meter row goes with Generate, and is kept for the next export.

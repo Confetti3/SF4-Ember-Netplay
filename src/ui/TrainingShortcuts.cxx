@@ -179,6 +179,8 @@ TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, 
         ReportMenuText("training-shortcuts", text, ImGui::GetTextLineHeight(), used, room);
         ImGui::SetWindowFontScale(1.f);
         input.pointer = ImGui::IsWindowHovered();
+        const ImVec2 at = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
+        input.area = {at.x, at.y, at.x + size.x, at.y + size.y};
     }
     ImGui::End();
     ImGui::PopStyleVar(2);

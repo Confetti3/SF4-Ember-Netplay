@@ -1,7 +1,8 @@
 #pragma once
 // The lists of replays the archive folder keeps beside the replays
-// (sent.txt, closed.txt, watched.txt): one file name a line, appended as
-// replays are marked. Portable, so ReplayFilesTest runs it on text.
+// (sent.txt, closed.txt, watched.txt, kept.txt): one file name a line,
+// appended as replays are marked. Portable apart from the durable replacement
+// on Windows, so ReplayFilesTest runs it on text.
 //
 // A list is bounded two ways. Lines are dropped when their replay is gone
 // (Pruned), so a list follows the archive's size; and a list that is
@@ -11,9 +12,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#ifdef _WIN32
+#include "DurableFile.hxx"
+#endif
 
 namespace sf4e { namespace platform { namespace replays { namespace notes {
 
@@ -48,6 +54,32 @@ std::string Pruned(const std::vector<std::uint8_t>& bytes, Keep&& keep) {
 	std::string out;
 	for (const auto& name : Parse(bytes)) if (keep(name)) { out += name; out += '\n'; }
 	return out;
+}
+
+// Writes a list whole, beside it first, so a reader never sees it half written.
+// The list is replaced only by a copy that was written, flushed and closed
+// whole; any failure leaves the list as it was.
+inline bool Write(const std::filesystem::path& list, const std::string& text) {
+#ifdef _WIN32
+	return static_cast<bool>(durable::PublishReplace(list, durable::PartialPath(list), text.data(), text.size()));
+#else
+	std::filesystem::path partial = list; partial += L".tmp";
+	std::error_code ignored;
+	{
+		std::ofstream out(partial, std::ios::binary | std::ios::trunc);
+		out << text;
+		out.close();
+		if (out.fail()) { std::filesystem::remove(partial, ignored); return false; }
+	}
+	std::error_code renamed, cleanup;
+	std::filesystem::rename(partial, list, renamed);
+	if (renamed) std::filesystem::remove(partial, cleanup);
+	return !renamed;
+#endif
+}
+// Takes a name out of a list (`bytes` is the list as read): written whole without it.
+inline bool TakeOut(const std::filesystem::path& list, const std::vector<std::uint8_t>& bytes, const std::string& name) {
+	return Write(list, Pruned(bytes, [&](const std::string& line) { return line != name; }));
 }
 
 // The file names of every replay file under `archive`, subfolders included:

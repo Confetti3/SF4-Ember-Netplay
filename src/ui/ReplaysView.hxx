@@ -39,6 +39,9 @@ struct ReplaysView {
 	// played so far out of all of them, 0 until known (sf4e__ReplayStore.hxx: Status).
 	replay::ExportStage exportStage = replay::ExportStage::None;
 	std::uint32_t exportFrames = 0, exportTotal = 0;
+	// The last export to end and whether it saved its video (sf4e__ReplayStore.hxx: Status).
+	std::uint64_t exportEnded = 0;
+	bool exportSaved = false;
 	std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> archive;
 	// Completion of the last requested entry (platform::replays::WantDetail).
 	replayinputs::DetailCompletion detail;

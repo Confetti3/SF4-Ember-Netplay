@@ -193,6 +193,12 @@ struct ConnectionRef {
 	}
 };
 
+// A member's pick as the pre-battle message shares it (Member::fighter and the
+// fields after it). In this order, so {fighter} or {fighter, edition} reads.
+struct Chara {
+	int fighter = -1, edition = -1, costume = -1, color = -1, ultra = -1;
+};
+
 // The longest idle time a snapshot reports (a week); longer reads the same.
 constexpr std::uint32_t MaximumIdleSeconds = 7u * 24 * 60 * 60;
 
@@ -209,9 +215,11 @@ struct Member {
 	// Older snapshots omit it and restore the protocol default of one.
 	std::uint64_t incarnation = 1;
     // Last validated fighter shared through the existing pre-battle message,
-    // and its edition (-1 until one is shared).
+    // with its edition, costume, colour and Ultra (each -1 until shared; a
+    // snapshot from an older room host has the fighter and edition alone).
     int fighter = -1;
     int edition = -1;
+    int costume = -1, color = -1, ultra = -1;
     // Profile identity, independent from the fighter chosen for this table.
     int mainFighter = -1;
     NetworkLink link = NetworkLink::Unknown;

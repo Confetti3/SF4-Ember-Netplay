@@ -3,6 +3,7 @@
 #include "RoomCards.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
@@ -19,6 +20,7 @@
 #include "../netplay/Rankings.hxx"
 #include "../netplay/TournamentStatus.hxx"
 #include "../platform/ApplicationServices.hxx"
+#include "../session/RoomFollow.hxx"
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include "UpdateChannelPick.hxx"
@@ -177,7 +179,11 @@ struct ShellView {
     std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
     int trainingReadySeconds = 0;
     bool canTrain = false;
-    int selectedFighter = 0;
+    // This PC's own pick, so its seat on the room board shows the fighter,
+    // costume, colour and Ultra at once, before Ready shares them.
+    selection::Pick selectedPick;
+    // The pick is Random: selectedPick is the fighter it rolled (docs/design/RANDOM_FIGHTER.md).
+    bool selectedRandom = false;
     // This PC fights in a Practice match now (input::MenuContext::PracticeMatch):
     // Ember's menu is open over the fight, and End practice ends the game.
     bool practiceFight = false;
@@ -191,6 +197,9 @@ struct ShellView {
     // Over that WIN, the seats whose player chose Rematch (bit 1 = P1, 2 = P2),
     // and the games of the battle that went on to a rematch in place.
     unsigned rematchChoices = 0, gamesInPlace = 0;
+    // The room game this PC fights: its table and generation, kept when an
+    // Arcade room moves the set's loser on, and the WIN's result.
+    netplay::FoughtGame foughtGame;
     // That game's picture, for the menu's top right corner over an opaque
     // menu (PlayerPreferences::pictureMode); null when it is not wanted or
     // could not be taken.
@@ -359,9 +368,10 @@ public:
         if (menu_.navigation.EditingSecret()) menu_.navigation.Cancel();
     }
     // Every frame Ember is hidden: Conceal, then the identity requests that
-    // must still finish, with only the session, identity and room notices of
-    // `view` read, and `room` taken into the chat transcript as a drawn frame
-    // takes it.
+    // must still finish, the room's following and the post-match prompt's
+    // count of WINs, with only the session, identity, room notices, room,
+    // watched and fought games and WIN of `view` read, and `room` taken into
+    // the chat transcript as a drawn frame takes it.
     void Background(const ShellView& view, const room::Snapshot& room, const Submit& submit);
     // Where the language preference is written; the platform store unless a
     // test supplies its own to fail it.
@@ -598,6 +608,14 @@ private:
     // watching, moved, or took a place, or their spectator view dropped
     // (ShellView::lockInDrops). The player's own Release gets none.
     void TrackLockIn(const ShellView& view, double now);
+    // Follow the room (session/RoomFollow.hxx): this session's choice, the row
+    // that starts and stops it, every watching action sent (NoteWatching), and
+    // the move each frame's decision sends, drawn or hidden.
+    room::RoomFollow follow_;
+    MenuEntry FollowRow(const ShellView& view) const;
+    void ToggleFollow(const ShellView& view, const Submit& submit);
+    void NoteWatching(const room::Action& sent, const room::Snapshot& room);
+    void UpdateFollow(const ShellView& view, double now, const Submit& submit);
     // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
     // WIN screen (ShellView::matchResult) on its own screen, "post-match". It
     // keeps the table and the opponent of the game it follows, and the
@@ -610,8 +628,13 @@ private:
         int table = -1;
         room::MemberId opponent = 0;
         std::uint64_t generation = 0;
+        // The game's result, once the runtime has it (FoughtGame::result).
+        room::MatchResult result = room::MatchResult::Abort;
         double until = 0;
         bool chose = false, starting = false;
+        // An Arcade pair's Rematch chosen here (Table::deciding): once both
+        // chose it the room asks no more, and the prompt readies the player.
+        bool pairRematch = false;
         // The runtime's Ready failures seen so far: a new one takes back the
         // choice, but the player still answered (no seat left for no answer).
         std::uint64_t failures = 0;
@@ -828,13 +851,17 @@ std::string memberAsk_;
     // an action its buttons or rows asked for: the toast's id and the action's index.
     unsigned toastFocus_=0;
     std::pair<unsigned,std::size_t> toastAsked_{0,0};
-    // The toasts said this frame are taken and drawn; every frame ends with it
-    // (Draw's tail, Background). listed: Notifications is shown, which lists
-    // them instead. focusable: the shell's own menu read this frame's input,
-    // so a new action toast may take its focus (not over an embedded screen).
-    void DrawToasts(double now,bool overMatch,bool listed=false,bool focusable=false);
+    // The notices said this frame become toasts in Notifications; every frame
+    // takes them (Background alone, while the game shows without Ember).
+    // Returns a new toast with buttons, or 0.
+    unsigned TakeNotices(double now);
+    // Takes the notices and draws the toasts' cards over Ember's menus (Draw's
+    // tail). listed: Notifications is shown, which lists them instead.
+    // focusable: the shell's own menu read this frame's input, so a new
+    // action toast may take its focus (not over an embedded screen).
+    void DrawToasts(double now,bool listed=false,bool focusable=false);
     // Where Ember draws: the screen, inside TV mode's 5% safe area. The shell's
-    // window, and the toasts over it or over a match.
+    // window, and the toasts over it.
     v2::Box ShellArea() const;
     void AnswerToast(double now);
     std::vector<MenuEntry> NotificationRows(double now,std::string& title) const;

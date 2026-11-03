@@ -212,6 +212,7 @@ static void BoolPreferenceRoundTrips(const Path& root) {
         {"classEmblems", &PlayerPreferences::classEmblems, true}, {"tvMode", &PlayerPreferences::tvMode, false},
         {"welcomed", &PlayerPreferences::welcomed, true},
         {"roomShowMembers", &PlayerPreferences::roomShowMembers, true}, {"roomShowChat", &PlayerPreferences::roomShowChat, true},
+        {"roomTableGrid", &PlayerPreferences::roomTableGrid, false}, {"roomCharacterPictures", &PlayerPreferences::roomCharacterPictures, true},
         {"chatFilter", &PlayerPreferences::chatFilter, true},
         {"matchFrameMeter", &PlayerPreferences::matchFrameMeter, false}, {"backgroundPlay", &PlayerPreferences::backgroundPlay, false}, {"endlessLobbyMusic", &PlayerPreferences::endlessLobbyMusic, true},
         {"lowerInputLag", &PlayerPreferences::lowerInputLag, false}, {"lowerKeyboardLag", &PlayerPreferences::lowerKeyboardLag, false},

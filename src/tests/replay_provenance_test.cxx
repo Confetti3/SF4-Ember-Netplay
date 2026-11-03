@@ -177,6 +177,23 @@ static void TestIdentifiedBodyRetriesWithoutScanning() {
  CHECK(refused.get_future().wait_for(std::chrono::seconds(2)) == std::future_status::ready);
  worker.Stop(); CHECK(reads == 2 && attempts == 2);
 }
+// A battle the game did not save: the names bind to the replay Ember kept,
+// with no slot to observe. Without one the names wait for a save as before.
+static void TestUnsavedReplayTakesTheNames() {
+ std::vector<std::string> log;
+ RecordingAttribution owner([&](const char* reason) { log.push_back(reason); });
+ const auto before = std::make_shared<const RecordingSnapshot>(Slots(Saved(1)));
+ unsigned published = 0;
+ const auto publish = [&](const std::filesystem::path& archive, const Bytes& body, const ReplayNames& names) {
+  CHECK(archive == "archive" && body == Saved(15) && names.players[0] == "Left"); ++published; return NamePublication::Published;
+ };
+ owner.Begin(Start(10, "Left"), before); owner.End(20, false, Saved(15));
+ CHECK(!owner.NeedsSnapshot());
+ owner.PublishIdentified(publish); CHECK(published == 1 && !owner.Pending());
+ owner.Begin(Start(30, "Left"), before); owner.End(40);
+ CHECK(owner.NeedsSnapshot());
+ owner.PublishIdentified(publish); CHECK(published == 1 && owner.Pending() && log.empty());
+}
 static void TestInvalidExistingNamesLifecycle() {
  namespace fs = std::filesystem;
  const auto folder = fs::temp_directory_path() / ("ember-provenance-refused-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -251,8 +268,29 @@ static void TestOnlyConfirmedGamesKeepTheirSet() {
  CHECK(notes.size() == 2 && notes[0].players[0] == "Cut" && !notes[0].set.Tagged() && notes[0].set.revision == 0);
  CHECK(notes[1].set.bridgeId == "brg_bridge" && notes[1].set.matchId == "emt_set" && notes[1].set.revision == 3);
 }
+// An in-place rematch plays a set's games in one battle. The game saves the
+// first, which takes its names from the slot; each later one is kept by
+// Ember and takes them from its body, with the set's tag every time.
+static void TestGamesOfOneBattleEachTakeTheNames() {
+ RecordingAttribution owner;
+ std::vector<std::pair<Bytes, ReplayNames>> notes;
+ const auto publish = [&](const std::filesystem::path&, const Bytes& body, const ReplayNames& note) { notes.push_back({body, note}); return NamePublication::Published; };
+ auto game = Start(10, "Set"); game.names.set = {"brg_bridge", "emt_set", 1};
+ owner.Begin(game, std::make_shared<const RecordingSnapshot>(Slots(Saved(1))));
+ const auto saved = Slots(Saved(15));
+ owner.End(20, true);
+ game.time = 20; owner.Begin(game, std::make_shared<const RecordingSnapshot>(saved));
+ owner.ObserveSave(saved); owner.PublishIdentified(publish);
+ owner.End(30, true, Saved(25));
+ game.time = 30; owner.Begin(game, std::make_shared<const RecordingSnapshot>(saved));
+ owner.End(40, true, Saved(35));
+ owner.PublishIdentified(publish);
+ CHECK(!owner.Pending() && notes.size() == 3);
+ CHECK(notes[0].first == Saved(15) && notes[1].first == Saved(25) && notes[2].first == Saved(35));
+ for (const auto& note : notes) CHECK(note.second.players[0] == "Set" && note.second.set.matchId == "emt_set");
+}
 int main() {
- TestOnlyConfirmedGamesKeepTheirSet();
+ TestGamesOfOneBattleEachTakeTheNames(); TestOnlyConfirmedGamesKeepTheirSet(); TestUnsavedReplayTakesTheNames();
  TestWorkerFencesSameSecondRematchBaseline();
  TestIdentifiedBodyRetriesWithoutScanning(); TestInvalidExistingNamesLifecycle();
  TestDisabledAndDormantRecordings(); TestPermanentRefusalAndBoundedRetries();

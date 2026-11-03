@@ -124,6 +124,10 @@ namespace sf4e {
 			// Game thread: with sides taken, Training's CharaSelect becomes
 			// VersusFromChr on them, once.
 			static void ReplaceCharaSelect(char*& eventName);
+			// Game thread, in Training: its character select comes back with
+			// the same Player 1 and this fighter as the dummy (Combo check),
+			// its first costume and colour. False outside Training.
+			static bool ChangeDummy(int fighter);
 		private:
 			static std::mutex chosenLock;
 			static std::optional<TrainingSides> chosen;

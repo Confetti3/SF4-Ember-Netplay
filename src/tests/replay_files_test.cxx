@@ -2,7 +2,7 @@
 #include "../common/ReplayFileSafety.hxx"
 #include "../common/ReplayProvenance.hxx"
 #include "../platform/ReplayFiles.hxx"
-#include "../platform/ReplaySets.hxx"
+#include "../platform/ReplaySetPack.hxx"
 #include "../platform/ReplayNotes.hxx"
 #include <algorithm>
 #include <chrono>
@@ -495,10 +495,55 @@ static void TestSetReplays() {
  archive[1].sent = true;
  archive[0].sent = true; CHECK(!sets::NextToArchive(archive, 1));
  archive.erase(archive.begin()); archive.pop_back();
- CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated"));
+ CHECK(sets::SendSettled("not_found") && sets::SendSettled("replays_unsupported") && !sets::SendSettled("bridge_unreachable") && !sets::SendSettled("unauthenticated") && !sets::SendSettled("discord_required"));
+ // The replay archive wanting Discord holds the other games back until the
+ // player signs in with another account, or the same one again; sets' games go meanwhile.
+ {
+  sf4e::platform::replays::ReplaySender waiting;
+  using sf4e::netplay::IdentityAccount;
+  const auto account = [](const char* user, std::uint64_t at) { IdentityAccount a; a.user = user; a.connectedAt = at; return a; };
+  waiting.Discord(account("", 0));
+  waiting.Sent(1, "x", false, 0);
+  CHECK(waiting.Take(1, false, "discord_required", 0) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
+  waiting.Discord(account("", 0)); CHECK(!waiting.Archives());
+  waiting.Sent(2, "y", true, 10); CHECK(waiting.Take(2, false, "discord_required", 10) == sf4e::platform::replays::ReplaySender::Answer::Again && !waiting.Archives());
+  waiting.Discord(account("111", 5)); CHECK(waiting.Archives());
+  waiting.Sent(3, "x", false, 20);
+  CHECK(waiting.Take(3, false, "discord_required", 20) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
+  waiting.Discord(account("111", 5)); CHECK(!waiting.Archives()); // the account already read is not a new sign-in
+  waiting.Discord(account("111", 9)); CHECK(waiting.Archives());
+  // A sign-in read before the refusal arrives resumes sharing at once, and
+  // later looks at the same account leave it so.
+  waiting.Sent(4, "x", false, 30);
+  waiting.Discord(account("222", 1));
+  CHECK(waiting.Take(4, false, "discord_required", 30) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && waiting.Archives());
+  waiting.Discord(account("222", 1)); CHECK(waiting.Archives());
+  // A refusal with the sign-in unchanged still holds the archive back.
+  waiting.Sent(5, "x", false, 40);
+  CHECK(waiting.Take(5, false, "discord_required", 40) == sf4e::platform::replays::ReplaySender::Answer::NeedsDiscord && !waiting.Archives());
+  waiting.Discord(account("222", 1)); CHECK(!waiting.Archives());
+ }
  const auto listed = sets::Sets(archive);
  CHECK(listed.size() == 3 && listed[0].matchId == "emt_b" && listed[0].rooms == 1 && listed[2].matchId == "emt_c");
  CHECK(listed[1].games.size() == 3 && listed[1].games[0] == &archive[4] && listed[1].games[2] == &archive[2] && listed[1].rooms == 2);
+ // Room sets: games in a row the same two named players played within half
+ // an hour, either side, two or more of them; a lone game is no set, and
+ // the sets come last game first among the tournament ones.
+ {
+  auto room = archive;
+  for (auto& game : room) game.set = {};
+  for (std::size_t i = 0; i < room.size(); i++) { room[i].time = 10000 - i * 600; room[i].names[0] = "Ann"; room[i].names[1] = "Bo"; }
+  std::swap(room[1].names[0], room[1].names[1]);
+  room[3].names[1] = room[4].names[1] = "Cy";
+  const auto rooms = sets::Sets(room);
+  CHECK(rooms.size() == 2 && !rooms[0].Tagged() && rooms[0].games.size() == 3 && rooms[0].games[0] == &room[2] && rooms[0].games[2] == &room[0]);
+  CHECK(rooms[1].games.size() == 2 && rooms[1].games[0] == &room[4] && rooms[1].games[1] == &room[3]);
+  room[1].time = room[2].time + 1801; room[0].time = room[1].time + 1;
+  CHECK(sets::Sets(room).size() == 2 && sets::Sets(room)[0].games.size() == 2);
+  room[5].set = archive[5].set;
+  const auto mixed = sets::Sets(room);
+  CHECK(mixed.size() == 3 && mixed[0].games.size() == 2 && mixed[2].Tagged() && mixed[2].games.size() == 1);
+ }
  Bytes one, two;
  CHECK(ExportFromReplayAlone(Replay(2, 800), one) && ExportFromReplayAlone(Replay(3, 900), two));
  Bytes pack{'E','M','B','R','P','A','K','1',2,0,0,0,'{','}'};
@@ -713,6 +758,40 @@ static void TestNotedReplays() {
  for (int at = 0; at < 100000; ++at) big += "20261101-120000-" + std::to_string(at) + ".emberreplay\n";
  CHECK(big.size() < notes::kMostBytes && notes::Parse(text(big)).size() == 100000);
 }
+// A name taken out of a list on disk leaves no line behind; the list is written whole.
+static void TestNameTakenOut() {
+ namespace fs = std::filesystem; namespace notes = sf4e::platform::replays::notes;
+ const auto text = [](const std::string& value) { return std::vector<std::uint8_t>(value.begin(), value.end()); };
+ const fs::path list = fs::temp_directory_path() / ("ember-notes-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".txt");
+ const auto read = [&] { std::ifstream in(list, std::ios::binary); return std::string(std::istreambuf_iterator<char>(in), {}); };
+ CHECK(notes::Write(list, "a.emberreplay\nb.emberreplay\n") && read() == "a.emberreplay\nb.emberreplay\n");
+ CHECK(notes::TakeOut(list, text(read()), "a.emberreplay") && read() == "b.emberreplay\n");
+ CHECK(notes::TakeOut(list, text(read()), "b.emberreplay") && read().empty() && !fs::exists(list.wstring() + L".tmp"));
+ CHECK(notes::Write(list, "keep.emberreplay\n"));
+#ifdef _WIN32
+ // A list that is open cannot be replaced: the write says so, the list keeps
+ // its marks and no partial file is left beside it.
+ {
+  std::ifstream held(list, std::ios::binary);
+  CHECK(!notes::Write(list, "other.emberreplay\n") && !notes::TakeOut(list, text("keep.emberreplay\n"), "keep.emberreplay"));
+  held.close();
+ }
+ CHECK(read() == "keep.emberreplay\n");
+ std::size_t beside = 0;
+ for (const auto& entry : fs::directory_iterator(list.parent_path())) if (entry.path().filename().wstring().rfind(list.filename().wstring(), 0) == 0) beside++;
+ CHECK(beside == 1);
+#endif
+ fs::remove(list);
+ // A list that cannot be replaced (a folder with a file in it stands there)
+ // reports the failure and leaves no partial file beside it.
+ {
+  const fs::path blocked = list.parent_path() / (list.stem().string() + "-blocked");
+  fs::create_directories(blocked);
+  std::ofstream(blocked / "inside.txt", std::ios::binary) << "x";
+  CHECK(!notes::Write(blocked, "other.emberreplay\n") && fs::is_directory(blocked) && !fs::exists(blocked.wstring() + L".tmp"));
+  std::error_code ignored; fs::remove_all(blocked, ignored);
+ }
+}
 // Pruning follows the lister's reach: replays filed into subfolders count as
 // there, so their marks stay; a name for a replay gone from every folder goes.
 static void TestPruningCoversSubfolders() {
@@ -748,6 +827,7 @@ int main() {
  TestAReplayIsSentOnce();
  TestNotedReplays();
  TestPruningCoversSubfolders();
+ TestNameTakenOut();
  TestNamesPublicationRefusesExistingTargets();
  TestImportWriteRecovery();
  TestVerifiedArchiveAndSnapshots();

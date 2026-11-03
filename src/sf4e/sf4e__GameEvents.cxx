@@ -10,6 +10,7 @@
 #include "../Dimps/Dimps__Game.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/InstalledContent.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../common/TrainingStage.hxx"
@@ -510,6 +511,18 @@ void fTrainingMode::Enter() {
 	const int stage = pendingSides ? sf4e::custom::ApplyStage(pendingSides->stage) : 0;
 	if (!PushTrainingStage(stage)) spdlog::warn("Training: stage {} not set, the bytes in setupPlayer are not the expected ones", stage);
 	if (pendingSides) spdlog::info("Training: stage {}, fighters from Ember's Training select", stage);
+}
+
+bool fTrainingMode::ChangeDummy(int fighter) {
+	char* query[] = { "TrainingMode" };
+	rTrainingMode* mode = (rTrainingMode*)EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), query, 1);
+	if (!mode) return false;
+	TrainingSides sides;
+	for (int i = 0; i < 2; i++) sides.sides[i] = rTrainingMode::GetSelection(mode, i)->conditions;
+	// Training offers every edition, as Training select's dummy does.
+	sf4e::selection::ChangeFighter(sides.sides[1], fighter, true);
+	pendingSides = sides;
+	return true;
 }
 
 void fTrainingMode::ReplaceCharaSelect(char*& eventName) {

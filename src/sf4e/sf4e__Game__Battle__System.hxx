@@ -15,6 +15,7 @@
 #include "../common/NoticeSeverity.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/GgpoTimeline.hxx"
+#include "../common/MatchResult.hxx"
 #include "../common/MatchTelemetry.hxx"
 #include "../common/ReusableRecords.hxx"
 #include "../common/RoomLimits.hxx"
@@ -84,6 +85,9 @@ namespace sf4e {
 				static void TakeRematchChoices(sf4e::Pad::System::Inputs inputs[2]);
 				// A result waits over the WIN for the rematch that may follow it in place.
 				static bool ResultHeld();
+				// The confirmed result of the game whose WIN this battle shows,
+				// held or reported; Abort before it and once the next game is on.
+				static sf4e::room::MatchResult GameResult();
 				// Games of this battle that went on to a rematch in place, once confirmed.
 				static unsigned GamesPlayedInPlace();
 				static int nRandomizeLocalInputsEveryXFramesInGGPO;

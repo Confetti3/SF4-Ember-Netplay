@@ -147,6 +147,12 @@ struct PlayerPreferences {
     // The room board's Members and Chat panels; hidden, the other one or
     // the tables take their place.
     bool roomShowMembers = true, roomShowChat = true;
+    // The room board's tables: one per line, each player's fighter at their
+    // end of it, or with roomTableGrid two or three across.
+    bool roomTableGrid = false;
+    // The room board's fighters: each player's whole figure in their costume
+    // and colour, or with roomCharacterPictures off the game's portraits.
+    bool roomCharacterPictures = true;
     // Room chat is shown with listed words hidden (ui::FilterChat). Only this
     // player's screen changes; the room still holds what was written.
     bool chatFilter = true;
@@ -224,7 +230,8 @@ struct PlayerPreferences {
     void CopyRoomSettings(const PlayerPreferences& from) {
         buttonLayouts = from.buttonLayouts;
         roomColumn = from.roomColumn; roomSplit = from.roomSplit;
-        roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat; chatFilter = from.chatFilter;
+        roomShowMembers = from.roomShowMembers; roomShowChat = from.roomShowChat; roomTableGrid = from.roomTableGrid;
+        roomCharacterPictures = from.roomCharacterPictures; chatFilter = from.chatFilter;
         pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;

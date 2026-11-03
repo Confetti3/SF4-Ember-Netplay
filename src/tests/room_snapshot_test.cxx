@@ -74,9 +74,60 @@ static void TestSnapshotWithoutChat() {
 	same(king);
 }
 
+// A member's costume, colour and Ultra come with their fighter. A new look on
+// the same fighter moves the room's revision and takes back no Ready; a value
+// out of range reads as not shared. The wire carries them only once shared,
+// a checkpoint keeps them, and a member from an older room host, without
+// them, reads as not shared. The reader skips keys it does not know, which is
+// how a client older than these fields reads a newer host.
+static void TestMemberLook() {
+	RoomAuthority authority("Look", 8, 315);
+	Join(authority, 0, true);
+	const auto p1 = Join(authority, 1), p2 = Join(authority, 2);
+	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+	EXPECT(authority.SetMemberChara(p1, {0}) && authority.SetMemberChara(p2, {1}));
+	const auto member = [](const RoomAuthority& room, MemberId id) { return *FindMember(room.SnapshotView(), id); };
+	EXPECT(member(authority, p2).costume == -1 && member(authority, p2).ultra == -1);
+	EXPECT(!nlohmann::json(member(authority, p2)).contains("costume") && !nlohmann::json(member(authority, p2)).contains("ultra"));
+	EXPECT(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Ready)).accepted);
+	const auto tableRevision = authority.SnapshotView().tables[0].revision, roomRevision = authority.SnapshotView().revision;
+	bool withdrew = true;
+	EXPECT(authority.SetMemberChara(p2, {1, 14, 2, 5, 1}, &withdrew) && !withdrew);
+	EXPECT(authority.SnapshotView().tables[0].ready[0] && authority.SnapshotView().tables[0].revision == tableRevision);
+	EXPECT(authority.SnapshotView().revision > roomRevision);
+	EXPECT(!authority.SetMemberChara(p2, {1, 14, 2, 5, 1}));
+	EXPECT(authority.SetMemberChara(p2, {1, 14, 2, 5, 3}) && member(authority, p2).ultra == -1);
+	EXPECT(authority.SetMemberChara(p2, {1, 14, 2, 5, 1}));
+	const auto wire = nlohmann::json(member(authority, p2));
+	EXPECT(wire.at("costume") == 2 && wire.at("color") == 5 && wire.at("ultra") == 1);
+	Member parsed;
+	wire.get_to(parsed);
+	EXPECT(parsed.fighter == 1 && parsed.costume == 2 && parsed.color == 5 && parsed.ultra == 1);
+	auto older = wire;
+	for (const char* key : {"costume", "color", "ultra"}) older.erase(key);
+	older.get_to(parsed);
+	EXPECT(parsed.fighter == 1 && parsed.costume == -1 && parsed.color == -1 && parsed.ultra == -1);
+	auto newer = wire;
+	newer["a_later_field"] = 7;
+	newer.get_to(parsed);
+	EXPECT(parsed.ultra == 1);
+	auto malformed = wire;
+	malformed["ultra"] = 3;
+	bool rejected = false;
+	try { malformed.get_to(parsed); } catch (const std::exception&) { rejected = true; }
+	EXPECT(rejected);
+	RoomAuthority replica("Replica");
+	EXPECT(replica.RestoreCheckpoint(nlohmann::json::parse(authority.Checkpoint().dump())));
+	EXPECT(member(replica, p2).costume == 2 && member(replica, p2).color == 5 && member(replica, p2).ultra == 1);
+	// A new fighter is still a new matchup, whatever its look.
+	EXPECT(authority.SetMemberChara(p2, {3, 14, 0, 0, 0}, &withdrew) && withdrew);
+	EXPECT(!authority.SnapshotView().tables[0].ready[0] && member(authority, p2).costume == 0);
+}
+
 int main() {
 	TestLocalMatchGenerations();
 	TestSnapshotWithoutChat();
+	TestMemberLook();
 	if (TEST_FAILURES()) return 1;
 	std::puts("RoomSnapshot test passed");
 	return 0;

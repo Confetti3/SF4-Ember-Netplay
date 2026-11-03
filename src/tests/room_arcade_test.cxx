@@ -1,6 +1,7 @@
 // Arcade and King of the hill rooms: sixteen one-player cabinets; whoever sits
 // down plays the player who has waited longest (Snapshot::arcade).
 #include "room_authority_support.hxx"
+#include "../common/RematchInput.hxx"
 
 #include <vector>
 
@@ -305,7 +306,7 @@ static void TestWinnerKeepsFighterAndRecords() {
 		RoomAuthority authority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, ArcadeRoom);
 		const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 		Sit(authority, a, 0); Sit(authority, b, 9);
-		CHECK(authority.SetMemberFighter(a, 5, nullptr, 14) && authority.SetMemberFighter(b, 7, nullptr, 14));
+		CHECK(authority.SetMemberChara(a, {5, 14}) && authority.SetMemberChara(b, {7, 14}));
 		CHECK(!KeepsFighter(authority.SnapshotView(), a) && !KeepsFighter(authority.SnapshotView(), b));
 		Beat(authority, a);
 		const auto& room = authority.SnapshotView();
@@ -367,6 +368,57 @@ static void TestRematchInPlaceFollowsSetGoal() {
 	CHECK(RematchInPlaceOffered(snapshot, table, MatchResult::P1Win));
 }
 
+// The post-match prompt's set score counts the game just played before the
+// room has it: a game held for a rematch in place reaches the room only once
+// the next one is fought, and a set's last game only once both reports agree.
+static void TestStandingCountsTheGameJustPlayed() {
+	Snapshot snapshot;
+	snapshot.arcade = ArcadeRoom;
+	auto& table = snapshot.tables[0];
+	table.rules.format = SetFormat::Ft3;
+	table.matchGeneration = 7; table.phase = TablePhase::Playing;
+	table.score[0] = 1; table.score[1] = 0;
+	// 2-0 in a first to 3, the room still at 1-0: the set goes on.
+	auto standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 2 && standing.score[1] == 0 && !standing.over);
+	// The game that wins the set, before the room ends it.
+	table.score[0] = 2;
+	standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 3 && standing.over);
+	// A result not known yet, and a draw, count for nothing.
+	CHECK(StandingAfter(snapshot, table, 7, MatchResult::Abort).score[0] == 2 && !StandingAfter(snapshot, table, 7, MatchResult::Abort).over);
+	CHECK(StandingAfter(snapshot, table, 7, MatchResult::Draw).score[0] == 2);
+	// The room has it: the set it ended, whose score starts again at 0-0.
+	table.score[0] = 0; table.phase = TablePhase::Waiting;
+	table.lastSet.generation = 7; table.lastSet.score[0] = 3; table.lastSet.score[1] = 0;
+	standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 3 && standing.score[1] == 0 && standing.over);
+	// A game inside the set the room has counted is not counted twice.
+	table.lastSet.generation = 6; table.score[0] = 1;
+	standing = StandingAfter(snapshot, table, 7, MatchResult::P1Win);
+	CHECK(standing.score[0] == 1 && !standing.over);
+}
+
+// Over a WIN the battle may go on from, each fighter's prompt rides in their
+// input. While either is still asked the WIN waits for them, so an answer in
+// the prompt's last second, or a frame predicted without it, cannot end the
+// battle before both chose Rematch.
+static void TestWinWaitsForTheRematchAnswers() {
+	using namespace sf4e::rematch;
+	CHECK(LocalBits(false, true, 0) == 0);
+	CHECK(LocalBits(true, false, 0) == AskingBit);
+	CHECK(LocalBits(true, false, AskingMs - 1) == AskingBit);
+	CHECK(LocalBits(true, false, AskingMs) == 0);   // the prompt's time is up: no answer
+	CHECK(LocalBits(true, true, AskingMs * 3) == ChoiceBit);
+	CHECK(Decide(ChoiceBit, ChoiceBit) == Win::End);
+	CHECK(Decide(ChoiceBit, AskingBit) == Win::Hold);  // one chose, the other is still asked
+	CHECK(Decide(AskingBit, 0) == Win::Hold);
+	CHECK(Decide(ChoiceBit, 0) == Win::Run);           // the other gave no answer in time
+	CHECK(Decide(0, 0) == Win::Run);
+	// The bits sit outside the fight buttons the game reads.
+	CHECK((Bits & 0x0FFFFFFFu) == 0);
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -385,6 +437,8 @@ int main() {
 		TestPublicArcade();
 		TestArcadePracticeRoom();
 		TestRematchInPlaceFollowsSetGoal();
+		TestStandingCountsTheGameJustPlayed();
+		TestWinWaitsForTheRematchAnswers();
 	} catch (const std::exception& error) {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;

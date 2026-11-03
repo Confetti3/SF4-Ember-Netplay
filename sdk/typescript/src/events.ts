@@ -107,7 +107,7 @@ export interface RoomSummary {
   /** Each fighter plays at the input delay they chose. Present only when true. */
   own_delay?: boolean;
   /**
-   * The moderator's name. This and the four fields after it are the room host's
+   * The moderator's name. This and the five fields after it are the room host's
    * own report: only in a listing that asked for details, and left out where the
    * bridge or the host does not know them.
    */
@@ -120,6 +120,11 @@ export interface RoomSummary {
   set_format?: number;
   /** The first table's rotation: 0 to 2. */
   rotation?: number;
+  /**
+   * The room's type: 0 Classic, 1 Arcade, 2 King of the hill. A room host that
+   * predates types says nothing, and its rooms are Classic.
+   */
+  room_type?: number;
 }
 
 /** Every key of a `RoomSummary`. Listing it as a `Record` makes the compiler hold it to the interface; test/contract.test.ts holds it to the protocol. */
@@ -138,6 +143,7 @@ export const ROOM_SUMMARY_KEYS = Object.keys({
   locked: true,
   set_format: true,
   rotation: true,
+  room_type: true,
 } satisfies Record<keyof RoomSummary, true>);
 
 /** `waiting` until the creator is in, then `open`, then `closed`. */

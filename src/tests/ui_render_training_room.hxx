@@ -184,7 +184,10 @@ void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw,const Pag
     };
     view.room.arcade=room::ArcadeRoom;
     seat(0,8,0,0);seat(13,5,0,1);seat(4,3,1,0);
-    page("room");draw("room-arcade");
+    page("room");SettleRoomPictures(draw);draw("room-arcade");
+    // Each seated player's figure is on their cabinet's glass; Pictures:
+    // Portraits puts the game's portrait there instead.
+    view.preferences.roomCharacterPictures=false;SettleRoomPictures(draw);draw("room-arcade-portraits");view.preferences.roomCharacterPictures=true;draw();
     // Its table's options show the room's rules, which no one changes there.
     page("room-table");draw("room-arcade-table-rules");page("room");
     // A full King of the hill room: sixteen members in eight matches, each pair
@@ -192,12 +195,13 @@ void CheckPracticeRoomRules(sf4e::ui::ShellView& view,const Draw& draw,const Pag
     view.room.arcade=room::KingRoom;
     for(int i=0;i<static_cast<int>(room::TableCount);++i){
         seat(i,static_cast<room::MemberId>(i*2+1),i,0);seat(15-i,static_cast<room::MemberId>(i*2+2),i,1);
-        auto& table=view.room.tables[i];table.phase=i%3?room::TablePhase::Playing:room::TablePhase::Waiting;table.score[0]=static_cast<std::uint32_t>(i%3);
+        auto& table=view.room.tables[i];table.id=static_cast<std::uint8_t>(i);table.phase=i%3?room::TablePhase::Playing:room::TablePhase::Waiting;table.score[0]=static_cast<std::uint32_t>(i%3);
         view.room.streaks[i]=static_cast<std::uint16_t>(i%4);
         for(int side=0;side<2;++side)view.room.members[i*2+side].fighter=static_cast<int>((i*5+side*11)%25);
     }
     view.room.topSlot=3;
-    page("room");draw("room-king-full");
+    page("room");SettleRoomPictures(draw);draw("room-king-full");
+    view.preferences.roomCharacterPictures=false;SettleRoomPictures(draw);draw("room-king-full-portraits");view.preferences.roomCharacterPictures=true;draw();
     view.room=plain;page("room-table");draw();
     SetMenuEntriesProbe({});
 }

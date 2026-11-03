@@ -1,4 +1,5 @@
 #include "../training/BacFile.hxx"
+#include "../training/FighterData.hxx"
 #include "game_file_test_support.hxx"
 #include "test_support.hxx"
 #include <map>
@@ -15,6 +16,7 @@ struct ScriptRow {
     int spawnAt = -1;                      // first frame of every effect spawn; -1 writes no frames
     std::vector<bac::Speed> speeds;        // list 4, written in place of the skipped list
     int interruptible = 0;                 // the header's
+    Ids reflects;                          // hitboxes of type 4, which meet only fireballs
 };
 static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int, ScriptRow>& effects) {
     const std::size_t counts[] = {scripts.empty() ? 0 : static_cast<std::size_t>(scripts.rbegin()->first) + 1,
@@ -39,14 +41,17 @@ static Bytes Scripts(const std::map<int, ScriptRow>& scripts, const std::map<int
                 for (std::size_t i = 0; framesFrom >= 0 && i < count; ++i) { Put16(data, i ? framesFrom + i - 1 : 0); Put16(data, i ? framesFrom + i : 1); }
                 Put32(lists, static_cast<std::uint32_t>(listCount * 12 - record + data.size()));
             };
-            list(0, row.flows.size());
+            list(0, row.flows.size(), row.flows.empty() ? -1 : 25);
             for (const auto& flow : row.flows) { Put16(data, flow[0]); Put16(data, 0); Put16(data, flow[1]); Put16(data, 0); }
-            list(7, row.hits.size() + row.guards.size());
-            for (std::size_t i = 0; i < row.hits.size() + row.guards.size(); ++i) {
+            list(7, row.hits.size() + row.guards.size() + row.reflects.size());
+            for (std::size_t i = 0; i < row.hits.size() + row.guards.size() + row.reflects.size(); ++i) {
                 const std::size_t at = data.size();
                 data.resize(at + 44);
-                data[at + 26] = i < row.hits.size() ? 1 : 0;
-                Set32(data, at + 40, static_cast<std::uint32_t>(i < row.hits.size() ? row.hits[i] : row.guards[i - row.hits.size()]));
+                data[at + 26] = i < row.hits.size() ? 1 : i < row.hits.size() + row.guards.size() ? 0 : 4;
+                // A juggle limit and add a box (Hit::limit, Hit::add): 7 and 2, a guard's 0.
+                data[at + 33] = i < row.hits.size() ? 7 : 0; data[at + 34] = i < row.hits.size() ? 2 : 0;
+                Set32(data, at + 40, static_cast<std::uint32_t>(i < row.hits.size() ? row.hits[i] :
+                    i < row.hits.size() + row.guards.size() ? row.guards[i - row.hits.size()] : row.reflects[i - row.hits.size() - row.guards.size()]));
             }
             list(10, row.effects.size() + 1, row.spawnAt);
             data.resize(data.size() + 32); // An effect command of another kind.
@@ -85,8 +90,141 @@ int main() {
     CHECK(model.scripts.size() == 7 && model.effects.size() == 4);
     CHECK(model.effects[0].canHit && !model.effects[1].canHit && !model.effects[2].canHit);
     CHECK(model.scripts[6].effects.empty() && !model.scripts[6].canHit);
+    {
+        ScriptRow reflect = Script({});
+        reflect.reflects = {124};
+        const Bytes reflecting = Scripts({{0, reflect}}, {});
+        bac::File read;
+        CHECK(ReadExact(reflecting, reflecting.size(), read, error) && read.scripts[0].hits.empty() && !read.scripts[0].canHit);
+    }
+    // Of its two jumps only kind 0 is kept, with its first frame.
+    CHECK(model.scripts[6].flows.size() == 1 && model.scripts[6].flows[0].at == 0 && model.scripts[6].flows[0].script == 3);
+    // A hitbox that can hit keeps its juggle values and hit-data row; a guard box is no hit.
+    CHECK(model.scripts[3].hits.size() == 1 && model.scripts[3].hits[0].limit == 7 &&
+        model.scripts[3].hits[0].add == 2 && model.scripts[3].hits[0].data == 10 && model.effects[1].hits.empty());
+    // With no name or hit-data table (offset 0) nothing is named and no juggle start is read.
+    CHECK(model.scripts[3].name.empty() && model.juggleStart.empty());
+    {
+        // Names at +0x1C, one a script, and two hit-data rows at +0x24 (count
+        // at +0x10), the second's juggle start 3; a name past the end is left empty.
+        Bytes named = bytes;
+        const std::size_t table = named.size();
+        named.resize(table + 4 * 7);
+        const std::size_t text = named.size();
+        const char words[] = "STAND\0CROUCH\0";
+        named.insert(named.end(), words, words + sizeof words - 1);
+        Set32(named, table, static_cast<std::uint32_t>(text)); Set32(named, table + 4, static_cast<std::uint32_t>(text + 6));
+        Set32(named, table + 8, 0xFFFFFFF0u);
+        Set32(named, 0x1C, static_cast<std::uint32_t>(table));
+        const std::size_t rows = named.size();
+        named.resize(rows + 8 + 2 * 12 * 0x50);
+        Set32(named, rows, static_cast<std::uint32_t>(rows + 8)); Set32(named, rows + 4, static_cast<std::uint32_t>(rows + 8 + 12 * 0x50));
+        named[rows + 8 + 12 * 0x50 + 0x2C] = 3;
+        Set32(named, 0x24, static_cast<std::uint32_t>(rows)); Set32(named, 0x10, 2);
+        bac::File read;
+        CHECK(ReadExact(named, named.size(), read, error));
+        CHECK(read.scripts[0].name == "STAND" && read.scripts[1].name == "CROUCH" && read.scripts[2].name.empty());
+        CHECK(read.juggleStart.size() == 2 && read.juggleStart[0] == 0 && read.juggleStart[1] == 3);
+    }
+    // The Data panel's juggle values: the hit active at a frame, else the next, else the last.
+    {
+        bac::File file; file.juggleStart = {0, 3};
+        bac::Script script;
+        script.hits = {{5, 7, 0, 1, 0}, {9, 11, 7, 2, 1}};
+        file.scripts = {script, bac::Script{}};
+        CHECK(training::HitAt(script, 2)->first == 5 && training::HitAt(script, 5)->first == 5 && training::HitAt(script, 7)->first == 9);
+        CHECK(training::HitAt(script, 20)->first == 9 && !training::HitAt(bac::Script{}, 0));
+        const auto juggle = training::JuggleOf(file, 0, 10);
+        CHECK(juggle.start == 3 && juggle.add == 2 && juggle.limit == 7);
+        CHECK(training::JuggleOf(file, 1, 0).limit == -1 && training::JuggleOf(file, 5, 0).start == -1 && training::JuggleOf(file, -1, 0).add == -1);
+    }
+    // The Data panel's timeline colours a script as the frame meter does: the gap between two
+    // hits as recovery, and a fireball's script from its spawn; a script with neither, none.
+    {
+        using training::MeterKind;
+        bac::File file;
+        file.scripts.resize(3); file.effects.resize(1);
+        file.scripts[0].total = 14; file.scripts[0].hits = {{5, 7, 0, 1, 0}, {9, 11, 7, 2, 1}};
+        file.scripts[1].total = 30; file.scripts[1].effects = {0}; file.scripts[1].spawns = {{{12, 13}}};
+        file.effects[0].canHit = true;
+        file.scripts[2].total = 20;
+        const auto runs = [&](int script) {
+            std::vector<std::array<int, 3>> out;
+            for (const auto& run : training::ScriptRuns(file, script)) out.push_back({{run.from, run.to, static_cast<int>(run.kind)}});
+            return out;
+        };
+        const int startup = static_cast<int>(MeterKind::Startup), active = static_cast<int>(MeterKind::Active), recovery = static_cast<int>(MeterKind::Recovery);
+        CHECK((runs(0) == std::vector<std::array<int, 3>>{{{0, 5, startup}}, {{5, 7, active}}, {{7, 9, recovery}}, {{9, 11, active}}, {{11, 14, recovery}}}));
+        CHECK((runs(1) == std::vector<std::array<int, 3>>{{{0, 13, startup}}, {{13, 14, active}}, {{14, 30, recovery}}}));
+        CHECK(runs(2).empty() && runs(7).empty());
+        // A spawn the script ends before is no attack of its own, as the runtime reads it.
+        file.scripts[1].total = 13;
+        CHECK(runs(1).empty());
+    }
+    // Runs of a long script with overlapping, out-of-order and clipped hit intervals match the
+    // classification of every frame, projectile scripts included.
+    {
+        using training::MeterKind;
+        bac::File file;
+        file.scripts.resize(2); file.effects.resize(1); file.effects[0].canHit = true;
+        file.scripts[0].total = 65535;
+        file.scripts[0].hits = {{40000, 40010, 0, 1, 0}, {5, 30, 0, 1, 0}, {20, 50, 0, 1, 0}, {70000, 70005, 0, 1, 0}, {65534, 65535, 0, 1, 0}};
+        file.scripts[1].total = 65535; file.scripts[1].effects = {0}; file.scripts[1].spawns = {{{30000, 30001}}};
+        for (int script = 0; script < 2; ++script) {
+            const auto& now = file.scripts[script];
+            int first = -1, last = -1;
+            if (script) bac::ProjectileBoundary(file, script, first, last);
+            std::vector<training::ScriptRun> expect;
+            for (int frame = 0; frame < now.total; ++frame) {
+                const float at = static_cast<float>(frame);
+                const MeterKind kind = script ? training::BoundaryKind(at, first, last) : training::HitPhaseKind(bac::HitPhase(now, at));
+                if (expect.empty() || expect.back().kind != kind) expect.push_back({frame, frame + 1, kind});
+                else expect.back().to = frame + 1;
+            }
+            const auto runs = training::ScriptRuns(file, script);
+            bool same = runs.size() == expect.size();
+            for (std::size_t i = 0; same && i < runs.size(); ++i)
+                same = runs[i].from == expect[i].from && runs[i].to == expect[i].to && runs[i].kind == expect[i].kind;
+            CHECK(same && runs.size() > 2);
+        }
+    }
+    // A command file's charge names, as Guile's.
+    {
+        Bytes bcm(0x20);
+        std::memcpy(bcm.data(), "#BCM", 4);
+        bcm[0x10] = 2;
+        const std::size_t names = bcm.size();
+        bcm.resize(names + 8);
+        const std::size_t text = bcm.size();
+        const char words[] = "SONICBOOM\0SOMERSAULT\0";
+        bcm.insert(bcm.end(), words, words + sizeof words - 1);
+        Set32(bcm, names, static_cast<std::uint32_t>(text)); Set32(bcm, names + 4, static_cast<std::uint32_t>(text + 10));
+        Set32(bcm, 0x1C, static_cast<std::uint32_t>(names));
+        const auto charges = training::ReadChargeNames(bcm.data(), bcm.size());
+        CHECK(charges.size() == 2 && charges[0] == "SONICBOOM" && charges[1] == "SOMERSAULT");
+        // Cut short: no table, or a name that runs off the file is left empty.
+        for (std::size_t size = 0; size < bcm.size(); ++size) {
+            const auto cut = training::ReadChargeNames(bcm.data(), size);
+            CHECK(cut.empty() || (cut.size() == 2 && (cut[1].empty() || cut[1] == "SOMERSAULT")));
+        }
+        Bytes other = bcm; other[1] = 'X';
+        CHECK(training::ReadChargeNames(other.data(), other.size()).empty() && training::ReadChargeNames(nullptr, 64).empty());
+    }
     int first = -1, last = -1;
     CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
+    // Evil Ryu's falling fireball (421P): the effect spawned at 47 hits once it goes on in another at its
+    // frame 25, 17 game frames on at 1.5 a frame.
+    {
+        bac::File oni;
+        oni.scripts.resize(1); oni.effects.resize(2);
+        oni.scripts[0].effects = {0}; oni.scripts[0].spawns = {{{47, 48}}};
+        oni.effects[0].speeds = {{0, 1.5f}}; oni.effects[0].flows = {{25, 1}};
+        oni.effects[1].canHit = true;
+        int a = -1, b = -1, delay = -1;
+        CHECK(bac::ProjectileBoundary(oni, 0, a, b, &delay) && a == 48 && b == 49 && delay == 17);
+        oni.effects[0].flows = {{25, 0}};
+        CHECK(!bac::ProjectileBoundary(oni, 0, a, b));
+    }
     // List 4 sets how many script frames a game frame plays: Balrog getting up
     // plays 2 a frame up to 50, then 1, so it is free 29 frames on, at 54.
     {
@@ -162,5 +300,15 @@ int main() {
     CHECK(ReadExact(bad, bad.size(), untimed, error));
     first = last = -1;
     CHECK(!bac::ProjectileBoundary(untimed, 0, first, last));
+    {
+        // Ken's close MK (Omega): boxes 8 to 10 and 14 to 17, read after each update.
+        bac::Script mk;
+        mk.hits = {{8, 10}, {14, 17}};
+        CHECK(bac::HitPhase(mk, 7.5f) == 0 && bac::HitPhase(mk, 8.f) == 1 && bac::HitPhase(mk, 9.9f) == 1);
+        CHECK(bac::HitPhase(mk, 10.f) == 2 && bac::HitPhase(mk, 13.5f) == 2 && bac::HitPhase(mk, 14.f) == 1);
+        CHECK(bac::HitPhase(mk, 17.f) == 3 && bac::HitPhase(bac::Script{}, 9.f) == -1);
+        mk.hits.push_back({-1, -1});
+        CHECK(bac::HitPhase(mk, 9.f) == -1);
+    }
     return 0;
 }

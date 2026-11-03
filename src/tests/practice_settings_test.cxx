@@ -168,6 +168,23 @@ int main() {
         const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
         for (const auto& other : HudParts) CHECK(read.*other.shown == (&other != &part));
     }
+    // The Data panel is off, on each fighter's side, 80% solid and with every
+    // part unless saved otherwise; a round trip keeps each choice and each part apart.
+    {
+        const auto plain = ReadMeterOptions(json::parse(R"({"data":"true","data_fighters":"P1","data_opacity":70})"));
+        CHECK(!plain.data && plain.dataFighters == DataFighter::Both && plain.dataOpacity == 80);
+        for (int fighters = 0; fighters < DataFighters; ++fighters) for (const int opacity : DataOpacities) {
+            MeterOptions saved; saved.data = true; saved.dataFighters = static_cast<DataFighter>(fighters); saved.dataOpacity = opacity;
+            const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(saved).dump()));
+            CHECK(read.data && read.dataFighters == saved.dataFighters && read.dataOpacity == opacity);
+        }
+        for (const auto& part : DataParts) {
+            CHECK(ReadMeterOptions(json::object()).*part.shown);
+            MeterOptions off; off.*part.shown = false;
+            const auto read = ReadMeterOptions(json::parse(MeterOptionsJson(off).dump()));
+            for (const auto& other : DataParts) CHECK(read.*other.shown == (&other != &part));
+        }
+    }
     // No input display unless one is saved by name, and a round trip keeps each.
     for (const json& inputs : {json(), json("Stick"), json(1), json(true)}) CHECK(ReadMeterOptions(json{{"hud_inputs", inputs}}).inputs == InputDisplay::Off);
     for (const auto inputs : {InputDisplay::Off, InputDisplay::Stick, InputDisplay::Arrows, InputDisplay::Both}) {

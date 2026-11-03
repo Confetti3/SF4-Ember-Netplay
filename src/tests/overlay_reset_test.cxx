@@ -113,6 +113,14 @@ static int CheckPerFighterPicks() {
     Prefs::Data same = many, poolChanged = many;
     poolChanged.randomPool.Toggle(1);
     check(many == same && many != poolChanged, "the preferences comparison missed the Random pool");
+    // Random is saved as itself beside the fighter it last rolled, and an older
+    // file without it is a fighter of its own.
+    Prefs::Data randomFighter = many, randomBack;
+    randomFighter.lobbyRandom = true;
+    Prefs::FromJson(Prefs::ToJson(randomFighter), randomBack);
+    check(randomBack.lobbyRandom && randomBack.lobby == randomFighter.lobby && randomFighter != many, "Random did not round-trip");
+    Prefs::FromJson({{"lobby", {{"charaID", 5}}}}, randomBack);
+    check(!randomBack.lobbyRandom, "a pick saved before Random came back Random");
 
     Prefs::Data controller;
     controller.controllerLayer = false;

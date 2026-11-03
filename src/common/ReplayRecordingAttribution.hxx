@@ -17,6 +17,9 @@ struct RecordingBoundary {
  bool recordingEnabled = false;
  // End: the game's result was confirmed. Only such a game keeps its match tag.
  bool confirmed = false;
+ // End: the replay Ember kept itself, for a battle the game did not save
+ // (the opponent left). The names bind to it without a slot observation.
+ replayslots::Bytes body;
  ReplayNames names;
  int fighters[2] = {-1, -1};
 };
@@ -48,10 +51,11 @@ public:
    open_.start.time = *previousEnd_ + 1;
   }
  }
- void End(std::uint64_t time, bool confirmed = false) {
+ void End(std::uint64_t time, bool confirmed = false, replayslots::Bytes body = {}) {
   previousEnd_ = time;
   if (!open_.before) return;
   open_.ended = time;
+  open_.body = std::move(body);
   if (!confirmed) open_.start.names.set = {};
   if (pending_.size() == kPendingLimit) { LogDrop("waiting save evicted at recording limit"); pending_.pop_front(); }
   pending_.push_back(std::move(open_)); open_ = {};

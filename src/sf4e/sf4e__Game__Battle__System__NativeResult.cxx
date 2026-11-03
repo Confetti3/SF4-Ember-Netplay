@@ -18,6 +18,9 @@ struct HeldResult { sf4e::room::MatchResult result; std::uint64_t captureFrame, 
 static std::optional<HeldResult> s_heldResult;
 static int s_resultFrame = -1;  // save frame of the last result published
 static unsigned s_gamesReported = 0;  // games of this battle the room heard
+// The games of this battle after its first, which the game does not save.
+sf4e::replay::InPlaceReplays s_inPlaceReplays;
+static sf4e::room::MatchResult s_gameResult = sf4e::room::MatchResult::Abort;  // the WIN's (GameResult)
 
 void ResetNativeResultMatch() {
     s_nativeResultTimeline.Reset();
@@ -25,10 +28,13 @@ void ResetNativeResultMatch() {
     s_heldResult.reset();
     s_resultFrame = -1;
     s_gamesReported = 0;
+    s_inPlaceReplays.Reset();
+    s_gameResult = sf4e::room::MatchResult::Abort;
 }
 
 bool fSystem::ResultHeld() { return s_heldResult.has_value(); }
 unsigned fSystem::GamesPlayedInPlace() { return s_gamesReported; }
+sf4e::room::MatchResult fSystem::GameResult() { return s_gameResult; }
 
 static void ReportNativeResult(const HeldResult& held, bool continued) {
     sf4e::NetplayFacade::NotifyRuntimeMatchResult(held.result, held.captureFrame, held.confirmedFrame, s_gamesReported, continued);
@@ -89,7 +95,9 @@ void PublishConfirmedNativeMatchResult() {
         if (fight < 0) return;
         spdlog::info("Match result: game {} went on to a rematch in this battle (fight confirmed at frame {})", s_gamesReported + 1, fight);
         ReportNativeResult(*s_heldResult, true);
+        HandOverInPlaceReplay();
         s_heldResult.reset();
+        s_gameResult = sf4e::room::MatchResult::Abort;
         s_nativeResultEmitted = false;
         s_resultFrame = fight;
     }
@@ -104,6 +112,7 @@ void PublishConfirmedNativeMatchResult() {
         sample.result == sf4e::native_result::Result::P1Win ? sf4e::room::MatchResult::P1Win :
         sample.result == sf4e::native_result::Result::P2Win ? sf4e::room::MatchResult::P2Win : sf4e::room::MatchResult::Draw,
         static_cast<std::uint64_t>(sample.frame), static_cast<std::uint64_t>(confirmed < 0 ? 0 : confirmed)};
+    s_gameResult = held.result;
     if (sf4e::NetplayFacade::RematchInPlaceOffered(held.result)) s_heldResult = held;
     else ReportNativeResult(held, false);
 }

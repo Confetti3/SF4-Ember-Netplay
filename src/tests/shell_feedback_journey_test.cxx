@@ -264,6 +264,30 @@ void V2AuditJourneys() {
   h.Frame(MenuInput::Back,2);h.Frame();
   Check(!h.open,"A toast that came over a notice took the focus afterwards");
  }
+ // While Ember is hidden the game is on screen: a toast said then draws no
+ // card over it, and waits in Notifications for when Ember shows.
+ {
+  Harness h;h.Frame();
+  const auto hidden=[&]{ImGui::GetIO().DeltaTime=1.f/60;ImGui::NewFrame();
+   h.shell.Background(h.view,h.view.room,[&](ShellAction a){h.actions.push_back(a);return h.accept;});ImGui::Render();};
+  hidden();h.view.discordPending=true;h.view.discordRevision=3;hidden();hidden();
+  Check(ImGui::GetForegroundDrawList()->VtxBuffer.Size==0,"A toast said while Ember was hidden drew a card over the game");
+  // Home lists it from the frame Ember shows again.
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  h.Frame(0,2);SetMenuEntriesProbe({});
+  const auto row=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="notifications";});
+  Check(row!=rows.end()&&row->detail==loc::T("discord.invitation_notice"),"A toast said while Ember was hidden is not in Notifications");
+ }
+ // A card with buttons stays 8 s over the menus, however briefly the status
+ // line keeps its notice, and is gone after.
+ {
+  Harness h;h.Frame();
+  h.shell.Say("Room ready",Tone::Success,2,ToastKind::Room,{{"Open","home",""}});h.Frame();
+  const auto card=[]{const auto* w=ImGui::FindWindowByName("##toast");return w&&w->Active;};
+  Check(card(),"A toast with buttons drew no card");
+  h.Wait(7.5f);h.Frame();Check(card(),"A toast with buttons left before 8 s, with its notice");
+  h.Wait(1);h.Frame();Check(!card(),"A toast with buttons stayed past 8 s");
+ }
  // The accessibility button reads a toast; it does not take its focus.
  {
   Harness h;invited(h);

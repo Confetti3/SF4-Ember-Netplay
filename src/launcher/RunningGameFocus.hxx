@@ -21,11 +21,10 @@ inline void FocusRunningGame() {
 		spdlog::info("No game window was published; nothing to bring forward");
 		return;
 	}
-	// The record was written by the player's own process, but its window may be
-	// gone since, and its number reused: only a window of that process is touched.
-	const HWND window = static_cast<HWND>(UlongToHandle(game.window));
-	DWORD owner = 0;
-	if (!IsWindow(window) || !GetWindowThreadProcessId(window, &owner) || owner != game.pid) {
+	// The record was written by the player's own process: only a window of
+	// that process is touched.
+	const HWND window = platform::PublishedWindow(game);
+	if (!window) {
 		spdlog::info("The published game window is gone; nothing to bring forward");
 		return;
 	}

@@ -111,7 +111,7 @@ static void TestReadyTimeoutActivity() {
 			EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 		EXPECT(authority.Apply(p1, TableAction(authority, p1, 0, ActionKind::Ready)).accepted);
 		authority.AdvanceTime(60000);
-		if (fighterChange) EXPECT(authority.SetMemberFighter(p2, 3)); // first shared fighter retains Ready
+		if (fighterChange) EXPECT(authority.SetMemberChara(p2,{3})); // first shared fighter retains Ready
 		else {
 			auto action = TableAction(authority, p2, 0, ActionKind::Chat);
 			action.text = "Still here";

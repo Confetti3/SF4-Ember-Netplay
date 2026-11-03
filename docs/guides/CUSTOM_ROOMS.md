@@ -132,7 +132,8 @@ wins for the same pair.
 After a game you fought, Ember asks over the WIN screen for ten seconds:
 **Rematch** (**Next game** inside a set), **Character select** (X, or F) or
 **Back to room** (B). Rematch is your Ready, so when both of you choose it the
-next game starts without a stop on the board; while someone waits in the queue
+next game starts without a stop on the board; the WIN screen waits while
+either of you is still being asked, so an answer in the last second counts; while someone waits in the queue
 after a set there is no Rematch. **Back to room** keeps your seat, not ready,
 so a B pressed through the WIN costs nothing; you leave a seat only with Leave
 seat. No answer keeps the seat inside a set; after a set it gives the seat up,
@@ -272,11 +273,13 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
 - **Layout:** drag the grip on the line between the tables and the right
   column to change the column's width, and the grip between members and chat
   to share the column. With a pad or the keyboard, use Settings > Interface >
-  Room layout: Column width, Members and chat, Ready-made layout, Picture and
-  Restore defaults. These, each panel's Hide and Show, and the watched game's
-  picture (Picture here or in More…, and its corner and size under Settings >
-  Matches) are saved while you are in the room and not fighting, watching a
-  game included; the rest of Settings is locked until you leave.
+  Room layout: Column width, Members and chat, Ready-made layout, Tables,
+  Pictures (each player's fighter in their costume, or the game's
+  portraits), Picture and Restore defaults. These, each panel's Hide and
+  Show, and the watched game's picture (Picture here or in More…, and its
+  corner and size under Settings > Matches) are saved while you are in the
+  room and not fighting, watching a game included; the rest of Settings is
+  locked until you leave.
 - **Watching:** with the watched game's picture on, the board shows it large
   over one row of table cards. The column grip makes it bigger.
 

@@ -44,6 +44,9 @@ namespace OverlayPrefs {
 
 		// Lobby: the current selection, which every consumer reads.
 		CharaPick lobby;
+		// The pick is Random (the fighter grid's Random tile): `lobby` holds the
+		// fighter rolled for the next game (common/RandomFighter.hxx).
+		bool lobbyRandom = false;
 		// What each fighter last used, indexed by charaID. Switching fighter
 		// restores that fighter's entry; fighters[lobby.charaID] equals lobby,
 		// but for the edition, which keeps the last one chosen under Edition
@@ -66,9 +69,9 @@ namespace OverlayPrefs {
 		std::optional<gamepads::Identity> deviceIdentity;
 		bool controllerLayer = true;
 		bool operator==(const Data& other) const {
-            return std::tie(lobby, fighters, trainingDummy, stageID, randomPool, lobbyRoundCountIdx, lobbyRoundTimeIdx,
+            return std::tie(lobby, lobbyRandom, fighters, trainingDummy, stageID, randomPool, lobbyRoundCountIdx, lobbyRoundTimeIdx,
                 lobbyEditionSelect, deviceIdx, deviceType, deviceIdentity, controllerLayer) ==
-                std::tie(other.lobby, other.fighters, other.trainingDummy, other.stageID, other.randomPool,
+                std::tie(other.lobby, other.lobbyRandom, other.fighters, other.trainingDummy, other.stageID, other.randomPool,
                     other.lobbyRoundCountIdx, other.lobbyRoundTimeIdx, other.lobbyEditionSelect,
                     other.deviceIdx, other.deviceType, other.deviceIdentity, other.controllerLayer);
         }

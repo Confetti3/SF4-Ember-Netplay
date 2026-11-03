@@ -130,6 +130,14 @@ namespace Dimps {
 			// "leave" writes was not seen, so 1 stands for it.
 			static constexpr std::size_t BattleEndChoice = 0x480;
 			static constexpr int EndChoiceLeave = 1;
+			// The button guide under the replay (END, SLO MO) is the Battle
+			// state's bank of four guides at +0x54: the state's start
+			// (0x484940) fills it (0x483D00, a guide each from ID_NAV_0023,
+			// 0024, 0000 and 0001) and asks it to show the fourth (0x444880),
+			// its render (0x483BF0) draws the one shown (0x443E30), and
+			// ClearGuides (0x444780) empties it, as the state's setup
+			// (0x483ED0) does before the start fills it.
+			static constexpr std::size_t BattleGuides = 0x54;
 			struct List;
 			struct Voice;
 			struct Movie;
@@ -149,11 +157,14 @@ namespace Dimps {
 			static int* GetSplashPhase(Splash* splash) { return reinterpret_cast<int*>(reinterpret_cast<std::uint8_t*>(splash) + SplashPhase); }
 			static Voice* GetSplashVoice(Splash* splash) { return *reinterpret_cast<Voice**>(reinterpret_cast<std::uint8_t*>(splash) + SplashVoice); }
 			static Movie* GetSplashMovie(Splash* splash, int movie) { return reinterpret_cast<Movie*>(reinterpret_cast<std::uint8_t*>(splash) + SplashMovies + movie * 8); }
+			struct Guides;
+			static Guides* GetGuides(void* battle) { return reinterpret_cast<Guides*>(reinterpret_cast<std::uint8_t*>(battle) + BattleGuides); }
 			typedef struct __staticMethods {
 				void (__thiscall* PlayRow)(List* list);
 				void (__thiscall* FadeVoice)(Voice* voice, int frames);
 				bool (__thiscall* MovieValid)(Movie* movie);
 				void (__thiscall* MovieSignal)(Movie* movie, const char* name, int);
+				void (__thiscall* ClearGuides)(Guides* guides);
 			} __staticMethods;
 
 			static void Locate(HMODULE peRoot);
@@ -219,6 +230,13 @@ namespace Dimps {
 			// validates it against the fighter catalog.
 			static int GetFighterId(const Request* r, int player) {
 				return *(const int*)((const char*)r + (player ? 0x2C0 : 0x08));
+			}
+			// The edition the player picked for that fighter (Battle::Edition),
+			// the block's last dword (+0x2B4; +0x14 is the voice language):
+			// CommonResourceHolder::load (0x5E88E0) chooses the fighter's
+			// script folder by the two.
+			static int GetFighterEdition(const Request* r, int player) {
+				return *(const int*)((const char*)r + (player ? 0x2C0 : 0x08) + 0x2B4);
 			}
 
 			static void Locate(HMODULE peRoot);

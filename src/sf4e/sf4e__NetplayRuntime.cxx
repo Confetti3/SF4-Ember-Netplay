@@ -638,6 +638,14 @@ static void CallOutOpponentReady() {
 	if (runtime->opponentFighterWatch.Update(room)) {
 		++runtime->opponentChangeSequence;
 		spdlog::info("Room: the opponent changed fighter to {}", runtime->opponentFighterWatch.Pending());
+		// A Ready still waiting to be sent (a Rematch pressed over the WIN, held
+		// while the game was over) was given against the old fighter: sent now
+		// it would start the game before the player saw the new one. They
+		// decide again, with the chance to change their Ultra.
+		if (runtime->readyIntent.Parked()) {
+			const auto* fighter = selection::FindFighter(runtime->opponentFighterWatch.Pending());
+			FailReady(loc::Tf("room.opponent_changed_fighter", fighter ? fighter->name : "?").c_str());
+		}
 	}
 }
 // Every challenger call, the ready one and the settings preview, comes
@@ -826,6 +834,7 @@ void TickRuntime() {
 	TickAutoDelay(helperReady);
 	TickCreatedRules(helperReady);
 	CallOutOpponentReady();
+	TickRandomFighter();
 	NoteNativeScreen();
 	SayTraining();
 	SayTyping();

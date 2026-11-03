@@ -153,6 +153,23 @@ int main() {
     CHECK(pick.edition == 14 && pick.costume == 0 && pick.color == 0 && pick.ultra == 2);
     pick.edition = 16; CHECK(Normalize(pick, true)); CHECK(pick.ultra == 0);
     CHECK(Normalize(pick, false)); CHECK(pick.edition == 14);
+    // A side changed to another fighter (Combo check's dummy swap) keeps its
+    // edition only where that fighter has it, and starts on its first look.
+    {
+        struct Side { std::uint8_t charaID, costume, color, ultraCombo, unc_edition, personalAction, winQuote, handicap; };
+        const Side sfiv{0, 2, 5, 0, 13, 3, 4, 0};
+        CHECK(!EditionAllowed(43, 13, true) && EditionAllowed(1, 13, true));
+        Side side = sfiv; ChangeFighter(side, 43, true);
+        CHECK(side.charaID == 43 && side.unc_edition == UltraEdition && side.costume == 0 && side.color == 0);
+        CHECK(side.personalAction == 3 && side.winQuote == 4 && Valid(FromNative(side), true));
+        side = sfiv; ChangeFighter(side, 1, true);
+        CHECK(side.charaID == 1 && side.unc_edition == 13 && Valid(FromNative(side), true));
+        Side omega = sfiv; omega.unc_edition = 16; omega.ultraCombo = 1;
+        side = omega; ChangeFighter(side, 43, true);
+        CHECK(side.unc_edition == 16 && side.ultraCombo == 1);
+        side = omega; ChangeFighter(side, 43, false);
+        CHECK(side.unc_edition == UltraEdition && Valid(FromNative(side), false));
+    }
 
     // Custom costumes: slots 8-99 (indices 7-98) of every fighter, ten colors each, valid picks on the network and
     // listed only once installed.

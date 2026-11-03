@@ -1,5 +1,6 @@
 #pragma once
 void RoomJourneys();
+void FollowJourneys();
 void PostMatchJourneys();
 void ArcadeJourneys();
 void ButtonPromptJourneys();
@@ -12,6 +13,7 @@ void MemberPopout();
 void RoomPartsHide();
 void PresentationJourneys();
 void AppearanceGalleries();
+void SelectorSpeech();
 void ChatJourneys();
 void TrainingSettingsAndHome();
 void TrainingFromRoom();
@@ -30,5 +32,6 @@ void ProblemReportJourneys();
 void SelectorPages();
 void SelectorFromHome();
 void DeveloperSelectors();
+void SelectorRandomTile();
 void V2AuditJourneys();
 void SettingsJourneys();

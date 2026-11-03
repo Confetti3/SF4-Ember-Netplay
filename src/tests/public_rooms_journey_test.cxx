@@ -104,7 +104,12 @@ void JoinJourney(){
  Check(h.shell.Navigation().Focus()=="cancel-open","The cursor does not wait on Stop joining");
  // Back from Home returns to this screen, not the Join screen: a public room is joined from here.
  h.Screen("home");h.Press(MenuInput::Back);Check(h.shell.Navigation().Screen()=="public-rooms","An opening public room did not return to Public rooms");
- h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.Frame(0,2);
+ // In the room, then out of it: the player is back on the list they joined it from, not Home.
+ h.view.session.room=netplay::RoomState::Joined;h.view.room.roomEpoch=9;h.view.room.localMember=1;h.view.room.serverOwned=true;
+ {room::Member local;local.id=1;local.name="Local";h.view.room.members.push_back(local);}
+ h.Frame(0,2);Check(h.shell.Navigation().Screen()=="room","The public room joined did not open");
+ h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.room=room::Snapshot();h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="public-rooms","Leaving a public room did not return to Public rooms");
  // Each refusal, in words, and none joins.
  const std::pair<const char*,const char*> refusals[]={
   {"room_full","public.failure.room_full"},{"banned","public.failure.banned"},{"room_not_found","public.failure.room_not_found"},{"room_not_open","public.failure.room_not_open"},
@@ -702,8 +707,12 @@ void RoomJourney(){
  h.Screen("room");h.Frame(0,2);
  Check(j.status==loc::T("room.private_status")&&j.row("copy")&&j.row("copy-short"),"A private room lost its invitation rows");
  h.view.room.serverOwned=true;h.Frame(0,2);
- Check(j.status==loc::T("room.public_status")&&!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room reads like a private one");
- h.view.room.locked=true;h.Frame(0,2);Check(j.status==loc::T("room.public_locked_status"),"A locked public room does not say so");
+ Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_status")&&!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room reads like a private one");
+ // A public room's line starts with its type.
+ h.view.room.arcade=room::ArcadeRoom;h.Frame(0,2);
+ Check(j.status==std::string(loc::T("room.type.arcade"))+" · "+loc::T("room.public_status"),"A public Arcade room's status line does not say Arcade");
+ h.view.room.arcade=room::ClassicRoom;
+ h.view.room.locked=true;h.Frame(0,2);Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_locked_status"),"A locked public room does not say so");
 }
 
 // A room whose control is lost offers a replacement, except a public room: its

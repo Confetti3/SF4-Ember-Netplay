@@ -46,6 +46,39 @@ bool WindowDrawn(const char* name) {
     return false;
 }
 namespace {
+// What lies behind a training shot's panel: the game as it is, or under the dimming a
+// confirmation modal draws (ModalWindowDimBg is the palette's ink, 72% opaque; see MenuDialogs.cxx).
+enum class Background { Plain, ModalDim };
+constexpr unsigned GameBackground = 0x2d2f31, ModalInk = 0x141312;
+constexpr float ModalDimAlpha = static_cast<int>(.72f * 255) / 255.f;
+inline unsigned ExpectedBackground(bool dimmed, float ratio) {
+    if (!dimmed) return GameBackground;
+    const float alpha = ModalDimAlpha * (std::min)(1.f, (std::max)(0.f, ratio));
+    unsigned out = 0;
+    for (int shift = 16; shift >= 0; shift -= 8) {
+        const float game = static_cast<float>((GameBackground >> shift) & 0xff), ink = static_cast<float>((ModalInk >> shift) & 0xff);
+        out |= static_cast<unsigned>(std::lround(game + (ink - game) * alpha)) << shift;
+    }
+    return out;
+}
+// Both corners must be the expected background, within a rounding step per channel when dimmed.
+inline bool GameBackgroundHolds(unsigned first, unsigned second, bool dimmed, float ratio) {
+    const unsigned want = ExpectedBackground(dimmed, ratio);
+    const int tolerance = dimmed ? 2 : 0;
+    for (const unsigned pixel : {first, second})
+        for (int shift = 0; shift <= 16; shift += 8)
+            if (std::abs(static_cast<int>((pixel >> shift) & 0xff) - static_cast<int>((want >> shift) & 0xff)) > tolerance) return false;
+    return true;
+}
+inline void CheckBackgroundExpectation() {
+    const unsigned dim = ExpectedBackground(true, 1.f);
+    Require(GameBackgroundHolds(GameBackground, GameBackground, false, 0) && !GameBackgroundHolds(dim, dim, false, 0), "Plain background check is not exact");
+    Require(GameBackgroundHolds(dim, dim, true, 1.f) && GameBackgroundHolds(ExpectedBackground(true, .3f), ExpectedBackground(true, .3f), true, .3f), "Intended modal dim was refused");
+    Require(!GameBackgroundHolds(0x000000, 0x000000, true, 1.f), "Opaque black passed as the modal dim");
+    Require(!GameBackgroundHolds(dim + 0x000a00, dim + 0x000a00, true, 1.f), "A wrong tint passed as the modal dim");
+    Require(!GameBackgroundHolds(dim, GameBackground, true, 1.f), "Unequal corners passed as the modal dim");
+    Require(!GameBackgroundHolds(GameBackground, GameBackground, true, 1.f), "An undimmed game passed as the modal dim");
+}
 struct Renderer {
     HWND window = nullptr;
     IDirect3D9* d3d = nullptr;
@@ -106,7 +139,7 @@ struct Renderer {
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
         device->EndScene();
     }
-    void Capture(const std::string& name, int width, int height, bool trainingOverlay = false) {
+    void Capture(const std::string& name, int width, int height, bool trainingOverlay = false, Background background = Background::Plain) {
         IDirect3DSurface9 *target = nullptr, *copy = nullptr;
         Require(SUCCEEDED(device->GetRenderTarget(0, &target)), "GetRenderTarget failed");
         HRESULT result = device->CreateOffscreenPlainSurface(width, height, D3DFMT_A8R8G8B8,
@@ -117,8 +150,12 @@ struct Renderer {
         D3DLOCKED_RECT pixels{};
         Require(SUCCEEDED(copy->LockRect(&pixels, nullptr, D3DLOCK_READONLY)), "Surface lock failed");
         if(trainingOverlay) {
-            const auto corner=*reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+5*pixels.Pitch+5*4);
-            Require((corner&0xffffff)==0x2d2f31,"Training rendering altered the game outside its panel");
+            const auto at=[&](int x,int y){return *reinterpret_cast<const unsigned*>(static_cast<const char*>(pixels.pBits)+y*pixels.Pitch+x*4)&0xffffff;};
+            // A modal dim is drawn at DimBgRatio of its full alpha, which is still rising a few frames in.
+            const float ratio=background==Background::ModalDim?GImGui->DimBgRatio:0.f;
+            if(!GameBackgroundHolds(at(5,5),at(width-6,height-6),background==Background::ModalDim,ratio)){
+                char hex[32];std::snprintf(hex,sizeof(hex),"%06x/%06x",at(5,5),at(width-6,height-6));
+                throw std::runtime_error("Training rendering altered the game outside its panel: "+name+" corners="+hex);}
         }
         BITMAPFILEHEADER file{}; BITMAPINFOHEADER info{};
         file.bfType = 0x4d42; file.bfOffBits = sizeof(file) + sizeof(info);
@@ -339,6 +376,8 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_match_hud.hxx"
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
+#include "ui_render_pictures.hxx"
+#include "ui_render_random_card.hxx"
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
 #include "ui_render_training_room.hxx"
@@ -614,6 +653,7 @@ int main(int argc, char** argv) {
     try {
         const bool headless = std::getenv("SF4E_UI_RENDER_HEADLESS") != nullptr;
         Require(!headless || argc == 1, "Headless UI checks cannot capture images");
+        CheckBackgroundExpectation();
         Renderer renderer(headless);
         if (const char* stress = std::getenv("SF4E_UI_RENDER_ATLAS_STRESS")) {
             StressAtlas(renderer, std::atoi(stress), 1);
@@ -662,7 +702,7 @@ int main(int argc, char** argv) {
         bool galleryShown = false;
         const std::vector<Size> sizes = chosenW > 0 ? std::vector<Size>{{chosenW,chosenH,chosenScale}} : quickMode == "narrow" ? std::vector<Size>{{640,720,1.5f}} : quickMode == "720" ? std::vector<Size>{{1280,720,1}} : quick ? std::vector<Size>{{1920,1080,1}} : translations ?
             std::vector<Size>{{640,720,1.5f}, {1280,720,1}, {1920,1080,1.5f}} :
-            std::vector<Size>{{1280,720,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
+            std::vector<Size>{{1280,720,1}, {1280,800,1}, {1920,1080,1}, {1920,1080,1.25f}, {1920,1080,1.5f}, {2560,1440,1.5f}, {640,720,1.5f}, {3440,1440,1.333f}, {3840,2160,2}, {3840,2160,3}, {1280,720,2}};
         std::printf("UI backend: %s\n", headless ? "headless ImGui geometry" :
             renderer.hardwareVertices ? "DX9" : "DX9, vertices on the CPU");
         int frames = 0;
@@ -693,10 +733,10 @@ int main(int argc, char** argv) {
             renderer.Resize(size.w,size.h);ImGui::CreateContext();
             auto& io=ImGui::GetIO();io.IniFilename=nullptr;io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));io.DeltaTime=1.f/60;
             ApplyTheme(size.dpi);renderer.Init();
-            ApplicationShell shell;ShellView view;bool open=true;
+            ApplicationShell shell;ShellView view;bool open=true;std::vector<std::string> exportsStarted;bool refuseExports=false;
             view.controllerReady=view.canChangeController=view.canEditPreferences=view.canEditSelection=view.canOpenRoom=view.helperReady=true;
             view.controller="Assigned controller";view.preferences.displayName="Ember Player";view.preferences.autoInputDelay=false;view.selectionSummary="Ryu / Original / Color 01 / Ultra I";
-            FighterSelector selector;selection::Pick pick;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
+            FighterSelector selector;selection::Pick pick;bool randomPick=false;int stage=0;selection::RandomPool stagePool(std::vector<std::int64_t>{0,15});
             const selection::InstalledContent* selectorContent=nullptr;
             auto availability=[](int id){selection::Availability a;a.ready=true;a.personalActions=0x3ff;
                 for(int c=0;c<selection::CostumeCount(id);++c){a.costumes|=1u<<c;a.colors[c]=(1u<<selection::ColorCount(id,c))-1;}return a;};
@@ -734,12 +774,13 @@ int main(int argc, char** argv) {
                             view.identity.ok=true;view.identity.failure.clear();return true;
                         }
                         if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
+                        if(a.replay.mode==replay::Mode::Export){if(refuseExports)return false;const auto& c=a.replay.caption;exportsStarted.push_back(a.replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
                         // A public room's ticket is answered with an admission to the room it asked for.
                         if(answerTickets&&a.tournament.op==netplay::tournament::Command::Op::RoomTicket){
                             view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
                             view.publicRooms.admission.room.id=a.tournament.roomId;
                         }
-                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent);});
+                        return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent,false,&randomPick);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});
                     else if(mode==4)DrawRecoveryMenu(recoveryMenu,recoveryState,recoveryMessage,recoveryUpdates,Tone::Error,false,true,&recoveryPick,recoveryReport);
                     if(mode==8)DrawReportPreviewMode(reportPanel,reportState);
@@ -785,7 +826,7 @@ int main(int argc, char** argv) {
                             ((std::string(shot)=="table-delay-checking" || std::string(shot)=="table-delay-retry" ||
                               std::string(shot)=="table-recover-updating" || std::string(shot)=="table-recover-leaving") &&
                              ((size.w==1280&&size.dpi==1) || (size.w==1920&&size.dpi==1.5f) || size.w==640))))
-                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2);
+                        renderer.Capture(output+shot+"-"+localePass.name+"-"+std::to_string(size.w)+"-"+std::to_string(static_cast<int>(size.dpi*100))+".bmp",size.w,size.h,mode==1||mode==2,mode==1&&TrainingNavigation().Confirming()?Background::ModalDim:Background::Plain);
                 }
             };
             // A Settings panel's screen ("tab-matches/training-replays") is shot without its slash.
@@ -794,10 +835,14 @@ int main(int argc, char** argv) {
             SetMenuGlyphs(3,0x40000,0x20000);
             ShootGameSettingsCard(view,draw);
             for(const char* screen:{"home","profile","main-character","online","create","join","tab-player","player","tab-matches/defaults","tab-matches/training-replays","tab-interface/match-hud","tab-interface/room-layout","tab-access/speech","tab-access/text","tab-online/discord","about"})page(screen);
+            // A Settings panel reaches the right end of the tabs over it wherever it shows beside its rail (a narrow window shows the rail alone).
+            {float tabsEnd=0;SetMenuCardProbe([&](const char* id,ImVec2,ImVec2 max){if(std::string(id)=="tabs")tabsEnd=max.x;});page("tab-access/text");SetMenuCardProbe({});
+             if(!ui::v2::Narrow(FindWindow("EmberShell")->Size.x,ui::Scale())){const auto* rows=FindWindow("settings rows");
+              Require(std::abs(rows->Pos.x+rows->Size.x-tabsEnd)<=1,"A Settings panel stops short of the tabs' right end");}}
             ShootButtonPrompts(shell,view,mode,draw,page);
             ShootControllers(shell,view,draw,page);
             ShootPadSetup(shell,view,draw,page);
-            ShootReplays(shell,view,draw,page);
+            ShootReplays(shell,view,draw,page,exportsStarted,refuseExports);
             ShootVersionAndChannel(shell,view,draw,page);
             ShootReportScreens(shell,view,draw,page,reportPanel,reportState,mode);
             view.preferences.autoInputDelay=true;page("tab-matches/defaults");view.preferences.autoInputDelay=false;
@@ -837,14 +882,16 @@ int main(int argc, char** argv) {
             }
             // The board with its Costume and Ultra values open, then the Ultra
             // row with each Ultra saved, then its pages.
+            // The board is the grid alone; a fighter's choices are on their own page.
             const auto boardRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Prefer(row);draw();};
+            const auto lookRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Prefer(row);draw();};
             for(const char* row:{"costume","ultra"}){
-                boardRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("board-")+row+"-values");
-                Require(selector.Navigation().Choosing(),"A board row did not open its values");
+                lookRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("look-")+row+"-values");
+                Require(selector.Navigation().Choosing(),"A fighter page row did not open its values");
                 // Select on the saved value closes the panel and keeps it.
                 draw(nullptr,MenuInput::Select,1);draw();
             }
-            boardRow("ultra");
+            lookRow("ultra");
             const int savedUltra=pick.ultra;
             for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
             pick.ultra=savedUltra;
@@ -852,12 +899,14 @@ int main(int argc, char** argv) {
                 selector.Navigation().Home();selector.Navigation().Push(screen);draw(screen);
             }
             CheckSelectOnRandomPoolRestoresStage(selector,stagePool,draw);
-            ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);
+            ShootCustomContent(selector,pick,stage,stagePool,selectorContent,draw);ShootRandomCard(selector,randomPick,draw);
             // The board opens on the saved fighter; two steps right land on another.
             const int saved=pick.fighter;boardRow(("fighter-"+std::to_string(saved)).c_str());
             draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Right,1);draw("fighter-focus");
             Require(pick.fighter==saved&&selector.Navigation().Focus().rfind("fighter-",0)==0,"Grid movement committed fighter or left the grid");
             draw(nullptr,MenuInput::Select,1);draw();Require(pick.fighter!=saved,"Select did not commit focused fighter");
+            Require(selector.Navigation().Screen()=="look","Select on a fighter did not open their page");draw("fighter-page");
+            draw(nullptr,MenuInput::Back,1);draw();Require(selector.Navigation().Screen()=="home","Back from a fighter's page did not return to the grid");
             const int lockedFighter=pick.fighter;
             view.canEditSelection=false;draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);draw(nullptr,MenuInput::Select,1);
             Require(pick.fighter==lockedFighter,"Locked fighter changed");draw("fighter-locked");view.canEditSelection=true;
@@ -881,6 +930,7 @@ int main(int argc, char** argv) {
             ShootMemberLatency(view,draw,page);
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");
+            ShootRoomPictures(view,draw,page);
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});

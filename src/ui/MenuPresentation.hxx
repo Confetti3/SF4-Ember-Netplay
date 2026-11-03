@@ -24,7 +24,7 @@ inline const char* MenuScreenName(const std::string& screen) {
         {"room-members",loc::T("screen.members")},{"room-member",loc::T("screen.member")},{"room-chat",loc::T("screen.chat")},
         {"room-admin",loc::T("screen.room_settings")},
         {"stage",loc::T("selection.stage")},{"options",loc::T("selection.additional_options")},
-        {"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"meter-settings",loc::T("training.meter.settings")},{"meter-classic",loc::T("training.meter.classic")},{"hitboxes",loc::T("training.hitboxes")},{"dummy",loc::T("training.dummy")},
+        {"frame-data",loc::T("training.frame_data")},{"hud",loc::T("training.hud")},{"meter-settings",loc::T("training.meter.settings")},{"meter-classic",loc::T("training.meter.classic")},{"hitboxes",loc::T("training.hitboxes")},{"data",loc::T("training.data")},{"dummy",loc::T("training.dummy")},
         {"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},
         {"recording",loc::T("screen.dummy_recording")},{"history",loc::T("screen.input_history")},{"developer","Developer"},
         {"recovery",loc::T("screen.recovery")},{"updates",loc::T("screen.updates")},{"replays",loc::T("replays.title")},{"news",loc::T("home.news")},{"notifications",loc::T("home.notifications")},{"news-updates",loc::T("home.news")},{"news-changelog",loc::T("home.news")},{"replay-sets",loc::T("replays.title")},{"replay-inputs",loc::T("replays.inputs")},{"replay-export",loc::T("export.title")},

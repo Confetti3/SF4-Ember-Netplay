@@ -32,14 +32,16 @@ netplay::PlayerPreferences Chosen(const netplay::PlayerPreferences& now) {
 	auto chosen = now;
 	chosen.roomColumn = now.roomColumn == 44 ? 48 : 44;
 	chosen.roomSplit = now.roomSplit == 62 ? 68 : 62;
-	chosen.roomShowMembers = !now.roomShowMembers; chosen.roomShowChat = !now.roomShowChat;
+	chosen.roomShowMembers = !now.roomShowMembers; chosen.roomShowChat = !now.roomShowChat; chosen.roomTableGrid = !now.roomTableGrid;
+	chosen.roomCharacterPictures = !now.roomCharacterPictures;
 	chosen.pictureMode = now.pictureMode == netplay::PictureBig ? netplay::PictureOff : netplay::PictureBig;
 	chosen.pictureSpot = (now.pictureSpot + 5) % 12;
 	return chosen;
 }
 bool SameLayout(const netplay::PlayerPreferences& a, const netplay::PlayerPreferences& b) {
 	return a.roomColumn == b.roomColumn && a.roomSplit == b.roomSplit && a.roomShowMembers == b.roomShowMembers &&
-		a.roomShowChat == b.roomShowChat && a.pictureMode == b.pictureMode && a.pictureSpot == b.pictureSpot;
+		a.roomShowChat == b.roomShowChat && a.roomTableGrid == b.roomTableGrid &&
+		a.roomCharacterPictures == b.roomCharacterPictures && a.pictureMode == b.pictureMode && a.pictureSpot == b.pictureSpot;
 }
 void SaveLayout(const netplay::PlayerPreferences& preferences) {
 	RuntimeCommand request = Command(CommandKind::SavePreferences);
@@ -57,7 +59,8 @@ bool Written(const netplay::PlayerPreferences& chosen) {
 		return nullptr;
 	};
 	return find("roomColumn") == chosen.roomColumn && find("roomSplit") == chosen.roomSplit &&
-		find("roomShowMembers") == chosen.roomShowMembers && find("roomShowChat") == chosen.roomShowChat &&
+		find("roomShowMembers") == chosen.roomShowMembers && find("roomShowChat") == chosen.roomShowChat && find("roomTableGrid") == chosen.roomTableGrid &&
+		find("roomCharacterPictures") == chosen.roomCharacterPictures &&
 		find("pictureMode") == chosen.pictureMode && find("pictureSpot") == chosen.pictureSpot;
 }
 

@@ -1,5 +1,6 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include "../ui/RoomPanelBoard.hxx"
 #include <algorithm>
 #include <iterator>
 #include <map>
@@ -95,7 +96,7 @@ void RoomLayoutSavesInRoom() {
   const auto e=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});
   return e!=rows.end()&&e->enabled;
  };
- for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","chat-filter","arrange-picture","arrange-reset"})
+ for(const char* id:{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"})
   Check(open(id),"A Room layout row was locked in a room");
  h.FocusOn("arrange-picture");
  const auto third=h.actions.size();
@@ -103,6 +104,15 @@ void RoomLayoutSavesInRoom() {
  sent=roomSaves(third);
  Check(!lockedSave(third)&&sent.size()==1&&sent[0].preferences.pictureMode==netplay::PictureBig&&
   sent[0].preferences.roomColumn==netplay::DefaultRoomColumn+2*netplay::RoomColumnStep,"Picture changed in a room was not saved by the room's own request");
+ // Pictures: Characters by default; Left turns it to Portraits, saved the same way.
+ h.view.preferences=sent[0].preferences;h.Frame();
+ Check(sent[0].preferences.roomCharacterPictures,"Pictures did not default to Characters");
+ h.FocusOn("arrange-pictures");
+ const auto fourth=h.actions.size();
+ h.Press(MenuInput::Left);h.Wait(1);h.Frame();
+ sent=roomSaves(fourth);
+ Check(!lockedSave(fourth)&&sent.size()==1&&!sent[0].preferences.roomCharacterPictures&&sent[0].preferences.pictureMode==netplay::PictureBig,
+  "Pictures changed in a room was not saved by the room's own request");
  // Matches names the same picture: its rows are open there, the rest of the panel is not.
  h.view.preferences=sent[0].preferences;h.Screen("tab-matches/training-replays");h.Frame();
  Check(open("watched-picture")&&open("picture-corner")&&open("picture-size")&&!open("replay-share"),
@@ -191,22 +201,40 @@ static void RoomBoardJourneys() {
  for(auto& table:h.view.room.tables)table.revision=7;
  room::Member local;local.id=1;local.name="Local";h.view.room.members.push_back(local);
  room::Member peer;peer.id=2;peer.name="Peer";h.view.room.members.push_back(peer);
- // The cards move as the grid they are drawn in: Right goes to the card beside,
- // and past the last column to the members.
- h.Frame();h.Screen("room");h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-1","Right did not reach the card beside");
+ // One table per line: Down goes to the next table.
+ h.Frame();h.Screen("room");h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="table-1","Down did not reach the next table");
+ // With Tables set to Grid the cards move as the grid they are drawn in:
+ // Right goes to the card beside, and past the last column to the members.
+ h.Press(MenuInput::Up);Check(h.shell.Navigation().Focus()=="table-0","Up did not return to the first table");
+ h.view.preferences.roomTableGrid=true;h.Frame();h.Frame();
+ h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="table-1","Right did not reach the card beside");
  h.Press(MenuInput::Right);Check(h.shell.Navigation().Focus()=="member-1","Right did not enter member pane");
  h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="member-2","Member focus order changed");
  h.view.room.members.pop_back();h.Frame();Check(h.shell.Navigation().Focus()=="room-members","Disappeared member did not choose nearest entry");
  h.view.room.members.push_back(peer);h.Press(MenuInput::Left);h.Screen("room");
- h.view.preferences.mainFighter=8;h.view.selectedFighter=0;
+ h.view.preferences.mainFighter=8;h.view.selectedPick.fighter=0;
  h.view.room.members[1].mainFighter=9;h.view.room.members[1].fighter=2;
  h.view.room.tables[0].p1=1;h.view.room.tables[0].p2=2;
  // The Members list shows each member's saved main, not the fighter they battle with.
  h.Screen("room-members");
- std::vector<int> portraits;SetPortraitProbe([&](int fighter,ImVec2,ImVec2){portraits.push_back(fighter);});
+ std::vector<int> portraits;SetPortraitProbe([&](const FighterPicture& picture,ImVec2,ImVec2){portraits.push_back(picture.fighter);});
  h.Frame();SetPortraitProbe({});
  Check(portraits==std::vector<int>({8,9}),"Member portraits must use saved mains, not battle fighters");
  h.Screen("room");
+ // Your own seat shows your pick's costume, colour and Ultra at once, before
+ // Ready shares them; a Random pick names the fighter it rolled.
+ h.view.selectedPick.costume=1;h.view.selectedPick.color=3;h.view.selectedPick.ultra=1;
+ std::vector<FighterPicture> seats;SetPortraitProbe([&](const FighterPicture& picture,ImVec2,ImVec2){seats.push_back(picture);});
+ h.Frame();SetPortraitProbe({});
+ Check(std::any_of(seats.begin(),seats.end(),[](const FighterPicture& p){return p.fighter==0&&p.art==FighterArt::Character&&p.costume==1&&p.color==3;}),
+  "Your own seat did not show your pick's costume and colour before Ready");
+ const auto ownLook=SeatLookOf(h.view,h.view.room.members[0]);
+ Check(SeatCaption(ownLook)==loc::Tf("room.seat_look",selection::FindFighter(0)->name,ShortCostumeLabel(h.view.selectedPick),UltraLabel(1)),
+  "Your own seat's line did not name your pick's costume and Ultra");
+ h.view.selectedRandom=true;
+ Check(SeatCaption(SeatLookOf(h.view,h.view.room.members[0])).rfind(loc::Tf("selection.random_fighter",selection::FindFighter(0)->name),0)==0,
+  "Your own Random seat did not name the fighter it rolled");
+ h.view.selectedRandom=false;h.view.selectedPick=selection::Pick{};
  h.view.room.tables[0].p1=h.view.room.tables[0].p2=0;
  // A on an empty table opens the seat chooser: P1 left, P2 right, B cancels.
  h.Choose("table-2");Check(h.shell.Navigation().Choosing(),"A on an empty table did not open the seat chooser");
@@ -649,7 +677,7 @@ void ArcadeJourneys() {
   const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
   t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.score[0]=t.score[1]=0;
   t.p2=0;k.view.room.members[1].table=-1;k.view.room.members[1].seat=-1;
-  k.view.session.match=netplay::MatchState::Playing;k.view.atMainMenu=false;k.view.matchResult=true;k.Frame();
+  k.view.session.match=netplay::MatchState::Playing;k.view.atMainMenu=false;k.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};k.view.matchResult=true;k.Frame();
   Check(k.shell.Navigation().Screen()=="post-match"&&row("again")==rows.end()&&row("back")!=rows.end(),"King of the hill offered a Rematch after a set");
   // The buttons are the rows: Character select and Back to room, each its own action.
   Check(rows.size()==2&&rows[0].id=="fighter"&&rows[1].id=="back","King of the hill's buttons were not Character select and Back to room");
@@ -705,7 +733,7 @@ void ArcadeJourneys() {
   const auto setOver=[&](std::uint64_t game){
    t.matchGeneration=game;t.phase=room::TablePhase::Playing;t.lastSet.generation=game;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;
    t.deciding=true;t.rematch[0]=t.rematch[1]=false;a.view.matchResult=false;a.Frame();
-   a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+   a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};a.view.matchResult=true;a.Frame();
   };
   const auto gameOver=[&]{a.view.matchResult=false;a.view.session.match=netplay::MatchState::PostMatch;a.view.atMainMenu=true;
    t.phase=room::TablePhase::Waiting;a.open=true;a.Frame(0,5);};
@@ -738,7 +766,50 @@ void ArcadeJourneys() {
   // A Back mashed through the WIN keeps the cabinet.
   const auto backed=a.actions.size();a.Press(MenuInput::Back);a.Press(MenuInput::Back);gameOver();
   Check(!leftCabinet(backed),"Back to room after an Arcade set left the cabinet");
+  // Both choose Rematch: the prompt waits past its timer while the other
+  // decides, and once the room asks no more it readies the player for the
+  // next set itself, rather than sending them back to the room unready.
+  setOver(7);a.Choose("rematch");t.rematch[0]=true;a.Wait(11);
+  Check(a.shell.Navigation().Screen()=="post-match","The prompt gave up on a pair whose Rematch was chosen while the other decided");
+  const auto paired=a.actions.size();t.deciding=false;t.rematch[0]=false;t.phase=room::TablePhase::Waiting;a.Frame();
+  Check(a.actions.size()==paired+1&&a.actions.back().command.kind==Kind::Rematch,"Both choosing Rematch did not ready the player for the next set");
+  a.Frame(0,3);
+  Check(a.actions.size()==paired+1&&a.shell.Navigation().Screen()=="post-match","The pair's Rematch was sent twice or the prompt left");
+  gameOver();
+  // Rematch, then Back before the other answered: once both answers end the
+  // room's question, the prompt readies nobody who last chose Back.
+  setOver(8);a.Choose("rematch");t.rematch[0]=true;a.Frame();a.Press(MenuInput::Back);
+  const auto withdrawn=a.actions.size();t.deciding=false;t.rematch[0]=false;t.phase=room::TablePhase::Waiting;a.Frame(0,3);
+  Check(std::none_of(a.actions.begin()+static_cast<std::ptrdiff_t>(withdrawn),a.actions.end(),
+   [](const ShellAction& x){return x.command.kind==Kind::Rematch;}),"A Rematch taken back with Back still readied the player");
   SetMenuEntriesProbe({});
+ }
+ for(const auto type:{room::ArcadeRoom,room::KingRoom}){
+  // The set's loser, whom the room moved on to wait at another table before
+  // the WIN was over, still gets the prompt of the game they fought: the
+  // winner stays on, the loser waits, and there is nothing to choose.
+  Harness a;JoinedRoom(a,19);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=type;
+  room::Member local;local.id=1;local.name="Local";local.table=1;local.seat=0;a.view.room.members.push_back(local);
+  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
+  room::Member third;third.id=3;third.name="Third";third.table=0;third.seat=0;a.view.room.members.push_back(third);
+  a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;
+  // Third waited alone at table 1: they now play the winner at table 0, and the loser waits at table 1.
+  auto& t=a.view.room.tables[0];t.p1=3;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Waiting;t.rules.format=room::SetFormat::Ft2;
+  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=1;t.lastSet.score[1]=2;
+  a.view.room.tables[1].p1=1;
+  a.Screen("room");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
+  const auto has=[&](const char* id){return std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;
+  a.view.foughtGame={0,5,room::MatchResult::P2Win};a.view.matchResult=true;a.Frame();
+  const std::string mode=type==room::ArcadeRoom?"Arcade":"King of the hill";
+  Check(a.shell.Navigation().Screen()=="post-match"&&has("fighter")&&has("back")&&!has("again"),
+   ("The loser of an "+mode+" set moved to another table got no prompt").c_str());
+  Check(words["pm-you"]==loc::T("postmatch.king.waits")&&words["pm-opponent"]==loc::T("postmatch.king.stays"),
+   ("The loser of an "+mode+" set was not shown waiting while the winner stays on").c_str());
+  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
  }
  {
   // PostMatchFocusedButtonInView: the Arcade decision's four buttons, on a
@@ -760,7 +831,7 @@ void ArcadeJourneys() {
    // The clip is whole pixels, the button not: a pixel's slack.
    inView[id]=min.x>=lo.x-1&&min.y>=lo.y-1&&max.x<=hi.x+1&&max.y<=hi.y+1;top[id]=min.y;content[id]=min.y-ImGui::GetWindowPos().y+ImGui::GetScrollY();});
   t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.deciding=true;
-  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};a.view.matchResult=true;a.Frame();
   const char* const buttons[]={"rematch","new-opponent","fighter","back"};
   Check(a.shell.Navigation().Screen()=="post-match"&&rows.size()==4,"The Arcade decision prompt did not open with its four buttons");
   a.Frame(0,2);
@@ -810,7 +881,7 @@ void ArcadeJourneys() {
   const std::string mode=type==room::ArcadeRoom?"Arcade":"King of the hill";
   const auto offered=[&]{return a.shell.Navigation().Screen()=="post-match"&&row("again")!=rows.end()&&row("again")->enabled&&
    row("rematch")==rows.end()&&row("new-opponent")==rows.end();};
-  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.matchResult=true;a.Frame();
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};a.view.matchResult=true;a.Frame();
   Check(offered(),("A lone pair in "+mode+" was not offered the ordinary Rematch before the room had the result").c_str());
   t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=1;t.score[0]=t.score[1]=0;a.Frame();
   Check(offered(),("A lone pair in "+mode+" was not offered the ordinary Rematch").c_str());
@@ -858,7 +929,7 @@ void PostMatchJourneys() {
   const auto it=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
   if(it==rows.end())throw std::runtime_error(std::string("Post-match row missing: ")+id+" on "+h.shell.Navigation().Screen()+" after "+std::to_string(h.actions.size())+" actions");return *it;};
  std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
- const auto win=[&]{h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.matchResult=true;h.Frame();};
+ const auto win=[&]{h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};h.view.matchResult=true;h.Frame();};
  const auto gameOver=[&]{h.view.matchResult=false;h.view.session.match=netplay::MatchState::PostMatch;h.view.atMainMenu=true;
   t.phase=room::TablePhase::Waiting;h.open=true;h.Frame();};
  win();
@@ -892,6 +963,15 @@ void PostMatchJourneys() {
  h.view.rematchChoices=0;h.view.matchResult=false;h.view.gamesInPlace=1;h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match","A rematch in place did not end the prompt");
  win();Check(h.shell.Navigation().Screen()=="post-match"&&row("again").enabled,"The next WIN in the same battle opened no prompt");
+ // That game ended the match: both chose Rematch and the battle closes for the
+ // next one to load. The count of games in place starts again from none then,
+ // which ends no prompt: it covers the main menu until the next game plays.
+ h.Choose("again");
+ h.view.gamesInPlace=0;h.view.session.match=netplay::MatchState::Preparing;h.view.atMainMenu=true;
+ t.phase=room::TablePhase::Waiting;t.ready[0]=t.ready[1]=true;h.Frame();
+ Check(h.shell.Navigation().Screen()=="post-match","The battle closing after a game in place showed the room before the next game loaded");
+ h.view.matchResult=false;h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;t.matchGeneration=7;t.phase=room::TablePhase::Playing;h.Frame();
+ Check(h.shell.Navigation().Screen()!="post-match","The next game playing did not end the prompt kept over a closed battle");
  h.view.matchResult=false;h.view.gamesInPlace=0;t.ready[0]=t.ready[1]=false;h.Frame();
  // No answer with no set length: Ember steps aside over WIN, then leaves the seat in the room.
  h.view.matchResult=false;h.Frame();win();const auto before=h.actions.size();h.Wait(11);
@@ -913,7 +993,7 @@ void PostMatchJourneys() {
   "Back to room over the WIN did not keep the choice shown");
  gameOver();h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==backed,"Back to room gave up the seat once the game was over");
- h.view.matchResult=true;h.Frame();
+ h.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};h.view.matchResult=true;h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match","A result after the game was over opened the prompt over the room");
  h.view.matchResult=false;h.Frame();
  // Inside a set: Next game, and Back keeps the seat.
@@ -921,6 +1001,12 @@ void PostMatchJourneys() {
  win();Check(row("again").label==loc::T("postmatch.next_game")&&row("again").enabled,"A set's game did not offer Next game despite the queue");
  const auto midSet=h.actions.size();h.Press(MenuInput::Back);gameOver();h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==midSet,"Back inside a set left the seat");
+ // The game that wins the set, its result known before the room ends the set:
+ // Rematch, not Next game, so nobody takes the set for going on.
+ t.matchGeneration=20;t.phase=room::TablePhase::Playing;t.score[0]=1;h.view.matchResult=false;h.Frame();
+ h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.foughtGame={0,20,room::MatchResult::P1Win};h.view.matchResult=true;h.Frame();
+ Check(row("again").label==loc::T("postmatch.rematch"),"The game that won the set offered Next game before the room ended the set");
+ h.Press(MenuInput::Back);gameOver();h.Frame();t.score[0]=0;
  // The set over, someone queued: no rematch.
  t.matchGeneration=8;t.phase=room::TablePhase::Playing;t.lastSet.generation=8;t.lastSet.p1=1;t.lastSet.p2=2;h.view.matchResult=false;h.Frame();win();
  Check(row("again").label==loc::T("postmatch.rematch")&&!row("again").enabled&&row("again").detail==loc::T("postmatch.queue_waiting"),
@@ -951,7 +1037,7 @@ void PostMatchJourneys() {
  // A direction still held from the fight when the WIN opens the prompt must
  // not keep the confirm pressed beside it from choosing Rematch.
  t.matchGeneration=10;t.phase=room::TablePhase::Playing;h.view.matchResult=false;h.Frame();
- h.view.matchResult=true;h.Frame(MenuInput::Down);
+ h.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};h.view.matchResult=true;h.Frame(MenuInput::Down);
  Check(h.shell.Navigation().Screen()=="post-match"&&h.shell.Navigation().Focus()=="again","The WIN with a direction held opened no prompt on Rematch");
  const auto held=h.actions.size();h.Frame(MenuInput::Down|MenuInput::Select);
  Check(h.actions.size()==held+1&&h.actions.back().command.kind==Kind::Rematch,"Rematch pressed beside a held direction was swallowed");
@@ -964,6 +1050,15 @@ void PostMatchJourneys() {
  Check(h.shell.Navigation().Screen()!="post-match","Back chosen kept the prompt over a room that was closing");
  h.view.session.room=netplay::RoomState::Joined;gameOver();h.Frame();
  Check(h.actions.size()==gone,"A prompt closed with its room still left the seat afterwards");
+ // No answer hides Ember over the WIN, and it stays hidden through the next
+ // game: that game's WIN still opens its own prompt.
+ const auto hidden=[&]{ImGui::NewFrame();h.shell.Background(h.view,h.view.room,[&](ShellAction a){h.actions.push_back(a);return true;});ImGui::Render();};
+ t.matchGeneration=12;t.phase=room::TablePhase::Playing;h.view.matchResult=false;h.Frame();
+ win();h.Wait(11);
+ Check(!h.open&&h.shell.Navigation().Screen()!="post-match","No answer did not hide Ember over the WIN");
+ h.view.matchResult=false;hidden();t.matchGeneration=13;hidden();
+ h.open=true;win();
+ Check(h.shell.Navigation().Screen()=="post-match","A WIN after one whose prompt closed with Ember hidden opened no prompt");
  SetMenuCardProbe({});
  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
 }

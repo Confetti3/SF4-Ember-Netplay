@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 // Little-endian reads from a game file held in memory, shared by the file
 // readers. Offsets are 64-bit so a 32-bit offset from the file can be added
@@ -13,5 +14,12 @@ struct ByteReader {
     bool Has(std::uint64_t at, std::uint64_t count) const { return at <= size && count <= size - at; }
     std::uint16_t U16(std::uint64_t at) const { return static_cast<std::uint16_t>(data[at] | data[at + 1] << 8); }
     std::uint32_t U32(std::uint64_t at) const { return U16(at) | static_cast<std::uint32_t>(U16(at + 2)) << 16; }
+    // The zero-ended text at `at`; empty at offset 0, or when it runs off the
+    // data or past `max` bytes.
+    std::string Text(std::uint64_t at, std::size_t max) const {
+        std::size_t length = 0;
+        while (length < max && Has(at + length, 1) && data[at + length]) ++length;
+        return at && length < max && Has(at + length, 1) ? std::string(reinterpret_cast<const char*>(data + at), length) : std::string();
+    }
 };
 }

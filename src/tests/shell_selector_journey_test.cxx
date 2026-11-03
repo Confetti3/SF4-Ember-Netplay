@@ -49,3 +49,45 @@ void DeveloperSelectors() {
  h.Choose("selection");h.Frame();
  Check(h.shell.Navigation().Screen()=="selection","A Close left by the developer screen popped the next Fighter select");
 }
+// Random is the grid's last card, where USFIV has its own: the pad and the
+// keyboard reach it, Select saves Random and Select on a fighter ends it. A
+// winner who keeps their fighter cannot choose it.
+void SelectorRandomTile() {
+ using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;bool random=false,kept=false;
+ auto& io=ImGui::GetIO();
+ const auto key=[&](ImGuiKey k){h.Frame();io.AddKeyEvent(k,true);h.Frame();io.AddKeyEvent(k,false);h.Frame();};
+ h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true,{},nullptr,nullptr,kept,&random);};h.view.canEditSelection=true;
+ h.Screen("home");h.Choose("selection");
+ auto& nav=selector.Navigation();
+ Check(nav.Screen()=="home"&&nav.Focus()=="fighter-0","Fighter select did not open on the saved fighter");
+ // Ryu is the second card of the first line; Random is the fifth of the sixth.
+ for(int i=0;i<5;++i)h.Press(MenuInput::Down);
+ for(int i=0;i<3;++i)h.Press(MenuInput::Right);
+ Check(nav.Focus()=="random-fighter","The pad did not reach the Random card");
+ h.Press(MenuInput::Select);
+ Check(random&&pick.fighter==0&&nav.Screen()=="home","Select on Random did not save Random");
+ // The keyboard: Left to the last fighter, Right back to Random.
+ key(ImGuiKey_LeftArrow);
+ Check(nav.Focus()=="fighter-"+std::to_string(selection::RosterDisplayOrder[selection::FighterCount-1]),"Left from Random did not reach the last fighter");
+ key(ImGuiKey_RightArrow);
+ Check(nav.Focus()=="random-fighter","The keyboard did not reach the Random card");
+ // Random saved: Select opens the rolled fighter's page, the rest of the pick.
+ key(ImGuiKey_Enter);
+ Check(random&&nav.Screen()=="look","Select on a saved Random did not open the fighter's page");
+ key(ImGuiKey_Backspace);
+ // Select on a fighter saves that fighter and ends Random.
+ key(ImGuiKey_LeftArrow);key(ImGuiKey_Enter);
+ Check(!random&&pick.fighter==selection::RosterDisplayOrder[selection::FighterCount-1]&&nav.Screen()=="look",
+  "Select on a fighter did not end Random");
+ key(ImGuiKey_Backspace);
+ // A winner who keeps their fighter: Random is there, but chooses nothing.
+ kept=true;key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(!random&&nav.Focus()=="random-fighter","A winner who keeps their fighter could choose Random");
+ // Without a place for the choice (Training's dummy) the grid has no Random card.
+ kept=false;bool seen=false;
+ SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){
+  seen=seen||std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="random-fighter";});});
+ h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};h.Frame(0,2);
+ SetMenuEntriesProbe({});
+ Check(!seen,"A selector with no Random choice drew the Random card");
+}

@@ -358,7 +358,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->teardown.pendingAbort != nullptr);
     mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
-    mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1));
+    mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1)); mix(CurrentRandomFighter().serial);
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
     mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
@@ -373,6 +373,7 @@ std::uint64_t PublishFingerprint() {
     mixString(runtime->padHint);
     mix(AtMainMenu());
     mix(Game::Battle::System::rematchChoices); mix(Game::Battle::System::GamesPlayedInPlace());
+    mix(static_cast<std::uint64_t>(Game::Battle::System::GameResult()));
     return h;
 }
 }
@@ -621,6 +622,7 @@ PostPublishState Publish() {
 	snapshot.replays.meterShown = snapshot.replays.playback.playback && snapshot.replays.playback.meter;
 	if (snapshot.replays.playback.playback) snapshot.replays.lanes = replayplayback::GetLanes();
 	snapshot.replays.exportStage = replays.exportStage; snapshot.replays.exportFrames = replays.exportFrames; snapshot.replays.exportTotal = replays.exportTotal;
+	snapshot.replays.exportEnded = replays.exportEnded; snapshot.replays.exportSaved = replays.exportSaved;
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
 	snapshot.replays.archive = platform::replays::LatestListing();
 	snapshot.replays.detail = platform::replays::LatestDetail();
@@ -632,6 +634,8 @@ PostPublishState Publish() {
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
     snapshot.rematchChoices = Game::Battle::System::rematchChoices;
     snapshot.gamesInPlace = Game::Battle::System::GamesPlayedInPlace();
+    if (runtime->entry.matchEntered && !LocalIsSpectator())
+        snapshot.foughtGame = {runtime->entry.enteredTable, runtime->entry.enteredGeneration, Game::Battle::System::GameResult()};
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<selection::FighterCount;++fighter)
@@ -695,6 +699,7 @@ PostPublishState Publish() {
         runtime->readyIntent.Armed() ? netplay::ReadyPress::Sent : netplay::ReadyPress::None;
     snapshot.readyFailure = runtime->readyFailure; snapshot.readyFailureSequence = runtime->readyFailureSequence;
     snapshot.opponentChangedFighter = runtime->opponentFighterWatch.Pending(); snapshot.opponentChangeSequence = runtime->opponentChangeSequence;
+    { const auto roll = CurrentRandomFighter(); snapshot.randomFighter = roll.fighter; snapshot.randomRoll = roll.serial; }
     snapshot.trainingCallSequence = runtime->trainingCallSequence; snapshot.trainingReadySequence = runtime->trainingReadySequence;
     snapshot.trainingReadySeconds = static_cast<int>((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     snapshot.trainingCall = runtime->trainingCall.Identity();

@@ -1666,12 +1666,21 @@ int main() try {
         Check(cabinet && *cabinet < 8, "Left from the first member did not reach a top-row cabinet");
         focus("cabinet-0"); frame(); press(MenuInput::Left);
         Check(at() == "cabinet-0", "Left on cabinet 1 moved the focus");
-        // ClassicV2CardsMoveAsGrid: two cards across at this size.
+        // ClassicV2CardsOnePerLine: the default lays one table per line, so
+        // Down goes to the next table and Right leaves the tables for the members.
+        board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
+        focus("table-0"); frame(); press(MenuInput::Down);
+        Check(at() == "table-1", "Down from table 1 did not reach table 2 under it");
+        focus("table-0"); frame(); press(MenuInput::Right);
+        Check(RowKey(at(), "member-").has_value(), "Right from a table did not reach the members");
+        // ClassicV2CardsMoveAsGrid: with Tables set to Grid, two cards across at this size.
+        view.preferences.roomTableGrid = true;
         board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
         focus("table-0"); frame(); press(MenuInput::Right);
         Check(at() == "table-1", "Right from table 1 did not reach table 2 beside it");
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-2", "Down from table 1 did not reach table 3 under it");
+        view.preferences.roomTableGrid = false;
         // V2BoardDrawsEveryFocusableRow: wide, short (1280x720), narrow and
         // ultra-wide, every row the pad can focus is drawn as a box the mouse can press.
         const std::pair<float, ImVec2> sizes[] = {{1.f, {1920, 1080}}, {1.f, {1280, 720}}, {1.5f, {1280, 720}}, {1.f, {3840, 1080}}};

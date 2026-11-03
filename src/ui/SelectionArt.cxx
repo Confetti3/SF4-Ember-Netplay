@@ -431,6 +431,29 @@ SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
     Impl::Policy portrait; portrait.cropToContent = portrait.reportAbsence = true;
     return impl_->Request(impl_->requestKey.assign(key).append(large ? "-large" : "-thumb"), paths, large ? MaximumImageSide : ThumbnailSide, portrait);
 }
+SelectionImage SelectionArt::Character(int fighterId, int costume, int color, bool large) {
+    const auto* fighter = selection::FindFighter(fighterId);
+    if (!fighter) return {};
+    // A look this fighter has no such costume or colour for is drawn in the original outfit.
+    if (!selection::ColorInRange(fighterId, costume, color)) costume = color = 0;
+    const auto paths = [&] {
+        // Custom content is this PC's own install, else what the game plays in
+        // its place (ResolveAppearance): the original outfit for a custom
+        // costume, the costume's first colour for a custom colour.
+        const bool customCostume = selection::IsCustomCostume(costume), customColor = selection::IsCustomColor(color);
+        auto list = customCostume || customColor ? impl_->CustomCostumePaths(fighter->code, costume, color) : std::vector<std::wstring>{};
+        const auto add = [&](int outfit, int palette) {
+            const auto more = impl_->ImagePaths(std::string(fighter->code) + "/costume-" + std::to_string(outfit) + "/color-" + std::to_string(palette));
+            list.insert(list.end(), more.begin(), more.end());
+        };
+        if (!customCostume) add(costume, customColor ? 0 : color);
+        if (costume != 0 || color != 0) add(0, 0);
+        return list;
+    };
+    Impl::Policy figure; figure.cropToContent = figure.reportAbsence = true;
+    auto& key = impl_->requestKey.assign(fighter->code).append("/costume-").append(std::to_string(costume)).append("/color-").append(std::to_string(color));
+    return impl_->Request(key.append(large ? "/figure-large" : "/figure-thumb"), paths, large ? MaximumImageSide : ThumbnailSide, figure);
+}
 SelectionImage SelectionArt::Appearance(int fighterId, int costume, int color) {
     const auto* fighter = selection::FindFighter(fighterId);
     if (!fighter || !selection::ColorInRange(fighterId, costume, color)) return {};
@@ -450,7 +473,9 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
 }
 SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
     // Read from the game at runtime like the portraits, and never repackaged.
-    Impl::Policy emblem; emblem.reportAbsence = true;
+    // Cropped to the painted emblem: the Master and Grand Master crowns sit
+    // small and off centre in their canvases, unlike the classes' bubbles.
+    Impl::Policy emblem; emblem.cropToContent = emblem.reportAbsence = true;
     return impl_->Request("classes/" + entry, [&] {
         return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/network_mode/Ranking.emz"};
     }, NativeSide, emblem, entry);

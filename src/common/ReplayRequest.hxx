@@ -4,6 +4,7 @@
 // the game: one path and one thing to do with it. The shell makes it, the
 // runtime carries it to the game thread, and sf4e__ReplayStore runs it.
 
+#include <cstdint>
 #include <string>
 
 namespace sf4e { namespace replay {
@@ -16,7 +17,8 @@ namespace sf4e { namespace replay {
 // DismissLink: the player declined the replay a link asked for; no path.
 // CancelExport: stop the running export and keep no video of it; no path.
 // ImportPack: put every game of the set pack at `path` into Ember's archive.
-enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink, CancelExport, ImportPack };
+// Keep: mark the replay at `path` as kept, or no longer kept (keep).
+enum class Mode { None, Add, Watch, Export, OpenLog, DismissLink, CancelExport, ImportPack, Keep };
 
 // What an export draws over the game while it records, on screen and so in
 // the video: each part on or off, with the text the player left in it.
@@ -27,6 +29,10 @@ struct Caption {
 	bool names = false, line = false, set = false, mark = false;
 	std::string name[2], text;
 	int wins[2] = {0, 0};
+	// Each player's class on Ember's rankings, its band (common/SkillBadge.hxx:
+	// 1 for D to 10 for Grand Master), drawn as USF4's own emblem on their
+	// name's plate; 0 for none.
+	std::uint8_t band[2] = {0, 0};
 	bool Any() const { return names || line || set || mark; }
 };
 
@@ -38,6 +44,11 @@ struct Request {
 	// With Watch or Export: the Training frame meter over the replay
 	// (training/TrainingRuntime.hxx: ObserveMatch), and in the video too.
 	bool meter = false;
+	// With Keep: kept, or no longer.
+	bool keep = false;
+	// With Export: the sender's number for it (not 0), which the export's
+	// end is told with (sf4e__ReplayStore.hxx: Status).
+	std::uint64_t id = 0;
 };
 
 } }

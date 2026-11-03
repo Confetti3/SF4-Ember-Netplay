@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "내 리플레이 공유"
 
 msgid "replays.share_detail"
-msgstr "지금부터 플레이하는 경기를 내 이름과 국가와 함께 브리지의 공개 리플레이 보관소로 보냅니다. 상대방 이름은 상대도 공유할 때만 표시됩니다. 공식 대회 경기는 항상 공유되며 두 선수의 이름이 표시됩니다."
+msgstr "지금부터 플레이하는 경기를 내 이름과 국가와 함께 브리지의 공개 리플레이 보관소로 보냅니다. 상대방 이름은 상대도 공유할 때만 표시됩니다. 공식 대회 경기는 항상 공유되며 두 선수의 이름이 표시됩니다. 두 선수의 이름이 표시된 보관 경기는 Ember의 YouTube 채널에도 공개될 수 있습니다. Discord에 로그인한 동안에만 공유됩니다(설정 > 온라인 > Discord)."
 
 msgid "replays.link"
 msgstr "링크의 리플레이 재생"
@@ -931,14 +931,8 @@ msgstr "Ember 메뉴를 나가 리플레이를 재생하는 게임의 Battle Log
 msgid "replays.open_log_room"
 msgstr "먼저 방에서 나가세요."
 
-msgid "replays.tournaments"
-msgstr "대회"
 
-msgid "replays.tournaments_detail"
-msgstr "대회에서 플레이한 세트입니다. 각 세트에 모든 경기가 들어 있습니다."
 
-msgid "replays.set_detail"
-msgstr "선택하여 세트의 경기를 순서대로 보거나, 한 경기를 고르거나, 세트를 파일 하나로 저장하세요."
 
 msgid "replays.set_value"
 msgstr "리플레이 {0}개 · 룸 {1}개"
@@ -968,7 +962,7 @@ msgid "replays.export_set"
 msgstr "세트 동영상 내보내기"
 
 msgid "replays.export_set_detail"
-msgstr "각 경기의 동영상을 차례로 준비합니다. 자막에는 그때까지의 세트 점수가 들어갑니다. 하나가 만들어지면 리플레이 상단의 세트 다음 동영상으로 다음을 준비합니다."
+msgstr "첫 경기의 동영상을 준비하고 캡션에 그때까지의 세트 점수를 넣습니다. 동영상이 만들어지면 다음 경기의 동영상이 저절로 이어집니다. 실패한 뒤에는 리플레이 맨 위의 세트의 다음 동영상으로 이어갑니다."
 
 msgid "replays.next_video"
 msgstr "세트 다음 동영상 ({0}/{1})"
@@ -1062,6 +1056,9 @@ msgstr "전적을 확인할 수 없습니다. 원래 설정은 보존됩니다."
 
 msgid "profile.record_value"
 msgstr "{0}승 / {1}패"
+
+msgid "profile.win_rate"
+msgstr "승률 {0}%"
 
 msgid "profile.choose_main_title"
 msgstr "주 캐릭터 선택"
@@ -2286,6 +2283,15 @@ msgstr "승리 대사"
 msgid "selection.random"
 msgstr "랜덤"
 
+msgid "selection.random_card"
+msgstr "랜덤"
+
+msgid "selection.random_card.detail"
+msgstr "게임마다 보유한 캐릭터 중에서 새로 뽑습니다."
+
+msgid "selection.random_fighter"
+msgstr "랜덤 · {0}"
+
 msgid "selection.random_stage"
 msgstr "랜덤"
 
@@ -3118,6 +3124,24 @@ msgstr "관전 확정 해제"
 
 msgid "room.unlock_spectating.detail"
 msgstr "관전 확정 중입니다. 다음 대전이 최대 {0}초 동안 복귀를 기다립니다. 관전을 그만두거나 다른 테이블로 옮기면 해제됩니다."
+
+msgid "room.follow"
+msgstr "방 따라가기"
+
+msgid "room.follow.detail"
+msgstr "대전 중인 테이블을 관전합니다. 관전 중인 테이블이 멈추면 방의 다음 대전으로 옮깁니다."
+
+msgid "room.follow.stop"
+msgstr "따라가기 중지"
+
+msgid "room.follow.stop_detail"
+msgstr "방을 따라가는 중 · 테이블 {0}. 중지하면 관전 중인 테이블에 남습니다."
+
+msgid "room.follow.following"
+msgstr "방을 따라가는 중 · 테이블 {0}"
+
+msgid "room.follow.locked_in"
+msgstr "먼저 관전 확정 해제를 하세요. 따라가는 동안 테이블을 옮깁니다."
 
 msgid "room.lock_in_ended.stopped"
 msgstr "관전 확정 해제됨: 관전을 그만두었습니다."
@@ -5095,6 +5119,126 @@ msgstr "골격"
 msgid "training.hitboxes.part.detail"
 msgstr "히트박스의 이 부분을 대전 위에 그립니다."
 
+msgid "training.data"
+msgstr "데이터 패널"
+
+msgid "training.data.detail"
+msgstr "각 캐릭터의 스크립트, 위치, 자세, 게이지, 저글 카운트, 모으기를 게임이 매 프레임 가진 값 그대로 대전 옆에 보여 줍니다."
+
+msgid "training.data.fighters"
+msgstr "캐릭터"
+
+msgid "training.data.fighters.detail"
+msgstr "두 캐릭터의 패널을 각각 체력 게이지 아래에, 또는 한쪽만 표시합니다."
+
+msgid "training.data.fighters.both"
+msgstr "둘 다"
+
+msgid "training.data.fighters.p1"
+msgstr "P1만"
+
+msgid "training.data.fighters.p2"
+msgstr "P2만"
+
+msgid "training.data.opacity"
+msgstr "배경"
+
+msgid "training.data.opacity.detail"
+msgstr "패널 배경의 불투명도입니다."
+
+msgid "training.data.move"
+msgstr "기술"
+
+msgid "training.data.position"
+msgstr "위치"
+
+msgid "training.data.state"
+msgstr "상태"
+
+msgid "training.data.gauges"
+msgstr "게이지"
+
+msgid "training.data.juggle"
+msgstr "저글"
+
+msgid "training.data.charge"
+msgstr "모으기"
+
+msgid "training.data.part.detail"
+msgstr "데이터 패널의 이 부분을 보여 줍니다."
+
+msgid "training.data.frame"
+msgstr "프레임 {0}"
+
+msgid "training.data.range"
+msgstr "거리 조건"
+
+msgid "training.data.range_from"
+msgstr "원거리, {0} 이상"
+
+msgid "training.data.range_within"
+msgstr "근거리, {0} 까지"
+
+msgid "training.data.height_from"
+msgstr "높이 {0} 이상"
+
+msgid "training.data.height_within"
+msgstr "높이 {0} 까지"
+
+msgid "training.data.distance"
+msgstr "거리"
+
+msgid "training.data.standing"
+msgstr "서기"
+
+msgid "training.data.crouching"
+msgstr "앉기"
+
+msgid "training.data.airborne"
+msgstr "공중"
+
+msgid "training.data.down"
+msgstr "다운"
+
+msgid "training.data.status"
+msgstr "상태 {0}"
+
+msgid "training.data.super"
+msgstr "슈퍼"
+
+msgid "training.data.revenge"
+msgstr "리벤지"
+
+msgid "training.data.life"
+msgstr "체력"
+
+msgid "training.data.stun"
+msgstr "스턴"
+
+msgid "training.data.interruptible"
+msgstr "캔슬 가능"
+
+msgid "training.data.advantage"
+msgstr "유리"
+
+msgid "training.data.juggled"
+msgstr "카운트"
+
+msgid "training.data.none"
+msgstr "없음"
+
+msgid "training.data.juggle_start"
+msgstr "시작"
+
+msgid "training.data.juggle_add"
+msgstr "추가"
+
+msgid "training.data.juggle_limit"
+msgstr "한계"
+
+msgid "training.data.no_charge"
+msgstr "모으기 기술 없음"
+
 msgid "training.color_key"
 msgstr "색상 설명"
 
@@ -5409,6 +5553,57 @@ msgstr "게임 화면 전체 크기의 .mp4로 녹화하며, 그래픽 카드로
 
 msgid "replays.video"
 msgstr "동영상"
+
+msgid "replays.show"
+msgstr "표시"
+
+msgid "replays.show_detail"
+msgstr "목록에 표시할 대전."
+
+msgid "replays.show.all"
+msgstr "전체"
+
+msgid "replays.show.mine"
+msgstr "내 대전"
+
+msgid "replays.show.spectated"
+msgstr "관전한 대전"
+
+msgid "replays.show.unseen"
+msgstr "아직 보지 않음"
+
+msgid "replays.show.video"
+msgstr "동영상 있음"
+
+msgid "replays.show.kept"
+msgstr "보관함"
+
+msgid "replays.search"
+msgstr "검색"
+
+msgid "replays.search_detail"
+msgstr "플레이어 또는 파이터 이름에 이 문자가 포함된 대전을 표시합니다."
+
+msgid "replays.none_shown"
+msgstr "표시할 대전이 없습니다"
+
+msgid "replays.none_shown_detail"
+msgstr "표시와 검색에 맞는 리플레이가 없습니다. 조건을 바꾸면 다른 리플레이를 볼 수 있습니다."
+
+msgid "replays.keep"
+msgstr "보관"
+
+msgid "replays.keep_detail"
+msgstr "다시 찾을 수 있도록 표시합니다. 표시: 보관함."
+
+msgid "replays.unkeep"
+msgstr "보관 해제"
+
+msgid "replays.unkeep_detail"
+msgstr "표시를 지웁니다. 리플레이는 보관소에 남습니다."
+
+msgid "replays.kept"
+msgstr "보관됨"
 
 msgid "export.title"
 msgstr "동영상 내보내기"
@@ -7509,6 +7704,33 @@ msgstr "방 화면의 참가자 패널입니다. 숨기면 채팅이 열을 차�
 msgid "settings.room_show_chat_detail"
 msgstr "방 화면의 채팅 패널입니다. 숨기면 참가자가 열을 차지하고, 둘 다 숨기면 테이블이 전체 너비를 차지합니다."
 
+msgid "settings.room_tables"
+msgstr "테이블"
+
+msgid "settings.room_tables_list"
+msgstr "한 줄에 하나"
+
+msgid "settings.room_tables_grid"
+msgstr "격자"
+
+msgid "settings.room_tables_detail"
+msgstr "한 줄에 하나는 테이블마다 가로 전체를 쓰고 양 끝에 파이터를 보여 줍니다. 격자는 두세 개를 나란히 보여 주어 스크롤 없이 더 많이 보입니다."
+
+msgid "settings.room_pictures"
+msgstr "그림"
+
+msgid "settings.room_pictures_portraits"
+msgstr "초상화"
+
+msgid "settings.room_pictures_characters"
+msgstr "캐릭터"
+
+msgid "settings.room_pictures_detail"
+msgstr "테이블, 참가자, 아케이드 기기에서 파이터를 보여 주는 방식입니다. 초상화는 게임의 캐릭터 선택 화면 그림입니다. 캐릭터는 플레이어가 고른 코스튬과 색으로 파이터의 전신을 보여 줍니다."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "채팅 필터"
 
@@ -7647,8 +7869,6 @@ msgstr "세트"
 msgid "replays.set_matches"
 msgstr "매치 {0}개"
 
-msgid "replays.game"
-msgstr "{0}번째 매치"
 
 msgid "replays.fact.fighters"
 msgstr "파이터"
@@ -7943,3 +8163,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "기체 {0}, {1}"
+
+msgid "training.combo_check"
+msgstr "콤보 체크"
+
+msgid "training.combo_check.detail"
+msgstr "내 콤보를 다른 캐릭터를 더미로 두고 서기와 앉기로 재생해, 각 캐릭터에 몇 히트가 들어갔는지 보여줍니다."
+
+msgid "training.combo_check.record"
+msgstr "내 콤보"
+
+msgid "training.combo_check.record.detail"
+msgstr "선택한 뒤 1P로 콤보를 넣으세요. 마지막 입력 1초 뒤 기록이 끝나고 들어간 히트 수를 셉니다."
+
+msgid "training.combo_check.recording"
+msgstr "기록 중"
+
+msgid "training.combo_check.none"
+msgstr "아직 없음"
+
+msgid "training.combo_check.hits"
+msgstr "{0}히트"
+
+msgid "training.combo_check.start_from"
+msgstr "시작 위치"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "각 회차가 시작될 때 두 캐릭터가 서는 위치. 간격은 기록한 그대로입니다."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "기록한 위치"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "중앙"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "구석"
+
+msgid "training.combo_check.fighters"
+msgstr "더미 캐릭터"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "콤보를 재생할 상대. 선택하면 켜거나 끕니다."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0}/{1}"
+
+msgid "training.combo_check.all"
+msgstr "모든 캐릭터"
+
+msgid "training.combo_check.all.detail"
+msgstr "모든 캐릭터를 켭니다. 모두 켜져 있으면 모두 끕니다."
+
+msgid "training.combo_check.stance"
+msgstr "자세"
+
+msgid "training.combo_check.stance.detail"
+msgstr "각 캐릭터를 서기, 앉기 또는 둘 다로 체크합니다."
+
+msgid "training.combo_check.stance.standing"
+msgstr "서기"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "앉기"
+
+msgid "training.combo_check.stance.both"
+msgstr "둘 다"
+
+msgid "training.combo_check.speed"
+msgstr "속도"
+
+msgid "training.combo_check.speed.detail"
+msgstr "빠름은 각 회차를 최대 8배 빠르게 재생합니다. 캐릭터 로딩에는 여전히 몇 초가 걸립니다."
+
+msgid "training.combo_check.speed.normal"
+msgstr "보통"
+
+msgid "training.combo_check.speed.fast"
+msgstr "빠름"
+
+msgid "training.combo_check.start"
+msgstr "체크 시작"
+
+msgid "training.combo_check.start.detail"
+msgstr "각 캐릭터를 차례로 더미로 불러와 콤보를 재생합니다. 더미 설정은 체크가 끝나면 돌아옵니다."
+
+msgid "training.combo_check.stop"
+msgstr "체크 중지"
+
+msgid "training.combo_check.stop.detail"
+msgstr "체크를 멈춥니다. 지금까지의 결과는 남습니다."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} 서기"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} 앉기"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0}/{1}히트"
+
+msgid "training.combo_check.run.waiting"
+msgstr "대기 중"
+
+msgid "training.combo_check.run.landed"
+msgstr "모든 히트가 들어갔습니다."
+
+msgid "training.combo_check.run.dropped"
+msgstr "모든 히트가 들어가지 않았습니다."

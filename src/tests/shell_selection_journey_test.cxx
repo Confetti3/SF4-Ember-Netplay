@@ -1,5 +1,6 @@
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
+#include "../platform/Speech.hxx"
 #include <algorithm>
 #include <iterator>
 // V2: the right mouse button is Back, and closes an open value panel first.
@@ -113,12 +114,12 @@ void KeyboardJourneys(){
  selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
  h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);};
  h.view.ultraSteps=true;h.view.ultraName="Ultra II";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home"&&selector.Navigation().Focus()=="ultra",
-  "Select on the table's Ultra did not open the board on its Ultra");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="look"&&selector.Navigation().Focus()=="ultra",
+  "Select on the table's Ultra did not open the fighter's page on its Ultra");
  key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
  h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="home"&&selector.Navigation().Focus()=="costume",
-  "Select on the table's Appearance did not open the board on its costume");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="look"&&selector.Navigation().Focus()=="costume",
+  "Select on the table's Appearance did not open the fighter's page on its costume");
  key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
  // The rest of the pick is on the table page too: Additional options opens its
  // page (personal action, win quote and the others), and Back returns.
@@ -250,31 +251,30 @@ void AppearanceGalleries(){
  auto focus=[&](const char* id,bool editable=true,bool editions=false){frame(0,editable,editions);selector.Navigation().Focus(id,rows);frame(0,editable,editions);};
  frame();frame();
  Check(selector.Navigation().Screen()=="home","Fighter select did not open on its board");
- // The pad moves by where the board draws its rows: Down keeps the grid's
- // column, Right from the grid's right edge reaches the rows beside it where
- // they are level (and stays where none is), and Left from Ready reaches the grid.
+ // The board is the grid alone, so speech has one place to read: Down keeps
+ // the column, and Right from the right edge stays on the grid.
  const auto cell=[](int i){return "fighter-"+std::to_string(selection::RosterDisplayOrder[i]);};
  focus(cell(1).c_str());press(MenuInput::Down);
  Check(selector.Navigation().Focus()==cell(9),"Down on the grid left its column");
- bool besideGrid=false;
+ Check(std::none_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="costume"||e.id=="ready";}),"The board still has rows beside the grid");
  for(int i=7;i<selection::FighterCount;i+=8){
   focus(cell(i).c_str());press(MenuInput::Right);
-  const auto& at=selector.Navigation().Focus();
-  Check(at==cell(i)||at.rfind("fighter-",0)!=0,"Right from the grid's right edge went to another fighter");
-  besideGrid=besideGrid||at=="costume";
+  Check(selector.Navigation().Focus()==cell(i),"Right from the grid's right edge left the grid");
  }
- Check(besideGrid,"Right from the grid never reached the costume row");
- focus("ready");press(MenuInput::Left);
- Check(selector.Navigation().Focus().rfind("fighter-",0)==0,"Left from Ready did not reach the grid");
+ // Select on a fighter opens their own page, one list; Back returns to the grid.
+ focus("fighter-0");press(MenuInput::Select);
+ Check(selector.Navigation().Screen()=="look"&&row("costume").id=="costume"&&row("ready").id=="ready","Select on a fighter did not open their page");
+ press(MenuInput::Back);Check(selector.Navigation().Screen()=="home","Back from a fighter's page did not return to the grid");
+ press(MenuInput::Select);Check(selector.Navigation().Screen()=="look","Select on the saved fighter did not open their page");
  pick=selection::Pick{};frame();frame();
  // Costume: Right saves the next one; Select opens every costume, and a pick there saves it.
  focus("costume");Check(pick.costume==0,"Focusing the costume row changed the costume");
- Check(press(MenuInput::Right)&&pick.costume==1&&selector.Navigation().Screen()=="home","Right on the costume row did not save the next costume");
+ Check(press(MenuInput::Right)&&pick.costume==1&&selector.Navigation().Screen()=="look","Right on the costume row did not save the next costume");
  Check(row("costume").choices.size()==3,"The costume row does not offer every owned costume");
  press(MenuInput::Select);Check(selector.Navigation().Choosing(),"Select on the costume row did not open its values");
  press(MenuInput::Right);Check(pick.costume==1,"Moving in the costume panel saved a costume");
  press(MenuInput::Select);
- Check(pick.costume==2&&!selector.Navigation().Choosing()&&selector.Navigation().Screen()=="home","A costume picked in the panel did not save");
+ Check(pick.costume==2&&!selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","A costume picked in the panel did not save");
  focus("costume");press(MenuInput::Left);Check(pick.costume==1,"Left on the costume row did not step back");
  // Color: the steps skip the colors the game says this costume lacks (bits 0 and 2 only).
  focus("color");Check(press(MenuInput::Right)&&pick.color==2,"The color row ignored native availability gaps");
@@ -289,21 +289,51 @@ void AppearanceGalleries(){
  Check(pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Native selection round trip lost Ultra II");
  press(MenuInput::Right,false);Check(pick.ultra==1,"A locked Ultra row saved a step");
  press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==ShortUltraLabel(2),"Ultra Double did not save");
- Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="home","Left on Ultra Combo did not step back to Ultra II");
+ Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="look","Left on Ultra Combo did not step back to Ultra II");
  Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
- press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="home","Select on Ultra Combo did not open its values");
- press(MenuInput::Back);
- // Picking a fighter keeps the board, Ultra row and all: no separate Ultra step.
+ press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","Select on Ultra Combo did not open its values");
+ press(MenuInput::Back);press(MenuInput::Back);
+ // Picking a fighter opens their page, Ultra row and all: no separate Ultra step.
  focus("fighter-5");press(MenuInput::Select);
- Check(pick.fighter==5&&selector.Navigation().Screen()=="home"&&!selector.Navigation().Choosing(),"Picking a fighter left the board");
+ Check(pick.fighter==5&&selector.Navigation().Screen()=="look"&&!selector.Navigation().Choosing(),"Picking a fighter did not open their page");
  // The Ultra row follows the pick as the caller restores it for the new
  // fighter: on a single-Ultra edition it has nothing to step.
  Check(selection::AllowedUltras(0,13).size()==1&&selection::AllowedUltras(5,13).size()==1,"Ryu's and Zangief's SFIV editions should have one Ultra");
  pick.fighter=0;pick.edition=13;pick.ultra=0;frame(0,true,true);frame(0,true,true);
  Check(!row("ultra").enabled,"A single-Ultra fighter's Ultra row still steps");
- focus("fighter-5",true,true);press(MenuInput::Select,true,true);pick.edition=14;frame(0,true,true);
+ press(MenuInput::Back,true,true);focus("fighter-5",true,true);press(MenuInput::Select,true,true);pick.edition=14;frame(0,true,true);
  Check(pick.fighter==5&&row("ultra").enabled,"A fighter saved on the Ultra edition lost its Ultra row");
- focus("fighter-0",true,true);press(MenuInput::Select,true,true);pick.edition=13;frame(0,true,true);
+ press(MenuInput::Back,true,true);focus("fighter-0",true,true);press(MenuInput::Select,true,true);pick.edition=13;frame(0,true,true);
  Check(pick.fighter==0&&!row("ultra").enabled,"A fighter saved on a single-Ultra edition still offers its Ultras");
  SetMenuEntriesProbe({});
+}
+// What speech says on fighter select: the fighter's name on the grid, then
+// on their page the name, each row with its value, and Ready with them.
+void SelectorSpeech(){
+ using namespace sf4e;Harness h;FighterSelector selector;selection::Pick pick;
+ selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ std::string said;SetMenuSpeechProbe([&](const std::vector<std::string>& parts){said+=speech::Line(parts)+" | ";});
+ auto frame=[&](unsigned buttons=0){SetMenuInput({buttons,0});ImGui::NewFrame();
+  ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);ImGui::Begin("Speech test");selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);ImGui::End();ImGui::Render();};
+ auto press=[&](unsigned buttons){said.clear();frame();frame(buttons);frame();frame();};
+ const auto heard=[&](const std::string& words){return said.find(words)!=std::string::npos;};
+ // The grid opens on the saved fighter; Right is the next in the roster's order.
+ const int at=static_cast<int>(std::find(std::begin(selection::RosterDisplayOrder),std::end(selection::RosterDisplayOrder),pick.fighter)-std::begin(selection::RosterDisplayOrder));
+ const std::string first=selection::FindFighter(pick.fighter)->name,second=selection::FindFighter(selection::RosterDisplayOrder[at+1])->name;
+ frame();frame();
+ Check(heard(first),(std::string("Fighter select did not say the fighter it opened on: ")+said).c_str());
+ press(MenuInput::Right);
+ Check(heard(second)&&!heard(first),(std::string("Moving on the grid did not say the next fighter's name: ")+said).c_str());
+ press(MenuInput::Select);
+ Check(selector.Navigation().Screen()=="look"&&heard(second)&&heard(loc::T("selection.costume")),(std::string("A fighter's page did not say their name and its first row: ")+said).c_str());
+ const auto costume=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="costume";});
+ Check(costume!=rows.end()&&heard(costume->value),(std::string("The costume row did not say its value: ")+said).c_str());
+ press(MenuInput::Down);
+ Check(heard(loc::T("selection.color_row"))&&!heard(second+","),(std::string("Down did not say the colour row alone: ")+said).c_str());
+ for(int i=0;i<10&&selector.Navigation().Focus()!="ready";++i)press(MenuInput::Down);
+ Check(heard(loc::Tf("selection.ready_with",second)),(std::string("Ready did not say who it is ready with: ")+said).c_str());
+ press(MenuInput::Back);
+ Check(selector.Navigation().Screen()=="home"&&heard(second),(std::string("Back to the grid did not say the fighter: ")+said).c_str());
+ SetMenuSpeechProbe({});SetMenuEntriesProbe({});
 }

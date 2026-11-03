@@ -100,6 +100,17 @@ int main(int argc, char** argv) {
     CHECK(before("1.2.0-nightly20261008.99999999999999999999", "1.2.0-nightly20261008.100000000000000000000"));
     CHECK(CompareVersions(*ParseVersion("1.2.0-nightly20261008.02"), *ParseVersion("1.2.0-nightly20261008.2")) == 0);
     CHECK(before("1.2.0-nightly20261008.02", "1.2.0-nightly20261008.1a"));
+    // The Nightly line after Stable 1.5.0 is 1.5.1: Stable 1.5.0, then its
+    // Nightlies by date stamp and revision, then Stable 1.5.1.
+    CHECK(before("1.5.0", "1.5.1-nightly20261102") && before("1.5.0-nightly20261101.2", "1.5.1-nightly20261102"));
+    CHECK(before("1.5.1-nightly20261102", "1.5.1-nightly20261102.2") && before("1.5.1-nightly20261102.2", "1.5.1-nightly20261103"));
+    CHECK(before("1.5.1-nightly20261103", "1.5.1") && before("1.5.0-nightly20261101", "1.5.0"));
+    // Two Nightlies go by stamp before number line, so a line renumbered
+    // downward (1.6.0 back to 1.5.1) still updates; the number line breaks a tie.
+    CHECK(before("1.6.0-nightly20261101", "1.5.1-nightly20261102") && before("1.5.1-nightly20261102", "1.6.0-nightly20261103"));
+    CHECK(before("1.5.1-nightly20261102", "1.6.0-nightly20261102") && before("1.6.0-nightly20261102", "1.5.1-nightly20261102.2"));
+    // Against Stable a Nightly still goes by version number.
+    CHECK(before("1.5.1", "1.6.0-nightly20261101") && before("1.5.1-nightly20261103", "1.6.0"));
     // Other pre-release words retain their existing suffix ordering.
     CHECK(before("1.2.0-beta1.10", "1.2.0-beta1.2"));
 
@@ -291,6 +302,23 @@ int main(int argc, char** argv) {
     CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.1.0-rc2");
     result = ParseGithubReleases(list.dump(), "1.2.0", UpdateChannel::Beta);
     CHECK(result.ok && !result.updateAvailable && !result.goesBack);
+
+    // The Nightly line moved back from 1.6.0 to 1.5.1: installs of the old
+    // line and of the 1.5.0 line are offered the newest 1.5.1 Nightly, and
+    // an install of it is not offered an older one.
+    for (const char* installed : {"1.5.0-nightly20261101.2", "1.6.0-nightly20261101", "1.5.1-nightly20261102"}) {
+        const auto line = listed({"v1.5.1-nightly20261103", "v1.5.1-nightly20261102", "v1.5.0-nightly20261101.2"});
+        result = ParseGithubReleases(line.dump(), installed, UpdateChannel::Nightly);
+        CHECK(result.ok && result.updateAvailable && !result.goesBack && result.latestVersion == "v1.5.1-nightly20261103");
+        CHECK(TransitionOffered(result.latestVersion.c_str(), installed, false));
+        CHECK(!ParseGithubReleases(line.dump(), "1.5.1-nightly20261103", UpdateChannel::Nightly).updateAvailable);
+    }
+    // A Nightly install on the Beta or Stable channel is offered an older
+    // release only as a step back, which the offer says.
+    for (const auto channel : {UpdateChannel::Beta, UpdateChannel::Stable}) {
+        result = ParseGithubReleases(listed({"v1.5.0", "v1.4.1"}).dump(), "1.5.1-nightly20261102", channel);
+        CHECK(result.ok && result.updateAvailable && result.goesBack && result.latestVersion == "v1.5.0");
+    }
 
     // Release list order does not change the best Nightly or its update offer.
     for (const auto tags : {

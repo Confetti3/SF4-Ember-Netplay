@@ -181,6 +181,30 @@ the Training battle. It needs the helper, as
 a room is opened. The UI lab plays the same walk on made-up data
 (`UiLab --walk <file>`), so a changed menu shows up there first.
 
+## The Combo check test
+
+`-Test combo-check` enters Training from the main menu as Training select
+does, Ryu against Ryu, and records Player 1's combo as the lab plays a typed
+one (a walk, two crouching jabs into a fireball). Combo check then plays it
+against Ryu, E. Honda and Dhalsim as the dummy, standing and crouching, each
+loaded in turn through Training's own character select, at Fast. Ryu, the
+fighter it was recorded on, has to take every hit; the others are reported.
+
+## The export run
+
+`-Test export -Job <file>` is no test: it makes videos. From the main menu it
+sends each replay its job file names to the replay store as Generate video on
+the Replays screen does (`sf4e__SelfTest__Export.cxx`), one after the other
+in the one game, and writes `PASS export N: VIDEO <path> WINNER <1|2|none>`
+for each `.mp4` it saved beside its replay: the side that won the match, or
+none for a draw or a result the game never showed. A job file line is a replay's path and then, split
+by tabs, the two names, the line over the timer and each player's wins of the
+set so far; an empty field leaves that part off. Ember's mark is on and the
+frame meter off. The saves are put back after the run, as the tournament
+tests' are; the replays and videos stay. `ember_render.py` (the YouTube
+tools) writes the job file, runs this, checks each clip for sound and joins
+them.
+
 ## The title screen
 
 The title screen learns from its Start which device, and so which profile,

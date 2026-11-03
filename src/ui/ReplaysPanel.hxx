@@ -1,16 +1,20 @@
 #pragma once
 #include "MenuNavigation.hxx"
 #include "ReplaysView.hxx"
+#include "../platform/ReplaySets.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include <cstdint>
 #include <functional>
 #include <imgui.h>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sf4e { namespace ui {
+// What the list's Show row lists (ReplaySummaryText.hxx).
+enum class ReplayShow;
 struct ShellView;
 struct ShellAction;
 enum class Tone;
@@ -39,9 +43,10 @@ public:
     Wants Wanted(const std::string& screen) const;
     // Every frame, before the rows: a new replay link takes the menu to its
     // question, only with no room open; in a room it waits until it is left.
-    // Tournaments (replay-sets) lists the sets the archive holds, and a set's
-    // own screen (replay-set) its games (platform/ReplaySets.hxx).
-    void Update(const ShellView& view, MenuNavigation& navigation);
+    // Once a set's video is made, the set's next game is exported by itself.
+    // Sets (replay-sets) lists the sets the archive holds, and a set's own
+    // screen (replay-set) its games (platform/ReplaySets.hxx).
+    void Update(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& navigation, const Submit& submit);
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
     // when a request could not be queued.
@@ -76,6 +81,8 @@ private:
     void Watch(const ShellView& view, const std::string& path, bool meter, const Submit& submit, std::string& error);
     void OpenExport(const ShellView& view, const netplay::PlayerPreferences& saved, const platform::replays::ArchivedReplay& replay);
     void NextVideo(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& nav);
+    void QueueSet(const platform::replays::ArchivedSet& set, bool exporting);
+    bool Generate(const ShellView& view, const Submit& submit);
     // The replay the Inputs and stats screen is of, as its row was when it
     // was chosen. The lister hands over its match, summary and round logs;
     // drawing the screen never reads, parses or counts the replay.
@@ -87,6 +94,14 @@ private:
     std::string exportPath_;
     replay::Caption caption_;
     bool meter_ = false;
+    // The list's filter (ReplaySummaryText.hxx: ReplayShown): what Show lists,
+    // and the Search text a player's or fighter's name must contain.
+    ReplayShow show_{}; // All
+    std::string search_;
+    // The archive's sets (ReplaySets.hxx), grouped when Update sees a new
+    // listing. The listing is held beside them, as the sets' games point into it.
+    std::shared_ptr<const std::vector<platform::replays::ArchivedReplay>> setsFrom_;
+    std::vector<platform::replays::ArchivedSet> sets_;
     // Show in folder was the last thing asked here: the status line has its answer.
     bool folderAsked_ = false;
     // The replay link last seen, so its question opens the Replays screen once.
@@ -95,8 +110,16 @@ private:
     // game row on Replays, and how many the set has.
     std::vector<std::string> setQueue_;
     std::size_t setGames_ = 0;
-    // The queue makes videos (set-export), not watches.
+    // The queue makes videos (set-export), not watches. The game at its front
+    // stays there until its video is made: Sent says its export was accepted
+    // and its end is awaited (the export numbered sentExport_);
+    // Advance, that its video was saved and the next game's export goes by itself.
+    // Either way a refused or failed export leaves the game to the Next video row.
+    // Only the end of the export sent counts, never another export's.
+    enum class SetStep { Manual, Sent, Advance };
     bool setExport_ = false;
+    SetStep setStep_ = SetStep::Manual;
+    std::uint64_t exports_ = 0, sentExport_ = 0;
     // The set whose games replay-set lists.
     std::string setShown_;
     // A set pack was last asked for here (Save set pack, a pack link's Import):

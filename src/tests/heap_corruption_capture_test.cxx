@@ -171,7 +171,7 @@ void TestHandlerRecordsAndLauncherDumps(const wchar_t* heap) {
 
 	std::wstring dump;
 	int served = 0, written = 0;
-	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok) {
+	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok, bool) {
 		++served; written += ok ? 1 : 0;
 		if (ok) dump = channel.written;
 	});
@@ -226,7 +226,7 @@ void TestNonZeroExitIsRecorded() {
 	CHECK(CreateProcessW(self, command, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup, &process));
 	std::wstring dump;
 	int written = 0;
-	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok) { written += ok ? 1 : 0; if (ok) dump = channel.written; });
+	channel.ServeUntilExit(process.hProcess, logs.c_str(), [&](bool ok, bool) { written += ok ? 1 : 0; if (ok) dump = channel.written; });
 	DWORD exitCode = 0;
 	GetExitCodeProcess(process.hProcess, &exitCode);
 	CloseHandle(process.hThread);
@@ -339,7 +339,7 @@ void TestEveryDumpIsKeptAndBadRequestsRefused() {
 	HANDLE game = CreateThread(nullptr, 0, ReturnAtOnce, nullptr, 0, nullptr);
 	CHECK(game);
 	int served = 0;
-	none.ServeUntilExit(game, logs.c_str(), [&](bool) { ++served; });
+	none.ServeUntilExit(game, logs.c_str(), [&](bool, bool) { ++served; });
 	CloseHandle(game);
 	CHECK(served == 0);
 }
@@ -403,12 +403,63 @@ void TestReportDumpsStayPaired() {
 	RemoveDirectoryW(logs.c_str());
 }
 
+// Dumped once per freeze, after FreezeDumpAfterMs hung; a window that cannot
+// be seen changes nothing, and one that answers after its dump is Answered.
+void TestFreezeWatchSteps() {
+	using Window = FreezeWatch::Window;
+	using Step = FreezeWatch::Step;
+	FreezeWatch watch;
+	CHECK(watch.Next(Window::Answering, 0) == Step::None);
+	CHECK(watch.Next(Window::Hung, 1000) == Step::None);
+	CHECK(watch.Next(Window::Unknown, 5000) == Step::None);
+	CHECK(watch.Next(Window::Hung, 1000 + FreezeDumpAfterMs - 1) == Step::None);
+	CHECK(watch.Next(Window::Hung, 1000 + FreezeDumpAfterMs) == Step::Dump);
+	CHECK(watch.Next(Window::Hung, 1000 + 3 * FreezeDumpAfterMs) == Step::None);
+	CHECK(watch.Next(Window::Unknown, 40000) == Step::None);
+	CHECK(watch.Next(Window::Answering, 50000) == Step::Answered);
+	CHECK(watch.Next(Window::Answering, 51000) == Step::None);
+	// A new freeze is timed from its own start.
+	CHECK(watch.Next(Window::Hung, 52000) == Step::None);
+	CHECK(watch.Next(Window::Hung, 52000 + FreezeDumpAfterMs) == Step::Dump);
+	// A load that answers in time is never dumped, nor Answered.
+	FreezeWatch load;
+	CHECK(load.Next(Window::Hung, 0) == Step::None);
+	CHECK(load.Next(Window::Answering, FreezeDumpAfterMs - 1) == Step::None);
+	CHECK(load.Next(Window::Hung, FreezeDumpAfterMs) == Step::None);
+}
+
+// A frozen game asks for nothing: its dump holds every thread as it stands
+// and no exception, and goes again once the game answers.
+void TestFreezeDumpedAndForgotten() {
+	const std::wstring logs = TempDirectory();
+	DumpChannel channel;
+	channel.reportEnabled = true;
+	channel.exceptionCode = 0xC0000005u;
+	wchar_t self[MAX_PATH] = {}, command[MAX_PATH + 16] = {};
+	GetModuleFileNameW(nullptr, self, MAX_PATH);
+	swprintf_s(command, L"\"%s\" freeze", self);
+	STARTUPINFOW startup = { sizeof(startup) };
+	PROCESS_INFORMATION process = {};
+	CHECK(CreateProcessW(self, command, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &startup, &process));
+	CHECK(channel.ServeFreeze(process.hProcess, logs.c_str()));
+	ULONGLONG size = 0;
+	CHECK(channel.written[0] && !channel.exceptionCode && CountDumps(logs) == 2);
+	CHECK(DumpedExceptionCode(channel.reportWritten, size) == 0 && size > 0 && size <= ReportDumpLimit);
+	channel.ForgetFreeze();
+	CHECK(!channel.written[0] && channel.reportWritten.empty() && CountDumps(logs) == 0);
+	TerminateProcess(process.hProcess, 0);
+	CloseHandle(process.hThread);
+	CloseHandle(process.hProcess);
+	RemoveDirectoryW(logs.c_str());
+}
+
 #include "heap_report_capture.hxx"
 
 } // namespace
 
 int main(int argc, char** argv) {
 	if (argc == 7 && std::string(argv[1]) == "child") return RunChild(argv);
+	if (argc == 2 && std::string(argv[1]) == "freeze") Sleep(INFINITE);
 	if (argc == 2 && std::string(argv[1]) == "heap-check-settings") {
 		CHECK(SetEnvironmentVariableA("SF4E_HEAP_CHECK", nullptr));
 		CHECK(!HeapCheckEnabled());
@@ -429,6 +480,8 @@ int main(int argc, char** argv) {
 	TestEveryDumpIsKeptAndBadRequestsRefused();
 	TestHeapDumpsAreKeptApart();
 	TestReportDumpsStayPaired();
+	TestFreezeWatchSteps();
+	TestFreezeDumpedAndForgotten();
     TestSmallDumpIndependentOfFull();
 	TestHandlerRecordsAndLauncherDumps(L"private");
 	TestHandlerRecordsAndLauncherDumps(L"process");

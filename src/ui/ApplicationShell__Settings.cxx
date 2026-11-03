@@ -148,7 +148,7 @@ public:
             Row("record", loc::T("profile.record"), record.available ? loc::Tf("profile.record_detail", record.wins, record.losses) : loc::T("profile.record_unavailable"))};
         rows[2].info = true;
         rows[1].value = selection::FindFighter(p.mainFighter)->name;
-        rows[2].value = record.available ? loc::Tf("profile.record_value", record.wins, record.losses) : loc::T("common.unavailable");
+        rows[2].value = record.available ? RecordValue(record) : loc::T("common.unavailable");
         rows.push_back(OnOffValue(p, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences));
         rows.push_back(Row("awards", loc::T("screen.awards"), loc::T("awards.entry_detail")));
         rows.back().value = EarnedCount(v);
@@ -236,6 +236,8 @@ public:
             Value("arrange-preset", loc::T("settings.room_preset"), loc::T(RoomPresetKeys[RoomPreset(column)]), loc::T("settings.room_preset_detail"), open),
             Value("arrange-members", loc::T("room.members"), loc::T(p.roomShowMembers ? "common.on" : "common.off"), loc::T("settings.room_show_members_detail"), open),
             Value("arrange-chat", loc::T("room.chat"), loc::T(p.roomShowChat ? "common.on" : "common.off"), loc::T("settings.room_show_chat_detail"), open),
+            Value("arrange-tables", loc::T("settings.room_tables"), loc::T(p.roomTableGrid ? "settings.room_tables_grid" : "settings.room_tables_list"), loc::T("settings.room_tables_detail"), open),
+            Value("arrange-pictures", loc::T("settings.room_pictures"), loc::T(p.roomCharacterPictures ? "settings.room_pictures_characters" : "settings.room_pictures_portraits"), loc::T("settings.room_pictures_detail"), open),
             OnOffValue(p, "chat-filter", loc::T("settings.chat_filter"), loc::T("settings.chat_filter_detail"), open),
             PictureMode(s, v, "arrange-picture"),
             Row("arrange-reset", loc::T("settings.room_layout_reset"), loc::T("settings.room_layout_reset_detail"), open)};
@@ -535,6 +537,8 @@ bool ApplicationShell::AdjustSetting(netplay::PlayerPreferences& p, const MenuAc
     else if (id == "arrange-preset") p.roomColumn = RoomPresets[clamp(RoomPreset(p.roomColumn) + a.delta, 0, 2)];
     else if (id == "arrange-members") p.roomShowMembers = a.delta > 0;
     else if (id == "arrange-chat") p.roomShowChat = a.delta > 0;
+    else if (id == "arrange-tables") p.roomTableGrid = a.delta > 0;
+    else if (id == "arrange-pictures") p.roomCharacterPictures = a.delta > 0;
     else if (id == "tv") p.tvMode = a.delta > 0;
     else if (id == "picture-corner") p.pictureSpot = p.pictureSpot / 4 * 4 + (p.pictureSpot % 4 + 4 + a.delta) % 4;
     else if (id == "picture-size") p.pictureSpot = p.pictureSpot % 4 + 4 * clamp(p.pictureSpot / 4 + a.delta, 0, 2);
@@ -615,17 +619,15 @@ void ApplicationShell::SettingsScreens::DrawBoard(Shell& shell, const ShellView&
     // The section and, under it, the focused row's words (the panel's while closed).
     const MenuEntry* words = nullptr;
     for (const auto& e : entries) if (e.id == focus) words = &e;
-    v2::Box column = body;
-    if (const float cap = (width / s > 1700 ? 1400 : 1100) * s; column.W() > cap) column.max.x = column.min.x + cap;
     // The words' bar: the design's height, taller when they wrap past it. A
     // row Select opens in the reader (the controls, credits, font licence)
     // shows only its first paragraph here; the whole text waits for Select.
     const std::string detail = !words ? std::string() : words->reading ? words->detail.substr(0, words->detail.find('\n')) : words->detail;
-    const float wrapped = words ? v2::WordsHeight(column.W(), detail) : 0;
-    const v2::Box bar = v2::CutBottom(column, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
+    const float wrapped = words ? v2::WordsHeight(body.W(), detail) : 0;
+    const v2::Box bar = v2::CutBottom(body, (std::max)((ImGui::GetIO().DisplaySize.y / s <= 720 ? 52 : 74) * s, wrapped), 8 * s);
     v2::Words(d, bar, words ? words->label : std::string(), detail, true);
     if (!shown) return;
-    v2::Box section = v2::Panel(d, column, loc::T(shown->panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
+    v2::Box section = v2::Panel(d, body, loc::T(shown->panel->heading), loc::T(open ? "settings.panel.open" : "settings.preview"), open);
 
     // The picture, beside the rows, for a panel with something to show.
     if (shown->panel->picture && !narrow && section.W() >= 760 * s) {

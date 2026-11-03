@@ -193,10 +193,11 @@ int main() {
             Require(second.hitAdvantage == -4, "A combo's next hit did not carry its own advantage");
             Require(play(5, 16, 102, 29, 21, 30, 1000).hitAdvantage == NoHitAdvantage, "A knockdown was marked");
         }
-        // Hitstop: frames where neither fighter's animation moves leave the bars.
+        // Hitstop: frames the game holds both fighters in leave the bars.
         {
             Fight stop; stop.Play(Attack, 3);
             std::array<FighterSample, 2> both = stop.View().current;
+            for (auto& fighter : both) fighter.hitStop = true;
             for (int i = 0; i < 8; ++i) stop.meter.Observe(stop.at++, both);
             Require(stop.View().frames.size() == 3 && stop.View().length == 3, "Hitstop frames were drawn");
             stop.Play(Attack);
@@ -213,6 +214,7 @@ int main() {
                 for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
                 both[0].status = own > 0 ? 16 : 0; both[0].action = own > 0 ? 268 : 0; both[0].actionFrame = own; both[0].untilActionable = ownLeft;
                 both[1].status = otherAction ? 21 : 0; both[1].action = otherAction; both[1].actionFrame = other; both[1].untilActionable = otherLeft;
+                both[0].hitStop = both[1].hitStop = frame >= 4 && frame < 12;
                 meter.Observe(frame, both);
             };
             play(0, 0, 0, 40, 0, 0);
@@ -240,6 +242,7 @@ int main() {
                 for (auto& fighter : both) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.basicActionInhibited = false; }
                 both[0].status = own; both[0].action = own ? 270 : 0; both[0].actionFrame = ownFrame; both[0].untilActionable = ownLeft;
                 both[1].status = other; both[1].action = otherAction; both[1].actionFrame = otherFrame; both[1].untilActionable = otherLeft;
+                both[0].hitStop = both[1].hitStop = other && ownFrame == 4;
                 meter.Observe(frame, both);
             };
             int at = 0;
@@ -283,6 +286,74 @@ int main() {
             for (const auto& frame : meter.View().frames)
                 if (frame.cells[0].hitAdvantage != NoHitAdvantage) marks.push_back(frame.cells[0].hitAdvantage);
             Require(marks == std::vector<int>{6, 3}, "The link's first hit was not read again as the attacker became free");
+        }
+        for (unsigned from : {ActorStatus::Stand, ActorStatus::Jump}) {
+            // Akuma's hyakki leaves the ground and lands in the common landing: its 4 frames are
+            // the move's recovery. A jump's attack lands the same way, and that is no recovery.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = from; fighter.action = 0; }
+            counted.Observe(0, pair);
+            int tick = 1;
+            pair[0].status = 16; pair[0].action = 425;
+            for (int phase : {0, 1, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            pair[0].status = ActorStatus::JumpToStand; pair[0].action = 9; pair[0].hitPhase = -1;
+            for (int frame = 0; frame < 4; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            pair[0].status = ActorStatus::Forward; pair[0].action = 16; pair[0].actionFrame = 0; counted.Observe(tick++, pair);
+            Require(counted.View().moves[0].recovery == (from == ActorStatus::Stand ? 5 : 1), "A ground move's landing was not its recovery, or a jump attack's was");
+        }
+        {
+            // Evil Ryu's 421LP: the fireball comes out the step after its spawn (frame 47, boundary 48)
+            // and hits 17 game frames later, after he has recovered.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 462; pair[0].firstActiveFrame = 48; pair[0].lastActiveFrame = 49;
+            pair[0].boundaryProvenance = BoundaryProvenance::BacEffectSpawn; pair[0].projectileDelay = 17;
+            int tick = 1;
+            for (; tick <= 55; ++tick) { pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick, pair); }
+            pair[0] = pair[1];
+            for (; tick <= 64; ++tick) { pair[0].actionFrame = pair[1].actionFrame = static_cast<float>(tick); counted.Observe(tick, pair); }
+            Require(counted.View().startupFrames[0] < 0, "A falling fireball hit before its delay");
+            pair[0].actionFrame = pair[1].actionFrame = 65; counted.Observe(tick++, pair);
+            Require(counted.View().startupFrames[0] == 65, "A falling fireball's startup missed its delay");
+        }
+        for (const bool parry : {false, true}) {
+            // El Fuerte's 214K lands in a script with no hit whose header says 0 to 2: no active
+            // frames there. A parry opens with such a script, and keeps its header's.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            int tick = 1;
+            pair[0].status = 16; pair[0].commandMove = 0x3000;
+            if (!parry) {
+                pair[0].action = 465;
+                for (int phase : {0, 1, 1, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            }
+            pair[0].action = 464; pair[0].hitPhase = -1; pair[0].headerOnly = true; pair[0].firstActiveFrame = 0; pair[0].lastActiveFrame = 2;
+            pair[0].boundaryProvenance = BoundaryProvenance::BacActionHeader;
+            for (int frame = 0; frame < 4; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            Require(counted.View().moves[0].active == 2, parry ? "A parry lost its header's active frames" : "A hitless landing's header counted as active");
+        }
+        {
+            // Abel's EX 236P grabs on its first active frame, drops Ryu and hits him, grabs him
+            // again and lets go: active 1, and recovery from the last release.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            int tick = 1;
+            pair[0].status = 16; pair[0].commandMove = 0x4000;
+            const auto step = [&](int action, int phase, unsigned other) {
+                pair[0].action = action; pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick);
+                pair[1].status = other; pair[1].action = other ? 500 + static_cast<int>(other) : 0; pair[1].actionFrame = static_cast<float>(tick);
+                counted.Observe(tick++, pair);
+            };
+            step(515, 0, 0); step(515, 1, 0);
+            for (int i = 0; i < 3; ++i) step(516, 0, ActorStatus::Sequence);
+            step(518, 0, ActorStatus::DamageBlow); step(518, 1, ActorStatus::DamageBlow); step(518, 3, ActorStatus::DamageBlow);
+            for (int i = 0; i < 3; ++i) step(521, 0, ActorStatus::Sequence);
+            for (int i = 0; i < 3; ++i) step(521, 3, ActorStatus::Down);
+            Require(counted.View().startupFrames[0] == 2 && counted.View().moves[0].active == 1 && counted.View().moves[0].recovery == 3,
+                "A grab's follow-up hits counted as active, or its recovery not from the last release");
         }
         std::puts("Frame meter run tests passed");
         return 0;

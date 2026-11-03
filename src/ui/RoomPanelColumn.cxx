@@ -5,6 +5,7 @@
 #include "RoomPanelBoard.hxx"
 #include "Theme.hxx"
 #include "MenuProbes.hxx"
+#include "RoomCards.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -42,6 +43,9 @@ void ApplicationShell::RoomGrips(v2::Box area,bool editable) {
  if(!std::isnan(y))next.roomSplit=snap((y-members.min.y)/(chat.max.y-members.min.y)*100,netplay::MinRoomSplit,netplay::MaxRoomSplit,netplay::DefaultRoomSplit,netplay::RoomSplitStep);
  if(next.roomColumn!=preferences_.roomColumn||next.roomSplit!=preferences_.roomSplit){preferences_=next;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
 }
+namespace {
+constexpr int PreviewTables=4;
+}
 void ApplicationShell::DrawRoomLayoutPreview(bool editable) {
  // Customise.dc.html: the tables as four cards, members over chat with their shares, and the grips.
  const float s=Scale(),w=ImGui::GetContentRegionAvail().x,h=(std::max)(120*s,(std::min)(w*.6f,ImGui::GetContentRegionAvail().y-8*s));
@@ -51,8 +55,10 @@ void ApplicationShell::DrawRoomLayoutPreview(bool editable) {
  v2::Box tables,members,chat;const v2::Box inside=v2::Inset(area,10*s,10*s);ArrangeRoom(inside,tables,members,chat);
  const auto heading=[&](const v2::Box& b,const std::string& label){v2::SectionHeading(d,b.min,label);};
  heading(tables,loc::T("room.v2.tables"));
- const float cw=(tables.W()-6*s)/2,ch=(std::min)(64*s,(tables.H()-26*s)/2);
- for(int i=0;i<4;++i){const ImVec2 at(tables.min.x+(i%2)*(cw+6*s),tables.min.y+20*s+(i/2)*(ch+6*s));d->AddRectFilled(at,ImVec2(at.x+cw,at.y+ch),c.frame,4*s);d->AddRect(at,ImVec2(at.x+cw,at.y+ch),c.border,4*s,0,s);}
+ // The tables as Settings' Tables row has them: one card a line, or two across.
+ const int across=preferences_.roomTableGrid?2:1,rows=PreviewTables/across;
+ const float cw=(tables.W()-(across-1)*6*s)/across,ch=(std::min)(64*s,(tables.H()-20*s-(rows-1)*6*s)/rows);
+ for(int i=0;i<PreviewTables;++i){const ImVec2 at(tables.min.x+(i%across)*(cw+6*s),tables.min.y+20*s+(i/across)*(ch+6*s));d->AddRectFilled(at,ImVec2(at.x+cw,at.y+ch),c.frame,4*s);d->AddRect(at,ImVec2(at.x+cw,at.y+ch),c.border,4*s,0,s);}
  const auto pane=[&](const v2::Box& b,const char* key,int share,int lines){
   d->AddRectFilled(b.min,b.max,c.panel,4*s);
   const v2::Box in=v2::Inset(b,10*s,8*s);heading(in,std::string(loc::T(key))+" \xC2\xB7 "+std::to_string(share)+"%");
@@ -93,15 +99,13 @@ void ApplicationShell::DrawRoomMembersPanel(const RoomBoardFrame& f,v2::Box box,
  for(const auto& e:f.rows){
   if(e.id.compare(0,7,"member-"))continue;
   if(e.group!=group){group=e.group;v2::SectionHeading(md,ImVec2(start.x+4*s,y+8*s),group,c.accent);y+=30*s;}
-  const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+b.W(),y+36*s)};y+=40*s;
+  // A member is their main's face, their tag, and their status under it (DrawMemberRow).
+  const v2::Box r{ImVec2(start.x,y),ImVec2(start.x+b.W(),y+50*s)};y+=54*s;
   const bool hovered=f.Press(e,r),focused=e.id==f.focus;
   if(!ImGui::IsItemVisible())continue;
   v2::RowGround(md,r,focused,hovered);
-  const auto view=RoomMemberCard(f.v,e);
-  v2::TagView tag;tag.name=view.name;tag.marks=view.marks;tag.ping=view.latency;tag.status=view.status;
-  // The sets record joins the status where both fit, so a narrow column keeps the status.
-  if(!view.record.empty()){auto both=tag;both.status+=" \xC2\xB7 "+view.record;if(v2::TagWidth(both,v2::TagSize::S)<=r.W()-20*s)tag=std::move(both);}
-  v2::Tag(md,ImVec2(r.min.x+10*s,r.min.y+8*s),r.W()-20*s,tag,v2::TagSize::S);
+  auto card=RoomMemberCard(f.v,e);card.art=f.art;
+  DrawMemberRow(card,r.min,r.max);
   if(focused)v2::Focus(md,r.min,r.max);
   if(focused&&e.popout)f.choices={r,b};
  }

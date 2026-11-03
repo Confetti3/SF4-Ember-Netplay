@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Sdílet mé záznamy"
 
 msgid "replays.share_detail"
-msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, s vaším jménem a zemí; soupeř je uveden jen tehdy, když také sdílí. Organizované turnajové zápasy se sdílejí vždy, se jmény obou hráčů."
+msgstr "Odesílá zápasy, které odehrajete od teď, do veřejného archivu záznamů vašeho bridge, s vaším jménem a zemí; soupeř je uveden jen tehdy, když také sdílí. Organizované turnajové zápasy se sdílejí vždy, se jmény obou hráčů. Archivované zápasy, ve kterých jsou uvedeni oba hráči, se mohou objevit i na YouTube kanálu Emberu. Sdílí se jen tehdy, když jste přihlášeni přes Discord (Nastavení > Online > Discord)."
 
 msgid "replays.link"
 msgstr "Přehrát záznam z odkazu"
@@ -931,14 +931,8 @@ msgstr "Opustí nabídku Emberu a otevře Battle Log hry, kde se přehrávají z
 msgid "replays.open_log_room"
 msgstr "Nejdřív opusťte místnost."
 
-msgid "replays.tournaments"
-msgstr "Turnaje"
 
-msgid "replays.tournaments_detail"
-msgstr "Sety, které jsi hrál na turnajích, každý se všemi svými hrami."
 
-msgid "replays.set_detail"
-msgstr "Vyber pro přehrání her setu popořadě, výběr jedné z nich nebo uložení setu jako jednoho souboru."
 
 msgid "replays.set_value"
 msgstr "{0} záznamů · {1} místností"
@@ -968,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Exportovat videa setu"
 
 msgid "replays.export_set_detail"
-msgstr "Postupně připraví video každé hry, s popiskem, který počítá dosavadní stav setu. Až je jedno hotové, další připraví Další video setu nahoře v Záznamech."
+msgstr "Připraví video první hry s titulkem počítajícím set do té chvíle. Jakmile je video hotové, video další hry následuje samo; po neúspěšném pokračuje Další video setu nahoře v Záznamech."
 
 msgid "replays.next_video"
 msgstr "Další video setu ({0} z {1})"
@@ -1062,6 +1056,9 @@ msgstr "Bilance není dostupná. Původní nastavení zůstala zachována."
 
 msgid "profile.record_value"
 msgstr "{0} V / {1} P"
+
+msgid "profile.win_rate"
+msgstr "Výhry: {0} %"
 
 msgid "profile.choose_main_title"
 msgstr "VYBRAT HLAVNÍ POSTAVU"
@@ -2286,6 +2283,15 @@ msgstr "Vítězná fráze"
 msgid "selection.random"
 msgstr "Náhodně"
 
+msgid "selection.random_card"
+msgstr "Náhodně"
+
+msgid "selection.random_card.detail"
+msgstr "Pro každou hru nový bojovník, vylosovaný z těch, které vlastníš."
+
+msgid "selection.random_fighter"
+msgstr "Náhodně · {0}"
+
 msgid "selection.random_stage"
 msgstr "Náhodně"
 
@@ -3117,6 +3123,24 @@ msgstr "Zrušit zamčení"
 
 msgid "room.unlock_spectating.detail"
 msgstr "Sledování je zamčené: další zápas počká na váš návrat až {0} sekund. Ukončení sledování nebo přesun k jinému stolu zamčení zruší."
+
+msgid "room.follow"
+msgstr "Sledovat dění v místnosti"
+
+msgid "room.follow.detail"
+msgstr "Sledujte stůl, u kterého se hraje: když se u vašeho přestane hrát, přejdete k dalšímu zápasu v místnosti."
+
+msgid "room.follow.stop"
+msgstr "Přestat sledovat dění"
+
+msgid "room.follow.stop_detail"
+msgstr "Sledujete dění v místnosti · Stůl {0}. Ukončete, chcete-li zůstat u sledovaného stolu."
+
+msgid "room.follow.following"
+msgstr "Sledujete dění v místnosti · Stůl {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Nejdřív zrušte zamčení: sledování dění vás přesouvá mezi stoly."
 
 msgid "room.lock_in_ended.stopped"
 msgstr "Zamčení zrušeno: přestali jste sledovat."
@@ -5094,6 +5118,126 @@ msgstr "Kostra"
 msgid "training.hitboxes.part.detail"
 msgstr "Kreslí tuto část hitboxů přes souboj."
 
+msgid "training.data"
+msgstr "Datový panel"
+
+msgid "training.data.detail"
+msgstr "Ukazuje skript, pozici, postoj, ukazatele, počítadlo žonglování a nabití každého bojovníka vedle souboje, jak je hra drží v každém snímku."
+
+msgid "training.data.fighters"
+msgstr "Bojovníci"
+
+msgid "training.data.fighters.detail"
+msgstr "Panely obou bojovníků, každý pod jeho ukazatelem života, nebo jen jeden."
+
+msgid "training.data.fighters.both"
+msgstr "Oba"
+
+msgid "training.data.fighters.p1"
+msgstr "Jen P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Jen P2"
+
+msgid "training.data.opacity"
+msgstr "Pozadí"
+
+msgid "training.data.opacity.detail"
+msgstr "Jak krycí je pozadí panelu."
+
+msgid "training.data.move"
+msgstr "Útok"
+
+msgid "training.data.position"
+msgstr "Pozice"
+
+msgid "training.data.state"
+msgstr "Stav"
+
+msgid "training.data.gauges"
+msgstr "Ukazatele"
+
+msgid "training.data.juggle"
+msgstr "Žonglování"
+
+msgid "training.data.charge"
+msgstr "Nabíjení"
+
+msgid "training.data.part.detail"
+msgstr "Ukazuje tuto část datového panelu."
+
+msgid "training.data.frame"
+msgstr "Snímek {0}"
+
+msgid "training.data.range"
+msgstr "Dosah"
+
+msgid "training.data.range_from"
+msgstr "Daleko, od {0}"
+
+msgid "training.data.range_within"
+msgstr "Blízko, do {0}"
+
+msgid "training.data.height_from"
+msgstr "Výška od {0}"
+
+msgid "training.data.height_within"
+msgstr "Výška do {0}"
+
+msgid "training.data.distance"
+msgstr "Vzdálenost"
+
+msgid "training.data.standing"
+msgstr "Stojí"
+
+msgid "training.data.crouching"
+msgstr "Krčí se"
+
+msgid "training.data.airborne"
+msgstr "Ve vzduchu"
+
+msgid "training.data.down"
+msgstr "Leží"
+
+msgid "training.data.status"
+msgstr "Stav {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.life"
+msgstr "Život"
+
+msgid "training.data.stun"
+msgstr "Omráčení"
+
+msgid "training.data.interruptible"
+msgstr "Přerušitelné"
+
+msgid "training.data.advantage"
+msgstr "Výhoda"
+
+msgid "training.data.juggled"
+msgstr "Počet"
+
+msgid "training.data.none"
+msgstr "Žádné"
+
+msgid "training.data.juggle_start"
+msgstr "Začátek"
+
+msgid "training.data.juggle_add"
+msgstr "Přírůstek"
+
+msgid "training.data.juggle_limit"
+msgstr "Limit"
+
+msgid "training.data.no_charge"
+msgstr "Žádné nabíjecí útoky"
+
 msgid "training.color_key"
 msgstr "Význam barev"
 
@@ -5408,6 +5552,57 @@ msgstr "Nahraje jej jako .mp4 v plné velikosti obrazu hry, kódovaný grafickou
 
 msgid "replays.video"
 msgstr "Video"
+
+msgid "replays.show"
+msgstr "Zobrazit"
+
+msgid "replays.show_detail"
+msgstr "Které zápasy seznam zobrazuje."
+
+msgid "replays.show.all"
+msgstr "Vše"
+
+msgid "replays.show.mine"
+msgstr "Moje zápasy"
+
+msgid "replays.show.spectated"
+msgstr "Sledované"
+
+msgid "replays.show.unseen"
+msgstr "Zatím neviděné"
+
+msgid "replays.show.video"
+msgstr "S videem"
+
+msgid "replays.show.kept"
+msgstr "Ponechané"
+
+msgid "replays.search"
+msgstr "Hledat"
+
+msgid "replays.search_detail"
+msgstr "Zobrazí zápasy, jejichž jméno hráče nebo bojovníka obsahuje tento text."
+
+msgid "replays.none_shown"
+msgstr "Žádné zápasy k zobrazení"
+
+msgid "replays.none_shown_detail"
+msgstr "Žádný záznam neodpovídá Zobrazit a Hledat. Změňte je a uvidíte ostatní."
+
+msgid "replays.keep"
+msgstr "Ponechat"
+
+msgid "replays.keep_detail"
+msgstr "Označí ho k opětovnému nalezení, pod Zobrazit: Ponechané."
+
+msgid "replays.unkeep"
+msgstr "Přestat ponechávat"
+
+msgid "replays.unkeep_detail"
+msgstr "Odebere označení. Záznam zůstane v archivu."
+
+msgid "replays.kept"
+msgstr "Ponechán"
 
 msgid "export.title"
 msgstr "Exportovat video"
@@ -7508,6 +7703,33 @@ msgstr "Panel Členové v místnosti. Když je skrytý, sloupec zabere chat, neb
 msgid "settings.room_show_chat_detail"
 msgstr "Panel Chat v místnosti. Když je skrytý, sloupec zaberou členové, nebo stoly celou šířku."
 
+msgid "settings.room_tables"
+msgstr "Stoly"
+
+msgid "settings.room_tables_list"
+msgstr "Jeden na řádek"
+
+msgid "settings.room_tables_grid"
+msgstr "Mřížka"
+
+msgid "settings.room_tables_detail"
+msgstr "Jeden na řádek roztáhne každý stůl přes celou plochu a bojovníka dá na každý jeho konec. Mřížka ukáže dva nebo tři vedle sebe, takže se jich bez posouvání vejde víc."
+
+msgid "settings.room_pictures"
+msgstr "Obrázky"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portréty"
+
+msgid "settings.room_pictures_characters"
+msgstr "Postavy"
+
+msgid "settings.room_pictures_detail"
+msgstr "Jak místnost ukazuje bojovníky u stolů, v Členech a na automatech v Herně. Portréty jsou obrázky z výběru postav ve hře. Postavy ukazují celého bojovníka v kostýmu a barvě, které si hráč vybral."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtr chatu"
 
@@ -7646,8 +7868,6 @@ msgstr "Sety"
 msgid "replays.set_matches"
 msgstr "Zápasy: {0}"
 
-msgid "replays.game"
-msgstr "Zápas {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Bojovníci"
@@ -7942,3 +8162,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Automaty {0} a {1}"
+
+msgid "training.combo_check"
+msgstr "Kontrola komba"
+
+msgid "training.combo_check.detail"
+msgstr "Přehraje tvé kombo proti dalším bojovníkům jako figuríně, ve stoje i v podřepu, a ukáže, kolik zásahů na každém dopadlo."
+
+msgid "training.combo_check.record"
+msgstr "Tvé kombo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Vyber a pak proveď kombo jako hráč 1. Nahrávání skončí sekundu po posledním stisku a spočítá zásahy, které dopadly."
+
+msgid "training.combo_check.recording"
+msgstr "Nahrávání"
+
+msgid "training.combo_check.none"
+msgstr "Zatím žádné"
+
+msgid "training.combo_check.hits"
+msgstr "{0} zásahů"
+
+msgid "training.combo_check.start_from"
+msgstr "Začít od"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Kde oba bojovníci stojí na začátku pokusu. Vzdálenost mezi nimi zůstane jako v nahrávce."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Kde jsi stál"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Střed"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Roh"
+
+msgid "training.combo_check.fighters"
+msgstr "Bojovníci figuríny"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Bojovníci, proti kterým se kombo přehraje. Výběr jednoho zapne nebo vypne."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} z {1}"
+
+msgid "training.combo_check.all"
+msgstr "Všichni"
+
+msgid "training.combo_check.all.detail"
+msgstr "Zapne všechny bojovníky, nebo všechny vypne, když jsou všichni zapnutí."
+
+msgid "training.combo_check.stance"
+msgstr "Postoj"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Zda se každý bojovník zkouší ve stoje, v podřepu nebo obojí."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Ve stoje"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "V podřepu"
+
+msgid "training.combo_check.stance.both"
+msgstr "Obojí"
+
+msgid "training.combo_check.speed"
+msgstr "Rychlost"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Rychle přehraje každý pokus až osmkrát rychleji. Načtení každého bojovníka i tak trvá pár sekund."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normální"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Rychle"
+
+msgid "training.combo_check.start"
+msgstr "Spustit kontrolu"
+
+msgid "training.combo_check.start.detail"
+msgstr "Načte postupně každého bojovníka jako figurínu a přehraje na něm tvé kombo. Nastavení figuríny se po kontrole vrátí."
+
+msgid "training.combo_check.stop"
+msgstr "Zastavit kontrolu"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Zastaví kontrolu. Dosavadní výsledky zůstanou."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} ve stoje"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} v podřepu"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} z {1} zásahů"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Čeká"
+
+msgid "training.combo_check.run.landed"
+msgstr "Dopadly všechny zásahy."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Nedopadly všechny zásahy."

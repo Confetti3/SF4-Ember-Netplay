@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Mijn replays delen"
 
 msgid "replays.share_detail"
-msgstr "Stuurt de wedstrijden die je vanaf nu speelt naar het openbare replay-archief van je bridge, met je naam en je land; een tegenstander wordt alleen genoemd als die ook deelt. Georganiseerde toernooiwedstrijden worden altijd gedeeld, met de namen van beide spelers."
+msgstr "Stuurt de wedstrijden die je vanaf nu speelt naar het openbare replay-archief van je bridge, met je naam en je land; een tegenstander wordt alleen genoemd als die ook deelt. Georganiseerde toernooiwedstrijden worden altijd gedeeld, met de namen van beide spelers. Gearchiveerde wedstrijden waarin beide spelers genoemd worden, kunnen ook op Embers YouTube-kanaal verschijnen. Wordt alleen gedeeld zolang je met Discord bent aangemeld (Instellingen > Online > Discord)."
 
 msgid "replays.link"
 msgstr "Replay uit de link afspelen"
@@ -931,14 +931,8 @@ msgstr "Verlaat Embers menu en opent het Battle Log van het spel, waar replays w
 msgid "replays.open_log_room"
 msgstr "Verlaat eerst de kamer."
 
-msgid "replays.tournaments"
-msgstr "Toernooien"
 
-msgid "replays.tournaments_detail"
-msgstr "De sets die je in toernooien speelde, elk met al zijn games."
 
-msgid "replays.set_detail"
-msgstr "Selecteer om de games van de set op volgorde te bekijken, er één te kiezen of de set als één bestand te bewaren."
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} kamers"
@@ -968,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Setvideo's exporteren"
 
 msgid "replays.export_set_detail"
-msgstr "Zet om de beurt een video van elke game klaar, met een onderschrift dat de set tot dan telt. Is er één gemaakt, dan zet Volgende video van de set bovenaan Replays de volgende klaar."
+msgstr "Zet de video van de eerste wedstrijd klaar, met het bijschrift dat de set tot dan telt. Als een video klaar is, volgt die van de volgende wedstrijd vanzelf; na een mislukte gaat Volgende video van de set bovenaan Replays verder."
 
 msgid "replays.next_video"
 msgstr "Volgende video van de set ({0} van {1})"
@@ -1062,6 +1056,9 @@ msgstr "Stand niet beschikbaar. Je oorspronkelijke instellingen zijn bewaard."
 
 msgid "profile.record_value"
 msgstr "{0} W / {1} V"
+
+msgid "profile.win_rate"
+msgstr "{0}% winst"
 
 msgid "profile.choose_main_title"
 msgstr "KIES JE HOOFDPERSONAGE"
@@ -2286,6 +2283,15 @@ msgstr "Winquote"
 msgid "selection.random"
 msgstr "Willekeurig"
 
+msgid "selection.random_card"
+msgstr "Willekeurig"
+
+msgid "selection.random_card.detail"
+msgstr "Elk spel een nieuwe vechter, geloot uit de vechters die je hebt."
+
+msgid "selection.random_fighter"
+msgstr "Willekeurig · {0}"
+
 msgid "selection.random_stage"
 msgstr "Willekeurig"
 
@@ -3117,6 +3123,24 @@ msgstr "Vastlegging opheffen"
 
 msgid "room.unlock_spectating.detail"
 msgstr "Je bent vastgelegd: de volgende match wacht tot {0} seconden op je terugkeer. Stoppen met kijken of naar een andere tafel gaan heft dit op."
+
+msgid "room.follow"
+msgstr "Kamer volgen"
+
+msgid "room.follow.detail"
+msgstr "Kijk naar de tafel waar gespeeld wordt: stopt die van jou, dan ga je naar de volgende match in de kamer."
+
+msgid "room.follow.stop"
+msgstr "Niet meer volgen"
+
+msgid "room.follow.stop_detail"
+msgstr "Je volgt de kamer · Tafel {0}. Stop om bij de tafel te blijven waar je kijkt."
+
+msgid "room.follow.following"
+msgstr "Volgt de kamer · Tafel {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Hef eerst de vastlegging op: volgen brengt je van tafel naar tafel."
 
 msgid "room.lock_in_ended.stopped"
 msgstr "Vastlegging opgeheven: je bent gestopt met kijken."
@@ -5094,6 +5118,126 @@ msgstr "Skelet"
 msgid "training.hitboxes.part.detail"
 msgstr "Tekent dit deel van de hitboxen over het gevecht."
 
+msgid "training.data"
+msgstr "Datapaneel"
+
+msgid "training.data.detail"
+msgstr "Toont script, positie, houding, meters, jonglerteller en ladingen van beide vechters naast het gevecht, zoals het spel ze elke frame bijhoudt."
+
+msgid "training.data.fighters"
+msgstr "Vechters"
+
+msgid "training.data.fighters.detail"
+msgstr "De panelen van beide vechters, elk onder zijn levensbalk, of maar één."
+
+msgid "training.data.fighters.both"
+msgstr "Beide"
+
+msgid "training.data.fighters.p1"
+msgstr "Alleen P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Alleen P2"
+
+msgid "training.data.opacity"
+msgstr "Achtergrond"
+
+msgid "training.data.opacity.detail"
+msgstr "Hoe dekkend de achtergrond van het paneel is."
+
+msgid "training.data.move"
+msgstr "Aanval"
+
+msgid "training.data.position"
+msgstr "Positie"
+
+msgid "training.data.state"
+msgstr "Toestand"
+
+msgid "training.data.gauges"
+msgstr "Meters"
+
+msgid "training.data.juggle"
+msgstr "Jongleren"
+
+msgid "training.data.charge"
+msgstr "Laden"
+
+msgid "training.data.part.detail"
+msgstr "Toont dit deel van het datapaneel."
+
+msgid "training.data.frame"
+msgstr "Frame {0}"
+
+msgid "training.data.range"
+msgstr "Bereik"
+
+msgid "training.data.range_from"
+msgstr "Ver, vanaf {0}"
+
+msgid "training.data.range_within"
+msgstr "Dichtbij, tot {0}"
+
+msgid "training.data.height_from"
+msgstr "Hoogte vanaf {0}"
+
+msgid "training.data.height_within"
+msgstr "Hoogte tot {0}"
+
+msgid "training.data.distance"
+msgstr "Afstand"
+
+msgid "training.data.standing"
+msgstr "Staand"
+
+msgid "training.data.crouching"
+msgstr "Gehurkt"
+
+msgid "training.data.airborne"
+msgstr "In de lucht"
+
+msgid "training.data.down"
+msgstr "Neer"
+
+msgid "training.data.status"
+msgstr "Status {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.life"
+msgstr "Leven"
+
+msgid "training.data.stun"
+msgstr "Duizeling"
+
+msgid "training.data.interruptible"
+msgstr "Afbreekbaar"
+
+msgid "training.data.advantage"
+msgstr "Voordeel"
+
+msgid "training.data.juggled"
+msgstr "Teller"
+
+msgid "training.data.none"
+msgstr "Geen"
+
+msgid "training.data.juggle_start"
+msgstr "Start"
+
+msgid "training.data.juggle_add"
+msgstr "Optelling"
+
+msgid "training.data.juggle_limit"
+msgstr "Grens"
+
+msgid "training.data.no_charge"
+msgstr "Geen laadaanvallen"
+
 msgid "training.color_key"
 msgstr "Kleurenlegenda"
 
@@ -5408,6 +5552,57 @@ msgstr "Neemt hem op als .mp4 op de volledige beeldgrootte van het spel, gecodee
 
 msgid "replays.video"
 msgstr "Video"
+
+msgid "replays.show"
+msgstr "Tonen"
+
+msgid "replays.show_detail"
+msgstr "Welke wedstrijden de lijst toont."
+
+msgid "replays.show.all"
+msgstr "Alle"
+
+msgid "replays.show.mine"
+msgstr "Mijn wedstrijden"
+
+msgid "replays.show.spectated"
+msgstr "Toegekeken"
+
+msgid "replays.show.unseen"
+msgstr "Nog niet gezien"
+
+msgid "replays.show.video"
+msgstr "Met video"
+
+msgid "replays.show.kept"
+msgstr "Bewaard"
+
+msgid "replays.search"
+msgstr "Zoeken"
+
+msgid "replays.search_detail"
+msgstr "Toont de wedstrijden waarvan de speler- of vechternaam dit bevat."
+
+msgid "replays.none_shown"
+msgstr "Geen wedstrijden om te tonen"
+
+msgid "replays.none_shown_detail"
+msgstr "Geen replay past bij Tonen en Zoeken. Pas ze aan om de andere te zien."
+
+msgid "replays.keep"
+msgstr "Bewaren"
+
+msgid "replays.keep_detail"
+msgstr "Markeert het om terug te vinden, onder Tonen: Bewaard."
+
+msgid "replays.unkeep"
+msgstr "Niet meer bewaren"
+
+msgid "replays.unkeep_detail"
+msgstr "Haalt de markering weg. De replay blijft in het archief."
+
+msgid "replays.kept"
+msgstr "Bewaard"
 
 msgid "export.title"
 msgstr "Video exporteren"
@@ -7508,6 +7703,33 @@ msgstr "Het paneel Leden op het kamerbord. Verborgen neemt Chat de kolom, of de 
 msgid "settings.room_show_chat_detail"
 msgstr "Het paneel Chat op het kamerbord. Verborgen neemt Leden de kolom, of de tafels de volle breedte."
 
+msgid "settings.room_tables"
+msgstr "Tafels"
+
+msgid "settings.room_tables_list"
+msgstr "Eén per regel"
+
+msgid "settings.room_tables_grid"
+msgstr "Raster"
+
+msgid "settings.room_tables_detail"
+msgstr "Eén per regel zet elke tafel over de hele breedte, met aan elk eind een vechter. Het raster toont er twee of drie naast elkaar, zodat er meer passen zonder te scrollen."
+
+msgid "settings.room_pictures"
+msgstr "Afbeeldingen"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portretten"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personages"
+
+msgid "settings.room_pictures_detail"
+msgstr "Hoe de kamer elke vechter toont, aan de tafels, bij Leden en op de Arcade-kasten. Portretten zijn de afbeeldingen uit de personagekeuze van het spel. Personages tonen de hele vechter, in het kostuum en de kleur die de speler koos."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Chatfilter"
 
@@ -7646,8 +7868,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} wedstrijden"
 
-msgid "replays.game"
-msgstr "Wedstrijd {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Vechters"
@@ -7942,3 +8162,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Kasten {0} en {1}"
+
+msgid "training.combo_check"
+msgstr "Combocheck"
+
+msgid "training.combo_check.detail"
+msgstr "Speelt je combo tegen andere vechters als dummy, staand en gehurkt, en toont hoeveel van de hits op elk raakten."
+
+msgid "training.combo_check.record"
+msgstr "Je combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Kies dit en doe dan je combo als speler 1. De opname stopt een seconde na je laatste druk en telt de hits die raakten."
+
+msgid "training.combo_check.recording"
+msgstr "Opnemen"
+
+msgid "training.combo_check.none"
+msgstr "Nog geen"
+
+msgid "training.combo_check.hits"
+msgstr "{0} hits"
+
+msgid "training.combo_check.start_from"
+msgstr "Begin vanaf"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Waar beide vechters staan als een poging begint. De afstand tussen hen blijft zoals je hem opnam."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Waar je stond"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Midden"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Hoek"
+
+msgid "training.combo_check.fighters"
+msgstr "Dummyvechters"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "De vechters waartegen je combo gespeeld wordt. Kiezen zet er een aan of uit."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} van {1}"
+
+msgid "training.combo_check.all"
+msgstr "Alle vechters"
+
+msgid "training.combo_check.all.detail"
+msgstr "Zet elke vechter aan, of elke vechter uit als ze allemaal aan staan."
+
+msgid "training.combo_check.stance"
+msgstr "Houding"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Of elke vechter staand, gehurkt of allebei getest wordt."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Staand"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Gehurkt"
+
+msgid "training.combo_check.stance.both"
+msgstr "Allebei"
+
+msgid "training.combo_check.speed"
+msgstr "Snelheid"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Snel speelt elke poging tot acht keer zo snel. Elke vechter laden duurt nog steeds een paar seconden."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normaal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Snel"
+
+msgid "training.combo_check.start"
+msgstr "Check starten"
+
+msgid "training.combo_check.start.detail"
+msgstr "Laadt elke vechter om de beurt als dummy en speelt je combo erop. Je dummy-instellingen komen terug als de check klaar is."
+
+msgid "training.combo_check.stop"
+msgstr "Check stoppen"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Stopt de check. De resultaten tot nu toe blijven."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} staand"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} gehurkt"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} van {1} hits"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Wacht"
+
+msgid "training.combo_check.run.landed"
+msgstr "Elke hit raakte."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Niet elke hit raakte."

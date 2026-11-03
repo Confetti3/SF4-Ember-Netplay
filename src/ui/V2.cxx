@@ -159,9 +159,15 @@ float Grip(const char* id, ImVec2 from, ImVec2 to, bool live) {
     const ImVec2 at = down ? ImVec2(from.x - reach, from.y) : ImVec2(from.x, from.y - reach);
     const ImVec2 size = down ? ImVec2(2 * reach, (std::max)(1.f, to.y - from.y)) : ImVec2((std::max)(1.f, to.x - from.x), 2 * reach);
     ReportMenuCard(id, at, ImVec2(at.x + size.x, at.y + size.y));
+    // Its own child window: the panels beside it are child windows too, which a
+    // draw list of the board's would be drawn under, covering the dot's halves.
+    ImGui::SetCursorScreenPos(at);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.f);
+    ImGui::BeginChild(id, size, 0, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoNavInputs | (live ? 0 : ImGuiWindowFlags_NoMouseInputs));
     bool held = false, hovered = false;
     if (live) {
-        ImGui::SetCursorScreenPos(at);
         ImGui::InvisibleButton(id, size);
         held = ImGui::IsItemActive(); hovered = ImGui::IsItemHovered();
     }
@@ -181,6 +187,8 @@ float Grip(const char* id, ImVec2 from, ImVec2 to, bool live) {
         d->AddTriangleFilled(tip, a, b, ink);
     }
     else for (int i = -1; i <= 1; ++i) d->AddCircleFilled(down ? ImVec2(mid.x, mid.y + i * 6 * s) : ImVec2(mid.x + i * 6 * s, mid.y), 2 * s, ink);
+    ImGui::EndChild();
+    ImGui::PopStyleVar(2);
     return held ? (down ? ImGui::GetMousePos().x : ImGui::GetMousePos().y) : NAN;
 }
 

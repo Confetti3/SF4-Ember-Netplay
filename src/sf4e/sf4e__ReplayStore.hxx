@@ -59,6 +59,12 @@ struct Status {
 	// ExportClock): what the Replays screen shows. Total is 0 until known.
 	replay::ExportStage exportStage = replay::ExportStage::None;
 	std::uint32_t exportFrames = 0, exportTotal = 0;
+	// The last export to end, by its request's id (replay::Request::id),
+	// whether its video was saved, and the video's file (UTF-8) when it was.
+	// 0 until one ends.
+	std::uint64_t exportEnded = 0;
+	bool exportSaved = false;
+	std::string exportVideo;
 };
 const Status& GetStatus();
 // A playback that is being made into a video is running: the game is then

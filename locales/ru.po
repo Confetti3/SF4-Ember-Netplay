@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Делиться моими повторами"
 
 msgid "replays.share_detail"
-msgstr "Отправляет игры, которые вы сыграете с этого момента, в публичный архив повторов вашего bridge, с вашим именем и страной; соперник называется, только если он тоже делится. Игры организованных турниров отправляются всегда, с именами обоих игроков."
+msgstr "Отправляет игры, которые вы сыграете с этого момента, в публичный архив повторов вашего bridge, с вашим именем и страной; соперник называется, только если он тоже делится. Игры организованных турниров отправляются всегда, с именами обоих игроков. Архивные игры, где названы оба игрока, также могут показываться на YouTube-канале Ember. Отправляются только пока вы вошли через Discord (Настройки > Онлайн > Discord)."
 
 msgid "replays.link"
 msgstr "Воспроизвести повтор по ссылке"
@@ -931,14 +931,8 @@ msgstr "Выходит из меню Ember в Battle Log игры, где вос
 msgid "replays.open_log_room"
 msgstr "Сначала выйдите из лобби."
 
-msgid "replays.tournaments"
-msgstr "Турниры"
 
-msgid "replays.tournaments_detail"
-msgstr "Сеты, сыгранные вами на турнирах, каждый со всеми своими играми."
 
-msgid "replays.set_detail"
-msgstr "Выберите, чтобы посмотреть игры сета по порядку, выбрать одну из них или сохранить сет одним файлом."
 
 msgid "replays.set_value"
 msgstr "Записей: {0} · комнат: {1}"
@@ -968,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Экспорт видео сета"
 
 msgid "replays.export_set_detail"
-msgstr "По очереди готовит видео каждой игры с подписью, где указан счёт сета на тот момент. Когда одно готово, Следующее видео сета вверху Записей готовит следующее."
+msgstr "Готовит видео первой игры с подписью, считающей сет до неё. Когда видео готово, видео следующей игры следует само; после неудачного продолжает Следующее видео сета вверху Реплеев."
 
 msgid "replays.next_video"
 msgstr "Следующее видео сета ({0} из {1})"
@@ -1062,6 +1056,9 @@ msgstr "Статистика недоступна. Исходные настро
 
 msgid "profile.record_value"
 msgstr "{0} П / {1} Пр"
+
+msgid "profile.win_rate"
+msgstr "Побед: {0}%"
 
 msgid "profile.choose_main_title"
 msgstr "ОСНОВНОЙ ПЕРСОНАЖ"
@@ -2286,6 +2283,15 @@ msgstr "Победный клич"
 msgid "selection.random"
 msgstr "Случайно"
 
+msgid "selection.random_card"
+msgstr "Случайно"
+
+msgid "selection.random_card.detail"
+msgstr "Новый боец в каждой игре, выбранный случайно из тех, что у вас есть."
+
+msgid "selection.random_fighter"
+msgstr "Случайно · {0}"
+
 msgid "selection.random_stage"
 msgstr "Случайно"
 
@@ -3117,6 +3123,24 @@ msgstr "Снять закрепление"
 
 msgid "room.unlock_spectating.detail"
 msgstr "Вы закреплены: следующий матч ждёт вашего возвращения до {0} секунд. Закрепление снимается, если перестать смотреть или перейти к другой ячейке."
+
+msgid "room.follow"
+msgstr "Следить за лобби"
+
+msgid "room.follow.detail"
+msgstr "Смотрите ячейку, где идёт бой: когда в вашей бой заканчивается, вы переходите к следующему бою в лобби."
+
+msgid "room.follow.stop"
+msgstr "Не следить"
+
+msgid "room.follow.stop_detail"
+msgstr "Вы следите за лобби · Ячейка {0}. Остановите, чтобы остаться у этой ячейки."
+
+msgid "room.follow.following"
+msgstr "Слежение за лобби · Ячейка {0}"
+
+msgid "room.follow.locked_in"
+msgstr "Сначала снимите закрепление: при слежении вы переходите между ячейками."
 
 msgid "room.lock_in_ended.stopped"
 msgstr "Закрепление снято: вы перестали смотреть."
@@ -5094,6 +5118,126 @@ msgstr "Скелет"
 msgid "training.hitboxes.part.detail"
 msgstr "Рисует эту часть хитбоксов поверх боя."
 
+msgid "training.data"
+msgstr "Панель данных"
+
+msgid "training.data.detail"
+msgstr "Показывает скрипт, позицию, стойку, шкалы, счётчик жонглирования и заряды каждого бойца рядом с боем, как их держит игра в каждом кадре."
+
+msgid "training.data.fighters"
+msgstr "Бойцы"
+
+msgid "training.data.fighters.detail"
+msgstr "Панели обоих бойцов, каждая под его полосой здоровья, или только одна."
+
+msgid "training.data.fighters.both"
+msgstr "Оба"
+
+msgid "training.data.fighters.p1"
+msgstr "Только P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Только P2"
+
+msgid "training.data.opacity"
+msgstr "Фон"
+
+msgid "training.data.opacity.detail"
+msgstr "Насколько плотный фон панели."
+
+msgid "training.data.move"
+msgstr "Приём"
+
+msgid "training.data.position"
+msgstr "Позиция"
+
+msgid "training.data.state"
+msgstr "Состояние"
+
+msgid "training.data.gauges"
+msgstr "Шкалы"
+
+msgid "training.data.juggle"
+msgstr "Жонглирование"
+
+msgid "training.data.charge"
+msgstr "Заряд"
+
+msgid "training.data.part.detail"
+msgstr "Показывает эту часть панели данных."
+
+msgid "training.data.frame"
+msgstr "Кадр {0}"
+
+msgid "training.data.range"
+msgstr "Дистанция"
+
+msgid "training.data.range_from"
+msgstr "Далеко, от {0}"
+
+msgid "training.data.range_within"
+msgstr "Близко, до {0}"
+
+msgid "training.data.height_from"
+msgstr "Высота от {0}"
+
+msgid "training.data.height_within"
+msgstr "Высота до {0}"
+
+msgid "training.data.distance"
+msgstr "Расстояние"
+
+msgid "training.data.standing"
+msgstr "Стоит"
+
+msgid "training.data.crouching"
+msgstr "Присел"
+
+msgid "training.data.airborne"
+msgstr "В воздухе"
+
+msgid "training.data.down"
+msgstr "Лежит"
+
+msgid "training.data.status"
+msgstr "Статус {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.life"
+msgstr "Здоровье"
+
+msgid "training.data.stun"
+msgstr "Оглушение"
+
+msgid "training.data.interruptible"
+msgstr "Отмена с"
+
+msgid "training.data.advantage"
+msgstr "Преимущество"
+
+msgid "training.data.juggled"
+msgstr "Счёт"
+
+msgid "training.data.none"
+msgstr "Нет"
+
+msgid "training.data.juggle_start"
+msgstr "Начало"
+
+msgid "training.data.juggle_add"
+msgstr "Прибавка"
+
+msgid "training.data.juggle_limit"
+msgstr "Предел"
+
+msgid "training.data.no_charge"
+msgstr "Нет приёмов с зарядом"
+
 msgid "training.color_key"
 msgstr "Обозначения цветов"
 
@@ -5408,6 +5552,57 @@ msgstr "Записывает в .mp4 в полном размере изобра
 
 msgid "replays.video"
 msgstr "Видео"
+
+msgid "replays.show"
+msgstr "Показать"
+
+msgid "replays.show_detail"
+msgstr "Какие матчи показывает список."
+
+msgid "replays.show.all"
+msgstr "Все"
+
+msgid "replays.show.mine"
+msgstr "Мои матчи"
+
+msgid "replays.show.spectated"
+msgstr "Просмотренные"
+
+msgid "replays.show.unseen"
+msgstr "Ещё не просмотренные"
+
+msgid "replays.show.video"
+msgstr "С видео"
+
+msgid "replays.show.kept"
+msgstr "Сохранённые"
+
+msgid "replays.search"
+msgstr "Поиск"
+
+msgid "replays.search_detail"
+msgstr "Показывает матчи, в которых имя игрока или бойца содержит этот текст."
+
+msgid "replays.none_shown"
+msgstr "Нет матчей для показа"
+
+msgid "replays.none_shown_detail"
+msgstr "Ни один реплей не подходит под Показать и Поиск. Измените их, чтобы увидеть остальные."
+
+msgid "replays.keep"
+msgstr "Сохранить"
+
+msgid "replays.keep_detail"
+msgstr "Отмечает его, чтобы найти снова, в Показать: Сохранённые."
+
+msgid "replays.unkeep"
+msgstr "Больше не хранить"
+
+msgid "replays.unkeep_detail"
+msgstr "Снимает отметку. Реплей остаётся в архиве."
+
+msgid "replays.kept"
+msgstr "Сохранён"
 
 msgid "export.title"
 msgstr "Экспорт видео"
@@ -7508,6 +7703,33 @@ msgstr "Панель участников комнаты. Если она скр
 msgid "settings.room_show_chat_detail"
 msgstr "Панель чата комнаты. Если она скрыта, столбец занимают участники, а если скрыты обе — столы на всю ширину."
 
+msgid "settings.room_tables"
+msgstr "Столы"
+
+msgid "settings.room_tables_list"
+msgstr "По одному в строке"
+
+msgid "settings.room_tables_grid"
+msgstr "Сетка"
+
+msgid "settings.room_tables_detail"
+msgstr "По одному в строке: каждый стол во всю ширину, бойцы по краям. Сетка показывает два-три стола рядом, чтобы больше помещалось без прокрутки."
+
+msgid "settings.room_pictures"
+msgstr "Картинки"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Портреты"
+
+msgid "settings.room_pictures_characters"
+msgstr "Персонажи"
+
+msgid "settings.room_pictures_detail"
+msgstr "Как комната показывает бойцов за столами, в списке участников и на автоматах в Аркаде. Портреты — картинки из выбора персонажа в игре. Персонажи показывают бойца целиком, в костюме и цвете, выбранных игроком."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Фильтр чата"
 
@@ -7646,8 +7868,6 @@ msgstr "Сеты"
 msgid "replays.set_matches"
 msgstr "Матчей: {0}"
 
-msgid "replays.game"
-msgstr "Матч {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Бойцы"
@@ -7942,3 +8162,111 @@ msgstr "{0} против {1}"
 
 msgid "room.matchup_detail"
 msgstr "Автоматы {0} и {1}"
+
+msgid "training.combo_check"
+msgstr "Проверка комбо"
+
+msgid "training.combo_check.detail"
+msgstr "Проигрывает ваше комбо против других бойцов в роли манекена, стоя и сидя, и показывает, сколько ударов попало по каждому."
+
+msgid "training.combo_check.record"
+msgstr "Ваше комбо"
+
+msgid "training.combo_check.record.detail"
+msgstr "Выберите, затем выполните комбо за игрока 1. Запись заканчивается через секунду после последнего нажатия и считает попавшие удары."
+
+msgid "training.combo_check.recording"
+msgstr "Запись"
+
+msgid "training.combo_check.none"
+msgstr "Пока нет"
+
+msgid "training.combo_check.hits"
+msgstr "Ударов: {0}"
+
+msgid "training.combo_check.start_from"
+msgstr "Начало"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Где стоят оба бойца в начале попытки. Расстояние между ними остаётся как в записи."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Где вы стояли"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Центр"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Угол"
+
+msgid "training.combo_check.fighters"
+msgstr "Бойцы-манекены"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Бойцы, против которых проигрывается комбо. Выбор включает или выключает бойца."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} из {1}"
+
+msgid "training.combo_check.all"
+msgstr "Все бойцы"
+
+msgid "training.combo_check.all.detail"
+msgstr "Включает всех бойцов или выключает всех, если все включены."
+
+msgid "training.combo_check.stance"
+msgstr "Стойка"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Проверять каждого бойца стоя, сидя или в обеих стойках."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Стоя"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Сидя"
+
+msgid "training.combo_check.stance.both"
+msgstr "Обе"
+
+msgid "training.combo_check.speed"
+msgstr "Скорость"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Быстро проигрывает каждую попытку до восьми раз быстрее. Загрузка каждого бойца всё равно занимает несколько секунд."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Обычная"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Быстро"
+
+msgid "training.combo_check.start"
+msgstr "Начать проверку"
+
+msgid "training.combo_check.start.detail"
+msgstr "По очереди загружает каждого бойца как манекена и проигрывает на нём ваше комбо. Настройки манекена вернутся после проверки."
+
+msgid "training.combo_check.stop"
+msgstr "Остановить"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Останавливает проверку. Полученные результаты остаются."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} стоя"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} сидя"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} из {1} ударов"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Ожидание"
+
+msgid "training.combo_check.run.landed"
+msgstr "Попали все удары."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Попали не все удары."

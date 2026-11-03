@@ -4,6 +4,8 @@
 namespace Dimps { namespace Game { namespace Battle { struct System; } } }
 namespace sf4e { namespace training {
 View ReadView();
+// Combo check's last recorded combo (View::check.comboId names it). Any thread.
+combo_check::Combo LastCombo();
 // Where the fighters stand and the battle they stand in, without the rest of
 // the view: what a pad press keeps for the save it may become. Any thread.
 struct Place { std::uint64_t generation = 0; float x[2] = {0, 0}; };
@@ -50,6 +52,8 @@ unsigned ClearReservedInputBits(unsigned raw);
 void AllowOfflineVersusForTest();
 // Reads the fighters' boxes whether or not Hitboxes is on. Game thread.
 void ReadHitBoxesForTest();
+// Reads the Data panel's values whether or not it shows. Game thread.
+void ReadDataForTest();
 #endif
 // Whether the player wants that meter. Any thread.
 void WatchMatches(bool enabled);
@@ -59,8 +63,14 @@ void SetMeterHistory(int frames, bool continuous);
 // Whether Hitboxes is on (MeterOptions::hitboxes); the fighters' boxes are
 // read only while it is. Any thread.
 void ShowHitBoxes(bool shown);
+// Whether the Training Data panel is shown: its readings are taken only then.
+void ShowData(bool shown);
 void CloseBattle();
 void StopCapture();
+// Combo check's Fast: while a check runs with it and the fight is on, the
+// battle plays up to FastUpdates updates a frame instead of one. Game thread.
+constexpr int FastUpdates = 8;
+bool Fast();
 // The override exists only during one native offline training update.
 bool ReadOverride(int side, Input& result);
 } }

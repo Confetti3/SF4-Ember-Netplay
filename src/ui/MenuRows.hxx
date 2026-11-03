@@ -17,6 +17,14 @@ inline std::string AutoDelayDetail(int style) {
     const auto range = AutoInputDelayRange(static_cast<AutoDelayStyle>((std::max)(0, (std::min)(AutoDelayStyles - 1, style))));
     return loc::Tf("room.input_delay.auto.detail", range.minimum, range.maximum);
 }
+// The record as the profile shows it, "12 W / 8 L · 60% wins": the share of
+// games won, to the nearest percent, once there is a game.
+inline std::string RecordValue(const netplay::ProfileRecord& r) {
+    const auto games = r.wins + r.losses;
+    std::string value = loc::Tf("profile.record_value", r.wins, r.losses);
+    if (games) value += " \xC2\xB7 " + loc::Tf("profile.win_rate", (r.wins * 200 + games) / (2 * games));
+    return value;
+}
 inline bool SamePreferences(const netplay::PlayerPreferences& a,const netplay::PlayerPreferences& b) {
     for(const auto& p:netplay::BoolPreferences) if(a.*p.member!=b.*p.member) return false;
     return a.displayName==b.displayName&&a.mainFighter==b.mainFighter&&a.inputDelay==b.inputDelay&&a.autoInputDelay==b.autoInputDelay&&a.autoDelayStyle==b.autoDelayStyle&&
@@ -152,11 +160,19 @@ inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
     return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
         loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
 }
+// A room type's name (Classic, Arcade, King of the hill) and how it plays, wherever a room's
+// type is shown: Create's row, the public room list and a public room's status line.
+inline const char* RoomTypeName(room::RoomType type) {
+    static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
+    return loc::T(names[type]);
+}
+inline const char* RoomTypeDetail(room::RoomType type) {
+    static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
+    return loc::T(details[type]);
+}
 // Create's choice of the room's type, fixed for its life (room::Snapshot::arcade).
 inline MenuEntry RoomTypeRow(room::RoomType type,bool enabled) {
-    static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
-    static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
-    return Value("room-type",loc::T("room.type"),loc::T(names[type]),loc::T(details[type]),enabled);
+    return Value("room-type",loc::T("room.type"),RoomTypeName(type),RoomTypeDetail(type),enabled);
 }
 // Create's choice of whose input delay the room plays at, fixed for the room's life (room::Snapshot::delayPolicy).
 inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {

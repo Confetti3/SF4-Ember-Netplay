@@ -871,17 +871,26 @@ try {
         Check ($script:remoteReleases['v1.2.0-nightly20261008'].body -like '*Passed only when run once more: HelperRust, EmberRust*') 'Release notes do not name the tests that passed on rerun'
         Pass 'release notes name the tests that passed only when run once more'
 
-        # The fixture Nightly is 1.2.0: only a Stable minor of 1.1 (any patch) is one minor behind it.
+        # The fixture Nightly is 1.2.0: only a Stable minor of 1.1 (any patch) is behind it.
         foreach ($stable in @('1.2.0', '1.3.0', '1.0.0', '2.1.0')) {
             Reset-Fake
             $script:stableVersion = $stable
-            Reject { Invoke-Publish } '*must be one minor version ahead of Stable*'
+            Reject { Invoke-Publish } '*must be ahead of Stable*'
             Check (!(Test-Ran 'op *') -and !(Test-Ran 'gh release create*')) "Stable $stable let an unnumbered Nightly reach the build"
         }
         Reset-Fake
         $script:stableVersion = '1.1.9'
         Invoke-Publish @{SkipRoomHosts=$true}
         Check (!$script:remoteReleases['v1.2.0-nightly20261008'].draft) 'A Nightly one minor ahead of Stable did not publish'
+        # A later patch of Stable's minor is ahead too (1.5.1 after 1.5.0); the same version or an older patch is not.
+        $version = { param($Text) Get-EmberCMakeVersion @("    VERSION $Text") }
+        foreach ($pair in @(@('1.5.1', '1.5.0'), @('1.5.3', '1.5.2'), @('1.6.0', '1.5.0'), @('1.6.4', '1.5.2'))) {
+            Assert-NightlyAhead (& $version $pair[0]) (& $version $pair[1])
+        }
+        foreach ($pair in @(@('1.5.0', '1.5.0'), @('1.5.0', '1.5.1'), @('1.7.0', '1.5.0'), @('1.4.9', '1.5.0'), @('2.5.1', '1.5.0'))) {
+            Reject { Assert-NightlyAhead (& $version $pair[0]) (& $version $pair[1]) } '*must be ahead of Stable*'
+        }
+        Pass 'a Nightly is ahead of Stable by a later patch of its minor or by the next minor, never level or behind'
         Reset-Fake
         $script:showFails = $true
         Reject { Invoke-Publish } '*Could not read origin/release:CMakeLists.txt*'
@@ -900,7 +909,7 @@ try {
         Invoke-Publish @{SkipRoomHosts=$true}
         Check (@(Get-CommandLabels | Where-Object { $_ -like 'git * fetch origin release' }).Count -eq 1) 'The Stable ref was not fetched exactly once for the version check'
         Check ((Find-Command 'git * fetch origin release') -lt (Find-Command 'git * show *')) 'The Stable version was read before its ref was fetched'
-        Pass 'a Nightly that is not one minor ahead of the fetched origin/release is refused before the build, and an unreadable Stable version fails closed'
+        Pass 'a Nightly that is not ahead of the fetched origin/release is refused before the build, and an unreadable Stable version fails closed'
 
         Reset-Fake
         $script:repositoryMode = 'missing'

@@ -24,11 +24,13 @@ round.
   the next one goes on from there.
 - **Other games.** When a player has Settings › Training and replays › **Share my replays**
   on (it is on by default), the game sends each game it played and did not
-  just watch through `replay_archive`, which is `PUT /v1/replays/{crc}`. The
-  helper tries each of the player's bridges and stops at the first one that
-  has an archive. Only `.emberreplay` files are sent, and only games saved
-  since sharing came on, so the replays already on the PC stay theirs. A game
-  not sent before closing is sent the next time.
+  just watch through `replay_archive`, which is `PUT /v1/replays/{crc}`. Only a
+  player whose Ember ID has a Discord account connected (Settings › Online ›
+  Discord) is shared: the bridge refuses the others with `forbidden`, reason
+  `discord_required`. The helper tries each of the player's bridges and stops
+  at the first one that keeps the game. Only `.emberreplay` files are sent,
+  and only games saved since sharing came on, so the replays already on the PC
+  stay theirs. A game not sent before closing is sent the next time.
 - **Played, not watched.** A game's provenance is unknown, played or watched,
   as the note bound to its body says. Only a played game is ever shared; an
   unknown one (no note yet, an unreadable note, or a game put back into the
@@ -40,6 +42,14 @@ round.
 - A bridge without an archive answers `replays_unsupported`. The game then
   stops sending other games for the rest of the run and marks none of them
   sent.
+- A bridge that wants a Discord account answers `forbidden` with reason
+  `discord_required`; the helper tells the game `discord_required` when no
+  bridge kept the game and one refused for that, ahead of
+  `replays_unsupported`. The game then holds other games back and marks none
+  of them sent, while a set's games go on (they need no Discord). Sending
+  resumes when the interface reads a Discord account that differs from the
+  one read when the bridge refused, such as one just connected; the games
+  held back then go, as none was marked sent.
 - The game sends one replay at a time. It sends a set's games before any
   other game, except that one its bridge has not confirmed yet
   (`replay_unconfirmed`) waits 10 minutes while the others go. The bridge

@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Share my replays"
 
 msgid "replays.share_detail"
-msgstr "Sends the games you play from now on to your bridge's public replay archive, with your name and country; an opponent is named only if they share too. Organized tournament games are always shared, with both players' names."
+msgstr "Sends the games you play from now on to your bridge's public replay archive, with your name and country; an opponent is named only if they share too. Organized tournament games are always shared, with both players' names. Archived games with both players named may also be shown on Ember's YouTube channel. Only shared while you are signed in with Discord (Settings > Online > Discord)."
 
 msgid "replays.link"
 msgstr "Play the replay from the link"
@@ -931,14 +931,8 @@ msgstr "Leaves Ember's menu for the game's Battle Log, where replays play."
 msgid "replays.open_log_room"
 msgstr "Leave the room first."
 
-msgid "replays.tournaments"
-msgstr "Tournaments"
 
-msgid "replays.tournaments_detail"
-msgstr "The sets you played in tournaments, each with all of its games."
 
-msgid "replays.set_detail"
-msgstr "Select to watch the set's games in order, pick one of them, or save the set as one file."
 
 msgid "replays.set_value"
 msgstr "{0} replays · {1} rooms"
@@ -968,10 +962,10 @@ msgid "replays.export_set"
 msgstr "Export set videos"
 
 msgid "replays.export_set_detail"
-msgstr "Sets up a video of each game in turn, its caption counting the set so far. When one is made, Next video of the set at the top of Replays sets up the next."
+msgstr "Sets up the first game's video, its caption counting the set so far. Once a video is made, the next game's follows by itself; after a failed one, Next video at the top of Replays goes on."
 
 msgid "replays.next_video"
-msgstr "Next video of the set ({0} of {1})"
+msgstr "Next video ({0} of {1})"
 
 msgid "replays.next_video_detail"
 msgstr "Sets up this game's video: check its caption, then Generate video."
@@ -1062,6 +1056,9 @@ msgstr "Record unavailable. The original settings are preserved."
 
 msgid "profile.record_value"
 msgstr "{0} W / {1} L"
+
+msgid "profile.win_rate"
+msgstr "{0}% wins"
 
 msgid "profile.choose_main_title"
 msgstr "CHOOSE YOUR MAIN"
@@ -2286,6 +2283,15 @@ msgstr "Win quote"
 msgid "selection.random"
 msgstr "Random"
 
+msgid "selection.random_card"
+msgstr "Random"
+
+msgid "selection.random_card.detail"
+msgstr "A new fighter for every game, rolled from the ones you own."
+
+msgid "selection.random_fighter"
+msgstr "Random · {0}"
+
 msgid "selection.random_stage"
 msgstr "Random"
 
@@ -2895,6 +2901,18 @@ msgid "room.unlock_spectating"
 msgstr "Release lock-in"
 msgid "room.unlock_spectating.detail"
 msgstr "You are locked in: the next game waits up to {0} seconds for you to return. Stopping watching or moving to another table releases it."
+msgid "room.follow"
+msgstr "Follow the room"
+msgid "room.follow.detail"
+msgstr "Watch whichever table is playing: when yours stops, you move to the next game in the room."
+msgid "room.follow.stop"
+msgstr "Stop following"
+msgid "room.follow.stop_detail"
+msgstr "Following the room · Table {0}. Stop to stay at the table you watch."
+msgid "room.follow.following"
+msgstr "Following the room · Table {0}"
+msgid "room.follow.locked_in"
+msgstr "Release lock-in first: following moves you between tables."
 msgid "room.lock_in_ended.stopped"
 msgstr "Lock-in released: you stopped watching."
 msgid "room.lock_in_ended.moved"
@@ -4727,6 +4745,126 @@ msgstr "Skeleton"
 msgid "training.hitboxes.part.detail"
 msgstr "Draws this part of Hitboxes over the fight."
 
+msgid "training.data"
+msgstr "Data panel"
+
+msgid "training.data.detail"
+msgstr "Shows each fighter's script, position, stance, gauges, juggle count and charges beside the fight, as the game holds them each frame."
+
+msgid "training.data.fighters"
+msgstr "Fighters"
+
+msgid "training.data.fighters.detail"
+msgstr "Show both fighters' panels, each under its life bar, or only one."
+
+msgid "training.data.fighters.both"
+msgstr "Both"
+
+msgid "training.data.fighters.p1"
+msgstr "P1 only"
+
+msgid "training.data.fighters.p2"
+msgstr "P2 only"
+
+msgid "training.data.opacity"
+msgstr "Background"
+
+msgid "training.data.opacity.detail"
+msgstr "How solid the panel's background is."
+
+msgid "training.data.move"
+msgstr "Move"
+
+msgid "training.data.position"
+msgstr "Position"
+
+msgid "training.data.state"
+msgstr "State"
+
+msgid "training.data.gauges"
+msgstr "Gauges"
+
+msgid "training.data.juggle"
+msgstr "Juggle"
+
+msgid "training.data.charge"
+msgstr "Charge"
+
+msgid "training.data.part.detail"
+msgstr "Shows this part of the Data panel."
+
+msgid "training.data.frame"
+msgstr "Frame {0}"
+
+msgid "training.data.range"
+msgstr "Range"
+
+msgid "training.data.range_from"
+msgstr "Far, {0} or more"
+
+msgid "training.data.range_within"
+msgstr "Close, up to {0}"
+
+msgid "training.data.height_from"
+msgstr "Height {0} or more"
+
+msgid "training.data.height_within"
+msgstr "Height up to {0}"
+
+msgid "training.data.distance"
+msgstr "Distance"
+
+msgid "training.data.standing"
+msgstr "Standing"
+
+msgid "training.data.crouching"
+msgstr "Crouching"
+
+msgid "training.data.airborne"
+msgstr "Airborne"
+
+msgid "training.data.down"
+msgstr "Down"
+
+msgid "training.data.status"
+msgstr "Status {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.life"
+msgstr "Life"
+
+msgid "training.data.stun"
+msgstr "Stun"
+
+msgid "training.data.interruptible"
+msgstr "Interruptible"
+
+msgid "training.data.advantage"
+msgstr "Advantage"
+
+msgid "training.data.juggled"
+msgstr "Count"
+
+msgid "training.data.none"
+msgstr "None"
+
+msgid "training.data.juggle_start"
+msgstr "Start"
+
+msgid "training.data.juggle_add"
+msgstr "Add"
+
+msgid "training.data.juggle_limit"
+msgstr "Limit"
+
+msgid "training.data.no_charge"
+msgstr "No charge moves"
+
 msgid "training.color_key"
 msgstr "Color key"
 
@@ -5041,6 +5179,57 @@ msgstr "Records it as an .mp4 at the game's full picture size, encoded by your g
 
 msgid "replays.video"
 msgstr "Video"
+
+msgid "replays.show"
+msgstr "Show"
+
+msgid "replays.show_detail"
+msgstr "Which matches the list shows."
+
+msgid "replays.show.all"
+msgstr "All"
+
+msgid "replays.show.mine"
+msgstr "My matches"
+
+msgid "replays.show.spectated"
+msgstr "Spectated"
+
+msgid "replays.show.unseen"
+msgstr "Not seen yet"
+
+msgid "replays.show.video"
+msgstr "With video"
+
+msgid "replays.show.kept"
+msgstr "Kept"
+
+msgid "replays.search"
+msgstr "Search"
+
+msgid "replays.search_detail"
+msgstr "Shows the matches whose player or fighter name contains this."
+
+msgid "replays.none_shown"
+msgstr "No matches to show"
+
+msgid "replays.none_shown_detail"
+msgstr "No replay fits Show and Search. Change them to see the others."
+
+msgid "replays.keep"
+msgstr "Keep"
+
+msgid "replays.keep_detail"
+msgstr "Marks it as one to find again, under Show: Kept."
+
+msgid "replays.unkeep"
+msgstr "Stop keeping"
+
+msgid "replays.unkeep_detail"
+msgstr "Takes the mark off. The replay stays in the archive."
+
+msgid "replays.kept"
+msgstr "Kept"
 
 msgid "export.title"
 msgstr "Export video"
@@ -7141,6 +7330,33 @@ msgstr "The room board's Members panel. Hidden, Chat takes the column, or the ta
 msgid "settings.room_show_chat_detail"
 msgstr "The room board's Chat panel. Hidden, Members takes the column, or the tables the full width."
 
+msgid "settings.room_tables"
+msgstr "Tables"
+
+msgid "settings.room_tables_list"
+msgstr "One per line"
+
+msgid "settings.room_tables_grid"
+msgstr "Grid"
+
+msgid "settings.room_tables_detail"
+msgstr "One per line puts each table across the board with a fighter at each end. Grid shows two or three side by side, so more fit without scrolling."
+
+msgid "settings.room_pictures"
+msgstr "Pictures"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Portraits"
+
+msgid "settings.room_pictures_characters"
+msgstr "Characters"
+
+msgid "settings.room_pictures_detail"
+msgstr "How the room shows each fighter, at the tables, in Members and on Arcade cabinets. Portraits are the game's select-screen art. Characters show the whole fighter, in the costume and color the player picked."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Chat filter"
 
@@ -7279,8 +7495,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} matches"
 
-msgid "replays.game"
-msgstr "Match {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Fighters"
@@ -7575,3 +7789,111 @@ msgstr "{0} vs {1}"
 
 msgid "room.matchup_detail"
 msgstr "Cabinets {0} and {1}"
+
+msgid "training.combo_check"
+msgstr "Combo check"
+
+msgid "training.combo_check.detail"
+msgstr "Plays your combo against other fighters as the dummy, standing and crouching, and shows how many of its hits landed on each."
+
+msgid "training.combo_check.record"
+msgstr "Your combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Select, then do your combo as Player 1. The recording ends one second after your last press and counts the hits that landed."
+
+msgid "training.combo_check.recording"
+msgstr "Recording"
+
+msgid "training.combo_check.none"
+msgstr "None yet"
+
+msgid "training.combo_check.hits"
+msgstr "{0} hits"
+
+msgid "training.combo_check.start_from"
+msgstr "Start from"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Where both fighters stand when a run begins. The gap between them stays as you recorded it."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Where you stood"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Middle"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Corner"
+
+msgid "training.combo_check.fighters"
+msgstr "Dummy fighters"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "The fighters your combo is played against. Select turns one on or off."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} of {1}"
+
+msgid "training.combo_check.all"
+msgstr "All fighters"
+
+msgid "training.combo_check.all.detail"
+msgstr "Turns every fighter on, or every fighter off when all are on."
+
+msgid "training.combo_check.stance"
+msgstr "Stance"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Whether each fighter is checked standing, crouching or both."
+
+msgid "training.combo_check.stance.standing"
+msgstr "Standing"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Crouching"
+
+msgid "training.combo_check.stance.both"
+msgstr "Both"
+
+msgid "training.combo_check.speed"
+msgstr "Speed"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Fast plays each run up to eight times as fast. Loading each fighter still takes a few seconds."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Fast"
+
+msgid "training.combo_check.start"
+msgstr "Start check"
+
+msgid "training.combo_check.start.detail"
+msgstr "Loads each fighter in turn as the dummy and plays your combo on it. Your dummy settings come back when the check ends."
+
+msgid "training.combo_check.stop"
+msgstr "Stop check"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Stops the check. The results so far stay."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} standing"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} crouching"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} of {1} hits"
+
+msgid "training.combo_check.run.waiting"
+msgstr "Waiting"
+
+msgid "training.combo_check.run.landed"
+msgstr "Every hit landed."
+
+msgid "training.combo_check.run.dropped"
+msgstr "Not every hit landed."

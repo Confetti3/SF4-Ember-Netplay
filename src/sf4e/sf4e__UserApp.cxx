@@ -124,11 +124,19 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
         return MatchEntry::Deferred;
     }
+    // The fighters and editions name the HUD's edition badges the first round
+    // shows, for a crash at the battle's start.
+    const auto& chara = client->_matchData.chara;
     spdlog::info(
-        "Netplay: starting match with rounds={} time={} training={}",
+        "Netplay: starting match with rounds={} time={} training={} edition_select={} "
+        "fighters {}/{}/{} and {}/{}/{} (fighter/costume/edition) stage={}",
         client->_lobbyData.roundCount,
         client->_lobbyData.roundTime.integral,
-        client->_lobbyData.trainingMode
+        client->_lobbyData.trainingMode,
+        client->_lobbyData.editionSelect,
+        chara[0].charaID, chara[0].costume, chara[0].unc_edition,
+        chara[1].charaID, chara[1].costume, chara[1].unc_edition,
+        client->_matchData.stageID
     );
     return MatchEntry::Entered;
 }
@@ -252,7 +260,10 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     if (started) {
         auto* const root = App::GetRootEvent();
         auto* const progress = root ? *RootEvent::GetProgressData(root) : nullptr;
-        const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0;
+        // A practice battle never reaches a match result, so the game saves no
+        // replay of it for the names to wait for.
+        const bool recordingEnabled = progress && ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay != 0 &&
+            !netplay->client._lobbyData.trainingMode;
         // A fighter's game at a tournament table is a game of the bound set,
         // on the bridge this PC plays it through.
         sf4e::replayfiles::SetTag set;

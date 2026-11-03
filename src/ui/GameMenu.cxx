@@ -29,6 +29,7 @@ MenuCardProbe cardProbe;
 MenuCardTextProbe cardTextProbe;
 MenuStatusProbe statusProbe;
 MenuEntriesProbe entriesProbe;
+MenuSpeechProbe speechProbe;
 PortraitProbe portraitProbe;
 }
 void SetMenuPlayerCard(PlayerCardView view){playerCard=std::move(view);}
@@ -85,16 +86,28 @@ void SetMenuCardTextProbe(MenuCardTextProbe probe){cardTextProbe=std::move(probe
 void ReportMenuCardText(const std::string& id,const std::string& text){if(cardTextProbe)cardTextProbe(id,text);}
 void SetMenuStatusProbe(MenuStatusProbe probe){statusProbe=std::move(probe);}
 void SetMenuEntriesProbe(MenuEntriesProbe probe){entriesProbe=std::move(probe);}
+void SetMenuSpeechProbe(MenuSpeechProbe probe){speechProbe=std::move(probe);}
 void SetPortraitProbe(PortraitProbe probe){portraitProbe=std::move(probe);}
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){
-    if(portraitProbe)portraitProbe(fighter,min,max);
+void ReportFighterPicture(const FighterPicture& picture,ImVec2 min,ImVec2 max){if(portraitProbe)portraitProbe(picture,min,max);}
+SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight){
+    if(!menuArt)return {};
+    const int fighter=picture.fighter;
+    if(picture.art==FighterArt::Character){
+        const auto figure=menuArt->CharacterFor(fighter,picture.costume,picture.color,drawnHeight);
+        if(!figure.missing)return figure;
+    }
+    return menuArt->PortraitFor(fighter,drawnHeight);
+}
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing){DrawCharacterPortrait(FighterPicture{fighter},min,max,backing);}
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing){
+    ReportFighterPicture(picture,min,max);
     auto* d=ImGui::GetWindowDrawList();
     d->AddRectFilled(min,max,backing);
-    if(menuArt){const auto art=menuArt->PortraitFor(fighter,max.y-min.y);if(art.texture){
+    if(const auto art=FighterImage(picture,max.y-min.y);art.texture){
         const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y)/art.height);
         const float w=art.width*factor,h=art.height*factor;
         d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);return;
-    }}
+    }
     const auto size=ImGui::CalcTextSize("?");
     d->AddText(ImVec2((min.x+max.x-size.x)*.5f,(min.y+max.y-size.y)*.5f),palette::Muted,"?");
 }
@@ -341,6 +354,7 @@ void GameMenu::Narrate(const char* title,const std::vector<MenuEntry>& entries,c
     if(primary)frame.hint=SpokenButton(selectGlyph)+": "+primary;
     if(adjustable)frame.hint+=(frame.hint.empty()?"":". ")+std::string(loc::T("speech.change"));
     const auto said=narrator_.Update(frame,now,menuSpeech,menuSpeech.enabled&&describe);
+    if(speechProbe&&!said.parts.empty())speechProbe(said.parts);
     if(!menuSpeech.enabled)return;
     if(said.stop||ImGui::IsKeyPressed(ImGuiKey_F1,false)){speech::Stop();return;}
     if(said.chime&&menuSpeech.chime)speech::Chime(menuSpeech.chimeVolume);

@@ -803,7 +803,7 @@ msgid "replays.share"
 msgstr "Compartir mis repeticiones"
 
 msgid "replays.share_detail"
-msgstr "Envía las partidas que juegues desde ahora al archivo público de repeticiones de tu bridge, con tu nombre y tu país; tu oponente solo aparece con su nombre si también comparte. Las partidas de torneos organizados se comparten siempre, con los nombres de ambos jugadores."
+msgstr "Envía las partidas que juegues desde ahora al archivo público de repeticiones de tu bridge, con tu nombre y tu país; tu oponente solo aparece con su nombre si también comparte. Las partidas de torneos organizados se comparten siempre, con los nombres de ambos jugadores. Las partidas archivadas con los nombres de ambos jugadores también pueden mostrarse en el canal de YouTube de Ember. Solo se comparten mientras hayas iniciado sesión con Discord (Ajustes > En línea > Discord)."
 
 msgid "replays.link"
 msgstr "Reproducir la repetición del enlace"
@@ -931,14 +931,8 @@ msgstr "Sale del menú de Ember y abre el Battle Log del juego, donde se ven las
 msgid "replays.open_log_room"
 msgstr "Primero sal de la sala."
 
-msgid "replays.tournaments"
-msgstr "Torneos"
 
-msgid "replays.tournaments_detail"
-msgstr "Los sets que jugaste en torneos, cada uno con todas sus partidas."
 
-msgid "replays.set_detail"
-msgstr "Selecciona para ver las partidas del set en orden, elegir una o guardar el set como un solo archivo."
 
 msgid "replays.set_value"
 msgstr "{0} repeticiones · {1} salas"
@@ -968,7 +962,7 @@ msgid "replays.export_set"
 msgstr "Exportar videos del set"
 
 msgid "replays.export_set_detail"
-msgstr "Prepara un video de cada partida por turno, con un texto que cuenta el set hasta ese momento. Cuando uno esté listo, Siguiente video del set, arriba en Repeticiones, prepara el siguiente."
+msgstr "Prepara el video de la primera partida, con el subtítulo contando el set hasta ahí. Cuando se hace un video, el de la siguiente partida sigue solo; tras uno fallido, Siguiente video del set arriba en Replays continúa."
 
 msgid "replays.next_video"
 msgstr "Siguiente video del set ({0} de {1})"
@@ -1062,6 +1056,9 @@ msgstr "Registro no disponible. Se conservaron los ajustes originales."
 
 msgid "profile.record_value"
 msgstr "{0} V / {1} D"
+
+msgid "profile.win_rate"
+msgstr "{0}% de victorias"
 
 msgid "profile.choose_main_title"
 msgstr "ELIGE TU PRINCIPAL"
@@ -2204,6 +2201,15 @@ msgstr "Aleatorio"
 msgid "selection.random_stage.detail"
 msgstr "Un escenario diferente en cada partida."
 
+msgid "selection.random_card"
+msgstr "Aleatorio"
+
+msgid "selection.random_card.detail"
+msgstr "Un luchador nuevo en cada juego, sorteado entre los que tienes."
+
+msgid "selection.random_fighter"
+msgstr "Aleatorio · {0}"
+
 msgid "selection.random_pool"
 msgstr "Escenarios al azar"
 
@@ -2801,6 +2807,18 @@ msgid "room.unlock_spectating"
 msgstr "Quitar fijación"
 msgid "room.unlock_spectating.detail"
 msgstr "Estás fijado: el próximo juego espera hasta {0} segundos a que vuelvas. Dejar de observar o cambiar de mesa quita la fijación."
+msgid "room.follow"
+msgstr "Seguir la sala"
+msgid "room.follow.detail"
+msgstr "Observa la mesa donde se juega: cuando la tuya se detiene, pasas al siguiente juego de la sala."
+msgid "room.follow.stop"
+msgstr "Dejar de seguir"
+msgid "room.follow.stop_detail"
+msgstr "Sigues la sala · Mesa {0}. Deténlo para quedarte en la mesa que observas."
+msgid "room.follow.following"
+msgstr "Siguiendo la sala · Mesa {0}"
+msgid "room.follow.locked_in"
+msgstr "Primero quita la fijación: al seguir la sala cambias de mesa."
 msgid "room.lock_in_ended.stopped"
 msgstr "Fijación quitada: dejaste de observar."
 msgid "room.lock_in_ended.moved"
@@ -4633,6 +4651,126 @@ msgstr "Esqueleto"
 msgid "training.hitboxes.part.detail"
 msgstr "Dibuja esta parte de las hitboxes sobre el combate."
 
+msgid "training.data"
+msgstr "Panel de datos"
+
+msgid "training.data.detail"
+msgstr "Muestra el script, la posición, la postura, las barras, el contador de malabares y las cargas de cada luchador junto al combate, tal como los tiene el juego en cada frame."
+
+msgid "training.data.fighters"
+msgstr "Luchadores"
+
+msgid "training.data.fighters.detail"
+msgstr "Los paneles de ambos luchadores, cada uno bajo su barra de vida, o solo uno."
+
+msgid "training.data.fighters.both"
+msgstr "Ambos"
+
+msgid "training.data.fighters.p1"
+msgstr "Solo P1"
+
+msgid "training.data.fighters.p2"
+msgstr "Solo P2"
+
+msgid "training.data.opacity"
+msgstr "Fondo"
+
+msgid "training.data.opacity.detail"
+msgstr "Opacidad del fondo del panel."
+
+msgid "training.data.move"
+msgstr "Golpe"
+
+msgid "training.data.position"
+msgstr "Posición"
+
+msgid "training.data.state"
+msgstr "Estado"
+
+msgid "training.data.gauges"
+msgstr "Barras"
+
+msgid "training.data.juggle"
+msgstr "Malabares"
+
+msgid "training.data.charge"
+msgstr "Carga"
+
+msgid "training.data.part.detail"
+msgstr "Muestra esta parte del panel de datos."
+
+msgid "training.data.frame"
+msgstr "Frame {0}"
+
+msgid "training.data.range"
+msgstr "Alcance"
+
+msgid "training.data.range_from"
+msgstr "Lejos, desde {0}"
+
+msgid "training.data.range_within"
+msgstr "Cerca, hasta {0}"
+
+msgid "training.data.height_from"
+msgstr "Altura desde {0}"
+
+msgid "training.data.height_within"
+msgstr "Altura hasta {0}"
+
+msgid "training.data.distance"
+msgstr "Distancia"
+
+msgid "training.data.standing"
+msgstr "De pie"
+
+msgid "training.data.crouching"
+msgstr "Agachado"
+
+msgid "training.data.airborne"
+msgstr "En el aire"
+
+msgid "training.data.down"
+msgstr "En el suelo"
+
+msgid "training.data.status"
+msgstr "Estado {0}"
+
+msgid "training.data.super"
+msgstr "Super"
+
+msgid "training.data.revenge"
+msgstr "Revenge"
+
+msgid "training.data.life"
+msgstr "Vida"
+
+msgid "training.data.stun"
+msgstr "Aturdimiento"
+
+msgid "training.data.interruptible"
+msgstr "Cancelable"
+
+msgid "training.data.advantage"
+msgstr "Ventaja"
+
+msgid "training.data.juggled"
+msgstr "Conteo"
+
+msgid "training.data.none"
+msgstr "Ninguno"
+
+msgid "training.data.juggle_start"
+msgstr "Inicio"
+
+msgid "training.data.juggle_add"
+msgstr "Suma"
+
+msgid "training.data.juggle_limit"
+msgstr "Límite"
+
+msgid "training.data.no_charge"
+msgstr "Sin golpes de carga"
+
 msgid "training.color_key"
 msgstr "Clave de colores"
 
@@ -4947,6 +5085,57 @@ msgstr "Lo graba como .mp4 al tamaño de imagen completo del juego, codificado p
 
 msgid "replays.video"
 msgstr "Video"
+
+msgid "replays.show"
+msgstr "Mostrar"
+
+msgid "replays.show_detail"
+msgstr "Qué partidas muestra la lista."
+
+msgid "replays.show.all"
+msgstr "Todas"
+
+msgid "replays.show.mine"
+msgstr "Mis partidas"
+
+msgid "replays.show.spectated"
+msgstr "Vistas como espectador"
+
+msgid "replays.show.unseen"
+msgstr "Aún no vistas"
+
+msgid "replays.show.video"
+msgstr "Con video"
+
+msgid "replays.show.kept"
+msgstr "Guardadas"
+
+msgid "replays.search"
+msgstr "Buscar"
+
+msgid "replays.search_detail"
+msgstr "Muestra las partidas cuyo nombre de jugador o luchador contiene esto."
+
+msgid "replays.none_shown"
+msgstr "No hay partidas para mostrar"
+
+msgid "replays.none_shown_detail"
+msgstr "Ningún replay coincide con Mostrar y Buscar. Cámbialos para ver los demás."
+
+msgid "replays.keep"
+msgstr "Guardar"
+
+msgid "replays.keep_detail"
+msgstr "Lo marca para encontrarlo de nuevo, en Mostrar: Guardadas."
+
+msgid "replays.unkeep"
+msgstr "Dejar de guardar"
+
+msgid "replays.unkeep_detail"
+msgstr "Quita la marca. El replay sigue en el archivo."
+
+msgid "replays.kept"
+msgstr "Guardado"
 
 msgid "export.title"
 msgstr "Exportar video"
@@ -7047,6 +7236,33 @@ msgstr "El panel Miembros de la sala. Si se oculta, el chat ocupa la columna, o 
 msgid "settings.room_show_chat_detail"
 msgstr "El panel Chat de la sala. Si se oculta, los miembros ocupan la columna, o las mesas todo el ancho."
 
+msgid "settings.room_tables"
+msgstr "Mesas"
+
+msgid "settings.room_tables_list"
+msgstr "Una por línea"
+
+msgid "settings.room_tables_grid"
+msgstr "Cuadrícula"
+
+msgid "settings.room_tables_detail"
+msgstr "Una por línea muestra cada mesa a lo ancho, con un luchador en cada extremo. La cuadrícula muestra dos o tres lado a lado, para que quepan más sin desplazarse."
+
+msgid "settings.room_pictures"
+msgstr "Imágenes"
+
+msgid "settings.room_pictures_portraits"
+msgstr "Retratos"
+
+msgid "settings.room_pictures_characters"
+msgstr "Personajes"
+
+msgid "settings.room_pictures_detail"
+msgstr "Cómo muestra la sala a cada luchador, en las mesas, en Miembros y en las máquinas Arcade. Los retratos son el arte de la selección de personaje del juego. Personajes muestra al luchador completo, con el traje y el color que eligió el jugador."
+
+msgid "room.seat_look"
+msgstr "{0} · {1} · {2}"
+
 msgid "settings.chat_filter"
 msgstr "Filtro del chat"
 
@@ -7185,8 +7401,6 @@ msgstr "Sets"
 msgid "replays.set_matches"
 msgstr "{0} partidas"
 
-msgid "replays.game"
-msgstr "Partida {0}"
 
 msgid "replays.fact.fighters"
 msgstr "Peleadores"
@@ -7481,3 +7695,111 @@ msgstr "{0} vs. {1}"
 
 msgid "room.matchup_detail"
 msgstr "Máquinas {0} y {1}"
+
+msgid "training.combo_check"
+msgstr "Comprobar combo"
+
+msgid "training.combo_check.detail"
+msgstr "Ejecuta tu combo contra otros peleadores como muñeco, de pie y agachado, y muestra cuántos golpes conectaron en cada uno."
+
+msgid "training.combo_check.record"
+msgstr "Tu combo"
+
+msgid "training.combo_check.record.detail"
+msgstr "Selecciona y haz tu combo como jugador 1. La grabación termina un segundo después de tu último botón y cuenta los golpes que conectaron."
+
+msgid "training.combo_check.recording"
+msgstr "Grabando"
+
+msgid "training.combo_check.none"
+msgstr "Ninguno"
+
+msgid "training.combo_check.hits"
+msgstr "{0} golpes"
+
+msgid "training.combo_check.start_from"
+msgstr "Empezar desde"
+
+msgid "training.combo_check.start_from.detail"
+msgstr "Dónde están los dos peleadores al empezar cada intento. La distancia entre ellos queda como la grabaste."
+
+msgid "training.combo_check.start_from.recorded"
+msgstr "Donde estabas"
+
+msgid "training.combo_check.start_from.middle"
+msgstr "Centro"
+
+msgid "training.combo_check.start_from.corner"
+msgstr "Esquina"
+
+msgid "training.combo_check.fighters"
+msgstr "Peleadores muñeco"
+
+msgid "training.combo_check.fighters.detail"
+msgstr "Los peleadores contra los que se ejecuta tu combo. Seleccionar activa o desactiva uno."
+
+msgid "training.combo_check.fighters.count"
+msgstr "{0} de {1}"
+
+msgid "training.combo_check.all"
+msgstr "Todos"
+
+msgid "training.combo_check.all.detail"
+msgstr "Activa todos los peleadores, o los desactiva todos si ya lo están."
+
+msgid "training.combo_check.stance"
+msgstr "Postura"
+
+msgid "training.combo_check.stance.detail"
+msgstr "Si cada peleador se comprueba de pie, agachado o ambos."
+
+msgid "training.combo_check.stance.standing"
+msgstr "De pie"
+
+msgid "training.combo_check.stance.crouching"
+msgstr "Agachado"
+
+msgid "training.combo_check.stance.both"
+msgstr "Ambos"
+
+msgid "training.combo_check.speed"
+msgstr "Velocidad"
+
+msgid "training.combo_check.speed.detail"
+msgstr "Rápido ejecuta cada intento hasta ocho veces más rápido. Cargar cada peleador todavía tarda unos segundos."
+
+msgid "training.combo_check.speed.normal"
+msgstr "Normal"
+
+msgid "training.combo_check.speed.fast"
+msgstr "Rápido"
+
+msgid "training.combo_check.start"
+msgstr "Empezar"
+
+msgid "training.combo_check.start.detail"
+msgstr "Carga cada peleador por turno como muñeco y ejecuta tu combo contra él. Tus ajustes del muñeco vuelven al terminar."
+
+msgid "training.combo_check.stop"
+msgstr "Detener"
+
+msgid "training.combo_check.stop.detail"
+msgstr "Detiene la comprobación. Los resultados hasta ahora se quedan."
+
+msgid "training.combo_check.run.standing"
+msgstr "{0} de pie"
+
+msgid "training.combo_check.run.crouching"
+msgstr "{0} agachado"
+
+msgid "training.combo_check.run.hits"
+msgstr "{0} de {1} golpes"
+
+msgid "training.combo_check.run.waiting"
+msgstr "En espera"
+
+msgid "training.combo_check.run.landed"
+msgstr "Conectaron todos los golpes."
+
+msgid "training.combo_check.run.dropped"
+msgstr "No conectaron todos los golpes."

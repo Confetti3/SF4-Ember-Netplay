@@ -2,6 +2,7 @@
 #include <functional>
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
+#include "../common/ReplayRequest.hxx"
 #include "../common/SkillBadge.hxx"
 #include "MenuNavigation.hxx"
 #include "FontMetrics.hxx"
@@ -27,6 +28,9 @@ constexpr ImU32 Muted = IM_COL32(181, 169, 155, 255);
 // Ready/confirmed. Matches ToneColor(Tone::Success) so a ready seat and a
 // success status are the same green rather than two near-identical ones.
 constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
+// Purple: an Arcade room's colour in the room list, and a pair's on the arcade
+// board (RoomPanelArcade.cxx, PairColor).
+constexpr ImU32 Purple = IM_COL32(201, 160, 224, 255);
 }
 // Row and button text for an entry that can, or cannot, be activated right now.
 inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
@@ -202,6 +206,8 @@ std::string MatchHudNameOffsetText(int offset);
 // over the timer, and Ember's mark in the bottom right corner.
 struct ExportCaptionView {
     std::string names[2], line;
+    // Each name's class, drawn on its plate as the match HUD draws one.
+    SkillBadge badges[2];
     bool mark = false;
     int nameOffset = 0;
 };
@@ -209,6 +215,9 @@ struct ExportCaptionView {
 // an export can take it into its video apart from the rest of Ember
 // (OverlayLayers.hxx: SplitExportPasses).
 constexpr const char* ExportCaptionWindow = "Export caption";
+// What an export's caption shows: each name with its set score beside it and
+// its class, the line (with the score when no names carry it) and the mark.
+ExportCaptionView ExportCaptionViewOf(const replay::Caption& caption, int nameOffset);
 void DrawExportCaption(const ExportCaptionView& view);
 void DrawControllerWarning(const std::string& message);
 struct DiagnosticStripView {

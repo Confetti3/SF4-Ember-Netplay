@@ -134,6 +134,12 @@ void DecodeDetails(const json& view, Room& room) {
 		room.rotation = static_cast<int>(found->get<std::uint64_t>());
 		room.hasDetails = true;
 	}
+	if (const auto found = view.find("room_type"); found == view.end()) {
+		if (room.hasDetails) room.type = room::ClassicRoom;
+	} else if (found->is_number_unsigned() && found->get<std::uint64_t>() <= room::KingRoom) {
+		room.type = static_cast<room::RoomType>(found->get<std::uint64_t>());
+		room.hasDetails = true;
+	}
 }
 
 Room DecodeRoom(const json& view) {

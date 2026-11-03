@@ -189,6 +189,18 @@ struct WatchedGame {
 	bool operator==(const WatchedGame& other) const { return table == other.table && generation == other.generation; }
 };
 
+// The room game this PC fights, by its own match as WatchedGame is: the table
+// it was entered at and its generation, which an Arcade room's rotation (the
+// set's loser moved on to another table) does not change; and the result of
+// the game whose WIN is on screen, Abort while none is known. Empty while
+// this PC fights no room game.
+struct FoughtGame {
+	int table = -1;
+	std::uint64_t generation = 0;
+	room::MatchResult result = room::MatchResult::Abort;
+	bool Active() const { return generation != 0 && table >= 0 && table < static_cast<int>(room::TableCount); }
+};
+
 // What leaving the watched game asks of the room. While the room still plays
 // that game with the member among its spectators, a generation-scoped Unwatch
 // for it: a queued member leaves that game alone and keeps its place

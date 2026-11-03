@@ -1,7 +1,9 @@
 #pragma once
 
+#include "../common/RoomRules.hxx"
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,6 +47,10 @@ struct Room {
 	// Table 0's set length (0 unlimited, else first to 1 to 10) and rotation (0 winner
 	// stays, 1 loser stays, 2 both rotate); -1 when unknown.
 	int setFormat = -1, rotation = -1;
+	// The room's type, when known: a room with details but no type is Classic (its
+	// room host predates types); none when the bridge sent no details or a type this
+	// build does not know.
+	std::optional<room::RoomType> type;
 };
 
 // A room_list answer: the rooms in the order received and the bridge's clock

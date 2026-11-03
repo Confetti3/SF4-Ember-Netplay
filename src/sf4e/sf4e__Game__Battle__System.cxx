@@ -1,5 +1,8 @@
 #include "sf4e__Game__Battle__System__Internal.hxx"
 #include "../common/BattlePause.hxx"
+#include "../common/RematchInput.hxx"
+#include "../Dimps/Dimps.hxx"
+#include "../Dimps/Dimps__GameEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__InputLag.hxx"
@@ -60,22 +63,71 @@ unsigned fSystem::rematchChoices = 0;
 // The GGPO frame that last restarted the match: a resimulated frame does not
 // count again. Games in one battle restart their own frame count; GGPO's runs on.
 static int rematchFrame = -1;
+static_assert(sf4e::rematch::Bits == sf4e::training::ReservedInputBits, "the prompt's bits are the retired Training bits");
 
 void fSystem::TakeRematchChoices(fPadSystem::Inputs inputs[2]) {
+    namespace rematch = sf4e::rematch;
     rematchChoices = 0;
-    for (int i = 0; i < 2; i++) {
-        if (inputs[i].rawOn & sf4e::NetplayFacade::RematchInputBit) rematchChoices |= 1u << i;
-        inputs[i].rawOn &= ~sf4e::NetplayFacade::RematchInputBit;
-    }
-    if (rematchChoices != 3) return;
-    // Both chose: the WIN's last wait (MATCH_RESULT step 5 until its frame
-    // 300, DRAW_RESULT step 2 until frame 30) ends on this frame, as its own
-    // timeout ends it. Both games read the same inputs on the same frame.
+    for (int i = 0; i < 2; i++)
+        if (inputs[i].rawOn & rematch::ChoiceBit) rematchChoices |= 1u << i;
+    const auto win = rematch::Decide(inputs[0].rawOn, inputs[1].rawOn);
+    for (int i = 0; i < 2; i++) inputs[i].rawOn &= ~rematch::Bits;
+    // The WIN's last wait: MATCH_RESULT step 5 until its frame 300 (0x5DDDC0),
+    // DRAW_RESULT step 2 until frame 30. It ends once the frame crosses that.
     const auto flow = *rSystem::staticVars.CurrentBattleFlow, step = *rSystem::staticVars.CurrentBattleFlowSubstate;
     const short last = flow == rSystem::BF__MATCH_RESULT && step == 5 ? 300 : flow == rSystem::BF__DRAW_RESULT && step == 2 ? 30 : 0;
+    if (!last || win == rematch::Win::Run) return;
     auto* frame = rSystem::staticVars.CurrentBattleFlowSubstateFrame;
-    if (last && frame->integral < last - 1)
-        *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 1) };
+    // Both chose: it ends on this frame, as its own timeout ends it.
+    if (win == rematch::Win::End) {
+        if (frame->integral < last - 1)
+            *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 1) };
+        return;
+    }
+    // A fighter is still being asked: the wait stays a frame short of its end,
+    // and no press in it skips the rest (0x5DD100), until they answer or their
+    // prompt's time is up.
+    if (frame->integral >= last - 2)
+        *frame = *rSystem::staticVars.PreviousBattleFlowSubstateFrame = { 0, static_cast<short>(last - 2) };
+    for (int i = 0; i < 2; i++) inputs[i].mappedOn = inputs[i].rawOn = 0;
+}
+
+// The replay the recorder holds, serialized as the game's save would
+// (0x63C410), when the player records replays (the setting sf4e__UserApp.cxx
+// reads at match start). A round still being recorded is stopped first.
+// Empty when the recording holds no round.
+static std::vector<std::uint8_t> RecorderReplay() {
+    using Dimps::Game::Battle::ReplaySystem;
+    using Dimps::Game::ProgressData;
+    std::vector<std::uint8_t> replay;
+    auto* const root = Dimps::App::GetRootEvent();
+    auto* const progress = root ? *Dimps::GameEvents::RootEvent::GetProgressData(root) : nullptr;
+    if (!progress || !ProgressData::GetBattleTypeSettings(progress)[ProgressData::NBT_PVP].recordReplay) return replay;
+    auto* recorder = ReplaySystem::staticMethods.GetSingleton();
+    if (!recorder) return replay;
+    if (recorder->mode == sf4e::replay::RecorderRecording) (recorder->*ReplaySystem::publicMethods.Stop)();
+    std::uint8_t* built = (recorder->*ReplaySystem::publicMethods.BuildReplay)();
+    if (!built) return replay;
+    const std::uint32_t size = (recorder->*ReplaySystem::publicMethods.GetReplaySize)();
+    // The round count at 0x18, as the game's loader (0x5D6250) checks it.
+    const std::uint32_t rounds = size >= sf4e::replayslots::kReplayHeaderBytes ? sf4e::replayslots::ReadU32(built + 0x18) : 0;
+    if (!rounds || size > sf4e::replayslots::kLargestReplay) spdlog::warn("Replays: the recorded replay holds no round ({} bytes)", size);
+    else replay.assign(built, built + size);
+    (recorder->*ReplaySystem::publicMethods.FreeReplay)(built);
+    return replay;
+}
+
+// The replay of a netplay battle that ends without a result: the game saves a
+// replay only from its result flow, so when the opponent leaves, the recorder
+// still holds the rounds played and nothing writes them. Only with a round
+// under way: a stopped recorder may hold a game that is kept already.
+static std::vector<std::uint8_t> UnsavedReplay() {
+    const auto* recorder = Dimps::Game::Battle::ReplaySystem::staticMethods.GetSingleton();
+    return recorder && recorder->mode == sf4e::replay::RecorderRecording ? RecorderReplay() : std::vector<std::uint8_t>();
+}
+
+void HandOverInPlaceReplay() {
+    sf4e::platform::replays::NoteGameRestarted(s_inPlaceReplays.Continued());
 }
 
 // The match end (BF__BTL_OVER, 0x5de1d0) reads the game mode to choose what
@@ -89,6 +141,12 @@ int fSystem::GetGameMode() {
     if (frame != rematchFrame) {
         rematchFrame = frame;
         spdlog::info("Rematch: both chose it over the WIN, the next game starts in this battle (frame {})", frame);
+        // The game saves only the battle's first game, and the next game's
+        // first round records over this one.
+        s_inPlaceReplays.Restarting(RecorderReplay);
+        // A spectator plays confirmed frames only, so its restart is final; a
+        // fighter's is once the next game's fight is confirmed (NativeResult).
+        if (!LocalFighter()) HandOverInPlaceReplay();
     }
     return 4;
 }
@@ -357,14 +415,19 @@ void fSystem::BattleUpdate() {
         if (fSoundPlayerManager::bUsePureSounds) {
             fSoundPlayerManager::SyncState();
         }
-        sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
-        // The stress harness owns the memento keys while it runs. This branch
-        // is also taken with a live session during initial bootstrap, so it
-        // must never run alongside GGPO's own pool.
-        if (ggpo || !StressStep(_this)) {
-            (_this->*rSystem::publicMethods.BattleUpdate)();
-        }
-        sf4e::training::AfterUpdate(_this);
+        // Combo check's Fast plays several Training updates in one frame, as a
+        // rollback replays frames (training::FastUpdates).
+        int updates = 0;
+        do {
+            sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
+            // The stress harness owns the memento keys while it runs. This branch
+            // is also taken with a live session during initial bootstrap, so it
+            // must never run alongside GGPO's own pool.
+            if (ggpo || !StressStep(_this)) {
+                (_this->*rSystem::publicMethods.BattleUpdate)();
+            }
+            sf4e::training::AfterUpdate(_this);
+        } while (++updates < sf4e::training::FastUpdates && sf4e::training::Fast());
         // A replay's playback observes the recorder as this update left it
         // (the strip, the lanes and an export's progress read it). Shown with
         // the frame meter, the frame just played goes to the meter as a
@@ -510,7 +573,8 @@ void fSystem::CloseBattle() {
     if (!summaryEmitted) {
         EmitRollbackDiagSummary("battle_close_deferred");
     }
-    sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted);
+    const bool unfinished = netplayBattle && !s_nativeResultEmitted && !sf4e::NetplayFacade::IsRuntimeSpectator();
+    sf4e::platform::replays::NoteMatchEnd(s_nativeResultEmitted, unfinished ? UnsavedReplay() : s_inPlaceReplays.Closed(RecorderReplay));
     (_this->*rSystem::publicMethods.CloseBattle)();
     // After the native close, which puts back its own saved step setting.
     RestoreBattleStep();

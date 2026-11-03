@@ -395,6 +395,19 @@ void DrawMatchStrip(const MatchStripView& view) {
     PaintMatchStrip(view,draw,placed.spot.pos,placed.w,placed.s);
     DrawStateLine(view,draw,placed.spot.pos.x,placed.w,placed.spot.stateTop,placed.s);
 }
+ExportCaptionView ExportCaptionViewOf(const replay::Caption& caption, int nameOffset) {
+    ExportCaptionView shown;
+    for (int side = 0; side < 2 && caption.names; ++side) {
+        const std::string wins = caption.set ? std::to_string(caption.wins[side]) : std::string();
+        shown.names[side] = wins.empty() ? caption.name[side] : side ? wins + "   " + caption.name[side] : caption.name[side] + "   " + wins;
+        const std::uint8_t band = caption.band[side];
+        if (band >= 1 && band <= SkillBadge::Classes) shown.badges[side] = SkillBadge::OfClass(band, true);
+    }
+    if (caption.line) shown.line = caption.text;
+    if (caption.set && !caption.names) shown.line += (shown.line.empty() ? "" : "   ") + std::to_string(caption.wins[0]) + " - " + std::to_string(caption.wins[1]);
+    shown.mark = caption.mark; shown.nameOffset = nameOffset;
+    return shown;
+}
 void DrawExportCaption(const ExportCaptionView& view) {
     const auto screen=MainScreen();
     // The whole screen, transparent: only the plates, the line and the mark show.
@@ -410,6 +423,7 @@ void DrawExportCaption(const ExportCaptionView& view) {
     const float gx0=screen.pos.x+(screen.size.x-1280*gs)*.5f,gy0=screen.pos.y+(screen.size.y-720*gs)*.5f;
     MatchStripView plates;plates.layout=1;plates.nameOffset=view.nameOffset;
     plates.names[0]=view.names[0];plates.names[1]=view.names[1];
+    plates.badges[0]=view.badges[0];plates.badges[1]=view.badges[1];
     const auto placed=PlaceSplit(plates,screen);
     for(const auto& plate:placed.plates)if(!plate.name.empty())DrawPlate(draw,plate,false);
     auto* font=DiagnosticFont();
@@ -426,8 +440,16 @@ void DrawExportCaption(const ExportCaptionView& view) {
         boxed(text,size,gx0+640*gs-TextWidth(size,text)*.5f-pad,gy0+10*gs,pad,24*gs,palette::Ivory);
     }
     if(view.mark){
-        const float size=13*gs,pad=7*gs;const std::string mark="EMBER";
-        boxed(mark,size,gx0+1280*gs-TextWidth(size,mark)-2*pad-8*gs,gy0+720*gs-19*gs-6*gs,pad,19*gs,palette::Ember);
+        // Bottom right, below the gauges (which end at y 672): Ember's mark
+        // beside its name in plain text, on the same dark ground as the line.
+        const float size=14*gs,pad=7*gs,height=26*gs,logo=20*gs,gap=6*gs;const std::string name="Ember Netplay";
+        const float width=pad+logo+gap+TextWidth(size,name)+pad;
+        const float x=gx0+1280*gs-width-8*gs,y=gy0+720*gs-height-6*gs;
+        draw->AddRectFilled(ImVec2(x,y),ImVec2(x+width,y+height),IM_COL32(20,19,18,235),4*gs);
+        v2::BrandMark(draw,ImVec2(x+pad,y+(height-logo)*.5f),logo);
+        const ImVec2 at(x+pad+logo+gap,y+(height-size)*.5f);
+        draw->AddText(font,size,ImVec2(at.x+gs,at.y+gs),IM_COL32(0,0,0,190),name.c_str());
+        draw->AddText(font,size,at,palette::Ivory,name.c_str());
     }
     ImGui::End();
 }

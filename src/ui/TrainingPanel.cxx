@@ -5,6 +5,7 @@
 #include "MenuRows.hxx"
 #include "MenuGlyphs.hxx"
 #include "RowId.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/JsonFileStore.hxx"
 #include "../training/MoveInputs.hxx"
@@ -49,6 +50,12 @@ struct Lab {
     // How the frame meter is drawn (the Frame data page's two options).
     training::MeterOptions meter;
     std::array<int,2> keys{{1,10}};
+    // Combo check's choices (training/ComboCheck.hxx); every fighter at first.
+    training::combo_check::Settings check=[]{
+        training::combo_check::Settings settings;
+        settings.fighters.assign(std::begin(selection::RosterDisplayOrder),std::end(selection::RosterDisplayOrder));
+        return settings;
+    }();
     // The pad's Back: a tap resets, a hold saves (TrainingPad.hxx). Off leaves
     // Back to the game, for a plink on a button that also sends Back.
     bool padBack=true;
@@ -66,7 +73,9 @@ void SavePractice() {
     std::string error;
     const nlohmann::json practice{{"reply",{{"when",lab.plan.when},{"chance",lab.plan.chance},{"timing",lab.plan.timing},
         {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves},{"custom",lab.customMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]},{"pad_back",lab.padBack}}},
-        {"meter",MeterOptionsJson(lab.meter)}};
+        {"meter",MeterOptionsJson(lab.meter)},
+        {"combo_check",{{"fighters",lab.check.fighters},{"standing",lab.check.standing},{"crouching",lab.check.crouching},
+            {"start",static_cast<int>(lab.check.start)},{"fast",lab.check.fast}}}};
     if(!netplay::json_file::Publish(lab.directory,PracticeFile,practice,error)) Notice(loc::T("training.save_failed"),true);
 }
 // The plan into the game, its typed reply made into input for either facing.
@@ -103,6 +112,22 @@ void LoadPractice() {
     lab.keys=ReadPositionKeys(keys);
     lab.padBack=!keys.is_object()||keys.value("pad_back",true);
     lab.meter=ReadMeterOptions(practice.value("meter",nlohmann::json::object()));
+    // Combo check: fighters it does not know are dropped, in the roster's order.
+    const auto check=practice.value("combo_check",nlohmann::json());
+    if(check.is_object()) {
+        const auto fighters=check.value("fighters",nlohmann::json());
+        if(fighters.is_array()) {
+            lab.check.fighters.clear();
+            for(const int id:selection::RosterDisplayOrder)
+                if(std::find(fighters.begin(),fighters.end(),nlohmann::json(id))!=fighters.end()) lab.check.fighters.push_back(id);
+        }
+        lab.check.standing=check.value("standing",nlohmann::json(true))!=false;
+        lab.check.crouching=check.value("crouching",nlohmann::json(true))!=false;
+        if(!lab.check.standing&&!lab.check.crouching) lab.check.standing=lab.check.crouching=true;
+        const auto start=check.value("start",nlohmann::json(0));
+        if(start.is_number_integer()&&start>=0&&start<=2) lab.check.start=static_cast<training::combo_check::Start>(start.get<int>());
+        lab.check.fast=check.value("fast",nlohmann::json(false))==true;
+    }
 }
 // A queued save or reset can still be refused by the game, or fail there, so
 // its notice waits for the result. The latest attempt owns the notice, so an
@@ -182,6 +207,9 @@ void PickReply(const training::View& view,const TrainingSubmit& submit,int step)
     lab.pickCustom=pick==ReplyCustom; lab.replyMoves=text; SavePractice();
     SendPlan(view,submit);
 }
+// Combo check's start and stance, in the order Left and Right step through them.
+const char* const StartNames[]={"training.combo_check.start_from.recorded","training.combo_check.start_from.middle","training.combo_check.start_from.corner"};
+const char* const StanceNames[]={"training.combo_check.stance.standing","training.combo_check.stance.crouching","training.combo_check.stance.both"};
 // A value row's values in the order Left and Right step through them, in
 // the words the row shows (OfferSteps), so Select opens them all at once. The
 // reply's pick list keeps Select for its moves' field.
@@ -189,8 +217,7 @@ void OfferTrainingValues(std::vector<MenuEntry>& rows) {
     const char* sizes[]={"size.small","size.standard","size.large"};
     for(auto& e:rows) {
         std::vector<std::string> labels;
-        if(e.value==loc::T("common.on")||e.value==loc::T("common.off")) labels={loc::T("common.off"),loc::T("common.on")};
-        else if(e.id.compare(0,6,"dummy-")==0) {
+        if(e.id.compare(0,6,"dummy-")==0) {
             const std::string which=e.id.substr(6);
             const int kind=which=="action"?0:which=="guard"?1:which=="counter"?2:which=="quick"?3:4;
             for(const int value:DummyChoices(kind)) labels.push_back(DummyLabel(kind,value));
@@ -202,6 +229,12 @@ void OfferTrainingValues(std::vector<MenuEntry>& rows) {
         else if(e.id=="frames-shown") for(const int n:MeterShownChoices) labels.push_back(std::to_string(n));
         else if(e.id=="hud-size"||e.id=="bar-height") for(const char* size:sizes) labels.push_back(loc::T(size));
         else if(e.id=="meter-position") for(const int at:MeterPositions) labels.push_back(std::to_string(at)+"%");
+        else if(e.id=="check-start-from") for(const char* name:StartNames) labels.push_back(loc::T(name));
+        else if(e.id=="check-stance") for(const char* name:StanceNames) labels.push_back(loc::T(name));
+        else if(e.id=="check-speed") labels={loc::T("training.combo_check.speed.normal"),loc::T("training.combo_check.speed.fast")};
+        else if(e.id=="hud-inputs") for(const auto& choice:InputDisplayChoices) labels.push_back(loc::T(choice.label));
+        // A row of any other name that reads On or Off is a switch; the rows above are named first because their Off or On is one of several.
+        else if(e.value==loc::T("common.on")||e.value==loc::T("common.off")) labels={loc::T("common.off"),loc::T("common.on")};
         OfferSteps(e,labels);
     }
 }
@@ -415,6 +448,78 @@ bool HandleRecordingLibrary(const MenuAction& a,const training::View& v,const Tr
     else Notice(loc::T("training.command_rejected"),true);
     return true;
 }
+// Combo check: the player's combo against other fighters as the dummy
+// (training/ComboCheck.hxx). Its settings are kept in training.json.
+namespace {
+auto& checkSettings=lab.check;
+bool Checked(int fighter){return std::find(checkSettings.fighters.begin(),checkSettings.fighters.end(),fighter)!=checkSettings.fighters.end();}
+// The fighters on, in the roster's order, so the runs go as the select screen reads.
+void CheckFighter(int fighter,bool on){
+ auto& list=checkSettings.fighters;
+ list.erase(std::remove(list.begin(),list.end(),fighter),list.end());
+ if(!on)return;
+ std::vector<int> ordered;
+ for(const int id:selection::RosterDisplayOrder)if(id==fighter||Checked(id))ordered.push_back(id);
+ list=std::move(ordered);
+}
+int Stance(){return checkSettings.standing&&checkSettings.crouching?2:checkSettings.crouching?1:0;}
+std::string FighterName(int fighter){const auto* f=selection::FindFighter(fighter);return f?f->name:std::to_string(fighter);}
+std::vector<MenuEntry> ComboCheckRows(const training::View& v,const std::string& screen,bool ready){
+ using namespace training;
+ const auto onOff=[](bool on){return std::string(loc::T(on?"common.on":"common.off"));};
+ std::vector<MenuEntry> rows;
+ if(screen=="check-fighters"){
+  rows.push_back(Row("check-all",loc::T("training.combo_check.all"),loc::T("training.combo_check.all.detail")));
+  for(const int fighter:selection::RosterDisplayOrder)
+   rows.push_back(Value("check-f-"+std::to_string(fighter),FighterName(fighter),onOff(Checked(fighter)),loc::T("training.combo_check.fighters.detail")));
+  return rows;
+ }
+ const auto& c=v.check;
+ const bool idle=ready&&v.mode==Mode::Idle&&!c.running;
+ rows.push_back(Value("check-record",loc::T("training.combo_check.record"),
+  c.recording?loc::T("training.combo_check.recording"):c.frames?loc::Tf("training.combo_check.hits",c.hits):loc::T("training.combo_check.none"),
+  loc::T("training.combo_check.record.detail"),idle));
+ rows.back().adjustable=false;
+ rows.push_back(Value("check-start-from",loc::T("training.combo_check.start_from"),loc::T(StartNames[static_cast<int>(checkSettings.start)]),loc::T("training.combo_check.start_from.detail"),!c.running));
+ rows.push_back(Value("check-fighters",loc::T("training.combo_check.fighters"),loc::Tf("training.combo_check.fighters.count",checkSettings.fighters.size(),selection::FighterCount),loc::T("training.combo_check.fighters.detail"),!c.running));
+ rows.back().opens=true;rows.back().adjustable=false;
+ rows.push_back(Value("check-stance",loc::T("training.combo_check.stance"),loc::T(StanceNames[Stance()]),loc::T("training.combo_check.stance.detail"),!c.running));
+ rows.push_back(Value("check-speed",loc::T("training.combo_check.speed"),loc::T(checkSettings.fast?"training.combo_check.speed.fast":"training.combo_check.speed.normal"),loc::T("training.combo_check.speed.detail"),!c.running));
+ if(c.running)rows.push_back(Row("check-stop",loc::T("training.combo_check.stop"),loc::T("training.combo_check.stop.detail"),ready));
+ else rows.push_back(Row("check-start",loc::T("training.combo_check.start"),loc::T("training.combo_check.start.detail"),idle&&c.frames>0&&!checkSettings.fighters.empty()));
+ // One row a run, as it is done: the fighter, the stance and the hits that landed.
+ for(std::size_t i=0;i<c.runs.size();++i){
+  const auto& run=c.runs[i];
+  const bool landed=combo_check::Landed(run,c.hits);
+  rows.push_back(Value("check-run-"+std::to_string(i),loc::Tf(run.crouching?"training.combo_check.run.crouching":"training.combo_check.run.standing",FighterName(run.fighter)),
+   run.done?loc::Tf("training.combo_check.run.hits",run.hits,c.hits):loc::T("training.combo_check.run.waiting"),
+   run.done?loc::T(landed?"training.combo_check.run.landed":"training.combo_check.run.dropped"):""));
+  rows.back().adjustable=false;
+ }
+ return rows;
+}
+// Left and Right on a setting; Select on a fighter or All. True when it was the check's.
+bool HandleComboCheck(const MenuAction& a){
+ const int step=a.delta>0?1:-1;
+ if(a.kind==MenuAction::Adjust){
+  if(a.id=="check-start-from")checkSettings.start=static_cast<training::combo_check::Start>((static_cast<int>(checkSettings.start)+3+step)%3);
+  else if(a.id=="check-stance"){const int s=(Stance()+3+step)%3;checkSettings.standing=s!=1;checkSettings.crouching=s!=0;}
+  else if(a.id=="check-speed")checkSettings.fast=a.delta>0;
+  else if(const auto f=RowKey<int>(a.id,"check-f-"))CheckFighter(*f,a.delta>0);
+  else return false;
+  return true;
+ }
+ if(a.kind!=MenuAction::Activate)return false;
+ if(const auto f=RowKey<int>(a.id,"check-f-")){CheckFighter(*f,!Checked(*f));return true;}
+ if(a.id=="check-all"){
+  const bool all=checkSettings.fighters.size()==static_cast<std::size_t>(selection::FighterCount);
+  checkSettings.fighters.clear();
+  if(!all)for(const int id:selection::RosterDisplayOrder)checkSettings.fighters.push_back(id);
+  return true;
+ }
+ return false;
+}
+}
 // offerOverwrite: F7 on a recorded slot opened the recordings to ask about overwriting.
 namespace { GameMenu trainingMenu; bool showRecordings=false, offerOverwrite=false; }
 MenuNavigation& TrainingNavigation() { return trainingMenu.navigation; }
@@ -495,7 +600,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
  const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
- const bool recordingGrid=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
+ const bool compactSlots=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
  if(screen=="home"){
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
@@ -504,18 +609,18 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    Row("dummy",loc::T("training.dummy"),loc::T("training.dummy.detail")),
    Row("reply",loc::T("training.reply"),loc::T("training.reply.detail")),
    Row("tools",loc::T("training.position"),std::string(loc::T("training.position.save.detail"))+"\n"+loc::T("training.position.reset.detail")),
+   Row("combo-check",loc::T("training.combo_check"),loc::T("training.combo_check.detail")),
    Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
  }else if(screen=="recording"){
   // The slots are a list of what plays, as SF6's are: Select turns a
   // recorded slot on or off for Play and the dummy reply (Left and Right
-  // too, where a list's rows allow it), and chooses an empty one for Record.
+  // too), and chooses an empty one for Record.
   for(int slot=0;slot<SlotCount;++slot){
    const bool recorded=v.lengths[slot]>0;
    rows.push_back(Value("slot-"+std::to_string(slot),loc::Tf(slot==v.selected?"training.slot_selected":"training.slot",slot+1),
     recorded?loc::T(v.on[slot]?"common.on":"common.off"):loc::T("training.slot.empty"),
     recorded?loc::Tf("training.slot.detail",v.lengths[slot]):loc::T("training.slot.empty_detail"),ready&&v.mode==Mode::Idle));
-   // In the grid Left and Right move between the cells.
-   rows.back().adjustable=recorded&&!recordingGrid;rows.back().opens=true;
+   rows.back().adjustable=recorded;rows.back().opens=true;
   }
   // Left and Right choose the slot Record, Clear, Save and Mirror act on.
   auto record=Value("record",loc::T("training.record"),loc::Tf("training.slot",v.selected+1),
@@ -535,9 +640,11 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   rows.back().opens=true;
   // A file that comes out the wrong way round is turned in one press.
   rows.push_back(Row("mirror",loc::T("training.mirror"),loc::T("training.mirror.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
-  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=recordingGrid?30:0;}
+  for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=compactSlots?30:0;}
  }else if(screen=="tools"||screen=="dummy"||screen=="reply"){
   rows=ToolRows(v,screen);
+ }else if(screen=="combo-check"||screen=="check-fighters"){
+  rows=ComboCheckRows(v,screen,ready);
  }else if(screen=="frame-data"){
   LoadPractice();
   const auto onOff=[](bool on){return std::string(loc::T(on?"common.on":"common.off"));};
@@ -556,6 +663,13 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   for(const auto& part:HudParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Value("hud-inputs",loc::T("training.meter.hud_inputs"),loc::T(InputDisplayChoices[static_cast<int>(lab.meter.inputs)].label),loc::T("training.meter.hud_part.detail")));
   rows.push_back(Row("hitboxes",loc::T("training.hitboxes"),loc::T("training.hitboxes.detail")));
+  rows.push_back(Row("data",loc::T("training.data"),loc::T("training.data.detail")));
+ }else if(screen=="data"){
+  LoadPractice();
+  rows.push_back(Value("data-shown",loc::T("training.data"),loc::T(lab.meter.data?"common.on":"common.off"),loc::T("training.data.detail")));
+  rows.push_back(Value("data-fighters",loc::T("training.data.fighters"),loc::T(DataFighterChoices[static_cast<int>(lab.meter.dataFighters)].label),loc::T("training.data.fighters.detail")));
+  rows.push_back(Value("data-opacity",loc::T("training.data.opacity"),std::to_string(lab.meter.dataOpacity)+"%",loc::T("training.data.opacity.detail")));
+  for(const auto& part:DataParts)rows.push_back(Value(part.key,loc::T(part.label),loc::T(lab.meter.*part.shown?"common.on":"common.off"),loc::T("training.data.part.detail")));
  }else if(screen=="hitboxes"){
   LoadPractice();
   rows.push_back(Value("hitboxes-shown",loc::T("training.hitboxes"),loc::T(lab.meter.hitboxes?"common.on":"common.off"),loc::T("training.hitboxes.detail")));
@@ -609,7 +723,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  OfferTrainingValues(rows);
  // In the home list's order, so the tabs and the list agree.
  trainingMenu.tabs={{"recording",loc::T("training.dummy_recording")},{"history",loc::T("training.input_history")},{"frame-data",loc::T("training.frame_data")},
-  {"hud",loc::T("training.hud")},{"dummy",loc::T("training.dummy")},{"reply",loc::T("training.reply")},{"tools",loc::T("training.position")}};
+  {"hud",loc::T("training.hud")},{"dummy",loc::T("training.dummy")},{"reply",loc::T("training.reply")},{"tools",loc::T("training.position")},
+  {"combo-check",loc::T("training.combo_check")}};
  for(int i=0;i<static_cast<int>(trainingMenu.tabs.size());++i)if(trainingMenu.tabs[i].first==screen)trainingMenu.tab=i;
  if(trainingMenu.tab<0&&screen!="home")trainingMenu.tabs.clear();
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
@@ -617,7 +732,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
   }
   if(screen=="frame-data"&&id=="color-key")DrawTrainingColorKey(lab.meter.style!=MeterStyle::Flat);
- },recordingGrid?2:1,{},GameMenu::Body{},true,recordingGrid?30:100,statusTone);
+ },1,{},GameMenu::Body{},true,compactSlots?30:100,statusTone);
  if(a.kind==MenuAction::Close||a.id=="return"){ForwardMenuAction({MenuAction::Close});return;}
  // A tab names its page; the pages are the lab's, one level under it, so
  // one replaces another, whatever is open on it (a reader).
@@ -625,8 +740,10 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
+ if(a.kind==MenuAction::Activate&&a.id=="check-fighters"){nav.Push(a.id);return;}
+ if((screen=="combo-check"||screen=="check-fighters")&&HandleComboCheck(a)){SavePractice();return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.
- if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic"||a.id=="hitboxes")){nav.Push(a.id);return;}
+ if(a.kind==MenuAction::Activate&&(a.id=="meter-settings"||a.id=="meter-classic"||a.id=="hitboxes"||a.id=="data")){nav.Push(a.id);return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-history"){Step(lab.meter.history,{std::begin(MeterHistoryChoices),std::end(MeterHistoryChoices)},a.delta);SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-scroll"){lab.meter.smooth=a.delta>0;SavePractice();return;}
  if(screen=="meter-settings"&&a.kind==MenuAction::Adjust&&a.id=="meter-after-pause"){lab.meter.continuous=a.delta>0;SavePractice();return;}
@@ -635,9 +752,13 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-size"){lab.meter.size=(std::max)(0,(std::min)(HudSizes-1,lab.meter.size+a.delta));SavePractice();return;}
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&a.id=="hud-inputs"){Step(lab.meter.inputs,{0,1,2,3},a.delta);SavePractice();return;}
  if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&a.id=="hitboxes-shown"){lab.meter.hitboxes=a.delta>0;SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-shown"){lab.meter.data=a.delta>0;SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-fighters"){Step(lab.meter.dataFighters,{0,1,2},a.delta);SavePractice();return;}
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&a.id=="data-opacity"){Step(lab.meter.dataOpacity,{std::begin(DataOpacities),std::end(DataOpacities)},a.delta);SavePractice();return;}
  const auto turn=[&](const auto& parts){for(const auto& part:parts)if(a.id==part.key){lab.meter.*part.shown=a.delta>0;SavePractice();return true;}return false;};
  if(screen=="hud"&&a.kind==MenuAction::Adjust&&turn(HudParts))return;
  if(screen=="hitboxes"&&a.kind==MenuAction::Adjust&&turn(HitboxParts))return;
+ if(screen=="data"&&a.kind==MenuAction::Adjust&&turn(DataParts))return;
  if(screen=="meter-classic"&&a.kind==MenuAction::Adjust&&turn(ClassicParts))return;
  if(screen=="frame-data"&&a.kind==MenuAction::Adjust&&(a.id=="meter-style"||a.id=="frames-shown"||a.id=="hud-recovery")){
   // Angled, Flat, then Classic; 60, 90, then 120 frames; Recovery Off, then On.
@@ -662,10 +783,14 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  else if(a.id=="clear")command.action=Action::Clear;
  else if(a.id=="mirror")command.action=Action::Mirror;
  else if(a.id=="clear-history")command.action=Action::ClearHistory;
+ else if(a.id=="check-record"&&a.kind==MenuAction::Activate)command.action=Action::ComboRecord;
+ else if(a.id=="check-start"){command.action=Action::ComboStart;command.check=checkSettings;}
+ else if(a.id=="check-stop")command.action=Action::ComboStop;
  else return;
  if(submit&&submit(command)){
   pending=command.requestId;
-  returnAfter=command.action==Action::AdvanceRecording||command.action==Action::Play;
+  // Back to the fight for what is done there: recording, playing, a combo or a check.
+  returnAfter=command.action==Action::AdvanceRecording||command.action==Action::Play||command.action==Action::ComboRecord||command.action==Action::ComboStart;
  }else error=loc::T("training.command_rejected");
 }
 } }

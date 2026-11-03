@@ -847,7 +847,7 @@ void DrawMatchMeter(const training::View& view) {
     // whose file has every input.
     auto options = TrainingMeterOptions();
     options.classicInputs = options.classicInputs && view.replayInputs;
-    MeterWindow(view, hudScale, (std::min)(620 * hudScale, vp->Size.x * .75f), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
+    MeterWindow(view, hudScale, TrainingMeterWidth(hudScale), vp->Pos.y + vp->Size.y * TrainingMeterBottom(), options);
 }
 void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
     const auto* vp=ImGui::GetMainViewport();
@@ -874,18 +874,19 @@ void DrawMatchKeysNotice(std::initializer_list<const char*> keys) {
 // in an octagonal gate with a fading line through the directions it took
 // over the last InputTrail frames, eight arrows with the held one lit, or
 // both, and the six buttons, lit while held. It reads the session's input history
-// (View::history), which a match does not keep.
+// (View::history), which a match does not keep. Returns the area both cover.
 constexpr int InputTrail = 16;
 // A pad's direction on the screen, as the lanes read its bits: x to the right, y down.
 static ImVec2 Way(unsigned held) {
     return ImVec2(static_cast<float>(((held & 8) ? 1 : 0) - ((held & 4) ? 1 : 0)), static_cast<float>(((held & 2) ? 1 : 0) - ((held & 1) ? 1 : 0)));
 }
-static void DrawInputDisplay(const training::View& view, InputDisplay shown, float hudScale, float hudLeft, float width, float hudBottom) {
+static TrainingHudArea DrawInputDisplay(const training::View& view, InputDisplay shown, float hudScale, float hudLeft, float width, float hudBottom) {
     // Both takes a larger square, so the gate in the arrows' middle stays readable.
     const float r = (shown == InputDisplay::Both ? 34 : 24) * hudScale, disc = 18 * hudScale, gap = 3 * hudScale, pad = 6 * hudScale;
     const float inner = 2 * r + 2 * gap + 3 * (disc + gap), outer = inner + 2 * pad;
     // On a narrow screen there is no room beside the meter; the screen's edge wins.
     const auto* vp = ImGui::GetMainViewport();
+    TrainingHudArea area;
     for (int side = 0; side < 2; ++side) {
         const auto& history = view.history[side];
         const float x = side ? (std::min)(hudLeft + width + gap, vp->Pos.x + vp->Size.x - outer) : (std::max)(hudLeft - gap - outer, vp->Pos.x);
@@ -939,22 +940,29 @@ static void DrawInputDisplay(const training::View& view, InputDisplay shown, flo
         }
         ImGui::End();
         ImGui::PopStyleVar(2);
+        area.Cover({x, hudBottom - 2 * r - 2 * pad, x + outer, hudBottom});
     }
+    return area;
 }
 static_assert(training::MeterOptions{}.position == static_cast<int>(TrainingHudBottom * 100 + .5f), "The meter's default place left the super meters' edge");
 float TrainingMeterBottom() { return TrainingMeterOptions().position / 100.f; }
+float TrainingMeterWidth(float hudScale) { return (std::min)(620 * hudScale, ImGui::GetMainViewport()->Size.x * .75f); }
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     if (!view.available) return {};
     const auto* vp = ImGui::GetMainViewport();
     const float hudScale = TrainingHudScale();
-    const float width = (std::min)(620 * hudScale, vp->Size.x * .75f);
+    const float width = TrainingMeterWidth(hudScale);
     // The game's super meters and their SUPER! banners start about 17% above
     // the bottom edge and scale with the height, so the meter sits just above
     // them unless the player moved it (MeterOptions::position).
     const auto options = TrainingMeterOptions();
     const float hudBottom = vp->Pos.y + vp->Size.y * TrainingMeterBottom();
     const ImVec2 hudTop = MeterWindow(view, hudScale, width, hudBottom, options);
-    if (options.inputs != InputDisplay::Off) DrawInputDisplay(view, options.inputs, hudScale, hudTop.x, width, hudBottom);
-    return DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
+    TrainingHudArea area{hudTop.x, hudTop.y, hudTop.x + width, hudBottom};
+    if (options.inputs != InputDisplay::Off) area.Cover(DrawInputDisplay(view, options.inputs, hudScale, hudTop.x, width, hudBottom));
+    auto input = DrawTrainingShortcuts(view, called, hudTop.x, hudTop.y, width, hudScale);
+    area.Cover(input.area);
+    input.area = area;
+    return input;
 }
 } }

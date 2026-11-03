@@ -261,6 +261,16 @@ void CreateAppIDFile(LPWSTR szGuiltyDirectory) {
 	}
 }
 
+// Windows' own test for its Not Responding ghost, on the window the game
+// published: no message read for 5 seconds.
+sf4e::crash::FreezeWatch::Window GameWindowState(DWORD processId) {
+	using Window = sf4e::crash::FreezeWatch::Window;
+	sf4e::platform::GameWindowRecord game;
+	if (!sf4e::platform::ReadGameWindow(game) || game.pid != processId) return Window::Unknown;
+	const HWND window = sf4e::platform::PublishedWindow(game);
+	return !window ? Window::Unknown : IsHungAppWindow(window) ? Window::Hung : Window::Answering;
+}
+
 // A fail-fast (0xC0000409) skips every handler in the game. Windows Error
 // Reporting still writes a dump when LocalDumps is set up for SSFIV.exe
 // (docs/guides/USER_NETPLAY.md); name it so it reaches the report.
@@ -800,11 +810,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Without a logs folder there is nowhere to put one; the game then
         // writes its own after the request fails.
         if (!g_logsDir[0]) dumps.Close();
-        bool dumped = false;
-        dumps.ServeUntilExit(game, g_logsDir, [&](bool written) {
-            if (written) { dumped = true; spdlog::info(L"Wrote the game's crash dump to {}", dumps.written); }
-            else spdlog::warn("Could not write the game's crash dump (Win32 {})", GetLastError());
-        });
+        const DWORD gameId = GetProcessId(game);
+        dumps.ServeUntilExit(game, g_logsDir, [&](bool written, bool freeze) {
+            const wchar_t* kind = freeze ? L"freeze" : L"crash";
+            if (written) spdlog::info(L"Wrote the game's {} dump to {}", kind, dumps.written[0] ? dumps.written : dumps.reportWritten.c_str());
+            else spdlog::warn(L"Could not write the game's {} dump (Win32 {})", kind, GetLastError());
+        }, [&] { return GameWindowState(gameId); });
         dumps.Close();
         if (g_logsDir[0]) sf4e::crash::PruneDumps(g_logsDir, 5, dumps.reportWritten.c_str());
         DWORD exitCode = 0; GetExitCodeProcess(game,&exitCode);
@@ -815,7 +826,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (dumps.exceptionCode) reportCrash.exceptionCode = dumps.exceptionCode;
             if (dumps.crashAddress) reportCrash.address = dumps.crashAddress;
         }
-        if (crashed && !dumped) NoteWindowsCrashDump(GetProcessId(game));
+        // Windows' own dump is looked for when Ember kept none, a freeze's included.
+        if (crashed && !dumps.written[0] && dumps.reportWritten.empty()) NoteWindowsCrashDump(gameId);
         discord.Stop(); helper.Stop(); CloseHandle(game);
         ArchiveReplays();
         // A loader failure never reaches Sidecar's crash record, so the exit

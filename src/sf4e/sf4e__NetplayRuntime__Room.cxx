@@ -555,7 +555,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 
 // Validates and applies one command, by its family.
 static DispatchOutcome Dispatch(TypedCommand command, bool helperReady, Attempt attempt) {
-	return std::visit([&](auto& family) { return Handle(family, helperReady, attempt); }, command);
+	return std::visit([&](auto& family) { return Handle(family, helperReady, attempt); }, internal::WithRandomFighter(command));
 }
 
 // A sent Ready completes when the committed seat flag arrives, or when the
@@ -666,6 +666,7 @@ void RunReplayRequest(const replay::Request& request) {
         SaySet(held ? loc::Tf("replays.set_imported", held) : std::string(loc::T("replays.set_import_failed")), !held);
         return;
     }
+    if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); platform::replays::WantListing(); return; }
     replaystore::Start(request, AtMainMenu(), NoRoom());
 }
 
