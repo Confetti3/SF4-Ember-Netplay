@@ -166,10 +166,11 @@ int main() {
         CHECK(logged.size() == 4);
         // An emblem painted only inside a transparent margin (a crown on its
         // canvas) is shown by its painting: the uv rectangle leaves the margin
-        // out, two pixels of it kept, as portraits are cropped.
+        // out, two pixels of it kept, as portraits are cropped, and the size
+        // reported is the painted 20 pixels, not the 32-pixel canvas.
         Write(game / L"resource" / L"ui" / L"network_mode" / L"Ranking.emz", RankingArchive("class_MASTER.dds", 32, 8));
         const auto crown = Settle(art, [&] { return art.RankingEmblem("class_MASTER.dds"); }, 2000);
-        CHECK(crown.texture && crown.width == 32 && crown.height == 32);
+        CHECK(crown.texture && crown.width == 20 && crown.height == 20);
         CHECK(std::abs(crown.uvMin.x - 6.f / 32) < .001f && std::abs(crown.uvMin.y - 6.f / 32) < .001f);
         CHECK(std::abs(crown.uvMax.x - 26.f / 32) < .001f && std::abs(crown.uvMax.y - 26.f / 32) < .001f);
         CHECK(logged.size() == 4);
