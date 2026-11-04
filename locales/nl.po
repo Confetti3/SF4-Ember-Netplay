@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Framemeter in matches"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Toont de framemeter over onlinewedstrijden die je speelt of bekijkt. Alleen jij ziet deze. De meter kan enkele frames achterlopen op het gevecht."
+msgstr "Toont de framemeter over onlinewedstrijden die je bekijkt, niet over die je zelf speelt. Een oefenkamer toont hem aan beide spelers. De meter kan enkele frames achterlopen op het gevecht."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Alleen in privékamers."

@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Miernik klatek w meczach"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Pokazuje miernik klatek nad meczami online, w których grasz lub które oglądasz. Widzisz go tylko ty. Może być opóźniony o kilka klatek względem walki."
+msgstr "Pokazuje miernik klatek nad meczami online, które oglądasz, a nie nad tymi, w których grasz. W pokoju treningowym widzą go obaj gracze. Może być opóźniony o kilka klatek względem walki."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Tylko w pokojach prywatnych."

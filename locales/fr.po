@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Compteur de frames en match"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Affiche les frames sur les matchs en ligne que vous jouez ou suivez. Vous seul les voyez. L'affichage peut avoir quelques frames de retard."
+msgstr "Affiche les frames sur les matchs en ligne que vous suivez, pas sur ceux que vous jouez. Un salon d'entraînement les montre aux deux joueurs. L'affichage peut avoir quelques frames de retard."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Salons privés uniquement."

@@ -701,10 +701,13 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Before the HUD, the match meter and the hotkeys, which read the lab's settings.
     static bool trainingDirectorySet=false;
     if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
-    // The meter in a match is the player's choice, and a Practice match's own,
-    // in private rooms only; the runtime reads nothing for it otherwise.
+    // The meter in a match is a Practice match's own, or the player's choice
+    // for a match they watch, in private rooms only; the runtime reads nothing
+    // for it otherwise. Fighting is the session's, not the room's, so a match
+    // without a room snapshot still counts.
     namespace meter = sf4e::match_frame_meter;
-    sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch),
+    const bool fighting = frame->ggpoSessionActive && !status.spectator;
+    sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch, fighting),
         snapshot.Room().serverOwned, snapshot.replays.meterShown));
     // How far back a held meter reaches and whether it starts over after a pause, as the Meter settings page chose.
     const auto meterOptions = sf4e::ui::TrainingMeterOptions();

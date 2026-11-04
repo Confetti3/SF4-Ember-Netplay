@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Medidor de frames en peleas"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Muestra el medidor de frames sobre las partidas en línea que juegas o ves. Solo tú lo ves. Puede ir unos frames por detrás del combate."
+msgstr "Muestra el medidor de frames sobre las partidas en línea que ves, no en las que juegas. Una sala de práctica lo muestra a ambos jugadores. Puede ir unos frames por detrás del combate."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Solo en salas privadas."

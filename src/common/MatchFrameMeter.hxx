@@ -7,9 +7,13 @@ namespace sf4e { namespace match_frame_meter {
 // private rooms they play in.
 inline bool Allowed(bool publicRoom) { return !publicRoom; }
 
-// Whether a match wants the meter: the player's choice, or a Practice room's
-// game, which shows it whatever that choice is.
-inline bool Wanted(bool preference, bool practiceMatch) { return preference || practiceMatch; }
+// Whether a match wants the meter. A Practice room's game always does, for
+// both players. Otherwise it is the player's choice for matches they watch:
+// a fighter in a live match never sees it, so neither side reads frame data
+// the other does not have.
+inline bool Wanted(bool preference, bool practiceMatch, bool fighting) {
+    return practiceMatch || (preference && !fighting);
+}
 
 // Whether the runtime watches matches for the meter: where a match wants it
 // and it is allowed, or a replay that asks for it (a replay is not in a room).

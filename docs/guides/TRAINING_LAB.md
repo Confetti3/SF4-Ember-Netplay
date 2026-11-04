@@ -144,7 +144,7 @@ Each player row shows `Start N f`. It counts observed advancing frames from the 
 
 ### In an online match
 
-**Settings > Match frame meter** (off by default) draws the meter over your own online matches and the ones you watch, with the style, frames shown and Meter settings chosen in the Training lab (angled, 60 frames, 20 seconds of history and Start over, until changed). Only you see it. It reads the game and changes nothing in it. It shows a frame once the other player's inputs for it have arrived, so it trails the fight by the frames still predicted and never shows one that is later played differently. The controls, recordings and hotkeys of Training are not there. A projectile move without attack frames in its script shows no startup in a match.
+**Settings > Match frame meter** (off by default) draws the meter over the online matches you watch (not over a match you fight, except in a Practice room), with the style, frames shown and Meter settings chosen in the Training lab (angled, 60 frames, 20 seconds of history and Start over, until changed). Only you see it. It reads the game and changes nothing in it. It shows a frame once the other player's inputs for it have arrived, so it trails the fight by the frames still predicted and never shows one that is later played differently. The controls, recordings and hotkeys of Training are not there. A projectile move without attack frames in its script shows no startup in a match.
 
 ### Training with another player
 

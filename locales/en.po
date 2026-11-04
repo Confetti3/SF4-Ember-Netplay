@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Match frame meter"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Shows the frame meter over online matches you play or watch. Only you see it. It can trail the fight by a few frames."
+msgstr "Shows the frame meter over online matches you watch, not ones you play. A Practice room shows it to both players. It can trail the fight by a few frames."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Private rooms only."
