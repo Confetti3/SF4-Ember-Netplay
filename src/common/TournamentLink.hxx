@@ -15,6 +15,8 @@
 //
 // Pure component: no Windows, game or helper dependencies, unit tested.
 
+#include "PastedLink.hxx"
+
 #include <string>
 
 namespace sf4e {
@@ -158,14 +160,8 @@ inline MatchLink ParsePageLink(const std::string& text) {
 	return Checked(bridge, match);
 }
 
-// Pasted text without the stray spaces or quotes around it.
-inline std::string Trimmed(const std::string& text) {
-	std::string trimmed = text;
-	while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '"')) trimmed.erase(0, 1);
-	while (!trimmed.empty() && (trimmed[trimmed.size() - 1] == ' ' || trimmed[trimmed.size() - 1] == '"'))
-		trimmed.erase(trimmed.size() - 1);
-	return trimmed;
-}
+// Pasted text without what a chat app put around it (pasted_link::Tidied).
+inline std::string Trimmed(const std::string& text) { return pasted_link::Tidied(text); }
 
 // What a player pasted: either link, with stray spaces or quotes around it.
 inline MatchLink ParsePasted(const std::string& text) {

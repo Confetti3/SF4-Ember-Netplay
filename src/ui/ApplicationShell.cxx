@@ -17,6 +17,8 @@
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/NativeMenuLock.hxx"
+#include "../common/PastedLink.hxx"
+#include "../common/TournamentLink.hxx"
 #include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "ReplaySummaryText.hxx"
@@ -109,7 +111,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
     // Opened from a template: the runtime sets its tables once the room is up.
     if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
-    if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = invitation_;
+    if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = pasted_link::Tidied(invitation_);
     // A room opened here is not the public one the panel joined.
     if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
@@ -408,7 +410,17 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="settings")ShowTab("tab-player");
  else if(SettingsTab(a.id))ShowTab(a.id);
  else if(a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="sent-reports")nav.Push(a.id);
- else if(a.id=="join-now")Send(CommandKind::JoinInvite,v,submit);
+ else if(a.id=="join-now"){
+  // A public room's link pasted here opens the room on Public rooms, as Paste room link there does.
+  const auto room=tournament_link::ParseRoomPasted(invitation_);
+  if(!room.Valid())Send(CommandKind::JoinInvite,v,submit);
+  else if(!publicRooms_.Busy()){
+   identity_.Probe(); // the trusted services, fresh, before the link is judged
+   publicRooms_.OpenLink(room.bridgeId,room.roomId,true);
+   std::fill(std::begin(invitation_),std::end(invitation_),'\0');error_.clear();
+   nav.Cancel();nav.Home();nav.Push("online");nav.Push("public-rooms");
+  }
+ }
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
  else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
  // Training: the game's main menu goes straight to Training mode, if the runtime finds no room or match.
