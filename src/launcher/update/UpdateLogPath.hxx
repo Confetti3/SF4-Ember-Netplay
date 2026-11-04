@@ -16,13 +16,20 @@ inline std::string UpdateLogUtf8(const std::wstring& text) {
 	return utf8;
 }
 
+// The update log the launcher and the updater write; empty where Windows gives
+// no temporary folder.
+inline std::wstring UpdateLogPathW() {
+	wchar_t temp[MAX_PATH + 1] = {};
+	const DWORD length = GetTempPathW(MAX_PATH + 1, temp);
+	if (length == 0 || length > MAX_PATH) return std::wstring();
+	return std::wstring(temp, length) + L"sf4-netplay-update.log";
+}
+
 // The log's full path, and under Wine the Linux path to the same file; empty
 // where Windows gives no temporary folder.
 inline std::string UpdateLogLocation() {
-	wchar_t temp[MAX_PATH + 1] = {};
-	const DWORD length = GetTempPathW(MAX_PATH + 1, temp);
-	if (length == 0 || length > MAX_PATH) return std::string();
-	const std::wstring path = std::wstring(temp, length) + L"sf4-netplay-update.log";
+	const std::wstring path = UpdateLogPathW();
+	if (path.empty()) return std::string();
 	std::string location = UpdateLogUtf8(path);
 	// wine_get_unix_file_name is cdecl and its result is freed from the process heap.
 	using UnixName = char* (__cdecl*)(const wchar_t*);

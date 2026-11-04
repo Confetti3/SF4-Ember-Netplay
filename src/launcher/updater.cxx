@@ -16,16 +16,13 @@
 #include <strsafe.h>
 #include <tlhelp32.h>
 #include "../common/SelectionAssetPath.hxx"
+#include "update/UpdateLogPath.hxx"
 
 namespace {
 
 static void AppendLog(const char* message) {
-	wchar_t tempDir[MAX_PATH] = { 0 };
-	if (GetTempPathW(MAX_PATH, tempDir) == 0) {
-		return;
-	}
-	wchar_t logPath[MAX_PATH] = { 0 };
-	if (FAILED(PathCchCombine(logPath, MAX_PATH, tempDir, L"sf4-netplay-update.log"))) {
+	const std::wstring logPath = sf4e::launcher::UpdateLogPathW();
+	if (logPath.empty()) {
 		return;
 	}
 
@@ -46,7 +43,7 @@ static void AppendLog(const char* message) {
 	);
 
 	HANDLE hFile = CreateFileW(
-		logPath,
+		logPath.c_str(),
 		FILE_APPEND_DATA,
 		FILE_SHARE_READ,
 		NULL,

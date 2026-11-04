@@ -434,9 +434,11 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             throw std::runtime_error("Invalid update backup location");
         // The backup's own folders are refused as links, inside the
         // installation or, for an older backup, beside it.
+        // Built from the parts the location check matched, which ignores case,
+        // as the path written there may differ from this one in case.
         CheckRoot(backup);
         const fs::path backupHome=besideInstall ? install.parent_path() : install;
-        CheckPath(backupHome,backup.lexically_relative(backupHome));
+        CheckPath(backupHome,besideInstall ? backup.filename() : fs::path(L".ember-update-backups")/backup.filename());
         // "committed" is written only after every installed file matched the
         // target, so only its removal failed. Files that differ now were
         // changed afterwards, by the player; they are not ours to undo. The
@@ -568,7 +570,10 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
         }
         CheckPath(install,LockName); fs::remove(install/LockName);
         for(const auto& parent:parents) RemoveEmptyParents(install,parent);
-        RemoveDirectoryW(install.c_str()); // Only when nothing of the player's is left.
+        // Only when nothing of the player's is left. A linked folder is the
+        // player's own: removing it would take the link whatever it still holds.
+        const DWORD installAttributes=GetFileAttributesW(install.c_str());
+        if(installAttributes!=INVALID_FILE_ATTRIBUTES && !(installAttributes&FILE_ATTRIBUTE_REPARSE_POINT)) RemoveDirectoryW(install.c_str());
         if(!failed.empty()) throw std::runtime_error(failed);
     } catch(const std::exception& failure){error=failure.what();return false;}
     error.clear(); return true;

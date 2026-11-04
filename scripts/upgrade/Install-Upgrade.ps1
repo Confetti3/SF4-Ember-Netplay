@@ -462,6 +462,7 @@ $id = [Guid]::NewGuid().ToString('N')
 $stage = Join-Path $parent ('.ember-upgrade-stage-' + $id)
 $backup = Join-Path $parent ("Ember-backup-$($metadata.from)-" + (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture) + '-' + $id.Substring(0,8))
 $null = [IO.Directory]::CreateDirectory($stage)
+$null = SafePath $parent (Split-Path $stage -Leaf)
 $touched = New-Object 'System.Collections.Generic.List[string]'
 $backupMade = $false; $committed = $false
 try {
@@ -474,6 +475,7 @@ try {
     & (SafePath $stage 'preflight.ps1') -PackageDir $stage
     CheckClosed $install; VerifyFiles $install $before
     $null = [IO.Directory]::CreateDirectory($backup)
+    $null = SafePath $parent (Split-Path $backup -Leaf)
     $operations = @()
     foreach ($relative in @($changed + $removed)) {
         $destination = SafePath $install $relative

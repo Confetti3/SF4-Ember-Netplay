@@ -265,8 +265,6 @@ static void TestUpdaterArguments() {
     CHECK_WITH_ERROR(last==1000&&InstallerBarPosition(UpdateStage::Downloading,5,10,1000)==0&&InstallerStepOf(UpdateStage::Extracting)<0);
     CHECK_WITH_ERROR(InstallerStepOf(UpdateStage::Replacing)==3&&std::string(InstallerSteps[3].nameKey)=="update.stage.replacing");
 }
-// Glyph and flag art is allowed by a strict pattern as well as by name, so a
-// later version can add a file there without this build refusing its update.
 // A directory junction at `link` to `target`, as mklink /J makes one.
 static void Junction(const fs::path& link, const fs::path& target) {
     std::wstring command=L"cmd.exe /c mklink /J \""+link.wstring()+L"\" \""+target.wstring()+L"\"";
@@ -292,8 +290,14 @@ static void LinkedParentInstalls() {
     fs::remove_all(install/L"notices"); Junction(install/L"notices",root/L"outside");
     CHECK_WITH_ERROR(!sf4e::launcher::InstallPackage(staging,install,error) && Read(real/L"install"/L"Launcher.exe")=="new");
     CHECK_WITH_ERROR(error.find("Reparse point")!=std::string::npos);
-    fs::remove(install/L"notices"); fs::remove(linked); fs::remove_all(root);
+    fs::remove(install/L"notices");
+    // Uninstalling through a linked folder leaves the link, the player's own.
+    Junction(root/L"alias",real/L"install");
+    CHECK_WITH_ERROR(sf4e::launcher::UninstallPackage(root/L"alias",error) && fs::exists(fs::symlink_status(root/L"alias")));
+    fs::remove(root/L"alias"); fs::remove(linked); fs::remove_all(root);
 }
+// Glyph and flag art is allowed by a strict pattern as well as by name, so a
+// later version can add a file there without this build refusing its update.
 static void ArtPatterns() {
     std::string error;
     using sf4e::package::IsAllowed;
@@ -1076,10 +1080,7 @@ int wmain(int argc, wchar_t** argv) {
     Write(install/L".ember-update-backups-notes.txt","player");
     Write(root/L"outside\\TRAINING_LAB.md","outside");
     fs::remove_all(install/L"docs"); // The junction takes the shipped doc folder's place.
-    std::wstring junction=L"cmd.exe /c mklink /J \""+(install/L"docs").wstring()+L"\" \""+(root/L"outside").wstring()+L"\"";
-    STARTUPINFOW junctionStartup{};junctionStartup.cb=sizeof(junctionStartup);PROCESS_INFORMATION junctionChild{};
-    CHECK_WITH_ERROR(CreateProcessW(nullptr,&junction[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&junctionStartup,&junctionChild));
-    WaitForSingleObject(junctionChild.hProcess,30000);CloseHandle(junctionChild.hThread);CloseHandle(junctionChild.hProcess);
+    Junction(install/L"docs",root/L"outside");
     CHECK_WITH_ERROR(fs::is_regular_file(install/L"docs"/L"TRAINING_LAB.md"));
     // A manifest that is there but cannot be read stops the uninstall before
     // anything goes: it may be all that names a file a later version added.
