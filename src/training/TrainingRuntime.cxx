@@ -628,10 +628,9 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
                 sample.firstActiveFrame = script[0];
                 sample.lastActiveFrame = script[1];
                 sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
-                sample.headerOnly = owned && file->scripts[sample.action].hits.empty();
             }
             // The hits as the game puts them out, from the edition's own file.
-            if (owned) sample.hitPhase = bac::HitPhase(file->scripts[sample.action], sample.actionFrame);
+            if (owned) sample.hits = bac::PhaseAt(file->scripts[sample.action], sample.actionFrame);
             if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
             if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
         }

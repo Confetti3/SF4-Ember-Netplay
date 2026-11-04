@@ -90,7 +90,7 @@ inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
     std::vector<ScriptRun> runs;
     if (script < 0 || script >= static_cast<int>(file.scripts.size())) return runs;
     const bac::Script& now = file.scripts[script];
-    const bool hits = bac::HitPhase(now, 0) >= 0;
+    const bool hits = bac::HasTimedHits(now);
     int first = -1, last = -1;
     if (!hits && !(now.hits.empty() && bac::ProjectileBoundary(file, script, first, last) && first < now.total)) return runs;
     // The kind changes only where a hitbox or the spawn begins or ends, so each stretch
@@ -103,7 +103,7 @@ inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
     cuts.erase(std::unique(cuts.begin(), cuts.end()), cuts.end());
     for (std::size_t i = 0; i + 1 < cuts.size(); ++i) {
         const float at = static_cast<float>(cuts[i]);
-        const MeterKind kind = hits ? HitPhaseKind(bac::HitPhase(now, at)) : BoundaryKind(at, first, last);
+        const MeterKind kind = hits ? HitPhaseKind(bac::PhaseAt(now, at)) : BoundaryKind(at, first, last);
         if (runs.empty() || runs.back().kind != kind) runs.push_back({cuts[i], cuts[i + 1], kind});
         else runs.back().to = cuts[i + 1];
     }

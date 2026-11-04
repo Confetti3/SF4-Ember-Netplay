@@ -177,7 +177,7 @@ int main() {
             std::vector<training::ScriptRun> expect;
             for (int frame = 0; frame < now.total; ++frame) {
                 const float at = static_cast<float>(frame);
-                const MeterKind kind = script ? training::BoundaryKind(at, first, last) : training::HitPhaseKind(bac::HitPhase(now, at));
+                const MeterKind kind = script ? training::BoundaryKind(at, first, last) : training::HitPhaseKind(bac::PhaseAt(now, at));
                 if (expect.empty() || expect.back().kind != kind) expect.push_back({frame, frame + 1, kind});
                 else expect.back().to = frame + 1;
             }
@@ -210,20 +210,20 @@ int main() {
         Bytes other = bcm; other[1] = 'X';
         CHECK(training::ReadChargeNames(other.data(), other.size()).empty() && training::ReadChargeNames(nullptr, 64).empty());
     }
-    int first = -1, last = -1;
-    CHECK(bac::ProjectileBoundary(model, 0, first, last) && first == 27 && last == 28);
+    int first = -1, last = -1, delay = -1;
+    CHECK(bac::ProjectileBoundary(model, 0, first, last, &delay) && first == 27 && last == 28);
     // Evil Ryu's falling fireball (421P): the effect spawned at 47 hits once it goes on in another at its
     // frame 25, 17 game frames on at 1.5 a frame.
     {
-        bac::File oni;
-        oni.scripts.resize(1); oni.effects.resize(2);
-        oni.scripts[0].effects = {0}; oni.scripts[0].spawns = {{{47, 48}}};
-        oni.effects[0].speeds = {{0, 1.5f}}; oni.effects[0].flows = {{25, 1}};
-        oni.effects[1].canHit = true;
-        int a = -1, b = -1, delay = -1;
-        CHECK(bac::ProjectileBoundary(oni, 0, a, b, &delay) && a == 48 && b == 49 && delay == 17);
-        oni.effects[0].flows = {{25, 0}};
-        CHECK(!bac::ProjectileBoundary(oni, 0, a, b));
+        bac::File fall;
+        fall.scripts.resize(1); fall.effects.resize(2);
+        fall.scripts[0].effects = {0}; fall.scripts[0].spawns = {{{47, 48}}};
+        fall.effects[0].speeds = {{0, 1.5f}}; fall.effects[0].flows = {{25, 1}};
+        fall.effects[1].canHit = true;
+        int a = -1, b = -1;
+        CHECK(bac::ProjectileBoundary(fall, 0, a, b, &delay) && a == 48 && b == 49 && delay == 17);
+        fall.effects[0].flows = {{25, 0}};
+        CHECK(!bac::ProjectileBoundary(fall, 0, a, b, &delay));
     }
     // List 4 sets how many script frames a game frame plays: Balrog getting up
     // plays 2 a frame up to 50, then 1, so it is free 29 frames on, at 54.
@@ -249,7 +249,7 @@ int main() {
     }
     for (int action : {-1, 1, 2, 3, 4, 5, 6, 999}) {
         first = last = -1;
-        CHECK(!bac::ProjectileBoundary(model, action, first, last) && first == -1 && last == -1);
+        CHECK(!bac::ProjectileBoundary(model, action, first, last, &delay) && first == -1 && last == -1);
     }
     // Exact-size reads retain the old truncation and mutation coverage.
     for (std::size_t size = 0; size < bytes.size(); ++size) {
@@ -261,7 +261,7 @@ int main() {
         CHECK(!ReadExact(bad, bad.size(), unchanged, error) && !error.empty());
         CHECK(unchanged.scripts.size() == 7 && unchanged.effects.size() == 4 && unchanged.effects[0].canHit);
         int a = -1, b = -1;
-        CHECK(bac::ProjectileBoundary(unchanged, 0, a, b) && a == 27 && b == 28);
+        CHECK(bac::ProjectileBoundary(unchanged, 0, a, b, &delay) && a == 27 && b == 28);
     };
     CHECK(!bac::Read(nullptr, 64, model, error));
     Bytes bad = bytes; bad[1] = 'X'; refused(bad);
@@ -288,7 +288,7 @@ int main() {
         bac::File mutated;
         if (ReadExact(bad, bad.size(), mutated, error)) for (std::int32_t action = -1; action < 10; ++action) {
             int a = -1, b = -1;
-            bac::ProjectileBoundary(mutated, action, a, b);
+            bac::ProjectileBoundary(mutated, action, a, b, &delay);
         } else CHECK(mutated.scripts.empty() && mutated.effects.empty());
     }
     // Missing or incomplete optional spawn frames keep the effect but give
@@ -299,16 +299,17 @@ int main() {
     bac::File untimed;
     CHECK(ReadExact(bad, bad.size(), untimed, error));
     first = last = -1;
-    CHECK(!bac::ProjectileBoundary(untimed, 0, first, last));
+    CHECK(!bac::ProjectileBoundary(untimed, 0, first, last, &delay));
     {
         // Ken's close MK (Omega): boxes 8 to 10 and 14 to 17, read after each update.
         bac::Script mk;
         mk.hits = {{8, 10}, {14, 17}};
-        CHECK(bac::HitPhase(mk, 7.5f) == 0 && bac::HitPhase(mk, 8.f) == 1 && bac::HitPhase(mk, 9.9f) == 1);
-        CHECK(bac::HitPhase(mk, 10.f) == 2 && bac::HitPhase(mk, 13.5f) == 2 && bac::HitPhase(mk, 14.f) == 1);
-        CHECK(bac::HitPhase(mk, 17.f) == 3 && bac::HitPhase(bac::Script{}, 9.f) == -1);
+        using P = bac::HitPhase;
+        CHECK(bac::PhaseAt(mk, 7.5f) == P::Before && bac::PhaseAt(mk, 8.f) == P::Out && bac::PhaseAt(mk, 9.9f) == P::Out);
+        CHECK(bac::PhaseAt(mk, 10.f) == P::Between && bac::PhaseAt(mk, 13.5f) == P::Between && bac::PhaseAt(mk, 14.f) == P::Out);
+        CHECK(bac::PhaseAt(mk, 17.f) == P::Done && bac::PhaseAt(bac::Script{}, 9.f) == P::NoHit);
         mk.hits.push_back({-1, -1});
-        CHECK(bac::HitPhase(mk, 9.f) == -1);
+        CHECK(bac::PhaseAt(mk, 9.f) == P::Untimed);
     }
     return 0;
 }
