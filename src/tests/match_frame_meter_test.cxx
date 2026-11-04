@@ -10,25 +10,27 @@ int main() {
     using namespace sf4e::match_frame_meter;
     CHECK(Allowed(false));
     CHECK(!Allowed(true));
+    constexpr bool settingOn = true, settingOff = false, practice = true, ordinary = false;
+    constexpr bool publicRoom = true, privateRoom = false;
+    constexpr auto watching = Seat::Watching, fighting = Seat::Fighting;
     // A spectator's choice; a Practice match wants the meter with the setting off.
-    CHECK(Wanted(true, false, false) && Wanted(false, true, false) && Wanted(true, true, false));
-    CHECK(!Wanted(false, false, false));
+    CHECK(Wanted(settingOn, ordinary, watching) && Wanted(settingOff, practice, watching) && Wanted(settingOn, practice, watching));
+    CHECK(!Wanted(settingOff, ordinary, watching));
     // A fighter never wants it from the setting, only in a Practice match.
-    CHECK(!Wanted(true, false, true) && !Wanted(false, false, true));
-    CHECK(Wanted(false, true, true) && Wanted(true, true, true));
-    for (int i = 0; i < 2; ++i) {
-        const bool replay = i == 1;
-        CHECK(Watched(true, false, replay));
-        CHECK(Watched(false, false, replay) == replay);
-        CHECK(Watched(true, true, replay) == replay);
-        CHECK(Watched(false, true, replay) == replay);
+    CHECK(!Wanted(settingOn, ordinary, fighting) && !Wanted(settingOff, ordinary, fighting));
+    CHECK(Wanted(settingOff, practice, fighting) && Wanted(settingOn, practice, fighting));
+    for (const bool replay : {false, true}) {
+        CHECK(Watched(true, privateRoom, replay));
+        CHECK(Watched(false, privateRoom, replay) == replay);
+        CHECK(Watched(true, publicRoom, replay) == replay);
+        CHECK(Watched(false, publicRoom, replay) == replay);
         // A private room's fighter with the setting on sees nothing; its spectator does.
-        CHECK(Watched(Wanted(true, false, true), false, replay) == replay);
-        CHECK(Watched(Wanted(true, false, false), false, replay));
+        CHECK(Watched(Wanted(settingOn, ordinary, fighting), privateRoom, replay) == replay);
+        CHECK(Watched(Wanted(settingOn, ordinary, watching), privateRoom, replay));
         // A Practice match in a private room shows it to its fighters with the
         // setting off, and a public room's still never does.
-        CHECK(Watched(Wanted(false, true, true), false, replay));
-        CHECK(Watched(Wanted(false, true, true), true, replay) == replay);
+        CHECK(Watched(Wanted(settingOff, practice, fighting), privateRoom, replay));
+        CHECK(Watched(Wanted(settingOff, practice, fighting), publicRoom, replay) == replay);
     }
     return 0;
 }
