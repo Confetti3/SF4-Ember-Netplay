@@ -2,7 +2,7 @@
 #include "GameMenu.hxx"
 #include "MenuGlyphs.hxx"
 #include "Theme.hxx"
-#include "TrainingPanel.hxx"
+#include "TrainingHudLayout.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayTransport.hxx"

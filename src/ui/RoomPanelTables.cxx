@@ -13,7 +13,7 @@
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "MenuProbes.hxx"
-#include "FighterSelector.hxx"
+#include "SelectionLabels.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>

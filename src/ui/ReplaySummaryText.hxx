@@ -5,7 +5,7 @@
 #include "../common/ReplayInputs.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
-#include "FighterSelector.hxx"
+#include "SelectionLabels.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <cwctype>

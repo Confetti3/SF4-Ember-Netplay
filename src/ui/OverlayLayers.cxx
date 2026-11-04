@@ -1,5 +1,6 @@
 #include "OverlayLayers.hxx"
 #include "OverlayPresentation.hxx"
+#include "TrainingPanel.hxx"
 #include "../common/Localization.hxx"
 #include <cstring>
 

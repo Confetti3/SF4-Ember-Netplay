@@ -1,7 +1,11 @@
 #pragma once
 #include "Theme.hxx"
-#include "TrainingPanel.hxx"
+#include "TrainingHudLayout.hxx"
+#include "TrainingInRoom.hxx"
 #include "ReplayPlaybackHud.hxx"
+#include <string>
+
+namespace sf4e { namespace training { struct View; } }
 
 namespace sf4e { namespace ui {
 // Presentation inputs only. The overlay owns hotkeys, commands and capture;
