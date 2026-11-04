@@ -16,7 +16,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ## Fixes
 
-- **Wi-Fi and cable marks on the room board.** Each player's connection shows again after their ping, on table seats, Arcade cabinets, Members and the results screen. It went missing in 1.5.0.
+- **Wi-Fi and cable marks on the room board.** Each player's connection shows again after their ping on table seats and Arcade cabinets, where it went missing in 1.5.0, and now also on the results screen. In the Members list it moved beside the ping.
 - **Leaving a public room returns to the public room list.** The 1.5.1 fix only worked when the room closed at once. A normal Leave still went Home.
 - **Links pasted from Steam and chat apps join.** Join and Paste room link now ignore what a copy adds around a link: line ends, invisible characters, quotes and brackets. They also read links that Steam chat wraps in its link filter or writes with `%23` for `#`. A public room link pasted into Join opens that room in Public rooms.
 - **News:** a release's notes in the Reader are printed once, not twice over each other.
