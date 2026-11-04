@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Misuratore di frame negli incontri"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Mostra l'indicatore dei frame sulle partite online che segui, non su quelle che giochi. Una sala di allenamento lo mostra a entrambi i giocatori. Può essere indietro di qualche frame rispetto al combattimento."
+msgstr "Mostra l'indicatore dei frame sulle partite online che segui, non su quelle che giochi. Una sala di pratica lo mostra a entrambi i giocatori. Può essere indietro di qualche frame rispetto al combattimento."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Solo nelle sale private."
