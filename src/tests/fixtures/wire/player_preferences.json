@@ -1,0 +1,225 @@
+{
+  "legacyLauncher": {
+    "shareReplaysSince": 1767225600
+  },
+  "netplay": {
+    "autoDelayStyle": 1,
+    "autoInputDelay": false,
+    "backgroundPlay": true,
+    "borderless": true,
+    "buttonLayouts": [
+      {
+        "buttons": [
+          16,
+          32,
+          1024,
+          64,
+          128,
+          2048,
+          1072,
+          2240,
+          0,
+          0
+        ],
+        "edited": 1767225600,
+        "extraButtons": [
+          -1,
+          10,
+          11,
+          2,
+          -1,
+          -1,
+          -1
+        ],
+        "guid": "03000000de280000ff11000000000000",
+        "menuBack": 1,
+        "menuConfirm": 0,
+        "name": "Pad 1",
+        "path": "\\\\?\\hid#vid_28de&pid_11ff",
+        "serial": "SN-0001",
+        "trainingPlay": 5,
+        "trainingRecord": 4
+      }
+    ],
+    "buttonPrompts": 2,
+    "chatFilter": false,
+    "classEmblems": false,
+    "controllerLayer": false,
+    "controllerMappings": {
+      "03000000de280000ff11000000000000": "a:b0,b:b1,x:b2,y:b3"
+    },
+    "country": "GB",
+    "discordInvites": true,
+    "discordPresence": false,
+    "editionSelect": 0,
+    "endlessLobbyMusic": false,
+    "exportLine": true,
+    "exportMark": true,
+    "exportMeter": true,
+    "exportNames": false,
+    "exportSet": false,
+    "fasterDisplay": false,
+    "inputDelay": 3,
+    "interfaceScale": 1.25,
+    "lowerInputLag": true,
+    "lowerKeyboardLag": true,
+    "matchFrameMeter": true,
+    "matchHudAnchor": 5,
+    "matchHudLayout": 0,
+    "matchHudNameOffset": -12,
+    "matchHudRaised": true,
+    "matchHudSize": 2,
+    "pictureMode": 1,
+    "pictureSpot": 7,
+    "readySound": false,
+    "readySoundVolume": 70,
+    "recordWatched": false,
+    "roomCharacterPictures": false,
+    "roomColumn": 44,
+    "roomDefaults": {
+      "capacity": 8,
+      "delay": "own",
+      "editionSelect": false,
+      "format": 5,
+      "instantRematch": false,
+      "name": "Practice hall",
+      "public": true,
+      "publicRules": {
+        "editionSelect": true,
+        "format": 3,
+        "instantRematch": true,
+        "rotation": 0,
+        "roundCount": 3,
+        "roundTime": 99
+      },
+      "rotation": 2,
+      "roundCount": 1,
+      "roundTime": 300,
+      "tableCount": 2,
+      "templates": [
+        {
+          "capacity": 6,
+          "delay": "own",
+          "name": "Evening sets",
+          "practice": true,
+          "public": false,
+          "room": "First to ten",
+          "tableCount": 3,
+          "tables": [
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "name": "Main",
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "name": "Side",
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            },
+            {
+              "editionSelect": true,
+              "format": 10,
+              "instantRematch": true,
+              "rotation": 0,
+              "roundCount": 3,
+              "roundTime": 99
+            }
+          ]
+        }
+      ],
+      "winnerKeepsFighter": true
+    },
+    "roomShowChat": true,
+    "roomShowMembers": false,
+    "roomSplit": 62,
+    "roomTableGrid": true,
+    "roundCount": 5,
+    "roundTimeIntegral": 60,
+    "sendProblemReportsWithDump": true,
+    "shareReplays": true,
+    "shareSteamProfile": false,
+    "showMatchHud": false,
+    "showShortcutHint": false,
+    "speech": {
+      "chime": false,
+      "chimeVolume": 40,
+      "describeUsed": 2,
+      "details": true,
+      "enabled": true,
+      "hints": true,
+      "introHeard": true,
+      "position": true,
+      "rate": -3,
+      "remind": 1,
+      "tick": false,
+      "volume": 80
+    },
+    "trainingAutoReady": true,
+    "tvMode": true,
+    "welcomed": false,
+    "wornIcon": "flame",
+    "wornTitle": "veteran"
+  },
+  "overlay": {},
+  "profile": {
+    "displayName": "Player 1",
+    "mainFighter": 12,
+    "onlineRecord": {
+      "losses": 4,
+      "recent": [
+        "v2:101112131415161718191a1b1c1d1e1f:1:7",
+        "v2:101112131415161718191a1b1c1d1e1f:1:8:2"
+      ],
+      "wins": 10
+    }
+  },
+  "schemaVersion": 1
+}

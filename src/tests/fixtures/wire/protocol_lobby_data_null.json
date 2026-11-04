@@ -1,0 +1,14 @@
+{
+  "editionSelect": false,
+  "id": {
+    "host": "",
+    "key": ""
+  },
+  "members": [],
+  "roundCount": 0,
+  "roundTime": {
+    "fractional": 0,
+    "integral": 0
+  },
+  "trainingMode": false
+}

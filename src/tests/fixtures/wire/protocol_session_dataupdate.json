@@ -1,0 +1,89 @@
+{
+  "authorityRevision": 41,
+  "authorityTerm": 2,
+  "lobbyData": {
+    "editionSelect": false,
+    "id": {
+      "host": "room",
+      "key": "k3y"
+    },
+    "members": [
+      {
+        "authenticatedEndpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "connId": {
+          "host": "peer",
+          "user": "1"
+        },
+        "flags": 1,
+        "incarnation": 2,
+        "ip": "203.0.113.7",
+        "latency": {
+          "endpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "relay": "euc1"
+        },
+        "name": "Player 1",
+        "port": 27015,
+        "roomMember": 1
+      },
+      {
+        "authenticatedEndpoint": "",
+        "connId": {
+          "host": "peer",
+          "user": "2"
+        },
+        "flags": 0,
+        "incarnation": 1,
+        "ip": "",
+        "latency": {},
+        "name": "Player 2",
+        "port": 0,
+        "roomMember": 2
+      }
+    ],
+    "roundCount": 5,
+    "roundTime": {
+      "fractional": 0,
+      "integral": 60
+    },
+    "trainingMode": true
+  },
+  "matchData": {
+    "chara": [
+      {
+        "_unused": 0,
+        "charaID": 12,
+        "color": 7,
+        "costume": 2,
+        "handicap": 0,
+        "personalAction": 3,
+        "ultraCombo": 1,
+        "unc_edition": 14,
+        "winQuote": 4
+      },
+      {
+        "_unused": 0,
+        "charaID": 31,
+        "color": 3,
+        "costume": 0,
+        "handicap": 0,
+        "personalAction": 3,
+        "ultraCombo": 2,
+        "unc_edition": 3,
+        "winQuote": 4
+      }
+    ],
+    "inputDelay": [
+      3,
+      4
+    ],
+    "lowerInputLag": true,
+    "readyMessageNum": [
+      12,
+      13
+    ],
+    "rngSeed": 2654435769,
+    "stageID": 2
+  },
+  "matchGeneration": 9,
+  "type": "data_update"
+}

@@ -1,0 +1,14 @@
+{
+  "chara": {
+    "_unused": 0,
+    "charaID": 12,
+    "color": 7,
+    "costume": 2,
+    "handicap": 0,
+    "personalAction": 3,
+    "ultraCombo": 1,
+    "unc_edition": 14,
+    "winQuote": 4
+  },
+  "type": "prebattle_setchara"
+}

@@ -69,7 +69,11 @@ sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.c
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
 sf4e_add_unit_test(NAME RoomLifecycle SOURCES "src/tests/room_lifecycle_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomServerOwned SOURCES "src/tests/room_server_owned_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
-sf4e_add_unit_test(NAME RoomPrivateGolden SOURCES "src/tests/room_private_golden_test.cxx" LIBS sf4e_room_model LABELS room)
+# Its wire fixtures include the player's preferences as the overlay saves them
+# (OverlayPrefs), so it links the game library and saves to a folder of its own.
+sf4e_add_unit_test(NAME RoomPrivateGolden SOURCES "src/tests/room_private_golden_test.cxx" STD 17
+    LIBS Session sf4e Dimps sf4e_settings sf4e_helper_platform d3d9 TIMEOUT 60 LOCKS ember_runtime LABELS room)
+target_compile_definitions(RoomPrivateGoldenTest PRIVATE SF4E_WIRE_FIXTURES="${CMAKE_SOURCE_DIR}/src/tests/fixtures/wire")
 sf4e_add_unit_test(NAME RoomSpectatorLock SOURCES "src/tests/room_spectator_lock_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomReadyTimeout SOURCES "src/tests/room_ready_timeout_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME CreatedRules SOURCES "src/tests/created_rules_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)

@@ -1,0 +1,37 @@
+{
+  "chara": [
+    {
+      "_unused": 0,
+      "charaID": 12,
+      "color": 7,
+      "costume": 2,
+      "handicap": 0,
+      "personalAction": 3,
+      "ultraCombo": 1,
+      "unc_edition": 14,
+      "winQuote": 4
+    },
+    {
+      "_unused": 0,
+      "charaID": 31,
+      "color": 3,
+      "costume": 0,
+      "handicap": 0,
+      "personalAction": 3,
+      "ultraCombo": 2,
+      "unc_edition": 3,
+      "winQuote": 4
+    }
+  ],
+  "inputDelay": [
+    3,
+    4
+  ],
+  "lowerInputLag": true,
+  "readyMessageNum": [
+    12,
+    13
+  ],
+  "rngSeed": 2654435769,
+  "stageID": 2
+}

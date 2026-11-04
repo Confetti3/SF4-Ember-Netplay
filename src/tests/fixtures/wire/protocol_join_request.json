@@ -1,0 +1,19 @@
+{
+  "country": "GB",
+  "customRooms": true,
+  "latency": {
+    "endpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "relay": "use1"
+  },
+  "link": 1,
+  "mainFighter": 12,
+  "nat": 1,
+  "observer": true,
+  "port": 27015,
+  "roomChatDelta": true,
+  "roomProtocol": 4,
+  "sidecarHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "steamId": "76561197960287930",
+  "type": "join_req",
+  "username": "Player 1"
+}

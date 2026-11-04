@@ -1,0 +1,140 @@
+{
+  "snapshot": {
+    "chara": [
+      {
+        "combodamage": {
+          "fractional": 0,
+          "integral": 310
+        },
+        "damage": {
+          "fractional": 8192,
+          "integral": 120
+        },
+        "recoverable": {
+          "fractional": 16384,
+          "integral": 75
+        },
+        "recoverablemax": {
+          "fractional": 0,
+          "integral": 1000
+        },
+        "revenge": {
+          "fractional": 32768,
+          "integral": 150
+        },
+        "revengemax": {
+          "fractional": 0,
+          "integral": 400
+        },
+        "rootPos": [
+          -1.5,
+          -2.25,
+          0.0,
+          0.10000000149011612
+        ],
+        "sctimeamt": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "sctimemax": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "side": 0,
+        "status": 33,
+        "super": {
+          "fractional": 0,
+          "integral": 250
+        },
+        "supermax": {
+          "fractional": 0,
+          "integral": 1000
+        },
+        "uctime": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "uctimemax": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "vit": {
+          "fractional": 0,
+          "integral": 640
+        },
+        "vitmax": {
+          "fractional": 0,
+          "integral": 1000
+        }
+      },
+      {
+        "combodamage": {
+          "fractional": 0,
+          "integral": 310
+        },
+        "damage": {
+          "fractional": 8192,
+          "integral": 120
+        },
+        "recoverable": {
+          "fractional": 16384,
+          "integral": 75
+        },
+        "recoverablemax": {
+          "fractional": 0,
+          "integral": 1000
+        },
+        "revenge": {
+          "fractional": 32768,
+          "integral": 150
+        },
+        "revengemax": {
+          "fractional": 0,
+          "integral": 400
+        },
+        "rootPos": [
+          1.5,
+          -2.25,
+          0.0,
+          0.10000000149011612
+        ],
+        "sctimeamt": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "sctimemax": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "side": 1,
+        "status": 34,
+        "super": {
+          "fractional": 0,
+          "integral": 250
+        },
+        "supermax": {
+          "fractional": 0,
+          "integral": 1000
+        },
+        "uctime": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "uctimemax": {
+          "fractional": 0,
+          "integral": 0
+        },
+        "vit": {
+          "fractional": 0,
+          "integral": 1000
+        },
+        "vitmax": {
+          "fractional": 0,
+          "integral": 1000
+        }
+      }
+    ],
+    "frameIdx": 3600
+  },
+  "type": "battle_snapshot"
+}

@@ -1,0 +1,9 @@
+{
+  "editionSelect": false,
+  "roundCount": 5,
+  "roundTime": {
+    "fractional": 0,
+    "integral": 60
+  },
+  "type": "lobby_setsettings"
+}

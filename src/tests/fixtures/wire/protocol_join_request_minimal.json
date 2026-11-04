@@ -1,0 +1,12 @@
+{
+  "customRooms": true,
+  "link": 1,
+  "mainFighter": 12,
+  "nat": 1,
+  "port": 27015,
+  "roomChatDelta": true,
+  "roomProtocol": 4,
+  "sidecarHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "type": "join_req",
+  "username": "Player 1"
+}

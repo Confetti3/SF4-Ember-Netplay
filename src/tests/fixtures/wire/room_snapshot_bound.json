@@ -1,0 +1,654 @@
+{
+  "capacity": 12,
+  "chat": [
+    {
+      "sender": 1,
+      "sequence": 1,
+      "text": "gg"
+    },
+    {
+      "sender": 3,
+      "sequence": 2,
+      "text": "Café rematch?"
+    }
+  ],
+  "closed": false,
+  "delay": "own",
+  "host": 1,
+  "local_match_generations": [
+    4,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "local_member": 2,
+  "local_terminal_generations": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "local_terminal_pending": true,
+  "locked": false,
+  "members": [
+    {
+      "badge": {
+        "band": 4,
+        "settled": true
+      },
+      "color": 7,
+      "connection": {
+        "host": "peer",
+        "user": "1"
+      },
+      "costume": 2,
+      "country": "GB",
+      "delay_locked": true,
+      "edition": 3,
+      "fighter": 12,
+      "frozen_delay": 3,
+      "host": true,
+      "id": 1,
+      "idle_s": 42,
+      "incarnation": 3,
+      "join_order": 1,
+      "link": 1,
+      "main_fighter": 12,
+      "name": "Player 1",
+      "nat": 1,
+      "seat": 0,
+      "selected_delay": 3,
+      "sets_lost": 1,
+      "sets_won": 2,
+      "spectator_locked": false,
+      "status": 3,
+      "steam_id": "76561197960287930",
+      "table": 0,
+      "typing_ms": 1200,
+      "ultra": 1
+    },
+    {
+      "badge": {
+        "band": 0,
+        "settled": false
+      },
+      "connection": {
+        "host": "peer",
+        "user": "2"
+      },
+      "delay_locked": true,
+      "edition": 14,
+      "fighter": 31,
+      "frozen_delay": 4,
+      "host": false,
+      "id": 2,
+      "incarnation": 1,
+      "join_order": 2,
+      "link": 2,
+      "main_fighter": 7,
+      "name": "Player 2",
+      "nat": 2,
+      "seat": 1,
+      "selected_delay": 4,
+      "spectator_locked": false,
+      "status": 3,
+      "table": 0
+    },
+    {
+      "badge": {
+        "band": 0,
+        "developer": true,
+        "settled": false
+      },
+      "connection": {
+        "host": "peer",
+        "user": "3"
+      },
+      "country": "BR",
+      "delay_locked": false,
+      "fighter": -1,
+      "frozen_delay": 2,
+      "host": false,
+      "id": 3,
+      "incarnation": 1,
+      "join_order": 3,
+      "link": 0,
+      "main_fighter": -1,
+      "name": "Player 3",
+      "nat": 0,
+      "seat": -1,
+      "selected_delay": 2,
+      "spectator_locked": false,
+      "status": 1,
+      "table": 0,
+      "training": true
+    },
+    {
+      "connection": {
+        "host": "peer",
+        "user": "4"
+      },
+      "delay_locked": false,
+      "fighter": -1,
+      "frozen_delay": 2,
+      "host": false,
+      "id": 4,
+      "incarnation": 1,
+      "join_order": 4,
+      "link": 0,
+      "main_fighter": -1,
+      "name": "Player 4",
+      "nat": 0,
+      "seat": -1,
+      "selected_delay": 2,
+      "spectator_locked": true,
+      "status": 5,
+      "table": 0
+    },
+    {
+      "connection": {
+        "host": "peer",
+        "user": "5"
+      },
+      "delay_locked": false,
+      "fighter": -1,
+      "frozen_delay": 2,
+      "host": false,
+      "id": 5,
+      "incarnation": 1,
+      "join_order": 5,
+      "link": 0,
+      "main_fighter": -1,
+      "name": "Player 5",
+      "nat": 0,
+      "seat": -1,
+      "selected_delay": 2,
+      "spectator_locked": false,
+      "status": 6,
+      "table": 1
+    }
+  ],
+  "name": "Player 1's room",
+  "protocol_version": 4,
+  "revision": 41,
+  "room_epoch": 77,
+  "server_owned": true,
+  "table_count": 2,
+  "tables": [
+    {
+      "ending_watchers": [
+        4
+      ],
+      "hold_ms": 2500,
+      "id": 0,
+      "input_delay": [
+        3,
+        4
+      ],
+      "keeper": 1,
+      "kept_edition": 3,
+      "kept_fighter": 12,
+      "last_set": {
+        "generation": 3,
+        "p1": 1,
+        "p2": 2,
+        "score": [
+          3,
+          1
+        ],
+        "winner_seat": 0
+      },
+      "lower_lag": [
+        true,
+        false
+      ],
+      "match_generation": 4,
+      "name": "Table one",
+      "p1": 1,
+      "p2": 2,
+      "permit_generation": 5,
+      "permit_windows": [
+        120000,
+        90000
+      ],
+      "permits": [
+        "per_alpha",
+        "per_beta"
+      ],
+      "phase": 2,
+      "queue": [
+        3
+      ],
+      "ready": [
+        true,
+        true
+      ],
+      "ready_ms": 30000,
+      "result_pending": false,
+      "revision": 7,
+      "rules": {
+        "edition_select": false,
+        "format": 3,
+        "instant_rematch": false,
+        "rotation": 1,
+        "round_count": 5,
+        "round_time": 60,
+        "winner_keeps_fighter": true
+      },
+      "score": [
+        1,
+        2
+      ],
+      "spectator_hold": true,
+      "spectators": [
+        4
+      ],
+      "streak": 2,
+      "streak_holder": 1,
+      "watching_next": []
+    },
+    {
+      "ending_watchers": [],
+      "id": 1,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 1,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 3,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 2,
+      "rules": {
+        "edition_select": true,
+        "format": 10,
+        "instant_rematch": true,
+        "rotation": 2,
+        "round_count": 1,
+        "round_time": 9999
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": [
+        5
+      ]
+    },
+    {
+      "ending_watchers": [],
+      "id": 2,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 0,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 0,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 0,
+      "rules": {
+        "edition_select": true,
+        "format": 0,
+        "instant_rematch": true,
+        "rotation": 0,
+        "round_count": 3,
+        "round_time": 99
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": []
+    },
+    {
+      "ending_watchers": [],
+      "id": 3,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 0,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 0,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 0,
+      "rules": {
+        "edition_select": true,
+        "format": 0,
+        "instant_rematch": true,
+        "rotation": 0,
+        "round_count": 3,
+        "round_time": 99
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": []
+    },
+    {
+      "ending_watchers": [],
+      "id": 4,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 0,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 0,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 0,
+      "rules": {
+        "edition_select": true,
+        "format": 0,
+        "instant_rematch": true,
+        "rotation": 0,
+        "round_count": 3,
+        "round_time": 99
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": []
+    },
+    {
+      "ending_watchers": [],
+      "id": 5,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 0,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 0,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 0,
+      "rules": {
+        "edition_select": true,
+        "format": 0,
+        "instant_rematch": true,
+        "rotation": 0,
+        "round_count": 3,
+        "round_time": 99
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": []
+    },
+    {
+      "ending_watchers": [],
+      "id": 6,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 0,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 0,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 0,
+      "rules": {
+        "edition_select": true,
+        "format": 0,
+        "instant_rematch": true,
+        "rotation": 0,
+        "round_count": 3,
+        "round_time": 99
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": []
+    },
+    {
+      "ending_watchers": [],
+      "id": 7,
+      "input_delay": [
+        2,
+        2
+      ],
+      "last_set": {
+        "generation": 0,
+        "p1": 0,
+        "p2": 0,
+        "score": [
+          0,
+          0
+        ],
+        "winner_seat": 0
+      },
+      "match_generation": 0,
+      "p1": 0,
+      "p2": 0,
+      "permit_generation": 0,
+      "permits": [
+        "",
+        ""
+      ],
+      "phase": 0,
+      "queue": [],
+      "ready": [
+        false,
+        false
+      ],
+      "result_pending": false,
+      "revision": 0,
+      "rules": {
+        "edition_select": true,
+        "format": 0,
+        "instant_rematch": true,
+        "rotation": 0,
+        "round_count": 3,
+        "round_time": 99
+      },
+      "score": [
+        0,
+        0
+      ],
+      "spectator_hold": false,
+      "spectators": [],
+      "streak": 0,
+      "streak_holder": 0,
+      "watching_next": []
+    }
+  ],
+  "terminal_pending": [
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "tournament": {
+    "assignment_generation": 3,
+    "binding_revision": 2,
+    "fighters": [
+      {
+        "ember_id": "player1",
+        "endpoint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "ember_id": "player2",
+        "endpoint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "games_to_win": 3,
+    "match_id": "match-1",
+    "starting_wins": [
+      1,
+      0
+    ],
+    "watchers": [
+      {
+        "ember_id": "player3",
+        "endpoint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    ]
+  }
+}

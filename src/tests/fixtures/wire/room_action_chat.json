@@ -1,0 +1,26 @@
+{
+  "action_id": 2042,
+  "capacity": 0,
+  "input_delay": 2,
+  "keep_watching": false,
+  "kind": 13,
+  "locked": false,
+  "match_generation": 0,
+  "protocol_version": 4,
+  "result": 4,
+  "revision": 41,
+  "room_epoch": 77,
+  "rules": {
+    "edition_select": true,
+    "format": 0,
+    "instant_rematch": true,
+    "rotation": 0,
+    "round_count": 3,
+    "round_time": 99
+  },
+  "seat": -1,
+  "table": 0,
+  "table_revision": 7,
+  "target": 0,
+  "text": "Café rematch?"
+}
