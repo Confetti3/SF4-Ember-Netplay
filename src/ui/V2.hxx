@@ -4,8 +4,10 @@
 // reads or changes navigation.
 #include "NameMarks.hxx"
 #include "RoomCards.hxx"
+#include "../common/NetworkLink.hxx"
 #include <imgui.h>
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -213,6 +215,9 @@ struct TagView {
     // The member's ping as the room measures it (LatencyMarkFor), with its route
     // above XS; none without text.
     LatencyMark ping;
+    // A room member's link, Wi-Fi or cable, at the right end after the ping;
+    // none for a tag that is not a room member. Unknown still draws its "?".
+    std::optional<NetworkLink> link;
     // L only: the main (-1 for none), the line under the title (country, class) and the facts.
     int fighter = -1;
     // The title's tier colours its plate; the icon (-1 none) sits on the card's right.

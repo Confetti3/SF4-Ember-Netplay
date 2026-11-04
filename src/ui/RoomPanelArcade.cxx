@@ -217,7 +217,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  };
  const auto tag=[&](const room::Member& m,ImVec2 at,float width,v2::TagSize size,std::string status){
   v2::TagView g;g.name=m.name+(m.id==v.room.localMember?std::string(loc::T("room.suffix_you")):"");g.marks={m.country,m.badge};g.status=std::move(status);
-  if(size!=v2::TagSize::XS)g.ping=LatencyMarkFor(v.memberLatency,m,v.room.localMember);
+  if(size!=v2::TagSize::XS){g.ping=LatencyMarkFor(v.memberLatency,m,v.room.localMember);g.link=m.link;}
   return v2::Tag(d,at,width,g,size);
  };
  const FighterArt art=RoomFighterArt(preferences_);
