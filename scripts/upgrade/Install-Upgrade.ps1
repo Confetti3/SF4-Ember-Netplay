@@ -12,13 +12,18 @@ function ValidRelative([string]$Relative) {
         @($Relative -split '[\\/]' | Where-Object { $_ -in '', '.', '..' -or $_.EndsWith('.') -or $_.EndsWith(' ') }).Count)
 }
 
-function SafePath([string]$Root, [string]$Relative) {
+# The full path of $Relative under $Root. Links are refused below $Root, as the
+# native CheckPath refuses them; $Root and the folders above it are where the
+# player put Ember and may be links (Z:\home under Proton, a moved library).
+# -NamesOnly checks the names alone, as the native CheckRoot does.
+function SafePath([string]$Root, [string]$Relative, [switch]$NamesOnly) {
     if (!(ValidRelative $Relative)) { throw "Invalid package path: $Relative" }
     $rootPath = [IO.Path]::GetFullPath($Root).TrimEnd('\','/')
     $path = [IO.Path]::GetFullPath([IO.Path]::Combine($rootPath + '\', $Relative))
     if (!$path.StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Path escapes the selected folder.' }
+    if ($NamesOnly) { return $path }
     $walk = $path
-    while ($walk) {
+    while ($walk -and $walk.Length -gt $rootPath.Length) {
         if ([IO.File]::Exists($walk) -or [IO.Directory]::Exists($walk)) {
             if ([IO.File]::GetAttributes($walk) -band [IO.FileAttributes]::ReparsePoint) { throw "Linked paths are not supported: $walk" }
         }
@@ -30,12 +35,12 @@ function SafePath([string]$Root, [string]$Relative) {
 
 # A journal's absolute path, checked as written the way the native reader
 # checks it: a drive or UNC root, then no empty, '.', '..' or otherwise invalid
-# part and no linked folder, so nothing is normalized away before the location
-# checks. Returns the full path.
+# part, so nothing is normalized away before the location checks. Links are the
+# callers' to check, below the installation. Returns the full path.
 function AbsolutePath([string]$Value) {
-    if ($Value -match '^([A-Za-z]:)[\\/](.+)$') { return SafePath ($Matches[1] + '\') $Matches[2] }
+    if ($Value -match '^([A-Za-z]:)[\\/](.+)$') { return SafePath ($Matches[1] + '\') $Matches[2] -NamesOnly }
     if ($Value -match '^[\\/]{2}([^\\/]+)[\\/]([^\\/]+)[\\/](.+)$' -and (ValidRelative $Matches[2])) {
-        return SafePath "\\$($Matches[1])\$($Matches[2])\" $Matches[3]
+        return SafePath "\\$($Matches[1])\$($Matches[2])\" $Matches[3] -NamesOnly
     }
     throw "Invalid update path: $Value"
 }
@@ -232,6 +237,10 @@ function RecoverTransaction([string]$Install, [string]$Path, [switch]$InspectOnl
             !($backupParent -ieq (Split-Path $Install -Parent) -and (Split-Path $backupRoot -Leaf) -clike 'Ember-backup-*')) {
             throw 'Invalid update backup location.'
         }
+        # The backup's own folders are refused as links, inside the installation
+        # or, for an older backup, beside it.
+        $backupHome = if ($backupParent -ieq (Split-Path $Install -Parent)) { $backupParent } else { $Install }
+        $null = SafePath $backupHome $backupRoot.Substring($backupHome.TrimEnd('\','/').Length + 1)
         # Every target and operation path, keyed and ordered as the native reader
         # keys them, so both restore, and name a missing file, in the same order.
         $files = @{}

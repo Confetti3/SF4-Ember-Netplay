@@ -50,6 +50,14 @@ void CheckPath(const fs::path& root, const fs::path& relative) {
         if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_REPARSE_POINT)) throw std::runtime_error("Reparse point in package destination");
     }
 }
+void CheckRoot(const fs::path& absolute) {
+    if (!absolute.is_absolute() || absolute.relative_path().empty()) throw std::runtime_error("Invalid update path");
+    for (const auto& part : absolute.relative_path()) {
+        const auto name=part.wstring();
+        if(name.empty() || name==L"." || name==L".." || name.back()==L'.' || name.back()==L' ' || name.find_first_of(L":*?\"<>|")!=std::wstring::npos)
+            throw std::runtime_error("Invalid update path");
+    }
+}
 namespace {
 // A file the transaction changes, with the hash of its backup when the file
 // existed.
@@ -418,12 +426,17 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
             throw std::runtime_error("Invalid pending update transaction");
         // Paths as written: "." and ".." parts are refused, never normalized
         // away, here and for the backup below, as both readers check them.
-        CheckPath(installation.root_path(),installation.relative_path());
+        CheckRoot(installation);
         const fs::path backup=fs::u8path(transaction.at("backup").get<std::string>());
+        const bool besideInstall=PathKey(backup.parent_path())==PathKey(install.parent_path());
         if(!backup.is_absolute() || (PathKey(backup.parent_path())!=PathKey(install/L".ember-update-backups") &&
-            !(PathKey(backup.parent_path())==PathKey(install.parent_path()) && backup.filename().wstring().find(L"Ember-backup-")==0)))
+            !(besideInstall && backup.filename().wstring().find(L"Ember-backup-")==0)))
             throw std::runtime_error("Invalid update backup location");
-        CheckPath(backup.root_path(),backup.relative_path());
+        // The backup's own folders are refused as links, inside the
+        // installation or, for an older backup, beside it.
+        CheckRoot(backup);
+        const fs::path backupHome=besideInstall ? install.parent_path() : install;
+        CheckPath(backupHome,backup.lexically_relative(backupHome));
         // "committed" is written only after every installed file matched the
         // target, so only its removal failed. Files that differ now were
         // changed afterwards, by the player; they are not ours to undo. The
@@ -511,7 +524,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
 }
 }
 bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspectOnly, const Activity& activity) {
-    try { const auto install=fs::absolute(installInput).lexically_normal(); CheckPath(install.root_path(),install.relative_path());
+    try { const auto install=fs::absolute(installInput).lexically_normal(); CheckRoot(install);
         if(inspectOnly) return RecoverLocked(install,error,true,activity);
         auto lock=Lock(install); return RecoverLocked(install,error,false,activity); }
     catch(const std::exception& failure){error=failure.what();return false;}
@@ -519,7 +532,7 @@ bool RecoverPackage(const fs::path& installInput, std::string& error, bool inspe
 bool UninstallPackage(const fs::path& installInput, std::string& error) {
     try {
         const auto install=fs::absolute(installInput).lexically_normal();
-        CheckPath(install.root_path(),install.relative_path());
+        CheckRoot(install);
         if(!fs::is_directory(install)) throw std::runtime_error("Invalid install paths");
         std::vector<fs::path> parents;
         std::string failed; // Keep going past a file in use; report it at the end.
@@ -615,7 +628,7 @@ Inventory ReadInventory(const fs::path& file) {
 using Manifest = std::map<std::wstring,std::pair<fs::path,std::string>>;
 // What a package folder's MANIFEST.txt names, nothing of it checked yet.
 static Manifest PackageManifest(const fs::path& package) {
-    CheckPath(package.root_path(),package.relative_path());
+    CheckRoot(package);
     if(!fs::is_directory(package)) throw std::runtime_error("Invalid package folder");
     return ReadManifest(package/L"MANIFEST.txt");
 }
@@ -674,7 +687,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         install = fs::absolute(installInput).lexically_normal();
         const auto staging = fs::absolute(stagingInput).lexically_normal();
         if (!fs::is_directory(install) || !fs::is_directory(staging) || install == staging) throw std::runtime_error("Invalid install paths");
-        CheckPath(install.root_path(),install.relative_path());
+        CheckRoot(install);
         installLock=std::make_unique<InstallLock>(Lock(install));
         if(!RecoverLocked(install,error,false,activity)) throw std::runtime_error(error);
         auto named=PackageManifest(staging);

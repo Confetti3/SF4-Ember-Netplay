@@ -267,6 +267,33 @@ static void TestUpdaterArguments() {
 }
 // Glyph and flag art is allowed by a strict pattern as well as by name, so a
 // later version can add a file there without this build refusing its update.
+// A directory junction at `link` to `target`, as mklink /J makes one.
+static void Junction(const fs::path& link, const fs::path& target) {
+    std::wstring command=L"cmd.exe /c mklink /J \""+link.wstring()+L"\" \""+target.wstring()+L"\"";
+    STARTUPINFOW startup{};startup.cb=sizeof(startup);PROCESS_INFORMATION child{};
+    CHECK(CreateProcessW(nullptr,&command[0],nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&startup,&child));
+    WaitForSingleObject(child.hProcess,30000);CloseHandle(child.hThread);CloseHandle(child.hProcess);
+    CHECK(fs::exists(link));
+}
+// Ember's folder under a linked one (Z:\home under Proton, a moved Steam
+// library) updates and recovers; a link inside the folder is still refused.
+static void LinkedParentInstalls() {
+    std::string error;
+    const auto root=MakeTempRoot(L"ember-upgrade-linked-");
+    const auto real=root/L"real", linked=root/L"linked", staging=root/L"staging";
+    fs::create_directories(real/L"install"); fs::create_directories(root/L"outside");
+    Junction(linked,real);
+    const auto install=linked/L"install";
+    Write(install/L"Launcher.exe","old");
+    Package(staging,"new");
+    CHECK_WITH_ERROR(sf4e::launcher::RecoverPackage(install,error,true));
+    CHECK_WITH_ERROR(sf4e::launcher::InstallPackage(staging,install,error) && Read(real/L"install"/L"Launcher.exe")=="new");
+    fs::remove_all(staging); Package(staging,"newer");
+    fs::remove_all(install/L"notices"); Junction(install/L"notices",root/L"outside");
+    CHECK_WITH_ERROR(!sf4e::launcher::InstallPackage(staging,install,error) && Read(real/L"install"/L"Launcher.exe")=="new");
+    CHECK_WITH_ERROR(error.find("Reparse point")!=std::string::npos);
+    fs::remove(install/L"notices"); fs::remove(linked); fs::remove_all(root);
+}
 static void ArtPatterns() {
     std::string error;
     using sf4e::package::IsAllowed;
@@ -346,6 +373,7 @@ int wmain(int argc, wchar_t** argv) {
     TestUpdaterArguments();
     ArtPatterns();
     SourceArtListed();
+    LinkedParentInstalls();
     const auto root = MakeTempRoot(L"ember-upgrade-test-");
     const auto staging = root/L"staging", install = root/L"install";
     fs::create_directories(staging); fs::create_directories(install);
