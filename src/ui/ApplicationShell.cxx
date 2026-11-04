@@ -123,14 +123,16 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
 // Parts of Draw, in the order it runs them.
 void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
  using namespace netplay; auto& nav=menu_.navigation;
+ if(v.session.room==RoomState::Joined)roomWasJoined_=true;
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
   nav.Cancel();
   // A public room's player goes back to the list they joined it from (the
   // panel still holds the room until its own update this frame).
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection"){
    nav.Home();
-   if(publicRooms_.OpeningKind()&&previousRoomState_==RoomState::Joined){nav.Push("online");nav.Push("public-rooms");}
+   if(publicRooms_.OpeningKind()&&roomWasJoined_){nav.Push("online");nav.Push("public-rooms");}
   }
+  roomWasJoined_=false;
   error_.clear();
   Say(previousRoomState_==RoomState::Opening?"":loc::T("notice.left_room"),Tone::Neutral,3,ToastKind::Room);
  }

@@ -805,6 +805,9 @@ std::string memberAsk_;
     std::string languagePreference_ = "auto", languageSaveError_;
     netplay::Generation generation_;
     netplay::RoomState previousRoomState_ = netplay::RoomState::Idle;
+    // The room now closing was joined, not only opened: kept through Closing,
+    // which every way out of a room passes, and cleared at Idle.
+    bool roomWasJoined_ = false;
     // The tournament phase last seen, to announce a match that ended.
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     // The last match link outcome announced.
