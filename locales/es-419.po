@@ -7118,17 +7118,44 @@ msgstr "Para una TV al otro lado de la habitación: todo un cuarto más grande, 
 msgid "settings.group.game_themes"
 msgstr "Temas del juego"
 
-msgid "settings.game_theme_menus"
-msgstr "Menús"
+msgid "settings.game_theme_main_menu"
+msgstr "Menú principal"
+
+msgid "settings.game_theme_title"
+msgstr "Pantalla de título"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Selección de personaje"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Selección de escenario"
+
+msgid "settings.game_theme_versus"
+msgstr "Pantalla de versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menú de pausa"
+
+msgid "settings.game_theme_network"
+msgstr "Menús de red"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Marcas de edición"
+
+msgid "settings.game_theme_buttons"
+msgstr "Botones e íconos"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Sonidos de los menús"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Archivos para esta pantalla de un tema de la carpeta ember\\themes de la carpeta del juego. Los archivos del juego no se tocan. El menú principal muestra la elección al instante; las demás pantallas, la próxima vez que se abran."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Ningún tema tiene archivos para esta pantalla. Coloca un tema, con su carpeta ui, en la carpeta ember\\themes de la carpeta del juego y vuelve a iniciar el juego."
 
 msgid "settings.game_theme_game"
 msgstr "El del juego"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Imágenes del menú desde un tema en la carpeta ember\\themes de la carpeta del juego. Los archivos del juego no cambian. El menú principal lo muestra al instante."
-
-msgid "settings.game_theme_none"
-msgstr "No se encontraron temas con menús. Pon un tema, con su carpeta ui, en ember\\themes dentro de la carpeta del juego y vuelve a iniciar el juego."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "HUD de combate"

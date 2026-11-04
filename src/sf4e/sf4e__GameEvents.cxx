@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <optional>
 #include <windows.h>
 #include <detours/detours.h>
 #include <spdlog/spdlog.h>
@@ -518,15 +519,33 @@ void fTrainingMode::Enter() {
 	if (pendingSides) spdlog::info("Training: stage {}, fighters from Ember's Training select", stage);
 }
 
-bool fTrainingMode::ChangeDummy(int fighter) {
+// Both sides of the Training under way, as its character select took them.
+static std::optional<sf4e::GameEvents::TrainingSides> TrainingNow() {
 	char* query[] = { "TrainingMode" };
 	rTrainingMode* mode = (rTrainingMode*)EventBaseWithEC::FindForegroundEvent(Dimps::App::GetRootEvent(), query, 1);
-	if (!mode) return false;
-	TrainingSides sides;
+	if (!mode) return std::nullopt;
+	sf4e::GameEvents::TrainingSides sides;
 	for (int i = 0; i < 2; i++) sides.sides[i] = rTrainingMode::GetSelection(mode, i)->conditions;
+	return sides;
+}
+
+bool fTrainingMode::ChangeDummy(int fighter) {
+	auto sides = TrainingNow();
+	if (!sides) return false;
 	// Training offers every edition, as Training select's dummy does.
-	sf4e::selection::ChangeFighter(sides.sides[1], fighter, true);
+	sf4e::selection::ChangeFighter(sides->sides[1], fighter, true);
 	pendingSides = sides;
+	return true;
+}
+
+bool fTrainingMode::Reload() {
+	using System = Dimps::Game::Battle::System;
+	System* system = System::staticMethods.GetSingleton();
+	auto sides = TrainingNow();
+	if (!system || !sides || *System::GetReadyState(system) != System::RS_FIGHT) return false;
+	pendingSides = sides;
+	*System::GetBattleExitType(system) = System::BET_PAUSE_TOCHARACTER;
+	*System::GetReadyState(system) = System::RS_ISLEAVING;
 	return true;
 }
 

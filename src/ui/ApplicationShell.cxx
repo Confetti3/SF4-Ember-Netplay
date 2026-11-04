@@ -239,9 +239,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
+  // Drawn as the screen's body (DrawScreen), inside the menu's window.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),{},false});
-  developer();TakeForwardedMenuAction();
-  if(ImGui::Button("Back to Home"))nav.Return();
  }else{
   // Any other screen shows Help & about, as it always has.
   static const std::string about="about";
@@ -791,6 +790,10 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  GameMenu::Card portraits=owner?owner->Card(frame,now):GameMenu::Card{};
  GameMenu::Detail profilePreview=owner?owner->Detail(frame):GameMenu::Detail{};
  GameMenu::Body board=owner?owner->Body(frame):GameMenu::Body{};
+ if(screen=="developer"&&developer)board=[&](const std::vector<MenuEntry>&,MenuNavigation&,MenuAction&,float,const MenuVisualFeedback&){
+  developer();TakeForwardedMenuAction();
+  if(ImGui::Button("Back to Home"))nav.Return();
+ };
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&

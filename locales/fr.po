@@ -7585,17 +7585,44 @@ msgstr "Pour une TV à l'autre bout de la pièce : tout est un quart plus grand,
 msgid "settings.group.game_themes"
 msgstr "Thèmes du jeu"
 
-msgid "settings.game_theme_menus"
-msgstr "Menus"
+msgid "settings.game_theme_main_menu"
+msgstr "Menu principal"
+
+msgid "settings.game_theme_title"
+msgstr "Écran titre"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Sélection du personnage"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Sélection du stage"
+
+msgid "settings.game_theme_versus"
+msgstr "Écran de versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menu pause"
+
+msgid "settings.game_theme_network"
+msgstr "Menus réseau"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Marques d'édition"
+
+msgid "settings.game_theme_buttons"
+msgstr "Boutons et icônes"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Sons des menus"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Fichiers pour cet écran venant d'un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le menu principal affiche le choix tout de suite, les autres écrans à leur prochaine ouverture."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Aucun thème n'a de fichiers pour cet écran. Placez un thème, avec son dossier ui, dans le dossier ember\\themes du dossier du jeu, puis relancez le jeu."
 
 msgid "settings.game_theme_game"
 msgstr "Celui du jeu"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Images des menus prises dans un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le menu principal l'affiche aussitôt."
-
-msgid "settings.game_theme_none"
-msgstr "Aucun thème avec des menus trouvé. Placez un thème, avec son dossier ui, dans ember\\themes du dossier du jeu, puis relancez le jeu."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "HUD de combat"

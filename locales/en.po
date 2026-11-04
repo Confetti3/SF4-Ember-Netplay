@@ -7213,17 +7213,44 @@ msgstr "For a TV across the room: everything a quarter larger, kept inside a 5% 
 msgid "settings.group.game_themes"
 msgstr "In-game themes"
 
-msgid "settings.game_theme_menus"
-msgstr "Menus"
+msgid "settings.game_theme_main_menu"
+msgstr "Main menu"
+
+msgid "settings.game_theme_title"
+msgstr "Title screen"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Character select"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Stage select"
+
+msgid "settings.game_theme_versus"
+msgstr "Versus screen"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Pause menu"
+
+msgid "settings.game_theme_network"
+msgstr "Network menus"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Edition marks"
+
+msgid "settings.game_theme_buttons"
+msgstr "Buttons and icons"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Menu sounds"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Files for this screen from a theme in the game folder's ember\\themes folder. The game's own files stay as they are. The main menu shows its pick at once, other screens the next time they open."
+
+msgid "settings.game_theme_screen_none"
+msgstr "No theme has files for this screen. Put a theme, with its ui folder inside, in the game folder's ember\\themes folder, then start the game again."
 
 msgid "settings.game_theme_game"
 msgstr "The game's own"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Menu pictures from a theme in the game folder's ember\\themes folder. The game's own files stay as they are. The main menu shows it at once."
-
-msgid "settings.game_theme_none"
-msgstr "No themes with menus found. Put a theme, with its ui folder inside, in the game folder's ember\\themes folder, then start the game again."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "Battle HUD"

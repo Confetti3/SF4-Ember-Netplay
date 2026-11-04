@@ -7586,17 +7586,44 @@ msgstr "離れた場所のテレビ向け：すべてを4分の1大きくし、�
 msgid "settings.group.game_themes"
 msgstr "ゲーム内テーマ"
 
-msgid "settings.game_theme_menus"
-msgstr "メニュー"
+msgid "settings.game_theme_main_menu"
+msgstr "メインメニュー"
+
+msgid "settings.game_theme_title"
+msgstr "タイトル画面"
+
+msgid "settings.game_theme_chara_select"
+msgstr "キャラクター選択"
+
+msgid "settings.game_theme_stage_select"
+msgstr "ステージ選択"
+
+msgid "settings.game_theme_versus"
+msgstr "対戦画面"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "ポーズメニュー"
+
+msgid "settings.game_theme_network"
+msgstr "ネットワークメニュー"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "エディションマーク"
+
+msgid "settings.game_theme_buttons"
+msgstr "ボタンとアイコン"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "メニューの効果音"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "ゲームフォルダーの ember\\themes フォルダーにあるテーマから、この画面のファイルを使います。ゲーム本来のファイルはそのままです。メインメニューはすぐに、ほかの画面は次に開いたときに反映されます。"
+
+msgid "settings.game_theme_screen_none"
+msgstr "この画面のファイルがあるテーマはありません。ui フォルダーを含むテーマをゲームフォルダーの ember\\themes フォルダーに置き、ゲームを再起動してください。"
 
 msgid "settings.game_theme_game"
 msgstr "ゲーム標準"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "ゲームフォルダの ember\\themes 内のテーマからメニュー画像を読み込みます。ゲームのファイルは変更されません。メインメニューにはすぐ反映されます。"
-
-msgid "settings.game_theme_none"
-msgstr "メニューを含むテーマが見つかりません。ui フォルダを含むテーマをゲームフォルダの ember\\themes に入れ、ゲームを再起動してください。"
 
 msgid "settings.game_theme_battle_hud"
 msgstr "バトルHUD"

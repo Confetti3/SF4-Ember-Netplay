@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <windows.h>
 
 namespace fs = std::filesystem;
@@ -25,9 +26,9 @@ struct Fixture {
         std::ofstream out(path, std::ios::binary);
         CHECK(out.write(bytes.data(), bytes.size()));
     }
-    fs::path Active() const { return root / game_themes::ActiveFolder / game_themes::Menus; }
+    fs::path Active() const { return root / game_themes::ActiveFolder / game_themes::MainMenu; }
     bool Menus(const fs::path& name) const { return fs::is_regular_file(Active() / name); }
-    game_themes::Outcome Use(const std::string& name, const wchar_t* part = game_themes::Menus) {
+    game_themes::Outcome Use(const std::string& name, const wchar_t* part = game_themes::MainMenu) {
         std::string error;
         const auto outcome = game_themes::Use(root.wstring(), part, name, error);
         CHECK((outcome == game_themes::Outcome::Used) == error.empty());
@@ -37,23 +38,24 @@ struct Fixture {
 
 int main() {
     Fixture f;
-    CHECK(game_themes::Names(f.root.wstring(), game_themes::Menus).empty());
+    CHECK(game_themes::Names(f.root.wstring(), game_themes::MainMenu).empty());
 
     f.File("ember/themes/Neon/ui/main_menu/vfx/main_menu.emz");
     f.File("ember/themes/Neon/battle/hud/ENG/hud.emz");
     f.File("ember/themes/Blue/ui/main_menu/title.emz");
     f.File("ember/themes/NoMenus/battle/hud/ENG/hud.emz");
-    const auto names = game_themes::Names(f.root.wstring(), game_themes::Menus);
+    f.File("ember/themes/Title/ui/advertise/title/title_ultra.emz");
+    const auto names = game_themes::Names(f.root.wstring(), game_themes::MainMenu);
     CHECK(names.size() == 2 && names[0] == "Blue" && names[1] == "Neon");
 
-    // Only the theme's menus part is used, not its other parts.
+    // Only the theme's main menu part is used, not its other parts.
     using game_themes::Outcome;
     CHECK(f.Use("Neon") == Outcome::Used);
-    CHECK(f.Menus("main_menu/vfx/main_menu.emz") && !fs::exists(f.root / game_themes::ActiveFolder / "battle"));
+    CHECK(f.Menus("vfx/main_menu.emz") && !fs::exists(f.root / game_themes::ActiveFolder / "battle"));
 
     // Another theme replaces the first one whole.
     CHECK(f.Use("Blue") == Outcome::Used);
-    CHECK(f.Menus("main_menu/title.emz") && !f.Menus("main_menu/vfx/main_menu.emz"));
+    CHECK(f.Menus("title.emz") && !f.Menus("vfx/main_menu.emz"));
     CHECK(!fs::exists(f.Active().wstring() + L".next") && !fs::exists(f.Active().wstring() + L".old"));
 
     // A name that is not one folder, a theme that is gone, or one without
@@ -67,9 +69,9 @@ int main() {
     // open) stays, and says so.
     CHECK(f.Use("Neon") == Outcome::Used);
     {
-        const HANDLE open = CreateFileW((f.Active() / "main_menu/vfx/main_menu.emz").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+        const HANDLE open = CreateFileW((f.Active() / "vfx/main_menu.emz").c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
         CHECK(open != INVALID_HANDLE_VALUE);
-        CHECK(f.Use("Blue") == Outcome::Unchanged && f.Menus("main_menu/vfx/main_menu.emz"));
+        CHECK(f.Use("Blue") == Outcome::Unchanged && f.Menus("vfx/main_menu.emz"));
         CloseHandle(open);
     }
 
@@ -79,9 +81,15 @@ int main() {
     CHECK(huds.size() == 2 && huds[0] == "Neon" && huds[1] == "NoMenus");
     const fs::path hud = f.root / game_themes::ActiveFolder / game_themes::BattleHud / "ENG/hud.emz";
     CHECK(f.Use("NoMenus", game_themes::BattleHud) == Outcome::Used && fs::is_regular_file(hud));
-    CHECK(f.Menus("main_menu/vfx/main_menu.emz"));
+    CHECK(f.Menus("vfx/main_menu.emz"));
     CHECK(f.Use("", game_themes::BattleHud) == Outcome::Used && !fs::exists(hud));
-    CHECK(f.Menus("main_menu/vfx/main_menu.emz"));
+    CHECK(f.Menus("vfx/main_menu.emz"));
+
+    // Each menu screen is a part of its own: a title screen from another
+    // theme sits beside the main menu in use.
+    CHECK(game_themes::Names(f.root.wstring(), game_themes::Parts[1]) == std::vector<std::string>{"Title"});
+    CHECK(f.Use("Title", game_themes::Parts[1]) == Outcome::Used);
+    CHECK(fs::is_regular_file(f.root / game_themes::ActiveFolder / "ui/advertise/title/title_ultra.emz") && f.Menus("vfx/main_menu.emz"));
 
     // No name: the game's own menus, and the themes themselves are kept.
     CHECK(f.Use("") == Outcome::Used);

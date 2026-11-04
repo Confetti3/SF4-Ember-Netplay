@@ -7585,17 +7585,44 @@ msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uv
 msgid "settings.group.game_themes"
 msgstr "Herní motivy"
 
-msgid "settings.game_theme_menus"
-msgstr "Menu"
+msgid "settings.game_theme_main_menu"
+msgstr "Hlavní nabídka"
+
+msgid "settings.game_theme_title"
+msgstr "Titulní obrazovka"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Výběr postavy"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Výběr arény"
+
+msgid "settings.game_theme_versus"
+msgstr "Obrazovka versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Nabídka pauzy"
+
+msgid "settings.game_theme_network"
+msgstr "Síťové nabídky"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Značky edice"
+
+msgid "settings.game_theme_buttons"
+msgstr "Tlačítka a ikony"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Zvuky nabídek"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Soubory pro tuto obrazovku z motivu ve složce ember\\themes složky hry. Soubory hry zůstávají beze změny. Hlavní nabídka ukáže volbu hned, ostatní obrazovky při dalším otevření."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Žádný motiv nemá soubory pro tuto obrazovku. Vložte motiv s jeho složkou ui do složky ember\\themes ve složce hry a spusťte hru znovu."
 
 msgid "settings.game_theme_game"
 msgstr "Původní ze hry"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Obrázky menu z motivu ve složce ember\\themes ve složce hry. Soubory hry zůstanou beze změny. Hlavní menu ho ukáže hned."
-
-msgid "settings.game_theme_none"
-msgstr "Žádný motiv s menu nenalezen. Vložte motiv se složkou ui do ember\\themes ve složce hry a spusťte hru znovu."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "Bojový HUD"

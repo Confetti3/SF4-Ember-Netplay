@@ -796,6 +796,7 @@ void TickRuntime() {
 	ObserveCoordination();
 	PumpDiscordClient();
 	GameThemes::Search();
+	GameThemes::TakePreview();
 	// Legacy error/teardown hooks can retire the client between owner ticks.
 	// Dispose its coordinator before dereferencing that client again.
 	if (runtime->attached && !UserApp::netplay) {

@@ -1,6 +1,7 @@
 // The developer inspector page: the main menu, character select and stage
 // select inspectors, and the selector that draws one inspector at a time.
 #include "sf4e__DeveloperOverlay__Internal.hxx"
+#include "sf4e__GameThemes.hxx"
 
 static sf4e::ui::SelectionArt* s_selectionArt = nullptr;
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
@@ -266,12 +267,163 @@ void DrawVsStageSelectWindow(bool* pOpen) {
 }
 
 
+// In-game themes, one list a part: a pick saves as Settings' row does and shows
+// at once, a battle HUD in a Training fight by loading that battle again.
+// Each part's tab: its name, where its files show, and whether Versus mode
+// shows them (character select, stage select, the versus screen).
+struct ThemeTab { const char* name; const char* where; bool versus; };
+static const ThemeTab themeTabs[sf4e::netplay::GameThemePartCount] = {
+	{"Main menu", "Shows at once on the main menu.", false},
+	{"Title", "Shows on the title screen (leave the main menu, or start the game again).", false},
+	{"Character select", "Shows on character select.", true},
+	{"Stage select", "Shows on stage select.", true},
+	{"Versus", "Shows on the versus and loading screen.", true},
+	{"Pause menu", "Shows when a fight is paused.", false},
+	{"Network", "Shows on the game's own network screens.", false},
+	{"Edition marks", "Shows on character select's edition marks.", true},
+	{"Buttons", "Shows in button prompts and icons across menus.", false},
+	{"Menu sounds", "Plays in menus; may need the game started again.", false},
+	{"Battle HUD", "In Training the battle loads again; elsewhere the next battle shows it.", false},
+};
+
+// Test all: every theme part with no verdict yet, a screen at a time. Show
+// previews one and takes the game to where it shows; a verdict saves it and
+// shows the next. The count of files the game opened from ember\theme since
+// Show tells a theme that loaded from one the game never read.
+static void DrawThemeTester(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, bool training) {
+	using namespace sf4e::netplay;
+	struct Item { int part; std::string name; };
+	static std::vector<Item> items;
+	static size_t at = 0;
+	static bool shown = false;
+	if (!ImGui::CollapsingHeader("Test all")) return;
+	if (ImGui::Button(items.empty() ? "Start: list the themes with no verdict" : "List again")) {
+		items.clear(); at = 0; shown = false;
+		// Screens the main menu reaches first, Training's last.
+		for (int part : { GameThemeMainMenu, GameThemeTitle, GameThemeCharaSelect, GameThemeStageSelect, GameThemeVersus, GameThemeEditionMarks,
+			GameThemeButtons, GameThemeMenuSounds, GameThemeNetwork, GameThemePauseMenu, GameThemeBattleHud })
+			for (const auto& name : snapshot.gameThemes[part])
+				if (sf4e::GameThemes::Verdict(name).empty()) items.push_back({ part, name });
+	}
+	while (at < items.size() && !sf4e::GameThemes::Verdict(items[at].name).empty()) { ++at; shown = false; }
+	if (items.empty()) return;
+	if (at >= items.size()) { Text("All %zu judged.", items.size()); return; }
+	const Item& item = items[at];
+	const ThemeTab& tab = themeTabs[item.part];
+	Text("%zu of %zu: %s", at + 1, items.size(), item.name.c_str());
+	Text("%s. %s", tab.name, tab.where);
+	// Where the game must be, and the main menu row that takes it to the screen.
+	const bool inTraining = item.part == GameThemePauseMenu || item.part == GameThemeBattleHud;
+	const int row = item.part == GameThemeTitle ? 0 : tab.versus ? 2 : inTraining && !training ? 4 : -1;
+	const bool reachable = row < 0 || snapshot.atMainMenu;
+	auto show = [&] {
+		if (row == 4) {
+			sf4e::GameEvents::TrainingSides sides;
+			for (auto& side : sides.sides) { side.charaID = 0; side.unc_edition = Dimps::Game::Battle::ED_USF4; }
+			sf4e::GameEvents::TrainingMode::Choose(sides);
+		}
+		sf4e::GameThemes::Preview(static_cast<GameThemePart>(item.part), item.name, row);
+		shown = true;
+	};
+	if (!reachable) Text(training ? "Leave Training for the main menu to show this one." : "Go back to the main menu to show this one.");
+	ImGui::BeginDisabled(!reachable);
+	if (ImGui::Button(shown ? "Show again" : "Show")) show();
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	if (ImGui::Button("skip")) { ++at; shown = false; }
+	if (shown) {
+		const int opens = sf4e::GameThemes::ThemeFileOpens();
+		if (opens) Text("The game opened %d files from the theme (last: %s)", opens, sf4e::GameThemes::LastThemeFile().c_str());
+		else Text("The game has not opened a file from the theme yet");
+		for (const char* verdict : { "keep", "fix", "remove" }) {
+			if (ImGui::Button(verdict)) {
+				sf4e::GameThemes::Judge(item.name, verdict);
+				++at; shown = false;
+				break;
+			}
+			ImGui::SameLine();
+		}
+		ImGui::NewLine();
+	}
+	ImGui::Separator();
+}
+
+void sf4e::ui::DrawGameThemesPicker() {
+	using sf4e::netplay::GameThemePart;
+	const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();
+	const auto& snapshot = *frame->runtime;
+	// Where settings are locked (Training, Versus) a pick is shown, not saved.
+	static std::optional<std::string> previewed[sf4e::netplay::GameThemePartCount];
+	if (snapshot.canEditPreferences) for (auto& p : previewed) p.reset();
+	else Text("Preview only: picks here are not saved");
+	// The tab for where the game is opens by itself: the main menu's there,
+	// the battle HUD in Training.
+	const bool training = snapshot.menuContext == sf4e::input::MenuContext::OfflineTraining;
+	const int here = snapshot.atMainMenu ? sf4e::netplay::GameThemeMainMenu : training ? sf4e::netplay::GameThemeBattleHud : -1;
+	static int shownFor = -2;
+	const bool select = here != shownFor;
+	shownFor = here;
+	DrawThemeTester(snapshot, training);
+	if (!ImGui::BeginTabBar("parts", ImGuiTabBarFlags_FittingPolicyScroll)) return;
+	for (int part = 0; part < sf4e::netplay::GameThemePartCount; ++part) {
+		const auto& themes = snapshot.gameThemes[part];
+		if (themes.empty()) continue;
+		const ThemeTab& tab = themeTabs[part];
+		if (!ImGui::BeginTabItem(tab.name, nullptr, select && part == here ? ImGuiTabItemFlags_SetSelected : 0)) continue;
+		ImGui::TextWrapped("%s", tab.where);
+		const std::string used = previewed[part].value_or(snapshot.preferences.gameThemes[part]);
+		std::string picked = used;
+		if (ImGui::BeginListBox("##themes", ImVec2(-FLT_MIN, -ImGui::GetFrameHeightWithSpacing() * 2))) {
+			if (ImGui::Selectable("(the game's own)", used.empty())) picked.clear();
+			for (const auto& name : themes) {
+				const std::string verdict = sf4e::GameThemes::Verdict(name);
+				const std::string label = (verdict.empty() ? name : name + "  [" + verdict + "]") + "##" + name;
+				if (ImGui::Selectable(label.c_str(), name == used)) picked = name;
+			}
+			ImGui::EndListBox();
+		}
+		// The theme in use is judged here: kept, to be fixed, or moved out.
+		if (!used.empty() && std::find(themes.begin(), themes.end(), used) != themes.end()) {
+			for (const char* verdict : { "keep", "fix", "remove" }) {
+				if (ImGui::Button(verdict)) sf4e::GameThemes::Judge(used, verdict);
+				ImGui::SameLine();
+			}
+			Text("%s", used.c_str());
+		}
+		if (tab.versus && snapshot.atMainMenu && ImGui::Button("Show it: open Versus mode")) {
+			char* query[1] = { "MainMenu" };
+			if (rMainMenu* mainMenu = (rMainMenu*)EventBaseWithEC::FindForegroundEvent(App::GetRootEvent(), query, 1))
+				(rMainMenu::ToItemObserver(mainMenu)->*rMainMenu::itemObserverMethods.GoToVersusMode)();
+		}
+		ImGui::EndTabItem();
+		if (picked == used) continue;
+		if (!snapshot.canEditPreferences) {
+			previewed[part] = picked;
+			sf4e::GameThemes::Preview(static_cast<GameThemePart>(part), picked);
+			continue;
+		}
+		sf4e::NetplayFacade::RuntimeCommand request;
+		request.command.kind = sf4e::netplay::CommandKind::SavePreferences;
+		request.command.generation = snapshot.session.generation;
+		request.preferences = snapshot.preferences;
+		request.preferences.gameThemes[part] = picked;
+		sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+	}
+	ImGui::EndTabBar();
+}
+
+void DrawGameThemesWindow(bool* pOpen) {
+	Begin("In-game themes", pOpen, ImGuiWindowFlags_None);
+	sf4e::ui::DrawGameThemesPicker();
+	End();
+}
+
 void sf4e::ui::DrawDeveloperOverlay(SelectionArt* art) {
     s_selectionArt = art;
     static int selected = 0;
-    const char* labels[] = {"Characters", "Commands", "Events", "GFx", "HUD", "Main menu", "Mementos", "Input devices", "Sound", "System", "Tasks", "VFX", "Battle", "Character select", "Stage select"};
+    const char* labels[] = {"Characters", "Commands", "Events", "GFx", "HUD", "In-game themes", "Main menu", "Mementos", "Input devices", "Sound", "System", "Tasks", "VFX", "Battle", "Character select", "Stage select"};
     ImGui::Combo("Inspector", &selected, labels, IM_ARRAYSIZE(labels));
-    void (*draw[])(bool*) = {DrawCharaWindow, DrawCommandWindow, DrawEventWindow, DrawGFxAppWindow, DrawHudWindow, DrawMainMenuWindow, DrawMementoWindow, DrawPadWindow, DrawSoundWindow, DrawSystemWindow, DrawTaskWindow, DrawVfxWindow, DrawVsBattleWindow, DrawVsCharaSelectWindow, DrawVsStageSelectWindow};
+    void (*draw[])(bool*) = {DrawCharaWindow, DrawCommandWindow, DrawEventWindow, DrawGFxAppWindow, DrawHudWindow, DrawGameThemesWindow, DrawMainMenuWindow, DrawMementoWindow, DrawPadWindow, DrawSoundWindow, DrawSystemWindow, DrawTaskWindow, DrawVfxWindow, DrawVsBattleWindow, DrawVsCharaSelectWindow, DrawVsStageSelectWindow};
     draw[selected](nullptr);
     s_selectionArt = nullptr;
 }

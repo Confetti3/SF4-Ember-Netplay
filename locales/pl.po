@@ -7585,17 +7585,44 @@ msgstr "Do telewizora po drugiej stronie pokoju: wszystko o jedną czwartą wię
 msgid "settings.group.game_themes"
 msgstr "Motywy w grze"
 
-msgid "settings.game_theme_menus"
-msgstr "Menu"
+msgid "settings.game_theme_main_menu"
+msgstr "Menu główne"
+
+msgid "settings.game_theme_title"
+msgstr "Ekran tytułowy"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Wybór postaci"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Wybór areny"
+
+msgid "settings.game_theme_versus"
+msgstr "Ekran versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menu pauzy"
+
+msgid "settings.game_theme_network"
+msgstr "Menu sieciowe"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Znaki edycji"
+
+msgid "settings.game_theme_buttons"
+msgstr "Przyciski i ikony"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Dźwięki menu"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Pliki dla tego ekranu z motywu w folderze ember\\themes folderu gry. Pliki gry pozostają bez zmian. Menu główne pokazuje wybór od razu, inne ekrany przy następnym otwarciu."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Żaden motyw nie ma plików dla tego ekranu. Umieść motyw z jego folderem ui w folderze ember\\themes folderu gry i uruchom grę ponownie."
 
 msgid "settings.game_theme_game"
 msgstr "Oryginalny z gry"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Obrazy menu z motywu w folderze ember\\themes w folderze gry. Pliki gry pozostają bez zmian. Menu główne pokazuje go od razu."
-
-msgid "settings.game_theme_none"
-msgstr "Nie znaleziono motywów z menu. Umieść motyw z folderem ui w ember\\themes w folderze gry i uruchom grę ponownie."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "HUD walki"

@@ -39,7 +39,16 @@ int RoomPreset(int column) { return column <= 30 ? 0 : column >= 50 ? 2 : 1; }
 // under it, and those it shows with no theme found.
 struct GameThemeRow { const char *id, *label, *detail, *none; };
 constexpr GameThemeRow GameThemeRows[netplay::GameThemePartCount] = {
-    {"game-theme-menus", "settings.game_theme_menus", "settings.game_theme_menus_detail", "settings.game_theme_none"},
+    {"game-theme-main-menu", "settings.game_theme_main_menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-title", "settings.game_theme_title", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-chara-select", "settings.game_theme_chara_select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-stage-select", "settings.game_theme_stage_select", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-versus", "settings.game_theme_versus", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-pause-menu", "settings.game_theme_pause_menu", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-network", "settings.game_theme_network", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-edition-marks", "settings.game_theme_edition_marks", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-buttons", "settings.game_theme_buttons", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
+    {"game-theme-menu-sounds", "settings.game_theme_menu_sounds", "settings.game_theme_screen_detail", "settings.game_theme_screen_none"},
     {"game-theme-battle-hud", "settings.game_theme_battle_hud", "settings.game_theme_battle_hud_detail", "settings.game_theme_battle_hud_none"}};
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {

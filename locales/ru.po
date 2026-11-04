@@ -7585,17 +7585,44 @@ msgstr "Для телевизора в другом конце комнаты: �
 msgid "settings.group.game_themes"
 msgstr "Темы игры"
 
-msgid "settings.game_theme_menus"
-msgstr "Меню"
+msgid "settings.game_theme_main_menu"
+msgstr "Главное меню"
+
+msgid "settings.game_theme_title"
+msgstr "Титульный экран"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Выбор персонажа"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Выбор арены"
+
+msgid "settings.game_theme_versus"
+msgstr "Экран противостояния"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Меню паузы"
+
+msgid "settings.game_theme_network"
+msgstr "Сетевые меню"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Знаки издания"
+
+msgid "settings.game_theme_buttons"
+msgstr "Кнопки и значки"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Звуки меню"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Файлы для этого экрана из темы в папке ember\\themes папки игры. Файлы игры остаются без изменений. Главное меню показывает выбор сразу, другие экраны — при следующем открытии."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Ни у одной темы нет файлов для этого экрана. Положите тему с её папкой ui в папку ember\\themes папки игры и запустите игру снова."
 
 msgid "settings.game_theme_game"
 msgstr "Как в игре"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Картинки меню из темы в папке ember\\themes в папке игры. Файлы игры не меняются. Главное меню показывает её сразу."
-
-msgid "settings.game_theme_none"
-msgstr "Темы с меню не найдены. Положите тему с папкой ui внутри в ember\\themes в папке игры и перезапустите игру."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "Боевой HUD"

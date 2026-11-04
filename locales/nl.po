@@ -7585,17 +7585,44 @@ msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, bin
 msgid "settings.group.game_themes"
 msgstr "Thema's in de game"
 
-msgid "settings.game_theme_menus"
-msgstr "Menu's"
+msgid "settings.game_theme_main_menu"
+msgstr "Hoofdmenu"
+
+msgid "settings.game_theme_title"
+msgstr "Titelscherm"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Personagekeuze"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Stagekeuze"
+
+msgid "settings.game_theme_versus"
+msgstr "Versusscherm"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Pauzemenu"
+
+msgid "settings.game_theme_network"
+msgstr "Netwerkmenu's"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Editietekens"
+
+msgid "settings.game_theme_buttons"
+msgstr "Knoppen en pictogrammen"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Menugeluiden"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Bestanden voor dit scherm uit een thema in de map ember\\themes van de spelmap. De eigen bestanden van het spel blijven zoals ze zijn. Het hoofdmenu toont de keuze meteen, andere schermen de volgende keer dat ze openen."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Geen thema heeft bestanden voor dit scherm. Zet een thema, met de ui-map erin, in de map ember\\themes van de spelmap en start het spel opnieuw."
 
 msgid "settings.game_theme_game"
 msgstr "Die van de game"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Menuafbeeldingen uit een thema in de map ember\\themes in de gamemap. De bestanden van de game blijven zoals ze zijn. Het hoofdmenu toont het meteen."
-
-msgid "settings.game_theme_none"
-msgstr "Geen thema's met menu's gevonden. Zet een thema, met de map ui erin, in ember\\themes in de gamemap en start de game opnieuw."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "Gevechts-HUD"

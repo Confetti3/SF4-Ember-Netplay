@@ -13,6 +13,7 @@
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "sf4e__InputLag.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Gamepads.hxx"
@@ -247,6 +248,7 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Platform::Install();
 	UserApp::Install();
 	custom::Install();
+	GameThemes::Install();
 }
 
 void sf4e::HooksCommitted() {

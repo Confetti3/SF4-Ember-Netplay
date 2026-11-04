@@ -96,8 +96,15 @@ constexpr std::size_t MaxRoomTemplates = 12;
 
 // The parts of an in-game theme (sf4e__GameThemes.cxx), in Settings order,
 // and the key each part's pick is saved under.
-enum GameThemePart { GameThemeMenus, GameThemeBattleHud, GameThemePartCount };
-constexpr const char* GameThemeKeys[GameThemePartCount] = { "gameThemeMenus", "gameThemeBattleHud" };
+// Each menu screen is a part of its own, so its pick can come from any theme.
+enum GameThemePart {
+    GameThemeMainMenu, GameThemeTitle, GameThemeCharaSelect, GameThemeStageSelect, GameThemeVersus,
+    GameThemePauseMenu, GameThemeNetwork, GameThemeEditionMarks, GameThemeButtons, GameThemeMenuSounds,
+    GameThemeBattleHud, GameThemePartCount };
+constexpr const char* GameThemeKeys[GameThemePartCount] = {
+    "gameThemeMainMenu", "gameThemeTitle", "gameThemeCharaSelect", "gameThemeStageSelect", "gameThemeVersus",
+    "gameThemePauseMenu", "gameThemeNetwork", "gameThemeEditionMarks", "gameThemeButtons", "gameThemeMenuSounds",
+    "gameThemeBattleHud" };
 
 struct PlayerPreferences {
     std::string displayName = "Player";

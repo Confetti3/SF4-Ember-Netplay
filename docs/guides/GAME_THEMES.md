@@ -2,11 +2,20 @@
 
 An in-game theme replaces how parts of the game look and sound: its menus and battle HUD, and later custom in-game overlays such as scoreboards. Themes are folders you put next to the game. Ember never changes the game's own files, so taking a theme away always gives you the game back as it shipped.
 
-You choose themes in **Settings > Interface > In-game themes**. Each part has its own row, so you can take the menus from one theme and the battle HUD from another.
+You choose themes in **Settings > Interface > In-game themes**. Each part has its own row, so you can take the main menu from one theme, the title screen from another and the battle HUD from a third.
 
 | Part | Row | Folder in a theme | State |
 |---|---|---|---|
-| Menus | Menus | `ui\` | Works |
+| Main menu | Main menu | `ui\main_menu\` | Works |
+| Title screen, logos | Title screen | `ui\advertise\` | Works |
+| Character select | Character select | `ui\chara_select\` | Works |
+| Stage select | Stage select | `ui\stage_select\` | Works |
+| Versus screen | Versus screen | `ui\versus\` | Works |
+| Pause menu | Pause menu | `ui\pause_menu\` | Works |
+| The game's online menus | Network menus | `ui\network_mode\` | Works |
+| Edition marks | Edition marks | `ui\edition_mark\` | Works |
+| Button prompts and icons | Buttons and icons | `ui\common\` | Works |
+| Menu music and sounds | Menu sounds | `ui\sound\` | Works |
 | Battle HUD | Battle HUD | `battle\hud\` | Works |
 | In-game overlays (scoreboards, player cards) | Overlay | `overlay\` | Planned |
 
@@ -51,7 +60,7 @@ Optional. Ember does not read it yet; later versions will show it next to the th
 
 ## Menus: the ui folder
 
-The menus part is the game's `ui` folder: every menu and screen's pictures, layouts and menu sounds. The game's own copy is in `resource\ui`, with newer versions of some files in `patch`, `patch_ae2`, `patch_ae2_tu1`, `patch_ae2_tu2` and `patch_ae2_tu3`. Start from the newest copy of a file: if `patch_ae2_tu3\ui\main_menu\title.emz` exists, that is the one the game uses, not the one in `resource`.
+The menu parts are folders of the game's `ui` folder, one part each for the folders in the table at the top. A theme's files in other `ui` folders (`option`, `trial_mode` and so on below) are not used yet. The `ui` folder holds every menu and screen's pictures, layouts and menu sounds. The game's own copy is in `resource\ui`, with newer versions of some files in `patch`, `patch_ae2`, `patch_ae2_tu1`, `patch_ae2_tu2` and `patch_ae2_tu3`. Start from the newest copy of a file: if `patch_ae2_tu3\ui\main_menu\title.emz` exists, that is the one the game uses, not the one in `resource`.
 
 | Folder | What it is |
 |---|---|
@@ -108,8 +117,8 @@ A menu whose bundle the game cannot read stays empty or stops responding. Take t
 ## Picking a theme
 
 1. Put the theme folder in `ember\themes`, then start the game. Ember looks for themes when the game starts, so a theme added while it runs shows after a restart.
-2. On the main menu, open **Settings > Interface > In-game themes**. **Menus** lists **The game's own** and every theme with a `ui` folder, and **Battle HUD** every theme with a `battle\hud` folder. Left and Right step through them; Select opens the list. Settings can change it only on the main menu, outside rooms and matches.
-3. The new menus show at once: the main menu fades and opens again.
+2. On the main menu, open **Settings > Interface > In-game themes**. Each row lists **The game's own** and every theme with that part's folder: **Main menu** the themes with `ui\main_menu`, **Battle HUD** those with `battle\hud`, and so on. Left and Right step through them; Select opens the list. Settings can change it only on the main menu, outside rooms and matches.
+3. A new main menu shows at once: the main menu fades and opens again. Other screens show their pick the next time they open.
 
 Ember remembers your pick. If the theme is gone the next time the game starts, Ember goes back to the game's own menus.
 
@@ -118,7 +127,7 @@ Ember remembers your pick. If the theme is gone the next time the game starts, E
 1. Make a folder `ember\themes\<your theme>\ui`.
 2. Copy the game's file you want to change into it, at the same path under `ui`, taking the newest copy (see above).
 3. Change the copy with your tools.
-4. Start the game, pick your theme under **Menus**, and go to the screen you changed.
+4. Start the game, pick your theme in the row of the screen you changed, and go to that screen.
 5. After changing the file again, pick **The game's own** and then your theme again so Ember copies the new file, or restart the game.
 
 ## When it does not work
@@ -127,12 +136,12 @@ Ember writes what it does with themes to its log, `%APPDATA%\sf4e\logs\sf4e.log`
 
 | Log line | Meaning |
 |---|---|
-| `In-game themes: 2 with ui`, `In-game themes: 1 with battle\hud` | Themes Ember found at start-up, per part |
+| `In-game themes: 2 with ui\main_menu`, `In-game themes: 1 with battle\hud` | Themes Ember found at start-up, per part |
 | `In-game themes: the game searches ember\theme first` | The game was told to look in `ember\theme` |
-| `In-game themes: ui Juri` | The theme's menus were copied in (`battle\hud CvS2` for the battle HUD) |
+| `In-game themes: ui\main_menu Juri` | The theme's main menu was copied in (`battle\hud CvS2` for the battle HUD) |
 | `In-game themes: main menu opened again` | The main menu reloaded to show them |
-| `In-game themes: ui Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had |
+| `In-game themes: ui\main_menu Juri could not be used: ...` | Why not. A missing theme goes back to the game's own menus; a file the game had open keeps the theme you had |
 
-**Settings says no themes were found:** the theme folder needs a `ui` folder directly inside it (`ember\themes\Juri\ui`, not `ember\themes\Juri\Juri\ui`), and the game needs a restart after adding it.
+**Settings says no themes were found:** the theme folder needs its `ui` folder directly inside it (`ember\themes\Juri\ui\main_menu`, not `ember\themes\Juri\Juri\ui\main_menu`), and the game needs a restart after adding it.
 
 **A screen is empty or stuck:** the replaced file for it does not work in the game. Pick **The game's own**, then fix or remove that file.

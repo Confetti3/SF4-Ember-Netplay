@@ -13,14 +13,16 @@ namespace sf4e { namespace platform { namespace game_themes {
 // relative to the game's.
 constexpr wchar_t Folder[] = L"ember\\themes";
 constexpr wchar_t ActiveFolder[] = L"ember\\theme";
-// The parts, by folder, in netplay::GameThemePart order. Menus: the game's ui
-// folder, which menus and screens read and a match never does. Battle HUD: the
-// battle\hud folder, the life, super and revenge bars, timer and round calls a
-// battle loads as it starts. Ember's desync check (StateHash) hashes the fighters
-// and the battle flow, not the HUD.
-constexpr wchar_t Menus[] = L"ui";
+// The parts, by folder, in netplay::GameThemePart order. The menu screens: one
+// folder each of the game's ui folder, which menus and screens read and a match
+// never does (advertise: the title screen, logos and demo; common: button
+// prompts and icons). Battle HUD: the battle\hud folder, the life, super and
+// revenge bars, timer and round calls a battle loads as it starts. Ember's desync
+// check (StateHash) hashes the fighters and the battle flow, not the HUD.
+constexpr wchar_t MainMenu[] = L"ui\\main_menu";
 constexpr wchar_t BattleHud[] = L"battle\\hud";
-constexpr const wchar_t* Parts[] = { Menus, BattleHud };
+constexpr const wchar_t* Parts[] = { MainMenu, L"ui\\advertise", L"ui\\chara_select", L"ui\\stage_select",
+    L"ui\\versus", L"ui\\pause_menu", L"ui\\network_mode", L"ui\\edition_mark", L"ui\\common", L"ui\\sound", BattleHud };
 // The themes in <game>\ember\themes that have the part, by name. Names are UTF-8.
 std::vector<std::string> Names(const std::wstring& gameDirectory, const wchar_t* part);
 // What Use did: the named part is in use (the game's own files for an empty

@@ -1,9 +1,17 @@
 #include <windows.h>
 
 #include <array>
+#include <atomic>
+#include <cwctype>
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <mutex>
 #include <iterator>
 #include <optional>
 
+#include <detours/detours.h>
+#include <nlohmann/json.hpp>
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps.hxx"
@@ -16,7 +24,7 @@ namespace {
 std::wstring gameDirectory;
 namespace game_themes = sf4e::platform::game_themes;
 static_assert(std::size(game_themes::Parts) == sf4e::netplay::GameThemePartCount, "a folder for each part");
-static_assert(game_themes::Parts[sf4e::netplay::GameThemeMenus] == game_themes::Menus &&
+static_assert(game_themes::Parts[sf4e::netplay::GameThemeMainMenu] == game_themes::MainMenu &&
 	game_themes::Parts[sf4e::netplay::GameThemeBattleHud] == game_themes::BattleHud, "the folders in part order");
 struct Part {
 	std::vector<std::string> names;
@@ -28,6 +36,19 @@ std::array<Part, sf4e::netplay::GameThemePartCount> parts;
 // Use has run once: what it does after is the player's pick.
 bool started = false;
 bool searched = false;
+// Game thread only: the next Use is a preview's.
+bool reloadTraining = false;
+// The developer page's asks, from any thread: the last preview, the themes to
+// move out, and every theme's verdict (ember\themes\review.json).
+std::mutex previewLock;
+struct Asked { int part; std::string name; int row; };
+std::optional<Asked> preview;
+std::vector<std::string> removals;
+std::map<std::string, std::string> verdicts;
+std::atomic<int> opens{ 0 };
+std::string lastOpen;
+namespace fs = std::filesystem;
+fs::path Themes() { return fs::path(gameDirectory) / game_themes::Folder; }
 
 // Above the game's own patch folders: their priority (8), and a later order.
 constexpr unsigned short Priority = 8, Order = 1;
@@ -35,6 +56,13 @@ constexpr unsigned short Priority = 8, Order = 1;
 
 void sf4e::GameThemes::Start(const std::wstring& directory) {
 	gameDirectory = directory;
+	{
+		std::lock_guard<std::mutex> guard(previewLock);
+		std::ifstream in(Themes() / "review.json");
+		const auto review = nlohmann::json::parse(in, nullptr, false);
+		if (review.is_object())
+			for (const auto& [name, verdict] : review.items()) if (verdict.is_string()) verdicts[name] = verdict.get<std::string>();
+	}
 	for (int i = 0; i < netplay::GameThemePartCount; ++i) {
 		parts[i].names = game_themes::Names(gameDirectory, game_themes::Parts[i]);
 		spdlog::info("In-game themes: {} with {}", parts[i].names.size(), platform::WideToUtf8(game_themes::Parts[i]));
@@ -58,11 +86,101 @@ void sf4e::GameThemes::Search() {
 
 const std::vector<std::string>& sf4e::GameThemes::Names(netplay::GameThemePart part) { return parts[part].names; }
 
+void sf4e::GameThemes::Preview(netplay::GameThemePart part, const std::string& name, int mainMenuRow) {
+	std::lock_guard<std::mutex> guard(previewLock);
+	preview = Asked{ part, name, mainMenuRow };
+	opens = 0;
+	lastOpen.clear();
+}
+
+namespace {
+#ifdef SF4E_DEVELOPER_UI
+decltype(&CreateFileA) realCreateFileA = CreateFileA;
+decltype(&CreateFileW) realCreateFileW = CreateFileW;
+template <typename Char> void NoteOpen(const Char* name) {
+	if (!name) return;
+	std::basic_string<Char> path(name);
+	for (auto& c : path) c = static_cast<Char>(towlower(c));
+	constexpr Char marker[] = { 'e','m','b','e','r','\\','t','h','e','m','e','\\',0 };
+	if (path.find(marker) == std::basic_string<Char>::npos) return;
+	++opens;
+	std::lock_guard<std::mutex> guard(previewLock);
+	lastOpen.assign(path.begin(), path.end());
+}
+HANDLE WINAPI ThemeCreateFileA(LPCSTR name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD how, DWORD flags, HANDLE templ) {
+	NoteOpen(name);
+	return realCreateFileA(name, access, share, security, how, flags, templ);
+}
+HANDLE WINAPI ThemeCreateFileW(LPCWSTR name, DWORD access, DWORD share, LPSECURITY_ATTRIBUTES security, DWORD how, DWORD flags, HANDLE templ) {
+	NoteOpen(name);
+	return realCreateFileW(name, access, share, security, how, flags, templ);
+}
+#endif
+}
+
+void sf4e::GameThemes::Install() {
+#ifdef SF4E_DEVELOPER_UI
+	DetourAttach((PVOID*)&realCreateFileA, ThemeCreateFileA);
+	DetourAttach((PVOID*)&realCreateFileW, ThemeCreateFileW);
+#endif
+}
+
+int sf4e::GameThemes::ThemeFileOpens() { return opens; }
+
+std::string sf4e::GameThemes::LastThemeFile() {
+	std::lock_guard<std::mutex> guard(previewLock);
+	return lastOpen;
+}
+
+std::string sf4e::GameThemes::Verdict(const std::string& name) {
+	std::lock_guard<std::mutex> guard(previewLock);
+	const auto found = verdicts.find(name);
+	return found == verdicts.end() ? std::string() : found->second;
+}
+
+void sf4e::GameThemes::Judge(const std::string& name, const std::string& verdict) {
+	std::lock_guard<std::mutex> guard(previewLock);
+	verdicts[name] = verdict;
+	if (verdict == "remove") removals.push_back(name);
+	std::ofstream(Themes() / "review.json") << nlohmann::json(verdicts).dump(1);
+}
+
+void sf4e::GameThemes::TakePreview() {
+	std::optional<Asked> taken;
+	std::vector<std::string> removed;
+	{ std::lock_guard<std::mutex> guard(previewLock); taken.swap(preview); removed.swap(removals); }
+	// A removed theme goes to ember\themes-removed, never away; parts using it
+	// go back to the game's own, and the lists are found again.
+	for (const auto& name : removed) {
+		std::array<std::string, netplay::GameThemePartCount> names;
+		for (int i = 0; i < netplay::GameThemePartCount; ++i) {
+			names[i] = parts[i].used.value_or(std::string());
+			if (names[i] == name) names[i].clear();
+		}
+		Use(names);
+		std::error_code error;
+		const fs::path out = fs::path(gameDirectory) / L"ember\\themes-removed";
+		fs::create_directories(out, error);
+		fs::rename(Themes() / platform::Utf8ToWide(name.c_str()), out / platform::Utf8ToWide(name.c_str()), error);
+		if (error) spdlog::warn("In-game themes: {} not moved out: {}", name, error.message());
+		else spdlog::info("In-game themes: {} moved to ember\\themes-removed", name);
+		for (int i = 0; i < netplay::GameThemePartCount; ++i) parts[i].names = game_themes::Names(gameDirectory, game_themes::Parts[i]);
+	}
+	if (!taken || !started) return;
+	std::array<std::string, netplay::GameThemePartCount> names;
+	for (int i = 0; i < netplay::GameThemePartCount; ++i) names[i] = parts[i].used.value_or(std::string());
+	names[taken->part] = taken->name;
+	reloadTraining = taken->part == netplay::GameThemeBattleHud;
+	Use(names);
+	if (taken->row >= 0 && GameEvents::MainMenu::Open(taken->row)) spdlog::info("In-game themes: main menu row {} opened for the preview", taken->row);
+}
+
 void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartCount>& names) {
 	if (gameDirectory.empty()) return;
-	const bool picked = started;
+	const bool picked = started, reload = reloadTraining;
+	reloadTraining = false;
 	started = true;
-	bool menusChanged = false;
+	bool mainMenuChanged = false, hudChanged = false;
 	for (int i = 0; i < netplay::GameThemePartCount; ++i) {
 		Part& part = parts[i];
 		const std::string& name = names[i];
@@ -75,11 +193,13 @@ void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartC
 		else spdlog::warn("In-game themes: {} {} could not be used: {}", folder, name, error);
 		// Only a part that could not be swapped is tried again at the next pick.
 		part.used = outcome == game_themes::Outcome::Unchanged ? std::nullopt : std::optional<std::string>(name);
-		menusChanged |= i == netplay::GameThemeMenus && outcome != game_themes::Outcome::Unchanged;
+		mainMenuChanged |= i == netplay::GameThemeMainMenu && outcome != game_themes::Outcome::Unchanged;
+		hudChanged |= i == netplay::GameThemeBattleHud && outcome != game_themes::Outcome::Unchanged;
 	}
-	// Menus picked on the main menu (the only place Settings can change them)
-	// show at once: the menu opens again, as it does coming back from a mode.
-	// A battle HUD is loaded by the next battle.
-	if (picked && menusChanged && GameEvents::MainMenu::Open(Dimps::GameEvents::MainMenu::FlowRowMainMenuAgain))
+	if (picked && hudChanged && reload && GameEvents::TrainingMode::Reload())
+		spdlog::info("In-game themes: Training battle loaded again for its HUD");
+	// A main menu picked on the main menu shows at once: the menu opens again,
+	// as it does coming back from a mode. Other screens load theirs as they open.
+	if (picked && mainMenuChanged && GameEvents::MainMenu::Open(Dimps::GameEvents::MainMenu::FlowRowMainMenuAgain))
 		spdlog::info("In-game themes: main menu opened again");
 }

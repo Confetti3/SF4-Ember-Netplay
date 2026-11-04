@@ -7118,17 +7118,44 @@ msgstr "Para uma TV do outro lado da sala: tudo um quarto maior, dentro de uma m
 msgid "settings.group.game_themes"
 msgstr "Temas do jogo"
 
-msgid "settings.game_theme_menus"
-msgstr "Menus"
+msgid "settings.game_theme_main_menu"
+msgstr "Menu principal"
+
+msgid "settings.game_theme_title"
+msgstr "Tela de título"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Seleção de personagem"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Seleção de cenário"
+
+msgid "settings.game_theme_versus"
+msgstr "Tela de versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menu de pausa"
+
+msgid "settings.game_theme_network"
+msgstr "Menus de rede"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Marcas de edição"
+
+msgid "settings.game_theme_buttons"
+msgstr "Botões e ícones"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Sons dos menus"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Arquivos para esta tela de um tema na pasta ember\\themes da pasta do jogo. Os arquivos do jogo ficam como estão. O menu principal mostra a escolha na hora; as outras telas, na próxima vez que abrirem."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Nenhum tema tem arquivos para esta tela. Coloque um tema, com a pasta ui dentro, na pasta ember\\themes da pasta do jogo e inicie o jogo de novo."
 
 msgid "settings.game_theme_game"
 msgstr "O do jogo"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "Imagens do menu de um tema na pasta ember\\themes da pasta do jogo. Os arquivos do jogo continuam como estão. O menu principal mostra na hora."
-
-msgid "settings.game_theme_none"
-msgstr "Nenhum tema com menus encontrado. Coloque um tema, com a pasta ui dentro, em ember\\themes na pasta do jogo e abra o jogo de novo."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "HUD de luta"

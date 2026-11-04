@@ -7586,17 +7586,44 @@ msgstr "방 건너편 TV용: 모든 것을 4분의 1 더 크게 하고, 가장�
 msgid "settings.group.game_themes"
 msgstr "게임 내 테마"
 
-msgid "settings.game_theme_menus"
-msgstr "메뉴"
+msgid "settings.game_theme_main_menu"
+msgstr "메인 메뉴"
+
+msgid "settings.game_theme_title"
+msgstr "타이틀 화면"
+
+msgid "settings.game_theme_chara_select"
+msgstr "캐릭터 선택"
+
+msgid "settings.game_theme_stage_select"
+msgstr "스테이지 선택"
+
+msgid "settings.game_theme_versus"
+msgstr "대전 화면"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "일시 정지 메뉴"
+
+msgid "settings.game_theme_network"
+msgstr "네트워크 메뉴"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "에디션 마크"
+
+msgid "settings.game_theme_buttons"
+msgstr "버튼과 아이콘"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "메뉴 효과음"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "게임 폴더의 ember\\themes 폴더에 있는 테마에서 이 화면의 파일을 가져옵니다. 게임 자체 파일은 그대로입니다. 메인 메뉴는 바로, 다른 화면은 다음에 열 때 보입니다."
+
+msgid "settings.game_theme_screen_none"
+msgstr "이 화면의 파일이 있는 테마가 없습니다. ui 폴더가 든 테마를 게임 폴더의 ember\\themes 폴더에 넣고 게임을 다시 시작하세요."
 
 msgid "settings.game_theme_game"
 msgstr "게임 기본"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "게임 폴더의 ember\\themes 안 테마에서 메뉴 그림을 불러옵니다. 게임 파일은 바뀌지 않습니다. 메인 메뉴에는 바로 적용됩니다."
-
-msgid "settings.game_theme_none"
-msgstr "메뉴가 든 테마를 찾지 못했습니다. ui 폴더가 든 테마를 게임 폴더의 ember\\themes에 넣고 게임을 다시 시작하세요."
 
 msgid "settings.game_theme_battle_hud"
 msgstr "배틀 HUD"

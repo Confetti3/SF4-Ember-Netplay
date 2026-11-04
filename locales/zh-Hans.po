@@ -7586,17 +7586,44 @@ msgstr "适合房间另一头的电视：所有内容放大四分之一，并保
 msgid "settings.group.game_themes"
 msgstr "游戏内主题"
 
-msgid "settings.game_theme_menus"
-msgstr "菜单"
+msgid "settings.game_theme_main_menu"
+msgstr "主菜单"
+
+msgid "settings.game_theme_title"
+msgstr "标题画面"
+
+msgid "settings.game_theme_chara_select"
+msgstr "角色选择"
+
+msgid "settings.game_theme_stage_select"
+msgstr "场景选择"
+
+msgid "settings.game_theme_versus"
+msgstr "对战画面"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "暂停菜单"
+
+msgid "settings.game_theme_network"
+msgstr "网络菜单"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "版本标记"
+
+msgid "settings.game_theme_buttons"
+msgstr "按键与图标"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "菜单音效"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "使用游戏文件夹中 ember\\themes 文件夹里某个主题的此画面文件。游戏自身的文件保持不变。主菜单会立即显示所选主题，其他画面在下次打开时显示。"
+
+msgid "settings.game_theme_screen_none"
+msgstr "没有主题包含此画面的文件。请把带有 ui 文件夹的主题放进游戏文件夹的 ember\\themes 文件夹，然后重新启动游戏。"
 
 msgid "settings.game_theme_game"
 msgstr "游戏原版"
-
-msgid "settings.game_theme_menus_detail"
-msgstr "从游戏文件夹 ember\\themes 中的主题读取菜单图片。游戏自身的文件保持不变。主菜单会立即显示。"
-
-msgid "settings.game_theme_none"
-msgstr "未找到含菜单的主题。请将含 ui 文件夹的主题放入游戏文件夹的 ember\\themes，然后重新启动游戏。"
 
 msgid "settings.game_theme_battle_hud"
 msgstr "战斗 HUD"

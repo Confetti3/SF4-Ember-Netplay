@@ -800,10 +800,30 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
+#ifdef SF4E_DEVELOPER_UI
+            ImGui::SetNextWindowPos(ImVec2(40, 80), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(460, 560), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("In-game themes")) sf4e::ui::DrawGameThemesPicker();
+            ImGui::End();
+#endif
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
     }
     sf4e::ui::DrawCameraPanel(training.available || replayKeys, focused, sf4e::netplay::SettingsStore::DefaultDirectory(), replayKeys, snapshot.replays, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
+#ifdef SF4E_DEVELOPER_UI
+    // F8 with Ember's menu closed, offline outside Training (whose controls
+    // have the picker): the In-game themes picker in a small window, so the
+    // game's screen shows behind it as themes change.
+    static bool themesWindow = false;
+    const bool themesHere = !training.available && snapshot.session.match == sf4e::netplay::MatchState::None && !presentation.Visible();
+    if (focused && themesHere && ImGui::IsKeyPressed(ImGuiKey_F8, false)) themesWindow = !themesWindow;
+    if (themesWindow && themesHere) {
+        ImGui::SetNextWindowPos(ImVec2(40, 80), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(460, 560), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("In-game themes (F8)", &themesWindow)) sf4e::ui::DrawGameThemesPicker();
+        ImGui::End();
+    }
+#endif
     sf4e::ui::OverlayLayersView layers;
     layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
     const bool trainingOpen = s_trainingControls.Open();

@@ -132,6 +132,10 @@ namespace sf4e {
 			// the same Player 1 and this fighter as the dummy (Combo check),
 			// its first costume and colour. False outside Training.
 			static bool ChangeDummy(int fighter);
+			// Game thread, in a Training fight: leaves it for that character
+			// select, which comes back with the same sides, so the battle loads
+			// again (In-game themes' developer page). False outside one.
+			static bool Reload();
 		private:
 			static std::mutex chosenLock;
 			static std::optional<TrainingSides> chosen;
