@@ -6,6 +6,7 @@
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/FighterSelector.hxx"
 #include "../ui/RecoveryMenu.hxx"
+#include "../ui/SelectionArtD3D9.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
@@ -546,7 +547,7 @@ void CheckOriginalOutfitPreview(sf4e::ui::SelectionArt& art) {
 }
 // The Ember background and the packaged input prompts, for a run with a device.
 void LoadMenuArt(Renderer& renderer, std::unique_ptr<sf4e::ui::SelectionArt>& art) {
-    if(!art)art.reset(new sf4e::ui::SelectionArt(renderer.device,L"",L"" SF4E_TEST_ASSET_ROOT));
+    if(!art)art.reset(new sf4e::ui::SelectionArt(sf4e::ui::D3D9TextureUploader(renderer.device),L"",L"" SF4E_TEST_ASSET_ROOT));
     sf4e::ui::SetMenuArt(art.get());
     const auto brandDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
     while(!art->MenuBackdrop().texture&&std::chrono::steady_clock::now()<brandDeadline){
@@ -671,7 +672,7 @@ int main(int argc, char** argv) {
         if (argc > 2 && !trainingShotsOnly && !recoveryShotsOnly && !matchShotsOnly) {
             const std::string root = argv[2];
             const std::string assets = argc > 3 ? argv[3] : "assets/selection";
-            art.reset(new sf4e::ui::SelectionArt(renderer.device, std::wstring(root.begin(), root.end()), std::wstring(assets.begin(), assets.end())));
+            art.reset(new sf4e::ui::SelectionArt(sf4e::ui::D3D9TextureUploader(renderer.device), std::wstring(root.begin(), root.end()), std::wstring(assets.begin(), assets.end())));
             CheckNativePortraits(*art);
             CheckCostumePhotos(*art);
             CheckStagePhotos(*art);

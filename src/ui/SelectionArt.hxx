@@ -5,8 +5,6 @@
 #include <memory>
 #include <string>
 
-struct IDirect3DDevice9;
-
 namespace sf4e { namespace ui {
 struct SelectionImage {
     ImTextureID texture = 0;
@@ -15,15 +13,25 @@ struct SelectionImage {
     bool missing = false;
 };
 
-// File reads, decompression, and WIC decoding run on a worker. Only Pump touches
-// D3D9. Construct/destroy with the overlay's device lifecycle, outside DllMain.
+// Makes the renderer's textures for SelectionArt, on Pump's thread. Pixels
+// are 32-bit BGRA, rows packed with no padding. Create returns 0 and says why
+// in failure when the renderer refuses; Release frees what Create returned.
+class TextureUploader {
+public:
+    virtual ~TextureUploader() = default;
+    virtual ImTextureID Create(unsigned width, unsigned height, const unsigned char* bgra, std::string& failure) = 0;
+    virtual void Release(ImTextureID texture) = 0;
+};
+
+// File reads, decompression, and WIC decoding run on a worker. Only Pump uses
+// the uploader. Construct/destroy with the overlay's device lifecycle, outside DllMain.
 class SelectionArt {
 public:
     // Receives one line per image that could not be loaded, or that needed a
     // fallback, on Pump's thread. Art never logs by itself: the host decides
     // where lines go.
     using Logger = std::function<void(const std::string&)>;
-    SelectionArt(IDirect3DDevice9* device, std::wstring gameRoot, std::wstring assetRoot, Logger log = {});
+    SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring gameRoot, std::wstring assetRoot, Logger log = {});
     ~SelectionArt();
     SelectionArt(const SelectionArt&) = delete;
     SelectionArt& operator=(const SelectionArt&) = delete;

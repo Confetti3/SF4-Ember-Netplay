@@ -23,6 +23,7 @@
 #include "../RecoveryMenu.hxx"
 #include "../ReplayPlaybackHud.hxx"
 #include "../SelectionArt.hxx"
+#include "../SelectionArtD3D9.hxx"
 #include "../TrainingPanel.hxx"
 #include "../Theme.hxx"
 #include "../V2.hxx"
@@ -350,7 +351,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // The repository's art: menu backdrop, emblem and prompts. Portraits need the game's files (SF4E_GAME_DIR).
     const char* game = std::getenv("SF4E_GAME_DIR");
     const std::string root = game ? game : "";
-    ui::SelectionArt art(device, std::wstring(root.begin(), root.end()), L"" SF4E_LAB_ASSET_ROOT);
+    ui::SelectionArt art(ui::D3D9TextureUploader(device), std::wstring(root.begin(), root.end()), L"" SF4E_LAB_ASSET_ROOT);
     ui::SetMenuArt(&art);
 
     ui::ApplicationShell shell;

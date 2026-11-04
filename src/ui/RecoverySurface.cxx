@@ -3,6 +3,7 @@
 #include "RecoveryController.hxx"
 #include "ProblemReportPanel.hxx"
 #include "SelectionArt.hxx"
+#include "SelectionArtD3D9.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
@@ -97,7 +98,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     ApplyTheme(ImGui_ImplWin32_GetDpiScaleForHwnd(window));
     ImGui_ImplWin32_Init(window); ImGui_ImplDX9_Init(device);
     wchar_t executable[32768]={};GetModuleFileNameW(nullptr,executable,32768);
-    auto art=std::make_unique<SelectionArt>(device,gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),std::move(artLog));
+    auto art=std::make_unique<SelectionArt>(D3D9TextureUploader(device),gameDirectory,(std::filesystem::path(executable).parent_path()/L"assets"/L"selection").wstring(),std::move(artLog));
     SetMenuArt(art.get());
     ShowWindow(window, SW_SHOW); UpdateWindow(window);
     platform::ApplicationServices services;

@@ -14,6 +14,7 @@
 #include "../ui/OverlayLifecycle.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
+#include "../ui/SelectionArtD3D9.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/V2.hxx"
 #include "../ui/Win32Input.hxx"
@@ -230,7 +231,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 		reinterpret_cast<LPCWSTR>(&Overlay::InitializeOverlay), &module);
 	GetModuleFileNameW(module, modulePath, MAX_PATH);
 	const std::wstring gameFile(gamePath), moduleFile(modulePath);
-	s_selectionArt.reset(new sf4e::ui::SelectionArt(lpDevice,
+	s_selectionArt.reset(new sf4e::ui::SelectionArt(sf4e::ui::D3D9TextureUploader(lpDevice),
 		gameFile.substr(0, gameFile.find_last_of(L"\\/")),
 		moduleFile.substr(0, moduleFile.find_last_of(L"\\/")) + L"/assets/selection",
 		[](const std::string& line) { spdlog::warn("{}", line); }));

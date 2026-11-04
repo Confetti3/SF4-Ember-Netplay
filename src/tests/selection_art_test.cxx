@@ -1,6 +1,7 @@
 // SelectionArt loading with a real D3D9 device: the portrait fallback, retry
 // of a file that fails to decode, and which failures are final and logged.
 #include "../ui/SelectionArt.hxx"
+#include "../ui/SelectionArtD3D9.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "temp_root.hxx"
@@ -96,7 +97,7 @@ int main() {
     CHECK(png.size() > 8);
     std::vector<std::string> logged;
     {
-        SelectionArt art(device, game.wstring(), assets.wstring(), [&](const std::string& line) { logged.push_back(line); });
+        SelectionArt art(sf4e::ui::D3D9TextureUploader(device), game.wstring(), assets.wstring(), [&](const std::string& line) { logged.push_back(line); });
 
         // No game portrait: the packaged original-outfit cutout stands in.
         Write(assets / L"RYU" / L"costume-0" / L"color-0-cutout.png", png);

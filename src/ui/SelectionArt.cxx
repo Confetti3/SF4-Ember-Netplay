@@ -3,7 +3,6 @@
 #include "../common/StageCatalog.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
-#include <d3d9.h>
 #include <wincodec.h>
 #include <wrl/client.h>
 #include <zlib.h>
@@ -204,17 +203,33 @@ struct SelectionArt::Impl {
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
+    // An uploaded image, released through the uploader when replaced or erased.
+    struct Texture {
+        TextureUploader* uploader = nullptr;
+        ImTextureID id = 0;
+        Texture() = default;
+        Texture(TextureUploader* owner, ImTextureID made) : uploader(owner), id(made) {}
+        Texture(Texture&& other) noexcept : uploader(other.uploader), id(other.id) { other.id = 0; }
+        Texture& operator=(Texture&& other) noexcept {
+            if (this != &other) { Reset(); uploader = other.uploader; id = other.id; other.id = 0; }
+            return *this;
+        }
+        ~Texture() { Reset(); }
+        void Reset() { if (id) uploader->Release(id); id = 0; }
+        explicit operator bool() const { return id != 0; }
+    };
     struct Entry {
         Policy policy;
         State state = State::Queued;
-        ComPtr<IDirect3DTexture9> texture;
+        Texture texture;
         UINT width = 0, height = 0;
         int failures = 0;
         std::uint64_t retryFrame = 0;
         ImVec2 uvMin = ImVec2(0, 0), uvMax = ImVec2(1, 1);
         std::uint64_t lastUse = 0;
     };
-    ComPtr<IDirect3DDevice9> device;
+    // Declared before entries, so it outlives every texture it made.
+    std::unique_ptr<TextureUploader> uploader;
     std::wstring gameRoot, assetRoot;
     SelectionArt::Logger log;
     std::mutex mutex;
@@ -236,8 +251,8 @@ struct SelectionArt::Impl {
     // a closed menu costs a match nothing.
     bool requested = false;
 
-    Impl(IDirect3DDevice9* d, std::wstring game, std::wstring assets, SelectionArt::Logger logger)
-        : device(d), gameRoot(std::move(game)), assetRoot(std::move(assets)), log(std::move(logger)),
+    Impl(std::unique_ptr<TextureUploader> textures, std::wstring game, std::wstring assets, SelectionArt::Logger logger)
+        : uploader(std::move(textures)), gameRoot(std::move(game)), assetRoot(std::move(assets)), log(std::move(logger)),
           worker([this] { Work(); }) {}
     ~Impl() {
         { std::lock_guard<std::mutex> lock(mutex); stop = true; }
@@ -286,7 +301,7 @@ struct SelectionArt::Impl {
         }
         auto& entry = found->second; entry.lastUse = frame;
         SelectionImage result;
-        result.texture = reinterpret_cast<ImTextureID>(entry.texture.Get());
+        result.texture = entry.texture.id;
         result.uvMin = entry.uvMin; result.uvMax = entry.uvMax;
         result.width = static_cast<int>(entry.width * (entry.uvMax.x - entry.uvMin.x));
         result.height = static_cast<int>(entry.height * (entry.uvMax.y - entry.uvMin.y));
@@ -327,8 +342,8 @@ struct SelectionArt::Impl {
     }
 };
 
-SelectionArt::SelectionArt(IDirect3DDevice9* device, std::wstring game, std::wstring assets, Logger log)
-    : impl_(new Impl(device, std::move(game), std::move(assets), std::move(log))) {}
+SelectionArt::SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring game, std::wstring assets, Logger log)
+    : impl_(new Impl(std::move(uploader), std::move(game), std::move(assets), std::move(log))) {}
 SelectionArt::~SelectionArt() = default;
 SelectionImage SelectionArt::MenuBackdrop() {
     return impl_->Request("ember-menu-background",[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../brand/ember-menu-background.png"}; },2048);
@@ -368,23 +383,14 @@ void SelectionArt::Pump() {
                 std::to_string(entry.policy.exactWidth) + "x" + std::to_string(entry.policy.exactHeight));
             continue;
         }
-        ComPtr<IDirect3DTexture9> texture;
-        HRESULT hr = state.device->CreateTexture(pixels.width, pixels.height, 1, 0, D3DFMT_A8R8G8B8,
-            D3DPOOL_MANAGED, &texture, nullptr);
-        if (FAILED(hr)) { state.Failed(entry, pixels.key, Outcome::Failed, "CreateTexture " + Hex(hr)); continue; }
-        D3DLOCKED_RECT locked{};
-        if (FAILED(hr = texture->LockRect(0, &locked, nullptr, 0))) {
-            state.Failed(entry, pixels.key, Outcome::Failed, "LockRect " + Hex(hr)); continue;
-        }
+        std::string failure;
+        const ImTextureID texture = state.uploader->Create(pixels.width, pixels.height, pixels.bgra.data(), failure);
+        if (!texture) { state.Failed(entry, pixels.key, Outcome::Failed, failure); continue; }
         entry.state = Impl::State::Ready;
         // A later candidate stood in for one that exists but failed, such as
         // the packaged cutout for an unreadable game portrait. Say so once.
         if (!pixels.failure.empty() && state.log) state.log("Selection art " + pixels.key + " uses a fallback: " + pixels.failure);
-        for (UINT row = 0; row < pixels.height; ++row)
-            std::memcpy(static_cast<unsigned char*>(locked.pBits) + row * locked.Pitch,
-                        pixels.bgra.data() + row * pixels.width * 4, pixels.width * 4);
-        texture->UnlockRect(0);
-        entry.texture = std::move(texture); entry.width = pixels.width; entry.height = pixels.height;
+        entry.texture = Impl::Texture(state.uploader.get(), texture); entry.width = pixels.width; entry.height = pixels.height;
         // Fit the painted portrait, rather than its large transparent canvas.
         // The source pixels stay unchanged; only the UI's texture coordinates differ.
         if (entry.policy.cropToContent) {
