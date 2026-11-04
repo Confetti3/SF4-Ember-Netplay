@@ -1,4 +1,5 @@
-// SF4 Ember's identity. Every value is the literal it replaced; the product
+// SF4 Ember's identity, constant-initialized so a crash handler or a static
+// initializer can read it. Every value is the literal it replaced; the product
 // identity test pins them.
 
 #include "../common/ProductIdentity.hxx"
@@ -7,7 +8,7 @@
 namespace {
 const ember::LocaleOverlay NoLocaleOverlays[] = {{nullptr, nullptr}};
 
-const ember::ProductIdentity Sf4Ember = {
+constexpr ember::ProductIdentity Sf4Ember = {
 	{
 		"SF4 Ember Netplay",
 		"SF4 Ember",
