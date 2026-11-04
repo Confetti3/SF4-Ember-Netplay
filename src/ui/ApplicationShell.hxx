@@ -334,6 +334,14 @@ public:
     }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
+    void ShowPublicRooms() { auto& nav = menu_.navigation; nav.Cancel(); nav.Home(); nav.Push("online"); nav.Push("public-rooms"); }
+    // Public rooms, where the panel judges a room link it was given, with the
+    // trusted services probed afresh first.
+    void ShowRoomLink() {
+        identity_.Probe();
+        if (menu_.navigation.Screen() != "public-rooms") ShowPublicRooms();
+        error_.clear();
+    }
     // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
     ReplaysPanel::Wants ReplayWants() const { return replays_.Wanted(menu_.navigation.Screen()); }
     // The replay file the Inputs and stats screen wants read, as its row named it.

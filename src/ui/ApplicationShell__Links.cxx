@@ -78,8 +78,6 @@ void ApplicationShell::UpdatePublicRoomLink(const ShellView& v,double now) {
  if(v.session.room!=RoomState::Idle||v.session.match!=MatchState::None){roomLinkOpening_=false;publicRooms_.HoldLink();return;}
  if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen()))return;
  roomLinkOpening_=false;
- identity_.Probe(); // the trusted services, fresh, before the link is judged
- if(nav.Screen()!="public-rooms"){nav.Cancel();nav.Home();nav.Push("online");nav.Push("public-rooms");}
- error_.clear();
+ ShowRoomLink();
 }
 } }

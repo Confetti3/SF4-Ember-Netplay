@@ -191,6 +191,11 @@ static void TestPastedTextIsTidied() {
 	CHECK(Tidied("https://embernetplay.link/j%237K3M-0X1R-T9PZ") == shortLink);
 	// Escapes elsewhere, and text around the link, are left for the parsers to refuse.
 	CHECK(Tidied("https://example.com/j%237K3M") == "https://example.com/j%237K3M");
+	CHECK(Tidied(shortLink + "%23") == shortLink + "%23");
+	CHECK(Tidied("https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fembernetplay.link%2Fj%237K3M%0A") ==
+		"https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fembernetplay.link%2Fj%237K3M%0A");
+	// A no-break space between words stays one; only invisible marks go from inside.
+	CHECK(Tidied("7K3M" + nbsp + "0X1R") == "7K3M" + nbsp + "0X1R");
 	CHECK(Tidied("join me " + shortLink) == "join me " + shortLink);
 	CHECK(Tidied("sf4e3:AbC-_9") == "sf4e3:AbC-_9" && Tidied("") == "" && Tidied(zeroWidth + " ") == "");
 	// A room link pasted with a line end, from Steam, or with its '#' escaped.

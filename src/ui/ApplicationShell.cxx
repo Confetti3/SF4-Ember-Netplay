@@ -131,8 +131,7 @@ void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
   // A public room's player goes back to the list they joined it from (the
   // panel still holds the room until its own update this frame).
   if(nav.Screen().compare(0,4,"room")==0 || nav.Screen()=="selection"){
-   nav.Home();
-   if(publicRooms_.OpeningKind()&&roomWasJoined_){nav.Push("online");nav.Push("public-rooms");}
+   if(publicRooms_.OpeningKind()&&roomWasJoined_)ShowPublicRooms();else nav.Home();
   }
   roomWasJoined_=false;
   error_.clear();
@@ -411,14 +410,13 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(SettingsTab(a.id))ShowTab(a.id);
  else if(a.id=="join"||a.id=="public-rooms"||a.id=="player"||a.id=="identity"||a.id=="rankings"||a.id=="developer"||a.id=="sent-reports")nav.Push(a.id);
  else if(a.id=="join-now"){
-  // A public room's link pasted here opens the room on Public rooms, as Paste room link there does.
+  // A public room's link pasted here opens the room on Public rooms, as Paste
+  // room link there does; while that screen is busy joining, it shows that.
   const auto room=tournament_link::ParseRoomPasted(invitation_);
   if(!room.Valid())Send(CommandKind::JoinInvite,v,submit);
-  else if(!publicRooms_.Busy()){
-   identity_.Probe(); // the trusted services, fresh, before the link is judged
-   publicRooms_.OpenLink(room.bridgeId,room.roomId,true);
-   std::fill(std::begin(invitation_),std::end(invitation_),'\0');error_.clear();
-   nav.Cancel();nav.Home();nav.Push("online");nav.Push("public-rooms");
+  else {
+   if(!publicRooms_.Busy()){publicRooms_.OpenLink(room.bridgeId,room.roomId,true);std::fill(std::begin(invitation_),std::end(invitation_),'\0');}
+   ShowRoomLink();
   }
  }
  else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);

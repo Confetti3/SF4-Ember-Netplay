@@ -353,6 +353,22 @@ void PasteJourney(){
  ImGui::GetPlatformIO().Platform_GetClipboardTextFn=nullptr;
 }
 
+// A room link typed or pasted into Join, with a line end after it: Join opens
+// Public rooms, which asks for the room, and sends no invitation of its own.
+void JoinPasteJourney(){
+ Journey j;auto& h=j.h;h.view.identity.bridges={{LinkBridge,"https://bridge.example","Example"}};h.Frame(0,2);
+ h.Screen("home");h.Choose("online");h.Choose("join");h.Choose("invite-text");
+ ImGui::GetIO().AddInputCharactersUTF8((tournament_link::RoomPageUrl(LinkBridge,LinkRoom)+" ").c_str());h.Frame();
+ ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
+ const auto sent=h.actions.size();
+ h.Choose("join-now");h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="public-rooms","A room link in Join did not open Public rooms");
+ bool invited=false;for(std::size_t i=sent;i<h.actions.size();++i)invited=invited||h.actions[i].command.kind==Kind::JoinInvite;
+ Check(!invited,"A room link in Join was sent as an invitation");
+ j.answerIdentityUntilIdle();
+ Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"A room link in Join did not ask for its room");
+}
+
 // Inside a public room the board offers the room's page link: copying it puts the
 // link on the clipboard and says so. A private room, a public room this PC did not
 // join through the list, and a room that has ended offer none.
@@ -397,5 +413,5 @@ void CopyLinkJourney(){
 }
 }
 void RunPublicRoomsSetupJourneys(){
- NoIdentityJourney();SetupJourney();SetupBesideScreensJourney();LinkJourney();LinkRefusalJourney();LinkUntrustedJourney();LinkWaitsJourney();LinkSurvivesHidingJourney();PasteJourney();CopyLinkJourney();
+ NoIdentityJourney();SetupJourney();SetupBesideScreensJourney();LinkJourney();LinkRefusalJourney();LinkUntrustedJourney();LinkWaitsJourney();LinkSurvivesHidingJourney();PasteJourney();JoinPasteJourney();CopyLinkJourney();
 }
