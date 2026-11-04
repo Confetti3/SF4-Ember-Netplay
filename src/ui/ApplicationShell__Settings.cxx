@@ -35,6 +35,17 @@ namespace {
 constexpr int RoomPresets[] = {28, 36, 56};
 const char* const RoomPresetKeys[] = {"settings.room_preset.board", "settings.room_preset.balanced", "settings.room_preset.chat"};
 int RoomPreset(int column) { return column <= 30 ? 0 : column >= 50 ? 2 : 1; }
+void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
+    auto* d=ImGui::GetWindowDrawList();const float footer=22*Scale();
+    if(auto* menuArt=MenuArt()){const auto art=menuArt->Portrait(fighter);if(art.texture){const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y-footer)/art.height);
+        const float w=art.width*factor,h=art.height*factor;d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);}}
+    // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
+    const char* name=selection::FindFighter(fighter)->name;
+    const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
+    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,IM_COL32(16,15,14,235));
+    d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
+    if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
+}
 // "Automatic" first, then every locale by its own name.
 std::vector<MenuChoice> LanguageChoices() {
     std::vector<MenuChoice> choices;

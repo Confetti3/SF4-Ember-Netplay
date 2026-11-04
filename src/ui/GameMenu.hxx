@@ -116,7 +116,6 @@ std::optional<LegendHint> ShortcutHint(unsigned press, std::string label);
 std::vector<LegendHint> ShortcutHints(const std::vector<std::pair<unsigned, std::string>>& shortcuts);
 // The menu art behind a full-window menu, under a tint; false without art.
 bool DrawMenuBackdrop();
-void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max);
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
 float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,bool rightAligned=false);
