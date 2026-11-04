@@ -1,5 +1,6 @@
 #include "Localization.hxx"
 #include "EmbeddedLocales.hxx"
+#include "ProductIdentity.hxx"
 
 #include <algorithm>
 #include <array>
@@ -170,11 +171,44 @@ std::string Pseudo(std::string_view text) {
     return output;
 }
 
+void ParseSharedCatalogs() {
+    std::string error;
+    for (std::size_t i = 0; i < Count; ++i)
+        if (!ParsePoImpl(Table[i].Source(), catalogs[i], error)) catalogs[i].clear();
+}
+
+// Lays a product's catalogs (ember::ProductIdentity::localeOverlays) over the
+// shared ones, all or nothing. An overlay replaces only msgids the shared
+// English catalog has. The product's English for a msgid also replaces each
+// translation of it the product gives none of: the shared translation names
+// the shared text's product, and the right product in English reads better.
+bool LayerProductOverlays(const ember::LocaleOverlay* overlays, std::string& error) {
+    std::array<Catalog, Count> parsed;
+    std::array<bool, Count> given{};
+    for (const auto* overlay = overlays; overlay && overlay->tag; ++overlay) {
+        const auto* entry = FindTag(overlay->tag);
+        if (!entry) { error = std::string("Overlay for an unknown locale: ") + overlay->tag; return false; }
+        const auto index = static_cast<std::size_t>(entry - Table);
+        if (given[index]) { error = std::string("Two overlays for ") + overlay->tag; return false; }
+        given[index] = true;
+        if (!ParsePoImpl(overlay->po ? overlay->po : "", parsed[index], error)) return false;
+        for (const auto& text : parsed[index])
+            if (!catalogs[0].count(text.first)) { error = "Overlay msgid the shared catalog lacks: " + text.first; return false; }
+    }
+    for (std::size_t i = 0; i < Count; ++i) {
+        for (const auto& text : parsed[0]) if (!parsed[i].count(text.first)) catalogs[i][text.first] = text.second;
+        for (const auto& text : parsed[i]) catalogs[i][text.first] = text.second;
+    }
+    return true;
+}
+
 void EnsureCatalogs() {
     std::call_once(catalogOnce, [] {
+        ParseSharedCatalogs();
+        // A bad overlay leaves the shared text; the product's own test reads
+        // its overlays with testing::LayerOverlays.
         std::string error;
-        for (std::size_t i = 0; i < Count; ++i)
-            if (!ParsePoImpl(Table[i].Source(), catalogs[i], error)) catalogs[i].clear();
+        LayerProductOverlays(ember::Product().localeOverlays, error);
     });
 }
 
@@ -284,6 +318,11 @@ std::string Format(const char* translated, const char* id, fmt::format_args argu
 namespace testing {
 bool ParsePo(std::string_view source, Catalog& entries, std::string& error) {
     return ParsePoImpl(source, entries, error);
+}
+bool LayerOverlays(const ember::LocaleOverlay* overlays, std::string& error) {
+    EnsureCatalogs();
+    ParseSharedCatalogs();
+    return LayerProductOverlays(overlays, error);
 }
 void SetPseudoActive() {
     EnsureCatalogs();

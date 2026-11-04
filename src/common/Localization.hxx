@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace ember { struct LocaleOverlay; }
+
 namespace sf4e { namespace loc {
 
 using Catalog = std::unordered_map<std::string, std::string>;
@@ -48,6 +50,9 @@ template<class... A> std::string Tf(const char* id, A&&... a) {
 
 namespace testing {
 bool ParsePo(std::string_view source, Catalog& entries, std::string& error);
+// Lays a product's overlays (ember::ProductIdentity::localeOverlays) over freshly
+// parsed shared catalogs, as a process start does with its own product's.
+bool LayerOverlays(const ember::LocaleOverlay* overlays, std::string& error);
 void SetPseudoActive();
 }
 

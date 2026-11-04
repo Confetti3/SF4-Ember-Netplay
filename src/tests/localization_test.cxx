@@ -1,4 +1,5 @@
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../launcher/update/UpdaterArguments.hxx"
 #include "../ui/Theme.hxx"
 #include "EmbeddedFonts.hxx"
@@ -316,5 +317,30 @@ int main(int argc, char** argv) {
         SetActive(Locale::En);
     }
     CHECK(std::string(Tag(Locale::PtBR)) == "pt-BR" && std::string(NativeName(Locale::Es419)) == "Español (Latinoamérica)");
+    // A product's overlays (ember::ProductIdentity::localeOverlays): a
+    // translation it gives wins, its English replaces the shared text in each
+    // locale it gives none for, and one msgid the shared catalog lacks refuses
+    // the whole overlay.
+    {
+        std::string error;
+        const ember::LocaleOverlay overlays[] = {
+            {"en", "msgid \"app.name\"\nmsgstr \"Other Ember\"\n\nmsgid \"settings.language\"\nmsgstr \"Tongue\"\n"},
+            {"pt-BR", "msgid \"settings.language\"\nmsgstr \"Lingua\"\n"},
+            {nullptr, nullptr}};
+        CHECK(testing::LayerOverlays(overlays, error));
+        SetActive(Locale::En); CHECK(std::string(T("app.name")) == "Other Ember");
+        SetActive(Locale::De); CHECK(std::string(T("app.name")) == "Other Ember");
+        SetActive(Locale::PtBR); CHECK(std::string(T("settings.language")) == "Lingua");
+        SetActive(Locale::Es419); CHECK(std::string(T("settings.language")) == "Tongue");
+        CHECK(DisplayText(Locale::Ja).find("Other Ember") != std::string::npos);
+        const ember::LocaleOverlay unknown[] = {
+            {"en", "msgid \"app.name\"\nmsgstr \"Other Ember\"\n\nmsgid \"no.such.id\"\nmsgstr \"x\"\n"}, {nullptr, nullptr}};
+        CHECK(!testing::LayerOverlays(unknown, error) && error.find("no.such.id") != std::string::npos);
+        const ember::LocaleOverlay twice[] = {{"en", ""}, {"en", ""}, {nullptr, nullptr}};
+        CHECK(!testing::LayerOverlays(twice, error));
+        SetActive(Locale::De); CHECK(std::string(T("app.name")) == "SF4 Ember Netplay");
+        CHECK(testing::LayerOverlays(ember::Product().localeOverlays, error));
+        SetActive(Locale::En);
+    }
     std::cout << "Localization resolution, parser, catalogs and formatting passed\n";
 }
