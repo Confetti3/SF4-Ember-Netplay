@@ -137,7 +137,8 @@ either of you is still being asked, so an answer in the last second counts; whil
 after a set there is no Rematch. **Back to room** keeps your seat, not ready,
 so a B pressed through the WIN costs nothing; you leave a seat only with Leave
 seat. No answer keeps the seat inside a set; after a set it gives the seat up,
-so whoever waits gets it. When an Arcade set ends with nobody waiting, the pair
+so whoever waits gets it, unless the table's rotation keeps you there (the
+winner where the winner stays, the loser where the loser stays). When an Arcade set ends with nobody waiting, the pair
 decides: the prompt asks **Rematch** or **New opponent** (Y), with **Character
 select** and **Back to room** beside them, so a stick without X or Y reaches
 every answer with the D-pad.

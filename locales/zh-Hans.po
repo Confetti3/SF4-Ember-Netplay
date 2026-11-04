@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "对战中的帧数表"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "在你参加或观看的在线对战上方显示帧数表。只有你能看到，可能比对战延迟几帧。"
+msgstr "在你观看的在线对战上方显示帧数表，你自己参加的对战不显示。练习房间会向双方玩家显示。可能比对战延迟几帧。"
 
 msgid "settings.match_frame_meter_private"
 msgstr "仅限私人房间。"

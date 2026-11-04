@@ -1,9 +1,11 @@
 #pragma once
 // The ping a room card shows for a member (MEMBER_LATENCY.md 3.9): "~62 ms"
 // ("Relay 62 ms" on the room board) in its band's colour (under 80 ms, under 150 ms, above), "..." while it is
-// measured, and only a tip when it is unavailable.
+// measured, and only a tip when it is unavailable. MemberTag puts it on a room
+// member's player tag with the rest of what the room knows of them.
 #include "RoomCards.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../session/MemberLatency.hxx"
 #include <imgui.h>
@@ -39,6 +41,15 @@ inline LatencyMark LatencyMarkFor(const session::MemberLatencyTable& table, cons
 		break;
 	}
 	return mark;
+}
+
+// A room member's player tag wherever the room draws one: name, flag and
+// class, ping and link. Callers add what is their own (a suffix, a status).
+inline v2::TagView MemberTag(const session::MemberLatencyTable& table, const room::Member& member, room::MemberId local) {
+	v2::TagView tag;
+	tag.name = member.name; tag.marks = {member.country, member.badge};
+	tag.ping = LatencyMarkFor(table, member, local); tag.link = member.link;
+	return tag;
 }
 
 } }

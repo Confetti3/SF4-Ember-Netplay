@@ -15,6 +15,8 @@
 //
 // Pure component: no Windows, game or helper dependencies, unit tested.
 
+#include "PastedLink.hxx"
+
 #include <string>
 
 namespace sf4e {
@@ -57,16 +59,7 @@ inline MatchLink Checked(const std::string& bridgeId, const std::string& matchId
 }
 
 // Whether `text` starts with `prefix`, ignoring the case of letters.
-inline bool StartsWithFolded(const std::string& text, const char* prefix) {
-	std::size_t i = 0;
-	for (; prefix[i]; ++i) {
-		if (i == text.size()) return false;
-		char symbol = text[i];
-		if (symbol >= 'A' && symbol <= 'Z') symbol = static_cast<char>(symbol - 'A' + 'a');
-		if (symbol != prefix[i]) return false;
-	}
-	return true;
-}
+inline bool StartsWithFolded(const std::string& text, const char* prefix) { return pasted_link::StartsWithNoCase(text, 0, prefix); }
 
 // Printable ASCII only, without escapes, spaces or anything that could hide
 // a second part; nothing longer than MaximumUriLength.
@@ -158,18 +151,9 @@ inline MatchLink ParsePageLink(const std::string& text) {
 	return Checked(bridge, match);
 }
 
-// Pasted text without the stray spaces or quotes around it.
-inline std::string Trimmed(const std::string& text) {
-	std::string trimmed = text;
-	while (!trimmed.empty() && (trimmed[0] == ' ' || trimmed[0] == '"')) trimmed.erase(0, 1);
-	while (!trimmed.empty() && (trimmed[trimmed.size() - 1] == ' ' || trimmed[trimmed.size() - 1] == '"'))
-		trimmed.erase(trimmed.size() - 1);
-	return trimmed;
-}
-
-// What a player pasted: either link, with stray spaces or quotes around it.
+// What a player pasted: either link, as a chat app hands it back (pasted_link::Tidied).
 inline MatchLink ParsePasted(const std::string& text) {
-	const std::string trimmed = Trimmed(text);
+	const std::string trimmed = pasted_link::Tidied(text);
 	const MatchLink link = ParseLink(trimmed);
 	return link.Valid() ? link : ParsePageLink(trimmed);
 }
@@ -192,10 +176,10 @@ inline bool IsSiteSegment(const std::string& text) {
 
 // The service a pasted connect link names: the page's own link, as its Copy
 // button gives it or with the site's name after the bridge ID (as a site
-// sends it, /start#BRIDGE/NAME), or the ember: link, with stray spaces or
-// quotes; or "".
+// sends it, /start#BRIDGE/NAME), or the ember: link, as a chat app hands it
+// back (pasted_link::Tidied); or "".
 inline std::string ParseConnectPasted(const std::string& text) {
-	const std::string trimmed = Trimmed(text);
+	const std::string trimmed = pasted_link::Tidied(text);
 	const std::string bridge = ParseConnectLink(trimmed);
 	if (!bridge.empty()) return bridge;
 	if (trimmed.size() > MaximumUriLength || !StartsWithFolded(trimmed, ConnectPagePrefix())) return std::string();
@@ -254,9 +238,9 @@ inline RoomLink ParseRoomPageLink(const std::string& text) {
 	return CheckedRoom(bridge, room);
 }
 
-// What a player pasted: either room link, with stray spaces or quotes around it.
+// What a player pasted: either room link, as a chat app hands it back (pasted_link::Tidied).
 inline RoomLink ParseRoomPasted(const std::string& text) {
-	const std::string trimmed = Trimmed(text);
+	const std::string trimmed = pasted_link::Tidied(text);
 	const RoomLink link = ParseRoomLink(trimmed);
 	return link.Valid() ? link : ParseRoomPageLink(trimmed);
 }

@@ -13,6 +13,11 @@ inline constexpr wchar_t UpdateTransactionName[] = L".ember-update-transaction-v
 // Throws unless relative names a plain path under root: no root, no "." or
 // "..", no name Windows would alter or reject, and no reparse point on the way.
 void CheckPath(const std::filesystem::path& root, const std::filesystem::path& relative);
+// Throws unless `absolute` is absolute, as written, with no "." or ".." and no
+// name Windows would alter or reject. Its folders may be links: where the
+// player put Ember (Z:\home under Proton, a moved Steam library) is theirs to
+// choose; CheckPath refuses links inside it.
+void CheckRoot(const std::filesystem::path& absolute);
 enum class UpdateStage { Downloading, Verifying, Extracting, Preparing, Comparing, BackingUp, Replacing, Confirming };
 // The installer's own steps, in order: the one table of them. Each has the
 // locale key Updater.exe's window names it by, which the launcher passes in

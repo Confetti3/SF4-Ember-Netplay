@@ -57,6 +57,8 @@ int main(int argc, char** argv) {
         {"assets", nlohmann::json::array({
             {{"name", "sf4-netplay-launcher-0.6.5.zip"}, {"browser_download_url", "legacy"}},
             {{"name", "sf4-ember-netplay-0.8.3.zip.sha256"}, {"browser_download_url", "checksum"}},
+            {{"name", "sf4-ember-netplay-0.8.3-symbols.zip"}, {"browser_download_url", "symbols"},
+             {"url", "symbols-api"}, {"digest", "sha256:" + digest}},
             {{"name", "upgrade-sf4-ember-netplay-0.8.2-to-0.8.3.zip"}, {"browser_download_url", "incremental"},
              {"url", "upgrade-api"}, {"digest", "sha256:" + digest}},
             {{"name", "sf4-ember-netplay-0.8.3.zip"}, {"browser_download_url", "branded"},
@@ -73,9 +75,9 @@ int main(int argc, char** argv) {
     CHECK(!one("0.8.3").updateAvailable);
     CHECK(!one("0.9.0").updateAvailable);
     CHECK(one("dev").updateAvailable); // A build without a version label is offered the best release.
-    release["assets"][3].erase("digest");
+    release["assets"][4].erase("digest");
     CHECK(one("0.8.2").expectedSha256.empty());
-    release["assets"].erase(3);
+    release["assets"].erase(4);
     CHECK(!one("0.8.2").ok);
     CHECK(!ParseGithubReleases("invalid json", "0.8.3", UpdateChannel::Stable).ok);
     CHECK(!ParseGithubReleases("{}", "0.8.3", UpdateChannel::Stable).ok);

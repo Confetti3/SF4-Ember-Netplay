@@ -87,6 +87,9 @@ bool ApplicationShell::DrawNewsCard(const ShellView& v,const MenuEntry& e,ImVec2
  return true;
 }
 void ApplicationShell::DrawNewsDetail(const ShellView& v,const std::string& id,const std::vector<MenuEntry>& rows) {
+ // The Reader prints the release's title and notes as text already; the pane
+ // drawn over them would print them twice.
+ if(menu_.navigation.Reading())return;
  const auto* n=NewsOf(v,id);
  if(!n)return;
  auto* d=ImGui::GetWindowDrawList();const float s=Scale();const auto& c=v2::Colors();

@@ -32,11 +32,6 @@ using room_controls::ExitFromPlace;
 int SeatOf(const room::Table& t, room::MemberId member) {
     return member && t.p1 == member ? 0 : member && t.p2 == member ? 1 : -1;
 }
-// The prompt's game left a set going on: one the room has recorded as ended,
-// or that its result ends, is over (room::StandingAfter).
-bool MidSet(const room::Snapshot& room, const room::Table& t, std::uint64_t generation, room::MatchResult result) {
-    return t.rules.format != room::SetFormat::Unlimited && !room::StandingAfter(room, t, generation, result).over;
-}
 // The room has taken this game's result: the game is no longer live at its
 // generation (the table left Playing and Paused, or moved on to another game).
 bool ResultIn(const room::Table& t, std::uint64_t generation) {
@@ -52,11 +47,30 @@ bool KeeperKnown(const room::Table& t, std::uint64_t generation) {
     return t.rules.format != room::SetFormat::Unlimited &&
         (std::max)(t.score[0], t.score[1]) + 1 < static_cast<std::uint32_t>(t.rules.format);
 }
+// The game's two seats: the set's, once the room recorded the set it ended
+// (its rotation has moved them since), else the table's own.
+std::pair<room::MemberId, room::MemberId> GameSeats(const room::Table& t, std::uint64_t generation) {
+    return t.lastSet.generation == generation ? std::make_pair(t.lastSet.p1, t.lastSet.p2) : std::make_pair(t.p1, t.p2);
+}
+// Whether the set's rotation keeps `member` seated (room::RotationKeeps).
+// Before the room has the result, the result names the winner.
+bool RotationKeepsMember(const room::Table& t, std::uint64_t generation, room::MatchResult result, room::MemberId member) {
+    const int winnerSeat = t.lastSet.generation == generation ? t.lastSet.winnerSeat :
+        result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+    const auto [p1, p2] = GameSeats(t, generation);
+    if (!member || winnerSeat < 0 || (member != p1 && member != p2)) return false;
+    return room::RotationKeeps(t.rules.rotation, member == (winnerSeat == 0 ? p1 : p2));
+}
 // No answer gives the seat to whoever waits only in a Classic room after a
-// set. An Arcade or King of the hill room keeps everyone at their cabinet and
-// rotates them itself (ArcadeSetEnded); a set's game keeps both seats.
+// set, and only from a player the rotation moves on: the one it keeps stays
+// for the next challenger. An Arcade or King of the hill room keeps everyone at
+// their cabinet and rotates them itself (ArcadeSetEnded); a set's game keeps
+// both seats: a set one the room has recorded as ended, or that its result
+// ends, is over (room::StandingAfter).
 bool KeepsSeat(const room::Snapshot& room, const room::Table& t, std::uint64_t generation, room::MatchResult result) {
-    return room.arcade != room::ClassicRoom || MidSet(room, t, generation, result);
+    if (room.arcade != room::ClassicRoom) return true;
+    if (t.rules.format == room::SetFormat::Unlimited) return false;
+    return !room::StandingAfter(room, t, generation, result).over || RotationKeepsMember(t, generation, result, room.localMember);
 }
 // The glyph of the press each button answers to, drawn on it; none where the
 // device has no such button (MenuShortcutGlyph).
@@ -96,8 +110,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             prompt.until = now + PostMatchSeconds;
             prompt.failures = v.readyFailureSequence;
             // A set the result has already ended rotated its seats: the opponent is the set's.
-            const bool ended = t.lastSet.generation == fought.generation;
-            const auto p1 = ended ? t.lastSet.p1 : t.p1, p2 = ended ? t.lastSet.p2 : t.p2;
+            const auto [p1, p2] = GameSeats(t, fought.generation);
             prompt.opponent = p1 == snapshot.localMember ? p2 : p2 == snapshot.localMember ? p1 : 0;
             if (prompt.opponent) {
                 postMatch_ = prompt; afterPostMatch_ = AfterPostMatch::None;
@@ -296,8 +309,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
                 player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
             const float chip = v2::ChipWidth(word);
             if (player.m) {
-                v2::TagView tag; tag.name = player.m->name; tag.marks = {player.m->country, player.m->badge};
-                tag.ping = LatencyMarkFor(v.memberLatency, *player.m, v.room.localMember);
+                const auto tag = MemberTag(v.memberLatency, *player.m, v.room.localMember);
                 v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + (rowHeight - line) * .5f), r.W() - chip - 36 * s, tag, v2::TagSize::S);
             }
             v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);

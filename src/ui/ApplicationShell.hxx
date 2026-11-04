@@ -334,6 +334,14 @@ public:
     }
     // The game's battle log, opened from Replays, is back at the main menu: Replays again.
     void ShowReplays() { ReplaysPanel::Show(menu_.navigation); }
+    void ShowPublicRooms() { auto& nav = menu_.navigation; nav.Cancel(); nav.Home(); nav.Push("online"); nav.Push("public-rooms"); }
+    // Public rooms, where the panel judges a room link it was given, with the
+    // trusted services probed afresh first.
+    void ShowRoomLink() {
+        identity_.Probe();
+        if (menu_.navigation.Screen() != "public-rooms") ShowPublicRooms();
+        error_.clear();
+    }
     // What the screen on show needs the replay workers to read (ReplaysPanel::Wanted).
     ReplaysPanel::Wants ReplayWants() const { return replays_.Wanted(menu_.navigation.Screen()); }
     // The replay file the Inputs and stats screen wants read, as its row named it.
@@ -805,6 +813,9 @@ std::string memberAsk_;
     std::string languagePreference_ = "auto", languageSaveError_;
     netplay::Generation generation_;
     netplay::RoomState previousRoomState_ = netplay::RoomState::Idle;
+    // The room now closing was joined, not only opened: kept through Closing,
+    // which every way out of a room passes, and cleared at Idle.
+    bool roomWasJoined_ = false;
     // The tournament phase last seen, to announce a match that ended.
     netplay::tournament::Phase tournamentPhase_ = netplay::tournament::Phase::Idle;
     // The last match link outcome announced.

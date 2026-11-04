@@ -108,6 +108,8 @@ void JoinJourney(){
  h.view.session.room=netplay::RoomState::Joined;h.view.room.roomEpoch=9;h.view.room.localMember=1;h.view.room.serverOwned=true;
  {room::Member local;local.id=1;local.name="Local";h.view.room.members.push_back(local);}
  h.Frame(0,2);Check(h.shell.Navigation().Screen()=="room","The public room joined did not open");
+ // Leave passes through Closing for a few frames, as the session does.
+ h.view.session.room=netplay::RoomState::Closing;h.Frame(0,2);
  h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.room=room::Snapshot();h.Frame(0,2);
  Check(h.shell.Navigation().Screen()=="public-rooms","Leaving a public room did not return to Public rooms");
  // Each refusal, in words, and none joins.

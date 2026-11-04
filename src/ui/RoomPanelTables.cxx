@@ -219,7 +219,7 @@ void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const roo
  const auto look=SeatLookOf(v,*m);
  DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,c.frame);
  if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
- v2::TagView tag;tag.name=m->name;tag.marks={m->country,m->badge};tag.ping=LatencyMarkFor(v.memberLatency,*m,v.room.localMember);
+ const auto tag=MemberTag(v.memberLatency,*m,v.room.localMember);
  const float tagWidth=(std::min)(room,v2::TagWidth(tag,v2::TagSize::S));
  v2::Tag(d,ImVec2(mirrored?right-tagWidth:left,top),tagWidth,tag,v2::TagSize::S);
  // The fighter, costume and Ultra, and Ready beside them (on their inner

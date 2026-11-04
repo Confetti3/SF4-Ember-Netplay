@@ -174,6 +174,37 @@ static void TestOnlyThePublicRoomLinkIsAccepted() {
 	CHECK(!ParseRoomPasted("ember://discord/connect?bridge=" + bridge).Valid());
 }
 
+// What chat apps wrap around a pasted link comes off; the link itself stays as it was.
+static void TestPastedTextIsTidied() {
+	using sf4e::pasted_link::Tidied;
+	using namespace sf4e::tournament_link;
+	const std::string shortLink = "https://embernetplay.link/j#7K3M-0X1R-T9PZ";
+	const std::string zeroWidth = "\xE2\x80\x8B", bom = "\xEF\xBB\xBF", nbsp = "\xC2\xA0", rlm = "\xE2\x80\x8F";
+	CHECK(Tidied(shortLink) == shortLink);
+	CHECK(Tidied(shortLink + "\r\n") == shortLink && Tidied("\t" + shortLink + " ") == shortLink);
+	CHECK(Tidied(bom + shortLink + zeroWidth) == shortLink && Tidied(nbsp + shortLink + rlm + nbsp) == shortLink);
+	CHECK(Tidied("https://embernetplay.link/j#7K3M" + zeroWidth + "-0X1R-T9PZ") == shortLink);
+	CHECK(Tidied("<" + shortLink + ">") == shortLink && Tidied("(" + shortLink + ").") == shortLink && Tidied("\"" + shortLink + "\",") == shortLink);
+	// Steam's link filter and its escaped '#'.
+	CHECK(Tidied("https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fembernetplay.link%2Fj%237K3M-0X1R-T9PZ") == shortLink);
+	CHECK(Tidied("https://steamcommunity.com/linkfilter/?url=https%3A%2F%2Fembernetplay.link%2Fj%237K3M-0X1R-T9PZ&x=1") == shortLink);
+	CHECK(Tidied("https://embernetplay.link/j%237K3M-0X1R-T9PZ") == shortLink);
+	// Escapes elsewhere, and text around the link, are left for the parsers to refuse.
+	CHECK(Tidied("https://example.com/j%237K3M") == "https://example.com/j%237K3M");
+	CHECK(Tidied(shortLink + "%23") == shortLink + "%23");
+	CHECK(Tidied("https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fembernetplay.link%2Fj%237K3M%0A") ==
+		"https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fembernetplay.link%2Fj%237K3M%0A");
+	// A no-break space between words stays one; only invisible marks go from inside.
+	CHECK(Tidied("7K3M" + nbsp + "0X1R") == "7K3M" + nbsp + "0X1R");
+	CHECK(Tidied("join me " + shortLink) == "join me " + shortLink);
+	CHECK(Tidied("sf4e3:AbC-_9") == "sf4e3:AbC-_9" && Tidied("") == "" && Tidied(zeroWidth + " ") == "");
+	// A room link pasted with a line end, from Steam, or with its '#' escaped.
+	const std::string bridge = Bridge, room = Room, page = std::string(RoomPagePrefix()) + bridge + "/" + room;
+	CHECK(ParseRoomPasted(page + "\r\n").roomId == room);
+	CHECK(ParseRoomPasted("https://embernetplay.link/r%23" + bridge + "/" + room).roomId == room);
+	CHECK(ParseRoomPasted("https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fembernetplay.link%2Fr%23" + bridge + "%2F" + room).bridgeId == bridge);
+}
+
 static void TestOnlyTheConnectLinkIsAccepted() {
 	using namespace sf4e::tournament_link;
 	const std::string bridge = Bridge, link = "ember://discord/connect?bridge=" + bridge;
@@ -213,11 +244,13 @@ static void TestOnlyTheConnectLinkIsAccepted() {
 		"", "hello", bridge, "https://embernetplay.link/start", "https://embernetplay.link/start#",
 		"https://embernetplay.link/start#" + std::string(Match), "https://embernetplay.link/m#" + bridge,
 		"https://example.com/start#" + bridge, "http://embernetplay.link/start#" + bridge, page + " x",
-		page + "?x=1", page + "//", page + "/a/b", page + "/Blu Mint", page + "/x\n",
+		page + "?x=1", page + "//", page + "/a/b", page + "/Blu Mint", page + "/x\ny",
 		"https://embernetplay.link/start#" + bridge.substr(0, 39) + "/BluMint",
 		"https://embernetplay.link/start#" + bridge.substr(0, 39), page + "/" + std::string(256, 'A'),
 	};
 	for (const auto& text : refusedPages) CHECK(ParseConnectPasted(text).empty());
+	// A line end a copy picked up after the link is not part of it.
+	CHECK(ParseConnectPasted(page + "/x\n") == bridge);
 	CHECK(!ParsePasted(page).Valid());
 }
 
@@ -386,6 +419,7 @@ int main() {
 	TestTheJoinScreenGetsTheShortLink();
 	TestOnlyTheTournamentLinkIsAccepted();
 	TestOnlyThePublicRoomLinkIsAccepted();
+	TestPastedTextIsTidied();
 	TestOnlyTheConnectLinkIsAccepted();
 #ifdef _WIN32
 	TestARunningGameReceivesTheLink();

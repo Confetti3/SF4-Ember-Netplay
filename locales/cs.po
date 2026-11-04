@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Měřič snímků v zápasech"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Zobrazuje měřič snímků nad online zápasy, které hraješ nebo sleduješ. Vidíš ho jen ty. Může být o několik snímků za soubojem."
+msgstr "Zobrazuje měřič snímků nad online zápasy, které sleduješ, ne nad těmi, které hraješ. V tréninkové místnosti ho vidí oba hráči. Může být o několik snímků za soubojem."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Jen v soukromých místnostech."

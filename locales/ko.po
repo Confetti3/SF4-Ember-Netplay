@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "대전 중 프레임 미터"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "직접 플레이하거나 관전하는 온라인 대전 위에 프레임 미터를 표시합니다. 자신에게만 보이며 대전보다 몇 프레임 늦을 수 있습니다."
+msgstr "관전하는 온라인 대전 위에 프레임 미터를 표시합니다. 직접 플레이하는 대전에는 표시되지 않습니다. 연습 방에서는 두 플레이어 모두에게 표시됩니다. 대전보다 몇 프레임 늦을 수 있습니다."
 
 msgid "settings.match_frame_meter_private"
 msgstr "비공개 방에서만 사용할 수 있습니다."

@@ -701,10 +701,13 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     // Before the HUD, the match meter and the hotkeys, which read the lab's settings.
     static bool trainingDirectorySet=false;
     if(!trainingDirectorySet) { sf4e::ui::SetTrainingDirectory(sf4e::netplay::SettingsStore::DefaultDirectory()); trainingDirectorySet=true; }
-    // The meter in a match is the player's choice, and a Practice match's own,
-    // in private rooms only; the runtime reads nothing for it otherwise.
+    // The meter in a match is a Practice match's own, or the player's choice
+    // for a match they watch, in private rooms only; the runtime reads nothing
+    // for it otherwise. The seat is the last tick's; the runtime observes a
+    // match only after GGPO has synchronised, so it is settled by then.
     namespace meter = sf4e::match_frame_meter;
-    sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch),
+    const auto seat = frame->localFighter ? meter::Seat::Fighting : meter::Seat::Watching;
+    sf4e::training::WatchMatches(meter::Watched(meter::Wanted(snapshot.preferences.matchFrameMeter, snapshot.practiceMatch, seat),
         snapshot.Room().serverOwned, snapshot.replays.meterShown));
     // How far back a held meter reaches and whether it starts over after a pause, as the Meter settings page chose.
     const auto meterOptions = sf4e::ui::TrainingMeterOptions();
@@ -902,7 +905,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     const bool watchingHintDue = watchingHint.Due(
         snapshot.menuContext == sf4e::input::MenuContext::WatchedMatch, GetTickCount64() / 1000.0);
     if (layers.matchActive && focused && passive) {
-        if (!status.spectator && snapshot.practiceMatch)
+        if (frame->localFighter && snapshot.practiceMatch)
             sf4e::ui::DrawMatchKeysNotice({"training.match.checkpoint_disabled", "training.match.end_hint"});
         else if (watchingHintDue) sf4e::ui::DrawMatchKeysNotice({"runtime.watching_hint"});
     }

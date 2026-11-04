@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "Frame-Anzeige in Matches"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "Zeigt die Frame-Anzeige über Onlinekämpfen, die du spielst oder denen du zusiehst. Nur du siehst sie. Sie kann einige Frames hinter dem Kampf liegen."
+msgstr "Zeigt die Frame-Anzeige über Onlinekämpfen, denen du zusiehst, nicht über deinen eigenen. Ein Übungsraum zeigt sie beiden Spielern. Sie kann einige Frames hinter dem Kampf liegen."
 
 msgid "settings.match_frame_meter_private"
 msgstr "Nur in privaten Räumen."

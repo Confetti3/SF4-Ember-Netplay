@@ -23,8 +23,9 @@ The implementation checks below do not establish two-machine gameplay acceptance
 ## Step 1, built: the frame meter in a match
 
 A setting, **Match frame meter**, off by default. With it on, the
-training frame meter is drawn over the player's own matches and over matches
-they watch. Only that player sees it.
+training frame meter is drawn over matches the player watches. Only that
+player sees it. Since 1.5.2 it is not drawn over a match they fight, except
+in a Practice room.
 
 - It only reads. `training::ObserveMatch` calls the same getters the offline
   meter calls after an update (`ReadFighters`), on the game thread, and writes
@@ -191,7 +192,10 @@ or verify. A drill partner is the other player.
 1. **A frame meter in real matches.** Step 1 shows frame data during play,
    to one player, about both. It gives no information the game hides, but it
    is a training aid in a match. Decided: it stays the player's setting in
-   private rooms, and a Practice room's game always shows it
+   private rooms, and a Practice room's game always shows it. Revised in
+   1.5.2: the setting covers only matches the player watches, never one they
+   fight, so one fighter never reads frame data the other lacks; a Practice
+   room's game still shows it to both fighters
    (`match_frame_meter::Wanted`, from the flag as fixed when the battle was
    prepared). A public room never shows it.
 2. **Results in a Practice room.** A timed-out game is scored like any

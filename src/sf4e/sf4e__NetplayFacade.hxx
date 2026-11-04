@@ -324,6 +324,8 @@ namespace sf4e {
 			NetplayStatus netplay;
 			// A GGPO session exists (fighting, spectating or draining spectators).
 			bool ggpoSessionActive = false;
+			// The local player fights in that session: not a spectator, and false without one.
+			bool localFighter = false;
 			std::uint64_t sequence = 0;
 		};
 		// Configure copies POD under the loader lock. Start/Stop run from the

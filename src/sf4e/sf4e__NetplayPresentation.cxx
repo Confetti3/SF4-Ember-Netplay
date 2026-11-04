@@ -106,6 +106,7 @@ namespace sf4e {
 		next->runtime = bridge::LatestRuntime();
 		next->netplay = GetStatus();
 		next->ggpoSessionActive = fSystem::ggpo != nullptr;
+		next->localFighter = fSystem::ggpo && fSystem::LocalFighter();
 		next->sequence = ++sequence;
 		bridge::PublishPresentation(std::move(next));
 	}

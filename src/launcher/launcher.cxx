@@ -47,6 +47,7 @@
 #include "RunningGameFocus.hxx"
 #include "netplay/netplay_persist.hxx"
 #include "update/github_release_client.hxx"
+#include "update/UpdateLogPath.hxx"
 #include "BuildIdentity.hxx"
 
 
@@ -640,7 +641,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // An offer that does not parse is dropped: the window then shows the usual offer.
     const auto installOffer = sf4e::launcher::ParseInstallOffer(offerWords);
     if (!offerWords.empty()) spdlog::info(installOffer ? "Started with an update offer from the game" : "Ignored an update offer that is not valid");
-    if (updates && !ShowRecovery(updateError ? sf4e::loc::T("launcher.update_failed") : "", chosenDirectory, true, sf4e::ui::Tone::Error, true, std::nullopt, installOffer)) return 0;
+    if (updates && !ShowRecovery(updateError ? sf4e::launcher::WithUpdateLogLocation(sf4e::loc::T("launcher.update_failed")) : "", chosenDirectory, true, sf4e::ui::Tone::Error, true, std::nullopt, installOffer)) return 0;
     if (recovery && !ShowRecovery(sf4e::loc::T("launcher.recovery_opened"), chosenDirectory, false, sf4e::ui::Tone::Neutral)) return 0;
     if (!instance.Acquire()) {
         // Each link goes to the running game, which asks the player before
@@ -675,7 +676,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     switch (sf4e::launcher::StartPendingUpdateRecovery(GetCurrentProcessId())) {
     case sf4e::launcher::PendingRecovery::Started: return 0;
     case sf4e::launcher::PendingRecovery::Failed:
-        ShowRecovery(sf4e::loc::T("launcher.update_failed"), chosenDirectory, true);
+        ShowRecovery(sf4e::launcher::WithUpdateLogLocation(sf4e::loc::T("launcher.update_failed")), chosenDirectory, true);
         return 1;
     case sf4e::launcher::PendingRecovery::NotNormalUser:
         ShowRecovery(sf4e::loc::T("update.elevated"), chosenDirectory, true);

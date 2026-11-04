@@ -5,6 +5,7 @@
 #include "../../platform/Utf8.hxx"
 #include "../../common/ReleaseNotesText.hxx"
 #include "ZipExtract.hxx"
+#include "UpdateLogPath.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -243,12 +244,8 @@ namespace launcher {
 			if (!message || !message[0]) {
 				return;
 			}
-			wchar_t tempDir[MAX_PATH] = { 0 };
-			if (GetTempPathW(MAX_PATH, tempDir) == 0) {
-				return;
-			}
-			wchar_t logPath[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(logPath, MAX_PATH, tempDir, L"sf4-netplay-update.log"))) {
+			const std::wstring logPath = UpdateLogPathW();
+			if (logPath.empty()) {
 				return;
 			}
 
@@ -269,7 +266,7 @@ namespace launcher {
 			);
 
 			HANDLE hFile = CreateFileW(
-				logPath,
+				logPath.c_str(),
 				FILE_APPEND_DATA,
 				FILE_SHARE_READ,
 				NULL,
@@ -492,6 +489,11 @@ namespace launcher {
 				if (!asset.is_object()) continue;
 				std::string name = Text(asset, "name");
 				if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
+					continue;
+				}
+				// The debug symbols packed for a release share the package's prefix.
+				static const std::string symbols = "-symbols.zip";
+				if (name.size() > symbols.size() && name.compare(name.size()-symbols.size(), symbols.size(), symbols) == 0) {
 					continue;
 				}
 				if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {

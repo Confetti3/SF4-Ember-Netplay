@@ -1004,7 +1004,7 @@ msgid "settings.match_frame_meter"
 msgstr "対戦中のフレームメーター"
 
 msgid "settings.match_frame_meter_detail"
-msgstr "プレイ中や観戦中のオンライン対戦にフレームメーターを表示します。自分だけに見えます。対戦より数フレーム遅れることがあります。"
+msgstr "観戦中のオンライン対戦にフレームメーターを表示します。自分が戦う対戦には表示されません。練習ルームでは両プレイヤーに表示されます。対戦より数フレーム遅れることがあります。"
 
 msgid "settings.match_frame_meter_private"
 msgstr "プライベートルームのみ。"

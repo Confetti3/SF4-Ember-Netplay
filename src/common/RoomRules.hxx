@@ -23,6 +23,11 @@ enum class DelayPolicy : std::uint8_t { Shared = 0, Own };
 enum RoomType : std::uint8_t { ClassicRoom = 0, ArcadeRoom, KingRoom };
 
 enum class RotationMode : std::uint8_t { WinnerStays = 0, LoserStays, BothRotate };
+// Whether a Classic table's rotation keeps a set's winner (won) or loser
+// seated after the set; the room moves the others to the back of the queue.
+inline bool RotationKeeps(RotationMode mode, bool won) {
+    return mode == RotationMode::WinnerStays ? won : mode == RotationMode::LoserStays && !won;
+}
 // The round times a table offers, shortest first. The longest, about 2.7
 // hours, is also every game's in a Practice room (room::Snapshot::practice),
 // whose games end only when the time runs out.

@@ -12,6 +12,8 @@
 namespace sf4e { namespace ui { namespace v2 {
 namespace {
 float TextWidth(const std::string& text, float size, ImFont* font = ImGui::GetFont()) { return font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x; }
+// A tag's link mark, square, a little smaller than the ping chip beside it.
+float LinkGlyph() { return ChipFont() + 4 * Scale(); }
 }
 float ChipFont() { return ImGui::GetFontSize() * .78f; }
 std::string Fit(const std::string& text, float width, float size, ImFont* font, bool probe) {
@@ -596,13 +598,14 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     ImFont* nameFont = size == TagSize::M ? HeadingFont() : ImGui::GetFont();
     const float nameWidth = TextWidth(tag.name, nameSize, nameFont);
     const float marksWidth = NameMarksWidth(tag.marks, nameSize);
-    // Indicators sit at the right end: the ping always, the status while there is room.
+    // Indicators sit at the right end: the link and the ping always, the status while there is room.
     // The ping's route goes first: XS, or when the name would not fit beside it.
+    const float glyph = LinkGlyph(), right = width - (tag.link ? glyph + gap : 0);
     const bool routed = size != TagSize::XS && !tag.ping.routed.empty() &&
-        marksWidth + nameWidth + gap + ChipWidth(tag.ping.routed) <= width;
+        marksWidth + nameWidth + gap + ChipWidth(tag.ping.routed) <= right;
     const std::string& ping = routed ? tag.ping.routed : tag.ping.text;
     const float pingWidth = ping.empty() ? 0 : ChipWidth(ping);
-    const float nameRoom = width - marksWidth - (pingWidth > 0 ? pingWidth + gap : 0);
+    const float nameRoom = right - marksWidth - (pingWidth > 0 ? pingWidth + gap : 0);
     // M puts the title and status on a second line; XS and S give them only what the name leaves.
     const bool twoLines = size == TagSize::M && !(tag.title.empty() && tag.status.empty());
     const float titleWidth = tag.title.empty() || twoLines ? 0 : TextWidth(tag.title, font) + gap;
@@ -616,7 +619,8 @@ float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize 
     const std::string name = Fit(tag.name, (std::max)(0.f, nameMax), nameSize, nameFont, false);
     draw->AddText(nameFont, nameSize, ImVec2(x, middle), Colors().text, name.c_str());
     x += TextWidth(name, nameSize, nameFont) + gap;
-    if (!ping.empty()) Chip(draw, ImVec2(at.x + width - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (!ping.empty()) Chip(draw, ImVec2(at.x + right - pingWidth, at.y + (line - chipHeight) * .5f), ping, tag.ping.color);
+    if (tag.link) DrawNetworkLinkGlyph(draw, ImVec2(at.x + width - glyph, at.y + (line - glyph) * .5f), glyph, *tag.link);
     if (!twoLines) {
         if (title) { draw->AddText(ImGui::GetFont(), font, ImVec2(x, at.y + (line - font) * .5f), Colors().muted, tag.title.c_str()); x += titleWidth; }
         if (status) Chip(draw, ImVec2(x, at.y + (line - chipHeight) * .5f), tag.status, Colors().muted);
@@ -638,6 +642,7 @@ float TagWidth(const TagView& tag, TagSize size) {
     // As Tag lays the line out: the ping with its route above XS.
     const std::string& ping = size != TagSize::XS && !tag.ping.routed.empty() ? tag.ping.routed : tag.ping.text;
     return NameMarksWidth(tag.marks, font) + TextWidth(tag.name, font, ImGui::GetFont()) + (tag.title.empty() ? 0 : gap + TextWidth(tag.title, font)) +
-        (tag.status.empty() ? 0 : gap + ChipWidth(tag.status)) + (ping.empty() ? 0 : gap + ChipWidth(ping));
+        (tag.status.empty() ? 0 : gap + ChipWidth(tag.status)) + (ping.empty() ? 0 : gap + ChipWidth(ping)) +
+        (tag.link ? gap + LinkGlyph() : 0);
 }
 } } }

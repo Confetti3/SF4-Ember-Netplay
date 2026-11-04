@@ -1,5 +1,6 @@
 // Release zip download and digest comparison for the release client.
 #include "github_release_client_internal.hxx"
+#include "UpdateLogPath.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -144,7 +145,7 @@ namespace launcher {
 				detail = "all download methods failed";
 			}
 			AppendUpdateLog(("download failed: " + detail).c_str());
-			outError = loc::Tf("update.download_failed", detail, offer.releaseUrl);
+			outError = WithUpdateLogLocation(loc::Tf("update.download_failed", detail, offer.releaseUrl));
 			return false;
 		}
 
