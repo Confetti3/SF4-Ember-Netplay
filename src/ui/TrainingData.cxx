@@ -208,14 +208,14 @@ void GaugeRows(Rows& rows, const FighterData& fighter) {
     revenge.Bar(loc::T("training.data.revenge"), share(fighter.revenge, fighter.revengeMax), 2, Revenge, std::to_string(fighter.revenge));
     rows.y = super.y;
 }
-void JuggleRows(Rows& rows, const FighterData& fighter) {
+void JuggleRows(Rows& rows, const FighterData& fighter, const FighterData& foe) {
     rows.Section("training.data.juggle");
-    // The fighter's own juggle count while it is juggled, then the move's
-    // hit: the count a launch sets, what each hit adds, and the count up
-    // to which it still connects, each in a cell of its own.
+    // The count the opponent is under, so one panel is enough to read it, then the
+    // move's hit: the count a launch sets, what each hit adds, and the count up to
+    // which it still connects, each in a cell of its own.
     const float gap = 4 * rows.s, cell = (rows.width - 3 * gap) / 4, height = rows.small + rows.line + 6 * rows.s;
     const std::pair<const char*, std::string> values[] = {
-        {"training.data.juggled", fighter.juggled < 0 ? std::string(loc::T("training.data.none")) : std::to_string(fighter.juggled)},
+        {"training.data.juggled", foe.juggled < 0 ? std::string(loc::T("training.data.none")) : std::to_string(foe.juggled)},
         {"training.data.juggle_start", Count(fighter.juggle.start)}, {"training.data.juggle_add", Count(fighter.juggle.add)},
         {"training.data.juggle_limit", Count(fighter.juggle.limit)}};
     for (int i = 0; i < 4; ++i) {
@@ -223,7 +223,7 @@ void JuggleRows(Rows& rows, const FighterData& fighter) {
         rows.Rect(ImVec2(x, rows.y), ImVec2(x + cell, rows.y + height), i ? Track : IM_COL32(255, 255, 255, 44), 3 * rows.s);
         const std::string label = v2::Fit(loc::T(values[i].first), cell - 4 * rows.s, rows.small, nullptr, false);
         rows.Text(x + (cell - rows.Measure(label, rows.small).x) * .5f, rows.y + 2 * rows.s, rows.small, palette::Muted, label);
-        const ImU32 colour = !i && fighter.juggled < 0 ? palette::Muted : palette::Ivory;
+        const ImU32 colour = !i && foe.juggled < 0 ? palette::Muted : palette::Ivory;
         rows.Text(x + (cell - rows.Measure(values[i].second, rows.line).x) * .5f, rows.y + rows.small + 3 * rows.s, rows.line, colour, values[i].second);
     }
     rows.y += height + 3 * rows.s;
@@ -268,7 +268,7 @@ void Fighter(Rows& rows, const training::View& view, int side, const training::M
     if (options.dataPosition) PositionRows(rows, fighter, view.data.distance);
     if (options.dataState) StateRows(rows, fighter);
     if (options.dataGauges) GaugeRows(later, fighter);
-    if (options.dataJuggle) JuggleRows(later, fighter);
+    if (options.dataJuggle) JuggleRows(later, fighter, view.data.fighters[1 - side]);
     if (options.dataCharge) ChargeRows(later, fighter);
     rows.y = (std::max)(rows.y, later.y);
 }
