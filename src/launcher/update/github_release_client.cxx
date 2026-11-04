@@ -494,6 +494,11 @@ namespace launcher {
 				if (name.size() < 4 || name.compare(name.size()-4, 4, ".zip") != 0) {
 					continue;
 				}
+				// The debug symbols packed for a release share the package's prefix.
+				static const std::string symbols = "-symbols.zip";
+				if (name.size() > symbols.size() && name.compare(name.size()-symbols.size(), symbols.size(), symbols) == 0) {
+					continue;
+				}
 				if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
 					result.zipDownloadUrl = Text(asset, "browser_download_url");
 					result.zipApiUrl = Text(asset, "url");
