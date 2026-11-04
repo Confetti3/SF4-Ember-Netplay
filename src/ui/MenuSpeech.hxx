@@ -1,7 +1,7 @@
 #pragma once
 #include "MenuNavigation.hxx"
 #include "../common/Localization.hxx"
-#include "../netplay/PlayerPreferences.hxx"
+#include "../netplay/SpeechPreferences.hxx"
 #include "../platform/Speech.hxx"
 #include <algorithm>
 #include <set>
