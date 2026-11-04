@@ -4,6 +4,7 @@
 // measured, and only a tip when it is unavailable.
 #include "RoomCards.hxx"
 #include "Theme.hxx"
+#include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../session/MemberLatency.hxx"
 #include <imgui.h>
@@ -39,6 +40,15 @@ inline LatencyMark LatencyMarkFor(const session::MemberLatencyTable& table, cons
 		break;
 	}
 	return mark;
+}
+
+// A room member's player tag wherever the room draws one: name, flag and
+// class, ping and link. Callers add what is their own (a suffix, a status).
+inline v2::TagView MemberTag(const session::MemberLatencyTable& table, const room::Member& member, room::MemberId local) {
+	v2::TagView tag;
+	tag.name = member.name; tag.marks = {member.country, member.badge};
+	tag.ping = LatencyMarkFor(table, member, local); tag.link = member.link;
+	return tag;
 }
 
 } }

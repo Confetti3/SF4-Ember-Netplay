@@ -296,8 +296,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
                 player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
             const float chip = v2::ChipWidth(word);
             if (player.m) {
-                v2::TagView tag; tag.name = player.m->name; tag.marks = {player.m->country, player.m->badge};
-                tag.ping = LatencyMarkFor(v.memberLatency, *player.m, v.room.localMember);
+                const auto tag = MemberTag(v.memberLatency, *player.m, v.room.localMember);
                 v2::Tag(d, ImVec2(r.min.x + 12 * s, r.min.y + (rowHeight - line) * .5f), r.W() - chip - 36 * s, tag, v2::TagSize::S);
             }
             v2::Chip(d, ImVec2(r.max.x - 12 * s - chip, r.min.y + (rowHeight - line) * .5f), word, tone);
