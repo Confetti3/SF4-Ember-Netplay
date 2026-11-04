@@ -1,4 +1,5 @@
 #include "HelperClient.hxx"
+#include "HelperPipe.hxx"
 
 #include <limits>
 
@@ -45,8 +46,8 @@ HelperClient::~HelperClient() {
 bool HelperClient::Start(const HelperBootstrap& bootstrap) {
     if (!stop_ || !sendWake_ || !readEvent_ || !writeEvent_ || started_ || worker_.joinable() || state_ != HelperState::Stopped
         || bootstrap.version != 1 || bootstrap.helperPid == 0 || bootstrap.pipeName[95] != 0 || !bootstrap.pipeName[0]) { return false; }
-    const std::wstring name(bootstrap.pipeName), prefix = L"\\\\.\\pipe\\sf4-net-";
-    if (name.size() != prefix.size() + 32 || name.compare(0, prefix.size(), prefix) != 0) { return false; }
+    const std::wstring name(bootstrap.pipeName), prefix = helper_pipe::Prefix;
+    if (name.size() != prefix.size() + helper_pipe::HexDigits || name.compare(0, prefix.size(), prefix) != 0) { return false; }
     for (size_t i = prefix.size(); i < name.size(); ++i) {
         if (!(name[i] >= L'0' && name[i] <= L'9') && !(name[i] >= L'a' && name[i] <= L'f')) { return false; }
     }

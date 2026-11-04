@@ -1,4 +1,5 @@
 #include "HelperProcess.hxx"
+#include "HelperPipe.hxx"
 
 #include <bcrypt.h>
 #include <vector>
@@ -42,7 +43,7 @@ bool HelperProcess::Start(const std::wstring& executable, DWORD gamePid, bool re
         || BCryptGenRandom(nullptr, bootstrap_.nonce, sizeof(bootstrap_.nonce), BCRYPT_USE_SYSTEM_PREFERRED_RNG) < 0) {
         error_ = ERROR_GEN_FAILURE; return false;
     }
-    std::wstring name = L"\\\\.\\pipe\\sf4-net-";
+    std::wstring name = helper_pipe::Prefix;
     const wchar_t* hex = L"0123456789abcdef";
     for (uint8_t byte : publicName) { name += hex[byte >> 4]; name += hex[byte & 15]; }
     wcscpy_s(bootstrap_.pipeName, name.c_str());

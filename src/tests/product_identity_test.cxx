@@ -7,6 +7,7 @@
 #include "../common/JoinLink.hxx"
 #include "../common/ReplayLink.hxx"
 #include "../common/TournamentLink.hxx"
+#include "../platform/HelperPipe.hxx"
 #ifdef _WIN32
 #include "../platform/GameWindowSection.hxx"
 #include "../platform/JoinLinkMailbox.hxx"
@@ -41,7 +42,7 @@ static void TestNames() {
 	CHECK(Same(product.objectStem, L"SF4Ember"));
 	CHECK(Same(product.launcherInstancePrefix, L"Local\\Ember.Launcher."));
 	CHECK(Same(product.videoLinkPrefix, L"Local\\sf4e-video-"));
-	CHECK(Same(product.pipePrefix, L"\\\\.\\pipe\\sf4-net-"));
+	CHECK(Same(product.videoTemporarySuffix, L".sf4e-video-tmp"));
 	CHECK(Same(product.urlScheme, "ember"));
 	CHECK(Same(product.stableRepo, "Confetti3/SF4-Ember-Netplay"));
 	CHECK(Same(product.nightlyRepo, "Confetti3/SF4-Ember-Netplay-Nightly"));
@@ -53,15 +54,23 @@ static void TestNames() {
 	CHECK(Same(product.updaterExe, L"Updater.exe"));
 	CHECK(Same(product.gameModule, L"Sidecar.dll"));
 	CHECK(Same(product.gameExe, L"SSFIV.exe"));
-	CHECK(Same(product.helperExe, L"sf4-net.exe"));
 	CHECK(Same(product.discordExe, L"ember-discord.exe"));
 	CHECK(Same(product.gameLog, L"sf4e.log"));
 	CHECK(Same(product.launcherLog, L"launcher.log"));
 	CHECK(Same(product.crashLog, L"sf4e-crash.log"));
-	CHECK(Same(product.helperLog, L"sf4-net.log"));
 	CHECK(Same(product.crashDumpPrefix, L"sf4e-crash-"));
 	// SF4 Ember's text is the shared catalogs' own.
 	CHECK(product.localeOverlays != nullptr && product.localeOverlays[0].tag == nullptr);
+}
+
+// The helper's names, which every product shares (platform/HelperPipe.hxx)
+// and SF4 Ember's identity used to hold: the helper (rust/sf4-net/src/ipc.rs)
+// accepts only pipes under this prefix.
+static void TestHelperNames() {
+	CHECK(Same(sf4e::platform::helper_pipe::Prefix, L"\\\\.\\pipe\\sf4-net-"));
+	CHECK(sf4e::platform::helper_pipe::HexDigits == 32);
+	CHECK(Same(sf4e::platform::helper_pipe::Executable, L"sf4-net.exe"));
+	CHECK(Same(sf4e::platform::helper_pipe::Log, L"sf4-net.log"));
 }
 
 // The names as they are put together from the identity.
@@ -91,6 +100,7 @@ static void TestComposedNames() {
 int main() {
 	TestBranding();
 	TestNames();
+	TestHelperNames();
 	TestComposedNames();
 	std::printf("SF4 Ember's product identity matches its literals\n");
 	return 0;

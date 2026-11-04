@@ -21,6 +21,7 @@
 #include "../platform/JoinLinkMailbox.hxx"
 #include "../common/WipeText.hxx"
 #include "../platform/Elevation.hxx"
+#include "../platform/HelperPipe.hxx"
 #include "../platform/LauncherInstance.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/VideoLinkServe.hxx"
@@ -788,7 +789,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const char* dlls[] = {sidecarAnsi};
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
-        const auto helperPath = std::filesystem::path(installRoot)/ember::Product().helperExe;
+        const auto helperPath = std::filesystem::path(installRoot)/sf4e::platform::helper_pipe::Executable;
         sf4e::crash::DumpChannel dumps;
         sf4e::reports::CrashContext reportCrash;
         reportCrash.started = std::filesystem::file_time_type::clock::now();

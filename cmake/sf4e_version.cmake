@@ -32,16 +32,15 @@ function(sf4e_configure_windows_version target file_description original_filenam
     APPEND PROPERTY OBJECT_DEPENDS "${SF4E_PRODUCT_ICON}")
 endfunction()
 
-function(sf4e_embed_manifest target manifest_filename)
+# Embeds `manifest`, a path the product file names (cmake/sf4e_product.cmake).
+function(sf4e_embed_manifest target manifest)
   if(NOT MSVC)
     return()
   endif()
-  set(_manifest "${CMAKE_SOURCE_DIR}/cmake/${manifest_filename}")
-  if(NOT EXISTS "${_manifest}")
-    message(WARNING "Manifest not found: ${_manifest}")
-    return()
+  if(NOT EXISTS "${manifest}")
+    message(FATAL_ERROR "Manifest not found: ${manifest}")
   endif()
   # Let CMake merge this with its generated manifest, including incremental
   # Ninja links. /MANIFEST:EMBED would embed it again and duplicate resource 1.
-  target_sources("${target}" PRIVATE "${_manifest}")
+  target_sources("${target}" PRIVATE "${manifest}")
 endfunction()

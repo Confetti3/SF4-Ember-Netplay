@@ -3,6 +3,7 @@
 #include "../common/JoinLink.hxx"
 #include "../common/BoundedRead.hxx"
 #include "../common/ProductIdentity.hxx"
+#include "HelperPipe.hxx"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -23,11 +24,11 @@ std::string Hex(std::uint64_t value) {
     std::ostringstream out; out << "0x" << std::hex << value; return out.str();
 }
 // The logs a report may carry, from the product's logs folder, in the order
-// they are attached. Their names are ASCII.
+// they are attached: the product's own, then the helper's. Their names are ASCII.
 std::array<std::string, 4> ReportLogs() {
     const auto narrow = [](const wchar_t* name) { std::string text; for (; *name; ++name) text += static_cast<char>(*name); return text; };
     const auto& product = ember::Product();
-    return {narrow(product.gameLog), narrow(product.launcherLog), narrow(product.crashLog), narrow(product.helperLog)};
+    return {narrow(product.gameLog), narrow(product.launcherLog), narrow(product.crashLog), narrow(platform::helper_pipe::Log)};
 }
 bool HexDigits(const std::string& text, std::size_t count) {
     return text.size() == count && std::all_of(text.begin(), text.end(), [](unsigned char c) { return std::isxdigit(c) != 0; });

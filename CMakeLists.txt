@@ -377,12 +377,12 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "sr
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)
 target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e sf4e_product sf4e_catalog)
 sf4e_configure_windows_version(Sidecar "${SF4E_PRODUCT_NAME} Sidecar" "Sidecar.dll" "VFT_DLL")
-sf4e_embed_manifest(Sidecar "Sidecar.dll.manifest")
+sf4e_embed_manifest(Sidecar "${SF4E_PRODUCT_SIDECAR_MANIFEST}")
 
 target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 sf4e_configure_windows_version(Launcher "${SF4E_PRODUCT_NAME}" "Launcher.exe" "VFT_APP")
-sf4e_embed_manifest(Launcher "Launcher.exe.manifest")
+sf4e_embed_manifest(Launcher "${SF4E_PRODUCT_LAUNCHER_MANIFEST}")
 # The source revision the launcher and Sidecar log at startup, refreshed on every build.
 set(SF4E_BUILD_IDENTITY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
 add_custom_target(sf4e_build_identity

@@ -9,6 +9,10 @@ set(SF4E_PRODUCT_COMPANY "SF4 Ember Netplay Contributors")
 set(SF4E_PRODUCT_COPYRIGHT "MIT License. Unofficial USF4 netplay port.")
 set(SF4E_PRODUCT_ICON "${SF4E_PRODUCT_SOURCE_DIR}/src/ui/ember.ico")
 set(SF4E_PRODUCT_MARK "${SF4E_PRODUCT_SOURCE_DIR}/src/ui/ember.rgba")
+# The application manifests the launcher and Sidecar embed (sf4e_embed_manifest):
+# their assembly names and descriptions are the product's.
+set(SF4E_PRODUCT_LAUNCHER_MANIFEST "${SF4E_PRODUCT_SOURCE_DIR}/cmake/Launcher.exe.manifest")
+set(SF4E_PRODUCT_SIDECAR_MANIFEST "${SF4E_PRODUCT_SOURCE_DIR}/cmake/Sidecar.dll.manifest")
 
 # Compiles the identity into `target`. The approved ink mark is embedded with
 # it and packed into the font atlas (Theme.cxx), so no DX9 resource or runtime

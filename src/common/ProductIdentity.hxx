@@ -4,7 +4,8 @@
 // the names it shows, the folders and named objects it owns, its links and
 // its update repositories. Ember's shared code reads them here instead of
 // spelling them out, so two products installed side by side never share a
-// settings folder, a link mailbox or a pipe.
+// settings folder or a link mailbox. The helper is shared by every product:
+// its names are platform/HelperPipe.hxx's, not a product's.
 //
 // Each product defines Product() once, in its own source (SF4 Ember's is
 // src/product/Sf4Product.cxx), and every executable and test links that
@@ -46,7 +47,9 @@ struct ProductIdentity {
 	const wchar_t* objectStem;
 	const wchar_t* launcherInstancePrefix;  // + the user's SID and a scope
 	const wchar_t* videoLinkPrefix;         // + a process id and a tick count
-	const wchar_t* pipePrefix;              // the helper's pipes: + 32 hex digits
+	// The video export's reservation beside its video: the video's name, a
+	// GUID, then this, an extension no replay export uses.
+	const wchar_t* videoTemporarySuffix;
 	// Links from a browser: urlScheme + "://join/...", "://room/open?..." and so on.
 	const char* urlScheme;
 
@@ -63,14 +66,12 @@ struct ProductIdentity {
 	const wchar_t* updaterExe;
 	const wchar_t* gameModule;              // injected into the game
 	const wchar_t* gameExe;
-	const wchar_t* helperExe;
 	const wchar_t* discordExe;
 
 	// Under appDataFolder\logs.
 	const wchar_t* gameLog;
 	const wchar_t* launcherLog;
 	const wchar_t* crashLog;
-	const wchar_t* helperLog;
 	const wchar_t* crashDumpPrefix;         // + a time, a process id and ".dmp"
 
 	// Catalogs layered over the shared ones, ending with {nullptr, nullptr}.
