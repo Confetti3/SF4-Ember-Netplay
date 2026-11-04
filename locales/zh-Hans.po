@@ -2073,6 +2073,9 @@ msgstr "图例、标记与边框"
 msgid "training.meter.classic_slant"
 msgstr "倾斜格子"
 
+msgid "training.meter.classic_p2"
+msgstr "显示P2数字"
+
 msgid "training.meter.hud_part.detail"
 msgstr "在对战中显示训练 HUD 的这一项。F5 隐藏整个 HUD。"
 

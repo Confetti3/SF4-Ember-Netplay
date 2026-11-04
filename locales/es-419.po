@@ -1861,6 +1861,9 @@ msgstr "Leyenda, marcadores y borde"
 msgid "training.meter.classic_slant"
 msgstr "Celdas inclinadas"
 
+msgid "training.meter.classic_p2"
+msgstr "Mostrar cifras de P2"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Muestra esta parte del HUD de entrenamiento durante la pelea. F5 lo oculta todo."
 

@@ -2073,6 +2073,9 @@ msgstr "Legende, Marker und Rand"
 msgid "training.meter.classic_slant"
 msgstr "Schräge Zellen"
 
+msgid "training.meter.classic_p2"
+msgstr "P2-Zahlen zeigen"
+
 msgid "training.meter.hud_part.detail"
 msgstr "Zeigt diesen Teil des Trainings-HUD im Kampf. F5 blendet das ganze HUD aus."
 

@@ -459,10 +459,13 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         draw->AddRectFilledMultiColor(ImVec2(top.x, top.y), ImVec2(top.x + full, top.y + 2 * hudScale),
             palette::Ember, IM_COL32(255, 214, 72, 255), IM_COL32(255, 214, 72, 255), palette::Ember);
     ImGui::Dummy(ImVec2(full, 2 * hudScale));
-    const float line = ImGui::GetTextLineHeight(), small = line * .72f, gap = 8 * hudScale, half = full / 2;
+    const float line = ImGui::GetTextLineHeight(), small = line * .72f, gap = 8 * hudScale;
     if (options.classicData) {
         const ImVec2 at = ImGui::GetCursorScreenPos();
-        for (int side = 0; side < 2; ++side) {
+        // Each fighter's readings take a column; P2's can be left out.
+        const int sides = options.classicP2 ? 2 : 1;
+        const float column = full / sides;
+        for (int side = 0; side < sides; ++side) {
             const auto readings = Readings(meter, side);
             const char tag[3] = {'P', static_cast<char>('1' + side), 0};
             // Labels where there is room for them, coloured ticks with the numbers where there is not.
@@ -474,8 +477,8 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                 widths.push_back(ImVec2(ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x, ImGui::CalcTextSize(reading.value.c_str()).x));
                 labelled += widths.back().x + 4 * hudScale + widths.back().y + gap;
             }
-            const bool labels = labelled <= half;
-            float x = at.x + side * half;
+            const bool labels = labelled <= column;
+            float x = at.x + side * column;
             Edged(draw, line, ImVec2(x, at.y), side ? IM_COL32(120, 190, 255, 255) : IM_COL32(255, 120, 110, 255), tag);
             x += ImGui::CalcTextSize(tag).x + gap;
             for (std::size_t i = 0; i < readings.size(); ++i) {

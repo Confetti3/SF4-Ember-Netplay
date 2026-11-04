@@ -226,7 +226,7 @@ enum class DataFighter { Both, P1, P2 };
 constexpr int DataFighters = 3;
 struct MeterOptions { MeterStyle style = MeterStyle::Angled; bool recovery = false; int shown = 60; bool numbers = true, bars = true, state = true, shortcuts = true, status = true; int size = 1;
     InputDisplay inputs = InputDisplay::Off;
-    bool classicData = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
+    bool classicData = true, classicP2 = true, classicInputs = true, classicColors = true, classicExtras = true, classicSlant = true;
     // The frames the meter keeps, one of MeterHistoryChoices.
     int history = 1200;
     // After a pause the next exchange goes on after the last instead of starting over.
