@@ -234,6 +234,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Pad.cxx"
     "src/sf4e/sf4e__BackgroundPlay.hxx"
     "src/sf4e/sf4e__BackgroundPlay.cxx"
+    "src/sf4e/sf4e__ExportSound.hxx"
+    "src/sf4e/sf4e__ExportSound.cxx"
     "src/sf4e/sf4e__MenuMusic.hxx"
     "src/sf4e/sf4e__MenuMusic.cxx"
     "src/sf4e/sf4e__Borderless.hxx"

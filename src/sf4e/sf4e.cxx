@@ -9,6 +9,8 @@
 
 #include "sf4e.hxx"
 #include "sf4e__BackgroundPlay.hxx"
+#include "sf4e__ExportSound.hxx"
+#include "sf4e__ReplayCapture.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Event.hxx"
 #include "sf4e__Game.hxx"
@@ -243,6 +245,8 @@ void sf4e::Install(HINSTANCE hinstDll, const sf4e::Payload* const payload) {
 	Pad::Install();
 	Gamepads::Install();
 	BackgroundPlay::Install();
+	exportsound::Install();
+	replaycapture::SetSoundSource({&exportsound::Hold, &exportsound::Render, &exportsound::Release});
 	InputLag::Install();
 	Platform::Install();
 	UserApp::Install();

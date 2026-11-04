@@ -92,6 +92,7 @@ sf4e_add_unit_test(NAME NextBattleRequest SOURCES "src/tests/next_battle_request
 sf4e_add_unit_test(NAME SpectatorSync SOURCES "src/tests/spectator_sync_test.cxx" STD 14 LIBS sf4e_room_model TIMEOUT 15 LABELS room)
 sf4e_add_unit_test(NAME GameDisplayConfig SOURCES "src/tests/game_display_config_test.cxx" STD 17)
 sf4e_add_unit_test(NAME FrameRateWindow SOURCES "src/tests/frame_rate_window_test.cxx" STD 17)
+sf4e_add_unit_test(NAME ExportSoundClock SOURCES "src/tests/export_sound_clock_test.cxx" STD 17)
 
 sf4e_add_unit_test(NAME SelectionValue SOURCES "src/tests/selection_value_test.cxx" LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME MoveNotation SOURCES "src/tests/move_notation_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)

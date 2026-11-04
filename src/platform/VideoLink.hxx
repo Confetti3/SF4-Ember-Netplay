@@ -15,10 +15,18 @@
 namespace sf4e { namespace platform { namespace videolink {
 
 // Starts the encoder's process: encoder with --encode-video and the link's
-// name, by default the Launcher.exe of Ember's install.
-bool Start(const std::wstring& file, unsigned width, unsigned height, const std::wstring& encoder = std::wstring());
+// name, by default the Launcher.exe of Ember's install. fast: for a game
+// that plays faster than it shows. Every picture is kept and stamped a
+// sixtieth of a second after the one before, so the file plays at the game's
+// own speed however fast they came; Send waits for a free slot instead of
+// dropping one, which holds the game to the encoder's pace; and the sound is
+// what SetSound hands over with each picture, not the speakers'.
+bool Start(const std::wstring& file, unsigned width, unsigned height, const std::wstring& encoder = std::wstring(), bool fast = false);
+// Fast: the sound that goes with the next picture Send takes, 48 kHz stereo
+// float interleaved; at most kSoundPerSlot frames (VideoLinkProtocol.hxx).
+void SetSound(const float* stereo, unsigned frames);
 // One picture, as VideoEncoder's Frame takes it. Dropped while the encoder
-// is still opening or when all slots are full.
+// is still opening or when all slots are full, unless fast.
 void Send(const void* luma, int lumaPitch, const void* chroma, int chromaPitch);
 // Asks the encoder to close the file, without waiting for it. After Fail
 // the file is still discarded.
