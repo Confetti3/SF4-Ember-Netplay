@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 #include "UpdaterArguments.hxx"
+#include "../../common/ProductIdentity.hxx"
 
 namespace sf4e { namespace launcher {
 // A count as the player's Windows writes whole numbers, "4,756" or "4 756".
@@ -187,7 +188,8 @@ private:
     bool CreateWindows() {
         WNDCLASSW type{}; type.lpfnWndProc=FrameProc; type.hInstance=GetModuleHandleW(nullptr);
         type.hCursor=LoadCursor(nullptr,IDC_ARROW); type.hbrBackground=GetSysColorBrush(COLOR_WINDOW);
-        type.lpszClassName=L"SF4EmberUpdaterProgress";
+        static const std::wstring className=ember::WindowClassName(L"UpdaterProgress");
+        type.lpszClassName=className.c_str();
         if(!RegisterClassW(&type) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) return false;
         const int dpi=static_cast<int>(GetDpiForSystem());
         const auto px=[&](int value){ return MulDiv(value,dpi>0?dpi:96,96); };

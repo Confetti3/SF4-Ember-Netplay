@@ -6,9 +6,6 @@
 
 namespace sf4e { namespace launcher {
 
-// The game executable inside its install folder.
-inline constexpr wchar_t kGameExecutableName[] = L"SSFIV.exe";
-
 // Library folders listed in the text of Steam's libraryfolders.vdf, which Steam
 // writes as UTF-8. Both the nested format ("1" { "path" "D:\\Lib" }) and the
 // older flat format ("1" "D:\\Lib") are read. Numbered keys come first in

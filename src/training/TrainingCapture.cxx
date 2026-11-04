@@ -1,5 +1,6 @@
 #include "TrainingCapture.hxx"
 #include "../common/EnvFlag.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <windows.h>
 #include <KnownFolders.h>
 #include <ShlObj.h>
@@ -43,7 +44,7 @@ void TrainingCapture::Run() {
         CoTaskMemFree(roaming);
         return Fail("the AppData folder is unavailable");
     }
-    std::wstring directory = std::wstring(roaming) + L"\\sf4e\\logs"; CoTaskMemFree(roaming);
+    std::wstring directory = std::wstring(roaming) + L"\\" + ember::Product().appDataFolder + L"\\logs"; CoTaskMemFree(roaming);
     CreateDirectoryW((directory.substr(0, directory.find_last_of(L'\\'))).c_str(), nullptr);
     CreateDirectoryW(directory.c_str(), nullptr);
     std::filesystem::path outputPath(directory);

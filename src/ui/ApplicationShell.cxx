@@ -18,6 +18,7 @@
 #include "../common/Localization.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../common/PastedLink.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/TournamentLink.hxx"
 #include "../common/ReplayInputs.hxx"
 #include "../platform/LocaleWindows.hxx"
@@ -709,7 +710,8 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(!postMatchScreen?v2::SideMargin(area.W(),Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
- ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ static const std::string title=std::string(ember::Product().branding.productName)+"###EmberShell";
+ ImGui::Begin(title.c_str(),nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.ownsBack=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
  const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom);
  ImGui::End();ImGui::PopStyleVar(2);

@@ -1,6 +1,7 @@
 #include "ApplicationServices.hxx"
 #include "UiPreferencesStore.hxx"
 #include "../common/install_paths.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
 #include "ReplayFiles.hxx"
@@ -220,7 +221,7 @@ void ApplicationServices::Run() {
                 std::filesystem::create_directories(directory);
                 const auto path = directory / L"ember-diagnostics.txt";
                 std::ofstream output(path, std::ios::trunc);
-                output << "SF4 Ember Netplay\nVersion: " << SF4E_APP_VERSION
+                output << ember::Product().branding.productName << "\nVersion: " << SF4E_APP_VERSION
                     << "\nTransport: Iroh / GGPO\nUDP port: " << (!diagnostics.udpPort ? std::string("Unavailable") :
                         *diagnostics.udpPort ? std::to_string(*diagnostics.udpPort) : std::string("random"))
                     << '\n' << DescribeNetwork(diagnostics) << '\n' << DescribeDiagnostics(diagnostics)
@@ -254,7 +255,7 @@ void ApplicationServices::Run() {
             } else if (action == ServiceAction::OpenRecovery || action == ServiceAction::UpdateNow) {
                 wchar_t root[MAX_PATH] = {};
                 if (!install::GetInstallRoot(root, MAX_PATH)) throw std::runtime_error("install directory");
-                const auto executable = std::filesystem::path(root) / L"Launcher.exe";
+                const auto executable = std::filesystem::path(root) / ember::Product().launcherExe;
                 const char* tag = loc::Tag(loc::Active());  // ASCII, so widening is byte for byte.
                 std::wstring command = L"\"" + executable.wstring() + L"\" " +
                     (action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") + L" --wait-pid " + std::to_wstring(GetCurrentProcessId()) +

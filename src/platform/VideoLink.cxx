@@ -2,6 +2,7 @@
 #include "VideoLinkProtocol.hxx"
 #include "VideoTemporary.hxx"
 #include "../common/install_paths.hxx"
+#include "../common/ProductIdentity.hxx"
 
 #include <windows.h>
 #include <spdlog/spdlog.h>
@@ -70,10 +71,10 @@ bool Start(const std::wstring& file, unsigned width, unsigned height, const std:
 	if (exe.empty()) {
 		// Launcher.exe in Ember's install, wherever the package layout puts it.
 		wchar_t path[MAX_PATH] = {0};
-		if (!install::ResolveInstallFile(L"Launcher.exe", path, MAX_PATH)) { spdlog::warn("Video: no Launcher.exe in the install for the encoder"); return false; }
+		if (!install::ResolveInstallFile(ember::Product().launcherExe, path, MAX_PATH)) { spdlog::warn("Video: no Launcher.exe in the install for the encoder"); return false; }
 		exe = path;
 	}
-	const std::wstring name = L"Local\\sf4e-video-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount());
+	const std::wstring name = ember::Product().videoLinkPrefix + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount());
 	if (!ReserveTemporary(file, s_partial)) { s_partial.clear(); return false; }
 	const ULONGLONG size = sizeof(Shared) + static_cast<ULONGLONG>(width) * height * 3 / 2 * kSlots;
 	s_mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, static_cast<DWORD>(size >> 32), static_cast<DWORD>(size), name.c_str());

@@ -49,8 +49,7 @@ std::string Slurp(const std::filesystem::path& path) {
 
 int main(int argc, char** argv) {
     using namespace sf4e::launcher;
-    CHECK(std::string(kDefaultGithubRepo) == "Confetti3/SF4-Ember-Netplay");
-    const std::string digest(64, 'a');
+        const std::string digest(64, 'a');
     nlohmann::json release = {
         {"tag_name", "v0.8.3"}, {"body", "Ember 0.8.3"},
         {"html_url", "https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v0.8.3"},
@@ -135,8 +134,8 @@ int main(int argc, char** argv) {
     CHECK(ResolveUpdateChannel(ParseSavedUpdateChannel("bogus"), "1.2.0-nightly20261008") == UpdateChannel::Nightly);
     CHECK(ResolveUpdateChannel(std::nullopt, nullptr) == UpdateChannel::Stable);
     CHECK(std::string(UpdateChannelName(UpdateChannel::Nightly)) == "nightly");
-    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Stable)) == kDefaultGithubRepo);
-    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Beta)) == kDefaultGithubRepo);
+    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Stable)) == "Confetti3/SF4-Ember-Netplay");
+    CHECK(std::string(UpdateChannelRepo(UpdateChannel::Beta)) == "Confetti3/SF4-Ember-Netplay");
     CHECK(std::string(UpdateChannelRepo(UpdateChannel::Nightly)) == "Confetti3/SF4-Ember-Netplay-Nightly");
     CHECK(GetUpdateChannelInfo(UpdateChannel::Stable).next == UpdateChannel::Beta);
     CHECK(GetUpdateChannelInfo(UpdateChannel::Beta).next == UpdateChannel::Nightly);

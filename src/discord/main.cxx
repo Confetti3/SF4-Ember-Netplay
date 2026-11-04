@@ -29,7 +29,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,LPWSTR,int) {
     wchar_t path[32768]{};
     const auto length=GetModuleFileNameW(nullptr,path,32768);
     if(!length || length>=32768) return 3;
-    const auto launcher=std::filesystem::path(path).parent_path()/L"Launcher.exe";
+    const auto launcher=std::filesystem::path(path).parent_path()/ember::Product().launcherExe;
     const auto command=L"\""+launcher.wstring()+L"\" --discord-launch";
     const int bytes=WideCharToMultiByte(CP_UTF8,0,command.c_str(),-1,nullptr,0,nullptr,nullptr);
     std::string utf8(bytes,'\0');

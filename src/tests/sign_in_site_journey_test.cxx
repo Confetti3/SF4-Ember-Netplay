@@ -10,13 +10,13 @@
 #include <set>
 #include <vector>
 namespace {
-const std::string ember="https://bridge.embernetplay.link";
+const std::string emberBridge="https://bridge.embernetplay.link";
 struct Case{const char* id;const char* name;};
 const Case Challonge{"challonge","Challonge"},Startgg{"startgg","start.gg"},Other{"brackets-plus","Brackets Plus"};
 
 // A ready Ember ID that trusts Ember's own service.
 void Ready(Journey& h){
- auto& id=h.view.identity;id.known=true;h.ready();id.bridges={{"brg_1",ember,"Ember"}};h.Frame();
+ auto& id=h.view.identity;id.known=true;h.ready();id.bridges={{"brg_1",emberBridge,"Ember"}};h.Frame();
 }
 // Ember's own service's profile lists these sites, offering sign-in or not.
 void List(Journey& h,const std::vector<Case>& sites,bool signIn){
@@ -26,7 +26,7 @@ void List(Journey& h,const std::vector<Case>& sites,bool signIn){
 // Answers until the profile of Ember's own service is asked for, then gives it `sites`.
 void Profile(Journey& h,const std::vector<Case>& sites,bool signIn=true){
  using sf4e::netplay::IdentityOp;
- Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Ember's own service was not read");
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==emberBridge,"Ember's own service was not read");
  List(h,sites,signIn);h.answer();
 }
 // The newest request reads `site`'s account on Ember's own service.
@@ -228,7 +228,7 @@ void ManySites(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
  h.Screen("identity");
- Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Ember's own service was not read");
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==emberBridge,"Ember's own service was not read");
  id.inspected=id.bridges[0];id.signInSites.clear();
  for(std::size_t n=0;n<netplay::MaxSignInSites;++n)id.signInSites.push_back({"site-"+std::to_string(n),"Site "+std::to_string(n),true});
  h.answer();
@@ -315,7 +315,7 @@ void DiscordFirst(){
  using namespace sf4e;using netplay::IdentityOp;
  Journey h;Ready(h);auto& id=h.view.identity;
  h.Screen("identity");
- Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"The Ember ID screen did not read Ember's service");
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==emberBridge,"The Ember ID screen did not read Ember's service");
  Both(h);h.answer();
  Check(h.until(IdentityOp::DiscordStatus)&&h.count(IdentityOp::SiteStatus)==0,"Discord's account was not read first");
  id.discordUser="274220342558756145";id.discordName="player1";h.answer();
@@ -576,8 +576,8 @@ void DiscordGoEndsItsWait(){
  DiscordWaiting(h);
  // The service is forgotten, so Connect Discord offers to set it up again.
  id.bridges.clear();h.Screen("home");h.Screen(DiscordConnectScreen);
- Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Connect Discord did not look Ember's service up");
- id.inspected={"brg_1",ember,"Ember"};h.answer();for(int i=0;i<4;++i)h.answer();
+ Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==emberBridge,"Connect Discord did not look Ember's service up");
+ id.inspected={"brg_1",emberBridge,"Ember"};h.answer();for(int i=0;i<4;++i)h.answer();
  Check(h.row("dc-go")!=nullptr,"Connect Discord does not offer to start again");
  const auto cancels=h.count(IdentityOp::DiscordCancel);
  h.Choose("dc-go");h.Frame(0,2);
@@ -612,7 +612,7 @@ void DiscordChangeNeedsSignIn(){
  for(const bool offered:{false,true}){
   Journey h;Ready(h);auto& id=h.view.identity;h.untilLimit=12;
   h.Screen(DiscordConnectScreen);
-  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Connect Discord did not read Ember's service");
+  Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==emberBridge,"Connect Discord did not read Ember's service");
   id.inspected=id.bridges[0];id.inspectedDiscord=offered;id.inspectedDiscordAccounts=true;id.signInSites.clear();h.answer();
   Check(h.until(IdentityOp::DiscordStatus),"Connect Discord did not read Discord's account");
   id.discordUser="274220342558756145";id.discordName="player1";h.answer();for(int i=0;i<4;++i)h.answer();
@@ -642,7 +642,7 @@ void ConnectedAgain(const Case* site){
   if(site){OpenSite(h,*site);Check(ReadsSite(h,*site),"The site's Connect screen did not read the account");}
   else{
    h.Screen(DiscordConnectScreen);
-   Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==ember,"Connect Discord did not read Ember's service");
+   Check(h.until(IdentityOp::BridgeInspect)&&h.sent().back()->origin==emberBridge,"Connect Discord did not read Ember's service");
    id.inspected=id.bridges[0];id.inspectedDiscord=id.inspectedDiscordAccounts=true;id.signInSites.clear();h.answer();
    Check(h.until(read),"Connect Discord did not read Discord's account");
   }

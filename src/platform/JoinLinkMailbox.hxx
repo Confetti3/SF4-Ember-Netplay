@@ -19,21 +19,22 @@
 #include <string>
 
 #include "../common/JoinLink.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/TournamentLink.hxx"
 
 namespace sf4e {
 namespace platform {
 
-inline const wchar_t* JoinLinkSectionName() { return L"Local\\SF4EmberJoinLink"; }
-inline const wchar_t* JoinLinkEventName() { return L"Local\\SF4EmberJoinLinkReady"; }
-inline const wchar_t* MatchLinkSectionName() { return L"Local\\SF4EmberMatchLink"; }
-inline const wchar_t* MatchLinkEventName() { return L"Local\\SF4EmberMatchLinkReady"; }
-inline const wchar_t* PublicRoomLinkSectionName() { return L"Local\\SF4EmberPublicRoomLink"; }
-inline const wchar_t* PublicRoomLinkEventName() { return L"Local\\SF4EmberPublicRoomLinkReady"; }
-inline const wchar_t* ConnectLinkSectionName() { return L"Local\\SF4EmberConnectLink"; }
-inline const wchar_t* ReplayLinkSectionName() { return L"Local\\SF4EmberReplayLink"; }
-inline const wchar_t* ReplayLinkEventName() { return L"Local\\SF4EmberReplayLinkReady"; }
-inline const wchar_t* ConnectLinkEventName() { return L"Local\\SF4EmberConnectLinkReady"; }
+inline const wchar_t* JoinLinkSectionName() { static const std::wstring name = ember::KernelObjectName(L"JoinLink"); return name.c_str(); }
+inline const wchar_t* JoinLinkEventName() { static const std::wstring name = ember::KernelObjectName(L"JoinLinkReady"); return name.c_str(); }
+inline const wchar_t* MatchLinkSectionName() { static const std::wstring name = ember::KernelObjectName(L"MatchLink"); return name.c_str(); }
+inline const wchar_t* MatchLinkEventName() { static const std::wstring name = ember::KernelObjectName(L"MatchLinkReady"); return name.c_str(); }
+inline const wchar_t* PublicRoomLinkSectionName() { static const std::wstring name = ember::KernelObjectName(L"PublicRoomLink"); return name.c_str(); }
+inline const wchar_t* PublicRoomLinkEventName() { static const std::wstring name = ember::KernelObjectName(L"PublicRoomLinkReady"); return name.c_str(); }
+inline const wchar_t* ConnectLinkSectionName() { static const std::wstring name = ember::KernelObjectName(L"ConnectLink"); return name.c_str(); }
+inline const wchar_t* ReplayLinkSectionName() { static const std::wstring name = ember::KernelObjectName(L"ReplayLink"); return name.c_str(); }
+inline const wchar_t* ReplayLinkEventName() { static const std::wstring name = ember::KernelObjectName(L"ReplayLinkReady"); return name.c_str(); }
+inline const wchar_t* ConnectLinkEventName() { static const std::wstring name = ember::KernelObjectName(L"ConnectLinkReady"); return name.c_str(); }
 inline std::wstring JoinLinkLockName(const wchar_t* section) { return std::wstring(section) + L"Lock"; }
 inline bool JoinLinkLocked(DWORD wait) { return wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED; }
 

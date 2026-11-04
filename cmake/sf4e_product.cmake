@@ -1,0 +1,27 @@
+include_guard(GLOBAL)
+# SF4 Ember, the product: its identity (src/product/Sf4Product.cxx, read
+# through ember::Product()) and what its version resources and header mark are
+# built from. Another product supplies its own file in place of this one.
+include("${CMAKE_CURRENT_LIST_DIR}/sf4e_embed.cmake")
+get_filename_component(SF4E_PRODUCT_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+set(SF4E_PRODUCT_NAME "SF4 Ember Netplay")
+set(SF4E_PRODUCT_COMPANY "SF4 Ember Netplay Contributors")
+set(SF4E_PRODUCT_COPYRIGHT "MIT License. Unofficial USF4 netplay port.")
+set(SF4E_PRODUCT_ICON "${SF4E_PRODUCT_SOURCE_DIR}/src/ui/ember.ico")
+set(SF4E_PRODUCT_MARK "${SF4E_PRODUCT_SOURCE_DIR}/src/ui/ember.rgba")
+
+# Compiles the identity into `target`. The approved ink mark is embedded with
+# it and packed into the font atlas (Theme.cxx), so no DX9 resource or runtime
+# image is needed, including after a device reset.
+function(sf4e_add_product_identity target)
+    file(SIZE "${SF4E_PRODUCT_MARK}" mark_size)
+    if(NOT mark_size EQUAL 65536)
+        message(FATAL_ERROR "Ember atlas must be 128x128 RGBA; run scripts/build-ember-brand.py")
+    endif()
+    sf4e_hex_bytes("${SF4E_PRODUCT_MARK}" mark_bytes)
+    set(generated "${CMAKE_CURRENT_BINARY_DIR}/generated/product")
+    file(GENERATE OUTPUT "${generated}/EmbeddedBrand.hxx" CONTENT
+        "#pragma once\nnamespace sf4e { namespace ui { namespace brand {\nconstexpr int Size = 128;\nstatic const unsigned char Pixels[] = {\n${mark_bytes}\n};\n} } }\n")
+    target_sources(${target} PRIVATE "${SF4E_PRODUCT_SOURCE_DIR}/src/product/Sf4Product.cxx")
+    target_include_directories(${target} PRIVATE "${generated}")
+endfunction()

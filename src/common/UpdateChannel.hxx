@@ -8,12 +8,13 @@
 namespace sf4e { namespace updates {
 
 	enum class ReleaseKind { Stable, Beta, Nightly };
-	constexpr const char* kDefaultGithubRepo = "Confetti3/SF4-Ember-Netplay";
 	enum class UpdateChannel { Stable, Beta, Nightly };
+	// Which of the product's repositories (ember::ProductIdentity) a channel reads.
+	enum class ReleaseRepo { Stable, Nightly };
 	struct UpdateChannelInfo {
 		UpdateChannel channel;
 		const char* stored;
-		const char* repo;
+		ReleaseRepo repo;
 		const char* labelKey;
 		const char* detailKey;
 		ReleaseKind kind;
@@ -23,11 +24,11 @@ namespace sf4e { namespace updates {
 		bool Accepts(ReleaseKind releaseKind) const { return acceptedKinds[static_cast<std::size_t>(releaseKind)]; }
 	};
 	inline constexpr UpdateChannelInfo kUpdateChannels[] = {
-		{UpdateChannel::Stable, "stable", kDefaultGithubRepo, "updates.channel.stable", "updates.channel_detail",
+		{UpdateChannel::Stable, "stable", ReleaseRepo::Stable, "updates.channel.stable", "updates.channel_detail",
 			ReleaseKind::Stable, {true, false, false}, true, UpdateChannel::Beta},
-		{UpdateChannel::Beta, "prerelease", kDefaultGithubRepo, "updates.channel.prerelease", "updates.channel_detail",
+		{UpdateChannel::Beta, "prerelease", ReleaseRepo::Stable, "updates.channel.prerelease", "updates.channel_detail",
 			ReleaseKind::Beta, {true, true, false}, false, UpdateChannel::Nightly},
-		{UpdateChannel::Nightly, "nightly", "Confetti3/SF4-Ember-Netplay-Nightly", "updates.channel.nightly", "updates.channel.nightly_detail",
+		{UpdateChannel::Nightly, "nightly", ReleaseRepo::Nightly, "updates.channel.nightly", "updates.channel.nightly_detail",
 			ReleaseKind::Nightly, {false, false, true}, false, UpdateChannel::Stable}
 	};
 	inline const UpdateChannelInfo& GetUpdateChannelInfo(UpdateChannel channel) {

@@ -17,6 +17,7 @@
 #include "../Dimps/Dimps__Eva.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "sf4e.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__Game__Battle.hxx"
@@ -394,7 +395,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
         try
         {
             wchar_t logpath[MAX_PATH];
-            PathCombineW(logpath, path, L"sf4e/logs/sf4e.log");
+            PathCombineW(logpath, path, (std::wstring(ember::Product().appDataFolder) + L"/logs/" + ember::Product().gameLog).c_str());
             int max_size = 1048576 * 5; // 5MB
             int max_files = 10;
 
@@ -426,7 +427,7 @@ int fMain::Initialize(void* a, void* b, void* c) {
             spdlog::info("Sidecar build: revision={}", SF4E_SOURCE_REVISION);
             if (!fileError.empty()) spdlog::error("sf4e.log is unavailable, so this session is not written to it: {}", fileError);
             wchar_t logsDirectory[MAX_PATH];
-            PathCombineW(logsDirectory, path, L"sf4e/logs");
+            PathCombineW(logsDirectory, path, (std::wstring(ember::Product().appDataFolder) + L"/logs").c_str());
             sf4e::crash::Install(logsDirectory);
             sf4e::crash::WatchGameExit();
             LogVSyncForced();

@@ -1,6 +1,7 @@
 #include "netplay_persist.hxx"
 #include "../../netplay/SettingsStore.hxx"
 #include "../../netplay/InputDelayPreference.hxx"
+#include "../../common/ProductIdentity.hxx"
 
 #include <fstream>
 #include <random>
@@ -19,7 +20,7 @@ namespace launcher {
 		if (FAILED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, SHGFP_TYPE_CURRENT, appData))) {
 			return false;
 		}
-		if (FAILED(PathCchCombine(outPath, outPathChars, appData, L"sf4e"))) {
+		if (FAILED(PathCchCombine(outPath, outPathChars, appData, ember::Product().appDataFolder))) {
 			return false;
 		}
 		CreateDirectoryW(outPath, NULL);

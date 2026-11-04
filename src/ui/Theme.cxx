@@ -1,8 +1,8 @@
 #include "Theme.hxx"
 #include "EmbeddedFonts.hxx"
-#include "EmbeddedBrand.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -31,7 +31,7 @@ ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
                   (rgb & 255) / 255.f, alpha);
 }
 const unsigned Ink = 0x141312, Panel = 0x211E1B, Border = 0x443A31;
-const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B, Ember = 0xFF8738;
+const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B, Ember = ember::Product().branding.accent;
 const float BodySize = 18.f;
 
 constexpr std::size_t ScriptFontCount = std::size(fonts::ScriptFonts);
@@ -254,7 +254,8 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     }
     io.FontGlobalScale = scale;
     io.FontDefault = io.Fonts->Fonts[0];
-    const int markIndex = io.Fonts->AddCustomRectRegular(brand::Size, brand::Size);
+    const auto& branding = ember::Product().branding;
+    const int markIndex = io.Fonts->AddCustomRectRegular(branding.markSize, branding.markSize);
     IM_ASSERT(markIndex == 0); // Clear above makes this the first custom rectangle.
     const bool built = io.Fonts->Build();
     // A size passed with a font is its em from here; the default size stays sizes[i].
@@ -270,11 +271,11 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     // it: an unplaced rectangle reads 0xFFFF, which would write far past the
     // pixels, so a failed or partial build skips the mark instead.
     const bool markFits = built && pixels && mark && mark->IsPacked() &&
-        mark->X + brand::Size <= atlasWidth && mark->Y + brand::Size <= atlasHeight;
+        mark->X + branding.markSize <= atlasWidth && mark->Y + branding.markSize <= atlasHeight;
     if (markFits)
-        for (int row = 0; row < brand::Size; ++row)
+        for (int row = 0; row < branding.markSize; ++row)
             std::memcpy(pixels + ((mark->Y + row) * atlasWidth + mark->X) * 4,
-                        brand::Pixels + row * brand::Size * 4, brand::Size * 4);
+                        branding.mark + row * branding.markSize * 4, branding.markSize * 4);
     ReportAtlasBuild(built && markFits, atlasWidth, atlasHeight, atlasUserGlyphs.size(), userGlyphsAdded);
     io.Fonts->TexPixelsUseColors = true;
     ImGuiStyle style;

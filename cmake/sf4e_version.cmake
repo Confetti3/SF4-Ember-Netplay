@@ -1,4 +1,6 @@
 # Embed Windows VERSIONINFO + manifest on shipped binaries (helps SmartScreen / Defender reputation).
+# The product's names and icon come from sf4e_product.cmake.
+include("${CMAKE_CURRENT_LIST_DIR}/sf4e_product.cmake")
 
 function(sf4e_configure_windows_version target file_description original_filename file_type)
   if(NOT MSVC)
@@ -27,7 +29,7 @@ function(sf4e_configure_windows_version target file_description original_filenam
   # The resource compiler's dependency scan follows #include only, not the
   # ICON line, so a new ember.ico would otherwise leave the old icon embedded.
   set_property(SOURCE "${CMAKE_CURRENT_BINARY_DIR}/generated/${target}.rc"
-    APPEND PROPERTY OBJECT_DEPENDS "${SF4E_BRAND_SOURCE_DIR}/src/ui/ember.ico")
+    APPEND PROPERTY OBJECT_DEPENDS "${SF4E_PRODUCT_ICON}")
 endfunction()
 
 function(sf4e_embed_manifest target manifest_filename)

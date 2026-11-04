@@ -5,6 +5,7 @@
 // lies inside the game's Wine prefix.
 #include <Windows.h>
 #include <string>
+#include "../../common/ProductIdentity.hxx"
 
 namespace sf4e { namespace launcher {
 
@@ -22,7 +23,7 @@ inline std::wstring UpdateLogPathW() {
 	wchar_t temp[MAX_PATH + 1] = {};
 	const DWORD length = GetTempPathW(MAX_PATH + 1, temp);
 	if (length == 0 || length > MAX_PATH) return std::wstring();
-	return std::wstring(temp, length) + L"sf4-netplay-update.log";
+	return std::wstring(temp, length) + ember::Product().updateLog;
 }
 
 // The log's full path, and under Wine the Linux path to the same file; empty

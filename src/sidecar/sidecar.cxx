@@ -17,6 +17,7 @@
 
 #include "../Dimps/Dimps.hxx"
 #include "../sf4e/sf4e.hxx"
+#include "../common/ProductIdentity.hxx"
 
 #include "sidecar.hxx"
 
@@ -29,7 +30,7 @@ static void BootstrapLog(const char* msg) {
 	wchar_t dir[MAX_PATH] = { 0 };
 	wchar_t logsDir[MAX_PATH] = { 0 };
 	wchar_t logPath[MAX_PATH] = { 0 };
-	if (FAILED(StringCchPrintfW(dir, MAX_PATH, L"%s\\sf4e", appData))) {
+	if (FAILED(StringCchPrintfW(dir, MAX_PATH, L"%s\\%s", appData, ember::Product().appDataFolder))) {
 		return;
 	}
 	CreateDirectoryW(dir, NULL);

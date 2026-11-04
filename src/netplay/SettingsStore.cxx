@@ -1,6 +1,7 @@
 #include "SettingsStore.hxx"
 #include "JsonFileStore.hxx"
 #include "BoolPreferences.hxx"
+#include "../common/ProductIdentity.hxx"
 
 #define NOMINMAX
 #include <windows.h>
@@ -107,7 +108,7 @@ SettingsStore::SettingsStore(std::wstring directory) : directory_(std::move(dire
 std::wstring SettingsStore::DefaultDirectory() {
     PWSTR appData = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, nullptr, &appData))) return {};
-    const auto path = Path(appData) / L"sf4e";
+    const auto path = Path(appData) / ember::Product().appDataFolder;
     CoTaskMemFree(appData);
     return path.wstring();
 }

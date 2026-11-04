@@ -1,6 +1,7 @@
 #include "ReportWorkflow.hxx"
 #include "Utf8.hxx"
 #include "../common/install_paths.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/Localization.hxx"
 #include "../netplay/BoolPreferences.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -42,7 +43,7 @@ Report Prepare(const Preparation& input, const Account& account, const std::func
     Metadata meta; meta.kind = input.crash ? "crash" : "problem";
     meta.appVersion = SF4E_APP_VERSION; meta.sourceRevision = SF4E_SOURCE_REVISION;
     meta.channel = ReportChannel(input.channel);
-    if (!install::ResolveInstallFile(L"Sidecar.dll", sidecar, MAX_PATH)) throw std::runtime_error("Sidecar missing");
+    if (!install::ResolveInstallFile(ember::Product().gameModule, sidecar, MAX_PATH)) throw std::runtime_error("Sidecar missing");
     meta.buildId = launcher::Sha256Hex(sidecar);
     if (meta.buildId.size() != 64) throw std::runtime_error("Sidecar hash");
     OSVERSIONINFOW version{}; version.dwOSVersionInfoSize = sizeof(version);

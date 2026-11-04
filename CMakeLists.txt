@@ -15,6 +15,10 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_tests.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_roomhost_sources.cmake")
 
 option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Windows/game dependencies" OFF)
+# SF4 Ember's identity (cmake/sf4e_product.cmake). Every executable, the tests
+# among them, links it; the libraries only read it.
+add_library(sf4e_product STATIC)
+sf4e_add_product_identity(sf4e_product)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
 add_library(sf4e_selection STATIC ${SF4E_ROOMHOST_selection} "src/common/InstalledContent.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
@@ -113,7 +117,6 @@ target_compile_features(sf4e_problem_report PUBLIC cxx_std_17)
 target_link_libraries(sf4e_problem_report PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(sf4e_ui PUBLIC sf4e_problem_report)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_brand.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_chat_filter.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_speech_relay.cmake")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
@@ -327,7 +330,7 @@ target_link_libraries(
 # bring Dimps), so the same sources port to Linux.
 add_executable(sf4e-room-host ${SF4E_ROOMHOST_host} ${SF4E_ROOMHOST_host_windows})
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
-target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room)
+target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room sf4e_product)
 
 
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
@@ -340,7 +343,7 @@ target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
-target_link_libraries(Launcher PRIVATE sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
+target_link_libraries(Launcher PRIVATE sf4e_product sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
 # As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
 target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
@@ -366,13 +369,13 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "sr
 )
 
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)
-target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e)
-sf4e_configure_windows_version(Sidecar "SF4 Ember Netplay Sidecar" "Sidecar.dll" "VFT_DLL")
+target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e sf4e_product)
+sf4e_configure_windows_version(Sidecar "${SF4E_PRODUCT_NAME} Sidecar" "Sidecar.dll" "VFT_DLL")
 sf4e_embed_manifest(Sidecar "Sidecar.dll.manifest")
 
 target_compile_definitions(Launcher PRIVATE -D_UNICODE -DUNICODE "SF4E_APP_VERSION=\"${PROJECT_VERSION}\"")
 set_target_properties(Launcher PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-sf4e_configure_windows_version(Launcher "SF4 Ember Netplay" "Launcher.exe" "VFT_APP")
+sf4e_configure_windows_version(Launcher "${SF4E_PRODUCT_NAME}" "Launcher.exe" "VFT_APP")
 sf4e_embed_manifest(Launcher "Launcher.exe.manifest")
 # The source revision the launcher and Sidecar log at startup, refreshed on every build.
 set(SF4E_BUILD_IDENTITY_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
@@ -401,9 +404,9 @@ target_link_libraries(sf4e_updater_run PUBLIC sf4e_package_installer comctl32 us
 add_library(sf4e_package_installer STATIC src/launcher/update/PackageInstaller.cxx src/launcher/update/ZipExtract.cxx)
 target_compile_features(sf4e_package_installer PUBLIC cxx_std_17)
 target_link_libraries(sf4e_package_installer PUBLIC sf4e_selection nlohmann_json::nlohmann_json bcrypt PRIVATE sf4e_durable_file ZLIB::ZLIB)
-target_link_libraries(Updater PRIVATE sf4e_updater_run sf4e_selection "pathcch" "shell32")
+target_link_libraries(Updater PRIVATE sf4e_product sf4e_updater_run sf4e_selection "pathcch" "shell32")
 set_target_properties(Updater PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-sf4e_configure_windows_version(Updater "SF4 Ember Netplay Updater" "Updater.exe" "VFT_APP")
+sf4e_configure_windows_version(Updater "${SF4E_PRODUCT_NAME} Updater" "Updater.exe" "VFT_APP")
 
 install(
   TARGETS Launcher Sidecar Updater

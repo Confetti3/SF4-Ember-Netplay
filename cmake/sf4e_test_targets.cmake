@@ -13,7 +13,7 @@ sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" ST
 # It needs spdlog and GGPO, so it stays out of the core-only build.
 add_executable(HeapCorruptionCaptureTest "src/tests/heap_corruption_capture_test.cxx" "src/sf4e/sf4e__CrashDiagnostics.cxx" "src/sf4e/sf4e__ImportPatch.cxx")
 target_compile_features(HeapCorruptionCaptureTest PRIVATE cxx_std_17)
-target_link_libraries(HeapCorruptionCaptureTest PRIVATE spdlog::spdlog ggpo::GGPO "dbghelp" "psapi" "shlwapi")
+target_link_libraries(HeapCorruptionCaptureTest PRIVATE sf4e_product spdlog::spdlog ggpo::GGPO "dbghelp" "psapi" "shlwapi")
 add_test(NAME HeapCorruptionCapture COMMAND HeapCorruptionCaptureTest)
 add_test(NAME HeapCheckSettings COMMAND HeapCorruptionCaptureTest heap-check-settings)
 add_test(NAME HeapCheckEnvironment COMMAND HeapCorruptionCaptureTest heap-check-environment)
@@ -40,14 +40,14 @@ ExternalProject_Add(DiscordBridgeFixture
     BUILD_COMMAND "${CMAKE_COMMAND}" --build <BINARY_DIR> --config Release
     INSTALL_COMMAND "")
 add_executable(DiscordBridgeTest src/tests/discord_bridge_test.cxx)
-target_link_libraries(DiscordBridgeTest PRIVATE sf4e_helper_platform advapi32)
+target_link_libraries(DiscordBridgeTest PRIVATE sf4e_product sf4e_helper_platform advapi32)
 add_dependencies(DiscordBridgeTest DiscordBridgeFixture)
 add_test(NAME DiscordBridge COMMAND DiscordBridgeTest "${CMAKE_BINARY_DIR}/discord-bridge-fixture/Release/DiscordBridgeFixture.exe")
 set_tests_properties(DiscordBridge PROPERTIES TIMEOUT 30)
 sf4e_test_labels(LABELS discord TESTS DiscordBridge)
 # Manual live-Discord check; never part of unattended CTest runs.
 add_executable(DiscordSmokeTest src/tests/discord_smoke_test.cxx)
-target_link_libraries(DiscordSmokeTest PRIVATE sf4e_helper_platform nlohmann_json::nlohmann_json)
+target_link_libraries(DiscordSmokeTest PRIVATE sf4e_product sf4e_helper_platform nlohmann_json::nlohmann_json)
 
 sf4e_add_unit_test(NAME RoomAuthority SOURCES "src/tests/room_authority_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomDelayLimits SOURCES "src/tests/room_delay_limits_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
@@ -107,7 +107,7 @@ sf4e_add_unit_test(NAME TrainingDummyControl SOURCES "src/tests/training_dummy_c
 
 # imgui for the glyph ranges the catalog coverage check reads, headers only.
 add_executable(LocalizationTest "src/tests/localization_test.cxx")
-target_link_libraries(LocalizationTest PRIVATE sf4e_localization imgui::imgui)
+target_link_libraries(LocalizationTest PRIVATE sf4e_product sf4e_localization imgui::imgui)
 # EmbeddedFonts.hxx: coverage is checked against the font bytes that ship.
 target_include_directories(LocalizationTest PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 add_test(NAME Localization COMMAND LocalizationTest "${CMAKE_SOURCE_DIR}")
@@ -115,7 +115,7 @@ sf4e_add_unit_test(NAME GameLanguage SOURCES "src/tests/game_language_test.cxx" 
 # The country table against the flag atlas, its index, the catalogs and the
 # package inventory, and the copies a build stages beside Sidecar.dll.
 add_executable(CountriesTest "src/tests/countries_test.cxx")
-target_link_libraries(CountriesTest PRIVATE sf4e_localization nlohmann_json::nlohmann_json)
+target_link_libraries(CountriesTest PRIVATE sf4e_product sf4e_localization nlohmann_json::nlohmann_json)
 add_test(NAME Countries COMMAND CountriesTest "${CMAKE_SOURCE_DIR}" "$<TARGET_FILE_DIR:Sidecar>")
 
 sf4e_add_unit_test(NAME LobbyMusic SOURCES "src/tests/lobby_music_test.cxx" LIBS sf4e_selection STD 17 TIMEOUT 15)
@@ -174,11 +174,11 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
     sf4e_test_labels(LABELS ui TESTS SpeechRelay)
 endif()
-target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
+target_link_libraries(UiRenderTest PRIVATE sf4e_product sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
 add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx")
 target_compile_definitions(UiLab PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-target_link_libraries(UiLab PRIVATE sf4e_ui "d3d9" "xinput" "shell32")
+target_link_libraries(UiLab PRIVATE sf4e_product sf4e_ui "d3d9" "xinput" "shell32")
 add_test(NAME UiRender COMMAND UiRenderTest)
 # Each sweep takes under a minute with the GPU transforming vertices. The
 # budgets cover an adapter without hardware transform, where the CPU does
@@ -200,7 +200,7 @@ add_test(NAME UiRenderGallery COMMAND UiRenderTest - "${CMAKE_BINARY_DIR}/no-gam
 set_tests_properties(UiRenderGallery PROPERTIES TIMEOUT 600 ENVIRONMENT "SF4E_UI_RENDER_GALLERY=1;SF4E_UI_RENDER_QUICK=1")
 add_executable(SelectionArtTest src/tests/selection_art_test.cxx)
 target_compile_definitions(SelectionArtTest PRIVATE SF4E_TEST_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-target_link_libraries(SelectionArtTest PRIVATE sf4e_ui "d3d9")
+target_link_libraries(SelectionArtTest PRIVATE sf4e_product sf4e_ui "d3d9")
 add_test(NAME SelectionArt COMMAND SelectionArtTest)
 set_tests_properties(SelectionArt PROPERTIES TIMEOUT 60)
 
@@ -215,13 +215,13 @@ sf4e_add_unit_test(NAME RandomFighterRuntime SOURCES "src/tests/random_fighter_r
 sf4e_add_unit_test(NAME MatchProblem SOURCES "src/tests/match_problem_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
 add_executable(AbortNoticeTest "src/tests/abort_notice_test.cxx")
 target_compile_features(AbortNoticeTest PRIVATE cxx_std_17)
-target_link_libraries(AbortNoticeTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
+target_link_libraries(AbortNoticeTest PRIVATE sf4e_product Session sf4e sf4e_localization Dimps "d3d9")
 add_test(NAME AbortNotice COMMAND AbortNoticeTest)
 set_tests_properties(AbortNotice PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "Abort notice passed")
 sf4e_test_locks(AbortNotice loopback_udp_ports)
 add_executable(PresentationSnapshotTest "src/tests/presentation_snapshot_test.cxx")
 target_compile_features(PresentationSnapshotTest PRIVATE cxx_std_17)
-target_link_libraries(PresentationSnapshotTest PRIVATE Session sf4e sf4e_localization Dimps "d3d9")
+target_link_libraries(PresentationSnapshotTest PRIVATE sf4e_product Session sf4e sf4e_localization Dimps "d3d9")
 add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
 # Its two-thread check keeps both threads busy for three seconds.
 set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")

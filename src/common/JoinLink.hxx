@@ -12,6 +12,8 @@
 
 #include <string>
 
+#include "ProductIdentity.hxx"
+
 namespace sf4e {
 namespace join_link {
 
@@ -50,8 +52,8 @@ inline std::string ParseUri(const std::string& text) {
 		const unsigned char character = static_cast<unsigned char>(text[i]);
 		if (character < 0x21 || character > 0x7E) return std::string();
 	}
-	static const char prefix[] = "ember://join/";
-	const std::size_t prefixLength = sizeof(prefix) - 1;
+	static const std::string prefix = ember::SchemeLink("join/");
+	const std::size_t prefixLength = prefix.size();
 	if (text.size() <= prefixLength) return std::string();
 	for (std::size_t i = 0; i < prefixLength; ++i) {
 		char symbol = text[i];

@@ -1,6 +1,7 @@
 #include "SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
 #include <wincodec.h>
@@ -346,7 +347,7 @@ SelectionArt::SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstri
     : impl_(new Impl(std::move(uploader), std::move(game), std::move(assets), std::move(log))) {}
 SelectionArt::~SelectionArt() = default;
 SelectionImage SelectionArt::MenuBackdrop() {
-    return impl_->Request("ember-menu-background",[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../brand/ember-menu-background.png"}; },2048);
+    return impl_->Request("ember-menu-background",[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../"+ember::Product().branding.menuBackdrop}; },2048);
 }
 SelectionImage SelectionArt::InputPrompt(const std::string& name) {
     return impl_->Request("input-"+name,[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../input/"+std::wstring(name.begin(),name.end())+L".png"}; },128);

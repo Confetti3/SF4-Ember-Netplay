@@ -3,6 +3,7 @@
 #include <sddl.h>
 #include <string>
 #include <vector>
+#include "../common/ProductIdentity.hxx"
 
 namespace sf4e { namespace platform {
 // The SDK's registered command contains no ticket. Repeated launches simply
@@ -21,7 +22,7 @@ public:
         CloseHandle(token); if(!ok) return false;
         LPWSTR sid=nullptr;
         if(!ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(bytes.data())->User.Sid,&sid)) return false;
-        const std::wstring name=L"Local\\Ember.Launcher."+std::wstring(sid)+scope;
+        const std::wstring name=ember::Product().launcherInstancePrefix+std::wstring(sid)+scope;
         const std::wstring sddl=L"D:P(A;;GA;;;"+std::wstring(sid)+L")";
         LocalFree(sid);
         PSECURITY_DESCRIPTOR descriptor=nullptr;

@@ -6,6 +6,7 @@
 #include "../../common/ReleaseNotesText.hxx"
 #include "ZipExtract.hxx"
 #include "UpdateLogPath.hxx"
+#include "../../common/ProductIdentity.hxx"
 
 namespace sf4e {
 namespace launcher {
@@ -35,9 +36,9 @@ namespace launcher {
 				const auto written = entry.last_write_time(error);
 				if (error || written > cutoff) { error.clear(); continue; }
 				const auto name = entry.path().filename().wstring();
-				const bool updateRoot = name.rfind(L"sf4-netplay-update-", 0) == 0 && entry.is_directory(error);
-				const bool updaterCopy = name.rfind(L"sf4e-updater-", 0) == 0 && entry.is_directory(error);
-				const bool packageZip = name.rfind(L"sf4-netplay-update-package-", 0) == 0 &&
+				const bool updateRoot = name.rfind(ember::Product().updateTempPrefix, 0) == 0 && entry.is_directory(error);
+				const bool updaterCopy = name.rfind(ember::Product().updaterCopyPrefix, 0) == 0 && entry.is_directory(error);
+				const bool packageZip = name.rfind(std::wstring(ember::Product().updateTempPrefix) + L"package-", 0) == 0 &&
 					entry.path().extension() == L".zip";
 				if (updateRoot && _wcsicmp(entry.path().c_str(), currentRoot) == 0) continue;
 				if (updateRoot || updaterCopy || packageZip) std::filesystem::remove_all(entry.path(), error);
@@ -56,10 +57,10 @@ namespace launcher {
 		static bool StageUpdaterOutsideInstall(const wchar_t* installDir, const wchar_t* updaterDir,
 			wchar_t* outPath, size_t outLen) {
 			wchar_t source[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(source, MAX_PATH, updaterDir, L"Updater.exe")) ||
+			if (FAILED(PathCchCombine(source, MAX_PATH, updaterDir, ember::Product().updaterExe)) ||
 				GetFileAttributesW(source) == INVALID_FILE_ATTRIBUTES) {
 				// Fall back to the installed copy only if the package lacks one.
-				if (FAILED(PathCchCombine(source, MAX_PATH, installDir, L"Updater.exe")) ||
+				if (FAILED(PathCchCombine(source, MAX_PATH, installDir, ember::Product().updaterExe)) ||
 					GetFileAttributesW(source) == INVALID_FILE_ATTRIBUTES) {
 					AppendUpdateLog("Updater.exe missing in staged package and install dir");
 					return false;
@@ -72,14 +73,14 @@ namespace launcher {
 				return false;
 			}
 			wchar_t leaf[64] = { 0 };
-			swprintf_s(leaf, L"sf4e-updater-%lu-%llu", GetCurrentProcessId(),
+			swprintf_s(leaf, L"%ls%lu-%llu", ember::Product().updaterCopyPrefix, GetCurrentProcessId(),
 				static_cast<unsigned long long>(GetTickCount64()));
 			wchar_t dir[MAX_PATH] = { 0 };
 			if (FAILED(PathCchCombine(dir, MAX_PATH, tempRoot, leaf)) || !CreateDirectoryW(dir, NULL)) {
 				AppendUpdateLog("could not create updater temp directory");
 				return false;
 			}
-			if (FAILED(PathCchCombine(outPath, outLen, dir, L"Updater.exe")) ||
+			if (FAILED(PathCchCombine(outPath, outLen, dir, ember::Product().updaterExe)) ||
 				!CopyFileW(source, outPath, TRUE)) {
 				AppendUpdateLog("could not copy Updater.exe outside the install");
 				return false;
@@ -232,7 +233,7 @@ namespace launcher {
 			}
 
 			wchar_t folderName[128] = { 0 };
-			swprintf_s(folderName, L"sf4-netplay-update-%ls", tempSub);
+			swprintf_s(folderName, L"%ls%ls", ember::Product().updateTempPrefix, tempSub);
 			if (FAILED(PathCchCombine(tempRoot, tempRootChars, tempBase, folderName))) {
 				outError = "PathCchCombine failed";
 				return false;
@@ -387,7 +388,7 @@ namespace launcher {
 		bool running = false;
 		if (Process32FirstW(snap, &pe)) {
 			do {
-				if (_wcsicmp(pe.szExeFile, L"SSFIV.exe") == 0) {
+				if (_wcsicmp(pe.szExeFile, ember::Product().gameExe) == 0) {
 					running = true;
 					break;
 				}
@@ -398,7 +399,9 @@ namespace launcher {
 	}
 
 	const char* UpdateChannelName(UpdateChannel channel) { return GetUpdateChannelInfo(channel).stored; }
-	const char* UpdateChannelRepo(UpdateChannel channel) { return GetUpdateChannelInfo(channel).repo; }
+	const char* UpdateChannelRepo(UpdateChannel channel) {
+		return GetUpdateChannelInfo(channel).repo == updates::ReleaseRepo::Nightly ? ember::Product().nightlyRepo : ember::Product().stableRepo;
+	}
 
 	bool TransitionOffered(const char* tag, const char* installed, bool goBack) {
 		const auto target = ParseVersion(tag), current = ParseVersion(installed);
@@ -496,7 +499,7 @@ namespace launcher {
 				if (name.size() > symbols.size() && name.compare(name.size()-symbols.size(), symbols.size(), symbols) == 0) {
 					continue;
 				}
-				if (name.compare(0, strlen(kReleaseZipPrefix), kReleaseZipPrefix) == 0) {
+				if (name.compare(0, strlen(ember::Product().releaseZipPrefix), ember::Product().releaseZipPrefix) == 0) {
 					result.zipDownloadUrl = Text(asset, "browser_download_url");
 					result.zipApiUrl = Text(asset, "url");
 					result.expectedSha256 = parseSha256Digest(Text(asset, "digest"));
@@ -638,7 +641,7 @@ namespace launcher {
 
 		wchar_t zipPath[MAX_PATH] = { 0 };
 		wchar_t zipName[128] = { 0 };
-		swprintf_s(zipName, L"sf4-netplay-update-package-%hs.zip", safeTag);
+		swprintf_s(zipName, L"%lspackage-%hs.zip", ember::Product().updateTempPrefix, safeTag);
 		if (FAILED(PathCchCombine(zipPath, MAX_PATH, tempBase, zipName))) {
 			result.error = loc::T("update.zip_path_failed");
 			return result;

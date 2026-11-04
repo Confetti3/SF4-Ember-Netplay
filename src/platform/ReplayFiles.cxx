@@ -22,6 +22,7 @@
 #include <spdlog/spdlog.h>
 
 #include "Utf8.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "ReplayPath.hxx"
 #include "DurableFile.hxx"
 #include "ReplayRecordingChanges.hxx"
@@ -237,9 +238,9 @@ Folders FindFolders() {
 	PWSTR appData = NULL, localAppData = NULL;
 	// Where replays go does not depend on Steam, so an outbox is drained even
 	// when no game's saves can be found.
-	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / L"sf4e" / L"replays";
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / ember::Product().appDataFolder / L"replays";
 	CoTaskMemFree(appData);
-	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / L"sf4e" / L"replay-outbox";
+	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / ember::Product().appDataFolder / L"replay-outbox";
 	CoTaskMemFree(localAppData);
 	if (folders.archive.empty() ||
 		RegGetValueW(HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", RRF_RT_REG_SZ, NULL, steamPath, &steamPathBytes) != ERROR_SUCCESS) return folders;

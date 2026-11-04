@@ -2,6 +2,7 @@
 #include "ReportUnicodeTables.hxx"
 #include "../common/JoinLink.hxx"
 #include "../common/BoundedRead.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -20,6 +21,13 @@ namespace sf4e { namespace reports {
 namespace {
 std::string Hex(std::uint64_t value) {
     std::ostringstream out; out << "0x" << std::hex << value; return out.str();
+}
+// The logs a report may carry, from the product's logs folder, in the order
+// they are attached. Their names are ASCII.
+std::array<std::string, 4> ReportLogs() {
+    const auto narrow = [](const wchar_t* name) { std::string text; for (; *name; ++name) text += static_cast<char>(*name); return text; };
+    const auto& product = ember::Product();
+    return {narrow(product.gameLog), narrow(product.launcherLog), narrow(product.crashLog), narrow(product.helperLog)};
 }
 bool HexDigits(const std::string& text, std::size_t count) {
     return text.size() == count && std::all_of(text.begin(), text.end(), [](unsigned char c) { return std::isxdigit(c) != 0; });
@@ -255,7 +263,8 @@ std::string RedactLine(std::string_view line, const Account& account) {
     };
     // Prefixes identify invitation payloads; the explicit URI alphabet leaves
     // wrapper punctuation outside the span, including a sentence's final dot.
-    static const std::regex invite(R"(\b((https?://)?embernetplay\.link/(j|s|v1)[/#]|sf4e[0-9]+:|emd[0-9]+:|ember://))",std::regex::icase);
+    static const std::regex invite(R"(\b((https?://)?embernetplay\.link/(j|s|v1)[/#]|sf4e[0-9]+:|emd[0-9]+:|)"+
+        std::string(ember::Product().urlScheme)+R"(://))",std::regex::icase);
     for(auto it=std::sregex_iterator(text.begin(),text.end(),invite);it!=std::sregex_iterator();++it) {
         const auto begin=static_cast<std::size_t>(it->position());
         const auto payload=begin+static_cast<std::size_t>(it->length());
@@ -378,8 +387,9 @@ bool BuildMultipart(const Report& report, const Submission& submission, const st
     const auto collision=[&](const std::string& bytes){return bytes.find(boundary)!=std::string::npos;};
     if (collision(meta)) return reject();
     std::set<std::string> names;
+    const auto allowed=ReportLogs();
     for (const auto& log:report.logs) {
-        if ((log.name!="sf4e.log"&&log.name!="launcher.log"&&log.name!="sf4e-crash.log"&&log.name!="sf4-net.log")||
+        if (std::find(allowed.begin(),allowed.end(),log.name)==allowed.end()||
             !names.insert(log.name).second||log.text.size()>LogLimit||!ValidUtf8(log.text)||collision(log.text)) return reject();
     }
     if (submission.includeDump&&!report.minidump.empty() &&
@@ -409,9 +419,9 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
     if (report.meta.kind=="crash") {
         report.meta.exitCode=crash.exitCode; report.meta.exceptionCode=crash.exceptionCode; report.meta.crashAddress=crash.address;
         std::error_code ec;
-        attachCrashRecord=std::filesystem::last_write_time(directory/L"sf4e-crash.log",ec)>=crash.started&&!ec;
+        attachCrashRecord=std::filesystem::last_write_time(directory/ember::Product().crashLog,ec)>=crash.started&&!ec;
         if (attachCrashRecord) {
-            std::ifstream file(directory/L"sf4e-crash.log",std::ios::binary); std::array<char,2048> bytes{};
+            std::ifstream file(directory/ember::Product().crashLog,std::ios::binary); std::array<char,2048> bytes{};
             file.read(bytes.data(),static_cast<std::streamsize>(bytes.size()));
             const std::string header(bytes.data(),static_cast<std::size_t>(file.gcount()));
             const auto fact=[&](const char* key)->std::optional<std::uint64_t> {
@@ -422,9 +432,10 @@ Report Collect(const std::filesystem::path& directory, Metadata meta, const Cras
             if (!report.meta.crashAddress) report.meta.crashAddress=fact(" address=0x");
         }
     }
-    for (const char* name:{"sf4e.log","launcher.log","sf4e-crash.log","sf4-net.log"}) {
+    const auto logs=ReportLogs();
+    for (const std::string& name:logs) {
         if (cancelled&&cancelled()) throw std::runtime_error("cancelled");
-        if (!attachCrashRecord&&name==std::string_view("sf4e-crash.log")) continue;
+        if (!attachCrashRecord&&name==logs[2]) continue;
         std::error_code ec; if (!std::filesystem::is_regular_file(directory/name,ec)||ec) continue;
         const auto tail=ReadTail(directory/name,LogLimit);
         if (afterRead) afterRead(directory/name);

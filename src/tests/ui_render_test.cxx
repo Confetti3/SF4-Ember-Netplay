@@ -9,6 +9,7 @@
 #include "../ui/SelectionArtD3D9.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "ui_render_support.hxx"
 #include "ui_render_prompt_assets.hxx"
 #include <imgui_internal.h>
@@ -655,6 +656,9 @@ int main(int argc, char** argv) {
         const bool headless = std::getenv("SF4E_UI_RENDER_HEADLESS") != nullptr;
         Require(!headless || argc == 1, "Headless UI checks cannot capture images");
         CheckBackgroundExpectation();
+        // The draw sites still name palette::Ember; it has to be the product's accent.
+        const unsigned accent = ember::Product().branding.accent;
+        Require(sf4e::ui::palette::Ember == IM_COL32(accent >> 16 & 255, accent >> 8 & 255, accent & 255, 255), "palette::Ember is not the product accent");
         Renderer renderer(headless);
         if (const char* stress = std::getenv("SF4E_UI_RENDER_ATLAS_STRESS")) {
             StressAtlas(renderer, std::atoi(stress), 1);

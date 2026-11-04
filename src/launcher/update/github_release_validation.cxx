@@ -1,5 +1,6 @@
 // Update URL allowlist, version comparison and package tree validation for the release client.
 #include "github_release_client_internal.hxx"
+#include "../../common/ProductIdentity.hxx"
 #include <cctype>
 #include <optional>
 #include <string_view>
@@ -173,14 +174,14 @@ namespace launcher {
 
 			wchar_t launcherPath[MAX_PATH] = { 0 };
 			wchar_t sidecarPath[MAX_PATH] = { 0 };
-			if (FAILED(PathCchCombine(launcherPath, MAX_PATH, searchRoot, L"Launcher.exe"))) {
+			if (FAILED(PathCchCombine(launcherPath, MAX_PATH, searchRoot, ember::Product().launcherExe))) {
 				return false;
 			}
 			const bool hasLauncher = GetFileAttributesW(launcherPath) != INVALID_FILE_ATTRIBUTES;
-			bool hasSidecar = SUCCEEDED(PathCchCombine(sidecarPath, MAX_PATH, searchRoot, L"dll\\Sidecar.dll"))
+			bool hasSidecar = SUCCEEDED(PathCchCombine(sidecarPath, MAX_PATH, searchRoot, (std::wstring(L"dll\\") + ember::Product().gameModule).c_str()))
 				&& GetFileAttributesW(sidecarPath) != INVALID_FILE_ATTRIBUTES;
 			if (!hasSidecar) {
-				hasSidecar = SUCCEEDED(PathCchCombine(sidecarPath, MAX_PATH, searchRoot, L"Sidecar.dll"))
+				hasSidecar = SUCCEEDED(PathCchCombine(sidecarPath, MAX_PATH, searchRoot, ember::Product().gameModule))
 					&& GetFileAttributesW(sidecarPath) != INVALID_FILE_ATTRIBUTES;
 			}
 			if (hasLauncher && hasSidecar) {

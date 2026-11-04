@@ -13,6 +13,8 @@
 #include <string>
 #include <utility>
 
+#include "ProductIdentity.hxx"
+
 namespace sf4e { namespace replay_link {
 
 constexpr std::size_t kLongestPath = 1024;
@@ -59,10 +61,10 @@ std::string ResolveReplayPath(const std::string& requested,const Resolve& resolv
 
 // The file the link names, or "" for anything that is not such a link.
 inline std::string ParseReplayLink(const std::string& text) {
-	static const char prefix[] = "ember://replay/open?file=";
-	if (text.size() > kLongestPath * 3 || !StartsWithFoldedReplay(text, prefix)) return std::string();
+	static const std::string prefix = ember::SchemeLink("replay/open?file=");
+	if (text.size() > kLongestPath * 3 || !StartsWithFoldedReplay(text, prefix.c_str())) return std::string();
 	std::string path;
-	for (std::size_t i = sizeof(prefix) - 1; i < text.size(); i++) {
+	for (std::size_t i = prefix.size(); i < text.size(); i++) {
 		char c = text[i];
 		if (c == '%') {
 			if (i + 2 >= text.size() || !std::isxdigit(static_cast<unsigned char>(text[i + 1])) || !std::isxdigit(static_cast<unsigned char>(text[i + 2]))) return std::string();
@@ -76,7 +78,7 @@ inline std::string ParseReplayLink(const std::string& text) {
 
 // Percent-encodes a path for the link; letters, digits and a few safe marks stay.
 inline std::string MakeReplayLink(const std::string& path) {
-	std::string link = "ember://replay/open?file=";
+	std::string link = ember::SchemeLink("replay/open?file=");
 	for (unsigned char c : path) {
 		if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') link += static_cast<char>(c);
 		else { char hex[4]; std::snprintf(hex, sizeof(hex), "%%%02X", c); link += hex; }

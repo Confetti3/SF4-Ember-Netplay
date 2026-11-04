@@ -7,6 +7,7 @@
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
@@ -75,10 +76,11 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
     Tone messageTone, bool canStart, const std::optional<reports::CrashContext>& crash, const std::optional<launcher::InstallOffer>& offer) {
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{}; wc.lpfnWndProc = WindowProc; wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"SF4EmberRecovery"; wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    const std::wstring windowClass = ember::WindowClassName(L"Recovery");
+    wc.lpszClassName = windowClass.c_str(); wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hIcon = LoadIconW(wc.hInstance, MAKEINTRESOURCEW(101));
     RegisterClassW(&wc);
-    HWND window = CreateWindowW(wc.lpszClassName, L"SF4 Ember Netplay", WS_OVERLAPPEDWINDOW,
+    HWND window = CreateWindowW(wc.lpszClassName, Utf8ToWide(ember::Product().branding.productName).c_str(), WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 940, 720, nullptr, nullptr, wc.hInstance, nullptr);
     if (window) FitWindowToDisplay(window, 940, 720);
     auto* d3d = Direct3DCreate9(D3D_SDK_VERSION); IDirect3DDevice9* device = nullptr;
@@ -189,7 +191,7 @@ bool RunRecovery(std::string message, std::wstring& gameDirectory, bool updates,
             // opens: a button held while it was up cannot press on return.
             controller->Deactivate();
             if(ChooseDirectory(window,gameDirectory)){
-                const bool valid=std::filesystem::exists(std::filesystem::path(gameDirectory)/L"SSFIV.exe");
+                const bool valid=std::filesystem::exists(std::filesystem::path(gameDirectory)/ember::Product().gameExe);
                 message=valid?loc::T("recovery.folder_selected"):loc::T("recovery.folder_invalid");
                 messageTone=valid?Tone::Success:Tone::Error;
                 serviceNewer=false;

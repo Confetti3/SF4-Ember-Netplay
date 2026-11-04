@@ -14,10 +14,12 @@
 
 #include <string>
 
+#include "../common/ProductIdentity.hxx"
+
 namespace sf4e {
 namespace platform {
 
-inline const wchar_t* GameWindowSectionName() { return L"Local\\SF4EmberGameWindow"; }
+inline const wchar_t* GameWindowSectionName() { static const std::wstring name = ember::KernelObjectName(L"GameWindow"); return name.c_str(); }
 
 // A window handle holds 32 significant bits on 32-bit and 64-bit Windows
 // alike, so the record is the same for the game and for any launcher.

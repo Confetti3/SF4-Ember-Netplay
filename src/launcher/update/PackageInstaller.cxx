@@ -1,6 +1,7 @@
 #include "PackageInstaller.hxx"
 #include "../../common/PackageInventory.hxx"
 #include "../../platform/DurableFile.hxx"
+#include "../../common/ProductIdentity.hxx"
 #include <windows.h>
 #include <bcrypt.h>
 #include <nlohmann/json.hpp>
@@ -672,7 +673,7 @@ static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, cons
     seen.insert(PathKey(L"MANIFEST.txt"));
     for(const auto& [key,relative]:inventory.required) if(!seen.count(key)) throw std::runtime_error("Incomplete package: "+relative.u8string());
     for(const auto& key:seen) if(inventory.obsolete.count(key)) throw std::runtime_error("Package carries an obsolete file");
-    if(!seen.count(PathKey(L"Launcher.exe")) || !seen.count(PathKey(L"Updater.exe"))) throw std::runtime_error("Incomplete package");
+    if(!seen.count(PathKey(ember::Product().launcherExe)) || !seen.count(PathKey(ember::Product().updaterExe))) throw std::runtime_error("Incomplete package");
     manifest[PathKey(L"MANIFEST.txt")]={fs::path(L"MANIFEST.txt"),HashFile(package/L"MANIFEST.txt")};
     return manifest;
 }

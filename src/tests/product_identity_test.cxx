@@ -1,0 +1,97 @@
+// SF4 Ember's identity (src/product/Sf4Product.cxx) against the literals it
+// replaced, byte for byte. A difference here moves SF4 Ember's settings,
+// logs, named objects, links or updates: an installed launcher, a running
+// game or a browser link would no longer find them.
+
+#include "../common/ProductIdentity.hxx"
+#include "../common/JoinLink.hxx"
+#include "../common/ReplayLink.hxx"
+#include "../common/TournamentLink.hxx"
+#ifdef _WIN32
+#include "../platform/GameWindowSection.hxx"
+#include "../platform/JoinLinkMailbox.hxx"
+#endif
+
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#include "test_support.hxx"
+
+static bool Same(const char* value, const char* literal) { return value && std::strcmp(value, literal) == 0; }
+static bool Same(const wchar_t* value, const wchar_t* literal) { return value && std::wcscmp(value, literal) == 0; }
+
+static void TestBranding() {
+	const ember::Branding& branding = ember::Product().branding;
+	CHECK(Same(branding.productName, "SF4 Ember Netplay"));
+	CHECK(Same(branding.shortName, "SF4 Ember"));
+	CHECK(Same(branding.gameName, "Ultra Street Fighter IV"));
+	CHECK(branding.accent == 0xFF8738u);
+	CHECK(branding.mark != nullptr && branding.markSize == 128);
+	CHECK(Same(branding.menuBackdrop, L"brand/ember-menu-background.png"));
+	// The version resources are written from cmake/sf4e_product.cmake.
+	CHECK(Same(branding.productName, SF4E_TEST_PRODUCT_NAME));
+	CHECK(Same(SF4E_TEST_PRODUCT_COMPANY, "SF4 Ember Netplay Contributors"));
+	CHECK(Same(SF4E_TEST_PRODUCT_COPYRIGHT, "MIT License. Unofficial USF4 netplay port."));
+}
+
+static void TestNames() {
+	const ember::ProductIdentity& product = ember::Product();
+	CHECK(Same(product.appDataFolder, L"sf4e"));
+	CHECK(Same(product.objectStem, L"SF4Ember"));
+	CHECK(Same(product.launcherInstancePrefix, L"Local\\Ember.Launcher."));
+	CHECK(Same(product.videoLinkPrefix, L"Local\\sf4e-video-"));
+	CHECK(Same(product.pipePrefix, L"\\\\.\\pipe\\sf4-net-"));
+	CHECK(Same(product.urlScheme, "ember"));
+	CHECK(Same(product.stableRepo, "Confetti3/SF4-Ember-Netplay"));
+	CHECK(Same(product.nightlyRepo, "Confetti3/SF4-Ember-Netplay-Nightly"));
+	CHECK(Same(product.releaseZipPrefix, "sf4-ember-netplay-"));
+	CHECK(Same(product.updateTempPrefix, L"sf4-netplay-update-"));
+	CHECK(Same(product.updaterCopyPrefix, L"sf4e-updater-"));
+	CHECK(Same(product.updateLog, L"sf4-netplay-update.log"));
+	CHECK(Same(product.launcherExe, L"Launcher.exe"));
+	CHECK(Same(product.updaterExe, L"Updater.exe"));
+	CHECK(Same(product.gameModule, L"Sidecar.dll"));
+	CHECK(Same(product.gameExe, L"SSFIV.exe"));
+	CHECK(Same(product.helperExe, L"sf4-net.exe"));
+	CHECK(Same(product.discordExe, L"ember-discord.exe"));
+	CHECK(Same(product.gameLog, L"sf4e.log"));
+	CHECK(Same(product.launcherLog, L"launcher.log"));
+	CHECK(Same(product.crashLog, L"sf4e-crash.log"));
+	CHECK(Same(product.helperLog, L"sf4-net.log"));
+	CHECK(Same(product.crashDumpPrefix, L"sf4e-crash-"));
+	// SF4 Ember's text is the shared catalogs' own.
+	CHECK(product.localeOverlays != nullptr && product.localeOverlays[0].tag == nullptr);
+}
+
+// The names as they are put together from the identity.
+static void TestComposedNames() {
+	CHECK(ember::KernelObjectName(L"JoinLink") == L"Local\\SF4EmberJoinLink");
+	CHECK(ember::WindowClassName(L"Recovery") == L"SF4EmberRecovery");
+	CHECK(ember::WindowClassName(L"UpdaterProgress") == L"SF4EmberUpdaterProgress");
+	CHECK(ember::SchemeLink("join/") == "ember://join/");
+	CHECK(sf4e::join_link::ParseUri("ember://join/7K3M-0X1R-T9PZ") == "7K3M0X1RT9PZ");
+	CHECK(sf4e::replay_link::MakeReplayLink("a.bin") == "ember://replay/open?file=a.bin");
+#ifdef _WIN32
+	using namespace sf4e::platform;
+	CHECK(Same(JoinLinkSectionName(), L"Local\\SF4EmberJoinLink"));
+	CHECK(Same(JoinLinkEventName(), L"Local\\SF4EmberJoinLinkReady"));
+	CHECK(Same(MatchLinkSectionName(), L"Local\\SF4EmberMatchLink"));
+	CHECK(Same(MatchLinkEventName(), L"Local\\SF4EmberMatchLinkReady"));
+	CHECK(Same(PublicRoomLinkSectionName(), L"Local\\SF4EmberPublicRoomLink"));
+	CHECK(Same(PublicRoomLinkEventName(), L"Local\\SF4EmberPublicRoomLinkReady"));
+	CHECK(Same(ConnectLinkSectionName(), L"Local\\SF4EmberConnectLink"));
+	CHECK(Same(ConnectLinkEventName(), L"Local\\SF4EmberConnectLinkReady"));
+	CHECK(Same(ReplayLinkSectionName(), L"Local\\SF4EmberReplayLink"));
+	CHECK(Same(ReplayLinkEventName(), L"Local\\SF4EmberReplayLinkReady"));
+	CHECK(Same(GameWindowSectionName(), L"Local\\SF4EmberGameWindow"));
+#endif
+}
+
+int main() {
+	TestBranding();
+	TestNames();
+	TestComposedNames();
+	std::printf("SF4 Ember's product identity matches its literals\n");
+	return 0;
+}

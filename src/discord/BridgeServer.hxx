@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include "../common/ProductIdentity.hxx"
 
 namespace sf4e { namespace discord {
 // Server half of the existing HelperClient framing. Only the injected game
@@ -16,7 +17,7 @@ public:
         if (game_) CloseHandle(game_);
     }
     bool Open(const std::wstring& name) {
-        const std::wstring prefix = L"\\\\.\\pipe\\sf4-net-";
+        const std::wstring prefix = ember::Product().pipePrefix;
         if (name.size() != prefix.size()+32 || name.compare(0,prefix.size(),prefix)) return false;
         for (size_t i=prefix.size(); i<name.size(); ++i)
             if ((name[i]<L'0'||name[i]>L'9') && (name[i]<L'a'||name[i]>L'f')) return false;

@@ -16,6 +16,7 @@
 // Pure component: no Windows, game or helper dependencies, unit tested.
 
 #include "PastedLink.hxx"
+#include "ProductIdentity.hxx"
 
 #include <string>
 
@@ -105,7 +106,8 @@ inline bool QueryValues(const std::string& text, const char* prefix, const char*
 // QueryValues).
 inline MatchLink ParseLink(const std::string& text) {
 	std::string bridge, match;
-	if (!QueryValues(text, "ember://tournament/open", "bridge", "match", bridge, match)) return MatchLink();
+	static const std::string prefix = ember::SchemeLink("tournament/open");
+	if (!QueryValues(text, prefix.c_str(), "bridge", "match", bridge, match)) return MatchLink();
 	return Checked(bridge, match);
 }
 
@@ -117,9 +119,9 @@ inline MatchLink ParseLink(const std::string& text) {
 // Connect there. Only that path with exactly the bridge parameter; a
 // browser's trailing slash is ignored.
 inline std::string ParseConnectLink(const std::string& text) {
-	static const char prefix[] = "ember://discord/connect";
-	if (!PlainText(text) || text.find('#') != std::string::npos || !StartsWithFolded(text, prefix)) return std::string();
-	std::string rest = text.substr(sizeof(prefix) - 1);
+	static const std::string prefix = ember::SchemeLink("discord/connect");
+	if (!PlainText(text) || text.find('#') != std::string::npos || !StartsWithFolded(text, prefix.c_str())) return std::string();
+	std::string rest = text.substr(prefix.size());
 	if (rest.compare(0, 2, "/?") == 0) rest.erase(0, 1);
 	if (rest.compare(0, 8, "?bridge=") != 0) return std::string();
 	std::string bridge = rest.substr(8);
@@ -217,7 +219,8 @@ inline RoomLink CheckedRoom(const std::string& bridgeId, const std::string& room
 // ember://room/open with exactly the bridge and room parameters (see QueryValues).
 inline RoomLink ParseRoomLink(const std::string& text) {
 	std::string bridge, room;
-	if (!QueryValues(text, "ember://room/open", "bridge", "room", bridge, room)) return RoomLink();
+	static const std::string prefix = ember::SchemeLink("room/open");
+	if (!QueryValues(text, prefix.c_str(), "bridge", "room", bridge, room)) return RoomLink();
 	return CheckedRoom(bridge, room);
 }
 

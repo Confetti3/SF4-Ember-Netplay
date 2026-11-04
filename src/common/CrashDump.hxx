@@ -13,6 +13,7 @@
 #include <vector>
 #include <windows.h>
 #include <dbghelp.h>
+#include "ProductIdentity.hxx"
 
 namespace sf4e {
 namespace crash {
@@ -119,9 +120,9 @@ inline HANDLE ReserveDump(HANDLE process, DWORD processId, const wchar_t* direct
 	// Two dumps of one process in one millisecond take the next free number.
 	for (int attempt = 0; attempt < 100 && file == INVALID_HANDLE_VALUE; ++attempt) {
 		const int printed = attempt == 0 ?
-			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu%s.dmp", directory, now.wYear, now.wMonth,
+			swprintf_s(path, L"%s\\%s%04u%02u%02u-%02u%02u%02u-%03u-%lu%s.dmp", directory, ember::Product().crashDumpPrefix, now.wYear, now.wMonth,
 				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, suffix) :
-			swprintf_s(path, L"%s\\sf4e-crash-%04u%02u%02u-%02u%02u%02u-%03u-%lu-%02d%s.dmp", directory, now.wYear, now.wMonth,
+			swprintf_s(path, L"%s\\%s%04u%02u%02u-%02u%02u%02u-%03u-%lu-%02d%s.dmp", directory, ember::Product().crashDumpPrefix, now.wYear, now.wMonth,
 				now.wDay, now.wHour, now.wMinute, now.wSecond, now.wMilliseconds, processId, attempt, suffix);
 		if (printed < 0) { path[0] = 0; return INVALID_HANDLE_VALUE; }
 		if (GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) continue;
@@ -204,10 +205,10 @@ inline std::vector<std::wstring> DumpFiles(const wchar_t* directory, const wchar
 // ".partial" left by an interrupted write. Call it once the game has exited.
 // Launcher side only: it allocates.
 inline void PruneDumps(const wchar_t* directory, size_t keep, const wchar_t* protectedReport = nullptr) {
-	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp.partial"))
+	for (const auto& name : DumpFiles(directory, (std::wstring(ember::Product().crashDumpPrefix) + L"*.dmp.partial").c_str()))
 		DeleteFileW((std::wstring(directory) + L"\\" + name).c_str());
 	std::vector<std::wstring> ordinary, heap;
-	for (const auto& name : DumpFiles(directory, L"sf4e-crash-*.dmp")) {
+	for (const auto& name : DumpFiles(directory, (std::wstring(ember::Product().crashDumpPrefix) + L"*.dmp").c_str())) {
 		// "*.dmp" also matches "*.dmp.partial" under 8.3 names; count only whole dumps.
 		if (name.size() < 4 || _wcsicmp(name.c_str() + name.size() - 4, L".dmp") != 0) continue;
 		if (IsReportDumpName(name)) {

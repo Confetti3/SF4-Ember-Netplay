@@ -2,6 +2,7 @@
 #include "update/UpdaterArguments.hxx"
 #include "update/UpdaterRun.hxx"
 #include "../common/PackageInventory.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../platform/Elevation.hxx"
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,7 +75,7 @@ static bool WaitForProcessExit(DWORD pid, DWORD timeoutMs) {
 
 static bool StartLauncher(const wchar_t* installDir, const wchar_t* arguments = nullptr) {
 	wchar_t launcherPath[MAX_PATH] = { 0 };
-	if (FAILED(PathCchCombine(launcherPath, MAX_PATH, installDir, L"Launcher.exe"))) {
+	if (FAILED(PathCchCombine(launcherPath, MAX_PATH, installDir, ember::Product().launcherExe))) {
 		return false;
 	}
 	if (GetFileAttributesW(launcherPath) == INVALID_FILE_ATTRIBUTES) {

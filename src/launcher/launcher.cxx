@@ -40,6 +40,7 @@
 #include "../platform/ReplayPath.hxx"
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../common/install_paths.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
@@ -63,11 +64,11 @@ void ConfigureLauncherLogging() {
 	wchar_t sf4eDir[MAX_PATH] = { 0 };
 	wchar_t* logsDir = g_logsDir;
 	wchar_t logPath[MAX_PATH] = { 0 };
-	if (SUCCEEDED(PathCchCombine(sf4eDir, MAX_PATH, appData, L"sf4e"))) {
+	if (SUCCEEDED(PathCchCombine(sf4eDir, MAX_PATH, appData, ember::Product().appDataFolder))) {
 		CreateDirectoryW(sf4eDir, NULL);
 		if (SUCCEEDED(PathCchCombine(logsDir, MAX_PATH, sf4eDir, L"logs"))) {
 			CreateDirectoryW(logsDir, NULL);
-			if (SUCCEEDED(PathCchCombine(logPath, MAX_PATH, logsDir, L"launcher.log"))) {
+			if (SUCCEEDED(PathCchCombine(logPath, MAX_PATH, logsDir, ember::Product().launcherLog))) {
 				try {
 					std::vector<spdlog::sink_ptr> sinks;
 					sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
@@ -116,7 +117,7 @@ int FindSF4ByEnvironmentVariable(
 		return 0;
 	}
 
-	if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
+	if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, ember::Product().gameExe)) != S_OK) {
 		spdlog::warn(L"FindSF4ByEnvironmentVariable: PathCchCombine failed: {}", res);
 		return 0;
 	}
@@ -190,7 +191,7 @@ int FindSF4ByEstimatedSteamPath(
 				spdlog::warn(L"FindSF4ByEstimatedSteamPath: game folder {} is too long", folder);
 				continue;
 			}
-			if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, sf4e::launcher::kGameExecutableName)) != S_OK) {
+			if ((res = PathCchCombine(szExePath, nExeSize, szGameDirectory, ember::Product().gameExe)) != S_OK) {
 				spdlog::warn(L"FindSF4ByEstimatedSteamPath: szExePath PathCchCombine failed: {}", res);
 				continue;
 			}
@@ -279,7 +280,7 @@ void NoteWindowsCrashDump(DWORD processId) {
 	PWSTR localAppData = NULL;
 	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) != S_OK) return;
 	wchar_t name[64] = {}, path[MAX_PATH] = {};
-	StringCchPrintfW(name, 64, L"CrashDumps\\SSFIV.exe.%lu.dmp", processId);
+	StringCchPrintfW(name, 64, L"CrashDumps\\%s.%lu.dmp", ember::Product().gameExe, processId);
 	const bool named = SUCCEEDED(PathCchCombine(path, MAX_PATH, localAppData, name));
 	CoTaskMemFree(localAppData);
 	if (named && GetFileAttributesW(path) != INVALID_FILE_ATTRIBUTES) spdlog::info(L"Windows wrote a crash dump to {}", path);
@@ -354,7 +355,7 @@ HANDLE CreateSF4Process(
 
 	sf4e::Payload p = payload;
     wchar_t discordPath[32768] = {};
-    if (sf4e::install::ResolveInstallFile(L"ember-discord.exe",discordPath,32768) &&
+    if (sf4e::install::ResolveInstallFile(ember::Product().discordExe,discordPath,32768) &&
         discord.Start(discordPath,pi.dwProcessId)) p.discord=discord.Bootstrap();
 	if (helper.Start(helperPath, pi.dwProcessId)) {
 		p.helper = helper.Bootstrap();
@@ -514,7 +515,8 @@ bool RuntimeIsCurrent() {
 
 // Shows a localized launcher message and returns the button pressed.
 int ShowLauncherMessage(const char* key, UINT flags) {
-	return MessageBoxW(nullptr, sf4e::platform::Utf8ToWide(sf4e::loc::T(key)).c_str(), L"SF4 Ember Netplay", flags);
+	return MessageBoxW(nullptr, sf4e::platform::Utf8ToWide(sf4e::loc::T(key)).c_str(),
+		sf4e::platform::Utf8ToWide(ember::Product().branding.productName).c_str(), flags);
 }
 
 // The recovery screen, with its selection art reporting to launcher.log. The
@@ -538,21 +540,23 @@ static void RegisterJoinScheme() {
     const DWORD length = GetModuleFileNameW(nullptr, executable, MAX_PATH);
     if (!length || length >= MAX_PATH) return;
     const std::wstring command = L"\"" + std::wstring(executable) + L"\" --join-link \"%1\"";
-    const wchar_t* commandKey = L"Software\\Classes\\ember\\shell\\open\\command";
+    const std::wstring schemeKey = L"Software\\Classes\\" + sf4e::platform::Utf8ToWide(ember::Product().urlScheme);
+    const std::wstring commandKey = schemeKey + L"\\shell\\open\\command";
     wchar_t current[2 * MAX_PATH] = {};
     DWORD size = sizeof(current);
-    if (RegGetValueW(HKEY_CURRENT_USER, commandKey, nullptr, RRF_RT_REG_SZ, nullptr, current, &size) == ERROR_SUCCESS &&
+    if (RegGetValueW(HKEY_CURRENT_USER, commandKey.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, current, &size) == ERROR_SUCCESS &&
         command == current) return;
-    const auto set = [](const wchar_t* key, const wchar_t* name, const std::wstring& value) {
-        return RegSetKeyValueW(HKEY_CURRENT_USER, key, name, REG_SZ, value.c_str(),
+    const auto set = [](const std::wstring& key, const wchar_t* name, const std::wstring& value) {
+        return RegSetKeyValueW(HKEY_CURRENT_USER, key.c_str(), name, REG_SZ, value.c_str(),
             static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS;
     };
-    const bool registered = set(L"Software\\Classes\\ember", nullptr, L"URL:SF4 Ember Netplay room link") &&
-        set(L"Software\\Classes\\ember", L"URL Protocol", L"") &&
-        set(L"Software\\Classes\\ember\\DefaultIcon", nullptr, L"\"" + std::wstring(executable) + L"\",0") &&
+    const bool registered =
+        set(schemeKey, nullptr, L"URL:" + sf4e::platform::Utf8ToWide(ember::Product().branding.productName) + L" room link") &&
+        set(schemeKey, L"URL Protocol", L"") &&
+        set(schemeKey + L"\\DefaultIcon", nullptr, L"\"" + std::wstring(executable) + L"\",0") &&
         set(commandKey, nullptr, command);
-    if (registered) spdlog::info("Registered the ember: room link handler");
-    else spdlog::warn("Could not register the ember: room link handler");
+    if (registered) spdlog::info("Registered the {}: room link handler", ember::Product().urlScheme);
+    else spdlog::warn("Could not register the {}: room link handler", ember::Product().urlScheme);
 }
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
@@ -582,7 +586,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     std::vector<std::string> offerWords;
-    CLI::App app("SF4 Ember Netplay for Ultra Street Fighter IV", "Launcher");
+    CLI::App app(std::string(ember::Product().branding.productName) + " for " + ember::Product().branding.gameName, "Launcher");
     app.add_option("--join-link", joinUri, "Open a room, tournament match, public room or Discord connect link from the browser (ember://join/..., ember://tournament/open?..., ember://room/open?... or ember://discord/connect?...).");
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
@@ -747,7 +751,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         wchar_t sidecar[MAX_PATH] = {};
         char sidecarAnsi[1024] = {};
         BOOL substituted = FALSE;
-        if (!sf4e::install::ResolveInstallFile(L"Sidecar.dll",sidecar,MAX_PATH) ||
+        if (!sf4e::install::ResolveInstallFile(ember::Product().gameModule,sidecar,MAX_PATH) ||
             !WideCharToMultiByte(CP_ACP,WC_NO_BEST_FIT_CHARS,sidecar,-1,sidecarAnsi,1024,nullptr,&substituted) || substituted) {
             if (!ShowRecovery(sf4e::loc::T("launcher.sidecar_missing"),chosenDirectory)) return 0;
             continue;
@@ -784,7 +788,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const char* dlls[] = {sidecarAnsi};
         CreateAppIDFile(location.directory.data());
         sf4e::platform::HelperProcess helper, discord;
-        const auto helperPath = std::filesystem::path(installRoot)/L"sf4-net.exe";
+        const auto helperPath = std::filesystem::path(installRoot)/ember::Product().helperExe;
         sf4e::crash::DumpChannel dumps;
         sf4e::reports::CrashContext reportCrash;
         reportCrash.started = std::filesystem::file_time_type::clock::now();

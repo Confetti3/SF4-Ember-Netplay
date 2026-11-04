@@ -4,6 +4,8 @@
 #include <shlwapi.h>
 #include <strsafe.h>
 
+#include "ProductIdentity.hxx"
+
 namespace sf4e {
 namespace install {
 
@@ -92,7 +94,7 @@ bool GetPackageDllDirectory(wchar_t* outDir, int outDirChars) {
 
 bool UsesDllSubdirectory() {
     wchar_t current[MAX_PATH] = {}, sidecar[MAX_PATH] = {};
-    if (GetInstallRoot(current,MAX_PATH) && SUCCEEDED(PathCchCombine(sidecar,MAX_PATH,current,L"Sidecar.dll")) && PathFileExistsW(sidecar)) return false;
+    if (GetInstallRoot(current,MAX_PATH) && SUCCEEDED(PathCchCombine(sidecar,MAX_PATH,current,ember::Product().gameModule)) && PathFileExistsW(sidecar)) return false;
 	wchar_t root[MAX_PATH] = { 0 };
 	wchar_t dllDir[MAX_PATH] = { 0 };
 	if (!GetInstallRoot(root, MAX_PATH)) {

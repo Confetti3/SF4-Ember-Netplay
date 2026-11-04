@@ -60,7 +60,6 @@ namespace launcher {
 	using updates::ReleaseKind;
 	using updates::UpdateChannel;
 	using updates::UpdateChannelInfo;
-	using updates::kDefaultGithubRepo;
 	using updates::kUpdateChannels;
 	using updates::GetUpdateChannelInfo;
 	using updates::ParseSavedUpdateChannel;
@@ -89,7 +88,6 @@ namespace launcher {
 	bool ReadInstalledVersion(char* outVersion, int outVersionLen);
 	bool IsGameProcessRunning();
 
-    constexpr const char* kReleaseZipPrefix = "sf4-ember-netplay-";
     // Pure release parsing; HTTP and installation remain separate. The
     // channel's highest listed release with a package, and whether it is
     // newer than the installed version.

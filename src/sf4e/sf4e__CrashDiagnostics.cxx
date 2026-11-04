@@ -21,6 +21,7 @@
 #include <spdlog/sinks/base_sink.h>
 
 #include "../common/CrashDump.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/CrashReport.hxx"
 #include "../common/EnvFlag.hxx"
 
@@ -327,7 +328,7 @@ spdlog::sink_ptr RingSink() {
 }
 
 void Install(const wchar_t* logsDirectory) {
-	PathCombineW(s_recordPath, logsDirectory, L"sf4e-crash.log");
+	PathCombineW(s_recordPath, logsDirectory, ember::Product().crashLog);
 	wcsncpy_s(s_logsDirectory, logsDirectory, _TRUNCATE);
 	NoteCodeRange(s_codeRanges[0], GetModuleHandleW(nullptr));
 	HMODULE sidecar = nullptr;

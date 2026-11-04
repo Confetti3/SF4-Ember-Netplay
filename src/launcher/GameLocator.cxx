@@ -6,6 +6,7 @@
 #include "GameLocator.hxx"
 #include "../common/SteamKeyValues.hxx"
 #include "../platform/Utf8.hxx"
+#include "../common/ProductIdentity.hxx"
 
 #include <algorithm>
 #include <cstddef>
@@ -144,7 +145,7 @@ std::wstring GameExecutable(const std::wstring& directory, const std::function<b
     if (directory.empty() || !exists) return {};
     std::wstring path = directory;
     if (path.back() != L'\\' && path.back() != L'/') path += L'\\';
-    path += kGameExecutableName;
+    path += ember::Product().gameExe;
     return exists(path) ? path : std::wstring();
 }
 

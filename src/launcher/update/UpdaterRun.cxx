@@ -1,5 +1,6 @@
 #include "UpdaterRun.hxx"
 #include "../../platform/Utf8.hxx"
+#include "../../common/ProductIdentity.hxx"
 #include <cstdio>
 #include <string>
 
@@ -74,7 +75,7 @@ int RunUpdater(const UpdaterArguments& arguments, const UpdaterHost& host) {
     windowOptions.notices = NoticeTexts(arguments.notices);
     windowOptions.headline = UpdaterHeadline(arguments, windowOptions.notices);
     windowOptions.stages = arguments.stages;
-    ProgressWindow window(L"SF4 Ember Netplay", std::move(windowOptions));
+    ProgressWindow window(platform::Utf8ToWide(ember::Product().branding.productName).c_str(), std::move(windowOptions));
     window.Enter(UpdaterNotice::WaitingForLauncher);
     if (!host.waitForLauncher(arguments.waitPid)) {
         host.log("ERROR: launcher is still running; nothing was changed");
