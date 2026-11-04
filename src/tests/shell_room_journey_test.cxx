@@ -1020,6 +1020,12 @@ void PostMatchJourneys() {
  h.Wait(11);
  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(setOver),h.actions.end(),
   [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"The set's winner gave up the seat for not answering");
+ // Where the loser stays, the winner the rotation moves on gives it up.
+ t.rules.rotation=room::RotationMode::LoserStays;h.view.matchResult=false;h.Frame();win();
+ const auto moved=h.actions.size();gameOver();h.Wait(11);
+ Check(std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(moved),h.actions.end(),
+  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"The winner the rotation moves on kept the seat without answering");
+ t.rules.rotation=room::RotationMode::WinnerStays;
  t.p1=0;t.queue.clear();h.view.room.members[0].table=h.view.room.members[0].seat=-1;++h.view.room.revision;h.Frame();h.Frame();
  std::map<std::string,ImVec2> cards;
  SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){cards[id]=ImVec2((a.x+b.x)/2,(a.y+b.y)/2);});

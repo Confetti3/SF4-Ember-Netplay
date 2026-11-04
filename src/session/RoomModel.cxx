@@ -374,9 +374,8 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 	// them again for a new set. Only members who queued themselves are ahead of
 	// them: nobody else is ever put in the queue.
 	std::vector<MemberId> leaving;
-	if (table.rules.rotation == RotationMode::WinnerStays) leaving = {loser};
-	else if (table.rules.rotation == RotationMode::LoserStays) leaving = {winner};
-	else leaving = {winner, loser};
+	if (!RotationKeeps(table.rules.rotation, true)) leaving.push_back(winner);
+	if (!RotationKeeps(table.rules.rotation, false)) leaving.push_back(loser);
 	for (const auto member : leaving) {
 		if (table.p1 == member) table.p1 = 0;
 		if (table.p2 == member) table.p2 = 0;
