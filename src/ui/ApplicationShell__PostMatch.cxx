@@ -52,11 +52,26 @@ bool KeeperKnown(const room::Table& t, std::uint64_t generation) {
     return t.rules.format != room::SetFormat::Unlimited &&
         (std::max)(t.score[0], t.score[1]) + 1 < static_cast<std::uint32_t>(t.rules.format);
 }
+// The member the set's rotation keeps seated (RoomAuthority::CompleteSet): the
+// winner where the winner stays, the loser where the loser stays, nobody where
+// both rotate. Before the room has the result, the result names the winner.
+bool RotationKeeps(const room::Table& t, std::uint64_t generation, room::MatchResult result, room::MemberId member) {
+    const bool ended = t.lastSet.generation == generation;
+    const int winnerSeat = ended ? t.lastSet.winnerSeat : result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+    if (!member || winnerSeat < 0) return false;
+    const auto p1 = ended ? t.lastSet.p1 : t.p1, p2 = ended ? t.lastSet.p2 : t.p2;
+    const auto winner = winnerSeat == 0 ? p1 : p2, loser = winnerSeat == 0 ? p2 : p1;
+    return (t.rules.rotation == room::RotationMode::WinnerStays && member == winner) ||
+        (t.rules.rotation == room::RotationMode::LoserStays && member == loser);
+}
 // No answer gives the seat to whoever waits only in a Classic room after a
-// set. An Arcade or King of the hill room keeps everyone at their cabinet and
-// rotates them itself (ArcadeSetEnded); a set's game keeps both seats.
+// set, and only from a player the rotation moves on: the one it keeps stays
+// for the next challenger. An Arcade or King of the hill room keeps everyone at
+// their cabinet and rotates them itself (ArcadeSetEnded); a set's game keeps
+// both seats.
 bool KeepsSeat(const room::Snapshot& room, const room::Table& t, std::uint64_t generation, room::MatchResult result) {
-    return room.arcade != room::ClassicRoom || MidSet(room, t, generation, result);
+    return room.arcade != room::ClassicRoom || MidSet(room, t, generation, result) ||
+        (t.rules.format != room::SetFormat::Unlimited && RotationKeeps(t, generation, result, room.localMember));
 }
 // The glyph of the press each button answers to, drawn on it; none where the
 // device has no such button (MenuShortcutGlyph).

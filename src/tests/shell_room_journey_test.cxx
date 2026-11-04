@@ -1012,9 +1012,14 @@ void PostMatchJourneys() {
  Check(row("again").label==loc::T("postmatch.rematch")&&!row("again").enabled&&row("again").detail==loc::T("postmatch.queue_waiting"),
   "Rematch was offered while someone waits in the queue");
  // A WIN cut short: the game is over before anyone answered and the opponent
- // has left. Then the room board takes a seat by mouse.
+ // has left. The set's winner, whom the rotation keeps, keeps the seat for the
+ // next challenger without answering. Then the room board takes a seat by mouse.
+ const auto setOver=h.actions.size();
  gameOver();t.p2=0;h.view.room.members[1].table=h.view.room.members[1].seat=-1;h.Frame();
  Check(h.shell.Navigation().Screen()!="post-match","The prompt stayed over the room after the game was over");
+ h.Wait(11);
+ Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(setOver),h.actions.end(),
+  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"The set's winner gave up the seat for not answering");
  t.p1=0;t.queue.clear();h.view.room.members[0].table=h.view.room.members[0].seat=-1;++h.view.room.revision;h.Frame();h.Frame();
  std::map<std::string,ImVec2> cards;
  SetMenuCardProbe([&](const char* id,ImVec2 a,ImVec2 b){cards[id]=ImVec2((a.x+b.x)/2,(a.y+b.y)/2);});
