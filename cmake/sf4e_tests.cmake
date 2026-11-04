@@ -93,8 +93,8 @@ endfunction()
 #   sf4e_add_unit_test(NAME <Name> SOURCES <files...> [LIBS <libs...>]
 #       [STD <11|14|17>] [TIMEOUT <seconds>] [SKIP_RETURN_CODE <code>]
 #       [LOCKS <lock...>] [LABELS <label...>])
-# The test is labeled unit, and with LABELS as well. It links sf4e_product,
-# the product identity every executable needs.
+# The test is labeled unit, and with LABELS as well. It links sf4e_product
+# and sf4e_catalog, the product identity and game catalog an executable needs.
 # A mistake stops the configure rather than dropping a setting: each option
 # once, with values that are not empty, one each for NAME and the numbers. A
 # mistyped option after SOURCES or LIBS lands in their list, so each source must
@@ -163,7 +163,7 @@ function(sf4e_add_unit_test)
     if("STD" IN_LIST seen)
         target_compile_features(${target} PRIVATE cxx_std_${arg_STD})
     endif()
-    target_link_libraries(${target} PRIVATE sf4e_product)
+    target_link_libraries(${target} PRIVATE sf4e_product sf4e_catalog)
     if("LIBS" IN_LIST seen)
         target_link_libraries(${target} PRIVATE ${arg_LIBS})
     endif()

@@ -19,7 +19,7 @@ constexpr std::uint64_t ShowAgainMs = 1000;
 struct Noted {
 	bool random = false, played = false;
 	Chara lobby = {};
-	std::array<Chara, selection::FighterCount> remembered{};
+	std::vector<Chara> remembered = std::vector<Chara>(ember::Catalog().fighterCount);
 };
 // Written by the drawing thread, read by the game thread.
 std::mutex notedMutex;
@@ -50,7 +50,7 @@ Chara Sent(const Noted& from, const Chara& pressed) {
 }
 }
 
-void NoteRandomFighter(bool random, const Chara& lobby, const std::array<Chara, selection::FighterCount>& remembered) {
+void NoteRandomFighter(bool random, const Chara& lobby, const std::vector<Chara>& remembered) {
 	std::lock_guard<std::mutex> lock(notedMutex);
 	noted.random = random; noted.lobby = lobby; noted.remembered = remembered;
 }

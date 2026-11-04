@@ -83,7 +83,7 @@ sf4e_add_unit_test(NAME TrainingCall SOURCES "src/tests/training_call_test.cxx" 
 sf4e_add_unit_test(NAME RoomTrainingFlag SOURCES "src/tests/room_training_flag_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 add_executable(SessionRecoveryGateTest "src/tests/session_recovery_gate_test.cxx")
 target_compile_features(SessionRecoveryGateTest PRIVATE cxx_std_14)
-target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model)
+target_link_libraries(SessionRecoveryGateTest PRIVATE sf4e_room_model sf4e_catalog)
 if(MSVC)
     target_compile_options(SessionRecoveryGateTest PRIVATE /UNDEBUG)
 else()
@@ -174,11 +174,11 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
     sf4e_test_labels(LABELS ui TESTS SpeechRelay)
 endif()
-target_link_libraries(UiRenderTest PRIVATE sf4e_product sf4e_ui "d3d9" "dbghelp" "psapi")
+target_link_libraries(UiRenderTest PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.
 add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx")
 target_compile_definitions(UiLab PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
-target_link_libraries(UiLab PRIVATE sf4e_product sf4e_ui "d3d9" "xinput" "shell32")
+target_link_libraries(UiLab PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3d9" "xinput" "shell32")
 add_test(NAME UiRender COMMAND UiRenderTest)
 # Each sweep takes under a minute with the GPU transforming vertices. The
 # budgets cover an adapter without hardware transform, where the CPU does
@@ -215,13 +215,13 @@ sf4e_add_unit_test(NAME RandomFighterRuntime SOURCES "src/tests/random_fighter_r
 sf4e_add_unit_test(NAME MatchProblem SOURCES "src/tests/match_problem_test.cxx" STD 17 LIBS Session sf4e Dimps "d3d9")
 add_executable(AbortNoticeTest "src/tests/abort_notice_test.cxx")
 target_compile_features(AbortNoticeTest PRIVATE cxx_std_17)
-target_link_libraries(AbortNoticeTest PRIVATE sf4e_product Session sf4e sf4e_localization Dimps "d3d9")
+target_link_libraries(AbortNoticeTest PRIVATE sf4e_product sf4e_catalog Session sf4e sf4e_localization Dimps "d3d9")
 add_test(NAME AbortNotice COMMAND AbortNoticeTest)
 set_tests_properties(AbortNotice PROPERTIES TIMEOUT 15 PASS_REGULAR_EXPRESSION "Abort notice passed")
 sf4e_test_locks(AbortNotice loopback_udp_ports)
 add_executable(PresentationSnapshotTest "src/tests/presentation_snapshot_test.cxx")
 target_compile_features(PresentationSnapshotTest PRIVATE cxx_std_17)
-target_link_libraries(PresentationSnapshotTest PRIVATE sf4e_product Session sf4e sf4e_localization Dimps "d3d9")
+target_link_libraries(PresentationSnapshotTest PRIVATE sf4e_product sf4e_catalog Session sf4e sf4e_localization Dimps "d3d9")
 add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
 # Its two-thread check keeps both threads busy for three seconds.
 set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
@@ -232,6 +232,14 @@ sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/sessio
 sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/session_server_transport_terminal_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportDepartures SOURCES "src/tests/session_server_transport_departures_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
+# The room model and session server under a 45-fighter catalog the test
+# defines itself, so it links neither sf4e_catalog nor sf4e_add_unit_test.
+add_executable(WideRosterTest "src/tests/wide_roster_test.cxx")
+target_compile_features(WideRosterTest PRIVATE cxx_std_17)
+target_link_libraries(WideRosterTest PRIVATE sf4e_product sf4e_iroh_room)
+add_test(NAME WideRoster COMMAND WideRosterTest)
+set_tests_properties(WideRoster PROPERTIES TIMEOUT 30)
+sf4e_test_labels(LABELS unit room TESTS WideRoster)
 sf4e_add_unit_test(NAME SessionServerLatency SOURCES "src/tests/session_server_latency_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME MemberLatency SOURCES "src/tests/member_latency_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
@@ -248,7 +256,7 @@ sf4e_add_unit_test(NAME SessionServerWatch SOURCES "src/tests/session_server_wat
 target_compile_definitions(SessionServerWatchTest PRIVATE SF4E_TEST_FIXTURES="${CMAKE_SOURCE_DIR}/src/tests/fixtures")
 # Explicitly invoked host-cost benchmark; not a CTest (see the source).
 add_executable(RoomHostBench "src/tests/room_host_bench.cxx")
-target_link_libraries(RoomHostBench PRIVATE sf4e_session_server)
+target_link_libraries(RoomHostBench PRIVATE sf4e_session_server sf4e_catalog)
 sf4e_add_unit_test(NAME GgpoUdpValidation SOURCES "src/tests/ggpo_udp_validation_test.cxx" LIBS ggpo::GGPO "ws2_32" TIMEOUT 15 LOCKS loopback_udp_ports LABELS ggpo)
 sf4e_add_unit_test(NAME GgpoInputBits SOURCES "src/tests/ggpo_input_bits_test.cxx" TIMEOUT 15 LABELS ggpo)
 add_executable(GgpoSpectatorCapacityTest "src/tests/ggpo_spectator_capacity_test.cxx")

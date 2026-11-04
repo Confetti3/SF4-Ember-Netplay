@@ -1,7 +1,7 @@
 #include "SessionPlainTypes.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/FighterCatalog.hxx"
-#include "../common/StageCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 
 namespace sf4e {
@@ -34,9 +34,10 @@ namespace sf4e {
 			settings.roundCount = lobby.roundCount;
 			settings.roundTime = lobby.roundTime.integral;
 			if (!settings.Valid() || lobby.roundTime.fractional != 0) return MatchProblem::Settings;
-			if (!selection::ValidStage(match.stageID)) return MatchProblem::Stage;
+			const auto& catalog = ember::Catalog();
+			if (!catalog.validStage(match.stageID)) return MatchProblem::Stage;
 			for (const auto& chara : match.chara)
-				if (!selection::Valid(selection::FromNative(chara), lobby.editionSelect)) return MatchProblem::Fighter;
+				if (!catalog.validPick(selection::FromNative(chara), lobby.editionSelect)) return MatchProblem::Fighter;
 			for (const auto delay : match.inputDelay)
 				if (delay > InputDelayWireCeiling) return MatchProblem::Delay;
 			return MatchProblem::None;

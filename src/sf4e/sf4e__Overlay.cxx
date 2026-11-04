@@ -274,7 +274,7 @@ void DrawNetworkCharaConfig(rVsMode::ConfirmedCharaConditions& charaConditions, 
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	s_fighterSelectors[0].Draw(pick, editionSelect, s_selectionArt.get(), [&](int fighter) { return snapshot.fighterAvailability[fighter]; }, stageId ? &stagedStage : nullptr, snapshot.canEditSelection, selectionError,
 		stageId ? &stagedPool : nullptr, installed, snapshot.room && sf4e::room::KeepsFighter(*snapshot.room, snapshot.room->localMember), &s_prefs.lobbyRandom);
-	if (snapshot.canEditSelection && pick.fighter != menuCharaID && pick.fighter >= 0 && pick.fighter < sf4e::selection::FighterCount) {
+	if (snapshot.canEditSelection && pick.fighter != menuCharaID && ember::ValidFighter(pick.fighter)) {
 		// Customization is per fighter: the selector carried the previous
 		// fighter's values over, so restore what this one last used, fitted to
 		// what is unlocked and to the room's edition rule.
@@ -299,7 +299,7 @@ static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapsh
 		sf4e::loc::T("runtime.selection_combination_unavailable");
 	const int shown = pick.fighter;
 	s_fighterSelectors[1].Draw(pick, true, s_selectionArt.get(), available, nullptr, snapshot.canEditSelection, error, nullptr, installed);
-	if (!snapshot.canEditSelection || pick.fighter < 0 || pick.fighter >= sf4e::selection::FighterCount) return;
+	if (!snapshot.canEditSelection || !ember::ValidFighter(pick.fighter)) return;
 	if (pick.fighter != shown) sf4e::selection::Normalize(pick, true, &snapshot.fighterAvailability[pick.fighter], installed);
 	sf4e::selection::ToNative(pick, trainingDummy);
 }

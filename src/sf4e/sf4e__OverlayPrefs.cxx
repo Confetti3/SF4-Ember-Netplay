@@ -124,7 +124,7 @@ namespace OverlayPrefs {
         // The edition rule is the overlay's to apply (FollowEditionRule), not the file's.
         ClampChara(data.lobby, true);
         ClampChara(data.trainingDummy, true);
-        for (int id = 0; id < selection::FighterCount; ++id) {
+        for (std::size_t id = 0; id < data.fighters.size(); ++id) {
             data.fighters[id].charaID = static_cast<uint8_t>(id);
             // Keep a remembered edition whatever the current rule; restoring a
             // fighter normalizes it against the room's rule at that time.
@@ -152,7 +152,7 @@ namespace OverlayPrefs {
 		if (std::find(ultras.begin(), ultras.end(), memory.ultraCombo) == ultras.end()) memory.ultraCombo = kept.ultraCombo;
 	}
 
-	bool FollowEditionRule(CharaPick& lobby, const std::array<CharaPick, selection::FighterCount>& fighters, bool editionSelect) {
+	bool FollowEditionRule(CharaPick& lobby, const std::vector<CharaPick>& fighters, bool editionSelect) {
 		const CharaPick before = lobby;
 		if (editionSelect && lobby.charaID < fighters.size()) lobby.unc_edition = fighters[lobby.charaID].unc_edition;
 		ClampChara(lobby, editionSelect);

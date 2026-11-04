@@ -22,6 +22,12 @@ sf4e_add_product_identity(sf4e_product)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
 add_library(sf4e_selection STATIC ${SF4E_ROOMHOST_selection} "src/common/InstalledContent.cxx")
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
+# SF4's game catalog (src/common/GameCatalog.hxx): the roster and pick rules
+# the shared code checks picks by. Like sf4e_product, the executables link it
+# and the libraries only read it, so another game links its own instead.
+add_library(sf4e_catalog STATIC ${SF4E_ROOMHOST_catalog})
+target_compile_features(sf4e_catalog PUBLIC cxx_std_11)
+target_link_libraries(sf4e_catalog PRIVATE sf4e_selection)
 target_compile_features(sf4e_netplay_core PUBLIC cxx_std_11)
 # Durable create-only and replacing file writes (platform/DurableFile.hxx), for
 # replays, settings and the updater's journal. Its bounded reader is header only.
@@ -330,7 +336,7 @@ target_link_libraries(
 # bring Dimps), so the same sources port to Linux.
 add_executable(sf4e-room-host ${SF4E_ROOMHOST_host} ${SF4E_ROOMHOST_host_windows})
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
-target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room sf4e_product)
+target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room sf4e_product sf4e_catalog)
 
 
 add_library(sf4e_app_services STATIC src/platform/ApplicationServices.cxx src/platform/UpdatePolicy.cxx src/platform/ReportWorkflow.cxx src/platform/ReportHistory.cxx src/launcher/update/github_release_client.cxx src/launcher/update/github_release_validation.cxx src/launcher/update/github_release_download.cxx)
@@ -343,7 +349,7 @@ target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
 add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
-target_link_libraries(Launcher PRIVATE sf4e_product sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
+target_link_libraries(Launcher PRIVATE sf4e_product sf4e_catalog sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
 # As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
 target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")
 set(_SF4E_LAUNCHER_EXE_TARGET Launcher)
@@ -369,7 +375,7 @@ target_include_directories(${_SF4E_LAUNCHER_EXE_TARGET} PRIVATE "src/common" "sr
 )
 
 add_library(Sidecar SHARED src/sidecar/sidecar.cxx)
-target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e sf4e_product)
+target_link_libraries(Sidecar PRIVATE ${LIB_DETOURS} Dimps sf4e sf4e_product sf4e_catalog)
 sf4e_configure_windows_version(Sidecar "${SF4E_PRODUCT_NAME} Sidecar" "Sidecar.dll" "VFT_DLL")
 sf4e_embed_manifest(Sidecar "Sidecar.dll.manifest")
 

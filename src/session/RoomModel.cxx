@@ -1,6 +1,6 @@
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include <limits>
 
 namespace sf4e { namespace room {
@@ -106,10 +106,11 @@ bool RoomAuthority::SetMemberChara(MemberId member,const Chara& chara,bool* with
     // The edition rides along unannounced: only a keeper's set end reads it.
     if(chara.edition>=0)value->edition=chara.edition;
     const int fighter=chara.fighter;
-    if(fighter<0||fighter>=selection::FighterCount)return false;
+    if(!ember::ValidFighter(fighter))return false;
     // The look the board shows; a value out of range reads as not shared.
     const auto shown=[](int v,int limit){return v>=0&&v<limit?v:-1;};
-    const int costume=shown(chara.costume,selection::CostumeLimit),color=shown(chara.color,selection::CostumeLimit),ultra=shown(chara.ultra,selection::UltraChoices);
+    const auto& catalog=ember::Catalog();
+    const int costume=shown(chara.costume,catalog.costumeLimit),color=shown(chara.color,catalog.colorLimit),ultra=shown(chara.ultra,catalog.ultraChoices);
     const bool restyled=value->costume!=costume||value->color!=color||value->ultra!=ultra;
     value->costume=costume;value->color=color;value->ultra=ultra;
     if(value->fighter==fighter){if(restyled)TouchRoom();return restyled;}
@@ -225,7 +226,7 @@ void RoomAuthority::SetMemberIncarnation(MemberId member, std::uint64_t incarnat
 }
 
 Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connection, bool host, MemberProfile profile) {
-	if(profile.mainFighter < -1 || profile.mainFighter >= 44) return Reject(RejectReason::Unauthorized);
+	if(profile.mainFighter != -1 && !ember::ValidFighter(profile.mainFighter)) return Reject(RejectReason::Unauthorized);
 	// No process hosts a server-owned room as a player: the first joiner is host.
 	if (snapshot_.serverOwned) host = false;
 	if (snapshot_.closed) return Reject(RejectReason::Closed);

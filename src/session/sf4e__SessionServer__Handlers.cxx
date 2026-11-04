@@ -19,6 +19,7 @@
 #include "../common/JsonDump.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 
 using nlohmann::json;
@@ -337,9 +338,10 @@ void SessionServer::HandleForward(session::Connection conn, const json& msg, con
 void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid) {
 	SessionProtocol::SessionJoinRequest request;
 	const auto main=msg.find("mainFighter");
+	// A fighter of the game, or -1 for none.
 	const bool invalidMain=main!=msg.end()&&(!main->is_number_integer()||
-		(main->is_number_unsigned()?main->get<std::uint64_t>()>43:
-		main->get<std::int64_t>() < -1 || main->get<std::int64_t>() > 43));
+		(main->is_number_unsigned()?main->get<std::uint64_t>()>=static_cast<std::uint64_t>(ember::Catalog().fighterCount):
+		(main->get<std::int64_t>()!=-1&&!ember::ValidFighter(main->get<std::int64_t>()))));
 	if(invalidMain) {
 		SessionProtocol::SessionJoinReject reject;reject.result=SessionProtocol::JR_REQUEST_INVALID;
 		Respond(conn,json(reject));return;
@@ -408,7 +410,7 @@ void SessionServer::HandleSetChara(session::Connection conn, const json& msg) {
 		return;
 	}
 	if ((_roomAuthority ? table.ready[side] : matchData.readyMessageNum[side] != -1) ||
-		!selection::Valid(pick, _roomAuthority ? table.rules.editionSelect : _lobbyData.editionSelect)) {
+		!ember::Catalog().validPick(pick, _roomAuthority ? table.rules.editionSelect : _lobbyData.editionSelect)) {
 		spdlog::info("Server: rejected unavailable or locked character selection from {}", conn);
 		return;
 	}
@@ -565,7 +567,7 @@ void SessionServer::HandleLobbyReady(session::Connection conn, const json& msg, 
 		spdlog::info("Server: could not deserialize ReportResultsRequest");
 		return;
 	}
-	if (!selection::Valid(selection::FromNative(_matchData.chara[side]), _lobbyData.editionSelect)) return;
+	if (!ember::Catalog().validPick(selection::FromNative(_matchData.chara[side]), _lobbyData.editionSelect)) return;
 	_matchData.readyMessageNum[side] = incoming.messageId;
 	bSendLobbyAllReady = bSendLobbyAllReady || _matchData.IsAllReady();
 	_dataDirty = true;

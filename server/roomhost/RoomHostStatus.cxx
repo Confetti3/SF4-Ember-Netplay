@@ -1,5 +1,5 @@
 #include "RoomHostStatus.hxx"
-#include "../../src/common/FighterCatalog.hxx"
+#include "../../src/common/GameCatalog.hxx"
 #include "../../src/common/SkillBadgeJson.hxx"
 #include <algorithm>
 #include <nlohmann/json.hpp>
@@ -78,7 +78,7 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	}
 	for (const auto* member : ordered) {
 		if (details.fighters.size() >= MaximumDetailFighters) break;
-		details.fighters.push_back(member->mainFighter >= 0 && member->mainFighter < selection::FighterCount ? member->mainFighter : NoFighter);
+		details.fighters.push_back(ember::ValidFighter(member->mainFighter) ? member->mainFighter : NoFighter);
 	}
 	// Table 0 holds the room's rules; the format values and the rotation enum's
 	// numbers are the wire values (RoomDetails).

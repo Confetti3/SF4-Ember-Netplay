@@ -67,8 +67,8 @@ int RematchSends(const char* name, std::uint32_t mine, std::uint32_t theirs, roo
     std::vector<int> rolls{5, 12};
     std::size_t made = 0;
     internal::SetRandomFighterRollForTest([&] { return rolls[made++ % rolls.size()]; });
-    std::array<Chara, selection::FighterCount> remembered{};
-    for (int id = 0; id < selection::FighterCount; ++id) remembered[id] = Pressed(id, 2);
+    std::vector<Chara> remembered(ember::Catalog().fighterCount);
+    for (std::size_t id = 0; id < remembered.size(); ++id) remembered[id] = Pressed(static_cast<int>(id), 2);
     // The overlay's pick: Random, showing the first roll in costume 1.
     facade::NoteRandomFighter(true, Pressed(5, 1), remembered);
     runtime.input.Adopt([] { input::Device pad; pad.type = 0; pad.index = 0; pad.connected = true; return pad; }());

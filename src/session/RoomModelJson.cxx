@@ -1,7 +1,7 @@
 // Room model persistence: checkpoints and the JSON wire form of room types.
 #include "RoomModel.hxx"
 #include "RoomModelDetail.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/JsonDump.hxx"
 #include "../common/SkillBadgeJson.hxx"
 
@@ -384,8 +384,9 @@ void from_json(const nlohmann::json& json, Member& value) {
     value.joinOrder = ReadU64(json, "join_order");
     value.incarnation = json.contains("incarnation") ? ReadU64(json, "incarnation") : 1;
     if (!value.incarnation) throw std::invalid_argument("room member incarnation");
-    value.fighter=json.contains("fighter")?ReadInt(json,"fighter",-1,43):-1;
-    value.mainFighter=json.contains("main_fighter")?ReadInt(json,"main_fighter",-1,43):-1;
+    const int lastFighter=ember::Catalog().fighterCount-1;
+    value.fighter=json.contains("fighter")?ReadInt(json,"fighter",-1,lastFighter):-1;
+    value.mainFighter=json.contains("main_fighter")?ReadInt(json,"main_fighter",-1,lastFighter):-1;
     value.selectedDelay=json.contains("selected_delay")?static_cast<std::uint8_t>(ReadInt(json,"selected_delay",0,InputDelayWireCeiling)):2;
     value.frozenDelay=json.contains("frozen_delay")?static_cast<std::uint8_t>(ReadInt(json,"frozen_delay",0,InputDelayWireCeiling)):value.selectedDelay;
     value.delayLocked=json.contains("delay_locked")?json.at("delay_locked").get<bool>():false;
@@ -395,9 +396,10 @@ void from_json(const nlohmann::json& json, Member& value) {
     value.setsWon = static_cast<std::uint16_t>(json.contains("sets_won") ? ReadInt(json, "sets_won", 0, UINT16_MAX) : 0);
     value.edition = json.contains("edition") ? ReadInt(json, "edition", -1, 255) : -1;
     // A snapshot from an older room host has none of these: not shared.
-    value.costume = json.contains("costume") ? ReadInt(json, "costume", -1, selection::CostumeLimit - 1) : -1;
-    value.color = json.contains("color") ? ReadInt(json, "color", -1, selection::CostumeLimit - 1) : -1;
-    value.ultra = json.contains("ultra") ? ReadInt(json, "ultra", -1, selection::UltraChoices - 1) : -1;
+    const auto& catalog = ember::Catalog();
+    value.costume = json.contains("costume") ? ReadInt(json, "costume", -1, catalog.costumeLimit - 1) : -1;
+    value.color = json.contains("color") ? ReadInt(json, "color", -1, catalog.colorLimit - 1) : -1;
+    value.ultra = json.contains("ultra") ? ReadInt(json, "ultra", -1, catalog.ultraChoices - 1) : -1;
     value.setsLost = static_cast<std::uint16_t>(json.contains("sets_lost") ? ReadInt(json, "sets_lost", 0, UINT16_MAX) : 0);
     value.link = json.contains("link") ? NetworkLinkFromWire(json.at("link").get<long long>()) : NetworkLink::Unknown;
     value.nat = json.contains("nat") ? NatClassFromWire(json.at("nat").get<long long>()) : NatClass::Unknown;
@@ -492,7 +494,7 @@ void from_json(const nlohmann::json& json, Table& value) {
 	value.streak = static_cast<std::uint32_t>(streak);
 	if (!value.streakHolder) value.streak = 0;
 	value.keeper = json.contains("keeper") ? ReadU64(json, "keeper") : 0;
-	value.keptFighter = value.keeper && json.contains("kept_fighter") ? ReadInt(json, "kept_fighter", -1, 43) : -1;
+	value.keptFighter = value.keeper && json.contains("kept_fighter") ? ReadInt(json, "kept_fighter", -1, ember::Catalog().fighterCount - 1) : -1;
 	value.keptEdition = value.keeper && json.contains("kept_edition") ? ReadInt(json, "kept_edition", -1, 255) : -1;
 	value.permitGeneration = json.contains("permit_generation") ? ReadU64(json, "permit_generation") : 0;
 	value.permits = {};

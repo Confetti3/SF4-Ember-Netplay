@@ -2,12 +2,12 @@
 # one list that server/roomhost/build-linux.sh (g++ alone, no CMake) reads too.
 # Each "# [group]" line of the file opens a group; this sets
 # SF4E_ROOMHOST_<group> to its paths, in file order. CMakeLists.txt builds
-# sf4e_room_model, sf4e_selection, sf4e_common, sf4e_session_server,
-# sf4e_iroh_room and sf4e-room-host from them.
+# sf4e_room_model, sf4e_selection, sf4e_catalog, sf4e_common,
+# sf4e_session_server, sf4e_iroh_room and sf4e-room-host from them.
 # A mistake stops the configure: a path before the first group, a group the
 # file's header does not list, a path that is no file, or a group left empty.
 set(_sf4e_roomhost_list "${CMAKE_SOURCE_DIR}/server/roomhost/sources.txt")
-set(_sf4e_roomhost_groups host host_posix host_windows session_server iroh_room room_model selection common)
+set(_sf4e_roomhost_groups host host_posix host_windows session_server iroh_room room_model selection catalog common)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_sf4e_roomhost_list}")
 file(STRINGS "${_sf4e_roomhost_list}" _sf4e_roomhost_lines)
 foreach(_group IN LISTS _sf4e_roomhost_groups)

@@ -9,6 +9,7 @@
 #include "../common/GamepadIdentity.hxx"
 #include <nlohmann/json.hpp>
 #include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 
@@ -40,7 +41,9 @@ namespace OverlayPrefs {
 	};
 
 	struct Data {
-		Data() { for (int id = 0; id < selection::FighterCount; ++id) fighters[id].charaID = static_cast<uint8_t>(id); }
+		Data() : fighters(ember::Catalog().fighterCount) {
+			for (std::size_t id = 0; id < fighters.size(); ++id) fighters[id].charaID = static_cast<uint8_t>(id);
+		}
 
 		// Lobby: the current selection, which every consumer reads.
 		CharaPick lobby;
@@ -51,7 +54,7 @@ namespace OverlayPrefs {
 		// restores that fighter's entry; fighters[lobby.charaID] equals lobby,
 		// but for the edition, which keeps the last one chosen under Edition
 		// Select (Remember).
-		std::array<CharaPick, selection::FighterCount> fighters;
+		std::vector<CharaPick> fighters;
 		// Training's other side (Training select).
 		CharaPick trainingDummy;
 		int stageID = 0;
@@ -97,7 +100,7 @@ namespace OverlayPrefs {
 	// Edition Select outside a room): without Edition Select it plays Ultra;
 	// with it, its fighter's remembered edition comes back. Returns whether
 	// `lobby` changed.
-	bool FollowEditionRule(CharaPick& lobby, const std::array<CharaPick, selection::FighterCount>& fighters, bool editionSelect);
+	bool FollowEditionRule(CharaPick& lobby, const std::vector<CharaPick>& fighters, bool editionSelect);
 	// The settings file's "overlay" section. FromJson accepts a section written
 	// before per-fighter picks existed and remembers its one pick for that
 	// fighter. Neither clamps; Load and Save do.

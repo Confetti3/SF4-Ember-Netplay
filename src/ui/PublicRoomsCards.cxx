@@ -6,6 +6,7 @@
 #include "PublicRoomsPanel.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -322,7 +323,7 @@ void DrawSetup(const MenuEntry& e, const PublicSetupView& setup, ImVec2 min, ImV
     auto* d = ImGui::GetWindowDrawList();
     d->AddRectFilled(min, ImVec2(min.x + 3 * s, max.y), palette::Ember, rounding, ImDrawFlags_RoundCornersLeft);
     if (faces) {
-        static const int roster[] = {1, 6, 17, 24};
+        const int* roster = ember::Catalog().showcaseFighters;
         const float face = 56 * s, x = max.x - pad - collage, y = min.y + (max.y - min.y - collage) * .5f;
         for (int i = 0; i < 4; ++i) {
             const ImVec2 at(x + (i % 2) * (face + 6 * s), y + (i / 2) * (face + 6 * s));

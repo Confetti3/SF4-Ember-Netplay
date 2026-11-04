@@ -13,6 +13,7 @@
 #include "sf4e__SessionProtocol.hxx"
 #include "RoomModel.hxx"
 #include "../common/SpectatorPolicy.hxx"
+#include "../common/GameCatalog.hxx"
 
 namespace sf4e {
 	extern const int SESSION_CLIENT_MAX_MESSAGES_PER_POLL;
@@ -105,7 +106,7 @@ namespace sf4e {
         void SetSelectedLowerLag(bool on) { _selectedLowerLag=on; }
 		void RequireCustomRooms() { _customRoomsRequired = true; }
 		// Set before the hello/join exchange; profile editing is offline-only.
-		void SetProfileMain(int fighter) { _profile.mainFighter = fighter >= 0 && fighter < 44 ? fighter : -1; }
+		void SetProfileMain(int fighter) { _profile.mainFighter = ember::ValidFighter(fighter) ? fighter : -1; }
 		void SetProfileLink(NetworkLink link) { _profile.link = link; }
 		void SetProfileNat(NatClass nat) { _profile.nat = nat; }
 		// None sends no profile at all.

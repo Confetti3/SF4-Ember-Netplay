@@ -13,6 +13,7 @@
 #include "../common/JsonDump.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/sf4e__StateHash.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
@@ -453,7 +454,7 @@ session::SendResult SessionClient::PreBattle_SetEnv(uint32_t rngSeed)
 
 session::SendResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara)
 {
-	if (!sf4e::selection::Valid(sf4e::selection::FromNative(chara), _lobbyData.editionSelect)) return session::SendResult::InvalidPayload;
+	if (!ember::Catalog().validPick(sf4e::selection::FromNative(chara), _lobbyData.editionSelect)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetChara msg;
 	msg.chara = chara;
 	json j = msg;
@@ -462,7 +463,7 @@ session::SendResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::V
 
 session::SendResult SessionClient::PreBattle_SetStage(int32_t stageID)
 {
-	if (!selection::ValidStage(stageID)) return session::SendResult::InvalidPayload;
+	if (!ember::Catalog().validStage(stageID)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetStage msg;
 	msg.stageID = stageID;
 	json j = msg;

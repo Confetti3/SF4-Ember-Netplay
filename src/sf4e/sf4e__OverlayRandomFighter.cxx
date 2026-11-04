@@ -6,8 +6,8 @@
 namespace sf4e { namespace overlay {
 void FollowRandomFighter(const NetplayFacade::RuntimeSnapshot& snapshot, const OverlayPrefs::Data& prefs,
                          Dimps::GameEvents::VsMode::ConfirmedCharaConditions& lobby, int& lobbyFighter, bool editionSelect) {
-    std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, selection::FighterCount> remembered{};
-    for (int id = 0; id < selection::FighterCount; ++id) OverlayPrefs::ToConfirmed(remembered[id], prefs.fighters[id]);
+    std::vector<Dimps::GameEvents::VsMode::ConfirmedCharaConditions> remembered(prefs.fighters.size());
+    for (std::size_t id = 0; id < remembered.size(); ++id) OverlayPrefs::ToConfirmed(remembered[id], prefs.fighters[id]);
     auto pick = lobby;
     pick.charaID = static_cast<std::uint8_t>(lobbyFighter);
     NetplayFacade::NoteRandomFighter(prefs.lobbyRandom, pick, remembered);
