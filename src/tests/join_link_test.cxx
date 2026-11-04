@@ -239,11 +239,13 @@ static void TestOnlyTheConnectLinkIsAccepted() {
 		"", "hello", bridge, "https://embernetplay.link/start", "https://embernetplay.link/start#",
 		"https://embernetplay.link/start#" + std::string(Match), "https://embernetplay.link/m#" + bridge,
 		"https://example.com/start#" + bridge, "http://embernetplay.link/start#" + bridge, page + " x",
-		page + "?x=1", page + "//", page + "/a/b", page + "/Blu Mint", page + "/x\n",
+		page + "?x=1", page + "//", page + "/a/b", page + "/Blu Mint", page + "/x\ny",
 		"https://embernetplay.link/start#" + bridge.substr(0, 39) + "/BluMint",
 		"https://embernetplay.link/start#" + bridge.substr(0, 39), page + "/" + std::string(256, 'A'),
 	};
 	for (const auto& text : refusedPages) CHECK(ParseConnectPasted(text).empty());
+	// A line end a copy picked up after the link is not part of it.
+	CHECK(ParseConnectPasted(page + "/x\n") == bridge);
 	CHECK(!ParsePasted(page).Valid());
 }
 
