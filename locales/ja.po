@@ -1929,6 +1929,9 @@ msgstr "持続"
 msgid "training.meter.recovery"
 msgstr "硬直"
 
+msgid "training.meter.total"
+msgstr "合計"
+
 msgid "training.meter.hit"
 msgstr "ヒット"
 

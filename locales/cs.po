@@ -1929,6 +1929,9 @@ msgstr "Aktivní"
 msgid "training.meter.recovery"
 msgstr "Zotavení"
 
+msgid "training.meter.total"
+msgstr "Celkem"
+
 msgid "training.meter.hit"
 msgstr "Zásah"
 

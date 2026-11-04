@@ -1929,6 +1929,9 @@ msgstr "Actief"
 msgid "training.meter.recovery"
 msgstr "Herstel"
 
+msgid "training.meter.total"
+msgstr "Totaal"
+
 msgid "training.meter.hit"
 msgstr "Hit"
 

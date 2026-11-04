@@ -577,6 +577,11 @@ int main() {
                 Require(counted.View().moves[0].recovery == recovery, "A later recovered state changed completed recovery");
             }
         }
+        {
+            // A jab of 3, 2 and 7: startup 3 counts its first active frame, which the 2 active frames count again.
+            MoveFrames jab; jab.active = 2; jab.recovery = 7;
+            Require(TotalFrames(3, jab) == 11, "A move's total length miscounted");
+        }
         std::puts("Frame meter checks passed.");
         return 0;
     } catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }

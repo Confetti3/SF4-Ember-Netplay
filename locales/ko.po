@@ -1929,6 +1929,9 @@ msgstr "지속"
 msgid "training.meter.recovery"
 msgstr "경직"
 
+msgid "training.meter.total"
+msgstr "합계"
+
 msgid "training.meter.hit"
 msgstr "히트"
 

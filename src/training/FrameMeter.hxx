@@ -296,6 +296,9 @@ inline const CancelChain* ChainOf(const FrameAdvantage& reading, int side) {
 // counts it, so the move's total is startup - 1 + active + recovery. seen:
 // an attack was made; live: it is still going.
 struct MoveFrames { int active = 0, recovery = 0; bool seen = false, live = false; };
+// A move's whole length in frames, its startup counted to the first active frame, which the
+// active frames count again.
+inline int TotalFrames(int startup, const MoveFrames& move) { return startup - 1 + move.active + move.recovery; }
 // The bars show up to MeterShown frames. The meter keeps MeterHistory frames
 // unless the player chose another length on the Frame data page (4, 10, 20 or
 // 60 seconds), so a held meter can step back through a whole combo or

@@ -1929,6 +1929,9 @@ msgstr "Aktywne"
 msgid "training.meter.recovery"
 msgstr "Powrót"
 
+msgid "training.meter.total"
+msgstr "Razem"
+
 msgid "training.meter.hit"
 msgstr "Trafienie"
 
