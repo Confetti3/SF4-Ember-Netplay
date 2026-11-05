@@ -36,6 +36,14 @@ inline bool WatchesByChoice(const Table& table, MemberId member) {
 		!listed(table.endingWatchers);
 }
 
+// Whether a member on `link` may take a seat, a queue's turn or a cabinet in
+// the room. A room for wired players (Snapshot::wiredOnly) refuses Wi-Fi
+// alone: an Unknown link always sits, since Linux and Steam Deck report
+// nothing else (#159), and neither do VPNs or virtual adapters.
+inline bool LinkMaySit(const Snapshot& room, NetworkLink link) {
+	return !room.wiredOnly || link != NetworkLink::Wireless;
+}
+
 // A named seat (0 or 1) that a Queue for exactly that seat would take now: the
 // table is between games, nobody is queued ahead and the seat is empty.
 inline bool SeatOpenNow(const Table& table, int seat) {

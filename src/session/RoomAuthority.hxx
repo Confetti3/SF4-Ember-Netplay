@@ -10,11 +10,13 @@ public:
 	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
 	// changes them later. tableCount is how many tables a Classic room starts
 	// with (Snapshot::tableCount), which its host can change (SetTableCount);
-	// out of range it is ClassicTableCount.
+	// out of range it is ClassicTableCount. wiredOnly is the room's Wired
+	// players only rule (Snapshot::wiredOnly), which its host can change
+	// (SetWiredOnly).
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
 		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom,
-		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount));
+		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -181,6 +183,7 @@ private:
 	Result ApplySetCapacity(MemberId member, const Action& action);
 	Result ApplySetTableCount(MemberId member, const Action& action);
 	Result ApplyLock(MemberId member, const Action& action);
+	Result ApplySetWiredOnly(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);
@@ -293,6 +296,8 @@ private:
 	void StandUp(MemberId member);
 	void CrownTopSlot();
 	void FillVacancy(Table& table, int seat);
+	// The member's link may take a seat in this room (LinkMaySit).
+	bool MaySit(MemberId member) const;
 	// A first-to-N table whose score just reached N: records the set, moves the
 	// streak, and sends the rotated fighters to the back of the queue.
 	void CompleteSet(Table& table, int winnerSeat);

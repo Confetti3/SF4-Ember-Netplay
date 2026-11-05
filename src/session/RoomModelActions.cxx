@@ -44,6 +44,15 @@ Result RoomAuthority::ApplyLock(MemberId member, const Action& action) {
 	snapshot_.locked = action.locked; TouchRoom(); return Accept();
 }
 
+// The rule binds the next seat taken (LinkMaySit): nobody seated is moved, and
+// a game under way plays on. A member on Wi-Fi still queued is passed over
+// when their turn comes (FillVacancy).
+Result RoomAuthority::ApplySetWiredOnly(MemberId member, const Action& action) {
+	if (!IsHost(member)) return Reject(RejectReason::NotHost);
+	if (snapshot_.wiredOnly != action.wiredOnly) { snapshot_.wiredOnly = action.wiredOnly; TouchRoom(); }
+	return Accept();
+}
+
 Result RoomAuthority::ApplyKick(MemberId member, const Action& action) {
 	if (!IsHost(member) || action.target == 0 || action.target == snapshot_.host) return Reject(RejectReason::Unauthorized);
 	const auto* targetMember = Find(action.target);
@@ -187,6 +196,7 @@ Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* t
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
 		if (std::find(other.queue.begin(), other.queue.end(), member) != other.queue.end()) return Reject(RejectReason::AlreadyQueued);
 	}
+	if (!MaySit(member)) return Reject(RejectReason::WiredOnly);
 	// A named seat is that seat or nothing: it must be open, with nobody
 	// queued first. A Queue with no seat takes the first open one, or waits.
 	if (asked && !SeatOpenNow(*table, action.seat)) return Reject(RejectReason::InvalidSeat);
@@ -475,7 +485,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (snapshot_.closed && action.kind != ActionKind::Leave) return Reject(RejectReason::Closed);
 	if (action.roomEpoch != snapshot_.roomEpoch) return Reject(RejectReason::StaleRoom);
 	const bool roomAction = action.kind == ActionKind::SetCapacity || action.kind == ActionKind::SetTableCount || action.kind == ActionKind::Lock ||
-		action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
+		action.kind == ActionKind::SetWiredOnly || action.kind == ActionKind::Kick || action.kind == ActionKind::Close || action.kind == ActionKind::Rename ||
 		action.kind == ActionKind::TransferHost;
 	if (roomAction && action.revision != snapshot_.revision) return Reject(RejectReason::StaleRoom);
 	const bool generationScopedUnwatch = action.kind == ActionKind::Unwatch && action.matchGeneration != 0;
@@ -510,6 +520,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	if (action.kind == ActionKind::SetCapacity) return ApplySetCapacity(member, action);
 	if (action.kind == ActionKind::SetTableCount) return ApplySetTableCount(member, action);
 	if (action.kind == ActionKind::Lock) return ApplyLock(member, action);
+	if (action.kind == ActionKind::SetWiredOnly) return ApplySetWiredOnly(member, action);
 	// The bound fighters keep their seats; nobody is kicked from a match room.
 	if (action.kind == ActionKind::Kick && snapshot_.tournament.Active()) return Reject(RejectReason::Unauthorized);
 	if (action.kind == ActionKind::Kick) return ApplyKick(member, action);
