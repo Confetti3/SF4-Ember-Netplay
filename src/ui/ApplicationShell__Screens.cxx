@@ -54,6 +54,10 @@ public:
     bool Owns(const std::string& screen) const override { return PublicRoomsPanel::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
         auto& shell = f.shell;
+        if (f.screen == PublicRoomsPanel::FiltersScreen) {
+            title = loc::T("public.filters");
+            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::KnownRegion(f.view), f.view.canEditPreferences);
+        }
         title = loc::T("screen.public_rooms");
         return shell.publicRooms_.Rows(f.view, shell.identity_.UsableBridge(f.view), shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
             shell.preferences_.roomFilter);
@@ -88,6 +92,8 @@ public:
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
         return [shell, view](const std::string& id) { DrawPublicPreview(*view, shell->publicRooms_, id); };
     }
+    // The filter is a saved preference, so the filters page says how its save stands.
+    bool ReportsSave(const std::string& screen) const override { return screen == PublicRoomsPanel::FiltersScreen; }
     // The list leads with a toolbar of three cells, in one row on a wide list and two on a narrow one.
     ScreenGrid Grid(const ScreenFrame& f) const override {
         if (!f.rows || f.rows->empty() || f.rows->front().id != "pr-quick") return {};

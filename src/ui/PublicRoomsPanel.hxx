@@ -40,7 +40,13 @@ public:
     // The list is asked for again this long after the last answer, and this long
     // after one that failed.
     static constexpr double AutoRefreshSeconds = 15, ErrorBackoffSeconds = 30;
-    static bool Owns(const std::string& screen) { return screen == "public-rooms"; }
+    // The filters page, which Select on the list's Filters row opens: it is part of
+    // browsing, so leaving the list for it asks for nothing again.
+    static constexpr const char* FiltersScreen = "public-filters";
+    static bool Owns(const std::string& screen) { return screen == "public-rooms" || screen == FiltersScreen; }
+    // The filters page's rows: the four values that Left and Right step, then Clear
+    // filters. `home` is KnownRegion; `enabled` is whether the filter can be changed.
+    static std::vector<MenuEntry> FilterRows(const netplay::publicrooms::RoomFilter& filter, const std::string& home, bool enabled);
     // A refused request or a failed refresh, by its stable code, in words.
     static std::string FailureText(const std::string& code);
     // The region of this PC's home relay, whose rooms are near; empty while it is unknown.
@@ -71,9 +77,9 @@ public:
     // True when the row was the panel's own.
     bool Activate(const MenuAction& action, MenuNavigation& navigation);
     // Left or Right on one of the filter rows changes `filter` (a bool row takes
-    // Right as on, Left as off); true when the action was a filter row's. The
-    // Clear filters card, pressed, resets it too, and is also reported as the
-    // panel's own. `home` is KnownRegion.
+    // Right as on, Left as off); true when the action was a filter row's. Clear
+    // filters, on the page or as the empty list's card, resets it too and is also
+    // reported as the panel's own. `home` is KnownRegion.
     static bool ChangeFilter(const MenuAction& action, const std::string& home, netplay::publicrooms::RoomFilter& filter);
     // The Options button or key (Y, T) asks for the list again; true when it was the panel's own.
     bool Shortcut(const MenuAction& action, const ShellView& view);

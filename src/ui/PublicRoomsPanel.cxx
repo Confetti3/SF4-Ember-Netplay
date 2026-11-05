@@ -85,28 +85,32 @@ std::vector<const Room*> Listing(const void* owner, const PublicList& list, cons
     return listing;
 }
 
-// The filter's rows under the toolbar, one full-width row each so Left and Right step the value.
+// The filters page's value rows, which Left and Right step; the list's Filters row opens the page,
+// and Clear filters is a row on the page and a card on a list the filter has emptied.
 constexpr const char *FilterRegionRow = "pr-filter-region", *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
-    *FilterWiredRow = "pr-filter-wired", *ClearFiltersCard = "pr-clear-filters";
-constexpr float FilterRowHeight = 40;
+    *FilterWiredRow = "pr-filter-wired", *ClearFiltersCard = "pr-clear-filters", *ClearFiltersRow = "pr-filters-clear", *FiltersRow = "pr-filters";
+constexpr float FiltersRowHeight = 40;
 
 std::string RegionValue(const RoomFilter& filter) {
     return filter.scope == RoomFilter::Region::All ? std::string(loc::T("public.filter_region_all")) :
         filter.scope == RoomFilter::Region::Near ? std::string(loc::T("public.filter_region_near")) : PublicRoomsPanel::RegionLabel(filter.region);
 }
 
-void AddFilterRows(std::vector<MenuEntry>& rows, const RoomFilter& filter, const std::string& home, bool enabled) {
-    const bool nearUnknown = filter.scope == RoomFilter::Region::Near && home.empty();
-    const auto add = [&](const char* id, const char* label, std::string value, std::string detail) {
-        auto row = Value(id, loc::T(label), std::move(value), std::move(detail), enabled);
-        row.wide = true; row.height = FilterRowHeight;
-        rows.push_back(std::move(row));
-    };
-    add(FilterRegionRow, "public.filter_region", RegionValue(filter), loc::T(nearUnknown ? "public.filter_near_unknown" : "public.filter_region_detail"));
+std::string RoomTypeValue(const RoomFilter& filter) {
     const auto wanted = WantedType(filter.type);
-    add(FilterTypeRow, "public.filter_type", wanted ? std::string(RoomTypeName(*wanted)) : std::string(loc::T("public.filter_type_all")), loc::T("public.filter_type_detail"));
-    add(FilterSeatsRow, "public.filter_seats", loc::T(filter.openSeats ? "common.on" : "common.off"), loc::T("public.filter_seats_detail"));
-    add(FilterWiredRow, "public.filter_wired", loc::T(filter.wiredOnly ? "public.filter_wired_only" : "public.filter_wired_all"), loc::T("public.filter_wired_detail"));
+    return wanted ? std::string(RoomTypeName(*wanted)) : std::string(loc::T("public.filter_type_all"));
+}
+
+// What the list's Filters row says is on: "All rooms", or the settings that narrow it, such as "Near me · Classic · Wired only".
+std::string FilterSummary(const RoomFilter& filter) {
+    if (!filter.Active()) return loc::T("public.filter_summary_all");
+    std::string text;
+    const auto add = [&](const std::string& part) { text += (text.empty() ? "" : " \xC2\xB7 ") + part; };
+    if (filter.scope != RoomFilter::Region::All) add(RegionValue(filter));
+    if (filter.type != RoomFilter::Type::All) add(RoomTypeValue(filter));
+    if (filter.openSeats) add(loc::T("public.filter_summary_seats"));
+    if (filter.wiredOnly) add(loc::T("public.filter_wired_only"));
+    return text;
 }
 
 }
@@ -253,7 +257,8 @@ void PublicRoomsPanel::Update(const ShellView& v, const std::string& screen, con
     // A setup that just made the service usable shows the rooms without waiting for a refresh.
     if (Owns(screen) && !bridge_.empty() && !hadService_) wantList_ = true;
     hadService_ = Owns(screen) && !bridge_.empty();
-    const bool opened = Owns(screen) && screen != lastScreen_;
+    // Moving between the list and its filters page is not opening the list.
+    const bool opened = Owns(screen) && !Owns(lastScreen_);
     lastScreen_ = screen;
     if (opened) wantList_ = true;
     const auto& list = v.publicRooms;
@@ -458,10 +463,12 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     rows.back().hint = loc::T("public.create_room");
     rows.push_back(Row("pr-paste", loc::T("public.paste_link"), loc::T("public.paste_link_detail"), free));
     rows.back().hint = loc::T("menu.hint.paste");
-    AddFilterRows(rows, filter, region, free);
     if (Busy()) rows.push_back(Wide(Row("pr-stop", loc::T("public.stop_joining"), loc::T("room.stop_joining"))));
     // A link that arrived while the player was busy waits here for their choice.
     if (link_) rows.push_back(Wide(Row("pr-link", loc::T("public.link_row"), loc::T("public.link_row_detail"), free)));
+    // The filter is one row; its page has the values.
+    rows.push_back(Wide(Row(FiltersRow, loc::T("public.filters"), loc::T("public.filters_detail"), free), FiltersRowHeight));
+    rows.back().value = FilterSummary(filter);
     if (!listed) {
         rows.push_back(Wide(InfoRow("pr-loading", loc::T("public.loading_card"), {}, {}), 3 * CardHeight + 16));
         return rows;
@@ -490,8 +497,22 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     return rows;
 }
 
+std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, const std::string& home, bool enabled) {
+    const bool nearUnknown = filter.scope == RoomFilter::Region::Near && home.empty();
+    std::vector<MenuEntry> rows;
+    rows.push_back(Value(FilterRegionRow, loc::T("public.filter_region"), RegionValue(filter),
+        loc::T(nearUnknown ? "public.filter_near_unknown" : "public.filter_region_detail"), enabled));
+    rows.push_back(Value(FilterTypeRow, loc::T("public.filter_type"), RoomTypeValue(filter), loc::T("public.filter_type_detail"), enabled));
+    rows.push_back(Value(FilterSeatsRow, loc::T("public.filter_seats"), loc::T(filter.openSeats ? "common.on" : "common.off"),
+        loc::T("public.filter_seats_detail"), enabled));
+    rows.push_back(Value(FilterWiredRow, loc::T("public.filter_wired"), loc::T(filter.wiredOnly ? "public.filter_wired_only" : "public.filter_wired_all"),
+        loc::T("public.filter_wired_detail"), enabled));
+    rows.push_back(Row(ClearFiltersRow, loc::T("public.clear_filters"), loc::T("public.clear_filters_detail"), enabled && filter.Active()));
+    return rows;
+}
+
 bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, const std::string& home, RoomFilter& filter) {
-    if (a.kind == MenuAction::Activate && a.id == ClearFiltersCard) { filter = RoomFilter(); return true; }
+    if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = RoomFilter(); return true; }
     if (a.kind != MenuAction::Adjust) return false;
     if (a.id == FilterRegionRow) filter.StepRegion(a.delta, home);
     else if (a.id == FilterTypeRow) filter.StepType(a.delta);
@@ -503,6 +524,7 @@ bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, const std::string& home
 
 bool PublicRoomsPanel::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "identity") { nav.Push("identity"); return true; }
+    if (a.id == FiltersRow) { nav.Push(FiltersScreen); return true; }
     if (a.id == "pr-error") { Refresh(); return true; }
     if (a.id == "pr-stop") { Abandon(); return true; }
     if (a.id == "pr-link") { if (link_ && !Busy()) link_->direct = true; return true; }

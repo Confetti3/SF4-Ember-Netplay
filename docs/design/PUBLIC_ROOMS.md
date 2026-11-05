@@ -148,7 +148,8 @@ The Public rooms list is filtered on the client, from the rooms the listing
 returns: by region (every region, near this PC's home relay, or one relay
 region), by room type (Classic, Arcade or King of the hill; a room that sent no
 type shows only when every type is allowed), by open seats, and by wired-only
-rooms. The filter is saved with the player's preferences (`roomFilter` in the
+rooms. The list shows one Filters row that summarises what is on; Select opens a page
+(`public-filters`) with the four values and Clear filters. The filter is saved with the player's preferences (`roomFilter` in the
 netplay section); a saved region that is no longer one of the relay regions
 loads as every region. Quick join takes the first room the filter lists, in the
 player's region unless the filter names one. Nothing is sent to the bridge.
