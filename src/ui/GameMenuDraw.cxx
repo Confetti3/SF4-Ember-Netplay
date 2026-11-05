@@ -200,8 +200,10 @@ void DrawMenuRow(ImDrawList* d, const MenuEntry& e, const MenuRowLayout& at, boo
 }
 EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
     bool scroll, const MenuRowLayout& layout, bool choose) {
-    // Directions move between a board's rows by where they are drawn.
-    nav.Place(e.id, RectOf(b));
+    // Directions move between a board's rows by where they are drawn, and
+    // reach a row its scroll hides only from that scroll.
+    const ImVec2 clipMin = ImGui::GetWindowDrawList()->GetClipRectMin(), clipMax = ImGui::GetWindowDrawList()->GetClipRectMax();
+    nav.Place(e.id, RectOf(b), MenuRect{clipMin.x, clipMin.y, clipMax.x, clipMax.y});
     ImGui::SetCursorScreenPos(b.min);
     ImGui::PushID(e.id.c_str());
     const bool pressed = ImGui::InvisibleButton("##entry", ImVec2(b.W(), b.H())) && !nav.Asking() && !nav.Editing();

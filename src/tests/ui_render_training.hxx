@@ -134,7 +134,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     {
         Require(TrainingMeterOptions().style==training::MeterStyle::Angled&&!TrainingMeterOptions().recovery&&TrainingMeterOptions().shown==60,"Meter options are not Angled, Off and 60 frames at first");
         TrainingNavigation().Home();TrainingNavigation().Push("frame-data");draw();
-        for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+        // Up to the first row (Up from it goes round to the last).
+        for(int i=0;i<20&&TrainingNavigation().Focus()!="p1";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         const auto focus=[&](const char* id){
             for(int i=0;i<20&&TrainingNavigation().Focus()!=id;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(TrainingNavigation().Focus()==id,"Frame data row unreachable");};
@@ -148,14 +149,14 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         focus("hud-recovery");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(TrainingMeterOptions().style==training::MeterStyle::Flat&&TrainingMeterOptions().recovery,"Recovery row did not turn the HUD number on");
         draw("training-meter-options");
-        for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+        for(int i=0;i<20&&TrainingNavigation().Focus()!="p1";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         focus("color-key");draw("training-color-key-flat");
         SetTrainingMeterOptions({});
     }
     // The HUD page: standard size and every part on at first. Left on the
     // size makes the HUD smaller, and on a part turns it off.
     TrainingNavigation().Home();TrainingNavigation().Push("hud");draw();
-    for(int i=0;i<6;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+    for(int i=0;i<6&&TrainingNavigation().Focus()!="hud-size";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
     Require(TrainingMeterOptions().size==1,"The HUD is not standard size at first");
     draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
     Require(TrainingMeterOptions().size==0,"HUD page did not make the HUD smaller");
@@ -178,7 +179,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         for(const char* screen:{"recording","frame-data","hud","dummy","reply"}) {
             const std::string page=screen;
             TrainingNavigation().Home();TrainingNavigation().Push(screen);draw();
-            for(std::size_t i=0;i<rows.size();++i)press(MenuInput::Up);
+            // Up to the first row: from it Up goes round to the last.
+            for(std::size_t i=0;i<rows.size()&&TrainingNavigation().Focus()!=rows.front().id;++i)press(MenuInput::Up);
             Require(TrainingNavigation().Focus()==rows.front().id,("Up did not reach the first row of "+page).c_str());
             const auto order=rows;
             for(std::size_t i=1;i<order.size();++i){
