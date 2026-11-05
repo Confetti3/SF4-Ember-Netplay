@@ -7884,6 +7884,33 @@ msgstr "コスチューム"
 msgid "selection.color_row"
 msgstr "カラー"
 
+msgid "selection.costume_gallery_title"
+msgstr "コスチューム一覧"
+
+msgid "selection.color_gallery_title"
+msgstr "カラー一覧"
+
+msgid "selection.color"
+msgstr "カラー{0}"
+
+msgid "selection.no_colors"
+msgstr "このコスチュームには使用可能なカラーがありません。"
+
+msgid "selection.loading_choices"
+msgstr "選択肢を読み込み中"
+
+msgid "selection.loading_choices.detail"
+msgstr "ゲーム本体のコスチュームとカラーの使用可否を確認中です。"
+
+msgid "menu.hint.save_color"
+msgstr "カラーを保存"
+
+msgid "selection.costume_row.detail"
+msgstr "左右でここのコスチュームを変更します。決定で各コスチュームを表示します。"
+
+msgid "selection.color_row.detail"
+msgstr "左右でここのカラーを変更します。決定で各カラーを表示します。"
+
 msgid "selection.ready_with"
 msgstr "{0}で準備完了"
 

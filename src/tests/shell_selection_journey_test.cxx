@@ -118,9 +118,20 @@ void KeyboardJourneys(){
   "Select on the table's Ultra did not open the fighter's page on its Ultra");
  key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
  h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="look"&&selector.Navigation().Focus()=="costume",
-  "Select on the table's Appearance did not open the fighter's page on its costume");
- key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-0",
+  "Select on the table's Appearance did not open the costume grid on the worn costume");
+ key(ImGuiKey_Backspace);
+ Check(h.shell.Navigation().Screen()=="room-table"&&pick.costume==0&&pick.color==0,"Back from the costume grid did not return to the table page unchanged");
+ // The grids move by where their cards are: Right is the next costume, and
+ // its colours open on the colour worn where it has it. A colour saves both
+ // and returns to the table page.
+ h.FocusOn("appearance");key(ImGuiKey_Enter);key(ImGuiKey_RightArrow);
+ Check(selector.Navigation().Focus()=="costume-1","Right on the costume grid did not move to the next costume");
+ key(ImGuiKey_Enter);
+ Check(selector.Navigation().Screen()=="colors"&&selector.Navigation().Focus()=="color-0"&&pick.costume==0,
+  "A costume did not open its colours on the worn colour, or was saved before its colour");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(pick.costume==1&&pick.color==2&&h.shell.Navigation().Screen()=="room-table","Picking a colour did not save the costume and colour and return");
  // The rest of the pick is on the table page too: Additional options opens its
  // page (personal action, win quote and the others), and Back returns.
  h.FocusOn("fighter-options");key(ImGuiKey_Enter);

@@ -68,9 +68,13 @@ int main() try {
         Check(found != rows.end(), ("The board lost its row " + id).c_str());
         return *found;
     };
+    const auto keyed = [&](const char* prefix) {
+        return std::count_if(rows.begin(), rows.end(), [&](const MenuEntry& e) { return e.id.rfind(prefix, 0) == 0; });
+    };
     for (const int fighter : {0, 43}) {
-        // The board's costume row offers every owned costume, DLC included, and
-        // a pick from its panel saves the costume's native ID.
+        // The fighter page's Costume row opens a grid of every owned costume,
+        // DLC included; a costume opens its colours, and a colour saves the
+        // costume's native ID with it. Back leaves the pick as it was.
         FighterSelector selector;
         Pick pick; pick.fighter = fighter;
         const auto availability = NativeAvailability(fighter == 0 ? 0x007f007f : 0x003f003f);
@@ -86,14 +90,26 @@ int main() try {
         frame(); frame();
         // The costume row is on the fighter's own page.
         selector.Navigation().Push("look"); frame();
-        Check(row("costume").choices.size() == static_cast<std::size_t>(CostumeCount(fighter)), "Missing artwork hid owned costumes");
+        Check(row("costume").choices.empty(), "The costume row still opens a word list");
         for (int costume = BaseCostumeCount(fighter); costume < CostumeCount(fighter); ++costume) {
-            Check(row("costume").choices[costume].enabled, "An owned DLC costume is not selectable");
+            const auto& nav = selector.Navigation();
             selector.Navigation().Focus("costume", rows); press(MenuInput::Select);
-            Check(selector.Navigation().Choosing(), "Select on the costume row did not open the costumes");
-            for (int step = pick.costume; step < costume; ++step) press(MenuInput::Right);
-            press(MenuInput::Select);
-            Check(pick.costume == costume, "Picking a DLC costume did not save its native ID");
+            Check(nav.Screen() == "costumes" && nav.Focus() == "costume-" + std::to_string(pick.costume),
+                "Select on the costume row did not open the costume grid on the worn costume");
+            Check(keyed("costume-") == CostumeCount(fighter), "Missing artwork hid owned costumes");
+            const auto card = "costume-" + std::to_string(costume);
+            Check(row(card).enabled, "An owned DLC costume is not selectable");
+            const int worn = pick.costume;
+            selector.Navigation().Focus(card, rows); press(MenuInput::Select);
+            Check(nav.Screen() == "colors" && pick.costume == worn && keyed("color-") > 0,
+                "A costume did not open its colours, or saved itself before one was chosen");
+            press(MenuInput::Back);
+            Check(nav.Screen() == "costumes" && pick.costume == worn, "Back from the colours changed the costume");
+            selector.Navigation().Focus(card, rows); press(MenuInput::Select);
+            const auto color = std::find_if(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id.rfind("color-", 0) == 0; });
+            Check(color != rows.end() && color->enabled, "A DLC costume offers no colour to pick");
+            selector.Navigation().Focus(color->id, rows); press(MenuInput::Select);
+            Check(pick.costume == costume && nav.Screen() == "look", "Picking a DLC costume's colour did not save its native ID");
             frame(0, false); frame();
             Check(pick.costume == costume && Available(pick, true, availability),
                 "Locking or refreshing selection reset an owned DLC costume");

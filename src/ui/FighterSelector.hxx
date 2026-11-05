@@ -4,6 +4,7 @@
 #include "../common/StageCatalog.hxx"
 #include "SelectionArt.hxx"
 #include "GameMenu.hxx"
+#include "AppearanceGallery.hxx"
 #include <functional>
 #include <string>
 
@@ -47,7 +48,9 @@ private:
                    const selection::Pick& pick, bool randomSaved, SelectionArt* art, const AvailabilityReader& readAvailability);
     std::string boardFocus_;
     GameMenu menu_;
-    // The page ("stage" or "options") opened for one change
+    // The costume and colour grids over the fighter's page.
+    AppearanceGallery gallery_;
+    // The page ("stage", "options" or "costumes") opened for one change
     // (EmbeddedReturn::openOn), or empty when the selector opened on its board.
     std::string openOn_;
 };

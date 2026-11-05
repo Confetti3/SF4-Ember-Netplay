@@ -7883,6 +7883,33 @@ msgstr "Kostuum"
 msgid "selection.color_row"
 msgstr "Kleur"
 
+msgid "selection.costume_gallery_title"
+msgstr "OUTFITGALERIJ"
+
+msgid "selection.color_gallery_title"
+msgstr "KLEURENGALERIJ"
+
+msgid "selection.color"
+msgstr "Kleur {0}"
+
+msgid "selection.no_colors"
+msgstr "Geen kleuren vrij voor deze outfit."
+
+msgid "selection.loading_choices"
+msgstr "Beschikbare keuzes laden"
+
+msgid "selection.loading_choices.detail"
+msgstr "Wachten op beschikbare outfits en kleuren uit het spel."
+
+msgid "menu.hint.save_color"
+msgstr "Kleur opslaan"
+
+msgid "selection.costume_row.detail"
+msgstr "Links en Rechts wisselen hier het kostuum. Selecteren toont elk kostuum."
+
+msgid "selection.color_row.detail"
+msgstr "Links en Rechts wisselen hier de kleur. Selecteren toont elke kleur."
+
 msgid "selection.ready_with"
 msgstr "Klaar met {0}"
 

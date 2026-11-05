@@ -7884,6 +7884,33 @@ msgstr "코스튬"
 msgid "selection.color_row"
 msgstr "색상"
 
+msgid "selection.costume_gallery_title"
+msgstr "코스튬 목록"
+
+msgid "selection.color_gallery_title"
+msgstr "색상 목록"
+
+msgid "selection.color"
+msgstr "색상 {0}"
+
+msgid "selection.no_colors"
+msgstr "이 코스튬에 해제된 색상이 없습니다."
+
+msgid "selection.loading_choices"
+msgstr "선택 항목 로딩 중"
+
+msgid "selection.loading_choices.detail"
+msgstr "게임의 코스튬과 색상 사용 가능 여부를 기다립니다."
+
+msgid "menu.hint.save_color"
+msgstr "색상 저장"
+
+msgid "selection.costume_row.detail"
+msgstr "좌우로 여기서 코스튬을 바꿉니다. 선택하면 각 코스튬을 보여 줍니다."
+
+msgid "selection.color_row.detail"
+msgstr "좌우로 여기서 색상을 바꿉니다. 선택하면 각 색상을 보여 줍니다."
+
 msgid "selection.ready_with"
 msgstr "{0}(으)로 준비 완료"
 

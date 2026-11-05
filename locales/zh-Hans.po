@@ -7884,6 +7884,33 @@ msgstr "服装"
 msgid "selection.color_row"
 msgstr "颜色"
 
+msgid "selection.costume_gallery_title"
+msgstr "服装图库"
+
+msgid "selection.color_gallery_title"
+msgstr "颜色图库"
+
+msgid "selection.color"
+msgstr "颜色 {0}"
+
+msgid "selection.no_colors"
+msgstr "此服装没有已解锁的颜色。"
+
+msgid "selection.loading_choices"
+msgstr "正在加载可选项"
+
+msgid "selection.loading_choices.detail"
+msgstr "等待游戏读取可用服装和颜色。"
+
+msgid "menu.hint.save_color"
+msgstr "保存颜色"
+
+msgid "selection.costume_row.detail"
+msgstr "左右键在这里切换服装。选择会显示每个服装。"
+
+msgid "selection.color_row.detail"
+msgstr "左右键在这里切换颜色。选择会显示每个颜色。"
+
 msgid "selection.ready_with"
 msgstr "使用{0}准备就绪"
 
