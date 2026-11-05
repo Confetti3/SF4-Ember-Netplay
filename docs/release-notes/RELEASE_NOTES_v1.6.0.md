@@ -31,6 +31,10 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **Quick join follows the filter.** It takes the best room the filter lists, near you unless you chose a region.
 - **Wired players only.** A new room setting, off by default, when you create a room and in Room settings. While it is on, players on Wi-Fi can join, watch and chat but cannot take a seat, queue or sit at an Arcade cabinet, and the closed seat says why. A connection Ember cannot tell, as on Linux and Steam Deck, can always play. Turning it on moves nobody who is already seated, and a Wi-Fi player still in the queue is passed over when their turn comes. After plugging in a cable, leave and join the room again. Public rooms with the setting show a Wired only mark.
 
+### Rooms
+
+- **Classic tables read like they did before 1.5.0.** Each table is one line at every common screen size, 1280 wide included: a fighter at each end, the players' names between them and the set's score small in the middle, where the big number was. The rules, queue and watchers are back along the bottom of the card, under the players, and the table's state and its name (if the host gave it one) sit beside TABLE 1. A player on a win streak at the table has it under their fighter again, and a seated player who has been waiting a while shows how long. Ready up and Leave seat on your own card, and the seat chooser, sit along the bottom of the card. Tables: Grid and narrow screens keep the stacked cards. Arcade and King of the Hill rooms are unchanged.
+
 ### Training
 
 - **The Training controls button can move.** Controllers > your pad > Button layout has a Training controls row. It starts on Automatic: R3 opens the controls unless R3 is one of your attacks, and then it is off and your attack is left alone. Pick another button or turn it off, and your choice wins. F6 and Back with Start always open the controls. A button chosen here opens the controls in Training and never attacks there, and keeps its attack everywhere else.

@@ -128,8 +128,15 @@ state, players, score and ping. Members and chat share the column on the
 right. The room's actions run along the bottom: Ready up and your Ultra while
 you are seated, Table options, Wait in Training, More… and Leave room.
 
-- A table card's own buttons (Ready up, Leave seat) are on the card. Select
-  the card with A for the seat chooser.
+- In a Classic room each table is one line, as before 1.5.0: TABLE 1 with
+  its state and the host's name for it, the two players with a fighter at
+  each end and the set's score (vs before a pair sits) small between them,
+  and the rules, queue and watchers along the bottom. A player on a win
+  streak at the table has it under their fighter; otherwise a player who
+  has waited a while shows how long. On a narrow screen, or with Settings,
+  Interface, Room layout, Tables: Grid, the two seats stack.
+- A table card's own buttons (Ready up, Leave seat) are on the card, along
+  its bottom. Select the card with A for the seat chooser.
 - Each seat shows the player's fighter, with its costume and Ultra under
   their name, such as Ryu · Original · Ultra I. By default the picture is the
   whole fighter in the costume and colour they picked; Settings, Interface,
