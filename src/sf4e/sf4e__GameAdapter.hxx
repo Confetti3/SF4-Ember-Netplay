@@ -42,18 +42,19 @@ namespace ember { namespace game {
 
 // What this game offers the player. Each flag closes the places the runtime
 // offers its feature, named below; the services below stay callable either way.
+// Every flag is off until the game sets it, by name.
 struct Capabilities {
     // Training from Home or a room: RuntimeGates::canTrain and every Training
     // request (NetplayFacade::TrainingHolds), so Training::Request is never called.
-    bool training;
-    bool replays;        // playing replays from the Replays screen (the snapshot's replays.ready)
+    bool training = false;
+    bool replays = false;        // playing replays from the Replays screen (the snapshot's replays.ready)
     // Watching a table's games: a room's Watch action, a tournament match's
     // watch and its observer join, and the entry of any game this PC would
     // only watch (queued or watching), which it sits out.
-    bool spectators;
-    bool padSetup;       // the pad wizard (a pad's Setup request)
-    bool steamProfile;   // opening a member's Steam profile (the OpenSteamProfile service)
-    bool customContent;  // installed custom costumes, colours and stages (InstalledContent)
+    bool spectators = false;
+    bool padSetup = false;       // the pad wizard (a pad's Setup request)
+    bool steamProfile = false;   // opening a member's Steam profile (the OpenSteamProfile service)
+    bool customContent = false;  // installed custom costumes, colours and stages (InstalledContent)
 };
 
 // Where the game is. Game thread.
@@ -140,6 +141,8 @@ public:
 
     // Read while Live().
     virtual LinkSample Sample() const = 0;
+    // Sample's disconnectCountdownMs alone, for a caller that needs only it.
+    virtual int DisconnectCountdownMs() const = 0;
     virtual unsigned RecentRollbackFrames() const = 0;
     // The game's pings, for the delay advice after it.
     virtual sf4e::GamePing::Summary PingSummary() const = 0;
@@ -199,8 +202,8 @@ protected:
     ~Input() = default;
 };
 
-// Where Ember's settings are saved: one writer, off the game thread. Every
-// game has one, so it is an interface, not a capability.
+// Where Ember's settings are saved. Every game has one, so it is an interface,
+// not a capability. Game thread; the game's one writer saves off it.
 class Preferences {
 public:
     struct Device { int type; int index; std::optional<sf4e::gamepads::Identity> identity; };
@@ -219,7 +222,7 @@ protected:
     ~Preferences() = default;
 };
 
-// The game-side services the runtime drives.
+// The game-side services the runtime drives. Game thread.
 class Services {
 public:
     virtual sf4e::SteamId LocalSteamId() = 0;
@@ -242,7 +245,7 @@ protected:
     ~Services() = default;
 };
 
-// Offline Training, and the Training call from a room.
+// Offline Training, and the Training call from a room. Game thread.
 class Training {
 public:
     // Leaves the main menu for Training, for the room session `made`.
@@ -256,7 +259,7 @@ protected:
     ~Training() = default;
 };
 
-// The replay archive, its playback and its export.
+// The replay archive, its playback and its export. Game thread.
 class Replays {
 public:
     virtual bool Ready() = 0;

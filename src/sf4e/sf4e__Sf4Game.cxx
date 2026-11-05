@@ -90,7 +90,7 @@ public:
         LinkSample sample;
         sample.connectionWarning = fSystem::simGate.connectionWarningActive;
         sample.predictionStalled = fSystem::simGate.predictionStalled;
-        sample.disconnectCountdownMs = fSystem::DisconnectCountdownMs();
+        sample.disconnectCountdownMs = DisconnectCountdownMs();
         sample.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
         sample.appliedDelay = fSystem::matchTelemetry.appliedDelay;
         sample.ownDelays = fSystem::matchTelemetry.ownDelays;
@@ -99,6 +99,7 @@ public:
         sample.localFighter = fSystem::LocalFighter();
         return sample;
     }
+    int DisconnectCountdownMs() const override { return fSystem::DisconnectCountdownMs(); }
     unsigned RecentRollbackFrames() const override { return fSystem::RecentRollbackFrames(); }
     sf4e::GamePing::Summary PingSummary() const override { return fSystem::matchTelemetry.pings.Summarize(); }
     void PollTelemetry() override { fSystem::PollMatchTelemetry(); }
@@ -219,8 +220,18 @@ Sf4Services s_services;
 Sf4Training s_training;
 Sf4Replays s_replays;
 // SF4 offers every feature.
+constexpr Capabilities Sf4Capabilities() {
+    Capabilities caps;
+    caps.training = true;
+    caps.replays = true;
+    caps.spectators = true;
+    caps.padSetup = true;
+    caps.steamProfile = true;
+    caps.customContent = true;
+    return caps;
+}
 const Adapter s_game = {
-    {true, true, true, true, true, true},
+    Sf4Capabilities(),
     s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays,
 };
 }

@@ -526,7 +526,7 @@ void TickTournament(bool helperReady) {
 	// then ends in an abort ended for the lost connection, whichever fighter's
 	// abort the room takes first, so both fighters are told the same.
 	if (runtime->match && runtime->entry.matchEntered && !LocalIsSpectator() && Game().battle.Live() &&
-		Game().battle.Sample().disconnectCountdownMs >= 0)
+		Game().battle.DisconnectCountdownMs() >= 0)
 		runtime->tournament.OnConnectionLost(runtime->match->Generation());
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
 	SendSetReplays(helperReady, now);

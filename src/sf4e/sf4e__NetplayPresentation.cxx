@@ -39,15 +39,13 @@ namespace sf4e {
 
 	void NetplayFacade::ClearTransientMatchNotice() { s_notice.ClearTransient(); }
 
-	NetplayStatus NetplayFacade::GetStatus() {
+	// The status with the battle's `live` and its `link` sample, taken once by the caller.
+	static NetplayStatus StatusOf(const ember::game::Battle& battle, bool live, const ember::game::LinkSample& link) {
 		NetplayStatus st;
 		if (!s_notice.Empty()) {
 			strncpy_s(st.lastError, s_notice.Text(), _TRUNCATE);
 			st.lastErrorSeverity = s_notice.Severity();
 		}
-		const auto& battle = ember::game::Game().battle;
-		const bool live = battle.Live();
-		const auto link = live ? battle.Sample() : ember::game::LinkSample{};
 		st.connectionWarning = link.connectionWarning;
 		st.predictionStalled = link.predictionStalled;
 		st.disconnectCountdownMs = link.disconnectCountdownMs;
@@ -97,15 +95,23 @@ namespace sf4e {
 		return st;
 	}
 
+	NetplayStatus NetplayFacade::GetStatus() {
+		const auto& battle = ember::game::Game().battle;
+		const bool live = battle.Live();
+		return StatusOf(battle, live, live ? battle.Sample() : ember::game::LinkSample{});
+	}
+
 	void NetplayFacade::PublishPresentationFrame() {
 		static std::uint64_t sequence = 0;
 		s_notice.Expire(GetTickCount64());
 		auto next = std::make_shared<PresentationSnapshot>();
 		next->runtime = bridge::LatestRuntime();
-		next->netplay = GetStatus();
 		const auto& battle = ember::game::Game().battle;
-		next->ggpoSessionActive = battle.Live();
-		next->localFighter = next->ggpoSessionActive && battle.Sample().localFighter;
+		const bool live = battle.Live();
+		const auto link = live ? battle.Sample() : ember::game::LinkSample{};
+		next->netplay = StatusOf(battle, live, link);
+		next->ggpoSessionActive = live;
+		next->localFighter = live && link.localFighter;
 		next->sequence = ++sequence;
 		bridge::PublishPresentation(std::move(next));
 	}
