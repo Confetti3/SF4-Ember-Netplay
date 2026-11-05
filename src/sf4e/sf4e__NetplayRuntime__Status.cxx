@@ -357,7 +357,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->helper ? static_cast<std::uint64_t>(runtime->helper->State()) : 0);
     mix(runtime->match ? static_cast<std::uint64_t>(runtime->match->GetPhase()) : 0);
     mix(runtime->readyIntent.Parked() != nullptr); mix(runtime->lobbyEditIntent.Parked() != nullptr); mix(runtime->teardown.pendingAbort != nullptr);
-    mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence);
+    mix(runtime->readyIntent.Armed()); mix(runtime->readyFailureSequence); mix(internal::PostMatchPromptDue());
     mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1)); mix(CurrentRandomFighter().serial);
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
@@ -553,6 +553,11 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 		gates.canReady = gates.canReady && !runtime->teardown.pendingAbort;
 		gates.canEditSelection = gates.canEditSelection && !runtime->teardown.pendingAbort;
 	}
+	// Over the WIN, the prompt asks a seated fighter who has not answered:
+	// nothing of the next game has gone, so its Ultra is still theirs to change.
+	gates.canChangeUltra = gates.canEditSelection || (attached && gates.localSlot >= 0 && gates.localSlot < 2 &&
+		internal::PostMatchPromptDue() && !runtime->readyIntent.Active() && !runtime->teardown.pendingAbort &&
+		UserApp::netplay->client._outstandingReadyRequestNumber == -1);
 	gates.canChangeController = gates.canEditSelection && !runtime->readyIntent.Parked() &&
 		!state.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->teardown.pendingAbort;
 	gates.readyGate = gates.readyGate && controllerReady;
@@ -687,7 +692,7 @@ PostPublishState Publish() {
 	FillRoomView(snapshot);
     {
         const auto gates = ComputeGates(snapshot.session, snapshot.atMainMenu, snapshot.controllerReady, snapshot.helperReady);
-        snapshot.canEditPreferences = gates.canEditPreferences; snapshot.canEditSelection = gates.canEditSelection;
+        snapshot.canEditPreferences = gates.canEditPreferences; snapshot.canEditSelection = gates.canEditSelection; snapshot.canChangeUltra = gates.canChangeUltra;
         snapshot.canEditLobby = gates.canEditLobby; snapshot.canChangeController = gates.canChangeController;
         snapshot.readyGate = gates.readyGate; snapshot.canReady = gates.canReady;
         snapshot.canOpenRoom = gates.canOpenRoom; snapshot.canTrain = gates.canTrain;

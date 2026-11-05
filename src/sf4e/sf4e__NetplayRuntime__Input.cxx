@@ -325,6 +325,17 @@ bool BindRuntimeInput(int localSlot) {
     return true;
 }
 
+// The Rematch parked over the WIN carries another pick than the battle loaded
+// for this player (an Ultra changed on the prompt), so it cannot go on in
+// place (rematch::GoesOnInPlace).
+static bool ParkedRematchChangesPick() {
+    const auto* parked=runtime->readyIntent.Parked();
+    const auto* press=parked?std::get_if<commands::Room>(parked):nullptr;
+    const int side=runtime->matchBinding.matchInputSide;
+    if(!press||!UserApp::netplay||side<0||side>1)return false;
+    return !rematch::GoesOnInPlace(selection::FromNative(UserApp::netplay->client._matchData.chara[side]),selection::FromNative(press->character));
+}
+
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     mapped=raw=0;
     if(!runtime||!runtime->attached)return false;
@@ -334,8 +345,10 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     // the inputs (common/RematchInput.hxx): a Rematch pressed there, waiting as
     // the parked Ready, or the fighter still being asked, which holds the WIN
     // for them. A Random pick's rematch leaves the battle, so the next game
-    // plays a new roll, and nothing is held for it.
-    const bool due=Game::Battle::System::ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen();
+    // plays a new roll, and nothing is held for it; so does a Rematch with a
+    // changed pick, once pressed, so the next game loads it.
+    const bool due=Game::Battle::System::ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen()&&
+        !ParkedRematchChangesPick();
     const ULONGLONG now=GetTickCount64();
     if(!due)runtime->promptDueSinceMs=0;
     else if(!runtime->promptDueSinceMs)runtime->promptDueSinceMs=now;
