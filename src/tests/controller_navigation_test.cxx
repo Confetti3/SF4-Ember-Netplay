@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 using namespace sf4e::ui;
 using Button=ControllerSample;
 using Kind=sf4e::netplay::CommandKind;
@@ -115,7 +116,10 @@ void NavigationModel() {
  auto frame=[&](unsigned held){time+=.016;return nav.Update({held,time},rows);};
  auto press=[&](unsigned held){frame(0);return frame(held);};
  frame(0);Check(nav.Focus()=="a","Initial focus");
- press(MenuInput::Up);Check(nav.Focus()=="a","List must clamp top");
+ // A fresh Up at the top goes round to the last entry, a fresh Down at the
+ // bottom to the first (ListWrap: a held direction stops at the end).
+ press(MenuInput::Up);Check(nav.Focus()=="text","A fresh Up at the top did not wrap to the last entry");
+ press(MenuInput::Down);Check(nav.Focus()=="a","A fresh Down at the bottom did not wrap to the first entry");
  press(MenuInput::Down);Check(nav.Focus()=="b","List next entry");
  auto a=press(MenuInput::Right);Check(a.kind==MenuAction::Adjust&&a.delta==1,"Value adjustment");
  nav.Push("child");frame(0);press(MenuInput::Down);nav.Scroll()=41;
@@ -815,7 +819,7 @@ void BoardGeometry(){
  add("ready",{20,430,200,478});add("room-training",{210,430,390,478});add("room-more",{680,430,790,478});add("leave",{800,430,900,478});
  rows.push_back(Row("unplaced","Not drawn",""));
  MenuNavigation nav;double time=0;
- const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second);return a;};
+ const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second,{});return a;};
  const auto press=[&](unsigned held){frame(held);frame(0);return nav.Focus();};
  const auto from=[&](const char* id,unsigned held){nav.Focus(id,rows);return press(held);};
  frame(0);frame(0);
@@ -824,7 +828,9 @@ void BoardGeometry(){
  Check(from("member-0",MenuInput::Up)=="room-members"&&from("room-members",MenuInput::Right)=="room-hide-members"&&from("room-hide-members",MenuInput::Down)=="member-0","The heading and the button inside it are not reached");
  Check(from("cabinet-2",MenuInput::Right)=="cabinet-3"&&from("cabinet-2",MenuInput::Down)=="cabinet-10","A cabinet's neighbours are not the ones beside and under it");
  Check(from("cabinet-7",MenuInput::Right)=="member-0","Right from the row's end did not reach the member level with it");
- Check(from("member-2",MenuInput::Left)=="cabinet-7"&&from("member-3",MenuInput::Left)=="cabinet-15","Left from a member did not reach the cabinet in its band");
+ // Member 2 crosses both rows of cabinets, more of it level with the second.
+ Check(from("member-1",MenuInput::Left)=="cabinet-7"&&from("member-2",MenuInput::Left)=="cabinet-15"&&from("member-3",MenuInput::Left)=="cabinet-15",
+  "Left from a member did not reach the cabinet in its band");
  Check(from("cabinet-10",MenuInput::Down)=="matchup-1","Down from the bottom row did not reach the chip under it");
  Check(from("member-3",MenuInput::Down)=="room-chat"&&from("room-chat",MenuInput::Left)=="leave","The members column does not lead to the chat box and Leave room");
  Check(from("leave",MenuInput::Up)=="matchup-3"&&from("room-more",MenuInput::Right)=="leave","Up from Leave room is not the chip above it");
@@ -835,7 +841,9 @@ void BoardGeometry(){
  Check(nav.Edge()==MenuEdge::Stay&&from("room-more",MenuInput::Down)=="room-more","A board's edge did not keep the focus");
  nav.SetEdge(MenuEdge::Flow);
  Check(from("room-more",MenuInput::Down)=="leave"&&from("cabinet-8",MenuInput::Left)=="cabinet-7"&&from("cabinet-3",MenuInput::Up)=="cabinet-2","Flow did not go on in entry order");
- Check(from("cabinet-0",MenuInput::Left)=="cabinet-0"&&from("leave",MenuInput::Down)=="leave","Flow went past the first or last placed row");
+ // Past its ends a fresh Up or Down goes round, as a list's does; Left and Right stay.
+ Check(from("cabinet-0",MenuInput::Left)=="cabinet-0"&&from("leave",MenuInput::Down)=="cabinet-0"&&from("cabinet-0",MenuInput::Up)=="leave",
+  "Flow did not go round from its last placed row to its first, or back");
  Check(from("cabinet-2",MenuInput::Down)=="cabinet-10","Flow overrode a row drawn that way");
  nav.SetEdge(MenuEdge::Stay);
  // An explicit neighbour still wins, a value row still adjusts, and a row
@@ -853,11 +861,56 @@ void BoardGeometry(){
  std::vector<MenuEntry> list={Row("first","First",""),Row("second","Second",""),Row("retry","Retry","")};list[2].footer=true;
  const auto moved=[&](const char* placed,unsigned held){
   MenuNavigation n;double t=0;
-  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40});};
+  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40},{});};
   tick(0);tick(0);n.Focus(placed,list);tick(held);tick(0);return n.Focus();
  };
  Check(moved("retry",MenuInput::Up)=="second","A footer placed alone made the list a board");
  Check(moved("first",MenuInput::Down)=="first","A body's one placed row walked the list's order");
+}
+// The room's action bar at 1920x1080: of two buttons equally near, the one
+// more squarely that way wins. A members list scrolled under the bar keeps its
+// hidden rows to itself: they are reached from the list, never from beside it.
+void BoardTiesAndScrolls(){
+ std::vector<MenuEntry> rows;std::vector<std::tuple<std::string,MenuRect,MenuRect>> boxes;
+ const MenuRect list{1220,90,1870,600};
+ const auto add=[&](const std::string& id,MenuRect box,MenuRect clip){rows.push_back(Row(id,id,""));boxes.emplace_back(id,box,clip);};
+ add("ready",{40,900,320,948},{});add("room-ultra",{331,900,610,948},{});add("options",{623,900,901,948},{});add("room-training",{914,900,1193,948},{});
+ add("copy",{40,960,224,1008},{});add("copy-short",{232,960,416,1008},{});add("room-more",{428,960,805,1008},{});add("leave",{817,960,1193,1008},{});
+ add("member-1",{1230,500,1860,550},list);add("member-2",{1230,560,1860,610},list);add("member-3",{1230,960,1860,1010},list);
+ MenuNavigation nav;double time=0;
+ const auto frame=[&](unsigned held){time+=.016;nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(std::get<0>(b),std::get<1>(b),std::get<2>(b));};
+ const auto from=[&](const char* id,unsigned held){nav.Focus(id,rows);frame(held);frame(0);return nav.Focus();};
+ frame(0);frame(0);
+ Check(from("leave",MenuInput::Up)=="room-training"&&from("room-ultra",MenuInput::Down)=="room-more"&&from("options",MenuInput::Down)=="room-more",
+  "A tie between two buttons went to the earlier rather than the one more squarely that way");
+ Check(from("ready",MenuInput::Down)=="copy"&&from("room-training",MenuInput::Down)=="leave","A button under another lost to its neighbour");
+ Check(from("leave",MenuInput::Right)=="leave","Right from the bar's end reached a member scrolled out of sight");
+ Check(from("member-1",MenuInput::Down)=="member-2"&&from("member-2",MenuInput::Down)=="member-3","The list's own rows lost their hidden next one");
+}
+// A list wraps only on a fresh press: Down held from the top walks to the
+// last entry and stays there, however long it is held, and Up held from the
+// bottom stays at the first. A grid never wraps. A list's wrap passes over an
+// entry that stands beside it, named as another's Left or Right (Home's card).
+void ListWrap(){
+ std::vector<MenuEntry> rows={Row("a","A",""),Row("b","B",""),Row("c","C",""),Row("d","D","")};
+ MenuNavigation nav;double time=0;
+ const auto hold=[&](unsigned held,double seconds){for(double end=time+seconds;time<end;){time+=.016;nav.Update({held,time},rows);}time+=.016;nav.Update({0,time},rows);};
+ time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({0,time},rows);
+ hold(MenuInput::Down,3);Check(nav.Focus()=="d","A held Down went round the end of a list");
+ hold(MenuInput::Up,3);Check(nav.Focus()=="a","A held Up went round the top of a list");
+ hold(MenuInput::Up,.05);Check(nav.Focus()=="d","A fresh Up at the top did not go round");
+ hold(MenuInput::Down,.05);Check(nav.Focus()=="a","A fresh Down at the bottom did not go round");
+ // A grid three across stays at its edges.
+ nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows,3);time+=.016;nav.Update({MenuInput::Up,time},rows,3);
+ Check(nav.Focus()=="a","A grid went round its top");
+ // Home: the rows name the card on their Right; Up from the first goes to the
+ // last row, not to the card.
+ for(auto& r:rows)r.right="card";
+ rows.push_back(Row("card","Card",""));rows.back().left="a";
+ nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
+ Check(nav.Focus()=="d","A list's wrap landed on the card beside it");
+ nav.Focus("card",rows);hold(MenuInput::Down,.05);
+ Check(nav.Focus()=="a","Down from the list's last entry did not go round to its first");
 }
 // Tabs wrap at both ends, from no tab too, and only an LB or RB Shortcut is a step.
 void TabStepping(){
@@ -905,5 +958,5 @@ void ProfileRecords(){
 void DialogContract();
 void HintPresses();
 void DialogRepeat();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

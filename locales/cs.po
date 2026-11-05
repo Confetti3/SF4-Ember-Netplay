@@ -7715,6 +7715,9 @@ msgstr "Vývojáři Ember mají místo třídy tuto značku a nejsou v žebří�
 msgid "room.v2.board"
 msgstr "Přehled"
 
+msgid "room.v2.areas"
+msgstr "Oblasti"
+
 msgid "room.v2.tables"
 msgstr "STOLY"
 

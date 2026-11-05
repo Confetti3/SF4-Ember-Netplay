@@ -57,11 +57,18 @@ or in an open panel, reader or question. It names only buttons your
 controller has. Each hint is also a button you can click. The bell on its
 right opens Notifications.
 
+In a list, such as Home or Online play, a fresh Up on the first row goes
+round to the last and a fresh Down on the last to the first: Notifications is
+one Up from Online play. Holding the direction stops at the end.
+
 On a board, such as the room's tables and members, the D-pad moves to the
-row drawn nearest in that direction; at the board's edge it stays. On Create
-and the first-run welcome, whose panels read as one column, it goes on to the
-next row instead: Down from the foot of the Room panel reaches the Rules
-panel, and Down from the last answer reaches Skip and Next.
+row drawn nearest in that direction; at the board's edge it stays. A row a
+list has scrolled out of sight is reached from that list, never from beside
+it. On Create and the first-run welcome, whose panels read as one column, it
+goes on to the next row instead: Down from the foot of the Room panel reaches
+the Rules panel, Down from the last answer reaches Skip and Next, and past the
+last row it goes round as a list does, so Create room is one Up from
+Visibility.
 
 ## Settings and its panels
 
@@ -74,6 +81,8 @@ right, and the focused row's description sits under them.
   the focus.
 - B, Escape or a right click closes the panel. The hint bar calls this
   Close panel.
+- Unlike a list, the column of panels and an open panel's rows stop at
+  their ends: Up on the first stays there.
 - On a narrow screen, the panels and an open panel each take the whole
   width in turn.
 
@@ -129,6 +138,14 @@ Your Ultra (Ultra I, Ultra II or Ultra Double) opens a card for each of your
 fighter's Ultras, with its picture and its input, and a pick returns to the
 board.
 
+- The board opens on Ready up (Rematch after a set) while you have a seat,
+  on the action bar while you watch, else on the first table or cabinet with a
+  free seat.
+- LB and RB step the board's areas: the tables, the action bar, Members and
+  Chat, round at the ends, each time back on the row you last focused there.
+  The hint bar names them Areas. On a narrow screen they step its tabs.
+- On the action bar Left and Right go along its buttons in order, from the
+  end of one line to the start of the next, and stop at its ends.
 - In a Classic room each table is one line, as before 1.5.0: TABLE 1 with
   its state and the host's name for it, the two players with a fighter at
   each end and the set's score (vs before a pair sits) small between them,

@@ -7715,6 +7715,9 @@ msgstr "Gli sviluppatori di Ember mostrano questo segno al posto della classe e 
 msgid "room.v2.board"
 msgstr "Tabellone"
 
+msgid "room.v2.areas"
+msgstr "Aree"
+
 msgid "room.v2.tables"
 msgstr "TAVOLI"
 

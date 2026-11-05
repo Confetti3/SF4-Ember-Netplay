@@ -7248,6 +7248,9 @@ msgstr "Desenvolvedores do Ember mostram esta marca no lugar da classe e não ap
 msgid "room.v2.board"
 msgstr "Quadro"
 
+msgid "room.v2.areas"
+msgstr "Áreas"
+
 msgid "room.v2.tables"
 msgstr "MESAS"
 

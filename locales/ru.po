@@ -7715,6 +7715,9 @@ msgstr "Разработчики Ember показывают эту отметк�
 msgid "room.v2.board"
 msgstr "Обзор"
 
+msgid "room.v2.areas"
+msgstr "Области"
+
 msgid "room.v2.tables"
 msgstr "СТОЛЫ"
 

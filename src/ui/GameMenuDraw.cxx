@@ -22,6 +22,12 @@ using v2::Fit;
 using v2::Chevron;
 v2::Box BoxOf(const MenuRect& r) { return {ImVec2(r.x0, r.y0), ImVec2(r.x1, r.y1)}; }
 MenuRect RectOf(v2::Box b) { return {b.min.x, b.min.y, b.max.x, b.max.y}; }
+// The part of the screen the current window's scroll shows: where a row
+// drawn now is placed in sight (MenuNavigation::Place).
+MenuRect WindowClip() {
+    const auto* d = ImGui::GetWindowDrawList();
+    return {d->GetClipRectMin().x, d->GetClipRectMin().y, d->GetClipRectMax().x, d->GetClipRectMax().y};
+}
 const MenuEntry* FocusedIn(const std::vector<MenuEntry>& entries, const std::string& id) {
     const auto it = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == id; });
     return it == entries.end() ? nullptr : &*it;
@@ -200,8 +206,9 @@ void DrawMenuRow(ImDrawList* d, const MenuEntry& e, const MenuRowLayout& at, boo
 }
 EntryHit PressEntry(MenuNavigation& nav, const std::vector<MenuEntry>& rows, const MenuEntry& e, v2::Box b, MenuAction& action,
     bool scroll, const MenuRowLayout& layout, bool choose) {
-    // Directions move between a board's rows by where they are drawn.
-    nav.Place(e.id, RectOf(b));
+    // Directions move between a board's rows by where they are drawn, and
+    // reach a row its scroll hides only from that scroll.
+    nav.Place(e.id, RectOf(b), WindowClip());
     ImGui::SetCursorScreenPos(b.min);
     ImGui::PushID(e.id.c_str());
     const bool pressed = ImGui::InvisibleButton("##entry", ImVec2(b.W(), b.H())) && !nav.Asking() && !nav.Editing();
@@ -438,7 +445,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         const float w = cell ? cellWidth : full;
         const MenuRowLayout layout = layoutOf(e, cell, ImGui::GetCursorScreenPos(), w);
         const v2::Box c = BoxOf(layout.row);
-        if (halves) navigation.Place(e.id, RectOf(c));
+        if (halves) navigation.Place(e.id, RectOf(c), WindowClip());
         ImGui::PushID(e.id.c_str());
         const bool pressed = ImGui::InvisibleButton("##card", ImVec2(c.W(), c.H()));
         const bool hovered = ImGui::IsItemHovered();

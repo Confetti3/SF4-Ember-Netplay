@@ -78,18 +78,15 @@ std::string SeatCaption(const SeatLook& look,bool brief) {
 }
 
 namespace {
-bool HasPrefix(const std::string& id,const char* prefix){return id.compare(0,std::strlen(prefix),prefix)==0;}
-
-// The room's action bar: every row the floor and the column do not draw
-// (tables, cabinets, matchups, members, the panels' headings and their Hide
-// and Show), as buttons on as few lines as their labels allow (v2::BarLines),
+// The room's action bar: the board's Bar rows, every row the floor and the
+// column do not draw (BoardAreaOf), as buttons on as few lines as their labels allow (v2::BarLines),
 // each place at least 140 px. The invitation's copy buttons share one place,
 // each with its short name, where the bar is wide enough for both.
 class RoomActionBar {
 public:
  RoomActionBar(const RoomBoardFrame& f,float width):f_(f){
   for(const auto& e:f.rows){
-   if(!OnBar(e.id))continue;
+   if(BoardAreaOf(e.id)!=BoardArea::Bar)continue;
    const bool copy=HasPrefix(e.id,"copy");
    if(copy&&!slots_.empty()&&HasPrefix(slots_.back().front()->id,"copy")&&SlotNeed({slots_.back().front(),&e})<=width)slots_.back().push_back(&e);
    else slots_.push_back({&e});
@@ -116,10 +113,6 @@ public:
   }
  }
 private:
- static bool OnBar(const std::string& id){
-  for(const char* prefix:{"table-","cabinet-","matchup-","member-","room-hide-","room-show-"})if(HasPrefix(id,prefix))return false;
-  return id!="room-members"&&id!="room-chat";
- }
  static std::string Label(const MenuEntry& e){
   return e.id=="copy"?std::string(loc::T("room.v2.copy_invite")):e.id=="copy-short"?std::string(loc::T("room.v2.copy_link")):e.label;
  }
@@ -368,6 +361,13 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
  const float s=Scale();
+ const float logical=ImGui::GetContentRegionAvail().x/s;const bool narrow=logical<860,ultra=logical>=1960;
+ roomBoardNarrow_=narrow;
+ // LB and RB go between the floor, the bar, Members and Chat (a narrow
+ // board's tabs, the bar under the floor's). They step before the frame is
+ // taken, so the row they land on is this frame's moved focus and scrolls
+ // into view as a D-pad move's does.
+ if(const int step=TabDelta(action)){action={};StepRoomArea(v,rows,nav,step,narrow);}
  RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s,RoomFighterArt(preferences_)};
  const auto& focus=f.focus;
  const unsigned unread=transcript_.Unread(muted_);
@@ -387,26 +387,19 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,v2::BoardGround(v.SeeThrough()));
  const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
- const float logical=ImGui::GetContentRegionAvail().x/s;const bool narrow=logical<860,ultra=logical>=1960;
  v2::Box area{origin,ImVec2(origin.x+ImGui::GetContentRegionAvail().x,origin.y+height)};
  ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
  const bool showMembers=preferences_.roomShowMembers,showChat=preferences_.roomShowChat;
- const int part=HasPrefix(focus,"member-")||focus=="room-members"||focus=="room-hide-members"||focus=="room-show-members"?1:
-  focus=="room-chat"||focus=="room-hide-chat"||focus=="room-show-chat"?2:0;
+ // The narrow board's tab on show: the focused row's.
+ int part=BoardTabOf(BoardAreaOf(focus),true);
  if(narrow){
   ImGui::SetCursorScreenPos(area.min);
   const std::vector<std::string> labels{loc::T("room.v2.board"),std::string(loc::T("room.members"))+" "+std::to_string(v.room.members.size()),
    std::string(loc::T("room.chat"))+(unread?" "+std::to_string(unread):std::string())};
-  // The tab the pointer pressed, or LB and RB stepping from the part on show,
-  // wrapping as every tab strip does (StepTab).
-  const int step=TabDelta(action);if(step)action={};
+  // A tab the pointer pressed goes where LB and RB would, and shows at once.
   const int clicked=v2::Tabs(labels,part);
-  const int picked=clicked>=0?clicked:step?StepTab(part,step,static_cast<int>(labels.size())):-1;
-  // Each tab's first row: the floor, the first member (the heading once folded), the message box (Show once folded).
-  const char* const parts[]={v.room.arcade?"cabinet-":"table-",showMembers?"member-":"room-members",showChat?"room-chat":"room-show-chat"};
-  if(picked>=0&&picked!=part&&!nav.Choosing()){
-   const auto to=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return HasPrefix(e.id,parts[picked]);});
-   if(to!=rows.end())nav.Focus(to->id,rows);
+  if(clicked>=0&&clicked!=part&&!nav.Choosing()&&FocusRoomTab(v,rows,nav,clicked,true)){
+   f.focus=nav.Focus();f.focusChanged=true;part=clicked;
   }
   area.min.y=ImGui::GetCursorScreenPos().y;
  }

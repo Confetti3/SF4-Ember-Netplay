@@ -7715,6 +7715,9 @@ msgstr "Les développeurs d'Ember affichent cette marque à la place d'une class
 msgid "room.v2.board"
 msgstr "Tableau"
 
+msgid "room.v2.areas"
+msgstr "Zones"
+
 msgid "room.v2.tables"
 msgstr "TABLES"
 

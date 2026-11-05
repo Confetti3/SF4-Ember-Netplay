@@ -7,16 +7,105 @@
 #include "RowId.hxx"
 #include "../common/Localization.hxx"
 #include <imgui.h>
+#include <algorithm>
 
 namespace sf4e { namespace ui {
 using namespace room_controls;
+namespace {
+bool Has(const std::vector<MenuEntry>& rows,const std::string& id){
+ return !id.empty()&&std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
+}
+// Where a step to `area` lands when it remembers nothing there: your own table
+// card or cabinet on the floor, Ready on the bar, the first member, the message
+// box; else the area's first row. Empty for an area with no rows.
+std::string AreaStart(const ShellView& v,const std::vector<MenuEntry>& rows,BoardArea area){
+ const auto& s=v.room;
+ const auto mine=room::PlaceOf(s,s.localMember);
+ std::string first;
+ // A panel's Hide is a corner button, not where its area starts.
+ for(const auto& e:rows)if(BoardAreaOf(e.id)==area&&!HasPrefix(e.id,"room-hide-")){first=e.id;break;}
+ if(area==BoardArea::Floor&&mine.kind!=room::Place::Kind::None){
+  const int cabinet=s.arcade?room::CabinetOf(s,s.localMember):-1;
+  const std::string own=cabinet>=0?"cabinet-"+std::to_string(cabinet):"table-"+std::to_string(mine.table);
+  if(Has(rows,own))return own;
+ }
+ if(area==BoardArea::Bar&&Has(rows,"ready"))return "ready";
+ if(area==BoardArea::Chat&&Has(rows,"room-chat"))return "room-chat";
+ return first;
+}
+}
+
+void ApplicationShell::NoteRoomArea(const std::string& focus) {
+ if(!focus.empty())roomAreaFocus_[static_cast<int>(BoardAreaOf(focus))]=focus;
+}
+// A tab's row: in each of its areas in turn, the row last focused there while
+// it is still on the board, else where the area starts.
+bool ApplicationShell::FocusRoomTab(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,int tab,bool narrow) {
+ for(int i=0;i<static_cast<int>(BoardArea::Count);++i){
+  const auto area=static_cast<BoardArea>(i);
+  if(BoardTabOf(area,narrow)!=tab)continue;
+  const std::string& kept=roomAreaFocus_[i];
+  const std::string to=Has(rows,kept)&&BoardAreaOf(kept)==area?kept:AreaStart(v,rows,area);
+  if(!to.empty()){nav.Focus(to,rows);return true;}
+ }
+ return false;
+}
+// LB and RB: the next area (or the previous; a narrow board's next tab), past
+// one with no rows, round at the ends. An open question or popout keeps the
+// focus where it is.
+void ApplicationShell::StepRoomArea(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,int step,bool narrow) {
+ if(nav.Mode()!=MenuNavigation::Modal::None)return;
+ const int count=BoardTabCount(narrow),from=BoardTabOf(BoardAreaOf(nav.Focus()),narrow);
+ NoteRoomArea(nav.Focus());
+ for(int tab=StepTab(from,step,count);tab!=from;tab=StepTab(tab,step,count))
+  if(FocusRoomTab(v,rows,nav,tab,narrow))return;
+}
+void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>& rows,MenuNavigation& nav) {
+ // The action bar's Left and Right go along it in its own order, from the end
+ // of one of its lines to the start of the next, and stop at its ends: never
+ // off the end into the Members list beside it, whose rows scrolled out of
+ // sight are still placed there.
+ std::vector<MenuEntry*> bar;
+ for(auto& e:rows)if(BoardAreaOf(e.id)==BoardArea::Bar)bar.push_back(&e);
+ for(std::size_t i=0;i<bar.size();++i){bar[i]->left=bar[i?i-1:i]->id;bar[i]->right=bar[i+1<bar.size()?i+1:i]->id;}
+ // The message box sits under the chat's log, which has nothing to focus:
+ // Up from it is its own panel's Hide, not a table card across the board.
+ if(Has(rows,"room-hide-chat"))for(auto& e:rows)if(e.id=="room-chat")e.up="room-hide-chat";
+ NoteRoomArea(nav.Focus());
+ // A room joined opens its board on what the player most likely does next:
+ // Ready (Rematch after a set) in a seat, the table they queue at, the bar
+ // while watching, else the first table or cabinet with a free seat. Not the last room's row, and not
+ // over End practice or Stop watching, which the board opened on over a fight.
+ const auto& s=v.room;
+ if(!s.roomEpoch||rows.empty()||(roomFocusGeneration_==v.session.generation.room&&roomFocusEpoch_==s.roomEpoch))return;
+ roomFocusGeneration_=v.session.generation.room;roomFocusEpoch_=s.roomEpoch;
+ for(auto& kept:roomAreaFocus_)kept.clear();
+ if(nav.Mode()!=MenuNavigation::Modal::None||nav.Focus()=="end-practice"||nav.Focus()=="stop-watching")return;
+ const auto mine=room::PlaceOf(s,s.localMember);
+ std::string to=mine.kind==room::Place::Kind::Seat?"ready":mine.kind==room::Place::Kind::Queue?"table-"+std::to_string(mine.table):std::string();
+ // Watching, the bar: Stop watching while the game shows, else Table options
+ // (a Big picture covers the table cards).
+ if(to.empty()&&room::WatchedTable(s,s.localMember)>=0)to=Has(rows,"stop-watching")?"stop-watching":"options";
+ if(to.empty()&&s.arcade){
+  for(std::size_t c=0;c<room::CabinetCount&&to.empty();++c)
+   if(!s.cabinets[c]){const auto id="cabinet-"+std::to_string(c);const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});if(row!=rows.end()&&row->enabled)to=id;}
+ }else if(to.empty()){
+  for(std::size_t t=0;t<room::TablesInPlay(s)&&to.empty();++t)
+   if((!s.tables[t].p1||!s.tables[t].p2)&&Has(rows,"table-"+std::to_string(s.tables[t].id)))to="table-"+std::to_string(s.tables[t].id);
+ }
+ // A focus it moves opens like a screen (MenuNavigation::Rearm): that frame
+ // counts nothing and a button held into it counts once released, so a press
+ // made as a room changes under an open board never lands on the row moved to.
+ const std::string& start=Has(rows,to)?to:rows.front().id;
+ if(start!=nav.Focus()){nav.Focus(start,rows);nav.Rearm();}
+}
 
 // X, Y and View open the fighter, table options and chat; the same button
 // again returns to the board.
 void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  auto& nav=menu_.navigation;
  // Only X, Y and View are the room's: Delete means something only on your own
- // card, and LB and RB only on the narrow board's tabs (DrawRoomBoard).
+ // card, and LB and RB step the board's areas or tabs (DrawRoomBoard).
  if(a.delta!=MenuInput::Fighter&&a.delta!=MenuInput::Options&&a.delta!=MenuInput::Chat)return;
  const char* target=a.delta==MenuInput::Fighter?"selection":a.delta==MenuInput::Options?"room-table":"room-chat";
  if(nav.Screen()==target){nav.Home();nav.Push("room");return;}

@@ -7716,6 +7716,9 @@ msgstr "Ember開発者はクラスの代わりにこのマークが表示され�
 msgid "room.v2.board"
 msgstr "ボード"
 
+msgid "room.v2.areas"
+msgstr "エリア"
+
 msgid "room.v2.tables"
 msgstr "テーブル"
 

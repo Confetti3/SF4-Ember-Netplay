@@ -7716,6 +7716,9 @@ msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的
 msgid "room.v2.board"
 msgstr "概览"
 
+msgid "room.v2.areas"
+msgstr "区域"
+
 msgid "room.v2.tables"
 msgstr "对战台"
 

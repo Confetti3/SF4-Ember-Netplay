@@ -7715,6 +7715,9 @@ msgstr "Twórcy Ember mają ten znak zamiast klasy i nie ma ich w rankingu. Twoj
 msgid "room.v2.board"
 msgstr "Plansza"
 
+msgid "room.v2.areas"
+msgstr "Obszary"
+
 msgid "room.v2.tables"
 msgstr "STOŁY"
 

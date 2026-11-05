@@ -7716,6 +7716,9 @@ msgstr "Ember 개발자는 클래스 대신 이 표시가 나오며 랭킹에 �
 msgid "room.v2.board"
 msgstr "보드"
 
+msgid "room.v2.areas"
+msgstr "영역"
+
 msgid "room.v2.tables"
 msgstr "테이블"
 
