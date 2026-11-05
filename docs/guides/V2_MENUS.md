@@ -111,8 +111,10 @@ the row with a pad or the keyboard, or where you clicked with the mouse.
 - In a room, select a member to open their actions: Mute member, Steam
   profile, and for the host Kick member and Transfer host. Kick and Transfer
   host still ask first.
-- **More…** in the room's action bar holds Table options, Room settings and
-  the invitation links.
+- **More…** in the room's action bar holds a public room's Copy room link,
+  Controllers and Room settings.
+- **Ultra** beside Ready up, while you are seated, lists your fighter's
+  Ultras by name.
 
 Move with the D-pad or arrows, press A to act, and B, Escape or a right click
 to close the popout.
@@ -123,8 +125,8 @@ to close the popout.
 
 The room is one board. The tables are on the left, each a card with its
 state, players, score and ping. Members and chat share the column on the
-right. The room's actions run along the bottom: Ready up, Wait in Training,
-Controllers, More… and Leave room.
+right. The room's actions run along the bottom: Ready up and your Ultra while
+you are seated, Table options, Wait in Training, More… and Leave room.
 
 - A table card's own buttons (Ready up, Leave seat) are on the card. Select
   the card with A for the seat chooser.

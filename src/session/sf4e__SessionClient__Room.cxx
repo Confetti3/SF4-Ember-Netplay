@@ -305,7 +305,7 @@ void SessionClient::RememberSentRoomAction(const room::Action& action) {
 	if (action.kind == room::ActionKind::Ready)
 		if (const auto* opponent = room::SeatOpponent(_roomSnapshot, action.table, _roomSnapshot.localMember)) {
 			_sentRoomActions.back().opponent = opponent->id;
-			_sentRoomActions.back().opponentFighter = opponent->fighter;
+			_sentRoomActions.back().opponentFighter = room::ShownFighter(*opponent);
 		}
 }
 
@@ -505,13 +505,14 @@ bool SessionClient::HandleRoomResult(json& msg) {
 	// A Ready given against one opponent's fighter is not resent once the
 	// fresher snapshot shows another opponent, or the same opponent on a
 	// different fighter than the one it showed: the player decides again,
-	// and the rejection reaches them. An opponent showing its first fighter
-	// changes no matchup the player saw.
+	// and the rejection reaches them. The fighter is the one the board showed
+	// (room::ShownFighter): a first pick that is the opponent's main, or with
+	// nothing shown before it, changes no matchup the player saw.
 	const auto* opponentNow = sent != _sentRoomActions.end() ?
 		room::SeatOpponent(_roomSnapshot, sent->table, _roomSnapshot.localMember) : nullptr;
 	const bool matchupChanged = sent != _sentRoomActions.end() && sent->kind == room::ActionKind::Ready && sent->opponent &&
 		(!opponentNow || opponentNow->id != sent->opponent ||
-			(sent->opponentFighter >= 0 && opponentNow->fighter != sent->opponentFighter));
+			(sent->opponentFighter >= 0 && room::ShownFighter(*opponentNow) != sent->opponentFighter));
 	if (resendable && !matchupChanged && !result.result.accepted && result.result.reason == room::RejectReason::StaleTable &&
 		sent->staleRetries < 3) {
 		// Resend the same request (kind, table, input delay, Lower input lag,

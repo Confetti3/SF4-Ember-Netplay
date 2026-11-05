@@ -34,9 +34,10 @@ private:
 };
 
 // Says when the other fighter at the local player's table shows a different
-// fighter than before, between games, so the player can check their Ultra
-// before readying. Pending() holds that fighter until the local player readies
-// or the matchup ends; -1 when there is nothing to say.
+// fighter than before (ShownFighter: a first pick over the profile's main
+// counts), between games, so the player can check their Ultra before readying.
+// Pending() holds that fighter until the local player readies or the matchup
+// ends; -1 when there is nothing to say.
 class OpponentFighterWatch {
 public:
     // True on the snapshot that first shows the change.
@@ -49,7 +50,7 @@ public:
         }
         const Member* other = at ? SeatOpponent(room, at->id, room.localMember) : nullptr;
         const bool between = at && (at->phase == TablePhase::Waiting || at->phase == TablePhase::Ready);
-        const int fighter = other ? other->fighter : -1;
+        const int fighter = other ? ShownFighter(*other) : -1;
         const bool sameMatchup = other && other->id == opponent_ && at->id == table_;
         const bool changed = between && sameMatchup && fighter_ >= 0 && fighter >= 0 && fighter != fighter_;
         if (changed) pending_ = fighter;

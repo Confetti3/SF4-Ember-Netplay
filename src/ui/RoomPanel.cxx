@@ -11,6 +11,7 @@
 #include "RoomCards.hxx"
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
+#include "FighterSelector.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cstdio>
@@ -103,6 +104,20 @@ void SelectionRows(std::vector<MenuEntry>& rows,const ShellView& v) {
  rows.push_back(Value("fighter-options",loc::T("room.fighter_options"),v.fighterOptionsName,
   canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
  rows.back().adjustable=false;rows.back().opens=true;
+}
+// The board's Ultra, beside Ready on the action bar: Select lists the fighter's
+// Ultras by name over the matchup, and the one chosen steps the same pick the
+// table options' row steps (RoomAction). A list, not Left and Right, so the
+// bar still walks with them.
+MenuEntry UltraRow(const ShellView& v){
+ const auto& pick=v.selectedPick;
+ const bool canChange=RoomActionsAvailable(v)&&v.canEditSelection&&!v.room.localTerminalPending;
+ MenuEntry row=Row("room-ultra",v.ultraName.empty()?std::string(loc::T("selection.ultra_combo")):v.ultraName,
+  canChange?std::string(loc::T(v.ultraSteps?"room.ultra.detail":"room.ultra.single")):SelectionBlocker(v),canChange&&v.ultraSteps);
+ row.popout=true;row.chosen="ultra-"+std::to_string(pick.ultra);
+ for(const int ultra:selection::AllowedUltras(pick.fighter,pick.edition))
+  row.choices.push_back({"ultra-"+std::to_string(ultra),UltraName(pick.fighter,ultra),loc::T("room.ultra.choice_detail")});
+ return row;
 }
 // Your own seat's row on the board, a cabinet or a table card: A readies or
 // unreadies (when neither can be sent the row still names the state, but has
@@ -355,7 +370,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   row.popout=true;
  }
  if(!active) {
-  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
+  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="room-ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
    row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
     // Per table: a cached explanation never shows on another table's row.
     const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
@@ -384,14 +399,24 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
  if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail"),v.CanEditRoomSettings()));
- // The action bar: Ready when seated, Training, the invitation's two copy
- // buttons side by side, More…, the asking rows, then Leave room last.
+ // The action bar: Ready and the Ultra when seated, the table options (Y),
+ // Training, the invitation's two copy buttons side by side, More…, the
+ // asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
   const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
   // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
   rows.push_back(Row("ready",ready.kind==ReadyControl::Unready?loc::T("room.unready.short"):ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
+  rows.push_back(UltraRow(v));
+  // The opponent showed another fighter: the Ultra takes the focus, so one
+  // press opens its choice with the new matchup on the card above.
+  if(opponentChangeSeen_!=v.opponentChangeSequence&&v.opponentChangedFighter>=0&&rows.back().enabled)nav.Focus("room-ultra",rows);
  }
- if(s.roomEpoch)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
+ opponentChangeSeen_=v.opponentChangeSequence;
+ if(s.roomEpoch){
+  // Players open them between almost every game, so they are a button, not a choice of More….
+  rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+  rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
+ }
  // A tournament room admits only its two fighters, who reach it through the
  // tournament service, so there is no invitation to hand out. A public room
  // admits by the service's ticket, so its invitation would admit nobody.
@@ -403,9 +428,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
    v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
  }
- // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
- if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
- // More… (a popout): the table options, the controllers and the room's
+ // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…
  // stays open on; or, chosen from it, the picture's Small, Big and Off in its
  // place, on the one in effect. The switches and the picture's choices are
@@ -422,8 +445,10 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
    for(int i=0;i<3;++i)more.choices.push_back({"picture-"+std::to_string(i),loc::T(pictureNames[i]),loc::T(details[i]),layoutOpen});
   }else{
    if(s.roomEpoch){
-    // Changing fighter needs a seat, so it lives in the table options (and X).
-    more.choices.push_back({"options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)});
+    // A public room is shared by its page link, which opens it in Ember from a
+    // browser or Discord; it is wanted now and then, not between games.
+    if(const auto link=s.serverOwned?publicRooms_.RoomLink():std::string();!link.empty())
+     more.choices.push_back({"copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)});
     // The controller and its buttons, one press from the board.
     more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});

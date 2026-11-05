@@ -120,6 +120,29 @@ int main() {
 		room.tables[1].p1 = 0;
 		EXPECT(!watch.Update(room) && watch.Pending() == -1);
 	}
+	{
+		// Until they pick, the board shows the opponent's profile main: a
+		// first pick of another fighter is a change, one of the main is not.
+		OpponentFighterWatch watch;
+		auto room = WithFighters(Seated(2, 1, 2), 0, -1);
+		room.members[1].mainFighter = 0;
+		EXPECT(!watch.Update(room) && watch.Pending() == -1);
+		room.members[1].fighter = 12;
+		EXPECT(watch.Update(room) && watch.Pending() == 12);
+		OpponentFighterWatch same;
+		auto main = WithFighters(Seated(2, 1, 2), 0, -1);
+		main.members[1].mainFighter = 4;
+		EXPECT(!same.Update(main));
+		main.members[1].fighter = 4;
+		EXPECT(!same.Update(main) && same.Pending() == -1);
+		// The local player already readied: nothing is held for them.
+		OpponentFighterWatch readied;
+		auto early = WithFighters(Seated(2, 1, 2), 0, -1);
+		early.members[1].mainFighter = 0; early.tables[1].ready[1] = true;
+		EXPECT(!readied.Update(early));
+		early.members[1].fighter = 9;
+		EXPECT(readied.Update(early) && readied.Pending() == -1);
+	}
 	if (TEST_FAILURES() == 0) std::printf("ready chime: all checks passed\n");
 	return TEST_FAILURES() == 0 ? 0 : 1;
 }

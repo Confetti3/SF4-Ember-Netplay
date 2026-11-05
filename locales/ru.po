@@ -2925,6 +2925,21 @@ msgstr "Закрепите бойца. Матч начнётся, когда о�
 msgid "room.opponent_changed_fighter"
 msgstr "Соперник сменил бойца на {0}. Проверьте своё Ультра, прежде чем нажать «Готов»."
 
+msgid "room.ready.with"
+msgstr "Готов: {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Готов: {0}, {1}, против {2}."
+
+msgid "room.ultra.detail"
+msgstr "Выберите Ультра для следующей игры здесь, не открывая настройки ячейки."
+
+msgid "room.ultra.single"
+msgstr "У этого бойца в этом издании одно Ультра."
+
+msgid "room.ultra.choice_detail"
+msgstr "Ваше Ультра для следующей игры."
+
 msgid "room.both_ready"
 msgstr "Оба бойца готовы. Матч начинается."
 
@@ -4778,6 +4793,12 @@ msgstr "Готов"
 
 msgid "postmatch.state.left"
 msgstr "Не за столом"
+
+msgid "postmatch.ultra.detail"
+msgstr "Влево и вправо меняют Ультра для следующей игры. С новым Ультра следующая игра сначала загрузится."
+
+msgid "postmatch.ultra.set"
+msgstr "Ультра для следующей игры выбрано."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7731,7 +7752,7 @@ msgid "room.v2.more"
 msgstr "Ещё…"
 
 msgid "room.v2.more_detail"
-msgstr "Настройки ячейки, настройки лобби и ссылки-приглашения."
+msgstr "Контроллеры, настройки лобби, ссылка публичного лобби и вид экрана."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

@@ -2670,6 +2670,20 @@ msgstr "Selecione para confirmar seu lutador. A partida começa quando os dois e
 
 msgid "room.opponent_changed_fighter"
 msgstr "O oponente trocou para {0}. Confira seu Ultra antes de marcar Pronto."
+msgid "room.ready.with"
+msgstr "Pronto com {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Pronto com {0}, {1}, contra {2}."
+
+msgid "room.ultra.detail"
+msgstr "Escolha seu Ultra para a próxima partida aqui, sem abrir as Opções da mesa."
+
+msgid "room.ultra.single"
+msgstr "Este lutador tem um só Ultra nesta edição."
+
+msgid "room.ultra.choice_detail"
+msgstr "Seu Ultra para a próxima partida."
 msgid "room.both_ready"
 msgstr "Os dois lutadores estão prontos. A partida está começando."
 msgid "room.waiting_spectators"
@@ -4311,6 +4325,12 @@ msgstr "Pronto"
 
 msgid "postmatch.state.left"
 msgstr "Saiu do lugar"
+
+msgid "postmatch.ultra.detail"
+msgstr "Esquerda e Direita trocam seu Ultra para a próxima partida. Com um Ultra novo, a próxima partida carrega antes."
+
+msgid "postmatch.ultra.set"
+msgstr "Seu Ultra para a próxima partida está definido."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7264,7 +7284,7 @@ msgid "room.v2.more"
 msgstr "Mais…"
 
 msgid "room.v2.more_detail"
-msgstr "Opções da mesa, configurações da sala e links de convite."
+msgstr "Controles, configurações da sala, o link de uma sala pública e o layout do painel."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

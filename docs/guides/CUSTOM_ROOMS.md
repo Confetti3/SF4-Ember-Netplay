@@ -143,6 +143,25 @@ decides: the prompt asks **Rematch** or **New opponent** (Y), with **Character
 select** and **Back to room** beside them, so a stick without X or Y reaches
 every answer with the D-pad.
 
+### Changing your Ultra
+
+Your Ultra is one press away wherever you choose it, and is always named by
+the game's own name for it, such as Ultra I: Metsu Hadoken.
+
+- **On the board:** while you are seated, the Ultra button beside Ready up
+  lists your fighter's Ultras; choose one and you are done, without opening
+  Table options.
+- **After a game:** the post-match prompt shows your Ultra under your answer.
+  Left and Right change it before you choose Rematch or Next game. The ten
+  seconds keep running. A game that goes on in place keeps the Ultras it
+  loaded, so with a new Ultra the next game loads first and starts with it.
+- **Ready names it:** Ready's line reads, for example, Ready with Ryu, Metsu
+  Hadoken, against Ken, once your opponent has picked.
+- **When the opponent picks:** until a player picks, their seat shows their
+  profile's main fighter. If they pick another fighter, or change fighter
+  later, a Ready you gave is taken back, the table card says so, and the
+  focus moves to your Ultra, so one press opens the choice.
+
 Queued members automatically watch each game while retaining their queue
 positions. B on your queue card, or **Leave queue**, leaves the queue at once.
 Leaving the queue during a game lets you finish watching it; the place ends with
@@ -265,8 +284,9 @@ references and expired invitations are rejected.
 ## The room board
 
 The room is one board: tables on
-the left, members and chat on the right, and Ready up, Wait in Training, Copy
-invite and Copy link (a private room), More… and Leave room along the bottom.
+the left, members and chat on the right, and Ready up and your Ultra (while
+seated), Table options, Wait in Training, Copy invite and Copy link (a private
+room), More… and Leave room along the bottom.
 A table card has its own Ready up and Leave seat buttons: a click on your own
 card selects it, and its buttons act. Members are grouped as Playing, At a table,
 Watching and In the room, each with a ping such as Direct 46 ms or Relay
@@ -280,7 +300,8 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
   Down from the tables to the actions under them. On a narrow screen the board
   shows Board, Members or Chat under tabs; LB and RB (Page Up and Page Down)
   step them, round again at either end.
-- **More…** holds Table options, Controllers and Room settings, at every
+- **Table options** are a button on the bar (and Y, or T). **More…** holds a
+  public room's Copy room link, Controllers and Room settings, at every
   screen size.
 - **Chat:** typing goes straight into the message box. With a pad, select the
   empty box for the on-screen keyboard; accepting it sends the message.

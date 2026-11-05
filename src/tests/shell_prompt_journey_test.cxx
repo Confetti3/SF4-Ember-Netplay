@@ -93,8 +93,37 @@ static void ButtonPromptsRow() {
  NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
  SetMenuGlyphs(input::PadKeyboard,0,0);
 }
+// The post-match prompt's Ultra, under the player's answer: Left and Right step
+// the pick the next game's Ready carries, through the same step the room's rows
+// send, until the player answers; the countdown runs on.
+static void PostMatchUltra() {
+ using namespace sf4e;
+ using Field=ShellAction::SelectionStep::Field;
+ Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+ a.view.room.host=1;a.view.room.revision=3;
+ room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
+ auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
+ a.view.ultraSteps=true;a.view.ultraName=ui::UltraName(0,0);a.view.canChangeUltra=true;
+ a.Screen("room");
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+ const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+ a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::P1Win};a.view.matchResult=true;a.Frame();
+ Check(a.shell.Navigation().Screen()=="post-match"&&a.shell.Navigation().Focus()=="again"&&row("ultra")!=rows.end()&&row("ultra")->enabled&&
+  row("ultra")->adjustable&&row("ultra")->value==ui::UltraName(0,0)&&rows.back().id=="ultra","The post-match prompt offers no Ultra under the answer, or Rematch lost the focus");
+ a.FocusOn("ultra");const auto sent=a.actions.size();a.Press(MenuInput::Right);
+ Check(a.actions.size()==sent+1&&a.actions.back().selectionStep.field==Field::Ultra&&a.actions.back().selectionStep.delta==1&&
+  a.shell.Navigation().Screen()=="post-match","Right on the post-match Ultra did not step it");
+ // Once the runtime holds the answer, the Ultra is set for the next game.
+ a.view.canChangeUltra=false;a.view.readyPress=netplay::ReadyPress::Held;a.Frame();
+ Check(row("ultra")!=rows.end()&&!row("ultra")->enabled,"The post-match Ultra still steps after the answer");
+ const auto after=a.actions.size();a.Press(MenuInput::Right);
+ Check(a.actions.size()==after,"A post-match Ultra stepped after the answer");
+ SetMenuEntriesProbe({});
+}
 // Each journey has its own harness, one ImGui context at a time.
 void ButtonPromptJourneys() {
  ButtonPromptsRow();
  DecidingPromptOnStick();
+ PostMatchUltra();
 }

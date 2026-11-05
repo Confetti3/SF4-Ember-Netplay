@@ -2925,6 +2925,21 @@ msgstr "Seleziona per bloccare il personaggio. La partita inizia quando entrambi
 msgid "room.opponent_changed_fighter"
 msgstr "L'avversario è passato a {0}. Controlla la tua Ultra prima di metterti pronto."
 
+msgid "room.ready.with"
+msgstr "Pronto con {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Pronto con {0}, {1}, contro {2}."
+
+msgid "room.ultra.detail"
+msgstr "Scegli qui la tua Ultra per la prossima partita, senza aprire le Opzioni del tavolo."
+
+msgid "room.ultra.single"
+msgstr "Questo lottatore ha una sola Ultra in questa edizione."
+
+msgid "room.ultra.choice_detail"
+msgstr "La tua Ultra per la prossima partita."
+
 msgid "room.both_ready"
 msgstr "Entrambi pronti. La partita sta per iniziare."
 
@@ -4778,6 +4793,12 @@ msgstr "Pronto"
 
 msgid "postmatch.state.left"
 msgstr "Ha lasciato il posto"
+
+msgid "postmatch.ultra.detail"
+msgstr "Sinistra e Destra cambiano la tua Ultra per la prossima partita. Con una nuova Ultra, la prossima partita si carica prima."
+
+msgid "postmatch.ultra.set"
+msgstr "La tua Ultra per la prossima partita è scelta."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7731,7 +7752,7 @@ msgid "room.v2.more"
 msgstr "Altro…"
 
 msgid "room.v2.more_detail"
-msgstr "Opzioni del tavolo, impostazioni sala e link di invito."
+msgstr "Controller, impostazioni sala, link di una sala pubblica e disposizione della schermata."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

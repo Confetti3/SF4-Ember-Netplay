@@ -419,6 +419,24 @@ static void TestWinWaitsForTheRematchAnswers() {
 	CHECK((Bits & 0x0FFFFFFFu) == 0);
 }
 
+// A game that goes on in place keeps the pick the battle loaded, so a Rematch
+// with another one (an Ultra changed on the prompt) leaves the battle and the
+// next game loads it.
+static void TestChangedPickLeavesTheBattle() {
+	using namespace sf4e::rematch;
+	sf4e::selection::Pick played;
+	played.fighter = 7; played.ultra = 0; played.costume = 2; played.color = 4;
+	CHECK(GoesOnInPlace(played, played));
+	for (const int ultra : {1, 2}) {
+		auto next = played; next.ultra = ultra;
+		CHECK(!GoesOnInPlace(played, next));
+	}
+	auto next = played; next.color = 5;
+	CHECK(!GoesOnInPlace(played, next));
+	next = played; next.fighter = 8;
+	CHECK(!GoesOnInPlace(played, next));
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -439,6 +457,7 @@ int main() {
 		TestRematchInPlaceFollowsSetGoal();
 		TestStandingCountsTheGameJustPlayed();
 		TestWinWaitsForTheRematchAnswers();
+		TestChangedPickLeavesTheBattle();
 	} catch (const std::exception& error) {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;

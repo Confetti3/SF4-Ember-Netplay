@@ -265,6 +265,16 @@ inline const Member* SeatOpponent(const Snapshot& snapshot, std::uint8_t table, 
 	return other ? FindMember(snapshot, other) : nullptr;
 }
 
+// The fighter the room board shows for a member: the last pick they shared,
+// else their profile's main, which stands for them until they pick (-1:
+// neither). A matchup is what the two seats show, so a first pick that is not
+// the main changes it as any later change does: the authority takes back a
+// Ready given against it, the client does not resend one, and the other player
+// is asked to check their Ultra (OpponentFighterWatch).
+inline int ShownFighter(const Member& member) {
+	return member.fighter >= 0 ? member.fighter : member.mainFighter;
+}
+
 // True when a custom room's snapshot gives this client no seat: it stood up,
 // waits in a queue, or is no longer a member. A legacy lobby (no epoch) has no
 // seats to lose.

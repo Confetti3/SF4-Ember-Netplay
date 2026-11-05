@@ -78,7 +78,9 @@ struct ShellView {
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
-    bool canEditSelection = false;
+    // canChangeUltra: canEditSelection, or over the WIN until the post-match
+    // prompt is answered (RuntimeGates::canChangeUltra).
+    bool canEditSelection = false, canChangeUltra = false;
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
     // The settings a room leaves open (PlayerPreferences::CopyRoomSettings: the
     // room board's layout and the watched game's picture) can change now: with
@@ -603,6 +605,9 @@ private:
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
+    // Sends a step of the pick's Ultra or color, which the overlay applies
+    // (ShellAction::selectionStep): the room's rows and the post-match prompt.
+    static void StepPick(const ShellView& view, ShellAction::SelectionStep step, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
@@ -927,8 +932,9 @@ std::string memberAsk_;
     void SetupControl(gamepads::SetupCommand command,const ShellView& view,const Submit& submit,int step=0);
     void ClosePadSetup(const ShellView& view,bool controllers=false);
 
-    // The training call's sequences as last acted on.
-    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
+    // The training call's sequences as last acted on, and the opponent's
+    // fighter change as the board last saw it (it focuses the Ultra).
+    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0,opponentChangeSeen_=0;
     std::string joinLink_;
     bool joinLinkDirect_=false;
     // A public room link from the browser: the last one seen, and whether

@@ -110,6 +110,15 @@ std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::I
 const char* ShortUltraLabel(int ultra) {
     return loc::T(ultra==2?"home.selection_ultra_double":ultra==1?"home.selection_ultra_two":"home.selection_ultra_one");
 }
+std::string UltraMove(int fighter, int ultra) {
+    const auto* found = selection::FindFighter(fighter);
+    if (!found) return {};
+    return ultra == 2 ? std::string(UltraLabel(ultra)) : std::string(found->ultras[ultra == 1 ? 1 : 0]);
+}
+std::string UltraName(int fighter, int ultra) {
+    const std::string move = UltraMove(fighter, ultra);
+    return move.empty() || ultra == 2 ? move : std::string(UltraLabel(ultra)) + ": " + move;
+}
 
 bool DrawStageSelector(int& nativeId, SelectionArt* art) {
     const int previous = nativeId;
@@ -228,8 +237,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   opens(Value("costume",loc::T("selection.costume"),CostumeLabel(pick,installed),editable?loc::T("selection.costume_row.detail"):adjusts,editable&&availability.ready));
   const std::string colorName=installed&&selection::IsCustomColor(pick.color)?installed->Name(pick.fighter,pick.costume,pick.color):std::string();
   opens(Value("color",loc::T("selection.color_row"),colorName.empty()?std::to_string(pick.color+1):colorName,editable?loc::T("selection.color_row.detail"):adjusts,editable&&availability.ready));
-  offer(Value("ultra",loc::T("selection.ultra_combo"),ShortUltraLabel(pick.ultra),adjusts,editable&&AllowedUltras(pick.fighter,pick.edition).size()>1),AllowedUltras(pick.fighter,pick.edition),
-   [](int ultra){return std::string(ShortUltraLabel(ultra));});
+  offer(Value("ultra",loc::T("selection.ultra_combo"),UltraName(pick.fighter,pick.ultra),adjusts,editable&&AllowedUltras(pick.fighter,pick.edition).size()>1),AllowedUltras(pick.fighter,pick.edition),
+   [&](int ultra){return UltraName(pick.fighter,ultra);});
   offer(editionRow(),AllowedEditions(pick.fighter,editionSelect),
    [](int edition){return std::string(FindEdition(edition)->name);});
   rows.push_back(Row("stage",loc::T("selection.stage"),stageId?loc::T("selection.choose_battlefield"):loc::T("selection.p1_stage"),stageId!=nullptr));

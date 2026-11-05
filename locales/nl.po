@@ -2925,6 +2925,21 @@ msgstr "Selecteer om je personage vast te leggen. De match begint zodra beide sp
 msgid "room.opponent_changed_fighter"
 msgstr "De tegenstander koos {0}. Controleer je Ultra voordat je klaar meldt."
 
+msgid "room.ready.with"
+msgstr "Klaar met {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Klaar met {0}, {1}, tegen {2}."
+
+msgid "room.ultra.detail"
+msgstr "Kies hier je Ultra voor het volgende potje, zonder de Tafelopties te openen."
+
+msgid "room.ultra.single"
+msgstr "Deze vechter heeft in deze editie één Ultra."
+
+msgid "room.ultra.choice_detail"
+msgstr "Je Ultra voor het volgende potje."
+
 msgid "room.both_ready"
 msgstr "Beide spelers zijn klaar. De match begint."
 
@@ -4778,6 +4793,12 @@ msgstr "Klaar"
 
 msgid "postmatch.state.left"
 msgstr "Plek verlaten"
+
+msgid "postmatch.ultra.detail"
+msgstr "Links en Rechts wisselen je Ultra voor het volgende potje. Met een nieuwe Ultra laadt het volgende potje eerst."
+
+msgid "postmatch.ultra.set"
+msgstr "Je Ultra voor het volgende potje staat vast."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7731,7 +7752,7 @@ msgid "room.v2.more"
 msgstr "Meer…"
 
 msgid "room.v2.more_detail"
-msgstr "Tafelopties, kamerinstellingen en uitnodigingslinks."
+msgstr "Controllers, kamerinstellingen, de link van een openbare kamer en de indeling van het bord."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

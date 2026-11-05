@@ -119,6 +119,15 @@ template<typename T> inline void Step(T& value,const std::vector<int>& choices,i
     int index=it==choices.end()?0:static_cast<int>(it-choices.begin());
     value=static_cast<T>(choices[(std::max)(0,(std::min)(static_cast<int>(choices.size())-1,index+delta))]);
 }
+// The delta Step takes from `value` to `target` among `choices`, so a choice
+// picked from a list goes through the same step as Left and Right; 0 when
+// `target` is not one of them. A value that is not one reads as the first, as
+// Step reads it.
+inline int StepsTo(const std::vector<int>& choices,int value,int target) {
+    const auto index=[&](int v){return static_cast<int>(std::find(choices.begin(),choices.end(),v)-choices.begin());};
+    const int count=static_cast<int>(choices.size()),to=index(target),from=index(value);
+    return to==count?0:to-(from==count?0:from);
+}
 inline std::string SetLengthText(room::SetFormat format) {
     return format==room::SetFormat::Unlimited?loc::T("rules.set_length.none"):loc::Tf("rules.set_length.first_to",static_cast<int>(format));
 }

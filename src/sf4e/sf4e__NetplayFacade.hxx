@@ -244,6 +244,8 @@ namespace sf4e {
 			// The player may leave for Training without leaving the room.
 			bool canTrain = false;
 			bool canEditSelection = false;
+			// RuntimeGates::canChangeUltra: also over the WIN, until the prompt's answer.
+			bool canChangeUltra = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
 			bool canEditLobby = false;

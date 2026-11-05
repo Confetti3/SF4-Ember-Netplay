@@ -448,6 +448,10 @@ struct RuntimeGates {
     bool canEditPreferences = false, canEditSelection = false, canEditLobby = false, canChangeController = false;
     bool readyGate = false, canReady = false, canOpenRoom = false, canTrain = false, discordCanSwitch = false;
     bool delayLocked = false, canProbe = false, canApplyDelay = false;
+    // The Ultra changes wherever the selection does, and also over the WIN
+    // while the post-match prompt asks this fighter: the next game's Ready,
+    // which carries it, has not gone yet.
+    bool canChangeUltra = false;
     int localSlot = -1;
     int selectedDelay = 2;
     // The seated table's rules, else the lobby's, else the player's own: what a
