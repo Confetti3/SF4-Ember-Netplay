@@ -61,7 +61,8 @@ void TestHeights() {
     EXPECT(versus.height < stacked.height);
     EXPECT(Near(ShapeTableCards(1150, 2, false, true, 1).height - versus.height, card::Banner));
     EXPECT(Near(ShapeTableCards(400, 1, false, true, 1).height, 200));
-    EXPECT(Near(ShapeTableCards(1150, 2, false, false, 2).height, versus.height * 2));
+    // At twice the scale a card twice as wide is the same versus line, twice as tall.
+    EXPECT(Near(ShapeTableCards(2300, 2, false, false, 2).height, versus.height * 2));
 }
 }
 
