@@ -125,6 +125,9 @@ target_link_libraries(sf4e_ui PUBLIC sf4e_problem_report)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_fonts.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_chat_filter.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sf4e_speech_relay.cmake")
+# The three write the fonts, the chat filter's lists and the speech relay
+# into generated/; the UI is what includes them.
+target_include_directories(sf4e_ui PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(sf4e_ui PUBLIC imgui::imgui sf4e_selection sf4e_room_model sf4e_localization sf4e_settings PRIVATE ZLIB::ZLIB spdlog::spdlog "windowscodecs" "ole32" "d3d9" "winmm")
 target_compile_definitions(sf4e_ui PRIVATE SF4E_BUILD_VERSION="${PROJECT_VERSION}")
 

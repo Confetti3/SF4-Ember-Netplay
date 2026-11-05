@@ -3,7 +3,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/sf4e_embed.cmake")
 # it this file generates the Locale and Script enums (public), the locale table
 # and the catalogs (private to Localization.cxx); sf4e_fonts.cmake and
 # scripts/subset-cjk-fonts.py read the same file for the script fonts.
-set(sf4e_locale_source "${CMAKE_CURRENT_SOURCE_DIR}/locales")
+set(sf4e_locale_source "${CMAKE_CURRENT_LIST_DIR}/../locales")
 set(sf4e_locale_registry "${sf4e_locale_source}/locales.json")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${sf4e_locale_registry}")
 file(READ "${sf4e_locale_registry}" sf4e_locale_json)

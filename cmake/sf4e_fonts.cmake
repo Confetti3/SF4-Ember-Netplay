@@ -1,5 +1,5 @@
 # Embed original font bytes; running the mod never needs loose fonts or downloads.
-set(sf4e_font_source "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/fonts")
+set(sf4e_font_source "${CMAKE_CURRENT_LIST_DIR}/../src/ui/fonts")
 set(sf4e_font_header "#pragma once\n#include \"LocaleIds.hxx\"\nnamespace sf4e { namespace ui { namespace fonts {\n")
 # sf4e_hex_bytes is also used by sf4e_product.cmake for the header mark.
 include("${CMAKE_CURRENT_LIST_DIR}/sf4e_embed.cmake")
@@ -41,4 +41,3 @@ string(APPEND sf4e_font_license "\nNoto Sans CJK (Japanese, Korean and Chinese t
     "(http://www.adobe.com/), under the same SIL Open Font License 1.1.\n")
 string(APPEND sf4e_font_header "static const char License[] = R\"InterOFL(${sf4e_font_license})InterOFL\";\n} } }\n")
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/EmbeddedFonts.hxx" CONTENT "${sf4e_font_header}")
-target_include_directories(sf4e_ui PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
