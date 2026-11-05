@@ -226,6 +226,21 @@ add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
 # Its two-thread check keeps both threads busy for three seconds.
 set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
 sf4e_test_locks(PresentationSnapshot ember_runtime)
+# The runtime under a game of its own (fake_game.cxx): what a capability the
+# game turns off closes, and the join refusal's wording. It links none of SF4
+# Ember's hooks, its adapter or the engine's (sf4e, sf4e_sf4_game, Dimps), so
+# the runtime's every call into the game has to go through Game(). The room
+# client's state verification reads SF4's battle until step 6, so the test
+# gives the client a verification of its own. The game catalog (sf4e_catalog)
+# is still SF4's roster until step 5.
+add_executable(RuntimeCapabilitiesTest "src/tests/runtime_capabilities_test.cxx" "src/tests/fake_game.cxx"
+    "src/tests/fake_session_verification.cxx")
+target_compile_features(RuntimeCapabilitiesTest PRIVATE cxx_std_17)
+target_link_libraries(RuntimeCapabilitiesTest PRIVATE sf4e_product sf4e_catalog sf4e_runtime)
+add_test(NAME RuntimeCapabilities COMMAND RuntimeCapabilitiesTest)
+set_tests_properties(RuntimeCapabilities PROPERTIES TIMEOUT 60 PASS_REGULAR_EXPRESSION "Runtime capabilities tests passed")
+sf4e_test_locks(RuntimeCapabilities ember_runtime)
+sf4e_test_labels(LABELS unit room training TESTS RuntimeCapabilities)
 
 sf4e_add_unit_test(NAME SessionServerTransportLobby SOURCES "src/tests/session_server_transport_lobby_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/session_server_transport_barriers_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)

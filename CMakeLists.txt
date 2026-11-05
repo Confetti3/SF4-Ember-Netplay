@@ -268,30 +268,9 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__UserApp.cxx"
     "src/sf4e/sf4e__CustomContent.hxx"
     "src/sf4e/sf4e__CustomContent.cxx"
-    "src/sf4e/sf4e__NetplayFacade.hxx"
-    "src/sf4e/sf4e__NetplayFacade.cxx"
-    "src/sf4e/sf4e__NetplayRuntime.hxx"
-    "src/sf4e/sf4e__NetplayRuntime.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Input.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__RandomFighter.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
-    "src/sf4e/sf4e__NetplayPresentation.cxx"
-    "src/sf4e/sf4e__RuntimeBridge.hxx"
-    "src/sf4e/sf4e__RuntimeBridge.cxx"
-    "src/sf4e/sf4e__RuntimeSession.hxx"
-    "src/sf4e/sf4e__RuntimeSession.cxx"
-    "src/sf4e/sf4e__RuntimeTick.hxx"
-    "src/sf4e/sf4e__RuntimeTick.cxx"
-    "src/sf4e/sf4e__ShellHost.hxx"
-    "src/sf4e/sf4e__ShellHost.cxx"
-    "src/sf4e/sf4e__GameAdapter.hxx"
-    "src/sf4e/sf4e__RuntimeEvents.hxx"
-    "src/sf4e/sf4e__Sf4Game.cxx"
+    # The room client's state verification reads SF4's battle system (step 6
+    # of EMBER_LIBRARY.md moves it behind the game).
+    "src/session/sf4e__SessionClient__Verification.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 target_link_libraries(sf4e PRIVATE SDL3::SDL3-static dxguid)
@@ -329,7 +308,6 @@ add_library(Session STATIC
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
     "src/session/sf4e__SessionClient__Room.cxx"
-    "src/session/sf4e__SessionClient__Verification.cxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
     "src/session/IrohMatchSession.cxx"
@@ -339,13 +317,14 @@ add_library(Session STATIC
 target_compile_features(Session PUBLIC cxx_std_17)
 target_link_libraries(
     Session
-    PRIVATE Dimps sf4e_common sf4e_helper_platform sf4e_room_model
+    PRIVATE sf4e_common sf4e_helper_platform sf4e_room_model
     PUBLIC sf4e_iroh_room nlohmann_json::nlohmann_json spdlog::spdlog  "ws2_32" sf4e_tournament_play sf4e_watch_play
 )
 
 # The public room host: the room authority with no game. It links the session
-# server and Iroh room libraries and none of the game libraries (Session would
-# bring Dimps), so the same sources port to Linux.
+# server and Iroh room libraries and none of the game libraries (Session takes
+# SF4's battle types, and its client's verification is SF4's), so the same
+# sources port to Linux.
 add_executable(sf4e-room-host ${SF4E_ROOMHOST_host} ${SF4E_ROOMHOST_host_windows})
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
 target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room sf4e_product sf4e_catalog)
@@ -356,6 +335,53 @@ target_compile_features(sf4e_app_services PUBLIC cxx_std_17)
 target_compile_definitions(sf4e_app_services PRIVATE SF4E_APP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(sf4e_app_services PUBLIC sf4e_settings sf4e_localization sf4e_replay_files sf4e_problem_report PRIVATE sf4e_common sf4e_selection sf4e_package_installer sf4e_durable_file spdlog::spdlog nlohmann_json::nlohmann_json WIL::WIL pathcch shell32 shlwapi bcrypt ole32)
 target_link_libraries(sf4e PRIVATE sf4e_app_services)
+
+# Ember's runtime: the room link, the runtime and the shell's host. It reaches
+# the game only through ember::game::Game() (sf4e__GameAdapter.hxx), which the
+# game's own target defines, so its tests link it under a game of their own
+# (src/tests/fake_game.cxx) with nothing of SF4's.
+add_library(sf4e_runtime STATIC
+    "src/sf4e/sf4e__NetplayFacade.hxx"
+    "src/sf4e/sf4e__NetplayFacade.cxx"
+    "src/sf4e/sf4e__NetplayRuntime.hxx"
+    "src/sf4e/sf4e__NetplayRuntime.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Input.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__RandomFighter.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
+    "src/sf4e/sf4e__NetplayPresentation.cxx"
+    "src/sf4e/sf4e__RuntimeBridge.hxx"
+    "src/sf4e/sf4e__RuntimeBridge.cxx"
+    "src/sf4e/sf4e__RuntimeSession.hxx"
+    "src/sf4e/sf4e__RuntimeSession.cxx"
+    "src/sf4e/sf4e__RuntimeTick.hxx"
+    "src/sf4e/sf4e__RuntimeTick.cxx"
+    "src/sf4e/sf4e__ShellHost.hxx"
+    "src/sf4e/sf4e__ShellHost.cxx"
+    "src/sf4e/sf4e__GameAdapter.hxx"
+    "src/sf4e/sf4e__RuntimeEvents.hxx"
+)
+target_include_directories(sf4e_runtime PUBLIC "src/common")
+target_link_libraries(sf4e_runtime
+    PUBLIC Session sf4e_common sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization sf4e_netplay_core
+        sf4e_app_services sf4e_replay_files imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ggpo::GGPO
+    PRIVATE "Kernel32" "ws2_32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "iphlpapi")
+if(SF4E_DEVELOPER_UI)
+    target_compile_definitions(sf4e_runtime PRIVATE SF4E_DEVELOPER_UI=1)
+endif()
+# SF4's game under the runtime (sf4e__Sf4Game.cxx). sf4e carries it, and the
+# runtime, to whatever links SF4 Ember's hooks.
+add_library(sf4e_sf4_game STATIC "src/sf4e/sf4e__Sf4Game.cxx")
+target_link_libraries(sf4e_sf4_game PRIVATE sf4e sf4e_runtime Dimps sf4e_steam ${LIB_DETOURS})
+# It calls the self-test's hooks, which are inline stubs without the define.
+if(SF4E_SELFTEST)
+    target_compile_definitions(sf4e_sf4_game PRIVATE SF4E_SELFTEST=1)
+endif()
+target_link_libraries(sf4e PUBLIC sf4e_runtime sf4e_sf4_game)
 add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryController.cxx)
 target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.

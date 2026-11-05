@@ -1,0 +1,26 @@
+#pragma once
+// A game for the runtime's tests, defined in fake_game.cxx: ember::game::Game()
+// without SF4. A test sets what the game offers and where it is, and reads
+// back what the runtime asked of it.
+#include "../sf4e/sf4e__GameAdapter.hxx"
+
+namespace ember { namespace test {
+
+struct FakeGame {
+    // GameState::MainMenuInFront.
+    bool mainMenu = true;
+    // What Battle::Enter answers.
+    game::Battle::Entry entry = game::Battle::Entry::Deferred;
+    // The calls the runtime made.
+    int trainingRequests = 0;
+    int battleEntries = 0;
+};
+
+FakeGame& Fake();
+// The capabilities Game() answers with.
+game::Capabilities& FakeCapabilities();
+// Every field of Fake() back to its default, and every capability on, as SF4
+// sets them.
+void ResetFake();
+
+} } // namespace ember::test

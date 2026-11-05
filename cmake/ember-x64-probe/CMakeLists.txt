@@ -45,7 +45,10 @@ list(APPEND _ember_files
     discord/BridgeServer.hxx discord/Presence.hxx discord/Ticket.hxx
     training/FrameMeter.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
-    training/TrainingSession.hxx)
+    training/TrainingSession.hxx
+    # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter with
+    # nothing of SF4's, as SFV Ember's will be.
+    tests/fake_game.cxx tests/fake_game.hxx)
 
 set(EMBER_SF4_SIDE
     # Selection: SF4's roster, stages and installed content.
