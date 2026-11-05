@@ -1,4 +1,5 @@
 #include "sf4e__RollbackDiagnostics.hxx"
+#include "EnvFlag.hxx"
 
 #include <chrono>
 #include <stdarg.h>
@@ -504,8 +505,7 @@ double NowMs() {
 }
 
 void InitFromEnvironment() {
-	const char* env = getenv("SF4E_ROLLBACK_DIAGNOSTICS");
-	if (env && env[0] == '1') {
+	if (EnvFlag("SF4E_ROLLBACK_DIAGNOSTICS")) {
 		s_diag.enabled = true;
 	}
 	s_diag.connectionWarningStartMs = -1.0;

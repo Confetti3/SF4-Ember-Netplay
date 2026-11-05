@@ -776,14 +776,18 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
             {"operations",operations},{"target",target}};
         DurableJson(install/TransactionName,transaction);
         state=InstallState::Prepared;
-        std::uint64_t replaced=0; const char* terminateAfter=std::getenv("SF4E_UPDATE_TEST_TERMINATE_AFTER");
+        // The recovery tests' crash point: after that many replaced files, or after the commit.
+        char terminateAfter[16]={};
+        const DWORD terminateLength=GetEnvironmentVariableA("SF4E_UPDATE_TEST_TERMINATE_AFTER",terminateAfter,sizeof terminateAfter);
+        if(terminateLength>=sizeof terminateAfter) terminateAfter[0]=0; // too long for a count or "commit"
+        std::uint64_t replaced=0;
         const InUsePolicy policy{cancel,activity};
         Announce(cancel,progress,UpdateStage::Replacing,written.size());
         for (const auto& rel : removals) RemoveFile(install/rel,policy);
         for (const auto& rel : removals) RemoveEmptyParents(install,(install/rel).parent_path());
         for (const auto& rel : written) {
             ReplaceFileVerified(staging/rel,install/rel,target.at(platform::GenericPathToUtf8(rel)).get<std::string>(),policy);
-            if(terminateAfter && static_cast<int>(replaced+1)==std::atoi(terminateAfter)) TerminateProcess(GetCurrentProcess(),86);
+            if(*terminateAfter && static_cast<int>(replaced+1)==std::atoi(terminateAfter)) TerminateProcess(GetCurrentProcess(),86);
             Report(cancel,progress,UpdateStage::Replacing,++replaced,written.size());
         }
         std::vector<fs::path> finished; std::vector<std::string> wanted;
@@ -795,7 +799,7 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
             if(*result[index]!=wanted[index]) throw std::runtime_error("Installed update verification failed");
         transaction["state"]="committed"; DurableJson(install/TransactionName,transaction);
         state=InstallState::Committed;
-        if(terminateAfter && strcmp(terminateAfter,"commit")==0) TerminateProcess(GetCurrentProcess(),86);
+        if(strcmp(terminateAfter,"commit")==0) TerminateProcess(GetCurrentProcess(),86);
         fs::remove(install/TransactionName);
     } catch (const std::exception& failure) {
         if(state==InstallState::Committed) {

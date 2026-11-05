@@ -59,10 +59,10 @@ inline VoiceStatus ParseRelayStatus(const std::string& text) {
     int percent = 0;
     if (first == "natural") status = {Voice::Natural, 100};
     else if (first == "failed") status = {Voice::Failed, 0};
-    else if (std::sscanf(first.c_str(), "downloading %d", &percent) == 1 && percent >= 0 && percent <= 100) status = {Voice::Downloading, percent};
+    else if (sscanf_s(first.c_str(), "downloading %d", &percent) == 1 && percent >= 0 && percent <= 100) status = {Voice::Downloading, percent};
     char state[16] = {};
     long long bytes = 0;
-    if (end != std::string::npos && std::sscanf(text.c_str() + end + 1, "pack %15s %lld", state, &bytes) == 2 && bytes >= 0) {
+    if (end != std::string::npos && sscanf_s(text.c_str() + end + 1, "pack %15s %lld", state, static_cast<unsigned>(sizeof state), &bytes) == 2 && bytes >= 0) {
         const std::string name = state;
         status.pack = name == "missing" ? Pack::Missing : name == "current" ? Pack::Current : name == "outdated" ? Pack::Outdated :
             name == "removed" ? Pack::Removed : Pack::None;

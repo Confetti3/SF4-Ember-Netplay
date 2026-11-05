@@ -498,7 +498,7 @@ void GameMenu::DrawEditModal(const std::vector<MenuEntry>& entries,bool acceptEd
             // The field's name and its count above it, the field edged in Ember, how to type under it.
             DialogTop(label,{bytes,c.muted},nullptr,0,0);
             const bool secret=navigation.EditingSecret();
-            std::vector<char> draft(limit+1,0); std::strncpy(draft.data(),navigation.Draft().c_str(),limit);
+            std::vector<char> draft(limit+1,0); navigation.Draft().copy(draft.data(),limit);
             // A masked passphrase draws only asterisks, so its glyphs are never needed.
             if(!secret) NoteUserText(navigation.Draft(),UserTextRole::Draft);
             if(lastEdit_!=navigation.EditingId()) ImGui::SetKeyboardFocusHere();
