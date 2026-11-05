@@ -95,15 +95,19 @@ int main() try {
     std::map<std::string, ImVec2> targets;
     // Whether each card, as last reported, lay whole inside the clip it was drawn under.
     std::map<std::string, bool> inView;
+    // Whether each card's target, its middle, lay inside that clip: a click there reaches it.
+    std::map<std::string, bool> clickable;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; ++menuDraws; });
     SetMenuStatusProbe([&](const char* status, Tone) { menuStatus = status; });
     SetMenuCardProbe([&](const char* id, ImVec2 min, ImVec2 max) {
         ++cardDraws;
-        targets[id] = ImVec2((min.x + max.x) * .5f, (min.y + max.y) * .5f);
+        const ImVec2 middle((min.x + max.x) * .5f, (min.y + max.y) * .5f);
+        targets[id] = middle;
         const auto* d = ImGui::GetWindowDrawList();
         const ImVec2 lo = d->GetClipRectMin(), hi = d->GetClipRectMax();
         // The clip is whole pixels, the card not: a pixel's slack.
         inView[id] = min.x >= lo.x - 1 && min.y >= lo.y - 1 && max.x <= hi.x + 1 && max.y <= hi.y + 1;
+        clickable[id] = middle.x >= lo.x && middle.y >= lo.y && middle.x < hi.x && middle.y < hi.y;
     });
     const auto frame = [&](unsigned buttons = 0) {
         const auto beforeDraws = menuDraws;
@@ -1641,15 +1645,23 @@ int main() try {
         for (const auto& [scale, size] : screens) {
             ApplyTheme(scale); io.DisplaySize = size;
             targets.clear();
-            for (const char* option : {"table-0/0", "table-0/2"}) {
+            for (const int strip : {0, 2}) {
                 shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
-                click(targets.at("table-0"));
+                // The mouse clicks a table it can see. Where the action bar
+                // takes two lines (1280x800) it follows the floor in its
+                // scroll, and the focus on Leave room scrolls the first
+                // table partly out of view.
+                int shown = -1;
+                for (int i = 0; i < 4 && shown < 0; ++i) if (clickable["table-" + std::to_string(i)]) shown = i;
+                Check(shown >= 0, "No free table was in view");
+                const std::string table = "table-" + std::to_string(shown), option = table + "/" + std::to_string(strip);
+                click(targets.at(table));
                 Check(shell.Navigation().Choosing(), "A click on a free table did not open the seat chooser");
                 frame(); // the strip reports its place once drawn
                 const auto before = actions.size();
                 click(targets.at(option));
                 const bool sat = actions.size() == before + 1 && actions.back().roomAction.kind == room::ActionKind::Queue;
-                if (option[8] == '0' ? !sat : shell.Navigation().Screen() == "room") {
+                if (strip == 0 ? !sat : shell.Navigation().Screen() == "room") {
                     std::cerr << "scale " << scale << " size " << size.x << "x" << size.y << " " << option << '\n';
                     Check(false, "A click on the seat chooser's strip picked nothing");
                 }
