@@ -96,8 +96,15 @@ void BoardOpensOnReadyAndStepsAreas() {
  h.view.room.tables[1].p1=0;h.view.room.tables[0].p1=2;h.view.room.tables[0].p2=3;
  room::Member third;third.id=3;third.name="Third";third.table=0;third.seat=1;h.view.room.members.push_back(third);
  h.view.room.members[1].table=0;h.view.room.members[1].seat=0;h.view.room.tables[1].p2=0;
- h.Frame(0,3);
+ // The board is already up, so nothing pushes it: the frame the opening rule
+ // moves the focus counts nothing, and A pressed then and held on counts only
+ // once released, never opening the seat chooser on the row it moved to.
+ const auto sent=h.actions.size();
+ h.Frame(MenuInput::Select,3);
  Check(h.shell.Navigation().Screen()=="room"&&focus()=="table-1","The next room's board did not open on its first free table");
+ Check(!h.shell.Navigation().Choosing()&&h.actions.size()==sent,"A pressed as the opening rule moved the focus acted on the row it moved to");
+ h.Frame(0,2);
+ Check(!h.shell.Navigation().Choosing()&&h.actions.size()==sent,"A held over the opening focus acted when released");
  // Watching a game, on the bar: Table options (Stop watching while the game shows).
  h.view.room.roomEpoch=23;h.view.session.generation.room=3;h.view.room.tables[0].phase=room::TablePhase::Playing;
  h.view.room.tables[0].spectators={1};h.view.room.members[0].status=room::MemberStatus::Watching;

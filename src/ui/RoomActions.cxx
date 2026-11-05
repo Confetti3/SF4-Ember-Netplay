@@ -96,7 +96,11 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
   for(std::size_t t=0;t<room::TablesInPlay(s)&&to.empty();++t)
    if((!s.tables[t].p1||!s.tables[t].p2)&&Has(rows,"table-"+std::to_string(s.tables[t].id)))to="table-"+std::to_string(s.tables[t].id);
  }
- nav.Focus(Has(rows,to)?to:rows.front().id,rows);
+ // A focus it moves opens like a screen (MenuNavigation::Rearm): that frame
+ // counts nothing and a button held into it counts once released, so a press
+ // made as a room changes under an open board never lands on the row moved to.
+ const std::string& start=Has(rows,to)?to:rows.front().id;
+ if(start!=nav.Focus()){nav.Focus(start,rows);nav.Rearm();}
 }
 
 // X, Y and View open the fighter, table options and chat; the same button
