@@ -23,13 +23,19 @@ struct ControllerSample {
     // The device's confirm and back buttons and their glyphs (Pad::MenuButtons).
     input::MenuButtons menu;
 };
-static_assert(ControllerSample::Up == MenuInput::Up && ControllerSample::Down == MenuInput::Down &&
-    ControllerSample::Left == MenuInput::Left && ControllerSample::Right == MenuInput::Right &&
-    ControllerSample::Confirm == MenuInput::Select && ControllerSample::Back == MenuInput::Back &&
-    ControllerSample::Fighter == MenuInput::Fighter && ControllerSample::Options == MenuInput::Options &&
-    ControllerSample::Chat == MenuInput::Chat && ControllerSample::PrevTab == MenuInput::PrevTab &&
-    ControllerSample::NextTab == MenuInput::NextTab && ControllerSample::Describe == MenuInput::Describe && ControllerSample::Menu == MenuInput::Start, "ControllerSample and MenuInput must number their buttons alike");
-static_assert((ControllerSample::Menu & (MenuInput::Up | MenuInput::Down | MenuInput::Left | MenuInput::Right |
+// C++20 deprecates comparing enumerators of two different enums, so the
+// asserts compare the buttons' values.
+constexpr bool SameButton(ControllerSample::Button sample, MenuInput::Button menu) {
+    return static_cast<unsigned>(sample) == static_cast<unsigned>(menu);
+}
+static_assert(SameButton(ControllerSample::Up, MenuInput::Up) && SameButton(ControllerSample::Down, MenuInput::Down) &&
+    SameButton(ControllerSample::Left, MenuInput::Left) && SameButton(ControllerSample::Right, MenuInput::Right) &&
+    SameButton(ControllerSample::Confirm, MenuInput::Select) && SameButton(ControllerSample::Back, MenuInput::Back) &&
+    SameButton(ControllerSample::Fighter, MenuInput::Fighter) && SameButton(ControllerSample::Options, MenuInput::Options) &&
+    SameButton(ControllerSample::Chat, MenuInput::Chat) && SameButton(ControllerSample::PrevTab, MenuInput::PrevTab) &&
+    SameButton(ControllerSample::NextTab, MenuInput::NextTab) && SameButton(ControllerSample::Describe, MenuInput::Describe) &&
+    SameButton(ControllerSample::Menu, MenuInput::Start), "ControllerSample and MenuInput must number their buttons alike");
+static_assert((static_cast<unsigned>(ControllerSample::Menu) & (MenuInput::Up | MenuInput::Down | MenuInput::Left | MenuInput::Right |
     MenuInput::Select | MenuInput::Back | MenuInput::Fighter | MenuInput::Options | MenuInput::Chat)) == 0,
     "Start must not collide with a menu button");
 
