@@ -30,7 +30,7 @@ Discord invitations use the same pending, cancellation and confirmed room-switch
 
 ## Choose a fighter
 
-The arcade roster previews the highlighted fighter. Select commits it; merely moving the highlight does not. Saved choices are marked. Appearance opens separate Costume gallery and Color gallery pages with individual artwork cards. Move to preview, Select to save, then Back to return. Choices use native availability rather than asset counts. Ultra, Stage and additional options remain separate; P1 retains stage authority.
+The arcade roster previews the highlighted fighter. Select commits it; merely moving the highlight does not. Saved choices are marked. Select on a fighter opens their page, with Costume and Color rows: Left and Right step either one in place, and Select shows them all as pictures. The costume grid has a card for every costume you own, each in the color you wear now. Select on a costume shows all of its colors at once, and Select on a color saves the costume and color together. The pad moves across the cards in every direction. Back steps out without changing anything. In a room, Select on Appearance opens the costume grid straight away and a pick returns to the room. Choices use native availability rather than asset counts, so a DLC costume you do not own has no card. Ultra, Stage and additional options remain separate; P1 retains stage authority.
 
 ![Fighter select's roster](../images/ember-fighter-selection.png)
 
