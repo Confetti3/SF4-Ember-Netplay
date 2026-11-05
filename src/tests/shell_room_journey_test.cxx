@@ -72,6 +72,9 @@ void BoardOpensOnReadyAndStepsAreas() {
  Check(h.shell.Navigation().Screen()=="room"&&focus()=="ready","A seated player's board did not open on Ready");
  h.Press(MenuInput::NextTab);Check(focus()=="member-1","RB from the bar did not go to the first member");
  h.Press(MenuInput::NextTab);Check(focus()=="room-chat","RB from Members did not go to the message box");
+ // Up from the message box is its panel's Hide, not a table card across the board.
+ h.Press(MenuInput::Up);Check(focus()=="room-hide-chat","Up from the message box left the Chat panel");
+ h.Press(MenuInput::Down);Check(focus()=="room-chat","Down from Chat's Hide did not return to the message box");
  h.Press(MenuInput::NextTab);Check(focus()=="table-1","RB from Chat did not go round to the player's own table");
  h.Press(MenuInput::NextTab);Check(focus()=="ready","RB from the floor did not return to the bar's Ready");
  h.Press(MenuInput::Right);const std::string kept=focus();Check(kept!="ready","Right on the bar did not move along it");
