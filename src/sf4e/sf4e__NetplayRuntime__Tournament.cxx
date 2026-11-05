@@ -449,6 +449,12 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		return;
 	}
 	case Op::Watch: {
+		// A game that offers no spectating watches no match: no match_watch
+		// goes to the bridge, so no watcher's room is joined either.
+		if (!Game().caps.spectators) {
+			spdlog::info("Watch: not watching match {}: the game offers no spectating", command.matchId);
+			return;
+		}
 		if (command.bridgeId.empty() || command.matchId.empty() ||
 			netplay::tournament::HoldsMatchRoom(play.GetPhase(), runtime->watch.GetPhase())) return;
 		// A watch acts only on the match's room, so it starts from no room at all.

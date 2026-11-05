@@ -117,6 +117,15 @@ static void RejectMatchEntry() {
 	internal::AbortLocalMatch(loc::T("runtime.unsupported_match"), NoticeSeverity::Warning);
 }
 
+// The game offers no spectating (Capabilities::spectators), so a game this PC
+// would only watch, queued for the table or watching it, is sat out at once,
+// as one it missed is (ObserveDeferredEntry): its battle and its spectator
+// session never start, and the room still lists this PC for the next game.
+static void SitOutUnwatchableGame() {
+	spdlog::info("Match: spectator sits out generation {} (the game offers no spectating)", runtime->match->Generation());
+	runtime->match->End();
+}
+
 // The entry into a started match waits for the main menu. Say so once, and
 // have a spectator that misses P1's window sit the game out.
 static void ObserveDeferredEntry() {
@@ -622,17 +631,20 @@ void TickMatch() {
 				Apply(netplay::EventKind::MatchEnded);
 			if (phase == session::IrohMatchSession::Phase::Started && !runtime->entry.matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
-				const auto entry = Game().battle.Enter();
-				runtime->entry.matchEntered = entry == game::Battle::Entry::Entered;
-				if (runtime->entry.matchEntered) {
-					runtime->entry.enteredGeneration = runtime->match->Generation();
-					runtime->promptOverBattle = false;
-					const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
-					const auto* local = room::FindMember(room, room.localMember);
-					runtime->entry.enteredTable = local ? local->table : -1;
+				if (LocalIsSpectator() && !Game().caps.spectators) SitOutUnwatchableGame();
+				else {
+					const auto entry = Game().battle.Enter();
+					runtime->entry.matchEntered = entry == game::Battle::Entry::Entered;
+					if (runtime->entry.matchEntered) {
+						runtime->entry.enteredGeneration = runtime->match->Generation();
+						runtime->promptOverBattle = false;
+						const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
+						const auto* local = room::FindMember(room, room.localMember);
+						runtime->entry.enteredTable = local ? local->table : -1;
+					}
+					else if (entry == game::Battle::Entry::Rejected) RejectMatchEntry();
+					else if (!AtMainMenu()) ObserveDeferredEntry();
 				}
-				else if (entry == game::Battle::Entry::Rejected) RejectMatchEntry();
-				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}
 			if (runtime->entry.matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);
 			if (runtime->match && runtime->controller.GetSnapshot().room == netplay::RoomState::Joined &&

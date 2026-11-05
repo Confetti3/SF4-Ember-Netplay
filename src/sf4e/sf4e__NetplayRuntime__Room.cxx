@@ -250,6 +250,9 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         if (kind == netplay::CommandKind::JoinInvite && (!runtime->input.Ready() || !helperReady)) return DispatchOutcome::Dropped;
     }
 	if (kind == netplay::CommandKind::HostRoom && !command.preferences.Valid()) return DispatchOutcome::Dropped;
+	// A tournament match's watcher joins as an observer, whom the room seats
+	// only to watch: not in a game that offers no spectating.
+	if (kind == netplay::CommandKind::JoinInvite && command.join == JoinKind::Observer && !Game().caps.spectators) return DispatchOutcome::Dropped;
 	if (kind == netplay::CommandKind::RoomAction) {
 		if (!runtime->attached || !RuntimeSession::netplay || !runtime->match) return DispatchOutcome::Dropped;
 		if (command.roomAction.kind == room::ActionKind::Watch && !Game().caps.spectators) return DispatchOutcome::Dropped;

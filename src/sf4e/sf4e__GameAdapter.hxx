@@ -40,12 +40,17 @@
 
 namespace ember { namespace game {
 
-// What this game offers the player. Each flag closes the one place the
-// runtime offers its feature; the services below stay callable either way.
+// What this game offers the player. Each flag closes the places the runtime
+// offers its feature, named below; the services below stay callable either way.
 struct Capabilities {
-    bool training;       // Training from a room (RuntimeGates::canTrain)
+    // Training from Home or a room: RuntimeGates::canTrain and every Training
+    // request (NetplayFacade::TrainingHolds), so Training::Request is never called.
+    bool training;
     bool replays;        // playing replays from the Replays screen (the snapshot's replays.ready)
-    bool spectators;     // watching a table's games (a room's Watch action)
+    // Watching a table's games: a room's Watch action, a tournament match's
+    // watch and its observer join, and the entry of any game this PC would
+    // only watch (queued or watching), which it sits out.
+    bool spectators;
     bool padSetup;       // the pad wizard (a pad's Setup request)
     bool steamProfile;   // opening a member's Steam profile (the OpenSteamProfile service)
     bool customContent;  // installed custom costumes, colours and stages (InstalledContent)

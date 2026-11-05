@@ -816,7 +816,8 @@ void NoteChatTyping(std::uint64_t roomGeneration) {
 
 bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
     bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration) {
-    if (!runtime || !(session.generation == made) || !atMainMenu) return false;
+    // A game without Training takes no Training request, from Home or a room.
+    if (!runtime || !Game().caps.training || !(session.generation == made) || !atMainMenu) return false;
     if (entry == TrainingEntry::Home) return session.room == netplay::RoomState::Idle && session.match == netplay::MatchState::None;
     return entry == TrainingEntry::Room && internal::CanTrain(session, atMainMenu, room, retiredGeneration);
 }
