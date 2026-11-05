@@ -109,7 +109,7 @@ struct ParticipantRoom {
 		return replica.RebindMembers(bindings);
 	}
 	std::unique_ptr<SessionServer> Replica() const {
-		auto replica = std::make_unique<SessionServer>("custom-room", "build", true, 3, Dimps::Math::FixedPoint{0, 99},
+		auto replica = std::make_unique<SessionServer>("custom-room", "build", true, 3, sf4e::wire::FixedPoint{0, 99},
 			std::unique_ptr<session::ServerTransport>(new MockTransport()));
 		replica->EnableMatchAuthorization(room, IdentityOf, IncarnationOf);
 		return replica;

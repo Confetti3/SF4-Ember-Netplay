@@ -284,7 +284,7 @@ void AppearanceGalleries(){
  // Ultra: the row steps through the fighter's Ultras; Double is the last.
  pick.ultra=0;focus("ultra");
  Check(press(MenuInput::Right)&&pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Right on the Ultra row did not save Ultra II");
- Dimps::GameEvents::VsMode::ConfirmedCharaConditions native{};
+ sf4e::wire::ConfirmedCharaConditions native{};
  selection::ToNative(pick,native);pick=selection::FromNative(native);frame();
  Check(pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Native selection round trip lost Ultra II");
  press(MenuInput::Right,false);Check(pick.ultra==1,"A locked Ultra row saved a step");

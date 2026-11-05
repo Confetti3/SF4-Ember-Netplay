@@ -11,27 +11,18 @@
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
-#include <ggponet.h>
 
 #include "../common/JsonDump.hxx"
-#include "../Dimps/Dimps.hxx"
 #include "../common/FighterCatalog.hxx"
-#include "../common/ConfirmedCheckpoint.hxx"
-#include "../common/sf4e__StateHash.hxx"
-#include "../Dimps/Dimps__Game__Battle__System.hxx"
 
-#include "../sf4e/sf4e__Game__Battle__System.hxx"
 
 #include "sf4e__SessionClient.hxx"
 #include "sf4e__SessionProtocol.hxx"
-#include "../sf4e/sf4e__NetplayFacade.hxx"
 
 using nlohmann::json;
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 namespace session = sf4e::session;
-using rSystem = Dimps::Game::Battle::System;
-using fSystem = sf4e::Game::Battle::System;
 using sf4e::SessionClient;
 using sf4e::SessionProtocol::LobbyReady;
 

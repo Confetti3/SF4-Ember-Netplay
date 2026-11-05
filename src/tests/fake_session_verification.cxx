@@ -1,14 +1,18 @@
-// The room client's state verification for a game with no battle state to
-// compare. SF4's (session/sf4e__SessionClient__Verification.cxx) reads SF4's
-// battle system, which the runtime's tests under fake_game.cxx do not link;
-// the verification moves behind the game with the session wire (step 6 of
-// EMBER_LIBRARY.md). Until then these take the verification messages and
-// compare nothing.
-#include "../session/sf4e__SessionClient.hxx"
+// The desync check of a game with no battle state to compare: the room
+// client's verifier for the runtime's tests under fake_game.cxx, which take
+// the verification messages and compare nothing. The room client still
+// buffers the remote hashes; this verifier never erases them.
+#include "../session/BattleVerifier.hxx"
 
-namespace sf4e {
-void SessionClient::TerminateOnDesync(const char*, int) {}
-bool SessionClient::HandleBattleSnapshot(nlohmann::json&) { return true; }
-bool SessionClient::HandleBattleHash(nlohmann::json&) { return true; }
-void SessionClient::StepBattleVerification() {}
+namespace {
+class FakeVerifier final : public sf4e::session::BattleVerifier {
+public:
+	void OnRemoteSnapshot(sf4e::SessionClient&, const sf4e::SessionProtocol::StateSnapshot&) override {}
+	void Step(sf4e::SessionClient&, std::map<int, sf4e::SessionProtocol::BattleHashV2>&) override {}
+	void Reset() override {}
+};
+}
+
+std::unique_ptr<sf4e::session::BattleVerifier> sf4e::session::MakeBattleVerifier() {
+	return std::make_unique<FakeVerifier>();
 }

@@ -2,13 +2,12 @@
 
 #include <windows.h>
 #include <nlohmann/json.hpp>
+#include "../common/MatchWireTypes.hxx"
 
 namespace Dimps {
 	namespace Math {
-		struct FixedPoint {
-			unsigned short fractional;
-			short integral; // Might be unsigned? Not entirely sure
-		};
+		// The engine's fixed-point value is the session wire's (MatchWireTypes.hxx).
+		using FixedPoint = sf4e::wire::FixedPoint;
 
 		struct Vec4F {
 			float x;
@@ -23,6 +22,5 @@ namespace Dimps {
 
 		float FixedToFloat(FixedPoint* fp);
 
-		NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FixedPoint, fractional, integral);
 	}
 }

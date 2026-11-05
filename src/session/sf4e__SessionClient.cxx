@@ -8,28 +8,18 @@
 
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
-#include <ggponet.h>
 
 #include "../common/JsonDump.hxx"
-#include "../Dimps/Dimps.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/GameCatalog.hxx"
-#include "../common/ConfirmedCheckpoint.hxx"
-#include "../common/sf4e__StateHash.hxx"
-#include "../Dimps/Dimps__Game__Battle__System.hxx"
-
-#include "../sf4e/sf4e__Game__Battle__System.hxx"
 
 #include "sf4e__SessionClient.hxx"
 #include "sf4e__SessionProtocol.hxx"
-#include "../sf4e/sf4e__NetplayFacade.hxx"
 
 using nlohmann::json;
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 namespace session = sf4e::session;
-using rSystem = Dimps::Game::Battle::System;
-using fSystem = sf4e::Game::Battle::System;
 using sf4e::SessionClient;
 using sf4e::SessionProtocol::LobbyReady;
 
@@ -75,7 +65,8 @@ SessionClient::SessionClient(
 	_name(name),
 	_ggpoPort(ggpoPort),
 	_connected(false),
-	_lobbyData(SessionProtocol::LobbyData::NULL_LOBBY)
+	_lobbyData(SessionProtocol::LobbyData::NULL_LOBBY),
+	_verifier(session::MakeBattleVerifier())
 {
 }
 
@@ -114,7 +105,6 @@ void SessionClient::Disconnect() {
 	_resultRetry = {}; _finishRetry = {};
     _actionReplies.clear();
 	_projectionFrozen = false;
-	_snapshotSendFailing = false;
 	_pendingRoomProjection.reset();
 	_queuedGrantProjection.reset();
 	_queuedGrantGeneration = 0;
@@ -122,8 +112,7 @@ void SessionClient::Disconnect() {
 	_selectedRoomTable = 0;
 	_outstandingReadyRequestNumber = -1;
 	_stepCounter = 0;
-	pendingRemoteSnapshots.clear();
-	pendingRemoteHashes.clear();
+	ClearBattleVerification();
 	_roomEvents.clear();
 }
 
@@ -266,6 +255,46 @@ bool SessionClient::HandleDataUpdate(json& msg) {
 	return true;
 }
 
+void SessionClient::ClearBattleVerification() {
+	pendingRemoteHashes.clear();
+	_verifier->Reset();
+}
+
+// Bound for buffered remote hashes (matches the checkpoint ring span).
+static const size_t MAX_PENDING_REMOTE_HASHES = 64;
+
+bool SessionClient::HandleBattleSnapshot(json& msg) {
+	SessionProtocol::BattleSnapshot m;
+	try {
+		msg.get_to(m);
+	}
+	catch (const json::exception&) {
+		spdlog::info("Client: could not deserialize incoming checksum msg");
+		return true;
+	}
+	_verifier->OnRemoteSnapshot(*this, m.snapshot);
+	return true;
+}
+
+bool SessionClient::HandleBattleHash(json& msg) {
+	SessionProtocol::BattleHashV2 m;
+	try {
+		msg.get_to(m);
+	}
+	catch (json::exception&) {
+		spdlog::info("Client: could not deserialize v2 hash msg");
+		return true;
+	}
+	// Always buffer; the game's check compares only once the LOCAL
+	// checkpoint is also confirmed (a local value inside the rollback window
+	// could still change).
+	if (pendingRemoteHashes.size() >= MAX_PENDING_REMOTE_HASHES) {
+		pendingRemoteHashes.erase(pendingRemoteHashes.begin());
+	}
+	pendingRemoteHashes[m.frameIdx] = m;
+	return true;
+}
+
 int SessionClient::Step()
 {
 	if (!_transport) return 0;
@@ -359,7 +388,7 @@ int SessionClient::Step()
 		}
 	}
 
-	if (_snapshotsEnabled) StepBattleVerification();
+	if (_snapshotsEnabled) _verifier->Step(*this, pendingRemoteHashes);
 	TrySendPendingJoinRequest();
 	return 0;
 }
@@ -420,7 +449,7 @@ session::SendResult SessionClient::Lobby_ResetRematch()
 session::SendResult SessionClient::Lobby_SetSettings(
 	bool editionSelect,
 	int roundCount,
-	Dimps::Math::FixedPoint roundTime
+	sf4e::wire::FixedPoint roundTime
 )
 {
 	if (_customRoomsSeen) {
@@ -452,7 +481,7 @@ session::SendResult SessionClient::PreBattle_SetEnv(uint32_t rngSeed)
 	return SendLogged(j, "set prebattle environment");
 }
 
-session::SendResult SessionClient::PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara)
+session::SendResult SessionClient::PreBattle_SetChara(const sf4e::wire::ConfirmedCharaConditions& chara)
 {
 	if (!ember::Catalog().validPick(sf4e::selection::FromNative(chara), _lobbyData.editionSelect)) return session::SendResult::InvalidPayload;
 	SessionProtocol::PreBattleSetChara msg;

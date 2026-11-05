@@ -48,7 +48,7 @@ list(APPEND _ember_files
     training/TrainingSession.hxx
     # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter with
     # nothing of SF4's, as SFV Ember's will be.
-    tests/fake_game.cxx tests/fake_game.hxx)
+    tests/fake_game.cxx tests/fake_game.hxx tests/fake_session_verification.cxx)
 
 set(EMBER_SF4_SIDE
     # Selection: SF4's roster, stages and installed content.
@@ -83,32 +83,14 @@ set(EMBER_SF4_SIDE
     # The UI lab runs the shell on Direct3D 9 with SF4's selector and Training
     # panel (section 7); SFV gets a Direct3D 11 lab of its own. The launcher's
     # recovery window draws on Direct3D 9 as well.
-    ui/lab/UiLab.cxx ui/RecoverySurface.cxx ui/RecoverySurface.hxx
-    # Session wire: SF4's plain types become the SF4 match codec, and the
-    # client's state verification reads SF4's battle (section 1.3).
-    session/SessionPlainTypes.hxx session/sf4e__SessionClient__Verification.cxx)
+    ui/lab/UiLab.cxx ui/RecoverySurface.cxx ui/RecoverySurface.hxx)
 
 set(EMBER_NOT_FOR_WINDOWS
     # The Linux room host's helper client; Windows builds HelperClient.cxx.
     platform/HelperClientPosix.cxx)
 
-# Neutral, but they reach SF4's battle types until the session wire is the
-# library's (step 6): SessionPlainTypes.hxx includes Dimps' headers on
-# Windows, and the room client also reaches SF4's save states. The
-# ember_waiting_x64 target builds them (scripts/probe-x64.ps1 -Waiting) to
-# show what is left; it is not part of the probe's default build.
-set(EMBER_WAITING_STEP_6
-    session/IrohMatchSession.cxx session/IrohMatchSession.hxx session/IrohRoom.cxx
-    session/IrohRoomAdapters.cxx session/IrohRoomCheckpoint.cxx session/IrohRoomPeers.cxx
-    session/MatchAuthority.cxx session/MatchAuthority.hxx session/RoomMessageTag.hxx
-    session/RoomRecoveryRuntime.hxx session/sf4e__SessionClient.cxx session/sf4e__SessionClient.hxx
-    session/sf4e__SessionClient__Room.cxx session/sf4e__SessionProtocol.cxx session/sf4e__SessionProtocol.hxx
-    session/sf4e__SessionServer.cxx session/sf4e__SessionServer.hxx session/sf4e__SessionServer__Handlers.cxx
-    session/sf4e__SessionServer__Recovery.cxx session/sf4e__SessionServer__RecoveryCheckpoint.cxx
-    session/sf4e__SessionServer__Rooms.cxx session/sf4e__SessionServer__Tournament.cxx)
-
 # A file named in a list but gone from the tree is a stale entry: stop.
-foreach(_file IN LISTS EMBER_SF4_SIDE EMBER_NOT_FOR_WINDOWS EMBER_WAITING_STEP_6)
+foreach(_file IN LISTS EMBER_SF4_SIDE EMBER_NOT_FOR_WINDOWS)
     if(NOT EXISTS "${EMBER_SOURCE_ROOT}/${_file}")
         message(FATAL_ERROR "ember-x64-probe: '${_file}' is listed but is not in src/")
     endif()
@@ -131,12 +113,10 @@ function(ember_probe_units files out_var)
 endfunction()
 
 set(_ember_neutral "${_ember_files}")
-list(REMOVE_ITEM _ember_neutral ${EMBER_SF4_SIDE} ${EMBER_NOT_FOR_WINDOWS} ${EMBER_WAITING_STEP_6})
+list(REMOVE_ITEM _ember_neutral ${EMBER_SF4_SIDE} ${EMBER_NOT_FOR_WINDOWS})
 ember_probe_units("${_ember_neutral}" _ember_neutral_units)
-ember_probe_units("${EMBER_WAITING_STEP_6}" _ember_waiting_units)
 list(LENGTH _ember_neutral_units _neutral_count)
-list(LENGTH _ember_waiting_units _waiting_count)
-message(STATUS "ember-x64-probe: ${_neutral_count} neutral units, ${_waiting_count} waiting on step 6")
+message(STATUS "ember-x64-probe: ${_neutral_count} neutral units")
 
 # What the library's build generates, as SF4 Ember's does: the locale
 # catalogs, fonts, chat filter lists and speech relay script, and the
@@ -150,12 +130,9 @@ execute_process(COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=${EMBER_SOURCE_ROOT}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_build_identity.cmake" COMMAND_ERROR_IS_FATAL ANY)
 
 add_library(ember_neutral_x64 STATIC ${_ember_neutral_units})
-add_library(ember_waiting_x64 STATIC EXCLUDE_FROM_ALL ${_ember_waiting_units})
-foreach(_target ember_neutral_x64 ember_waiting_x64)
-    target_include_directories(${_target} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
-        "${CMAKE_CURRENT_BINARY_DIR}/generated/public" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
-    # Each product's build names its own version; the probe ships nothing.
-    target_compile_definitions(${_target} PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
-    target_link_libraries(${_target} PRIVATE
-        fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
-endforeach()
+target_include_directories(ember_neutral_x64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/public" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
+# Each product's build names its own version; the probe ships nothing.
+target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
+target_link_libraries(ember_neutral_x64 PRIVATE
+    fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)

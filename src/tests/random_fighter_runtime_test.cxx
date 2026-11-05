@@ -13,7 +13,7 @@ using namespace sf4e;
 using nlohmann::json;
 namespace facade = sf4e::NetplayFacade;
 namespace internal = sf4e::NetplayFacade::internal;
-using Chara = Dimps::GameEvents::VsMode::ConfirmedCharaConditions;
+using Chara = sf4e::wire::ConfirmedCharaConditions;
 using test::RuntimeRoom;
 
 namespace {

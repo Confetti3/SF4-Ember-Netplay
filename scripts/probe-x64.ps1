@@ -10,9 +10,7 @@ param(
 	[string]$BuildDir = 'D:\sf4-build\ember-x64-probe',
 	[string]$VcpkgCache = 'D:\sf4-build\vcpkg-cache',
 	[string]$VcpkgRoot = '',
-	[string]$VisualStudioPath = '',
-	# Also builds the sources that wait on a later library step, to list what is left.
-	[switch]$Waiting
+	[string]$VisualStudioPath = ''
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -46,8 +44,6 @@ if ($LASTEXITCODE) { throw "vcpkg install failed ($LASTEXITCODE)" }
 	"-DCMAKE_TOOLCHAIN_FILE=$($tools.VcpkgRoot)\scripts\buildsystems\vcpkg.cmake" `
 	"-DVCPKG_TARGET_TRIPLET=$triplet" -DVCPKG_MANIFEST_INSTALL=OFF "-DVCPKG_INSTALLED_DIR=$installed"
 if ($LASTEXITCODE) { throw "configure failed ($LASTEXITCODE)" }
-$targets = @('ember_neutral_x64')
-if ($Waiting) { $targets += 'ember_waiting_x64' }
 # Keep going past a failed file, so one run lists everything that fails.
-& $cmake --build $BuildDir --target $targets -- -k 0
+& $cmake --build $BuildDir --target ember_neutral_x64 -- -k 0
 if ($LASTEXITCODE) { throw "build failed ($LASTEXITCODE)" }

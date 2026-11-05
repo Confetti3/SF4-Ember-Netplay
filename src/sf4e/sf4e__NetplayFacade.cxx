@@ -201,10 +201,7 @@ namespace sf4e {
 
 	void NetplayFacade::ClearBattleState() {
 		GameBattle().ClearVerification();
-		if (RuntimeSession::netplay) {
-			RuntimeSession::netplay->client.pendingRemoteSnapshots.clear();
-			RuntimeSession::netplay->client.pendingRemoteHashes.clear();
-		}
+		if (RuntimeSession::netplay) RuntimeSession::netplay->client.ClearBattleVerification();
 	}
 
 	void NetplayFacade::CancelDeferredGgpoClose() {

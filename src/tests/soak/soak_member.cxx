@@ -214,7 +214,7 @@ void Member::Act(Clock now) {
 		if (roll < 0.30) {
 			if (!room::SeatEditable(table, place.seat)) return;
 			++room->st.fighterSent;
-			Dimps::GameEvents::VsMode::ConfirmedCharaConditions chara{};
+			sf4e::wire::ConfirmedCharaConditions chara{};
 			fighterWanted = static_cast<int>(Uniform(0, 34));
 			if (me->fighter == fighterWanted) fighterWanted = (fighterWanted + 1) % 35;
 			chara.charaID = static_cast<std::uint8_t>(fighterWanted);

@@ -10,7 +10,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-#include "SessionPlainTypes.hxx"
+#include "../common/MatchWireTypes.hxx"
 #include "../common/InputDelay.hxx"
 #include "../common/StageValue.hxx"
 #include "../common/LatencyRoute.hxx"
@@ -20,7 +20,7 @@ constexpr int MAX_SF4E_PROTOCOL_USERS = 4;
 
 namespace sf4e {
 	namespace SessionProtocol {
-		typedef Dimps::Math::FixedPoint FixedPoint; 
+		typedef sf4e::wire::FixedPoint FixedPoint; 
 
 		// Connection IDs are ephemeral and reusable- they can be used to
 		// distinguish clients from each other, but should not be used as
@@ -96,9 +96,9 @@ namespace sf4e {
 			bool IsAllReady();
 
 			std::array<int64_t, 2> readyMessageNum = {{ -1, -1 }};
-			std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, 2> chara;
+			std::array<sf4e::wire::ConfirmedCharaConditions, 2> chara;
 			int64_t stageID;
-			DWORD rngSeed;
+			std::uint32_t rngSeed;
 			std::array<std::uint8_t, 2> inputDelay = {{ 2, 2 }};
 			// A room's match plays with Lower input lag (room::MatchLowerLag).
 			bool lowerInputLag = false;
@@ -317,7 +317,7 @@ namespace sf4e {
 
 		struct PreBattleSetChara {
 			MessageType type = MT_PREBATTLE_SETCHARA;
-			Dimps::GameEvents::VsMode::ConfirmedCharaConditions chara;
+			sf4e::wire::ConfirmedCharaConditions chara;
 		};
 
 		struct PreBattleSetStage {

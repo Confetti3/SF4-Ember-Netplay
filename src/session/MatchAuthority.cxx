@@ -1,5 +1,6 @@
 #include "MatchAuthority.hxx"
 #ifdef _WIN32
+#include <windows.h>
 #include <bcrypt.h>
 #else
 #include <sys/random.h>

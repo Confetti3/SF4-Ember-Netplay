@@ -43,7 +43,7 @@ json RouteJson(const std::string& endpoint, const char* relay = nullptr) {
 std::unique_ptr<SessionServer> Fresh(MockTransport** transport = nullptr) {
 	auto* owned = new MockTransport();
 	if (transport) *transport = owned;
-	auto server = std::make_unique<SessionServer>("latency-room", "build", true, 3, Dimps::Math::FixedPoint{0, 99},
+	auto server = std::make_unique<SessionServer>("latency-room", "build", true, 3, sf4e::wire::FixedPoint{0, 99},
 		std::unique_ptr<session::ServerTransport>(owned));
 	server->EnableMatchAuthorization(kRoom, Primary);
 	return server;

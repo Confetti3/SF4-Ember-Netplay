@@ -1,12 +1,11 @@
-// SessionClient: desync verification. Legacy v1 snapshots and v2 hash
-// checkpoints are published by players and compared by every client;
-// read-only on the game thread.
+// SF4's desync check behind the room client (session/BattleVerifier.hxx).
+// Legacy v1 snapshots and v2 hash checkpoints are published by players and
+// compared by every client; read-only on the game thread.
 
 #include <stdlib.h>
-#include <algorithm>
-#include <string>
-#include <utility>
-#include <limits>
+#include <string.h>
+#include <map>
+#include <memory>
 
 #include <windows.h>
 
@@ -15,16 +14,15 @@
 #include <ggponet.h>
 
 #include "../Dimps/Dimps.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../Dimps/Dimps__Game__Battle__System.hxx"
 #include "../common/ConfirmedCheckpoint.hxx"
 #include "../common/sf4e__StateHash.hxx"
-#include "../Dimps/Dimps__Game__Battle__System.hxx"
+#include "../session/BattleVerifier.hxx"
+#include "../session/sf4e__SessionClient.hxx"
+#include "../session/sf4e__SessionProtocol.hxx"
 
-#include "../sf4e/sf4e__Game__Battle__System.hxx"
-
-#include "sf4e__SessionClient.hxx"
-#include "sf4e__SessionProtocol.hxx"
-#include "../sf4e/sf4e__NetplayFacade.hxx"
+#include "sf4e__Game__Battle__System.hxx"
+#include "sf4e__NetplayFacade.hxx"
 
 using nlohmann::json;
 
@@ -34,11 +32,11 @@ using rSystem = Dimps::Game::Battle::System;
 using fSystem = sf4e::Game::Battle::System;
 using sf4e::SessionClient;
 
-// Bound for buffered remote v2 hashes (matches the checkpoint ring span).
-static const size_t MAX_PENDING_REMOTE_HASHES = 64;
+namespace {
+
 // The opponent is at most a rollback window ahead, a few snapshots, so a
 // small window is kept; compared snapshots are removed as they match.
-static const size_t MAX_PENDING_REMOTE_SNAPSHOTS = 64;
+const size_t MAX_PENDING_REMOTE_SNAPSHOTS = 64;
 
 // The legacy snapshot comparison is a whole-struct memcmp, so a mismatch used
 // to be reported as "Desync detected!" and nothing else. That is not enough to
@@ -46,10 +44,10 @@ static const size_t MAX_PENDING_REMOTE_SNAPSHOTS = 64;
 // that diverged, with both values, so a player's log identifies the subsystem.
 // StateSnapshot is 4-byte-aligned throughout with no padding, so every byte the
 // memcmp sees is covered by the fields below.
-static void ReportSnapshotDivergence(
+void ReportSnapshotDivergence(
 	const char* stage,
-	const sf4e::SessionProtocol::StateSnapshot& local,
-	const sf4e::SessionProtocol::StateSnapshot& remote
+	const SessionProtocol::StateSnapshot& local,
+	const SessionProtocol::StateSnapshot& remote
 ) {
 	spdlog::error("Desync v1 ({}): mismatch @ local frame {} remote frame {}",
 		stage, local.frameIdx, remote.frameIdx);
@@ -92,7 +90,7 @@ static void ReportSnapshotDivergence(
 // Default (unset) logs and reports only; v2 must not end release matches
 // while it is being validated; the legacy snapshot system retains its
 // existing termination behavior.
-static bool StrictDesyncEnabled() {
+bool StrictDesyncEnabled() {
 	static int s_cached = -1;
 	if (s_cached < 0) {
 		const char* env = getenv("SF4E_STRICT_DESYNC");
@@ -101,13 +99,28 @@ static bool StrictDesyncEnabled() {
 	return s_cached == 1;
 }
 
+// Ends the fight after a confirmed state divergence, and tells the player
+// why: without this the game simply returned to the menu and the table
+// paused thirty seconds later. Only a player may end the fight; a spectator
+// that diverged is a spectator problem and is logged only.
+void TerminateOnDesync(const SessionClient& client, const char* stage, int frameIdx) {
+	if (!client.IsLocalPlayer()) {
+		spdlog::error("Desync ({}): local spectator diverged at frame {}; the players' fight continues", stage, frameIdx);
+		sf4e::NetplayFacade::PushDesyncNotice(true);
+		return;
+	}
+	spdlog::error("Desync ({}): terminating match at frame {}", stage, frameIdx);
+	sf4e::NetplayFacade::PushDesyncNotice(false);
+	*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
+}
+
 // Diagnostic report for one v2 mismatch: exact frame, per-subsystem
 // classification, and nearby checkpoint hashes. Never touches the legacy
 // snapshot state. Termination only in strict mode, only between players.
-static void ReportHashMismatch(
-	SessionClient* client,
+void ReportHashMismatch(
+	const SessionClient& client,
 	const fSystem::HashCheckpoint& local,
-	const sf4e::SessionProtocol::BattleHashV2& remote
+	const SessionProtocol::BattleHashV2& remote
 ) {
 	if (local.hashes.overall == remote.overall) {
 		return;
@@ -142,38 +155,31 @@ static void ReportHashMismatch(
 
 	// A spectator's mismatch (either side) must never terminate the two
 	// players' fight; strict termination requires both peers to be players.
-	if (StrictDesyncEnabled() && remote.fromPlayer && client->IsLocalPlayer()) {
+	if (StrictDesyncEnabled() && remote.fromPlayer && client.IsLocalPlayer()) {
 		spdlog::error("Desync v2 (strict): terminating match at frame {}", local.frameIdx);
-		client->TerminateOnDesync("v2_strict", local.frameIdx);
+		TerminateOnDesync(client, "v2_strict", local.frameIdx);
 	}
 }
 
-// Ends the fight after a confirmed state divergence, and tells the player
-// why: without this the game simply returned to the menu and the table
-// paused thirty seconds later. Only a player may end the fight; a spectator
-// that diverged is a spectator problem and is logged only.
-void SessionClient::TerminateOnDesync(const char* stage, int frameIdx) {
-	if (!IsLocalPlayer()) {
-		spdlog::error("Desync ({}): local spectator diverged at frame {}; the players' fight continues", stage, frameIdx);
-		sf4e::NetplayFacade::PushDesyncNotice(true);
-		return;
+class Sf4Verifier final : public session::BattleVerifier {
+public:
+	void OnRemoteSnapshot(SessionClient& client, const SessionProtocol::StateSnapshot& remote) override;
+	void Step(SessionClient& client, std::map<int, SessionProtocol::BattleHashV2>& remoteHashes) override;
+	void Reset() override {
+		pendingRemoteSnapshots.clear();
+		snapshotSendFailing = false;
 	}
-	spdlog::error("Desync ({}): terminating match at frame {}", stage, frameIdx);
-	sf4e::NetplayFacade::PushDesyncNotice(false);
-	*rSystem::GetReadyState(rSystem::staticMethods.GetSingleton()) = rSystem::RS_ISLEAVING;
-}
+private:
+	// Remote snapshots of frames this PC has not simulated yet.
+	std::map<int, SessionProtocol::StateSnapshot> pendingRemoteSnapshots;
+	// Snapshot sends fail every check while the room is unreachable;
+	// log the change, not each failure.
+	bool snapshotSendFailing = false;
+};
 
-bool SessionClient::HandleBattleSnapshot(json& msg) {
-	SessionProtocol::BattleSnapshot m;
-	try {
-		msg.get_to(m);
-	}
-	catch (const json::exception&) {
-		spdlog::info("Client: could not deserialize incoming checksum msg");
-		return true;
-	}
-
-	auto localSnapshotIter = fSystem::snapshotMap.find(m.snapshot.frameIdx);
+void Sf4Verifier::OnRemoteSnapshot(SessionClient& client, const SessionProtocol::StateSnapshot& remote) {
+	const bool bVerboseLogging = SessionClient::bVerboseLogging;
+	auto localSnapshotIter = fSystem::snapshotMap.find(remote.frameIdx);
 	if (localSnapshotIter != fSystem::snapshotMap.end()) {
 		// This client is ahead and already has a snapshot for this frame.
 		// Compare it.
@@ -181,10 +187,10 @@ bool SessionClient::HandleBattleSnapshot(json& msg) {
 		if (bVerboseLogging) {
 			spdlog::error("Client: snapshot receipt: valid snapshot @ frame {} on receipt, confirm {}, sent {}", localSnapshot.frameIdx, localSnapshotIter->second.second.confirmed, localSnapshotIter->second.second.sent);
 		}
-		if (memcmp(&m.snapshot, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
+		if (memcmp(&remote, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
 			spdlog::error("Client: snapshot receipt: Desync detected!");
-			ReportSnapshotDivergence("receipt", localSnapshot, m.snapshot);
-			TerminateOnDesync("receipt", localSnapshot.frameIdx);
+			ReportSnapshotDivergence("receipt", localSnapshot, remote);
+			TerminateOnDesync(client, "receipt", localSnapshot.frameIdx);
 		}
 
 		if (bVerboseLogging) {
@@ -194,7 +200,7 @@ bool SessionClient::HandleBattleSnapshot(json& msg) {
 		if (localSnapshotIter->second.second.confirmed && localSnapshotIter->second.second.sent) {
 
 			if (bVerboseLogging) {
-				spdlog::error("Client: snapshot receipt: erasing local snapshot @ frame {} on receipt due to confirmation+sent", m.snapshot.frameIdx);
+				spdlog::error("Client: snapshot receipt: erasing local snapshot @ frame {} on receipt due to confirmation+sent", remote.frameIdx);
 			}
 			fSystem::snapshotMap.erase(localSnapshotIter);
 		}
@@ -202,38 +208,19 @@ bool SessionClient::HandleBattleSnapshot(json& msg) {
 	else {
 		// Opponent's ahead- can't compare yet.
 		if (bVerboseLogging) {
-			spdlog::error("Client: snapshot receipt: pendingRemoteSnapshots.emplace({})", m.snapshot.frameIdx);
+			spdlog::error("Client: snapshot receipt: pendingRemoteSnapshots.emplace({})", remote.frameIdx);
 		}
 		if (pendingRemoteSnapshots.size() >= MAX_PENDING_REMOTE_SNAPSHOTS) {
 			pendingRemoteSnapshots.erase(pendingRemoteSnapshots.begin());
 		}
-		pendingRemoteSnapshots.emplace(m.snapshot.frameIdx, m.snapshot);
+		pendingRemoteSnapshots.emplace(remote.frameIdx, remote);
 	}
-	return true;
-}
-
-bool SessionClient::HandleBattleHash(json& msg) {
-	SessionProtocol::BattleHashV2 m;
-	try {
-		msg.get_to(m);
-	}
-	catch (json::exception&) {
-		spdlog::info("Client: could not deserialize v2 hash msg");
-		return true;
-	}
-	// Always buffer; the aged reconcile pass below compares only
-	// once the LOCAL checkpoint is also non-speculative (a local
-	// value inside the rollback window could still change).
-	if (pendingRemoteHashes.size() >= MAX_PENDING_REMOTE_HASHES) {
-		pendingRemoteHashes.erase(pendingRemoteHashes.begin());
-	}
-	pendingRemoteHashes[m.frameIdx] = m;
-	return true;
 }
 
 // Send all our outstanding local snapshots and compare any to pending
 // snapshots.
-void SessionClient::StepBattleVerification() {
+void Sf4Verifier::Step(SessionClient& client, std::map<int, SessionProtocol::BattleHashV2>& remoteHashes) {
+	const bool bVerboseLogging = SessionClient::bVerboseLogging;
 	int mostRecentPredictiveFrame = (
 		rSystem::GetNumFramesSimulated_FixedPoint(rSystem::staticMethods.GetSingleton())->integral
 	);
@@ -257,16 +244,16 @@ void SessionClient::StepBattleVerification() {
 			// authoritative; a spectator compares but never publishes, the
 			// same rule the v2 hash exchange already follows.
 			localSnapshotIter->second.second.sent = true;
-			if (IsLocalPlayer()) {
+			if (client.IsLocalPlayer()) {
 				SessionProtocol::BattleSnapshot m;
 				m.snapshot = localSnapshotIter->second.first;
 				json msg = m;
-				const bool failed = Send(msg, nullptr) != session::SendResult::Queued;
-				if (failed != _snapshotSendFailing)
+				const bool failed = client.Send(msg, nullptr) != session::SendResult::Queued;
+				if (failed != snapshotSendFailing)
 					spdlog::log(failed ? spdlog::level::err : spdlog::level::info, failed ?
 						"Client: Could not send snapshot update; further failures are not logged until one succeeds" :
 						"Client: Snapshot updates are sending again");
-				_snapshotSendFailing = failed;
+				snapshotSendFailing = failed;
 			}
 		}
 
@@ -284,7 +271,7 @@ void SessionClient::StepBattleVerification() {
 				if (memcmp(&remoteSnapshotIter->second, &localSnapshot, sizeof(SessionProtocol::StateSnapshot)) != 0) {
 					spdlog::error("Client: snapshot reconciliation: Desync detected from pending!");
 					ReportSnapshotDivergence("reconciliation", localSnapshot, remoteSnapshotIter->second);
-					TerminateOnDesync("reconciliation", localSnapshot.frameIdx);
+					TerminateOnDesync(client, "reconciliation", localSnapshot.frameIdx);
 				}
 				localSnapshotIter->second.second.confirmed = true;
 				pendingRemoteSnapshots.erase(remoteSnapshotIter);
@@ -305,7 +292,7 @@ void SessionClient::StepBattleVerification() {
 	// Read-only game-thread query. No polling or pacing changes here.
 	// Only players send; spectators compare the confirmed source stream.
 	{
-		const bool isPlayer = IsLocalPlayer();
+		const bool isPlayer = client.IsLocalPlayer();
 		int confirmedInput = -1;
 		if (fSystem::ggpo) ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmedInput);
 		for (int i = 0; i < fSystem::NUM_HASH_CHECKPOINTS; i++) {
@@ -325,14 +312,20 @@ void SessionClient::StepBattleVerification() {
 				m.chara1 = cp.hashes.chara[1];
 				m.fromPlayer = true;
 				json hashMsg = m;
-				if (Send(hashMsg, nullptr) == session::SendResult::Queued) {
+				if (client.Send(hashMsg, nullptr) == session::SendResult::Queued) {
 					cp.sent = true;
 				}
 			}
 		}
-		sf4e::statehash::ReconcileRemoteHashes(pendingRemoteHashes, confirmedInput, fSystem::FindHashCheckpoint,
-			[this](const fSystem::HashCheckpoint& local, const SessionProtocol::BattleHashV2& remote) {
-				ReportHashMismatch(this, local, remote);
+		sf4e::statehash::ReconcileRemoteHashes(remoteHashes, confirmedInput, fSystem::FindHashCheckpoint,
+			[&client](const fSystem::HashCheckpoint& local, const SessionProtocol::BattleHashV2& remote) {
+				ReportHashMismatch(client, local, remote);
 			});
 	}
+}
+
+} // namespace
+
+std::unique_ptr<session::BattleVerifier> sf4e::session::MakeBattleVerifier() {
+	return std::make_unique<Sf4Verifier>();
 }

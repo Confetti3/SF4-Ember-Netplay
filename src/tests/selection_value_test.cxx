@@ -6,7 +6,7 @@
 #include "test_support.hxx"
 
 int main() {
-    using Pick = Dimps::GameEvents::VsMode::ConfirmedCharaConditions;
+    using Pick = sf4e::wire::ConfirmedCharaConditions;
     using nlohmann::json;
     Pick original{0, 0, 0, 0, 0, 0, 0, 0, 14};
     const json valid = original;

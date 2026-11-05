@@ -1,4 +1,4 @@
-#include "SessionPlainTypes.hxx"
+#include "../common/MatchWireTypes.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/GameCatalog.hxx"
@@ -53,7 +53,7 @@ namespace sf4e {
 			readyMessageNum[1] = -1;
 			stageID = -1;
 			rngSeed = 0xffffffff;
-			memset(chara.data(), 0, sizeof(Dimps::GameEvents::VsMode::ConfirmedCharaConditions) * 2);
+			memset(chara.data(), 0, sizeof(sf4e::wire::ConfirmedCharaConditions) * 2);
 			chara[0].unc_edition = chara[1].unc_edition = 14; // USFIV default; edition 0 is not selectable.
 			inputDelay[0] = inputDelay[1] = 2;
 			lowerInputLag = false;

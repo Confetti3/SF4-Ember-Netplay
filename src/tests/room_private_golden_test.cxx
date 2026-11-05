@@ -197,7 +197,7 @@ namespace protocol = sf4e::SessionProtocol;
 namespace netplay = sf4e::netplay;
 namespace prefs = sf4e::OverlayPrefs;
 using Json = nlohmann::json;
-using Chara = Dimps::GameEvents::VsMode::ConfirmedCharaConditions;
+using Chara = sf4e::wire::ConfirmedCharaConditions;
 
 struct Fixture {
 	std::string name;

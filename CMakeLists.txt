@@ -268,9 +268,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__UserApp.cxx"
     "src/sf4e/sf4e__CustomContent.hxx"
     "src/sf4e/sf4e__CustomContent.cxx"
-    # The room client's state verification reads SF4's battle system (step 6
-    # of EMBER_LIBRARY.md moves it behind the game).
-    "src/session/sf4e__SessionClient__Verification.cxx"
+    # SF4's desync check, the room client's BattleVerifier.
+    "src/sf4e/sf4e__Sf4Verification.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 target_link_libraries(sf4e PRIVATE SDL3::SDL3-static dxguid)
@@ -308,6 +307,7 @@ add_library(Session STATIC
     "src/session/sf4e__SessionClient.hxx"
     "src/session/sf4e__SessionClient.cxx"
     "src/session/sf4e__SessionClient__Room.cxx"
+    "src/session/BattleVerifier.hxx"
     "src/session/sf4e__SessionProtocol.hxx"
     "src/session/sf4e__SessionServer.hxx"
     "src/session/IrohMatchSession.cxx"

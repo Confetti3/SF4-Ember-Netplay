@@ -14,7 +14,7 @@
 #include "SessionRecovery.hxx"
 #include <nlohmann/json.hpp>
 
-#include "SessionPlainTypes.hxx"
+#include "../common/MatchWireTypes.hxx"
 #include "sf4e__SessionProtocol.hxx"
 #include "RoomModel.hxx"
 
@@ -96,7 +96,7 @@ namespace sf4e {
 
 	public:
 		SessionServer(std::string identity, std::string sidecarHash,
-			bool editionSelect, int roundCount, Dimps::Math::FixedPoint roundTime,
+			bool editionSelect, int roundCount, sf4e::wire::FixedPoint roundTime,
 			std::unique_ptr<session::ServerTransport> transport);
 		~SessionServer();
 

@@ -27,8 +27,8 @@ static GGPOSessionCallbacks GameCallbacks() {
 	return callbacks;
 }
 
-static Dimps::GameEvents::VsMode::ConfirmedCharaConditions Chara(int id) {
-	Dimps::GameEvents::VsMode::ConfirmedCharaConditions result{};
+static sf4e::wire::ConfirmedCharaConditions Chara(int id) {
+	sf4e::wire::ConfirmedCharaConditions result{};
 	result.charaID = static_cast<std::uint8_t>(id);
 	// Keep the test on the base edition and use the same valid values the
 	// native lobby bridge accepts for a custom-room pre-battle selection.

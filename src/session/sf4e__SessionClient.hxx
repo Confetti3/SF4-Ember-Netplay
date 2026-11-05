@@ -5,12 +5,14 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <memory>
 #include <optional>
 
 #include <nlohmann/json.hpp>
 #include "SessionTransport.hxx"
 
 #include "sf4e__SessionProtocol.hxx"
+#include "BattleVerifier.hxx"
 #include "RoomModel.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/GameCatalog.hxx"
@@ -143,11 +145,11 @@ namespace sf4e {
 		session::SendResult Lobby_SetSettings(
 			bool editionSelect,
 			int roundCount,
-			Dimps::Math::FixedPoint roundTime
+			sf4e::wire::FixedPoint roundTime
 		);
 
 		session::SendResult PreBattle_SetEnv(uint32_t rngSeed);
-		session::SendResult PreBattle_SetChara(const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& chara);
+		session::SendResult PreBattle_SetChara(const sf4e::wire::ConfirmedCharaConditions& chara);
 		session::SendResult PreBattle_SetStage(int32_t stageID);
 
 		session::SendResult Battle_Loaded();
@@ -161,7 +163,6 @@ namespace sf4e {
 		std::string _sidecarHash;
 		uint16_t _ggpoPort;
 
-		std::map<int, SessionProtocol::StateSnapshot> pendingRemoteSnapshots;
 		// Desync v2: remote hash checkpoints received before this client
 		// simulated (or aged) the same frame. Bounded; see Step().
 		std::map<int, SessionProtocol::BattleHashV2> pendingRemoteHashes;
@@ -170,9 +171,9 @@ namespace sf4e {
 		// True when this client occupies one of the two player slots of the
 		// current lobby. Spectator hash mismatches are diagnostics only.
 		bool IsLocalPlayer() const;
-		// Ends the fight after a confirmed divergence and notifies the player.
-		// A local spectator is never allowed to end the players' fight.
-		void TerminateOnDesync(const char* stage, int frameIdx);
+		// Drops the remote hashes and what the game's check buffered for the
+		// last battle.
+		void ClearBattleVerification();
 	private:
 
 		// Connection related data
@@ -243,9 +244,9 @@ namespace sf4e {
 		// Retried actions keep their id; log each id/reason pair once.
 		std::uint64_t _lastRejectedActionId = 0;
 		room::RejectReason _lastRejectedReason = room::RejectReason::None;
-		// Snapshot sends fail every check while the room is unreachable;
-		// log the change, not each failure.
-		bool _snapshotSendFailing = false;
+		// The game's desync check (BattleVerifier.hxx), stepped while
+		// snapshots are enabled.
+		std::unique_ptr<session::BattleVerifier> _verifier;
 		void RememberSentRoomAction(const room::Action& action);
 		// A table action stamped with the current snapshot's revisions.
 		room::Action TableAction(room::ActionKind kind, std::uint8_t table, std::uint8_t inputDelay, std::int8_t seat = -1) const;
@@ -271,10 +272,6 @@ namespace sf4e {
 		bool HandleDataUpdate(nlohmann::json& msg);
 		bool HandleBattleSnapshot(nlohmann::json& msg);
 		bool HandleBattleHash(nlohmann::json& msg);
-		// Step's desync verification (sf4e__SessionClient__Verification.cxx):
-		// publishes this player's aged snapshots and confirmed hashes, and
-		// compares the remote ones buffered by the two handlers above.
-		void StepBattleVerification();
 		void ProjectSelectedRoomTable();
 		void TrySendPendingJoinRequest();
 		// The admission the hello and the fallback join_req both carry.

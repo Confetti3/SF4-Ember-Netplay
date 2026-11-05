@@ -32,8 +32,8 @@ static GGPOSessionCallbacks RecoveryGameCallbacks() {
     return callbacks;
 }
 
-static Dimps::GameEvents::VsMode::ConfirmedCharaConditions RecoveryChara(int id) {
-    Dimps::GameEvents::VsMode::ConfirmedCharaConditions result{};
+static sf4e::wire::ConfirmedCharaConditions RecoveryChara(int id) {
+    sf4e::wire::ConfirmedCharaConditions result{};
     result.charaID = static_cast<std::uint8_t>(id);
     result.unc_edition = 14;
     return result;

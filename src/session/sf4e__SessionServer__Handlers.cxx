@@ -28,7 +28,7 @@ namespace SessionProtocol = sf4e::SessionProtocol;
 namespace session = sf4e::session;
 namespace room = sf4e::room;
 namespace diag = sf4e::diag;
-using Dimps::Math::FixedPoint;
+using sf4e::wire::FixedPoint;
 using sf4e::SessionServer;
 
 void SessionServer::HandleSessionHello(session::Connection conn, const json& msg, const session::Message& incoming) {
