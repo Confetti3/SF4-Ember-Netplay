@@ -452,6 +452,28 @@ static void TestChangedPickLeavesTheBattle() {
 	CHECK(!GoesOnInPlace(played, next));
 }
 
+// A full room: sixteen at eight tables, nobody alone and no table free. New
+// opponent swaps with a fighter choosing at another table, so neither pair
+// plays the same person again; with nobody else choosing it is refused.
+static void TestFullRoomNewOpponent() {
+	auto authority = Arcade();
+	std::vector<MemberId> m;
+	for (int i = 0; i < 16; ++i) m.push_back(Join(authority, i, i == 0));
+	for (int i = 0; i < 16; ++i) Sit(authority, m[i], i);
+	const MemberId a = m[0], b = Paired(authority, a, m[8]) ? m[8] : m[1];
+	const MemberId c = m[2], d = Paired(authority, c, m[10]) ? m[10] : m[3];
+	CHECK(Paired(authority, a, b) && Paired(authority, c, d) && !Paired(authority, a, c));
+	Beat(authority, a);
+	// Nobody else is choosing: the same pair is all there is.
+	CHECK(!ArcadeOtherOpponentPossible(authority.SnapshotView(), TableOf(authority, a)));
+	Beat(authority, c);
+	CHECK(ArcadeOtherOpponentPossible(authority.SnapshotView(), TableOf(authority, a)));
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted);
+	CHECK(!Paired(authority, a, b) && !Paired(authority, c, d));
+	CHECK(Paired(authority, a, c) || Paired(authority, a, d));
+	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding);
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -459,6 +481,7 @@ int main() {
 		TestRematchBoth();
 		TestRematchOneRepairs();
 		TestNewOpponentNeedsSomeoneElse();
+		TestFullRoomNewOpponent();
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();

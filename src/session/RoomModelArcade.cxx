@@ -167,6 +167,19 @@ Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table*
 		return Accept();
 	}
 	const MemberId other = seat == 0 ? table->p2 : table->p1;
+	// Every other table taken: swap with a fighter who is choosing at another
+	// table, so each of the four gets someone new instead of the same pair.
+	const int swap = ArcadeFreeTable(snapshot_, table->id) ? -1 : ArcadeSwapSeat(snapshot_, table->id);
+	if (swap >= 0) {
+		Table& far = snapshot_.tables[swap / 2];
+		MemberId& theirs = swap % 2 ? far.p2 : far.p1;
+		MemberId& mine = seat ? table->p2 : table->p1;
+		const MemberId stranger = theirs;
+		theirs = 0; mine = 0;
+		JoinTable(stranger, *table);
+		JoinTable(member, far);
+		return Accept();
+	}
 	table->p1 = table->p2 = 0;
 	ClearReadiness(*table);
 	table->deciding = false; table->rematch[0] = table->rematch[1] = false;

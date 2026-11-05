@@ -141,10 +141,30 @@ inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::
 // alone at another table, or another table is free to wait at. Otherwise the
 // room has nobody else for either of them and pairs the two again
 // (RoomAuthority::PairArcade).
-inline bool ArcadeOtherOpponentPossible(const Snapshot& room, std::size_t table) {
+inline bool ArcadeFreeTable(const Snapshot& room, std::size_t table) {
 	for (std::size_t other = 0; other < room.tables.size(); ++other)
 		if (other != table && (ArcadeAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
 	return false;
+}
+
+// In a full room every table is a pair, so nobody waits alone: the way to a
+// new opponent is a fighter at another table that is choosing too and has not
+// asked for Rematch. Returns that fighter's table * 2 + seat, preferring a
+// table where nobody has voted, or -1.
+inline int ArcadeSwapSeat(const Snapshot& room, std::size_t table) {
+	int best = -1, bestVotes = 3;
+	for (std::size_t other = 0; other < room.tables.size(); ++other) {
+		const auto& t = room.tables[other];
+		if (other == table || !t.deciding || !t.p1 || !t.p2) continue;
+		const int votes = t.rematch[0] + t.rematch[1];
+		for (int seat = 0; seat < 2; ++seat)
+			if (!t.rematch[seat] && votes < bestVotes) { best = static_cast<int>(other) * 2 + seat; bestVotes = votes; }
+	}
+	return best;
+}
+
+inline bool ArcadeOtherOpponentPossible(const Snapshot& room, std::size_t table) {
+	return ArcadeFreeTable(room, table) || ArcadeSwapSeat(room, table) >= 0;
 }
 
 inline bool ArcadeKindValid(const Snapshot& room) {
