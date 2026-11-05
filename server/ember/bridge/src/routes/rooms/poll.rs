@@ -499,7 +499,11 @@ mod tests {
         let on = with_report(&before, report(Some(wired), 1, true), 99);
         assert!(on.wired_only);
         // A report without it is a room without the rule.
-        let off = with_report(&on, report(Some(Details::from_value(&json!({}), 2, 4)), 1, true), 99);
+        let off = with_report(
+            &on,
+            report(Some(Details::from_value(&json!({}), 2, 4)), 1, true),
+            99,
+        );
         assert!(!off.wired_only);
         // Without an object it stays as it was.
         assert!(with_report(&on, report(None, 1, true), 99).wired_only);
