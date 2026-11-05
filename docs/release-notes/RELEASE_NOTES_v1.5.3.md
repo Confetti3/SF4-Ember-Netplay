@@ -31,7 +31,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 ### Rooms
 
 - **Each player's own delay is the default.** A new room plays each fighter at their own delay unless you choose the same delay for both in Create room or Room settings. After updating, the setting starts on each player's own for everyone, because 1.5.2 did not save a choice of the same for both: if you want it, choose Same for both once more and Ember keeps it from then on.
-- **Classic tables read like they did before 1.5.0.** On a wide enough board, 1280 wide at normal scale included, each table is one line: a fighter at each end, the players' names between them and the set's score small in the middle, where the big number was. The rules, queue and watchers are back along the bottom of the card, under the players, and the table's state and its name (if the host gave it one) sit beside TABLE 1. A player on a win streak at the table has it under their fighter again, and a seated player who has been waiting a while shows how long. Ready up and Leave seat on your own card, and the seat chooser, sit along the bottom of the card. Narrow boards and larger text scales stack the two players instead. Arcade and King of the Hill rooms are unchanged.
+- **Classic tables read like they did before 1.5.0.** On a wide enough board, 1280 wide at normal scale included, each table is one line: a fighter at each end, the players' names between them and the set's score small in the middle, where the big number was. The rules, queue and watchers are back along the bottom of the card, under the players, and the table's state and its name (if the host gave it one) sit beside TABLE 1. A player on a win streak at the table has it under their fighter again, and a seated player who has been waiting a while shows how long. Ready up and Leave seat on your own card, and the seat chooser, sit along the bottom of the card; while they show, the queue and watchers move up beside the table's name. Narrow boards and larger text scales stack the two players instead. Arcade and King of the Hill rooms are unchanged.
 
 
 ### Public rooms
@@ -42,10 +42,10 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ### Controller menus
 
-- **A room opens where you need it.** Seated, the room opens on Ready up (Rematch after a set); watching, on the room's buttons; otherwise on the first table or cabinet with a free seat.
+- **A room opens where you need it.** Seated, the room opens on Ready up (Rematch after a set); in a queue, on the table you queue at; watching, on the room's buttons; otherwise on the first table or cabinet with a free seat.
 - **LB and RB jump between the room's areas:** the tables, the room's buttons, Members and Chat, each time back on the row you last used there. The chat box is two presses away, and the hint bar shows LB RB Areas. On a narrow screen they step its tabs, which remember their row too.
 - **Lists go round.** A fresh Up on the first row goes to the last, and Down on the last to the first; holding a direction still stops at the end. Grids, the room board, the post-match prompt and Settings stop at their ends as before.
-- **Fewer presses everywhere else:** Create room's button, Home's notifications, the fighter page's Ready and Table options' Leave seat are a press or two away instead of a long walk. Rows hidden by a scroll are no longer d-pad targets from outside it, so a move never lands on something you can't see.
+- **Fewer presses everywhere else:** Create room's button, Home's notifications, the fighter page's Ready and Table options' Leave seat are a press or two away instead of a long walk. Rows a scroll has hidden are no longer d-pad targets from outside it, so a move doesn't jump to a row out of sight.
 
 ### Training
 
@@ -53,7 +53,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ## Fixes
 
-- **Presses no longer go missing after Ember lets go of the pads.** After Ember's menu, the Training controls or the post-match prompt closed, the game saw no input at all until every button was released, so holding back or a charge into the next game swallowed every other press. Now only the buttons still held from the menu wait for their release; anything pressed after it reaches the game at once. The netplay log also counts the frames where Ember held input back, and why, to help with any report of dropped inputs.
+- **Presses no longer go missing after Ember lets go of the pads.** After Ember's menu, the Training controls or the post-match prompt closed, the game saw no input at all until every button was released, so holding back or a charge into the next game swallowed every other press. Now only the buttons still held from the menu wait for their release; anything pressed after it reaches the game at once. The netplay log also counts the pad updates in a game you play where Ember held input back, and why, to help with any report of dropped inputs.
 - **Spectators see the set score move during an instant rematch.** When both players chose Rematch, the next game went on in the same battle, and a spectator's score stayed where it was when they started watching (often 0 - 0). The score now counts each game as the spectator sees it end.
 - **The tournament match page no longer tells current players to update.** It cannot see which Ember a PC has, so Open in Ember is always the main button, and the page says both players need the same version. When Ember finds the versions differ, its notice now has a Check for updates button.
 - **New opponent in a full Arcade room.** With every other table in use and nobody waiting, New opponent could only pair the same two players again. The row now says that there is nobody else to play yet.
