@@ -61,6 +61,18 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
     if (s.streaks[cabinet]) text += " \xC2\xB7 " + loc::Tf("room.streak", s.streaks[cabinet]);
     return text;
 }
+std::string StreakText(const room::Table& t, room::MemberId member) {
+    return member && t.streakHolder == member && t.streak >= 2 ? loc::Tf("room.streak", t.streak) : std::string();
+}
+std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
+    const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
+        member.status == room::MemberStatus::Seated;
+    if (waiting && member.training) return loc::T("room.in_training");
+    const auto idleSeconds = RoomIdleSeconds(member, elapsedMs);
+    if (!waiting || idleSeconds < 60) return {};
+    const unsigned minutes = idleSeconds / 60;
+    return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
+}
 bool GameLive(const ShellView& v) { return netplay::Fighting(v.session.match); }
 bool PostMatch(const ShellView& v) { return v.session.match == netplay::MatchState::PostMatch; }
 const char* LeaveBlockerKey(room::SeatHold hold) {
