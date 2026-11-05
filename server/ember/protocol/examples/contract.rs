@@ -76,6 +76,7 @@ fn main() {
         set_format: Some(0),
         rotation: Some(0),
         room_type: Some(0),
+        wired_only: false,
     };
     let room = ConnectionRoom {
         room: summary.clone(),

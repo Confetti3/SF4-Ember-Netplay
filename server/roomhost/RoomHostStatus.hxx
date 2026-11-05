@@ -52,11 +52,14 @@ struct RoomDetails {
 	// The player who created the room is a member of it now. The bridge counts
 	// a room against its creator's one open room only while they are.
 	bool creatorIn = false;
+	// Only players whose PC is not on Wi-Fi sit down (room::Snapshot::wiredOnly).
+	// The creator sets it just after the room opens, and the host can change it.
+	bool wiredOnly = false;
 	bool operator==(const RoomDetails& other) const {
 		return name == other.name && hostName == other.hostName && capacity == other.capacity &&
 			locked == other.locked && fighters == other.fighters && setFormat == other.setFormat &&
 			rotation == other.rotation && ownDelay == other.ownDelay && roomType == other.roomType &&
-			creatorIn == other.creatorIn;
+			creatorIn == other.creatorIn && wiredOnly == other.wiredOnly;
 	}
 };
 constexpr int NoFighter = 255;
@@ -88,7 +91,8 @@ struct Status {
 // {"type":"status","members":n,"tables_playing":n,"invitation":s,"banned":[...],
 //  "details":{"name":s,"capacity":n,"locked":b,"host_name":s (only with a
 //  moderator),"fighters":[n...],"set_format":n,"rotation":n,"room_type":n,"creator_in":b,"own_delay":true (only
-//  for a room whose fighters each play at their own input delay)},
+//  for a room whose fighters each play at their own input delay),"wired_only":true (only for a room for
+//  wired players)},
 //  "games":[{"table":n,"generation":n,"winner":s,"loser":s}...] (only once the
 //  room has a won game, oldest first)}
 std::string StatusLine(const Status& status);
