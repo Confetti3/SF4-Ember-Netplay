@@ -1,6 +1,7 @@
 #include "PackageInstaller.hxx"
 #include "../../common/PackageInventory.hxx"
 #include "../../platform/DurableFile.hxx"
+#include "../../platform/Utf8Path.hxx"
 #include "../../common/ProductIdentity.hxx"
 #include <windows.h>
 #include <bcrypt.h>
@@ -114,7 +115,7 @@ std::map<std::wstring,std::pair<fs::path,std::string>> ReadManifest(const fs::pa
         // check compare them as written, so they are kept lowercase here.
         std::string hash=line.substr(0,64);
         std::transform(hash.begin(),hash.end(),hash.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
-        const fs::path relative=fs::u8path(line.substr(66)).lexically_normal();
+        const fs::path relative=platform::PathFromUtf8(line.substr(66)).lexically_normal();
         if(relative.empty() || relative.is_absolute() || relative.has_root_name() || !entries.emplace(PathKey(relative),std::make_pair(relative,hash)).second)
             throw std::runtime_error("Invalid package manifest");
     }
@@ -419,7 +420,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         rollingBack=state=="rolling-back";
         // An integer schema only: a reader that converted true or 1.5 to 1
         // would accept journals the PowerShell reader rejects.
-        const fs::path installation=fs::u8path(transaction.value("installation",std::string()));
+        const fs::path installation=platform::PathFromUtf8(transaction.value("installation",std::string()));
         if(!transaction.contains("schema") || !transaction.at("schema").is_number_integer() || transaction.at("schema")!=1 ||
             !installation.is_absolute() || PathKey(installation)!=PathKey(install) ||
             (state!="prepared" && state!="committed" && !rollingBack) ||
@@ -428,7 +429,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         // Paths as written: "." and ".." parts are refused, never normalized
         // away, here and for the backup below, as both readers check them.
         CheckRoot(installation);
-        const fs::path backup=fs::u8path(transaction.at("backup").get<std::string>());
+        const fs::path backup=platform::PathFromUtf8(transaction.at("backup").get<std::string>());
         const bool besideInstall=PathKey(backup.parent_path())==PathKey(install.parent_path());
         if(!backup.is_absolute() || (PathKey(backup.parent_path())!=PathKey(install/L".ember-update-backups") &&
             !(besideInstall && backup.filename().wstring().find(L"Ember-backup-")==0)))
@@ -448,7 +449,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         const bool committed=transaction.at("state")=="committed";
         std::map<std::wstring,RecoveryFile> files;
         for(const auto& item:transaction.at("target").items()) {
-            const auto relative=fs::u8path(item.key()); CheckPath(install,relative);
+            const auto relative=platform::PathFromUtf8(item.key()); CheckPath(install,relative);
             const auto hash=item.value().get<std::string>();
             if(!ValidHash(hash) || !files.emplace(PathKey(relative),RecoveryFile{relative,hash}).second)
                 throw std::runtime_error("Invalid target inventory");
@@ -456,7 +457,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         // Validate the entire journal before changing any destination. Damaged
         // evidence must never produce a partial restore.
         for(const auto& operation:transaction.at("operations")) {
-            const auto relative=fs::u8path(operation.at("path").get<std::string>()); CheckPath(install,relative); CheckPath(backup,relative);
+            const auto relative=platform::PathFromUtf8(operation.at("path").get<std::string>()); CheckPath(install,relative); CheckPath(backup,relative);
             const auto key=PathKey(relative);
             auto& file=files.try_emplace(key,RecoveryFile{relative}).first->second;
             if(file.operation || key==PathKey(TransactionName) || key==PathKey(LockName) || key.find(L".ember-update-backups") == 0)
@@ -469,7 +470,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
         }
         fs::path missing;
         if(rollingBack && transaction.contains("missingSkipped")) {
-            missing=fs::u8path(transaction.at("missingSkipped").get<std::string>());
+            missing=platform::PathFromUtf8(transaction.at("missingSkipped").get<std::string>());
             CheckPath(install,missing);
             const auto file=files.find(PathKey(missing));
             if(file==files.end() || file->second.operation) throw std::runtime_error("Invalid missing update file");
@@ -495,7 +496,7 @@ bool RecoverLocked(const fs::path& install, std::string& error, bool inspectOnly
                 transaction["state"]="rolling-back";
                 // Only what this look found is carried into the rollback.
                 transaction.erase("missingSkipped");
-                if(!observation.missing.empty()) transaction["missingSkipped"]=observation.missing.generic_u8string();
+                if(!observation.missing.empty()) transaction["missingSkipped"]=platform::GenericPathToUtf8(observation.missing);
                 DurableJson(transactionPath,transaction);
                 rollingBack=true;
                 RestoreOperations(install,validated,files,activity);
@@ -563,7 +564,7 @@ bool UninstallPackage(const fs::path& installInput, std::string& error) {
             }
             const auto removeOwned=[&](const fs::path& rel){
                 std::error_code code; fs::remove(install/rel,code);
-                if(code && failed.empty()) failed="Cannot remove "+rel.u8string()+": "+code.message();
+                if(code && failed.empty()) failed="Cannot remove "+platform::PathToUtf8(rel)+": "+code.message();
                 parents.push_back((install/rel).parent_path());
             };
             for(const auto& rel:owned) removeOwned(rel);
@@ -616,7 +617,7 @@ Inventory ReadInventory(const fs::path& file) {
             if(c=='\\' && (++at>=literal.size() || literal[at]!='\\')) throw std::runtime_error("Invalid package inventory");
             text+=static_cast<char>(c);
         }
-        const fs::path relative=fs::u8path(text);
+        const fs::path relative=platform::PathFromUtf8(text);
         if(text.empty() || relative.is_absolute() || relative.has_root_name() || relative.has_root_directory()) throw std::runtime_error("Invalid package inventory");
         for(const auto& part:relative) if(part.empty() || part==L"." || part==L"..") throw std::runtime_error("Invalid package inventory");
         // A release declares its own new files: an installed updater cannot
@@ -671,7 +672,7 @@ static Manifest VerifiedPackage(const fs::path& package, Manifest manifest, cons
     // Matching its manifest is not having what it needs: a package also meets
     // its own inventory's required list and carries none of its obsolete files.
     seen.insert(PathKey(L"MANIFEST.txt"));
-    for(const auto& [key,relative]:inventory.required) if(!seen.count(key)) throw std::runtime_error("Incomplete package: "+relative.u8string());
+    for(const auto& [key,relative]:inventory.required) if(!seen.count(key)) throw std::runtime_error("Incomplete package: "+platform::PathToUtf8(relative));
     for(const auto& key:seen) if(inventory.obsolete.count(key)) throw std::runtime_error("Package carries an obsolete file");
     if(!seen.count(PathKey(ember::Product().launcherExe)) || !seen.count(PathKey(ember::Product().updaterExe))) throw std::runtime_error("Incomplete package");
     manifest[PathKey(L"MANIFEST.txt")]={fs::path(L"MANIFEST.txt"),HashFile(package/L"MANIFEST.txt")};
@@ -768,10 +769,10 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         for (const auto& rel : removals) preserve(rel);
         for (const auto& rel : written) preserve(rel);
         json operations=json::array(), target=json::object();
-        for(const auto& change:changed) operations.push_back({{"path",change.relative.generic_u8string()},{"existed",change.prior.has_value()},
+        for(const auto& change:changed) operations.push_back({{"path",platform::GenericPathToUtf8(change.relative)},{"existed",change.prior.has_value()},
             {"priorSha256",change.prior.value_or(std::string())}});
-        for(const auto& rel:files) target[rel.generic_u8string()]=package.at(PathKey(rel)).second;
-        transaction={{"schema",1},{"state","prepared"},{"installation",install.u8string()},{"backup",backup.u8string()},
+        for(const auto& rel:files) target[platform::GenericPathToUtf8(rel)]=package.at(PathKey(rel)).second;
+        transaction={{"schema",1},{"state","prepared"},{"installation",platform::PathToUtf8(install)},{"backup",platform::PathToUtf8(backup)},
             {"operations",operations},{"target",target}};
         DurableJson(install/TransactionName,transaction);
         state=InstallState::Prepared;
@@ -781,12 +782,12 @@ bool InstallPackage(const fs::path& stagingInput, const fs::path& installInput, 
         for (const auto& rel : removals) RemoveFile(install/rel,policy);
         for (const auto& rel : removals) RemoveEmptyParents(install,(install/rel).parent_path());
         for (const auto& rel : written) {
-            ReplaceFileVerified(staging/rel,install/rel,target.at(rel.generic_u8string()).get<std::string>(),policy);
+            ReplaceFileVerified(staging/rel,install/rel,target.at(platform::GenericPathToUtf8(rel)).get<std::string>(),policy);
             if(terminateAfter && static_cast<int>(replaced+1)==std::atoi(terminateAfter)) TerminateProcess(GetCurrentProcess(),86);
             Report(cancel,progress,UpdateStage::Replacing,++replaced,written.size());
         }
         std::vector<fs::path> finished; std::vector<std::string> wanted;
-        for(const auto& item:target.items()) { finished.push_back(install/fs::u8path(item.key())); wanted.push_back(item.value().get<std::string>()); }
+        for(const auto& item:target.items()) { finished.push_back(install/platform::PathFromUtf8(item.key())); wanted.push_back(item.value().get<std::string>()); }
         std::uint64_t confirmed=0;
         Announce(cancel,progress,UpdateStage::Confirming,finished.size());
         const auto result=HashFiles(finished,false,cancel,[&]{ Report(cancel,progress,UpdateStage::Confirming,++confirmed,finished.size()); });

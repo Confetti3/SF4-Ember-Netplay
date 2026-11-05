@@ -17,6 +17,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "Utf8Path.hxx"
 #ifdef _WIN32
 #include "DurableFile.hxx"
 #endif
@@ -100,8 +101,7 @@ inline std::unordered_set<std::string> ReplayNames(const std::filesystem::path& 
 		if (path.extension() == L".emberreplay" || path.extension() == L".usf4replay") {
 			// UTF-8, as the lists are written: a narrow string() would use the ANSI
 			// code page, which throws on a name it cannot hold (an emoji, Japanese).
-			const auto name = path.filename().u8string();
-			names.insert(std::string(name.begin(), name.end()));
+			names.insert(PathToUtf8(path.filename()));
 		}
 		at.increment(error);
 		if (error) { complete = false; break; }

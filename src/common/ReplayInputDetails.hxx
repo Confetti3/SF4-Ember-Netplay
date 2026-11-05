@@ -4,6 +4,7 @@
 #include "ReplayInputLane.hxx"
 #include "ReplayFileSafety.hxx"
 #include "ReplayProvenance.hxx"
+#include "../platform/Utf8Path.hxx"
 #include <memory>
 #include <utility>
 
@@ -65,7 +66,7 @@ public:
  DetailCompletion Read(const std::string& file, std::uint64_t revision, const std::filesystem::path& archive) noexcept {
   DetailCompletion result{revision, DetailState::Failed, {}};
   try {
-   const auto path = std::filesystem::u8path(file);
+   const auto path = platform::PathFromUtf8(file);
    replayfiles::ArchiveFile read;
    if (replayfiles::ReadArchive(path, archive.empty() || path.parent_path() == archive, read) != replayfiles::ArchiveState::Valid) {
     result.state = DetailState::Unreadable; return result;

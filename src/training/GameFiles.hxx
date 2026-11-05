@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/BoundedRead.hxx"
+#include "../platform/Utf8Path.hxx"
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -12,8 +13,7 @@
 namespace sf4e { namespace training {
 // Reads a whole file of at most `most` bytes.
 inline bool ReadFile(const std::filesystem::path& path, std::size_t most, std::vector<std::uint8_t>& bytes, std::string& error) {
-    const auto u8 = path.filename().u8string();
-    const std::string name(u8.begin(), u8.end());
+    const std::string name = platform::PathToUtf8(path.filename());
     auto read = durable::ReadBounded(path, most);
     switch (read.status) {
     case durable::ReadStatus::Read: bytes = std::move(read.bytes); return true;

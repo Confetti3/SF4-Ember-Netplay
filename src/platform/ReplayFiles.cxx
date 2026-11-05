@@ -22,6 +22,7 @@
 #include <spdlog/spdlog.h>
 
 #include "Utf8.hxx"
+#include "Utf8Path.hxx"
 #include "../common/ProductIdentity.hxx"
 #include "ReplayPath.hxx"
 #include "DurableFile.hxx"
@@ -295,7 +296,7 @@ PreparedImport PrepareImport(const fs::path& file) {
  const auto prepare = [&]() -> ImportResult {
   const auto resolved = ResolveReplayFile(WideToUtf8(file.wstring()));
   if (resolved.empty()) return ImportResult::NotAReplay;
-  const fs::path source = fs::u8path(resolved);
+  const fs::path source = PathFromUtf8(resolved);
 		const Folders folders = FindFolders();
 		// The files written through `write` are the running account's, so the
 		// indexes are read from that account and no other.

@@ -1,5 +1,6 @@
 #include "ZipExtract.hxx"
 #include "PackageInstaller.hxx"
+#include "../../platform/Utf8Path.hxx"
 #include <zlib.h>
 #include <filesystem>
 #include <fstream>
@@ -95,7 +96,7 @@ bool ExtractZip(const std::wstring& zipPath, const std::wstring& destDir, std::s
     for (const auto& e : list) {
         // Windows PowerShell's Compress-Archive writes folders with a trailing backslash.
         const bool folder = !e.name.empty() && (e.name.back() == '/' || e.name.back() == '\\');
-        const auto relative = fs::u8path(folder ? e.name.substr(0, e.name.size() - 1) : e.name);
+        const auto relative = platform::PathFromUtf8(folder ? e.name.substr(0, e.name.size() - 1) : e.name);
         try { CheckPath(root, relative); } catch (const std::exception&) { return fail("unsafe entry name: " + e.name); }
         const fs::path target = root / relative;
         std::error_code ignored;
