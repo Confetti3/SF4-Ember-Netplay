@@ -9,7 +9,6 @@
 #include "LatencyMark.hxx"
 #include "RoomControls.hxx"
 #include "RowId.hxx"
-#include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>

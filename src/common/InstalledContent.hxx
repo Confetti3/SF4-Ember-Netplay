@@ -35,7 +35,7 @@ struct InstalledContent {
     std::string Name(int fighterId, int costumeId, int colorId = -1) const;
     std::string StageName(int stageId) const;
 };
-typedef std::shared_ptr<const InstalledContent> InstalledContentPtr;
+// InstalledContentPtr, the shared read-only pointer, is SelectionPick.hxx's.
 
 // One side's look as the game is handed it.
 struct Look {

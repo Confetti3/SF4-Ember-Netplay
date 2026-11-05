@@ -324,14 +324,15 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 				(gates.localSlot >= 0 && gates.localSlot < 2 && client->LocalSelectionLocked(gates.localSlot))));
 		if (inFlight) return DispatchOutcome::Dropped;
 		const char* refusal = nullptr;
+		const auto& catalog = ember::Catalog();
 		const bool knownFighter = ember::ValidFighter(command.character.charaID);
 		const auto availability = knownFighter ?
 			Game().state.FighterAvailability(command.character.charaID) : selection::Availability{};
 		const auto installed = InstalledContent();
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
-		else if (!selection::IsRandomStage(command.stage) && !ember::Catalog().validStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
-		else if (!knownFighter || selection::FighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");
-		else if (!selection::Available(selection::FromNative(command.character), gates.editionSelect, availability, installed.get()))
+		else if (command.stage != catalog.randomStage && !catalog.validStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+		else if (!knownFighter || catalog.fighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");
+		else if (!catalog.availablePick(selection::FromNative(command.character), gates.editionSelect, availability, installed.get()))
 			refusal = loc::T("runtime.ready.selection_unavailable");
 		else if (roomState != netplay::RoomState::Joined || gates.localSlot < 0 || gates.localSlot > 1)
 			refusal = loc::T("runtime.ready.take_seat");
@@ -518,7 +519,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(Game().state.Random()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, Game().state.Random(), command.randomPool, InstalledContent()->stages)) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(ember::Catalog().resolveStage(command.stage, Game().state.Random(), command.randomPool, InstalledContent().get())) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));

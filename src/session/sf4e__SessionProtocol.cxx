@@ -1,6 +1,6 @@
 #include "../common/MatchWireTypes.hxx"
 #include "sf4e__SessionProtocol.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/GameCatalog.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 

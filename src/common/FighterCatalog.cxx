@@ -8,6 +8,7 @@ const Fighter fighters[] = {
 #include "FighterMetadata.inc"
 };
 static_assert(sizeof(fighters) / sizeof(fighters[0]) == FighterCount, "Every native fighter needs metadata");
+static_assert(Pick().edition == UltraEdition, "A new pick is in the Ultra edition");
 const std::array<Edition, 6> editions = {{
     {13, "Street Fighter IV", "SFIV"},
     {1, "Super Street Fighter IV", "SSFIV"},

@@ -3,7 +3,7 @@
 #include "RoomCards.hxx"
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"

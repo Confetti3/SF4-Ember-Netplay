@@ -18,7 +18,7 @@
 #include "RoomMessageQueue.hxx"
 #include "../common/JsonDump.hxx"
 #include "../netplay/PlayerPreferences.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 
 using nlohmann::json;

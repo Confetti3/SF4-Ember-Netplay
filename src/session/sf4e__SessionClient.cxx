@@ -10,7 +10,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../common/JsonDump.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/GameCatalog.hxx"
 
 #include "sf4e__SessionClient.hxx"

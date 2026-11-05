@@ -3,6 +3,7 @@
 // what fake_game.hxx lets a test set and read.
 #include "fake_game.hxx"
 
+#include "../common/InstalledContent.hxx"
 #include "../sf4e/sf4e__AbsentGameFeatures.hxx"
 
 #include <memory>

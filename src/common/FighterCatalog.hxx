@@ -1,4 +1,5 @@
 #pragma once
+#include "SelectionPick.hxx"
 #include <array>
 #include <cstdint>
 #include <string>
@@ -39,30 +40,10 @@ std::vector<int> AllowedEditions(int fighterId, bool editionSelect);
 bool EditionAllowed(int fighterId, int editionId, bool editionSelect);
 int NormalizeEdition(int fighterId, int editionId, bool editionSelect);
 
-struct Pick {
-    int fighter = 0;
-    int costume = 0;
-    int color = 0;
-    int ultra = 0;
-    int edition = UltraEdition;
-    int personalAction = 0;
-    int winQuote = 0;
-    int handicap = 0;
-};
-
-// Native customization stores a separate availability bit for each costume and
-// each color. Asset counts alone cannot represent this: colors 11/12 use shader
-// variants, and newer costumes also expose the numbered palettes 13 through 22.
-struct Availability {
-    bool ready = false;
-    // Costumes the player's Steam licences cover. Bit 0 is the fighter itself.
-    std::uint32_t costumes = 0;
-    std::array<std::uint32_t, 8> colors{};
-    std::uint16_t personalActions = 0;
-};
-// The custom content installed on this PC (InstalledContent.hxx); the selection queries below take it alongside the
-// native availability, and without it offer the game's own content only.
-struct InstalledContent;
+// The pick and the native availability are SelectionPick.hxx's. The custom
+// content installed on this PC (InstalledContent.hxx): the selection queries
+// below take it alongside the native availability, and without it offer the
+// game's own content only.
 
 // Custom costumes, added by a separate setup program: slots 8..99 (indices 7..98) of every fighter, ten colors
 // each. Any of them is a valid pick on the network; each PC shows its own install of that slot, or the
@@ -97,23 +78,6 @@ bool Valid(const Pick& pick, bool editionSelect);
 bool Available(const Pick& pick, bool editionSelect, const Availability& availability, const InstalledContent* installed = nullptr);
 bool Normalize(Pick& pick, bool editionSelect, const Availability* availability = nullptr, const InstalledContent* installed = nullptr);
 
-template<class Native> Pick FromNative(const Native& native) {
-    Pick pick;
-    pick.fighter = native.charaID; pick.costume = native.costume;
-    pick.color = native.color; pick.ultra = native.ultraCombo; pick.edition = native.unc_edition;
-    pick.personalAction = native.personalAction; pick.winQuote = native.winQuote; pick.handicap = native.handicap;
-    return pick;
-}
-template<class Native> void ToNative(const Pick& pick, Native& native) {
-    native.charaID = static_cast<std::uint8_t>(pick.fighter);
-    native.costume = static_cast<std::uint8_t>(pick.costume);
-    native.color = static_cast<std::uint8_t>(pick.color);
-    native.ultraCombo = static_cast<std::uint8_t>(pick.ultra);
-    native.unc_edition = static_cast<std::uint8_t>(pick.edition);
-    native.personalAction = static_cast<std::uint8_t>(pick.personalAction);
-    native.winQuote = static_cast<std::uint8_t>(pick.winQuote);
-    native.handicap = static_cast<std::uint8_t>(pick.handicap);
-}
 // The same side with another fighter: its first costume and color, and the
 // edition, Ultra and the rest kept where that fighter has them, else made
 // valid for it (Normalize).

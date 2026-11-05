@@ -1,7 +1,7 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
 #include "Theme.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cctype>
@@ -214,8 +214,7 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     return control;
 }
 std::string OpponentChangedText(int fighter) {
-    const auto* found = selection::FindFighter(fighter);
-    return loc::Tf("room.opponent_changed_fighter", found ? found->name : "?");
+    return loc::Tf("room.opponent_changed_fighter", ember::ValidFighter(fighter) ? ember::Catalog().fighterName(fighter) : "?");
 }
 bool HoldingStart(const ShellView& v, const room::Table& t) {
     const auto* local = room::FindMember(v.room, v.room.localMember);

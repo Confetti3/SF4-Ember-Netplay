@@ -1,11 +1,12 @@
 #pragma once
 
 // What Ember's shared code knows of the game's picks: how many fighters it
-// has, how far its costume, colour and Ultra numbers go, and its own rules for
-// a whole pick and for a stage. The room model, the session protocol, the room
-// host and the runtime check picks against these rather than against SF4's
-// numbers, so a game with a longer roster (SFV's) or other stages needs no
-// change to them.
+// has, how far its costume, colour and Ultra numbers go, its own rules for a
+// whole pick and for a stage, what the player owns, and the facts the shared
+// screens show of a fighter. The room model, the session protocol, the room
+// host, the runtime and the shell check and name picks through these rather
+// than through SF4's tables, so a game with a longer roster (SFV's) or other
+// stages needs no change to them.
 //
 // Each game defines Catalog() once, in its own source (SF4's is
 // src/product/Sf4Catalog.cxx), and every executable that checks a pick links
@@ -18,7 +19,12 @@
 
 #include <cstdint>
 
-namespace sf4e { namespace selection { struct Pick; } }
+namespace sf4e { namespace selection {
+struct Pick;
+struct Availability;
+struct InstalledContent;
+class RandomPool;
+} }
 
 namespace ember {
 
@@ -43,14 +49,49 @@ struct GameCatalog {
 	bool (*validStage)(std::int64_t id);
 	// The fighters whose faces invite a player on the public rooms setup card.
 	int showcaseFighters[4];
+
+	// The stage choice that stands for Random, which resolveStage turns into
+	// a stage before it is sent, so it is never valid on the wire; -1 when
+	// the game offers no Random stage.
+	int randomStage;
+	// The player's own content: whether they may play the fighter at all,
+	// and whether they own the whole pick, from what the game reports they
+	// own (GameState::FighterAvailability) and the custom content installed
+	// here (installed may be null). A Ready is refused on either.
+	bool (*fighterLocked)(int fighter, const sf4e::selection::Availability& availability);
+	bool (*availablePick)(const sf4e::selection::Pick& pick, bool editionSelect,
+		const sf4e::selection::Availability& availability, const sf4e::selection::InstalledContent* installed);
+	// Makes the pick valid under the edition rule, and owned where
+	// availability is given; true when it changed it. A Random fighter's
+	// remembered look is fitted to the rolled fighter with it.
+	bool (*normalizePick)(sf4e::selection::Pick& pick, bool editionSelect,
+		const sf4e::selection::Availability* availability, const sf4e::selection::InstalledContent* installed);
+	// The stage P1 sends for a choice: randomStage becomes one of the pool's
+	// stages by roll (installed may be null), any other choice a valid stage.
+	int (*resolveStage)(int choice, std::uint32_t roll, const sf4e::selection::RandomPool& pool,
+		const sf4e::selection::InstalledContent* installed);
+
+	// A fighter's name as every screen shows it; only for a fighter the
+	// catalog has (ValidFighter).
+	const char* (*fighterName)(int fighter);
+	// How many of a fighter's costumes are the game's own, numbered from 0;
+	// a costume past them is custom content or not one the game knows.
+	int (*costumeCount)(int fighter);
+	// Every fighter once, in the order the game's own select screen lists
+	// them; fighterCount entries.
+	const int* rosterOrder;
 };
 
 // A catalog the shared code can use: a roster that fits MaxFighters,
-// positive limits and both rules. A game checks its catalog with this where
-// it defines or fills it (SF4's at compile time, Sf4Catalog.cxx).
+// positive limits, every rule and fact, and a roster order. A game checks its
+// catalog with this where it defines or fills it (SF4's at compile time,
+// Sf4Catalog.cxx).
 constexpr bool Usable(const GameCatalog& catalog) {
 	return catalog.fighterCount > 0 && catalog.fighterCount <= MaxFighters && catalog.costumeLimit > 0 &&
-		catalog.colorLimit > 0 && catalog.ultraChoices > 0 && catalog.validPick != nullptr && catalog.validStage != nullptr;
+		catalog.colorLimit > 0 && catalog.ultraChoices > 0 && catalog.validPick != nullptr && catalog.validStage != nullptr &&
+		catalog.fighterLocked != nullptr && catalog.availablePick != nullptr && catalog.normalizePick != nullptr &&
+		catalog.resolveStage != nullptr && catalog.fighterName != nullptr && catalog.costumeCount != nullptr &&
+		catalog.rosterOrder != nullptr;
 }
 
 const GameCatalog& Catalog();

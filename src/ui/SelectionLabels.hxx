@@ -1,8 +1,6 @@
 #pragma once
-#include "../common/FighterCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include <string>
-
-namespace sf4e { namespace selection { struct InstalledContent; } }
 
 namespace sf4e { namespace ui {
 // Each game defines these once, as it defines Catalog() (GameCatalog.hxx):

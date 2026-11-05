@@ -4,6 +4,7 @@
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
+#include "../common/InstalledContent.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../ui/NetworkFeedback.hxx"
 #include <iterator>
@@ -635,8 +636,8 @@ static void CallOutOpponentReady() {
 		// it would start the game before the player saw the new one. They
 		// decide again, with the chance to change their Ultra.
 		if (runtime->readyIntent.Parked()) {
-			const auto* fighter = selection::FindFighter(runtime->opponentFighterWatch.Pending());
-			FailReady(loc::Tf("room.opponent_changed_fighter", fighter ? fighter->name : "?").c_str());
+			const int fighter = runtime->opponentFighterWatch.Pending();
+			FailReady(loc::Tf("room.opponent_changed_fighter", ember::ValidFighter(fighter) ? ember::Catalog().fighterName(fighter) : "?").c_str());
 		}
 	}
 }

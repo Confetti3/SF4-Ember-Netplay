@@ -119,7 +119,7 @@ bool DrawMenuBackdrop();
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
 float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,bool rightAligned=false);
-// The fighter pickers' select grid (RosterDisplayOrder): up to eight across beside
+// The fighter pickers' select grid (the catalog's rosterOrder): up to eight across beside
 // the preview, fewer on a narrow window. cardHeight is in unscaled pixels, as
 // GameMenu::Draw takes it.
 struct RosterGrid { int columns; float cardHeight; };

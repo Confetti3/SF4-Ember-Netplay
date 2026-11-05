@@ -14,7 +14,7 @@
 #include "LatencyMark.hxx"
 #include "MenuProbes.hxx"
 #include "SelectionLabels.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -68,9 +68,9 @@ FighterPicture SeatPicture(const SeatLook& look,FighterArt art) {
  return {look.fighter,art,(std::max)(0,look.costume),(std::max)(0,look.color)};
 }
 std::string SeatCaption(const SeatLook& look,bool brief) {
- const auto* fighter=look.picked?selection::FindFighter(look.fighter):nullptr;
- if(!fighter)return loc::T("room.fighter_not_shared");
- const std::string name=look.random?loc::Tf("selection.random_fighter",fighter->name):std::string(fighter->name);
+ if(!look.picked||!ember::ValidFighter(look.fighter))return loc::T("room.fighter_not_shared");
+ const char* fighter=ember::Catalog().fighterName(look.fighter);
+ const std::string name=look.random?loc::Tf("selection.random_fighter",fighter):std::string(fighter);
  if(look.costume<0||look.ultra<0)return name;
  selection::Pick pick;pick.fighter=look.fighter;pick.costume=look.costume;pick.color=(std::max)(0,look.color);
  return loc::Tf("room.seat_look",name,ShortCostumeLabel(pick),brief?ShortUltraLabel(look.ultra):UltraLabel(look.ultra));

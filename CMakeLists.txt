@@ -20,7 +20,7 @@ option(SF4E_CORE_TESTS_ONLY "Build game-independent migration tests without Wind
 add_library(sf4e_product STATIC)
 sf4e_add_product_identity(sf4e_product)
 add_library(sf4e_netplay_core STATIC "src/netplay/SessionController.cxx" "src/netplay/MatchResultOutbox.cxx")
-add_library(sf4e_selection STATIC ${SF4E_ROOMHOST_selection} "src/common/InstalledContent.cxx")
+add_library(sf4e_selection STATIC ${SF4E_ROOMHOST_selection})
 target_compile_features(sf4e_selection PUBLIC cxx_std_11)
 # SF4's game catalog (src/common/GameCatalog.hxx): the roster and pick rules
 # the shared code checks picks by. Like sf4e_product, the executables link it

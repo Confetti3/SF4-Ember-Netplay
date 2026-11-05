@@ -14,7 +14,7 @@
 #include "CountryFlag.hxx"
 #include "WatchedPicture.hxx"
 #include "VersionLine.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../common/PastedLink.hxx"
@@ -178,7 +178,7 @@ void ApplicationShell::UpdatePreferenceSave(const ShellView& v,const Submit& sub
   if(SamePreferences(v.preferences,savingPreferences_)&&v.settingsError.empty()){
    saveQueued_=false;retrySave_=false;preferencesDirty_=!SamePreferences(preferences_,savingPreferences_);
    if(profileSavePending_&&!preferencesDirty_){
-    profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",selection::FindFighter(v.preferences.mainFighter)->name),Tone::Success,ImGui::GetTime()+3);
+    profileSavePending_=false;error_.clear();ShowNotice(loc::Tf("notice.profile_saved",ember::Catalog().fighterName(v.preferences.mainFighter)),Tone::Success,ImGui::GetTime()+3);
     if(nav.Screen()=="main-character")nav.Return();
    }
   }else if(ImGui::GetTime()>saveAt_+2){saveQueued_=false;saveFailed_=true;retrySave_=false;error_=loc::T("error.settings_not_saved");}
@@ -368,7 +368,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
- tag.facts={{loc::T("profile.main_badge"),selection::FindFighter(preferences_.mainFighter)->name}};
+ tag.facts={{loc::T("profile.main_badge"),ember::Catalog().fighterName(preferences_.mainFighter)}};
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;

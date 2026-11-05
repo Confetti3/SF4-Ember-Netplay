@@ -1,6 +1,7 @@
 // The Replays screen's own rules, without a menu: which tag a replay's row
 // carries, how a running export's progress reads, how far an export has got,
 // when it can still be cancelled, and what its end is called.
+#include "../common/FighterCatalog.hxx"
 #include "../ui/ReplaySummaryText.hxx"
 #include <cstdio>
 #include <string>

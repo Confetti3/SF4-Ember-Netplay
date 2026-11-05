@@ -1,5 +1,6 @@
 #pragma once
-#include "FighterCatalog.hxx"
+#include "GameCatalog.hxx"
+#include "SelectionPick.hxx"
 #include <cstdint>
 #include <functional>
 #include <vector>
@@ -7,18 +8,20 @@
 namespace sf4e { namespace selection {
 // Random on the fighter grid: the player's pick is a fighter rolled for each
 // game (room::RandomFighterPick owns it), each fighter they may play as
-// likely as any other.
+// likely as any other. Which fighters and looks those are is the game's
+// catalog's to say (GameCatalog.hxx).
 
-// The fighters a roll may land on: every fighter the player's Steam licences
-// cover (FighterLocked, read through `availability`; none given locks none)
-// that has a valid pick under the edition rule.
+// The fighters a roll may land on: every fighter of the catalog the player
+// may play (fighterLocked, read through `availability`; none given locks
+// none) that has a valid pick under the edition rule.
 inline std::vector<int> RandomCandidates(const std::function<Availability(int)>& availability, bool editionSelect) {
+    const auto& catalog = ember::Catalog();
     std::vector<int> fighters;
-    for (int id = 0; id < FighterCount; ++id) {
-        if (availability && FighterLocked(id, availability(id))) continue;
+    for (int id = 0; id < catalog.fighterCount; ++id) {
+        if (availability && catalog.fighterLocked(id, availability(id))) continue;
         Pick pick; pick.fighter = id;
-        Normalize(pick, editionSelect);
-        if (Valid(pick, editionSelect)) fighters.push_back(id);
+        catalog.normalizePick(pick, editionSelect, nullptr, nullptr);
+        if (catalog.validPick(pick, editionSelect)) fighters.push_back(id);
     }
     return fighters;
 }
@@ -41,7 +44,7 @@ inline int DrawFighter(const std::vector<int>& candidates, const std::function<s
 inline Pick RolledPick(int fighter, Pick remembered, bool editionSelect, const Availability* availability,
                        const InstalledContent* installed = nullptr) {
     remembered.fighter = fighter;
-    Normalize(remembered, editionSelect, availability, installed);
+    ember::Catalog().normalizePick(remembered, editionSelect, availability, installed);
     return remembered;
 }
 } }

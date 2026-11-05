@@ -24,9 +24,8 @@
 #include <vector>
 
 #include "../common/ControllerView.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/GamePing.hxx"
-#include "../common/InstalledContent.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/MenuButtons.hxx"
 #include "../common/NoticeSeverity.hxx"
@@ -75,7 +74,8 @@ public:
     // follows: a code as ResolveLocale reads it (Localization.hxx), or empty
     // when the game's language is unknown. Asked once, as the runtime starts.
     virtual std::string Language() const = 0;
-    // What the player has unlocked of a fighter.
+    // What the player has unlocked of a fighter. Only the game's own code reads
+    // it: its catalog's fighterLocked and availablePick, and its select screen.
     virtual sf4e::selection::Availability FighterAvailability(int fighter) const = 0;
     // A random number from the game's own generator.
     virtual std::uint32_t Random() = 0;

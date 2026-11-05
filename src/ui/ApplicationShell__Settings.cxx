@@ -17,7 +17,7 @@
 #include "V2.hxx"
 #include "VersionLine.hxx"
 #include "WatchedPicture.hxx"
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/MatchFrameMeter.hxx"
 #include "../platform/LocaleWindows.hxx"
@@ -40,7 +40,7 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     if(auto* menuArt=MenuArt()){const auto art=menuArt->Portrait(fighter);if(art.texture){const float factor=(std::min)((max.x-min.x)/art.width,(max.y-min.y-footer)/art.height);
         const float w=art.width*factor,h=art.height*factor;d->AddImage(art.texture,ImVec2(min.x+(max.x-min.x-w)*.5f,min.y),ImVec2(min.x+(max.x-min.x+w)*.5f,min.y+h),art.uvMin,art.uvMax);}}
     // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
-    const char* name=selection::FindFighter(fighter)->name;
+    const char* name=ember::Catalog().fighterName(fighter);
     const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
     d->AddRectFilled(ImVec2(min.x,max.y-footer),max,IM_COL32(16,15,14,235));
     d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
@@ -155,10 +155,10 @@ public:
         const auto& p = s.preferences_;
         const auto& record = v.preferences.record;
         Entries rows = {TextRow("name", loc::T("profile.player_name"), p.displayName, 31, v.canEditPreferences),
-            Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", selection::FindFighter(p.mainFighter)->name)),
+            Row("main-character", loc::T("profile.main_character"), loc::Tf("profile.main_character_detail", ember::Catalog().fighterName(p.mainFighter))),
             Row("record", loc::T("profile.record"), record.available ? loc::Tf("profile.record_detail", record.wins, record.losses) : loc::T("profile.record_unavailable"))};
         rows[2].info = true;
-        rows[1].value = selection::FindFighter(p.mainFighter)->name;
+        rows[1].value = ember::Catalog().fighterName(p.mainFighter);
         rows[2].value = record.available ? RecordValue(record) : loc::T("common.unavailable");
         rows.push_back(OnOffValue(p, "share-steam", loc::T("profile.share_steam"), loc::T("profile.share_steam_detail"), v.canEditPreferences));
         rows.push_back(Row("awards", loc::T("screen.awards"), loc::T("awards.entry_detail")));
@@ -167,8 +167,10 @@ public:
     }
     static Entries MainCharacters(Shell&, const ShellView& v) {
         Entries rows;
-        for (const int id : selection::RosterDisplayOrder) {
-            rows.push_back(Row("main-" + std::to_string(id), selection::FindFighter(id)->name,
+        const auto& catalog = ember::Catalog();
+        for (int at = 0; at < catalog.fighterCount; ++at) {
+            const int id = catalog.rosterOrder[at];
+            rows.push_back(Row("main-" + std::to_string(id), catalog.fighterName(id),
                 v.canEditPreferences ? loc::T("profile.choose_main_detail") : loc::T("profile.leave_room_to_edit"), v.canEditPreferences));
             rows.back().hint = loc::T("menu.hint.save_main");
             rows.back().key = static_cast<std::uint64_t>(id);

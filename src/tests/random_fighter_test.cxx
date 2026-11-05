@@ -1,6 +1,7 @@
 // Random on the fighter grid: which fighters a roll may land on, that every
 // one is as likely, when the pick rolls again (once per game), and what a
 // Ready parked over a WIN sends once the game's result is in.
+#include "../common/FighterCatalog.hxx"
 #include "../common/RandomFighter.hxx"
 #include "../session/RandomFighterPick.hxx"
 

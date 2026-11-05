@@ -5,6 +5,7 @@
 
 #include "../common/GameCatalog.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/InstalledContent.hxx"
 #include "../common/StageCatalog.hxx"
 
 #include "test_support.hxx"
@@ -56,6 +57,36 @@ static void TestUsable() {
 	catalog = ember::Catalog();
 	catalog.costumeLimit = 0;
 	CHECK(!ember::Usable(catalog));
+	catalog = ember::Catalog();
+	catalog.availablePick = nullptr;
+	CHECK(!ember::Usable(catalog));
+	catalog = ember::Catalog();
+	catalog.rosterOrder = nullptr;
+	CHECK(!ember::Usable(catalog));
+}
+
+// The ownership rules, the stage roll and the facts are SF4's own functions
+// and tables, so the runtime and the shell judge and name SF4's picks as they
+// did when they called them directly.
+static void TestOwnershipAndFacts() {
+	const ember::GameCatalog& catalog = ember::Catalog();
+	CHECK(catalog.randomStage == selection::RandomStageId);
+	CHECK(catalog.fighterLocked == &selection::FighterLocked && catalog.availablePick == &selection::Available &&
+		catalog.normalizePick == &selection::Normalize && catalog.costumeCount == &selection::CostumeCount);
+	for (int at = 0; at < selection::FighterCount; ++at) {
+		CHECK(catalog.rosterOrder[at] == selection::RosterDisplayOrder[at]);
+		CHECK(catalog.fighterName(at) == selection::FindFighter(at)->name);
+	}
+	selection::InstalledContent installed;
+	installed.stages.push_back(selection::CustomStageId("C12"));
+	const selection::RandomPool pool;
+	for (std::uint32_t roll = 0; roll < 40; ++roll) {
+		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, nullptr) ==
+			selection::ResolveStage(selection::RandomStageId, roll, pool));
+		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, &installed) ==
+			selection::ResolveStage(selection::RandomStageId, roll, pool, installed.stages));
+	}
+	CHECK(catalog.resolveStage(11, 0, pool, nullptr) == 11 && catalog.resolveStage(22, 0, pool, nullptr) == 0);
 }
 
 int main() {
@@ -63,5 +94,6 @@ int main() {
 	TestUsable();
 	TestFighters();
 	TestRules();
+	TestOwnershipAndFacts();
 	return 0;
 }

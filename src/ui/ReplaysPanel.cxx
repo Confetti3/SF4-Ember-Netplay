@@ -61,7 +61,7 @@ std::string SetLabel(const Set& set){
 }
 // The fighters' names, "Ryu vs Ken".
 std::string FightersText(const Replay& r){
- const auto name=[&](int side){const auto* f=selection::FindFighter(r.fighters[side]);return std::string(f?f->name:loc::T("common.unavailable"));};
+ const auto name=[&](int side){return ReplayFighterName(r.fighters[side]);};
  return loc::Tf("replays.fighters",name(0),name(1));
 }
 // The replay a Replays row is of: "replay:<file>", or a set's last game, "set:<id>".
@@ -129,7 +129,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    const auto& last=*set.games.back();
    rows.push_back(Row("set:"+SetId(set),SetLabel(set),set.Tagged()?loc::Tf("replays.set_value",set.games.size(),set.rooms):loc::Tf("replays.set_matches",set.games.size())));
    rows.back().userText=true;for(const auto& name:last.names)NoteUserText(name);
-   const auto known=[&](int side){return selection::FindFighter(last.fighters[side])?last.fighters[side]:-1;};
+   const auto known=[&](int side){return ember::ValidFighter(last.fighters[side])?last.fighters[side]:-1;};
    rows.back().fighter1=known(0);rows.back().fighter2=known(1);
    rows.back().value=last.label;rows.back().height=72;
    // Only a set its bridge holds has a pack to ask for.
@@ -185,7 +185,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
  MenuEntry row=Row("replay:"+PathOf(replay),ReplayRowLabel(replay.label,replay.names,replay.fighters),loc::T(r.ready?"replays.row_detail":"replays.not_ready"));
  // The label carries the players' own names, the portraits their fighters. The value says what Ember knows about it.
  row.userText=true;for(const auto& name:replay.names)NoteUserText(name);
- const auto known=[&](int side){return selection::FindFighter(replay.fighters[side])?replay.fighters[side]:-1;};
+ const auto known=[&](int side){return ember::ValidFighter(replay.fighters[side])?replay.fighters[side]:-1;};
  row.fighter1=known(0);row.fighter2=known(1);
  row.value=ReplayTagsText(replay.provenance==replayfiles::Provenance::Spectated,replay.watched,replay.video,replay.kept);
  // The score leads the value; the replay's own account of the match leads the detail.
@@ -220,9 +220,8 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
  rows.push_back(InfoRow("inputs-replay",ReplayLabel(detail.label,detail.names,detail.fighters),(score.empty()?"":score+"  ")+MatchText(summary),loc::T("replays.inputs_detail")));
  rows.back().userText=true;
  for(int side=0;side<2;side++){
-  const auto* fighter=selection::FindFighter(detail.fighters[side]);
   std::uint64_t presses=0;for(const auto count:summary.stats[side].presses)presses+=count;
-  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("replays.player",ReplayPlayerName(detail.names,side),fighter?fighter->name:loc::T("common.unavailable")),loc::Tf("inputs.presses_value",presses),LookText(summary.players[side])+". "+PressesText(summary.stats[side])+". "+ActivityText(summary.stats[side])));
+  rows.push_back(InfoRow("inputs-p"+std::to_string(side+1),loc::Tf("replays.player",ReplayPlayerName(detail.names,side),ReplayFighterName(detail.fighters[side])),loc::Tf("inputs.presses_value",presses),LookText(summary.players[side])+". "+PressesText(summary.stats[side])+". "+ActivityText(summary.stats[side])));
   rows.back().userText=!detail.names[side].empty();
  }
  for(std::size_t round=0;round<match.rounds.size();round++){

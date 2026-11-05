@@ -1,5 +1,6 @@
 #pragma once
-#include "../common/FighterCatalog.hxx"
+#include "../common/GameCatalog.hxx"
+#include "../common/SelectionPick.hxx"
 #include "../common/Localization.hxx"
 #include "../common/ReplayExport.hxx"
 #include "../common/ReplayInputs.hxx"
@@ -16,10 +17,11 @@ namespace sf4e { namespace ui {
 // What a replay's file says of its match, as text: the one place it is
 // worded, for the Replays list and the Inputs and stats screen alike.
 inline std::string ReplayPlayerName(const std::string names[2],int side){return names[side].empty()?(side?"P2":"P1"):names[side];}
+// A fighter by name, or that the replay's fighter is not one the game's catalog has.
+inline std::string ReplayFighterName(int fighter){return ember::ValidFighter(fighter)?std::string(ember::Catalog().fighterName(fighter)):std::string(loc::T("common.unavailable"));}
 inline std::string ReplayLabel(const std::string& date,const std::string names[2],const int fighters[2]) {
  const auto player=[&](int side) {
-  const auto* fighter=selection::FindFighter(fighters[side]);
-  const std::string name=fighter?fighter->name:loc::T("common.unavailable");
+  const std::string name=ReplayFighterName(fighters[side]);
   return names[side].empty()?name:loc::Tf("replays.player",names[side],name);
  };
  return date+"  "+loc::Tf("replays.fighters",player(0),player(1));
@@ -28,9 +30,7 @@ inline std::string ReplayLabel(const std::string& date,const std::string names[2
 // date and the players' names, or a fighter's name where no player name was noted.
 inline std::string ReplayRowLabel(const std::string& date,const std::string names[2],const int fighters[2]) {
  const auto player=[&](int side)->std::string {
-  if(!names[side].empty())return names[side];
-  const auto* fighter=selection::FindFighter(fighters[side]);
-  return fighter?fighter->name:loc::T("common.unavailable");
+  return names[side].empty()?ReplayFighterName(fighters[side]):names[side];
  };
  return date+"  "+loc::Tf("replays.fighters",player(0),player(1));
 }
@@ -55,7 +55,7 @@ inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplaySh
  if(search.empty())return true;
  for(int side=0;side<2;side++){
   if(LoweredText(replay.names[side]).find(search)!=std::wstring::npos)return true;
-  if(const auto* fighter=selection::FindFighter(replay.fighters[side]))if(LoweredText(fighter->name).find(search)!=std::wstring::npos)return true;
+  if(ember::ValidFighter(replay.fighters[side])&&LoweredText(ember::Catalog().fighterName(replay.fighters[side])).find(search)!=std::wstring::npos)return true;
  }
  return false;
 }
@@ -90,7 +90,7 @@ inline std::string ScoreText(const replayinputs::Summary& s){return s.scored?std
 inline std::string MatchText(const replayinputs::Summary& s){const std::string length=replayinputs::Clock(s.frames);const unsigned rounds=s.rounds;return loc::Tf("inputs.length_value",rounds,length);}
 // The costume, color and Ultra in Fighter Select's own words, or that a choice is not one Ember knows.
 inline std::string LookText(const replayinputs::Player& p){
- const bool known=selection::FindFighter(p.fighter)&&p.costume>=0&&p.costume<selection::CostumeCount(p.fighter)&&p.color>=0&&p.ultra>=0;
+ const bool known=ember::ValidFighter(p.fighter)&&p.costume>=0&&p.costume<ember::Catalog().costumeCount(p.fighter)&&p.color>=0&&p.ultra>=0;
  if(!known)return loc::T("inputs.look_unknown");
  selection::Pick pick;pick.fighter=p.fighter;pick.costume=p.costume;
  return loc::Tf("selection.appearance_value",CostumeLabel(pick),p.color+1)+", "+UltraLabel(p.ultra);
