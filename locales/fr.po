@@ -6618,6 +6618,9 @@ msgstr "Délai propre"
 msgid "room.table_footer_wired_only"
 msgstr "Filaire uniquement"
 
+msgid "room.table_counts"
+msgstr "File {0}     Spect. {1}"
+
 msgid "room.input_delay.own"
 msgstr "Votre délai : {0}"
 

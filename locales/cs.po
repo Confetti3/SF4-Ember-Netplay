@@ -6618,6 +6618,9 @@ msgstr "Vlastní zpoždění"
 msgid "room.table_footer_wired_only"
 msgstr "Jen kabel"
 
+msgid "room.table_counts"
+msgstr "Fronta: {0}     Sleduje: {1}"
+
 msgid "room.input_delay.own"
 msgstr "Vaše zpoždění: {0}"
 

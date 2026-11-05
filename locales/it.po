@@ -6618,6 +6618,9 @@ msgstr "Ritardo proprio"
 msgid "room.table_footer_wired_only"
 msgstr "Solo cavo"
 
+msgid "room.table_counts"
+msgstr "Coda {0}     Spettatori {1}"
+
 msgid "room.input_delay.own"
 msgstr "Il tuo ritardo: {0}"
 

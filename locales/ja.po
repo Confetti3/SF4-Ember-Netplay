@@ -6619,6 +6619,9 @@ msgstr "各自の遅延"
 msgid "room.table_footer_wired_only"
 msgstr "有線のみ"
 
+msgid "room.table_counts"
+msgstr "順番待ち{0}     観戦{1}"
+
 msgid "room.input_delay.own"
 msgstr "あなたの遅延：{0}"
 

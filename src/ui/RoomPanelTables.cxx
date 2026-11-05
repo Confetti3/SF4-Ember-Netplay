@@ -172,6 +172,10 @@ std::string TableFooter(const ShellView& v,const room::Table& t) {
   ?loc::Tf("room.table_footer",t.rules.roundCount,room::MatchRoundTime(v.room,t),t.queue.size(),watching)
   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
 }
+// The footer's queue and watchers alone, for a versus card's header while the strip covers its foot.
+std::string TableCounts(const room::Table& t) {
+ return loc::Tf("room.table_counts",t.queue.size(),t.spectators.size()+t.watchingNext.size());
+}
 
 // A card's strip: the open seat chooser's options, or on your own focused
 // place Ready and Leave. A strip option is half a card wide, so Unready drops
@@ -319,6 +323,14 @@ void DrawTableCards(const RoomBoardFrame& f,const v2::Box& tables,const TableCar
   float nameEnd=b.max.x-card::Pad*s;
   if(versus)td->AddText(HeadingFont(),scoreSize,ImVec2(seats[0].max.x+(seats[1].min.x-seats[0].max.x-scoreWidth)*.5f,seatTop+(card::Face*s-scoreSize)*.5f),scoreTone,score.c_str());
   else{nameEnd-=scoreWidth+12*s;td->AddText(HeadingFont(),scoreSize,ImVec2(b.max.x-card::Pad*s-scoreWidth,y),scoreTone,score.c_str());}
+  // While the strip covers a versus card's foot, its queue and watchers stay
+  // in sight at the header's right, where a stacked card has its score.
+  if(versus&&!options.empty()){
+   const std::string counts=TableCounts(t);
+   const float countsWidth=ImGui::GetFont()->CalcTextSizeA(13*s,FLT_MAX,0,counts.c_str()).x;
+   text(ImVec2(nameEnd-countsWidth,y+4*s),countsWidth,counts,13*s,c.muted);
+   nameEnd-=countsWidth+12*s;
+  }
   // TABLE n, its state, and the host's name for it.
   float x=b.min.x+card::Pad*s;
   x+=v2::SectionHeading(td,ImVec2(x,y+4*s),loc::Tf("room.v2.table",t.id+1),c.muted)+8*s;

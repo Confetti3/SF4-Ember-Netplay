@@ -6242,6 +6242,9 @@ msgstr "Own delay"
 msgid "room.table_footer_wired_only"
 msgstr "Wired only"
 
+msgid "room.table_counts"
+msgstr "Queue {0}     Watching {1}"
+
 msgid "room.input_delay.own"
 msgstr "Your delay: {0}"
 

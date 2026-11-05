@@ -6619,6 +6619,9 @@ msgstr "Retraso propio"
 msgid "room.table_footer_wired_only"
 msgstr "Solo cable"
 
+msgid "room.table_counts"
+msgstr "Cola {0}     Viendo {1}"
+
 msgid "room.input_delay.own"
 msgstr "Tu retraso: {0}"
 

@@ -6619,6 +6619,9 @@ msgstr "各自延迟"
 msgid "room.table_footer_wired_only"
 msgstr "仅限有线"
 
+msgid "room.table_counts"
+msgstr "排队 {0}     观战 {1}"
+
 msgid "room.input_delay.own"
 msgstr "你的延迟：{0}"
 

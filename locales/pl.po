@@ -6618,6 +6618,9 @@ msgstr "Własne opóźnienie"
 msgid "room.table_footer_wired_only"
 msgstr "Tylko kabel"
 
+msgid "room.table_counts"
+msgstr "Kolejka: {0}     Widzowie: {1}"
+
 msgid "room.input_delay.own"
 msgstr "Twoje opóźnienie: {0}"
 

@@ -6619,6 +6619,9 @@ msgstr "각자 지연"
 msgid "room.table_footer_wired_only"
 msgstr "유선만"
 
+msgid "room.table_counts"
+msgstr "대기 {0}     관전 {1}"
+
 msgid "room.input_delay.own"
 msgstr "내 지연: {0}"
 

@@ -6151,6 +6151,9 @@ msgstr "Atraso próprio"
 msgid "room.table_footer_wired_only"
 msgstr "Só cabo"
 
+msgid "room.table_counts"
+msgstr "Fila {0}     Assistindo {1}"
+
 msgid "room.input_delay.own"
 msgstr "Seu atraso: {0}"
 

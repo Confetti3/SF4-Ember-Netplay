@@ -6618,6 +6618,9 @@ msgstr "Своя задержка"
 msgid "room.table_footer_wired_only"
 msgstr "Только кабель"
 
+msgid "room.table_counts"
+msgstr "Очередь: {0}     Зрители: {1}"
+
 msgid "room.input_delay.own"
 msgstr "Ваша задержка: {0}"
 

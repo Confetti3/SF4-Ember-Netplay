@@ -6618,6 +6618,9 @@ msgstr "Eigen vertraging"
 msgid "room.table_footer_wired_only"
 msgstr "Alleen kabel"
 
+msgid "room.table_counts"
+msgstr "Wachtrij {0}     Kijken {1}"
+
 msgid "room.input_delay.own"
 msgstr "Jouw vertraging: {0}"
 
