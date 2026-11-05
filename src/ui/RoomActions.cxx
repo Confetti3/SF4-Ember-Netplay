@@ -35,6 +35,9 @@ void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  if(a.delta==MenuInput::Fighter){selectionFresh_=true;selectionOpenOn_=RoomSelectionStart(v.room);}
  nav.Home();nav.Push("room");nav.Push(target);
 }
+void ApplicationShell::StepPick(const ShellView& v,ShellAction::SelectionStep step,const Submit& submit) {
+ ShellAction request;request.command.generation=v.session.generation;request.selectionStep=step;submit(std::move(request));
+}
 void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const Submit& submit) {
  using namespace room;auto& nav=menu_.navigation;
  const auto sendDelay=[&](netplay::CommandKind kind,int selected){
@@ -109,9 +112,7 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(a.id=="room-ultra"){
    const auto ultra=RowKey<int>(a.text,"ultra-");
    const int steps=ultra?StepsTo(selection::AllowedUltras(v.selectedPick.fighter,v.selectedPick.edition),v.selectedPick.ultra,*ultra):0;
-   if(!steps||!v.canEditSelection||!RoomActionsAvailable(v))return;
-   ShellAction step;step.command.generation=v.session.generation;
-   step.selectionStep={ShellAction::SelectionStep::Field::Ultra,steps};submit(std::move(step));
+   if(steps&&v.canEditSelection&&RoomActionsAvailable(v))StepPick(v,{ShellAction::SelectionStep::Field::Ultra,steps},submit);
    return;
   }
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
@@ -194,9 +195,8 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    // colors), and picking one comes back here.
    const bool ultra=a.id=="ultra";
    if(a.kind==MenuAction::Adjust){
-    if(!v.canEditSelection||!RoomActionsAvailable(v))return;
-    ShellAction step;step.command.generation=v.session.generation;
-    step.selectionStep={ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta};submit(std::move(step));
+    if(v.canEditSelection&&RoomActionsAvailable(v))
+     StepPick(v,{ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta},submit);
    }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?"ultra":"costumes";nav.Push("selection");}
    return;
   }

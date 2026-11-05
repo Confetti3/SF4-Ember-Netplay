@@ -275,8 +275,11 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation, p.result) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
     // The Ultra is the one row after the buttons, so Left and Right step it
     // (a footer row, MenuGridCells) and the bar's own walk stays as it was.
+    // It shows while it can change, and once Rematch has set it; where it
+    // cannot change here (no seat, the runtime offers no prompt's WIN) or the
+    // player went back to the room, which offers it, there is no row.
     const bool ultraOpen = v.canChangeUltra && mine >= 0 && !chosen && !p.left;
-    if (v.ultraSteps) {
+    if (v.ultraSteps && (ultraOpen || (chosen && !p.left))) {
         rows.push_back(Value("ultra", loc::T("selection.ultra_combo"), v.ultraName, loc::T(ultraOpen ? "postmatch.ultra.detail" : "postmatch.ultra.set"), ultraOpen));
         rows.back().wide = true;
     }
@@ -409,9 +412,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         else if (a.id == "back") leave(AfterPostMatch::None);
     }
     // The Ultra steps the pick the next game's Ready carries, as the room's rows do.
-    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && ultraOpen) {
-        ShellAction step; step.command.generation = v.session.generation;
-        step.selectionStep = {ShellAction::SelectionStep::Field::Ultra, a.delta}; submit(std::move(step));
-    }
+    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && ultraOpen)
+        StepPick(v, {ShellAction::SelectionStep::Field::Ultra, a.delta}, submit);
 }
 } }

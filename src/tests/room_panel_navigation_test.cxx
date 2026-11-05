@@ -773,7 +773,7 @@ int main() try {
             "Table options are not a bar button, or are still a choice of More");
         focus("room-ultra"); press(MenuInput::Select);
         Check(shell.Navigation().Choosing(), "Select on the board's Ultra did not list the Ultras");
-        press(MenuInput::Down); press(MenuInput::Down); press(MenuInput::Select);
+        press(MenuInput::Right); press(MenuInput::Right); press(MenuInput::Select);
         Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 2,
             "Choosing Ultra Double on the board did not step the pick to it");
         focus("table-0"); frame();

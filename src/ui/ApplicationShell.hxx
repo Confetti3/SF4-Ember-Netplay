@@ -605,6 +605,9 @@ private:
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
+    // Sends a step of the pick's Ultra or color, which the overlay applies
+    // (ShellAction::selectionStep): the room's rows and the post-match prompt.
+    static void StepPick(const ShellView& view, ShellAction::SelectionStep step, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
