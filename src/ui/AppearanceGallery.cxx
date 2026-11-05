@@ -103,11 +103,11 @@ void DrawSymbols(ImDrawList* d, ImVec2 origin, float unit, const std::string& sy
             const float pi = 3.14159265f;
             d->AddCircleFilled(center, unit * .48f, IM_COL32(47, 58, 59, 255));
             const bool forward = token == "236", back = token == "214", half = token == "63214";
-            const float radius = 10.5f * k;
+            const float radius = 11 * k;
             if (forward || back || half) d->AddCircle(center, radius, IM_COL32(240, 232, 214, 56), 32, 1.4f * k);
             const float begin = forward ? pi : back ? 0.f : half ? -pi / 2 : pi / 2;
             const float end = forward || back ? pi / 2 : half ? pi / 2 : pi / 2 - 1.8f * pi;
-            const float turn = end > begin ? 1.f : -1.f, head = 6 * k;
+            const float turn = end > begin ? 1.f : -1.f, head = 5 * k;
             // The line stops where the arrowhead begins.
             const float stop = end - turn * head / radius;
             ImVec2 points[33];
@@ -119,8 +119,8 @@ void DrawSymbols(ImDrawList* d, ImVec2 origin, float unit, const std::string& sy
             const ImVec2 tip(center.x + radius * std::cos(end), center.y + radius * std::sin(end));
             const ImVec2 along(-std::sin(end) * turn, std::cos(end) * turn);
             const ImVec2 base(tip.x - head * along.x, tip.y - head * along.y);
-            d->AddTriangleFilled(tip, ImVec2(base.x - 4 * k * along.y, base.y + 4 * k * along.x),
-                ImVec2(base.x + 4 * k * along.y, base.y - 4 * k * along.x), ivory);
+            d->AddTriangleFilled(tip, ImVec2(base.x - 3.6f * k * along.y, base.y + 3.6f * k * along.x),
+                ImVec2(base.x + 3.6f * k * along.y, base.y - 3.6f * k * along.x), ivory);
             d->AddCircleFilled(points[0], 2.4f * k, ember);
         }
         if (held) {
@@ -285,8 +285,8 @@ void AppearanceGallery::DrawUltras(const std::vector<MenuEntry>& rows, MenuNavig
     const auto fit = [&](float unit) {
         return FitGallery(rows.size(), width, height, gap, UltraCard.aspect, caption(unit), UltraCard.narrowest * s, UltraCard.widest * s);
     };
-    // The largest symbols are 34 px a side (at 1080p); narrower cards shrink them to fit.
-    float unit = 34 * s;
+    // The largest symbols are 44 px a side (at 1080p); narrower cards shrink them to fit.
+    float unit = 44 * s;
     auto grid = fit(unit);
     const float fits = (grid.width - 2 * pad) / widest;
     if (fits < unit) { unit = fits; grid = fit(unit); }
