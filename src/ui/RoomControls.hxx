@@ -152,4 +152,13 @@ const char* PhaseName(const room::Table& table);
 // What an Arcade room's cabinet row says of its player: waiting, or the
 // opponent with the score or the Rematch choice, and the streak.
 std::string CabinetState(const room::Snapshot& s, std::size_t cabinet);
+// "3 sets in a row" for the member who has won two or more sets in a row at
+// this table (Table::streakHolder), else empty.
+std::string StreakText(const room::Table& t, room::MemberId member);
+// "Idle 4 min" for a member who has done nothing in the room for a minute
+// or more while waiting (not in a game, not ready, not watching one), else
+// empty. A waiting member who said they are in Training is shown as that
+// instead: it is why they are quiet. The room stamped the idle time
+// `elapsedMs` ago (ShellView::roomElapsedMs).
+std::string IdleText(const room::Member& member, std::uint64_t elapsedMs);
 } } }
