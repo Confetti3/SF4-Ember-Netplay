@@ -232,7 +232,9 @@ sf4e_test_locks(PresentationSnapshot ember_runtime)
 # the runtime's every call into the game has to go through Game(), and the
 # room client's desync check through the test's own BattleVerifier
 # (fake_session_verification.cxx). The game catalog (sf4e_catalog)
-# is still SF4's roster until step 5.
+# is still SF4's roster until step 5, and the pick labels are SF4's, which
+# sf4e_ui carries; the x64 library build links the fake game's
+# (fake_selection.cxx) in their place.
 add_executable(RuntimeCapabilitiesTest "src/tests/runtime_capabilities_test.cxx" "src/tests/fake_game.cxx"
     "src/tests/fake_session_verification.cxx")
 target_compile_features(RuntimeCapabilitiesTest PRIVATE cxx_std_17)

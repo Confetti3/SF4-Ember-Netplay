@@ -5,6 +5,10 @@
 namespace sf4e { namespace selection { struct InstalledContent; } }
 
 namespace sf4e { namespace ui {
+// Each game defines these once, as it defines Catalog() (GameCatalog.hxx):
+// SF4's are Sf4SelectionLabels.cxx, and the runtime's tests have the fake
+// game's (tests/fake_selection.cxx). The examples below are SF4's.
+//
 // The names every screen uses for a costume ("Original", "Alternate 1 / pack",
 // a custom costume's installed name or "Custom 12") and an Ultra, so a saved
 // choice reads the same as the card that made it.

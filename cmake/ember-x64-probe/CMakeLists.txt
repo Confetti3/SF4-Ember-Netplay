@@ -46,16 +46,16 @@ list(APPEND _ember_files
     training/FrameMeter.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
     training/TrainingSession.hxx
-    # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter with
-    # nothing of SF4's, as SFV Ember's will be.
-    tests/fake_game.cxx tests/fake_game.hxx tests/fake_session_verification.cxx)
+    # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter and
+    # pick labels with nothing of SF4's, as SFV Ember's will be.
+    tests/fake_game.cxx tests/fake_game.hxx tests/fake_session_verification.cxx tests/fake_selection.cxx)
 
 set(EMBER_SF4_SIDE
     # Selection: SF4's roster, stages and installed content.
     common/FighterCatalog.cxx common/FighterCatalog.hxx common/StageCatalog.cxx common/StageCatalog.hxx
     common/StageValue.hxx common/InstalledContent.cxx common/InstalledContent.hxx
     common/SelectionAssetPath.hxx common/RandomFighter.hxx common/LobbyMusic.hxx
-    ui/FighterSelector.cxx ui/FighterSelector.hxx ui/SelectionArt.cxx
+    ui/FighterSelector.cxx ui/FighterSelector.hxx ui/Sf4SelectionLabels.cxx ui/SelectionArt.cxx
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx
     # Language, display and pads: the game's files and its pad layer.
     common/GameLanguage.cxx common/GameLanguage.hxx common/SteamKeyValues.cxx common/SteamKeyValues.hxx
