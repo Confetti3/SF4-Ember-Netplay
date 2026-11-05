@@ -7335,6 +7335,9 @@ msgstr "Ember developers show this mark in place of a class and are not on the b
 msgid "room.v2.board"
 msgstr "Board"
 
+msgid "room.v2.areas"
+msgstr "Areas"
+
 msgid "room.v2.tables"
 msgstr "TABLES"
 

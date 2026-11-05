@@ -145,6 +145,12 @@ public:
         const bool keys = KeyboardPrompts();
         menu.typesText = f.screen == "room-chat" && ChatTypable(v);
         menu.shortcutHints = menu.typesText && keys ? std::vector<LegendHint>{} : RoomShortcutHints();
+        // On the board LB and RB step its areas (a narrow board's tabs), named once for the pair.
+        if (f.screen == "room") {
+            const bool next = MenuShortcutGlyph(MenuInput::NextTab) != nullptr;
+            for (auto& h : ShortcutHints({{MenuInput::PrevTab, next ? "" : loc::T("room.v2.areas")}, {MenuInput::NextTab, loc::T("room.v2.areas")}}))
+                menu.shortcutHints.push_back(std::move(h));
+        }
         // On the board B leaves your seat; the keyboard leaves it with Delete, so Escape keeps its own word.
         const char* placeExit = f.screen == "room" ? f.shell.PlaceExitLabel(v) : "";
         if (!*placeExit) return;

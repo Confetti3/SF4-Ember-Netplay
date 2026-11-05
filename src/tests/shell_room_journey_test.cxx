@@ -53,6 +53,54 @@ void NarrowBoardTabsStep() {
  h.Press(MenuInput::PrevTab);Check(focus()=="room-chat"&&h.shell.Navigation().Screen()=="room","LB from the board did not wrap to Chat");
  ImGui::GetIO().DisplaySize=ImVec2(1280,960);
 }
+// The board opens on what the player most likely does next, once per room:
+// Ready in a seat, else the first table with a free seat, never the last
+// room's row. On a wide board LB and RB step the floor, the action bar,
+// Members and Chat, round at the ends, each back at the row last focused
+// there; an open popout keeps them. The bar's Left and Right go along it and
+// stop at its ends.
+void BoardOpensOnReadyAndStepsAreas() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ JoinedRoom(h,21);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.revision=3;
+ room::Member local;local.id=1;local.name="Local";local.table=1;local.seat=0;local.status=room::MemberStatus::Seated;
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=1;peer.seat=1;peer.status=room::MemberStatus::Seated;
+ h.view.room.members={local,peer};h.view.room.tables[1].p1=1;h.view.room.tables[1].p2=2;h.view.room.tables[1].phase=room::TablePhase::Waiting;
+ h.view.canReady=true;h.view.invitation="sf4://lab";
+ h.Frame(0,3);
+ const auto focus=[&]{return h.shell.Navigation().Focus();};
+ Check(h.shell.Navigation().Screen()=="room"&&focus()=="ready","A seated player's board did not open on Ready");
+ h.Press(MenuInput::NextTab);Check(focus()=="member-1","RB from the bar did not go to the first member");
+ h.Press(MenuInput::NextTab);Check(focus()=="room-chat","RB from Members did not go to the message box");
+ h.Press(MenuInput::NextTab);Check(focus()=="table-1","RB from Chat did not go round to the player's own table");
+ h.Press(MenuInput::NextTab);Check(focus()=="ready","RB from the floor did not return to the bar's Ready");
+ h.Press(MenuInput::Right);const std::string kept=focus();Check(kept!="ready","Right on the bar did not move along it");
+ h.Press(MenuInput::PrevTab);Check(focus()=="table-1","LB from the bar did not go to the floor");
+ h.Press(MenuInput::PrevTab);Check(focus()=="room-chat","LB from the floor did not go round to Chat");
+ h.Press(MenuInput::NextTab);h.Press(MenuInput::NextTab);Check(focus()==kept,"The bar did not keep the row last focused there");
+ // Along the bar to its end, where Right stays and does not leave for the column.
+ for(int i=0;i<12&&focus()!="leave";++i)h.Press(MenuInput::Right);
+ Check(focus()=="leave","Right did not walk the bar to Leave room");
+ h.Press(MenuInput::Right);Check(focus()=="leave","Right from the bar's end left the bar");
+ // An open popout keeps LB and RB from moving the focus under it.
+ h.Press(MenuInput::Left);Check(focus()=="room-more","Left from Leave room is not More...");
+ h.Press(MenuInput::Select);Check(h.shell.Navigation().Choosing(),"More... did not open");
+ h.Press(MenuInput::NextTab);Check(h.shell.Navigation().Choosing()&&focus()=="room-more","RB moved the focus from under an open popout");
+ h.Press(MenuInput::Back);
+ // The next room opens afresh: unseated, on the first table with a free seat.
+ h.view.room.roomEpoch=22;h.view.session.generation.room=2;
+ h.view.room.members[0].table=h.view.room.members[0].seat=-1;h.view.room.members[0].status=room::MemberStatus::Idle;
+ h.view.room.tables[1].p1=0;h.view.room.tables[0].p1=2;h.view.room.tables[0].p2=3;
+ room::Member third;third.id=3;third.name="Third";third.table=0;third.seat=1;h.view.room.members.push_back(third);
+ h.view.room.members[1].table=0;h.view.room.members[1].seat=0;h.view.room.tables[1].p2=0;
+ h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="room"&&focus()=="table-1","The next room's board did not open on its first free table");
+ // Watching a game, on the bar: Table options (Stop watching while the game shows).
+ h.view.room.roomEpoch=23;h.view.session.generation.room=3;h.view.room.tables[0].phase=room::TablePhase::Playing;
+ h.view.room.tables[0].spectators={1};h.view.room.members[0].status=room::MemberStatus::Watching;
+ h.Frame(0,3);
+ Check(focus()=="options","A watcher's board did not open on the action bar");
+}
 // A room locks the player's settings but those it leaves open
 // (PlayerPreferences::CopyRoomSettings), the board's layout and the watched
 // game's picture: Column changed with the pad in a room goes out at once in the
@@ -632,6 +680,7 @@ void RoomJourneys() {
  RoomShortcutOnPanelScreen();
  TableNameCommitNamesTable();
  NarrowBoardTabsStep();
+ BoardOpensOnReadyAndStepsAreas();
  RoomLayoutSavesInRoom();
 }
 

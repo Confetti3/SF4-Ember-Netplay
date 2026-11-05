@@ -7712,6 +7712,9 @@ msgstr "Ember-Entwickler tragen dieses Zeichen statt einer Klasse und stehen nic
 msgid "room.v2.board"
 msgstr "Übersicht"
 
+msgid "room.v2.areas"
+msgstr "Bereiche"
+
 msgid "room.v2.tables"
 msgstr "TISCHE"
 

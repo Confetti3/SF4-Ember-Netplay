@@ -394,6 +394,8 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   area.min.y=ImGui::GetCursorScreenPos().y;
  }
+ // On a wide board LB and RB go between the floor, the bar, Members and Chat.
+ else if(const int step=TabDelta(action)){action={};StepRoomArea(v,rows,nav,step);}
  v2::Box tables=area,members=area,chat=area;
  if(ultra){
   members=v2::CutLeft(tables,(showMembers?480:FoldedColumnWidth)*s,24*s);chat=v2::CutRight(tables,(showChat?520:FoldedColumnWidth)*s,24*s);

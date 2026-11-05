@@ -7712,6 +7712,9 @@ msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan ni
 msgid "room.v2.board"
 msgstr "Bord"
 
+msgid "room.v2.areas"
+msgstr "Gebieden"
+
 msgid "room.v2.tables"
 msgstr "TAFELS"
 

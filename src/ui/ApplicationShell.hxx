@@ -599,6 +599,15 @@ private:
     void RoomShortcut(const MenuAction& action, const ShellView& view);
     // The room's shortcut hints (Fighter, Options, Chat), those the device has.
     static std::vector<LegendHint> RoomShortcutHints();
+    // The board's areas, as LB and RB step them on a wide board (RoomActions.cxx):
+    // the floor, the action bar, Members and Chat. Each remembers the row last
+    // focused in it (NoteRoomArea), which a step to it returns to.
+    void NoteRoomArea(const std::string& focus);
+    void StepRoomArea(const ShellView& view, const std::vector<MenuEntry>& rows, MenuNavigation& nav, int step);
+    // The board's rows' last touches once all of them are there: the focus a
+    // newly joined room opens on, and the action bar's Left and Right in its
+    // own order (RoomBoardRows).
+    void SettleRoomBoard(const ShellView& view, std::vector<MenuEntry>& rows, MenuNavigation& nav);
     // What B does on the board while your own table card is focused: leave your
     // seat or queue place (or say why the seat cannot be left yet). Empty
     // (plain Back) otherwise.
@@ -715,6 +724,11 @@ private:
     // cabinets at their least size and the matchups under them.
     static float ArcadeBoardHeight(const ShellView& view,const std::vector<MenuEntry>& rows,float width);
     std::string roomBoardFocus_;
+    // The row last focused in each of the board's areas (StepRoomArea), and the
+    // room (its session generation and epoch) whose board has had its opening
+    // focus (SettleRoomBoard).
+    std::string roomAreaFocus_[4];
+    std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
     // frame, and the tables' size: a change shows the focused row again.
     struct RoomTablesShape {

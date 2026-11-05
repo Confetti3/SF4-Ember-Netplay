@@ -7713,6 +7713,9 @@ msgstr "Los desarrolladores de Ember muestran esta marca en lugar de una clase y
 msgid "room.v2.board"
 msgstr "Tablero"
 
+msgid "room.v2.areas"
+msgstr "Áreas"
+
 msgid "room.v2.tables"
 msgstr "MESAS"
 

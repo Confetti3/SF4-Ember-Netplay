@@ -466,6 +466,9 @@ int main() try {
                 actions.back().selectionStep.delta == -1 && shell.Navigation().Focus() == "appearance",
                 "Unseated Left did not step color in place");
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+            // The board opened on the first table with a free seat (Table 2); the
+            // table page this loop reads is Table 1's, where the member's place is.
+            focus("table-0"); frame();
             const auto beforeShortcut = selectionDraws; press(MenuInput::Fighter);
             Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeShortcut,
                 "X/F did not open selection for an unseated member");

@@ -489,6 +489,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
  }
  if(moreAsk_){moreAsk_=false;nav.Ask("room-more",rows);}
+ SettleRoomBoard(v,rows,nav);
 }
 void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
  using namespace room;
