@@ -29,6 +29,8 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__RuntimeSession.hxx"
+#include "sf4e__RuntimeTick.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__Pad.hxx"
 
@@ -50,10 +52,8 @@ using fVsBattle = sf4e::GameEvents::VsBattle;
 using fVsPreBattle = sf4e::GameEvents::VsPreBattle;
 using sf4e::Game::Battle::Sound::SoundPlayerManager;
 using sf4e::SessionClient;
-using sf4e::SessionServer;
+using ember::RuntimeSession;
 
-std::unique_ptr<fUserApp::Netplay> fUserApp::netplay;
-std::unique_ptr<SessionServer> fUserApp::server;
 static bool s_pendingMatchStart = false;
 
 // The room's match checked as the game would take it, logged and named to the
@@ -141,21 +141,6 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     return MatchEntry::Entered;
 }
 
-sf4e::UserApp::Netplay::Netplay(
-    const SessionClient::Callbacks& callbacks,
-    std::string sidecarHash,
-    uint16_t ggpoPort,
-    std::string& name,
-    uint8_t _deviceType,
-    uint8_t _deviceIdx,
-    uint8_t _delay
-):
-    client(callbacks, sidecarHash, ggpoPort, name),
-    deviceType(_deviceType),
-    deviceIdx(_deviceIdx),
-    delay(_delay)
-{}
-
 // The table the local member sits or watches at, if any.
 static const sf4e::room::Table* LocalTable(const sf4e::room::Snapshot& room) {
     for (const auto& member : room.members)
@@ -167,7 +152,7 @@ static const sf4e::room::Table* LocalTable(const sf4e::room::Snapshot& room) {
 // Every PC simulating the match, fighters and spectators alike, reads inputs
 // the match's way from its first frame.
 static bool StartMatchInputLag() {
-    const auto& netplay = fUserApp::netplay;
+    const auto& netplay = RuntimeSession::netplay;
     bool seats[2] = {false, false};
     if (const auto* table = LocalTable(netplay->client.GetRoomSnapshot()))
         for (int side = 0; side < 2; ++side) seats[side] = table->lowerLag[side];
@@ -185,7 +170,7 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     static_assert(sizeof(sf4e::Pad::System::Inputs) == sf4e::session::GgpoInputBytes, "Recalculate gameplay packet admission when SF4 inputs change");
     sf4e::NetplayFacade::RuntimeMatchEndpoints endpoints;
     if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return RuntimeGgpoStart::NoStream;
-    auto& netplay = fUserApp::netplay;
+    auto& netplay = RuntimeSession::netplay;
     if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return RuntimeGgpoStart::Failed;
     // Room names are unique, so the name finds the member's link. The class
     // comes from the room as the runtime shows it, which keeps a class only
@@ -289,7 +274,7 @@ static const char* RuntimeGgpoStartNotice(RuntimeGgpoStart start) {
 }
 
 void fUserApp::_OnVsBattleTasksRegistered() {
-    if (!netplay) return;
+    if (!RuntimeSession::netplay) return;
     // Every netplay battle passes here once, before any session exists, so a
     // start that fails below still ends in a battle that leaves (F-016).
     fSystem::simGate.OnNetplayBattleClaimed();
@@ -309,11 +294,11 @@ void fUserApp::_OnVsBattleTasksRegistered() {
 
 void fUserApp::_OnVsPreBattleTasksRegistered()
 {
-    if (!netplay) {
+    if (!RuntimeSession::netplay) {
         spdlog::error("VsPreBattle tasks registered but netplay is null");
         return;
     }
-    if (netplay->client._lobbyData.members.size() < 2) {
+    if (RuntimeSession::netplay->client._lobbyData.members.size() < 2) {
         spdlog::warn("VsPreBattle: deferring until opponent is in lobby");
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_start"));
         return;
@@ -321,16 +306,16 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
     // Entry refused such a match before VS mode began. This keeps the bytes
     // out of the game should they change after entry, which a session that
     // takes host updates until the battle allows.
-    if (const char* notice = RejectedMatch(netplay->client, "VsPreBattle")) {
+    if (const char* notice = RejectedMatch(RuntimeSession::netplay->client, "VsPreBattle")) {
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
         return;
     }
     // What this PC shows: custom costumes and colors it has play as stand-ins, ones it doesn't have become the
     // original (the match data stays as sent).
-    rVsMode::ConfirmedCharaConditions shown[2] = { netplay->client._matchData.chara[0], netplay->client._matchData.chara[1] };
+    rVsMode::ConfirmedCharaConditions shown[2] = { RuntimeSession::netplay->client._matchData.chara[0], RuntimeSession::netplay->client._matchData.chara[1] };
     sf4e::custom::ShowInstalledLooks(shown);
     // A custom stage plays as its fallback stage, loading its own files if this PC has them.
-    const int stage = sf4e::custom::ApplyStage(static_cast<int>(netplay->client._matchData.stageID));
+    const int stage = sf4e::custom::ApplyStage(static_cast<int>(RuntimeSession::netplay->client._matchData.stageID));
     if (!fVsPreBattle::SetSides(shown, stage))
         spdlog::error("VsPreBattle tasks registered, but the current foreground event isn't VSMode!");
 }
@@ -345,7 +330,7 @@ void OnBattleSynced(SessionClient* const client, const sf4e::SessionClient::Call
 }
 
 MatchEntry fUserApp::EnterAuthorizedMatch() {
-    return netplay ? StartMatchFromLobby(&netplay->client) : MatchEntry::Deferred;
+    return RuntimeSession::netplay ? StartMatchFromLobby(&RuntimeSession::netplay->client) : MatchEntry::Deferred;
 }
 
 sf4e::SessionClient::Callbacks clientCallbacks = {
@@ -373,25 +358,25 @@ void fUserApp::ResetLobbyForRematch() {
     }
     // A room clears both fighters' Ready itself when it ends the match, and a
     // spectator has no seat to unready; an Unready from here only races that.
-    if (netplay && netplay->client.IsCustomRoom()) {
+    if (RuntimeSession::netplay && RuntimeSession::netplay->client.IsCustomRoom()) {
         return;
     }
-    if (server) {
-        server->ResetLobbyForRematch();
+    if (RuntimeSession::server) {
+        RuntimeSession::server->ResetLobbyForRematch();
     }
-    else if (netplay) {
-        netplay->client.Lobby_ResetRematch();
+    else if (RuntimeSession::netplay) {
+        RuntimeSession::netplay->client.Lobby_ResetRematch();
     }
 }
 
 void fUserApp::TryStartPendingMatch() {
-    if (!s_pendingMatchStart || !netplay) {
+    if (!s_pendingMatchStart || !RuntimeSession::netplay) {
         return;
     }
-    if (netplay->client._lobbyData.members.size() < 2) {
+    if (RuntimeSession::netplay->client._lobbyData.members.size() < 2) {
         return;
     }
-    if (StartMatchFromLobby(&netplay->client) != MatchEntry::Deferred) {
+    if (StartMatchFromLobby(&RuntimeSession::netplay->client) != MatchEntry::Deferred) {
         s_pendingMatchStart = false;
     }
 }
@@ -405,8 +390,54 @@ void fUserApp::StartIrohSession(std::unique_ptr<session::ClientTransport> transp
     SessionClient::Callbacks callbacks = clientCallbacks;
     // IrohMatchSession requires authorization and suppresses legacy all-ready.
     // The normal battle-loaded synchronization callback remains shared.
-    netplay.reset(new Netplay(callbacks, sf4e::sidecarHash, port, name, deviceType, deviceIdx, delay));
-    netplay->client.Connect(std::move(transport));
+    RuntimeSession::netplay.reset(new RuntimeSession::Netplay(callbacks, sf4e::sidecarHash, port, name, deviceType, deviceIdx, delay));
+    RuntimeSession::netplay->client.Connect(std::move(transport));
+}
+
+namespace {
+// SF4's part of Ember's tick: the battle's GGPO poll and what it settled, then
+// the frame pacing and the engine's own update. The pacing step is kept for
+// the outer tick's diagnostics.
+struct Sf4Tick final : ember::GameTick {
+    fSystem::PacingTick pacing{};
+
+    void PollBattle() override {
+        namespace diag = sf4e::diag;
+        if (fSystem::ggpo) {
+            // Nonblocking poll. In the pinned fork a nonzero timeout is an
+            // unconditional Sleep(1) at the end of Peer2PeerBackend::DoPoll
+            // (annotated "obviously a farce" upstream), i.e. a 1-15.6 ms hard
+            // stall every tick depending on timer resolution. Timeout 0 performs
+            // the identical pump work (Poll::Pump(0); the UDP socket is a
+            // nonblocking loop sink) without the sleep. The outer game loop
+            // already owns frame cadence; GGPO still gets exactly one pump
+            // opportunity per application tick. Setup-time registration waits
+            // are unaffected (they use the authenticated Iroh UDP bridge).
+            diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
+            ggpo_idle(fSystem::ggpo, 0);
+        }
+        // An abort raised inside a callback during that poll closes the session
+        // here, once GGPO has unwound.
+        fSystem::DrainPendingAbort();
+        // After the final advance, the peer's inputs for the result frames can
+        // still be confirmed by this poll. Publish from here too.
+        fSystem::PollNativeMatchResult();
+        fSystem::PollSpectators();
+    }
+
+    void UpdateGame() override {
+        namespace diag = sf4e::diag;
+        // Rift pacing: accounts for the last frame's shift and asks the frame
+        // limiter for the next one.
+        pacing = fSystem::StepPacing();
+        {
+            // This timer is deliberately only the original engine method. The
+            // complete detoured outer tick is recorded separately below.
+            diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
+            rUserApp::staticMethods.Steam_PostUpdate();
+        }
+    }
+};
 }
 
 void fUserApp::Steam_PostUpdate() {
@@ -414,90 +445,9 @@ void fUserApp::Steam_PostUpdate() {
     diag::ScopedTimer completeOuterCall(diag::OP_COMPLETE_OUTER_CALL);
     const bool diagnosticsEnabled = diag::Enabled();
     const double outerTickStartMs = diagnosticsEnabled ? diag::NowMs() : 0.0;
-    {
-        diag::ScopedTimer runtimeTimer(diag::OP_RUNTIME_TICK);
-        sf4e::NetplayFacade::TickRuntime();
-    }
-
-
-    if (netplay) {
-        netplay->client.PrepareForCallbacks();
-    }
-    if (server) {
-        server->PrepareForCallbacks();
-    }
-
-
-    bool netplayStepFailed = false;
-    if (netplay) {
-        diag::ScopedTimer _t(diag::OP_SESSION_CLIENT_STEP);
-        int stepResult = netplay->client.Step();
-        // A refused join is reported when the room fails, not as a lost room.
-        if (stepResult < 0 && !netplay->client.JoinRejection()) {
-            netplayStepFailed = true;
-        }
-    }
-
-    bool serverStepFailed = false;
-    if (server) {
-        diag::ScopedTimer _t(diag::OP_SESSION_SERVER_STEP);
-        if (server->Step() < 0) {
-            serverStepFailed = true;
-        }
-    }
-
-    // Reported every tick. On the loss edge an active healthy GGPO fight
-    // degrades instead of being killed; outside that case the loss falls
-    // back to full failure (Phase 7). The reason is read only on that edge, so
-    // a healthy tick does not look it up.
-    const bool sessionHealthy = !netplayStepFailed && !serverStepFailed;
-    sf4e::NetplayFacade::ObserveControlPlane(
-        sf4e::NetplayFacade::ControlPlaneCause::SessionClient,
-        sessionHealthy,
-        sessionHealthy ? "" : sf4e::loc::T(netplayStepFailed ? "runtime.room_link_lost" : "runtime.session_server_error")
-    );
-    // The room's updates of this tick are in: the Training call is reconciled
-    // with them before the next battle update can leave for it.
-    sf4e::NetplayFacade::ReconcileTrainingCall();
-
-    {
-        diag::ScopedTimer _t(diag::OP_FACADE_TICK_FRAME);
-        sf4e::NetplayFacade::TickFrame();
-    }
-
-    if (fSystem::ggpo) {
-        // Nonblocking poll. In the pinned fork a nonzero timeout is an
-        // unconditional Sleep(1) at the end of Peer2PeerBackend::DoPoll
-        // (annotated "obviously a farce" upstream), i.e. a 1-15.6 ms hard
-        // stall every tick depending on timer resolution. Timeout 0 performs
-        // the identical pump work (Poll::Pump(0); the UDP socket is a
-        // nonblocking loop sink) without the sleep. The outer game loop
-        // already owns frame cadence; GGPO still gets exactly one pump
-        // opportunity per application tick. Setup-time registration waits
-        // are unaffected (they use the authenticated Iroh UDP bridge).
-        diag::ScopedTimer _t(diag::OP_GGPO_IDLE);
-        ggpo_idle(fSystem::ggpo, 0);
-    }
-    // An abort raised inside a callback during that poll closes the session
-    // here, once GGPO has unwound.
-    fSystem::DrainPendingAbort();
-    // After the final advance, the peer's inputs for the result frames can
-    // still be confirmed by this poll. Publish from here too.
-    fSystem::PollNativeMatchResult();
-    fSystem::PollSpectators();
-    sf4e::NetplayFacade::PollSpectatorExit();
-    // Rift pacing: accounts for the last frame's shift and asks the frame
-    // limiter for the next one.
-    const fSystem::PacingTick pacing = fSystem::StepPacing();
-
-    {
-        // This timer is deliberately only the original engine method. The
-        // complete detoured outer tick is recorded separately below.
-        diag::ScopedTimer _t(diag::OP_STEAM_POST_UPDATE);
-        rUserApp::staticMethods.Steam_PostUpdate();
-    }
-    // Everything this tick changed is settled: hand the overlay its next frame.
-    sf4e::NetplayFacade::PublishPresentationFrame();
+    Sf4Tick game;
+    ember::Tick(game);
+    const fSystem::PacingTick pacing = game.pacing;
 
     if (diagnosticsEnabled) {
         const double now = diag::NowMs();

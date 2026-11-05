@@ -118,9 +118,9 @@ void CaptureMenuInput() {
             LogGameplayController(chosen, captured ? "capture" : "restore");
             if(!input::AssignToSide(runtime->input.Selected(),0,false))runtime->input.Begin();
         }
-        if (UserApp::netplay && runtime->input.Ready()) {
-            UserApp::netplay->deviceIdx = static_cast<uint8_t>(runtime->input.Selected().index);
-            UserApp::netplay->deviceType = static_cast<uint8_t>(runtime->input.Selected().type);
+        if (RuntimeSession::netplay && runtime->input.Ready()) {
+            RuntimeSession::netplay->deviceIdx = static_cast<uint8_t>(runtime->input.Selected().index);
+            RuntimeSession::netplay->deviceType = static_cast<uint8_t>(runtime->input.Selected().type);
         }
     } else runtime->input.Cancel();
     if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0);
@@ -308,13 +308,13 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
 } // namespace internal
 
 bool BindRuntimeInput(int localSlot) {
-    if (!runtime || !UserApp::netplay) return false;
+    if (!runtime || !RuntimeSession::netplay) return false;
     // Refresh connectivity just before native slot binding; never fall back to keyboard.
     runtime->input.Tick(input::ReadDevices());
     if (!runtime->input.Ready()) { runtime->error = loc::T("runtime.gameplay_device_disconnected"); return false; }
     const auto& device = runtime->input.Selected();
-    UserApp::netplay->deviceIdx = static_cast<uint8_t>(device.index);
-    UserApp::netplay->deviceType = static_cast<uint8_t>(device.type);
+    RuntimeSession::netplay->deviceIdx = static_cast<uint8_t>(device.index);
+    RuntimeSession::netplay->deviceType = static_cast<uint8_t>(device.type);
     if(!input::AssignToSide(device, localSlot, true)) {
         runtime->error=loc::T("runtime.controller_assignment_unverified");return false;
     }

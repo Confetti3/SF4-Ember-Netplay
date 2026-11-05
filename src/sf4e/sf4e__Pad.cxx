@@ -10,7 +10,7 @@
 #include "sf4e__Overlay.hxx"
 #include "sf4e__ReplayStore.hxx"
 #include "sf4e__SelfTest.hxx"
-#include "sf4e__UserApp.hxx"
+#include "sf4e__RuntimeSession.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "../common/TrainingPad.hxx"
@@ -118,7 +118,7 @@ void fSystem::UpdateInputs() {
     // player's setting says. Ember's menu reads the pads there too, while it
     // holds them and where Start opens it, and so does go now while a call
     // back from Training offers it.
-    const bool watching=sf4e::Game::Battle::System::ggpo&&sf4e::UserApp::netplay&&sf4e::UserApp::netplay->spectating;
+    const bool watching=sf4e::Game::Battle::System::ggpo&&ember::RuntimeSession::netplay&&ember::RuntimeSession::netplay->spectating;
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const auto policy=sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
         sf4e::replaystore::Exporting(),watching,menuPads.Takes()||callOffered,sf4e::selftest::Running());

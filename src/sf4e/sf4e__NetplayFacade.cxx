@@ -18,7 +18,7 @@
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Overlay.hxx"
-#include "sf4e__UserApp.hxx"
+#include "sf4e__RuntimeSession.hxx"
 
 using Dimps::App;
 using rMainMenu = Dimps::GameEvents::MainMenu;
@@ -29,7 +29,7 @@ using Dimps::Game::ProgressData;
 using Dimps::GameEvents::RootEvent;
 using Dimps::Math::FixedPoint;
 using fSystem = sf4e::Game::Battle::System;
-using fUserApp = sf4e::UserApp;
+using ember::RuntimeSession;
 using fVsBattle = sf4e::GameEvents::VsBattle;
 using rSystem = Dimps::Game::Battle::System;
 
@@ -211,13 +211,13 @@ namespace sf4e {
 		fVsBattle::nextRequest = {};
 		s_ggpoTransportStatus = { 0 };
 		s_ggpoSyncPhase = GgpoSyncPhase::None;
-		if (fUserApp::netplay) {
-			fUserApp::netplay->client.Disconnect();
-			fUserApp::netplay.reset();
+		if (RuntimeSession::netplay) {
+			RuntimeSession::netplay->client.Disconnect();
+			RuntimeSession::netplay.reset();
 		}
-		if (fUserApp::server) {
-			fUserApp::server->Close();
-			fUserApp::server.reset();
+		if (RuntimeSession::server) {
+			RuntimeSession::server->Close();
+			RuntimeSession::server.reset();
 		}
 		EndSpectatorDrain();
 		s_coordinationHealthy = s_sessionClientHealthy = true;
@@ -230,9 +230,9 @@ namespace sf4e {
 	void NetplayFacade::ClearBattleState() {
 		fSystem::snapshotMap.clear();
 		fSystem::ClearHashCheckpoints();
-		if (fUserApp::netplay) {
-			fUserApp::netplay->client.pendingRemoteSnapshots.clear();
-			fUserApp::netplay->client.pendingRemoteHashes.clear();
+		if (RuntimeSession::netplay) {
+			RuntimeSession::netplay->client.pendingRemoteSnapshots.clear();
+			RuntimeSession::netplay->client.pendingRemoteHashes.clear();
 		}
 	}
 
@@ -251,7 +251,7 @@ namespace sf4e {
 		// membership is not that set: a receiving spectator counts the other
 		// members and would hold its own session open for nothing, and without
 		// a room there is nothing to coordinate spectators through at all.
-		const std::size_t spectators = IsControlPlaneLost() || !fUserApp::netplay ?
+		const std::size_t spectators = IsControlPlaneLost() || !RuntimeSession::netplay ?
 			0 : fSystem::SpectatorStreamCount();
 		if (!spectators) {
 			EndSpectatorDrain();

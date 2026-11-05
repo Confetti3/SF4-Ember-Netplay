@@ -19,6 +19,7 @@
 #include "../Dimps/Dimps__Sound.hxx"
 #include "sf4e.hxx"
 #include "sf4e__UserApp.hxx"
+#include "sf4e__RuntimeSession.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
@@ -74,6 +75,7 @@
 #include "../training/TrainingRuntime.hxx"
 
 namespace sf4e { namespace NetplayFacade {
+using ember::RuntimeSession;
 namespace internal {
 void LogGameplayController(const input::Device& device, const char* reason);
 // The lifecycle trace records only changes. Publish runs every application

@@ -7,7 +7,7 @@
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__GameEvents.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
-#include "../sf4e/sf4e__UserApp.hxx"
+#include "../sf4e/sf4e__RuntimeSession.hxx"
 #include "../sf4e/sf4e__OverlayPrefs.hxx"
 #include "../sf4e/sf4e__Game__Battle__System.hxx"
 #include "../common/Localization.hxx"

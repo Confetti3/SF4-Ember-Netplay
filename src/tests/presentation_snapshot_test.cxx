@@ -7,7 +7,7 @@
 #include "session_client_mock.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
-#include "../sf4e/sf4e__UserApp.hxx"
+#include "../sf4e/sf4e__RuntimeSession.hxx"
 #include "../session/RoomModel.hxx"
 #include "../sf4e/sf4e__RuntimeBridge.hxx"
 #include "../sf4e/sf4e__GameEvents.hxx"
@@ -834,8 +834,8 @@ static void TestSharedRoom() {
 	CHECK(runtime != nullptr);
 	sf4e::SessionClient::Callbacks callbacks{};
 	std::string name = "Player 1";
-	sf4e::UserApp::netplay.reset(new sf4e::UserApp::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
-	auto& client = sf4e::UserApp::netplay->client;
+	ember::RuntimeSession::netplay.reset(new ember::RuntimeSession::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
+	auto& client = ember::RuntimeSession::netplay->client;
 	auto* transport = new sf4e::test::MockClient();
 	CHECK(client.Connect(std::unique_ptr<sf4e::session::ClientTransport>(transport), false) == 0);
 	transport->state = sf4e::session::ConnectionState::Connected;
@@ -885,7 +885,7 @@ static void TestSharedRoom() {
 	runtime->attached = false;
 	const auto out = publish();
 	CHECK(!out->room && out->Room().members.empty() && !out->Room().roomEpoch);
-	sf4e::UserApp::netplay.reset();
+	ember::RuntimeSession::netplay.reset();
 	facade::StopHelper();
 	Dimps::App::GetRootEvent = originalRoot;
 	std::cout << "Shared room passed\n";

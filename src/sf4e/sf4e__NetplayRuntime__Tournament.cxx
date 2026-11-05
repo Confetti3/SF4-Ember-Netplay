@@ -103,8 +103,8 @@ void SendWatchRequest(const WatchOutput& output, std::uint64_t nowMs) {
 }
 
 void SendPermitReady(const Output& output) {
-	if (!runtime->attached || !UserApp::netplay) return;
-	auto& client = UserApp::netplay->client;
+	if (!runtime->attached || !RuntimeSession::netplay) return;
+	auto& client = RuntimeSession::netplay->client;
 	const auto& snapshot = client.GetRoomSnapshot();
 	room::Action action;
 	action.kind = room::ActionKind::PermitReady;
@@ -152,7 +152,7 @@ void Execute(const Output& output, std::uint64_t nowMs) {
 	}
 	case Output::Kind::Bind:
 		// The room may be mid-round; the state machine offers it again.
-		if (UserApp::server && UserApp::server->BindTournament(output.binding))
+		if (RuntimeSession::server && RuntimeSession::server->BindTournament(output.binding))
 			spdlog::info("Tournament: room bound to match {} revision {}", output.binding.matchId, output.binding.bindingRevision);
 		break;
 	case Output::Kind::PermitReady:
@@ -352,16 +352,16 @@ netplay::tournament::RoomView View(bool helperReady) {
 	const auto& state = runtime->controller.GetSnapshot();
 	// Also out of a joined room: a room lost under a game keeps its battle.
 	view.fighting = netplay::Fighting(state.match);
-	view.joined = state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay && runtime->room;
+	view.joined = state.room == netplay::RoomState::Joined && runtime->attached && RuntimeSession::netplay && runtime->room;
 	// Not free to open a room counts as opening: the state machine waits
 	// rather than asking for a host or join the runtime would refuse.
 	view.opening = !view.joined && (state.room != netplay::RoomState::Idle || !helperReady || !AtMainMenu() ||
-		UserApp::netplay || UserApp::server || Game::Battle::System::ggpo);
+		RuntimeSession::netplay || RuntimeSession::server || Game::Battle::System::ggpo);
 	if (!view.joined) return view;
 	view.roomId = HexLower(runtime->room->RoomId());
 	view.invitation = runtime->room->Invitation();
-	view.authorityWritable = UserApp::server && (!state.coordinated || state.authorityWritable);
-	view.snapshot = &UserApp::netplay->client.GetRoomSnapshot();
+	view.authorityWritable = RuntimeSession::server && (!state.coordinated || state.authorityWritable);
+	view.snapshot = &RuntimeSession::netplay->client.GetRoomSnapshot();
 	return view;
 }
 }
@@ -381,7 +381,7 @@ void OpenMatchLink(const tournament_link::MatchLink& link, bool launched) {
 	// Judged as it arrives: a link clicked during a fight, a room or another
 	// tournament match waits for Play whenever the menu is next opened.
 	runtime->openedLinkFree = launched || (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle &&
-		!UserApp::netplay && !netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase()));
+		!RuntimeSession::netplay && !netplay::tournament::HoldsMatchRoom(runtime->tournament.GetPhase(), runtime->watch.GetPhase()));
 	runtime->openedLinkArrived = std::chrono::steady_clock::now();
 	spdlog::info("Tournament: a link opened match {}", link.matchId);
 }
@@ -391,7 +391,7 @@ void OpenConnectLink(const std::string& bridge, bool launched) {
 	auto& opened = runtime->openedConnect;
 	opened.bridge = bridge;
 	++opened.sequence;
-	const bool idle = AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay;
+	const bool idle = AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !RuntimeSession::netplay;
 	opened.confirm = !launched && !idle;
 	spdlog::info("Tournament: a link asked to connect Discord on service {}", bridge);
 }
@@ -404,7 +404,7 @@ void OpenPublicRoomLink(const tournament_link::RoomLink& link, bool launched) {
 	++opened.sequence;
 	// A link that started Ember was just clicked; otherwise only at the main
 	// menu with no room is the player free to be taken to Public rooms.
-	opened.free = launched || (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay);
+	opened.free = launched || (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !RuntimeSession::netplay);
 	spdlog::info("Public rooms: a link asked for a room");
 }
 
@@ -533,8 +533,8 @@ void TickTournament(bool helperReady) {
 }
 
 void ObserveTournamentTerminal(const room::Event& event, netplay::MatchResultOutbox::TerminalResult terminal) {
-	if (event.table != room::TournamentTable || !event.matchGeneration || !UserApp::netplay ||
-		!UserApp::netplay->client.GetRoomSnapshot().tournament.Active()) return;
+	if (event.table != room::TournamentTable || !event.matchGeneration || !RuntimeSession::netplay ||
+		!RuntimeSession::netplay->client.GetRoomSnapshot().tournament.Active()) return;
 	if (event.result == room::MatchResult::Abort || event.result == room::MatchResult::Cancel) {
 		runtime->tournament.OnTerminal(event.matchGeneration, event.result, 0, 0);
 		return;

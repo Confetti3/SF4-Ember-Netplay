@@ -280,6 +280,12 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__NetplayPresentation.cxx"
     "src/sf4e/sf4e__RuntimeBridge.hxx"
     "src/sf4e/sf4e__RuntimeBridge.cxx"
+    "src/sf4e/sf4e__RuntimeSession.hxx"
+    "src/sf4e/sf4e__RuntimeSession.cxx"
+    "src/sf4e/sf4e__RuntimeTick.hxx"
+    "src/sf4e/sf4e__RuntimeTick.cxx"
+    "src/sf4e/sf4e__ShellHost.hxx"
+    "src/sf4e/sf4e__ShellHost.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 target_link_libraries(sf4e PRIVATE SDL3::SDL3-static dxguid)

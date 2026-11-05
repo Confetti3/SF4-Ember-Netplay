@@ -105,26 +105,26 @@ static const ShownRoom& ShownRoomOf(const SessionClient& client) {
 	return shownRoom;
 }
 static void FillRoomView(RuntimeSnapshot& snapshot) {
-	if (runtime->attached && UserApp::netplay) {
-		const auto& shown = ShownRoomOf(UserApp::netplay->client);
+	if (runtime->attached && RuntimeSession::netplay) {
+		const auto& shown = ShownRoomOf(RuntimeSession::netplay->client);
 		snapshot.room = shown.room;
 		const room::Snapshot& current = *shown.room;
-		snapshot.roomReceivedMs = UserApp::netplay->client.RoomSnapshotReceivedMs();
+		snapshot.roomReceivedMs = RuntimeSession::netplay->client.RoomSnapshotReceivedMs();
 		snapshot.roomNotices.assign(runtime->roomNotices.begin(), runtime->roomNotices.end());
 		if (current.roomEpoch) {
 			snapshot.members = shown.members;
-		} else if (!UserApp::netplay->client._lobbyData.members.empty()) {
+		} else if (!RuntimeSession::netplay->client._lobbyData.members.empty()) {
 			auto members = std::make_shared<std::vector<netplay::MemberView>>();
-			for (const auto& member : UserApp::netplay->client._lobbyData.members) {
+			for (const auto& member : RuntimeSession::netplay->client._lobbyData.members) {
 				netplay::MemberView view(member.name);
 				const auto slot = members->size();
 				view.role = slot < 2 ? netplay::MemberRole::Player : netplay::MemberRole::Spectator;
-				view.ready = slot < 2 && UserApp::netplay->client._matchData.readyMessageNum[slot] != -1;
+				view.ready = slot < 2 && RuntimeSession::netplay->client._matchData.readyMessageNum[slot] != -1;
 				members->push_back(std::move(view));
 			}
 			snapshot.members = std::move(members);
 		}
-		const auto& client = UserApp::netplay->client;
+		const auto& client = RuntimeSession::netplay->client;
 		snapshot.lobbySettings.editionSelect = client._lobbyData.editionSelect;
 		snapshot.lobbySettings.roundCount = client._lobbyData.roundCount;
 		snapshot.lobbySettings.roundTime = client._lobbyData.roundTime.integral;
@@ -148,11 +148,11 @@ static void FillRoomView(RuntimeSnapshot& snapshot) {
                 snapshot.autoDelayMeasured=runtime->preferences.autoInputDelay && AutoDelayMeasured();
                 const int otherSeat=localMember->seat ? 0 : 1;
                 snapshot.opponentDelay=table->ready[otherSeat] ? table->inputDelay[otherSeat] : -1;
-                if (runtime->room && UserApp::server) {
+                if (runtime->room && RuntimeSession::server) {
                     const auto opponent=localMember->seat ? table->p1 : table->p2;
-                    const auto peer=UserApp::server->roomPeerIdentities.find(opponent);
+                    const auto peer=RuntimeSession::server->roomPeerIdentities.find(opponent);
                     const auto& probe=runtime->room->Probe();
-                    if (peer!=UserApp::server->roomPeerIdentities.end() && probe.peer==peer->second &&
+                    if (peer!=RuntimeSession::server->roomPeerIdentities.end() && probe.peer==peer->second &&
                         probe.pairRevision==table->revision) {
                         snapshot.probeRoute=ClassifyRoute(probe.route);
                         snapshot.probeRelay=RelayRegion(probe.route);
@@ -316,8 +316,8 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
         // A Rematch is coming while this PC's Ready is on its way or shown, facing an opponent.
         const auto match = runtime->controller.GetSnapshot().match;
         bool readied = runtime->readyIntent.Active();
-        if (!readied && UserApp::netplay) {
-            const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+        if (!readied && RuntimeSession::netplay) {
+            const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
             const auto place = room::PlaceOf(room, room.localMember);
             // The Readies that started the game just played stand until its match ends.
             const auto phase = place.kind == room::Place::Kind::Seat ? room.tables[place.table].phase : room::TablePhase::Idle;
@@ -347,11 +347,11 @@ std::uint64_t PublishFingerprint() {
     mix(static_cast<std::uint64_t>(state.recovery)); mix(state.readyPending); mix(state.coordinated);
     mix(state.authorityWritable); mix(state.authorityTerm); mix(state.authorityRevision); mix(state.authorityStalledMs != 0);
     mix(state.generation.room); mix(state.generation.match); mixString(state.error); mix(static_cast<std::uint64_t>(state.fault));
-    if (runtime->attached && UserApp::netplay) {
-        const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+    if (runtime->attached && RuntimeSession::netplay) {
+        const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
         mix(room.roomEpoch); mix(room.revision); mix(room.localMember);
-        mixString(UserApp::netplay->client.RoomError());
-        mix(UserApp::netplay->client._outstandingReadyRequestNumber);
+        mixString(RuntimeSession::netplay->client.RoomError());
+        mix(RuntimeSession::netplay->client._outstandingReadyRequestNumber);
     }
     mixString(runtime->error); mix(runtime->matchBinding.matchInputFault); mix(runtime->matchBinding.matchInput.connected);
     mix(runtime->helper ? static_cast<std::uint64_t>(runtime->helper->State()) : 0);
@@ -383,8 +383,8 @@ namespace internal {
 // WIN (room::Rules::instantRematch). A Practice room and a tournament's table
 // have no rematch to offer.
 static const room::Table* RematchTable() {
-    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !UserApp::netplay) return nullptr;
-    const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !RuntimeSession::netplay) return nullptr;
+    const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
     const auto table = runtime->entry.enteredTable;
     if (room.practice || room.tournament.Active() || table < 0 || table >= static_cast<int>(room.tables.size()) ||
         !room.tables[table].rules.instantRematch) return nullptr;
@@ -407,7 +407,7 @@ bool PostMatchPromptDue() {
 bool RematchInPlaceOffered(room::MatchResult result) {
     const auto* table = internal::RematchTable();
     if (!table) return false;
-    return room::RematchInPlaceOffered(UserApp::netplay->client.GetRoomSnapshot(), *table, result);
+    return room::RematchInPlaceOffered(RuntimeSession::netplay->client.GetRoomSnapshot(), *table, result);
 }
 
 namespace internal {
@@ -479,15 +479,15 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 	const bool between = state.match == netplay::MatchState::None || state.match == netplay::MatchState::PostMatch;
 	gates.editionSelect = runtime->preferences.lobby.editionSelect;
 	gates.canEditSelection = atMainMenu && state.room == netplay::RoomState::Idle;
-	gates.canOpenRoom = controllerReady && helperReady && atMainMenu && !UserApp::netplay && !UserApp::server && !ggpo;
+	gates.canOpenRoom = controllerReady && helperReady && atMainMenu && !RuntimeSession::netplay && !RuntimeSession::server && !ggpo;
 	gates.canEditPreferences = atMainMenu && state.room == netplay::RoomState::Idle &&
-		!UserApp::netplay && !UserApp::server && !ggpo;
+		!RuntimeSession::netplay && !RuntimeSession::server && !ggpo;
 	gates.canEditLobby = CanEditLobby();
 	static const room::Snapshot noRoom;
-	const bool attached = runtime->attached && UserApp::netplay;
-	const room::Snapshot& room = attached ? UserApp::netplay->client.GetRoomSnapshot() : noRoom;
+	const bool attached = runtime->attached && RuntimeSession::netplay;
+	const room::Snapshot& room = attached ? RuntimeSession::netplay->client.GetRoomSnapshot() : noRoom;
 	if (attached) {
-		const auto& client = UserApp::netplay->client;
+		const auto& client = RuntimeSession::netplay->client;
 		gates.editionSelect = client._lobbyData.editionSelect;
 		for (std::size_t i = 0; i < client._lobbyData.members.size(); ++i)
 			if (client._lobbyData.members[i].connId == client._cid) gates.localSlot = static_cast<int>(i);
@@ -529,11 +529,11 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 				gates.delayLocked = localMember->delayLocked || !room::SeatEditable(*table, localMember->seat) ||
 					!healthyControl || state.readyPending;
 				gates.canProbe = !gates.delayLocked && table->p1 && table->p2;
-				if (runtime->room && UserApp::server) {
+				if (runtime->room && RuntimeSession::server) {
 					const auto opponent = localMember->seat ? table->p1 : table->p2;
-					const auto peer = UserApp::server->roomPeerIdentities.find(opponent);
+					const auto peer = RuntimeSession::server->roomPeerIdentities.find(opponent);
 					const auto& probe = runtime->room->Probe();
-					if (peer != UserApp::server->roomPeerIdentities.end() && probe.peer == peer->second &&
+					if (peer != RuntimeSession::server->roomPeerIdentities.end() && probe.peer == peer->second &&
 						probe.pairRevision == table->revision) {
 						gates.canApplyDelay = !gates.delayLocked && probe.recommended >= 0;
 						if (probe.status == "checking") gates.canProbe = false;
@@ -776,7 +776,7 @@ void TickMemberLatency() {
 	if (!runtime->room) return;
 	const auto session = runtime->controller.GetSnapshot();
 	static const room::Snapshot none;
-	const auto& room = runtime->attached && UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot() : none;
+	const auto& room = runtime->attached && RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot() : none;
 	const bool shown = latencyBoard.Shown(room.roomEpoch, GetTickCount64());
 	runtime->room->WatchLatency(netplay::LatencyWanted(shown, session.room, session.match, room, runtime->replacementPending));
 }
@@ -832,9 +832,9 @@ bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const n
 bool TrainingRequestHolds(const netplay::Generation& made) {
     if (!runtime) return false;
     // The client's room as it is now, which may be newer than the last published snapshot.
-    const bool attached = runtime->attached && UserApp::netplay;
+    const bool attached = runtime->attached && RuntimeSession::netplay;
     const auto session = runtime->controller.GetSnapshot();
-    const auto room = attached ? UserApp::netplay->client.GetRoomSnapshot() : room::Snapshot{};
+    const auto room = attached ? RuntimeSession::netplay->client.GetRoomSnapshot() : room::Snapshot{};
     // Either way in: from a room as the room allows, or from Home with no room at all.
     for (const auto entry : {TrainingEntry::Room, TrainingEntry::Home})
         if (TrainingHolds(entry, made, session, internal::AtMainMenu(), room, internal::RetiredMatchGeneration())) return true;

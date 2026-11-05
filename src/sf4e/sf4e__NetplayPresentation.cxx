@@ -12,10 +12,10 @@
 #include "../common/MatchNotice.hxx"
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__RuntimeBridge.hxx"
-#include "sf4e__UserApp.hxx"
+#include "sf4e__RuntimeSession.hxx"
 
 using fSystem = sf4e::Game::Battle::System;
-using fUserApp = sf4e::UserApp;
+using ember::RuntimeSession;
 
 namespace sf4e {
 
@@ -51,15 +51,15 @@ namespace sf4e {
 			st.predictionStalled = fSystem::simGate.predictionStalled;
 			st.disconnectCountdownMs = fSystem::DisconnectCountdownMs();
 		}
-		st.active = fUserApp::netplay != nullptr || fUserApp::server != nullptr;
-		if (fUserApp::netplay) {
-			st.connected = fUserApp::netplay->client.IsConnected();
+		st.active = RuntimeSession::netplay != nullptr || RuntimeSession::server != nullptr;
+		if (RuntimeSession::netplay) {
+			st.connected = RuntimeSession::netplay->client.IsConnected();
 			st.inLobby = st.connected && fSystem::ggpo == nullptr;
 			st.inMatch = fSystem::ggpo != nullptr;
-			st.inputDelay = fUserApp::netplay->delay;
-			for (int side = 0; side < 2; ++side) st.matchSides[side] = fUserApp::netplay->matchSides[side];
+			st.inputDelay = RuntimeSession::netplay->delay;
+			for (int side = 0; side < 2; ++side) st.matchSides[side] = RuntimeSession::netplay->matchSides[side];
 			// Spectators carry their table too, so everyone watching sees the same count.
-			const auto& room = fUserApp::netplay->client.GetRoomSnapshot();
+			const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 			std::uint32_t liveScore[2] = { 0, 0 };
 			bool liveScoreKnown = false;
 			for (const auto& m : room.members)
@@ -77,12 +77,12 @@ namespace sf4e {
 				st.queuePosition = place.position;
 				st.queueLength = static_cast<int>(room.tables[place.table].queue.size());
 			}
-			st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->startScoreKnown,
-				fUserApp::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
+			st.hasMatchScore = HudScore(fSystem::ggpo && RuntimeSession::netplay->spectating, RuntimeSession::netplay->startScoreKnown,
+				RuntimeSession::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
 			st.rollbackFrames = fSystem::RecentRollbackFrames();
 
-			for (const auto& m : fUserApp::netplay->client._lobbyData.members) {
-				if (m.name != fUserApp::netplay->client._name) {
+			for (const auto& m : RuntimeSession::netplay->client._lobbyData.members) {
+				if (m.name != RuntimeSession::netplay->client._name) {
 					strncpy_s(st.opponentName, m.name.c_str(), _TRUNCATE);
 					break;
 				}

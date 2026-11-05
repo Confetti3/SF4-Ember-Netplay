@@ -18,14 +18,14 @@ namespace {
 std::string CurrentProbePeer(std::uint64_t& revision, int* tableIndex=nullptr) {
     revision=0;
     if (tableIndex) *tableIndex=-1;
-    if (!runtime || !runtime->attached || !UserApp::netplay || !UserApp::server) return {};
-    const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+    if (!runtime || !runtime->attached || !RuntimeSession::netplay || !RuntimeSession::server) return {};
+    const auto& snapshot=RuntimeSession::netplay->client.GetRoomSnapshot();
     const auto local=std::find_if(snapshot.members.begin(),snapshot.members.end(),[&](const room::Member& member){return member.id==snapshot.localMember;});
     if (local==snapshot.members.end() || local->table<0 || local->table>=room::TableCount || local->seat<0 || local->seat>1) return {};
     const auto& table=snapshot.tables[local->table];
     const auto opponent=local->seat==0 ? table.p2 : table.p1;
-    const auto peer=UserApp::server->roomPeerIdentities.find(opponent);
-    if (peer==UserApp::server->roomPeerIdentities.end()) return {};
+    const auto peer=RuntimeSession::server->roomPeerIdentities.find(opponent);
+    if (peer==RuntimeSession::server->roomPeerIdentities.end()) return {};
     revision=table.revision;
     if (tableIndex) *tableIndex=local->table;
     return peer->second;
@@ -204,8 +204,8 @@ static DispatchOutcome Handle(commands::Service& command, bool helperReady, Atte
         diagnostics.pingMs = GetStatus().pingMs;
         FillNetworkDiagnostics(diagnostics);
         diagnostics.selectedDelay=CurrentGates().selectedDelay;
-        diagnostics.recoveryCheckpointBuildsAvailable=static_cast<bool>(UserApp::server);
-        if(UserApp::server) diagnostics.recoveryCheckpointBuilds=UserApp::server->RecoveryCheckpointBuilds();
+        diagnostics.recoveryCheckpointBuildsAvailable=static_cast<bool>(RuntimeSession::server);
+        if(RuntimeSession::server) diagnostics.recoveryCheckpointBuilds=RuntimeSession::server->RecoveryCheckpointBuilds();
         diagnostics.performanceEnabled=diag::Enabled();
         diagnostics.traceDropped=runtime->trace.Dropped();
         diagnostics.traceLastWriteMs=runtime->trace.LastWriteMs();
@@ -256,7 +256,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
     }
 	if (kind == netplay::CommandKind::HostRoom && !command.preferences.Valid()) return DispatchOutcome::Dropped;
 	if (kind == netplay::CommandKind::RoomAction) {
-		if (!runtime->attached || !UserApp::netplay || !runtime->match) return DispatchOutcome::Dropped;
+		if (!runtime->attached || !RuntimeSession::netplay || !runtime->match) return DispatchOutcome::Dropped;
 		// A lock-in the player asks for now is newer than a stream failure, so a
 		// release still waiting for it must not undo it.
 		runtime->spectatorLockRelease.Observe(command.roomAction);
@@ -285,7 +285,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 				// room has already finished (the live game's leave is
 				// leaveWatchedGame); it is sent before local GGPO retirement so
 				// P1 receives game_peer_end while the generation is still current.
-				if (UserApp::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
+				if (RuntimeSession::netplay->client.SendRoomAction(command.roomAction) != session::SendResult::Queued) {
 					runtime->error = loc::T("runtime.spectator_action_retrying");
 					return Defer(runtime->roomActionIntent, command);
 				}
@@ -337,7 +337,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// inputs carry, and takes the checks below after the battle if it closes.
 		if (kind == netplay::CommandKind::Rematch && Game::Battle::System::ResultHeld() && internal::PostMatchPromptDue())
 			return Defer(runtime->readyIntent, command);
-		auto* client = UserApp::netplay ? &UserApp::netplay->client : nullptr;
+		auto* client = RuntimeSession::netplay ? &RuntimeSession::netplay->client : nullptr;
 		const bool inFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
 			(client && (client->_outstandingReadyRequestNumber != -1 ||
 				(gates.localSlot >= 0 && gates.localSlot < 2 && client->LocalSelectionLocked(gates.localSlot))));
@@ -373,7 +373,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		}
 	}
 	if ((kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::JoinInvite) &&
-		(!helperReady || !AtMainMenu() || UserApp::netplay || UserApp::server || Game::Battle::System::ggpo)) {
+		(!helperReady || !AtMainMenu() || RuntimeSession::netplay || RuntimeSession::server || Game::Battle::System::ggpo)) {
 		runtime->error = loc::T("runtime.return_main_menu"); return DispatchOutcome::Dropped;
 	}
 	// Playing or watching a match waits for the match's room and acts only on
@@ -420,7 +420,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	auto outcome = DispatchOutcome::Dispatched;
 	switch (decision.effect) {
 	case netplay::Effect::SendRoomAction: {
-		const auto sent = UserApp::netplay->client.SendRoomAction(command.roomAction);
+		const auto sent = RuntimeSession::netplay->client.SendRoomAction(command.roomAction);
 		// A full queue or a control reconnect is transient: keep the intent
 		// under its budget rather than making the player press again.
 		if (sent == session::SendResult::NotConnected || sent == session::SendResult::QueueFull)
@@ -441,7 +441,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		break;
 	case netplay::Effect::SetLobbySettings: {
 		const auto& settings = command.preferences.lobby;
-		if (UserApp::netplay->client.Lobby_SetSettings(settings.editionSelect, settings.roundCount,
+		if (RuntimeSession::netplay->client.Lobby_SetSettings(settings.editionSelect, settings.roundCount,
 			{0, static_cast<short>(settings.roundTime)}) == session::SendResult::Queued) {
 			runtime->pendingLobbySettings.reset(new netplay::LobbySettings(settings));
 			runtime->lobbySettingsDeadline = GetTickCount64() + 15000;
@@ -481,8 +481,8 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		break;
 	}
 	case netplay::Effect::CloseSession:
-        if(IsRuntimeRecoveryEnabled() && runtime->attached && UserApp::netplay &&
-            UserApp::netplay->client.GetRoomSnapshot().localMember) {
+        if(IsRuntimeRecoveryEnabled() && runtime->attached && RuntimeSession::netplay &&
+            RuntimeSession::netplay->client.GetRoomSnapshot().localMember) {
             runtime->leave.leaveRequested=true;
             CancelLocalMatch(GgpoEnd::Retire("leave_room"));
         } else CloseRoom();
@@ -490,10 +490,10 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
     case netplay::Effect::ReplaceRoom:
         runtime->replacementPending=true;
         // The replacement is the same kind of room as the one it replaces.
-        runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
-        runtime->arcadeRoom=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
-        runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
-        runtime->tableCount=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
+        runtime->practiceRoom=RuntimeSession::netplay && RuntimeSession::netplay->client.GetRoomSnapshot().practice;
+        runtime->arcadeRoom=RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
+        runtime->delayPolicy=RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
+        runtime->tableCount=RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot().tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -526,12 +526,12 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         // A chosen number turns Auto off; choosing Auto keeps the number saved.
         runtime->preferences.autoInputDelay=automatic;
         if(automatic) runtime->autoDelayCheck.Want(GetTickCount64());
-        UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
+        RuntimeSession::netplay->client.SetSelectedDelay(ReadyDelay());
         if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
         break;
     }
 	case netplay::Effect::SendReady: {
-		auto& client = UserApp::netplay->client;
+		auto& client = RuntimeSession::netplay->client;
         client.SetSelectedDelay(ReadyDelay());
         client.SetSelectedLowerLag(runtime->preferences.lowerInputLag);
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
@@ -546,7 +546,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		break;
 	}
 	case netplay::Effect::StartOffline:
-		if (UserApp::netplay || UserApp::server) ShutdownNetplay(true);
+		if (RuntimeSession::netplay || RuntimeSession::server) ShutdownNetplay(true);
 		runtime->offlineRequested = true;
 		break;
 	default: break;
@@ -563,9 +563,9 @@ static DispatchOutcome Dispatch(TypedCommand command, bool helperReady, Attempt 
 // table has already moved on to preparing the match. Legacy lobbies have no
 // seat flag; the acknowledged request is the commit.
 static void ObserveReadyCommit() {
-	if (!runtime->readyIntent.AwaitingCommit() || !runtime->attached || !UserApp::netplay ||
+	if (!runtime->readyIntent.AwaitingCommit() || !runtime->attached || !RuntimeSession::netplay ||
 		runtime->controller.GetSnapshot().readyPending) return;
-	const auto& client = UserApp::netplay->client;
+	const auto& client = RuntimeSession::netplay->client;
 	const auto& room = client.GetRoomSnapshot();
 	if (!room.roomEpoch) {
 		if (client._outstandingReadyRequestNumber == -1) runtime->readyIntent.Commit();
@@ -655,7 +655,7 @@ TypedCommand Classify(RuntimeCommand command) {
 
 // No room joined and none being joined: where the battle log may be opened
 // and where Ember's menu may come back to the Replays screen.
-static bool NoRoom() { return runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay; }
+static bool NoRoom() { return runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !RuntimeSession::netplay; }
 
 // A replay link's file is played only on the player's word, so any request
 // for it, or a dismissal, answers the question the link left.
@@ -725,9 +725,9 @@ static bool AutoCheckClear(const std::string& peer, int tableIndex) {
     // No mapping reads as Closed, as the copying Game() does.
     const auto* game=runtime->room->FindGame(peer);
     if(game && game->state!=session::IrohRoom::GameState::Closed) return false;
-    const auto* committed=UserApp::server->RoomSnapshot();
+    const auto* committed=RuntimeSession::server->RoomSnapshot();
     if(!committed || tableIndex<0 || tableIndex>=static_cast<int>(room::TableCount)) return true;
-    return room::ProbePairCommitted(UserApp::netplay->client.GetRoomSnapshot().tables[tableIndex],committed->tables[tableIndex]);
+    return room::ProbePairCommitted(RuntimeSession::netplay->client.GetRoomSnapshot().tables[tableIndex],committed->tables[tableIndex]);
 }
 
 // Asks for Auto's check. It takes the controller's check of a press of Check
@@ -787,13 +787,13 @@ void TickCreatedRules(bool helperReady) {
     auto& rules=runtime->createdRules;
     if(!rules.Active()) return;
     const auto now=GetTickCount64();
-    if(!runtime->attached || !UserApp::netplay) {
+    if(!runtime->attached || !RuntimeSession::netplay) {
         // Not in the room (yet): only the wait for it is timed.
         room::Action unused; rules.Next(room::Snapshot(),false,now,unused);
         if(!rules.Active()) spdlog::info("Room: created room rules ended reason={}",rules.Ended());
         return;
     }
-    auto& client=UserApp::netplay->client;
+    auto& client=RuntimeSession::netplay->client;
     const auto state=runtime->controller.GetSnapshot();
     const bool canSend=helperReady && state.room==netplay::RoomState::Joined && state.control==netplay::Health::Healthy &&
         state.recovery==netplay::Recovery::None && (!state.coordinated || state.authorityWritable) && !client.GetRoomSnapshot().closed;
@@ -819,12 +819,12 @@ void DrainRoomEvents() {
 	// the recovery runtime when coordination is active); a reply to a command
 	// sent above cannot arrive within the same tick, so a third poll here
 	// only repeated the checkpoint pump and message parsing.
-	if (runtime->attached && UserApp::netplay) {
+	if (runtime->attached && RuntimeSession::netplay) {
 		room::Event event;
-        while (UserApp::netplay->client.TakeRoomEvent(event)) {
+        while (RuntimeSession::netplay->client.TakeRoomEvent(event)) {
             if(event.kind==room::Event::Kind::MatchEnded) {
 				const auto resultTerminal = runtime->room ? runtime->resultOutbox.ObserveTerminal(runtime->room->RoomId(),
-					UserApp::netplay->client.GetRoomSnapshot().roomEpoch, event.table, event.matchGeneration, event.result) :
+					RuntimeSession::netplay->client.GetRoomSnapshot().roomEpoch, event.table, event.matchGeneration, event.result) :
 					netplay::MatchResultOutbox::TerminalResult::Unrelated;
 				ObserveTournamentTerminal(event, resultTerminal);
 				if(event.matchGeneration==runtime->teardown.matchFinishedGeneration && event.table==runtime->matchFinishedTable) {
@@ -903,9 +903,9 @@ void PersistTerminalOutcome() {
 }
 
 void DrainActionReplies() {
-	if (runtime->attached && UserApp::netplay) {
+	if (runtime->attached && RuntimeSession::netplay) {
         SessionClient::ActionReply reply;
-        while (UserApp::netplay->client.TakeActionReply(reply)) {
+        while (RuntimeSession::netplay->client.TakeActionReply(reply)) {
             if(reply.actionId==runtime->leave.leaveActionId && reply.accepted) runtime->leave.leaveAcknowledged=true;
 			// Only the authority's acceptance ends a spectator's lock release.
 			if (reply.accepted) runtime->spectatorLockRelease.Acknowledged(reply.actionId);
@@ -914,7 +914,7 @@ void DrainActionReplies() {
 			// previous match.
 			if (!reply.accepted && !reply.superseded && reply.kindKnown && reply.kind == room::ActionKind::Ready &&
 				runtime->readyIntent.Armed()) {
-				const auto& text = UserApp::netplay->client.RoomError();
+				const auto& text = RuntimeSession::netplay->client.RoomError();
 				FailReady(text.empty() ? loc::T("runtime.ready.refused") : loc::T(text.c_str()));
 			}
 			if (runtime->resultOutbox.ObserveReply(reply.actionId, reply.accepted,
@@ -935,8 +935,8 @@ void DrainActionReplies() {
 }
 
 void ConfirmLobbySettings() {
-	if (runtime->pendingLobbySettings && runtime->attached && UserApp::netplay) {
-		const auto& lobby = UserApp::netplay->client._lobbyData;
+	if (runtime->pendingLobbySettings && runtime->attached && RuntimeSession::netplay) {
+		const auto& lobby = RuntimeSession::netplay->client._lobbyData;
 		netplay::LobbySettings current;
 		current.editionSelect = lobby.editionSelect; current.roundCount = lobby.roundCount; current.roundTime = lobby.roundTime.integral;
 		if (current == *runtime->pendingLobbySettings) {
@@ -977,8 +977,8 @@ void ResolvePendingIntents(bool helperReady) {
 	// player stood up, or was removed) or the other seat empty. Left armed, it ran out its budget and
 	// blamed the previous match. Only the committed room decides this: a leave
 	// the room refuses keeps the press.
-	if (runtime->attached && UserApp::netplay &&
-		netplay::DropReadyWithoutSeat(runtime->readyIntent, UserApp::netplay->client.GetRoomSnapshot()))
+	if (runtime->attached && RuntimeSession::netplay &&
+		netplay::DropReadyWithoutSeat(runtime->readyIntent, RuntimeSession::netplay->client.GetRoomSnapshot()))
 		spdlog::info("Ready: dropped, its seat or the opponent's is empty");
 	// A parked Ready or lobby edit that never gets its turn is reported, not
 	// forgotten: the player pressed it and GGPO was already retired for it.
@@ -993,7 +993,7 @@ void ResolvePendingIntents(bool helperReady) {
 	gate.controlHealthy = controlState.control == netplay::Health::Healthy;
 	gate.authorityWritable = !controlState.coordinated || controlState.authorityWritable;
 	gate.recoveringMatch = runtime->recoveringMatch;
-	gate.spectatorInGame = runtime->attached && UserApp::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
+	gate.spectatorInGame = runtime->attached && RuntimeSession::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
 	gate.atMenuIdle = AtMainMenu() && matchIdle;
 	const bool healthyRoomControl = gate.controlHealthy && gate.authorityWritable;
 	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent}) {
@@ -1010,8 +1010,8 @@ void ResolvePendingIntents(bool helperReady) {
 		Retry(runtime->readyIntent, helperReady);
 	if (runtime->lobbyEditIntent.Parked() && healthyRoomControl && matchIdle)
 		Retry(runtime->lobbyEditIntent, helperReady);
-	if (runtime->attached && UserApp::netplay && runtime->controller.GetSnapshot().readyPending &&
-		UserApp::netplay->client._outstandingReadyRequestNumber == -1) Apply(netplay::EventKind::ReadyAcknowledged);
+	if (runtime->attached && RuntimeSession::netplay && runtime->controller.GetSnapshot().readyPending &&
+		RuntimeSession::netplay->client._outstandingReadyRequestNumber == -1) Apply(netplay::EventKind::ReadyAcknowledged);
 	ObserveReadyCommit();
 }
 } // namespace internal

@@ -7,6 +7,7 @@
 #include "sf4e__ReplayPlayback.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e.hxx"
+#include "sf4e__ShellHost.hxx"
 #include "../Dimps/Dimps__Selection.hxx"
 #include "../ui/ApplicationShell.hxx"
 #include "../ui/FighterSelector.hxx"
@@ -79,9 +80,8 @@ static ImTextureID WatchedPicture(unsigned width, unsigned height) {
 	return done ? reinterpret_cast<ImTextureID>(s_watchedShown) : ImTextureID{};
 }
 static sf4e::ui::FighterSelector s_fighterSelectors[3];
-static sf4e::ui::ApplicationShell shell;
-// The room the drawn shell shows, kept across frames (DrawApplicationHome).
-static sf4e::ui::RoomCarry s_roomCarry;
+static ember::ShellHost s_shellHost;
+static sf4e::ui::ApplicationShell& shell = s_shellHost.Shell();
 static sf4e::ui::OverlayPresentation presentation;
 // The picks as this session has them (the per-fighter memory included), and
 // as the settings writer last accepted them. A save the writer refuses is
@@ -304,246 +304,86 @@ static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapsh
 	sf4e::selection::ToNative(pick, trainingDummy);
 }
 
-// Hidden, the shell still takes identity answers, ends a cancelled Discord
-// sign-in on its service, keeps the room chat and follows the room. The room
-// is lent as a drawn frame lends it (copied once per change, not per match
-// frame), and only its few notices (at most RoomNoticesKept) are copied.
-static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot) {
-    sf4e::ui::ShellView view;
-    view.session = snapshot.session;
-    s_roomCarry.Lend(view, snapshot.room);
-    view.watchedGame = snapshot.watchedGame;
-    // The post-match prompt goes on while Ember is hidden (UpdatePostMatch).
-    view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
-    view.gamesInPlace = snapshot.gamesInPlace; view.foughtGame = snapshot.foughtGame;
-    view.roomNotices = snapshot.roomNotices;
-    view.identity = snapshot.identity;
-    view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
-    view.identityRefusal = snapshot.identityRefusal;
-    shell.Background(view, view.room, [](sf4e::ui::ShellAction action) {
-        sf4e::NetplayFacade::RuntimeCommand request;
-        request.command = std::move(action.command);
-        request.roomAction = std::move(action.roomAction);
-        request.leaveWatchedGame = action.leaveWatchedGame;
-        request.identity = std::move(action.identity);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.arcadeRoom = action.arcadeRoom;
-        return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
-    });
-    s_roomCarry.Return(view);
-}
-static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot, const sf4e::NetplayStatus& status) {
-	sf4e::ui::ShellView view;
-    view.controllerAvailable = controllerNavigation.Available();
-    view.controllerUnavailable = controllerNavigation.Unavailable();
-    view.controllerFocus = controllerNavigation.FocusRequested();
-    view.controllerBack = controllerNavigation.BackRequested();
-	view.session = snapshot.session;
-	// The room is lent from the last frame's copy unless the published one
-	// changed (it is copied once per change, not per frame) and given back
-	// after the frame. Idle times and start holds were stamped when the
-	// snapshot was sent; the shell counts them on from the stamp where it
-	// reads them, so the room is never patched.
-	s_roomCarry.Lend(view, snapshot.room);
-	if (snapshot.roomReceivedMs) view.roomElapsedMs = GetTickCount64() - snapshot.roomReceivedMs;
-	view.roomNotices = snapshot.roomNotices;
-	view.preferences = snapshot.preferences;
-	view.lobbySettings = snapshot.lobbySettings;
-	view.helperReady = snapshot.helperReady;
-	view.canOpenRoom = snapshot.canOpenRoom;
-	view.canReplaceRoom = snapshot.canReplaceRoom;
-	view.canReady = snapshot.canReady;
-	view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
-		EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
-	view.canEditSelection = snapshot.canEditSelection;
-    view.selectionLockReason = snapshot.selectionLockReason;
-    view.readyPress = snapshot.readyPress; view.readyFailure = snapshot.readyFailure;
-    view.readyFailureSequence = snapshot.readyFailureSequence;
-    view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
-    view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
-    view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
-    view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
-    view.watchedGame = snapshot.watchedGame;
-    view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
-    view.rematchChoices = snapshot.rematchChoices; view.gamesInPlace = snapshot.gamesInPlace;
-    view.foughtGame = snapshot.foughtGame;
-    // Taken before Ember draws anything this frame, so it holds the game's picture alone.
-    if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
-        const auto& size = ImGui::GetMainViewport()->Size;
-        // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
-        const float share = sf4e::ui::WatchedPictureTaken;
-        view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
+// SF4's part of the shell's frame (ember::ShellGame): the player's pick, kept
+// here as the native pick type, and what the shell says of it.
+struct Sf4ShellGame final : ember::ShellGame {
+    void FillView(const RuntimeSnapshot& snapshot, sf4e::ui::ShellView& view) override {
+        view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
+            EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
+        // Taken before Ember draws anything this frame, so it holds the game's picture alone.
+        if (view.watchedGame.Active() && snapshot.preferences.pictureMode != sf4e::netplay::PictureOff) {
+            const auto& size = ImGui::GetMainViewport()->Size;
+            // The texture is made once, at the largest size the picture can be shown, so any size stays sharp.
+            const float share = sf4e::ui::WatchedPictureTaken;
+            view.watchedPicture = WatchedPicture(static_cast<unsigned>(size.x * share), static_cast<unsigned>(size.y * share));
+        }
+        // Both read their file once; the card's own outcome decides whether to ask.
+        static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
+        view.gameSettings = sf4e::platform::GameDisplaySettings();
+        view.showGameSettingsCard = showGameSettingsCard;
+        view.build = sf4e::sidecarHash;
+        const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
+        auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
+        view.selectedPick = summaryPick; view.selectedRandom = s_prefs.lobbyRandom;
+        view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom),
+            sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
+        const auto* dummy = sf4e::selection::FindFighter(trainingDummy.charaID);
+        view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
+            sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
+        view.fighterName = sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom);
+        view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
+            std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
+        view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
+        view.appearanceName = !fighter ? std::string() :
+            sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1);
+        view.stageName = sf4e::ui::StageLabel(lobbyStageID, snapshot.installedContent.get());
+        view.fighterOptionsName = sf4e::loc::Tf("room.fighter_options.value",
+            lobbyConditions.personalAction == 255 ? std::string(sf4e::loc::T("common.none")) : std::to_string(lobbyConditions.personalAction + 1),
+            lobbyConditions.winQuote == 255 ? std::string(sf4e::loc::T("selection.random")) : std::to_string(lobbyConditions.winQuote + 1));
+        view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
+            snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()).size() > 1;
+        if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
+            EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()))
+            view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
+        if (!sf4e::selection::Available(sf4e::selection::FromNative(trainingDummy), true,
+            snapshot.fighterAvailability[trainingDummy.charaID], snapshot.installedContent.get()))
+            view.dummyError = sf4e::loc::T("runtime.selection_unavailable");
     }
-    view.lockInDrops = snapshot.lockInDrops;
-	view.canEditPreferences = snapshot.canEditPreferences;
-	view.canEditLobby = snapshot.canEditLobby;
-	view.settingsPending = snapshot.settingsPending;
-    view.selectedDelay=snapshot.selectedDelay; view.recommendedDelay=snapshot.recommendedDelay; view.autoDelayMeasured=snapshot.autoDelayMeasured;
-    view.opponentDelay=snapshot.opponentDelay;
-    view.delayLocked=snapshot.delayLocked; view.canProbe=snapshot.canProbe; view.canApplyDelay=snapshot.canApplyDelay;
-    view.probeRelay=snapshot.probeRelay; view.probeOpponent=snapshot.probeOpponent;
-    view.probeOpponentNat=snapshot.probeOpponentNat; view.netReport=snapshot.netReport;
-    view.probeRoute=snapshot.probeRoute; view.probeP50Us=snapshot.probeP50Us; view.probeP95Us=snapshot.probeP95Us;
-    view.probeP99Us=snapshot.probeP99Us; view.probeJitterUs=snapshot.probeJitterUs; view.probeBenchmark=snapshot.probeBenchmark;
-    view.probeStatus=snapshot.probeStatus; view.probeSamples=snapshot.probeSamples; view.probeLost=snapshot.probeLost;
-    view.probeSent=snapshot.probeSent; view.probeExpected=snapshot.probeExpected;
-    view.memberLatency=snapshot.memberLatency;
-	view.localSlot = snapshot.localSlot;
-	view.invitation = snapshot.invitation;
-	view.shortInvitation = snapshot.shortInvitation;
-	view.shortInvitationPending = snapshot.shortInvitationPending;
-	view.shortInvitationFailures = snapshot.shortInvitationFailures;
-	view.pendingJoinLink = snapshot.pendingJoinLink;
-	view.pendingJoinSequence = snapshot.pendingJoinSequence;
-	view.pendingJoinDirect = snapshot.pendingJoinDirect;
-	view.error = snapshot.helperError;
-	view.settingsError = snapshot.settingsError;
-	view.languagePreference = snapshot.languagePreference;
-	view.checkUpdatesAtLaunch = snapshot.checkUpdatesAtLaunch;
-	view.automaticCountry = snapshot.automaticCountry;
-	view.unixNow = static_cast<std::uint64_t>(std::time(nullptr));
-	// Both read their file once; the card's own outcome decides whether to ask.
-	static const bool showGameSettingsCard = !sf4e::platform::GameSettingsCardHidden();
-	view.gameSettings = sf4e::platform::GameDisplaySettings();
-	view.showGameSettingsCard = showGameSettingsCard;
-	view.build = sf4e::sidecarHash;
-	view.members = snapshot.Members();
-    view.network = snapshot.network; view.services = snapshot.services;
-    view.controller = snapshot.controller;
-    view.discordPending=snapshot.discordPending; view.discordConfirm=snapshot.discordConfirm;
-    view.discordRevision=snapshot.discordRevision;
-    view.discordCanSwitch=snapshot.discordCanSwitch; view.discordStatus=snapshot.discordStatus;
-    view.inputDevice = snapshot.inputDevice; view.menuButtons = snapshot.menuController.menu;
-    view.gameplayBrand = snapshot.gameplayBrand; view.promptBrand = snapshot.promptBrand;
-    view.padHint = snapshot.padHint;
-    view.padHintUntil = snapshot.padHintUntil; view.padLayer = snapshot.padLayer;
-    view.padSetup = snapshot.padSetup; view.atMainMenu = snapshot.atMainMenu;
-    view.padLayerPending = snapshot.padLayerPending; view.runningControllerLayer = snapshot.runningControllerLayer;
-    view.lobbyMusicAvailable = snapshot.lobbyMusicAvailable;
-    view.pads = snapshot.pads; view.captureCandidate = snapshot.captureCandidate;
-    view.inputCapture = snapshot.inputCapture;
-    view.controllerReady = snapshot.controllerReady;
-    view.canChangeController = snapshot.canChangeController;
-    view.identity = snapshot.identity;
-    view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
-    view.identityRefusal = snapshot.identityRefusal;
-    view.tournament = snapshot.tournament;
-    view.publicRooms = snapshot.publicRooms;
-    view.rankings = snapshot.rankings;
-    // The archive is listed, and an entry's inputs read, off this thread (the
-    // runtime's workers). The screen on show says what to ask for; the last
-    // listing and detail they made come with the snapshot.
-    const auto replayWants = shell.ReplayWants();
-    if (replayWants.listing) sf4e::platform::replays::WantListing();
-    if (replayWants.detail) sf4e::platform::replays::WantDetail(replayWants.detailFile, replayWants.detailRevision);
-    view.replays = snapshot.replays;
-    const auto* fighter = sf4e::selection::FindFighter(lobbyMenuCharaID);
-    auto summaryPick = sf4e::selection::FromNative(lobbyConditions); summaryPick.fighter = lobbyMenuCharaID;
-    view.selectedPick = summaryPick; view.selectedRandom = s_prefs.lobbyRandom;
-    view.selectionSummary = sf4e::loc::Tf("runtime.selection_summary", sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom),
-        sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1, sf4e::ui::UltraLabel(lobbyConditions.ultraCombo));
-    const auto* dummy = sf4e::selection::FindFighter(trainingDummy.charaID);
-    view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
-        sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
-    view.fighterName = sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom);
-    view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
-        std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
-    view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
-    view.appearanceName = !fighter ? std::string() :
-        sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1);
-    view.stageName = sf4e::ui::StageLabel(lobbyStageID, snapshot.installedContent.get());
-    view.fighterOptionsName = sf4e::loc::Tf("room.fighter_options.value",
-        lobbyConditions.personalAction == 255 ? std::string(sf4e::loc::T("common.none")) : std::to_string(lobbyConditions.personalAction + 1),
-        lobbyConditions.winQuote == 255 ? std::string(sf4e::loc::T("selection.random")) : std::to_string(lobbyConditions.winQuote + 1));
-    view.colorSteps = fighter && sf4e::selection::AllowedColors(summaryPick.fighter, summaryPick.costume,
-        snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()).size() > 1;
-    if (snapshot.atMainMenu && !sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
-        EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()))
-        view.selectionError = sf4e::loc::T("runtime.selection_unavailable");
-    if (!sf4e::selection::Available(sf4e::selection::FromNative(trainingDummy), true,
-        snapshot.fighterAvailability[trainingDummy.charaID], snapshot.installedContent.get()))
-        view.dummyError = sf4e::loc::T("runtime.selection_unavailable");
-    // Outside a fight the shell status line carries the notice; transient
-    // info ("Connection restored.") belongs to the match HUD only.
-    if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
-	bool open = true;
-    shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
-		// The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
-		if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None) {
-			if (!snapshot.canEditSelection || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
-			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
-			const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
-			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
-				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step.delta);
-			sf4e::selection::ToNative(pick, lobbyConditions);
-			return true;
-		}
-		// Training select's Start: the main menu enters Training with these
-		// once it is idle (GameEvents::TrainingMode). Not from a room or match.
-		if (action.startTraining) {
-			if (!snapshot.atMainMenu || snapshot.session.room != sf4e::netplay::RoomState::Idle || snapshot.session.match != sf4e::netplay::MatchState::None)
-				return false;
-			sf4e::GameEvents::TrainingSides sides;
-			sides.sides[0] = lobbyConditions;
-			sides.sides[0].charaID = static_cast<BYTE>(lobbyMenuCharaID);
-			sides.sides[1] = trainingDummy;
-			sides.stage = sf4e::selection::ResolveStage(lobbyStageID, sf4e::localRand(), lobbyRandomPool, snapshot.installedContent->stages);
-			sf4e::GameEvents::TrainingMode::Choose(sides);
-			sf4e::overlay::RandomFighterPlayed();
-			presentation.Close("Training select");
-			return true;
-		}
-		sf4e::NetplayFacade::RuntimeCommand request;
-		request.command = std::move(action.command);
-        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
-        request.updateOffer = std::move(action.updateOffer); request.updateChannel = action.updateChannel;
-        request.replay = std::move(action.replay);
-        request.reportSubmission = std::move(action.reportSubmission);
-        request.inputAction = action.inputAction; request.discordAction = action.discordAction;
-        request.padAction = action.padAction;
-        request.discordRevision = action.discordRevision;
-		request.displayName = snapshot.preferences.displayName;
-		request.preferences = std::move(action.preferences);
-		request.roomAction = std::move(action.roomAction);
-        request.selectedDelay=action.selectedDelay;
-        request.previewSoundVolume=action.previewSoundVolume;
-        request.identity = std::move(action.identity);
-        request.shortInvitation=action.shortInvitation;
-        request.roomSettings=action.roomSettings;
-        request.tournament = std::move(action.tournament);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.practiceRoom = action.practiceRoom;
-        request.arcadeRoom = action.arcadeRoom;
-        request.delayPolicy = action.delayPolicy;
-        request.tableCount = action.tableCount;
-		request.character = lobbyConditions;
-		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
-		request.stage = lobbyStageID;
-		request.randomPool = lobbyRandomPool;
-		request.training = action.training;
-		request.leaveWatchedGame = action.leaveWatchedGame;
-		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
-		// Training from a room or Home: the menu closes behind it while the runtime
-		// sends the game on.
-		if (action.training != sf4e::TrainingEntry::None) presentation.Close("Training");
-		return true;
-	}, [&] {
-		if (shell.SelectingDummy()) DrawTrainingDummy(snapshot);
-		else DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
-			(snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr, snapshot);
-	}
-#ifdef SF4E_DEVELOPER_UI
-    , [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); }
-#endif
-    );
-    if (shell.BoardDrawn()) sf4e::NetplayFacade::NoteLatencyBoard(view.room.roomEpoch);
-    if (shell.SelectionDrawn()) sf4e::NetplayFacade::NoteFighterSelector(view.room.roomEpoch);
-    if (shell.ChatTyping()) sf4e::NetplayFacade::NoteChatTyping(view.room.roomEpoch);
-    s_roomCarry.Return(view);
-    if (!open) presentation.Close("Back on Ember's Home");
-}
+
+    bool StepSelection(const sf4e::ui::ShellAction::SelectionStep& step, const RuntimeSnapshot& snapshot) override {
+        if (!snapshot.canEditSelection || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
+        auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
+        const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
+        sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
+            sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step.delta);
+        sf4e::selection::ToNative(pick, lobbyConditions);
+        return true;
+    }
+
+    void StartTraining(const RuntimeSnapshot& snapshot) override {
+        sf4e::GameEvents::TrainingSides sides;
+        sides.sides[0] = lobbyConditions;
+        sides.sides[0].charaID = static_cast<BYTE>(lobbyMenuCharaID);
+        sides.sides[1] = trainingDummy;
+        sides.stage = sf4e::selection::ResolveStage(lobbyStageID, sf4e::localRand(), lobbyRandomPool, snapshot.installedContent->stages);
+        sf4e::GameEvents::TrainingMode::Choose(sides);
+        sf4e::overlay::RandomFighterPlayed();
+    }
+
+    void AddPick(sf4e::NetplayFacade::RuntimeCommand& request) override {
+        request.character = lobbyConditions;
+        request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
+        request.stage = lobbyStageID;
+        request.randomPool = lobbyRandomPool;
+    }
+
+    void DrawSelection(bool dummy, const RuntimeSnapshot& snapshot) override {
+        if (dummy) DrawTrainingDummy(snapshot);
+        else DrawNetworkCharaConfig(lobbyConditions, lobbyMenuCharaID,
+            (snapshot.session.room == sf4e::netplay::RoomState::Idle || snapshot.localSlot == 0) ? &lobbyStageID : nullptr, snapshot);
+    }
+};
+static Sf4ShellGame s_shellGame;
 
 
 void Overlay::DrawOverlay(const std::function<void()>& picture) {
@@ -690,8 +530,17 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             sf4e::OverlayPrefs::ToConfirmed(lobbyConditions, lobby);
     }
     sf4e::overlay::FollowRandomFighter(snapshot, s_prefs, lobbyConditions, lobbyMenuCharaID, pickEditionSelect);
-    if (presentation.Visible()) DrawApplicationHome(snapshot, status);
-    else ConcealApplicationHome(snapshot);
+    if (presentation.Visible()) {
+        const sf4e::ui::ApplicationShell::DrawSelection developer =
+#ifdef SF4E_DEVELOPER_UI
+            [] { sf4e::ui::DrawDeveloperOverlay(s_selectionArt.get()); };
+#else
+            {};
+#endif
+        if (const char* close = s_shellHost.Draw(snapshot, status, controllerNavigation, s_shellGame, developer))
+            presentation.Close(close);
+    }
+    else s_shellHost.Background(snapshot);
     if (!presentation.Visible() && assigning) {
         sf4e::NetplayFacade::RuntimeCommand cancel;
         cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};

@@ -137,7 +137,7 @@ void Apply(netplay::EventKind kind, const std::string& error) {
 	else if (decision.accepted && kind == netplay::EventKind::ControlLost &&
 		runtime->controller.GetSnapshot().room == netplay::RoomState::Lost) {
 		ObserveControlPlane(ControlPlaneCause::Coordination, false, error.c_str());
-		if (!UserApp::netplay) {
+		if (!RuntimeSession::netplay) {
 			runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 			CloseRoom();
 		}
@@ -145,12 +145,12 @@ void Apply(netplay::EventKind kind, const std::string& error) {
 }
 
 bool CanEditLobby() {
-	if (!runtime->attached || !UserApp::netplay || !AtMainMenu() || runtime->pendingLobbySettings || runtime->readyIntent.Parked() ||
+	if (!runtime->attached || !RuntimeSession::netplay || !AtMainMenu() || runtime->pendingLobbySettings || runtime->readyIntent.Parked() ||
 		runtime->lobbyEditIntent.Parked() || !runtime->match) return false;
 	const auto phase = runtime->match->GetPhase();
 	if (phase != session::IrohMatchSession::Phase::Idle && !(phase == session::IrohMatchSession::Phase::Ending &&
 		runtime->controller.GetSnapshot().match == netplay::MatchState::PostMatch)) return false;
-	const auto& client = UserApp::netplay->client;
+	const auto& client = RuntimeSession::netplay->client;
 	return runtime->controller.GetSnapshot().room == netplay::RoomState::Joined && !client._lobbyData.members.empty() &&
 		client._lobbyData.members[0].connId == client._cid && client._outstandingReadyRequestNumber == -1 &&
 		client._matchData.readyMessageNum[0] == -1 && client._matchData.readyMessageNum[1] == -1;
@@ -165,8 +165,8 @@ bool CanBeginReplacement() {
 
 namespace {
 bool Joined() {
-	if (!runtime->attached || !UserApp::netplay) return false;
-	const auto& client = UserApp::netplay->client;
+	if (!runtime->attached || !RuntimeSession::netplay) return false;
+	const auto& client = RuntimeSession::netplay->client;
 	if (client.GetRoomSnapshot().roomEpoch) {
 		const auto& room = client.GetRoomSnapshot();
 		return !room.closed && room.localMember && std::any_of(room.members.begin(), room.members.end(),
@@ -184,38 +184,38 @@ void AttachRoom() {
 	if (runtime->controller.GetSnapshot().isHost || runtime->room->Coordination().active) {
 		const auto id = runtime->room->RoomId();
 		const std::string identity = "iroh:" + HexLower(id);
-		UserApp::server.reset(new SessionServer(identity, sf4e::sidecarHash,
+		RuntimeSession::server.reset(new SessionServer(identity, sf4e::sidecarHash,
 			runtime->preferences.lobby.editionSelect, runtime->preferences.lobby.roundCount,
 			{0, static_cast<short>(runtime->preferences.lobby.roundTime)}, runtime->room->Server()));
 		const auto room = runtime->room;
-		UserApp::server->EnableMatchAuthorization(id, [room](session::Connection connection) {
+		RuntimeSession::server->EnableMatchAuthorization(id, [room](session::Connection connection) {
 			return connection == 1 ? room->LocalIdentity() : room->PeerIdentity(connection);
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
-		UserApp::server->EnableCustomRooms(runtime->preferences.roomName,
+		RuntimeSession::server->EnableCustomRooms(runtime->preferences.roomName,
 			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom, runtime->tableCount);
         const auto& authority=runtime->room->Coordination();
-        if(authority.active) UserApp::server->SetAuthority(authority.term,authority.revision,
+        if(authority.active) RuntimeSession::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
 	}
     input::ReleaseFromSide(0); // Preserve native menu -> match ownership handoff.
 	UserApp::StartIrohSession(runtime->room->Client(), config.ggpoPort, runtime->displayName,
 		deviceType, deviceIndex, static_cast<uint8_t>(runtime->preferences.inputDelay));
-	UserApp::netplay->client.RequireCustomRooms();
-	UserApp::netplay->client.SetProfileMain(runtime->preferences.mainFighter);
+	RuntimeSession::netplay->client.RequireCustomRooms();
+	RuntimeSession::netplay->client.SetProfileMain(runtime->preferences.mainFighter);
 	std::string linkDetail;
 	const auto link = DetectNetworkLink(&linkDetail);
 	spdlog::info("Runtime: network link {} ({})", NetworkLinkLabel(link), linkDetail);
-	UserApp::netplay->client.SetProfileLink(link);
+	RuntimeSession::netplay->client.SetProfileLink(link);
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
-	UserApp::netplay->client.SetProfileNat(runtime->room->Network().nat);
-	UserApp::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
-	UserApp::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
-	UserApp::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
+	RuntimeSession::netplay->client.SetProfileNat(runtime->room->Network().nat);
+	RuntimeSession::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
+	RuntimeSession::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
+	RuntimeSession::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
     runtime->selectedDelay=runtime->preferences.inputDelay;
-    UserApp::netplay->client.SetSelectedDelay(ReadyDelay());
+    RuntimeSession::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;
-	runtime->match.reset(new session::IrohMatchSession(UserApp::netplay->client, runtime->room));
+	runtime->match.reset(new session::IrohMatchSession(RuntimeSession::netplay->client, runtime->room));
 	runtime->attached = true;
 }
 }
@@ -505,7 +505,7 @@ static void ObserveCoordination() {
             if (runtime->controller.GetSnapshot().room==netplay::RoomState::Opening &&
                 runtime->room->GetState()==session::IrohRoom::State::Ready && !runtime->attached) AttachRoom();
             bool recovered=true;
-            if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_RECOVERY_TICK); recovered=runtime->recovery.Tick(*UserApp::server,*runtime->room); }
+            if (RuntimeSession::server) { diag::ScopedTimer timer(diag::OP_ROOM_RECOVERY_TICK); recovered=runtime->recovery.Tick(*RuntimeSession::server,*runtime->room); }
             if (!recovered)
                 runtime->error=loc::T("runtime.recovery_state_failed");
             const auto& recoveryError=runtime->recovery.Error();
@@ -525,7 +525,7 @@ static void ObserveCoordination() {
             }
             const auto appliedAuthority=runtime->room->Coordination();
             const bool connected=appliedAuthority.writable && appliedAuthority.rebound;
-            const bool applied=!UserApp::server || runtime->recovery.CaughtUp(appliedAuthority);
+            const bool applied=!RuntimeSession::server || runtime->recovery.CaughtUp(appliedAuthority);
             runtime->controller.SetServerOwned(runtime->room->ServerOwned());
             runtime->controller.ObserveCoordination(appliedAuthority.term,appliedAuthority.revision,
                 connected,GetTickCount64(),applied);
@@ -545,9 +545,9 @@ static void EndClosedRoom(const netplay::Snapshot& state) {
 
 static void SettleRoomState(bool helperReady) {
 	const bool helperFailed = !runtime->helper || runtime->helper->State() == platform::HelperState::Failed;
-    if(runtime->leave.leaveRequested && runtime->attached && UserApp::netplay && !Game::Battle::System::ggpo &&
+    if(runtime->leave.leaveRequested && runtime->attached && RuntimeSession::netplay && !Game::Battle::System::ggpo &&
         (!runtime->match || runtime->match->GetPhase()==session::IrohMatchSession::Phase::Idle)) {
-        const auto& snapshot=UserApp::netplay->client.GetRoomSnapshot();
+        const auto& snapshot=RuntimeSession::netplay->client.GetRoomSnapshot();
         // An authority that keeps rejecting the Leave must not hold this
         // client in Closing: after the same bound IrohRoom uses, leave
         // locally and let the committed room time the seat out (ledger H-005).
@@ -562,7 +562,7 @@ static void SettleRoomState(bool helperReady) {
         else if(GetTickCount64()>=runtime->leave.leaveRetryAt) {
             room::Action leave; leave.kind=room::ActionKind::Leave;
             leave.roomEpoch=snapshot.roomEpoch; leave.revision=snapshot.revision;
-            if(UserApp::netplay->client.SendRoomAction(leave,&runtime->leave.leaveActionId)==session::SendResult::Queued)
+            if(RuntimeSession::netplay->client.SendRoomAction(leave,&runtime->leave.leaveActionId)==session::SendResult::Queued)
                 runtime->leave.leaveRetryAt=GetTickCount64()+500;
         }
     }
@@ -580,7 +580,7 @@ static void SettleRoomState(bool helperReady) {
 		else if (runtime->room->GetState() == session::IrohRoom::State::Failed || runtime->room->GetState() == session::IrohRoom::State::Idle)
 		{
 			// The host's refusal (name taken, room full) says what to fix; the generic text does not.
-			const auto rejection = UserApp::netplay ? UserApp::netplay->client.JoinRejection() : std::nullopt;
+			const auto rejection = RuntimeSession::netplay ? RuntimeSession::netplay->client.JoinRejection() : std::nullopt;
 			// Without a rejection, the helper's stage says where it failed; hosting has its own wording.
 			// A public room's join is worded for it: the host locking the room or turning the player away, and a failure no stage explains.
 			Apply(netplay::EventKind::RoomFailed, rejection ?
@@ -597,12 +597,12 @@ static void SettleRoomState(bool helperReady) {
 		else Apply(netplay::EventKind::ControlLost, loc::T("runtime.room_connection_lost"));
 	}
 	state = runtime->controller.GetSnapshot();
-	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
-		UserApp::netplay->client.GetRoomSnapshot().closed) EndClosedRoom(state);
+	if (state.room == netplay::RoomState::Joined && runtime->attached && RuntimeSession::netplay &&
+		RuntimeSession::netplay->client.GetRoomSnapshot().closed) EndClosedRoom(state);
 	state = runtime->controller.GetSnapshot();
-	if (state.room == netplay::RoomState::Joined && runtime->attached && UserApp::netplay &&
-		UserApp::netplay->client.GetRoomSnapshot().roomEpoch &&
-		!UserApp::netplay->client.GetRoomSnapshot().localMember) {
+	if (state.room == netplay::RoomState::Joined && runtime->attached && RuntimeSession::netplay &&
+		RuntimeSession::netplay->client.GetRoomSnapshot().roomEpoch &&
+		!RuntimeSession::netplay->client.GetRoomSnapshot().localMember) {
         if (!EndWatchedRoom(netplay::tournament::WatchRoomEnd::Removed)) runtime->error=loc::T("runtime.removed_from_room");
         runtime->controller.Execute({netplay::CommandKind::LeaveRoom,state.generation,{}});
         CloseRoom();
@@ -611,7 +611,7 @@ static void SettleRoomState(bool helperReady) {
 	if (state.room == netplay::RoomState::Closing && (helperFailed || !runtime->room ||
 		runtime->room->GetState() == session::IrohRoom::State::Idle)) Apply(netplay::EventKind::RoomClosed);
     if(runtime->replacementPending && runtime->controller.GetSnapshot().room==netplay::RoomState::Idle &&
-        helperReady && AtMainMenu() && !UserApp::netplay && !Game::Battle::System::ggpo) {
+        helperReady && AtMainMenu() && !RuntimeSession::netplay && !Game::Battle::System::ggpo) {
         RuntimeCommand replacement;
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
@@ -629,8 +629,8 @@ static void SettleRoomState(bool helperReady) {
 // its announcer does not speak outside the main menu, Ember's own alert
 // says it too (sf4e__AwayAlert.hxx).
 static void CallOutOpponentReady() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->readyChime = {}; runtime->opponentFighterWatch = {}; return; }
-	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	if (!runtime->attached || !RuntimeSession::netplay) { runtime->readyChime = {}; runtime->opponentFighterWatch = {}; return; }
+	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 	if (runtime->readyChime.Update(room, GetTickCount64())) {
 		if (runtime->preferences.readySound) PlayChallengerCall(runtime->preferences.readySoundVolume);
 		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "the opponent readied");
@@ -680,8 +680,8 @@ void internal::PlayChallengerCall(int volumePercent) {
 static void CallOutOfTraining() {
 	// Out of a room there is no call: an empty room ends any that stood.
 	static const room::Snapshot noRoom;
-	const bool inRoom = runtime->attached && UserApp::netplay;
-	const auto& room = inRoom ? UserApp::netplay->client.GetRoomSnapshot() : noRoom;
+	const bool inRoom = runtime->attached && RuntimeSession::netplay;
+	const auto& room = inRoom ? RuntimeSession::netplay->client.GetRoomSnapshot() : noRoom;
 	room::TrainingCall::Input in;
 	in.inTraining = training::ControlsAvailable();
 	in.atMainMenu = AtMainMenu();
@@ -735,8 +735,8 @@ static void CallOutOfTraining() {
 // the room's own snapshot says of the player is what is compared, so a word
 // that was lost or refused is said again, at most every two seconds.
 static void SayTraining() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->trainingSaidAtMs = 0; return; }
-	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	if (!runtime->attached || !RuntimeSession::netplay) { runtime->trainingSaidAtMs = 0; return; }
+	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 	const auto* me = room::FindMember(room, room.localMember);
 	const bool training = training::ControlsAvailable();
 	const auto now = GetTickCount64();
@@ -748,15 +748,15 @@ static void SayTraining() {
 	say.roomEpoch = room.roomEpoch;
 	say.revision = room.revision;
 	runtime->trainingSaidAtMs = now;
-	if (UserApp::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
+	if (RuntimeSession::netplay->client.SendRoomAction(say) != session::SendResult::Queued)
 		spdlog::info("Room: could not say the player is {} Training; it is said again", training ? "in" : "out of");
 }
 // The room is told the player is typing while the shell notes a draft being
 // written, again every three seconds to keep it shown, and once when they
 // stop. A word lost or refused is let go: the room drops it after TypingMs.
 static void SayTyping() {
-	if (!runtime->attached || !UserApp::netplay) { runtime->typingSaidAtMs = 0; return; }
-	const auto& room = UserApp::netplay->client.GetRoomSnapshot();
+	if (!runtime->attached || !RuntimeSession::netplay) { runtime->typingSaidAtMs = 0; return; }
+	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 	const bool typing = room.roomEpoch && ChatTypingShown(room.roomEpoch);
 	const auto now = GetTickCount64();
 	if (typing ? runtime->typingSaidAtMs && now - runtime->typingSaidAtMs < 3000 : !runtime->typingSaidAtMs) return;
@@ -767,7 +767,7 @@ static void SayTyping() {
 	say.roomEpoch = room.roomEpoch;
 	say.revision = room.revision;
 	runtime->typingSaidAtMs = typing ? now : 0;
-	UserApp::netplay->client.SendRoomAction(say);
+	RuntimeSession::netplay->client.SendRoomAction(say);
 }
 void ReconcileTrainingCall() {
 	if (runtime) CallOutOfTraining();
@@ -790,7 +790,7 @@ void TickRuntime() {
 	PumpDiscordClient();
 	// Legacy error/teardown hooks can retire the client between owner ticks.
 	// Dispose its coordinator before dereferencing that client again.
-	if (runtime->attached && !UserApp::netplay) {
+	if (runtime->attached && !RuntimeSession::netplay) {
 		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 		CloseRoom();
 	}
@@ -811,7 +811,7 @@ void TickRuntime() {
 	// consumes room actions. This drives result-dispute and chat-rate deadlines
 	// on the same owner tick as the server, while clients retain their control
 	// stream and existing gameplay links.
-	if (UserApp::server) { diag::ScopedTimer timer(diag::OP_ROOM_ADVANCE); UserApp::server->AdvanceCustomRoom(GetTickCount64()); }
+	if (RuntimeSession::server) { diag::ScopedTimer timer(diag::OP_ROOM_ADVANCE); RuntimeSession::server->AdvanceCustomRoom(GetTickCount64()); }
 	const bool helperReady = runtime->helper && runtime->helper->State() == platform::HelperState::Connected;
 	CaptureMenuInput();
 	DrainCommands(helperReady);

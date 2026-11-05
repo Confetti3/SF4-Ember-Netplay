@@ -74,8 +74,8 @@ void TickRandomFighter() {
 	const auto from = Take();
 	if (from.played) pick.Played();
 	static const room::Snapshot noRoom;
-	const bool inRoom = runtime->attached && UserApp::netplay;
-	const auto& room = inRoom ? UserApp::netplay->client.GetRoomSnapshot() : noRoom;
+	const bool inRoom = runtime->attached && RuntimeSession::netplay;
+	const auto& room = inRoom ? RuntimeSession::netplay->client.GetRoomSnapshot() : noRoom;
 	pick.Update(from.random, room, [] {
 		if (rollForTest) return rollForTest();
 		const bool editionSelect = CurrentGates().editionSelect;
@@ -85,7 +85,7 @@ void TickRandomFighter() {
 	});
 	if (!inRoom || !from.random) return;
 	// A Ready on its way carries the roll itself.
-	auto& client = UserApp::netplay->client;
+	auto& client = RuntimeSession::netplay->client;
 	if (runtime->readyIntent.Active() || client._outstandingReadyRequestNumber != -1 ||
 		!room::RandomRollToShow(room, pick.Fighter())) return;
 	const auto now = GetTickCount64();

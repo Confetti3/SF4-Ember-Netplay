@@ -9,7 +9,7 @@
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__GameEvents.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
-#include "../sf4e/sf4e__UserApp.hxx"
+#include "../sf4e/sf4e__RuntimeSession.hxx"
 #include "../Dimps/Dimps.hxx"
 #include <winsock2.h>
 #include <array>
@@ -45,8 +45,8 @@ struct RuntimeRoom {
 		sf4e::NetplayFacade::TickRuntime();
 		runtime = sf4e::NetplayFacade::internal::runtime;
 		CHECK(runtime);
-		sf4e::UserApp::netplay.reset(new sf4e::UserApp::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
-		auto& client = sf4e::UserApp::netplay->client;
+		ember::RuntimeSession::netplay.reset(new ember::RuntimeSession::Netplay(callbacks, "build", 30000, name, 0, 0, 2));
+		auto& client = ember::RuntimeSession::netplay->client;
 		CHECK(client.Connect(std::unique_ptr<session::ClientTransport>(transport), false) == 0);
 		client.RequireMatchAuthorization();
 		transport->state = session::ConnectionState::Connected;
@@ -66,11 +66,11 @@ struct RuntimeRoom {
 	~RuntimeRoom() {
 		runtime->attached = false;
 		runtime->match.reset();
-		sf4e::UserApp::netplay.reset();
+		ember::RuntimeSession::netplay.reset();
 		sf4e::NetplayFacade::StopHelper();
 		::Dimps::App::GetRootEvent = originalRoot;
 	}
-	SessionClient& Client() { return sf4e::UserApp::netplay->client; }
+	SessionClient& Client() { return ember::RuntimeSession::netplay->client; }
 	session::IrohMatchSession& Match() { return *runtime->match; }
 	void Deliver(const nlohmann::json& message) { transport->Push(message); CHECK(Client().Step() == 0); }
 	void Snapshot(const sf4e::room::Snapshot& snapshot) {
