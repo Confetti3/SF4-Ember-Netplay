@@ -7826,6 +7826,33 @@ msgstr "Костюм"
 msgid "selection.color_row"
 msgstr "Цвет"
 
+msgid "selection.costume_gallery_title"
+msgstr "ГАЛЕРЕЯ КОСТЮМОВ"
+
+msgid "selection.color_gallery_title"
+msgstr "ГАЛЕРЕЯ ЦВЕТОВ"
+
+msgid "selection.color"
+msgstr "Цвет {0}"
+
+msgid "selection.no_colors"
+msgstr "Для этого костюма нет открытых цветов."
+
+msgid "selection.loading_choices"
+msgstr "Загрузка доступных вариантов"
+
+msgid "selection.loading_choices.detail"
+msgstr "Ожидание данных игры о доступных костюмах и цветах."
+
+msgid "menu.hint.save_color"
+msgstr "Сохранить цвет"
+
+msgid "selection.costume_row.detail"
+msgstr "Влево и вправо меняют костюм здесь. Выбор показывает каждый костюм."
+
+msgid "selection.color_row.detail"
+msgstr "Влево и вправо меняют цвет здесь. Выбор показывает каждый цвет."
+
 msgid "selection.ready_with"
 msgstr "Готов: {0}"
 

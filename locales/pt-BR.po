@@ -7359,6 +7359,33 @@ msgstr "Traje"
 msgid "selection.color_row"
 msgstr "Cor"
 
+msgid "selection.costume_gallery_title"
+msgstr "GALERIA DE TRAJES"
+
+msgid "selection.color_gallery_title"
+msgstr "GALERIA DE CORES"
+
+msgid "selection.color"
+msgstr "Cor {0}"
+
+msgid "selection.no_colors"
+msgstr "Nenhuma cor desbloqueada para este traje."
+
+msgid "selection.loading_choices"
+msgstr "Carregando opções disponíveis"
+
+msgid "selection.loading_choices.detail"
+msgstr "Aguardando a disponibilidade nativa de trajes e cores."
+
+msgid "menu.hint.save_color"
+msgstr "Salvar cor"
+
+msgid "selection.costume_row.detail"
+msgstr "Esquerda e Direita trocam o traje aqui. Selecionar mostra cada traje."
+
+msgid "selection.color_row.detail"
+msgstr "Esquerda e Direita trocam a cor aqui. Selecionar mostra cada cor."
+
 msgid "selection.ready_with"
 msgstr "Pronto com {0}"
 

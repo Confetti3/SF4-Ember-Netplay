@@ -7453,6 +7453,33 @@ msgstr "Costume"
 msgid "selection.color_row"
 msgstr "Color"
 
+msgid "selection.costume_gallery_title"
+msgstr "COSTUME GALLERY"
+
+msgid "selection.color_gallery_title"
+msgstr "COLOR GALLERY"
+
+msgid "selection.color"
+msgstr "Color {0}"
+
+msgid "selection.no_colors"
+msgstr "No unlocked colors for this costume."
+
+msgid "selection.loading_choices"
+msgstr "Loading available choices"
+
+msgid "selection.loading_choices.detail"
+msgstr "Waiting for native costume and color availability."
+
+msgid "menu.hint.save_color"
+msgstr "Save color"
+
+msgid "selection.costume_row.detail"
+msgstr "Left and Right change the costume here. Select shows every costume."
+
+msgid "selection.color_row.detail"
+msgstr "Left and Right change the color here. Select shows every color."
+
 msgid "selection.ready_with"
 msgstr "Ready with {0}"
 

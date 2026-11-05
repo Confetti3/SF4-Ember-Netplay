@@ -164,7 +164,9 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   // a fighter picked is the change it was opened for, as a stage is.
   // The board is the grid; the costume and the Ultra are on the fighter's own page.
   if(openOn=="roster"){nav.Prefer(savedCard);openOn_=openOn;}
-  else if(openOn=="ultra"||openOn=="costumes"){nav.Push("look");nav.Prefer(openOn=="ultra"?"ultra":"costume");openOn_="look";}
+  else if(openOn=="ultra"){nav.Push("look");nav.Prefer("ultra");openOn_="look";}
+  // Opened for the look, the costume grid shows at once, over the fighter's page.
+  else if(openOn=="costumes"){nav.Push("look");nav.Prefer("costume");gallery_.Open(nav,AppearanceGallery::Page::Costumes,pick);openOn_=openOn;}
   else if(openOn=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));openOn_=openOn;}
   else if(openOn=="options"){nav.Push("options");openOn_=openOn;}
  }
@@ -189,7 +191,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // hears the menu moves in one place. Select on a fighter opens their own
  // page ("look"): costume, colour, Ultra, edition, stage, options and Ready
  // in one list. The stage, its Random pool and the options are pages too.
- const bool board=screen=="home",look=screen=="look",pool=screen=="random-pool";
+ const bool board=screen=="home",look=screen=="look",pool=screen=="random-pool",gallery=AppearanceGallery::Shows(screen);
  // Stage cards and the pool's cards are as many across as fit 220 px.
  const int stageColumns=(std::max)(2,(std::min)(4,static_cast<int>(ImGui::GetContentRegionAvail().x/(220*Scale()))));
  if(board){
@@ -220,11 +222,12 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    std::vector<std::string> labels;for(int id:ids)labels.push_back(name(id));
    OfferSteps(e,labels);e.wide=true;rows.push_back(std::move(e));
   };
-  offer(Value("costume",loc::T("selection.costume"),CostumeLabel(pick,installed),adjusts,editable&&availability.ready),AllowedCostumes(pick.fighter,availability,installed),
-   [&](int costume){auto option=pick;option.costume=costume;return CostumeLabel(option,installed);});
+  // The costume and the colour step in place too, and Select shows them all
+  // as pictures (AppearanceGallery).
+  const auto opens=[&](MenuEntry e){e.opens=e.wide=true;rows.push_back(std::move(e));};
+  opens(Value("costume",loc::T("selection.costume"),CostumeLabel(pick,installed),editable?loc::T("selection.costume_row.detail"):adjusts,editable&&availability.ready));
   const std::string colorName=installed&&selection::IsCustomColor(pick.color)?installed->Name(pick.fighter,pick.costume,pick.color):std::string();
-  rows.push_back(Value("color",loc::T("selection.color_row"),colorName.empty()?std::to_string(pick.color+1):colorName,adjusts,editable&&availability.ready));
-  rows.back().wide=true;
+  opens(Value("color",loc::T("selection.color_row"),colorName.empty()?std::to_string(pick.color+1):colorName,editable?loc::T("selection.color_row.detail"):adjusts,editable&&availability.ready));
   offer(Value("ultra",loc::T("selection.ultra_combo"),ShortUltraLabel(pick.ultra),adjusts,editable&&AllowedUltras(pick.fighter,pick.edition).size()>1),AllowedUltras(pick.fighter,pick.edition),
    [](int ultra){return std::string(ShortUltraLabel(ultra));});
   offer(editionRow(),AllowedEditions(pick.fighter,editionSelect),
@@ -233,6 +236,8 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   rows.back().value=stageId?StageLabel(*stageId,installed):std::string();
   rows.push_back(Row("options",loc::T("selection.additional_options"),loc::T("selection.additional_options.detail")));
   rows.push_back(Row("ready",loc::Tf("selection.ready_with",FindFighter(pick.fighter)->name),loc::T("selection.ready_detail")));
+ }else if(gallery){
+  title=AppearanceGallery::Title(screen);rows=gallery_.Build(screen,pick,availability,installed,editable);
  }else if(screen=="stage"){
   title=loc::T("selection.stage_title");
   rows.push_back(Saving(Row("stage-"+std::to_string(RandomStageId),loc::T("selection.random_stage"),stageId?loc::T("selection.random_stage.detail"):loc::T("selection.only_p1_stage"),editable&&stageId),"menu.hint.save_stage",editable&&stageId));
@@ -305,13 +310,16 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   return true;
  };
  // What the status line promises depends on the page: Select saves a stage
- // card, opens a page from the board, and does nothing on the option rows.
+ // card, opens a page from the board, and does nothing on the option rows;
+ // the costume and colour grids say their own.
  const std::string status=!selectionError.empty()?selectionError:
-  loc::T(!editable?"selection.status_locked":fighterKept&&board?"selection.winner_keeps_fighter":screen=="stage"||pool?"selection.status_editable":
-   board?"selection.status_browse":"selection.status_adjust");
+  loc::T(!editable?"selection.status_locked":fighterKept&&board?"selection.winner_keeps_fighter":gallery?AppearanceGallery::StatusKey(screen):
+   screen=="stage"||pool?"selection.status_editable":board?"selection.status_browse":"selection.status_adjust");
  GameMenu::Body body;
  if(board)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){
   DrawBoard(entries,navigation,action,height,pick,randomSaved,art,readAvailability);};
+ else if(gallery)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){
+  gallery_.DrawBody(entries,navigation,action,height,pick);};
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,body,false,100,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  // Opened for one change, Back from its page goes back to where it came from.
@@ -319,6 +327,13 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  if(a.kind==MenuAction::Activate){
   if(a.id=="ready")ForwardMenuAction({MenuAction::Close});
   else if(a.id=="stage"||a.id=="options"||a.id=="random-pool")nav.Push(a.id);
+  else if(const auto chosen=gallery_.Choose(a.id,nav,pick,availability,installed);chosen!=AppearanceGallery::Choice::Unhandled){
+   // A colour saves its costume with it; opened for the look, that is the change.
+   if(chosen==AppearanceGallery::Choice::Saved){
+    Normalize(pick,editionSelect,&availability,installed);changed=true;
+    if(openOn_=="costumes")ForwardMenuAction({MenuAction::Close});
+   }
+  }
   else if(const auto pooled=RowKey<int>(a.id,"pool-");pooled&&editable&&randomPool){
    // The page disables the last game stage left; the pool refuses it too.
    if(randomPool->Toggle(*pooled))changed=true;

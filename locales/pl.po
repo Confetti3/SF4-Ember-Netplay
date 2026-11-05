@@ -7826,6 +7826,33 @@ msgstr "Strój"
 msgid "selection.color_row"
 msgstr "Kolor"
 
+msgid "selection.costume_gallery_title"
+msgstr "GALERIA STROJÓW"
+
+msgid "selection.color_gallery_title"
+msgstr "GALERIA KOLORÓW"
+
+msgid "selection.color"
+msgstr "Kolor {0}"
+
+msgid "selection.no_colors"
+msgstr "Brak odblokowanych kolorów dla tego stroju."
+
+msgid "selection.loading_choices"
+msgstr "Ładowanie opcji"
+
+msgid "selection.loading_choices.detail"
+msgstr "Czekanie na dostępne stroje i kolory w grze."
+
+msgid "menu.hint.save_color"
+msgstr "Zapisz kolor"
+
+msgid "selection.costume_row.detail"
+msgstr "Lewo i Prawo zmieniają tu strój. Wybór pokazuje każdy strój."
+
+msgid "selection.color_row.detail"
+msgstr "Lewo i Prawo zmieniają tu kolor. Wybór pokazuje każdy kolor."
+
 msgid "selection.ready_with"
 msgstr "Gotowy z {0}"
 

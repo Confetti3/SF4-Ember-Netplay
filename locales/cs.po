@@ -7826,6 +7826,33 @@ msgstr "Kostým"
 msgid "selection.color_row"
 msgstr "Barva"
 
+msgid "selection.costume_gallery_title"
+msgstr "GALERIE KOSTÝMŮ"
+
+msgid "selection.color_gallery_title"
+msgstr "GALERIE BAREV"
+
+msgid "selection.color"
+msgstr "Barva {0}"
+
+msgid "selection.no_colors"
+msgstr "Pro tento kostým nejsou odemčené barvy."
+
+msgid "selection.loading_choices"
+msgstr "Načítání možností"
+
+msgid "selection.loading_choices.detail"
+msgstr "Čeká se na dostupné kostýmy a barvy ze hry."
+
+msgid "menu.hint.save_color"
+msgstr "Uložit barvu"
+
+msgid "selection.costume_row.detail"
+msgstr "Šipky vlevo a vpravo zde mění kostým. Výběr ukáže všechny kostýmy."
+
+msgid "selection.color_row.detail"
+msgstr "Šipky vlevo a vpravo zde mění barvu. Výběr ukáže všechny barvy."
+
 msgid "selection.ready_with"
 msgstr "Připraven s {0}"
 

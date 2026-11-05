@@ -7826,6 +7826,33 @@ msgstr "Costume"
 msgid "selection.color_row"
 msgstr "Couleur"
 
+msgid "selection.costume_gallery_title"
+msgstr "COSTUMES"
+
+msgid "selection.color_gallery_title"
+msgstr "COULEURS"
+
+msgid "selection.color"
+msgstr "Couleur {0}"
+
+msgid "selection.no_colors"
+msgstr "Aucune couleur débloquée pour ce costume."
+
+msgid "selection.loading_choices"
+msgstr "Chargement des choix disponibles"
+
+msgid "selection.loading_choices.detail"
+msgstr "Attente des costumes et couleurs disponibles dans le jeu."
+
+msgid "menu.hint.save_color"
+msgstr "Enregistrer la couleur"
+
+msgid "selection.costume_row.detail"
+msgstr "Gauche et Droite changent le costume ici. Sélectionner montre chaque costume."
+
+msgid "selection.color_row.detail"
+msgstr "Gauche et Droite changent la couleur ici. Sélectionner montre chaque couleur."
+
 msgid "selection.ready_with"
 msgstr "Prêt avec {0}"
 
