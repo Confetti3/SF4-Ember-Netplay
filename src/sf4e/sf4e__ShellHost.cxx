@@ -4,7 +4,6 @@
 
 #include <windows.h>
 
-#include "../platform/ReplayFiles.hxx"
 #include "sf4e__GameAdapter.hxx"
 
 namespace ember {
@@ -128,8 +127,8 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     // runtime's workers). The screen on show says what to ask for; the last
     // listing and detail they made come with the snapshot.
     const auto replayWants = shell_.ReplayWants();
-    if (replayWants.listing) sf4e::platform::replays::WantListing();
-    if (replayWants.detail) sf4e::platform::replays::WantDetail(replayWants.detailFile, replayWants.detailRevision);
+    if (replayWants.listing) game::Game().replays.WantListing();
+    if (replayWants.detail) game::Game().replays.WantDetail(replayWants.detailFile, replayWants.detailRevision);
     view.replays = snapshot.replays;
     game.FillView(snapshot, view);
     // Outside a fight the shell status line carries the notice; transient

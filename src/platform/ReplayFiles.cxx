@@ -232,15 +232,22 @@ const std::string kSavePrefix = "capcom/superstreetfighteriv/ssf4_savedata/";
 
 }
 
+fs::path ArchivePath() {
+	PWSTR appData = NULL;
+	fs::path archive;
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) archive = fs::path(appData) / ember::Product().appDataFolder / L"replays";
+	CoTaskMemFree(appData);
+	return archive;
+}
+
 Folders FindFolders() {
 	Folders folders;
 	wchar_t steamPath[1024] = { 0 };
 	DWORD steamPathBytes = sizeof(steamPath);
-	PWSTR appData = NULL, localAppData = NULL;
+	PWSTR localAppData = NULL;
 	// Where replays go does not depend on Steam, so an outbox is drained even
 	// when no game's saves can be found.
-	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &appData) == S_OK) folders.archive = fs::path(appData) / ember::Product().appDataFolder / L"replays";
-	CoTaskMemFree(appData);
+	folders.archive = ArchivePath();
 	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &localAppData) == S_OK) folders.outbox = fs::path(localAppData) / ember::Product().appDataFolder / L"replay-outbox";
 	CoTaskMemFree(localAppData);
 	if (folders.archive.empty() ||

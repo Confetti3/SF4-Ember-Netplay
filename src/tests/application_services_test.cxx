@@ -38,7 +38,7 @@ int main() {
             sf4e::RelayRegion("unavailable").empty() && sf4e::RelayRegion("").empty());
         CHECK(sf4e::NormalizeRelayRegion("euc1")=="euc1" && sf4e::NormalizeRelayRegion("")=="" &&
             sf4e::NormalizeRelayRegion("https://use1-1.relay.n0.iroh.link./")=="other");
-        ApplicationServices service(root.wstring()); DiagnosticsView view;
+        ApplicationServices service(root.wstring(), {}, replays::ArchivePath()); DiagnosticsView view;
         CHECK(!service.Request(ServiceAction::None));
         CHECK(!service.SendReport({"A problem",false}));
         CHECK(!service.Request(ServiceAction::SendReport));
@@ -134,7 +134,7 @@ int main() {
         // Show in folder opens only a folder of the replay archive: a file
         // elsewhere, one that climbs out of it, or none is refused, and
         // nothing is opened.
-        const auto climbing=(replays::FindFolders().archive/L".."/L"elsewhere.emberreplay").wstring();
+        const auto climbing=(replays::ArchivePath()/L".."/L"elsewhere.emberreplay").wstring();
         for(const std::wstring outside:{std::wstring(L"C:\\Windows\\win.ini"),climbing,std::wstring()}){
             CHECK(service.Request(ServiceAction::ShowReplayFile,{},outside));
             const auto folderDeadline=GetTickCount64()+5000;

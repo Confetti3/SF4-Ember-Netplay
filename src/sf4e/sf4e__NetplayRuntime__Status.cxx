@@ -617,8 +617,8 @@ PostPublishState Publish() {
 	snapshot.replays.exportStage = replays.exportStage; snapshot.replays.exportFrames = replays.exportFrames; snapshot.replays.exportTotal = replays.exportTotal;
 	snapshot.replays.exportEnded = replays.exportEnded; snapshot.replays.exportSaved = replays.exportSaved;
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
-	snapshot.replays.archive = platform::replays::LatestListing();
-	snapshot.replays.detail = platform::replays::LatestDetail();
+	snapshot.replays.archive = Game().replays.LatestListing();
+	snapshot.replays.detail = Game().replays.LatestDetail();
 	snapshot.replays.setNotice = runtime->setNotice.text; snapshot.replays.setNoticeError = runtime->setNotice.error;
 	snapshot.replays.setNotices = runtime->setNotice.count;
 	snapshot.matchWaitsForMenu = runtime->match && !runtime->entry.matchEntered && !snapshot.atMainMenu &&

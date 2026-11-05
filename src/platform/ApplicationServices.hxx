@@ -11,6 +11,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -20,8 +21,9 @@
 namespace sf4e { namespace platform {
 // SwitchUpdateChannel saves the channel ApplicationServices::SwitchUpdateChannel
 // names, then checks for an update on it.
-// ShowReplayFile opens, in Explorer, the folder that holds the archived
-// replay the request names; only a folder of the archive is opened.
+// OpenReplayFolder opens the game's replay archive (the folder the services
+// were made with) in Explorer, and ShowReplayFile the folder that holds the
+// archived replay the request names; only a folder of the archive is opened.
 // LaunchUpdateCheck is the check the game makes once per launch when its
 // UpdatePolicy allows (ApplicationServices::RequestLaunchCheck). UpdateNow opens
 // the Launcher's Updates window with the offer the player accepted, and
@@ -139,7 +141,10 @@ struct ServiceHooks {
 };
 class ApplicationServices {
 public:
-    explicit ApplicationServices(std::wstring diagnosticsDirectory = {}, ServiceHooks hooks = {});
+    // replayArchive: the game's replay archive (game::Replays::ArchivePath);
+    // without one, the replay folder actions fail.
+    explicit ApplicationServices(std::wstring diagnosticsDirectory = {}, ServiceHooks hooks = {},
+        std::filesystem::path replayArchive = {});
     ~ApplicationServices();
     // target: the file a ShowReplayFile request names; nothing else reads it.
     bool Request(ServiceAction action, const DiagnosticsView& diagnostics = {}, std::wstring target = {});
@@ -184,6 +189,7 @@ private:
     std::optional<reports::Operation> reportOperation_;
     ServiceSnapshot state_;
     std::wstring diagnosticsDirectory_;
+    std::filesystem::path replayArchive_;
     std::shared_ptr<reports::ReportHistory> history_;
     std::atomic<bool> cancelled_{false};
     std::thread worker_;

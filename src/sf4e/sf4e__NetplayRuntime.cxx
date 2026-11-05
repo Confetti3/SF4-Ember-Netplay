@@ -382,7 +382,7 @@ void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = 
 void StopHelper() {
     Game().training.StopCapture();
     // The archive's lister holds files open while it reads; it is ended and waited for here.
-    platform::replays::StopListing();
+    Game().replays.StopListing();
 	if (!runtime) return;
     if (runtime->discordClient) {
         runtime->discordClient->Send("{\"type\":\"shutdown\"}");

@@ -33,6 +33,7 @@
 namespace {
 using fSystem = sf4e::Game::Battle::System;
 using rSystem = Dimps::Game::Battle::System;
+namespace archive = sf4e::platform::replays;
 using namespace ember::game;
 
 class Sf4GameState final : public GameState {
@@ -220,6 +221,18 @@ public:
     void TickPlayback(int deviceType, int deviceIndex, bool connected) override { sf4e::replayplayback::Tick(deviceType, deviceIndex, connected); }
     const sf4e::replaytransport::View& Playback() override { return sf4e::replayplayback::GetView(); }
     std::shared_ptr<const sf4e::replaylane::Lanes> PlaybackLanes() override { return sf4e::replayplayback::GetLanes(); }
+
+    std::filesystem::path ArchivePath() override { return archive::ArchivePath(); }
+    void WantListing() override { archive::WantListing(); }
+    std::shared_ptr<const std::vector<archive::ArchivedReplay>> LatestListing() override { return archive::LatestListing(); }
+    void WantDetail(const std::string& file, std::uint64_t revision) override { archive::WantDetail(file, revision); }
+    sf4e::replayinputs::DetailCompletion LatestDetail() override { return archive::LatestDetail(); }
+    void StopListing() override { archive::StopListing(); }
+    void MarkKept(const std::filesystem::path& file, bool kept) override { archive::MarkKept(file, kept); }
+    void MarkSent(const std::filesystem::path& file) override { archive::MarkSent(file); }
+    void MarkSetClosed(const std::filesystem::path& file) override { archive::MarkSetClosed(file); }
+    std::filesystem::path SetPackPath(const std::string& matchId) override { return archive::SetPackPath(matchId); }
+    std::size_t ImportSetPack(const std::filesystem::path& pack) override { return archive::ImportSetPack(pack); }
 };
 
 Sf4GameState s_state;

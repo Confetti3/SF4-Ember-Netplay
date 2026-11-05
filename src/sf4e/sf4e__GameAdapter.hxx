@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -33,6 +34,7 @@
 #include "../netplay/InputAssignment.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/SessionController.hxx"
+#include "../platform/ReplayFiles.hxx"
 #include "../training/TrainingRuntime.hxx"
 #include "sf4e__Gamepads.hxx"
 #include "sf4e__ReplayPlayback.hxx"
@@ -263,7 +265,8 @@ protected:
     ~Training() = default;
 };
 
-// The replay archive, its playback and its export. Game thread.
+// The replay archive, its playback and its export. Game thread, except where
+// a method says otherwise.
 class Replays {
 public:
     virtual bool Ready() = 0;
@@ -273,6 +276,30 @@ public:
     virtual void TickPlayback(int deviceType, int deviceIndex, bool connected) = 0;
     virtual const sf4e::replaytransport::View& Playback() = 0;
     virtual std::shared_ptr<const sf4e::replaylane::Lanes> PlaybackLanes() = 0;
+
+    // The archive's folder, which the Replays screen opens; empty when there
+    // is none. Asked once, as the runtime starts.
+    virtual std::filesystem::path ArchivePath() = 0;
+    // The archive's listing and the Replays screen's entry, which the game
+    // makes off the game thread. Any thread asks and reads: the shell's host
+    // asks for what its screen shows. The latest listing is null before the
+    // first, and the latest detail empty before any.
+    virtual void WantListing() = 0;
+    virtual std::shared_ptr<const std::vector<sf4e::platform::replays::ArchivedReplay>> LatestListing() = 0;
+    virtual void WantDetail(const std::string& file, std::uint64_t revision) = 0;
+    virtual sf4e::replayinputs::DetailCompletion LatestDetail() = 0;
+    // Ends the listing and waits for one in progress; once, as the runtime stops.
+    virtual void StopListing() = 0;
+    // The player's mark on a replay, and a tournament's sharing: its set's
+    // bridge or the replay archive has it, or the set is closed to it.
+    virtual void MarkKept(const std::filesystem::path& file, bool kept) = 0;
+    virtual void MarkSent(const std::filesystem::path& file) = 0;
+    virtual void MarkSetClosed(const std::filesystem::path& file) = 0;
+    // Where a set's pack is saved (empty when it cannot be), and taking a
+    // pack's games into the archive: how many the archive holds, 0 for a
+    // file that is no whole pack.
+    virtual std::filesystem::path SetPackPath(const std::string& matchId) = 0;
+    virtual std::size_t ImportSetPack(const std::filesystem::path& pack) = 0;
 protected:
     ~Replays() = default;
 };

@@ -321,7 +321,7 @@ sf4e_add_unit_test(NAME RollbackDiagnostics SOURCES "src/tests/rollback_diagnost
 sf4e_add_unit_test(NAME StateHash SOURCES "src/tests/state_hash_test.cxx" TIMEOUT 15)
 sf4e_add_unit_test(NAME FrameTrace SOURCES "src/tests/frame_trace_test.cxx" STD 14 TIMEOUT 15)
 
-sf4e_add_unit_test(NAME ApplicationServices SOURCES src/tests/application_services_test.cxx LIBS sf4e_app_services)
+sf4e_add_unit_test(NAME ApplicationServices SOURCES src/tests/application_services_test.cxx LIBS sf4e_app_services sf4e_replay_files)
 sf4e_add_unit_test(NAME UpdatePolicy SOURCES src/tests/update_policy_test.cxx LIBS sf4e_app_services sf4e_settings)
 sf4e_add_unit_test(NAME EmberUpdate SOURCES src/tests/ember_update_test.cxx LIBS sf4e_app_services nlohmann_json::nlohmann_json ZLIB::ZLIB)
 

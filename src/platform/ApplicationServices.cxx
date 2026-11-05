@@ -4,7 +4,6 @@
 #include "../common/ProductIdentity.hxx"
 #include "../netplay/SettingsStore.hxx"
 #include "../common/Localization.hxx"
-#include "ReplayFiles.hxx"
 #include "ReplayPath.hxx"
 #include "Utf8.hxx"
 #include <windows.h>
@@ -58,8 +57,9 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Gameplay direct/relay links: " + std::to_string(view.directLinks) + "/" + std::to_string(view.relayedLinks) +
         " | Route changes/local drops/send pressure: " + std::to_string(view.routeChanges) + "/" + std::to_string(view.localDrops) + "/" + std::to_string(view.sendPressure);
 }
-ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory, ServiceHooks hooks) :
-    policy_(hooks.policyStore ? UpdatePolicy(*hooks.policyStore) : UpdatePolicy()), diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
+ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory, ServiceHooks hooks, std::filesystem::path replayArchive) :
+    policy_(hooks.policyStore ? UpdatePolicy(*hooks.policyStore) : UpdatePolicy()), diagnosticsDirectory_(std::move(diagnosticsDirectory)),
+    replayArchive_(std::move(replayArchive)) {
     hooks_ = std::move(hooks);
     if (!hooks_.checkForUpdate) hooks_.checkForUpdate = [this](launcher::UpdateChannel channel) { return launcher::CheckForUpdate(channel, cancelled_); };
     if (!hooks_.clock) hooks_.clock = [] { return static_cast<std::uint64_t>(std::time(nullptr)); };
@@ -282,18 +282,17 @@ void ApplicationServices::Run() {
                 next.succeeded = opened;
                 next.message = loc::T(opened ? "services.steam_profile_opened" : "services.steam_profile_failed");
             } else if (action == ServiceAction::OpenReplayFolder) {
-                const auto folder = replays::FindFolders().archive;
-                std::error_code ignored; std::filesystem::create_directories(folder, ignored);
-                const bool opened = ShellOpen(folder.c_str());
+                std::error_code ignored; std::filesystem::create_directories(replayArchive_, ignored);
+                const bool opened = ShellOpen(replayArchive_.c_str());
                 next.succeeded = opened;
-                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.wstring())) : loc::T("services.replay_folder_failed");
+                next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(replayArchive_.wstring())) : loc::T("services.replay_folder_failed");
             } else if (action == ServiceAction::ShowReplayFile) {
                 // The archive's listing named the file; only the folder handles
                 // reach is opened, and only one of the archive by identity. The
                 // replay and its folder stay held through the shell's handoff,
                 // so neither can be moved, emptied or swapped meanwhile
                 // (ReplayPath.hxx: ArchiveFolder).
-                const ArchiveFolder folder = ArchiveFolderOf(target, replays::FindFolders().archive.wstring());
+                const ArchiveFolder folder = ArchiveFolderOf(target, replayArchive_.wstring());
                 const bool opened = !folder.Empty() && ShellOpen(folder.Path().c_str());
                 next.succeeded = opened;
                 next.message = opened ? loc::Tf("services.replay_folder_opened", WideToUtf8(folder.Path())) : loc::T("services.replay_folder_failed");

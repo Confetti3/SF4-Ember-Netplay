@@ -224,8 +224,8 @@ void SendSetReplays(bool helperReady, std::uint64_t nowMs) {
 		return;
 	case platform::replays::ReplaySender::Step::Send: break;
 	}
-	platform::replays::WantListing();
-	const auto listing = platform::replays::LatestListing();
+	Game().replays.WantListing();
+	const auto listing = Game().replays.LatestListing();
 	if (!listing) return;
 	// Sharing covers the games saved since it came on (0 while it is off),
 	// which only loading and accepting the preferences change; here it is read.
@@ -267,10 +267,10 @@ bool TakeReplaySent(const session::TournamentAnswer& answer, std::uint64_t nowMs
 	if (settled == Answer::NotOurs) return false;
 	if (settled == Answer::Done) {
 		if (!answer.ok) spdlog::info("Replays: {} refused {}: {}", sending.Set() ? "the set's bridge" : "the replay archive", platform::WideToUtf8(sending.Path().filename().wstring()), answer.reason);
-		platform::replays::MarkSent(sending.Path());
+		Game().replays.MarkSent(sending.Path());
 	} else if (settled == Answer::SetClosed) {
 		spdlog::info("Replays: the set is closed to {}; the replay archive may take it", platform::WideToUtf8(sending.Path().filename().wstring()));
-		platform::replays::MarkSetClosed(sending.Path());
+		Game().replays.MarkSetClosed(sending.Path());
 	} else if (settled == Answer::NeedsDiscord) {
 		spdlog::info("Replays: the replay archive takes games only from a player signed in with Discord; {} and the other online games wait for a sign-in",
 			platform::WideToUtf8(sending.Path().filename().wstring()));
@@ -482,7 +482,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		DispatchPublicRooms(command, helperReady);
 		return;
 	case Op::SavePack: {
-		const auto path = platform::replays::SetPackPath(command.matchId);
+		const auto path = Game().replays.SetPackPath(command.matchId);
 		std::string text;
 		try {
 			text = json{{"op", "replay_pack"}, {"bridge_id", command.bridgeId}, {"match_id", command.matchId},

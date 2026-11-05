@@ -40,6 +40,8 @@ struct Folders {
 	std::filesystem::path archive, active, outbox;
 };
 Folders FindFolders();
+// Folders' archive alone, without the look for the game's saves.
+std::filesystem::path ArchivePath();
 
 // Copies every match replay not yet in the archive, one file each, named by
 // its save time (UTC) and CRC (ReplayArchivePass.hxx). The archive holds a

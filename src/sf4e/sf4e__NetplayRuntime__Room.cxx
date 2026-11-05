@@ -644,11 +644,11 @@ void RunReplayRequest(const replay::Request& request) {
     if (request.mode == replay::Mode::DismissLink || request.path == runtime->replayLinkAsked) runtime->replayLinkAsked.clear();
     if (request.mode == replay::Mode::ImportPack) {
         // ponytail: read and written on the game thread; a pack is at most a couple of MB.
-        const auto held = platform::replays::ImportSetPack(platform::Utf8ToWide(request.path.c_str()));
+        const auto held = Game().replays.ImportSetPack(platform::Utf8ToWide(request.path.c_str()));
         SaySet(held ? loc::Tf("replays.set_imported", held) : std::string(loc::T("replays.set_import_failed")), !held);
         return;
     }
-    if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); platform::replays::WantListing(); return; }
+    if (request.mode == replay::Mode::Keep) { Game().replays.MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); Game().replays.WantListing(); return; }
     Game().replays.Start(request, AtMainMenu(), NoRoom());
 }
 

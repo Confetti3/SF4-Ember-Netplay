@@ -208,7 +208,7 @@ struct Runtime {
         bool matchInputFault=false;
     } matchBinding;
     std::vector<input::Device> inputDevices;
-    platform::ApplicationServices services;
+    platform::ApplicationServices services{{}, {}, ember::game::Game().replays.ArchivePath()};
     bool updateClosing = false;
 	std::unique_ptr<platform::HelperClient> helper;
 	std::shared_ptr<session::IrohRoom> room;

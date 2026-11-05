@@ -124,6 +124,18 @@ public:
     void TickPlayback(int, int, bool) override {}
     const sf4e::replaytransport::View& Playback() override { static const sf4e::replaytransport::View view; return view; }
     std::shared_ptr<const sf4e::replaylane::Lanes> PlaybackLanes() override { return nullptr; }
+    // No archive: nothing is listed, kept or saved.
+    std::filesystem::path ArchivePath() override { return {}; }
+    void WantListing() override {}
+    std::shared_ptr<const std::vector<sf4e::platform::replays::ArchivedReplay>> LatestListing() override { return nullptr; }
+    void WantDetail(const std::string&, std::uint64_t) override {}
+    sf4e::replayinputs::DetailCompletion LatestDetail() override { return {}; }
+    void StopListing() override {}
+    void MarkKept(const std::filesystem::path&, bool) override {}
+    void MarkSent(const std::filesystem::path&) override {}
+    void MarkSetClosed(const std::filesystem::path&) override {}
+    std::filesystem::path SetPackPath(const std::string&) override { return {}; }
+    std::size_t ImportSetPack(const std::filesystem::path&) override { return 0; }
 };
 
 Capabilities Everything() {
