@@ -1,7 +1,8 @@
 #include "LocaleWindows.hxx"
-#include "../common/GameLanguage.hxx"
 
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include "Utf8.hxx"
 #include <cwchar>
@@ -33,10 +34,9 @@ std::string SteamClientLanguage() {
     return WideToUtf8(value);
 }
 
-void SetGameDirectory(const std::filesystem::path& directory) {
-    auto language = directory.empty() ? std::string() : loc::DetectGameLanguage(directory, SteamClientLanguage());
+void SetGameLanguage(std::string code) {
     std::lock_guard<std::mutex> lock(gameLanguageMutex);
-    gameLanguage = std::move(language);
+    gameLanguage = std::move(code);
 }
 
 std::string GameLanguage() {

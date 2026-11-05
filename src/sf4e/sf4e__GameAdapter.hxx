@@ -69,6 +69,10 @@ public:
     // The game's screen in front, by name, for logs and the self-test; empty
     // while it is changing or before the game's screens are up.
     virtual std::string ForegroundScreen() const = 0;
+    // The game's own language, which the interface's Automatic language
+    // follows: a code as ResolveLocale reads it (Localization.hxx), or empty
+    // when the game's language is unknown. Asked once, as the runtime starts.
+    virtual std::string Language() const = 0;
     // What the player has unlocked of a fighter.
     virtual sf4e::selection::Availability FighterAvailability(int fighter) const = 0;
     // A random number from the game's own generator.

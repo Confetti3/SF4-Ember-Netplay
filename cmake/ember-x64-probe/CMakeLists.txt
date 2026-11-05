@@ -73,10 +73,9 @@ set(EMBER_SF4_SIDE
     platform/ReplayArchivePass.hxx platform/ReplayArchiveWorker.hxx platform/ReplayImportWorker.hxx
     platform/ReplayNotes.hxx platform/ReplayPath.hxx platform/ReplayRecordingWorker.hxx
     platform/ReplaySender.hxx platform/ReplaySetPack.hxx platform/ReplaySets.hxx
-    # Platform: the game's picture, display settings, custom content and language.
+    # Platform: the game's picture, display settings and custom content.
     platform/FrameGrab.cxx platform/FrameGrab.hxx platform/GameDisplaySettings.cxx
     platform/GameDisplaySettings.hxx platform/CustomContentFiles.cxx platform/CustomContentFiles.hxx
-    platform/LocaleWindows.cxx
     # Training's UI over SF4's Training mode.
     ui/TrainingPanel.cxx ui/TrainingPanel.hxx ui/TrainingMeter.cxx ui/TrainingData.cxx
     ui/TrainingShortcuts.cxx

@@ -43,6 +43,7 @@
 #include "../common/install_paths.hxx"
 #include "../common/ProductIdentity.hxx"
 #include "../common/Localization.hxx"
+#include "../common/GameLanguage.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../platform/UiPreferencesStore.hxx"
 #include "GameLocator.hxx"
@@ -745,7 +746,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             continue;
         }
         // "auto" follows USF4's own language from here on.
-        sf4e::platform::SetGameDirectory(location.directory);
+        sf4e::platform::SetGameLanguage(sf4e::loc::DetectGameLanguage(location.directory, sf4e::platform::SteamClientLanguage()));
         sf4e::loc::SetActive(sf4e::platform::ResolveUiLocale(languagePreference));
         spdlog::info("Interface language {} (preference {}, game {})", sf4e::loc::Tag(sf4e::loc::Active()),
             languagePreference, sf4e::platform::GameLanguage().empty() ? "unknown" : sf4e::platform::GameLanguage());

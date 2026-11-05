@@ -4,6 +4,10 @@
 
 #include "sf4e__GameAdapter.hxx"
 
+#include <filesystem>
+
+#include "../common/GameLanguage.hxx"
+#include "../platform/LocaleWindows.hxx"
 #include "../Dimps/Dimps.hxx"
 #include "../Dimps/Dimps__Event.hxx"
 #include "../Dimps/Dimps__Game__Battle__System.hxx"
@@ -52,6 +56,12 @@ public:
         if (!controller || (controller->*EventController::publicMethods.GetForegroundEventStatus)() != EventController::EQS_FOREGROUND) return {};
         auto* event = (controller->*EventController::publicMethods.GetForegroundEvent)();
         return event ? std::string(Dimps::Event::EventBase::GetName(event)) : std::string();
+    }
+    // USF4's own choice for the folder it runs from (GameLanguage.hxx).
+    std::string Language() const override {
+        wchar_t gamePath[MAX_PATH] = {};
+        if (!GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) return {};
+        return sf4e::loc::DetectGameLanguage(std::filesystem::path(gamePath).parent_path(), sf4e::platform::SteamClientLanguage());
     }
     sf4e::selection::Availability FighterAvailability(int fighter) const override {
         return Dimps::Selection::ReadAvailability(fighter);

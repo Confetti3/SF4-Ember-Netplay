@@ -17,6 +17,7 @@ public:
     const std::string& BuildId() const override { static const std::string id = "fake-build"; return id; }
     bool MainMenuInFront() const override { return Fake().mainMenu; }
     std::string ForegroundScreen() const override { return Fake().mainMenu ? "MainMenu" : ""; }
+    std::string Language() const override { return {}; }
     sf4e::selection::Availability FighterAvailability(int) const override { return {}; }
     std::uint32_t Random() override { return 4; }
     bool PlayChallengerCall(float) override { return false; }

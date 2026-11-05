@@ -225,8 +225,7 @@ void StartHelper() {
     runtime->checkUpdatesAtLaunch = platform::LoadUpdatePreferences().checkAtLaunch;
     runtime->automaticCountry = platform::WindowsCountry();
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
-    wchar_t gamePath[MAX_PATH] = {};
-    if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
+    platform::SetGameLanguage(Game().state.Language());
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
     spdlog::info("Interface language {} (preference {}, game {})", loc::Tag(loc::Active()), runtime->languagePreference,
         platform::GameLanguage().empty() ? "unknown" : platform::GameLanguage());
