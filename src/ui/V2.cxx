@@ -641,8 +641,11 @@ float TagWidth(const TagView& tag, TagSize size) {
     const float font = size == TagSize::XS ? ImGui::GetFontSize() * .85f : ImGui::GetFontSize();
     // As Tag lays the line out: the ping with its route above XS.
     const std::string& ping = size != TagSize::XS && !tag.ping.routed.empty() ? tag.ping.routed : tag.ping.text;
-    return NameMarksWidth(tag.marks, font) + TextWidth(tag.name, font, ImGui::GetFont()) + (tag.title.empty() ? 0 : gap + TextWidth(tag.title, font)) +
+    // Rounded up to a whole pixel: Tag takes the other parts from the width in
+    // its own order, and the float error must not leave the name a hair short
+    // of its measure, which would cut it ("FRac...").
+    return std::ceil(NameMarksWidth(tag.marks, font) + TextWidth(tag.name, font, ImGui::GetFont()) + (tag.title.empty() ? 0 : gap + TextWidth(tag.title, font)) +
         (tag.status.empty() ? 0 : gap + ChipWidth(tag.status)) + (ping.empty() ? 0 : gap + ChipWidth(ping)) +
-        (tag.link ? gap + LinkGlyph() : 0);
+        (tag.link ? gap + LinkGlyph() : 0));
 }
 } } }

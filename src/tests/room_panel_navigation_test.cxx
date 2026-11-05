@@ -1814,6 +1814,37 @@ int main() try {
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);
     }
 
+    // TagDrawsWholeNameAtItsWidth: an S tag laid out at TagWidth, as a table
+    // card's seat lays it out, draws what it draws with room to spare, at every
+    // scale: no rounding cuts the name short.
+    {
+        const char* const names[] = {"Racer 9", "Player 12", "Guest", "Wandering Fox", "Q", "Lowercase name", "MMMMMMMM", "il1|.,;"};
+        for (const float scale : {1.f, 1.1f, 1.25f, 1.33f, 1.5f, 1.75f, 2.f, 2.5f}) {
+            ApplyTheme(scale);
+            io.DeltaTime = step; SetMenuInput({0, 0}); ImGui::NewFrame();
+            ImGui::Begin("Tag fit");
+            auto* d = ImGui::GetWindowDrawList();
+            for (const char* name : names)
+                for (int parts = 0; parts < 4; ++parts) {
+                    v2::TagView tag; tag.name = name;
+                    if (parts & 1) { tag.ping.text = "48 ms"; tag.ping.routed = "Direct 48 ms"; tag.link = NetworkLink::Wired; }
+                    if (parts & 2) tag.status = "Host";
+                    const auto drawn = [&](float width) {
+                        const int before = d->VtxBuffer.Size;
+                        v2::Tag(d, ImVec2(0, 0), width, tag, v2::TagSize::S);
+                        return d->VtxBuffer.Size - before;
+                    };
+                    const float width = v2::TagWidth(tag, v2::TagSize::S);
+                    if (drawn(width) != drawn(width + 200)) {
+                        std::cerr << "scale " << scale << " name " << name << " parts " << parts << '\n';
+                        Check(false, "A tag at its own width cut its name or dropped a part");
+                    }
+                }
+            ImGui::End(); ImGui::EndFrame();
+        }
+        ApplyTheme(1.f);
+    }
+
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});
     std::cout << "Room controls and uninterrupted controller, keyboard, mouse and queue frames passed.\n";
     return 0;
