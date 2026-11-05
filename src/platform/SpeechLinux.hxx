@@ -49,6 +49,24 @@ inline std::string RenderLine(const std::vector<std::string>& parts, int rate, c
     return RelayLine({"RENDER", std::to_string(rate), language}, parts, rate, language);
 }
 
+// The two status lines the relay writes, read with sscanf_s under MSVC, which
+// deprecates sscanf, and with std::sscanf elsewhere: glibc has no sscanf_s.
+// %15s reads at most 15 characters into the 16 of `state` either way.
+inline bool ScanDownloading(const char* line, int& percent) {
+#ifdef _MSC_VER
+    return sscanf_s(line, "downloading %d", &percent) == 1;
+#else
+    return std::sscanf(line, "downloading %d", &percent) == 1;
+#endif
+}
+inline bool ScanPack(const char* line, char (&state)[16], long long& bytes) {
+#ifdef _MSC_VER
+    return sscanf_s(line, "pack %15s %lld", state, static_cast<unsigned>(sizeof state), &bytes) == 2;
+#else
+    return std::sscanf(line, "pack %15s %lld", state, &bytes) == 2;
+#endif
+}
+
 // The relay's status file: "system", "downloading <percent>", "natural" or
 // "failed", then "pack <state> <bytes>". Anything else, a missing file
 // included, is System with no pack.
@@ -59,10 +77,10 @@ inline VoiceStatus ParseRelayStatus(const std::string& text) {
     int percent = 0;
     if (first == "natural") status = {Voice::Natural, 100};
     else if (first == "failed") status = {Voice::Failed, 0};
-    else if (sscanf_s(first.c_str(), "downloading %d", &percent) == 1 && percent >= 0 && percent <= 100) status = {Voice::Downloading, percent};
+    else if (ScanDownloading(first.c_str(), percent) && percent >= 0 && percent <= 100) status = {Voice::Downloading, percent};
     char state[16] = {};
     long long bytes = 0;
-    if (end != std::string::npos && sscanf_s(text.c_str() + end + 1, "pack %15s %lld", state, static_cast<unsigned>(sizeof state), &bytes) == 2 && bytes >= 0) {
+    if (end != std::string::npos && ScanPack(text.c_str() + end + 1, state, bytes) && bytes >= 0) {
         const std::string name = state;
         status.pack = name == "missing" ? Pack::Missing : name == "current" ? Pack::Current : name == "outdated" ? Pack::Outdated :
             name == "removed" ? Pack::Removed : Pack::None;
