@@ -401,7 +401,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
- else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):"";nav.Push(a.id);}
+ else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
@@ -748,7 +748,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?RoomShortcutHints():std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_});
-  selectionFresh_=false;selectionOpenOn_.clear();
+  selectionFresh_=false;selectionOpenOn_=SelectionStart::Board;
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
   selection();selectionDrawn_=true;

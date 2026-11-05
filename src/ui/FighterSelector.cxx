@@ -29,6 +29,19 @@ using palette::Ember;
 using palette::Ivory;
 using palette::Muted;
 
+// The page fighter select was opened on for one change, whose Back hands Close
+// back to the parent; none for the roster, which is the board itself.
+const char* StartPage(SelectionStart start) {
+    switch (start) {
+    case SelectionStart::LookUltra: return "look";
+    case SelectionStart::Costumes: return "costumes";
+    case SelectionStart::Ultras: return "ultras";
+    case SelectionStart::Stage: return "stage";
+    case SelectionStart::Options: return "options";
+    case SelectionStart::Board: case SelectionStart::Roster: break;
+    }
+    return nullptr;
+}
 // What an Ultra's command needs besides its input, in the player's language.
 const char* UltraConditionText(selection::UltraCondition condition) {
     using C = selection::UltraCondition;
@@ -204,18 +217,20 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  // this screen hands back to it.
  const auto& embedded=EmbeddedReturnContext();
  if(TakeEmbeddedFresh()){
-  nav.Home();openOn_.clear();
-  const auto& openOn=embedded.openOn;
+  nav.Home();openOn_=embedded.openOn;
   // Opened for the roster (a room's Fighter, the post-match Character select),
   // a fighter picked is the change it was opened for, as a stage is.
   // The board is the grid; the costume and the Ultra are on the fighter's own page.
-  if(openOn=="roster"){nav.Prefer(savedCard);openOn_=openOn;}
-  else if(openOn=="ultra"){nav.Push("look");nav.Prefer("ultra");openOn_="look";}
+  switch(openOn_){
+  case SelectionStart::Roster:nav.Prefer(savedCard);break;
+  case SelectionStart::LookUltra:nav.Push("look");nav.Prefer("ultra");break;
   // Opened for the look or the Ultra, its grid shows at once, over the fighter's page.
-  else if(openOn=="costumes"){nav.Push("look");nav.Prefer("costume");gallery_.Open(nav,AppearanceGallery::Page::Costumes,pick);openOn_=openOn;}
-  else if(openOn=="ultras"){nav.Push("look");nav.Prefer("ultra");gallery_.Open(nav,AppearanceGallery::Page::Ultras,pick);openOn_=openOn;}
-  else if(openOn=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));openOn_=openOn;}
-  else if(openOn=="options"){nav.Push("options");openOn_=openOn;}
+  case SelectionStart::Costumes:nav.Push("look");nav.Prefer("costume");gallery_.Open(nav,AppearanceGallery::Page::Costumes,pick);break;
+  case SelectionStart::Ultras:nav.Push("look");nav.Prefer("ultra");gallery_.Open(nav,AppearanceGallery::Page::Ultras,pick);break;
+  case SelectionStart::Stage:if(stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));}else openOn_=SelectionStart::Board;break;
+  case SelectionStart::Options:nav.Push("options");break;
+  case SelectionStart::Board:break;
+  }
  }
  const auto screen=nav.Screen();
  menu_.rootName=loc::T("screen.selection");menu_.exitName=embedded.exitName;menu_.shortcutHints=embedded.shortcutHints;
@@ -369,7 +384,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,body,false,100,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  // Opened for one change, Back from its page goes back to where it came from.
- if(!openOn_.empty()&&a.kind==MenuAction::Returned&&screen==openOn_)ForwardMenuAction({MenuAction::Close});
+ if(const char* page=StartPage(openOn_);page&&a.kind==MenuAction::Returned&&screen==page)ForwardMenuAction({MenuAction::Close});
  if(a.kind==MenuAction::Activate){
   if(a.id=="ready")ForwardMenuAction({MenuAction::Close});
   else if(a.id=="stage"||a.id=="options"||a.id=="random-pool")nav.Push(a.id);
@@ -378,7 +393,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // that is the change.
    if(chosen==AppearanceGallery::Choice::Saved){
     Normalize(pick,editionSelect,&availability,installed);changed=true;
-    if(AppearanceGallery::Shows(openOn_))ForwardMenuAction({MenuAction::Close});
+    if(openOn_==SelectionStart::Costumes||openOn_==SelectionStart::Ultras)ForwardMenuAction({MenuAction::Close});
    }
   }
   else if(const auto pooled=RowKey<int>(a.id,"pool-");pooled&&editable&&randomPool){
@@ -389,14 +404,14 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    // Chosen, Random rolls its fighter (room::RandomFighterPick) and the board stays.
    if(!*random&&editable&&!fighterKept){
     *random=true;changed=true;
-    if(openOn_=="roster")ForwardMenuAction({MenuAction::Close});
+    if(openOn_==SelectionStart::Roster)ForwardMenuAction({MenuAction::Close});
    }else if(*random)nav.Push("look");
   }
   else if(const auto fighter=RowKey<int>(a.id,"fighter-");fighter&&editable&&!fighterKept&&*fighter<FighterCount){
    if(random)*random=false;
    pick.fighter=*fighter;const auto next=readAvailability?readAvailability(pick.fighter):Availability{};
    Normalize(pick,editionSelect,&next,installed);changed=true;
-   if(openOn_=="roster")ForwardMenuAction({MenuAction::Close});
+   if(openOn_==SelectionStart::Roster)ForwardMenuAction({MenuAction::Close});
    else nav.Push("look");
   }else if(RowKey<int>(a.id,"fighter-")){
    // The saved fighter where no other can be chosen (kept, or locked): their page.
@@ -405,7 +420,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    *stageId=*stage;changed=true;
    // Opened for this one change, the pick is it: back to where it was opened from.
    // From the board the stage page stays.
-   if(openOn_=="stage")ForwardMenuAction({MenuAction::Close});
+   if(openOn_==SelectionStart::Stage)ForwardMenuAction({MenuAction::Close});
   }
  }else if(editable&&a.kind==MenuAction::Adjust){
   bool stepped=true;

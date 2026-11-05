@@ -67,8 +67,8 @@ private:
     GameMenu menu_;
     // The costume, colour and Ultra grids over the fighter's page.
     AppearanceGallery gallery_;
-    // The page ("stage", "options", "costumes" or "ultras") opened for one change
-    // (EmbeddedReturn::openOn), or empty when the selector opened on its board.
-    std::string openOn_;
+    // Where the selector was opened for one change (EmbeddedReturn::openOn),
+    // or Board when it opened on its board.
+    SelectionStart openOn_ = SelectionStart::Board;
 };
 } }

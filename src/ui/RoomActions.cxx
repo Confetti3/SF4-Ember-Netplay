@@ -190,11 +190,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    if(a.kind==MenuAction::Adjust){
     if(v.canEditSelection&&RoomActionsAvailable(v))
      StepPick(v,{ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta},submit);
-   }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?"ultras":"costumes";nav.Push("selection");}
+   }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?SelectionStart::Ultras:SelectionStart::Costumes;nav.Push("selection");}
    return;
   }
   if(a.id=="stage"||a.id=="fighter-options"){
-   if(a.kind==MenuAction::Activate&&SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?"stage":"options";nav.Push("selection");}
+   if(a.kind==MenuAction::Activate&&SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=a.id=="stage"?SelectionStart::Stage:SelectionStart::Options;nav.Push("selection");}
    return;
   }
  if(a.id=="leave"){Send(netplay::CommandKind::LeaveRoom,v,submit);return;}

@@ -237,8 +237,8 @@ inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t e
 }
 // Where the fighter select opens from a room: on the roster, or on the Ultra
 // for a winner who keeps the fighter (room::KeepsFighter), whose roster is locked.
-inline const char* RoomSelectionStart(const room::Snapshot& room) {
-    return room::KeepsFighter(room, room.localMember) ? "ultra" : "roster";
+inline SelectionStart RoomSelectionStart(const room::Snapshot& room) {
+    return room::KeepsFighter(room, room.localMember) ? SelectionStart::LookUltra : SelectionStart::Roster;
 }
 // A member's "is typing" `elapsedMs` after the room stamped it; gone once it ran out.
 inline std::uint32_t RoomTypingMs(const room::Member& member, std::uint64_t elapsedMs) {
@@ -529,7 +529,7 @@ private:
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
     // The page fighter select opens on (EmbeddedReturn::openOn).
-    std::string selectionOpenOn_;
+    SelectionStart selectionOpenOn_ = SelectionStart::Board;
     // Training select opened fighter select on its Dummy row (SelectingDummy).
     bool selectionForDummy_=false;
     // The screen an opening room was started from, as the controller recorded

@@ -454,8 +454,8 @@ int main() try {
                 Check(row(id).enabled, "An editable unseated pick row is disabled");
                 focus(id); press(MenuInput::Select);
                 Check(shell.Navigation().Screen() == "selection", "An unseated pick row did not open selection");
-                Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? "roster" :
-                    std::strcmp(id, "appearance") == 0 ? "costumes" : std::strcmp(id, "ultra") == 0 ? "ultras" : "options"),
+                Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? SelectionStart::Roster :
+                    std::strcmp(id, "appearance") == 0 ? SelectionStart::Costumes : std::strcmp(id, "ultra") == 0 ? SelectionStart::Ultras : SelectionStart::Options),
                     "An unseated pick row opened the wrong selection page");
                 shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
             }
@@ -768,7 +768,7 @@ int main() try {
         Check(row("options").enabled && std::none_of(more.choices.begin(), more.choices.end(), [](const MenuChoice& c) { return c.id == "options"; }),
             "Table options are not a bar button, or are still a choice of More");
         focus("room-ultra"); press(MenuInput::Select);
-        Check(shell.Navigation().Screen() == "selection" && EmbeddedReturnContext().openOn == "ultras",
+        Check(shell.Navigation().Screen() == "selection" && EmbeddedReturnContext().openOn == SelectionStart::Ultras,
             "Select on the board's Ultra did not open the Ultra cards");
         shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
         focus("table-0"); frame();

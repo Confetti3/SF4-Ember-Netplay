@@ -20,7 +20,7 @@ void ApplicationShell::TrainingSelectActivate(const MenuAction& a,const ShellVie
   return;
  }
  selectionForDummy_=a.id=="training-dummy";
- selectionFresh_=true;selectionOpenOn_=a.id=="training-stage"?"stage":"";
+ selectionFresh_=true;selectionOpenOn_=a.id=="training-stage"?SelectionStart::Stage:SelectionStart::Board;
  menu_.navigation.Push("selection");
 }
 } }

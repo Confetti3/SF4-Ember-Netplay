@@ -160,14 +160,18 @@ int MenuPromptDevice();
 // what it does not handle itself: Close, or a shortcut the parent owns.
 void ForwardMenuAction(MenuAction action);
 MenuAction TakeForwardedMenuAction();
+// Where fighter select starts when its parent opens it for one change: the
+// roster (the board, its fighter cards), the fighter's own page on its Ultra
+// row (a winner who keeps the fighter), the costume or Ultra cards over that
+// page, the stage page, or the options page. Board: no one change, the board.
+enum class SelectionStart { Board, Roster, LookUltra, Costumes, Ultras, Stage, Options };
 // What the parent tells an embedded screen before drawing it: where its Back
 // from the root goes, and the parent's shortcuts it forwards and so advertises.
 // fresh: the parent has just opened this screen, so it starts at its first
 // page; TakeEmbeddedFresh reads it once. openOn: the parent opened fighter
-// select for one change ("roster", "ultra", "costumes", "ultras", "stage" or "options"),
-// so it starts on that page and hands Close back once the pick is made, or on
-// Back from that page.
-struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; std::string openOn; };
+// select for one change, so it starts on that page and hands Close back once
+// the pick is made, or on Back from that page.
+struct EmbeddedReturn { std::string exitName; std::vector<LegendHint> shortcutHints; bool fresh=false; SelectionStart openOn=SelectionStart::Board; };
 void SetEmbeddedReturn(EmbeddedReturn context);
 const EmbeddedReturn& EmbeddedReturnContext();
 bool TakeEmbeddedFresh();
