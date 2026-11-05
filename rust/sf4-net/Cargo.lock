@@ -3720,6 +3720,7 @@ dependencies = [
  "flate2",
  "getrandom 0.3.4",
  "iroh",
+ "n0-error",
  "openraft",
  "rand 0.10.2",
  "reqwest",

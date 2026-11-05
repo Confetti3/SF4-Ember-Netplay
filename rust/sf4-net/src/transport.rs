@@ -9,7 +9,7 @@ use std::{
 use ember_protocol::{EmberId, rooms::RoomTicket};
 use iroh::{
     Endpoint, EndpointAddr, EndpointId,
-    endpoint::{Connection, ConnectionError, PortmapperConfig, RecvStream, SendStream, presets},
+    endpoint::{Connection, ConnectionError, PortmapperConfig, RecvStream, SendStream},
 };
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
@@ -21,6 +21,8 @@ use crate::{
 };
 
 pub mod fixed_port;
+mod os_dns;
+pub(crate) use os_dns::n0_builder;
 mod with_proof;
 pub(crate) use with_proof::{accept_control_with, connect_public_on_proof};
 
@@ -83,7 +85,7 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
 }
 
 fn production_builder() -> iroh::endpoint::Builder {
-    Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
+    n0_builder().alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
 }
 
 /// Binds the primary endpoint's IPv4 socket on exactly this UDP port, with no
