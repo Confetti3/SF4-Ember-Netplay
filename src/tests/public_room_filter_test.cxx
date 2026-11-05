@@ -1,7 +1,7 @@
 // The public rooms filter (netplay/PublicRoomFilter.hxx): which rooms it lists
 // by region, type, free seats and connection, how its settings step, and what
 // Quick join takes from it.
-#include "../netplay/PublicRoomFilter.hxx"
+#include "../netplay/PublicRoomFilterMatch.hxx"
 
 #include <string>
 
@@ -24,51 +24,51 @@ void DefaultListsEverything() {
 	const RoomFilter filter;
 	EXPECT(!filter.Active() && filter.Valid());
 	Room full = Make("euc1", std::nullopt); full.members = 8; full.locked = true; full.wiredOnly = true;
-	EXPECT(filter.Matches(full, "") && filter.Matches(full, "use1") && filter.Matches(Make("aps1", ArcadeRoom), "use1"));
+	EXPECT(Matches(filter, full, "") && Matches(filter, full, "use1") && Matches(filter, Make("aps1", ArcadeRoom), "use1"));
 }
 
 void RegionNearAndOne() {
 	RoomFilter near; near.scope = RoomFilter::Region::Near;
 	EXPECT(near.Active() && near.Valid());
-	EXPECT(near.Matches(Make("use1"), "use1") && !near.Matches(Make("euc1"), "use1"));
+	EXPECT(Matches(near, Make("use1"), "use1") && !Matches(near, Make("euc1"), "use1"));
 	// Near with no home region cannot say which rooms are near: every region is listed.
-	EXPECT(near.Matches(Make("euc1"), ""));
+	EXPECT(Matches(near, Make("euc1"), ""));
 	RoomFilter one; one.scope = RoomFilter::Region::One; one.region = "euc1";
-	EXPECT(one.Valid() && one.Matches(Make("euc1"), "use1") && one.Matches(Make("euc1"), "") && !one.Matches(Make("use1"), "use1"));
+	EXPECT(one.Valid() && Matches(one, Make("euc1"), "use1") && Matches(one, Make("euc1"), "") && !Matches(one, Make("use1"), "use1"));
 	// A region that is not one to filter by is invalid, and a region without the One scope too.
 	one.region = "mars"; EXPECT(!one.Valid());
 	one.region = ""; EXPECT(!one.Valid());
 	RoomFilter stray; stray.region = "use1"; EXPECT(!stray.Valid());
-	for (const char* code : FilterRegions) EXPECT(KnownFilterRegion(code));
+	for (const char* code : FilterRegions()) EXPECT(KnownFilterRegion(code));
 	EXPECT(!KnownFilterRegion("other") && !KnownFilterRegion(""));
 }
 
 void TypeNeedsASentType() {
 	RoomFilter filter;
 	filter.type = RoomFilter::Type::Arcade;
-	EXPECT(filter.Matches(Make("use1", ArcadeRoom), "") && !filter.Matches(Make("use1", ClassicRoom), "") && !filter.Matches(Make("use1", KingRoom), ""));
+	EXPECT(Matches(filter, Make("use1", ArcadeRoom), "") && !Matches(filter, Make("use1", ClassicRoom), "") && !Matches(filter, Make("use1", KingRoom), ""));
 	// A room that sent no type passes under All only.
-	EXPECT(!filter.Matches(Make("use1", std::nullopt), ""));
+	EXPECT(!Matches(filter, Make("use1", std::nullopt), ""));
 	filter.type = RoomFilter::Type::Classic;
-	EXPECT(filter.Matches(Make("use1", ClassicRoom), "") && !filter.Matches(Make("use1", std::nullopt), ""));
+	EXPECT(Matches(filter, Make("use1", ClassicRoom), "") && !Matches(filter, Make("use1", std::nullopt), ""));
 	filter.type = RoomFilter::Type::King;
-	EXPECT(filter.Matches(Make("use1", KingRoom), "") && !filter.Matches(Make("use1", ArcadeRoom), ""));
+	EXPECT(Matches(filter, Make("use1", KingRoom), "") && !Matches(filter, Make("use1", ArcadeRoom), ""));
 	filter.type = RoomFilter::Type::All;
-	EXPECT(filter.Matches(Make("use1", std::nullopt), ""));
+	EXPECT(Matches(filter, Make("use1", std::nullopt), ""));
 }
 
 void SeatsAndWired() {
 	RoomFilter seats; seats.openSeats = true;
 	Room full = Make("use1"); full.members = 8;
 	Room locked = Make("use1"); locked.locked = true;
-	EXPECT(seats.Matches(Make("use1"), "") && !seats.Matches(full, "") && !seats.Matches(locked, ""));
+	EXPECT(Matches(seats, Make("use1"), "") && !Matches(seats, full, "") && !Matches(seats, locked, ""));
 	RoomFilter wired; wired.wiredOnly = true;
 	Room only = Make("use1"); only.wiredOnly = true;
-	EXPECT(wired.Matches(only, "") && !wired.Matches(Make("use1"), ""));
+	EXPECT(Matches(wired, only, "") && !Matches(wired, Make("use1"), ""));
 	RoomFilter all; all.scope = RoomFilter::Region::One; all.region = "use1"; all.type = RoomFilter::Type::Classic; all.openSeats = true; all.wiredOnly = true;
-	EXPECT(all.Matches(only, "") && !all.Matches(Make("use1"), "") && !all.Matches(Make("euc1"), ""));
+	EXPECT(Matches(all, only, "") && !Matches(all, Make("use1"), "") && !Matches(all, Make("euc1"), ""));
 	Room onlyFull = only; onlyFull.members = 8;
-	EXPECT(!all.Matches(onlyFull, ""));
+	EXPECT(!Matches(all, onlyFull, ""));
 }
 
 void RegionStepsInOrder() {

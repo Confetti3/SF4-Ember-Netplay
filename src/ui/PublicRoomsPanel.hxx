@@ -1,7 +1,7 @@
 #pragma once
 #include "IdentityPanel.hxx"
 #include "MenuNavigation.hxx"
-#include "../netplay/PublicRoomFilter.hxx"
+#include "../netplay/PublicRoomFilterMatch.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TableSetup.hxx"
 #include "../netplay/TournamentStatus.hxx"

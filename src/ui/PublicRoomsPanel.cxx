@@ -81,7 +81,7 @@ std::vector<const Room*> Sorted(const void* owner, const PublicList& list, const
 
 std::vector<const Room*> Listing(const void* owner, const PublicList& list, const std::string& region, const RoomFilter& filter) {
     auto listing = Sorted(owner, list, region);
-    listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) { return !filter.Matches(*room, region); }), listing.end());
+    listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) { return !Matches(filter, *room, region); }), listing.end());
     return listing;
 }
 
@@ -103,7 +103,7 @@ void AddFilterRows(std::vector<MenuEntry>& rows, const RoomFilter& filter, const
         rows.push_back(std::move(row));
     };
     add(FilterRegionRow, "public.filter_region", RegionValue(filter), loc::T(nearUnknown ? "public.filter_near_unknown" : "public.filter_region_detail"));
-    const auto wanted = RoomFilter::Wanted(filter.type);
+    const auto wanted = WantedType(filter.type);
     add(FilterTypeRow, "public.filter_type", wanted ? std::string(RoomTypeName(*wanted)) : std::string(loc::T("public.filter_type_all")), loc::T("public.filter_type_detail"));
     add(FilterSeatsRow, "public.filter_seats", loc::T(filter.openSeats ? "common.on" : "common.off"), loc::T("public.filter_seats_detail"));
     add(FilterWiredRow, "public.filter_wired", loc::T(filter.wiredOnly ? "public.filter_wired_only" : "public.filter_wired_all"), loc::T("public.filter_wired_detail"));
@@ -398,7 +398,7 @@ std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
     const RoomFilter wanted = filter.ForQuickJoin();
     for (const Room* room : Sorted(this, v.publicRooms, region)) {
-        if (!room->Joinable() || refused_.count(room->id) || !wanted.Matches(*room, region)) continue;
+        if (!room->Joinable() || refused_.count(room->id) || !Matches(wanted, *room, region)) continue;
         return room->id;
     }
     return std::nullopt;
