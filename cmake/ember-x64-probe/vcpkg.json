@@ -1,0 +1,32 @@
+{
+  "name": "ember-x64-probe",
+  "version-string": "0.0.1",
+  "description": "The packages Ember's game-neutral code needs on x64: SF4 Ember's versions, without its x86-only and SF4-only ones.",
+  "dependencies": [
+    "fmt",
+    {
+      "name": "ggpo",
+      "version>=": "1.0.0#5"
+    },
+    {
+      "name": "imgui",
+      "version>=": "1.91.5",
+      "features": [
+        "win32-binding"
+      ]
+    },
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.11.2"
+    },
+    {
+      "name": "spdlog",
+      "version>=": "1.11.0",
+      "features": [
+        "wchar"
+      ]
+    },
+    "zlib"
+  ],
+  "builtin-baseline": "fafcc0e93bfba303e5e48790def745d27e6d449b"
+}
