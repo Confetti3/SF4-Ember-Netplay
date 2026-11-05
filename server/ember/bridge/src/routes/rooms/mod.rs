@@ -349,6 +349,7 @@ impl Room {
             set_format: None,
             rotation: None,
             room_type: None,
+            wired_only: false,
         };
         summary.check().map_err(|_| ApiFailure::unavailable())?;
         Ok(summary)
