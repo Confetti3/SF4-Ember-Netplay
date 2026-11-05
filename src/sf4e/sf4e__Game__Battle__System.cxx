@@ -137,6 +137,10 @@ void HandOverInPlaceReplay() {
 int fSystem::GetGameMode() {
     const int mode = (this->*rSystem::publicMethods.GetGameMode)();
     if (!ggpo || rematchChoices != 3 || *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__BTL_OVER) return mode;
+    // A spectator saves no states, so its timeline never moves and the frame
+    // check below cannot tell one restart from the next; the game it watched
+    // end is counted here once (CountWatchedInPlaceGame takes the WIN it read).
+    if (!LocalFighter()) CountWatchedInPlaceGame();
     const int frame = ggpoTimeline.Held();
     if (frame != rematchFrame) {
         rematchFrame = frame;
@@ -146,10 +150,7 @@ int fSystem::GetGameMode() {
         s_inPlaceReplays.Restarting(RecorderReplay);
         // A spectator plays confirmed frames only, so its restart is final; a
         // fighter's is once the next game's fight is confirmed (NativeResult).
-        if (!LocalFighter()) {
-            HandOverInPlaceReplay();
-            CountWatchedInPlaceGame();
-        }
+        if (!LocalFighter()) HandOverInPlaceReplay();
     }
     return 4;
 }
