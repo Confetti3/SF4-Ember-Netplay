@@ -46,7 +46,8 @@ std::string Hex(HRESULT value) {
 
 std::uint32_t U32(const std::vector<unsigned char>& bytes, std::size_t offset) {
     std::uint32_t value = 0;
-    if (offset + sizeof(value) <= bytes.size()) std::memcpy(&value, bytes.data() + offset, sizeof(value));
+    // Subtracted, not added: an offset near 4 GB must not wrap past the check on the 32-bit build.
+    if (offset <= bytes.size() && bytes.size() - offset >= sizeof(value)) std::memcpy(&value, bytes.data() + offset, sizeof(value));
     return value;
 }
 // The image of an EMB archive: the entry named `entry`, or with none the first
@@ -54,10 +55,12 @@ std::uint32_t U32(const std::vector<unsigned char>& bytes, std::size_t offset) {
 std::vector<unsigned char> EmbImage(const std::vector<unsigned char>& emb, const std::string& entry) {
     if (emb.size() < 40 || std::memcmp(emb.data(), "#EMB", 4) != 0) return {};
     const std::size_t count = U32(emb, 12), table = U32(emb, 24), names = U32(emb, 28);
-    if (count < 1 || count > (entry.empty() ? MaximumPortraitEntries : MaximumArchiveEntries) || table + count * 8 > emb.size()) return {};
+    // Each bound is checked from the end, as in U32, so a hostile offset cannot wrap.
+    if (count < 1 || count > (entry.empty() ? MaximumPortraitEntries : MaximumArchiveEntries) || table > emb.size() ||
+        count * 8 > emb.size() - table) return {};
     std::size_t index = 0;
     if (!entry.empty()) {
-        if (!names || names + count * 4 > emb.size()) return {};
+        if (!names || names > emb.size() || count * 4 > emb.size() - names) return {};
         const auto named = [&](std::size_t i) {
             const std::size_t name = U32(emb, names + i * 4);
             return name < emb.size() && emb.size() - name > entry.size() &&
@@ -68,8 +71,10 @@ std::vector<unsigned char> EmbImage(const std::vector<unsigned char>& emb, const
     }
     // Each entry's offset counts from its own row of the table.
     const std::size_t row = table + index * 8;
-    const std::size_t image = row + U32(emb, row), imageBytes = U32(emb, row + 4);
-    if (image > emb.size() || imageBytes > emb.size() - image || imageBytes < 128 ||
+    const std::size_t offset = U32(emb, row), imageBytes = U32(emb, row + 4);
+    if (offset > emb.size() - row) return {};
+    const std::size_t image = row + offset;
+    if (imageBytes > emb.size() - image || imageBytes < 128 ||
         std::memcmp(emb.data() + image, "DDS ", 4) != 0) return {};
     return std::vector<unsigned char>(emb.begin() + image, emb.begin() + image + imageBytes);
 }
