@@ -918,6 +918,11 @@ int main(int argc, char** argv) {
             // Three-digit scores test the score's width; the README pictures show a set score instead.
             for(int i=0;i<4;++i){auto& t=view.room.tables[i];t.id=i;t.revision=1;t.phase=i==0?room::TablePhase::Waiting:i==1?room::TablePhase::Playing:room::TablePhase::Idle;
                 if(i<2){t.p1=i*2+1;t.p2=i*2+2;t.score[0]=readmeShots?i*2:i*120;t.score[1]=readmeShots?i:i*99;}}
+            // The playing table's first fighter has won sets in a row there: the
+            // table card shows the streak under their fighter. An open table has
+            // the host's name for it, a long one, cut at the narrow sizes.
+            view.room.tables[1].streakHolder=3;view.room.tables[1].streak=3;
+            if(!readmeShots)view.room.tables[2].name="Long table name to cut";
             const char* sampleNames[]={"Ember Player","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
             for(int i=1;i<=16;++i){room::Member m;m.id=i;m.name=readmeShots?sampleNames[i-1]:(i==2?"Long player name for layout test":"Member "+std::to_string(i));m.host=i==1;m.fighter=(i-1)*2;m.mainFighter=(i+7)%44;
                 if(i<=4){m.table=(i-1)/2;m.seat=(i-1)%2;m.status=i<3?room::MemberStatus::Seated:room::MemberStatus::Playing;}

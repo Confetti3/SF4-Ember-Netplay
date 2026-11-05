@@ -97,12 +97,14 @@ int main() try {
     std::map<std::string, bool> inView;
     // Whether each card's target, its middle, lay inside that clip: a click there reaches it.
     std::map<std::string, bool> clickable;
+    // Each card's box as last reported.
+    std::map<std::string, std::pair<ImVec2, ImVec2>> boxes;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; ++menuDraws; });
     SetMenuStatusProbe([&](const char* status, Tone) { menuStatus = status; });
     SetMenuCardProbe([&](const char* id, ImVec2 min, ImVec2 max) {
         ++cardDraws;
         const ImVec2 middle((min.x + max.x) * .5f, (min.y + max.y) * .5f);
-        targets[id] = middle;
+        targets[id] = middle; boxes[id] = {min, max};
         const auto* d = ImGui::GetWindowDrawList();
         const ImVec2 lo = d->GetClipRectMin(), hi = d->GetClipRectMax();
         // The clip is whole pixels, the card not: a pixel's slack.
@@ -1658,6 +1660,20 @@ int main() try {
                 click(targets.at(table));
                 Check(shell.Navigation().Choosing(), "A click on a free table did not open the seat chooser");
                 frame(); // the strip reports its place once drawn
+                // ClassicCardStripAlongItsFoot: on every card shape the strip
+                // covers the card's foot, across it, where its rules line is
+                // (the Classic card's place), not between the seats.
+                {
+                    const auto& card = boxes.at(table);
+                    const auto& first = boxes.at(table + "/0");
+                    const auto& last = boxes.at(table + "/2");
+                    const float w = card.second.x - card.first.x, h = card.second.y - card.first.y;
+                    if (!(first.first.x < card.first.x + w * .1f && last.second.x > card.second.x - w * .1f &&
+                          first.first.y > card.first.y + h * .6f && last.second.y <= card.second.y + 1)) {
+                        std::cerr << "scale " << scale << " size " << size.x << "x" << size.y << " " << table << '\n';
+                        Check(false, "The seat chooser's strip is not along its card's foot");
+                    }
+                }
                 const auto before = actions.size();
                 click(targets.at(option));
                 const bool sat = actions.size() == before + 1 && actions.back().roomAction.kind == room::ActionKind::Queue;
@@ -1730,6 +1746,32 @@ int main() try {
         // ClassicV2CardsOnePerLine: the default lays one table per line, so
         // Down goes to the next table and Right leaves the tables for the members.
         board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
+        // TableStreakLine: a seat's third line names a streak of two sets or
+        // more at the table, for its holder only.
+        {
+            room::Table t; t.streakHolder = 2; t.streak = 1;
+            Check(room_controls::StreakText(t, 2).empty(), "One set won read as a streak");
+            t.streak = 2;
+            Check(!room_controls::StreakText(t, 2).empty() && room_controls::StreakText(t, 1).empty(), "The streak was not its holder's alone");
+            t.streakHolder = 0;
+            Check(room_controls::StreakText(t, 0).empty(), "An empty seat read as holding the streak");
+        }
+        // ClassicCardIsAVersusLine: one per line, a 1280 board's card is a
+        // versus line, as the Classic card was before 1.5.0: a full table's two
+        // fighters stand at the card's two ends, the score between them.
+        {
+            std::vector<std::pair<ImVec2, ImVec2>> pictures;
+            SetPortraitProbe([&](const FighterPicture&, ImVec2 min, ImVec2 max) { pictures.push_back({min, max}); });
+            frame(); SetPortraitProbe({});
+            const auto& card = boxes.at("table-0");
+            const float middle = (card.first.x + card.second.x) * .5f;
+            int left = 0, right = 0;
+            for (const auto& [min, max] : pictures) {
+                if (min.x < card.first.x || max.x > card.second.x || min.y < card.first.y || max.y > card.second.y) continue;
+                if (max.x <= middle) ++left; else if (min.x >= middle) ++right;
+            }
+            Check(left == 1 && right == 1, "A full table's card at 1280 was not a versus line with a fighter at each end");
+        }
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-1", "Down from table 1 did not reach table 2 under it");
         focus("table-0"); frame(); press(MenuInput::Right);
