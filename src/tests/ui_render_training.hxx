@@ -624,6 +624,10 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             SetMenuGlyphs(device,device==input::PadXInput?input::xinput::A:0,device==input::PadXInput?input::xinput::B:0);
             NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
             const std::string back=device==input::PadXInput?"Back":"Select";
+            // The runtime gives an Xbox pad its controls button, R3 by default (TrainingButtonsFor).
+            input::TrainingButtons padButtons;
+            if(device==input::PadXInput){padButtons.controls=input::xinput::RS;padButtons.controlsName="R3";}
+            SetTrainingPadButtons(padButtons);
             // An Xbox pad opens the controls with R3 alone (TrainingPad.hxx); a DirectInput pad with the chord.
             const std::vector<std::string> controls=device==input::PadXInput?std::vector<std::string>{"R3"}:std::vector<std::string>{back,"+","Start"};
             // At least the controls, the chip, the pad's hint and the F7 pair: the long catalogs drop the F8 pair.
@@ -635,6 +639,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             names(line({back,loc::T("training.pad_hint"),"F7",record,"F8",stop}),least,"The pad's strip lost its buttons or F7");
             training.mode=training::Mode::Idle;
         }
+        SetTrainingPadButtons({});
         io.AddKeyEvent(ImGuiKey_F5,true);draw(nullptr,0,1);NoteMenuDevice(0);io.AddKeyEvent(ImGuiKey_F5,false);draw(nullptr,0,1);
         SetMenuGlyphs(0,0,0);
         io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));draw();
