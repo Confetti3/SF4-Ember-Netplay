@@ -15,7 +15,7 @@
 #include "../common/ControllerHints.hxx"
 #include "sf4e__RuntimeSession.hxx"
 #include "sf4e__GameAdapter.hxx"
-#include "../Dimps/Dimps__GameEvents.hxx"
+#include "../common/MatchWireTypes.hxx"
 #include "../platform/HelperClient.hxx"
 #include "../session/IrohRoom.hxx"
 #include "../session/IrohMatchSession.hxx"
@@ -143,7 +143,7 @@ struct Room {
     room::RoomType arcadeRoom = room::ClassicRoom;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
-    Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
+    sf4e::wire::ConfirmedCharaConditions character = {};
     int stage = 0;
     selection::RandomPool randomPool;
     room::Action roomAction;

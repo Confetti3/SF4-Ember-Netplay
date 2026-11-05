@@ -10,7 +10,7 @@
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
-using Chara = Dimps::GameEvents::VsMode::ConfirmedCharaConditions;
+using Chara = sf4e::wire::ConfirmedCharaConditions;
 // How long a shown roll the room does not show yet waits before it goes again
 // (the host drops it while the table's game is still being torn down).
 constexpr std::uint64_t ShowAgainMs = 1000;

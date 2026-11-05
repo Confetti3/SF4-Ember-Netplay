@@ -40,7 +40,7 @@
 #include <vector>
 #include <array>
 #include <memory>
-#include "../Dimps/Dimps__GameEvents.hxx"
+#include "../common/MatchWireTypes.hxx"
 #include "sf4e__RuntimeEvents.hxx"
 
 namespace sf4e {
@@ -106,7 +106,7 @@ namespace sf4e {
     discord::InviteAction discordAction = discord::InviteAction::None;
     std::uint64_t discordRevision = 0;
 			std::string displayName;
-			Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
+			sf4e::wire::ConfirmedCharaConditions character = {};
 			int stage = 0;
 			// The stages Random may land on (P1 resolves Random with it).
 			selection::RandomPool randomPool;
@@ -360,8 +360,8 @@ namespace sf4e {
 		// as the overlay has it, and the look remembered for each fighter. The
 		// runtime rolls the next game's fighter (RuntimeSnapshot::randomFighter),
 		// sends it with every Ready and plays no rematch in place for it.
-		void NoteRandomFighter(bool random, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& lobby,
-			const std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, ember::MaxFighters>& remembered);
+		void NoteRandomFighter(bool random, const sf4e::wire::ConfirmedCharaConditions& lobby,
+			const std::array<sf4e::wire::ConfirmedCharaConditions, ember::MaxFighters>& remembered);
 		// Any thread: Training from Home played the rolled fighter; the next roll comes at once.
 		void NoteRandomFighterPlayed();
 		// Game thread. Whether leaving for Training, asked for in session `made`,

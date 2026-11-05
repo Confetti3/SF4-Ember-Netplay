@@ -1,7 +1,6 @@
 #pragma once
 
 #include <windows.h>
-#include <nlohmann/json.hpp>
 #include "../common/MatchWireTypes.hxx"
 
 namespace Dimps {
@@ -21,6 +20,5 @@ namespace Dimps {
 		};
 
 		float FixedToFloat(FixedPoint* fp);
-
 	}
 }

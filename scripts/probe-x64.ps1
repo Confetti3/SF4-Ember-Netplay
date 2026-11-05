@@ -10,7 +10,10 @@ param(
 	[string]$BuildDir = 'D:\sf4-build\ember-x64-probe',
 	[string]$VcpkgCache = 'D:\sf4-build\vcpkg-cache',
 	[string]$VcpkgRoot = '',
-	[string]$VisualStudioPath = ''
+	[string]$VisualStudioPath = '',
+	# Also links and runs the runtime's test under the fake game, which does
+	# not link until the runtime stops calling SF4's side (the CMake file says what).
+	[switch]$LinkRuntime
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -45,5 +48,12 @@ if ($LASTEXITCODE) { throw "vcpkg install failed ($LASTEXITCODE)" }
 	"-DVCPKG_TARGET_TRIPLET=$triplet" -DVCPKG_MANIFEST_INSTALL=OFF "-DVCPKG_INSTALLED_DIR=$installed"
 if ($LASTEXITCODE) { throw "configure failed ($LASTEXITCODE)" }
 # Keep going past a failed file, so one run lists everything that fails.
-& $cmake --build $BuildDir --target ember_neutral_x64 -- -k 0
+$targets = @('ember_neutral_x64', 'ember_runtime_x64')
+if ($LinkRuntime) { $targets += 'ember_runtime_x64_test' }
+& $cmake --build $BuildDir --target $targets -- -k 0
 if ($LASTEXITCODE) { throw "build failed ($LASTEXITCODE)" }
+if ($LinkRuntime) {
+	# The runtime under the fake game, as SFV Ember builds it.
+	& (Join-Path $BuildDir 'ember_runtime_x64_test.exe')
+	if ($LASTEXITCODE) { throw "runtime test failed ($LASTEXITCODE)" }
+}

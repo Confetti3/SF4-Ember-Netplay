@@ -46,11 +46,11 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
         if (entry.contains("edited") && entry["edited"].is_number_integer()) layout.edited = entry["edited"].get<std::int64_t>();
         // A missing or unusable binding, or a pair on one button, leaves that
         // pair unbound (the game's menu buttons, no Training buttons); the layout still loads.
-        const auto index = [&](const char* key) { const auto field = entry.find(key); return field != entry.end() && field->is_number_integer() ? field->get<std::int64_t>() : -1; };
+        const auto boundIndex = [&](const char* key) { const auto field = entry.find(key); return field != entry.end() && field->is_number_integer() ? field->get<std::int64_t>() : -1; };
         for (unsigned action = 0; action < BoundActionCount; ++action) {
             const unsigned partner = BoundActions[action].partner;
             if (partner < action) continue;
-            const auto first = index(BoundActions[action].json), second = index(BoundActions[partner].json);
+            const auto first = boundIndex(BoundActions[action].json), second = boundIndex(BoundActions[partner].json);
             if (!BoundIndexInRange(first) || !BoundIndexInRange(second) || (first >= 0 && first == second)) continue;
             layout.bound[action] = static_cast<int>(first); layout.bound[partner] = static_cast<int>(second);
         }

@@ -239,9 +239,11 @@ gate model.
 ## All sites that clear battle snapshots / sound state
 
 - `NetplayFacade::ClearBattleState` → `snapshotMap.clear()` +
-  `pendingRemoteSnapshots.clear()`; called from `StartMatchFromLobby`,
+  `SessionClient::ClearBattleVerification()` (the remote hashes and the game's
+  `BattleVerifier::Reset`, which drops SF4's pending remote snapshots); called from `StartMatchFromLobby`,
   `AbortGgpoMatch`, `NotifyMatchEnded` (i.e. `CloseBattle`).
-- `SessionClient::Step` erases individual snapshots once sent+confirmed.
+- `SessionClient::Step` steps the verifier (`Sf4Verifier::Step`), which erases
+  individual snapshots once sent+confirmed.
 - Sound: `fSoundPlayerManager::destructor` purges adapter metadata + queued stops
   + shadow map for the dying manager (cross-battle safety); `Factory` resets
   adapter metadata on reuse; `SaveState::Load` clears `queuedStops` only.

@@ -349,15 +349,15 @@ void StartHelper() {
 	runtime->preferences.lobby.roundTime = GetConfig().roundTimeIntegral;
 	if (!runtime->preferences.lobby.Valid()) runtime->preferences.lobby = {};
 	{
-		nlohmann::json saved;
+		nlohmann::json launcher;
 		std::string error;
 		netplay::SettingsStore settings(netplay::SettingsStore::DefaultDirectory());
-		if (!settings.LoadLauncher(saved, error)) {
+		if (!settings.LoadLauncher(launcher, error)) {
 			// The store's detail is an English diagnostic: it goes to the log, and the player reads the catalog's sentence.
 			spdlog::warn("Settings could not be loaded: {}", error);
 			runtime->error = loc::T("runtime.settings_unreadable");
 		}
-		else if (!netplay::ReadRoomPreferences(saved, runtime->preferences))
+		else if (!netplay::ReadRoomPreferences(launcher, runtime->preferences))
 			runtime->error = loc::T("runtime.room_defaults_invalid");
 	}
 	if (pendingBootstrap.helperPid) {

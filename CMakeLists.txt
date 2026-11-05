@@ -340,32 +340,9 @@ target_link_libraries(sf4e PRIVATE sf4e_app_services)
 # the game only through ember::game::Game() (sf4e__GameAdapter.hxx), which the
 # game's own target defines, so its tests link it under a game of their own
 # (src/tests/fake_game.cxx) with nothing of SF4's.
-add_library(sf4e_runtime STATIC
-    "src/sf4e/sf4e__NetplayFacade.hxx"
-    "src/sf4e/sf4e__NetplayFacade.cxx"
-    "src/sf4e/sf4e__NetplayRuntime.hxx"
-    "src/sf4e/sf4e__NetplayRuntime.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__AutoDelay.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Input.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Tournament.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__PublicRooms.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Rankings.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__RandomFighter.cxx"
-    "src/sf4e/sf4e__NetplayRuntime__Status.cxx"
-    "src/sf4e/sf4e__NetplayPresentation.cxx"
-    "src/sf4e/sf4e__RuntimeBridge.hxx"
-    "src/sf4e/sf4e__RuntimeBridge.cxx"
-    "src/sf4e/sf4e__RuntimeSession.hxx"
-    "src/sf4e/sf4e__RuntimeSession.cxx"
-    "src/sf4e/sf4e__RuntimeTick.hxx"
-    "src/sf4e/sf4e__RuntimeTick.cxx"
-    "src/sf4e/sf4e__ShellHost.hxx"
-    "src/sf4e/sf4e__ShellHost.cxx"
-    "src/sf4e/sf4e__GameAdapter.hxx"
-    "src/sf4e/sf4e__RuntimeEvents.hxx"
-)
+include(cmake/sf4e_runtime_sources.cmake)
+list(TRANSFORM SF4E_RUNTIME_SOURCES PREPEND "src/" OUTPUT_VARIABLE _sf4e_runtime_sources)
+add_library(sf4e_runtime STATIC ${_sf4e_runtime_sources})
 target_include_directories(sf4e_runtime PUBLIC "src/common")
 target_link_libraries(sf4e_runtime
     PUBLIC Session sf4e_common sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization sf4e_netplay_core

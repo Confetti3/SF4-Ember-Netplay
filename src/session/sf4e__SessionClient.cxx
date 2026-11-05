@@ -260,7 +260,8 @@ void SessionClient::ClearBattleVerification() {
 	_verifier->Reset();
 }
 
-// Bound for buffered remote hashes (matches the checkpoint ring span).
+// Bound for buffered remote hashes: SF4's checkpoint ring span
+// (statehash::CheckpointRingSize), ample for a game that checkpoints less often.
 static const size_t MAX_PENDING_REMOTE_HASHES = 64;
 
 bool SessionClient::HandleBattleSnapshot(json& msg) {

@@ -136,3 +136,34 @@ target_include_directories(ember_neutral_x64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR
 target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
 target_link_libraries(ember_neutral_x64 PRIVATE
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
+
+# The runtime (sf4e_runtime), compiled as SFV Ember would build it, and the
+# runtime's test under the fake game (RuntimeCapabilitiesTest) linked and run
+# against it. The test does not link yet: the runtime and the shell still call
+# SF4's selection art, pick labels, replay archive and game language (section
+# 9 of sfv-ember's EMBER_LIBRARY.md lists them), so it is built only on
+# request (scripts/probe-x64.ps1 -LinkRuntime) until those are the game's.
+# Until step 5 gives the catalog a game of its own, the test's roster,
+# stages and identity are SF4's, compiled into the test alone.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_runtime_sources.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_product.cmake")
+list(FILTER SF4E_RUNTIME_SOURCES INCLUDE REGEX "\\.cxx$")
+list(TRANSFORM SF4E_RUNTIME_SOURCES PREPEND "${EMBER_SOURCE_ROOT}/" OUTPUT_VARIABLE _ember_runtime_units)
+add_library(ember_runtime_x64 STATIC ${_ember_runtime_units})
+target_include_directories(ember_runtime_x64 PRIVATE "${EMBER_SOURCE_ROOT}/common"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/public"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
+target_compile_definitions(ember_runtime_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
+target_link_libraries(ember_runtime_x64 PUBLIC ember_neutral_x64
+    fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
+    Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm)
+
+add_executable(ember_runtime_x64_test EXCLUDE_FROM_ALL
+    "${EMBER_SOURCE_ROOT}/tests/runtime_capabilities_test.cxx"
+    "${EMBER_SOURCE_ROOT}/product/Sf4Catalog.cxx"
+    "${EMBER_SOURCE_ROOT}/common/FighterCatalog.cxx"
+    "${EMBER_SOURCE_ROOT}/common/StageCatalog.cxx"
+    "${EMBER_SOURCE_ROOT}/common/InstalledContent.cxx")
+sf4e_add_product_identity(ember_runtime_x64_test)
+target_include_directories(ember_runtime_x64_test PRIVATE "${EMBER_SOURCE_ROOT}/common")
+target_link_libraries(ember_runtime_x64_test PRIVATE ember_runtime_x64)
