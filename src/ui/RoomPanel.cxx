@@ -143,6 +143,9 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(table.deciding){
    // New opponent needs someone else free, as on the post-match prompt.
    const bool other=room::ArcadeOtherOpponentPossible(s,static_cast<std::size_t>(mine.table));
+   // Rematch already chosen and nobody else free: nothing to pick, so the
+   // row only says so (Rematch chosen) and Select does nothing.
+   if(table.rematch[mine.seat]&&!other){row.info=true;continue;}
    row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},
     {"new-opponent",loc::T("room.new_opponent"),loc::T(other?"room.new_opponent_detail":"room.new_opponent_none")}};
    row.choices[0].enabled=!table.rematch[mine.seat];
