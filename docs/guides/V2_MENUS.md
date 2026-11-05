@@ -81,6 +81,8 @@ right, and the focused row's description sits under them.
   the focus.
 - B, Escape or a right click closes the panel. The hint bar calls this
   Close panel.
+- Unlike a list, the column of panels and an open panel's rows stop at
+  their ends: Up on the first stays there.
 - On a narrow screen, the panels and an open panel each take the whole
   width in turn.
 
