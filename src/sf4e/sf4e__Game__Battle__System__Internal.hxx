@@ -168,9 +168,9 @@ struct NetplayWindow {
     void Flush(uint64_t now) {
         const sf4e::pacing::PacingController& p = fSystem::pacer;
         if (startMs != 0 && now > startMs) {
-            // Frames whose local input Ember kept from GGPO: window behind /
-            // Ember's menu capturing / buttons held from it after it let go /
-            // refused by the match input read.
+            // Pad updates whose local input Ember kept from GGPO: window behind /
+            // Ember's menu capturing / buttons held from it after it let go;
+            // then GGPO frames refused by the match input read.
             const auto withheld = sf4e::Pad::TakeWithheldUpdates();
             spdlog::info(
                 "Netplay [{:.0f}s]: ping={}..{} riftFrames={:.2f} maxAbsRift={:.2f} behind={}/{} rollbacks={} "

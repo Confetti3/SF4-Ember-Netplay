@@ -220,19 +220,17 @@ void fSystem::UpdateInputs() {
     // the buttons still held from then wait for their release; a new press
     // goes to the game, to a fight's GGPO input and to the dummy in Training
     // at once (MenuInputCapture, GatePad).
-    const auto menu=capture.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
-    const auto gate=sf4e::input::GatePad(menu,(ownedByGesture&sf4e::input::PhysicalStart)!=0);
+    const auto gate=sf4e::input::GatePad(capture.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held),
+        (ownedByGesture&sf4e::input::PhysicalStart)!=0,clearedBehind,
+        sf4e::Game::Battle::System::ggpo&&sf4e::Game::Battle::System::LocalFighter());
     inputBlocked=gate.blocked;
     sf4e::input::WithholdNativeInputs(this,gate.withheld);
     // Counted for the netplay log window (Netplay [...] withheld=): these
     // updates give GGPO's local input less than the pad held, with no other trace.
-    if(sf4e::Game::Battle::System::ggpo) {
-        if(clearedBehind) ++withheld.focus;
-        // The menu's own capture (the post-match prompt over WIN is one) apart
-        // from the buttons still held after it let go.
-        if(menu.capturing) ++withheld.menu;
-        else if(menu.kept) ++withheld.kept;
-    }
+    using Reason=sf4e::input::WithheldReason;
+    if(gate.counted==Reason::Focus) ++withheld.focus;
+    else if(gate.counted==Reason::Menu) ++withheld.menu;
+    else if(gate.counted==Reason::Kept) ++withheld.kept;
 }
 
 unsigned int fSystem::ReadButtons(int pindex, bool raw) {

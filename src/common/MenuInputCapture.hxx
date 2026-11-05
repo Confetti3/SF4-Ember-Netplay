@@ -111,19 +111,29 @@ private:
     bool capturing_=false;
     unsigned kept_=0;
 };
+// Which of the netplay log's counts (sf4e::Pad::WithheldUpdates) a pad update
+// in a fight this PC plays adds to: one at most, the window behind first.
+enum class WithheldReason { None, Focus, Menu, Kept };
 // What one pad update gives the game, and so a fight's GGPO input.
 struct PadGate {
     // The buttons cleared from every cache (WithholdNativeInputs).
     unsigned withheld=0;
     // Ember holds every button: Training reads no pad, and the native menu stays parked.
     bool blocked=false;
+    WithheldReason counted=WithheldReason::None;
 };
 // The menu's gate, plus the Start of a Training gesture (TrainingPad.hxx) that
-// owns it whether or not it opened anything.
-inline PadGate GatePad(const MenuGate& menu,bool gestureOwnsStart) {
+// owns it whether or not it opened anything. `clearedBehind`: the update was
+// emptied because the window is behind (BackgroundPlay); `fighting`: a GGPO
+// session this PC fights in, the only updates the log counts.
+inline PadGate GatePad(const MenuGate& menu,bool gestureOwnsStart,bool clearedBehind,bool fighting) {
     PadGate gate;
     gate.withheld=menu.Withheld()|(gestureOwnsStart?NativeStart:0u);
     gate.blocked=menu.capturing;
+    if(!fighting)gate.counted=WithheldReason::None;
+    else if(clearedBehind)gate.counted=WithheldReason::Focus;
+    else if(menu.capturing)gate.counted=WithheldReason::Menu;
+    else if(menu.kept)gate.counted=WithheldReason::Kept;
     return gate;
 }
 } }
