@@ -131,6 +131,22 @@ inline bool PracticeKindValid(const Snapshot& room) {
 }
 // An Arcade room, public or private, is never a tournament's and seats from no
 // queue.
+// An Arcade table where one fighter waits for an opponent, and an empty one.
+inline bool ArcadeAlone(const Table& table) {
+	return table.phase == TablePhase::Idle && (table.p1 == 0) != (table.p2 == 0);
+}
+inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
+
+// Whether New opponent can part the Arcade pair at `table`: someone waits
+// alone at another table, or another table is free to wait at. Otherwise the
+// room has nobody else for either of them and pairs the two again
+// (RoomAuthority::PairArcade).
+inline bool ArcadeOtherOpponentPossible(const Snapshot& room, std::size_t table) {
+	for (std::size_t other = 0; other < room.tables.size(); ++other)
+		if (other != table && (ArcadeAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
+	return false;
+}
+
 inline bool ArcadeKindValid(const Snapshot& room) {
 	return !room.arcade || (room.arcade <= KingRoom && !room.tournament.Active() &&
 		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));

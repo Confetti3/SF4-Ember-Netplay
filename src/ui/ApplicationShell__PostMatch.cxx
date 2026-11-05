@@ -7,6 +7,7 @@
 #include "V2.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
+#include "../session/RoomQueries.hxx"
 #include <algorithm>
 #include <cmath>
 
@@ -256,7 +257,11 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     std::vector<MenuEntry> rows;
     if (deciding) {
         rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
-        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"), loc::T("room.new_opponent_detail"), !p.left));
+        // With every other table in use and nobody waiting alone, the room
+        // could only pair the two again: the row says so instead.
+        const bool other = room::ArcadeOtherOpponentPossible(v.room, p.table);
+        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"),
+            loc::T(other ? "room.new_opponent_detail" : "room.new_opponent_none"), !p.left && other));
     } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),

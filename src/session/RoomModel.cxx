@@ -115,7 +115,7 @@ bool RoomAuthority::SetMemberChara(MemberId member,const Chara& chara,bool* with
     const bool restyled=value->costume!=costume||value->color!=color||value->ultra!=ultra;
     value->costume=costume;value->color=color;value->ultra=ultra;
     if(value->fighter==fighter){if(restyled)TouchRoom();return restyled;}
-    const int shown=ShownFighter(*value);
+    const int before=ShownFighter(*value);
     value->fighter=fighter;
     Table* table=FindTable(static_cast<std::uint8_t>(value->table));
     const bool seated=table&&(table->p1==member||table->p2==member);
@@ -124,7 +124,7 @@ bool RoomAuthority::SetMemberChara(MemberId member,const Chara& chara,bool* with
     // other does, a first pick over a profile's main included: a Ready given
     // against the old fighter, ready already or still in flight under the old
     // table revision, must not start the game.
-    if(shown<0||shown==fighter||!seated){TouchRoom();return true;}
+    if(before<0||before==fighter||!seated){TouchRoom();return true;}
     const int seat=table->p1==member?0:1, other=1-seat;
     auto* opponent=Find(other==0?table->p1:table->p2);
     if(opponent&&!table->ready[seat]&&ReadyCancellable(*table,other)){

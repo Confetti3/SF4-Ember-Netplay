@@ -3,18 +3,17 @@
 // down plays the player who has waited longest, at whichever table is free.
 // Other rooms never reach this code.
 #include "RoomModel.hxx"
+#include "RoomQueries.hxx"
 
 #include <algorithm>
 
 namespace sf4e { namespace room {
 
 namespace {
-// One fighter waits at the table for an opponent.
-bool Alone(const Table& table) {
-	return table.phase == TablePhase::Idle && (table.p1 == 0) != (table.p2 == 0);
-}
+// One fighter waits at the table for an opponent (ArcadeAlone), or none (ArcadeEmpty).
+bool Alone(const Table& table) { return ArcadeAlone(table); }
 MemberId Lone(const Table& table) { return table.p1 ? table.p1 : table.p2; }
-bool Empty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
+bool Empty(const Table& table) { return ArcadeEmpty(table); }
 std::uint64_t NextArrival(const Snapshot& room) {
 	std::uint64_t next = 1;
 	for (const auto& table : room.tables) next = (std::max)(next, table.waitingSince + 1);

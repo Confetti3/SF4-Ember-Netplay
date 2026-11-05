@@ -91,6 +91,21 @@ static void TestRematchBoth() {
 	CHECK(!wire.at("tables")[table].contains("rematch"));
 }
 
+// New opponent can part a pair only when someone waits alone at another
+// table or another table is free; with every other table taken, the room
+// could only pair the two again, so the prompt says so instead.
+static void TestNewOpponentNeedsSomeoneElse() {
+	Snapshot room;
+	for (auto& table : room.tables) { table.p1 = 1; table.p2 = 2; table.phase = TablePhase::Waiting; }
+	CHECK(!ArcadeOtherOpponentPossible(room, 0));
+	room.tables[3].p2 = 0; room.tables[3].phase = TablePhase::Idle;
+	CHECK(ArcadeOtherOpponentPossible(room, 0));
+	// A table's own lone fighter is not someone else for it.
+	CHECK(!ArcadeOtherOpponentPossible(room, 3));
+	room.tables[3].p1 = 0;
+	CHECK(ArcadeOtherOpponentPossible(room, 0));
+}
+
 // One Rematch and one New opponent part the pair: each plays whoever waited
 // longest, or waits for the next to sit, never with the other again while
 // someone else waits. One who sits down while a pair chooses waits alone.
@@ -443,6 +458,7 @@ int main() {
 		TestFirstComeFirstPaired();
 		TestRematchBoth();
 		TestRematchOneRepairs();
+		TestNewOpponentNeedsSomeoneElse();
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();
