@@ -139,9 +139,9 @@ target_link_libraries(ember_neutral_x64 PRIVATE
 # runtime's test under the fake game (RuntimeCapabilitiesTest) linked against
 # it; scripts/probe-x64.ps1 runs the test. It links with nothing of SF4's
 # side: the game's language, pick labels, pictures and replay archive are the
-# fake game's (section 9 of sfv-ember's EMBER_LIBRARY.md). Until step 5 gives
-# the catalog a game of its own, the test's roster, stages and identity are
-# SF4's, compiled into the test alone.
+# fake game's (section 9 of sfv-ember's EMBER_LIBRARY.md), and so are its catalog
+# and its packaged selection files (fake_catalog.cxx, fake_selection.cxx: step 5).
+# Only the product identity is still SF4's.
 include("${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_runtime_sources.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_product.cmake")
 list(FILTER SF4E_RUNTIME_SOURCES INCLUDE REGEX "\\.cxx$")
@@ -154,18 +154,16 @@ target_link_libraries(ember_runtime_x64 PUBLIC ember_neutral_x64
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
     Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm ole32 windowscodecs)
 
-# The test's game (fake_*.cxx: a game adapter, desync check, pick labels and
+# The test's game (fake_*.cxx: a game adapter, catalog, desync check, pick labels and
 # pictures with nothing of SF4's) is compiled into the test alone, so a game
-# that links the library defines its own Game() with no second one beside it.
+# that links the library defines its own Game() and Catalog() with no second
+# one beside them.
 add_executable(ember_runtime_x64_test
     "${EMBER_SOURCE_ROOT}/tests/runtime_capabilities_test.cxx"
     "${EMBER_SOURCE_ROOT}/tests/fake_game.cxx"
     "${EMBER_SOURCE_ROOT}/tests/fake_session_verification.cxx"
     "${EMBER_SOURCE_ROOT}/tests/fake_selection.cxx"
-    "${EMBER_SOURCE_ROOT}/product/Sf4Catalog.cxx"
-    "${EMBER_SOURCE_ROOT}/common/FighterCatalog.cxx"
-    "${EMBER_SOURCE_ROOT}/common/StageCatalog.cxx"
-    "${EMBER_SOURCE_ROOT}/common/InstalledContent.cxx")
+    "${EMBER_SOURCE_ROOT}/tests/fake_catalog.cxx")
 sf4e_add_product_identity(ember_runtime_x64_test)
 target_include_directories(ember_runtime_x64_test PRIVATE "${EMBER_SOURCE_ROOT}/common")
 target_link_libraries(ember_runtime_x64_test PRIVATE ember_runtime_x64)

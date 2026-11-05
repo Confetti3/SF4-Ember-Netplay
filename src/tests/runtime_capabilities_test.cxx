@@ -1,7 +1,8 @@
 // The runtime under a game of its own (fake_game.cxx), linked with nothing of
-// SF4's hooks, adapter or engine: what a capability the game turns off
-// closes, and how a host's refusal of a join is worded for the way the room
-// was entered (RuntimeSession::Start's error callback).
+// SF4's hooks, adapter, engine or catalog: what a capability the game turns
+// off closes, how the Ready check judges a pick by the game's catalog, and
+// how a host's refusal of a join is worded for the way the room was entered
+// (RuntimeSession::Start's error callback).
 #include "fake_game.hxx"
 #include "iroh_test_room.hxx"
 #include "session_client_mock.hxx"
@@ -200,6 +201,38 @@ void TestRoomWatch(bool offered) {
 	std::cout << "TestRoomWatch offered=" << offered << " passed\n";
 }
 
+// A Ready press judged by the game's catalog (fake_catalog.hxx: 60 fighters,
+// 20 costumes, 100 colours, 40 stages, no Random stage), not SF4's: fighter 59
+// in colour 99, which SF4 refuses, passes the stage, fighter and pick checks
+// and stops only at the seat this PC has not taken; past each limit, and on
+// SF4's Random stage, the press is refused with that check's own words.
+void TestReadyUnderGameCatalog() {
+	InRoom r;
+	input::Device pad;
+	pad.type = 0; pad.index = 0; pad.connected = true;
+	r.runtime->input.Adopt(pad);
+	const auto ready = [&](int fighter, int costume, int color, int stage) {
+		facade::RuntimeCommand press{};
+		press.command.kind = netplay::CommandKind::Ready;
+		press.command.generation = r.runtime->controller.GetSnapshot().generation;
+		press.character.charaID = static_cast<std::uint8_t>(fighter);
+		press.character.costume = static_cast<std::uint8_t>(costume);
+		press.character.color = static_cast<std::uint8_t>(color);
+		press.stage = stage;
+		r.runtime->readyFailure.clear();
+		CHECK(facade::SubmitRuntimeCommand(std::move(press)));
+		internal::DrainCommands(true);
+		return r.runtime->readyFailure;
+	};
+	CHECK(ready(59, 19, 99, 39) == loc::T("runtime.ready.take_seat"));
+	CHECK(ready(60, 0, 0, 0) == loc::T("runtime.ready.fighter_unavailable"));
+	CHECK(ready(59, 20, 0, 0) == loc::T("runtime.ready.selection_unavailable"));
+	CHECK(ready(59, 0, 100, 0) == loc::T("runtime.ready.selection_unavailable"));
+	CHECK(ready(59, 0, 0, 40) == loc::T("runtime.ready.stage_unavailable"));
+	CHECK(ready(59, 0, 0, 255) == loc::T("runtime.ready.stage_unavailable"));
+	std::cout << "TestReadyUnderGameCatalog passed\n";
+}
+
 // The host refuses the join as full: worded for a public room's lock when the
 // room was entered with a public ticket, else as a full room.
 void TestJoinRefusalWording(bool publicJoin) {
@@ -233,6 +266,7 @@ int main() {
 		TestWatchedGameEntry(offered);
 		TestRoomWatch(offered);
 	}
+	TestReadyUnderGameCatalog();
 	TestJoinRefusalWording(false);
 	TestJoinRefusalWording(true);
 	std::cout << "Runtime capabilities tests passed\n";

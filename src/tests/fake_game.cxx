@@ -1,7 +1,9 @@
 // The game the runtime's tests run under (fake_game.hxx): every interface of
-// sf4e__GameAdapter.hxx answered with nothing of SF4's. Its only behaviour is
-// what fake_game.hxx lets a test set and read.
+// sf4e__GameAdapter.hxx answered with nothing of SF4's, and its catalog
+// (fake_catalog.hxx). Its only behaviour is what fake_game.hxx lets a test
+// set and read.
 #include "fake_game.hxx"
+#include "fake_catalog.hxx"
 
 #include "../common/InstalledContent.hxx"
 #include "../sf4e/sf4e__AbsentGameFeatures.hxx"
@@ -140,6 +142,11 @@ Adapter s_game = {Everything(), s_state, s_battle, s_input, s_preferences, s_ser
 }
 
 namespace ember {
+const GameCatalog& Catalog() {
+    static constexpr GameCatalog catalog = test::TestCatalog(test::CatalogFighters);
+    static_assert(Usable(catalog), "The fake game's catalog must be usable");
+    return catalog;
+}
 namespace game {
 const Adapter& Game() { return s_game; }
 }

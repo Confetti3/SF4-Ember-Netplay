@@ -227,18 +227,19 @@ add_test(NAME PresentationSnapshot COMMAND PresentationSnapshotTest)
 set_tests_properties(PresentationSnapshot PROPERTIES TIMEOUT 30 PROCESSORS 2 PASS_REGULAR_EXPRESSION "Presentation snapshot passed")
 sf4e_test_locks(PresentationSnapshot ember_runtime)
 # The runtime under a game of its own (fake_game.cxx): what a capability the
-# game turns off closes, and the join refusal's wording. It links none of SF4
-# Ember's hooks, its adapter or the engine's (sf4e, sf4e_sf4_game, Dimps), so
-# the runtime's every call into the game has to go through Game(), and the
-# room client's desync check through the test's own BattleVerifier
-# (fake_session_verification.cxx). The game catalog (sf4e_catalog)
-# is still SF4's roster until step 5, and the pick labels and pictures are
-# SF4's, which sf4e_ui carries; the x64 library build links the fake game's
-# (fake_selection.cxx) in their place.
+# game turns off closes, the join refusal's wording, and the Ready check under
+# the fake game's catalog (fake_catalog.cxx: 60 fighters and 100 colours,
+# more than SF4 has). It links none of SF4 Ember's hooks, its adapter, the
+# engine's or SF4's catalog (sf4e, sf4e_sf4_game, Dimps, sf4e_catalog), so
+# the runtime's every call into the game has to go through Game() and
+# Catalog(), and the room client's desync check through the test's own
+# BattleVerifier (fake_session_verification.cxx). The pick labels and pictures
+# are SF4's, which sf4e_ui carries; the x64 library build links the fake
+# game's (fake_selection.cxx) in their place.
 add_executable(RuntimeCapabilitiesTest "src/tests/runtime_capabilities_test.cxx" "src/tests/fake_game.cxx"
-    "src/tests/fake_session_verification.cxx")
+    "src/tests/fake_catalog.cxx" "src/tests/fake_session_verification.cxx")
 target_compile_features(RuntimeCapabilitiesTest PRIVATE cxx_std_17)
-target_link_libraries(RuntimeCapabilitiesTest PRIVATE sf4e_product sf4e_catalog sf4e_runtime)
+target_link_libraries(RuntimeCapabilitiesTest PRIVATE sf4e_product sf4e_runtime)
 add_test(NAME RuntimeCapabilities COMMAND RuntimeCapabilitiesTest)
 set_tests_properties(RuntimeCapabilities PROPERTIES TIMEOUT 60 PASS_REGULAR_EXPRESSION "Runtime capabilities tests passed")
 sf4e_test_locks(RuntimeCapabilities ember_runtime)
@@ -250,9 +251,11 @@ sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/sessio
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportDepartures SOURCES "src/tests/session_server_transport_departures_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 # The room model, the room host's status and the session server under game
-# catalogs the test defines itself. It must not link sf4e_catalog, so it is
-# registered here rather than through sf4e_add_unit_test, which links it.
-add_executable(CatalogRosterTest "src/tests/catalog_roster_test.cxx" "server/roomhost/RoomHostStatus.cxx")
+# catalogs the test defines itself from the fake game's (fake_catalog.cxx). It
+# must not link sf4e_catalog, so it is registered here rather than through
+# sf4e_add_unit_test, which links it.
+add_executable(CatalogRosterTest "src/tests/catalog_roster_test.cxx" "src/tests/fake_catalog.cxx"
+    "server/roomhost/RoomHostStatus.cxx")
 target_compile_features(CatalogRosterTest PRIVATE cxx_std_17)
 target_link_libraries(CatalogRosterTest PRIVATE sf4e_product sf4e_iroh_room)
 add_test(NAME CatalogRoster COMMAND CatalogRosterTest)
