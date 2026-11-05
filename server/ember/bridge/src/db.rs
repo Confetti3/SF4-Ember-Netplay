@@ -95,6 +95,9 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (52, include_str!("../migrations/052_room_type.sql")),
     (53, include_str!("../migrations/053_room_creator_in.sql")),
     (54, include_str!("../migrations/054_archive_games_once.sql")),
+    // 55 is the archive listing index (feat/archive-server-class), already
+    // applied on the production bridge; it lands with that branch.
+    (56, include_str!("../migrations/056_room_wired_only.sql")),
 ];
 
 #[derive(Clone)]

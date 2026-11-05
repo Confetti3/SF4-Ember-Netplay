@@ -189,6 +189,30 @@ static void TestFighterChangeWithdrawsOpponentReady() {
 	EXPECT(authority.SetMemberChara(bystander, {8}, &withdrew) && !withdrew);
 }
 
+// Until a fighter picks, the board shows their profile's main (ShownFighter):
+// a first pick of another fighter takes back the other seat's Ready as a
+// change does, so the game cannot load against a fighter the player never saw.
+// A first pick of the main, or with no main shown, takes nothing back.
+static void TestFirstPickOverMainWithdrawsOpponentReady() {
+	for (const int first : {12, 3}) {
+		RoomAuthority authority("First pick", 8, 1);
+		Join(authority, 0, true);
+		const MemberId p1 = Join(authority, 1);
+		MemberProfile profile; profile.mainFighter = 3;
+		const auto joined = authority.Join("Player2", Peer(2), false, profile);
+		EXPECT(joined.accepted);
+		const MemberId p2 = joined.accepted ? joined.snapshot.members.back().id : 0;
+		for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
+		EXPECT(authority.SetMemberChara(p1, {0}));
+		Action ready = TableAction(authority, p1, 0, ActionKind::Ready);
+		ready.inputDelay = 2;
+		EXPECT(authority.Apply(p1, ready).accepted);
+		bool withdrew = false;
+		EXPECT(authority.SetMemberChara(p2, {first}, &withdrew) && withdrew == (first != 3));
+		EXPECT(authority.SnapshotView().tables[0].ready[0] == (first == 3));
+	}
+}
+
 // Idle time: counted from a member's last room action or join, reported in
 // each sent snapshot, held at zero in a game, never in the room's own state.
 static void TestIdleTimeIsStampedPerSnapshot() {
@@ -1003,6 +1027,7 @@ int main() {
     TestReadyDelayZero();
     TestProbePairCommitted();
     TestFighterChangeWithdrawsOpponentReady();
+    TestFirstPickOverMainWithdrawsOpponentReady();
     TestIdleTimeIsStampedPerSnapshot();
 	RoomAuthority authority("Test room", 16, 77);
 	const MemberId host = Join(authority, 0, true);

@@ -77,22 +77,63 @@ struct StartPress {
         return true;
     }
 };
-inline void ClearNativeMenuInputs(void* system, unsigned allowed = 0) {
+// Clears the `withheld` buttons from both players' caches, every one by default.
+inline void WithholdNativeInputs(void* system, unsigned withheld = ~0u) {
     auto* bytes=static_cast<unsigned char*>(system);
     for(unsigned side=0;side<2;++side)for(unsigned cache=0;cache<5;++cache) {
         auto* address=bytes+0x18+side*0x50+cache*sizeof(std::uint32_t);
-        std::uint32_t value;std::memcpy(&value,address,sizeof(value));value&=allowed;
+        std::uint32_t value;std::memcpy(&value,address,sizeof(value));value&=~withheld;
         std::memcpy(address,&value,sizeof(value));
     }
 }
+// What Ember's menu keeps from the game this update: every button while it
+// captures the pads, else the buttons still held from that capture.
+struct MenuGate {
+    bool capturing=false;
+    unsigned kept=0;
+    unsigned Withheld() const { return capturing?~0u:kept; }
+};
+// Once the capture ends, the buttons held on the first update after it are the
+// menu's (the press that closed it among them), and each stays kept until it is
+// let go. A button pressed after that reaches the game at once, even while a kept
+// one, such as a direction held from the menu into the fight, is still down.
 class MenuInputCapture {
 public:
-    bool Update(bool capture,unsigned held) {
-        if(capture)draining_=true;
-        else if(!held)draining_=false;
-        return capture||draining_;
+    MenuGate Update(bool capture,unsigned held) {
+        MenuGate gate;
+        if(capture){capturing_=true;gate.capturing=true;return gate;}
+        if(capturing_){capturing_=false;kept_=held;}
+        else kept_&=held;
+        gate.kept=kept_;
+        return gate;
     }
 private:
-    bool draining_=false;
+    bool capturing_=false;
+    unsigned kept_=0;
 };
+// Which of the netplay log's counts (sf4e::Pad::WithheldUpdates) a pad update
+// in a fight this PC plays adds to: one at most, the window behind first.
+enum class WithheldReason { None, Focus, Menu, Kept };
+// What one pad update gives the game, and so a fight's GGPO input.
+struct PadGate {
+    // The buttons cleared from every cache (WithholdNativeInputs).
+    unsigned withheld=0;
+    // Ember holds every button: Training reads no pad, and the native menu stays parked.
+    bool blocked=false;
+    WithheldReason counted=WithheldReason::None;
+};
+// The menu's gate, plus the Start of a Training gesture (TrainingPad.hxx) that
+// owns it whether or not it opened anything. `clearedBehind`: the update was
+// emptied because the window is behind (BackgroundPlay); `fighting`: a GGPO
+// session this PC fights in, the only updates the log counts.
+inline PadGate GatePad(const MenuGate& menu,bool gestureOwnsStart,bool clearedBehind,bool fighting) {
+    PadGate gate;
+    gate.withheld=menu.Withheld()|(gestureOwnsStart?NativeStart:0u);
+    gate.blocked=menu.capturing;
+    if(!fighting)gate.counted=WithheldReason::None;
+    else if(clearedBehind)gate.counted=WithheldReason::Focus;
+    else if(menu.capturing)gate.counted=WithheldReason::Menu;
+    else if(menu.kept)gate.counted=WithheldReason::Kept;
+    return gate;
+}
 } }

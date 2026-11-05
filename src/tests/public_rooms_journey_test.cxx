@@ -29,16 +29,17 @@ void ListJourney(){
  auto friday=MakeRoom("a","Friday Night",3,8);friday.hostName="Ken";friday.createdAt=100;
  auto match=MakeRoom("b","金曜ルーム",2,4,1);match.createdAt=200;
  j.List({friday,match,MakeRoom("c","Full House",4,4)});
- // The toolbar is four grid cells: Quick join, Create room, the filter, Paste room link; the rooms follow, full width.
+ // The toolbar is three grid cells: Quick join, Create room, Paste room link; the filter's four rows and the rooms follow, full width.
  std::vector<std::string> order;for(const auto& r:j.rows)order.push_back(r.id);
- Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-filter","pr-paste","pr-room:a","pr-room:b","pr-room:c"}),"The list is not Quick join, Create room, the filter, Paste room link and then the rooms");
+ Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-paste","pr-filters","pr-room:a","pr-room:b","pr-room:c"}),"The list is not Quick join, Create room, Paste room link, Filters and then the rooms");
  Check(!j.row("pr-refresh")&&!j.row("pr-needs-id"),"The list kept a Refresh or needs-ID row");
- for(const char* cell:{"pr-quick","pr-create","pr-filter","pr-paste"})Check(j.row(cell)&&!j.row(cell)->wide&&j.row(cell)->enabled&&!j.row(cell)->hint.empty(),"A toolbar cell is missing, wide or disabled");
+ for(const char* cell:{"pr-quick","pr-create","pr-paste"})Check(j.row(cell)&&!j.row(cell)->wide&&j.row(cell)->enabled&&!j.row(cell)->hint.empty(),"A toolbar cell is missing, wide or disabled");
  // Friday Night came from a bridge without room details, so its card is the short one.
  Check(j.row("pr-room:a")->wide&&j.row("pr-room:a")->height==72,"A room without details is not the short full-width card");
  for(const char* room:{"pr-room:b","pr-room:c"})Check(j.row(room)->wide&&j.row(room)->height==100,"A room is not a full-width card");
  Check(j.row("pr-quick")->label==loc::T("public.quick")&&j.row("pr-create")->label==loc::T("public.create_room")&&j.row("pr-paste")->label==loc::T("public.paste_link"),"A toolbar cell has the wrong label");
- Check(j.row("pr-filter")->label==loc::Tf("public.filter_label",loc::T("public.filter.all"))&&j.row("pr-filter")->choices.size()==3&&j.row("pr-filter")->chosen=="all","The filter does not start on all rooms");
+ Check(j.row("pr-filters")&&j.row("pr-filters")->wide&&j.row("pr-filters")->enabled&&!j.row("pr-filters")->adjustable&&j.row("pr-filters")->label==loc::T("public.filters")&&
+  j.row("pr-filters")->value==loc::T("public.filter_summary_all"),"The Filters row does not start on all rooms");
  const auto* first=j.row("pr-room:a");const auto* second=j.row("pr-room:b");
  Check(first->label=="Friday Night"&&first->userText&&first->value.empty()&&first->hint==loc::T("online.join"),"A room does not show its name and Join");
  Check(second->label=="金曜ルーム"&&second->userText,"A room name is not drawn as player text");
@@ -300,7 +301,8 @@ void TemplateJourney(){
 void OwnDelayJourney(){
  Journey j;auto& h=j.h;j.OpenList();
  j.List({MakeRoom("a","Friday Night",3,8)});
- h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.Frame(0,2);
+ // A player who chose the same delay for both (each player's own is the default).
+ h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;h.Frame(0,2);
  h.Choose("pr-create");
  // Create on Public saves its visibility with the room defaults; the runtime has that save before the next one is sent.
  const auto settle=[&]{
@@ -499,67 +501,159 @@ void QuickJoinJourney(){
   k.h.Choose("pr-quick");
   Check(tickets(k)==1&&lastTicketIs(k,"brg_1","x"),"Quick join without a region did not ask for the room with the most seats");
  }
+ {
+  // The filter narrows Quick join: a room type, and a region the player chose in place of the near default.
+  Journey k;auto& h=k.h;k.OpenList();h.view.netReport.relay="use1";
+  auto arcade=Placed("a","use1",2,8,1);arcade.type=room::ArcadeRoom;
+  auto classic=Placed("c","use1",2,8,2);classic.type=room::ClassicRoom;
+  auto distant=Placed("f","euc1",1,8,3);distant.type=room::ClassicRoom;
+  k.List({arcade,classic,distant});
+  const auto settle=[&]{
+   h.Wait(1);
+   for(std::size_t i=h.actions.size();i-->0;)if(h.actions[i].command.kind==Kind::SavePreferences){h.view.preferences=h.actions[i].preferences;break;}
+   h.Frame(0,2);
+  };
+  // The filters page: steps a row, saves, and goes back to the list.
+  const auto step=[&](const char* row,unsigned direction,int presses){
+   h.Choose("pr-filters");h.FocusOn(row);for(int i=0;i<presses;++i)h.Press(direction);settle();h.Press(MenuInput::Back);
+   Check(h.shell.Navigation().Screen()=="public-rooms","Back from the filters page did not return to the list");
+  };
+  step("pr-filter-type",MenuInput::Right,1);
+  h.Choose("pr-quick");
+  Check(tickets(k)==1&&lastTicketIs(k,"brg_1","c"),"Quick join asked for a room the type filter hides");
+  k.Admit("room_full");
+  step("pr-filter-region",MenuInput::Right,4);
+  Check(k.row("pr-filters")->value==PublicRoomsPanel::RegionLabel("euc1")+" \xC2\xB7 "+RoomTypeName(room::ClassicRoom),"The Filters row does not say Europe and Classic");
+  h.Choose("pr-quick");
+  Check(tickets(k)==2&&lastTicketIs(k,"brg_1","f"),"Quick join stayed near the player's region after the filter named another");
+  k.Admit("room_full");
+  step("pr-filter-type",MenuInput::Right,1);
+  h.Choose("pr-quick");
+  Check(tickets(k)==2&&k.noticeOpen(true),"Quick join with no room under the filter did not offer to create one");
+ }
  // An empty list also offers to create.
  Journey e;e.OpenList();e.List({});
  e.h.Choose("pr-quick");Check(tickets(e)==0&&e.noticeOpen(true),"Quick join on an empty list did not offer to create a room");
 }
 
-// Show: All rooms, Near me (disabled until the region is known) or Free seats. A
-// filter with nothing to show says so and offers every room again; the choice
-// lasts for the visit.
+// The filter's rows (Region, Room type, Open seats, Connection) step with Left and Right,
+// are saved with the preferences, and a filter with nothing to show says so and offers to
+// clear it. A room that sent no type shows only under All types.
 void FilterJourney(){
  Journey j;auto& h=j.h;j.OpenList();
- const auto relist=[&]{j.List({Placed("a","use1",3,8,1),Placed("b","euc1",2,4,2),Placed("c","use1",4,4,3)});};
+ const auto relist=[&]{
+  auto a=Placed("a","use1",3,8,1);a.type=room::ClassicRoom;
+  auto b=Placed("b","euc1",2,4,2);b.type=room::ArcadeRoom;b.wiredOnly=true;
+  auto c=Placed("c","use1",4,4,3);c.type=room::KingRoom;
+  auto d=Placed("d","aps1",1,8,4);
+  j.List({a,b,c,d});
+ };
  relist();
- const auto* filter=j.row("pr-filter");
- Check(filter&&filter->choices.size()==3&&filter->choices[0].id=="all"&&filter->choices[1].id=="near"&&filter->choices[2].id=="seats"&&filter->chosen=="all"&&
-  filter->choices[0].label==loc::T("public.filter.all")&&filter->choices[1].label==loc::T("public.filter.near")&&filter->choices[2].label==loc::T("public.filter.seats"),"The filter lacks its three choices");
- Check(!filter->choices[1].enabled&&filter->choices[1].detail==loc::T("public.filter_near_unknown")&&filter->choices[0].enabled&&filter->choices[2].enabled,"Near me is not disabled without a region");
- Check(Shown(j)=="abc","The list is filtered before a filter is chosen");
+ // The saved change the shell sent, handed back as the runtime does once it has taken it.
+ std::size_t seen=h.actions.size();
+ const auto settle=[&]{
+  h.Wait(1);
+  for(std::size_t i=h.actions.size();i-->seen;)
+   if(h.actions[i].command.kind==Kind::SavePreferences){h.view.preferences=h.actions[i].preferences;break;}
+  seen=h.actions.size();h.Frame(0,2);
+ };
+ // The page's values as the last step left them, and the Filters row's summary on the list.
+ std::map<std::string,std::string> pageValues;
+ const auto step=[&](const char* row,unsigned direction=MenuInput::Right,int presses=1){
+  h.Choose("pr-filters");
+  Check(h.shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen,"Filters did not open its page");
+  h.FocusOn(row);for(int i=0;i<presses;++i)h.Press(direction);settle();
+  for(const auto& r:j.rows)pageValues[r.id]=r.value;
+  h.Press(MenuInput::Back);
+  Check(h.shell.Navigation().Screen()=="public-rooms"&&h.shell.Navigation().Focus()=="pr-filters","Back from the filters page did not return to the Filters row");
+ };
+ const auto value=[&](const char* row){return pageValues[row];};
+ const std::string dot=" \xC2\xB7 ";
+ const auto summary=[&]{return j.row("pr-filters")->value;};
+ std::vector<std::string> order;for(const auto& r:j.rows)order.push_back(r.id);
+ Check(order==std::vector<std::string>({"pr-quick","pr-create","pr-paste","pr-filters","pr-room:d","pr-room:a","pr-room:b","pr-room:c"}),"The Filters row does not follow the toolbar");
+ Check(j.row("pr-filters")->wide&&j.row("pr-filters")->height<=48&&j.row("pr-filters")->enabled&&j.row("pr-filters")->value==loc::T("public.filter_summary_all")&&Shown(j)=="dabc",
+  "The Filters row does not start on every room");
+ // Select opens the page: the four values, which Left and Right step, and Clear filters, off while nothing is filtered.
+ h.Choose("pr-filters");
+ {std::vector<std::string> page;for(const auto& r:j.rows)page.push_back(r.id);
+  Check(h.shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&page==std::vector<std::string>({"pr-filter-region","pr-filter-type","pr-filter-seats","pr-filter-wired","pr-filters-clear"}),
+   "The filters page does not hold the four values and Clear filters");}
+ for(const char* row:{"pr-filter-region","pr-filter-type","pr-filter-seats","pr-filter-wired"})
+  Check(j.row(row)->adjustable&&j.row(row)->enabled&&!j.row(row)->detail.empty(),"A filter row on the page is not adjustable or is disabled");
+ Check(!j.row("pr-filters-clear")->enabled&&j.row("pr-filters-clear")->label==loc::T("public.clear_filters"),"Clear filters is offered with nothing filtered");
+ Check(j.row("pr-filter-region")->value==loc::T("public.filter_region_all")&&j.row("pr-filter-type")->value==loc::T("public.filter_type_all")&&
+  j.row("pr-filter-seats")->value==loc::T("common.off")&&j.row("pr-filter-wired")->value==loc::T("public.filter_wired_all"),"The filters page does not start on every room");
+ h.Press(MenuInput::Back);
+ Check(h.shell.Navigation().Screen()=="public-rooms"&&h.shell.Navigation().Focus()=="pr-filters","Back did not return to the Filters row");
+
+ // Region: Near me is not offered until this PC's region is known.
+ step("pr-filter-region");
+ Check(value("pr-filter-region")==PublicRoomsPanel::RegionLabel("use1")&&summary()==PublicRoomsPanel::RegionLabel("use1")&&Shown(j)=="ac","Right on Region without a known region did not skip Near me to US East");
+ step("pr-filter-region");
+ Check(Shown(j).empty()&&j.row("pr-clear-filters")&&j.row("pr-clear-filters")->label==loc::T("public.none_filtered")&&j.row("pr-clear-filters")->hint==loc::T("public.clear_filters")&&
+  j.row("pr-clear-filters")->wide&&j.row("pr-clear-filters")->height==110&&!j.row("pr-none")&&!j.row("pr-error"),"A region with no rooms has no card that clears the filter");
+ step("pr-filter-region",MenuInput::Left,2);
+ Check(value("pr-filter-region")==loc::T("public.filter_region_all")&&summary()==loc::T("public.filter_summary_all")&&Shown(j)=="dabc","Left did not step the region back to every region");
  h.view.netReport.relay="use1";h.Frame(0,2);
- Check(j.row("pr-filter")->choices[1].enabled&&j.row("pr-filter")->choices[1].detail.empty(),"Near me stays disabled with a region");
- // Near me (the choices sit side by side, so Right steps them): only the rooms in the player's region; the status says how many of how many.
- h.Choose("pr-filter");Check(h.shell.Navigation().Choosing(),"The filter did not open its choices");
- h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(!h.shell.Navigation().Choosing()&&j.row("pr-filter")->chosen=="near"&&j.row("pr-filter")->label==loc::Tf("public.filter_label",loc::T("public.filter.near")),"Choosing Near me did not set the filter");
- Check(Shown(j)=="ac","Near me lists rooms that are not near");
+ step("pr-filter-region");
+ Check(value("pr-filter-region")==loc::T("public.filter_region_near")&&summary()==loc::T("public.filter_region_near")&&Shown(j)=="ac","Near me lists rooms that are not near");
  relist();
- Check(j.status==loc::Tf("public.status_filtered",std::size_t(2),std::size_t(3),loc::T("public.updated_now")),"The status does not say how many of the rooms are shown");
- // Free seats: rooms that can be joined, near ones first.
- h.Choose("pr-filter");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(j.row("pr-filter")->chosen=="seats"&&Shown(j)=="ab","Free seats lists a room without one");
- // Back to all rooms, the status then counts them all.
- h.Choose("pr-filter");h.Press(MenuInput::Left);h.Press(MenuInput::Left);h.Press(MenuInput::Select);
- Check(j.row("pr-filter")->chosen=="all"&&Shown(j)=="abc","Choosing all rooms did not list every room");
- relist();
- Check(j.status==loc::Tf("public.status_listed",std::size_t(3),loc::T("public.updated_now")),"The status does not count the rooms listed");
- // A filter with nothing to show: the card says so, and its action lists everything again.
- j.List({Placed("c","use1",4,4,3),Placed("d","use1",2,2,4,true)});
- h.Choose("pr-filter");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(j.row("pr-filter")->chosen=="seats"&&Shown(j).empty()&&j.row("pr-show-all")&&j.row("pr-show-all")->label==loc::T("public.none_filtered")&&
-  j.row("pr-show-all")->hint==loc::T("public.show_all")&&j.row("pr-show-all")->wide&&j.row("pr-show-all")->height==110&&!j.row("pr-none")&&!j.row("pr-error"),
-  "A filter with nothing to show has no card for it");
+ Check(j.status==loc::Tf("public.status_filtered",std::size_t(2),std::size_t(4),loc::T("public.updated_now")),"The status does not say how many of the rooms are shown");
+ step("pr-filter-region",MenuInput::Left);
+
+ // Room type: a room that sent no type (d) passes under All types only.
+ step("pr-filter-type");
+ Check(value("pr-filter-type")==RoomTypeName(room::ClassicRoom)&&summary()==RoomTypeName(room::ClassicRoom)&&Shown(j)=="a","Classic lists a room of another type or none");
+ step("pr-filter-type");
+ Check(value("pr-filter-type")==RoomTypeName(room::ArcadeRoom)&&Shown(j)=="b","Arcade lists a room of another type");
+ step("pr-filter-type");
+ Check(value("pr-filter-type")==RoomTypeName(room::KingRoom)&&Shown(j)=="c","King of the Hill lists a room of another type");
+ step("pr-filter-type");
+ Check(value("pr-filter-type")==loc::T("public.filter_type_all")&&Shown(j)=="adbc","Stepping past King of the Hill did not return to every type");
+
+ // Open seats: not full, not locked. Right is on and Left off.
+ step("pr-filter-seats");
+ Check(value("pr-filter-seats")==loc::T("common.on")&&Shown(j)=="adb","Open seats lists a full room");
+ step("pr-filter-seats",MenuInput::Left);
+ Check(value("pr-filter-seats")==loc::T("common.off")&&Shown(j)=="adbc","Open seats off did not list the full room again");
+
+ // Connection: only the rooms that take wired players alone.
+ step("pr-filter-wired");
+ Check(value("pr-filter-wired")==loc::T("public.filter_wired_only")&&summary()==loc::T("public.filter_wired_only")&&Shown(j)=="b","Wired only lists a room open to every connection");
+
+ // The settings narrow together, and a filter with nothing to show offers to clear it.
+ step("pr-filter-seats");step("pr-filter-type",MenuInput::Right,3);
+ Check(Shown(j).empty()&&j.row("pr-clear-filters"),"Filters that match no room did not offer to clear them");
+
+ // Saved with the preferences, and kept on leaving and coming back.
+ const auto saved=std::count_if(h.actions.begin(),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
+ Check(saved>=1&&h.view.preferences.roomFilter.wiredOnly&&h.view.preferences.roomFilter.openSeats&&h.view.preferences.roomFilter.type==netplay::publicrooms::RoomFilter::Type::King&&
+  h.view.preferences.roomFilter.scope==netplay::publicrooms::RoomFilter::Region::All,"The filter was not sent to be saved");
+ h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);relist();
+ Check(summary()==std::string(RoomTypeName(room::KingRoom))+dot+loc::T("public.filter_summary_seats")+dot+loc::T("public.filter_wired_only")&&j.row("pr-clear-filters"),"The filter was forgotten on leaving Public rooms");
+
+ // Clear filters lists every room again, and that is saved too.
+ h.Choose("pr-clear-filters");settle();
+ Check(!j.row("pr-clear-filters")&&Shown(j)=="adbc"&&!h.view.preferences.roomFilter.Active(),"Clear filters did not clear the filter");
+
  // Every room closes while the filter is on: the card is the empty list's, and one press opens Create on Public.
+ step("pr-filter-wired");
  j.List({});
- Check(j.row("pr-none")&&j.row("pr-none")->hint==loc::T("public.create_room")&&!j.row("pr-show-all"),"An empty list under a filter offered to show all rooms");
+ Check(j.row("pr-none")&&j.row("pr-none")->hint==loc::T("public.create_room")&&!j.row("pr-clear-filters"),"An empty list under a filter offered to clear it");
  h.Choose("pr-none");
  Check(h.shell.Navigation().Screen()=="create","The empty list's card under a filter did not open Create in one press");
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
- j.List({Placed("c","use1",4,4,3),Placed("d","use1",2,2,4,true)});
- Check(j.row("pr-filter")->chosen=="seats"&&j.row("pr-show-all"),"The filter was not kept across a visit to Create");
- h.Choose("pr-show-all");
- Check(j.row("pr-filter")->chosen=="all"&&Shown(j)=="cd"&&!j.row("pr-show-all"),"Show all rooms did not clear the filter");
- // The choice lasts for the visit, and Near me falls back to all rooms when the region is lost.
- h.Choose("pr-filter");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);
- Check(j.row("pr-filter")->chosen=="near","The filter was forgotten on leaving Public rooms");
- h.view.netReport.relay="";h.Frame(0,2);
- Check(j.row("pr-filter")->chosen=="all"&&!j.row("pr-filter")->choices[1].enabled,"Near me stayed chosen when the region was lost");
- // An empty list under no filter offers Create room instead.
+ step("pr-filter-wired",MenuInput::Left);
  j.List({});
- Check(j.row("pr-none")&&j.row("pr-none")->label==loc::T("public.none_all"),"An empty list under all rooms has no empty card");
- h.Choose("pr-none");
- Check(h.shell.Navigation().Screen()=="create"&&j.row("visibility")->value==loc::T("public.visibility.public"),"The empty list's card did not open Create on Public");
+ Check(j.row("pr-none")&&j.row("pr-none")->label==loc::T("public.none_all"),"An empty list under no filter has no empty card");
+
+ // Preferences that cannot be edited (a room locks them) keep the filter as it is.
+ relist();
+ h.view.canEditPreferences=false;h.Choose("pr-filters");
+ Check(!j.row("pr-filter-seats")->enabled,"A filter row is offered while the preferences cannot be edited");
+ h.FocusOn("pr-filter-seats");h.Press(MenuInput::Right);h.Press(MenuInput::Back);
+ Check(summary()==loc::T("public.filter_summary_all")&&Shown(j)=="adbc","A filter changed while the preferences could not be edited");
 }
 
 // The list refreshes by itself every 15 s while the screen is open and nothing else

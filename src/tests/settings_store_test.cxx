@@ -11,6 +11,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/PublicRoomFilterJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -337,6 +338,40 @@ static void SpeechRoundTrips(const Path& root) {
     const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
     CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60&&!odd.introHeard&&odd.tick&&odd.describeUsed==0&&odd.Reminds());
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
+}
+
+// The public rooms filter is one object in the netplay section. An older profile
+// has none, and a field out of range, of another type or naming a region that is
+// no longer known loads as All (a flag as off) on its own.
+static void RoomFilterRoundTrips(const Path& root) {
+    using namespace sf4e;
+    using netplay::publicrooms::RoomFilter;
+    const auto folder=root/L"room-filter";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    for (const auto& pick : {RoomFilter(), RoomFilter{RoomFilter::Region::Near,"",RoomFilter::Type::King,true,false},
+                             RoomFilter{RoomFilter::Region::One,"euc1",RoomFilter::Type::Classic,false,true},
+                             RoomFilter{RoomFilter::Region::One,"aps1",RoomFilter::Type::Arcade,true,true}}) {
+        netplay::PlayerPreferences prefs; prefs.roomFilter=pick; CHECK(prefs.Valid());
+        Json saved; netplay::WriteRoomFilter(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["roomFilter"]["wired"]==pick.wiredOnly);
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadRoomFilter(loaded)==pick);
+    }
+    CHECK(netplay::ReadRoomFilter(Json::object())==RoomFilter());
+    CHECK(netplay::ReadRoomFilter(Json("filter"))==RoomFilter());
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",7}})==RoomFilter());
+    // A region that is no longer known falls back to All without losing the rest.
+    const auto gone=netplay::ReadRoomFilter({{"roomFilter",{{"region","mars"},{"type","arcade"},{"seats",true},{"wired",true}}}});
+    CHECK(gone.scope==RoomFilter::Region::All&&gone.region.empty()&&gone.type==RoomFilter::Type::Arcade&&gone.openSeats&&gone.wiredOnly&&gone.Valid());
+    const auto odd=netplay::ReadRoomFilter({{"roomFilter",{{"region",3},{"type","brawl"},{"seats","yes"},{"wired",1}}}});
+    CHECK(odd==RoomFilter());
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Region::Near);
+    // Preferences carrying a filter that names no region to filter by are invalid.
+    netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Region::One; CHECK(!invalid.Valid());
+    invalid.roomFilter.region="mars"; CHECK(!invalid.Valid());
+    invalid.roomFilter.region="use1"; CHECK(invalid.Valid());
 }
 
 static void ControllerLayerRoundTrip(const Path& root) {
@@ -722,28 +757,28 @@ int main() {
         CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules == restored.tableRules &&
             fromOlder.publicTableRules == restored.publicTableRules);
     }
-    // The room's delay policy is a room default: written only when Own, and a
-    // document without the key (or with "shared") reads as Shared.
+    // The room's delay policy is a room default: Own unless the player chose
+    // Shared. Both are written; a document without the key (every save before
+    // 1.5.3 that kept the old Shared default) reads as Own.
     {
-        CHECK(!result["roomDefaults"].contains("delay") && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
-        auto own = defaults;
-        own.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
-        const Json ownDocument{{"roomDefaults", sf4e::netplay::RoomPreferences(own)}};
-        CHECK(ownDocument["roomDefaults"].at("delay") == "own");
-        sf4e::netplay::PlayerPreferences fromOwn;
-        CHECK(sf4e::netplay::ReadRoomPreferences(ownDocument, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Own &&
-            fromOwn.tableRules == restored.tableRules);
-        // Own is not remembered by a document that leaves the key out.
-        auto without = ownDocument;
+        CHECK(result["roomDefaults"].at("delay") == "own" && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Own);
+        auto shared = defaults;
+        shared.roomDelayPolicy = sf4e::room::DelayPolicy::Shared;
+        const Json sharedDocument{{"roomDefaults", sf4e::netplay::RoomPreferences(shared)}};
+        CHECK(sharedDocument["roomDefaults"].at("delay") == "shared");
+        sf4e::netplay::PlayerPreferences fromShared;
+        CHECK(sf4e::netplay::ReadRoomPreferences(sharedDocument, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared &&
+            fromShared.tableRules == restored.tableRules);
+        // A document that leaves the key out is one from before 1.5.3: Own.
+        auto without = sharedDocument;
         without["roomDefaults"].erase("delay");
-        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Own);
         without["roomDefaults"]["delay"] = "shared";
-        fromOwn.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
-        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
         for (const Json& invalid : {Json(1), Json(true), Json("mine"), Json(nullptr)}) {
-            auto bad = ownDocument;
+            auto bad = sharedDocument;
             bad["roomDefaults"]["delay"] = invalid;
-            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
         }
     }
     // A private Classic room's table count is a room default and a template's:
@@ -775,6 +810,31 @@ int main() {
         badTemplate["roomDefaults"]["templates"][0]["tableCount"] = 12;
         CHECK(sf4e::netplay::ReadRoomPreferences(badTemplate, read) && read.roomTableCount == 6 && read.roomTemplates.empty());
     }
+    // Wired players only is a room default and a template's: written only when
+    // on, and off when the key is missing.
+    {
+        CHECK(!result["roomDefaults"].contains("wiredOnly") && !restored.roomWiredOnly);
+        auto wired = defaults;
+        wired.roomWiredOnly = true;
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Wired"; saved.roomName = "Cable room"; saved.wiredOnly = true;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        wired.roomTemplates = {saved};
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(wired)}};
+        CHECK(document["roomDefaults"].at("wiredOnly") == true && document["roomDefaults"]["templates"][0].at("wiredOnly") == true);
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomWiredOnly && read.roomTemplates.size() == 1 &&
+            read.roomTemplates[0] == saved);
+        auto plain = document;
+        plain["roomDefaults"].erase("wiredOnly");
+        plain["roomDefaults"]["templates"][0].erase("wiredOnly");
+        CHECK(sf4e::netplay::ReadRoomPreferences(plain, read) && !read.roomWiredOnly && !read.roomTemplates[0].wiredOnly);
+        for (const Json& invalid : {Json(1), Json("yes"), Json(nullptr)}) {
+            auto bad = document;
+            bad["roomDefaults"]["wiredOnly"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+        }
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},
@@ -789,6 +849,7 @@ int main() {
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
     SpeechRoundTrips(root);
+    RoomFilterRoundTrips(root);
     ControllerLayerRoundTrip(root);
     ShareReplaysConsent(root);
     RemoveTempRoot(root);

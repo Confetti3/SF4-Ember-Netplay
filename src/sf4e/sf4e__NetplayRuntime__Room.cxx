@@ -460,6 +460,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		runtime->arcadeRoom = decision.effect == netplay::Effect::HostRoom ? command.arcadeRoom : room::ClassicRoom;
 		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
 		runtime->tableCount = decision.effect == netplay::Effect::HostRoom ? command.tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
+		runtime->wiredOnly = decision.effect == netplay::Effect::HostRoom && command.wiredOnly;
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -468,9 +469,9 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// Only a room just created carries its tables: the join of a public one,
 		// or a private one hosted from a template.
 		if ((runtime->join == JoinKind::Public || decision.effect == netplay::Effect::HostRoom) && command.createdRules) {
-			runtime->createdRules.Start(*command.createdRules, GetTickCount64(), command.arcadeRoom);
-			spdlog::info("Room: created room tables armed format={} rotation={} type={} named={}",
-				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation), static_cast<int>(command.arcadeRoom),
+			runtime->createdRules.Start(*command.createdRules, GetTickCount64(), command.arcadeRoom, command.wiredOnly);
+			spdlog::info("Room: created room tables armed format={} rotation={} type={} wired_only={} named={}",
+				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation), static_cast<int>(command.arcadeRoom), command.wiredOnly,
 				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));
 		} else runtime->createdRules.Cancel("other_room");
 		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
@@ -493,6 +494,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         runtime->arcadeRoom=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
         runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
         runtime->tableCount=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
+        runtime->wiredOnly=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().wiredOnly;
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
@@ -643,6 +645,7 @@ TypedCommand Classify(RuntimeCommand command) {
 	roomCommand.arcadeRoom = command.arcadeRoom;
 	roomCommand.delayPolicy = command.delayPolicy;
 	roomCommand.tableCount = command.tableCount;
+	roomCommand.wiredOnly = command.wiredOnly;
 	roomCommand.character = command.character;
 	roomCommand.stage = command.stage;
 	roomCommand.randomPool = std::move(command.randomPool);

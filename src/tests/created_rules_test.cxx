@@ -240,8 +240,52 @@ static void TestRoomType() {
 	CHECK(shown.arcade == room::KingRoom && shown.tables[7].rules == Chosen());
 }
 
+// A Wired players only rule chosen on Create: one SetWiredOnly once the type
+// is the room's and before the tables, sent again until the room shows it.
+static void TestWiredOnly() {
+	{
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ArcadeRoom, true);
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType);
+		CHECK(room.Apply(sent));
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetWiredOnly && sent.wiredOnly);
+		CHECK(room.Run(CreatedRules::RetryMs - 16).empty());
+		CHECK(room.Apply(sent) && room.authority.SnapshotView().wiredOnly);
+		CHECK(room.Run(32).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
+	}
+	{
+		// A Classic room's tables follow it.
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ClassicRoom, true);
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetWiredOnly);
+		CHECK(room.Apply(sent));
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules && sent.table == 0);
+	}
+	{
+		// A room that already has it (a private one is created with it) goes on to the tables.
+		Room room;
+		auto on = room.Made(room.creator, 0, room::ActionKind::SetWiredOnly);
+		on.wiredOnly = true;
+		CHECK(room.Apply(on));
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ClassicRoom, true);
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules);
+	}
+	{
+		// The host's own SetWiredOnly makes the rule theirs.
+		Room room;
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ClassicRoom, true);
+		room.rules.ObservePlayer(room.Made(room.creator, 0, room::ActionKind::SetWiredOnly));
+		room::Action sent;
+		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules && room.rules.Active());
+	}
+}
+
 int main() {
 	TestRoomType();
+	TestWiredOnly();
 	TestOneTableAtATime();
 	TestEachTableAndItsName();
 	TestStaleAndFenced();

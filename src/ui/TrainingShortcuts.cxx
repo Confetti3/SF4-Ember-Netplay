@@ -56,10 +56,13 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     const auto hint = [&](Piece::Kind kind, std::string key, const char* label, bool shortens = false) {
         groups.push_back({{{kind, std::move(key), Between * unit}, {Piece::Label, label, Gap * unit}}, shortens});
     };
+    // A pad shows the buttons its player bound, where the keys show F6 to F8.
+    const auto& padButtons = TrainingPadButtons();
     if (shortcuts) {
         Group controls{{}, true};
-        // An Xbox pad opens them with R3 alone; other pads with the chord.
-        if (device == input::PadXInput) controls.pieces = {{Piece::Button, "R3", 0}};
+        // A pad opens them with its controls button alone, when it has one
+        // (R3 unless the player bound another or turned it off); else with the chord.
+        if (pad && padButtons.controls) controls.pieces = {{Piece::Button, padButtons.controlsName, 0}};
         else if (pad) controls.pieces = {{Piece::Button, back, 0}, {Piece::Plus, "+", 2 * unit}, {Piece::Button, names.start, 2 * unit}};
         else controls.pieces = {{Piece::Key, "F6", 0}};
         controls.pieces.push_back({Piece::Chip, loc::T("training.controls_chip"), Gap * unit});
@@ -69,8 +72,6 @@ std::vector<Group> Groups(const training::View& view, bool shortcuts, const std:
     if (!notice.empty()) { groups.push_back({{{Piece::Notice, notice, Between * unit}}, true}); return groups; }
     // The pad's Back is its one way to reset or save, so it is shortened to stay.
     if (pad) hint(Piece::Button, back, loc::T("training.pad_hint"), true);
-    // A pad shows the buttons its player bound, where the keys show F7 and F8.
-    const auto& padButtons = TrainingPadButtons();
     const auto press = [&](std::uint32_t button, const std::string& name, int key, const char* label) {
         if (pad && button) hint(Piece::Button, name, label);
         else hint(Piece::Key, TrainingKeyName(key), label);

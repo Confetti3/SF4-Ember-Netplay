@@ -101,6 +101,8 @@ void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
 bool MatchResultKnown();
 void PublishConfirmedNativeMatchResult();
+// A spectator's stream restarted the battle in place: count the game it showed.
+void CountWatchedInPlaceGame();
 // The battle is closing: a result held for a rematch in place ends the match.
 void FlushHeldNativeResult();
 
@@ -131,6 +133,8 @@ extern int s_disconnectTimeoutMs;
 struct NetplayWindow {
     uint64_t startMs = 0; // 0 until the first session starts
     uint32_t rollbacks = 0, resimFrames = 0, depth = 0, maxDepth = 0, stallTicks = 0;
+    // Frames whose local sample the match input read refused (ReadRuntimeMatchInput).
+    uint32_t inputFaults = 0;
     int pingMin = -1, pingMax = -1, localBehind = 0, remoteBehind = 0;
     double maxAbsRift = 0.0;
     uint32_t recsAtStart = 0;
@@ -141,6 +145,8 @@ struct NetplayWindow {
     void Start(uint64_t now) {
         *this = {};
         startMs = now;
+        // Pad updates before the window began do not count in it.
+        sf4e::Pad::TakeWithheldUpdates();
         recsAtStart = fSystem::pacer.recommendationsReceived;
         slowedAtStart = fSystem::pacer.msSlowedTotal;
         spedUpAtStart = fSystem::pacer.msSpedUpTotal;
@@ -162,12 +168,18 @@ struct NetplayWindow {
     void Flush(uint64_t now) {
         const sf4e::pacing::PacingController& p = fSystem::pacer;
         if (startMs != 0 && now > startMs) {
+            // Pad updates whose local input Ember kept from GGPO: window behind /
+            // Ember's menu capturing / buttons held from it after it let go;
+            // then GGPO frames refused by the match input read.
+            const auto withheld = sf4e::Pad::TakeWithheldUpdates();
             spdlog::info(
                 "Netplay [{:.0f}s]: ping={}..{} riftFrames={:.2f} maxAbsRift={:.2f} behind={}/{} rollbacks={} "
-                "resimFrames={} maxDepth={} stallTicks={} slowedMs={:.1f} spedUpMs={:.1f} timesyncEvents={}",
+                "resimFrames={} maxDepth={} stallTicks={} slowedMs={:.1f} spedUpMs={:.1f} timesyncEvents={} "
+                "withheld={}/{}/{}/{}",
                 (now - startMs) / 1000.0, pingMin, pingMax, p.riftFramesEma, maxAbsRift, localBehind, remoteBehind,
                 rollbacks, resimFrames, maxDepth, stallTicks, p.msSlowedTotal - slowedAtStart,
-                p.msSpedUpTotal - spedUpAtStart, p.recommendationsReceived - recsAtStart);
+                p.msSpedUpTotal - spedUpAtStart, p.recommendationsReceived - recsAtStart,
+                withheld.focus, withheld.menu, withheld.kept, inputFaults);
             if (fSystem::ggpo && !fSystem::LocalFighter()) {
                 spdlog::info("Spectator [{:.0f}s]: maxBacklog={} catchUpFrames={}",
                     (now - startMs) / 1000.0, spectator.maxBacklog, spectator.catchUpFrames);

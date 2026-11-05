@@ -255,7 +255,13 @@ void DrawRoomCard(const ShellView& v, const MenuEntry& e, PublicRoomsPanel::Card
     if (room.ownDelay) {
         const char* own = loc::T("public.own_delay");
         const float chip = ChipWidth(own, limit - x);
-        if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), own, palette::Muted, ChipDark, "pr-chip-own-delay", chip);
+        if (x + chip <= limit) { DrawChip(ImVec2(x, chipTop), own, palette::Muted, ChipDark, "pr-chip-own-delay", chip); x += chip + 6 * s; }
+    }
+    // A room that takes wired players alone says so, in the same place and style.
+    if (room.wiredOnly) {
+        const char* wired = loc::T("public.wired_only");
+        const float chip = ChipWidth(wired, limit - x);
+        if (x + chip <= limit) DrawChip(ImVec2(x, chipTop), wired, palette::Muted, ChipDark, "pr-chip-wired-only", chip);
     }
     if (busy) DrawBusyBar(min, max, now);
     DrawFrame(min, max, focused);
@@ -342,7 +348,7 @@ void DrawSetup(const MenuEntry& e, const PublicSetupView& setup, ImVec2 min, ImV
 }
 
 bool PublicRoomBare(const Room& room) {
-    return !room.hasDetails && room.fighters.empty() && room.setFormat < 0 && !room.locked && !Full(room) && room.playing == 0 && !room.ownDelay;
+    return !room.hasDetails && room.fighters.empty() && room.setFormat < 0 && !room.locked && !Full(room) && room.playing == 0 && !room.ownDelay && !room.wiredOnly;
 }
 
 // An interface string on one line, shrunk to `width` and reported; returns the width it took.
@@ -379,7 +385,7 @@ float DrawChip(ImVec2 at, const char* text, ImU32 foreground, ImU32 background, 
 bool DrawPublicCard(const ShellView& v, const PublicRoomsPanel& panel, const PublicSetupView& setup, PublicRoomsPanel::CardPhase phase,
                     const MenuEntry& e, ImVec2 min, ImVec2 max, bool focused, double now) {
     const std::string& id = e.id;
-    if (id == "pr-quick" || id == "pr-create" || id == "pr-filter" || id == "pr-paste") { DrawCell(e, min, max); return true; }
+    if (id == "pr-quick" || id == "pr-create" || id == "pr-paste") { DrawCell(e, min, max); return true; }
     if (id.compare(0, 8, "pr-room:") == 0) {
         const Room* room = FindRoom(v, id.substr(8));
         if (!room) return false;
@@ -392,7 +398,7 @@ bool DrawPublicCard(const ShellView& v, const PublicRoomsPanel& panel, const Pub
         DrawRoomCard(v, e, phase, room, min, max, focused, now);
         return true;
     }
-    if (id == "pr-none" || id == "pr-show-all") { DrawMessage(e, min, max, palette::Ivory, focused); return true; }
+    if (id == "pr-none" || id == "pr-clear-filters") { DrawMessage(e, min, max, palette::Ivory, focused); return true; }
     if (id == "pr-error") { DrawMessage(e, min, max, ErrorColor(), focused); return true; }
     if (id == "pr-checking") { DrawChecking(e, min, max, focused, now); return true; }
     if (id == "pr-loading") { DrawLoading(e, min, max, focused, now); return true; }

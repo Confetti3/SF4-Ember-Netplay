@@ -2926,6 +2926,18 @@ msgstr "選択するとキャラが確定します。両プレイヤーが準備
 msgid "room.opponent_changed_fighter"
 msgstr "相手が{0}に変更しました。準備完了の前にウルトラを確認してください。"
 
+msgid "room.ready.with"
+msgstr "{0}、{1}で準備完了。"
+
+msgid "room.ready.with_against"
+msgstr "{2}を相手に{0}、{1}で準備完了。"
+
+msgid "room.ultra.detail"
+msgstr "対戦席の設定を開かずに、次の試合のウルトラコンボをここで選びます。"
+
+msgid "room.ultra.single"
+msgstr "このキャラはこのエディションではウルトラコンボが一つです。"
+
 msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
 
@@ -3266,6 +3278,15 @@ msgstr "公開"
 msgid "room.admission.detail"
 msgstr "ロックすると新しいメンバーは参加できません。"
 
+msgid "room.wired_only"
+msgstr "有線プレイヤーのみ"
+
+msgid "room.wired_only.detail"
+msgstr "Wi-Fiのプレイヤーも参加、観戦、チャットはできますが、席には着けません。接続が不明なプレイヤーは対戦できます。"
+
+msgid "room.wired_only.settings_detail"
+msgstr "次に席に着くときから適用されます。今座っている人は席を失いません。"
+
 msgid "room.apply_name"
 msgstr "ルーム名を適用"
 
@@ -3525,6 +3546,9 @@ msgstr "メッセージを送信できませんでした。"
 
 msgid "room.reject.ledger_full"
 msgstr "全員が前の対戦から戻るのを待っています。"
+
+msgid "room.reject.wired_only"
+msgstr "このルームは有線プレイヤー専用です。お使いのPCはWi-Fi接続です。"
 
 msgid "room.reject.other"
 msgstr "ルームが操作を拒否しました。"
@@ -4768,6 +4792,12 @@ msgstr "準備完了"
 msgid "postmatch.state.left"
 msgstr "席を離れた"
 
+msgid "postmatch.ultra.detail"
+msgstr "左右で次の試合のウルトラコンボを変更します。新しいウルトラコンボにすると、次の試合は読み込んでから始まります。"
+
+msgid "postmatch.ultra.set"
+msgstr "次の試合のウルトラコンボは決まりました。"
+
 msgid "rules.set_summary"
 msgstr "{0}、{1}"
 
@@ -4912,26 +4942,62 @@ msgstr "近くの公開ルームのうち、空席が最も多いルームに参
 msgid "public.quick_none"
 msgstr "近くの公開ルームに空席はありません。ルームを作成すれば、近くのプレイヤーが見つけてくれます。"
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "ルームを作成"
 
-msgid "public.filter"
-msgstr "表示"
+msgid "public.filters"
+msgstr "Filters"
 
-msgid "public.filter_detail"
-msgstr "表示するルームを選びます。すべて、近くのルーム、空席のあるルームのみから選べます。"
+msgid "public.filters_detail"
+msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
 
-msgid "public.filter_label"
-msgstr "表示：{0}"
+msgid "public.filter_summary_all"
+msgstr "All rooms"
 
-msgid "public.filter.all"
-msgstr "全ルーム"
+msgid "public.filter_summary_seats"
+msgstr "Open seats"
 
-msgid "public.filter.near"
+msgid "public.filter_region"
+msgstr "Region"
+
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+
+msgid "public.filter_region_all"
+msgstr "All regions"
+
+msgid "public.filter_region_near"
 msgstr "近く"
 
-msgid "public.filter.seats"
-msgstr "空席あり"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "全ルーム"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Emberはまだあなたのリージョンを把握していないため、近くのルームを判別できません。"
@@ -5002,8 +5068,11 @@ msgstr "現在、開いているルームはありません。ルームを作成
 msgid "public.none_filtered"
 msgstr "この条件に合うルームはありません。"
 
-msgid "public.show_all"
-msgstr "すべてのルームを表示"
+msgid "public.clear_filters"
+msgstr "Clear filters"
+
+msgid "public.clear_filters_detail"
+msgstr "Show every room again."
 
 msgid "public.try_again"
 msgstr "再試行"
@@ -5469,6 +5538,9 @@ msgstr "新しい相手"
 
 msgid "room.new_opponent_detail"
 msgstr "席に座ったまま、いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
+
+msgid "room.new_opponent_none"
+msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
 
 msgid "room.rematch_ask"
 msgstr "リマッチ？"
@@ -6496,6 +6568,36 @@ msgstr "トレーニングの録画ボタンと再生ボタンをオフにしま
 msgid "button_layout.training_cleared"
 msgstr "トレーニングのボタンをオフにしました。"
 
+msgid "button_layout.training_controls"
+msgstr "Training controls"
+
+msgid "button_layout.training_controls_detail"
+msgstr "Select, then press the button that opens and closes the Training controls. Automatic uses R3 unless R3 is one of your attacks. In Training that button only does this and never attacks. Turn it off to keep its attack; F6 and Back with Start still open the controls."
+
+msgid "button_layout.training_controls_off"
+msgstr "Turn off controls button"
+
+msgid "button_layout.training_controls_off_detail"
+msgstr "Stops this button opening the Training controls, so it keeps its attack in Training. F6 and Back with Start still work."
+
+msgid "button_layout.training_controls_is_off"
+msgstr "Training controls button is off."
+
+msgid "button_layout.auto_on"
+msgstr "{0} (automatic)"
+
+msgid "button_layout.auto_off"
+msgstr "Off ({0} is in use)"
+
+msgid "button_layout.training_controls_auto"
+msgstr "Turn on controls button"
+
+msgid "button_layout.training_controls_auto_detail"
+msgstr "Uses R3 for the Training controls unless R3 is one of your attacks."
+
+msgid "button_layout.training_controls_is_auto"
+msgstr "Training controls button is automatic."
+
 msgid "room.delay_policy"
 msgstr "ルームの入力遅延"
 
@@ -6514,11 +6616,20 @@ msgstr "{0}、各自の遅延"
 msgid "room.table_footer_own_delay"
 msgstr "各自の遅延"
 
+msgid "room.table_footer_wired_only"
+msgstr "有線のみ"
+
+msgid "room.table_counts"
+msgstr "順番待ち{0}     観戦{1}"
+
 msgid "room.input_delay.own"
 msgstr "あなたの遅延：{0}"
 
 msgid "public.own_delay"
 msgstr "各自の遅延"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "このルームサービスは、各自の遅延でルームを作成することにまだ対応していません。「両者で共通」を選ぶか、しばらくしてからもう一度お試しください。"
@@ -7605,6 +7716,9 @@ msgstr "Ember開発者はクラスの代わりにこのマークが表示され�
 msgid "room.v2.board"
 msgstr "ボード"
 
+msgid "room.v2.areas"
+msgstr "エリア"
+
 msgid "room.v2.tables"
 msgstr "テーブル"
 
@@ -7645,7 +7759,7 @@ msgid "room.v2.more"
 msgstr "その他…"
 
 msgid "room.v2.more_detail"
-msgstr "対戦席の設定、ルーム設定、招待リンク。"
+msgstr "コントローラー、ルーム設定、公開ルームのリンク、画面の配置。"
 
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"
@@ -7826,6 +7940,87 @@ msgstr "コスチューム"
 
 msgid "selection.color_row"
 msgstr "カラー"
+
+msgid "selection.costume_gallery_title"
+msgstr "コスチューム一覧"
+
+msgid "selection.color_gallery_title"
+msgstr "カラー一覧"
+
+msgid "selection.color"
+msgstr "カラー{0}"
+
+msgid "selection.no_colors"
+msgstr "このコスチュームには使用可能なカラーがありません。"
+
+msgid "selection.loading_choices"
+msgstr "選択肢を読み込み中"
+
+msgid "selection.loading_choices.detail"
+msgstr "ゲーム本体のコスチュームとカラーの使用可否を確認中です。"
+
+msgid "menu.hint.save_color"
+msgstr "カラーを保存"
+
+msgid "selection.costume_row.detail"
+msgstr "左右でここのコスチュームを変更します。決定で各コスチュームを表示します。"
+
+msgid "selection.color_row.detail"
+msgstr "左右でここのカラーを変更します。決定で各カラーを表示します。"
+
+msgid "selection.ultra_combo_title"
+msgstr "ウルトラコンボ"
+
+msgid "menu.hint.save_ultra"
+msgstr "ウルトラを保存"
+
+msgid "selection.ultra_charge"
+msgstr "タメ"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1}（{0}）"
+
+msgid "selection.ultra_condition.ground"
+msgstr "地上"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "対空"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "地上または空中"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "空中"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "近距離"
+
+msgid "selection.ultra_condition.counter"
+msgstr "当て身"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "喪流"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "忌流"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "忌流または空中"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "パンチ版"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "キック版"
+
+msgid "selection.ultra_condition.forward"
+msgstr "前方"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "キック押しっぱなしで遅らせ、パンチでキャンセル"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "もう一度PPPで回復を止める"
 
 msgid "selection.ready_with"
 msgstr "{0}で準備完了"

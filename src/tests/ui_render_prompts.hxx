@@ -32,12 +32,17 @@ void ShootButtonPrompts(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& v
             Require(PromptLabel("A",loc::T("menu.select"),MenuPromptBrand())==std::string("LK ")+loc::T("menu.select"),"Stick confirm lacks LK");
             Require(PromptLabel("B",loc::T("common.back"),MenuPromptBrand())==std::string("MK ")+loc::T("common.back"),"Stick back lacks MK");
         }
+        // The runtime gives an Xbox-type pad its controls button, R3 by default
+        // (TrainingButtonsFor); the overlay passes it on each frame.
+        input::TrainingButtons padButtons;padButtons.controls=input::xinput::RS;padButtons.controlsName="R3";
+        SetTrainingPadButtons(padButtons);
         mode=2;draw((std::string(scenario.shot)+"-training").c_str());
         const auto names=ButtonPositionNames(input::PadXInput,scenario.brand);
         const auto& strip=LastTrainingStrip();
         Require(std::find(strip.pieces.begin(),strip.pieces.end(),names.view)!=strip.pieces.end(),"Training strip lost brand's View name");
-        // An Xbox-type pad opens the controls with R3 alone (TrainingPad.hxx), so the strip names R3, not Start.
+        // An Xbox-type pad opens the controls with its controls button alone (TrainingPad.hxx), so the strip names R3, not Start.
         Require(std::find(strip.pieces.begin(),strip.pieces.end(),"R3")!=strip.pieces.end(),"Training strip lost R3, the pad's way to the controls");
+        SetTrainingPadButtons({});
         mode=0;
     }
     SetMenuGlyphs(input::PadKeyboard,0,0);draw("prompts-keyboard");

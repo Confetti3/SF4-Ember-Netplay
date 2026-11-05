@@ -347,6 +347,7 @@ fn with_report(before: &Room, report: Report, now: u64) -> Room {
         after.host_name = details.host_name;
         after.fighters = details.fighters;
         after.own_delay = details.own_delay;
+        after.wired_only = details.wired_only;
     }
     after.set_format = details.set_format.or(before.set_format);
     after.rotation = details.rotation.or(before.rotation);
@@ -366,7 +367,7 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
         "UPDATE rooms SET name = ?2, capacity = ?3, members = ?4, tables_playing = ?5, locked = ?6,
              host_name = ?7, fighters = ?8, set_format = ?9, rotation = ?10, own_delay = ?11,
              invitation_sealed = ?12, opened_at = ?13, room_type = ?14,
-             creator_in = ?15
+             creator_in = ?15, wired_only = ?16
          WHERE room_id = ?1 AND closed_at IS NULL AND invitation_sealed IS NOT NULL",
         params![
             room.room_id,
@@ -384,6 +385,7 @@ fn store(tx: &Transaction<'_>, room: &Room) -> Result<bool> {
             room.opened_at,
             room.room_type,
             room.creator_in,
+            room.wired_only,
         ],
     )? == 1)
 }
@@ -418,6 +420,7 @@ mod tests {
             room_type: Some(1),
             creator_in: Some(true),
             own_delay: true,
+            wired_only: false,
         }
     }
 
@@ -487,6 +490,19 @@ mod tests {
             (Some("Player 1"), true)
         );
         assert_eq!(after.tables_playing, 3);
+    }
+
+    #[test]
+    fn a_room_made_wired_only_lists_it_until_its_host_turns_it_off() {
+        let before = room();
+        let wired = Details::from_value(&json!({ "wired_only": true }), 2, 4);
+        let on = with_report(&before, report(Some(wired), 1, true), 99);
+        assert!(on.wired_only);
+        // A report without it is a room without the rule.
+        let off = with_report(&on, report(Some(Details::from_value(&json!({}), 2, 4)), 1, true), 99);
+        assert!(!off.wired_only);
+        // Without an object it stays as it was.
+        assert!(with_report(&on, report(None, 1, true), 99).wired_only);
     }
 
     #[test]

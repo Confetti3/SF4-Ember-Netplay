@@ -57,11 +57,18 @@ or in an open panel, reader or question. It names only buttons your
 controller has. Each hint is also a button you can click. The bell on its
 right opens Notifications.
 
+In a list, such as Home or Online play, a fresh Up on the first row goes
+round to the last and a fresh Down on the last to the first: Notifications is
+one Up from Online play. Holding the direction stops at the end.
+
 On a board, such as the room's tables and members, the D-pad moves to the
-row drawn nearest in that direction; at the board's edge it stays. On Create
-and the first-run welcome, whose panels read as one column, it goes on to the
-next row instead: Down from the foot of the Room panel reaches the Rules
-panel, and Down from the last answer reaches Skip and Next.
+row drawn nearest in that direction; at the board's edge it stays. A row a
+list has scrolled out of sight is reached from that list, never from beside
+it. On Create and the first-run welcome, whose panels read as one column, it
+goes on to the next row instead: Down from the foot of the Room panel reaches
+the Rules panel, Down from the last answer reaches Skip and Next, and past the
+last row it goes round as a list does, so Create room is one Up from
+Visibility.
 
 ## Settings and its panels
 
@@ -74,6 +81,8 @@ right, and the focused row's description sits under them.
   the focus.
 - B, Escape or a right click closes the panel. The hint bar calls this
   Close panel.
+- Unlike a list, the column of panels and an open panel's rows stop at
+  their ends: Up on the first stays there.
 - On a narrow screen, the panels and an open panel each take the whole
   width in turn.
 
@@ -111,8 +120,8 @@ the row with a pad or the keyboard, or where you clicked with the mouse.
 - In a room, select a member to open their actions: Mute member, Steam
   profile, and for the host Kick member and Transfer host. Kick and Transfer
   host still ask first.
-- **More…** in the room's action bar holds Table options, Room settings and
-  the invitation links.
+- **More…** in the room's action bar holds a public room's Copy room link,
+  Controllers and Room settings.
 
 Move with the D-pad or arrows, press A to act, and B, Escape or a right click
 to close the popout.
@@ -123,11 +132,29 @@ to close the popout.
 
 The room is one board. The tables are on the left, each a card with its
 state, players, score and ping. Members and chat share the column on the
-right. The room's actions run along the bottom: Ready up, Wait in Training,
-Controllers, More… and Leave room.
+right. The room's actions run along the bottom: Ready up and your Ultra while
+you are seated, Table options, Wait in Training, More… and Leave room.
+Your Ultra (Ultra I, Ultra II or Ultra Double) opens a card for each of your
+fighter's Ultras, with its picture and its input, and a pick returns to the
+board.
 
-- A table card's own buttons (Ready up, Leave seat) are on the card. Select
-  the card with A for the seat chooser.
+- The board opens on Ready up (Rematch after a set) while you have a seat,
+  on the action bar while you watch, else on the first table or cabinet with a
+  free seat.
+- LB and RB step the board's areas: the tables, the action bar, Members and
+  Chat, round at the ends, each time back on the row you last focused there.
+  The hint bar names them Areas. On a narrow screen they step its tabs.
+- On the action bar Left and Right go along its buttons in order, from the
+  end of one line to the start of the next, and stop at its ends.
+- In a Classic room each table is one line, as before 1.5.0: TABLE 1 with
+  its state and the host's name for it, the two players with a fighter at
+  each end and the set's score (vs before a pair sits) small between them,
+  and the rules, queue and watchers along the bottom. A player on a win
+  streak at the table has it under their fighter; otherwise a player who
+  has waited a while shows how long. On a narrow screen, or with Settings,
+  Interface, Room layout, Tables: Grid, the two seats stack.
+- A table card's own buttons (Ready up, Leave seat) are on the card, along
+  its bottom. Select the card with A for the seat chooser.
 - Each seat shows the player's fighter, with its costume and Ultra under
   their name, such as Ryu · Original · Ultra I. By default the picture is the
   whole fighter in the costume and colour they picked; Settings, Interface,

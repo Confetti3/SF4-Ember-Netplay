@@ -168,6 +168,11 @@ pub struct RoomSummary {
     /// says nothing, and its rooms are Classic.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub room_type: Option<u8>,
+    /// Only players whose PC is not on Wi-Fi take a seat; the room's other
+    /// players still join, watch and chat. Present only when true: a room
+    /// host that predates it, or a room without the rule, says nothing.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub wired_only: bool,
 }
 
 impl RoomSummary {
@@ -378,6 +383,7 @@ mod tests {
             set_format: None,
             rotation: None,
             room_type: None,
+            wired_only: false,
         }
     }
 
@@ -656,6 +662,24 @@ te"
             ..detailed()
         };
         assert!(empty.check().is_ok());
+    }
+
+    #[test]
+    fn wired_only_is_sent_only_when_true_and_absent_means_false() {
+        let open = summary();
+        assert!(!serde_json::to_string(&open).unwrap().contains("wired_only"));
+        let wired = RoomSummary {
+            wired_only: true,
+            ..detailed()
+        };
+        assert!(wired.check().is_ok());
+        let text = serde_json::to_string(&wired).unwrap();
+        assert!(text.contains("\"wired_only\":true"));
+        let back: RoomSummary = serde_json::from_str(&text).unwrap();
+        assert_eq!(back, wired);
+        let without: RoomSummary =
+            serde_json::from_str(&serde_json::to_string(&open).unwrap()).unwrap();
+        assert!(!without.wired_only);
     }
 
     #[test]

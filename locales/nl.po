@@ -2925,6 +2925,18 @@ msgstr "Selecteer om je personage vast te leggen. De match begint zodra beide sp
 msgid "room.opponent_changed_fighter"
 msgstr "De tegenstander koos {0}. Controleer je Ultra voordat je klaar meldt."
 
+msgid "room.ready.with"
+msgstr "Klaar met {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Klaar met {0}, {1}, tegen {2}."
+
+msgid "room.ultra.detail"
+msgstr "Kies hier je Ultra voor het volgende potje, zonder de Tafelopties te openen."
+
+msgid "room.ultra.single"
+msgstr "Deze vechter heeft in deze editie één Ultra."
+
 msgid "room.both_ready"
 msgstr "Beide spelers zijn klaar. De match begint."
 
@@ -3265,6 +3277,15 @@ msgstr "Open"
 msgid "room.admission.detail"
 msgstr "Vergrendelen houdt nieuwe leden buiten."
 
+msgid "room.wired_only"
+msgstr "Alleen spelers met kabel"
+
+msgid "room.wired_only.detail"
+msgstr "Spelers op wifi kunnen meedoen, kijken en chatten, maar geen plek innemen. Spelers met een onbekende verbinding kunnen spelen."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Geldt vanaf de volgende plek die wordt ingenomen. Wie nu zit, houdt zijn plek."
+
 msgid "room.apply_name"
 msgstr "Kamernaam toepassen"
 
@@ -3524,6 +3545,9 @@ msgstr "Dat bericht kon niet worden verzonden."
 
 msgid "room.reject.ledger_full"
 msgstr "Wachten tot iedereen terug is van de vorige match."
+
+msgid "room.reject.wired_only"
+msgstr "Deze kamer is voor spelers met kabel. Je pc zit op wifi."
 
 msgid "room.reject.other"
 msgstr "De kamer heeft die actie geweigerd."
@@ -4767,6 +4791,12 @@ msgstr "Klaar"
 msgid "postmatch.state.left"
 msgstr "Plek verlaten"
 
+msgid "postmatch.ultra.detail"
+msgstr "Links en Rechts wisselen je Ultra voor het volgende potje. Met een nieuwe Ultra laadt het volgende potje eerst."
+
+msgid "postmatch.ultra.set"
+msgstr "Je Ultra voor het volgende potje staat vast."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -4911,26 +4941,62 @@ msgstr "Neemt je mee naar de open kamer bij jou in de buurt met de meeste vrije 
 msgid "public.quick_none"
 msgstr "Er is nu geen open kamer bij jou in de buurt met een vrije plek. Maak er een en spelers in de buurt vinden hem."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Kamer maken"
 
-msgid "public.filter"
-msgstr "Tonen"
+msgid "public.filters"
+msgstr "Filters"
 
-msgid "public.filter_detail"
-msgstr "Kies welke kamers je ziet: alle, kamers bij jou in de buurt of alleen kamers met vrije plekken."
+msgid "public.filters_detail"
+msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
 
-msgid "public.filter_label"
-msgstr "Tonen: {0}"
+msgid "public.filter_summary_all"
+msgstr "All rooms"
 
-msgid "public.filter.all"
-msgstr "Alle kamers"
+msgid "public.filter_summary_seats"
+msgstr "Open seats"
 
-msgid "public.filter.near"
+msgid "public.filter_region"
+msgstr "Region"
+
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+
+msgid "public.filter_region_all"
+msgstr "All regions"
+
+msgid "public.filter_region_near"
 msgstr "In de buurt"
 
-msgid "public.filter.seats"
-msgstr "Vrije plekken"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Alle kamers"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember kent je regio nog niet en kan dus niet zeggen welke kamers bij jou in de buurt zijn."
@@ -5001,8 +5067,11 @@ msgstr "Er zijn nu geen open kamers. Maak er een en anderen kunnen hem vinden."
 msgid "public.none_filtered"
 msgstr "Geen kamers komen overeen met dit filter."
 
-msgid "public.show_all"
-msgstr "Alle kamers tonen"
+msgid "public.clear_filters"
+msgstr "Clear filters"
+
+msgid "public.clear_filters_detail"
+msgstr "Show every room again."
 
 msgid "public.try_again"
 msgstr "Opnieuw proberen"
@@ -5468,6 +5537,9 @@ msgstr "Nieuwe tegenstander"
 
 msgid "room.new_opponent_detail"
 msgstr "Blijf zitten en speel tegen wie het langst wacht, of wacht op de volgende die gaat zitten."
+
+msgid "room.new_opponent_none"
+msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
 
 msgid "room.rematch_ask"
 msgstr "Rematch?"
@@ -6495,6 +6567,36 @@ msgstr "Zet de knoppen voor opnemen en afspelen in Training uit."
 msgid "button_layout.training_cleared"
 msgstr "De trainingsknoppen staan uit."
 
+msgid "button_layout.training_controls"
+msgstr "Training controls"
+
+msgid "button_layout.training_controls_detail"
+msgstr "Select, then press the button that opens and closes the Training controls. Automatic uses R3 unless R3 is one of your attacks. In Training that button only does this and never attacks. Turn it off to keep its attack; F6 and Back with Start still open the controls."
+
+msgid "button_layout.training_controls_off"
+msgstr "Turn off controls button"
+
+msgid "button_layout.training_controls_off_detail"
+msgstr "Stops this button opening the Training controls, so it keeps its attack in Training. F6 and Back with Start still work."
+
+msgid "button_layout.training_controls_is_off"
+msgstr "Training controls button is off."
+
+msgid "button_layout.auto_on"
+msgstr "{0} (automatic)"
+
+msgid "button_layout.auto_off"
+msgstr "Off ({0} is in use)"
+
+msgid "button_layout.training_controls_auto"
+msgstr "Turn on controls button"
+
+msgid "button_layout.training_controls_auto_detail"
+msgstr "Uses R3 for the Training controls unless R3 is one of your attacks."
+
+msgid "button_layout.training_controls_is_auto"
+msgstr "Training controls button is automatic."
+
 msgid "room.delay_policy"
 msgstr "Invoervertraging in de kamer"
 
@@ -6513,11 +6615,20 @@ msgstr "{0}, eigen vertraging"
 msgid "room.table_footer_own_delay"
 msgstr "Eigen vertraging"
 
+msgid "room.table_footer_wired_only"
+msgstr "Alleen kabel"
+
+msgid "room.table_counts"
+msgstr "Wachtrij {0}     Kijken {1}"
+
 msgid "room.input_delay.own"
 msgstr "Jouw vertraging: {0}"
 
 msgid "public.own_delay"
 msgstr "Eigen vertraging"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Deze kamerdienst kan nog geen kamer maken met de eigen vertraging van elke speler. Kies Hetzelfde voor beiden of probeer het later opnieuw."
@@ -7604,6 +7715,9 @@ msgstr "Ember-ontwikkelaars tonen dit teken in plaats van een klasse en staan ni
 msgid "room.v2.board"
 msgstr "Bord"
 
+msgid "room.v2.areas"
+msgstr "Gebieden"
+
 msgid "room.v2.tables"
 msgstr "TAFELS"
 
@@ -7644,7 +7758,7 @@ msgid "room.v2.more"
 msgstr "Meer…"
 
 msgid "room.v2.more_detail"
-msgstr "Tafelopties, kamerinstellingen en uitnodigingslinks."
+msgstr "Controllers, kamerinstellingen, de link van een openbare kamer en de indeling van het bord."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
@@ -7825,6 +7939,87 @@ msgstr "Kostuum"
 
 msgid "selection.color_row"
 msgstr "Kleur"
+
+msgid "selection.costume_gallery_title"
+msgstr "OUTFITGALERIJ"
+
+msgid "selection.color_gallery_title"
+msgstr "KLEURENGALERIJ"
+
+msgid "selection.color"
+msgstr "Kleur {0}"
+
+msgid "selection.no_colors"
+msgstr "Geen kleuren vrij voor deze outfit."
+
+msgid "selection.loading_choices"
+msgstr "Beschikbare keuzes laden"
+
+msgid "selection.loading_choices.detail"
+msgstr "Wachten op beschikbare outfits en kleuren uit het spel."
+
+msgid "menu.hint.save_color"
+msgstr "Kleur opslaan"
+
+msgid "selection.costume_row.detail"
+msgstr "Links en Rechts wisselen hier het kostuum. Selecteren toont elk kostuum."
+
+msgid "selection.color_row.detail"
+msgstr "Links en Rechts wisselen hier de kleur. Selecteren toont elke kleur."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Ultra opslaan"
+
+msgid "selection.ultra_charge"
+msgstr "Houd"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Op de grond"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Anti-air"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Op de grond of in de lucht"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "In de lucht"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Van dichtbij"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Counter"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Bidsprinkhaanhouding"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Kraanvogelhouding"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Kraanvogelhouding of in de lucht"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Stootversie"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Trapversie"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Naar voren"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Houd trappen vast om te vertragen, stoot om te annuleren"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Druk opnieuw op PPP om te stoppen met genezen"
 
 msgid "selection.ready_with"
 msgstr "Klaar met {0}"

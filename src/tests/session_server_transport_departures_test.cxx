@@ -101,7 +101,9 @@ static void TestCustomRoomDepartures() {
     portrait.chara.charaID=44;transport->Push(2,json(portrait));step();CHECK(fighterOf(2)==2);
     portrait.chara.charaID=4;transport->Push(4,json(portrait));step();CHECK(fighterOf(4)==-1);
     // A seat that changes the fighter it showed takes back the other seat's
-    // Ready; showing a first fighter does not.
+    // Ready; a first pick of the profile main the board showed does not
+    // (room::ShownFighter; a first pick over the main is a change, covered in
+    // room_authority_test).
     {
         const auto seatOf=[&](session::Connection connection){const auto& t=server.RoomSnapshot()->tables[0];return t.p1==server.roomMembers.at(connection)?0:1;};
         action(3, room::ActionKind::Ready, 0);
@@ -113,8 +115,9 @@ static void TestCustomRoomDepartures() {
         CHECK(server.RoomSnapshot()->tables[0].phase==room::TablePhase::Waiting);
         action(2, room::ActionKind::Ready, 0);
         CHECK(server.RoomSnapshot()->tables[0].ready[seatOf(2)]);
-        portrait.chara.charaID=6;transport->Push(3,json(portrait));step(); // a first fighter
-        CHECK(fighterOf(3)==6&&server.RoomSnapshot()->tables[0].ready[seatOf(2)]);
+        CHECK(fighterOf(3)==-1); // the board shows Member3's main, 11
+        portrait.chara.charaID=11;transport->Push(3,json(portrait));step(); // a first pick of that main
+        CHECK(fighterOf(3)==11&&server.RoomSnapshot()->tables[0].ready[seatOf(2)]);
         action(2, room::ActionKind::Unready, 0);
         portrait.chara.charaID=2;transport->Push(2,json(portrait));step();
         CHECK(fighterOf(2)==2);

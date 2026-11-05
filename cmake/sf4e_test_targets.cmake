@@ -56,6 +56,7 @@ sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_t
 sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomTableCount SOURCES "src/tests/room_table_count_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+sf4e_add_unit_test(NAME RoomWiredOnly SOURCES "src/tests/room_wired_only_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomArcade SOURCES "src/tests/room_arcade_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RoomTournament SOURCES "src/tests/room_tournament_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME TournamentPlay SOURCES "src/tests/tournament_play_test.cxx" LIBS sf4e_tournament_play LABELS room)
@@ -64,6 +65,7 @@ sf4e_add_unit_test(NAME IdentityEvents SOURCES "src/tests/identity_events_test.c
 sf4e_add_unit_test(NAME WatchPlay SOURCES "src/tests/watch_play_test.cxx" LIBS sf4e_watch_play LABELS room)
 sf4e_add_unit_test(NAME RoomWatch SOURCES "src/tests/room_watch_test.cxx" LIBS sf4e_room_model LABELS room)
 sf4e_add_unit_test(NAME RoomFollow SOURCES "src/tests/room_follow_test.cxx" LIBS sf4e_room_model LABELS room)
+sf4e_add_unit_test(NAME PublicRoomFilter SOURCES "src/tests/public_room_filter_test.cxx" LIBS sf4e_room_model STD 17 LABELS room)
 sf4e_add_unit_test(NAME RankingRequests SOURCES "src/tests/ranking_requests_test.cxx" STD 17)
 sf4e_add_unit_test(NAME TournamentFuzz SOURCES "src/tests/tournament_fuzz_test.cxx" "src/session/TournamentAnswers.cxx"
     LIBS sf4e_tournament_play sf4e_watch_play nlohmann_json::nlohmann_json TIMEOUT 300 LABELS room)
@@ -143,6 +145,7 @@ sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx sr
     src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
+    src/tests/shell_wired_only_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
     src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx
@@ -152,6 +155,7 @@ sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journe
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME RankingsJourney SOURCES src/tests/rankings_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
+sf4e_add_unit_test(NAME TableCardShape SOURCES src/tests/table_card_shape_test.cxx TIMEOUT 15 LABELS ui room)
 sf4e_add_unit_test(NAME WatchedMatchExit SOURCES src/tests/watched_match_exit_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME LatencyMark SOURCES src/tests/latency_mark_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME ReplayScreenText SOURCES src/tests/replay_screen_text_test.cxx LIBS sf4e_ui Dimps TIMEOUT 15 LABELS ui replay)
@@ -161,6 +165,7 @@ sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 
 sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui LABELS ui)
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME AppearanceGrid SOURCES src/tests/appearance_grid_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
 sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
 sf4e_add_unit_test(NAME SpeechWine SOURCES src/tests/speech_wine_test.cxx LIBS sf4e_ui STD 17 SKIP_RETURN_CODE 77)

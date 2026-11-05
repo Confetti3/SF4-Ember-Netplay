@@ -8,13 +8,14 @@
   // The Stable release a tournament match asks for. Both fighters need the
   // same build, so a match page names this one; bump it with each release,
   // as VERSIONS below names each room build.
-  var STABLE_VERSION = '1.5.2';
+  var STABLE_VERSION = '1.5.3';
 
   // Sidecar build IDs of the releases public rooms run, newest first. Add the
   // new one at the top at each release: the rooms page lists the first one's
   // rooms first and without a version chip. A room on a build not listed here
   // says "Other version".
   var VERSIONS = [
+    ['9bb61c78972f2499968b4c0315d192ccb0210cecae183aa39348ec6d1b171796', '1.5.3'],
     ['9d54b9caacc70326953e7ea164e8d3c0fd488eeede2252c1c5cf2e4a05ea526a', '1.5.2'],
     ['89c09ab3732be210c22479b0e53a92012b476974e138cfde31ab9b1c63724ea5', '1.5.1'],
     ['4801144adc6059233593e1e445f30971a76b86dfeabc804662ab4a81668e17b6', '1.5.0'],

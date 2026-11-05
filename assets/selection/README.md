@@ -42,7 +42,7 @@ choices. Gallery image numbering diverges from its headings after image 018;
 the fetch script pins the actual links rather than assuming sequential numbers.
 
 Ultra photographs collected during research are retained with provenance in
-`ultra-sources.json`, but the selector now uses input symbols instead of photos.
+`ultra-sources.json`, and the Ultra cards show them above each Ultra's input.
 The archive contains 79 photographs: 70 iPlayWinner SSFIV references, four from
 Capcom's 2013 showcase, one GamesRadar Decapre reference, and four Capcom / 4Gamer
 AE references from 2010-2011. `scripts/fetch-ultra-references.py` reproduces them

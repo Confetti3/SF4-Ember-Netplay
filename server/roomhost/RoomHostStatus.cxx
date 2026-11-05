@@ -86,6 +86,7 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	details.rotation = static_cast<int>(snapshot.tables[0].rules.rotation);
 	details.ownDelay = snapshot.delayPolicy == room::DelayPolicy::Own;
 	details.roomType = static_cast<int>(snapshot.arcade);
+	details.wiredOnly = snapshot.wiredOnly;
 	return details;
 }
 
@@ -97,6 +98,7 @@ std::string StatusLine(const Status& status) {
 	if (!details.hostName.empty()) detail["host_name"] = details.hostName;
 	// Written only for the room that has it, so any other room's line is what it was.
 	if (details.ownDelay) detail["own_delay"] = true;
+	if (details.wiredOnly) detail["wired_only"] = true;
 	nlohmann::json line{{"type", "status"}, {"members", status.members}, {"tables_playing", status.tablesPlaying},
 		{"invitation", status.invitation}, {"banned", status.banned}, {"details", detail}};
 	if (!status.games.empty()) line["games"] = status.games;

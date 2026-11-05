@@ -174,7 +174,9 @@ inline int MenuValueStep(const MenuEntry& e, const MenuRowLayout& at, float x, f
 // What a direction does on a board (rows placed) when no placed row lies that
 // way: Stay keeps the focus where it is; Flow goes on to the next placed row
 // in entry order (Down, Right) or the previous one (Up, Left), for a board
-// whose panels stand side by side but read as one column (Create, the welcome).
+// whose panels stand side by side but read as one column (Create, the welcome),
+// and past its last a fresh Down goes to its first, a fresh Up from its first
+// to its last, as a list's do.
 enum class MenuEdge { Stay, Flow };
 // The tab `delta` steps to from `current` of `count`, wrapping at both ends:
 // the one rule for LB and RB (Page Up and Down), the tab strip's end marks and
@@ -270,7 +272,12 @@ public:
     // given. The next frame's directions move from a placed focus to the
     // nearest placed row that way (Update). A screen that places nothing (a
     // GameMenu list) keeps the list's movement.
-    void Place(const std::string& id, MenuRect box) { placing_.push_back({id, box}); }
+    // `clip` is the part of the screen the row's scroll shows, the clip it is
+    // drawn under (an empty MenuRect for a row outside any scroll): a row
+    // placed out of its sight is reached only from a row in the same scroll,
+    // so a direction never jumps into a list's hidden rows from beside it
+    // (Nearest).
+    void Place(const std::string& id, MenuRect box, MenuRect clip) { placing_.push_back({id, box, clip}); }
     // What the board on this screen does at its edges (MenuEdge); Stay unless set.
     void SetEdge(MenuEdge edge) { states_[Screen()].edge = edge; }
     MenuEdge Edge() const { return states_.at(Screen()).edge; }
@@ -450,10 +457,16 @@ public:
         // A board moves by where it drew its rows; a list by their order, and
         // so does a body that places none of its own, with only the shell's
         // footer under it placed (BodyPlaced).
-        if(const MenuRect* at=BodyPlaced(entries)?Placed(e.id):nullptr) {
+        // A list, and a board that reads as one column (MenuEdge::Flow), wrap
+        // from one end to the other on a fresh Up or Down; a held direction's
+        // repeats stop at the end, so holding never spins round. Grids and
+        // other boards keep the focus at their edges.
+        const bool wrap=(pressed&direction&(MenuInput::Up|MenuInput::Down))!=0;
+        if(const Placement* at=BodyPlaced(entries)?Placed(e.id):nullptr) {
             const int dy=direction&MenuInput::Up?-1:direction&MenuInput::Down?1:0;
             auto to=Nearest(*at,delta,dy,entries);
             if(to==entries.size()&&s.edge==MenuEdge::Flow) to=NextPlaced(s.index,delta+dy,entries);
+            if(to==entries.size()&&s.edge==MenuEdge::Flow&&wrap&&dy) to=EndPlaced(dy>0,entries);
             if(to<entries.size()) { s.index=to; s.id=entries[to].id; }
             return {};
         }
@@ -461,10 +474,11 @@ public:
             if(direction&MenuInput::Up) index=index>cells?index-1:cells-1;
             else if((direction&MenuInput::Down)&&index+1<count) ++index;
         }
-        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; }
+        else if(direction&MenuInput::Up) { if(index>=columns)index-=columns; else if(columns==1&&wrap)index=ListEnd(entries,false); }
         else if(direction&MenuInput::Down) {
             if(index/columns<(cells-1)/columns)index=(std::min)(cells-1,index+columns);
             else if(cells<count)index=cells;
+            else if(columns==1&&wrap)index=ListEnd(entries,true);
         }
         else if(columns>1 && delta && index/columns==(index+delta)/columns && index+delta>=0 && index+delta<cells) index+=delta;
         if(index<0) index=0;
@@ -473,6 +487,18 @@ public:
     }
 private:
     static const std::string& NoId() { static const std::string none; return none; }
+    // A row where its board drew it (Place), and what its scroll shows.
+    struct Placement {
+        std::string id;
+        MenuRect box, clip;
+        bool Clipped() const { return clip.x1 > clip.x0 && clip.y1 > clip.y0; }
+        // Its middle is out of its scroll's sight.
+        bool Hidden() const { return Clipped() && !clip.Contains((box.x0 + box.x1) * .5f, (box.y0 + box.y1) * .5f); }
+        bool SameClip(const Placement& other) const {
+            const auto same = [](float a, float b) { return a - b < .5f && b - a < .5f; };
+            return same(clip.x0, other.clip.x0) && same(clip.y0, other.clip.y0) && same(clip.x1, other.clip.x1) && same(clip.y1, other.clip.y1);
+        }
+    };
     // The frame's input, read once a frame by Update or Take: the buttons that
     // count (PressGate; Up with Down and Left with Right cancel) and, of
     // those, the ones newly down. False on the frame the screen opens, which
@@ -485,16 +511,16 @@ private:
         held=gate_.Held(raw); pressed=gate_.Pressed(held);
         return !opening;
     }
-    const MenuRect* Placed(const std::string& id) const {
-        for(const auto& p:placed_) if(p.first==id) return &p.second;
+    const Placement* Placed(const std::string& id) const {
+        for(const auto& p:placed_) if(p.id==id) return &p;
         return nullptr;
     }
     // Whether the screen's body placed a row of its own last frame: the
     // shell's footer rows (MenuEntry::footer) are placed under any body, so
     // they alone make no board.
     bool BodyPlaced(const std::vector<MenuEntry>& entries) const {
-        return std::any_of(placed_.begin(),placed_.end(),[&](const std::pair<std::string,MenuRect>& p) {
-            const auto e=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& entry){return entry.id==p.first;});
+        return std::any_of(placed_.begin(),placed_.end(),[&](const Placement& p) {
+            const auto e=std::find_if(entries.begin(),entries.end(),[&](const MenuEntry& entry){return entry.id==p.id;});
             return e!=entries.end()&&!e->footer;
         });
     }
@@ -503,23 +529,31 @@ private:
     // across (a button inside a heading counts) or lies at least as far past
     // from's edge as it lies off to the side, so a heading in the next column
     // is not Up from the top row. Nearest: the gap along that axis plus twice
-    // the offset across it, ties to the earlier entry. entries.size() for
+    // the offset across it, ties to the one sharing more of from's width across
+    // (or height), then to the earlier entry. entries.size() for
     // none: the board's edge, where the focus stays.
-    std::size_t Nearest(const MenuRect& from, int dx, int dy, const std::vector<MenuEntry>& entries) const {
+    std::size_t Nearest(const Placement& at, int dx, int dy, const std::vector<MenuEntry>& entries) const {
         struct Span { float min, max; float Centre() const { return (min+max)*.5f; } };
         const auto along=[&](const MenuRect& r) { return dx ? Span{r.x0,r.x1} : Span{r.y0,r.y1}; };
         const auto across=[&](const MenuRect& r) { return dx ? Span{r.y0,r.y1} : Span{r.x0,r.x1}; };
         const auto apart=[](Span a, Span b) { return (std::max)(0.f, (std::max)(b.min-a.max, a.min-b.max)); };
         const float way=static_cast<float>(dx ? dx : dy);
+        const MenuRect& from=at.box;
         const Span f=along(from);
-        std::size_t best=entries.size(); float bestScore=0;
+        // How much two spans share: of two rows equally near, the one more
+        // squarely that way wins (Wait in Training over Table options, Up from
+        // Leave room under both).
+        const auto shared=[](Span a, Span b) { return (std::min)(a.max,b.max)-(std::max)(a.min,b.min); };
+        std::size_t best=entries.size(); float bestScore=0, bestShared=0;
         for(std::size_t i=0;i<entries.size();++i) {
-            const MenuRect* r=Placed(entries[i].id);
-            if(!r || r==&from) continue;
+            const Placement* p=Placed(entries[i].id);
+            // A row scrolled out of sight is reached only from its own scroll.
+            if(!p || p==&at || (p->Hidden() && !p->SameClip(at))) continue;
+            const MenuRect* r=&p->box;
             const float gap=apart(f,along(*r)), offset=apart(across(from),across(*r));
             if((along(*r).Centre()-f.Centre())*way<=0 || gap<offset) continue;
-            const float score=gap+2*offset;
-            if(best==entries.size() || score<bestScore) { best=i; bestScore=score; }
+            const float score=gap+2*offset, overlap=shared(across(from),across(*r));
+            if(best==entries.size() || score<bestScore-.5f || (score<=bestScore+.5f && overlap>bestShared+.5f)) { best=i; bestScore=score; bestShared=overlap; }
         }
         return best;
     }
@@ -531,6 +565,34 @@ private:
             if(Placed(entries[i].id)) return i;
         }
         return entries.size();
+    }
+    // The first placed entry in entry order (`first`), else the last;
+    // entries.size() for none.
+    std::size_t EndPlaced(bool first, const std::vector<MenuEntry>& entries) const {
+        for(std::size_t k=0;k<entries.size();++k) {
+            const std::size_t i=first?k:entries.size()-1-k;
+            if(Placed(entries[i].id)) return i;
+        }
+        return entries.size();
+    }
+    // Where a list wraps to: its first entry (`first`), else its last, passing
+    // over an entry that several others name as their Left or Right neighbour,
+    // which stands beside the list rather than in it (Home's player card, the
+    // Right of every row). One named by a single row is that row's partner on
+    // its line (Frame data's two fighters), still in the list.
+    static int ListEnd(const std::vector<MenuEntry>& entries, bool first) {
+        const auto aside=[&](const std::string& id) {
+            const auto named=[&](std::string MenuEntry::*side) {
+                return std::count_if(entries.begin(),entries.end(),[&](const MenuEntry& e) { return e.id!=id&&e.*side==id; });
+            };
+            return named(&MenuEntry::right)>=2||named(&MenuEntry::left)>=2;
+        };
+        const int count=static_cast<int>(entries.size());
+        for(int k=0;k<count;++k) {
+            const int i=first?k:count-1-k;
+            if(!aside(entries[i].id)) return i;
+        }
+        return first?0:count-1;
     }
     void Open(const MenuEntry& e) {
         mode_=e.choices.empty()?Modal::Confirm:Modal::Choice; modalId_=e.id; confirmSelected_=false; choiceIndex_=0;
@@ -557,7 +619,7 @@ private:
     std::size_t choiceIndex_=0;
     // The rows placed this frame, and those placed on the last, which this
     // frame's directions read.
-    std::vector<std::pair<std::string,MenuRect>> placing_, placed_;
+    std::vector<Placement> placing_, placed_;
     DirectionRepeat repeat_;
 };
 } }

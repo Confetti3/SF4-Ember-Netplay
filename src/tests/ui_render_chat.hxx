@@ -82,8 +82,9 @@ void ShootChat(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,const
     open("room-chat");draw(nullptr,0,1);
     Require(shell.Transcript().Unread({})==0,"Opening Chat did not clear the count");
 
-    // The board as the caller left it, with the first battle slot focused again.
-    view.room=saved;open("room");nav.Prefer("table-0");
+    // The board as the caller left it, with the first battle slot focused again:
+    // after the frame where the room, back to its own epoch, opens on its Ready.
+    view.room=saved;open("room");draw(nullptr,0,1);nav.Prefer("table-0");
     draw(nullptr,0,3);
     Require(nav.Focus()=="table-0","The first battle slot did not take the focus");
 }

@@ -134,7 +134,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
     {
         Require(TrainingMeterOptions().style==training::MeterStyle::Angled&&!TrainingMeterOptions().recovery&&TrainingMeterOptions().shown==60,"Meter options are not Angled, Off and 60 frames at first");
         TrainingNavigation().Home();TrainingNavigation().Push("frame-data");draw();
-        for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+        // Up to the first row (Up from it goes round to the last).
+        for(int i=0;i<20&&TrainingNavigation().Focus()!="p1";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         const auto focus=[&](const char* id){
             for(int i=0;i<20&&TrainingNavigation().Focus()!=id;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
             Require(TrainingNavigation().Focus()==id,"Frame data row unreachable");};
@@ -148,14 +149,14 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         focus("hud-recovery");draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
         Require(TrainingMeterOptions().style==training::MeterStyle::Flat&&TrainingMeterOptions().recovery,"Recovery row did not turn the HUD number on");
         draw("training-meter-options");
-        for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+        for(int i=0;i<20&&TrainingNavigation().Focus()!="p1";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
         focus("color-key");draw("training-color-key-flat");
         SetTrainingMeterOptions({});
     }
     // The HUD page: standard size and every part on at first. Left on the
     // size makes the HUD smaller, and on a part turns it off.
     TrainingNavigation().Home();TrainingNavigation().Push("hud");draw();
-    for(int i=0;i<6;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
+    for(int i=0;i<6&&TrainingNavigation().Focus()!="hud-size";++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
     Require(TrainingMeterOptions().size==1,"The HUD is not standard size at first");
     draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
     Require(TrainingMeterOptions().size==0,"HUD page did not make the HUD smaller");
@@ -178,7 +179,8 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         for(const char* screen:{"recording","frame-data","hud","dummy","reply"}) {
             const std::string page=screen;
             TrainingNavigation().Home();TrainingNavigation().Push(screen);draw();
-            for(std::size_t i=0;i<rows.size();++i)press(MenuInput::Up);
+            // Up to the first row: from it Up goes round to the last.
+            for(std::size_t i=0;i<rows.size()&&TrainingNavigation().Focus()!=rows.front().id;++i)press(MenuInput::Up);
             Require(TrainingNavigation().Focus()==rows.front().id,("Up did not reach the first row of "+page).c_str());
             const auto order=rows;
             for(std::size_t i=1;i<order.size();++i){
@@ -624,6 +626,10 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             SetMenuGlyphs(device,device==input::PadXInput?input::xinput::A:0,device==input::PadXInput?input::xinput::B:0);
             NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
             const std::string back=device==input::PadXInput?"Back":"Select";
+            // The runtime gives an Xbox pad its controls button, R3 by default (TrainingButtonsFor).
+            input::TrainingButtons padButtons;
+            if(device==input::PadXInput){padButtons.controls=input::xinput::RS;padButtons.controlsName="R3";}
+            SetTrainingPadButtons(padButtons);
             // An Xbox pad opens the controls with R3 alone (TrainingPad.hxx); a DirectInput pad with the chord.
             const std::vector<std::string> controls=device==input::PadXInput?std::vector<std::string>{"R3"}:std::vector<std::string>{back,"+","Start"};
             // At least the controls, the chip, the pad's hint and the F7 pair: the long catalogs drop the F8 pair.
@@ -635,6 +641,7 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
             names(line({back,loc::T("training.pad_hint"),"F7",record,"F8",stop}),least,"The pad's strip lost its buttons or F7");
             training.mode=training::Mode::Idle;
         }
+        SetTrainingPadButtons({});
         io.AddKeyEvent(ImGuiKey_F5,true);draw(nullptr,0,1);NoteMenuDevice(0);io.AddKeyEvent(ImGuiKey_F5,false);draw(nullptr,0,1);
         SetMenuGlyphs(0,0,0);
         io.DisplaySize=ImVec2(static_cast<float>(size.w),static_cast<float>(size.h));draw();

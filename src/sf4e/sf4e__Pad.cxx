@@ -36,8 +36,14 @@ std::atomic<bool> inputBlocked{false};
 // caches are cleared and the getters give the game nothing.
 std::atomic<bool> hiddenInput{false};
 bool keyboardHookFailed = false;
+fPad::WithheldUpdates withheld;
 }
 bool fPad::MenuInputBlocked() { return inputBlocked.load(); }
+fPad::WithheldUpdates fPad::TakeWithheldUpdates() {
+    const auto taken = withheld;
+    withheld = {};
+    return taken;
+}
 
 void fPad::Install() {
 	System::Install();
@@ -122,7 +128,7 @@ void fSystem::UpdateInputs() {
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const auto policy=sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
         sf4e::replaystore::Exporting(),watching,menuPads.Takes()||callOffered,sf4e::selftest::Running());
-    sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
+    const bool clearedBehind=sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
     // This is the native input publication boundary (00512180). Both
@@ -180,8 +186,9 @@ void fSystem::UpdateInputs() {
             free&&device.type==sf4e::input::PadXInput?sf4e::input::TrainingCall::GoNow:sf4e::input::TrainingCall::Called;
         const auto place=sf4e::training::ReadPlace();
         sf4e::input::PadOwner owner;owner.generation=place.generation;owner.epoch=focus.epoch;
-        // R3 is the quick way to the controls on an Xbox pad only (TrainingPad.hxx).
-        const auto result=trainingPad.Update(device.type==sf4e::input::PadXInput?physical:physical&~sf4e::input::PhysicalQuick,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording(),paused);
+        // The player's controls button (R3 unless bound) is the quick way to the
+        // controls on an Xbox pad only: other pads have none (TrainingButtonsFor, TrainingPad.hxx).
+        const auto result=trainingPad.Update(physical,sf4e::Overlay::TrainingControls(),GetTickCount64()/1000.0,call,owner,place.x,sf4e::training::ChordStartsRecording(),paused,snapshot.trainingButtons.controls);
         const auto& events=result.events;
         ownedByGesture=events.owned;
         // View's go now is accepted, as the chord is, only under the focus
@@ -206,14 +213,24 @@ void fSystem::UpdateInputs() {
     }
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
-    static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
-    inputBlocked=blocked;
+    static sf4e::input::MenuInputCapture capture;
     // Native Start is untouched while Ember is closed; an open overlay,
-    // including the training controls, captures all inputs until release,
-    // and so do pads polled behind another window for Ember's menu alone.
-    if(blocked)sf4e::input::ClearNativeMenuInputs(this);
-    else if(ownedByGesture&sf4e::input::PhysicalStart)sf4e::input::ClearNativeMenuInputs(this,~sf4e::input::NativeStart);
+    // including the training controls, captures all inputs, and so do pads
+    // polled behind another window for Ember's menu alone. After that only
+    // the buttons still held from then wait for their release; a new press
+    // goes to the game, to a fight's GGPO input and to the dummy in Training
+    // at once (MenuInputCapture, GatePad).
+    const auto gate=sf4e::input::GatePad(capture.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held),
+        (ownedByGesture&sf4e::input::PhysicalStart)!=0,clearedBehind,
+        sf4e::Game::Battle::System::ggpo&&sf4e::Game::Battle::System::LocalFighter());
+    inputBlocked=gate.blocked;
+    sf4e::input::WithholdNativeInputs(this,gate.withheld);
+    // Counted for the netplay log window (Netplay [...] withheld=): these
+    // updates give GGPO's local input less than the pad held, with no other trace.
+    using Reason=sf4e::input::WithheldReason;
+    if(gate.counted==Reason::Focus) ++withheld.focus;
+    else if(gate.counted==Reason::Menu) ++withheld.menu;
+    else if(gate.counted==Reason::Kept) ++withheld.kept;
 }
 
 unsigned int fSystem::ReadButtons(int pindex, bool raw) {

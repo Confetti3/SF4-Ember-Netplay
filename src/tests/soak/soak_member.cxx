@@ -9,7 +9,8 @@ using namespace sf4e::test::publicroom;
 const char* const RejectNames[] = {"None", "Closed", "RoomFull", "AdmissionLocked", "NameTaken", "UnknownMember", "UnknownTable",
 	"NotHost", "NotSeated", "AlreadySeated", "AlreadyQueued", "NotQueued", "NotWatching", "InvalidSeat", "InvalidRules",
 	"InvalidCapacity", "NotReady", "StaleRoom", "StaleTable", "WrongPhase", "WrongGeneration", "Unauthorized", "DuplicateResult",
-	"InvalidChat", "MemberKicked", "TerminalLedgerFull"};
+	"InvalidChat", "MemberKicked", "TerminalLedgerFull", "WiredOnly"};
+static_assert(sizeof(RejectNames) / sizeof(RejectNames[0]) == static_cast<std::size_t>(room::LastRejectReason) + 1, "a name for every reason");
 std::string RejectName(room::RejectReason reason) {
 	const auto index = static_cast<std::size_t>(reason);
 	return index < sizeof(RejectNames) / sizeof(RejectNames[0]) ? RejectNames[index] : "Reason" + std::to_string(index);

@@ -51,6 +51,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/PublicRoomFilterJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
@@ -149,6 +150,7 @@ struct Room {
     room::RoomType arcadeRoom = room::ClassicRoom;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
+    bool wiredOnly = false;
     Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
     int stage = 0;
     selection::RandomPool randomPool;
@@ -288,6 +290,8 @@ struct Runtime {
     room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
     // How many tables the Classic room this PC hosts opens with, chosen the same way.
     std::uint8_t tableCount=static_cast<std::uint8_t>(room::ClassicTableCount);
+    // The Wired players only rule of the room this PC hosts, chosen the same way.
+    bool wiredOnly=false;
     // The player's Leave of the room. CloseRoom resets it whole.
     struct RoomLeave {
         bool leaveRequested=false, leaveAcknowledged=false;
@@ -444,6 +448,10 @@ struct RuntimeGates {
     bool canEditPreferences = false, canEditSelection = false, canEditLobby = false, canChangeController = false;
     bool readyGate = false, canReady = false, canOpenRoom = false, canTrain = false, discordCanSwitch = false;
     bool delayLocked = false, canProbe = false, canApplyDelay = false;
+    // The Ultra changes wherever the selection does, and also over the WIN
+    // while the post-match prompt asks this fighter: the next game's Ready,
+    // which carries it, has not gone yet.
+    bool canChangeUltra = false;
     int localSlot = -1;
     int selectedDelay = 2;
     // The seated table's rules, else the lobby's, else the player's own: what a

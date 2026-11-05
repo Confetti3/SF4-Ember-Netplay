@@ -77,8 +77,8 @@ namespace sf4e {
 				st.queuePosition = place.position;
 				st.queueLength = static_cast<int>(room.tables[place.table].queue.size());
 			}
-			st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->startScoreKnown,
-				fUserApp::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
+			st.hasMatchScore = HudScore(fSystem::ggpo && fUserApp::netplay->spectating, fUserApp::netplay->watchedScoreKnown,
+				fUserApp::netplay->watchedScore, liveScoreKnown, liveScore, st.matchScore);
 			st.rollbackFrames = fSystem::RecentRollbackFrames();
 
 			for (const auto& m : fUserApp::netplay->client._lobbyData.members) {

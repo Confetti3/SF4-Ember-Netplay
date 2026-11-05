@@ -281,6 +281,14 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 		OverlayPrefs::QueuePlayerPreferences(runtime->preferences);
 }
 
+void NotifyRuntimeWatchedGame(room::MatchResult result) {
+	if (!UserApp::netplay || !LocalIsSpectator() || !UserApp::netplay->watchedScoreKnown) return;
+	const int winner = result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+	CountWatchedGame(winner, UserApp::netplay->watchedScore);
+	spdlog::info("Spectator: game ended in place (outcome={}), HUD score {}-{}", static_cast<int>(result),
+		UserApp::netplay->watchedScore[0], UserApp::netplay->watchedScore[1]);
+}
+
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
 	if (!runtime || !runtime->match || !UserApp::netplay || runtime->match->GetPhase() != session::IrohMatchSession::Phase::Started) return false;
 	endpoints.localPort = UserApp::netplay->client._ggpoPort;

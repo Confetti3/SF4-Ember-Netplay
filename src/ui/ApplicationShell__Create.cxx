@@ -50,6 +50,7 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  // room plays at all of them, and a public one opens at the default.
  if(screen=="create"&&room::TableCountChangeable(createArcade_,publicRoom,false))rows.push_back(Value("tables",loc::T("room.tables"),std::to_string(preferences_.roomTableCount),
   loc::Tf("room.tables_detail",static_cast<int>(room::TableCount)),can));
+ rows.push_back(WiredOnlyRow("wired-only",preferences_.roomWiredOnly,loc::T("room.wired_only.detail"),can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
  // An Arcade pair rematches after every set, so nobody stays or rotates; the
@@ -72,7 +73,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,createArcade_);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,createArcade_,preferences_.roomWiredOnly);}
  else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
   createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
@@ -98,7 +99,7 @@ void ApplicationShell::ApplyRoomTemplate(int index) {
  // A copy: preferences_ is replaced below.
  const auto saved=preferences_.roomTemplates[index];
  auto next=preferences_;
- next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;next.roomTableCount=saved.tableCount;
+ next.roomName=saved.roomName;next.roomCapacity=saved.capacity;next.roomPublic=saved.isPublic;next.roomDelayPolicy=saved.delayPolicy;next.roomTableCount=saved.tableCount;next.roomWiredOnly=saved.wiredOnly;
  (saved.isPublic?next.publicTableRules:next.tableRules)=saved.tables.rules[0];
  if(!next.Valid()){error_=loc::T("error.invalid_value");return;}
  preferences_=std::move(next);preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();
@@ -114,7 +115,7 @@ netplay::TableSetup ApplicationShell::CreateTables(const room::Rules& rules) con
 }
 void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
  netplay::RoomTemplate saved;
- saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;
+ saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;saved.wiredOnly=room.wiredOnly;
  saved.tableCount=room.arcade?static_cast<int>(room::ClassicTableCount):static_cast<int>(room::TablesInPlay(room));
  for(const auto& table:room.tables)if(table.id<room::TableCount){saved.tables.rules[table.id]=table.rules;saved.tables.names[table.id]=table.name;}
  if(!saved.Valid()){error_=loc::T("error.invalid_value");return;}

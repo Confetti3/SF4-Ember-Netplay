@@ -38,16 +38,19 @@
 // is read only while the call offers go now, for go now: its reset, save and
 // controls are refused without the focus.
 //
-// On an Xbox pad R3 (the right stick's click, which the game leaves alone) is
-// the quick way: a press opens the controls, or closes them, on its own; it
-// does nothing under the call, and on standby it starts the recording as the
-// chord does. The poller passes it only for an Xbox pad (sf4e__Pad.cxx).
+// On an Xbox pad the player's controls button (gamepads::TrainingControlsButton,
+// from the button layout page; R3, the right stick's click, unless changed or
+// off) is the quick way: a press opens the controls, or closes them, on its
+// own; it does nothing under the call, and on standby it starts the recording
+// as the chord does. Only an Xbox pad has one (TrainingButtons). The game
+// never takes the button: Training's fight table leaves it out
+// (gamepads::TrainingTable). With it off, the chord and F6 still work.
 //
 // A Start that goes down while the gesture's Back is held is the gesture's
 // whether or not it opens anything (TrainingPadEvents::owned), so the game
 // never takes it for its pause, under the call too.
 namespace sf4e { namespace input {
-constexpr std::uint32_t PhysicalBack = 0x100, PhysicalStart = 0x200, PhysicalQuick = 0x2000000;
+constexpr std::uint32_t PhysicalBack = 0x100, PhysicalStart = 0x200;
 // Called: the room calls the player back and the controls stay shut. GoNow:
 // also, the banner offers go now on this pad.
 enum class TrainingCall { None, Called, GoNow };
@@ -55,9 +58,9 @@ struct TrainingPadEvents {
     // down: Back went down with the controls shut; a save keeps where the
     // fighters stand at this moment, in case the game moves them on the press.
     bool down = false, reset = false, save = false, open = false, close = false, goNow = false;
-    // The game's menu buttons (common/MenuInputCapture.hxx: NativeStart) this
-    // sample belongs to the gesture: they are cleared from the game's input
-    // where it publishes it, down, held and let go.
+    // The game's menu buttons (common/MenuInputCapture.hxx: NativeStart) and
+    // the controls button this sample belongs to the gesture; Start is cleared
+    // from the game's input where it publishes it, down, held and let go.
     std::uint32_t owned = 0;
     // Back went down this sample, whatever the press turns out to be: the
     // moment the press takes its owner (TrainingPadInput).
@@ -71,8 +74,10 @@ public:
     static constexpr double HoldSeconds = .5;
     // physical: the pad's physical buttons now; open: the controls are open;
     // call: whether a room is calling the player back; paused: the game's
-    // pause menu is up.
-    TrainingPadEvents Update(std::uint32_t physical, bool open, double now, TrainingCall call = TrainingCall::None, bool paused = false) {
+    // pause menu is up; controls: the physical button that opens and closes
+    // the controls on its own, 0 for none.
+    TrainingPadEvents Update(std::uint32_t physical, bool open, double now, TrainingCall call = TrainingCall::None, bool paused = false,
+        std::uint32_t controls = 0) {
         TrainingPadEvents events;
         const bool back = (physical & PhysicalBack) != 0, start = (physical & PhysicalStart) != 0;
         if (back && !back_) {
@@ -97,9 +102,9 @@ public:
         if (!back && back_ && !used_) (held ? events.save : events.reset) = true;
         if (startOwned_) events.owned |= PhysicalStart;
         if (!start) startOwned_ = false;
-        const bool quick = (physical & PhysicalQuick) != 0;
+        const bool quick = (physical & controls) != 0;
         if (quick && !quick_ && !back && call == TrainingCall::None) { (open ? events.close : events.open) = true; events.pressed = true; }
-        if (quick) events.owned |= PhysicalQuick;
+        if (quick) events.owned |= controls;
         back_ = back; start_ = start; quick_ = quick;
         return events;
     }
@@ -252,12 +257,13 @@ public:
     };
     // standby: the dummy is on standby for a recording, as the game thread
     // last published it (training::ChordStartsRecording); paused: the game's
-    // pause menu is up (TrainingPadGesture).
+    // pause menu is up (TrainingPadGesture); controlsButton: the physical
+    // button that opens the controls on its own (TrainingPadGesture::Update).
     Result Update(std::uint32_t physical, TrainingControls& controls, double now, TrainingCall call, const PadOwner& current, const float (&place)[2],
-        bool standby = false, bool paused = false) {
+        bool standby = false, bool paused = false, std::uint32_t controlsButton = 0) {
         if (held_ && current != owner_) gesture_.Reset();
         Result result;
-        result.events = gesture_.Update(physical, controls.Open(), now, call, paused);
+        result.events = gesture_.Update(physical, controls.Open(), now, call, paused, controlsButton);
         if (result.events.pressed) { owner_ = current; place_[0] = place[0]; place_[1] = place[1]; }
         held_ = (physical & PhysicalBack) != 0;
         if (result.events.open && standby) { result.events.open = false; result.events.record = true; }

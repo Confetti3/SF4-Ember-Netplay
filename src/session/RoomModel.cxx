@@ -7,9 +7,10 @@ namespace sf4e { namespace room {
 using namespace detail;
 
 
-RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade, std::uint8_t tableCount) {
+RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint64_t roomEpoch, Rules defaults, bool practice, DelayPolicy delayPolicy, RoomType arcade, std::uint8_t tableCount, bool wiredOnly) {
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = practice;
+	snapshot_.wiredOnly = wiredOnly;
 	snapshot_.arcade = arcade;
 	snapshot_.tableCount = InRange<std::uint8_t>(tableCount, 1, static_cast<std::uint8_t>(TableCount))
 		? tableCount : static_cast<std::uint8_t>(ClassicTableCount);
@@ -42,6 +43,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.serverOwned = snapshot_.serverOwned;
 		result.practice = snapshot_.practice;
 		result.delayPolicy = snapshot_.delayPolicy;
+		result.wiredOnly = snapshot_.wiredOnly;
 		result.arcade = snapshot_.arcade;
 		result.tableCount = snapshot_.tableCount;
 		result.cabinets = snapshot_.cabinets;
@@ -113,14 +115,16 @@ bool RoomAuthority::SetMemberChara(MemberId member,const Chara& chara,bool* with
     const bool restyled=value->costume!=costume||value->color!=color||value->ultra!=ultra;
     value->costume=costume;value->color=color;value->ultra=ultra;
     if(value->fighter==fighter){if(restyled)TouchRoom();return restyled;}
-    const int previous=value->fighter;
+    const int before=ShownFighter(*value);
     value->fighter=fighter;
     Table* table=FindTable(static_cast<std::uint8_t>(value->table));
     const bool seated=table&&(table->p1==member||table->p2==member);
-    // A first fighter changes no matchup. A known one does: a Ready given
-    // against the old fighter, ready already or still in flight under the
-    // old table revision, must not start the game.
-    if(previous<0||!seated){TouchRoom();return true;}
+    // The fighter the board showed is the matchup the other player saw. A pick
+    // that keeps it, or one where the board showed none, changes nothing. Any
+    // other does, a first pick over a profile's main included: a Ready given
+    // against the old fighter, ready already or still in flight under the old
+    // table revision, must not start the game.
+    if(before<0||before==fighter||!seated){TouchRoom();return true;}
     const int seat=table->p1==member?0:1, other=1-seat;
     auto* opponent=Find(other==0?table->p1:table->p2);
     if(opponent&&!table->ready[seat]&&ReadyCancellable(*table,other)){
@@ -321,8 +325,25 @@ void RoomAuthority::NormalizeTableMembers(const Table& table) {
 	for (const auto watcher : table.watchingNext) NormalizeMemberStatus(watcher);
 }
 
+bool RoomAuthority::MaySit(MemberId member) const {
+	const Member* item = Find(member);
+	return !item || LinkMaySit(snapshot_, item->link);
+}
+
 void RoomAuthority::FillVacancy(Table& table, int seat) {
-	if (seat < 0 || seat > 1 || (seat == 0 ? table.p1 != 0 : table.p2 != 0) || table.queue.empty()) return;
+	if (seat < 0 || seat > 1 || (seat == 0 ? table.p1 != 0 : table.p2 != 0)) return;
+	// A room for wired players passes over a member on Wi-Fi whose turn has
+	// come: only one queued before the rule came on can be there, since Queue
+	// refuses them now. They leave the queue as an Unqueue between games does,
+	// and whoever is next sits. So an open seat still means an empty queue
+	// (SeatOpenNow), and rotation goes on in the order everyone else queued.
+	while (!table.queue.empty() && !MaySit(table.queue.front())) {
+		const MemberId passed = table.queue.front();
+		table.queue.erase(table.queue.begin());
+		table.spectators.erase(std::remove(table.spectators.begin(), table.spectators.end(), passed), table.spectators.end());
+		NormalizeMemberStatus(passed);
+	}
+	if (table.queue.empty()) return;
 	const MemberId member = table.queue.front();
 	table.queue.erase(table.queue.begin());
 	if (seat == 0) table.p1 = member; else table.p2 = member;

@@ -885,15 +885,33 @@ int main(int argc, char** argv) {
             // The board is the grid alone; a fighter's choices are on their own page.
             const auto boardRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Prefer(row);draw();};
             const auto lookRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Prefer(row);draw();};
-            for(const char* row:{"costume","ultra"}){
-                lookRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("look-")+row+"-values");
-                Require(selector.Navigation().Choosing(),"A fighter page row did not open its values");
-                // Select on the saved value closes the panel and keeps it.
-                draw(nullptr,MenuInput::Select,1);draw();
-            }
-            lookRow("ultra");
+            // Costume opens its picture grid; Back leaves the pick as it was.
+            lookRow("costume");draw(nullptr,MenuInput::Select,1);showAppearance("look-costume-grid");
+            Require(selector.Navigation().Screen()=="costumes","The fighter page's Costume row did not open the costume grid");
+            draw(nullptr,MenuInput::Back,1);draw();
+            // Ultra opens its cards, each its picture with its mark (the game's
+            // I, II or W, else the drawn badge), name, and its input's symbols
+            // and words, once the pictures have loaded; Select on the saved one
+            // keeps it and comes back.
+            const auto ultraPicturesLoaded=[&]{
+                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
+                const auto ready=[](const sf4e::ui::SelectionImage& img){return img.missing||img.texture!=0;};
+                const auto settled=[&](int ultra){return ready(art->Ultra(pick.fighter,ultra))&&ready(art->UltraIcon(ultra))&&ready(art->UltraIcon(2));};
+                while(art&&!(settled(0)&&settled(1))&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+            };
+            lookRow("ultra");draw(nullptr,MenuInput::Select,1);ultraPicturesLoaded();showAppearance("look-ultra-cards");
+            Require(selector.Navigation().Screen()=="ultras","The fighter page's Ultra row did not open the Ultra cards");
             const int savedUltra=pick.ultra;
+            draw(nullptr,MenuInput::Select,1);draw();
+            Require(selector.Navigation().Screen()=="look"&&pick.ultra==savedUltra,"Select on the saved Ultra card changed it or stayed on the cards");
+            lookRow("ultra");
             for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
+            // The cards with each Ultra saved: Ultra Double shows its large W and both inputs.
+            for(int ultra:{0,1,2}){
+                pick.ultra=ultra;selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Push("ultras");
+                draw(("ultra-cards-saved-"+std::to_string(ultra)).c_str());
+            }
+            selector.Navigation().Home();
             pick.ultra=savedUltra;
             for(const char* screen:{"stage","random-pool","options"}){
                 selector.Navigation().Home();selector.Navigation().Push(screen);draw(screen);
@@ -916,6 +934,11 @@ int main(int argc, char** argv) {
             // Three-digit scores test the score's width; the README pictures show a set score instead.
             for(int i=0;i<4;++i){auto& t=view.room.tables[i];t.id=i;t.revision=1;t.phase=i==0?room::TablePhase::Waiting:i==1?room::TablePhase::Playing:room::TablePhase::Idle;
                 if(i<2){t.p1=i*2+1;t.p2=i*2+2;t.score[0]=readmeShots?i*2:i*120;t.score[1]=readmeShots?i:i*99;}}
+            // The playing table's first fighter has won sets in a row there: the
+            // table card shows the streak under their fighter. An open table has
+            // the host's name for it, a long one, cut at the narrow sizes.
+            view.room.tables[1].streakHolder=3;view.room.tables[1].streak=3;
+            if(!readmeShots)view.room.tables[2].name="Long table name to cut";
             const char* sampleNames[]={"Ember Player","Akira","Jamie","Alex","Morgan","Riley","Sam","Jordan","Casey","Taylor","Robin","Ash","Sky","Reese","Avery","Drew"};
             for(int i=1;i<=16;++i){room::Member m;m.id=i;m.name=readmeShots?sampleNames[i-1]:(i==2?"Long player name for layout test":"Member "+std::to_string(i));m.host=i==1;m.fighter=(i-1)*2;m.mainFighter=(i+7)%44;
                 if(i<=4){m.table=(i-1)/2;m.seat=(i-1)%2;m.status=i<3?room::MemberStatus::Seated:room::MemberStatus::Playing;}

@@ -109,11 +109,10 @@ bool ApplicationShell::ChangeLayout(const PadView& pad, const std::optional<Butt
 void ApplicationShell::ChangeBoundButton(const PadView& pad, BoundAction action, unsigned button, const ShellView& view, const Submit& submit) {
     const auto& row = BoundActionRows[action];
     layoutFlash_ = row.id; layoutFlashUntil_ = ImGui::GetTime() + .6;
-    // Partners never share a button: the one the other acts on now is refused.
-    const auto partner = BoundActions[action].partner;
-    if (LayoutButtonMask(static_cast<int>(button), pad.has) == BoundButtonNow(pad, partner)) {
-        LayoutLog(view, submit, fmt::format("layout for id {}: {} = {} refused (its partner's button)", pad.id, row.id, LayoutGlyphs[button]));
-        notice_ = loc::Tf("button_layout.menu_taken", pad.buttonNames[button], loc::T(BoundActionRows[partner].label));
+    // Actions of one group never share a button: the one another acts on now is refused.
+    if (const auto taker = BoundActionTaking(pad, action, LayoutButtonMask(static_cast<int>(button), pad.has))) {
+        LayoutLog(view, submit, fmt::format("layout for id {}: {} = {} refused (taken by {})", pad.id, row.id, LayoutGlyphs[button], BoundActionRows[*taker].id));
+        notice_ = loc::Tf("button_layout.menu_taken", pad.buttonNames[button], loc::T(BoundActionRows[*taker].label));
         noticeTone_ = Tone::Error; noticeUntil_ = ImGui::GetTime() + 4; layoutFlash_.clear();
         return;
     }
@@ -157,7 +156,7 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
     const bool editable = CanEditLayout(view) && Served(pad);
     const auto stored = FindLayout(preferences_.buttonLayouts, pad.identity, ConnectedLayoutPads(view));
     pad.layout = stored.index ? std::make_optional(preferences_.buttonLayouts[*stored.index].buttons) : std::nullopt;
-    pad.bound = stored.index ? preferences_.buttonLayouts[*stored.index].bound : NoBoundButtons;
+    pad.bound = stored.index ? preferences_.buttonLayouts[*stored.index].bound : DefaultBoundButtons;
     pad.extras = stored.index ? preferences_.buttonLayouts[*stored.index].extras : NoExtraCopies;
     if (pad.layout) pad.table = *pad.layout;
     pad.buttonNames = LayoutButtonNames(pad, preferences_.buttonPrompts);
@@ -265,6 +264,16 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         auto bound = pad.bound; bound[TrainingRecordButton] = bound[TrainingPlayButton] = -1;
         if (ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: Training buttons cleared", pad.id), bound)) {
             nav.Focus("training-record", rows); notice_ = loc::T("button_layout.training_cleared"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
+        }
+    } else if (editable && action.kind == MenuAction::Activate && action.id == "training-controls-off") {
+        auto bound = pad.bound; bound[TrainingControlsButton] = -1;
+        if (ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: Training controls button off", pad.id), bound)) {
+            nav.Focus("training-controls", rows); notice_ = loc::T("button_layout.training_controls_is_off"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
+        }
+    } else if (editable && action.kind == MenuAction::Activate && action.id == "training-controls-auto") {
+        auto bound = pad.bound; bound[TrainingControlsButton] = BoundAuto;
+        if (ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: Training controls button automatic", pad.id), bound)) {
+            nav.Focus("training-controls", rows); notice_ = loc::T("button_layout.training_controls_is_auto"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
         }
     } else if (editable && action.kind == MenuAction::Activate && action.id == "remove") {
         if (ChangeLayout(pad, {}, view, submit, fmt::format("layout for id {} removed", pad.id))) {

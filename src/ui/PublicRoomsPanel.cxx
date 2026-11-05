@@ -18,6 +18,7 @@
 namespace sf4e { namespace ui {
 namespace {
 using netplay::publicrooms::Room;
+using netplay::publicrooms::RoomFilter;
 using PublicList = netplay::publicrooms::Status;
 using netplay::tournament::Command;
 // The runtime answers every request, if only with a refusal after its own
@@ -28,8 +29,6 @@ constexpr double JoinGraceSeconds = 5;
 // Room cards: their height in unscaled pixels, and the narrower one for a narrow list.
 constexpr float CardHeight = 100, NarrowCardHeight = 72;
 
-bool Full(const Room& room) { return room.members >= room.capacity; }
-bool Joinable(const Room& room) { return !room.locked && !Full(room); }
 unsigned FreeSeats(const Room& room) { return room.capacity > room.members ? room.capacity - room.members : 0; }
 
 // Rooms that can be joined come first, near ones before far ones when the
@@ -37,7 +36,7 @@ unsigned FreeSeats(const Room& room) { return room.capacity > room.members ? roo
 // finally the ID so the order never wobbles. The bridge's own order breaks no
 // ties that survive these, so it is the input only for a stable sort.
 bool Before(const Room& a, const Room& b, const std::string& region) {
-    if (Joinable(a) != Joinable(b)) return Joinable(a);
+    if (a.Joinable() != b.Joinable()) return a.Joinable();
     if (!region.empty() && (a.region == region) != (b.region == region)) return a.region == region;
     if (FreeSeats(a) != FreeSeats(b)) return FreeSeats(a) > FreeSeats(b);
     if (a.members != b.members) return a.members > b.members;
@@ -80,21 +79,38 @@ std::vector<const Room*> Sorted(const void* owner, const PublicList& list, const
     return sorted;
 }
 
-std::vector<const Room*> Listing(const void* owner, const PublicList& list, const std::string& region, PublicRoomsPanel::Filter filter) {
+std::vector<const Room*> Listing(const void* owner, const PublicList& list, const std::string& region, const RoomFilter& filter) {
     auto listing = Sorted(owner, list, region);
-    const bool near = filter == PublicRoomsPanel::Filter::Near && !region.empty();
-    listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) {
-        return near ? room->region != region : filter == PublicRoomsPanel::Filter::Seats && !Joinable(*room);
-    }), listing.end());
+    listing.erase(std::remove_if(listing.begin(), listing.end(), [&](const Room* room) { return !Matches(filter, *room, region); }), listing.end());
     return listing;
 }
 
-const char* FilterId(PublicRoomsPanel::Filter filter) {
-    return filter == PublicRoomsPanel::Filter::Near ? "near" : filter == PublicRoomsPanel::Filter::Seats ? "seats" : "all";
+// The filters page's value rows, which Left and Right step; the list's Filters row opens the page,
+// and Clear filters is a row on the page and a card on a list the filter has emptied.
+constexpr const char *FilterRegionRow = "pr-filter-region", *FilterTypeRow = "pr-filter-type", *FilterSeatsRow = "pr-filter-seats",
+    *FilterWiredRow = "pr-filter-wired", *ClearFiltersCard = "pr-clear-filters", *ClearFiltersRow = "pr-filters-clear", *FiltersRow = "pr-filters";
+constexpr float FiltersRowHeight = 40;
+
+std::string RegionValue(const RoomFilter& filter) {
+    return filter.scope == RoomFilter::Region::All ? std::string(loc::T("public.filter_region_all")) :
+        filter.scope == RoomFilter::Region::Near ? std::string(loc::T("public.filter_region_near")) : PublicRoomsPanel::RegionLabel(filter.region);
 }
-const char* FilterName(PublicRoomsPanel::Filter filter) {
-    return loc::T(filter == PublicRoomsPanel::Filter::Near ? "public.filter.near" :
-        filter == PublicRoomsPanel::Filter::Seats ? "public.filter.seats" : "public.filter.all");
+
+std::string RoomTypeValue(const RoomFilter& filter) {
+    const auto wanted = WantedType(filter.type);
+    return wanted ? std::string(RoomTypeName(*wanted)) : std::string(loc::T("public.filter_type_all"));
+}
+
+// What the list's Filters row says is on: "All rooms", or the settings that narrow it, such as "Near me · Classic · Wired only".
+std::string FilterSummary(const RoomFilter& filter) {
+    if (!filter.Active()) return loc::T("public.filter_summary_all");
+    std::string text;
+    const auto add = [&](const std::string& part) { text += (text.empty() ? "" : " \xC2\xB7 ") + part; };
+    if (filter.scope != RoomFilter::Region::All) add(RegionValue(filter));
+    if (filter.type != RoomFilter::Type::All) add(RoomTypeValue(filter));
+    if (filter.openSeats) add(loc::T("public.filter_summary_seats"));
+    if (filter.wiredOnly) add(loc::T("public.filter_wired_only"));
+    return text;
 }
 
 }
@@ -117,7 +133,7 @@ std::string RoomDetail(const Room& room) {
     std::string text = loc::Tf("public.room_detail2", room.hostName, PublicRoomsPanel::RegionLabel(room.region), room.members, room.capacity);
     if (room.playing > 0) text += loc::T("public.room_detail_match");
     if (room.locked) text += loc::T("public.room_detail_locked");
-    else if (Full(room)) text += loc::T("public.room_detail_full");
+    else if (room.Full()) text += loc::T("public.room_detail_full");
     return text;
 }
 
@@ -175,7 +191,7 @@ std::string PublicRoomsPanel::KnownRegion(const ShellView& v) {
     return relay == "other" ? std::string() : relay;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
@@ -184,6 +200,7 @@ void PublicRoomsPanel::Create(const std::string& name, int capacity, const netpl
     Begin(std::move(command));
     pending_->createdRules = tables;
     pending_->createdType = type;
+    pending_->createdWiredOnly = wiredOnly;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
@@ -241,12 +258,11 @@ void PublicRoomsPanel::Update(const ShellView& v, const std::string& screen, con
     // A setup that just made the service usable shows the rooms without waiting for a refresh.
     if (Owns(screen) && !bridge_.empty() && !hadService_) wantList_ = true;
     hadService_ = Owns(screen) && !bridge_.empty();
-    const bool opened = Owns(screen) && screen != lastScreen_;
+    // Moving between the list and its filters page is not opening the list.
+    const bool opened = Owns(screen) && !Owns(lastScreen_);
     lastScreen_ = screen;
     if (opened) wantList_ = true;
     const auto& list = v.publicRooms;
-    // Near means nothing without a region: the filter falls back to every room.
-    if (filter_ == Filter::Near && KnownRegion(v).empty()) filter_ = Filter::All;
     // A refresh finished, answered or not: the next one by itself is due a while after it.
     if (list.listed != listedSeen_) {
         const bool settled = listedSeen_ != 0 || !list.loading;
@@ -314,7 +330,9 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
     join.command.generation = v.session.generation;
     join.command.invitation = answer.admission.invitation;
     join.publicTicket = answer.admission.ticket;
-    if (done.op == Command::Op::RoomCreate) { join.createdRules = answered.createdRules; join.arcadeRoom = answered.createdType; }
+    if (done.op == Command::Op::RoomCreate) {
+        join.createdRules = answered.createdRules; join.arcadeRoom = answered.createdType; join.wiredOnly = answered.createdWiredOnly;
+    }
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;
     joined.bridge = done.bridgeId;
@@ -362,7 +380,7 @@ bool PublicRoomsPanel::Shortcut(const MenuAction& a, const ShellView& v) {
     return true;
 }
 
-bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone, double now) const {
+bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std::string& status, Tone& tone, double now, const RoomFilter& filter) const {
     if (pending_) {
         status = loc::T(pending_->command.op == Command::Op::RoomTicket ? "room.joining_status" : "room.creating_status");
         tone = Tone::Pending; return true;
@@ -376,7 +394,7 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     if (list.loading && manualRefresh_) { status = loc::T("public.updating"); tone = Tone::Pending; return true; }
     // A failed refresh leaves the list as it was, so the age still says how stale it is.
     if (!status.empty() || !listed || list.rooms.empty()) return false;
-    const auto shown = Listing(this, list, KnownRegion(v), filter_).size();
+    const auto shown = Listing(this, list, KnownRegion(v), filter).size();
     const std::string updated = UpdatedText(now - listedAt_);
     status = shown == list.rooms.size() ? loc::Tf("public.status_listed", list.rooms.size(), updated) :
         loc::Tf("public.status_filtered", shown, list.rooms.size(), updated);
@@ -384,17 +402,18 @@ bool PublicRoomsPanel::Status(const ShellView& v, const std::string& screen, std
     return true;
 }
 
-std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const std::string& region) const {
+std::optional<std::string> PublicRoomsPanel::QuickPick(const ShellView& v, const std::string& region, const RoomFilter& filter) const {
     if (v.publicRooms.bridge != bridge_) return std::nullopt;
+    const RoomFilter wanted = filter.ForQuickJoin();
     for (const Room* room : Sorted(this, v.publicRooms, region)) {
-        if (!Joinable(*room) || refused_.count(room->id) || (!region.empty() && room->region != region)) continue;
+        if (!room->Joinable() || refused_.count(room->id) || !Matches(wanted, *room, region)) continue;
         return room->id;
     }
     return std::nullopt;
 }
 
 std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
-    float listWidth) const {
+    float listWidth, const RoomFilter& filter) const {
     std::vector<MenuEntry> rows;
     const float cardHeight = listWidth < 480 * Scale() ? NarrowCardHeight : CardHeight;
     // A room being joined or created keeps its Stop row until it is open.
@@ -438,42 +457,37 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     const auto& list = v.publicRooms;
     const bool free = v.canOpenRoom && !Busy();
     const std::string region = KnownRegion(v);
-    const Filter filter = filter_ == Filter::Near && region.empty() ? Filter::All : filter_;
     // The list on screen is this service's, and has been heard from.
     const bool listed = list.bridge == service && loadedFor_ == service;
-    // The toolbar: four cells in a row (or two rows of two), then everything else full width.
+    // The toolbar: three cells in a row (or two rows), then the filter's rows and everything else full width.
     rows.push_back(Row("pr-quick", loc::T("public.quick"), loc::T("public.quick_detail"), free && listed));
     rows.back().hint = loc::T("public.quick");
     rows.push_back(Row("pr-create", loc::T("public.create_room"), loc::T("public.create_detail"), free));
     rows.back().hint = loc::T("public.create_room");
-    rows.push_back(Row("pr-filter", loc::Tf("public.filter_label", FilterName(filter)), loc::T("public.filter_detail"), free));
-    rows.back().hint = loc::T("public.filter");
-    rows.back().choices = {
-        {"all", loc::T("public.filter.all"), {}, true},
-        {"near", loc::T("public.filter.near"), region.empty() ? std::string(loc::T("public.filter_near_unknown")) : std::string(), !region.empty()},
-        {"seats", loc::T("public.filter.seats"), {}, true}};
-    rows.back().chosen = FilterId(filter);
     rows.push_back(Row("pr-paste", loc::T("public.paste_link"), loc::T("public.paste_link_detail"), free));
     rows.back().hint = loc::T("menu.hint.paste");
     if (Busy()) rows.push_back(Wide(Row("pr-stop", loc::T("public.stop_joining"), loc::T("room.stop_joining"))));
     // A link that arrived while the player was busy waits here for their choice.
     if (link_) rows.push_back(Wide(Row("pr-link", loc::T("public.link_row"), loc::T("public.link_row_detail"), free)));
+    // The filter is one row; its page has the values.
+    rows.push_back(Wide(Row(FiltersRow, loc::T("public.filters"), loc::T("public.filters_detail"), free), FiltersRowHeight));
+    rows.back().value = FilterSummary(filter);
     if (!listed) {
         rows.push_back(Wide(InfoRow("pr-loading", loc::T("public.loading_card"), {}, {}), 3 * CardHeight + 16));
         return rows;
     }
     const auto shown = Listing(this, list, region, filter);
     for (const Room* room : shown) {
-        auto row = Row("pr-room:" + room->id, room->name, RoomDetail(*room), free && Joinable(*room));
+        auto row = Row("pr-room:" + room->id, room->name, RoomDetail(*room), free && room->Joinable());
         row.userText = true; row.detailText = DetailText::Name; row.hint = loc::T("online.join"); row.quiet = true;
         if (PhaseOf(row.id) == CardPhase::Joining) row.value = loc::T("public.joining_value");
         rows.push_back(Wide(std::move(row), PublicRoomBare(*room) ? NarrowCardHeight : cardHeight));
     }
     if (shown.empty()) {
         if (!list.rooms.empty()) {
-            // Rooms are open, but the filter hides them: this card shows them all.
-            rows.push_back(Wide(Row("pr-show-all", loc::T("public.none_filtered"), {}), 110));
-            rows.back().hint = loc::T("public.show_all");
+            // Rooms are open, but the filter hides them: this card clears it.
+            rows.push_back(Wide(Row(ClearFiltersCard, loc::T("public.none_filtered"), {}), 110));
+            rows.back().hint = loc::T("public.clear_filters");
         } else if (!list.error.empty()) {
             // Nothing is listed to keep on screen, so the failure is the card.
             rows.push_back(Wide(Row("pr-error", FailureText(list.error), {}, !list.loading), 110));
@@ -486,21 +500,36 @@ std::vector<MenuEntry> PublicRoomsPanel::Rows(const ShellView& v, const std::str
     return rows;
 }
 
-bool PublicRoomsPanel::Choose(const MenuAction& a) {
-    if (a.id != "pr-filter") return false;
-    if (a.text == "all") filter_ = Filter::All;
-    else if (a.text == "near") filter_ = Filter::Near;
-    else if (a.text == "seats") filter_ = Filter::Seats;
+std::vector<MenuEntry> PublicRoomsPanel::FilterRows(const RoomFilter& filter, const std::string& home, bool enabled) {
+    const bool nearUnknown = filter.scope == RoomFilter::Region::Near && home.empty();
+    std::vector<MenuEntry> rows;
+    rows.push_back(Value(FilterRegionRow, loc::T("public.filter_region"), RegionValue(filter),
+        loc::T(nearUnknown ? "public.filter_near_unknown" : "public.filter_region_detail"), enabled));
+    rows.push_back(Value(FilterTypeRow, loc::T("public.filter_type"), RoomTypeValue(filter), loc::T("public.filter_type_detail"), enabled));
+    rows.push_back(Value(FilterSeatsRow, loc::T("public.filter_seats"), loc::T(filter.openSeats ? "common.on" : "common.off"),
+        loc::T("public.filter_seats_detail"), enabled));
+    rows.push_back(Value(FilterWiredRow, loc::T("public.filter_wired"), loc::T(filter.wiredOnly ? "public.filter_wired_only" : "public.filter_wired_all"),
+        loc::T("public.filter_wired_detail"), enabled));
+    rows.push_back(Row(ClearFiltersRow, loc::T("public.clear_filters"), loc::T("public.clear_filters_detail"), enabled && filter.Active()));
+    return rows;
+}
+
+bool PublicRoomsPanel::ChangeFilter(const MenuAction& a, const std::string& home, RoomFilter& filter) {
+    if (a.kind == MenuAction::Activate && (a.id == ClearFiltersCard || a.id == ClearFiltersRow)) { filter = RoomFilter(); return true; }
+    if (a.kind != MenuAction::Adjust) return false;
+    if (a.id == FilterRegionRow) filter.StepRegion(a.delta, home);
+    else if (a.id == FilterTypeRow) filter.StepType(a.delta);
+    else if (a.id == FilterSeatsRow) filter.openSeats = a.delta > 0;
+    else if (a.id == FilterWiredRow) filter.wiredOnly = a.delta > 0;
+    else return false;
     return true;
 }
 
 bool PublicRoomsPanel::Activate(const MenuAction& a, MenuNavigation& nav) {
     if (a.id == "identity") { nav.Push("identity"); return true; }
+    if (a.id == FiltersRow) { nav.Push(FiltersScreen); return true; }
     if (a.id == "pr-error") { Refresh(); return true; }
     if (a.id == "pr-stop") { Abandon(); return true; }
-    // A filter hiding every open room: its card shows them all. (The empty list's
-    // card, pr-none, is the shell's own Create.)
-    if (a.id == "pr-show-all") { filter_ = Filter::All; said_.clear(); return true; }
     if (a.id == "pr-link") { if (link_ && !Busy()) link_->direct = true; return true; }
     if (a.id == "pr-paste") {
         // The room link a bot or site gave: its page or the ember: link.

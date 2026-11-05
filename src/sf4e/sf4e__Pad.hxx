@@ -6,6 +6,14 @@ namespace sf4e {
 	namespace Pad {
 		void Install();
         bool MenuInputBlocked();
+		// Pad updates during a GGPO session this PC fights in, since the last
+		// call, in which Ember kept input from the game, and so from GGPO's local
+		// input: cleared because the window was behind (focus), else all kept
+		// while Ember's menu captured the pads (menu), else some buttons still
+		// held from that capture kept after it (kept). Each update counts once
+		// (input::GatePad). Game thread; for the netplay log window.
+		struct WithheldUpdates { unsigned focus = 0, menu = 0, kept = 0; };
+		WithheldUpdates TakeWithheldUpdates();
 
 		struct System : Dimps::Pad::System
 		{

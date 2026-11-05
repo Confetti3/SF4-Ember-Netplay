@@ -1,6 +1,7 @@
 #pragma once
 #include "IdentityPanel.hxx"
 #include "MenuNavigation.hxx"
+#include "../netplay/PublicRoomFilterMatch.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/TableSetup.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -25,12 +26,12 @@ enum class Tone;
 // pressed room, once the Ember ID has answered and the service is one the
 // player trusts, and shows that service's list until the player leaves.
 // The list is shown sorted (rooms that can be joined first, near ones first)
-// and filtered, and refreshes itself while the screen is open and idle.
+// and filtered by the player's saved filter (netplay::publicrooms::RoomFilter,
+// which the caller holds and passes in), and refreshes itself while the screen
+// is open and idle.
 class PublicRoomsPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
-    // Which rooms are listed; kept for the session, not saved.
-    enum class Filter { All, Near, Seats };
     // What the room being opened is: one joined from the list or a link, or one just created.
     enum class OpenKind { Join, Create };
     // What a room's card shows besides the room: nothing, its ticket being asked
@@ -39,7 +40,13 @@ public:
     // The list is asked for again this long after the last answer, and this long
     // after one that failed.
     static constexpr double AutoRefreshSeconds = 15, ErrorBackoffSeconds = 30;
-    static bool Owns(const std::string& screen) { return screen == "public-rooms"; }
+    // The filters page, which Select on the list's Filters row opens: it is part of
+    // browsing, so leaving the list for it asks for nothing again.
+    static constexpr const char* FiltersScreen = "public-filters";
+    static bool Owns(const std::string& screen) { return screen == "public-rooms" || screen == FiltersScreen; }
+    // The filters page's rows: the four values that Left and Right step, then Clear
+    // filters. `home` is KnownRegion; `enabled` is whether the filter can be changed.
+    static std::vector<MenuEntry> FilterRows(const netplay::publicrooms::RoomFilter& filter, const std::string& home, bool enabled);
     // A refused request or a failed refresh, by its stable code, in words.
     static std::string FailureText(const std::string& code);
     // The region of this PC's home relay, whose rooms are near; empty while it is unknown.
@@ -63,33 +70,41 @@ public:
     void OpenLink(const std::string& bridge, const std::string& room, bool direct);
     // `bridge` and `identityPending` as for Update; `setup` is where the Ember ID
     // panel's one-press setup stands, which the setup card shows; `listWidth` is
-    // the width of the list in pixels, which decides how tall a room's card is.
+    // the width of the list in pixels, which decides how tall a room's card is;
+    // `filter` is which rooms are listed.
     std::vector<MenuEntry> Rows(const ShellView& view, const std::string& bridge, bool identityPending, const PublicSetupView& setup,
-                                float listWidth) const;
+                                float listWidth, const netplay::publicrooms::RoomFilter& filter) const;
     // True when the row was the panel's own.
     bool Activate(const MenuAction& action, MenuNavigation& navigation);
-    // The option chosen on the filter row; true when it was the panel's own.
-    bool Choose(const MenuAction& action);
+    // Left or Right on one of the filter rows changes `filter` (a bool row takes
+    // Right as on, Left as off); true when the action was a filter row's. Clear
+    // filters, on the page or as the empty list's card, resets it too and is also
+    // reported as the panel's own. `home` is KnownRegion.
+    static bool ChangeFilter(const MenuAction& action, const std::string& home, netplay::publicrooms::RoomFilter& filter);
     // The Options button or key (Y, T) asks for the list again; true when it was the panel's own.
     bool Shortcut(const MenuAction& action, const ShellView& view);
     // The screen shows a list that Options can refresh.
     bool Refreshable(const ShellView& view) const;
     // The room Quick join would ask for: the first listed one with a free seat that
-    // is not locked and was not refused this visit, in `region` when it is known.
-    std::optional<std::string> QuickPick(const ShellView& view, const std::string& region) const;
+    // is not locked, was not refused this visit and `filter` lists, in `region`
+    // (this PC's) unless the filter names a region of its own.
+    std::optional<std::string> QuickPick(const ShellView& view, const std::string& region, const netplay::publicrooms::RoomFilter& filter) const;
     // Asks for a room's ticket, as pressing its row does; false while a request is waiting.
     bool Join(const std::string& roomId);
     // Gives up waiting for the ticket or room in flight: its answer joins nothing.
     void Abandon();
     // Opens a public room: the new room's admission is joined when it arrives.
-    // `rules` go with the new room's join, for the runtime to set on its tables.
-    void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type = room::ClassicRoom);
+    // `rules` go with the new room's join, for the runtime to set on its tables,
+    // and so do its type and its Wired players only rule.
+    void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy,
+        room::RoomType type = room::ClassicRoom, bool wiredOnly = false);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
     // What a pending request or refresh says on `screen`, and the list's own
     // state once nothing else has anything to say: `status` is what other
     // reports left, and only an empty one takes the list's text.
-    bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone, double now) const;
+    bool Status(const ShellView& view, const std::string& screen, std::string& status, Tone& tone, double now,
+                const netplay::publicrooms::RoomFilter& filter) const;
     // What the panel has to say, once, wherever the player is.
     bool TakeSaid(std::string& text);
     // The shell is hidden: an admission that arrives meanwhile must not join
@@ -116,7 +131,6 @@ public:
     double OpenSeconds(const ShellView& view, const netplay::publicrooms::Room& room, double now) const;
     // The shell opened some other room itself: whatever this panel joined is not it.
     void ForgetCurrent() { current_.reset(); }
-    Filter filter() const { return filter_; }
 private:
     // The one create or ticket request the panel will act on. It is identified
     // by Command::request, which the panel picks when it sends it; the runtime
@@ -127,9 +141,10 @@ private:
         netplay::tournament::Command command;
         bool sent = false;
         double sentAt = 0;
-        // A create's chosen tables and room type.
+        // A create's chosen tables, room type and Wired players only rule.
         std::optional<netplay::TableSetup> createdRules;
         room::RoomType createdType = room::ClassicRoom;
+        bool createdWiredOnly = false;
     };
     // The room joined with an admission, kept while it is being opened and while
     // the player is in it. `seen`: the session has left Idle for it.
@@ -162,7 +177,6 @@ private:
     std::optional<Pending> pending_;
     // The newest identity given to a request; it only grows.
     std::uint64_t lastRequest_ = 0;
-    Filter filter_ = Filter::All;
     // Rooms that refused this PC while it was on the screen (full, locked, banned):
     // Quick join skips them until the player leaves.
     std::set<std::string> refused_;

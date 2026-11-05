@@ -38,6 +38,10 @@ pub struct Details {
     /// delay and replaces what the room was created asking for: the host's
     /// word is the room's.
     pub own_delay: bool,
+    /// Only players not on Wi-Fi take a seat. The host writes `wired_only:
+    /// true` only for such a room and the room's host can turn it off, so a
+    /// report without it reads as off and replaces what the row had.
+    pub wired_only: bool,
 }
 
 fn small(value: &Value, limit: u64) -> Option<u8> {
@@ -112,6 +116,7 @@ impl Details {
                 .and_then(|kind| small(kind, MAX_ROOM_TYPE.into())),
             creator_in: value.get("creator_in").and_then(Value::as_bool),
             own_delay: value.get("own_delay").and_then(Value::as_bool) == Some(true),
+            wired_only: value.get("wired_only").and_then(Value::as_bool) == Some(true),
         }
     }
 }
@@ -126,7 +131,7 @@ mod tests {
     fn a_complete_report_is_read_whole() {
         let value = json!({ "name": "Late night", "capacity": 6, "locked": true,
             "host_name": "  Kate ", "fighters": [3, 255, 0], "set_format": 3, "rotation": 2,
-            "room_type": 2, "creator_in": false, "own_delay": true, "unknown": [1] });
+            "room_type": 2, "creator_in": false, "own_delay": true, "wired_only": true, "unknown": [1] });
         assert_eq!(
             Details::from_value(&value, 3, 4),
             Details {
@@ -141,6 +146,7 @@ mod tests {
                 room_type: Some(2),
                 creator_in: Some(false),
                 own_delay: true,
+                wired_only: true,
             }
         );
     }
@@ -162,6 +168,18 @@ mod tests {
         // Nothing said, or not a report at all: the shared delay.
         assert!(!Details::from_value(&json!({}), 2, 4).own_delay);
         assert!(!Details::absent(2, 4).own_delay);
+    }
+
+    #[test]
+    fn a_report_says_wired_only_only_by_saying_true() {
+        let wired =
+            |value: Value| Details::from_value(&json!({ "wired_only": value }), 2, 4).wired_only;
+        assert!(wired(json!(true)));
+        for other in [json!(false), json!(null), json!(1), json!("true")] {
+            assert!(!wired(other.clone()), "{other}");
+        }
+        assert!(!Details::from_value(&json!({}), 2, 4).wired_only);
+        assert!(!Details::absent(2, 4).wired_only);
     }
 
     #[test]

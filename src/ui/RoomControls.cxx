@@ -1,6 +1,7 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
 #include "Theme.hxx"
+#include "FighterSelector.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -60,6 +61,18 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
     if (s.streaks[cabinet]) text += " \xC2\xB7 " + loc::Tf("room.streak", s.streaks[cabinet]);
     return text;
 }
+std::string StreakText(const room::Table& t, room::MemberId member) {
+    return member && t.streakHolder == member && t.streak >= 2 ? loc::Tf("room.streak", t.streak) : std::string();
+}
+std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
+    const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
+        member.status == room::MemberStatus::Seated;
+    if (waiting && member.training) return loc::T("room.in_training");
+    const auto idleSeconds = RoomIdleSeconds(member, elapsedMs);
+    if (!waiting || idleSeconds < 60) return {};
+    const unsigned minutes = idleSeconds / 60;
+    return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
+}
 bool GameLive(const ShellView& v) { return netplay::Fighting(v.session.match); }
 bool PostMatch(const ShellView& v) { return v.session.match == netplay::MatchState::PostMatch; }
 const char* LeaveBlockerKey(room::SeatHold hold) {
@@ -81,6 +94,14 @@ bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table
 }
 const char* TerminalPendingReason() {
     return loc::T("room.terminal_pending");
+}
+bool WiredFenced(const ShellView& v, room::ActionKind kind) {
+    if (kind != room::ActionKind::Queue) return false;
+    const auto* local = room::FindMember(v.room, v.room.localMember);
+    return local && !room::LinkMaySit(v.room, local->link) && room::PlaceOf(v.room, local->id).kind != room::Place::Kind::Seat;
+}
+const char* WiredOnlyReason() {
+    return loc::T("room.reject.wired_only");
 }
 std::string LeaveRoomDetail(const ShellView& v) {
     std::string detail = loc::T("room.leave.detail");
@@ -113,6 +134,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
         MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
+        else if (WiredFenced(v, option->kind)) { choice.enabled = false; choice.detail = WiredOnlyReason(); }
         choices.push_back(std::move(choice));
     }
     choices.push_back({"options", loc::T("room.legend_options"), loc::T("room.table_options")});
@@ -204,10 +226,16 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     control.detail = control.refusal = ReadyBlocker(v, t);
     if (control.detail.empty()) {
         control.kind = postMatch ? ReadyControl::Rematch : ReadyControl::Ready;
-        control.detail = std::string(loc::T("room.ready.lock_detail")) + "\n" + v.selectionSummary;
+        control.detail = ReadyWithText(v, t, seat) + "\n" + loc::T("room.ready.lock_detail") + "\n" + v.selectionSummary;
         if (v.opponentChangedFighter >= 0) control.detail = OpponentChangedText(v.opponentChangedFighter) + "\n" + control.detail;
     }
     return control;
+}
+std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat) {
+    const auto* opponent = room::FindMember(v.room, seat == 0 ? t.p2 : seat == 1 ? t.p1 : 0);
+    const auto* against = opponent ? selection::FindFighter(opponent->fighter) : nullptr;
+    const auto ultra = UltraMove(v.selectedPick.fighter, v.selectedPick.ultra);
+    return against ? loc::Tf("room.ready.with_against", v.fighterName, ultra, against->name) : loc::Tf("room.ready.with", v.fighterName, ultra);
 }
 std::string OpponentChangedText(int fighter) {
     const auto* found = selection::FindFighter(fighter);

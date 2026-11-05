@@ -7,6 +7,10 @@
 #include <system_error>
 #include <type_traits>
 namespace sf4e { namespace ui {
+// Whether a row id starts with `prefix` ("table-" for "table-3").
+inline bool HasPrefix(std::string_view id, std::string_view prefix) {
+    return id.size() >= prefix.size() && id.compare(0, prefix.size(), prefix) == 0;
+}
 // The number a keyed row id carries after its prefix, as a `Key`
 // ("cabinet-7" with "cabinet-" is 7; "member-<id>" a 64-bit room::MemberId),
 // or nothing when the id has another prefix, no number, a sign, more than a
@@ -17,7 +21,7 @@ namespace sf4e { namespace ui {
 template <class Key = std::uint64_t>
 std::optional<Key> RowKey(std::string_view id, std::string_view prefix) {
     static_assert(std::is_integral_v<Key> && !std::is_same_v<Key, bool>, "a row key is a number");
-    if (id.size() <= prefix.size() || id.compare(0, prefix.size(), prefix) != 0) return std::nullopt;
+    if (id.size() <= prefix.size() || !HasPrefix(id, prefix)) return std::nullopt;
     std::uint64_t value = 0;
     const char* begin = id.data() + prefix.size();
     const char* end = id.data() + id.size();

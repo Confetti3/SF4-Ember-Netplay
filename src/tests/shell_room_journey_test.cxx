@@ -35,8 +35,24 @@ void TableNameCommitNamesTable() {
  Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::NameTable&&h.actions.back().roomAction.text=="Finals"&&
   h.actions.back().roomAction.table==0,"Committing a table name did not send NameTable");
 }
+// Each of the board's rows is in the area that draws it, the one answer the
+// action bar, LB and RB and the narrow tabs read: the room's status while it
+// opens is a button on the action bar, so a step to the floor never lands on
+// it. The narrow tabs fold the bar under the floor's.
+void BoardAreasAreWhereDrawn() {
+ using namespace sf4e;
+ Check(BoardAreaOf("table-2")==BoardArea::Floor&&BoardAreaOf("cabinet-9")==BoardArea::Floor&&BoardAreaOf("matchup-1")==BoardArea::Floor&&
+  BoardAreaOf("room-hide-picture")==BoardArea::Floor,"A floor row is not in the floor's area");
+ Check(BoardAreaOf("room-status")==BoardArea::Bar&&BoardAreaOf("ready")==BoardArea::Bar&&BoardAreaOf("copy-short")==BoardArea::Bar&&
+  BoardAreaOf("leave")==BoardArea::Bar,"The room's status or a bar button is not on the bar");
+ Check(BoardAreaOf("member-7")==BoardArea::Members&&BoardAreaOf("room-members")==BoardArea::Members&&BoardAreaOf("room-show-members")==BoardArea::Members&&
+  BoardAreaOf("room-chat")==BoardArea::Chat&&BoardAreaOf("room-hide-chat")==BoardArea::Chat,"A panel's row is not in its panel's area");
+ Check(BoardTabOf(BoardArea::Bar,true)==0&&BoardTabOf(BoardArea::Members,true)==1&&BoardTabOf(BoardArea::Chat,true)==2&&
+  BoardTabOf(BoardArea::Chat,false)==3&&BoardTabCount(true)==3&&BoardTabCount(false)==4,"The narrow tabs do not fold the bar under the floor's");
+}
 // The narrow board shows one part at a time under its tabs: RB steps Board,
-// Members, Chat and round again, LB back, as the caps on the strip say.
+// Members, Chat and round again, LB back, as the caps on the strip say, each
+// tab back at the row last focused there, as a wide board's areas are.
 void NarrowBoardTabsStep() {
  using namespace sf4e;
  Harness h;h.Frame();
@@ -47,11 +63,107 @@ void NarrowBoardTabsStep() {
  h.Frame();h.Screen("room");h.Frame();
  const auto focus=[&]{return h.shell.Navigation().Focus();};
  Check(focus().compare(0,6,"table-")==0,"The narrow board did not open on its tables");
- h.Press(MenuInput::NextTab);Check(focus().compare(0,7,"member-")==0,"RB on the narrow board did not show Members");
+ h.Press(MenuInput::NextTab);const std::string first=focus();Check(first.compare(0,7,"member-")==0,"RB on the narrow board did not show Members");
+ h.Press(MenuInput::Down);const std::string member=focus();
+ Check(member.compare(0,7,"member-")==0&&member!=first,"Down in the narrow Members tab did not reach the next member");
  h.Press(MenuInput::NextTab);Check(focus()=="room-chat","RB from Members did not show Chat");
  h.Press(MenuInput::NextTab);Check(focus().compare(0,6,"table-")==0,"RB from Chat did not wrap to the board");
  h.Press(MenuInput::PrevTab);Check(focus()=="room-chat"&&h.shell.Navigation().Screen()=="room","LB from the board did not wrap to Chat");
+ h.Press(MenuInput::PrevTab);Check(focus()==member,"LB to the narrow Members tab did not return to the member last focused there");
  ImGui::GetIO().DisplaySize=ImVec2(1280,960);
+}
+// The board opens on what the player most likely does next, once per room:
+// Ready in a seat, else the first table with a free seat, never the last
+// room's row. On a wide board LB and RB step the floor, the action bar,
+// Members and Chat, round at the ends, each back at the row last focused
+// there; an open popout keeps them. The bar's Left and Right go along it and
+// stop at its ends.
+void BoardOpensOnReadyAndStepsAreas() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ JoinedRoom(h,21);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.revision=3;
+ room::Member local;local.id=1;local.name="Local";local.table=1;local.seat=0;local.status=room::MemberStatus::Seated;
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=1;peer.seat=1;peer.status=room::MemberStatus::Seated;
+ h.view.room.members={local,peer};h.view.room.tables[1].p1=1;h.view.room.tables[1].p2=2;h.view.room.tables[1].phase=room::TablePhase::Waiting;
+ h.view.canReady=true;h.view.invitation="sf4://lab";
+ h.Frame(0,3);
+ const auto focus=[&]{return h.shell.Navigation().Focus();};
+ Check(h.shell.Navigation().Screen()=="room"&&focus()=="ready","A seated player's board did not open on Ready");
+ h.Press(MenuInput::NextTab);Check(focus()=="member-1","RB from the bar did not go to the first member");
+ h.Press(MenuInput::NextTab);Check(focus()=="room-chat","RB from Members did not go to the message box");
+ // Up from the message box is its panel's Hide, not a table card across the board.
+ h.Press(MenuInput::Up);Check(focus()=="room-hide-chat","Up from the message box left the Chat panel");
+ h.Press(MenuInput::Down);Check(focus()=="room-chat","Down from Chat's Hide did not return to the message box");
+ h.Press(MenuInput::NextTab);Check(focus()=="table-1","RB from Chat did not go round to the player's own table");
+ h.Press(MenuInput::NextTab);Check(focus()=="ready","RB from the floor did not return to the bar's Ready");
+ h.Press(MenuInput::Right);const std::string kept=focus();Check(kept!="ready","Right on the bar did not move along it");
+ h.Press(MenuInput::PrevTab);Check(focus()=="table-1","LB from the bar did not go to the floor");
+ h.Press(MenuInput::PrevTab);Check(focus()=="room-chat","LB from the floor did not go round to Chat");
+ h.Press(MenuInput::NextTab);h.Press(MenuInput::NextTab);Check(focus()==kept,"The bar did not keep the row last focused there");
+ // Along the bar to its end, where Right stays and does not leave for the column.
+ for(int i=0;i<12&&focus()!="leave";++i)h.Press(MenuInput::Right);
+ Check(focus()=="leave","Right did not walk the bar to Leave room");
+ h.Press(MenuInput::Right);Check(focus()=="leave","Right from the bar's end left the bar");
+ // An open popout keeps LB and RB from moving the focus under it.
+ h.Press(MenuInput::Left);Check(focus()=="room-more","Left from Leave room is not More...");
+ h.Press(MenuInput::Select);Check(h.shell.Navigation().Choosing(),"More... did not open");
+ h.Press(MenuInput::NextTab);Check(h.shell.Navigation().Choosing()&&focus()=="room-more","RB moved the focus from under an open popout");
+ h.Press(MenuInput::Back);
+ // The next room opens afresh: unseated, on the first table with a free seat.
+ h.view.room.roomEpoch=22;h.view.session.generation.room=2;
+ h.view.room.members[0].table=h.view.room.members[0].seat=-1;h.view.room.members[0].status=room::MemberStatus::Idle;
+ h.view.room.tables[1].p1=0;h.view.room.tables[0].p1=2;h.view.room.tables[0].p2=3;
+ room::Member third;third.id=3;third.name="Third";third.table=0;third.seat=1;h.view.room.members.push_back(third);
+ h.view.room.members[1].table=0;h.view.room.members[1].seat=0;h.view.room.tables[1].p2=0;
+ // The board is already up, so nothing pushes it: the frame the opening rule
+ // moves the focus counts nothing, and A pressed then and held on counts only
+ // once released, never opening the seat chooser on the row it moved to.
+ const auto sent=h.actions.size();
+ h.Frame(MenuInput::Select,3);
+ Check(h.shell.Navigation().Screen()=="room"&&focus()=="table-1","The next room's board did not open on its first free table");
+ Check(!h.shell.Navigation().Choosing()&&h.actions.size()==sent,"A pressed as the opening rule moved the focus acted on the row it moved to");
+ h.Frame(0,2);
+ Check(!h.shell.Navigation().Choosing()&&h.actions.size()==sent,"A held over the opening focus acted when released");
+ // Watching a game, on the bar: Table options (Stop watching while the game shows).
+ h.view.room.roomEpoch=23;h.view.session.generation.room=3;h.view.room.tables[0].phase=room::TablePhase::Playing;
+ h.view.room.tables[0].spectators={1};h.view.room.members[0].status=room::MemberStatus::Watching;
+ h.Frame(0,3);
+ Check(focus()=="options","A watcher's board did not open on the action bar");
+}
+// The row LB or RB lands on scrolls into view as a D-pad move's does, by the
+// next frame: the player's own table card below the fold, and Ready when the
+// bar follows the tables in their scroll.
+void AreaStepScrollsIntoView() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ JoinedRoom(h,24);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.revision=3;
+ h.view.room.tableCount=8;
+ room::Member local;local.id=1;local.name="Local";local.table=7;local.seat=0;local.status=room::MemberStatus::Seated;
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=7;peer.seat=1;peer.status=room::MemberStatus::Seated;
+ h.view.room.members={local,peer};h.view.room.tables[7].p1=1;h.view.room.tables[7].p2=2;h.view.room.tables[7].phase=room::TablePhase::Waiting;
+ h.view.canReady=true;h.view.invitation="sf4://lab";
+ std::map<std::string,bool> inView;
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
+  const auto* d=ImGui::GetWindowDrawList();const ImVec2 lo=d->GetClipRectMin(),hi=d->GetClipRectMax();
+  // Up and down in its scroll (a card runs under the scroll's bar); the clip
+  // is whole pixels, the box not: a pixel's slack.
+  inView[id]=min.y>=lo.y-1&&max.y<=hi.y+1;});
+ const auto focus=[&]{return h.shell.Navigation().Focus();};
+ ImGui::GetIO().DisplaySize=ImVec2(1280,720);
+ h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="room"&&focus()=="ready"&&inView["ready"]&&!inView["table-7"],
+  "The fixture's own table card was not below the fold, under a bar in view");
+ h.Press(MenuInput::PrevTab);
+ Check(focus()=="table-7"&&inView["table-7"],"LB to the floor left the player's own card out of view");
+ // Shorter, the bar follows the tables in their scroll, out of sight under
+ // the cards (Up goes further from it, if need be), and RB back to Ready
+ // brings it into view.
+ ImGui::GetIO().DisplaySize=ImVec2(1280,480);h.Frame(0,3);
+ for(int i=0;i<6&&inView["ready"];++i)h.Press(MenuInput::Up);
+ Check(focus().compare(0,6,"table-")==0&&!inView["ready"],"The fixture's bar did not follow the tables out of sight");
+ h.Press(MenuInput::NextTab);
+ Check(focus()=="ready"&&inView["ready"],"RB to the bar left Ready out of view in the tables' scroll");
+ SetMenuCardProbe({});ImGui::GetIO().DisplaySize=ImVec2(1280,960);
 }
 // A room locks the player's settings but those it leaves open
 // (PlayerPreferences::CopyRoomSettings), the board's layout and the watched
@@ -460,8 +572,8 @@ static void RoomBoardJourneys() {
  SetMenuStatusProbe({});
  h.Press(MenuInput::Back);Check(h.open&&h.shell.Navigation().Screen()=="home","B at Home in a room hid Ember");
  h.Screen("room");
- // Walking past other tables to More... still opens your own table's options.
- h.FocusOn("table-2");h.Choose("room-more");h.Press(MenuInput::Select);
+ // Walking past other tables to the bar's Table options still opens your own table's options.
+ h.FocusOn("table-2");h.Choose("options");
  std::vector<MenuEntry> optionRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
  Check(h.shell.Navigation().Screen()=="room-table"&&std::any_of(optionRows.begin(),optionRows.end(),[](const MenuEntry& e){return e.id=="ready";}),
   "Table options opened a table the player only passed");
@@ -631,7 +743,10 @@ void RoomJourneys() {
  RoomBoardJourneys();
  RoomShortcutOnPanelScreen();
  TableNameCommitNamesTable();
+ BoardAreasAreWhereDrawn();
  NarrowBoardTabsStep();
+ BoardOpensOnReadyAndStepsAreas();
+ AreaStepScrollsIntoView();
  RoomLayoutSavesInRoom();
 }
 

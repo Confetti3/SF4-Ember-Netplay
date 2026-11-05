@@ -148,6 +148,9 @@ namespace sf4e {
             room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
             // With HostRoom: how many tables a Classic room opens with (room::Snapshot::tableCount).
             std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
+            // With HostRoom, or the JoinInvite of a public room just created: its
+            // Wired players only rule (room::Snapshot::wiredOnly).
+            bool wiredOnly = false;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;
@@ -241,6 +244,8 @@ namespace sf4e {
 			// The player may leave for Training without leaving the room.
 			bool canTrain = false;
 			bool canEditSelection = false;
+			// RuntimeGates::canChangeUltra: also over the WIN, until the prompt's answer.
+			bool canChangeUltra = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
 			bool canEditLobby = false;
@@ -416,6 +421,9 @@ namespace sf4e {
 		// was followed by a rematch in place and leaves the match open.
 		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame,
 			unsigned game, bool continued);
+		// A spectator's stream showed a game end and the battle restart in
+		// place (both fighters chose Rematch): its HUD counts that game.
+		void NotifyRuntimeWatchedGame(room::MatchResult result);
 		// The WIN this result brings up may restart the battle in place: the
 		// table offers instant rematches and the result leaves its set open.
 		bool RematchInPlaceOffered(room::MatchResult result);

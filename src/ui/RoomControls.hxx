@@ -20,6 +20,11 @@ const char* LeaveBlockerKey(room::SeatHold hold);
 // outstanding, so neither is fenced here.
 bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table);
 const char* TerminalPendingReason();
+// The room's Wired players only rule keeps this PC on Wi-Fi from sitting
+// down: a seat, the queue or a cabinet (room::LinkMaySit). One already
+// seated is not fenced, so moving between Arcade cabinets still works.
+bool WiredFenced(const ShellView& v, room::ActionKind kind);
+const char* WiredOnlyReason();
 // One description of Leave room for both screens, stating what it costs.
 std::string LeaveRoomDetail(const ShellView& v);
 // The seat chooser's options. A choice carries the option's id, so dispatch
@@ -96,6 +101,10 @@ struct ReadyControl {
     std::string detail, refusal;
 };
 ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat);
+// The first line of Ready's detail: the pick it locks in, the Ultra by its own
+// name, and the opponent's fighter once they picked one, so the Ultra is
+// chosen with the matchup in view: "Ready with Ryu, Metsu Hadoken, against Ken."
+std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat);
 // Why a fighter cannot change fighter or appearance now, or empty when they can.
 // The board's X, the table options row and the fighter screen all read it.
 std::string SelectionBlocker(const ShellView& v);
@@ -143,4 +152,13 @@ const char* PhaseName(const room::Table& table);
 // What an Arcade room's cabinet row says of its player: waiting, or the
 // opponent with the score or the Rematch choice, and the streak.
 std::string CabinetState(const room::Snapshot& s, std::size_t cabinet);
+// "3 sets in a row" for the member who has won two or more sets in a row at
+// this table (Table::streakHolder), else empty.
+std::string StreakText(const room::Table& t, room::MemberId member);
+// "Idle 4 min" for a member who has done nothing in the room for a minute
+// or more while waiting (not in a game, not ready, not watching one), else
+// empty. A waiting member who said they are in Training is shown as that
+// instead: it is why they are quiet. The room stamped the idle time
+// `elapsedMs` ago (ShellView::roomElapsedMs).
+std::string IdleText(const room::Member& member, std::uint64_t elapsedMs);
 } } }
