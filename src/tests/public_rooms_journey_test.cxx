@@ -505,8 +505,8 @@ void QuickJoinJourney(){
   Journey k;auto& h=k.h;k.OpenList();h.view.netReport.relay="use1";
   auto arcade=Placed("a","use1",2,8,1);arcade.type=room::ArcadeRoom;
   auto classic=Placed("c","use1",2,8,2);classic.type=room::ClassicRoom;
-  auto far=Placed("f","euc1",1,8,3);far.type=room::ClassicRoom;
-  k.List({arcade,classic,far});
+  auto distant=Placed("f","euc1",1,8,3);distant.type=room::ClassicRoom;
+  k.List({arcade,classic,distant});
   const auto settle=[&]{
    h.Wait(1);
    for(std::size_t i=h.actions.size();i-->0;)if(h.actions[i].command.kind==Kind::SavePreferences){h.view.preferences=h.actions[i].preferences;break;}
