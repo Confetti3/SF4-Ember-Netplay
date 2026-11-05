@@ -96,6 +96,10 @@ struct ReadyControl {
     std::string detail, refusal;
 };
 ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat);
+// The first line of Ready's detail: the pick it locks in, the Ultra by its own
+// name, and the opponent's fighter once they picked one, so the Ultra is
+// chosen with the matchup in view: "Ready with Ryu, Metsu Hadoken, against Ken."
+std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat);
 // Why a fighter cannot change fighter or appearance now, or empty when they can.
 // The board's X, the table options row and the fighter screen all read it.
 std::string SelectionBlocker(const ShellView& v);

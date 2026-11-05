@@ -355,7 +355,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.canReady = snapshot.canReady;
 	view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),
 		EditionSelectNow(snapshot), snapshot.fighterAvailability[lobbyConditions.charaID], snapshot.installedContent.get());
-	view.canEditSelection = snapshot.canEditSelection;
+	view.canEditSelection = snapshot.canEditSelection; view.canChangeUltra = snapshot.canChangeUltra;
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyPress = snapshot.readyPress; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
@@ -446,8 +446,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.dummySummary = sf4e::loc::Tf("runtime.selection_summary", dummy ? dummy->name : sf4e::loc::T("card.choose_fighter"),
         sf4e::ui::CostumeLabel(sf4e::selection::FromNative(trainingDummy), snapshot.installedContent.get()), trainingDummy.color + 1, sf4e::ui::UltraLabel(trainingDummy.ultraCombo));
     view.fighterName = sf4e::overlay::PickName(lobbyMenuCharaID, s_prefs.lobbyRandom);
-    view.ultraName = !fighter ? std::string() : summaryPick.ultra == 2 ? std::string(sf4e::loc::T("selection.ultra_double")) :
-        std::string(sf4e::ui::UltraLabel(summaryPick.ultra)) + ": " + fighter->ultras[summaryPick.ultra < 0 || summaryPick.ultra > 1 ? 0 : summaryPick.ultra];
+    view.ultraName = sf4e::ui::UltraName(lobbyMenuCharaID, summaryPick.ultra);
     view.ultraSteps = sf4e::selection::AllowedUltras(summaryPick.fighter, summaryPick.edition).size() > 1;
     view.appearanceName = !fighter ? std::string() :
         sf4e::loc::Tf("selection.appearance_value", sf4e::ui::CostumeLabel(summaryPick, snapshot.installedContent.get()), lobbyConditions.color + 1);
@@ -468,11 +467,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     if (view.error.empty() && status.lastError[0] && status.lastErrorSeverity != sf4e::NoticeSeverity::Info) view.error = status.lastError;
 	bool open = true;
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
-		// The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
+		// The Ultra (the board, the table page, the post-match prompt) and the
+		// table page's Appearance edit the pick here; nothing is sent.
 		if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None) {
-			if (!snapshot.canEditSelection || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
-			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
 			const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
+			if (!(ultra ? snapshot.canChangeUltra : snapshot.canEditSelection) || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
+			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
 			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
 				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step.delta);
 			sf4e::selection::ToNative(pick, lobbyConditions);

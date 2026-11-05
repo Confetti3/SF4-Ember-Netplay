@@ -460,8 +460,8 @@ static void RoomBoardJourneys() {
  SetMenuStatusProbe({});
  h.Press(MenuInput::Back);Check(h.open&&h.shell.Navigation().Screen()=="home","B at Home in a room hid Ember");
  h.Screen("room");
- // Walking past other tables to More... still opens your own table's options.
- h.FocusOn("table-2");h.Choose("room-more");h.Press(MenuInput::Select);
+ // Walking past other tables to the bar's Table options still opens your own table's options.
+ h.FocusOn("table-2");h.Choose("options");
  std::vector<MenuEntry> optionRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){optionRows=rows;});h.Frame();SetMenuEntriesProbe({});
  Check(h.shell.Navigation().Screen()=="room-table"&&std::any_of(optionRows.begin(),optionRows.end(),[](const MenuEntry& e){return e.id=="ready";}),
   "Table options opened a table the player only passed");

@@ -2926,6 +2926,21 @@ msgstr "선택해 캐릭터를 확정하세요. 두 플레이어가 준비되면
 msgid "room.opponent_changed_fighter"
 msgstr "상대가 {0}(으)로 바꿨습니다. 준비하기 전에 울트라를 확인하세요."
 
+msgid "room.ready.with"
+msgstr "{0}, {1}(으)로 준비 완료."
+
+msgid "room.ready.with_against"
+msgstr "{2} 상대로 {0}, {1}(으)로 준비 완료."
+
+msgid "room.ultra.detail"
+msgstr "테이블 옵션을 열지 않고 여기서 다음 게임의 울트라 콤보를 고릅니다."
+
+msgid "room.ultra.single"
+msgstr "이 캐릭터는 이 에디션에서 울트라 콤보가 하나입니다."
+
+msgid "room.ultra.choice_detail"
+msgstr "다음 게임의 울트라 콤보."
+
 msgid "room.both_ready"
 msgstr "두 플레이어 모두 준비됐습니다. 대전을 시작합니다."
 
@@ -4767,6 +4782,12 @@ msgstr "준비"
 
 msgid "postmatch.state.left"
 msgstr "자리 비움"
+
+msgid "postmatch.ultra.detail"
+msgstr "좌우로 다음 게임의 울트라 콤보를 바꿉니다. 새 울트라 콤보로 바꾸면 다음 게임을 먼저 불러옵니다."
+
+msgid "postmatch.ultra.set"
+msgstr "다음 게임의 울트라 콤보가 정해졌습니다."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7645,7 +7666,7 @@ msgid "room.v2.more"
 msgstr "더 보기…"
 
 msgid "room.v2.more_detail"
-msgstr "테이블 옵션, 방 설정, 초대 링크."
+msgstr "컨트롤러, 방 설정, 공개 방 링크, 화면 배치."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

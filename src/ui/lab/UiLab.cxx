@@ -130,7 +130,7 @@ unsigned KeyBit(const std::string& key) {
 // A ShellView with a player, a controller and nothing running.
 ui::ShellView FakeView() {
     ui::ShellView view;
-    view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canOpenRoom = view.helperReady = true;
+    view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canChangeUltra = view.canOpenRoom = view.helperReady = true;
     view.controller = "Xbox pad";
     view.preferences.displayName = "FRaccie";
     view.automaticCountry = CountryCode::Parsed("BE");

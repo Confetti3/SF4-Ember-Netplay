@@ -2925,6 +2925,21 @@ msgstr "Wybierz, aby zablokować postać. Walka rozpocznie się, gdy obaj gracze
 msgid "room.opponent_changed_fighter"
 msgstr "Przeciwnik zmienił postać na {0}. Sprawdź swoją Ultrę, zanim zgłosisz gotowość."
 
+msgid "room.ready.with"
+msgstr "Gotowy z {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Gotowy z {0}, {1}, przeciw {2}."
+
+msgid "room.ultra.detail"
+msgstr "Wybierz tu swoją Ultrę na następną grę, bez otwierania Opcji stołu."
+
+msgid "room.ultra.single"
+msgstr "Ta postać ma w tej edycji tylko jedną Ultrę."
+
+msgid "room.ultra.choice_detail"
+msgstr "Twoja Ultra na następną grę."
+
 msgid "room.both_ready"
 msgstr "Obaj gracze są gotowi. Walka się rozpoczyna."
 
@@ -4766,6 +4781,12 @@ msgstr "Gotowe"
 
 msgid "postmatch.state.left"
 msgstr "Poza miejscem"
+
+msgid "postmatch.ultra.detail"
+msgstr "Lewo i Prawo zmieniają twoją Ultrę na następną grę. Z nową Ultrą następna gra najpierw się wczyta."
+
+msgid "postmatch.ultra.set"
+msgstr "Twoja Ultra na następną grę jest ustawiona."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7644,7 +7665,7 @@ msgid "room.v2.more"
 msgstr "Więcej…"
 
 msgid "room.v2.more_detail"
-msgstr "Opcje stołu, ustawienia pokoju i linki z zaproszeniem."
+msgstr "Kontrolery, ustawienia pokoju, link do pokoju publicznego i układ planszy."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

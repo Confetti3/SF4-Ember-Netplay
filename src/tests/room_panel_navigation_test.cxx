@@ -1,4 +1,5 @@
 #include "../ui/ApplicationShell.hxx"
+#include "../ui/FighterSelector.hxx"
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
@@ -745,6 +746,50 @@ int main() try {
         targets.clear(); frame(); frame();
         Check(room_controls::DescribeTableBanner(view, view.room.tables[0]).text.empty() && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
     }
+    // Changing the Ultra from the board: beside Ready, a list of the fighter's
+    // Ultras by name, whose pick is the steps the table options' row takes. The
+    // table options are a bar button (Y still opens them); the opponent's new
+    // fighter puts the focus on the Ultra; Ready names the Ultra and the matchup.
+    {
+        using Field = ShellAction::SelectionStep::Field;
+        // A choice is the steps to it, which Step takes back to that choice.
+        for (const auto& choices : {std::vector<int>{0, 1, 2}, std::vector<int>{0, 1}, std::vector<int>{0}})
+            for (const int from : {0, 1, 2, 7})
+                for (const int to : {0, 1, 2}) {
+                    int value = from;
+                    Step(value, choices, StepsTo(choices, from, to));
+                    const bool offered = std::find(choices.begin(), choices.end(), to) != choices.end();
+                    Check(offered ? value == to : StepsTo(choices, from, to) == 0, "StepsTo did not lead Step to the chosen value");
+                }
+        view.selectedPick = selection::Pick{}; view.fighterName = "Ryu";
+        view.ultraName = UltraName(0, 0); view.ultraSteps = true;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
+        const auto& ultra = row("room-ultra");
+        Check(ultra.enabled && ultra.popout && ultra.label == UltraName(0, 0) && ultra.choices.size() == 3 &&
+            ultra.choices[1].label == UltraName(0, 1) && ultra.choices[2].label == UltraName(0, 2) && ultra.chosen == "ultra-0",
+            "The board offers no Ultra list beside Ready, or names its Ultras wrong");
+        const auto& more = row("room-more");
+        Check(row("options").enabled && std::none_of(more.choices.begin(), more.choices.end(), [](const MenuChoice& c) { return c.id == "options"; }),
+            "Table options are not a bar button, or are still a choice of More");
+        focus("room-ultra"); press(MenuInput::Select);
+        Check(shell.Navigation().Choosing(), "Select on the board's Ultra did not list the Ultras");
+        press(MenuInput::Down); press(MenuInput::Down); press(MenuInput::Select);
+        Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 2,
+            "Choosing Ultra Double on the board did not step the pick to it");
+        focus("table-0"); frame();
+        view.opponentChangedFighter = 5; ++view.opponentChangeSequence; ++view.room.revision; frame(); frame();
+        Check(shell.Navigation().Focus() == "room-ultra", "The opponent's new fighter did not put the focus on the Ultra");
+        view.opponentChangedFighter = -1; ++view.room.revision; frame();
+        const auto with = loc::Tf("room.ready.with", "Ryu", UltraMove(0, 0));
+        auto ready = room_controls::DescribeReady(view, view.room.tables[0], 0);
+        Check(ready.kind == room_controls::ReadyControl::Ready && ready.detail.compare(0, with.size(), with) == 0,
+            "Ready does not name the fighter and Ultra it locks in");
+        view.room.members[1].fighter = 1; ++view.room.revision;
+        const auto against = loc::Tf("room.ready.with_against", "Ryu", UltraMove(0, 0), selection::FindFighter(1)->name);
+        ready = room_controls::DescribeReady(view, view.room.tables[0], 0);
+        Check(ready.detail.compare(0, against.size(), against) == 0, "Ready does not name the opponent's picked fighter");
+        view.room.members[1].fighter = -1; ++view.room.revision; frame();
+    }
     // The opponent is in Training and is being called back: the table says so
     // on their seat, to everyone but them, until they come back or ready.
     {
@@ -1451,8 +1496,12 @@ int main() try {
 
     // The room link row belongs to a public room this shell joined from the list: a private room
     // and a server-owned room reached any other way offer none (the journeys cover the row itself).
+    // The room link is a choice of More….
     const auto offers = [&](const char* id) {
-        return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& entry) { return entry.id == id; });
+        return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& entry) {
+            return entry.id == id || (entry.id == "room-more" &&
+                std::any_of(entry.choices.begin(), entry.choices.end(), [&](const MenuChoice& c) { return c.id == id; }));
+        });
     };
     view.session.room = netplay::RoomState::Joined; view.canEditSelection = true;
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
@@ -1649,7 +1698,7 @@ int main() try {
         };
         const auto at = [&] { return shell.Navigation().Focus(); };
         const auto onBar = [&] {
-            for (const char* id : {"ready", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
+            for (const char* id : {"ready", "room-ultra", "options", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
             return false;
         };
         // ArcadeBoardReachesActionBarByGeometry: from cabinet 7 three Downs reach
@@ -1659,7 +1708,7 @@ int main() try {
         focus("cabinet-6"); frame();
         for (int i = 0; i < 3; ++i) press(MenuInput::Down);
         Check(onBar(), "Down, Down, Down from cabinet 7 did not reach the action bar");
-        for (int i = 0; i < 4 && at() != "leave"; ++i) press(MenuInput::Right);
+        for (int i = 0; i < 8 && at() != "leave"; ++i) press(MenuInput::Right);
         Check(at() == "leave", "Right along the action bar did not reach Leave room");
         focus("member-1"); frame(); press(MenuInput::Left);
         const auto cabinet = RowKey(at(), "cabinet-");

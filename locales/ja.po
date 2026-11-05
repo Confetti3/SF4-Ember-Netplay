@@ -2926,6 +2926,21 @@ msgstr "選択するとキャラが確定します。両プレイヤーが準備
 msgid "room.opponent_changed_fighter"
 msgstr "相手が{0}に変更しました。準備完了の前にウルトラを確認してください。"
 
+msgid "room.ready.with"
+msgstr "{0}、{1}で準備完了。"
+
+msgid "room.ready.with_against"
+msgstr "{2}を相手に{0}、{1}で準備完了。"
+
+msgid "room.ultra.detail"
+msgstr "対戦席の設定を開かずに、次の試合のウルトラコンボをここで選びます。"
+
+msgid "room.ultra.single"
+msgstr "このキャラはこのエディションではウルトラコンボが一つです。"
+
+msgid "room.ultra.choice_detail"
+msgstr "次の試合のウルトラコンボ。"
+
 msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
 
@@ -4767,6 +4782,12 @@ msgstr "準備完了"
 
 msgid "postmatch.state.left"
 msgstr "席を離れた"
+
+msgid "postmatch.ultra.detail"
+msgstr "左右で次の試合のウルトラコンボを変更します。新しいウルトラコンボにすると、次の試合は読み込んでから始まります。"
+
+msgid "postmatch.ultra.set"
+msgstr "次の試合のウルトラコンボは決まりました。"
 
 msgid "rules.set_summary"
 msgstr "{0}、{1}"
@@ -7645,7 +7666,7 @@ msgid "room.v2.more"
 msgstr "その他…"
 
 msgid "room.v2.more_detail"
-msgstr "対戦席の設定、ルーム設定、招待リンク。"
+msgstr "コントローラー、ルーム設定、公開ルームのリンク、画面の配置。"
 
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"

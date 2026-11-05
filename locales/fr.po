@@ -2925,6 +2925,21 @@ msgstr "Sélectionnez pour verrouiller votre personnage. Le combat démarre quan
 msgid "room.opponent_changed_fighter"
 msgstr "L'adversaire a pris {0}. Vérifiez votre Ultra avant de passer à Prêt."
 
+msgid "room.ready.with"
+msgstr "Prêt avec {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Prêt avec {0}, {1}, contre {2}."
+
+msgid "room.ultra.detail"
+msgstr "Choisissez votre Ultra pour la partie suivante ici, sans ouvrir les Options de la table."
+
+msgid "room.ultra.single"
+msgstr "Ce combattant n'a qu'un Ultra dans cette édition."
+
+msgid "room.ultra.choice_detail"
+msgstr "Votre Ultra pour la partie suivante."
+
 msgid "room.both_ready"
 msgstr "Les deux combattants sont prêts. Le combat commence."
 
@@ -4766,6 +4781,12 @@ msgstr "Prêt"
 
 msgid "postmatch.state.left"
 msgstr "A quitté sa place"
+
+msgid "postmatch.ultra.detail"
+msgstr "Gauche et Droite changent votre Ultra pour la partie suivante. Avec un nouvel Ultra, la partie suivante se charge d'abord."
+
+msgid "postmatch.ultra.set"
+msgstr "Votre Ultra pour la partie suivante est choisi."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7644,7 +7665,7 @@ msgid "room.v2.more"
 msgstr "Plus…"
 
 msgid "room.v2.more_detail"
-msgstr "Options de la table, paramètres du salon et liens d'invitation."
+msgstr "Manettes, paramètres du salon, lien d'un salon public et disposition du tableau."
 
 msgid "room.v2.part_state"
 msgstr "{0} : {1}"

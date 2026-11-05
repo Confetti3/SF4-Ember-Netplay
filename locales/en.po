@@ -2764,6 +2764,20 @@ msgstr "Select to lock in your fighter. The match starts when both players are r
 
 msgid "room.opponent_changed_fighter"
 msgstr "Opponent changed to {0}. Check your Ultra before you ready up."
+msgid "room.ready.with"
+msgstr "Ready with {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Ready with {0}, {1}, against {2}."
+
+msgid "room.ultra.detail"
+msgstr "Choose your Ultra for the next game here, without opening Table options."
+
+msgid "room.ultra.single"
+msgstr "This fighter has one Ultra in this edition."
+
+msgid "room.ultra.choice_detail"
+msgstr "Your Ultra for the next game."
 msgid "room.both_ready"
 msgstr "Both fighters are ready. The match is starting."
 msgid "room.waiting_spectators"
@@ -4393,6 +4407,12 @@ msgstr "Ready"
 
 msgid "postmatch.state.left"
 msgstr "Left the seat"
+
+msgid "postmatch.ultra.detail"
+msgstr "Left and Right change your Ultra for the next game. With a new Ultra, the next game loads first."
+
+msgid "postmatch.ultra.set"
+msgstr "Your Ultra for the next game is set."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7271,7 +7291,7 @@ msgid "room.v2.more"
 msgstr "More…"
 
 msgid "room.v2.more_detail"
-msgstr "Table options, room settings and invitation links."
+msgstr "Controllers, room settings, a public room's link and the board's layout."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

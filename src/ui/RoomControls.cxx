@@ -1,6 +1,7 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
 #include "Theme.hxx"
+#include "FighterSelector.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -204,10 +205,16 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
     control.detail = control.refusal = ReadyBlocker(v, t);
     if (control.detail.empty()) {
         control.kind = postMatch ? ReadyControl::Rematch : ReadyControl::Ready;
-        control.detail = std::string(loc::T("room.ready.lock_detail")) + "\n" + v.selectionSummary;
+        control.detail = ReadyWithText(v, t, seat) + "\n" + loc::T("room.ready.lock_detail") + "\n" + v.selectionSummary;
         if (v.opponentChangedFighter >= 0) control.detail = OpponentChangedText(v.opponentChangedFighter) + "\n" + control.detail;
     }
     return control;
+}
+std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat) {
+    const auto* opponent = room::FindMember(v.room, seat == 0 ? t.p2 : seat == 1 ? t.p1 : 0);
+    const auto* against = opponent ? selection::FindFighter(opponent->fighter) : nullptr;
+    const auto ultra = UltraMove(v.selectedPick.fighter, v.selectedPick.ultra);
+    return against ? loc::Tf("room.ready.with_against", v.fighterName, ultra, against->name) : loc::Tf("room.ready.with", v.fighterName, ultra);
 }
 std::string OpponentChangedText(int fighter) {
     const auto* found = selection::FindFighter(fighter);

@@ -283,12 +283,12 @@ void AppearanceGalleries(){
  available.colors[1]=0;frame(0,false);frame(0,false);available.colors[1]=5;
  // Ultra: the row steps through the fighter's Ultras; Double is the last.
  pick.ultra=0;focus("ultra");
- Check(press(MenuInput::Right)&&pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Right on the Ultra row did not save Ultra II");
+ Check(press(MenuInput::Right)&&pick.ultra==1&&row("ultra").value==UltraName(pick.fighter,1),"Right on the Ultra row did not save Ultra II");
  Dimps::GameEvents::VsMode::ConfirmedCharaConditions native{};
  selection::ToNative(pick,native);pick=selection::FromNative(native);frame();
- Check(pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Native selection round trip lost Ultra II");
+ Check(pick.ultra==1&&row("ultra").value==UltraName(pick.fighter,1),"Native selection round trip lost Ultra II");
  press(MenuInput::Right,false);Check(pick.ultra==1,"A locked Ultra row saved a step");
- press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==ShortUltraLabel(2),"Ultra Double did not save");
+ press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==UltraName(pick.fighter,2),"Ultra Double did not save");
  Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="look","Left on Ultra Combo did not step back to Ultra II");
  Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
  press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","Select on Ultra Combo did not open its values");

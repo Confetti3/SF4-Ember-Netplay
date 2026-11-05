@@ -2925,6 +2925,21 @@ msgstr "Wählen, um den Charakter festzulegen. Kampf beginnt, sobald beide Spiel
 msgid "room.opponent_changed_fighter"
 msgstr "Der Gegner hat zu {0} gewechselt. Prüfen Sie Ihr Ultra, bevor Sie bereit sind."
 
+msgid "room.ready.with"
+msgstr "Bereit mit {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Bereit mit {0}, {1}, gegen {2}."
+
+msgid "room.ultra.detail"
+msgstr "Wählen Sie Ihr Ultra für das nächste Spiel hier, ohne die Tischoptionen zu öffnen."
+
+msgid "room.ultra.single"
+msgstr "Dieser Kämpfer hat in dieser Edition nur ein Ultra."
+
+msgid "room.ultra.choice_detail"
+msgstr "Ihr Ultra für das nächste Spiel."
+
 msgid "room.both_ready"
 msgstr "Beide Charaktere sind bereit. Der Kampf beginnt."
 
@@ -4766,6 +4781,12 @@ msgstr "Bereit"
 
 msgid "postmatch.state.left"
 msgstr "Platz verlassen"
+
+msgid "postmatch.ultra.detail"
+msgstr "Links und Rechts wechseln Ihr Ultra für das nächste Spiel. Mit einem neuen Ultra lädt das nächste Spiel zuerst."
+
+msgid "postmatch.ultra.set"
+msgstr "Ihr Ultra für das nächste Spiel steht fest."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7644,7 +7665,7 @@ msgid "room.v2.more"
 msgstr "Mehr…"
 
 msgid "room.v2.more_detail"
-msgstr "Tischoptionen, Raumeinstellungen und Einladungslinks."
+msgstr "Controller, Raumeinstellungen, der Link eines öffentlichen Raums und das Layout der Übersicht."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"

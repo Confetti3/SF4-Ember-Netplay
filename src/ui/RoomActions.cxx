@@ -104,6 +104,16 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.kind==MenuAction::Chosen){
   // More…'s choice is the row it stands for.
   if(a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
+  // The board's Ultra: the one chosen is the steps to it, as Left and Right
+  // take on the table options' row.
+  if(a.id=="room-ultra"){
+   const auto ultra=RowKey<int>(a.text,"ultra-");
+   const int steps=ultra?StepsTo(selection::AllowedUltras(v.selectedPick.fighter,v.selectedPick.edition),v.selectedPick.ultra,*ultra):0;
+   if(!steps||!v.canEditSelection||!RoomActionsAvailable(v))return;
+   ShellAction step;step.command.generation=v.session.generation;
+   step.selectionStep={ShellAction::SelectionStep::Field::Ultra,steps};submit(std::move(step));
+   return;
+  }
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
   selectedTable_=*table;
   if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}

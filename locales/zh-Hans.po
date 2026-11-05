@@ -2926,6 +2926,21 @@ msgstr "选择以锁定角色。双方准备好后开始对战。"
 msgid "room.opponent_changed_fighter"
 msgstr "对手换成了{0}。准备前请检查你的 Ultra。"
 
+msgid "room.ready.with"
+msgstr "使用{0}、{1}准备就绪。"
+
+msgid "room.ready.with_against"
+msgstr "使用{0}、{1}对阵{2}，准备就绪。"
+
+msgid "room.ultra.detail"
+msgstr "在这里选择下一局的终极组合，不用打开对战席选项。"
+
+msgid "room.ultra.single"
+msgstr "该角色在此版本中只有一个终极组合。"
+
+msgid "room.ultra.choice_detail"
+msgstr "你下一局的终极组合。"
+
 msgid "room.both_ready"
 msgstr "双方均已准备，对战即将开始。"
 
@@ -4767,6 +4782,12 @@ msgstr "准备"
 
 msgid "postmatch.state.left"
 msgstr "已离席"
+
+msgid "postmatch.ultra.detail"
+msgstr "左右键切换下一局的终极组合。换了新的终极组合，下一局会先加载。"
+
+msgid "postmatch.ultra.set"
+msgstr "下一局的终极组合已选定。"
 
 msgid "rules.set_summary"
 msgstr "{0}，{1}"
@@ -7645,7 +7666,7 @@ msgid "room.v2.more"
 msgstr "更多…"
 
 msgid "room.v2.more_detail"
-msgstr "对战席选项、房间设置和邀请链接。"
+msgstr "控制器、房间设置、公开房间的链接和画面布局。"
 
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"

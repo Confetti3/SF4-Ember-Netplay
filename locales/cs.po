@@ -2925,6 +2925,21 @@ msgstr "Výběrem zamknete postavu. Zápas začne, až budou oba hráči připra
 msgid "room.opponent_changed_fighter"
 msgstr "Soupeř změnil postavu na {0}. Než budete připraveni, zkontrolujte svou Ultru."
 
+msgid "room.ready.with"
+msgstr "Připraven s {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Připraven s {0}, {1}, proti {2}."
+
+msgid "room.ultra.detail"
+msgstr "Vyberte si Ultru pro další hru přímo zde, bez otevírání Možností stolu."
+
+msgid "room.ultra.single"
+msgstr "Tato postava má v této edici jen jednu Ultru."
+
+msgid "room.ultra.choice_detail"
+msgstr "Vaše Ultra pro další hru."
+
 msgid "room.both_ready"
 msgstr "Oba hráči jsou připraveni. Zápas začíná."
 
@@ -4766,6 +4781,12 @@ msgstr "Připraven"
 
 msgid "postmatch.state.left"
 msgstr "Místo uvolněno"
+
+msgid "postmatch.ultra.detail"
+msgstr "Šipky vlevo a vpravo mění vaši Ultru pro další hru. S novou Ultrou se další hra nejprve načte."
+
+msgid "postmatch.ultra.set"
+msgstr "Vaše Ultra pro další hru je nastavena."
 
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
@@ -7644,7 +7665,7 @@ msgid "room.v2.more"
 msgstr "Další…"
 
 msgid "room.v2.more_detail"
-msgstr "Možnosti stolu, nastavení místnosti a odkazy s pozvánkou."
+msgstr "Ovladače, nastavení místnosti, odkaz veřejné místnosti a rozložení plochy."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
