@@ -885,12 +885,14 @@ int main(int argc, char** argv) {
             // The board is the grid alone; a fighter's choices are on their own page.
             const auto boardRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Prefer(row);draw();};
             const auto lookRow=[&](const char* row){selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Prefer(row);draw();};
-            for(const char* row:{"costume","ultra"}){
-                lookRow(row);draw(nullptr,MenuInput::Select,1);showAppearance(std::string("look-")+row+"-values");
-                Require(selector.Navigation().Choosing(),"A fighter page row did not open its values");
-                // Select on the saved value closes the panel and keeps it.
-                draw(nullptr,MenuInput::Select,1);draw();
-            }
+            // Costume opens its picture grid; Back leaves the pick as it was.
+            lookRow("costume");draw(nullptr,MenuInput::Select,1);showAppearance("look-costume-grid");
+            Require(selector.Navigation().Screen()=="costumes","The fighter page's Costume row did not open the costume grid");
+            draw(nullptr,MenuInput::Back,1);draw();
+            lookRow("ultra");draw(nullptr,MenuInput::Select,1);showAppearance("look-ultra-values");
+            Require(selector.Navigation().Choosing(),"A fighter page row did not open its values");
+            // Select on the saved value closes the panel and keeps it.
+            draw(nullptr,MenuInput::Select,1);draw();
             lookRow("ultra");
             const int savedUltra=pick.ultra;
             for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
