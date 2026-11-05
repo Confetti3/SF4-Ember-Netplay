@@ -14,7 +14,8 @@ namespace sf4e { namespace ui {
 // costume's colours at once, and Select on a colour saves the costume and
 // colour together. Select on the Color row opens the worn costume's colours.
 // Select on the Ultra row shows a card for each Ultra the edition allows: its
-// picture, its name and its input in words; Select on one saves it. Back
+// picture with the game's mark, its name and its input as symbols over the
+// same in words (docs/design/ULTRA_INPUTS.md); Select on one saves it. Back
 // steps out without saving: the costume chosen waits on its colour. Only
 // what AllowedCostumes, AllowedColors and AllowedUltras give is a card, so
 // the Steam licences and the edition decide what is offered.
@@ -46,14 +47,21 @@ public:
 private:
     // Back to the screen under the grids (the look page).
     static void Leave(MenuNavigation& nav);
+    // An Ultra's input on its card: for each command its symbols (UltraCommand)
+    // and its line in words (UltraInputLines). Ultra Double has one for each
+    // Ultra, each under its heading ("U1 Metsu Hadoken").
+    struct Command { std::string symbols, line; };
+    struct Input { std::string heading; std::vector<Command> commands; };
     // A built row's card: the fighter as it draws them (an Ultra's card only
-    // where the Ultra has no picture of its own), an Ultra's input lines, and
+    // where the Ultra has no picture of its own), an Ultra's inputs, and
     // whether it is what the pick has now.
     struct Card {
         FighterPicture figure;
-        std::vector<std::string> inputs;
+        std::vector<Input> inputs;
         bool worn = false;
     };
+    // The Ultra cards, DrawBody's for the Ultras page.
+    void DrawUltras(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, bool changed);
     // The costume whose colours the colour grid shows: chosen on the costume
     // grid and not saved until a colour is.
     int costume_ = 0;

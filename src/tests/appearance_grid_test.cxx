@@ -75,17 +75,23 @@ int main() {
 
     // The figure cards are the shape this test lays out above.
     CHECK(FigureCard.aspect == aspect && FigureCard.narrowest == narrowest && FigureCard.widest == widest);
-    // The Ultra cards: 16:9 pictures with a caption of the name and up to four
-    // input lines (Gen's Ultra Double). The three of USFIV sit on one line at
-    // their widest on a 1280x600 body, and at 640x720 all of them still show.
+    // The Ultra cards: 16:9 pictures over the name and each command's symbols
+    // and words, about 240 px for one command a side (Ryu's Ultra Double) and
+    // 380 for two (Gen's). The three of USFIV fill a 1080p body on one line at
+    // their widest, stay on one line at 720p, and at 640x720 all still show.
     {
-        const float ultraCaption = 15 + 8 + 4 * 19;
-        const auto wide = FitGallery(3, 1280, 600, gap, UltraCard.aspect, ultraCaption, UltraCard.narrowest, UltraCard.widest);
-        CHECK(wide.Lines(3) == 1 && wide.width == UltraCard.widest && fits(wide, 3, 1280, 600));
-        const auto narrow = FitGallery(3, 640, 720, gap, UltraCard.aspect, ultraCaption, UltraCard.narrowest, UltraCard.widest);
-        CHECK(narrow.width >= UltraCard.narrowest && fits(narrow, 3, 640, 720));
+        const float oneCommand = 240, twoCommands = 380;
+        const auto full = FitGallery(3, 1840, 880, gap, UltraCard.aspect, twoCommands, UltraCard.narrowest, UltraCard.widest);
+        CHECK(full.Lines(3) == 1 && full.width == UltraCard.widest && fits(full, 3, 1840, 880));
+        CHECK(3 * UltraCard.widest + 2 * gap <= 1840);
+        for (const float inputs : {oneCommand, twoCommands}) {
+            const auto small = FitGallery(3, 1200, 520, gap, UltraCard.aspect, inputs, UltraCard.narrowest, UltraCard.widest);
+            CHECK(small.Lines(3) == 1 && small.width >= UltraCard.narrowest && fits(small, 3, 1200, 520));
+        }
+        const auto narrow = FitGallery(3, 600, 560, gap, UltraCard.aspect, oneCommand, UltraCard.narrowest, UltraCard.widest);
+        CHECK(narrow.width >= UltraCard.narrowest && fits(narrow, 3, 600, 560));
         // Two Ultras (an earlier edition) are as wide as they go too.
-        const auto two = FitGallery(2, 1280, 600, gap, UltraCard.aspect, ultraCaption, UltraCard.narrowest, UltraCard.widest);
+        const auto two = FitGallery(2, 1840, 880, gap, UltraCard.aspect, oneCommand, UltraCard.narrowest, UltraCard.widest);
         CHECK(two.Lines(2) == 1 && two.width == UltraCard.widest);
     }
 

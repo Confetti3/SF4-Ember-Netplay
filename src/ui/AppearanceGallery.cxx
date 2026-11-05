@@ -9,6 +9,9 @@
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
+#include <cfloat>
+#include <cmath>
+#include <sstream>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -21,6 +24,113 @@ void DrawUltraPicture(const FighterPicture& figure, int ultra, ImVec2 min, ImVec
     const SelectionImage picture = art ? art->Ultra(figure.fighter, ultra) : SelectionImage{};
     if (art && !picture.missing) ImageInRect(picture, min, max);
     else DrawCharacterPortrait(figure, min, max, IM_COL32(0, 0, 0, 0));
+}
+
+// An Ultra's command as symbols (UltraCommand::symbols, facing right): a
+// motion is an arrow, a curved one an arc on a dark disc with an Ember dot
+// where it starts; a button is its letters in an Ember ring, three rings for
+// PPP or KKK; a charge carries the word for it under its arrow. Vector paths,
+// so they keep their shape at every size. `unit` is a symbol's side.
+std::vector<std::string> SymbolTokens(const std::string& symbols) {
+    std::istringstream stream(symbols);
+    std::vector<std::string> tokens;
+    for (std::string token; stream >> token;) tokens.push_back(token);
+    return tokens;
+}
+float TokenUnits(std::string token) {
+    if (!token.empty() && token[0] == '~') token.erase(0, 1);
+    return token == "PPP" || token == "KKK" ? 2.4f : token == "+" ? .6f : 1.f;
+}
+constexpr float SymbolGap = .1f;
+// The symbols' width, in units.
+float SymbolUnits(const std::string& symbols) {
+    float units = 0;
+    for (const auto& token : SymbolTokens(symbols)) units += TokenUnits(token) + (units > 0 ? SymbolGap : 0);
+    return units;
+}
+// A row of symbols: a unit tall, and the charge word's line under it.
+float SymbolRowHeight(float unit) { return unit * 1.42f; }
+void DrawSymbols(ImDrawList* d, ImVec2 origin, float unit, const std::string& symbols, const char* charge) {
+    const float k = unit / 30;
+    auto* font = ImGui::GetFont();
+    const ImU32 ivory = palette::Ivory, ember = palette::Ember;
+    const auto arrowHead = [&](ImVec2 tip, ImVec2 direction) {
+        const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+        if (length < .001f) return;
+        direction.x /= length; direction.y /= length;
+        d->AddTriangleFilled(tip,
+            ImVec2(tip.x - 7 * k * direction.x + 4 * k * direction.y, tip.y - 7 * k * direction.y - 4 * k * direction.x),
+            ImVec2(tip.x - 7 * k * direction.x - 4 * k * direction.y, tip.y - 7 * k * direction.y + 4 * k * direction.x), ivory);
+    };
+    float x = 0;
+    for (auto token : SymbolTokens(symbols)) {
+        const bool held = token[0] == '~';
+        if (held) token.erase(0, 1);
+        const bool triple = token == "PPP" || token == "KKK";
+        const bool button = token.find('P') != std::string::npos || token.find('K') != std::string::npos;
+        const float width = TokenUnits(token) * unit;
+        const ImVec2 p(origin.x + x, origin.y), center(p.x + unit / 2, p.y + unit / 2);
+        if (button) {
+            // LP, LK or HP keep both letters; PPP and KKK are three of one.
+            const std::string label = triple ? token.substr(0, 1) : token;
+            const float size = unit * (label.size() > 1 ? .4f : .52f);
+            const auto measured = font->CalcTextSizeA(size, FLT_MAX, 0, label.c_str());
+            for (int i = 0; i < (triple ? 3 : 1); ++i) {
+                const ImVec2 c(center.x + i * unit * .7f, center.y);
+                d->AddCircleFilled(c, unit * .44f, IM_COL32(48, 36, 25, 255));
+                d->AddCircle(c, unit * .44f, ember, 24, 1.5f * k);
+                d->AddText(font, size, ImVec2(c.x - measured.x / 2, c.y - measured.y / 2), ivory, label.c_str());
+            }
+        } else if (token == "+") {
+            const float size = unit * .55f;
+            const auto measured = font->CalcTextSizeA(size, FLT_MAX, 0, "+");
+            d->AddText(font, size, ImVec2(p.x + (width - measured.x) / 2, center.y - measured.y / 2), palette::Muted, "+");
+        } else if (token.size() == 1 && token[0] >= '1' && token[0] <= '9' && token[0] != '5') {
+            // A direction on the numeric keypad: 6 forward, 2 down, 9 up-forward.
+            const int digit = token[0] - '0';
+            const ImVec2 direction(static_cast<float>((digit - 1) % 3 - 1), static_cast<float>(1 - (digit - 1) / 3));
+            const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+            const ImVec2 unitDirection(direction.x / length, direction.y / length);
+            const ImVec2 tip(center.x + 11 * k * unitDirection.x, center.y + 11 * k * unitDirection.y);
+            d->AddLine(ImVec2(center.x - 10 * k * unitDirection.x, center.y - 10 * k * unitDirection.y), tip, ivory, 3 * k);
+            arrowHead(tip, unitDirection);
+        } else {
+            // A quarter circle (236, 214), a half circle (63214) or a full one (360).
+            const float pi = 3.14159265f;
+            d->AddCircleFilled(center, unit * .48f, IM_COL32(47, 58, 59, 255));
+            const bool forward = token == "236", back = token == "214", half = token == "63214";
+            const float begin = forward ? pi : back || half ? 0.f : pi / 2;
+            const float end = forward || back ? pi / 2 : half ? pi : -1.3f * pi;
+            // Each arc centred on its disc: a quarter's corner and a half's
+            // flat side sit off the circle's centre.
+            const float radius = (forward || back ? 15 : half ? 12 : 10) * k;
+            const ImVec2 middle(center.x + (forward ? radius / 2 : back ? -radius / 2 : 0), center.y - (forward || back || half ? radius / 2 : 0));
+            ImVec2 points[25];
+            for (int i = 0; i < 25; ++i) {
+                const float angle = begin + (end - begin) * i / 24;
+                points[i] = ImVec2(middle.x + radius * std::cos(angle), middle.y + radius * std::sin(angle));
+            }
+            d->AddPolyline(points, 25, ivory, 0, 3 * k);
+            arrowHead(points[24], ImVec2(points[24].x - points[23].x, points[24].y - points[23].y));
+            d->AddCircleFilled(points[0], 2.2f * k, ember);
+        }
+        if (held) {
+            // The word for a charge under its arrow, shrunk to the arrow's width.
+            const float natural = unit * .36f, measured = font->CalcTextSizeA(natural, FLT_MAX, 0, charge).x;
+            const float size = (std::min)(natural, natural * width / (std::max)(1.f, measured));
+            const float w = font->CalcTextSizeA(size, FLT_MAX, 0, charge).x;
+            d->AddText(font, size, ImVec2(p.x + (width - w) / 2, p.y + unit + 1 * k), ember, charge);
+        }
+        x += width + SymbolGap * unit;
+    }
+}
+// `text` on one line `width` wide: shrunk to three quarters of `size` where
+// that makes it fit, cut short past that.
+void FittedText(ImVec2 at, float width, const std::string& text, float size, ImU32 color) {
+    const float measured = ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
+    if (measured > width) size = (std::max)(size * .75f, size * width / measured);
+    std::string elided;
+    DrawCardText(elided, at, width, text, size, color);
 }
 }
 bool AppearanceGallery::Shows(const std::string& screen) { return screen == CostumesScreen || screen == ColorsScreen || screen == UltrasScreen; }
@@ -59,11 +169,20 @@ std::vector<MenuEntry> AppearanceGallery::Build(const std::string& screen, const
     if (page_ == Page::Ultras) {
         const FighterPicture worn{pick.fighter, FighterArt::Character, pick.costume, pick.color};
         for (const int ultra : AllowedUltras(pick.fighter, pick.edition)) {
-            auto inputs = UltraInputLines(pick.fighter, ultra, pick.edition);
             std::string detail;
-            for (const auto& line : inputs) detail += (detail.empty() ? "" : "\n") + line;
-            card("ultra-" + std::to_string(ultra), UltraName(pick.fighter, ultra), std::move(detail), editable, ultra,
-                 {worn, std::move(inputs), ultra == pick.ultra});
+            for (const auto& line : UltraInputLines(pick.fighter, ultra, pick.edition)) detail += (detail.empty() ? "" : "\n") + line;
+            // Ultra Double's input is Ultra I's and Ultra II's, each under its name.
+            Card drawn{worn, {}, ultra == pick.ultra};
+            for (const int one : ultra == 2 ? std::vector<int>{0, 1} : std::vector<int>{ultra}) {
+                Input input;
+                if (ultra == 2) input.heading = std::string(ShortUltraLabel(one)) + "  " + UltraMove(pick.fighter, one);
+                const auto commands = UltraCommands(pick.fighter, one, pick.edition);
+                const auto lines = UltraInputLines(pick.fighter, one, pick.edition);
+                for (std::size_t i = 0; i < commands.size(); ++i)
+                    input.commands.push_back({commands[i].symbols, i < lines.size() ? lines[i] : std::string()});
+                drawn.inputs.push_back(std::move(input));
+            }
+            card("ultra-" + std::to_string(ultra), UltraName(pick.fighter, ultra), std::move(detail), editable, ultra, std::move(drawn));
             if (editable) rows.back().hint = loc::T("menu.hint.save_ultra");
         }
         return rows;
@@ -101,19 +220,15 @@ void AppearanceGallery::DrawBody(const std::vector<MenuEntry>& rows, MenuNavigat
         for (const auto& e : rows) { ImGui::TextWrapped("%s", e.label.c_str()); ImGui::TextWrapped("%s", e.detail.c_str()); }
         return;
     }
-    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, gap = 8 * s;
-    const float font = (std::min)(ImGui::GetFontSize(), 15 * s), line = font + 4 * s;
-    const auto& c = v2::Colors();
-    auto* d = ImGui::GetWindowDrawList();
     const bool changed = nav.Focus() != focus_;
     focus_ = nav.Focus();
-    const bool ultras = page_ == Page::Ultras;
-    // Every card's caption is as tall as the one with the most input lines.
-    std::size_t inputLines = 0;
-    for (const auto& card : cards_) inputLines = (std::max)(inputLines, card.inputs.size());
-    const float caption = font + 8 * s + line * static_cast<float>(inputLines);
-    const auto& shape = ultras ? UltraCard : FigureCard;
-    const auto grid = FitGallery(rows.size(), width, height, gap, shape.aspect, caption, shape.narrowest * s, shape.widest * s);
+    if (page_ == Page::Ultras) { DrawUltras(rows, nav, action, height, changed); return; }
+    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, gap = 8 * s;
+    const float font = (std::min)(ImGui::GetFontSize(), 15 * s);
+    const auto& c = v2::Colors();
+    auto* d = ImGui::GetWindowDrawList();
+    const float caption = font + 8 * s;
+    const auto grid = FitGallery(rows.size(), width, height, gap, FigureCard.aspect, caption, FigureCard.narrowest * s, FigureCard.widest * s);
     const auto origin = ImGui::GetCursorScreenPos();
     for (std::size_t i = 0; i < rows.size(); ++i) {
         const auto& e = rows[i];
@@ -122,31 +237,103 @@ void AppearanceGallery::DrawBody(const std::vector<MenuEntry>& rows, MenuNavigat
         const v2::Box b{ImVec2(origin.x + at.x, origin.y + at.y), ImVec2(origin.x + at.x + grid.width, origin.y + at.y + grid.height)};
         const bool hovered = PressEntry(nav, rows, e, b, action, changed).hovered, focused = e.id == nav.Focus();
         v2::CardGround(d, b, focused, hovered, shown.worn);
-        const ImVec2 top(b.min.x + 3 * s, b.min.y + 3 * s), bottom(b.max.x - 3 * s, b.max.y - caption);
-        const auto ultra = static_cast<int>(e.key);
-        if (!ultras) DrawCharacterPortrait(shown.figure, top, bottom, IM_COL32(0, 0, 0, 0));
-        else if (ultra != 2) DrawUltraPicture(shown.figure, ultra, top, bottom);
-        else {
-            // Ultra Double is both: Ultra I's picture beside Ultra II's.
-            const float half = (bottom.x - top.x - 4 * s) / 2;
-            DrawUltraPicture(shown.figure, 0, top, ImVec2(top.x + half, bottom.y));
-            DrawUltraPicture(shown.figure, 1, ImVec2(bottom.x - half, top.y), bottom);
-        }
+        DrawCharacterPortrait(shown.figure, ImVec2(b.min.x + 3 * s, b.min.y + 3 * s), ImVec2(b.max.x - 3 * s, b.max.y - caption), IM_COL32(0, 0, 0, 0));
         if (!e.enabled) d->AddRectFilled(b.min, b.max, v2::color::Alpha(c.ink, .65f), 4 * s);
         d->AddRectFilled(ImVec2(b.min.x, b.max.y - caption), b.max, v2::color::Alpha(c.ink, .85f));
         std::string elided;
-        ImVec2 text(b.min.x + 4 * s, b.max.y - caption + 4 * s);
-        DrawCardText(elided, text, grid.width - 8 * s, e.label, font, shown.worn ? c.accent : c.text, true);
-        for (const auto& input : shown.inputs) {
-            text.y += line;
-            DrawCardText(elided, text, grid.width - 8 * s, input, font, c.muted, true);
-        }
+        DrawCardText(elided, ImVec2(b.min.x + 4 * s, b.max.y - caption + 4 * s), grid.width - 8 * s, e.label, font, shown.worn ? c.accent : c.text, true);
         if (focused) v2::Focus(d, b.min, b.max, false);
     }
     // The grid's whole height, so a grid taller than the body scrolls.
     const auto lines = static_cast<float>(grid.Lines(rows.size()));
     ImGui::SetCursorScreenPos(origin);
     ImGui::Dummy(ImVec2(width, lines * (grid.height + gap) - gap));
+}
+// The Ultra page as the old one drew it, at the size of the screen: each card
+// its photo (Ultra Double a large W) with the game's mark top-right and SAVED
+// top-left, its name, and each command's symbols over its line in words.
+void AppearanceGallery::DrawUltras(const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, bool changed) {
+    const float s = Scale(), width = ImGui::GetContentRegionAvail().x, gap = 14 * s, pad = 12 * s;
+    const float titleFont = (std::min)(ImGui::GetFontSize() * 1.1f, 20 * s), font = (std::min)(ImGui::GetFontSize(), 15 * s);
+    const float titleLine = titleFont + 10 * s, line = font + 6 * s, between = 8 * s;
+    const auto& c = v2::Colors();
+    auto* d = ImGui::GetWindowDrawList();
+    // Every card's caption is as tall as the one with the most to show, and
+    // every symbol row as large as the longest command lets them be.
+    float widest = 1;
+    for (const auto& card : cards_) for (const auto& input : card.inputs) for (const auto& command : input.commands)
+        widest = (std::max)(widest, SymbolUnits(command.symbols));
+    const auto caption = [&](float unit) {
+        float most = 0;
+        for (const auto& card : cards_) {
+            float h = 0;
+            for (const auto& input : card.inputs)
+                h += (input.heading.empty() ? 0 : line) + static_cast<float>(input.commands.size()) * (SymbolRowHeight(unit) + line) + between;
+            most = (std::max)(most, h);
+        }
+        return pad + titleLine + most + pad - between;
+    };
+    const auto fit = [&](float unit) {
+        return FitGallery(rows.size(), width, height, gap, UltraCard.aspect, caption(unit), UltraCard.narrowest * s, UltraCard.widest * s);
+    };
+    // The largest symbols are 34 px a side (at 1080p); narrower cards shrink them to fit.
+    float unit = 34 * s;
+    auto grid = fit(unit);
+    const float fits = (grid.width - 2 * pad) / widest;
+    if (fits < unit) { unit = fits; grid = fit(unit); }
+    // A row of cards shorter than the page stands in its middle.
+    const float lines = static_cast<float>(grid.Lines(rows.size())), whole = lines * (grid.height + gap) - gap;
+    const auto origin = ImGui::GetCursorScreenPos();
+    const float drop = (std::max)(0.f, (height - whole) * .5f);
+    const char* charge = loc::T("selection.ultra_charge");
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        const auto& e = rows[i];
+        const auto& shown = cards_[i];
+        const int ultra = static_cast<int>(e.key);
+        const auto at = grid.Cell(i, width, gap);
+        const v2::Box b{ImVec2(origin.x + at.x, origin.y + drop + at.y), ImVec2(origin.x + at.x + grid.width, origin.y + drop + at.y + grid.height)};
+        const bool hovered = PressEntry(nav, rows, e, b, action, changed).hovered, focused = e.id == nav.Focus();
+        v2::CardGround(d, b, focused, hovered, shown.worn);
+        const v2::Box picture{ImVec2(b.min.x + 3 * s, b.min.y + 3 * s), ImVec2(b.max.x - 3 * s, b.min.y + 3 * s + (grid.width - 6 * s) * UltraCard.aspect)};
+        if (ultra != 2) DrawUltraPicture(shown.figure, ultra, picture.min, picture.max);
+        else {
+            // Ultra Double: one large W on a dark panel, drawn as a shape so it
+            // stays sharp at any size.
+            d->AddRectFilled(picture.min, picture.max, IM_COL32(26, 22, 19, 255));
+            const float tall = (std::min)(picture.H() * .6f, picture.W() * .56f), wide = tall * 1.25f;
+            const ImVec2 corner((picture.min.x + picture.max.x - wide) * .5f, (picture.min.y + picture.max.y - tall) * .5f);
+            static const float outline[][2] = {{0, 0}, {.2f, 0}, {.3f, .62f}, {.42f, 0}, {.58f, 0}, {.7f, .62f}, {.8f, 0}, {1, 0},
+                {.82f, 1}, {.62f, 1}, {.5f, .38f}, {.38f, 1}, {.18f, 1}};
+            ImVec2 points[13];
+            for (int p = 0; p < 13; ++p) points[p] = ImVec2(corner.x + outline[p][0] * wide, corner.y + outline[p][1] * tall);
+            d->AddConcavePolyFilled(points, 13, palette::Ember);
+        }
+        // The game's I, II or W top-right; SAVED top-left on the Ultra saved now.
+        const float corner = 6 * s;
+        DrawUltraMark(d, ImVec2(picture.max.x - corner, picture.min.y + corner), (std::min)(64 * s, (std::max)(20 * s, picture.H() * .2f)), ultra);
+        if (shown.worn) DrawCardBadge(ImVec2(picture.min.x + corner, picture.min.y + corner), picture.W() * .5f, loc::T("selection.saved"), "saved-badge");
+        d->AddRectFilled(ImVec2(b.min.x + 1, picture.max.y), ImVec2(b.max.x - 1, b.max.y - 1), v2::color::Alpha(c.ink, .85f), 4 * s, ImDrawFlags_RoundCornersBottom);
+        const float x = b.min.x + pad, room = grid.width - 2 * pad;
+        float y = picture.max.y + pad;
+        FittedText(ImVec2(x, y), room, e.label, titleFont, shown.worn ? c.accent : c.text);
+        y += titleLine;
+        for (const auto& input : shown.inputs) {
+            if (!input.heading.empty()) { FittedText(ImVec2(x, y), room, input.heading, font, c.text); y += line; }
+            for (const auto& command : input.commands) {
+                DrawSymbols(d, ImVec2(x, y), unit, command.symbols, charge);
+                y += SymbolRowHeight(unit);
+                // The same input in words that face neither way, for a player on the right.
+                FittedText(ImVec2(x, y), room, command.line, font, c.muted);
+                y += line;
+            }
+            y += between;
+        }
+        if (!e.enabled) d->AddRectFilled(b.min, b.max, v2::color::Alpha(c.ink, .65f), 4 * s);
+        if (focused) v2::Focus(d, b.min, b.max, false);
+    }
+    // The cards' whole height, so cards taller than the body scroll.
+    ImGui::SetCursorScreenPos(origin);
+    ImGui::Dummy(ImVec2(width, drop + whole));
 }
 AppearanceGallery::Choice AppearanceGallery::Choose(const std::string& id, MenuNavigation& nav, selection::Pick& pick,
                                                     const selection::Availability& availability, const selection::InstalledContent* installed) {

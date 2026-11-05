@@ -53,10 +53,11 @@ inline GalleryGrid FitGallery(std::size_t cards, float width, float height, floa
 // A grid's cards, in unscaled pixels: the picture's height for its width
 // (`aspect`), and the narrowest and widest a card goes (FitGallery). A
 // costume or colour shows the whole figure, taller than wide; an Ultra its
-// 16:9 picture, wide enough for its input in words under it.
+// 16:9 picture, wide enough for its input's symbols and words under it, and as
+// wide as three across a 1080p screen let it be.
 struct CardShape { float aspect, narrowest, widest; };
 constexpr CardShape FigureCard{1.3f, 64, 220};
-constexpr CardShape UltraCard{9.f / 16, 160, 320};
+constexpr CardShape UltraCard{9.f / 16, 160, 560};
 // The colour a costume's card shows it in, and the colour its colour grid
 // opens on: the colour worn now where the costume has it, else its first;
 // 0 where it has none.

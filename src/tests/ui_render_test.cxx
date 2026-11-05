@@ -889,11 +889,14 @@ int main(int argc, char** argv) {
             lookRow("costume");draw(nullptr,MenuInput::Select,1);showAppearance("look-costume-grid");
             Require(selector.Navigation().Screen()=="costumes","The fighter page's Costume row did not open the costume grid");
             draw(nullptr,MenuInput::Back,1);draw();
-            // Ultra opens its cards, each its picture, name and input, once the
-            // pictures have loaded; Select on the saved one keeps it and comes back.
+            // Ultra opens its cards, each its picture with its mark (the game's
+            // I, II or W, else the drawn badge), name, and its input's symbols
+            // and words, once the pictures have loaded; Select on the saved one
+            // keeps it and comes back.
             const auto ultraPicturesLoaded=[&]{
                 const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
-                const auto settled=[&](int ultra){const auto img=art->Ultra(pick.fighter,ultra);return img.missing||img.texture!=0;};
+                const auto ready=[](const sf4e::ui::SelectionImage& img){return img.missing||img.texture!=0;};
+                const auto settled=[&](int ultra){return ready(art->Ultra(pick.fighter,ultra))&&ready(art->UltraIcon(ultra))&&ready(art->UltraIcon(2));};
                 while(art&&!(settled(0)&&settled(1))&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
             };
             lookRow("ultra");draw(nullptr,MenuInput::Select,1);ultraPicturesLoaded();showAppearance("look-ultra-cards");
@@ -903,7 +906,7 @@ int main(int argc, char** argv) {
             Require(selector.Navigation().Screen()=="look"&&pick.ultra==savedUltra,"Select on the saved Ultra card changed it or stayed on the cards");
             lookRow("ultra");
             for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
-            // The cards with each Ultra saved: Ultra Double shows both pictures.
+            // The cards with each Ultra saved: Ultra Double shows its large W and both inputs.
             for(int ultra:{0,1,2}){
                 pick.ultra=ultra;selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Push("ultras");
                 draw(("ultra-cards-saved-"+std::to_string(ultra)).c_str());
