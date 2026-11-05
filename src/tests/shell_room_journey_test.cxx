@@ -104,6 +104,41 @@ void BoardOpensOnReadyAndStepsAreas() {
  h.Frame(0,3);
  Check(focus()=="options","A watcher's board did not open on the action bar");
 }
+// The row LB or RB lands on scrolls into view as a D-pad move's does, by the
+// next frame: the player's own table card below the fold, and Ready when the
+// bar follows the tables in their scroll.
+void AreaStepScrollsIntoView() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ JoinedRoom(h,24);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.revision=3;
+ h.view.room.tableCount=8;
+ room::Member local;local.id=1;local.name="Local";local.table=7;local.seat=0;local.status=room::MemberStatus::Seated;
+ room::Member peer;peer.id=2;peer.name="Peer";peer.table=7;peer.seat=1;peer.status=room::MemberStatus::Seated;
+ h.view.room.members={local,peer};h.view.room.tables[7].p1=1;h.view.room.tables[7].p2=2;h.view.room.tables[7].phase=room::TablePhase::Waiting;
+ h.view.canReady=true;h.view.invitation="sf4://lab";
+ std::map<std::string,bool> inView;
+ SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
+  const auto* d=ImGui::GetWindowDrawList();const ImVec2 lo=d->GetClipRectMin(),hi=d->GetClipRectMax();
+  // Up and down in its scroll (a card runs under the scroll's bar); the clip
+  // is whole pixels, the box not: a pixel's slack.
+  inView[id]=min.y>=lo.y-1&&max.y<=hi.y+1;});
+ const auto focus=[&]{return h.shell.Navigation().Focus();};
+ ImGui::GetIO().DisplaySize=ImVec2(1280,720);
+ h.Frame(0,3);
+ Check(h.shell.Navigation().Screen()=="room"&&focus()=="ready"&&inView["ready"]&&!inView["table-7"],
+  "The fixture's own table card was not below the fold, under a bar in view");
+ h.Press(MenuInput::PrevTab);
+ Check(focus()=="table-7"&&inView["table-7"],"LB to the floor left the player's own card out of view");
+ // Shorter, the bar follows the tables in their scroll, out of sight under
+ // the cards (Up goes further from it, if need be), and RB back to Ready
+ // brings it into view.
+ ImGui::GetIO().DisplaySize=ImVec2(1280,480);h.Frame(0,3);
+ for(int i=0;i<6&&inView["ready"];++i)h.Press(MenuInput::Up);
+ Check(focus().compare(0,6,"table-")==0&&!inView["ready"],"The fixture's bar did not follow the tables out of sight");
+ h.Press(MenuInput::NextTab);
+ Check(focus()=="ready"&&inView["ready"],"RB to the bar left Ready out of view in the tables' scroll");
+ SetMenuCardProbe({});ImGui::GetIO().DisplaySize=ImVec2(1280,960);
+}
 // A room locks the player's settings but those it leaves open
 // (PlayerPreferences::CopyRoomSettings), the board's layout and the watched
 // game's picture: Column changed with the pad in a room goes out at once in the
@@ -684,6 +719,7 @@ void RoomJourneys() {
  TableNameCommitNamesTable();
  NarrowBoardTabsStep();
  BoardOpensOnReadyAndStepsAreas();
+ AreaStepScrollsIntoView();
  RoomLayoutSavesInRoom();
 }
 

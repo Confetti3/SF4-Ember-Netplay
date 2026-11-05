@@ -358,6 +358,11 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
                                      const MenuVisualFeedback& feedback) {
  boardDrawn_=true;
  const float s=Scale();
+ const float logical=ImGui::GetContentRegionAvail().x/s;const bool narrow=logical<860,ultra=logical>=1960;
+ // On a wide board LB and RB go between the floor, the bar, Members and Chat.
+ // They step before the frame is taken, so the row they land on is this
+ // frame's moved focus and scrolls into view as a D-pad move's does.
+ if(!narrow)if(const int step=TabDelta(action)){action={};StepRoomArea(v,rows,nav,step);}
  RoomBoardFrame f{v,rows,nav,action,feedback,nav.Focus(),nav.Focus()!=roomBoardFocus_,menu_.bodyChoices,s,RoomFighterArt(preferences_)};
  const auto& focus=f.focus;
  const unsigned unread=transcript_.Unread(muted_);
@@ -377,7 +382,6 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(6*s,6*s));
  ImGui::PushStyleColor(ImGuiCol_ChildBg,v2::BoardGround(v.SeeThrough()));
  const auto& c=v2::Colors();auto* d=ImGui::GetWindowDrawList();
- const float logical=ImGui::GetContentRegionAvail().x/s;const bool narrow=logical<860,ultra=logical>=1960;
  v2::Box area{origin,ImVec2(origin.x+ImGui::GetContentRegionAvail().x,origin.y+height)};
  ImGui::PushStyleColor(ImGuiCol_ChildBg,ImVec4(0,0,0,0));
  const bool showMembers=preferences_.roomShowMembers,showChat=preferences_.roomShowChat;
@@ -400,8 +404,6 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   }
   area.min.y=ImGui::GetCursorScreenPos().y;
  }
- // On a wide board LB and RB go between the floor, the bar, Members and Chat.
- else if(const int step=TabDelta(action)){action={};StepRoomArea(v,rows,nav,step);}
  v2::Box tables=area,members=area,chat=area;
  if(ultra){
   members=v2::CutLeft(tables,(showMembers?480:FoldedColumnWidth)*s,24*s);chat=v2::CutRight(tables,(showChat?520:FoldedColumnWidth)*s,24*s);
