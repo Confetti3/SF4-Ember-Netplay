@@ -1,0 +1,155 @@
+diff --git a/src/include/ggponet.h b/src/include/ggponet.h
+index f10deb6..fc06e0d 100644
+--- a/src/include/ggponet.h
++++ b/src/include/ggponet.h
+@@ -426,6 +426,19 @@ GGPO_API GGPOErrorCode __cdecl ggpo_set_frame_delay(GGPOSession *,
+                                                     GGPOPlayerHandle player,
+                                                     int frame_delay);
+ 
++/*
++ * ggpo_set_inputs_ignored --
++ *
++ * Says whether the game reads the inputs of the frame it is about to
++ * advance (call it after ggpo_synchronize_input, before ggpo_advance_frame,
++ * also inside advance_frame callbacks).  When ignored, an input for that
++ * frame that differs from its prediction does not count as a misprediction,
++ * so no rollback starts on it.  The game must then not let those inputs
++ * change the simulation.
++ */
++GGPO_API GGPOErrorCode __cdecl ggpo_set_inputs_ignored(GGPOSession *,
++                                                      bool ignored);
++
+ /*
+  * ggpo_idle --
+  * Should be called periodically by your application to give GGPO.net
+diff --git a/src/lib/ggpo/backends/backend.h b/src/lib/ggpo/backends/backend.h
+index 5830e8b..4e37e7d 100644
+--- a/src/lib/ggpo/backends/backend.h
++++ b/src/lib/ggpo/backends/backend.h
+@@ -26,6 +26,7 @@ struct GGPOSession {
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode GetSpectatorBacklog(int *frames) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay) { return GGPO_ERRORCODE_UNSUPPORTED; }
++   virtual GGPOErrorCode SetInputsIgnored(bool ignored) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout) { return GGPO_ERRORCODE_UNSUPPORTED; }
+ };
+diff --git a/src/lib/ggpo/backends/p2p.h b/src/lib/ggpo/backends/p2p.h
+index 5fcbffe..406abcb 100644
+--- a/src/lib/ggpo/backends/p2p.h
++++ b/src/lib/ggpo/backends/p2p.h
+@@ -31,6 +31,7 @@ public:
+    virtual GGPOErrorCode GetNetworkStats(GGPONetworkStats *stats, GGPOPlayerHandle handle);
+    virtual GGPOErrorCode GetLastConfirmedFrame(int *frame) { *frame = _sync.GetLastConfirmedFrame(); return GGPO_OK; }
+    virtual GGPOErrorCode SetFrameDelay(GGPOPlayerHandle player, int delay);
++   virtual GGPOErrorCode SetInputsIgnored(bool ignored) { _sync.SetInputsIgnored(ignored); return GGPO_OK; }
+    virtual GGPOErrorCode SetDisconnectTimeout(int timeout);
+    virtual GGPOErrorCode SetDisconnectNotifyStart(int timeout);
+ 
+diff --git a/src/lib/ggpo/input_queue.cpp b/src/lib/ggpo/input_queue.cpp
+index ee143dc..e7a0ecb 100644
+--- a/src/lib/ggpo/input_queue.cpp
++++ b/src/lib/ggpo/input_queue.cpp
+@@ -244,7 +244,8 @@ InputQueue::AddDelayedInputToQueue(GameInput &input, int frame_number)
+        * remember the first input which was incorrect so we can report it
+        * in GetFirstIncorrectFrame()
+        */
+-      if (_first_incorrect_frame == GameInput::NullFrame && !_prediction.equal(input, true)) {
++      if (_first_incorrect_frame == GameInput::NullFrame && !_prediction.equal(input, true) &&
++          !(_ignored && _ignored->Ignored(frame_number))) {
+          Log("frame %d does not match prediction.  marking error.\n", frame_number);
+          _first_incorrect_frame = frame_number;
+       }
+diff --git a/src/lib/ggpo/input_queue.h b/src/lib/ggpo/input_queue.h
+index 460a501..7cf20a0 100644
+--- a/src/lib/ggpo/input_queue.h
++++ b/src/lib/ggpo/input_queue.h
+@@ -13,6 +13,20 @@
+ #define INPUT_QUEUE_LENGTH    128
+ #define DEFAULT_INPUT_SIZE      4
+ 
++/*
++ * Frames whose inputs the game ignores (ggpo_set_inputs_ignored): an input
++ * for such a frame that differs from its prediction is not a misprediction,
++ * so no rollback starts there.  Kept for as many frames as an input queue.
++ */
++struct IgnoredFrames {
++   struct Entry { int frame; bool ignored; };
++   Entry entries[INPUT_QUEUE_LENGTH];
++
++   IgnoredFrames() { for (int i = 0; i < INPUT_QUEUE_LENGTH; i++) { entries[i].frame = GameInput::NullFrame; entries[i].ignored = false; } }
++   void Mark(int frame, bool ignored) { Entry &e = entries[frame % INPUT_QUEUE_LENGTH]; e.frame = frame; e.ignored = ignored; }
++   bool Ignored(int frame) const { const Entry &e = entries[frame % INPUT_QUEUE_LENGTH]; return e.frame == frame && e.ignored; }
++};
++
+ class InputQueue {
+ public:
+    InputQueue(int input_size = DEFAULT_INPUT_SIZE);
+@@ -30,6 +44,7 @@ public:
+    bool GetConfirmedInput(int frame, GameInput *input);
+    bool GetInput(int frame, GameInput *input);
+    void AddInput(GameInput &input);
++   void SetIgnoredFrames(const IgnoredFrames *ignored) { _ignored = ignored; }
+ 
+ protected:
+    int AdvanceQueueHead(int frame);
+@@ -52,6 +67,7 @@ protected:
+ 
+    GameInput            _inputs[INPUT_QUEUE_LENGTH];
+    GameInput            _prediction;
++   const IgnoredFrames  *_ignored = nullptr;
+ };
+ 
+ #endif
+diff --git a/src/lib/ggpo/main.cpp b/src/lib/ggpo/main.cpp
+index 7c8e3ad..9c1165e 100644
+--- a/src/lib/ggpo/main.cpp
++++ b/src/lib/ggpo/main.cpp
+@@ -87,6 +87,15 @@ ggpo_set_frame_delay(GGPOSession *ggpo,
+    return ggpo->SetFrameDelay(player, frame_delay);
+ }
+ 
++GGPOErrorCode
++ggpo_set_inputs_ignored(GGPOSession *ggpo, bool ignored)
++{
++   if (!ggpo) {
++      return GGPO_ERRORCODE_INVALID_SESSION;
++   }
++   return ggpo->SetInputsIgnored(ignored);
++}
++
+ GGPOErrorCode
+ ggpo_idle(GGPOSession *ggpo, int timeout)
+ {
+diff --git a/src/lib/ggpo/sync.cpp b/src/lib/ggpo/sync.cpp
+index fd134fe..aa1c7a4 100644
+--- a/src/lib/ggpo/sync.cpp
++++ b/src/lib/ggpo/sync.cpp
+@@ -249,6 +249,7 @@ Sync::CreateQueues(Config &config)
+ 
+    for (int i = 0; i < _config.num_players; i++) {
+       _input_queues[i].Init(i, _config.input_size);
++      _input_queues[i].SetIgnoredFrames(&_ignored_frames);
+    }
+    return true;
+ }
+diff --git a/src/lib/ggpo/sync.h b/src/lib/ggpo/sync.h
+index af9f862..316d502 100644
+--- a/src/lib/ggpo/sync.h
++++ b/src/lib/ggpo/sync.h
+@@ -56,6 +56,7 @@ public:
+    void IncrementFrame(void);
+ 
+    int GetFrameCount() { return _framecount; }
++   void SetInputsIgnored(bool ignored) { _ignored_frames.Mark(_framecount, ignored); }
+    int GetLastConfirmedFrame() const { return _last_confirmed_frame; }
+    bool InRollback() { return _rollingback; }
+ 
+@@ -96,6 +97,7 @@ protected:
+    int            _max_prediction_frames;
+ 
+    InputQueue     *_input_queues;
++   IgnoredFrames  _ignored_frames;
+ 
+    RingBuffer<Event, 32> _event_queue;
+    UdpMsg::connect_status *_local_connect_status;
