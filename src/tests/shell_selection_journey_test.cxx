@@ -281,11 +281,14 @@ void AppearanceGalleries(){
  // Costume: Right saves the next one; Select opens every costume, and a pick there saves it.
  focus("costume");Check(pick.costume==0,"Focusing the costume row changed the costume");
  Check(press(MenuInput::Right)&&pick.costume==1&&selector.Navigation().Screen()=="look","Right on the costume row did not save the next costume");
- Check(row("costume").choices.size()==3,"The costume row does not offer every owned costume");
- press(MenuInput::Select);Check(selector.Navigation().Choosing(),"Select on the costume row did not open its values");
- press(MenuInput::Right);Check(pick.costume==1,"Moving in the costume panel saved a costume");
+ // Select opens the costume grid on the worn costume; moving there saves
+ // nothing, and a costume's colour grid saves the two together.
  press(MenuInput::Select);
- Check(pick.costume==2&&!selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","A costume picked in the panel did not save");
+ Check(selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-1","Select on the costume row did not open the grid on the worn costume");
+ press(MenuInput::Right);Check(pick.costume==1&&selector.Navigation().Focus()=="costume-2","Moving in the costume grid saved a costume");
+ press(MenuInput::Select);Check(selector.Navigation().Screen()=="colors"&&pick.costume==1,"A costume did not open its colours, or was saved before its colour");
+ press(MenuInput::Select);
+ Check(pick.costume==2&&selector.Navigation().Screen()=="look","A costume and colour picked in the grids did not save");
  focus("costume");press(MenuInput::Left);Check(pick.costume==1,"Left on the costume row did not step back");
  // Color: the steps skip the colors the game says this costume lacks (bits 0 and 2 only).
  focus("color");Check(press(MenuInput::Right)&&pick.color==2,"The color row ignored native availability gaps");
