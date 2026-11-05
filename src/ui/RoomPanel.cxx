@@ -141,15 +141,12 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(static_cast<int>(c)!=ownCabinet||mine.kind!=Place::Kind::Seat)continue;
   const auto& table=s.tables[mine.table];
   if(table.deciding){
-   // New opponent needs someone else free, as on the post-match prompt.
-   const bool other=room::ArcadeOtherOpponentPossible(s,static_cast<std::size_t>(mine.table));
-   // Rematch already chosen and nobody else free: nothing to pick, so the
-   // row only says so (Rematch chosen) and Select does nothing.
-   if(table.rematch[mine.seat]&&!other){row.info=true;continue;}
+   // With nobody else free New opponent waits for the next set to end elsewhere.
+   const bool free=room::ArcadeFreeTable(s,static_cast<std::size_t>(mine.table));
    row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},
-    {"new-opponent",loc::T("room.new_opponent"),loc::T(other?"room.new_opponent_detail":"room.new_opponent_none")}};
+    {"new-opponent",loc::T("room.new_opponent"),loc::T(free?"room.new_opponent_detail":"room.new_opponent_wait")}};
    row.choices[0].enabled=!table.rematch[mine.seat];
-   row.choices[1].enabled=other;
+   row.choices[1].enabled=!table.wantsNew[mine.seat];
    continue;
   }
   OwnSeatRow(row,v,table,mine.seat,leaveAsk==mine.table);

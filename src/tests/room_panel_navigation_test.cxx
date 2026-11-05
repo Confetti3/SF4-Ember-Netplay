@@ -1815,10 +1815,10 @@ int main() try {
         if (at() != "cabinet-3") std::cerr << "Up on cabinet 4 went to " << at() << std::endl;
         Check(at() == "cabinet-3", "Up on a top-row cabinet moved the focus");
         // ArcadeCabinetNewOpponentGate: after a set, your own cabinet asks
-        // Rematch or New opponent, and New opponent is offered only while
-        // someone else is free (room::ArcadeOtherOpponentPossible), as on the
-        // post-match prompt. With Rematch chosen and nobody free there is
-        // nothing to pick: the row only says so, and Select opens nothing.
+        // Rematch or New opponent, and New opponent is always offered: with
+        // someone free it parts the pair, with nobody free it waits for the
+        // next set to end elsewhere (Table::wantsNew), as on the post-match
+        // prompt. Once asked for, only Rematch is left to pick.
         {
             const auto saved = view;
             // Every cabinet taken: tables 3 to 8 paired as well, at the free
@@ -1838,8 +1838,8 @@ int main() try {
             full();
             board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
             const auto cabinet = [&] { return row("cabinet-0"); };
-            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && !cabinet().choices[1].enabled &&
-                cabinet().choices[1].detail == loc::T("room.new_opponent_none"), "New opponent was offered with nobody else free");
+            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && cabinet().choices[1].enabled &&
+                cabinet().choices[1].detail == loc::T("room.new_opponent_wait"), "New opponent was not on offer with nobody else free");
             // A table frees up: New opponent is offered.
             view.room.tables[7].phase = room::TablePhase::Idle; view.room.tables[7].p1 = view.room.tables[7].p2 = 0;
             view.room.cabinets[7] = view.room.cabinets[15] = 0;
@@ -1850,14 +1850,15 @@ int main() try {
             view.room.tables[0].rematch[0] = true; ++view.room.revision; frame();
             Check(cabinet().choices.size() == 2 && !cabinet().choices[0].enabled && cabinet().choices[1].enabled,
                 "After Rematch, New opponent was not the one choice left");
-            // Rematch chosen, nobody free: no chooser, and Select sends nothing.
+            // Rematch chosen, nobody free: New opponent is still there to pick, and
+            // once asked for only Rematch is left.
             view = saved; full(); view.room.tables[0].rematch[0] = true;
             board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
-            Check(cabinet().choices.empty() && cabinet().info, "Rematch chosen with nobody free still opened a chooser");
-            focus("cabinet-0"); frame();
-            const auto before = actions.size();
-            press(MenuInput::Select);
-            Check(!shell.Navigation().Choosing() && actions.size() == before, "Select on a cabinet with nothing to pick did something");
+            Check(cabinet().choices.size() == 2 && !cabinet().choices[0].enabled && cabinet().choices[1].enabled,
+                "Rematch chosen with nobody free left no New opponent to pick");
+            view.room.tables[0].rematch[0] = false; view.room.tables[0].wantsNew[0] = true; ++view.room.revision; frame();
+            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && !cabinet().choices[1].enabled,
+                "After asking for a New opponent, Rematch was not the one choice left");
             view = saved;
         }
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);

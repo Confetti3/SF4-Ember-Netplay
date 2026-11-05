@@ -56,7 +56,7 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
     const int side = t.p2 == m->id ? 1 : 0;
     const auto* other = room::FindMember(s, side ? t.p1 : t.p2);
     std::string text = other ? loc::Tf("room.arcade_vs", other->name) : std::string(loc::T("room.arcade_waiting"));
-    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(t.rematch[side] ? "room.rematch_chosen" : "room.rematch_ask");
+    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(t.wantsNew[side] ? "room.new_opponent_chosen" : t.rematch[side] ? "room.rematch_chosen" : "room.rematch_ask");
     else if (other && !SetScoreText(t.score).empty()) text += " \xC2\xB7 " + SetScoreText(t.score);
     if (s.streaks[cabinet]) text += " \xC2\xB7 " + loc::Tf("room.streak", s.streaks[cabinet]);
     return text;
