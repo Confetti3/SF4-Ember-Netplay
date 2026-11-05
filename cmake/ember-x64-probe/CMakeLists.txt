@@ -45,10 +45,7 @@ list(APPEND _ember_files
     discord/BridgeServer.hxx discord/Presence.hxx discord/Ticket.hxx
     training/FrameMeter.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
-    training/TrainingSession.hxx
-    # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter, pick
-    # labels and pictures with nothing of SF4's, as SFV Ember's will be.
-    tests/fake_game.cxx tests/fake_game.hxx tests/fake_session_verification.cxx tests/fake_selection.cxx)
+    training/TrainingSession.hxx)
 
 set(EMBER_SF4_SIDE
     # Selection: SF4's roster, stages and installed content.
@@ -157,8 +154,14 @@ target_link_libraries(ember_runtime_x64 PUBLIC ember_neutral_x64
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
     Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm ole32 windowscodecs)
 
+# The test's game (fake_*.cxx: a game adapter, desync check, pick labels and
+# pictures with nothing of SF4's) is compiled into the test alone, so a game
+# that links the library defines its own Game() with no second one beside it.
 add_executable(ember_runtime_x64_test
     "${EMBER_SOURCE_ROOT}/tests/runtime_capabilities_test.cxx"
+    "${EMBER_SOURCE_ROOT}/tests/fake_game.cxx"
+    "${EMBER_SOURCE_ROOT}/tests/fake_session_verification.cxx"
+    "${EMBER_SOURCE_ROOT}/tests/fake_selection.cxx"
     "${EMBER_SOURCE_ROOT}/product/Sf4Catalog.cxx"
     "${EMBER_SOURCE_ROOT}/common/FighterCatalog.cxx"
     "${EMBER_SOURCE_ROOT}/common/StageCatalog.cxx"
