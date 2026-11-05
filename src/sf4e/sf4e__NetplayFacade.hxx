@@ -155,7 +155,7 @@ namespace sf4e {
             gamepads::SetupSnapshot padSetup;
             gamepads::Layer padLayer = gamepads::Layer::Failed;
             bool padLayerPending = false, runningControllerLayer = true;
-            // The menu music entry is the supported one (MenuMusic::Available).
+            // The menu music entry is the supported one (Services::LobbyMusicAvailable).
             bool lobbyMusicAvailable = false;
             std::vector<gamepads::PadView> pads;
             unsigned captureCandidate = 0;
@@ -193,7 +193,7 @@ namespace sf4e {
 			bool atMainMenu = false;
 			// The battle being played or watched is a Practice room's game, as
 			// fixed when the battle was prepared
-			// (training::MatchPracticeActive).
+			// (Training::MatchPracticeActive).
 			bool practiceMatch = false;
 			// A started match is waiting for the player to return to the main menu.
 			bool matchWaitsForMenu = false;
@@ -390,13 +390,12 @@ namespace sf4e {
 		void InitFromPayload(const NetplayConfig& cfg);
 		const NetplayConfig& GetConfig();
 		GgpoSyncPhase GetGgpoSyncPhase();
-		void MarkGgpoBattleStarted();
 		void NotifyGameReady();
 		void TickFrame();
 		// Game thread only: samples live netplay state. Other threads read the
 		// sample PublishPresentationFrame published.
 		NetplayStatus GetStatus();
-		// Records an Error notice (PushAlert).
+		// Game thread only. Records an Error notice (PushAlert).
 		void SetLastError(const char* msg);
 		// The notice for a confirmed state divergence, worded in the player's
 		// language: an Error when the fight itself ended, a Warning when only

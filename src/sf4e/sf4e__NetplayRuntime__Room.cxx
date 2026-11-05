@@ -3,8 +3,6 @@
 #include "../platform/ReplayPath.hxx"
 #include "../platform/Utf8.hxx"
 #include "../session/IdentityEvents.hxx"
-#include "../platform/ReplayFiles.hxx"
-#include "../platform/Utf8.hxx"
 #include <cwchar>
 
 namespace sf4e { namespace NetplayFacade {

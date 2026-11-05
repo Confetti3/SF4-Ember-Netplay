@@ -75,10 +75,6 @@ namespace sf4e {
 		s_ggpoSyncPhase = GgpoSyncPhase::Starting;
 	}
 
-	void NetplayFacade::MarkGgpoBattleStarted() {
-		s_ggpoSyncPhase = GgpoSyncPhase::Starting;
-	}
-
 	bool NetplayFacade::IsDevOverlayEnabled() {
 #ifdef SF4E_DEVELOPER_UI
         return true;

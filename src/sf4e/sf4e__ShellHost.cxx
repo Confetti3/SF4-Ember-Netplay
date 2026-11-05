@@ -142,8 +142,8 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         // The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
         if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None)
             return game.StepSelection(step, snapshot);
-        // Training select's Start: the main menu enters Training with these
-        // once it is idle (GameEvents::TrainingMode). Not from a room or match.
+        // Training select's Start: the game enters Training with these once
+        // its menu is idle (ShellGame::StartTraining). Not from a room or match.
         if (action.startTraining) {
             if (!snapshot.atMainMenu || snapshot.session.room != sf4e::netplay::RoomState::Idle || snapshot.session.match != sf4e::netplay::MatchState::None)
                 return false;

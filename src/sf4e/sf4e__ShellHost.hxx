@@ -22,6 +22,8 @@ public:
     // The game's part of the view, filled after the runtime's: the player's
     // pick and what the shell says of it, whether that pick can be readied,
     // the watched game's picture, the display advice and the build.
+    // view.canReady arrives holding the runtime's answer: the game ANDs its
+    // own into it (canReady = canReady && ...) and never sets it.
     virtual void FillView(const RuntimeSnapshot& snapshot, sf4e::ui::ShellView& view) = 0;
     // The table page's Ultra and Appearance rows step the pick; nothing is
     // sent. False when the pick cannot change now.
