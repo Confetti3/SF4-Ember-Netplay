@@ -30,17 +30,15 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ### Rooms
 
-- **Each player's own delay is the default.** A new room plays each fighter at their own delay unless you choose the same delay for both in Create room or Room settings. If you never changed this setting, it now starts on each player's own; if you chose the same for both, Ember keeps that.
+- **Each player's own delay is the default.** A new room plays each fighter at their own delay unless you choose the same delay for both in Create room or Room settings. After updating, the setting starts on each player's own for everyone, because 1.5.2 did not save a choice of the same for both: if you want it, choose Same for both once more and Ember keeps it from then on.
+- **Classic tables read like they did before 1.5.0.** On a wide enough board, 1280 wide at normal scale included, each table is one line: a fighter at each end, the players' names between them and the set's score small in the middle, where the big number was. The rules, queue and watchers are back along the bottom of the card, under the players, and the table's state and its name (if the host gave it one) sit beside TABLE 1. A player on a win streak at the table has it under their fighter again, and a seated player who has been waiting a while shows how long. Ready up and Leave seat on your own card, and the seat chooser, sit along the bottom of the card. Narrow boards and larger text scales stack the two players instead. Arcade and King of the Hill rooms are unchanged.
+
 
 ### Public rooms
 
 - **Filters.** Public rooms has one Filters row that says what is on. Select opens the Filters page: Region (all regions, Near me, or one region), Room type (all, Classic, Arcade or King of the Hill), Open seats only, and Connection (all rooms or wired only rooms). Your filter is saved with your settings. When it hides every room, the list says so and Clear filters shows them all.
 - **Quick join follows the filter.** It takes the best room the filter lists, near you unless you chose a region.
 - **Wired players only.** A new room setting, off by default, when you create a room and in Room settings. While it is on, players on Wi-Fi can join, watch and chat but cannot take a seat, queue or sit at an Arcade cabinet, and the closed seat says why. A connection Ember cannot tell, as on Linux and Steam Deck, can always play. Turning it on moves nobody who is already seated, and a Wi-Fi player still in the queue is passed over when their turn comes. After plugging in a cable, leave and join the room again. Public rooms with the setting show a Wired only mark.
-
-### Rooms
-
-- **Classic tables read like they did before 1.5.0.** Each table is one line at every common screen size, 1280 wide included: a fighter at each end, the players' names between them and the set's score small in the middle, where the big number was. The rules, queue and watchers are back along the bottom of the card, under the players, and the table's state and its name (if the host gave it one) sit beside TABLE 1. A player on a win streak at the table has it under their fighter again, and a seated player who has been waiting a while shows how long. Ready up and Leave seat on your own card, and the seat chooser, sit along the bottom of the card. Tables: Grid and narrow screens keep the stacked cards. Arcade and King of the Hill rooms are unchanged.
 
 ### Training
 
