@@ -365,7 +365,21 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    const auto look=SeatLookOf(v,*m);
    const float tall=std::floor((std::min)(56*s,(std::max)(14*s,screen.H()*.24f)));
    if(look.picked&&look.ultra>=0&&look.ultra<=2&&screen.H()>=tall*2.2f&&screen.W()>=tall*2.5f)
-    DrawUltraMark(d,ImVec2(std::floor(screen.max.x-3*s),std::floor(screen.min.y+3*s)),tall,look.ultra);
+   {
+    const ImVec2 corner(std::floor(screen.max.x-3*s),std::floor(screen.min.y+3*s));
+    const float wide=DrawUltraMark(d,corner,tall,look.ultra);
+    // Behind the glass: the screen's scanlines run on over the mark, as they
+    // do over the fighter, so it reads as shown on the screen.
+    const bool lined=pictured?v2::Inset(screen,1.5f*s,1.5f*s).H()>40*s:screen.H()>40*s;
+    if(lined){
+     const v2::Box g=pictured?v2::Inset(screen,1.5f*s,1.5f*s):screen;
+     const float top=pictured?g.min.y+.5f*s:g.min.y+2*s,bottom=pictured?g.max.y:g.max.y-2*s;
+     const ImU32 line=v2::color::Alpha(c.ink,pictured?.22f:.35f);
+     d->PushClipRect(ImVec2(corner.x-wide-1,corner.y-1),ImVec2(corner.x+1,corner.y+tall+1),true);
+     for(float y=top;y<bottom;y+=3*s)d->AddLine(ImVec2(g.min.x,y),ImVec2(g.max.x,y),line,(std::max)(1.f,.75f*s));
+     d->PopClipRect();
+    }
+   }
   }
   const float ss=(std::min)(15*s,screen.H()*.34f);
   const auto space=first.find(' ');
