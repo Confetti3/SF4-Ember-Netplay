@@ -26,6 +26,8 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     if (value.roomDelayPolicy == room::DelayPolicy::Own) json["delay"] = "own";
     // Only a count other than the default four is written.
     if (value.roomTableCount != static_cast<int>(room::ClassicTableCount)) json["tableCount"] = value.roomTableCount;
+    // Only on is written; a document without the key reads as off.
+    if (value.roomWiredOnly) json["wiredOnly"] = true;
     if (!value.roomTemplates.empty()) {
         auto& templates = json["templates"] = nlohmann::json::array();
         for (const auto& saved : value.roomTemplates) {
@@ -38,6 +40,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
             templates.push_back({{"name", saved.name}, {"room", saved.roomName}, {"capacity", saved.capacity}, {"public", saved.isPublic},
                 {"practice", saved.practice}, {"delay", saved.delayPolicy == room::DelayPolicy::Own ? "own" : "shared"}, {"tables", std::move(tables)}});
             if (saved.tableCount != static_cast<int>(room::ClassicTableCount)) templates.back()["tableCount"] = saved.tableCount;
+            if (saved.wiredOnly) templates.back()["wiredOnly"] = true;
         }
     }
     return json;
@@ -87,6 +90,7 @@ inline std::vector<RoomTemplate> ReadRoomTemplates(const nlohmann::json& default
             saved.practice = item.value("practice", false);
             saved.delayPolicy = item.value("delay", std::string()) == "own" ? room::DelayPolicy::Own : room::DelayPolicy::Shared;
             saved.tableCount = item.value("tableCount", static_cast<int>(room::ClassicTableCount));
+            saved.wiredOnly = item.value("wiredOnly", false);
             const auto& tables = item.at("tables");
             if (!tables.is_array() || tables.size() != room::TableCount) continue;
             bool read = true;
@@ -113,6 +117,7 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
     try {
         if (defaults.contains("capacity") && !defaults["capacity"].is_number_integer()) return false;
         if (defaults.contains("public") && !defaults["public"].is_boolean()) return false;
+        if (defaults.contains("wiredOnly") && !defaults["wiredOnly"].is_boolean()) return false;
         if (defaults.contains("delay") && (!defaults["delay"].is_string() ||
             (defaults["delay"].get<std::string>() != "own" && defaults["delay"].get<std::string>() != "shared"))) return false;
         PlayerPreferences candidate = inherited;
@@ -126,6 +131,7 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         candidate.roomTableCount = static_cast<int>(tableCount);
         candidate.roomPublic = defaults.value("public", candidate.roomPublic);
         candidate.roomDelayPolicy = defaults.value("delay", std::string()) == "own" ? room::DelayPolicy::Own : room::DelayPolicy::Shared;
+        candidate.roomWiredOnly = defaults.value("wiredOnly", false);
         if (!ReadTableRules(defaults, candidate.tableRules)) return false;
         if (defaults.contains("publicRules") &&
             (!defaults["publicRules"].is_object() || !ReadTableRules(defaults["publicRules"], candidate.publicTableRules))) return false;

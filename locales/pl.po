@@ -3265,6 +3265,15 @@ msgstr "Otwarty"
 msgid "room.admission.detail"
 msgstr "Zamknięcie blokuje nowych uczestników."
 
+msgid "room.wired_only"
+msgstr "Tylko gracze na kablu"
+
+msgid "room.wired_only.detail"
+msgstr "Gracze na Wi-Fi mogą dołączyć, oglądać i czatować, ale nie mogą zająć miejsca. Gracze z nieznanym połączeniem mogą grać."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Dotyczy następnego zajętego miejsca. Nikt, kto teraz siedzi, nie traci miejsca."
+
 msgid "room.apply_name"
 msgstr "Zmień nazwę"
 
@@ -3524,6 +3533,9 @@ msgstr "Nie udało się wysłać tej wiadomości."
 
 msgid "room.reject.ledger_full"
 msgstr "Czekanie, aż wszyscy wrócą z poprzedniej walki."
+
+msgid "room.reject.wired_only"
+msgstr "Ten pokój jest dla graczy na kablu. Twój PC jest na Wi-Fi."
 
 msgid "room.reject.other"
 msgstr "Pokój odrzucił to działanie."
@@ -6581,6 +6593,9 @@ msgstr "{0}, własne opóźnienie"
 
 msgid "room.table_footer_own_delay"
 msgstr "Własne opóźnienie"
+
+msgid "room.table_footer_wired_only"
+msgstr "Tylko kabel"
 
 msgid "room.input_delay.own"
 msgstr "Twoje opóźnienie: {0}"

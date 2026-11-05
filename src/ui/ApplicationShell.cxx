@@ -67,15 +67,19 @@ std::string SessionProblem(const netplay::Snapshot& session) {
 bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
  return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
 }
-// The room's own status line: the kind of room it is, and whether it is locked. A
-// public room's starts with its type, as the list showed it, so a player who came
-// in from there still sees which kind of room they are in.
-std::string RoomStatusText(const room::Snapshot& room) {
+// The room's own status line: the kind of room it is, whether it is locked, and
+// whether it is for wired players only. A public room's starts with its type, as
+// the list showed it, so a player who came in from there still sees which kind of
+// room they are in.
+std::string RoomKindText(const room::Snapshot& room) {
     if(room.serverOwned)return std::string(RoomTypeName(room.arcade))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
     if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
     if(room.arcade==room::KingRoom)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
     if(room.arcade)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
     return loc::T(room.locked?"room.locked_status":"room.private_status");
+}
+std::string RoomStatusText(const room::Snapshot& room) {
+    return room.wiredOnly?RoomKindText(room)+" · "+loc::T("room.wired_only"):RoomKindText(room);
 }
 }
 float ApplicationShell::PublicListWidth() {
@@ -106,7 +110,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
-    if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
+    if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
     // An Arcade room plays at every table; only a Classic one has a count to choose.
     if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
     // Opened from a template: the runtime sets its tables once the room is up.
@@ -487,6 +491,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
+  else if(a.id=="wired-only")preferences_.roomWiredOnly=a.delta>0;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}

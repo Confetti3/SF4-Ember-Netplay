@@ -2900,6 +2900,15 @@ msgid "room.open"
 msgstr "Aberta"
 msgid "room.admission.detail"
 msgstr "Bloquear impede a entrada de novos membros."
+
+msgid "room.wired_only"
+msgstr "Somente jogadores com cabo"
+
+msgid "room.wired_only.detail"
+msgstr "Jogadores no Wi-Fi podem entrar, assistir e conversar, mas não podem ocupar um lugar. Jogadores com conexão desconhecida podem jogar."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Vale a partir do próximo lugar ocupado. Quem já está sentado mantém o lugar."
 msgid "room.apply_name"
 msgstr "Aplicar nome da sala"
 msgid "room.apply_name.detail"
@@ -3077,6 +3086,9 @@ msgid "room.reject.invalid_chat"
 msgstr "Não foi possível enviar essa mensagem."
 msgid "room.reject.ledger_full"
 msgstr "Aguardando todos terminarem de voltar da partida anterior."
+
+msgid "room.reject.wired_only"
+msgstr "Esta sala é para jogadores com cabo. Seu PC está no Wi-Fi."
 msgid "room.reject.other"
 msgstr "A sala recusou essa ação."
 msgid "runtime.lock.return_to_menu_fighter"
@@ -6114,6 +6126,9 @@ msgstr "{0}, atraso próprio"
 
 msgid "room.table_footer_own_delay"
 msgstr "Atraso próprio"
+
+msgid "room.table_footer_wired_only"
+msgstr "Só cabo"
 
 msgid "room.input_delay.own"
 msgstr "Seu atraso: {0}"

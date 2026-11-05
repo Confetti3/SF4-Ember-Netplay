@@ -3265,6 +3265,15 @@ msgstr "Open"
 msgid "room.admission.detail"
 msgstr "Vergrendelen houdt nieuwe leden buiten."
 
+msgid "room.wired_only"
+msgstr "Alleen spelers met kabel"
+
+msgid "room.wired_only.detail"
+msgstr "Spelers op wifi kunnen meedoen, kijken en chatten, maar geen plek innemen. Spelers met een onbekende verbinding kunnen spelen."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Geldt vanaf de volgende plek die wordt ingenomen. Wie nu zit, houdt zijn plek."
+
 msgid "room.apply_name"
 msgstr "Kamernaam toepassen"
 
@@ -3524,6 +3533,9 @@ msgstr "Dat bericht kon niet worden verzonden."
 
 msgid "room.reject.ledger_full"
 msgstr "Wachten tot iedereen terug is van de vorige match."
+
+msgid "room.reject.wired_only"
+msgstr "Deze kamer is voor spelers met kabel. Je pc zit op wifi."
 
 msgid "room.reject.other"
 msgstr "De kamer heeft die actie geweigerd."
@@ -6581,6 +6593,9 @@ msgstr "{0}, eigen vertraging"
 
 msgid "room.table_footer_own_delay"
 msgstr "Eigen vertraging"
+
+msgid "room.table_footer_wired_only"
+msgstr "Alleen kabel"
 
 msgid "room.input_delay.own"
 msgstr "Jouw vertraging: {0}"

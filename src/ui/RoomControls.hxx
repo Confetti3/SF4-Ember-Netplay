@@ -20,6 +20,11 @@ const char* LeaveBlockerKey(room::SeatHold hold);
 // outstanding, so neither is fenced here.
 bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table);
 const char* TerminalPendingReason();
+// The room's Wired players only rule keeps this PC on Wi-Fi from sitting
+// down: a seat, the queue or a cabinet (room::LinkMaySit). One already
+// seated is not fenced, so moving between Arcade cabinets still works.
+bool WiredFenced(const ShellView& v, room::ActionKind kind);
+const char* WiredOnlyReason();
 // One description of Leave room for both screens, stating what it costs.
 std::string LeaveRoomDetail(const ShellView& v);
 // The seat chooser's options. A choice carries the option's id, so dispatch

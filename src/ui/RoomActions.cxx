@@ -240,6 +240,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   request.kind=ActionKind::SetTableCount;request.tableCount=static_cast<std::uint8_t>(roomTableCount_);
  }
  else if(a.id=="lock"){request.kind=ActionKind::Lock;request.locked=a.delta<0;}
+ else if(a.id=="room-wired-only"){
+  // Left is off and Right on; Select turns it the other way.
+  const bool on=a.kind==MenuAction::Adjust?a.delta>0:!v.room.wiredOnly;
+  if(on==v.room.wiredOnly)return;
+  request.kind=ActionKind::SetWiredOnly;request.wiredOnly=on;
+ }
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.

@@ -276,11 +276,14 @@ struct Room {
     /// Each fighter plays at their own input delay. The creator's request when
     /// the room was reserved, then the room host's own report (`details`).
     own_delay: bool,
+    /// Only players not on Wi-Fi take a seat, as the room host last reported
+    /// (`details`); false until it has said.
+    wired_only: bool,
 }
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay, room_type, creator_in";
+    creator_region, own_delay, room_type, creator_in, wired_only";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -306,6 +309,7 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         own_delay: row.get(19)?,
         room_type: row.get(20)?,
         creator_in: row.get(21)?,
+        wired_only: row.get(22)?,
     })
 }
 
@@ -367,6 +371,7 @@ impl Room {
             set_format: self.set_format,
             rotation: self.rotation,
             room_type: self.room_type,
+            wired_only: self.wired_only,
             ..summary.clone()
         };
         if detailed.details_valid() {

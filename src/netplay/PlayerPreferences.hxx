@@ -80,6 +80,8 @@ struct RoomTemplate {
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // How many tables a private Classic room opens with (room::Snapshot::tableCount).
     int tableCount = static_cast<int>(room::ClassicTableCount);
+    // The room's Wired players only rule (room::Snapshot::wiredOnly).
+    bool wiredOnly = false;
     TableSetup tables;
     bool Valid() const {
         if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
@@ -89,7 +91,8 @@ struct RoomTemplate {
     }
     bool operator==(const RoomTemplate& rhs) const {
         return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
-            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && tables == rhs.tables;
+            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && wiredOnly == rhs.wiredOnly &&
+            tables == rhs.tables;
     }
 };
 constexpr std::size_t MaxRoomTemplates = 12;
@@ -248,6 +251,8 @@ struct PlayerPreferences {
     room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Shared;
     // How many tables a private Classic room created here opens with (room::Snapshot::tableCount).
     int roomTableCount = static_cast<int>(room::ClassicTableCount);
+    // Whether a room created here, public or private, is for wired players only (room::Snapshot::wiredOnly).
+    bool roomWiredOnly = false;
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.

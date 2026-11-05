@@ -82,6 +82,14 @@ bool TerminalFenced(const ShellView& v, room::ActionKind kind, std::size_t table
 const char* TerminalPendingReason() {
     return loc::T("room.terminal_pending");
 }
+bool WiredFenced(const ShellView& v, room::ActionKind kind) {
+    if (kind != room::ActionKind::Queue) return false;
+    const auto* local = room::FindMember(v.room, v.room.localMember);
+    return local && !room::LinkMaySit(v.room, local->link) && room::PlaceOf(v.room, local->id).kind != room::Place::Kind::Seat;
+}
+const char* WiredOnlyReason() {
+    return loc::T("room.reject.wired_only");
+}
 std::string LeaveRoomDetail(const ShellView& v) {
     std::string detail = loc::T("room.leave.detail");
     const auto* local = room::FindMember(v.room, v.room.localMember);
@@ -113,6 +121,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
         MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
+        else if (WiredFenced(v, option->kind)) { choice.enabled = false; choice.detail = WiredOnlyReason(); }
         choices.push_back(std::move(choice));
     }
     choices.push_back({"options", loc::T("room.legend_options"), loc::T("room.table_options")});

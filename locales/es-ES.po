@@ -3266,6 +3266,15 @@ msgstr "Abierta"
 msgid "room.admission.detail"
 msgstr "Sala cerrada: no entran nuevos miembros."
 
+msgid "room.wired_only"
+msgstr "Solo jugadores por cable"
+
+msgid "room.wired_only.detail"
+msgstr "Los jugadores con Wi-Fi pueden unirse, mirar y chatear, pero no ocupar un asiento. Los jugadores con conexión desconocida pueden jugar."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Se aplica al siguiente asiento que se ocupe. Nadie sentado ahora pierde su asiento."
+
 msgid "room.apply_name"
 msgstr "Aplicar nombre"
 
@@ -3525,6 +3534,9 @@ msgstr "No se pudo enviar ese mensaje."
 
 msgid "room.reject.ledger_full"
 msgstr "Esperando a que todos terminen de volver de la partida anterior."
+
+msgid "room.reject.wired_only"
+msgstr "Esta sala es para jugadores por cable. Tu PC está en Wi-Fi."
 
 msgid "room.reject.other"
 msgstr "La sala rechazó esa acción."
@@ -6582,6 +6594,9 @@ msgstr "{0}, retraso propio"
 
 msgid "room.table_footer_own_delay"
 msgstr "Retraso propio"
+
+msgid "room.table_footer_wired_only"
+msgstr "Solo cable"
 
 msgid "room.input_delay.own"
 msgstr "Tu retraso: {0}"

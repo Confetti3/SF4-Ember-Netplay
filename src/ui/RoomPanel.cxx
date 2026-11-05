@@ -134,6 +134,7 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(!m){
    const bool between=ownCabinet>=0?!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
    row.hint=loc::T("room.arcade_sit");row.enabled=between&&mutableRoom;
+   if(WiredFenced(v,room::ActionKind::Queue)){row.enabled=false;row.detail=WiredOnlyReason();}
    continue;
   }
   // What a table card's banner says about this seat leads, as on the cabinet's screen.
@@ -231,6 +232,10 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         Refuse(TerminalPendingReason(), [kind = action.kind, index = action.table](const ShellView& now) {
             return TerminalFenced(now, kind, index);
         });
+        return false;
+    }
+    if (WiredFenced(view, action.kind)) {
+        Refuse(WiredOnlyReason(), [kind = action.kind](const ShellView& now) { return WiredFenced(now, kind); });
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
@@ -573,8 +578,9 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
-     const bool fenced=TerminalFenced(v,kind,selectedTable_);
-     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
+     const bool fenced=TerminalFenced(v,kind,selectedTable_),wired=WiredFenced(v,kind);
+     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():wired?WiredOnlyReason():reason)+WatchingNote(v,kind),
+      mutableRoom&&!elsewhere&&!fenced&&!wired));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
      queued?"room.leave_queue":s.arcade?"room.arcade_sit":"room.join_queue");
@@ -660,6 +666,7 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
   if(tables)rows.push_back(Value("room-tables",loc::T("room.tables"),std::to_string(roomTableCount_),
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
+  rows.push_back(WiredOnlyRow("room-wired-only",s.wiredOnly,std::string(loc::T("room.wired_only.detail"))+"\n"+loc::T("room.wired_only.settings_detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),

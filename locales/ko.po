@@ -3266,6 +3266,15 @@ msgstr "열림"
 msgid "room.admission.detail"
 msgstr "잠그면 새 참가자가 들어올 수 없습니다."
 
+msgid "room.wired_only"
+msgstr "유선 플레이어만"
+
+msgid "room.wired_only.detail"
+msgstr "Wi-Fi 플레이어도 참가, 관전, 채팅은 할 수 있지만 자리에 앉을 수는 없습니다. 연결을 알 수 없는 플레이어는 대전할 수 있습니다."
+
+msgid "room.wired_only.settings_detail"
+msgstr "다음에 자리에 앉을 때부터 적용됩니다. 지금 앉아 있는 사람은 자리를 잃지 않습니다."
+
 msgid "room.apply_name"
 msgstr "방 이름 적용"
 
@@ -3525,6 +3534,9 @@ msgstr "메시지를 보내지 못했습니다."
 
 msgid "room.reject.ledger_full"
 msgstr "모두가 이전 대전에서 돌아오기를 기다립니다."
+
+msgid "room.reject.wired_only"
+msgstr "이 방은 유선 플레이어 전용입니다. PC가 Wi-Fi에 연결되어 있습니다."
 
 msgid "room.reject.other"
 msgstr "방에서 이 작업을 거부했습니다."
@@ -6582,6 +6594,9 @@ msgstr "{0}, 각자 지연"
 
 msgid "room.table_footer_own_delay"
 msgstr "각자 지연"
+
+msgid "room.table_footer_wired_only"
+msgstr "유선만"
 
 msgid "room.input_delay.own"
 msgstr "내 지연: {0}"

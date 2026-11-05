@@ -166,7 +166,8 @@ void DrawFocusedLine(const RoomBoardFrame& f,float size) {
 std::string TableFooter(const ShellView& v,const room::Table& t) {
  const auto watching=t.spectators.size()+t.watchingNext.size();
  return (v.room.practice?std::string(loc::T("room.table_footer_practice"))+"     ":std::string())+
-  (v.room.delayPolicy==room::DelayPolicy::Own?std::string(loc::T("room.table_footer_own_delay"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
+  (v.room.delayPolicy==room::DelayPolicy::Own?std::string(loc::T("room.table_footer_own_delay"))+"     ":std::string())+
+  (v.room.wiredOnly?std::string(loc::T("room.table_footer_wired_only"))+"     ":std::string())+(t.rules.format==room::SetFormat::Unlimited
   ?loc::Tf("room.table_footer",t.rules.roundCount,room::MatchRoundTime(v.room,t),t.queue.size(),watching)
   :loc::Tf("room.table_footer_set",SetLengthText(t.rules.format),RotationText(t.rules.rotation),t.queue.size(),watching));
 }

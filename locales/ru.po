@@ -3265,6 +3265,15 @@ msgstr "Открыто"
 msgid "room.admission.detail"
 msgstr "Закрытое лобби не принимает новых."
 
+msgid "room.wired_only"
+msgstr "Только игроки по кабелю"
+
+msgid "room.wired_only.detail"
+msgstr "Игроки на Wi-Fi могут войти, смотреть и писать в чат, но не могут занять место. Игроки с неизвестным подключением могут играть."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Действует со следующего занятого места. Те, кто уже сидит, места не теряют."
+
 msgid "room.apply_name"
 msgstr "Сохранить имя"
 
@@ -3524,6 +3533,9 @@ msgstr "Не удалось отправить сообщение."
 
 msgid "room.reject.ledger_full"
 msgstr "Ожидание возвращения всех участников из прошлого матча."
+
+msgid "room.reject.wired_only"
+msgstr "Эта комната для игроков по кабелю. Ваш ПК подключён по Wi-Fi."
 
 msgid "room.reject.other"
 msgstr "Лобби отклонило это действие."
@@ -6581,6 +6593,9 @@ msgstr "{0}, своя задержка"
 
 msgid "room.table_footer_own_delay"
 msgstr "Своя задержка"
+
+msgid "room.table_footer_wired_only"
+msgstr "Только кабель"
 
 msgid "room.input_delay.own"
 msgstr "Ваша задержка: {0}"

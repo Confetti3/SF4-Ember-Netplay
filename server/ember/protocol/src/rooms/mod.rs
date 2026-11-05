@@ -168,9 +168,9 @@ pub struct RoomSummary {
     /// says nothing, and its rooms are Classic.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub room_type: Option<u8>,
-    /// The room only takes wired players (an opt-in room rule). Present only
-    /// when true, like `own_delay`: a reader that predates the field never
-    /// sees it, and an absent key is a room open to every connection.
+    /// Only players whose PC is not on Wi-Fi take a seat; the room's other
+    /// players still join, watch and chat. Present only when true: a room
+    /// host that predates it, or a room without the rule, says nothing.
     #[serde(default, skip_serializing_if = "is_false")]
     pub wired_only: bool,
 }

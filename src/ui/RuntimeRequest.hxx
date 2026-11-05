@@ -81,6 +81,11 @@ struct RuntimeRequest {
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // With HostRoom: how many tables a Classic room opens with (room::Snapshot::tableCount).
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
+    // With HostRoom, or the JoinInvite of a public room just created: the
+    // room's Wired players only rule (room::Snapshot::wiredOnly). A private
+    // room is created with it; the runtime sets a public one's once the
+    // creator is in it as host.
+    bool wiredOnly = false;
     // What the Replays screen asks of the game: an archived replay (its
     // file, as its row names it) to add or to watch, the game's own list, or
     // no to a replay link. Nothing is sent to the room.

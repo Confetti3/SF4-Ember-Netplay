@@ -147,6 +147,9 @@ Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
 	}
 	for (const auto& table : snapshot_.tables)
 		if (table.p1 == member || table.p2 == member) return Reject(RejectReason::AlreadySeated);
+	// Moving between cabinets above is not sitting down: a member already at
+	// one keeps playing under a Wired players only rule that came on since.
+	if (!MaySit(member)) return Reject(RejectReason::WiredOnly);
 	StopWatching(member);
 	snapshot_.cabinets[cabinet] = member; snapshot_.streaks[cabinet] = 0;
 	PairArcade(member, 0);

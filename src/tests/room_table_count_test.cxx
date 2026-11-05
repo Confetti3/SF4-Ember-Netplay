@@ -232,7 +232,7 @@ int main() {
 		EXPECT(!queue.contains("table_count") && queue.get<Action>().tableCount == 0);
 		// An older authority knows no kind past its last and refuses the action whole.
 		auto unknown = sent;
-		unknown["kind"] = static_cast<int>(ActionKind::SetTableCount) + 1;
+		unknown["kind"] = static_cast<int>(LastActionKind) + 1;
 		bool threw = false;
 		try { (void)unknown.get<Action>(); } catch (const std::exception&) { threw = true; }
 		EXPECT(threw);

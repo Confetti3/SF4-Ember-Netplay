@@ -21,6 +21,7 @@ void PracticeRoomCreate();
 void DelayPolicyCreate();
 void DelayPolicyInRoom();
 void TableCountCreate();
+void WiredOnlyJourney();
 void TrainingInRoom();
 void TrainingJourneys();
 void NoticeOverDialogs();
