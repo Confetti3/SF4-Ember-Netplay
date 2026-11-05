@@ -161,6 +161,7 @@ sf4e_add_unit_test(NAME WineBuiltin SOURCES src/tests/wine_builtin_test.cxx STD 
 sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS sf4e_ui LABELS ui)
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME AppearanceGrid SOURCES src/tests/appearance_grid_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
 sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)
 sf4e_add_unit_test(NAME SpeechWine SOURCES src/tests/speech_wine_test.cxx LIBS sf4e_ui STD 17 SKIP_RETURN_CODE 77)
