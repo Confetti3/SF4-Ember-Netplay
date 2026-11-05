@@ -4,6 +4,7 @@
 // same under its top slot. Every cabinet is its row. A Classic room keeps its
 // table cards (RoomPanelTables.cxx).
 #include "RoomPanelBoard.hxx"
+#include "GameMenu.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "LatencyMark.hxx"
@@ -13,6 +14,7 @@
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -343,12 +345,27 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const v2::Box& marquee=k.marquee;
   const float mh=marquee.H(),ms=(std::min)(15*s,mh*.68f);const ImU32 ink=paired||crowned?c.ink:waiting?c.text:c.muted;
   const int streak=type==room::KingRoom?v.room.streaks[i]:0;
-  v2::Text(d,ImVec2(marquee.min.x+4*s,marquee.min.y+(mh-ms)*.5f),streak?marquee.W()*.45f:marquee.W()-8*s,std::to_string(i+1),ms,ink,HeadingFont(),!streak);
+  const std::string number=std::to_string(i+1);
+  v2::Text(d,ImVec2(marquee.min.x+4*s,marquee.min.y+(mh-ms)*.5f),streak?marquee.W()*.45f:marquee.W()-8*s,number,ms,ink,HeadingFont(),!streak);
+  // Where the Ultra's mark may end on the right, and the room it has there
+  // without touching the number (centred, or at the left beside a streak).
+  const float numberWidth=HeadingFont()->CalcTextSizeA(ms,FLT_MAX,0,number.c_str()).x;
+  float markRight=marquee.max.x-4*s,markRoom=(marquee.W()-numberWidth)*.5f-8*s;
   if(streak){
    const std::string count=std::to_string(streak);
    const float cw=HeadingFont()->CalcTextSizeA(ms,FLT_MAX,0,count.c_str()).x;
    v2::Text(d,ImVec2(marquee.max.x-4*s-cw,marquee.min.y+(mh-ms)*.5f),cw,count,ms,ink,HeadingFont());
    v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
+   markRight=marquee.max.x-14*s-cw-ms;markRoom=markRight-(marquee.min.x+10*s+numberWidth);
+  }
+  // The seated player's Ultra once it is known: the game's I, II or W at the
+  // marquee's right end (before a streak's crown), as tall as the strip. A
+  // cabinet too narrow for it beside the number shows the number alone.
+  if(m){
+   const auto look=SeatLookOf(v,*m);
+   const float markHeight=std::floor(mh-4*s);
+   if(look.picked&&look.ultra>=0&&look.ultra<=2&&markHeight>=10*s&&markRoom>=markHeight*1.25f)
+    DrawUltraMark(d,ImVec2(markRight,marquee.min.y+std::floor((mh-markHeight)*.5f)),markHeight,look.ultra);
   }
   const v2::Box& screen=k.screen;
   // A seated player's fighter fills the glass (Settings › Room layout ›

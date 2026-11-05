@@ -178,6 +178,8 @@ void JoinRoom(ui::ShellView& view) {
     for (int i = 1; i <= 16; ++i) {
         room::Member m; m.id = i; m.name = names[i - 1]; m.host = i == 1; m.fighter = (i - 1) * 2; m.mainFighter = (i + 7) % 44;
         m.country = CountryCode::Parsed(countries[i - 1]);
+        // Ultra I, II and Double in turn; every fourth player has not shared theirs.
+        m.ultra = i % 4 == 0 ? -1 : (i - 1) % 3;
         if (i <= 4) { m.table = (i - 1) / 2; m.seat = (i - 1) % 2; m.status = i < 3 ? room::MemberStatus::Seated : room::MemberStatus::Playing; }
         m.link = static_cast<NetworkLink>(i % 3);
         // Sets won and lost in the room, on the cards of those who have played one.
