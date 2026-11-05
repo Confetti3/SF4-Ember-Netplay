@@ -4911,26 +4911,50 @@ msgstr "Dołącza do otwartego pokoju w pobliżu, w którym jest najwięcej woln
 msgid "public.quick_none"
 msgstr "W pobliżu nie ma teraz otwartego pokoju z wolnym miejscem. Utwórz własny, a gracze z okolicy go znajdą."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Utwórz pokój"
 
-msgid "public.filter"
-msgstr "Pokaż"
+msgid "public.filter_region"
+msgstr "Region"
 
-msgid "public.filter_detail"
-msgstr "Wybierz, które pokoje są widoczne: wszystkie, pobliskie albo tylko z wolnymi miejscami."
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
 
-msgid "public.filter_label"
-msgstr "Pokaż: {0}"
+msgid "public.filter_region_all"
+msgstr "All regions"
 
-msgid "public.filter.all"
-msgstr "Wszystkie pokoje"
-
-msgid "public.filter.near"
+msgid "public.filter_region_near"
 msgstr "W pobliżu"
 
-msgid "public.filter.seats"
-msgstr "Wolne miejsca"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Wszystkie pokoje"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember nie zna jeszcze twojego regionu, więc nie wie, które pokoje są w pobliżu."
@@ -5001,8 +5025,8 @@ msgstr "Teraz nie ma otwartych pokojów. Utwórz własny, a inni go znajdą."
 msgid "public.none_filtered"
 msgstr "Żaden pokój nie pasuje do tego filtra."
 
-msgid "public.show_all"
-msgstr "Pokaż wszystkie pokoje"
+msgid "public.clear_filters"
+msgstr "Clear filters"
 
 msgid "public.try_again"
 msgstr "Spróbuj ponownie"
@@ -6518,6 +6542,9 @@ msgstr "Twoje opóźnienie: {0}"
 
 msgid "public.own_delay"
 msgstr "Własne opóźnienie"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Ta usługa pokoi nie potrafi jeszcze utworzyć pokoju z własnym opóźnieniem każdego gracza. Wybierz Takie samo dla obu graczy albo spróbuj później."

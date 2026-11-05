@@ -4912,26 +4912,50 @@ msgstr "가까운 공개 방 중 빈자리가 가장 많은 방에 참가합니�
 msgid "public.quick_none"
 msgstr "지금 가까운 공개 방에는 빈자리가 없습니다. 방을 만들면 근처 플레이어가 찾을 수 있습니다."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "방 만들기"
 
-msgid "public.filter"
-msgstr "표시"
+msgid "public.filter_region"
+msgstr "Region"
 
-msgid "public.filter_detail"
-msgstr "표시할 방을 고릅니다. 전체, 가까운 방, 빈자리가 있는 방 중에서 선택할 수 있습니다."
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
 
-msgid "public.filter_label"
-msgstr "표시: {0}"
+msgid "public.filter_region_all"
+msgstr "All regions"
 
-msgid "public.filter.all"
-msgstr "모든 방"
-
-msgid "public.filter.near"
+msgid "public.filter_region_near"
 msgstr "가까운 방"
 
-msgid "public.filter.seats"
-msgstr "빈자리 있음"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "모든 방"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember가 아직 내 지역을 알지 못해 가까운 방을 구분할 수 없습니다."
@@ -5002,8 +5026,8 @@ msgstr "지금 열려 있는 방이 없습니다. 방을 만들면 다른 사람
 msgid "public.none_filtered"
 msgstr "이 필터에 맞는 방이 없습니다."
 
-msgid "public.show_all"
-msgstr "모든 방 표시"
+msgid "public.clear_filters"
+msgstr "Clear filters"
 
 msgid "public.try_again"
 msgstr "다시 시도"
@@ -6519,6 +6543,9 @@ msgstr "내 지연: {0}"
 
 msgid "public.own_delay"
 msgstr "각자 지연"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "이 방 서비스는 아직 각자 설정 지연으로 방을 만들 수 없습니다. 두 사람 동일을 선택하거나 나중에 다시 시도하세요."

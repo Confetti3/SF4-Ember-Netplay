@@ -4911,26 +4911,50 @@ msgstr "Rejoint le salon ouvert proche de vous qui a le plus de places libres."
 msgid "public.quick_none"
 msgstr "Aucun salon ouvert près de chez vous n'a de place libre pour le moment. Créez-en un et les joueurs proches le trouveront."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Créer un salon"
 
-msgid "public.filter"
-msgstr "Afficher"
+msgid "public.filter_region"
+msgstr "Region"
 
-msgid "public.filter_detail"
-msgstr "Choisissez les salons affichés : tous, ceux près de chez vous ou seulement ceux qui ont des places libres."
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
 
-msgid "public.filter_label"
-msgstr "Afficher : {0}"
+msgid "public.filter_region_all"
+msgstr "All regions"
 
-msgid "public.filter.all"
-msgstr "Tous les salons"
-
-msgid "public.filter.near"
+msgid "public.filter_region_near"
 msgstr "Près de moi"
 
-msgid "public.filter.seats"
-msgstr "Places libres"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Tous les salons"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember ne connaît pas encore votre région et ne peut pas dire quels salons sont proches de vous."
@@ -5001,8 +5025,8 @@ msgstr "Aucun salon ouvert pour le moment. Créez-en un et les autres le trouver
 msgid "public.none_filtered"
 msgstr "Aucun salon ne correspond à ce filtre."
 
-msgid "public.show_all"
-msgstr "Afficher tous les salons"
+msgid "public.clear_filters"
+msgstr "Clear filters"
 
 msgid "public.try_again"
 msgstr "Réessayer"
@@ -6518,6 +6542,9 @@ msgstr "Votre délai : {0}"
 
 msgid "public.own_delay"
 msgstr "Délai propre"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Ce service de salons ne peut pas encore créer un salon avec le délai propre à chaque joueur. Choisissez Identique pour les deux, ou réessayez plus tard."

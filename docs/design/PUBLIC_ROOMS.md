@@ -138,6 +138,21 @@ latest in `rooms.room_type`. A room host that predates the field says nothing,
 and the listing leaves it out; readers take such a room as Classic, which is
 all a host before 1.5.0 can run.
 
+A detailed listing also carries `wired_only` for a room that takes wired
+players alone (an opt-in room rule). Like `own_delay` it is written only when
+true, so a reader that predates it never sees it and an absent key is a room
+open to every connection. The client decodes it leniently with the other
+details: a value that is not a boolean is ignored.
+
+The Public rooms list is filtered on the client, from the rooms the listing
+returns: by region (every region, near this PC's home relay, or one relay
+region), by room type (Classic, Arcade or King of the hill; a room that sent no
+type shows only when every type is allowed), by open seats, and by wired-only
+rooms. The filter is saved with the player's preferences (`roomFilter` in the
+netplay section); a saved region that is no longer one of the relay regions
+loads as every region. Quick join takes the first room the filter lists, in the
+player's region unless the filter names one. Nothing is sent to the bridge.
+
 `POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
 `room_full`, `banned`, `unsupported_build`.
