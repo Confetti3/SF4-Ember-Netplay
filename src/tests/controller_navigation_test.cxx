@@ -227,6 +227,27 @@ void NativeCapture() {
  Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");
  Check(capture.Update(false,16)&&capture.Update(false,16),"Closing leaked held input");
  Check(!capture.Update(false,0)&&!capture.Update(false,16),"New gameplay press blocked after release");
+ {
+  // A direction held from the menu into the fight stays the menu's until it
+  // is let go, but a button pressed beside it reaches the game (and so the
+  // GGPO input read from the game's caches) at once, not when every button is up.
+  using sf4e::input::MenuInputCapture;
+  constexpr unsigned direction=0x2,attack=0x10,other=0x40;
+  MenuInputCapture gate;
+  Check(gate.Update(true,direction)==MenuInputCapture::All,"An open menu did not keep every button");
+  Check(gate.Update(false,direction)==direction,"The direction held as the menu closed reached the game");
+  const unsigned kept=gate.Update(false,direction|attack);
+  Check(kept==direction,"A press made after the menu closed was kept while a direction from the menu was held");
+  unsigned char caches[0x100];std::memset(caches,0,sizeof(caches));
+  const unsigned held=direction|attack;std::memcpy(caches+0x18,&held,4);
+  sf4e::input::ClearNativeMenuInputs(caches,~kept);
+  Check(sf4e::input::NativeMenuHeld(caches)==attack,"The new press did not survive the menu's clear of the game's caches");
+  Check(gate.Update(false,direction|attack|other)==direction,"A second new press was kept");
+  Check(gate.Update(false,attack)==0&&gate.Update(false,attack|direction)==0,"The direction pressed again after its release was still kept");
+  // The press that closed the menu, first seen held on the update after the capture, stays the menu's.
+  MenuInputCapture closing;closing.Update(true,0);
+  Check(closing.Update(false,attack)==attack&&closing.Update(false,attack)==attack&&closing.Update(false,0)==0,"The closing press leaked into the game");
+ }
  ControllerNavigation adapter;ControllerSample device{3,2,true,16};
  adapter.Update(device,true,true,true);Check(adapter.Buttons()==0,"Held opening button activated");
  device.buttons=0;adapter.Update(device,true,true,true);
