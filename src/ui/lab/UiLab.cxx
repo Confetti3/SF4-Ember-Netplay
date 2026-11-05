@@ -63,6 +63,8 @@ int resizeW = 0, resizeH = 0;
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, w, l)) return 1;
     if (msg == WM_SIZE && w != SIZE_MINIMIZED) { resizeW = LOWORD(l); resizeH = HIWORD(l); return 0; }
+    // A size larger than the desktop (1920x1080 on a scaled 1080p screen) is kept, not cut to the screen.
+    if (msg == WM_GETMINMAXINFO) { auto* info = reinterpret_cast<MINMAXINFO*>(l); info->ptMaxTrackSize = POINT{16384, 16384}; return 0; }
     if (msg == WM_DESTROY) { PostQuitMessage(0); return 0; }
     return DefWindowProcW(hwnd, msg, w, l);
 }
