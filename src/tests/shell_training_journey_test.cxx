@@ -269,21 +269,22 @@ void DelayPolicyCreate() {
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
  h.Screen("online");h.Choose("create");
- Check(h.shell.Navigation().Screen()=="create"&&row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.shared"),
-  "Create did not open with the delay the same for both");
+ // Each player's own delay is the default (1.6.0).
+ Check(h.shell.Navigation().Screen()=="create"&&row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.own"),
+  "Create did not open with each player's own delay");
  Check(row("delay-policy")->label==loc::T("room.delay_policy")&&row("delay-policy")->detail==loc::T("room.delay_policy.detail"),"The delay policy did not explain itself");
  h.Choose("host");
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay");
- Check(!netplay::RoomPreferences(h.actions.back().preferences).contains("delay"),"A Shared delay was written to the saved defaults");
+ Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="own","The default delay was not written to the saved defaults");
  h.Screen("online");h.Choose("create");
- h.FocusOn("delay-policy");h.Press(MenuInput::Right);
- Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy did not turn to each player's own");
+ h.FocusOn("delay-policy");h.Press(MenuInput::Left);
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn to the same for both");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay");
- Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="own","The delay policy did not reach the saved defaults");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("delay")=="shared","A Shared delay did not reach the saved defaults");
  // Kept with the defaults: it is still chosen when Create opens again, and a Practice room has it too.
  h.Screen("online");h.Choose("create");
- Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy was forgotten when Create opened again");
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy was forgotten when Create opened again");
  h.FocusOn("practice-room");h.Press(MenuInput::Right);
  Check(row("delay-policy")!=rows.end(),"A Practice room's Create lost the delay policy");
  h.Press(MenuInput::Left);
@@ -291,10 +292,10 @@ void DelayPolicyCreate() {
  h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("delay-policy")!=rows.end()&&row("practice-room")==rows.end(),"Public Create did not offer the delay policy");
  h.Press(MenuInput::Left);
- h.FocusOn("delay-policy");h.Press(MenuInput::Left);
- Check(row("delay-policy")->value==loc::T("room.delay_policy.shared"),"The delay policy did not turn back");
+ h.FocusOn("delay-policy");h.Press(MenuInput::Right);
+ Check(row("delay-policy")->value==loc::T("room.delay_policy.own"),"The delay policy did not turn back");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Shared,"Create room did not ask for a Shared delay again");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().delayPolicy==room::DelayPolicy::Own,"Create room did not ask for each player's own delay again");
  h.Screen("tab-matches/defaults");
  Check(row("delay-policy")!=rows.end(),"Gameplay defaults did not offer the delay policy");
  SetMenuEntriesProbe({});

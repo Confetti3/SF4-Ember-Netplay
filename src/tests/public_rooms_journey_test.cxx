@@ -301,7 +301,8 @@ void TemplateJourney(){
 void OwnDelayJourney(){
  Journey j;auto& h=j.h;j.OpenList();
  j.List({MakeRoom("a","Friday Night",3,8)});
- h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.Frame(0,2);
+ // A player who chose the same delay for both (each player's own is the default).
+ h.view.preferences.roomName="Open Mic";h.view.preferences.roomCapacity=6;h.view.preferences.roomDelayPolicy=room::DelayPolicy::Shared;h.Frame(0,2);
  h.Choose("pr-create");
  // Create on Public saves its visibility with the room defaults; the runtime has that save before the next one is sent.
  const auto settle=[&]{
