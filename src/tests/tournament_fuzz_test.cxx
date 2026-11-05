@@ -157,6 +157,11 @@ static void TestRoomListDetails() {
 	CHECK(room({{"set_format", 2u}}).type == room::ClassicRoom);
 	CHECK(!room({{"room_type", 3u}}).type && !room({{"room_type", 3u}}).hasDetails);
 	CHECK(!room({{"room_type", 3u}, {"set_format", 2u}}).type && !room({{"room_type", "arcade"}}).type && !room({{"room_type", -1}}).type);
+	// wired_only: only a room that takes wired players alone sends it, and a missing, false or
+	// mistyped key is a room open to every connection.
+	CHECK(room({{"wired_only", true}}).wiredOnly && room({{"wired_only", true}}).hasDetails);
+	CHECK(!room({{"wired_only", false}}).wiredOnly && !room(json::object()).wiredOnly);
+	CHECK(!room({{"wired_only", "yes"}}).wiredOnly && !room({{"wired_only", 1}}).wiredOnly && !room({{"wired_only", "yes"}}).hasDetails);
 	// listed_at that is not a number is ignored.
 	const auto text = session::DecodeRoomList({{"listed_at", "soon"}, {"rooms", json::array({Row()})}});
 	CHECK(text && text->listedAt == 0);
