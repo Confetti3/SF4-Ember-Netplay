@@ -649,7 +649,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   }
   else if(v.tournament.phase==Phase::Finished)Say(loc::T("tournament.done_notice"),Tone::Success,12,ToastKind::Match);
   else if(v.tournament.phase==Phase::Failed){
-   Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match);
+   // A version that differs from the opponent's is the one stop the player
+   // can fix: the toast offers the update check (Help & about).
+   std::vector<ToastAction> actions;
+   if(v.tournament.reason=="incompatible_build")actions={{loc::T("updates.check"),"about","updates"},{loc::T("updates.launch_later")}};
+   Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match,std::move(actions));
   }
   tournamentPhase_=v.tournament.phase;
  }
