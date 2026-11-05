@@ -7,6 +7,7 @@
 #include "AppearanceGallery.hxx"
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace sf4e { namespace ui {
 bool DrawStageSelector(int& nativeId, SelectionArt* art);
@@ -25,6 +26,14 @@ const char* ShortUltraLabel(int ultra);
 // the move alone, "Metsu Hadoken" (UltraMove). Empty for no fighter.
 std::string UltraName(int fighter, int ultra);
 std::string UltraMove(int fighter, int ultra);
+// The Ultra's input in words, a line for each command, facing-neutral, with
+// what it needs after it: "QCF x2 + PPP", "Charge B, F, B, F + KKK (Ground)"
+// (UltraCommands, UltraNotation). Ultra Double's are Ultra I's and II's, each
+// after U1 or U2. None for an Ultra the edition does not have.
+std::vector<std::string> UltraInputLines(int fighter, int ultra, int edition);
+// A picture fitted inside the box and centred, or, before it is loaded or
+// where it is missing, a word that says so.
+void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max);
 // A stage's name (a custom stage's installed name, or "Custom C12"), or Random.
 std::string StageLabel(int stageId, const selection::InstalledContent* installed = nullptr);
 class FighterSelector {
@@ -53,9 +62,9 @@ private:
                    const selection::Pick& pick, bool randomSaved, SelectionArt* art, const AvailabilityReader& readAvailability);
     std::string boardFocus_;
     GameMenu menu_;
-    // The costume and colour grids over the fighter's page.
+    // The costume, colour and Ultra grids over the fighter's page.
     AppearanceGallery gallery_;
-    // The page ("stage", "options" or "costumes") opened for one change
+    // The page ("stage", "options", "costumes" or "ultras") opened for one change
     // (EmbeddedReturn::openOn), or empty when the selector opened on its board.
     std::string openOn_;
 };

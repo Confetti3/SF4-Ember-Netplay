@@ -2937,9 +2937,6 @@ msgstr "Scegli qui la tua Ultra per la prossima partita, senza aprire le Opzioni
 msgid "room.ultra.single"
 msgstr "Questo lottatore ha una sola Ultra in questa edizione."
 
-msgid "room.ultra.choice_detail"
-msgstr "La tua Ultra per la prossima partita."
-
 msgid "room.both_ready"
 msgstr "Entrambi pronti. La partita sta per iniziare."
 
@@ -7963,6 +7960,60 @@ msgstr "Sinistra e Destra cambiano qui il costume. Seleziona mostra ogni costume
 
 msgid "selection.color_row.detail"
 msgstr "Sinistra e Destra cambiano qui il colore. Seleziona mostra ogni colore."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Salva Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Tieni"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "A terra"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Antiaereo"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "A terra o in aria"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "In aria"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Da vicino"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Contrattacco"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Posizione mantide"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Posizione gru"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Posizione gru o in aria"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Versione pugno"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Versione calcio"
+
+msgid "selection.ultra_condition.forward"
+msgstr "In avanti"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Tieni i calci per ritardare, pugno per annullare"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Premi di nuovo PPP per smettere di curarti"
 
 msgid "selection.ready_with"
 msgstr "Pronto con {0}"

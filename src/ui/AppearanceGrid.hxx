@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 namespace sf4e { namespace ui {
-// How the costume and colour grids (AppearanceGallery) lay their cards out:
+// How the costume, colour and Ultra grids (AppearanceGallery) lay their cards out:
 // every card at once, as large as the area lets them be. A card is its
 // picture, `aspect` times as tall as it is wide, over a caption `caption`
 // tall, and no wider than `widest`. The columns are the count that makes the
@@ -50,6 +50,13 @@ inline GalleryGrid FitGallery(std::size_t cards, float width, float height, floa
     }
     return best;
 }
+// A grid's cards, in unscaled pixels: the picture's height for its width
+// (`aspect`), and the narrowest and widest a card goes (FitGallery). A
+// costume or colour shows the whole figure, taller than wide; an Ultra its
+// 16:9 picture, wide enough for its input in words under it.
+struct CardShape { float aspect, narrowest, widest; };
+constexpr CardShape FigureCard{1.3f, 64, 220};
+constexpr CardShape UltraCard{9.f / 16, 160, 320};
 // The colour a costume's card shows it in, and the colour its colour grid
 // opens on: the colour worn now where the costume has it, else its first;
 // 0 where it has none.

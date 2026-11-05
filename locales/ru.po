@@ -2937,9 +2937,6 @@ msgstr "Выберите Ультра для следующей игры зде�
 msgid "room.ultra.single"
 msgstr "У этого бойца в этом издании одно Ультра."
 
-msgid "room.ultra.choice_detail"
-msgstr "Ваше Ультра для следующей игры."
-
 msgid "room.both_ready"
 msgstr "Оба бойца готовы. Матч начинается."
 
@@ -7963,6 +7960,60 @@ msgstr "Влево и вправо меняют костюм здесь. Выб�
 
 msgid "selection.color_row.detail"
 msgstr "Влево и вправо меняют цвет здесь. Выбор показывает каждый цвет."
+
+msgid "selection.ultra_combo_title"
+msgstr "УЛЬТРА КОМБО"
+
+msgid "menu.hint.save_ultra"
+msgstr "Сохранить Ультра"
+
+msgid "selection.ultra_charge"
+msgstr "Держать"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "На земле"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Против прыжка"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "На земле или в воздухе"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "В воздухе"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Вблизи"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Контратака"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Стойка богомола"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Стойка журавля"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Стойка журавля или в воздухе"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Вариант с рукой"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Вариант с ногой"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Вперёд"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Держите ноги для задержки, рука отменяет"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Снова PPP прекращает лечение"
 
 msgid "selection.ready_with"
 msgstr "Готов: {0}"

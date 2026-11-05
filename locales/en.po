@@ -2776,8 +2776,6 @@ msgstr "Choose your Ultra for the next game here, without opening Table options.
 msgid "room.ultra.single"
 msgstr "This fighter has one Ultra in this edition."
 
-msgid "room.ultra.choice_detail"
-msgstr "Your Ultra for the next game."
 msgid "room.both_ready"
 msgstr "Both fighters are ready. The match is starting."
 msgid "room.waiting_spectators"
@@ -7585,6 +7583,60 @@ msgstr "Left and Right change the costume here. Select shows every costume."
 
 msgid "selection.color_row.detail"
 msgstr "Left and Right change the color here. Select shows every color."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Save Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Charge"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Ground"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Anti-air"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Ground or in air"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "In air"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Close range"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Counter"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Mantis stance"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Crane stance"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Crane stance or in air"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Punch version"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Kick version"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Forward"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Hold kicks to delay, punch to cancel"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Press PPP again to stop healing"
 
 msgid "selection.ready_with"
 msgstr "Ready with {0}"

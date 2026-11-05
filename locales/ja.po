@@ -2938,9 +2938,6 @@ msgstr "対戦席の設定を開かずに、次の試合のウルトラコンボ
 msgid "room.ultra.single"
 msgstr "このキャラはこのエディションではウルトラコンボが一つです。"
 
-msgid "room.ultra.choice_detail"
-msgstr "次の試合のウルトラコンボ。"
-
 msgid "room.both_ready"
 msgstr "両プレイヤーの準備が完了しました。対戦を開始します。"
 
@@ -7964,6 +7961,60 @@ msgstr "左右でここのコスチュームを変更します。決定で各コ
 
 msgid "selection.color_row.detail"
 msgstr "左右でここのカラーを変更します。決定で各カラーを表示します。"
+
+msgid "selection.ultra_combo_title"
+msgstr "ウルトラコンボ"
+
+msgid "menu.hint.save_ultra"
+msgstr "ウルトラを保存"
+
+msgid "selection.ultra_charge"
+msgstr "タメ"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1}（{0}）"
+
+msgid "selection.ultra_condition.ground"
+msgstr "地上"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "対空"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "地上または空中"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "空中"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "近距離"
+
+msgid "selection.ultra_condition.counter"
+msgstr "当て身"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "喪流"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "忌流"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "忌流または空中"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "パンチ版"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "キック版"
+
+msgid "selection.ultra_condition.forward"
+msgstr "前方"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "キック押しっぱなしで遅らせ、パンチでキャンセル"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "もう一度PPPで回復を止める"
 
 msgid "selection.ready_with"
 msgstr "{0}で準備完了"

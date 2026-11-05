@@ -1,9 +1,16 @@
 # Ultra input symbols
 
-Retired on 2026-10-30: the Ultra page that drew these symbols went with the
-Classic look, and `UltraCommands` and `UltraNotation` were deleted with it. The
-Ultra row on the fighter board names the moves only. The notes below describe
-the retired drawing and its sources, kept for a future return of the symbols.
+Since 1.6.0 the Ultra cards (`AppearanceGallery`, the Ultras page over a
+fighter's page) show each Ultra's picture, its name and its input in words: a
+line per command from `UltraInputLines`, which joins `UltraNotation` with the
+command's `UltraCondition` in the player's language, such as "Charge B, F, B, F
++ KKK (Ground)". Ultra Double shows Ultra I's picture beside Ultra II's and both
+inputs, each after U1 or U2. An Ultra with no packaged picture shows the
+fighter in what they wear. The room bar's Ultra button and Table options' Ultra
+row open the same cards. The vector arrows and button symbols described below
+were drawn by the Classic look's Ultra page, retired on 2026-10-30; the cards
+use the words alone. The commands are one table in native fighter order plus
+the editions that differ (SSFIV Bison's Ultra II, Omega Decapre).
 
 The Ultra selector displays vector motion arrows and arcade button symbols beneath each move name. Ultra Double shows both complete commands. Under the arrows, one line gives the same input in facing-neutral notation (QCF x2, Charge B, F, B, F, U, U), made by `UltraNotation`, so it reads the same whichever side the player starts on. The Ultra cards show each Ultra's photo with a badge in the top-right corner (I, II, or W for Ultra Double, which shows a large W instead of a photo); SAVED stays top-left.
 

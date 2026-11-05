@@ -53,7 +53,7 @@ readiness with **Unready / unlock fighter**.
 
 Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
-(Left and Right step the Ultra in place), then **Input delay**. Its value is
+(Left and Right step the Ultra in place; Select shows the Ultra cards), then **Input delay**. Its value is
 your own delay, and its detail names the recommended delay and the match delay.
 A new profile is on **Auto**: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
@@ -149,8 +149,10 @@ Your Ultra is one press away wherever you choose it, and is always named by
 the game's own name for it, such as Ultra I: Metsu Hadoken.
 
 - **On the board:** while you are seated, the Ultra button beside Ready up
-  lists your fighter's Ultras; choose one and you are done, without opening
-  Table options.
+  shows a card for each of your fighter's Ultras, with its picture and its
+  input, such as QCF x2 + PPP. Choose one and you are back in the room,
+  without opening Table options. The button names only Ultra I, Ultra II or
+  Ultra Double.
 - **After a game:** the post-match prompt shows your Ultra under your answer.
   Left and Right change it before you choose Rematch or Next game. The ten
   seconds keep running. A game that goes on in place keeps the Ultras it

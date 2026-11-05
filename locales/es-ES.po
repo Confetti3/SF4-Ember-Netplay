@@ -2938,9 +2938,6 @@ msgstr "Elige tu Ultra para la siguiente partida aquí, sin abrir las Opciones d
 msgid "room.ultra.single"
 msgstr "Este luchador tiene un solo Ultra en esta edición."
 
-msgid "room.ultra.choice_detail"
-msgstr "Tu Ultra para la siguiente partida."
-
 msgid "room.both_ready"
 msgstr "Ambos jugadores están listos. La partida va a comenzar."
 
@@ -7964,6 +7961,60 @@ msgstr "Izquierda y Derecha cambian el traje aquí. Seleccionar muestra cada tra
 
 msgid "selection.color_row.detail"
 msgstr "Izquierda y Derecha cambian el color aquí. Seleccionar muestra cada color."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Guardar Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Mantén"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "En el suelo"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Antiaéreo"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "En el suelo o en el aire"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "En el aire"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "A corta distancia"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Contraataque"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Postura mantis"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Postura grulla"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Postura grulla o en el aire"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Versión de puño"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Versión de patada"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Hacia delante"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Mantén patadas para retrasar, puño para cancelar"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Pulsa PPP otra vez para dejar de curarte"
 
 msgid "selection.ready_with"
 msgstr "Listo con {0}"

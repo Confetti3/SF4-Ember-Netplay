@@ -105,19 +105,16 @@ void SelectionRows(std::vector<MenuEntry>& rows,const ShellView& v) {
   canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
  rows.back().adjustable=false;rows.back().opens=true;
 }
-// The board's Ultra, beside Ready on the action bar: Select lists the fighter's
-// Ultras by name over the matchup, and the one chosen steps the same pick the
-// table options' row steps (RoomAction). A list, not Left and Right, so the
-// bar still walks with them.
+// The board's Ultra, beside Ready on the action bar: Select shows the
+// fighter's Ultras as cards, each with its picture and input (fighter
+// select's Ultra page, as the table options' Ultra row opens it), and the one
+// chosen, or Back, comes back here (RoomAction). No Left and Right, so the
+// bar still walks with them. The button says only which Ultra ("Ultra I"),
+// so a seated player's bar stays narrow; its detail and the cards name it.
 MenuEntry UltraRow(const ShellView& v){
- const auto& pick=v.selectedPick;
  const bool canChange=RoomActionsAvailable(v)&&v.canEditSelection&&!v.room.localTerminalPending;
- MenuEntry row=Row("room-ultra",v.ultraName.empty()?std::string(loc::T("selection.ultra_combo")):v.ultraName,
-  canChange?std::string(loc::T(v.ultraSteps?"room.ultra.detail":"room.ultra.single")):SelectionBlocker(v),canChange&&v.ultraSteps);
- row.popout=true;row.chosen="ultra-"+std::to_string(pick.ultra);
- for(const int ultra:selection::AllowedUltras(pick.fighter,pick.edition))
-  row.choices.push_back({"ultra-"+std::to_string(ultra),UltraName(pick.fighter,ultra),loc::T("room.ultra.choice_detail")});
- return row;
+ return Row("room-ultra",v.ultraName.empty()?loc::T("selection.ultra_combo"):UltraLabel(v.selectedPick.ultra),
+  canChange?v.ultraName+"\n"+loc::T(v.ultraSteps?"room.ultra.detail":"room.ultra.single"):SelectionBlocker(v),canChange&&v.ultraSteps);
 }
 // Your own seat's row on the board, a cabinet or a table card: A readies or
 // unreadies (when neither can be sent the row still names the state, but has

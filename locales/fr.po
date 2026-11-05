@@ -2937,9 +2937,6 @@ msgstr "Choisissez votre Ultra pour la partie suivante ici, sans ouvrir les Opti
 msgid "room.ultra.single"
 msgstr "Ce combattant n'a qu'un Ultra dans cette édition."
 
-msgid "room.ultra.choice_detail"
-msgstr "Votre Ultra pour la partie suivante."
-
 msgid "room.both_ready"
 msgstr "Les deux combattants sont prêts. Le combat commence."
 
@@ -7963,6 +7960,60 @@ msgstr "Gauche et Droite changent le costume ici. Sélectionner montre chaque co
 
 msgid "selection.color_row.detail"
 msgstr "Gauche et Droite changent la couleur ici. Sélectionner montre chaque couleur."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Enregistrer l'Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Maintenir"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Au sol"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Anti-air"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Au sol ou en l'air"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "En l'air"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "À bout portant"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Contre"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Posture de la mante"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Posture de la grue"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Posture de la grue ou en l'air"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Version poing"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Version pied"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Vers l'avant"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Maintenir les pieds pour retarder, poing pour annuler"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "PPP à nouveau arrête le soin"
 
 msgid "selection.ready_with"
 msgstr "Prêt avec {0}"

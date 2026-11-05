@@ -2937,9 +2937,6 @@ msgstr "Kies hier je Ultra voor het volgende potje, zonder de Tafelopties te ope
 msgid "room.ultra.single"
 msgstr "Deze vechter heeft in deze editie één Ultra."
 
-msgid "room.ultra.choice_detail"
-msgstr "Je Ultra voor het volgende potje."
-
 msgid "room.both_ready"
 msgstr "Beide spelers zijn klaar. De match begint."
 
@@ -7963,6 +7960,60 @@ msgstr "Links en Rechts wisselen hier het kostuum. Selecteren toont elk kostuum.
 
 msgid "selection.color_row.detail"
 msgstr "Links en Rechts wisselen hier de kleur. Selecteren toont elke kleur."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Ultra opslaan"
+
+msgid "selection.ultra_charge"
+msgstr "Houd"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Op de grond"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Anti-air"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Op de grond of in de lucht"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "In de lucht"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Van dichtbij"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Counter"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Bidsprinkhaanhouding"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Kraanvogelhouding"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Kraanvogelhouding of in de lucht"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Stootversie"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Trapversie"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Naar voren"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Houd trappen vast om te vertragen, stoot om te annuleren"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Druk opnieuw op PPP om te stoppen met genezen"
 
 msgid "selection.ready_with"
 msgstr "Klaar met {0}"

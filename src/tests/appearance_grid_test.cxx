@@ -1,4 +1,4 @@
-// The costume and colour grids' layout (AppearanceGrid.hxx): every card at
+// The costume, colour and Ultra grids' layout (AppearanceGrid.hxx): every card at
 // once and as large as fits, a short set on one line, a long one in a block
 // that fits the height, and a set too large for the area held at the
 // narrowest card, to scroll.
@@ -71,6 +71,22 @@ int main() {
     {
         const auto grid = FitGallery(1, 40, 600, gap, aspect, caption, narrowest, widest);
         CHECK(grid.columns == 1 && grid.width == 40);
+    }
+
+    // The figure cards are the shape this test lays out above.
+    CHECK(FigureCard.aspect == aspect && FigureCard.narrowest == narrowest && FigureCard.widest == widest);
+    // The Ultra cards: 16:9 pictures with a caption of the name and up to four
+    // input lines (Gen's Ultra Double). The three of USFIV sit on one line at
+    // their widest on a 1280x600 body, and at 640x720 all of them still show.
+    {
+        const float ultraCaption = 15 + 8 + 4 * 19;
+        const auto wide = FitGallery(3, 1280, 600, gap, UltraCard.aspect, ultraCaption, UltraCard.narrowest, UltraCard.widest);
+        CHECK(wide.Lines(3) == 1 && wide.width == UltraCard.widest && fits(wide, 3, 1280, 600));
+        const auto narrow = FitGallery(3, 640, 720, gap, UltraCard.aspect, ultraCaption, UltraCard.narrowest, UltraCard.widest);
+        CHECK(narrow.width >= UltraCard.narrowest && fits(narrow, 3, 640, 720));
+        // Two Ultras (an earlier edition) are as wide as they go too.
+        const auto two = FitGallery(2, 1280, 600, gap, UltraCard.aspect, ultraCaption, UltraCard.narrowest, UltraCard.widest);
+        CHECK(two.Lines(2) == 1 && two.width == UltraCard.widest);
     }
 
     // The colour a costume shows and opens on: the one worn where it has it.

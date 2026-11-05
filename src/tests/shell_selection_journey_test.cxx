@@ -109,14 +109,26 @@ void KeyboardJourneys(){
  key(ImGuiKey_Backspace);
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};
  Check(h.shell.Navigation().Screen()=="room","Back from the board did not return to the room");
- // Select on the table page's Ultra or Appearance opens the board on that row,
- // and Back returns to the table page.
+ // Select on the table page's Ultra or Appearance opens its cards at once, on
+ // the one in use; Back returns to the table page unchanged, and a pick saves
+ // and returns.
  selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
  h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);};
- h.view.ultraSteps=true;h.view.ultraName="Ultra II";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="look"&&selector.Navigation().Focus()=="ultra",
-  "Select on the table's Ultra did not open the fighter's page on its Ultra");
- key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
+ pick.ultra=0;h.view.ultraSteps=true;h.view.ultraName="Ultra I";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="ultras"&&selector.Navigation().Focus()=="ultra-0",
+  "Select on the table's Ultra did not open the Ultra cards on the Ultra in use");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Backspace);
+ Check(h.shell.Navigation().Screen()=="room-table"&&pick.ultra==0,"Back from the Ultra cards did not return to the table page unchanged");
+ h.FocusOn("ultra");key(ImGuiKey_Enter);key(ImGuiKey_RightArrow);
+ Check(selector.Navigation().Focus()=="ultra-1","Right on the Ultra cards did not move to Ultra II");
+ key(ImGuiKey_Enter);
+ Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room-table","Picking an Ultra card did not save it and return to the table page");
+ // A card's input is in words that face neither way; Ultra Double's is both
+ // Ultras', and an Ultra the edition lacks has none.
+ Check(UltraInputLines(0,0,14)==std::vector<std::string>{"QCF x2 + PPP"}&&
+  UltraInputLines(0,2,14)==std::vector<std::string>{"U1 QCF x2 + PPP","U2 QCF x2 + KKK"}&&
+  UltraInputLines(43,1,14)==std::vector<std::string>{"Charge B, F, B, F + KKK (Ground)","Charge DB, DF, DB, UF + KKK (Anti-air)"}&&
+  UltraInputLines(0,2,2).empty()&&UltraInputLines(0,1,13).empty(),"An Ultra's input lines are wrong");
  h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-0",
   "Select on the table's Appearance did not open the costume grid on the worn costume");

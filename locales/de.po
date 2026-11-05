@@ -2937,9 +2937,6 @@ msgstr "Wählen Sie Ihr Ultra für das nächste Spiel hier, ohne die Tischoption
 msgid "room.ultra.single"
 msgstr "Dieser Kämpfer hat in dieser Edition nur ein Ultra."
 
-msgid "room.ultra.choice_detail"
-msgstr "Ihr Ultra für das nächste Spiel."
-
 msgid "room.both_ready"
 msgstr "Beide Charaktere sind bereit. Der Kampf beginnt."
 
@@ -7963,6 +7960,60 @@ msgstr "Links und Rechts wechseln hier das Kostüm. Auswählen zeigt jedes Kost�
 
 msgid "selection.color_row.detail"
 msgstr "Links und Rechts wechseln hier die Farbe. Auswählen zeigt jede Farbe."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Ultra speichern"
+
+msgid "selection.ultra_charge"
+msgstr "Halten"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Am Boden"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Anti-Air"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Am Boden oder in der Luft"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "In der Luft"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Aus nächster Nähe"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Konter"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Gottesanbeterin-Stil"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Kranich-Stil"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Kranich-Stil oder in der Luft"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Schlag-Version"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Tritt-Version"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Nach vorn"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Tritte halten verzögert, Schlag bricht ab"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Erneut PPP beendet die Heilung"
 
 msgid "selection.ready_with"
 msgstr "Bereit mit {0}"

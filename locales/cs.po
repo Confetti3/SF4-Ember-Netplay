@@ -2937,9 +2937,6 @@ msgstr "Vyberte si Ultru pro další hru přímo zde, bez otevírání Možnost�
 msgid "room.ultra.single"
 msgstr "Tato postava má v této edici jen jednu Ultru."
 
-msgid "room.ultra.choice_detail"
-msgstr "Vaše Ultra pro další hru."
-
 msgid "room.both_ready"
 msgstr "Oba hráči jsou připraveni. Zápas začíná."
 
@@ -7963,6 +7960,60 @@ msgstr "Šipky vlevo a vpravo zde mění kostým. Výběr ukáže všechny kost�
 
 msgid "selection.color_row.detail"
 msgstr "Šipky vlevo a vpravo zde mění barvu. Výběr ukáže všechny barvy."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Uložit Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Držet"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Na zemi"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Proti skoku"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Na zemi nebo ve vzduchu"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "Ve vzduchu"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Zblízka"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Protiútok"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Postoj kudlanky"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Postoj jeřába"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Postoj jeřába nebo ve vzduchu"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Verze s pěstmi"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Verze s kopy"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Vpřed"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Držte kopy pro zdržení, pěst ruší"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Znovu PPP ukončí léčení"
 
 msgid "selection.ready_with"
 msgstr "Připraven s {0}"

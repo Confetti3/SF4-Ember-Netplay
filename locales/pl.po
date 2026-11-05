@@ -2937,9 +2937,6 @@ msgstr "Wybierz tu swoją Ultrę na następną grę, bez otwierania Opcji stołu
 msgid "room.ultra.single"
 msgstr "Ta postać ma w tej edycji tylko jedną Ultrę."
 
-msgid "room.ultra.choice_detail"
-msgstr "Twoja Ultra na następną grę."
-
 msgid "room.both_ready"
 msgstr "Obaj gracze są gotowi. Walka się rozpoczyna."
 
@@ -7963,6 +7960,60 @@ msgstr "Lewo i Prawo zmieniają tu strój. Wybór pokazuje każdy strój."
 
 msgid "selection.color_row.detail"
 msgstr "Lewo i Prawo zmieniają tu kolor. Wybór pokazuje każdy kolor."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Zapisz Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Trzymaj"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Na ziemi"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Przeciw skokowi"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Na ziemi lub w powietrzu"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "W powietrzu"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Z bliska"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Kontra"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Postawa modliszki"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Postawa żurawia"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Postawa żurawia lub w powietrzu"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Wersja z ciosem"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Wersja z kopnięciem"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Do przodu"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Trzymaj kopnięcia, by opóźnić, cios anuluje"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Ponowne PPP przerywa leczenie"
 
 msgid "selection.ready_with"
 msgstr "Gotowy z {0}"

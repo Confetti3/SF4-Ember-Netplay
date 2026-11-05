@@ -889,13 +889,26 @@ int main(int argc, char** argv) {
             lookRow("costume");draw(nullptr,MenuInput::Select,1);showAppearance("look-costume-grid");
             Require(selector.Navigation().Screen()=="costumes","The fighter page's Costume row did not open the costume grid");
             draw(nullptr,MenuInput::Back,1);draw();
-            lookRow("ultra");draw(nullptr,MenuInput::Select,1);showAppearance("look-ultra-values");
-            Require(selector.Navigation().Choosing(),"A fighter page row did not open its values");
-            // Select on the saved value closes the panel and keeps it.
-            draw(nullptr,MenuInput::Select,1);draw();
-            lookRow("ultra");
+            // Ultra opens its cards, each its picture, name and input, once the
+            // pictures have loaded; Select on the saved one keeps it and comes back.
+            const auto ultraPicturesLoaded=[&]{
+                const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
+                const auto settled=[&](int ultra){const auto img=art->Ultra(pick.fighter,ultra);return img.missing||img.texture!=0;};
+                while(art&&!(settled(0)&&settled(1))&&std::chrono::steady_clock::now()<deadline){art->Pump();std::this_thread::sleep_for(std::chrono::milliseconds(5));}
+            };
+            lookRow("ultra");draw(nullptr,MenuInput::Select,1);ultraPicturesLoaded();showAppearance("look-ultra-cards");
+            Require(selector.Navigation().Screen()=="ultras","The fighter page's Ultra row did not open the Ultra cards");
             const int savedUltra=pick.ultra;
+            draw(nullptr,MenuInput::Select,1);draw();
+            Require(selector.Navigation().Screen()=="look"&&pick.ultra==savedUltra,"Select on the saved Ultra card changed it or stayed on the cards");
+            lookRow("ultra");
             for(int ultra:{0,1,2}){pick.ultra=ultra;draw(("ultra-saved-"+std::to_string(ultra)).c_str());}
+            // The cards with each Ultra saved: Ultra Double shows both pictures.
+            for(int ultra:{0,1,2}){
+                pick.ultra=ultra;selector.Navigation().Home();selector.Navigation().Push("look");selector.Navigation().Push("ultras");
+                draw(("ultra-cards-saved-"+std::to_string(ultra)).c_str());
+            }
+            selector.Navigation().Home();
             pick.ultra=savedUltra;
             for(const char* screen:{"stage","random-pool","options"}){
                 selector.Navigation().Home();selector.Navigation().Push(screen);draw(screen);

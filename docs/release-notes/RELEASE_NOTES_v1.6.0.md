@@ -1,6 +1,6 @@
 # SF4 Ember Netplay v1.6.0
 
-v1.6.0 is built from what players asked for on Discord and GitHub. Changing your Ultra takes one press, from the room bar or the post-match prompt. Costumes and colors are picture grids again. Public rooms can be filtered by region, type, open seats and connection, and a room can be set to wired players only. The Training controls button can be moved off R3. Spectators of an instant rematch now see the set score move.
+v1.6.0 is built from what players asked for on Discord and GitHub. Changing your Ultra takes one press, from the room bar or the post-match prompt. Costumes, colors and Ultras are pictures again, each Ultra with its input. Public rooms can be filtered by region, type, open seats and connection, and a room can be set to wired players only. The Training controls button can be moved off R3. Spectators of an instant rematch now see the set score move.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
@@ -14,16 +14,18 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ### Changing your Ultra
 
-- **One press from the room.** While you are seated, an Ultra button beside Ready up lists your fighter's Ultras by name. You no longer need to open Table options for it.
+- **One press from the room.** While you are seated, an Ultra button beside Ready up opens your fighter's Ultra cards, and choosing one returns to the room. You no longer need to open Table options for it. The button says only Ultra I, Ultra II or Ultra Double, so the room bar stays on one line.
 - **After a game.** The post-match prompt shows your Ultra under your answer, and Left and Right change it before you choose Rematch or Next game. An instant rematch keeps the Ultras the game loaded, so with a new Ultra the next game loads first.
 - **Real Ultra names.** Ready reads, for example, "Ready with Ryu, Metsu Hadoken, against Ken." The fighter page names each Ultra too, not just U1 and U2.
 - **Your opponent's first pick counts.** Until a player picks, their seat shows their profile's main. A first pick of another fighter now takes back a Ready given against the main, as a later change already did, so the game no longer loads with an Ultra you chose for the wrong matchup. The table card says what they picked, and the focus moves to your Ultra.
 - **Table options are back on the room bar** (Y still opens them). Copy room link moved into More.
 
-### Costume and color grids
+### Costume, color and Ultra pictures
 
 - **Costumes and colors are pictures again, all at once.** On a fighter's page, Select on Costume shows a card for every costume you own, each in the color you wear now. Select on a costume shows all of its colors, and Select on a color saves both. The pad moves across the cards in every direction, and Back steps out without changing anything. Left and Right on the Costume and Color rows still change them in place.
 - **From a room, Appearance opens the costume grid straight away,** and picking a color returns to the room.
+- **Each Ultra shows its picture and its input again.** Select on the Ultra row of a fighter's page shows a card for each Ultra: its picture, its name, and its input in words that read the same on either side, such as QCF x2 + PPP or Charge B, F, B, F + KKK. A move with two ways in, like Gen's stances or Decapre's anti-air version, lists both, and Ultra Double shows both Ultras. The input follows the edition, so SSFIV Bison and Omega Decapre show their own. Select saves the Ultra and Back leaves it as it was. Left and Right on the Ultra row still change it in place.
+- **From a room, the Ultra opens these cards too:** the Ultra button beside Ready up and the Ultra row in Table options. Picking one returns to the room.
 
 ### Public rooms
 

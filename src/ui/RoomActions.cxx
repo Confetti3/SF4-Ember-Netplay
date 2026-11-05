@@ -107,14 +107,6 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
  if(a.kind==MenuAction::Chosen){
   // More…'s choice is the row it stands for.
   if(a.id=="room-more"){RoomAction({MenuAction::Activate,a.text},v,submit);return;}
-  // The board's Ultra: the one chosen is the steps to it, as Left and Right
-  // take on the table options' row.
-  if(a.id=="room-ultra"){
-   const auto ultra=RowKey<int>(a.text,"ultra-");
-   const int steps=ultra?StepsTo(selection::AllowedUltras(v.selectedPick.fighter,v.selectedPick.edition),v.selectedPick.ultra,*ultra):0;
-   if(steps&&v.canEditSelection&&RoomActionsAvailable(v))StepPick(v,{ShellAction::SelectionStep::Field::Ultra,steps},submit);
-   return;
-  }
   const auto table=RowKey<int>(a.id,"table-");if(!table||*table>=static_cast<int>(v.room.tables.size()))return;
   selectedTable_=*table;
   if(a.text=="options"){OpenTableOptions(v,selectedTable_);return;}
@@ -190,14 +182,15 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
    const int selected=a.kind==MenuAction::Adjust?StepInputDelay(v.preferences.autoInputDelay,v.selectedDelay,a.delta):-1;
    sendDelay(netplay::CommandKind::ApplyDelay,selected);return;
   }
-  if(a.id=="ultra"||a.id=="appearance"){
+  if(a.id=="ultra"||a.id=="room-ultra"||a.id=="appearance"){
    // Select shows the Ultra or costume cards (a costume goes on to its
-   // colors), and picking one comes back here.
-   const bool ultra=a.id=="ultra";
+   // colors), and picking one comes back here: from the table options' rows,
+   // and from the bar's Ultra beside Ready.
+   const bool ultra=a.id!="appearance";
    if(a.kind==MenuAction::Adjust){
     if(v.canEditSelection&&RoomActionsAvailable(v))
      StepPick(v,{ultra?ShellAction::SelectionStep::Field::Ultra:ShellAction::SelectionStep::Field::Color,a.delta},submit);
-   }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?"ultra":"costumes";nav.Push("selection");}
+   }else if(SelectionBlocker(v).empty()){selectionFresh_=true;selectionOpenOn_=ultra?"ultras":"costumes";nav.Push("selection");}
    return;
   }
   if(a.id=="stage"||a.id=="fighter-options"){

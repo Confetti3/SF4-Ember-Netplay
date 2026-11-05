@@ -453,7 +453,7 @@ int main() try {
                 focus(id); press(MenuInput::Select);
                 Check(shell.Navigation().Screen() == "selection", "An unseated pick row did not open selection");
                 Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? "roster" :
-                    std::strcmp(id, "appearance") == 0 ? "costumes" : std::strcmp(id, "ultra") == 0 ? "ultra" : "options"),
+                    std::strcmp(id, "appearance") == 0 ? "costumes" : std::strcmp(id, "ultra") == 0 ? "ultras" : "options"),
                     "An unseated pick row opened the wrong selection page");
                 shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
             }
@@ -750,36 +750,25 @@ int main() try {
         targets.clear(); frame(); frame();
         Check(room_controls::DescribeTableBanner(view, view.room.tables[0]).text.empty() && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
     }
-    // Changing the Ultra from the board: beside Ready, a list of the fighter's
-    // Ultras by name, whose pick is the steps the table options' row takes. The
+    // Changing the Ultra from the board: beside Ready, a short button that
+    // opens the Ultra cards (fighter select's Ultra page) and comes back. The
     // table options are a bar button (Y still opens them); the opponent's new
     // fighter puts the focus on the Ultra; Ready names the Ultra and the matchup.
     {
-        using Field = ShellAction::SelectionStep::Field;
-        // A choice is the steps to it, which Step takes back to that choice.
-        for (const auto& choices : {std::vector<int>{0, 1, 2}, std::vector<int>{0, 1}, std::vector<int>{0}})
-            for (const int from : {0, 1, 2, 7})
-                for (const int to : {0, 1, 2}) {
-                    int value = from;
-                    Step(value, choices, StepsTo(choices, from, to));
-                    const bool offered = std::find(choices.begin(), choices.end(), to) != choices.end();
-                    Check(offered ? value == to : StepsTo(choices, from, to) == 0, "StepsTo did not lead Step to the chosen value");
-                }
         view.selectedPick = selection::Pick{}; view.fighterName = "Ryu";
         view.ultraName = UltraName(0, 0); view.ultraSteps = true;
         shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
         const auto& ultra = row("room-ultra");
-        Check(ultra.enabled && ultra.popout && ultra.label == UltraName(0, 0) && ultra.choices.size() == 3 &&
-            ultra.choices[1].label == UltraName(0, 1) && ultra.choices[2].label == UltraName(0, 2) && ultra.chosen == "ultra-0",
-            "The board offers no Ultra list beside Ready, or names its Ultras wrong");
+        Check(ultra.enabled && !ultra.popout && ultra.choices.empty() && !ultra.adjustable && ultra.label == UltraLabel(0) &&
+            ultra.detail.compare(0, UltraName(0, 0).size(), UltraName(0, 0)) == 0,
+            "The board's Ultra is not a short button beside Ready, or its detail does not name the Ultra");
         const auto& more = row("room-more");
         Check(row("options").enabled && std::none_of(more.choices.begin(), more.choices.end(), [](const MenuChoice& c) { return c.id == "options"; }),
             "Table options are not a bar button, or are still a choice of More");
         focus("room-ultra"); press(MenuInput::Select);
-        Check(shell.Navigation().Choosing(), "Select on the board's Ultra did not list the Ultras");
-        press(MenuInput::Right); press(MenuInput::Right); press(MenuInput::Select);
-        Check(actions.back().selectionStep.field == Field::Ultra && actions.back().selectionStep.delta == 2,
-            "Choosing Ultra Double on the board did not step the pick to it");
+        Check(shell.Navigation().Screen() == "selection" && EmbeddedReturnContext().openOn == "ultras",
+            "Select on the board's Ultra did not open the Ultra cards");
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
         focus("table-0"); frame();
         view.opponentChangedFighter = 5; ++view.opponentChangeSequence; ++view.room.revision; frame(); frame();
         Check(shell.Navigation().Focus() == "room-ultra", "The opponent's new fighter did not put the focus on the Ultra");

@@ -9,11 +9,6 @@
 #include <algorithm>
 
 namespace sf4e { namespace ui {
-namespace {
-using palette::Ember;
-using palette::Ivory;
-using palette::Muted;
-
 void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max) {
     if (!image.texture || !image.width || !image.height) {
         const char* label=loc::T(image.missing?"selection.preview_unavailable":"selection.preview_loading");
@@ -21,13 +16,40 @@ void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max) {
         const float factor=(std::max)(0.f,(std::min)(1.f,(std::min)((max.x-min.x-8*Scale())/(std::max)(1.f,size.x),
             (max.y-min.y-8*Scale())/(std::max)(1.f,size.y))));
         ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),ImGui::GetFontSize()*factor,
-            ImVec2((min.x+max.x-size.x*factor)*.5f,(min.y+max.y-size.y*factor)*.5f),Muted,label);
+            ImVec2((min.x+max.x-size.x*factor)*.5f,(min.y+max.y-size.y*factor)*.5f),palette::Muted,label);
         return;
     }
     const float factor = (std::min)((max.x - min.x) / image.width, (max.y - min.y) / image.height);
     const ImVec2 size(image.width * factor, image.height * factor);
     const ImVec2 start(min.x + (max.x - min.x - size.x) / 2, min.y + (max.y - min.y - size.y) / 2);
     ImGui::GetWindowDrawList()->AddImage(image.texture, start, ImVec2(start.x + size.x, start.y + size.y), image.uvMin, image.uvMax);
+}
+namespace {
+using palette::Ember;
+using palette::Ivory;
+using palette::Muted;
+
+// What an Ultra's command needs besides its input, in the player's language.
+const char* UltraConditionText(selection::UltraCondition condition) {
+    using C = selection::UltraCondition;
+    switch (condition) {
+    case C::None: break;
+    case C::Ground: return loc::T("selection.ultra_condition.ground");
+    case C::AntiAir: return loc::T("selection.ultra_condition.anti_air");
+    case C::GroundOrAir: return loc::T("selection.ultra_condition.ground_or_air");
+    case C::InAir: return loc::T("selection.ultra_condition.in_air");
+    case C::CloseRange: return loc::T("selection.ultra_condition.close_range");
+    case C::Counter: return loc::T("selection.ultra_condition.counter");
+    case C::MantisStance: return loc::T("selection.ultra_condition.mantis_stance");
+    case C::CraneStance: return loc::T("selection.ultra_condition.crane_stance");
+    case C::CraneStanceOrAir: return loc::T("selection.ultra_condition.crane_stance_or_air");
+    case C::PunchStart: return loc::T("selection.ultra_condition.punch_start");
+    case C::KickStart: return loc::T("selection.ultra_condition.kick_start");
+    case C::Forward: return loc::T("selection.ultra_condition.forward");
+    case C::DelayOrCancel: return loc::T("selection.ultra_condition.delay_or_cancel");
+    case C::StopHealing: return loc::T("selection.ultra_condition.stop_healing");
+    }
+    return "";
 }
 bool ImageCard(const char* id, const char* label, const SelectionImage& image, ImVec2 size, bool selected) {
     ImGui::PushID(id);
@@ -119,6 +141,21 @@ std::string UltraName(int fighter, int ultra) {
     const std::string move = UltraMove(fighter, ultra);
     return move.empty() || ultra == 2 ? move : std::string(UltraLabel(ultra)) + ": " + move;
 }
+std::vector<std::string> UltraInputLines(int fighter, int ultra, int edition) {
+    std::vector<std::string> lines;
+    const auto allowed = selection::AllowedUltras(fighter, edition);
+    if (std::find(allowed.begin(), allowed.end(), ultra) == allowed.end()) return lines;
+    const std::string charge = loc::T("selection.ultra_charge");
+    // Ultra Double has no input of its own: it is Ultra I's and Ultra II's.
+    for (const int one : ultra == 2 ? std::vector<int>{0, 1} : std::vector<int>{ultra})
+        for (const auto& command : selection::UltraCommands(fighter, one, edition)) {
+            std::string line = selection::UltraNotation(command.symbols, charge);
+            if (command.condition != selection::UltraCondition::None)
+                line = loc::Tf("selection.ultra_input_condition", UltraConditionText(command.condition), line);
+            lines.push_back(ultra == 2 ? std::string(ShortUltraLabel(one)) + " " + line : line);
+        }
+    return lines;
+}
 
 bool DrawStageSelector(int& nativeId, SelectionArt* art) {
     const int previous = nativeId;
@@ -174,8 +211,9 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   // The board is the grid; the costume and the Ultra are on the fighter's own page.
   if(openOn=="roster"){nav.Prefer(savedCard);openOn_=openOn;}
   else if(openOn=="ultra"){nav.Push("look");nav.Prefer("ultra");openOn_="look";}
-  // Opened for the look, the costume grid shows at once, over the fighter's page.
+  // Opened for the look or the Ultra, its grid shows at once, over the fighter's page.
   else if(openOn=="costumes"){nav.Push("look");nav.Prefer("costume");gallery_.Open(nav,AppearanceGallery::Page::Costumes,pick);openOn_=openOn;}
+  else if(openOn=="ultras"){nav.Push("look");nav.Prefer("ultra");gallery_.Open(nav,AppearanceGallery::Page::Ultras,pick);openOn_=openOn;}
   else if(openOn=="stage"&&stageId){nav.Push("stage");nav.Prefer("stage-"+std::to_string(*stageId));openOn_=openOn;}
   else if(openOn=="options"){nav.Push("options");openOn_=openOn;}
  }
@@ -231,14 +269,13 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
    std::vector<std::string> labels;for(int id:ids)labels.push_back(name(id));
    OfferSteps(e,labels);e.wide=true;rows.push_back(std::move(e));
   };
-  // The costume and the colour step in place too, and Select shows them all
-  // as pictures (AppearanceGallery).
+  // The costume, the colour and the Ultra step in place too, and Select shows
+  // them all as pictures (AppearanceGallery), each Ultra with its input.
   const auto opens=[&](MenuEntry e){e.opens=e.wide=true;rows.push_back(std::move(e));};
   opens(Value("costume",loc::T("selection.costume"),CostumeLabel(pick,installed),editable?loc::T("selection.costume_row.detail"):adjusts,editable&&availability.ready));
   const std::string colorName=installed&&selection::IsCustomColor(pick.color)?installed->Name(pick.fighter,pick.costume,pick.color):std::string();
   opens(Value("color",loc::T("selection.color_row"),colorName.empty()?std::to_string(pick.color+1):colorName,editable?loc::T("selection.color_row.detail"):adjusts,editable&&availability.ready));
-  offer(Value("ultra",loc::T("selection.ultra_combo"),UltraName(pick.fighter,pick.ultra),adjusts,editable&&AllowedUltras(pick.fighter,pick.edition).size()>1),AllowedUltras(pick.fighter,pick.edition),
-   [&](int ultra){return UltraName(pick.fighter,ultra);});
+  opens(Value("ultra",loc::T("selection.ultra_combo"),UltraName(pick.fighter,pick.ultra),editable?loc::T("selection.ultra_row.detail"):adjusts,editable&&AllowedUltras(pick.fighter,pick.edition).size()>1));
   offer(editionRow(),AllowedEditions(pick.fighter,editionSelect),
    [](int edition){return std::string(FindEdition(edition)->name);});
   rows.push_back(Row("stage",loc::T("selection.stage"),stageId?loc::T("selection.choose_battlefield"):loc::T("selection.p1_stage"),stageId!=nullptr));
@@ -320,7 +357,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  };
  // What the status line promises depends on the page: Select saves a stage
  // card, opens a page from the board, and does nothing on the option rows;
- // the costume and colour grids say their own.
+ // the costume, colour and Ultra grids say their own.
  const std::string status=!selectionError.empty()?selectionError:
   loc::T(!editable?"selection.status_locked":fighterKept&&board?"selection.winner_keeps_fighter":gallery?AppearanceGallery::StatusKey(screen):
    screen=="stage"||pool?"selection.status_editable":board?"selection.status_browse":"selection.status_adjust");
@@ -328,7 +365,7 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
  if(board)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){
   DrawBoard(entries,navigation,action,height,pick,randomSaved,art,readAvailability);};
  else if(gallery)body=[&](const std::vector<MenuEntry>& entries,MenuNavigation& navigation,MenuAction& action,float height,const MenuVisualFeedback&){
-  gallery_.DrawBody(entries,navigation,action,height,pick);};
+  gallery_.DrawBody(entries,navigation,action,height);};
  const auto a=menu_.Draw(title.c_str(),rows,status.c_str(),preview,columns,card,body,false,100,selectionError.empty()?Tone::Neutral:Tone::Error);
  if(a.kind==MenuAction::Close||a.kind==MenuAction::Shortcut)ForwardMenuAction(a);
  // Opened for one change, Back from its page goes back to where it came from.
@@ -337,10 +374,11 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   if(a.id=="ready")ForwardMenuAction({MenuAction::Close});
   else if(a.id=="stage"||a.id=="options"||a.id=="random-pool")nav.Push(a.id);
   else if(const auto chosen=gallery_.Choose(a.id,nav,pick,availability,installed);chosen!=AppearanceGallery::Choice::Unhandled){
-   // A colour saves its costume with it; opened for the look, that is the change.
+   // A colour saves its costume with it; opened for the look or the Ultra,
+   // that is the change.
    if(chosen==AppearanceGallery::Choice::Saved){
     Normalize(pick,editionSelect,&availability,installed);changed=true;
-    if(openOn_=="costumes")ForwardMenuAction({MenuAction::Close});
+    if(AppearanceGallery::Shows(openOn_))ForwardMenuAction({MenuAction::Close});
    }
   }
   else if(const auto pooled=RowKey<int>(a.id,"pool-");pooled&&editable&&randomPool){

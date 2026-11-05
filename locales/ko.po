@@ -2938,9 +2938,6 @@ msgstr "테이블 옵션을 열지 않고 여기서 다음 게임의 울트라 �
 msgid "room.ultra.single"
 msgstr "이 캐릭터는 이 에디션에서 울트라 콤보가 하나입니다."
 
-msgid "room.ultra.choice_detail"
-msgstr "다음 게임의 울트라 콤보."
-
 msgid "room.both_ready"
 msgstr "두 플레이어 모두 준비됐습니다. 대전을 시작합니다."
 
@@ -7964,6 +7961,60 @@ msgstr "좌우로 여기서 코스튬을 바꿉니다. 선택하면 각 코스�
 
 msgid "selection.color_row.detail"
 msgstr "좌우로 여기서 색상을 바꿉니다. 선택하면 각 색상을 보여 줍니다."
+
+msgid "selection.ultra_combo_title"
+msgstr "울트라 콤보"
+
+msgid "menu.hint.save_ultra"
+msgstr "울트라 저장"
+
+msgid "selection.ultra_charge"
+msgstr "모으기"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "지상"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "대공"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "지상 또는 공중"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "공중"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "근거리"
+
+msgid "selection.ultra_condition.counter"
+msgstr "반격기"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "사마귀 자세"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "학 자세"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "학 자세 또는 공중"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "펀치 버전"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "킥 버전"
+
+msgid "selection.ultra_condition.forward"
+msgstr "전방"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "킥을 누르고 있으면 지연, 펀치로 취소"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "PPP를 다시 누르면 회복 중지"
 
 msgid "selection.ready_with"
 msgstr "{0}(으)로 준비 완료"
