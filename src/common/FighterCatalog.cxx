@@ -163,7 +163,8 @@ std::string UltraNotation(const std::string& tokens, const std::string& charge) 
             if (i + 1 < parts.size() && parts[i + 1] == parts[i]) { word += " x2"; ++i; }
         } else if (digits) {
             static const char* const directions[] = {"", "DB", "D", "DF", "B", "", "F", "UB", "U", "UF"};
-            if (const char* direction = directions[token[0] - '0']; *direction) word = direction;
+            const char* direction = directions[token[0] - '0'];
+            if (*direction) word = direction;
         }
         if (charged) word = charge + " " + word;
         // The plus sign joins a motion to its buttons; everything else is a list.
