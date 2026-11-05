@@ -376,7 +376,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         JoinRoom(view);
         // --seats watch|none in a Classic room: FRaccie gives table 1's seat to Morgan
         // and watches table 2's game, or has no place at all.
-        if (seats == "watch" || seats == "none") {
+        if ((seats == "watch" || seats == "none") && view.room.members.size() > 4) {
             auto& t = view.room.tables[0]; auto& me = view.room.members[0]; auto& morgan = view.room.members[4];
             t.p1 = morgan.id; morgan.table = 0; morgan.seat = 0; morgan.status = room::MemberStatus::Seated;
             me.table = me.seat = -1; me.status = seats == "watch" ? room::MemberStatus::Watching : room::MemberStatus::Idle;

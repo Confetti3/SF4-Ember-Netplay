@@ -352,6 +352,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
  boardDrawn_=true;
  const float s=Scale();
  const float logical=ImGui::GetContentRegionAvail().x/s;const bool narrow=logical<860,ultra=logical>=1960;
+ roomBoardNarrow_=narrow;
  // LB and RB go between the floor, the bar, Members and Chat (a narrow
  // board's tabs, the bar under the floor's). They step before the frame is
  // taken, so the row they land on is this frame's moved focus and scrolls

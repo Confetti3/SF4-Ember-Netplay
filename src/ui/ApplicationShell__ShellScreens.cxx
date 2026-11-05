@@ -145,8 +145,9 @@ public:
         const bool keys = KeyboardPrompts();
         menu.typesText = f.screen == "room-chat" && ChatTypable(v);
         menu.shortcutHints = menu.typesText && keys ? std::vector<LegendHint>{} : RoomShortcutHints();
-        // On the board LB and RB step its areas (a narrow board's tabs), named once for the pair.
-        if (f.screen == "room") {
+        // On a wide board LB and RB step its areas, named once for the pair; a
+        // narrow board's tab strip already shows them at its ends.
+        if (f.screen == "room" && !f.shell.roomBoardNarrow_) {
             const bool next = MenuShortcutGlyph(MenuInput::NextTab) != nullptr;
             for (auto& h : ShortcutHints({{MenuInput::PrevTab, next ? "" : loc::T("room.v2.areas")}, {MenuInput::NextTab, loc::T("room.v2.areas")}}))
                 menu.shortcutHints.push_back(std::move(h));

@@ -109,9 +109,10 @@ read as one column), goes on to the next placed row in row order (Down,
 Right) or the previous (Up, Left), and past its last row a fresh Down goes
 round to its first, a fresh Up from its first to its last. A
 GameMenu list draws its own cards and places nothing, so lists, grids and
-their footers keep moving by row order (a list, but not a grid, goes round
-on a fresh Up or Down at its ends; held repeats stop there) (a flyout list too tall for its
-height is drawn in two columns and still moves in reading order). The
+their footers keep moving by row order. A list, but not a grid, goes round
+on a fresh Up or Down at its ends; held repeats stop there. A flyout list
+too tall for its height is drawn in two columns and still moves in reading
+order. The
 shell's own rows (`MenuEntry::footer`: Retry saving) belong to no body:
 `GameMenu::DrawBody` hands the body the rest and draws them as cards in a band
 under it, placed, so Down from the body's lowest row reaches them; a screen

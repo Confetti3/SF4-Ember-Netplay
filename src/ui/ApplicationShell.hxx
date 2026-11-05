@@ -809,6 +809,8 @@ std::string memberAsk_;
     // The same, kept to the next frame, for the room's rows (its Hide row).
     bool pictureOnBoard_ = false;
     bool boardDrawn_ = false;
+    // The room board was last drawn narrow, its parts under tabs (DrawRoomBoard).
+    bool roomBoardNarrow_ = false;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
