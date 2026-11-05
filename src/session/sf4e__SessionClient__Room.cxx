@@ -62,6 +62,7 @@ static const char* RoomRejectText(sf4e::room::RejectReason reason) {
 	case RejectReason::InvalidChat: return "room.reject.invalid_chat";
 	case RejectReason::MemberKicked: return "runtime.removed_from_room";
 	case RejectReason::TerminalLedgerFull: return "room.reject.ledger_full";
+	case RejectReason::WiredOnly: return "room.reject.wired_only";
 	case RejectReason::DuplicateResult: return "";
 	default: return "room.reject.other";
 	}

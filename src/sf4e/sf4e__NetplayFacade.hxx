@@ -148,6 +148,9 @@ namespace sf4e {
             room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
             // With HostRoom: how many tables a Classic room opens with (room::Snapshot::tableCount).
             std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
+            // With HostRoom, or the JoinInvite of a public room just created: its
+            // Wired players only rule (room::Snapshot::wiredOnly).
+            bool wiredOnly = false;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

@@ -3265,6 +3265,15 @@ msgstr "Offen"
 msgid "room.admission.detail"
 msgstr "Sperre verhindert neue Mitglieder."
 
+msgid "room.wired_only"
+msgstr "Nur Spieler mit Kabel"
+
+msgid "room.wired_only.detail"
+msgstr "Spieler im WLAN können beitreten, zuschauen und chatten, aber keinen Platz nehmen. Spieler mit unbekannter Verbindung können spielen."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Gilt ab dem nächsten Platz, der genommen wird. Wer jetzt sitzt, behält seinen Platz."
+
 msgid "room.apply_name"
 msgstr "Raumnamen übernehmen"
 
@@ -3524,6 +3533,9 @@ msgstr "Nachricht konnte nicht gesendet werden."
 
 msgid "room.reject.ledger_full"
 msgstr "Warten, bis alle vom vorigen Kampf zurück sind."
+
+msgid "room.reject.wired_only"
+msgstr "Dieser Raum ist für Spieler mit Kabel. Dein PC ist im WLAN."
 
 msgid "room.reject.other"
 msgstr "Der Raum hat diese Aktion abgelehnt."
@@ -6512,6 +6524,9 @@ msgstr "{0}, eigene Verzögerung"
 
 msgid "room.table_footer_own_delay"
 msgstr "Eigene Verzögerung"
+
+msgid "room.table_footer_wired_only"
+msgstr "Nur Kabel"
 
 msgid "room.input_delay.own"
 msgstr "Ihre Verzögerung: {0}"

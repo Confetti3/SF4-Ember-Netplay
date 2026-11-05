@@ -775,6 +775,31 @@ int main() {
         badTemplate["roomDefaults"]["templates"][0]["tableCount"] = 12;
         CHECK(sf4e::netplay::ReadRoomPreferences(badTemplate, read) && read.roomTableCount == 6 && read.roomTemplates.empty());
     }
+    // Wired players only is a room default and a template's: written only when
+    // on, and off when the key is missing.
+    {
+        CHECK(!result["roomDefaults"].contains("wiredOnly") && !restored.roomWiredOnly);
+        auto wired = defaults;
+        wired.roomWiredOnly = true;
+        sf4e::netplay::RoomTemplate saved;
+        saved.name = "Wired"; saved.roomName = "Cable room"; saved.wiredOnly = true;
+        saved.tables = sf4e::netplay::TableSetup::Same(defaults.tableRules);
+        wired.roomTemplates = {saved};
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(wired)}};
+        CHECK(document["roomDefaults"].at("wiredOnly") == true && document["roomDefaults"]["templates"][0].at("wiredOnly") == true);
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.roomWiredOnly && read.roomTemplates.size() == 1 &&
+            read.roomTemplates[0] == saved);
+        auto plain = document;
+        plain["roomDefaults"].erase("wiredOnly");
+        plain["roomDefaults"]["templates"][0].erase("wiredOnly");
+        CHECK(sf4e::netplay::ReadRoomPreferences(plain, read) && !read.roomWiredOnly && !read.roomTemplates[0].wiredOnly);
+        for (const Json& invalid : {Json(1), Json("yes"), Json(nullptr)}) {
+            auto bad = document;
+            bad["roomDefaults"]["wiredOnly"] = invalid;
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+        }
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},

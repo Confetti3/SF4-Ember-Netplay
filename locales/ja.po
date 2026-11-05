@@ -3266,6 +3266,15 @@ msgstr "公開"
 msgid "room.admission.detail"
 msgstr "ロックすると新しいメンバーは参加できません。"
 
+msgid "room.wired_only"
+msgstr "有線プレイヤーのみ"
+
+msgid "room.wired_only.detail"
+msgstr "Wi-Fiのプレイヤーも参加、観戦、チャットはできますが、席には着けません。接続が不明なプレイヤーは対戦できます。"
+
+msgid "room.wired_only.settings_detail"
+msgstr "次に席に着くときから適用されます。今座っている人は席を失いません。"
+
 msgid "room.apply_name"
 msgstr "ルーム名を適用"
 
@@ -3525,6 +3534,9 @@ msgstr "メッセージを送信できませんでした。"
 
 msgid "room.reject.ledger_full"
 msgstr "全員が前の対戦から戻るのを待っています。"
+
+msgid "room.reject.wired_only"
+msgstr "このルームは有線プレイヤー専用です。お使いのPCはWi-Fi接続です。"
 
 msgid "room.reject.other"
 msgstr "ルームが操作を拒否しました。"
@@ -6513,6 +6525,9 @@ msgstr "{0}、各自の遅延"
 
 msgid "room.table_footer_own_delay"
 msgstr "各自の遅延"
+
+msgid "room.table_footer_wired_only"
+msgstr "有線のみ"
 
 msgid "room.input_delay.own"
 msgstr "あなたの遅延：{0}"

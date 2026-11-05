@@ -179,6 +179,12 @@ inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {
     return Value("delay-policy",loc::T("room.delay_policy"),
         loc::T(policy==room::DelayPolicy::Own?"room.delay_policy.own":"room.delay_policy.shared"),loc::T("room.delay_policy.detail"),enabled);
 }
+// The room's Wired players only rule (room::Snapshot::wiredOnly): Create's
+// choice, kept with the room defaults (id "wired-only"), and the host's in
+// Room settings (id "room-wired-only").
+inline MenuEntry WiredOnlyRow(const char* id,bool on,const std::string& detail,bool enabled) {
+    return Value(id,loc::T("room.wired_only"),loc::T(on?"common.on":"common.off"),detail,enabled);
+}
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;

@@ -3265,6 +3265,15 @@ msgstr "Aperta"
 msgid "room.admission.detail"
 msgstr "Blocca l'accesso ai nuovi membri."
 
+msgid "room.wired_only"
+msgstr "Solo giocatori via cavo"
+
+msgid "room.wired_only.detail"
+msgstr "I giocatori in Wi-Fi possono entrare, guardare e chattare, ma non prendere un posto. I giocatori con connessione sconosciuta possono giocare."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Vale dal prossimo posto occupato. Chi è seduto ora mantiene il posto."
+
 msgid "room.apply_name"
 msgstr "Applica nome sala"
 
@@ -3524,6 +3533,9 @@ msgstr "Impossibile inviare il messaggio."
 
 msgid "room.reject.ledger_full"
 msgstr "In attesa che tutti tornino dalla partita precedente."
+
+msgid "room.reject.wired_only"
+msgstr "Questa stanza è per giocatori via cavo. Il tuo PC è in Wi-Fi."
 
 msgid "room.reject.other"
 msgstr "La sala ha rifiutato l'azione."
@@ -6512,6 +6524,9 @@ msgstr "{0}, ritardo proprio"
 
 msgid "room.table_footer_own_delay"
 msgstr "Ritardo proprio"
+
+msgid "room.table_footer_wired_only"
+msgstr "Solo cavo"
 
 msgid "room.input_delay.own"
 msgstr "Il tuo ritardo: {0}"

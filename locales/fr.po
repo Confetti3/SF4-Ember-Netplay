@@ -3265,6 +3265,15 @@ msgstr "Ouvert"
 msgid "room.admission.detail"
 msgstr "Verrouiller empêche toute entrée."
 
+msgid "room.wired_only"
+msgstr "Joueurs filaires uniquement"
+
+msgid "room.wired_only.detail"
+msgstr "Les joueurs en Wi-Fi peuvent rejoindre, regarder et discuter, mais pas prendre une place. Les joueurs dont la connexion est inconnue peuvent jouer."
+
+msgid "room.wired_only.settings_detail"
+msgstr "S'applique à la prochaine place prise. Personne ne perd la place qu'il occupe."
+
 msgid "room.apply_name"
 msgstr "Valider le nom"
 
@@ -3524,6 +3533,9 @@ msgstr "Impossible d'envoyer ce message."
 
 msgid "room.reject.ledger_full"
 msgstr "Attente du retour de tous les participants du combat précédent."
+
+msgid "room.reject.wired_only"
+msgstr "Ce salon est réservé aux joueurs filaires. Votre PC est en Wi-Fi."
 
 msgid "room.reject.other"
 msgstr "Le salon a refusé cette action."
@@ -6512,6 +6524,9 @@ msgstr "{0}, délai propre"
 
 msgid "room.table_footer_own_delay"
 msgstr "Délai propre"
+
+msgid "room.table_footer_wired_only"
+msgstr "Filaire uniquement"
 
 msgid "room.input_delay.own"
 msgstr "Votre délai : {0}"

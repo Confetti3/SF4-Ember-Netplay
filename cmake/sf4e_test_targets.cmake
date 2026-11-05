@@ -144,6 +144,7 @@ sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx sr
     src/tests/shell_room_journey_test.cxx src/tests/shell_follow_journey_test.cxx src/tests/shell_selection_journey_test.cxx
     src/tests/shell_chat_journey_test.cxx src/tests/shell_training_journey_test.cxx src/tests/shell_prompt_journey_test.cxx src/tests/shell_controller_journey_test.cxx src/tests/shell_button_layout_journey_test.cxx
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
+    src/tests/shell_wired_only_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
     src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx

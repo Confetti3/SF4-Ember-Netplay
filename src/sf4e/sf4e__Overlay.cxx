@@ -328,6 +328,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
         request.arcadeRoom = action.arcadeRoom;
+        request.wiredOnly = action.wiredOnly;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
     s_roomCarry.Return(view);
@@ -517,6 +518,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
         request.arcadeRoom = action.arcadeRoom;
         request.delayPolicy = action.delayPolicy;
         request.tableCount = action.tableCount;
+        request.wiredOnly = action.wiredOnly;
 		request.character = lobbyConditions;
 		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
 		request.stage = lobbyStageID;

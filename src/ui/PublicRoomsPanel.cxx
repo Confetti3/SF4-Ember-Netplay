@@ -175,7 +175,7 @@ std::string PublicRoomsPanel::KnownRegion(const ShellView& v) {
     return relay == "other" ? std::string() : relay;
 }
 
-void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type) {
+void PublicRoomsPanel::Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy, room::RoomType type, bool wiredOnly) {
     if (pending_) return;
     Command command;
     command.op = Command::Op::RoomCreate;
@@ -184,6 +184,7 @@ void PublicRoomsPanel::Create(const std::string& name, int capacity, const netpl
     Begin(std::move(command));
     pending_->createdRules = tables;
     pending_->createdType = type;
+    pending_->createdWiredOnly = wiredOnly;
 }
 
 void PublicRoomsPanel::Begin(netplay::tournament::Command command) {
@@ -314,7 +315,9 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
     join.command.generation = v.session.generation;
     join.command.invitation = answer.admission.invitation;
     join.publicTicket = answer.admission.ticket;
-    if (done.op == Command::Op::RoomCreate) { join.createdRules = answered.createdRules; join.arcadeRoom = answered.createdType; }
+    if (done.op == Command::Op::RoomCreate) {
+        join.createdRules = answered.createdRules; join.arcadeRoom = answered.createdType; join.wiredOnly = answered.createdWiredOnly;
+    }
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;
     joined.bridge = done.bridgeId;
