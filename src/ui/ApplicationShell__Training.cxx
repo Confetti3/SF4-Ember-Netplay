@@ -13,7 +13,7 @@ std::vector<MenuEntry> ApplicationShell::TrainingSelectRows(const ShellView& v,s
  return {Row("training-fighter",loc::T("selection.fighter"),v.selectionSummary),Row("training-dummy",loc::T("training.dummy"),v.dummySummary),
   Row("training-stage",loc::T("selection.stage"),v.stageName),std::move(start)};
 }
-void ApplicationShell::TrainingSelectActivate(const MenuAction& a,const ShellView& v,const Submit& submit) {
+void ApplicationShell::TrainingSelectActivate(const MenuAction& a,const ShellView&,const Submit& submit) {
  if(a.id=="training-start"){
   ShellAction training;training.startTraining=true;
   if(!submit(std::move(training)))error_=loc::T("error.queue_failed");

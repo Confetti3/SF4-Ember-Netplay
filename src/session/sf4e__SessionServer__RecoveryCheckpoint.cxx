@@ -392,7 +392,7 @@ bool SessionServer::RestoreRecoveryState(const json& value,
 			});
 		};
 		json authorities = json::array();
-		for (const auto& authority : value.at("match_authorities")) { auto converted = convertAuthority(authority); if (converted.is_discarded()) return RefuseRestore("match_authorities"); authorities.push_back(std::move(converted)); }
+		for (const auto& matchAuthority : value.at("match_authorities")) { auto converted = convertAuthority(matchAuthority); if (converted.is_discarded()) return RefuseRestore("match_authorities"); authorities.push_back(std::move(converted)); }
 		legacy["match_authorities"] = std::move(authorities);
 		legacy["legacy_authority"] = convertAuthority(value.value("legacy_authority", json(nullptr)));
 		if (legacy["legacy_authority"].is_discarded()) return RefuseRestore("legacy_authority");

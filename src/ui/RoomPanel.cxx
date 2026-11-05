@@ -55,7 +55,7 @@ std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
 // table card. Watching elsewhere is no obstacle: sitting down ends it.
 // A room bound to a tournament match seats its fighters itself and refuses
 // every seat change, so nobody there is offered the chooser.
-bool ChoosesSeat(const room::Snapshot& s, const room::Table& t) {
+bool ChoosesSeat(const room::Snapshot& s) {
     if (s.tournament.Active() || !Member(s, s.localMember)) return false;
     const auto place = room::PlaceOf(s, s.localMember);
     return place.kind == room::Place::Kind::None;
@@ -172,7 +172,7 @@ void TableCardRows(std::vector<MenuEntry>& rows,const ShellView& v,int leaveAsk)
   rows.push_back(Row("table-"+std::to_string(table.id),loc::Tf("room.table_occupancy",table.id+1,occupied),detail));
   auto& row=rows.back();row.detailText=DetailText::Name;row.key=table.id;
   const bool ownTable=mine.table==static_cast<int>(table.id);
-  if(ChoosesSeat(s,table))row.choices=SeatChoices(v,table);
+  if(ChoosesSeat(s))row.choices=SeatChoices(v,table);
   else if(mine.kind==Place::Kind::Seat&&ownTable){
    const auto control=OwnSeatRow(row,v,table,mine.seat,leaveAsk==static_cast<int>(table.id));
    // During a held start the card says what it waits for, and that B,
@@ -717,7 +717,7 @@ void ApplicationShell::LeavePlace(const ShellView& v,const Submit& submit) {
  selectedTable_=exit.table;
  if(!exit.allowed){Refuse(exit.blocker,LeaveBlocked);return;}
  room::Action request;request.table=static_cast<std::uint8_t>(selectedTable_);request.kind=room::ActionKind::Unqueue;
- if(exit.unready){request.kind=room::ActionKind::Unready;request.seat=exit.seatIndex;}
+ if(exit.unready){request.kind=room::ActionKind::Unready;request.seat=static_cast<std::int8_t>(exit.seatIndex);}
  if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
 }
 bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit) {

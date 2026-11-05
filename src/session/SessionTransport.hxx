@@ -72,7 +72,7 @@ public:
 	// prefix of a narrowly validated idempotent message kind. The default keeps
 	// ordinary transports on the one-intent behavior.
 	virtual bool PollRecoveryPrefix(std::vector<Message>& messages,
-		std::vector<Connection>& closed, std::size_t maximum, const BatchPredicate&) {
+		std::vector<Connection>& closed, std::size_t, const BatchPredicate&) {
 		return Poll(messages, closed, 1);
 	}
 	virtual bool Send(Connection connection, const std::string& payload) = 0;

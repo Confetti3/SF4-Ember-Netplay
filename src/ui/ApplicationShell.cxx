@@ -124,7 +124,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
 
 
 // Parts of Draw, in the order it runs them.
-void ApplicationShell::UpdateRoomTransitions(const ShellView& v,double now) {
+void ApplicationShell::UpdateRoomTransitions(const ShellView& v) {
  using namespace netplay; auto& nav=menu_.navigation;
  if(v.session.room==RoomState::Joined)roomWasJoined_=true;
  if(previousRoomState_!=RoomState::Idle && v.session.room==RoomState::Idle) {
@@ -605,7 +605,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   else languageSaveError_=loc::T("settings.language_save_failed");
   languageDirty_=false;
  }
- UpdateRoomTransitions(v,now);
+ UpdateRoomTransitions(v);
  UpdatePostMatch(v,v.room,now,submit,open);
  TrackLiveGames(v,now);
  TrackLockIn(v,now);

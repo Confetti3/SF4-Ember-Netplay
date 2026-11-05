@@ -458,10 +458,10 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
     // The floor at its least height in a scroll of its own, the bar after it, as DrawTableCards does.
     ImGui::BeginChild("Arcade floor",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
     const ImVec2 start=ImGui::GetCursorScreenPos();
-    const float width=ImGui::GetContentRegionAvail().x,height=ArcadeBoardHeight(v,rows,width);
-    DrawArcadeBoard(v,rows,nav,action,ImVec2(width,height),v.room.arcade,true,f.focusChanged);
-    bar.Draw(ImGui::GetWindowDrawList(),ImVec2(start.x,start.y+height+12*s),width,tables);
-    ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(width,height+12*s+bar.Height(width)));
+    const float width=ImGui::GetContentRegionAvail().x,boardHeight=ArcadeBoardHeight(v,rows,width);
+    DrawArcadeBoard(v,rows,nav,action,ImVec2(width,boardHeight),v.room.arcade,true,f.focusChanged);
+    bar.Draw(ImGui::GetWindowDrawList(),ImVec2(start.x,start.y+boardHeight+12*s),width,tables);
+    ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(width,boardHeight+12*s+bar.Height(width)));
     ImGui::EndChild();
    }
   }

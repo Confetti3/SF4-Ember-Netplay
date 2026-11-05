@@ -426,7 +426,7 @@ private:
     // The width of the public rooms list: the whole window on a narrow one, else the left pane.
     static float PublicListWidth();
     // Parts of Draw, in the order it runs them.
-    void UpdateRoomTransitions(const ShellView& view,double now);
+    void UpdateRoomTransitions(const ShellView& view);
     bool UpdateRoomFeedback(const ShellView& view);
     void UpdatePreferenceSave(const ShellView& view,const Submit& submit);
     void UpdateShortCopy(const ShellView& view,double now);

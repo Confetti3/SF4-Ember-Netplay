@@ -162,7 +162,7 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
     std::uint64_t roomEpoch=identity.epoch;
     if (roomState.contains("snapshot") && roomState.at("snapshot").is_object())
         roomEpoch=roomState.at("snapshot").value("room_epoch",roomEpoch);
-    const auto append=[&](std::uint8_t table,std::uint64_t generation,const char* type,
+    const auto append=[&](std::uint64_t generation,const char* type,
         const json& payload,const TerminalReplayKey& key) {
         const auto alreadyPending=std::any_of(replica_.pendingTerminalReplayEffects.begin(),replica_.pendingTerminalReplayEffects.end(),
             [&](const TerminalReplayEffect& effect){return effect.key==key;});
@@ -205,8 +205,8 @@ bool IrohRoom::BuildTerminalReplayEffects(const StagedCheckpoint& staged,
             SessionProtocol::RoomEventMessage event;
             event.event=room::Event{room::Event::Kind::MatchEnded,static_cast<std::uint8_t>(table),generation,0,
                 static_cast<room::MatchResult>(result),true};
-            if (!append(static_cast<std::uint8_t>(table),generation,"room_event",json(event),roomKey)) return false;
-            if (!append(static_cast<std::uint8_t>(table),generation,"game_end",
+            if (!append(generation,"room_event",json(event),roomKey)) return false;
+            if (!append(generation,"game_end",
                 json{{"type","game_end"},{"generation",generation}},gameKey)) return false;
         }
     }

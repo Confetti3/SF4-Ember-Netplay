@@ -242,7 +242,7 @@ void ReplaysPanel::InputsRows(const ShellView& v,std::vector<MenuEntry>& rows) c
 // last left it (`saved`): the games of its set (ReplaySets.hxx) before it, by
 // who won each. Names and set start off when Ember knows neither. The line
 // has no score: it is shown from the first frame, and would tell the winner.
-void ReplaysPanel::OpenExport(const ShellView& v,const netplay::PlayerPreferences& saved,const platform::replays::ArchivedReplay& replay) {
+void ReplaysPanel::OpenExport(const ShellView&,const netplay::PlayerPreferences& saved,const platform::replays::ArchivedReplay& replay) {
  exportPath_=PathOf(replay);caption_=replay::Caption{};
  caption_.name[0]=replay.names[0];caption_.name[1]=replay.names[1];
  const bool named=!replay.names[0].empty()&&!replay.names[1].empty();

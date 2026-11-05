@@ -86,12 +86,12 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
         d->AddRectFilled(p, ImVec2(p.x + width, p.y + height), Faded(v2::color::Alpha(c.ink, .92f), alpha), 4 * s);
         d->AddRect(p, ImVec2(p.x + width, p.y + height), Faded(v2::color::Alpha(c.accent, .45f), alpha), 4 * s, 0, s);
         float x = p.x + 8 * s;
-        const float top = p.y + 8 * s, bottom = p.y + height - 8 * s;
+        const float keyTop = p.y + 8 * s, keyBottom = p.y + height - 8 * s;
         for (const auto& control : controls) {
             const float w = (std::max)(92 * s, (std::max)(TextWidth(11 * s, control.keys), TextWidth(16 * s, control.label)) + 20 * s);
-            d->AddRectFilled(ImVec2(x, top), ImVec2(x + w, bottom), Faded(control.lit ? c.header : c.button, alpha), 4 * s);
-            d->AddRect(ImVec2(x, top), ImVec2(x + w, bottom), Faded(control.lit ? c.accent : c.border, alpha), 4 * s, 0, (control.lit ? 2 : 1) * s);
-            const float mid = x + w * .5f, cy = (top + bottom) * .5f;
+            d->AddRectFilled(ImVec2(x, keyTop), ImVec2(x + w, keyBottom), Faded(control.lit ? c.header : c.button, alpha), 4 * s);
+            d->AddRect(ImVec2(x, keyTop), ImVec2(x + w, keyBottom), Faded(control.lit ? c.accent : c.border, alpha), 4 * s, 0, (control.lit ? 2 : 1) * s);
+            const float mid = x + w * .5f, cy = (keyTop + keyBottom) * .5f;
             d->AddText(ImGui::GetFont(), 11 * s, ImVec2(mid - TextWidth(11 * s, control.keys) * .5f, cy - 13 * s), Faded(c.muted, alpha), control.keys.c_str());
             d->AddText(ImGui::GetFont(), 16 * s, ImVec2(mid - TextWidth(16 * s, control.label) * .5f, cy - 1 * s), Faded(control.ink, alpha), control.label.c_str());
             x += w + 6 * s;

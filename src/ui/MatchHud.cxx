@@ -184,16 +184,16 @@ void PaintMatchStrip(const MatchStripView& view, ImDrawList* draw, ImVec2 p, flo
     const float column=(w-24*s)/3;
     for(int i=0;i<3;++i){
         const auto& cell=cells[i];
-        const float x=p.x+12*s+column*i;
+        const float cellX=p.x+12*s+column*i;
         // Fixed label/value anchors keep the layout stable as values change.
-        text(x,p.y+33*s,cell.label,16*s,IM_COL32(181,169,155,255));
-        const float valueX=x+(cell.label.empty()?0:TextWidth(16*s,cell.label)+8*s);
+        text(cellX,p.y+33*s,cell.label,16*s,IM_COL32(181,169,155,255));
+        const float valueX=cellX+(cell.label.empty()?0:TextWidth(16*s,cell.label)+8*s);
         // A translated label must leave room for its whole value, at its widest.
         if(MenuProbesActive()){
             const float valueWidth=(std::max)(TextWidth(22*s,cell.value),TextWidth(22*s,cell.reserve));
-            ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-x+valueWidth,column-4*s);
+            ReportMenuText(("hud-telemetry/"+std::to_string(i)).c_str(),22*s,MatchHeight*s,valueX-cellX+valueWidth,column-4*s);
         }
-        const auto value=FitText(cell.value,x+column-valueX-4*s,22*s);
+        const auto value=FitText(cell.value,cellX+column-valueX-4*s,22*s);
         text(valueX,p.y+29*s,value,22*s,CellColor(view,i,IM_COL32(243,235,221,255)));
     }
 }

@@ -78,7 +78,7 @@ const ScreenPanel& ApplicationShell::AwardsOwner() {
 // The card (L) with where else it shows (S, XS) on the left, the wall of tiles
 // beside it and the focused award's words under the wall. Narrow, the card
 // goes on top and the wall under it, and the body scrolls.
-void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float,
+void ApplicationShell::DrawAwardsBoard(const ShellView&, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float,
     const MenuVisualFeedback& feedback) {
     const float s = Scale(), width = ImGui::GetContentRegionAvail().x;
     const auto& c = v2::Colors();

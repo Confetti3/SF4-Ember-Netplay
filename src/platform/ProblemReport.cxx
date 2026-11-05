@@ -331,19 +331,19 @@ std::string RedactLine(std::string_view line, const Account& account) {
     std::smatch match; std::size_t search=0;
     while(std::regex_search(text.cbegin()+search,text.cend(),match,candidate)) {
         const auto start=search+static_cast<std::size_t>(match.position());
-        auto token=match.str(); search=start+token.size();
+        auto found=match.str(); search=start+found.size();
         // Consume the zone explicitly, stopping before surrounding punctuation.
         if(search<text.size()&&text[search]=='%') {
             auto zoneEnd=text.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-",search+1);
             if(zoneEnd==std::string::npos) zoneEnd=text.size();
-            if(zoneEnd>search+1) { token.append(text,search,zoneEnd-search); search=zoneEnd; }
+            if(zoneEnd>search+1) { found.append(text,search,zoneEnd-search); search=zoneEnd; }
         }
         // A sentence's final period is punctuation, even after a mapped IPv4
         // suffix. Leave it in the output rather than part of the replacement.
-        const auto length=token.find_last_not_of('.');
-        if (length!=std::string::npos) token.resize(length+1);
-        const auto zone=token.find('%'); const auto address=token.substr(0,zone);
-        const auto end=start+token.size();
+        const auto length=found.find_last_not_of('.');
+        if (length!=std::string::npos) found.resize(length+1);
+        const auto zone=found.find('%'); const auto address=found.substr(0,zone);
+        const auto end=start+found.size();
         const bool left=start==0||(!std::isalnum(static_cast<unsigned char>(text[start-1]))&&text[start-1]!='_');
         const bool right=end==text.size()||(!std::isalnum(static_cast<unsigned char>(text[end]))&&text[end]!='_');
         if(left&&right&&Ipv6Address(address)) spans.push_back({start,end,"[ip]"});

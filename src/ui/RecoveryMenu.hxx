@@ -101,10 +101,10 @@ inline void DrawRecoveryPane(const platform::ServiceSnapshot& state,const std::s
     const char* names[]={loc::T("updates.step_found"),loc::T("updates.step_verified"),loc::T("updates.step_installed")};
     float x=at.x;const float y=at.y+28*s+font+font*.5f;
     for(int i=0;i<3;++i){
-        const ImU32 tone=ticks[i]?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Success)):c.muted;
-        if(ticks[i])d->AddPolyline(std::array<ImVec2,3>{ImVec2(x,y),ImVec2(x+4*s,y+4*s),ImVec2(x+11*s,y-5*s)}.data(),3,tone,0,2.5f*s);
-        else d->AddCircle(ImVec2(x+5*s,y),5*s,tone,0,1.5f*s);
-        d->AddText(ImVec2(x+18*s,y-font*.5f),tone,names[i]);
+        const ImU32 mark=ticks[i]?ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Success)):c.muted;
+        if(ticks[i])d->AddPolyline(std::array<ImVec2,3>{ImVec2(x,y),ImVec2(x+4*s,y+4*s),ImVec2(x+11*s,y-5*s)}.data(),3,mark,0,2.5f*s);
+        else d->AddCircle(ImVec2(x+5*s,y),5*s,mark,0,1.5f*s);
+        d->AddText(ImVec2(x+18*s,y-font*.5f),mark,names[i]);
         x+=18*s+ImGui::CalcTextSize(names[i]).x+20*s;
     }
     ImGui::Dummy(ImVec2(w,28*s+font*2));

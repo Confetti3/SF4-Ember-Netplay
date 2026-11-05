@@ -159,10 +159,10 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         if (const auto access = data.find("access"); access != data.end() && access->is_object())
             view.deskAccess = {true, access->value("invite_only", false), access->value("allowed", true)};
         view.deskEvents.clear();
-        for (const auto& event : data.value("events", nlohmann::json::array()))
-            if (event.is_object() && view.deskEvents.size() < 32)
-                view.deskEvents.push_back({Text(event, "id", 64), Text(event, "title", 64), Text(event, "status", 16), Text(event, "site", 32),
-                    Text(event, "tournament", 64)});
+        for (const auto& deskEvent : data.value("events", nlohmann::json::array()))
+            if (deskEvent.is_object() && view.deskEvents.size() < 32)
+                view.deskEvents.push_back({Text(deskEvent, "id", 64), Text(deskEvent, "title", 64), Text(deskEvent, "status", 16),
+                    Text(deskEvent, "site", 32), Text(deskEvent, "tournament", 64)});
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
     } else if (view.op == "identity_preview_import") {
