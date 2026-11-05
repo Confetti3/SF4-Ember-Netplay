@@ -125,30 +125,38 @@ static void ExtraButtons() {
     CHECK(read(json).at(0).extras == copies);
 }
 static void TrainingButtons() {
-    // A layout saved before Training buttons existed loads with both off.
+    // A layout saved before Training buttons existed loads with record and play off and the controls automatic.
     unsigned rejected = 0;
     const auto read = [&](const nlohmann::json& json) { return ReadLayouts(json, [&](unsigned, LayoutLoadError) { ++rejected; }); };
     const auto training = [](const StoredLayout& layout) { return std::make_pair(layout.bound[TrainingRecordButton], layout.bound[TrainingPlayButton]); };
     const auto off = std::make_pair(-1, -1);
     StoredLayout layout{Pad(1), DefaultLayout, 5};
     auto json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
-    json["buttonLayouts"][0].erase("trainingRecord"); json["buttonLayouts"][0].erase("trainingPlay");
-    CHECK(training(read(json).at(0)) == off && rejected == 0);
+    json["buttonLayouts"][0].erase("trainingRecord"); json["buttonLayouts"][0].erase("trainingPlay"); json["buttonLayouts"][0].erase("trainingControls");
+    CHECK(training(read(json).at(0)) == off && read(json).at(0).bound[TrainingControlsButton] == BoundAuto && rejected == 0);
+    // Automatic is saved and read back as itself, distinct from off.
+    StoredLayout automatic{Pad(1), DefaultLayout, 5};
+    CHECK(automatic.bound[TrainingControlsButton] == BoundAuto && read(nlohmann::json{{"buttonLayouts", LayoutsToJson({automatic})}}) == std::vector<StoredLayout>{automatic});
+    CHECK(LayoutsToJson({automatic})[0]["trainingControls"] == BoundAuto);
+    layout.bound[TrainingControlsButton] = -1;
     layout.bound[TrainingRecordButton] = 9; layout.bound[TrainingPlayButton] = 8; layout.bound[MenuConfirmButton] = 2;
     json = nlohmann::json{{"buttonLayouts", LayoutsToJson({layout})}};
     CHECK(read(json) == std::vector<StoredLayout>{layout});
-    // An index out of range, or one button for both, turns the pair off and
-    // leaves the menu pair alone; a value that is no integer is that button off.
-    // The layout still loads.
+    // An index out of range, or one button for two, puts the Training group back
+    // to its defaults and leaves the menu pair alone; a value that is no
+    // integer is that action's default. The layout still loads.
     json["buttonLayouts"][0]["trainingRecord"] = 10;
     CHECK(training(read(json).at(0)) == off && read(json).at(0).bound[MenuConfirmButton] == 2);
     json["buttonLayouts"][0]["trainingRecord"] = 1.5;
     CHECK(training(read(json).at(0)) == std::make_pair(-1, 8));
+    json["buttonLayouts"][0]["trainingControls"] = 8;
+    CHECK(training(read(json).at(0)) == off && read(json).at(0).bound[TrainingControlsButton] == BoundAuto);
+    json["buttonLayouts"][0]["trainingControls"] = -1;
     json["buttonLayouts"][0]["trainingRecord"] = 8;
     CHECK(training(read(json).at(0)) == off);
     json["buttonLayouts"][0]["trainingRecord"] = "RS";
     CHECK(training(read(json).at(0)) == std::make_pair(-1, 8) && rejected == 0);
-    // A menu button and a Training button may share one: only partners may not.
+    // A menu button and a Training button may share one: only a group's own actions may not.
     json["buttonLayouts"][0]["trainingRecord"] = 2;
     CHECK(training(read(json).at(0)) == std::make_pair(2, 8));
     sf4e::netplay::PlayerPreferences prefs; prefs.buttonLayouts = {layout}; CHECK(prefs.Valid());
@@ -157,16 +165,50 @@ static void TrainingButtons() {
     set(10, -1); CHECK(!prefs.Valid());
     set(-1, -2); CHECK(!prefs.Valid());
     set(-1, -1); CHECK(prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingControlsButton] = 9; set(9, -1); CHECK(!prefs.Valid());
+    set(-1, 9); CHECK(!prefs.Valid());
+    set(8, 7); prefs.buttonLayouts[0].bound[TrainingControlsButton] = 7; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingControlsButton] = 6; CHECK(prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingControlsButton] = BoundAuto; CHECK(prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingControlsButton] = -3; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingRecordButton] = BoundAuto; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingRecordButton] = -1;
+    prefs.buttonLayouts[0].bound[TrainingControlsButton] = 10; CHECK(!prefs.Valid());
+    prefs.buttonLayouts[0].bound[TrainingControlsButton] = -1; set(-1, -1); CHECK(prefs.Valid());
     // The stick clicks are bits 24 and 25; none for no button or one the pad lacks.
     CHECK(LayoutButtonMask(8) == 0x1000000u && LayoutButtonMask(9) == 0x2000000u && LayoutButtonMask(-1) == 0);
     auto listed = AllLayoutButtons; listed[8] = false;
     CHECK(LayoutButtonMask(8, listed) == 0);
     // Offline Training's table: the Training buttons do nothing in the fight
     // there, whatever the layout gives them; the menu buttons and the rest keep theirs.
-    auto bound = NoBoundButtons; bound[TrainingRecordButton] = 8; bound[TrainingPlayButton] = 9; bound[MenuConfirmButton] = 2;
-    auto table = DefaultLayout; table[8] = 0x430; table[9] = 0x8C0;
-    auto expected = table; expected[8] = expected[9] = 0;
-    CHECK(TrainingTable(table, bound) == expected && TrainingTable(table, NoBoundButtons) == table);
+    auto bound = DefaultBoundButtons; bound[TrainingRecordButton] = 8; bound[TrainingPlayButton] = 9; bound[MenuConfirmButton] = 2;
+    bound[TrainingControlsButton] = 7;
+    auto table = DefaultLayout; table[7] = 0x800; table[8] = 0x430; table[9] = 0x8C0;
+    auto expected = table; expected[7] = expected[8] = expected[9] = 0;
+    CHECK(TrainingTable(table, bound) == expected);
+    // The controls button is automatic until chosen: R3 while R3 attacks nothing, else off.
+    CHECK(DefaultBoundButtons[TrainingControlsButton] == BoundAuto);
+    const auto controlsOf = [](const BoundButtons& stored, const ButtonLayout& layout) { return ResolveBound(stored, layout)[TrainingControlsButton]; };
+    CHECK(controlsOf(DefaultBoundButtons, DefaultLayout) == 9);
+    auto attackOnR3 = DefaultLayout; attackOnR3[9] = 0x430;
+    CHECK(controlsOf(DefaultBoundButtons, attackOnR3) == -1);
+    // Automatic gives way to Record or Play on R3, and leaves them alone.
+    auto recordOnR3 = DefaultBoundButtons; recordOnR3[TrainingRecordButton] = 9;
+    CHECK(controlsOf(recordOnR3, DefaultLayout) == -1 && ResolveBound(recordOnR3, DefaultLayout)[TrainingRecordButton] == 9);
+    // A choice always wins: a button, even R3 on an attack, and off, even with R3 free.
+    auto chosen = DefaultBoundButtons; chosen[TrainingControlsButton] = 9;
+    CHECK(controlsOf(chosen, attackOnR3) == 9 && controlsOf(chosen, DefaultLayout) == 9);
+    chosen[TrainingControlsButton] = 5; CHECK(controlsOf(chosen, attackOnR3) == 5);
+    chosen[TrainingControlsButton] = -1; CHECK(controlsOf(chosen, DefaultLayout) == -1);
+    // Training's table zeroes only the resolved button: automatic with R3 an attack leaves the attack.
+    auto attackTable = table; attackTable[9] = 0x8C0;
+    CHECK(TrainingTable(attackTable, DefaultBoundButtons) == attackTable);
+    auto freeTable = table; freeTable[9] = 0;
+    CHECK(TrainingTable(freeTable, DefaultBoundButtons) == freeTable);
+    auto controlsOff = DefaultBoundButtons; controlsOff[TrainingControlsButton] = -1;
+    CHECK(TrainingTable(table, controlsOff) == table);
+    auto chosenOnAttack = DefaultBoundButtons; chosenOnAttack[TrainingControlsButton] = 9;
+    CHECK(TrainingTable(attackTable, chosenOnAttack)[9] == 0);
 }
 static void Writer() {
     alignas(std::uint32_t) std::array<unsigned char, PadBindingRecords::Stride * 6> memory;

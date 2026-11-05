@@ -117,7 +117,7 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
         if (row.value.empty()) row.value = loc::T("button_layout.no_button");
         row.detailText = DetailText::Name; row.quiet = !row.enabled; rows.push_back(std::move(row));
     }
-    // Ember's menu buttons and Training's record and play, each set by a press.
+    // Ember's menu buttons and Training's record, play and controls, each set by a press.
     for (unsigned action = 0; action < BoundActionCount; ++action) {
         const auto& bound = BoundActionRows[action];
         auto row = Row(bound.id, loc::T(bound.label), editable && !absent ? std::string(loc::T(bound.detail)) : unavailable, editable && !absent);
@@ -126,6 +126,11 @@ std::vector<MenuEntry> ButtonLayoutRows(const PadView& pad, bool editable, const
     }
     if (editable && !absent && (pad.bound[TrainingRecordButton] >= 0 || pad.bound[TrainingPlayButton] >= 0))
         rows.push_back(ConfirmRow("training-clear", loc::T("button_layout.training_clear"), loc::T("button_layout.training_clear_detail")));
+    // One way each direction: off from automatic or a chosen button, automatic from off.
+    if (editable && !absent && pad.bound[TrainingControlsButton] != -1)
+        rows.push_back(ConfirmRow("training-controls-off", loc::T("button_layout.training_controls_off"), loc::T("button_layout.training_controls_off_detail")));
+    if (editable && !absent && pad.bound[TrainingControlsButton] == -1)
+        rows.push_back(ConfirmRow("training-controls-auto", loc::T("button_layout.training_controls_auto"), loc::T("button_layout.training_controls_auto_detail")));
     for (unsigned extra = 0; extra < ExtraCount; ++extra)
         if (pad.hasExtras[extra]) rows.push_back(ExtraButtonRow(pad, extra, editable && !absent, unavailable));
     rows.push_back(Row("edit-button", loc::T("button_layout.edit_button"), editable && !absent ? loc::T("button_layout.edit_button_detail") : unavailable, editable && !absent));
@@ -213,15 +218,28 @@ std::uint32_t BoundButtonNow(const PadView& pad, BoundAction action) {
     switch (action) {
     case MenuConfirmButton: return pad.menuButtons.confirm;
     case MenuBackButton: return pad.menuButtons.back;
-    default: return LayoutButtonMask(pad.bound[action], pad.has);
+    default: return LayoutButtonMask(ResolveBound(pad.bound, pad.table)[action], pad.has);
     }
 }
 std::string BoundButtonValue(const PadView& pad, BoundAction action) {
     switch (action) {
     case MenuConfirmButton: return MenuButtonName(pad, pad.menuButtons.confirm, pad.menuButtons.confirmGlyph);
     case MenuBackButton: return MenuButtonName(pad, pad.menuButtons.back, pad.menuButtons.backGlyph);
-    default: return pad.bound[action] < 0 ? std::string(loc::T("common.off")) : pad.buttonNames[pad.bound[action]];
+    default: {
+        const auto resolved = ResolveBound(pad.bound, pad.table)[action];
+        if (pad.bound[action] == BoundAuto)
+            return resolved < 0 ? loc::Tf("button_layout.auto_off", pad.buttonNames[AutoControlsButton]) : loc::Tf("button_layout.auto_on", pad.buttonNames[resolved]);
+        return resolved < 0 ? std::string(loc::T("common.off")) : pad.buttonNames[resolved];
     }
+    }
+}
+std::optional<BoundAction> BoundActionTaking(const PadView& pad, BoundAction action, std::uint32_t mask) {
+    // Automatic gives way to a button chosen: it is never the one that refuses.
+    for (unsigned other = 0; other < BoundActionCount; ++other)
+        if (other != action && BoundActions[other].group == BoundActions[action].group && pad.bound[other] != BoundAuto &&
+            BoundButtonNow(pad, static_cast<BoundAction>(other)) == mask)
+            return static_cast<BoundAction>(other);
+    return {};
 }
 namespace {
 // The prompt at 1.4x the body font, as the wizard's capture draws it (5.2).

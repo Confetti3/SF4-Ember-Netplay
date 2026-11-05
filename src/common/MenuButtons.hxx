@@ -29,12 +29,13 @@ struct MenuButtons {
         return function == LightPunchFunction ? lightPunch : function == HeavyPunchFunction ? heavyPunch : 0;
     }
 };
-// The physical buttons that start a Training recording and play a slot for one
-// device (the player's TrainingRecordButton and TrainingPlayButton), 0 for none,
-// and the names the pad gives them, empty for none.
+// The physical buttons that start a Training recording, play a slot and open
+// the controls for one device (the player's TrainingRecordButton,
+// TrainingPlayButton and TrainingControlsButton), 0 for none, and the names
+// the pad gives them, empty for none.
 struct TrainingButtons {
-    std::uint32_t record = 0, play = 0;
-    std::string recordName, playName;
+    std::uint32_t record = 0, play = 0, controls = 0;
+    std::string recordName, playName, controlsName;
 };
 // The glyph id of one physical XInput button, or null.
 inline const char* XInputButtonName(std::uint32_t mask) {

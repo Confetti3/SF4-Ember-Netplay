@@ -915,7 +915,7 @@ std::string memberAsk_;
     bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
         const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::BoundButtons>& bound = {},
         const std::optional<gamepads::ExtraCopies>& extras = {});
-    // Binds an action to a layout button, refusing its partner's button and, for one
+    // Binds an action to a layout button, refusing one another action of its group has and, for one
     // that needs a free button, one the layout gives an attack.
     void ChangeBoundButton(const gamepads::PadView& pad, gamepads::BoundAction action, unsigned button, const ShellView& view, const Submit& submit);
     // Sets an extra button to copy the layout button a choice names, or nothing for "off".
