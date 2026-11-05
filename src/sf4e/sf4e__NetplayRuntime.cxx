@@ -469,6 +469,9 @@ bool SubmitRuntimeCommand(RuntimeCommand command) {
 
 
 bool IsRuntimeRoomActive() { return runtime && runtime->attached; }
+bool HasRuntimeRoomLink() { return RuntimeSession::netplay != nullptr; }
+void NotifyRuntimeBattleLoaded() { if (RuntimeSession::netplay) RuntimeSession::netplay->client.Battle_Loaded(); }
+bool IsRuntimeBattleWatched() { return RuntimeSession::netplay && RuntimeSession::netplay->spectating; }
 bool IsRuntimePublicJoin() { return runtime && runtime->join == JoinKind::Public; }
 bool IsRuntimeRecoveryEnabled() { return runtime && runtime->room && runtime->room->Coordination().active; }
 

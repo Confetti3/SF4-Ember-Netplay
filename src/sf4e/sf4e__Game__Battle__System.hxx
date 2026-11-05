@@ -321,7 +321,7 @@ namespace sf4e {
 				// learns the local handle (None until then), StartSpectating where
 				// it clears the handle, and RetireGgpoSession resets it. A session
 				// concept only: the room seat (NetplayFacade's LocalIsSpectator,
-				// RuntimeSession::netplay->spectating) answers before and after a session.
+				// IsRuntimeBattleWatched) answers before and after a session.
 				enum class SessionRole { None, Fighter, HostFighter, Spectator };
 				static SessionRole sessionRole;
 				// The session has a local fighter. Not so for a spectator, nor for a

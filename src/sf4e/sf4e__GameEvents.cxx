@@ -22,7 +22,6 @@
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__UserApp.hxx"
-#include "sf4e__RuntimeSession.hxx"
 #include "../training/TrainingRuntime.hxx"
 
 using Dimps::Game::Request;
@@ -348,10 +347,10 @@ int fVsBattle::HasInitialized() {
 	if (bBlockInitialization) {
 		return 0;
 	}
-	if (ember::RuntimeSession::netplay) {
+	if (sf4e::NetplayFacade::HasRuntimeRoomLink()) {
 		if (!bSessionSentLoaded) {
 			bSessionSentLoaded = true;
-			ember::RuntimeSession::netplay->client.Battle_Loaded();
+			sf4e::NetplayFacade::NotifyRuntimeBattleLoaded();
 		}
 		// A battle whose session ended before the room released it (the opponent
 		// left during the load) must still initialize, or nothing could drive it
@@ -416,7 +415,7 @@ void fVsBattle::RegisterTasks() {
 void fVsBattle::ExitForeground() {
 	rVsBattle* _this = (rVsBattle*)this;
 	(_this->*rVsBattle::publicMethods.ExitForeground)();
-	if (ember::RuntimeSession::netplay) {
+	if (sf4e::NetplayFacade::HasRuntimeRoomLink()) {
 		fUserApp::ResetLobbyForRematch();
 	}
 	bSessionSentLoaded = false;

@@ -49,6 +49,14 @@ namespace sf4e {
         // raw input (rematch::LocalBits); never shown to the game.
         bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw);
 		void ReleaseRuntimePortToGgpo();
+		// The room link the battle reports to: whether the runtime holds one
+		// (RuntimeSession), and the battle's load, which the room answers with
+		// Battle::OnSessionSynced once every member's battle has loaded.
+		bool HasRuntimeRoomLink();
+		void NotifyRuntimeBattleLoaded();
+		// The battle's rollback session is one this PC watches, as its seat was
+		// when the session started (IsRuntimeSpectator follows the match's seat now).
+		bool IsRuntimeBattleWatched();
 		void ReportGgpoTransport(const char* remoteHost, uint16_t remotePort);
 		GgpoTransportStatus GetGgpoTransportStatus();
 		void NotifyGgpoSyncPhase(GgpoSyncPhase phase);
