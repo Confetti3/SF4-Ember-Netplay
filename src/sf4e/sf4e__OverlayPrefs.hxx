@@ -41,9 +41,7 @@ namespace OverlayPrefs {
 	};
 
 	struct Data {
-		Data() : fighters(ember::Catalog().fighterCount) {
-			for (std::size_t id = 0; id < fighters.size(); ++id) fighters[id].charaID = static_cast<uint8_t>(id);
-		}
+		Data() { for (std::size_t id = 0; id < fighters.size(); ++id) fighters[id].charaID = static_cast<uint8_t>(id); }
 
 		// Lobby: the current selection, which every consumer reads.
 		CharaPick lobby;
@@ -53,8 +51,9 @@ namespace OverlayPrefs {
 		// What each fighter last used, indexed by charaID. Switching fighter
 		// restores that fighter's entry; fighters[lobby.charaID] equals lobby,
 		// but for the edition, which keeps the last one chosen under Edition
-		// Select (Remember).
-		std::vector<CharaPick> fighters;
+		// Select (Remember). The catalog's fighters are the first entries; only
+		// they are clamped and saved.
+		std::array<CharaPick, ember::MaxFighters> fighters;
 		// Training's other side (Training select).
 		CharaPick trainingDummy;
 		int stageID = 0;
@@ -100,7 +99,7 @@ namespace OverlayPrefs {
 	// Edition Select outside a room): without Edition Select it plays Ultra;
 	// with it, its fighter's remembered edition comes back. Returns whether
 	// `lobby` changed.
-	bool FollowEditionRule(CharaPick& lobby, const std::vector<CharaPick>& fighters, bool editionSelect);
+	bool FollowEditionRule(CharaPick& lobby, const std::array<CharaPick, ember::MaxFighters>& fighters, bool editionSelect);
 	// The settings file's "overlay" section. FromJson accepts a section written
 	// before per-fighter picks existed and remembers its one pick for that
 	// fighter. Neither clamps; Load and Save do.

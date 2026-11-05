@@ -338,10 +338,17 @@ void SessionServer::HandleForward(session::Connection conn, const json& msg, con
 void SessionServer::HandleJoinRequest(session::Connection conn, const json& msg, const session::Message& incoming, SessionProtocol::ConnectionID cid) {
 	SessionProtocol::SessionJoinRequest request;
 	const auto main=msg.find("mainFighter");
-	// A fighter of the game, or -1 for none.
-	const bool invalidMain=main!=msg.end()&&(!main->is_number_integer()||
-		(main->is_number_unsigned()?main->get<std::uint64_t>()>=static_cast<std::uint64_t>(ember::Catalog().fighterCount):
-		(main->get<std::int64_t>()!=-1&&!ember::ValidFighter(main->get<std::int64_t>()))));
+	// A fighter of the game, or -1 for none: an unsigned value at or past the
+	// catalog's count is invalid, and so is a signed one that is neither -1 nor
+	// a fighter.
+	const auto validMain=[](const json& value) {
+		if(!value.is_number_integer())return false;
+		const int fighters=ember::Catalog().fighterCount;
+		if(value.is_number_unsigned())return value.get<std::uint64_t>()<static_cast<std::uint64_t>(fighters);
+		const auto id=value.get<std::int64_t>();
+		return id==-1||(id>=0&&id<fighters);
+	};
+	const bool invalidMain=main!=msg.end()&&!validMain(*main);
 	if(invalidMain) {
 		SessionProtocol::SessionJoinReject reject;reject.result=SessionProtocol::JR_REQUEST_INVALID;
 		Respond(conn,json(reject));return;

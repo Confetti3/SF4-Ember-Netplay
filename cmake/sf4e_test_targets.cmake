@@ -232,14 +232,15 @@ sf4e_add_unit_test(NAME SessionServerTransportBarriers SOURCES "src/tests/sessio
 sf4e_add_unit_test(NAME SessionServerTransportTerminal SOURCES "src/tests/session_server_transport_terminal_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportCommit SOURCES "src/tests/session_server_transport_commit_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerTransportDepartures SOURCES "src/tests/session_server_transport_departures_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
-# The room model and session server under a 45-fighter catalog the test
-# defines itself, so it links neither sf4e_catalog nor sf4e_add_unit_test.
-add_executable(WideRosterTest "src/tests/wide_roster_test.cxx")
-target_compile_features(WideRosterTest PRIVATE cxx_std_17)
-target_link_libraries(WideRosterTest PRIVATE sf4e_product sf4e_iroh_room)
-add_test(NAME WideRoster COMMAND WideRosterTest)
-set_tests_properties(WideRoster PROPERTIES TIMEOUT 30)
-sf4e_test_labels(LABELS unit room TESTS WideRoster)
+# The room model, the room host's status and the session server under game
+# catalogs the test defines itself. It must not link sf4e_catalog, so it is
+# registered here rather than through sf4e_add_unit_test, which links it.
+add_executable(CatalogRosterTest "src/tests/catalog_roster_test.cxx" "server/roomhost/RoomHostStatus.cxx")
+target_compile_features(CatalogRosterTest PRIVATE cxx_std_17)
+target_link_libraries(CatalogRosterTest PRIVATE sf4e_product sf4e_iroh_room)
+add_test(NAME CatalogRoster COMMAND CatalogRosterTest)
+set_tests_properties(CatalogRoster PROPERTIES TIMEOUT 30)
+sf4e_test_labels(LABELS unit room TESTS CatalogRoster)
 sf4e_add_unit_test(NAME SessionServerLatency SOURCES "src/tests/session_server_latency_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME MemberLatency SOURCES "src/tests/member_latency_test.cxx" STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"

@@ -17,6 +17,7 @@ static void TestLimits() {
 	CHECK(catalog.costumeLimit == 99 && catalog.costumeLimit == selection::CostumeLimit);
 	CHECK(catalog.colorLimit == 99 && catalog.colorLimit == selection::CostumeLimit);
 	CHECK(catalog.ultraChoices == 3 && catalog.ultraChoices == selection::UltraChoices);
+	CHECK(ember::MaxFighters == 255);
 	CHECK(catalog.showcaseFighters[0] == 1 && catalog.showcaseFighters[1] == 6 &&
 		catalog.showcaseFighters[2] == 17 && catalog.showcaseFighters[3] == 24);
 	for (int fighter : catalog.showcaseFighters) CHECK(selection::FindFighter(fighter) != nullptr);
@@ -39,8 +40,27 @@ static void TestRules() {
 	CHECK(catalog.validStage(selection::CustomStageId("C12")) && !catalog.validStage(selection::RandomStageId));
 }
 
+// A roster past the one-byte id is refused wherever a catalog is checked.
+static void TestUsable() {
+	CHECK(ember::Usable(ember::Catalog()));
+	ember::GameCatalog catalog = ember::Catalog();
+	catalog.fighterCount = ember::MaxFighters;
+	CHECK(ember::Usable(catalog));
+	catalog.fighterCount = ember::MaxFighters + 1;
+	CHECK(!ember::Usable(catalog));
+	catalog.fighterCount = 0;
+	CHECK(!ember::Usable(catalog));
+	catalog = ember::Catalog();
+	catalog.validStage = nullptr;
+	CHECK(!ember::Usable(catalog));
+	catalog = ember::Catalog();
+	catalog.costumeLimit = 0;
+	CHECK(!ember::Usable(catalog));
+}
+
 int main() {
 	TestLimits();
+	TestUsable();
 	TestFighters();
 	TestRules();
 	return 0;

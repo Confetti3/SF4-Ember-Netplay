@@ -638,8 +638,8 @@ PostPublishState Publish() {
         snapshot.foughtGame = {runtime->entry.enteredTable, runtime->entry.enteredGeneration, Game::Battle::System::GameResult()};
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
-    if(snapshot.atMainMenu) for(std::size_t fighter=0;fighter<snapshot.fighterAvailability.size();++fighter)
-        snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(static_cast<int>(fighter));
+    if(snapshot.atMainMenu) for(int fighter=0;fighter<ember::Catalog().fighterCount;++fighter)
+        snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
     snapshot.installedContent = custom::Installed();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.

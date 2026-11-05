@@ -124,7 +124,7 @@ namespace OverlayPrefs {
         // The edition rule is the overlay's to apply (FollowEditionRule), not the file's.
         ClampChara(data.lobby, true);
         ClampChara(data.trainingDummy, true);
-        for (std::size_t id = 0; id < data.fighters.size(); ++id) {
+        for (int id = 0; id < ember::Catalog().fighterCount; ++id) {
             data.fighters[id].charaID = static_cast<uint8_t>(id);
             // Keep a remembered edition whatever the current rule; restoring a
             // fighter normalizes it against the room's rule at that time.
@@ -139,7 +139,7 @@ namespace OverlayPrefs {
     }
 
 	void Remember(Data& data, bool editionSelect) {
-		if (data.lobby.charaID >= data.fighters.size()) return;
+		if (!ember::ValidFighter(data.lobby.charaID)) return;
 		auto& memory = data.fighters[data.lobby.charaID];
 		const auto kept = memory;
 		memory = data.lobby;
@@ -152,9 +152,9 @@ namespace OverlayPrefs {
 		if (std::find(ultras.begin(), ultras.end(), memory.ultraCombo) == ultras.end()) memory.ultraCombo = kept.ultraCombo;
 	}
 
-	bool FollowEditionRule(CharaPick& lobby, const std::vector<CharaPick>& fighters, bool editionSelect) {
+	bool FollowEditionRule(CharaPick& lobby, const std::array<CharaPick, ember::MaxFighters>& fighters, bool editionSelect) {
 		const CharaPick before = lobby;
-		if (editionSelect && lobby.charaID < fighters.size()) lobby.unc_edition = fighters[lobby.charaID].unc_edition;
+		if (editionSelect && ember::ValidFighter(lobby.charaID)) lobby.unc_edition = fighters[lobby.charaID].unc_edition;
 		ClampChara(lobby, editionSelect);
 		return !(lobby == before);
 	}
@@ -168,11 +168,11 @@ namespace OverlayPrefs {
 		if (j.contains("trainingDummy")) CharaFromJson(j["trainingDummy"], out.trainingDummy);
 		if (j.contains("fighters") && j["fighters"].is_array()) {
 			const auto& fighters = j["fighters"];
-			for (std::size_t id = 0; id < fighters.size() && id < out.fighters.size(); ++id) {
+			for (std::size_t id = 0; id < fighters.size() && ember::ValidFighter(static_cast<std::int64_t>(id)); ++id) {
 				CharaFromJson(fighters[id], out.fighters[id]);
 				out.fighters[id].charaID = static_cast<uint8_t>(id);
 			}
-		} else if (out.lobby.charaID < out.fighters.size()) {
+		} else if (ember::ValidFighter(out.lobby.charaID)) {
 			// Written before picks were per fighter: the one shared pick belongs
 			// to the fighter it was last used on.
 			out.fighters[out.lobby.charaID] = out.lobby;
@@ -211,9 +211,9 @@ namespace OverlayPrefs {
 		CharaToJson(j["lobby"], data.lobby);
 		CharaToJson(j["trainingDummy"], data.trainingDummy);
 		j["fighters"] = nlohmann::json::array();
-		for (const auto& fighter : data.fighters) {
+		for (int id = 0; id < ember::Catalog().fighterCount; ++id) {
 			nlohmann::json row;
-			CharaToJson(row, fighter);
+			CharaToJson(row, data.fighters[id]);
 			j["fighters"].push_back(std::move(row));
 		}
 		j["stageID"] = data.stageID;

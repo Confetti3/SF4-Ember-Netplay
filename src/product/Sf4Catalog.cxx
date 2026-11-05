@@ -19,6 +19,7 @@ constexpr ember::GameCatalog Usf4 = {
 	&sf4e::selection::ValidStage,
 	{1, 6, 17, 24},
 };
+static_assert(ember::Usable(Usf4), "SF4's catalog must fit the shared code's limits");
 }
 
 namespace ember {

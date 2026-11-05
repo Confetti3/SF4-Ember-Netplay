@@ -185,7 +185,7 @@ namespace sf4e {
             // Lock-ins lost to a failure of this member's spectator view (Runtime::lockInDrops).
             std::uint64_t lockInDrops = 0;
             // Each fighter's, by id: read at the main menu, not ready elsewhere.
-            std::vector<selection::Availability> fighterAvailability=std::vector<selection::Availability>(ember::Catalog().fighterCount);
+            std::array<selection::Availability,ember::MaxFighters> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;
 			netplay::Snapshot session;
@@ -374,7 +374,7 @@ namespace sf4e {
 		// runtime rolls the next game's fighter (RuntimeSnapshot::randomFighter),
 		// sends it with every Ready and plays no rematch in place for it.
 		void NoteRandomFighter(bool random, const Dimps::GameEvents::VsMode::ConfirmedCharaConditions& lobby,
-			const std::vector<Dimps::GameEvents::VsMode::ConfirmedCharaConditions>& remembered);
+			const std::array<Dimps::GameEvents::VsMode::ConfirmedCharaConditions, ember::MaxFighters>& remembered);
 		// Any thread: Training from Home played the rolled fighter; the next roll comes at once.
 		void NoteRandomFighterPlayed();
 		// Game thread. Whether leaving for Training, asked for in session `made`,

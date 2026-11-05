@@ -19,7 +19,7 @@ constexpr std::uint64_t ShowAgainMs = 1000;
 struct Noted {
 	bool random = false, played = false;
 	Chara lobby = {};
-	std::vector<Chara> remembered = std::vector<Chara>(ember::Catalog().fighterCount);
+	std::array<Chara, ember::MaxFighters> remembered{};
 };
 // Written by the drawing thread, read by the game thread.
 std::mutex notedMutex;
@@ -41,7 +41,8 @@ Noted Take() {
 // pressed with or else remembered for it.
 Chara Sent(const Noted& from, const Chara& pressed) {
 	const int fighter = pick.Fighter();
-	if (fighter < 0) return pressed;
+	// No roll yet (-1), or none the catalog has: the pick goes as pressed.
+	if (!ember::ValidFighter(fighter)) return pressed;
 	const auto availability = Dimps::Selection::ReadAvailability(fighter);
 	Chara sent = pressed;
 	selection::ToNative(pick.Sent(selection::FromNative(pressed), selection::FromNative(from.remembered[fighter]),
@@ -50,7 +51,7 @@ Chara Sent(const Noted& from, const Chara& pressed) {
 }
 }
 
-void NoteRandomFighter(bool random, const Chara& lobby, const std::vector<Chara>& remembered) {
+void NoteRandomFighter(bool random, const Chara& lobby, const std::array<Chara, ember::MaxFighters>& remembered) {
 	std::lock_guard<std::mutex> lock(notedMutex);
 	noted.random = random; noted.lobby = lobby; noted.remembered = remembered;
 }

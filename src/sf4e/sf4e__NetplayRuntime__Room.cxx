@@ -348,7 +348,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 			Dimps::Selection::ReadAvailability(command.character.charaID) : selection::Availability{};
 		const auto installed = custom::Installed();
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
-		else if (!selection::IsRandomStage(command.stage) && !selection::ValidStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
+		else if (!selection::IsRandomStage(command.stage) && !ember::Catalog().validStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (!knownFighter || selection::FighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");
 		else if (!selection::Available(selection::FromNative(command.character), gates.editionSelect, availability, installed.get()))
 			refusal = loc::T("runtime.ready.selection_unavailable");
