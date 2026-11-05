@@ -35,8 +35,24 @@ void TableNameCommitNamesTable() {
  Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::NameTable&&h.actions.back().roomAction.text=="Finals"&&
   h.actions.back().roomAction.table==0,"Committing a table name did not send NameTable");
 }
+// Each of the board's rows is in the area that draws it, the one answer the
+// action bar, LB and RB and the narrow tabs read: the room's status while it
+// opens is a button on the action bar, so a step to the floor never lands on
+// it. The narrow tabs fold the bar under the floor's.
+void BoardAreasAreWhereDrawn() {
+ using namespace sf4e;
+ Check(BoardAreaOf("table-2")==BoardArea::Floor&&BoardAreaOf("cabinet-9")==BoardArea::Floor&&BoardAreaOf("matchup-1")==BoardArea::Floor&&
+  BoardAreaOf("room-hide-picture")==BoardArea::Floor,"A floor row is not in the floor's area");
+ Check(BoardAreaOf("room-status")==BoardArea::Bar&&BoardAreaOf("ready")==BoardArea::Bar&&BoardAreaOf("copy-short")==BoardArea::Bar&&
+  BoardAreaOf("leave")==BoardArea::Bar,"The room's status or a bar button is not on the bar");
+ Check(BoardAreaOf("member-7")==BoardArea::Members&&BoardAreaOf("room-members")==BoardArea::Members&&BoardAreaOf("room-show-members")==BoardArea::Members&&
+  BoardAreaOf("room-chat")==BoardArea::Chat&&BoardAreaOf("room-hide-chat")==BoardArea::Chat,"A panel's row is not in its panel's area");
+ Check(BoardTabOf(BoardArea::Bar,true)==0&&BoardTabOf(BoardArea::Members,true)==1&&BoardTabOf(BoardArea::Chat,true)==2&&
+  BoardTabOf(BoardArea::Chat,false)==3&&BoardTabCount(true)==3&&BoardTabCount(false)==4,"The narrow tabs do not fold the bar under the floor's");
+}
 // The narrow board shows one part at a time under its tabs: RB steps Board,
-// Members, Chat and round again, LB back, as the caps on the strip say.
+// Members, Chat and round again, LB back, as the caps on the strip say, each
+// tab back at the row last focused there, as a wide board's areas are.
 void NarrowBoardTabsStep() {
  using namespace sf4e;
  Harness h;h.Frame();
@@ -47,10 +63,13 @@ void NarrowBoardTabsStep() {
  h.Frame();h.Screen("room");h.Frame();
  const auto focus=[&]{return h.shell.Navigation().Focus();};
  Check(focus().compare(0,6,"table-")==0,"The narrow board did not open on its tables");
- h.Press(MenuInput::NextTab);Check(focus().compare(0,7,"member-")==0,"RB on the narrow board did not show Members");
+ h.Press(MenuInput::NextTab);const std::string first=focus();Check(first.compare(0,7,"member-")==0,"RB on the narrow board did not show Members");
+ h.Press(MenuInput::Down);const std::string member=focus();
+ Check(member.compare(0,7,"member-")==0&&member!=first,"Down in the narrow Members tab did not reach the next member");
  h.Press(MenuInput::NextTab);Check(focus()=="room-chat","RB from Members did not show Chat");
  h.Press(MenuInput::NextTab);Check(focus().compare(0,6,"table-")==0,"RB from Chat did not wrap to the board");
  h.Press(MenuInput::PrevTab);Check(focus()=="room-chat"&&h.shell.Navigation().Screen()=="room","LB from the board did not wrap to Chat");
+ h.Press(MenuInput::PrevTab);Check(focus()==member,"LB to the narrow Members tab did not return to the member last focused there");
  ImGui::GetIO().DisplaySize=ImVec2(1280,960);
 }
 // The board opens on what the player most likely does next, once per room:
@@ -724,6 +743,7 @@ void RoomJourneys() {
  RoomBoardJourneys();
  RoomShortcutOnPanelScreen();
  TableNameCommitNamesTable();
+ BoardAreasAreWhereDrawn();
  NarrowBoardTabsStep();
  BoardOpensOnReadyAndStepsAreas();
  AreaStepScrollsIntoView();

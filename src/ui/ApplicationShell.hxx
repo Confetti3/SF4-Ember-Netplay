@@ -24,6 +24,7 @@
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include "UpdateChannelPick.hxx"
+#include "RoomBoardArea.hxx"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -599,11 +600,13 @@ private:
     void RoomShortcut(const MenuAction& action, const ShellView& view);
     // The room's shortcut hints (Fighter, Options, Chat), those the device has.
     static std::vector<LegendHint> RoomShortcutHints();
-    // The board's areas, as LB and RB step them on a wide board (RoomActions.cxx):
-    // the floor, the action bar, Members and Chat. Each remembers the row last
-    // focused in it (NoteRoomArea), which a step to it returns to.
+    // The board's areas (BoardArea), as LB and RB step them (RoomActions.cxx):
+    // the floor, the action bar, Members and Chat; a narrow board's three tabs.
+    // Each remembers the row last focused in it (NoteRoomArea), which a step
+    // to it returns to. FocusRoomTab: to that tab's row, false when it has none.
     void NoteRoomArea(const std::string& focus);
-    void StepRoomArea(const ShellView& view, const std::vector<MenuEntry>& rows, MenuNavigation& nav, int step);
+    void StepRoomArea(const ShellView& view, const std::vector<MenuEntry>& rows, MenuNavigation& nav, int step, bool narrow);
+    bool FocusRoomTab(const ShellView& view, const std::vector<MenuEntry>& rows, MenuNavigation& nav, int tab, bool narrow);
     // The board's rows' last touches once all of them are there: the focus a
     // newly joined room opens on, and the action bar's Left and Right in its
     // own order (RoomBoardRows).
@@ -727,7 +730,7 @@ private:
     // The row last focused in each of the board's areas (StepRoomArea), and the
     // room (its session generation and epoch) whose board has had its opening
     // focus (SettleRoomBoard).
-    std::string roomAreaFocus_[4];
+    std::string roomAreaFocus_[static_cast<int>(BoardArea::Count)];
     std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
     // frame, and the tables' size: a change shows the focused row again.

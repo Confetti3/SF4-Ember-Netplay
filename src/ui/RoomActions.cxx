@@ -8,60 +8,57 @@
 #include "../common/Localization.hxx"
 #include <imgui.h>
 #include <algorithm>
-#include <cstring>
 
 namespace sf4e { namespace ui {
 using namespace room_controls;
 namespace {
-bool Starts(const std::string& id,const char* prefix){return id.compare(0,std::strlen(prefix),prefix)==0;}
-// The board's area a row is in, in the order LB and RB step them: 0 the
-// floor (its tables or cabinets, the matchups and the picture's Hide over
-// them), 1 the action bar, 2 Members, 3 Chat. The bar holds every row the
-// others do not, as the board draws it (RoomActionBar).
-int RoomArea(const std::string& id){
- if(Starts(id,"table-")||Starts(id,"cabinet-")||Starts(id,"matchup-")||id=="room-hide-picture"||id=="room-status")return 0;
- if(Starts(id,"member-")||id=="room-members"||id=="room-hide-members"||id=="room-show-members")return 2;
- if(id=="room-chat"||id=="room-hide-chat"||id=="room-show-chat")return 3;
- return 1;
-}
 bool Has(const std::vector<MenuEntry>& rows,const std::string& id){
  return !id.empty()&&std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});
 }
 // Where a step to `area` lands when it remembers nothing there: your own table
 // card or cabinet on the floor, Ready on the bar, the first member, the message
 // box; else the area's first row. Empty for an area with no rows.
-std::string AreaStart(const ShellView& v,const std::vector<MenuEntry>& rows,int area){
+std::string AreaStart(const ShellView& v,const std::vector<MenuEntry>& rows,BoardArea area){
  const auto& s=v.room;
  const auto mine=room::PlaceOf(s,s.localMember);
  std::string first;
  // A panel's Hide is a corner button, not where its area starts.
- for(const auto& e:rows)if(RoomArea(e.id)==area&&!Starts(e.id,"room-hide-")){first=e.id;break;}
- if(area==0&&mine.kind!=room::Place::Kind::None){
+ for(const auto& e:rows)if(BoardAreaOf(e.id)==area&&!HasPrefix(e.id,"room-hide-")){first=e.id;break;}
+ if(area==BoardArea::Floor&&mine.kind!=room::Place::Kind::None){
   const int cabinet=s.arcade?room::CabinetOf(s,s.localMember):-1;
   const std::string own=cabinet>=0?"cabinet-"+std::to_string(cabinet):"table-"+std::to_string(mine.table);
   if(Has(rows,own))return own;
  }
- if(area==1&&Has(rows,"ready"))return "ready";
- if(area==3&&Has(rows,"room-chat"))return "room-chat";
+ if(area==BoardArea::Bar&&Has(rows,"ready"))return "ready";
+ if(area==BoardArea::Chat&&Has(rows,"room-chat"))return "room-chat";
  return first;
 }
 }
 
 void ApplicationShell::NoteRoomArea(const std::string& focus) {
- if(!focus.empty())roomAreaFocus_[RoomArea(focus)]=focus;
+ if(!focus.empty())roomAreaFocus_[static_cast<int>(BoardAreaOf(focus))]=focus;
 }
-// LB and RB on a wide board: the next area (or the previous), past one with no
-// rows, at the row last focused there while it is still on the board. An open
-// question or popout keeps the focus where it is.
-void ApplicationShell::StepRoomArea(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,int step) {
- if(nav.Mode()!=MenuNavigation::Modal::None)return;
- const int from=RoomArea(nav.Focus());
- NoteRoomArea(nav.Focus());
- for(int area=StepTab(from,step,4);area!=from;area=StepTab(area,step,4)){
-  const std::string& kept=roomAreaFocus_[area];
-  const std::string to=Has(rows,kept)&&RoomArea(kept)==area?kept:AreaStart(v,rows,area);
-  if(!to.empty()){nav.Focus(to,rows);return;}
+// A tab's row: in each of its areas in turn, the row last focused there while
+// it is still on the board, else where the area starts.
+bool ApplicationShell::FocusRoomTab(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,int tab,bool narrow) {
+ for(int i=0;i<static_cast<int>(BoardArea::Count);++i){
+  const auto area=static_cast<BoardArea>(i);
+  if(BoardTabOf(area,narrow)!=tab)continue;
+  const std::string& kept=roomAreaFocus_[i];
+  const std::string to=Has(rows,kept)&&BoardAreaOf(kept)==area?kept:AreaStart(v,rows,area);
+  if(!to.empty()){nav.Focus(to,rows);return true;}
  }
+ return false;
+}
+// LB and RB: the next area (or the previous; a narrow board's next tab), past
+// one with no rows, round at the ends. An open question or popout keeps the
+// focus where it is.
+void ApplicationShell::StepRoomArea(const ShellView& v,const std::vector<MenuEntry>& rows,MenuNavigation& nav,int step,bool narrow) {
+ if(nav.Mode()!=MenuNavigation::Modal::None)return;
+ const int count=BoardTabCount(narrow),from=BoardTabOf(BoardAreaOf(nav.Focus()),narrow);
+ NoteRoomArea(nav.Focus());
+ for(int tab=StepTab(from,step,count);tab!=from;tab=StepTab(tab,step,count))
+  if(FocusRoomTab(v,rows,nav,tab,narrow))return;
 }
 void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>& rows,MenuNavigation& nav) {
  // The action bar's Left and Right go along it in its own order, from the end
@@ -69,7 +66,7 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
  // off the end into the Members list beside it, whose rows scrolled out of
  // sight are still placed there.
  std::vector<MenuEntry*> bar;
- for(auto& e:rows)if(RoomArea(e.id)==1)bar.push_back(&e);
+ for(auto& e:rows)if(BoardAreaOf(e.id)==BoardArea::Bar)bar.push_back(&e);
  for(std::size_t i=0;i<bar.size();++i){bar[i]->left=bar[i?i-1:i]->id;bar[i]->right=bar[i+1<bar.size()?i+1:i]->id;}
  // The message box sits under the chat's log, which has nothing to focus:
  // Up from it is its own panel's Hide, not a table card across the board.
@@ -108,7 +105,7 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
 void ApplicationShell::RoomShortcut(const MenuAction& a,const ShellView& v) {
  auto& nav=menu_.navigation;
  // Only X, Y and View are the room's: Delete means something only on your own
- // card, and LB and RB only on the narrow board's tabs (DrawRoomBoard).
+ // card, and LB and RB step the board's areas or tabs (DrawRoomBoard).
  if(a.delta!=MenuInput::Fighter&&a.delta!=MenuInput::Options&&a.delta!=MenuInput::Chat)return;
  const char* target=a.delta==MenuInput::Fighter?"selection":a.delta==MenuInput::Options?"room-table":"room-chat";
  if(nav.Screen()==target){nav.Home();nav.Push("room");return;}
