@@ -894,9 +894,9 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         spdlog::info("Overlay: Ember menu {} ({}), room {}, match {}", shellWasVisible ? "shown" : "hidden", presentation.Why(),
             sf4e::input::RoomStateName(snapshot.session.room), sf4e::input::MatchStateName(snapshot.session.match));
     }
-    // The native menu stays parked under a shown shell, focused or not, and
-    // while the pad update hides the pads from it (behind another window, or
-    // a press held from the shell), so a pad press while alt-tabbed cannot drive it.
+    // The native menu stays parked under a shown shell, focused or not; while the pad update
+    // captures every button (the shell's capture, or behind another window, so an alt-tabbed
+    // press cannot drive it); and while the owner pad still holds a press from the shell (MenuGuard).
     fMainMenu::bOverrideItemObserverState = (shown || controllerNavigation.MenuGuard() || sf4e::Pad::MenuInputBlocked())
         ? rMainMenu::MMIOS_TRANSITION : -1;
     // A Training table's match has no shared save and reset; the HUD says so.
