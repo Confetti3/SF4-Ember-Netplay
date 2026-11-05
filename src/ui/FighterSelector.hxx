@@ -26,11 +26,14 @@ const char* ShortUltraLabel(int ultra);
 // the move alone, "Metsu Hadoken" (UltraMove). Empty for no fighter.
 std::string UltraName(int fighter, int ultra);
 std::string UltraMove(int fighter, int ultra);
-// The Ultra's input in words, a line for each command, facing-neutral, with
-// what it needs after it: "QCF x2 + PPP", "Charge B, F, B, F + KKK (Ground)"
-// (UltraCommands, UltraNotation). Ultra Double's are Ultra I's and II's, each
-// after U1 or U2. None for an Ultra the edition does not have.
-std::vector<std::string> UltraInputLines(int fighter, int ultra, int edition);
+// One command of an Ultra's input: the Ultra it is (I or II; Ultra Double has
+// Ultra I's and II's), its symbols (UltraCommand::symbols), and the same in
+// words, facing-neutral, with what it needs after it: "QCF x2 + PPP",
+// "Charge B, F, B, F + KKK (Ground)" (UltraNotation).
+struct UltraInput { int ultra = 0; const char* symbols = nullptr; std::string words; };
+// The Ultra's input in the edition, a command each, in order. None for an
+// Ultra the edition does not have.
+std::vector<UltraInput> UltraInputs(int fighter, int ultra, int edition);
 // A picture fitted inside the box and centred, or, before it is loaded or
 // where it is missing, a word that says so.
 void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max);

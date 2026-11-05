@@ -178,18 +178,16 @@ std::vector<MenuEntry> AppearanceGallery::Build(const std::string& screen, const
     if (page_ == Page::Ultras) {
         const FighterPicture worn{pick.fighter, FighterArt::Character, pick.costume, pick.color};
         for (const int ultra : AllowedUltras(pick.fighter, pick.edition)) {
+            // Ultra Double's input is Ultra I's and Ultra II's: on the card each
+            // under its name, in the detail each line after U1 or U2.
             std::string detail;
-            for (const auto& line : UltraInputLines(pick.fighter, ultra, pick.edition)) detail += (detail.empty() ? "" : "\n") + line;
-            // Ultra Double's input is Ultra I's and Ultra II's, each under its name.
             Card drawn{worn, {}, ultra == pick.ultra};
-            for (const int one : ultra == 2 ? std::vector<int>{0, 1} : std::vector<int>{ultra}) {
-                Input input;
-                if (ultra == 2) input.heading = std::string(ShortUltraLabel(one)) + "  " + UltraMove(pick.fighter, one);
-                const auto commands = UltraCommands(pick.fighter, one, pick.edition);
-                const auto lines = UltraInputLines(pick.fighter, one, pick.edition);
-                for (std::size_t i = 0; i < commands.size(); ++i)
-                    input.commands.push_back({commands[i].symbols, i < lines.size() ? lines[i] : std::string()});
-                drawn.inputs.push_back(std::move(input));
+            for (const auto& command : UltraInputs(pick.fighter, ultra, pick.edition)) {
+                const std::string label = ultra == 2 ? ShortUltraLabel(command.ultra) : "";
+                if (drawn.inputs.empty() || drawn.inputs.back().ultra != command.ultra)
+                    drawn.inputs.push_back({command.ultra, label.empty() ? label : label + "  " + UltraMove(pick.fighter, command.ultra), {}});
+                drawn.inputs.back().commands.push_back({command.symbols, command.words});
+                detail += (detail.empty() ? "" : "\n") + (label.empty() ? command.words : label + " " + command.words);
             }
             card("ultra-" + std::to_string(ultra), UltraName(pick.fighter, ultra), std::move(detail), editable, ultra, std::move(drawn));
             if (editable) rows.back().hint = loc::T("menu.hint.save_ultra");

@@ -8,7 +8,7 @@ photo with its mark in the top-right corner and SAVED top-left on the saved
 one; Ultra Double shows a large W instead of a photo. Under the photo come the
 Ultra's name, then for each command its vector motion arrows and arcade button
 symbols, and under the symbols the same input in words that face neither way:
-a line per command from `UltraInputLines`, which joins `UltraNotation` with the
+a line per command from `UltraInputs`, which joins `UltraNotation` with the
 command's `UltraCondition` in the player's language, such as "Charge B, F, B, F
 + KKK (Ground)". Ultra Double shows both Ultras' commands, each under U1 or U2
 and the move's name. An Ultra with no packaged photo shows the fighter in what

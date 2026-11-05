@@ -141,20 +141,20 @@ std::string UltraName(int fighter, int ultra) {
     const std::string move = UltraMove(fighter, ultra);
     return move.empty() || ultra == 2 ? move : std::string(UltraLabel(ultra)) + ": " + move;
 }
-std::vector<std::string> UltraInputLines(int fighter, int ultra, int edition) {
-    std::vector<std::string> lines;
+std::vector<UltraInput> UltraInputs(int fighter, int ultra, int edition) {
+    std::vector<UltraInput> inputs;
     const auto allowed = selection::AllowedUltras(fighter, edition);
-    if (std::find(allowed.begin(), allowed.end(), ultra) == allowed.end()) return lines;
+    if (std::find(allowed.begin(), allowed.end(), ultra) == allowed.end()) return inputs;
     const std::string charge = loc::T("selection.ultra_charge");
     // Ultra Double has no input of its own: it is Ultra I's and Ultra II's.
     for (const int one : ultra == 2 ? std::vector<int>{0, 1} : std::vector<int>{ultra})
         for (const auto& command : selection::UltraCommands(fighter, one, edition)) {
-            std::string line = selection::UltraNotation(command.symbols, charge);
+            std::string words = selection::UltraNotation(command.symbols, charge);
             if (command.condition != selection::UltraCondition::None)
-                line = loc::Tf("selection.ultra_input_condition", UltraConditionText(command.condition), line);
-            lines.push_back(ultra == 2 ? std::string(ShortUltraLabel(one)) + " " + line : line);
+                words = loc::Tf("selection.ultra_input_condition", UltraConditionText(command.condition), words);
+            inputs.push_back({one, command.symbols, std::move(words)});
         }
-    return lines;
+    return inputs;
 }
 
 bool DrawStageSelector(int& nativeId, SelectionArt* art) {

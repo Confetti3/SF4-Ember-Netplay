@@ -123,12 +123,16 @@ void KeyboardJourneys(){
  Check(selector.Navigation().Focus()=="ultra-1","Right on the Ultra cards did not move to Ultra II");
  key(ImGuiKey_Enter);
  Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room-table","Picking an Ultra card did not save it and return to the table page");
- // A card's input is in words that face neither way; Ultra Double's is both
- // Ultras', and an Ultra the edition lacks has none.
- Check(UltraInputLines(0,0,14)==std::vector<std::string>{"QCF x2 + PPP"}&&
-  UltraInputLines(0,2,14)==std::vector<std::string>{"U1 QCF x2 + PPP","U2 QCF x2 + KKK"}&&
-  UltraInputLines(43,1,14)==std::vector<std::string>{"Charge B, F, B, F + KKK (Ground)","Charge DB, DF, DB, UF + KKK (Anti-air)"}&&
-  UltraInputLines(0,2,2).empty()&&UltraInputLines(0,1,13).empty(),"An Ultra's input lines are wrong");
+ // A card's input is in words that face neither way, each beside its symbols;
+ // Ultra Double's is both Ultras', each its own, and an Ultra the edition lacks has none.
+ const auto words=[](int fighter,int ultra,int edition){
+  std::vector<std::string> out;for(const auto& command:UltraInputs(fighter,ultra,edition))out.push_back(command.words);return out;};
+ const auto doubled=UltraInputs(0,2,14);
+ Check(words(0,0,14)==std::vector<std::string>{"QCF x2 + PPP"}&&
+  words(0,2,14)==std::vector<std::string>{"QCF x2 + PPP","QCF x2 + KKK"}&&doubled[0].ultra==0&&doubled[1].ultra==1&&
+  std::string(doubled[1].symbols)=="236 236 + KKK"&&
+  words(43,1,14)==std::vector<std::string>{"Charge B, F, B, F + KKK (Ground)","Charge DB, DF, DB, UF + KKK (Anti-air)"}&&
+  UltraInputs(0,2,2).empty()&&UltraInputs(0,1,13).empty(),"An Ultra's inputs are wrong");
  h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
  Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-0",
   "Select on the table's Appearance did not open the costume grid on the worn costume");

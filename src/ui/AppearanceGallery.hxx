@@ -34,7 +34,7 @@ public:
     void Open(MenuNavigation& nav, Page page, const selection::Pick& pick);
     // The cards of the grid `screen` for this frame, one per costume, colour
     // or Ultra (keyed by its id), or a single row that says why there are none.
-    // An Ultra's detail is its input, a line for each command (UltraInputLines).
+    // An Ultra's detail is its input, a line for each command (UltraInputs).
     std::vector<MenuEntry> Build(const std::string& screen, const selection::Pick& pick, const selection::Availability& availability,
                                  const selection::InstalledContent* installed, bool editable);
     // The built cards in place of the list (GameMenu::Body): every one at once,
@@ -47,11 +47,11 @@ public:
 private:
     // Back to the screen under the grids (the look page).
     static void Leave(MenuNavigation& nav);
-    // An Ultra's input on its card: for each command its symbols (UltraCommand)
-    // and its line in words (UltraInputLines). Ultra Double has one for each
-    // Ultra, each under its heading ("U1 Metsu Hadoken").
+    // An Ultra's input on its card: for each command its symbols and its line
+    // in words (UltraInput). Ultra Double has one for each Ultra (`ultra`, I or
+    // II), each under its heading ("U1 Metsu Hadoken").
     struct Command { std::string symbols, line; };
-    struct Input { std::string heading; std::vector<Command> commands; };
+    struct Input { int ultra = 0; std::string heading; std::vector<Command> commands; };
     // A built row's card: the fighter as it draws them (an Ultra's card only
     // where the Ultra has no picture of its own), an Ultra's inputs, and
     // whether it is what the pick has now.
