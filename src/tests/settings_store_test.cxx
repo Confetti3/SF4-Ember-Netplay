@@ -11,6 +11,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/PublicRoomFilterJson.hxx"
 #define NOMINMAX
 #include <windows.h>
 #include <filesystem>
@@ -337,6 +338,40 @@ static void SpeechRoundTrips(const Path& root) {
     const auto odd=netplay::ReadSpeechPreferences({{"speech",{{"enabled",1},{"rate",11},{"volume",55},{"details",false}}}});
     CHECK(!odd.enabled&&odd.rate==0&&odd.volume==100&&!odd.details&&!odd.hints&&!odd.position&&odd.chime&&odd.chimeVolume==60&&!odd.introHeard&&odd.tick&&odd.describeUsed==0&&odd.Reminds());
     netplay::PlayerPreferences invalid; invalid.speech.volume=0; CHECK(!invalid.Valid());
+}
+
+// The public rooms filter is one object in the netplay section. An older profile
+// has none, and a field out of range, of another type or naming a region that is
+// no longer known loads as All (a flag as off) on its own.
+static void RoomFilterRoundTrips(const Path& root) {
+    using namespace sf4e;
+    using netplay::publicrooms::RoomFilter;
+    const auto folder=root/L"room-filter";
+    CHECK(std::filesystem::create_directory(folder));
+    SettingsStore store(folder.wstring()); std::string error;
+    for (const auto& pick : {RoomFilter(), RoomFilter{RoomFilter::Region::Near,"",RoomFilter::Type::King,true,false},
+                             RoomFilter{RoomFilter::Region::One,"euc1",RoomFilter::Type::Classic,false,true},
+                             RoomFilter{RoomFilter::Region::One,"aps1",RoomFilter::Type::Arcade,true,true}}) {
+        netplay::PlayerPreferences prefs; prefs.roomFilter=pick; CHECK(prefs.Valid());
+        Json saved; netplay::WriteRoomFilter(prefs,saved);
+        CHECK(store.SaveLauncher(saved,error));
+        CHECK(Json::parse(Read(folder/L"settings.json"))["netplay"]["roomFilter"]["wired"]==pick.wiredOnly);
+        Json loaded; CHECK(store.LoadLauncher(loaded,error));
+        CHECK(netplay::ReadRoomFilter(loaded)==pick);
+    }
+    CHECK(netplay::ReadRoomFilter(Json::object())==RoomFilter());
+    CHECK(netplay::ReadRoomFilter(Json("filter"))==RoomFilter());
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",7}})==RoomFilter());
+    // A region that is no longer known falls back to All without losing the rest.
+    const auto gone=netplay::ReadRoomFilter({{"roomFilter",{{"region","mars"},{"type","arcade"},{"seats",true},{"wired",true}}}});
+    CHECK(gone.scope==RoomFilter::Region::All&&gone.region.empty()&&gone.type==RoomFilter::Type::Arcade&&gone.openSeats&&gone.wiredOnly&&gone.Valid());
+    const auto odd=netplay::ReadRoomFilter({{"roomFilter",{{"region",3},{"type","brawl"},{"seats","yes"},{"wired",1}}}});
+    CHECK(odd==RoomFilter());
+    CHECK(netplay::ReadRoomFilter({{"roomFilter",{{"region","near"}}}}).scope==RoomFilter::Region::Near);
+    // Preferences carrying a filter that names no region to filter by are invalid.
+    netplay::PlayerPreferences invalid; invalid.roomFilter.scope=RoomFilter::Region::One; CHECK(!invalid.Valid());
+    invalid.roomFilter.region="mars"; CHECK(!invalid.Valid());
+    invalid.roomFilter.region="use1"; CHECK(invalid.Valid());
 }
 
 static void ControllerLayerRoundTrip(const Path& root) {
@@ -789,6 +824,7 @@ int main() {
     ButtonPromptRoundTrips(root);
     CountryRoundTrips(root);
     SpeechRoundTrips(root);
+    RoomFilterRoundTrips(root);
     ControllerLayerRoundTrip(root);
     ShareReplaysConsent(root);
     RemoveTempRoot(root);
