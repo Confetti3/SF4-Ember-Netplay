@@ -317,7 +317,7 @@ void AppearanceGalleries(){
  press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==UltraName(pick.fighter,2),"Ultra Double did not save");
  Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="look","Left on Ultra Combo did not step back to Ultra II");
  Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
- press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","Select on Ultra Combo did not open its values");
+ press(MenuInput::Select);Check(selector.Navigation().Screen()=="ultras"&&selector.Navigation().Focus()=="ultra-1","Select on Ultra Combo did not open the Ultra cards on the current Ultra");
  press(MenuInput::Back);press(MenuInput::Back);
  // Picking a fighter opens their page, Ultra row and all: no separate Ultra step.
  focus("fighter-5");press(MenuInput::Select);
