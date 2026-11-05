@@ -146,7 +146,10 @@ int fSystem::GetGameMode() {
         s_inPlaceReplays.Restarting(RecorderReplay);
         // A spectator plays confirmed frames only, so its restart is final; a
         // fighter's is once the next game's fight is confirmed (NativeResult).
-        if (!LocalFighter()) HandOverInPlaceReplay();
+        if (!LocalFighter()) {
+            HandOverInPlaceReplay();
+            CountWatchedInPlaceGame();
+        }
     }
     return 4;
 }

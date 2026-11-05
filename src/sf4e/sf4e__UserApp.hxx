@@ -30,10 +30,11 @@ namespace sf4e {
             uint8_t deviceIdx;
             uint8_t delay;
             MatchSide matchSides[2];
-            // What a spectator's HUD shows for the whole stream: the table's score
-            // as the watched game started (see HudScore).
-            std::uint32_t startScore[2] = { 0, 0 };
-            bool startScoreKnown = false;
+            // What a spectator's HUD shows: the table's score as the stream
+            // started, plus each game the stream has shown ending in place
+            // (see HudScore and CountWatchedGame).
+            std::uint32_t watchedScore[2] = { 0, 0 };
+            bool watchedScoreKnown = false;
             bool spectating = false;
         };
 

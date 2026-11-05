@@ -207,11 +207,11 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
                 if (member.name == captured.name) captured.badge = member.badge;
     }
     netplay->spectating = endpoints.localSlot >= 2;
-    netplay->startScore[0] = netplay->startScore[1] = 0;
+    netplay->watchedScore[0] = netplay->watchedScore[1] = 0;
     const auto* table = LocalTable(room);
-    netplay->startScoreKnown = table != nullptr;
+    netplay->watchedScoreKnown = table != nullptr;
     if (table)
-        for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
+        for (int side = 0; side < 2; ++side) netplay->watchedScore[side] = table->score[side];
     bool started = false;
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return RuntimeGgpoStart::NoStream;

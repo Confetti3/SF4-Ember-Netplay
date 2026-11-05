@@ -101,6 +101,8 @@ void ResetNativeResultMatch();
 void CaptureNativeMatchResult(rSystem* system, int stateFrame);
 bool MatchResultKnown();
 void PublishConfirmedNativeMatchResult();
+// A spectator's stream restarted the battle in place: count the game it showed.
+void CountWatchedInPlaceGame();
 // The battle is closing: a result held for a rematch in place ends the match.
 void FlushHeldNativeResult();
 
