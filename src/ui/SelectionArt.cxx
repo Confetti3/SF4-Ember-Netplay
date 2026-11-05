@@ -471,6 +471,22 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
     const std::string& key = impl_->imageKey.assign(fighter->code).append("/ultra-").append(std::to_string(ultra));
     return impl_->Request(key, [&] { return impl_->ImagePaths(key); });
 }
+SelectionImage SelectionArt::UltraIcon(int ultra) {
+    if (ultra < 0 || ultra > 2) return {};
+    static const char* const entries[] = {"uc1.dds", "uc2.dds", "uc3.dds"};
+    const std::string entry = entries[ultra];
+    // Ultra's own archive first. The W is only there: an older archive opens
+    // but lacks it, which would read as a failed file and be retried.
+    Impl::Policy mark; mark.cropToContent = true;
+    return impl_->Request("ultra-icons/" + entry, [&] {
+        std::vector<std::wstring> paths{impl_->gameRoot + L"/dlc/04_ae2/ui/chara_select/chara_select_dlc4.emz"};
+        if (ultra < 2) {
+            paths.push_back(impl_->gameRoot + L"/patch_ae2/ui/chara_select/chara_select_patch.emz");
+            paths.push_back(impl_->gameRoot + L"/resource/ui/chara_select/chara_select.emz");
+        }
+        return paths;
+    }, NativeSide, mark, entry);
+}
 SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
     // Read from the game at runtime like the portraits, and never repackaged.
     // Cropped to the painted emblem: the Master and Grand Master crowns sit
