@@ -215,7 +215,10 @@ void fSystem::UpdateInputs() {
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
     const unsigned kept=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
-    inputBlocked=kept!=0;
+    // Blocked while Ember holds every button (Training then reads no pad);
+    // a button only kept from a capture leaves new presses to the game, and
+    // to the dummy in Training.
+    inputBlocked=kept==sf4e::input::MenuInputCapture::All;
     // Native Start is untouched while Ember is closed; an open overlay,
     // including the training controls, captures all inputs, and so do pads
     // polled behind another window for Ember's menu alone. After that only
