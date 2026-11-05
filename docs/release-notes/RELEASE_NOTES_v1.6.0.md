@@ -26,7 +26,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **From a room, Appearance opens the costume grid straight away,** and picking a color returns to the room.
 - **The Ultra page is back, full size.** Select on the Ultra row of a fighter's page shows a large card for each Ultra, as the old Ultra page did: its picture with the game's own I, II or W in the corner and SAVED on the one you have, its name, and its input drawn as motion arrows and buttons, with the same input in words under them that read the same on either side, such as QCF x2 + PPP or Charge B, F, B, F + KKK. A move with two ways in, like Gen's stances or Decapre's anti-air version, shows both, and Ultra Double shows a large W and both Ultras' inputs. The input follows the edition, so SSFIV Bison and Omega Decapre show their own. Select saves the Ultra and Back leaves it as it was. Left and Right on the Ultra row still change it in place.
 - **From a room, the Ultra opens these cards too:** the Ultra button beside Ready up and the Ultra row in Table options. Picking one returns to the room.
-- **Arcade cabinets show each player's Ultra** on the marquee beside the cabinet number, once the player has shared it.
+- **Arcade cabinets show each player's Ultra** in the corner of the cabinet's screen, once the player has shared it.
 
 ### Public rooms
 

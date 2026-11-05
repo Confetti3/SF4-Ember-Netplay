@@ -25,9 +25,10 @@ and II fall back to the older archives. The 32-pixel icons are drawn on whole
 pixels at no more than twice their size. Where the game has none, the card
 draws the old badge instead: I, II or W in Ember on a dark plate
 (`DrawUltraMark`). An Arcade or King of the hill cabinet shows the seated
-player's mark at the right end of its marquee, as tall as the strip, once their
-Ultra is known; a cabinet too narrow for it beside the number shows the number
-alone.
+player's mark in the top-right corner of its screen, over the fighter as on the
+Ultra cards, once their Ultra is known; a screen too small for it (the narrow
+layout's) shows none, and an empty cabinet none. The marquee keeps only the
+cabinet number (and a streak).
 
 Notation faces right. An orange dot marks the start of a curved motion; the word for a charge (the translation of Charge) marks a charge direction. Three P or K buttons mean simultaneous punches or kicks. LP, HP and LK indicate individual strengths in Akuma's sequence: Ultra I (Wrath of the Raging Demon) is LP, LP, forward, LK, HP. Circular motions are shown twice for 720-degree commands. Air, stance, counter and proximity conditions accompany their commands.
 
