@@ -4911,26 +4911,50 @@ msgstr "Entra nella sala aperta vicino a te con più posti liberi."
 msgid "public.quick_none"
 msgstr "Nessuna sala aperta vicino a te ha un posto libero al momento. Creane una e i giocatori vicini la troveranno."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Crea sala"
 
-msgid "public.filter"
-msgstr "Mostra"
+msgid "public.filter_region"
+msgstr "Region"
 
-msgid "public.filter_detail"
-msgstr "Scegli quali sale mostrare: tutte, quelle vicine o solo quelle con posti liberi."
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
 
-msgid "public.filter_label"
-msgstr "Mostra: {0}"
+msgid "public.filter_region_all"
+msgstr "All regions"
 
-msgid "public.filter.all"
-msgstr "Tutte le sale"
-
-msgid "public.filter.near"
+msgid "public.filter_region_near"
 msgstr "Vicino a me"
 
-msgid "public.filter.seats"
-msgstr "Posti liberi"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Tutte le sale"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember non conosce ancora la tua regione e non può sapere quali sale sono vicine a te."
@@ -5001,8 +5025,8 @@ msgstr "Nessuna sala aperta al momento. Creane una e gli altri potranno trovarla
 msgid "public.none_filtered"
 msgstr "Nessuna sala corrisponde a questo filtro."
 
-msgid "public.show_all"
-msgstr "Mostra tutte le sale"
+msgid "public.clear_filters"
+msgstr "Clear filters"
 
 msgid "public.try_again"
 msgstr "Riprova"
@@ -6548,6 +6572,9 @@ msgstr "Il tuo ritardo: {0}"
 
 msgid "public.own_delay"
 msgstr "Ritardo proprio"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Questo servizio di sale non può ancora creare una sala con il ritardo di ciascun giocatore. Scegli Uguale per entrambi o riprova più tardi."

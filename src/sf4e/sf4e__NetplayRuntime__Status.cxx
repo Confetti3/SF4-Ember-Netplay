@@ -369,6 +369,7 @@ std::uint64_t PublishFingerprint() {
     mixString(runtime->preferences.wornTitle); mixString(runtime->preferences.wornIcon);
     { const auto& speech = runtime->preferences.speech; mix(speech.enabled); mix(speech.rate); mix(speech.volume); mix(speech.details); mix(speech.hints); mix(speech.position); mix(speech.chime); mix(speech.chimeVolume);
       mix(speech.introHeard); mix(speech.tick); mix(speech.describeUsed); mix(speech.remind); }
+    { const auto& filter = runtime->preferences.roomFilter; mix(static_cast<std::uint64_t>(filter.scope)); mixString(filter.region); mix(static_cast<std::uint64_t>(filter.type)); mix(filter.openSeats); mix(filter.wiredOnly); }
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());

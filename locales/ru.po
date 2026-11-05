@@ -4911,26 +4911,50 @@ msgstr "Входит в открытое лобби поблизости, где
 msgid "public.quick_none"
 msgstr "Сейчас рядом нет открытых лобби со свободными местами. Создайте своё, и игроки поблизости его найдут."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Создать лобби"
 
-msgid "public.filter"
-msgstr "Показать"
+msgid "public.filter_region"
+msgstr "Region"
 
-msgid "public.filter_detail"
-msgstr "Выберите, какие лобби показывать: все, ближайшие или только со свободными местами."
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
 
-msgid "public.filter_label"
-msgstr "Показать: {0}"
+msgid "public.filter_region_all"
+msgstr "All regions"
 
-msgid "public.filter.all"
-msgstr "Все лобби"
-
-msgid "public.filter.near"
+msgid "public.filter_region_near"
 msgstr "Рядом"
 
-msgid "public.filter.seats"
-msgstr "Свободные места"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Все лобби"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember пока не знает ваш регион, поэтому не может определить, какие лобби рядом."
@@ -5001,8 +5025,8 @@ msgstr "Сейчас нет открытых лобби. Создайте сво
 msgid "public.none_filtered"
 msgstr "Нет лобби, подходящих под этот фильтр."
 
-msgid "public.show_all"
-msgstr "Показать все лобби"
+msgid "public.clear_filters"
+msgstr "Clear filters"
 
 msgid "public.try_again"
 msgstr "Повторить"
@@ -6548,6 +6572,9 @@ msgstr "Ваша задержка: {0}"
 
 msgid "public.own_delay"
 msgstr "Своя задержка"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Эта служба лобби пока не может создать лобби со своей задержкой у каждого игрока. Выберите «Одинаковая для обоих» или повторите попытку позже."

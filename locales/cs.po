@@ -4911,26 +4911,50 @@ msgstr "Připojí vás do otevřené místnosti ve vašem okolí s nejvíce voln
 msgid "public.quick_none"
 msgstr "V okolí teď nemá žádná otevřená místnost volné místo. Vytvořte si vlastní a hráči poblíž ji najdou."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Vytvořit místnost"
 
-msgid "public.filter"
-msgstr "Zobrazit"
+msgid "public.filter_region"
+msgstr "Region"
 
-msgid "public.filter_detail"
-msgstr "Zvolte, které místnosti se zobrazí: všechny, ty ve vašem okolí, nebo jen s volnými místy."
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
 
-msgid "public.filter_label"
-msgstr "Zobrazit: {0}"
+msgid "public.filter_region_all"
+msgstr "All regions"
 
-msgid "public.filter.all"
-msgstr "Všechny"
-
-msgid "public.filter.near"
+msgid "public.filter_region_near"
 msgstr "Poblíž"
 
-msgid "public.filter.seats"
-msgstr "Volná místa"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Všechny"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember zatím nezná váš region, a proto nepozná, které místnosti jsou poblíž."
@@ -5001,8 +5025,8 @@ msgstr "Teď nejsou otevřené žádné místnosti. Vytvořte si vlastní a osta
 msgid "public.none_filtered"
 msgstr "Tomuto filtru neodpovídá žádná místnost."
 
-msgid "public.show_all"
-msgstr "Zobrazit všechny místnosti"
+msgid "public.clear_filters"
+msgstr "Clear filters"
 
 msgid "public.try_again"
 msgstr "Zkusit znovu"
@@ -6548,6 +6572,9 @@ msgstr "Vaše zpoždění: {0}"
 
 msgid "public.own_delay"
 msgstr "Vlastní zpoždění"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Tato služba zatím neumí vytvořit místnost s vlastním zpožděním každého hráče. Zvolte Stejné pro oba, nebo to zkuste později."

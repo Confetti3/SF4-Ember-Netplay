@@ -9,6 +9,7 @@
 #include "../common/InputDelay.hxx"
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
+#include "PublicRoomFilter.hxx"
 #include "TableSetup.hxx"
 
 namespace sf4e { namespace netplay {
@@ -235,6 +236,9 @@ struct PlayerPreferences {
         pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;
+    // Which rooms the Public rooms list shows (Region, Type, Open seats,
+    // Connection); the default shows every room.
+    publicrooms::RoomFilter roomFilter;
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
@@ -259,7 +263,7 @@ struct PlayerPreferences {
             roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return country.Valid() && speech.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

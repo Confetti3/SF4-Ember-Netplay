@@ -51,6 +51,7 @@
 #include "../netplay/ButtonPromptPreference.hxx"
 #include "../netplay/CountryPreferenceJson.hxx"
 #include "../netplay/SpeechPreferenceJson.hxx"
+#include "../netplay/PublicRoomFilterJson.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/StageCatalog.hxx"
