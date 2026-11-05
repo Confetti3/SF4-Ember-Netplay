@@ -1,6 +1,4 @@
 #include "SelectionArt.hxx"
-#include "../common/FighterCatalog.hxx"
-#include "../common/StageCatalog.hxx"
 #include "../common/ProductIdentity.hxx"
 #include "../platform/Utf8.hxx"
 #include <windows.h>
@@ -25,15 +23,12 @@ namespace {
 using Microsoft::WRL::ComPtr;
 constexpr std::size_t MaximumFileBytes = 16 * 1024 * 1024;
 constexpr std::size_t MaximumTextureBytes = 32 * 1024 * 1024;
-constexpr UINT MaximumImageSide = 512;
 // A file that exists but cannot be read, decoded or uploaded is tried again
 // after 1, then 2 seconds (at 60 fps) before it is reported missing, so a
 // transient failure (memory pressure, a device mid-reset) does not blank the
 // art for the rest of the session. An image with no file at all is final.
 constexpr int MaximumAttempts = 3;
 constexpr std::uint64_t RetryFrames = 60;
-// A request's side that keeps the image at its own size.
-constexpr UINT NativeSide = 0;
 // A portrait archive holds the portrait and, for an asymmetric fighter, its
 // mirror; an archive read by entry name can hold the whole of a game screen.
 constexpr std::size_t MaximumPortraitEntries = 2, MaximumArchiveEntries = 1024;
@@ -164,7 +159,7 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
         }
         // NativeSide: an atlas, whose cells are addressed in its own pixels, is
         // converted at its own size and never goes through the scaler.
-        if (side != NativeSide) {
+        if (side != SelectionArt::NativeSide) {
             const double ratio = (std::min)(1.0, double(side) / (std::max)(width, height));
             width = (std::max)(1u, static_cast<UINT>(width * ratio));
             height = (std::max)(1u, static_cast<UINT>(height * ratio));
@@ -174,7 +169,7 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
                 continue;
             }
         }
-        IWICBitmapSource* source = side == NativeSide ? image.Get() : scaler.Get();
+        IWICBitmapSource* source = side == SelectionArt::NativeSide ? image.Get() : scaler.Get();
         if (FAILED(hr = factory->CreateFormatConverter(&converter)) ||
             FAILED(hr = converter->Initialize(source, GUID_WICPixelFormat32bppBGRA,
                 WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom))) {
@@ -197,10 +192,6 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
 struct SelectionArt::Impl {
     // `entry` names the image inside an archive candidate; empty takes its first.
     struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; };
-    // Portraits fit their painted content rather than the transparent canvas,
-    // and every fighter should have one, so an absent portrait is reported.
-    // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
-    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
@@ -231,19 +222,12 @@ struct SelectionArt::Impl {
     };
     // Declared before entries, so it outlives every texture it made.
     std::unique_ptr<TextureUploader> uploader;
-    std::wstring gameRoot, assetRoot;
     SelectionArt::Logger log;
     std::mutex mutex;
     std::condition_variable wake;
     std::deque<Job> jobs;
     std::deque<Pixels> completed;
     std::map<std::string, Entry> entries;
-    // The keys a request is built in, kept from one request to the next:
-    // screens request every visible image on every frame, and the same
-    // strings are then made without an allocation. imageKey names the
-    // packaged file (ImagePaths), requestKey the entry asked for. Used only
-    // on the drawing thread, and a request's key is read only until it returns.
-    std::string imageKey, requestKey;
     bool stop = false;
     std::thread worker;
     std::uint64_t frame = 0;
@@ -252,9 +236,8 @@ struct SelectionArt::Impl {
     // a closed menu costs a match nothing.
     bool requested = false;
 
-    Impl(std::unique_ptr<TextureUploader> textures, std::wstring game, std::wstring assets, SelectionArt::Logger logger)
-        : uploader(std::move(textures)), gameRoot(std::move(game)), assetRoot(std::move(assets)), log(std::move(logger)),
-          worker([this] { Work(); }) {}
+    Impl(std::unique_ptr<TextureUploader> textures, SelectionArt::Logger logger)
+        : uploader(std::move(textures)), log(std::move(logger)), worker([this] { Work(); }) {}
     ~Impl() {
         { std::lock_guard<std::mutex> lock(mutex); stop = true; }
         wake.notify_all();
@@ -285,30 +268,6 @@ struct SelectionArt::Impl {
         }
         if (SUCCEEDED(initialized)) CoUninitialize();
     }
-    // `paths` builds the candidate files, and runs only when a decode is
-    // queued: screens request every visible image on every frame.
-    template <class Paths>
-    SelectionImage Request(const std::string& key, Paths paths, UINT side = 256, Policy policy = {}, std::string archiveEntry = {}) {
-        requested = true;
-        auto found = entries.find(key);
-        const bool due = found != entries.end() && found->second.state == State::Waiting && frame >= found->second.retryFrame;
-        if (found == entries.end() || due) {
-            std::vector<std::wstring> candidates = paths();
-            std::lock_guard<std::mutex> lock(mutex);
-            if (jobs.size() >= 128) return {};
-            if (found == entries.end()) { found = entries.emplace(key, Entry{}).first; found->second.policy = policy; }
-            found->second.state = State::Queued;
-            jobs.push_back({key, std::move(candidates), side, std::move(archiveEntry)}); wake.notify_one();
-        }
-        auto& entry = found->second; entry.lastUse = frame;
-        SelectionImage result;
-        result.texture = entry.texture.id;
-        result.uvMin = entry.uvMin; result.uvMax = entry.uvMax;
-        result.width = static_cast<int>(entry.width * (entry.uvMax.x - entry.uvMin.x));
-        result.height = static_cast<int>(entry.height * (entry.uvMax.y - entry.uvMin.y));
-        result.missing = entry.state == State::Missing;
-        return result;
-    }
     // A failed attempt is retried, then reported once. An absent image is
     // final at once and reported only where its policy expects one.
     void Failed(Entry& entry, const std::string& key, Outcome outcome, const std::string& failure) {
@@ -323,40 +282,54 @@ struct SelectionArt::Impl {
         if (retryable) log("Selection art " + key + " unavailable after " + std::to_string(entry.failures) + " attempts: " + failure);
         else if (entry.policy.reportAbsence) log("Selection art " + key + " unavailable: no game or package file");
     }
-    std::vector<std::wstring> ImagePaths(const std::string& key) const {
-        const std::wstring relative(key.begin(), key.end());
-        return {assetRoot + L"/" + relative + L"-cutout.png", assetRoot + L"/" + relative + L".png", assetRoot + L"/" + relative + L".jpg"};
-    }
-    // Custom costumes and stages bring their pictures beside their files in the game's patch folder (the setup
-    // program that installs them puts them there): <CHR>_<NN>_<CC>.png per color or <CHR>_<NN>.png for all,
-    // STG_<code>.png or .jpg.
-    std::wstring PatchFolder(const wchar_t* sub) const { return gameRoot + L"/patch_ae2_tu3/battle/" + sub + L"/"; }
-    static std::wstring TwoDigits(int n) { return std::to_wstring(n / 10) + std::to_wstring(n % 10); }
-    std::vector<std::wstring> CustomCostumePaths(const char* code, int costume, int color) const {
-        const std::wstring chr(code, code + std::strlen(code));
-        const std::wstring stem = PatchFolder(L"chara") + chr + L"/" + chr + L"_" + TwoDigits(costume + 1);
-        return {stem + L"_" + TwoDigits(color + 1) + L".png", stem + L".png"};
-    }
-    std::vector<std::wstring> CustomStagePaths(const char* code) const {
-        const std::wstring stem = PatchFolder(L"stage") + L"STG_" + std::wstring(code, code + std::strlen(code));
-        return {stem + L".png", stem + L".jpg"};
-    }
 };
 
 SelectionArt::SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring game, std::wstring assets, Logger log)
-    : impl_(new Impl(std::move(uploader), std::move(game), std::move(assets), std::move(log))) {}
+    : gameRoot_(std::move(game)), assetRoot_(std::move(assets)), impl_(new Impl(std::move(uploader), std::move(log))) {}
 SelectionArt::~SelectionArt() = default;
+SelectionImage SelectionArt::Request(const std::string& key, const Files& files, unsigned side, Policy policy, std::string archiveEntry) {
+    auto& state = *impl_;
+    state.requested = true;
+    auto found = state.entries.find(key);
+    const bool due = found != state.entries.end() && found->second.state == Impl::State::Waiting && state.frame >= found->second.retryFrame;
+    if (found == state.entries.end() || due) {
+        std::vector<std::wstring> candidates = files();
+        std::lock_guard<std::mutex> lock(state.mutex);
+        if (state.jobs.size() >= 128) return {};
+        if (found == state.entries.end()) { found = state.entries.emplace(key, Impl::Entry{}).first; found->second.policy = policy; }
+        found->second.state = Impl::State::Queued;
+        state.jobs.push_back({key, std::move(candidates), side, std::move(archiveEntry)}); state.wake.notify_one();
+    }
+    auto& entry = found->second; entry.lastUse = state.frame;
+    SelectionImage result;
+    result.texture = entry.texture.id;
+    result.uvMin = entry.uvMin; result.uvMax = entry.uvMax;
+    result.width = static_cast<int>(entry.width * (entry.uvMax.x - entry.uvMin.x));
+    result.height = static_cast<int>(entry.height * (entry.uvMax.y - entry.uvMin.y));
+    result.missing = entry.state == Impl::State::Missing;
+    return result;
+}
+std::vector<std::wstring> SelectionArt::PackagedFiles(const std::string& key) const {
+    const std::wstring relative(key.begin(), key.end());
+    return {assetRoot_ + L"/" + relative + L"-cutout.png", assetRoot_ + L"/" + relative + L".png", assetRoot_ + L"/" + relative + L".jpg"};
+}
 SelectionImage SelectionArt::MenuBackdrop() {
-    return impl_->Request("ember-menu-background",[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../"+ember::Product().branding.menuBackdrop}; },2048);
+    return Request("ember-menu-background",[&]{ return std::vector<std::wstring>{assetRoot_+L"/../"+ember::Product().branding.menuBackdrop}; },2048);
 }
 SelectionImage SelectionArt::InputPrompt(const std::string& name) {
-    return impl_->Request("input-"+name,[&]{ return std::vector<std::wstring>{impl_->assetRoot+L"/../input/"+std::wstring(name.begin(),name.end())+L".png"}; },128);
+    return Request("input-"+name,[&]{ return std::vector<std::wstring>{assetRoot_+L"/../input/"+std::wstring(name.begin(),name.end())+L".png"}; },128);
+}
+SelectionImage SelectionArt::DeveloperMark() {
+    Policy shipped; shipped.reportAbsence = true;
+    return Request("developer-mark", [&] {
+        return std::vector<std::wstring>{assetRoot_ + L"/../input/mark_developer.png"};
+    }, NativeSide, shipped);
 }
 SelectionImage SelectionArt::Flag(const CountryCode& country) {
     if (!country.Present()) return {};
-    Impl::Policy atlas; atlas.reportAbsence = true;
+    Policy atlas; atlas.reportAbsence = true;
     atlas.exactWidth = countries::AtlasWidth; atlas.exactHeight = countries::AtlasHeight;
-    auto image = impl_->Request("flags/atlas", [&] { return std::vector<std::wstring>{impl_->assetRoot + L"/../flags/flags.png"}; }, NativeSide, atlas);
+    auto image = Request("flags/atlas", [&] { return std::vector<std::wstring>{assetRoot_ + L"/../flags/flags.png"}; }, NativeSide, atlas);
     if (!image.texture) return image;
     // The cell, inset half a texel so a flag drawn smaller never samples its
     // neighbour or the transparent padding.
@@ -418,95 +391,5 @@ void SelectionArt::Pump() {
         state.textureBytes -= oldest->second.width * oldest->second.height * 4;
         state.entries.erase(oldest);
     }
-}
-SelectionImage SelectionArt::Portrait(int fighterId, bool large) {
-    const auto* fighter = selection::FindFighter(fighterId);
-    if (!fighter) return {};
-    const std::string& key = impl_->imageKey.assign(fighter->code).append("/portrait");
-    const auto paths = [&] {
-        auto list = impl_->ImagePaths(key);
-        const std::wstring code(fighter->code, fighter->code + 3);
-        for (const wchar_t* root : {L"patch_ae2_tu3", L"patch_ae2_tu2", L"patch_ae2", L"dlc/04_ae2",
-                                   L"dlc/03_character_free", L"resource"})
-            list.push_back(impl_->gameRoot + L"/" + root + L"/ui/chara_select/chara/sel_" + code + L".tex.emz");
-        // Last resort when the game's portrait cannot be read or decoded: the
-        // packaged original-outfit cutout, cropped the same way.
-        const auto outfit = impl_->ImagePaths(std::string(fighter->code) + "/costume-0/color-0");
-        list.insert(list.end(), outfit.begin(), outfit.end());
-        return list;
-    };
-    Impl::Policy portrait; portrait.cropToContent = portrait.reportAbsence = true;
-    return impl_->Request(impl_->requestKey.assign(key).append(large ? "-large" : "-thumb"), paths, large ? MaximumImageSide : ThumbnailSide, portrait);
-}
-SelectionImage SelectionArt::Character(int fighterId, int costume, int color, bool large) {
-    const auto* fighter = selection::FindFighter(fighterId);
-    if (!fighter) return {};
-    // A look this fighter has no such costume or colour for is drawn in the original outfit.
-    if (!selection::ColorInRange(fighterId, costume, color)) costume = color = 0;
-    const auto paths = [&] {
-        // Custom content is this PC's own install, else what the game plays in
-        // its place (ResolveAppearance): the original outfit for a custom
-        // costume, the costume's first colour for a custom colour.
-        const bool customCostume = selection::IsCustomCostume(costume), customColor = selection::IsCustomColor(color);
-        auto list = customCostume || customColor ? impl_->CustomCostumePaths(fighter->code, costume, color) : std::vector<std::wstring>{};
-        const auto add = [&](int outfit, int palette) {
-            const auto more = impl_->ImagePaths(std::string(fighter->code) + "/costume-" + std::to_string(outfit) + "/color-" + std::to_string(palette));
-            list.insert(list.end(), more.begin(), more.end());
-        };
-        if (!customCostume) add(costume, customColor ? 0 : color);
-        if (costume != 0 || color != 0) add(0, 0);
-        return list;
-    };
-    Impl::Policy figure; figure.cropToContent = figure.reportAbsence = true;
-    auto& key = impl_->requestKey.assign(fighter->code).append("/costume-").append(std::to_string(costume)).append("/color-").append(std::to_string(color));
-    return impl_->Request(key.append(large ? "/figure-large" : "/figure-thumb"), paths, large ? MaximumImageSide : ThumbnailSide, figure);
-}
-SelectionImage SelectionArt::Appearance(int fighterId, int costume, int color) {
-    const auto* fighter = selection::FindFighter(fighterId);
-    if (!fighter || !selection::ColorInRange(fighterId, costume, color)) return {};
-    const std::string& key = impl_->imageKey.assign(fighter->code).append("/costume-").append(std::to_string(costume)).append("/color-").append(std::to_string(color));
-    if (selection::IsCustomCostume(costume) || selection::IsCustomColor(color))
-        return impl_->Request(key, [&] { return impl_->CustomCostumePaths(fighter->code, costume, color); });
-    const auto result = impl_->Request(key, [&] { return impl_->ImagePaths(key); });
-    // Native selection art depicts the original outfit in its default palette.
-    if (result.missing && costume == 0 && color == 0) return Portrait(fighterId, true);
-    return result;
-}
-SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
-    const auto* fighter = selection::FindFighter(fighterId);
-    if (!fighter || ultra < 0 || ultra > 1) return {};
-    const std::string& key = impl_->imageKey.assign(fighter->code).append("/ultra-").append(std::to_string(ultra));
-    return impl_->Request(key, [&] { return impl_->ImagePaths(key); });
-}
-SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
-    // Read from the game at runtime like the portraits, and never repackaged.
-    // Cropped to the painted emblem: the Master and Grand Master crowns sit
-    // small and off centre in their canvases, unlike the classes' bubbles.
-    Impl::Policy emblem; emblem.cropToContent = emblem.reportAbsence = true;
-    return impl_->Request("classes/" + entry, [&] {
-        return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/network_mode/Ranking.emz"};
-    }, NativeSide, emblem, entry);
-}
-SelectionImage SelectionArt::DeveloperMark() {
-    Impl::Policy shipped; shipped.reportAbsence = true;
-    return impl_->Request("developer-mark", [&] {
-        return std::vector<std::wstring>{impl_->assetRoot + L"/../input/mark_developer.png"};
-    }, NativeSide, shipped);
-}
-SelectionImage SelectionArt::Stage(int nativeId) {
-    // The Random card borrows the game's character-select random tile, read at
-    // runtime like the portraits and never repackaged.
-    if (selection::IsRandomStage(nativeId)) {
-        Impl::Policy tile; tile.cropToContent = tile.reportAbsence = true;
-        return impl_->Request("stages/random", [&] {
-            return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/chara_select/chara/sel_RND.tex.emz"};
-        }, MaximumImageSide, tile);
-    }
-    const std::string code = selection::StageCode(nativeId);
-    if (code.empty()) return {};
-    const std::string key = "stages/" + code;
-    if (selection::IsCustomStage(nativeId))
-        return impl_->Request(key, [&] { return impl_->CustomStagePaths(code.c_str()); }, MaximumImageSide);
-    return impl_->Request(key, [&] { return impl_->ImagePaths(key); }, MaximumImageSide);
 }
 } }

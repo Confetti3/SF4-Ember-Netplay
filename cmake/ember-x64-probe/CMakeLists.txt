@@ -2,8 +2,8 @@
 # C++20, /W4 /permissive- /utf-8, the DLL CRT (SFV's CMakeLists.txt). It is the
 # check before the library is shared (the library plan, sfv-ember's
 # docs/design/EMBER_LIBRARY.md: section 6, "Library on V", and section 7).
-# Nothing links it; scripts/probe-x64.ps1 configures and builds it. SF4
-# Ember's build does not read this folder.
+# Only the runtime's test below links it; scripts/probe-x64.ps1 configures,
+# builds and runs it. SF4 Ember's build does not read this folder.
 #
 # The neutral set is every source in the library's folders except SF4's side
 # (the plan's section 1.2), listed below with the reason for each group of
@@ -46,8 +46,8 @@ list(APPEND _ember_files
     training/FrameMeter.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
     training/TrainingSession.hxx
-    # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter and
-    # pick labels with nothing of SF4's, as SFV Ember's will be.
+    # The runtime tests' game (RuntimeCapabilitiesTest): a game adapter, pick
+    # labels and pictures with nothing of SF4's, as SFV Ember's will be.
     tests/fake_game.cxx tests/fake_game.hxx tests/fake_session_verification.cxx tests/fake_selection.cxx)
 
 set(EMBER_SF4_SIDE
@@ -55,7 +55,7 @@ set(EMBER_SF4_SIDE
     common/FighterCatalog.cxx common/FighterCatalog.hxx common/StageCatalog.cxx common/StageCatalog.hxx
     common/StageValue.hxx common/InstalledContent.cxx common/InstalledContent.hxx
     common/SelectionAssetPath.hxx common/RandomFighter.hxx common/LobbyMusic.hxx
-    ui/FighterSelector.cxx ui/FighterSelector.hxx ui/Sf4SelectionLabels.cxx ui/SelectionArt.cxx
+    ui/FighterSelector.cxx ui/FighterSelector.hxx ui/Sf4SelectionLabels.cxx ui/Sf4SelectionArt.cxx
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx
     # Language, display and pads: the game's files and its pad layer.
     common/GameLanguage.cxx common/GameLanguage.hxx common/SteamKeyValues.cxx common/SteamKeyValues.hxx
@@ -129,35 +129,35 @@ execute_process(COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=${EMBER_SOURCE_ROOT}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_build_identity.cmake" COMMAND_ERROR_IS_FATAL ANY)
 
 add_library(ember_neutral_x64 STATIC ${_ember_neutral_units})
+# The locale ids (generated/public) are part of the library's headers, as
+# sf4e_localization gives them in SF4 Ember's build.
 target_include_directories(ember_neutral_x64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/public" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/identity" PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated/public")
 # Each product's build names its own version; the probe ships nothing.
 target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
 target_link_libraries(ember_neutral_x64 PRIVATE
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
 
 # The runtime (sf4e_runtime), compiled as SFV Ember would build it, and the
-# runtime's test under the fake game (RuntimeCapabilitiesTest) linked and run
-# against it. The test does not link yet: the runtime and the shell still call
-# SF4's selection art, pick labels, replay archive and game language (section
-# 9 of sfv-ember's EMBER_LIBRARY.md lists them), so it is built only on
-# request (scripts/probe-x64.ps1 -LinkRuntime) until those are the game's.
-# Until step 5 gives the catalog a game of its own, the test's roster,
-# stages and identity are SF4's, compiled into the test alone.
+# runtime's test under the fake game (RuntimeCapabilitiesTest) linked against
+# it; scripts/probe-x64.ps1 runs the test. It links with nothing of SF4's
+# side: the game's language, pick labels, pictures and replay archive are the
+# fake game's (section 9 of sfv-ember's EMBER_LIBRARY.md). Until step 5 gives
+# the catalog a game of its own, the test's roster, stages and identity are
+# SF4's, compiled into the test alone.
 include("${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_runtime_sources.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_product.cmake")
 list(FILTER SF4E_RUNTIME_SOURCES INCLUDE REGEX "\\.cxx$")
 list(TRANSFORM SF4E_RUNTIME_SOURCES PREPEND "${EMBER_SOURCE_ROOT}/" OUTPUT_VARIABLE _ember_runtime_units)
 add_library(ember_runtime_x64 STATIC ${_ember_runtime_units})
 target_include_directories(ember_runtime_x64 PRIVATE "${EMBER_SOURCE_ROOT}/common"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/public"
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
+    "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
 target_compile_definitions(ember_runtime_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
 target_link_libraries(ember_runtime_x64 PUBLIC ember_neutral_x64
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
-    Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm)
+    Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm ole32 windowscodecs)
 
-add_executable(ember_runtime_x64_test EXCLUDE_FROM_ALL
+add_executable(ember_runtime_x64_test
     "${EMBER_SOURCE_ROOT}/tests/runtime_capabilities_test.cxx"
     "${EMBER_SOURCE_ROOT}/product/Sf4Catalog.cxx"
     "${EMBER_SOURCE_ROOT}/common/FighterCatalog.cxx"

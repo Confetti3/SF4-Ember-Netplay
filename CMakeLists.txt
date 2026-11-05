@@ -103,13 +103,13 @@ add_library(sf4e_settings STATIC "src/netplay/JsonFileStore.cxx" "src/netplay/Se
 target_compile_features(sf4e_settings PUBLIC cxx_std_17)
 target_link_libraries(sf4e_settings PUBLIC nlohmann_json::nlohmann_json sf4e_localization PRIVATE sf4e_durable_file "shell32" "ole32")
 
-# Ember's shell with SF4's screens beside it. SF4's pick labels
-# (Sf4SelectionLabels.cxx) are the game's, defined once per game, so whatever
-# links the shell here has SF4's; the x64 library build gives the runtime's
-# test the fake game's (cmake/ember-x64-probe).
+# Ember's shell with SF4's screens beside it. SF4's pick labels and pictures
+# (Sf4SelectionLabels.cxx, Sf4SelectionArt.cxx) are the game's, defined once
+# per game, so whatever links the shell here has SF4's; the x64 library build
+# gives the runtime's test the fake game's (cmake/ember-x64-probe).
 add_library(sf4e_ui STATIC
     src/ui/ApplicationShell.cxx src/ui/ControllersScreen.cxx src/ui/ReplaysPanel.cxx src/ui/RoomPanel.cxx src/ui/RoomPanelArcade.cxx src/ui/RoomPanelTables.cxx src/ui/RoomPanelColumn.cxx src/ui/RoomActions.cxx src/ui/RoomControls.cxx
-    src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/SelectionArtD3D9.cxx src/ui/FighterSelector.cxx src/ui/Sf4SelectionLabels.cxx
+    src/ui/Theme.cxx src/ui/MatchHud.cxx src/ui/SelectionArt.cxx src/ui/Sf4SelectionArt.cxx src/ui/SelectionArtD3D9.cxx src/ui/FighterSelector.cxx src/ui/Sf4SelectionLabels.cxx
     src/ui/Win32Input.cxx src/ui/Win32InputBridge.cxx
     src/ui/GameMenu.cxx src/ui/MenuDialogs.cxx src/ui/ChatTranscript.cxx src/ui/ChatFilter.cxx src/ui/ChatPanel.cxx
     src/ui/ControllerNavigation.cxx src/ui/backends/imgui_impl_win32.cpp

@@ -1,6 +1,7 @@
 # Compiles Ember's game-neutral code as SFV Ember builds (x64, C++20, its
-# warning flags), from cmake/ember-x64-probe. SF4 Ember's own build is not
-# touched; this proves the library's sources are ready for the other game.
+# warning flags), from cmake/ember-x64-probe, then runs the runtime's test
+# under the fake game against it. SF4 Ember's own build is not touched; this
+# proves the library's sources are ready for the other game.
 #
 # The build tree, the x64 packages and vcpkg's build trees, downloads and
 # binary cache all stay on the D: drive; the script stops before building
@@ -10,10 +11,7 @@ param(
 	[string]$BuildDir = 'D:\sf4-build\ember-x64-probe',
 	[string]$VcpkgCache = 'D:\sf4-build\vcpkg-cache',
 	[string]$VcpkgRoot = '',
-	[string]$VisualStudioPath = '',
-	# Also links and runs the runtime's test under the fake game, which does
-	# not link until the runtime stops calling SF4's side (the CMake file says what).
-	[switch]$LinkRuntime
+	[string]$VisualStudioPath = ''
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -48,12 +46,8 @@ if ($LASTEXITCODE) { throw "vcpkg install failed ($LASTEXITCODE)" }
 	"-DVCPKG_TARGET_TRIPLET=$triplet" -DVCPKG_MANIFEST_INSTALL=OFF "-DVCPKG_INSTALLED_DIR=$installed"
 if ($LASTEXITCODE) { throw "configure failed ($LASTEXITCODE)" }
 # Keep going past a failed file, so one run lists everything that fails.
-$targets = @('ember_neutral_x64', 'ember_runtime_x64')
-if ($LinkRuntime) { $targets += 'ember_runtime_x64_test' }
-& $cmake --build $BuildDir --target $targets -- -k 0
+& $cmake --build $BuildDir -- -k 0
 if ($LASTEXITCODE) { throw "build failed ($LASTEXITCODE)" }
-if ($LinkRuntime) {
-	# The runtime under the fake game, as SFV Ember builds it.
-	& (Join-Path $BuildDir 'ember_runtime_x64_test.exe')
-	if ($LASTEXITCODE) { throw "runtime test failed ($LASTEXITCODE)" }
-}
+# The runtime under the fake game, as SFV Ember builds it.
+& (Join-Path $BuildDir 'ember_runtime_x64_test.exe')
+if ($LASTEXITCODE) { throw "runtime test failed ($LASTEXITCODE)" }

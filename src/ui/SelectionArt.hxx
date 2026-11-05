@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace sf4e { namespace ui {
 struct SelectionImage {
@@ -25,19 +26,33 @@ public:
 
 // File reads, decompression, and WIC decoding run on a worker. Only Pump uses
 // the uploader. Construct/destroy with the overlay's device lifecycle, outside DllMain.
+//
+// The pictures of the game's fighters, stages, Ultras and ranking emblems are
+// the game's: each game defines those members once, as it defines Catalog()
+// (GameCatalog.hxx), naming its files through Request. SF4's are
+// Sf4SelectionArt.cxx, and the runtime's tests have the fake game's
+// (tests/fake_selection.cxx). Ember's own pictures, the cache and the
+// decoding are the same for every game.
 class SelectionArt {
 public:
     // Receives one line per image that could not be loaded, or that needed a
     // fallback, on Pump's thread. Art never logs by itself: the host decides
     // where lines go.
     using Logger = std::function<void(const std::string&)>;
+    // gameRoot is the game's folder, which the game's pictures read from;
+    // assetRoot holds Ember's packaged selection pictures.
     SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring gameRoot, std::wstring assetRoot, Logger log = {});
     ~SelectionArt();
     SelectionArt(const SelectionArt&) = delete;
     SelectionArt& operator=(const SelectionArt&) = delete;
     void Pump();
-    // The thumbnail's longest side; `large` decodes up to 512 pixels.
+    // The thumbnail's longest side; `large` decodes up to MaximumImageSide.
     static constexpr int ThumbnailSide = 128;
+    static constexpr unsigned MaximumImageSide = 512;
+    // A request's side that keeps the image at its own size.
+    static constexpr unsigned NativeSide = 0;
+
+    // The game's pictures.
     SelectionImage Portrait(int fighter, bool large = false);
     // The thumbnail unless it would be stretched: a large portrait costs
     // about sixteen times the memory.
@@ -56,6 +71,8 @@ public:
     // An emblem from the game's own online ranking archive by its entry name,
     // such as "class_B.dds" (USF4's class emblems, NameMarks.cxx).
     SelectionImage RankingEmblem(const std::string& entry);
+
+    // Ember's own pictures.
     // Ember's developer mark (assets/input/mark_developer.png), shown in place
     // of a class; wider than tall.
     SelectionImage DeveloperMark();
@@ -66,6 +83,31 @@ public:
     // missing when the atlas is absent or not the size Countries.hxx lays out.
     SelectionImage Flag(const CountryCode& country);
 private:
+    // What the pictures above ask for one with.
+    //
+    // Portraits fit their painted content rather than the transparent canvas,
+    // and every fighter should have one, so an absent portrait is reported.
+    // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
+    struct Policy { bool cropToContent = false, reportAbsence = false; unsigned exactWidth = 0, exactHeight = 0; };
+    // The candidate files, the first usable one decoded. Listed only when a
+    // decode is queued: screens request every visible image on every frame.
+    using Files = std::function<std::vector<std::wstring>()>;
+    // The picture cached as `key`, decoded to at most `side` pixels. An EMZ
+    // archive candidate yields its image named `archiveEntry`, or with none
+    // its first.
+    SelectionImage Request(const std::string& key, const Files& files, unsigned side = 256, Policy policy = {},
+        std::string archiveEntry = {});
+    // Ember's packaged picture for `key` under assetRoot: its cutout, then
+    // .png, then .jpg.
+    std::vector<std::wstring> PackagedFiles(const std::string& key) const;
+
+    std::wstring gameRoot_, assetRoot_;
+    // The keys a request is built in, kept from one request to the next, so
+    // that the same strings are made without an allocation on every frame.
+    // imageKey_ names the packaged file (PackagedFiles), requestKey_ the entry
+    // asked for. Used only on the drawing thread, and a request's key is read
+    // only until it returns.
+    std::string imageKey_, requestKey_;
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

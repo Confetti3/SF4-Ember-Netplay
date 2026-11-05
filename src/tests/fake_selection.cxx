@@ -1,5 +1,7 @@
-// The fake game's pick labels (SelectionLabels.hxx): plain names by number,
-// with nothing of SF4's costume packs, Ultras or stages.
+// The fake game's pick labels (SelectionLabels.hxx) and pictures
+// (SelectionArt.hxx): plain names by number, and no picture of its own, with
+// nothing of SF4's costume packs, Ultras, stages or files.
+#include "../ui/SelectionArt.hxx"
 #include "../ui/SelectionLabels.hxx"
 
 #include <string>
@@ -17,4 +19,15 @@ std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::I
 }
 const char* UltraLabel(int) { return "Ultra"; }
 const char* ShortUltraLabel(int) { return "Ultra"; }
+
+namespace {
+// Missing, so a screen says so rather than waiting for a picture.
+SelectionImage None() { SelectionImage image; image.missing = true; return image; }
+}
+SelectionImage SelectionArt::Portrait(int, bool) { return None(); }
+SelectionImage SelectionArt::Character(int, int, int, bool) { return None(); }
+SelectionImage SelectionArt::Appearance(int, int, int) { return None(); }
+SelectionImage SelectionArt::Ultra(int, int) { return None(); }
+SelectionImage SelectionArt::Stage(int) { return None(); }
+SelectionImage SelectionArt::RankingEmblem(const std::string&) { return None(); }
 } }
