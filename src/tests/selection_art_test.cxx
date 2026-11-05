@@ -206,6 +206,16 @@ int main() {
         CHECK(logged.size() == 5 && logged[4].find("ultra-icons/uc2.dds uses a fallback") != std::string::npos);
         CHECK(!art.UltraIcon(3).texture && !art.UltraIcon(-1).texture);
     }
+    {
+        // An Ultra mark far larger than the game's 32-pixel icons is refused
+        // before it is decoded, as an unusable file: retried, then reported once.
+        std::vector<std::string> lines;
+        SelectionArt art(device, game.wstring(), assets.wstring(), [&](const std::string& line) { lines.push_back(line); });
+        Write(game / L"dlc" / L"04_ae2" / L"ui" / L"chara_select" / L"chara_select_dlc4.emz", RankingArchive("uc1.dds", 96));
+        const auto huge = Settle(art, [&] { return art.UltraIcon(0); }, 4000);
+        CHECK(huge.missing && !huge.texture);
+        CHECK(lines.size() == 1 && lines[0].find("ultra-icons/uc1.dds") != std::string::npos && lines[0].find("96x96") != std::string::npos);
+    }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);
     std::puts("SelectionArt fallback, retry and failure reporting passed");
