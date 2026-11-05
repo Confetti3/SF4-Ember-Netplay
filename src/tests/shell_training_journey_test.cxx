@@ -269,7 +269,7 @@ void DelayPolicyCreate() {
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& r){return r.id==id;});};
  h.Screen("online");h.Choose("create");
- // Each player's own delay is the default (1.6.0).
+ // Each player's own delay is the default (1.5.3).
  Check(h.shell.Navigation().Screen()=="create"&&row("delay-policy")!=rows.end()&&row("delay-policy")->value==loc::T("room.delay_policy.own"),
   "Create did not open with each player's own delay");
  Check(row("delay-policy")->label==loc::T("room.delay_policy")&&row("delay-policy")->detail==loc::T("room.delay_policy.detail"),"The delay policy did not explain itself");

@@ -95,24 +95,33 @@ void DrawSymbols(ImDrawList* d, ImVec2 origin, float unit, const std::string& sy
             d->AddLine(ImVec2(center.x - 10 * k * unitDirection.x, center.y - 10 * k * unitDirection.y), tip, ivory, 3 * k);
             arrowHead(tip, unitDirection);
         } else {
-            // A quarter circle (236, 214), a half circle (63214) or a full one (360).
+            // A quarter circle (236, 214), a half circle (63214) or a full one
+            // (360), on a faint ring so the circle reads at a glance. The arc
+            // turns the way the stick is pressed: a quarter circle forward
+            // starts down and ends forward. The arrowhead sits on the arc's
+            // end along its tangent, and an Ember dot marks where it starts.
             const float pi = 3.14159265f;
             d->AddCircleFilled(center, unit * .48f, IM_COL32(47, 58, 59, 255));
             const bool forward = token == "236", back = token == "214", half = token == "63214";
-            const float begin = forward ? pi : back || half ? 0.f : pi / 2;
-            const float end = forward || back ? pi / 2 : half ? pi : -1.3f * pi;
-            // Each arc centred on its disc: a quarter's corner and a half's
-            // flat side sit off the circle's centre.
-            const float radius = (forward || back ? 15 : half ? 12 : 10) * k;
-            const ImVec2 middle(center.x + (forward ? radius / 2 : back ? -radius / 2 : 0), center.y - (forward || back || half ? radius / 2 : 0));
-            ImVec2 points[25];
-            for (int i = 0; i < 25; ++i) {
-                const float angle = begin + (end - begin) * i / 24;
-                points[i] = ImVec2(middle.x + radius * std::cos(angle), middle.y + radius * std::sin(angle));
+            const float radius = 11 * k;
+            if (forward || back || half) d->AddCircle(center, radius, IM_COL32(240, 232, 214, 56), 32, 1.4f * k);
+            const float begin = forward ? pi : back ? 0.f : half ? -pi / 2 : pi / 2;
+            const float end = forward || back ? pi / 2 : half ? pi / 2 : pi / 2 - 1.8f * pi;
+            const float turn = end > begin ? 1.f : -1.f, head = 5 * k;
+            // The line stops where the arrowhead begins.
+            const float stop = end - turn * head / radius;
+            ImVec2 points[33];
+            for (int i = 0; i < 33; ++i) {
+                const float angle = begin + (stop - begin) * i / 32;
+                points[i] = ImVec2(center.x + radius * std::cos(angle), center.y + radius * std::sin(angle));
             }
-            d->AddPolyline(points, 25, ivory, 0, 3 * k);
-            arrowHead(points[24], ImVec2(points[24].x - points[23].x, points[24].y - points[23].y));
-            d->AddCircleFilled(points[0], 2.2f * k, ember);
+            d->AddPolyline(points, 33, ivory, 0, 3 * k);
+            const ImVec2 tip(center.x + radius * std::cos(end), center.y + radius * std::sin(end));
+            const ImVec2 along(-std::sin(end) * turn, std::cos(end) * turn);
+            const ImVec2 base(tip.x - head * along.x, tip.y - head * along.y);
+            d->AddTriangleFilled(tip, ImVec2(base.x - 3.6f * k * along.y, base.y + 3.6f * k * along.x),
+                ImVec2(base.x + 3.6f * k * along.y, base.y - 3.6f * k * along.x), ivory);
+            d->AddCircleFilled(points[0], 2.4f * k, ember);
         }
         if (held) {
             // The word for a charge under its arrow, shrunk to the arrow's width.
@@ -276,8 +285,8 @@ void AppearanceGallery::DrawUltras(const std::vector<MenuEntry>& rows, MenuNavig
     const auto fit = [&](float unit) {
         return FitGallery(rows.size(), width, height, gap, UltraCard.aspect, caption(unit), UltraCard.narrowest * s, UltraCard.widest * s);
     };
-    // The largest symbols are 34 px a side (at 1080p); narrower cards shrink them to fit.
-    float unit = 34 * s;
+    // The largest symbols are 44 px a side (at 1080p); narrower cards shrink them to fit.
+    float unit = 44 * s;
     auto grid = fit(unit);
     const float fits = (grid.width - 2 * pad) / widest;
     if (fits < unit) { unit = fits; grid = fit(unit); }

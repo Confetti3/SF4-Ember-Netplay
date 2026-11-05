@@ -83,7 +83,8 @@ match delay in use; before your opponent readies it shows "At least" your own
 choice. Each fighter's own delay is kept for the next game.
 
 The room can choose otherwise when it is created. **Room input delay** on
-Create (private or public) is **Same for both** to begin with, as above. With
+Create (private or public) is **Each player's own** to begin with (since
+1.5.3); **Same for both** works as above. With
 **Each player's own** every fighter plays at the delay they readied with, and
 the other side's rollback makes up the difference; Input delay's detail then
 reads "Your delay" instead of the match delay. The choice is kept with the room
@@ -114,10 +115,10 @@ Only members who chose **Join queue** are ever given a seat. Watching a table
 never puts anyone in its queue, and a fighter rotated out can leave the queue
 at any time to just watch. When nobody is waiting, the same two start a new set.
 A fighter who wins two or more sets in a row at the table has the streak shown
-under their name. Changing the set length or rotation starts a new set; the
+under their fighter on the table card. Changing the set length or rotation starts a new set; the
 other rules apply from the next game and keep the score.
 
-The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
+The running count, such as 2 - 1, replaces "vs" between the players on the table card and on
 the match HUD, and the HUD keeps the final count on the screen of the game that
 ended the set. Both fighters must ready again after returning to the room. When
 a fighter leaves their seat, the next queued member takes that seat and the new

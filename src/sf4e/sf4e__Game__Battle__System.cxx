@@ -356,8 +356,10 @@ void fSystem::BattleUpdate() {
                         inputs = randomInputs;
                     }
                     else {
-                        if(sf4e::NetplayFacade::IsRuntimeRoomActive())
-                            sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn);
+                        if(sf4e::NetplayFacade::IsRuntimeRoomActive()) {
+                            // Not this side's device, or not connected as bound: GGPO gets nothing this frame.
+                            if(!sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn)) ++s_window.inputFaults;
+                        }
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                         inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }

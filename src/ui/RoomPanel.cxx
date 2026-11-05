@@ -38,20 +38,6 @@ const char* StatusName(room::MemberStatus status) {
     default: return loc::T("room.status.idle");
     }
 }
-// "Idle 4 min" for a member who has done nothing in the room for a minute
-// or more while waiting (not in a game, not ready, not watching one), else
-// empty. A waiting member who said they are in Training is shown as that
-// instead: it is why they are quiet. The room stamped the idle time
-// `elapsedMs` ago (ShellView::roomElapsedMs).
-std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
-    const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
-        member.status == room::MemberStatus::Seated;
-    if (waiting && member.training) return loc::T("room.in_training");
-    const auto idleSeconds = RoomIdleSeconds(member, elapsedMs);
-    if (!waiting || idleSeconds < 60) return {};
-    const unsigned minutes = idleSeconds / 60;
-    return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
-}
 // A member with no seat and no queue place anywhere gets the chooser from a
 // table card. Watching elsewhere is no obstacle: sitting down ends it.
 // A room bound to a tournament match seats its fighters itself and refuses

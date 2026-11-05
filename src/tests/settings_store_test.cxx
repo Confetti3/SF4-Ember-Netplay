@@ -759,7 +759,7 @@ int main() {
     }
     // The room's delay policy is a room default: Own unless the player chose
     // Shared. Both are written; a document without the key (every save before
-    // 1.6.0 that kept the old Shared default) reads as Own.
+    // 1.5.3 that kept the old Shared default) reads as Own.
     {
         CHECK(result["roomDefaults"].at("delay") == "own" && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Own);
         auto shared = defaults;
@@ -769,7 +769,7 @@ int main() {
         sf4e::netplay::PlayerPreferences fromShared;
         CHECK(sf4e::netplay::ReadRoomPreferences(sharedDocument, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared &&
             fromShared.tableRules == restored.tableRules);
-        // A document that leaves the key out is one from before 1.6.0: Own.
+        // A document that leaves the key out is one from before 1.5.3: Own.
         auto without = sharedDocument;
         without["roomDefaults"].erase("delay");
         CHECK(sf4e::netplay::ReadRoomPreferences(without, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Own);

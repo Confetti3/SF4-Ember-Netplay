@@ -1,14 +1,14 @@
-# SF4 Ember Netplay v1.6.0
+# SF4 Ember Netplay v1.5.3
 
-v1.6.0 is built from what players asked for on Discord and GitHub. Changing your Ultra takes one press, from the room bar or the post-match prompt. Costumes, colors and Ultras are pictures again, each Ultra with its input. Public rooms can be filtered by region, type, open seats and connection, and a room can be set to wired players only. The Training controls button can be moved off R3. Spectators of an instant rematch now see the set score move.
+v1.5.3 is built from what players asked for on Discord and GitHub. Changing your Ultra takes one press, from the room bar or the post-match prompt. Costumes, colors and Ultras are pictures again, each Ultra with its input. Public rooms can be filtered by region, type, open seats and connection, and a room can be set to wired players only. Each player's own delay is now the default. The Training controls button can be moved off R3. Presses no longer go missing after Ember's menus or the post-match prompt while a direction is held, and spectators of an instant rematch now see the set score move.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
 ## Updating
 
 - **From 1.5.2, update in Ember.** Ember offers the update at launch. Your settings, recordings and replays are kept.
-- **The zip and setup.exe are on the [release page](https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.6.0)** with their `.sha256` files.
-- **Everyone in a room needs 1.6.0,** spectators included.
+- **The zip and setup.exe are on the [release page](https://github.com/Confetti3/SF4-Ember-Netplay/releases/tag/v1.5.3)** with their `.sha256` files.
+- **Everyone in a room needs 1.5.3,** spectators included.
 
 ## Changes
 
@@ -26,7 +26,13 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **From a room, Appearance opens the costume grid straight away,** and picking a color returns to the room.
 - **The Ultra page is back, full size.** Select on the Ultra row of a fighter's page shows a large card for each Ultra, as the old Ultra page did: its picture with the game's own I, II or W in the corner and SAVED on the one you have, its name, and its input drawn as motion arrows and buttons, with the same input in words under them that read the same on either side, such as QCF x2 + PPP or Charge B, F, B, F + KKK. A move with two ways in, like Gen's stances or Decapre's anti-air version, shows both, and Ultra Double shows a large W and both Ultras' inputs. The input follows the edition, so SSFIV Bison and Omega Decapre show their own. Select saves the Ultra and Back leaves it as it was. Left and Right on the Ultra row still change it in place.
 - **From a room, the Ultra opens these cards too:** the Ultra button beside Ready up and the Ultra row in Table options. Picking one returns to the room.
-- **Arcade cabinets show each player's Ultra** in the corner of the cabinet's screen, once the player has shared it.
+- **Arcade cabinets show each player's Ultra** in the corner of the cabinet's screen, behind its scanlines, once the player has shared it.
+
+### Rooms
+
+- **Each player's own delay is the default.** A new room plays each fighter at their own delay unless you choose the same delay for both in Create room or Room settings. After updating, the setting starts on each player's own for everyone, because 1.5.2 did not save a choice of the same for both: if you want it, choose Same for both once more and Ember keeps it from then on.
+- **Classic tables read like they did before 1.5.0.** On a wide enough board, 1280 wide at normal scale included, each table is one line: a fighter at each end, the players' names between them and the set's score small in the middle, where the big number was. The rules, queue and watchers are back along the bottom of the card, under the players, and the table's state and its name (if the host gave it one) sit beside TABLE 1. A player on a win streak at the table has it under their fighter again, and a seated player who has been waiting a while shows how long. Ready up and Leave seat on your own card, and the seat chooser, sit along the bottom of the card. Narrow boards and larger text scales stack the two players instead. Arcade and King of the Hill rooms are unchanged.
+
 
 ### Public rooms
 
@@ -40,6 +46,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 
 ## Fixes
 
+- **Presses no longer go missing after Ember lets go of the pads.** After Ember's menu, the Training controls or the post-match prompt closed, the game saw no input at all until every button was released, so holding back or a charge into the next game swallowed every other press. Now only the buttons still held from the menu wait for their release; anything pressed after it reaches the game at once. The netplay log also counts the frames where Ember held input back, and why, to help with any report of dropped inputs.
 - **Spectators see the set score move during an instant rematch.** When both players chose Rematch, the next game went on in the same battle, and a spectator's score stayed where it was when they started watching (often 0 - 0). The score now counts each game as the spectator sees it end.
 - **The tournament match page no longer tells current players to update.** It cannot see which Ember a PC has, so Open in Ember is always the main button, and the page says both players need the same version. When Ember finds the versions differ, its notice now has a Check for updates button.
 - **New opponent in a full Arcade room.** With every other table in use and nobody waiting, New opponent could only pair the same two players again. The row now says that there is nobody else to play yet.

@@ -36,8 +36,14 @@ std::atomic<bool> inputBlocked{false};
 // caches are cleared and the getters give the game nothing.
 std::atomic<bool> hiddenInput{false};
 bool keyboardHookFailed = false;
+fPad::WithheldUpdates withheld;
 }
 bool fPad::MenuInputBlocked() { return inputBlocked.load(); }
+fPad::WithheldUpdates fPad::TakeWithheldUpdates() {
+    const auto taken = withheld;
+    withheld = {};
+    return taken;
+}
 
 void fPad::Install() {
 	System::Install();
@@ -122,7 +128,7 @@ void fSystem::UpdateInputs() {
     const bool callOffered=snapshot.menuContext==sf4e::input::MenuContext::OfflineTraining&&offeredCall.Live();
     const auto policy=sf4e::BackgroundPlay::PolicyFor(snapshot.preferences.backgroundPlay,
         sf4e::replaystore::Exporting(),watching,menuPads.Takes()||callOffered,sf4e::selftest::Running());
-    sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
+    const bool clearedBehind=sf4e::BackgroundPlay::BeforePadUpdate(this,policy);
     sf4e::InputLag::BeforePadUpdate(snapshot.preferences.lowerKeyboardLag);
     (this->*rSystem::publicMethods.UpdateInputs)();
     // This is the native input publication boundary (00512180). Both
@@ -208,13 +214,28 @@ void fSystem::UpdateInputs() {
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
-    inputBlocked=blocked;
+    const unsigned kept=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
+    // Blocked while Ember holds every button (Training then reads no pad);
+    // a button only kept from a capture leaves new presses to the game, and
+    // to the dummy in Training.
+    inputBlocked=kept==sf4e::input::MenuInputCapture::All;
     // Native Start is untouched while Ember is closed; an open overlay,
-    // including the training controls, captures all inputs until release,
-    // and so do pads polled behind another window for Ember's menu alone.
-    if(blocked)sf4e::input::ClearNativeMenuInputs(this);
-    else if(ownedByGesture&sf4e::input::PhysicalStart)sf4e::input::ClearNativeMenuInputs(this,~sf4e::input::NativeStart);
+    // including the training controls, captures all inputs, and so do pads
+    // polled behind another window for Ember's menu alone. After that only
+    // the buttons still held from then wait for their release; a new press
+    // goes to the game, and to a fight's GGPO input, at once (MenuInputCapture).
+    unsigned allowed=~kept;
+    if(ownedByGesture&sf4e::input::PhysicalStart)allowed&=~sf4e::input::NativeStart;
+    if(allowed!=sf4e::input::MenuInputCapture::All)sf4e::input::ClearNativeMenuInputs(this,allowed);
+    // Counted for the netplay log window (Netplay [...] withheld=): these
+    // updates give GGPO's local input less than the pad held, with no other trace.
+    if(sf4e::Game::Battle::System::ggpo) {
+        if(clearedBehind) ++withheld.focus;
+        // The menu's own capture (the post-match prompt over WIN is one) apart
+        // from the buttons still held after it let go.
+        if(kept==sf4e::input::MenuInputCapture::All) ++withheld.menu;
+        else if(kept) ++withheld.kept;
+    }
 }
 
 unsigned int fSystem::ReadButtons(int pindex, bool raw) {

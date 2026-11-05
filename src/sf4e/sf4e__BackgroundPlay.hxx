@@ -55,8 +55,9 @@ namespace sf4e {
 		void Activate();
 		// Game thread, before the native pad update: records the policy and
 		// does what the update's focus gate did, minus the pads when they are
-		// polled behind another window.
-		void BeforePadUpdate(Dimps::Pad::System* system, const Policy& policy);
+		// polled behind another window. True when it cleared every input of
+		// this update because the window is behind.
+		bool BeforePadUpdate(Dimps::Pad::System* system, const Policy& policy);
 		// Whether the game is given none of an update's input: the pads were
 		// polled behind another window for Ember alone. Asked where the update
 		// publishes its input, with the window as it stands there, so a window

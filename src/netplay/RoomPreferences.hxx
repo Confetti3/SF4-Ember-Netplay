@@ -18,7 +18,7 @@ inline nlohmann::json TableRulesJson(const room::Rules& rules) {
     return json;
 }
 // A saved delay policy: Shared only when the player chose it; Own when chosen
-// or when the key is missing (Own is the default since 1.6.0).
+// or when the key is missing (Own is the default since 1.5.3).
 inline room::DelayPolicy DelayPolicyOr(const nlohmann::json& saved) {
     return saved.value("delay", std::string()) == "shared" ? room::DelayPolicy::Shared : room::DelayPolicy::Own;
 }
@@ -28,7 +28,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     auto json = TableRulesJson(value.tableRules);
     json["name"] = value.roomName; json["capacity"] = value.roomCapacity; json["public"] = value.roomPublic;
     json["publicRules"] = TableRulesJson(value.publicTableRules);
-    // Both are written. A document without the key, as every save before 1.6.0
+    // Both are written. A document without the key, as every save before 1.5.3
     // that kept the old Shared default, reads as Own (DelayPolicyOr).
     json["delay"] = value.roomDelayPolicy == room::DelayPolicy::Own ? "own" : "shared";
     // Only a count other than the default four is written.
