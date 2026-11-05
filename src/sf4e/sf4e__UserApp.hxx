@@ -16,12 +16,7 @@ namespace sf4e {
         static void Steam_PostUpdate();
         // Battle::Enter: the room's granted match, entered from the main menu.
         static ember::game::Battle::Entry EnterAuthorizedMatch();
-        // Battle::OnSessionReady: every member is ready; an entry deferred
-        // until the main menu waits for TryStartPendingMatch.
-        static void OnSessionReady();
-        static void ShutdownNetplay(bool closeGgpo = true);
         static void ResetLobbyForRematch();
-        static void TryStartPendingMatch();
         static void _OnVsPreBattleTasksRegistered();
         static void _OnVsBattleTasksRegistered();
     };

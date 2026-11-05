@@ -97,8 +97,8 @@ struct LinkSample {
 // Enter starts the battle from the room's match, and the battle, once loaded,
 // asks the runtime for its ports and starts the rollback session itself
 // (RuntimeEvents: GetRuntimeMatchEndpoints, ReleaseRuntimePortToGgpo). The
-// room client the runtime builds tells the battle when every member is
-// ready and when every member's battle has loaded.
+// room client the runtime builds tells the battle when every member's battle
+// has loaded.
 class Battle {
 public:
     // Deferred: not yet (no opponent, or away from the main menu).
@@ -108,7 +108,6 @@ public:
     // The room's granted match. Its facts are still read from the room client
     // (SessionClient's lobby and match data) until the wire is the library's.
     virtual Entry Enter() = 0;
-    virtual void OnSessionReady() = 0;
     virtual void OnSessionSynced() = 0;
     // Drops what an entry armed for the next battle, so no later battle
     // plays the match's seed or rules.

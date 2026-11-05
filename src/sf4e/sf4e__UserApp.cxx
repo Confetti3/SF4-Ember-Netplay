@@ -52,8 +52,6 @@ using sf4e::Game::Battle::Sound::SoundPlayerManager;
 using sf4e::SessionClient;
 using ember::RuntimeSession;
 
-static bool s_pendingMatchStart = false;
-
 // The room's match checked as the game would take it, logged and named to the
 // player when it cannot be: the catalog id of the notice, or nullptr.
 static const char* RejectedMatch(const SessionClient& client, const char* where) {
@@ -316,22 +314,12 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         spdlog::error("VsPreBattle tasks registered, but the current foreground event isn't VSMode!");
 }
 
-void fUserApp::OnSessionReady() {
-    s_pendingMatchStart = EnterAuthorizedMatch() == Entry::Deferred;
-    if (s_pendingMatchStart) spdlog::info("Client: deferring match start until main menu");
-}
-
 Entry fUserApp::EnterAuthorizedMatch() {
     return RuntimeSession::netplay ? StartMatchFromLobby(&RuntimeSession::netplay->client) : Entry::Deferred;
 }
 
 void fUserApp::Install() {
     DetourAttach((PVOID*)&rUserApp::staticMethods.Steam_PostUpdate, Steam_PostUpdate);
-}
-
-void fUserApp::ShutdownNetplay(bool closeGgpo) {
-    s_pendingMatchStart = false;
-    sf4e::NetplayFacade::ShutdownNetplay(closeGgpo);
 }
 
 void fUserApp::ResetLobbyForRematch() {
@@ -351,18 +339,6 @@ void fUserApp::ResetLobbyForRematch() {
     }
     else if (RuntimeSession::netplay) {
         RuntimeSession::netplay->client.Lobby_ResetRematch();
-    }
-}
-
-void fUserApp::TryStartPendingMatch() {
-    if (!s_pendingMatchStart || !RuntimeSession::netplay) {
-        return;
-    }
-    if (RuntimeSession::netplay->client._lobbyData.members.size() < 2) {
-        return;
-    }
-    if (StartMatchFromLobby(&RuntimeSession::netplay->client) != Entry::Deferred) {
-        s_pendingMatchStart = false;
     }
 }
 

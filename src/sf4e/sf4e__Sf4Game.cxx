@@ -66,7 +66,6 @@ public:
 class Sf4Battle final : public Battle {
 public:
     Entry Enter() override { return sf4e::UserApp::EnterAuthorizedMatch(); }
-    void OnSessionReady() override { sf4e::UserApp::OnSessionReady(); }
     void OnSessionSynced() override { sf4e::GameEvents::VsBattle::bSessionSynced = true; }
     void DropNextBattle() override { sf4e::GameEvents::VsBattle::nextRequest = {}; }
 

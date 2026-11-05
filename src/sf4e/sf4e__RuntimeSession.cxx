@@ -32,15 +32,15 @@ void OnClientError(SessionClient::ErrorType type, SessionClient* const, const Se
         SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)))
         sf4e::NetplayFacade::SetLastError(message);
 }
-void OnReady(SessionClient* const, const SessionClient::Callbacks&) { game::Game().battle.OnSessionReady(); }
 void OnBattleSynced(SessionClient* const, const SessionClient::Callbacks&) { game::Game().battle.OnSessionSynced(); }
 }
 
 void RuntimeSession::Start(std::unique_ptr<sf4e::session::ClientTransport> transport,
     uint16_t port, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay) {
-    // IrohMatchSession requires authorization and suppresses legacy all-ready.
-    // The normal battle-loaded synchronization callback remains shared.
-    const SessionClient::Callbacks callbacks = { nullptr, OnClientError, OnReady, OnBattleSynced };
+    // No all-ready callback: the match session (IrohMatchSession) requires
+    // authorization, under which the client ignores the legacy all-ready, and
+    // the runtime enters an authorized match itself (Battle::Enter).
+    const SessionClient::Callbacks callbacks = { nullptr, OnClientError, nullptr, OnBattleSynced };
     netplay.reset(new Netplay(callbacks, game::Game().state.BuildId(), port, name, deviceType, deviceIdx, delay));
     netplay->client.Connect(std::move(transport));
 }

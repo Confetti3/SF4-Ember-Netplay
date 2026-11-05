@@ -26,7 +26,6 @@
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
 #include "sf4e__ReplayCapture.hxx"
-#include "sf4e__UserApp.hxx"
 #include "sf4e__Overlay.hxx"
 #include "sf4e__OverlayPrefs.hxx"
 #include "sf4e__Gamepads.hxx"
@@ -49,7 +48,6 @@ namespace fPlatform = sf4e::Platform;
 using fD3D = fPlatform::D3D;
 using fGFxApp = fPlatform::GFxApp;
 using fMain = fPlatform::Main;
-using fUserApp = sf4e::UserApp;
 using fSound = fPlatform::Sound;
 
 template <int N>
@@ -475,7 +473,7 @@ int fMain::ApplyStartupParams(void* params) {
 }
 
 void fMain::Destroy() {
-    fUserApp::ShutdownNetplay(true);
+    sf4e::NetplayFacade::ShutdownNetplay(true);
 	sf4e::NetplayFacade::StopHelper();
 
     (this->*rMain::publicMethods.Destroy)();
