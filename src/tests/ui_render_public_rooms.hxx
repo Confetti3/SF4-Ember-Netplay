@@ -77,19 +77,24 @@ void ShootPublicRooms(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& vie
         std::vector<netplay::publicrooms::Room> distant;
         for(auto room:allRooms())if(room.region!="use1")distant.push_back(room);
         settleList(distant);visit();draw(nullptr,0,8);
+        // The Filters row opens the page; Region steps there, and Back returns to the list.
+        const bool canEdit=view.canEditPreferences;view.canEditPreferences=true;
         const auto filter=[&](int steps){
-            for(int i=0;i<24&&shell.Navigation().Focus()!="pr-filter";++i){
+            for(int i=0;i<24&&shell.Navigation().Focus()!="pr-filters";++i){
                 const auto& at=shell.Navigation().Focus();
-                draw(nullptr,at=="pr-quick"||at=="pr-create"?(i%2?MenuInput::Down:MenuInput::Right):at=="pr-paste"?MenuInput::Left:MenuInput::Up,1);draw(nullptr,0,1);
+                draw(nullptr,at=="pr-quick"||at=="pr-create"||at=="pr-paste"?MenuInput::Down:MenuInput::Up,1);draw(nullptr,0,1);
             }
-            Require(shell.Navigation().Focus()=="pr-filter","The filter cell is unreachable");
-            draw(nullptr,MenuInput::Select,1);draw(nullptr,0,1);
+            Require(shell.Navigation().Focus()=="pr-filters","The Filters row is unreachable");
+            draw(nullptr,MenuInput::Select,1);draw(nullptr,0,2);
+            Require(shell.Navigation().Screen()==PublicRoomsPanel::FiltersScreen&&shell.Navigation().Focus()=="pr-filter-region","The filters page did not open on Region");
+            if(steps>0)draw("public-rooms-filters");
             for(int i=0;i<std::abs(steps);++i){draw(nullptr,steps>0?MenuInput::Right:MenuInput::Left,1);draw(nullptr,0,1);}
-            draw(nullptr,MenuInput::Select,1);draw(nullptr,0,3);
+            draw(nullptr,MenuInput::Back,1);draw(nullptr,0,3);
         };
         filter(1);draw("public-rooms-none-filtered");
         Require(shell.Navigation().Screen()=="public-rooms","Filtering left Public rooms");
         filter(-1);
+        view.canEditPreferences=canEdit;
     }
     // No service: set up (an Ember ID that can be made here), and an ID that must be unlocked first.
     id.bridges.clear();id.state="disabled";visit();draw(nullptr,0,8);draw("public-rooms-setup");

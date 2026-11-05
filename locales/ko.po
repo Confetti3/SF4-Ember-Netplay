@@ -4918,6 +4918,18 @@ msgstr "No open room that matches your filters has a free seat right now. Create
 msgid "public.create_room"
 msgstr "방 만들기"
 
+msgid "public.filters"
+msgstr "Filters"
+
+msgid "public.filters_detail"
+msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
+
+msgid "public.filter_summary_all"
+msgstr "All rooms"
+
+msgid "public.filter_summary_seats"
+msgstr "Open seats"
+
 msgid "public.filter_region"
 msgstr "Region"
 
@@ -5028,6 +5040,9 @@ msgstr "이 필터에 맞는 방이 없습니다."
 
 msgid "public.clear_filters"
 msgstr "Clear filters"
+
+msgid "public.clear_filters_detail"
+msgstr "Show every room again."
 
 msgid "public.try_again"
 msgstr "다시 시도"
