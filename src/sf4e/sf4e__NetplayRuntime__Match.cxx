@@ -1,5 +1,4 @@
 #include "sf4e__NetplayRuntime.hxx"
-#include "sf4e__GameEvents.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -149,7 +148,7 @@ bool IsRuntimeMatchEndCommitted() {
 // A match is being prepared or played, or its GGPO session is live for the
 // match (not only draining spectators).
 bool IsRuntimeMatchLive() {
-	if (Game::Battle::System::ggpo && !DrainingSpectators()) return true;
+	if (Game().battle.Live() && !DrainingSpectators()) return true;
 	if (!runtime || !runtime->match) return false;
 	return runtime->match->Live();
 }
@@ -189,7 +188,7 @@ void NotifyRuntimeMatchEnded() {
 	// opponent is the match's own, not whoever the table seats by the time the
 	// tick takes this.
 	runtime->finishedGame = netplay::PlayedGame{runtime->match->Generation(), runtime->match->OpponentPeer(),
-		Game::Battle::System::matchTelemetry.pings.Summarize()};
+		Game().battle.PingSummary()};
 	if (!RuntimeSession::netplay || runtime->match->Generation() == 0) return;
 	const auto& snapshot = RuntimeSession::netplay->client.GetRoomSnapshot();
 	if (!snapshot.roomEpoch || !snapshot.localMember) return;
@@ -228,14 +227,14 @@ void NotifyRuntimeMatchEnded() {
 // already left this generation.
 void PollSpectatorExit() {
 	if (!runtime || !runtime->match) return;
-	if (!runtime->teardown.terminalAckPending || !Game::Battle::System::ggpo || !LocalIsSpectator() ||
+	if (!runtime->teardown.terminalAckPending || !Game().battle.Live() || !LocalIsSpectator() ||
 		runtime->teardown.terminalAckGeneration != runtime->match->Generation()) {
 		runtime->match->ClearSpectatorExit();
 		return;
 	}
 	runtime->match->ArmSpectatorExit();
 	int backlog = 0;
-	const bool drained = GGPO_SUCCEEDED(ggpo_get_spectator_backlog(Game::Battle::System::ggpo, &backlog)) && backlog == 0;
+	const bool drained = Game().battle.SpectatorBacklog(backlog) && backlog == 0;
 	const auto step = runtime->match->SpectatorExitStep(drained);
 	if (step == session::MatchTeardownTiming::SpectatorExit::Wait) return;
 	spdlog::info("Room: closing the spectator view of finished generation {} source_closed={} backlog={} cut_short={}",
@@ -278,7 +277,7 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 	runtime->readyIntent.Clear();
 	runtime->promptOverBattle = false;
 	if (runtime->preferences.record.Record(capture.roomId, capture.table, generation, capture.slot, result, game))
-		OverlayPrefs::QueuePlayerPreferences(runtime->preferences);
+		Game().preferences.Queue(runtime->preferences);
 }
 
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
@@ -303,12 +302,10 @@ namespace internal {
 void CancelLocalMatch(GgpoEnd end) {
 	// A game this PC left before its battle was prepared gives that battle,
 	// or any later one, nothing of the match.
-	sf4e::GameEvents::VsBattle::nextRequest = {};
+	Game().battle.DropNextBattle();
 	CancelDeferredGgpoClose();
-	using fSystem = Game::Battle::System;
-	if (end.how == GgpoEnd::How::Retire) fSystem::RetireGgpoSession(end.text);
-	else if (fSystem::ggpo) fSystem::AbortGgpoMatch(end.text, end.severity,
-		end.how == GgpoEnd::How::Leave ? fSystem::AbortCause::Left : fSystem::AbortCause::Failure);
+	if (end.how == GgpoEnd::How::Retire) Game().battle.Retire(end.text);
+	else if (Game().battle.Live()) Game().battle.Abort(end.text, end.severity, end.how == GgpoEnd::How::Leave);
 	if (runtime->match) runtime->match->Abort();
 }
 
@@ -341,7 +338,7 @@ void EndUnscoredMatch(room::MatchResult result) {
 // drain, so a parked intent is sent once the helper mappings have closed.
 void RetireFinishedMatch(const char* label) {
 	CancelDeferredGgpoClose();
-	Game::Battle::System::RetireGgpoSession(label);
+	Game().battle.Retire(label);
 	runtime->match->End();
 }
 
@@ -568,7 +565,7 @@ void TickMatch() {
 			runtime->entry.sessionlessCloseGeneration = 0;
 			HandleSessionlessClose(closedGeneration);
 		}
-		if (runtime->match && !runtime->match->Tick(Game::Battle::System::ggpo != nullptr)) {
+		if (runtime->match && !runtime->match->Tick(Game().battle.Live())) {
 			// A spectator in the game lost its one link, to P1: its stream, not a seat.
 			runtime->error = loc::T(LocalIsSpectator() && runtime->entry.matchEntered ?
 				"runtime.spectator_stream_lost" : "runtime.match_connection_lost");
@@ -604,7 +601,7 @@ void TickMatch() {
 			// The entry of an older generation whose battle is gone would make the
 			// controller refuse this grant, and nothing else would ever release it.
 			if (netplay::StaleMatchEntry(sessionLive, runtime->entry.matchEntered, runtime->entry.enteredGeneration,
-				runtime->match->Generation(), Game::Battle::System::ggpo != nullptr)) {
+				runtime->match->Generation(), Game().battle.Live())) {
 				const auto stale = runtime->controller.GetSnapshot().match;
 				if (stale == netplay::MatchState::Playing || stale == netplay::MatchState::Preparing) {
 					spdlog::warn("Netplay: generation {} never closed locally (match={}); releasing it for generation {}",
@@ -625,8 +622,8 @@ void TickMatch() {
 				Apply(netplay::EventKind::MatchEnded);
 			if (phase == session::IrohMatchSession::Phase::Started && !runtime->entry.matchEntered) {
 				Apply(netplay::EventKind::GameplayReady);
-				const auto entry = UserApp::EnterAuthorizedMatch();
-				runtime->entry.matchEntered = entry == UserApp::MatchEntry::Entered;
+				const auto entry = Game().battle.Enter();
+				runtime->entry.matchEntered = entry == game::Battle::Entry::Entered;
 				if (runtime->entry.matchEntered) {
 					runtime->entry.enteredGeneration = runtime->match->Generation();
 					runtime->promptOverBattle = false;
@@ -634,7 +631,7 @@ void TickMatch() {
 					const auto* local = room::FindMember(room, room.localMember);
 					runtime->entry.enteredTable = local ? local->table : -1;
 				}
-				else if (entry == UserApp::MatchEntry::Rejected) RejectMatchEntry();
+				else if (entry == game::Battle::Entry::Rejected) RejectMatchEntry();
 				else if (!AtMainMenu()) ObserveDeferredEntry();
 			}
 			if (runtime->entry.matchEntered && GetGgpoSyncPhase() == GgpoSyncPhase::Running) Apply(netplay::EventKind::MatchStarted);
@@ -664,14 +661,14 @@ void ReleaseFinishedMatch() {
 	// Keep the custom-room table projection frozen until native GGPO has also
 	// released ownership of the game socket; this prevents a late room update
 	// from being mistaken for the next local match roster.
-	if (runtime->match && RuntimeSession::netplay && !Game::Battle::System::ggpo &&
+	if (runtime->match && RuntimeSession::netplay && !Game().battle.Live() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle)
 		RuntimeSession::netplay->client.ReleaseRoomProjection();
 	// Queue the receipt acknowledgement only after both durable boundaries
 	// have passed. SessionClient retains the authenticated action until its
 	// accepted reply, so a control reconnect cannot release the table early.
 	if (runtime->teardown.terminalAckPending && runtime->teardown.terminalOutcomeConsumed && RuntimeSession::netplay &&
-		runtime->match && !Game::Battle::System::ggpo &&
+		runtime->match && !Game().battle.Live() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Idle) {
 		if (RuntimeSession::netplay->client.AcknowledgeTerminal(runtime->teardown.terminalAckTable,
 			runtime->teardown.terminalAckGeneration) == session::SendResult::Queued) {

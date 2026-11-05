@@ -1,12 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
-#include "sf4e__ReplayStore.hxx"
-#include "sf4e__ReplayPlayback.hxx"
-#include "sf4e__Gamepads.hxx"
-#include "sf4e__MenuMusic.hxx"
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/LatencyBoard.hxx"
 #include "../common/HelperFailure.hxx"
-#include "sf4e__CustomContent.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -260,7 +255,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
         if (runtime->room) fields.routerError = runtime->room->Error();
         fields.matchPhase = runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1;
         if (runtime->match) fields.matchError = runtime->match->LastFailure();
-        fields.nativeSocket = Game::Battle::System::ggpo != nullptr;
+        fields.nativeSocket = Game().battle.Live();
         fields.resultPending = runtime->resultOutbox.Pending();
         fields.finishPending = runtime->teardown.matchFinishedPending;
         fields.leavePending = runtime->leave.leaveRequested;
@@ -302,7 +297,7 @@ static void TraceSnapshot(const RuntimeSnapshot& snapshot) {
 // says, and what PublishThrottled schedules by.
 input::MenuContext MenuContextNow(bool atMainMenu) {
     // A Practice match is this PC's to end only while it fights in it, under rollback.
-    const bool practiceFight = training::MatchPracticeActive() && Game::Battle::System::ggpo && !LocalIsSpectator();
+    const bool practiceFight = Game().training.MatchPracticeActive() && Game().battle.Live() && !LocalIsSpectator();
     // A spectator leaves the game it watches only while its stream is live:
     // the game the snapshot names and the room action's dispatch reads, so
     // the menu's Stop watching and the leave it sends agree.
@@ -329,8 +324,8 @@ input::MenuContext MenuContextNow(bool atMainMenu) {
     }
     return runtime->promptOverBattle ? input::MenuContext::MatchResult :
         atMainMenu ? input::MenuContext::MainMenu :
-        training::ControlsAvailable() ? input::MenuContext::OfflineTraining :
-        replaystore::GetStatus().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
+        Game().training.ControlsAvailable() ? input::MenuContext::OfflineTraining :
+        Game().replays.Status().exportStage != replay::ExportStage::None ? input::MenuContext::ReplayExport :
         practiceFight ? input::MenuContext::PracticeMatch :
         watchedMatch ? input::MenuContext::WatchedMatch : input::MenuContext::Unavailable;
 }
@@ -361,7 +356,7 @@ std::uint64_t PublishFingerprint() {
     mix(runtime->opponentChangeSequence); mix(runtime->roomNoticeSequence); mix(static_cast<std::uint64_t>(runtime->opponentFighterWatch.Pending() + 1)); mix(CurrentRandomFighter().serial);
     mix(runtime->trainingCallSequence); mix(runtime->trainingReadySequence); mix((runtime->trainingCall.Remaining(GetTickCount64()) + 999) / 1000);
     { const auto call = runtime->trainingCall.Identity(); mix(call.roomEpoch); mix(call.opponent); mix(call.generation); mix(call.table); mix(call.serial); }
-    mix(runtime->recoveringMatch); mix(OverlayPrefs::PersistencePending()); mixString(OverlayPrefs::PersistenceError());
+    mix(runtime->recoveringMatch); mix(Game().preferences.Pending()); mixString(Game().preferences.Error());
     mix(runtime->services.Snapshot().pending); mixString(runtime->discordStatusId); mix(runtime->discordInvite.Revision());
     for (const auto& preference : netplay::BoolPreferences) mix(runtime->preferences.*preference.member);
     mix(static_cast<unsigned>(runtime->preferences.buttonPrompts));
@@ -372,8 +367,8 @@ std::uint64_t PublishFingerprint() {
     mix(static_cast<std::uint64_t>(runtime->input.State())); mix(runtime->input.Ready());
     mixString(runtime->padHint);
     mix(AtMainMenu());
-    mix(Game::Battle::System::rematchChoices); mix(Game::Battle::System::GamesPlayedInPlace());
-    mix(static_cast<std::uint64_t>(Game::Battle::System::GameResult()));
+    mix(Game().battle.RematchChoices()); mix(Game().battle.GamesPlayedInPlace());
+    mix(static_cast<std::uint64_t>(Game().battle.GameResult()));
     return h;
 }
 }
@@ -383,7 +378,7 @@ namespace internal {
 // WIN (room::Rules::instantRematch). A Practice room and a tournament's table
 // have no rematch to offer.
 static const room::Table* RematchTable() {
-    if (!Game::Battle::System::ggpo || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !RuntimeSession::netplay) return nullptr;
+    if (!Game().battle.Live() || LocalIsSpectator() || !runtime->entry.matchEntered || !runtime->attached || !RuntimeSession::netplay) return nullptr;
     const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
     const auto table = runtime->entry.enteredTable;
     if (room.practice || room.tournament.Active() || table < 0 || table >= static_cast<int>(room.tables.size()) ||
@@ -394,11 +389,8 @@ static const room::Table* RematchTable() {
 // The WIN (or DRAW) screen of such a game, once its result is known: held for
 // a rematch in place, or the match's end committed by the room.
 bool PostMatchPromptDue() {
-    using rSystem = Dimps::Game::Battle::System;
-    if (!RematchTable() || !rSystem::staticVars.CurrentBattleFlow ||
-        !(Game::Battle::System::ResultHeld() || IsRuntimeMatchEndCommitted())) return false;
-    const auto flow = *rSystem::staticVars.CurrentBattleFlow;
-    return flow == rSystem::BF__MATCH_RESULT || flow == rSystem::BF__DRAW_RESULT;
+    return RematchTable() && (Game().battle.ResultHeld() || IsRuntimeMatchEndCommitted()) &&
+        Game().battle.ResultScreenShown();
 }
 }
 
@@ -463,7 +455,7 @@ static bool AdmittedToWatch(const room::Snapshot& room, std::uint64_t retired) {
     return false;
 }
 std::uint64_t RetiredMatchGeneration() {
-    return runtime ? NetplayFacade::RetiredMatchGeneration(runtime->match.get(), Game::Battle::System::ggpo != nullptr, runtime->recoveringMatch) : 0;
+    return runtime ? NetplayFacade::RetiredMatchGeneration(runtime->match.get(), Game().battle.Live(), runtime->recoveringMatch) : 0;
 }
 bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Snapshot& room, std::uint64_t retired) {
     return atMainMenu && session.room == netplay::RoomState::Joined &&
@@ -475,7 +467,7 @@ bool CanTrain(const netplay::Snapshot& session, bool atMainMenu, const room::Sna
 }
 RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool controllerReady, bool helperReady) {
 	RuntimeGates gates;
-	const bool ggpo = Game::Battle::System::ggpo != nullptr;
+	const bool ggpo = Game().battle.Live();
 	const bool between = state.match == netplay::MatchState::None || state.match == netplay::MatchState::PostMatch;
 	gates.editionSelect = runtime->preferences.lobby.editionSelect;
 	gates.canEditSelection = atMainMenu && state.room == netplay::RoomState::Idle;
@@ -557,7 +549,7 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 		!state.readyPending && !runtime->lobbyEditIntent.Parked() && !runtime->teardown.pendingAbort;
 	gates.readyGate = gates.readyGate && controllerReady;
 	gates.canReady = gates.canReady && gates.readyGate;
-	gates.canTrain = CanTrain(state, atMainMenu, room, RetiredMatchGeneration());
+	gates.canTrain = Game().caps.training && CanTrain(state, atMainMenu, room, RetiredMatchGeneration());
 	gates.discordCanSwitch = atMainMenu && !ggpo && between;
 	return gates;
 }
@@ -586,12 +578,12 @@ PostPublishState Publish() {
     runtime->services.Observe(diagnostic);
     snapshot.services = runtime->services.Snapshot();
     snapshot.inputDevice = runtime->input.Selected();
-    snapshot.gameplayBrand = Gamepads::BrandForDevice(snapshot.inputDevice.type, snapshot.inputDevice.index);
+    snapshot.gameplayBrand = Game().input.BrandForDevice(snapshot.inputDevice.type, snapshot.inputDevice.index);
     snapshot.promptBrand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, snapshot.inputDevice.type, snapshot.gameplayBrand);
     snapshot.pads = runtime->pads; snapshot.padLayer = runtime->padLayer;
     snapshot.runningControllerLayer = runtime->runningControllerLayer;
-    snapshot.lobbyMusicAvailable = MenuMusic::Available();
-    snapshot.padSetup = Gamepads::ReadFrame().setup;
+    snapshot.lobbyMusicAvailable = Game().services.LobbyMusicAvailable();
+    snapshot.padSetup = Game().input.ReadPadLayer().setup;
     snapshot.padLayerPending = gamepads::LayerPending(runtime->preferences.controllerLayer, runtime->runningControllerLayer);
     snapshot.padHintUntil = runtime->padHintUntil;
     const auto& candidate = runtime->input.Candidate();
@@ -610,17 +602,17 @@ PostPublishState Publish() {
         snapshot.padHint = runtime->padHint;
 
 	snapshot.atMainMenu = AtMainMenu();
-	snapshot.practiceMatch = training::MatchPracticeActive();
-	const replaystore::Status& replays = replaystore::GetStatus();
-	snapshot.replays.ready = snapshot.atMainMenu && replays.step == replaystore::Step::Idle && replaystore::Ready();
+	snapshot.practiceMatch = Game().training.MatchPracticeActive();
+	const replaystore::Status& replays = Game().replays.Status();
+	snapshot.replays.ready = Game().caps.replays && snapshot.atMainMenu && replays.step == replaystore::Step::Idle && Game().replays.Ready();
 	snapshot.replays.notice = replays.notice; snapshot.replays.noticeError = replays.noticeError;
 	snapshot.replays.logOpens = replays.logOpens; snapshot.replays.returns = replays.returns;
 	snapshot.replays.link = runtime->replayLinkAsked;
 	snapshot.replays.captionShown = replays.captionShown;
-	replayplayback::Tick(snapshot.inputDevice.type, snapshot.inputDevice.index, snapshot.inputDevice.connected);
-	snapshot.replays.playback = replayplayback::GetView();
+	Game().replays.TickPlayback(snapshot.inputDevice.type, snapshot.inputDevice.index, snapshot.inputDevice.connected);
+	snapshot.replays.playback = Game().replays.Playback();
 	snapshot.replays.meterShown = snapshot.replays.playback.playback && snapshot.replays.playback.meter;
-	if (snapshot.replays.playback.playback) snapshot.replays.lanes = replayplayback::GetLanes();
+	if (snapshot.replays.playback.playback) snapshot.replays.lanes = Game().replays.PlaybackLanes();
 	snapshot.replays.exportStage = replays.exportStage; snapshot.replays.exportFrames = replays.exportFrames; snapshot.replays.exportTotal = replays.exportTotal;
 	snapshot.replays.exportEnded = replays.exportEnded; snapshot.replays.exportSaved = replays.exportSaved;
 	if (replays.captionShown) snapshot.replays.caption = replays.caption;
@@ -632,15 +624,15 @@ PostPublishState Publish() {
 		runtime->entry.entryDeferredGeneration && runtime->entry.entryDeferredGeneration == runtime->match->Generation() &&
 		runtime->match->GetPhase() == session::IrohMatchSession::Phase::Started;
     snapshot.menuContext = MenuContextNow(snapshot.atMainMenu);
-    snapshot.rematchChoices = Game::Battle::System::rematchChoices;
-    snapshot.gamesInPlace = Game::Battle::System::GamesPlayedInPlace();
+    snapshot.rematchChoices = Game().battle.RematchChoices();
+    snapshot.gamesInPlace = Game().battle.GamesPlayedInPlace();
     if (runtime->entry.matchEntered && !LocalIsSpectator())
-        snapshot.foughtGame = {runtime->entry.enteredTable, runtime->entry.enteredGeneration, Game::Battle::System::GameResult()};
+        snapshot.foughtGame = {runtime->entry.enteredTable, runtime->entry.enteredGeneration, Game().battle.GameResult()};
     snapshot.watchedGame = WatchedGameNow();
     snapshot.lockInDrops = runtime->lockInDrops;
     if(snapshot.atMainMenu) for(int fighter=0;fighter<ember::Catalog().fighterCount;++fighter)
-        snapshot.fighterAvailability[fighter]=Dimps::Selection::ReadAvailability(fighter);
-    snapshot.installedContent = custom::Installed();
+        snapshot.fighterAvailability[fighter]=Game().state.FighterAvailability(fighter);
+    snapshot.installedContent = InstalledContent();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&
@@ -650,7 +642,7 @@ PostPublishState Publish() {
         sample.deviceIndex = snapshot.inputDevice.index;
         unsigned held = 0, physical = 0;
         sample.connected = snapshot.inputDevice.connected &&
-            Dimps::Pad::ReadController(sample.deviceType, sample.deviceIndex, held, &physical);
+            Game().input.ReadController(sample.deviceType, sample.deviceIndex, held, &physical);
         // Asked whether or not the read worked, so the prompts stay right.
         sample.menu = MenuButtonsFor(sample.deviceType, sample.deviceIndex);
         sample.buttons = sample.connected ? ui::ControllerButtons(held,sample.deviceType,physical,sample.menu) : 0;
@@ -663,10 +655,10 @@ PostPublishState Publish() {
 	snapshot.checkUpdatesAtLaunch = runtime->checkUpdatesAtLaunch;
 	snapshot.automaticCountry = runtime->automaticCountry;
 	snapshot.lobbySettings = runtime->preferences.lobby;
-	snapshot.settingsPending = OverlayPrefs::PersistencePending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;
-	snapshot.settingsError = OverlayPrefs::PersistenceError();
+	snapshot.settingsPending = Game().preferences.Pending() || runtime->pendingLobbySettings != nullptr || runtime->lobbyEditIntent.Parked() != nullptr;
+	snapshot.settingsError = Game().preferences.Error();
 	snapshot.helperError = runtime->error;
-    snapshot.gameplayInputError=Game::Battle::System::ggpo&&runtime->matchBinding.matchInputFault&&runtime->match&&!LocalIsSpectator()?
+    snapshot.gameplayInputError=Game().battle.Live()&&runtime->matchBinding.matchInputFault&&runtime->match&&!LocalIsSpectator()?
         loc::Tf(std::any_of(runtime->pads.begin(), runtime->pads.end(), [&](const gamepads::PadView& pad) {
             return pad.state != gamepads::RowState::Absent && !runtime->matchBinding.matchInput.identity.guid.empty() &&
                 gamepads::Same(pad.identity, runtime->matchBinding.matchInput.identity) && pad.slot != runtime->matchBinding.matchInput.index;
@@ -719,7 +711,7 @@ PostPublishState PublishThrottled() {
     static PostPublishState cached;
     static netplay::PublishCadence cadence;
     // Every tick where the pad drives Ember's menu, since the snapshot carries its sample.
-    const bool padDrivesMenu = !Game::Battle::System::ggpo || input::ControllerMenuAvailable(MenuContextNow(AtMainMenu()));
+    const bool padDrivesMenu = !Game().battle.Live() || input::ControllerMenuAvailable(MenuContextNow(AtMainMenu()));
     if (cadence.Due(padDrivesMenu, PublishFingerprint)) cached = Publish();
     return cached;
 }

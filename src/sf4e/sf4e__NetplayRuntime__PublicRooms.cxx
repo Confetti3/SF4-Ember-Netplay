@@ -37,7 +37,7 @@ void DispatchList(const Command& command, bool helperReady) {
 	if (command.bridgeId.empty() || rooms.loading) return;
 	if (rooms.bridge != command.bridgeId) rooms.rooms.clear();
 	rooms.bridge = command.bridgeId;
-	const auto id = helperReady ? SendBridgeRequest({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", sf4e::sidecarHash}}) : 0;
+	const auto id = helperReady ? SendBridgeRequest({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", Game().state.BuildId()}}) : 0;
 	if (!id) { FinishList("helper_unavailable"); return; }
 	runtime->roomListRequest = id;
 	runtime->roomListSentMs = GetTickCount64();
@@ -62,8 +62,8 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 	}
 	auto request = create ?
 		json{{"op", "room_create"}, {"bridge_id", command.bridgeId}, {"name", command.roomName},
-			{"capacity", command.capacity}, {"build", sf4e::sidecarHash}} :
-		json{{"op", "room_ticket"}, {"bridge_id", command.bridgeId}, {"room_id", command.roomId}, {"build", sf4e::sidecarHash}};
+			{"capacity", command.capacity}, {"build", Game().state.BuildId()}} :
+		json{{"op", "room_ticket"}, {"bridge_id", command.bridgeId}, {"room_id", command.roomId}, {"build", Game().state.BuildId()}};
 	// Only a room that asks for each player's own delay says so; the helper reads an absent key as the shared one.
 	if (create && command.ownDelay) request["own_delay"] = true;
 	const auto id = helperReady ? SendBridgeRequest(request) : 0;

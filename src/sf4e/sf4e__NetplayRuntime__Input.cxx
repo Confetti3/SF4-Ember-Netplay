@@ -1,10 +1,6 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../netplay/ControllerRestore.hxx"
 #include "../common/RematchInput.hxx"
-#include "sf4e__Gamepads.hxx"
-#include "sf4e__DirectInputFilter.hxx"
-#include "sf4e__Overlay.hxx"
-#include "sf4e__SelfTest.hxx"
 #include <ctime>
 #include "../ui/ButtonLayoutScreen.hxx"
 
@@ -17,7 +13,7 @@ namespace internal {
 std::string DeviceName(const input::Device& device) {
     if (device.type == input::PadKeyboard) return loc::T("controller.keyboard");
     if (device.type == input::PadXInput && device.index >= 0 && device.index < 4) {
-        const auto identity = Gamepads::IdentityForSlot(device.index);
+        const auto identity = Game().input.PadInSlot(device.index);
         if (identity && (device.identity.guid.empty() || gamepads::Same(*identity, device.identity))) return identity->name;
     }
     if (!device.identity.guid.empty()) return device.identity.name;
@@ -37,12 +33,11 @@ void LogGameplayController(const input::Device& device, const char* reason) {
 namespace {
 // Runs every tick while the saved controller is missing or only stood in for.
 void RestoreMenuController() {
-    OverlayPrefs::Data prefs;
-    OverlayPrefs::LoadEachTick(prefs);
+    const auto prefs = Game().preferences.SavedGameplayDevice();
     input::Device saved;
-    saved.type = prefs.deviceType; saved.index = prefs.deviceIdx;
-    if (prefs.deviceIdentity) saved.identity = *prefs.deviceIdentity;
-    const auto restored = input::RestoreController(runtime->inputDevices, input::MenuDevice(runtime->inputDevices), saved,
+    saved.type = prefs.type; saved.index = prefs.index;
+    if (prefs.identity) saved.identity = *prefs.identity;
+    const auto restored = input::RestoreController(runtime->inputDevices, Game().input.MenuDevice(runtime->inputDevices), saved,
         runtime->input.Selected());
     const auto& device = restored.device;
     runtime->inputInitialized = !restored.provisional && device.connected;
@@ -50,21 +45,21 @@ void RestoreMenuController() {
         if (!runtime->inputDevices.empty()) runtime->input.Begin();
         return;
     }
-    const bool migration = !prefs.deviceIdentity && prefs.deviceType == input::PadXInput &&
+    const bool migration = !prefs.identity && prefs.type == input::PadXInput &&
         !device.identity.guid.empty() && !restored.provisional;
     if (!restored.provisional && !device.identity.guid.empty())
-        OverlayPrefs::SaveGameplayDevice(device.type, device.index, device.identity);
+        Game().preferences.SaveGameplayDevice(device.type, device.index, device.identity);
     const auto& previous = runtime->input.Selected();
     if (previous.connected && previous.Same(device)) return;
-    if (prefs.deviceIdentity) {
+    if (prefs.identity) {
         if (restored.provisional) {
             runtime->padHint = device.type == input::PadKeyboard ? std::string{} :
-                loc::Tf("controller.using_for_now", prefs.deviceIdentity->name, DeviceName(device));
+                loc::Tf("controller.using_for_now", prefs.identity->name, DeviceName(device));
             spdlog::info("Input: saved controller id {:08x} not connected; using '{}' for now",
-                gamepads::IdentityHash(*prefs.deviceIdentity), DeviceName(device));
+                gamepads::IdentityHash(*prefs.identity), DeviceName(device));
         } else {
             if (previous.type >= 0) runtime->padHints.Adopted(device.identity,
-                Overlay::MenuPads().Takes() ? gamepads::HintContext::OpenMainMenu : gamepads::HintContext::HiddenMainMenu, GetTickCount64());
+                Game().input.MenuTakesPads() ? gamepads::HintContext::OpenMainMenu : gamepads::HintContext::HiddenMainMenu, GetTickCount64());
             spdlog::info("Input: saved controller '{}' id {:08x} restored to slot {}",
                 DeviceName(device), gamepads::IdentityHash(device.identity), device.index);
         }
@@ -72,7 +67,7 @@ void RestoreMenuController() {
     }
     runtime->input.Adopt(device);
     LogGameplayController(device, migration ? "migration" : restored.provisional && device.type != input::PadKeyboard ? "only pad" : "restore");
-    if (device.type != input::PadKeyboard && !input::AssignToSide(device, 0, false)) runtime->input.Begin();
+    if (device.type != input::PadKeyboard && !Game().input.AssignToSide(device, 0, false)) runtime->input.Begin();
 }
 }
 
@@ -83,17 +78,17 @@ void CaptureMenuInput() {
         // key to be released. Pad rows never show the keyboard, so the
         // Controllers page has no use for it either.
         const bool keyboardScanned = runtime->input.State() != input::Capture::Idle;
-        runtime->inputDevices = input::ReadDevices(keyboardScanned);
-        input::LogInventory(runtime->inputDevices);
-        const auto setup = Gamepads::ReadFrame().setup;
+        runtime->inputDevices = Game().input.ReadDevices(keyboardScanned);
+        Game().input.LogInventory(runtime->inputDevices);
+        const auto setup = Game().input.ReadPadLayer().setup;
         if (!setup.state.active && setup.outcome != gamepads::SetupEnd::Saved) runtime->setupAdoption.reset();
         if (runtime->setupAdoption && !setup.state.active && setup.outcome == gamepads::SetupEnd::Saved) {
             const auto device = std::find_if(runtime->inputDevices.begin(), runtime->inputDevices.end(), [&](const input::Device& d) {
                 return d.connected && d.type == input::PadXInput && !d.identity.guid.empty() && gamepads::Same(d.identity, *runtime->setupAdoption);
             });
-            if (device != runtime->inputDevices.end() && input::AssignToSide(*device, 0, false)) {
+            if (device != runtime->inputDevices.end() && Game().input.AssignToSide(*device, 0, false)) {
                 runtime->input.Cancel(); runtime->input.Adopt(*device); runtime->inputInitialized = true;
-                OverlayPrefs::SaveGameplayDevice(device->type, device->index, device->identity);
+                Game().preferences.SaveGameplayDevice(device->type, device->index, device->identity);
                 LogGameplayController(*device, "restore"); runtime->setupAdoption.reset();
             }
         }
@@ -102,7 +97,7 @@ void CaptureMenuInput() {
         if (!runtime->inputInitialized && !setup.state.active && runtime->input.State()==input::Capture::Idle &&
             runtime->controller.GetSnapshot().room==netplay::RoomState::Idle) RestoreMenuController();
         // RestoreMenuController can begin a capture after the read above.
-        if (!keyboardScanned && runtime->input.State() != input::Capture::Idle) input::ScanKeyboard(runtime->inputDevices);
+        if (!keyboardScanned && runtime->input.State() != input::Capture::Idle) Game().input.ScanKeyboard(runtime->inputDevices);
         const int previousIndex = runtime->input.Selected().index;
         const bool captured = runtime->input.Tick(runtime->inputDevices);
         const auto& chosen = runtime->input.Selected();
@@ -113,22 +108,22 @@ void CaptureMenuInput() {
             if (captured) runtime->inputInitialized=true;
             if (runtime->inputInitialized) {
                 const auto identity = chosen.identity.guid.empty() ? std::nullopt : std::make_optional(chosen.identity);
-                OverlayPrefs::SaveGameplayDevice(chosen.type, chosen.index, identity);
+                Game().preferences.SaveGameplayDevice(chosen.type, chosen.index, identity);
             }
             LogGameplayController(chosen, captured ? "capture" : "restore");
-            if(!input::AssignToSide(runtime->input.Selected(),0,false))runtime->input.Begin();
+            if(!Game().input.AssignToSide(runtime->input.Selected(),0,false))runtime->input.Begin();
         }
         if (RuntimeSession::netplay && runtime->input.Ready()) {
             RuntimeSession::netplay->deviceIdx = static_cast<uint8_t>(runtime->input.Selected().index);
             RuntimeSession::netplay->deviceType = static_cast<uint8_t>(runtime->input.Selected().type);
         }
     } else runtime->input.Cancel();
-    if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0);
-    const auto layer = Gamepads::ReadFrame();
+    if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle) Game().input.ControlSetup(gamepads::SetupCommand::LeftMenu, 0);
+    const auto layer = Game().input.ReadPadLayer();
     if (layer.mode == gamepads::Layer::Active) runtime->preferences.buttonLayouts = layer.layouts;
     runtime->padLayer = layer.mode; runtime->runningControllerLayer = layer.requested;
-    const auto savedIdentity = OverlayPrefs::DeviceIdentity();
-    const auto native = DirectInputFilter::ReadControllers();
+    const auto savedIdentity = Game().preferences.SavedDeviceIdentity();
+    const auto native = Game().input.NativeControllers();
     runtime->pads = runtime->padInventory.Build(layer.mode, layer.pads, runtime->inputDevices, native, runtime->input.Selected(), savedIdentity);
     for (auto& pad : runtime->pads) {
         if (pad.state == gamepads::RowState::Absent) {
@@ -147,14 +142,14 @@ void CaptureMenuInput() {
     }
     const auto context = !AtMainMenu() ? gamepads::HintContext::NativeMenu :
         runtime->controller.GetSnapshot().room != netplay::RoomState::Idle ? gamepads::HintContext::Room :
-        Overlay::MenuPads().Takes() ? gamepads::HintContext::OpenMainMenu : gamepads::HintContext::HiddenMainMenu;
+        Game().input.MenuTakesPads() ? gamepads::HintContext::OpenMainMenu : gamepads::HintContext::HiddenMainMenu;
     const auto hints = runtime->padHints.Update(runtime->pads, runtime->inputInitialized && runtime->input.Selected().type == input::PadKeyboard, context, GetTickCount64());
     for (const auto& hint : hints) {
         runtime->padHint = loc::Tf(gamepads::PadHintKey(hint.kind), hint.name);
         runtime->padHintUntil = GetTickCount64() + 4000;
     }
     const auto& selected = runtime->input.Selected();
-    const auto brand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, selected.type, Gamepads::BrandForDevice(selected.type, selected.index));
+    const auto brand = gamepads::ResolvePrompts(runtime->preferences.buttonPrompts, selected.type, Game().input.BrandForDevice(selected.type, selected.index));
     if (selected.type == input::PadXInput && (!runtime->loggedPromptBrand || !(*runtime->loggedPromptBrand == brand) ||
         runtime->loggedButtonPrompts != runtime->preferences.buttonPrompts)) {
         spdlog::info("Input: prompts {} ({})", gamepads::BrandName(brand.brand == gamepads::Brand::Generic ? gamepads::Brand::Xbox : brand.brand),
@@ -182,7 +177,7 @@ const gamepads::PadView* LayerPad(int deviceType, int deviceIndex) {
 }
 
 input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
-    if (deviceType != input::PadXInput) return Dimps::Pad::MenuButtons(deviceType, deviceIndex);
+    if (deviceType != input::PadXInput) return Game().input.MenuButtons(deviceType, deviceIndex);
     // An XInput pad reads no tables, so A and B unless bound: the game's button
     // screen moves LK and MK in its menu table along with the fight layout.
     const auto* pad = LayerPad(deviceType, deviceIndex);
@@ -230,9 +225,9 @@ void SaveRoomSettings(const netplay::PlayerPreferences& from) {
     auto preferences = runtime->preferences;
     preferences.CopyRoomSettings(from);
     if (!preferences.Valid()) return;
-    if (!OverlayPrefs::SavePlayerPreferences(preferences)) { runtime->error = loc::T("runtime.preferences_queue_failed"); return; }
+    if (!Game().preferences.Save(preferences)) { runtime->error = loc::T("runtime.preferences_queue_failed"); return; }
     runtime->preferences = std::move(preferences);
-    Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+    Game().input.SetLayouts(runtime->preferences.buttonLayouts);
 }
 
 void HandleControllerRequest(const gamepads::ControllerRequest& request) {
@@ -240,16 +235,16 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     if (request.kind == Kind::LayoutLog) { spdlog::info("Input: {}", request.log); return; }
     if (request.kind == Kind::DeclinePrompt) { spdlog::info("Input: setup prompt declined"); return; }
     if (request.kind == Kind::SetupControl) {
-        const auto current = Gamepads::ReadFrame().setup;
+        const auto current = Game().input.ReadPadLayer().setup;
         if (!current.state.active || current.padId != request.id) return;
-        if (request.command != gamepads::SetupCommand::Save) { Gamepads::ControlSetup(request.command, request.step); return; }
+        if (request.command != gamepads::SetupCommand::Save) { Game().input.ControlSetup(request.command, request.step); return; }
         if (!AtMainMenu() || runtime->controller.GetSnapshot().room != netplay::RoomState::Idle || !CurrentGates().canEditPreferences) {
-            Gamepads::ControlSetup(gamepads::SetupCommand::LeftMenu, 0); return;
+            Game().input.ControlSetup(gamepads::SetupCommand::LeftMenu, 0); return;
         }
-        const auto before = Gamepads::ReadFrame().setup;
-        if (const auto mapping = Gamepads::SaveSetup()) {
+        const auto before = Game().input.ReadPadLayer().setup;
+        if (const auto mapping = Game().input.SaveSetup()) {
             runtime->preferences.controllerMappings[before.identity.guid] = *mapping;
-            OverlayPrefs::SavePlayerPreferences(runtime->preferences);
+            Game().preferences.Save(runtime->preferences);
             if (runtime->setupAdoption) runtime->setupAdoption = before.identity;
         }
         return;
@@ -267,25 +262,25 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
                 {pad.identity, request.buttons, static_cast<std::int64_t>(std::time(nullptr)), request.bound, request.extras});
             if (dropped) spdlog::info("Input: layout for id {} dropped, oldest of 33", gamepads::IdentityHash(*dropped));
         } else gamepads::RemoveLayout(runtime->preferences.buttonLayouts, pad.identity);
-        Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
+        Game().input.SetLayouts(runtime->preferences.buttonLayouts);
         if (!request.log.empty()) spdlog::info("Input: {}", request.log);
         return;
     }
-    if (request.kind == Kind::Prompt) { Gamepads::SetupPrompt(pad.identity); return; }
+    if (request.kind == Kind::Prompt) { Game().input.SetupPrompt(pad.identity); return; }
     if (request.kind == Kind::Setup) {
-        if (AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && gates.canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
+        if (Game().caps.padSetup && AtMainMenu() && runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && gates.canEditPreferences && runtime->padLayer == gamepads::Layer::Active &&
             (pad.state == gamepads::RowState::Recognised || pad.state == gamepads::RowState::Unmapped || pad.state == gamepads::RowState::GameRead))
         {
-            if (Gamepads::ReadFrame().setup.state.active) return;
+            if (Game().input.ReadPadLayer().setup.state.active) return;
             runtime->setupAdoption = pad.gameplay ? std::make_optional(pad.identity) : std::nullopt;
-            Gamepads::BeginSetup(pad.identity, pad.id);
+            Game().input.BeginSetup(pad.identity, pad.id);
         }
         return;
     }
     if (request.kind == Kind::Forget) {
         if (!gates.canEditPreferences || runtime->padLayer != gamepads::Layer::Active || !runtime->preferences.controllerMappings.count(pad.identity.guid)) return;
         auto preferences = runtime->preferences; preferences.controllerMappings.erase(pad.identity.guid);
-        if (!OverlayPrefs::SavePlayerPreferences(preferences)) return;
+        if (!Game().preferences.Save(preferences)) return;
         runtime->preferences = std::move(preferences);
         spdlog::info("Input: setup for guid {} forgotten; applies next start", pad.identity.guid);
         runtime->padHint = loc::T("controllers.forgotten"); runtime->padHintUntil = GetTickCount64() + 4000;
@@ -299,9 +294,9 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
     if (device == runtime->inputDevices.end()) return;
     runtime->setupAdoption.reset();
     runtime->input.Cancel(); runtime->input.Adopt(*device); runtime->inputInitialized = true;
-    if (!input::AssignToSide(*device, 0, false)) { runtime->input.Begin(); return; }
+    if (!Game().input.AssignToSide(*device, 0, false)) { runtime->input.Begin(); return; }
     runtime->padHints.Selected(device->identity);
-    OverlayPrefs::SaveGameplayDevice(device->type, device->index, device->identity);
+    Game().preferences.SaveGameplayDevice(device->type, device->index, device->identity);
     LogGameplayController(*device, "list");
     runtime->padHint = loc::Tf("controllers.now_playing", pad.name); runtime->padHintUntil = GetTickCount64() + 4000;
 }
@@ -310,12 +305,12 @@ void HandleControllerRequest(const gamepads::ControllerRequest& request) {
 bool BindRuntimeInput(int localSlot) {
     if (!runtime || !RuntimeSession::netplay) return false;
     // Refresh connectivity just before native slot binding; never fall back to keyboard.
-    runtime->input.Tick(input::ReadDevices());
+    runtime->input.Tick(Game().input.ReadDevices());
     if (!runtime->input.Ready()) { runtime->error = loc::T("runtime.gameplay_device_disconnected"); return false; }
     const auto& device = runtime->input.Selected();
     RuntimeSession::netplay->deviceIdx = static_cast<uint8_t>(device.index);
     RuntimeSession::netplay->deviceType = static_cast<uint8_t>(device.type);
-    if(!input::AssignToSide(device, localSlot, true)) {
+    if(!Game().input.AssignToSide(device, localSlot, true)) {
         runtime->error=loc::T("runtime.controller_assignment_unverified");return false;
     }
     runtime->matchBinding.matchInput=device;runtime->matchBinding.matchInputSide=localSlot;runtime->matchBinding.matchInputFault=false;
@@ -328,20 +323,20 @@ bool BindRuntimeInput(int localSlot) {
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     mapped=raw=0;
     if(!runtime||!runtime->attached)return false;
-    const bool valid=side==runtime->matchBinding.matchInputSide&&input::ReadAssignedInput(runtime->matchBinding.matchInput,side,mapped,raw);
+    const bool valid=side==runtime->matchBinding.matchInputSide&&Game().input.ReadAssignedInput(runtime->matchBinding.matchInput,side,mapped,raw);
     runtime->matchBinding.matchInputFault=!valid;
     // Over a WIN the battle may go on from, the prompt's answer travels with
     // the inputs (common/RematchInput.hxx): a Rematch pressed there, waiting as
     // the parked Ready, or the fighter still being asked, which holds the WIN
     // for them. A Random pick's rematch leaves the battle, so the next game
     // plays a new roll, and nothing is held for it.
-    const bool due=Game::Battle::System::ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen();
+    const bool due=Game().battle.ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen();
     const ULONGLONG now=GetTickCount64();
     if(!due)runtime->promptDueSinceMs=0;
     else if(!runtime->promptDueSinceMs)runtime->promptDueSinceMs=now;
     if(valid)raw|=rematch::LocalBits(due,runtime->readyIntent.Active(),now-runtime->promptDueSinceMs);
     // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
-    selftest::MatchInput(side,mapped,raw);
+    Game().services.SelfTestInput(side,mapped,raw);
     return valid;
 }
 

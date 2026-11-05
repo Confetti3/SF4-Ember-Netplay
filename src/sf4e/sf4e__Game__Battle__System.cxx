@@ -11,6 +11,7 @@
 #include "../common/MementoGuards.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__MenuMusic.hxx"
+#include "sf4e__NetplayFacade.hxx"
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
 

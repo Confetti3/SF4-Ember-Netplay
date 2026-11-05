@@ -286,6 +286,9 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__RuntimeTick.cxx"
     "src/sf4e/sf4e__ShellHost.hxx"
     "src/sf4e/sf4e__ShellHost.cxx"
+    "src/sf4e/sf4e__GameAdapter.hxx"
+    "src/sf4e/sf4e__RuntimeEvents.hxx"
+    "src/sf4e/sf4e__Sf4Game.cxx"
 )
 target_include_directories(sf4e PUBLIC "src/common")
 target_link_libraries(sf4e PRIVATE SDL3::SDL3-static dxguid)

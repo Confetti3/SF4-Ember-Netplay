@@ -1,13 +1,7 @@
 #include "sf4e__NetplayRuntime.hxx"
-#include "sf4e__Gamepads.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../platform/Utf8.hxx"
-#include "sf4e__GameEvents.hxx"
-#include "sf4e__MenuMusic.hxx"
-#include "sf4e__ReplayStore.hxx"
-#include "sf4e__Steam.hxx"
-#include "sf4e__CustomContent.hxx"
 #include "../session/IdentityEvents.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../platform/Utf8.hxx"
@@ -78,7 +72,7 @@ void DispatchIdentity(netplay::IdentityRequest& request, bool helperReady) {
 	const bool changesKey = netplay::EffectOf(op) == netplay::IdentityEffect::KeyChange;
 	if (!helperReady || !runtime->room) { runtime->identityRefusal = "identity.refused.helper"; return; }
 	if (changesKey && !CurrentGates().canEditPreferences) { runtime->identityRefusal = "identity.refused.leave_room"; return; }
-	if (!readOnly && !changesKey && Game::Battle::System::ggpo) { runtime->identityRefusal = "identity.refused.match"; return; }
+	if (!readOnly && !changesKey && Game().battle.Live()) { runtime->identityRefusal = "identity.refused.match"; return; }
 	if (op == IdentityOp::Export && (request.path = IdentityBackupPath()).empty()) { runtime->identityRefusal = "identity.refused.no_folder"; return; }
 	auto text = session::BuildTournamentRequest(request);
 	std::uint64_t id = 0;
@@ -102,7 +96,7 @@ static DispatchOutcome Handle(commands::Training& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
 	// Training from a room or Home sends no room command: the game alone moves, and
 	// only if that still holds now, not as it was when the player pressed.
-	if (TrainingRequestHolds(command.command.generation)) sf4e::GameEvents::MainMenu::RequestTraining(command.command.generation);
+	if (TrainingRequestHolds(command.command.generation)) Game().training.Request(command.command.generation);
 	else runtime->error = loc::T(command.training == TrainingEntry::Home ? "home.training_unavailable" : "room.training.unavailable");
 	return DispatchOutcome::Dropped;
 }
@@ -118,7 +112,7 @@ static DispatchOutcome Handle(commands::DiscordInvite& command, bool, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
     if (!runtime->discordInvite.Matches(command.discordRevision)) return DispatchOutcome::Dropped;
     if (command.discordAction == discord::InviteAction::Cancel) runtime->discordInvite.Cancel();
-    else if (AtMainMenu() && CurrentGates().discordCanSwitch && !Game::Battle::System::ggpo &&
+    else if (AtMainMenu() && CurrentGates().discordCanSwitch && !Game().battle.Live() &&
         runtime->discordInvite.Confirm(command.command.generation.room, command.discordRevision))
         runtime->offlineRequested=false;
     return DispatchOutcome::Dropped;
@@ -155,13 +149,13 @@ static DispatchOutcome Handle(commands::Input& command, bool, Attempt) {
     if (command.inputAction == input::Action::BeginCapture) runtime->input.Begin();
     else if (command.inputAction == input::Action::UseKeyboard) {
         runtime->input.Cancel();
-        for (const auto& device : runtime->inputDevices) if (device.type == Dimps::Pad::PADTYPE_RAWINPUT) {
+        for (const auto& device : runtime->inputDevices) if (device.type == input::PadKeyboard) {
             runtime->input.Adopt(device); runtime->inputInitialized = true;
             runtime->padHint.clear();
             runtime->padHints.Selected(device.identity);
-            OverlayPrefs::SaveGameplayDevice(device.type, device.index, {});
+            Game().preferences.SaveGameplayDevice(device.type, device.index, {});
             LogGameplayController(device, "list");
-            input::AssignToSide(device, 0, false); break;
+            Game().input.AssignToSide(device, 0, false); break;
         }
     }
     return DispatchOutcome::Dropped;
@@ -169,10 +163,11 @@ static DispatchOutcome Handle(commands::Input& command, bool, Attempt) {
 static DispatchOutcome Handle(commands::Service& command, bool helperReady, Attempt) {
 	if (!Current(command.command)) return DispatchOutcome::Dropped;
     if (command.service == platform::ServiceAction::OpenSteamProfile) {
+        if (!Game().caps.steamProfile) return DispatchOutcome::Dropped;
         // Steam's overlay when it is up, otherwise the profile page in the browser.
         SteamProfileOpeners openers;
-        openers.overlayAvailable = [] { return steam::OverlayAvailable(); };
-        openers.overlay = [](const SteamId& id) { return steam::OpenProfileOverlay(id); };
+        openers.overlayAvailable = [] { return Game().services.SteamOverlayAvailable(); };
+        openers.overlay = [](const SteamId& id) { return Game().services.OpenSteamProfile(id); };
         openers.browser = [](const SteamId& id) { return runtime->services.OpenSteamProfilePage(id); };
         const auto route = OpenSteamProfile(command.steamProfile, openers);
         spdlog::info("Room: Steam profile opened by {}", route == SteamProfileRoute::Overlay ? "the overlay" : route == SteamProfileRoute::Browser ? "the browser" : "no route");
@@ -209,7 +204,7 @@ static DispatchOutcome Handle(commands::Service& command, bool helperReady, Atte
         diagnostics.performanceEnabled=diag::Enabled();
         diagnostics.traceDropped=runtime->trace.Dropped();
         diagnostics.traceLastWriteMs=runtime->trace.LastWriteMs();
-        diagnostics.logDropped=Platform::AsyncLogDropped();
+        diagnostics.logDropped=Game().services.LogLinesDropped();
         if(diagnostics.performanceEnabled) {
             const auto& performance=diag::G();
             const int ops[]={diag::OP_COMPLETE_OUTER_CALL,diag::OP_OUTER_TICK,diag::OP_RUNTIME_TICK,diag::OP_SESSION_CLIENT_STEP,
@@ -246,7 +241,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
     // A replacement or Cancel must also invalidate a queued Join/Leave.
     if (command.discordRevision) {
         if (!runtime->discordInvite.Matches(command.discordRevision) || !AtMainMenu() ||
-            !CurrentGates().discordCanSwitch || Game::Battle::System::ggpo) return DispatchOutcome::Dropped;
+            !CurrentGates().discordCanSwitch || Game().battle.Live()) return DispatchOutcome::Dropped;
         if (runtime->discordInvite.Expired(static_cast<std::uint64_t>(std::time(nullptr)))) {
             runtime->discordInvite.Cancel();
             runtime->error=loc::T("discord.invitation_expired");
@@ -257,6 +252,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	if (kind == netplay::CommandKind::HostRoom && !command.preferences.Valid()) return DispatchOutcome::Dropped;
 	if (kind == netplay::CommandKind::RoomAction) {
 		if (!runtime->attached || !RuntimeSession::netplay || !runtime->match) return DispatchOutcome::Dropped;
+		if (command.roomAction.kind == room::ActionKind::Watch && !Game().caps.spectators) return DispatchOutcome::Dropped;
 		// A lock-in the player asks for now is newer than a stream failure, so a
 		// release still waiting for it must not undo it.
 		runtime->spectatorLockRelease.Observe(command.roomAction);
@@ -275,7 +271,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		}
 		const bool changingTable = action == room::ActionKind::Queue || action == room::ActionKind::Unqueue ||
 			action == room::ActionKind::Watch || action == room::ActionKind::Unwatch;
-		if (changingTable && Game::Battle::System::ggpo) {
+		if (changingTable && Game().battle.Live()) {
 			const bool localSpectator = LocalIsSpectator();
 			const bool immediateSpectatorAction = localSpectator &&
 				(action == room::ActionKind::Unqueue || action == room::ActionKind::Unwatch);
@@ -310,7 +306,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	if (kind == netplay::CommandKind::SetLobbySettings &&
 		(!CanEditLobby() || !command.preferences.lobby.Valid())) return DispatchOutcome::Dropped;
 	if (kind == netplay::CommandKind::SetLobbySettings && runtime->match &&
-		(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game::Battle::System::ggpo)) {
+		(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game().battle.Live())) {
 		// P1 may edit the next match before pressing Ready. Use the same
 		// explicit post-match drain/retirement boundary as rematch readiness.
 		Defer(runtime->lobbyEditIntent, command);
@@ -335,7 +331,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// Over the WIN of a game that may go on in place, the Ready that started
 		// it still holds the seat: the Rematch waits there as the choice the
 		// inputs carry, and takes the checks below after the battle if it closes.
-		if (kind == netplay::CommandKind::Rematch && Game::Battle::System::ResultHeld() && internal::PostMatchPromptDue())
+		if (kind == netplay::CommandKind::Rematch && Game().battle.ResultHeld() && internal::PostMatchPromptDue())
 			return Defer(runtime->readyIntent, command);
 		auto* client = RuntimeSession::netplay ? &RuntimeSession::netplay->client : nullptr;
 		const bool inFlight = runtime->readyIntent.Parked() || runtime->controller.GetSnapshot().readyPending ||
@@ -345,8 +341,8 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		const char* refusal = nullptr;
 		const bool knownFighter = ember::ValidFighter(command.character.charaID);
 		const auto availability = knownFighter ?
-			Dimps::Selection::ReadAvailability(command.character.charaID) : selection::Availability{};
-		const auto installed = custom::Installed();
+			Game().state.FighterAvailability(command.character.charaID) : selection::Availability{};
+		const auto installed = InstalledContent();
 		if (!runtime->input.Ready()) refusal = loc::T("runtime.ready.assign_controller");
 		else if (!selection::IsRandomStage(command.stage) && !ember::Catalog().validStage(command.stage)) refusal = loc::T("runtime.ready.stage_unavailable");
 		else if (!knownFighter || selection::FighterLocked(command.character.charaID, availability)) refusal = loc::T("runtime.ready.fighter_unavailable");
@@ -361,7 +357,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 			command.command.kind = netplay::CommandKind::Ready;
 		runtime->readyIntent.Arm(GetTickCount64(), command.command.generation);
 		const bool draining = runtime->match &&
-			(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game::Battle::System::ggpo);
+			(runtime->match->GetPhase() != session::IrohMatchSession::Phase::Idle || Game().battle.Live());
 		if (draining || !gates.readyGate) {
 			Defer(runtime->readyIntent, command);
 			// Ready is the explicit handoff from post-match spectator draining.
@@ -373,7 +369,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		}
 	}
 	if ((kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::JoinInvite) &&
-		(!helperReady || !AtMainMenu() || RuntimeSession::netplay || RuntimeSession::server || Game::Battle::System::ggpo)) {
+		(!helperReady || !AtMainMenu() || RuntimeSession::netplay || RuntimeSession::server || Game().battle.Live())) {
 		runtime->error = loc::T("runtime.return_main_menu"); return DispatchOutcome::Dropped;
 	}
 	// Playing or watching a match waits for the match's room and acts only on
@@ -431,10 +427,10 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	case netplay::Effect::SavePreferences:
         // UI drafts cannot replace the game-thread-owned match record or sharing cutoff.
         command.preferences=netplay::AcceptedPreferences(runtime->preferences,std::move(command.preferences),static_cast<std::uint64_t>(_time64(nullptr)));
-		if (OverlayPrefs::SavePlayerPreferences(command.preferences)) {
+		if (Game().preferences.Save(command.preferences)) {
 			runtime->preferences = command.preferences;
-            Gamepads::SetLayouts(runtime->preferences.buttonLayouts);
-			MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
+            Game().input.SetLayouts(runtime->preferences.buttonLayouts);
+			Game().services.UseLobbyMusic(runtime->preferences.endlessLobbyMusic);
 			runtime->displayName = command.preferences.displayName;
 			runtime->error.clear();
 		} else runtime->error = loc::T("runtime.preferences_queue_failed");
@@ -452,7 +448,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 	case netplay::Effect::JoinInvite: {
 		if (decision.effect == netplay::Effect::HostRoom) {
 			runtime->preferences = netplay::AcceptedPreferences(runtime->preferences, command.preferences, static_cast<std::uint64_t>(_time64(nullptr)));
-			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences))
+			if (!Game().preferences.Save(runtime->preferences))
 				runtime->error = loc::T("runtime.room_defaults_save_failed");
 		}
 		runtime->displayName = runtime->preferences.displayName;
@@ -474,9 +470,9 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation), static_cast<int>(command.arcadeRoom),
 				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));
 		} else runtime->createdRules.Cancel("other_room");
-		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(sf4e::sidecarHash) :
-			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, sf4e::sidecarHash, runtime->join == JoinKind::Observer) :
-			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, sf4e::sidecarHash);
+		const bool started = decision.effect == netplay::Effect::HostRoom ? runtime->room->Host(Game().state.BuildId()) :
+			command.publicTicket.empty() ? runtime->room->Join(decision.invitation, Game().state.BuildId(), runtime->join == JoinKind::Observer) :
+			ticket.is_object() && runtime->room->JoinPublic(decision.invitation, ticket, Game().state.BuildId());
 		if (!started) Apply(netplay::EventKind::RoomFailed, loc::T("runtime.room_open_failed"));
 		break;
 	}
@@ -495,7 +491,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         runtime->delayPolicy=RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
         runtime->tableCount=RuntimeSession::netplay ? RuntimeSession::netplay->client.GetRoomSnapshot().tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
         CancelDeferredGgpoClose();
-        Game::Battle::System::RetireGgpoSession("replacement_room");
+        Game().battle.Retire("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();
         break;
     case netplay::Effect::CheckConnection: {
@@ -527,7 +523,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         runtime->preferences.autoInputDelay=automatic;
         if(automatic) runtime->autoDelayCheck.Want(GetTickCount64());
         RuntimeSession::netplay->client.SetSelectedDelay(ReadyDelay());
-        if(!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
+        if(!Game().preferences.Save(runtime->preferences)) runtime->error=loc::T("runtime.delay_save_failed");
         break;
     }
 	case netplay::Effect::SendReady: {
@@ -536,8 +532,8 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
         client.SetSelectedLowerLag(runtime->preferences.lowerInputLag);
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
-			sent = client.PreBattle_SetEnv(sf4e::localRand()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, sf4e::localRand(), command.randomPool, custom::Installed()->stages)) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetEnv(Game().state.Random()) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(selection::ResolveStage(command.stage, Game().state.Random(), command.randomPool, InstalledContent()->stages)) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));
@@ -668,7 +664,7 @@ void RunReplayRequest(const replay::Request& request) {
         return;
     }
     if (request.mode == replay::Mode::Keep) { platform::replays::MarkKept(platform::Utf8ToWide(request.path.c_str()), request.keep); platform::replays::WantListing(); return; }
-    replaystore::Start(request, AtMainMenu(), NoRoom());
+    Game().replays.Start(request, AtMainMenu(), NoRoom());
 }
 
 void TickReplays() {
@@ -677,7 +673,7 @@ void TickReplays() {
         runtime->replayLinkAsked = link;
         spdlog::info("Replays: a link asked for a replay; the Replays screen asks the player");
     }
-    replaystore::Tick(AtMainMenu(), NoRoom());
+    Game().replays.Tick(AtMainMenu(), NoRoom());
 }
 
 // A Ready press that cannot be honoured ends its intent and is announced once.
@@ -884,9 +880,9 @@ void PersistTerminalOutcome() {
 		runtime->teardown.terminalAckTable == capturedResult->table && capturedResult->slot < 2 &&
 		(capturedResult->result == room::MatchResult::P1Win || capturedResult->result == room::MatchResult::P2Win)) {
 		netplay::ProfileStore store;
-		store.queue = [] { return OverlayPrefs::QueuePlayerPreferences(runtime->preferences); };
-		store.saved = [](std::uint64_t revision) { return OverlayPrefs::PlayerPreferencesSaved(revision); };
-		store.failed = [] { return !OverlayPrefs::PersistenceError().empty(); };
+		store.queue = [] { return Game().preferences.Queue(runtime->preferences); };
+		store.saved = [](std::uint64_t revision) { return Game().preferences.Saved(revision); };
+		store.failed = [] { return !Game().preferences.Error().empty(); };
 		using Persistence = netplay::MatchResultOutbox::ProfilePersistence;
 		switch (runtime->resultOutbox.PersistProfile(runtime->preferences.record, store, GetTickCount64())) {
 		case Persistence::Waiting: return;
@@ -894,7 +890,7 @@ void PersistTerminalOutcome() {
 		case Persistence::NotRequired: break;
 		case Persistence::Released:
 			spdlog::warn("Match result: profile record not saved, releasing the match: {}",
-				OverlayPrefs::PersistenceError().empty() ? std::string("write refused or timed out") : OverlayPrefs::PersistenceError());
+				Game().preferences.Error().empty() ? std::string("write refused or timed out") : Game().preferences.Error());
 			runtime->error = loc::T("runtime.match_record_not_saved");
 			break;
 		}
@@ -941,7 +937,7 @@ void ConfirmLobbySettings() {
 		current.editionSelect = lobby.editionSelect; current.roundCount = lobby.roundCount; current.roundTime = lobby.roundTime.integral;
 		if (current == *runtime->pendingLobbySettings) {
 			runtime->preferences.lobby = current;
-			if (!OverlayPrefs::SavePlayerPreferences(runtime->preferences)) runtime->error = loc::T("runtime.lobby_defaults_save_failed");
+			if (!Game().preferences.Save(runtime->preferences)) runtime->error = loc::T("runtime.lobby_defaults_save_failed");
 			runtime->pendingLobbySettings.reset();
 		} else if (GetTickCount64() >= runtime->lobbySettingsDeadline) {
 			runtime->pendingLobbySettings.reset();
@@ -993,7 +989,7 @@ void ResolvePendingIntents(bool helperReady) {
 	gate.controlHealthy = controlState.control == netplay::Health::Healthy;
 	gate.authorityWritable = !controlState.coordinated || controlState.authorityWritable;
 	gate.recoveringMatch = runtime->recoveringMatch;
-	gate.spectatorInGame = runtime->attached && RuntimeSession::netplay && LocalIsSpectator() && Game::Battle::System::ggpo;
+	gate.spectatorInGame = runtime->attached && RuntimeSession::netplay && LocalIsSpectator() && Game().battle.Live();
 	gate.atMenuIdle = AtMainMenu() && matchIdle;
 	const bool healthyRoomControl = gate.controlHealthy && gate.authorityWritable;
 	for (auto* intent : {&runtime->roomActionIntent, &runtime->chatIntent}) {
@@ -1006,7 +1002,7 @@ void ResolvePendingIntents(bool helperReady) {
 	}
 	// A sent Ready keeps its budget; the pump clears it on commit or failure.
 	if (runtime->readyIntent.Parked() && healthyRoomControl && CurrentGates().readyGate &&
-		!Game::Battle::System::ggpo && matchIdle)
+		!Game().battle.Live() && matchIdle)
 		Retry(runtime->readyIntent, helperReady);
 	if (runtime->lobbyEditIntent.Parked() && healthyRoomControl && matchIdle)
 		Retry(runtime->lobbyEditIntent, helperReady);

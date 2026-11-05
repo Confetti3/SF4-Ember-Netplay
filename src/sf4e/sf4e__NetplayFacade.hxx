@@ -41,6 +41,7 @@
 #include <array>
 #include <memory>
 #include "../Dimps/Dimps__GameEvents.hxx"
+#include "sf4e__RuntimeEvents.hxx"
 
 namespace sf4e {
 	namespace session { class IrohMatchSession; }
@@ -78,20 +79,6 @@ namespace sf4e {
         bool connectionWarning = false;   // GGPO CONNECTION_INTERRUPTED active
         bool predictionStalled = false;   // GGPO refused local input this frame
         int disconnectCountdownMs = -1;   // time until GGPO drops the peer, or -1
-	};
-
-	// Authenticated Iroh loopback bridge endpoint selected for this match.
-	struct GgpoTransportStatus {
-		char remoteHost[NETPLAY_SESSION_HOST_LEN] = { 0 };
-		uint16_t remotePort = 0;
-	};
-
-	enum class GgpoSyncPhase : uint8_t {
-		None = 0,
-		Starting = 1,
-		Connected = 2,
-		Synchronizing = 3,
-		Running = 4,
 	};
 
 	namespace NetplayFacade {
@@ -336,8 +323,6 @@ namespace sf4e {
 		void ConfigureDiscord(const platform::HelperBootstrap& bootstrap);
         void StartHelper();
 		void NotifyRuntimeGameReady();
-		// Called on the game thread when the native main menu first ticks.
-		void NotifyRuntimeEventSystemReady();
 		void StopHelper();
 		void TickRuntime();
 		// Game thread, once every outer tick, after SessionClient::Step and
@@ -385,45 +370,16 @@ namespace sf4e {
 		// counts (0 for none). False with no runtime.
 		bool TrainingHolds(TrainingEntry entry, const netplay::Generation& made, const netplay::Snapshot& session,
 			bool atMainMenu, const room::Snapshot& room, std::uint64_t retiredGeneration);
-		// Game thread: the same against the live controller, native menu and room.
-		// The runtime asks it before posting a Training request, and the native
-		// menu again just before it moves.
-		bool TrainingRequestHolds(const netplay::Generation& made);
 		// The game this PC was in and has fully let go of, for TrainingHolds: match's
 		// retired generation (IrohMatchSession::RetiredGeneration, which names a
 		// setup that failed too), once native GGPO is gone (ggpoLive false) and
 		// recovery has ended (MatchRecovered). 0 otherwise, or with no session.
 		std::uint64_t RetiredMatchGeneration(const session::IrohMatchSession* match, bool ggpoLive, bool recovering);
-		bool IsRuntimeRoomActive();
 		// The room being opened is a public one joined with a ticket, so the host's
 		// refusals are worded for it.
 		bool IsRuntimePublicJoin();
         bool IsRuntimeRecoveryEnabled();
 		void NotifyRuntimeMatchEnded();
-		// A netplay battle closed after its GGPO session was already retired, so
-		// NotifyRuntimeMatchEnded had no session to come from.
-		void NotifyRuntimeBattleClosedWithoutSession();
-		// A spectator's own GGPO stream failed with no committed match result and
-		// the session is being retired. Its battle then closes sessionless, and
-		// the runtime leaves that game instead of ending the view silently.
-		void NotifyRuntimeSpectatorStreamFailed();
-		// P1's GGPO dropped the spectator in this match slot. Ends its link so
-		// that spectator's client gives up at once (IrohMatchSession::EndSpectatorStream).
-		void EndRuntimeSpectatorStream(std::size_t slot);
-		// This PC watches the current or last match rather than playing it.
-		bool IsRuntimeSpectator();
-		// A rollback-confirmed native result, with the save frame it was
-		// captured at and the input frame confirmed when it was published.
-		// `game` counts the games before it in this battle; a `continued` one
-		// was followed by a rematch in place and leaves the match open.
-		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame,
-			unsigned game, bool continued);
-		// The WIN this result brings up may restart the battle in place: the
-		// table offers instant rematches and the result leaves its set open.
-		bool RematchInPlaceOffered(room::MatchResult result);
-		// The room has committed the end of the current match (any result).
-		// Notices about losing that match's stream or peer are moot then.
-		bool IsRuntimeMatchEndCommitted();
 		// A match is being prepared or played, or its GGPO session is live for
 		// the match (not only draining spectators).
 		bool IsRuntimeMatchLive();
@@ -431,47 +387,21 @@ namespace sf4e {
 		// once its stream is played out or its exit bound passed. Called after
 		// the outer tick's GGPO poll.
 		void PollSpectatorExit();
-		struct RuntimeMatchEndpoints {
-			std::uint16_t localPort = 0;
-			std::size_t localSlot = 0, participantCount = 0;
-			std::array<std::uint16_t, room::MaxMatchParticipants> remotePorts = {};
-		};
-		bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints);
-        bool BindRuntimeInput(int localSlot);
-        // This player's prompt over the WIN, carried to the other game in the
-        // raw input (rematch::LocalBits); never shown to the game.
-        bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw);
-		void ReleaseRuntimePortToGgpo();
 		void InitFromPayload(const NetplayConfig& cfg);
 		const NetplayConfig& GetConfig();
-		void ReportGgpoTransport(const char* remoteHost, uint16_t remotePort);
-		GgpoTransportStatus GetGgpoTransportStatus();
 		GgpoSyncPhase GetGgpoSyncPhase();
-		void NotifyGgpoSyncPhase(GgpoSyncPhase phase);
-		void ResetGgpoBattleWatch();
 		void MarkGgpoBattleStarted();
-		bool IsDevOverlayEnabled();
 		void NotifyGameReady();
 		void TickFrame();
 		// Game thread only: samples live netplay state. Other threads read the
 		// sample PublishPresentationFrame published.
 		NetplayStatus GetStatus();
-		// Game thread only. Records a notice for the player, read back through
-		// NetplayStatus::lastError; SetLastError and the one-argument PushAlert
-		// record an Error.
+		// Records an Error notice (PushAlert).
 		void SetLastError(const char* msg);
-		void PushAlert(const char* msg);
-		void PushAlert(const char* msg, NoticeSeverity severity);
 		// The notice for a confirmed state divergence, worded in the player's
 		// language: an Error when the fight itself ended, a Warning when only
 		// a spectator's own view diverged.
 		void PushDesyncNotice(bool spectatorOnly);
-		// Drops the current notice (a new session starts).
-		void ClearMatchNotice();
-		// Drops an Info or Warning notice. An Error stays until a newer notice
-		// replaces it or a new session starts (NoticeSeverity), so retiring a
-		// session keeps the reason it ended.
-		void ClearTransientMatchNotice();
 		void HandleNetplayFailure(const char* reason, bool closeGgpo);
 
 		// Phase 7: room and control-plane failure handling. The room
@@ -489,21 +419,12 @@ namespace sf4e {
 		// clears the state.
 		enum class ControlPlaneCause { Coordination, SessionClient };
 		void ObserveControlPlane(ControlPlaneCause cause, bool healthy, const char* reason);
-		bool IsControlPlaneLost();
 		// Frame at which snapshot/hash verification became unavailable
 		// (-1 when the control plane is healthy).
 		int GetVerificationLostFrame();
-		// Called after the battle fully closes while degraded: logs the
-		// unverified interval and returns to a safe disconnected state
-		// (never a fake healthy lobby).
-		void FinalizeControlPlaneLossAfterBattle();
-		void ShutdownNetplay(bool closeGgpo);
-		void ClearBattleState();
-		void CancelDeferredGgpoClose();
 		// True while P1 keeps a finished battle's GGPO session open only to
 		// drain spectator streams. The fight is over; its peers' events are not.
 		bool DrainingSpectators();
-		void NotifyMatchEnded();
 	}
 
 } // namespace sf4e

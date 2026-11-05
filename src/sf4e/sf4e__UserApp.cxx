@@ -26,14 +26,12 @@
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__InputLag.hxx"
-#include "sf4e__Overlay.hxx"
 #include "sf4e__NetplayFacade.hxx"
 #include "sf4e__UserApp.hxx"
 #include "sf4e__RuntimeSession.hxx"
 #include "sf4e__RuntimeTick.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__Pad.hxx"
-
 
 namespace SessionProtocol = sf4e::SessionProtocol;
 using Dimps::App;
@@ -83,9 +81,9 @@ static const char* RejectedMatch(const SessionClient& client, const char* where)
     return "runtime.unsupported_match";
 }
 
-using MatchEntry = fUserApp::MatchEntry;
+using Entry = ember::game::Battle::Entry;
 
-static MatchEntry StartMatchFromLobby(SessionClient* const client) {
+static Entry StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
     fVsBattle::bSessionSynced = false;
     fVsBattle::bSessionSentLoaded = false;
@@ -95,13 +93,13 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_join"));
-        return MatchEntry::Deferred;
+        return Entry::Deferred;
     }
     // Before anything of the match reaches the game: its settings go into the
     // battle settings below and its stage and fighters into VS mode.
     if (const char* notice = RejectedMatch(*client, "Client")) {
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
-        return MatchEntry::Rejected;
+        return Entry::Rejected;
     }
 
     fVsPreBattle::VersusSettings settings;
@@ -122,7 +120,7 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
     settings.next = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
     settings.onBattleTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
     if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
-        return MatchEntry::Deferred;
+        return Entry::Deferred;
     }
     // The fighters and editions name the HUD's edition badges the first round
     // shows, for a crash at the battle's start.
@@ -138,7 +136,7 @@ static MatchEntry StartMatchFromLobby(SessionClient* const client) {
         chara[1].charaID, chara[1].costume, chara[1].unc_edition,
         client->_matchData.stageID
     );
-    return MatchEntry::Entered;
+    return Entry::Entered;
 }
 
 // The table the local member sits or watches at, if any.
@@ -290,8 +288,6 @@ void fUserApp::_OnVsBattleTasksRegistered() {
     }
 }
 
-
-
 void fUserApp::_OnVsPreBattleTasksRegistered()
 {
     if (!RuntimeSession::netplay) {
@@ -320,25 +316,14 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
         spdlog::error("VsPreBattle tasks registered, but the current foreground event isn't VSMode!");
 }
 
-void OnReady(sf4e::SessionClient* const client, const sf4e::SessionClient::Callbacks& c) {
-    s_pendingMatchStart = StartMatchFromLobby(client) == MatchEntry::Deferred;
+void fUserApp::OnSessionReady() {
+    s_pendingMatchStart = EnterAuthorizedMatch() == Entry::Deferred;
     if (s_pendingMatchStart) spdlog::info("Client: deferring match start until main menu");
 }
 
-void OnBattleSynced(SessionClient* const client, const sf4e::SessionClient::Callbacks& callbacks) {
-    fVsBattle::bSessionSynced = true;
+Entry fUserApp::EnterAuthorizedMatch() {
+    return RuntimeSession::netplay ? StartMatchFromLobby(&RuntimeSession::netplay->client) : Entry::Deferred;
 }
-
-MatchEntry fUserApp::EnterAuthorizedMatch() {
-    return RuntimeSession::netplay ? StartMatchFromLobby(&RuntimeSession::netplay->client) : MatchEntry::Deferred;
-}
-
-sf4e::SessionClient::Callbacks clientCallbacks = {
-    nullptr,
-    sf4e::Overlay::OnClientError,
-    OnReady,
-    OnBattleSynced,
-};
 
 void fUserApp::Install() {
     DetourAttach((PVOID*)&rUserApp::staticMethods.Steam_PostUpdate, Steam_PostUpdate);
@@ -376,22 +361,9 @@ void fUserApp::TryStartPendingMatch() {
     if (RuntimeSession::netplay->client._lobbyData.members.size() < 2) {
         return;
     }
-    if (StartMatchFromLobby(&RuntimeSession::netplay->client) != MatchEntry::Deferred) {
+    if (StartMatchFromLobby(&RuntimeSession::netplay->client) != Entry::Deferred) {
         s_pendingMatchStart = false;
     }
-}
-
-
-
-
-
-void fUserApp::StartIrohSession(std::unique_ptr<session::ClientTransport> transport,
-    uint16_t port, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay) {
-    SessionClient::Callbacks callbacks = clientCallbacks;
-    // IrohMatchSession requires authorization and suppresses legacy all-ready.
-    // The normal battle-loaded synchronization callback remains shared.
-    RuntimeSession::netplay.reset(new RuntimeSession::Netplay(callbacks, sf4e::sidecarHash, port, name, deviceType, deviceIdx, delay));
-    RuntimeSession::netplay->client.Connect(std::move(transport));
 }
 
 namespace {

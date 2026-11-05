@@ -5,7 +5,6 @@
 // rematch leaves the battle, which would replay the same fighters in place.
 // The overlay notes the player's pick and shows the rolled fighter.
 #include "sf4e__NetplayRuntime.hxx"
-#include "sf4e__CustomContent.hxx"
 #include "../session/RandomFighterPick.hxx"
 #include <random>
 
@@ -43,10 +42,10 @@ Chara Sent(const Noted& from, const Chara& pressed) {
 	const int fighter = pick.Fighter();
 	// No roll yet (-1), or none the catalog has: the pick goes as pressed.
 	if (!ember::ValidFighter(fighter)) return pressed;
-	const auto availability = Dimps::Selection::ReadAvailability(fighter);
+	const auto availability = Game().state.FighterAvailability(fighter);
 	Chara sent = pressed;
 	selection::ToNative(pick.Sent(selection::FromNative(pressed), selection::FromNative(from.remembered[fighter]),
-		CurrentGates().editionSelect, &availability, custom::Installed().get()), sent);
+		CurrentGates().editionSelect, &availability, InstalledContent().get()), sent);
 	return sent;
 }
 }
@@ -80,7 +79,7 @@ void TickRandomFighter() {
 		if (rollForTest) return rollForTest();
 		const bool editionSelect = CurrentGates().editionSelect;
 		return selection::DrawFighter(selection::RandomCandidates(
-			[](int id) { return Dimps::Selection::ReadAvailability(id); }, editionSelect),
+			[](int id) { return Game().state.FighterAvailability(id); }, editionSelect),
 			[] { return static_cast<std::uint32_t>(rolls()); });
 	});
 	if (!inRoom || !from.random) return;

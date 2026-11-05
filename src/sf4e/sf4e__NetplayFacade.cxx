@@ -7,33 +7,17 @@
 
 #include <spdlog/spdlog.h>
 
-#include "../Dimps/Dimps.hxx"
-#include "../Dimps/Dimps__Event.hxx"
-#include "../Dimps/Dimps__Game.hxx"
-#include "../Dimps/Dimps__GameEvents.hxx"
-#include "../Dimps/Dimps__Pad.hxx"
 #include "../common/Localization.hxx"
 #include "../common/sf4e__RollbackDiagnostics.hxx"
 #include "../session/sf4e__SessionClient.hxx"
-#include "sf4e__Game__Battle__System.hxx"
-#include "sf4e__GameEvents.hxx"
-#include "sf4e__Overlay.hxx"
+#include "sf4e__GameAdapter.hxx"
 #include "sf4e__RuntimeSession.hxx"
 
-using Dimps::App;
-using rMainMenu = Dimps::GameEvents::MainMenu;
-using Dimps::Event::EventBase;
-using Dimps::Event::EventBaseWithEC;
-using Dimps::Event::EventController;
-using Dimps::Game::ProgressData;
-using Dimps::GameEvents::RootEvent;
-using Dimps::Math::FixedPoint;
-using fSystem = sf4e::Game::Battle::System;
 using ember::RuntimeSession;
-using fVsBattle = sf4e::GameEvents::VsBattle;
-using rSystem = Dimps::Game::Battle::System;
 
 namespace sf4e {
+
+	static ember::game::Battle& GameBattle() { return ember::game::Game().battle; }
 
 	static NetplayConfig s_config = { 0 };
 	static GgpoTransportStatus s_ggpoTransportStatus = { 0 };
@@ -41,10 +25,10 @@ namespace sf4e {
 	// Nonzero while P1 holds a finished battle's GGPO session open so its
 	// spectators can finish: the tick after which it closes regardless.
 	static ULONGLONG s_spectatorDrainUntil = 0;
-	// The deadline and the battle hooks' drain flag (fSystem::drainingSpectators) end together.
+	// The deadline and the battle's drain flag (Battle::DrainingSpectators) end together.
 	static void EndSpectatorDrain() {
 		s_spectatorDrainUntil = 0;
-		fSystem::drainingSpectators = false;
+		GameBattle().SetDrainingSpectators(false);
 	}
 
 	void NetplayFacade::NotifyGameReady() { NotifyRuntimeGameReady(); }
@@ -127,28 +111,20 @@ namespace sf4e {
 		if (wasLost || !IsControlPlaneLost()) return;
 
         if (IsRuntimeRecoveryEnabled()) {
-            s_verificationLostAtFrame = fSystem::ggpoTimeline.Held();
+            s_verificationLostAtFrame = GameBattle().VerificationHeldAt();
             // Only a live match has a connection to keep.
             PushAlert(loc::T(IsRuntimeMatchLive() ? "runtime.room_recovering" : "runtime.room_control_recovering"),
                 NoticeSeverity::Warning);
             return;
         }
 
-		rSystem* system = rSystem::staticMethods.GetSingleton();
-		const bool fightRunning =
-			fSystem::ggpo &&
-			fSystem::simGate.phase == sf4e::gate::PHASE_RUNNING &&
-			!fSystem::simGate.fatalError &&
-			system &&
-			*rSystem::staticVars.CurrentBattleFlow != rSystem::BF__IDLE;
-
-		if (!fightRunning) {
+		int simulatedFrame = 0;
+		if (!GameBattle().FightRunning(simulatedFrame)) {
 			HandleNetplayFailure(reason, true);
 			return;
 		}
 
-		s_verificationLostAtFrame =
-			rSystem::GetNumFramesSimulated_FixedPoint(system)->integral;
+		s_verificationLostAtFrame = simulatedFrame;
 		spdlog::warn(
 			"Netplay: control plane lost at frame {}, continuing fight on GGPO UDP; "
 			"verification, results, rematch, and spectator coordination disabled",
@@ -184,31 +160,31 @@ namespace sf4e {
 		}
 		// Retiring the session is what ends the fight: a netplay battle
 		// without its session is orphaned and leaves on its own.
-		if (fSystem::ggpo) fSystem::simGate.OnFatal();
+		if (GameBattle().Live()) GameBattle().Fail();
 		ShutdownNetplay(closeGgpo);
 	}
 
 
 	void NetplayFacade::TickFrame() {
-        fSystem::PollMatchTelemetry();
+        GameBattle().PollTelemetry();
         // The hold ends once every spectator has left. Until the session is
         // retired the room's terminal receipt stays open, which also locks
         // the fighter's selection.
-        if (DrainingSpectators() && (GetTickCount64() >= s_spectatorDrainUntil || !fSystem::SpectatorStreamCount())) {
-            spdlog::info("NetplayFacade: closing deferred GGPO session spectators={}", fSystem::SpectatorStreamCount());
-            fSystem::RetireGgpoSession("deferred_close");
+        if (DrainingSpectators() && (GetTickCount64() >= s_spectatorDrainUntil || !GameBattle().SpectatorStreams())) {
+            spdlog::info("NetplayFacade: closing deferred GGPO session spectators={}", GameBattle().SpectatorStreams());
+            GameBattle().Retire("deferred_close");
             EndSpectatorDrain();
         }
     }
 
 	void NetplayFacade::ShutdownNetplay(bool closeGgpo) {
-		if (closeGgpo && fSystem::ggpo) {
-			fSystem::RetireGgpoSession("shutdown");
+		if (closeGgpo && GameBattle().Live()) {
+			GameBattle().Retire("shutdown");
 		}
-		fSystem::ResetPacing();
+		GameBattle().ResetPacing();
 		// A match entered but not yet prepared has no session left to play
 		// it for: no later battle takes its seed or Training rules.
-		fVsBattle::nextRequest = {};
+		GameBattle().DropNextBattle();
 		s_ggpoTransportStatus = { 0 };
 		s_ggpoSyncPhase = GgpoSyncPhase::None;
 		if (RuntimeSession::netplay) {
@@ -228,8 +204,7 @@ namespace sf4e {
 	}
 
 	void NetplayFacade::ClearBattleState() {
-		fSystem::snapshotMap.clear();
-		fSystem::ClearHashCheckpoints();
+		GameBattle().ClearVerification();
 		if (RuntimeSession::netplay) {
 			RuntimeSession::netplay->client.pendingRemoteSnapshots.clear();
 			RuntimeSession::netplay->client.pendingRemoteHashes.clear();
@@ -241,7 +216,7 @@ namespace sf4e {
 	}
 
 	bool NetplayFacade::DrainingSpectators() {
-		return fSystem::drainingSpectators;
+		return GameBattle().DrainingSpectators();
 	}
 
 	void NetplayFacade::NotifyMatchEnded() {
@@ -252,7 +227,7 @@ namespace sf4e {
 		// members and would hold its own session open for nothing, and without
 		// a room there is nothing to coordinate spectators through at all.
 		const std::size_t spectators = IsControlPlaneLost() || !RuntimeSession::netplay ?
-			0 : fSystem::SpectatorStreamCount();
+			0 : GameBattle().SpectatorStreams();
 		if (!spectators) {
 			EndSpectatorDrain();
 			return;
@@ -262,7 +237,7 @@ namespace sf4e {
 		// any spectator with DropQueueFrames or more frames unacknowledged, so a
 		// live one has received everything well inside this bound.
 		s_spectatorDrainUntil = GetTickCount64() + 10000;
-		fSystem::drainingSpectators = true;
+		GameBattle().SetDrainingSpectators(true);
 		spdlog::info("NetplayFacade: deferring GGPO close for {} spectator streams", spectators);
 	}
 

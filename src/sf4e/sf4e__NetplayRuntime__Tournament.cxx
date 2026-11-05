@@ -22,7 +22,7 @@ json Request(const Output& output) {
 	const auto& play = runtime->tournament;
 	switch (output.kind) {
 	case Output::Kind::Claim:
-		return {{"op", "match_claim"}, {"bridge_id", play.BridgeId()}, {"match_id", play.MatchId()}, {"build", sf4e::sidecarHash},
+		return {{"op", "match_claim"}, {"bridge_id", play.BridgeId()}, {"match_id", play.MatchId()}, {"build", Game().state.BuildId()},
 			{"ready", output.ready}};
 	case Output::Kind::Publish:
 		return {{"op", "room_publish"}, {"bridge_id", play.BridgeId()}, {"match_id", play.MatchId()},
@@ -47,7 +47,7 @@ json WatchRequest(const WatchOutput& output) {
 	const auto& watch = runtime->watch;
 	switch (output.kind) {
 	case WatchOutput::Kind::Watch:
-		return {{"op", "match_watch"}, {"bridge_id", watch.BridgeId()}, {"match_id", watch.MatchId()}, {"build", sf4e::sidecarHash}};
+		return {{"op", "match_watch"}, {"bridge_id", watch.BridgeId()}, {"match_id", watch.MatchId()}, {"build", Game().state.BuildId()}};
 	case WatchOutput::Kind::Unwatch:
 		return {{"op", "match_unwatch"}, {"bridge_id", watch.BridgeId()}, {"match_id", watch.MatchId()}};
 	default:
@@ -356,7 +356,7 @@ netplay::tournament::RoomView View(bool helperReady) {
 	// Not free to open a room counts as opening: the state machine waits
 	// rather than asking for a host or join the runtime would refuse.
 	view.opening = !view.joined && (state.room != netplay::RoomState::Idle || !helperReady || !AtMainMenu() ||
-		RuntimeSession::netplay || RuntimeSession::server || Game::Battle::System::ggpo);
+		RuntimeSession::netplay || RuntimeSession::server || Game().battle.Live());
 	if (!view.joined) return view;
 	view.roomId = HexLower(runtime->room->RoomId());
 	view.invitation = runtime->room->Invitation();
@@ -519,7 +519,8 @@ void TickTournament(bool helperReady) {
 	// The fighters' link dropped (GGPO warns before it gives up): a game that
 	// then ends in an abort ended for the lost connection, whichever fighter's
 	// abort the room takes first, so both fighters are told the same.
-	if (runtime->match && runtime->entry.matchEntered && !LocalIsSpectator() && Game::Battle::System::DisconnectCountdownMs() >= 0)
+	if (runtime->match && runtime->entry.matchEntered && !LocalIsSpectator() && Game().battle.Live() &&
+		Game().battle.Sample().disconnectCountdownMs >= 0)
 		runtime->tournament.OnConnectionLost(runtime->match->Generation());
 	for (const auto& answer : runtime->room->TakeTournamentAnswers()) TakeAnswer(answer, now);
 	SendSetReplays(helperReady, now);

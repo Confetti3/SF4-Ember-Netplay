@@ -4,7 +4,6 @@
 #include <d3d9.h>
 #include <functional>
 
-#include "../session/sf4e__SessionClient.hxx"
 #include "../common/TrainingPad.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLifecycle.hxx"
@@ -43,8 +42,6 @@ namespace sf4e {
 		// SplitExportPasses), or before anything when the overlay draws nothing.
 		void DrawOverlay(const std::function<void()>& picture);
 		void FreeOverlay();
-		void OnClientError(SessionClient::ErrorType errType, SessionClient* const client, const SessionClient::Callbacks& callbacks);
-		void PushNetplayAlert(const char* msg);
 
 		LRESULT WINAPI OverlayWindowFunc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	}

@@ -39,6 +39,11 @@ struct RuntimeSession {
         bool spectating = false;
     };
 
+    // Joins the room over `transport`: the room client, with the game's build
+    // id and its battle callbacks (game::Battle).
+    static void Start(std::unique_ptr<sf4e::session::ClientTransport> transport,
+        uint16_t port, std::string& name, uint8_t deviceType, uint8_t deviceIdx, uint8_t delay);
+
     // Null outside a room.
     static std::unique_ptr<Netplay> netplay;
     // Only while this PC hosts the room.

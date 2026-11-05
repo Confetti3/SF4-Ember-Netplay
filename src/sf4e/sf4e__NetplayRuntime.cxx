@@ -1,16 +1,11 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
-#include "sf4e__GameEvents.hxx"
-#include "sf4e__MenuMusic.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
 #include "../common/HexText.hxx"
 #include "../common/NativeMenuLock.hxx"
 #include "../ui/NetworkFeedback.hxx"
-#include "sf4e__AwayAlert.hxx"
-#include "sf4e__Steam.hxx"
-#include "sf4e__SelfTest.hxx"
 #include <iterator>
 
 namespace sf4e { namespace NetplayFacade {
@@ -29,7 +24,7 @@ Runtime* runtime = nullptr;
 // The battle of the granted match is no longer entered, or never was. What
 // the entry armed for the battle request goes with it (battle::NextRequest).
 void ResetMatchEntry() {
-	sf4e::GameEvents::VsBattle::nextRequest = {};
+	Game().battle.DropNextBattle();
 	runtime->entry = {};
 }
 
@@ -43,8 +38,12 @@ bool LocalIsSpectator() {
 // The entry stays for as long as GGPO does: the session cannot take another
 // grant until GGPO has let go of its socket.
 netplay::WatchedGame WatchedGameNow() {
-	if (!Game::Battle::System::ggpo || !LocalIsSpectator() || !runtime->entry.matchEntered) return {};
+	if (!Game().battle.Live() || !LocalIsSpectator() || !runtime->entry.matchEntered) return {};
 	return {runtime->entry.enteredTable, runtime->entry.enteredGeneration};
+}
+
+selection::InstalledContentPtr InstalledContent() {
+	return Game().caps.customContent ? Game().services.InstalledContent() : std::make_shared<const selection::InstalledContent>();
 }
 
 // Tests only: a value here answers AtMainMenu instead of the native event
@@ -56,28 +55,19 @@ void SetAtMainMenuForTest(std::optional<bool> value) { atMainMenuForTest = value
 
 bool AtMainMenu() {
 	if (atMainMenuForTest) return *atMainMenuForTest;
-	// Platform initialization precedes the native event-system singleton. The
-	// getter dereferences that singleton before it can return a root pointer.
+	// The game's screens come up after its platform does: it is asked only once
+	// it has said so (NotifyRuntimeEventSystemReady).
 	if (!runtime || !runtime->ready || !runtime->eventSystemReady) return false;
-	auto* root = Dimps::App::GetRootEvent();
-	if (!root) return false;
-	char* query[] = { "MainMenu" };
-	return Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1) != nullptr;
+	return Game().state.MainMenuInFront();
 }
 
 // The native screen in front ("MainMenu", "Option", ...), empty while the
-// foreground is changing or before the event system is up. It asks the event
-// system itself (Dimps::App::RootEventReady), so it also answers on the title
-// screen, before the main menu publishes eventSystemReady. Game thread.
+// foreground is changing or before the game's screens are up. The game asks
+// its own screens, so it also answers on the title screen, before the main
+// menu publishes eventSystemReady. Game thread.
 static std::string NativeForegroundName() {
-	if (!runtime || !runtime->ready || !Dimps::App::RootEventReady()) return {};
-	auto* root = Dimps::App::GetRootEvent();
-	if (!root) return {};
-	using Dimps::Event::EventController;
-	auto* controller = (root->*Dimps::Event::EventBaseWithEC::publicMethods.GetChildEventController)();
-	if (!controller || (controller->*EventController::publicMethods.GetForegroundEventStatus)() != EventController::EQS_FOREGROUND) return {};
-	auto* event = (controller->*EventController::publicMethods.GetForegroundEvent)();
-	return event ? std::string(Dimps::Event::EventBase::GetName(event)) : std::string();
+	if (!runtime || !runtime->ready) return {};
+	return Game().state.ForegroundScreen();
 }
 
 // While a room is joined the native screen is logged whenever it changes, so
@@ -96,7 +86,7 @@ static void NoteNativeScreen() {
 void CloseRoom() {
 	spdlog::info("Room: closing error='{}' match_error='{}' match_phase={} spectator={} ggpo={}", runtime->error,
 		runtime->match ? runtime->match->Error() : std::string(), runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1,
-		LocalIsSpectator(), Game::Battle::System::ggpo != nullptr);
+		LocalIsSpectator(), Game().battle.Live());
     const bool abandon=runtime->replacementPending || (runtime->room && runtime->room->Coordination().active &&
         !runtime->room->Coordination().writable);
     runtime->recovery=session::RoomRecoveryRuntime{};
@@ -158,7 +148,7 @@ bool CanEditLobby() {
 
 bool CanBeginReplacement() {
 	if (runtime->controller.GetSnapshot().recovery != netplay::Recovery::ReplacementOffered) return false;
-	const bool ggpoOwnsSocket = Game::Battle::System::ggpo != nullptr;
+	const bool ggpoOwnsSocket = Game().battle.Live();
 	return runtime->match ? runtime->match->CanBeginReplacement(ggpoOwnsSocket) : !ggpoOwnsSocket;
 }
 } // namespace internal
@@ -184,7 +174,7 @@ void AttachRoom() {
 	if (runtime->controller.GetSnapshot().isHost || runtime->room->Coordination().active) {
 		const auto id = runtime->room->RoomId();
 		const std::string identity = "iroh:" + HexLower(id);
-		RuntimeSession::server.reset(new SessionServer(identity, sf4e::sidecarHash,
+		RuntimeSession::server.reset(new SessionServer(identity, Game().state.BuildId(),
 			runtime->preferences.lobby.editionSelect, runtime->preferences.lobby.roundCount,
 			{0, static_cast<short>(runtime->preferences.lobby.roundTime)}, runtime->room->Server()));
 		const auto room = runtime->room;
@@ -198,8 +188,8 @@ void AttachRoom() {
         if(authority.active) RuntimeSession::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
 	}
-    input::ReleaseFromSide(0); // Preserve native menu -> match ownership handoff.
-	UserApp::StartIrohSession(runtime->room->Client(), config.ggpoPort, runtime->displayName,
+    Game().input.ReleaseFromSide(0); // Preserve native menu -> match ownership handoff.
+	RuntimeSession::Start(runtime->room->Client(), config.ggpoPort, runtime->displayName,
 		deviceType, deviceIndex, static_cast<uint8_t>(runtime->preferences.inputDelay));
 	RuntimeSession::netplay->client.RequireCustomRooms();
 	RuntimeSession::netplay->client.SetProfileMain(runtime->preferences.mainFighter);
@@ -209,7 +199,7 @@ void AttachRoom() {
 	RuntimeSession::netplay->client.SetProfileLink(link);
 	// Known by now unless the helper started only moments ago; Unknown reads as checking.
 	RuntimeSession::netplay->client.SetProfileNat(runtime->room->Network().nat);
-	RuntimeSession::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return steam::LocalSteamId(); }));
+	RuntimeSession::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return Game().services.LocalSteamId(); }));
 	RuntimeSession::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
 	RuntimeSession::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
     runtime->selectedDelay=runtime->preferences.inputDelay;
@@ -300,7 +290,7 @@ void StartHelper() {
     }
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
-    MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
+    Game().services.UseLobbyMusic(runtime->preferences.endlessLobbyMusic);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.
@@ -391,7 +381,7 @@ void NotifyRuntimeGameReady() { if (runtime) runtime->ready = true; }
 void NotifyRuntimeEventSystemReady() { if (runtime) runtime->eventSystemReady = true; }
 
 void StopHelper() {
-    training::StopCapture();
+    Game().training.StopCapture();
     // The archive's lister holds files open while it reads; it is ended and waited for here.
     platform::replays::StopListing();
 	if (!runtime) return;
@@ -545,7 +535,7 @@ static void EndClosedRoom(const netplay::Snapshot& state) {
 
 static void SettleRoomState(bool helperReady) {
 	const bool helperFailed = !runtime->helper || runtime->helper->State() == platform::HelperState::Failed;
-    if(runtime->leave.leaveRequested && runtime->attached && RuntimeSession::netplay && !Game::Battle::System::ggpo &&
+    if(runtime->leave.leaveRequested && runtime->attached && RuntimeSession::netplay && !Game().battle.Live() &&
         (!runtime->match || runtime->match->GetPhase()==session::IrohMatchSession::Phase::Idle)) {
         const auto& snapshot=RuntimeSession::netplay->client.GetRoomSnapshot();
         // An authority that keeps rejecting the Leave must not hold this
@@ -567,8 +557,8 @@ static void SettleRoomState(bool helperReady) {
         }
     }
     if(runtime->replacementPending && runtime->attached &&
-		(!runtime->match ? !Game::Battle::System::ggpo :
-			runtime->match->CanReplace(Game::Battle::System::ggpo != nullptr))) CloseRoom();
+		(!runtime->match ? !Game().battle.Live() :
+			runtime->match->CanReplace(Game().battle.Live()))) CloseRoom();
 	if (helperFailed && !runtime->helperLossReported) {
 		runtime->helperLossReported = true;
 		Apply(netplay::EventKind::HelperLost, loc::T("runtime.networking_unavailable"));
@@ -611,7 +601,7 @@ static void SettleRoomState(bool helperReady) {
 	if (state.room == netplay::RoomState::Closing && (helperFailed || !runtime->room ||
 		runtime->room->GetState() == session::IrohRoom::State::Idle)) Apply(netplay::EventKind::RoomClosed);
     if(runtime->replacementPending && runtime->controller.GetSnapshot().room==netplay::RoomState::Idle &&
-        helperReady && AtMainMenu() && !RuntimeSession::netplay && !Game::Battle::System::ggpo) {
+        helperReady && AtMainMenu() && !RuntimeSession::netplay && !Game().battle.Live()) {
         RuntimeCommand replacement;
         replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
         replacement.preferences=runtime->preferences;
@@ -633,7 +623,7 @@ static void CallOutOpponentReady() {
 	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 	if (runtime->readyChime.Update(room, GetTickCount64())) {
 		if (runtime->preferences.readySound) PlayChallengerCall(runtime->preferences.readySoundVolume);
-		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "the opponent readied");
+		Game().services.AnnounceAway(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "the opponent readied");
 	}
 	if (runtime->opponentFighterWatch.Update(room)) {
 		++runtime->opponentChangeSequence;
@@ -655,12 +645,12 @@ static void CallOutOpponentReady() {
 // and when it rang.
 void internal::PlayChallengerCall(int volumePercent) {
 	const bool atMenu = AtMainMenu();
-	if (!atMenu || Game::Battle::System::ggpo) {
+	if (!atMenu || Game().battle.Live()) {
 		if (!atMenu) spdlog::info("Room: challenger call skipped outside the main menu (native screen '{}')", NativeForegroundName());
 		else spdlog::info("Room: challenger call skipped outside the main menu (a game session is still live)");
 		return;
 	}
-	if (!Dimps::Sound::PlaySystemCue(Dimps::Sound::SystemCue::HereComesChallenger, Dimps::Sound::SystemChannel::Voice, volumePercent / 100.f))
+	if (!Game().state.PlayChallengerCall(volumePercent / 100.f))
 		spdlog::info("Room: challenger call not played; the game's sound system is not up");
 	else spdlog::info("Room: challenger call played");
 }
@@ -683,11 +673,11 @@ static void CallOutOfTraining() {
 	const bool inRoom = runtime->attached && RuntimeSession::netplay;
 	const auto& room = inRoom ? RuntimeSession::netplay->client.GetRoomSnapshot() : noRoom;
 	room::TrainingCall::Input in;
-	in.inTraining = training::ControlsAvailable();
+	in.inTraining = Game().training.ControlsAvailable();
 	in.atMainMenu = AtMainMenu();
 	in.autoAccept = runtime->preferences.trainingAutoReady;
 	in.canReady = CurrentGates().canReady;
-	in.generation = training::ReadPlace().generation;
+	in.generation = Game().training.ReadPlace().generation;
 	in.choosingFighter = FighterSelectorShown(room.roomEpoch);
 	// From the press until its seat flag commits, it fails or its budget ends
 	// (ParkedIntent: parked, sent, or awaiting the commit).
@@ -698,11 +688,11 @@ static void CallOutOfTraining() {
 	training::CallControl control;
 	control.call = result.state.call.serial; control.generation = result.state.call.generation; control.hurry = result.state.hurry;
 	control.volume = runtime->preferences.readySound ? runtime->preferences.readySoundVolume : 0;
-	training::SetCall(control);
+	Game().training.SetCall(control);
 	switch (result.step) {
 	case room::TrainingCall::Step::Call:
 		spdlog::info("Room: a challenger sat down while the player is in Training");
-		AwayAlert::Announce(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "a challenger sat down while in Training");
+		Game().services.AnnounceAway(runtime->preferences.readySound, runtime->preferences.readySoundVolume, "a challenger sat down while in Training");
 		break;
 	case room::TrainingCall::Step::Open:
 		++runtime->trainingCallSequence;
@@ -738,7 +728,7 @@ static void SayTraining() {
 	if (!runtime->attached || !RuntimeSession::netplay) { runtime->trainingSaidAtMs = 0; return; }
 	const auto& room = RuntimeSession::netplay->client.GetRoomSnapshot();
 	const auto* me = room::FindMember(room, room.localMember);
-	const bool training = training::ControlsAvailable();
+	const bool training = Game().training.ControlsAvailable();
 	const auto now = GetTickCount64();
 	if (!me || !room.roomEpoch || me->training == training || now - runtime->trainingSaidAtMs < 2000) return;
 	if (runtime->controller.GetSnapshot().control != netplay::Health::Healthy) return;
@@ -798,14 +788,14 @@ void TickRuntime() {
 	// Do not retry match teardown against it forever. Native ownership fences
 	// retirement; the helper's room_closed event still fences a subsequent room.
 	if (runtime->attached && runtime->room &&
-		runtime->room->CloseFailedRoom(Game::Battle::System::ggpo != nullptr)) {
+		runtime->room->CloseFailedRoom(Game().battle.Live())) {
 		runtime->error = loc::T("runtime.room_connection_failed");
 		runtime->controller.Execute({netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}});
 		CloseRoom();
 	}
 	if (runtime->services.Snapshot().closeGame && !runtime->updateClosing) {
 		runtime->updateClosing = true;
-		Dimps::Platform::Main::Close();
+		Game().state.CloseGame();
 	}
 	// Advance the host authority before the following SessionServer::Step()
 	// consumes room actions. This drives result-dispute and chat-rate deadlines
@@ -818,7 +808,7 @@ void TickRuntime() {
 	DrainRoomEvents();
 	TickTournament(helperReady);
 	TickReplays();
-	if (selftest::Running()) selftest::Tick(AtMainMenu(), NativeForegroundName());
+	if (Game().services.SelfTestRunning()) Game().services.SelfTestTick(AtMainMenu(), NativeForegroundName());
 	PersistTerminalOutcome();
 	DrainActionReplies();
 	RetryPendingAbort();

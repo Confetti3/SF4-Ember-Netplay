@@ -10,11 +10,10 @@
 
 #include "../common/Localization.hxx"
 #include "../common/MatchNotice.hxx"
-#include "sf4e__Game__Battle__System.hxx"
+#include "sf4e__GameAdapter.hxx"
 #include "sf4e__RuntimeBridge.hxx"
 #include "sf4e__RuntimeSession.hxx"
 
-using fSystem = sf4e::Game::Battle::System;
 using ember::RuntimeSession;
 
 namespace sf4e {
@@ -46,16 +45,17 @@ namespace sf4e {
 			strncpy_s(st.lastError, s_notice.Text(), _TRUNCATE);
 			st.lastErrorSeverity = s_notice.Severity();
 		}
-		if (fSystem::ggpo) {
-			st.connectionWarning = fSystem::simGate.connectionWarningActive;
-			st.predictionStalled = fSystem::simGate.predictionStalled;
-			st.disconnectCountdownMs = fSystem::DisconnectCountdownMs();
-		}
+		const auto& battle = ember::game::Game().battle;
+		const bool live = battle.Live();
+		const auto link = live ? battle.Sample() : ember::game::LinkSample{};
+		st.connectionWarning = link.connectionWarning;
+		st.predictionStalled = link.predictionStalled;
+		st.disconnectCountdownMs = link.disconnectCountdownMs;
 		st.active = RuntimeSession::netplay != nullptr || RuntimeSession::server != nullptr;
 		if (RuntimeSession::netplay) {
 			st.connected = RuntimeSession::netplay->client.IsConnected();
-			st.inLobby = st.connected && fSystem::ggpo == nullptr;
-			st.inMatch = fSystem::ggpo != nullptr;
+			st.inLobby = st.connected && !live;
+			st.inMatch = live;
 			st.inputDelay = RuntimeSession::netplay->delay;
 			for (int side = 0; side < 2; ++side) st.matchSides[side] = RuntimeSession::netplay->matchSides[side];
 			// Spectators carry their table too, so everyone watching sees the same count.
@@ -77,9 +77,9 @@ namespace sf4e {
 				st.queuePosition = place.position;
 				st.queueLength = static_cast<int>(room.tables[place.table].queue.size());
 			}
-			st.hasMatchScore = HudScore(fSystem::ggpo && RuntimeSession::netplay->spectating, RuntimeSession::netplay->startScoreKnown,
+			st.hasMatchScore = HudScore(live && RuntimeSession::netplay->spectating, RuntimeSession::netplay->startScoreKnown,
 				RuntimeSession::netplay->startScore, liveScoreKnown, liveScore, st.matchScore);
-			st.rollbackFrames = fSystem::RecentRollbackFrames();
+			st.rollbackFrames = battle.RecentRollbackFrames();
 
 			for (const auto& m : RuntimeSession::netplay->client._lobbyData.members) {
 				if (m.name != RuntimeSession::netplay->client._name) {
@@ -88,13 +88,11 @@ namespace sf4e {
 				}
 			}
 
-			if (fSystem::ggpo) {
-				st.pingMs = fSystem::matchTelemetry.Ping(GetTickCount64());
-				st.appliedDelay = fSystem::matchTelemetry.appliedDelay;
-				st.ownDelays = fSystem::matchTelemetry.ownDelays;
-				st.spectator = fSystem::matchTelemetry.spectator;
-				st.spectatorBacklog = fSystem::matchTelemetry.backlog;
-			}
+			st.pingMs = link.pingMs;
+			st.appliedDelay = link.appliedDelay;
+			st.ownDelays = link.ownDelays;
+			st.spectator = link.spectator;
+			st.spectatorBacklog = link.spectatorBacklog;
 		}
 		return st;
 	}
@@ -105,8 +103,9 @@ namespace sf4e {
 		auto next = std::make_shared<PresentationSnapshot>();
 		next->runtime = bridge::LatestRuntime();
 		next->netplay = GetStatus();
-		next->ggpoSessionActive = fSystem::ggpo != nullptr;
-		next->localFighter = fSystem::ggpo && fSystem::LocalFighter();
+		const auto& battle = ember::game::Game().battle;
+		next->ggpoSessionActive = battle.Live();
+		next->localFighter = next->ggpoSessionActive && battle.Sample().localFighter;
 		next->sequence = ++sequence;
 		bridge::PublishPresentation(std::move(next));
 	}

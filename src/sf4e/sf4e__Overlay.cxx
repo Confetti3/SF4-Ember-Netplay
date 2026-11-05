@@ -148,10 +148,6 @@ void Overlay::PostTrainingPad(const sf4e::input::TrainingPadEvent& event) {
 }
 void Overlay::DropTrainingPad() { s_trainingControls.Invalidate(); }
 sf4e::input::TrainingControls& Overlay::TrainingControls() { return s_trainingControls; }
-void Overlay::PushNetplayAlert(const char* message) { if (message) sf4e::NetplayFacade::SetLastError(message); }
-void Overlay::OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
-    PushNetplayAlert(sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ? SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)));
-}
 // Game thread: the native menu's Network item opens the room shell instead.
 // In a room or a match it is the only item that goes through: a button held
 // from the end of a game can land on any of them as the menu comes back, and

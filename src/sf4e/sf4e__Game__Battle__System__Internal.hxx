@@ -40,7 +40,6 @@
 
 #include "sf4e.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
-#include "sf4e__NetplayFacade.hxx"
 #include "sf4e__Game.hxx"
 #include "sf4e__GameEvents.hxx"
 #include "sf4e__Game__Battle.hxx"
@@ -48,7 +47,7 @@
 #include "sf4e__Game__Battle__System.hxx"
 #include "sf4e__Pad.hxx"
 #include "sf4e__Platform.hxx"
-#include "sf4e__NetplayFacade.hxx"
+#include "sf4e__RuntimeEvents.hxx"
 #include "sf4e__Overlay.hxx"
 #include "../common/SpectatorPolicy.hxx"
 #include "../common/SpectatorCatchUp.hxx"

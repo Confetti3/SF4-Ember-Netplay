@@ -10,21 +10,12 @@
 //   sf4e__NetplayRuntime__Tournament.cxx  playing a bridge-run tournament match
 //   sf4e__NetplayRuntime__PublicRooms.cxx the bridge's public room list and admissions
 #include "sf4e__NetplayFacade.hxx"
-#include "sf4e__ReplayStore.hxx"
 #include "sf4e__RuntimeBridge.hxx"
-#include "sf4e__InputDevices.hxx"
 #include "../netplay/ControllerInventory.hxx"
 #include "../common/ControllerHints.hxx"
-#include "../Dimps/Dimps__Selection.hxx"
-#include "../Dimps/Dimps__Sound.hxx"
-#include "sf4e.hxx"
-#include "sf4e__UserApp.hxx"
 #include "sf4e__RuntimeSession.hxx"
-#include "sf4e__OverlayPrefs.hxx"
-#include "sf4e__Game__Battle__System.hxx"
+#include "sf4e__GameAdapter.hxx"
 #include "../Dimps/Dimps__GameEvents.hxx"
-#include "../Dimps/Dimps.hxx"
-#include "../Dimps/Dimps__Pad.hxx"
 #include "../platform/HelperClient.hxx"
 #include "../session/IrohRoom.hxx"
 #include "../session/IrohMatchSession.hxx"
@@ -72,10 +63,11 @@
 #include <ctime>
 #include <spdlog/spdlog.h>
 #include "../discord/Ticket.hxx"
-#include "../training/TrainingRuntime.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 using ember::RuntimeSession;
+namespace game = ember::game;
+using ember::game::Game;
 namespace internal {
 void LogGameplayController(const input::Device& device, const char* reason);
 // The lifecycle trace records only changes. Publish runs every application
@@ -468,6 +460,9 @@ bool LocalIsSpectator();
 // The game this PC only watches now: the entered generation and table while a
 // spectator's stream is live, else empty.
 netplay::WatchedGame WatchedGameNow();
+// The custom content installed for the game: none for a game without it
+// (Capabilities::customContent).
+selection::InstalledContentPtr InstalledContent();
 bool AtMainMenu();
 // Tests only: makes AtMainMenu answer `value`; nullopt restores the native check.
 // Do not Publish while it is true: Publish at the main menu reads the game's pads.
