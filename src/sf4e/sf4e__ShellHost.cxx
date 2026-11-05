@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #include "../platform/ReplayFiles.hxx"
+#include "sf4e__GameAdapter.hxx"
 
 namespace ember {
 
@@ -66,7 +67,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.readyFailureSequence = snapshot.readyFailureSequence;
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
-    view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain;
+    view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain; view.canWatch = snapshot.canWatch;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
@@ -143,9 +144,10 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None)
             return game.StepSelection(step, snapshot);
         // Training select's Start: the game enters Training with these once
-        // its menu is idle (ShellGame::StartTraining). Not from a room or match.
+        // its menu is idle (ShellGame::StartTraining). Not from a room or match, nor
+        // in a game without Training.
         if (action.startTraining) {
-            if (!snapshot.atMainMenu || snapshot.session.room != sf4e::netplay::RoomState::Idle || snapshot.session.match != sf4e::netplay::MatchState::None)
+            if (!game::Game().caps.training || !snapshot.atMainMenu || snapshot.session.room != sf4e::netplay::RoomState::Idle || snapshot.session.match != sf4e::netplay::MatchState::None)
                 return false;
             game.StartTraining(snapshot);
             close = "Training select";

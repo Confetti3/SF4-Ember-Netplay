@@ -137,20 +137,12 @@ static Entry StartMatchFromLobby(SessionClient* const client) {
     return Entry::Entered;
 }
 
-// The table the local member sits or watches at, if any.
-static const sf4e::room::Table* LocalTable(const sf4e::room::Snapshot& room) {
-    for (const auto& member : room.members)
-        if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(sf4e::room::TableCount))
-            return &room.tables[member.table];
-    return nullptr;
-}
-
 // Every PC simulating the match, fighters and spectators alike, reads inputs
 // the match's way from its first frame.
 static bool StartMatchInputLag() {
     const auto& netplay = RuntimeSession::netplay;
     bool seats[2] = {false, false};
-    if (const auto* table = LocalTable(netplay->client.GetRoomSnapshot()))
+    if (const auto* table = sf4e::room::LocalTable(netplay->client.GetRoomSnapshot()))
         for (int side = 0; side < 2; ++side) seats[side] = table->lowerLag[side];
     return sf4e::InputLag::StartMatch(netplay->client._matchData.lowerInputLag, seats);
 }
@@ -168,31 +160,9 @@ static RuntimeGgpoStart StartRuntimeGgpo(const char*& failure) {
     if (!sf4e::NetplayFacade::GetRuntimeMatchEndpoints(endpoints)) return RuntimeGgpoStart::NoStream;
     auto& netplay = RuntimeSession::netplay;
     if (!netplay || endpoints.participantCount < 2 || endpoints.participantCount > sf4e::room::MaxMatchParticipants) return RuntimeGgpoStart::Failed;
-    // Room names are unique, so the name finds the member's link. The class
-    // comes from the room as the runtime shows it, which keeps a class only
-    // in a room this client joined as public and only while the player shows
-    // class emblems (ShownRoomOf); the client's own snapshot keeps whatever a
-    // private room's host wrote.
+    sf4e::NetplayFacade::NoteRuntimeMatchStart(endpoints);
     const auto& room = netplay->client.GetRoomSnapshot();
-    const auto shown = sf4e::NetplayFacade::GetRuntimeSnapshotShared();
-    const sf4e::room::Snapshot* shownRoom = shown ? shown->room.get() : nullptr;
-    for (std::size_t side = 0; side < 2; ++side) {
-        auto& captured = netplay->matchSides[side];
-        captured = {};
-        if (side < netplay->client._lobbyData.members.size()) captured.name = netplay->client._lobbyData.members[side].name;
-        if (captured.name.empty()) continue;
-        for (const auto& member : room.members)
-            if (member.name == captured.name) captured.link = member.link;
-        if (shownRoom)
-            for (const auto& member : shownRoom->members)
-                if (member.name == captured.name) captured.badge = member.badge;
-    }
-    netplay->spectating = endpoints.localSlot >= 2;
-    netplay->startScore[0] = netplay->startScore[1] = 0;
-    const auto* table = LocalTable(room);
-    netplay->startScoreKnown = table != nullptr;
-    if (table)
-        for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
+    const auto* table = sf4e::room::LocalTable(room);
     bool started = false;
     if (endpoints.localSlot >= 2) {
         if (!endpoints.remotePorts[0]) return RuntimeGgpoStart::NoStream;

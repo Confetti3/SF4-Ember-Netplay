@@ -229,6 +229,8 @@ namespace sf4e {
 			input::CallIdentity trainingCall;
 			// The player may leave for Training without leaving the room.
 			bool canTrain = false;
+			// The game offers watching a table: a room's Watch, a tournament match's watch.
+			bool canWatch = false;
 			bool canEditSelection = false;
             std::string selectionLockReason;
 			bool canEditPreferences = false;
@@ -395,8 +397,6 @@ namespace sf4e {
 		// Game thread only: samples live netplay state. Other threads read the
 		// sample PublishPresentationFrame published.
 		NetplayStatus GetStatus();
-		// Game thread only. Records an Error notice (PushAlert).
-		void SetLastError(const char* msg);
 		// The notice for a confirmed state divergence, worded in the player's
 		// language: an Error when the fight itself ended, a Warning when only
 		// a spectator's own view diverged.

@@ -550,6 +550,7 @@ RuntimeGates ComputeGates(const netplay::Snapshot& state, bool atMainMenu, bool 
 	gates.readyGate = gates.readyGate && controllerReady;
 	gates.canReady = gates.canReady && gates.readyGate;
 	gates.canTrain = Game().caps.training && CanTrain(state, atMainMenu, room, RetiredMatchGeneration());
+	gates.canWatch = Game().caps.spectators;
 	gates.discordCanSwitch = atMainMenu && !ggpo && between;
 	return gates;
 }
@@ -682,7 +683,7 @@ PostPublishState Publish() {
         snapshot.canEditPreferences = gates.canEditPreferences; snapshot.canEditSelection = gates.canEditSelection;
         snapshot.canEditLobby = gates.canEditLobby; snapshot.canChangeController = gates.canChangeController;
         snapshot.readyGate = gates.readyGate; snapshot.canReady = gates.canReady;
-        snapshot.canOpenRoom = gates.canOpenRoom; snapshot.canTrain = gates.canTrain;
+        snapshot.canOpenRoom = gates.canOpenRoom; snapshot.canTrain = gates.canTrain; snapshot.canWatch = gates.canWatch;
         snapshot.discordCanSwitch = gates.discordCanSwitch;
         snapshot.delayLocked = gates.delayLocked; snapshot.canProbe = gates.canProbe; snapshot.canApplyDelay = gates.canApplyDelay;
         snapshot.localSlot = gates.localSlot; snapshot.selectedDelay = gates.selectedDelay;

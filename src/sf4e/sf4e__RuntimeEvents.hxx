@@ -44,6 +44,11 @@ namespace sf4e {
 			std::array<std::uint16_t, room::MaxMatchParticipants> remotePorts = {};
 		};
 		bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints);
+		// The battle calls it once as its rollback session starts, with the
+		// endpoints it was given: the runtime records the match's two sides, whether
+		// this PC watches, and the table's score, which the HUD and the replay
+		// reads. Before the session's first frame.
+		void NoteRuntimeMatchStart(const RuntimeMatchEndpoints& endpoints);
         bool BindRuntimeInput(int localSlot);
         // This player's prompt over the WIN, carried to the other game in the
         // raw input (rematch::LocalBits); never shown to the game.

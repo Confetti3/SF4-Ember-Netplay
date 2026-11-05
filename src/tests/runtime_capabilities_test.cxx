@@ -169,8 +169,35 @@ void TestWatchedGameEntry(bool offered) {
 	tick();
 	CHECK(!r.runtime->entry.matchEntered);
 	if (offered) CHECK(Fake().battleEntries == 1 && r.runtime->match->GetPhase() == Phase::Started);
-	else CHECK(Fake().battleEntries == 0 && r.runtime->match->GetPhase() != Phase::Started);
+	else {
+		CHECK(Fake().battleEntries == 0 && r.runtime->match->GetPhase() == Phase::Ending);
+		// The grant the PC sat out ends: Preparing is released to PostMatch, which
+		// is where a game this PC never fought stands, and the shell reopens.
+		CHECK(r.runtime->controller.GetSnapshot().match == netplay::MatchState::Preparing);
+		tick();
+		CHECK(r.runtime->controller.GetSnapshot().match == netplay::MatchState::PostMatch);
+	}
 	std::cout << "TestWatchedGameEntry offered=" << offered << " entries=" << Fake().battleEntries << " passed\n";
+}
+
+// A room's Watch press. Offered, it goes on to the room (a send, or a parked
+// retry); not offered, it is dropped, and the snapshot the shell reads says the
+// game has no watching.
+void TestRoomWatch(bool offered) {
+	InRoom r;
+	FakeCapabilities().spectators = offered;
+	CHECK(internal::CurrentGates().canWatch == offered);
+	internal::Publish();
+	CHECK(facade::GetRuntimeSnapshotShared()->canWatch == offered);
+	const auto sentBefore = r.transport->sent.size();
+	facade::RuntimeCommand watch{};
+	watch.command.kind = netplay::CommandKind::RoomAction;
+	watch.command.generation = r.runtime->controller.GetSnapshot().generation;
+	watch.roomAction.kind = room::ActionKind::Watch;
+	CHECK(facade::SubmitRuntimeCommand(std::move(watch)));
+	internal::DrainCommands(true);
+	CHECK((r.runtime->roomActionIntent.Parked() || r.transport->sent.size() > sentBefore) == offered);
+	std::cout << "TestRoomWatch offered=" << offered << " passed\n";
 }
 
 // The host refuses the join as full: worded for a public room's lock when the
@@ -204,6 +231,7 @@ int main() {
 		TestObserverJoin(offered);
 		TestTournamentWatch(offered);
 		TestWatchedGameEntry(offered);
+		TestRoomWatch(offered);
 	}
 	TestJoinRefusalWording(false);
 	TestJoinRefusalWording(true);

@@ -436,7 +436,7 @@ struct PostPublishState {
 // which is a tick old and up to six in a throttled fight.
 struct RuntimeGates {
     bool canEditPreferences = false, canEditSelection = false, canEditLobby = false, canChangeController = false;
-    bool readyGate = false, canReady = false, canOpenRoom = false, canTrain = false, discordCanSwitch = false;
+    bool readyGate = false, canReady = false, canOpenRoom = false, canTrain = false, canWatch = false, discordCanSwitch = false;
     bool delayLocked = false, canProbe = false, canApplyDelay = false;
     int localSlot = -1;
     int selectedDelay = 2;
@@ -499,7 +499,11 @@ netplay::DispatchOutcome DispatchTournamentRoomCommand(netplay::Command command,
 // A joined room ended for the player. True when watching a match took it as
 // its own news (a notice, then a fresh ask), so the generic error is not shown.
 bool EndWatchedRoom(netplay::tournament::WatchRoomEnd end);
-// The delay a Ready sends: the chosen one, or Auto's.
+// The seated opponent's peer id, with the table's revision (and index, when
+// asked), or empty when this PC has no opponent there.
+std::string CurrentProbePeer(std::uint64_t& revision, int* tableIndex = nullptr);
+// The delay a Ready sends: the chosen one, or Auto's. The Auto functions are
+// in sf4e__NetplayRuntime__AutoDelay.cxx.
 int ReadyDelay();
 // Auto has a recommendation measured against the seated opponent.
 bool AutoDelayMeasured();

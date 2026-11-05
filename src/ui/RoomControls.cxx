@@ -108,6 +108,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     std::vector<MenuChoice> choices;
     for (const char* id : {left, right}) {
         const auto* option = FindSeatOption(id);
+        if (WatchingClosed(v, option->kind, option->seat)) continue;
         // In an Arcade room, joining is sitting down at whichever cabinet the room gives.
         const bool sit = v.room.arcade && option->kind == room::ActionKind::Queue;
         MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
@@ -156,6 +157,9 @@ bool LeavesWatchedGame(const ShellView& v, std::size_t table) {
 bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table) {
     return RoomActionsAvailable(v) ||
         (RoomCheckpointPending(v) && kind == room::ActionKind::Unwatch && LeavesWatchedGame(v, table));
+}
+bool WatchingClosed(const ShellView& v, room::ActionKind kind, int seat) {
+    return !v.canWatch && (kind == room::ActionKind::Watch || (kind == room::ActionKind::Queue && seat < 0 && !v.room.arcade));
 }
 std::string WatchingNote(const ShellView& v, room::ActionKind kind) {
     if (!v.watchedGame.Active()) return {};

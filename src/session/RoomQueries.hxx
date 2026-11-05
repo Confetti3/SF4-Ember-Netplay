@@ -25,6 +25,14 @@ inline bool ReadyCancellable(const Table& table, int seat) {
 		(table.phase == TablePhase::Ready && (table.spectatorHold || PermitPending(table))));
 }
 
+// The table the local member sits or watches at, if any.
+inline const Table* LocalTable(const Snapshot& room) {
+	for (const auto& member : room.members)
+		if (member.id == room.localMember && member.table >= 0 && member.table < static_cast<std::int8_t>(TableCount))
+			return &room.tables[member.table];
+	return nullptr;
+}
+
 // Watching this table by choice. A queued member is also listed as a
 // spectator of the game it waits out, and stays listed until that game ends
 // after it leaves the queue, but it did not choose to watch.

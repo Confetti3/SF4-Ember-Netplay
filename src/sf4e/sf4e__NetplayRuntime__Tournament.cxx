@@ -451,7 +451,7 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 	case Op::Watch: {
 		// A game that offers no spectating watches no match: no match_watch
 		// goes to the bridge, so no watcher's room is joined either.
-		if (!Game().caps.spectators) {
+		if (!CurrentGates().canWatch) {
 			spdlog::info("Watch: not watching match {}: the game offers no spectating", command.matchId);
 			return;
 		}

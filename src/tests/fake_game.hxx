@@ -19,8 +19,8 @@ struct FakeGame {
 FakeGame& Fake();
 // The capabilities Game() answers with.
 game::Capabilities& FakeCapabilities();
-// Every field of Fake() back to its default, and every capability on, as SF4
-// sets them.
+// Every field of Fake() back to its default, and every capability on, so a test
+// turns off the one it examines. The fake lists them itself: it is not SF4's set.
 void ResetFake();
 
 } } // namespace ember::test

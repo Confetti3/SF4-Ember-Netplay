@@ -179,6 +179,9 @@ struct ShellView {
     std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
     int trainingReadySeconds = 0;
     bool canTrain = false;
+    // The game offers watching a table (the snapshot's canWatch): the room's
+    // Watch and queue actions and a tournament match's watch.
+    bool canWatch = true;
     // This PC's own pick, so its seat on the room board shows the fighter,
     // costume, colour and Ultra at once, before Ready shares them.
     selection::Pick selectedPick;

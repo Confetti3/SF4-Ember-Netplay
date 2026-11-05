@@ -79,6 +79,10 @@ bool LeavesWatchedGame(const ShellView& v, std::size_t table);
 // watching row and the seat chooser read it; the table page keeps its own
 // wait wording for the whole page.
 bool RoomTakesNow(const ShellView& v, room::ActionKind kind, std::size_t table);
+// The game offers no watching (ShellView::canWatch): Watch is closed, and so is
+// joining the queue to wait, which only watches the games before it. Taking a
+// seat, including an Arcade room's sit, stays open. `seat` is the action's.
+bool WatchingClosed(const ShellView& v, room::ActionKind kind, int seat);
 // What a press of `kind` means for the game this PC watches, as a sentence
 // added to its row: Queue and Watch take the game back to the room first,
 // which ends the view, and leaving the queue keeps the view until the game

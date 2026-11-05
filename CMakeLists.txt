@@ -345,6 +345,7 @@ add_library(sf4e_runtime STATIC
     "src/sf4e/sf4e__NetplayFacade.cxx"
     "src/sf4e/sf4e__NetplayRuntime.hxx"
     "src/sf4e/sf4e__NetplayRuntime.cxx"
+    "src/sf4e/sf4e__NetplayRuntime__AutoDelay.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Input.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Match.cxx"
     "src/sf4e/sf4e__NetplayRuntime__Room.cxx"
@@ -374,7 +375,9 @@ if(SF4E_DEVELOPER_UI)
     target_compile_definitions(sf4e_runtime PRIVATE SF4E_DEVELOPER_UI=1)
 endif()
 # SF4's game under the runtime (sf4e__Sf4Game.cxx). sf4e carries it, and the
-# runtime, to whatever links SF4 Ember's hooks.
+# runtime, to whatever links SF4 Ember's hooks. sf4e and sf4e_sf4_game link each
+# other on purpose: the adapter calls the hooks' code, and the hooks need the
+# adapter's Game(). CMake resolves the cycle between static libraries.
 add_library(sf4e_sf4_game STATIC "src/sf4e/sf4e__Sf4Game.cxx")
 target_link_libraries(sf4e_sf4_game PRIVATE sf4e sf4e_runtime Dimps sf4e_steam ${LIB_DETOURS})
 # It calls the self-test's hooks, which are inline stubs without the define.

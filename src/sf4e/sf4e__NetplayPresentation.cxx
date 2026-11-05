@@ -31,8 +31,6 @@ namespace sf4e {
 			spectatorOnly ? NoticeSeverity::Warning : NoticeSeverity::Error);
 	}
 
-	void NetplayFacade::SetLastError(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
-
 	void NetplayFacade::PushAlert(const char* msg) { PushAlert(msg, NoticeSeverity::Error); }
 
 	void NetplayFacade::ClearMatchNotice() { s_notice.Clear(); }

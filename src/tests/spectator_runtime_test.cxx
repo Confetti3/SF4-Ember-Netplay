@@ -769,7 +769,7 @@ void TestGatesMatchPublished() {
 		CHECK(gates.canEditPreferences == published->canEditPreferences && gates.canEditSelection == published->canEditSelection);
 		CHECK(gates.canEditLobby == published->canEditLobby && gates.canChangeController == published->canChangeController);
 		CHECK(gates.readyGate == published->readyGate && gates.canReady == published->canReady);
-		CHECK(gates.canOpenRoom == published->canOpenRoom && gates.canTrain == published->canTrain);
+		CHECK(gates.canOpenRoom == published->canOpenRoom && gates.canTrain == published->canTrain && gates.canWatch == published->canWatch);
 		CHECK(gates.discordCanSwitch == published->discordCanSwitch && gates.delayLocked == published->delayLocked);
 		CHECK(gates.canProbe == published->canProbe && gates.canApplyDelay == published->canApplyDelay);
 		CHECK(gates.localSlot == published->localSlot && gates.selectedDelay == published->selectedDelay);

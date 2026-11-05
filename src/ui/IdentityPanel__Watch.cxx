@@ -43,12 +43,12 @@ std::string WatchState(const netplay::tournament::Status& t, const room::Snapsho
 
 bool IdentityPanel::CanWatch(const ShellView& v) const {
     const auto& t = v.tournament;
-    return !watchMatch_.empty() && watchBridge_ == bridge_ && v.identity.state == "ready" && FindBridge(v, bridge_) &&
+    return v.canWatch && !watchMatch_.empty() && watchBridge_ == bridge_ && v.identity.state == "ready" && FindBridge(v, bridge_) &&
         v.session.room == netplay::RoomState::Idle && !t.MatchRoomActive();
 }
 
 std::optional<MenuEntry> IdentityPanel::WatchEntry(const ShellView& v) const {
-    if (watchMatch_.empty()) return std::nullopt;
+    if (watchMatch_.empty() || !v.canWatch) return std::nullopt;
     const std::string id = "tm-watch:" + watchMatch_;
     // A service the player does not trust cannot be asked; it is shown wherever the player is looking.
     if (!FindBridge(v, watchBridge_)) return InfoRow(id, loc::T("tournament.watch.row"), {}, loc::T("tournament.watch.untrusted_bridge"));

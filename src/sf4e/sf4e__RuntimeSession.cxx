@@ -30,7 +30,7 @@ using sf4e::SessionClient;
 void OnClientError(SessionClient::ErrorType type, SessionClient* const, const SessionClient::Callbacks&) {
     if (const char* message = sf4e::loc::T(sf4e::NetplayFacade::IsRuntimePublicJoin() ?
         SessionClient::PublicJoinRejectionKey(type) : SessionClient::JoinRejectionKey(type)))
-        sf4e::NetplayFacade::SetLastError(message);
+        sf4e::NetplayFacade::PushAlert(message);
 }
 void OnBattleSynced(SessionClient* const, const SessionClient::Callbacks&) { game::Game().battle.OnSessionSynced(); }
 }

@@ -152,7 +152,7 @@ namespace sf4e {
 
 	void NetplayFacade::HandleNetplayFailure(const char* reason, bool closeGgpo) {
 		if (reason && reason[0]) {
-			SetLastError(reason);
+			PushAlert(reason);
 		}
 		// Retiring the session is what ends the fight: a netplay battle
 		// without its session is orphaned and leaves on its own.

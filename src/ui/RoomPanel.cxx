@@ -221,7 +221,7 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         });
         return false;
     }
-    if (action.table >= view.room.tables.size()) return false;
+    if (action.table >= view.room.tables.size() || WatchingClosed(view, action.kind, action.seat)) return false;
     // An Unwatch of the game this PC watches is that game's leave, which the
     // runtime scopes to the watched game when it runs.
     if (action.kind == room::ActionKind::Unwatch && LeavesWatchedGame(view, action.table)) return LeaveWatchedGame(view, submit);
@@ -573,6 +573,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     // Enablement asks the same fence SendRoom dispatches through, so the row
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
+     if(WatchingClosed(v,kind,-1))return;
      const bool fenced=TerminalFenced(v,kind,selectedTable_);
      rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
     };
@@ -583,7 +584,7 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     if(!queued&&!boundTable){
      tableRow(watching?room::ActionKind::Unwatch:room::ActionKind::Watch,watching?"unwatch":"watch",
       watching?"room.stop_watching":"room.watch_next");
-     if(!elsewhere&&!c.tournamentRoom)rows.push_back(FollowRow(v));
+     if(!elsewhere&&!c.tournamentRoom&&v.canWatch)rows.push_back(FollowRow(v));
     }
     // A watcher's lock-in is never fenced: the one still leaving the last
     // game is exactly who it is for. A follower has none, since it moves.
