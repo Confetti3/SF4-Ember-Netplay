@@ -423,6 +423,7 @@ void to_json(nlohmann::json& json, const Table& value) { json = nlohmann::json{{
 	if (!value.name.empty()) json["name"] = value.name;
 	// Only an Arcade room's tables have these; older readers skip the keys.
 	if (value.deciding) json["rematch"] = {value.rematch[0], value.rematch[1]};
+	if (value.deciding && (value.wantsNew[0] || value.wantsNew[1])) json["wants_new"] = {value.wantsNew[0], value.wantsNew[1]};
 	if (value.waitingSince) json["waiting_since"] = value.waitingSince;
 }
 void from_json(const nlohmann::json& json, Table& value) {
@@ -438,6 +439,11 @@ void from_json(const nlohmann::json& json, Table& value) {
 		const auto& votes = json.at("rematch");
 		if (!votes.is_array() || votes.size() != 2 || !votes.at(0).is_boolean() || !votes.at(1).is_boolean()) throw std::invalid_argument("room rematch");
 		value.rematch[0] = votes.at(0).get<bool>(); value.rematch[1] = votes.at(1).get<bool>();
+		if (json.contains("wants_new")) {
+			const auto& asked = json.at("wants_new");
+			if (!asked.is_array() || asked.size() != 2 || !asked.at(0).is_boolean() || !asked.at(1).is_boolean()) throw std::invalid_argument("room wants new");
+			value.wantsNew[0] = asked.at(0).get<bool>(); value.wantsNew[1] = asked.at(1).get<bool>();
+		}
 	}
 	value.waitingSince = json.contains("waiting_since") ? ReadU64(json, "waiting_since") : 0;
 	ReadMemberList(json, "queue", value.queue, MaxSpectators); ValidateMemberIds(value.queue);

@@ -5161,8 +5161,11 @@ msgstr "New opponent"
 msgid "room.new_opponent_detail"
 msgstr "Nobody else was waiting, so you two choose. Play whoever has waited longest instead, or wait for the next player to sit down."
 
-msgid "room.new_opponent_none"
-msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
+msgid "room.new_opponent_wait"
+msgstr "Everyone else is in a game. You play whoever's set ends next, and keep your seat meanwhile."
+
+msgid "room.new_opponent_chosen"
+msgstr "New opponent chosen"
 
 msgid "room.rematch_ask"
 msgstr "Rematch?"

@@ -149,22 +149,22 @@ inline bool ArcadeFreeTable(const Snapshot& room, std::size_t table) {
 
 // In a full room every table is a pair, so nobody waits alone: the way to a
 // new opponent is a fighter at another table that is choosing too and has not
-// asked for Rematch. Returns that fighter's table * 2 + seat, preferring a
-// table where nobody has voted, or -1.
-inline int ArcadeSwapSeat(const Snapshot& room, std::size_t table) {
-	int best = -1, bestVotes = 3;
+// asked for Rematch. Returns that fighter's table * 2 + seat, preferring one
+// who asked for New opponent too, then a table where nobody has voted, or -1.
+// `askedOnly` takes only those who asked.
+inline int ArcadeSwapSeat(const Snapshot& room, std::size_t table, bool askedOnly = false) {
+	int best = -1, bestRank = 99;
 	for (std::size_t other = 0; other < room.tables.size(); ++other) {
 		const auto& t = room.tables[other];
 		if (other == table || !t.deciding || !t.p1 || !t.p2) continue;
 		const int votes = t.rematch[0] + t.rematch[1];
-		for (int seat = 0; seat < 2; ++seat)
-			if (!t.rematch[seat] && votes < bestVotes) { best = static_cast<int>(other) * 2 + seat; bestVotes = votes; }
+		for (int seat = 0; seat < 2; ++seat) {
+			if (t.rematch[seat] || (askedOnly && !t.wantsNew[seat])) continue;
+			const int rank = (t.wantsNew[seat] ? 0 : 10) + votes;
+			if (rank < bestRank) { best = static_cast<int>(other) * 2 + seat; bestRank = rank; }
+		}
 	}
 	return best;
-}
-
-inline bool ArcadeOtherOpponentPossible(const Snapshot& room, std::size_t table) {
-	return ArcadeFreeTable(room, table) || ArcadeSwapSeat(room, table) >= 0;
 }
 
 inline bool ArcadeKindValid(const Snapshot& room) {

@@ -216,13 +216,14 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
     // With every other table in use and nobody waiting alone, New opponent
-    // could only pair the two again: its row says so and Y does nothing.
-    const bool otherOpponent = deciding && room::ArcadeOtherOpponentPossible(v.room, p.table);
+    // waits for the next set to end elsewhere (Table::wantsNew).
+    const bool otherFree = deciding && room::ArcadeFreeTable(v.room, p.table);
+    const bool askedNew = deciding && mine >= 0 && t.wantsNew[mine];
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
-        (deciding && t.rematch[mine])));
-    const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
+        (deciding && (t.rematch[mine] || t.wantsNew[mine]))));
+    const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && (t.rematch[theirs] || t.wantsNew[theirs]));
     const auto* opponent = room::FindMember(v.room, p.opponent);
     const auto* local = room::FindMember(v.room, v.room.localMember);
     const std::string name = opponent ? opponent->name : loc::T("room.player");
@@ -240,12 +241,13 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         title = next ? loc::Tf("postmatch.king.next", next->name) : std::string(loc::T("postmatch.king.waiting"));
     }
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
-    const auto state = [&](bool ready, bool seated) {
-        return std::string(loc::T(!seated ? "postmatch.state.left" : !ready ? "postmatch.state.choosing" : deciding ? "room.rematch_chosen" : "postmatch.state.ready"));
+    const auto state = [&](bool ready, bool seated, int seat) {
+        return std::string(loc::T(!seated ? "postmatch.state.left" : !ready ? "postmatch.state.choosing" :
+            deciding ? (t.wantsNew[seat] ? "room.new_opponent_chosen" : "room.rematch_chosen") : "postmatch.state.ready"));
     };
     // This PC's row: its choice, Back to room or Character select once made.
-    std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
-    std::string theirWord = state(theyChose, theirs >= 0);
+    std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0, mine);
+    std::string theirWord = state(theyChose, theirs >= 0, theirs);
     // The set's winner stays on and its loser waits, once the room has the
     // result; an opponent gone from the cabinets has left all the same.
     if (rotates && t.lastSet.generation == p.generation) {
@@ -261,7 +263,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     if (deciding) {
         rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
         rows.push_back(Row("new-opponent", loc::T("room.new_opponent"),
-            loc::T(otherOpponent ? "room.new_opponent_detail" : "room.new_opponent_none"), !p.left && otherOpponent));
+            loc::T(otherFree ? "room.new_opponent_detail" : "room.new_opponent_wait"), !p.left && !askedNew));
     } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),

@@ -5539,9 +5539,6 @@ msgstr "새 상대"
 msgid "room.new_opponent_detail"
 msgstr "자리에 앉은 채 가장 오래 기다린 사람과 대전하거나, 다음에 앉을 사람을 기다립니다."
 
-msgid "room.new_opponent_none"
-msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
-
 msgid "room.rematch_ask"
 msgstr "재대결?"
 
