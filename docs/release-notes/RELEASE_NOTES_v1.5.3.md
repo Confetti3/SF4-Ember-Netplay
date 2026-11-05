@@ -1,6 +1,6 @@
 # SF4 Ember Netplay v1.5.3
 
-v1.5.3 is built from what players asked for on Discord and GitHub. Changing your Ultra takes one press, from the room bar or the post-match prompt. Costumes, colors and Ultras are pictures again, each Ultra with its input. Public rooms can be filtered by region, type, open seats and connection, and a room can be set to wired players only. Each player's own delay is now the default. The Training controls button can be moved off R3. Presses no longer go missing after Ember's menus or the post-match prompt while a direction is held, and spectators of an instant rematch now see the set score move.
+v1.5.3 is built from what players asked for on Discord and GitHub. Changing your Ultra takes one press, from the room bar or the post-match prompt. Costumes, colors and Ultras are pictures again, each Ultra with its input. Public rooms can be filtered by region, type, open seats and connection, and a room can be set to wired players only. Each player's own delay is now the default. Menus take fewer presses with a controller. The Training controls button can be moved off R3. Presses no longer go missing after Ember's menus or the post-match prompt while a direction is held, and spectators of an instant rematch now see the set score move.
 
 Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [sf4e by Anthony Danducci and contributors](https://codeberg.org/adanducci/sf4e). Preserve upstream attribution and bundled licenses.
 
@@ -39,6 +39,13 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 - **Filters.** Public rooms has one Filters row that says what is on. Select opens the Filters page: Region (all regions, Near me, or one region), Room type (all, Classic, Arcade or King of the Hill), Open seats only, and Connection (all rooms or wired only rooms). Your filter is saved with your settings. When it hides every room, the list says so and Clear filters shows them all.
 - **Quick join follows the filter.** It takes the best room the filter lists, near you unless you chose a region.
 - **Wired players only.** A new room setting, off by default, when you create a room and in Room settings. While it is on, players on Wi-Fi can join, watch and chat but cannot take a seat, queue or sit at an Arcade cabinet, and the closed seat says why. A connection Ember cannot tell, as on Linux and Steam Deck, can always play. Turning it on moves nobody who is already seated, and a Wi-Fi player still in the queue is passed over when their turn comes. After plugging in a cable, leave and join the room again. Public rooms with the setting show a Wired only mark.
+
+### Controller menus
+
+- **A room opens where you need it.** Seated, the room opens on Ready up (Rematch after a set); watching, on the room's buttons; otherwise on the first table or cabinet with a free seat.
+- **LB and RB jump between the room's areas:** the tables, the room's buttons, Members and Chat, each time back on the row you last used there. The chat box is two presses away, and the hint bar shows LB RB Areas. On a narrow screen they step its tabs, which remember their row too.
+- **Lists go round.** A fresh Up on the first row goes to the last, and Down on the last to the first; holding a direction still stops at the end. Grids, the room board, the post-match prompt and Settings stop at their ends as before.
+- **Fewer presses everywhere else:** Create room's button, Home's notifications, the fighter page's Ready and Table options' Leave seat are a press or two away instead of a long walk. Rows hidden by a scroll are no longer d-pad targets from outside it, so a move never lands on something you can't see.
 
 ### Training
 
