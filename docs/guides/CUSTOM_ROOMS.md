@@ -196,6 +196,19 @@ settings** on the room board, edit a waiting table's battle rules, and kick
 members. Capacity cannot be reduced below current membership. A kicked peer
 cannot rejoin the same room under another name.
 
+**Wired players only**, on Create (private or public) and in Room settings, is
+off to begin with. While it is on, a player whose PC is on Wi-Fi cannot take a
+seat, join a queue or sit at an Arcade cabinet; they can still join the room,
+watch and chat, and the closed seat says why. A connection Ember cannot tell
+(Linux, Steam Deck, a VPN) is never kept out. Turning it on moves nobody: a
+fighter already seated plays on, and a rotation that sends them to the queue
+ends their turn at the table. A player on Wi-Fi who was already queued is
+passed over when their turn comes and leaves the queue. Ember reads the
+connection when you join, so after plugging in a cable, leave and join the
+room again. The choice is kept with the room defaults and in templates, and
+shows on the room's status line, as "Wired only" on table cards and, for a
+public room, in the list.
+
 ![Room settings](../images/guides/custom_rooms/room-settings.webp)
 
 Room chat retains the latest 100 messages, with a limit of 256 UTF-8 bytes per
