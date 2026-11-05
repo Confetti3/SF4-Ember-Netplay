@@ -1,5 +1,9 @@
 #pragma once
 #include "ButtonLayoutTypes.hxx"
+#include <algorithm>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace sf4e { namespace gamepads {
 enum class LayoutCancel { None, Start, Direction, Escape, Back, Timeout, State };

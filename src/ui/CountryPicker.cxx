@@ -7,7 +7,6 @@
 #include "V2.hxx"
 #include "../common/Localization.hxx"
 #include "../platform/Utf8.hxx"
-#define NOMINMAX
 #include <windows.h>
 #include <algorithm>
 #include <cfloat>

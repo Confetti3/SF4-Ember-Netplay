@@ -3,7 +3,9 @@
 #include "BoolPreferences.hxx"
 #include "../common/ProductIdentity.hxx"
 
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <shlobj.h>
 #include <filesystem>
