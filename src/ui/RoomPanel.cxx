@@ -155,8 +155,12 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(static_cast<int>(c)!=ownCabinet||mine.kind!=Place::Kind::Seat)continue;
   const auto& table=s.tables[mine.table];
   if(table.deciding){
-   row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},{"new-opponent",loc::T("room.new_opponent"),loc::T("room.new_opponent_detail")}};
+   // New opponent needs someone else free, as on the post-match prompt.
+   const bool other=room::ArcadeOtherOpponentPossible(s,static_cast<std::size_t>(mine.table));
+   row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},
+    {"new-opponent",loc::T("room.new_opponent"),loc::T(other?"room.new_opponent_detail":"room.new_opponent_none")}};
    row.choices[0].enabled=!table.rematch[mine.seat];
+   row.choices[1].enabled=other;
    continue;
   }
   OwnSeatRow(row,v,table,mine.seat,leaveAsk==mine.table);

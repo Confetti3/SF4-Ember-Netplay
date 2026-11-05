@@ -757,28 +757,28 @@ int main() {
         CHECK(sf4e::netplay::ReadRoomPreferences(older, fromOlder) && fromOlder.tableRules == restored.tableRules &&
             fromOlder.publicTableRules == restored.publicTableRules);
     }
-    // The room's delay policy is a room default: written only when Own, and a
-    // document without the key (or with "shared") reads as Shared.
+    // The room's delay policy is a room default: Own unless the player chose
+    // Shared. Both are written; a document without the key (every save before
+    // 1.6.0 that kept the old Shared default) reads as Own.
     {
-        CHECK(!result["roomDefaults"].contains("delay") && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
-        auto own = defaults;
-        own.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
-        const Json ownDocument{{"roomDefaults", sf4e::netplay::RoomPreferences(own)}};
-        CHECK(ownDocument["roomDefaults"].at("delay") == "own");
-        sf4e::netplay::PlayerPreferences fromOwn;
-        CHECK(sf4e::netplay::ReadRoomPreferences(ownDocument, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Own &&
-            fromOwn.tableRules == restored.tableRules);
-        // Own is not remembered by a document that leaves the key out.
-        auto without = ownDocument;
+        CHECK(result["roomDefaults"].at("delay") == "own" && restored.roomDelayPolicy == sf4e::room::DelayPolicy::Own);
+        auto shared = defaults;
+        shared.roomDelayPolicy = sf4e::room::DelayPolicy::Shared;
+        const Json sharedDocument{{"roomDefaults", sf4e::netplay::RoomPreferences(shared)}};
+        CHECK(sharedDocument["roomDefaults"].at("delay") == "shared");
+        sf4e::netplay::PlayerPreferences fromShared;
+        CHECK(sf4e::netplay::ReadRoomPreferences(sharedDocument, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared &&
+            fromShared.tableRules == restored.tableRules);
+        // A document that leaves the key out is one from before 1.6.0: Own.
+        auto without = sharedDocument;
         without["roomDefaults"].erase("delay");
-        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Own);
         without["roomDefaults"]["delay"] = "shared";
-        fromOwn.roomDelayPolicy = sf4e::room::DelayPolicy::Own;
-        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+        CHECK(sf4e::netplay::ReadRoomPreferences(without, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
         for (const Json& invalid : {Json(1), Json(true), Json("mine"), Json(nullptr)}) {
-            auto bad = ownDocument;
+            auto bad = sharedDocument;
             bad["roomDefaults"]["delay"] = invalid;
-            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromOwn) && fromOwn.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
+            CHECK(!sf4e::netplay::ReadRoomPreferences(bad, fromShared) && fromShared.roomDelayPolicy == sf4e::room::DelayPolicy::Shared);
         }
     }
     // A private Classic room's table count is a room default and a template's:

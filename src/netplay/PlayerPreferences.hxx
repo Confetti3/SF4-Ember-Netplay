@@ -77,7 +77,7 @@ struct RoomTemplate {
     std::string roomName = "Private room";
     int capacity = 16;
     bool isPublic = false, practice = false;
-    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Own;
     // How many tables a private Classic room opens with (room::Snapshot::tableCount).
     int tableCount = static_cast<int>(room::ClassicTableCount);
     // The room's Wired players only rule (room::Snapshot::wiredOnly).
@@ -247,8 +247,9 @@ struct PlayerPreferences {
     int roomCapacity = 16;
     // Whether Create opens a public room on the Ember ID service instead of a private one.
     bool roomPublic = false;
-    // Whose input delay a room created here plays at (room::Snapshot::delayPolicy).
-    room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Shared;
+    // Whose input delay a room created here plays at (room::Snapshot::delayPolicy):
+    // each fighter their own unless the player chose Shared.
+    room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Own;
     // How many tables a private Classic room created here opens with (room::Snapshot::tableCount).
     int roomTableCount = static_cast<int>(room::ClassicTableCount);
     // Whether a room created here, public or private, is for wired players only (room::Snapshot::wiredOnly).
