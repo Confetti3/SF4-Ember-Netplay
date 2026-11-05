@@ -101,8 +101,8 @@ direction (its centre past the focus's centre, and either overlapping the
 focus across or at least as far past its edge as it is off to the side;
 nearest by the gap along the axis plus twice the offset across; ties to the
 row sharing more of the focus's width across, then the earlier row). A row
-placed out of its scroll's sight (PressEntry passes the clip it is drawn
-under) is reached only from a row in the same scroll. No row that way: the
+placed out of its scroll's sight (every row is placed with the clip it is
+drawn under) is reached only from a row in the same scroll. No row that way: the
 focus stays, or, on a board that set
 `nav.SetEdge(MenuEdge::Flow)` (Create, the welcome: panels side by side that
 read as one column), goes on to the next placed row in row order (Down,

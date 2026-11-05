@@ -272,11 +272,12 @@ public:
     // given. The next frame's directions move from a placed focus to the
     // nearest placed row that way (Update). A screen that places nothing (a
     // GameMenu list) keeps the list's movement.
-    // `clip` is the part of the screen the row's scroll shows (none for a row
-    // outside a scroll): a row placed out of its sight is reached only from a
-    // row in the same scroll, so a direction never jumps into a list's hidden
-    // rows from beside it (Nearest).
-    void Place(const std::string& id, MenuRect box, MenuRect clip = {}) { placing_.push_back({id, box, clip}); }
+    // `clip` is the part of the screen the row's scroll shows, the clip it is
+    // drawn under (an empty MenuRect for a row outside any scroll): a row
+    // placed out of its sight is reached only from a row in the same scroll,
+    // so a direction never jumps into a list's hidden rows from beside it
+    // (Nearest).
+    void Place(const std::string& id, MenuRect box, MenuRect clip) { placing_.push_back({id, box, clip}); }
     // What the board on this screen does at its edges (MenuEdge); Stay unless set.
     void SetEdge(MenuEdge edge) { states_[Screen()].edge = edge; }
     MenuEdge Edge() const { return states_.at(Screen()).edge; }

@@ -791,7 +791,7 @@ void BoardGeometry(){
  add("ready",{20,430,200,478});add("room-training",{210,430,390,478});add("room-more",{680,430,790,478});add("leave",{800,430,900,478});
  rows.push_back(Row("unplaced","Not drawn",""));
  MenuNavigation nav;double time=0;
- const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second);return a;};
+ const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second,{});return a;};
  const auto press=[&](unsigned held){frame(held);frame(0);return nav.Focus();};
  const auto from=[&](const char* id,unsigned held){nav.Focus(id,rows);return press(held);};
  frame(0);frame(0);
@@ -833,7 +833,7 @@ void BoardGeometry(){
  std::vector<MenuEntry> list={Row("first","First",""),Row("second","Second",""),Row("retry","Retry","")};list[2].footer=true;
  const auto moved=[&](const char* placed,unsigned held){
   MenuNavigation n;double t=0;
-  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40});};
+  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40},{});};
   tick(0);tick(0);n.Focus(placed,list);tick(held);tick(0);return n.Focus();
  };
  Check(moved("retry",MenuInput::Up)=="second","A footer placed alone made the list a board");
