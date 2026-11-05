@@ -205,8 +205,9 @@ input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
     buttons.play = LayoutButtonMask(pad->bound[TrainingPlayButton], pad->has);
     if (buttons.record) buttons.recordName = pad->buttonNames[pad->bound[TrainingRecordButton]];
     if (buttons.play) buttons.playName = pad->buttonNames[pad->bound[TrainingPlayButton]];
-    buttons.controls = LayoutButtonMask(pad->bound[TrainingControlsButton], pad->has);
-    if (buttons.controls) buttons.controlsName = pad->buttonNames[pad->bound[TrainingControlsButton]];
+    const auto controls = ResolveBound(pad->bound, pad->table)[TrainingControlsButton];
+    buttons.controls = LayoutButtonMask(controls, pad->has);
+    if (buttons.controls) buttons.controlsName = pad->buttonNames[controls];
     return buttons;
 }
 

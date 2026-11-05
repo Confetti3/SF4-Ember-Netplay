@@ -270,6 +270,11 @@ bool ApplicationShell::DrawButtonLayout(const ShellView& view, const Submit& sub
         if (ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: Training controls button off", pad.id), bound)) {
             nav.Focus("training-controls", rows); notice_ = loc::T("button_layout.training_controls_is_off"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
         }
+    } else if (editable && action.kind == MenuAction::Activate && action.id == "training-controls-auto") {
+        auto bound = pad.bound; bound[TrainingControlsButton] = BoundAuto;
+        if (ChangeLayout(pad, pad.table, view, submit, fmt::format("layout for id {}: Training controls button automatic", pad.id), bound)) {
+            nav.Focus("training-controls", rows); notice_ = loc::T("button_layout.training_controls_is_auto"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;
+        }
     } else if (editable && action.kind == MenuAction::Activate && action.id == "remove") {
         if (ChangeLayout(pad, {}, view, submit, fmt::format("layout for id {} removed", pad.id))) {
             nav.Focus("preset", rows); notice_ = loc::T("button_layout.removed"); noticeTone_ = Tone::Neutral; noticeUntil_ = ImGui::GetTime() + 4;

@@ -46,8 +46,9 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
         if (entry.contains("edited") && entry["edited"].is_number_integer()) layout.edited = entry["edited"].get<std::int64_t>();
         // A missing or unusable binding is that action's default. A group with
         // a binding out of range, or two actions on one button, goes back to
-        // its defaults (the game's menu buttons, no record or play, R3 for the
-        // controls); the layout still loads.
+        // its defaults (the game's menu buttons, no record or play, automatic
+        // for the controls); the layout still loads.
+        constexpr int InvalidBound = -3;
         const auto index = [&](const BoundActionInfo& action) {
             const auto field = entry.find(action.json);
             return field != entry.end() && field->is_number_integer() ? field->get<std::int64_t>() : action.unset;
@@ -57,7 +58,7 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
             for (unsigned action = 0; action < BoundActionCount; ++action) {
                 if (BoundActions[action].group != static_cast<BoundGroup>(group)) continue;
                 const auto value = index(BoundActions[action]);
-                candidate[action] = BoundIndexInRange(value) ? static_cast<int>(value) : -2;
+                candidate[action] = BoundValueAllowed(action, value) ? static_cast<int>(value) : InvalidBound;
             }
             if (!ValidBoundGroup(candidate, static_cast<BoundGroup>(group))) continue;
             for (unsigned action = 0; action < BoundActionCount; ++action)

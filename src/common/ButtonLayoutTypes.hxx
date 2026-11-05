@@ -31,23 +31,32 @@ inline bool ValidLayout(const ButtonLayout& layout) {
 // a button. Start, View and the directions are never bound.
 enum BoundAction : unsigned { MenuConfirmButton, MenuBackButton, TrainingRecordButton, TrainingPlayButton, TrainingControlsButton, BoundActionCount };
 enum class BoundGroup : unsigned { Menu, Training, Count };
+// Automatic, a binding only Training's controls button holds by default
+// (BoundActionInfo::unset): it is R3 (the right stick click, as the controls
+// always opened) while the layout gives R3 no fight function and no other
+// Training action has it, else off (ResolveBound). A button or -1 (off) the
+// player chooses is explicit and always wins.
+constexpr int BoundAuto = -2, AutoControlsButton = 9;
 // Each action's key in a saved layout, its group, and its binding when the
-// layout holds none. Training's controls open on R3 (the right stick click),
-// as they always did; -1 is off, for them as for the rest.
+// layout holds none.
 struct BoundActionInfo { const char* json; BoundGroup group; int unset; };
 constexpr std::array<BoundActionInfo, BoundActionCount> BoundActions = {{
     {"menuConfirm", BoundGroup::Menu, -1}, {"menuBack", BoundGroup::Menu, -1}, {"trainingRecord", BoundGroup::Training, -1},
-    {"trainingPlay", BoundGroup::Training, -1}, {"trainingControls", BoundGroup::Training, 9}}};
+    {"trainingPlay", BoundGroup::Training, -1}, {"trainingControls", BoundGroup::Training, BoundAuto}}};
 // For each action, the layout button bound to it as an index into LayoutGlyphs;
 // -1 for none (for a menu action: A and B, input::ResolveMenuButtons).
 using BoundButtons = std::array<int, BoundActionCount>;
-constexpr BoundButtons DefaultBoundButtons = {-1, -1, -1, -1, 9};
+constexpr BoundButtons DefaultBoundButtons = {-1, -1, -1, -1, BoundAuto};
 inline bool BoundIndexInRange(std::int64_t index) { return index >= -1 && index < static_cast<std::int64_t>(LayoutGlyphs.size()); }
+// Whether a binding is a layout button, off, or automatic for an action that defaults to it.
+inline bool BoundValueAllowed(unsigned action, std::int64_t value) {
+    return BoundIndexInRange(value) || (value == BoundAuto && BoundActions[action].unset == BoundAuto);
+}
 // Whether one group's bindings are in range and share no button.
 inline bool ValidBoundGroup(const BoundButtons& bound, BoundGroup group) {
     for (unsigned action = 0; action < BoundActionCount; ++action) {
         if (BoundActions[action].group != group) continue;
-        if (!BoundIndexInRange(bound[action])) return false;
+        if (!BoundValueAllowed(action, bound[action])) return false;
         for (unsigned other = action + 1; other < BoundActionCount; ++other)
             if (BoundActions[other].group == group && bound[action] >= 0 && bound[action] == bound[other]) return false;
     }
@@ -62,13 +71,24 @@ inline bool ValidBoundButtons(const BoundButtons& bound) {
 inline std::uint32_t LayoutButtonMask(int index, const ListedButtons& has = AllLayoutButtons) {
     return index >= 0 && index < static_cast<int>(LayoutBits.size()) && has[index] ? std::uint32_t(1) << LayoutBits[index] : 0;
 }
+// The bindings with automatic resolved against the layout's fight table: R3
+// for the controls while R3 attacks nothing and Record and Play are not on
+// it, else off. Everything else is as stored.
+inline BoundButtons ResolveBound(BoundButtons bound, const ButtonLayout& table) {
+    if (bound[TrainingControlsButton] == BoundAuto) {
+        const bool free = table[AutoControlsButton] == 0 && bound[TrainingRecordButton] != AutoControlsButton && bound[TrainingPlayButton] != AutoControlsButton;
+        bound[TrainingControlsButton] = free ? AutoControlsButton : -1;
+    }
+    return bound;
+}
 // The fight table offline Training plays with: Training's own buttons (record,
-// play and the controls') do nothing in the fight there, so a press records,
-// plays or opens the controls and never attacks too, and the game never
-// takes it. Everywhere else they keep what the layout gives them. A player
-// who wants such a button to attack in Training turns the controls button off
-// or moves it.
-inline ButtonLayout TrainingTable(ButtonLayout table, const BoundButtons& bound) {
+// play and the controls', automatic resolved) do nothing in the fight there,
+// so a press records, plays or opens the controls and never attacks too, and
+// the game never takes it. Everywhere else they keep what the layout gives
+// them. Automatic never takes an attack away; a player who chose the controls
+// button on an attack gets what they chose.
+inline ButtonLayout TrainingTable(ButtonLayout table, const BoundButtons& stored) {
+    const auto bound = ResolveBound(stored, table);
     for (const BoundAction action : {TrainingRecordButton, TrainingPlayButton, TrainingControlsButton})
         if (bound[action] >= 0 && bound[action] < static_cast<int>(table.size())) table[bound[action]] = 0;
     return table;
