@@ -1929,6 +1929,9 @@ msgstr "Aktivní"
 msgid "training.meter.recovery"
 msgstr "Zotavení"
 
+msgid "training.meter.total"
+msgstr "Celkem"
+
 msgid "training.meter.hit"
 msgstr "Zásah"
 
@@ -2069,6 +2072,9 @@ msgstr "Legenda, značky a lem"
 
 msgid "training.meter.classic_slant"
 msgstr "Šikmé buňky"
+
+msgid "training.meter.classic_p2"
+msgstr "Zobrazit čísla P2"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Zobrazí tuto část tréninkového HUD během souboje. F5 skryje celý HUD."

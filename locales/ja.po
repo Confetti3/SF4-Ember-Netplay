@@ -1929,6 +1929,9 @@ msgstr "持続"
 msgid "training.meter.recovery"
 msgstr "硬直"
 
+msgid "training.meter.total"
+msgstr "合計"
+
 msgid "training.meter.hit"
 msgstr "ヒット"
 
@@ -2069,6 +2072,9 @@ msgstr "凡例・マーカー・縁取り"
 
 msgid "training.meter.classic_slant"
 msgstr "斜めのセル"
+
+msgid "training.meter.classic_p2"
+msgstr "P2の数字を表示"
 
 msgid "training.meter.hud_part.detail"
 msgstr "対戦中にトレーニングHUDのこの項目を表示します。F5 で HUD 全体を隠します。"

@@ -356,7 +356,7 @@ std::string MeasurementReason(const MeterView& meter) {
     return {};
 }
 // What a reading is, so a reader of it need not go by its place or its words.
-enum class ReadingKind { Startup, Active, Recovery, Cancel, Meaty, Result, Last };
+enum class ReadingKind { Startup, Active, Recovery, Total, Cancel, Meaty, Result, Last };
 // advantage: a result's frames, 0 while there are none, for its colour.
 struct Reading { std::string label, value; ReadingKind kind; int advantage = 0; };
 std::vector<Reading> Readings(const MeterView& meter, int side) {
@@ -370,6 +370,9 @@ std::vector<Reading> Readings(const MeterView& meter, int side) {
         {loc::T("training.startup"), number(chain ? chain->startup : meter.startupFrames[side]), ReadingKind::Startup},
         {loc::T("training.meter.active"), number(chain ? chain->active : move.seen ? move.active : 0), ReadingKind::Active},
         {loc::T("training.meter.recovery"), chain ? std::string(loc::T("training.meter.cancelled")) : number(move.seen && !move.live ? move.recovery : 0), ReadingKind::Recovery}};
+    // The move's whole length, for counting framekill setups.
+    if (!chain && meter.startupFrames[side] > 0 && move.seen && !move.live && move.active > 0 && move.recovery > 0)
+        readings.push_back({loc::T("training.meter.total"), std::to_string(TotalFrames(meter.startupFrames[side], move)), ReadingKind::Total});
     if (chain) readings.push_back({ChainName(*chain), std::string(), ReadingKind::Cancel});
     // What the move met, and the frames it left its user ahead or behind:
     // this exchange's, so it is never told of another's move.
@@ -425,13 +428,17 @@ ImU32 ClassicColor(MeterKind kind) {
 }
 // The data line's colour for a reading: the three move numbers in their bar
 // colours, a meaty in pink, a result or advantage green ahead and red behind.
+// The readings that are a move's frame counts, drawn white whatever they colour.
+bool IsMoveReading(ReadingKind kind) {
+    return kind == ReadingKind::Startup || kind == ReadingKind::Active || kind == ReadingKind::Recovery || kind == ReadingKind::Total;
+}
 ImU32 ReadingColor(const Reading& reading) {
     switch (reading.kind) {
     case ReadingKind::Startup: return ClassicColor(MeterKind::Startup);
     case ReadingKind::Active: return ClassicColor(MeterKind::Active);
     case ReadingKind::Recovery: return ClassicColor(MeterKind::Recovery);
     case ReadingKind::Meaty: return ClassicColor(MeterKind::Meaty);
-    case ReadingKind::Cancel: return palette::Ivory;
+    case ReadingKind::Total: case ReadingKind::Cancel: return palette::Ivory;
     case ReadingKind::Result: case ReadingKind::Last: break;
     }
     return ImGui::ColorConvertFloat4ToU32(AdvantageColor(reading.advantage));
@@ -452,10 +459,13 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
         draw->AddRectFilledMultiColor(ImVec2(top.x, top.y), ImVec2(top.x + full, top.y + 2 * hudScale),
             palette::Ember, IM_COL32(255, 214, 72, 255), IM_COL32(255, 214, 72, 255), palette::Ember);
     ImGui::Dummy(ImVec2(full, 2 * hudScale));
-    const float line = ImGui::GetTextLineHeight(), small = line * .72f, gap = 8 * hudScale, half = full / 2;
+    const float line = ImGui::GetTextLineHeight(), small = line * .72f, gap = 8 * hudScale;
     if (options.classicData) {
         const ImVec2 at = ImGui::GetCursorScreenPos();
-        for (int side = 0; side < 2; ++side) {
+        // Each fighter's readings take a column; P2's can be left out.
+        const int sides = options.classicP2 ? 2 : 1;
+        const float column = full / sides;
+        for (int side = 0; side < sides; ++side) {
             const auto readings = Readings(meter, side);
             const char tag[3] = {'P', static_cast<char>('1' + side), 0};
             // Labels where there is room for them, coloured ticks with the numbers where there is not.
@@ -467,8 +477,8 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                 widths.push_back(ImVec2(ImGui::GetFont()->CalcTextSizeA(small, FLT_MAX, 0, reading.label.c_str()).x, ImGui::CalcTextSize(reading.value.c_str()).x));
                 labelled += widths.back().x + 4 * hudScale + widths.back().y + gap;
             }
-            const bool labels = labelled <= half;
-            float x = at.x + side * half;
+            const bool labels = labelled <= column;
+            float x = at.x + side * column;
             Edged(draw, line, ImVec2(x, at.y), side ? IM_COL32(120, 190, 255, 255) : IM_COL32(255, 120, 110, 255), tag);
             x += ImGui::CalcTextSize(tag).x + gap;
             for (std::size_t i = 0; i < readings.size(); ++i) {
@@ -482,7 +492,7 @@ void ClassicMeter(const MeterView& meter, float hudScale, const MeterOptions& op
                     draw->AddRectFilled(ImVec2(x, at.y + line * .25f), ImVec2(x + 3 * hudScale, at.y + line * .85f), colour);
                     x += 5 * hudScale;
                 }
-                const bool move = reading.kind == ReadingKind::Startup || reading.kind == ReadingKind::Active || reading.kind == ReadingKind::Recovery;
+                const bool move = IsMoveReading(reading.kind);
                 Edged(draw, line, ImVec2(x, at.y), move ? IM_COL32(255, 255, 255, 255) : colour, reading.value.c_str());
                 x += widths[i].y + gap;
             }

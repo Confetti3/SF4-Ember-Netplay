@@ -1929,6 +1929,9 @@ msgstr "Aktywne"
 msgid "training.meter.recovery"
 msgstr "Powrót"
 
+msgid "training.meter.total"
+msgstr "Razem"
+
 msgid "training.meter.hit"
 msgstr "Trafienie"
 
@@ -2069,6 +2072,9 @@ msgstr "Legenda i znaczniki"
 
 msgid "training.meter.classic_slant"
 msgstr "Ukośne komórki"
+
+msgid "training.meter.classic_p2"
+msgstr "Pokaż liczby P2"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Pokazuje tę część HUD treningu podczas walki. F5 ukrywa cały HUD."

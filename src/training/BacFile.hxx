@@ -177,22 +177,29 @@ inline int StunFrames(const Script& script, float at, float speed) {
 }
 
 // Where a script's own hitboxes stand at script frame `frame`, read after the
-// game's update: -1 the script has none (or untimed ones), 0 none out yet, 1
-// one is out, 2 between two hits, 3 all done. A box from first up to last is
-// out while first <= int(frame) < last: the game's clock stops on each whole
-// script frame (Engine::advance 0x52F810), so a box is out from the first
-// update that reaches its first frame.
-inline int HitPhase(const Script& script, float frame) {
+// game's update: Untimed when the file does not say (a box without frames),
+// NoHit when the script has none. A box from first up to last is out while
+// first <= int(frame) < last: the game's clock stops on each whole script frame
+// (Engine::advance 0x52F810), so a box is out from the first update that
+// reaches its first frame.
+enum class HitPhase { Untimed, NoHit, Before, Out, Between, Done };
+inline HitPhase PhaseAt(const Script& script, float frame) {
+    if (script.hits.empty()) return HitPhase::NoHit;
     const auto untimed = [](const Hit& hit) { return hit.first < 0 || hit.last <= hit.first; };
-    if (script.hits.empty() || std::any_of(script.hits.begin(), script.hits.end(), untimed)) return -1;
+    if (std::any_of(script.hits.begin(), script.hits.end(), untimed)) return HitPhase::Untimed;
     const int at = static_cast<int>(std::floor(frame));
     bool before = true, after = true;
     for (const auto& hit : script.hits) {
-        if (hit.first <= at && at < hit.last) return 1;
+        if (hit.first <= at && at < hit.last) return HitPhase::Out;
         before = before && at < hit.first;
         after = after && at >= hit.last;
     }
-    return before ? 0 : after ? 3 : 2;
+    return before ? HitPhase::Before : after ? HitPhase::Done : HitPhase::Between;
+}
+// Whether every hitbox of the script is timed and there is at least one.
+inline bool HasTimedHits(const Script& script) {
+    const HitPhase phase = PhaseAt(script, 0);
+    return phase != HitPhase::Untimed && phase != HitPhase::NoHit;
 }
 // The attack boundary of a script whose attack is an effect it spawns (a
 // fireball): the earliest spawn of an effect that can hit, in the terms of the

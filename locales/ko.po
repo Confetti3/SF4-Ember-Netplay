@@ -1929,6 +1929,9 @@ msgstr "지속"
 msgid "training.meter.recovery"
 msgstr "경직"
 
+msgid "training.meter.total"
+msgstr "합계"
+
 msgid "training.meter.hit"
 msgstr "히트"
 
@@ -2069,6 +2072,9 @@ msgstr "범례, 표시, 테두리"
 
 msgid "training.meter.classic_slant"
 msgstr "기울어진 칸"
+
+msgid "training.meter.classic_p2"
+msgstr "P2 수치 표시"
 
 msgid "training.meter.hud_part.detail"
 msgstr "대전 중 트레이닝 HUD의 이 항목을 표시합니다. F5로 HUD 전체를 숨깁니다."

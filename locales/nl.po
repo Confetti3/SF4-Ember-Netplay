@@ -1929,6 +1929,9 @@ msgstr "Actief"
 msgid "training.meter.recovery"
 msgstr "Herstel"
 
+msgid "training.meter.total"
+msgstr "Totaal"
+
 msgid "training.meter.hit"
 msgstr "Hit"
 
@@ -2069,6 +2072,9 @@ msgstr "Legenda, markeringen en rand"
 
 msgid "training.meter.classic_slant"
 msgstr "Schuine cellen"
+
+msgid "training.meter.classic_p2"
+msgstr "Cijfers van P2 tonen"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Toont dit onderdeel van de trainings-HUD tijdens het gevecht. F5 verbergt de hele HUD."

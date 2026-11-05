@@ -1929,6 +1929,9 @@ msgstr "Active"
 msgid "training.meter.recovery"
 msgstr "Recovery"
 
+msgid "training.meter.total"
+msgstr "Total"
+
 msgid "training.meter.hit"
 msgstr "Hit"
 
@@ -2069,6 +2072,9 @@ msgstr "Key and markers"
 
 msgid "training.meter.classic_slant"
 msgstr "Slanted cells"
+
+msgid "training.meter.classic_p2"
+msgstr "Show P2 numbers"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Shows this part of the training HUD over the fight. F5 hides all of it."

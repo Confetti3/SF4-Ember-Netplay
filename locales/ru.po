@@ -1929,6 +1929,9 @@ msgstr "Активные"
 msgid "training.meter.recovery"
 msgstr "Восстановление"
 
+msgid "training.meter.total"
+msgstr "Всего"
+
 msgid "training.meter.hit"
 msgstr "Попадание"
 
@@ -2069,6 +2072,9 @@ msgstr "Легенда, метки и рамка"
 
 msgid "training.meter.classic_slant"
 msgstr "Наклонные ячейки"
+
+msgid "training.meter.classic_p2"
+msgstr "Показывать числа P2"
 
 msgid "training.meter.hud_part.detail"
 msgstr "Показывает эту часть HUD тренировки во время боя. F5 скрывает весь HUD."

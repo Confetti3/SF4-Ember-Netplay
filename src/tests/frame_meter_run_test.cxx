@@ -8,8 +8,18 @@
 #include <stdexcept>
 #include <vector>
 using namespace sf4e::training;
+namespace bac = sf4e::bac;
 namespace {
 void Require(bool pass, const char* why) { if (!pass) throw std::runtime_error(why); }
+// Both fighters valid and still in `status`, seen once: the meter a move's frames are played on.
+std::array<FighterSample, 2> Still(FrameMeter& meter, unsigned status = 0) {
+    std::array<FighterSample, 2> pair;
+    for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = status; fighter.action = 0; }
+    meter.Observe(0, pair);
+    return pair;
+}
+// A script's hitboxes, as the tests below play them.
+constexpr auto Before = bac::HitPhase::Before, Out = bac::HitPhase::Out, Done = bac::HitPhase::Done;
 // One frame of the fight: each fighter's status (0 standing, 2 jumping, 10
 // walking, 14 guarding, 16 attacking, 21 hit, 22 blocking).
 struct Step { unsigned own, other; };
@@ -290,13 +300,11 @@ int main() {
         for (unsigned from : {ActorStatus::Stand, ActorStatus::Jump}) {
             // Akuma's hyakki leaves the ground and lands in the common landing: its 4 frames are
             // the move's recovery. A jump's attack lands the same way, and that is no recovery.
-            FrameMeter counted; std::array<FighterSample, 2> pair;
-            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = from; fighter.action = 0; }
-            counted.Observe(0, pair);
+            FrameMeter counted; auto pair = Still(counted, from);
             int tick = 1;
             pair[0].status = 16; pair[0].action = 425;
-            for (int phase : {0, 1, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
-            pair[0].status = ActorStatus::JumpToStand; pair[0].action = 9; pair[0].hitPhase = -1;
+            for (auto phase : {Before, Out, Done}) { pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            pair[0].status = ActorStatus::JumpToStand; pair[0].action = 9; pair[0].hits = bac::HitPhase::Untimed;
             for (int frame = 0; frame < 4; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
             pair[0].status = ActorStatus::Forward; pair[0].action = 16; pair[0].actionFrame = 0; counted.Observe(tick++, pair);
             Require(counted.View().moves[0].recovery == (from == ActorStatus::Stand ? 5 : 1), "A ground move's landing was not its recovery, or a jump attack's was");
@@ -304,9 +312,7 @@ int main() {
         {
             // Evil Ryu's 421LP: the fireball comes out the step after its spawn (frame 47, boundary 48)
             // and hits 17 game frames later, after he has recovered.
-            FrameMeter counted; std::array<FighterSample, 2> pair;
-            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
-            counted.Observe(0, pair);
+            FrameMeter counted; auto pair = Still(counted);
             pair[0].status = 16; pair[0].action = 462; pair[0].firstActiveFrame = 48; pair[0].lastActiveFrame = 49;
             pair[0].boundaryProvenance = BoundaryProvenance::BacEffectSpawn; pair[0].projectileDelay = 17;
             int tick = 1;
@@ -320,16 +326,14 @@ int main() {
         for (const bool parry : {false, true}) {
             // El Fuerte's 214K lands in a script with no hit whose header says 0 to 2: no active
             // frames there. A parry opens with such a script, and keeps its header's.
-            FrameMeter counted; std::array<FighterSample, 2> pair;
-            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
-            counted.Observe(0, pair);
+            FrameMeter counted; auto pair = Still(counted);
             int tick = 1;
             pair[0].status = 16; pair[0].commandMove = 0x3000;
             if (!parry) {
                 pair[0].action = 465;
-                for (int phase : {0, 1, 1, 3}) { pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+                for (auto phase : {Before, Out, Out, Done}) { pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
             }
-            pair[0].action = 464; pair[0].hitPhase = -1; pair[0].headerOnly = true; pair[0].firstActiveFrame = 0; pair[0].lastActiveFrame = 2;
+            pair[0].action = 464; pair[0].hits = bac::HitPhase::NoHit; pair[0].firstActiveFrame = 0; pair[0].lastActiveFrame = 2;
             pair[0].boundaryProvenance = BoundaryProvenance::BacActionHeader;
             for (int frame = 0; frame < 4; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
             Require(counted.View().moves[0].active == 2, parry ? "A parry lost its header's active frames" : "A hitless landing's header counted as active");
@@ -337,23 +341,188 @@ int main() {
         {
             // Abel's EX 236P grabs on its first active frame, drops Ryu and hits him, grabs him
             // again and lets go: active 1, and recovery from the last release.
-            FrameMeter counted; std::array<FighterSample, 2> pair;
-            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
-            counted.Observe(0, pair);
+            FrameMeter counted; auto pair = Still(counted);
             int tick = 1;
             pair[0].status = 16; pair[0].commandMove = 0x4000;
-            const auto step = [&](int action, int phase, unsigned other) {
-                pair[0].action = action; pair[0].hitPhase = phase; pair[0].actionFrame = static_cast<float>(tick);
+            const auto step = [&](int action, bac::HitPhase phase, unsigned other) {
+                pair[0].action = action; pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(tick);
                 pair[1].status = other; pair[1].action = other ? 500 + static_cast<int>(other) : 0; pair[1].actionFrame = static_cast<float>(tick);
                 counted.Observe(tick++, pair);
             };
-            step(515, 0, 0); step(515, 1, 0);
-            for (int i = 0; i < 3; ++i) step(516, 0, ActorStatus::Sequence);
-            step(518, 0, ActorStatus::DamageBlow); step(518, 1, ActorStatus::DamageBlow); step(518, 3, ActorStatus::DamageBlow);
-            for (int i = 0; i < 3; ++i) step(521, 0, ActorStatus::Sequence);
-            for (int i = 0; i < 3; ++i) step(521, 3, ActorStatus::Down);
+            step(515, Before, 0); step(515, Out, 0);
+            for (int i = 0; i < 3; ++i) step(516, Before, ActorStatus::Sequence);
+            step(518, Before, ActorStatus::DamageBlow); step(518, Out, ActorStatus::DamageBlow); step(518, Done, ActorStatus::DamageBlow);
+            for (int i = 0; i < 3; ++i) step(521, Before, ActorStatus::Sequence);
+            for (int i = 0; i < 3; ++i) step(521, Done, ActorStatus::Down);
             Require(counted.View().startupFrames[0] == 2 && counted.View().moves[0].active == 1 && counted.View().moves[0].recovery == 3,
                 "A grab's follow-up hits counted as active, or its recovery not from the last release");
+        }
+        {
+            // Balrog's headbutt: six startup frames in one script, then a second script that
+            // opens active. Its startup is seven, not one counted again from the second script.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 346; pair[0].hits = Before;
+            for (int frame = 1; frame <= 6; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 369; pair[0].hits = Out; pair[0].actionFrame = 0; counted.Observe(7, pair);
+            pair[0].actionFrame = 1; counted.Observe(8, pair);
+            Require(counted.View().startupFrames[0] == 7 && counted.View().moves[0].active == 2, "A move's active second script restarted its startup");
+        }
+        {
+            // Vega's roll: the first script is active 3 frames and ends with one more, the second
+            // (same command move) winds up and hits 1, then 4 frames recover. Its frame 0 is a
+            // frame too, so 3(3)1: active 7.
+            FrameMeter counted; auto pair = Still(counted);
+            int tick = 1;
+            pair[0].status = 16; pair[0].action = 416; pair[0].commandMove = 0x1000;
+            for (auto phase : {Before, Out, Out, Out, Done}) { pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(tick); counted.Observe(tick++, pair); }
+            Require(counted.View().moves[0].active == 3 && counted.View().moves[0].recovery == 1, "The first script's hits or its tail miscounted");
+            pair[0].action = 417;
+            int frame = 0;
+            for (auto phase : {Before, Before, Out, Done, Done, Done, Done}) { pair[0].hits = phase; pair[0].actionFrame = static_cast<float>(frame++); counted.Observe(tick++, pair); }
+            Require(counted.View().startupFrames[0] == 2 && counted.View().moves[0].active == 7 && counted.View().moves[0].recovery == 4,
+                "A two-script move's gap or recovery miscounted");
+        }
+        {
+            // Poison's 236LP: the fireball spawns at script frame 33 (boundary 34) while the
+            // script plays 2 frames a step; the step from 32.99 to 34.99 spawns it, the next hits.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 443; pair[0].firstActiveFrame = 34; pair[0].lastActiveFrame = 35;
+            pair[0].boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
+            int tick = 1;
+            for (float frame : {28.99f, 30.99f, 32.99f, 34.99f}) { pair[0].actionFrame = frame; counted.Observe(tick++, pair); }
+            Require(counted.View().startupFrames[0] < 0, "A fireball hit the step it spawned");
+            pair[0].actionFrame = 36.99f; counted.Observe(tick++, pair);
+            Require(counted.View().startupFrames[0] == 5, "A fireball's startup missed the step after its spawn");
+            pair[0].actionFrame = 38.99f; counted.Observe(tick++, pair);
+            Require(counted.View().moves[0].active == 1 && counted.View().moves[0].recovery == 1, "A fireball's step after its spawn was not its active one");
+        }
+        {
+            // Akuma's red fireball LP: spawn frame 47 (boundary 48) at 1.5 frames a step. The step
+            // from 46 to 47.5 spawns it and the one to 49 hits, though 49 lies past the boundary.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 388; pair[0].firstActiveFrame = 48; pair[0].lastActiveFrame = 49;
+            pair[0].boundaryProvenance = BoundaryProvenance::BacEffectSpawn;
+            int tick = 1;
+            for (float frame : {43.f, 44.5f, 46.f, 47.5f}) { pair[0].actionFrame = frame; counted.Observe(tick++, pair); }
+            Require(counted.View().startupFrames[0] < 0, "A fireball hit the step it spawned (1.5 a step)");
+            pair[0].actionFrame = 49.f; counted.Observe(tick++, pair);
+            Require(counted.View().startupFrames[0] == 5, "A fireball's step after its spawn was missed at 1.5 a step");
+            pair[0].actionFrame = 50.5f; counted.Observe(tick++, pair);
+            Require(counted.View().moves[0].active == 1 && counted.View().moves[0].recovery == 1, "A fireball had no active frame at 1.5 a step");
+        }
+        for (const bool input : {false, true}) {
+            // Seth's 214LK plays two scripts, the second opening in startup, under one command
+            // move: one move, startup counted from the first. A target combo is a new input
+            // (another command move) and so a new move with its own startup.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 450; pair[0].hits = Before; pair[0].commandMove = 0x1000;
+            // The target combo's first hit is out on frame 5; Seth's first script has none.
+            for (int frame = 1; frame <= 5; ++frame) { pair[0].hits = input && frame == 5 ? Out : Before; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 464; pair[0].commandMove = input ? 0x2000 : 0x1000;
+            for (int frame = 0; frame < 7; ++frame) { pair[0].hits = frame < 6 ? Before : Out; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(6 + frame, pair); }
+            Require(counted.View().startupFrames[0] == (input ? 7 : 12), input ? "A target combo's own startup was not counted" : "A move's own next script restarted its startup");
+        }
+        {
+            // A plinked EX input: the first button makes a normal for a frame, then the special
+            // takes over. The special's startup does not include the normal's frame.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 100; pair[0].hits = Before; pair[0].commandMove = 0x1000; pair[0].actionFrame = 1;
+            counted.Observe(1, pair);
+            pair[0].action = 300; pair[0].commandMove = 0x2000;
+            for (int frame = 0; frame < 5; ++frame) { pair[0].hits = frame < 4 ? Before : Out; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(2 + frame, pair); }
+            Require(counted.View().startupFrames[0] == 5, "A plinked special counted the normal's frame in its startup");
+        }
+        {
+            // Akuma's Demon Flip plays a stance that attacks nothing; a follow-up pressed 10 frames
+            // in is a new input whose startup counts from its own first frame.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 445; pair[0].commandMove = 0x1000; pair[0].hits = bac::HitPhase::Untimed;
+            for (int frame = 1; frame <= 10; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 447; pair[0].commandMove = 0x2000;
+            for (int frame = 0; frame < 9; ++frame) { pair[0].hits = frame < 8 ? Before : Out; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(11 + frame, pair); }
+            Require(counted.View().startupFrames[0] == 9, "A follow-up from a stance counted the stance's frames in its startup");
+        }
+        {
+            // Adon's far HK hits twice: Ryu's reaction starts again from its first frame as the
+            // second hitstop begins. That frame is hitstop, not one the reaction moved on.
+            FighterSample before, after;
+            before.valid = after.valid = true; before.action = after.action = 133;
+            before.actionFrame = 2.375f; after.actionFrame = 0;
+            Require(!AnimationMoved(before, after), "A reaction started again by a second hit counted as moving");
+            after.actionFrame = 1.2f;
+            Require(AnimationMoved(before, after), "A restarted reaction past its first frame did not count as moving");
+            before.actionFrame = 1; after.actionFrame = 1;
+            Require(!AnimationMoved(before, after), "A held frame counted as moving");
+            after.action = 134;
+            Require(AnimationMoved(before, after), "A new action past its first frame did not count as moving");
+        }
+        {
+            // Blanka stands in a negative posture, as the game has it in the air or thrown: an
+            // attack from it is still measured.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            pair[0].posture = -1; counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 100; pair[0].actionFrame = 1; counted.Observe(1, pair);
+            pair[1].status = 21; pair[1].action = 200; pair[0].actionFrame = 2; counted.Observe(2, pair);
+            Require(counted.View().advantage.pending && counted.View().advantage.attacker == 0, "An attack from a negative posture was taken for a bad read");
+        }
+        {
+            // Akuma's demon flip punch sends Ryu from standing straight into the bound;
+            // the hit is still contact, with his combo damage changing on it.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            pair[1].comboDamage = 320;
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 425; pair[0].posture = -1;
+            for (int frame = 1; frame <= 3; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[1].status = 18; pair[1].action = 28; pair[1].comboDamage = 130; pair[0].actionFrame = 4; counted.Observe(4, pair);
+            Require(counted.View().advantage.pending && counted.View().advantage.attacker == 0 && !counted.View().advantage.blocked,
+                "A hit straight into the bound was not contact");
+        }
+        {
+            // Adon's throw: the grab is active on frame 3, then Adon plays the throw in Skill
+            // while Ryu is held in a sequence. The throw is no new move: startup stays 3 and
+            // its frames are drawn as the sequence; once Ryu is let go the rest is recovery.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 288;
+            for (int frame = 1; frame <= 3; ++frame) { pair[0].hits = frame < 3 ? Before : Out; pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            pair[0].action = 292; pair[0].hits = Before; pair[1].status = 24; pair[1].action = 293;
+            for (int frame = 0; frame < 5; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(frame); counted.Observe(4 + frame, pair); }
+            Require(counted.View().startupFrames[0] == 3 && counted.View().frames.back().cells[0].kind == MeterKind::Sequence,
+                "A throw played in Skill restarted the thrower's startup, or was not drawn as its sequence");
+            pair[0].hits = Done; pair[1].status = 20; pair[1].action = 34;
+            for (int frame = 5; frame < 8; ++frame) { pair[0].actionFrame = static_cast<float>(frame); pair[1].actionFrame = static_cast<float>(frame); counted.Observe(4 + frame, pair); }
+            Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].recovery == 3, "A thrower's frames after the throw were not its recovery");
+        }
+        {
+            // Ken's close MK (Omega) hits twice from one script, boxes 8 to 10 and 14 to 17. Frame
+            // data counts its active frames from the first hit to the last, the gap included: 2(4)3, 9.
+            FrameMeter counted; auto pair = Still(counted);
+            pair[0].status = 16; pair[0].action = 100;
+            for (int frame = 1; frame <= 20; ++frame) {
+                pair[0].hits = frame < 8 ? Before : frame < 10 ? Out : frame < 14 ? bac::HitPhase::Between : frame < 17 ? Out : Done;
+                pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair);
+            }
+            Require(counted.View().startupFrames[0] == 8 && counted.View().moves[0].active == 9 && counted.View().moves[0].recovery == 4,
+                "A two-hit move's active frames were not counted from its first hit to its last");
+        }
+        {
+            // A crouching jab of 3, 2 and 7 (first=3, last=5, ending on frame 11), cells as played,
+            // as Street Fighter 6 draws it: 2, 2 and 7. The numbers are frame data's.
+            FrameMeter counted; std::array<FighterSample, 2> pair;
+            for (auto& fighter : pair) { fighter.valid = true; fighter.posture = 0; fighter.timeScale = 1; fighter.status = 0; fighter.action = 0; }
+            counted.Observe(0, pair);
+            pair[0].status = 16; pair[0].action = 100; pair[0].firstActiveFrame = 3; pair[0].lastActiveFrame = 5;
+            for (int frame = 1; frame <= 11; ++frame) { pair[0].actionFrame = static_cast<float>(frame); counted.Observe(frame, pair); }
+            std::array<int, 3> cells{};
+            for (const auto& frame : counted.View().frames) {
+                const auto kind = frame.cells[0].kind;
+                if (kind == MeterKind::Startup || kind == MeterKind::Active || kind == MeterKind::Recovery)
+                    ++cells[kind == MeterKind::Startup ? 0 : kind == MeterKind::Active ? 1 : 2];
+            }
+            Require(cells == (std::array<int, 3>{2, 2, 7}), "An attack's cells were not drawn as they play");
+            Require(counted.View().startupFrames[0] == 3 && counted.View().moves[0].active == 2 && counted.View().moves[0].recovery == 7,
+                "The cells changed a move's numbers");
         }
         std::puts("Frame meter run tests passed");
         return 0;

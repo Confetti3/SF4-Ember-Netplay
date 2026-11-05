@@ -85,6 +85,8 @@ struct HeldFiles {
     SharedNames names = std::make_shared<std::vector<std::string>>();
 };
 HeldFiles heldFiles[2];
+// Each side's last juggle numbers, shown until an attack has its own; cleared with the battle.
+std::array<Juggle, 2> keptJuggle;
 // The meter in a rollback match: asked for by the player, and fed only
 // frames whose inputs are confirmed. watching is read on the game thread
 // and set from the overlay's.
@@ -238,7 +240,7 @@ bool RestoreCheckpoint(Native* system) {
     Manager::RecorderState* recorderState = manager ? Manager::GetRecorderState(manager) : nullptr;
     if (recorderState && *recorderState == Manager::REC_PLAYING) *recorderState = Manager::REC_PLAYBACK_ARMED;
     if (dummyControl.Rewind()) ReturnDummyControl(system);
-    meter.Reset(); ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
+    meter.Reset(); keptJuggle = {}; ForgetStun(dummyWatch, session, replies); replyTrace.Reset();
     if (!restored) {
         spdlog::error("Training: the checkpoint did not fully restore; leaving the battle");
         *Native::GetReadyState(system) = Native::RS_ISLEAVING;
@@ -628,10 +630,9 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
                 sample.firstActiveFrame = script[0];
                 sample.lastActiveFrame = script[1];
                 sample.boundaryProvenance = BoundaryProvenance::BacActionHeader;
-                sample.headerOnly = owned && file->scripts[sample.action].hits.empty();
             }
             // The hits as the game puts them out, from the edition's own file.
-            if (owned) sample.hitPhase = bac::HitPhase(file->scripts[sample.action], sample.actionFrame);
+            if (owned) sample.hits = bac::PhaseAt(file->scripts[sample.action], sample.actionFrame);
             if (script && script[2] > 0 && script[2] <= script[3] && script[3] <= 4096) sample.interruptibleFrame = script[2];
             if (script && script[3] > 0 && script[3] <= 4096) sample.totalFrames = script[3];
         }
@@ -693,6 +694,9 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         fighter.revengeMax = amount(actor, Actor::publicMethods.GetRevengeMax_FixedPoint);
         fighter.juggled = Actor::GetJuggleCount(actor);
         fighter.juggle = JuggleOf(*fighter.scripts, fighter.script, fighter.scriptFrame);
+        // The last attack's juggle numbers stay up until another attack has its own.
+        if (fighter.juggle.start >= 0 || fighter.juggle.add >= 0 || fighter.juggle.limit >= 0) keptJuggle[side] = fighter.juggle;
+        else fighter.juggle = keptJuggle[side];
         if (fighter.status == ActorStatus::Skill)
             if (const unsigned char* move = (actor->*Actor::publicMethods.GetCommandMove)()) {
                 const unsigned short rule = Command::GetMoveRange(move, fighter.range);
@@ -919,7 +923,7 @@ void CloseBattle() {
     playing = {};
     // The slots stay with the dummy fighter for its next battle, a recording under way among them.
     if (session.GetView().available) banks.Detach(session.TakeBank());
-    session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
+    keptJuggle = {}; session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
     matchPractice = false; dummyWatch.Reset(); replies.Reset(); replyTrace.Reset(); playbackSeen = {};
     // The recording made stays for the next battle, where the check plays it.
     comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.free = comboView.recording = false;

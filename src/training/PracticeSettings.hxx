@@ -35,6 +35,7 @@ constexpr HudPart HudParts[] = {{"hud_numbers", "training.meter.hud_numbers", &M
     {"hud_status", "training.meter.hud_status", &MeterOptions::status}};
 // The classic style's parts, on the same page while that style is chosen.
 constexpr HudPart ClassicParts[] = {{"classic_data", "training.meter.classic_data", &MeterOptions::classicData},
+    {"classic_p2", "training.meter.classic_p2", &MeterOptions::classicP2},
     {"classic_inputs", "training.meter.classic_inputs", &MeterOptions::classicInputs}, {"classic_colors", "training.meter.classic_colors", &MeterOptions::classicColors},
     {"classic_extras", "training.meter.classic_extras", &MeterOptions::classicExtras}, {"classic_slant", "training.meter.classic_slant", &MeterOptions::classicSlant}};
 // The parts of Hitboxes, on its page.
