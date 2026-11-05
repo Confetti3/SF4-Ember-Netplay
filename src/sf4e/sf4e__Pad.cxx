@@ -213,28 +213,25 @@ void fSystem::UpdateInputs() {
     }
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
-    static sf4e::input::MenuInputCapture gate;
-    const unsigned kept=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
-    // Blocked while Ember holds every button (Training then reads no pad);
-    // a button only kept from a capture leaves new presses to the game, and
-    // to the dummy in Training.
-    inputBlocked=kept==sf4e::input::MenuInputCapture::All;
+    static sf4e::input::MenuInputCapture capture;
     // Native Start is untouched while Ember is closed; an open overlay,
     // including the training controls, captures all inputs, and so do pads
     // polled behind another window for Ember's menu alone. After that only
     // the buttons still held from then wait for their release; a new press
-    // goes to the game, and to a fight's GGPO input, at once (MenuInputCapture).
-    unsigned allowed=~kept;
-    if(ownedByGesture&sf4e::input::PhysicalStart)allowed&=~sf4e::input::NativeStart;
-    if(allowed!=sf4e::input::MenuInputCapture::All)sf4e::input::ClearNativeMenuInputs(this,allowed);
+    // goes to the game, to a fight's GGPO input and to the dummy in Training
+    // at once (MenuInputCapture, GatePad).
+    const auto menu=capture.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
+    const auto gate=sf4e::input::GatePad(menu,(ownedByGesture&sf4e::input::PhysicalStart)!=0);
+    inputBlocked=gate.blocked;
+    sf4e::input::WithholdNativeInputs(this,gate.withheld);
     // Counted for the netplay log window (Netplay [...] withheld=): these
     // updates give GGPO's local input less than the pad held, with no other trace.
     if(sf4e::Game::Battle::System::ggpo) {
         if(clearedBehind) ++withheld.focus;
         // The menu's own capture (the post-match prompt over WIN is one) apart
         // from the buttons still held after it let go.
-        if(kept==sf4e::input::MenuInputCapture::All) ++withheld.menu;
-        else if(kept) ++withheld.kept;
+        if(menu.capturing) ++withheld.menu;
+        else if(menu.kept) ++withheld.kept;
     }
 }
 

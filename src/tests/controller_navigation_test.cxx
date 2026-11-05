@@ -192,7 +192,7 @@ void NativeCapture() {
  Check(std::strcmp(PhysicalGlyph(4,0x80000,"LP"),"LP")==0,"DirectInput guessed an Xbox glyph");
  unsigned char caches[0x100];std::memset(caches,0x5a,sizeof(caches));
  Check(sf4e::input::NativeMenuHeld(caches)==0x5a5a5a5a,"Native cache offsets");
- sf4e::input::ClearNativeMenuInputs(caches);
+ sf4e::input::WithholdNativeInputs(caches);
  for(unsigned i=0;i<sizeof(caches);++i){const bool input=(i>=0x18&&i<0x2c)||(i>=0x68&&i<0x7c);
   Check(caches[i]==(input?0:0x5a),"Native suppression corrupted assignment or missed an input cache");}
  using sf4e::input::MenuContext;using sf4e::input::ControllerMenuAvailable;
@@ -223,10 +223,11 @@ void NativeCapture() {
    "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
  }
  sf4e::input::MenuInputCapture capture;
- Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
- Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");
- Check(capture.Update(false,16)&&capture.Update(false,16),"Closing leaked held input");
- Check(!capture.Update(false,0)&&!capture.Update(false,16),"New gameplay press blocked after release");
+ const auto withheld=[&](bool open,unsigned held){return capture.Update(open,held).Withheld();};
+ Check(!withheld(false,16),"Native input suppressed while overlay hidden");
+ Check(withheld(true,16)&&withheld(true,0),"Open overlay not suppressing native input");
+ Check(withheld(false,16)&&withheld(false,16),"Closing leaked held input");
+ Check(!withheld(false,0)&&!withheld(false,16),"New gameplay press blocked after release");
  {
   // A direction held from the menu into the fight stays the menu's until it
   // is let go, but a button pressed beside it reaches the game (and so the
@@ -234,19 +235,39 @@ void NativeCapture() {
   using sf4e::input::MenuInputCapture;
   constexpr unsigned direction=0x2,attack=0x10,other=0x40;
   MenuInputCapture gate;
-  Check(gate.Update(true,direction)==MenuInputCapture::All,"An open menu did not keep every button");
-  Check(gate.Update(false,direction)==direction,"The direction held as the menu closed reached the game");
-  const unsigned kept=gate.Update(false,direction|attack);
+  const auto open=gate.Update(true,direction);
+  Check(open.capturing&&open.Withheld()==~0u,"An open menu did not keep every button");
+  const auto closed=gate.Update(false,direction);
+  Check(!closed.capturing&&closed.kept==direction,"The direction held as the menu closed reached the game");
+  const unsigned kept=gate.Update(false,direction|attack).Withheld();
   Check(kept==direction,"A press made after the menu closed was kept while a direction from the menu was held");
   unsigned char caches[0x100];std::memset(caches,0,sizeof(caches));
   const unsigned held=direction|attack;std::memcpy(caches+0x18,&held,4);
-  sf4e::input::ClearNativeMenuInputs(caches,~kept);
+  sf4e::input::WithholdNativeInputs(caches,kept);
   Check(sf4e::input::NativeMenuHeld(caches)==attack,"The new press did not survive the menu's clear of the game's caches");
-  Check(gate.Update(false,direction|attack|other)==direction,"A second new press was kept");
-  Check(gate.Update(false,attack)==0&&gate.Update(false,attack|direction)==0,"The direction pressed again after its release was still kept");
+  Check(gate.Update(false,direction|attack|other).kept==direction,"A second new press was kept");
+  Check(gate.Update(false,attack).kept==0&&gate.Update(false,attack|direction).kept==0,"The direction pressed again after its release was still kept");
   // The press that closed the menu, first seen held on the update after the capture, stays the menu's.
   MenuInputCapture closing;closing.Update(true,0);
-  Check(closing.Update(false,attack)==attack&&closing.Update(false,attack)==attack&&closing.Update(false,0)==0,"The closing press leaked into the game");
+  Check(closing.Update(false,attack).kept==attack&&closing.Update(false,attack).kept==attack&&closing.Update(false,0).kept==0,"The closing press leaked into the game");
+ }
+ {
+  // PadGateDecidesWhatTheGameGets: what one pad update gives the game, and so a fight's GGPO input.
+  using sf4e::input::GatePad;using sf4e::input::MenuGate;
+  const MenuGate idle{},capturing{true,0},kept{false,0x12};
+  const auto none=GatePad(idle,false);
+  Check(!none.withheld&&!none.blocked,"A free pad update withheld input");
+  // The menu's capture takes every button, the Training gesture's Start among them.
+  const auto taken=GatePad(capturing,true);
+  Check(taken.withheld==~0u&&taken.blocked,"A capture did not take every button");
+  // Kept buttons are withheld one by one; new presses are not blocked.
+  const auto rest=GatePad(kept,false);
+  Check(rest.withheld==0x12&&!rest.blocked,"Buttons kept after a capture were not withheld alone");
+  // A gesture that owns Start withholds only the game's Start.
+  const auto gesture=GatePad(idle,true);
+  Check(gesture.withheld==sf4e::input::NativeStart&&!gesture.blocked,"The gesture's Start reached the game");
+  const auto both=GatePad(kept,true);
+  Check(both.withheld==(0x12u|sf4e::input::NativeStart),"The gesture's Start and the kept buttons were not withheld together");
  }
  ControllerNavigation adapter;ControllerSample device{3,2,true,16};
  adapter.Update(device,true,true,true);Check(adapter.Buttons()==0,"Held opening button activated");
@@ -575,7 +596,7 @@ void TrainingPadOwnership(){
  chord.Update(back,race,at+=.02,TrainingCall::None,live,place);chord.Update(both,race,at+=.02,TrainingCall::None,live,place);
  const bool shellShown=frameSawOpen&&false;
  MenuInputCapture gate;
- Check(!frameSawOpen&&CapturesInput(shellShown,race)&&gate.Update(CapturesInput(shellShown,race),0),"A frame's late publication released the input the chord took");
+ Check(!frameSawOpen&&CapturesInput(shellShown,race)&&gate.Update(CapturesInput(shellShown,race),0).capturing,"A frame's late publication released the input the chord took");
 }
 // The controls' open state has one owner. Two chords before a frame open and
 // then close them, from either state; F6 and the controls' own Back act on

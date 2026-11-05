@@ -77,31 +77,53 @@ struct StartPress {
         return true;
     }
 };
-inline void ClearNativeMenuInputs(void* system, unsigned allowed = 0) {
+// Clears the `withheld` buttons from both players' caches, every one by default.
+inline void WithholdNativeInputs(void* system, unsigned withheld = ~0u) {
     auto* bytes=static_cast<unsigned char*>(system);
     for(unsigned side=0;side<2;++side)for(unsigned cache=0;cache<5;++cache) {
         auto* address=bytes+0x18+side*0x50+cache*sizeof(std::uint32_t);
-        std::uint32_t value;std::memcpy(&value,address,sizeof(value));value&=allowed;
+        std::uint32_t value;std::memcpy(&value,address,sizeof(value));value&=~withheld;
         std::memcpy(address,&value,sizeof(value));
     }
 }
-// The game's buttons Ember's menu keeps from it this update (ClearNativeMenuInputs
-// takes the complement): every one while the menu captures the pads. Once the
-// capture ends, the buttons held on the first update after it are the menu's
-// (the press that closed it among them), and each stays kept until it is let
-// go. A button pressed after that reaches the game at once, even while a kept
+// What Ember's menu keeps from the game this update: every button while it
+// captures the pads, else the buttons still held from that capture.
+struct MenuGate {
+    bool capturing=false;
+    unsigned kept=0;
+    unsigned Withheld() const { return capturing?~0u:kept; }
+};
+// Once the capture ends, the buttons held on the first update after it are the
+// menu's (the press that closed it among them), and each stays kept until it is
+// let go. A button pressed after that reaches the game at once, even while a kept
 // one, such as a direction held from the menu into the fight, is still down.
 class MenuInputCapture {
 public:
-    static constexpr unsigned All=~0u;
-    unsigned Update(bool capture,unsigned held) {
-        if(capture){capturing_=true;return All;}
+    MenuGate Update(bool capture,unsigned held) {
+        MenuGate gate;
+        if(capture){capturing_=true;gate.capturing=true;return gate;}
         if(capturing_){capturing_=false;kept_=held;}
         else kept_&=held;
-        return kept_;
+        gate.kept=kept_;
+        return gate;
     }
 private:
     bool capturing_=false;
     unsigned kept_=0;
 };
+// What one pad update gives the game, and so a fight's GGPO input.
+struct PadGate {
+    // The buttons cleared from every cache (WithholdNativeInputs).
+    unsigned withheld=0;
+    // Ember holds every button: Training reads no pad, and the native menu stays parked.
+    bool blocked=false;
+};
+// The menu's gate, plus the Start of a Training gesture (TrainingPad.hxx) that
+// owns it whether or not it opened anything.
+inline PadGate GatePad(const MenuGate& menu,bool gestureOwnsStart) {
+    PadGate gate;
+    gate.withheld=menu.Withheld()|(gestureOwnsStart?NativeStart:0u);
+    gate.blocked=menu.capturing;
+    return gate;
+}
 } }
