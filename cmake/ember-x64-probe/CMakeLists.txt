@@ -48,10 +48,10 @@ list(APPEND _ember_files
     training/TrainingSession.hxx)
 
 set(EMBER_SF4_SIDE
-    # Selection: SF4's roster, stages and installed content.
+    # Selection: SF4's roster, stages, installed content and packaged art.
     common/FighterCatalog.cxx common/FighterCatalog.hxx common/StageCatalog.cxx common/StageCatalog.hxx
     common/StageValue.hxx common/InstalledContent.cxx common/InstalledContent.hxx
-    common/SelectionAssetPath.hxx common/RandomFighter.hxx common/LobbyMusic.hxx
+    common/Sf4SelectionAssetPath.cxx common/LobbyMusic.hxx
     ui/FighterSelector.cxx ui/FighterSelector.hxx ui/Sf4SelectionLabels.cxx ui/Sf4SelectionArt.cxx
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx
     # Language, display and pads: the game's files and its pad layer.

@@ -1,10 +1,16 @@
-// The fake game's pick labels (SelectionLabels.hxx) and pictures
-// (SelectionArt.hxx): plain names by number, and no picture of its own, with
-// nothing of SF4's costume packs, Ultras, stages or files.
+// The fake game's pick labels (SelectionLabels.hxx), pictures
+// (SelectionArt.hxx) and packaged selection files (SelectionAssetPath.hxx):
+// plain names by number, no picture of its own and no files, with nothing of
+// SF4's costume packs, Ultras, stages or files.
+#include "../common/SelectionAssetPath.hxx"
 #include "../ui/SelectionArt.hxx"
 #include "../ui/SelectionLabels.hxx"
 
 #include <string>
+
+namespace sf4e { namespace selection {
+bool IsSelectionAssetPath(const std::wstring&) { return false; }
+} }
 
 namespace sf4e { namespace ui {
 std::string StageLabel(int stageId, const selection::InstalledContent*) { return "Stage " + std::to_string(stageId); }
