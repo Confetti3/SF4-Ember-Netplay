@@ -3,6 +3,8 @@
 // what fake_game.hxx lets a test set and read.
 #include "fake_game.hxx"
 
+#include "../sf4e/sf4e__AbsentGameFeatures.hxx"
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -115,29 +117,6 @@ public:
     void StopCapture() override {}
 };
 
-class FakeReplays final : public Replays {
-public:
-    bool Ready() override { return false; }
-    const sf4e::replaystore::Status& Status() override { static const sf4e::replaystore::Status status; return status; }
-    void Start(const sf4e::replay::Request&, bool, bool) override {}
-    void Tick(bool, bool) override {}
-    void TickPlayback(int, int, bool) override {}
-    const sf4e::replaytransport::View& Playback() override { static const sf4e::replaytransport::View view; return view; }
-    std::shared_ptr<const sf4e::replaylane::Lanes> PlaybackLanes() override { return nullptr; }
-    // No archive: nothing is listed, kept or saved.
-    std::filesystem::path ArchivePath() override { return {}; }
-    void WantListing() override {}
-    std::shared_ptr<const std::vector<sf4e::platform::replays::ArchivedReplay>> LatestListing() override { return nullptr; }
-    void WantDetail(const std::string&, std::uint64_t) override {}
-    sf4e::replayinputs::DetailCompletion LatestDetail() override { return {}; }
-    void StopListing() override {}
-    void MarkKept(const std::filesystem::path&, bool) override {}
-    void MarkSent(const std::filesystem::path&) override {}
-    void MarkSetClosed(const std::filesystem::path&) override {}
-    std::filesystem::path SetPackPath(const std::string&) override { return {}; }
-    std::size_t ImportSetPack(const std::filesystem::path&) override { return 0; }
-};
-
 Capabilities Everything() {
     Capabilities caps;
     caps.training = true;
@@ -155,7 +134,7 @@ FakeInput s_input;
 FakePreferences s_preferences;
 FakeServices s_services;
 FakeTraining s_training;
-FakeReplays s_replays;
+NoReplays s_replays;
 Adapter s_game = {Everything(), s_state, s_battle, s_input, s_preferences, s_services, s_training, s_replays};
 }
 
