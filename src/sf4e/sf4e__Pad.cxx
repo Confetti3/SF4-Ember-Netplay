@@ -208,13 +208,16 @@ void fSystem::UpdateInputs() {
     ownerType=device.type;ownerIndex=device.index;
     const unsigned held=sf4e::input::NativeMenuHeld(this);
     static sf4e::input::MenuInputCapture gate;
-    const bool blocked=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
-    inputBlocked=blocked;
+    const unsigned kept=gate.Update(sf4e::Overlay::CapturesMenuInput()||hidden,held);
+    inputBlocked=kept!=0;
     // Native Start is untouched while Ember is closed; an open overlay,
-    // including the training controls, captures all inputs until release,
-    // and so do pads polled behind another window for Ember's menu alone.
-    if(blocked)sf4e::input::ClearNativeMenuInputs(this);
-    else if(ownedByGesture&sf4e::input::PhysicalStart)sf4e::input::ClearNativeMenuInputs(this,~sf4e::input::NativeStart);
+    // including the training controls, captures all inputs, and so do pads
+    // polled behind another window for Ember's menu alone. After that only
+    // the buttons still held from then wait for their release; a new press
+    // goes to the game, and to a fight's GGPO input, at once (MenuInputCapture).
+    unsigned allowed=~kept;
+    if(ownedByGesture&sf4e::input::PhysicalStart)allowed&=~sf4e::input::NativeStart;
+    if(allowed!=sf4e::input::MenuInputCapture::All)sf4e::input::ClearNativeMenuInputs(this,allowed);
 }
 
 unsigned int fSystem::ReadButtons(int pindex, bool raw) {

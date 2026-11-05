@@ -85,14 +85,23 @@ inline void ClearNativeMenuInputs(void* system, unsigned allowed = 0) {
         std::memcpy(address,&value,sizeof(value));
     }
 }
+// The game's buttons Ember's menu keeps from it this update (ClearNativeMenuInputs
+// takes the complement): every one while the menu captures the pads. Once the
+// capture ends, the buttons held on the first update after it are the menu's
+// (the press that closed it among them), and each stays kept until it is let
+// go. A button pressed after that reaches the game at once, even while a kept
+// one, such as a direction held from the menu into the fight, is still down.
 class MenuInputCapture {
 public:
-    bool Update(bool capture,unsigned held) {
-        if(capture)draining_=true;
-        else if(!held)draining_=false;
-        return capture||draining_;
+    static constexpr unsigned All=~0u;
+    unsigned Update(bool capture,unsigned held) {
+        if(capture){capturing_=true;return All;}
+        if(capturing_){capturing_=false;kept_=held;}
+        else kept_&=held;
+        return kept_;
     }
 private:
-    bool draining_=false;
+    bool capturing_=false;
+    unsigned kept_=0;
 };
 } }
