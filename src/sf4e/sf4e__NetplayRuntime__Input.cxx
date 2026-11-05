@@ -195,12 +195,18 @@ input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
 input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
     const auto* pad = LayerPad(deviceType, deviceIndex);
     input::TrainingButtons buttons;
-    if (!pad) return buttons;
     using namespace gamepads;
+    // An Xbox pad the layer does not serve keeps the controls on R3, as before the button could be bound.
+    if (!pad) {
+        if (deviceType == input::PadXInput) { buttons.controls = input::xinput::RS; buttons.controlsName = "R3"; }
+        return buttons;
+    }
     buttons.record = LayoutButtonMask(pad->bound[TrainingRecordButton], pad->has);
     buttons.play = LayoutButtonMask(pad->bound[TrainingPlayButton], pad->has);
     if (buttons.record) buttons.recordName = pad->buttonNames[pad->bound[TrainingRecordButton]];
     if (buttons.play) buttons.playName = pad->buttonNames[pad->bound[TrainingPlayButton]];
+    buttons.controls = LayoutButtonMask(pad->bound[TrainingControlsButton], pad->has);
+    if (buttons.controls) buttons.controlsName = pad->buttonNames[pad->bound[TrainingControlsButton]];
     return buttons;
 }
 

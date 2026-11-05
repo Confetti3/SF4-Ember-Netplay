@@ -267,7 +267,8 @@ void ExtraButtonRows() {
 
 // Training record and play: a press binds any layout button for this
 // controller, even one that attacks, the other row's button is refused,
-// presets keep the binding, and Clear turns both off.
+// presets keep the binding, and Clear turns both off. The Training controls
+// button starts on R3, shares no button with them, and can be rebound or turned off.
 void TrainingButtonRows() {
     Harness h; std::vector<MenuEntry> rows; std::string status; Tone tone = Tone::Neutral;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r) { rows = r; });
@@ -282,9 +283,15 @@ void TrainingButtonRows() {
     Prepare(h);
     Check(row("training-record").value == loc::T("common.off") && row("training-play").value == loc::T("common.off") && !has("training-clear"),
         "Training rows do not start Off");
+    Check(row("training-controls").value != loc::T("common.off") && has("training-controls-off"), "The Training controls button does not start on R3");
     press("training-record", "X");
     // A button the layout gives an attack binds too: in Training it records instead (TrainingTable).
     Check(LastLayout(h).bound[TrainingRecordButton] == 2 && tone == Tone::Success && row("training-record").value == "Square", "Record did not take a button that attacks");
+    press("training-record", "RS");
+    Check(LastLayout(h).bound[TrainingRecordButton] == 2 && tone == Tone::Error, "Record took the Training controls button");
+    h.Choose("training-controls-off"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
+    Check(LastLayout(h).bound[TrainingControlsButton] == -1 && row("training-controls").value == loc::T("common.off") && !has("training-controls-off"),
+        "The Training controls button did not turn Off");
     press("training-record", "RS");
     Check(LastLayout(h).bound[TrainingRecordButton] == 9 && LastLayout(h).bound[TrainingPlayButton] == -1 && LastLayout(h).buttons == DefaultLayout,
         "Record did not bind the right stick click alone");
@@ -299,8 +306,14 @@ void TrainingButtonRows() {
     Check(training(LastLayout(h).bound) == std::make_pair(9, 8), "Play did not bind the left stick click");
     h.Choose("preset"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
     Check(LastLayout(h).buttons == LayoutPresets[1].buttons && training(LastLayout(h).bound) == std::make_pair(9, 8), "A preset dropped the Training buttons");
+    // With Record on R3 and Play on LS the controls button takes any other button, never theirs.
+    press("training-controls", "RS");
+    Check(LastLayout(h).bound[TrainingControlsButton] == -1 && tone == Tone::Error, "The Training controls button took the Record button");
+    press("training-controls", "RB");
+    Check(LastLayout(h).bound[TrainingControlsButton] == 5 && tone == Tone::Success && has("training-controls-off"), "The Training controls button did not bind another button");
     h.Choose("training-clear"); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
     Check(training(LastLayout(h).bound) == std::make_pair(-1, -1) && row("training-record").value == loc::T("common.off") && !has("training-clear"), "Clear did not turn both Off");
+    Check(LastLayout(h).bound[TrainingControlsButton] == 5, "Clear changed the Training controls button");
     SetMenuEntriesProbe({}); SetMenuStatusProbe({});
 }
 }

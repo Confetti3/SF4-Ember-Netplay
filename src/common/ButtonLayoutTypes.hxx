@@ -26,35 +26,50 @@ inline bool ValidLayout(const ButtonLayout& layout) {
     return std::all_of(layout.begin(), layout.end(), [](std::uint32_t mask) { return !(mask & ~FightMask); });
 }
 // Ember's own actions a player binds to a layout button by pressing it on the
-// button layout page: confirm and go back in Ember's menus, record and play in
-// Training. Each has a partner that never shares its button. Start, View and
-// the directions are never bound.
-enum BoundAction : unsigned { MenuConfirmButton, MenuBackButton, TrainingRecordButton, TrainingPlayButton, BoundActionCount };
-// Each action's key in a saved layout, and its partner.
-struct BoundActionInfo { const char* json; BoundAction partner; };
+// button layout page: confirm and go back in Ember's menus; record, play and
+// the controls' own button in Training. The actions of one group never share
+// a button. Start, View and the directions are never bound.
+enum BoundAction : unsigned { MenuConfirmButton, MenuBackButton, TrainingRecordButton, TrainingPlayButton, TrainingControlsButton, BoundActionCount };
+enum class BoundGroup : unsigned { Menu, Training, Count };
+// Each action's key in a saved layout, its group, and its binding when the
+// layout holds none. Training's controls open on R3 (the right stick click),
+// as they always did; -1 is off, for them as for the rest.
+struct BoundActionInfo { const char* json; BoundGroup group; int unset; };
 constexpr std::array<BoundActionInfo, BoundActionCount> BoundActions = {{
-    {"menuConfirm", MenuBackButton}, {"menuBack", MenuConfirmButton}, {"trainingRecord", TrainingPlayButton}, {"trainingPlay", TrainingRecordButton}}};
+    {"menuConfirm", BoundGroup::Menu, -1}, {"menuBack", BoundGroup::Menu, -1}, {"trainingRecord", BoundGroup::Training, -1},
+    {"trainingPlay", BoundGroup::Training, -1}, {"trainingControls", BoundGroup::Training, 9}}};
 // For each action, the layout button bound to it as an index into LayoutGlyphs;
 // -1 for none (for a menu action: A and B, input::ResolveMenuButtons).
 using BoundButtons = std::array<int, BoundActionCount>;
-constexpr BoundButtons NoBoundButtons = {-1, -1, -1, -1};
+constexpr BoundButtons DefaultBoundButtons = {-1, -1, -1, -1, 9};
 inline bool BoundIndexInRange(std::int64_t index) { return index >= -1 && index < static_cast<std::int64_t>(LayoutGlyphs.size()); }
-inline bool ValidBoundButtons(const BoundButtons& bound) {
+// Whether one group's bindings are in range and share no button.
+inline bool ValidBoundGroup(const BoundButtons& bound, BoundGroup group) {
     for (unsigned action = 0; action < BoundActionCount; ++action) {
-        const int button = bound[action];
-        if (!BoundIndexInRange(button) || (button >= 0 && button == bound[BoundActions[action].partner])) return false;
+        if (BoundActions[action].group != group) continue;
+        if (!BoundIndexInRange(bound[action])) return false;
+        for (unsigned other = action + 1; other < BoundActionCount; ++other)
+            if (BoundActions[other].group == group && bound[action] >= 0 && bound[action] == bound[other]) return false;
     }
+    return true;
+}
+inline bool ValidBoundButtons(const BoundButtons& bound) {
+    for (unsigned group = 0; group < static_cast<unsigned>(BoundGroup::Count); ++group)
+        if (!ValidBoundGroup(bound, static_cast<BoundGroup>(group))) return false;
     return true;
 }
 // The physical mask of a layout button, 0 for none or a button the pad lacks.
 inline std::uint32_t LayoutButtonMask(int index, const ListedButtons& has = AllLayoutButtons) {
     return index >= 0 && index < static_cast<int>(LayoutBits.size()) && has[index] ? std::uint32_t(1) << LayoutBits[index] : 0;
 }
-// The fight table offline Training plays with: Training's record and play
-// buttons do nothing in the fight there, so a press records or plays and
-// never attacks too. Everywhere else they keep what the layout gives them.
+// The fight table offline Training plays with: Training's own buttons (record,
+// play and the controls') do nothing in the fight there, so a press records,
+// plays or opens the controls and never attacks too, and the game never
+// takes it. Everywhere else they keep what the layout gives them. A player
+// who wants such a button to attack in Training turns the controls button off
+// or moves it.
 inline ButtonLayout TrainingTable(ButtonLayout table, const BoundButtons& bound) {
-    for (const BoundAction action : {TrainingRecordButton, TrainingPlayButton})
+    for (const BoundAction action : {TrainingRecordButton, TrainingPlayButton, TrainingControlsButton})
         if (bound[action] >= 0 && bound[action] < static_cast<int>(table.size())) table[bound[action]] = 0;
     return table;
 }
@@ -62,7 +77,7 @@ struct StoredLayout {
     Identity identity;
     ButtonLayout buttons = DefaultLayout;
     std::int64_t edited = 0;
-    BoundButtons bound = NoBoundButtons;
+    BoundButtons bound = DefaultBoundButtons;
     ExtraCopies extras = NoExtraCopies;
     bool operator==(const StoredLayout& other) const {
         return identity == other.identity && buttons == other.buttons && edited == other.edited && bound == other.bound && extras == other.extras;

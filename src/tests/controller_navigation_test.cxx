@@ -313,18 +313,39 @@ void PracticeFightPresses(){
 // pressed while Back is held opens the controls or closes them. None of the
 // three clashes with another: the chord never resets or saves, a hold saves
 // once, and the game's pause (Start first) never opens or resets.
-// R3 on an Xbox pad: a press opens or closes the controls on its own, once
-// per press, never under the call, and the game never sees it.
+// The controls button on an Xbox pad (R3 unless the player bound another): a
+// press opens or closes the controls on its own, once per press, never under
+// the call, and the game never sees it.
 void TrainingPadQuick(){
  using namespace sf4e::input;
  TrainingPadGesture pad;double now=0;
- const auto step=[&](unsigned physical,bool open=false,TrainingCall call=TrainingCall::None){now+=1.0/60;return pad.Update(physical,open,now,call);};
- const unsigned quick=PhysicalQuick;
+ const unsigned quick=xinput::RS;
+ const auto step=[&](unsigned physical,bool open=false,TrainingCall call=TrainingCall::None){now+=1.0/60;return pad.Update(physical,open,now,call,false,quick);};
  auto e=step(quick);Check(e.open&&!e.close&&!e.reset&&!e.save&&(e.owned&quick),"R3 did not open the controls");
  Check(!step(quick).Any(),"Holding R3 acted twice");
  step(0);e=step(quick,true);Check(e.close&&!e.open,"R3 did not close the open controls");
  step(0);Check(!step(quick,false,TrainingCall::Called).Any(),"R3 opened the controls under the call");
  step(0);step(PhysicalBack);Check(!step(PhysicalBack|quick).open,"R3 opened the controls while Back was held");
+}
+// A button the player bound instead (LB here) opens them and R3 does nothing;
+// with the button off the pad's own presses do nothing, and the chord still opens them.
+void TrainingPadBoundControls(){
+ using namespace sf4e::input;
+ const unsigned lb=xinput::LB;
+ {
+  TrainingPadGesture pad;double now=0;
+  const auto step=[&](unsigned physical,bool open=false){now+=1.0/60;return pad.Update(physical,open,now,TrainingCall::None,false,lb);};
+  auto e=step(lb);Check(e.open&&!e.close&&(e.owned&lb)&&!(e.owned&xinput::RS),"The bound button did not open the controls");
+  step(0);Check(!step(xinput::RS).Any()&&!step(xinput::RS).owned,"R3 opened the controls after it was moved");
+  step(0);e=step(lb,true);Check(e.close&&!e.open,"The bound button did not close the open controls");
+ }
+ {
+  TrainingPadGesture pad;double now=0;
+  const auto step=[&](unsigned physical,bool open=false){now+=1.0/60;return pad.Update(physical,open,now);};
+  Check(!step(xinput::RS).Any()&&!step(xinput::RS).owned&&!step(lb).Any(),"A pad button acted with the controls button off");
+  step(0);step(PhysicalBack);const auto chord=step(PhysicalBack|PhysicalStart);
+  Check(chord.open&&!chord.close,"The chord did not open the controls with the button off");
+ }
 }
 void TrainingPadChord(){
  using namespace sf4e::input;
@@ -835,5 +856,5 @@ void ProfileRecords(){
 void DialogContract();
 void HintPresses();
 void DialogRepeat();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

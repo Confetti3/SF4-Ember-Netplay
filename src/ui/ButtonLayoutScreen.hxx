@@ -19,7 +19,8 @@ constexpr std::array<BoundActionRow, gamepads::BoundActionCount> BoundActionRows
     {"menu-confirm", "button_layout.menu_confirm", "button_layout.menu_confirm_detail"},
     {"menu-back", "button_layout.menu_back", "button_layout.menu_back_detail"},
     {"training-record", "button_layout.training_record", "button_layout.training_record_detail"},
-    {"training-play", "button_layout.training_play", "button_layout.training_play_detail"}}};
+    {"training-play", "button_layout.training_play", "button_layout.training_play_detail"},
+    {"training-controls", "button_layout.training_controls", "button_layout.training_controls_detail"}}};
 inline std::optional<gamepads::BoundAction> BoundActionOfRow(const std::string& id) {
     for (unsigned action = 0; action < gamepads::BoundActionCount; ++action) if (id == BoundActionRows[action].id) return static_cast<gamepads::BoundAction>(action);
     return {};
@@ -43,6 +44,9 @@ std::uint32_t BoundButtonNow(const gamepads::PadView& pad, gamepads::BoundAction
 // What a bound action's row shows: the menu button that acts now; a Training
 // action's button, or Off.
 std::string BoundButtonValue(const gamepads::PadView& pad, gamepads::BoundAction action);
+// The action of the same group (gamepads::BoundGroup) that acts on physical
+// button mask now, if any: the one that must refuse it for `action`.
+std::optional<gamepads::BoundAction> BoundActionTaking(const gamepads::PadView& pad, gamepads::BoundAction action, std::uint32_t mask);
 // The pad's name for a physical menu button (input::MenuButtons), or its glyph
 // when it is none of the ten layout buttons.
 std::string MenuButtonName(const gamepads::PadView& pad, std::uint32_t mask, const char* glyph);

@@ -71,7 +71,7 @@ struct PadView {
     std::optional<ButtonLayout> layout;
     // The stored bound buttons (BoundAction), and the buttons that confirm and go back
     // for this pad with them (MenuButtonsFor; A and B while it has no game slot).
-    BoundButtons bound = NoBoundButtons;
+    BoundButtons bound = DefaultBoundButtons;
     input::MenuButtons menuButtons;
     // The extra buttons the pad reports and what each copies.
     ListedExtras hasExtras{};
@@ -88,7 +88,7 @@ struct PadFrame {
     ListedButtons has = AllLayoutButtons;
     ButtonLayout table = DefaultLayout;
     std::optional<ButtonLayout> layout;
-    BoundButtons bound = NoBoundButtons;
+    BoundButtons bound = DefaultBoundButtons;
     ListedExtras hasExtras{};
     ExtraCopies extras = NoExtraCopies;
 };

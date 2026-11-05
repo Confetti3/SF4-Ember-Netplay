@@ -44,15 +44,24 @@ template<class Rejected> std::vector<StoredLayout> ReadLayouts(const nlohmann::j
         const auto text = [&](const char* key) { const auto field = entry.find(key); return field != entry.end() && field->is_string() ? field->get<std::string>() : std::string{}; };
         layout.identity = {text("guid"), text("serial"), text("path"), text("name")};
         if (entry.contains("edited") && entry["edited"].is_number_integer()) layout.edited = entry["edited"].get<std::int64_t>();
-        // A missing or unusable binding, or a pair on one button, leaves that
-        // pair unbound (the game's menu buttons, no Training buttons); the layout still loads.
-        const auto index = [&](const char* key) { const auto field = entry.find(key); return field != entry.end() && field->is_number_integer() ? field->get<std::int64_t>() : -1; };
-        for (unsigned action = 0; action < BoundActionCount; ++action) {
-            const unsigned partner = BoundActions[action].partner;
-            if (partner < action) continue;
-            const auto first = index(BoundActions[action].json), second = index(BoundActions[partner].json);
-            if (!BoundIndexInRange(first) || !BoundIndexInRange(second) || (first >= 0 && first == second)) continue;
-            layout.bound[action] = static_cast<int>(first); layout.bound[partner] = static_cast<int>(second);
+        // A missing or unusable binding is that action's default. A group with
+        // a binding out of range, or two actions on one button, goes back to
+        // its defaults (the game's menu buttons, no record or play, R3 for the
+        // controls); the layout still loads.
+        const auto index = [&](const BoundActionInfo& action) {
+            const auto field = entry.find(action.json);
+            return field != entry.end() && field->is_number_integer() ? field->get<std::int64_t>() : action.unset;
+        };
+        for (unsigned group = 0; group < static_cast<unsigned>(BoundGroup::Count); ++group) {
+            auto candidate = DefaultBoundButtons;
+            for (unsigned action = 0; action < BoundActionCount; ++action) {
+                if (BoundActions[action].group != static_cast<BoundGroup>(group)) continue;
+                const auto value = index(BoundActions[action]);
+                candidate[action] = BoundIndexInRange(value) ? static_cast<int>(value) : -2;
+            }
+            if (!ValidBoundGroup(candidate, static_cast<BoundGroup>(group))) continue;
+            for (unsigned action = 0; action < BoundActionCount; ++action)
+                if (BoundActions[action].group == static_cast<BoundGroup>(group)) layout.bound[action] = candidate[action];
         }
         // Missing or unusable extra button copies leave every extra button off; the layout still loads.
         const auto extras = entry.find("extraButtons");
