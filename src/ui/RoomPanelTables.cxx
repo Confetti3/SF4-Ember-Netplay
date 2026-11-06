@@ -73,6 +73,8 @@ std::string SeatCaption(const SeatLook& look,bool brief) {
  const std::string name=look.random?loc::Tf("selection.random_fighter",fighter):std::string(fighter);
  if(look.costume<0||look.ultra<0)return name;
  selection::Pick pick;pick.fighter=look.fighter;pick.costume=look.costume;pick.color=(std::max)(0,look.color);
+ // A game whose fighters have one Ultra (the catalog's) names none.
+ if(ember::Catalog().ultraChoices<=1)return name+" · "+ShortCostumeLabel(pick);
  return loc::Tf("room.seat_look",name,ShortCostumeLabel(pick),brief?ShortUltraLabel(look.ultra):UltraLabel(look.ultra));
 }
 

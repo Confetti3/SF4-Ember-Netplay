@@ -67,6 +67,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.opponentChangedFighter = snapshot.opponentChangedFighter; view.opponentChangeSequence = snapshot.opponentChangeSequence;
     view.trainingCallSequence = snapshot.trainingCallSequence; view.trainingReadySequence = snapshot.trainingReadySequence;
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain; view.canWatch = snapshot.canWatch;
+    view.offersTraining = game::Game().caps.training; view.offersReplays = game::Game().caps.replays;
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;

@@ -98,8 +98,9 @@ void SelectionRows(std::vector<MenuEntry>& rows,const ShellView& v) {
   rows.push_back(Value(id,label,value,canChange?detail:SelectionBlocker(v),canChange));
   rows.back().adjustable=canChange&&steps;rows.back().opens=true;
  };
- stepRow("ultra",loc::T("selection.ultra_combo"),v.ultraName,loc::T("selection.ultra_row.detail"),v.ultraSteps);
+ if(ember::Catalog().ultraChoices>1)stepRow("ultra",loc::T("selection.ultra_combo"),v.ultraName,loc::T("selection.ultra_row.detail"),v.ultraSteps);
  stepRow("appearance",loc::T("selection.appearance"),v.appearanceName,loc::T("room.appearance.detail"),v.colorSteps);
+ if(!v.fighterOptions)return;
  rows.push_back(Value("fighter-options",loc::T("room.fighter_options"),v.fighterOptionsName,
   canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
  rows.back().adjustable=false;rows.back().opens=true;
@@ -386,7 +387,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
   rows.push_back(Row("ready",ready.kind==ReadyControl::Unready?loc::T("room.unready.short"):ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
  }
- if(s.roomEpoch)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
+ if(s.roomEpoch&&v.offersTraining)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
  // A tournament room admits only its two fighters, who reach it through the
  // tournament service, so there is no invitation to hand out. A public room
  // admits by the service's ticket, so its invitation would admit nobody.

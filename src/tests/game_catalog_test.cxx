@@ -22,6 +22,14 @@ static void TestLimits() {
 	CHECK(catalog.showcaseFighters[0] == 1 && catalog.showcaseFighters[1] == 6 &&
 		catalog.showcaseFighters[2] == 17 && catalog.showcaseFighters[3] == 24);
 	for (int fighter : catalog.showcaseFighters) CHECK(selection::FindFighter(fighter) != nullptr);
+	// SF4 plays every table rule a room offers, so the shell offers them all.
+	CHECK(catalog.editions && catalog.rematchInPlace);
+	const int counts[] = {1, 3, 5, 7, 15, 99};
+	const int times[] = {30, 60, 99, 300, 9999};
+	CHECK(catalog.roundCountChoices == 6 && catalog.roundTimeChoices == 5);
+	for (int i = 0; i < 6; ++i) CHECK(catalog.roundCounts[i] == counts[i] && ember::PlayableRoundCount(counts[i]));
+	for (int i = 0; i < 5; ++i) CHECK(catalog.roundTimes[i] == times[i] && ember::PlayableRoundTime(times[i]));
+	CHECK(!ember::PlayableRoundCount(2) && !ember::PlayableRoundTime(98));
 }
 
 static void TestFighters() {
@@ -62,6 +70,12 @@ static void TestUsable() {
 	CHECK(!ember::Usable(catalog));
 	catalog = ember::Catalog();
 	catalog.rosterOrder = nullptr;
+	CHECK(!ember::Usable(catalog));
+	catalog = ember::Catalog();
+	catalog.roundCountChoices = 0;
+	CHECK(!ember::Usable(catalog));
+	catalog = ember::Catalog();
+	catalog.roundTimes = nullptr;
 	CHECK(!ember::Usable(catalog));
 }
 

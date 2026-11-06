@@ -105,7 +105,13 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundCount = action.preferences.tableRules.roundCount;
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
-    action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
+    // A game with no prompt over its result screen plays no rematch in place:
+    // the room it opens sends every game back to the room. The saved defaults
+    // keep the player's choice, so a save still reads back as sent.
+    if (kind == netplay::CommandKind::HostRoom && !ember::Catalog().rematchInPlace)
+        action.preferences.tableRules.instantRematch = false;
+    // A Practice room only in a game that plays its round time (RoomSetupRows).
+    action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_ && ember::PlayableRoundTime(room::PracticeRoundTime);
     action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
     if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
     // An Arcade room plays at every table; only a Classic one has a count to choose.
@@ -207,10 +213,10 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
     v.selectionLockReason.empty()?loc::T("home.selection_locked"):v.selectionLockReason,bool(selection)),
    Row("profile",loc::T("home.profile"),loc::T("home.profile_detail")),
    Row("settings",loc::T("home.settings"),loc::T("home.settings_detail")),
-   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle),
-   Row("replays",loc::T("home.replays"),loc::T("home.replays_detail"))};
+   Row("offline",loc::T("home.offline"),loc::T("home.offline_detail"),idle)};
+  if(v.offersReplays)rows.push_back(Row("replays",loc::T("home.replays"),loc::T("home.replays_detail")));
   // Training straight from Home, before Play offline.
-  rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
+  if(v.offersTraining)rows.insert(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="offline";}),Row("training",loc::T("home.training"),loc::T("home.training_detail"),idle));
   // News, the channel's newest releases (the panel under the player card shows the first three).
   if(!v.services.update.news.empty())rows.push_back(Row("news",loc::T("home.news"),v.services.update.news.front().title));
   // Notifications, what Ember said lately (the toasts).

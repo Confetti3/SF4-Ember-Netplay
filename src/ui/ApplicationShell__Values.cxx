@@ -35,8 +35,8 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "ready-volume") for (int v = 10; v <= 100; v += 10) labels.push_back(std::to_string(v) + "%");
     if (id == "scale") for (int i = 0; i <= 10; ++i) { char size[16]; std::snprintf(size, sizeof(size), "%.2fx", 1 + i * .05f); labels.push_back(size); }
     if (id == "button-prompts") for (int i = 0; i <= 3; ++i) labels.push_back(ButtonPromptValue(static_cast<gamepads::ButtonPrompts>(i)));
-    if (id == "rounds") for (int n : {1, 3, 5, 7, 15, 99}) labels.push_back(std::to_string(n));
-    if (id == "time") for (int t : room::RoundTimes) labels.push_back(std::to_string(t));
+    if (id == "rounds") for (int n : PlayableRoundCounts()) labels.push_back(std::to_string(n));
+    if (id == "time") for (int t : PlayableRoundTimes()) labels.push_back(std::to_string(t));
     if (id == "set-length") for (int n = 0; n <= room::MaxSetLength; ++n) labels.push_back(SetLengthText(static_cast<room::SetFormat>(n)));
     if (id == "rotation") for (int r = 0; r <= 2; ++r) labels.push_back(RotationText(static_cast<room::RotationMode>(r)));
     if (id == "replay-show") for (const char* key : kReplayShowKeys) labels.push_back(loc::T(key));

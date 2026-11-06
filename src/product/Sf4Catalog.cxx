@@ -8,6 +8,7 @@
 #include "../common/GameCatalog.hxx"
 #include "../common/FighterCatalog.hxx"
 #include "../common/InstalledContent.hxx"
+#include "../common/RoomRules.hxx"
 #include "../common/StageCatalog.hxx"
 
 namespace {
@@ -35,6 +36,13 @@ constexpr ember::GameCatalog Usf4 = {
 	&FighterName,
 	&sf4e::selection::CostumeCount,
 	sf4e::selection::RosterDisplayOrder,
+	// Every rule a room offers: SF4 plays them all.
+	sf4e::room::RoundCounts,
+	sizeof(sf4e::room::RoundCounts) / sizeof(sf4e::room::RoundCounts[0]),
+	sf4e::room::RoundTimes,
+	sizeof(sf4e::room::RoundTimes) / sizeof(sf4e::room::RoundTimes[0]),
+	true,
+	true,
 };
 static_assert(ember::Usable(Usf4), "SF4's catalog must fit the shared code's limits");
 }

@@ -80,6 +80,20 @@ struct GameCatalog {
 	// Every fighter once, in the order the game's own select screen lists
 	// them; fighterCount entries.
 	const int* rosterOrder;
+
+	// The table rules the game can play, which the shell offers and no
+	// other: round counts and round times in seconds, shortest first, each
+	// one a room accepts (room::ValidRoundCount, ValidRoundTime).
+	const std::uint8_t* roundCounts;
+	int roundCountChoices;
+	const std::uint16_t* roundTimes;
+	int roundTimeChoices;
+	// The game's fighters have editions, so a table's Edition select rule
+	// means something.
+	bool editions;
+	// The game asks its fighters Rematch, Character select or Back to room
+	// over its result screen, so a table's Instant rematch rule plays.
+	bool rematchInPlace;
 };
 
 // A catalog the shared code can use: a roster that fits MaxFighters,
@@ -91,11 +105,22 @@ constexpr bool Usable(const GameCatalog& catalog) {
 		catalog.colorLimit > 0 && catalog.ultraChoices > 0 && catalog.validPick != nullptr && catalog.validStage != nullptr &&
 		catalog.fighterLocked != nullptr && catalog.availablePick != nullptr && catalog.normalizePick != nullptr &&
 		catalog.resolveStage != nullptr && catalog.fighterName != nullptr && catalog.costumeCount != nullptr &&
-		catalog.rosterOrder != nullptr;
+		catalog.rosterOrder != nullptr && catalog.roundCounts != nullptr && catalog.roundCountChoices > 0 &&
+		catalog.roundTimes != nullptr && catalog.roundTimeChoices > 0;
 }
 
 const GameCatalog& Catalog();
 
 inline bool ValidFighter(std::int64_t id) { return id >= 0 && id < Catalog().fighterCount; }
+
+// The game plays this many rounds, or rounds this many seconds long.
+inline bool PlayableRoundCount(long long count) {
+	for (int i = 0; i < Catalog().roundCountChoices; ++i) if (Catalog().roundCounts[i] == count) return true;
+	return false;
+}
+inline bool PlayableRoundTime(long long seconds) {
+	for (int i = 0; i < Catalog().roundTimeChoices; ++i) if (Catalog().roundTimes[i] == seconds) return true;
+	return false;
+}
 
 } // namespace ember

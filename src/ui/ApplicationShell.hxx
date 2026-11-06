@@ -160,9 +160,11 @@ struct ShellView {
     std::string dummySummary,dummyError;
     // The chosen fighter, Ultra, appearance, fighter options and stage, for
     // the table page's rows; ultraSteps and colorSteps when there is more than
-    // one to step through.
+    // one to step through. The page has no Ultra row for a game whose catalog
+    // offers one Ultra, and no fighter options row (SF4's personal action and
+    // win quote) where the game says its fighters have none.
     std::string fighterName, ultraName, appearanceName, fighterOptionsName, stageName;
-    bool ultraSteps = false, colorSteps = false;
+    bool ultraSteps = false, colorSteps = false, fighterOptions = true;
     std::string selectionLockReason;
     // A Ready press in flight, and the last failure with a sequence that
     // changes per occurrence.
@@ -179,6 +181,9 @@ struct ShellView {
     std::uint64_t trainingCallSequence = 0, trainingReadySequence = 0;
     int trainingReadySeconds = 0;
     bool canTrain = false;
+    // The game has Training and replays at all (its adapter's capabilities):
+    // the shell shows no way into one it lacks.
+    bool offersTraining = true, offersReplays = true;
     // The game offers watching a table (the snapshot's canWatch): the room's
     // Watch and queue actions and a tournament match's watch.
     bool canWatch = true;

@@ -42,8 +42,9 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  rows.push_back(TextRow("room-name",loc::T("room.name"),preferences_.roomName,64,can));
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
  // Any new room has a type; only a private one can be a Practice room, which
- // has no round time to choose.
- const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
+ // has no round time to choose, and only in a game that plays its round time.
+ const bool privateCreate=screen=="create"&&!publicRoom&&ember::PlayableRoundTime(room::PracticeRoundTime);
+ const bool practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
  if(screen=="create")rows.push_back(RoomTypeRow(createArcade_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
  // A private Classic room's tables, kept with the room defaults; an Arcade

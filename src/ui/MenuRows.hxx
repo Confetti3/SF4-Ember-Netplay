@@ -1,5 +1,6 @@
 #pragma once
 #include "MenuNavigation.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/RoomRules.hxx"
 #include "../netplay/BoolPreferences.hxx"
 #include "../common/InputDelay.hxx"
@@ -113,6 +114,16 @@ inline MenuEntry TextRow(std::string id,std::string label,std::string value,std:
 inline MenuEntry ConfirmRow(std::string id,std::string label,std::string detail,bool enabled=true) {
     auto e=Row(std::move(id),std::move(label),std::move(detail),enabled); e.confirm=true; return e;
 }
+// The round counts and times the game plays (its catalog's), in the order
+// the rules' rows step through them: a table offers no other.
+inline std::vector<int> PlayableRoundCounts() {
+    const auto& catalog=ember::Catalog();
+    return std::vector<int>(catalog.roundCounts,catalog.roundCounts+catalog.roundCountChoices);
+}
+inline std::vector<int> PlayableRoundTimes() {
+    const auto& catalog=ember::Catalog();
+    return std::vector<int>(catalog.roundTimes,catalog.roundTimes+catalog.roundTimeChoices);
+}
 template<typename T> inline void Step(T& value,const std::vector<int>& choices,int delta) {
     if(choices.empty()) return;
     auto it=std::find(choices.begin(),choices.end(),static_cast<int>(value));
@@ -136,9 +147,11 @@ inline std::string SetSummaryText(const room::Rules& rules) {
     return loc::Tf("rules.set_summary",SetLengthText(rules.format),RotationText(rules.rotation));
 }
 // A Practice room's games always take the longest round time
-// (room::MatchRoundTime), so its rules have no round time row.
+// (room::MatchRoundTime), so its rules have no round time row. A game
+// without editions has no Edition select row, and one with no prompt over
+// its result screen no Instant rematch row.
 inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool enabled,const char* reason,bool practice) {
-    rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
+    if(ember::Catalog().editions) rows.push_back(Value("edition",loc::T("rules.edition_select"),rules.editionSelect?loc::T("common.on"):loc::T("common.off"),reason,enabled));
     rows.push_back(Value("rounds",loc::T("rules.rounds"),std::to_string(rules.roundCount),reason,enabled));
     if(!practice) rows.push_back(Value("time",loc::T("rules.round_time"),std::to_string(rules.roundTime),reason,enabled));
     rows.push_back(Value("set-length",loc::T("rules.set_length"),SetLengthText(rules.format),enabled?loc::T("rules.set_length.detail"):reason,enabled));
@@ -146,7 +159,7 @@ inline void RuleRows(std::vector<MenuEntry>& rows,const room::Rules& rules,bool 
     const bool rotates=rules.format!=room::SetFormat::Unlimited;
     rows.push_back(Value("rotation",loc::T("rules.rotation"),RotationText(rules.rotation),
         !rotates?loc::T("rules.rotation.needs_set"):enabled?RotationDetail(rules.rotation):reason,enabled&&rotates));
-    rows.push_back(Value("instant-rematch",loc::T("rules.instant_rematch"),loc::T(rules.instantRematch?"common.on":"common.off"),
+    if(ember::Catalog().rematchInPlace) rows.push_back(Value("instant-rematch",loc::T("rules.instant_rematch"),loc::T(rules.instantRematch?"common.on":"common.off"),
         enabled?loc::T("rules.instant_rematch.detail"):reason,enabled));
 }
 // An Arcade or King of the hill room's option: the set's winner keeps their
@@ -182,8 +195,8 @@ inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;
-    else if(a.id=="rounds") Step(rules.roundCount,{1,3,5,7,15,99},a.delta);
-    else if(a.id=="time") Step(rules.roundTime,std::vector<int>(std::begin(room::RoundTimes),std::end(room::RoundTimes)),a.delta);
+    else if(a.id=="rounds") Step(rules.roundCount,PlayableRoundCounts(),a.delta);
+    else if(a.id=="time") Step(rules.roundTime,PlayableRoundTimes(),a.delta);
     else if(a.id=="set-length") {
         std::vector<int> lengths;
         for(int n=0;n<=room::MaxSetLength;++n) lengths.push_back(n);
