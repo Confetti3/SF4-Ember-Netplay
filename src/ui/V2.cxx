@@ -82,11 +82,19 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     float x = bar.min.x + side;
     const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
     // When the hints and the status do not both fit (a narrow screen), the hints
-    // keep their glyphs only and the status keeps its words.
-    float wanted = TextWidth(status, size) + icon;
-    for (const auto& h : hints) wanted += glyph + 32 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, PromptLabel(h.glyph, h.label, MenuPromptBrand()).c_str()).x;
-    const bool compact = x + wanted > right;
-    for (int i = 0; i < static_cast<int>(hints.size()); ++i) {
+    // keep their glyphs only and the status keeps its words. Both are measured
+    // as they are drawn below: a hint with no label (LB beside RB's) has no
+    // gap for one, and the status may take two lines, so it needs only its
+    // narrowest form: one line, or the wider half of its best break at a space.
+    float statusWidth = TextWidth(status, size);
+    for (auto space = status.find(' '); space != std::string::npos; space = status.find(' ', space + 1))
+        statusWidth = (std::min)(statusWidth, (std::max)(TextWidth(status.substr(0, space), size), TextWidth(status.substr(space + 1), size)));
+    float wanted = statusWidth + icon;
+    for (const auto& h : hints) {
+        const std::string label = PromptLabel(h.glyph, h.label, MenuPromptBrand());
+        wanted += glyph + (label.empty() ? 0 : 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x) + 24 * s;
+    }
+    const bool compact = x + wanted > right;    for (int i = 0; i < static_cast<int>(hints.size()); ++i) {
         const auto& h = hints[i];
         const std::string label = compact ? std::string() : PromptLabel(h.glyph, h.label, MenuPromptBrand());
         const float w = glyph + (label.empty() ? 0 : 8 * s + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, label.c_str()).x);
