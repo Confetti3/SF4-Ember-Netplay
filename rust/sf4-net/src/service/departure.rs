@@ -581,12 +581,15 @@ impl Actor {
         self.pending_checkpoint_ack = None;
         self.pending_checkpoint_committed = None;
         self.pending_coordination_refresh = None;
+        self.coordination_refresh_task = None;
+        self.coordination_deferred = false;
         self.pending_membership_operation = None;
         self.pending_admission_operation = None;
         self.pending_admission_bindings.clear();
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
+        self.coordination_sent = None;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.pending_game_admissions.clear();

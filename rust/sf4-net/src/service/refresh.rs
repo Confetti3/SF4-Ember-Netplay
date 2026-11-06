@@ -113,6 +113,8 @@ impl Actor {
     /// Makes `session` the room's coordination. A follower's Raft store
     /// commits on its own task, so each commit wakes the actor to hand the
     /// checkpoint to the native side; the forwarding ends with the store.
+    /// A change of the room's Raft term, leader or membership signals
+    /// `raft_changes` (`raft_changed`); that watch ends with the Raft.
     pub(super) async fn install_recovery(&mut self, session: crate::recovery::RecoverySession) {
         let mut commits = session.coordinator.store().committed_changes().await;
         let wake = self.wake.clone();
@@ -121,7 +123,66 @@ impl Actor {
                 wake.notify_one();
             }
         });
+        let mut metrics = session.coordinator.raft().metrics();
+        let changes = self.raft_changes.clone();
+        tokio::spawn(async move {
+            let mut seen = None;
+            loop {
+                let now = {
+                    let metrics = metrics.borrow_and_update();
+                    (
+                        metrics.current_term,
+                        metrics.current_leader,
+                        *metrics.membership_config.log_id(),
+                    )
+                };
+                if seen.is_some_and(|seen| seen != now) {
+                    changes.notify_one();
+                }
+                seen = Some(now);
+                if metrics.changed().await.is_err() {
+                    break;
+                }
+            }
+        });
         self.recovery = Some(session);
+    }
+
+    /// The room's Raft term, leader or membership changed. Once a leader is
+    /// known the state is read now, so a room handed to a successor is
+    /// writable again as soon as the successor is elected, not at the next
+    /// once-a-second refresh. A read begun before the change can only come
+    /// back stale, and a follower's waits on the leader it began with, for
+    /// up to `AUTHORITY_READ_TIMEOUT` when that leader has gone, holding the
+    /// single refresh slot: it is dropped for the new one. While no leader
+    /// is known (an election under way) nothing changes here.
+    pub(super) async fn raft_changed(&mut self) -> io::Result<()> {
+        let Some(recovery) = self.recovery.as_ref() else {
+            return Ok(());
+        };
+        if self.retirement_started.is_some() || recovery.coordinator.current_leader().is_none() {
+            return Ok(());
+        }
+        if self.pending_coordination_refresh.take().is_some()
+            && let Some(task) = self.coordination_refresh_task.take()
+        {
+            task.abort();
+        }
+        self.emit_coordination_state().await
+    }
+
+    /// A CoordinationState was not sent for want of queue room
+    /// (`coordination_deferred`): the state is read again once the queue has
+    /// headroom, rather than at the next once-a-second refresh.
+    pub(super) async fn pump_deferred_coordination_state(&mut self) -> io::Result<()> {
+        if !self.coordination_deferred
+            || self.pending_coordination_refresh.is_some()
+            || !self.events.has_headroom()
+        {
+            return Ok(());
+        }
+        self.coordination_deferred = false;
+        self.emit_coordination_state().await
     }
 
     /// Sends the CoordinationState now even when it is unchanged.
@@ -161,7 +222,7 @@ impl Actor {
             .filter(|incarnation| *incarnation != recovery.incarnation)
             .collect();
         self.pending_coordination_refresh = Some(key.clone());
-        self.tasks.spawn(async move {
+        self.coordination_refresh_task = Some(self.tasks.spawn(async move {
             let (applied_members, applied_history) = recovery
                 .coordinator
                 .store()
@@ -194,7 +255,7 @@ impl Actor {
                     joint,
                 },
             )
-        });
+        }));
         Ok(())
     }
 
@@ -374,17 +435,30 @@ impl Actor {
                 voter_count: state.voter_count,
                 learner_count: state.learner_count,
             };
-            // A new term is a lifecycle event, as the old leader's
-            // control_closed is: under checkpoint pressure a bulk one was
-            // dropped while that close went through, and the native room
-            // took a handed-off leader for a lost one.
-            if self.last_coordination_state.is_some_and(|last| last.term == marker.term) {
-                if !self.emit_bulk(event) {
-                    return Ok(());
-                }
-            } else {
+            // A new term, or a change of writability or locality, is a
+            // lifecycle event, as the old leader's control_closed is: under
+            // checkpoint pressure a bulk one was dropped while that close
+            // went through, and the native room took a handed-off leader for
+            // a lost one. Every other state, a repeat of the last one sent
+            // included, is bulk: a republish clears `last_coordination_state`
+            // to send it again, and once sent each republish as a lifecycle
+            // event, never dropped, so a busy refresh queued hundreds ahead
+            // of the next term. One dropped is read again once the queue has
+            // room (`pump_deferred_coordination_state`).
+            let transition = self.coordination_sent.is_none_or(|sent| {
+                sent.term != marker.term
+                    || sent.writable != marker.writable
+                    || sent.leader_local != marker.leader_local
+            });
+            if transition {
                 self.emit(event)?;
+            } else if !self.emit_bulk(event) {
+                self.coordination_deferred = true;
+                return Ok(());
             }
+            // Whatever was deferred is superseded by this one.
+            self.coordination_deferred = false;
+            self.coordination_sent = Some(marker);
             self.last_coordination_state = Some(marker);
         }
         // Refresh the compact/full invitation only after the new authority is
@@ -485,6 +559,7 @@ impl Actor {
             return Ok(());
         }
         self.pending_coordination_refresh = None;
+        self.coordination_refresh_task = None;
         let Some(recovery) = self.recovery.clone() else {
             return Ok(());
         };
