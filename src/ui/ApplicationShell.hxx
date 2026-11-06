@@ -337,6 +337,10 @@ public:
     MenuNavigation& Navigation() { return menu_.navigation; }
     // A text field is being edited, on the menu or the problem report's own panel.
     bool TextEntryOpen() const { return menu_.navigation.Editing() || (menu_.navigation.Screen() == "report" && reportPanel_.Navigation().Editing()); }
+    // The post-match prompt over the WIN has the player's Back to room or
+    // Character select. The runtime does not hear it (common/RematchInput.hxx);
+    // a game that runs the WIN's wait itself may read it here.
+    bool PostMatchLeft() const { return postMatch_ && postMatch_->left; }
     // A notice from outside the shell (the lab's toasts): the status line's
     // for `seconds`, and a toast.
     // A kind and up to two actions go on its toast.
