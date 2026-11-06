@@ -39,6 +39,7 @@ static void TestBranding() {
 static void TestNames() {
 	const ember::ProductIdentity& product = ember::Product();
 	CHECK(Same(product.appDataFolder, L"sf4e"));
+	CHECK(!product.settingsBesideModule);
 	CHECK(Same(product.objectStem, L"SF4Ember"));
 	CHECK(Same(product.launcherInstancePrefix, L"Local\\Ember.Launcher."));
 	CHECK(Same(product.videoLinkPrefix, L"Local\\sf4e-video-"));

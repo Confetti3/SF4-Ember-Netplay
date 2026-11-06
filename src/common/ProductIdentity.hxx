@@ -42,6 +42,12 @@ struct ProductIdentity {
 
 	// Under %APPDATA% (settings, logs, replays) and %LOCALAPPDATA%.
 	const wchar_t* appDataFolder;
+	// Where the settings folder (SettingsStore::DefaultDirectory: the
+	// settings, the session trace, the sent reports) is: appDataFolder under
+	// %APPDATA% when false; when true, appDataFolder beside the module that
+	// holds the runtime, for a product with no installer that keeps its logs
+	// there too (SFV Ember).
+	bool settingsBesideModule;
 	// Named objects: "Local\\" + objectStem + role for kernel objects (link
 	// mailboxes, the game window section), objectStem + role for window classes.
 	const wchar_t* objectStem;

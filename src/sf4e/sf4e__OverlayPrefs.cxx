@@ -1,16 +1,10 @@
 #include "sf4e__OverlayPrefs.hxx"
-#include "../common/ButtonLayoutJson.hxx"
 #include "sf4e__CrashDiagnostics.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "../netplay/SettingsStore.hxx"
-#include "../netplay/ProfileRecordJson.hxx"
 #include "../netplay/SettingsWriter.hxx"
-#include "../netplay/RoomPreferences.hxx"
 #include "../netplay/BoolPreferenceJson.hxx"
-#include "../netplay/ButtonPromptPreference.hxx"
-#include "../netplay/CountryPreferenceJson.hxx"
-#include "../netplay/SpeechPreferenceJson.hxx"
-#include "../netplay/PublicRoomFilterJson.hxx"
+#include "../netplay/PlayerPreferencesJson.hxx"
 
 #include <algorithm>
 #include <fstream>
@@ -353,20 +347,7 @@ namespace OverlayPrefs {
 	}
 	std::uint64_t QueuePlayerPreferences(const netplay::PlayerPreferences& preferences) {
 		if (!writer || !preferences.Valid()) return 0;
-        nlohmann::json values={{"displayName", preferences.displayName}, {"mainFighter",preferences.mainFighter}, {"inputDelay", preferences.inputDelay}, {"autoInputDelay", preferences.autoInputDelay}, {"autoDelayStyle", preferences.autoDelayStyle},
-			{"editionSelect", preferences.lobby.editionSelect ? 1 : 0}, {"roundCount", preferences.lobby.roundCount},
-			{"roundTimeIntegral", preferences.lobby.roundTime},
-            {"matchHudSize",preferences.matchHudSize},{"matchHudAnchor",preferences.matchHudAnchor},{"pictureSpot",preferences.pictureSpot},{"pictureMode",preferences.pictureMode},{"wornTitle",preferences.wornTitle},{"wornIcon",preferences.wornIcon},{"roomColumn",preferences.roomColumn},{"roomSplit",preferences.roomSplit},{"matchHudLayout",preferences.matchHudLayout},{"matchHudNameOffset",preferences.matchHudNameOffset},{"readySoundVolume",preferences.readySoundVolume},{"shareReplaysSince",preferences.shareReplaysSince},
-            {"interfaceScale", preferences.interfaceScale}, {"roomDefaults", netplay::RoomPreferences(preferences)}};
-        netplay::WriteBoolPreferences(preferences, values);
-        netplay::WriteButtonPrompts(preferences, values);
-        netplay::WriteCountryPreference(preferences, values);
-        netplay::WriteSpeechPreferences(preferences, values);
-        netplay::WriteRoomFilter(preferences, values);
-        values["controllerMappings"] = preferences.controllerMappings;
-        values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
-        if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);
-        return writer->QueueLauncher(std::move(values));
+        return writer->QueueLauncher(netplay::PlayerPreferencesJson(preferences));
 	}
 
     namespace {

@@ -19,6 +19,7 @@ constexpr ember::ProductIdentity Sf4Ember = {
 		L"brand/ember-menu-background.png",
 	},
 	L"sf4e",
+	false,
 	L"SF4Ember",
 	L"Local\\Ember.Launcher.",
 	L"Local\\sf4e-video-",

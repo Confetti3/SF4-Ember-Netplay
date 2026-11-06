@@ -108,6 +108,16 @@ bool LoadDocument(const Path& directory, Json& document, std::string& error) {
 SettingsStore::SettingsStore(std::wstring directory) : directory_(std::move(directory)) {}
 
 std::wstring SettingsStore::DefaultDirectory() {
+    if (ember::Product().settingsBesideModule) {
+        // The module this code is linked into, wherever the game loaded it from.
+        HMODULE module = nullptr;
+        if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                reinterpret_cast<LPCWSTR>(&SettingsStore::DefaultDirectory), &module)) return {};
+        wchar_t file[MAX_PATH] = {};
+        const DWORD length = GetModuleFileNameW(module, file, MAX_PATH);
+        if (!length || length >= MAX_PATH) return {};
+        return (Path(file).parent_path() / ember::Product().appDataFolder).wstring();
+    }
     PWSTR appData = nullptr;
     if (FAILED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, nullptr, &appData))) return {};
     const auto path = Path(appData) / ember::Product().appDataFolder;
