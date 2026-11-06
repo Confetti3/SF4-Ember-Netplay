@@ -36,27 +36,105 @@ Share ShareLine(float label, float value, float least, float room, float gap, bo
 }
 
 namespace {
-constexpr Palette EmberPalette{IM_COL32(20, 19, 18, 255), IM_COL32(25, 23, 21, 255), IM_COL32(33, 30, 27, 255), IM_COL32(56, 45, 36, 255),
-    IM_COL32(58, 42, 31, 255), IM_COL32(89, 64, 43, 255), IM_COL32(68, 58, 49, 255), IM_COL32(255, 135, 56, 255), IM_COL32(255, 177, 111, 255),
-    IM_COL32(243, 235, 221, 255), IM_COL32(181, 169, 155, 255), IM_COL32(255, 92, 80, 255), IM_COL32(255, 170, 160, 255), IM_COL32(164, 206, 160, 255)};
+Palette ThemePalette() {
+    const auto& t = ember::ProductTheme();
+    const auto c = [](unsigned rgb) { return palette::Rgb(rgb); };
+    return {c(t.ink), c(t.frame), c(t.panel), c(t.button), c(t.header), c(t.hover), c(t.border), c(ember::Product().branding.accent),
+        c(t.accentLight), c(t.text), c(t.muted), c(t.live), c(t.danger), c(t.ready)};
 }
-const Palette& Colors() { return EmberPalette; }
+// The theme's angular cut for a box: none in Ember's look.
+float CutOf(ImVec2 min, ImVec2 max) {
+    const float cut = ember::ProductTheme().cut;
+    if (cut <= 0) return 0;
+    return (std::max)(0.f, (std::min)({cut * (max.y - min.y), 14 * Scale(), (max.x - min.x) * .25f}));
+}
+// A box with its top right and bottom left corners cut by `c`, as a path.
+void CutPath(ImDrawList* draw, ImVec2 min, ImVec2 max, float c) {
+    draw->PathLineTo(min); draw->PathLineTo(ImVec2(max.x - c, min.y)); draw->PathLineTo(ImVec2(max.x, min.y + c));
+    draw->PathLineTo(max); draw->PathLineTo(ImVec2(min.x + c, max.y)); draw->PathLineTo(ImVec2(min.x, max.y - c));
+}
+// A bar of `width` down the left edge of a cut box, following the bottom cut.
+void CutBar(ImDrawList* draw, ImVec2 min, ImVec2 max, float width, float c, ImU32 color) {
+    const ImVec2 bar[] = {min, ImVec2(min.x + width, min.y), ImVec2(min.x + width, max.y - c + width), ImVec2(min.x, max.y - c)};
+    draw->AddConvexPolyFilled(bar, 4, color);
+}
+}
+const Palette& Colors() { static const Palette colors = ThemePalette(); return colors; }
+float Corner() { return ember::ProductTheme().corner * Scale(); }
+
+void Ground(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float rounding, ImDrawFlags flags) {
+    const float c = CutOf(min, max);
+    if (c <= 0) { draw->AddRectFilled(min, max, color, rounding, flags); return; }
+    CutPath(draw, min, max, c);
+    draw->PathFillConvex(color);
+}
+void Edge(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float rounding, float thickness) {
+    const float c = CutOf(min, max);
+    if (c <= 0) { draw->AddRect(min, max, color, rounding, 0, thickness); return; }
+    // Inside the box, as AddRect strokes it.
+    const float in = thickness * .5f;
+    CutPath(draw, ImVec2(min.x + in, min.y + in), ImVec2(max.x - in, max.y - in), (std::max)(0.f, c - in * .4f));
+    draw->PathStroke(color, ImDrawFlags_Closed, thickness);
+}
+std::string Capitals(const std::string& text) {
+    std::string out;
+    out.reserve(text.size());
+    const auto put = [&](unsigned cp) {
+        if (cp < 0x80) out += static_cast<char>(cp);
+        else if (cp < 0x800) { out += static_cast<char>(0xC0 | cp >> 6); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+        else { out += static_cast<char>(0xE0 | cp >> 12); out += static_cast<char>(0x80 | (cp >> 6 & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+    };
+    for (std::size_t i = 0; i < text.size();) {
+        const auto lead = static_cast<unsigned char>(text[i]);
+        // Anything outside two-byte sequences (CJK, punctuation) is kept as it is.
+        if (lead < 0x80) { out += static_cast<char>(lead >= 'a' && lead <= 'z' ? lead - 32 : lead); ++i; continue; }
+        if ((lead & 0xE0) != 0xC0 || i + 1 >= text.size()) { out += text[i++]; continue; }
+        unsigned cp = (lead & 0x1Fu) << 6 | (static_cast<unsigned char>(text[i + 1]) & 0x3Fu);
+        i += 2;
+        if (cp >= 0xE0 && cp <= 0xFE && cp != 0xF7) cp -= 0x20;                                   // Latin-1
+        else if (cp == 0xFF) cp = 0x178;
+        else if ((cp >= 0x100 && cp <= 0x137) || (cp >= 0x14A && cp <= 0x177)) { if (cp & 1 && cp != 0x131) --cp; }  // Latin Extended-A
+        else if ((cp >= 0x139 && cp <= 0x148) || (cp >= 0x179 && cp <= 0x17E)) { if (!(cp & 1)) --cp; }
+        else if (cp >= 0x430 && cp <= 0x44F) cp -= 0x20;                                          // Cyrillic
+        else if (cp >= 0x450 && cp <= 0x45F) cp -= 0x50;
+        put(cp);
+    }
+    return out;
+}
+void Slant(ImDrawList* draw, int firstVertex, float baseline) {
+    const float lean = ember::ProductTheme().headingSlant;
+    if (lean <= 0) return;
+    for (int i = firstVertex; i < draw->VtxBuffer.Size; ++i) draw->VtxBuffer[i].pos.x += (baseline - draw->VtxBuffer[i].pos.y) * lean;
+}
 
 void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
-    const float s = Scale(), r = 4 * s;
+    const float s = Scale(), r = Corner(), c = CutOf(min, max);
+    if (c > 0) {
+        Edge(draw, ImVec2(min.x + s, min.y + s), ImVec2(max.x - s, max.y - s), Colors().accent, r, 2 * s);
+        if (bar) CutBar(draw, min, max, 5 * s, c, Colors().accent);
+        return;
+    }
+    if (bar && ember::ProductTheme().underlineFocus) {
+        // A row or a button: the bar on its left and a hairline along its foot, no box.
+        draw->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), Colors().accent, r, ImDrawFlags_RoundCornersLeft);
+        draw->AddRectFilled(ImVec2(min.x, max.y - 2 * s), max, Colors().accent);
+        return;
+    }
     draw->AddRect(ImVec2(min.x + s, min.y + s), ImVec2(max.x - s, max.y - s), Colors().accent, r, 0, 2 * s);
     if (bar) draw->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), Colors().accent, r, ImDrawFlags_RoundCornersLeft);
 }
 
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act) {
     const float s = Scale();
-    draw->AddRectFilled(card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), 4 * s);
-    draw->AddRect(card.min, card.max, color::Alpha(Colors().border, .6f), 4 * s, 0, s);
-    if (act) draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, 4 * s, ImDrawFlags_RoundCornersLeft);
+    Ground(draw, card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), Corner());
+    Edge(draw, card.min, card.max, color::Alpha(Colors().border, .6f), Corner(), s);
+    if (!act) return;
+    if (const float c = CutOf(card.min, card.max)) CutBar(draw, card.min, card.max, 3 * s, c, Colors().accent);
+    else draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, Corner(), ImDrawFlags_RoundCornersLeft);
 }
 
 void RowGround(ImDrawList* draw, Box row, bool focused, bool hovered) {
-    if (focused || hovered) draw->AddRectFilled(row.min, row.max, focused ? Colors().header : Colors().hover, 4 * Scale());
+    if (focused || hovered) Ground(draw, row.min, row.max, focused ? Colors().header : Colors().hover, Corner());
 }
 
 namespace {
@@ -77,7 +155,7 @@ int HintBar(Box bar, const std::vector<Hint>& hints, const std::string& status, 
     auto* d = ImGui::GetWindowDrawList();
     const float side = SideMargin(ImGui::GetWindowWidth(), s);
     d->AddRectFilled(bar.min, bar.max, color::Alpha(Colors().ink, .92f));
-    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), Colors().border, s);
+    d->AddLine(bar.min, ImVec2(bar.max.x, bar.min.y), palette::Rgb(ember::ProductTheme().rule), s);
     int pressed = -1;
     float x = bar.min.x + side;
     const float right = bar.max.x - side, size = 15 * s, icon = bell ? 30 * s : 0;
@@ -209,7 +287,7 @@ ImVec4 BoardGround(bool seeThrough) {
 float ChipWidth(const std::string& text) { return TextWidth(text, ChipFont()) + 16 * Scale(); }
 float Chip(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32 tone) {
     const float s = Scale(), size = ChipFont(), width = ChipWidth(text);
-    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + size + 8 * s), color::Alpha(tone, .18f), 4 * s);
+    Ground(draw, at, ImVec2(at.x + width, at.y + size + 8 * s), color::Alpha(tone, .18f), Corner());
     draw->AddText(ImGui::GetFont(), size, ImVec2(at.x + 8 * s, at.y + 4 * s), tone, text.c_str());
     return width;
 }
@@ -234,15 +312,24 @@ void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font) {
 }
 
 ImU32 PanelGround(bool seeThrough) { return color::Alpha(Colors().panel, seeThrough ? .78f : .94f); }
+namespace {
+// An open panel's lit head: its top corners rounded, or with the panel's cut `c` on the right.
+void HeadGround(ImDrawList* draw, Box head, float c, ImU32 color) {
+    if (c <= 0) { draw->AddRectFilled(head.min, head.max, color, Corner(), ImDrawFlags_RoundCornersTop); return; }
+    c = (std::min)(c, head.H());
+    const ImVec2 points[] = {head.min, ImVec2(head.max.x - c, head.min.y), ImVec2(head.max.x, head.min.y + c), head.max, ImVec2(head.min.x, head.max.y)};
+    draw->AddConvexPolyFilled(points, 5, color);
+}
+}
 Box Panel(ImDrawList* draw, Box b, const char* title, const char* trailing, bool open) {
     const float s = Scale(), size = 20 * s, room = b.W() - 32 * s;
     const auto& c = Colors();
     const float tw = trailing ? HeadWord(title, size, trailing, room, 16 * s) : 0, titleRoom = tw > 0 ? room - 16 * s - tw : room;
-    draw->AddRectFilled(b.min, b.max, PanelGround(), 4 * s);
+    Ground(draw, b.min, b.max, PanelGround(), Corner());
     const Box head = CutTop(b, 20 * s + HeadingHeight(title, titleRoom, size));
-    if (open) draw->AddRectFilled(head.min, head.max, c.header, 4 * s, ImDrawFlags_RoundCornersTop);
+    if (open) HeadGround(draw, head, CutOf(head.min, b.max), c.header);
     draw->AddLine(ImVec2(head.min.x, head.max.y), head.max, c.border, s);
-    draw->AddRect(head.min, b.max, open ? c.accentLight : c.border, 4 * s, 0, s);
+    Edge(draw, head.min, b.max, open ? c.accentLight : c.border, Corner(), s);
     if (tw > 0) draw->AddText(ImVec2(head.max.x - 16 * s - tw, head.min.y + (head.H() - ImGui::GetFontSize()) * .5f), c.muted, trailing);
     Heading(draw, ImVec2(head.min.x + 16 * s, head.min.y + 10 * s), titleRoom, title, size, c.text);
     return b;
@@ -294,13 +381,14 @@ void Button(ImDrawList* draw, Box b, const std::string& label, ButtonKind kind, 
     const auto& c = Colors();
     const bool primary = kind == ButtonKind::Primary, danger = kind == ButtonKind::Danger;
     ImU32 fill = focused ? c.header : hovered ? c.hover : c.button, edge = color::Alpha(danger ? c.danger : c.accent, danger ? .5f : .35f);
+    if (!danger && ember::ProductTheme().quietButtons) edge = c.border;
     ImU32 ink = danger ? c.danger : c.text;
     if (!enabled) { fill = c.frame; edge = c.border; ink = c.muted; }
     else if (primary) { fill = focused || hovered ? c.accentLight : c.accent; edge = c.accent; ink = c.ink; }
-    draw->AddRectFilled(b.min, b.max, fill, 4 * s);
-    draw->AddRect(b.min, b.max, edge, 4 * s, 0, s);
+    Ground(draw, b.min, b.max, fill, Corner());
+    Edge(draw, b.min, b.max, edge, Corner(), s);
     if (!label.empty()) Text(draw, ImVec2(b.min.x + 12 * s, b.min.y + (b.H() - size) * .5f), b.W() - 24 * s, label, size, ink, HeadingFont(), true);
-    if (focused && primary && enabled) draw->AddRect(b.min, b.max, c.text, 4 * s, 0, 3 * s);
+    if (focused && primary && enabled) Edge(draw, b.min, b.max, c.text, Corner(), 3 * s);
     else if (focused) Focus(draw, b.min, b.max);
 }
 namespace {
@@ -347,8 +435,8 @@ std::vector<Box> BarPlaces(Box bar, const std::vector<float>& need, float gap, i
 void Words(ImDrawList* draw, Box b, const std::string& label, const std::string& detail, bool wrap) {
     const float s = Scale(), x = b.min.x + 16 * s, w = b.W() - 32 * s;
     const auto& c = Colors();
-    draw->AddRectFilled(b.min, b.max, c.frame, 4 * s);
-    draw->AddRect(b.min, b.max, c.border, 4 * s, 0, s);
+    Ground(draw, b.min, b.max, c.frame, Corner());
+    Edge(draw, b.min, b.max, c.border, Corner(), s);
     Text(draw, ImVec2(x, b.min.y + 6 * s), w, label, 16 * s, c.text, HeadingFont());
     if (wrap) Paragraph(draw, ImVec2(x, b.min.y + 28 * s), w, detail, 15 * s, c.muted);
     else Text(draw, ImVec2(x, b.min.y + 28 * s), w, detail.substr(0, detail.find('\n')), 15 * s, c.muted);
@@ -367,8 +455,8 @@ void Fact(const std::string& key, const std::string& value) {
     const float h = font + 20 * s + (share.under ? UnderLine * s : 0);
     const auto p = ImGui::GetCursorScreenPos();
     auto* d = ImGui::GetWindowDrawList();
-    d->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Colors().frame, 4 * s);
-    d->AddRect(p, ImVec2(p.x + w, p.y + h), Colors().border, 4 * s, 0, s);
+    Ground(d, p, ImVec2(p.x + w, p.y + h), Colors().frame, Corner());
+    Edge(d, p, ImVec2(p.x + w, p.y + h), Colors().border, Corner(), s);
     const std::string shown = Fit(value, share.value, font);
     const float vw = TextWidth(shown, font);
     Text(d, ImVec2(p.x + 12 * s, p.y + 10 * s), share.under ? room : room - vw - 16 * s, key, font, Colors().muted);
@@ -433,9 +521,16 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
         y += eyebrowHeight;
     }
     // A title may be a player's own words (a room's name), so the probe leaves it out.
-    draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont(), false).c_str());
-    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
-    draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
+    const int titleVertices = draw->VtxBuffer.Size;
+    const std::string shownTitle = ember::ProductTheme().upperTitles ? Capitals(title) : std::string(title);
+    draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(shownTitle, room, titleSize, HeadingFont(), false).c_str());
+    Slant(draw, titleVertices, y + titleSize);
+    draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), palette::Rgb(ember::ProductTheme().rule), s);
+    if (ember::ProductTheme().cut > 0) {
+        // The rule leans as the cut does, a little longer and heavier.
+        const ImVec2 rule[] = {ImVec2(x + 4 * s, p.y + height - 2 * s), ImVec2(x + 92 * s, p.y + height - 2 * s), ImVec2(x + 88 * s, p.y + height + 2 * s), ImVec2(x, p.y + height + 2 * s)};
+        draw->AddConvexPolyFilled(rule, 4, Colors().accent);
+    } else draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
     ImGui::Dummy(ImVec2(width, height + 8 * s));
     return pressed;
 }
@@ -548,7 +643,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
     const float s = Scale(), pad = 20 * s, tile = 96 * s, band = tile + 36 * s, line = 34 * s, nameSize = 26 * s;
     const std::size_t count = tag.facts.size(), across = width < 640 * s && count > 2 ? (count + 1) / 2 : count;
     const float factHeight = 52 * s, height = band + (count ? factHeight * ((count + across - 1) / across) : 0);
-    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), color::Alpha(c.panel, .94f), 4 * s);
+    draw->AddRectFilled(at, ImVec2(at.x + width, at.y + height), color::Alpha(c.panel, .94f), Corner());
     draw->AddRectFilledMultiColor(at, ImVec2(at.x + width * .7f, at.y + band), c.header, color::Alpha(c.header, 0), color::Alpha(c.header, 0), c.header);
     const ImVec2 t(at.x + pad, at.y + 18 * s);
     if (tag.fighter >= 0) DrawCharacterPortrait(tag.fighter, t, ImVec2(t.x + tile, t.y + tile), c.frame);
@@ -592,7 +687,7 @@ float ProfileCard(ImDrawList* draw, ImVec2 at, float width, const TagView& tag) 
         draw->AddText(HeadingFont(), 12 * s, ImVec2(p.x + 14 * s, p.y + 10 * s), c.muted, Fit(tag.facts[i].key, cell - 28 * s, 12 * s, HeadingFont()).c_str());
         draw->AddText(HeadingFont(), 15 * s, ImVec2(p.x + 14 * s, p.y + 26 * s), c.text, Fit(tag.facts[i].value, cell - 28 * s, 15 * s, HeadingFont()).c_str());
     }
-    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, 4 * s, 0, s);
+    draw->AddRect(at, ImVec2(at.x + width, at.y + height), c.border, Corner(), 0, s);
     return height;
 }
 }

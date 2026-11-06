@@ -2,6 +2,7 @@
 #include <functional>
 #include <imgui.h>
 #include "../common/NetworkLink.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/SkillBadge.hxx"
 #include "MenuNavigation.hxx"
@@ -22,9 +23,18 @@ namespace sf4e { namespace ui {
 constexpr ImWchar UiGlyphRanges[] = {0x0020, 0x017F, 0x0400, 0x04FF, 0x2013, 0x2014, 0x2018, 0x201E, 0x2026, 0x2026, 0};
 enum class Tone { Neutral, Success, Pending, Error };
 namespace palette {
-constexpr ImU32 Ember = IM_COL32(255, 135, 56, 255);
-constexpr ImU32 Ivory = IM_COL32(243, 235, 221, 255);
-constexpr ImU32 Muted = IM_COL32(181, 169, 155, 255);
+// A theme colour (0xRRGGBB, ember::ShellTheme) as ImGui's, at `alpha` (0 to 255).
+inline ImU32 Rgb(unsigned rgb, int alpha = 255) { return IM_COL32(rgb >> 16 & 255, rgb >> 8 & 255, rgb & 255, alpha); }
+// The product's accent (Ember's orange in SF4 Ember), its text and its muted
+// text. Read at static initialisation from the product's constant table.
+inline const ImU32 Ember = Rgb(ember::Product().branding.accent);
+inline const ImU32 Ivory = Rgb(ember::ProductTheme().text);
+inline const ImU32 Muted = Rgb(ember::ProductTheme().muted);
+// The same at `alpha` (0 to 255), and the theme's ink and shade (ShellTheme).
+inline ImU32 EmberAt(int alpha) { return Rgb(ember::Product().branding.accent, alpha); }
+inline ImU32 IvoryAt(int alpha) { return Rgb(ember::ProductTheme().text, alpha); }
+inline ImU32 InkAt(int alpha) { return Rgb(ember::ProductTheme().ink, alpha); }
+inline ImU32 ShadeAt(int alpha) { return Rgb(ember::ProductTheme().shade, alpha); }
 // Ready/confirmed. Matches ToneColor(Tone::Success) so a ready seat and a
 // success status are the same green rather than two near-identical ones.
 constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
@@ -33,7 +43,7 @@ constexpr ImU32 Ready = IM_COL32(164, 206, 160, 255);
 constexpr ImU32 Purple = IM_COL32(201, 160, 224, 255);
 }
 // Row and button text for an entry that can, or cannot, be activated right now.
-inline ImVec4 EntryTextColor(bool enabled) { return enabled ? ImVec4(.95f,.92f,.87f,1) : ImVec4(.55f,.52f,.48f,1); }
+inline ImVec4 EntryTextColor(bool enabled) { return ImGui::ColorConvertU32ToFloat4(palette::Rgb(enabled ? ember::ProductTheme().entryText : ember::ProductTheme().entryTextDisabled)); }
 // Ember over a game the player watches (ShellView::SeeThrough) lets the game
 // show through: the shell's window and the room board's and Chat's panels are
 // lighter, and the menu art is left out. Their text keeps its own backing.

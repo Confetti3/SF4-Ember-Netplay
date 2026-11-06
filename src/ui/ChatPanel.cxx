@@ -179,7 +179,7 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
                 const float lineHeight = ImGui::GetTextLineHeight();
                 draw->AddRectFilled(ImVec2(at.x, at.y + 1 * s), ImVec2(at.x + tagWidth, at.y + lineHeight - 1 * s), palette::Ready, 3 * s);
                 const auto measured = ImGui::GetFont()->CalcTextSizeA(tag, FLT_MAX, 0, you);
-                draw->AddText(ImGui::GetFont(), tag, ImVec2(at.x + 5 * s, at.y + (lineHeight - measured.y) * .5f), IM_COL32(20, 19, 18, 255), you);
+                draw->AddText(ImGui::GetFont(), tag, ImVec2(at.x + 5 * s, at.y + (lineHeight - measured.y) * .5f), palette::InkAt(255), you);
                 ImGui::Dummy(ImVec2(tagWidth, lineHeight));
             }
         }
@@ -189,7 +189,7 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
         if (line.own) {
             const ImVec2 end = ImGui::GetCursorScreenPos();
             draw->ChannelsSetCurrent(0);
-            draw->AddRectFilled(ImVec2(start.x - 4 * s, start.y), ImVec2(start.x + width, end.y), IM_COL32(164, 206, 160, 26), 3 * s);
+            draw->AddRectFilled(ImVec2(start.x - 4 * s, start.y), ImVec2(start.x + width, end.y), palette::Rgb(ember::ProductTheme().ready, 26), 3 * s);
             draw->AddRectFilled(ImVec2(start.x - 4 * s, start.y), ImVec2(start.x - 2 * s, end.y), palette::Ready);
             draw->ChannelsMerge();
         }

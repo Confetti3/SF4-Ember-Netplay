@@ -17,6 +17,7 @@ constexpr ember::ProductIdentity Sf4Ember = {
 		sf4e::ui::brand::Pixels,
 		sf4e::ui::brand::Size,
 		L"brand/ember-menu-background.png",
+		&ember::EmberShellTheme,
 	},
 	L"sf4e",
 	false,

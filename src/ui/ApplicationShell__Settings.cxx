@@ -42,7 +42,7 @@ void DrawMainPortrait(int fighter,bool saved,ImVec2 min,ImVec2 max){
     // The name shrinks to the card, as the roster's captions do, so narrow cards keep it whole.
     const char* name=ember::Catalog().fighterName(fighter);
     const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-8*Scale())*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(name).x));
-    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,IM_COL32(16,15,14,235));
+    d->AddRectFilled(ImVec2(min.x,max.y-footer),max,palette::ShadeAt(235));
     d->AddText(ImGui::GetFont(),font,ImVec2(min.x+4*Scale(),max.y-footer+(ImGui::GetFontSize()-font)*.5f),saved?palette::Ember:palette::Ivory,name);
     if(saved)DrawCardBadge(ImVec2(min.x+4*Scale(),min.y+4*Scale()),max.x-min.x-8*Scale(),loc::T("profile.main_badge"),"main-badge");
 }

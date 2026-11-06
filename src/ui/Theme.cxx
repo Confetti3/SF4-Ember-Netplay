@@ -30,8 +30,10 @@ ImVec4 Color(unsigned rgb, float alpha = 1.0f) {
     return ImVec4(((rgb >> 16) & 255) / 255.f, ((rgb >> 8) & 255) / 255.f,
                   (rgb & 255) / 255.f, alpha);
 }
-const unsigned Ink = 0x141312, Panel = 0x211E1B, Border = 0x443A31;
-const unsigned Ivory = 0xF3EBDD, Muted = 0xB5A99B, Ember = ember::Product().branding.accent;
+// The product's theme (ember::ShellTheme): Ember's own in SF4 Ember.
+const ember::ShellTheme& T = ember::ProductTheme();
+const unsigned Ink = T.ink, Panel = T.panel, Border = T.border;
+const unsigned Ivory = T.text, Muted = T.muted, Ember = ember::Product().branding.accent;
 const float BodySize = 18.f;
 
 constexpr std::size_t ScriptFontCount = std::size(fonts::ScriptFonts);
@@ -287,12 +289,14 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     style.ItemSpacing = ImVec2(8, 8);
     style.ItemInnerSpacing = ImVec2(8, 4);
     style.CellPadding = ImVec2(8, 6);
-    style.WindowRounding = 6;
-    style.ChildRounding = 4;
-    style.FrameRounding = 3;
-    style.PopupRounding = 4;
-    style.TabRounding = 3;
-    style.GrabRounding = 2;
+    // Ember's radii, in proportion to the theme's corner (4 in Ember's).
+    const float round = T.corner / 4;
+    style.WindowRounding = 6 * round;
+    style.ChildRounding = 4 * round;
+    style.FrameRounding = 3 * round;
+    style.PopupRounding = 4 * round;
+    style.TabRounding = 3 * round;
+    style.GrabRounding = 2 * round;
     style.WindowBorderSize = style.ChildBorderSize = style.FrameBorderSize = 1;
     style.ScrollbarSize = 12;
     style.GrabMinSize = 12;
@@ -304,43 +308,43 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     c[ImGuiCol_PopupBg] = Color(Panel, .99f);
     c[ImGuiCol_Border] = Color(Border);
     c[ImGuiCol_BorderShadow] = Color(Ink, 0);
-    c[ImGuiCol_FrameBg] = Color(0x191715);
-    c[ImGuiCol_FrameBgHovered] = Color(0x393027);
-    c[ImGuiCol_FrameBgActive] = Color(0x4A3525);
+    c[ImGuiCol_FrameBg] = Color(T.frame);
+    c[ImGuiCol_FrameBgHovered] = Color(T.frameHover);
+    c[ImGuiCol_FrameBgActive] = Color(T.active);
     c[ImGuiCol_TitleBg] = Color(Panel);
-    c[ImGuiCol_TitleBgActive] = Color(0x3A2A1F);
+    c[ImGuiCol_TitleBgActive] = Color(T.header);
     c[ImGuiCol_TitleBgCollapsed] = Color(Ink, .95f);
     c[ImGuiCol_MenuBarBg] = Color(Panel, .98f);
     c[ImGuiCol_ScrollbarBg] = Color(Ink);
     c[ImGuiCol_ScrollbarGrab] = Color(Border);
-    c[ImGuiCol_ScrollbarGrabHovered] = Color(0x76583D);
+    c[ImGuiCol_ScrollbarGrabHovered] = Color(T.scrollHover);
     c[ImGuiCol_ScrollbarGrabActive] = Color(Ember);
     c[ImGuiCol_CheckMark] = c[ImGuiCol_SliderGrab] = Color(Ember);
-    c[ImGuiCol_SliderGrabActive] = Color(0xFFB16F);
-    c[ImGuiCol_Button] = Color(0x382D24);
-    c[ImGuiCol_ButtonHovered] = Color(0x59402B);
-    c[ImGuiCol_ButtonActive] = Color(0x76502F);
-    c[ImGuiCol_Header] = Color(0x3A2A1F);
-    c[ImGuiCol_HeaderHovered] = Color(0x59402B);
-    c[ImGuiCol_HeaderActive] = Color(0x76502F);
+    c[ImGuiCol_SliderGrabActive] = Color(T.accentLight);
+    c[ImGuiCol_Button] = Color(T.button);
+    c[ImGuiCol_ButtonHovered] = Color(T.hover);
+    c[ImGuiCol_ButtonActive] = Color(T.pressed);
+    c[ImGuiCol_Header] = Color(T.header);
+    c[ImGuiCol_HeaderHovered] = Color(T.hover);
+    c[ImGuiCol_HeaderActive] = Color(T.pressed);
     c[ImGuiCol_Separator] = Color(Border);
     c[ImGuiCol_SeparatorHovered] = c[ImGuiCol_SeparatorActive] = Color(Ember);
     c[ImGuiCol_ResizeGrip] = Color(Ember, .25f);
     c[ImGuiCol_ResizeGripHovered] = Color(Ember, .65f);
     c[ImGuiCol_ResizeGripActive] = Color(Ember);
     c[ImGuiCol_Tab] = c[ImGuiCol_TabDimmed] = Color(Panel);
-    c[ImGuiCol_TabHovered] = Color(0x59402B);
-    c[ImGuiCol_TabSelected] = c[ImGuiCol_TabDimmedSelected] = Color(0x4A3525);
+    c[ImGuiCol_TabHovered] = Color(T.hover);
+    c[ImGuiCol_TabSelected] = c[ImGuiCol_TabDimmedSelected] = Color(T.active);
     c[ImGuiCol_TabSelectedOverline] = c[ImGuiCol_TabDimmedSelectedOverline] = Color(Ember);
-    c[ImGuiCol_TableHeaderBg] = Color(0x382D24);
+    c[ImGuiCol_TableHeaderBg] = Color(T.button);
     c[ImGuiCol_TableBorderStrong] = c[ImGuiCol_TableBorderLight] = Color(Border);
     c[ImGuiCol_TableRowBg] = Color(Ink, 0);
-    c[ImGuiCol_TableRowBgAlt] = Color(0x76614F, .09f);
+    c[ImGuiCol_TableRowBgAlt] = Color(T.rowAlt, .09f);
     c[ImGuiCol_TextSelectedBg] = Color(Ember, .3f);
     c[ImGuiCol_NavCursor] = Color(Ember);
-    c[ImGuiCol_PlotLines] = Color(0xF3C58B);
+    c[ImGuiCol_PlotLines] = Color(T.plot);
     c[ImGuiCol_PlotHistogram] = Color(Ember);
-    c[ImGuiCol_PlotLinesHovered] = c[ImGuiCol_PlotHistogramHovered] = Color(0xFFB16F);
+    c[ImGuiCol_PlotLinesHovered] = c[ImGuiCol_PlotHistogramHovered] = Color(T.accentLight);
     c[ImGuiCol_DragDropTarget] = Color(Ember);
     style.ScaleAllSizes(scale);
     ImGui::GetStyle() = style;
@@ -349,9 +353,9 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
 
 ImVec4 ToneColor(Tone tone) {
     switch (tone) {
-    case Tone::Success: return Color(0xA4CEA0); // Keep in step with palette::Ready.
-    case Tone::Pending: return Color(0xF1C477);
-    case Tone::Error: return Color(0xFFAAA0);
+    case Tone::Success: return Color(T.ready); // Keep in step with palette::Ready.
+    case Tone::Pending: return Color(T.pending);
+    case Tone::Error: return Color(T.danger);
     default: return Color(Muted);
     }
 }

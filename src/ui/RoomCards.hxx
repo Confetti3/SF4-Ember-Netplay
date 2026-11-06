@@ -5,6 +5,7 @@
 #include "../common/NetworkLink.hxx"
 #include "NameMarks.hxx"
 #include "FighterArt.hxx"
+#include "Theme.hxx"
 #include <imgui.h>
 #include <string>
 #include <vector>
@@ -16,7 +17,7 @@ struct LatencyMark {
     std::string text,tip;
     // The chip: the estimate with its route, "Direct 44 ms"; none while unknown.
     std::string routed;
-    ImU32 color=IM_COL32(181,169,155,255);
+    ImU32 color=palette::Muted;
 };
 
 // Text cut to `width` with "...". The full text of anything it cut is added to

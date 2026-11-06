@@ -35,7 +35,7 @@ bool RoomBoardFrame::Press(const MenuEntry& e,const v2::Box& b,bool choose) cons
  return press.hovered;
 }
 void RoomBoardFrame::Ground(ImDrawList* d,const v2::Box& b,ImU32 fill,ImU32 edge) const {
- d->AddRectFilled(b.min,b.max,fill,4*s);d->AddRect(b.min,b.max,edge,4*s,0,s);
+ v2::Ground(d,b.min,b.max,fill,v2::Corner());v2::Edge(d,b.min,b.max,edge,v2::Corner(),s);
 }
 void RoomBoardFrame::Panel(ImDrawList* d,const v2::Box& b) const {
  Ground(d,b,v2::PanelGround(v.SeeThrough()),v2::Colors().border);

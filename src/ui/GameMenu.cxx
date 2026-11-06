@@ -50,7 +50,7 @@ bool DrawMenuBackdrop(){
     else {const float span=sourceAspect/targetAspect;uv0.y=(1-span)*.5f;uv1.y=1-uv0.y;}
     d->AddImage(art.texture,p,end,uv0,uv1);
     // The website's left-heavy tint, so the cards on the left read and the art shows on the right.
-    d->AddRectFilledMultiColor(p,end,IM_COL32(20,19,18,245),IM_COL32(20,19,18,128),IM_COL32(20,19,18,160),IM_COL32(20,19,18,250));
+    d->AddRectFilledMultiColor(p,end,palette::InkAt(245),palette::InkAt(128),palette::InkAt(160),palette::InkAt(250));
     d->PopClipRect();
     return true;
 }
@@ -63,7 +63,7 @@ float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool
     ReportMenuText(probe,font,natural,textWidth+2*pad,width);
     auto* d=ImGui::GetWindowDrawList();
     if(rightAligned)p.x-=textWidth+2*pad;
-    d->AddRectFilled(p,ImVec2(p.x+textWidth+2*pad,p.y+natural+2*s),IM_COL32(16,15,14,230));
+    d->AddRectFilled(p,ImVec2(p.x+textWidth+2*pad,p.y+natural+2*s),palette::ShadeAt(230));
     d->AddText(ImGui::GetFont(),font,ImVec2(p.x+pad,p.y+(natural-font)*.5f),palette::Ember,text);
     return textWidth+2*pad;
 }
@@ -83,7 +83,7 @@ float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
     const float font=height*.8f,pad=height*.22f;
     const float wide=HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,text).x+2*pad;
     const ImVec2 min(topRight.x-wide,topRight.y);
-    d->AddRectFilled(min,ImVec2(topRight.x,topRight.y+height),IM_COL32(16,15,14,230),height*.12f);
+    d->AddRectFilled(min,ImVec2(topRight.x,topRight.y+height),palette::ShadeAt(230),height*.12f);
     d->AddText(HeadingFont(),font,ImVec2(min.x+pad,min.y+(height-font)*.5f),palette::Ember,text);
     return wide;
 }

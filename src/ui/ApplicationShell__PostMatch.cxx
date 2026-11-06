@@ -301,7 +301,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     menu_.backInert = true; menu_.headerChips.clear();
     menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
     const auto* vp = ImGui::GetMainViewport();
-    ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), IM_COL32(20, 19, 18, 140));
+    ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), palette::InkAt(140));
     board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
         const float s = Scale(), rowHeight = 52 * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();

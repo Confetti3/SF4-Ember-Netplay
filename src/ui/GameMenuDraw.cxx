@@ -44,7 +44,9 @@ std::string FirstLine(const std::string& text) { return text.substr(0, text.find
 void Brand(ImDrawList* d, ImVec2 p, float mark) {
     const float s = Scale(), size = mark * .78f;
     const float x = p.x + v2::BrandMark(d, p, mark) + 16 * s;
+    const int name = d->VtxBuffer.Size;
     d->AddText(HeadingFont(), size, ImVec2(x, p.y + (mark - size - 18 * s) * .5f), v2::Colors().text, "EMBER");
+    v2::Slant(d, name, p.y + (mark + size - 18 * s) * .5f);
     d->AddText(HeadingFont(), 13 * s, ImVec2(x + 2 * s, p.y + (mark + size - 18 * s) * .5f + 4 * s), v2::Colors().accent, loc::T("brand.subtitle"));
 }
 // A card's two portraits (a match's), as tall as its first line's box.

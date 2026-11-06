@@ -83,7 +83,7 @@ bool ImageCard(const char* id, const char* label, const SelectionImage& image, I
             ImVec2(min.x + (size.x - text.x * messageScale) / 2,
                    min.y + (size.y - labelHeight - text.y * messageScale) / 2), Muted, message);
     }
-    draw->AddRectFilled(ImVec2(min.x + 1, max.y - labelHeight), ImVec2(max.x - 1, max.y - 1), IM_COL32(20, 19, 18, 235));
+    draw->AddRectFilled(ImVec2(min.x + 1, max.y - labelHeight), ImVec2(max.x - 1, max.y - 1), palette::InkAt(235));
     const auto text = ImGui::CalcTextSize(label);
     const float labelScale = (std::min)(1.f, (size.x - 6 * Scale()) / (std::max)(1.f, text.x));
     draw->PushClipRect(ImVec2(min.x + 3, max.y - labelHeight), ImVec2(max.x - 3, max.y), true);
@@ -319,13 +319,13 @@ bool FighterSelector::Draw(selection::Pick& pick,bool editionSelect,SelectionArt
   const float labelHeight=ImGui::GetTextLineHeight()+4*Scale();
   ImageInRect(art?art->Stage(id):Missing(),ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight));
   const bool saved=!pool&&stageId&&id==*stageId;
-  ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,IM_COL32(16,15,14,230));
+  ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x,max.y-labelHeight),max,palette::ShadeAt(230));
   const float font=(std::min)(ImGui::GetFontSize(),(max.x-min.x-6)*ImGui::GetFontSize()/(std::max)(1.f,ImGui::CalcTextSize(e.label.c_str()).x));
   ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(),font,ImVec2(min.x+3,max.y-labelHeight),saved?palette::Ember:palette::Ivory,e.label.c_str());
   if(saved)DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.saved"),"saved-badge");
   if(pool&&randomPool&&!randomPool->Contains(id)){
    // A skipped stage reads as switched off at a glance: dimmed, and labelled.
-   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),IM_COL32(16,15,14,170));
+   ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(min.x+3,min.y+3),ImVec2(max.x-3,max.y-labelHeight),palette::ShadeAt(170));
    DrawCardBadge(ImVec2(min.x+3,min.y+2),max.x-min.x-6,loc::T("selection.random_pool_skipped"),"skipped-badge");
   }
   return true;

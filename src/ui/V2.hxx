@@ -16,12 +16,26 @@ namespace sf4e { namespace ui { namespace v2 {
 // parts never write a literal: grounds from ink to hover, the accent that
 // marks focus and the thing to act on, text, the red of a LIVE mark, the
 // danger tone of Leave room (Kit: Error) and the green of Ready (Kit: Success).
+// They are the product's (ember::ShellTheme, its accent Branding::accent).
 struct Palette { ImU32 ink, frame, panel, button, header, hover, border, accent, accentLight, text, muted, live, danger, ready; };
 const Palette& Colors();
 namespace color {
 // `color` at `alpha` (0 to 1).
 constexpr ImU32 Alpha(ImU32 color, float alpha) { return (color & ~IM_COL32_A_MASK) | (static_cast<ImU32>(alpha * 255) << IM_COL32_A_SHIFT); }
 }
+// The theme's corner radius in physical pixels (Ember's 4 px).
+float Corner();
+// A part's ground and its edge (`thickness` wide, inside the box): a rounded
+// box, or, with the theme's cut (ShellTheme::cut), one with its top right and
+// bottom left corners cut, which leaves `rounding` and `flags` unused.
+void Ground(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float rounding, ImDrawFlags flags = 0);
+void Edge(ImDrawList* draw, ImVec2 min, ImVec2 max, ImU32 color, float rounding, float thickness);
+// Leans the vertices `draw` took since `firstVertex` (text just drawn) by the
+// theme's heading slant, about `baseline`; nothing in an upright theme.
+void Slant(ImDrawList* draw, int firstVertex, float baseline);
+// `text` (UTF-8) in capitals: Latin, Latin-1, Latin Extended-A and Cyrillic
+// letters; everything else (CJK, ß) as it is.
+std::string Capitals(const std::string& text);
 
 // Layout, in physical pixels for an interface of `scale`. The side margin is
 // 16 under 900 logical pixels of width, 24 under 1700, 40 above; content is

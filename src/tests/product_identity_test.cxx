@@ -30,6 +30,17 @@ static void TestBranding() {
 	CHECK(branding.accent == 0xFF8738u);
 	CHECK(branding.mark != nullptr && branding.markSize == 128);
 	CHECK(Same(branding.menuBackdrop, L"brand/ember-menu-background.png"));
+	// SF4 Ember draws Ember's own theme: the shell's colours and shapes as they were.
+	// (EmberShellTheme is constexpr, a copy in each source, so its values are compared, not its address.)
+	const ember::ShellTheme& theme = ember::ProductTheme();
+	const ember::ShellTheme& own = ember::EmberShellTheme;
+	CHECK(theme.ink == 0x141312u && theme.panel == 0x211E1Bu && theme.header == 0x3A2A1Fu && theme.text == 0xF3EBDDu);
+	CHECK(theme.frame == own.frame && theme.button == own.button && theme.hover == own.hover && theme.border == own.border &&
+		theme.accentLight == own.accentLight && theme.muted == own.muted && theme.live == own.live && theme.danger == own.danger &&
+		theme.ready == own.ready && theme.pending == own.pending && theme.shade == own.shade && theme.portrait == own.portrait &&
+		theme.pill == own.pill && theme.entryText == own.entryText && theme.entryTextDisabled == own.entryTextDisabled);
+	CHECK(theme.corner == 4.f && theme.cut == 0.f && theme.headingSlant == 0.f);
+	CHECK(theme.rule == theme.border && !theme.underlineFocus && !theme.quietButtons && !theme.upperTitles);
 	// The version resources are written from cmake/sf4e_product.cmake.
 	CHECK(Same(branding.productName, SF4E_TEST_PRODUCT_NAME));
 	CHECK(Same(SF4E_TEST_PRODUCT_COMPANY, "SF4 Ember Netplay Contributors"));

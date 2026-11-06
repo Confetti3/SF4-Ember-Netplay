@@ -184,6 +184,21 @@ target_link_libraries(UiRenderTest PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3
 add_executable(UiLab WIN32 "src/ui/lab/UiLab.cxx")
 target_compile_definitions(UiLab PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
 target_link_libraries(UiLab PRIVATE sf4e_product sf4e_catalog sf4e_ui "d3d9" "xinput" "shell32")
+# The same lab as another product draws it (SFV Ember's look, from its own
+# checkout): SF4E_LAB_PRODUCT_SOURCE is that product's identity source (its
+# Product(), which links ahead of SF4 Ember's) and SF4E_LAB_PRODUCT_MARK its
+# 128 x 128 RGBA mark. Off unless both are set; SF4 Ember's lab is unchanged.
+set(SF4E_LAB_PRODUCT_SOURCE "" CACHE FILEPATH "Another product's identity source for UiLabProduct")
+set(SF4E_LAB_PRODUCT_MARK "" CACHE FILEPATH "That product's 128x128 RGBA mark")
+if(SF4E_LAB_PRODUCT_SOURCE AND SF4E_LAB_PRODUCT_MARK)
+    add_executable(UiLabProduct WIN32 "src/ui/lab/UiLab.cxx" "${SF4E_LAB_PRODUCT_SOURCE}")
+    target_compile_definitions(UiLabProduct PRIVATE SF4E_LAB_ASSET_ROOT="${CMAKE_SOURCE_DIR}/assets/selection")
+    sf4e_hex_bytes("${SF4E_LAB_PRODUCT_MARK}" lab_mark_bytes)
+    file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/generated/lab-product/EmbeddedBrand.hxx" CONTENT
+        "#pragma once\nnamespace sf4e { namespace ui { namespace brand {\nconstexpr int Size = 128;\nstatic const unsigned char Pixels[] = {\n${lab_mark_bytes}\n};\n} } }\n")
+    target_include_directories(UiLabProduct PRIVATE "${CMAKE_BINARY_DIR}/generated/lab-product" "${CMAKE_SOURCE_DIR}/src")
+    target_link_libraries(UiLabProduct PRIVATE sf4e_catalog sf4e_ui "d3d9" "xinput" "shell32")
+endif()
 add_test(NAME UiRender COMMAND UiRenderTest)
 # Each sweep takes under a minute with the GPU transforming vertices. The
 # budgets cover an adapter without hardware transform, where the CPU does

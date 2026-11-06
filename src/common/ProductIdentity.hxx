@@ -19,6 +19,53 @@
 
 namespace ember {
 
+// The shell's colours and shapes (ui/Theme.cxx, ui/V2.cxx), each colour
+// 0xRRGGBB. The accent is Branding::accent. EmberShellTheme below is SF4
+// Ember's; a product with a look of its own defines its own table and points
+// Branding::theme at it.
+struct ShellTheme {
+	// The design parts' roles (v2::Palette): grounds from ink to hover (header
+	// is the focused fill), the accent's light tint, text, the LIVE red, the
+	// danger tone (Leave room) and the Ready green.
+	unsigned ink, frame, panel, button, header, hover, border, accentLight, text, muted, live, danger, ready;
+	// The rest of ImGui's style: a field's hovered and active grounds, a
+	// pressed button, the scroll bar under the pointer, every other table
+	// row, the plot lines, and the Pending tone.
+	unsigned frameHover, active, pressed, scrollHover, rowAlt, plot, pending;
+	// The dark backing under words over art (a portrait's label, a footer),
+	// a portrait's backing, a name pill's fill, and an entry's words that can
+	// and cannot be activated.
+	unsigned shade, portrait, pill, entryText, entryTextDisabled;
+	// The corner radius of panels, cards, buttons and chips, in logical px.
+	float corner;
+	// Above 0, the angular cut: buttons and chips lose two opposite corners,
+	// and the focus bar and the header's accent rule lean, by this share of
+	// their height. 0 keeps Ember's square edges.
+	float cut;
+	// Above 0, a screen's title and Home's name lean forward by this much per
+	// unit of height (0.2 is about 11 degrees). 0 is upright.
+	float headingSlant;
+	// The hairlines that close the header and open the hint bar.
+	unsigned rule;
+	// The focus marks: the accent's box edge and left bar (Ember's), or, when
+	// set, the left bar and a hairline along the bottom with no box edge.
+	bool underlineFocus;
+	// Secondary buttons edged in the border tone rather than the accent's.
+	bool quietButtons;
+	// A screen's title in capitals.
+	bool upperTitles;
+};
+
+// SF4 Ember's look: each value is the literal the shell drew before products
+// had themes.
+constexpr ShellTheme EmberShellTheme = {
+	0x141312, 0x191715, 0x211E1B, 0x382D24, 0x3A2A1F, 0x59402B, 0x443A31, 0xFFB16F, 0xF3EBDD, 0xB5A99B, 0xFF5C50, 0xFFAAA0, 0xA4CEA0,
+	0x393027, 0x4A3525, 0x76502F, 0x76583D, 0x76614F, 0xF3C58B, 0xF1C477,
+	0x100F0E, 0x26221E, 0x38332E, 0xF2EBDE, 0x8C857A,
+	4.f, 0.f, 0.f,
+	0x443A31, false, false, false,
+};
+
 // What the shell draws as the product's own.
 struct Branding {
 	const char* productName;      // window titles, About, the version line
@@ -28,6 +75,7 @@ struct Branding {
 	const unsigned char* mark;    // the header mark, markSize x markSize RGBA
 	int markSize;
 	const wchar_t* menuBackdrop;  // the menu's backdrop art, under the install's assets folder
+	const ShellTheme* theme;      // the shell's colours and shapes; none is EmberShellTheme
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO
@@ -85,6 +133,11 @@ struct ProductIdentity {
 };
 
 const ProductIdentity& Product();
+
+// The product's shell theme: its own table, or Ember's.
+inline const ShellTheme& ProductTheme() {
+	return Product().branding.theme ? *Product().branding.theme : EmberShellTheme;
+}
 
 // "Local\\" + objectStem + role.
 inline std::wstring KernelObjectName(const wchar_t* role) {

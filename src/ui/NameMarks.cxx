@@ -19,7 +19,7 @@ constexpr GameClass Classes[SkillBadge::Classes] = {
     {"class_D.dds", "D"}, {"class_Dp.dds", "D+"}, {"class_C.dds", "C"}, {"class_Cp.dds", "C+"},
     {"class_B.dds", "B"}, {"class_Bp.dds", "B+"}, {"class_A.dds", "A"}, {"class_Ap.dds", "A+"},
     {"class_MASTER.dds", nullptr}, {"class_GM.dds", nullptr}};
-constexpr ImU32 PillFill = IM_COL32(56, 51, 46, 255), PillBorder = IM_COL32(255, 135, 56, 160);
+const ImU32 PillFill = palette::Rgb(ember::ProductTheme().pill), PillBorder = palette::EmberAt(160);
 
 // How a badge is drawn: a class as the game's emblem once it has loaded, the
 // developer mark as Ember's own art; placing as "?" in a pill, since the game

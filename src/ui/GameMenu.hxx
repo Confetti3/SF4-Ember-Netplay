@@ -131,8 +131,8 @@ struct RosterGrid { int columns; float cardHeight; };
 RosterGrid LayOutRosterGrid(float windowWidth);
 // `backing` fills the tile behind the art, which is transparent around the
 // fighter. A picture is the game's portrait or the fighter's whole figure.
-void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
-void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=IM_COL32(38,34,30,255));
+void DrawCharacterPortrait(int fighter,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
+void DrawCharacterPortrait(const FighterPicture& picture,ImVec2 min,ImVec2 max,ImU32 backing=palette::Rgb(ember::ProductTheme().portrait));
 // The picture's image at the size it is drawn, for a place that lays it out
 // itself; a figure the art lacks is the portrait. Empty before the art loads.
 SelectionImage FighterImage(const FighterPicture& picture,float drawnHeight);
