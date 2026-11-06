@@ -1,4 +1,8 @@
+#include <optional>
 #include "TrainingPanel.hxx"
+#include "../training/RemoteOptions.hxx"
+#include "../third_party/qrcodegen/qrcodegen.hpp"
+#include "../training/ComboStore.hxx"
 #include "V2.hxx"
 #include "Theme.hxx"
 #include "GameMenu.hxx"
@@ -151,23 +155,22 @@ void TakePositionResult(const training::View& view) {
     Notice(loc::T(!accepted?"training.command_rejected":lab.positionSave?"training.position.saved":"training.position.reset_done"),!accepted);
 }
 // The dummy's settings as the game's Training menu numbers them, and their
-// names: 0 action, 1 guard, 2 counter hit, 3 quick stand, 4 either gauge.
-const std::vector<int>& DummyChoices(int kind) {
-    static const std::vector<int> choices[5]={{0,1,2,3},{0,1,2,3},{0,1,2},{0,1,2,3},{0,5,7,8}};
-    return choices[kind];
+// names (the phone remote's table has both): 0 action, 1 guard, 2 counter hit,
+// 3 quick stand, 4 either gauge.
+const remote::DummyKind& DummyKindAt(int kind) {
+    static const char* const ids[5]={"action","guard","counterHit","quickStand","super"};
+    return remote::DummyKindOf(ids[kind]);
+}
+std::vector<int> DummyChoices(int kind) {
+    std::vector<int> values;
+    for(const auto& choice:DummyKindAt(kind).choices) values.push_back(choice.value);
+    return values;
 }
 // Empty until the game's own setting has been read. The action's last three
 // are the pause menu's own and are named but never picked here.
 const char* DummyLabel(int kind,int value) {
     if(kind==0&&value>=4&&value<=6) return loc::T(value==4?"training.dummy.human":value==5?"training.record":"training.play");
-    static const char* const names[5][4]={
-        {"training.dummy.stand","training.dummy.crouch","training.dummy.jump","training.dummy.cpu"},
-        {"training.dummy.guard_none","training.dummy.guard_first","training.dummy.guard_all","training.dummy.guard_random"},
-        {"training.dummy.counter_off","training.dummy.counter_on","training.dummy.counter_random",""},
-        {"training.dummy.quick_quick","training.dummy.quick_normal","training.dummy.quick_delayed","training.dummy.quick_random"},
-        {"training.dummy.gauge_normal","training.dummy.gauge_max","training.dummy.gauge_infinite","training.dummy.gauge_refill"}};
-    const auto& choices=DummyChoices(kind);
-    for(std::size_t i=0;i<choices.size();++i) if(choices[i]==value) return loc::T(names[kind][i]);
+    for(const auto& choice:DummyKindAt(kind).choices) if(choice.value==value) return loc::T(choice.key);
     return "";
 }
 // Left and Right step a setting through its choices.
@@ -348,6 +351,40 @@ void TrainingHotkeys(const training::View& view,const TrainingSubmit& submit) {
     if(pressed(ResetKey)) ResetPosition(view,submit);
     if(pressed(SaveKey)) SavePosition(view,submit);
 }
+// What the phone changed since the last frame, applied as the menu applies it, and the settings it shows.
+void ServeTrainingPhone(const training::View& view,const TrainingSubmit& submit) {
+    LoadPractice();
+    // The saved combos live beside training.json.
+    if(!lab.directory.empty()&&!training::Combos().Ready()) training::Combos().SetDirectory(lab.directory/L"combos");
+    auto& phone=remote::Phone();
+    remote::Settings now{lab.meter,lab.plan,lab.check};
+    bool changed=false,reply=false;
+    static std::string replyError;
+    // Moves typed or picked on the phone go through the same checks as the menu's field.
+    for(const auto& order:phone.TakeText()) {
+        DummyPlan plan; std::string error; const auto text=combo::Clean(order.second);
+        if(!BuildReplyPlan(text,now.plan,plan,error)) { replyError=error; continue; }
+        replyError.clear(); lab.replyMoves=text; lab.pickCustom=false;
+        if(!text.empty()&&ReplyPresetIndex(text)<0) lab.customMoves=text;
+        changed=reply=true;
+    }
+    for(const auto& order:phone.Take()) {
+        // Combo check's start needs the fighters picked on the PC.
+        if(order.first=="comboStart") {
+            Command command; command.action=Action::ComboStart; command.generation=view.generation; command.check=lab.check;
+            if(view.available&&submit) submit(command);
+        }
+        else if(remote::WriteLab(now,order.first,order.second)) { changed=true; reply|=remote::FindOption(order.first)->tab==remote::Tab::Reply; }
+    }
+    if(changed) {
+        lab.meter=now.meter; lab.plan=now.plan; lab.check=now.check; SavePractice();
+        if(reply) SendPlan(view,submit);
+    }
+    static nlohmann::json shown;
+    auto values=remote::ReadLab(now);
+    values["replyMoves"]=lab.replyMoves; values["replyError"]=replyError;
+    if(values!=shown) { shown=values; phone.Publish(std::move(values)); }
+}
 training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }
 void SetTrainingMeterOptions(const training::MeterOptions& options) { lab.meter=options; }
 void SetTrainingPositionKeys(int reset,int save) { LoadPractice(); lab.keys={{reset,save}}; }
@@ -521,7 +558,27 @@ bool HandleComboCheck(const MenuAction& a){
 }
 }
 // offerOverwrite: F7 on a recorded slot opened the recordings to ask about overwriting.
-namespace { GameMenu trainingMenu; bool showRecordings=false, offerOverwrite=false; }
+namespace {
+// White square with a quiet border, black modules: what a phone camera reads at any theme.
+float QrSide(const std::string& text) {
+    if(text.empty())return 0;
+    const auto qr=qrcodegen::QrCode::encodeText(text.c_str(),qrcodegen::QrCode::Ecc::MEDIUM);
+    return (qr.getSize()+8)*4*Scale();
+}
+void DrawQrCode(const std::string& text) {
+    if(text.empty())return;
+    const auto qr=qrcodegen::QrCode::encodeText(text.c_str(),qrcodegen::QrCode::Ecc::MEDIUM);
+    const float cell=4*Scale(),border=4*cell,side=qr.getSize()*cell+2*border;
+    const ImVec2 at=ImGui::GetCursorScreenPos();
+    auto* draw=ImGui::GetWindowDrawList();
+    draw->AddRectFilled(at,ImVec2(at.x+side,at.y+side),IM_COL32_WHITE);
+    for(int y=0;y<qr.getSize();++y)for(int x=0;x<qr.getSize();++x)if(qr.getModule(x,y))
+        draw->AddRectFilled(ImVec2(at.x+border+x*cell,at.y+border+y*cell),ImVec2(at.x+border+(x+1)*cell,at.y+border+(y+1)*cell),IM_COL32_BLACK);
+    ImGui::Dummy(ImVec2(side,side));
+}
+}
+namespace { GameMenu trainingMenu; bool showRecordings=false, offerOverwrite=false, showQr=false; std::optional<TrainingRemote> s_remote_; const TrainingRemote* s_remote=nullptr; }
+void SetTrainingRemote(TrainingRemote remote) { s_remote_=std::move(remote); s_remote=&*s_remote_; }
 MenuNavigation& TrainingNavigation() { return trainingMenu.navigation; }
 bool OpenTrainingRecordings(input::TrainingControls& controls, const input::TrainingControls::Token& token) {
  if(!controls.Open(token)) return false;
@@ -611,6 +668,18 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    Row("tools",loc::T("training.position"),std::string(loc::T("training.position.save.detail"))+"\n"+loc::T("training.position.reset.detail")),
    Row("combo-check",loc::T("training.combo_check"),loc::T("training.combo_check.detail")),
    Row("return",loc::T("training.close_controls"),loc::T("training.close_controls.detail"))};
+  if(s_remote)rows.insert(rows.end()-1,Row("remote",loc::T("training.remote"),loc::T("training.remote.detail")));
+ }else if(screen=="remote"&&s_remote){
+  const bool on=!s_remote->url().empty();
+  rows.push_back(Value("remote-toggle",loc::T("training.remote"),loc::T(on?"common.on":"common.off"),loc::T("training.remote.detail")));
+  if(on){
+   rows.push_back(Row("remote-qr",loc::T("training.remote.qr"),loc::T("training.remote.qr.detail")));
+   // Shown, not adjusted.
+   rows.push_back(Value("remote-url",loc::T("training.remote.address"),s_remote->url(),loc::T("training.remote.address.detail")));
+   rows.push_back(Value("remote-pin",loc::T("training.remote.pin"),s_remote->pin(),loc::T("training.remote.pin.detail")));
+   rows.push_back(Row("remote-newpin",loc::T("training.remote.newpin"),loc::T("training.remote.newpin.detail")));
+   rows[2].adjustable=rows[3].adjustable=false;
+  }
  }else if(screen=="recording"){
   // The slots are a list of what plays, as SF6's are: Select turns a
   // recorded slot on or off for Play and the dummy reply (Left and Right
@@ -727,6 +796,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   {"combo-check",loc::T("training.combo_check")}};
  for(int i=0;i<static_cast<int>(trainingMenu.tabs.size());++i)if(trainingMenu.tabs[i].first==screen)trainingMenu.tab=i;
  if(trainingMenu.tab<0&&screen!="home")trainingMenu.tabs.clear();
+ if(screen!="remote"||!s_remote||s_remote->url().empty())showQr=false;
+ if(showQr)trainingMenu.listCard={[](float){return QrSide(s_remote->link())+2*12*Scale();},[]{DrawQrCode(s_remote->link());}};
+ else trainingMenu.listCard={};
  const auto a=trainingMenu.Draw(loc::T("training.title"),rows,status.c_str(),[&](const std::string& id){
   if(screen=="history"&&(id=="p1"||id=="p2")){
    for(const auto& run:v.history[id=="p1"?0:1])ImGui::TextWrapped("%u f  %s",run.frames,Buttons(run.buttons).c_str());
@@ -738,6 +810,18 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  // one replaces another, whatever is open on it (a reader).
  if(a.kind==MenuAction::Shortcut&&!a.id.empty()){if(a.id=="recording")ListRecordings();nav.Replace(a.id);return;}
  if(a.kind==MenuAction::Activate&&screen=="home"){if(a.id=="recording")ListRecordings();nav.Push(a.id);return;}
+ if(screen=="remote"&&s_remote){
+  // Select flips it; Right turns it On and Left Off, as the other On/Off rows do.
+  // Select on "Scan to connect" shows the code over the list, and again hides it.
+  if(a.kind==MenuAction::Activate&&a.id=="remote-qr")showQr=!showQr;
+  // A new PIN: the server starts over, so the old one and every phone signed in with it stop working.
+  if(a.kind==MenuAction::Activate&&a.id=="remote-newpin"){s_remote->stop();if(!s_remote->start())error=loc::T("training.remote.failed");}
+  if((a.kind==MenuAction::Activate||a.kind==MenuAction::Adjust)&&a.id=="remote-toggle"){
+   const bool on=!s_remote->url().empty(),want=a.kind==MenuAction::Adjust?a.delta>0:!on;
+   if(want&&!on){if(!s_remote->start())error=loc::T("training.remote.failed");}else if(!want&&on){s_remote->stop();showQr=false;}
+  }
+  return;
+ }
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
  if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
  if(a.kind==MenuAction::Activate&&a.id=="check-fighters"){nav.Push(a.id);return;}

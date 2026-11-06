@@ -243,7 +243,11 @@ void ChargeRows(Rows& rows, const FighterData& fighter) {
         else if (back) rows.Triangle(ImVec2(x0, (y0 + y1) * .5f), ImVec2(x1, y0), ImVec2(x1, y1), palette::Ivory);
         else if (down) rows.Triangle(ImVec2(x0, y0), ImVec2(x1, y0), ImVec2((x0 + x1) * .5f, y1), palette::Ivory);
         const bool full = charge.required > 0 && charge.held >= charge.required;
-        rows.Bar(fighter.ChargeName(charge.index), charge.required ? static_cast<float>(charge.held) / charge.required : 0.f, 1,
+        // The file's own name when it can be read; some are codes ("CMD_4C"), and those are shown by their direction.
+        const std::string name = fighter.ChargeName(charge.index);
+        const std::string label = training::ReadableChargeName(name) ? name :
+            back && down ? std::string(loc::T("training.data.down")) + " + " + loc::T("common.back") : back ? std::string(loc::T("common.back")) : std::string(loc::T("training.data.down"));
+        rows.Bar(label, charge.required ? static_cast<float>(charge.held) / charge.required : 0.f, 1,
             full ? Full : palette::Ember, std::to_string(charge.held) + " / " + std::to_string(charge.required), icon + 4 * rows.s);
     }
 }

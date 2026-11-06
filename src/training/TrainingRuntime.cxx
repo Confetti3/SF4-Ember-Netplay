@@ -424,7 +424,8 @@ void EndCheck() {
 }
 // A recording that ends, by its idle frames or now: its combo is the last one.
 void KeepCombo() {
-    const combo_check::Combo& combo = comboRecorder.Result();
+    combo_check::Combo combo = comboRecorder.Result();
+    combo.fighter = comboView.p1;
     { std::lock_guard<std::mutex> lock(mutex); lastCombo = combo; }
     ++comboView.comboId; comboView.hits = combo.hits; comboView.frames = static_cast<int>(combo.frames.size());
     spdlog::info("Training: Combo check recorded {} frames, {} hits", combo.frames.size(), combo.hits);
@@ -472,7 +473,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     if (!session.GetView().available) {
         const int fighter = BattleFighter(system, 1);
         session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom());
-        comboView.dummy = fighter;
+        comboView.dummy = fighter; comboView.p1 = BattleFighter(system, 0);
         if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
     }
     session.SetReady((system->*Native::publicMethods.IsFight)() &&
@@ -926,7 +927,7 @@ void CloseBattle() {
     keptJuggle = {}; session.Reset(); meter.Reset(); confirmed.Reset(); matchShown = false;
     matchPractice = false; dummyWatch.Reset(); replies.Reset(); replyTrace.Reset(); playbackSeen = {};
     // The recording made stays for the next battle, where the check plays it.
-    comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.free = comboView.recording = false;
+    comboTally.Reset(); comboRecorder = {}; comboView.dummy = -1; comboView.p1 = -1; comboView.free = comboView.recording = false;
     std::lock_guard<std::mutex> lock(mutex); commands.Clear(); published = session.GetView();
 }
 } }
