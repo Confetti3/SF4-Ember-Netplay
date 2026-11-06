@@ -66,6 +66,34 @@ constexpr ShellTheme EmberShellTheme = {
 	0x443A31, false, false, false,
 };
 
+// Where a game's own battle HUD is, for Ember's match HUD to keep clear of it
+// (ui/MatchHud.cxx). Measured in the game's HUD frame: frameWidth by
+// frameHeight units, scaled evenly to the largest that fits the screen and
+// centred on it. A product without one has USF4's HUD, as SF4 Ember measured
+// it (MatchHud.cxx, PlaceSplit).
+struct BattleHud {
+	struct Box { float x0, y0, x1, y1; };
+	float frameWidth, frameHeight;
+	// Each side's plate: the game's own label naming the player (P1, P2).
+	Box plate[2];
+	// The game writes the players' names on its plates itself: the split
+	// layout then draws no plates of its own, only each name's link and class
+	// marks, as a chip the box's height against its inner end (P1's right,
+	// P2's left), never wider than the box.
+	bool namesOnPlates;
+	Box marks[2];
+	// The lowest point of the game's HUD across the top of the frame: a panel
+	// anchored at the top goes just below it, its state line under it.
+	float topEnd;
+	// The highest point of the game's HUD in the bottom corners (its gauges):
+	// a panel anchored in a bottom corner goes just above it. The bottom's
+	// middle is clear of it to its foot, where Bottom center stays.
+	float bottomStart;
+	// The game moves its HUD by an option of its own, which the split layout's
+	// name offset follows (USF4's). Without one the setting is not offered.
+	bool nameOffset;
+};
+
 // What the shell draws as the product's own.
 struct Branding {
 	const char* productName;      // window titles, About, the version line
@@ -76,6 +104,7 @@ struct Branding {
 	int markSize;
 	const wchar_t* menuBackdrop;  // the menu's backdrop art, under the install's assets folder
 	const ShellTheme* theme;      // the shell's colours and shapes; none is EmberShellTheme
+	const BattleHud* battleHud;   // the game's battle HUD; none is USF4's
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO
