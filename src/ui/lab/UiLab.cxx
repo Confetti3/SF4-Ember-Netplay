@@ -108,16 +108,7 @@ unsigned PadButtons() {
         const auto b = state.Gamepad.wButtons;
         unsigned held = (b & XINPUT_GAMEPAD_DPAD_UP ? 1 : 0) | (b & XINPUT_GAMEPAD_DPAD_DOWN ? 2 : 0) |
             (b & XINPUT_GAMEPAD_DPAD_LEFT ? 4 : 0) | (b & XINPUT_GAMEPAD_DPAD_RIGHT ? 8 : 0);
-        std::uint32_t physical = 0;
-        // The XInput masks of common/PadKind.hxx sit 16 bits up for the face buttons.
-        if (b & XINPUT_GAMEPAD_A) physical |= input::xinput::A;
-        if (b & XINPUT_GAMEPAD_B) physical |= input::xinput::B;
-        if (b & XINPUT_GAMEPAD_X) physical |= input::xinput::X;
-        if (b & XINPUT_GAMEPAD_Y) physical |= input::xinput::Y;
-        if (b & XINPUT_GAMEPAD_BACK) physical |= input::xinput::View;
-        if (b & XINPUT_GAMEPAD_LEFT_SHOULDER) physical |= input::xinput::LB;
-        if (b & XINPUT_GAMEPAD_RIGHT_SHOULDER) physical |= input::xinput::RB;
-        return ui::ControllerButtons(held, input::PadXInput, physical, input::MenuButtons{});
+        return ui::ControllerButtons(held, input::PadXInput, input::xinput::Physical(b), input::MenuButtons{});
     }
     return 0;
 }

@@ -126,6 +126,11 @@ execute_process(COMMAND "${CMAKE_COMMAND}" "-DSOURCE_DIR=${EMBER_SOURCE_ROOT}"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/../sf4e_build_identity.cmake" COMMAND_ERROR_IS_FATAL ANY)
 
 add_library(ember_neutral_x64 STATIC ${_ember_neutral_units})
+# Ember's Win32 backend (ui/backends), which a game's overlay uses in place
+# of the package's: the pads reach the menu through the runtime's controller
+# sample, never through ImGui's own XInput reads, as in SF4 Ember's build.
+set_source_files_properties("${EMBER_SOURCE_ROOT}/ui/backends/imgui_impl_win32.cpp" PROPERTIES
+    COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
 # The locale ids (generated/public) are part of the library's headers, as
 # sf4e_localization gives them in SF4 Ember's build.
 target_include_directories(ember_neutral_x64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
