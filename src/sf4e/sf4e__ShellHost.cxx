@@ -32,6 +32,7 @@ void ShellHost::Background(const ShellGame::RuntimeSnapshot& snapshot) {
         request.publicTicket = std::move(action.publicTicket);
         request.createdRules = action.createdRules;
         request.arcadeRoom = action.arcadeRoom;
+        request.wiredOnly = action.wiredOnly;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
     roomCarry_.Return(view);
@@ -60,7 +61,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.canOpenRoom = snapshot.canOpenRoom;
     view.canReplaceRoom = snapshot.canReplaceRoom;
     view.canReady = snapshot.canReady;
-    view.canEditSelection = snapshot.canEditSelection;
+    view.canEditSelection = snapshot.canEditSelection; view.canChangeUltra = snapshot.canChangeUltra;
     view.selectionLockReason = snapshot.selectionLockReason;
     view.readyPress = snapshot.readyPress; view.readyFailure = snapshot.readyFailure;
     view.readyFailureSequence = snapshot.readyFailureSequence;
@@ -140,7 +141,8 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     const char* close = nullptr;
     bool open = true;
     shell_.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
-        // The table page's Ultra and Appearance rows edit the pick here; nothing is sent.
+        // The Ultra (the board, the table page, the post-match prompt) and the
+        // table page's Appearance edit the pick here; nothing is sent.
         if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None)
             return game.StepSelection(step, snapshot);
         // Training select's Start: the game enters Training with these once
@@ -177,6 +179,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         request.arcadeRoom = action.arcadeRoom;
         request.delayPolicy = action.delayPolicy;
         request.tableCount = action.tableCount;
+        request.wiredOnly = action.wiredOnly;
         game.AddPick(request);
         request.training = action.training;
         request.leaveWatchedGame = action.leaveWatchedGame;

@@ -1,6 +1,7 @@
 #include "FighterCatalog.hxx"
 #include "InstalledContent.hxx"
 #include <algorithm>
+#include <sstream>
 
 namespace sf4e { namespace selection {
 namespace {
@@ -74,6 +75,106 @@ std::vector<int> AllowedUltras(int fighterId, int editionId) {
     if (editionId == 13) return {0};
     if (editionId == UltraEdition) return {0, 1, 2};
     return {0, 1};
+}
+namespace {
+// An Ultra's commands: its one, and a second way into the same move where it
+// has one (a stance, an anti-air version); the second's symbols null when not.
+struct UltraInputs { UltraCommand first, second; };
+using C = UltraCondition;
+// USFIV's commands, in native fighter order: Ultra I, then Ultra II.
+const UltraInputs ultraInputs[][2] = {
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Ryu
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Ken
+    {{{"~4 6 4 6 + KKK"}}, {{"236 236 + PPP"}}}, // Chun-Li
+    {{{"~4 6 4 6 + PPP"}}, {{"360 360 + PPP", C::CloseRange}}}, // Honda
+    {{{"~4 6 4 6 + PPP"}}, {{"~1 3 1 9 + PPP", C::AntiAir}, {"~1 3 1 9 + KKK", C::Ground}}}, // Blanka
+    {{{"360 360 + PPP", C::CloseRange}}, {{"360 360 + KKK", C::InAir}}}, // Zangief
+    {{{"~1 3 1 9 + KKK"}}, {{"~4 6 4 6 + PPP"}}}, // Guile
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK", C::InAir}}}, // Dhalsim
+    {{{"~4 6 4 6 + PPP", C::PunchStart}, {"~4 6 4 6 + KKK", C::KickStart}}, {{"360 360 + PPP", C::CloseRange}}}, // Balrog (boxer)
+    {{{"~1 3 1 9 + KKK"}}, {{"~1 6 4 6 + KKK"}}}, // Vega (claw)
+    {{{"236 236 + KKK"}}, {{"236 236 + PPP"}}}, // Sagat
+    {{{"~4 6 4 6 + KKK"}}, {{"~4 6 4 6 + PPP"}}}, // M. Bison
+    {{{"236 236 + PPP"}}, {{"214 214 + KKK", C::InAir}}}, // Viper
+    {{{"236 236 + PPP"}}, {{"214 214 + PPP"}}}, // Rufus
+    {{{"236 236 + KKK"}}, {{"214 214 + KKK"}}}, // El Fuerte
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK", C::DelayOrCancel}}}, // Abel
+    {{{"236 236 + PPP"}}, {{"214 214 + PPP"}}}, // Seth
+    {{{"LP LP 6 LK HP"}}, {{"8 8 + KKK"}}}, // Akuma
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Gouken
+    {{{"360 360 + PPP", C::CloseRange}}, {{"63214 63214 + KKK"}}}, // T. Hawk
+    {{{"236 236 + KKK"}}, {{"214 214 + PPP", C::Counter}}}, // Cammy
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK", C::Counter}}}, // Fei Long
+    {{{"~4 6 4 6 + KKK"}}, {{"~1 3 1 9 + PPP"}}}, // Dee Jay
+    {{{"214 214 + KKK"}}, {{"236 236 + PPP", C::Forward}, {"236 236 + KKK", C::AntiAir}}}, // Sakura
+    {{{"236 236 + PPP"}}, {{"214 214 + KKK"}}}, // Rose
+    {{{"236 236 + PPP", C::MantisStance}, {"236 236 + KKK", C::CraneStance}},
+     {{"214 214 + PPP", C::MantisStance}, {"236 236 + KKK", C::CraneStanceOrAir}}}, // Gen
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Dan
+    {{{"236 236 + KKK"}}, {{"63214 63214 + PPP", C::CloseRange}}}, // Guy
+    {{{"236 236 + PPP"}}, {{"214 214 + PPP"}}}, // Cody
+    {{{"63214 63214 + PPP", C::CloseRange}}, {{"236 236 + KKK"}}}, // Ibuki
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Makoto
+    {{{"236 236 + KKK"}}, {{"236 236 + PPP"}}}, // Dudley
+    {{{"214 214 + KKK"}}, {{"236 236 + KKK"}}}, // Adon
+    {{{"360 360 + PPP", C::CloseRange}}, {{"2 2 2 + KKK"}}}, // Hakan
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Juri
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Yun
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Yang
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Evil Ryu
+    {{{"236 236 + PPP", C::GroundOrAir}, {"236 236 + KKK", C::AntiAir}}, {{"63214 63214 + PPP"}}}, // Oni
+    {{{"236 236 + PPP"}}, {{"236 236 + KKK"}}}, // Rolento
+    {{{"236 236 + KKK"}}, {{"236 236 + PPP", C::StopHealing}}}, // Elena
+    {{{"236 236 + PPP"}}, {{"63214 63214 + PPP", C::CloseRange}}}, // Poison
+    {{{"360 360 + PPP", C::CloseRange}}, {{"236 236 + KKK"}}}, // Hugo
+    {{{"~4 6 4 6 + PPP"}}, {{"~4 6 4 6 + KKK", C::Ground}, {"~1 3 1 9 + KKK", C::AntiAir}}}, // Decapre
+};
+static_assert(sizeof(ultraInputs) / sizeof(ultraInputs[0]) == FighterCount, "Every fighter needs Ultra inputs");
+// Where an earlier or later edition's command differs from USFIV's.
+struct EditionUltraInputs { int fighter, edition, ultra; UltraInputs inputs; };
+const EditionUltraInputs editionUltraInputs[] = {
+    {11, 1, 1, {{"236 236 + PPP"}}}, // SSFIV's Psycho Punisher is a motion; AE made it a charge
+    {43, 16, 0, {{"236 236 + PPP"}}}, // Omega's Decapre uses motions, not charges
+    {43, 16, 1, {{"236 236 + KKK", C::Ground}, {"214 214 + KKK", C::AntiAir}}},
+};
+}
+std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionId) {
+    const auto allowed = AllowedUltras(fighterId, editionId);
+    if (ultraId < 0 || ultraId > 1 || std::find(allowed.begin(), allowed.end(), ultraId) == allowed.end()) return {};
+    const UltraInputs* inputs = &ultraInputs[fighterId][ultraId];
+    for (const auto& changed : editionUltraInputs)
+        if (changed.fighter == fighterId && changed.edition == editionId && changed.ultra == ultraId) inputs = &changed.inputs;
+    if (!inputs->second.symbols) return {inputs->first};
+    return {inputs->first, inputs->second};
+}
+std::string UltraNotation(const std::string& tokens, const std::string& charge) {
+    std::istringstream stream(tokens);
+    std::vector<std::string> parts;
+    for (std::string token; stream >> token;) parts.push_back(token);
+    std::string result;
+    for (std::size_t i = 0; i < parts.size(); ++i) {
+        std::string token = parts[i];
+        const bool charged = token[0] == '~';
+        if (charged) token.erase(0, 1);
+        const bool digits = !token.empty() && token.find_first_not_of("0123456789") == std::string::npos;
+        std::string word = token;
+        if (digits && token.size() > 1) {
+            // A full motion; the same one twice in a row is a double.
+            word = token == "236" ? "QCF" : token == "214" ? "QCB" : token == "63214" ? "HCB" : token;
+            if (i + 1 < parts.size() && parts[i + 1] == parts[i]) { word += " x2"; ++i; }
+        } else if (digits) {
+            static const char* const directions[] = {"", "DB", "D", "DF", "B", "", "F", "UB", "U", "UF"};
+            const char* direction = directions[token[0] - '0'];
+            if (*direction) word = direction;
+        }
+        if (charged) word = charge + " " + word;
+        // The plus sign joins a motion to its buttons; everything else is a list.
+        if (word == "+") result += " +";
+        else if (result.empty()) result = word;
+        else if (result.back() == '+') result += " " + word;
+        else result += ", " + word;
+    }
+    return result;
 }
 bool FighterLocked(int fighterId, const Availability& availability) {
     // 6A0970 licence-gates only 35-43 (39-43 in some editions). The base

@@ -2764,6 +2764,18 @@ msgstr "Select to lock in your fighter. The match starts when both players are r
 
 msgid "room.opponent_changed_fighter"
 msgstr "Opponent changed to {0}. Check your Ultra before you ready up."
+msgid "room.ready.with"
+msgstr "Ready with {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Ready with {0}, {1}, against {2}."
+
+msgid "room.ultra.detail"
+msgstr "Choose your Ultra for the next game here, without opening Table options."
+
+msgid "room.ultra.single"
+msgstr "This fighter has one Ultra in this edition."
+
 msgid "room.both_ready"
 msgstr "Both fighters are ready. The match is starting."
 msgid "room.waiting_spectators"
@@ -2994,6 +3006,12 @@ msgid "room.open"
 msgstr "Open"
 msgid "room.admission.detail"
 msgstr "Lock stops new members joining."
+msgid "room.wired_only"
+msgstr "Wired players only"
+msgid "room.wired_only.detail"
+msgstr "Players on Wi-Fi can still join, watch and chat, but cannot take a seat. Players whose connection is unknown can play."
+msgid "room.wired_only.settings_detail"
+msgstr "Applies to the next seat taken. Nobody seated now loses their seat."
 msgid "room.apply_name"
 msgstr "Apply room name"
 msgid "room.apply_name.detail"
@@ -3171,6 +3189,8 @@ msgid "room.reject.invalid_chat"
 msgstr "That message could not be sent."
 msgid "room.reject.ledger_full"
 msgstr "Waiting for everyone to finish returning from the previous match."
+msgid "room.reject.wired_only"
+msgstr "This room is for wired players. Your PC is on Wi-Fi."
 msgid "room.reject.other"
 msgstr "The room refused that action."
 msgid "runtime.lock.return_to_menu_fighter"
@@ -4394,6 +4414,12 @@ msgstr "Ready"
 msgid "postmatch.state.left"
 msgstr "Left the seat"
 
+msgid "postmatch.ultra.detail"
+msgstr "Left and Right change your Ultra for the next game. With a new Ultra, the next game loads first."
+
+msgid "postmatch.ultra.set"
+msgstr "Your Ultra for the next game is set."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -4538,26 +4564,62 @@ msgstr "Joins the open room near you with the most free seats."
 msgid "public.quick_none"
 msgstr "No open room near you has a free seat right now. Create one and players nearby will find it."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Create room"
 
-msgid "public.filter"
-msgstr "Show"
+msgid "public.filters"
+msgstr "Filters"
 
-msgid "public.filter_detail"
-msgstr "Choose which rooms are listed: all of them, rooms near you, or only rooms with free seats."
+msgid "public.filters_detail"
+msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
 
-msgid "public.filter_label"
-msgstr "Show: {0}"
-
-msgid "public.filter.all"
+msgid "public.filter_summary_all"
 msgstr "All rooms"
 
-msgid "public.filter.near"
+msgid "public.filter_summary_seats"
+msgstr "Open seats"
+
+msgid "public.filter_region"
+msgstr "Region"
+
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+
+msgid "public.filter_region_all"
+msgstr "All regions"
+
+msgid "public.filter_region_near"
 msgstr "Near me"
 
-msgid "public.filter.seats"
-msgstr "Free seats"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "All rooms"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember doesn't know your region yet, so it can't tell which rooms are near you."
@@ -4628,8 +4690,11 @@ msgstr "No open rooms right now. Create one and others can find it."
 msgid "public.none_filtered"
 msgstr "No rooms match this filter."
 
-msgid "public.show_all"
-msgstr "Show all rooms"
+msgid "public.clear_filters"
+msgstr "Clear filters"
+
+msgid "public.clear_filters_detail"
+msgstr "Show every room again."
 
 msgid "public.try_again"
 msgstr "Try again"
@@ -5095,6 +5160,9 @@ msgstr "New opponent"
 
 msgid "room.new_opponent_detail"
 msgstr "Nobody else was waiting, so you two choose. Play whoever has waited longest instead, or wait for the next player to sit down."
+
+msgid "room.new_opponent_none"
+msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
 
 msgid "room.rematch_ask"
 msgstr "Rematch?"
@@ -6123,6 +6191,36 @@ msgstr "Turns the Training record and play buttons off."
 msgid "button_layout.training_cleared"
 msgstr "Training buttons are off."
 
+msgid "button_layout.training_controls"
+msgstr "Training controls"
+
+msgid "button_layout.training_controls_detail"
+msgstr "Select, then press the button that opens and closes the Training controls. Automatic uses R3 unless R3 is one of your attacks. In Training that button only does this and never attacks. Turn it off to keep its attack; F6 and Back with Start still open the controls."
+
+msgid "button_layout.training_controls_off"
+msgstr "Turn off controls button"
+
+msgid "button_layout.training_controls_off_detail"
+msgstr "Stops this button opening the Training controls, so it keeps its attack in Training. F6 and Back with Start still work."
+
+msgid "button_layout.training_controls_is_off"
+msgstr "Training controls button is off."
+
+msgid "button_layout.auto_on"
+msgstr "{0} (automatic)"
+
+msgid "button_layout.auto_off"
+msgstr "Off ({0} is in use)"
+
+msgid "button_layout.training_controls_auto"
+msgstr "Turn on controls button"
+
+msgid "button_layout.training_controls_auto_detail"
+msgstr "Uses R3 for the Training controls unless R3 is one of your attacks."
+
+msgid "button_layout.training_controls_is_auto"
+msgstr "Training controls button is automatic."
+
 msgid "room.delay_policy"
 msgstr "Room input delay"
 
@@ -6141,11 +6239,20 @@ msgstr "{0}, own delay"
 msgid "room.table_footer_own_delay"
 msgstr "Own delay"
 
+msgid "room.table_footer_wired_only"
+msgstr "Wired only"
+
+msgid "room.table_counts"
+msgstr "Queue {0}     Watching {1}"
+
 msgid "room.input_delay.own"
 msgstr "Your delay: {0}"
 
 msgid "public.own_delay"
 msgstr "Own delay"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "This room service cannot create a room with each player's own delay yet. Choose Same for both, or try again later."
@@ -7231,6 +7338,9 @@ msgstr "Ember developers show this mark in place of a class and are not on the b
 msgid "room.v2.board"
 msgstr "Board"
 
+msgid "room.v2.areas"
+msgstr "Areas"
+
 msgid "room.v2.tables"
 msgstr "TABLES"
 
@@ -7271,7 +7381,7 @@ msgid "room.v2.more"
 msgstr "More…"
 
 msgid "room.v2.more_detail"
-msgstr "Table options, room settings and invitation links."
+msgstr "Controllers, room settings, a public room's link and the board's layout."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
@@ -7452,6 +7562,87 @@ msgstr "Costume"
 
 msgid "selection.color_row"
 msgstr "Color"
+
+msgid "selection.costume_gallery_title"
+msgstr "COSTUME GALLERY"
+
+msgid "selection.color_gallery_title"
+msgstr "COLOR GALLERY"
+
+msgid "selection.color"
+msgstr "Color {0}"
+
+msgid "selection.no_colors"
+msgstr "No unlocked colors for this costume."
+
+msgid "selection.loading_choices"
+msgstr "Loading available choices"
+
+msgid "selection.loading_choices.detail"
+msgstr "Waiting for native costume and color availability."
+
+msgid "menu.hint.save_color"
+msgstr "Save color"
+
+msgid "selection.costume_row.detail"
+msgstr "Left and Right change the costume here. Select shows every costume."
+
+msgid "selection.color_row.detail"
+msgstr "Left and Right change the color here. Select shows every color."
+
+msgid "selection.ultra_combo_title"
+msgstr "ULTRA COMBO"
+
+msgid "menu.hint.save_ultra"
+msgstr "Save Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "Charge"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "Ground"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Anti-air"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "Ground or in air"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "In air"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Close range"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Counter"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Mantis stance"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Crane stance"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Crane stance or in air"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Punch version"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Kick version"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Forward"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Hold kicks to delay, punch to cancel"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Press PPP again to stop healing"
 
 msgid "selection.ready_with"
 msgstr "Ready with {0}"

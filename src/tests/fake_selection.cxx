@@ -25,6 +25,8 @@ std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::I
 }
 const char* UltraLabel(int) { return "Ultra"; }
 const char* ShortUltraLabel(int) { return "Ultra"; }
+std::string UltraMove(int, int) { return "Ultra"; }
+std::string UltraName(int, int) { return "Ultra"; }
 
 namespace {
 // Missing, so a screen says so rather than waiting for a picture.
@@ -34,6 +36,7 @@ SelectionImage SelectionArt::Portrait(int, bool) { return None(); }
 SelectionImage SelectionArt::Character(int, int, int, bool) { return None(); }
 SelectionImage SelectionArt::Appearance(int, int, int) { return None(); }
 SelectionImage SelectionArt::Ultra(int, int) { return None(); }
+SelectionImage SelectionArt::UltraIcon(int) { return None(); }
 SelectionImage SelectionArt::Stage(int) { return None(); }
 SelectionImage SelectionArt::RankingEmblem(const std::string&) { return None(); }
 } }

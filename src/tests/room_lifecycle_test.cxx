@@ -312,6 +312,23 @@ static void TestHudScoreFollowsTheWatchedGame() {
 	EXPECT(!sf4e::HudScore(false, true, start, false, none, shown));
 }
 
+// Both fighters chose Rematch over the WIN, so one stream shows the whole set:
+// the spectator's score counts each game its stream showed ending, and a
+// draw or an unknown winner counts nothing.
+static void TestHudScoreCountsInPlaceGames() {
+	std::uint32_t watched[2] = { 1, 1 };
+	sf4e::CountWatchedGame(0, watched);
+	EXPECT(watched[0] == 2 && watched[1] == 1);
+	sf4e::CountWatchedGame(1, watched);
+	EXPECT(watched[0] == 2 && watched[1] == 2);
+	sf4e::CountWatchedGame(-1, watched);
+	sf4e::CountWatchedGame(2, watched);
+	EXPECT(watched[0] == 2 && watched[1] == 2);
+	const std::uint32_t live[2] = { 0, 0 };
+	std::uint32_t shown[2] = { 9, 9 };
+	EXPECT(sf4e::HudScore(true, true, watched, true, live, shown) && shown[0] == 2 && shown[1] == 2);
+}
+
 // A spectator's HUD keeps the delay its game was granted with, taken as the
 // stream starts. The room ends that game and its fighters ready the next at
 // other delays while the stream still plays: the table's delays change, the
@@ -416,6 +433,7 @@ int main() {
 	TestLeavingQueueEndsTheQueuedWatch();
 	TestQueuedWatcherLeavesOneGame();
 	TestHudScoreFollowsTheWatchedGame();
+	TestHudScoreCountsInPlaceGames();
 	TestHudDelayFollowsTheWatchedGame();
 	TestQueuePlaceCountsFromNext();
 

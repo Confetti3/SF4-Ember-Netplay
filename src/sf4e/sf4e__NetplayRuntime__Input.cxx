@@ -190,12 +190,19 @@ input::MenuButtons MenuButtonsFor(int deviceType, int deviceIndex) {
 input::TrainingButtons TrainingButtonsFor(int deviceType, int deviceIndex) {
     const auto* pad = LayerPad(deviceType, deviceIndex);
     input::TrainingButtons buttons;
-    if (!pad) return buttons;
     using namespace gamepads;
+    // An Xbox pad the layer does not serve keeps the controls on R3, as before the button could be bound.
+    if (!pad) {
+        if (deviceType == input::PadXInput) { buttons.controls = input::xinput::RS; buttons.controlsName = "R3"; }
+        return buttons;
+    }
     buttons.record = LayoutButtonMask(pad->bound[TrainingRecordButton], pad->has);
     buttons.play = LayoutButtonMask(pad->bound[TrainingPlayButton], pad->has);
     if (buttons.record) buttons.recordName = pad->buttonNames[pad->bound[TrainingRecordButton]];
     if (buttons.play) buttons.playName = pad->buttonNames[pad->bound[TrainingPlayButton]];
+    const auto controls = ResolveBound(pad->bound, pad->table)[TrainingControlsButton];
+    buttons.controls = LayoutButtonMask(controls, pad->has);
+    if (buttons.controls) buttons.controlsName = pad->buttonNames[controls];
     return buttons;
 }
 
@@ -320,6 +327,17 @@ bool BindRuntimeInput(int localSlot) {
     return true;
 }
 
+// The Rematch parked over the WIN carries another pick than the battle loaded
+// for this player (an Ultra changed on the prompt), so it cannot go on in
+// place (rematch::GoesOnInPlace).
+static bool ParkedRematchChangesPick() {
+    const auto* parked=runtime->readyIntent.Parked();
+    const auto* press=parked?std::get_if<commands::Room>(parked):nullptr;
+    const int side=runtime->matchBinding.matchInputSide;
+    if(!press||!RuntimeSession::netplay||side<0||side>1)return false;
+    return !rematch::GoesOnInPlace(selection::FromNative(RuntimeSession::netplay->client._matchData.chara[side]),selection::FromNative(press->character));
+}
+
 bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     mapped=raw=0;
     if(!runtime||!runtime->attached)return false;
@@ -329,8 +347,10 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     // the inputs (common/RematchInput.hxx): a Rematch pressed there, waiting as
     // the parked Ready, or the fighter still being asked, which holds the WIN
     // for them. A Random pick's rematch leaves the battle, so the next game
-    // plays a new roll, and nothing is held for it.
-    const bool due=Game().battle.ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen();
+    // plays a new roll, and nothing is held for it; so does a Rematch with a
+    // changed pick, once pressed, so the next game loads it.
+    const bool due=Game().battle.ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen()&&
+        !ParkedRematchChangesPick();
     const ULONGLONG now=GetTickCount64();
     if(!due)runtime->promptDueSinceMs=0;
     else if(!runtime->promptDueSinceMs)runtime->promptDueSinceMs=now;

@@ -91,6 +91,21 @@ static void TestRematchBoth() {
 	CHECK(!wire.at("tables")[table].contains("rematch"));
 }
 
+// New opponent can part a pair only when someone waits alone at another
+// table or another table is free; with every other table taken, the room
+// could only pair the two again, so the prompt says so instead.
+static void TestNewOpponentNeedsSomeoneElse() {
+	Snapshot room;
+	for (auto& table : room.tables) { table.p1 = 1; table.p2 = 2; table.phase = TablePhase::Waiting; }
+	CHECK(!ArcadeOtherOpponentPossible(room, 0));
+	room.tables[3].p2 = 0; room.tables[3].phase = TablePhase::Idle;
+	CHECK(ArcadeOtherOpponentPossible(room, 0));
+	// A table's own lone fighter is not someone else for it.
+	CHECK(!ArcadeOtherOpponentPossible(room, 3));
+	room.tables[3].p1 = 0;
+	CHECK(ArcadeOtherOpponentPossible(room, 0));
+}
+
 // One Rematch and one New opponent part the pair: each plays whoever waited
 // longest, or waits for the next to sit, never with the other again while
 // someone else waits. One who sits down while a pair chooses waits alone.
@@ -419,12 +434,31 @@ static void TestWinWaitsForTheRematchAnswers() {
 	CHECK((Bits & 0x0FFFFFFFu) == 0);
 }
 
+// A game that goes on in place keeps the pick the battle loaded, so a Rematch
+// with another one (an Ultra changed on the prompt) leaves the battle and the
+// next game loads it.
+static void TestChangedPickLeavesTheBattle() {
+	using namespace sf4e::rematch;
+	sf4e::selection::Pick played;
+	played.fighter = 7; played.ultra = 0; played.costume = 2; played.color = 4;
+	CHECK(GoesOnInPlace(played, played));
+	for (const int ultra : {1, 2}) {
+		auto next = played; next.ultra = ultra;
+		CHECK(!GoesOnInPlace(played, next));
+	}
+	auto next = played; next.color = 5;
+	CHECK(!GoesOnInPlace(played, next));
+	next = played; next.fighter = 8;
+	CHECK(!GoesOnInPlace(played, next));
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
 		TestFirstComeFirstPaired();
 		TestRematchBoth();
 		TestRematchOneRepairs();
+		TestNewOpponentNeedsSomeoneElse();
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();
@@ -439,6 +473,7 @@ int main() {
 		TestRematchInPlaceFollowsSetGoal();
 		TestStandingCountsTheGameJustPlayed();
 		TestWinWaitsForTheRematchAnswers();
+		TestChangedPickLeavesTheBattle();
 	} catch (const std::exception& error) {
 		std::printf("room arcade threw: %s\n", error.what());
 		return 1;

@@ -4,12 +4,25 @@
 #include "../common/StageCatalog.hxx"
 #include "SelectionArt.hxx"
 #include "GameMenu.hxx"
+#include "AppearanceGallery.hxx"
 #include "SelectionLabels.hxx"
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace sf4e { namespace ui {
 bool DrawStageSelector(int& nativeId, SelectionArt* art);
+// One command of an Ultra's input: the Ultra it is (I or II; Ultra Double has
+// Ultra I's and II's), its symbols (UltraCommand::symbols), and the same in
+// words, facing-neutral, with what it needs after it: "QCF x2 + PPP",
+// "Charge B, F, B, F + KKK (Ground)" (UltraNotation).
+struct UltraInput { int ultra = 0; const char* symbols = nullptr; std::string words; };
+// The Ultra's input in the edition, a command each, in order. None for an
+// Ultra the edition does not have.
+std::vector<UltraInput> UltraInputs(int fighter, int ultra, int edition);
+// A picture fitted inside the box and centred, or, before it is loaded or
+// where it is missing, a word that says so.
+void ImageInRect(const SelectionImage& image, ImVec2 min, ImVec2 max);
 class FighterSelector {
 public:
     MenuNavigation& Navigation() { return menu_.navigation; }
@@ -36,8 +49,10 @@ private:
                    const selection::Pick& pick, bool randomSaved, SelectionArt* art, const AvailabilityReader& readAvailability);
     std::string boardFocus_;
     GameMenu menu_;
-    // The page ("stage" or "options") opened for one change
-    // (EmbeddedReturn::openOn), or empty when the selector opened on its board.
-    std::string openOn_;
+    // The costume, colour and Ultra grids over the fighter's page.
+    AppearanceGallery gallery_;
+    // Where the selector was opened for one change (EmbeddedReturn::openOn),
+    // or Board when it opened on its board.
+    SelectionStart openOn_ = SelectionStart::Board;
 };
 } }

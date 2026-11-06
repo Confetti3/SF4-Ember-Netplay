@@ -143,7 +143,8 @@ int wmain(int argc, wchar_t** argv) {
 		GetModuleFileNameW(nullptr, game, MAX_PATH);
 		return CancelledGame(game, argv[2]);
 	}
-	const std::filesystem::path file = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::temp_directory_path() / L"ember-video-encoder-test.mp4";
+	const std::filesystem::path file = argc > 1 ? std::filesystem::path(argv[1]) : std::filesystem::temp_directory_path() /
+		(L"ember-video-encoder-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()) + L".mp4");
 	const unsigned width = argc > 3 ? _wtoi(argv[2]) : 640, height = argc > 3 ? _wtoi(argv[3]) : 360;
 	const int frames = argc > 4 ? _wtoi(argv[4]) : 180;
 	wchar_t self[MAX_PATH] = {0};

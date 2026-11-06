@@ -2925,6 +2925,18 @@ msgstr "Закрепите бойца. Матч начнётся, когда о�
 msgid "room.opponent_changed_fighter"
 msgstr "Соперник сменил бойца на {0}. Проверьте своё Ультра, прежде чем нажать «Готов»."
 
+msgid "room.ready.with"
+msgstr "Готов: {0}, {1}."
+
+msgid "room.ready.with_against"
+msgstr "Готов: {0}, {1}, против {2}."
+
+msgid "room.ultra.detail"
+msgstr "Выберите Ультра для следующей игры здесь, не открывая настройки ячейки."
+
+msgid "room.ultra.single"
+msgstr "У этого бойца в этом издании одно Ультра."
+
 msgid "room.both_ready"
 msgstr "Оба бойца готовы. Матч начинается."
 
@@ -3265,6 +3277,15 @@ msgstr "Открыто"
 msgid "room.admission.detail"
 msgstr "Закрытое лобби не принимает новых."
 
+msgid "room.wired_only"
+msgstr "Только игроки по кабелю"
+
+msgid "room.wired_only.detail"
+msgstr "Игроки на Wi-Fi могут войти, смотреть и писать в чат, но не могут занять место. Игроки с неизвестным подключением могут играть."
+
+msgid "room.wired_only.settings_detail"
+msgstr "Действует со следующего занятого места. Те, кто уже сидит, места не теряют."
+
 msgid "room.apply_name"
 msgstr "Сохранить имя"
 
@@ -3524,6 +3545,9 @@ msgstr "Не удалось отправить сообщение."
 
 msgid "room.reject.ledger_full"
 msgstr "Ожидание возвращения всех участников из прошлого матча."
+
+msgid "room.reject.wired_only"
+msgstr "Эта комната для игроков по кабелю. Ваш ПК подключён по Wi-Fi."
 
 msgid "room.reject.other"
 msgstr "Лобби отклонило это действие."
@@ -4767,6 +4791,12 @@ msgstr "Готов"
 msgid "postmatch.state.left"
 msgstr "Не за столом"
 
+msgid "postmatch.ultra.detail"
+msgstr "Влево и вправо меняют Ультра для следующей игры. С новым Ультра следующая игра сначала загрузится."
+
+msgid "postmatch.ultra.set"
+msgstr "Ультра для следующей игры выбрано."
+
 msgid "rules.set_summary"
 msgstr "{0}, {1}"
 
@@ -4911,26 +4941,62 @@ msgstr "Входит в открытое лобби поблизости, где
 msgid "public.quick_none"
 msgstr "Сейчас рядом нет открытых лобби со свободными местами. Создайте своё, и игроки поблизости его найдут."
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "Создать лобби"
 
-msgid "public.filter"
-msgstr "Показать"
+msgid "public.filters"
+msgstr "Filters"
 
-msgid "public.filter_detail"
-msgstr "Выберите, какие лобби показывать: все, ближайшие или только со свободными местами."
+msgid "public.filters_detail"
+msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
 
-msgid "public.filter_label"
-msgstr "Показать: {0}"
+msgid "public.filter_summary_all"
+msgstr "All rooms"
 
-msgid "public.filter.all"
-msgstr "Все лобби"
+msgid "public.filter_summary_seats"
+msgstr "Open seats"
 
-msgid "public.filter.near"
+msgid "public.filter_region"
+msgstr "Region"
+
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+
+msgid "public.filter_region_all"
+msgstr "All regions"
+
+msgid "public.filter_region_near"
 msgstr "Рядом"
 
-msgid "public.filter.seats"
-msgstr "Свободные места"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "Все лобби"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember пока не знает ваш регион, поэтому не может определить, какие лобби рядом."
@@ -5001,8 +5067,11 @@ msgstr "Сейчас нет открытых лобби. Создайте сво
 msgid "public.none_filtered"
 msgstr "Нет лобби, подходящих под этот фильтр."
 
-msgid "public.show_all"
-msgstr "Показать все лобби"
+msgid "public.clear_filters"
+msgstr "Clear filters"
+
+msgid "public.clear_filters_detail"
+msgstr "Show every room again."
 
 msgid "public.try_again"
 msgstr "Повторить"
@@ -5468,6 +5537,9 @@ msgstr "Новый соперник"
 
 msgid "room.new_opponent_detail"
 msgstr "Остаться на месте и играть с тем, кто ждёт дольше всех, или ждать следующего игрока."
+
+msgid "room.new_opponent_none"
+msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
 
 msgid "room.rematch_ask"
 msgstr "Реванш?"
@@ -6495,6 +6567,36 @@ msgstr "Отключает кнопки записи и пуска в трени
 msgid "button_layout.training_cleared"
 msgstr "Кнопки тренировки отключены."
 
+msgid "button_layout.training_controls"
+msgstr "Training controls"
+
+msgid "button_layout.training_controls_detail"
+msgstr "Select, then press the button that opens and closes the Training controls. Automatic uses R3 unless R3 is one of your attacks. In Training that button only does this and never attacks. Turn it off to keep its attack; F6 and Back with Start still open the controls."
+
+msgid "button_layout.training_controls_off"
+msgstr "Turn off controls button"
+
+msgid "button_layout.training_controls_off_detail"
+msgstr "Stops this button opening the Training controls, so it keeps its attack in Training. F6 and Back with Start still work."
+
+msgid "button_layout.training_controls_is_off"
+msgstr "Training controls button is off."
+
+msgid "button_layout.auto_on"
+msgstr "{0} (automatic)"
+
+msgid "button_layout.auto_off"
+msgstr "Off ({0} is in use)"
+
+msgid "button_layout.training_controls_auto"
+msgstr "Turn on controls button"
+
+msgid "button_layout.training_controls_auto_detail"
+msgstr "Uses R3 for the Training controls unless R3 is one of your attacks."
+
+msgid "button_layout.training_controls_is_auto"
+msgstr "Training controls button is automatic."
+
 msgid "room.delay_policy"
 msgstr "Задержка ввода в лобби"
 
@@ -6513,11 +6615,20 @@ msgstr "{0}, своя задержка"
 msgid "room.table_footer_own_delay"
 msgstr "Своя задержка"
 
+msgid "room.table_footer_wired_only"
+msgstr "Только кабель"
+
+msgid "room.table_counts"
+msgstr "Очередь: {0}     Зрители: {1}"
+
 msgid "room.input_delay.own"
 msgstr "Ваша задержка: {0}"
 
 msgid "public.own_delay"
 msgstr "Своя задержка"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "Эта служба лобби пока не может создать лобби со своей задержкой у каждого игрока. Выберите «Одинаковая для обоих» или повторите попытку позже."
@@ -7604,6 +7715,9 @@ msgstr "Разработчики Ember показывают эту отметк�
 msgid "room.v2.board"
 msgstr "Обзор"
 
+msgid "room.v2.areas"
+msgstr "Области"
+
 msgid "room.v2.tables"
 msgstr "СТОЛЫ"
 
@@ -7644,7 +7758,7 @@ msgid "room.v2.more"
 msgstr "Ещё…"
 
 msgid "room.v2.more_detail"
-msgstr "Настройки ячейки, настройки лобби и ссылки-приглашения."
+msgstr "Контроллеры, настройки лобби, ссылка публичного лобби и вид экрана."
 
 msgid "room.v2.part_state"
 msgstr "{0}: {1}"
@@ -7825,6 +7939,87 @@ msgstr "Костюм"
 
 msgid "selection.color_row"
 msgstr "Цвет"
+
+msgid "selection.costume_gallery_title"
+msgstr "ГАЛЕРЕЯ КОСТЮМОВ"
+
+msgid "selection.color_gallery_title"
+msgstr "ГАЛЕРЕЯ ЦВЕТОВ"
+
+msgid "selection.color"
+msgstr "Цвет {0}"
+
+msgid "selection.no_colors"
+msgstr "Для этого костюма нет открытых цветов."
+
+msgid "selection.loading_choices"
+msgstr "Загрузка доступных вариантов"
+
+msgid "selection.loading_choices.detail"
+msgstr "Ожидание данных игры о доступных костюмах и цветах."
+
+msgid "menu.hint.save_color"
+msgstr "Сохранить цвет"
+
+msgid "selection.costume_row.detail"
+msgstr "Влево и вправо меняют костюм здесь. Выбор показывает каждый костюм."
+
+msgid "selection.color_row.detail"
+msgstr "Влево и вправо меняют цвет здесь. Выбор показывает каждый цвет."
+
+msgid "selection.ultra_combo_title"
+msgstr "УЛЬТРА КОМБО"
+
+msgid "menu.hint.save_ultra"
+msgstr "Сохранить Ультра"
+
+msgid "selection.ultra_charge"
+msgstr "Держать"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1} ({0})"
+
+msgid "selection.ultra_condition.ground"
+msgstr "На земле"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "Против прыжка"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "На земле или в воздухе"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "В воздухе"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "Вблизи"
+
+msgid "selection.ultra_condition.counter"
+msgstr "Контратака"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "Стойка богомола"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "Стойка журавля"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "Стойка журавля или в воздухе"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "Вариант с рукой"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "Вариант с ногой"
+
+msgid "selection.ultra_condition.forward"
+msgstr "Вперёд"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "Держите ноги для задержки, рука отменяет"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "Снова PPP прекращает лечение"
 
 msgid "selection.ready_with"
 msgstr "Готов: {0}"

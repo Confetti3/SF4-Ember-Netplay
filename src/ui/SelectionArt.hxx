@@ -66,6 +66,12 @@ public:
     }
     SelectionImage Appearance(int fighter, int costume, int color);
     SelectionImage Ultra(int fighter, int ultra);
+    // The game's own Ultra mark from its character select archives: the green
+    // I, the purple II or the flaming W (`ultra` 0 to 2, uc1.dds to uc3.dds),
+    // cropped to the painted mark. Read from the game at runtime and never
+    // repackaged; missing where the game has none (only Ultra's own archive
+    // has the W), so the caller draws its own badge.
+    SelectionImage UltraIcon(int ultra);
     // RandomStageId is served from the game's character-select random tile.
     SelectionImage Stage(int nativeId);
     // An emblem from the game's own online ranking archive by its entry name,
@@ -88,7 +94,9 @@ private:
     // Portraits fit their painted content rather than the transparent canvas,
     // and every fighter should have one, so an absent portrait is reported.
     // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
-    struct Policy { bool cropToContent = false, reportAbsence = false; unsigned exactWidth = 0, exactHeight = 0; };
+    // An image whose longer side is over maxSide (0: any) fails before it is
+    // decoded, so a hostile file cannot make it decode a huge image.
+    struct Policy { bool cropToContent = false, reportAbsence = false; unsigned exactWidth = 0, exactHeight = 0, maxSide = 0; };
     // The candidate files, the first usable one decoded. Listed only when a
     // decode is queued: screens request every visible image on every frame.
     using Files = std::function<std::vector<std::wstring>()>;
@@ -96,7 +104,7 @@ private:
     // archive candidate yields its image named `archiveEntry`, or with none
     // its first.
     SelectionImage Request(const std::string& key, const Files& files, unsigned side = 256, Policy policy = {},
-        std::string archiveEntry = {});
+        const std::string& archiveEntry = {});
     // Ember's packaged picture for `key` under assetRoot: its cutout, then
     // .png, then .jpg.
     std::vector<std::wstring> PackagedFiles(const std::string& key) const;

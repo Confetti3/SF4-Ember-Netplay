@@ -84,6 +84,9 @@ namespace sf4e {
 		// was followed by a rematch in place and leaves the match open.
 		void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFrame, std::uint64_t confirmedFrame,
 			unsigned game, bool continued);
+		// A spectator's stream showed a game end and the battle restart in
+		// place (both fighters chose Rematch): its HUD counts that game.
+		void NotifyRuntimeWatchedGame(room::MatchResult result);
 		// The WIN this result brings up may restart the battle in place: the
 		// table offers instant rematches and the result leaves its set open.
 		bool RematchInPlaceOffered(room::MatchResult result);

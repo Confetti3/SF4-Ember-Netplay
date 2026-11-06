@@ -21,6 +21,9 @@ static unsigned s_gamesReported = 0;  // games of this battle the room heard
 // The games of this battle after its first, which the game does not save.
 sf4e::replay::InPlaceReplays s_inPlaceReplays;
 static sf4e::room::MatchResult s_gameResult = sf4e::room::MatchResult::Abort;  // the WIN's (GameResult)
+// A spectator saves no states (it plays confirmed frames only), so the timeline
+// stays empty there: the result its stream last showed is read frame by frame.
+static sf4e::native_result::Result s_watchedResult = sf4e::native_result::Result::None;
 
 void ResetNativeResultMatch() {
     s_nativeResultTimeline.Reset();
@@ -30,6 +33,7 @@ void ResetNativeResultMatch() {
     s_gamesReported = 0;
     s_inPlaceReplays.Reset();
     s_gameResult = sf4e::room::MatchResult::Abort;
+    s_watchedResult = sf4e::native_result::Result::None;
 }
 
 bool fSystem::ResultHeld() { return s_heldResult.has_value(); }
@@ -52,42 +56,58 @@ void FlushHeldNativeResult() {
 // stream or the peer after that ends nothing the player needs to hear about.
 bool MatchResultKnown() { return s_nativeResultEmitted || sf4e::NetplayFacade::IsRuntimeMatchEndCommitted(); }
 
-void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
-    if (!system || !rSystem::staticVars.CurrentBattleFlow) {
-        s_nativeResultTimeline.Capture(stateFrame, sf4e::native_result::Flow::Other, -1);
-        return;
-    }
+struct NativeFlow { sf4e::native_result::Flow flow = sf4e::native_result::Flow::Other; int winnerIndex = -1; };
 
+// The battle flow the game is in now and, over a WIN, the side that won.
+static NativeFlow ReadNativeFlow(rSystem* system) {
+    if (!system || !rSystem::staticVars.CurrentBattleFlow) return {};
     const DWORD flowValue = *rSystem::staticVars.CurrentBattleFlow;
-    sf4e::native_result::Flow flow = sf4e::native_result::Flow::Other;
-    int winnerIndex = -1;
+    NativeFlow read;
     if (flowValue == rSystem::BF__MATCH_RESULT) {
-        flow = sf4e::native_result::Flow::MatchResult;
         GameManager* manager = (system->*rSystem::publicMethods.GetGameManager)();
-        if (!manager || !GameManager::publicMethods.GetNativeResultIndex) {
-            s_nativeResultTimeline.Capture(stateFrame, sf4e::native_result::Flow::Other, -1);
-            return;
-        }
+        if (!manager || !GameManager::publicMethods.GetNativeResultIndex) return {};
+        read.flow = sf4e::native_result::Flow::MatchResult;
 
         // The native result flow (SSFIV.exe absolute VA 0x005DD93A, RVA
         // 0x001DD93A; GameManager vtable +0x30) uses -1 for BF_DRAW_RESULT and
         // a player index for BF_MATCH_RESULT.  This is the match-level field
         // written by the native round-score finalizer; the separate +0x4C field is the
         // current round winner used by the result HUD and is not used here.
-        winnerIndex = (manager->*GameManager::publicMethods.GetNativeResultIndex)();
+        read.winnerIndex = (manager->*GameManager::publicMethods.GetNativeResultIndex)();
     }
     else if (flowValue == rSystem::BF__DRAW_RESULT) {
-        flow = sf4e::native_result::Flow::DrawResult;
+        read.flow = sf4e::native_result::Flow::DrawResult;
     }
     else if (flowValue == rSystem::BF__READY || flowValue == rSystem::BF__FIGHT) {
-        flow = sf4e::native_result::Flow::Fight;
+        read.flow = sf4e::native_result::Flow::Fight;
     }
+    return read;
+}
 
-    s_nativeResultTimeline.Capture(stateFrame, flow, winnerIndex);
+void CaptureNativeMatchResult(rSystem* system, int stateFrame) {
+    const NativeFlow read = ReadNativeFlow(system);
+    s_nativeResultTimeline.Capture(stateFrame, read.flow, read.winnerIndex);
+}
+
+// A spectator's frames are final, so the WIN it is showing is the result.
+static void NoteWatchedResult() {
+    const NativeFlow read = ReadNativeFlow(rSystem::staticMethods.GetSingleton());
+    const auto result = sf4e::native_result::Decode(read.flow, read.winnerIndex);
+    if (result != sf4e::native_result::Result::None) s_watchedResult = result;
+}
+
+void CountWatchedInPlaceGame() {
+    using sf4e::native_result::Result;
+    if (s_watchedResult == Result::None) return;
+    sf4e::NetplayFacade::NotifyRuntimeWatchedGame(
+        s_watchedResult == Result::P1Win ? sf4e::room::MatchResult::P1Win :
+        s_watchedResult == Result::P2Win ? sf4e::room::MatchResult::P2Win : sf4e::room::MatchResult::Draw);
+    s_watchedResult = Result::None;
 }
 
 void PublishConfirmedNativeMatchResult() {
-    if (!fSystem::ggpo || !fSystem::LocalFighter()) return;
+    if (!fSystem::ggpo) return;
+    if (!fSystem::LocalFighter()) { NoteWatchedResult(); return; }
     int confirmed = -1;
     if (!GGPO_SUCCEEDED(ggpo_get_last_confirmed_frame(fSystem::ggpo, &confirmed))) return;
     if (s_heldResult) {

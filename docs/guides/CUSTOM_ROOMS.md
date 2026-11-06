@@ -53,7 +53,7 @@ readiness with **Unready / unlock fighter**.
 
 Battle setup, opened from **Table options** (Y on an Xbox pad, T on the
 keyboard), starts with Ready, then your **Change fighter** and **Ultra Combo**
-(Left and Right step the Ultra in place), then **Input delay**. Its value is
+(Left and Right step the Ultra in place; Select shows the Ultra cards), then **Input delay**. Its value is
 your own delay, and its detail names the recommended delay and the match delay.
 A new profile is on **Auto**: the connection check runs by itself for each
 new opponent, and a Ready pressed meanwhile waits for it to end, for about
@@ -83,7 +83,8 @@ match delay in use; before your opponent readies it shows "At least" your own
 choice. Each fighter's own delay is kept for the next game.
 
 The room can choose otherwise when it is created. **Room input delay** on
-Create (private or public) is **Same for both** to begin with, as above. With
+Create (private or public) is **Each player's own** to begin with (since
+1.5.3); **Same for both** works as above. With
 **Each player's own** every fighter plays at the delay they readied with, and
 the other side's rollback makes up the difference; Input delay's detail then
 reads "Your delay" instead of the match delay. The choice is kept with the room
@@ -114,10 +115,10 @@ Only members who chose **Join queue** are ever given a seat. Watching a table
 never puts anyone in its queue, and a fighter rotated out can leave the queue
 at any time to just watch. When nobody is waiting, the same two start a new set.
 A fighter who wins two or more sets in a row at the table has the streak shown
-under their name. Changing the set length or rotation starts a new set; the
+under their fighter on the table card. Changing the set length or rotation starts a new set; the
 other rules apply from the next game and keep the score.
 
-The running count, such as 2 - 1, replaces "VS" on the table card and "vs" on
+The running count, such as 2 - 1, replaces "vs" between the players on the table card and on
 the match HUD, and the HUD keeps the final count on the screen of the game that
 ended the set. Both fighters must ready again after returning to the room. When
 a fighter leaves their seat, the next queued member takes that seat and the new
@@ -142,6 +143,27 @@ winner where the winner stays, the loser where the loser stays). When an Arcade 
 decides: the prompt asks **Rematch** or **New opponent** (Y), with **Character
 select** and **Back to room** beside them, so a stick without X or Y reaches
 every answer with the D-pad.
+
+### Changing your Ultra
+
+Your Ultra is one press away wherever you choose it, and is always named by
+the game's own name for it, such as Ultra I: Metsu Hadoken.
+
+- **On the board:** while you are seated, the Ultra button beside Ready up
+  shows a card for each of your fighter's Ultras, with its picture and its
+  input, such as QCF x2 + PPP. Choose one and you are back in the room,
+  without opening Table options. The button names only Ultra I, Ultra II or
+  Ultra Double.
+- **After a game:** the post-match prompt shows your Ultra under your answer.
+  Left and Right change it before you choose Rematch or Next game. The ten
+  seconds keep running. A game that goes on in place keeps the Ultras it
+  loaded, so with a new Ultra the next game loads first and starts with it.
+- **Ready names it:** Ready's line reads, for example, Ready with Ryu, Metsu
+  Hadoken, against Ken, once your opponent has picked.
+- **When the opponent picks:** until a player picks, their seat shows their
+  profile's main fighter. If they pick another fighter, or change fighter
+  later, a Ready you gave is taken back, the table card says so, and the
+  focus moves to your Ultra, so one press opens the choice.
 
 Queued members automatically watch each game while retaining their queue
 positions. B on your queue card, or **Leave queue**, leaves the queue at once.
@@ -195,6 +217,19 @@ The host can rename the room, lock admission and change its capacity in **Room
 settings** on the room board, edit a waiting table's battle rules, and kick
 members. Capacity cannot be reduced below current membership. A kicked peer
 cannot rejoin the same room under another name.
+
+**Wired players only**, on Create (private or public) and in Room settings, is
+off to begin with. While it is on, a player whose PC is on Wi-Fi cannot take a
+seat, join a queue or sit at an Arcade cabinet; they can still join the room,
+watch and chat, and the closed seat says why. A connection Ember cannot tell
+(Linux, Steam Deck, a VPN) is never kept out. Turning it on moves nobody: a
+fighter already seated plays on, and a rotation that sends them to the queue
+ends their turn at the table. A player on Wi-Fi who was already queued is
+passed over when their turn comes and leaves the queue. Ember reads the
+connection when you join, so after plugging in a cable, leave and join the
+room again. The choice is kept with the room defaults and in templates, and
+shows on the room's status line, as "Wired only" on table cards and, for a
+public room, in the list.
 
 ![Room settings](../images/guides/custom_rooms/room-settings.webp)
 
@@ -252,8 +287,9 @@ references and expired invitations are rejected.
 ## The room board
 
 The room is one board: tables on
-the left, members and chat on the right, and Ready up, Wait in Training, Copy
-invite and Copy link (a private room), More… and Leave room along the bottom.
+the left, members and chat on the right, and Ready up and your Ultra (while
+seated), Table options, Wait in Training, Copy invite and Copy link (a private
+room), More… and Leave room along the bottom.
 A table card has its own Ready up and Leave seat buttons: a click on your own
 card selects it, and its buttons act. Members are grouped as Playing, At a table,
 Watching and In the room, each with a ping such as Direct 46 ms or Relay
@@ -267,7 +303,8 @@ Watching and In the room, each with a ping such as Direct 46 ms or Relay
   Down from the tables to the actions under them. On a narrow screen the board
   shows Board, Members or Chat under tabs; LB and RB (Page Up and Page Down)
   step them, round again at either end.
-- **More…** holds Table options, Controllers and Room settings, at every
+- **Table options** are a button on the bar (and Y, or T). **More…** holds a
+  public room's Copy room link, Controllers and Room settings, at every
   screen size.
 - **Chat:** typing goes straight into the message box. With a pad, select the
   empty box for the on-screen keyboard; accepting it sends the message.

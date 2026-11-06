@@ -11,6 +11,7 @@
 #include "../platform/Speech.hxx"
 #include <imgui.h>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <utility>
 
@@ -65,6 +66,26 @@ float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool
     d->AddRectFilled(p,ImVec2(p.x+textWidth+2*pad,p.y+natural+2*s),IM_COL32(16,15,14,230));
     d->AddText(ImGui::GetFont(),font,ImVec2(p.x+pad,p.y+(natural-font)*.5f),palette::Ember,text);
     return textWidth+2*pad;
+}
+float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
+    if(ultra<0||ultra>2||height<=0)return 0;
+    const SelectionImage icon=menuArt?menuArt->UltraIcon(ultra):SelectionImage{};
+    if(icon.texture&&icon.width>0&&icon.height>0){
+        // A 32-pixel icon: at most twice as large, on whole pixels, so it stays sharp.
+        const float tall=std::floor((std::min)(height,icon.height*2.f)),wide=std::floor(icon.width*tall/icon.height);
+        const ImVec2 min(std::floor(topRight.x-wide),std::floor(topRight.y));
+        d->AddImage(icon.texture,min,ImVec2(min.x+wide,min.y+tall),icon.uvMin,icon.uvMax);
+        return wide;
+    }
+    if(menuArt&&!icon.missing)return 0;
+    // The old Ultra page's badge: the numeral in Ember on a dark plate.
+    const char* text=ultra==2?"W":ultra==1?"II":"I";
+    const float font=height*.8f,pad=height*.22f;
+    const float wide=HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,text).x+2*pad;
+    const ImVec2 min(topRight.x-wide,topRight.y);
+    d->AddRectFilled(min,ImVec2(topRight.x,topRight.y+height),IM_COL32(16,15,14,230),height*.12f);
+    d->AddText(HeadingFont(),font,ImVec2(min.x+pad,min.y+(height-font)*.5f),palette::Ember,text);
+    return wide;
 }
 RosterGrid LayOutRosterGrid(float windowWidth){
     // The Fighter design board: eight across beside the preview, fewer on a narrow screen.

@@ -41,7 +41,8 @@ std::string Hex(HRESULT value) {
 
 std::uint32_t U32(const std::vector<unsigned char>& bytes, std::size_t offset) {
     std::uint32_t value = 0;
-    if (offset + sizeof(value) <= bytes.size()) std::memcpy(&value, bytes.data() + offset, sizeof(value));
+    // Subtracted, not added: an offset near 4 GB must not wrap past the check on the 32-bit build.
+    if (offset <= bytes.size() && bytes.size() - offset >= sizeof(value)) std::memcpy(&value, bytes.data() + offset, sizeof(value));
     return value;
 }
 // The image of an EMB archive: the entry named `entry`, or with none the first
@@ -49,10 +50,12 @@ std::uint32_t U32(const std::vector<unsigned char>& bytes, std::size_t offset) {
 std::vector<unsigned char> EmbImage(const std::vector<unsigned char>& emb, const std::string& entry) {
     if (emb.size() < 40 || std::memcmp(emb.data(), "#EMB", 4) != 0) return {};
     const std::size_t count = U32(emb, 12), table = U32(emb, 24), names = U32(emb, 28);
-    if (count < 1 || count > (entry.empty() ? MaximumPortraitEntries : MaximumArchiveEntries) || table + count * 8 > emb.size()) return {};
+    // Each bound is checked from the end, as in U32, so a hostile offset cannot wrap.
+    if (count < 1 || count > (entry.empty() ? MaximumPortraitEntries : MaximumArchiveEntries) || table > emb.size() ||
+        count * 8 > emb.size() - table) return {};
     std::size_t index = 0;
     if (!entry.empty()) {
-        if (!names || names + count * 4 > emb.size()) return {};
+        if (!names || names > emb.size() || count * 4 > emb.size() - names) return {};
         const auto named = [&](std::size_t i) {
             const std::size_t name = U32(emb, names + i * 4);
             return name < emb.size() && emb.size() - name > entry.size() &&
@@ -63,14 +66,23 @@ std::vector<unsigned char> EmbImage(const std::vector<unsigned char>& emb, const
     }
     // Each entry's offset counts from its own row of the table.
     const std::size_t row = table + index * 8;
-    const std::size_t image = row + U32(emb, row), imageBytes = U32(emb, row + 4);
-    if (image > emb.size() || imageBytes > emb.size() - image || imageBytes < 128 ||
+    const std::size_t offset = U32(emb, row), imageBytes = U32(emb, row + 4);
+    if (offset > emb.size() - row) return {};
+    const std::size_t image = row + offset;
+    if (imageBytes > emb.size() - image || imageBytes < 128 ||
         std::memcmp(emb.data() + image, "DDS ", 4) != 0) return {};
     return std::vector<unsigned char>(emb.begin() + image, emb.begin() + image + imageBytes);
 }
+// The last archive read by entry name, expanded, which the worker keeps while
+// more jobs wait (Impl::Work): the game's Ultra icons are three entries of one
+// 12 MB archive, inflated once for the icons a frame asks for. A portrait
+// archive, read by its first entry, never takes its place.
+struct Archive { std::wstring path; std::vector<unsigned char> emb; };
 // `opened` tells a missing file apart from one that exists but is unusable. An
 // EMZ archive yields its image named `entry` (EmbImage).
-std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, const std::string& entry) {
+std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, const std::string& entry, Archive& archive) {
+    const bool named = !entry.empty();
+    if (named && !archive.emb.empty() && archive.path == path) { opened = true; return EmbImage(archive.emb, entry); }
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     opened = static_cast<bool>(file);
     if (!file) return {};
@@ -82,6 +94,8 @@ std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, con
     if (bytes.size() >= 16 && std::memcmp(bytes.data(), "#EMZ", 4) == 0) {
         const auto size = U32(bytes, 8), start = U32(bytes, 12);
         if (!size || size > MaximumFileBytes || start < 16 || start >= bytes.size()) return {};
+        // The archive kept goes before another is expanded in its place.
+        if (named) archive = {};
         std::vector<unsigned char> expanded(size);
         z_stream stream{};
         stream.next_in = bytes.data() + start; stream.avail_in = static_cast<uInt>(bytes.size() - start);
@@ -91,7 +105,9 @@ std::vector<unsigned char> ReadImage(const std::wstring& path, bool& opened, con
         inflateEnd(&stream);
         if (result != Z_STREAM_END || stream.total_out != size) return {};
         // Asymmetric fighters also have sel_chara_rev.dds for the other side.
-        return EmbImage(expanded, entry);
+        if (!named) return EmbImage(expanded, entry);
+        archive.path = path; archive.emb = std::move(expanded);
+        return EmbImage(archive.emb, entry);
     }
     return bytes;
 }
@@ -129,12 +145,15 @@ struct Pixels {
         if (failure.empty()) failure = WideToUtf8(path) + ": " + reason;
     }
 };
+// `largest`: the longest side an image may have before it is decoded, 0 for
+// the general limit of 8192.
 Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::vector<std::wstring>& paths, UINT side,
-    const std::string& entry) {
+    const std::string& entry, UINT largest, Archive& archive) {
     Pixels pixels; pixels.key = key;
+    if (!largest) largest = 8192;
     for (const auto& path : paths) {
         bool opened = false;
-        auto bytes = ReadImage(path, opened, entry);
+        auto bytes = ReadImage(path, opened, entry, archive);
         if (bytes.empty()) {
             if (opened) pixels.Fail(path, "unreadable or unsupported container");
             continue;
@@ -153,7 +172,7 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
             SUCCEEDED(hr = decoder->GetFrame(0, &frame))) {
             image = frame;
         }
-        if (!image || FAILED(hr = image->GetSize(&width, &height)) || !width || !height || width > 8192 || height > 8192) {
+        if (!image || FAILED(hr = image->GetSize(&width, &height)) || !width || !height || width > largest || height > largest) {
             pixels.Fail(path, "decode " + Hex(hr) + " " + std::to_string(width) + "x" + std::to_string(height));
             continue;
         }
@@ -191,7 +210,7 @@ Pixels Decode(IWICImagingFactory* factory, const std::string& key, const std::ve
 
 struct SelectionArt::Impl {
     // `entry` names the image inside an archive candidate; empty takes its first.
-    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; };
+    struct Job { std::string key; std::vector<std::wstring> paths; UINT side; std::string entry; UINT maxSide; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
@@ -249,6 +268,7 @@ struct SelectionArt::Impl {
             ComPtr<IWICImagingFactory> factory;
             const bool haveFactory = SUCCEEDED(initialized) && SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory,
                 nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)));
+            Archive archive;
             for (;;) {
                 Job job;
                 { std::unique_lock<std::mutex> lock(mutex);
@@ -257,13 +277,16 @@ struct SelectionArt::Impl {
                   job = std::move(jobs.front()); jobs.pop_front(); }
                 Pixels pixels; pixels.key = job.key;
                 try {
-                    if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry);
+                    if (haveFactory) pixels = Decode(factory.Get(), job.key, job.paths, job.side, job.entry, job.maxSide, archive);
                     else { pixels.outcome = Outcome::Failed; pixels.failure = "image decoder unavailable"; }
                 } catch (const std::exception& error) {
                     pixels.bgra.clear(); pixels.outcome = Outcome::Failed;
                     pixels.failure = std::string("decode threw: ") + error.what();
                 }
-                { std::lock_guard<std::mutex> lock(mutex); completed.push_back(std::move(pixels)); }
+                bool drained = false;
+                { std::lock_guard<std::mutex> lock(mutex); completed.push_back(std::move(pixels)); drained = jobs.empty(); }
+                // Nothing more waits: the archive kept for this batch goes.
+                if (drained) archive = {};
             }
         }
         if (SUCCEEDED(initialized)) CoUninitialize();
@@ -287,7 +310,7 @@ struct SelectionArt::Impl {
 SelectionArt::SelectionArt(std::unique_ptr<TextureUploader> uploader, std::wstring game, std::wstring assets, Logger log)
     : gameRoot_(std::move(game)), assetRoot_(std::move(assets)), impl_(new Impl(std::move(uploader), std::move(log))) {}
 SelectionArt::~SelectionArt() = default;
-SelectionImage SelectionArt::Request(const std::string& key, const Files& files, unsigned side, Policy policy, std::string archiveEntry) {
+SelectionImage SelectionArt::Request(const std::string& key, const Files& files, unsigned side, Policy policy, const std::string& archiveEntry) {
     auto& state = *impl_;
     state.requested = true;
     auto found = state.entries.find(key);
@@ -298,7 +321,7 @@ SelectionImage SelectionArt::Request(const std::string& key, const Files& files,
         if (state.jobs.size() >= 128) return {};
         if (found == state.entries.end()) { found = state.entries.emplace(key, Impl::Entry{}).first; found->second.policy = policy; }
         found->second.state = Impl::State::Queued;
-        state.jobs.push_back({key, std::move(candidates), side, std::move(archiveEntry)}); state.wake.notify_one();
+        state.jobs.push_back({key, std::move(candidates), side, archiveEntry, found->second.policy.maxSide}); state.wake.notify_one();
     }
     auto& entry = found->second; entry.lastUse = state.frame;
     SelectionImage result;

@@ -185,6 +185,37 @@ int main() {
         const auto developer = Settle(art, [&] { return art.DeveloperMark(); }, 2000);
         CHECK(developer.texture && !developer.missing && developer.width == 256 && developer.height == 116);
         CHECK(logged.size() == 4);
+
+        // The game's Ultra marks come from its character select archives. The
+        // W is read only from Ultra's own archive: in an older one it is not
+        // looked for, and without it the mark is missing at once and quietly,
+        // as the menus draw their own badge then.
+        const fs::path select = game / L"resource" / L"ui" / L"chara_select";
+        Write(select / L"chara_select.emz", RankingArchive("uc3.dds", 32));
+        const auto noW = Settle(art, [&] { return art.UltraIcon(2); }, 2000);
+        CHECK(noW.missing && !noW.texture);
+        CHECK(logged.size() == 4);
+        // Ultra's own archive gives the I at its own size, cropped to its painting.
+        Write(game / L"dlc" / L"04_ae2" / L"ui" / L"chara_select" / L"chara_select_dlc4.emz", RankingArchive("uc1.dds", 32, 4));
+        const auto one = Settle(art, [&] { return art.UltraIcon(0); }, 2000);
+        CHECK(one.texture && !one.missing && one.width == 28 && one.height == 28);
+        CHECK(logged.size() == 4);
+        // An older archive stands in for a mark Ultra's lacks, and says so once.
+        Write(select / L"chara_select.emz", RankingArchive("uc2.dds", 32));
+        const auto two = Settle(art, [&] { return art.UltraIcon(1); }, 2000);
+        CHECK(two.texture && !two.missing && two.width == 32);
+        CHECK(logged.size() == 5 && logged[4].find("ultra-icons/uc2.dds uses a fallback") != std::string::npos);
+        CHECK(!art.UltraIcon(3).texture && !art.UltraIcon(-1).texture);
+    }
+    {
+        // An Ultra mark far larger than the game's 32-pixel icons is refused
+        // before it is decoded, as an unusable file: retried, then reported once.
+        std::vector<std::string> lines;
+        SelectionArt art(sf4e::ui::D3D9TextureUploader(device), game.wstring(), assets.wstring(), [&](const std::string& line) { lines.push_back(line); });
+        Write(game / L"dlc" / L"04_ae2" / L"ui" / L"chara_select" / L"chara_select_dlc4.emz", RankingArchive("uc1.dds", 96));
+        const auto huge = Settle(art, [&] { return art.UltraIcon(0); }, 4000);
+        CHECK(huge.missing && !huge.texture);
+        CHECK(lines.size() == 1 && lines[0].find("ultra-icons/uc1.dds") != std::string::npos && lines[0].find("96x96") != std::string::npos);
     }
     device->Release(); d3d->Release(); DestroyWindow(window);
     RemoveTempRoot(root);

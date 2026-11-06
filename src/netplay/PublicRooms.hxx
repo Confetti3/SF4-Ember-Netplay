@@ -38,6 +38,9 @@ struct Room {
 	// with none (the bridge's 255). At most MaxRoomFighters.
 	std::vector<int> fighters;
 	bool locked = false;
+	// The room takes wired players only (an opt-in room rule). The bridge sends it
+	// only for such a room, so an absent key is a room open to every connection.
+	bool wiredOnly = false;
 	// Each fighter plays at their own input delay (room::DelayPolicy::Own). The
 	// bridge sends it only for such a room, so an absent key is the shared delay.
 	// Part of the room itself, not a detail: it comes without detail=1.
@@ -51,6 +54,9 @@ struct Room {
 	// room host predates types); none when the bridge sent no details or a type this
 	// build does not know.
 	std::optional<room::RoomType> type;
+	// No free seat, and whether anyone could still take one.
+	bool Full() const { return members >= capacity; }
+	bool Joinable() const { return !locked && !Full(); }
 };
 
 // A room_list answer: the rooms in the order received and the bridge's clock

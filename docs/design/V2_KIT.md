@@ -100,13 +100,19 @@ frame the D-pad moves from a placed focus to the placed row nearest in that
 direction (its centre past the focus's centre, and either overlapping the
 focus across or at least as far past its edge as it is off to the side;
 nearest by the gap along the axis plus twice the offset across; ties to the
-earlier row). No row that way: the focus stays, or, on a board that set
+row sharing more of the focus's width across, then the earlier row). A row
+placed out of its scroll's sight (every row is placed with the clip it is
+drawn under) is reached only from a row in the same scroll. No row that way: the
+focus stays, or, on a board that set
 `nav.SetEdge(MenuEdge::Flow)` (Create, the welcome: panels side by side that
 read as one column), goes on to the next placed row in row order (Down,
-Right) or the previous (Up, Left). A
+Right) or the previous (Up, Left), and past its last row a fresh Down goes
+round to its first, a fresh Up from its first to its last. A
 GameMenu list draws its own cards and places nothing, so lists, grids and
-their footers keep moving by row order (a flyout list too tall for its
-height is drawn in two columns and still moves in reading order). The
+their footers keep moving by row order. A list, but not a grid, goes round
+on a fresh Up or Down at its ends; held repeats stop there. A flyout list
+too tall for its height is drawn in two columns and still moves in reading
+order. The
 shell's own rows (`MenuEntry::footer`: Retry saving) belong to no body:
 `GameMenu::DrawBody` hands the body the rest and draws them as cards in a band
 under it, placed, so Down from the body's lowest row reaches them; a screen

@@ -54,13 +54,18 @@ public:
     bool Owns(const std::string& screen) const override { return PublicRoomsPanel::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
         auto& shell = f.shell;
+        if (f.screen == PublicRoomsPanel::FiltersScreen) {
+            title = loc::T("public.filters");
+            return PublicRoomsPanel::FilterRows(shell.preferences_.roomFilter, PublicRoomsPanel::KnownRegion(f.view), f.view.canEditPreferences);
+        }
         title = loc::T("screen.public_rooms");
-        return shell.publicRooms_.Rows(f.view, shell.identity_.UsableBridge(f.view), shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth());
+        return shell.publicRooms_.Rows(f.view, shell.identity_.UsableBridge(f.view), shell.identity_.Waiting(), shell.identity_.PublicSetup(), PublicListWidth(),
+            shell.preferences_.roomFilter);
     }
     // Also asked on Create (UpdateStatus), with that screen.
     void Status(const ScreenFrame& f, std::string& status, Tone& tone) const override {
         std::string own = status; Tone ownTone = tone;
-        if (f.shell.publicRooms_.Status(f.view, f.screen, own, ownTone, ImGui::GetTime())) { status = own; tone = ownTone; }
+        if (f.shell.publicRooms_.Status(f.view, f.screen, own, ownTone, ImGui::GetTime(), f.shell.preferences_.roomFilter)) { status = own; tone = ownTone; }
     }
     bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
         auto& shell = f.shell; auto& nav = shell.menu_.navigation;
@@ -68,12 +73,10 @@ public:
         // The confirmed setup runs in the Ember ID panel; a locked ID is unlocked on its own screen first.
         if (a.id == "pr-setup") { shell.identity_.SetUpPublicRooms(f.view); shell.error_.clear(); return true; }
         if (a.id == "pr-setup-id") { shell.identity_.ClearPublicSetup(); nav.Push("identity"); return true; }
-        return shell.publicRooms_.Activate(a, nav);
+        return ChangeFilter(f, a) || shell.publicRooms_.Activate(a, nav);
     }
-    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
-        f.shell.publicRooms_.Choose(a);
-        return true;
-    }
+    // Left and Right on a filter row, as the preferences' own rows save.
+    bool Adjust(const ScreenFrame& f, const MenuAction& a) const override { return ChangeFilter(f, a); }
     void Shortcut(const ScreenFrame& f, const MenuAction& a) const override { f.shell.publicRooms_.Shortcut(a, f.view); }
     // The toolbar, room cards and state cards are drawn by PublicRoomsCards. The
     // cards get the setup and each card's phase from the panels, not from the rows.
@@ -89,11 +92,27 @@ public:
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
         return [shell, view](const std::string& id) { DrawPublicPreview(*view, shell->publicRooms_, id); };
     }
-    // The list leads with a toolbar of four cells, in one row on a wide list and two on a narrow one.
+    // The filter is a saved preference, so the filters page says how its save stands.
+    bool ReportsSave(const std::string& screen) const override { return screen == PublicRoomsPanel::FiltersScreen; }
+    // The list leads with a toolbar of three cells, in one row on a wide list and two on a narrow one.
     ScreenGrid Grid(const ScreenFrame& f) const override {
         if (!f.rows || f.rows->empty() || f.rows->front().id != "pr-quick") return {};
-        return {PublicListWidth() >= 600 * Scale() ? 4 : 2, 46};
+        return {PublicListWidth() >= 600 * Scale() ? 3 : 2, 46};
     }
+private:
+    // The filter is a saved preference: a change takes the usual save, and only
+    // while the preferences can be edited (not mid-room), as any setting does.
+    static bool ChangeFilter(const ScreenFrame& f, const MenuAction& a) {
+        auto& shell = f.shell;
+        auto filter = shell.preferences_.roomFilter;
+        if (!PublicRoomsPanel::ChangeFilter(a, PublicRoomsPanel::KnownRegion(f.view), filter)) return false;
+        if (f.view.canEditPreferences && filter != shell.preferences_.roomFilter) {
+            shell.preferences_.roomFilter = filter;
+            shell.preferencesDirty_ = true; shell.saveAt_ = ImGui::GetTime() + .45; shell.error_.clear();
+        }
+        return true;
+    }
+public:
     // Public rooms say where they sit and the player's region, and Options
     // refreshes the list while it can. An opening room's card is information,
     // so the cursor waits on its Stop row.

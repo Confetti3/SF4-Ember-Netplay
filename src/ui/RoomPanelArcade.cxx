@@ -4,14 +4,17 @@
 // same under its top slot. Every cabinet is its row. A Classic room keeps its
 // table cards (RoomPanelTables.cxx).
 #include "RoomPanelBoard.hxx"
+#include "GameMenu.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "LatencyMark.hxx"
 #include "RoomControls.hxx"
 #include "RowId.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -73,32 +76,57 @@ Cabinet LayOutCabinet(v2::Box b,float s) {
     k.screen=v2::Inset(k.bezel,(std::max)(2*s,w*.035f),(std::max)(2*s,w*.035f));
     return k;
 }
-// `picture` on the cabinet's glass, as big as the glass holds, standing on
-// its foot, in front of the screen's own colour (a pair's, so each pair's
-// screens read apart), with the scanlines over it and a shade at its foot for
-// the screen's words. False while the art has no image for it.
-bool DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const FighterPicture& picture,ImU32 tone,float s) {
-    if(glass.H()<24*s)return false;
+// Glass taller than this shows scanlines; on a smaller screen they would not read as such.
+constexpr float ScanlinedGlass=40;
+// A screen's scanlines across `lines`, 3 px apart from its top, in the ink at `alpha`.
+void GlassScanlines(ImDrawList* d,const v2::Box& lines,float alpha,float s) {
+    const ImU32 ink=v2::color::Alpha(v2::Colors().ink,alpha);
+    for(float y=lines.min.y;y<lines.max.y;y+=3*s)d->AddLine(ImVec2(lines.min.x,y),ImVec2(lines.max.x,y),ink,(std::max)(1.f,.75f*s));
+}
+// The seated player's Ultra (0 to 2, else none): the game's I, II or W in the
+// top-right corner of the cabinet's `screen`, as on the Ultra cards, about a
+// quarter of the glass tall. A glass too small to hold it beside the screen's
+// words shows none. Drawn before the screen's scanlines, so they run on over
+// it, as over the fighter, and it reads as shown on the screen.
+void DrawScreenUltra(ImDrawList* d,const v2::Box& screen,int ultra,float s) {
+    // A game whose fighters have one Ultra (the catalog's) marks none.
+    if(ultra<0||ultra>2||ember::Catalog().ultraChoices<=1)return;
+    const float tall=std::floor((std::min)(56*s,(std::max)(14*s,screen.H()*.24f)));
+    if(screen.H()<tall*2.2f||screen.W()<tall*2.5f)return;
+    DrawUltraMark(d,ImVec2(std::floor(screen.max.x-3*s),std::floor(screen.min.y+3*s)),tall,ultra);
+}
+// The image of `picture` for a cabinet's glass; none while the art has no
+// image for it, or on a glass too small for one.
+SelectionImage GlassPicture(const v2::Box& glass,const FighterPicture& picture,float s) {
+    if(glass.H()<24*s)return {};
     ReportFighterPicture(picture,glass.min,glass.max);
     const auto image=FighterImage(picture,glass.H());
-    if(!image.texture||image.width<=0||image.height<=0)return false;
+    return image.texture&&image.width>0&&image.height>0?image:SelectionImage{};
+}
+// `image` on the cabinet's glass, as big as the glass holds, standing on its
+// foot, in front of the screen's own colour (a pair's, so each pair's screens
+// read apart), then the player's Ultra, the scanlines over both and a shade at
+// its foot for the screen's words.
+void DrawCabinetFighter(ImDrawList* d,const v2::Box& glass,const SelectionImage& image,ImU32 tone,int ultra,float s) {
     const v2::Box g=v2::Inset(glass,1.5f*s,1.5f*s);
     d->AddRectFilledMultiColor(g.min,g.max,v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.55f),v2::color::Alpha(tone,.2f),v2::color::Alpha(tone,.2f));
     const float factor=(std::min)(g.W()/image.width,g.H()/image.height),w=image.width*factor,h=image.height*factor;
     const float x=(g.min.x+g.max.x-w)*.5f;
     d->AddImage(image.texture,ImVec2(x,g.max.y-h),ImVec2(x+w,g.max.y),image.uvMin,image.uvMax);
+    DrawScreenUltra(d,glass,ultra,s);
+    // On the lines of the bare glass under it (DrawCabinet), a little fainter.
+    if(g.H()>ScanlinedGlass*s)GlassScanlines(d,v2::Box{ImVec2(g.min.x,g.min.y+.5f*s),g.max},.22f,s);
     const auto& c=v2::Colors();
-    if(g.H()>40*s)for(float y=g.min.y+.5f*s;y<g.max.y;y+=3*s)d->AddLine(ImVec2(g.min.x,y),ImVec2(g.max.x,y),v2::color::Alpha(c.ink,.22f),(std::max)(1.f,.75f*s));
     const float shade=g.min.y+g.H()*.45f;
     d->AddRectFilledMultiColor(ImVec2(g.min.x,shade),g.max,v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,0),v2::color::Alpha(c.ink,.85f),v2::color::Alpha(c.ink,.85f));
-    return true;
 }
 // The cabinet's shell and its fixed parts: body, marquee ground, bezel and
 // glass glowing in `glow`, control panel with its stick and six buttons, coin
-// door and kick plate, and the outline in `edge`. The words on the marquee,
-// screen and plate are the board's.
+// door and kick plate, and the outline in `edge`; on bare glass the player's
+// Ultra (`ultra`, DrawScreenUltra) under its scanlines. The words on the
+// marquee, screen and plate are the board's.
 void DrawCabinet(ImDrawList* d,v2::Box b,const Cabinet& k,float s,ImU32 marqueeGround,ImU32 glow,float glowStrength,ImU32 edge,
-                 bool seated,ImU32 kickGlow) {
+                 bool seated,ImU32 kickGlow,int ultra) {
     const auto& c=v2::Colors();
     const float l=b.min.x,r=b.max.x,il=l+k.inset,ir=r-k.inset,w=b.W();
     // The body: darker at its sides, so it reads as a box rather than a card.
@@ -126,7 +154,8 @@ void DrawCabinet(ImDrawList* d,v2::Box b,const Cabinet& k,float s,ImU32 marqueeG
     const v2::Box shine=v2::Inset(g,1.5f*s,1.5f*s);
     d->AddRectFilledMultiColor(shine.min,shine.max,v2::color::Alpha(glow,.2f*glowStrength),v2::color::Alpha(glow,.2f*glowStrength),
                                v2::color::Alpha(glow,.04f*glowStrength),v2::color::Alpha(glow,.04f*glowStrength));
-    if(g.H()>40*s)for(float y=g.min.y+2*s;y<g.max.y-2*s;y+=3*s)d->AddLine(ImVec2(g.min.x+2*s,y),ImVec2(g.max.x-2*s,y),v2::color::Alpha(c.ink,.35f),(std::max)(1.f,.75f*s));
+    DrawScreenUltra(d,g,ultra,s);
+    if(g.H()>ScanlinedGlass*s)GlassScanlines(d,v2::Inset(g,2*s,2*s),.35f,s);
     d->AddRect(g.min,g.max,v2::color::Alpha(glow,.18f*glowStrength+.08f),4*s,0,s);
     d->AddLine(ImVec2(g.min.x+4*s,g.min.y+2*s),ImVec2(g.min.x+g.W()*.4f,g.min.y+2*s),v2::color::Alpha(c.text,.12f),s);
     // The name plate's ground; the board puts the player's tag on it.
@@ -312,6 +341,8 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
   const bool paired=t&&t->p1&&t->p2,seated=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
   const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
+  // What the seated player picked, or their main (SeatLookOf).
+  const SeatLook look=m?SeatLookOf(v,*m):SeatLook{};
   // Every cabinet glows: dim while free, brighter once someone sits there, in the
   // pair's colour while a pair plays; a little more under the pointer.
   const bool waiting=seated&&!paired;
@@ -326,7 +357,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   else if(paired&&t->deciding){first=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");tone=pending;}
   // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
   else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);
-   if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?SeatCaption(SeatLookOf(v,*m),true):SetScoreText(t->score);tone=pair;}
+   if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?SeatCaption(look,true):SetScoreText(t->score);tone=pair;}
   ImU32 secondTone=paired&&!t->deciding?pair:tone;
   // What a table card's banner says about this seat (a held start, the Ready
   // timeout, a Training call) takes the screen's second line.
@@ -334,9 +365,19 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // The shell: marquee lit in the pair's colour (gold on the top slot), the
   // glass glowing in the screen's tone, the outline in the marquee's colour.
   const Cabinet k=LayOutCabinet(b,s);
+  const v2::Box& screen=k.screen;
   const ImU32 edge=crowned?gold:paired?pair:waiting?v2::color::Alpha(pending,.55f):c.border;
   const ImU32 glass=paired&&!t->deciding?pair:seated?pending:c.muted;
-  DrawCabinet(d,b,k,s,crowned?gold:paired?pair:waiting?c.hover:c.button,glass,!seated?.45f:1.f,edge,seated,paired?v2::color::Alpha(pair,.25f):0);
+  // A seated player's fighter fills the glass (Settings › Room layout ›
+  // Pictures), standing on its foot, under the screen's scanlines; the
+  // screen's words go to its foot, over a shade. Their Ultra, once it is
+  // known (their pick shared, or your own), goes under the scanlines on top:
+  // the picture's, or without one the bare glass's.
+  const SelectionImage picture=m?GlassPicture(screen,SeatPicture(look,art),s):SelectionImage{};
+  const bool pictured=picture.texture?true:false;
+  const int ultra=look.picked?look.ultra:-1;
+  DrawCabinet(d,b,k,s,crowned?gold:paired?pair:waiting?c.hover:c.button,glass,!seated?.45f:1.f,edge,seated,paired?v2::color::Alpha(pair,.25f):0,
+              pictured?-1:ultra);
   // The marquee: the number; in King of the hill the streak beside a crown,
   // gold on the top slot.
   const v2::Box& marquee=k.marquee;
@@ -349,11 +390,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    v2::Text(d,ImVec2(marquee.max.x-4*s-cw,marquee.min.y+(mh-ms)*.5f),cw,count,ms,ink,HeadingFont());
    v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
   }
-  const v2::Box& screen=k.screen;
-  // A seated player's fighter fills the glass (Settings › Room layout ›
-  // Pictures), standing on its foot, under the screen's scanlines; the
-  // screen's words go to its foot, over a shade.
-  const bool pictured=m&&DrawCabinetFighter(d,screen,SeatPicture(SeatLookOf(v,*m),art),glass,s);
+  if(pictured)DrawCabinetFighter(d,screen,picture,glass,ultra,s);
   const float ss=(std::min)(15*s,screen.H()*.34f);
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}

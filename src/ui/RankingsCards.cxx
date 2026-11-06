@@ -83,8 +83,6 @@ void DrawStateCard(const MenuEntry& e, ImVec2 min, ImVec2 max) {
     }
 }
 
-bool StartsWith(const std::string& text, const char* prefix) { return text.compare(0, std::char_traits<char>::length(prefix), prefix) == 0; }
-
 bool StateCard(const std::string& id) {
     for (const char* card : {"rk-checking", "rk-needs-setup", "rk-loading", "rk-unavailable", "rk-error", "rkb-hidden", "rkb-loading", "rkb-error", "rkb-empty"})
         if (id == card) return true;
@@ -138,13 +136,13 @@ bool DrawRankingsBoardRow(const MenuEntry& e, const Standing* standing, const st
         v2::Tag(d, ImVec2(x, min.y + (h - 26 * s) * .5f), room, you, v2::TagSize::S);
         return true;
     }
-    if (StartsWith(e.id, "rkb-class:")) {
+    if (HasPrefix(e.id, "rkb-class:")) {
         const float size = 14 * s, y = min.y + (h - size) * .5f;
         d->AddText(HeadingFont(), size, ImVec2(min.x + 16 * s, y), c.accent, e.label.c_str());
         d->AddText(ImGui::GetFont(), size, ImVec2(max.x - 16 * s - ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, e.value.c_str()).x, y), c.muted, e.value.c_str());
         return true;
     }
-    if (StartsWith(e.id, "rkb-p:")) {
+    if (HasPrefix(e.id, "rkb-p:")) {
         const auto index = RowKey<std::size_t>(e.id, "rkb-p:");
         if (!board || !index || *index >= board->size()) return false;
         const auto& entry = (*board)[*index];
@@ -164,7 +162,7 @@ bool DrawRankingsRow(const ShellView& v, const MenuEntry& e, ImVec2 min, ImVec2 
     const Standing* standing = rankings.standing.loaded ? &rankings.standing.value : nullptr;
     const auto* board = rankings.board.loaded ? rankings.board.value.get() : nullptr;
     const bool known = StateCard(e.id) || e.id == "rk-standing" || e.id == "rk-board-as" || e.id == "rkb-you" ||
-        StartsWith(e.id, "rkb-class:") || StartsWith(e.id, "rkb-p:");
+        HasPrefix(e.id, "rkb-class:") || HasPrefix(e.id, "rkb-p:");
     if (!known) return false;
     // A board of hundreds paints only the rows in view.
     if (!ImGui::IsRectVisible(min, max)) return true;

@@ -17,6 +17,11 @@ const char* UltraLabel(int ultra);
 std::string ShortCostumeLabel(const selection::Pick& pick, const selection::InstalledContent* installed = nullptr);
 std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::InstalledContent* installed = nullptr);
 const char* ShortUltraLabel(int ultra);
+// The fighter's Ultra by the game's own name, wherever a player chooses or
+// readies with it: "Ultra I: Metsu Hadoken", or "Ultra Double" (UltraName);
+// the move alone, "Metsu Hadoken" (UltraMove). Empty for no fighter.
+std::string UltraName(int fighter, int ultra);
+std::string UltraMove(int fighter, int ultra);
 // A stage's name (a custom stage's installed name, or "Custom C12"), or Random.
 std::string StageLabel(int stageId, const selection::InstalledContent* installed = nullptr);
 } }

@@ -68,15 +68,19 @@ std::string SessionProblem(const netplay::Snapshot& session) {
 bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
  return v.canEditPreferences||(v.CanEditRoomSettings()&&OnlyRoomSettingsChanged(v.preferences,edited));
 }
-// The room's own status line: the kind of room it is, and whether it is locked. A
-// public room's starts with its type, as the list showed it, so a player who came
-// in from there still sees which kind of room they are in.
-std::string RoomStatusText(const room::Snapshot& room) {
+// The room's own status line: the kind of room it is, whether it is locked, and
+// whether it is for wired players only. A public room's starts with its type, as
+// the list showed it, so a player who came in from there still sees which kind of
+// room they are in.
+std::string RoomKindText(const room::Snapshot& room) {
     if(room.serverOwned)return std::string(RoomTypeName(room.arcade))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
     if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
     if(room.arcade==room::KingRoom)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
     if(room.arcade)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
     return loc::T(room.locked?"room.locked_status":"room.private_status");
+}
+std::string RoomStatusText(const room::Snapshot& room) {
+    return room.wiredOnly?RoomKindText(room)+" · "+loc::T("room.wired_only"):RoomKindText(room);
 }
 }
 float ApplicationShell::PublicListWidth() {
@@ -113,7 +117,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     // A Practice room only in a game that plays its round time (RoomSetupRows).
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_ && ember::PlayableRoundTime(room::PracticeRoundTime);
     action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
-    if (kind == netplay::CommandKind::HostRoom) action.delayPolicy = preferences_.roomDelayPolicy;
+    if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
     // An Arcade room plays at every table; only a Classic one has a count to choose.
     if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
     // Opened from a template: the runtime sets its tables once the room is up.
@@ -404,7 +408,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(const auto choice=screen==CountryPicker::Screen?countryPicker_.Choose(a.id):std::nullopt){if(v.canEditPreferences){preferences_.country=*choice;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();nav.Return();}}
  else if(const auto main=RowKey<int>(a.id,"main-");main&&v.canEditPreferences){preferences_.mainFighter=*main;preferencesDirty_=true;profileSavePending_=true;error_.clear();saveAt_=ImGui::GetTime()+.45;}
  else if(screen=="training"&&a.id.compare(0,9,"training-")==0)TrainingSelectActivate(a,v,submit);
- else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):"";nav.Push(a.id);}
+ else if(a.id=="selection"){selectionFresh_=true;selectionOpenOn_=screen.compare(0,4,"room")==0?RoomSelectionStart(v.room):SelectionStart::Board;nav.Push(a.id);}
  else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
@@ -494,6 +498,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
+  else if(a.id=="wired-only")preferences_.roomWiredOnly=a.delta>0;
   else AdjustRule(screen=="create"&&preferences_.roomPublic?preferences_.publicTableRules:preferences_.tableRules,a);
   if(!preferences_.Valid()){preferences_=prior;error_=loc::T("error.invalid_value");}
   else{preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;error_.clear();}
@@ -517,15 +522,16 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  // Any closed notice answers the update question if it is the one on show.
  if(updatePrompt_.Open()&&!menu_.NoticeOpen())FinishUpdatePrompt(result,submit);
 }
-// Quick join asks for the first room with a free seat, in the player's region when it is known.
-// With none it offers to create one, which the next frame opens.
+// Quick join asks for the first room with a free seat that the room filter lists, in the player's
+// region when it is known and the filter names none. With none it offers to create one, which the
+// next frame opens.
 void ApplicationShell::QuickJoin(const ShellView& v) {
  error_.clear();
- if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::KnownRegion(v))){
+ if(const auto id=publicRooms_.QuickPick(v,PublicRoomsPanel::KnownRegion(v),preferences_.roomFilter)){
   if(publicRooms_.Join(*id))menu_.navigation.Prefer("pr-room:"+*id);
   return;
  }
- menu_.ShowNotice(NoticeDialog{loc::T("public.quick_none"),loc::T("public.quick"),{{loc::T("common.ok")},{loc::T("public.create_room"),NoticeResult::CreatePublicRoom}}});
+ menu_.ShowNotice(NoticeDialog{loc::T(preferences_.roomFilter.Active()?"public.quick_none_filtered":"public.quick_none"),loc::T("public.quick"),{{loc::T("common.ok")},{loc::T("public.create_room"),NoticeResult::CreatePublicRoom}}});
 }
 
 void ApplicationShell::SetLanguage(std::string preference) {
@@ -656,7 +662,11 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   }
   else if(v.tournament.phase==Phase::Finished)Say(loc::T("tournament.done_notice"),Tone::Success,12,ToastKind::Match);
   else if(v.tournament.phase==Phase::Failed){
-   Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match);
+   // A version that differs from the opponent's is the one stop the player
+   // can fix: the toast offers the update check (Help & about).
+   std::vector<ToastAction> actions;
+   if(v.tournament.reason=="incompatible_build")actions={{loc::T("updates.check"),"about","updates"},{loc::T("updates.launch_later")}};
+   Say(loc::Tf("tournament.stopped_notice",IdentityPanel::TournamentFailure(v.tournament.reason)),Tone::Error,20,ToastKind::Match,std::move(actions));
   }
   tournamentPhase_=v.tournament.phase;
  }
@@ -746,7 +756,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  if(nav.Screen()=="selection"&&selection){
   // The selector names where its Back goes and shows the room's shortcuts it hands back.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),inRoom?RoomShortcutHints():std::vector<LegendHint>{},selectionFresh_,selectionOpenOn_});
-  selectionFresh_=false;selectionOpenOn_.clear();
+  selectionFresh_=false;selectionOpenOn_=SelectionStart::Board;
   // Only what this frame's selector forwards is read below.
   TakeForwardedMenuAction();
   selection();selectionDrawn_=true;

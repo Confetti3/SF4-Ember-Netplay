@@ -65,6 +65,27 @@ int CostumeCount(int fighterId);      // the game's own costumes
 int ColorCount(int fighterId, int costumeId);
 const char* CostumePack(int fighterId, int costumeId);
 std::vector<int> AllowedUltras(int fighterId, int editionId);
+// What an Ultra's command needs besides its motion and buttons: where the
+// fighter is, a stance, how it started, or a press after it.
+enum class UltraCondition {
+    None, Ground, AntiAir, GroundOrAir, InAir, CloseRange, Counter, MantisStance, CraneStance, CraneStanceOrAir,
+    PunchStart, KickStart, Forward, DelayOrCancel, StopHealing
+};
+struct UltraCommand {
+    // Space-separated motion and button tokens, facing right: numpad
+    // directions ("236"), a leading ~ for a charge, PPP or KKK for all three.
+    const char* symbols = nullptr;
+    UltraCondition condition = UltraCondition::None;
+};
+// Ultra I's or II's commands in an edition, one per way into the move (Gen's
+// two stances, Decapre's ground and anti-air), or none where the fighter has
+// no such Ultra there. Ultra Double has no input of its own: ask for I and II.
+// Sources and edition exceptions: docs/design/ULTRA_INPUTS.md.
+std::vector<UltraCommand> UltraCommands(int fighterId, int ultraId, int editionId);
+// Facing-neutral short notation for a token string, the same whichever side
+// the player starts on: "236 236 + PPP" is "QCF x2 + PPP", "~4 6 4 6 + KKK" is
+// "Charge B, F, B, F + KKK", with `charge` the word for a charge.
+std::string UltraNotation(const std::string& tokens, const std::string& charge = "Charge");
 // The player does not own this fighter. Only 35-43 are sold separately;
 // unknown availability is not locked.
 bool FighterLocked(int fighterId, const Availability& availability);

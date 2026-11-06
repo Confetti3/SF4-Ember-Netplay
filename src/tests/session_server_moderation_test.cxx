@@ -289,6 +289,15 @@ static void TestStatusLineDetails() {
 	creatorDetails.creatorIn = true;
 	CHECK(json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, creatorDetails})).at("details").at("creator_in") == true);
 	CHECK(!(creatorDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, creatorDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
+	// A room for wired players says so, and only that room; turning it on changes the line.
+	auto wiredDetails = details;
+	wiredDetails.wiredOnly = true;
+	const auto wired = json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, wiredDetails})).at("details");
+	CHECK(wired.at("wired_only") == true && wired.size() == bare.size() + 1 && !bare.contains("wired_only"));
+	CHECK(!(wiredDetails == details));
+	room::Snapshot wiredRoom;
+	wiredRoom.wiredOnly = true;
+	CHECK(roomhost::DetailsOf(wiredRoom).wiredOnly && !roomhost::DetailsOf(room::Snapshot()).wiredOnly);
 	// A room name that is not UTF-8 is replaced instead of throwing.
 	details.name = std::string("bad\xff");
 	CHECK(json::parse(roomhost::StatusLine({0, 0, "sf4e3:x", {}, details})).at("details").at("name").is_string());

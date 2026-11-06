@@ -3,18 +3,14 @@
 // down plays the player who has waited longest, at whichever table is free.
 // Other rooms never reach this code.
 #include "RoomModel.hxx"
+#include "RoomQueries.hxx"
 
 #include <algorithm>
 
 namespace sf4e { namespace room {
 
 namespace {
-// One fighter waits at the table for an opponent.
-bool Alone(const Table& table) {
-	return table.phase == TablePhase::Idle && (table.p1 == 0) != (table.p2 == 0);
-}
 MemberId Lone(const Table& table) { return table.p1 ? table.p1 : table.p2; }
-bool Empty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
 std::uint64_t NextArrival(const Snapshot& room) {
 	std::uint64_t next = 1;
 	for (const auto& table : room.tables) next = (std::max)(next, table.waitingSince + 1);
@@ -27,7 +23,7 @@ std::uint64_t NextArrival(const Snapshot& room) {
 Table* RoomAuthority::Waiter(MemberId member, MemberId parted, const Table* except) {
 	Table* longest = nullptr;
 	for (auto& table : snapshot_.tables) {
-		if (&table == except || !Alone(table) || Lone(table) == member) continue;
+		if (&table == except || !ArcadeAlone(table) || Lone(table) == member) continue;
 		if (parted && Lone(table) == parted) continue;
 		if (!longest || table.waitingSince < longest->waitingSince) longest = &table;
 	}
@@ -55,7 +51,7 @@ void RoomAuthority::JoinTable(MemberId member, Table& table) {
 // nobody else are paired again only when no table is left to wait at.
 void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
 	Table* table = Waiter(member, parted, nullptr);
-	for (auto& empty : snapshot_.tables) if (!table && Empty(empty)) table = &empty;
+	for (auto& empty : snapshot_.tables) if (!table && ArcadeEmpty(empty)) table = &empty;
 	if (!table) table = Waiter(member, 0, nullptr);
 	if (!table) return;
 	JoinTable(member, *table);
@@ -147,6 +143,9 @@ Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
 	}
 	for (const auto& table : snapshot_.tables)
 		if (table.p1 == member || table.p2 == member) return Reject(RejectReason::AlreadySeated);
+	// Moving between cabinets above is not sitting down: a member already at
+	// one keeps playing under a Wired players only rule that came on since.
+	if (!MaySit(member)) return Reject(RejectReason::WiredOnly);
 	StopWatching(member);
 	snapshot_.cabinets[cabinet] = member; snapshot_.streaks[cabinet] = 0;
 	PairArcade(member, 0);
@@ -186,7 +185,7 @@ Result RoomAuthority::ApplySetRoomType(MemberId member, const Action& action) {
 		!action.roomType || action.roomType > KingRoom) return Reject(RejectReason::Unauthorized);
 	if (!action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	for (const auto& table : snapshot_.tables)
-		if (!Empty(table) || !table.queue.empty()) return Reject(RejectReason::WrongPhase);
+		if (!ArcadeEmpty(table) || !table.queue.empty()) return Reject(RejectReason::WrongPhase);
 	snapshot_.arcade = action.roomType;
 	for (auto& table : snapshot_.tables) { table.rules = action.rules; table.streakHolder = 0; table.streak = 0; Touch(table); }
 	TouchRoom();

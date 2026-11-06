@@ -107,9 +107,9 @@
       bridge: parts[0],
       match: parts[1],
       need: staging ? 'nightly' : STABLE_VERSION,
-      needText: staging ? 'This match needs the newest Ember Nightly on both players\' PCs.' :
-        'This match needs Ember ' + STABLE_VERSION + ' on both players\' PCs. Ember shows its version in the corner of Home.',
-      update: staging ? 'Get the newest Nightly' : 'Update to Ember ' + STABLE_VERSION,
+      needText: staging ? 'Both players need the same Ember Nightly. If Ember says yours differs from your opponent\'s, update it.' :
+        'Both players need the same Ember version. If Ember says yours differs from your opponent\'s, update it. Ember shows its version in the corner of Home.',
+      update: staging ? 'Get the newest Nightly' : 'Get the newest Ember',
       updateHow: staging ? 'In Ember Nightly: Help & about, then Check for updates.' :
         'Or update inside Ember: Help & about, then Check for updates, then Exit and open updater, then Download and install. Then come back and choose Open in Ember.',
       title: 'Play your tournament match',
@@ -277,7 +277,7 @@
     } else {
       document.getElementById('link').hidden = false;
       var known = found.need && rememberedOpen() === found.need;
-      if (found.need) showNeed(found, known);
+      if (found.need) showNeed(found);
       // A match opens by itself once per link while this page is open, and only
       // where Ember opened before from a match page asking for the same version.
       if (path === '/m' && found.link !== autoOpened && known) {
@@ -330,22 +330,19 @@
     document.title = OVER_TITLE;
   }
 
-  // A match plays only when both fighters run the same build, and Ember cannot
-  // tell this page which one it is. Until Ember has opened from a match page
-  // asking for this version, Update leads and Open follows it.
-  function showNeed(found, known) {
+  // A match plays only when both fighters run the same build. This page cannot
+  // see which Ember a PC has, so it offers update help and never claims the
+  // player needs it: Open in Ember always leads. A real mismatch still fails
+  // in Ember, which names it.
+  function showNeed(found) {
     var byId = function (id) { return document.getElementById(id); };
     byId('need').textContent = found.needText;
     byId('update').textContent = found.update;
     byId('update').href = found.need === 'nightly' ? NIGHTLY_DOWNLOAD : STABLE_DOWNLOAD;
     byId('update-how').textContent = found.updateHow;
     byId('not-opened-download').textContent = found.update;
-    if (found.need !== 'nightly') byId('version').textContent = 'Tournament matches need Ember ' + STABLE_VERSION + '.';
+    if (found.need !== 'nightly') byId('version').textContent = 'The newest Ember is ' + STABLE_VERSION + '.';
     ['need', 'update', 'update-how'].forEach(function (id) { byId(id).hidden = false; });
-    if (!known) {
-      byId('update').classList.add('primary');
-      byId('open').classList.remove('primary');
-    }
   }
 
   // After Open in Ember, a page that still has focus a moment later most

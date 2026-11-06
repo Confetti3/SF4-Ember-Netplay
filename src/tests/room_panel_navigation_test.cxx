@@ -1,4 +1,5 @@
 #include "../ui/ApplicationShell.hxx"
+#include "../ui/FighterSelector.hxx"
 #include "../common/Localization.hxx"
 #include "../ui/GameMenu.hxx"
 #include "../ui/MenuRows.hxx"
@@ -94,15 +95,21 @@ int main() try {
     std::map<std::string, ImVec2> targets;
     // Whether each card, as last reported, lay whole inside the clip it was drawn under.
     std::map<std::string, bool> inView;
+    // Whether each card's target, its middle, lay inside that clip: a click there reaches it.
+    std::map<std::string, bool> clickable;
+    // Each card's box as last reported.
+    std::map<std::string, std::pair<ImVec2, ImVec2>> boxes;
     SetMenuEntriesProbe([&](const std::vector<MenuEntry>& entries) { rows = entries; ++menuDraws; });
     SetMenuStatusProbe([&](const char* status, Tone) { menuStatus = status; });
     SetMenuCardProbe([&](const char* id, ImVec2 min, ImVec2 max) {
         ++cardDraws;
-        targets[id] = ImVec2((min.x + max.x) * .5f, (min.y + max.y) * .5f);
+        const ImVec2 middle((min.x + max.x) * .5f, (min.y + max.y) * .5f);
+        targets[id] = middle; boxes[id] = {min, max};
         const auto* d = ImGui::GetWindowDrawList();
         const ImVec2 lo = d->GetClipRectMin(), hi = d->GetClipRectMax();
         // The clip is whole pixels, the card not: a pixel's slack.
         inView[id] = min.x >= lo.x - 1 && min.y >= lo.y - 1 && max.x <= hi.x + 1 && max.y <= hi.y + 1;
+        clickable[id] = middle.x >= lo.x && middle.y >= lo.y && middle.x < hi.x && middle.y < hi.y;
     });
     const auto frame = [&](unsigned buttons = 0) {
         const auto beforeDraws = menuDraws;
@@ -447,8 +454,8 @@ int main() try {
                 Check(row(id).enabled, "An editable unseated pick row is disabled");
                 focus(id); press(MenuInput::Select);
                 Check(shell.Navigation().Screen() == "selection", "An unseated pick row did not open selection");
-                Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? "roster" :
-                    std::strcmp(id, "appearance") == 0 ? "costumes" : std::strcmp(id, "ultra") == 0 ? "ultra" : "options"),
+                Check(EmbeddedReturnContext().openOn == (std::strcmp(id, "selection") == 0 ? SelectionStart::Roster :
+                    std::strcmp(id, "appearance") == 0 ? SelectionStart::Costumes : std::strcmp(id, "ultra") == 0 ? SelectionStart::Ultras : SelectionStart::Options),
                     "An unseated pick row opened the wrong selection page");
                 shell.Navigation().Home(); shell.Navigation().Push("room-table"); frame();
             }
@@ -461,6 +468,9 @@ int main() try {
                 actions.back().selectionStep.delta == -1 && shell.Navigation().Focus() == "appearance",
                 "Unseated Left did not step color in place");
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+            // The board opened on the first table with a free seat (Table 2); the
+            // table page this loop reads is Table 1's, where the member's place is.
+            focus("table-0"); frame();
             const auto beforeShortcut = selectionDraws; press(MenuInput::Fighter);
             Check(shell.Navigation().Screen() == "selection" && selectionDraws > beforeShortcut,
                 "X/F did not open selection for an unseated member");
@@ -744,6 +754,39 @@ int main() try {
         view.opponentChangedFighter = -1; ++view.room.revision; shell.Navigation().Home(); shell.Navigation().Push("room");
         targets.clear(); frame(); frame();
         Check(room_controls::DescribeTableBanner(view, view.room.tables[0]).text.empty() && row("table-0").id == "table-0", "The opponent's new fighter stayed on the card");
+    }
+    // Changing the Ultra from the board: beside Ready, a short button that
+    // opens the Ultra cards (fighter select's Ultra page) and comes back. The
+    // table options are a bar button (Y still opens them); the opponent's new
+    // fighter puts the focus on the Ultra; Ready names the Ultra and the matchup.
+    {
+        view.selectedPick = selection::Pick{}; view.fighterName = "Ryu";
+        view.ultraName = UltraName(0, 0); view.ultraSteps = true;
+        shell.Navigation().Home(); shell.Navigation().Push("room"); targets.clear(); frame(); frame();
+        const auto& ultra = row("room-ultra");
+        Check(ultra.enabled && !ultra.popout && ultra.choices.empty() && !ultra.adjustable && ultra.label == UltraLabel(0) &&
+            ultra.detail.compare(0, UltraName(0, 0).size(), UltraName(0, 0)) == 0,
+            "The board's Ultra is not a short button beside Ready, or its detail does not name the Ultra");
+        const auto& more = row("room-more");
+        Check(row("options").enabled && std::none_of(more.choices.begin(), more.choices.end(), [](const MenuChoice& c) { return c.id == "options"; }),
+            "Table options are not a bar button, or are still a choice of More");
+        focus("room-ultra"); press(MenuInput::Select);
+        Check(shell.Navigation().Screen() == "selection" && EmbeddedReturnContext().openOn == SelectionStart::Ultras,
+            "Select on the board's Ultra did not open the Ultra cards");
+        shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
+        focus("table-0"); frame();
+        view.opponentChangedFighter = 5; ++view.opponentChangeSequence; ++view.room.revision; frame(); frame();
+        Check(shell.Navigation().Focus() == "room-ultra", "The opponent's new fighter did not put the focus on the Ultra");
+        view.opponentChangedFighter = -1; ++view.room.revision; frame();
+        const auto with = loc::Tf("room.ready.with", "Ryu", UltraMove(0, 0));
+        auto ready = room_controls::DescribeReady(view, view.room.tables[0], 0);
+        Check(ready.kind == room_controls::ReadyControl::Ready && ready.detail.compare(0, with.size(), with) == 0,
+            "Ready does not name the fighter and Ultra it locks in");
+        view.room.members[1].fighter = 1; ++view.room.revision;
+        const auto against = loc::Tf("room.ready.with_against", "Ryu", UltraMove(0, 0), selection::FindFighter(1)->name);
+        ready = room_controls::DescribeReady(view, view.room.tables[0], 0);
+        Check(ready.detail.compare(0, against.size(), against) == 0, "Ready does not name the opponent's picked fighter");
+        view.room.members[1].fighter = -1; ++view.room.revision; frame();
     }
     // The opponent is in Training and is being called back: the table says so
     // on their seat, to everyone but them, until they come back or ready.
@@ -1451,8 +1494,12 @@ int main() try {
 
     // The room link row belongs to a public room this shell joined from the list: a private room
     // and a server-owned room reached any other way offer none (the journeys cover the row itself).
+    // The room link is a choice of More….
     const auto offers = [&](const char* id) {
-        return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& entry) { return entry.id == id; });
+        return std::any_of(rows.begin(), rows.end(), [&](const MenuEntry& entry) {
+            return entry.id == id || (entry.id == "room-more" &&
+                std::any_of(entry.choices.begin(), entry.choices.end(), [&](const MenuChoice& c) { return c.id == id; }));
+        });
     };
     view.session.room = netplay::RoomState::Joined; view.canEditSelection = true;
     shell.Navigation().Home(); frame(); shell.Navigation().Push("room"); frame(); frame();
@@ -1592,15 +1639,37 @@ int main() try {
         for (const auto& [scale, size] : screens) {
             ApplyTheme(scale); io.DisplaySize = size;
             targets.clear();
-            for (const char* option : {"table-0/0", "table-0/2"}) {
+            for (const int strip : {0, 2}) {
                 shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
-                click(targets.at("table-0"));
+                // The mouse clicks a table it can see. Where the action bar
+                // takes two lines (1280x800) it follows the floor in its
+                // scroll, and the focus on Leave room scrolls the first
+                // table partly out of view.
+                int shown = -1;
+                for (int i = 0; i < 4 && shown < 0; ++i) if (clickable["table-" + std::to_string(i)]) shown = i;
+                Check(shown >= 0, "No free table was in view");
+                const std::string table = "table-" + std::to_string(shown), option = table + "/" + std::to_string(strip);
+                click(targets.at(table));
                 Check(shell.Navigation().Choosing(), "A click on a free table did not open the seat chooser");
                 frame(); // the strip reports its place once drawn
+                // ClassicCardStripAlongItsFoot: on every card shape the strip
+                // covers the card's foot, across it, where its rules line is
+                // (the Classic card's place), not between the seats.
+                {
+                    const auto& card = boxes.at(table);
+                    const auto& first = boxes.at(table + "/0");
+                    const auto& last = boxes.at(table + "/2");
+                    const float w = card.second.x - card.first.x, h = card.second.y - card.first.y;
+                    if (!(first.first.x < card.first.x + w * .1f && last.second.x > card.second.x - w * .1f &&
+                          first.first.y > card.first.y + h * .6f && last.second.y <= card.second.y + 1)) {
+                        std::cerr << "scale " << scale << " size " << size.x << "x" << size.y << " " << table << '\n';
+                        Check(false, "The seat chooser's strip is not along its card's foot");
+                    }
+                }
                 const auto before = actions.size();
                 click(targets.at(option));
                 const bool sat = actions.size() == before + 1 && actions.back().roomAction.kind == room::ActionKind::Queue;
-                if (option[8] == '0' ? !sat : shell.Navigation().Screen() == "room") {
+                if (strip == 0 ? !sat : shell.Navigation().Screen() == "room") {
                     std::cerr << "scale " << scale << " size " << size.x << "x" << size.y << " " << option << '\n';
                     Check(false, "A click on the seat chooser's strip picked nothing");
                 }
@@ -1649,7 +1718,7 @@ int main() try {
         };
         const auto at = [&] { return shell.Navigation().Focus(); };
         const auto onBar = [&] {
-            for (const char* id : {"ready", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
+            for (const char* id : {"ready", "room-ultra", "options", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
             return false;
         };
         // ArcadeBoardReachesActionBarByGeometry: from cabinet 7 three Downs reach
@@ -1659,7 +1728,7 @@ int main() try {
         focus("cabinet-6"); frame();
         for (int i = 0; i < 3; ++i) press(MenuInput::Down);
         Check(onBar(), "Down, Down, Down from cabinet 7 did not reach the action bar");
-        for (int i = 0; i < 4 && at() != "leave"; ++i) press(MenuInput::Right);
+        for (int i = 0; i < 8 && at() != "leave"; ++i) press(MenuInput::Right);
         Check(at() == "leave", "Right along the action bar did not reach Leave room");
         focus("member-1"); frame(); press(MenuInput::Left);
         const auto cabinet = RowKey(at(), "cabinet-");
@@ -1669,6 +1738,32 @@ int main() try {
         // ClassicV2CardsOnePerLine: the default lays one table per line, so
         // Down goes to the next table and Right leaves the tables for the members.
         board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
+        // TableStreakLine: a seat's third line names a streak of two sets or
+        // more at the table, for its holder only.
+        {
+            room::Table t; t.streakHolder = 2; t.streak = 1;
+            Check(room_controls::StreakText(t, 2).empty(), "One set won read as a streak");
+            t.streak = 2;
+            Check(!room_controls::StreakText(t, 2).empty() && room_controls::StreakText(t, 1).empty(), "The streak was not its holder's alone");
+            t.streakHolder = 0;
+            Check(room_controls::StreakText(t, 0).empty(), "An empty seat read as holding the streak");
+        }
+        // ClassicCardIsAVersusLine: one per line, a 1280 board's card is a
+        // versus line, as the Classic card was before 1.5.0: a full table's two
+        // fighters stand at the card's two ends, the score between them.
+        {
+            std::vector<std::pair<ImVec2, ImVec2>> pictures;
+            SetPortraitProbe([&](const FighterPicture&, ImVec2 min, ImVec2 max) { pictures.push_back({min, max}); });
+            frame(); SetPortraitProbe({});
+            const auto& card = boxes.at("table-0");
+            const float middle = (card.first.x + card.second.x) * .5f;
+            int left = 0, right = 0;
+            for (const auto& [min, max] : pictures) {
+                if (min.x < card.first.x || max.x > card.second.x || min.y < card.first.y || max.y > card.second.y) continue;
+                if (max.x <= middle) ++left; else if (min.x >= middle) ++right;
+            }
+            Check(left == 1 && right == 1, "A full table's card at 1280 was not a versus line with a fighter at each end");
+        }
         focus("table-0"); frame(); press(MenuInput::Down);
         Check(at() == "table-1", "Down from table 1 did not reach table 2 under it");
         focus("table-0"); frame(); press(MenuInput::Right);
@@ -1719,7 +1814,84 @@ int main() try {
         focus("cabinet-3"); frame(); press(MenuInput::Up);
         if (at() != "cabinet-3") std::cerr << "Up on cabinet 4 went to " << at() << std::endl;
         Check(at() == "cabinet-3", "Up on a top-row cabinet moved the focus");
+        // ArcadeCabinetNewOpponentGate: after a set, your own cabinet asks
+        // Rematch or New opponent, and New opponent is offered only while
+        // someone else is free (room::ArcadeOtherOpponentPossible), as on the
+        // post-match prompt. With Rematch chosen and nobody free there is
+        // nothing to pick: the row only says so, and Select opens nothing.
+        {
+            const auto saved = view;
+            // Every cabinet taken: tables 3 to 8 paired as well, at the free
+            // cabinets, and your own table deciding after its set.
+            const auto full = [&] {
+                const int pairs[][2] = {{1, 9}, {3, 11}, {4, 12}, {5, 13}, {6, 14}, {7, 15}};
+                for (int t = 2; t < 8; ++t)
+                    for (int seat = 0; seat < 2; ++seat) {
+                        room::Member m; m.id = static_cast<room::MemberId>(2 * t + seat + 1); m.name = "Player " + std::to_string(m.id);
+                        m.table = t; m.seat = seat; view.room.members.push_back(m);
+                        (seat ? view.room.tables[t].p2 : view.room.tables[t].p1) = m.id;
+                        view.room.cabinets[pairs[t - 2][seat]] = m.id;
+                        view.room.tables[t].phase = room::TablePhase::Playing;
+                    }
+                view.room.tables[0].deciding = true;
+            };
+            full();
+            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            const auto cabinet = [&] { return row("cabinet-0"); };
+            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && !cabinet().choices[1].enabled &&
+                cabinet().choices[1].detail == loc::T("room.new_opponent_none"), "New opponent was offered with nobody else free");
+            // A table frees up: New opponent is offered.
+            view.room.tables[7].phase = room::TablePhase::Idle; view.room.tables[7].p1 = view.room.tables[7].p2 = 0;
+            view.room.cabinets[7] = view.room.cabinets[15] = 0;
+            view.room.members.resize(view.room.members.size() - 2); ++view.room.revision; frame();
+            Check(cabinet().choices.size() == 2 && cabinet().choices[1].enabled &&
+                cabinet().choices[1].detail == loc::T("room.new_opponent_detail"), "New opponent was not offered with a table free");
+            // Rematch chosen, someone free: only New opponent is left to pick.
+            view.room.tables[0].rematch[0] = true; ++view.room.revision; frame();
+            Check(cabinet().choices.size() == 2 && !cabinet().choices[0].enabled && cabinet().choices[1].enabled,
+                "After Rematch, New opponent was not the one choice left");
+            // Rematch chosen, nobody free: no chooser, and Select sends nothing.
+            view = saved; full(); view.room.tables[0].rematch[0] = true;
+            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            Check(cabinet().choices.empty() && cabinet().info, "Rematch chosen with nobody free still opened a chooser");
+            focus("cabinet-0"); frame();
+            const auto before = actions.size();
+            press(MenuInput::Select);
+            Check(!shell.Navigation().Choosing() && actions.size() == before, "Select on a cabinet with nothing to pick did something");
+            view = saved;
+        }
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);
+    }
+
+    // TagDrawsWholeNameAtItsWidth: an S tag laid out at TagWidth, as a table
+    // card's seat lays it out, draws what it draws with room to spare, at every
+    // scale: no rounding cuts the name short.
+    {
+        const char* const names[] = {"Racer 9", "Player 12", "Guest", "Wandering Fox", "Q", "Lowercase name", "MMMMMMMM", "il1|.,;"};
+        for (const float scale : {1.f, 1.1f, 1.25f, 1.33f, 1.5f, 1.75f, 2.f, 2.5f}) {
+            ApplyTheme(scale);
+            io.DeltaTime = step; SetMenuInput({0, 0}); ImGui::NewFrame();
+            ImGui::Begin("Tag fit");
+            auto* d = ImGui::GetWindowDrawList();
+            for (const char* name : names)
+                for (int parts = 0; parts < 4; ++parts) {
+                    v2::TagView tag; tag.name = name;
+                    if (parts & 1) { tag.ping.text = "48 ms"; tag.ping.routed = "Direct 48 ms"; tag.link = NetworkLink::Wired; }
+                    if (parts & 2) tag.status = "Host";
+                    const auto drawn = [&](float width) {
+                        const int before = d->VtxBuffer.Size;
+                        v2::Tag(d, ImVec2(0, 0), width, tag, v2::TagSize::S);
+                        return d->VtxBuffer.Size - before;
+                    };
+                    const float width = v2::TagWidth(tag, v2::TagSize::S);
+                    if (drawn(width) != drawn(width + 200)) {
+                        std::cerr << "scale " << scale << " name " << name << " parts " << parts << '\n';
+                        Check(false, "A tag at its own width cut its name or dropped a part");
+                    }
+                }
+            ImGui::End(); ImGui::EndFrame();
+        }
+        ApplyTheme(1.f);
     }
 
     SetMenuStatusProbe({}); SetMenuCardProbe({}); SetMenuEntriesProbe({});

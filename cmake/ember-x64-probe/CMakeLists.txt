@@ -52,7 +52,8 @@ set(EMBER_SF4_SIDE
     common/FighterCatalog.cxx common/FighterCatalog.hxx common/StageCatalog.cxx common/StageCatalog.hxx
     common/StageValue.hxx common/InstalledContent.cxx common/InstalledContent.hxx
     common/Sf4SelectionAssetPath.cxx common/LobbyMusic.hxx
-    ui/FighterSelector.cxx ui/FighterSelector.hxx ui/Sf4SelectionLabels.cxx ui/Sf4SelectionArt.cxx
+    ui/FighterSelector.cxx ui/FighterSelector.hxx ui/AppearanceGallery.cxx ui/AppearanceGallery.hxx
+    ui/Sf4SelectionLabels.cxx ui/Sf4SelectionArt.cxx
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx
     # Language, display and pads: the game's files and its pad layer.
     common/GameLanguage.cxx common/GameLanguage.hxx common/SteamKeyValues.cxx common/SteamKeyValues.hxx

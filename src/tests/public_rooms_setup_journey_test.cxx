@@ -369,7 +369,7 @@ void JoinPasteJourney(){
  Check(tickets(j)==1&&lastTicketIs(j,LinkBridge,LinkRoom),"A room link in Join did not ask for its room");
 }
 
-// Inside a public room the board offers the room's page link: copying it puts the
+// Inside a public room More… offers the room's page link: copying it puts the
 // link on the clipboard and says so. A private room, a public room this PC did not
 // join through the list, and a room that has ended offer none.
 void CopyLinkJourney(){
@@ -389,11 +389,17 @@ void CopyLinkJourney(){
  for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;h.view.room.members.push_back(local);
  h.Screen("room");h.Frame(0,2);
- Check(j.row("copy-room-link")&&j.row("copy-room-link")->enabled&&j.row("copy-room-link")->label==loc::T("public.copy_link")&&
-  j.row("copy-room-link")->detail==loc::Tf("public.copy_link_detail",link),"A public room joined from the list offers no room link");
+ // The link is wanted now and then, so it is a choice of More…, its first.
+ const auto roomLink=[&]()->const MenuChoice*{
+  const auto* more=j.row("room-more");if(!more)return nullptr;
+  const auto it=std::find_if(more->choices.begin(),more->choices.end(),[](const MenuChoice& c){return c.id=="copy-room-link";});
+  return it==more->choices.end()?nullptr:&*it;
+ };
+ Check(roomLink()&&roomLink()->enabled&&roomLink()->label==loc::T("public.copy_link")&&roomLink()->detail==loc::Tf("public.copy_link_detail",link)&&
+  j.row("room-more")->choices.front().id=="copy-room-link"&&!j.row("copy-room-link"),"A public room joined from the list offers no room link in More");
  Check(!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room offered an invitation to copy");
  g_clipboard="before";const auto actions=h.actions.size();
- h.Choose("copy-room-link");
+ h.Choose("room-more");h.Press(MenuInput::Select);
  Check(g_clipboard==link,"Copy room link did not put the page link on the clipboard");
  Check(j.status==loc::T("public.link_copied"),"Copy room link did not say it copied");
  Check(h.actions.size()==actions,"Copy room link sent a command");
@@ -401,14 +407,14 @@ void CopyLinkJourney(){
  Check(round.bridgeId==LinkBridge&&round.roomId==LinkRoom,"The copied link does not read back as the room");
  // A private room has no such row.
  h.view.room.serverOwned=false;h.Frame(0,2);
- Check(!j.row("copy-room-link")&&j.row("copy"),"A private room offered a room link");
- h.view.room.serverOwned=true;h.Frame(0,2);Check(j.row("copy-room-link"),"The room link did not come back");
+ Check(!roomLink()&&j.row("copy"),"A private room offered a room link");
+ h.view.room.serverOwned=true;h.Frame(0,2);Check(roomLink(),"The room link did not come back");
  // The room ends: the link goes with it.
  h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.room=room::Snapshot{};h.Frame(0,3);
  h.view.session.room=netplay::RoomState::Joined;h.view.room.roomEpoch=11;h.view.room.localMember=1;h.view.room.host=1;h.view.room.serverOwned=true;
  for(int i=0;i<4;++i){h.view.room.tables[i].id=i;h.view.room.tables[i].revision=7;}
  h.view.room.members={local};h.Screen("room");h.Frame(0,2);
- Check(!j.row("copy-room-link"),"A public room this PC did not join from the list offered a room link");
+ Check(!roomLink(),"A public room this PC did not join from the list offered a room link");
  platform.Platform_SetClipboardTextFn=nullptr;platform.Platform_GetClipboardTextFn=nullptr;
 }
 }

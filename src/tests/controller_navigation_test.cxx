@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <tuple>
 using namespace sf4e::ui;
 using Button=ControllerSample;
 using Kind=sf4e::netplay::CommandKind;
@@ -115,7 +116,10 @@ void NavigationModel() {
  auto frame=[&](unsigned held){time+=.016;return nav.Update({held,time},rows);};
  auto press=[&](unsigned held){frame(0);return frame(held);};
  frame(0);Check(nav.Focus()=="a","Initial focus");
- press(MenuInput::Up);Check(nav.Focus()=="a","List must clamp top");
+ // A fresh Up at the top goes round to the last entry, a fresh Down at the
+ // bottom to the first (ListWrap: a held direction stops at the end).
+ press(MenuInput::Up);Check(nav.Focus()=="text","A fresh Up at the top did not wrap to the last entry");
+ press(MenuInput::Down);Check(nav.Focus()=="a","A fresh Down at the bottom did not wrap to the first entry");
  press(MenuInput::Down);Check(nav.Focus()=="b","List next entry");
  auto a=press(MenuInput::Right);Check(a.kind==MenuAction::Adjust&&a.delta==1,"Value adjustment");
  nav.Push("child");frame(0);press(MenuInput::Down);nav.Scroll()=41;
@@ -192,7 +196,7 @@ void NativeCapture() {
  Check(std::strcmp(PhysicalGlyph(4,0x80000,"LP"),"LP")==0,"DirectInput guessed an Xbox glyph");
  unsigned char caches[0x100];std::memset(caches,0x5a,sizeof(caches));
  Check(sf4e::input::NativeMenuHeld(caches)==0x5a5a5a5a,"Native cache offsets");
- sf4e::input::ClearNativeMenuInputs(caches);
+ sf4e::input::WithholdNativeInputs(caches);
  for(unsigned i=0;i<sizeof(caches);++i){const bool input=(i>=0x18&&i<0x2c)||(i>=0x68&&i<0x7c);
   Check(caches[i]==(input?0:0x5a),"Native suppression corrupted assignment or missed an input cache");}
  using sf4e::input::MenuContext;using sf4e::input::ControllerMenuAvailable;
@@ -223,10 +227,59 @@ void NativeCapture() {
    "A fight kept the menu away where it is shown over the fight, or let it in elsewhere");
  }
  sf4e::input::MenuInputCapture capture;
- Check(!capture.Update(false,16),"Native input suppressed while overlay hidden");
- Check(capture.Update(true,16)&&capture.Update(true,0),"Open overlay not suppressing native input");
- Check(capture.Update(false,16)&&capture.Update(false,16),"Closing leaked held input");
- Check(!capture.Update(false,0)&&!capture.Update(false,16),"New gameplay press blocked after release");
+ const auto withheld=[&](bool open,unsigned held){return capture.Update(open,held).Withheld();};
+ Check(!withheld(false,16),"Native input suppressed while overlay hidden");
+ Check(withheld(true,16)&&withheld(true,0),"Open overlay not suppressing native input");
+ Check(withheld(false,16)&&withheld(false,16),"Closing leaked held input");
+ Check(!withheld(false,0)&&!withheld(false,16),"New gameplay press blocked after release");
+ {
+  // A direction held from the menu into the fight stays the menu's until it
+  // is let go, but a button pressed beside it reaches the game (and so the
+  // GGPO input read from the game's caches) at once, not when every button is up.
+  using sf4e::input::MenuInputCapture;
+  constexpr unsigned direction=0x2,attack=0x10,other=0x40;
+  MenuInputCapture gate;
+  const auto open=gate.Update(true,direction);
+  Check(open.capturing&&open.Withheld()==~0u,"An open menu did not keep every button");
+  const auto closed=gate.Update(false,direction);
+  Check(!closed.capturing&&closed.kept==direction,"The direction held as the menu closed reached the game");
+  const unsigned kept=gate.Update(false,direction|attack).Withheld();
+  Check(kept==direction,"A press made after the menu closed was kept while a direction from the menu was held");
+  unsigned char caches[0x100];std::memset(caches,0,sizeof(caches));
+  const unsigned held=direction|attack;std::memcpy(caches+0x18,&held,4);
+  sf4e::input::WithholdNativeInputs(caches,kept);
+  Check(sf4e::input::NativeMenuHeld(caches)==attack,"The new press did not survive the menu's clear of the game's caches");
+  Check(gate.Update(false,direction|attack|other).kept==direction,"A second new press was kept");
+  Check(gate.Update(false,attack).kept==0&&gate.Update(false,attack|direction).kept==0,"The direction pressed again after its release was still kept");
+  // The press that closed the menu, first seen held on the update after the capture, stays the menu's.
+  MenuInputCapture closing;closing.Update(true,0);
+  Check(closing.Update(false,attack).kept==attack&&closing.Update(false,attack).kept==attack&&closing.Update(false,0).kept==0,"The closing press leaked into the game");
+ }
+ {
+  // PadGateDecidesWhatTheGameGets: what one pad update gives the game, and so
+  // a fight's GGPO input, and which netplay log count it adds to.
+  using sf4e::input::GatePad;using sf4e::input::MenuGate;using sf4e::input::WithheldReason;
+  const MenuGate idle{},capturing{true,0},kept{false,0x12};
+  const auto none=GatePad(idle,false,false,true);
+  Check(!none.withheld&&!none.blocked&&none.counted==WithheldReason::None,"A free pad update withheld input");
+  // The menu's capture takes every button, the Training gesture's Start among them.
+  const auto taken=GatePad(capturing,true,false,true);
+  Check(taken.withheld==~0u&&taken.blocked&&taken.counted==WithheldReason::Menu,"A capture did not take every button");
+  // Kept buttons are withheld one by one; new presses are not blocked.
+  const auto rest=GatePad(kept,false,false,true);
+  Check(rest.withheld==0x12&&!rest.blocked&&rest.counted==WithheldReason::Kept,"Buttons kept after a capture were not withheld alone");
+  // A gesture that owns Start withholds only the game's Start, and counts nothing.
+  const auto gesture=GatePad(idle,true,false,true);
+  Check(gesture.withheld==sf4e::input::NativeStart&&!gesture.blocked&&gesture.counted==WithheldReason::None,"The gesture's Start reached the game");
+  const auto both=GatePad(kept,true,false,true);
+  Check(both.withheld==(0x12u|sf4e::input::NativeStart),"The gesture's Start and the kept buttons were not withheld together");
+  // An update emptied behind another window counts once, as focus, even while the menu captures.
+  Check(GatePad(capturing,false,true,true).counted==WithheldReason::Focus&&GatePad(kept,false,true,true).counted==WithheldReason::Focus,
+   "An update behind another window counted twice, or not as focus");
+  // Only a fight this PC plays counts: a spectator's own menu sends nothing.
+  const auto watching=GatePad(capturing,false,true,false);
+  Check(watching.counted==WithheldReason::None&&watching.withheld==~0u&&watching.blocked,"A spectator's update was counted, or its capture let go");
+ }
  ControllerNavigation adapter;ControllerSample device{3,2,true,16};
  adapter.Update(device,true,true,true);Check(adapter.Buttons()==0,"Held opening button activated");
  device.buttons=0;adapter.Update(device,true,true,true);
@@ -313,18 +366,39 @@ void PracticeFightPresses(){
 // pressed while Back is held opens the controls or closes them. None of the
 // three clashes with another: the chord never resets or saves, a hold saves
 // once, and the game's pause (Start first) never opens or resets.
-// R3 on an Xbox pad: a press opens or closes the controls on its own, once
-// per press, never under the call, and the game never sees it.
+// The controls button on an Xbox pad (R3 unless the player bound another): a
+// press opens or closes the controls on its own, once per press, never under
+// the call, and the game never sees it.
 void TrainingPadQuick(){
  using namespace sf4e::input;
  TrainingPadGesture pad;double now=0;
- const auto step=[&](unsigned physical,bool open=false,TrainingCall call=TrainingCall::None){now+=1.0/60;return pad.Update(physical,open,now,call);};
- const unsigned quick=PhysicalQuick;
+ const unsigned quick=xinput::RS;
+ const auto step=[&](unsigned physical,bool open=false,TrainingCall call=TrainingCall::None){now+=1.0/60;return pad.Update(physical,open,now,call,false,quick);};
  auto e=step(quick);Check(e.open&&!e.close&&!e.reset&&!e.save&&(e.owned&quick),"R3 did not open the controls");
  Check(!step(quick).Any(),"Holding R3 acted twice");
  step(0);e=step(quick,true);Check(e.close&&!e.open,"R3 did not close the open controls");
  step(0);Check(!step(quick,false,TrainingCall::Called).Any(),"R3 opened the controls under the call");
  step(0);step(PhysicalBack);Check(!step(PhysicalBack|quick).open,"R3 opened the controls while Back was held");
+}
+// A button the player bound instead (LB here) opens them and R3 does nothing;
+// with the button off the pad's own presses do nothing, and the chord still opens them.
+void TrainingPadBoundControls(){
+ using namespace sf4e::input;
+ const unsigned lb=xinput::LB;
+ {
+  TrainingPadGesture pad;double now=0;
+  const auto step=[&](unsigned physical,bool open=false){now+=1.0/60;return pad.Update(physical,open,now,TrainingCall::None,false,lb);};
+  auto e=step(lb);Check(e.open&&!e.close&&(e.owned&lb)&&!(e.owned&xinput::RS),"The bound button did not open the controls");
+  step(0);Check(!step(xinput::RS).Any()&&!step(xinput::RS).owned,"R3 opened the controls after it was moved");
+  step(0);e=step(lb,true);Check(e.close&&!e.open,"The bound button did not close the open controls");
+ }
+ {
+  TrainingPadGesture pad;double now=0;
+  const auto step=[&](unsigned physical,bool open=false){now+=1.0/60;return pad.Update(physical,open,now);};
+  Check(!step(xinput::RS).Any()&&!step(xinput::RS).owned&&!step(lb).Any(),"A pad button acted with the controls button off");
+  step(0);step(PhysicalBack);const auto chord=step(PhysicalBack|PhysicalStart);
+  Check(chord.open&&!chord.close,"The chord did not open the controls with the button off");
+ }
 }
 void TrainingPadChord(){
  using namespace sf4e::input;
@@ -533,7 +607,7 @@ void TrainingPadOwnership(){
  chord.Update(back,race,at+=.02,TrainingCall::None,live,place);chord.Update(both,race,at+=.02,TrainingCall::None,live,place);
  const bool shellShown=frameSawOpen&&false;
  MenuInputCapture gate;
- Check(!frameSawOpen&&CapturesInput(shellShown,race)&&gate.Update(CapturesInput(shellShown,race),0),"A frame's late publication released the input the chord took");
+ Check(!frameSawOpen&&CapturesInput(shellShown,race)&&gate.Update(CapturesInput(shellShown,race),0).capturing,"A frame's late publication released the input the chord took");
 }
 // The controls' open state has one owner. Two chords before a frame open and
 // then close them, from either state; F6 and the controls' own Back act on
@@ -745,7 +819,7 @@ void BoardGeometry(){
  add("ready",{20,430,200,478});add("room-training",{210,430,390,478});add("room-more",{680,430,790,478});add("leave",{800,430,900,478});
  rows.push_back(Row("unplaced","Not drawn",""));
  MenuNavigation nav;double time=0;
- const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second);return a;};
+ const auto frame=[&](unsigned held){time+=.016;const auto a=nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(b.first,b.second,{});return a;};
  const auto press=[&](unsigned held){frame(held);frame(0);return nav.Focus();};
  const auto from=[&](const char* id,unsigned held){nav.Focus(id,rows);return press(held);};
  frame(0);frame(0);
@@ -754,7 +828,9 @@ void BoardGeometry(){
  Check(from("member-0",MenuInput::Up)=="room-members"&&from("room-members",MenuInput::Right)=="room-hide-members"&&from("room-hide-members",MenuInput::Down)=="member-0","The heading and the button inside it are not reached");
  Check(from("cabinet-2",MenuInput::Right)=="cabinet-3"&&from("cabinet-2",MenuInput::Down)=="cabinet-10","A cabinet's neighbours are not the ones beside and under it");
  Check(from("cabinet-7",MenuInput::Right)=="member-0","Right from the row's end did not reach the member level with it");
- Check(from("member-2",MenuInput::Left)=="cabinet-7"&&from("member-3",MenuInput::Left)=="cabinet-15","Left from a member did not reach the cabinet in its band");
+ // Member 2 crosses both rows of cabinets, more of it level with the second.
+ Check(from("member-1",MenuInput::Left)=="cabinet-7"&&from("member-2",MenuInput::Left)=="cabinet-15"&&from("member-3",MenuInput::Left)=="cabinet-15",
+  "Left from a member did not reach the cabinet in its band");
  Check(from("cabinet-10",MenuInput::Down)=="matchup-1","Down from the bottom row did not reach the chip under it");
  Check(from("member-3",MenuInput::Down)=="room-chat"&&from("room-chat",MenuInput::Left)=="leave","The members column does not lead to the chat box and Leave room");
  Check(from("leave",MenuInput::Up)=="matchup-3"&&from("room-more",MenuInput::Right)=="leave","Up from Leave room is not the chip above it");
@@ -765,7 +841,9 @@ void BoardGeometry(){
  Check(nav.Edge()==MenuEdge::Stay&&from("room-more",MenuInput::Down)=="room-more","A board's edge did not keep the focus");
  nav.SetEdge(MenuEdge::Flow);
  Check(from("room-more",MenuInput::Down)=="leave"&&from("cabinet-8",MenuInput::Left)=="cabinet-7"&&from("cabinet-3",MenuInput::Up)=="cabinet-2","Flow did not go on in entry order");
- Check(from("cabinet-0",MenuInput::Left)=="cabinet-0"&&from("leave",MenuInput::Down)=="leave","Flow went past the first or last placed row");
+ // Past its ends a fresh Up or Down goes round, as a list's does; Left and Right stay.
+ Check(from("cabinet-0",MenuInput::Left)=="cabinet-0"&&from("leave",MenuInput::Down)=="cabinet-0"&&from("cabinet-0",MenuInput::Up)=="leave",
+  "Flow did not go round from its last placed row to its first, or back");
  Check(from("cabinet-2",MenuInput::Down)=="cabinet-10","Flow overrode a row drawn that way");
  nav.SetEdge(MenuEdge::Stay);
  // An explicit neighbour still wins, a value row still adjusts, and a row
@@ -783,11 +861,56 @@ void BoardGeometry(){
  std::vector<MenuEntry> list={Row("first","First",""),Row("second","Second",""),Row("retry","Retry","")};list[2].footer=true;
  const auto moved=[&](const char* placed,unsigned held){
   MenuNavigation n;double t=0;
-  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40});};
+  const auto tick=[&](unsigned h){t+=.016;n.Update({h,t},list);n.Place(placed,{0,0,100,40},{});};
   tick(0);tick(0);n.Focus(placed,list);tick(held);tick(0);return n.Focus();
  };
  Check(moved("retry",MenuInput::Up)=="second","A footer placed alone made the list a board");
  Check(moved("first",MenuInput::Down)=="first","A body's one placed row walked the list's order");
+}
+// The room's action bar at 1920x1080: of two buttons equally near, the one
+// more squarely that way wins. A members list scrolled under the bar keeps its
+// hidden rows to itself: they are reached from the list, never from beside it.
+void BoardTiesAndScrolls(){
+ std::vector<MenuEntry> rows;std::vector<std::tuple<std::string,MenuRect,MenuRect>> boxes;
+ const MenuRect list{1220,90,1870,600};
+ const auto add=[&](const std::string& id,MenuRect box,MenuRect clip){rows.push_back(Row(id,id,""));boxes.emplace_back(id,box,clip);};
+ add("ready",{40,900,320,948},{});add("room-ultra",{331,900,610,948},{});add("options",{623,900,901,948},{});add("room-training",{914,900,1193,948},{});
+ add("copy",{40,960,224,1008},{});add("copy-short",{232,960,416,1008},{});add("room-more",{428,960,805,1008},{});add("leave",{817,960,1193,1008},{});
+ add("member-1",{1230,500,1860,550},list);add("member-2",{1230,560,1860,610},list);add("member-3",{1230,960,1860,1010},list);
+ MenuNavigation nav;double time=0;
+ const auto frame=[&](unsigned held){time+=.016;nav.Update({held,time},rows);for(const auto& b:boxes)nav.Place(std::get<0>(b),std::get<1>(b),std::get<2>(b));};
+ const auto from=[&](const char* id,unsigned held){nav.Focus(id,rows);frame(held);frame(0);return nav.Focus();};
+ frame(0);frame(0);
+ Check(from("leave",MenuInput::Up)=="room-training"&&from("room-ultra",MenuInput::Down)=="room-more"&&from("options",MenuInput::Down)=="room-more",
+  "A tie between two buttons went to the earlier rather than the one more squarely that way");
+ Check(from("ready",MenuInput::Down)=="copy"&&from("room-training",MenuInput::Down)=="leave","A button under another lost to its neighbour");
+ Check(from("leave",MenuInput::Right)=="leave","Right from the bar's end reached a member scrolled out of sight");
+ Check(from("member-1",MenuInput::Down)=="member-2"&&from("member-2",MenuInput::Down)=="member-3","The list's own rows lost their hidden next one");
+}
+// A list wraps only on a fresh press: Down held from the top walks to the
+// last entry and stays there, however long it is held, and Up held from the
+// bottom stays at the first. A grid never wraps. A list's wrap passes over an
+// entry that stands beside it, named as another's Left or Right (Home's card).
+void ListWrap(){
+ std::vector<MenuEntry> rows={Row("a","A",""),Row("b","B",""),Row("c","C",""),Row("d","D","")};
+ MenuNavigation nav;double time=0;
+ const auto hold=[&](unsigned held,double seconds){for(double end=time+seconds;time<end;){time+=.016;nav.Update({held,time},rows);}time+=.016;nav.Update({0,time},rows);};
+ time+=.016;nav.Update({0,time},rows);time+=.016;nav.Update({0,time},rows);
+ hold(MenuInput::Down,3);Check(nav.Focus()=="d","A held Down went round the end of a list");
+ hold(MenuInput::Up,3);Check(nav.Focus()=="a","A held Up went round the top of a list");
+ hold(MenuInput::Up,.05);Check(nav.Focus()=="d","A fresh Up at the top did not go round");
+ hold(MenuInput::Down,.05);Check(nav.Focus()=="a","A fresh Down at the bottom did not go round");
+ // A grid three across stays at its edges.
+ nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows,3);time+=.016;nav.Update({MenuInput::Up,time},rows,3);
+ Check(nav.Focus()=="a","A grid went round its top");
+ // Home: the rows name the card on their Right; Up from the first goes to the
+ // last row, not to the card.
+ for(auto& r:rows)r.right="card";
+ rows.push_back(Row("card","Card",""));rows.back().left="a";
+ nav.Focus("a",rows);time+=.016;nav.Update({0,time},rows);hold(MenuInput::Up,.05);
+ Check(nav.Focus()=="d","A list's wrap landed on the card beside it");
+ nav.Focus("card",rows);hold(MenuInput::Down,.05);
+ Check(nav.Focus()=="a","Down from the list's last entry did not go round to its first");
 }
 // Tabs wrap at both ends, from no tab too, and only an LB or RB Shortcut is a step.
 void TabStepping(){
@@ -835,5 +958,5 @@ void ProfileRecords(){
 void DialogContract();
 void HintPresses();
 void DialogRepeat();
-int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
+int main(){try{NativeReader();NavigationModel();NativeCapture();PracticeFightPresses();TrainingPadChord();TrainingPadQuick();TrainingPadBoundControls();TrainingPadEventOrder();TrainingPadOwnership();TrainingFlyoutOwner();GoNowRequests();CallLifecycleOrder();GoNowFocus();GoNowBehind();DialogContract();HintPresses();DialogRepeat();SelectPrecedence();BoardGeometry();BoardTiesAndScrolls();ListWrap();TabStepping();TakenPress();ScreenNames();ProfileRecords();std::cout<<"Controller menu model, native reader/capture, and profile record journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

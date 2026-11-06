@@ -11,6 +11,8 @@
 #include "RoomCards.hxx"
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
+#include "SelectionLabels.hxx"
+#include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
 #include <cstdio>
@@ -36,20 +38,6 @@ const char* StatusName(room::MemberStatus status) {
     case room::MemberStatus::WatchingNext: return loc::T("room.status.watching_next");
     default: return loc::T("room.status.idle");
     }
-}
-// "Idle 4 min" for a member who has done nothing in the room for a minute
-// or more while waiting (not in a game, not ready, not watching one), else
-// empty. A waiting member who said they are in Training is shown as that
-// instead: it is why they are quiet. The room stamped the idle time
-// `elapsedMs` ago (ShellView::roomElapsedMs).
-std::string IdleText(const room::Member& member, std::uint64_t elapsedMs) {
-    const bool waiting = member.status == room::MemberStatus::Idle || member.status == room::MemberStatus::Queued ||
-        member.status == room::MemberStatus::Seated;
-    if (waiting && member.training) return loc::T("room.in_training");
-    const auto idleSeconds = RoomIdleSeconds(member, elapsedMs);
-    if (!waiting || idleSeconds < 60) return {};
-    const unsigned minutes = idleSeconds / 60;
-    return minutes < 60 ? loc::Tf("room.idle_minutes", minutes) : loc::Tf("room.idle_hours", minutes / 60, minutes % 60);
 }
 // A member with no seat and no queue place anywhere gets the chooser from a
 // table card. Watching elsewhere is no obstacle: sitting down ends it.
@@ -105,6 +93,17 @@ void SelectionRows(std::vector<MenuEntry>& rows,const ShellView& v) {
   canChange?std::string(loc::T("selection.additional_options.detail")):SelectionBlocker(v),canChange));
  rows.back().adjustable=false;rows.back().opens=true;
 }
+// The board's Ultra, beside Ready on the action bar: Select shows the
+// fighter's Ultras as cards, each with its picture and input (fighter
+// select's Ultra page, as the table options' Ultra row opens it), and the one
+// chosen, or Back, comes back here (RoomAction). No Left and Right, so the
+// bar still walks with them. The button says only which Ultra ("Ultra I"),
+// so a seated player's bar stays narrow; its detail and the cards name it.
+MenuEntry UltraRow(const ShellView& v){
+ const bool canChange=RoomActionsAvailable(v)&&v.canEditSelection&&!v.room.localTerminalPending;
+ return Row("room-ultra",v.ultraName.empty()?loc::T("selection.ultra_combo"):UltraLabel(v.selectedPick.ultra),
+  canChange?v.ultraName+"\n"+loc::T(v.ultraSteps?"room.ultra.detail":"room.ultra.single"):SelectionBlocker(v),canChange&&v.ultraSteps);
+}
 // Your own seat's row on the board, a cabinet or a table card: A readies or
 // unreadies (when neither can be sent the row still names the state, but has
 // no action to offer), and a leave that gives something up asks first, on
@@ -135,6 +134,7 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(!m){
    const bool between=ownCabinet>=0?!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
    row.hint=loc::T("room.arcade_sit");row.enabled=between&&mutableRoom;
+   if(WiredFenced(v,room::ActionKind::Queue)){row.enabled=false;row.detail=WiredOnlyReason();}
    continue;
   }
   // What a table card's banner says about this seat leads, as on the cabinet's screen.
@@ -143,8 +143,15 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(static_cast<int>(c)!=ownCabinet||mine.kind!=Place::Kind::Seat)continue;
   const auto& table=s.tables[mine.table];
   if(table.deciding){
-   row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},{"new-opponent",loc::T("room.new_opponent"),loc::T("room.new_opponent_detail")}};
+   // New opponent needs someone else free, as on the post-match prompt.
+   const bool other=room::ArcadeOtherOpponentPossible(s,static_cast<std::size_t>(mine.table));
+   // Rematch already chosen and nobody else free: nothing to pick, so the
+   // row only says so (Rematch chosen) and Select does nothing.
+   if(table.rematch[mine.seat]&&!other){row.info=true;continue;}
+   row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},
+    {"new-opponent",loc::T("room.new_opponent"),loc::T(other?"room.new_opponent_detail":"room.new_opponent_none")}};
    row.choices[0].enabled=!table.rematch[mine.seat];
+   row.choices[1].enabled=other;
    continue;
   }
   OwnSeatRow(row,v,table,mine.seat,leaveAsk==mine.table);
@@ -232,6 +239,10 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         Refuse(TerminalPendingReason(), [kind = action.kind, index = action.table](const ShellView& now) {
             return TerminalFenced(now, kind, index);
         });
+        return false;
+    }
+    if (WiredFenced(view, action.kind)) {
+        Refuse(WiredOnlyReason(), [kind = action.kind](const ShellView& now) { return WiredFenced(now, kind); });
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
@@ -351,7 +362,7 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   row.popout=true;
  }
  if(!active) {
-  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
+  for(auto& row:rows)if(row.id=="selection"||row.id=="ultra"||row.id=="room-ultra"||row.id=="appearance"||row.id=="stage"||row.id=="fighter-options"||row.id=="check-connection"||
    row.id=="input-delay"||row.id=="queue"||row.id=="watch") {
     // Per table: a cached explanation never shows on another table's row.
     const auto key=screen+"/"+std::to_string(selectedTable_)+"/"+row.id;
@@ -380,14 +391,27 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   ChatPanelRows(rows,transcript_.Unread(muted_),preferences_.roomShowChat,v.CanEditRoomSettings());
  }else rows.push_back(Row("room-status",loc::T("room.connection_status"),loc::T(v.session.room==netplay::RoomState::Opening?"room.opening":"room.waiting_state"),false));
  if(pictureOnBoard_)rows.push_back(Row("room-hide-picture",loc::T("room.v2.hide_picture"),loc::T("room.v2.hide_detail"),v.CanEditRoomSettings()));
- // The action bar: Ready when seated, Training, the invitation's two copy
- // buttons side by side, More…, the asking rows, then Leave room last.
+ // The action bar: Ready and the Ultra when seated, the table options (Y),
+ // Training, the invitation's two copy buttons side by side, More…, the
+ // asking rows, then Leave room last.
  if(s.roomEpoch&&c.place.kind==Place::Kind::Seat){
   const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
   // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
   rows.push_back(Row("ready",ready.kind==ReadyControl::Unready?loc::T("room.unready.short"):ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
+  // A game whose fighters have one Ultra (the catalog's) has no Ultra to choose.
+  if(ember::Catalog().ultraChoices>1){
+   rows.push_back(UltraRow(v));
+   // The opponent showed another fighter: the Ultra takes the focus, so one
+   // press opens its choice with the new matchup on the card above.
+   if(opponentChangeSeen_!=v.opponentChangeSequence&&v.opponentChangedFighter>=0&&rows.back().enabled)nav.Focus("room-ultra",rows);
+  }
  }
- if(s.roomEpoch&&v.offersTraining)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
+ opponentChangeSeen_=v.opponentChangeSequence;
+ if(s.roomEpoch){
+  // Players open them between almost every game, so they are a button, not a choice of More….
+  rows.push_back(Row("options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)));
+  if(v.offersTraining)rows.push_back(Row("room-training",loc::T("room.training"),loc::T(v.canTrain?"room.training.detail":"room.training.unavailable"),v.canTrain));
+ }
  // A tournament room admits only its two fighters, who reach it through the
  // tournament service, so there is no invitation to hand out. A public room
  // admits by the service's ticket, so its invitation would admit nobody.
@@ -399,9 +423,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   rows.push_back(Row("copy-short",loc::T("room.copy_short_invitation"),v.shortInvitation.empty()?std::string(loc::T("room.copy_short_invitation.detail")):
    v.shortInvitation.substr(v.shortInvitation.find("//")==std::string::npos?0:v.shortInvitation.find("//")+2),!v.invitation.empty()));
  }
- // A public room is shared by its page link, which opens it in Ember from a browser or Discord.
- if(s.serverOwned){const auto link=publicRooms_.RoomLink();if(!link.empty())rows.push_back(Row("copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)));}
- // More… (a popout): the table options, the controllers and the room's
+ // More… (a popout): a public room's link, the controllers and the room's
  // settings, then the board's parts as switches, which Select flips and More…
  // stays open on; or, chosen from it, the picture's Small, Big and Off in its
  // place, on the one in effect. The switches and the picture's choices are
@@ -418,8 +440,10 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
    for(int i=0;i<3;++i)more.choices.push_back({"picture-"+std::to_string(i),loc::T(pictureNames[i]),loc::T(details[i]),layoutOpen});
   }else{
    if(s.roomEpoch){
-    // Changing fighter needs a seat, so it lives in the table options (and X).
-    more.choices.push_back({"options",loc::T("room.table_options"),loc::Tf("room.table_options.detail",OptionsTable(v,selectedTable_)+1)});
+    // A public room is shared by its page link, which opens it in Ember from a
+    // browser or Discord; it is wanted now and then, not between games.
+    if(const auto link=s.serverOwned?publicRooms_.RoomLink():std::string();!link.empty())
+     more.choices.push_back({"copy-room-link",loc::T("public.copy_link"),loc::Tf("public.copy_link_detail",link)});
     // The controller and its buttons, one press from the board.
     more.choices.push_back({"room-controls",loc::T("player.controllers"),loc::T("room.controls_detail")});
     more.choices.push_back({"room-admin",loc::T("room.settings"),loc::T(c.host?"room.settings.detail":"room.settings.host_only"),c.host});
@@ -459,6 +483,7 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   else if(!nav.Choosing()){leaveAsk_=-1;leaveAsked_=false;}
  }
  if(moreAsk_){moreAsk_=false;nav.Ask("room-more",rows);}
+ SettleRoomBoard(v,rows,nav);
 }
 void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScreenRows& c) {
  using namespace room;
@@ -575,8 +600,9 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
     // and the dispatch guard cannot drift apart.
     const auto tableRow=[&](room::ActionKind kind,const char* id,const char* label){
      if(WatchingClosed(v,kind,-1))return;
-     const bool fenced=TerminalFenced(v,kind,selectedTable_);
-     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():reason)+WatchingNote(v,kind),mutableRoom&&!elsewhere&&!fenced));
+     const bool fenced=TerminalFenced(v,kind,selectedTable_),wired=WiredFenced(v,kind);
+     rows.push_back(Row(id,loc::T(label),(fenced?TerminalPendingReason():wired?WiredOnlyReason():reason)+WatchingNote(v,kind),
+      mutableRoom&&!elsewhere&&!fenced&&!wired));
     };
     if(!boundTable)tableRow(queued?room::ActionKind::Unqueue:room::ActionKind::Queue,queued?"unqueue":"queue",
      queued?"room.leave_queue":s.arcade?"room.arcade_sit":"room.join_queue");
@@ -662,6 +688,7 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
   if(tables)rows.push_back(Value("room-tables",loc::T("room.tables"),std::to_string(roomTableCount_),
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
+  rows.push_back(WiredOnlyRow("room-wired-only",s.wiredOnly,std::string(loc::T("room.wired_only.detail"))+"\n"+loc::T("room.wired_only.settings_detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),

@@ -126,6 +126,11 @@ void DecodeDetails(const json& view, Room& room) {
 		}
 		if (faces.size() == found->size()) { room.fighters = std::move(faces); room.hasDetails = true; }
 	}
+	// Sent only for a room that takes wired players alone; an absent key is a room open to every connection.
+	if (const auto found = view.find("wired_only"); found != view.end() && found->is_boolean()) {
+		room.wiredOnly = found->get<bool>();
+		room.hasDetails = true;
+	}
 	if (const auto found = view.find("set_format"); found != view.end() && found->is_number_unsigned()) {
 		const auto value = found->get<std::uint64_t>();
 		if (value <= static_cast<std::uint64_t>(room::MaxSetLength)) { room.setFormat = static_cast<int>(value); room.hasDetails = true; }

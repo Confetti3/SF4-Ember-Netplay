@@ -1,6 +1,7 @@
 // SF4's pick labels (SelectionLabels.hxx): its costumes and costume packs,
 // its Ultras, and its stages.
 #include "SelectionLabels.hxx"
+#include "../common/FighterCatalog.hxx"
 #include "../common/InstalledContent.hxx"
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
@@ -36,5 +37,14 @@ std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::I
 }
 const char* ShortUltraLabel(int ultra) {
     return loc::T(ultra==2?"home.selection_ultra_double":ultra==1?"home.selection_ultra_two":"home.selection_ultra_one");
+}
+std::string UltraMove(int fighter, int ultra) {
+    const auto* found = selection::FindFighter(fighter);
+    if (!found) return {};
+    return ultra == 2 ? std::string(UltraLabel(ultra)) : std::string(found->ultras[ultra == 1 ? 1 : 0]);
+}
+std::string UltraName(int fighter, int ultra) {
+    const std::string move = UltraMove(fighter, ultra);
+    return move.empty() || ultra == 2 ? move : std::string(UltraLabel(ultra)) + ": " + move;
 }
 } }

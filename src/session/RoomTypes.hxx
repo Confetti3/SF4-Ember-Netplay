@@ -129,9 +129,12 @@ enum class ActionKind : std::uint8_t {
 	// (Action::tableCount, 1 to TableCount); a table taken away must be
 	// empty. Appended so older authorities reject it as an unknown kind.
 	SetTableCount,
+	// The host turns the room's Wired players only rule on (Action::wiredOnly)
+	// or off. Appended so older authorities reject it as an unknown kind.
+	SetWiredOnly,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetTableCount;
+constexpr ActionKind LastActionKind = ActionKind::SetWiredOnly;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -160,7 +163,12 @@ enum class RejectReason : std::uint8_t {
 	InvalidChat,
 	MemberKicked,
 	TerminalLedgerFull,
+	// A member on Wi-Fi asked for a seat in a room for wired players
+	// (Snapshot::wiredOnly).
+	WiredOnly,
 };
+// The last reason, the wire's upper bound: a reason appended after it moves this too.
+constexpr RejectReason LastRejectReason = RejectReason::WiredOnly;
 
 // What a member brings to the room when it joins.
 struct MemberProfile {
@@ -371,6 +379,12 @@ struct Snapshot {
 	// is created and fixed for its life, public or private. Serialized only
 	// when Own, so a Shared room's wire form is unchanged.
 	DelayPolicy delayPolicy = DelayPolicy::Shared;
+	// Wired players only: a member whose PC is on Wi-Fi does not take a seat,
+	// a queue's turn or a cabinet (LinkMaySit); Unknown links always do. They
+	// still join, watch and chat. Chosen when the room is created and changed
+	// by its host (SetWiredOnly); a fighter seated before it came on keeps the
+	// seat. Serialized only when true.
+	bool wiredOnly = false;
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
@@ -456,6 +470,8 @@ struct Action {
 	RoomType roomType = ClassicRoom;
 	// SetTableCount: the count. Written only when set.
 	std::uint8_t tableCount = 0;
+	// SetWiredOnly: the rule on. Written only when set.
+	bool wiredOnly = false;
 };
 
 struct Event {

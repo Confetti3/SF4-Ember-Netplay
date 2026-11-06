@@ -10,6 +10,7 @@
 #include "../common/RoomRules.hxx"
 #include "ProfileRecord.hxx"
 #include "SpeechPreferences.hxx"
+#include "PublicRoomFilter.hxx"
 #include "TableSetup.hxx"
 
 namespace sf4e { namespace netplay {
@@ -44,9 +45,11 @@ struct RoomTemplate {
     std::string roomName = "Private room";
     int capacity = 16;
     bool isPublic = false, practice = false;
-    room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
+    room::DelayPolicy delayPolicy = room::DelayPolicy::Own;
     // How many tables a private Classic room opens with (room::Snapshot::tableCount).
     int tableCount = static_cast<int>(room::ClassicTableCount);
+    // The room's Wired players only rule (room::Snapshot::wiredOnly).
+    bool wiredOnly = false;
     TableSetup tables;
     bool Valid() const {
         if (name.empty() || name.size() > 32 || roomName.empty() || roomName.size() > 64 || capacity < 2 || capacity > static_cast<int>(room::MaxMembers) ||
@@ -56,7 +59,8 @@ struct RoomTemplate {
     }
     bool operator==(const RoomTemplate& rhs) const {
         return name == rhs.name && roomName == rhs.roomName && capacity == rhs.capacity && isPublic == rhs.isPublic &&
-            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && tables == rhs.tables;
+            practice == rhs.practice && delayPolicy == rhs.delayPolicy && tableCount == rhs.tableCount && wiredOnly == rhs.wiredOnly &&
+            tables == rhs.tables;
     }
 };
 constexpr std::size_t MaxRoomTemplates = 12;
@@ -203,15 +207,21 @@ struct PlayerPreferences {
         pictureMode = from.pictureMode; pictureSpot = from.pictureSpot;
     }
     SpeechPreferences speech;
+    // Which rooms the Public rooms list shows (Region, Type, Open seats,
+    // Connection); the default shows every room.
+    publicrooms::RoomFilter roomFilter;
     LobbySettings lobby;
     std::string roomName = "Private room";
     int roomCapacity = 16;
     // Whether Create opens a public room on the Ember ID service instead of a private one.
     bool roomPublic = false;
-    // Whose input delay a room created here plays at (room::Snapshot::delayPolicy).
-    room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Shared;
+    // Whose input delay a room created here plays at (room::Snapshot::delayPolicy):
+    // each fighter their own unless the player chose Shared.
+    room::DelayPolicy roomDelayPolicy = room::DelayPolicy::Own;
     // How many tables a private Classic room created here opens with (room::Snapshot::tableCount).
     int roomTableCount = static_cast<int>(room::ClassicTableCount);
+    // Whether a room created here, public or private, is for wired players only (room::Snapshot::wiredOnly).
+    bool roomWiredOnly = false;
     room::Rules tableRules;
     // The rules a public room is created with. Its tables open at the public
     // default; the creator, once in as host, sets these.
@@ -227,7 +237,7 @@ struct PlayerPreferences {
             roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount)) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
-        return country.Valid() && speech.Valid() && tableRules.Valid() && publicTableRules.Valid();
+        return country.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();
     }
 };
 

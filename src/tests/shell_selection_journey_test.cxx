@@ -109,18 +109,45 @@ void KeyboardJourneys(){
  key(ImGuiKey_Backspace);
  h.selection=[&]{selector.Draw(pick,false,nullptr,{},nullptr,true);};
  Check(h.shell.Navigation().Screen()=="room","Back from the board did not return to the room");
- // Select on the table page's Ultra or Appearance opens the board on that row,
- // and Back returns to the table page.
+ // Select on the table page's Ultra or Appearance opens its cards at once, on
+ // the one in use; Back returns to the table page unchanged, and a pick saves
+ // and returns.
  selection::Availability available;available.ready=true;available.costumes=3;available.colors[0]=available.colors[1]=5;available.personalActions=1;
  h.selection=[&]{selector.Draw(pick,false,nullptr,[&](int){return available;},nullptr,true);};
- h.view.ultraSteps=true;h.view.ultraName="Ultra II";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="look"&&selector.Navigation().Focus()=="ultra",
-  "Select on the table's Ultra did not open the fighter's page on its Ultra");
- key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
+ pick.ultra=0;h.view.ultraSteps=true;h.view.ultraName="Ultra I";key(ImGuiKey_T);h.FocusOn("ultra");key(ImGuiKey_Enter);
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="ultras"&&selector.Navigation().Focus()=="ultra-0",
+  "Select on the table's Ultra did not open the Ultra cards on the Ultra in use");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Backspace);
+ Check(h.shell.Navigation().Screen()=="room-table"&&pick.ultra==0,"Back from the Ultra cards did not return to the table page unchanged");
+ h.FocusOn("ultra");key(ImGuiKey_Enter);key(ImGuiKey_RightArrow);
+ Check(selector.Navigation().Focus()=="ultra-1","Right on the Ultra cards did not move to Ultra II");
+ key(ImGuiKey_Enter);
+ Check(pick.ultra==1&&h.shell.Navigation().Screen()=="room-table","Picking an Ultra card did not save it and return to the table page");
+ // A card's input is in words that face neither way, each beside its symbols;
+ // Ultra Double's is both Ultras', each its own, and an Ultra the edition lacks has none.
+ const auto words=[](int fighter,int ultra,int edition){
+  std::vector<std::string> out;for(const auto& command:UltraInputs(fighter,ultra,edition))out.push_back(command.words);return out;};
+ const auto doubled=UltraInputs(0,2,14);
+ Check(words(0,0,14)==std::vector<std::string>{"QCF x2 + PPP"}&&
+  words(0,2,14)==std::vector<std::string>{"QCF x2 + PPP","QCF x2 + KKK"}&&doubled[0].ultra==0&&doubled[1].ultra==1&&
+  std::string(doubled[1].symbols)=="236 236 + KKK"&&
+  words(43,1,14)==std::vector<std::string>{"Charge B, F, B, F + KKK (Ground)","Charge DB, DF, DB, UF + KKK (Anti-air)"}&&
+  UltraInputs(0,2,2).empty()&&UltraInputs(0,1,13).empty(),"An Ultra's inputs are wrong");
  h.view.appearanceName="Original / Color 1";h.FocusOn("appearance");key(ImGuiKey_Enter);
- Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="look"&&selector.Navigation().Focus()=="costume",
-  "Select on the table's Appearance did not open the fighter's page on its costume");
- key(ImGuiKey_Backspace);Check(h.shell.Navigation().Screen()=="room-table","Back from the board did not return to the table page");
+ Check(h.shell.Navigation().Screen()=="selection"&&selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-0",
+  "Select on the table's Appearance did not open the costume grid on the worn costume");
+ key(ImGuiKey_Backspace);
+ Check(h.shell.Navigation().Screen()=="room-table"&&pick.costume==0&&pick.color==0,"Back from the costume grid did not return to the table page unchanged");
+ // The grids move by where their cards are: Right is the next costume, and
+ // its colours open on the colour worn where it has it. A colour saves both
+ // and returns to the table page.
+ h.FocusOn("appearance");key(ImGuiKey_Enter);key(ImGuiKey_RightArrow);
+ Check(selector.Navigation().Focus()=="costume-1","Right on the costume grid did not move to the next costume");
+ key(ImGuiKey_Enter);
+ Check(selector.Navigation().Screen()=="colors"&&selector.Navigation().Focus()=="color-0"&&pick.costume==0,
+  "A costume did not open its colours on the worn colour, or was saved before its colour");
+ key(ImGuiKey_RightArrow);key(ImGuiKey_Enter);
+ Check(pick.costume==1&&pick.color==2&&h.shell.Navigation().Screen()=="room-table","Picking a colour did not save the costume and colour and return");
  // The rest of the pick is on the table page too: Additional options opens its
  // page (personal action, win quote and the others), and Back returns.
  h.FocusOn("fighter-options");key(ImGuiKey_Enter);
@@ -270,11 +297,14 @@ void AppearanceGalleries(){
  // Costume: Right saves the next one; Select opens every costume, and a pick there saves it.
  focus("costume");Check(pick.costume==0,"Focusing the costume row changed the costume");
  Check(press(MenuInput::Right)&&pick.costume==1&&selector.Navigation().Screen()=="look","Right on the costume row did not save the next costume");
- Check(row("costume").choices.size()==3,"The costume row does not offer every owned costume");
- press(MenuInput::Select);Check(selector.Navigation().Choosing(),"Select on the costume row did not open its values");
- press(MenuInput::Right);Check(pick.costume==1,"Moving in the costume panel saved a costume");
+ // Select opens the costume grid on the worn costume; moving there saves
+ // nothing, and a costume's colour grid saves the two together.
  press(MenuInput::Select);
- Check(pick.costume==2&&!selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","A costume picked in the panel did not save");
+ Check(selector.Navigation().Screen()=="costumes"&&selector.Navigation().Focus()=="costume-1","Select on the costume row did not open the grid on the worn costume");
+ press(MenuInput::Right);Check(pick.costume==1&&selector.Navigation().Focus()=="costume-2","Moving in the costume grid saved a costume");
+ press(MenuInput::Select);Check(selector.Navigation().Screen()=="colors"&&pick.costume==1,"A costume did not open its colours, or was saved before its colour");
+ press(MenuInput::Select);
+ Check(pick.costume==2&&selector.Navigation().Screen()=="look","A costume and colour picked in the grids did not save");
  focus("costume");press(MenuInput::Left);Check(pick.costume==1,"Left on the costume row did not step back");
  // Color: the steps skip the colors the game says this costume lacks (bits 0 and 2 only).
  focus("color");Check(press(MenuInput::Right)&&pick.color==2,"The color row ignored native availability gaps");
@@ -283,15 +313,15 @@ void AppearanceGalleries(){
  available.colors[1]=0;frame(0,false);frame(0,false);available.colors[1]=5;
  // Ultra: the row steps through the fighter's Ultras; Double is the last.
  pick.ultra=0;focus("ultra");
- Check(press(MenuInput::Right)&&pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Right on the Ultra row did not save Ultra II");
+ Check(press(MenuInput::Right)&&pick.ultra==1&&row("ultra").value==UltraName(pick.fighter,1),"Right on the Ultra row did not save Ultra II");
  sf4e::wire::ConfirmedCharaConditions native{};
  selection::ToNative(pick,native);pick=selection::FromNative(native);frame();
- Check(pick.ultra==1&&row("ultra").value==ShortUltraLabel(1),"Native selection round trip lost Ultra II");
+ Check(pick.ultra==1&&row("ultra").value==UltraName(pick.fighter,1),"Native selection round trip lost Ultra II");
  press(MenuInput::Right,false);Check(pick.ultra==1,"A locked Ultra row saved a step");
- press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==ShortUltraLabel(2),"Ultra Double did not save");
+ press(MenuInput::Right);Check(pick.ultra==2&&row("ultra").value==UltraName(pick.fighter,2),"Ultra Double did not save");
  Check(press(MenuInput::Left)&&pick.ultra==1&&selector.Navigation().Screen()=="look","Left on Ultra Combo did not step back to Ultra II");
  Check(!press(MenuInput::Left,false)&&pick.ultra==1,"Locked Ultra Combo row still steps");
- press(MenuInput::Select);Check(selector.Navigation().Choosing()&&selector.Navigation().Screen()=="look","Select on Ultra Combo did not open its values");
+ press(MenuInput::Select);Check(selector.Navigation().Screen()=="ultras"&&selector.Navigation().Focus()=="ultra-1","Select on Ultra Combo did not open the Ultra cards on the current Ultra");
  press(MenuInput::Back);press(MenuInput::Back);
  // Picking a fighter opens their page, Ultra row and all: no separate Ultra step.
  focus("fighter-5");press(MenuInput::Select);

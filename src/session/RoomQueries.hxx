@@ -44,6 +44,14 @@ inline bool WatchesByChoice(const Table& table, MemberId member) {
 		!listed(table.endingWatchers);
 }
 
+// Whether a member on `link` may take a seat, a queue's turn or a cabinet in
+// the room. A room for wired players (Snapshot::wiredOnly) refuses Wi-Fi
+// alone: an Unknown link always sits, since Linux and Steam Deck report
+// nothing else (#159), and neither do VPNs or virtual adapters.
+inline bool LinkMaySit(const Snapshot& room, NetworkLink link) {
+	return !room.wiredOnly || link != NetworkLink::Wireless;
+}
+
 // A named seat (0 or 1) that a Queue for exactly that seat would take now: the
 // table is between games, nobody is queued ahead and the seat is empty.
 inline bool SeatOpenNow(const Table& table, int seat) {
@@ -131,6 +139,22 @@ inline bool PracticeKindValid(const Snapshot& room) {
 }
 // An Arcade room, public or private, is never a tournament's and seats from no
 // queue.
+// An Arcade table where one fighter waits for an opponent, and an empty one.
+inline bool ArcadeAlone(const Table& table) {
+	return table.phase == TablePhase::Idle && (table.p1 == 0) != (table.p2 == 0);
+}
+inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
+
+// Whether New opponent can part the Arcade pair at `table`: someone waits
+// alone at another table, or another table is free to wait at. Otherwise the
+// room has nobody else for either of them and pairs the two again
+// (RoomAuthority::PairArcade).
+inline bool ArcadeOtherOpponentPossible(const Snapshot& room, std::size_t table) {
+	for (std::size_t other = 0; other < room.tables.size(); ++other)
+		if (other != table && (ArcadeAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
+	return false;
+}
+
 inline bool ArcadeKindValid(const Snapshot& room) {
 	return !room.arcade || (room.arcade <= KingRoom && !room.tournament.Active() &&
 		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));
@@ -263,6 +287,16 @@ inline const Member* SeatOpponent(const Snapshot& snapshot, std::uint8_t table, 
 	if (at.p1 != local && at.p2 != local) return nullptr;
 	const MemberId other = at.p1 == local ? at.p2 : at.p1;
 	return other ? FindMember(snapshot, other) : nullptr;
+}
+
+// The fighter the room board shows for a member: the last pick they shared,
+// else their profile's main, which stands for them until they pick (-1:
+// neither). A matchup is what the two seats show, so a first pick that is not
+// the main changes it as any later change does: the authority takes back a
+// Ready given against it, the client does not resend one, and the other player
+// is asked to check their Ultra (OpponentFighterWatch).
+inline int ShownFighter(const Member& member) {
+	return member.fighter >= 0 ? member.fighter : member.mainFighter;
 }
 
 // True when a custom room's snapshot gives this client no seat: it stood up,

@@ -24,6 +24,7 @@
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include "UpdateChannelPick.hxx"
+#include "RoomBoardArea.hxx"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -78,7 +79,9 @@ struct ShellView {
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
-    bool canEditSelection = false;
+    // canChangeUltra: canEditSelection, or over the WIN until the post-match
+    // prompt is answered (RuntimeGates::canChangeUltra).
+    bool canEditSelection = false, canChangeUltra = false;
     bool canEditPreferences = false, canEditLobby = false, settingsPending = false;
     // The settings a room leaves open (PlayerPreferences::CopyRoomSettings: the
     // room board's layout and the watched game's picture) can change now: with
@@ -243,8 +246,8 @@ inline std::uint32_t RoomIdleSeconds(const room::Member& member, std::uint64_t e
 }
 // Where the fighter select opens from a room: on the roster, or on the Ultra
 // for a winner who keeps the fighter (room::KeepsFighter), whose roster is locked.
-inline const char* RoomSelectionStart(const room::Snapshot& room) {
-    return room::KeepsFighter(room, room.localMember) ? "ultra" : "roster";
+inline SelectionStart RoomSelectionStart(const room::Snapshot& room) {
+    return room::KeepsFighter(room, room.localMember) ? SelectionStart::LookUltra : SelectionStart::Roster;
 }
 // A member's "is typing" `elapsedMs` after the room stamped it; gone once it ran out.
 inline std::uint32_t RoomTypingMs(const room::Member& member, std::uint64_t elapsedMs) {
@@ -535,7 +538,7 @@ private:
     // reshown after a match or an overlay, so it starts on its first page.
     bool selectionFresh_=false;
     // The page fighter select opens on (EmbeddedReturn::openOn).
-    std::string selectionOpenOn_;
+    SelectionStart selectionOpenOn_ = SelectionStart::Board;
     // Training select opened fighter select on its Dummy row (SelectingDummy).
     bool selectionForDummy_=false;
     // The screen an opening room was started from, as the controller recorded
@@ -605,12 +608,26 @@ private:
     void RoomShortcut(const MenuAction& action, const ShellView& view);
     // The room's shortcut hints (Fighter, Options, Chat), those the device has.
     static std::vector<LegendHint> RoomShortcutHints();
+    // The board's areas (BoardArea), as LB and RB step them (RoomActions.cxx):
+    // the floor, the action bar, Members and Chat; a narrow board's three tabs.
+    // Each remembers the row last focused in it (NoteRoomArea), which a step
+    // to it returns to. FocusRoomTab: to that tab's row, false when it has none.
+    void NoteRoomArea(const std::string& focus);
+    void StepRoomArea(const ShellView& view, const std::vector<MenuEntry>& rows, MenuNavigation& nav, int step, bool narrow);
+    bool FocusRoomTab(const ShellView& view, const std::vector<MenuEntry>& rows, MenuNavigation& nav, int tab, bool narrow);
+    // The board's rows' last touches once all of them are there: the focus a
+    // newly joined room opens on, and the action bar's Left and Right in its
+    // own order (RoomBoardRows).
+    void SettleRoomBoard(const ShellView& view, std::vector<MenuEntry>& rows, MenuNavigation& nav);
     // What B does on the board while your own table card is focused: leave your
     // seat or queue place (or say why the seat cannot be left yet). Empty
     // (plain Back) otherwise.
     const char* PlaceExitLabel(const ShellView& view) const;
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
+    // Sends a step of the pick's Ultra or color, which the overlay applies
+    // (ShellAction::selectionStep): the room's rows and the post-match prompt.
+    static void StepPick(const ShellView& view, ShellAction::SelectionStep step, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
@@ -718,6 +735,11 @@ private:
     // cabinets at their least size and the matchups under them.
     static float ArcadeBoardHeight(const ShellView& view,const std::vector<MenuEntry>& rows,float width);
     std::string roomBoardFocus_;
+    // The row last focused in each of the board's areas (StepRoomArea), and the
+    // room (its session generation and epoch) whose board has had its opening
+    // focus (SettleRoomBoard).
+    std::string roomAreaFocus_[static_cast<int>(BoardArea::Count)];
+    std::uint64_t roomFocusGeneration_ = 0, roomFocusEpoch_ = 0;
     // Whether the room's action bar followed the tables in their scroll last
     // frame, and the tables' size: a change shows the focused row again.
     struct RoomTablesShape {
@@ -795,6 +817,8 @@ std::string memberAsk_;
     // The same, kept to the next frame, for the room's rows (its Hide row).
     bool pictureOnBoard_ = false;
     bool boardDrawn_ = false;
+    // The room board was last drawn narrow, its parts under tabs (DrawRoomBoard).
+    bool roomBoardNarrow_ = false;
     bool selectionDrawn_ = false;
     std::map<std::string,std::string> roomDetails_;
     char invitation_[4097] = {};
@@ -923,7 +947,7 @@ std::string memberAsk_;
     bool ChangeLayout(const gamepads::PadView& pad, const std::optional<gamepads::ButtonLayout>& layout,
         const ShellView& view, const Submit& submit, const std::string& log, const std::optional<gamepads::BoundButtons>& bound = {},
         const std::optional<gamepads::ExtraCopies>& extras = {});
-    // Binds an action to a layout button, refusing its partner's button and, for one
+    // Binds an action to a layout button, refusing one another action of its group has and, for one
     // that needs a free button, one the layout gives an attack.
     void ChangeBoundButton(const gamepads::PadView& pad, gamepads::BoundAction action, unsigned button, const ShellView& view, const Submit& submit);
     // Sets an extra button to copy the layout button a choice names, or nothing for "off".
@@ -935,8 +959,9 @@ std::string memberAsk_;
     void SetupControl(gamepads::SetupCommand command,const ShellView& view,const Submit& submit,int step=0);
     void ClosePadSetup(const ShellView& view,bool controllers=false);
 
-    // The training call's sequences as last acted on.
-    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0;
+    // The training call's sequences as last acted on, and the opponent's
+    // fighter change as the board last saw it (it focuses the Ultra).
+    std::uint64_t trainingCallSeen_=0,trainingReadySeen_=0,opponentChangeSeen_=0;
     std::string joinLink_;
     bool joinLinkDirect_=false;
     // A public room link from the browser: the last one seen, and whether

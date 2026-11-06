@@ -85,6 +85,26 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
     const std::string& key = imageKey_.assign(fighter->code).append("/ultra-").append(std::to_string(ultra));
     return Request(key, [&] { return PackagedFiles(key); });
 }
+SelectionImage SelectionArt::UltraIcon(int ultra) {
+    if (ultra < 0 || ultra > 2) return {};
+    // Asked for on every frame, up to sixteen times on an Arcade board: the
+    // keys are made once. The three share one archive, which the worker keeps
+    // for the icons queued together (Archive).
+    static const std::string entries[] = {"uc1.dds", "uc2.dds", "uc3.dds"};
+    static const std::string keys[] = {"ultra-icons/uc1.dds", "ultra-icons/uc2.dds", "ultra-icons/uc3.dds"};
+    // Ultra's own archive first. The W is only there: an older archive opens
+    // but lacks it, which would read as a failed file and be retried. The
+    // game's icons are 32 pixels square; one far larger is not one of them.
+    Policy mark; mark.cropToContent = true; mark.maxSide = 64;
+    return Request(keys[ultra], [&] {
+        std::vector<std::wstring> paths{gameRoot_ + L"/dlc/04_ae2/ui/chara_select/chara_select_dlc4.emz"};
+        if (ultra < 2) {
+            paths.push_back(gameRoot_ + L"/patch_ae2/ui/chara_select/chara_select_patch.emz");
+            paths.push_back(gameRoot_ + L"/resource/ui/chara_select/chara_select.emz");
+        }
+        return paths;
+    }, NativeSide, mark, entries[ultra]);
+}
 SelectionImage SelectionArt::RankingEmblem(const std::string& entry) {
     // Read from the game at runtime like the portraits, and never repackaged.
     // Cropped to the painted emblem: the Master and Grand Master crowns sit

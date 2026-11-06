@@ -138,6 +138,10 @@ void HandOverInPlaceReplay() {
 int fSystem::GetGameMode() {
     const int mode = (this->*rSystem::publicMethods.GetGameMode)();
     if (!ggpo || rematchChoices != 3 || *rSystem::staticVars.CurrentBattleFlow != rSystem::BF__BTL_OVER) return mode;
+    // A spectator saves no states, so its timeline never moves and the frame
+    // check below cannot tell one restart from the next; the game it watched
+    // end is counted here once (CountWatchedInPlaceGame takes the WIN it read).
+    if (!LocalFighter()) CountWatchedInPlaceGame();
     const int frame = ggpoTimeline.Held();
     if (frame != rematchFrame) {
         rematchFrame = frame;
@@ -353,8 +357,10 @@ void fSystem::BattleUpdate() {
                         inputs = randomInputs;
                     }
                     else {
-                        if(sf4e::NetplayFacade::IsRuntimeRoomActive())
-                            sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn);
+                        if(sf4e::NetplayFacade::IsRuntimeRoomActive()) {
+                            // Not this side's device, or not connected as bound: GGPO gets nothing this frame.
+                            if(!sf4e::NetplayFacade::ReadRuntimeMatchInput(i,inputs.mappedOn,inputs.rawOn)) ++s_window.inputFaults;
+                        }
                         else inputs = { (p->*padMethods.GetButtons_MappedOn)(i), (p->*padMethods.GetButtons_RawOn)(i) };
                         inputs.rawOn = sf4e::training::ClearReservedInputBits(inputs.rawOn);
                     }

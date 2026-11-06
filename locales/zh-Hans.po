@@ -2926,6 +2926,18 @@ msgstr "选择以锁定角色。双方准备好后开始对战。"
 msgid "room.opponent_changed_fighter"
 msgstr "对手换成了{0}。准备前请检查你的 Ultra。"
 
+msgid "room.ready.with"
+msgstr "使用{0}、{1}准备就绪。"
+
+msgid "room.ready.with_against"
+msgstr "使用{0}、{1}对阵{2}，准备就绪。"
+
+msgid "room.ultra.detail"
+msgstr "在这里选择下一局的终极组合，不用打开对战席选项。"
+
+msgid "room.ultra.single"
+msgstr "该角色在此版本中只有一个终极组合。"
+
 msgid "room.both_ready"
 msgstr "双方均已准备，对战即将开始。"
 
@@ -3266,6 +3278,15 @@ msgstr "开放"
 msgid "room.admission.detail"
 msgstr "锁定后，新成员无法加入。"
 
+msgid "room.wired_only"
+msgstr "仅限有线玩家"
+
+msgid "room.wired_only.detail"
+msgstr "使用 Wi-Fi 的玩家仍可加入、观战和聊天，但不能入座。连接未知的玩家可以对战。"
+
+msgid "room.wired_only.settings_detail"
+msgstr "从下一次入座开始生效。已入座的人不会失去席位。"
+
 msgid "room.apply_name"
 msgstr "应用房间名称"
 
@@ -3525,6 +3546,9 @@ msgstr "无法发送该消息。"
 
 msgid "room.reject.ledger_full"
 msgstr "等待所有人从上一场对战返回。"
+
+msgid "room.reject.wired_only"
+msgstr "此房间仅限有线玩家。你的电脑正在使用 Wi-Fi。"
 
 msgid "room.reject.other"
 msgstr "房间拒绝了此操作。"
@@ -4768,6 +4792,12 @@ msgstr "准备"
 msgid "postmatch.state.left"
 msgstr "已离席"
 
+msgid "postmatch.ultra.detail"
+msgstr "左右键切换下一局的终极组合。换了新的终极组合，下一局会先加载。"
+
+msgid "postmatch.ultra.set"
+msgstr "下一局的终极组合已选定。"
+
 msgid "rules.set_summary"
 msgstr "{0}，{1}"
 
@@ -4912,26 +4942,62 @@ msgstr "加入附近空位最多的公开房间。"
 msgid "public.quick_none"
 msgstr "附近的公开房间目前都没有空位。创建一个，附近的玩家就能找到。"
 
+msgid "public.quick_none_filtered"
+msgstr "No open room that matches your filters has a free seat right now. Create one and players will find it."
+
 msgid "public.create_room"
 msgstr "创建房间"
 
-msgid "public.filter"
-msgstr "显示"
+msgid "public.filters"
+msgstr "Filters"
 
-msgid "public.filter_detail"
-msgstr "选择显示哪些房间：全部、附近的房间，或只显示有空位的房间。"
+msgid "public.filters_detail"
+msgstr "Choose which rooms are listed: by region, room type, open seats and connection. Your choice is kept for next time."
 
-msgid "public.filter_label"
-msgstr "显示：{0}"
+msgid "public.filter_summary_all"
+msgstr "All rooms"
 
-msgid "public.filter.all"
-msgstr "所有房间"
+msgid "public.filter_summary_seats"
+msgstr "Open seats"
 
-msgid "public.filter.near"
+msgid "public.filter_region"
+msgstr "Region"
+
+msgid "public.filter_region_detail"
+msgstr "Show rooms from every region, only rooms near you, or one region. Left and Right change it."
+
+msgid "public.filter_region_all"
+msgstr "All regions"
+
+msgid "public.filter_region_near"
 msgstr "附近"
 
-msgid "public.filter.seats"
-msgstr "有空位"
+msgid "public.filter_type"
+msgstr "Room type"
+
+msgid "public.filter_type_all"
+msgstr "All types"
+
+msgid "public.filter_type_detail"
+msgstr "Show every type of room, or only Classic, Arcade or King of the Hill. A room that does not say its type shows only under All types."
+
+msgid "public.filter_seats"
+msgstr "Open seats only"
+
+msgid "public.filter_seats_detail"
+msgstr "Hide the rooms that are full or locked."
+
+msgid "public.filter_wired"
+msgstr "Connection"
+
+msgid "public.filter_wired_all"
+msgstr "所有房间"
+
+msgid "public.filter_wired_only"
+msgstr "Wired only"
+
+msgid "public.filter_wired_detail"
+msgstr "Show only the rooms that take wired players alone."
 
 msgid "public.filter_near_unknown"
 msgstr "Ember 尚不知道您所在的地区，因此无法判断哪些房间在附近。"
@@ -5002,8 +5068,11 @@ msgstr "目前没有开放的房间。创建一个，其他人就能找到。"
 msgid "public.none_filtered"
 msgstr "没有符合此筛选条件的房间。"
 
-msgid "public.show_all"
-msgstr "显示所有房间"
+msgid "public.clear_filters"
+msgstr "Clear filters"
+
+msgid "public.clear_filters_detail"
+msgstr "Show every room again."
 
 msgid "public.try_again"
 msgstr "重试"
@@ -5469,6 +5538,9 @@ msgstr "换对手"
 
 msgid "room.new_opponent_detail"
 msgstr "留在座位上，与等待最久的玩家对战，或等待下一位入座的玩家。"
+
+msgid "room.new_opponent_none"
+msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
 
 msgid "room.rematch_ask"
 msgstr "再战？"
@@ -6496,6 +6568,36 @@ msgstr "关闭训练录制按钮和播放按钮。"
 msgid "button_layout.training_cleared"
 msgstr "训练按钮已关闭。"
 
+msgid "button_layout.training_controls"
+msgstr "Training controls"
+
+msgid "button_layout.training_controls_detail"
+msgstr "Select, then press the button that opens and closes the Training controls. Automatic uses R3 unless R3 is one of your attacks. In Training that button only does this and never attacks. Turn it off to keep its attack; F6 and Back with Start still open the controls."
+
+msgid "button_layout.training_controls_off"
+msgstr "Turn off controls button"
+
+msgid "button_layout.training_controls_off_detail"
+msgstr "Stops this button opening the Training controls, so it keeps its attack in Training. F6 and Back with Start still work."
+
+msgid "button_layout.training_controls_is_off"
+msgstr "Training controls button is off."
+
+msgid "button_layout.auto_on"
+msgstr "{0} (automatic)"
+
+msgid "button_layout.auto_off"
+msgstr "Off ({0} is in use)"
+
+msgid "button_layout.training_controls_auto"
+msgstr "Turn on controls button"
+
+msgid "button_layout.training_controls_auto_detail"
+msgstr "Uses R3 for the Training controls unless R3 is one of your attacks."
+
+msgid "button_layout.training_controls_is_auto"
+msgstr "Training controls button is automatic."
+
 msgid "room.delay_policy"
 msgstr "房间输入延迟"
 
@@ -6514,11 +6616,20 @@ msgstr "{0}，各自延迟"
 msgid "room.table_footer_own_delay"
 msgstr "各自延迟"
 
+msgid "room.table_footer_wired_only"
+msgstr "仅限有线"
+
+msgid "room.table_counts"
+msgstr "排队 {0}     观战 {1}"
+
 msgid "room.input_delay.own"
 msgstr "你的延迟：{0}"
 
 msgid "public.own_delay"
 msgstr "各自延迟"
+
+msgid "public.wired_only"
+msgstr "Wired only"
 
 msgid "public.failure.own_delay_unsupported"
 msgstr "此房间服务暂时无法创建各自使用自己延迟的房间。请选择“双方相同”，或稍后再试。"
@@ -7605,6 +7716,9 @@ msgstr "Ember 开发者以此标记代替等级，不会列入排行榜。你的
 msgid "room.v2.board"
 msgstr "概览"
 
+msgid "room.v2.areas"
+msgstr "区域"
+
 msgid "room.v2.tables"
 msgstr "对战台"
 
@@ -7645,7 +7759,7 @@ msgid "room.v2.more"
 msgstr "更多…"
 
 msgid "room.v2.more_detail"
-msgstr "对战席选项、房间设置和邀请链接。"
+msgstr "控制器、房间设置、公开房间的链接和画面布局。"
 
 msgid "room.v2.part_state"
 msgstr "{0}：{1}"
@@ -7826,6 +7940,87 @@ msgstr "服装"
 
 msgid "selection.color_row"
 msgstr "颜色"
+
+msgid "selection.costume_gallery_title"
+msgstr "服装图库"
+
+msgid "selection.color_gallery_title"
+msgstr "颜色图库"
+
+msgid "selection.color"
+msgstr "颜色 {0}"
+
+msgid "selection.no_colors"
+msgstr "此服装没有已解锁的颜色。"
+
+msgid "selection.loading_choices"
+msgstr "正在加载可选项"
+
+msgid "selection.loading_choices.detail"
+msgstr "等待游戏读取可用服装和颜色。"
+
+msgid "menu.hint.save_color"
+msgstr "保存颜色"
+
+msgid "selection.costume_row.detail"
+msgstr "左右键在这里切换服装。选择会显示每个服装。"
+
+msgid "selection.color_row.detail"
+msgstr "左右键在这里切换颜色。选择会显示每个颜色。"
+
+msgid "selection.ultra_combo_title"
+msgstr "终极组合"
+
+msgid "menu.hint.save_ultra"
+msgstr "保存 Ultra"
+
+msgid "selection.ultra_charge"
+msgstr "蓄力"
+
+msgid "selection.ultra_input_condition"
+msgstr "{1}（{0}）"
+
+msgid "selection.ultra_condition.ground"
+msgstr "地面"
+
+msgid "selection.ultra_condition.anti_air"
+msgstr "对空"
+
+msgid "selection.ultra_condition.ground_or_air"
+msgstr "地面或空中"
+
+msgid "selection.ultra_condition.in_air"
+msgstr "空中"
+
+msgid "selection.ultra_condition.close_range"
+msgstr "近身"
+
+msgid "selection.ultra_condition.counter"
+msgstr "反击"
+
+msgid "selection.ultra_condition.mantis_stance"
+msgstr "丧流"
+
+msgid "selection.ultra_condition.crane_stance"
+msgstr "忌流"
+
+msgid "selection.ultra_condition.crane_stance_or_air"
+msgstr "忌流或空中"
+
+msgid "selection.ultra_condition.punch_start"
+msgstr "拳版"
+
+msgid "selection.ultra_condition.kick_start"
+msgstr "脚版"
+
+msgid "selection.ultra_condition.forward"
+msgstr "前方"
+
+msgid "selection.ultra_condition.delay_or_cancel"
+msgstr "按住脚键延迟，拳键取消"
+
+msgid "selection.ultra_condition.stop_healing"
+msgstr "再按PPP停止回复"
 
 msgid "selection.ready_with"
 msgstr "使用{0}准备就绪"

@@ -7,6 +7,7 @@
 #include "V2.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
+#include "../session/RoomQueries.hxx"
 #include <algorithm>
 #include <cmath>
 
@@ -19,6 +20,14 @@
 // Back to room never gives up the seat, so a Back mashed through the WIN costs
 // nothing; leaving it is the board's Leave seat. No answer gives it up only
 // where a set hands seats over by the queue (KeepsSeat).
+//
+// Under the player's own answer, their Ultra for the next game: Left and Right
+// step it, through the same pick the room's rows step, until they answer
+// (ShellView::canChangeUltra). A game that goes on in place keeps the battle's
+// Ultras, so a Rematch with a new one leaves the battle and the next game loads
+// with it (rematch::GoesOnInPlace). Stepping does not stop the countdown: the
+// ring is the WIN's own wait, which both games hold from the fighters' inputs
+// for the prompt's time (rematch::AskingMs), and one press is all a change takes.
 namespace sf4e { namespace ui {
 namespace {
 // The prompt's time. The game's WIN waits as long for a fighter still asked,
@@ -206,6 +215,9 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // in place) has the ordinary Rematch, as a Classic pair does.
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
+    // With every other table in use and nobody waiting alone, New opponent
+    // could only pair the two again: its row says so and Y does nothing.
+    const bool otherOpponent = deciding && room::ArcadeOtherOpponentPossible(v.room, p.table);
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
@@ -248,7 +260,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     std::vector<MenuEntry> rows;
     if (deciding) {
         rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
-        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"), loc::T("room.new_opponent_detail"), !p.left));
+        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"),
+            loc::T(otherOpponent ? "room.new_opponent_detail" : "room.new_opponent_none"), !p.left && otherOpponent));
     } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
@@ -265,8 +278,19 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     rows.push_back(Row("fighter", loc::T("postmatch.character_select"),
         rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left));
     rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation, p.result) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
+    // The Ultra is the one row after the buttons, so Left and Right step it
+    // (a footer row, MenuGridCells) and the bar's own walk stays as it was.
+    // It shows while it can change, and once Rematch has set it; where it
+    // cannot change here (no seat, the runtime offers no prompt's WIN) or the
+    // player went back to the room, which offers it, there is no row.
+    const bool ultraOpen = v.canChangeUltra && mine >= 0 && !chosen && !p.left;
+    if (v.ultraSteps && (ultraOpen || (chosen && !p.left))) {
+        rows.push_back(Value("ultra", loc::T("selection.ultra_combo"), v.ultraName, loc::T(ultraOpen ? "postmatch.ultra.detail" : "postmatch.ultra.set"), ultraOpen));
+        rows.back().wide = true;
+    }
+    const std::size_t buttons = MenuGridCells(rows);
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
-    if (deciding) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
+    if (otherOpponent) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
@@ -316,6 +340,9 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             ReportMenuCardText(player.id, word);
             y += rowHeight + 8 * s;
         }
+        // The Ultra for the next game, under the players' answers.
+        for (std::size_t i = buttons; i < entries.size(); ++i)
+            y = menu_.DrawBoardRow(entries, entries[i], ImVec2(at.x, y), width, action, {{}, feedback.Enabled(entries[i]), false, true, true}).box.max.y + 8 * s;
         // What the focused button does, in the room the longest one takes, so
         // the buttons stay put while the focus moves.
         float words = 0;
@@ -328,8 +355,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         // on as few as let them (v2::BarLines), as the room's action bar does.
         const float glyph = 26 * s, font = 17 * s, gap = 12 * s;
         std::vector<float> needs;
-        for (const auto& e : entries)
-            needs.push_back((ButtonGlyph(e.id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, e.label.c_str()).x + 24 * s);
+        for (std::size_t i = 0; i < buttons; ++i)
+            needs.push_back((ButtonGlyph(entries[i].id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, entries[i].label.c_str()).x + 24 * s);
         const int lines = v2::BarLines(width, needs, gap);
         const float barHeight = lines * (rowHeight + gap) - gap;
         const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, needs, gap, lines, rowHeight);
@@ -341,7 +368,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         shown.focus = nav.Focus();
         const ImVec2 panel = ImGui::GetWindowSize();
         shown.panelWidth = std::round(panel.x); shown.panelHeight = std::round(panel.y);
-        for (std::size_t i = 0; i < entries.size(); ++i) {
+        for (std::size_t i = 0; i < buttons; ++i) {
             if (entries[i].id != shown.focus) continue;
             // In whole pixels, so the player's own scroll never reads as a move.
             const float top = ImGui::GetWindowPos().y - ImGui::GetScrollY();
@@ -349,7 +376,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         const bool reveal = !(shown == postMatchBarShown_);
         postMatchBarShown_ = shown;
-        for (std::size_t i = 0; i < entries.size(); ++i) {
+        for (std::size_t i = 0; i < buttons; ++i) {
             const auto& e = entries[i];
             const v2::Box& b = places[i];
             ReportMenuCard(e.id.c_str(), b.min, b.max);
@@ -365,7 +392,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
     };
-    const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(rows.size()), {}, board, false, 70, Tone::Pending);
+    const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(buttons), {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
@@ -380,7 +407,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
     // The room's Rematch or New opponent: the same answer as the cabinet's (RoomAction).
-    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && deciding) {
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && otherOpponent && !p.left) {
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
     else if (a.kind == MenuAction::Activate) {
@@ -389,5 +416,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);
     }
+    // The Ultra steps the pick the next game's Ready carries, as the room's rows do.
+    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && ultraOpen)
+        StepPick(v, {ShellAction::SelectionStep::Field::Ultra, a.delta}, submit);
 }
 } }

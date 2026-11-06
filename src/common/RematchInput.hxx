@@ -1,4 +1,5 @@
 #pragma once
+#include "SelectionPick.hxx"
 #include <cstdint>
 
 // What each fighter's post-match prompt says over the WIN of a game that may
@@ -33,6 +34,19 @@ inline unsigned LocalBits(bool due, bool chosen, std::uint64_t dueForMs) {
     if (!due) return 0;
     if (chosen) return ChoiceBit;
     return dueForMs < AskingMs ? AskingBit : 0;
+}
+
+// Whether a Rematch with the pick `next` can go on in a battle that loaded
+// `played`. A game that goes on in place keeps the fighters, costumes and
+// Ultras the battle loaded; nothing over the WIN can change them in both games
+// at once. So a Rematch with another pick (an Ultra changed on the prompt)
+// leaves the battle as a Random pick's does: its fighter sends no bits once it
+// chose, the WIN runs out, and the Rematch goes on as the room's Ready, which
+// carries the new pick into a game that loads it.
+inline bool GoesOnInPlace(const selection::Pick& played, const selection::Pick& next) {
+    return played.fighter == next.fighter && played.costume == next.costume && played.color == next.color &&
+        played.ultra == next.ultra && played.edition == next.edition && played.personalAction == next.personalAction &&
+        played.winQuote == next.winQuote && played.handicap == next.handicap;
 }
 
 // What the WIN does this frame with both fighters' raw inputs. End: both chose

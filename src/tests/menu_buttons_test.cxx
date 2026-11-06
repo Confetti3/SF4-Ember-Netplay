@@ -161,8 +161,8 @@ void Adapter() {
 }
 void Storage() {
     using namespace sf4e::gamepads;
-    const auto menu = [](int confirm, int back) { auto bound = NoBoundButtons; bound[MenuConfirmButton] = confirm; bound[MenuBackButton] = back; return bound; };
-    CHECK(ValidBoundButtons(NoBoundButtons) && ValidBoundButtons(menu(2, 3)) && ValidBoundButtons(menu(2, -1)) && ValidBoundButtons(menu(-1, 1)));
+    const auto menu = [](int confirm, int back) { auto bound = DefaultBoundButtons; bound[MenuConfirmButton] = confirm; bound[MenuBackButton] = back; return bound; };
+    CHECK(ValidBoundButtons(DefaultBoundButtons) && ValidBoundButtons(menu(2, 3)) && ValidBoundButtons(menu(2, -1)) && ValidBoundButtons(menu(-1, 1)));
     CHECK(!ValidBoundButtons(menu(2, 2)) && !ValidBoundButtons(menu(10, -1)) && !ValidBoundButtons(menu(-2, 0)));
     CHECK(LayoutButtonMask(2) == xinput::X && LayoutButtonMask(-1) == 0 && LayoutButtonMask(10) == 0);
     auto has = AllLayoutButtons; has[8] = false; CHECK(LayoutButtonMask(8, has) == 0);
@@ -176,7 +176,7 @@ void Storage() {
         if (bad.is_null()) { entry["buttonLayouts"][0].erase("menuBack"); entry["buttonLayouts"][0].erase("menuConfirm"); }
         if (bad == 4) entry["buttonLayouts"][0]["menuConfirm"] = 4;
         const auto loaded = ReadLayouts(entry, [](unsigned, LayoutLoadError) {});
-        CHECK(loaded.size() == 1 && loaded[0].buttons == DefaultLayout && loaded[0].bound == NoBoundButtons);
+        CHECK(loaded.size() == 1 && loaded[0].buttons == DefaultLayout && loaded[0].bound == DefaultBoundButtons);
     }
     netplay::PlayerPreferences preferences; preferences.buttonLayouts = {layout};
     CHECK(preferences.Valid());

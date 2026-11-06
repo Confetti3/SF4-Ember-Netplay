@@ -289,6 +289,14 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 		Game().preferences.Queue(runtime->preferences);
 }
 
+void NotifyRuntimeWatchedGame(room::MatchResult result) {
+	if (!RuntimeSession::netplay || !LocalIsSpectator() || !RuntimeSession::netplay->watchedScoreKnown) return;
+	const int winner = result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
+	CountWatchedGame(winner, RuntimeSession::netplay->watchedScore);
+	spdlog::info("Spectator: game ended in place (outcome={}), HUD score {}-{}", static_cast<int>(result),
+		RuntimeSession::netplay->watchedScore[0], RuntimeSession::netplay->watchedScore[1]);
+}
+
 bool GetRuntimeMatchEndpoints(RuntimeMatchEndpoints& endpoints) {
 	if (!runtime || !runtime->match || !RuntimeSession::netplay || runtime->match->GetPhase() != session::IrohMatchSession::Phase::Started) return false;
 	endpoints.localPort = RuntimeSession::netplay->client._ggpoPort;
@@ -323,11 +331,11 @@ void NoteRuntimeMatchStart(const RuntimeMatchEndpoints& endpoints) {
 				if (member.name == captured.name) captured.badge = member.badge;
 	}
 	netplay->spectating = endpoints.localSlot >= 2;
-	netplay->startScore[0] = netplay->startScore[1] = 0;
+	netplay->watchedScore[0] = netplay->watchedScore[1] = 0;
 	const auto* table = room::LocalTable(room);
-	netplay->startScoreKnown = table != nullptr;
+	netplay->watchedScoreKnown = table != nullptr;
 	if (table)
-		for (int side = 0; side < 2; ++side) netplay->startScore[side] = table->score[side];
+		for (int side = 0; side < 2; ++side) netplay->watchedScore[side] = table->score[side];
 }
 
 void ReleaseRuntimePortToGgpo() {

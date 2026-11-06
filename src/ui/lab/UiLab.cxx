@@ -14,8 +14,11 @@
 // --walk walk.txt: plays the in-game menu self-test's walk (MenuWalk), a created room joined at once,
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
+// --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
 // UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
+// --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
+//   so a walk's presses can be counted without reading the pictures
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../FighterSelector.hxx"
@@ -64,6 +67,8 @@ int resizeW = 0, resizeH = 0;
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, w, l)) return 1;
     if (msg == WM_SIZE && w != SIZE_MINIMIZED) { resizeW = LOWORD(l); resizeH = HIWORD(l); return 0; }
+    // A size larger than the desktop (1920x1080 on a scaled 1080p screen) is kept, not cut to the screen.
+    if (msg == WM_GETMINMAXINFO) { auto* info = reinterpret_cast<MINMAXINFO*>(l); info->ptMaxTrackSize = POINT{16384, 16384}; return 0; }
     if (msg == WM_DESTROY) { PostQuitMessage(0); return 0; }
     return DefWindowProcW(hwnd, msg, w, l);
 }
@@ -122,11 +127,14 @@ unsigned KeyBit(const std::string& key) {
 // A ShellView with a player, a controller and nothing running.
 ui::ShellView FakeView() {
     ui::ShellView view;
-    view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canOpenRoom = view.helperReady = true;
+    view.controllerReady = view.canChangeController = view.canEditPreferences = view.canEditSelection = view.canChangeUltra = view.canOpenRoom = view.helperReady = true;
     view.controller = "Xbox pad";
     view.preferences.displayName = "FRaccie";
     view.automaticCountry = CountryCode::Parsed("BE");
     view.selectionSummary = "Ryu / Original / Color 01 / Ultra I";
+    // The pick the room's Ultra button and Table options' Ultra row step and open.
+    view.fighterName = "Ryu"; view.ultraName = "Ultra I: Metsu Hadoken"; view.ultraSteps = view.colorSteps = true;
+    view.selectedPick.fighter = 0; view.selectedPick.ultra = 0;
     // The card's title and icon, and Home's news, as the backend and the release check give them.
     view.playerTitle = "TOURNAMENT ORGANIZER"; view.playerTier = ui::v2::Tier::Gold; view.playerIcon = 7;
     // The awards earned (six of eleven), the Weekly top 8 worn (--screen awards).
@@ -168,6 +176,8 @@ void JoinRoom(ui::ShellView& view) {
     for (int i = 1; i <= 16; ++i) {
         room::Member m; m.id = i; m.name = names[i - 1]; m.host = i == 1; m.fighter = (i - 1) * 2; m.mainFighter = (i + 7) % 44;
         m.country = CountryCode::Parsed(countries[i - 1]);
+        // Ultra I, II and Double in turn; every fourth player has not shared theirs.
+        m.ultra = i % 4 == 0 ? -1 : (i - 1) % 3;
         if (i <= 4) { m.table = (i - 1) / 2; m.seat = (i - 1) % 2; m.status = i < 3 ? room::MemberStatus::Seated : room::MemberStatus::Playing; }
         m.link = static_cast<NetworkLink>(i % 3);
         // Sets won and lost in the room, on the cards of those who have played one.
@@ -284,7 +294,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     float textSize = 1;
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -323,6 +333,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--check" && more) check = args[++i];
         else if (args[i] == "--walk" && more) walkFile = args[++i];
         else if (args[i] == "--walk-from" && more) walkFrom = args[++i];
+        else if (args[i] == "--trace" && more) traceFile = args[++i];
     }
     WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, LoadCursor(nullptr, IDC_ARROW), nullptr, nullptr, L"EmberUiLab", nullptr};
     RegisterClassExW(&wc);
@@ -353,7 +364,17 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     view.preferences.tvMode = tv;
     view.preferences.welcomed = !welcome;
     if (arcade > 0) ArcadeRoom(view, static_cast<room::RoomType>(arcade), seats);
-    else if (inRoom || arcade == 0) JoinRoom(view);
+    else if (inRoom || arcade == 0) {
+        JoinRoom(view);
+        // --seats watch|none in a Classic room: FRaccie gives table 1's seat to Morgan
+        // and watches table 2's game, or has no place at all.
+        if ((seats == "watch" || seats == "none") && view.room.members.size() > 4) {
+            auto& t = view.room.tables[0]; auto& me = view.room.members[0]; auto& morgan = view.room.members[4];
+            t.p1 = morgan.id; morgan.table = 0; morgan.seat = 0; morgan.status = room::MemberStatus::Seated;
+            me.table = me.seat = -1; me.status = seats == "watch" ? room::MemberStatus::Watching : room::MemberStatus::Idle;
+            if (seats == "watch") view.room.tables[1].spectators.push_back(me.id);
+        }
+    }
     // Table 1's game just ended on the WIN screen: FRaccie (P1) against Akira, game 1 of a first to 2.
     if (!postMatch.empty()) {
         auto& t = view.room.tables[0];
@@ -383,7 +404,11 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     std::vector<unsigned> script;
     // "click:x:y" in --keys clicks the mouse there instead of pressing a key.
     std::vector<ImVec2> clickAt;
+    std::vector<std::string> keyNames;
+    std::ofstream traceLog;
+    if (!traceFile.empty()) traceLog.open(traceFile, std::ios::trunc);
     { std::stringstream list(keys); std::string key; while (std::getline(list, key, ',')) {
+        keyNames.push_back(key);
         ImVec2 at(-FLT_MAX, -FLT_MAX);
         script.push_back(std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key)); clickAt.push_back(at); } }
     const auto submit = [&](ui::ShellAction action) {
@@ -393,7 +418,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (publicLab && action.tournament.op == netplay::tournament::Command::Op::RoomList) listAsked = true;
         // The walk's room opens at once, and leaving it closes it. HostRoom is also every action's
         // kind when it sends no command, so only Create's Open room counts.
-        hostAsked |= action.command.kind == netplay::CommandKind::HostRoom && shell.Navigation().Screen() == "create" && shell.Navigation().Focus() == "host";
+        hostAsked |= action.command.kind == netplay::CommandKind::HostRoom && shell.Navigation().Screen() == "create" && shell.Navigation().Focus() == "host" &&
+            action.identity.op == netplay::IdentityOp::None && action.tournament.op == netplay::tournament::Command::Op::None;
         leaveAsked |= action.command.kind == netplay::CommandKind::LeaveRoom;
         // The helper answers each Ember ID request at once.
         if (action.identity.op != netplay::IdentityOp::None) { view.identityTicket = action.identity.ticket; view.identityRequest = view.identity.requestId = view.identityTicket + 100; view.identity.ok = true; }
@@ -533,6 +559,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             shell.Draw(view, &open, submit, [&] { selector.Draw(pick, false, &art, [&](int) { return available; }); });
         }
         open = true;
+        // --trace: where the menu is before the first key and once each key has settled.
+        if (traceLog.is_open() && (scripted == -1 || (scripted >= 0 && step < script.size() && scripted % 6 == 5))) {
+            // On fighter select, the selector's own menu is the one moving.
+            const auto& nav = shell.Navigation().Screen() == "selection" ? selector.Navigation() : shell.Navigation();
+            const char* modes[] = {"", " [confirm]", " [choice]", " [edit]", " [read]"};
+            traceLog << (scripted < 0 ? std::string("start") : std::to_string(step + 1) + " " + keyNames[step]) << " -> " << nav.Screen() << " / " << nav.Focus()
+                << modes[static_cast<int>(nav.Mode())] << (nav.Choosing() ? " #" + std::to_string(nav.ChoiceIndex()) : std::string()) << "\n";
+        }
         if (bar) {
             ImGui::SetNextWindowPos(ImVec2(8, 8), ImGuiCond_Always, ImVec2(0, 0));
             ImGui::SetNextWindowBgAlpha(.85f);
