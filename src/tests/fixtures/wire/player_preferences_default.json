@@ -43,6 +43,7 @@
     "roomColumn": 36,
     "roomDefaults": {
       "capacity": 16,
+      "delay": "own",
       "editionSelect": true,
       "format": 0,
       "instantRematch": true,
@@ -59,6 +60,12 @@
       "rotation": 0,
       "roundCount": 3,
       "roundTime": 99
+    },
+    "roomFilter": {
+      "region": "all",
+      "seats": false,
+      "type": "all",
+      "wired": false
     },
     "roomShowChat": true,
     "roomShowMembers": true,

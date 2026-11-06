@@ -37,6 +37,7 @@
         "name": "Pad 1",
         "path": "\\\\?\\hid#vid_28de&pid_11ff",
         "serial": "SN-0001",
+        "trainingControls": 0,
         "trainingPlay": 5,
         "trainingRecord": 4
       }
@@ -176,6 +177,12 @@
         }
       ],
       "winnerKeepsFighter": true
+    },
+    "roomFilter": {
+      "region": "all",
+      "seats": false,
+      "type": "all",
+      "wired": false
     },
     "roomShowChat": true,
     "roomShowMembers": false,
