@@ -20,6 +20,7 @@
 #include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include "../common/MatchFrameMeter.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../platform/LocaleWindows.hxx"
 #include "../session/TrainingCall.hxx"
 #include <imgui.h>
@@ -211,12 +212,18 @@ public:
     static Entries MatchHud(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
-        return {OnOffValue(p, "hud", loc::T("settings.match_hud"), Reason(v), v.canEditPreferences),
+        Entries entries = {OnOffValue(p, "hud", loc::T("settings.match_hud"), Reason(v), v.canEditPreferences),
             Value("hud-layout", loc::T("settings.match_hud_layout"), MatchStripLayoutName(p.matchHudLayout), loc::T("settings.match_hud_layout_detail"), v.canEditPreferences),
             Value("hud-name-offset", loc::T("settings.name_offset"), MatchHudNameOffsetText(p.matchHudNameOffset), loc::T("settings.name_offset_detail"), v.canEditPreferences && p.matchHudLayout == 1),
             Value("hud-size", loc::T("settings.match_hud_size"), sizes[(std::max)(0, (std::min)(2, p.matchHudSize))], loc::T("settings.match_hud_size_detail"), v.canEditPreferences),
             Value("hud-position", loc::T("settings.match_hud_position"), MatchStripAnchorName(p.matchHudAnchor), loc::T("settings.match_hud_position_detail"), v.canEditPreferences),
             Value("hud-spacing", loc::T("settings.edge_spacing"), p.matchHudRaised ? loc::T("spacing.raised") : loc::T("spacing.normal"), loc::T("settings.edge_spacing_detail"), v.canEditPreferences)};
+        // The name offset follows a game's own HUD position option; a game
+        // without one (ember::BattleHud::nameOffset) leaves it nothing to follow.
+        const auto* hud = ember::Product().branding.battleHud;
+        if (hud && !hud->nameOffset)
+            entries.erase(std::remove_if(entries.begin(), entries.end(), [](const MenuEntry& e) { return e.id == "hud-name-offset"; }), entries.end());
+        return entries;
     }
     static Entries Sounds(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;

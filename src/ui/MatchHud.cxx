@@ -8,6 +8,7 @@
 #include "MenuProbes.hxx"
 #include "NameMarks.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include <algorithm>
 #include <cfloat>
@@ -120,6 +121,13 @@ GameFrame FrameOf(const Screen& screen){
     const float gs=(std::min)(screen.size.y/720.f,screen.size.x/1280.f);
     return {screen.pos.x+(screen.size.x-1280*gs)*.5f,screen.pos.y+(screen.size.y-720*gs)*.5f,gs};
 }
+// The battle HUD of a game that describes its own (ember::BattleHud), or null for USF4's.
+const ember::BattleHud* GameHud(){return ember::Product().branding.battleHud;}
+// That game's HUD frame on the screen: scaled evenly to fit and centred.
+GameFrame FrameOf(const ember::BattleHud& hud,const Screen& screen){
+    const float gs=(std::min)(screen.size.y/hud.frameHeight,screen.size.x/hud.frameWidth);
+    return {screen.pos.x+(screen.size.x-hud.frameWidth*gs)*.5f,screen.pos.y+(screen.size.y-hud.frameHeight*gs)*.5f,gs};
+}
 // The viewport scale at which a Top center panel `height` tall (at the Large size) fills the band.
 float TopCenterFit(const MatchStripView& view,const Screen& screen,float height){
     return (TopCenterBandEnd+view.nameOffset-TopCenterGap)*FrameOf(screen).scale/height;
@@ -131,7 +139,33 @@ struct PanelSpot{ImVec2 pos;float stateTop=0;bool stateApart=false;};
 // it stays on screen. At a top anchor the panel and the room for its state line end by
 // `topLimit`, clear of anything drawn below them. Top center ignores `topLimit` and the
 // spacing: the caller has fitted the panel to its band (TopCenterFit).
+// Around a game's own HUD (ember::BattleHud): a top anchor below the game's top HUD (Top
+// center under its timer), its state line under the panel; a bottom corner above the game's
+// gauges there, its state line over the panel; Bottom center at the screen's foot, which the
+// game leaves clear in its middle. The side anchors keep 10% margins of the game's frame.
+PanelSpot PlaceAroundGameHud(const ember::BattleHud& hud,const MatchStripView& view,const Screen& screen,float w,float h,float s){
+    const ImVec2 pos=screen.pos,size=screen.size;
+    const int anchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,view.anchor));
+    const auto frame=FrameOf(hud,screen);
+    const float frameWidth=hud.frameWidth*frame.scale;
+    const float gap=(view.raised?48.f:12.f)*ViewportScale(size.y);
+    const bool top=anchor>=3,left=anchor==1||anchor==3,right=anchor==2||anchor==4;
+    const float x=left?frame.x0+frameWidth*.1f:right?frame.x0+frameWidth*.9f-w:pos.x+(size.x-w)*.5f;
+    const float stateRoom=(MatchStateHeight+4)*s;
+    PanelSpot spot;
+    if(top){
+        const float wanted=frame.y0+hud.topEnd*frame.scale+gap;
+        spot.pos=ImVec2(x,(std::min)(wanted,pos.y+size.y-h-stateRoom));
+        spot.stateTop=spot.pos.y+h+4*s;
+    }else{
+        const float foot=anchor==0?pos.y+size.y:(std::min)(pos.y+size.y,frame.y0+hud.bottomStart*frame.scale);
+        spot.pos=ImVec2(x,(std::max)(pos.y+stateRoom,foot-gap-h));
+        spot.stateTop=spot.pos.y-MatchStateHeight*s-4*s;
+    }
+    return spot;
+}
 PanelSpot PlacePanel(const MatchStripView& view,const Screen& screen,float w,float h,float s,float topLimit){
+    if(const auto* hud=GameHud())return PlaceAroundGameHud(*hud,view,screen,w,h,s);
     const ImVec2 pos=screen.pos,size=screen.size;
     const int anchor=(std::max)(0,(std::min)(netplay::MaxMatchHudAnchor,view.anchor));
     if(anchor==TopCenter){
@@ -295,7 +329,8 @@ StripPlaced PlaceStrip(const MatchStripView& view,const Screen& screen){
     float viewport=usual;
     auto placed=view;
     StripPlaced out;
-    if(view.anchor==TopCenter){
+    // A game with its own HUD has no such band: the panel goes below that HUD (PlaceAroundGameHud).
+    if(view.anchor==TopCenter&&!GameHud()){
         const float fit=TopCenterFit(view,screen,MatchHeight*SizeFactors[2]);
         if(fit<usual*.5f){placed.anchor=0;out.panelBelow=true;}
         else viewport=(std::min)(viewport,fit);
@@ -305,11 +340,64 @@ StripPlaced PlaceStrip(const MatchStripView& view,const Screen& screen){
     out.spot=PlacePanel(placed,screen,out.w,MatchHeight*out.s,out.s,FLT_MAX);
     return out;
 }
+// Each name's link and class marks, for a game that writes the names on its own plates
+// (ember::BattleHud::namesOnPlates): a small chip against the inner end of the side's marks
+// box, the link glyph on its outer side and the class mark inside it, cut to the box.
+struct Marks {
+    NetworkLink link=NetworkLink::Unknown;SkillBadge badge;
+    float x0=0,y0=0,x1=0,y1=0,glyph=0,badgeSide=0,badgeWidth=0,pad=0,gap=0;bool right=false;
+};
+Marks MakeMarks(const MatchStripView& view,int side,const ember::BattleHud::Box& box,const GameFrame& frame){
+    Marks m;m.right=side==1;m.link=view.links[side];m.badge=view.badges[side];
+    const float gs=frame.scale,h=(box.y1-box.y0)*gs;
+    m.glyph=h*.62f;m.badgeSide=h*.7f;m.pad=h*.2f;m.gap=h*.2f;
+    m.badgeWidth=BadgeWidth(m.badge,m.badgeSide,DiagnosticFont());
+    const float w=(std::min)((box.x1-box.x0)*gs,m.pad+m.glyph+(m.badgeWidth>0?m.gap+m.badgeWidth:0.f)+m.pad);
+    m.y0=frame.y0+box.y0*gs;m.y1=m.y0+h;
+    m.x0=m.right?frame.x0+box.x0*gs:frame.x0+box.x1*gs-w;m.x1=m.x0+w;
+    return m;
+}
+void DrawMarks(ImDrawList* draw,const Marks& m){
+    const float h=m.y1-m.y0,k=h/21.f;
+    draw->AddRectFilled(ImVec2(m.x0,m.y0),ImVec2(m.x1,m.y1),palette::InkAt(235),3*k);
+    draw->AddRect(ImVec2(m.x0,m.y0),ImVec2(m.x1,m.y1),v2::color::Alpha(v2::Colors().border,.8f),3*k);
+    draw->PushClipRect(ImVec2(m.x0,m.y0),ImVec2(m.x1,m.y1),true);
+    const float glyphX=m.right?m.x1-m.pad-m.glyph:m.x0+m.pad;
+    DrawNetworkLinkGlyph(draw,ImVec2(glyphX,m.y0+(h-m.glyph)*.5f),m.glyph,m.link);
+    if(m.badgeWidth>0){
+        const float badgeX=m.right?glyphX-m.gap-m.badgeWidth:glyphX+m.glyph+m.gap;
+        DrawBadge(draw,ImVec2(badgeX,m.y0+(h-m.badgeSide)*.5f),m.badgeSide,DiagnosticFont(),m.badge);
+    }
+    draw->PopClipRect();
+}
 struct SplitPlaced {
     Plate plates[2];Telemetry tel;PanelSpot spot;bool hasState=false,panelBelow=false;
+    // The game's own plates carry the names: only these are drawn beside them.
+    bool marksOnly=false;Marks marks[2];
 };
+// The split layout around a game's own HUD (ember::BattleHud): Ember's plates over the game's,
+// or only the marks where the game writes the names itself, and the panel PlaceAroundGameHud
+// puts clear of that HUD.
+SplitPlaced PlaceSplitAround(const ember::BattleHud& hud,const MatchStripView& view,const Screen& screen){
+    const auto frame=FrameOf(hud,screen);
+    const float gs=frame.scale;
+    SplitPlaced out;
+    for(int side=0;side<2;++side){
+        const auto& b=hud.plate[side];
+        const float height=(b.y1-b.y0)*gs,k=height/21.f*20.f/SplitName,width=(b.x1-b.x0)*gs;
+        out.plates[side]=MakePlate(view,side,frame.x0+(side?b.x1:b.x0)*gs,frame.y0+b.y0*gs,k,(std::max)(width,274*k),width,height);
+        if(hud.namesOnPlates)out.marks[side]=MakeMarks(view,side,hud.marks[side],frame);
+    }
+    out.marksOnly=hud.namesOnPlates;
+    const float s=ViewportScale(screen.size.y)*SizeFactor(view);
+    out.tel=MakeTelemetry(view,s,screen.size.x*.8f);
+    out.spot=PlaceAroundGameHud(hud,view,screen,out.tel.w,out.tel.h,s);
+    out.hasState=!MatchStripStateLine(view).empty();
+    return out;
+}
 SplitPlaced PlaceSplit(const MatchStripView& view,const Screen& screen){
     NoteUserText(view.names[0]);NoteUserText(view.names[1]);
+    if(const auto* hud=GameHud())return PlaceSplitAround(*hud,view,screen);
     // The game keeps 16:9 inside the window: measure from its image so the names
     // stay beside the life bars on an ultrawide screen.
     const auto frame=FrameOf(screen);
@@ -378,7 +466,11 @@ MatchStripBounds MatchStripGeometry(const MatchStripView& view,ImVec2 screenPos,
         return bounds;
     }
     const auto placed=PlaceSplit(view,{screenPos,screenSize});
-    for(int side=0;side<2;++side){const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};}
+    for(int side=0;side<2;++side){
+        // Where the game writes the names itself, what is drawn for each is its marks.
+        if(placed.marksOnly){const auto& m=placed.marks[side];bounds.names[side]={m.x0,m.y0,m.x1,m.y1,true};continue;}
+        const auto& p=placed.plates[side];bounds.names[side]={p.x0,p.y0,p.x1,p.y1,true};
+    }
     SetPanelBounds(bounds,placed.spot,placed.tel.w,placed.tel.h,placed.tel.s,placed.hasState,placed.panelBelow);
     return bounds;
 }
@@ -386,7 +478,8 @@ void DrawMatchStrip(const MatchStripView& view) {
     auto* draw=ImGui::GetForegroundDrawList();
     if(view.layout==1){
         const auto placed=PlaceSplit(view,MainScreen());
-        for(const auto& plate:placed.plates)DrawPlate(draw,plate);
+        if(placed.marksOnly)for(const auto& marks:placed.marks)DrawMarks(draw,marks);
+        else for(const auto& plate:placed.plates)DrawPlate(draw,plate);
         DrawTelemetry(draw,placed.tel,placed.spot.pos);
         DrawStateLine(view,draw,placed.spot.pos.x,placed.tel.w,placed.spot.stateTop,placed.tel.s);
         return;
