@@ -437,6 +437,8 @@ add_custom_target(SelectionAssets
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/flags" "$<TARGET_FILE_DIR:Sidecar>/assets/flags"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/framedata" "$<TARGET_FILE_DIR:Sidecar>/assets/framedata"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
 add_custom_command(TARGET Sidecar POST_BUILD
