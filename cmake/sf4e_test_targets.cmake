@@ -151,6 +151,15 @@ sf4e_add_unit_test(NAME ShellJourney SOURCES src/tests/shell_journey_test.cxx sr
     src/tests/shell_feedback_journey_test.cxx src/tests/shell_selector_journey_test.cxx src/tests/shell_update_journey_test.cxx src/tests/shell_settings_journey_test.cxx
     src/tests/shell_wired_only_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
+# The shell's product rules (Branding::roomFacesArePicks, answersFromInput):
+# ProductRules under SF4 Ember's identity, where they are off, and
+# ProductRulesOn under a product that turns them on, whose Product() links
+# ahead of SF4 Ember's (as UiLabProduct's does).
+sf4e_add_unit_test(NAME ProductRules SOURCES src/tests/product_rules_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
+sf4e_add_unit_test(NAME ProductRulesOn SOURCES src/tests/product_rules_journey_test.cxx src/tests/product_rules_product.cxx
+    LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
+# SF4 Ember's mark, as sf4e_product embeds it (sf4e_embed_brand_mark).
+target_include_directories(ProductRulesOnTest PRIVATE "${CMAKE_BINARY_DIR}/generated/product")
 sf4e_add_unit_test(NAME IdentityJourney SOURCES src/tests/identity_journey_test.cxx src/tests/discord_connect_journey_test.cxx
     src/tests/builtin_service_journey_test.cxx src/tests/sign_in_site_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)

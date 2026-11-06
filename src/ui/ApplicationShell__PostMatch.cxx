@@ -7,6 +7,7 @@
 #include "V2.hxx"
 #include "MenuProbes.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../session/RoomQueries.hxx"
 #include <algorithm>
 #include <cmath>
@@ -28,6 +29,11 @@
 // with it (rematch::GoesOnInPlace). Stepping does not stop the countdown: the
 // ring is the WIN's own wait, which both games hold from the fighters' inputs
 // for the prompt's time (rematch::AskingMs), and one press is all a change takes.
+//
+// The opponent's answer is the room's: their Ready, or the next game. Over a
+// WIN that goes on in place the room shows neither until both chose, so a
+// product whose battle sends each answer in its input (Branding::
+// answersFromInput) shows the opponent's Rematch, or their decline, from it.
 namespace sf4e { namespace ui {
 namespace {
 // The prompt's time. The game's WIN waits as long for a fighter still asked,
@@ -137,6 +143,12 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         const auto& t = snapshot.tables[p.table];
         const int mine = SeatOf(t, snapshot.localMember), theirs = SeatOf(t, p.opponent);
         if (p.result == room::MatchResult::Abort && fought.generation == p.generation) p.result = fought.result;
+        // The opponent's answer as soon as the battle's input carries it, kept:
+        // the battle reads it only until it decides.
+        if (ember::Product().branding.answersFromInput && theirs >= 0) {
+            p.theyChose |= (v.rematchChoices >> theirs & 1) != 0;
+            p.theyDeclined |= (v.rematchDeclines >> theirs & 1) != 0;
+        }
         // The pair's question answered Rematch by both: the room asks no more,
         // and the player's Rematch is their Ready for the next set.
         if (p.pairRematch && !t.deciding && mine >= 0 && theirs >= 0) {
@@ -169,6 +181,12 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         }
         if (p.starting ? (v.session.match == MatchState::Playing && t.matchGeneration != p.generation) || now >= p.until :
             t.matchGeneration != p.generation) ClosePostMatch(v, AfterPostMatch::None, open);
+        // Having chosen, with the opponent's decline in: the battle goes back
+        // to the room, where this Rematch stands as the player's Ready. The
+        // prompt says so until the game is over, as for no answer.
+        else if (!p.starting && ready && p.theyDeclined) {
+            if ((!Fighting(v.session.match) && v.atMainMenu) || now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open);
+        }
         // Having chosen, wait for the opponent's answer: their own timer, and the
         // WIN they still play out, end later than this one.
         else if (!p.starting && ready && theirs >= 0) { if (now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open); }
@@ -222,7 +240,11 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
         (deciding && t.rematch[mine])));
-    const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
+    // The opponent's answer from the battle's input (set only with
+    // Branding::answersFromInput): a decline ends the WIN, so it outweighs a
+    // Rematch they chose before it.
+    const bool theyDeclined = p.theyDeclined && !p.starting;
+    const bool theyChose = !theyDeclined && (p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]) || p.theyChose);
     const auto* opponent = room::FindMember(v.room, p.opponent);
     const auto* local = room::FindMember(v.room, v.room.localMember);
     const std::string name = opponent ? opponent->name : loc::T("room.player");
@@ -230,7 +252,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const char* refusal = p.starting ? nullptr : mine < 0 ? "postmatch.not_seated" : theirs < 0 ? nullptr : !midSet && !t.queue.empty() ? "postmatch.queue_waiting" : nullptr;
     const bool again = p.starting || (mine >= 0 && theirs >= 0 && !refusal);
     const char* leftAs = p.after == AfterPostMatch::FighterSelect ? "postmatch.character_select" : "postmatch.back";
-    std::string title = p.left ? std::string(loc::T(leftAs)) : chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
+    std::string title = p.left ? std::string(loc::T(leftAs)) : theyDeclined ? std::string(loc::T("postmatch.back")) : chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
         chosen ? loc::Tf("postmatch.waiting_for", name) : theyChose ? loc::Tf(midSet ? "postmatch.wants_next" : "postmatch.wants_rematch", name) :
         std::string(loc::T("postmatch.choose"));
     if (rotates && !p.left) {
@@ -245,7 +267,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     };
     // This PC's row: its choice, Back to room or Character select once made.
     std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
-    std::string theirWord = state(theyChose, theirs >= 0);
+    // The opponent's: their decline is the battle going back to the room.
+    std::string theirWord = theyDeclined && theirs >= 0 ? std::string(loc::T("postmatch.back")) : state(theyChose, theirs >= 0);
     // The set's winner stays on and its loser waits, once the room has the
     // result; an opponent gone from the cabinets has left all the same.
     if (rotates && t.lastSet.generation == p.generation) {
@@ -301,7 +324,10 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     menu_.backInert = true; menu_.headerChips.clear();
     menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
     const auto* vp = ImGui::GetMainViewport();
-    ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), palette::InkAt(140));
+    // Behind the prompt, a veil the WIN screen shows through, or the shell's
+    // own ground (ShellTheme::promptOnGround).
+    const int veil = ember::ProductTheme().promptOnGround ? static_cast<int>(WindowGroundAlpha * 255 + .5f) : 140;
+    ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), palette::InkAt(veil));
     board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
         const float s = Scale(), rowHeight = 52 * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
@@ -311,7 +337,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         const float ring = 64 * s;
         const ImVec2 centre(at.x + width - ring * .5f, at.y + rowHeight + 4 * s);
         d->AddCircle(centre, 26 * s, c.button, 48, 5 * s);
-        if (!p.starting && !p.left && seconds > 0) {
+        if (!p.starting && !p.left && !theyDeclined && seconds > 0) {
             const float left = static_cast<float>((std::min)(1.0, (std::max)(0.0, (p.until - now) / PostMatchSeconds)));
             d->PathArcTo(centre, 26 * s, -1.5707963f, -1.5707963f + 6.2831853f * left, 48);
             d->PathStroke(seconds <= 3 ? c.danger : c.accent, 0, 5 * s);
@@ -320,8 +346,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             d->AddText(HeadingFont(), 24 * s, ImVec2(centre.x - size.x * .5f, centre.y - size.y * .5f), c.text, number.c_str());
         }
         // The two fighters' answers are pictures of the state, not rows: the title says them too.
-        const struct { const char* id; const room::Member* m; bool ready, seated; std::string word; } players[] = {
-            {"pm-you", local, chosen, mine >= 0, mineWord}, {"pm-opponent", opponent, theyChose, theirs >= 0, theirWord}};
+        const struct { const char* id; const room::Member* m; bool ready, seated, left; std::string word; } players[] = {
+            {"pm-you", local, chosen, mine >= 0, p.left, mineWord}, {"pm-opponent", opponent, theyChose, theirs >= 0, theyDeclined, theirWord}};
         // A tag's line, as v2::Tag sets it, to centre the tag in its row.
         const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
         float y = at.y;
@@ -329,7 +355,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             const v2::Box r{ImVec2(at.x, y), ImVec2(at.x + width - ring - 16 * s, y + rowHeight)};
             d->AddRectFilled(r.min, r.max, c.ink, 4 * s); d->AddRect(r.min, r.max, c.border, 4 * s, 0, s);
             const std::string& word = player.word;
-            const ImU32 tone = !player.seated ? c.danger : &player == players && p.left ? c.muted :
+            const ImU32 tone = !player.seated ? c.danger : player.left ? c.muted :
                 player.ready ? c.ready : ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending));
             const float chip = v2::ChipWidth(word);
             if (player.m) {

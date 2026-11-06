@@ -163,9 +163,10 @@ namespace sf4e {
             unsigned captureCandidate = 0;
             std::uint64_t padHintUntil = 0;
             input::MenuContext menuContext = input::MenuContext::Unavailable;
-            // Over the WIN, the players who chose Rematch (bit 1 = P1, 2 = P2);
-            // and the games of this battle that went on to one in place.
-            unsigned rematchChoices = 0, gamesInPlace = 0;
+            // Over the WIN, the players who chose Rematch and who declined it
+            // (bit 1 = P1, 2 = P2; Battle::RematchDeclines); and the games of
+            // this battle that went on to one in place.
+            unsigned rematchChoices = 0, rematchDeclines = 0, gamesInPlace = 0;
             // The room game this PC fights, and the result of the WIN on screen.
             netplay::FoughtGame foughtGame;
             // The game this PC only watches now (MenuContext::WatchedMatch), by

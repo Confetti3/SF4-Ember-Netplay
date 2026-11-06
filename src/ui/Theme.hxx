@@ -49,6 +49,8 @@ inline ImVec4 EntryTextColor(bool enabled) { return ImGui::ColorConvertU32ToFloa
 // lighter, and the menu art is left out. Their text keeps its own backing.
 // With the game's picture in a corner instead, the menu is opaque.
 constexpr float WatchedMatchWindowAlpha = .72f;
+// The shell's window ground: the theme's ink at this opacity (ImGuiCol_WindowBg).
+constexpr float WindowGroundAlpha = .97f;
 // The watched game's picture in the menu's corner: its share of the screen's width and height.
 constexpr float WatchedPictureShare = .25f;
 // The same for a PlayerPreferences::pictureSpot: small (this share), medium or large.

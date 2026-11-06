@@ -54,6 +54,12 @@ struct ShellTheme {
 	bool quietButtons;
 	// A screen's title in capitals.
 	bool upperTitles;
+	// The post-match prompt covers the game as the room covers the main menu:
+	// the shell's own ground behind it, and the prompt a panel on that ground,
+	// edged as the room's panels are, so the prompt and the room it gives way
+	// to stand on the same ground. Off (Ember's), the WIN screen shows around
+	// the prompt through a veil of ink at 55%.
+	bool promptOnGround;
 };
 
 // SF4 Ember's look: each value is the literal the shell drew before products
@@ -64,6 +70,7 @@ constexpr ShellTheme EmberShellTheme = {
 	0x100F0E, 0x26221E, 0x38332E, 0xF2EBDE, 0x8C857A,
 	4.f, 0.f, 0.f,
 	0x443A31, false, false, false,
+	false,
 };
 
 // Where a game's own battle HUD is, for Ember's match HUD to keep clear of it
@@ -105,6 +112,19 @@ struct Branding {
 	const wchar_t* menuBackdrop;  // the menu's backdrop art, under the install's assets folder
 	const ShellTheme* theme;      // the shell's colours and shapes; none is EmberShellTheme
 	const BattleHud* battleHud;   // the game's battle HUD; none is USF4's
+	// The room draws a fighter only where its player shared a pick: a seat, a
+	// cabinet and a Members row show the picked fighter, else the "?" a missing
+	// picture draws. Off (SF4 Ember), the Members rows show each player's
+	// profile main and an unpicked seat the main, by design: a main is a
+	// choice every SF4 Ember player makes. A product whose players have no
+	// main to show turns it on, so no face stands for a fighter nobody chose.
+	bool roomFacesArePicks;
+	// The post-match prompt shows the opponent's answer as soon as the
+	// battle's input carries it (Battle::RematchChoices, RematchDeclines),
+	// not only once the room shows their Ready. Off (SF4 Ember), an opponent
+	// who chose Rematch over a WIN that goes on in place reads Choosing until
+	// both have chosen.
+	bool answersFromInput;
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO

@@ -26,7 +26,7 @@ void FlushCardTip(std::string& elided) {
 }
 void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  const float s=Scale(),h=max.y-min.y,face=h-12*s;auto* d=ImGui::GetWindowDrawList();
- DrawCharacterPortrait(FighterPicture{card.mainFighter,card.art},ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s));
+ DrawCharacterPortrait(FighterPicture{card.fighter,card.art,card.costume,card.color},ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s));
  const float x=min.x+16*s+face,w=max.x-x-14*s;
  v2::TagView tag{card.label,{},{},card.marks,card.latency};tag.link=card.link;
  v2::Tag(d,ImVec2(x,min.y+5*s),w,tag,v2::TagSize::S);

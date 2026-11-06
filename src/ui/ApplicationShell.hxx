@@ -205,9 +205,10 @@ struct ShellView {
     // The WIN screen of a room game this PC fought, at a table with Instant
     // rematch on (input::MenuContext::MatchResult): the post-match prompt opens.
     bool matchResult = false;
-    // Over that WIN, the seats whose player chose Rematch (bit 1 = P1, 2 = P2),
-    // and the games of the battle that went on to a rematch in place.
-    unsigned rematchChoices = 0, gamesInPlace = 0;
+    // Over that WIN, the seats whose player chose Rematch and whose player
+    // declined it (bit 1 = P1, 2 = P2; Battle::RematchDeclines), and the games
+    // of the battle that went on to a rematch in place.
+    unsigned rematchChoices = 0, rematchDeclines = 0, gamesInPlace = 0;
     // The room game this PC fights: its table and generation, kept when an
     // Arcade room moves the set's loser on, and the WIN's result.
     netplay::FoughtGame foughtGame;
@@ -680,6 +681,10 @@ private:
         // choice until the game is over, then does `after`.
         bool left = false;
         AfterPostMatch after = AfterPostMatch::None;
+        // The opponent's answer as the battle's input carried it
+        // (Branding::answersFromInput), kept for this prompt: the battle reads
+        // it only until it decides, and a decline ends the WIN at once.
+        bool theyChose = false, theyDeclined = false;
     };
     std::optional<PostMatchPrompt> postMatch_;
     // The prompt's focused button last frame, where it stood in the panel's

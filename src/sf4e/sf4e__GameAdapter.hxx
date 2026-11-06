@@ -143,6 +143,11 @@ public:
     virtual sf4e::room::MatchResult GameResult() const = 0;
     // Both players' rematch choices as the battle's input carries them.
     virtual unsigned RematchChoices() const = 0;
+    // The players who declined the rematch over the WIN, as the battle's
+    // input carries it (bit 1 = P1, 2 = P2), from the frame the battle
+    // decided on until the next WIN or battle: a decline ends the WIN at once.
+    // 0 where the input carries no decline (SF4's).
+    virtual unsigned RematchDeclines() const = 0;
     virtual unsigned GamesPlayedInPlace() const = 0;
 
     // Read while Live().

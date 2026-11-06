@@ -17,6 +17,7 @@
 #include "SelectionLabels.hxx"
 #include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <algorithm>
 #include <cfloat>
 #include <cstring>
@@ -55,7 +56,9 @@ float RoomBoardFrame::HideButton(ImDrawList* d,const MenuEntry& e,ImVec2 corner)
 SeatLook SeatLookOf(const ShellView& v,const room::Member& m) {
  const bool own=m.id==v.room.localMember;
  const int picked=own?v.selectedPick.fighter:m.fighter;
- SeatLook look;look.picked=picked>=0;look.fighter=look.picked?picked:own?v.preferences.mainFighter:m.mainFighter;
+ SeatLook look;look.picked=picked>=0;
+ // Unpicked, the main stands for them, or nobody (Branding::roomFacesArePicks).
+ look.fighter=look.picked?picked:ember::Product().branding.roomFacesArePicks?-1:own?v.preferences.mainFighter:m.mainFighter;
  look.random=own&&v.selectedRandom;
  if(!look.picked)return look;
  if(own){look.costume=v.selectedPick.costume;look.color=v.selectedPick.color;look.ultra=v.selectedPick.ultra;}

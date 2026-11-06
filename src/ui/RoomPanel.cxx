@@ -9,11 +9,13 @@
 #include "RoomFeedback.hxx"
 #include "RoomControls.hxx"
 #include "RoomCards.hxx"
+#include "RoomPanelBoard.hxx"
 #include "RowId.hxx"
 #include "LatencyMark.hxx"
 #include "SelectionLabels.hxx"
 #include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <algorithm>
 #include <cstdio>
 #include <utility>
@@ -706,7 +708,9 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  const auto* m=id?Member(v.room,*id):nullptr;if(!m)return card;
  const auto tag=MemberTag(v.memberLatency,*m,v.room.localMember);
  card.id=e.id;card.name=m->name;card.label=e.label;card.link=*tag.link;card.marks=tag.marks;card.latency=tag.ping;
- card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+ // Who they are, their main; or what they picked, as their seat shows it (Branding::roomFacesArePicks).
+ if(!ember::Product().branding.roomFacesArePicks)card.fighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+ else{const auto look=SeatLookOf(v,*m);card.fighter=look.fighter;card.costume=(std::max)(0,look.costume);card.color=(std::max)(0,look.color);}
  const auto status=MemberStatusText(v.room,*m,false,true);
  const auto idle=IdleText(*m,v.roomElapsedMs);
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;

@@ -42,6 +42,7 @@ public:
     bool ResultScreenShown() const override { return false; }
     sf4e::room::MatchResult GameResult() const override { return sf4e::room::MatchResult::Abort; }
     unsigned RematchChoices() const override { return 0; }
+    unsigned RematchDeclines() const override { return 0; }
     unsigned GamesPlayedInPlace() const override { return 0; }
     LinkSample Sample() const override { return {}; }
     int DisconnectCountdownMs() const override { return -1; }

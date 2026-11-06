@@ -95,6 +95,8 @@ public:
     }
     sf4e::room::MatchResult GameResult() const override { return fSystem::GameResult(); }
     unsigned RematchChoices() const override { return fSystem::rematchChoices; }
+    // Back to room and Character select are not sent over USF4's WIN.
+    unsigned RematchDeclines() const override { return 0; }
     unsigned GamesPlayedInPlace() const override { return fSystem::GamesPlayedInPlace(); }
 
     LinkSample Sample() const override {

@@ -39,7 +39,10 @@ struct MemberCardView {
     // Their sets won and lost in the room ("2 W / 1 L"), none before the first:
     // after the status, and on the board's list only where it fits beside it.
     std::string record;
-    int mainFighter=-1;
+    // The fighter the row shows: the member's main (-1: none shared), or with
+    // Branding::roomFacesArePicks their shared pick in its costume and colour
+    // (-1: no pick shared, drawn as "?").
+    int fighter=-1,costume=0,color=0;
     // Settings › Room layout › Pictures. A main has no costume of its own, so
     // Characters draws it in the original outfit.
     FighterArt art=FighterArt::Portrait;

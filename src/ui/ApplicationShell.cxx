@@ -725,9 +725,13 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+(vp->Size.x-size.x)/2,vp->Pos.y+(vp->Size.y-size.y)/2));ImGui::SetNextWindowSize(size);
  }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
+ // On the shell's own ground (ShellTheme::promptOnGround), the prompt is one of its panels.
+ const bool promptPanel=postMatchScreen&&ember::ProductTheme().promptOnGround;
+ if(promptPanel)ImGui::PushStyleColor(ImGuiCol_WindowBg,ImGui::ColorConvertU32ToFloat4(v2::Colors().panel));
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(!postMatchScreen?v2::SideMargin(area.W(),Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  static const std::string title=std::string(ember::Product().branding.productName)+"###EmberShell";
  ImGui::Begin(title.c_str(),nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
+ if(promptPanel)ImGui::PopStyleColor();
  menu_.backInert=false;menu_.ownsBack=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
  const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom);
  ImGui::End();ImGui::PopStyleVar(2);

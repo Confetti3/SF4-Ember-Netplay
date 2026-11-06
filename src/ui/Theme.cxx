@@ -303,7 +303,7 @@ bool ApplyTheme(float displayScale, float interfaceScale) {
     auto* c = style.Colors;
     c[ImGuiCol_Text] = Color(Ivory);
     c[ImGuiCol_TextDisabled] = Color(Muted);
-    c[ImGuiCol_WindowBg] = Color(Ink, .97f);
+    c[ImGuiCol_WindowBg] = Color(Ink, WindowGroundAlpha);
     c[ImGuiCol_ChildBg] = Color(Panel);
     c[ImGuiCol_PopupBg] = Color(Panel, .99f);
     c[ImGuiCol_Border] = Color(Border);

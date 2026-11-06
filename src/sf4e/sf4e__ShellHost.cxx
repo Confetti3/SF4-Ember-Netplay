@@ -72,7 +72,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.practiceFight = snapshot.menuContext == sf4e::input::MenuContext::PracticeMatch;
     view.watchedGame = snapshot.watchedGame;
     view.matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
-    view.rematchChoices = snapshot.rematchChoices; view.gamesInPlace = snapshot.gamesInPlace;
+    view.rematchChoices = snapshot.rematchChoices; view.rematchDeclines = snapshot.rematchDeclines; view.gamesInPlace = snapshot.gamesInPlace;
     view.foughtGame = snapshot.foughtGame;
     view.lockInDrops = snapshot.lockInDrops;
     view.canEditPreferences = snapshot.canEditPreferences;
