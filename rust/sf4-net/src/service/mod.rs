@@ -354,14 +354,28 @@ struct Actor {
     next_transport_message: u64,
     next_coordination_operation: u64,
     pending_coordination_refresh: Option<CoordinationRefreshKey>,
+    /// The task reading `pending_coordination_refresh`, aborted when the
+    /// room's Raft changes under it (`raft_changed`).
+    coordination_refresh_task: Option<AbortHandle>,
+    /// A CoordinationState was not sent for want of queue room; the tick
+    /// refreshes again once the queue has headroom.
+    coordination_deferred: bool,
+    /// Signalled by `install_recovery`'s watcher when the room's Raft term,
+    /// leader or membership changes.
+    raft_changes: Arc<Notify>,
     pending_membership_operation: Option<MembershipOperationKey>,
     pending_admission_operation: Option<AdmissionOperationKey>,
     /// The controls the running admission operation settles on completion.
     pending_admission_bindings: Vec<ControlBinding>,
     deferred_admissions: VecDeque<DeferredAdmission>,
     pending_membership_publications: BTreeSet<EndpointId>,
-    /// What the last CoordinationState sent said.
+    /// What the last CoordinationState sent said; cleared to send the next
+    /// one even when unchanged.
     last_coordination_state: Option<CoordinationMarker>,
+    /// What the last CoordinationState sent said, kept for the room. A
+    /// state whose term, writability or locality differs from it is a
+    /// lifecycle event; a repeat is bulk.
+    coordination_sent: Option<CoordinationMarker>,
     /// The term of the last ControlRebound sent (0 for none). The native room
     /// counts as lost from a new term's CoordinationState until that term's
     /// ControlRebound, so the first one of a term is never dropped.
@@ -563,12 +577,15 @@ impl Actor {
         self.pending_checkpoint_ack = None;
         self.pending_checkpoint_committed = None;
         self.pending_coordination_refresh = None;
+        self.coordination_refresh_task = None;
+        self.coordination_deferred = false;
         self.pending_membership_operation = None;
         self.pending_admission_operation = None;
         self.pending_admission_bindings.clear();
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
+        self.coordination_sent = None;
         self.rebound_term = 0;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
@@ -839,6 +856,7 @@ impl Actor {
         let tick = tokio::time::sleep_until(Instant::now());
         tokio::pin!(tick);
         let wake = self.wake.clone();
+        let raft_changes = self.raft_changes.clone();
         let mut statistics = interval(Duration::from_secs(1));
         let mut statistics_ticks: u64 = 0;
         // Load since the last HelperLoad report; see Event::HelperLoad.
@@ -903,6 +921,11 @@ impl Actor {
                 }
                 // A control queued a frame or the room committed: tick now.
                 _ = wake.notified() => tick_now(tick.as_mut()),
+                _ = raft_changes.notified() => {
+                    tick_now(tick.as_mut());
+                    let _step = busy.enter("raft_change");
+                    self.raft_changed().await?;
+                }
                 () = &mut tick => {
                     let _step = busy.enter("tick");
                     let started = Instant::now();
@@ -910,6 +933,7 @@ impl Actor {
                     // Before poll_controls, which drops departed controls.
                     load.control_queue(self.controls.values().map(ControlWorker::take_queue_peak).max().unwrap_or(0));
                     self.events.flush()?;
+                    self.pump_deferred_coordination_state().await?;
                     self.expire_departure_grace();
                     self.start_next_admission_operation();
                     self.pump_membership_publications();

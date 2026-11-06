@@ -13,6 +13,9 @@ pub(super) struct MembershipOperationKey {
 
 pub(super) struct MembershipOperationResult {
     pub(super) confirmed_retirements: BTreeSet<u64>,
+    /// The applied members or voters differ from what they were when the
+    /// operation began.
+    pub(super) changed: bool,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -302,6 +305,11 @@ impl Actor {
                 if recovery.coordinator.current_term() != term {
                     return Err(failed("obsolete membership operation"));
                 }
+                let applied = || async {
+                    let store = recovery.coordinator.store();
+                    (store.applied_members().await, store.applied_voters().await)
+                };
+                let before = applied().await;
                 if recovery.coordinator.current_leader() == Some(recovery.incarnation) {
                     // An abandoned joint configuration first: every other
                     // change below commits through its quorum.
@@ -388,6 +396,7 @@ impl Actor {
                 }
                 Ok(MembershipOperationResult {
                     confirmed_retirements,
+                    changed: applied().await != before,
                 })
             };
             let result = timeout(MEMBERSHIP_OPERATION_TIMEOUT, operation)
@@ -580,6 +589,10 @@ impl Actor {
             && recovery.incarnation == key.incarnation
             && recovery.coordinator.current_term() == key.term
             && committed_revision == key.revision;
+        // A stale completion is refreshed at once: the next exact
+        // committed-roster refresh retries the operation through the current
+        // authority, and the pre-write retirement fences stay in place.
+        let mut refresh = !current;
         if current && let Ok(result) = result {
             let (_, history) = recovery
                 .coordinator
@@ -587,15 +600,22 @@ impl Actor {
                 .applied_membership_provenance()
                 .await;
             let confirmed = result.confirmed_retirements;
+            refresh = result.changed || !confirmed.is_empty();
             self.apply_confirmed_retirements(confirmed.clone(), &history);
             // Only now, with the old quorum no longer needing it, does a
             // bound room close what it retired.
             self.close_retired_strangers(&confirmed)?;
         }
-        // Stale completions leave the pre-write retirement fences in
-        // place. The next exact committed-roster refresh retries the
-        // operation through the current authority.
-        self.republish_coordination_state().await?;
+        // An operation that changed nothing is not refreshed after: the
+        // refresh would start the same operation again, with nothing new to
+        // act on. A follower holding a retirement only the leader can
+        // commit (a leaving host's, between its last checkpoint and its
+        // handoff) went round that cycle about every 0.3 ms, each turn a
+        // coordination read at the leader and an event to the native side.
+        // A Raft change and the once-a-second refresh start the next one.
+        if refresh {
+            self.republish_coordination_state().await?;
+        }
         Ok(())
     }
 
@@ -619,6 +639,10 @@ impl Actor {
             && recovery.incarnation == key.incarnation;
         let mut published_roster_changed = false;
         let mut accepted = BTreeSet::new();
+        // A refresh retries every admission still unapplied, so refreshing
+        // after one that failed and settled no control would retry it at
+        // once, as fast as it fails. The once-a-second refresh retries it.
+        let refresh = result.is_ok() || !bindings.is_empty();
         if current_room && let Ok(result) = result {
             let (members, history) = recovery
                 .coordinator
@@ -667,7 +691,9 @@ impl Actor {
             // accepts the current full snapshot.
             self.queue_membership_publication();
         }
-        self.republish_coordination_state().await?;
+        if refresh {
+            self.republish_coordination_state().await?;
+        }
         self.start_next_admission_operation();
         Ok(())
     }

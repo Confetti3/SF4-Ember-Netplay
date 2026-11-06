@@ -10,6 +10,7 @@ use tokio::net::UdpSocket;
 mod admission;
 mod checkpoint_export;
 mod checkpoint_pipe;
+mod coordination_state;
 mod departures;
 mod dials;
 mod game_links;

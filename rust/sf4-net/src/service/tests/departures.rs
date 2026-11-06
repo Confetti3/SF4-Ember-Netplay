@@ -437,18 +437,18 @@ async fn a_retirement_set_holding_only_recent_departures_fails_closed() {
 }
 
 /// A learner follower with a control to a running leader that has admitted it.
-struct LearnerFollower {
-    fixture: BoundHost,
-    learner: crate::recovery::RecoverySession,
-    follower: Actor,
-    events: mpsc::Receiver<Event>,
-    commands: mpsc::Receiver<Request>,
-    failure: watch::Receiver<bool>,
+pub(super) struct LearnerFollower {
+    pub(super) fixture: BoundHost,
+    pub(super) learner: crate::recovery::RecoverySession,
+    pub(super) follower: Actor,
+    pub(super) events: mpsc::Receiver<Event>,
+    pub(super) commands: mpsc::Receiver<Request>,
+    pub(super) failure: watch::Receiver<bool>,
     _command_sender: mpsc::Sender<Request>,
     _fault: watch::Sender<bool>,
 }
 
-async fn learner_follower() -> LearnerFollower {
+pub(super) async fn learner_follower() -> LearnerFollower {
     let mut fixture = bound_host(|_| {}).await;
     let learner = crate::recovery::RecoverySession::join(
         fixture.room,
