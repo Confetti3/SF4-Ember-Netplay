@@ -362,7 +362,7 @@ impl Actor {
             learner_count: state.learner_count,
         };
         if self.last_coordination_state != Some(marker) {
-            if !self.emit_bulk(Event::CoordinationState {
+            let event = Event::CoordinationState {
                 epoch: self.epoch,
                 room: recovery.room,
                 term: state.term,
@@ -373,8 +373,17 @@ impl Actor {
                 leader_local: state.leader_local,
                 voter_count: state.voter_count,
                 learner_count: state.learner_count,
-            }) {
-                return Ok(());
+            };
+            // A new term is a lifecycle event, as the old leader's
+            // control_closed is: under checkpoint pressure a bulk one was
+            // dropped while that close went through, and the native room
+            // took a handed-off leader for a lost one.
+            if self.last_coordination_state.is_some_and(|last| last.term == marker.term) {
+                if !self.emit_bulk(event) {
+                    return Ok(());
+                }
+            } else {
+                self.emit(event)?;
             }
             self.last_coordination_state = Some(marker);
         }
@@ -446,14 +455,24 @@ impl Actor {
         // reserve still bounds retries during checkpoint pressure. The native
         // side also clears its rebound state on a term change, a leader-scoped
         // error, the leader's control_closed and Fail(), and only the next
-        // snapshot restores it.
-        self.emit_bulk(Event::ControlRebound {
+        // snapshot restores it. Until then the room reads as lost, so the
+        // first snapshot of a term is a lifecycle event like the term's
+        // CoordinationState: a bulk one dropped under checkpoint pressure (a
+        // leaving host's last commit) left a healthy handoff showing
+        // "recovering" until the next cadence.
+        let rebound = Event::ControlRebound {
             epoch: self.epoch,
             room: recovery.room,
             leader: state.leader,
             members,
             member_incarnations,
-        });
+        };
+        if self.rebound_term == state.term {
+            self.emit_bulk(rebound);
+        } else {
+            self.emit(rebound)?;
+            self.rebound_term = state.term;
+        }
         Ok(())
     }
 

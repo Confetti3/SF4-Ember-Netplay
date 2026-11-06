@@ -158,6 +158,7 @@ pub async fn run_on_port<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
         deferred_admissions: VecDeque::new(),
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
+        rebound_term: 0,
         coordination_writable: false,
         unwritable_leader_since: None,
         reconnect_target: None,

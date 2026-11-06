@@ -362,6 +362,10 @@ struct Actor {
     pending_membership_publications: BTreeSet<EndpointId>,
     /// What the last CoordinationState sent said.
     last_coordination_state: Option<CoordinationMarker>,
+    /// The term of the last ControlRebound sent (0 for none). The native room
+    /// counts as lost from a new term's CoordinationState until that term's
+    /// ControlRebound, so the first one of a term is never dropped.
+    rebound_term: u64,
     coordination_writable: bool,
     unwritable_leader_since: Option<(u64, u64, Instant)>,
     /// At most one committed-leader control rebind may be in flight. Without
@@ -565,6 +569,7 @@ impl Actor {
         self.deferred_admissions.clear();
         self.pending_membership_publications.clear();
         self.last_coordination_state = None;
+        self.rebound_term = 0;
         self.unwritable_leader_since = None;
         self.reconnect_target = None;
         self.pending_game_admissions.clear();

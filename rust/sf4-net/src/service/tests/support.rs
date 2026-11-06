@@ -107,6 +107,7 @@ pub(in crate::service) fn test_actor(endpoint: Endpoint, events: mpsc::Sender<Ev
         deferred_admissions: VecDeque::new(),
         pending_membership_publications: BTreeSet::new(),
         last_coordination_state: None,
+        rebound_term: 0,
         coordination_writable: false,
         unwritable_leader_since: None,
         reconnect_target: None,

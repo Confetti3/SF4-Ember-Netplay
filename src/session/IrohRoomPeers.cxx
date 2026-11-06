@@ -215,6 +215,7 @@ bool IrohRoom::HandleControlTraffic(const json& event, const std::string& type, 
 		// leader's record is pruned or expired like any other.
 		ControlClosed(peer->second, DepartureGraceMs);
 		if (identity == room_.coordination.leader) {
+			spdlog::info("Room: the leader's control closed (term {})", room_.coordination.term);
 			room_.coordination.writable = false; room_.coordination.rebound = false;
 			room_.state = State::Degraded;
 			room_.probe = {};

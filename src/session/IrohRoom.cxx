@@ -419,6 +419,10 @@ bool IrohRoom::ConsumeCoordinationEvent(const json& event, const std::string& ty
         const auto term=event.at("term").get<std::uint64_t>();
         const auto revision=event.at("revision").get<std::uint64_t>();
         if (term<room_.coordination.term || (term==room_.coordination.term && revision<room_.coordination.revision)) return true;
+        if (term!=room_.coordination.term || event.at("writable").get<bool>()!=room_.coordination.writable ||
+            event.at("leader_local").get<bool>()!=room_.coordination.leaderLocal)
+            spdlog::info("Room: coordination term {} revision {} writable {} leader_local {} voters {}", term, revision,
+                event.at("writable").get<bool>(), event.at("leader_local").get<bool>(), event.value("voter_count",std::size_t(0)));
         if (term!=room_.coordination.term) {
             if(!sender_.bytes.empty()) sender_.status="term_changed";
             sender_.bytes.clear(); room_.coordination.rebound=false;
@@ -838,7 +842,11 @@ void IrohRoom::Poll() {
 	}
 	PumpCheckpoint();
 	// Bound dispatch independently of each transport's application-message cap.
-	for (int budget = 0; budget < 8 && helper_.TryReceive(frame); ++budget) {
+	// A writable term not yet rebound reads as a lost room; its control_rebound
+	// follows its coordination_state, so the poll reads on (to a second budget)
+	// rather than let the runtime see a healthy handoff as a loss between them.
+	const auto awaitingRebound = [this] { return room_.coordination.writable && !room_.coordination.rebound; };
+	for (int budget = 0; (budget < 8 || (budget < 16 && awaitingRebound())) && helper_.TryReceive(frame); ++budget) {
 		try {
 			// A raw-body frame is a JSON header plus the chunk or message body.
 			std::size_t headerSize = 0;
@@ -896,6 +904,7 @@ void IrohRoom::Poll() {
 			}
 			if (event.value("epoch", std::uint64_t(0)) != epoch_) continue;
 			if (type == "room_closed") {
+				spdlog::info("Room: the helper closed the room (state {})", static_cast<int>(room_.state));
 				departure_.roomCommandQueued = false; departure_.pending = false; departure_.deadline = 0;
 				CloseAllGames();
 				room_.state = State::Idle; room_.peers.clear(); room_.closed.clear(); continue;

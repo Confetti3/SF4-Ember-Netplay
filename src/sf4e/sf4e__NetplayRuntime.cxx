@@ -85,11 +85,13 @@ static void NoteNativeScreen() {
 }
 
 void CloseRoom() {
-	spdlog::info("Room: closing error='{}' match_error='{}' match_phase={} spectator={} ggpo={}", runtime->error,
-		runtime->match ? runtime->match->Error() : std::string(), runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1,
-		LocalIsSpectator(), Game().battle.Live());
     const bool abandon=runtime->replacementPending || (runtime->room && runtime->room->Coordination().active &&
         !runtime->room->Coordination().writable);
+	spdlog::info("Room: closing error='{}' match_error='{}' match_phase={} spectator={} ggpo={} abandon={} leave_acked={} "
+		"writable={} leader_local={}", runtime->error,
+		runtime->match ? runtime->match->Error() : std::string(), runtime->match ? static_cast<int>(runtime->match->GetPhase()) : -1,
+		LocalIsSpectator(), Game().battle.Live(), abandon, runtime->leave.leaveAcknowledged,
+		runtime->room && runtime->room->Coordination().writable, runtime->room && runtime->room->Coordination().leaderLocal);
     runtime->recovery=session::RoomRecoveryRuntime{};
     runtime->recoveryProgress=session::RecoveryProgress{};
     runtime->observedAuthorityTerm=0;
