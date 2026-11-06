@@ -1,5 +1,10 @@
 # Public room classes
 
+`RANK_LADDER.md` is a proposal to replace the ten classes below with the 29 ranks
+of USF4 arcade mode, to show nothing before a first game, and to let mastery
+count the games of a player who has stopped taking part. Until it is accepted this
+document is what is built.
+
 A player's class shows beside their name in public rooms: one of USF4's own
 online classes, D, D+, C, C+, B, B+, A, A+, Master and Grand Master, drawn with
 the game's own class emblems. It answers "who am I sitting down against?"
@@ -167,6 +172,8 @@ appear and how to stop. A changed name or flag follows the next time the page
 opens.
 
 ### Not taking part
+
+`RANK_LADDER.md` proposes that such a game still counts for mastery.
 
 Taking part is the default and belongs to the Discord account. A player who
 stops has no class on any ticket, is not on the board, and their games count
