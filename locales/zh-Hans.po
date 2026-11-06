@@ -2932,6 +2932,12 @@ msgstr "使用{0}、{1}准备就绪。"
 msgid "room.ready.with_against"
 msgstr "使用{0}、{1}对阵{2}，准备就绪。"
 
+msgid "room.ready.fighter"
+msgstr "使用{0}准备就绪。"
+
+msgid "room.ready.fighter_against"
+msgstr "使用{0}对阵{1}，准备就绪。"
+
 msgid "room.ultra.detail"
 msgstr "在这里选择下一局的终极组合，不用打开对战席选项。"
 
@@ -3172,6 +3178,9 @@ msgstr "对战席规则"
 
 msgid "room.rules_summary"
 msgstr "{0} 回合，{1} 秒，版本选择{2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "{0} 回合，{1} 秒"
 
 msgid "room.table_options"
 msgstr "对战席选项"
@@ -5469,6 +5478,9 @@ msgstr "练习对战"
 
 msgid "room.rules_summary_practice"
 msgstr "练习对战，{0} 回合，{1} 秒，Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "练习对战，{0} 回合，{1} 秒"
 
 msgid "room.type"
 msgstr "房间类型"

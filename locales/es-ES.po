@@ -2837,7 +2837,7 @@ msgid "room.link_unknown"
 msgstr "Conexión desconocida"
 
 msgid "room.table_footer"
-msgstr "{0} rondas / {1} s     Cola {2}     Viendo {3}"
+msgstr "Rondas {0} / {1} s     Cola {2}     Viendo {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "ANFIT. / {0} / Asiento {1}"
@@ -2931,6 +2931,12 @@ msgstr "Listo con {0}, {1}."
 
 msgid "room.ready.with_against"
 msgstr "Listo con {0}, {1}, contra {2}."
+
+msgid "room.ready.fighter"
+msgstr "Listo con {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Listo con {0}, contra {1}."
 
 msgid "room.ultra.detail"
 msgstr "Elige tu Ultra para la siguiente partida aquí, sin abrir las Opciones de la mesa."
@@ -3171,7 +3177,10 @@ msgid "room.table_rules"
 msgstr "Reglas"
 
 msgid "room.rules_summary"
-msgstr "{0} rondas, {1} s, selección de edición {2}"
+msgstr "Rondas {0}, {1} s, selección de edición {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Rondas {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Opciones de la mesa"
@@ -5468,7 +5477,10 @@ msgid "room.table_footer_practice"
 msgstr "Partida de práctica"
 
 msgid "room.rules_summary_practice"
-msgstr "Partida de práctica, {0} asaltos, {1} s, Edition Select {2}"
+msgstr "Partida de práctica, asaltos {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Partida de práctica, asaltos {0}, {1} s"
 
 msgid "room.type"
 msgstr "Tipo de sala"

@@ -93,7 +93,9 @@ inline std::string LookText(const replayinputs::Player& p){
  const bool known=ember::ValidFighter(p.fighter)&&p.costume>=0&&p.costume<ember::Catalog().costumeCount(p.fighter)&&p.color>=0&&p.ultra>=0;
  if(!known)return loc::T("inputs.look_unknown");
  selection::Pick pick;pick.fighter=p.fighter;pick.costume=p.costume;
- return loc::Tf("selection.appearance_value",CostumeLabel(pick),p.color+1)+", "+UltraLabel(p.ultra);
+ const std::string look=loc::Tf("selection.appearance_value",CostumeLabel(pick),p.color+1);
+ // A game with one Ultra choice has no Ultra to name.
+ return ember::Catalog().ultraChoices>1?look+", "+UltraLabel(p.ultra):look;
 }
 inline std::string PressesText(const replayinputs::Stats& s){
  std::string presses;

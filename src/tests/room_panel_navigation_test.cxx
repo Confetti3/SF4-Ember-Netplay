@@ -518,7 +518,7 @@ int main() try {
             "Apply rules stayed after the rules were applied");
         // Everyone else reads the rules on one line.
         view.room.host = 2; frame();
-        Check(row("rules").value == "5 rounds, 60 s, Edition Select On" && !row("rules").enabled &&
+        Check(row("rules").value == "Rounds 5, 60 s, Edition Select On" && !row("rules").enabled &&
             std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "rounds"; }),
             "A guest does not see the table's rules as one line");
         view.room.host = 1; frame();

@@ -2836,7 +2836,7 @@ msgid "room.link_unknown"
 msgstr "Verbindung unbekannt"
 
 msgid "room.table_footer"
-msgstr "{0} Runden / {1} Sek.     Warteschlange {2}     Zuschauer {3}"
+msgstr "Runden {0} / {1} Sek.     Warteschlange {2}     Zuschauer {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Slot {1}"
@@ -2930,6 +2930,12 @@ msgstr "Bereit mit {0}, {1}."
 
 msgid "room.ready.with_against"
 msgstr "Bereit mit {0}, {1}, gegen {2}."
+
+msgid "room.ready.fighter"
+msgstr "Bereit mit {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Bereit mit {0}, gegen {1}."
 
 msgid "room.ultra.detail"
 msgstr "Wählen Sie Ihr Ultra für das nächste Spiel hier, ohne die Tischoptionen zu öffnen."
@@ -3170,7 +3176,10 @@ msgid "room.table_rules"
 msgstr "Tischregeln"
 
 msgid "room.rules_summary"
-msgstr "{0} Runden, {1} s, Editionsauswahl {2}"
+msgstr "Runden {0}, {1} s, Editionsauswahl {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Runden {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Tischoptionen"
@@ -5467,7 +5476,10 @@ msgid "room.table_footer_practice"
 msgstr "Übungskampf"
 
 msgid "room.rules_summary_practice"
-msgstr "Übungskampf, {0} Runden, {1} s, Edition Select {2}"
+msgstr "Übungskampf, Runden {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Übungskampf, Runden {0}, {1} s"
 
 msgid "room.type"
 msgstr "Raumtyp"

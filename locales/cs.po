@@ -2931,6 +2931,12 @@ msgstr "Připraven s {0}, {1}."
 msgid "room.ready.with_against"
 msgstr "Připraven s {0}, {1}, proti {2}."
 
+msgid "room.ready.fighter"
+msgstr "Připraven s {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Připraven s {0}, proti {1}."
+
 msgid "room.ultra.detail"
 msgstr "Vyberte si Ultru pro další hru přímo zde, bez otevírání Možností stolu."
 
@@ -3171,6 +3177,9 @@ msgstr "Pravidla stolu"
 
 msgid "room.rules_summary"
 msgstr "Kola: {0}, {1} s, výběr edice: {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Kola: {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Možnosti stolu"
@@ -5467,7 +5476,10 @@ msgid "room.table_footer_practice"
 msgstr "Cvičný zápas"
 
 msgid "room.rules_summary_practice"
-msgstr "Cvičný zápas, {0} kol, {1} s, Edition Select {2}"
+msgstr "Cvičný zápas, kola: {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Cvičný zápas, kola: {0}, {1} s"
 
 msgid "room.type"
 msgstr "Typ místnosti"

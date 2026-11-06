@@ -2931,6 +2931,12 @@ msgstr "Gotowy z {0}, {1}."
 msgid "room.ready.with_against"
 msgstr "Gotowy z {0}, {1}, przeciw {2}."
 
+msgid "room.ready.fighter"
+msgstr "Gotowy z {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Gotowy z {0}, przeciw {1}."
+
 msgid "room.ultra.detail"
 msgstr "Wybierz tu swoją Ultrę na następną grę, bez otwierania Opcji stołu."
 
@@ -3171,6 +3177,9 @@ msgstr "Zasady stołu"
 
 msgid "room.rules_summary"
 msgstr "Rundy: {0}, {1} s, wybór edycji: {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Rundy: {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Opcje stołu"
@@ -5467,7 +5476,10 @@ msgid "room.table_footer_practice"
 msgstr "Mecz treningowy"
 
 msgid "room.rules_summary_practice"
-msgstr "Mecz treningowy, {0} rund, {1} s, Edition Select {2}"
+msgstr "Mecz treningowy, rundy: {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Mecz treningowy, rundy: {0}, {1} s"
 
 msgid "room.type"
 msgstr "Typ pokoju"

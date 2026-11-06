@@ -2931,6 +2931,12 @@ msgstr "Готов: {0}, {1}."
 msgid "room.ready.with_against"
 msgstr "Готов: {0}, {1}, против {2}."
 
+msgid "room.ready.fighter"
+msgstr "Готов: {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Готов: {0}, против {1}."
+
 msgid "room.ultra.detail"
 msgstr "Выберите Ультра для следующей игры здесь, не открывая настройки ячейки."
 
@@ -3171,6 +3177,9 @@ msgstr "Правила ячейки"
 
 msgid "room.rules_summary"
 msgstr "Раундов: {0}, {1} с, выбор издания: {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Раундов: {0}, {1} с"
 
 msgid "room.table_options"
 msgstr "Настройки ячейки"
@@ -5468,6 +5477,9 @@ msgstr "Тренировочный матч"
 
 msgid "room.rules_summary_practice"
 msgstr "Тренировочный матч, раундов: {0}, {1} с, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Тренировочный матч, раундов: {0}, {1} с"
 
 msgid "room.type"
 msgstr "Тип комнаты"

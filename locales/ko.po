@@ -2932,6 +2932,12 @@ msgstr "{0}, {1}(으)로 준비 완료."
 msgid "room.ready.with_against"
 msgstr "{2} 상대로 {0}, {1}(으)로 준비 완료."
 
+msgid "room.ready.fighter"
+msgstr "{0}(으)로 준비 완료."
+
+msgid "room.ready.fighter_against"
+msgstr "{1} 상대로 {0}(으)로 준비 완료."
+
 msgid "room.ultra.detail"
 msgstr "테이블 옵션을 열지 않고 여기서 다음 게임의 울트라 콤보를 고릅니다."
 
@@ -3172,6 +3178,9 @@ msgstr "테이블 규칙"
 
 msgid "room.rules_summary"
 msgstr "{0}라운드, {1}초, 에디션 선택 {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "{0}라운드, {1}초"
 
 msgid "room.table_options"
 msgstr "테이블 옵션"
@@ -5469,6 +5478,9 @@ msgstr "연습 대전"
 
 msgid "room.rules_summary_practice"
 msgstr "연습 대전, {0}라운드, {1}초, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "연습 대전, {0}라운드, {1}초"
 
 msgid "room.type"
 msgstr "방 유형"

@@ -238,8 +238,12 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
 std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat) {
     const auto* opponent = room::FindMember(v.room, seat == 0 ? t.p2 : seat == 1 ? t.p1 : 0);
     const bool against = opponent && ember::ValidFighter(opponent->fighter);
+    const char* opponentName = against ? ember::Catalog().fighterName(opponent->fighter) : "";
+    // A game with one Ultra choice has no Ultra to name.
+    if (ember::Catalog().ultraChoices <= 1)
+        return against ? loc::Tf("room.ready.fighter_against", v.fighterName, opponentName) : loc::Tf("room.ready.fighter", v.fighterName);
     const auto ultra = UltraMove(v.selectedPick.fighter, v.selectedPick.ultra);
-    return against ? loc::Tf("room.ready.with_against", v.fighterName, ultra, ember::Catalog().fighterName(opponent->fighter)) :
+    return against ? loc::Tf("room.ready.with_against", v.fighterName, ultra, opponentName) :
         loc::Tf("room.ready.with", v.fighterName, ultra);
 }
 std::string OpponentChangedText(int fighter) {

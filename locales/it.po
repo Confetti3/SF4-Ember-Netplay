@@ -2931,6 +2931,12 @@ msgstr "Pronto con {0}, {1}."
 msgid "room.ready.with_against"
 msgstr "Pronto con {0}, {1}, contro {2}."
 
+msgid "room.ready.fighter"
+msgstr "Pronto con {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Pronto con {0}, contro {1}."
+
 msgid "room.ultra.detail"
 msgstr "Scegli qui la tua Ultra per la prossima partita, senza aprire le Opzioni del tavolo."
 
@@ -3171,6 +3177,9 @@ msgstr "Regole del tavolo"
 
 msgid "room.rules_summary"
 msgstr "{0} round, {1} s, seleziona versione {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "{0} round, {1} s"
 
 msgid "room.table_options"
 msgstr "Opzioni del tavolo"
@@ -5468,6 +5477,9 @@ msgstr "Partita di pratica"
 
 msgid "room.rules_summary_practice"
 msgstr "Partita di pratica, {0} round, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Partita di pratica, {0} round, {1} s"
 
 msgid "room.type"
 msgstr "Tipo di stanza"

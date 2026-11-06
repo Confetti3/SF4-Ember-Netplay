@@ -2576,7 +2576,7 @@ msgstr "Conexão Wi-Fi"
 msgid "room.link_unknown"
 msgstr "Conexão desconhecida"
 msgid "room.table_footer"
-msgstr "{0} rounds / {1} s     Fila {2}     Assistindo {3}"
+msgstr "Rounds {0} / {1} s     Fila {2}     Assistindo {3}"
 msgid "room.board_status_host_slot"
 msgstr "ANFITRIÃO / {0} / Espaço {1}"
 msgid "room.board_status_slot"
@@ -2675,6 +2675,12 @@ msgstr "Pronto com {0}, {1}."
 
 msgid "room.ready.with_against"
 msgstr "Pronto com {0}, {1}, contra {2}."
+
+msgid "room.ready.fighter"
+msgstr "Pronto com {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Pronto com {0}, contra {1}."
 
 msgid "room.ultra.detail"
 msgstr "Escolha seu Ultra para a próxima partida aqui, sem abrir as Opções da mesa."
@@ -2842,7 +2848,10 @@ msgstr "Confirmação cancelada: sua visão de espectador caiu. Confirme de novo
 msgid "room.table_rules"
 msgstr "Regras da mesa"
 msgid "room.rules_summary"
-msgstr "{0} rounds, {1} s, seleção de edição {2}"
+msgstr "Rounds {0}, {1} s, seleção de edição {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Rounds {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Opções da mesa"
@@ -5000,7 +5009,10 @@ msgid "room.table_footer_practice"
 msgstr "Partida de prática"
 
 msgid "room.rules_summary_practice"
-msgstr "Partida de prática, {0} rounds, {1} s, Edition Select {2}"
+msgstr "Partida de prática, rounds {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Partida de prática, rounds {0}, {1} s"
 
 msgid "room.type"
 msgstr "Tipo de sala"

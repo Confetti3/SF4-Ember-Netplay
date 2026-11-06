@@ -510,8 +510,11 @@ void ApplicationShell::RoomTableRows(std::vector<MenuEntry>& rows,const RoomScre
    if(!rulesDirty_&&rulesRevision_!=t.revision){tableRules_=t.rules;rulesRevision_=t.revision;}
    // An Arcade room's rules are the room's, set when it was created.
    if(!c.actingHost||boundTable||s.arcade){
-    std::string summary=loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",static_cast<int>(t.rules.roundCount),static_cast<int>(room::MatchRoundTime(s,t)),
-     loc::T(t.rules.editionSelect?"common.on":"common.off"));
+    // A game whose fighters have no editions has no Edition select rule to name.
+    const int rounds=static_cast<int>(t.rules.roundCount),seconds=static_cast<int>(room::MatchRoundTime(s,t));
+    std::string summary=ember::Catalog().editions
+     ?loc::Tf(s.practice?"room.rules_summary_practice":"room.rules_summary",rounds,seconds,loc::T(t.rules.editionSelect?"common.on":"common.off"))
+     :loc::Tf(s.practice?"room.rules_summary_practice_no_edition":"room.rules_summary_no_edition",rounds,seconds);
     if(s.delayPolicy==room::DelayPolicy::Own)summary=loc::Tf("room.rules_summary_own_delay",summary);
     rows.push_back(ReadOnlyValue("rules",loc::T("room.table_rules"),summary,loc::T(boundTable?"room.rules.tournament":s.arcade?"room.rules.arcade":"room.rules.host_only")));
     rows.push_back(ReadOnlyValue("set-rules",loc::T("room.table_set"),s.arcade?SetLengthText(t.rules.format):SetSummaryText(t.rules),

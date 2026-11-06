@@ -2836,7 +2836,7 @@ msgid "room.link_unknown"
 msgstr "Verbinding onbekend"
 
 msgid "room.table_footer"
-msgstr "{0} rondes / {1} sec     Wachtrij {2}     Kijken {3}"
+msgstr "Rondes {0} / {1} sec     Wachtrij {2}     Kijken {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Plek {1}"
@@ -2930,6 +2930,12 @@ msgstr "Klaar met {0}, {1}."
 
 msgid "room.ready.with_against"
 msgstr "Klaar met {0}, {1}, tegen {2}."
+
+msgid "room.ready.fighter"
+msgstr "Klaar met {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Klaar met {0}, tegen {1}."
 
 msgid "room.ultra.detail"
 msgstr "Kies hier je Ultra voor het volgende potje, zonder de Tafelopties te openen."
@@ -3170,7 +3176,10 @@ msgid "room.table_rules"
 msgstr "Tafelregels"
 
 msgid "room.rules_summary"
-msgstr "{0} rondes, {1} s, editie kiezen {2}"
+msgstr "Rondes {0}, {1} s, editie kiezen {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Rondes {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Tafelopties"
@@ -5467,7 +5476,10 @@ msgid "room.table_footer_practice"
 msgstr "Oefenwedstrijd"
 
 msgid "room.rules_summary_practice"
-msgstr "Oefenwedstrijd, {0} rondes, {1} s, Edition Select {2}"
+msgstr "Oefenwedstrijd, rondes {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Oefenwedstrijd, rondes {0}, {1} s"
 
 msgid "room.type"
 msgstr "Soort kamer"

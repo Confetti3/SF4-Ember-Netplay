@@ -2670,7 +2670,7 @@ msgstr "Wi-Fi connection"
 msgid "room.link_unknown"
 msgstr "Connection unknown"
 msgid "room.table_footer"
-msgstr "{0} rounds / {1} sec     Queue {2}     Watching {3}"
+msgstr "Rounds {0} / {1} sec     Queue {2}     Watching {3}"
 msgid "room.board_status_host_slot"
 msgstr "HOST / {0} / Slot {1}"
 msgid "room.board_status_slot"
@@ -2769,6 +2769,12 @@ msgstr "Ready with {0}, {1}."
 
 msgid "room.ready.with_against"
 msgstr "Ready with {0}, {1}, against {2}."
+
+msgid "room.ready.fighter"
+msgstr "Ready with {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Ready with {0}, against {1}."
 
 msgid "room.ultra.detail"
 msgstr "Choose your Ultra for the next game here, without opening Table options."
@@ -2936,7 +2942,10 @@ msgstr "Lock-in released: your spectator view dropped. Lock in again to hold the
 msgid "room.table_rules"
 msgstr "Table rules"
 msgid "room.rules_summary"
-msgstr "{0} rounds, {1} s, Edition Select {2}"
+msgstr "Rounds {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Rounds {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Table options"
@@ -5090,7 +5099,10 @@ msgid "room.table_footer_practice"
 msgstr "Practice match"
 
 msgid "room.rules_summary_practice"
-msgstr "Practice match, {0} rounds, {1} s, Edition Select {2}"
+msgstr "Practice match, rounds {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Practice match, rounds {0}, {1} s"
 
 msgid "room.type"
 msgstr "Room type"

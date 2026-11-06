@@ -2836,7 +2836,7 @@ msgid "room.link_unknown"
 msgstr "Connexion inconnue"
 
 msgid "room.table_footer"
-msgstr "{0} rounds / {1} s     File {2}     Spect. {3}"
+msgstr "Rounds {0} / {1} s     File {2}     Spect. {3}"
 
 msgid "room.board_status_host_slot"
 msgstr "HÔTE / {0} / Place {1}"
@@ -2930,6 +2930,12 @@ msgstr "Prêt avec {0}, {1}."
 
 msgid "room.ready.with_against"
 msgstr "Prêt avec {0}, {1}, contre {2}."
+
+msgid "room.ready.fighter"
+msgstr "Prêt avec {0}."
+
+msgid "room.ready.fighter_against"
+msgstr "Prêt avec {0}, contre {1}."
 
 msgid "room.ultra.detail"
 msgstr "Choisissez votre Ultra pour la partie suivante ici, sans ouvrir les Options de la table."
@@ -3170,7 +3176,10 @@ msgid "room.table_rules"
 msgstr "Règles"
 
 msgid "room.rules_summary"
-msgstr "{0} rounds, {1} s, édition spéciale {2}"
+msgstr "Rounds {0}, {1} s, édition spéciale {2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "Rounds {0}, {1} s"
 
 msgid "room.table_options"
 msgstr "Options de la table"
@@ -5467,7 +5476,10 @@ msgid "room.table_footer_practice"
 msgstr "Match d'entraînement"
 
 msgid "room.rules_summary_practice"
-msgstr "Match d'entraînement, {0} rounds, {1} s, Edition Select {2}"
+msgstr "Match d'entraînement, rounds {0}, {1} s, Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "Match d'entraînement, rounds {0}, {1} s"
 
 msgid "room.type"
 msgstr "Type de salon"

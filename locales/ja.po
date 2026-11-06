@@ -2932,6 +2932,12 @@ msgstr "{0}、{1}で準備完了。"
 msgid "room.ready.with_against"
 msgstr "{2}を相手に{0}、{1}で準備完了。"
 
+msgid "room.ready.fighter"
+msgstr "{0}で準備完了。"
+
+msgid "room.ready.fighter_against"
+msgstr "{1}を相手に{0}で準備完了。"
+
 msgid "room.ultra.detail"
 msgstr "対戦席の設定を開かずに、次の試合のウルトラコンボをここで選びます。"
 
@@ -3172,6 +3178,9 @@ msgstr "対戦席のルール"
 
 msgid "room.rules_summary"
 msgstr "{0}ラウンド、{1}秒、エディションセレクト{2}"
+
+msgid "room.rules_summary_no_edition"
+msgstr "{0}ラウンド、{1}秒"
 
 msgid "room.table_options"
 msgstr "対戦席の設定"
@@ -5469,6 +5478,9 @@ msgstr "練習対戦"
 
 msgid "room.rules_summary_practice"
 msgstr "練習対戦、{0}ラウンド、{1}秒、Edition Select {2}"
+
+msgid "room.rules_summary_practice_no_edition"
+msgstr "練習対戦、{0}ラウンド、{1}秒"
 
 msgid "room.type"
 msgstr "ルームタイプ"
