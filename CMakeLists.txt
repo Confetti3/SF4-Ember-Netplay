@@ -105,6 +105,8 @@ add_library(sf4e_ui STATIC
     src/ui/V2.cxx src/ui/LineIcons.cxx src/ui/GameMenuDraw.cxx src/ui/MenuWalk.cxx src/ui/WatchedPicture.cxx src/ui/ApplicationShell__Settings.cxx src/ui/ApplicationShell__ShellScreens.cxx src/ui/ApplicationShell__Values.cxx src/ui/ApplicationShell__Accessibility.cxx src/ui/ApplicationShell__Toasts.cxx src/ui/ApplicationShell__FirstRun.cxx src/ui/ApplicationShell__Awards.cxx src/platform/Speech.cxx)
 install(DIRECTORY "assets/brand" DESTINATION "assets" FILES_MATCHING PATTERN "*.png")
 install(DIRECTORY "assets/input" DESTINATION "assets" FILES_MATCHING PATTERN "*.png" PATTERN "*.txt")
+install(FILES "assets/framedata/usf4.json" DESTINATION "assets/framedata")
+install(DIRECTORY "assets/framedata" DESTINATION "assets" FILES_MATCHING PATTERN "*.json")
 install(DIRECTORY "assets/flags" DESTINATION "assets" FILES_MATCHING PATTERN "flags.png" PATTERN "flags.json" PATTERN "LICENSE" PATTERN "README.md")
 set_source_files_properties(src/ui/backends/imgui_impl_win32.cpp PROPERTIES COMPILE_DEFINITIONS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
 target_compile_features(sf4e_ui PUBLIC cxx_std_17)
@@ -432,6 +434,8 @@ add_custom_target(SelectionAssets
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/input" "$<TARGET_FILE_DIR:Sidecar>/assets/input"
     COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/assets/flags" "$<TARGET_FILE_DIR:Sidecar>/assets/flags"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets/framedata" "$<TARGET_FILE_DIR:Sidecar>/assets/framedata"
     VERBATIM)
 add_dependencies(Sidecar SelectionAssets)
 add_custom_command(TARGET Sidecar POST_BUILD
