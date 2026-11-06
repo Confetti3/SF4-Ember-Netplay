@@ -136,8 +136,13 @@ set_source_files_properties("${EMBER_SOURCE_ROOT}/ui/backends/imgui_impl_win32.c
 # sf4e_localization gives them in SF4 Ember's build.
 target_include_directories(ember_neutral_x64 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/identity" PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated/public")
-# Each product's build names its own version; the probe ships nothing.
-target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
+# Each product's build names its own version: a game that builds the library
+# from here sets EMBER_APP_VERSION before it adds this folder. The probe on
+# its own ships nothing.
+if(NOT DEFINED EMBER_APP_VERSION)
+    set(EMBER_APP_VERSION "0.0.0-x64-probe")
+endif()
+target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
 target_link_libraries(ember_neutral_x64 PRIVATE
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
 
@@ -155,7 +160,7 @@ list(TRANSFORM SF4E_RUNTIME_SOURCES PREPEND "${EMBER_SOURCE_ROOT}/" OUTPUT_VARIA
 add_library(ember_runtime_x64 STATIC ${_ember_runtime_units})
 target_include_directories(ember_runtime_x64 PRIVATE "${EMBER_SOURCE_ROOT}/common"
     "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
-target_compile_definitions(ember_runtime_x64 PRIVATE SF4E_APP_VERSION="0.0.0-x64-probe")
+target_compile_definitions(ember_runtime_x64 PRIVATE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
 target_link_libraries(ember_runtime_x64 PUBLIC ember_neutral_x64
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
     Kernel32 ws2_32 Shlwapi pathcch shell32 Bcrypt iphlpapi winmm ole32 windowscodecs)
