@@ -19,6 +19,8 @@
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../ui/CameraPanel.hxx"
+#include "../training/RemoteServer.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
@@ -196,6 +198,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	}
 	sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
 	sf4e::OverlayPrefs::StartPersistence();
+	sf4e::ui::SetTrainingRemote({sf4e::training::remote::Start, sf4e::training::remote::Stop, sf4e::training::remote::Url, sf4e::training::remote::Pin, sf4e::training::remote::Link});
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
     ImGui::GetIO().IniFilename = nullptr;
@@ -718,6 +721,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::ShowData(meterOptions.data && trainingHud);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
+    sf4e::ui::ServeTrainingPhone(training, sf4e::training::Submit);
     const bool nativePaused = sf4e::battlePause.Paused();
     // A replay the game plays, not for a video: its keys are Ember's, read as
     // the training keys are, and training's own keys stay off.
@@ -798,6 +802,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
     }
+    sf4e::ui::DrawCameraPanel(training.available || replayKeys, focused, sf4e::netplay::SettingsStore::DefaultDirectory(), replayKeys, snapshot.replays, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
     sf4e::ui::OverlayLayersView layers;
     layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
     const bool trainingOpen = s_trainingControls.Open();
@@ -835,7 +840,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         replay.round = playback.round; replay.cursor = playback.cursor;
         replay.pad = playback.device == sf4e::replaytransport::Device::Pad;
         replay.inputsKnown = snapshot.replays.lanes != nullptr;
-        replay.stripAlpha = sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
+        replay.stripAlpha = sf4e::ui::CameraEditorShown() ? 0.f : sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
         replay.unavailable = refusedAt >= 0 && now - refusedAt < sf4e::replaytransport::kChipSeconds;
         replay.lanes = replayKeys && playback.lanes && snapshot.replays.lanes;
         std::uint32_t played = 0;
