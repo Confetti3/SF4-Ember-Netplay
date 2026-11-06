@@ -113,6 +113,11 @@ const GameCatalog& Catalog();
 
 inline bool ValidFighter(std::int64_t id) { return id >= 0 && id < Catalog().fighterCount; }
 
+// The fighter's name, or `fallback` for an id the catalog does not have.
+inline const char* FighterNameOr(int fighter, const char* fallback) {
+	return ValidFighter(fighter) ? Catalog().fighterName(fighter) : fallback;
+}
+
 // The game plays this many rounds, or rounds this many seconds long.
 inline bool PlayableRoundCount(long long count) {
 	for (int i = 0; i < Catalog().roundCountChoices; ++i) if (Catalog().roundCounts[i] == count) return true;

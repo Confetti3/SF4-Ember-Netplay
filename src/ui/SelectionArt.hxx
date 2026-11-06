@@ -66,11 +66,11 @@ public:
     }
     SelectionImage Appearance(int fighter, int costume, int color);
     SelectionImage Ultra(int fighter, int ultra);
-    // The game's own Ultra mark from its character select archives: the green
-    // I, the purple II or the flaming W (`ultra` 0 to 2, uc1.dds to uc3.dds),
-    // cropped to the painted mark. Read from the game at runtime and never
-    // repackaged; missing where the game has none (only Ultra's own archive
-    // has the W), so the caller draws its own badge.
+    // The game's own mark for an Ultra choice (`ultra` below the catalog's
+    // ultraChoices), cropped to the painted mark. Read from the game at
+    // runtime and never repackaged; missing where the game has none, so the
+    // caller draws its own badge. Each game's definition says where its
+    // marks come from (SF4's: Sf4SelectionArt.cxx).
     SelectionImage UltraIcon(int ultra);
     // RandomStageId is served from the game's character-select random tile.
     SelectionImage Stage(int nativeId);

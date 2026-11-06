@@ -243,7 +243,7 @@ std::string ReadyWithText(const ShellView& v, const room::Table& t, int seat) {
         loc::Tf("room.ready.with", v.fighterName, ultra);
 }
 std::string OpponentChangedText(int fighter) {
-    return loc::Tf("room.opponent_changed_fighter", ember::ValidFighter(fighter) ? ember::Catalog().fighterName(fighter) : "?");
+    return loc::Tf("room.opponent_changed_fighter", ember::FighterNameOr(fighter, "?"));
 }
 bool HoldingStart(const ShellView& v, const room::Table& t) {
     const auto* local = room::FindMember(v.room, v.room.localMember);

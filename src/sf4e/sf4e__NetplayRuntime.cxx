@@ -639,7 +639,7 @@ static void CallOutOpponentReady() {
 		// decide again, with the chance to change their Ultra.
 		if (runtime->readyIntent.Parked()) {
 			const int fighter = runtime->opponentFighterWatch.Pending();
-			FailReady(loc::Tf("room.opponent_changed_fighter", ember::ValidFighter(fighter) ? ember::Catalog().fighterName(fighter) : "?").c_str());
+			FailReady(loc::Tf("room.opponent_changed_fighter", ember::FighterNameOr(fighter, "?")).c_str());
 		}
 	}
 }

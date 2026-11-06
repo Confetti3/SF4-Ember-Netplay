@@ -18,7 +18,7 @@ namespace sf4e { namespace ui {
 // worded, for the Replays list and the Inputs and stats screen alike.
 inline std::string ReplayPlayerName(const std::string names[2],int side){return names[side].empty()?(side?"P2":"P1"):names[side];}
 // A fighter by name, or that the replay's fighter is not one the game's catalog has.
-inline std::string ReplayFighterName(int fighter){return ember::ValidFighter(fighter)?std::string(ember::Catalog().fighterName(fighter)):std::string(loc::T("common.unavailable"));}
+inline std::string ReplayFighterName(int fighter){return ember::FighterNameOr(fighter,loc::T("common.unavailable"));}
 inline std::string ReplayLabel(const std::string& date,const std::string names[2],const int fighters[2]) {
  const auto player=[&](int side) {
   const std::string name=ReplayFighterName(fighters[side]);

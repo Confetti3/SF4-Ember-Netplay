@@ -85,6 +85,9 @@ SelectionImage SelectionArt::Ultra(int fighterId, int ultra) {
     const std::string& key = imageKey_.assign(fighter->code).append("/ultra-").append(std::to_string(ultra));
     return Request(key, [&] { return PackagedFiles(key); });
 }
+// SF4's Ultra marks are in its character select archives: the green I, the
+// purple II or the flaming W (`ultra` 0 to 2, uc1.dds to uc3.dds). Only
+// Ultra's own archive has the W.
 SelectionImage SelectionArt::UltraIcon(int ultra) {
     if (ultra < 0 || ultra > 2) return {};
     // Asked for on every frame, up to sixteen times on an Arcade board: the
