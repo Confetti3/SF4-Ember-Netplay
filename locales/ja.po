@@ -2840,10 +2840,10 @@ msgid "room.table_footer"
 msgstr "{0}ラウンド / {1}秒     順番待ち{2}     観戦{3}"
 
 msgid "room.board_status_host_slot"
-msgstr "ホスト / {0} / 席{1}"
+msgstr "ホスト / {0} / 対戦席{1}"
 
 msgid "room.board_status_slot"
-msgstr "{0} / 席{1}"
+msgstr "{0} / 対戦席{1}"
 
 msgid "room.board_status_host_cabinet"
 msgstr "ホスト / {0} / 筐体{1}"

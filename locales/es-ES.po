@@ -2840,10 +2840,10 @@ msgid "room.table_footer"
 msgstr "Rondas {0} / {1} s     Cola {2}     Viendo {3}"
 
 msgid "room.board_status_host_slot"
-msgstr "ANFIT. / {0} / Asiento {1}"
+msgstr "ANFIT. / {0} / Mesa {1}"
 
 msgid "room.board_status_slot"
-msgstr "{0}/Asiento {1}"
+msgstr "{0}/Mesa {1}"
 
 msgid "room.board_status_host_cabinet"
 msgstr "ANFIT. / {0} / Máquina {1}"

@@ -2839,10 +2839,10 @@ msgid "room.table_footer"
 msgstr "{0} round / {1} sec     Coda {2}     Spettatori {3}"
 
 msgid "room.board_status_host_slot"
-msgstr "HOST / {0} / Posto {1}"
+msgstr "HOST / {0} / Tavolo {1}"
 
 msgid "room.board_status_slot"
-msgstr "{0} / Posto {1}"
+msgstr "{0} / Tavolo {1}"
 
 msgid "room.board_status_host_cabinet"
 msgstr "HOST / {0} / Cabinato {1}"

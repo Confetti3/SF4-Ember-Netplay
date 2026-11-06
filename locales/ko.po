@@ -2840,10 +2840,10 @@ msgid "room.table_footer"
 msgstr "{0}라운드 / {1}초     대기 {2}     관전 {3}"
 
 msgid "room.board_status_host_slot"
-msgstr "방장 / {0} / 슬롯 {1}"
+msgstr "방장 / {0} / 테이블 {1}"
 
 msgid "room.board_status_slot"
-msgstr "{0} / 슬롯 {1}"
+msgstr "{0} / 테이블 {1}"
 
 msgid "room.board_status_host_cabinet"
 msgstr "방장 / {0} / 기기 {1}"

@@ -2839,10 +2839,10 @@ msgid "room.table_footer"
 msgstr "Kola: {0} / čas: {1} s     Fronta: {2}     Sleduje: {3}"
 
 msgid "room.board_status_host_slot"
-msgstr "HOSTITEL / {0} / Místo {1}"
+msgstr "HOSTITEL / {0} / Stůl {1}"
 
 msgid "room.board_status_slot"
-msgstr "{0} / Místo {1}"
+msgstr "{0} / Stůl {1}"
 
 msgid "room.board_status_host_cabinet"
 msgstr "HOSTITEL / {0} / Automat {1}"

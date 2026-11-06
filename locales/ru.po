@@ -2839,10 +2839,10 @@ msgid "room.table_footer"
 msgstr "Раундов: {0} / {1} с     Очередь: {2}     Зрители: {3}"
 
 msgid "room.board_status_host_slot"
-msgstr "ВЕДУЩИЙ / {0} / Место {1}"
+msgstr "ВЕДУЩИЙ / {0} / Ячейка {1}"
 
 msgid "room.board_status_slot"
-msgstr "{0} / Место {1}"
+msgstr "{0} / Ячейка {1}"
 
 msgid "room.board_status_host_cabinet"
 msgstr "ВЕДУЩИЙ / {0} / Автомат {1}"
