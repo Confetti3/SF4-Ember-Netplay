@@ -340,6 +340,17 @@ static void TestDetailsOfSnapshot() {
 	// Moderator first, then join order; -1 and an id past the roster read as none.
 	CHECK((details.fighters == std::vector<int>{1, 255, 255, 20}));
 	CHECK(details.setFormat == 5 && details.rotation == 2);
+	// A host whose game's players have no main lists the pick each member
+	// shared, else none, whatever their main, in the same order; a shared pick
+	// changes nothing for a host that lists mains.
+	snapshot.members[0].fighter = 2;
+	snapshot.members[1].fighter = -1;
+	snapshot.members[2].fighter = 7;
+	snapshot.members[3].fighter = 44;
+	const auto picks = roomhost::DetailsOf(snapshot, roomhost::ListedFaces::Picks);
+	CHECK((picks.fighters == std::vector<int>{255, 7, 255, 2}));
+	CHECK(picks.hostName == "Mod" && picks.setFormat == 5 && picks.rotation == 2 && picks.capacity == 6 && picks.locked);
+	CHECK(roomhost::DetailsOf(snapshot) == details && roomhost::DetailsOf(snapshot, roomhost::ListedFaces::Mains) == details);
 	snapshot.tables[0].rules.format = room::SetFormat::Unlimited;
 	snapshot.tables[0].rules.rotation = room::RotationMode::LoserStays;
 	details = roomhost::DetailsOf(snapshot);

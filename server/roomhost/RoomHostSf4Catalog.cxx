@@ -12,4 +12,7 @@ bool PrepareCatalog(const Config& config, std::string& reason) {
 	return false;
 }
 
+// Every SF4 Ember player has a main, which stands for them on the listing.
+ListedFaces CatalogFaces() { return ListedFaces::Mains; }
+
 } }

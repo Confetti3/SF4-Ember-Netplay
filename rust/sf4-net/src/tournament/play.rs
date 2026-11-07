@@ -17,7 +17,7 @@ use ember_protocol::{
         WATCH_FEATURE,
     },
     report::Outcome as GameOutcome,
-    skill::RANKING_FEATURE,
+    skill::{RANKING_FEATURE, RANKING_GAMES_FEATURE},
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -62,6 +62,9 @@ pub(super) struct Features {
     /// It serves the ranking routes and reads a ticket request's
     /// `developer_badge`.
     pub ranking: bool,
+    /// Its ranking routes read `?game=`, so another game than SF4's may ask
+    /// them (`RANKING_GAMES_FEATURE`).
+    pub ranking_games: bool,
     /// It reads a claim's `held_binding` and may answer it `Unchanged`.
     pub unchanged: bool,
 }
@@ -73,6 +76,7 @@ impl Features {
             ready: lists(CLAIM_READY_FEATURE),
             watch: lists(WATCH_FEATURE),
             ranking: lists(RANKING_FEATURE),
+            ranking_games: lists(RANKING_GAMES_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
         }
     }
@@ -87,6 +91,8 @@ pub(super) enum Need {
     Ready,
     /// The watch routes.
     Watch,
+    /// Ranking routes that read `?game=`.
+    RankingGames,
 }
 
 impl Need {
@@ -95,6 +101,7 @@ impl Need {
             Self::Nothing => true,
             Self::Ready => offered.ready,
             Self::Watch => offered.watch,
+            Self::RankingGames => offered.ranking_games,
         }
     }
 }
@@ -956,6 +963,7 @@ mod tests {
                 ready: true,
                 watch: false,
                 ranking: false,
+                ranking_games: false,
                 unchanged: false,
             }
         );
@@ -966,10 +974,16 @@ mod tests {
                 ready: false,
                 watch: true,
                 ranking: false,
+                ranking_games: false,
                 unchanged: false,
             }
         );
         assert!(Features::of(&capabilities(&[RANKING_FEATURE])).ranking);
+        // A bridge from before rankings per game lists `ranking` alone.
+        let old = Features::of(&capabilities(&[RANKING_FEATURE]));
+        assert!(!old.ranking_games && !Need::RankingGames.met_by(old));
+        let games = Features::of(&capabilities(&[RANKING_FEATURE, RANKING_GAMES_FEATURE]));
+        assert!(games.ranking && games.ranking_games && Need::RankingGames.met_by(games));
         assert!(Features::of(&capabilities(&[CLAIM_UNCHANGED_FEATURE])).unchanged);
         assert_eq!(
             Features::of(&capabilities(&["matches.play"])),

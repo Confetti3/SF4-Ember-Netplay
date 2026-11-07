@@ -2,7 +2,8 @@
 // What leads a member's name in the room: their country's flag, then, in a
 // public room, their class as USF4's own emblem (faint while it is
 // unsettled), or "?" while their rating places and Ember's flame "DEV" mark
-// for its developers. A player without a badge shows nothing.
+// for its developers. A player without a badge shows nothing. A product with
+// ranks of its own (Branding::rankingClasses) shows its game's rank instead.
 #include "../common/Country.hxx"
 #include "../common/SkillBadge.hxx"
 #include <imgui.h>
@@ -20,7 +21,8 @@ struct DrawnMarks {
     std::string tip;
 };
 // A class by its band, 1 to SkillBadge::Classes: the game's letters (D to A+)
-// or the crown's name in the catalog; empty for none.
+// or the crown's name in the catalog, or the product's own rank
+// (Branding::rankingClasses); empty for none.
 std::string ClassName(std::uint8_t band);
 // The room the marks take beside text of `fontSize`: only the marks whose art
 // has loaded, so a name centred with them is centred as drawn.

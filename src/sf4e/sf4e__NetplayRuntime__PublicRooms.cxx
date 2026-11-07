@@ -32,14 +32,7 @@ void FinishAdmission(const std::string& failure, std::optional<netplay::publicro
 }
 
 std::string Reason(const session::TournamentAnswer& answer) { return answer.reason.empty() ? "unavailable" : answer.reason; }
-
-// The product's game on a room request, named only when it is not "usf4",
-// so SF4 Ember's requests are what they were before games were named.
-json WithGame(json request) {
-	const std::string game = ember::Product().roomGame ? ember::Product().roomGame : "";
-	if (!game.empty() && game != "usf4") request["game"] = game;
-	return request;
-}
+using internal::WithGame;
 
 void DispatchList(const Command& command, bool helperReady) {
 	auto& rooms = runtime->publicRooms;
@@ -89,6 +82,12 @@ std::uint64_t SendBridgeRequest(const json& request) {
 	std::string text;
 	try { text = request.dump(); } catch (const json::exception&) { return 0; }
 	return runtime->room && runtime->room->SendTournament(text, &id) ? id : 0;
+}
+
+json WithGame(json request) {
+	const std::string game = ember::Product().roomGame ? ember::Product().roomGame : "";
+	if (!game.empty() && game != "usf4") request["game"] = game;
+	return request;
 }
 
 void DispatchPublicRooms(const Command& command, bool helperReady) {

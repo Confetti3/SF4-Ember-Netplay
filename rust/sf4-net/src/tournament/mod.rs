@@ -265,18 +265,35 @@ pub enum Request {
         )]
         game: String,
     },
-    /// The player's own class and choice to take part in ranking.
+    /// The player's own class and choice to take part in ranking. Each
+    /// ranking request is one game's (`rooms::GAMES`), SF4 Ember's when it
+    /// names none, as the room requests are.
     RankingStanding {
         bridge_id: String,
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     /// Takes part in ranking or not, and how the board lists the player.
     RankingChoose {
         bridge_id: String,
         choice: RankingChoice,
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     /// The board of classes.
     RankingBoard {
         bridge_id: String,
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     GamePrepare {
         bridge_id: String,
@@ -1205,11 +1222,17 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             build,
             game,
         } => rooms::ticket(shared, &bridge_id, &room_id, &build, &game).await,
-        Request::RankingStanding { bridge_id } => ranking::standing(shared, &bridge_id).await,
-        Request::RankingChoose { bridge_id, choice } => {
-            ranking::choose(shared, &bridge_id, choice).await
+        Request::RankingStanding { bridge_id, game } => {
+            ranking::standing(shared, &bridge_id, &game).await
         }
-        Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
+        Request::RankingChoose {
+            bridge_id,
+            choice,
+            game,
+        } => ranking::choose(shared, &bridge_id, choice, &game).await,
+        Request::RankingBoard { bridge_id, game } => {
+            ranking::board(shared, &bridge_id, &game).await
+        }
         Request::GamePrepare {
             bridge_id,
             match_id,

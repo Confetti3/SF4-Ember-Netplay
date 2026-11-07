@@ -59,8 +59,8 @@ std::string HostDisplayName(const std::string& name) {
 }
 
 // What the bridge lists for the room: the moderator (snapshot.host) first, then
-// the other members in join order, each as a main fighter id or 255.
-RoomDetails DetailsOf(const room::Snapshot& snapshot) {
+// the other members in join order, each as a fighter id (`faces`) or 255.
+RoomDetails DetailsOf(const room::Snapshot& snapshot, ListedFaces faces) {
 	RoomDetails details;
 	details.name = snapshot.name;
 	details.capacity = snapshot.capacity;
@@ -78,7 +78,8 @@ RoomDetails DetailsOf(const room::Snapshot& snapshot) {
 	}
 	for (const auto* member : ordered) {
 		if (details.fighters.size() >= MaximumDetailFighters) break;
-		details.fighters.push_back(ember::ValidFighter(member->mainFighter) ? member->mainFighter : NoFighter);
+		const int fighter = faces == ListedFaces::Picks ? member->fighter : member->mainFighter;
+		details.fighters.push_back(ember::ValidFighter(fighter) ? fighter : NoFighter);
 	}
 	// Table 0 holds the room's rules; the format values and the rotation enum's
 	// numbers are the wire values (RoomDetails).

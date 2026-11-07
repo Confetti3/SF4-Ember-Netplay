@@ -193,7 +193,7 @@ bool RoomReporter::Report(const SessionServer& server, const room::Snapshot& sna
 	// discarded, and neither the bridge nor the helper can take a ban back.
 	auto committed = server.CommittedServerOwned();
 	current.banned = std::move(committed.banned);
-	current.details = DetailsOf(snapshot);
+	current.details = DetailsOf(snapshot, CatalogFaces());
 	// Committed membership, like the bans: a join or a departure still in an
 	// uncommitted candidate could be discarded.
 	current.details.creatorIn = !creator_.empty() &&

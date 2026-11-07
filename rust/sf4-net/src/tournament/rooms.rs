@@ -95,8 +95,9 @@ fn build_query(build: &str) -> Result<String, Failure> {
     Ok(query)
 }
 
-/// A game the request names, which must be one the protocol knows.
-fn check_game(game: &str) -> Result<(), Failure> {
+/// A game the request names, which must be one the protocol knows. The
+/// ranking requests check theirs here too.
+pub(super) fn check_game(game: &str) -> Result<(), Failure> {
     if is_game(game) {
         Ok(())
     } else {

@@ -7,9 +7,14 @@
 //! forgotten. Coming back resumes the rating, grown less sure by the time
 //! away like any break (`load`). The choice changes at most once a day, so
 //! nobody can stop after a loss and come back after a win.
+//!
+//! Each is one game's (`game`, a key of `ember_protocol::rooms::GAMES`): the
+//! choice, the listing, the standing and the board of one game say nothing
+//! of another's.
 use ember_protocol::{
     EmberId,
     api::ErrorCode,
+    rooms::DEFAULT_GAME,
     skill::{
         Board, BoardEntry, CHOICE_TOO_SOON, Listing, MAX_BOARD, NO_ACCOUNT, RankingChoice,
         SkillBadge, Standing,
@@ -23,8 +28,12 @@ use crate::error::{ApiFailure, Result};
 /// How long a change of the choice stands before the next.
 const CHOICE_SECS: u64 = 24 * 60 * 60;
 
-/// An account's choice as stored. Without a row it takes part, has never
-/// changed and is not listed.
+/// An account's choice in one game as stored. Without a row in that game it
+/// has never changed there and is not listed there, and it takes part as it
+/// does in USF4's: a player who stopped taking part in USF4 is out of
+/// another game too until they choose there, and an explicit choice in that
+/// game wins (the same rule as `skill::rated_account`). Without a row in
+/// either it takes part.
 struct Choice {
     ranked: bool,
     changed_at: Option<u64>,
@@ -32,12 +41,29 @@ struct Choice {
 }
 
 impl Choice {
-    fn load(tx: &Transaction<'_>, account: &str) -> Result<Self> {
-        let stored = tx
+    fn load(tx: &Transaction<'_>, game: &str, account: &str) -> Result<Self> {
+        let stored = Self::stored(tx, game, account)?;
+        if let Some(stored) = stored {
+            return Ok(stored);
+        }
+        let inherited = if game == DEFAULT_GAME {
+            None
+        } else {
+            Self::stored(tx, DEFAULT_GAME, account)?
+        };
+        Ok(Self {
+            ranked: inherited.is_none_or(|usf4| usf4.ranked),
+            changed_at: None,
+            listing: None,
+        })
+    }
+
+    fn stored(tx: &Transaction<'_>, game: &str, account: &str) -> Result<Option<Self>> {
+        Ok(tx
             .query_row(
                 "SELECT ranked, changed_at, name, country FROM ranking_choices
-                 WHERE discord_user_id = ?1",
-                [account],
+                 WHERE game = ?1 AND discord_user_id = ?2",
+                params![game, account],
                 |row| {
                     let (name, country): (Option<String>, _) = (row.get(2)?, row.get(3)?);
                     Ok(Self {
@@ -47,12 +73,7 @@ impl Choice {
                     })
                 },
             )
-            .optional()?;
-        Ok(stored.unwrap_or(Self {
-            ranked: true,
-            changed_at: None,
-            listing: None,
-        }))
+            .optional()?)
     }
 
     /// Seconds until the choice may change again, if it may not yet.
@@ -63,12 +84,14 @@ impl Choice {
     }
 }
 
-/// Where the player as `ember_id` stands. `classes_shown` is the bridge's
-/// `rooms.skill_badges`: while it is off a standing carries no class. A
-/// class it carries is the one the next ticket shows, and is remembered as
-/// shown just as a ticket's is (`badge_of`).
+/// Where the player as `ember_id` stands in `game`. `classes_shown` is the
+/// bridge's `rooms.skill_badges`: while it is off a standing carries no
+/// class. A class it carries is the one the next ticket for a room of that
+/// game shows, and is remembered as shown just as a ticket's is
+/// (`badge_of`).
 pub fn standing(
     tx: &Transaction<'_>,
+    game: &str,
     ember_id: &EmberId,
     classes_shown: bool,
     developers: &[String],
@@ -77,7 +100,7 @@ pub fn standing(
     let Some(account) = account(tx, ember_id)? else {
         return Ok(Standing::NoAccount);
     };
-    let choice = Choice::load(tx, &account)?;
+    let choice = Choice::load(tx, game, &account)?;
     let change_in = choice.change_in(now);
     if !choice.ranked {
         return Ok(Standing::OptedOut { change_in });
@@ -90,7 +113,7 @@ pub fn standing(
     let badge = match (classes_shown, developer) {
         (false, _) => None,
         (true, true) => Some(SkillBadge::DEVELOPER),
-        (true, false) => Some(badge_of(tx, &account, now)?),
+        (true, false) => Some(badge_of(tx, game, &account, now)?),
     };
     Ok(Standing::Ranked {
         badge,
@@ -99,11 +122,12 @@ pub fn standing(
     })
 }
 
-/// Stores the choice of the player as `ember_id` and answers where they
-/// stand after it. Taking part or not changes only once its last change has
-/// stood for `CHOICE_SECS`; the listing changes freely.
+/// Stores the choice of the player as `ember_id` in `game` and answers where
+/// they stand after it. Taking part or not changes only once its last change
+/// in that game has stood for `CHOICE_SECS`; the listing changes freely.
 pub fn choose(
     tx: &Transaction<'_>,
+    game: &str,
     ember_id: &EmberId,
     chosen: RankingChoice,
     classes_shown: bool,
@@ -117,7 +141,7 @@ pub fn choose(
             "Connect a Discord account to take part in ranking.",
         )
     })?;
-    let current = Choice::load(tx, &account)?;
+    let current = Choice::load(tx, game, &account)?;
     let changes = chosen.ranked != current.ranked;
     if changes && let Some(wait) = current.change_in(now) {
         return Err(refuse(
@@ -136,17 +160,18 @@ pub fn choose(
         (Some(listing.name), listing.country)
     });
     tx.execute(
-        "INSERT INTO ranking_choices (discord_user_id, ranked, changed_at, name, country)
-         VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT (discord_user_id) DO UPDATE SET ranked = ?2, changed_at = ?3,
-             name = ?4, country = ?5",
-        params![account, chosen.ranked, changed_at, name, country],
+        "INSERT INTO ranking_choices (game, discord_user_id, ranked, changed_at, name, country)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT (game, discord_user_id) DO UPDATE SET ranked = ?3, changed_at = ?4,
+             name = ?5, country = ?6",
+        params![game, account, chosen.ranked, changed_at, name, country],
     )?;
-    standing(tx, ember_id, classes_shown, developers, now)
+    standing(tx, game, ember_id, classes_shown, developers, now)
 }
 
-/// The board as the player as `ember_id` sees it, or as a web page sees it
-/// without one (no entry is `own`): every listed account that takes part and has a settled class, the highest first. The class is the
+/// `game`'s board as the player as `ember_id` sees it, or as a web page sees
+/// it without one (no entry is `own`): every account listed in that game that
+/// takes part and has a settled class there, the highest first. The class is the
 /// one their next ticket would show (`shown_band`), so a player who settled
 /// since their last ticket is on it already. Within a class the most recent
 /// to play comes first, so the board is about who plays and its cap drops
@@ -154,6 +179,7 @@ pub fn choose(
 /// no developer: their mark stands in place of a class.
 pub fn board(
     tx: &Transaction<'_>,
+    game: &str,
     ember_id: Option<&EmberId>,
     developers: &[String],
     now: u64,
@@ -162,11 +188,11 @@ pub fn board(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, c.name, c.country,
                 COALESCE(d.ember_id = ?1, 0), r.discord_user_id
          FROM skill_ratings r
-         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE c.ranked AND c.name IS NOT NULL",
+         WHERE r.game = ?2 AND c.ranked AND c.name IS NOT NULL",
     )?;
-    let mut rows = statement.query([ember_id.map(EmberId::as_str)])?;
+    let mut rows = statement.query(params![ember_id.map(EmberId::as_str), game])?;
     let mut listed = Vec::new();
     while let Some(row) = rows.next()? {
         let rating = Rating {
@@ -208,7 +234,8 @@ pub fn board(
 /// The class the public board shows today for each of `ember_ids` that is
 /// on it, by Ember ID: the same players and classes as `board` (taking
 /// part, listed, settled, not a developer), without its cap. Read only, so
-/// a page anyone can open never moves a stored class.
+/// a page anyone can open never moves a stored class. USF4's classes: the
+/// archive it serves holds USF4's games.
 pub fn public_classes(
     tx: &Transaction<'_>,
     ember_ids: &[&str],
@@ -223,12 +250,12 @@ pub fn public_classes(
     let mut statement = tx.prepare(
         "SELECT r.rating, r.deviation, r.volatility, r.played_at, r.band, d.ember_id, r.discord_user_id
          FROM skill_ratings r
-         JOIN ranking_choices c ON c.discord_user_id = r.discord_user_id
+         JOIN ranking_choices c ON c.game = r.game AND c.discord_user_id = r.discord_user_id
          JOIN discord_accounts d ON d.user_id = r.discord_user_id
-         WHERE c.ranked AND c.name IS NOT NULL
+         WHERE r.game = ?2 AND c.ranked AND c.name IS NOT NULL
            AND d.ember_id IN (SELECT value FROM json_each(?1))",
     )?;
-    let mut rows = statement.query([wanted])?;
+    let mut rows = statement.query(params![wanted, DEFAULT_GAME])?;
     while let Some(row) = rows.next()? {
         let rating = Rating {
             rating: row.get(0)?,
