@@ -530,6 +530,115 @@ async fn each_game_has_its_own_standing_choice_and_board() {
     );
 }
 
+/// An SFV Ember build ID, which holds slashes.
+const SFV_BUILD: &str = "sfv-ember/13173604/0.2/8dafe602f7615d90";
+
+/// SFV's rated accounts.
+async fn sfv_rated(bridge: &Bridge) -> Vec<String> {
+    bridge
+        .state()
+        .db
+        .read(|tx| {
+            let mut statement = tx.prepare(
+                "SELECT discord_user_id FROM skill_ratings WHERE game = 'sfv' ORDER BY discord_user_id",
+            )?;
+            let rows = statement
+                .query_map([], |row| row.get(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_player_out_of_usf4s_ranking_is_out_of_another_games_until_they_choose_there() {
+    let (bridge, fake) = start(true).await;
+    let (first, second) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect_discord(&bridge, "100", &first).await;
+    connect_discord(&bridge, "200", &second).await;
+    rate_game(&bridge, "sfv", "100", 60.0, 7, 0).await;
+    let sfv_me = format!("{ME}?game=sfv");
+    // The first player stops taking part in USF4.
+    let (status, out) = choose(&bridge, &first, json!({ "ranked": false })).await;
+    assert_eq!(status, StatusCode::OK, "{out}");
+
+    // With no choice of their own in SFV, they are out of it too: no class,
+    // and nothing to wait for before choosing there.
+    let (status, sfv) = call(&bridge, &first, Method::GET, &sfv_me, None).await;
+    assert_eq!(status, StatusCode::OK, "{sfv}");
+    assert_eq!(sfv, json!({ "ranking": "opted_out" }));
+    let (status, room) = common::public_rooms::create_room_with(
+        &bridge,
+        &first,
+        "198.51.100.1",
+        json!({ "name": "SFV room", "capacity": 8, "build_id": SFV_BUILD, "game": "sfv" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{room}");
+    let room_id = room["room_id"].as_str().unwrap().to_owned();
+    report(&fake, &room_id, 2, 1, &[]);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    let ticket = json!({ "endpoint_id": ENDPOINT, "build_id": SFV_BUILD, "skill_badge": true,
+        "game": "sfv" });
+    let path = format!("/v1/rooms/{room_id}/tickets");
+    let (status, admission) =
+        call(&bridge, &first, Method::POST, &path, Some(ticket.clone())).await;
+    assert_eq!(status, StatusCode::CREATED, "{admission}");
+    assert!(
+        admission["ticket"]["ticket"].get("badge").is_none(),
+        "{admission}"
+    );
+    // A game with them in SFV counts for neither fighter.
+    report_game(&fake, &room_id, 1, &first, &second);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    assert_eq!(sfv_rated(&bridge).await, vec!["100".to_owned()]);
+    let untouched = ratings(&bridge).await;
+
+    // Their own choice in SFV wins, at once: they take part there, and SFV's
+    // games count again, while USF4 stays out for the day.
+    let (status, back) = call(
+        &bridge,
+        &first,
+        Method::PUT,
+        &sfv_me,
+        Some(listed("Player 1", "FR")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{back}");
+    assert_eq!(back["ranking"], "ranked");
+    assert_eq!(back["badge"], json!({ "band": 7, "settled": true }));
+    assert_eq!(
+        standing(&bridge, &first).await,
+        json!({ "ranking": "opted_out", "change_in": DAY })
+    );
+    let (_, admission) = call(&bridge, &first, Method::POST, &path, Some(ticket)).await;
+    assert_eq!(
+        admission["ticket"]["ticket"]["badge"],
+        json!({ "band": 7, "settled": true })
+    );
+    report_game(&fake, &room_id, 2, &first, &second);
+    ember_bridge::poll_rooms(bridge.state()).await;
+    assert_eq!(
+        sfv_rated(&bridge).await,
+        vec!["100".to_owned(), "200".to_owned()]
+    );
+    assert_eq!(ratings(&bridge).await.len(), untouched.len() + 1);
+
+    // And a player who stops in SFV alone stays in USF4: the second player's
+    // USF4 standing still takes part.
+    let (status, _) = call(
+        &bridge,
+        &second,
+        Method::PUT,
+        &sfv_me,
+        Some(json!({ "ranked": false })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(standing(&bridge, &second).await["ranking"], "ranked");
+}
+
 #[tokio::test]
 async fn a_bridge_without_public_rooms_has_no_ranking() {
     let bridge = Bridge::start().await;
@@ -541,11 +650,9 @@ async fn a_bridge_without_public_rooms_has_no_ranking() {
     }
     assert_eq!(public_board(&bridge).await.0, StatusCode::NOT_FOUND);
     let (_, capabilities) = bridge.get(first.token(), "/v1/capabilities").await;
+    let features = capabilities["features"].as_array().unwrap();
     assert!(
-        !capabilities["features"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("ranking")),
+        !features.contains(&json!("ranking")) && !features.contains(&json!("ranking_games")),
         "{capabilities}"
     );
 }
@@ -555,11 +662,10 @@ async fn a_bridge_with_public_rooms_offers_ranking() {
     let (bridge, _fake) = start(true).await;
     let first = player(&bridge, 1).await;
     let (_, capabilities) = bridge.get(first.token(), "/v1/capabilities").await;
+    // `ranking_games`: its ranking routes read `?game=`, so SFV Ember asks them.
+    let features = capabilities["features"].as_array().unwrap();
     assert!(
-        capabilities["features"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("ranking")),
+        features.contains(&json!("ranking")) && features.contains(&json!("ranking_games")),
         "{capabilities}"
     );
 }

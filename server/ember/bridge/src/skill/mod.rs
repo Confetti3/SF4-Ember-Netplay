@@ -19,7 +19,7 @@ pub mod ranking;
 
 use ember_protocol::{
     EmberId,
-    rooms::is_game,
+    rooms::{DEFAULT_GAME, is_game},
     skill::{SKILL_BANDS, SkillBadge},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -258,14 +258,18 @@ fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
 }
 
 /// The Discord account connected to `ember_id`, if it takes part in ranking
-/// in `game`.
+/// in `game`: by its choice in that game, or, with none there, by its choice
+/// in USF4's (`ranking::Choice::load`), so a player who stopped taking part
+/// in USF4 is not rated in another game until they choose there; with
+/// neither, it takes part.
 fn rated_account(tx: &Transaction<'_>, game: &str, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
         .query_row(
             "SELECT d.user_id FROM discord_accounts d
              LEFT JOIN ranking_choices c ON c.game = ?2 AND c.discord_user_id = d.user_id
-             WHERE d.ember_id = ?1 AND COALESCE(c.ranked, 1)",
-            params![ember_id.as_str(), game],
+             LEFT JOIN ranking_choices u ON u.game = ?3 AND u.discord_user_id = d.user_id
+             WHERE d.ember_id = ?1 AND COALESCE(c.ranked, u.ranked, 1)",
+            params![ember_id.as_str(), game, DEFAULT_GAME],
             |row| row.get(0),
         )
         .optional()?)

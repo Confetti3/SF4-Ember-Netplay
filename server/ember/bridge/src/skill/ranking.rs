@@ -28,8 +28,12 @@ use crate::error::{ApiFailure, Result};
 /// How long a change of the choice stands before the next.
 const CHOICE_SECS: u64 = 24 * 60 * 60;
 
-/// An account's choice as stored. Without a row it takes part, has never
-/// changed and is not listed.
+/// An account's choice in one game as stored. Without a row in that game it
+/// has never changed there and is not listed there, and it takes part as it
+/// does in USF4's: a player who stopped taking part in USF4 is out of
+/// another game too until they choose there, and an explicit choice in that
+/// game wins (the same rule as `skill::rated_account`). Without a row in
+/// either it takes part.
 struct Choice {
     ranked: bool,
     changed_at: Option<u64>,
@@ -38,7 +42,24 @@ struct Choice {
 
 impl Choice {
     fn load(tx: &Transaction<'_>, game: &str, account: &str) -> Result<Self> {
-        let stored = tx
+        let stored = Self::stored(tx, game, account)?;
+        if let Some(stored) = stored {
+            return Ok(stored);
+        }
+        let inherited = if game == DEFAULT_GAME {
+            None
+        } else {
+            Self::stored(tx, DEFAULT_GAME, account)?
+        };
+        Ok(Self {
+            ranked: inherited.is_none_or(|usf4| usf4.ranked),
+            changed_at: None,
+            listing: None,
+        })
+    }
+
+    fn stored(tx: &Transaction<'_>, game: &str, account: &str) -> Result<Option<Self>> {
+        Ok(tx
             .query_row(
                 "SELECT ranked, changed_at, name, country FROM ranking_choices
                  WHERE game = ?1 AND discord_user_id = ?2",
@@ -52,12 +73,7 @@ impl Choice {
                     })
                 },
             )
-            .optional()?;
-        Ok(stored.unwrap_or(Self {
-            ranked: true,
-            changed_at: None,
-            listing: None,
-        }))
+            .optional()?)
     }
 
     /// Seconds until the choice may change again, if it may not yet.

@@ -12,9 +12,17 @@ use crate::{
 
 /// The capability a bridge with the ranking routes offers.
 pub const RANKING_FEATURE: &str = "ranking";
+/// The capability a bridge offers when its rankings are kept per game: the
+/// ranking routes read `?game=` (a key of `rooms::GAMES`) and answer that
+/// game's standing, choice and board. A bridge without it ignores `?game=`
+/// and answers SF4's, so a game other than SF4's asks only a bridge that
+/// lists it.
+pub const RANKING_GAMES_FEATURE: &str = "ranking_games";
 /// `GET` the caller's `Standing`; `PUT` a `RankingChoice`, answered with it.
+/// Each is one game's: `?game=` names it, and none is `rooms::DEFAULT_GAME`.
 pub const STANDING_PATH: &str = "/v1/ranking/me";
-/// `GET` the `Board`.
+/// `GET` the `Board` of one game (`?game=`, as `STANDING_PATH`), and
+/// `/v1/ranking/board/public?game=` the same for the website.
 pub const BOARD_PATH: &str = "/v1/ranking/board";
 /// The most players a board lists.
 pub const MAX_BOARD: usize = 500;

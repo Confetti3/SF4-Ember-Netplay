@@ -31,6 +31,14 @@ async fn a_player_reads_their_standing_and_the_board() {
     let invalid = json!({ "op": "ranking_choose", "bridge_id": "brg_never_approved",
         "choice": { "ranked": true, "listing": { "name": " Player 1" } } });
     assert_eq!(refused(worker.ask(invalid).await), "invalid_request");
+    // SFV's ranking: this bridge keeps rankings per game, so it is asked.
+    let sfv = json!({ "op": "ranking_standing", "bridge_id": bridge_id, "game": "sfv" });
+    assert_eq!(
+        ok(worker.ask(sfv).await),
+        json!({ "ranking": "no_account" })
+    );
+    let sfv_board = json!({ "op": "ranking_board", "bridge_id": bridge_id, "game": "sfv" });
+    assert_eq!(ok(worker.ask(sfv_board).await), json!({ "players": [] }));
     worker.task.abort();
     running.abort();
 }
@@ -42,8 +50,13 @@ async fn a_bridge_without_ranking_is_told_apart() {
     let mut worker = Worker::start(&dirs, &"a".repeat(64));
     let (_, bridge_id) = worker.join(&origin).await;
     for op in ["ranking_standing", "ranking_board"] {
-        let request = json!({ "op": op, "bridge_id": bridge_id });
-        assert_eq!(refused(worker.ask(request).await), "ranking_unavailable");
+        for game in [None, Some("sfv")] {
+            let mut request = json!({ "op": op, "bridge_id": bridge_id });
+            if let Some(game) = game {
+                request["game"] = json!(game);
+            }
+            assert_eq!(refused(worker.ask(request).await), "ranking_unavailable");
+        }
     }
     worker.task.abort();
     running.abort();

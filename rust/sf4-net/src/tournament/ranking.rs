@@ -8,6 +8,7 @@ use std::sync::Arc;
 use super::{
     Code, Failure, Outcome, Shared,
     client::{self, Body, BridgeCall, Refusals, Verb},
+    play::{self, Features, Need},
     rooms::check_game,
 };
 use ember_protocol::{
@@ -37,9 +38,38 @@ fn game_path(path: &str, game: &str) -> Result<String, Failure> {
     })
 }
 
+/// Whether a bridge offering `offered` may be asked for `game`'s ranking:
+/// SF4's always, as before; another game's only by a bridge that keeps
+/// rankings per game, since an older one ignores `?game=` and would answer,
+/// or change, the player's SF4 standing and board. Refused as a bridge
+/// without rankings, which the game words as such.
+fn games_offered(game: &str, offered: Features) -> Result<(), Failure> {
+    if is_default_game(game) || offered.ranking_games {
+        Ok(())
+    } else {
+        Err(Failure::new(Code::RankingUnavailable))
+    }
+}
+
+/// `game_path`, once the bridge is known to keep `game`'s ranking apart: its
+/// capabilities, read once a run, and again while it lacks the feature.
+async fn path_for(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    path: &str,
+    game: &str,
+) -> Result<String, Failure> {
+    let path = game_path(path, game)?;
+    if !is_default_game(game) {
+        let bridge = client::approved(shared, bridge_id)?;
+        games_offered(game, play::features(shared, &bridge, Need::RankingGames).await?)?;
+    }
+    Ok(path)
+}
+
 /// The player's standing in `game` on `bridge_id`.
 pub async fn standing(shared: &Arc<Shared>, bridge_id: &str, game: &str) -> Outcome {
-    let path = game_path(STANDING_PATH, game)?;
+    let path = path_for(shared, bridge_id, STANDING_PATH, game).await?;
     let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
     let standing: Standing = client::request_as(shared, bridge_id, &call).await?;
     standing.check().map_err(|_| invalid_response())?;
@@ -56,7 +86,7 @@ pub async fn choose(
     choice
         .check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
-    let path = game_path(STANDING_PATH, game)?;
+    let path = path_for(shared, bridge_id, STANDING_PATH, game).await?;
     let body = serde_json::to_vec(&choice).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Put, &path, &[200])
         .body(Body::Json(&body))
@@ -68,7 +98,7 @@ pub async fn choose(
 
 /// `game`'s board of classes on `bridge_id`.
 pub async fn board(shared: &Arc<Shared>, bridge_id: &str, game: &str) -> Outcome {
-    let path = game_path(BOARD_PATH, game)?;
+    let path = path_for(shared, bridge_id, BOARD_PATH, game).await?;
     let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
     let board: Board = client::request_as(shared, bridge_id, &call).await?;
     board.check().map_err(|_| invalid_response())?;
@@ -158,6 +188,22 @@ mod tests {
             game_path(BOARD_PATH, "sfv").unwrap(),
             "/v1/ranking/board?game=sfv"
         );
+        // Another game asks only a bridge that keeps rankings per game; SF4's
+        // asks any bridge with rankings, as before.
+        let old = Features {
+            ranking: true,
+            ..Features::default()
+        };
+        let per_game = Features {
+            ranking_games: true,
+            ..old
+        };
+        assert!(games_offered("usf4", old).is_ok());
+        assert_eq!(
+            games_offered("sfv", old).unwrap_err().as_str(),
+            "ranking_unavailable"
+        );
+        assert!(games_offered("sfv", per_game).is_ok());
         for unknown in ["sf6", "", "SFV", "sfv&x=1"] {
             assert_eq!(
                 game_path(BOARD_PATH, unknown).unwrap_err().as_str(),
