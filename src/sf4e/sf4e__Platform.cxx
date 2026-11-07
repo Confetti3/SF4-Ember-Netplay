@@ -22,6 +22,7 @@
 #include "sf4e__Game__Battle.hxx"
 #include "BuildIdentity.hxx"
 #include "sf4e__Platform.hxx"
+#include "../training/RemoteServer.hxx"
 #include "sf4e__Borderless.hxx"
 #include "sf4e__StartupLog.hxx"
 #include "sf4e__ReplayCapture.hxx"
@@ -298,6 +299,7 @@ void fD3D::RunScene_Render(void* sceneCommandList) {
 }
 
 void fD3D::Destroy() {
+    sf4e::training::remote::Stop();  // its threads must be over before the process ends
     sf4e::replaycapture::Release();
     Overlay::FreeOverlay();
     (this->*rD3D::privateMethods.Destroy)();

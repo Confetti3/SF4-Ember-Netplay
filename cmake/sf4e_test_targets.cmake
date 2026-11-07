@@ -101,6 +101,12 @@ sf4e_add_unit_test(NAME GameFiles SOURCES "src/tests/game_files_test.cxx" STD 17
 sf4e_add_unit_test(NAME PracticeSettings SOURCES "src/tests/practice_settings_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json TIMEOUT 15)
 sf4e_add_unit_test(NAME TrainingCameraRig SOURCES "src/tests/training_camera_rig_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json LABELS training)
+# Includes nlohmann/json, found after sf4e_core_tests.cmake.
+sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remote_protocol_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME ComboFile SOURCES "src/tests/combo_file_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME ComboStore SOURCES "src/tests/combo_store_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> LABELS training)
 sf4e_add_unit_test(NAME TrainingDummyControl SOURCES "src/tests/training_dummy_control_test.cxx" STD 14 LIBS nlohmann_json::nlohmann_json LABELS training)
 
 # imgui for the glyph ranges the catalog coverage check reads, headers only.
