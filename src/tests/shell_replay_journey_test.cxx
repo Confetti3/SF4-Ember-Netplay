@@ -170,10 +170,32 @@ void SetWatchJourney() {
  Check(h.actions.size()==sent+1&&h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\s2.emberreplay","Next game did not play the set's second game");
 }
 }
+// A game that offers only watching, keeping and showing a replay (SFV Ember's
+// capabilities): no Battle Log row, and each row's choices are those three,
+// Watch now first; Watch now still asks for the row's file.
+void WatchOnlyJourney() {
+ using namespace sf4e;
+ Harness h;h.Frame();
+ h.view.replayGameList=h.view.replayVideo=h.view.replayMeter=h.view.replayInputs=false;
+ auto shown=Listed("C:\\r\\v.sfvreplay","2026-11-07 10:00");shown.names[0]="player1";shown.names[1]="player2";
+ List(h,{shown});h.view.replays.ready=true;
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){rows=e;});h.Screen("replays");
+ Check(rows.size()==4&&rows[0].id=="replay-folder"&&rows[1].id=="replay-show"&&rows[2].id=="replay-search"&&rows[3].id=="replay:C:\\r\\v.sfvreplay","A game with no replay list of its own still had the Battle Log row");
+ Check(rows[3].choices.size()==3&&rows[3].choices[0].id=="watch"&&rows[3].choices[1].id=="keep"&&rows[3].choices[2].id=="show-folder","A watch-only game was offered more than watching, keeping and showing");
+ Check(rows[3].chosen=="watch","Watch now was not the row's first choice");
+ h.view.replays.ready=false;h.Frame();
+ Check(rows[3].chosen=="keep","Where nothing plays, the row did not fall back to Keep");
+ h.view.replays.ready=true;h.Frame();SetMenuEntriesProbe({});
+ h.Choose("replay:C:\\r\\v.sfvreplay");h.Press(MenuInput::Select);
+ Check(h.actions.back().replay.mode==replay::Mode::Watch&&h.actions.back().replay.path=="C:\\r\\v.sfvreplay"&&!h.actions.back().replay.meter,"Watch now did not ask for the replay's file");
+ h.Choose("replay:C:\\r\\v.sfvreplay");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.actions.back().replay.mode==replay::Mode::Keep&&h.actions.back().replay.keep,"Keep was not the second choice");
+}
 void ReplayJourneys() {
  using namespace sf4e;
  ExportChoicesJourney();
  SetWatchJourney();
+ WatchOnlyJourney();
  Harness h;h.Frame();
  // A replay's row is its file: Watch now asks for that path. A link's question opens the screen and is answered with Watch or a dismissal.
  {
