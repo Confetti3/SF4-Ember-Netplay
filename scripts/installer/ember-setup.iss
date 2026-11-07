@@ -37,12 +37,14 @@ MinVersion=10.0
 
 [Tasks]
 Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
+Name: firewall; Description: "Allow the phone remote in Windows Firewall (asks for administrator rights)"; Flags: unchecked
 
 [Files]
 Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion uninsneveruninstall; Check: FreshInstall
 ; The uninstall helper, kept beside the uninstaller rather than in the folder,
 ; so uninstall works whatever has happened to {app}\Updater.exe since.
 Source: "{#PackageDir}\Updater.exe"; DestDir: "{localappdata}\{#AppName} Setup"; DestName: "ember-uninstall.exe"; Flags: ignoreversion
+Source: "ember-firewall.ps1"; DestDir: "{localappdata}\{#AppName} Setup"; Flags: ignoreversion
 Source: "{#Redist}"; DestDir: "{tmp}"; DestName: "vc_redist.x86.exe"; Flags: deleteafterinstall; Check: RuntimeOutdated
 
 [Icons]
@@ -53,9 +55,22 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\Launcher.exe"; WorkingDir: "{
 ; The runtime installs per machine, so this is the one step that asks for
 ; administrator rights. Declining leaves Launcher.exe to report the old runtime.
 Filename: "{tmp}\vc_redist.x86.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime. This can take a minute..."; BeforeInstall: RuntimeBar(True); AfterInstall: RuntimeBar(False); Check: RuntimeOutdated
+; The firewall rules need administrator rights too, so this is asked for only when the task is chosen.
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"""; Verb: runas; Flags: runhidden waituntilterminated; StatusMsg: "Allowing Ember in Windows Firewall..."; Tasks: firewall
 Filename: "{app}\Launcher.exe"; Description: "{cm:LaunchProgram,{#AppName}}"; WorkingDir: "{app}"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{localappdata}\{#AppName} Setup\ember-firewall.ps1"" -Remove"; Verb: runas; Flags: runhidden waituntilterminated; RunOnceId: "EmberFirewall"; Check: FirewallRulesExist
+
 [Code]
+// Only a setup that added the rules asks for administrator rights again to remove them.
+function FirewallRulesExist: Boolean;
+var
+  Code: Integer;
+begin
+  Result := Exec('powershell.exe', '-NoProfile -Command "if (Get-NetFirewallRule -Group Ember -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"', '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+end;
+
 // Installs the runtime when the present msvcp140 is older than the bundled one
 // (from the toolset that built the package) or reports no version. Launcher's
 // RuntimeIsCurrent also accepts Wine's builtin DLL and an unreadable version;
