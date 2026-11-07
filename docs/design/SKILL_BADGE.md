@@ -168,7 +168,8 @@ opens.
 
 ### Not taking part
 
-Taking part is the default and belongs to the Discord account. A player who
+Taking part is the default and belongs to the Discord account, one choice in
+each game ("Games" below). A player who
 stops has no class on any ticket, is not on the board, and their games count
 for neither fighter, like a game with a fighter who has no Discord account.
 Their rating is kept untouched and their listing forgotten. Coming back
@@ -212,6 +213,9 @@ before is USF4's):
 
 An older bridge ignores `?game=`, so SFV Ember meeting one sees USF4's standing
 and board; deploy the bridge before an SFV Ember release that shows Rankings.
+A script that reads these tables sees both games' rows (filter `game =
+'usf4'`), and one that writes them with `ON CONFLICT (discord_user_id)` (or
+`(first, second)`) must name the new key, `(game, discord_user_id)`.
 
 ## Deploying
 
