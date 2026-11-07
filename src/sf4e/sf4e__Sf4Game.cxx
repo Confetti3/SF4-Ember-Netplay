@@ -253,6 +253,7 @@ constexpr Capabilities Sf4Capabilities() {
     caps.padSetup = true;
     caps.steamProfile = true;
     caps.customContent = true;
+    caps.frameMeter = true;
     return caps;
 }
 const Adapter s_game = {

@@ -191,6 +191,8 @@ public:
             OnOffValue(p, "replay-save-watched", loc::T("replays.save_watched"), loc::T("replays.save_watched_detail"), v.canEditPreferences),
             OnOffValue(p, "replay-share", loc::T("replays.share"), loc::T("replays.share_detail"), v.canEditPreferences),
             PictureMode(s, v, "watched-picture")};
+        // A game without Ember's frame meter has nothing for the setting to show.
+        if (!v.offersFrameMeter) rows.erase(rows.begin());
         // Where the picture sits and how big (the Matches tab's map also drags it there).
         const int corners[] = {4, 3, 2, 1};
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
