@@ -51,7 +51,9 @@ Mark MarkOf(const SkillBadge& badge) {
     case SkillBadge::Kind::Class:
         if (auto* art = MenuArt()) mark.emblem = art->RankingEmblem(ClassOf(badge.band).emblem);
         mark.faded = !badge.settled;
-        mark.squared = !!mark.emblem.texture;
+        // USF4's emblems share a square slot; a product's icon keeps the
+        // shape the game draws it at (Branding::rankingClasses).
+        mark.squared = !!mark.emblem.texture && !ember::Product().branding.rankingClasses;
         if (!mark.emblem.texture && mark.emblem.missing && ember::Product().branding.rankingClasses) mark.pill = ClassName(badge.band);
         break;
     default: break;
@@ -121,6 +123,11 @@ std::string MarkTip(const SkillBadge& badge) {
 
 std::string ClassName(std::uint8_t band) {
     if (band == 0 || band > SkillBadge::Classes) return {};
+    // The game's own name for a product's rank, once the game has given it.
+    if (const auto named = ember::Product().branding.rankingClassName) {
+        const char* game = named(band);
+        if (game && *game) return game;
+    }
     const auto& shown = ClassOf(band);
     return shown.name ? shown.name : shown.msgid ? loc::T(shown.msgid) : std::string();
 }

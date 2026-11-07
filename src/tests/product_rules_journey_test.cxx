@@ -113,10 +113,15 @@ void OpponentAnswer() {
 void ClassNames() {
  const auto* ranks=ember::Product().branding.rankingClasses;
  if(ranks){
+  const auto named=ember::Product().branding.rankingClassName;
   for(std::uint8_t band=1;band<=SkillBadge::Classes;++band){
    const auto& rank=ranks[band-1];
-   Check(ui::ClassName(band)==(rank.name?std::string(rank.name):std::string(loc::T(rank.msgid))),"A product's rank was not named as the product names it");
+   const char* game=named?named(band):nullptr;
+   const std::string expected=game&&*game?std::string(game):rank.name?std::string(rank.name):std::string(loc::T(rank.msgid));
+   Check(ui::ClassName(band)==expected,"A product's rank was not named as the game or the product names it");
   }
+  // The game's own name leads; one it has not given yet (empty) falls back.
+  if(named)Check(ui::ClassName(3)=="Game rank 3"&&ui::ClassName(4)=="Rank 4","The game's own rank name did not lead, or an empty one did not fall back");
   Check(ui::ClassName(1)=="Rank 1"&&ui::ClassName(SkillBadge::Classes)==std::string(loc::T("class.grand_master")),"A product's ranks were not its own");
  }else{
   Check(ui::ClassName(1)=="D"&&ui::ClassName(2)=="D+"&&ui::ClassName(8)=="A+","USF4's classes lost their letters");

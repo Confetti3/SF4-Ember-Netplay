@@ -16,6 +16,9 @@ constexpr ember::RankingClass Ranks[ember::RankingClassCount] = {
 	{"rank_7", "Rank 7", nullptr}, {"rank_8", "Rank 8", nullptr}, {"rank_9", "Rank 9", nullptr},
 	{"rank_10", nullptr, "class.grand_master"},
 };
+// The game names band 3 itself; band 4's name has not come yet (empty); the
+// rest it never names.
+const char* GameRankName(int band) { return band == 3 ? "Game rank 3" : band == 4 ? "" : nullptr; }
 
 constexpr ember::ProductIdentity RulesOn = {
 	{
@@ -31,6 +34,7 @@ constexpr ember::ProductIdentity RulesOn = {
 		true,
 		true,
 		Ranks,
+		GameRankName,
 	},
 	L"sf4e-product-rules-test",
 	false,

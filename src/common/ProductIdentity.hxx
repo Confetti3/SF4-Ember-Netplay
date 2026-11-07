@@ -105,8 +105,9 @@ struct BattleHud {
 // names it. The bridge rates every game in the same RankingClassCount bands,
 // 1 the lowest; a product names and draws each band as its game's own rank.
 // `emblem` is the game's own art for it, the entry SelectionArt::RankingEmblem
-// loads from the player's install. `name` is how the game spells the rank,
-// the same in every language, or null for a name from the shared catalog
+// loads from the player's install. `name` is how the game spells the rank
+// (in English when the game's own name is read at run time, as
+// Branding::rankingClassName), or null for a name from the shared catalog
 // (`msgid`). A product without a table has USF4's classes (ui/NameMarks.cxx).
 constexpr int RankingClassCount = 10;
 struct RankingClass {
@@ -142,8 +143,15 @@ struct Branding {
 	// The game's own ranks for the bands, RankingClassCount of them, band 1
 	// first; none is USF4's classes (SF4 Ember). A product's class whose
 	// emblem the install does not have is shown as its name in a pill; one of
-	// USF4's is shown as nothing until its emblem loads.
+	// USF4's is shown as nothing until its emblem loads. A product's emblem is
+	// drawn at its own shape, as the game draws it; USF4's sit in a square.
 	const RankingClass* rankingClasses;
+	// The name of a product's rank for a band (1 to RankingClassCount) as the
+	// game itself names it in the player's language, read from the game at run
+	// time; null, or an empty name while the game has not given it yet, falls
+	// back to `rankingClasses`' name. A name it gives stays valid and unchanged
+	// for the process's life, and any thread may ask. None for SF4 Ember.
+	const char* (*rankingClassName)(int band);
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO

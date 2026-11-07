@@ -197,25 +197,68 @@ before is USF4's):
   its ranking requests and the helper passes it on (`?game=sfv`); SF4 Ember's
   requests name none.
 - Taking part, its once-a-day rule and the board's name and flag are each
-  game's: stopping in one game leaves the other as it was.
+  game's. A player with no choice of their own in another game takes part
+  there as they do in USF4's: one who stopped taking part in USF4 is not
+  rated in SFV, and carries no SFV class, until they choose in SFV; a choice
+  made in SFV wins, and its first one needs no wait. Stopping in SFV alone
+  leaves USF4 as it was. (A choice Kate can reverse: without the inheritance,
+  every player takes part in a new game until they stop there.)
 - The rules, the weights and the ten bands' ranges are the same in every game.
   A product names and draws the bands as its own game's ranks
-  (`Branding::rankingClasses`): SF4 Ember shows USF4's classes as above; SFV
-  Ember shows SFV's ten league tiers, Rookie to Warlord, with the game's own
-  league icons (`/Game/CommonAsset/LeagueIcon`, read from the player's
-  install), or the league's name in a pill where the install has no icon.
+  (`Branding::rankingClasses`, `rankingClassName`): SF4 Ember shows USF4's
+  classes as above. Kate's decision for SFV: "The ranks for sfv will follow
+  the ranks from the game visually". SFV Ember shows each band as one of
+  SFV's league tiers with the game's own league icon
+  (`/Game/CommonAsset/LeagueIcon`, read from the player's install), drawn at
+  its own shape with nothing of Ember's around it, and named as the game
+  names it in the player's language (its localized text `KW` /
+  `ID_CMN_LEAGUE_00NN`, read from the game at its main menu; English until
+  then). A pill with the league's name stands in only for an icon that fails
+  to load.
+- The bands are ten, so SFV shows ten of its twenty leagues: Rookie, Bronze,
+  Silver, Gold, Platinum, Diamond, Master, Grand Master, Ultimate Grand Master
+  and Warlord, without the Super and Ultra steps. SFV's whole ladder needs a
+  band count per game, which runs through code SF4 shares: the protocol's
+  `SKILL_BANDS` in `SkillBadge::check` and `Board::check` (the helper checks
+  tickets and boards with them), the bridge's `BAND_FLOORS` and `band_of`,
+  the C++ `SkillBadge::Classes` in `Valid`, the standing and board decoders
+  (`TournamentAnswers`), the room snapshot's badge read (`SkillBadgeJson`),
+  the match HUD's marks (`MatchHud`) and `NameMarks`, and the website's tier
+  tables. SF4's values would stay ten, but every one of those checks would
+  take the game or the product; not done (Kate's call).
 - The developer mark and `rooms.developers` are the same in every game.
-- The replay archive's classes (`ranking::public_classes`) are USF4's: its
-  games are USF4's.
+- The replay archive's classes (`ranking::public_classes`) are pinned to
+  USF4's: its games are USF4's, so the archive shows USF4 classes.
 - The website's rankings page has a Game switch: Street Fighter V's board is
   `/rankings-sfv.json` (`/v1/ranking/board/public?game=sfv`), with SFV's
   league names.
 
-An older bridge ignores `?game=`, so SFV Ember meeting one sees USF4's standing
-and board; deploy the bridge before an SFV Ember release that shows Rankings.
+A bridge from before 058 ignores `?game=`: it would answer USF4's standing and
+board, and a `PUT` would change the player's USF4 choice, name and flag. So
+the bridge lists `ranking_games` (`RANKING_GAMES_FEATURE`) beside `ranking`,
+and the helper asks a bridge for another game's ranking only once its
+capabilities list it; otherwise every ranking request of that game is refused
+`ranking_unavailable` before it is sent, and the game says the service does
+not offer rankings. SF4 Ember's requests are unaffected.
+
 A script that reads these tables sees both games' rows (filter `game =
 'usf4'`), and one that writes them with `ON CONFLICT (discord_user_id)` (or
-`(first, second)`) must name the new key, `(game, discord_user_id)`.
+`(first, second)`) must name the new key, `(game, discord_user_id)`. The
+replay channel's `server/ember/bridge/src/skill/channel.rs` (the unmerged
+`nightly-replay-channel` work, its lines 231 and 253) reads `ranking_choices`
+with no game filter and needs `game = 'usf4'` when it is merged.
+
+### Deploying 058
+
+In this order: the bridge with migration 058; then the website (nginx's
+`/rankings-sfv.json` and the page); then SFV's room host and an SFV Ember
+release. As with the classes' first deploy (`upgrade-bridge-ranked-20261020.ps1`),
+back the database up and dry-run the migration on a copy before the new
+binary starts. 058 cannot be rolled back by putting the old binary back: the
+old binary's `ON CONFLICT (discord_user_id)` and `(first, second)` no longer
+match a key, so its rating, ticket and choice writes would fail. A rollback is
+the old binary with the database restored from that backup; ratings and
+choices written since are lost.
 
 ## Deploying
 
