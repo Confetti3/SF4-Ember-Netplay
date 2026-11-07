@@ -118,7 +118,7 @@ std::wstring ManifestInstallDir(const std::string& acfUtf8) {
         if (depth == 1 && key == "installdir") installDir = value.text;
         if (depth == 1 && key == "appid") appId = value.text;
     }
-    if (i != t.size() || (!appId.empty() && appId != "45760")) return {};
+    if (i != t.size() || (!appId.empty() && appId != ember::Product().steam.appId)) return {};
     // A folder name only: the manifest must not steer the search elsewhere.
     // A NUL would end the name early in the conversion below, so the name
     // checked here would not be the name used.
@@ -136,8 +136,11 @@ std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, cons
     std::vector<std::wstring> folders;
     const std::wstring named = ManifestInstallDir(manifestUtf8);
     if (!named.empty()) folders.push_back(common + named);
-    const std::wstring usual = common + L"Super Street Fighter IV - Arcade Edition";
+    const std::wstring usual = common + ember::Product().steam.installDir;
     if (folders.empty() || !SameFolder(folders.front(), usual)) folders.push_back(usual);
+    // The executable's own folder inside each install folder.
+    const std::wstring exeFolder = ember::Product().steam.exeFolder;
+    if (!exeFolder.empty()) for (auto& folder : folders) folder += L"\\" + exeFolder;
     return folders;
 }
 
@@ -176,7 +179,8 @@ GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring&
 }
 
 std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageDirectory,
-    const std::vector<std::wstring>& folders, const std::function<bool(const std::wstring&)>& exists) {
+    const std::vector<std::wstring>& folders, const std::function<bool(const std::wstring&)>& exists,
+    const std::vector<const wchar_t*>& libraries) {
     std::vector<std::wstring> found;
     if (!exists) return found;
     for (const auto& folder : folders) {
@@ -184,7 +188,7 @@ std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageD
         if (SameFolder(folder, packageDirectory)) break;
         std::wstring prefix = folder;
         if (prefix.back() != L'\\' && prefix.back() != L'/') prefix += L'\\';
-        for (const wchar_t* library : kSidecarRuntimeLibraries) {
+        for (const wchar_t* library : libraries) {
             std::wstring path = prefix + library;
             if (exists(path)) found.push_back(std::move(path));
         }

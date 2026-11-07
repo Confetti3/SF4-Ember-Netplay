@@ -1,8 +1,12 @@
 {
   "name": "ember-x64-probe",
   "version-string": "0.0.1",
-  "description": "The packages Ember's game-neutral code needs on x64: SF4 Ember's versions, without its x86-only and SF4-only ones.",
+  "description": "The packages Ember's game-neutral code and its launcher need on x64: SF4 Ember's versions, without its x86-only and SF4-only ones.",
   "dependencies": [
+    {
+      "name": "cli11",
+      "version>=": "2.4.2"
+    },
     "fmt",
     {
       "name": "ggpo",
@@ -12,6 +16,7 @@
       "name": "imgui",
       "version>=": "1.91.5",
       "features": [
+        "dx9-binding",
         "win32-binding"
       ]
     },

@@ -36,6 +36,7 @@ constexpr ember::ProductIdentity Sf4Ember = {
 	L"Updater.exe",
 	L"Sidecar.dll",
 	L"SSFIV.exe",
+	{"45760", L"Super Street Fighter IV - Arcade Edition", L""},
 	L"ember-discord.exe",
 	L"sf4e.log",
 	L"launcher.log",

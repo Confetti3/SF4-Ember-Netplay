@@ -1,12 +1,21 @@
 #pragma once
 #include "SelectionAssetPath.hxx"
 #include <cwchar>
+#include <initializer_list>
+// The product's files: SF4 Ember's PackageInventory.inc beside this header,
+// or the inventory a product's build names in EMBER_PACKAGE_INVENTORY (a
+// quoted path), in the same form.
+#ifdef EMBER_PACKAGE_INVENTORY
+#define SF4E_PACKAGE_INVENTORY_FILE EMBER_PACKAGE_INVENTORY
+#else
+#define SF4E_PACKAGE_INVENTORY_FILE "PackageInventory.inc"
+#endif
 namespace sf4e { namespace package {
 static const wchar_t* const Required[] = {
 #define SF4E_PACKAGE_REQUIRED(path) L##path,
 #define SF4E_PACKAGE_OPTIONAL(path)
 #define SF4E_PACKAGE_OBSOLETE(path)
-#include "PackageInventory.inc"
+#include SF4E_PACKAGE_INVENTORY_FILE
 #undef SF4E_PACKAGE_REQUIRED
 #undef SF4E_PACKAGE_OPTIONAL
 #undef SF4E_PACKAGE_OBSOLETE
@@ -15,16 +24,17 @@ static const wchar_t* const Allowed[] = {
 #define SF4E_PACKAGE_REQUIRED(path) L##path,
 #define SF4E_PACKAGE_OPTIONAL(path) L##path,
 #define SF4E_PACKAGE_OBSOLETE(path)
-#include "PackageInventory.inc"
+#include SF4E_PACKAGE_INVENTORY_FILE
 #undef SF4E_PACKAGE_REQUIRED
 #undef SF4E_PACKAGE_OPTIONAL
 #undef SF4E_PACKAGE_OBSOLETE
 };
-static const wchar_t* const Obsolete[] = {
+// A list, not an array: a product may have no obsolete files.
+static const std::initializer_list<const wchar_t*> Obsolete = {
 #define SF4E_PACKAGE_REQUIRED(path)
 #define SF4E_PACKAGE_OPTIONAL(path)
 #define SF4E_PACKAGE_OBSOLETE(path) L##path,
-#include "PackageInventory.inc"
+#include SF4E_PACKAGE_INVENTORY_FILE
 #undef SF4E_PACKAGE_REQUIRED
 #undef SF4E_PACKAGE_OPTIONAL
 #undef SF4E_PACKAGE_OBSOLETE

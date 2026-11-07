@@ -430,6 +430,13 @@ namespace launcher {
 
 		char repo[128] = { 0 };
 		GetGithubRepo(channel, repo, sizeof(repo));
+		// A product with no release repository for this channel has nothing to
+		// update from: the check succeeds and offers nothing, with no request.
+		if (!repo[0]) {
+			AppendUpdateLog("No release repository for this channel; no update check");
+			result.ok = true;
+			return result;
+		}
 
 		// GitHub's "latest" never names a pre-release and follows a flag, not
 		// the version, so each channel reads the newest releases and chooses.

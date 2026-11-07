@@ -134,6 +134,20 @@ struct LocaleOverlay {
 	const char* po;               // PO text, NUL-terminated UTF-8
 };
 
+// The game as Steam installs it: where the launcher looks for it, and the
+// app id the game it starts needs in its environment (SteamAppId and
+// SteamGameId), since the launcher, not Steam, starts it.
+struct SteamGame {
+	// Steam's app id, which also names a library's appmanifest_<appId>.acf.
+	const char* appId;
+	// The usual install folder under a library's steamapps\common, tried after
+	// the folder the manifest names.
+	const wchar_t* installDir;
+	// The folder that holds gameExe, under the install folder; empty when it
+	// is the install folder itself. The launcher starts the game there.
+	const wchar_t* exeFolder;
+};
+
 struct ProductIdentity {
 	Branding branding;
 
@@ -169,7 +183,8 @@ struct ProductIdentity {
 	const wchar_t* updaterExe;
 	const wchar_t* gameModule;              // injected into the game
 	const wchar_t* gameExe;
-	const wchar_t* discordExe;
+	SteamGame steam;
+	const wchar_t* discordExe;               // empty: the product has no Discord companion
 
 	// Under appDataFolder\logs.
 	const wchar_t* gameLog;

@@ -9,13 +9,18 @@ import subprocess
 parser = argparse.ArgumentParser()
 parser.add_argument('--build-dir', required=True, type=Path)
 parser.add_argument('--output', required=True, type=Path)
+# Another product that packages from its own build of the library names
+# itself and the vcpkg ports its build resolved; SF4 Ember's are the defaults.
+parser.add_argument('--product', default='SF4 Ember Netplay')
+parser.add_argument('--native', nargs='+',
+                    default=['cli11', 'detours', 'fmt', 'ggpo', 'imgui', 'nlohmann-json', 'sdl3', 'spdlog', 'wil', 'zlib'])
 args = parser.parse_args()
 repo = Path(__file__).resolve().parent.parent
 cache = (args.build_dir / 'CMakeCache.txt').read_text()
 installed = Path(re.search(r'^VCPKG_INSTALLED_DIR:[^=]+=(.+)$', cache, re.M)[1])
 triplet = re.search(r'^VCPKG_TARGET_TRIPLET:[^=]+=(.+)$', cache, re.M)[1]
-sections = ['SF4 Ember Netplay — dependency notices\nGenerated from the resolved Windows build.\n']
-native = ['cli11', 'detours', 'fmt', 'ggpo', 'imgui', 'nlohmann-json', 'sdl3', 'spdlog', 'wil', 'zlib']
+sections = [f'{args.product} — dependency notices\nGenerated from the resolved Windows build.\n']
+native = args.native
 for name in native:
     license_path = installed / triplet / 'share' / name / 'copyright'
     sections.append(f'\n=== {name} (vcpkg) ===\n' + license_path.read_text(encoding='utf-8'))

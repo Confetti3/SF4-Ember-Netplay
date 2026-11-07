@@ -372,7 +372,7 @@ add_library(sf4e_recovery STATIC src/ui/RecoverySurface.cxx src/ui/RecoveryContr
 target_compile_features(sf4e_recovery PUBLIC cxx_std_17)
 # XInput is loaded at run time; DirectInput 8 is on every supported Windows.
 target_link_libraries(sf4e_recovery PUBLIC sf4e_ui sf4e_app_services sf4e_localization PRIVATE sf4e_settings d3d9 ole32 shell32 dinput8 dxguid)
-add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
+add_executable(Launcher WIN32 src/launcher/launcher.cxx src/launcher/Sf4Launch.cxx src/launcher/netplay/netplay_persist.cxx src/launcher/GameLocator.cxx)
 target_link_libraries(Launcher PRIVATE sf4e_product sf4e_catalog sf4e_helper_platform sf4e_settings sf4e_recovery sf4e_localization sf4e_replay_files sf4e_video_encoder)
 # As the video export's encoder (platform/VideoLink.hxx) it holds a second of 4K frames: 4 GB of addresses instead of 2.
 target_link_options(Launcher PRIVATE "/LARGEADDRESSAWARE")

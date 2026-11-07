@@ -69,6 +69,9 @@ static void TestNames() {
 	CHECK(Same(product.updaterExe, L"Updater.exe"));
 	CHECK(Same(product.gameModule, L"Sidecar.dll"));
 	CHECK(Same(product.gameExe, L"SSFIV.exe"));
+	CHECK(Same(product.steam.appId, "45760"));
+	CHECK(Same(product.steam.installDir, L"Super Street Fighter IV - Arcade Edition"));
+	CHECK(Same(product.steam.exeFolder, L""));
 	CHECK(Same(product.discordExe, L"ember-discord.exe"));
 	CHECK(Same(product.gameLog, L"sf4e.log"));
 	CHECK(Same(product.launcherLog, L"launcher.log"));

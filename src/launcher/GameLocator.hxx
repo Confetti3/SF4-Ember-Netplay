@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -18,14 +19,17 @@ std::vector<std::wstring> ParseLibraryFolders(const std::string& vdfUtf8);
 // case or a trailing separator count as the same folder.
 std::vector<std::wstring> LibraryCandidates(const std::wstring& steamPath, const std::string& vdfUtf8);
 
-// The install folder name from the text of a library's appmanifest_45760.acf:
-// AppState's "installdir", when the manifest parses, names app 45760 (or
-// names no app) and the value is a plain folder name. Anything else is empty.
+// The install folder name from the text of a library's appmanifest_<id>.acf,
+// <id> the product's Steam app id (45760 for SF4 Ember): AppState's
+// "installdir", when the manifest parses, names that app (or names no app)
+// and the value is a plain folder name. Anything else is empty.
 std::wstring ManifestInstallDir(const std::string& acfUtf8);
 
 // The folders to try for the game in one library, best first: the folder the
-// manifest names, then the usual "Super Street Fighter IV - Arcade Edition".
-// manifestUtf8 is the manifest's text, or empty when the library has none.
+// manifest names, then the product's usual one ("Super Street Fighter IV -
+// Arcade Edition" for SF4 Ember), each followed by the product's exeFolder
+// when it has one. manifestUtf8 is the manifest's text, or empty when the
+// library has none.
 std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, const std::string& manifestUtf8);
 
 // The full path of the game executable in directory when exists reports it
@@ -75,7 +79,9 @@ inline constexpr const wchar_t* kSidecarRuntimeLibraries[] = {L"GGPO.dll", L"spd
 // game from this launcher's SetDllDirectory call, then the system folders.
 // The scan stops at the package folder, in any spelling, because a copy found
 // there is ours and nothing after it is reached. Empty folders are skipped.
+// libraries names the files looked for; SF4 Ember's are Sidecar's.
 std::vector<std::wstring> ShadowingRuntimeLibraries(const std::wstring& packageDirectory,
-    const std::vector<std::wstring>& folders, const std::function<bool(const std::wstring&)>& exists);
+    const std::vector<std::wstring>& folders, const std::function<bool(const std::wstring&)>& exists,
+    const std::vector<const wchar_t*>& libraries = {std::begin(kSidecarRuntimeLibraries), std::end(kSidecarRuntimeLibraries)});
 
 } } // namespace sf4e::launcher

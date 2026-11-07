@@ -36,12 +36,14 @@ find_package(ZLIB REQUIRED)
 get_filename_component(EMBER_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../src" ABSOLUTE)
 
 # The library's folders. launcher/ and training/ hold more of SF4 than of the
-# library, so only their neutral parts are named.
+# library, so only their neutral parts are named. The launcher program itself
+# (launcher.cxx, the recovery window and updater.cxx) is built further down.
 file(GLOB_RECURSE _ember_files CONFIGURE_DEPENDS RELATIVE "${EMBER_SOURCE_ROOT}"
     "${EMBER_SOURCE_ROOT}/common/*" "${EMBER_SOURCE_ROOT}/netplay/*" "${EMBER_SOURCE_ROOT}/platform/*"
     "${EMBER_SOURCE_ROOT}/session/*" "${EMBER_SOURCE_ROOT}/ui/*" "${EMBER_SOURCE_ROOT}/launcher/update/*")
 list(APPEND _ember_files
-    launcher/RunningGameFocus.hxx
+    launcher/RunningGameFocus.hxx launcher/GameLocator.cxx launcher/GameLocator.hxx launcher/LaunchSteps.hxx
+    launcher/netplay/netplay_persist.cxx launcher/netplay/netplay_persist.hxx
     discord/BridgeServer.hxx discord/Presence.hxx discord/Ticket.hxx
     training/FrameMeter.hxx training/MoveInputs.hxx training/PracticeSettings.hxx
     training/RecordingBank.hxx training/RecordingFile.hxx training/RecordingTypes.hxx
@@ -56,7 +58,7 @@ set(EMBER_SF4_SIDE
     ui/Sf4SelectionLabels.cxx ui/Sf4SelectionArt.cxx
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx
     # Language, display and pads: the game's files and its pad layer.
-    common/GameLanguage.cxx common/GameLanguage.hxx common/SteamKeyValues.cxx common/SteamKeyValues.hxx
+    common/GameLanguage.cxx common/GameLanguage.hxx
     common/GameDisplayConfig.hxx common/GamepadSlots.hxx common/DirectInputState.hxx
     common/GamepadBrand.hxx common/ControllerView.hxx common/TrainingPad.hxx common/TrainingStage.hxx
     # Layouts of the 32-bit engine's keyboard list and replay recorder, held
@@ -78,16 +80,22 @@ set(EMBER_SF4_SIDE
     ui/TrainingPanel.cxx ui/TrainingPanel.hxx ui/TrainingMeter.cxx ui/TrainingData.cxx
     ui/TrainingShortcuts.cxx
     # The UI lab runs the shell on Direct3D 9 with SF4's selector and Training
-    # panel (section 7); SFV gets a Direct3D 11 lab of its own. The launcher's
-    # recovery window draws on Direct3D 9 as well.
-    ui/lab/UiLab.cxx ui/RecoverySurface.cxx ui/RecoverySurface.hxx)
+    # panel (section 7); SFV gets a Direct3D 11 lab of its own.
+    ui/lab/UiLab.cxx)
+
+# The launcher's recovery window, on Direct3D 9: built into the launcher's
+# library below, not the neutral one, so the game's own code never links
+# Direct3D 9.
+set(EMBER_LAUNCHER_UI
+    ui/RecoverySurface.cxx ui/RecoverySurface.hxx ui/RecoveryController.cxx
+    ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx)
 
 set(EMBER_NOT_FOR_WINDOWS
     # The Linux room host's helper client; Windows builds HelperClient.cxx.
     platform/HelperClientPosix.cxx)
 
 # A file named in a list but gone from the tree is a stale entry: stop.
-foreach(_file IN LISTS EMBER_SF4_SIDE EMBER_NOT_FOR_WINDOWS)
+foreach(_file IN LISTS EMBER_SF4_SIDE EMBER_NOT_FOR_WINDOWS EMBER_LAUNCHER_UI)
     if(NOT EXISTS "${EMBER_SOURCE_ROOT}/${_file}")
         message(FATAL_ERROR "ember-x64-probe: '${_file}' is listed but is not in src/")
     endif()
@@ -110,7 +118,7 @@ function(ember_probe_units files out_var)
 endfunction()
 
 set(_ember_neutral "${_ember_files}")
-list(REMOVE_ITEM _ember_neutral ${EMBER_SF4_SIDE} ${EMBER_NOT_FOR_WINDOWS})
+list(REMOVE_ITEM _ember_neutral ${EMBER_SF4_SIDE} ${EMBER_NOT_FOR_WINDOWS} ${EMBER_LAUNCHER_UI})
 ember_probe_units("${_ember_neutral}" _ember_neutral_units)
 list(LENGTH _ember_neutral_units _neutral_count)
 message(STATUS "ember-x64-probe: ${_neutral_count} neutral units")
@@ -145,6 +153,16 @@ endif()
 target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
 target_link_libraries(ember_neutral_x64 PRIVATE
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
+# The product's package inventory (common/PackageInventory.hxx): a game that
+# ships its own package names its file before it adds this folder; the probe
+# on its own compiles SF4 Ember's.
+set(EMBER_PACKAGE_INVENTORY "" CACHE FILEPATH "The product's package inventory, in PackageInventory.inc's form (empty: SF4 Ember's)")
+if(EMBER_PACKAGE_INVENTORY)
+    if(NOT EXISTS "${EMBER_PACKAGE_INVENTORY}")
+        message(FATAL_ERROR "EMBER_PACKAGE_INVENTORY names '${EMBER_PACKAGE_INVENTORY}', which does not exist")
+    endif()
+    target_compile_definitions(ember_neutral_x64 PUBLIC "EMBER_PACKAGE_INVENTORY=\"${EMBER_PACKAGE_INVENTORY}\"")
+endif()
 
 # The runtime (sf4e_runtime), compiled as SFV Ember would build it, and the
 # runtime's test under the fake game (RuntimeCapabilitiesTest) linked against
@@ -178,3 +196,31 @@ add_executable(ember_runtime_x64_test
 sf4e_add_product_identity(ember_runtime_x64_test)
 target_include_directories(ember_runtime_x64_test PRIVATE "${EMBER_SOURCE_ROOT}/common")
 target_link_libraries(ember_runtime_x64_test PRIVATE ember_runtime_x64)
+
+# The launcher and updater programs (launcher.cxx, updater.cxx) and the
+# launcher's recovery window, as libraries: a game builds Launcher.exe and
+# Updater.exe from them with its product identity, its launch steps
+# (launcher/LaunchSteps.hxx), its catalog and its pick labels and pictures,
+# as SF4 Ember's build does with its own. They hold each program's entry
+# point, so each goes into one executable only.
+find_package(CLI11 CONFIG REQUIRED)
+set(_ember_launcher_ui ${EMBER_LAUNCHER_UI})
+list(FILTER _ember_launcher_ui INCLUDE REGEX "\\.cxx$")
+list(TRANSFORM _ember_launcher_ui PREPEND "${EMBER_SOURCE_ROOT}/")
+add_library(ember_launcher_x64 STATIC "${EMBER_SOURCE_ROOT}/launcher/launcher.cxx" ${_ember_launcher_ui})
+target_compile_definitions(ember_launcher_x64 PRIVATE UNICODE _UNICODE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
+target_include_directories(ember_launcher_x64 PRIVATE "${EMBER_SOURCE_ROOT}/common" "${EMBER_SOURCE_ROOT}/launcher"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_BINARY_DIR}/generated/identity")
+target_link_libraries(ember_launcher_x64 PUBLIC ember_neutral_x64
+    CLI11::CLI11 fmt::fmt imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB
+    d3d9 dinput8 dxguid shlwapi pathcch version dbghelp bcrypt shell32 ole32 oleaut32 user32 gdi32 ws2_32
+    winhttp iphlpapi winmm windowscodecs comctl32
+    # The video export's encoder (platform/VideoLinkServe.cxx), which runs in
+    # the launcher's own process, loaded only when it is used, as in SF4
+    # Ember's build (cmake/sf4e_video.cmake).
+    mfplat mfreadwrite mfuuid mmdevapi d3d11 dxgi delayimp)
+target_link_options(ember_launcher_x64 INTERFACE "/DELAYLOAD:mfplat.dll" "/DELAYLOAD:mfreadwrite.dll"
+    "/DELAYLOAD:MMDevAPI.dll" "/DELAYLOAD:d3d11.dll" "/DELAYLOAD:dxgi.dll")
+add_library(ember_updater_x64 STATIC "${EMBER_SOURCE_ROOT}/launcher/updater.cxx")
+target_link_libraries(ember_updater_x64 PUBLIC ember_neutral_x64 nlohmann_json::nlohmann_json ZLIB::ZLIB
+    bcrypt pathcch shell32 comctl32 user32)

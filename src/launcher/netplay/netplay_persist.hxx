@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../common/sf4e__NetplayConfig.hxx"
+#include "../../common/sf4e__NetplayConfig.hxx"
 
 #include <string>
 
