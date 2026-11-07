@@ -126,8 +126,8 @@ async fn stored_game(bridge: &Bridge, room_id: String) -> String {
 #[tokio::test]
 async fn a_create_names_its_game_to_the_row_and_the_supervisor_only_when_it_is_not_sf4() {
     let (bridge, fake) = start().await;
-    let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
-    let (sfv, sf4) = rooms(&bridge, &fake, &kate, &sam).await;
+    let (player1, player2) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let (sfv, sf4) = rooms(&bridge, &fake, &player1, &player2).await;
     let sent = fake.lock().unwrap().created.clone();
     assert_eq!(sent.len(), 2);
     assert_eq!(sent[0]["game"], "sfv");
@@ -137,11 +137,11 @@ async fn a_create_names_its_game_to_the_row_and_the_supervisor_only_when_it_is_n
     assert_eq!(stored_game(&bridge, sf4).await, "usf4");
 
     // An unknown game, or one that is not a string, makes no room.
-    let lee = player(&bridge, 3).await;
+    let player3 = player(&bridge, 3).await;
     for game in [json!("sf6"), json!(""), json!(1), json!(null)] {
         let (status, body) = create_room_with(
             &bridge,
-            &lee,
+            &player3,
             "198.51.100.3",
             json!({ "name": "Room", "capacity": 8, "build_id": BUILD, "game": game }),
         )
@@ -154,12 +154,12 @@ async fn a_create_names_its_game_to_the_row_and_the_supervisor_only_when_it_is_n
 #[tokio::test]
 async fn a_listing_shows_one_games_rooms_and_sf4_when_it_names_none() {
     let (bridge, fake) = start().await;
-    let (kate, sam, lee) = (
+    let (player1, player2, player3) = (
         player(&bridge, 1).await,
         player(&bridge, 2).await,
         player(&bridge, 3).await,
     );
-    let (sfv, sf4) = rooms(&bridge, &fake, &kate, &sam).await;
+    let (sfv, sf4) = rooms(&bridge, &fake, &player1, &player2).await;
 
     // An SF4 build's listing, as SF4 Ember asks for it, and every listing
     // that names no game: the SF4 room alone.
@@ -171,7 +171,7 @@ async fn a_listing_shows_one_games_rooms_and_sf4_when_it_names_none() {
         format!("?build_id={SFV_QUERY}&detail=1"),
         format!("?build_id={SFV_BUILD}"),
     ] {
-        let body = raw_listing(&bridge, &lee, &query).await;
+        let body = raw_listing(&bridge, &player3, &query).await;
         let listed = ids(&body);
         assert!(!listed.contains(&sfv), "{query}: {body}");
         assert!(!body.to_string().contains("\"game\""), "{query}: {body}");
@@ -184,7 +184,7 @@ async fn a_listing_shows_one_games_rooms_and_sf4_when_it_names_none() {
         format!("?build_id={SFV_BUILD}&game=sfv"),
         "?game=sfv".to_owned(),
     ] {
-        let body = raw_listing(&bridge, &lee, &query).await;
+        let body = raw_listing(&bridge, &player3, &query).await;
         assert_eq!(ids(&body), vec![sfv.clone()], "{query}: {body}");
         assert_eq!(body["rooms"][0]["game"], "sfv", "{query}");
         assert_eq!(body["rooms"][0]["build_id"], SFV_BUILD, "{query}");
@@ -192,14 +192,14 @@ async fn a_listing_shows_one_games_rooms_and_sf4_when_it_names_none() {
         room.check().unwrap();
     }
     // `game=usf4` is the default said out loud.
-    let body = raw_listing(&bridge, &lee, &format!("?build_id={BUILD}&game=usf4")).await;
+    let body = raw_listing(&bridge, &player3, &format!("?build_id={BUILD}&game=usf4")).await;
     assert_eq!(ids(&body), vec![sf4.clone()]);
     // A game the bridge does not know is an invalid request.
     for game in ["sf6", "", "USF4"] {
         let (status, body) = send(
             &bridge,
             reqwest::Method::GET,
-            lee.token(),
+            player3.token(),
             "198.51.100.1",
             &format!("/v1/rooms?game={game}"),
             None,
@@ -213,8 +213,8 @@ async fn a_listing_shows_one_games_rooms_and_sf4_when_it_names_none() {
 #[tokio::test]
 async fn the_public_page_lists_sf4_rooms_unless_it_names_a_game() {
     let (bridge, fake) = start().await;
-    let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
-    let (sfv, sf4) = rooms(&bridge, &fake, &kate, &sam).await;
+    let (player1, player2) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    let (sfv, sf4) = rooms(&bridge, &fake, &player1, &player2).await;
     let (status, page) = public_page(&bridge, "").await;
     assert_eq!(status, StatusCode::OK, "{page}");
     assert_eq!(ids(&page), vec![sf4.clone()]);
@@ -232,23 +232,23 @@ async fn the_public_page_lists_sf4_rooms_unless_it_names_a_game() {
 #[tokio::test]
 async fn a_room_admits_only_its_own_games_build_and_an_sfv_ticket_has_no_class() {
     let (bridge, fake) = start().await;
-    let (kate, sam, lee) = (
+    let (player1, player2, player3) = (
         player(&bridge, 1).await,
         player(&bridge, 2).await,
         player(&bridge, 3).await,
     );
     // Linked, so each would have a class where classes are shown.
-    connect_discord(&bridge, "100", &kate).await;
-    connect_discord(&bridge, "200", &sam).await;
-    connect_discord(&bridge, "300", &lee).await;
-    let (sfv, sf4) = rooms(&bridge, &fake, &kate, &sam).await;
+    connect_discord(&bridge, "100", &player1).await;
+    connect_discord(&bridge, "200", &player2).await;
+    connect_discord(&bridge, "300", &player3).await;
+    let (sfv, sf4) = rooms(&bridge, &fake, &player1, &player2).await;
 
     // SF4 Ember's request names no game: the SFV room refuses it, with the
     // SFV build as with its own.
     for build in [SFV_BUILD, BUILD] {
         let (status, body) = ticket_with(
             &bridge,
-            &lee,
+            &player3,
             &sfv,
             json!({ "endpoint_id": ENDPOINT, "build_id": build, "skill_badge": true }),
         )
@@ -259,7 +259,7 @@ async fn a_room_admits_only_its_own_games_build_and_an_sfv_ticket_has_no_class()
     // An SFV request for the SF4 room is refused the same way.
     let (status, body) = ticket_with(
         &bridge,
-        &lee,
+        &player3,
         &sf4,
         json!({ "endpoint_id": ENDPOINT, "build_id": BUILD, "game": "sfv" }),
     )
@@ -269,7 +269,7 @@ async fn a_room_admits_only_its_own_games_build_and_an_sfv_ticket_has_no_class()
     // An unknown game is not a request.
     let (status, body) = ticket_with(
         &bridge,
-        &lee,
+        &player3,
         &sfv,
         json!({ "endpoint_id": ENDPOINT, "build_id": SFV_BUILD, "game": "sf6" }),
     )
@@ -279,7 +279,7 @@ async fn a_room_admits_only_its_own_games_build_and_an_sfv_ticket_has_no_class()
     // SFV Ember's own request is admitted, and its ticket carries no class.
     let (status, admitted) = ticket_with(
         &bridge,
-        &lee,
+        &player3,
         &sfv,
         json!({ "endpoint_id": ENDPOINT, "build_id": SFV_BUILD, "skill_badge": true,
             "game": "sfv" }),
@@ -299,7 +299,7 @@ async fn a_room_admits_only_its_own_games_build_and_an_sfv_ticket_has_no_class()
     // admission says nothing of a game.
     let (status, admitted) = ticket_with(
         &bridge,
-        &lee,
+        &player3,
         &sf4,
         json!({ "endpoint_id": ENDPOINT, "build_id": BUILD, "skill_badge": true }),
     )
@@ -346,19 +346,19 @@ async fn rated(bridge: &Bridge) -> (i64, i64) {
 #[tokio::test]
 async fn games_in_an_sfv_room_are_not_rated() {
     let (bridge, fake) = start().await;
-    let (kate, sam) = (player(&bridge, 1).await, player(&bridge, 2).await);
-    connect_discord(&bridge, "100", &kate).await;
-    connect_discord(&bridge, "200", &sam).await;
-    let (sfv, sf4) = rooms(&bridge, &fake, &kate, &sam).await;
+    let (player1, player2) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect_discord(&bridge, "100", &player1).await;
+    connect_discord(&bridge, "200", &player2).await;
+    let (sfv, sf4) = rooms(&bridge, &fake, &player1, &player2).await;
     report_games(
         &fake,
         &sfv,
-        vec![game(1, &kate, &sam), game(2, &sam, &kate)],
+        vec![game(1, &player1, &player2), game(2, &player2, &player1)],
     );
     ember_bridge::poll_rooms(bridge.state()).await;
     assert_eq!(rated(&bridge).await, (0, 0));
     // The same two players' game in the SF4 room is rated.
-    report_games(&fake, &sf4, vec![game(1, &kate, &sam)]);
+    report_games(&fake, &sf4, vec![game(1, &player1, &player2)]);
     ember_bridge::poll_rooms(bridge.state()).await;
     assert_eq!(rated(&bridge).await, (2, 1));
 }
