@@ -4775,6 +4775,12 @@ msgstr "New PIN"
 msgid "training.remote.newpin.detail"
 msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
 
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
 msgid "training.remote.failed"
 msgstr "The phone remote could not start."
 

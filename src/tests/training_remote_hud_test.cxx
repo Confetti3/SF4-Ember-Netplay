@@ -3,6 +3,7 @@
 #include "../platform/GameThemes.hxx"
 #include "../platform/HudLayout.hxx"
 #include "../training/RemoteHud.hxx"
+#include "../training/RemoteHudPage.hxx"
 #include "hud_fixture.hxx"
 #include "test_support.hxx"
 #include <filesystem>
@@ -19,6 +20,13 @@ const char* const Phone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X
 }
 
 int main() {
+    // The page the phone gets has the Layout tab spliced in, ahead of the call that starts it.
+    const std::string page = PageWithHudEditor();
+    const auto tab = page.find("tabs.push([\"layout\"");
+    CHECK(page.find("id=\"t-layout\"") != std::string::npos && tab != std::string::npos);
+    CHECK(tab < page.rfind("\nstart();") && page.find("id=\"t-layout\"") < page.find("</main>"));
+    CHECK(page.find("Mobi") != std::string::npos);   // the script keeps phones out
+
     wchar_t temp[MAX_PATH], unique[MAX_PATH];
     CHECK(GetTempPathW(MAX_PATH, temp));
     CHECK(GetTempFileNameW(temp, L"hud", 0, unique));

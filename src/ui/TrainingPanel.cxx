@@ -678,6 +678,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
    rows.push_back(Value("remote-url",loc::T("training.remote.address"),s_remote->url(),loc::T("training.remote.address.detail")));
    rows.push_back(Value("remote-pin",loc::T("training.remote.pin"),s_remote->pin(),loc::T("training.remote.pin.detail")));
    rows.push_back(Row("remote-newpin",loc::T("training.remote.newpin"),loc::T("training.remote.newpin.detail")));
+   rows.push_back(Value("remote-hud",loc::T("training.remote.hud"),loc::T(s_remote->hudAllowed()?"common.on":"common.off"),loc::T("training.remote.hud.detail")));
    rows[2].adjustable=rows[3].adjustable=false;
   }
  }else if(screen=="recording"){
@@ -816,6 +817,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   if(a.kind==MenuAction::Activate&&a.id=="remote-qr")showQr=!showQr;
   // A new PIN: the server starts over, so the old one and every phone signed in with it stop working.
   if(a.kind==MenuAction::Activate&&a.id=="remote-newpin"){s_remote->stop();if(!s_remote->start())error=loc::T("training.remote.failed");}
+  if((a.kind==MenuAction::Activate||a.kind==MenuAction::Adjust)&&a.id=="remote-hud")s_remote->allowHud(a.kind==MenuAction::Adjust?a.delta>0:!s_remote->hudAllowed());
   if((a.kind==MenuAction::Activate||a.kind==MenuAction::Adjust)&&a.id=="remote-toggle"){
    const bool on=!s_remote->url().empty(),want=a.kind==MenuAction::Adjust?a.delta>0:!on;
    if(want&&!on){if(!s_remote->start())error=loc::T("training.remote.failed");}else if(!want&&on){s_remote->stop();showQr=false;}

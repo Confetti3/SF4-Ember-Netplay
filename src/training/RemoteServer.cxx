@@ -2,6 +2,7 @@
 #include "CameraControl.hxx"
 #include "RemotePage.hxx"
 #include "RemoteHud.hxx"
+#include "RemoteHudPage.hxx"
 #include "../sf4e/sf4e__GameThemes.hxx"
 #include "ComboStore.hxx"
 #include "GameFiles.hxx"
@@ -178,7 +179,7 @@ bool Serve(SOCKET socket, unsigned long peer) {
     const auto target = request.substr(get ? 4 : 5, request.find(' ', 5) - (get ? 4 : 5));
     const std::size_t query = target.find('?');
     const std::string path = target.substr(0, query);
-    if (get && path == "/") { Reply(socket, 200, "text/html; charset=utf-8", Page); return false; }
+    if (get && path == "/") { static const std::string page = PageWithHudEditor(); Reply(socket, 200, "text/html; charset=utf-8", page); return false; }
     const bool download = get && path.compare(0, 12, "/api/combos/") == 0;
     if (path != "/api/options" && path != "/api/state" && path != "/api/cmd" && path != "/api/stream" && path != "/api/combos" && path != "/api/frames" && path != "/api/camera" && !download && !hud::Owns(path)) { Reply(socket, 404, "text/plain", "no"); return false; }
     // An EventSource and a download link cannot set headers, so those take the PIN in their address.
@@ -326,6 +327,7 @@ bool Start() {
 }
 void Stop() {
     if (!s_running.exchange(false)) return;
+    hud::Allow(false);
     while (s_loops > 0 || s_streams > 0 || s_requests > 0) std::this_thread::sleep_for(std::chrono::milliseconds(20));  // the streams see s_running and end
     closesocket(s_listen); if (s_dns != INVALID_SOCKET) closesocket(s_dns);
     s_listen = s_dns = INVALID_SOCKET; s_port = 0;
