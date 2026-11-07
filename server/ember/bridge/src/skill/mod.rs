@@ -14,6 +14,7 @@ pub mod ranking;
 
 use ember_protocol::{
     EmberId,
+    rooms::DEFAULT_GAME,
     skill::{SKILL_BANDS, SkillBadge},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -70,7 +71,9 @@ struct Game {
 }
 
 /// Rates `room_id`'s reported games that are not rated yet. A host reports
-/// its recent games on every poll; each counts the first time only.
+/// its recent games on every poll; each counts the first time only. The
+/// rating is USF4's: games from a room of another game (`rooms.game`) are
+/// not rated or recorded.
 pub fn record_games(
     tx: &Transaction<'_>,
     room_id: &str,
@@ -84,8 +87,8 @@ pub fn record_games(
     for game in games.filter_map(|game| Game::deserialize(game).ok()) {
         let first = tx.execute(
             "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation)
-             SELECT room_id, ?2, ?3 FROM rooms WHERE room_id = ?1",
-            params![room_id, game.table, game.generation],
+             SELECT room_id, ?2, ?3 FROM rooms WHERE room_id = ?1 AND game = ?4",
+            params![room_id, game.table, game.generation, DEFAULT_GAME],
         )? == 1;
         if !first {
             continue;

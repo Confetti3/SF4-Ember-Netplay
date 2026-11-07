@@ -59,6 +59,7 @@ static void TestNames() {
 	CHECK(Same(product.videoLinkPrefix, L"Local\\sf4e-video-"));
 	CHECK(Same(product.videoTemporarySuffix, L".sf4e-video-tmp"));
 	CHECK(Same(product.urlScheme, "ember"));
+	CHECK(Same(product.roomGame, "usf4"));
 	CHECK(Same(product.stableRepo, "Confetti3/SF4-Ember-Netplay"));
 	CHECK(Same(product.nightlyRepo, "Confetti3/SF4-Ember-Netplay-Nightly"));
 	CHECK(Same(product.releaseZipPrefix, "sf4-ember-netplay-"));

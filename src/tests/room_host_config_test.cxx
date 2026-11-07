@@ -47,6 +47,18 @@ void TestParse() {
 		error.clear();
 		CHECK(!roomhost::ParseConfig(Line(bad), rejected, error) && error == "own_delay");
 	}
+	// The game: absent is a "usf4" room, which SF4's room host takes; the
+	// supervisor names any other, and SF4's room host refuses it.
+	CHECK(roomhost::ParseConfig(Line(""), config, error) && config.game == "usf4");
+	CHECK(roomhost::PrepareCatalog(config, error));
+	CHECK(roomhost::ParseConfig(Line(R"(,"game":"sfv")"), config, error) && config.game == "sfv");
+	error.clear();
+	CHECK(!roomhost::PrepareCatalog(config, error) && error == "other_game");
+	for (const char* bad : {R"(,"game":1)", R"(,"game":"")", R"(,"game":"s f v")"}) {
+		roomhost::Config rejected;
+		error.clear();
+		CHECK(!roomhost::ParseConfig(Line(bad), rejected, error) && error == "game");
+	}
 }
 
 // From the configuration line to the room's snapshot and its status line.

@@ -11,6 +11,24 @@ pub const MAX_ROOMS_LIMIT: usize = 1024;
 /// Ports below this are never handed to a room host.
 pub const MIN_PORT: u16 = 1024;
 
+/// The games a room host build can be for: `usf4` (SF4 Ember) and `sfv` (SFV
+/// Ember). The same keys are `ember_protocol::rooms::GAMES` (this crate does
+/// not depend on ember-protocol); a test in `protocol.rs` checks them against
+/// it.
+pub const GAMES: [&str; 2] = [DEFAULT_GAME, "sfv"];
+/// The game of a build or a request that names none.
+pub const DEFAULT_GAME: &str = "usf4";
+
+/// `DEFAULT_GAME`, for a `game` that is absent.
+pub fn default_game() -> String {
+    DEFAULT_GAME.to_owned()
+}
+
+/// Whether a `game` is the default, and so left out of what is written.
+pub fn is_default_game(game: &str) -> bool {
+    game == DEFAULT_GAME
+}
+
 /// A room host build the supervisor can run. Each client release needs room
 /// hosts built from the same commit, keyed by its sidecar build hash.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -20,6 +38,10 @@ pub struct Build {
     pub room_host: String,
     /// Path to the `sf4-net` helper the room host starts.
     pub helper: String,
+    /// The game the build is for (`GAMES`); `DEFAULT_GAME` when absent. A
+    /// room is created on the build only for the same game.
+    #[serde(default = "default_game")]
+    pub game: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -109,6 +131,13 @@ impl Config {
             }
             if build.room_host.is_empty() || build.helper.is_empty() {
                 return Err(format!("build {id} needs room_host and helper paths"));
+            }
+            if !GAMES.contains(&build.game.as_str()) {
+                return Err(format!(
+                    "build {id} has game {:?}; a game is one of {}",
+                    build.game,
+                    GAMES.join(", ")
+                ));
             }
         }
         Ok(())
@@ -252,11 +281,42 @@ mod tests {
             let parsed = config(&format!(r#"{{ "secret_file": "s", {fragment} }}"#));
             assert!(Settings::new(parsed, SECRET).is_err(), "{fragment}");
         }
+        // A build's game is one the supervisor knows.
+        for game in [r#""""#, r#""sf6""#, r#""USF4""#] {
+            let parsed = config(&format!(
+                r#"{{ "secret_file": "s", "builds": {{ "x": {{ "room_host": "a", "helper": "b", "game": {game} }} }} }}"#
+            ));
+            assert!(Settings::new(parsed, SECRET).is_err(), "{game}");
+        }
+        assert!(
+            serde_json::from_str::<Config>(
+                r#"{ "secret_file": "s", "builds": { "x": { "room_host": "a", "helper": "b", "game": 1 } } }"#
+            )
+            .is_err()
+        );
         // One room needs two ports.
         let one = config(r#"{ "secret_file": "s", "port_range": [45800, 45800] }"#);
         assert!(Settings::new(one, SECRET).is_err());
         let pair = config(r#"{ "secret_file": "s", "port_range": [45800, 45801] }"#);
         assert!(Settings::new(pair, SECRET).is_ok());
+    }
+
+    #[test]
+    fn a_build_is_for_sf4_unless_it_names_another_game() {
+        let parsed = config(
+            r#"{ "secret_file": "s", "builds": {
+                "build-1": { "room_host": "a", "helper": "b" },
+                "sfv-ember/13173604/0.2/8dafe602f7615d90": { "room_host": "c", "helper": "d", "game": "sfv" },
+                "explicit": { "room_host": "e", "helper": "f", "game": "usf4" } } }"#,
+        );
+        assert!(Settings::new(parsed.clone(), SECRET).is_ok());
+        assert_eq!(parsed.builds["build-1"].game, "usf4");
+        assert_eq!(parsed.builds["explicit"].game, "usf4");
+        // An SFV Ember build id holds slashes, which a build id may.
+        assert_eq!(
+            parsed.builds["sfv-ember/13173604/0.2/8dafe602f7615d90"].game,
+            "sfv"
+        );
     }
 
     #[test]

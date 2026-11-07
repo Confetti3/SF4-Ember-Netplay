@@ -225,10 +225,18 @@ pub enum Request {
         match_id: String,
         room: PublishRoom,
     },
-    /// The open public rooms of `build` on a bridge.
+    /// The open public rooms of `build` and `game` on a bridge.
     RoomList {
         bridge_id: String,
         build: String,
+        /// The game whose rooms are listed (`rooms::GAMES`): `usf4`, SF4
+        /// Ember's, when absent. The same on `RoomCreate` and `RoomTicket`;
+        /// a game the helper does not know is an invalid request.
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     /// Opens a public room and takes its creator's ticket.
     RoomCreate {
@@ -240,12 +248,22 @@ pub enum Request {
         /// life. Sent only when true.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         own_delay: bool,
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     /// The ticket and invitation for joining an open public room.
     RoomTicket {
         bridge_id: String,
         room_id: String,
         build: String,
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     /// The player's own class and choice to take part in ranking.
     RankingStanding {
@@ -1163,19 +1181,30 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             match_id,
             room,
         } => play::publish_room(shared, &bridge_id, &match_id, room).await,
-        Request::RoomList { bridge_id, build } => rooms::list(shared, &bridge_id, &build).await,
+        Request::RoomList {
+            bridge_id,
+            build,
+            game,
+        } => rooms::list(shared, &bridge_id, &build, &game).await,
         Request::RoomCreate {
             bridge_id,
             name,
             capacity,
             build,
             own_delay,
-        } => rooms::create(shared, &bridge_id, &name, capacity, &build, own_delay).await,
+            game,
+        } => {
+            rooms::create(
+                shared, &bridge_id, &name, capacity, &build, own_delay, &game,
+            )
+            .await
+        }
         Request::RoomTicket {
             bridge_id,
             room_id,
             build,
-        } => rooms::ticket(shared, &bridge_id, &room_id, &build).await,
+            game,
+        } => rooms::ticket(shared, &bridge_id, &room_id, &build, &game).await,
         Request::RankingStanding { bridge_id } => ranking::standing(shared, &bridge_id).await,
         Request::RankingChoose { bridge_id, choice } => {
             ranking::choose(shared, &bridge_id, choice).await

@@ -15,6 +15,11 @@
 # server/roomhost/sources.txt: the files of the sf4e-room-host target and the
 # libraries it links in CMakeLists.txt, with RoomHostHelperPosix.cxx and
 # HelperClientPosix.cxx in place of the Windows helper files. No game library.
+#
+# CATALOG_SOURCES, when set, builds a room host for a game whose catalog is
+# data rather than SF4's: its absolute paths (separated by spaces) are compiled
+# in place of the host_catalog, selection and catalog groups, which are SF4's
+# catalog and its PrepareCatalog. Their include folders go in CXXFLAGS.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -55,10 +60,22 @@ FLAGS="-std=c++17 -O2 -DNDEBUG -flto=auto -ffunction-sections -fdata-sections -p
 # server/roomhost/sources.txt lists the sources (one list for this script and the
 # CMake targets); the Windows-only host file is left out, and a CR from a CRLF
 # checkout is dropped.
-SOURCES="$(tr -d '\r' < "$ROOT/server/roomhost/sources.txt" | awk '
+SKIP="host_windows"
+if [ -n "${CATALOG_SOURCES:-}" ]; then
+    SKIP="host_windows host_catalog selection catalog"
+fi
+SOURCES="$(tr -d '\r' < "$ROOT/server/roomhost/sources.txt" | awk -v skip=" $SKIP " '
     /^# \[[a-z_]+\]$/ { group = substr($0, 4, length($0) - 4); next }
     /^#/ || !NF { next }
-    group != "host_windows" { print }')"
+    index(skip, " " group " ") == 0 { print }')"
+for source in ${CATALOG_SOURCES:-}; do
+    case "$source" in
+        /*) [ -f "$source" ] || { echo "No catalog source $source" >&2; exit 1; } ;;
+        *) echo "CATALOG_SOURCES takes absolute paths: $source" >&2; exit 1 ;;
+    esac
+    SOURCES="$SOURCES
+$source"
+done
 if [ -z "$SOURCES" ]; then
     echo "No sources listed in $ROOT/server/roomhost/sources.txt" >&2
     exit 1
@@ -68,9 +85,10 @@ OBJ="$(mktemp -d "${TMPDIR:-/tmp}/room-host-build.XXXXXX")"
 trap 'rm -rf "$OBJ"' EXIT
 export ROOT OBJ CXX FLAGS
 compile() {
-    local source="$1" object="$OBJ/$(echo "$1" | tr / _).o"
+    local source="$1" object="$OBJ/$(echo "$1" | tr / _).o" path="$ROOT/$1"
+    case "$1" in /*) path="$1" ;; esac
     # shellcheck disable=SC2086
-    "$CXX" $FLAGS -c "$ROOT/$source" -o "$object"
+    "$CXX" $FLAGS -c "$path" -o "$object"
 }
 export -f compile
 echo "Compiling $(echo "$SOURCES" | grep -c .) files with $JOBS jobs"

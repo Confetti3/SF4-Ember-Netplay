@@ -16,6 +16,11 @@
 //! only for such a room, so a child that predates it reads the line as it
 //! always did, and a child reads an absent key as the shared delay.
 //!
+//! A room of a game other than `usf4` (SF4 Ember) carries `"game"` the same
+//! way, for example `"game": "sfv"`; an SF4 room's line has no such key. The
+//! supervisor has already checked that the game is the build's own
+//! (`config::Build::game`).
+//!
 //! `port` is the primary endpoint's UDP port and `coordination_port` the
 //! second one the room needs. The supervisor picks the two lowest free ports
 //! of its range (not necessarily adjacent) and holds both until the child
@@ -57,6 +62,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+
+use crate::config;
 
 /// The most accounts a room may ban in its lifetime, and so the most a
 /// `status` line can list. The same number is `ember_protocol::rooms::
@@ -118,6 +125,14 @@ pub struct CreateRoom {
     /// from a bridge that predates it, is the shared delay.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub own_delay: bool,
+    /// The game the room is for (`config::GAMES`); `config::DEFAULT_GAME`
+    /// when absent. It must be the build's own game. Written only when it is
+    /// not the default, to the child as well.
+    #[serde(
+        default = "config::default_game",
+        skip_serializing_if = "config::is_default_game"
+    )]
+    pub game: String,
 }
 
 fn is_token(text: &str, limit: usize) -> bool {
@@ -146,6 +161,9 @@ impl CreateRoom {
             if !is_token(text, limit) {
                 return Err(field);
             }
+        }
+        if !config::GAMES.contains(&self.game.as_str()) {
+            return Err("game");
         }
         Ok(())
     }
@@ -391,6 +409,85 @@ mod tests {
             ticket_key: "a2V5".to_owned(),
             ticket_kid: "k1".to_owned(),
             own_delay: false,
+            game: "usf4".to_owned(),
+        }
+    }
+
+    #[test]
+    fn a_rooms_game_goes_to_the_child_only_when_it_is_not_sf4() {
+        let line = |room: &CreateRoom| {
+            serde_json::to_value(ChildConfig {
+                room,
+                helper: "helper-path",
+                port: 45800,
+                coordination_port: 45801,
+            })
+            .unwrap()
+        };
+        let request = r#"{"room_id":"0123456789abcdef0123456789ABCDEF","name":"Friday night","capacity":8,"build_id":"b1","creator":"emb_abc","bridge_id":"brg_abc","ticket_key":"a2V5","ticket_kid":"k1"}"#;
+        let absent: CreateRoom = serde_json::from_str(request).unwrap();
+        assert_eq!(absent.game, "usf4");
+        assert!(line(&absent).get("game").is_none());
+        let explicit: CreateRoom =
+            serde_json::from_str(&request.replacen('}', r#","game":"usf4"}"#, 1)).unwrap();
+        assert_eq!(serde_json::to_string(&explicit).unwrap(), request);
+        // An SFV room, whose build id holds slashes.
+        let sfv: CreateRoom = serde_json::from_str(
+            &request
+                .replacen(r#""b1""#, r#""sfv-ember/13173604/0.2/8dafe602f7615d90""#, 1)
+                .replacen('}', r#","game":"sfv"}"#, 1),
+        )
+        .unwrap();
+        assert_eq!(sfv.validate(), Ok(()));
+        let child = line(&sfv);
+        assert_eq!(child["game"], "sfv");
+        assert_eq!(child["build_id"], "sfv-ember/13173604/0.2/8dafe602f7615d90");
+        // A game the supervisor does not know is a malformed request.
+        for game in ["", "sf6", "USF4"] {
+            let mut bad = room();
+            bad.game = game.to_owned();
+            assert_eq!(bad.validate(), Err("game"), "{game}");
+        }
+        assert!(
+            serde_json::from_str::<CreateRoom>(&request.replacen('}', r#","game":1}"#, 1)).is_err()
+        );
+    }
+
+    #[test]
+    fn the_games_agree_with_ember_protocol() {
+        let server = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let rooms = std::fs::read_to_string(server.join("ember/protocol/src/rooms/mod.rs"))
+            .expect("ember-protocol's rooms module");
+        let games = config::GAMES
+            .iter()
+            .map(|game| {
+                if config::is_default_game(game) {
+                    "DEFAULT_GAME".to_owned()
+                } else {
+                    format!("{}_GAME", game.to_ascii_uppercase())
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        assert!(
+            rooms.contains(&format!(
+                "pub const GAMES: [&str; {}] = [{games}];",
+                config::GAMES.len()
+            )),
+            "{games}"
+        );
+        assert!(rooms.contains(&format!(
+            "pub const DEFAULT_GAME: &str = \"{}\";",
+            config::DEFAULT_GAME
+        )));
+        for game in config::GAMES
+            .iter()
+            .filter(|game| !config::is_default_game(game))
+        {
+            assert!(rooms.contains(&format!(
+                "pub const {}_GAME: &str = \"{game}\";",
+                game.to_ascii_uppercase()
+            )));
         }
     }
 

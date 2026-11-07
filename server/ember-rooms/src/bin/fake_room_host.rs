@@ -110,6 +110,11 @@ fn main() -> ExitCode {
     } else {
         invitation
     };
+    // So does a room of another game than SF4 Ember's.
+    let invitation = match config.get("game") {
+        Some(game) => format!("{invitation}:game-{}", game.as_str().unwrap_or("?")),
+        None => invitation,
+    };
     let hosted = json!({ "type": "hosted", "invitation": invitation, "region": "test" });
     let status = |members: u64, tables: u64, banned: Vec<String>| {
         json!({ "type": "status", "members": members, "tables_playing": tables,

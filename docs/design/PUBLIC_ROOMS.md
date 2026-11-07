@@ -88,8 +88,9 @@ allows it also creates, lists, reads and closes rooms for its linked players
 with its provider credential; that is in `INTEGRATION_PATHS.md`. Errors use
 the bridge's existing error body.
 
-`GET /v1/rooms?build_id=` returns at most 100 open rooms that have at least
-one member, fullest last. A new room is listed once its creator is inside, so
+`GET /v1/rooms?build_id=&game=` returns at most 100 open rooms of one game
+(`usf4` when `game` is absent, see Games) that have at least one member,
+fullest last. A new room is listed once its creator is inside, so
 the creator is its first member and moderator:
 
 ```rust
@@ -104,10 +105,11 @@ pub struct RoomSummary {
     pub region: String,         // the creator's relay region code, e.g. "use1", else the host's
     pub created_at: u64,
     pub own_delay: bool,        // each fighter plays at their own input delay; written only when true
+    pub game: String,           // "usf4" or "sfv"; written only when not "usf4"
 }
 ```
 
-`POST /v1/rooms` with `CreateRoom { name, capacity, build_id, region? }` returns
+`POST /v1/rooms` with `CreateRoom { name, capacity, build_id, region?, game? }` returns
 the new room's `RoomSummary` (201). The creator then asks for a ticket like any
 joiner. `region` is the creator's home relay region (`use1`, `usw1`, `euc1` or
 `aps1`), which the helper sends when it has a known one; anything else is
@@ -154,9 +156,10 @@ netplay section); a saved region that is no longer one of the relay regions
 loads as every region. Quick join takes the first room the filter lists, in the
 player's region unless the filter names one. Nothing is sent to the bridge.
 
-`POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id }`
+`POST /v1/rooms/{room_id}/tickets` with `TicketRequest { endpoint_id, build_id, game? }`
 returns `RoomAdmission`. Refusals: `room_not_found`, `room_not_open`,
-`room_full`, `banned`, `unsupported_build`.
+`room_full`, `banned`, `unsupported_build` (the build or the game is not the
+room's).
 
 A room has no member until its creator is inside, and the creator is its first
 member. Until the supervisor has first reported a member (`rooms.opened_at`), the
@@ -186,9 +189,47 @@ left a room the others still play in can open another; per address (keyed hash o
 a server-wide room cap from supervisor configuration. Bans are rows
 `(room_id, ember_id)` written when the room host reports a kick.
 
+### Games
+
+Public rooms of SF4 Ember and of SFV Ember are kept apart by a game key:
+`usf4` (SF4 Ember, the default) or `sfv` (SFV Ember), `rooms::GAMES` in the
+protocol. `CreateRoom`, `TicketRequest` and `RoomSummary` each carry `game`,
+written only when it is not `usf4`, so every message about an SF4 room is
+byte for byte what it was before games existed. A game outside `GAMES` is
+refused as an invalid request (`InvalidField("game")`). A room's game is
+fixed when it is created (`rooms.game`, migration 057; older rows are
+`usf4`).
+
+- `GET /v1/rooms` and `GET /v1/rooms/public` take an optional `game` query
+  parameter. Without it a listing is of `usf4` rooms, so a caller that
+  predates games lists what it always did; with a known key it lists that
+  game's rooms; any other value is an invalid request. A connection's
+  listing does not read it: a connection's rooms are `usf4` rooms.
+- A ticket request whose `game` is not the room's is refused
+  `unsupported_build`, like one whose build is not the room's.
+- Skill classes are USF4's. Games reported in a room of another game are
+  not rated, and a ticket for such a room carries no badge.
+- The bridge passes a non-default `game` to the supervisor in `POST /rooms`,
+  which refuses a game that is not the build's own.
+- The room host checks it once more before its room opens
+  (`roomhost::PrepareCatalog`): SF4's takes only `usf4` rooms, and another
+  game's host takes only its own game and build (`server/roomhost/README.md`,
+  "A room host for another game"). A refusal is a `closed` line with the
+  reason (`other_game`, `other_build`, `catalog_invalid`).
+- The game is the product's (`ProductIdentity::roomGame`). The game's runtime
+  names it on its `room_list`, `room_create` and `room_ticket` requests only
+  when it is not `usf4`, and the helper then lists with `&game=`, sends it in
+  the create and ticket bodies, and refuses a listing or an admission that
+  names a room of another game.
+
+Build IDs are any printable ASCII up to 128 bytes everywhere a build ID is
+checked (protocol, bridge, supervisor, room host). SF4 Ember's is a 64-hex
+SHA-256; SFV Ember's has slashes (`sfv-ember/13173604/0.2/8dafe602f7615d90`)
+and is percent-encoded in a query.
+
 ## Supervisor API (loopback, `Authorization: Bearer <shared secret>`)
 
-- `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid, own_delay? }` (`own_delay` only when true; the supervisor writes it on to the room host's configuration line the same way) → `{ invitation, region }` once the host reports `hosted`.
+- `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid, own_delay?, game? }` (`own_delay` only when true, `game` only when not `usf4`; the supervisor writes each on to the room host's configuration line the same way) → `{ invitation, region }` once the host reports `hosted`. Each configured build has a game (`builds.<build_id>.game`, `usf4` when absent); a create whose game is not its build's is refused `409 unsupported_build`, as is one for a build that is not configured.
 - `GET /rooms` → `[{ room_id, members, capacity, tables_playing, invitation, banned: [ember_id], opened }]`, polled by the bridge. `members` is the latest count; `opened` is the supervisor's latch, set the first time a status with at least one member arrives and kept for the room's life. The bridge sets `rooms.opened_at` from `opened`, not from the count a poll happens to see, so a creator who joined and left between two polls still ends creator-only admission; it lists a room on the current count. A supervisor that omits the field is judged by the count.
 - `DELETE /rooms/{room_id}`.
 - `GET /health`.
@@ -322,14 +363,21 @@ Client requests on the tournament worker (`tournament::Request`), replies by
 `request_id` like `assignment_list`:
 
 ```rust
-RoomList { bridge_id: String, build: String },
-RoomCreate { bridge_id: String, name: String, capacity: u8, build: String },
-RoomTicket { bridge_id: String, room_id: String, build: String },
+RoomList { bridge_id: String, build: String, game: String },
+RoomCreate { bridge_id: String, name: String, capacity: u8, build: String, own_delay: bool, game: String },
+RoomTicket { bridge_id: String, room_id: String, build: String, game: String },
 ```
 
 On the wire these are `{"op":"room_list",...}`, `room_create` and
 `room_ticket` inside the `tournament` command, like `assignment_list`. A bridge
 without public rooms answers `rooms_unavailable`.
+
+`game` is optional on all three and `usf4` when absent, so SF4 Ember's
+requests, paths and bodies are what they were; a value outside `GAMES` is
+`invalid_request`. For another game the listing path gains `&game=<key>` and
+the create and ticket bodies carry `game`. The helper refuses a listing with
+a room of another game, a created room of another game, and an admission
+whose room is of another game.
 
 `RoomCreate` creates the room and requests the creator's ticket in one step.
 Creating takes up to the bridge's 30 s wait for the supervisor, so that

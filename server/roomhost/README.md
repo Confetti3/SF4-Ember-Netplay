@@ -114,6 +114,20 @@ the client was built from.
    `/etc/ember-rooms/config.json` and restarts the supervisor (which drains
    first; see the deploy README).
 
+## A room host for another game
+
+The room host judges picks by the game catalog it links (`ember::Catalog()`,
+`src/common/GameCatalog.hxx`). This build links SF4's (`[catalog]` and
+`[selection]` in `sources.txt`) and SF4's `PrepareCatalog` (`[host_catalog]`),
+which takes only rooms whose configuration line names no `game` or `"usf4"`;
+another game's room closes at once with `other_game`. A game whose catalog is
+data builds the same host with its own catalog in place of those three groups:
+`CATALOG_SOURCES="<absolute paths>"` (and the include folders in `CXXFLAGS`)
+for `build-linux.sh`. SFV Ember's is `scripts/build-room-host-linux.sh` in the
+sfv-ember repository (its docs/design/EMBER_LIBRARY.md section 24), which
+embeds the pick space the game exported and refuses, before the room opens, a
+configuration whose `build_id` or `game` is not that pick space's.
+
 ## Checking a host by hand
 
 The supervisor's child protocol is one JSON line on stdin and status lines on

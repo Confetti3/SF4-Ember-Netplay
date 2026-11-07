@@ -9,7 +9,7 @@ use ember_protocol::{
     play,
     rooms::{
         BANNED, ROOM_FULL, ROOM_LOCKED, ROOM_NOT_FOUND, ROOM_NOT_OPEN, RoomAdmission, RoomTicket,
-        TICKET_SECS, TicketRequest, UNSUPPORTED_BUILD,
+        TICKET_SECS, TicketRequest, UNSUPPORTED_BUILD, is_default_game,
     },
 };
 use rusqlite::params;
@@ -56,6 +56,7 @@ pub async fn ticket(
         build_id,
         skill_badge,
         developer_badge,
+        game,
     } = request;
     let show_badge = skill_badge && classes_shown(&state);
     let developers = developers(&state);
@@ -72,7 +73,8 @@ pub async fn ticket(
             if room.opened_at.is_none() && room.creator_ember_id != ember_id.as_str() {
                 return Err(refuse(ROOM_NOT_OPEN));
             }
-            if room.build_id != build_id {
+            // A room is joined only from its own build of its own game.
+            if room.build_id != build_id || room.game != game {
                 return Err(refuse(UNSUPPORTED_BUILD));
             }
             let banned: bool = tx.query_row(
@@ -92,7 +94,9 @@ pub async fn ticket(
                 return Err(refuse(ROOM_FULL));
             }
             let sealed = room.invitation_sealed.clone().unwrap_or_default();
-            let badge = if show_badge {
+            // Classes are USF4's emblems, rated from SF4 rooms' games alone,
+            // so a room of another game carries none.
+            let badge = if show_badge && is_default_game(&room.game) {
                 let developers = skill::Developers {
                     accounts: &developers,
                     shown: developer_badge,

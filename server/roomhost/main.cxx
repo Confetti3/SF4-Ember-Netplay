@@ -105,6 +105,11 @@ int main() {
 		Emit(roomhost::ClosedLine("invalid_config"));
 		Exit(2);
 	}
+	if (!roomhost::PrepareCatalog(config, error)) {
+		spdlog::error("This room host cannot judge the room's picks: {}", error);
+		Emit(roomhost::ClosedLine(error));
+		Exit(2);
+	}
 	auto helper = roomhost::StartHelper(config, error);
 	if (!helper) {
 		spdlog::error("Helper could not be started: {}", error);

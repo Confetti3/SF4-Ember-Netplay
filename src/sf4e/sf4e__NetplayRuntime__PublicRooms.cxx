@@ -5,6 +5,7 @@
 // joins with the admission itself (a JoinInvite carrying the ticket).
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
+#include "../common/ProductIdentity.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace {
@@ -32,12 +33,20 @@ void FinishAdmission(const std::string& failure, std::optional<netplay::publicro
 
 std::string Reason(const session::TournamentAnswer& answer) { return answer.reason.empty() ? "unavailable" : answer.reason; }
 
+// The product's game on a room request, named only when it is not "usf4",
+// so SF4 Ember's requests are what they were before games were named.
+json WithGame(json request) {
+	const std::string game = ember::Product().roomGame ? ember::Product().roomGame : "";
+	if (!game.empty() && game != "usf4") request["game"] = game;
+	return request;
+}
+
 void DispatchList(const Command& command, bool helperReady) {
 	auto& rooms = runtime->publicRooms;
 	if (command.bridgeId.empty() || rooms.loading) return;
 	if (rooms.bridge != command.bridgeId) rooms.rooms.clear();
 	rooms.bridge = command.bridgeId;
-	const auto id = helperReady ? SendBridgeRequest({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", Game().state.BuildId()}}) : 0;
+	const auto id = helperReady ? SendBridgeRequest(WithGame({{"op", "room_list"}, {"bridge_id", command.bridgeId}, {"build", Game().state.BuildId()}})) : 0;
 	if (!id) { FinishList("helper_unavailable"); return; }
 	runtime->roomListRequest = id;
 	runtime->roomListSentMs = GetTickCount64();
@@ -66,7 +75,7 @@ void DispatchAdmission(const Command& command, bool helperReady) {
 		json{{"op", "room_ticket"}, {"bridge_id", command.bridgeId}, {"room_id", command.roomId}, {"build", Game().state.BuildId()}};
 	// Only a room that asks for each player's own delay says so; the helper reads an absent key as the shared one.
 	if (create && command.ownDelay) request["own_delay"] = true;
-	const auto id = helperReady ? SendBridgeRequest(request) : 0;
+	const auto id = helperReady ? SendBridgeRequest(WithGame(std::move(request))) : 0;
 	if (!id) { FinishAdmission("helper_unavailable"); return; }
 	runtime->admissionRequest = id;
 	runtime->admissionSentMs = GetTickCount64();

@@ -34,6 +34,7 @@ fn harness(adjust: impl FnOnce(&mut Config, &mut Tuning)) -> Harness {
         Build {
             room_host: FAKE.to_owned(),
             helper: "helper-path".to_owned(),
+            game: "usf4".to_owned(),
         },
     );
     builds.insert(
@@ -41,6 +42,7 @@ fn harness(adjust: impl FnOnce(&mut Config, &mut Tuning)) -> Harness {
         Build {
             room_host: "definitely/not/a/binary".to_owned(),
             helper: "helper-path".to_owned(),
+            game: "usf4".to_owned(),
         },
     );
     let mut config = Config {
@@ -965,4 +967,105 @@ async fn a_rooms_own_delay_reaches_its_room_host_and_defaults_to_the_shared_dela
         assert_eq!(reply["reason"], "invalid_request");
     }
     assert_eq!(harness.supervisor.room_count(), 3);
+}
+
+/// An SFV Ember build id, which holds slashes.
+const SFV_BUILD: &str = "sfv-ember/13173604/0.2/8dafe602f7615d90";
+
+/// A harness that also runs `SFV_BUILD`, configured for SFV Ember.
+fn sfv_harness() -> Harness {
+    harness(|config, _| {
+        config.builds.insert(
+            SFV_BUILD.to_owned(),
+            Build {
+                room_host: FAKE.to_owned(),
+                helper: "helper-path".to_owned(),
+                game: "sfv".to_owned(),
+            },
+        );
+    })
+}
+
+/// A build hosts rooms of its own game only: a create names its game, and
+/// one that names none is for SF4 Ember.
+#[tokio::test]
+async fn a_build_hosts_rooms_of_its_own_game_only() {
+    let harness = sfv_harness();
+    let refused = json!({ "reason": "unsupported_build" });
+    // An SF4 request, with no game, for the SFV build.
+    let mut request = body(1, "normal");
+    request["build_id"] = json!(SFV_BUILD);
+    let (code, reply) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!((code, reply), (StatusCode::CONFLICT, refused.clone()));
+    // The same said out loud.
+    let mut request = body(1, "normal");
+    request["build_id"] = json!(SFV_BUILD);
+    request["game"] = json!("usf4");
+    let (code, reply) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!((code, reply), (StatusCode::CONFLICT, refused.clone()));
+    // An SFV request for the SF4 build.
+    let mut request = body(1, "normal");
+    request["game"] = json!("sfv");
+    let (code, reply) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!((code, reply), (StatusCode::CONFLICT, refused));
+    assert_eq!(harness.supervisor.room_count(), 0);
+
+    // The matching SFV request is hosted, and its room host is told the game.
+    let mut request = body(1, "normal");
+    request["build_id"] = json!(SFV_BUILD);
+    request["game"] = json!("sfv");
+    let (code, created) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!(code, StatusCode::CREATED, "{created}");
+    let invitation = created["invitation"].as_str().unwrap();
+    assert!(
+        invitation.contains(&format!(":{SFV_BUILD}:")),
+        "{invitation}"
+    );
+    assert!(invitation.ends_with(":game-sfv"), "{invitation}");
+
+    // An SF4 request for the SF4 build is what it always was: no game reaches
+    // its room host.
+    let (code, created) = harness.create(2, "normal").await;
+    assert_eq!(code, StatusCode::CREATED);
+    assert_eq!(
+        created["invitation"],
+        format!(
+            "inv:{}:45802:45803:b1:emb_creator:brg_test:a2V5a2V5:kid1:helper-path:8",
+            room_id(2)
+        )
+    );
+    let mut request = body(3, "normal");
+    request["game"] = json!("usf4");
+    let (code, created) = harness.call(Method::POST, "/rooms", Some(request)).await;
+    assert_eq!(code, StatusCode::CREATED);
+    assert!(!created["invitation"].as_str().unwrap().contains("game"));
+    assert_eq!(harness.list().await.len(), 3);
+
+    // A game the supervisor does not know is a malformed request.
+    for bad in [json!("sf6"), json!(""), json!(1), json!(null)] {
+        let mut request = body(4, "normal");
+        request["build_id"] = json!(SFV_BUILD);
+        request["game"] = bad.clone();
+        let (code, reply) = harness.call(Method::POST, "/rooms", Some(request)).await;
+        assert_eq!(code, StatusCode::BAD_REQUEST, "{bad}");
+        assert_eq!(reply["reason"], "invalid_request");
+    }
+    assert_eq!(harness.supervisor.room_count(), 3);
+}
+
+#[tokio::test]
+async fn the_limits_name_the_game_of_a_build_that_is_not_for_sf4() {
+    let harness = sfv_harness();
+    let (code, limits) = harness.call(Method::GET, "/limits", None).await;
+    assert_eq!(code, StatusCode::OK);
+    assert_eq!(limits["builds"], json!(["b1", "missing", SFV_BUILD]));
+    assert_eq!(limits["build_games"], json!({ SFV_BUILD: "sfv" }));
+    // A configuration with an unknown game does not validate, on a reload as
+    // at start.
+    let mut config = harness.supervisor.settings().config.clone();
+    config.builds.get_mut("b1").unwrap().game = "sf6".to_owned();
+    assert!(harness.supervisor.reload(&config).is_err());
+    assert!(Settings::new(config, SECRET.as_bytes()).is_err());
+    let (_, limits) = harness.call(Method::GET, "/limits", None).await;
+    assert_eq!(limits["reloads"], 0);
 }

@@ -20,7 +20,7 @@ use tokio::{
 };
 
 use crate::{
-    config::{Build, Config, Settings, Tuning},
+    config::{Build, Config, Settings, Tuning, is_default_game},
     protocol::{
         ChildConfig, ChildMessage, CreateRoom, LineReader, MAX_ROOM_BANS, ReadError, parse_line,
     },
@@ -92,6 +92,11 @@ pub struct LimitsView {
     pub port_range: [u16; 2],
     /// Build ids, sorted.
     pub builds: Vec<String>,
+    /// The game of each build that is not for `config::DEFAULT_GAME`, by
+    /// build id. Left out when every build is, so the answer is what it was
+    /// before games.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub build_games: BTreeMap<String, String>,
     /// Rooms that hold a port: starting, live or closing.
     pub rooms: usize,
     /// Reloads applied since the supervisor started.
@@ -263,6 +268,10 @@ impl Supervisor {
                 .get(&request.build_id)
                 .cloned()
                 .ok_or(CreateError::UnsupportedBuild)?;
+            // A build hosts rooms of its own game only.
+            if build.game != request.game {
+                return Err(CreateError::UnsupportedBuild);
+            }
             if inner.rooms.contains_key(&key) {
                 return Err(CreateError::Exists);
             }
@@ -312,6 +321,13 @@ impl Supervisor {
             max_rooms: inner.limits.max_rooms,
             port_range: inner.limits.port_range,
             builds: inner.limits.builds.keys().cloned().collect(),
+            build_games: inner
+                .limits
+                .builds
+                .iter()
+                .filter(|(_, build)| !is_default_game(&build.game))
+                .map(|(id, build)| (id.clone(), build.game.clone()))
+                .collect(),
             rooms: inner.rooms.len(),
             reloads: inner.reloads,
             bind: started.bind.clone(),

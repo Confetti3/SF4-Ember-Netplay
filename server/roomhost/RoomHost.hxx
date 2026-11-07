@@ -31,9 +31,20 @@ struct Config {
 	// fixed for the room's life. The supervisor writes "own_delay": true only for
 	// such a room; a line without the key is the shared delay.
 	bool ownDelay = false;
+	// The game the room is for (docs/design/PUBLIC_ROOMS.md, "Games"). The
+	// supervisor writes "game" only for a game other than "usf4"; a line
+	// without the key is a "usf4" room.
+	std::string game = "usf4";
 };
 // False with the offending field's name in `error`.
 bool ParseConfig(const std::string& line, Config& config, std::string& error);
+// Readies the game catalog this host judges picks by (common/GameCatalog.hxx)
+// for the configured room, before the room opens: true, or false with the
+// reason the host closes with in `reason`. Each room host build defines it
+// once, beside its catalog: SF4's (RoomHostSf4Catalog.cxx) has its catalog
+// compiled in and takes only "usf4" rooms; a game whose catalog is data
+// checks that data against the configured build and game.
+bool PrepareCatalog(const Config& config, std::string& reason);
 // Makes the room the configuration describes the server's server-owned room:
 // its name, capacity, public default rules and delay policy. False when the
 // server will not take it.

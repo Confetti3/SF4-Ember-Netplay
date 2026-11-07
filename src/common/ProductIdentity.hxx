@@ -169,6 +169,12 @@ struct ProductIdentity {
 	const wchar_t* videoTemporarySuffix;
 	// Links from a browser: urlScheme + "://join/...", "://room/open?..." and so on.
 	const char* urlScheme;
+	// The game a bridge's public rooms are for (docs/design/PUBLIC_ROOMS.md,
+	// "Games"): "usf4" for SF4 Ember, "sfv" for SFV Ember. A bridge lists,
+	// creates and admits a room of one game only, so one product's players
+	// never see or join the other's rooms. Requests name it only when it is
+	// not "usf4", which is what a request that names none means.
+	const char* roomGame;
 
 	// GitHub repositories (owner/name): Stable and Beta, and Nightly.
 	const char* stableRepo;

@@ -421,6 +421,7 @@ mod tests {
             creator_in: Some(true),
             own_delay: true,
             wired_only: false,
+            game: "usf4".into(),
         }
     }
 
