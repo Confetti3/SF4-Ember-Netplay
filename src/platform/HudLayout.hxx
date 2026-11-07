@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 // HUD layout editing (docs/design/HUD_EDITOR.md): moves, rotates, scales and
 // hides the elements of a theme's battle HUD by patching the sprite tracks of
@@ -22,6 +23,13 @@ struct Info { std::string id, label, parent; double cx = 0, cy = 0, w = 0, h = 0
 // rotation (clockwise degrees) and scale about it. A group moves its elements.
 struct Edit { double x = 0, y = 0, rot = 0, scale = 1; bool hide = false; };
 using Layout = std::map<std::string, Edit>;
+
+// layout.json beside a theme: {"p1_name": {"x": 90, "y": 73, "rot": -10, "s": 0.87, "hide": false}, ...}.
+// An entry with a missing or bad number is left out; ids that are not elements are left out.
+Layout LayoutFromJson(const nlohmann::json& json);
+nlohmann::json LayoutToJson(const Layout& layout);
+// Whether a browser's User-Agent is a desktop one (phones and tablets are not).
+bool DesktopAgent(const std::string& userAgent);
 
 // #EMZ (a zlib stream behind a 16 byte header) from and to the bytes of the #EMS inside.
 bool Unpack(const std::string& emz, std::string& ems);

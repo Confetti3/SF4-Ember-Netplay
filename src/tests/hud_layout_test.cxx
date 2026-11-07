@@ -1,4 +1,5 @@
 #include "../platform/HudLayout.hxx"
+#include "hud_fixture.hxx"
 #include "test_support.hxx"
 #include <cmath>
 #include <cstdint>
@@ -7,31 +8,8 @@
 
 using namespace sf4e::platform;
 
-namespace {
-void Put(std::string& d, size_t at, const void* v, size_t n) { std::memcpy(&d[at], v, n); }
-void PutU(std::string& d, size_t at, uint32_t v) { Put(d, at, &v, 4); }
-void PutF(std::string& d, size_t at, float v) { Put(d, at, &v, 4); }
-float GetF(const std::string& d, size_t at) { float v; std::memcpy(&v, d.data() + at, 4); return v; }
-
-// One node "1_vital_base_2" (the P1 plate) at (100, 50), drawn 40x20 around it.
-std::string OneNode() {
-    std::string d(0x160, '\0');
-    d.replace(0, 4, "#EMS");
-    PutU(d, 0xC, 1); PutU(d, 0x14, 0x20);
-    PutU(d, 0x20, 0x40);                           // node table
-    PutU(d, 0x40 + 0x10, 0x80);                    // node: action
-    d.replace(0x40 + 0x20, 14, "1_vital_base_2");
-    PutU(d, 0x80 + 4, 0x100);                      // action: G1
-    PutF(d, 0xA0, -20); PutF(d, 0xA4, -10); PutF(d, 0xA8, 20); PutF(d, 0xAC, 10);
-    int16_t one = 1; Put(d, 0x100 + 8, &one, 2);   // G1: one position key
-    PutU(d, 0x100 + 0x1c, 0x140);
-    PutF(d, 0x140, 100); PutF(d, 0x144, 50);
-    return d;
-}
-}
-
 int main() {
-    const std::string ems = OneNode();
+    const std::string ems = hud_fixture::OneNode();
     std::string back;
     CHECK(hud_layout::Unpack(hud_layout::Pack(ems), back));
     CHECK(back == ems);
@@ -52,14 +30,28 @@ int main() {
     CHECK(hud_layout::Apply(files, layout, out));
     CHECK(out.count("cockpit") == 1);
     CHECK(hud_layout::Unpack(out["cockpit"], back));
-    CHECK(GetF(back, 0x140) == 300 && GetF(back, 0x144) == 200);
+    CHECK(hud_fixture::GetF(back, 0x140) == 300 && hud_fixture::GetF(back, 0x144) == 200);
 
     layout["p1_plate"] = { 100, 50, 0, 1, true };  // hidden: pushed off the canvas
     CHECK(hud_layout::Apply(files, layout, out) && hud_layout::Unpack(out["cockpit"], back));
-    CHECK(GetF(back, 0x140) == 4100);
+    CHECK(hud_fixture::GetF(back, 0x140) == 4100);
 
     layout["p1_plate"] = { 100, 50, 0, 2, false }; // twice as big about its centre
     CHECK(hud_layout::Apply(files, layout, out) && hud_layout::Unpack(out["cockpit"], back));
-    CHECK(GetF(back, 0xA8) == 40 && GetF(back, 0xAC) == 20);
+    CHECK(hud_fixture::GetF(back, 0xA8) == 40 && hud_fixture::GetF(back, 0xAC) == 20);
+
+    // layout.json: good entries survive, bad ones and unknown ids do not.
+    const auto json = nlohmann::json::parse(R"({"p1_plate":{"x":1,"y":2,"rot":3,"s":0.5,"hide":true},"p2_name":{"x":"no"},"nothing":{"x":1,"y":1,"rot":0,"s":1},"p1_life":{"x":1,"y":2,"rot":0,"s":0}})");
+    const auto read = hud_layout::LayoutFromJson(json);
+    CHECK(read.size() == 1 && read.at("p1_plate").hide && read.at("p1_plate").scale == 0.5);
+    CHECK(hud_layout::LayoutFromJson(hud_layout::LayoutToJson(read)).at("p1_plate").rot == 3);
+    CHECK(hud_layout::LayoutFromJson(nlohmann::json::array()).empty());
+
+    CHECK(hud_layout::DesktopAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"));
+    CHECK(hud_layout::DesktopAgent("Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"));
+    CHECK(!hud_layout::DesktopAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit Mobile/15E148"));
+    CHECK(!hud_layout::DesktopAgent("Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/120 Mobile Safari/537.36"));
+    CHECK(!hud_layout::DesktopAgent("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit"));
+    CHECK(!hud_layout::DesktopAgent(""));
     return 0;
 }

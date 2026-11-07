@@ -29,10 +29,6 @@ if(WIN32)
     # Themes (platform/GameThemes.hxx): the folders of replacement menu files.
     add_library(sf4e_game_themes STATIC "src/platform/GameThemes.cxx")
     target_compile_features(sf4e_game_themes PRIVATE cxx_std_17)
-    # HUD layout editing (platform/HudLayout.hxx): moves the elements of a theme's battle HUD.
-    add_library(sf4e_hud_layout STATIC "src/platform/HudLayout.cxx")
-    target_compile_features(sf4e_hud_layout PRIVATE cxx_std_17)
-    target_link_libraries(sf4e_hud_layout PUBLIC ZLIB::ZLIB)
 endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_core_tests.cmake")
 if(SF4E_CORE_TESTS_ONLY)
@@ -55,6 +51,10 @@ find_package(CLI11 CONFIG REQUIRED)
 find_package(ggpo CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+# HUD layout editing (platform/HudLayout.hxx): moves the elements of a theme's battle HUD.
+add_library(sf4e_hud_layout STATIC "src/platform/HudLayout.cxx")
+target_compile_features(sf4e_hud_layout PRIVATE cxx_std_17)
+target_link_libraries(sf4e_hud_layout PUBLIC ZLIB::ZLIB nlohmann_json::nlohmann_json)
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_discord.cmake")
 find_package(spdlog CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
@@ -236,7 +236,8 @@ add_library(sf4e STATIC
     "src/sf4e/sf4e__Overlay.cxx"
     "src/training/TrainingRuntime.cxx"
     "src/training/CameraHook.cxx"
-"src/training/RemoteServer.cxx"
+    "src/training/RemoteServer.cxx"
+    "src/training/RemoteHud.cxx"
     "src/training/TrainingCapture.cxx"
     "src/sf4e/sf4e__OverlayPrefs.hxx"
     "src/sf4e/sf4e__OverlayPrefs.cxx"
@@ -299,7 +300,7 @@ if(SF4E_SELFTEST)
     target_sources(sf4e PRIVATE "src/sf4e/sf4e__SelfTest.cxx" "src/sf4e/sf4e__SelfTest__Training.cxx" "src/sf4e/sf4e__SelfTest__Room.cxx" "src/sf4e/sf4e__SelfTest__RoomLayout.cxx" "src/sf4e/sf4e__SelfTest__Replay.cxx" "src/sf4e/sf4e__SelfTest__Export.cxx" "src/sf4e/sf4e__SelfTest__Online.cxx" "src/sf4e/sf4e__SelfTest__Tournament.cxx" "src/sf4e/sf4e__SelfTest__Menu.cxx" "src/sf4e/sf4e__SelfTest__ComboCheck.cxx")
     target_compile_definitions(sf4e PRIVATE SF4E_SELFTEST=1)
 endif()
-target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_game_themes sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
+target_link_libraries(sf4e PRIVATE sf4e_steam sf4e_custom_content_files sf4e_game_themes sf4e_hud_layout sf4e_replay_files sf4e_video_capture sf4e_netplay_core sf4e_helper_platform sf4e_settings sf4e_ui sf4e_localization)
 target_link_libraries(
     sf4e
     PRIVATE ${LIB_DETOURS} Session sf4e_common "Kernel32" "ws2_32" "Mswsock" "AdvApi32" "Shlwapi" "pathcch" "shell32" "Bcrypt" "Xinput9_1_0" "iphlpapi" "Dbghelp" "Winmm"

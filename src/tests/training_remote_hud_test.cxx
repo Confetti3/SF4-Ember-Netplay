@@ -1,0 +1,70 @@
+// The remote's HUD layout routes: refused unless allowed and from a desktop,
+// themes and elements listed, layout.json kept, and the patched files handed on.
+#include "../platform/GameThemes.hxx"
+#include "../platform/HudLayout.hxx"
+#include "../training/RemoteHud.hxx"
+#include "hud_fixture.hxx"
+#include "test_support.hxx"
+#include <filesystem>
+#include <fstream>
+#include <windows.h>
+
+namespace fs = std::filesystem;
+using namespace sf4e::training::remote;
+using sf4e::platform::hud_layout::Unpack;
+
+namespace {
+const char* const Desktop = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120";
+const char* const Phone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148";
+}
+
+int main() {
+    wchar_t temp[MAX_PATH], unique[MAX_PATH];
+    CHECK(GetTempPathW(MAX_PATH, temp));
+    CHECK(GetTempFileNameW(temp, L"hud", 0, unique));
+    CHECK(DeleteFileW(unique));
+    const fs::path root = unique;
+    const fs::path hudFolder = root / sf4e::platform::game_themes::Folder / "Test" / "battle" / "hud" / "CMN";
+    CHECK(fs::create_directories(hudFolder));
+    {
+        const std::string emz = sf4e::platform::hud_layout::Pack(hud_fixture::OneNode());
+        std::ofstream(hudFolder / "cockpit.ems.emz", std::ios::binary).write(emz.data(), static_cast<std::streamsize>(emz.size()));
+    }
+    fs::create_directories(root / sf4e::platform::game_themes::Folder / "NoHud" / "battle" / "hud");
+
+    std::string appliedTo; std::map<std::string, std::string> applied;
+    const hud::Host host{ [&] { return root.wstring(); }, [&](const std::string& name, std::map<std::string, std::string> files) { appliedTo = name; applied = std::move(files); } };
+    const auto get = [&](const std::string& path, const std::string& query = "", const char* agent = Desktop) { return hud::Handle(host, false, path, query, "", agent); };
+    const auto post = [&](const std::string& path, const std::string& body, const char* agent = Desktop) { return hud::Handle(host, true, path, "", body, agent); };
+
+    hud::Allow(false);
+    CHECK(get("/api/hud/themes").status == 403);               // not allowed by the player
+    hud::Allow(true);
+    CHECK(get("/api/hud/themes", "", Phone).status == 403);    // a phone never edits
+    CHECK(post("/api/hud/apply", "{}", Phone).status == 403);
+
+    auto themes = nlohmann::json::parse(get("/api/hud/themes").body);
+    CHECK(themes["themes"].size() == 1 && themes["themes"][0] == "Test");   // NoHud has no cockpit file
+
+    CHECK(get("/api/hud/theme", "name=..").status == 404);
+    CHECK(get("/api/hud/theme", "name=Missing").status == 404);
+    auto theme = nlohmann::json::parse(get("/api/hud/theme", "name=Test").body);
+    CHECK(theme["elements"].size() == 2 && theme["layout"].empty());
+
+    CHECK(post("/api/hud/layout", R"({"theme":"../x","layout":{}})").status == 404);
+    CHECK(post("/api/hud/layout", R"({"theme":"Test","layout":{"p1_plate":{"x":300,"y":200,"rot":0,"s":1,"hide":false}}})").status == 200);
+    CHECK(fs::exists(root / sf4e::platform::game_themes::Folder / "Test" / "layout.json"));
+    theme = nlohmann::json::parse(get("/api/hud/theme", "name=Test").body);
+    CHECK(theme["layout"]["p1_plate"]["x"] == 300);
+
+    CHECK(post("/api/hud/apply", R"({"theme":"Test"})").status == 200);   // the saved layout
+    CHECK(appliedTo == "Test" && applied.count("cockpit") == 1);
+    std::string ems;
+    CHECK(Unpack(applied["cockpit"], ems) && hud_fixture::GetF(ems, 0x140) == 300 && hud_fixture::GetF(ems, 0x144) == 200);
+
+    CHECK(post("/api/hud/apply", R"({"theme":"Test","layout":{}})").status == 200);   // nothing edited: the theme as it was
+    CHECK(applied.empty());
+    hud::Allow(false);
+    std::error_code ignored; fs::remove_all(root, ignored);
+    return 0;
+}

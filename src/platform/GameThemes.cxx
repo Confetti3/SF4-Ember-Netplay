@@ -2,6 +2,7 @@
 #include "Utf8.hxx"
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <system_error>
 
 namespace fs = std::filesystem;
@@ -56,5 +57,27 @@ Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::s
     if (moved) { error = moved.message(); return Outcome::GameOwn; }
     fs::remove_all(old, ignored);
     return error.empty() ? Outcome::Used : Outcome::GameOwn;
+}
+
+bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error) {
+    error.clear();
+    const fs::path relative = fs::u8path(file);
+    bool plain = !file.empty() && relative.is_relative() && !relative.has_root_name();
+    for (const auto& piece : relative) plain = plain && piece != ".." && piece != ".";
+    if (!plain) { error = "not a plain file name"; return false; }
+    const fs::path target = fs::path(gameDirectory) / ActiveFolder / part / relative;
+    fs::path temp = target;
+    temp += L".tmp";
+    std::error_code failed;
+    fs::create_directories(target.parent_path(), failed);
+    {
+        std::ofstream out(temp, std::ios::binary);
+        if (!failed && out) out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+        if (failed || !out) { error = failed ? failed.message() : "cannot write"; return false; }
+    }
+    fs::remove(target, failed);
+    fs::rename(temp, target, failed);
+    if (failed) { error = failed.message(); fs::remove(temp, failed); return false; }
+    return true;
 }
 } } }

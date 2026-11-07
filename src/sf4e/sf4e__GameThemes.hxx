@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,12 @@ namespace sf4e {
 		// theme judged "remove" moves to ember\themes-removed at the next tick.
 		std::string Verdict(const std::string& name);
 		void Judge(const std::string& name, const std::string& verdict);
+		// The game folder, once Start has run.
+		std::wstring Directory();
+		// Any thread: uses the battle HUD of the named theme with files written over
+		// it (HUD file name such as "cockpit" -> bytes of its .ems.emz, the editor's
+		// layout applied), and loads a Training battle again to show it.
+		void ApplyHud(const std::string& name, std::map<std::string, std::string> files);
 		// Game thread, each runtime tick: uses the last preview asked for and
 		// moves out the themes judged "remove".
 		void TakePreview();

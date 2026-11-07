@@ -9,6 +9,11 @@ sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.
 # Includes nlohmann/json, found after sf4e_core_tests.cmake.
 sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remote_protocol_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME HudLayout SOURCES "src/tests/hud_layout_test.cxx" STD 17 LIBS sf4e_hud_layout TIMEOUT 15 LABELS training)
+if(WIN32)
+    sf4e_add_unit_test(NAME TrainingRemoteHud SOURCES "src/tests/training_remote_hud_test.cxx" "src/training/RemoteHud.cxx" STD 17
+        LIBS sf4e_hud_layout sf4e_game_themes sf4e_durable_file TIMEOUT 15 LABELS training)
+endif()
 sf4e_add_unit_test(NAME TrainingCameraRig SOURCES "src/tests/training_camera_rig_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json LABELS training)
 sf4e_add_unit_test(NAME ComboFile SOURCES "src/tests/combo_file_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS training)

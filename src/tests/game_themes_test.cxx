@@ -2,6 +2,7 @@
 #include "test_support.hxx"
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 #include <windows.h>
@@ -95,5 +96,15 @@ int main() {
     CHECK(f.Use("") == Outcome::Used);
     CHECK(!fs::exists(f.Active()));
     CHECK(fs::is_regular_file(f.root / "ember/themes/Blue/ui/main_menu/title.emz"));
+
+    // A file written over the copy in use (the HUD editor's patched files): replaced whole, only inside the part.
+    std::string error;
+    CHECK(game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/cockpit.ems.emz", "one", error));
+    CHECK(game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "CMN/cockpit.ems.emz", "two", error));
+    std::ifstream written(f.root / game_themes::ActiveFolder / game_themes::BattleHud / "CMN/cockpit.ems.emz", std::ios::binary);
+    std::string text((std::istreambuf_iterator<char>(written)), std::istreambuf_iterator<char>());
+    CHECK(text == "two" && !fs::exists(f.root / game_themes::ActiveFolder / game_themes::BattleHud / "CMN/cockpit.ems.emz.tmp"));
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "../../escape.txt", "x", error) && !error.empty());
+    CHECK(!game_themes::WriteActive(f.root.wstring(), game_themes::BattleHud, "", "x", error));
     return 0;
 }

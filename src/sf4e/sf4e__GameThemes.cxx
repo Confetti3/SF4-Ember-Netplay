@@ -44,6 +44,11 @@ std::mutex previewLock;
 struct Asked { int part; std::string name; int row; };
 std::optional<Asked> preview;
 std::vector<std::string> removals;
+// The editor's ask: a theme's battle HUD with these files over it. Game thread:
+// the files to write once the next Use has copied the theme.
+struct HudAsk { std::string name; std::map<std::string, std::string> files; };
+std::optional<HudAsk> hudAsk;
+std::map<std::string, std::string> hudFiles;
 std::map<std::string, std::string> verdicts;
 std::atomic<int> opens{ 0 };
 std::string lastOpen;
@@ -82,6 +87,13 @@ void sf4e::GameThemes::Search() {
 	Dimps::App::AddResourcePath(list, Priority, &folder, Order);
 	searched = true;
 	spdlog::info("In-game themes: the game searches ember\\theme first");
+}
+
+std::wstring sf4e::GameThemes::Directory() { return gameDirectory; }
+
+void sf4e::GameThemes::ApplyHud(const std::string& name, std::map<std::string, std::string> files) {
+	std::lock_guard<std::mutex> guard(previewLock);
+	hudAsk = HudAsk{ name, std::move(files) };
 }
 
 const std::vector<std::string>& sf4e::GameThemes::Names(netplay::GameThemePart part) { return parts[part].names; }
@@ -147,8 +159,9 @@ void sf4e::GameThemes::Judge(const std::string& name, const std::string& verdict
 
 void sf4e::GameThemes::TakePreview() {
 	std::optional<Asked> taken;
+	std::optional<HudAsk> hud;
 	std::vector<std::string> removed;
-	{ std::lock_guard<std::mutex> guard(previewLock); taken.swap(preview); removed.swap(removals); }
+	{ std::lock_guard<std::mutex> guard(previewLock); taken.swap(preview); removed.swap(removals); hud.swap(hudAsk); }
 	// A removed theme goes to ember\themes-removed, never away; parts using it
 	// go back to the game's own, and the lists are found again.
 	for (const auto& name : removed) {
@@ -165,6 +178,12 @@ void sf4e::GameThemes::TakePreview() {
 		if (error) spdlog::warn("In-game themes: {} not moved out: {}", name, error.message());
 		else spdlog::info("In-game themes: {} moved to ember\\themes-removed", name);
 		for (int i = 0; i < netplay::GameThemePartCount; ++i) parts[i].names = game_themes::Names(gameDirectory, game_themes::Parts[i]);
+	}
+	if (hud && started) {
+		// Used again even when it is the theme in use: the copy under ember\theme is the one the files go over.
+		parts[netplay::GameThemeBattleHud].used.reset();
+		hudFiles = std::move(hud->files);
+		taken = Asked{ netplay::GameThemeBattleHud, hud->name, -1 };
 	}
 	if (!taken || !started) return;
 	std::array<std::string, netplay::GameThemePartCount> names;
@@ -188,6 +207,14 @@ void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartC
 		std::string error;
 		const std::string folder = platform::WideToUtf8(game_themes::Parts[i]);
 		const game_themes::Outcome outcome = game_themes::Use(gameDirectory, game_themes::Parts[i], name, error);
+		if (outcome == game_themes::Outcome::Used && i == netplay::GameThemeBattleHud) {
+			for (const auto& [file, bytes] : hudFiles) {
+				std::string problem;
+				if (!game_themes::WriteActive(gameDirectory, game_themes::Parts[i], "CMN\\" + file + ".ems.emz", bytes, problem))
+					spdlog::warn("In-game themes: HUD file {} not written: {}", file, problem);
+			}
+		}
+		if (i == netplay::GameThemeBattleHud) hudFiles.clear();
 		if (outcome == game_themes::Outcome::Used)
 			spdlog::info("In-game themes: {} {}", folder, name.empty() ? std::string("the game's own") : name);
 		else spdlog::warn("In-game themes: {} {} could not be used: {}", folder, name, error);

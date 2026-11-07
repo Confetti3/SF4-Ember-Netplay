@@ -1,6 +1,8 @@
 #include "RemoteServer.hxx"
 #include "CameraControl.hxx"
 #include "RemotePage.hxx"
+#include "RemoteHud.hxx"
+#include "../sf4e/sf4e__GameThemes.hxx"
 #include "ComboStore.hxx"
 #include "GameFiles.hxx"
 #include "RemoteProtocol.hxx"
@@ -25,6 +27,7 @@
 namespace sf4e { namespace training { namespace remote {
 namespace {
 constexpr unsigned short FirstPort = 47321;
+constexpr std::size_t HudBytes = 65536;
 constexpr int PortTries = 8, FailuresAllowed = 5, LockSeconds = 30, MaxStreams = 8, MaxRequests = 32;
 const char* const HostName = "ember.local";
 std::atomic<bool> s_running{false};
@@ -54,7 +57,7 @@ int CheckPin(const std::string& given, unsigned long peer) {
     return 1;
 }
 void Reply(SOCKET socket, int status, const char* type, const std::string& body, const std::string& extra = {}) {
-    const char* reason = status == 200 ? "OK" : status == 400 ? "Bad Request" : status == 403 ? "Forbidden" : status == 429 ? "Too Many Requests" : "Not Found";
+    const char* reason = status == 200 ? "OK" : status == 400 ? "Bad Request" : status == 403 ? "Forbidden" : status == 429 ? "Too Many Requests" : status == 500 ? "Internal Server Error" : "Not Found";
     const std::string head = "HTTP/1.1 " + std::to_string(status) + " " + reason + "\r\nContent-Type: " + type +
         "\r\nContent-Length: " + std::to_string(body.size()) + "\r\nCache-Control: no-store\r\n" + extra + "Connection: close\r\n\r\n";
     send(socket, head.data(), static_cast<int>(head.size()), 0);
@@ -160,8 +163,8 @@ bool Serve(SOCKET socket, unsigned long peer) {
     for (;;) {
         const auto end = request.find("\r\n\r\n");
         if (end != std::string::npos) {
-            // Only a combo brought in may be large.
-            const std::size_t most = request.compare(0, 17, "POST /api/combos ") == 0 ? ComboFileBytes : 1024;
+            // Only a combo brought in and a HUD layout may be large.
+            const std::size_t most = request.compare(0, 17, "POST /api/combos ") == 0 ? ComboFileBytes : request.compare(0, 15, "POST /api/hud/") == 0 ? HudBytes : 1024;
             const auto length = std::atoi(HeaderValue(request, "Content-Length").c_str());
             if (length < 0 || static_cast<std::size_t>(length) > most) { Reply(socket, 400, "text/plain", "too big"); return false; }
             if (request.size() >= end + 4 + static_cast<std::size_t>(length)) break;
@@ -177,11 +180,17 @@ bool Serve(SOCKET socket, unsigned long peer) {
     const std::string path = target.substr(0, query);
     if (get && path == "/") { Reply(socket, 200, "text/html; charset=utf-8", Page); return false; }
     const bool download = get && path.compare(0, 12, "/api/combos/") == 0;
-    if (path != "/api/options" && path != "/api/state" && path != "/api/cmd" && path != "/api/stream" && path != "/api/combos" && path != "/api/frames" && path != "/api/camera" && !download) { Reply(socket, 404, "text/plain", "no"); return false; }
+    if (path != "/api/options" && path != "/api/state" && path != "/api/cmd" && path != "/api/stream" && path != "/api/combos" && path != "/api/frames" && path != "/api/camera" && !download && !hud::Owns(path)) { Reply(socket, 404, "text/plain", "no"); return false; }
     // An EventSource and a download link cannot set headers, so those take the PIN in their address.
     std::string given = HeaderValue(request, "X-Pin");
     if ((path == "/api/stream" || download) && query != std::string::npos && target.compare(query, 5, "?pin=") == 0) given = target.substr(query + 5);
     if (const int pin = CheckPin(given, peer)) { Reply(socket, pin == 2 ? 429 : 403, "text/plain", "pin"); return false; }
+    if (hud::Owns(path)) {
+        static const hud::Host host{ [] { return sf4e::GameThemes::Directory(); }, [](const std::string& name, std::map<std::string, std::string> files) { sf4e::GameThemes::ApplyHud(name, std::move(files)); } };
+        const auto reply = hud::Handle(host, post, path, query == std::string::npos ? std::string() : target.substr(query + 1), request.substr(request.find("\r\n\r\n") + 4), HeaderValue(request, "User-Agent"));
+        Reply(socket, reply.status, reply.type.c_str(), reply.body);
+        return false;
+    }
     if (get && path == "/api/options") { Reply(socket, 200, "application/json", OptionsJson(Words).dump()); return false; }
     if (get && path == "/api/state") { Reply(socket, 200, "application/json", ValuesJson(ReadView(), Phone().Values()).dump()); return false; }
     if (get && path == "/api/camera") { Reply(socket, 200, "application/json", camera::Phone().State().dump()); return false; }
@@ -301,6 +310,7 @@ bool Start() {
     std::memcpy(&number, random, 4);
     char pin[8]; std::snprintf(pin, sizeof(pin), "%06u", number % 1000000);
     { std::lock_guard<std::mutex> hold(s_lock); s_pin = pin; s_tries.clear(); }
+    hud::Allow(false);  // the player allows the HUD editor each time the remote starts
     s_listen = socket(AF_INET, SOCK_STREAM, 0);
     if (s_listen == INVALID_SOCKET) return false;
     for (int i = 0; i < PortTries; ++i) {

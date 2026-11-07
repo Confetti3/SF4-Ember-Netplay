@@ -33,4 +33,7 @@ enum class Outcome { Used, GameOwn, Unchanged };
 // Makes ember\theme\<part> hold the named theme's part, or nothing for an
 // empty name.
 Outcome Use(const std::wstring& gameDirectory, const wchar_t* part, const std::string& name, std::string& error);
+// Puts bytes at ember\theme\<part>\<file> (a plain relative path, no ".."),
+// replacing what Use copied there; the game never reads a half-written file.
+bool WriteActive(const std::wstring& gameDirectory, const wchar_t* part, const std::string& file, const std::string& bytes, std::string& error);
 } } }

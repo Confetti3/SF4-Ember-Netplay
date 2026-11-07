@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cctype>
 #include <cstring>
 #include <regex>
 #include <set>
@@ -235,6 +236,45 @@ const std::vector<Element>& Elements() {
         return v;
     }();
     return elements;
+}
+
+Layout LayoutFromJson(const nlohmann::json& json) {
+    Layout layout;
+    if (!json.is_object()) return layout;
+    for (const Element& el : Elements()) {
+        const auto found = json.find(el.id);
+        if (found == json.end() || !found->is_object()) continue;
+        const auto number = [&](const char* key, double& to) {
+            const auto v = found->find(key);
+            if (v == found->end() || !v->is_number()) return false;
+            to = v->get<double>();
+            return std::isfinite(to) && std::fabs(to) < 1e5;
+        };
+        Edit edit;
+        if (!number("x", edit.x) || !number("y", edit.y) || !number("rot", edit.rot) || !number("s", edit.scale) || edit.scale <= 0) continue;
+        const auto hide = found->find("hide");
+        edit.hide = hide != found->end() && hide->is_boolean() && hide->get<bool>();
+        layout[el.id] = edit;
+    }
+    return layout;
+}
+
+nlohmann::json LayoutToJson(const Layout& layout) {
+    nlohmann::json json = nlohmann::json::object();
+    for (const Element& el : Elements()) {
+        const auto found = layout.find(el.id);
+        if (found != layout.end()) json[el.id] = { { "x", found->second.x }, { "y", found->second.y }, { "rot", found->second.rot }, { "s", found->second.scale }, { "hide", found->second.hide } };
+    }
+    return json;
+}
+
+bool DesktopAgent(const std::string& userAgent) {
+    std::string lower = userAgent;
+    for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (lower.empty()) return false;
+    for (const char* mobile : { "mobile", "android", "iphone", "ipad", "ipod", "tablet", "silk", "kindle", "playbook", "nintendo", "playstation", "steamdeck", "touch" })
+        if (lower.find(mobile) != std::string::npos) return false;
+    return true;
 }
 
 bool Unpack(const std::string& emz, std::string& ems) {
