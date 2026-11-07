@@ -34,7 +34,12 @@
 </header>
 <main>
 <h1>Rankings</h1>
-<p class="lead">Players by their class in public rooms, from D to Grand Master. There are no points or positions, only the class. Within a class, whoever played most recently comes first.</p>
+<p class="lead" data-game-text="usf4">Players by their class in public rooms, from D to Grand Master. There are no points or positions, only the class. Within a class, whoever played most recently comes first.</p>
+<p class="lead" data-game-text="sfv" hidden>Players by their league in SFV Ember's public rooms, from Rookie to Warlord. There are no points or positions, only the league. Within a league, whoever played most recently comes first.</p>
+<div class="room-filters" id="games" role="group" aria-label="Game">
+<button type="button" class="room-filter" data-game="usf4" aria-pressed="true">Ultra Street Fighter IV</button>
+<button type="button" class="room-filter" data-game="sfv" aria-pressed="false">Street Fighter V</button>
+</div>
 
 <div class="rank-classes" id="classes" role="group" aria-label="Show classes" hidden></div>
 
@@ -71,7 +76,8 @@
 <section class="panel" id="join">
 <h2>Getting on the board</h2>
 <ol>
-<li>In <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Ember</a> 1.4.0 or newer, open <strong>Online play</strong>, <strong>Rankings</strong> and connect Discord if it asks. Your class belongs to your Discord account, so a new Ember ID keeps it.</li>
+<li data-game-text="usf4">In <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest" rel="noopener">Ember</a> 1.4.0 or newer, open <strong>Online play</strong>, <strong>Rankings</strong> and connect Discord if it asks. Your class belongs to your Discord account, so a new Ember ID keeps it.</li>
+<li data-game-text="sfv" hidden>In SFV Ember, open <strong>Online play</strong>, <strong>Rankings</strong> and connect Discord if it asks. Your league belongs to your Discord account and is kept apart from your class in Ultra Street Fighter IV.</li>
 <li>Play public room games that end with a winner. Your class appears after a few games against players who have one.</li>
 <li>Open <strong>Rankings</strong> again. That sends the name and flag the board shows for you, the ones rooms show. Open it again after you change them.</li>
 </ol>

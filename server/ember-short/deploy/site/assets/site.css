@@ -505,6 +505,7 @@ footer a:hover { color: var(--ivory); }
 .tier-gm { color: #ff8738; }
 .rank-class.tier-gm { color: var(--ink); background: var(--ember); border-color: var(--ember); }
 
+.rankings-page #games { margin: 0 0 16px; }
 .rank-classes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .rank-chip {
   gap: 8px;
