@@ -450,8 +450,9 @@ fn build_ok(build_id: &str) -> bool {
 }
 
 /// A listing's game: `DEFAULT_GAME` when the query names none, so a caller
-/// that predates games lists what it always did.
-fn listed_game(game: Option<&str>) -> Result<String> {
+/// that predates games lists what it always did. The ranking routes read
+/// their `game` the same way.
+pub(crate) fn listed_game(game: Option<&str>) -> Result<String> {
     match game {
         None => Ok(DEFAULT_GAME.to_owned()),
         Some(game) if is_game(game) => Ok(game.to_owned()),

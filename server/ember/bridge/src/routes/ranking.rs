@@ -2,9 +2,17 @@
 //! own standing, their choice to take part, and the board, for players and
 //! (the board alone) for the website. Only where public rooms are on, since
 //! only their games are rated.
-use std::sync::Arc;
+//!
+//! Each route is one game's (`?game=`, a key of `ember_protocol::rooms::GAMES`;
+//! SF4's when absent, so a request that predates games is answered as it
+//! was): SFV Ember asks for its own, and the website for each in turn.
+use std::{collections::HashMap, sync::Arc};
 
-use axum::{extract::State, http::HeaderMap, response::Response};
+use axum::{
+    extract::{Query, State},
+    http::HeaderMap,
+    response::Response,
+};
 use ember_protocol::skill::{Board, BoardEntry, RankingChoice};
 
 use crate::{
@@ -14,7 +22,7 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     routes::{
         play::playing,
-        rooms::{self, classes_shown, developers},
+        rooms::{self, classes_shown, developers, listed_game},
     },
     skill::ranking,
 };
@@ -23,38 +31,59 @@ use crate::{
 const REQUESTS_PER_WINDOW: usize = 60;
 const WINDOW_SECS: u64 = 10 * 60;
 
-/// `GET /v1/ranking/me`. A write: a class shown is remembered as shown,
-/// as a ticket's is.
-pub async fn standing(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+#[derive(serde::Deserialize)]
+pub struct GameQuery {
+    /// The game whose ranking is meant; `DEFAULT_GAME` when absent.
+    #[serde(default)]
+    game: Option<String>,
+}
+
+/// `GET /v1/ranking/me?game=`. A write: a class shown is remembered as
+/// shown, as a ticket's is.
+pub async fn standing(
+    State(state): State<AppState>,
+    Query(query): Query<GameQuery>,
+    headers: HeaderMap,
+) -> Result<Response> {
     let (player, now) = admit(&state, &headers).await?;
+    let game = listed_game(query.game.as_deref())?;
     let (shown, developers) = (classes_shown(&state), developers(&state));
     let standing = state
         .db
-        .write(move |tx| ranking::standing(tx, &player.ember_id, shown, &developers, now))
+        .write(move |tx| ranking::standing(tx, &game, &player.ember_id, shown, &developers, now))
         .await?;
     Ok(ok(&standing))
 }
 
-/// `PUT /v1/ranking/me`, answered with the standing after it.
+/// `PUT /v1/ranking/me?game=`, answered with the standing after it.
 pub async fn choose(
     State(state): State<AppState>,
+    Query(query): Query<GameQuery>,
     headers: HeaderMap,
     body: Body<GENERAL_BODY>,
 ) -> Result<Response> {
     let (player, now) = admit(&state, &headers).await?;
+    let game = listed_game(query.game.as_deref())?;
     let chosen: RankingChoice = body.parse()?;
     chosen.check()?;
     let (shown, developers) = (classes_shown(&state), developers(&state));
     let standing = state
         .db
-        .write(move |tx| ranking::choose(tx, &player.ember_id, chosen, shown, &developers, now))
+        .write(move |tx| {
+            ranking::choose(tx, &game, &player.ember_id, chosen, shown, &developers, now)
+        })
         .await?;
     Ok(ok(&standing))
 }
 
-/// `GET /v1/ranking/board`: empty while classes are hidden.
-pub async fn board(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+/// `GET /v1/ranking/board?game=`: empty while classes are hidden.
+pub async fn board(
+    State(state): State<AppState>,
+    Query(query): Query<GameQuery>,
+    headers: HeaderMap,
+) -> Result<Response> {
     let (player, now) = admit(&state, &headers).await?;
+    let game = listed_game(query.game.as_deref())?;
     if !classes_shown(&state) {
         return Ok(ok(&Board {
             players: Vec::new(),
@@ -63,7 +92,7 @@ pub async fn board(State(state): State<AppState>, headers: HeaderMap) -> Result<
     let developers = developers(&state);
     let board = state
         .db
-        .read(move |tx| ranking::board(tx, Some(&player.ember_id), &developers, now))
+        .read(move |tx| ranking::board(tx, &game, Some(&player.ember_id), &developers, now))
         .await?;
     Ok(ok(&board))
 }
@@ -80,32 +109,38 @@ struct PublicBoard {
     players: Vec<BoardEntry>,
 }
 
-/// The last public board. Anyone can ask for it, directly or through the
-/// website, so the bridge reads it at most every 15 s, one read at a time.
+/// The last public board of each game. Anyone can ask for one, directly or
+/// through the website, so the bridge reads each at most every 15 s, one
+/// read at a time.
 #[derive(Default)]
-pub struct PublicCache(tokio::sync::Mutex<Option<Arc<PublicBoard>>>);
+pub struct PublicCache(tokio::sync::Mutex<HashMap<String, Arc<PublicBoard>>>);
 
-/// `GET /v1/ranking/board/public`: the board as players see it in Ember, for a
-/// web page, with no credential. It carries what the board shows any Ember ID,
-/// the names, flags and classes players chose to be listed with, and no entry
-/// is the caller's own.
-pub async fn public_board(State(state): State<AppState>) -> Result<Response> {
+/// `GET /v1/ranking/board/public?game=`: a game's board as players see it in
+/// Ember, for a web page, with no credential. It carries what the board shows
+/// any Ember ID, the names, flags and classes players chose to be listed
+/// with, and no entry is the caller's own.
+pub async fn public_board(
+    State(state): State<AppState>,
+    Query(query): Query<GameQuery>,
+) -> Result<Response> {
     if !rooms::enabled(&state) {
         return Err(ApiFailure::not_found());
     }
+    let game = listed_game(query.game.as_deref())?;
     let now = state.now();
     let shown = classes_shown(&state);
     let mut cached = state.ranking_board.0.lock().await;
-    if let Some(board) = cached.as_ref().filter(|board| {
+    if let Some(board) = cached.get(&game).filter(|board| {
         board.shown == shown && now.saturating_sub(board.listed_at) < PUBLIC_BOARD_SECS
     }) {
         return Ok(ok(&**board));
     }
     let players = if shown {
         let developers = developers(&state);
+        let read = game.clone();
         state
             .db
-            .read(move |tx| ranking::board(tx, None, &developers, now))
+            .read(move |tx| ranking::board(tx, &read, None, &developers, now))
             .await?
             .players
     } else {
@@ -116,7 +151,7 @@ pub async fn public_board(State(state): State<AppState>) -> Result<Response> {
         shown,
         players,
     });
-    *cached = Some(Arc::clone(&board));
+    cached.insert(game, Arc::clone(&board));
     Ok(ok(&*board))
 }
 

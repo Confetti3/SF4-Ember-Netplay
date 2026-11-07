@@ -180,6 +180,39 @@ The choice changes at most once a day, so nobody can stop after a loss and
 come back after a win. The few seconds between a game's end and the bridge's
 next room poll are not covered; a player who stops in them skips that game.
 
+## Games
+
+Public rooms are kept apart by game (`PUBLIC_ROOMS.md`, "Games": `usf4` for
+SF4 Ember, `sfv` for SFV Ember), and so is everything here. Each game has its
+own ratings, sittings, choices and listings (migration 058 keys
+`skill_ratings`, `rated_pairs` and `ranking_choices` by `game`; every row from
+before is USF4's):
+
+- A room's games are rated in the rating of the room's game (`rooms.game`),
+  never another's, and a ticket carries the class of the room's game.
+- The ranking routes take `?game=`; without one they are USF4's, so every
+  request that predates games, the live website's included, is answered as
+  before. SFV Ember's runtime names its game (`ProductIdentity::roomGame`) on
+  its ranking requests and the helper passes it on (`?game=sfv`); SF4 Ember's
+  requests name none.
+- Taking part, its once-a-day rule and the board's name and flag are each
+  game's: stopping in one game leaves the other as it was.
+- The rules, the weights and the ten bands' ranges are the same in every game.
+  A product names and draws the bands as its own game's ranks
+  (`Branding::rankingClasses`): SF4 Ember shows USF4's classes as above; SFV
+  Ember shows SFV's ten league tiers, Rookie to Warlord, with the game's own
+  league icons (`/Game/CommonAsset/LeagueIcon`, read from the player's
+  install), or the league's name in a pill where the install has no icon.
+- The developer mark and `rooms.developers` are the same in every game.
+- The replay archive's classes (`ranking::public_classes`) are USF4's: its
+  games are USF4's.
+- The website's rankings page has a Game switch: Street Fighter V's board is
+  `/rankings-sfv.json` (`/v1/ranking/board/public?game=sfv`), with SFV's
+  league names.
+
+An older bridge ignores `?game=`, so SFV Ember meeting one sees USF4's standing
+and board; deploy the bridge before an SFV Ember release that shows Rankings.
+
 ## Deploying
 
 Upgrade the bridge first: it accepts the `skill_badge` ticket request field

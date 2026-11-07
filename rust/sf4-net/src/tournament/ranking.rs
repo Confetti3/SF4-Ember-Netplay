@@ -8,9 +8,13 @@ use std::sync::Arc;
 use super::{
     Code, Failure, Outcome, Shared,
     client::{self, Body, BridgeCall, Refusals, Verb},
+    rooms::check_game,
 };
-use ember_protocol::skill::{
-    BOARD_PATH, Board, CHOICE_TOO_SOON, NO_ACCOUNT, RankingChoice, STANDING_PATH, Standing,
+use ember_protocol::{
+    rooms::is_default_game,
+    skill::{
+        BOARD_PATH, Board, CHOICE_TOO_SOON, NO_ACCOUNT, RankingChoice, STANDING_PATH, Standing,
+    },
 };
 
 /// Refusals of the ranking routes that the game words apart.
@@ -21,21 +25,40 @@ const REFUSALS: Refusals<'static> = Refusals {
     missing: Some(Code::RankingUnavailable),
 };
 
-/// The player's standing on `bridge_id`.
-pub async fn standing(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    let call = BridgeCall::new(Verb::Get, STANDING_PATH, &[200]).refusals(REFUSALS);
+/// `path` for `game`'s ranking: as it was for SF4 Ember's, so its requests
+/// are what they always were, and with `?game=` for another game's. A game
+/// the protocol does not know is an invalid request.
+fn game_path(path: &str, game: &str) -> Result<String, Failure> {
+    check_game(game)?;
+    Ok(if is_default_game(game) {
+        path.to_owned()
+    } else {
+        format!("{path}?game={game}")
+    })
+}
+
+/// The player's standing in `game` on `bridge_id`.
+pub async fn standing(shared: &Arc<Shared>, bridge_id: &str, game: &str) -> Outcome {
+    let path = game_path(STANDING_PATH, game)?;
+    let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
     let standing: Standing = client::request_as(shared, bridge_id, &call).await?;
     standing.check().map_err(|_| invalid_response())?;
     to_json(&standing)
 }
 
-/// Stores the player's choice and answers their standing after it.
-pub async fn choose(shared: &Arc<Shared>, bridge_id: &str, choice: RankingChoice) -> Outcome {
+/// Stores the player's choice in `game` and answers their standing after it.
+pub async fn choose(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    choice: RankingChoice,
+    game: &str,
+) -> Outcome {
     choice
         .check()
         .map_err(|_| Failure::new(Code::InvalidRequest))?;
+    let path = game_path(STANDING_PATH, game)?;
     let body = serde_json::to_vec(&choice).map_err(|_| Failure::new(Code::Internal))?;
-    let call = BridgeCall::new(Verb::Put, STANDING_PATH, &[200])
+    let call = BridgeCall::new(Verb::Put, &path, &[200])
         .body(Body::Json(&body))
         .refusals(REFUSALS);
     let standing: Standing = client::request_as(shared, bridge_id, &call).await?;
@@ -43,9 +66,10 @@ pub async fn choose(shared: &Arc<Shared>, bridge_id: &str, choice: RankingChoice
     to_json(&standing)
 }
 
-/// The board of classes on `bridge_id`.
-pub async fn board(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    let call = BridgeCall::new(Verb::Get, BOARD_PATH, &[200]).refusals(REFUSALS);
+/// `game`'s board of classes on `bridge_id`.
+pub async fn board(shared: &Arc<Shared>, bridge_id: &str, game: &str) -> Outcome {
+    let path = game_path(BOARD_PATH, game)?;
+    let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
     let board: Board = client::request_as(shared, bridge_id, &call).await?;
     board.check().map_err(|_| invalid_response())?;
     to_json(&board)
@@ -95,10 +119,50 @@ mod tests {
             json!({ "op": "ranking_standing" }),
             json!({ "op": "ranking_board", "bridge_id": "brg_x", "extra": 1 }),
             json!({ "op": "ranking_choose", "bridge_id": "brg_x", "choice": { "ranked": "yes" } }),
+            json!({ "op": "ranking_board", "bridge_id": "brg_x", "game": 1 }),
         ] {
             assert!(
                 serde_json::from_value::<Request>(bad.clone()).is_err(),
                 "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_game_other_than_sf4s_is_named_and_sf4s_never_is() {
+        // SFV Ember names its game; SF4 Ember's requests read back without one.
+        for value in [
+            json!({ "op": "ranking_standing", "bridge_id": "brg_x", "game": "sfv" }),
+            json!({ "op": "ranking_board", "bridge_id": "brg_x", "game": "sfv" }),
+            json!({ "op": "ranking_choose", "bridge_id": "brg_x",
+                "choice": { "ranked": false }, "game": "sfv" }),
+        ] {
+            let parsed: Request = serde_json::from_value(value.clone()).expect("a request");
+            assert_eq!(serde_json::to_value(&parsed).unwrap(), value);
+        }
+        let named = json!({ "op": "ranking_board", "bridge_id": "brg_x", "game": "usf4" });
+        let parsed: Request = serde_json::from_value(named).expect("a request");
+        assert_eq!(
+            serde_json::to_value(&parsed).unwrap(),
+            json!({ "op": "ranking_board", "bridge_id": "brg_x" })
+        );
+        // The paths: SF4's exactly as before, another game's with its key,
+        // and a game the protocol does not know is refused before any call.
+        assert_eq!(game_path(STANDING_PATH, "usf4").unwrap(), "/v1/ranking/me");
+        assert_eq!(game_path(BOARD_PATH, "usf4").unwrap(), "/v1/ranking/board");
+        assert_eq!(
+            game_path(STANDING_PATH, "sfv").unwrap(),
+            "/v1/ranking/me?game=sfv"
+        );
+        assert_eq!(
+            game_path(BOARD_PATH, "sfv").unwrap(),
+            "/v1/ranking/board?game=sfv"
+        );
+        for unknown in ["sf6", "", "SFV", "sfv&x=1"] {
+            assert_eq!(
+                game_path(BOARD_PATH, unknown).unwrap_err().as_str(),
+                "invalid_request",
+                "{unknown}"
             );
         }
     }

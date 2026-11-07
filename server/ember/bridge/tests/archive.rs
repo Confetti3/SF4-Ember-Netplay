@@ -1517,13 +1517,13 @@ async fn ranked(f: &Fixture, account: &str, listed: bool, band: u8, settled: boo
             tx.execute(
                 "INSERT INTO ranking_choices (discord_user_id, ranked, name, country)
                  VALUES (?1, 1, ?2, NULL)
-                 ON CONFLICT (discord_user_id) DO UPDATE SET name = excluded.name",
+                 ON CONFLICT (game, discord_user_id) DO UPDATE SET name = excluded.name",
                 rusqlite::params![account, listed.then_some("Listed")],
             )?;
             tx.execute(
                 "INSERT INTO skill_ratings (discord_user_id, rating, deviation, volatility, band, played_at)
                  VALUES (?1, ?2, ?3, 0.06, ?4, ?5)
-                 ON CONFLICT (discord_user_id) DO UPDATE SET deviation = excluded.deviation",
+                 ON CONFLICT (game, discord_user_id) DO UPDATE SET deviation = excluded.deviation",
                 rusqlite::params![account, rating, deviation, band, played_at],
             )?;
             Ok(())

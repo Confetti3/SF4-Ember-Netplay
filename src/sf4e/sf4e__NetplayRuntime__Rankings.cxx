@@ -1,5 +1,6 @@
 // Rankings (docs/design/SKILL_BADGE.md, "Rankings"): the player's own standing,
-// their choice to take part, and the board of classes. Requests go to the
+// their choice to take part, and the board of classes, in the product's own
+// game ("Games" there). Requests go to the
 // helper on the tournament channel and are answered by request id, like the
 // public room ones; netplay::rankings::Requests decides what each answer
 // does, and the interface reads the result from the published status.
@@ -15,7 +16,12 @@ using Kind = netplay::rankings::Requests::Kind;
 
 std::string CurrentId() { return runtime->room ? runtime->room->Identity().emberId : std::string(); }
 
-std::uint64_t SendIf(bool helperReady, const json& request) { return helperReady ? SendBridgeRequest(request) : 0; }
+// Each request is the product's game's ranking (internal::WithGame): SFV
+// Ember's standing, choice and board are its own, and SF4 Ember's requests
+// name no game, as before games were named.
+std::uint64_t SendIf(bool helperReady, const json& request) {
+	return helperReady ? SendBridgeRequest(internal::WithGame(request)) : 0;
+}
 
 json Choice(const Command& command) {
 	json choice = {{"ranked", command.ranked}};

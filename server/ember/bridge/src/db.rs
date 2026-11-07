@@ -99,6 +99,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     // applied on the production bridge; it lands with that branch.
     (56, include_str!("../migrations/056_room_wired_only.sql")),
     (57, include_str!("../migrations/057_room_game.sql")),
+    (58, include_str!("../migrations/058_ranking_games.sql")),
 ];
 
 #[derive(Clone)]
@@ -463,6 +464,124 @@ mod tests {
             })
             .unwrap();
         assert_eq!(game, ember_protocol::rooms::DEFAULT_GAME);
+    }
+
+    #[test]
+    fn ratings_sittings_and_choices_from_before_games_existed_are_sf4s() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        let before = MIGRATIONS
+            .iter()
+            .position(|(version, _)| *version == 58)
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..before]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO skill_ratings (discord_user_id, rating, deviation, volatility, band, played_at)
+                   VALUES ('100', 1612.5, 81.25, 0.06, 6, 1000);
+                 INSERT INTO rated_pairs (first, second, games, played_at) VALUES ('100', '200', 9, 1000);
+                 INSERT INTO ranking_choices (discord_user_id, ranked, changed_at, name, country)
+                   VALUES ('100', 1, 900, 'Player 1', 'GB'), ('200', 0, NULL, NULL, NULL);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        type Rating = (String, String, f64, f64, f64, u8, i64);
+        let rating: Rating = connection
+            .query_row("SELECT * FROM skill_ratings", [], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            })
+            .unwrap();
+        assert_eq!(
+            rating,
+            ("usf4".into(), "100".into(), 1612.5, 81.25, 0.06, 6, 1000)
+        );
+        let pair: (String, String, String, i64, i64) = connection
+            .query_row("SELECT * FROM rated_pairs", [], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            })
+            .unwrap();
+        assert_eq!(pair, ("usf4".into(), "100".into(), "200".into(), 9, 1000));
+        type Choice = (
+            String,
+            String,
+            bool,
+            Option<i64>,
+            Option<String>,
+            Option<String>,
+        );
+        let choices: Vec<Choice> = connection
+            .prepare("SELECT * FROM ranking_choices ORDER BY discord_user_id")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(
+            choices,
+            vec![
+                (
+                    "usf4".into(),
+                    "100".into(),
+                    true,
+                    Some(900),
+                    Some("Player 1".into()),
+                    Some("GB".into())
+                ),
+                ("usf4".into(), "200".into(), false, None, None, None),
+            ]
+        );
+        // A row written without a game, as before, is SF4's; each game keeps
+        // its own row for the same account.
+        connection
+            .execute_batch(
+                "INSERT INTO skill_ratings (discord_user_id, rating, deviation, volatility, band, played_at)
+                   VALUES ('300', 1500, 350, 0.06, 0, 2000);
+                 INSERT INTO skill_ratings (game, discord_user_id, rating, deviation, volatility, band, played_at)
+                   VALUES ('sfv', '100', 1500, 350, 0.06, 0, 2000);",
+            )
+            .unwrap();
+        let games: Vec<(String, String)> = connection
+            .prepare(
+                "SELECT game, discord_user_id FROM skill_ratings ORDER BY game, discord_user_id",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(
+            games,
+            vec![
+                ("sfv".into(), "100".into()),
+                ("usf4".into(), "100".into()),
+                ("usf4".into(), "300".into()),
+            ]
+        );
     }
 
     #[test]

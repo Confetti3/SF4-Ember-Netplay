@@ -9,12 +9,17 @@
 //! does one with a fighter whose account does not take part (`ranking`).
 //! Only the class (`SkillBadge`) ever leaves the bridge: inside room tickets,
 //! on the player's own standing and on the ranking board.
+//!
+//! Each game a public room can be for (`ember_protocol::rooms::GAMES`) has
+//! its own ratings, sittings and choices (migration 058): a room's games are
+//! rated in its game's rating, and a class, a standing and a board are one
+//! game's. The rules and the class ranges are the same for every game.
 mod glicko;
 pub mod ranking;
 
 use ember_protocol::{
     EmberId,
-    rooms::DEFAULT_GAME,
+    rooms::is_game,
     skill::{SKILL_BANDS, SkillBadge},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -71,15 +76,25 @@ struct Game {
 }
 
 /// Rates `room_id`'s reported games that are not rated yet. A host reports
-/// its recent games on every poll; each counts the first time only. The
-/// rating is USF4's: games from a room of another game (`rooms.game`) are
-/// not rated or recorded.
+/// its recent games on every poll; each counts the first time only, in the
+/// rating of the room's game (`rooms.game`), never another's.
 pub fn record_games(
     tx: &Transaction<'_>,
     room_id: &str,
     games: Option<&serde_json::Value>,
     now: u64,
 ) -> Result<()> {
+    let Some(rated_game) = tx
+        .query_row(
+            "SELECT game FROM rooms WHERE room_id = ?1",
+            [room_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .filter(|game| is_game(game))
+    else {
+        return Ok(());
+    };
     let games = games
         .and_then(serde_json::Value::as_array)
         .into_iter()
@@ -87,32 +102,37 @@ pub fn record_games(
     for game in games.filter_map(|game| Game::deserialize(game).ok()) {
         let first = tx.execute(
             "INSERT OR IGNORE INTO rated_games (room_id, table_id, generation)
-             SELECT room_id, ?2, ?3 FROM rooms WHERE room_id = ?1 AND game = ?4",
-            params![room_id, game.table, game.generation, DEFAULT_GAME],
+             VALUES (?1, ?2, ?3)",
+            params![room_id, game.table, game.generation],
         )? == 1;
         if !first {
             continue;
         }
         let (Some(winner), Some(loser)) = (
-            rated_account(tx, &game.winner)?,
-            rated_account(tx, &game.loser)?,
+            rated_account(tx, &rated_game, &game.winner)?,
+            rated_account(tx, &rated_game, &game.loser)?,
         ) else {
             continue;
         };
         if winner == loser {
             continue;
         }
-        let (won, lost) = (load(tx, &winner, now)?.0, load(tx, &loser, now)?.0);
-        let sitting = sitting_weight(tx, &winner, &loser, now)?;
+        let (won, lost) = (
+            load(tx, &rated_game, &winner, now)?.0,
+            load(tx, &rated_game, &loser, now)?.0,
+        );
+        let sitting = sitting_weight(tx, &rated_game, &winner, &loser, now)?;
         let (winner_weight, loser_weight) = weights(won, lost);
         store(
             tx,
+            &rated_game,
             &winner,
             won.after(lost, 1.0, winner_weight * sitting),
             now,
         )?;
         store(
             tx,
+            &rated_game,
             &loser,
             lost.after(won, 0.0, loser_weight * sitting),
             now,
@@ -142,9 +162,16 @@ fn gap_weight(one: Rating, other: Rating) -> f64 {
     1.0 - past * (1.0 - MIN_WEIGHT)
 }
 
-/// Counts this game in the two accounts' current sitting and says how much it
-/// counts for that. Sittings that have ended are forgotten.
-fn sitting_weight(tx: &Transaction<'_>, one: &str, other: &str, now: u64) -> Result<f64> {
+/// Counts this game in the two accounts' current sitting in `game` and says
+/// how much it counts for that. Sittings that have ended, in any game, are
+/// forgotten.
+fn sitting_weight(
+    tx: &Transaction<'_>,
+    game: &str,
+    one: &str,
+    other: &str,
+    now: u64,
+) -> Result<f64> {
     let (first, second) = if one < other {
         (one, other)
     } else {
@@ -153,10 +180,10 @@ fn sitting_weight(tx: &Transaction<'_>, one: &str, other: &str, now: u64) -> Res
     let ended = now.saturating_sub(SITTING_SECS);
     tx.execute("DELETE FROM rated_pairs WHERE played_at < ?1", [ended])?;
     let games: u32 = tx.query_row(
-        "INSERT INTO rated_pairs (first, second, games, played_at) VALUES (?1, ?2, 1, ?3)
-         ON CONFLICT (first, second) DO UPDATE SET games = games + 1, played_at = ?3
+        "INSERT INTO rated_pairs (game, first, second, games, played_at) VALUES (?1, ?2, ?3, 1, ?4)
+         ON CONFLICT (game, first, second) DO UPDATE SET games = games + 1, played_at = ?4
          RETURNING games",
-        params![first, second, now],
+        params![game, first, second, now],
         |row| row.get(0),
     )?;
     Ok(if games > FULL_REPEATS {
@@ -179,29 +206,31 @@ impl Developers<'_> {
     }
 }
 
-/// The badge to show for the player as `ember_id` now: none without a
-/// Discord account that takes part, the developer mark for a developer, and
-/// otherwise their class (`badge_of`).
+/// The badge to show for the player as `ember_id` now in `game`: none
+/// without a Discord account that takes part there, the developer mark for a
+/// developer, and otherwise their class in that game (`badge_of`).
 pub fn show(
     tx: &Transaction<'_>,
+    game: &str,
     ember_id: &EmberId,
     developers: &Developers<'_>,
     now: u64,
 ) -> Result<Option<SkillBadge>> {
-    let Some(account) = rated_account(tx, ember_id)? else {
+    let Some(account) = rated_account(tx, game, ember_id)? else {
         return Ok(None);
     };
     if developers.mark(&account) {
         return Ok(Some(SkillBadge::DEVELOPER));
     }
-    badge_of(tx, &account, now).map(Some)
+    badge_of(tx, game, &account, now).map(Some)
 }
 
-/// The class to show for `account` now, band 0 while it is still placing. It
-/// is remembered as the class last shown, which is what the margin is
-/// measured from, so the class ranges can change before anyone has seen one.
-fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge> {
-    let (rating, shown) = load(tx, account, now)?;
+/// The class to show for `account` in `game` now, band 0 while it is still
+/// placing. It is remembered as the class last shown, which is what the
+/// margin is measured from, so the class ranges can change before anyone has
+/// seen one.
+fn badge_of(tx: &Transaction<'_>, game: &str, account: &str, now: u64) -> Result<SkillBadge> {
+    let (rating, shown) = load(tx, game, account, now)?;
     let settled = rating.deviation <= SETTLED_DEVIATION;
     let band = if settled {
         shown_band(shown, rating.rating)
@@ -210,8 +239,8 @@ fn badge_of(tx: &Transaction<'_>, account: &str, now: u64) -> Result<SkillBadge>
     };
     if band != shown {
         tx.execute(
-            "UPDATE skill_ratings SET band = ?2 WHERE discord_user_id = ?1",
-            params![account, band],
+            "UPDATE skill_ratings SET band = ?3 WHERE game = ?1 AND discord_user_id = ?2",
+            params![game, account, band],
         )?;
     }
     Ok(SkillBadge::class(band, band != 0 && settled))
@@ -228,27 +257,28 @@ fn account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
         .optional()?)
 }
 
-/// The Discord account connected to `ember_id`, if it takes part in ranking.
-fn rated_account(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<Option<String>> {
+/// The Discord account connected to `ember_id`, if it takes part in ranking
+/// in `game`.
+fn rated_account(tx: &Transaction<'_>, game: &str, ember_id: &EmberId) -> Result<Option<String>> {
     Ok(tx
         .query_row(
             "SELECT d.user_id FROM discord_accounts d
-             LEFT JOIN ranking_choices c ON c.discord_user_id = d.user_id
+             LEFT JOIN ranking_choices c ON c.game = ?2 AND c.discord_user_id = d.user_id
              WHERE d.ember_id = ?1 AND COALESCE(c.ranked, 1)",
-            [ember_id.as_str()],
+            params![ember_id.as_str(), game],
             |row| row.get(0),
         )
         .optional()?)
 }
 
-/// `account`'s rating, grown less sure by the time since its last game, and
-/// the band last shown for it (0 for none yet).
-fn load(tx: &Transaction<'_>, account: &str, now: u64) -> Result<(Rating, u8)> {
+/// `account`'s rating in `game`, grown less sure by the time since its last
+/// game, and the band last shown for it (0 for none yet).
+fn load(tx: &Transaction<'_>, game: &str, account: &str, now: u64) -> Result<(Rating, u8)> {
     let stored = tx
         .query_row(
             "SELECT rating, deviation, volatility, band, played_at
-             FROM skill_ratings WHERE discord_user_id = ?1",
-            [account],
+             FROM skill_ratings WHERE game = ?1 AND discord_user_id = ?2",
+            params![game, account],
             |row| {
                 let rating = Rating {
                     rating: row.get(0)?,
@@ -270,15 +300,17 @@ fn aged(rating: Rating, played_at: u64, now: u64) -> Rating {
     rating.idle(now.saturating_sub(played_at) as f64 / SECS_PER_PERIOD as f64)
 }
 
-/// Writes `account`'s rating after a game at `now`, leaving the band shown.
-fn store(tx: &Transaction<'_>, account: &str, rating: Rating, now: u64) -> Result<()> {
+/// Writes `account`'s rating in `game` after a game at `now`, leaving the
+/// band shown.
+fn store(tx: &Transaction<'_>, game: &str, account: &str, rating: Rating, now: u64) -> Result<()> {
     tx.execute(
         "INSERT INTO skill_ratings
-             (discord_user_id, rating, deviation, volatility, band, played_at)
-         VALUES (?1, ?2, ?3, ?4, 0, ?5)
-         ON CONFLICT (discord_user_id) DO UPDATE SET rating = ?2, deviation = ?3,
-             volatility = ?4, played_at = ?5",
+             (game, discord_user_id, rating, deviation, volatility, band, played_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6)
+         ON CONFLICT (game, discord_user_id) DO UPDATE SET rating = ?3, deviation = ?4,
+             volatility = ?5, played_at = ?6",
         params![
+            game,
             account,
             rating.rating,
             rating.deviation,

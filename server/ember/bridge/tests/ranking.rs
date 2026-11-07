@@ -89,6 +89,34 @@ async fn rate(bridge: &Bridge, account: &str, deviation: f64, band: u8, days_ago
         .unwrap();
 }
 
+/// `rate` in `game`'s rating.
+async fn rate_game(
+    bridge: &Bridge,
+    game: &str,
+    account: &str,
+    deviation: f64,
+    band: u8,
+    days_ago: i64,
+) {
+    let played_at = bridge.state().now() as i64 - days_ago * DAY;
+    let rating = 1050.0 + 100.0 * f64::from(band);
+    let (game, account) = (game.to_owned(), account.to_owned());
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO skill_ratings
+                     (game, discord_user_id, rating, deviation, volatility, band, played_at)
+                 VALUES (?1, ?2, ?3, ?4, 0.06, ?5, ?6)",
+                rusqlite::params![game, account, rating, deviation, band, played_at],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+}
+
 /// Forgets the class last shown for `account`, as if every ticket so far
 /// came while it was placing.
 async fn shown_placing(bridge: &Bridge, account: &str) {
@@ -346,6 +374,160 @@ async fn while_classes_are_hidden_nothing_shows_but_the_choice_holds() {
     assert_eq!(status, StatusCode::OK, "{public}");
     assert_eq!(public["shown"], json!(false));
     assert_eq!(public["players"], json!([]));
+}
+
+/// The public board of `query` (`""` or `"?game=..."`).
+async fn public_board_of(bridge: &Bridge, query: &str) -> (StatusCode, Json_) {
+    let request = bridge
+        .client
+        .get(bridge.url(&format!("{PUBLIC_BOARD}{query}")))
+        .send();
+    common::read(request.await.unwrap()).await
+}
+
+#[tokio::test]
+async fn each_game_has_its_own_standing_choice_and_board() {
+    let (bridge, _fake) = start(true).await;
+    let (first, second) = (player(&bridge, 1).await, player(&bridge, 2).await);
+    connect_discord(&bridge, "100", &first).await;
+    connect_discord(&bridge, "200", &second).await;
+    // The first player is B+ in SF4 (band 6) and band 8 in SFV; the second
+    // has an SFV rating alone.
+    rate(&bridge, "100", 60.0, 6, 0).await;
+    rate_game(&bridge, "sfv", "100", 60.0, 8, 1).await;
+    rate_game(&bridge, "sfv", "200", 60.0, 3, 0).await;
+    let sfv_me = format!("{ME}?game=sfv");
+
+    // Each game's listing is its own; SF4's routes name no game, as before.
+    let (status, sf4) = choose(&bridge, &first, listed("Player 1", "GB")).await;
+    assert_eq!(status, StatusCode::OK, "{sf4}");
+    let (status, sfv) = call(
+        &bridge,
+        &first,
+        Method::PUT,
+        &sfv_me,
+        Some(listed("Player 1 SFV", "JP")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{sfv}");
+    assert_eq!(
+        sfv,
+        json!({ "ranking": "ranked", "badge": { "band": 8, "settled": true },
+            "listing": { "name": "Player 1 SFV", "country": "JP" } })
+    );
+    assert_eq!(
+        standing(&bridge, &first).await,
+        json!({ "ranking": "ranked", "badge": { "band": 6, "settled": true },
+            "listing": { "name": "Player 1", "country": "GB" } })
+    );
+    let (status, again) = call(&bridge, &first, Method::GET, &sfv_me, None).await;
+    assert_eq!(status, StatusCode::OK, "{again}");
+    assert_eq!(again, sfv);
+    // `game=usf4` is SF4's said out loud.
+    let (_, said) = call(
+        &bridge,
+        &first,
+        Method::GET,
+        &format!("{ME}?game=usf4"),
+        None,
+    )
+    .await;
+    assert_eq!(said, standing(&bridge, &first).await);
+
+    // The second player stops taking part in SFV only: SF4 is as it was, and
+    // its choice may still change today.
+    let (status, out) = call(
+        &bridge,
+        &second,
+        Method::PUT,
+        &sfv_me,
+        Some(json!({ "ranked": false })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{out}");
+    assert_eq!(out, json!({ "ranking": "opted_out", "change_in": DAY }));
+    assert_eq!(
+        standing(&bridge, &second).await,
+        json!({ "ranking": "ranked", "badge": { "band": 0, "settled": false } })
+    );
+    let (status, sf4_out) = choose(&bridge, &second, json!({ "ranked": false })).await;
+    assert_eq!(status, StatusCode::OK, "{sf4_out}");
+    let (status, refused) = call(
+        &bridge,
+        &second,
+        Method::PUT,
+        &sfv_me,
+        Some(listed("Player 2", "US")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+
+    // Each board lists its game's classes under its game's listing.
+    let entry = |name: &str, country: &str, band: u8, own: bool| {
+        let mut entry = json!({ "listing": { "name": name, "country": country }, "band": band });
+        if own {
+            entry["own"] = json!(true);
+        }
+        entry
+    };
+    assert_eq!(
+        board(&bridge, &first).await,
+        json!([entry("Player 1", "GB", 6, true)])
+    );
+    let (status, sfv_board) = call(
+        &bridge,
+        &second,
+        Method::GET,
+        &format!("{BOARD}?game=sfv"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{sfv_board}");
+    assert_eq!(
+        sfv_board["players"],
+        json!([entry("Player 1 SFV", "JP", 8, false)])
+    );
+
+    // The public boards too, each cached apart: asking for one never
+    // answers with the other's.
+    let (status, public_sf4) = public_board_of(&bridge, "").await;
+    assert_eq!(status, StatusCode::OK, "{public_sf4}");
+    assert_eq!(
+        public_sf4["players"],
+        json!([entry("Player 1", "GB", 6, false)])
+    );
+    let (status, public_sfv) = public_board_of(&bridge, "?game=sfv").await;
+    assert_eq!(status, StatusCode::OK, "{public_sfv}");
+    assert_eq!(public_sfv["shown"], json!(true));
+    assert_eq!(
+        public_sfv["players"],
+        json!([entry("Player 1 SFV", "JP", 8, false)])
+    );
+    assert_eq!(public_board_of(&bridge, "?game=usf4").await.1, public_sf4);
+    assert_eq!(public_board_of(&bridge, "").await.1, public_sf4);
+
+    // A game the bridge does not know is not a request, on any route.
+    for path in [
+        format!("{ME}?game=sf6"),
+        format!("{BOARD}?game=sf6"),
+        format!("{ME}?game="),
+    ] {
+        let (status, body) = call(&bridge, &first, Method::GET, &path, None).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{path}: {body}");
+    }
+    let (status, _) = call(
+        &bridge,
+        &first,
+        Method::PUT,
+        &format!("{ME}?game=SFV"),
+        Some(json!({ "ranked": true })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        public_board_of(&bridge, "?game=sf6").await.0,
+        StatusCode::BAD_REQUEST
+    );
 }
 
 #[tokio::test]

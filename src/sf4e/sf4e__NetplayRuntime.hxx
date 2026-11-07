@@ -590,6 +590,10 @@ netplay::tournament::Status TournamentStatus();
 // requests; BridgeRequestGiveUpMs only ends a wait for one it lost.
 constexpr std::uint64_t BridgeRequestGiveUpMs = 60000;
 std::uint64_t SendBridgeRequest(const nlohmann::json& request);
+// `request` with the product's game (ProductIdentity::roomGame) when it is
+// not "usf4", so SF4 Ember's room and ranking requests are what they were
+// before games were named.
+nlohmann::json WithGame(nlohmann::json request);
 void DispatchPublicRooms(const netplay::tournament::Command& command, bool helperReady);
 // True when the answer was to a public room request, which it then took.
 bool TakePublicRoomsAnswer(const session::TournamentAnswer& answer);
