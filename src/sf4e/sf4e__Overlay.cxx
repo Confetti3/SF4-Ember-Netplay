@@ -20,6 +20,7 @@
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include "../ui/CameraPanel.hxx"
+#include "../training/RemoteServer.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
@@ -197,6 +198,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	}
 	sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
 	sf4e::OverlayPrefs::StartPersistence();
+	sf4e::ui::SetTrainingRemote({sf4e::training::remote::Start, sf4e::training::remote::Stop, sf4e::training::remote::Url, sf4e::training::remote::Pin, sf4e::training::remote::Link});
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
     ImGui::GetIO().IniFilename = nullptr;
@@ -719,6 +721,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     sf4e::training::ShowData(meterOptions.data && trainingHud);
     const auto training = sf4e::training::ReadView();
     trainingAvailable = training.available;
+    sf4e::ui::ServeTrainingPhone(training, sf4e::training::Submit);
     const bool nativePaused = sf4e::battlePause.Paused();
     // A replay the game plays, not for a video: its keys are Ember's, read as
     // the training keys are, and training's own keys stay off.

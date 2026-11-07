@@ -327,6 +327,18 @@ value one at a time. On an Xbox pad, R3 (press the right stick) opens and
 closes the controls on its own; F6 and Back + Start still work. See [V2
 menus](V2_MENUS.md#training).
 
+## Phone remote
+
+Change the dummy and the recording from a phone on the same network, so you do not have to open the menu mid-session.
+
+1. Open the lab, then **Phone remote**, and turn it on. It is off until you do, and only devices on your local network can reach it.
+2. Point the phone's camera at the QR code. The page opens and signs in. Without a camera, open the address shown and type the PIN.
+3. Use the buttons: the dummy's action, block, quick stand, counter hit, stun and gauges, then Record, Play, Stop, Clear, Mirror and the position buttons. The page shows what is set now.
+
+**Save and share combos.** On the phone, open Tools > Combos. Press Record, play the combo, then name it and press Save last. Each saved combo can be played on the dummy, renamed, deleted, downloaded as a `.json` file, or shown as text to copy. Import a file or pasted text to add someone else's combo. Combos are kept in the `combos` folder next to `training.json` (up to 100), and the file holds the exact frames, so it plays the same for everyone. The phone page runs over plain `http` on your network, so it cannot use the phone's share sheet: download the file or copy the text instead.
+
+The PIN changes each time the remote is turned on. Five wrong PINs lock the remote for 30 seconds. If the phone cannot connect, see "Phone remote cannot connect" in [Troubleshooting](TROUBLESHOOTING.md); Windows may ask once to allow Ember on private networks, or setup's firewall option does it for you.
+
 ## Implementation notes
 
 How the overlay is built and validated, including the render checks and earlier test builds, is recorded in [Training Lab implementation history](../validation/TRAINING_LAB_HISTORY.md).
