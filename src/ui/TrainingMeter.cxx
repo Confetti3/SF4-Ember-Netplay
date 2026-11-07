@@ -1,4 +1,5 @@
 #include "TrainingPanel.hxx"
+#include "ReplayPlaybackHud.hxx"
 #include "Theme.hxx"
 #include "GameMenu.hxx"
 #include "MenuRows.hxx"
@@ -946,6 +947,8 @@ static TrainingHudArea DrawInputDisplay(const training::View& view, InputDisplay
 }
 static_assert(training::MeterOptions{}.position == static_cast<int>(TrainingHudBottom * 100 + .5f), "The meter's default place left the super meters' edge");
 float TrainingMeterBottom() { return TrainingMeterOptions().position / 100.f; }
+// The replay strip keeps below this meter wherever the player put it.
+[[maybe_unused]] static const bool s_replayStripKnowsTheMeter = (SetReplayStripMeterBottom(&TrainingMeterBottom), true);
 float TrainingMeterWidth(float hudScale) { return (std::min)(620 * hudScale, ImGui::GetMainViewport()->Size.x * .75f); }
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called) {
     if (!view.available) return {};

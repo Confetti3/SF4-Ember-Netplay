@@ -8,6 +8,7 @@
 #include "../common/ReplayTransport.hxx"
 #include <imgui.h>
 #include <algorithm>
+#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <string>
@@ -16,6 +17,8 @@
 // The replay controls' strip and input lanes (ReplayPlaybackHud.hxx).
 namespace sf4e { namespace ui {
 namespace {
+// The frame meter's place (SetReplayStripMeterBottom).
+std::atomic<float (*)()> s_meterBottom{nullptr};
 constexpr ImGuiWindowFlags Passive = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings |
     ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus;
 // Sized to the game viewport like the training HUD, not to the menu's scale.
@@ -62,7 +65,8 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
         {padKey("LB") + "F3 F4", loc::T("replays.controls.speed") + std::string(" ") + SpeedWord(view.divisor), view.divisor != 1, view.armed ? c.text : c.muted}};
     if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
     // The pad has no meter button.
-    controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    if (view.meterOffered) controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    if (view.stopOffered) controls.push_back({padKey("View") + "Esc", loc::T("room.stop_watching"), false, c.text});
     // The board's sizes, shrunk to fit a narrow window.
     float s = HudScale();
     const auto measure = [&](float k) {
@@ -110,7 +114,8 @@ void DrawReplayStrip(const ReplayHudView& view) {
     // At the bottom centre, as the board has it, unless the frame meter
     // reaches lower (a 720p window, or a meter the player moved down): then
     // just under the meter, but never past the screen's edge.
-    const float meterBottom = vp->Pos.y + vp->Size.y * TrainingMeterBottom();
+    const auto meterFraction = s_meterBottom.load();
+    const float meterBottom = vp->Pos.y + vp->Size.y * (meterFraction ? meterFraction() : TrainingHudBottom);
     const float stripTop = (std::min)((std::max)(bottom - (StripLift + StripHeight) * s, meterBottom + 4 * s), bottom - height);
     if (view.unavailable) {
         // Under the strip's place (the strip may be faded out), so it meets
@@ -137,6 +142,8 @@ void DrawReplayStrip(const ReplayHudView& view) {
         (view.paused ? loc::Tf("replays.controls.frame", view.cursor) : std::string(clock));
     DrawStrip(view, alpha, place, stripTop);
 }
+
+void SetReplayStripMeterBottom(float (*meterBottom)()) { s_meterBottom = meterBottom; }
 
 void DrawReplayLanes(const ReplayHudView& view) {
     const auto* vp = ImGui::GetMainViewport();

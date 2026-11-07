@@ -132,10 +132,10 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    const auto known=[&](int side){return ember::ValidFighter(last.fighters[side])?last.fighters[side]:-1;};
    rows.back().fighter1=known(0);rows.back().fighter2=known(1);
    rows.back().value=last.label;rows.back().height=72;
-   // Only a set its bridge holds has a pack to ask for.
-   rows.back().choices={{"set-watch",loc::T("replays.watch_set"),loc::T("replays.watch_set_detail"),idle&&r.ready},{"set-pick",loc::T("replays.pick_game"),loc::T("replays.pick_game_detail")},
-    {"set-export",loc::T("replays.export_set"),loc::T("replays.export_set_detail"),idle},
-    {"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()}};
+   // Only a set its bridge holds has a pack to ask for, and only a game that makes videos makes the set's.
+   rows.back().choices={{"set-watch",loc::T("replays.watch_set"),loc::T("replays.watch_set_detail"),idle&&r.ready},{"set-pick",loc::T("replays.pick_game"),loc::T("replays.pick_game_detail")}};
+   if(v.replayVideo)rows.back().choices.push_back({"set-export",loc::T("replays.export_set"),loc::T("replays.export_set_detail"),idle});
+   rows.back().choices.push_back({"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()});
    rows.back().chosen=idle&&r.ready?"set-watch":"set-pick";
   }
  }else if(screen=="replay-set"){
@@ -163,7 +163,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   // time: the next one is a press away when the last one ends.
   if(!setQueue_.empty())rows.push_back(Row("set-next",loc::Tf(setExport_?"replays.next_video":"replays.next_game",setGames_-setQueue_.size()+1,setGames_),
    loc::T(setExport_?"replays.next_video_detail":"replays.watch_detail"),setExport_?idle:idle&&r.ready));
-  rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&r.ready));
+  // The game's own replay list, where it has one.
+  if(v.replayGameList)rows.push_back(Row("replay-log",loc::T("replays.open_log"),loc::T(idle?"replays.open_log_detail":"replays.open_log_room"),idle&&r.ready));
   rows.push_back(Row("replay-folder",loc::T("replays.open_folder"),v.services.lastAction==platform::ServiceAction::OpenReplayFolder&&!v.services.message.empty()?v.services.message:loc::T("replays.open_folder_detail"),!v.services.pending));
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   else{
@@ -196,11 +197,17 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
   for(int side=0;side<2;side++)said+="\n"+ReplayPlayerName(replay.names,side)+": "+LookText(summary->players[side]);
   row.detail=said+"\n\n"+row.detail;row.detailText=DetailText::Name;
  }
- // Select offers playback, adding to the Battle Log, exporting video, reading inputs, or its file in Explorer.
- row.choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&r.ready},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&r.ready},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),r.ready},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&r.ready},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},
-  {"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")},
-  {"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending}};
- row.chosen=!r.ready?"inputs":idle?"watch":"add";
+ // Select offers playback, adding to the Battle Log, exporting video, reading inputs, or its file in Explorer:
+ // each the game offers (ShellView's replay capabilities).
+ row.choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&r.ready}};
+ if(v.replayMeter)row.choices.push_back({"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&r.ready});
+ if(v.replayGameList)row.choices.push_back({"add",loc::T("replays.add"),loc::T("replays.add_detail"),r.ready});
+ if(v.replayVideo)row.choices.push_back({"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&r.ready});
+ if(v.replayInputs)row.choices.push_back({"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")});
+ row.choices.push_back({"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")});
+ row.choices.push_back({"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending});
+ // Where nothing plays now, what can be done anyway: its inputs, or else its mark.
+ row.chosen=!r.ready?(v.replayInputs?"inputs":"keep"):idle?"watch":v.replayGameList?"add":"keep";
  return row;
 }
 // The Inputs and stats screen: the replay's own label and length, for each
@@ -396,7 +403,7 @@ bool ReplaysPanel::Status(const ShellView& v,const std::string& screen,std::stri
 std::vector<std::pair<std::string,std::string>> ReplaysPanel::Tabs(const ShellView& v) const {
  std::vector<std::pair<std::string,std::string>> tabs{{"replays",loc::T("replays.tab.matches")}};
  if(!sets_.empty())tabs.push_back({"replay-sets",loc::T("replays.tab.sets")});
- if(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty()))tabs.push_back({"replay-export",loc::T("export.title")});
+ if(v.replayVideo&&(!exportPath_.empty()||(v.replays.archive&&!v.replays.archive->empty())))tabs.push_back({"replay-export",loc::T("export.title")});
  return tabs;
 }
 void ReplaysPanel::ExportFrom(const ShellView& v,const netplay::PlayerPreferences& saved,const std::string& focus) {
