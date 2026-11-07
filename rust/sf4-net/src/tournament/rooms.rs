@@ -14,6 +14,7 @@ use ember_protocol::{
     rooms::{
         BANNED, CreateRoom, INVALID_NAME, ROOM_FULL, ROOM_LIMIT, ROOM_LOCKED, ROOM_NOT_FOUND,
         ROOM_NOT_OPEN, RoomAdmission, RoomList, RoomSummary, TicketRequest, UNSUPPORTED_BUILD,
+        is_default_game, is_game,
     },
 };
 use serde_json::Value;
@@ -94,13 +95,27 @@ fn build_query(build: &str) -> Result<String, Failure> {
     Ok(query)
 }
 
-/// The listing's path and query: the build, and `detail=1` for what the room
-/// hosts reported. An older bridge ignores the parameter it does not know.
-fn list_path(build: &str) -> Result<String, Failure> {
-    Ok(format!(
-        "/v1/rooms?build_id={}&detail=1",
-        build_query(build)?
-    ))
+/// A game the request names, which must be one the protocol knows.
+fn check_game(game: &str) -> Result<(), Failure> {
+    if is_game(game) {
+        Ok(())
+    } else {
+        Err(invalid_request())
+    }
+}
+
+/// The listing's path and query: the build, `detail=1` for what the room
+/// hosts reported, and the game when it is not SF4 Ember's, so an SF4
+/// listing asks what it always did. An older bridge ignores the parameters it
+/// does not know.
+fn list_path(build: &str, game: &str) -> Result<String, Failure> {
+    check_game(game)?;
+    let build = build_query(build)?;
+    Ok(if is_default_game(game) {
+        format!("/v1/rooms?build_id={build}&detail=1")
+    } else {
+        format!("/v1/rooms?build_id={build}&detail=1&game={game}")
+    })
 }
 
 fn check_room_id(room_id: &str) -> Result<(), Failure> {
@@ -115,28 +130,39 @@ fn to_json<T: serde::Serialize>(value: &T) -> Result<Value, Failure> {
     serde_json::to_value(value).map_err(|_| Failure::new(Code::Internal))
 }
 
-/// The open rooms of `build`, each checked, with the details their room hosts
-/// reported (`detail=1`; a bridge that does not know it leaves them out). One
-/// invalid summary fails the whole listing.
-pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str) -> Outcome {
-    let path = list_path(build)?;
+/// The open rooms of `build` and `game`, each checked, with the details their
+/// room hosts reported (`detail=1`; a bridge that does not know it leaves them
+/// out). One invalid summary, or one of another game, fails the whole listing.
+pub async fn list(shared: &Arc<Shared>, bridge_id: &str, build: &str, game: &str) -> Outcome {
+    let path = list_path(build, game)?;
     let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(REFUSALS);
     let list: RoomList = client::request_as(shared, bridge_id, &call).await?;
-    if list.rooms.len() > MAX_LISTED || list.rooms.iter().any(|room| room.check().is_err()) {
+    if list.rooms.len() > MAX_LISTED
+        || list
+            .rooms
+            .iter()
+            .any(|room| room.check().is_err() || room.game != game)
+    {
         return Err(invalid_response());
     }
     Ok(Some(to_json(&list)?))
 }
 
-/// The ticket request this helper makes for `build`, checked. The class and
-/// the developer mark are asked for only from a bridge that offers ranking:
-/// an older one refuses either field.
-fn ticket_request(endpoint_id: &str, build: &str, ranking: bool) -> Result<TicketRequest, Failure> {
+/// The ticket request this helper makes for `build` and `game`, checked. The
+/// class and the developer mark are asked for only from a bridge that offers
+/// ranking: an older one refuses either field.
+fn ticket_request(
+    endpoint_id: &str,
+    build: &str,
+    game: &str,
+    ranking: bool,
+) -> Result<TicketRequest, Failure> {
     let request = TicketRequest {
         endpoint_id: endpoint_id.to_owned(),
         build_id: build.to_owned(),
         skill_badge: ranking,
         developer_badge: ranking,
+        game: game.to_owned(),
     };
     request.check().map_err(|_| invalid_request())?;
     Ok(request)
@@ -153,6 +179,7 @@ pub async fn create(
     capacity: u8,
     build: &str,
     own_delay: bool,
+    game: &str,
 ) -> Outcome {
     let command = CreateRoom {
         name: name.to_owned(),
@@ -160,13 +187,14 @@ pub async fn create(
         build_id: build.to_owned(),
         region: (shared.home_region)().map(str::to_owned),
         own_delay,
+        game: game.to_owned(),
     };
     command.check().map_err(|error| match error {
         ProtocolError::InvalidField("name") => Failure::new(Code::InvalidName),
         _ => invalid_request(),
     })?;
     // Nothing is opened that this helper could not then take a ticket for.
-    ticket_request(&shared.endpoint_id, build, false)?;
+    ticket_request(&shared.endpoint_id, build, game, false)?;
     let body = serde_json::to_vec(&command).map_err(|_| Failure::new(Code::Internal))?;
     let call = BridgeCall::new(Verb::Post, "/v1/rooms", &[201])
         .body(Body::Json(&body))
@@ -177,7 +205,8 @@ pub async fn create(
         .and_then(|room: RoomSummary| {
             let asked = room.name == command.name
                 && room.capacity == command.capacity
-                && room.build_id == command.build_id;
+                && room.build_id == command.build_id
+                && room.game == command.game;
             if room.check().is_err() || !asked {
                 return Err(invalid_response());
             }
@@ -194,19 +223,32 @@ pub async fn create(
         .map_err(|failure| create_failure(failure, own_delay))?;
     // A second session call, so a session that lapses between the two steps
     // renews without asking the bridge for another room.
-    admit(shared, bridge_id, &room.room_id, build).await
+    admit(shared, bridge_id, &room.room_id, build, game).await
 }
 
 /// The ticket and invitation for an open room.
-pub async fn ticket(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
+pub async fn ticket(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    room_id: &str,
+    build: &str,
+    game: &str,
+) -> Outcome {
     check_room_id(room_id)?;
     build_query(build)?;
-    admit(shared, bridge_id, room_id, build).await
+    check_game(game)?;
+    admit(shared, bridge_id, room_id, build, game).await
 }
 
 /// Asks for the ticket and checks the admission before it is answered.
-async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str) -> Outcome {
-    ticket_request(&shared.endpoint_id, build, false)?;
+async fn admit(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    room_id: &str,
+    build: &str,
+    game: &str,
+) -> Outcome {
+    ticket_request(&shared.endpoint_id, build, game, false)?;
     let path = format!("/v1/rooms/{room_id}/tickets");
     let path = &path;
     client::with_session(shared, bridge_id, |bridge, token| async move {
@@ -215,14 +257,14 @@ async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str
         let ranking = play::features(shared, &bridge, play::Need::Nothing)
             .await
             .is_ok_and(|features| features.ranking);
-        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, ranking)?)
+        let body = serde_json::to_vec(&ticket_request(&shared.endpoint_id, build, game, ranking)?)
             .map_err(|_| Failure::new(Code::Internal))?;
         let call = BridgeCall::new(Verb::Post, path, &[201])
             .body(Body::Json(&body))
             .refusals(REFUSALS);
         let admission: RoomAdmission =
             client::fetch_as(shared, &bridge, Some(&token), &call).await?;
-        verify(shared, &bridge, &admission, room_id, build).await?;
+        verify(shared, &bridge, &admission, room_id, build, game).await?;
         Ok(Some(to_json(&admission)?))
     })
     .await
@@ -230,13 +272,14 @@ async fn admit(shared: &Arc<Shared>, bridge_id: &str, room_id: &str, build: &str
 
 /// The admission is well formed, its ticket is signed by the approved
 /// bridge's key, and it admits this endpoint, as this identity, to the room
-/// asked for.
+/// asked for, of the build and game asked for.
 async fn verify(
     shared: &Arc<Shared>,
     bridge: &Approved,
     admission: &RoomAdmission,
     room_id: &str,
     build: &str,
+    game: &str,
 ) -> Result<(), Failure> {
     admission.check().map_err(|_| invalid_response())?;
     let signed = &admission.ticket;
@@ -252,6 +295,7 @@ async fn verify(
         || ticket.room_id != room.room_id
         || room.room_id != room_id
         || room.build_id != build
+        || room.game != game
     {
         return Err(Failure::new(Code::BindingMismatch));
     }
@@ -304,6 +348,8 @@ mod tests {
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "own_delay": 1 }),
             json!({ "op": "room_create", "bridge_id": "brg_x", "name": "n", "capacity": 8, "build": "b", "own_delay": "yes" }),
             json!({ "op": "room_ticket", "bridge_id": "brg_x", "build": "b" }),
+            json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b", "game": null }),
+            json!({ "op": "room_ticket", "bridge_id": "brg_x", "room_id": "0123456789abcdef0123456789abcdef", "build": "b", "game": true }),
         ];
         for value in bad {
             assert!(
@@ -438,9 +484,11 @@ mod tests {
     #[test]
     fn a_ticket_asks_for_badges_only_from_a_bridge_that_offers_ranking() {
         let endpoint = "ab".repeat(32);
-        let older = serde_json::to_value(ticket_request(&endpoint, "b1", false).unwrap()).unwrap();
+        let older =
+            serde_json::to_value(ticket_request(&endpoint, "b1", "usf4", false).unwrap()).unwrap();
         assert_eq!(older, json!({ "endpoint_id": endpoint, "build_id": "b1" }));
-        let ranking = serde_json::to_value(ticket_request(&endpoint, "b1", true).unwrap()).unwrap();
+        let ranking =
+            serde_json::to_value(ticket_request(&endpoint, "b1", "usf4", true).unwrap()).unwrap();
         assert_eq!(ranking["skill_badge"], json!(true));
         assert_eq!(ranking["developer_badge"], json!(true));
     }
@@ -448,14 +496,103 @@ mod tests {
     #[test]
     fn the_listing_asks_for_details() {
         assert_eq!(
-            list_path("build-1").unwrap(),
+            list_path("build-1", "usf4").unwrap(),
             "/v1/rooms?build_id=build-1&detail=1"
         );
         assert_eq!(
-            list_path("a b").unwrap(),
+            list_path("a b", "usf4").unwrap(),
             "/v1/rooms?build_id=a%20b&detail=1"
         );
-        assert!(list_path("").is_err());
+        assert!(list_path("", "usf4").is_err());
+    }
+
+    /// An SFV Ember build ID, which holds slashes.
+    const SFV_BUILD: &str = "sfv-ember/13173604/0.2/8dafe602f7615d90";
+
+    #[test]
+    fn an_sfv_listing_names_its_game_and_an_sf4_one_does_not() {
+        // SF4 Ember's own build ID, a SHA-256, asks exactly what it did.
+        let sf4 = "0f".repeat(32);
+        assert_eq!(
+            list_path(&sf4, "usf4").unwrap(),
+            format!("/v1/rooms?build_id={sf4}&detail=1")
+        );
+        assert_eq!(
+            list_path(SFV_BUILD, "sfv").unwrap(),
+            "/v1/rooms?build_id=sfv-ember%2F13173604%2F0.2%2F8dafe602f7615d90&detail=1&game=sfv"
+        );
+        for game in ["", "sf6", "USF4", "sfv&x=1"] {
+            assert_eq!(
+                list_path(SFV_BUILD, game).unwrap_err().as_str(),
+                "invalid_request",
+                "{game}"
+            );
+        }
+    }
+
+    #[test]
+    fn requests_name_their_game_only_when_it_is_not_sf4() {
+        let sf4 = request(json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b1" }));
+        let Request::RoomList { game, .. } = &sf4 else {
+            panic!("a listing");
+        };
+        assert_eq!(game, "usf4");
+        // An explicit default is read and not written back.
+        let explicit = request(
+            json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b1", "game": "usf4" }),
+        );
+        assert_eq!(
+            serde_json::to_value(&explicit).unwrap(),
+            json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b1" })
+        );
+        for value in [
+            json!({ "op": "room_list", "bridge_id": "brg_x", "build": SFV_BUILD, "game": "sfv" }),
+            json!({ "op": "room_create", "bridge_id": "brg_x", "name": "Friendly matches", "capacity": 8, "build": SFV_BUILD, "game": "sfv" }),
+            json!({ "op": "room_ticket", "bridge_id": "brg_x", "room_id": "0123456789abcdef0123456789abcdef", "build": SFV_BUILD, "game": "sfv" }),
+        ] {
+            assert_eq!(serde_json::to_value(request(value.clone())).unwrap(), value);
+        }
+        // Only a string is a game; which strings are games is checked before
+        // any request is made.
+        let bad = json!({ "op": "room_list", "bridge_id": "brg_x", "build": "b1", "game": 1 });
+        assert!(serde_json::from_value::<Request>(bad).is_err());
+        assert_eq!(
+            ticket_request(&"ab".repeat(32), "b1", "sf6", false)
+                .unwrap_err()
+                .as_str(),
+            "invalid_request"
+        );
+    }
+
+    #[test]
+    fn an_sfv_ticket_and_create_carry_the_game_and_sf4_ones_do_not() {
+        let endpoint = "ab".repeat(32);
+        let sfv = serde_json::to_value(ticket_request(&endpoint, SFV_BUILD, "sfv", false).unwrap())
+            .unwrap();
+        assert_eq!(
+            sfv,
+            json!({ "endpoint_id": endpoint, "build_id": SFV_BUILD, "game": "sfv" })
+        );
+        let ranking =
+            serde_json::to_value(ticket_request(&endpoint, SFV_BUILD, "sfv", true).unwrap())
+                .unwrap();
+        assert_eq!(ranking["game"], "sfv");
+        let create = |game: &str| CreateRoom {
+            name: "Friendly matches".into(),
+            capacity: 8,
+            build_id: SFV_BUILD.into(),
+            region: Some("euc1".into()),
+            own_delay: false,
+            game: game.into(),
+        };
+        assert_eq!(
+            serde_json::to_string(&create("usf4")).unwrap(),
+            r#"{"name":"Friendly matches","capacity":8,"build_id":"sfv-ember/13173604/0.2/8dafe602f7615d90","region":"euc1"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&create("sfv")).unwrap(),
+            r#"{"name":"Friendly matches","capacity":8,"build_id":"sfv-ember/13173604/0.2/8dafe602f7615d90","region":"euc1","game":"sfv"}"#
+        );
     }
 
     #[test]

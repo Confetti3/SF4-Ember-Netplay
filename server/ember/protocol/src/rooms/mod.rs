@@ -81,6 +81,41 @@ pub const MAX_ROOM_TYPE: u8 = KING_ROOM;
 pub const MAX_ROOM_BANS: usize = 512;
 const MAX_REGION: usize = 8;
 
+/// The games public rooms are kept apart by: `usf4` is SF4 Ember's, `sfv`
+/// SFV Ember's. A room, a create and a ticket request each name one; a room
+/// is listed, joined and rated only within its game. The same keys are in
+/// `server/ember-rooms/src/config.rs` (`GAMES`, a separate crate); keep them
+/// equal.
+pub const GAMES: [&str; 2] = [DEFAULT_GAME, SFV_GAME];
+/// The game of every message that names none: SF4 Ember's. It is written
+/// only when another game is meant, so every message about an SF4 room is
+/// what it was before games existed.
+pub const DEFAULT_GAME: &str = "usf4";
+pub const SFV_GAME: &str = "sfv";
+
+/// Whether `game` is one of `GAMES`.
+pub fn is_game(game: &str) -> bool {
+    GAMES.contains(&game)
+}
+
+/// `DEFAULT_GAME`, for a field that is absent.
+pub fn default_game() -> String {
+    DEFAULT_GAME.to_owned()
+}
+
+/// Whether a `game` field is the default, and so left out.
+pub fn is_default_game(game: &str) -> bool {
+    game == DEFAULT_GAME
+}
+
+fn check_game(game: &str) -> Result<()> {
+    if is_game(game) {
+        Ok(())
+    } else {
+        Err(Error::InvalidField("game"))
+    }
+}
+
 /// A room name: 1 to 64 bytes of single-line text with no control characters
 /// and no leading or trailing whitespace.
 pub fn check_room_name(name: &str) -> Result<()> {
@@ -173,6 +208,10 @@ pub struct RoomSummary {
     /// host that predates it, or a room without the rule, says nothing.
     #[serde(default, skip_serializing_if = "is_false")]
     pub wired_only: bool,
+    /// The room's game (`GAMES`), fixed when it is created. Present only when
+    /// it is not `DEFAULT_GAME`, so an SF4 room is listed as it was before.
+    #[serde(default = "default_game", skip_serializing_if = "is_default_game")]
+    pub game: String,
 }
 
 impl RoomSummary {
@@ -232,6 +271,7 @@ impl RoomSummary {
         if !region_valid {
             return Err(Error::InvalidField("region"));
         }
+        check_game(&self.game)?;
         self.check_details()
     }
 }
@@ -264,6 +304,11 @@ pub struct CreateRoom {
     /// know the field refuses the request, which is never retried without it.
     #[serde(default, skip_serializing_if = "is_false")]
     pub own_delay: bool,
+    /// The game the room is for (`GAMES`). Sent only when it is not
+    /// `DEFAULT_GAME`; a bridge that does not know the field refuses such a
+    /// request as invalid, so no room is made for the wrong game.
+    #[serde(default = "default_game", skip_serializing_if = "is_default_game")]
+    pub game: String,
 }
 
 impl CreateRoom {
@@ -278,7 +323,7 @@ impl CreateRoom {
         {
             return Err(Error::InvalidField("region"));
         }
-        Ok(())
+        check_game(&self.game)
     }
 }
 
@@ -297,6 +342,10 @@ pub struct TicketRequest {
     /// offers ranking, since an older one refuses the field.
     #[serde(default, skip_serializing_if = "is_false")]
     pub developer_badge: bool,
+    /// The joiner's game (`GAMES`); a room of another game refuses the ticket
+    /// as `unsupported_build`. Sent only when it is not `DEFAULT_GAME`.
+    #[serde(default = "default_game", skip_serializing_if = "is_default_game")]
+    pub game: String,
 }
 
 impl TicketRequest {
@@ -304,7 +353,8 @@ impl TicketRequest {
         if !is_hex(&self.endpoint_id, 64) {
             return Err(Error::InvalidField("endpoint_id"));
         }
-        check_build(&self.build_id)
+        check_build(&self.build_id)?;
+        check_game(&self.game)
     }
 }
 
@@ -384,6 +434,7 @@ mod tests {
             rotation: None,
             room_type: None,
             wired_only: false,
+            game: DEFAULT_GAME.into(),
         }
     }
 
@@ -428,6 +479,7 @@ mod tests {
             build_id: "build".into(),
             region: None,
             own_delay: false,
+            game: DEFAULT_GAME.into(),
         };
         assert!(create.check().is_ok());
         for capacity in [0, 1, 17, 255] {
@@ -475,6 +527,7 @@ mod tests {
             build_id: "build".into(),
             skill_badge: false,
             developer_badge: false,
+            game: DEFAULT_GAME.into(),
         };
         assert!(request.check().is_ok());
         let bad = TicketRequest {
@@ -734,5 +787,131 @@ te"
         assert!(json::parse_as::<RoomTicket>(widened.as_bytes(), 4096).is_err());
         value = json::parse(text.as_bytes(), 4096).unwrap();
         assert_eq!(json::from_value::<RoomTicket>(&value).unwrap(), ticket(&id));
+    }
+
+    /// An SFV Ember build ID: its sidecar names the game, the Steam build,
+    /// the version and a hash.
+    const SFV_BUILD: &str = "sfv-ember/13173604/0.2/8dafe602f7615d90";
+
+    #[test]
+    fn the_games_are_sf4_by_default_and_sfv() {
+        assert_eq!(GAMES, ["usf4", "sfv"]);
+        assert_eq!(DEFAULT_GAME, "usf4");
+        for game in GAMES {
+            assert!(is_game(game), "{game}");
+        }
+        for other in ["", "USF4", "sf4", "sfv ", "sf6"] {
+            assert!(!is_game(other), "{other}");
+        }
+        assert_eq!(default_game(), DEFAULT_GAME);
+    }
+
+    #[test]
+    fn an_sf4_room_says_nothing_of_its_game_on_the_wire() {
+        let create: CreateRoom =
+            json::parse_as(br#"{"name":"Room","capacity":8,"build_id":"build"}"#, 1024).unwrap();
+        assert_eq!(create.game, DEFAULT_GAME);
+        // An explicit default is read and not written back.
+        let explicit: CreateRoom = json::parse_as(
+            br#"{"name":"Room","capacity":8,"build_id":"build","game":"usf4"}"#,
+            1024,
+        )
+        .unwrap();
+        assert_eq!(explicit, create);
+        assert_eq!(
+            serde_json::to_vec(&explicit).unwrap(),
+            br#"{"name":"Room","capacity":8,"build_id":"build"}"#
+        );
+        let request = format!(
+            r#"{{"endpoint_id":"{}","build_id":"build"}}"#,
+            "a".repeat(64)
+        );
+        let parsed: TicketRequest = json::parse_as(request.as_bytes(), 1024).unwrap();
+        assert_eq!(parsed.game, DEFAULT_GAME);
+        assert_eq!(serde_json::to_string(&parsed).unwrap(), request);
+        let text = serde_json::to_string(&summary()).unwrap();
+        assert!(!text.contains("game"), "{text}");
+        assert!(!serde_json::to_string(&detailed()).unwrap().contains("game"));
+    }
+
+    #[test]
+    fn an_sfv_room_names_its_game_and_round_trips() {
+        let create = CreateRoom {
+            name: "Room".into(),
+            capacity: 8,
+            build_id: SFV_BUILD.into(),
+            region: None,
+            own_delay: false,
+            game: SFV_GAME.into(),
+        };
+        create.check().unwrap();
+        let text = serde_json::to_string(&create).unwrap();
+        assert_eq!(
+            text,
+            r#"{"name":"Room","capacity":8,"build_id":"sfv-ember/13173604/0.2/8dafe602f7615d90","game":"sfv"}"#
+        );
+        assert_eq!(
+            json::parse_as::<CreateRoom>(text.as_bytes(), 1024).unwrap(),
+            create
+        );
+        let request = TicketRequest {
+            endpoint_id: "c".repeat(64),
+            build_id: SFV_BUILD.into(),
+            skill_badge: false,
+            developer_badge: false,
+            game: SFV_GAME.into(),
+        };
+        request.check().unwrap();
+        let text = serde_json::to_string(&request).unwrap();
+        assert!(text.ends_with(r#","game":"sfv"}"#), "{text}");
+        assert_eq!(
+            json::parse_as::<TicketRequest>(text.as_bytes(), 1024).unwrap(),
+            request
+        );
+        let room = RoomSummary {
+            build_id: SFV_BUILD.into(),
+            game: SFV_GAME.into(),
+            ..detailed()
+        };
+        room.check().unwrap();
+        let text = serde_json::to_string(&room).unwrap();
+        assert!(text.ends_with(r#","game":"sfv"}"#), "{text}");
+        assert_eq!(serde_json::from_str::<RoomSummary>(&text).unwrap(), room);
+    }
+
+    #[test]
+    fn an_unknown_game_is_refused() {
+        for game in ["", "sf6", "USF4", "sfv/1"] {
+            let create = CreateRoom {
+                name: "Room".into(),
+                capacity: 8,
+                build_id: "build".into(),
+                region: None,
+                own_delay: false,
+                game: game.into(),
+            };
+            assert_eq!(create.check(), Err(Error::InvalidField("game")), "{game}");
+            let request = TicketRequest {
+                endpoint_id: "c".repeat(64),
+                build_id: "build".into(),
+                skill_badge: false,
+                developer_badge: false,
+                game: game.into(),
+            };
+            assert_eq!(request.check(), Err(Error::InvalidField("game")), "{game}");
+            let room = RoomSummary {
+                game: game.into(),
+                ..summary()
+            };
+            assert_eq!(room.check(), Err(Error::InvalidField("game")), "{game}");
+        }
+        // Only a string is a game.
+        for bad in [r#""game":1"#, r#""game":null"#, r#""game":["sfv"]"#] {
+            let text = format!(r#"{{"name":"Room","capacity":8,"build_id":"build",{bad}}}"#);
+            assert!(
+                json::parse_as::<CreateRoom>(text.as_bytes(), 1024).is_err(),
+                "{bad}"
+            );
+        }
     }
 }

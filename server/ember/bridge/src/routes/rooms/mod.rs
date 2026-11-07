@@ -37,8 +37,9 @@ use ember_protocol::{
     event::{Kind, RoomEventData},
     rooms::{
         BANNED, CLOSED_BY_CONNECTION, CloseRoom, ConnectionCreateRoom, ConnectionRoom,
-        ConnectionRoomList, CreateRoom, INVALID_NAME, NOT_LINKED, ROOM_FULL, ROOM_LIMIT,
-        ROOM_LOCKED, RoomList, RoomState, RoomSummary, UNSUPPORTED_BUILD, join_url,
+        ConnectionRoomList, CreateRoom, DEFAULT_GAME, INVALID_NAME, NOT_LINKED, ROOM_FULL,
+        ROOM_LIMIT, ROOM_LOCKED, RoomList, RoomState, RoomSummary, UNSUPPORTED_BUILD, is_game,
+        join_url,
     },
 };
 use rusqlite::{OptionalExtension, Row, Transaction, params};
@@ -279,11 +280,13 @@ struct Room {
     /// Only players not on Wi-Fi take a seat, as the room host last reported
     /// (`details`); false until it has said.
     wired_only: bool,
+    /// The game the room is for (`rooms::GAMES`), as its creator asked.
+    game: String,
 }
 
 const COLUMNS: &str = "room_id, name, build_id, capacity, members, tables_playing, created_at, region, invitation_sealed,
     creator_ember_id, opened_at, closed_at, connection_id, host_name, fighters, locked, set_format, rotation,
-    creator_region, own_delay, room_type, creator_in, wired_only";
+    creator_region, own_delay, room_type, creator_in, wired_only, game";
 
 fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
     Ok(Room {
@@ -310,6 +313,7 @@ fn room_of(row: &Row<'_>) -> rusqlite::Result<Room> {
         room_type: row.get(20)?,
         creator_in: row.get(21)?,
         wired_only: row.get(22)?,
+        game: row.get(23)?,
     })
 }
 
@@ -354,6 +358,7 @@ impl Room {
             rotation: None,
             room_type: None,
             wired_only: false,
+            game: self.game.clone(),
         };
         summary.check().map_err(|_| ApiFailure::unavailable())?;
         Ok(summary)
@@ -444,6 +449,16 @@ fn build_ok(build_id: &str) -> bool {
     !build_id.is_empty() && build_id.len() <= MAX_BUILD && build_id.is_ascii()
 }
 
+/// A listing's game: `DEFAULT_GAME` when the query names none, so a caller
+/// that predates games lists what it always did.
+fn listed_game(game: Option<&str>) -> Result<String> {
+    match game {
+        None => Ok(DEFAULT_GAME.to_owned()),
+        Some(game) if is_game(game) => Ok(game.to_owned()),
+        Some(_) => Err(ApiFailure::invalid("game is not a known game.")),
+    }
+}
+
 #[derive(serde::Deserialize)]
 pub struct ListQuery {
     #[serde(default)]
@@ -451,12 +466,17 @@ pub struct ListQuery {
     /// 1 adds what the room hosts reported, and when the listing was made.
     #[serde(default)]
     detail: Option<u8>,
+    /// The game whose rooms a player's listing shows (`rooms::GAMES`);
+    /// `DEFAULT_GAME` when absent. A connection's listing does not read it.
+    #[serde(default)]
+    game: Option<String>,
 }
 
-/// `GET /v1/rooms?build_id=&detail=`: for a player, open rooms with at least
-/// one member, unlocked ones first and those with the most free seats first
-/// (with `detail=1` also what the room hosts reported and `listed_at`); for a
-/// connection, the rooms it created that are not closed, newest first.
+/// `GET /v1/rooms?build_id=&detail=&game=`: for a player, open rooms of one
+/// game with at least one member, unlocked ones first and those with the most
+/// free seats first (with `detail=1` also what the room hosts reported and
+/// `listed_at`); for a connection, the rooms it created that are not closed,
+/// newest first.
 pub async fn list(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -478,7 +498,12 @@ pub async fn list(
         .db
         .read(move |tx| match caller {
             Caller::Player(_) => Ok(serde_json::to_value(RoomList {
-                rooms: player_rooms(tx, query.build_id.as_deref(), detailed)?,
+                rooms: player_rooms(
+                    tx,
+                    query.build_id.as_deref(),
+                    &listed_game(query.game.as_deref())?,
+                    detailed,
+                )?,
                 listed_at: detailed.then_some(now),
             })),
             Caller::Connection { connection_id, .. } => {
@@ -502,20 +527,21 @@ pub async fn list(
     Ok(ok(&body))
 }
 
-/// The rooms a player's listing shows: open, with at least one member,
-/// unlocked ones first and those with the most free seats first.
+/// The rooms a player's listing shows: open rooms of `game`, with at least
+/// one member, unlocked ones first and those with the most free seats first.
 fn player_rooms(
     tx: &Transaction<'_>,
     build_id: Option<&str>,
+    game: &str,
     detailed: bool,
 ) -> Result<Vec<RoomSummary>> {
     let mut statement = tx.prepare(&format!(
         "SELECT {COLUMNS} FROM rooms
          WHERE closed_at IS NULL AND invitation_sealed IS NOT NULL AND members >= 1
-           AND (?1 IS NULL OR build_id = ?1)
+           AND (?1 IS NULL OR build_id = ?1) AND game = ?3
          ORDER BY COALESCE(locked, 0), capacity - members DESC, created_at, room_id LIMIT ?2"
     ))?;
-    let rows = statement.query_map(params![build_id, LIST_LIMIT], room_of)?;
+    let rows = statement.query_map(params![build_id, LIST_LIMIT, game], room_of)?;
     let mut rooms = Vec::new();
     for room in rows {
         let room = room?;
@@ -537,16 +563,28 @@ struct PublicRoomList {
     rooms: Vec<RoomSummary>,
 }
 
-/// `GET /v1/rooms/public`: the rooms a player's detailed listing shows, for a
-/// web page, with no credential. Nothing in it is more than any Ember ID can
-/// list, and a room link still needs a player's ticket to get in.
-pub async fn public_list(State(state): State<AppState>) -> Result<Response> {
+#[derive(serde::Deserialize)]
+pub struct PublicQuery {
+    /// The game whose rooms the page lists; `DEFAULT_GAME` when absent.
+    #[serde(default)]
+    game: Option<String>,
+}
+
+/// `GET /v1/rooms/public?game=`: the rooms of one game a player's detailed
+/// listing shows, for a web page, with no credential. Nothing in it is more
+/// than any Ember ID can list, and a room link still needs a player's ticket
+/// to get in.
+pub async fn public_list(
+    State(state): State<AppState>,
+    Query(query): Query<PublicQuery>,
+) -> Result<Response> {
     supervisor(&state)?;
+    let game = listed_game(query.game.as_deref())?;
     let bridge_id = state.config.bridge_id.clone();
     let listed_at = state.now();
     let rooms = state
         .db
-        .read(move |tx| player_rooms(tx, None, true))
+        .read(move |tx| player_rooms(tx, None, &game, true))
         .await?;
     Ok(ok(&PublicRoomList {
         bridge_id,

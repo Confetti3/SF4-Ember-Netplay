@@ -98,6 +98,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     // 55 is the archive listing index (feat/archive-server-class), already
     // applied on the production bridge; it lands with that branch.
     (56, include_str!("../migrations/056_room_wired_only.sql")),
+    (57, include_str!("../migrations/057_room_game.sql")),
 ];
 
 #[derive(Clone)]
@@ -436,6 +437,32 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(own_delay("old"), 0);
+    }
+
+    #[test]
+    fn rooms_from_before_games_existed_are_sf4_rooms() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .unwrap();
+        let before = MIGRATIONS
+            .iter()
+            .position(|(version, _)| *version == 57)
+            .unwrap();
+        migrate(&mut connection, &MIGRATIONS[..before]).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO rooms (room_id, name, capacity, build_id, creator_ember_id, created_at)
+                   VALUES ('old', 'Old room', 8, 'build', 'emb_old', 1000);",
+            )
+            .unwrap();
+        migrate(&mut connection, MIGRATIONS).unwrap();
+        let game: String = connection
+            .query_row("SELECT game FROM rooms WHERE room_id = 'old'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(game, ember_protocol::rooms::DEFAULT_GAME);
     }
 
     #[test]

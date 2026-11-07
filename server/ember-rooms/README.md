@@ -22,7 +22,8 @@ ember-rooms <config.json>
   "builds": {
     "<build_id>": {
       "room_host": "/usr/local/lib/ember-rooms/<build_id>/sf4e-room-host",
-      "helper": "/usr/local/lib/ember-rooms/<build_id>/sf4-net"
+      "helper": "/usr/local/lib/ember-rooms/<build_id>/sf4-net",
+      "game": "usf4"
     }
   }
 }
@@ -31,8 +32,16 @@ ember-rooms <config.json>
 Only `secret_file` is required; the values above are the defaults. The
 supervisor refuses to start if `bind` is not a loopback address, the secret
 (trailing whitespace trimmed) is under 32 bytes, the port range is not two
-different ports from 1024 up with the lowest first, or `max_rooms` is not 1 to 1024.
-Unknown keys are errors. Zero builds is allowed.
+different ports from 1024 up with the lowest first, `max_rooms` is not 1 to 1024,
+a build id is not 1 to 128 printable ASCII characters, or a build's `game` is
+not a known game. Unknown keys are errors. Zero builds is allowed.
+
+A build's `game` is the game its room host is for: `usf4` (SF4 Ember, the
+default when absent) or `sfv` (SFV Ember). A build id may hold slashes, as
+SFV Ember's do (`sfv-ember/13173604/0.2/8dafe602f7615d90`). `deploy/setup.sh`
+does not handle either yet: it stages a build only from a folder whose name
+has no slash, and it writes each staged build's entry as `room_host` and
+`helper` alone, which drops a `game` set by hand.
 
 ## HTTP
 
@@ -41,13 +50,13 @@ in constant time. Refusals are JSON `{ "reason": "..." }`.
 
 | Route | Answer |
 |---|---|
-| `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid, own_delay? }` (`own_delay` only when true) | 201 `{ invitation, region }` once the host reports `hosted` |
+| `POST /rooms` `{ room_id, name, capacity, build_id, creator, bridge_id, ticket_key, ticket_kid, own_delay?, game? }` (`own_delay` only when true; `game` is `usf4` when absent) | 201 `{ invitation, region }` once the host reports `hosted` |
 | | 409 `room_limit` (room limit, no free port, or draining) |
-| | 409 `unsupported_build`, 409 `exists`, 400 `invalid_request` (names the `field`) |
+| | 409 `unsupported_build` (no such build, or `game` is not the build's), 409 `exists`, 400 `invalid_request` (names the `field`) |
 | | 502 `host_failed` (the host exited, broke the protocol or took over 30 s) |
 | `GET /rooms` | 200 `[{ room_id, members, capacity, tables_playing, invitation, banned, opened, details? }]` |
 | `DELETE /rooms/{room_id}` | 204 once the host has been asked to close, or 404 |
-| `GET /limits` | 200 `{ max_rooms, port_range, builds, rooms, reloads, bind, secret_file, empty_close_secs, drain_secs }` |
+| `GET /limits` | 200 `{ max_rooms, port_range, builds, build_games?, rooms, reloads, bind, secret_file, empty_close_secs, drain_secs }` (`build_games` maps each build that is not for `usf4` to its game, and is left out when there is none) |
 | `GET /health` | `ok` |
 
 `opened` is false until the host has reported a status with at least one member
@@ -82,7 +91,8 @@ port the room needs.
 
 A room whose fighters each play at their own input delay also carries
 `"own_delay": true`, only for such a room: a child reads an absent key as the
-shared delay.
+shared delay. A room of a game other than `usf4` carries `"game"` (for
+example `"game": "sfv"`) the same way; an SF4 room's line has no such key.
 
 The child writes one JSON object per line to stdout:
 

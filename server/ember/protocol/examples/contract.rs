@@ -26,7 +26,7 @@ use ember_protocol::{
     event::{Event, Kind},
     lobby::Rotation,
     matches::MAX_GAMES_TO_WIN,
-    rooms::{CLOSED_BY_CONNECTION, ConnectionRoom, ENDED, RoomState, RoomSummary},
+    rooms::{CLOSED_BY_CONNECTION, ConnectionRoom, DEFAULT_GAME, ENDED, RoomState, RoomSummary},
     tournament::Format,
 };
 use serde::Serialize;
@@ -77,6 +77,8 @@ fn main() {
         rotation: Some(0),
         room_type: Some(0),
         wired_only: false,
+        // A connection's rooms are SF4 Ember's, so the SDK never meets `game`.
+        game: DEFAULT_GAME.into(),
     };
     let room = ConnectionRoom {
         room: summary.clone(),

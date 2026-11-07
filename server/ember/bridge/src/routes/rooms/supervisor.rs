@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use ember_protocol::{
     play::MAX_INVITATION,
-    rooms::{MAX_ROOM_BANS, ROOM_LIMIT, UNSUPPORTED_BUILD},
+    rooms::{self, MAX_ROOM_BANS, ROOM_LIMIT, UNSUPPORTED_BUILD},
 };
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +67,16 @@ pub struct Create<'a> {
     /// the request for a room with the shared delay is what it always was.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub own_delay: bool,
+    /// The room's game (`rooms::GAMES`). Written only when it is not
+    /// `DEFAULT_GAME`, so the request for an SF4 room is what it always was;
+    /// the supervisor refuses a game its build is not for as
+    /// `unsupported_build`.
+    #[serde(skip_serializing_if = "is_default_game")]
+    pub game: &'a str,
+}
+
+fn is_default_game(game: &&str) -> bool {
+    rooms::is_default_game(game)
 }
 
 #[derive(Deserialize)]
