@@ -13,18 +13,27 @@ namespace sf4e { namespace ui {
 namespace {
 // USF4's own classes, D to Grand Master: the emblem's entry in the game's
 // ranking archive, and the class's letters, which are the game's tokens and
-// the same in every language. The two crowns are named in the catalog.
-struct GameClass { const char* entry; const char* letters; };
-constexpr GameClass Classes[SkillBadge::Classes] = {
-    {"class_D.dds", "D"}, {"class_Dp.dds", "D+"}, {"class_C.dds", "C"}, {"class_Cp.dds", "C+"},
-    {"class_B.dds", "B"}, {"class_Bp.dds", "B+"}, {"class_A.dds", "A"}, {"class_Ap.dds", "A+"},
-    {"class_MASTER.dds", nullptr}, {"class_GM.dds", nullptr}};
+// the same in every language. The two crowns are named in the catalog. A
+// product with ranks of its own names and draws them instead
+// (Branding::rankingClasses).
+static_assert(SkillBadge::Classes == ember::RankingClassCount, "a product's ranks are the bridge's bands");
+constexpr ember::RankingClass Usf4Classes[SkillBadge::Classes] = {
+    {"class_D.dds", "D", nullptr}, {"class_Dp.dds", "D+", nullptr}, {"class_C.dds", "C", nullptr}, {"class_Cp.dds", "C+", nullptr},
+    {"class_B.dds", "B", nullptr}, {"class_Bp.dds", "B+", nullptr}, {"class_A.dds", "A", nullptr}, {"class_Ap.dds", "A+", nullptr},
+    {"class_MASTER.dds", nullptr, "class.master"}, {"class_GM.dds", nullptr, "class.grand_master"}};
+// The product's rank for `band`, 1 to SkillBadge::Classes.
+const ember::RankingClass& ClassOf(std::uint8_t band) {
+    const auto* product = ember::Product().branding.rankingClasses;
+    return (product ? product : Usf4Classes)[band - 1];
+}
 const ImU32 PillFill = palette::Rgb(ember::ProductTheme().pill), PillBorder = palette::EmberAt(160);
 
 // How a badge is drawn: a class as the game's emblem once it has loaded, the
 // developer mark as Ember's own art; placing as "?" in a pill, since the game
 // has no art for it, and the developer mark as a word in a pill until its art
-// has loaded; nothing for none, or a class whose emblem has not loaded.
+// has loaded; nothing for none, or one of USF4's classes whose emblem has not
+// loaded. A product's own rank whose emblem the install does not have is its
+// name in a pill, faint as its emblem would be.
 struct Mark {
     SelectionImage emblem;
     bool faded = false, squared = false;
@@ -40,9 +49,10 @@ Mark MarkOf(const SkillBadge& badge) {
         if (!mark.emblem.texture) mark.pill = loc::T("class.developer");
         break;
     case SkillBadge::Kind::Class:
-        if (auto* art = MenuArt()) mark.emblem = art->RankingEmblem(Classes[badge.band - 1].entry);
+        if (auto* art = MenuArt()) mark.emblem = art->RankingEmblem(ClassOf(badge.band).emblem);
         mark.faded = !badge.settled;
-        mark.squared = true;
+        mark.squared = !!mark.emblem.texture;
+        if (!mark.emblem.texture && mark.emblem.missing && ember::Product().branding.rankingClasses) mark.pill = ClassName(badge.band);
         break;
     default: break;
     }
@@ -85,10 +95,15 @@ ImRect PaintMark(ImDrawList* d, ImVec2 at, const Mark& mark, const MarkSize& siz
     } else {
         const float rounding = size.side * .5f;
         const float textWidth = size.font->CalcTextSizeA(size.pillText, FLT_MAX, 0, mark.pill.c_str()).x;
-        d->AddRectFilled(min, max, PillFill, rounding);
-        d->AddRect(min, max, PillBorder, rounding, 0, size.border);
+        // Only a product's rank in a pill is ever faded (MarkOf): faint as its
+        // emblem would be, at the same opacity.
+        const auto faint = [&](ImU32 colour) {
+            return mark.faded ? (colour & ~IM_COL32_A_MASK) | (((colour >> IM_COL32_A_SHIFT & 0xFF) * 115 / 255) << IM_COL32_A_SHIFT) : colour;
+        };
+        d->AddRectFilled(min, max, faint(PillFill), rounding);
+        d->AddRect(min, max, faint(PillBorder), rounding, 0, size.border);
         d->AddText(size.font, size.pillText, ImVec2(std::round(min.x + (width - textWidth) * .5f), std::round(min.y + (size.side - size.pillText) * .5f)),
-            palette::Ivory, mark.pill.c_str());
+            faint(palette::Ivory), mark.pill.c_str());
     }
     return ImRect(min, max);
 }
@@ -106,8 +121,8 @@ std::string MarkTip(const SkillBadge& badge) {
 
 std::string ClassName(std::uint8_t band) {
     if (band == 0 || band > SkillBadge::Classes) return {};
-    const auto& shown = Classes[band - 1];
-    return shown.letters ? shown.letters : loc::T(band == SkillBadge::Classes ? "class.grand_master" : "class.master");
+    const auto& shown = ClassOf(band);
+    return shown.name ? shown.name : shown.msgid ? loc::T(shown.msgid) : std::string();
 }
 
 float NameMarksWidth(const NameMarks& marks, float fontSize) {

@@ -101,6 +101,20 @@ struct BattleHud {
 	bool nameOffset;
 };
 
+// A public room class (docs/design/SKILL_BADGE.md) as a product draws and
+// names it. The bridge rates every game in the same RankingClassCount bands,
+// 1 the lowest; a product names and draws each band as its game's own rank.
+// `emblem` is the game's own art for it, the entry SelectionArt::RankingEmblem
+// loads from the player's install. `name` is how the game spells the rank,
+// the same in every language, or null for a name from the shared catalog
+// (`msgid`). A product without a table has USF4's classes (ui/NameMarks.cxx).
+constexpr int RankingClassCount = 10;
+struct RankingClass {
+	const char* emblem;
+	const char* name;
+	const char* msgid;
+};
+
 // What the shell draws as the product's own.
 struct Branding {
 	const char* productName;      // window titles, About, the version line
@@ -125,6 +139,11 @@ struct Branding {
 	// who chose Rematch over a WIN that goes on in place reads Choosing until
 	// both have chosen.
 	bool answersFromInput;
+	// The game's own ranks for the bands, RankingClassCount of them, band 1
+	// first; none is USF4's classes (SF4 Ember). A product's class whose
+	// emblem the install does not have is shown as its name in a pill; one of
+	// USF4's is shown as nothing until its emblem loads.
+	const RankingClass* rankingClasses;
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO

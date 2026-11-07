@@ -1,11 +1,12 @@
-// The shell's product rules (Branding::roomFacesArePicks, answersFromInput),
-// built twice: ProductRules under SF4 Ember's identity, where both are off and
-// the shell is as it was, and ProductRulesOn under a product that turns both
-// on (product_rules_product.cxx). Each run checks the behaviour its product's
-// rules ask for.
+// The shell's product rules (Branding::roomFacesArePicks, answersFromInput,
+// rankingClasses), built twice: ProductRules under SF4 Ember's identity, where
+// they are off and the shell is as it was, and ProductRulesOn under a product
+// that turns them on (product_rules_product.cxx). Each run checks the
+// behaviour its product's rules ask for.
 #include "shell_journey_support.hxx"
 #include "../common/ProductIdentity.hxx"
 #include "../ui/MenuProbes.hxx"
+#include "../ui/NameMarks.hxx"
 #include "../ui/RoomPanelBoard.hxx"
 #include <vector>
 
@@ -107,10 +108,28 @@ void OpponentAnswer() {
 }
 }
 
+// The classes' names: USF4's letters and crowns, or the product's own ranks
+// (Branding::rankingClasses), by the game's name or the catalog's.
+void ClassNames() {
+ const auto* ranks=ember::Product().branding.rankingClasses;
+ if(ranks){
+  for(std::uint8_t band=1;band<=SkillBadge::Classes;++band){
+   const auto& rank=ranks[band-1];
+   Check(ui::ClassName(band)==(rank.name?std::string(rank.name):std::string(loc::T(rank.msgid))),"A product's rank was not named as the product names it");
+  }
+  Check(ui::ClassName(1)=="Rank 1"&&ui::ClassName(SkillBadge::Classes)==std::string(loc::T("class.grand_master")),"A product's ranks were not its own");
+ }else{
+  Check(ui::ClassName(1)=="D"&&ui::ClassName(2)=="D+"&&ui::ClassName(8)=="A+","USF4's classes lost their letters");
+  Check(ui::ClassName(9)==std::string(loc::T("class.master"))&&ui::ClassName(10)==std::string(loc::T("class.grand_master")),"USF4's crowns lost their names");
+ }
+ Check(ui::ClassName(0).empty()&&ui::ClassName(SkillBadge::Classes+1).empty(),"A band past the classes was named");
+}
+
 int main() {
  try {
   RoomFaces();
   OpponentAnswer();
+  ClassNames();
   std::cout<<"Product rules ("<<(ember::Product().branding.roomFacesArePicks?"on":"off")<<") passed.\n";
   return 0;
  } catch (const std::exception& e) {
