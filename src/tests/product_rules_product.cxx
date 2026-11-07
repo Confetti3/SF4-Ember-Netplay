@@ -40,6 +40,7 @@ constexpr ember::ProductIdentity RulesOn = {
 	L"",
 	L"Sidecar.dll",
 	L"SSFIV.exe",
+	{"45760", L"Super Street Fighter IV - Arcade Edition", L""},
 	L"",
 	L"sf4e-product-rules-test.log",
 	L"launcher.log",
