@@ -405,7 +405,7 @@ R"HTML(
 // ---- frame data: Ember's own table, one fighter at a time ----
 const FS={fighters:null,rows:[],cols:[],shown:30,name:""};
 const FC=["startup","active","recovery","total","block_adv","hit_adv"],FL={startup:"Start",active:"Active",recovery:"Recov",total:"Total",block_adv:"Block",hit_adv:"Hit"};
-const FX=["damage","stun","hit_level","cancel","inv","juggle","extra"],FXL={damage:"Damage",stun:"Stun",hit_level:"Level",cancel:"Cancel",inv:"Invincible",juggle:"Juggle",extra:"Notes"};
+const FX=["input","hitstun","blockstun","inv","extra"],FXL={input:"Input",hitstun:"Hitstun",blockstun:"Blockstun",inv:"Invincible",extra:"Notes"};
 async function loadFrames(){
  if(!FS.fighters){const r=await api("/api/frames");if(!r)return;FS.fighters=r.fighters;
   const sel=$("fFighter");for(const f of FS.fighters){const o=document.createElement("option");o.value=f.name;o.textContent=f.name+" ("+f.moves+")";sel.append(o)}
@@ -418,7 +418,7 @@ async function loadFrames(){
  const r=await api("/api/frames?fighter="+encodeURIComponent(FS.name));if(!r)return;
  FS.cols=r.cols;FS.rows=r.rows.map(x=>Object.fromEntries(r.cols.map((c,i)=>[c,x[i]])));paintFrames()}
 function paintFrames(){
- const t=$("fSearch").value.trim().toLowerCase(),list=FS.rows.filter(r=>!t||(r.move+" "+r.strength+" "+r.section).toLowerCase().includes(t));
+ const t=$("fSearch").value.trim().toLowerCase(),list=FS.rows.filter(r=>!t||(r.move+" "+r.input+" "+r.strength+" "+r.section).toLowerCase().includes(t));
  const el=$("fList");el.innerHTML="";
  for(const r of list.slice(0,FS.shown)){
   const b=document.createElement("button");b.className="fm";
