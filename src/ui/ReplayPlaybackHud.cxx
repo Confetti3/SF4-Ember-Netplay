@@ -63,10 +63,14 @@ void DrawStrip(const ReplayHudView& view, float alpha, const std::string& place,
     if (view.inputsKnown) controls.push_back({padKey("LT") + "F9", loc::T("replays.controls.inputs") + onOff(view.lanes), view.lanes, c.text});
     // The pad has no meter button.
     controls.push_back({"F5", loc::T("replays.controls.meter") + onOff(view.meter), view.meter, c.text});
+    // The place changes every frame; measured with every digit as the widest, the strip keeps its width (and so its
+    // centred position) as the clock ticks.
+    std::string stable = place;
+    for (char& ch : stable) if (ch >= '0' && ch <= '9') ch = '8';
     // The board's sizes, shrunk to fit a narrow window.
     float s = HudScale();
     const auto measure = [&](float k) {
-        float w = 16 * k + 20 * k + TextWidth(14 * k, place);
+        float w = 16 * k + 20 * k + TextWidth(14 * k, stable);
         for (const auto& control : controls) w += (std::max)(92 * k, (std::max)(TextWidth(11 * k, control.keys), TextWidth(16 * k, control.label)) + 20 * k) + 6 * k;
         return w;
     };
