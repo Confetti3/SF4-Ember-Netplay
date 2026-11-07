@@ -29,6 +29,10 @@ if(WIN32)
     # Themes (platform/GameThemes.hxx): the folders of replacement menu files.
     add_library(sf4e_game_themes STATIC "src/platform/GameThemes.cxx")
     target_compile_features(sf4e_game_themes PRIVATE cxx_std_17)
+    # HUD layout editing (platform/HudLayout.hxx): moves the elements of a theme's battle HUD.
+    add_library(sf4e_hud_layout STATIC "src/platform/HudLayout.cxx")
+    target_compile_features(sf4e_hud_layout PRIVATE cxx_std_17)
+    target_link_libraries(sf4e_hud_layout PUBLIC ZLIB::ZLIB)
 endif()
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_core_tests.cmake")
 if(SF4E_CORE_TESTS_ONLY)

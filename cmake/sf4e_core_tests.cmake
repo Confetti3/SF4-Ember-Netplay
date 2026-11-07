@@ -9,6 +9,8 @@ if(WIN32)
         STD 17 LIBS sf4e_custom_content_files TIMEOUT 15)
     sf4e_add_unit_test(NAME GameThemes SOURCES "src/tests/game_themes_test.cxx"
         STD 17 LIBS sf4e_game_themes TIMEOUT 15)
+    sf4e_add_unit_test(NAME HudLayout SOURCES "src/tests/hud_layout_test.cxx"
+        STD 17 LIBS sf4e_hud_layout TIMEOUT 15)
 endif()
 sf4e_add_unit_test(NAME NativeRepairTiming SOURCES "src/tests/native_repair_timing_test.cxx" STD 17)
 find_package(Threads REQUIRED)
