@@ -133,6 +133,7 @@ Capabilities Everything() {
     caps.padSetup = true;
     caps.steamProfile = true;
     caps.customContent = true;
+    caps.frameMeter = true;
     return caps;
 }
 

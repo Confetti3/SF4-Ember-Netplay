@@ -66,6 +66,9 @@ struct Capabilities {
     bool padSetup = false;       // the pad wizard (a pad's Setup request)
     bool steamProfile = false;   // opening a member's Steam profile (the OpenSteamProfile service)
     bool customContent = false;  // installed custom costumes, colours and stages (InstalledContent)
+    // Ember's frame meter over a match: Settings' Match frame meter row,
+    // which a game without the meter does not offer.
+    bool frameMeter = false;
 };
 
 // Where the game is. Game thread.
