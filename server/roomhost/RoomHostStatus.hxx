@@ -36,8 +36,8 @@ struct RoomDetails {
 	std::string hostName;
 	unsigned capacity = 0;
 	bool locked = false;
-	// Moderator first, then the rest in join order; each a main fighter id or 255
-	// for none, at most MaximumDetailFighters.
+	// Moderator first, then the rest in join order; each a fighter id (ListedFaces)
+	// or 255 for none, at most MaximumDetailFighters.
 	std::vector<int> fighters;
 	// Table 0's rules. setFormat is the first-to count (0 unlimited, else 1 to 10).
 	// rotation is room::RotationMode's value: 0 winner stays, 1 loser stays,
@@ -71,8 +71,15 @@ constexpr std::size_t MaximumHostNameBytes = 32;
 // bytes, cut on a character boundary.
 std::string HostDisplayName(const std::string& name);
 
+// Which fighter stands for each member in the details. Mains: their profile's
+// main, which every SF4 Ember player chooses. Picks: the pick they last shared
+// in the room, else none, for a game whose players have no main to show, as
+// its own room shows them (the client's Branding::roomFacesArePicks). Each
+// room host build says which (CatalogFaces, RoomHost.hxx).
+enum class ListedFaces { Mains, Picks };
+
 // The details of a room model's snapshot.
-RoomDetails DetailsOf(const room::Snapshot& snapshot);
+RoomDetails DetailsOf(const room::Snapshot& snapshot, ListedFaces faces = ListedFaces::Mains);
 
 // Everything one status line says. The host emits a line when this changes.
 struct Status {

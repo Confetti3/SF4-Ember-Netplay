@@ -207,8 +207,12 @@ fixed when it is created (`rooms.game`, migration 057; older rows are
   listing does not read it: a connection's rooms are `usf4` rooms.
 - A ticket request whose `game` is not the room's is refused
   `unsupported_build`, like one whose build is not the room's.
-- Skill classes are USF4's. Games reported in a room of another game are
-  not rated, and a ticket for such a room carries no badge.
+- Skill classes are each game's (`SKILL_BADGE.md`, "Games"): games reported
+  in a room are rated in its game's rating, and a ticket carries the class of
+  the room's game.
+- A room host lists each member by their profile's main (`details.fighters`)
+  or, for a game whose players have no main, by the pick they shared in the
+  room, else none (`roomhost::CatalogFaces`): SFV's host lists picks.
 - The bridge passes a non-default `game` to the supervisor in `POST /rooms`,
   which refuses a game that is not the build's own.
 - The room host checks it once more before its room opens

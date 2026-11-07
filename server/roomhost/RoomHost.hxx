@@ -45,6 +45,10 @@ bool ParseConfig(const std::string& line, Config& config, std::string& error);
 // compiled in and takes only "usf4" rooms; a game whose catalog is data
 // checks that data against the configured build and game.
 bool PrepareCatalog(const Config& config, std::string& reason);
+// Which fighter the room's details list for each member (ListedFaces), defined
+// beside PrepareCatalog: SF4's lists mains, as SF4 Ember's players each have
+// one; a game whose players have none lists the picks they shared.
+ListedFaces CatalogFaces();
 // Makes the room the configuration describes the server's server-owned room:
 // its name, capacity, public default rules and delay policy. False when the
 // server will not take it.

@@ -128,6 +128,11 @@ sfv-ember repository (its docs/design/EMBER_LIBRARY.md section 24), which
 embeds the pick space the game exported and refuses, before the room opens, a
 configuration whose `build_id` or `game` is not that pick space's.
 
+Beside `PrepareCatalog` each host defines `CatalogFaces`, which fighter its
+status line's `details.fighters` lists for each member: SF4's lists each
+member's profile main; SFV's lists the pick a member shared in the room, else
+none (255), as SFV Ember's room shows its members (section 28 there).
+
 ## Checking a host by hand
 
 The supervisor's child protocol is one JSON line on stdin and status lines on
