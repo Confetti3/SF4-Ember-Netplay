@@ -422,6 +422,7 @@ void fSystem::BattleUpdate() {
         // rollback replays frames (training::FastUpdates).
         int updates = 0;
         do {
+            sf4e::replayplayback::BeforeUpdate(_this);
             sf4e::training::BeforeUpdate(_this, ggpo != nullptr);
             // The stress harness owns the memento keys while it runs. This branch
             // is also taken with a live session during initial bootstrap, so it
@@ -430,7 +431,7 @@ void fSystem::BattleUpdate() {
                 (_this->*rSystem::publicMethods.BattleUpdate)();
             }
             sf4e::training::AfterUpdate(_this);
-        } while (++updates < sf4e::training::FastUpdates && sf4e::training::Fast());
+        } while ((++updates < sf4e::training::FastUpdates && sf4e::training::Fast()) || sf4e::replayplayback::SeekMore(_this, updates));
         // A replay's playback observes the recorder as this update left it
         // (the strip, the lanes and an export's progress read it). Shown with
         // the frame meter, the frame just played goes to the meter as a

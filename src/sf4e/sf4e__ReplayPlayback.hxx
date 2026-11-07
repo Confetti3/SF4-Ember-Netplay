@@ -41,6 +41,12 @@ void CloseBattle();
 // frame the update reached. Only while the meter is shown, and only when the
 // battle moved on; a held frame would start the meter over.
 bool AfterUpdate(Dimps::Game::Battle::System* system);
+// Inside the battle update's loop, before each update: takes the replay's snapshots as it plays and loads the one a jump
+// back asked for (training/CameraControl.hxx: Seek).
+void BeforeUpdate(Dimps::Game::Battle::System* system);
+// Inside the battle update's loop, after each update: more updates this game tick while a jump along the replay
+// (training/CameraControl.hxx: Seek) is playing forward to its frame; `done` is the updates this tick so far.
+bool SeekMore(Dimps::Game::Battle::System* system, int done);
 // Both players' inputs on the frame the replay just played, from its file, in
 // the game's pad bits; false without the file's lanes or that frame.
 bool PlayedInputs(unsigned (&inputs)[2]);
