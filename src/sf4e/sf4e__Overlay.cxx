@@ -19,6 +19,7 @@
 #include "../ui/Win32Input.hxx"
 #include "../ui/DeveloperOverlay.hxx"
 #include "../ui/TrainingPanel.hxx"
+#include "../ui/CameraPanel.hxx"
 #include "../platform/ReplayFiles.hxx"
 #include "../Dimps/Dimps__Platform.hxx"
 #include "../training/TrainingRuntime.hxx"
@@ -798,6 +799,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
     }
+    sf4e::ui::DrawCameraPanel(training.available || replayKeys, focused, sf4e::netplay::SettingsStore::DefaultDirectory(), replayKeys, snapshot.replays, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
     sf4e::ui::OverlayLayersView layers;
     layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
     const bool trainingOpen = s_trainingControls.Open();
@@ -835,7 +837,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         replay.round = playback.round; replay.cursor = playback.cursor;
         replay.pad = playback.device == sf4e::replaytransport::Device::Pad;
         replay.inputsKnown = snapshot.replays.lanes != nullptr;
-        replay.stripAlpha = sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
+        replay.stripAlpha = sf4e::ui::CameraEditorShown() ? 0.f : sf4e::replaytransport::StripAlpha(playback.paused, playback.divisor, takenAt < 0 ? -1 : now - takenAt);
         replay.unavailable = refusedAt >= 0 && now - refusedAt < sf4e::replaytransport::kChipSeconds;
         replay.lanes = replayKeys && playback.lanes && snapshot.replays.lanes;
         std::uint32_t played = 0;

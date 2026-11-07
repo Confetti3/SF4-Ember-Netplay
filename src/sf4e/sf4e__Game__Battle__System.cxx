@@ -11,6 +11,7 @@
 #include "../common/MementoGuards.hxx"
 #include "sf4e__CustomContent.hxx"
 #include "sf4e__MenuMusic.hxx"
+#include "../training/CameraHook.hxx"
 
 static_assert(sf4e::NativePauseOrHoldFlag == rSystem::SSF_PAUSE_OR_HOLD, "BattlePause.hxx flag differs from the native one");
 
@@ -302,6 +303,8 @@ static void CatchUpSpectator(rSystem* system) {
 void fSystem::BattleUpdate() {
     sf4e::memento::DrainAbort();
     rSystem* _this = (rSystem*)this;
+    // The phone's camera is taken off before the update and laid over after it.
+    sf4e::training::camera::Scope cameraScope(_this);
     rSystem::__publicMethods& sysMethods = rSystem::publicMethods;
     rPadSystem* p = rPadSystem::staticMethods.GetSingleton();
     rPadSystem::__publicMethods& padMethods = rPadSystem::publicMethods;
