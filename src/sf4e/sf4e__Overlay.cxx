@@ -199,7 +199,7 @@ void Overlay::InitializeOverlay(HWND hWnd, IDirect3DDevice9* lpDevice) {
 	}
 	sf4e::ui::OverlayLifecycle::Change change(s_lifecycle);
 	sf4e::OverlayPrefs::StartPersistence();
-	sf4e::ui::SetTrainingRemote({sf4e::training::remote::Start, sf4e::training::remote::Stop, sf4e::training::remote::Url, sf4e::training::remote::Pin, sf4e::training::remote::Link, sf4e::training::remote::hud::Allowed, sf4e::training::remote::hud::Allow});
+	sf4e::ui::SetTrainingRemote({sf4e::training::remote::Start, sf4e::training::remote::Stop, sf4e::training::remote::Url, sf4e::training::remote::Pin, sf4e::training::remote::Link, sf4e::training::remote::Open, sf4e::training::remote::hud::Allowed, sf4e::training::remote::hud::Allow});
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
     ImGui::GetIO().IniFilename = nullptr;

@@ -4755,7 +4755,7 @@ msgid "training.remote.address"
 msgstr "Address"
 
 msgid "training.remote.address.detail"
-msgstr "Open this in the phone's browser, then type the PIN."
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
 
 msgid "training.remote.pin"
 msgstr "PIN"
@@ -4783,6 +4783,9 @@ msgstr "Lets a PC on this network move the battle HUD parts from the remote page
 
 msgid "training.remote.failed"
 msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
 
 msgid "training.hitboxes"
 msgstr "Hitboxes"

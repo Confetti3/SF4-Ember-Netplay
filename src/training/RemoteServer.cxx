@@ -12,6 +12,7 @@
 #include "../common/Localization.hxx"
 #include "../ui/TrainingPanel.hxx"
 #include <winsock2.h>
+#include <shellapi.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <bcrypt.h>
@@ -351,6 +352,10 @@ std::string LanAddress() {
 }
 std::string Pin() { std::lock_guard<std::mutex> hold(s_lock); return s_running ? s_pin : std::string(); }
 std::string Link() { const auto url = Url(); return url.empty() ? url : url + "/?pin=" + Pin(); }
+bool Open() {
+    const auto link = Link();
+    return !link.empty() && reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", link.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+}
 // The IPv4 address, since the name needs mDNS and many networks and phones do not resolve it.
 std::string Url() {
     if (!s_running) return {};

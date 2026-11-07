@@ -12,7 +12,7 @@
 namespace sf4e { namespace ui {
 using TrainingSubmit = std::function<bool(training::Command)>;
 // The phone remote the live overlay offers (training::remote); unset in the UI lab, which hides its page.
-struct TrainingRemote { std::function<bool()> start; std::function<void()> stop; std::function<std::string()> url, pin, link; std::function<bool()> hudAllowed; std::function<void(bool)> allowHud; };  // link: the address with the PIN, what the QR code holds
+struct TrainingRemote { std::function<bool()> start; std::function<void()> stop; std::function<std::string()> url, pin, link; std::function<bool()> open; std::function<bool()> hudAllowed; std::function<void(bool)> allowHud; };  // link: the address with the PIN, what the QR code holds
 void SetTrainingRemote(TrainingRemote remote);
 void DrawTrainingPanel(const training::View& view, const TrainingSubmit& submit);
 // Shared by the live overlay and render tests; owns fixed geometry and input focus.

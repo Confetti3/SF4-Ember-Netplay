@@ -815,6 +815,8 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   // Select flips it; Right turns it On and Left Off, as the other On/Off rows do.
   // Select on "Scan to connect" shows the code over the list, and again hides it.
   if(a.kind==MenuAction::Activate&&a.id=="remote-qr")showQr=!showQr;
+  // Select on the address opens it, PIN included, in this PC's browser.
+  if(a.kind==MenuAction::Activate&&a.id=="remote-url"&&s_remote->open&&!s_remote->open())error=loc::T("training.remote.open_failed");
   // A new PIN: the server starts over, so the old one and every phone signed in with it stop working.
   if(a.kind==MenuAction::Activate&&a.id=="remote-newpin"){s_remote->stop();if(!s_remote->start())error=loc::T("training.remote.failed");}
   if((a.kind==MenuAction::Activate||a.kind==MenuAction::Adjust)&&a.id=="remote-hud")s_remote->allowHud(a.kind==MenuAction::Adjust?a.delta>0:!s_remote->hudAllowed());
