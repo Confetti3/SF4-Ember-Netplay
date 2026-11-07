@@ -31,10 +31,20 @@ struct ReplayHudView {
     int rowCount[2] = {0, 0};
     // The frame meter over the replay; drawn during an export as well.
     bool meter = false;
+    // The game draws a frame meter over a replay, so the strip offers F5
+    // for it; and a game whose replays end only from Ember (no pause menu of
+    // its own over them) offers Stop watching on View and Esc.
+    bool meterOffered = true, stopOffered = false;
 };
 // The strip: a button per control, its keys over what it does, then the
 // place in the round, at the bottom centre.
 void DrawReplayStrip(const ReplayHudView& view);
+// Where the frame meter's bottom edge is, as a fraction of the viewport's
+// height (TrainingHudLayout.hxx), which the strip keeps below: the Training
+// meter hands its own over (TrainingMeter.cxx). A game without that meter
+// hands none, and the strip keeps below the meter's default place,
+// TrainingHudBottom.
+void SetReplayStripMeterBottom(float (*meterBottom)());
 // Two narrow columns below the life bars, player 1 at the left edge of the
 // game's picture and player 2 at the right.
 void DrawReplayLanes(const ReplayHudView& view);

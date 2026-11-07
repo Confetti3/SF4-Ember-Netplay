@@ -125,6 +125,10 @@ Capabilities Everything() {
     Capabilities caps;
     caps.training = true;
     caps.replays = true;
+    caps.replayGameList = true;
+    caps.replayVideo = true;
+    caps.replayMeter = true;
+    caps.replayInputs = true;
     caps.spectators = true;
     caps.padSetup = true;
     caps.steamProfile = true;

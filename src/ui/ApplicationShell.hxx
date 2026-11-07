@@ -187,6 +187,10 @@ struct ShellView {
     // The game has Training and replays at all (its adapter's capabilities):
     // the shell shows no way into one it lacks.
     bool offersTraining = true, offersReplays = true;
+    // What the Replays screen offers of a replay beyond watching, keeping and
+    // showing it (the adapter's replay capabilities): the game's own replay
+    // list, a video, the frame meter, and its inputs and stats.
+    bool replayGameList = true, replayVideo = true, replayMeter = true, replayInputs = true;
     // The game offers watching a table (the snapshot's canWatch): the room's
     // Watch and queue actions and a tournament match's watch.
     bool canWatch = true;

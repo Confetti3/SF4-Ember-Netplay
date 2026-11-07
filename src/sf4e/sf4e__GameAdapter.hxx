@@ -49,6 +49,16 @@ struct Capabilities {
     // request (NetplayFacade::TrainingHolds), so Training::Request is never called.
     bool training = false;
     bool replays = false;        // playing replays from the Replays screen (the snapshot's replays.ready)
+    // What the Replays screen offers of a replay beyond watching it, keeping
+    // it and showing its file, each with `replays`: the game's own replay
+    // list (Add to the game, Open the Battle Log), a video of it (Export
+    // video, its tab and a set's videos), the frame meter over it (Watch
+    // with frame meter, and the playback strip's meter) and its inputs and
+    // stats (the Inputs row).
+    bool replayGameList = false;
+    bool replayVideo = false;
+    bool replayMeter = false;
+    bool replayInputs = false;
     // Watching a table's games: a room's Watch action, a tournament match's
     // watch and its observer join, and the entry of any game this PC would
     // only watch (queued or watching), which it sits out.
