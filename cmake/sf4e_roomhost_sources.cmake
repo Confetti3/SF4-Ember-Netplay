@@ -7,7 +7,7 @@
 # A mistake stops the configure: a path before the first group, a group the
 # file's header does not list, a path that is no file, or a group left empty.
 set(_sf4e_roomhost_list "${CMAKE_SOURCE_DIR}/server/roomhost/sources.txt")
-set(_sf4e_roomhost_groups host host_posix host_windows session_server iroh_room room_model selection catalog common)
+set(_sf4e_roomhost_groups host host_posix host_windows host_catalog session_server iroh_room room_model selection catalog common)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_sf4e_roomhost_list}")
 file(STRINGS "${_sf4e_roomhost_list}" _sf4e_roomhost_lines)
 foreach(_group IN LISTS _sf4e_roomhost_groups)

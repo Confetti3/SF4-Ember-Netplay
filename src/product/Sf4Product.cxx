@@ -26,6 +26,7 @@ constexpr ember::ProductIdentity Sf4Ember = {
 	L"Local\\sf4e-video-",
 	L".sf4e-video-tmp",
 	"ember",
+	"usf4",
 	"Confetti3/SF4-Ember-Netplay",
 	"Confetti3/SF4-Ember-Netplay-Nightly",
 	"sf4-ember-netplay-",

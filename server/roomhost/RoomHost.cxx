@@ -83,6 +83,11 @@ bool ParseConfig(const std::string& line, Config& config, std::string& error) {
 		if (!found->is_boolean()) return fail("own_delay");
 		config.ownDelay = found->get<bool>();
 	}
+	config.game = "usf4";
+	if (const auto found = value.find("game"); found != value.end()) {
+		if (!found->is_string() || !IsToken(found->get<std::string>(), 16)) return fail("game");
+		config.game = found->get<std::string>();
+	}
 	return true;
 }
 

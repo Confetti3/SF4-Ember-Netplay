@@ -295,6 +295,7 @@ sf4e_add_unit_test(NAME MemberLatency SOURCES "src/tests/member_latency_test.cxx
 sf4e_add_unit_test(NAME SessionServerModeration SOURCES "src/tests/session_server_moderation_test.cxx" "server/roomhost/RoomHostStatus.cxx"
     LIBS sf4e_session_server LABELS room)
 sf4e_add_unit_test(NAME RoomHostConfig SOURCES "src/tests/room_host_config_test.cxx" "server/roomhost/RoomHost.cxx" "server/roomhost/RoomHostStatus.cxx"
+    "server/roomhost/RoomHostSf4Catalog.cxx"
     STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server LABELS room)
 sf4e_add_unit_test(NAME LowerInputLag SOURCES "src/tests/lower_input_lag_test.cxx" LIBS sf4e_session_server LABELS room)

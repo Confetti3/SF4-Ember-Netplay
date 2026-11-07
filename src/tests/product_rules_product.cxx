@@ -30,6 +30,7 @@ constexpr ember::ProductIdentity RulesOn = {
 	L"Local\\sf4e-product-rules-test-",
 	L".sf4e-product-rules-test-tmp",
 	"ember-product-rules-test",
+	"usf4",
 	"",
 	"",
 	"sf4-ember-product-rules-test-",

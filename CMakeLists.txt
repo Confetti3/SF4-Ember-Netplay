@@ -331,7 +331,7 @@ target_link_libraries(
 # server and Iroh room libraries and none of the game libraries (Session takes
 # SF4's battle types, and its client's verification is SF4's), so the same
 # sources port to Linux.
-add_executable(sf4e-room-host ${SF4E_ROOMHOST_host} ${SF4E_ROOMHOST_host_windows})
+add_executable(sf4e-room-host ${SF4E_ROOMHOST_host} ${SF4E_ROOMHOST_host_windows} ${SF4E_ROOMHOST_host_catalog})
 target_compile_features(sf4e-room-host PRIVATE cxx_std_17)
 target_link_libraries(sf4e-room-host PRIVATE sf4e_iroh_room sf4e_product sf4e_catalog)
 

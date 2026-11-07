@@ -4,7 +4,9 @@
 # sf4e_catalog (the game catalog the room model and session server check picks by), session_server =
 # sf4e_session_server, iroh_room = sf4e_iroh_room, common = the part of sf4e_common the host uses, and host =
 # the sf4e-room-host target. host_posix is what Linux builds in place of host_windows (and of the Windows helper
-# client); build-linux.sh reads every group except host_windows. No game library.
+# client); build-linux.sh reads every group except host_windows. host_catalog, selection and catalog are SF4's
+# catalog and the host's hook for it (PrepareCatalog): a room host for a game whose catalog is data builds its own
+# files in their place (build-linux.sh's CATALOG_SOURCES). No game library.
 # A line starting with "# [name]" opens a group; other lines starting with # and blank lines are ignored;
 # a trailing carriage return (a CRLF checkout) is ignored.
 
@@ -19,6 +21,9 @@ src/platform/HelperClientPosix.cxx
 
 # [host_windows]
 server/roomhost/RoomHostHelperWindows.cxx
+
+# [host_catalog]
+server/roomhost/RoomHostSf4Catalog.cxx
 
 # [session_server]
 src/session/MatchAuthority.cxx
