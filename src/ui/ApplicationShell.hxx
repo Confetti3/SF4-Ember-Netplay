@@ -185,8 +185,9 @@ struct ShellView {
     int trainingReadySeconds = 0;
     bool canTrain = false;
     // The game has Training and replays at all (its adapter's capabilities):
-    // the shell shows no way into one it lacks.
-    bool offersTraining = true, offersReplays = true;
+    // the shell shows no way into one it lacks. Nor does it offer the Match
+    // frame meter setting to a game without Ember's frame meter.
+    bool offersTraining = true, offersReplays = true, offersFrameMeter = true;
     // The game offers watching a table (the snapshot's canWatch): the room's
     // Watch and queue actions and a tournament match's watch.
     bool canWatch = true;

@@ -46,6 +46,10 @@ void TrainingSettingsAndHome() {
  h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("training-auto-ready");h.Press(MenuInput::Right);h.Frame(0,45);
  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.trainingAutoReady,"Training auto-ready did not save from new screen");
  h.view.preferences=h.actions.back().preferences;h.Frame();
+ // A game without Ember's frame meter is not offered the setting; the rest stay in order.
+ h.view.offersFrameMeter=false;h.Frame();h.Screen("tab-matches/training-replays");
+ Check(rows.size()==6&&rows[0].id=="training-auto-ready"&&rows[1].id=="replay-save-watched","A game without a frame meter was offered Match frame meter");
+ h.view.offersFrameMeter=true;h.Frame();
  // Speech starts off, and its other rows wait for it. (Turning it on here
  // would speak through the PC's voice.)
  h.Screen("tab-access/speech");
