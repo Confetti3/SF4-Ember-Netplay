@@ -10,21 +10,6 @@
 #include <cstring>
 
 namespace sf4e { namespace ui {
-// A line of what happened in the room, in the player's language now.
-std::string ChatEventText(const ChatLine& line) {
-    const std::string name = line.name.empty() ? std::string(loc::T("room.player")) : line.name;
-    switch (line.kind) {
-    case ChatLine::Kind::Joined: return loc::Tf("chat.event.joined", name);
-    case ChatLine::Kind::Left: return loc::Tf("chat.event.left", name);
-    case ChatLine::Kind::NewHost: return loc::Tf("chat.event.host", name);
-    case ChatLine::Kind::GameWon: return loc::Tf("chat.event.game_won", name, line.table + 1, SetScoreText(line.score));
-    case ChatLine::Kind::SetWon:
-        if (!line.opponent.empty()) return loc::Tf("chat.event.set_won_against", name, line.opponent, SetScoreText(line.score));
-        return loc::Tf("chat.event.set_won", name, line.table + 1, SetScoreText(line.score));
-    case ChatLine::Kind::ReadyTimeout: return loc::Tf("chat.event.ready_timeout", name, line.table + 1);
-    default: return {};
-    }
-}
 namespace {
 // ImGui selects the whole box when the keyboard focus lands on it, which would
 // have the next letter replace a kept draft. The caret goes to the end instead.
