@@ -340,6 +340,19 @@ def headings(text):
     return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)} | set(re.findall(r'<a name="([^"]+)">', text))
 
 
+def release_tag(src):
+    """The release tag at HEAD, such as v1.5.4, or None: nightly builds are tagged v1.5.1-nightly20261102."""
+    tag = subprocess.run(["git", "-C", src, "describe", "--tags", "--exact-match", "--match", "v*", "--exclude", "v*-*"],
+                         capture_output=True, text=True)
+    return tag.stdout.strip() if tag.returncode == 0 else None
+
+
+def version(src):
+    """The Ember version the docs describe: CMakeLists' project version, "nightly" unless HEAD is a release tag."""
+    number = re.search(r"^\s*VERSION\s+([\d.]+)", (src / "CMakeLists.txt").read_text(encoding="utf-8"), re.M)[1]
+    return f"Ember {number}" + ("" if release_tag(src) else " nightly")
+
+
 def blurbs(lines):
     """What each guide covers, by path, from the README's Guides table: `| [name](path) | text |` rows."""
     found = {}
@@ -455,7 +468,8 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."
+    text = (f"{version(src)}. Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); "
+            "edit the docs, not this page.")
     if included:
         # Titles are other people's text: escape what Markdown would read as links or markup.
         titles = {n: re.sub(r"([\\[\]<>*_`])", r"\\\1", pr["title"]) for n, pr in included.items()}

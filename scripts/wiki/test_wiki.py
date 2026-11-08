@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Checks for the wiki build that need no network: python3 scripts/wiki/test_wiki.py"""
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -91,6 +92,15 @@ rows = [{"picture": "a.webp", "source": "render home"}, {"picture": "b.webp", "s
 assert stale.stale(rows, lambda path: ["c2abcde"] if path == "src/ui" else []) == \
     ["render pictures: src/ui changed after their capture, last in c2abcde"]
 assert stale.stale(rows, lambda path: []) == []
+# The footer names the version from CMakeLists, as a nightly unless HEAD is a release tag.
+with tempfile.TemporaryDirectory() as folder:
+    Path(folder, "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
+    git = lambda *command: subprocess.run(["git", "-C", folder, "-c", "user.name=x", "-c", "user.email=x@y", *command],
+                                          check=True)
+    git("init", "-q"), git("add", "."), git("commit", "-q", "-m", "x"), git("tag", "v1.2.3-nightly20260101")
+    assert build.release_tag(Path(folder)) is None and build.version(Path(folder)) == "Ember 1.2.3 nightly"
+    git("tag", "v1.2.3")
+    assert build.release_tag(Path(folder)) == "v1.2.3" and build.version(Path(folder)) == "Ember 1.2.3"
 # Every picture in the docs is in the manifest, and the manifest names no picture that is gone.
 rows = stale.read(build.ROOT)
 assert {row["source"].split()[0] for row in rows} <= set(stale.WATCHED), "a manifest row names a source kind stale.py lacks"
