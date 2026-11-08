@@ -41,6 +41,7 @@ R"HTML(<section id="t-layout" hidden>
 <button class="act" id="lyCx">Centre X</button><button class="act" id="lyCy">Centre Y</button>
 <button class="act" id="lyReset">Reset element</button><button class="act" id="lyFit">Fit view</button>
 <label class="bar"><input type="checkbox" id="lyArt" checked> Art</label><select id="lyFighter" aria-label="Fighter for names and portraits"></select>
+<label class="bar" title="A change to a P1 item does the mirrored change to its P2 twin, and back"><input type="checkbox" id="lyMir" checked> Mirror P1/P2</label>
 <label class="bar"><input type="checkbox" id="lyAuto"> Auto-apply</label>
 <input id="lySaveName" placeholder="New theme name" maxlength="60" aria-label="Name for a copy of the theme"><button class="act" id="lySave">Save as new theme</button>
 <button class="act primary" id="lyApply">Apply theme</button><button class="act" id="lyRestart" title="Names, characters and portraits load when the game starts">Restart game</button><span class="chip" id="lyChip">Applied</span></div>
@@ -188,8 +189,13 @@ function bar(){
  g("lyChip").textContent=auto?"Applied live":pending?pending+" pending":"Up to date";g("lyChip").className="chip"+(!auto&&pending?" off":"")}
 function paint(){list();inspector();images();bar();draw()}
 function snapshot(){undo.push(JSON.stringify(lay));if(undo.length>100)undo.shift();redo=[]}
+function mirror(){
+ if(!g("lyMir").checked||!lay[sel])return;
+ const o=sel.startsWith("p1_")?"p2_"+sel.slice(3):sel.startsWith("p2_")?"p1_"+sel.slice(3):null;
+ if(!o||!byId[o])return;
+ const a=lay[sel];lay[o]={x:Math.round(1280-a.x),y:a.y,rot:a.rot?((-a.rot+180)%360+360)%360-180:0,s:a.s,hide:!!a.hide}}
 function changed(){
- pending++;paint();clearTimeout(saveT);saveT=setTimeout(flush,500)}
+ mirror();pending++;paint();clearTimeout(saveT);saveT=setTimeout(flush,500)}
 async function flush(){
  const r=await call("/api/hud/layout",{theme,layout:lay});if(r&&auto)apply()}
 async function apply(){
