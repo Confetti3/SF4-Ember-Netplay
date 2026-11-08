@@ -216,8 +216,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
     // New opponent's row and Y follow the room's own choice (DescribeNewOpponent).
-    const auto next = deciding ? DescribeNewOpponent(v.room, t, mine) : NewOpponentChoice{};
-    const bool newOpponentOpen = next.open && !p.left;
+    const auto newOpponent = deciding ? room_controls::DescribeNewOpponent(v.room, t, mine) : room_controls::NewOpponentChoice{};
+    const bool newOpponentOpen = newOpponent.open && !p.left;
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     // Chosen is a commitment to play on: Rematch, a Ready, or this PC's
@@ -247,7 +247,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
     const auto state = [&](bool answered, bool seated, int seat) {
         return std::string(loc::T(!seated ? "postmatch.state.left" : !answered ? "postmatch.state.choosing" :
-            deciding ? ArcadeAnswerKey(t, seat) : "postmatch.state.ready"));
+            deciding ? room_controls::ArcadeAnswerKey(t, seat) : "postmatch.state.ready"));
     };
     // This PC's row: its choice, Back to room or Character select once made.
     std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen || askedNew, mine >= 0, mine);
@@ -271,7 +271,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     if (deciding) {
         rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
         rows.push_back(Row("new-opponent", loc::T("room.new_opponent"),
-            loc::T(next.detail), newOpponentOpen));
+            loc::T(newOpponent.detail), newOpponentOpen));
     } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
