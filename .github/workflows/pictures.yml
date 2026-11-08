@@ -33,6 +33,10 @@ jobs:
         run: |
           git init -q .
           if ($LASTEXITCODE) { throw "git init failed" }
+          # The token in a header, as actions/checkout sends it, so a private repository can fetch
+          # too; in the config, since the checkout fetches the file contents by itself.
+          $token = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
+          git config http.extraheader "AUTHORIZATION: basic $token"
           git -c protocol.version=2 fetch --filter=blob:none "https://github.com/$env:GITHUB_REPOSITORY.git" $env:GITHUB_SHA
           if ($LASTEXITCODE) { throw "git fetch failed" }
           git checkout --force --detach FETCH_HEAD

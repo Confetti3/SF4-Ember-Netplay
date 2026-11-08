@@ -36,6 +36,9 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          # The token in a header, as actions/checkout sends it, so a private repository can fetch
+          # too; in the config, since the checkout fetches the file contents by itself.
+          git config http.extraheader "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           # The whole history, without file contents: the stale check reads it.
           git -c protocol.version=2 fetch --filter=blob:none origin "$REF"
           git checkout --detach FETCH_HEAD
@@ -95,6 +98,7 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git config http.extraheader "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c protocol.version=2 fetch --filter=blob:none origin "$GITHUB_SHA" "$BASE"
           git checkout --detach "$GITHUB_SHA"
           git worktree add --detach build/base "$BASE"
