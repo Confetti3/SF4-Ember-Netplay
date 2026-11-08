@@ -101,6 +101,12 @@ with tempfile.TemporaryDirectory() as folder:
     assert build.release_tag(Path(folder)) is None and build.version(Path(folder)) == "Ember 1.2.3 nightly"
     git("tag", "v1.2.3")
     assert build.release_tag(Path(folder)) == "v1.2.3" and build.version(Path(folder)) == "Ember 1.2.3"
+# A guide is stale the same way, and every source it names exists, so a rename shows up here.
+assert stale.guides(lambda guide: "c0", lambda since, path: ["c3"] if path == "src/training" else []) == \
+    ["docs/guides/TRAINING_LAB.md: src/training changed after it, last in c3"]
+missing = [p for paths in stale.GUIDES.values() for p in paths if not (build.ROOT / p).exists()]
+assert not missing, missing
+assert set(stale.GUIDES) <= {path for path, _, _ in build.PAGES}, set(stale.GUIDES) - {path for path, _, _ in build.PAGES}
 # Every picture in the docs is in the manifest, and the manifest names no picture that is gone.
 rows = stale.read(build.ROOT)
 assert {row["source"].split()[0] for row in rows} <= set(stale.WATCHED), "a manifest row names a source kind stale.py lacks"
