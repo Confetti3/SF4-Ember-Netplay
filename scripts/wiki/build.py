@@ -492,8 +492,15 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
         text += "\n\nComing soon, from open pull requests:\n\n" + "\n".join(
             f"- [#{n}](https://github.com/{UPSTREAM}/pull/{n}) {titles[n]}" for n in sorted(titles))
     (out / "_Footer.md").write_text(text + "\n", encoding="utf-8")
-    # Beside the wiki, not in it: the docs commit publish.py names in its commit message.
+    # Beside the wiki, not in it: the docs commit publish.py names in its commit message, and what
+    # pages.py needs to render the same pages as the docs site without reading them back.
     out.with_suffix(".sha").write_text(sha + "\n", encoding="utf-8")
+    source = {page: path for path, (page, _) in known.items()}
+    out.with_suffix(".json").write_text(json.dumps({
+        "version": version(src), "footer": text.partition("\n")[0],
+        "links": [re.findall(r"\[(.+?)\]\((.+?)\)", line)[0] for line in links[2:-1]],
+        "pages": [{"page": p, "slug": slug(p), "section": s, "source": source.get(p), "about": about.get(p, "")}
+                  for s in order for p in sidebar[s]]}, indent=1), encoding="utf-8")
     return sha, included, report
 
 

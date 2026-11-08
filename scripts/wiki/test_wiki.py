@@ -6,8 +6,9 @@ from pathlib import Path
 
 import build
 import check
-import stale
+import pages
 import publish
+import stale
 
 # A changed paragraph keeps the current text and shows the new one below it, marked.
 doc = build.Doc("Intro.\n\nOld step.\nSecond line.\n\nOutro.")
@@ -122,4 +123,13 @@ assert page.splitlines()[2:] == \
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
+# The docs site takes the banner, contents and nav off a wiki page, and the title from the banner.
+assert pages.body("![Install](images/banner-Install.svg)\n\n<details>\n<summary>On this page</summary>\n</details>\n\n"
+                  "## One\n\nText.\n\n---\n\n[Home](Home)\n") == ("Install", "## One\n\nText.")
+# Wiki links become the site's pages, images keep their folder, GitHub's alerts are callouts, tables can scroll.
+out, toc = pages.render("## Two\n\n[a](Install#x) ![b](images/p.png) [c](https://x/)\n\n> [!NOTE]\n> Mind this.\n\n"
+                        "| A |\n| - |\n| 1 |\n", {"Install": "Install"}, "/base")
+assert 'href="/base/Install/#x"' in out and 'src="/base/images/p.png"' in out and 'href="https://x/"' in out, out
+assert '<blockquote class="callout note"><p class="callout-title">Note</p><p>Mind this.' in out, out
+assert '<div class="table"><table>' in out and toc[0]["id"] == "two", (out, toc)
 print("wiki checks passed")

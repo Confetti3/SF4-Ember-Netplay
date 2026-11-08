@@ -6,9 +6,9 @@ on:
   push:
     branches: [nightly]
     tags: ["v[0-9]+.[0-9]+.[0-9]+"]
-    paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
+    paths: [README.md, docs/**, scripts/wiki/**, server/ember-short/deploy/site/**, .github/workflows/wiki.yml]
   pull_request:
-    paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
+    paths: [README.md, docs/**, scripts/wiki/**, server/ember-short/deploy/site/**, .github/workflows/wiki.yml]
   schedule:
     - cron: "40 5 * * *"
   workflow_dispatch:
@@ -36,17 +36,27 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          # The token in a header, as actions/checkout sends it, so a private repository can fetch
+          # too; in the config, since the checkout fetches the file contents by itself.
+          git config http.extraheader "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           # The whole history, without file contents: the stale check reads it.
           git -c protocol.version=2 fetch --filter=blob:none origin "$REF"
           git checkout --detach FETCH_HEAD
           # Fetching one commit brings no tag; the footer names a release by the tag at HEAD.
           if [ "$GITHUB_REF_TYPE" = tag ]; then git tag "$GITHUB_REF_NAME" FETCH_HEAD; fi
-      - name: Build and check the wiki
+      - name: Build and check the wiki, and the docs site from it
         run: |
+          pip install --quiet markdown
           python3 scripts/wiki/test_wiki.py
           python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/stale.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/pages.py --repo "$GITHUB_REPOSITORY" --base "/${GITHUB_REPOSITORY#*/}"
+      - name: Keep the docs site for the Pages job
+        if: github.ref_type == 'branch' && vars.DOCS_PAGES == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/pages
       # Publishing waits until the repository variable WIKI_PUBLISH is "true", so a
       # fork can stage the wiki on its own before the main repository turns it on.
       - name: Publish the wiki
@@ -58,6 +68,24 @@ jobs:
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
           python3 scripts/wiki/publish.py --repo "$GITHUB_REPOSITORY"
+  # The docs site at <owner>.github.io/<repository>: the same pages as the wiki in the
+  # website's look. The repository's Pages setting must be "GitHub Actions"; the job
+  # waits for the variable DOCS_PAGES like the wiki waits for WIKI_PUBLISH. A release
+  # tag publishes the wiki's snapshot only; the site always shows nightly.
+  pages:
+    needs: build
+    if: github.ref_type == 'branch' && vars.DOCS_PAGES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
   dry-run:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -70,14 +98,17 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git config http.extraheader "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c protocol.version=2 fetch --filter=blob:none origin "$GITHUB_SHA" "$BASE"
           git checkout --detach "$GITHUB_SHA"
           git worktree add --detach build/base "$BASE"
       - name: Build the wiki from the base and from the change and show what changes
         run: |
+          pip install --quiet markdown
           python3 scripts/wiki/test_wiki.py
           python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/pages.py --repo "$GITHUB_REPOSITORY"
           mkdir -p build/wiki-base
           if [ -f build/base/scripts/wiki/build.py ]; then
             python3 build/base/scripts/wiki/build.py --out "$PWD/build/wiki-base"
