@@ -20,6 +20,7 @@ CAPTURED = Path("docs/images/captured.txt")
 # pictures taken by hand (game, deck, still) are not checked until their capture is scripted.
 WATCHED = {
     "render": ["src/ui", "src/tests/ui_render_*", "locales/en.po", "assets"],
+    "uilab": ["src/ui", "locales/en.po", "assets"],
     "game": [],
     "deck": [],
     "still": [],

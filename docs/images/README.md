@@ -29,14 +29,16 @@ English 1280 x 720 renders, and written as WebP with libwebp's `cwebp -q 85`
 `captured.txt` the commit the last capture ran on, and `scripts/wiki/stale.py`
 fails the wiki build when the interface changed after that commit.
 
-The guide pictures the manifest marks `game` are screenshots of Ember
-1.4.0-nightly20261018 running in the game on a Steam Deck: the training lab over
-a fight, Online play, the game's own Graphics settings, the stage previews, the
-main character roster, the Updates window, and a room with a second PC as guest
-(the room board, a match's HUD, the table after it and a battle log replay's
-strip). Each is cropped to the game's 1280 x 720 picture, or to the Updates
-window, and written with the same `cwebp -q 85`. Retake them by hand when those
-screens change.
+The pictures the manifest marks `uilab` come from the same run through
+`UiLab.exe` (src/ui/lab), the shell in a window with made-up data: the training
+pages, the room board with a guest, the match HUD and replay strip over the
+menu art, the post-match prompt and the updater, each at 1280 x 720.
+
+The pictures it marks `game` are screenshots of Ember 1.4.0-nightly20261018
+running in the game on a Steam Deck: the frame meter, frame data and dummy
+recording over a fight, the game's own Graphics settings and the stage previews.
+Each is cropped to the game's 1280 x 720 picture and written with the same
+`cwebp -q 85`. Retake them by hand when those screens change.
 
 ## In-game frame meter
 

@@ -16,7 +16,8 @@
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
 // UiLab.exe [--size WxH] [--scale 1.25] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
-//   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
+//   With --shot it plays --keys (one per 6 frames), saves the picture and exits. A key "row:id" is Down until
+//   that row has the focus, so a step names the row instead of counting presses; exits 2 when 40 presses never reach it.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
 #include "../ApplicationShell.hxx"
@@ -413,12 +414,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     // "click:x:y" in --keys clicks the mouse there instead of pressing a key.
     std::vector<ImVec2> clickAt;
     std::vector<std::string> keyNames;
+    std::vector<std::string> rowAt;  // the row a "row:id" key seeks, or empty for a plain key
     std::ofstream traceLog;
     if (!traceFile.empty()) traceLog.open(traceFile, std::ios::trunc);
     { std::stringstream list(keys); std::string key; while (std::getline(list, key, ',')) {
         keyNames.push_back(key);
         ImVec2 at(-FLT_MAX, -FLT_MAX);
-        script.push_back(std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key)); clickAt.push_back(at); } }
+        rowAt.push_back(key.rfind("row:", 0) == 0 ? key.substr(4) : std::string());
+        script.push_back(!rowAt.back().empty() ? ui::MenuInput::Down : std::sscanf(key.c_str(), "click:%f:%f", &at.x, &at.y) == 2 ? 0 : KeyBit(key));
+        clickAt.push_back(at); } }
     const auto submit = [&](ui::ShellAction action) {
         // Saving is instant here: the shell reads what it saved back from the view.
         if (action.command.kind == netplay::CommandKind::SavePreferences) view.preferences = action.preferences;
@@ -434,6 +438,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         return true;
     };
     int frame = 0, winFrame = -1;
+    int waited = 0, presses = 0;  // frames spent repeating "row:id" keys, and their presses so far
+    bool rowDone = false;
+    // The menu the keys move: the training panel's, fighter select's own, or the shell's.
+    const auto menu = [&]() -> const ui::MenuNavigation& {
+        if (trainingPanel) return ui::TrainingNavigation();
+        return shell.Navigation().Screen() == "selection" ? selector.Navigation() : shell.Navigation();
+    };
     // --check: what the menus report on a frame, kept from the last one drawn.
     std::set<std::string> found;
     std::vector<std::tuple<std::string, ImVec2, ImVec2>> cards;
@@ -472,7 +483,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ImGui_ImplDX9_NewFrame(); ImGui_ImplWin32_NewFrame();
         // Scripted shots keep the real mouse out of it: hovering a card focuses it.
         // A scripted key is held for 3 frames and released for 3, from frame 30 (a new screen ignores its first frames).
-        const int scripted = frame - 30;
+        const int scripted = frame - 30 - waited;
         const std::size_t step = scripted < 0 ? script.size() : static_cast<std::size_t>(scripted / 6);
         if (!shot.empty()) {
             const ImVec2 at = step < script.size() ? clickAt[step] : ImVec2(-FLT_MAX, -FLT_MAX);
@@ -485,6 +496,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         const unsigned real = shot.empty() ? PadButtons() : 0;
         unsigned held = real;
         if (step < script.size() && scripted % 6 < 3) held |= script[step];
+        // A "row:id" key is skipped when its row already has the focus, and repeated while it does not.
+        if (step < script.size() && !rowAt[step].empty()) {
+            const auto& nav = menu();
+            if (scripted % 6 == 0) { rowDone = nav.Focus() == rowAt[step]; if (rowDone) presses = 0; }
+            if (rowDone) held &= ~script[step];
+            else if (scripted % 6 == 5 && nav.Focus() != rowAt[step]) {
+                waited += 6;
+                if (++presses >= 40) { if (traceLog.is_open()) traceLog << "no row " << rowAt[step] << " on " << nav.Screen() << "\n"; return 2; }
+            }
+        }
         if (walkLog.is_open() && frame > 30) held |= walk.Frame(shell.Navigation(), [&](bool pass, const std::string& name, const std::string& detail) {
             walkLog << (pass ? "PASS " : "FAIL ") << name << (detail.empty() ? "" : ": " + detail) << std::endl;
         });
@@ -569,8 +590,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         open = true;
         // --trace: where the menu is before the first key and once each key has settled.
         if (traceLog.is_open() && (scripted == -1 || (scripted >= 0 && step < script.size() && scripted % 6 == 5))) {
-            // On fighter select, the selector's own menu is the one moving.
-            const auto& nav = shell.Navigation().Screen() == "selection" ? selector.Navigation() : shell.Navigation();
+            const auto& nav = menu();
             const char* modes[] = {"", " [confirm]", " [choice]", " [edit]", " [read]"};
             traceLog << (scripted < 0 ? std::string("start") : std::to_string(step + 1) + " " + keyNames[step]) << " -> " << nav.Screen() << " / " << nav.Focus()
                 << modes[static_cast<int>(nav.Mode())] << (nav.Choosing() ? " #" + std::to_string(nav.ChoiceIndex()) : std::string()) << "\n";
@@ -589,7 +609,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         ++frame;
         if (snap) { char name[64]; std::snprintf(name, sizeof(name), "uilab-%d.bmp", frame); SaveShot(name); }
         // Scripted runs give the art time to load and the last key time to settle.
-        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 && (postMatch.empty() || (winFrame >= 0 && frame > winFrame + 20)) && (!walkLog.is_open() || walk.Done()) && art.MenuBackdrop().texture) { SaveShot(shot); break; }
+        if (!shot.empty() && frame > static_cast<int>(script.size()) * 6 + 60 + waited && (postMatch.empty() || (winFrame >= 0 && frame > winFrame + 20)) && (!walkLog.is_open() || walk.Done()) && art.MenuBackdrop().texture) { SaveShot(shot); break; }
         // A walk without a shot ends the lab once its last step is said.
         if (shot.empty() && walkLog.is_open() && walk.Done()) break;
         device->Present(nullptr, nullptr, nullptr, nullptr);

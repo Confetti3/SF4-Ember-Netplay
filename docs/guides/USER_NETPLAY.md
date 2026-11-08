@@ -120,7 +120,7 @@ The controls act during the fight. The round's introduction, the knockout and th
 
    ![The Updates window with Download and install highlighted](../images/guides/user_netplay/updates-window.webp)
 
-![Update channel on Nightly, with what the channel means](../images/guides/user_netplay/update-channel.webp)
+![The Update channel row, with what the channel means](../images/guides/user_netplay/update-channel.webp)
 
 ![The launcher after a crash, offering to send a report](../images/guides/user_netplay/crash-report.webp)
 
