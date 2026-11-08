@@ -348,6 +348,16 @@ static void DrawThemeTester(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot
 	ImGui::Separator();
 }
 
+void sf4e::ui::DrawGameThemesWindow(bool focused, bool here) {
+	static bool open = false;
+	if (focused && here && ImGui::IsKeyPressed(ImGuiKey_F8, false)) open = !open;
+	if (!open || !here) return;
+	ImGui::SetNextWindowPos(ImVec2(40, 80), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(460, 560), ImGuiCond_FirstUseEver);
+	if (ImGui::Begin("In-game themes (F8)", &open)) DrawGameThemesPicker();
+	ImGui::End();
+}
+
 void sf4e::ui::DrawGameThemesPicker() {
 	using sf4e::netplay::GameThemePart;
 	const auto frame = sf4e::NetplayFacade::GetPresentationSnapshotShared();

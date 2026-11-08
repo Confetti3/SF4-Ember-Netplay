@@ -24,7 +24,8 @@ namespace sf4e {
 		// menu, opens the main menu again so it shows at once; other screens show
 		// the next time they open; a battle HUD shows
 		// from the next battle.
-		void Use(const std::array<std::string, netplay::GameThemePartCount>& names);
+		// hudFiles (path under battle\hud -> bytes) are written over the battle HUD once it is copied.
+		void Use(const std::array<std::string, netplay::GameThemePartCount>& names, const std::map<std::string, std::string>& hudFiles = {});
 		// Any thread: shows a part's theme without saving it (the developer
 		// picker where settings are locked, as in Training); a battle HUD in a
 		// Training fight loads that battle again. The saved theme comes back

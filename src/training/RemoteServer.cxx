@@ -158,6 +158,11 @@ nlohmann::json ComboOrder(const nlohmann::json& body, const std::string& cmd) {
     for (auto& command : ComboPlayCommands(combo, view.generation)) ok &= Submit(std::move(command));
     return {{"ok", ok}};
 }
+// How large a request body may be: only a combo brought in and a HUD layout or picture may be big.
+std::size_t MostBody(const std::string& request) {
+    const auto starts = [&](const char* text) { return request.compare(0, std::strlen(text), text) == 0; };
+    return starts("POST /api/combos ") ? ComboFileBytes : starts("POST /api/hud/image ") ? HudImageBytes : starts("POST /api/hud/") ? HudBytes : 1024;
+}
 // Answers one short request; a stream takes the socket over and returns true.
 bool Serve(SOCKET socket, unsigned long peer) {
     DWORD timeout = 2000; setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
@@ -165,13 +170,12 @@ bool Serve(SOCKET socket, unsigned long peer) {
     for (;;) {
         const auto end = request.find("\r\n\r\n");
         if (end != std::string::npos) {
-            // Only a combo brought in and a HUD layout may be large.
-            const std::size_t most = request.compare(0, 17, "POST /api/combos ") == 0 ? ComboFileBytes : request.compare(0, 20, "POST /api/hud/image ") == 0 ? HudImageBytes : request.compare(0, 15, "POST /api/hud/") == 0 ? HudBytes : 1024;
+            const std::size_t most = MostBody(request);
             const auto length = std::atoi(HeaderValue(request, "Content-Length").c_str());
             if (length < 0 || static_cast<std::size_t>(length) > most) { Reply(socket, 400, "text/plain", "too big"); return false; }
             if (request.size() >= end + 4 + static_cast<std::size_t>(length)) break;
         }
-        if (request.size() > 8192 + (std::max)(static_cast<std::size_t>(ComboFileBytes), HudImageBytes)) { Reply(socket, 400, "text/plain", "too big"); return false; }
+        if (request.size() > 8192 + MostBody(request)) { Reply(socket, 400, "text/plain", "too big"); return false; }
         const int got = recv(socket, buffer, sizeof(buffer), 0);
         if (got <= 0) return false;
         request.append(buffer, got);
@@ -312,7 +316,6 @@ bool Start() {
     std::memcpy(&number, random, 4);
     char pin[8]; std::snprintf(pin, sizeof(pin), "%06u", number % 1000000);
     { std::lock_guard<std::mutex> hold(s_lock); s_pin = pin; s_tries.clear(); }
-    hud::Allow(false);  // the player allows the HUD editor each time the remote starts
     s_listen = socket(AF_INET, SOCK_STREAM, 0);
     if (s_listen == INVALID_SOCKET) return false;
     for (int i = 0; i < PortTries; ++i) {

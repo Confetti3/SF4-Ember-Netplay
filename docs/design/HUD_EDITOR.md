@@ -1,8 +1,5 @@
 # HUD layout editor (Remote tab)
 
-Branch `fraccie/hud-editor` = `fraccie/menu-looks` (in-game themes) + `fraccie/training-remote`.
-Mockup: https://claude.ai/artifact/BA7EFyoCVLsauBemdFZ5eM (desktop editor, phone notice, Auto-apply toggle).
-Reference implementation (Python, lab only): `D:\ember-build\lab\cyberpunk\editor3.py`, `editor3.html`, `ems.py`, `texio.py`, `layout.py`, `cluster.py`.
 
 ## How it works
 - A theme keeps its original `battle\hud\CMN\*.ems.emz`. The editor saves `layout.json` beside it
