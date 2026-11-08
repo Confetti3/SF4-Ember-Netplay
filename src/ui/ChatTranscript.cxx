@@ -1,5 +1,7 @@
 #include "ChatTranscript.hxx"
 #include "ChatFilter.hxx"
+#include "Theme.hxx"
+#include "../common/Localization.hxx"
 #include <algorithm>
 
 namespace sf4e { namespace ui {
@@ -98,6 +100,10 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
             line.table = static_cast<unsigned>(i);
             const int seat = table.lastSet.winnerSeat;
             line.score[0] = table.lastSet.score[seat]; line.score[1] = table.lastSet.score[1 - seat];
+            if (snapshot.arcade != room::ClassicRoom) {
+                const auto loser = names_.find(table.lastSet.Loser());
+                if (loser != names_.end()) line.opponent = loser->second;
+            }
             Append(std::move(line));
         } else if (seen.p1 == table.p1 && seen.p2 == table.p2) {
             const bool first = table.score[0] > seen.score[0], second = table.score[1] > seen.score[1];
@@ -120,5 +126,20 @@ unsigned ChatTranscript::Unread(const std::set<room::MemberId>& muted) const {
     unreadRevision_ = linesRevision_; unreadThrough_ = readThrough_;
     if (unreadMuted_ != muted) unreadMuted_ = muted;
     return count;
+}
+// A line of what happened in the room, in the player's language now.
+std::string ChatEventText(const ChatLine& line) {
+    const std::string name = line.name.empty() ? std::string(loc::T("room.player")) : line.name;
+    switch (line.kind) {
+    case ChatLine::Kind::Joined: return loc::Tf("chat.event.joined", name);
+    case ChatLine::Kind::Left: return loc::Tf("chat.event.left", name);
+    case ChatLine::Kind::NewHost: return loc::Tf("chat.event.host", name);
+    case ChatLine::Kind::GameWon: return loc::Tf("chat.event.game_won", name, line.table + 1, SetScoreText(line.score));
+    case ChatLine::Kind::SetWon:
+        if (!line.opponent.empty()) return loc::Tf("chat.event.set_won_against", name, line.opponent, SetScoreText(line.score));
+        return loc::Tf("chat.event.set_won", name, line.table + 1, SetScoreText(line.score));
+    case ChatLine::Kind::ReadyTimeout: return loc::Tf("chat.event.ready_timeout", name, line.table + 1);
+    default: return {};
+    }
 }
 } }

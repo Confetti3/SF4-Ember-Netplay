@@ -325,6 +325,9 @@ struct Table {
 	// parts the pair.
 	bool deciding = false;
 	bool rematch[2] = { false, false };
+	// Each fighter's New opponent, asked for while nobody else was free: they
+	// wait to be swapped with the next fighter whose set ends or who asks too.
+	bool wantsNew[2] = { false, false };
 	// An Arcade room's table with one fighter waiting alone: when they began
 	// to wait. The lowest has waited longest.
 	std::uint64_t waitingSince = 0;

@@ -353,7 +353,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const int side=t&&t->p2==m->id?1:0;
   std::string first=loc::T("room.cabinet_free"),second;ImU32 tone=c.muted;
   if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;}
-  else if(paired&&t->deciding){first=loc::T(t->rematch[side]?"room.rematch_chosen":"room.rematch_ask");tone=pending;}
+  else if(paired&&t->deciding){first=loc::T(ArcadeAnswerKey(*t,side));tone=pending;}
   // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
   else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);
    if(other)NoteUserText(other->name);first=loc::Tf("room.arcade_versus",other?other->name:std::string());second=SetScoreText(t->score).empty()?SeatCaption(look,true):SetScoreText(t->score);tone=pair;}

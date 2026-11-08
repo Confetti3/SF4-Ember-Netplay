@@ -600,10 +600,7 @@ async fn a_late_name_cannot_come_from_the_first_sender_or_fill_both_sides() {
         StatusCode::OK
     );
     let three = game(23, [5, 6]);
-    assert_eq!(
-        send(&f, &f.a, &three, "side=2").await,
-        StatusCode::CREATED
-    );
+    assert_eq!(send(&f, &f.a, &three, "side=2").await, StatusCode::CREATED);
     assert_eq!(
         send(&f, &f.b, &saved_elsewhere(&three), "a=Bob&b=Bob&side=0").await,
         StatusCode::OK

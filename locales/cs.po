@@ -2726,6 +2726,8 @@ msgstr "{0} vyhrál(a) hru u stolu {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} vyhrál(a) set u stolu {1} ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0} vyhrál(a) set proti {1} ({2})"
 msgid "chat.typing.one"
 msgstr "{0} píše..."
 msgid "chat.typing.two"
@@ -5544,8 +5546,11 @@ msgstr "Nový soupeř"
 msgid "room.new_opponent_detail"
 msgstr "Zůstaňte sedět a hrajte s tím, kdo čeká nejdéle, nebo počkejte na dalšího hráče."
 
-msgid "room.new_opponent_none"
-msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
+msgid "room.new_opponent_wait"
+msgstr "Všichni ostatní hrají. Zůstanete sedět a budete hrát s dalším volným hráčem. Mezitím můžete čekat v tréninku."
+
+msgid "room.new_opponent_chosen"
+msgstr "Nový soupeř zvolen"
 
 msgid "room.rematch_ask"
 msgstr "Odveta?"

@@ -1718,7 +1718,7 @@ int main() try {
         };
         const auto at = [&] { return shell.Navigation().Focus(); };
         const auto onBar = [&] {
-            for (const char* id : {"ready", "room-ultra", "options", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
+            for (const char* id : {"ready", "new-opponent", "room-ultra", "options", "room-training", "copy", "copy-short", "room-more", "leave"}) if (at() == id) return true;
             return false;
         };
         // ArcadeBoardReachesActionBarByGeometry: from cabinet 7 three Downs reach
@@ -1815,10 +1815,12 @@ int main() try {
         if (at() != "cabinet-3") std::cerr << "Up on cabinet 4 went to " << at() << std::endl;
         Check(at() == "cabinet-3", "Up on a top-row cabinet moved the focus");
         // ArcadeCabinetNewOpponentGate: after a set, your own cabinet asks
-        // Rematch or New opponent, and New opponent is offered only while
-        // someone else is free (room::ArcadeOtherOpponentPossible), as on the
-        // post-match prompt. With Rematch chosen and nobody free there is
-        // nothing to pick: the row only says so, and Select opens nothing.
+        // Rematch or New opponent, and New opponent is always offered: with
+        // someone free it parts the pair, with nobody free it waits for the
+        // next set to end elsewhere (Table::wantsNew), as on the post-match
+        // prompt. Once asked for, only Rematch is left to pick. The bar offers
+        // the same two choices by the same rules: Ready is the Rematch and
+        // New opponent stands beside it, so neither needs the cabinet.
         {
             const auto saved = view;
             // Every cabinet taken: tables 3 to 8 paired as well, at the free
@@ -1838,26 +1840,75 @@ int main() try {
             full();
             board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
             const auto cabinet = [&] { return row("cabinet-0"); };
-            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && !cabinet().choices[1].enabled &&
-                cabinet().choices[1].detail == loc::T("room.new_opponent_none"), "New opponent was offered with nobody else free");
+            const auto barMatches = [&] {
+                return row("ready").label == loc::T("room.rematch") && row("ready").enabled == cabinet().choices[0].enabled &&
+                    row("new-opponent").label == loc::T("room.new_opponent") && row("new-opponent").enabled == cabinet().choices[1].enabled &&
+                    row("new-opponent").detail == cabinet().choices[1].detail;
+            };
+            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && cabinet().choices[1].enabled &&
+                cabinet().choices[1].detail == loc::T("room.new_opponent_wait"), "New opponent was not on offer with nobody else free");
+            Check(barMatches(), "The bar's Rematch and New opponent did not match the cabinet with nobody else free");
+            // On the bar New opponent is drawn, sits between Rematch and the
+            // Ultra for Left and Right, and asks the room as the cabinet does.
+            targets.clear(); frame(); frame();
+            Check(targets.count("new-opponent") == 1, "The bar's New opponent was not drawn");
+            focus("ready"); frame(); press(MenuInput::Right);
+            Check(at() == "new-opponent", "Right from the bar's Rematch did not reach New opponent");
+            press(MenuInput::Right);
+            Check(at() == "room-ultra", "Right from the bar's New opponent did not reach the Ultra");
+            press(MenuInput::Left); press(MenuInput::Left);
+            Check(at() == "ready", "Left along the bar did not come back to Rematch past New opponent");
+            const auto asked = actions.size();
+            focus("new-opponent"); frame(); press(MenuInput::Select);
+            Check(actions.size() == asked + 1 && actions.back().roomAction.kind == room::ActionKind::NewOpponent &&
+                actions.back().roomAction.table == 0, "The bar's New opponent did not ask the room for a new opponent");
+            const auto rematch = actions.size();
+            focus("ready"); frame(); press(MenuInput::Select);
+            Check(actions.size() == rematch + 1 && actions.back().roomAction.kind == room::ActionKind::Rematch &&
+                actions.back().roomAction.table == 0, "The bar's Rematch did not answer the room's question");
             // A table frees up: New opponent is offered.
             view.room.tables[7].phase = room::TablePhase::Idle; view.room.tables[7].p1 = view.room.tables[7].p2 = 0;
             view.room.cabinets[7] = view.room.cabinets[15] = 0;
             view.room.members.resize(view.room.members.size() - 2); ++view.room.revision; frame();
             Check(cabinet().choices.size() == 2 && cabinet().choices[1].enabled &&
                 cabinet().choices[1].detail == loc::T("room.new_opponent_detail"), "New opponent was not offered with a table free");
+            Check(barMatches(), "The bar's New opponent did not match the cabinet with a table free");
             // Rematch chosen, someone free: only New opponent is left to pick.
             view.room.tables[0].rematch[0] = true; ++view.room.revision; frame();
             Check(cabinet().choices.size() == 2 && !cabinet().choices[0].enabled && cabinet().choices[1].enabled,
                 "After Rematch, New opponent was not the one choice left");
-            // Rematch chosen, nobody free: no chooser, and Select sends nothing.
+            Check(barMatches() && !row("ready").enabled, "After Rematch, the bar still offered Rematch or lost New opponent");
+            // Rematch chosen, nobody free: New opponent is still there to pick, and
+            // once asked for only Rematch is left.
             view = saved; full(); view.room.tables[0].rematch[0] = true;
             board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
-            Check(cabinet().choices.empty() && cabinet().info, "Rematch chosen with nobody free still opened a chooser");
-            focus("cabinet-0"); frame();
-            const auto before = actions.size();
-            press(MenuInput::Select);
-            Check(!shell.Navigation().Choosing() && actions.size() == before, "Select on a cabinet with nothing to pick did something");
+            Check(cabinet().choices.size() == 2 && !cabinet().choices[0].enabled && cabinet().choices[1].enabled,
+                "Rematch chosen with nobody free left no New opponent to pick");
+            view.room.tables[0].rematch[0] = false; view.room.tables[0].wantsNew[0] = true; ++view.room.revision; frame();
+            Check(cabinet().choices.size() == 2 && cabinet().choices[0].enabled && !cabinet().choices[1].enabled,
+                "After asking for a New opponent, Rematch was not the one choice left");
+            Check(barMatches() && !row("new-opponent").enabled, "After asking for a New opponent, the bar still offered it");
+            // Once the pair has decided the bar is back to Ready alone.
+            view.room.tables[0].wantsNew[0] = false; view.room.tables[0].deciding = false; ++view.room.revision; frame();
+            Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "new-opponent"; }),
+                "The bar kept New opponent after the pair decided");
+            // Nobody free, but a fighter at table 2 asked for a new opponent: New
+            // opponent swaps with them at once (ArcadeNewOpponent::Swap), so it
+            // says it finds a new opponent, not that it waits for a set to end.
+            view = saved; full();
+            view.room.tables[1].deciding = true; view.room.tables[1].wantsNew[0] = true;
+            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            Check(cabinet().choices.size() == 2 && cabinet().choices[1].enabled &&
+                cabinet().choices[1].detail == loc::T("room.new_opponent_detail"),
+                "With a fighter waiting to swap at another table, New opponent said it waits");
+            Check(barMatches() && row("new-opponent").detail == loc::T("room.new_opponent_detail"),
+                "With a fighter waiting to swap, the bar's New opponent said it waits");
+            // A room that cannot take actions now closes both answers, on the
+            // cabinet and the bar alike, and both say why.
+            view.session.coordinated = true; view.session.authorityWritable = false; ++view.room.revision; frame();
+            Check(!cabinet().choices[0].enabled && !cabinet().choices[1].enabled && !row("ready").enabled && !row("new-opponent").enabled &&
+                row("new-opponent").detail == cabinet().choices[1].detail,
+                "With the room busy, Rematch or New opponent stayed open on the cabinet or the bar");
             view = saved;
         }
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);

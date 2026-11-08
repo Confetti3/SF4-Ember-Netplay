@@ -152,6 +152,20 @@ const char* PhaseName(const room::Table& table);
 // What an Arcade room's cabinet row says of its player: waiting, or the
 // opponent with the score or the Rematch choice, and the streak.
 std::string CabinetState(const room::Snapshot& s, std::size_t cabinet);
+// An Arcade pair choosing after a set (Table::deciding): `seat`'s answer so
+// far (Rematch?, Rematch chosen, New opponent chosen), as every view says it.
+const char* ArcadeAnswerKey(const room::Table& table, int seat);
+// Both answers for `seat` at the deciding Arcade pair at `table`, as the
+// cabinet, the room's bar and the post-match prompt offer them: each open until
+// it is given and while the room takes actions now; its detail says what it
+// does (New opponent: room::ArcadeNewOpponentFor, to part now, swap or wait),
+// or why the room cannot take it yet. The bar's Ready is the same Rematch
+// (DescribeReady).
+struct ArcadeChoice {
+    bool rematchOpen = false, newOpponentOpen = false;
+    std::string rematchDetail, newOpponentDetail;
+};
+ArcadeChoice DescribeArcadeChoice(const ShellView& v, std::size_t table, int seat);
 // "3 sets in a row" for the member who has won two or more sets in a row at
 // this table (Table::streakHolder), else empty.
 std::string StreakText(const room::Table& t, room::MemberId member);

@@ -31,7 +31,13 @@ struct ChatLine {
     // the winner's first.
     unsigned table = 0;
     std::uint32_t score[2] = {0, 0};
+    // A set won in an Arcade or King of the hill room: the loser's name. The
+    // cabinets move players between tables, so the table's number says little
+    // there; the line names who the set was won against instead.
+    std::string opponent;
 };
+// The line of a room event (any kind but Message), in the player's language now.
+std::string ChatEventText(const ChatLine& line);
 // A room event for the chat (Event::Kind::ReadyTimeout), numbered by the
 // runtime from 1 in the order it arrived.
 struct RoomNotice {

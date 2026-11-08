@@ -6,6 +6,7 @@
 #include "MenuGlyphs.hxx"
 #include "V2.hxx"
 #include "MenuProbes.hxx"
+#include "PostMatchPrompt.hxx"
 #include "../common/Localization.hxx"
 #include "../session/RoomQueries.hxx"
 #include <algorithm>
@@ -95,6 +96,26 @@ bool Readied(const room::Table& t, int seat, std::uint64_t generation) {
 }
 }
 
+// As DrawPostMatch draws the body: the window is sized by it before it begins
+// (PostMatchPanelFor), and the body draws its bar by the same needs and lines.
+PostMatchBody LayOutPostMatch(const std::vector<MenuEntry>& entries, std::size_t buttons, float width) {
+    const float s = Scale(), rowHeight = 52 * s, glyph = 26 * s, font = 17 * s, gap = 12 * s;
+    PostMatchBody body;
+    body.width = width;
+    float y = 2 * (rowHeight + 8 * s);
+    for (std::size_t i = buttons; i < entries.size(); ++i) y = LayOutBoardRow(entries[i], ImVec2(0, y), width).row.y1 + 8 * s;
+    for (const auto& e : entries) body.words = (std::max)(body.words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, v2::Colors().muted));
+    y += body.words + 24 * s;
+    for (std::size_t i = 0; i < buttons; ++i)
+        body.needs.push_back((ButtonGlyph(entries[i].id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, entries[i].label.c_str()).x + 24 * s);
+    body.lines = v2::BarLines(width, body.needs, gap);
+    body.barHeight = body.lines * (rowHeight + gap) - gap;
+    // The focus frame reaches 4 px past a button: room for it under the last
+    // line. Whole pixels, so the body's window, which takes whole pixels, holds it all.
+    body.height = std::ceil(y + body.barHeight + 6 * s);
+    return body;
+}
+
 void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot& snapshot, double now, const Submit& submit, bool* open) {
     using namespace netplay; auto& nav = menu_.navigation;
     // The battle went on to the rematch both chose: that WIN's prompt is done,
@@ -137,6 +158,9 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         const auto& t = snapshot.tables[p.table];
         const int mine = SeatOf(t, snapshot.localMember), theirs = SeatOf(t, p.opponent);
         if (p.result == room::MatchResult::Abort && fought.generation == p.generation) p.result = fought.result;
+        // The set's end as the room first shows it: the pair still together there
+        // stayed (PostMatchPrompt::pairStayed); apart, the set's rotation moved them.
+        if (!p.setSeen && t.lastSet.generation == p.generation) { p.setSeen = true; p.pairStayed = mine >= 0 && theirs >= 0; }
         // The pair's question answered Rematch by both: the room asks no more,
         // and the player's Rematch is their Ready for the next set.
         if (p.pairRematch && !t.deciding && mine >= 0 && theirs >= 0) {
@@ -199,9 +223,10 @@ void ApplicationShell::ClosePostMatch(const ShellView& v, AfterPostMatch after, 
     if (open && netplay::Fighting(v.session.match)) *open = false;
 }
 
-void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submit& submit, bool* open) {
-    if (!postMatch_) { menu_.navigation.Return(); return; }
-    const auto p = *postMatch_;
+PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
+    PostMatchModel model;
+    if (!postMatch_ || postMatch_->table < 0 || postMatch_->table >= static_cast<int>(v.room.tables.size())) return model;
+    const auto& p = *postMatch_;
     const auto& t = v.room.tables[p.table];
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const auto standing = room::StandingAfter(v.room, t, p.generation, p.result);
@@ -215,14 +240,19 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // in place) has the ordinary Rematch, as a Classic pair does.
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
-    // With every other table in use and nobody waiting alone, New opponent
-    // could only pair the two again: its row says so and Y does nothing.
-    const bool otherOpponent = deciding && room::ArcadeOtherOpponentPossible(v.room, p.table);
+    // Rematch and New opponent, and Y, follow the pair's answers as the
+    // cabinet and the room's bar offer them (DescribeArcadeChoice).
+    const auto answer = deciding ? room_controls::DescribeArcadeChoice(v, static_cast<std::size_t>(p.table), mine) : room_controls::ArcadeChoice{};
+    const bool newOpponentOpen = answer.newOpponentOpen && !p.left;
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
+    // Chosen is a commitment to play on: Rematch, a Ready, or this PC's
+    // press. Asking for a new opponent is an answer that Rematch can still
+    // take back (RoomAuthority::ApplyRematch), so it is not.
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
         (deciding && t.rematch[mine])));
     const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
+    const bool askedNew = deciding && t.wantsNew[mine], theyAskedNew = deciding && t.wantsNew[theirs];
     const auto* opponent = room::FindMember(v.room, p.opponent);
     const auto* local = room::FindMember(v.room, v.room.localMember);
     const std::string name = opponent ? opponent->name : loc::T("room.player");
@@ -230,7 +260,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const char* refusal = p.starting ? nullptr : mine < 0 ? "postmatch.not_seated" : theirs < 0 ? nullptr : !midSet && !t.queue.empty() ? "postmatch.queue_waiting" : nullptr;
     const bool again = p.starting || (mine >= 0 && theirs >= 0 && !refusal);
     const char* leftAs = p.after == AfterPostMatch::FighterSelect ? "postmatch.character_select" : "postmatch.back";
-    std::string title = p.left ? std::string(loc::T(leftAs)) : chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
+    std::string title = p.left ? std::string(loc::T(leftAs)) : askedNew ? std::string(loc::T("room.new_opponent_chosen")) :
+        chosen && theyChose ? loc::T("postmatch.starting") : theirs < 0 ? loc::Tf("postmatch.opponent_left", name) :
         chosen ? loc::Tf("postmatch.waiting_for", name) : theyChose ? loc::Tf(midSet ? "postmatch.wants_next" : "postmatch.wants_rematch", name) :
         std::string(loc::T("postmatch.choose"));
     if (rotates && !p.left) {
@@ -239,19 +270,34 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         if (next) NoteUserText(next->name);
         title = next ? loc::Tf("postmatch.king.next", next->name) : std::string(loc::T("postmatch.king.waiting"));
     }
-    const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
-    const auto state = [&](bool ready, bool seated) {
-        return std::string(loc::T(!seated ? "postmatch.state.left" : !ready ? "postmatch.state.choosing" : deciding ? "room.rematch_chosen" : "postmatch.state.ready"));
+    const auto state = [&](bool answered, bool seated, int seat) {
+        return std::string(loc::T(!seated ? "postmatch.state.left" : !answered ? "postmatch.state.choosing" :
+            deciding ? room_controls::ArcadeAnswerKey(t, seat) : "postmatch.state.ready"));
     };
     // This PC's row: its choice, Back to room or Character select once made.
-    std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen, mine >= 0);
-    std::string theirWord = state(theyChose, theirs >= 0);
-    // The set's winner stays on and its loser waits, once the room has the
-    // result; an opponent gone from the cabinets has left all the same.
-    if (rotates && t.lastSet.generation == p.generation) {
-        const auto word = [&](room::MemberId m) { return std::string(loc::T(m == t.lastSet.Winner() ? "postmatch.king.stays" : "postmatch.king.waits")); };
-        if (!p.left) mineWord = word(v.room.localMember);
-        if (!opponentGone) theirWord = word(p.opponent);
+    std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen || askedNew, mine >= 0, mine);
+    std::string theirWord = state(theyChose || theyAskedNew, theirs >= 0, theirs);
+    // Once the room has the set's result and the pair is apart, each fighter's
+    // chip says where they are now: playing someone (vs NAME), alone at a table
+    // (waits) or off the cabinets (left). The set's rotation parted them only
+    // when they were apart as the room first showed the set; a pair that stayed
+    // to decide was parted by a New opponent, whoever won, so only a rotation's
+    // winner still at this table stays on, and only a rotation says why below.
+    const bool apart = rotates && t.lastSet.generation == p.generation;
+    const bool rotated = apart && !p.pairStayed;
+    if (apart) {
+        const auto whereNow = [&](room::MemberId m) {
+            if (rotated && m == t.lastSet.Winner() && SeatOf(t, m) >= 0) return std::string(loc::T("postmatch.king.stays"));
+            if (room::CabinetOf(v.room, m) < 0) return std::string(loc::T("postmatch.state.left"));
+            const auto place = room::PlaceOf(v.room, m);
+            const auto* other = place.kind == room::Place::Kind::Seat && place.table >= 0 ?
+                room::SeatOpponent(v.room, static_cast<std::uint8_t>(place.table), m) : nullptr;
+            if (!other) return std::string(loc::T("postmatch.king.waits"));
+            NoteUserText(other->name);
+            return loc::Tf("room.arcade_vs", other->name);
+        };
+        if (!p.left) mineWord = whereNow(v.room.localMember);
+        theirWord = whereNow(p.opponent);
     }
     // The buttons are the prompt's only rows: the answers there are now. A
     // deciding pair's Rematch and New opponent are the room's own choice (the
@@ -259,9 +305,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // device without the X or Y shortcut reaches every answer with the D-pad.
     std::vector<MenuEntry> rows;
     if (deciding) {
-        rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
-        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"),
-            loc::T(otherOpponent ? "room.new_opponent_detail" : "room.new_opponent_none"), !p.left && otherOpponent));
+        rows.push_back(Row("rematch", loc::T("room.rematch"), answer.rematchDetail, answer.rematchOpen && !chosen));
+        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"), answer.newOpponentDetail, newOpponentOpen));
     } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
@@ -270,7 +315,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // what the room did: the winner plays whoever sits down next, the loser
     // the next player free.
     std::string rotation;
-    if (rotates && !p.left && t.lastSet.generation == p.generation)
+    if (rotated && !p.left)
         rotation = std::string(t.lastSet.Winner() == v.room.localMember ? loc::T("postmatch.rotate.winner") : loc::Tf("postmatch.rotate.loser", name)) + "\n";
     // A winner who keeps the fighter (Rules::winnerKeepsFighter) is told so here,
     // not only once the fighter select refuses another fighter.
@@ -288,20 +333,57 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         rows.push_back(Value("ultra", loc::T("selection.ultra_combo"), v.ultraName, loc::T(ultraOpen ? "postmatch.ultra.detail" : "postmatch.ultra.set"), ultraOpen));
         rows.back().wide = true;
     }
-    const std::size_t buttons = MenuGridCells(rows);
+    model.open = true;
+    model.mine = mine; model.theirs = theirs;
+    model.chosen = chosen; model.theyChose = theyChose; model.again = again;
+    model.ultraOpen = ultraOpen; model.newOpponentOpen = newOpponentOpen;
+    model.local = local; model.opponent = opponent;
+    model.title = std::move(title); model.mineWord = std::move(mineWord); model.theirWord = std::move(theirWord);
+    // The set's score counts the game just played, whether the room has it yet or not.
+    model.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
+    model.rows = std::move(rows);
+    model.buttons = MenuGridCells(model.rows);
+    return model;
+}
+
+PostMatchPanel PostMatchPanelFor(const PostMatchModel& model) {
+    const float s = Scale();
+    const auto* vp = ImGui::GetMainViewport();
+    PostMatchPanel panel;
+    // In whole pixels, as the window takes its size.
+    panel.size.x = std::floor((std::min)(vp->Size.x - 32 * s, 720 * s));
+    const float cap = std::floor(vp->Size.y - 32 * s);
+    if (!model.open) { panel.size.y = (std::min)(cap, std::ceil(420 * s)); return panel; }
+    // The body is the panel's width less the menu's side margins, and the menu
+    // keeps its own frame around it (GameMenu::ChromeHeight).
+    panel.body = LayOutPostMatch(model.rows, model.buttons, std::floor(panel.size.x - 2 * v2::SideMargin(panel.size.x, s)));
+    const float tall = std::ceil(GameMenu::ChromeHeight(panel.size.x, !model.eyebrow.empty()) + panel.body.height);
+    panel.fits = tall <= cap;
+    panel.size.y = (std::min)(tall, cap);
+    return panel;
+}
+
+void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& frame, double now, const Submit& submit, bool* open) {
+    const auto& model = frame.model;
+    if (!model.open || !postMatch_) { menu_.navigation.Return(); return; }
+    const auto p = *postMatch_;
+    const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
-    if (otherOpponent) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
+    if (model.newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
     // focused button's words, and the buttons in a row, over the dimmed
     // WIN screen. B is the Back to room button, so the header has no Back.
-    // The set's score counts the game just played, whether the room has it yet or not.
     GameMenu::Body board;
     menu_.backInert = true; menu_.headerChips.clear();
-    menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
+    menu_.eyebrow = model.eyebrow;
     const auto* vp = ImGui::GetMainViewport();
     ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), IM_COL32(20, 19, 18, 140));
+    // The panel was sized for this content before it began (Draw). Where it
+    // all fits, the body's content height is known before the body is drawn,
+    // so its scroll is right from the prompt's first frame (GameMenu::bodyContent).
+    menu_.bodyContent = frame.panel.fits ? frame.panel.body.height : 0;
     board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
         const float s = Scale(), rowHeight = 52 * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
@@ -321,7 +403,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         // The two fighters' answers are pictures of the state, not rows: the title says them too.
         const struct { const char* id; const room::Member* m; bool ready, seated; std::string word; } players[] = {
-            {"pm-you", local, chosen, mine >= 0, mineWord}, {"pm-opponent", opponent, theyChose, theirs >= 0, theirWord}};
+            {"pm-you", model.local, model.chosen, model.mine >= 0, model.mineWord},
+            {"pm-opponent", model.opponent, model.theyChose, model.theirs >= 0, model.theirWord}};
         // A tag's line, as v2::Tag sets it, to centre the tag in its row.
         const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
         float y = at.y;
@@ -341,26 +424,23 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             y += rowHeight + 8 * s;
         }
         // The Ultra for the next game, under the players' answers.
-        for (std::size_t i = buttons; i < entries.size(); ++i)
+        for (std::size_t i = model.buttons; i < entries.size(); ++i)
             y = menu_.DrawBoardRow(entries, entries[i], ImVec2(at.x, y), width, action, {{}, feedback.Enabled(entries[i]), false, true, true}).box.max.y + 8 * s;
         // What the focused button does, in the room the longest one takes, so
-        // the buttons stay put while the focus moves.
-        float words = 0;
-        for (const auto& e : entries) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, c.muted));
+        // the buttons stay put while the focus moves. The panel laid the body
+        // out at its whole width; a capped panel's scroll bar takes some of
+        // that, and the body is laid out again for what is left.
+        const PostMatchBody body = std::floor(width) == frame.panel.body.width ? frame.panel.body : LayOutPostMatch(entries, model.buttons, width);
         const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
         if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
-        y += words + 24 * s;
+        y += body.words + 24 * s;
         // The buttons in a bar, each with the glyph of its own press, set apart from
         // the players' rows: on one line where every label fits beside its glyph, else
         // on as few as let them (v2::BarLines), as the room's action bar does.
-        const float glyph = 26 * s, font = 17 * s, gap = 12 * s;
-        std::vector<float> needs;
-        for (std::size_t i = 0; i < buttons; ++i)
-            needs.push_back((ButtonGlyph(entries[i].id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, entries[i].label.c_str()).x + 24 * s);
-        const int lines = v2::BarLines(width, needs, gap);
-        const float barHeight = lines * (rowHeight + gap) - gap;
-        const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, needs, gap, lines, rowHeight);
-        // A wrapped bar can reach below the panel, so the focused button scrolls
+        const float glyph = 26 * s, font = 17 * s, gap = 12 * s, barHeight = body.barHeight;
+        const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, body.needs, gap, body.lines, rowHeight);
+        // On a screen too short for the whole panel (its height is capped by
+        // the screen's, in Draw) a wrapped bar can reach below it, so the focused button scrolls
         // into view when the focus moves, the button moves in the panel's content
         // (the bar or the words over it took another line) or the panel changes
         // size; a scroll of the player's own stays put between.
@@ -368,7 +448,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         shown.focus = nav.Focus();
         const ImVec2 panel = ImGui::GetWindowSize();
         shown.panelWidth = std::round(panel.x); shown.panelHeight = std::round(panel.y);
-        for (std::size_t i = 0; i < buttons; ++i) {
+        for (std::size_t i = 0; i < model.buttons; ++i) {
             if (entries[i].id != shown.focus) continue;
             // In whole pixels, so the player's own scroll never reads as a move.
             const float top = ImGui::GetWindowPos().y - ImGui::GetScrollY();
@@ -376,7 +456,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         const bool reveal = !(shown == postMatchBarShown_);
         postMatchBarShown_ = shown;
-        for (std::size_t i = 0; i < buttons; ++i) {
+        for (std::size_t i = 0; i < model.buttons; ++i) {
             const auto& e = entries[i];
             const v2::Box& b = places[i];
             ReportMenuCard(e.id.c_str(), b.min, b.max);
@@ -392,8 +472,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
     };
-    const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(buttons), {}, board, false, 70, Tone::Pending);
-    menu_.ownsBack = false; menu_.eyebrow.clear();
+    const auto a = menu_.Draw(model.title.c_str(), model.rows, "", {}, static_cast<int>(model.buttons), {}, board, false, 70, Tone::Pending);
+    menu_.ownsBack = false; menu_.eyebrow.clear(); menu_.bodyContent = 0;
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
     const auto leave = [&](AfterPostMatch after) {
@@ -407,17 +487,17 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
     // The room's Rematch or New opponent: the same answer as the cabinet's (RoomAction).
-    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && otherOpponent && !p.left) {
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && model.newOpponentOpen) {
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
     else if (a.kind == MenuAction::Activate) {
-        if (a.id == "again" && again && !chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = Send(netplay::CommandKind::Rematch, v, submit); }
+        if (a.id == "again" && model.again && !model.chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = Send(netplay::CommandKind::Rematch, v, submit); }
         else if (a.id == "rematch" || a.id == "new-opponent") { postMatch_->pairRematch = a.id == "rematch"; RoomAction(a, v, submit); }
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);
     }
     // The Ultra steps the pick the next game's Ready carries, as the room's rows do.
-    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && ultraOpen)
+    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && model.ultraOpen)
         StepPick(v, {ShellAction::SelectionStep::Field::Ultra, a.delta}, submit);
 }
 } }

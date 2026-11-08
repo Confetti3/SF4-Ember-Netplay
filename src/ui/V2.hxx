@@ -166,6 +166,17 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height);
 // a button of that word leads the header; returns true when it was pressed.
 struct HeaderChip { std::string text; ImU32 tone; };
 bool Header(const char* title, const char* eyebrow = nullptr, const std::vector<HeaderChip>& chips = {}, const char* back = nullptr);
+// Header's measures in a window `windowWidth` wide, with or without an
+// eyebrow: the brand mark's height, the title's and the eyebrow's text sizes,
+// the eyebrow's line over the title, the band to the rule, and all the height
+// Header takes (the band, then 8 px under the rule). Header lays itself out by
+// these; a screen that sizes its window to its content reads them too.
+struct HeaderMeasures { float mark = 0, title = 0, eyebrow = 0, eyebrowLine = 0, band = 0, height = 0; };
+HeaderMeasures MeasureHeader(bool eyebrow, float windowWidth);
+// The hint bar along a board's foot (GameMenu::Draw): its height, shorter on a
+// narrow board or a flyout, and the gap it keeps from the content over it.
+inline float HintBarHeight(bool compact, float scale) { return (compact ? 48 : 56) * scale; }
+inline float HintBarGap(bool flyout, float scale) { return (flyout ? 8 : 16) * scale; }
 // Horizontal tabs under the header; the current one is filled and underlined,
 // the device's tab buttons at the ends step them, wrapping (StepTab).
 // Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.
