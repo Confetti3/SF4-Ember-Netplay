@@ -1,5 +1,6 @@
 #include "ReplaysPanel.hxx"
 #include "ApplicationShell.hxx"
+#include "GameMenu.hxx"
 #include "MenuRows.hxx"
 #include "ReplaySummaryText.hxx"
 #include "MenuDialogs.hxx"
@@ -461,7 +462,11 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  // The players and the score between them (a set's by match), the fighters or the set's length under them.
  std::string score=r->summary?ScoreText(*r->summary):std::string();
  if(set){if(const Set* one=FindSet(sets_,e.id.substr(4))){const auto wins=SetScore(*one);score=std::to_string(wins.first)+"-"+std::to_string(wins.second);}}
- const float x=min.x+16*s,top=min.y+10*s;
+ // The fighters' faces first, a match's two side by side.
+ const float face=max.y-min.y-16*s;float x=min.x+16*s;
+ if(!set)for(int side=0;side<2;side++)if(selection::FindFighter(r->fighters[side])){DrawCharacterPortrait(r->fighters[side],ImVec2(x,min.y+8*s),ImVec2(x+face,min.y+8*s+face),c.frame);x+=face+4*s;}
+ if(x>min.x+16*s)x+=8*s;
+ const float top=min.y+10*s;
  ImGui::PushFont(HeadingFont());
  const std::string a=ReplayPlayerName(r->names,0),b=ReplayPlayerName(r->names,1);
  const float room=(right-x-ImGui::CalcTextSize(score.empty()?"-":score.c_str()).x-24*s)*.5f;
@@ -474,8 +479,22 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  d->AddText(ImVec2(at,top),c.text,fb.c_str());
  const float below=top+ImGui::GetFontSize()+4*s;
  ImGui::PopFont();
- const std::string sub=set?e.detail:FightersText(*r)+(r->summary?" \xC2\xB7 "+MatchText(*r->summary):"");
- d->AddText(ImVec2(x,below),c.muted,FitLabel(sub,right-x).c_str());
+ // Under the names: the fighters with their Ultras, then the match's length and each side's costume and colour.
+ std::string sub=set?e.detail:FightersText(*r),look;
+ if(!set&&r->summary){
+  const auto& pl=r->summary->players;
+  const auto named=[&](int side){const auto* f=selection::FindFighter(r->fighters[side]);const std::string n=f?f->name:loc::T("common.unavailable");return pl[side].ultra>=0?n+" ("+UltraLabel(pl[side].ultra)+")":n;};
+  sub=loc::Tf("replays.fighters",named(0),named(1));
+  look=MatchText(*r->summary);
+  for(int side=0;side<2;side++){
+   const auto* f=selection::FindFighter(pl[side].fighter);
+   if(!f||pl[side].costume<0||pl[side].costume>=selection::CostumeCount(pl[side].fighter)||pl[side].color<0)continue;
+   selection::Pick pick;pick.fighter=pl[side].fighter;pick.costume=pl[side].costume;
+   look+=" \xC2\xB7 "+std::string(f->name)+": "+loc::Tf("selection.appearance_value",CostumeLabel(pick),pl[side].color+1);
+  }
+ }
+ d->AddText(ImVec2(x,below),c.text,FitLabel(sub,right-x).c_str());
+ if(!look.empty())d->AddText(ImVec2(x,below+ImGui::GetFontSize()+3*s),c.muted,FitLabel(look,right-x).c_str());
  return true;
 }
 void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const std::string& id,MenuNavigation& nav,const std::vector<MenuEntry>& rows) const {
