@@ -15,7 +15,8 @@ in the first diagram, the diagrams show production.
 
 Only coordination reaches the VPS. Match inputs go player to player, directly
 or through the n0 iroh relays, so the VPS never carries gameplay. Updates come
-from GitHub releases, not the VPS. The Discord and Twitch room bot is left out.
+from GitHub releases, not the VPS. A relay Ember runs itself is built from
+[server/ember-relay](../../server/ember-relay). The Discord and Twitch room bot is left out.
 
 ```mermaid
 flowchart LR

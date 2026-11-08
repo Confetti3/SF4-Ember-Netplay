@@ -1,0 +1,30 @@
+# An Ember relay's settings: copy to config.toml next to compose.yml and set
+# the hostname. Everything iroh-relay accepts is documented in its source
+# (iroh-relay/src/main.rs, struct Config); only what Ember changes is here.
+
+# Prometheus metrics for the machine only; iroh-relay's default listens on
+# every address.
+metrics_bind_addr = "127.0.0.1:9090"
+
+# Behind a reverse proxy that ends TLS: plain HTTP here, the proxy forwards
+# 443 to this port with WebSocket upgrades on, and serves /generate_204 on
+# port 80 without redirecting it to HTTPS. Address discovery over QUIC needs
+# the certificate in the relay, so it is off in this mode.
+http_bind_addr = "[::]:3340"
+
+# Standalone: delete http_bind_addr above and uncomment this block. The relay
+# then serves HTTPS on 443 with a Let's Encrypt certificate (HTTP on 80 for
+# the challenge and the captive portal check) and QUIC address discovery on
+# UDP 7842, and keeps the certificate in ./certs.
+#enable_quic_addr_discovery = true
+#[tls]
+#cert_mode = "LetsEncrypt"
+#hostname = ["relay.example.org"]
+#contact = "you@example.org"
+#cert_dir = "/var/lib/ember-relay/certs"
+
+# Bytes per second each client may send through the relay, and the burst
+# above it: enough for a match that falls back to the relay.
+[limits.client.rx]
+bytes_per_second = 4194304
+max_burst_bytes = 8388608
