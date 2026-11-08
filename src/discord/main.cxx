@@ -2,6 +2,7 @@
 #include <discordpp.h>
 #include "BridgeServer.hxx"
 #include "Ticket.hxx"
+#include "../common/ProductIdentity.hxx"
 #include <nlohmann/json.hpp>
 #include <filesystem>
 #include <ctime>
