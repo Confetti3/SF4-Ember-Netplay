@@ -5637,6 +5637,60 @@ msgstr "С видео"
 msgid "replays.show.kept"
 msgstr "Сохранённые"
 
+msgid "replays.sort"
+msgstr "Сортировка"
+
+msgid "replays.sort_detail"
+msgstr "Порядок списка."
+
+msgid "replays.sort.newest"
+msgstr "Сначала новые"
+
+msgid "replays.sort.oldest"
+msgstr "Сначала старые"
+
+msgid "replays.sort.player"
+msgstr "Имя игрока"
+
+msgid "replays.sort.fighter"
+msgstr "Имя бойца"
+
+msgid "replays.sort.longest"
+msgstr "Сначала длинные"
+
+msgid "replays.fighter_detail"
+msgstr "Только матчи, в которых играл этот боец."
+
+msgid "replays.filter"
+msgstr "Сортировка и фильтр"
+
+msgid "replays.filter_detail"
+msgstr "Открывает страницу сортировки списка и выбора бойцов."
+
+msgid "replays.side"
+msgstr "Сторона"
+
+msgid "replays.side_detail"
+msgstr "На какой стороне должны быть выбранные бойцы."
+
+msgid "replays.side.either"
+msgstr "Любая сторона"
+
+msgid "replays.side.one"
+msgstr "Игрок 1"
+
+msgid "replays.side.two"
+msgstr "Игрок 2"
+
+msgid "replays.matches_shown"
+msgstr "Матчей в списке"
+
+msgid "replays.filter_reset"
+msgstr "Сбросить"
+
+msgid "replays.filter_reset_detail"
+msgstr "Возвращает каждый выбор к началу."
+
 msgid "replays.search"
 msgstr "Поиск"
 

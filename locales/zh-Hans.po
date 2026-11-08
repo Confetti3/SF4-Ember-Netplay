@@ -5638,6 +5638,60 @@ msgstr "有视频"
 msgid "replays.show.kept"
 msgstr "已保留"
 
+msgid "replays.sort"
+msgstr "排序"
+
+msgid "replays.sort_detail"
+msgstr "列表的顺序。"
+
+msgid "replays.sort.newest"
+msgstr "最新优先"
+
+msgid "replays.sort.oldest"
+msgstr "最早优先"
+
+msgid "replays.sort.player"
+msgstr "玩家名称"
+
+msgid "replays.sort.fighter"
+msgstr "角色名称"
+
+msgid "replays.sort.longest"
+msgstr "最长优先"
+
+msgid "replays.fighter_detail"
+msgstr "仅显示该角色参与的比赛。"
+
+msgid "replays.filter"
+msgstr "排序和筛选"
+
+msgid "replays.filter_detail"
+msgstr "打开用于排序列表和选择角色的页面。"
+
+msgid "replays.side"
+msgstr "方位"
+
+msgid "replays.side_detail"
+msgstr "所选角色必须在哪一侧。"
+
+msgid "replays.side.either"
+msgstr "任一侧"
+
+msgid "replays.side.one"
+msgstr "玩家 1"
+
+msgid "replays.side.two"
+msgstr "玩家 2"
+
+msgid "replays.matches_shown"
+msgstr "列出的比赛"
+
+msgid "replays.filter_reset"
+msgstr "重置"
+
+msgid "replays.filter_reset_detail"
+msgstr "将所有选择恢复到初始状态。"
+
 msgid "replays.search"
 msgstr "搜索"
 

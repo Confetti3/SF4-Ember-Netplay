@@ -5637,6 +5637,60 @@ msgstr "Mit Video"
 msgid "replays.show.kept"
 msgstr "Behalten"
 
+msgid "replays.sort"
+msgstr "Sortieren"
+
+msgid "replays.sort_detail"
+msgstr "Die Reihenfolge der Liste."
+
+msgid "replays.sort.newest"
+msgstr "Neueste zuerst"
+
+msgid "replays.sort.oldest"
+msgstr "Älteste zuerst"
+
+msgid "replays.sort.player"
+msgstr "Spielername"
+
+msgid "replays.sort.fighter"
+msgstr "Kämpfername"
+
+msgid "replays.sort.longest"
+msgstr "Längste zuerst"
+
+msgid "replays.fighter_detail"
+msgstr "Nur Matches, in denen dieser Kämpfer gespielt hat."
+
+msgid "replays.filter"
+msgstr "Sortieren & filtern"
+
+msgid "replays.filter_detail"
+msgstr "Öffnet die Seite, die die Liste sortiert und Kämpfer auswählt."
+
+msgid "replays.side"
+msgstr "Seite"
+
+msgid "replays.side_detail"
+msgstr "Auf welcher Seite die gewählten Kämpfer sein müssen."
+
+msgid "replays.side.either"
+msgstr "Beide Seiten"
+
+msgid "replays.side.one"
+msgstr "Spieler 1"
+
+msgid "replays.side.two"
+msgstr "Spieler 2"
+
+msgid "replays.matches_shown"
+msgstr "Angezeigte Matches"
+
+msgid "replays.filter_reset"
+msgstr "Zurücksetzen"
+
+msgid "replays.filter_reset_detail"
+msgstr "Setzt jede Auswahl auf den Anfang zurück."
+
 msgid "replays.search"
 msgstr "Suchen"
 

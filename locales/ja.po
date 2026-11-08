@@ -5638,6 +5638,60 @@ msgstr "動画あり"
 msgid "replays.show.kept"
 msgstr "キープ済み"
 
+msgid "replays.sort"
+msgstr "並べ替え"
+
+msgid "replays.sort_detail"
+msgstr "リストの順序です。"
+
+msgid "replays.sort.newest"
+msgstr "新しい順"
+
+msgid "replays.sort.oldest"
+msgstr "古い順"
+
+msgid "replays.sort.player"
+msgstr "プレイヤー名"
+
+msgid "replays.sort.fighter"
+msgstr "キャラクター名"
+
+msgid "replays.sort.longest"
+msgstr "長い順"
+
+msgid "replays.fighter_detail"
+msgstr "このキャラクターが出場した試合のみ表示します。"
+
+msgid "replays.filter"
+msgstr "並べ替えと絞り込み"
+
+msgid "replays.filter_detail"
+msgstr "リストの並べ替えとキャラクターの選択を開きます。"
+
+msgid "replays.side"
+msgstr "サイド"
+
+msgid "replays.side_detail"
+msgstr "選んだキャラクターがいるべきサイドです。"
+
+msgid "replays.side.either"
+msgstr "どちらでも"
+
+msgid "replays.side.one"
+msgstr "プレイヤー1"
+
+msgid "replays.side.two"
+msgstr "プレイヤー2"
+
+msgid "replays.matches_shown"
+msgstr "表示中の試合"
+
+msgid "replays.filter_reset"
+msgstr "リセット"
+
+msgid "replays.filter_reset_detail"
+msgstr "すべての選択を最初に戻します。"
+
 msgid "replays.search"
 msgstr "検索"
 

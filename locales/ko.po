@@ -5638,6 +5638,60 @@ msgstr "동영상 있음"
 msgid "replays.show.kept"
 msgstr "보관함"
 
+msgid "replays.sort"
+msgstr "정렬"
+
+msgid "replays.sort_detail"
+msgstr "목록의 순서입니다."
+
+msgid "replays.sort.newest"
+msgstr "최신순"
+
+msgid "replays.sort.oldest"
+msgstr "오래된 순"
+
+msgid "replays.sort.player"
+msgstr "플레이어 이름"
+
+msgid "replays.sort.fighter"
+msgstr "캐릭터 이름"
+
+msgid "replays.sort.longest"
+msgstr "긴 순"
+
+msgid "replays.fighter_detail"
+msgstr "이 캐릭터가 나온 경기만 표시합니다."
+
+msgid "replays.filter"
+msgstr "정렬 및 필터"
+
+msgid "replays.filter_detail"
+msgstr "목록을 정렬하고 캐릭터를 고르는 페이지를 엽니다."
+
+msgid "replays.side"
+msgstr "사이드"
+
+msgid "replays.side_detail"
+msgstr "고른 캐릭터가 있어야 하는 쪽입니다."
+
+msgid "replays.side.either"
+msgstr "어느 쪽이든"
+
+msgid "replays.side.one"
+msgstr "플레이어 1"
+
+msgid "replays.side.two"
+msgstr "플레이어 2"
+
+msgid "replays.matches_shown"
+msgstr "표시된 경기"
+
+msgid "replays.filter_reset"
+msgstr "초기화"
+
+msgid "replays.filter_reset_detail"
+msgstr "모든 선택을 처음으로 되돌립니다."
+
 msgid "replays.search"
 msgstr "검색"
 

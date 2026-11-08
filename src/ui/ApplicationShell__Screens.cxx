@@ -169,6 +169,16 @@ public:
     // The match and set cards and the focused one's pane, and Export video's
     // preview, on the tabbed screens (Inputs and a set's page are plain lists).
     GameMenu::Card Card(const ScreenFrame& f, double) const override {
+        // The filter's fighters are fighter select's grid, a ticked one lit and marked.
+        if (f.screen == "replay-filter")
+            return [shell = &f.shell](const MenuEntry& e, ImVec2 min, ImVec2 max) {
+                const auto fighter = ReplaysPanel::FilterFighter(e.id);
+                if (!fighter) return false;
+                const bool on = shell->replays_.Ticked(*fighter);
+                DrawMainPortrait(*fighter, on, min, max);
+                if (on) ImGui::GetWindowDrawList()->AddText(ImVec2(max.x - 18 * Scale(), min.y + 3 * Scale()), palette::Ember, "\xE2\x9C\x93");
+                return true;
+            };
         if (!Tabbed(f.screen)) return {};
         const ApplicationShell* shell = &f.shell; const ShellView* view = &f.view;
         return [shell, view](const MenuEntry& e, ImVec2 min, ImVec2 max) { return shell->replays_.DrawCard(*view, e, min, max); };
@@ -177,6 +187,12 @@ public:
         if (!Tabbed(f.screen) || !f.rows) return {};
         ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen; const std::vector<MenuEntry>* rows = f.rows;
         return [shell, view, screen, rows](const std::string& id) { shell->replays_.DrawDetail(*view, *screen, id, shell->menu_.navigation, *rows); };
+    }
+    ScreenGrid Grid(const ScreenFrame& f) const override {
+        if (f.screen != "replay-filter") return {};
+        // Smaller cards than fighter select's, so Sort, Show and Side stay on screen under them.
+        const RosterGrid roster = LayOutRosterGrid(ImGui::GetContentRegionAvail().x);
+        return {roster.columns + 3, roster.cardHeight * .66f};
     }
     // The tabs, the pane beside a list (its own over a replay, a set and an
     // export), and whether matches watched are saved too.

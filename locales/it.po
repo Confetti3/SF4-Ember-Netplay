@@ -5637,6 +5637,60 @@ msgstr "Con video"
 msgid "replays.show.kept"
 msgstr "Conservati"
 
+msgid "replays.sort"
+msgstr "Ordina"
+
+msgid "replays.sort_detail"
+msgstr "L'ordine dell'elenco."
+
+msgid "replays.sort.newest"
+msgstr "Più recenti prima"
+
+msgid "replays.sort.oldest"
+msgstr "Più vecchi prima"
+
+msgid "replays.sort.player"
+msgstr "Nome del giocatore"
+
+msgid "replays.sort.fighter"
+msgstr "Nome del combattente"
+
+msgid "replays.sort.longest"
+msgstr "Più lunghi prima"
+
+msgid "replays.fighter_detail"
+msgstr "Solo le partite in cui ha giocato questo combattente."
+
+msgid "replays.filter"
+msgstr "Ordina e filtra"
+
+msgid "replays.filter_detail"
+msgstr "Apre la pagina che ordina l'elenco e sceglie i combattenti."
+
+msgid "replays.side"
+msgstr "Lato"
+
+msgid "replays.side_detail"
+msgstr "Da che lato devono stare i combattenti scelti."
+
+msgid "replays.side.either"
+msgstr "Qualsiasi lato"
+
+msgid "replays.side.one"
+msgstr "Giocatore 1"
+
+msgid "replays.side.two"
+msgstr "Giocatore 2"
+
+msgid "replays.matches_shown"
+msgstr "Partite elencate"
+
+msgid "replays.filter_reset"
+msgstr "Ripristina"
+
+msgid "replays.filter_reset_detail"
+msgstr "Riporta ogni scelta all'inizio."
+
 msgid "replays.search"
 msgstr "Cerca"
 

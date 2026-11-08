@@ -5637,6 +5637,60 @@ msgstr "Met video"
 msgid "replays.show.kept"
 msgstr "Bewaard"
 
+msgid "replays.sort"
+msgstr "Sorteren"
+
+msgid "replays.sort_detail"
+msgstr "De volgorde van de lijst."
+
+msgid "replays.sort.newest"
+msgstr "Nieuwste eerst"
+
+msgid "replays.sort.oldest"
+msgstr "Oudste eerst"
+
+msgid "replays.sort.player"
+msgstr "Spelersnaam"
+
+msgid "replays.sort.fighter"
+msgstr "Vechternaam"
+
+msgid "replays.sort.longest"
+msgstr "Langste eerst"
+
+msgid "replays.fighter_detail"
+msgstr "Alleen matches waarin deze vechter speelde."
+
+msgid "replays.filter"
+msgstr "Sorteren en filteren"
+
+msgid "replays.filter_detail"
+msgstr "Opent de pagina die de lijst sorteert en vechters kiest."
+
+msgid "replays.side"
+msgstr "Kant"
+
+msgid "replays.side_detail"
+msgstr "Aan welke kant de gekozen vechters moeten staan."
+
+msgid "replays.side.either"
+msgstr "Beide kanten"
+
+msgid "replays.side.one"
+msgstr "Speler 1"
+
+msgid "replays.side.two"
+msgstr "Speler 2"
+
+msgid "replays.matches_shown"
+msgstr "Getoonde matches"
+
+msgid "replays.filter_reset"
+msgstr "Herstellen"
+
+msgid "replays.filter_reset_detail"
+msgstr "Zet elke keuze terug naar het begin."
+
 msgid "replays.search"
 msgstr "Zoeken"
 

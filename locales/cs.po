@@ -5637,6 +5637,60 @@ msgstr "S videem"
 msgid "replays.show.kept"
 msgstr "Ponechané"
 
+msgid "replays.sort"
+msgstr "Řadit"
+
+msgid "replays.sort_detail"
+msgstr "Pořadí seznamu."
+
+msgid "replays.sort.newest"
+msgstr "Nejnovější první"
+
+msgid "replays.sort.oldest"
+msgstr "Nejstarší první"
+
+msgid "replays.sort.player"
+msgstr "Jméno hráče"
+
+msgid "replays.sort.fighter"
+msgstr "Jméno bojovníka"
+
+msgid "replays.sort.longest"
+msgstr "Nejdelší první"
+
+msgid "replays.fighter_detail"
+msgstr "Jen zápasy, ve kterých hrál tento bojovník."
+
+msgid "replays.filter"
+msgstr "Řadit a filtrovat"
+
+msgid "replays.filter_detail"
+msgstr "Otevře stránku, která řadí seznam a vybírá bojovníky."
+
+msgid "replays.side"
+msgstr "Strana"
+
+msgid "replays.side_detail"
+msgstr "Na které straně musí vybraní bojovníci být."
+
+msgid "replays.side.either"
+msgstr "Kterákoli strana"
+
+msgid "replays.side.one"
+msgstr "Hráč 1"
+
+msgid "replays.side.two"
+msgstr "Hráč 2"
+
+msgid "replays.matches_shown"
+msgstr "Zobrazené zápasy"
+
+msgid "replays.filter_reset"
+msgstr "Obnovit"
+
+msgid "replays.filter_reset_detail"
+msgstr "Vrátí každou volbu na začátek."
+
 msgid "replays.search"
 msgstr "Hledat"
 

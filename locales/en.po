@@ -5264,6 +5264,60 @@ msgstr "With video"
 msgid "replays.show.kept"
 msgstr "Kept"
 
+msgid "replays.sort"
+msgstr "Sort"
+
+msgid "replays.sort_detail"
+msgstr "The order of the list."
+
+msgid "replays.sort.newest"
+msgstr "Newest first"
+
+msgid "replays.sort.oldest"
+msgstr "Oldest first"
+
+msgid "replays.sort.player"
+msgstr "Player name"
+
+msgid "replays.sort.fighter"
+msgstr "Fighter name"
+
+msgid "replays.sort.longest"
+msgstr "Longest first"
+
+msgid "replays.fighter_detail"
+msgstr "Only matches in which this fighter played."
+
+msgid "replays.filter"
+msgstr "Sort & filter"
+
+msgid "replays.filter_detail"
+msgstr "Opens the page that sorts the list and picks fighters."
+
+msgid "replays.side"
+msgstr "Side"
+
+msgid "replays.side_detail"
+msgstr "Which side the picked fighters must be on."
+
+msgid "replays.side.either"
+msgstr "Either side"
+
+msgid "replays.side.one"
+msgstr "Player 1"
+
+msgid "replays.side.two"
+msgstr "Player 2"
+
+msgid "replays.matches_shown"
+msgstr "Matches listed"
+
+msgid "replays.filter_reset"
+msgstr "Reset"
+
+msgid "replays.filter_reset_detail"
+msgstr "Takes every choice back to its start."
+
 msgid "replays.search"
 msgstr "Search"
 

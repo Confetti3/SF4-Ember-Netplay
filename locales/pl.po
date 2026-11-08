@@ -5637,6 +5637,60 @@ msgstr "Z wideo"
 msgid "replays.show.kept"
 msgstr "Zachowane"
 
+msgid "replays.sort"
+msgstr "Sortuj"
+
+msgid "replays.sort_detail"
+msgstr "Kolejność listy."
+
+msgid "replays.sort.newest"
+msgstr "Najnowsze najpierw"
+
+msgid "replays.sort.oldest"
+msgstr "Najstarsze najpierw"
+
+msgid "replays.sort.player"
+msgstr "Nazwa gracza"
+
+msgid "replays.sort.fighter"
+msgstr "Nazwa wojownika"
+
+msgid "replays.sort.longest"
+msgstr "Najdłuższe najpierw"
+
+msgid "replays.fighter_detail"
+msgstr "Tylko mecze, w których grał ten wojownik."
+
+msgid "replays.filter"
+msgstr "Sortuj i filtruj"
+
+msgid "replays.filter_detail"
+msgstr "Otwiera stronę, która sortuje listę i wybiera wojowników."
+
+msgid "replays.side"
+msgstr "Strona"
+
+msgid "replays.side_detail"
+msgstr "Po której stronie muszą być wybrani wojownicy."
+
+msgid "replays.side.either"
+msgstr "Dowolna strona"
+
+msgid "replays.side.one"
+msgstr "Gracz 1"
+
+msgid "replays.side.two"
+msgstr "Gracz 2"
+
+msgid "replays.matches_shown"
+msgstr "Wyświetlone mecze"
+
+msgid "replays.filter_reset"
+msgstr "Resetuj"
+
+msgid "replays.filter_reset_detail"
+msgstr "Przywraca każdy wybór do początku."
+
 msgid "replays.search"
 msgstr "Szukaj"
 
