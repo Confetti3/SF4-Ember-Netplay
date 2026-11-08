@@ -1892,6 +1892,23 @@ int main() try {
             view.room.tables[0].wantsNew[0] = false; view.room.tables[0].deciding = false; ++view.room.revision; frame();
             Check(std::none_of(rows.begin(), rows.end(), [](const MenuEntry& e) { return e.id == "new-opponent"; }),
                 "The bar kept New opponent after the pair decided");
+            // Nobody free, but a fighter at table 2 asked for a new opponent: New
+            // opponent swaps with them at once (ArcadeNewOpponent::Swap), so it
+            // says it finds a new opponent, not that it waits for a set to end.
+            view = saved; full();
+            view.room.tables[1].deciding = true; view.room.tables[1].wantsNew[0] = true;
+            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            Check(cabinet().choices.size() == 2 && cabinet().choices[1].enabled &&
+                cabinet().choices[1].detail == loc::T("room.new_opponent_detail"),
+                "With a fighter waiting to swap at another table, New opponent said it waits");
+            Check(barMatches() && row("new-opponent").detail == loc::T("room.new_opponent_detail"),
+                "With a fighter waiting to swap, the bar's New opponent said it waits");
+            // A room that cannot take actions now closes both answers, on the
+            // cabinet and the bar alike, and both say why.
+            view.session.coordinated = true; view.session.authorityWritable = false; ++view.room.revision; frame();
+            Check(!cabinet().choices[0].enabled && !cabinet().choices[1].enabled && !row("ready").enabled && !row("new-opponent").enabled &&
+                row("new-opponent").detail == cabinet().choices[1].detail,
+                "With the room busy, Rematch or New opponent stayed open on the cabinet or the bar");
             view = saved;
         }
         ApplyTheme(1.f); io.DisplaySize = ImVec2(1280, 960);
