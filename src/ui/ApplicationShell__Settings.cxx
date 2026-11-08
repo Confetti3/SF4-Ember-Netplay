@@ -267,10 +267,15 @@ public:
     static Entries Speech(Shell& s, const ShellView& v) { return s.AccessibilityRows(v); }
     static Entries Discord(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
+        // The account tournaments and rankings use, which may not be the one
+        // in the Discord app, through the bridge's own sign-in.
+        auto account = s.identity_.TournamentAccountRow(v);
+        // Activity and invitations are the Discord companion's; a product
+        // without one (ProductIdentity::discordExe) has only the account.
+        if (!ember::Product().discordExe[0]) return {account};
         return {OnOffValue(p, "presence", loc::T("discord.show_activity"), v.discordStatus, v.canEditPreferences),
             OnOffValue(p, "invites", loc::T("discord.allow_invitations"), p.discordPresence ? loc::T("discord.invitation_detail") : loc::T("discord.enable_first"), v.canEditPreferences && p.discordPresence),
-            // The account tournaments use, which may not be the one in the Discord app.
-            s.identity_.TournamentAccountRow(v)};
+            account};
     }
     // The setting's pane says what a report holds; Select reads it in full.
     static Entries Reports(Shell& s, const ShellView& v) {
