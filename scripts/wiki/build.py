@@ -24,6 +24,7 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
 UPSTREAM = "Confetti3/SF4-Ember-Netplay"
+DISCORD = "https://discord.gg/uPNqF5A5uq"
 NIGHTLY_REPO = "Confetti3/SF4-Ember-Netplay-Nightly"
 BRANCH = "nightly"
 # Only open pull requests with this label get "Coming soon" notes, so the owner chooses what the wiki shows.
@@ -34,12 +35,19 @@ SECTIONS = ["Getting started", "Playing online", "Training", "Frame Data", "Tour
 # a page, under "More guides", and the build warns about it.
 PAGES = [
     ("README.md", "Install", "Getting started"),
+    ("docs/guides/STEAM_DECK.md", "Steam Deck", "Getting started"),
+    ("docs/guides/LINUX.md", "Linux", "Getting started"),
     ("docs/guides/SCOPE_AND_LIMITATIONS.md", "Scope and Limitations", "Getting started"),
     ("docs/guides/USER_NETPLAY.md", "Player Guide", "Playing online"),
     ("docs/guides/CUSTOM_ROOMS.md", "Custom Rooms", "Playing online"),
     ("docs/guides/CONTROLLER_MENUS.md", "Controllers and Menus", "Playing online"),
+    ("docs/guides/V2_MENUS.md", "Ember Menus", "Playing online"),
+    ("docs/guides/ACCESSIBILITY.md", "Accessibility", "Playing online"),
+    ("docs/guides/GAME_THEMES.md", "In-game Themes", "Playing online"),
     ("docs/guides/DISCORD.md", "Discord", "Playing online"),
     ("docs/guides/TRAINING_LAB.md", "Training Lab", "Training"),
+    ("docs/guides/TOURNAMENT_MODE.md", "Tournament Mode", "Tournaments"),
+    ("docs/guides/TOURNAMENT_TEST.md", "Tournament Test", "Tournaments"),
     ("docs/guides/INTEGRATIONS.md", "Integrations", "Integrations"),
     ("docs/guides/BLUMINT_QUICKSTART.md", "BluMint Quickstart", "Integrations"),
     ("docs/guides/TROUBLESHOOTING.md", "Troubleshooting", "Troubleshooting"),
@@ -47,10 +55,22 @@ PAGES = [
     ("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
     ("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
 ]
-# Only the README's install part is for players; the rest is for the repository page.
-README_PART = ("## Get started", "## Status and documentation")
+# What a page covers comes from the README's Guides table; these are the pages it does not list.
+ABOUT = {
+    "README.md": "Which download to take, installing Ember and your first launch",
+    "docs/guides/SCOPE_AND_LIMITATIONS.md": "What is experimental, and what to expect",
+    "docs/guides/CONTROLLER_MENUS.md": "Moving around Ember with a pad, stick or keyboard",
+    "docs/guides/GAME_THEMES.md": "Changing how the menus and battle HUD look and sound",
+    "docs/guides/TOURNAMENT_TEST.md": "Trying a tournament on two PCs",
+    "docs/guides/INTEGRATIONS.md": "Ember's tournament bridge for platforms, organizers and bots",
+    "docs/guides/BLUMINT_QUICKSTART.md": "Getting the Ember bridge working with BluMint",
+}
+# The README's player part, from the downloads to its guides table; the table, community and licenses are
+# for the repository page.
+README_PART = ("## Which download do I need?", "## Guides")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ITEM = re.compile(r"(\d+\.|[-*+]) ")
+LINK_TEXT = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 LINK = re.compile(r'(\]\(|(?:src|href)=")([^)"\s]+)')
 
 
@@ -309,11 +329,46 @@ def nightly_repo():
     return checkout
 
 
-def write_page(out, page, title, section, lines, colors):
+def anchor(heading):
+    """GitHub's id for a heading, near enough to catch a renamed one."""
+    text = LINK_TEXT.sub(r"\1", heading).strip().lower()
+    return re.sub(r"[^\w\- ]", "", text).replace(" ", "-")
+
+
+def headings(text):
+    """The ids of a page's headings, for links to check; an `<a name>` kept for a heading that moved counts."""
+    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)} | set(re.findall(r'<a name="([^"]+)">', text))
+
+
+def blurbs(lines):
+    """What each guide covers, by path, from the README's Guides table: `| [name](path) | text |` rows."""
+    found = {}
+    for line in lines:
+        cells = line.strip("| ").split(" | ")
+        if len(cells) == 2 and cells[0].startswith("["):
+            for path in re.findall(r"\]\(([^)]+)\)", cells[0]):
+                found[path] = cells[1]
+    return found
+
+
+def contents(lines):
+    """A collapsed "On this page" list of a page's sections, for a page long enough to want one."""
+    titles = [LINK_TEXT.sub(r"\1", line[3:]).strip() for line, code in zip(lines, fenced(lines))
+              if line.startswith("## ") and not code]
+    if len(titles) < 4:
+        return []
+    items = [f"- [{title}](#{anchor(title)})" for title in titles]
+    return ["<details>", "<summary><b>On this page</b></summary>", ""] + items + ["", "</details>", ""]
+
+
+def write_page(out, page, title, section, lines, colors, before=None, after=None):
     banner_name = f"images/banner-{slug(page)}.svg"
     (out / banner_name).write_text(banner(title, section, colors), encoding="utf-8")
-    (out / f"{slug(page)}.md").write_text(f"![{title}]({banner_name})\n\n" + "\n".join(lines).strip() + "\n",
-                                         encoding="utf-8")
+    nav = [f"[Previous: {before}]({slug(before)})" if before else None, "[Home](Home)",
+           f"[Next: {after}]({slug(after)})" if after else None]
+    body = [f"![{title}]({banner_name})", ""] + contents(lines) + ["\n".join(lines).strip(), "", "---", "",
+                                                                 " | ".join(n for n in nav if n)]
+    (out / f"{slug(page)}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
 def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None):
@@ -325,6 +380,10 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     included, pr_images = overlay(docs, auth, report, label) if overlay_prs else ({}, {})
 
     readme = docs["README.md"]
+    missing = [h for h in README_PART if h not in readme.lines]
+    if missing:
+        sys.exit(f"README.md has no {' or '.join(missing)} heading; update README_PART in scripts/wiki/build.py")
+    about = {**ABOUT, **blurbs(readme.lines)}
     start, end = (readme.lines.index(h) for h in README_PART)
     readme.lines, readme.owners = readme.lines[start:end], readme.owners[start:end]
     shown = frozenset().union(*(owner for doc in docs.values() for owner in doc.owners))
@@ -336,19 +395,24 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
             name = PurePosixPath(path).stem.replace("_", " ").title()
             known[path] = (name, "More guides")
             report.append(f"{path} has no entry in PAGES; it is listed under More guides")
+        if path not in about:
+            report.append(f"{path} is not in the README's Guides table or ABOUT; Home does not say what it covers")
     rank = {path: i for i, (path, _, _) in enumerate(PAGES)}
     docs = dict(sorted(docs.items(), key=lambda item: rank.get(item[0], len(rank))))
     pages = {path: known[path][0] for path in docs}
+    about = {pages[path]: about.get(path, "") for path in docs}
 
     if out.exists():
         shutil.rmtree(out)
     (out / "images").mkdir(parents=True)
     colors, images, sidebar = theme(), set(), {}
-    for path, doc in docs.items():
+    names = [None, *pages.values(), None]
+    for i, (path, doc) in enumerate(docs.items(), 1):
         page, section = known[path]
         lines = doc.lines[1:] if doc.lines and doc.lines[0].startswith("# ") else doc.lines
         owners = doc.owners[len(doc.owners) - len(lines):]
-        write_page(out, page, page, section, mark(rewrite(lines, path, pages, images, repo), owners), colors)
+        write_page(out, page, page, section, mark(rewrite(lines, path, pages, images, repo), owners), colors,
+                   names[i - 1], names[i + 1])
         sidebar.setdefault(section, []).append(page)
 
     # Frame data pages are generated elsewhere and come as they are: an index and a page per fighter.
@@ -359,7 +423,7 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
                 else (path.stem.replace("-", " "), lines)
             write_page(out, path.stem, title, "Frame Data", lines, colors)
             if path.stem == "Frame-Data":
-                sidebar["Frame Data"] = ["Frame Data"]
+                sidebar["Frame Data"], about["Frame Data"] = ["Frame Data"], "Move data for every fighter"
     elif framedata:
         report.append(f"no frame data at {framedata}; the wiki is built without it")
 
@@ -378,10 +442,17 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     text = ["![SF4 Ember Netplay](images/banner-Home.svg)", "",
             "Guides for playing Ultra Street Fighter IV online with Ember: installing it, playing in rooms, "
             "training, running tournaments and fixing problems.", ""]
-    listing = lambda heading: [line for s in order for line in [heading % s, ""]
-                               + [f"- [{p}]({slug(p)})" for p in sidebar[s]] + [""]]
-    (out / "Home.md").write_text("\n".join(text + listing("## %s")), encoding="utf-8")
-    (out / "_Sidebar.md").write_text("\n".join(["**[Home](Home)**", ""] + listing("**%s**")), encoding="utf-8")
+    table = ("| Page | What it covers |", "| --- | --- |")
+
+    def listing(heading, row, header=()):
+        return [line for s in order for line in [heading % s, "", *header, *(row(p) for p in sidebar[s]), ""]]
+
+    (out / "Home.md").write_text("\n".join(text + listing("## %s", lambda p: f"| [{p}]({slug(p)}) | {about[p]} |", table)),
+                                 encoding="utf-8")
+    links = ["**Links**", "", f"- [Download](https://github.com/{UPSTREAM}/releases)", f"- [Discord]({DISCORD})",
+             f"- [Report a bug](https://github.com/{UPSTREAM}/issues)", ""]
+    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p}]({slug(p)})") + links
+    (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."

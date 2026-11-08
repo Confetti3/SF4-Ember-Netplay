@@ -73,8 +73,10 @@ jobs:
           python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
           mkdir -p build/wiki-base
+          # The base is only there for the diff; a base that does not build is noted, not a failure.
           if [ -f build/base/scripts/wiki/build.py ]; then
-            python3 build/base/scripts/wiki/build.py --out "$PWD/build/wiki-base"
+            python3 build/base/scripts/wiki/build.py --out "$PWD/build/wiki-base" \
+              || echo "The base does not build; the diff below is against nothing." >> "$GITHUB_STEP_SUMMARY"
           fi
           {
             echo '```diff'
