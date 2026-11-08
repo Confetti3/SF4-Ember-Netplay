@@ -47,8 +47,9 @@ PAGES = [
     ("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
     ("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
 ]
-# Only the README's install part is for players; the rest is for the repository page.
-README_PART = ("## Get started", "## Status and documentation")
+# The README's player part, from the downloads to its guides table; the table, community and licenses are
+# for the repository page.
+README_PART = ("## Which download do I need?", "## Guides")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ITEM = re.compile(r"(\d+\.|[-*+]) ")
 LINK = re.compile(r'(\]\(|(?:src|href)=")([^)"\s]+)')
@@ -325,6 +326,9 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     included, pr_images = overlay(docs, auth, report, label) if overlay_prs else ({}, {})
 
     readme = docs["README.md"]
+    missing = [h for h in README_PART if h not in readme.lines]
+    if missing:
+        sys.exit(f"README.md has no {' or '.join(missing)} heading; update README_PART in scripts/wiki/build.py")
     start, end = (readme.lines.index(h) for h in README_PART)
     readme.lines, readme.owners = readme.lines[start:end], readme.owners[start:end]
     shown = frozenset().union(*(owner for doc in docs.values() for owner in doc.owners))
