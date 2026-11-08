@@ -57,6 +57,16 @@ std::string DescribeDiagnostics(const DiagnosticsView& view) {
         " | Gameplay direct/relay links: " + std::to_string(view.directLinks) + "/" + std::to_string(view.relayedLinks) +
         " | Route changes/local drops/send pressure: " + std::to_string(view.routeChanges) + "/" + std::to_string(view.localDrops) + "/" + std::to_string(view.sendPressure);
 }
+bool StartLauncherAfterExit(const std::wstring& arguments) {
+    wchar_t root[MAX_PATH] = {};
+    if (!install::GetInstallRoot(root, MAX_PATH)) return false;
+    const auto executable = std::filesystem::path(root) / L"Launcher.exe";
+    std::wstring command = L"\"" + executable.wstring() + L"\" " + arguments + L" --wait-pid " + std::to_wstring(GetCurrentProcessId());
+    STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
+    if (!CreateProcessW(executable.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) return false;
+    CloseHandle(process.hThread); CloseHandle(process.hProcess);
+    return true;
+}
 ApplicationServices::ApplicationServices(std::wstring diagnosticsDirectory, ServiceHooks hooks) :
     policy_(hooks.policyStore ? UpdatePolicy(*hooks.policyStore) : UpdatePolicy()), diagnosticsDirectory_(std::move(diagnosticsDirectory)) {
     hooks_ = std::move(hooks);
@@ -252,20 +262,14 @@ void ApplicationServices::Run() {
                 output.close(); next.succeeded = static_cast<bool>(output);
                 next.message = output ? loc::T("services.diagnostics_saved") : loc::T("services.diagnostics_failed");
             } else if (action == ServiceAction::OpenRecovery || action == ServiceAction::UpdateNow) {
-                wchar_t root[MAX_PATH] = {};
-                if (!install::GetInstallRoot(root, MAX_PATH)) throw std::runtime_error("install directory");
-                const auto executable = std::filesystem::path(root) / L"Launcher.exe";
                 const char* tag = loc::Tag(loc::Active());  // ASCII, so widening is byte for byte.
-                std::wstring command = L"\"" + executable.wstring() + L"\" " +
-                    (action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") + L" --wait-pid " + std::to_wstring(GetCurrentProcessId()) +
+                std::wstring arguments = std::wstring(action == ServiceAction::OpenRecovery ? L"--recovery" : L"--updates") +
                     L" --locale " + std::wstring(tag, tag + std::strlen(tag));
                 // The accepted release goes along, to be installed at once only if it is still the current one.
-                if (action == ServiceAction::UpdateNow && offer) command += launcher::InstallOfferArguments(*offer);
-                STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
-                if (!CreateProcessW(executable.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) {
+                if (action == ServiceAction::UpdateNow && offer) arguments += launcher::InstallOfferArguments(*offer);
+                if (!StartLauncherAfterExit(arguments)) {
                     next.message = loc::T("services.updater_start_failed");
                 } else {
-                    CloseHandle(process.hThread); CloseHandle(process.hProcess);
                     next.closeGame = next.succeeded = true; next.message = loc::T("services.game_closing");
                 }
             } else if (action == ServiceAction::OpenCommunity) {

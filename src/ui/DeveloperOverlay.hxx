@@ -6,6 +6,7 @@ void DrawDeveloperOverlay(SelectionArt* art);
 // Training's controls, where Ember's menu does not open.
 void DrawGameThemesPicker();
 // F8 with Ember's menu closed, offline outside Training (whose controls have the picker): the picker in a
-// small window, so the game's screen shows behind it as themes change. `here`: this is such a moment.
-void DrawGameThemesWindow(bool focused, bool here);
+// small window, so the game's screen shows behind it as themes change. `here`: this is such a moment;
+// `always`: shown without F8, beside Training's controls.
+void DrawGameThemesWindow(bool focused, bool here, bool always = false);
 } }

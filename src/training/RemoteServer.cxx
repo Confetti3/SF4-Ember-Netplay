@@ -160,8 +160,10 @@ nlohmann::json ComboOrder(const nlohmann::json& body, const std::string& cmd) {
 }
 // How large a request body may be: only a combo brought in and a HUD layout or picture may be big.
 std::size_t MostBody(const std::string& request) {
-    const auto starts = [&](const char* text) { return request.compare(0, std::strlen(text), text) == 0; };
-    return starts("POST /api/combos ") ? ComboFileBytes : starts("POST /api/hud/image ") ? HudImageBytes : starts("POST /api/hud/") ? HudBytes : 1024;
+    static const struct { const char* start; std::size_t most; } limits[] = {
+        { "POST /api/combos ", ComboFileBytes }, { "POST /api/hud/image ", HudImageBytes }, { "POST /api/hud/", HudBytes } };
+    for (const auto& limit : limits) if (request.compare(0, std::strlen(limit.start), limit.start) == 0) return limit.most;
+    return 1024;
 }
 // Answers one short request; a stream takes the socket over and returns true.
 bool Serve(SOCKET socket, unsigned long peer) {

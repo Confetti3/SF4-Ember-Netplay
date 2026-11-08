@@ -48,12 +48,11 @@ fs::path ThemeFolder(const Host& host, const std::string& name) { return fs::pat
 fs::path HudFolder(const Host& host, const std::string& name) { return ThemeFolder(host, name) / "battle" / "hud" / "CMN"; }
 
 // A HUD file: the theme's own, else the game's, in the order the game looks (a patch folder beats the base).
-const char* const GameFolders[] = { "patch_ae2_tu3", "patch_ae2_tu2", "patch", "dlc/04_ae2", "dlc/03_character_free", "resource" };
 fs::path Find(const Host& host, const std::string& name, const std::string& relative) {
     std::error_code ignored;
     const fs::path own = ThemeFolder(host, name) / fs::u8path(relative);
     if (fs::is_regular_file(own, ignored)) return own;
-    for (const char* folder : GameFolders) {
+    for (const char* folder : GameLayers) {
         const fs::path path = fs::path(host.directory()) / folder / fs::u8path(relative);
         // Carried over from the lab editor, which never takes cockpit.ems.emz from patch_ae2_tu2.
         if (std::string(folder) == "patch_ae2_tu2" && relative.size() >= 15 && relative.compare(relative.size() - 15, 15, "cockpit.ems.emz") == 0) continue;
@@ -94,21 +93,24 @@ struct Art { std::string file, fighter; int tex = 0, u[4] = {}; };
 std::string ArtName(const Art& a) {
     return a.file + (a.fighter.empty() ? "" : "." + a.fighter) + "-" + std::to_string(a.tex) + "-" + std::to_string(a.u[0]) + "-" + std::to_string(a.u[1]) + "-" + std::to_string(a.u[2]) + "-" + std::to_string(a.u[3]);
 }
+bool Valid(const Art& a) {
+    const bool own = a.file == "chara" || a.file == "uc";
+    if (!(own || a.file == "cockpit" || a.file == "cockpit_text") || own != !a.fighter.empty() || (own && !PlainName(a.fighter))) return false;
+    return a.tex >= 0 && a.tex <= 40 && a.u[0] >= 0 && a.u[1] >= 0 && a.u[0] < a.u[2] && a.u[1] < a.u[3] && a.u[2] <= 4096 && a.u[3] <= 4096 && a.u[2] - a.u[0] <= 1024 && a.u[3] - a.u[1] <= 1024;
+}
 bool ParseArt(const std::string& stem, Art& a) {
     std::vector<std::string> parts; std::size_t at = 0;
     for (;;) { const auto dash = stem.find('-', at); parts.push_back(stem.substr(at, dash == std::string::npos ? std::string::npos : dash - at)); if (dash == std::string::npos) break; at = dash + 1; }
     if (parts.size() != 6) return false;
     const auto dot = parts[0].find('.');
     a.file = parts[0].substr(0, dot); a.fighter = dot == std::string::npos ? std::string() : parts[0].substr(dot + 1);
-    const bool own = a.file == "chara" || a.file == "uc";
-    if (!(own || a.file == "cockpit" || a.file == "cockpit_text") || own != !a.fighter.empty() || (own && !PlainName(a.fighter))) return false;
     int* number[5] = { &a.tex, &a.u[0], &a.u[1], &a.u[2], &a.u[3] };
     for (int i = 0; i < 5; ++i) {
         const std::string& t = parts[i + 1];
         if (t.empty() || t.size() > 5 || t.find_first_not_of("0123456789") != std::string::npos) return false;
         *number[i] = std::atoi(t.c_str());
     }
-    return a.tex <= 40 && a.u[0] < a.u[2] && a.u[1] < a.u[3] && a.u[2] <= 4096 && a.u[3] <= 4096 && a.u[2] - a.u[0] <= 1024 && a.u[3] - a.u[1] <= 1024;
+    return Valid(a);
 }
 fs::path ArtFolder(const Host& host, const std::string& name) { return ThemeFolder(host, name) / "layout-art"; }
 std::vector<Art> ArtOf(const Host& host, const std::string& name) {
@@ -177,13 +179,14 @@ nlohmann::json InfoJson(const layout::Info& i) {
     return { { "id", i.id }, { "label", i.label }, { "parent", i.parent }, { "cx", i.cx }, { "cy", i.cy }, { "w", i.w }, { "h", i.h } };
 }
 
-struct Request { const Host& host; std::string query, body; };
+struct Request { const Host& host; std::string query; nlohmann::json json; };      // json: the body of a POST
 std::string Text(const nlohmann::json& json, const char* key) {
     return json.is_object() && json.value(key, nlohmann::json()).is_string() ? json[key].get<std::string>() : std::string();
 }
 // The theme a request names, with its HUD files.
 struct Theme { std::string name; std::map<std::string, std::string> files; };
 bool OpenTheme(const Host& host, const std::string& name, Theme& theme) { theme.name = name; return PlainName(name) && Files(host, name, theme.files); }
+bool PostedTheme(const Request& r, Theme& theme) { return OpenTheme(r.host, Text(r.json, "theme"), theme); }
 // The fighter whose names and portraits show: the one asked for, else Ryu, else the first.
 std::string FighterOf(const Host& host, const std::string& asked) {
     const auto fighters = Fighters(host);
@@ -238,9 +241,9 @@ Reply SheetPicture(const Request& r) {
     return reply;
 }
 Reply Image(const Request& r) {
-    const auto json = nlohmann::json::parse(r.body, nullptr, false);
+    const auto& json = r.json;
     Theme theme;
-    if (!OpenTheme(r.host, Text(json, "theme"), theme)) return Fail(404, "no such theme");
+    if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
     Art a;
     const auto uv = json.value("uv", nlohmann::json());
     a.file = json.value("file", std::string()); a.fighter = json.value("fighter", std::string()); a.tex = json.value("tex", -1);
@@ -248,15 +251,15 @@ Reply Image(const Request& r) {
     if (!uv.is_array() || uv.size() != 4) return Fail(400, "bad region");
     for (int i = 0; i < 4; ++i) a.u[i] = uv[i].is_number_integer() ? uv[i].get<int>() : -1;
     textures::Image picture;
-    if (a.tex < 0 || a.u[0] < 0 || a.u[1] < 0 || !ParseArt(ArtName(a), a)) return Fail(400, "bad region");
+    if (!Valid(a)) return Fail(400, "bad region");
     if (!textures::DecodePng(Unbase64(json.value("png", std::string())), picture) || picture.width != a.u[2] - a.u[0] || picture.height != a.u[3] - a.u[1]) return Fail(400, "bad picture");
     if (!WriteFile(ArtFolder(r.host, theme.name) / (ArtName(a) + ".png"), textures::EncodePng(picture))) return Fail(500, "cannot save");
     return Say(200, { { "ok", true }, { "name", ArtName(a) } });
 }
 Reply ImageRemove(const Request& r) {
-    const auto json = nlohmann::json::parse(r.body, nullptr, false);
+    const auto& json = r.json;
     Theme theme; Art a;
-    if (!OpenTheme(r.host, Text(json, "theme"), theme)) return Fail(404, "no such theme");
+    if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
     const std::string stem = json.value("name", std::string());
     if (!ParseArt(stem, a)) return Fail(400, "bad name");
     std::error_code ignored; fs::remove(ArtFolder(r.host, theme.name) / (stem + ".png"), ignored);
@@ -265,10 +268,10 @@ Reply ImageRemove(const Request& r) {
 Reply Restart(const Request& r) { r.host.restart(); return Say(200, { { "ok", true } }); }
 Reply SaveAs(const Request& r) {
     const Host& host = r.host;
-    const auto json = nlohmann::json::parse(r.body, nullptr, false);
+    const auto& json = r.json;
     const std::string copy = Text(json, "name");
     Theme theme; std::map<std::string, std::string> written;
-    if (!OpenTheme(host, Text(json, "theme"), theme)) return Fail(404, "no such theme");
+    if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
     std::error_code failed;
     if (!PlainName(copy) || fs::exists(ThemeFolder(host, copy), failed)) return Fail(400, "name taken or not allowed");
     if (!Build(host, theme.name, theme.files, Saved(host, theme.name), written)) return Fail(500, "cannot read the theme");
@@ -286,9 +289,9 @@ Reply SaveAs(const Request& r) {
 }
 // "layout" saves the edits; "apply" saves them if sent, then writes the theme into the game.
 Reply Edit(const Request& r, bool apply) {
-    const auto json = nlohmann::json::parse(r.body, nullptr, false);
+    const auto& json = r.json;
     Theme theme;
-    if (!OpenTheme(r.host, Text(json, "theme"), theme)) return Fail(404, "no such theme");
+    if (!PostedTheme(r, theme)) return Fail(404, "no such theme");
     const bool given = json.contains("layout");
     const layout::Layout edits = given ? layout::LayoutFromJson(json["layout"]) : Saved(r.host, theme.name);
     if (given && !Save(r.host, theme.name, edits)) return Fail(500, "cannot save");
@@ -318,7 +321,7 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
     if (!layout::DesktopAgent(userAgent)) return Fail(403, "desktop");
     const std::string route = path.substr(9);
     for (const Route& candidate : Routes)
-        if (candidate.post == post && route == candidate.name) return candidate.run({ host, query, body });
+        if (candidate.post == post && route == candidate.name) return candidate.run({ host, query, post ? nlohmann::json::parse(body, nullptr, false) : nlohmann::json() });
     return Fail(404, "no");
 }
 } } } }

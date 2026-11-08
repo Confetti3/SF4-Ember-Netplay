@@ -801,19 +801,12 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
             // Only what this frame's flyout forwards is read below.
             sf4e::ui::TakeForwardedMenuAction();
             sf4e::ui::DrawTrainingFlyout(training, sf4e::training::Submit);
-#ifdef SF4E_DEVELOPER_UI
-            ImGui::SetNextWindowPos(ImVec2(40, 80), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowSize(ImVec2(460, 560), ImGuiCond_FirstUseEver);
-            if (ImGui::Begin("In-game themes")) sf4e::ui::DrawGameThemesPicker();
-            ImGui::End();
-#endif
+            sf4e::ui::DrawGameThemesWindow(true, true, true);
             if(sf4e::ui::TakeForwardedMenuAction().kind==sf4e::ui::MenuAction::Close) s_trainingControls.Close();
         }
     }
     sf4e::ui::DrawCameraPanel(training.available || replayKeys, focused, sf4e::netplay::SettingsStore::DefaultDirectory(), replayKeys, snapshot.replays, [&playback](sf4e::replaytransport::Command command) { sf4e::replayplayback::Submit(command, sf4e::replaytransport::Device::Keyboard, playback.session); });
-#ifdef SF4E_DEVELOPER_UI
     sf4e::ui::DrawGameThemesWindow(focused, !training.available && snapshot.session.match == sf4e::netplay::MatchState::None && !presentation.Visible());
-#endif
     sf4e::ui::OverlayLayersView layers;
     layers.shellVisible = presentation.Visible(); layers.shellAvailable = presentation.Available(); layers.exporting = exporting;
     const bool trainingOpen = s_trainingControls.Open();

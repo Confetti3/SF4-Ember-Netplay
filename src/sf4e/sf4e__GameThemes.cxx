@@ -15,7 +15,7 @@
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps.hxx"
-#include "../common/install_paths.hxx"
+#include "../platform/ApplicationServices.hxx"
 #include "../platform/GameThemes.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -160,17 +160,10 @@ void sf4e::GameThemes::Restart() { restartAsk = true; }
 
 void sf4e::GameThemes::TakePreview() {
 	if (restartAsk.exchange(false)) {
-		wchar_t root[MAX_PATH] = {};
-		if (install::GetInstallRoot(root, MAX_PATH)) {
-			const auto launcher = fs::path(root) / L"Launcher.exe";
-			std::wstring command = L"\"" + launcher.wstring() + L"\" --wait-pid " + std::to_wstring(GetCurrentProcessId());
-			STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
-			if (CreateProcessW(launcher.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) {
-				CloseHandle(process.hThread); CloseHandle(process.hProcess);
-				spdlog::info("In-game themes: restarting the game");
-				Dimps::Platform::Main::Close();
-				return;
-			}
+		if (platform::StartLauncherAfterExit({})) {
+			spdlog::info("In-game themes: restarting the game");
+			Dimps::Platform::Main::Close();
+			return;
 		}
 		spdlog::warn("In-game themes: the game could not be restarted");
 	}

@@ -32,6 +32,8 @@ enum class ServiceAction { None, CheckUpdates, SwitchUpdateChannel, ExportDiagno
 // Where the launch check is. Off is a service that makes none (a snapshot
 // nobody started one for); Waiting is a launch check not yet asked for.
 enum class LaunchCheck { Off, Waiting, Running, Settled };
+// Starts the Launcher with these arguments; it waits for this game to exit before it acts. False when it could not start.
+bool StartLauncherAfterExit(const std::wstring& arguments);
 // Community Discord server, shown in Help & About and opened as https://<invite>.
 constexpr const char* CommunityInvite = "discord.gg/uPNqF5A5uq";
 enum class DiagnosticTiming : std::size_t {
