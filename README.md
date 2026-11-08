@@ -89,9 +89,9 @@ Sit at a table, join its queue or watch the next game. The room host sets the ru
 
 ### Choose your fighter
 
-![Ember's fighter select, with the roster and the chosen fighter's costume, color and Ultra](docs/images/ember-fighter-selection.png)
+![Ember's fighter select roster](docs/images/ember-fighter-selection.png)
 
-Pick your fighter, edition, costume, color and Ultra on one board, before you join a room or while you wait. Costume previews show each outfit and color before you choose it.
+Pick your fighter on the roster, before you join a room or while you wait. Edition, costume, color and Ultra are on the fighter's own page, where costume previews show each outfit and color before you choose it.
 
 ### Frame meter
 
