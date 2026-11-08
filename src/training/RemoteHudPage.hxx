@@ -27,6 +27,10 @@ R"HTML(.tabs.wide{grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
 #lyInsp input[type=number]{width:100%;min-width:0}
 #t-layout .act:disabled{opacity:.4}
 #lyInsp .two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#lyImgs{display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:36vh}
+#lyImgs .im{display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid var(--line);border-radius:5px}
+#lyImgs .im small{color:var(--dim);overflow-wrap:anywhere}#lyImgs .im .bar .act{min-height:30px;padding:0 8px;font-size:12px}
+#lySaveName{min-height:34px;width:11em;padding:0 8px;background:var(--panel);border:1px solid var(--line);border-radius:5px;color:var(--ink)}
 #lyMsg{font-size:12px;color:var(--dim)}#lyMsg.bad{color:var(--bad)}
 )HTML";
 
@@ -38,6 +42,7 @@ R"HTML(<section id="t-layout" hidden>
 <button class="act" id="lyReset">Reset element</button><button class="act" id="lyFit">Fit view</button>
 <label class="bar"><input type="checkbox" id="lyArt" checked> Art</label><select id="lyFighter" aria-label="Fighter for names and portraits"></select>
 <label class="bar"><input type="checkbox" id="lyAuto" checked> Auto-apply</label>
+<input id="lySaveName" placeholder="New theme name" maxlength="60" aria-label="Name for a copy of the theme"><button class="act" id="lySave">Save as new theme</button>
 <button class="act primary" id="lyApply" disabled>Apply 0 changes</button><span class="chip" id="lyChip">Applied</span></div>
 <div class="ed"><div class="card" id="lyList" role="listbox" aria-label="HUD elements"></div>
 <div id="lyStage" class="card"><canvas id="lyCanvas" tabindex="0" aria-label="HUD layout, 1280 by 720"></canvas></div>
@@ -46,6 +51,7 @@ R"HTML(<section id="t-layout" hidden>
 <div class="two"><label>Rotation<input type="number" id="lyRot" step="1"></label><label>Scale<input type="number" id="lyS" step="0.01" min="0.05"></label></div>
 <label class="bar"><input type="checkbox" id="lyHide"> Hidden</label>
 <p class="note">Drag to move. Arrows nudge 1 px, Shift 10 px. Wheel zooms, drag empty space pans. Ctrl+Z undoes. Names and portraits show after a game restart.</p>
+<b>Images</b><div id="lyImgs"></div><input type="file" id="lyFile" accept="image/*" hidden>
 <span id="lyMsg"></span></div></div></section>
 )HTML";
 
@@ -55,7 +61,7 @@ R"HTML((function(){
 if(/Mobi|Android|iPhone|iPad|iPod|Tablet|Silk/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0&&matchMedia("(pointer:coarse)").matches))return;   // a phone or a touch tablet (an iPad says Mac): desktop only
 tabs.push(["layout","Layout"]);
 const g=id=>document.getElementById(id),DY=21,GO=[-59.2,55.6];
-let sprites=[],sheets={},fighter="RYU",loadId=0,theme="",els=[],byId={},lay={},undo=[],redo=[],sel="",pending=0,V={z:1,ox:0,oy:0},guide=null,drag=null,saveT=0;
+let artSet=new Set(),upFor=null,sprites=[],sheets={},fighter="RYU",loadId=0,theme="",els=[],byId={},lay={},undo=[],redo=[],sel="",pending=0,V={z:1,ox:0,oy:0},guide=null,drag=null,saveT=0;
 let auto=true;try{auto=localStorage.getItem("hudAuto")!=="0"}catch(e){}
 function say(t,bad){g("lyMsg").textContent=t||"";g("lyMsg").className=bad?"bad":""}
 async function call(path,body){
@@ -146,6 +152,31 @@ function list(){
  for(const e of els){const b=document.createElement("button");b.className=(e.id==sel?"on ":"")+(e.parent?"kid":"");b.role="option";
   b.innerHTML="";const t=document.createElement("span");t.textContent=e.label;const i=document.createElement("i");i.textContent=lay[e.id]?"edited":"";b.append(t,i);
   b.onclick=()=>{sel=e.id;paint()};l.append(b)}}
+function stem(sp){return sp.f+(sp.f=="chara"||sp.f=="uc"?"."+fighter:"")+"-"+sp.t+"-"+sp.uv.join("-")}
+function images(){
+ const box=g("lyImgs");box.innerHTML="";if(!sel)return;
+ const mine=new Set([sel,...els.filter(e=>e.parent==sel).map(e=>e.id)]),seen=new Set();
+ for(const sp of sprites){
+  if(!mine.has(sp.e))continue;const k=stem(sp);if(seen.has(k))continue;seen.add(k);
+  const d=document.createElement("div");d.className="im";
+  const t=document.createElement("small");t.textContent=sp.n+" - "+(sp.uv[2]-sp.uv[0])+" x "+(sp.uv[3]-sp.uv[1])+(artSet.has(k)?" - replaced":"");d.append(t);
+  const row=document.createElement("div");row.className="bar";
+  for(const [name,fn] of [["Export",()=>exportImage(sp)],["Replace...",()=>{upFor=sp;g("lyFile").click()}],...(artSet.has(k)?[["Restore",()=>restoreImage(sp)]]:[])]){
+   const b=document.createElement("button");b.className="act";b.textContent=name;b.onclick=fn;row.append(b)}
+  d.append(row);box.append(d)}}
+function exportImage(sp){
+ const img=sheets[sp.f+":"+sp.t];if(!img)return;
+ const c=document.createElement("canvas");c.width=sp.uv[2]-sp.uv[0];c.height=sp.uv[3]-sp.uv[1];
+ c.getContext("2d").drawImage(img,sp.uv[0],sp.uv[1],c.width,c.height,0,0,c.width,c.height);
+ c.toBlob(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=stem(sp)+".png";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)})}
+g("lyFile").onchange=async e=>{
+ const f=e.target.files[0];e.target.value="";if(!f||!upFor)return;const sp=upFor;
+ try{const bmp=await createImageBitmap(f),c=document.createElement("canvas");c.width=sp.uv[2]-sp.uv[0];c.height=sp.uv[3]-sp.uv[1];
+  const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(bmp,0,0,c.width,c.height);
+  const r=await call("/api/hud/image",{theme,file:sp.f,fighter:fighter,tex:sp.t,uv:sp.uv,png:c.toDataURL("image/png").split(",")[1]});
+  if(r){artSet.add(stem(sp));say("Image replaced.");await art();changed()}}catch(x){say("That file is not a picture.",true)}};
+async function restoreImage(sp){
+ const r=await call("/api/hud/image-remove",{theme,name:stem(sp)});if(r){artSet.delete(stem(sp));await art();changed()}}
 function inspector(){
  const e=byId[sel];g("lyName").textContent=e?e.label:"Nothing selected";
  for(const id of ["lyX","lyY","lyRot","lyS","lyHide"])g(id).disabled=!e;
@@ -154,7 +185,7 @@ function inspector(){
 function bar(){
  g("lyAuto").checked=auto;g("lyApply").disabled=auto||!pending;g("lyApply").textContent="Apply "+pending+" change"+(pending==1?"":"s");
  g("lyChip").textContent=auto?"Applied live":pending?pending+" pending":"Up to date";g("lyChip").className="chip"+(!auto&&pending?" off":"")}
-function paint(){list();inspector();bar();draw()}
+function paint(){list();inspector();images();bar();draw()}
 function snapshot(){undo.push(JSON.stringify(lay));if(undo.length>100)undo.shift();redo=[]}
 function changed(){
  pending++;paint();clearTimeout(saveT);saveT=setTimeout(flush,500)}
@@ -171,7 +202,7 @@ async function open(){
 async function load(name){
  const r=await call("/api/hud/theme?name="+encodeURIComponent(name));if(!r)return;
  theme=name;els=r.elements;byId={};for(const e of els)byId[e.id]=e;for(const e of els)e.group=els.some(o=>o.parent==e.id);
- lay=r.layout;undo=[];redo=[];pending=0;sel=els.length?els.find(e=>!e.group).id:"";say("");paint();art()}
+ artSet=new Set(r.art||[]);lay=r.layout;undo=[];redo=[];pending=0;sel=els.length?els.find(e=>!e.group).id:"";say("");paint();art()}
 async function art(){
  const me=++loadId;say("Loading art...");
  const r=await call("/api/hud/scene?name="+encodeURIComponent(theme)+"&fighter="+encodeURIComponent(fighter));if(!r||me!=loadId)return;
@@ -181,7 +212,7 @@ async function art(){
   try{const res=await fetch("/api/hud/sheet?name="+encodeURIComponent(theme)+"&file="+file+"&fighter="+fighter+"&index="+i,{headers:{"X-Pin":pin}});
    if(res.ok)got[file+":"+i]=await createImageBitmap(await res.blob())}catch(e){}})()));
  await Promise.all(jobs);if(me!=loadId)return;
- sheets=got;sprites=r.sprites.slice().sort((a,b)=>b.p[2]-a.p[2]);say("");draw()}
+ sheets=got;sprites=r.sprites.slice().sort((a,b)=>b.p[2]-a.p[2]);say("");images();draw()}
 g("lyFighter").onchange=e=>{fighter=e.target.value;art()};g("lyArt").onchange=draw;
 g("lyTheme").onchange=e=>load(e.target.value);
 g("lyUndo").onclick=()=>restore(undo,redo);g("lyRedo").onclick=()=>restore(redo,undo);
@@ -190,6 +221,11 @@ g("lyCx").onclick=()=>{if(sel){snapshot();const b=box(sel);moveBy(sel,640-b.x,0)
 g("lyCy").onclick=()=>{if(sel){snapshot();const b=box(sel);moveBy(sel,0,360-b.y);changed()}};
 g("lyReset").onclick=()=>{if(sel&&lay[sel]){snapshot();delete lay[sel];changed()}};
 g("lyApply").onclick=apply;
+g("lySave").onclick=async()=>{
+ const name=g("lySaveName").value.trim();if(!name){say("Type a name for the new theme first.",true);return}
+ clearTimeout(saveT);await call("/api/hud/layout",{theme,layout:lay});
+ const r=await call("/api/hud/save-as",{theme,name});
+ if(r){say("Saved as "+name+". It shows in the game's theme list after a restart.");g("lySaveName").value="";theme=name;await open()}};
 g("lyAuto").onchange=e=>{auto=e.target.checked;try{localStorage.setItem("hudAuto",auto?"1":"0")}catch(x){}if(auto&&pending)flush();bar()};
 for(const [id,key] of [["lyX","x"],["lyY","y"],["lyRot","rot"],["lyS","s"]])g(id).oninput=e=>{
  const n=parseFloat(e.target.value);if(!sel||!isFinite(n)||(key=="s"&&n<=0))return;snapshot();ensure(sel)[key]=n;changed()};

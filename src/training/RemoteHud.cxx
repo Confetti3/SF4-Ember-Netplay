@@ -153,6 +153,24 @@ bool Save(const Host& host, const std::string& name, const layout::Layout& edits
     fs::rename(temp, target, failed);
     return !failed;
 }
+// The theme's HUD files with the layout and the pictures in them, by path under battle\hud; false when a file cannot be read.
+bool Build(const Host& host, const std::string& name, const std::map<std::string, std::string>& files, const layout::Layout& edits, std::map<std::string, std::string>& written) {
+    std::map<std::string, std::string> patched;
+    written.clear();
+    if (!layout::Apply(files, edits, patched)) return false;
+    for (auto& [file, bytes] : patched) written["CMN/" + file + ".ems.emz"] = std::move(bytes);
+    // The pictures go into the sheets they belong to.
+    for (const Art& a : ArtOf(host, name)) {
+        textures::Image picture;
+        if (!ReadArt(host, name, a, picture)) continue;
+        const std::string relative = SheetOf(a.file, a.fighter), target = relative.substr(11);      // under battle\hud
+        std::string sheet = written.count(target) ? written[target] : std::string();
+        if (sheet.empty() && !Read(Find(host, name, relative), sheet)) continue;
+        std::string pasted;
+        if (textures::Paste(sheet, a.tex, picture, a.u[0], a.u[1], pasted)) written[target] = std::move(pasted);
+    }
+    return true;
+}
 nlohmann::json InfoJson(const layout::Info& i) {
     return { { "id", i.id }, { "label", i.label }, { "parent", i.parent }, { "cx", i.cx }, { "cy", i.cy }, { "w", i.w }, { "h", i.h } };
 }
@@ -245,6 +263,32 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
         fs::remove(target, failed); fs::rename(temp, target, failed);
         return failed ? Fail(500, "cannot save") : Say(200, { { "ok", true }, { "name", ArtName(a) } });
     }
+    if (post && route == "save-as") {
+        const auto json = nlohmann::json::parse(body, nullptr, false);
+        const std::string name = json.is_object() && json.value("theme", nlohmann::json()).is_string() ? json["theme"].get<std::string>() : std::string();
+        const std::string copy = json.is_object() ? json.value("name", std::string()) : std::string();
+        std::map<std::string, std::string> files, written;
+        if (!PlainName(name) || !Files(host, name, files)) return Fail(404, "no such theme");
+        std::error_code failed;
+        if (!PlainName(copy) || fs::exists(ThemeFolder(host, copy), failed)) return Fail(400, "name taken or not allowed");
+        if (!Build(host, name, files, Saved(host, name), written)) return Fail(500, "cannot read the theme");
+        // The copy is the theme as the game reads it: the edits are in its files, so it keeps neither layout.json nor the pictures.
+        fs::create_directories(ThemeFolder(host, copy), failed);
+        for (fs::directory_iterator it(ThemeFolder(host, name), failed), end; !failed && it != end; it.increment(failed)) {
+            const std::string leaf = it->path().filename().string();
+            if (leaf == "layout.json" || leaf == "layout-art" || leaf == "review.json") continue;
+            fs::copy(it->path(), ThemeFolder(host, copy) / it->path().filename(), fs::copy_options::recursive, failed);
+        }
+        for (const auto& [file, bytes] : written) {
+            const fs::path target = ThemeFolder(host, copy) / "battle" / "hud" / fs::u8path(file);
+            fs::create_directories(target.parent_path(), failed);
+            std::ofstream out(target, std::ios::binary);
+            out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+            if (!out) failed = std::make_error_code(std::errc::io_error);
+        }
+        if (failed) { fs::remove_all(ThemeFolder(host, copy), failed); return Fail(500, "cannot save"); }
+        return Say(200, { { "ok", true }, { "name", copy } });
+    }
     if (post && (route == "layout" || route == "apply")) {
         const auto json = nlohmann::json::parse(body, nullptr, false);
         const std::string name = json.is_object() && json.value("theme", nlohmann::json()).is_string() ? json["theme"].get<std::string>() : std::string();
@@ -254,20 +298,8 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
         const layout::Layout edits = given ? layout::LayoutFromJson(json["layout"]) : Saved(host, name);
         if (given && !Save(host, name, edits)) return Fail(500, "cannot save");
         if (route == "layout") return Say(200, { { "ok", true } });
-        std::map<std::string, std::string> patched, written;
-        if (!layout::Apply(files, edits, patched)) return Fail(500, "cannot read the theme");
-        for (auto& [file, bytes] : patched) written["CMN/" + file + ".ems.emz"] = std::move(bytes);
-        // The pictures go into the sheets they belong to.
-        const auto fighters = Fighters(host);
-        for (const Art& a : ArtOf(host, name)) {
-            textures::Image picture;
-            if (!ReadArt(host, name, a, picture)) continue;
-            const std::string relative = SheetOf(a.file, a.fighter), target = relative.substr(11);      // under battle\hud
-            std::string sheet = written.count(target) ? written[target] : std::string();
-            if (sheet.empty() && !Read(Find(host, name, relative), sheet)) continue;
-            std::string pasted;
-            if (textures::Paste(sheet, a.tex, picture, a.u[0], a.u[1], pasted)) written[target] = std::move(pasted);
-        }
+        std::map<std::string, std::string> written;
+        if (!Build(host, name, files, edits, written)) return Fail(500, "cannot read the theme");
         host.apply(name, std::move(written));
         return Say(200, { { "ok", true } });
     }

@@ -9,6 +9,7 @@
 #include "test_support.hxx"
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <windows.h>
 
 namespace fs = std::filesystem;
@@ -119,6 +120,18 @@ int main() {
     {
         std::vector<std::string> dds; sf4e::platform::hud_textures::Image sheet;
         CHECK(sf4e::platform::hud_textures::Entries(applied["CMN/cockpit.tex.emz"], dds) && sf4e::platform::hud_textures::Decode(dds[0], sheet) && sheet.rgba[(2 * 4 + 2) * 4 + 2] == 3 && sheet.rgba[0] == 255);
+    }
+    // Saved as a theme of its own: the edits are in its files, and it keeps no layout.json or pictures.
+    CHECK(post("/api/hud/save-as", R"({"theme":"Test","name":"Copy"})").status == 200);
+    CHECK(post("/api/hud/save-as", R"({"theme":"Test","name":"Copy"})").status == 400);
+    CHECK(post("/api/hud/save-as", R"({"theme":"Test","name":"../Copy2"})").status == 400);
+    const fs::path copy = root / sf4e::platform::game_themes::Folder / "Copy";
+    CHECK(fs::exists(copy / "battle" / "hud" / "CMN" / "cockpit.ems.emz") && !fs::exists(copy / "layout.json") && !fs::exists(copy / "layout-art"));
+    {
+        std::ifstream in(copy / "battle" / "hud" / "CMN" / "cockpit.tex.emz", std::ios::binary);
+        const std::string tex((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        std::vector<std::string> dds; sf4e::platform::hud_textures::Image sheet;
+        CHECK(sf4e::platform::hud_textures::Entries(tex, dds) && sf4e::platform::hud_textures::Decode(dds[0], sheet) && sheet.rgba[(2 * 4 + 2) * 4 + 2] == 3);
     }
     CHECK(post("/api/hud/image-remove", R"({"theme":"Test","name":"cockpit-0-1-1-3-3"})").status == 200);
     CHECK(!fs::exists(root / sf4e::platform::game_themes::Folder / "Test" / "layout-art" / "cockpit-0-1-1-3-3.png"));
