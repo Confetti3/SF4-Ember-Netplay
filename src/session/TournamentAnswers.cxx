@@ -306,7 +306,7 @@ std::optional<PrepareReply> DecodePrepareReply(const nlohmann::json& data) {
 	}
 }
 
-std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& data) {
+std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& data, std::string_view game) {
 	try {
 		const auto& rows = data.at("assignments");
 		if (!rows.is_array()) return std::nullopt;
@@ -314,6 +314,10 @@ std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& d
 		for (const auto& row : rows) {
 			if (assignments.size() >= 50) break;
 			Assignment item;
+			// A bridge from before games were named lists USF4's matches only.
+			item.game = OptionalText(row, "game", 16);
+			if (item.game.empty()) item.game = "usf4";
+			if (item.game != game) continue;
 			item.matchId = Text(row, "match_id", 64);
 			item.state = Text(row, "state", 32);
 			item.provider = OptionalText(row, "provider", 64);

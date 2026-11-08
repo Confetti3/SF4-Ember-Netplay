@@ -17,6 +17,10 @@ namespace sf4e { namespace netplay { namespace tournament {
 // One of the player's assigned matches, for the assignment list.
 struct Assignment {
 	std::string matchId, provider, state, roundLabel, opponentFingerprint, profile;
+	// The game the match is played in, as ProductIdentity::roomGame names
+	// games: the bridge's `game`, "usf4" from a bridge that names none. A
+	// list holds only the product's own game's matches (DecodeAssignments).
+	std::string game;
 	int slot = -1;
 	int gamesToWin = 0;
 	std::array<unsigned, 2> wins = {};
