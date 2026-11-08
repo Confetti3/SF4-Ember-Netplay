@@ -219,6 +219,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // waits for the next set to end elsewhere (Table::wantsNew).
     const bool otherFree = deciding && room::ArcadeFreeTable(v.room, p.table);
     const bool askedNew = deciding && mine >= 0 && t.wantsNew[mine];
+    // Y asks for New opponent whenever its row would take the press.
+    const bool newOpponentOpen = deciding && !askedNew;
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
@@ -292,7 +294,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     }
     const std::size_t buttons = MenuGridCells(rows);
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
-    if (otherOpponent) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
+    if (newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
@@ -409,7 +411,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
     // The room's Rematch or New opponent: the same answer as the cabinet's (RoomAction).
-    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && otherOpponent && !p.left) {
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && newOpponentOpen && !p.left) {
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
     else if (a.kind == MenuAction::Activate) {
