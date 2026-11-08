@@ -413,7 +413,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     std::string localeOverride, joinUri;
     std::vector<std::string> offerWords;
     CLI::App app(std::string(ember::Product().branding.productName) + " for " + ember::Product().branding.gameName, "Launcher");
-    app.add_option("--join-link", joinUri, "Open a room, tournament match, public room or Discord connect link from the browser (ember://join/..., ember://tournament/open?..., ember://room/open?... or ember://discord/connect?...).");
+    // The product's own scheme: SF4 Ember's is ember://, SFV Ember's ember-sfv://.
+    app.add_option("--join-link", joinUri, "Open a room, tournament match, public room or Discord connect link from the browser (" +
+        ember::SchemeLink("join/...") + ", " + ember::SchemeLink("tournament/open?...") + ", " + ember::SchemeLink("room/open?...") +
+        " or " + ember::SchemeLink("discord/connect?...") + ").");
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", showConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");

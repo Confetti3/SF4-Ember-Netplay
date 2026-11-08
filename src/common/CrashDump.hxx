@@ -171,13 +171,15 @@ inline bool PublishDump(HANDLE file, const wchar_t* path, HANDLE process, DWORD 
 	return published;
 }
 
-// Ordinary/heap dumps retain the canonical fallback sequence.
+// Ordinary/heap dumps retain the canonical fallback sequence. `writer` is
+// DbgHelp's own unless a caller that hooks MiniDumpWriteDump passes the
+// original, so its own dump does not come back through its hook.
 inline bool WriteDump(HANDLE process, DWORD processId, const wchar_t* directory, DWORD threadId,
-    EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize]) {
+    EXCEPTION_POINTERS* pointers, bool clientPointers, wchar_t (&path)[DumpPathSize], DumpWriter writer = MiniDumpWriteDump) {
     const bool heap = ExceptionCodeForDump(process, pointers, clientPointers) == HeapCorruptionCode;
     const MINIDUMP_TYPE types[] = { heap ? HeapDumpType : DumpType, DumpType, MiniDumpNormal };
     const HANDLE file = ReserveDump(process, processId, directory, pointers, clientPointers, path);
-    const bool saved = PublishDump(file, path, process, processId, threadId, pointers, clientPointers, { types, 3 });
+    const bool saved = PublishDump(file, path, process, processId, threadId, pointers, clientPointers, { types, 3, 0, 0, writer });
     if (!saved) path[0] = 0;
     return saved;
 }
@@ -407,10 +409,13 @@ public:
 	}
 	bool Available() const { return view_ != nullptr; }
 	// True once the launcher has written the dump. Allocates nothing.
-	bool Request(EXCEPTION_POINTERS* pointers) const {
+	bool Request(EXCEPTION_POINTERS* pointers) const { return Request(pointers, GetCurrentThreadId()); }
+	// The same for a fault on another thread: `threadId` is the faulting
+	// one, as a crash reporter that runs on its own thread names it.
+	bool Request(EXCEPTION_POINTERS* pointers, DWORD threadId) const {
 		if (!view_ || !pointers) return false;
 		view_->written = 0;
-		view_->threadId = GetCurrentThreadId();
+		view_->threadId = threadId;
 		view_->exceptionPointers = reinterpret_cast<uintptr_t>(pointers);
 		MemoryBarrier();
 		view_->magic = DumpRequestMagic;
