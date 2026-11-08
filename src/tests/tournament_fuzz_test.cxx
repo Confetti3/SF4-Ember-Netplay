@@ -351,12 +351,29 @@ static void TestWatchers() {
 	}
 }
 
+// One Ember ID plays every game, so a bridge lists a player's matches of each:
+// a product keeps its own game's, and a bridge that names no game lists USF4's.
+static void TestAssignmentGames() {
+	const json rows = {{"assignments", json::array({
+		json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}},
+		json{{"match_id", "emt_2"}, {"state", "ready"}, {"slot", 1u}, {"game", "sfv"}},
+		json{{"match_id", "emt_3"}, {"state", "ready"}, {"slot", 0u}, {"game", "usf4"}},
+		json{{"match_id", "emt_4"}, {"state", "ready"}, {"slot", 1u}, {"game", nullptr}}})}};
+	const auto usf4 = session::DecodeAssignments(rows, "usf4");
+	CHECK(usf4 && usf4->size() == 3 && (*usf4)[0].matchId == "emt_1" && (*usf4)[1].matchId == "emt_3" && (*usf4)[2].matchId == "emt_4");
+	for (const auto& item : *usf4) CHECK(item.game == "usf4");
+	const auto sfv = session::DecodeAssignments(rows, "sfv");
+	CHECK(sfv && sfv->size() == 1 && (*sfv)[0].matchId == "emt_2" && (*sfv)[0].game == "sfv");
+	// A game that is not text is a malformed answer, as any other field's.
+	CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"game", 5}}})}}, "usf4"));
+}
+
 static void TestAssignmentTimes() {
 	using netplay::tournament::Assignment;
 	const auto decode = [](const json& extra) {
 		json row = {{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}};
 		for (auto it = extra.begin(); it != extra.end(); ++it) row[it.key()] = it.value();
-		const auto list = session::DecodeAssignments({{"assignments", json::array({row})}});
+		const auto list = session::DecodeAssignments({{"assignments", json::array({row})}}, "usf4");
 		CHECK(list && list->size() == 1);
 		return list && list->size() == 1 ? (*list)[0] : Assignment();
 	};
@@ -369,12 +386,12 @@ static void TestAssignmentTimes() {
 	CHECK(longest.gamesToWin == 10 && longest.wins[0] == 10 && longest.wins[1] == 9);
 	const auto mixed = session::DecodeAssignments({{"assignments", json::array({
 		json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"games_to_win", 10u}},
-		json{{"match_id", "emt_2"}, {"state", "ready"}, {"slot", 1u}, {"games_to_win", 2u}}})}});
+		json{{"match_id", "emt_2"}, {"state", "ready"}, {"slot", 1u}, {"games_to_win", 2u}}})}}, "usf4");
 	CHECK(mixed && mixed->size() == 2 && (*mixed)[0].gamesToWin == 10 && (*mixed)[1].gamesToWin == 2);
 	// A length or a score past the longest set is not an answer the bridge gives.
 	for (const unsigned games : {0u, 11u, 255u})
-		CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"games_to_win", games}}})}}));
-	CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"wins", json::array({11u, 0u})}}})}}));
+		CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"games_to_win", games}}})}}, "usf4"));
+	CHECK(!session::DecodeAssignments({{"assignments", json::array({json{{"match_id", "emt_1"}, {"state", "ready"}, {"slot", 0u}, {"wins", json::array({11u, 0u})}}})}}, "usf4"));
 	const auto timed = decode({{"created_at", 1000u}, {"expires_at", 87400u}});
 	CHECK(timed.createdAt == 1000 && timed.expiresAt == 87400);
 	// Each time stands alone, and a wrong one is unknown, not an error.
@@ -464,7 +481,7 @@ static void FuzzAnswers(Random& random) {
 			for (std::size_t i = 0; i < board->size(); ++i)
 				CHECK((*board)[i].band >= 1 && (*board)[i].band <= SkillBadge::Classes && (!i || (*board)[i - 1].band >= (*board)[i].band));
 		}
-		if (const auto list = session::DecodeAssignments(data)) {
+		if (const auto list = session::DecodeAssignments(data, "usf4")) {
 			CHECK(list->size() <= 50);
 			for (const auto& item : *list) CHECK((item.slot == 0 || item.slot == 1) && item.gamesToWin <= room::MaxSetLength &&
 				item.wins[0] <= static_cast<unsigned>(room::MaxSetLength) && item.wins[1] <= static_cast<unsigned>(room::MaxSetLength));
@@ -858,6 +875,7 @@ int main() {
 	Random random(Seed());
 	TestRoomListDetails();
 	TestRankings();
+	TestAssignmentGames();
 	TestAssignmentTimes();
 	TestPrepareWindow();
 	TestStartingWins();

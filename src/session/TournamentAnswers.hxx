@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -41,7 +42,10 @@ std::optional<netplay::tournament::PrepareReply> DecodePrepareReply(const nlohma
 std::optional<netplay::tournament::WatchReply> DecodeWatchReply(const nlohmann::json& data);
 
 using Assignment = netplay::tournament::Assignment;
-std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& data);
+// The player's matches in `game` (ProductIdentity::roomGame). One Ember ID
+// plays every game Ember has, so a bridge lists a player's matches of each;
+// the others are left out, as a match of another product's.
+std::optional<std::vector<Assignment>> DecodeAssignments(const nlohmann::json& data, std::string_view game);
 
 // A room_list answer's rooms, and a room_create or room_ticket answer's admission.
 std::optional<netplay::publicrooms::RoomList> DecodeRoomList(const nlohmann::json& data);

@@ -5,6 +5,7 @@
 #include "sf4e__NetplayRuntime.hxx"
 #include "../session/TournamentAnswers.hxx"
 #include "../common/HexText.hxx"
+#include "../common/ProductIdentity.hxx"
 #include "../platform/ReplaySets.hxx"
 #include "../platform/Utf8.hxx"
 
@@ -188,7 +189,7 @@ void TakeAssignments(const session::TournamentAnswer& answer) {
 		runtime->assignmentList.error = answer.reason.empty() ? "unavailable" : answer.reason;
 		return;
 	}
-	auto list = session::DecodeAssignments(answer.data);
+	auto list = session::DecodeAssignments(answer.data, ember::Product().roomGame);
 	if (!list) {
 		runtime->assignmentList.error = "bridge_invalid_response";
 		return;
