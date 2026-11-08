@@ -10,7 +10,7 @@
 namespace sf4e { namespace training { namespace remote { namespace hud {
 struct Host {
     std::function<std::wstring()> directory;   // the game folder
-    // Uses the theme's battle HUD with these files (name such as "cockpit" -> .ems.emz bytes) over it.
+    // Uses the theme's battle HUD with these files (path under battle\hud such as "CMN/cockpit.ems.emz" -> bytes) over it.
     std::function<void(const std::string&, std::map<std::string, std::string>)> apply;
 };
 struct Reply { int status = 404; std::string type = "application/json", body; };

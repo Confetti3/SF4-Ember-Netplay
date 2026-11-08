@@ -210,7 +210,7 @@ void sf4e::GameThemes::Use(const std::array<std::string, netplay::GameThemePartC
 		if (outcome == game_themes::Outcome::Used && i == netplay::GameThemeBattleHud) {
 			for (const auto& [file, bytes] : hudFiles) {
 				std::string problem;
-				if (!game_themes::WriteActive(gameDirectory, game_themes::Parts[i], "CMN\\" + file + ".ems.emz", bytes, problem))
+				if (!game_themes::WriteActive(gameDirectory, game_themes::Parts[i], file, bytes, problem))
 					spdlog::warn("In-game themes: HUD file {} not written: {}", file, problem);
 			}
 		}

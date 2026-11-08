@@ -28,7 +28,7 @@
 namespace sf4e { namespace training { namespace remote {
 namespace {
 constexpr unsigned short FirstPort = 47321;
-constexpr std::size_t HudBytes = 65536;
+constexpr std::size_t HudBytes = 65536, HudImageBytes = 6u << 20;
 constexpr int PortTries = 8, FailuresAllowed = 5, LockSeconds = 30, MaxStreams = 8, MaxRequests = 32;
 const char* const HostName = "ember.local";
 std::atomic<bool> s_running{false};
@@ -165,12 +165,12 @@ bool Serve(SOCKET socket, unsigned long peer) {
         const auto end = request.find("\r\n\r\n");
         if (end != std::string::npos) {
             // Only a combo brought in and a HUD layout may be large.
-            const std::size_t most = request.compare(0, 17, "POST /api/combos ") == 0 ? ComboFileBytes : request.compare(0, 15, "POST /api/hud/") == 0 ? HudBytes : 1024;
+            const std::size_t most = request.compare(0, 17, "POST /api/combos ") == 0 ? ComboFileBytes : request.compare(0, 20, "POST /api/hud/image ") == 0 ? HudImageBytes : request.compare(0, 15, "POST /api/hud/") == 0 ? HudBytes : 1024;
             const auto length = std::atoi(HeaderValue(request, "Content-Length").c_str());
             if (length < 0 || static_cast<std::size_t>(length) > most) { Reply(socket, 400, "text/plain", "too big"); return false; }
             if (request.size() >= end + 4 + static_cast<std::size_t>(length)) break;
         }
-        if (request.size() > 8192 + ComboFileBytes) { Reply(socket, 400, "text/plain", "too big"); return false; }
+        if (request.size() > 8192 + (std::max)(static_cast<std::size_t>(ComboFileBytes), HudImageBytes)) { Reply(socket, 400, "text/plain", "too big"); return false; }
         const int got = recv(socket, buffer, sizeof(buffer), 0);
         if (got <= 0) return false;
         request.append(buffer, got);

@@ -49,6 +49,17 @@ int main() {
     CHECK(image.rgba[0] == 255 && image.rgba[1] == 128 && image.rgba[2] == 0 && image.rgba[3] == 255);   // BGRA in, RGBA out
     CHECK(hud_textures::EncodePng(image).compare(1, 3, "PNG") == 0);
     CHECK(!hud_textures::Decode("DDS short", image));
+    // PNG back to pixels, and a picture pasted into the sheet (raw BGRA here).
+    hud_textures::Image fromPng;
+    CHECK(hud_textures::DecodePng(hud_textures::EncodePng(image), fromPng) && fromPng.width == 4 && fromPng.rgba == image.rgba);
+    hud_textures::Image two; two.width = 2; two.height = 2; two.rgba.assign(16, 0);
+    for (int i = 0; i < 4; ++i) { two.rgba[4 * i] = 10; two.rgba[4 * i + 1] = 20; two.rgba[4 * i + 2] = 30; two.rgba[4 * i + 3] = 200; }
+    std::string pasted;
+    CHECK(hud_textures::Paste(hud_layout::Pack(hud_fixture::OneSheet()), 0, two, 1, 1, pasted));
+    CHECK(hud_textures::Entries(pasted, dds) && hud_textures::Decode(dds[0], image));
+    CHECK(image.rgba[(1 * 4 + 1) * 4] == 10 && image.rgba[(2 * 4 + 2) * 4 + 3] == 200 && image.rgba[0] == 255);   // inside the picture, and the rest untouched
+    CHECK(!hud_textures::Paste(hud_layout::Pack(hud_fixture::OneSheet()), 0, two, 3, 3, pasted));   // does not fit
+    CHECK(!hud_textures::DecodePng("not a png at all, long enough to pass the size check......", fromPng));
     // One DXT5 block: alpha 255 throughout, colour 0 pure red (565: 0xF800), every texel colour 0.
     std::string block(128 + 16, '\0');
     block.replace(0, 4, "DDS "); block.replace(84, 4, "DXT5");

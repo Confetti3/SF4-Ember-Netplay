@@ -2,6 +2,7 @@
 // themes and elements listed, layout.json kept, and the patched files handed on.
 #include "../platform/GameThemes.hxx"
 #include "../platform/HudLayout.hxx"
+#include "../platform/HudTextures.hxx"
 #include "../training/RemoteHud.hxx"
 #include "../training/RemoteHudPage.hxx"
 #include "hud_fixture.hxx"
@@ -15,6 +16,15 @@ using namespace sf4e::training::remote;
 using sf4e::platform::hud_layout::Unpack;
 
 namespace {
+std::string Base64(const std::string& in) {
+    static const char* const table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    for (std::size_t i = 0; i < in.size(); i += 3) {
+        const unsigned v = (unsigned char)in[i] << 16 | (i + 1 < in.size() ? (unsigned char)in[i + 1] << 8 : 0) | (i + 2 < in.size() ? (unsigned char)in[i + 2] : 0);
+        out += table[v >> 18 & 63]; out += table[v >> 12 & 63]; out += i + 1 < in.size() ? table[v >> 6 & 63] : '='; out += i + 2 < in.size() ? table[v & 63] : '=';
+    }
+    return out;
+}
 const char* const Desktop = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120";
 const char* const Phone = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148";
 }
@@ -82,12 +92,36 @@ int main() {
     CHECK(theme["layout"]["p1_plate"]["x"] == 300);
 
     CHECK(post("/api/hud/apply", R"({"theme":"Test"})").status == 200);   // the saved layout
-    CHECK(appliedTo == "Test" && applied.count("cockpit") == 1);
+    CHECK(appliedTo == "Test" && applied.count("CMN/cockpit.ems.emz") == 1);
     std::string ems;
-    CHECK(Unpack(applied["cockpit"], ems) && hud_fixture::GetF(ems, 0x140) == 300 && hud_fixture::GetF(ems, 0x144) == 200);
+    CHECK(Unpack(applied["CMN/cockpit.ems.emz"], ems) && hud_fixture::GetF(ems, 0x140) == 300 && hud_fixture::GetF(ems, 0x144) == 200);
 
     CHECK(post("/api/hud/apply", R"({"theme":"Test","layout":{}})").status == 200);   // nothing edited: the theme as it was
     CHECK(applied.empty());
+
+    // A picture over part of the sheet: kept beside the theme, shown in the preview, and put in the sheet when applied.
+    sf4e::platform::hud_textures::Image picture; picture.width = 2; picture.height = 2; picture.rgba.assign(16, 0);
+    for (int i = 0; i < 4; ++i) { picture.rgba[4 * i] = 1; picture.rgba[4 * i + 1] = 2; picture.rgba[4 * i + 2] = 3; picture.rgba[4 * i + 3] = 250; }
+    const std::string png = Base64(sf4e::platform::hud_textures::EncodePng(picture));
+    CHECK(post("/api/hud/image", R"({"theme":"Test","file":"cockpit","tex":0,"uv":[1,1,3,3],"png":")" + png + "\"}").status == 200);
+    CHECK(post("/api/hud/image", R"({"theme":"Test","file":"cockpit","tex":0,"uv":[1,1,4,4],"png":")" + png + "\"}").status == 400);   // not the region's size
+    CHECK(post("/api/hud/image", R"({"theme":"Test","file":"../x","tex":0,"uv":[1,1,3,3],"png":")" + png + "\"}").status == 400);
+    CHECK(fs::exists(root / sf4e::platform::game_themes::Folder / "Test" / "layout-art" / "cockpit-0-1-1-3-3.png"));
+    theme = nlohmann::json::parse(get("/api/hud/theme", "name=Test").body);
+    CHECK(theme["art"].size() == 1 && theme["art"][0] == "cockpit-0-1-1-3-3");
+    {
+        const auto view = get("/api/hud/sheet", "name=Test&file=cockpit&index=0");
+        sf4e::platform::hud_textures::Image seen;
+        CHECK(view.status == 200 && sf4e::platform::hud_textures::DecodePng(view.body, seen) && seen.rgba[(1 * 4 + 1) * 4] == 1 && seen.rgba[0] == 255);
+    }
+    CHECK(post("/api/hud/apply", R"({"theme":"Test","layout":{}})").status == 200);
+    CHECK(applied.size() == 1 && applied.count("CMN/cockpit.tex.emz") == 1);
+    {
+        std::vector<std::string> dds; sf4e::platform::hud_textures::Image sheet;
+        CHECK(sf4e::platform::hud_textures::Entries(applied["CMN/cockpit.tex.emz"], dds) && sf4e::platform::hud_textures::Decode(dds[0], sheet) && sheet.rgba[(2 * 4 + 2) * 4 + 2] == 3 && sheet.rgba[0] == 255);
+    }
+    CHECK(post("/api/hud/image-remove", R"({"theme":"Test","name":"cockpit-0-1-1-3-3"})").status == 200);
+    CHECK(!fs::exists(root / sf4e::platform::game_themes::Folder / "Test" / "layout-art" / "cockpit-0-1-1-3-3.png"));
     hud::Allow(false);
     std::error_code ignored; fs::remove_all(root, ignored);
     return 0;

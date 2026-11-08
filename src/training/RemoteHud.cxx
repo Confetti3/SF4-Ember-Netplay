@@ -86,6 +86,51 @@ std::string SheetOf(const std::string& file, const std::string& fighter) {
     if (file == "chara" || file == "uc") return fighter.empty() ? std::string() : "battle/hud/ENG/" + fighter + "/" + file + ".tex.emz";
     return {};
 }
+// Pictures the user put over parts of the sheets: <theme>\layout-art\<file>[.<FIGHTER>]-<tex>-<u0>-<v0>-<u1>-<v1>.png
+struct Art { std::string file, fighter; int tex = 0, u[4] = {}; };
+std::string ArtName(const Art& a) {
+    return a.file + (a.fighter.empty() ? "" : "." + a.fighter) + "-" + std::to_string(a.tex) + "-" + std::to_string(a.u[0]) + "-" + std::to_string(a.u[1]) + "-" + std::to_string(a.u[2]) + "-" + std::to_string(a.u[3]);
+}
+bool ParseArt(const std::string& stem, Art& a) {
+    std::vector<std::string> parts; std::size_t at = 0;
+    for (;;) { const auto dash = stem.find('-', at); parts.push_back(stem.substr(at, dash == std::string::npos ? std::string::npos : dash - at)); if (dash == std::string::npos) break; at = dash + 1; }
+    if (parts.size() != 6) return false;
+    const auto dot = parts[0].find('.');
+    a.file = parts[0].substr(0, dot); a.fighter = dot == std::string::npos ? std::string() : parts[0].substr(dot + 1);
+    const bool own = a.file == "chara" || a.file == "uc";
+    if (!(own || a.file == "cockpit" || a.file == "cockpit_text") || own != !a.fighter.empty() || (own && !PlainName(a.fighter))) return false;
+    int* number[5] = { &a.tex, &a.u[0], &a.u[1], &a.u[2], &a.u[3] };
+    for (int i = 0; i < 5; ++i) {
+        const std::string& t = parts[i + 1];
+        if (t.empty() || t.size() > 5 || t.find_first_not_of("0123456789") != std::string::npos) return false;
+        *number[i] = std::atoi(t.c_str());
+    }
+    return a.tex <= 40 && a.u[0] < a.u[2] && a.u[1] < a.u[3] && a.u[2] <= 4096 && a.u[3] <= 4096 && a.u[2] - a.u[0] <= 1024 && a.u[3] - a.u[1] <= 1024;
+}
+fs::path ArtFolder(const Host& host, const std::string& name) { return ThemeFolder(host, name) / "layout-art"; }
+std::vector<Art> ArtOf(const Host& host, const std::string& name) {
+    std::vector<Art> list; std::error_code ignored;
+    for (fs::directory_iterator it(ArtFolder(host, name), ignored), end; !ignored && it != end; it.increment(ignored)) {
+        Art a;
+        if (it->path().extension() == ".png" && ParseArt(it->path().stem().string(), a)) list.push_back(a);
+    }
+    std::sort(list.begin(), list.end(), [](const Art& x, const Art& y) { return ArtName(x) < ArtName(y); });
+    return list;
+}
+bool ReadArt(const Host& host, const std::string& name, const Art& a, textures::Image& image) {
+    std::string bytes;
+    return Read(ArtFolder(host, name) / (ArtName(a) + ".png"), bytes) && textures::DecodePng(bytes, image) && image.width == a.u[2] - a.u[0] && image.height == a.u[3] - a.u[1];
+}
+std::string Unbase64(const std::string& text) {
+    std::string out; int bits = 0, value = 0;
+    for (const char c : text) {
+        const char* at = std::strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/", c);
+        if (!at || !c) continue;
+        value = value << 6 | static_cast<int>(at - "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
+        if ((bits += 6) >= 8) { bits -= 8; out.push_back(static_cast<char>(value >> bits & 255)); }
+    }
+    return out;
+}
 bool Sheet(const Host& host, const std::string& name, const std::string& file, const std::string& fighter, std::vector<std::string>& dds) {
     std::string bytes;
     const std::string relative = SheetOf(file, fighter);
@@ -135,7 +180,9 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
         if (!PlainName(name) || !Files(host, name, files)) return Fail(404, "no such theme");
         nlohmann::json elements = nlohmann::json::array();
         for (const layout::Info& i : layout::Describe(files)) elements.push_back(InfoJson(i));
-        return Say(200, { { "name", name }, { "elements", elements }, { "layout", layout::LayoutToJson(Saved(host, name)) } });
+        nlohmann::json art = nlohmann::json::array();
+        for (const Art& a : ArtOf(host, name)) art.push_back(ArtName(a));
+        return Say(200, { { "name", name }, { "elements", elements }, { "layout", layout::LayoutToJson(Saved(host, name)) }, { "art", art } });
     }
     if (!post && (route == "scene" || route == "sheet")) {
         const std::string name = Param(query, "name"), fighters_ = Param(query, "fighter");
@@ -148,6 +195,12 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
             std::vector<std::string> dds; textures::Image image;
             const int index = std::atoi(Param(query, "index").c_str());
             if (!Sheet(host, name, Param(query, "file"), fighter, dds) || index < 0 || static_cast<std::size_t>(index) >= dds.size() || !textures::Decode(dds[index], image)) return Fail(404, "no such texture");
+            for (const Art& a : ArtOf(host, name)) {      // the user's pictures show in the preview
+                textures::Image picture;
+                if (a.file != Param(query, "file") || a.tex != index || (!a.fighter.empty() && a.fighter != fighter) || !ReadArt(host, name, a, picture)) continue;
+                if (a.u[2] > image.width || a.u[3] > image.height) continue;
+                for (int y = 0; y < picture.height; ++y) std::memcpy(&image.rgba[(static_cast<std::size_t>(a.u[1] + y) * image.width + a.u[0]) * 4], &picture.rgba[static_cast<std::size_t>(y) * picture.width * 4], static_cast<std::size_t>(picture.width) * 4);
+            }
             Reply r; r.status = 200; r.type = "image/png"; r.body = textures::EncodePng(image);
             return r;
         }
@@ -165,6 +218,33 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
         }
         return Say(200, { { "fighter", fighter }, { "fighters", fighters }, { "sprites", sprites }, { "sheets", sheets } });
     }
+    if (post && (route == "image" || route == "image-remove")) {
+        const auto json = nlohmann::json::parse(body, nullptr, false);
+        const std::string name = json.is_object() && json.value("theme", nlohmann::json()).is_string() ? json["theme"].get<std::string>() : std::string();
+        std::map<std::string, std::string> files;
+        if (!PlainName(name) || !Files(host, name, files)) return Fail(404, "no such theme");
+        Art a;
+        if (route == "image-remove") {
+            const std::string stem = json.value("name", std::string());
+            if (!ParseArt(stem, a)) return Fail(400, "bad name");
+            std::error_code ignored; fs::remove(ArtFolder(host, name) / (stem + ".png"), ignored);
+            return Say(200, { { "ok", true } });
+        }
+        const auto uv = json.value("uv", nlohmann::json());
+        a.file = json.value("file", std::string()); a.fighter = json.value("fighter", std::string()); a.tex = json.value("tex", -1);
+        if (a.file != "chara" && a.file != "uc") a.fighter.clear();
+        if (!uv.is_array() || uv.size() != 4) return Fail(400, "bad region");
+        for (int i = 0; i < 4; ++i) a.u[i] = uv[i].is_number_integer() ? uv[i].get<int>() : -1;
+        textures::Image picture;
+        if (a.tex < 0 || a.u[0] < 0 || a.u[1] < 0 || !ParseArt(ArtName(a), a)) return Fail(400, "bad region");
+        if (!textures::DecodePng(Unbase64(json.value("png", std::string())), picture) || picture.width != a.u[2] - a.u[0] || picture.height != a.u[3] - a.u[1]) return Fail(400, "bad picture");
+        std::error_code failed; fs::create_directories(ArtFolder(host, name), failed);
+        const fs::path target = ArtFolder(host, name) / (ArtName(a) + ".png");
+        fs::path temp = target; temp += ".tmp";
+        { std::ofstream out(temp, std::ios::binary); const std::string png = textures::EncodePng(picture); out.write(png.data(), static_cast<std::streamsize>(png.size())); if (!out) return Fail(500, "cannot save"); }
+        fs::remove(target, failed); fs::rename(temp, target, failed);
+        return failed ? Fail(500, "cannot save") : Say(200, { { "ok", true }, { "name", ArtName(a) } });
+    }
     if (post && (route == "layout" || route == "apply")) {
         const auto json = nlohmann::json::parse(body, nullptr, false);
         const std::string name = json.is_object() && json.value("theme", nlohmann::json()).is_string() ? json["theme"].get<std::string>() : std::string();
@@ -174,9 +254,21 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
         const layout::Layout edits = given ? layout::LayoutFromJson(json["layout"]) : Saved(host, name);
         if (given && !Save(host, name, edits)) return Fail(500, "cannot save");
         if (route == "layout") return Say(200, { { "ok", true } });
-        std::map<std::string, std::string> patched;
+        std::map<std::string, std::string> patched, written;
         if (!layout::Apply(files, edits, patched)) return Fail(500, "cannot read the theme");
-        host.apply(name, std::move(patched));
+        for (auto& [file, bytes] : patched) written["CMN/" + file + ".ems.emz"] = std::move(bytes);
+        // The pictures go into the sheets they belong to.
+        const auto fighters = Fighters(host);
+        for (const Art& a : ArtOf(host, name)) {
+            textures::Image picture;
+            if (!ReadArt(host, name, a, picture)) continue;
+            const std::string relative = SheetOf(a.file, a.fighter), target = relative.substr(11);      // under battle\hud
+            std::string sheet = written.count(target) ? written[target] : std::string();
+            if (sheet.empty() && !Read(Find(host, name, relative), sheet)) continue;
+            std::string pasted;
+            if (textures::Paste(sheet, a.tex, picture, a.u[0], a.u[1], pasted)) written[target] = std::move(pasted);
+        }
+        host.apply(name, std::move(written));
         return Say(200, { { "ok", true } });
     }
     return Fail(404, "no");
