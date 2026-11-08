@@ -199,7 +199,7 @@ function changed(){
 async function flush(){
  const r=await call("/api/hud/layout",{theme,layout:lay});if(r&&auto)apply()}
 async function apply(){
- clearTimeout(saveT);const r=await call("/api/hud/apply",{theme,layout:lay});if(r){pending=0;say("Applied.")}bar()}
+ clearTimeout(saveT);const r=await call("/api/hud/apply",{theme,layout:lay});if(r){pending=0;say(Object.keys(lay).some(k=>/_(face|name)$/.test(k))?"Applied. Portraits and names load when the game starts: press Restart game.":"Applied.")}bar()}
 function restore(from,to){if(!from.length)return;to.push(JSON.stringify(lay));lay=JSON.parse(from.pop());changed()}
 async function open(){
  const r=await call("/api/hud/themes");if(!r)return;
