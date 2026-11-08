@@ -681,6 +681,11 @@ private:
         }
     };
     PostMatchBarView postMatchBarShown_;
+    // The prompt's panel height that holds all its content, as DrawPostMatch
+    // measured it while drawing the last frame; 0 before any. The next frame's
+    // panel takes it, up to the screen's height, so no scroll bar covers the
+    // players' rows. Kept from one prompt to the next, whose content is alike.
+    float postMatchHeight_ = 0;
     bool matchResultSeen_ = false;
     unsigned gamesInPlaceSeen_ = 0;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.

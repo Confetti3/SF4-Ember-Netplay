@@ -306,7 +306,9 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
     const auto* vp = ImGui::GetMainViewport();
     ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), IM_COL32(20, 19, 18, 140));
-    board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
+    // The panel this frame, for the height its content asks of the next (postMatchHeight_).
+    const float panelHeight = ImGui::GetWindowHeight();
+    board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float bodyHeight, const MenuVisualFeedback& feedback) {
         const float s = Scale(), rowHeight = 52 * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
         const ImVec2 at = ImGui::GetCursorScreenPos(); const float width = ImGui::GetContentRegionAvail().x;
@@ -364,7 +366,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         const int lines = v2::BarLines(width, needs, gap);
         const float barHeight = lines * (rowHeight + gap) - gap;
         const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, needs, gap, lines, rowHeight);
-        // A wrapped bar can reach below the panel, so the focused button scrolls
+        // On a screen too short for the whole panel a wrapped bar can reach
+        // below it (postMatchHeight_ is capped), so the focused button scrolls
         // into view when the focus moves, the button moves in the panel's content
         // (the bar or the words over it took another line) or the panel changes
         // size; a scroll of the player's own stays put between.
@@ -395,6 +398,11 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
+        // The panel takes all of this the next frame: the rows, the Ultra, the
+        // words and the bar on its lines. Its width alone lays them out, so one
+        // frame settles it; the screen's height is its only cap (DrawScreen).
+        const float content = y + barHeight + 6 * s - at.y;
+        postMatchHeight_ = std::ceil(panelHeight + content - bodyHeight) + 1;
     };
     const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(buttons), {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear();

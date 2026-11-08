@@ -928,16 +928,17 @@ void ArcadeJourneys() {
  }
  {
   // PostMatchFocusedButtonInView: the Arcade decision's four buttons, on a
-  // narrow screen at 150% text where their bar takes two lines and reaches
-  // below the prompt's panel. Each one the pad focuses is scrolled into view,
-  // inside the clip it is drawn under.
+  // narrow, short screen at 150% text where their bar takes two lines and
+  // reaches below the prompt's panel, which grows to its content only as far
+  // as the screen's height (480 lines here) lets it. Each one the pad focuses
+  // is scrolled into view, inside the clip it is drawn under.
   Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
   a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
   for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
   auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
   a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
   a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;a.view.room.cabinets[9]=4;
-  a.imgui.io.DisplaySize=ImVec2(640,720);ApplyTheme(1.f,1.5f);
+  a.imgui.io.DisplaySize=ImVec2(640,480);ApplyTheme(1.f,1.5f);
   a.Screen("room");
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   std::map<std::string,bool> inView;std::map<std::string,float> top,content;
@@ -969,11 +970,50 @@ void ArcadeJourneys() {
   // Narrower, the words over the bar take another line and Back moves down,
   // its bar still on two lines and the focus unchanged: it is shown again.
   const float before=content["back"];
-  a.imgui.io.DisplaySize=ImVec2(560,720);a.Frame(0,3);
+  a.imgui.io.DisplaySize=ImVec2(560,480);a.Frame(0,3);
   float low=0,high=1e9f;for(const char* id:buttons){low=(std::max)(low,top[id]);high=(std::min)(high,top[id]);}
   Check(low>high+1&&content["back"]>before+1,"The narrower post-match fixture did not move Back down on a two-line bar");
   Check(a.shell.Navigation().Focus()=="back"&&inView["back"],"Back moved down in the post-match panel and stayed out of view");
   SetMenuEntriesProbe({});SetMenuCardProbe({});ApplyTheme(1.f);
+ }
+ {
+  // PostMatchPanelFitsItsContent (#185): an Arcade pair deciding after a set,
+  // its four buttons and the Ultra row under the players. At 720p and 1080p
+  // (and 1080p at 150%) the panel is as tall as all of it, so nothing
+  // scrolls: no scroll bar covers P1's row and every button is in sight.
+  Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
+  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;t.rules.format=room::SetFormat::Ft2;
+  a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
+  a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;a.view.room.cabinets[9]=4;
+  a.view.ultraSteps=true;a.view.ultraName=ui::UltraName(0,0);a.view.canChangeUltra=true;
+  a.imgui.io.DisplaySize=ImVec2(1280,720);ApplyTheme(1.f);
+  a.Screen("room");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  std::map<std::string,bool> inView;
+  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
+   const auto* d=ImGui::GetWindowDrawList();const ImVec2 lo=d->GetClipRectMin(),hi=d->GetClipRectMax();
+   inView[id]=min.x>=lo.x-1&&min.y>=lo.y-1&&max.x<=hi.x+1&&max.y<=hi.y+1;});
+  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.lastSet.score[0]=2;t.lastSet.score[1]=1;t.deciding=true;
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::P1Win};a.view.matchResult=true;a.Frame();
+  Check(a.shell.Navigation().Screen()=="post-match"&&rows.size()==5&&rows.back().id=="ultra"&&rows.back().enabled,
+   "The Arcade decision prompt did not open with its four buttons and the Ultra row");
+  const char* const buttons[]={"rematch","new-opponent","fighter","back"};
+  const std::pair<ImVec2,float> screens[]={{ImVec2(1280,720),1.f},{ImVec2(1920,1080),1.f},{ImVec2(1920,1080),1.5f}};
+  for(const auto& [size,scale]:screens){
+   a.imgui.io.DisplaySize=size;ApplyTheme(1.f,scale);inView.clear();
+   // A frame measures the content, the next takes its height, the one after scrolls by it.
+   a.Frame(0,4);
+   const std::string at=std::to_string(static_cast<int>(size.x))+"x"+std::to_string(static_cast<int>(size.y))+" at "+std::to_string(static_cast<int>(scale*100))+"%";
+   ImGuiWindow* panel=nullptr;ImGuiWindow* outer=nullptr;
+   for(auto* w:GImGui->Windows){if(w->Active&&std::strstr(w->Name,"/Body_"))panel=w;if(w->Active&&std::strstr(w->Name,"###EmberShell")&&!std::strstr(w->Name,"/"))outer=w;}
+   Check(a.shell.Navigation().Screen()=="post-match"&&rows.size()==5&&rows.back().id=="ultra",("The post-match prompt lost its Ultra row at "+at).c_str());
+   Check(panel&&panel->ScrollMax.y<1&&panel->Scroll.y<1,("The post-match panel scrolled at "+at).c_str());
+   Check(outer&&outer->Pos.y>=0&&outer->Pos.y+outer->Size.y<=size.y,("The post-match panel left the screen at "+at).c_str());
+   for(const char* id:buttons)Check(inView[id],("A post-match button was out of sight at "+at+": "+id).c_str());
+  }
+  SetMenuEntriesProbe({});SetMenuCardProbe({});ApplyTheme(1.f);a.imgui.io.DisplaySize=ImVec2(1280,960);
  }
  for(const auto type:{room::ArcadeRoom,room::KingRoom}){
   // A pair alone in an Arcade or King room stays together after a set and
