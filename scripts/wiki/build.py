@@ -24,6 +24,7 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
 UPSTREAM = "Confetti3/SF4-Ember-Netplay"
+DISCORD = "https://discord.gg/uPNqF5A5uq"
 NIGHTLY_REPO = "Confetti3/SF4-Ember-Netplay-Nightly"
 BRANCH = "nightly"
 # Only open pull requests with this label get "Coming soon" notes, so the owner chooses what the wiki shows.
@@ -448,8 +449,10 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
 
     (out / "Home.md").write_text("\n".join(text + listing("## %s", lambda p: f"| [{p}]({slug(p)}) | {about[p]} |", table)),
                                  encoding="utf-8")
-    (out / "_Sidebar.md").write_text("\n".join(["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p}]({slug(p)})")),
-                                     encoding="utf-8")
+    links = ["**Links**", "", f"- [Download](https://github.com/{UPSTREAM}/releases)", f"- [Discord]({DISCORD})",
+             f"- [Report a bug](https://github.com/{UPSTREAM}/issues)", ""]
+    sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p}]({slug(p)})") + links
+    (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."
