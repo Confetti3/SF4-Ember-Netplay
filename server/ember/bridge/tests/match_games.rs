@@ -77,6 +77,9 @@ async fn the_bridge_offers_both_games_and_checks_usf4_as_before() {
 async fn assignments_name_each_matchs_game() {
     let f = fixture(3).await;
     let usf4 = f.bracket("usf4-set", 0, 1).await;
+    // Decided, so player 0 is free for the next; it stays listed.
+    let (status, body) = f.game(usf4["match_id"].as_str().unwrap(), 0).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
     let sfv = f
         .ordinary_in("sfv", "not_applicable", "sfv-set", [0, 2], 2)
         .await;
