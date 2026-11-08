@@ -712,18 +712,21 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  const auto* vp=ImGui::GetMainViewport();const v2::Box area=ShellArea();
  ImGui::SetNextWindowPos(area.min);ImGui::SetNextWindowSize(ImVec2(area.W(),area.H()));
  const bool postMatchScreen=nav.Screen()=="post-match";
+ PostMatchFrame postMatch;
  if(postMatchScreen){
   // A panel in the middle of the WIN screen, which stays in sight around it,
   // as tall as this frame's content laid out before it begins, up to the
   // screen's height (PostMatchPanelFor): no frame of it is the wrong size.
-  const ImVec2 size=PostMatchPanelFor(BuildPostMatch(v)).size;
+  // Built once, the frame is what DrawPostMatch draws.
+  postMatch.model=BuildPostMatch(v);postMatch.panel=PostMatchPanelFor(postMatch.model);
+  const ImVec2 size=postMatch.panel.size;
   ImGui::SetNextWindowPos(ImVec2(vp->Pos.x+(vp->Size.x-size.x)/2,vp->Pos.y+(vp->Size.y-size.y)/2));ImGui::SetNextWindowSize(size);
  }
  if(v.SeeThrough())ImGui::SetNextWindowBgAlpha(WatchedMatchWindowAlpha);
  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,ImVec2(!postMatchScreen?v2::SideMargin(area.W(),Scale()):20*Scale(),16*Scale()));ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding,0);
  ImGui::Begin("SF4 Ember Netplay###EmberShell",nullptr,ImGuiWindowFlags_NoDecoration|ImGuiWindowFlags_NoSavedSettings|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|ImGuiWindowFlags_NoNavInputs);
  menu_.backInert=false;menu_.ownsBack=false;menu_.backdrop=!v.SeeThrough()&&!postMatchScreen;
- const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom);
+ const bool menuRead=DrawScreen(v,open,submit,selection,developer,now,healthyRoom,postMatch);
  ImGui::End();ImGui::PopStyleVar(2);
  // After the frame's presses, so a Stop watching or a seat taken this frame
  // comes before any move following would make.
@@ -733,7 +736,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  AnswerToast(now);
  DrawToasts(now,nav.Screen()=="notifications",menuRead);
 }
-bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom) {
+bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom,const PostMatchFrame& postMatch) {
  using namespace netplay; auto& nav=menu_.navigation;
  // Each screen sets its header (eyebrow, chips), tabs, bell, detail pane and
  // typing below, every frame; the screens drawn first (Button layout, Pad
@@ -766,7 +769,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  // A fresh install opens on the welcome, once (ApplicationShell__FirstRun.cxx).
  if(!preferences_.welcomed&&!welcomeOffered_&&v.canEditPreferences&&v.session.room==RoomState::Idle&&nav.Screen()=="home"){welcomeOffered_=true;welcomeStep_=0;nav.Push("welcome");}
  const std::string screen=nav.Screen();std::string title=loc::T("shell.home_title");
- if(screen=="post-match"){DrawPostMatch(v,now,submit,open);return false;}
+ if(screen=="post-match"){DrawPostMatch(v,postMatch,now,submit,open);return false;}
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
   if(intent.service!=platform::ServiceAction::None){

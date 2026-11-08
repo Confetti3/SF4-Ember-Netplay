@@ -376,21 +376,28 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
     return height;
 }
 
-float HeaderHeight(bool eyebrow, float windowWidth) {
+HeaderMeasures MeasureHeader(bool eyebrow, float windowWidth) {
     const float s = Scale();
     const bool narrow = Narrow(windowWidth, s);
-    return (std::max)((narrow ? 32 : 40) * s, (eyebrow ? 13 * s + 4 * s : 0) + (narrow ? 22 : 26) * s) + 10 * s;
+    HeaderMeasures m;
+    m.mark = (narrow ? 32 : 40) * s;
+    m.title = (narrow ? 22 : 26) * s;
+    m.eyebrow = 13 * s;
+    m.eyebrowLine = eyebrow ? m.eyebrow + 4 * s : 0;
+    m.band = (std::max)(m.mark, m.eyebrowLine + m.title) + 10 * s;
+    m.height = m.band + 8 * s;
+    return m;
 }
 bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips, const char* back) {
     const float s = Scale();
     const auto p = ImGui::GetCursorScreenPos();
     const float width = ImGui::GetContentRegionAvail().x;
-    const bool narrow = Narrow(ImGui::GetWindowWidth(), s);
     auto* draw = ImGui::GetWindowDrawList();
-    const float markHeight = (narrow ? 32 : 40) * s, gap = 16 * s;
-    const float eyebrowSize = 13 * s, titleSize = (narrow ? 22 : 26) * s;
-    const float eyebrowHeight = eyebrow ? eyebrowSize + 4 * s : 0;
-    const float height = HeaderHeight(eyebrow != nullptr, ImGui::GetWindowWidth());
+    const HeaderMeasures measures = MeasureHeader(eyebrow != nullptr, ImGui::GetWindowWidth());
+    const float markHeight = measures.mark, gap = 16 * s;
+    const float eyebrowSize = measures.eyebrow, titleSize = measures.title;
+    const float eyebrowHeight = measures.eyebrowLine;
+    const float height = measures.band;
     // Back: a chevron and its word on a button, as the boards draw it.
     float left = p.x;
     bool pressed = false;
@@ -433,7 +440,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     draw->AddText(HeadingFont(), titleSize, ImVec2(x, y), Colors().text, Fit(title, room, titleSize, HeadingFont(), false).c_str());
     draw->AddLine(ImVec2(p.x, p.y + height), ImVec2(p.x + width, p.y + height), Colors().border, s);
     draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
-    ImGui::Dummy(ImVec2(width, height + 8 * s));
+    ImGui::Dummy(ImVec2(width, measures.height));
     return pressed;
 }
 

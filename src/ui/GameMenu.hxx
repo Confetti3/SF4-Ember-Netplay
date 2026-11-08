@@ -256,6 +256,12 @@ public:
     // frame later by what was drawn there before. 0: the body measures as it draws.
     // The screen sets it each frame it wants it and clears it after Draw.
     float bodyContent = 0;
+    // What Draw keeps around a body in a window `windowWidth` wide, with or
+    // without an eyebrow (no tabs, not Home, not a flyout): its top pad, the
+    // header (v2::MeasureHeader) and the item spacing ImGui leaves after its
+    // group, and the hint bar with its gap (v2::HintBarHeight, v2::HintBarGap).
+    // A screen that sizes its window to its body adds this to the body.
+    static float ChromeHeight(float windowWidth, bool eyebrow);
     using Detail = std::function<void(const std::string&)>;
     // Return false for ordinary actions embedded in an artwork grid, so their
     // labels still render (for example, Retry saving after a portrait failure).

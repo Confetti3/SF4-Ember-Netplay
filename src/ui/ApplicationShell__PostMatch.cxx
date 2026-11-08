@@ -6,6 +6,7 @@
 #include "MenuGlyphs.hxx"
 #include "V2.hxx"
 #include "MenuProbes.hxx"
+#include "PostMatchPrompt.hxx"
 #include "../common/Localization.hxx"
 #include "../session/RoomQueries.hxx"
 #include <algorithm>
@@ -93,15 +94,14 @@ const char* ButtonGlyph(const std::string& id) {
 bool Readied(const room::Table& t, int seat, std::uint64_t generation) {
     return seat >= 0 && ResultIn(t, generation) && t.ready[seat];
 }
-// The prompt's body laid out `width` wide, as DrawPostMatch draws it: the two
-// players' rows, the Ultra row under them, room for the longest detail, and the
-// buttons' bar on as few lines as their labels let it. The shell sizes the
-// panel by `height` before drawing it (PostMatchPanelFor), and the body draws
-// the bar by the same needs and lines.
-struct PostMatchBody { std::vector<float> needs; int lines = 1; float words = 0, barHeight = 0, height = 0; };
+}
+
+// As DrawPostMatch draws the body: the window is sized by it before it begins
+// (PostMatchPanelFor), and the body draws its bar by the same needs and lines.
 PostMatchBody LayOutPostMatch(const std::vector<MenuEntry>& entries, std::size_t buttons, float width) {
     const float s = Scale(), rowHeight = 52 * s, glyph = 26 * s, font = 17 * s, gap = 12 * s;
     PostMatchBody body;
+    body.width = width;
     float y = 2 * (rowHeight + 8 * s);
     for (std::size_t i = buttons; i < entries.size(); ++i) y = LayOutBoardRow(entries[i], ImVec2(0, y), width).row.y1 + 8 * s;
     for (const auto& e : entries) body.words = (std::max)(body.words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, v2::Colors().muted));
@@ -114,7 +114,6 @@ PostMatchBody LayOutPostMatch(const std::vector<MenuEntry>& entries, std::size_t
     // line. Whole pixels, so the body's window, which takes whole pixels, holds it all.
     body.height = std::ceil(y + body.barHeight + 6 * s);
     return body;
-}
 }
 
 void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot& snapshot, double now, const Submit& submit, bool* open) {
@@ -224,7 +223,7 @@ void ApplicationShell::ClosePostMatch(const ShellView& v, AfterPostMatch after, 
     if (open && netplay::Fighting(v.session.match)) *open = false;
 }
 
-ApplicationShell::PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
+PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     PostMatchModel model;
     if (!postMatch_ || postMatch_->table < 0 || postMatch_->table >= static_cast<int>(v.room.tables.size())) return model;
     const auto& p = *postMatch_;
@@ -347,7 +346,7 @@ ApplicationShell::PostMatchModel ApplicationShell::BuildPostMatch(const ShellVie
     return model;
 }
 
-ApplicationShell::PostMatchPanel ApplicationShell::PostMatchPanelFor(const PostMatchModel& model) const {
+PostMatchPanel PostMatchPanelFor(const PostMatchModel& model) {
     const float s = Scale();
     const auto* vp = ImGui::GetMainViewport();
     PostMatchPanel panel;
@@ -355,33 +354,22 @@ ApplicationShell::PostMatchPanel ApplicationShell::PostMatchPanelFor(const PostM
     panel.size.x = std::floor((std::min)(vp->Size.x - 32 * s, 720 * s));
     const float cap = std::floor(vp->Size.y - 32 * s);
     if (!model.open) { panel.size.y = (std::min)(cap, std::ceil(420 * s)); return panel; }
-    // Around the body, GameMenu::Draw's frame: its top pad, the header
-    // (v2::HeaderHeight, the 8 px under its rule and the item spacing after
-    // its group) and the hint bar with its gap. The body is the panel's
-    // width less its side margins.
-    const bool narrow = v2::Narrow(panel.size.x, s);
-    const float pad = v2::Pad(panel.size.x, s), side = v2::SideMargin(panel.size.x, s);
-    const float header = v2::HeaderHeight(!model.eyebrow.empty(), panel.size.x) + 8 * s + ImGui::GetStyle().ItemSpacing.y;
-    const float hints = (narrow ? 48 : 56) * s + 16 * s;
-    panel.content = LayOutPostMatch(model.rows, model.buttons, std::floor(panel.size.x - 2 * side)).height;
-    const float tall = std::ceil(pad + header + panel.content + hints);
+    // The body is the panel's width less the menu's side margins, and the menu
+    // keeps its own frame around it (GameMenu::ChromeHeight).
+    panel.body = LayOutPostMatch(model.rows, model.buttons, std::floor(panel.size.x - 2 * v2::SideMargin(panel.size.x, s)));
+    const float tall = std::ceil(GameMenu::ChromeHeight(panel.size.x, !model.eyebrow.empty()) + panel.body.height);
     panel.fits = tall <= cap;
     panel.size.y = (std::min)(tall, cap);
     return panel;
 }
 
-void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submit& submit, bool* open) {
-    const auto model = BuildPostMatch(v);
-    if (!model.open) { menu_.navigation.Return(); return; }
+void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& frame, double now, const Submit& submit, bool* open) {
+    const auto& model = frame.model;
+    if (!model.open || !postMatch_) { menu_.navigation.Return(); return; }
     const auto p = *postMatch_;
-    const int mine = model.mine, theirs = model.theirs;
-    const bool chosen = model.chosen, theyChose = model.theyChose, again = model.again;
-    const bool ultraOpen = model.ultraOpen, newOpponentOpen = model.newOpponentOpen;
-    const auto& rows = model.rows;
-    const std::size_t buttons = model.buttons;
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
-    if (newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
+    if (model.newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
     // The two fighters with their answers beside the countdown ring, the
@@ -395,8 +383,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // The panel was sized for this content before it began (Draw). Where it
     // all fits, the body's content height is known before the body is drawn,
     // so its scroll is right from the prompt's first frame (GameMenu::bodyContent).
-    const auto sized = PostMatchPanelFor(model);
-    menu_.bodyContent = sized.fits ? sized.content : 0;
+    menu_.bodyContent = frame.panel.fits ? frame.panel.body.height : 0;
     board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
         const float s = Scale(), rowHeight = 52 * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
@@ -416,7 +403,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         // The two fighters' answers are pictures of the state, not rows: the title says them too.
         const struct { const char* id; const room::Member* m; bool ready, seated; std::string word; } players[] = {
-            {"pm-you", model.local, chosen, mine >= 0, model.mineWord}, {"pm-opponent", model.opponent, theyChose, theirs >= 0, model.theirWord}};
+            {"pm-you", model.local, model.chosen, model.mine >= 0, model.mineWord},
+            {"pm-opponent", model.opponent, model.theyChose, model.theirs >= 0, model.theirWord}};
         // A tag's line, as v2::Tag sets it, to centre the tag in its row.
         const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
         float y = at.y;
@@ -436,11 +424,13 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             y += rowHeight + 8 * s;
         }
         // The Ultra for the next game, under the players' answers.
-        for (std::size_t i = buttons; i < entries.size(); ++i)
+        for (std::size_t i = model.buttons; i < entries.size(); ++i)
             y = menu_.DrawBoardRow(entries, entries[i], ImVec2(at.x, y), width, action, {{}, feedback.Enabled(entries[i]), false, true, true}).box.max.y + 8 * s;
         // What the focused button does, in the room the longest one takes, so
-        // the buttons stay put while the focus moves.
-        const auto body = LayOutPostMatch(entries, buttons, width);
+        // the buttons stay put while the focus moves. The panel laid the body
+        // out at its whole width; a capped panel's scroll bar takes some of
+        // that, and the body is laid out again for what is left.
+        const PostMatchBody body = width == frame.panel.body.width ? frame.panel.body : LayOutPostMatch(entries, model.buttons, width);
         const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
         if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
         y += body.words + 24 * s;
@@ -458,7 +448,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         shown.focus = nav.Focus();
         const ImVec2 panel = ImGui::GetWindowSize();
         shown.panelWidth = std::round(panel.x); shown.panelHeight = std::round(panel.y);
-        for (std::size_t i = 0; i < buttons; ++i) {
+        for (std::size_t i = 0; i < model.buttons; ++i) {
             if (entries[i].id != shown.focus) continue;
             // In whole pixels, so the player's own scroll never reads as a move.
             const float top = ImGui::GetWindowPos().y - ImGui::GetScrollY();
@@ -466,7 +456,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         const bool reveal = !(shown == postMatchBarShown_);
         postMatchBarShown_ = shown;
-        for (std::size_t i = 0; i < buttons; ++i) {
+        for (std::size_t i = 0; i < model.buttons; ++i) {
             const auto& e = entries[i];
             const v2::Box& b = places[i];
             ReportMenuCard(e.id.c_str(), b.min, b.max);
@@ -482,7 +472,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
     };
-    const auto a = menu_.Draw(model.title.c_str(), rows, "", {}, static_cast<int>(buttons), {}, board, false, 70, Tone::Pending);
+    const auto a = menu_.Draw(model.title.c_str(), model.rows, "", {}, static_cast<int>(model.buttons), {}, board, false, 70, Tone::Pending);
     menu_.ownsBack = false; menu_.eyebrow.clear(); menu_.bodyContent = 0;
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
@@ -497,17 +487,17 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     if (a.kind == MenuAction::Back) leave(AfterPostMatch::None);
     else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Fighter) leave(AfterPostMatch::FighterSelect);
     // The room's Rematch or New opponent: the same answer as the cabinet's (RoomAction).
-    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && newOpponentOpen) {
+    else if (a.kind == MenuAction::Shortcut && a.delta == MenuInput::Options && model.newOpponentOpen) {
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
     else if (a.kind == MenuAction::Activate) {
-        if (a.id == "again" && again && !chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = Send(netplay::CommandKind::Rematch, v, submit); }
+        if (a.id == "again" && model.again && !model.chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = Send(netplay::CommandKind::Rematch, v, submit); }
         else if (a.id == "rematch" || a.id == "new-opponent") { postMatch_->pairRematch = a.id == "rematch"; RoomAction(a, v, submit); }
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);
     }
     // The Ultra steps the pick the next game's Ready carries, as the room's rows do.
-    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && ultraOpen)
+    else if (a.kind == MenuAction::Adjust && a.id == "ultra" && model.ultraOpen)
         StepPick(v, {ShellAction::SelectionStep::Field::Ultra, a.delta}, submit);
 }
 } }
