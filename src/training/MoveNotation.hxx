@@ -262,16 +262,16 @@ inline bool ParseSteps(const std::string& line, std::vector<std::string>& steps,
     steps.clear();
     const auto fail = [&](std::string why) { error = std::move(why); steps.clear(); return false; };
     // A hold with no frames lasts until the next step begins, so that step is
-    // a move; the first move has no move before it to cancel or follow up,
-    // and is pressed, not let go.
+    // a move; the first move has no move before it to cancel or follow up.
     bool holding = false, moved = false;
     for (const auto& token : Tokens(line)) {
         Step step;
         if (!ParseStep(token, step, error)) return fail(error);
         if (holding && step.hold) return fail("a hold with no frames needs a move after it, not \"" + Canonical(step) + "\"");
         if (!step.hold && !moved && step.cancel) return fail(step.follow ? "the first move cannot be a follow-up" : "the first move cannot be a cancel");
-        // A reply is timed by its first press; a negative edge comes out on the release.
-        if (!step.hold && !moved && step.edge == Edge::Release) return fail("the first move cannot be let go (\"" + Canonical(step) + "\")");
+        // A first move let go is held through the stun and released when the reply is due, which needs a plain button.
+        if (!step.hold && !moved && step.edge == Edge::Release && (step.motion != "5" || step.range != Range::Any || step.air || step.mash))
+            return fail("the first move can be let go only as a button, not \"" + Canonical(step) + "\"");
         holding = step.hold && !step.frames;
         moved = moved || !step.hold;
         steps.push_back(Canonical(step));

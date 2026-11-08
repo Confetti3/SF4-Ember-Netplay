@@ -53,8 +53,8 @@ inline unsigned ChosenButtons(const Step& step) {
 // move's "@N" counted from that frame), counted from the reply's first played frame,
 // which only frames of a known length before it can reach: "#N" after a wait
 // on the fight is refused, as on the first move with nothing before it. A
-// first move pressed and let go ("]HP[") comes out on the release, which the
-// reply cannot time, so it is refused (ParseSteps).
+// first move let go ("]HP[") is a leading hold of its button, through the
+// stun, and the release is the move, so no "#N" can land on it.
 struct Compiled { std::vector<training::Input> frames; int offset = 0, anchor = -1, hold = -1; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
@@ -95,6 +95,10 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             continue;
         }
         const int timing = step.offset;
+        // A first move let go is held through the stun like a leading hold of
+        // its buttons; the move itself is the release, on the frame the reply is due.
+        const bool letGo = !follows && step.edge == Edge::Release;
+        if (letGo) pending |= ChosenButtons(step);
         // A move laid out on a frame ("#45") starts its input so it takes
         // effect there, or at once when that frame has passed; it waits for no cue.
         const bool timed = step.at >= 0;
@@ -181,7 +185,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
                 if (finish) last = DirectionBits(motion.back(), facingRight);
                 if (!step.air) mark();
                 if (step.edge == Edge::Hold) put(last | buttons, 30);
-                else if (step.edge == Edge::Release) { put(last | buttons, 30); put(last, 2); }
+                else if (step.edge == Edge::Release) { if (!letGo) put(last | buttons, 30); put(last, 2); }
                 else if (step.mash) {
                     // Five presses: several buttons are cycled one per frame (a piano),
                     // one button goes on and off a frame at a time.
@@ -211,8 +215,9 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // A move takes effect on input: one that presses nothing there (a
         // neutral "5") is no move, to time the reply by or to recover from,
         // wherever it stands, so the moves are refused whole. A linked lone
-        // direction is its wait's: its own input has none after it.
-        const unsigned takes = anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : link ? linkHeld : 0u;
+        // direction is its wait's: its own input has none after it. A move let
+        // go presses nothing by its frames alone: its button is the leading hold's.
+        const unsigned takes = letGo ? 1u : anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : link ? linkHeld : 0u;
         if (!takes) return fail("\"" + text + "\" presses nothing: a move needs a direction or a button");
         follows = true;
         // On a frame, the move's anchor lands there ("@N" from it, but on the

@@ -132,8 +132,10 @@ int main() {
     CHECK(!ParseSteps("cr.MK > shoryu", steps, error) && steps.empty() && error == "\"shoryu\" is not a move");
     CHECK(!ParseSteps("xx 236HP", steps, error) && error == "the first move cannot be a cancel");
     // Leading holds and waits are no move to cancel or follow up.
-    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP", "236]HP[", "[1] > ]HP[ > 5MK"}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
+    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP", "236]HP[", "cr.]HP[", "]HP[(mash)", "~ ]HP["}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
     CHECK(ParseSteps("5LP > 236]HP[", steps, error) && ParseSteps("[1] > [HP]", steps, error));
+    // A first move let go is held through the stun: a plain button only.
+    CHECK(ParseSteps("]HP[", steps, error));
     CHECK(!ParseSteps("2MK xx", steps, error));
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
@@ -233,6 +235,13 @@ int main() {
             CHECK(Synthesize(Steps("[2]30f > 5MK@+3"), true, compiled, error) && compiled.offset == 3 && compiled.frames.size() == 36 && compiled.frames[33].raw == MK);
             CHECK(Synthesize(Steps("[2]30f > [4] > 5MK@-2"), true, compiled, error) && compiled.offset == -2 && compiled.frames[30].wait == sf4e::training::WaitReply &&
                 compiled.frames[30].offset == 0);
+            // A first move let go: the button held through the stun, released on the move's frame.
+            CHECK(Synthesize(Steps("]HP[ > 5LP"), true, compiled, error) && compiled.hold == 0 && compiled.anchor == 1 &&
+                compiled.frames[0].raw == HP && compiled.frames[0].wait == sf4e::training::WaitReply && compiled.frames[1].raw == 0);
+            // After a leading direction hold the let-go button is held with it; a frame number cannot land on a held release, with frames before it or not.
+            CHECK(Synthesize(Steps("[1] > ]MP+MK[ > 5MK"), true, compiled, error) && compiled.hold == 0 && compiled.frames[0].raw == (DirectionBits('1', true) | MP | MK) &&
+                compiled.frames[0].wait == sf4e::training::WaitReply);
+            CHECK(!Synthesize(Steps("]HP[#30"), true, compiled, error) && compiled.frames.empty() && !Synthesize(Steps("[2]10f > ]HP[#30"), true, compiled, error) && compiled.frames.empty());
             CHECK(Synthesize(Steps("5MK@+2 > 5LP@+1"), true, compiled, error) && compiled.offset == 2 && compiled.frames[0].raw == MK);
             // Where the first move takes effect: its button; with none, its last
             // direction (a jump, a dash); a jumping attack, its jump. And the leading hold.

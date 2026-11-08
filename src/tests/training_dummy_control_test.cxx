@@ -351,6 +351,25 @@ int main() {
                         Require(led, "A reply's leading hold was not played before its move");
                     }
                 }
+                // A move on letting go of a button ("]HP[", Zonk Knuckle): the
+                // button is held from the stun's first frame and let go on the
+                // free frame plus timing, so the move comes out as a reversal.
+                {
+                    const auto reply = Plan({"]HP["});
+                    const auto& frames = reply.moves;
+                    Require(reply.hold == 0 && frames[0].raw == HP && frames[0].wait == WaitReply && ReplyStart(frames) == 0 && Lead(reply) == 0,
+                        "A release move did not begin with its button held");
+                    for (const int timing : {-MaxReplyTiming, 0, MaxReplyTiming}) {
+                        Dummy dummy;
+                        const auto block = statuses(ActorStatus::DamageGuard, 18, 0u, 20);
+                        play(dummy, reply, timing, block, 0);
+                        const Run timed = play(dummy, reply, timing, block, 0);
+                        bool held = true;
+                        for (int frame = 6; frame < timed.free + timing - 1; ++frame) held = held && timed.read[frame] == HP;
+                        Require(held && !(timed.read[timed.free + timing - 1] & HP) && !timed.dropped,
+                            "A release move was not held through the stun and let go on the free frame plus timing");
+                    }
+                }
                 // The first move's own offset counts from the free frame with the
                 // timing, whatever leads into it.
                 for (const auto& line : std::vector<std::vector<std::string>>{{"[2]30f", "5MK@+3"}, {"[2]30f", "5MK@-2"}, {"[2]30f", "[4]", "5MK@+3"},
