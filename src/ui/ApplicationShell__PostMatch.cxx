@@ -219,6 +219,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // waits for the next set to end elsewhere (Table::wantsNew).
     const bool otherFree = deciding && room::ArcadeFreeTable(v.room, p.table);
     const bool askedNew = deciding && mine >= 0 && t.wantsNew[mine];
+    // New opponent is on offer, by its button and by Y, until it is asked for.
+    const bool otherOpponent = deciding && !askedNew;
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
