@@ -114,6 +114,11 @@ listed = {row["picture"] for row in rows}
 images = build.ROOT / "docs/images"
 present = {str(p.relative_to(images)) for p in images.rglob("*") if p.suffix in build.IMAGES}
 assert listed == present, (listed ^ present)
+# The Versions page lists each release's Home at the wiki commit its tag marks, newest first.
+page = build.versions("o/r", {"refs/tags/v1.4.0": "abc", "refs/tags/v1.5.0": "def", "refs/tags/v1.10.0": "g"})
+assert page.splitlines()[2:] == \
+    ["- [v1.10.0](https://github.com/o/r/wiki/Home/g)", "- [v1.5.0](https://github.com/o/r/wiki/Home/def)",
+     "- [v1.4.0](https://github.com/o/r/wiki/Home/abc)"]
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old

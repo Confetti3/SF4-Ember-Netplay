@@ -48,6 +48,8 @@ def main():
     if not auth:
         sys.exit("no GitHub token: set GH_TOKEN or sign in with gh")
     sha = args.out.with_suffix(".sha").read_text(encoding="utf-8").strip()[:9]
+    # A release goes to a tag of the wiki and leaves the pages alone, so it may lack what nightly has since gained.
+    tag = build.release_tag(build.ROOT)
 
     with tempfile.TemporaryDirectory() as folder:
         wiki = Path(folder)
@@ -58,7 +60,7 @@ def main():
         subprocess.run(["git", *header, "clone", "-q", "--depth", "1", "-b", BRANCH,
                         f"https://github.com/{args.repo}.wiki.git", wiki], check=True)
         # Frame data is generated on a lab PC, so a build without it (in CI) keeps the published pages.
-        keep = set()
+        keep, old = set(), {}
         if not (args.out / "Frame-Data.md").exists():
             keep = {*wiki.glob("Frame-Data*.md"), *wiki.glob("images/banner-Frame-Data*.svg")}
         old = {name: (wiki / name).read_text(encoding="utf-8") for name in ("_Sidebar.md", "Home.md")
@@ -76,7 +78,7 @@ def main():
         pages, anchors = lost(before, read())
         for line in anchors:
             print(f"warning: the link {line} no longer has a heading")
-        if pages and not args.allow_removal:
+        if pages and not (args.allow_removal or tag):
             sys.exit("these pages would be removed, which breaks links to them: " + ", ".join(pages)
                      + "; keep them (a short page pointing to the new one) or pass --allow-removal")
         git("add", "-A")
@@ -86,8 +88,9 @@ def main():
         git("diff", "--cached", "--stat")
         if args.dry_run:
             return
-        git("commit", "-q", "-m", f"Update from the docs at {sha}")
-        git("push", "-q", "origin", f"HEAD:{BRANCH}")
+        git("commit", "-q", "-m", f"{'Release ' + tag if tag else 'Update'} from the docs at {sha}")
+        # A release is a tag only: the pages stay nightly's, and the next build lists the tag on Versions.
+        git("push", "-q", "origin", f"HEAD:refs/tags/{tag}" if tag else f"HEAD:{BRANCH}")
         print("published")
 
 

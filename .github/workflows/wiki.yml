@@ -5,6 +5,7 @@ name: Wiki
 on:
   push:
     branches: [nightly]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
     paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
   pull_request:
     paths: [README.md, docs/**, scripts/wiki/**, .github/workflows/wiki.yml]
@@ -38,6 +39,8 @@ jobs:
           # The whole history, without file contents: the stale check reads it.
           git -c protocol.version=2 fetch --filter=blob:none origin "$REF"
           git checkout --detach FETCH_HEAD
+          # Fetching one commit brings no tag; the footer names a release by the tag at HEAD.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then git tag "$GITHUB_REF_NAME" FETCH_HEAD; fi
       - name: Build and check the wiki
         run: |
           python3 scripts/wiki/test_wiki.py
@@ -53,7 +56,8 @@ jobs:
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
           GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
-        run: python3 scripts/wiki/publish.py --repo "$GITHUB_REPOSITORY"
+        run: |
+          python3 scripts/wiki/publish.py --repo "$GITHUB_REPOSITORY"
   dry-run:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

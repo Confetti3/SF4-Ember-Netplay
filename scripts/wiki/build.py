@@ -353,6 +353,15 @@ def version(src):
     return f"Ember {number}" + ("" if release_tag(src) else " nightly")
 
 
+def versions(repo, tags):
+    """The Versions page: each release's Home as it was when it came out, newest first; tags maps a ref to its commit."""
+    key = lambda ref: [int(n) for n in ref.removeprefix("refs/tags/v").split(".")]
+    lines = ["Each release's guides as they were when it came out. Links inside an old page lead to the current pages.", ""]
+    lines += [f"- [{ref.removeprefix('refs/tags/')}](https://github.com/{repo}/wiki/Home/{tags[ref]})"
+              for ref in sorted(tags, key=key, reverse=True)]
+    return "\n".join(lines) + "\n"
+
+
 def blurbs(lines):
     """What each guide covers, by path, from the README's Guides table: `| [name](path) | text |` rows."""
     found = {}
@@ -464,6 +473,13 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
                                  encoding="utf-8")
     links = ["**Links**", "", f"- [Download](https://github.com/{UPSTREAM}/releases)", f"- [Discord]({DISCORD})",
              f"- [Report a bug](https://github.com/{UPSTREAM}/issues)", ""]
+    # Each release's wiki is a tag on the wiki repository; GitHub shows any page as it was at a commit.
+    # A fork without a wiki has nothing to list.
+    tags = subprocess.run(["git", "ls-remote", "--refs", "--tags", f"https://github.com/{repo}.wiki.git", "v*"],
+                          capture_output=True, text=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}).stdout.split()
+    if tags:
+        (out / "Versions.md").write_text(versions(repo, dict(zip(tags[1::2], tags[::2]))), encoding="utf-8")
+        links.insert(-1, "- [Versions](Versions)")
     sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p}]({slug(p)})") + links
     (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
