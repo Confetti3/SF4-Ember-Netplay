@@ -62,6 +62,11 @@ with tempfile.TemporaryDirectory() as folder:
     Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
     errors, warnings = check.check(Path(folder))
     assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
+# A page with four sections gets a collapsed list of them, with GitHub's ids; a short page gets none.
+long = ["## One", "", "## Two [x](y)!", "```", "## Not a heading", "```", "## Three", "## Four"]
+assert build.contents(long)[3:7] == ["- [One](#one)", "- [Two x!](#two-x)", "- [Three](#three)", "- [Four](#four)"], \
+    build.contents(long)
+assert build.contents(long[:3]) == []
 # A build from a README that lost a part-heading says which, instead of a traceback.
 with tempfile.TemporaryDirectory() as folder:
     (Path(folder) / "docs/guides").mkdir(parents=True)

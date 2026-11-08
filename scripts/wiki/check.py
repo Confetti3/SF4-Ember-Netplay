@@ -9,17 +9,7 @@ import re
 import sys
 from pathlib import Path
 
-from build import LINK, fenced
-
-
-def anchor(heading):
-    """GitHub's id for a heading, near enough to catch a renamed one."""
-    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", heading).strip().lower()
-    return re.sub(r"[^\w\- ]", "", text).replace(" ", "-")
-
-
-def headings(text):
-    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)}
+from build import LINK, fenced, headings
 
 
 def check(out):

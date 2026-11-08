@@ -59,6 +59,7 @@ PAGES = [
 README_PART = ("## Which download do I need?", "## Guides")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ITEM = re.compile(r"(\d+\.|[-*+]) ")
+LINK_TEXT = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 LINK = re.compile(r'(\]\(|(?:src|href)=")([^)"\s]+)')
 
 
@@ -317,11 +318,35 @@ def nightly_repo():
     return checkout
 
 
-def write_page(out, page, title, section, lines, colors):
+def anchor(heading):
+    """GitHub's id for a heading, near enough to catch a renamed one."""
+    text = LINK_TEXT.sub(r"\1", heading).strip().lower()
+    return re.sub(r"[^\w\- ]", "", text).replace(" ", "-")
+
+
+def headings(text):
+    """The ids of a page's headings, for links to check."""
+    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)}
+
+
+def contents(lines):
+    """A collapsed "On this page" list of a page's sections, for a page long enough to want one."""
+    titles = [LINK_TEXT.sub(r"\1", line[3:]).strip() for line, code in zip(lines, fenced(lines))
+              if line.startswith("## ") and not code]
+    if len(titles) < 4:
+        return []
+    items = [f"- [{title}](#{anchor(title)})" for title in titles]
+    return ["<details>", "<summary><b>On this page</b></summary>", ""] + items + ["", "</details>", ""]
+
+
+def write_page(out, page, title, section, lines, colors, before=None, after=None):
     banner_name = f"images/banner-{slug(page)}.svg"
     (out / banner_name).write_text(banner(title, section, colors), encoding="utf-8")
-    (out / f"{slug(page)}.md").write_text(f"![{title}]({banner_name})\n\n" + "\n".join(lines).strip() + "\n",
-                                         encoding="utf-8")
+    nav = [f"[Previous: {before}]({slug(before)})" if before else None, "[Home](Home)",
+           f"[Next: {after}]({slug(after)})" if after else None]
+    body = [f"![{title}]({banner_name})", ""] + contents(lines) + ["\n".join(lines).strip(), "", "---", "",
+                                                                 " | ".join(n for n in nav if n)]
+    (out / f"{slug(page)}.md").write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
 def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None):
@@ -355,11 +380,13 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
         shutil.rmtree(out)
     (out / "images").mkdir(parents=True)
     colors, images, sidebar = theme(), set(), {}
-    for path, doc in docs.items():
+    names = [None, *pages.values(), None]
+    for i, (path, doc) in enumerate(docs.items(), 1):
         page, section = known[path]
         lines = doc.lines[1:] if doc.lines and doc.lines[0].startswith("# ") else doc.lines
         owners = doc.owners[len(doc.owners) - len(lines):]
-        write_page(out, page, page, section, mark(rewrite(lines, path, pages, images, repo), owners), colors)
+        write_page(out, page, page, section, mark(rewrite(lines, path, pages, images, repo), owners), colors,
+                   names[i - 1], names[i + 1])
         sidebar.setdefault(section, []).append(page)
 
     # Frame data pages are generated elsewhere and come as they are: an index and a page per fighter.
