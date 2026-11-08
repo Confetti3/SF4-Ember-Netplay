@@ -249,10 +249,11 @@ public:
     // the row stays readable. Presentation only; empty draws none.
     struct ListCard { std::function<float(float)> measure; std::function<void()> draw; };
     ListCard listCard;
-    // A body's content height, when its screen lays it out before drawing it
-    // (the post-match prompt): the body's window takes it as its content size,
-    // so its scroll and scroll bar are right on its first frame, not one frame
-    // later by what the last screen drew there. 0: the body measures as it draws.
+    // A body's content height, when its screen lays it out before drawing it and
+    // has made the window tall enough for all of it (the post-match prompt): the
+    // body's window takes it as its content size and shows no scroll bar, so it
+    // is right on its first frame and on the frame the content changes, not one
+    // frame later by what was drawn there before. 0: the body measures as it draws.
     // The screen sets it each frame it wants it and clears it after Draw.
     float bodyContent = 0;
     using Detail = std::function<void(const std::string&)>;

@@ -332,8 +332,10 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
     const bool inert = (f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming();
     ImGui::SetCursorScreenPos(content.min);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    // Content known to fit (bodyContent): its size now, and no scroll bar, which
+    // ImGui would otherwise judge by the body's size on the last frame.
     if (bodyContent > 0) ImGui::SetNextWindowContentSize(ImVec2(0, bodyContent));
-    ImGui::BeginChild("Body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs);
+    ImGui::BeginChild("Body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs | (bodyContent > 0 ? ImGuiWindowFlags_NoScrollbar : 0));
     ImGui::BeginDisabled(inert);
     bodyChoices = {};
     f.body(footer.empty() ? f.entries : own, navigation, f.action, content.H(), feedback_);
