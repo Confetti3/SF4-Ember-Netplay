@@ -29,33 +29,33 @@ one gives no points to either.
 
 ## Tiers and levels
 
-There are 60 levels per fighter in 10 tiers of 6, named for the material of their
-emblem. A tier shows by name with its emblem; no level number is shown. The levels
+There are 60 levels per fighter in 10 tiers of 6, named for the fire in their
+emblem, from Ash to Solar. A tier shows by name with its emblem; no level number is shown. The levels
 of a tier split its points evenly.
 
 | Tier | Levels | Points to reach |
 |---|---|---|
-| Wood | 1 to 6 | 0 |
-| Bronze | 7 to 12 | 40 |
-| Iron | 13 to 18 | 120 |
-| Steel | 19 to 24 | 250 |
-| Silver | 25 to 30 | 450 |
-| Gold | 31 to 36 | 750 |
-| Platinum | 37 to 42 | 1200 |
-| Ruby | 43 to 48 | 1900 |
-| Diamond | 49 to 54 | 2900 |
-| Obsidian | 55 to 60 | 4200 |
+| Ash | 1 to 6 | 0 |
+| Cinder | 7 to 12 | 40 |
+| Spark | 13 to 18 | 120 |
+| Kindle | 19 to 24 | 250 |
+| Ember | 25 to 30 | 450 |
+| Flame | 31 to 36 | 750 |
+| Blaze | 37 to 42 | 1200 |
+| Inferno | 43 to 48 | 1900 |
+| Phoenix | 49 to 54 | 2900 |
+| Solar | 55 to 60 | 4200 |
 
 The thresholds are a proposal. A player who wins half their games earns 1.5 points
-a game, so Obsidian is about 2800 games with one fighter; to be checked against
+a game, so Solar is about 2800 games with one fighter; to be checked against
 real play.
 
-The tier names are materials, not class letters, so a tier cannot be mistaken for
-a class. A tier is still shown with its fighter's portrait and name beside it.
+The tier names are Ember's own, not class letters or USF4 rank names, so a tier
+cannot be mistaken for a class. A tier is still shown with its fighter's portrait and name beside it.
 
 ## Art
 
-Ember draws its own emblems. None of USF4's arcade textures is used. There are 30
+Ember draws its own emblems, in the palette of `src/ui/Theme.cxx`. None of USF4's arcade textures is used. There are 30
 badges, 3 for each tier: the plain shield, the same with a laurel, and the same with
 wings and a crest on top. A level shows badge `ceil(level / 2)`, so each tier's six
 levels step through its three badges two levels at a time.
