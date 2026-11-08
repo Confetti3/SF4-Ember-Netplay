@@ -2720,6 +2720,8 @@ msgstr "{0} vyhrál(a) hru u stolu {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} vyhrál(a) set u stolu {1} ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0} vyhrál(a) set proti {1} ({2})"
 msgid "chat.typing.one"
 msgstr "{0} píše..."
 msgid "chat.typing.two"

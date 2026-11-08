@@ -2721,6 +2721,8 @@ msgstr "{0}が対戦席{1}で1戦勝利しました ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}が対戦席{1}でセットを獲得しました ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0}が{1}とのセットを獲得しました ({2})"
 msgid "chat.typing.one"
 msgstr "{0}が入力中..."
 msgid "chat.typing.two"

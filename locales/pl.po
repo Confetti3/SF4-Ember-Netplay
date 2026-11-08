@@ -2720,6 +2720,8 @@ msgstr "{0}: wygrana walka przy stole {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}: wygrany set przy stole {1} ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0}: wygrany set przeciwko {1} ({2})"
 msgid "chat.typing.one"
 msgstr "{0} pisze..."
 msgid "chat.typing.two"

@@ -2720,6 +2720,8 @@ msgstr "{0} heeft een partij gewonnen aan tafel {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} heeft de set gewonnen aan tafel {1} ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0} heeft de set gewonnen tegen {1} ({2})"
 msgid "chat.typing.one"
 msgstr "{0} typt..."
 msgid "chat.typing.two"

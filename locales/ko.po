@@ -2721,6 +2721,8 @@ msgstr "{0}님이 대전 슬롯 {1}에서 한 판을 이겼습니다 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}님이 대전 슬롯 {1}에서 세트를 이겼습니다 ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0}님이 {1}님과의 세트를 이겼습니다 ({2})"
 msgid "chat.typing.one"
 msgstr "{0}님이 입력 중..."
 msgid "chat.typing.two"

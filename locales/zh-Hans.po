@@ -2721,6 +2721,8 @@ msgstr "{0} 在对战位 {1} 赢下一局 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} 在对战位 {1} 赢下对战组 ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0} 赢下与 {1} 的对战组 ({2})"
 msgid "chat.typing.one"
 msgstr "{0} 正在输入..."
 msgid "chat.typing.two"

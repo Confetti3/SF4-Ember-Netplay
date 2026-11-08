@@ -2720,6 +2720,8 @@ msgstr "{0}: победа в бою в ячейке {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}: победа в поединке в ячейке {1} ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0}: победа в поединке против {1} ({2})"
 msgid "chat.typing.one"
 msgstr "{0} печатает..."
 msgid "chat.typing.two"

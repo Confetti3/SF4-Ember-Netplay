@@ -98,6 +98,10 @@ void ChatTranscript::Diff(const room::Snapshot& snapshot) {
             line.table = static_cast<unsigned>(i);
             const int seat = table.lastSet.winnerSeat;
             line.score[0] = table.lastSet.score[seat]; line.score[1] = table.lastSet.score[1 - seat];
+            if (snapshot.arcade != room::ClassicRoom) {
+                const auto loser = names_.find(table.lastSet.Loser());
+                if (loser != names_.end()) line.opponent = loser->second;
+            }
             Append(std::move(line));
         } else if (seen.p1 == table.p1 && seen.p2 == table.p2) {
             const bool first = table.score[0] > seen.score[0], second = table.score[1] > seen.score[1];
