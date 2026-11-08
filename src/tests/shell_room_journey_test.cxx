@@ -1015,6 +1015,40 @@ void ArcadeJourneys() {
   }
   SetMenuEntriesProbe({});SetMenuCardProbe({});ApplyTheme(1.f);a.imgui.io.DisplaySize=ImVec2(1280,960);
  }
+ {
+  // PostMatchNewOpponentIsNoRotation: a pair that stayed to decide after the
+  // set, then parted by the loser's New opponent (a swap with a fighter who
+  // asked at another table), is not the set's rotation: the winner did not
+  // "stay on" and the loser does not "wait". Each chip names who they play now,
+  // and no button explains a rotation.
+  Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
+  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;t.rules.format=room::SetFormat::Ft2;
+  auto& other=a.view.room.tables[1];other.p1=3;other.p2=4;other.phase=room::TablePhase::Waiting;other.deciding=true;other.wantsNew[0]=true;
+  a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;a.view.room.cabinets[9]=4;
+  a.Screen("room");
+  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+  std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
+  const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
+  // Player 2 won the set; the pair stays to decide.
+  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=1;t.lastSet.score[1]=2;t.deciding=true;
+  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::P2Win};a.view.matchResult=true;a.Frame();
+  Check(a.shell.Navigation().Screen()=="post-match"&&row("new-opponent")!=rows.end(),"The deciding prompt did not open with New opponent");
+  // The loser's New opponent swaps them with Player 3, who asked at table 2:
+  // Player 3 now plays the winner here, and this PC plays Player 4 there.
+  t.deciding=false;t.p1=3;t.phase=room::TablePhase::Waiting;
+  other.deciding=false;other.wantsNew[0]=false;other.p1=1;
+  for(auto& m:a.view.room.members){if(m.id==1){m.table=1;m.seat=0;}if(m.id==3){m.table=0;m.seat=0;}}
+  ++a.view.room.revision;a.Frame(0,2);
+  Check(a.shell.Navigation().Screen()=="post-match","The prompt closed when New opponent parted the pair");
+  Check(words["pm-you"]==loc::Tf("room.arcade_vs","Player 4")&&words["pm-opponent"]==loc::Tf("room.arcade_vs","Player 3"),
+   "After a New opponent swap the prompt's chips did not name who each fighter plays now");
+  const auto fighter=row("fighter");
+  Check(fighter!=rows.end()&&fighter->detail.find(loc::T("postmatch.rotate.winner"))==std::string::npos&&
+   fighter->detail.find(loc::Tf("postmatch.rotate.loser","Player 2"))==std::string::npos,"A New opponent swap was explained as the set's rotation");
+  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
+ }
  for(const auto type:{room::ArcadeRoom,room::KingRoom}){
   // A pair alone in an Arcade or King room stays together after a set and
   // readies again: the prompt offers the ordinary Rematch and names no winner

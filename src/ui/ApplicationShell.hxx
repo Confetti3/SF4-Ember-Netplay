@@ -668,6 +668,11 @@ private:
         // choice until the game is over, then does `after`.
         bool left = false;
         AfterPostMatch after = AfterPostMatch::None;
+        // The room's record of the set this game ended, as first seen: whether
+        // the pair was still seated together then (they stayed to decide, or play
+        // on). A pair that stayed and was parted later was parted by a New
+        // opponent, not by the set's rotation, so no rotation words apply.
+        bool setSeen = false, pairStayed = false;
     };
     std::optional<PostMatchPrompt> postMatch_;
     // The prompt's focused button last frame, where it stood in the panel's

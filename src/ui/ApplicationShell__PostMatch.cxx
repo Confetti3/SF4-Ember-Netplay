@@ -137,6 +137,9 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         const auto& t = snapshot.tables[p.table];
         const int mine = SeatOf(t, snapshot.localMember), theirs = SeatOf(t, p.opponent);
         if (p.result == room::MatchResult::Abort && fought.generation == p.generation) p.result = fought.result;
+        // The set's end as the room first shows it: the pair still together there
+        // stayed (PostMatchPrompt::pairStayed); apart, the set's rotation moved them.
+        if (!p.setSeen && t.lastSet.generation == p.generation) { p.setSeen = true; p.pairStayed = mine >= 0 && theirs >= 0; }
         // The pair's question answered Rematch by both: the room asks no more,
         // and the player's Rematch is their Ready for the next set.
         if (p.pairRematch && !t.deciding && mine >= 0 && theirs >= 0) {
@@ -253,16 +256,27 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // This PC's row: its choice, Back to room or Character select once made.
     std::string mineWord = p.left ? std::string(loc::T(leftAs)) : state(chosen || askedNew, mine >= 0, mine);
     std::string theirWord = state(theyChose || theyAskedNew, theirs >= 0, theirs);
-    // The set's winner stays on and its loser waits, once the room has the
-    // result; an opponent gone from the cabinets has left all the same. A
-    // New opponent swap moves fighters too, but not by who won: the winner
-    // gone from this table means that, and the rotation words would be wrong.
-    const bool winnerStayed = t.lastSet.Winner() && SeatOf(t, t.lastSet.Winner()) >= 0;
-    const bool rotated = rotates && t.lastSet.generation == p.generation && winnerStayed;
-    if (rotated) {
-        const auto word = [&](room::MemberId m) { return std::string(loc::T(m == t.lastSet.Winner() ? "postmatch.king.stays" : "postmatch.king.waits")); };
-        if (!p.left) mineWord = word(v.room.localMember);
-        if (!opponentGone) theirWord = word(p.opponent);
+    // Once the room has the set's result and the pair is apart, each fighter's
+    // chip says where they are now: playing someone (vs NAME), alone at a table
+    // (waits) or off the cabinets (left). The set's rotation parted them only
+    // when they were apart as the room first showed the set; a pair that stayed
+    // to decide was parted by a New opponent, whoever won, so only a rotation's
+    // winner still at this table stays on, and only a rotation says why below.
+    const bool apart = rotates && t.lastSet.generation == p.generation;
+    const bool rotated = apart && !p.pairStayed;
+    if (apart) {
+        const auto whereNow = [&](room::MemberId m) {
+            if (rotated && m == t.lastSet.Winner() && SeatOf(t, m) >= 0) return std::string(loc::T("postmatch.king.stays"));
+            if (room::CabinetOf(v.room, m) < 0) return std::string(loc::T("postmatch.state.left"));
+            const auto place = room::PlaceOf(v.room, m);
+            const auto* other = place.kind == room::Place::Kind::Seat && place.table >= 0 ?
+                room::SeatOpponent(v.room, static_cast<std::uint8_t>(place.table), m) : nullptr;
+            if (!other) return std::string(loc::T("postmatch.king.waits"));
+            NoteUserText(other->name);
+            return loc::Tf("room.arcade_vs", other->name);
+        };
+        if (!p.left) mineWord = whereNow(v.room.localMember);
+        theirWord = whereNow(p.opponent);
     }
     // The buttons are the prompt's only rows: the answers there are now. A
     // deciding pair's Rematch and New opponent are the room's own choice (the
