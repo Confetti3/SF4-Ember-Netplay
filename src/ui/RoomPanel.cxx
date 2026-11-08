@@ -393,6 +393,14 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   const auto ready=DescribeReady(v,s.tables[c.place.table],c.place.seat);
   // A bar button is a few words wide, so Unready drops its "unlock fighter", as on the card's strip.
   rows.push_back(Row("ready",ready.kind==ReadyControl::Unready?loc::T("room.unready.short"):ready.label,ready.refusal.empty()?ready.detail:ready.refusal,ready.kind!=ReadyControl::None));
+  // An Arcade pair deciding after a set: Ready is its Rematch, and New
+  // opponent stands beside it, the cabinet's two choices (CabinetRows) on the
+  // bar, so neither needs the player to find their own cabinet.
+  const auto& own=s.tables[c.place.table];
+  if(s.arcade&&own.deciding){
+   const bool free=room::ArcadeFreeTable(s,static_cast<std::size_t>(c.place.table));
+   rows.push_back(Row("new-opponent",loc::T("room.new_opponent"),loc::T(free?"room.new_opponent_detail":"room.new_opponent_wait"),!own.wantsNew[c.place.seat]));
+  }
   rows.push_back(UltraRow(v));
   // The opponent showed another fighter: the Ultra takes the focus, so one
   // press opens its choice with the new matchup on the card above.
