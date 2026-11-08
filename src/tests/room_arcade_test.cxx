@@ -3,6 +3,7 @@
 #include "room_authority_support.hxx"
 #include "../common/RematchInput.hxx"
 
+#include <algorithm>
 #include <iterator>
 #include <map>
 #include <set>
@@ -558,6 +559,38 @@ static void TestFullRoomTwoRequestsSwap() {
 	CHECK(Asking(authority) == 0 && Waits(authority, partner));
 }
 
+// What holds after every step, whoever does what: a cabinet holder is at one
+// table, a pair carries no wait stamp and a lone fighter does, choices and
+// requests live on a deciding pair only, one table at most asks and only
+// while nobody is free, at most the two who just parted wait alone (a third
+// would have been paired with one of them), the top slot is the longest
+// streak, a free cabinet has no streak, and member rows mirror the tables.
+static void Sound(const RoomAuthority& authority, const std::string& what) {
+	const auto& r = authority.SnapshotView();
+	const auto sound = [&](bool holds, const char* rule) { CHECK_MSG(holds, "%s, after %s", rule, what.c_str()); };
+	std::map<MemberId, int> seats;
+	int asking = 0;
+	for (const auto& t : r.tables) {
+		for (const auto m : {t.p1, t.p2}) if (m) ++seats[m];
+		const bool pair = t.p1 && t.p2;
+		sound(pair ? t.waitingSince == 0 : (!t.p1 && !t.p2) || t.waitingSince > 0, "wait stamp");
+		sound(t.deciding ? pair : !t.wantsNew[0] && !t.wantsNew[1] && !t.rematch[0] && !t.rematch[1], "choices on a deciding pair");
+		sound(t.phase == (pair ? TablePhase::Waiting : TablePhase::Idle), "table phase");
+		asking += t.wantsNew[0] || t.wantsNew[1];
+	}
+	sound(asking <= 1, "one table asks");
+	sound(!asking || std::none_of(r.tables.begin(), r.tables.end(), [](const Table& t) { return ArcadeAlone(t) || ArcadeEmpty(t); }), "a request waits while nobody is free");
+	sound(std::count_if(r.tables.begin(), r.tables.end(), ArcadeAlone) <= 2, "two alone at most");
+	for (const auto& seat : seats) sound(seat.second == 1 && CabinetOf(r, seat.first) >= 0, "a seat has a cabinet");
+	for (std::size_t i = 0; i < CabinetCount; ++i) sound(r.cabinets[i] ? seats[r.cabinets[i]] == 1 : r.streaks[i] == 0, "a cabinet has a table");
+	for (const auto s : r.streaks) sound(r.topSlot < 0 ? s == 0 : s <= r.streaks[r.topSlot] && r.streaks[r.topSlot] > 0, "top slot");
+	for (const auto& m : r.members) {
+		const int table = TableOf(authority, m.id);
+		sound(m.table == table && (table < 0 ? m.seat < 0 && m.status == MemberStatus::Idle :
+			m.seat == (r.tables[table].p1 == m.id ? 0 : 1) && m.status == MemberStatus::Seated), "member row");
+	}
+}
+
 // Gagapa's room: sixteen fighters, sets ending one table after another, and
 // every winner asking for a new opponent. Nobody is kept on the same opponent:
 // at most one request waits at a time, each fighter meets several others, and
@@ -574,6 +607,7 @@ static void TestFullRoomRotates() {
 		const MemberId winner = step % 3 ? t.p1 : t.p2;
 		const MemberId loser = OpponentOf(authority, winner);
 		Beat(authority, winner);
+		Sound(authority, "a set end in the rotation");
 		met[winner].insert(loser); met[loser].insert(winner);
 		if (authority.SnapshotView().tables[TableOf(authority, winner)].deciding) {
 			CHECK(Choose(authority, winner, ActionKind::NewOpponent).accepted);
@@ -611,6 +645,62 @@ static void TestFullRoomKing() {
 	Beat(authority, a);
 	CHECK(Choose(authority, d, ActionKind::Rematch).accepted && Choose(authority, a, ActionKind::Rematch).accepted);
 	CHECK(Paired(authority, a, d) && !t.deciding && Asking(authority) == 0 && room.streaks[0] == 2);
+	Sound(authority, "the King pair's Rematch");
+}
+
+// A random walk through a room: members join, sit anywhere, stand up and
+// leave now and then, sets end either way, deciding pairs answer. After each
+// step the room is sound; a winner keeps the table; the loser leaves it
+// whenever a table is free (King) or someone else sits (Arcade, asked
+// first); New opponent with someone free parts the pair.
+static void TestRandomWalk(RoomType type) {
+	std::uint32_t rng = 2026u + type;
+	const auto roll = [&](int n) { rng = rng * 1664525u + 1013904223u; return static_cast<int>((rng >> 8) % n); };
+	for (int round = 0; round < 60; ++round) {
+		auto authority = Arcade(type);
+		std::vector<MemberId> members{Join(authority, 0, true)};
+		int joined = 1;
+		for (int step = 0; step < 300; ++step) {
+			const auto& r = authority.SnapshotView();
+			std::vector<MemberId> deciding, playing, unseated;
+			for (const auto& t : r.tables) for (const auto m : {t.p1, t.p2}) if (m && t.p2 && t.p1) (t.deciding ? deciding : playing).push_back(m);
+			for (const auto m : members) if (CabinetOf(r, m) < 0) unseated.push_back(m);
+			const auto pick = [&](const std::vector<MemberId>& from) { return from[roll(static_cast<int>(from.size()))]; };
+			const int op = roll(100);
+			std::string what = "nothing";
+			if (op < 4 && members.size() > 1) {
+				const MemberId m = pick(members);
+				if (m != members[0]) { CHECK(authority.Leave(m).accepted); members.erase(std::find(members.begin(), members.end(), m)); what = "leave"; }
+			} else if (op < 8 && !playing.empty()) { CHECK(Choose(authority, pick(playing), ActionKind::Unqueue).accepted); what = "stand up"; }
+			else if (op < 20 && members.size() < 16) { members.push_back(Join(authority, joined++)); what = "join"; }
+			else if (op < 40 && !unseated.empty()) {
+				std::vector<int> open;
+				for (int i = 0; i < static_cast<int>(CabinetCount); ++i) if (!r.cabinets[i]) open.push_back(i);
+				Sit(authority, pick(unseated), open[roll(static_cast<int>(open.size()))]);
+				what = "sit";
+			} else if (op < 70 && !deciding.empty()) {
+				const MemberId m = pick(deciding), other = OpponentOf(authority, m);
+				const bool free = ArcadeSomeoneFree(r, static_cast<std::size_t>(TableOf(authority, m)));
+				const auto kind = roll(2) ? ActionKind::Rematch : ActionKind::NewOpponent;
+				CHECK(Choose(authority, m, kind).accepted);
+				if (kind == ActionKind::NewOpponent && free) CHECK(!Paired(authority, m, other));
+				what = kind == ActionKind::Rematch ? "rematch" : "new opponent";
+			} else if (!playing.empty()) {
+				const MemberId m = pick(playing), other = OpponentOf(authority, m);
+				const int table = TableOf(authority, m);
+				const bool free = ArcadeSomeoneFree(r, static_cast<std::size_t>(table));
+				const bool others = std::any_of(r.cabinets.begin(), r.cabinets.end(), [&](MemberId c) { return c && c != m && c != other; });
+				Beat(authority, m);
+				CHECK(TableOf(authority, m) == table);
+				const auto& after = r.tables[table];
+				if (Paired(authority, m, other)) CHECK(!others || after.deciding);
+				if (type == KingRoom && others && free) CHECK(!Paired(authority, m, other));
+				if (type == KingRoom && others && Paired(authority, m, other)) CHECK(after.wantsNew[after.p1 == other ? 0 : 1]);
+				what = "set end";
+			}
+			Sound(authority, what + " at step " + std::to_string(step) + " of round " + std::to_string(round));
+		}
+	}
 }
 
 int main() {
@@ -624,6 +714,8 @@ int main() {
 		TestFullRoomTwoRequestsSwap();
 		TestFullRoomRotates();
 		TestFullRoomKing();
+		TestRandomWalk(ArcadeRoom);
+		TestRandomWalk(KingRoom);
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();
