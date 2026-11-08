@@ -166,6 +166,9 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height);
 // a button of that word leads the header; returns true when it was pressed.
 struct HeaderChip { std::string text; ImU32 tone; };
 bool Header(const char* title, const char* eyebrow = nullptr, const std::vector<HeaderChip>& chips = {}, const char* back = nullptr);
+// The band Header draws in a window `windowWidth` wide, with or without an
+// eyebrow, to its rule; the Header then leaves 8 px under it.
+float HeaderHeight(bool eyebrow, float windowWidth);
 // Horizontal tabs under the header; the current one is filled and underlined,
 // the device's tab buttons at the ends step them, wrapping (StepTab).
 // Returns the tab the pointer pressed, or -1. Moving between tabs is the screen's.

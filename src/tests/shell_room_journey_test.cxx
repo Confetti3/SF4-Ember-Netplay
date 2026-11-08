@@ -979,41 +979,60 @@ void ArcadeJourneys() {
  {
   // PostMatchPanelFitsItsContent (#185): an Arcade pair deciding after a set,
   // its four buttons and the Ultra row under the players. At 720p and 1080p
-  // (and 1080p at 150%) the panel is as tall as all of it, so nothing
-  // scrolls: no scroll bar covers P1's row and every button is in sight.
-  Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
-  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
-  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;t.rules.format=room::SetFormat::Ft2;
-  a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
-  a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;a.view.room.cabinets[9]=4;
-  a.view.ultraSteps=true;a.view.ultraName=ui::UltraName(0,0);a.view.canChangeUltra=true;
-  a.imgui.io.DisplaySize=ImVec2(1280,720);ApplyTheme(1.f);
-  a.Screen("room");
-  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
-  std::map<std::string,bool> inView;
-  SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
-   const auto* d=ImGui::GetWindowDrawList();const ImVec2 lo=d->GetClipRectMin(),hi=d->GetClipRectMax();
-   inView[id]=min.x>=lo.x-1&&min.y>=lo.y-1&&max.x<=hi.x+1&&max.y<=hi.y+1;});
-  t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.lastSet.score[0]=2;t.lastSet.score[1]=1;t.deciding=true;
-  a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::P1Win};a.view.matchResult=true;a.Frame();
-  Check(a.shell.Navigation().Screen()=="post-match"&&rows.size()==5&&rows.back().id=="ultra"&&rows.back().enabled,
-   "The Arcade decision prompt did not open with its four buttons and the Ultra row");
-  const char* const buttons[]={"rematch","new-opponent","fighter","back"};
+  // (and 1080p at 150%) the panel is as tall as all of it from the prompt's
+  // first frame, and stays so: nothing scrolls, no scroll bar covers P1's row,
+  // every button is in sight, and the panel never changes height a frame late.
+  // Content that changes while it is open (the Ultra row going and coming
+  // back) is sized on the frame it changes.
   const std::pair<ImVec2,float> screens[]={{ImVec2(1280,720),1.f},{ImVec2(1920,1080),1.f},{ImVec2(1920,1080),1.5f}};
-  for(const auto& [size,scale]:screens){
-   a.imgui.io.DisplaySize=size;ApplyTheme(1.f,scale);inView.clear();
-   // A frame measures the content, the next takes its height, the one after scrolls by it.
-   a.Frame(0,4);
+  for(const auto& screen:screens){
+   // Named, not bound, so the checks below can capture them.
+   const ImVec2 size=screen.first;const float scale=screen.second;
+   Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
+   a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+   for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
+   auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;t.rules.format=room::SetFormat::Ft2;
+   a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
+   a.view.room.cabinets[0]=1;a.view.room.cabinets[8]=2;a.view.room.cabinets[1]=3;a.view.room.cabinets[9]=4;
+   a.view.ultraSteps=true;a.view.ultraName=ui::UltraName(0,0);a.view.canChangeUltra=true;
+   a.imgui.io.DisplaySize=size;ApplyTheme(1.f,scale);
+   a.Screen("room");
+   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
+   std::map<std::string,bool> inView;
+   SetMenuCardProbe([&](const char* id,ImVec2 min,ImVec2 max){
+    const auto* d=ImGui::GetWindowDrawList();const ImVec2 lo=d->GetClipRectMin(),hi=d->GetClipRectMax();
+    inView[id]=min.x>=lo.x-1&&min.y>=lo.y-1&&max.x<=hi.x+1&&max.y<=hi.y+1;});
    const std::string at=std::to_string(static_cast<int>(size.x))+"x"+std::to_string(static_cast<int>(size.y))+" at "+std::to_string(static_cast<int>(scale*100))+"%";
-   ImGuiWindow* panel=nullptr;ImGuiWindow* outer=nullptr;
-   for(auto* w:GImGui->Windows){if(w->Active&&std::strstr(w->Name,"/Body_"))panel=w;if(w->Active&&std::strstr(w->Name,"###EmberShell")&&!std::strstr(w->Name,"/"))outer=w;}
-   Check(a.shell.Navigation().Screen()=="post-match"&&rows.size()==5&&rows.back().id=="ultra",("The post-match prompt lost its Ultra row at "+at).c_str());
-   Check(panel&&panel->ScrollMax.y<1&&panel->Scroll.y<1,("The post-match panel scrolled at "+at).c_str());
-   Check(outer&&outer->Pos.y>=0&&outer->Pos.y+outer->Size.y<=size.y,("The post-match panel left the screen at "+at).c_str());
-   for(const char* id:buttons)Check(inView[id],("A post-match button was out of sight at "+at+": "+id).c_str());
+   const char* const buttons[]={"rematch","new-opponent","fighter","back"};
+   // The frame just drawn: the prompt's body scrolls not at all, all it drew
+   // lies inside it, every button is in sight, and the panel is on the screen.
+   const auto fits=[&](const char* when){
+    ImGuiWindow* panel=nullptr;ImGuiWindow* outer=nullptr;
+    for(auto* w:GImGui->Windows){if(w->Active&&std::strstr(w->Name,"/Body_"))panel=w;if(w->Active&&std::strstr(w->Name,"###EmberShell")&&!std::strstr(w->Name,"/"))outer=w;}
+    const std::string where=at+" "+when;
+    Check(a.shell.Navigation().Screen()=="post-match"&&panel&&outer,("The post-match prompt was not drawn at "+where).c_str());
+    Check(panel->ScrollMax.y<1&&panel->Scroll.y<1&&!panel->ScrollbarY,("The post-match panel scrolled at "+where).c_str());
+    Check(panel->DC.CursorMaxPos.y-panel->DC.CursorStartPos.y<=panel->InnerRect.GetHeight()+.5f,("The post-match content ran past its panel at "+where).c_str());
+    Check(outer->Pos.y>=0&&outer->Pos.y+outer->Size.y<=size.y,("The post-match panel left the screen at "+where).c_str());
+    for(const char* id:buttons)Check(inView[id],("A post-match button was out of sight at "+where+": "+id).c_str());
+    return outer->Size.y;
+   };
+   t.lastSet.generation=5;t.lastSet.p1=1;t.lastSet.p2=2;t.lastSet.winnerSeat=0;t.lastSet.score[0]=2;t.lastSet.score[1]=1;t.deciding=true;
+   a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::P1Win};a.view.matchResult=true;
+   inView.clear();a.Frame();
+   Check(rows.size()==5&&rows.back().id=="ultra"&&rows.back().enabled,("The Arcade decision prompt did not open with its four buttons and the Ultra row at "+at).c_str());
+   const float first=fits("on its first frame");
+   inView.clear();a.Frame(0,3);
+   Check(fits("after three frames")==first,("The post-match panel changed height after its first frame at "+at).c_str());
+   // The Ultra row goes (it cannot change any more) and comes back: the panel
+   // takes the new height on the very frame the content changes.
+   a.view.ultraSteps=false;inView.clear();a.Frame();
+   Check(rows.size()==4,("The post-match Ultra row did not go at "+at).c_str());
+   Check(fits("on the frame its Ultra row went")<first,("The post-match panel kept the Ultra row's height at "+at).c_str());
+   a.view.ultraSteps=true;inView.clear();a.Frame();
+   Check(rows.size()==5&&fits("on the frame its Ultra row came back")==first,("The post-match panel did not take the Ultra row back at once at "+at).c_str());
+   SetMenuEntriesProbe({});SetMenuCardProbe({});ApplyTheme(1.f);
   }
-  SetMenuEntriesProbe({});SetMenuCardProbe({});ApplyTheme(1.f);a.imgui.io.DisplaySize=ImVec2(1280,960);
  }
  {
   // PostMatchNewOpponentIsNoRotation: a pair that stayed to decide after the

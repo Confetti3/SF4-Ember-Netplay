@@ -686,13 +686,28 @@ private:
         }
     };
     PostMatchBarView postMatchBarShown_;
-    // The prompt's panel height that holds all its content, as DrawPostMatch
-    // measured it while drawing the last frame; 0 before any. The next frame's
-    // panel takes it, up to the screen's height, so no scroll bar covers the
-    // players' rows. Kept from one prompt to the next, whose content is alike.
-    float postMatchHeight_ = 0;
     bool matchResultSeen_ = false;
     unsigned gamesInPlaceSeen_ = 0;
+    // What the prompt shows this frame (BuildPostMatch): its title and eyebrow,
+    // the two fighters' answers, its rows (the buttons, then the Ultra) and the
+    // rules they were built by. DrawPostMatch draws it; Draw sizes the panel by
+    // it before the panel begins (PostMatchPanelFor). Not open without a prompt.
+    struct PostMatchModel {
+        bool open = false;
+        int mine = -1, theirs = -1;
+        bool chosen = false, theyChose = false, again = false, ultraOpen = false, newOpponentOpen = false;
+        const room::Member* local = nullptr;
+        const room::Member* opponent = nullptr;
+        std::string title, eyebrow, mineWord, theirWord;
+        std::vector<MenuEntry> rows;
+        std::size_t buttons = 0;
+    };
+    PostMatchModel BuildPostMatch(const ShellView& view) const;
+    // The prompt's panel for `model`: as tall as all its content, capped by the
+    // screen's height, in whole pixels; content is its body's height, and fits
+    // says the cap left all of it in sight, so nothing scrolls.
+    struct PostMatchPanel { ImVec2 size; float content = 0; bool fits = false; };
+    PostMatchPanel PostMatchPanelFor(const PostMatchModel& model) const;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);

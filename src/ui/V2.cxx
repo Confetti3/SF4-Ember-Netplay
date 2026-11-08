@@ -376,6 +376,11 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
     return height;
 }
 
+float HeaderHeight(bool eyebrow, float windowWidth) {
+    const float s = Scale();
+    const bool narrow = Narrow(windowWidth, s);
+    return (std::max)((narrow ? 32 : 40) * s, (eyebrow ? 13 * s + 4 * s : 0) + (narrow ? 22 : 26) * s) + 10 * s;
+}
 bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips, const char* back) {
     const float s = Scale();
     const auto p = ImGui::GetCursorScreenPos();
@@ -385,7 +390,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
     const float markHeight = (narrow ? 32 : 40) * s, gap = 16 * s;
     const float eyebrowSize = 13 * s, titleSize = (narrow ? 22 : 26) * s;
     const float eyebrowHeight = eyebrow ? eyebrowSize + 4 * s : 0;
-    const float height = (std::max)(markHeight, eyebrowHeight + titleSize) + 10 * s;
+    const float height = HeaderHeight(eyebrow != nullptr, ImGui::GetWindowWidth());
     // Back: a chevron and its word on a button, as the boards draw it.
     float left = p.x;
     bool pressed = false;

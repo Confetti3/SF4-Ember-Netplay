@@ -332,6 +332,7 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
     const bool inert = (f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming();
     ImGui::SetCursorScreenPos(content.min);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    if (bodyContent > 0) ImGui::SetNextWindowContentSize(ImVec2(0, bodyContent));
     ImGui::BeginChild("Body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs);
     ImGui::BeginDisabled(inert);
     bodyChoices = {};

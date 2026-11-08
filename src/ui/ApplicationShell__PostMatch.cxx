@@ -93,6 +93,28 @@ const char* ButtonGlyph(const std::string& id) {
 bool Readied(const room::Table& t, int seat, std::uint64_t generation) {
     return seat >= 0 && ResultIn(t, generation) && t.ready[seat];
 }
+// The prompt's body laid out `width` wide, as DrawPostMatch draws it: the two
+// players' rows, the Ultra row under them, room for the longest detail, and the
+// buttons' bar on as few lines as their labels let it. The shell sizes the
+// panel by `height` before drawing it (PostMatchPanelFor), and the body draws
+// the bar by the same needs and lines.
+struct PostMatchBody { std::vector<float> needs; int lines = 1; float words = 0, barHeight = 0, height = 0; };
+PostMatchBody LayOutPostMatch(const std::vector<MenuEntry>& entries, std::size_t buttons, float width) {
+    const float s = Scale(), rowHeight = 52 * s, glyph = 26 * s, font = 17 * s, gap = 12 * s;
+    PostMatchBody body;
+    float y = 2 * (rowHeight + 8 * s);
+    for (std::size_t i = buttons; i < entries.size(); ++i) y = LayOutBoardRow(entries[i], ImVec2(0, y), width).row.y1 + 8 * s;
+    for (const auto& e : entries) body.words = (std::max)(body.words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, v2::Colors().muted));
+    y += body.words + 24 * s;
+    for (std::size_t i = 0; i < buttons; ++i)
+        body.needs.push_back((ButtonGlyph(entries[i].id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, entries[i].label.c_str()).x + 24 * s);
+    body.lines = v2::BarLines(width, body.needs, gap);
+    body.barHeight = body.lines * (rowHeight + gap) - gap;
+    // The focus frame reaches 4 px past a button: room for it under the last
+    // line. Whole pixels, so the body's window, which takes whole pixels, holds it all.
+    body.height = std::ceil(y + body.barHeight + 6 * s);
+    return body;
+}
 }
 
 void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot& snapshot, double now, const Submit& submit, bool* open) {
@@ -202,9 +224,10 @@ void ApplicationShell::ClosePostMatch(const ShellView& v, AfterPostMatch after, 
     if (open && netplay::Fighting(v.session.match)) *open = false;
 }
 
-void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submit& submit, bool* open) {
-    if (!postMatch_) { menu_.navigation.Return(); return; }
-    const auto p = *postMatch_;
+ApplicationShell::PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
+    PostMatchModel model;
+    if (!postMatch_ || postMatch_->table < 0 || postMatch_->table >= static_cast<int>(v.room.tables.size())) return model;
+    const auto& p = *postMatch_;
     const auto& t = v.room.tables[p.table];
     const int mine = SeatOf(t, v.room.localMember), theirs = SeatOf(t, p.opponent);
     const auto standing = room::StandingAfter(v.room, t, p.generation, p.result);
@@ -248,7 +271,6 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         if (next) NoteUserText(next->name);
         title = next ? loc::Tf("postmatch.king.next", next->name) : std::string(loc::T("postmatch.king.waiting"));
     }
-    const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
     const auto state = [&](bool answered, bool seated, int seat) {
         return std::string(loc::T(!seated ? "postmatch.state.left" : !answered ? "postmatch.state.choosing" :
             deciding ? room_controls::ArcadeAnswerKey(t, seat) : "postmatch.state.ready"));
@@ -312,7 +334,52 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         rows.push_back(Value("ultra", loc::T("selection.ultra_combo"), v.ultraName, loc::T(ultraOpen ? "postmatch.ultra.detail" : "postmatch.ultra.set"), ultraOpen));
         rows.back().wide = true;
     }
-    const std::size_t buttons = MenuGridCells(rows);
+    model.open = true;
+    model.mine = mine; model.theirs = theirs;
+    model.chosen = chosen; model.theyChose = theyChose; model.again = again;
+    model.ultraOpen = ultraOpen; model.newOpponentOpen = newOpponentOpen;
+    model.local = local; model.opponent = opponent;
+    model.title = std::move(title); model.mineWord = std::move(mineWord); model.theirWord = std::move(theirWord);
+    // The set's score counts the game just played, whether the room has it yet or not.
+    model.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
+    model.rows = std::move(rows);
+    model.buttons = MenuGridCells(model.rows);
+    return model;
+}
+
+ApplicationShell::PostMatchPanel ApplicationShell::PostMatchPanelFor(const PostMatchModel& model) const {
+    const float s = Scale();
+    const auto* vp = ImGui::GetMainViewport();
+    PostMatchPanel panel;
+    // In whole pixels, as the window takes its size.
+    panel.size.x = std::floor((std::min)(vp->Size.x - 32 * s, 720 * s));
+    const float cap = std::floor(vp->Size.y - 32 * s);
+    if (!model.open) { panel.size.y = (std::min)(cap, std::ceil(420 * s)); return panel; }
+    // Around the body, GameMenu::Draw's frame: its top pad, the header
+    // (v2::HeaderHeight, the 8 px under its rule and the item spacing after
+    // its group) and the hint bar with its gap. The body is the panel's
+    // width less its side margins.
+    const bool narrow = v2::Narrow(panel.size.x, s);
+    const float pad = v2::Pad(panel.size.x, s), side = v2::SideMargin(panel.size.x, s);
+    const float header = v2::HeaderHeight(!model.eyebrow.empty(), panel.size.x) + 8 * s + ImGui::GetStyle().ItemSpacing.y;
+    const float hints = (narrow ? 48 : 56) * s + 16 * s;
+    panel.content = LayOutPostMatch(model.rows, model.buttons, std::floor(panel.size.x - 2 * side)).height;
+    const float tall = std::ceil(pad + header + panel.content + hints);
+    panel.fits = tall <= cap;
+    panel.size.y = (std::min)(tall, cap);
+    return panel;
+}
+
+void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submit& submit, bool* open) {
+    const auto model = BuildPostMatch(v);
+    if (!model.open) { menu_.navigation.Return(); return; }
+    const auto p = *postMatch_;
+    const int mine = model.mine, theirs = model.theirs;
+    const bool chosen = model.chosen, theyChose = model.theyChose, again = model.again;
+    const bool ultraOpen = model.ultraOpen, newOpponentOpen = model.newOpponentOpen;
+    const auto& rows = model.rows;
+    const std::size_t buttons = model.buttons;
+    const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
     std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
     if (newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
@@ -320,15 +387,17 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // The two fighters with their answers beside the countdown ring, the
     // focused button's words, and the buttons in a row, over the dimmed
     // WIN screen. B is the Back to room button, so the header has no Back.
-    // The set's score counts the game just played, whether the room has it yet or not.
     GameMenu::Body board;
     menu_.backInert = true; menu_.headerChips.clear();
-    menu_.eyebrow = t.rules.format == room::SetFormat::Unlimited ? std::string() : SetLengthText(t.rules.format) + " \xC2\xB7 " + SetScoreText(standing.score);
+    menu_.eyebrow = model.eyebrow;
     const auto* vp = ImGui::GetMainViewport();
     ImGui::GetBackgroundDrawList()->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), IM_COL32(20, 19, 18, 140));
-    // The panel this frame, for the height its content asks of the next (postMatchHeight_).
-    const float panelHeight = ImGui::GetWindowHeight();
-    board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float bodyHeight, const MenuVisualFeedback& feedback) {
+    // The panel was sized for this content before it began (Draw). Where it
+    // all fits, the body's content height is known before the body is drawn,
+    // so its scroll is right from the prompt's first frame (GameMenu::bodyContent).
+    const auto sized = PostMatchPanelFor(model);
+    menu_.bodyContent = sized.fits ? sized.content : 0;
+    board = [&](const std::vector<MenuEntry>& entries, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback& feedback) {
         const float s = Scale(), rowHeight = 52 * s;
         const auto& c = v2::Colors(); auto* d = ImGui::GetWindowDrawList();
         const ImVec2 at = ImGui::GetCursorScreenPos(); const float width = ImGui::GetContentRegionAvail().x;
@@ -347,7 +416,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         // The two fighters' answers are pictures of the state, not rows: the title says them too.
         const struct { const char* id; const room::Member* m; bool ready, seated; std::string word; } players[] = {
-            {"pm-you", local, chosen, mine >= 0, mineWord}, {"pm-opponent", opponent, theyChose, theirs >= 0, theirWord}};
+            {"pm-you", model.local, chosen, mine >= 0, model.mineWord}, {"pm-opponent", model.opponent, theyChose, theirs >= 0, model.theirWord}};
         // A tag's line, as v2::Tag sets it, to centre the tag in its row.
         const float line = (std::max)(ImGui::GetFontSize(), v2::ChipFont() + 8 * s);
         float y = at.y;
@@ -371,23 +440,17 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
             y = menu_.DrawBoardRow(entries, entries[i], ImVec2(at.x, y), width, action, {{}, feedback.Enabled(entries[i]), false, true, true}).box.max.y + 8 * s;
         // What the focused button does, in the room the longest one takes, so
         // the buttons stay put while the focus moves.
-        float words = 0;
-        for (const auto& e : entries) words = (std::max)(words, v2::Paragraph(nullptr, ImVec2(), width, e.detail, 17 * s, c.muted));
+        const auto body = LayOutPostMatch(entries, buttons, width);
         const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
         if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
-        y += words + 24 * s;
+        y += body.words + 24 * s;
         // The buttons in a bar, each with the glyph of its own press, set apart from
         // the players' rows: on one line where every label fits beside its glyph, else
         // on as few as let them (v2::BarLines), as the room's action bar does.
-        const float glyph = 26 * s, font = 17 * s, gap = 12 * s;
-        std::vector<float> needs;
-        for (std::size_t i = 0; i < buttons; ++i)
-            needs.push_back((ButtonGlyph(entries[i].id) ? glyph + 10 * s : 0) + ImGui::GetFont()->CalcTextSizeA(font, FLT_MAX, 0, entries[i].label.c_str()).x + 24 * s);
-        const int lines = v2::BarLines(width, needs, gap);
-        const float barHeight = lines * (rowHeight + gap) - gap;
-        const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, needs, gap, lines, rowHeight);
-        // On a screen too short for the whole panel a wrapped bar can reach
-        // below it (postMatchHeight_ is capped), so the focused button scrolls
+        const float glyph = 26 * s, font = 17 * s, gap = 12 * s, barHeight = body.barHeight;
+        const auto places = v2::BarPlaces({ImVec2(at.x, y), ImVec2(at.x + width, y + barHeight)}, body.needs, gap, body.lines, rowHeight);
+        // On a screen too short for the whole panel (its height is capped by
+        // the screen's, in Draw) a wrapped bar can reach below it, so the focused button scrolls
         // into view when the focus moves, the button moves in the panel's content
         // (the bar or the words over it took another line) or the panel changes
         // size; a scroll of the player's own stays put between.
@@ -418,14 +481,9 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
         }
         // The focus frame reaches 4 px past a button: the scroll keeps room for it under the last line.
         ImGui::SetCursorScreenPos(ImVec2(at.x, y + barHeight)); ImGui::Dummy(ImVec2(width, 6 * s));
-        // The panel takes all of this the next frame: the rows, the Ultra, the
-        // words and the bar on its lines. Its width alone lays them out, so one
-        // frame settles it; the screen's height is its only cap (DrawScreen).
-        const float content = y + barHeight + 6 * s - at.y;
-        postMatchHeight_ = std::ceil(panelHeight + content - bodyHeight) + 1;
     };
-    const auto a = menu_.Draw(title.c_str(), rows, "", {}, static_cast<int>(buttons), {}, board, false, 70, Tone::Pending);
-    menu_.ownsBack = false; menu_.eyebrow.clear();
+    const auto a = menu_.Draw(model.title.c_str(), rows, "", {}, static_cast<int>(buttons), {}, board, false, 70, Tone::Pending);
+    menu_.ownsBack = false; menu_.eyebrow.clear(); menu_.bodyContent = 0;
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
     const auto leave = [&](AfterPostMatch after) {
