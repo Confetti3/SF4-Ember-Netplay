@@ -54,6 +54,16 @@ PAGES = [
     ("docs/guides/SAVING_LOGS.md", "Saving Logs", "Troubleshooting"),
     ("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
 ]
+# What a page covers comes from the README's Guides table; these are the pages it does not list.
+ABOUT = {
+    "README.md": "Which download to take, installing Ember and your first launch",
+    "docs/guides/SCOPE_AND_LIMITATIONS.md": "What is experimental, and what to expect",
+    "docs/guides/CONTROLLER_MENUS.md": "Moving around Ember with a pad, stick or keyboard",
+    "docs/guides/GAME_THEMES.md": "Changing how the menus and battle HUD look and sound",
+    "docs/guides/TOURNAMENT_TEST.md": "Trying a tournament on two PCs",
+    "docs/guides/INTEGRATIONS.md": "Ember's tournament bridge for platforms, organizers and bots",
+    "docs/guides/BLUMINT_QUICKSTART.md": "Getting the Ember bridge working with BluMint",
+}
 # The README's player part, from the downloads to its guides table; the table, community and licenses are
 # for the repository page.
 README_PART = ("## Which download do I need?", "## Guides")
@@ -329,6 +339,17 @@ def headings(text):
     return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)}
 
 
+def blurbs(lines):
+    """What each guide covers, by path, from the README's Guides table: `| [name](path) | text |` rows."""
+    found = {}
+    for line in lines:
+        cells = line.strip("| ").split(" | ")
+        if len(cells) == 2 and cells[0].startswith("["):
+            for path in re.findall(r"\]\(([^)]+)\)", cells[0]):
+                found[path] = cells[1]
+    return found
+
+
 def contents(lines):
     """A collapsed "On this page" list of a page's sections, for a page long enough to want one."""
     titles = [LINK_TEXT.sub(r"\1", line[3:]).strip() for line, code in zip(lines, fenced(lines))
@@ -361,6 +382,7 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     missing = [h for h in README_PART if h not in readme.lines]
     if missing:
         sys.exit(f"README.md has no {' or '.join(missing)} heading; update README_PART in scripts/wiki/build.py")
+    about = {**ABOUT, **blurbs(readme.lines)}
     start, end = (readme.lines.index(h) for h in README_PART)
     readme.lines, readme.owners = readme.lines[start:end], readme.owners[start:end]
     shown = frozenset().union(*(owner for doc in docs.values() for owner in doc.owners))
@@ -372,9 +394,12 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
             name = PurePosixPath(path).stem.replace("_", " ").title()
             known[path] = (name, "More guides")
             report.append(f"{path} has no entry in PAGES; it is listed under More guides")
+        if path not in about:
+            report.append(f"{path} is not in the README's Guides table or ABOUT; Home does not say what it covers")
     rank = {path: i for i, (path, _, _) in enumerate(PAGES)}
     docs = dict(sorted(docs.items(), key=lambda item: rank.get(item[0], len(rank))))
     pages = {path: known[path][0] for path in docs}
+    about = {pages[path]: about.get(path, "") for path in docs}
 
     if out.exists():
         shutil.rmtree(out)
@@ -397,7 +422,7 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
                 else (path.stem.replace("-", " "), lines)
             write_page(out, path.stem, title, "Frame Data", lines, colors)
             if path.stem == "Frame-Data":
-                sidebar["Frame Data"] = ["Frame Data"]
+                sidebar["Frame Data"], about["Frame Data"] = ["Frame Data"], "Move data for every fighter"
     elif framedata:
         report.append(f"no frame data at {framedata}; the wiki is built without it")
 
@@ -416,10 +441,15 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
     text = ["![SF4 Ember Netplay](images/banner-Home.svg)", "",
             "Guides for playing Ultra Street Fighter IV online with Ember: installing it, playing in rooms, "
             "training, running tournaments and fixing problems.", ""]
-    listing = lambda heading: [line for s in order for line in [heading % s, ""]
-                               + [f"- [{p}]({slug(p)})" for p in sidebar[s]] + [""]]
-    (out / "Home.md").write_text("\n".join(text + listing("## %s")), encoding="utf-8")
-    (out / "_Sidebar.md").write_text("\n".join(["**[Home](Home)**", ""] + listing("**%s**")), encoding="utf-8")
+    table = ("| Page | What it covers |", "| --- | --- |")
+
+    def listing(heading, row, header=()):
+        return [line for s in order for line in [heading % s, "", *header, *(row(p) for p in sidebar[s]), ""]]
+
+    (out / "Home.md").write_text("\n".join(text + listing("## %s", lambda p: f"| [{p}]({slug(p)}) | {about[p]} |", table)),
+                                 encoding="utf-8")
+    (out / "_Sidebar.md").write_text("\n".join(["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p}]({slug(p)})")),
+                                     encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."

@@ -62,6 +62,10 @@ with tempfile.TemporaryDirectory() as folder:
     Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
     errors, warnings = check.check(Path(folder))
     assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
+# The Home table's blurbs come from the README's Guides table, a row with two guides covering both.
+table = ["| Guide | What it covers |", "| --- | --- |",
+         "| [A](docs/guides/A.md) and [B](docs/guides/B.md) | Both |", "| [C](c.md) | Just C |"]
+assert build.blurbs(table) == {"docs/guides/A.md": "Both", "docs/guides/B.md": "Both", "c.md": "Just C"}
 # A page with four sections gets a collapsed list of them, with GitHub's ids; a short page gets none.
 long = ["## One", "", "## Two [x](y)!", "```", "## Not a heading", "```", "## Three", "## Four"]
 assert build.contents(long)[3:7] == ["- [One](#one)", "- [Two x!](#two-x)", "- [Three](#three)", "- [Four](#four)"], \
