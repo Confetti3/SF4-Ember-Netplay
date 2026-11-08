@@ -48,6 +48,9 @@ namespace sf4e {
 		// it (HUD file name such as "cockpit" -> bytes of its .ems.emz, the editor's
 		// layout applied), and loads a Training battle again to show it.
 		void ApplyHud(const std::string& name, std::map<std::string, std::string> files);
+		// Any thread: closes the game and starts it again (a Launcher that waits for this
+		// one to exit), so name, character and portrait files of a theme load.
+		void Restart();
 		// Game thread, each runtime tick: uses the last preview asked for and
 		// moves out the themes judged "remove".
 		void TakePreview();

@@ -188,7 +188,7 @@ bool Serve(SOCKET socket, unsigned long peer) {
     if ((path == "/api/stream" || download) && query != std::string::npos && target.compare(query, 5, "?pin=") == 0) given = target.substr(query + 5);
     if (const int pin = CheckPin(given, peer)) { Reply(socket, pin == 2 ? 429 : 403, "text/plain", "pin"); return false; }
     if (hud::Owns(path)) {
-        static const hud::Host host{ [] { return sf4e::GameThemes::Directory(); }, [](const std::string& name, std::map<std::string, std::string> files) { sf4e::GameThemes::ApplyHud(name, std::move(files)); } };
+        static const hud::Host host{ [] { return sf4e::GameThemes::Directory(); }, [](const std::string& name, std::map<std::string, std::string> files) { sf4e::GameThemes::ApplyHud(name, std::move(files)); }, [] { sf4e::GameThemes::Restart(); } };
         const auto reply = hud::Handle(host, post, path, query == std::string::npos ? std::string() : target.substr(query + 1), request.substr(request.find("\r\n\r\n") + 4), HeaderValue(request, "User-Agent"));
         Reply(socket, reply.status, reply.type.c_str(), reply.body);
         return false;

@@ -43,7 +43,7 @@ R"HTML(<section id="t-layout" hidden>
 <label class="bar"><input type="checkbox" id="lyArt" checked> Art</label><select id="lyFighter" aria-label="Fighter for names and portraits"></select>
 <label class="bar"><input type="checkbox" id="lyAuto"> Auto-apply</label>
 <input id="lySaveName" placeholder="New theme name" maxlength="60" aria-label="Name for a copy of the theme"><button class="act" id="lySave">Save as new theme</button>
-<button class="act primary" id="lyApply">Apply theme</button><span class="chip" id="lyChip">Applied</span></div>
+<button class="act primary" id="lyApply">Apply theme</button><button class="act" id="lyRestart" title="Names, characters and portraits load when the game starts">Restart game</button><span class="chip" id="lyChip">Applied</span></div>
 <div class="ed"><div class="card" id="lyList" role="listbox" aria-label="HUD elements"></div>
 <div id="lyStage" class="card"><canvas id="lyCanvas" tabindex="0" aria-label="HUD layout, 1280 by 720"></canvas></div>
 <div class="card" id="lyInsp"><b id="lyName">Nothing selected</b>
@@ -222,6 +222,7 @@ g("lyCx").onclick=()=>{if(sel){snapshot();const b=box(sel);moveBy(sel,640-b.x,0)
 g("lyCy").onclick=()=>{if(sel){snapshot();const b=box(sel);moveBy(sel,0,360-b.y);changed()}};
 g("lyReset").onclick=()=>{if(sel&&lay[sel]){snapshot();delete lay[sel];changed()}};
 g("lyApply").onclick=apply;
+g("lyRestart").onclick=async()=>{if(!confirm("Restart the game? Names, characters and portraits of the theme load when it starts. This page needs the remote started again."))return;if(pending)await apply();const r=await call("/api/hud/restart",{});if(r)say("Restarting the game...")};
 g("lySave").onclick=async()=>{
  const name=g("lySaveName").value.trim();if(!name){say("Type a name for the new theme first.",true);return}
  clearTimeout(saveT);await call("/api/hud/layout",{theme,layout:lay});

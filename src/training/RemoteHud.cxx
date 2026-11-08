@@ -263,6 +263,7 @@ Reply Handle(const Host& host, bool post, const std::string& path, const std::st
         fs::remove(target, failed); fs::rename(temp, target, failed);
         return failed ? Fail(500, "cannot save") : Say(200, { { "ok", true }, { "name", ArtName(a) } });
     }
+    if (post && route == "restart") { host.restart(); return Say(200, { { "ok", true } }); }
     if (post && route == "save-as") {
         const auto json = nlohmann::json::parse(body, nullptr, false);
         const std::string name = json.is_object() && json.value("theme", nlohmann::json()).is_string() ? json["theme"].get<std::string>() : std::string();

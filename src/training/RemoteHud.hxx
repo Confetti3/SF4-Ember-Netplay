@@ -12,6 +12,7 @@ struct Host {
     std::function<std::wstring()> directory;   // the game folder
     // Uses the theme's battle HUD with these files (path under battle\hud such as "CMN/cockpit.ems.emz" -> bytes) over it.
     std::function<void(const std::string&, std::map<std::string, std::string>)> apply;
+    std::function<void()> restart;   // closes the game and starts it again
 };
 struct Reply { int status = 404; std::string type = "application/json", body; };
 

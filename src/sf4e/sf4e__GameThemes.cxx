@@ -15,6 +15,7 @@
 #include "spdlog/spdlog.h"
 
 #include "../Dimps/Dimps.hxx"
+#include "../common/install_paths.hxx"
 #include "../platform/GameThemes.hxx"
 #include "../platform/Utf8.hxx"
 #include "sf4e__GameEvents.hxx"
@@ -48,6 +49,7 @@ std::vector<std::string> removals;
 // the files to write once the next Use has copied the theme.
 struct HudAsk { std::string name; std::map<std::string, std::string> files; };
 std::optional<HudAsk> hudAsk;
+std::atomic<bool> restartAsk{ false };
 std::map<std::string, std::string> hudFiles;
 std::map<std::string, std::string> verdicts;
 std::atomic<int> opens{ 0 };
@@ -157,7 +159,24 @@ void sf4e::GameThemes::Judge(const std::string& name, const std::string& verdict
 	std::ofstream(Themes() / "review.json") << nlohmann::json(verdicts).dump(1);
 }
 
+void sf4e::GameThemes::Restart() { restartAsk = true; }
+
 void sf4e::GameThemes::TakePreview() {
+	if (restartAsk.exchange(false)) {
+		wchar_t root[MAX_PATH] = {};
+		if (install::GetInstallRoot(root, MAX_PATH)) {
+			const auto launcher = fs::path(root) / L"Launcher.exe";
+			std::wstring command = L"\"" + launcher.wstring() + L"\" --wait-pid " + std::to_wstring(GetCurrentProcessId());
+			STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
+			if (CreateProcessW(launcher.c_str(), &command[0], nullptr, nullptr, FALSE, 0, nullptr, root, &startup, &process)) {
+				CloseHandle(process.hThread); CloseHandle(process.hProcess);
+				spdlog::info("In-game themes: restarting the game");
+				Dimps::Platform::Main::Close();
+				return;
+			}
+		}
+		spdlog::warn("In-game themes: the game could not be restarted");
+	}
 	std::optional<Asked> taken;
 	std::optional<HudAsk> hud;
 	std::vector<std::string> removed;
