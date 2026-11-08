@@ -5538,6 +5538,12 @@ msgstr "Nieuwe tegenstander"
 msgid "room.new_opponent_detail"
 msgstr "Blijf zitten en speel tegen wie het langst wacht, of wacht op de volgende die gaat zitten."
 
+msgid "room.new_opponent_wait"
+msgstr "Alle anderen zijn aan het spelen. Je houdt je plek en speelt tegen de volgende die vrij is. Ondertussen kun je wachten in Training."
+
+msgid "room.new_opponent_chosen"
+msgstr "Nieuwe tegenstander gekozen"
+
 msgid "room.rematch_ask"
 msgstr "Rematch?"
 

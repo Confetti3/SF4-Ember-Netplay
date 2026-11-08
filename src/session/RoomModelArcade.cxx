@@ -117,6 +117,7 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 	PairArcade(loser, winner);
 	NormalizeMemberStatus(loser);
 	TouchRoom();
+	ServeNewOpponents();
 }
 
 // `left` stood up from `table`: the one still there plays whoever waited
@@ -130,6 +131,43 @@ void RoomAuthority::ArcadeVacated(Table& table, MemberId left) {
 		Touch(table);
 		JoinTable(stays, *waiter);
 	} else table.waitingSince = NextArrival(snapshot_);
+	ServeNewOpponents();
+}
+
+// The pair at `table` parts: `member` plays whoever has waited longest, and so
+// does the other, or each waits alone.
+void RoomAuthority::PartPair(Table& table, MemberId member) {
+	const MemberId other = table.p1 == member ? table.p2 : table.p1;
+	table.p1 = table.p2 = 0;
+	ClearReadiness(table);
+	ClearVotes(table);
+	table.phase = TablePhase::Idle;
+	Touch(table);
+	PairArcade(member, other);
+	PairArcade(other, member);
+	NormalizeMemberStatus(member); NormalizeMemberStatus(other);
+}
+
+// Someone now waits alone (a seat came free, a set parted its pair, a member
+// sat down) while a fighter at a full pair still waits for the New opponent
+// they asked for (Table::wantsNew). That pair parts as New opponent does with
+// someone free, so the request never waits for a set to end when a fighter is
+// already there. Each pass answers one request, and the partner left alone may
+// answer the next.
+void RoomAuthority::ServeNewOpponents() {
+	if (snapshot_.arcade != ArcadeRoom) return;
+	for (;;) {
+		if (std::none_of(snapshot_.tables.begin(), snapshot_.tables.end(), [](const Table& t) { return ArcadeAlone(t); })) return;
+		Table* asked = nullptr; MemberId member = 0;
+		for (auto& t : snapshot_.tables) {
+			if (asked || !t.deciding || !t.p1 || !t.p2) continue;
+			if (t.wantsNew[0]) { asked = &t; member = t.p1; }
+			else if (t.wantsNew[1]) { asked = &t; member = t.p2; }
+		}
+		if (!asked) return;
+		PartPair(*asked, member);
+		TouchRoom();
+	}
 }
 
 // `member` leaves their cabinet, and its streak with it.
@@ -177,6 +215,7 @@ Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
 	PairArcade(member, 0);
 	TouchRoom();
 	NormalizeMemberStatus(member);
+	ServeNewOpponents();
 	return Accept();
 }
 
@@ -194,21 +233,14 @@ Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table*
 		Touch(*table);
 		return Accept();
 	}
-	const MemberId other = seat == 0 ? table->p2 : table->p1;
 	if (!ArcadeFreeTable(snapshot_, table->id)) {
 		const int swap = ArcadeSwapSeat(snapshot_, table->id);
-		if (swap >= 0) SwapFighter(member, *table, swap);
+		if (swap >= 0) { SwapFighter(member, *table, swap); TouchRoom(); }
 		else { table->wantsNew[seat] = true; table->rematch[seat] = false; Touch(*table); }
 		return Accept();
 	}
-	table->p1 = table->p2 = 0;
-	ClearReadiness(*table);
-	ClearVotes(*table);
-	table->phase = TablePhase::Idle;
-	Touch(*table);
-	PairArcade(member, other);
-	PairArcade(other, member);
-	NormalizeMemberStatus(member); NormalizeMemberStatus(other);
+	PartPair(*table, member);
+	ServeNewOpponents();
 	return Accept();
 }
 

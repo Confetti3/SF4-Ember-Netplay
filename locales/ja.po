@@ -5539,6 +5539,12 @@ msgstr "新しい相手"
 msgid "room.new_opponent_detail"
 msgstr "席に座ったまま、いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
 
+msgid "room.new_opponent_wait"
+msgstr "ほかの全員が対戦中です。席はそのままで、次に空いた人と対戦します。それまでトレーニングで待てます。"
+
+msgid "room.new_opponent_chosen"
+msgstr "新しい相手を選択済み"
+
 msgid "room.rematch_ask"
 msgstr "リマッチ？"
 

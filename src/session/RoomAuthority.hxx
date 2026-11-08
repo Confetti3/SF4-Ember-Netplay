@@ -291,6 +291,8 @@ private:
 	Table* Waiter(MemberId member, MemberId parted, const Table* except);
 	void JoinTable(MemberId member, Table& table);
 	void SwapFighter(MemberId leaving, Table& table, int far);
+	void PartPair(Table& table, MemberId member);
+	void ServeNewOpponents();
 	void PairArcade(MemberId member, MemberId parted);
 	void ArcadeSetEnded(Table& table, MemberId winner, MemberId loser);
 	void ArcadeVacated(Table& table, MemberId left);

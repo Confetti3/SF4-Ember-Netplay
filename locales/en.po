@@ -5162,7 +5162,7 @@ msgid "room.new_opponent_detail"
 msgstr "Nobody else was waiting, so you two choose. Play whoever has waited longest instead, or wait for the next player to sit down."
 
 msgid "room.new_opponent_wait"
-msgstr "Everyone else is in a game. You play whoever's set ends next, and keep your seat meanwhile."
+msgstr "Everyone else is in a game. You keep your seat and play the next fighter who is free. You can wait in Training meanwhile."
 
 msgid "room.new_opponent_chosen"
 msgstr "New opponent chosen"

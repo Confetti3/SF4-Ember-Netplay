@@ -5538,6 +5538,12 @@ msgstr "Neuer Gegner"
 msgid "room.new_opponent_detail"
 msgstr "Sitzen bleiben und gegen den spielen, der am längsten wartet, oder auf den Nächsten warten, der sich setzt."
 
+msgid "room.new_opponent_wait"
+msgstr "Alle anderen spielen gerade. Sie behalten Ihren Platz und spielen gegen den Nächsten, der frei wird. Bis dahin können Sie im Training warten."
+
+msgid "room.new_opponent_chosen"
+msgstr "Neuer Gegner gewählt"
+
 msgid "room.rematch_ask"
 msgstr "Revanche?"
 

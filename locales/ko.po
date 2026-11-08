@@ -5539,6 +5539,12 @@ msgstr "새 상대"
 msgid "room.new_opponent_detail"
 msgstr "자리에 앉은 채 가장 오래 기다린 사람과 대전하거나, 다음에 앉을 사람을 기다립니다."
 
+msgid "room.new_opponent_wait"
+msgstr "다른 모두가 대전 중입니다. 자리는 그대로 두고 다음에 비는 사람과 대전합니다. 그동안 트레이닝에서 기다릴 수 있습니다."
+
+msgid "room.new_opponent_chosen"
+msgstr "새 상대 선택함"
+
 msgid "room.rematch_ask"
 msgstr "재대결?"
 
