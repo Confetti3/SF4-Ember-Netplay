@@ -30,7 +30,7 @@ one gives no points to either.
 ## Tiers and levels
 
 There are 60 levels per fighter in 10 tiers of 6, named for the fire in their
-emblem, from Ash to Solar. A tier shows by name with its emblem; no level number is shown. The levels
+emblem, from Ash to Solar. A tier shows by name with its step; no level number is shown. The levels
 of a tier split its points evenly.
 
 | Tier | Levels | Points to reach |
@@ -55,10 +55,13 @@ cannot be mistaken for a class. A tier is still shown with its fighter's portrai
 
 ## Art
 
-Ember draws its own emblems, in the palette of `src/ui/Theme.cxx`. None of USF4's arcade textures is used. There are 30
-badges, 3 for each tier: the plain shield, the same with a laurel, and the same with
-wings and a crest on top. A level shows badge `ceil(level / 2)`, so each tier's six
-levels step through its three badges two levels at a time.
+The emblems are for the upstream owner to design. None of USF4's arcade textures is
+used. The code needs only one emblem for each step of a tier, 30 in all (10 tiers,
+3 steps), found by tier and step, and takes the level from the points: a level
+shows step `(level - 1) % 6 / 2` of its tier. Until the art exists a tier shows as
+its name with up to three pips for the step, drawn by the UI, so nothing waits on
+the emblems. How a tier and its step read in the art, and whether a number shows,
+is hers to decide; the tier names above are a proposal she can change.
 
 ## Where it shows
 
