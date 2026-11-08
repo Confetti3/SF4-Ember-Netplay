@@ -62,6 +62,16 @@ with tempfile.TemporaryDirectory() as folder:
     Path(folder, "Home.md").write_text("[x](Missing) ![y](images/none.png)\n\n## Steps\n\n1. Do it.\n")
     errors, warnings = check.check(Path(folder))
     assert len(errors) == 2 and len(warnings) == 1, (errors, warnings)
+# A build from a README that lost a part-heading says which, instead of a traceback.
+with tempfile.TemporaryDirectory() as folder:
+    (Path(folder) / "docs/guides").mkdir(parents=True)
+    (Path(folder) / "README.md").write_text("# Ember\n\n## Get started\n")
+    try:
+        build.build(Path(folder), build.UPSTREAM, Path(folder) / "out", None, overlay_prs=False)
+    except SystemExit as stop:
+        assert build.README_PART[0] in str(stop), stop
+    else:
+        raise AssertionError("a README without its part-headings built")
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
