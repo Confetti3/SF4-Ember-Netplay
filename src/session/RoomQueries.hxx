@@ -151,16 +151,28 @@ inline bool ArcadeSomeoneFree(const Snapshot& room, std::size_t table) {
 inline bool ArcadeAsked(const Table& table, int seat) { return table.deciding && table.wantsNew[seat]; }
 inline bool ArcadeAwaitsNew(const Table& table) { return ArcadeAsked(table, 0) || ArcadeAsked(table, 1); }
 
-// The fighter waiting for a new opponent at a table other than `except`, or
-// 0. Only one ever waits: the next request, set end or freed seat pairs them.
-inline MemberId ArcadeAsker(const Snapshot& room, std::size_t except) {
+// A fighter waiting for a new opponent at a table other than `except`, and
+// that table; member 0 when nobody waits. Only one table ever waits: the next
+// request, set end or freed seat answers it.
+struct ArcadeWaitingAsker { std::size_t table = 0; MemberId member = 0; };
+inline ArcadeWaitingAsker ArcadeAsker(const Snapshot& room, std::size_t except) {
 	for (std::size_t other = 0; other < room.tables.size(); ++other) {
 		const auto& t = room.tables[other];
 		if (other == except) continue;
-		if (ArcadeAsked(t, 0)) return t.p1;
-		if (ArcadeAsked(t, 1)) return t.p2;
+		if (ArcadeAsked(t, 0)) return {other, t.p1};
+		if (ArcadeAsked(t, 1)) return {other, t.p2};
 	}
-	return 0;
+	return {};
+}
+
+// What New opponent does for the pair deciding at `table`, the one rule the
+// room applies (RoomAuthority::ApplyRematch) and every view describes: part
+// now when someone else is free, trade places with a fighter waiting for a new
+// opponent elsewhere, or wait for the next set to end or seat to come free.
+enum class ArcadeNewOpponent : std::uint8_t { PartNow, Swap, Wait };
+inline ArcadeNewOpponent ArcadeNewOpponentFor(const Snapshot& room, std::size_t table) {
+	if (ArcadeSomeoneFree(room, table)) return ArcadeNewOpponent::PartNow;
+	return ArcadeAsker(room, table).member ? ArcadeNewOpponent::Swap : ArcadeNewOpponent::Wait;
 }
 
 inline bool ArcadeKindValid(const Snapshot& room) {

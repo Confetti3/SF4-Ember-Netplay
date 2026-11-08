@@ -65,11 +65,11 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
 const char* ArcadeAnswerKey(const room::Table& table, int seat) {
     return table.wantsNew[seat] ? "room.new_opponent_chosen" : table.rematch[seat] ? "room.rematch_chosen" : "room.rematch_ask";
 }
-NewOpponentChoice DescribeNewOpponent(const room::Snapshot& s, const room::Table& table, int seat) {
+NewOpponentChoice DescribeNewOpponent(const room::Snapshot& s, std::size_t table, int seat) {
     NewOpponentChoice choice;
-    choice.open = table.deciding && !table.wantsNew[seat];
-    const auto index = static_cast<std::size_t>(&table - &s.tables[0]);
-    choice.detail = room::ArcadeSomeoneFree(s, index) ? "room.new_opponent_detail" : "room.new_opponent_wait";
+    choice.open = s.tables[table].deciding && !s.tables[table].wantsNew[seat];
+    // A swap with the one waiting elsewhere is a new opponent now, as parting is.
+    choice.detail = room::ArcadeNewOpponentFor(s, table) == room::ArcadeNewOpponent::Wait ? "room.new_opponent_wait" : "room.new_opponent_detail";
     return choice;
 }
 std::string StreakText(const room::Table& t, room::MemberId member) {

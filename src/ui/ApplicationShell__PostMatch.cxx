@@ -216,7 +216,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
     // New opponent's row and Y follow the room's own choice (DescribeNewOpponent).
-    const auto newOpponent = deciding ? room_controls::DescribeNewOpponent(v.room, t, mine) : room_controls::NewOpponentChoice{};
+    const auto newOpponent = deciding ? room_controls::DescribeNewOpponent(v.room, static_cast<std::size_t>(p.table), mine) : room_controls::NewOpponentChoice{};
     const bool newOpponentOpen = newOpponent.open && !p.left;
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));

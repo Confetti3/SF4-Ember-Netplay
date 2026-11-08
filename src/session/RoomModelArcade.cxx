@@ -65,11 +65,11 @@ void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
 
 // `leaving` at `table` and `asker`, waiting at another pair for a new
 // opponent (ArcadeAsker), trade places: each pair gets someone new, at 0-0.
-void RoomAuthority::SwapFighter(MemberId leaving, Table& table, MemberId asker) {
-	Table& other = snapshot_.tables[Find(asker)->table];
-	(other.p1 == asker ? other.p1 : other.p2) = 0;
+void RoomAuthority::SwapFighter(MemberId leaving, Table& table, const ArcadeWaitingAsker& asker) {
+	Table& other = snapshot_.tables[asker.table];
+	(other.p1 == asker.member ? other.p1 : other.p2) = 0;
 	(table.p1 == leaving ? table.p1 : table.p2) = 0;
-	JoinTable(asker, table);
+	JoinTable(asker.member, table);
 	JoinTable(leaving, other);
 	TouchRoom();
 }
@@ -96,7 +96,8 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 	if (!parts) {
 		// Someone at another table asked for a new opponent and nobody was free:
 		// the loser goes there, and the one who asked plays the winner.
-		if (const MemberId asker = king ? 0 : ArcadeAsker(snapshot_, table.id)) { SwapFighter(loser, table, asker); return; }
+		const auto asker = king ? ArcadeWaitingAsker{} : ArcadeAsker(snapshot_, table.id);
+		if (asker.member) { SwapFighter(loser, table, asker); return; }
 		EndChoice(table);
 		table.deciding = !king && others;
 		return;
@@ -129,7 +130,8 @@ void RoomAuthority::ArcadeVacated(Table& table, MemberId left) {
 		return;
 	}
 	table.waitingSince = NextArrival(snapshot_);
-	if (const MemberId asker = ArcadeAsker(snapshot_, table.id)) PartPair(snapshot_.tables[Find(asker)->table], asker);
+	const auto asker = ArcadeAsker(snapshot_, table.id);
+	if (asker.member) PartPair(snapshot_.tables[asker.table], asker.member);
 }
 
 // The pair at `table` parts: `member` plays whoever has waited longest, and so
@@ -210,9 +212,11 @@ Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table*
 		Touch(*table);
 		return Accept();
 	}
-	if (ArcadeSomeoneFree(snapshot_, table->id)) PartPair(*table, member);
-	else if (const MemberId asker = ArcadeAsker(snapshot_, table->id)) SwapFighter(member, *table, asker);
-	else { table->wantsNew[seat] = true; table->rematch[seat] = false; Touch(*table); }
+	switch (ArcadeNewOpponentFor(snapshot_, table->id)) {
+	case ArcadeNewOpponent::PartNow: PartPair(*table, member); break;
+	case ArcadeNewOpponent::Swap: SwapFighter(member, *table, ArcadeAsker(snapshot_, table->id)); break;
+	case ArcadeNewOpponent::Wait: table->wantsNew[seat] = true; table->rematch[seat] = false; Touch(*table); break;
+	}
 	return Accept();
 }
 
