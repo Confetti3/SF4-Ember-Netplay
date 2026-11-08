@@ -70,25 +70,19 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
 const char* ArcadeAnswerKey(const room::Table& table, int seat) {
     return table.wantsNew[seat] ? "room.new_opponent_chosen" : table.rematch[seat] ? "room.rematch_chosen" : "room.rematch_ask";
 }
-NewOpponentChoice DescribeNewOpponent(const room::Snapshot& s, std::size_t table, int seat) {
-    NewOpponentChoice choice;
-    choice.open = s.tables[table].deciding && !s.tables[table].wantsNew[seat];
-    // A swap with the one waiting elsewhere is a new opponent now, as parting is.
-    choice.detail = room::ArcadeNewOpponentFor(s, table) == room::ArcadeNewOpponent::Wait ? "room.new_opponent_wait" : "room.new_opponent_detail";
-    return choice;
-}
 ArcadeChoice DescribeArcadeChoice(const ShellView& v, std::size_t table, int seat) {
     ArcadeChoice choice;
     if (table >= v.room.tables.size() || seat < 0 || seat > 1) return choice;
     const auto& t = v.room.tables[table];
-    const auto next = DescribeNewOpponent(v.room, table, seat);
+    // A swap with the one waiting elsewhere is a new opponent now, as parting is.
+    const char* next = room::ArcadeNewOpponentFor(v.room, table) == room::ArcadeNewOpponent::Wait ? "room.new_opponent_wait" : "room.new_opponent_detail";
     // A room busy elsewhere (recovering, closing, catching up) takes neither
     // answer yet, and both say why, as Ready does.
     const bool takes = RoomActionsAvailable(v);
     choice.rematchOpen = ArcadeRematchOpen(v, t, seat);
-    choice.newOpponentOpen = takes && next.open;
+    choice.newOpponentOpen = takes && t.deciding && !t.wantsNew[seat];
     choice.rematchDetail = takes ? std::string(loc::T("room.rematch_detail")) : std::string(RoomWaitReason(v));
-    choice.newOpponentDetail = takes ? std::string(loc::T(next.detail)) : std::string(RoomWaitReason(v));
+    choice.newOpponentDetail = takes ? std::string(loc::T(next)) : std::string(RoomWaitReason(v));
     return choice;
 }
 std::string StreakText(const room::Table& t, room::MemberId member) {
