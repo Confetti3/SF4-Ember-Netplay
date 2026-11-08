@@ -27,7 +27,7 @@ Own and install Ultra Street Fighter IV on Steam. Use the complete package on bo
 
 6. Open **Fighter select** on Home to save your fighter, edition, costume, color and Ultra. You can do this before joining a room or while waiting alone; in a room, an Xbox pad's X opens **Change fighter**. P1 chooses the match stage. When P1 picks **Random**, **Random stage pool** under the stage cards lists every stage; Select skips a stage or puts it back, and Random only picks from the stages left in. The pool is P1's own saved setting and at least one stage always stays in. Return to your table and press A on your own card for **Ready up**; it uses your saved selection. Choose **Unready / unlock fighter** (A again) before changing it. B on your own card leaves your seat or queue place at once, asking first only if that would end a set score or hand the seat to a queued player; a running game blocks it and says why, and during a start held for a locked-in spectator B cancels the start instead.
 
-   ![Fighter select](../images/guides/user_netplay/fighter-select.webp)
+   ![Fighter select](../images/ember-fighter-selection.png)
 
    ![Costume gallery](../images/ember-costumes.png)
 

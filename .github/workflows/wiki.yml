@@ -35,13 +35,15 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c protocol.version=2 fetch --depth=1 origin "$REF"
+          # The whole history, without file contents: the stale check reads it.
+          git -c protocol.version=2 fetch --filter=blob:none origin "$REF"
           git checkout --detach FETCH_HEAD
       - name: Build and check the wiki
         run: |
           python3 scripts/wiki/test_wiki.py
           python3 scripts/wiki/build.py | tee -a "$GITHUB_STEP_SUMMARY"
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 scripts/wiki/stale.py | tee -a "$GITHUB_STEP_SUMMARY"
       # Publishing waits until the repository variable WIKI_PUBLISH is "true", so a
       # fork can stage the wiki on its own before the main repository turns it on.
       - name: Publish the wiki
@@ -64,7 +66,7 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c protocol.version=2 fetch --depth=1 origin "$GITHUB_SHA" "$BASE"
+          git -c protocol.version=2 fetch --filter=blob:none origin "$GITHUB_SHA" "$BASE"
           git checkout --detach "$GITHUB_SHA"
           git worktree add --detach build/base "$BASE"
       - name: Build the wiki from the base and from the change and show what changes

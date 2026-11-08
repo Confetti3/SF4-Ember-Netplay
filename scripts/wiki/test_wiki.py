@@ -5,6 +5,7 @@ from pathlib import Path
 
 import build
 import check
+import stale
 import publish
 
 # A changed paragraph keeps the current text and shows the new one below it, marked.
@@ -84,6 +85,19 @@ with tempfile.TemporaryDirectory() as folder:
 # A page or a heading that links point to may not disappear unnoticed; an anchor kept for a moved heading counts.
 assert publish.lost({"A": "## One\n## Two", "B": "x"}, {"A": "## One\n## Three"}) == (["B"], ["A#two"])
 assert publish.lost({"A": "## Two"}, {"A": '<a name="two"></a>'}) == ([], [])
+# The pictures are stale once what a kind of them shows changed after the capture.
+rows = [{"picture": "a.webp", "source": "render home"}, {"picture": "b.webp", "source": "render room"},
+        {"picture": "c.webp", "source": "game"}]
+assert stale.stale(rows, lambda path: ["c2abcde"] if path == "src/ui" else []) == \
+    ["render pictures: src/ui changed after their capture, last in c2abcde"]
+assert stale.stale(rows, lambda path: []) == []
+# Every picture in the docs is in the manifest, and the manifest names no picture that is gone.
+rows = stale.read(build.ROOT)
+assert {row["source"].split()[0] for row in rows} <= set(stale.WATCHED), "a manifest row names a source kind stale.py lacks"
+listed = {row["picture"] for row in rows}
+images = build.ROOT / "docs/images"
+present = {str(p.relative_to(images)) for p in images.rglob("*") if p.suffix in build.IMAGES}
+assert listed == present, (listed ^ present)
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
