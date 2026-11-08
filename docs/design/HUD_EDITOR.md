@@ -9,7 +9,7 @@ Reference implementation (Python, lab only): `D:\ember-build\lab\cyberpunk\edito
   (per element: x, y, rotation, scale, hide, mirror). The theme is never rewritten.
 - Applying = Ember reads the theme's EMS, applies `layout.json`, writes the result into
   `ember\theme\battle\hud` (the active folder `platform::game_themes::Use` already swaps in), then reloads the battle HUD (`GameThemes::Preview`).
-- Auto-apply on: every change applies within a second. Off: changes queue, one Apply button sends all. Setting is per browser.
+- Auto-apply on: every change applies within a second. Off: changes queue, one Apply button sends all. Setting is per browser, off by default. Apply with no changes switches to the theme as it is.
 - Names, portraits, labels, ultra name load at game start only (restart needed). Cockpit loads per battle.
 - Desktop only: tab hidden and `/api/hud/*` refused for phones/touch-only (UA + `pointer:coarse` in page, UA check on server). Same PIN, LAN only, same enable switch as the remote plus a HUD checkbox.
 - Writes limited to `ember\themes\*`.

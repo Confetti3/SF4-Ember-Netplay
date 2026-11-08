@@ -41,9 +41,9 @@ R"HTML(<section id="t-layout" hidden>
 <button class="act" id="lyCx">Centre X</button><button class="act" id="lyCy">Centre Y</button>
 <button class="act" id="lyReset">Reset element</button><button class="act" id="lyFit">Fit view</button>
 <label class="bar"><input type="checkbox" id="lyArt" checked> Art</label><select id="lyFighter" aria-label="Fighter for names and portraits"></select>
-<label class="bar"><input type="checkbox" id="lyAuto" checked> Auto-apply</label>
+<label class="bar"><input type="checkbox" id="lyAuto"> Auto-apply</label>
 <input id="lySaveName" placeholder="New theme name" maxlength="60" aria-label="Name for a copy of the theme"><button class="act" id="lySave">Save as new theme</button>
-<button class="act primary" id="lyApply" disabled>Apply 0 changes</button><span class="chip" id="lyChip">Applied</span></div>
+<button class="act primary" id="lyApply">Apply theme</button><span class="chip" id="lyChip">Applied</span></div>
 <div class="ed"><div class="card" id="lyList" role="listbox" aria-label="HUD elements"></div>
 <div id="lyStage" class="card"><canvas id="lyCanvas" tabindex="0" aria-label="HUD layout, 1280 by 720"></canvas></div>
 <div class="card" id="lyInsp"><b id="lyName">Nothing selected</b>
@@ -58,11 +58,12 @@ R"HTML(<section id="t-layout" hidden>
 constexpr const char* HudJs1 =
 R"HTML((function(){
 "use strict";
-if(/Mobi|Android|iPhone|iPad|iPod|Tablet|Silk/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0&&matchMedia("(pointer:coarse)").matches))return;   // a phone or a touch tablet (an iPad says Mac): desktop only
+if(/Mobi|Android|iPhone|iPad|iPod|Tablet|Silk/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0&&matchMedia("(hover:none)").matches)){   // a phone or a touch tablet (an iPad says Mac): desktop only
+tabs.push(["layout","Layout"]);const so=show;show=function(id){so(id);if(id=="layout"){const m=document.getElementById("lyMsg");m.textContent="The HUD editor needs a desktop browser.";m.className="bad"}};return}
 tabs.push(["layout","Layout"]);
 const g=id=>document.getElementById(id),DY=21,GO=[-59.2,55.6];
 let artSet=new Set(),upFor=null,sprites=[],sheets={},fighter="RYU",loadId=0,theme="",els=[],byId={},lay={},undo=[],redo=[],sel="",pending=0,V={z:1,ox:0,oy:0},guide=null,drag=null,saveT=0;
-let auto=true;try{auto=localStorage.getItem("hudAuto")!=="0"}catch(e){}
+let auto=false;try{auto=localStorage.getItem("hudAuto")==="1"}catch(e){}
 function say(t,bad){g("lyMsg").textContent=t||"";g("lyMsg").className=bad?"bad":""}
 async function call(path,body){
  try{const r=await fetch(path,{method:body?"POST":"GET",headers:{"X-Pin":pin},body:body?JSON.stringify(body):undefined});
@@ -183,7 +184,7 @@ function inspector(){
  if(!e)return;const v=lay[sel]||{x:e.cx,y:e.cy,rot:0,s:1,hide:false};
  g("lyX").value=+v.x.toFixed(1);g("lyY").value=+v.y.toFixed(1);g("lyRot").value=+v.rot.toFixed(1);g("lyS").value=+v.s.toFixed(3);g("lyHide").checked=!!v.hide}
 function bar(){
- g("lyAuto").checked=auto;g("lyApply").disabled=auto||!pending;g("lyApply").textContent="Apply "+pending+" change"+(pending==1?"":"s");
+ g("lyAuto").checked=auto;g("lyApply").disabled=auto;g("lyApply").textContent=pending?"Apply "+pending+" change"+(pending==1?"":"s"):"Apply theme";
  g("lyChip").textContent=auto?"Applied live":pending?pending+" pending":"Up to date";g("lyChip").className="chip"+(!auto&&pending?" off":"")}
 function paint(){list();inspector();images();bar();draw()}
 function snapshot(){undo.push(JSON.stringify(lay));if(undo.length>100)undo.shift();redo=[]}
