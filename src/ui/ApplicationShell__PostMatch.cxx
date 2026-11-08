@@ -430,7 +430,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
         // the buttons stay put while the focus moves. The panel laid the body
         // out at its whole width; a capped panel's scroll bar takes some of
         // that, and the body is laid out again for what is left.
-        const PostMatchBody body = width == frame.panel.body.width ? frame.panel.body : LayOutPostMatch(entries, model.buttons, width);
+        const PostMatchBody body = std::floor(width) == frame.panel.body.width ? frame.panel.body : LayOutPostMatch(entries, model.buttons, width);
         const auto focused = std::find_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return e.id == nav.Focus(); });
         if (focused != entries.end()) v2::Paragraph(d, ImVec2(at.x, y + 8 * s), width, focused->detail, 17 * s, c.muted);
         y += body.words + 24 * s;
