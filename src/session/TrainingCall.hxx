@@ -1,5 +1,6 @@
 #pragma once
 #include "RoomModel.hxx"
+#include "RoomQueries.hxx"
 #include "../common/TrainingCallInput.hxx"
 #include <algorithm>
 #include <cstdint>
@@ -51,24 +52,23 @@ public:
     // waiting for yet. A place in a queue or a seat with the other one empty
     // is no obstacle; that is what the call is for. With a fighter already
     // opposite, the call would come the moment the battle began. An Arcade
-    // fighter who asked for a new opponent in a full room (Table::wantsNew)
-    // still has the old one opposite, but waits for someone else: Training
-    // is theirs too, and the call comes once the new opponent sits there.
+    // pair where one asked for a new opponent in a full room (ArcadeAwaitsNew)
+    // still sit together, but neither plays the other again: Training is
+    // both of theirs, and the call comes once someone new sits opposite.
     static bool MayTrain(const Snapshot& room) {
         if (!room.localMember) return false;
         int seat = 0;
         const Table* at = LocalTable(room, seat);
         if (!at) return true;
         const MemberId opponent = seat ? at->p1 : at->p2;
-        return (!opponent || AskedNew(*at, seat)) && !at->ready[seat] && (at->phase == TablePhase::Idle || at->phase == TablePhase::Waiting);
+        return (!opponent || ArcadeAwaitsNew(*at)) && !at->ready[seat] && (at->phase == TablePhase::Idle || at->phase == TablePhase::Waiting);
     }
-    static bool AskedNew(const Table& table, int seat) { return table.deciding && table.wantsNew[seat]; }
     Step Update(const Snapshot& room, const Input& in, std::uint64_t nowMs) {
         int seat = 0;
         const Table* at = LocalTable(room, seat);
         const MemberId opponent = at ? (seat ? at->p1 : at->p2) : 0;
         const bool open = at && (at->phase == TablePhase::Idle || at->phase == TablePhase::Waiting);
-        const bool waiting = opponent && open && !at->ready[seat] && !AskedNew(*at, seat);
+        const bool waiting = opponent && open && !at->ready[seat] && !ArcadeAwaitsNew(*at);
         if (state_ != State::Idle && (!waiting || at->id != table_ || opponent != opponent_ || room.roomEpoch != roomEpoch_)) Reset();
         if (!waiting) return Step::None;
         // Once the player has been back at the main menu, the cap ends the

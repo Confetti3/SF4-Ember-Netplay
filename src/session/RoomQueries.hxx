@@ -137,34 +137,30 @@ inline bool ArcadeAlone(const Table& table) {
 }
 inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
 
-// Whether New opponent can part the Arcade pair at `table`: someone waits
-// alone at another table, or another table is free to wait at. Otherwise the
-// room has nobody else for either of them and pairs the two again
-// (RoomAuthority::PairArcade).
-inline bool ArcadeFreeTable(const Snapshot& room, std::size_t table) {
+// Whether New opponent parts the Arcade pair at `table` at once: someone
+// waits alone at another table, or another table is free to wait at.
+// Otherwise every table is a pair and the request waits (Table::wantsNew).
+inline bool ArcadeSomeoneFree(const Snapshot& room, std::size_t table) {
 	for (std::size_t other = 0; other < room.tables.size(); ++other)
 		if (other != table && (ArcadeAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
 	return false;
 }
 
-// In a full room every table is a pair, so nobody waits alone: the way to a
-// new opponent is a fighter at another table that is choosing too and has not
-// asked for Rematch. Returns that fighter's table * 2 + seat, preferring one
-// who asked for New opponent too, then a table where nobody has voted, or -1.
-// `askedOnly` takes only those who asked.
-inline int ArcadeSwapSeat(const Snapshot& room, std::size_t table, bool askedOnly = false) {
-	int best = -1, bestRank = 99;
+// A fighter still seated with their last opponent who asked for a new one
+// while nobody else was free (Table::wantsNew).
+inline bool ArcadeAsked(const Table& table, int seat) { return table.deciding && table.wantsNew[seat]; }
+inline bool ArcadeAwaitsNew(const Table& table) { return ArcadeAsked(table, 0) || ArcadeAsked(table, 1); }
+
+// The fighter waiting for a new opponent at a table other than `except`, or
+// 0. Only one ever waits: the next request, set end or freed seat pairs them.
+inline MemberId ArcadeAsker(const Snapshot& room, std::size_t except) {
 	for (std::size_t other = 0; other < room.tables.size(); ++other) {
 		const auto& t = room.tables[other];
-		if (other == table || !t.deciding || !t.p1 || !t.p2) continue;
-		const int votes = t.rematch[0] + t.rematch[1];
-		for (int seat = 0; seat < 2; ++seat) {
-			if (t.rematch[seat] || (askedOnly && !t.wantsNew[seat])) continue;
-			const int rank = (t.wantsNew[seat] ? 0 : 10) + votes;
-			if (rank < bestRank) { best = static_cast<int>(other) * 2 + seat; bestRank = rank; }
-		}
+		if (other == except) continue;
+		if (ArcadeAsked(t, 0)) return t.p1;
+		if (ArcadeAsked(t, 1)) return t.p2;
 	}
-	return best;
+	return 0;
 }
 
 inline bool ArcadeKindValid(const Snapshot& room) {

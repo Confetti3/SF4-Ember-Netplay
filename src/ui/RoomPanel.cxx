@@ -141,12 +141,11 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(static_cast<int>(c)!=ownCabinet||mine.kind!=Place::Kind::Seat)continue;
   const auto& table=s.tables[mine.table];
   if(table.deciding){
-   // With nobody else free New opponent waits for the next set to end elsewhere.
-   const bool free=room::ArcadeFreeTable(s,static_cast<std::size_t>(mine.table));
+   const auto next=DescribeNewOpponent(s,table,mine.seat);
    row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},
-    {"new-opponent",loc::T("room.new_opponent"),loc::T(free?"room.new_opponent_detail":"room.new_opponent_wait")}};
+    {"new-opponent",loc::T("room.new_opponent"),loc::T(next.detail)}};
    row.choices[0].enabled=!table.rematch[mine.seat];
-   row.choices[1].enabled=!table.wantsNew[mine.seat];
+   row.choices[1].enabled=next.open;
    continue;
   }
   OwnSeatRow(row,v,table,mine.seat,leaveAsk==mine.table);
@@ -398,8 +397,8 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   // bar, so neither needs the player to find their own cabinet.
   const auto& own=s.tables[c.place.table];
   if(s.arcade&&own.deciding){
-   const bool free=room::ArcadeFreeTable(s,static_cast<std::size_t>(c.place.table));
-   rows.push_back(Row("new-opponent",loc::T("room.new_opponent"),loc::T(free?"room.new_opponent_detail":"room.new_opponent_wait"),!own.wantsNew[c.place.seat]));
+   const auto next=DescribeNewOpponent(s,own,c.place.seat);
+   rows.push_back(Row("new-opponent",loc::T("room.new_opponent"),loc::T(next.detail),next.open));
   }
   rows.push_back(UltraRow(v));
   // The opponent showed another fighter: the Ultra takes the focus, so one

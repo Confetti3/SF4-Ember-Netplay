@@ -1,5 +1,6 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
+#include "../session/RoomQueries.hxx"
 #include "Theme.hxx"
 #include "FighterSelector.hxx"
 #include "../common/FighterCatalog.hxx"
@@ -56,10 +57,20 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
     const int side = t.p2 == m->id ? 1 : 0;
     const auto* other = room::FindMember(s, side ? t.p1 : t.p2);
     std::string text = other ? loc::Tf("room.arcade_vs", other->name) : std::string(loc::T("room.arcade_waiting"));
-    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(t.wantsNew[side] ? "room.new_opponent_chosen" : t.rematch[side] ? "room.rematch_chosen" : "room.rematch_ask");
+    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(ArcadeAnswerKey(t, side));
     else if (other && !SetScoreText(t.score).empty()) text += " \xC2\xB7 " + SetScoreText(t.score);
     if (s.streaks[cabinet]) text += " \xC2\xB7 " + loc::Tf("room.streak", s.streaks[cabinet]);
     return text;
+}
+const char* ArcadeAnswerKey(const room::Table& table, int seat) {
+    return table.wantsNew[seat] ? "room.new_opponent_chosen" : table.rematch[seat] ? "room.rematch_chosen" : "room.rematch_ask";
+}
+NewOpponentChoice DescribeNewOpponent(const room::Snapshot& s, const room::Table& table, int seat) {
+    NewOpponentChoice choice;
+    choice.open = table.deciding && !table.wantsNew[seat];
+    const auto index = static_cast<std::size_t>(&table - &s.tables[0]);
+    choice.detail = room::ArcadeSomeoneFree(s, index) ? "room.new_opponent_detail" : "room.new_opponent_wait";
+    return choice;
 }
 std::string StreakText(const room::Table& t, room::MemberId member) {
     return member && t.streakHolder == member && t.streak >= 2 ? loc::Tf("room.streak", t.streak) : std::string();

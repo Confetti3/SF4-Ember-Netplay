@@ -36,13 +36,13 @@ int main() {
 		EXPECT(!TrainingCall::MayTrain(readied));
 		for (const auto phase : {TablePhase::Ready, TablePhase::Playing, TablePhase::Paused, TablePhase::Closed})
 			EXPECT(!TrainingCall::MayTrain(Room(2, 0, 2, phase)));
-		// An Arcade pair choosing after a set: the one who asked for a new
-		// opponent in a full room waits for someone else, so Training is theirs;
-		// the other, or one who chose Rematch, still has the old one opposite.
+		// An Arcade pair choosing after a set: once one asked for a new
+		// opponent in a full room, neither plays the other again, so both may
+		// train; a pair where one only chose Rematch still has each other.
 		auto asked = Room(2, 1, 2); asked.tables[1].deciding = true; asked.tables[1].wantsNew[1] = true;
 		EXPECT(TrainingCall::MayTrain(asked));
 		auto partner = asked; partner.localMember = 1;
-		EXPECT(!TrainingCall::MayTrain(partner));
+		EXPECT(TrainingCall::MayTrain(partner));
 		auto rematch = Room(2, 1, 2); rematch.tables[1].deciding = true; rematch.tables[1].rematch[1] = true;
 		EXPECT(!TrainingCall::MayTrain(rematch));
 	}

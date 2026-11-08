@@ -466,13 +466,15 @@ static void TestFullRoomNewOpponent() {
 	Beat(authority, winner);
 	CHECK(Paired(authority, winner, a) && Paired(authority, loser, b));
 	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding && !t.wantsNew[0] && !t.wantsNew[1]);
-	// Two pairs choosing at once, nobody waiting: New opponent swaps them.
+	// Two pairs choosing at once: New opponent never pulls in a fighter who
+	// has not asked, so it waits; once one at the other table asks too, the
+	// two who asked play each other's last opponents.
 	Beat(authority, e);
 	Beat(authority, a);
 	const MemberId aOpponent = Paired(authority, a, winner) ? winner : loser;
-	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted);
-	CHECK(!Paired(authority, a, aOpponent) && !Paired(authority, e, f));
-	CHECK(Paired(authority, a, e) || Paired(authority, a, f));
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Paired(authority, a, aOpponent) && Paired(authority, e, f));
+	CHECK(Choose(authority, e, ActionKind::NewOpponent).accepted);
+	CHECK(Paired(authority, a, f) && Paired(authority, e, aOpponent));
 	// Answering Rematch instead withdraws the request.
 	Beat(authority, winner);
 	const auto& mine = authority.SnapshotView().tables[TableOf(authority, winner)];
@@ -521,9 +523,9 @@ static void TestFullRoomRequestTakesAFreedSeat() {
 	CHECK(Paired(authority, x, b));
 }
 
-// A waiting request is served by the next set to end; with two pairs choosing
-// at once, New opponent swaps with the other table. One who asked and stands
-// up takes the request with them; the partner then waits alone.
+// A waiting request is served by the next set to end, or by a second request
+// at another table, never by pulling in a fighter who did not ask. One who
+// asked and stands up takes the request with them; the partner then waits.
 static void TestFullRoomTwoRequestsSwap() {
 	auto authority = Arcade();
 	const auto m = FullRoom(authority);
@@ -536,13 +538,17 @@ static void TestFullRoomTwoRequestsSwap() {
 	// c's set ends while a waits: a's request is served by it at once.
 	Beat(authority, c);
 	CHECK(Paired(authority, a, c) && Paired(authority, b, d) && Asking(authority) == 0);
-	// Both pairs finish and choose; New opponent at one swaps with a fighter
-	// still choosing at the other, so nothing waits and both pairs change.
+	// Both pairs finish. A Rematch vote at the other table is never taken
+	// back by a request here: it waits. When the other fighter there asks
+	// too, the two who asked trade places.
 	Beat(authority, a);
 	Beat(authority, b);
-	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 0);
-	CHECK(!Paired(authority, a, c) && (Paired(authority, a, b) || Paired(authority, a, d)));
-	CHECK(Paired(authority, c, Paired(authority, a, b) ? d : b));
+	CHECK(Choose(authority, b, ActionKind::Rematch).accepted);
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 1 && Paired(authority, a, c));
+	const auto& other = authority.SnapshotView().tables[TableOf(authority, b)];
+	CHECK(Paired(authority, b, d) && other.deciding && other.rematch[other.p1 == b ? 0 : 1]);
+	CHECK(Choose(authority, d, ActionKind::NewOpponent).accepted && Asking(authority) == 0);
+	CHECK(Paired(authority, a, b) && Paired(authority, d, c));
 	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding);
 	// A request leaves with the one who made it; the partner waits alone.
 	Beat(authority, a);

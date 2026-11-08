@@ -290,9 +290,8 @@ private:
 	Result ApplySetRoomType(MemberId member, const Action& action);
 	Table* Waiter(MemberId member, MemberId parted, const Table* except);
 	void JoinTable(MemberId member, Table& table);
-	void SwapFighter(MemberId leaving, Table& table, int far);
+	void SwapFighter(MemberId leaving, Table& table, MemberId asker);
 	void PartPair(Table& table, MemberId member);
-	void ServeNewOpponents();
 	void PairArcade(MemberId member, MemberId parted);
 	void ArcadeSetEnded(Table& table, MemberId winner, MemberId loser);
 	void ArcadeVacated(Table& table, MemberId left);

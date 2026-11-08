@@ -443,6 +443,8 @@ void from_json(const nlohmann::json& json, Table& value) {
 			const auto& asked = json.at("wants_new");
 			if (!asked.is_array() || asked.size() != 2 || !asked.at(0).is_boolean() || !asked.at(1).is_boolean()) throw std::invalid_argument("room wants new");
 			value.wantsNew[0] = asked.at(0).get<bool>(); value.wantsNew[1] = asked.at(1).get<bool>();
+			// A fighter's answer is one or the other.
+			if ((value.wantsNew[0] && value.rematch[0]) || (value.wantsNew[1] && value.rematch[1])) throw std::invalid_argument("room wants new");
 		}
 	}
 	value.waitingSince = json.contains("waiting_since") ? ReadU64(json, "waiting_since") : 0;

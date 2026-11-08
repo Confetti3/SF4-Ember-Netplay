@@ -10,7 +10,8 @@
 namespace sf4e { namespace room {
 
 namespace {
-void ClearVotes(Table& table) {
+// The pair's choice after a set is over, or never began.
+void EndChoice(Table& table) {
 	table.deciding = false;
 	table.rematch[0] = table.rematch[1] = false;
 	table.wantsNew[0] = table.wantsNew[1] = false;
@@ -43,7 +44,7 @@ void RoomAuthority::JoinTable(MemberId member, Table& table) {
 	if (!table.p1) table.p1 = member; else table.p2 = member;
 	ClearReadiness(table);
 	table.score[0] = table.score[1] = 0;
-	ClearVotes(table);
+	EndChoice(table);
 	const bool pair = table.p1 && table.p2;
 	table.phase = pair ? TablePhase::Waiting : TablePhase::Idle;
 	table.waitingSince = pair ? 0 : NextArrival(snapshot_);
@@ -62,16 +63,15 @@ void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
 	JoinTable(member, *table);
 }
 
-// `leaving` at `table` and the fighter at `far` (table * 2 + seat) trade
-// places: each pair gets someone new, at 0-0.
-void RoomAuthority::SwapFighter(MemberId leaving, Table& table, int far) {
-	Table& other = snapshot_.tables[far / 2];
-	MemberId& theirs = far % 2 ? other.p2 : other.p1;
-	const MemberId stranger = theirs;
+// `leaving` at `table` and `asker`, waiting at another pair for a new
+// opponent (ArcadeAsker), trade places: each pair gets someone new, at 0-0.
+void RoomAuthority::SwapFighter(MemberId leaving, Table& table, MemberId asker) {
+	Table& other = snapshot_.tables[Find(asker)->table];
+	(other.p1 == asker ? other.p1 : other.p2) = 0;
 	(table.p1 == leaving ? table.p1 : table.p2) = 0;
-	theirs = 0;
-	JoinTable(stranger, table);
+	JoinTable(asker, table);
 	JoinTable(leaving, other);
+	TouchRoom();
 }
 
 // A set is over. The winner stays and plays whoever has waited longest alone,
@@ -94,15 +94,10 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 		[&](MemberId m) { return m && m != winner && m != loser; });
 	const bool parts = challenger || (king && others);
 	if (!parts) {
-		ClearVotes(table);
 		// Someone at another table asked for a new opponent and nobody was free:
 		// the loser goes there, and the one who asked plays the winner.
-		const int asked = king ? -1 : ArcadeSwapSeat(snapshot_, table.id, true);
-		if (asked >= 0) {
-			SwapFighter(loser, table, asked);
-			TouchRoom();
-			return;
-		}
+		if (const MemberId asker = king ? 0 : ArcadeAsker(snapshot_, table.id)) { SwapFighter(loser, table, asker); return; }
+		EndChoice(table);
 		table.deciding = !king && others;
 		return;
 	}
@@ -117,21 +112,24 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 	PairArcade(loser, winner);
 	NormalizeMemberStatus(loser);
 	TouchRoom();
-	ServeNewOpponents();
 }
 
 // `left` stood up from `table`: the one still there plays whoever waited
-// longest, or waits here.
+// longest, or the fighter waiting for a new opponent, or waits here. A seat
+// coming free is the one way someone is free while a request waits: requests
+// wait only in a full room, and a set that ends answers them itself.
 void RoomAuthority::ArcadeVacated(Table& table, MemberId left) {
-	ClearVotes(table);
+	EndChoice(table);
 	const MemberId stays = Lone(table);
 	if (!stays) { table.waitingSince = 0; return; }
 	if (Table* waiter = Waiter(stays, left, &table)) {
 		table.p1 = table.p2 = 0; table.waitingSince = 0;
 		Touch(table);
 		JoinTable(stays, *waiter);
-	} else table.waitingSince = NextArrival(snapshot_);
-	ServeNewOpponents();
+		return;
+	}
+	table.waitingSince = NextArrival(snapshot_);
+	if (const MemberId asker = ArcadeAsker(snapshot_, table.id)) PartPair(snapshot_.tables[Find(asker)->table], asker);
 }
 
 // The pair at `table` parts: `member` plays whoever has waited longest, and so
@@ -140,34 +138,13 @@ void RoomAuthority::PartPair(Table& table, MemberId member) {
 	const MemberId other = table.p1 == member ? table.p2 : table.p1;
 	table.p1 = table.p2 = 0;
 	ClearReadiness(table);
-	ClearVotes(table);
+	EndChoice(table);
 	table.phase = TablePhase::Idle;
 	Touch(table);
 	PairArcade(member, other);
 	PairArcade(other, member);
 	NormalizeMemberStatus(member); NormalizeMemberStatus(other);
-}
-
-// Someone now waits alone (a seat came free, a set parted its pair, a member
-// sat down) while a fighter at a full pair still waits for the New opponent
-// they asked for (Table::wantsNew). That pair parts as New opponent does with
-// someone free, so the request never waits for a set to end when a fighter is
-// already there. Each pass answers one request, and the partner left alone may
-// answer the next.
-void RoomAuthority::ServeNewOpponents() {
-	if (snapshot_.arcade != ArcadeRoom) return;
-	for (;;) {
-		if (std::none_of(snapshot_.tables.begin(), snapshot_.tables.end(), [](const Table& t) { return ArcadeAlone(t); })) return;
-		Table* asked = nullptr; MemberId member = 0;
-		for (auto& t : snapshot_.tables) {
-			if (asked || !t.deciding || !t.p1 || !t.p2) continue;
-			if (t.wantsNew[0]) { asked = &t; member = t.p1; }
-			else if (t.wantsNew[1]) { asked = &t; member = t.p2; }
-		}
-		if (!asked) return;
-		PartPair(*asked, member);
-		TouchRoom();
-	}
+	TouchRoom();
 }
 
 // `member` leaves their cabinet, and its streak with it.
@@ -215,32 +192,27 @@ Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
 	PairArcade(member, 0);
 	TouchRoom();
 	NormalizeMemberStatus(member);
-	ServeNewOpponents();
 	return Accept();
 }
 
 // After a set: Rematch until both chose it, or New opponent. With someone
 // else free, New opponent parts the pair at once and each plays whoever waited
-// longest, or waits. In a full room it swaps with a fighter choosing at another
-// table, or else waits (Table::wantsNew) for the next set that ends.
+// longest, or waits. In a full room it swaps with the fighter waiting for a
+// new opponent at another table, or else waits (Table::wantsNew) for the next
+// set to end or seat to come free.
 Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table* table) {
 	if (!snapshot_.arcade || !table->deciding) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : table->p2 == member ? 1 : -1;
 	if (seat < 0) return Reject(RejectReason::NotSeated);
 	if (action.kind == ActionKind::Rematch) {
 		table->rematch[seat] = true; table->wantsNew[seat] = false;
-		if (table->rematch[0] && table->rematch[1]) ClearVotes(*table);
+		if (table->rematch[0] && table->rematch[1]) EndChoice(*table);
 		Touch(*table);
 		return Accept();
 	}
-	if (!ArcadeFreeTable(snapshot_, table->id)) {
-		const int swap = ArcadeSwapSeat(snapshot_, table->id);
-		if (swap >= 0) { SwapFighter(member, *table, swap); TouchRoom(); }
-		else { table->wantsNew[seat] = true; table->rematch[seat] = false; Touch(*table); }
-		return Accept();
-	}
-	PartPair(*table, member);
-	ServeNewOpponents();
+	if (ArcadeSomeoneFree(snapshot_, table->id)) PartPair(*table, member);
+	else if (const MemberId asker = ArcadeAsker(snapshot_, table->id)) SwapFighter(member, *table, asker);
+	else { table->wantsNew[seat] = true; table->rematch[seat] = false; Touch(*table); }
 	return Accept();
 }
 
