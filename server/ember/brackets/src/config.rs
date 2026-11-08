@@ -611,7 +611,11 @@ mod tests {
         // Nor a game: its matches are USF4's. A tournament may name SFV, and
         // nothing else.
         assert_eq!(config.tournaments[0].game, Game::Usf4);
-        for (game, read) in [("sfv", Some(Game::Sfv)), ("usf4", Some(Game::Usf4)), ("sf6", None)] {
+        for (game, read) in [
+            ("sfv", Some(Game::Sfv)),
+            ("usf4", Some(Game::Usf4)),
+            ("sf6", None),
+        ] {
             let mut named = text.clone();
             named["tournaments"][0]["game"] = serde_json::json!(game);
             std::fs::write(&path, named.to_string()).unwrap();

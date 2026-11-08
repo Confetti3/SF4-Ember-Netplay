@@ -291,9 +291,7 @@ fn ratings_sittings_and_choices_from_before_games_existed_are_sf4s() {
         )
         .unwrap();
     let games: Vec<(String, String)> = connection
-        .prepare(
-            "SELECT game, discord_user_id FROM skill_ratings ORDER BY game, discord_user_id",
-        )
+        .prepare("SELECT game, discord_user_id FROM skill_ratings ORDER BY game, discord_user_id")
         .unwrap()
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
         .unwrap()

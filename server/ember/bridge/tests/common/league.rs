@@ -118,8 +118,14 @@ impl Fixture {
         second: usize,
         games_to_win: u8,
     ) -> Value {
-        self.ordinary_in("usf4", "ultra_only", external, [first, second], games_to_win)
-            .await
+        self.ordinary_in(
+            "usf4",
+            "ultra_only",
+            external,
+            [first, second],
+            games_to_win,
+        )
+        .await
     }
 
     /// `ordinary`, for `game` under `edition_policy`.

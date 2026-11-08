@@ -230,9 +230,11 @@ impl TestBridge {
         self.state()
             .db
             .read(move |tx| {
-                Ok(tx.query_row("SELECT game FROM matches WHERE id = ?1", [id], |row| {
-                    row.get(0)
-                })?)
+                Ok(
+                    tx.query_row("SELECT game FROM matches WHERE id = ?1", [id], |row| {
+                        row.get(0)
+                    })?,
+                )
             })
             .await
             .unwrap()

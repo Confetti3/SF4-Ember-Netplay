@@ -54,7 +54,11 @@ async fn the_bridge_offers_both_games_and_checks_usf4_as_before() {
     assert_eq!(caps["games"], json!(["usf4", "sfv"]));
 
     // USF4's sets are Ultra only; another game, or none, is refused as before.
-    for (game, edition) in [("usf4", "not_applicable"), ("sf6", "ultra_only"), ("", "ultra_only")] {
+    for (game, edition) in [
+        ("usf4", "not_applicable"),
+        ("sf6", "ultra_only"),
+        ("", "ultra_only"),
+    ] {
         let external = format!("refused-{game}-{edition}");
         let command = f.match_command(game, edition, &external, [0, 1], 2);
         let (status, body) = f
@@ -82,7 +86,10 @@ async fn assignments_name_each_matchs_game() {
     assert_eq!(game_of(&listed, &sfv["match_id"]), "sfv");
     let (_, found) = f
         .bridge
-        .get(&f.organizer, &format!("/v1/matches/{}", sfv["match_id"].as_str().unwrap()))
+        .get(
+            &f.organizer,
+            &format!("/v1/matches/{}", sfv["match_id"].as_str().unwrap()),
+        )
         .await;
     assert_eq!(found["rules"]["edition_policy"], "not_applicable");
 }
@@ -123,7 +130,10 @@ async fn a_record_is_one_games_and_usf4s_reads_as_it_always_did() {
     // before games, byte for byte, and names no game.
     let before = record_bytes(&f, 0, "").await;
     let parsed: Value = serde_json::from_slice(&before).unwrap();
-    assert_eq!(before, serde_json::to_vec(&usf4_record(&f, &parsed)).unwrap());
+    assert_eq!(
+        before,
+        serde_json::to_vec(&usf4_record(&f, &parsed)).unwrap()
+    );
     assert_eq!(record_bytes(&f, 0, "?game=usf4").await, before);
     assert_eq!(record_bytes(&f, 0, "?limit=10").await, before);
 
@@ -135,11 +145,21 @@ async fn a_record_is_one_games_and_usf4s_reads_as_it_always_did() {
     assert_eq!(status, StatusCode::CREATED, "{body}");
     let after = record_bytes(&f, 0, "").await;
     let parsed: Value = serde_json::from_slice(&after).unwrap();
-    assert_eq!(after, serde_json::to_vec(&usf4_record(&f, &parsed)).unwrap());
+    assert_eq!(
+        after,
+        serde_json::to_vec(&usf4_record(&f, &parsed)).unwrap()
+    );
     assert_eq!(record_bytes(&f, 0, "?game=usf4").await, after);
-    let sfv_record: Value = serde_json::from_slice(&record_bytes(&f, 0, "?game=sfv").await).unwrap();
-    assert_eq!(sfv_record["sets"], json!({ "played": 1, "won": 0, "lost": 1 }));
-    assert_eq!(sfv_record["games"], json!({ "won": 0, "lost": 1, "drawn": 0 }));
+    let sfv_record: Value =
+        serde_json::from_slice(&record_bytes(&f, 0, "?game=sfv").await).unwrap();
+    assert_eq!(
+        sfv_record["sets"],
+        json!({ "played": 1, "won": 0, "lost": 1 })
+    );
+    assert_eq!(
+        sfv_record["games"],
+        json!({ "won": 0, "lost": 1, "drawn": 0 })
+    );
     assert_eq!(sfv_record["recent"][0]["match_id"], sfv["match_id"]);
     assert_eq!(sfv_record["recent"].as_array().unwrap().len(), 1);
 
@@ -170,7 +190,10 @@ async fn an_sfv_lobbys_sets_are_sfv_matches_and_its_standings_count_them() {
     assert_eq!(game_of(&assignments(&f, 0).await, &set), "sfv");
     let (_, found) = f
         .bridge
-        .get(&f.organizer, &format!("/v1/matches/{}", set.as_str().unwrap()))
+        .get(
+            &f.organizer,
+            &format!("/v1/matches/{}", set.as_str().unwrap()),
+        )
         .await;
     assert_eq!(found["rules"]["edition_policy"], "not_applicable");
 

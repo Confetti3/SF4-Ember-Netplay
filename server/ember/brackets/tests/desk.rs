@@ -139,7 +139,11 @@ async fn an_event_that_names_sfv_makes_sfv_matches() {
     world.bridge.connect(1, "player1").await;
     world.bridge.connect(2, "Player_2").await;
 
-    run_event(&world, json!({ "rounds": { "games_to_win": 2 }, "game": "sfv" })).await;
+    run_event(
+        &world,
+        json!({ "rounds": { "games_to_win": 2 }, "game": "sfv" }),
+    )
+    .await;
     connector.pass(true).await;
     let matches = world.bridge.matches().await;
     assert_eq!(matches.len(), 1);
