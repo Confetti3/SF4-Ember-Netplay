@@ -39,7 +39,9 @@ std::vector<std::string> ValueLabels(const std::string& id, const std::string& v
     if (id == "time") for (int t : room::RoundTimes) labels.push_back(std::to_string(t));
     if (id == "set-length") for (int n = 0; n <= room::MaxSetLength; ++n) labels.push_back(SetLengthText(static_cast<room::SetFormat>(n)));
     if (id == "rotation") for (int r = 0; r <= 2; ++r) labels.push_back(RotationText(static_cast<room::RotationMode>(r)));
-    if (id == "replay-show") for (const char* key : kReplayShowKeys) labels.push_back(loc::T(key));
+    if (id == "rf-show") for (const char* key : kReplayShowKeys) labels.push_back(loc::T(key));
+    if (id == "rf-sort") for (const char* key : kReplaySortKeys) labels.push_back(loc::T(key));
+    if (id == "rf-side") for (const char* key : kReplaySideKeys) labels.push_back(loc::T(key));
     return labels;
 }
 }

@@ -1743,6 +1743,18 @@ msgstr "Контрудар"
 msgid "training.dummy.quick"
 msgstr "Быстрый подъём"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "Шкала супер"
 
@@ -5177,6 +5189,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Включайте и выключайте части HUD во время боя."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Хитбоксы"
 
@@ -5659,6 +5713,60 @@ msgstr "С видео"
 
 msgid "replays.show.kept"
 msgstr "Сохранённые"
+
+msgid "replays.sort"
+msgstr "Сортировка"
+
+msgid "replays.sort_detail"
+msgstr "Порядок списка."
+
+msgid "replays.sort.newest"
+msgstr "Сначала новые"
+
+msgid "replays.sort.oldest"
+msgstr "Сначала старые"
+
+msgid "replays.sort.player"
+msgstr "Имя игрока"
+
+msgid "replays.sort.fighter"
+msgstr "Имя бойца"
+
+msgid "replays.sort.longest"
+msgstr "Сначала длинные"
+
+msgid "replays.fighter_detail"
+msgstr "Только матчи, в которых играл этот боец."
+
+msgid "replays.filter"
+msgstr "Сортировка и фильтр"
+
+msgid "replays.filter_detail"
+msgstr "Открывает страницу сортировки списка и выбора бойцов."
+
+msgid "replays.side"
+msgstr "Сторона"
+
+msgid "replays.side_detail"
+msgstr "На какой стороне должны быть выбранные бойцы."
+
+msgid "replays.side.either"
+msgstr "Любая сторона"
+
+msgid "replays.side.one"
+msgstr "Игрок 1"
+
+msgid "replays.side.two"
+msgstr "Игрок 2"
+
+msgid "replays.matches_shown"
+msgstr "Матчей в списке"
+
+msgid "replays.filter_reset"
+msgstr "Сбросить"
+
+msgid "replays.filter_reset_detail"
+msgstr "Возвращает каждый выбор к началу."
 
 msgid "replays.search"
 msgstr "Поиск"
@@ -7652,6 +7760,57 @@ msgstr "Режим ТВ"
 
 msgid "settings.tv_mode_detail"
 msgstr "Для телевизора в другом конце комнаты: всё на четверть крупнее, внутри безопасной зоны 5% по краям."
+
+msgid "settings.group.game_themes"
+msgstr "Темы игры"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Главное меню"
+
+msgid "settings.game_theme_title"
+msgstr "Титульный экран"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Выбор персонажа"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Выбор арены"
+
+msgid "settings.game_theme_versus"
+msgstr "Экран противостояния"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Меню паузы"
+
+msgid "settings.game_theme_network"
+msgstr "Сетевые меню"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Знаки издания"
+
+msgid "settings.game_theme_buttons"
+msgstr "Кнопки и значки"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Звуки меню"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Файлы для этого экрана из темы в папке ember\\themes папки игры. Файлы игры остаются без изменений. Главное меню показывает выбор сразу, другие экраны — при следующем открытии."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Ни у одной темы нет файлов для этого экрана. Положите тему с её папкой ui в папку ember\\themes папки игры и запустите игру снова."
+
+msgid "settings.game_theme_game"
+msgstr "Как в игре"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "Боевой HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Полосы здоровья, супер и реванша, таймер и объявления из темы в папке ember\\themes в папке игры. Файлы игры не меняются. Следующий бой покажет её."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Темы с боевым HUD не найдены. Положите тему с папкой battle\\hud внутри в ember\\themes в папке игры и перезапустите игру."
 
 msgid "menu.pages"
 msgstr "Страницы"

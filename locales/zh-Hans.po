@@ -1743,6 +1743,18 @@ msgstr "反击命中"
 msgid "training.dummy.quick"
 msgstr "快速起身"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "超级能量"
 
@@ -5178,6 +5190,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "开关对战中 HUD 的各项。"
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "判定框"
 
@@ -5660,6 +5714,60 @@ msgstr "有视频"
 
 msgid "replays.show.kept"
 msgstr "已保留"
+
+msgid "replays.sort"
+msgstr "排序"
+
+msgid "replays.sort_detail"
+msgstr "列表的顺序。"
+
+msgid "replays.sort.newest"
+msgstr "最新优先"
+
+msgid "replays.sort.oldest"
+msgstr "最早优先"
+
+msgid "replays.sort.player"
+msgstr "玩家名称"
+
+msgid "replays.sort.fighter"
+msgstr "角色名称"
+
+msgid "replays.sort.longest"
+msgstr "最长优先"
+
+msgid "replays.fighter_detail"
+msgstr "仅显示该角色参与的比赛。"
+
+msgid "replays.filter"
+msgstr "排序和筛选"
+
+msgid "replays.filter_detail"
+msgstr "打开用于排序列表和选择角色的页面。"
+
+msgid "replays.side"
+msgstr "方位"
+
+msgid "replays.side_detail"
+msgstr "所选角色必须在哪一侧。"
+
+msgid "replays.side.either"
+msgstr "任一侧"
+
+msgid "replays.side.one"
+msgstr "玩家 1"
+
+msgid "replays.side.two"
+msgstr "玩家 2"
+
+msgid "replays.matches_shown"
+msgstr "列出的比赛"
+
+msgid "replays.filter_reset"
+msgstr "重置"
+
+msgid "replays.filter_reset_detail"
+msgstr "将所有选择恢复到初始状态。"
 
 msgid "replays.search"
 msgstr "搜索"
@@ -7653,6 +7761,57 @@ msgstr "电视模式"
 
 msgid "settings.tv_mode_detail"
 msgstr "适合房间另一头的电视：所有内容放大四分之一，并保持在边缘 5% 的安全区域内。"
+
+msgid "settings.group.game_themes"
+msgstr "游戏内主题"
+
+msgid "settings.game_theme_main_menu"
+msgstr "主菜单"
+
+msgid "settings.game_theme_title"
+msgstr "标题画面"
+
+msgid "settings.game_theme_chara_select"
+msgstr "角色选择"
+
+msgid "settings.game_theme_stage_select"
+msgstr "场景选择"
+
+msgid "settings.game_theme_versus"
+msgstr "对战画面"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "暂停菜单"
+
+msgid "settings.game_theme_network"
+msgstr "网络菜单"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "版本标记"
+
+msgid "settings.game_theme_buttons"
+msgstr "按键与图标"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "菜单音效"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "使用游戏文件夹中 ember\\themes 文件夹里某个主题的此画面文件。游戏自身的文件保持不变。主菜单会立即显示所选主题，其他画面在下次打开时显示。"
+
+msgid "settings.game_theme_screen_none"
+msgstr "没有主题包含此画面的文件。请把带有 ui 文件夹的主题放进游戏文件夹的 ember\\themes 文件夹，然后重新启动游戏。"
+
+msgid "settings.game_theme_game"
+msgstr "游戏原版"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "战斗 HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "从游戏文件夹 ember\\themes 中的主题读取体力、超必杀、复仇槽、计时器和播报。游戏自身的文件保持不变。下一场战斗即会显示。"
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "未找到含战斗 HUD 的主题。请将含 battle\\hud 文件夹的主题放入游戏文件夹的 ember\\themes，然后重新启动游戏。"
 
 msgid "menu.pages"
 msgstr "页面"

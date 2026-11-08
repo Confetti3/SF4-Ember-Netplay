@@ -2,6 +2,7 @@
 #include "../common/ButtonLayoutJson.hxx"
 #include "../netplay/ControllerMappings.hxx"
 #include "sf4e__GameEvents.hxx"
+#include "sf4e__GameThemes.hxx"
 #include "sf4e__MenuMusic.hxx"
 #include "../platform/Utf8.hxx"
 #include "../platform/ReplayPath.hxx"
@@ -236,7 +237,11 @@ void StartHelper() {
     runtime->automaticCountry = platform::WindowsCountry();
     spdlog::info("Windows region country {}", runtime->automaticCountry.Present() ? runtime->automaticCountry.ToString() : std::string("none"));
     wchar_t gamePath[MAX_PATH] = {};
-    if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) platform::SetGameDirectory(std::filesystem::path(gamePath).parent_path());
+    if (GetModuleFileNameW(nullptr, gamePath, MAX_PATH)) {
+        const std::filesystem::path gameDirectory = std::filesystem::path(gamePath).parent_path();
+        platform::SetGameDirectory(gameDirectory);
+        GameThemes::Start(gameDirectory.wstring());
+    }
     loc::SetActive(platform::ResolveUiLocale(runtime->languagePreference));
     spdlog::info("Interface language {} (preference {}, game {})", loc::Tag(loc::Active()), runtime->languagePreference,
         platform::GameLanguage().empty() ? "unknown" : platform::GameLanguage());
@@ -267,8 +272,9 @@ void StartHelper() {
             // Before pictureMode there was the bool watchedPicture, off by default: everyone starts on Small now.
             const int pictureMode = saved.contains("pictureMode") && saved["pictureMode"].is_number_integer() ? saved["pictureMode"].get<int>() : netplay::PictureSmall;
             runtime->preferences.pictureMode = pictureMode >= netplay::PictureSmall && pictureMode <= netplay::PictureOff ? pictureMode : netplay::PictureSmall;
-            const auto worn = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
-            runtime->preferences.wornTitle = worn("wornTitle"); runtime->preferences.wornIcon = worn("wornIcon");
+            const auto text = [&](const char* key) { return saved.contains(key) && saved[key].is_string() ? saved[key].get<std::string>() : std::string(); };
+            runtime->preferences.wornTitle = text("wornTitle"); runtime->preferences.wornIcon = text("wornIcon");
+            for (int part = 0; part < netplay::GameThemePartCount; ++part) runtime->preferences.gameThemes[part] = text(netplay::GameThemeKeys[part]);
             const auto percent = [&](const char* key, int fallback) { return saved.contains(key) && saved[key].is_number_integer() ? saved[key].get<int>() : fallback; };
             const int roomColumn = percent("roomColumn", netplay::DefaultRoomColumn), roomSplit = percent("roomSplit", netplay::DefaultRoomSplit);
             runtime->preferences.roomColumn = roomColumn >= netplay::MinRoomColumn && roomColumn <= netplay::MaxRoomColumn ? roomColumn : netplay::DefaultRoomColumn;
@@ -302,6 +308,7 @@ void StartHelper() {
     // ponytail: no input delay saved means Ember never saved here, a fresh install: welcome the player once.
     if (!saved.contains("inputDelay")) runtime->preferences.welcomed = false;
     MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
+    GameThemes::Use(runtime->preferences.gameThemes);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
     {
         // Read once and cleared, so the helper never inherits the code.
@@ -790,6 +797,8 @@ void TickRuntime() {
 	}
 	ObserveCoordination();
 	PumpDiscordClient();
+	GameThemes::Search();
+	GameThemes::TakePreview();
 	// Legacy error/teardown hooks can retire the client between owner ticks.
 	// Dispose its coordinator before dereferencing that client again.
 	if (runtime->attached && !UserApp::netplay) {

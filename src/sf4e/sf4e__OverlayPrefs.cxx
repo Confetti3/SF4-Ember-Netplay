@@ -363,6 +363,7 @@ namespace OverlayPrefs {
         netplay::WriteCountryPreference(preferences, values);
         netplay::WriteSpeechPreferences(preferences, values);
         netplay::WriteRoomFilter(preferences, values);
+        for (int part = 0; part < netplay::GameThemePartCount; ++part) values[netplay::GameThemeKeys[part]] = preferences.gameThemes[part];
         values["controllerMappings"] = preferences.controllerMappings;
         values["buttonLayouts"] = gamepads::LayoutsToJson(preferences.buttonLayouts);
         if(preferences.record.available)values["onlineRecord"]=netplay::ProfileRecordJson(preferences.record);

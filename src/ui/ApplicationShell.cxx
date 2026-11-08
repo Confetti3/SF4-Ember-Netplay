@@ -243,9 +243,8 @@ std::vector<MenuEntry> ApplicationShell::BuildRows(const ShellView& v,const std:
  }else if(screen=="developer"&&developer){
   // The inspector's selectors are not the shell's own: they inherit no room
   // hints or Back label, and whatever they forward has no reader here.
+  // Drawn as the screen's body (DrawScreen), inside the menu's window.
   SetEmbeddedReturn({MenuScreenLabel(nav.Parent()),{},false});
-  developer();TakeForwardedMenuAction();
-  if(ImGui::Button("Back to Home"))nav.Return();
  }else{
   // Any other screen shows Help & about, as it always has.
   static const std::string about="about";
@@ -487,7 +486,7 @@ void ApplicationShell::HandleAdjust(const MenuAction& a,const ShellView& v,const
    preferences_.autoInputDelay=next==AutoInputDelayChoice;if(!preferences_.autoInputDelay)preferences_.inputDelay=next;
   }
   else if(a.id=="auto-style")preferences_.autoDelayStyle=(std::max)(0,(std::min)(AutoDelayStyles-1,preferences_.autoDelayStyle+a.delta));
-  else if(AdjustSetting(preferences_,a)||AdjustOnOff(preferences_,a.id,a.delta)||AdjustSpeech(a)){}
+  else if(AdjustSetting(preferences_,a)||AdjustGameTheme(preferences_,v,a)||AdjustOnOff(preferences_,a.id,a.delta)||AdjustSpeech(a)){}
   else if(a.id=="button-prompts")Step(preferences_.buttonPrompts,{0,1,2,3},a.delta);
   else if(a.id=="visibility"){preferences_.roomPublic=a.delta>0;if(preferences_.roomPublic)ApplyPublicDefaultName();} // UpdatePublicBridge asks the Ember ID for what Public needs
   else if(a.id=="delay-policy")preferences_.roomDelayPolicy=a.delta>0?room::DelayPolicy::Own:room::DelayPolicy::Shared;
@@ -806,6 +805,10 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  GameMenu::Card portraits=owner?owner->Card(frame,now):GameMenu::Card{};
  GameMenu::Detail profilePreview=owner?owner->Detail(frame):GameMenu::Detail{};
  GameMenu::Body board=owner?owner->Body(frame):GameMenu::Body{};
+ if(screen=="developer"&&developer)board=[&](const std::vector<MenuEntry>&,MenuNavigation&,MenuAction&,float,const MenuVisualFeedback&){
+  developer();TakeForwardedMenuAction();
+  if(ImGui::Button("Back to Home"))nav.Return();
+ };
  if(v.inputCapture!=input::Capture::Idle)profilePreview=[&](const std::string&){DrawCaptureDetail(v.inputCapture,v.pads,v.captureCandidate);};
  // Visual grace cannot grant permission: enabled and all dispatch checks stay live.
  const bool checkpointPending=roomScreen && RoomCheckpointPending(v) && !v.controllerUnavailable &&

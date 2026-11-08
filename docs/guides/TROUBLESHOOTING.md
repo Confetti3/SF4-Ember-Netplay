@@ -18,6 +18,7 @@
 - **Room still opening after 30 seconds:** Ember says the room has not finished opening. Check your connection, or choose **Stop creating** or **Stop joining** and try again.
 - **Connection lost:** check the status line on the room screen, or use Help & About > Export diagnostics to save the connection state. Leave and rejoin with a current invitation. A continuing fight may have unavailable control-plane verification; its health should not be inferred from the HUD alone.
 - **Check connection says Relayed:** your two networks could not connect directly, so match traffic goes through a relay server. Matches still work; use the recommended delay, which already accounts for the extra distance. A direct connection usually needs only one of the two players on a friendlier network: turn on UPnP (sometimes called automatic port forwarding) in the router, turn off any VPN, or play from a home connection instead of a mobile hotspot, school or work network. Matches and room control prefer UDP port 45760 (45761 to 45763 for extra copies on the same PC; Help & About > Export diagnostics shows the one in use). Forwarding UDP 45760 to your PC in the router and allowing `sf4-net.exe` in Windows Firewall usually gives other players a direct path for the match even when both networks are strict; a forwarded port does nothing while the firewall blocks it. Some internet providers share one public address between many customers; those players cannot forward a port and often stay relayed.
+- **Phone remote cannot connect:** the PC and the phone must be on the same Wi-Fi or network, the remote must be on (Training menu > Phone remote), and the network must be set to Private in Windows (Settings > Network & internet > Properties). Allow the remote in Windows Firewall as described below. A guest network or "client isolation" on the router also blocks it.
 - **Allowing Ember in Windows Firewall:** the Windows Security prompt at first launch usually does this. If it was dismissed, the folder was moved, or outbound connections are blocked by default on your PC, open PowerShell as Administrator in the Ember folder and run:
 
   ```powershell
@@ -30,6 +31,8 @@
   New-NetFirewallRule -DisplayName 'Ember UDP 45760-45763 Inbound' -Direction Inbound -Protocol UDP -LocalPort 45760-45763 -Action Allow -Profile Private,Public
   New-NetFirewallRule -DisplayName 'Ember UDP 45760-45763 Outbound' -Direction Outbound -Protocol UDP -LocalPort 45760-45763 -Action Allow -Profile Private,Public
   ```
+
+  Setup can add the same kind of rules for you: tick "Allow the phone remote and direct matches in Windows Firewall" on its task page. The same script is `ember-firewall.ps1` in `%LOCALAPPDATA%\Ember Setup` (and in `scripts/installer` in the source). Run it from an administrator PowerShell to add its rules (phone remote: TCP 47321-47328, private networks and the local subnet only; matches: UDP 45760-45763), or with `-Remove` to take them away. Uninstalling Ember removes them too.
 
   The program rules are enough on a default firewall, which already allows outbound traffic; the outbound rules matter only when the default outbound action was changed to Block, or a Block rule names `sf4-net.exe`. The port rules also keep a forwarded port working after Ember is moved to another folder. To review or remove the rules, or to find a Block rule:
 

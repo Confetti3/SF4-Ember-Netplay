@@ -144,6 +144,8 @@ struct ShellView {
     bool padLayerPending = false, runningControllerLayer = true;
     // The game's menu music entry is the supported one, so Endless lobby music can be turned on.
     bool lobbyMusicAvailable = false;
+    // The themes in <game>\ember\themes with each part (netplay::GameThemePart), by name.
+    std::array<std::vector<std::string>, netplay::GameThemePartCount> gameThemes;
     std::vector<gamepads::PadView> pads;
     unsigned captureCandidate = 0;
     gamepads::SetupSnapshot padSetup;
@@ -461,6 +463,8 @@ private:
     void ShowTab(const std::string& screen);
     // Left or Right on a Settings value row that is no on/off switch; false for any other row.
     static bool AdjustSetting(netplay::PlayerPreferences& preferences,const MenuAction& action);
+    // Left or Right on an in-game theme row: the game's own, then the themes with that part.
+    static bool AdjustGameTheme(netplay::PlayerPreferences& preferences,const ShellView& view,const MenuAction& action);
     // The installed version label, or the build's hash for a copy without one (a developer build).
     static std::string InstalledVersion(const ShellView& view);
     // Value panels (ApplicationShell__Values.cxx): each value row's values as choices.

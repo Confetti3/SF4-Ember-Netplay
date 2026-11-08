@@ -1743,6 +1743,18 @@ msgstr "Counter hit"
 msgid "training.dummy.quick"
 msgstr "Rychlé vstávání"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "Super lišta"
 
@@ -5177,6 +5189,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Zapněte nebo vypněte části HUD během souboje."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboxy"
 
@@ -5659,6 +5713,60 @@ msgstr "S videem"
 
 msgid "replays.show.kept"
 msgstr "Ponechané"
+
+msgid "replays.sort"
+msgstr "Řadit"
+
+msgid "replays.sort_detail"
+msgstr "Pořadí seznamu."
+
+msgid "replays.sort.newest"
+msgstr "Nejnovější první"
+
+msgid "replays.sort.oldest"
+msgstr "Nejstarší první"
+
+msgid "replays.sort.player"
+msgstr "Jméno hráče"
+
+msgid "replays.sort.fighter"
+msgstr "Jméno bojovníka"
+
+msgid "replays.sort.longest"
+msgstr "Nejdelší první"
+
+msgid "replays.fighter_detail"
+msgstr "Jen zápasy, ve kterých hrál tento bojovník."
+
+msgid "replays.filter"
+msgstr "Řadit a filtrovat"
+
+msgid "replays.filter_detail"
+msgstr "Otevře stránku, která řadí seznam a vybírá bojovníky."
+
+msgid "replays.side"
+msgstr "Strana"
+
+msgid "replays.side_detail"
+msgstr "Na které straně musí vybraní bojovníci být."
+
+msgid "replays.side.either"
+msgstr "Kterákoli strana"
+
+msgid "replays.side.one"
+msgstr "Hráč 1"
+
+msgid "replays.side.two"
+msgstr "Hráč 2"
+
+msgid "replays.matches_shown"
+msgstr "Zobrazené zápasy"
+
+msgid "replays.filter_reset"
+msgstr "Obnovit"
+
+msgid "replays.filter_reset_detail"
+msgstr "Vrátí každou volbu na začátek."
 
 msgid "replays.search"
 msgstr "Hledat"
@@ -7652,6 +7760,57 @@ msgstr "Režim TV"
 
 msgid "settings.tv_mode_detail"
 msgstr "Pro televizi na druhé straně místnosti: vše o čtvrtinu větší, uvnitř bezpečného okraje 5 %."
+
+msgid "settings.group.game_themes"
+msgstr "Herní motivy"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Hlavní nabídka"
+
+msgid "settings.game_theme_title"
+msgstr "Titulní obrazovka"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Výběr postavy"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Výběr arény"
+
+msgid "settings.game_theme_versus"
+msgstr "Obrazovka versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Nabídka pauzy"
+
+msgid "settings.game_theme_network"
+msgstr "Síťové nabídky"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Značky edice"
+
+msgid "settings.game_theme_buttons"
+msgstr "Tlačítka a ikony"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Zvuky nabídek"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Soubory pro tuto obrazovku z motivu ve složce ember\\themes složky hry. Soubory hry zůstávají beze změny. Hlavní nabídka ukáže volbu hned, ostatní obrazovky při dalším otevření."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Žádný motiv nemá soubory pro tuto obrazovku. Vložte motiv s jeho složkou ui do složky ember\\themes ve složce hry a spusťte hru znovu."
+
+msgid "settings.game_theme_game"
+msgstr "Původní ze hry"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "Bojový HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Ukazatele života, superu a revenge, časovač a hlášky z motivu ve složce ember\\themes ve složce hry. Soubory hry zůstanou beze změny. Ukáže se v příštím boji."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Žádný motiv s bojovým HUD nenalezen. Vložte motiv se složkou battle\\hud do ember\\themes ve složce hry a spusťte hru znovu."
 
 msgid "menu.pages"
 msgstr "Stránky"

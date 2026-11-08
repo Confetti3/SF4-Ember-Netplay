@@ -1743,6 +1743,18 @@ msgstr "카운터 히트"
 msgid "training.dummy.quick"
 msgstr "퀵 스탠드"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "슈퍼 게이지"
 
@@ -5178,6 +5190,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "대전 중 HUD의 항목을 켜거나 끕니다."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "히트박스"
 
@@ -5660,6 +5714,60 @@ msgstr "동영상 있음"
 
 msgid "replays.show.kept"
 msgstr "보관함"
+
+msgid "replays.sort"
+msgstr "정렬"
+
+msgid "replays.sort_detail"
+msgstr "목록의 순서입니다."
+
+msgid "replays.sort.newest"
+msgstr "최신순"
+
+msgid "replays.sort.oldest"
+msgstr "오래된 순"
+
+msgid "replays.sort.player"
+msgstr "플레이어 이름"
+
+msgid "replays.sort.fighter"
+msgstr "캐릭터 이름"
+
+msgid "replays.sort.longest"
+msgstr "긴 순"
+
+msgid "replays.fighter_detail"
+msgstr "이 캐릭터가 나온 경기만 표시합니다."
+
+msgid "replays.filter"
+msgstr "정렬 및 필터"
+
+msgid "replays.filter_detail"
+msgstr "목록을 정렬하고 캐릭터를 고르는 페이지를 엽니다."
+
+msgid "replays.side"
+msgstr "사이드"
+
+msgid "replays.side_detail"
+msgstr "고른 캐릭터가 있어야 하는 쪽입니다."
+
+msgid "replays.side.either"
+msgstr "어느 쪽이든"
+
+msgid "replays.side.one"
+msgstr "플레이어 1"
+
+msgid "replays.side.two"
+msgstr "플레이어 2"
+
+msgid "replays.matches_shown"
+msgstr "표시된 경기"
+
+msgid "replays.filter_reset"
+msgstr "초기화"
+
+msgid "replays.filter_reset_detail"
+msgstr "모든 선택을 처음으로 되돌립니다."
 
 msgid "replays.search"
 msgstr "검색"
@@ -7653,6 +7761,57 @@ msgstr "TV 모드"
 
 msgid "settings.tv_mode_detail"
 msgstr "방 건너편 TV용: 모든 것을 4분의 1 더 크게 하고, 가장자리 5% 안전 영역 안에 둡니다."
+
+msgid "settings.group.game_themes"
+msgstr "게임 내 테마"
+
+msgid "settings.game_theme_main_menu"
+msgstr "메인 메뉴"
+
+msgid "settings.game_theme_title"
+msgstr "타이틀 화면"
+
+msgid "settings.game_theme_chara_select"
+msgstr "캐릭터 선택"
+
+msgid "settings.game_theme_stage_select"
+msgstr "스테이지 선택"
+
+msgid "settings.game_theme_versus"
+msgstr "대전 화면"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "일시 정지 메뉴"
+
+msgid "settings.game_theme_network"
+msgstr "네트워크 메뉴"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "에디션 마크"
+
+msgid "settings.game_theme_buttons"
+msgstr "버튼과 아이콘"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "메뉴 효과음"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "게임 폴더의 ember\\themes 폴더에 있는 테마에서 이 화면의 파일을 가져옵니다. 게임 자체 파일은 그대로입니다. 메인 메뉴는 바로, 다른 화면은 다음에 열 때 보입니다."
+
+msgid "settings.game_theme_screen_none"
+msgstr "이 화면의 파일이 있는 테마가 없습니다. ui 폴더가 든 테마를 게임 폴더의 ember\\themes 폴더에 넣고 게임을 다시 시작하세요."
+
+msgid "settings.game_theme_game"
+msgstr "게임 기본"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "배틀 HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "게임 폴더의 ember\\themes 안 테마에서 체력·슈퍼·리벤지 게이지, 타이머, 안내 문구를 불러옵니다. 게임 파일은 바뀌지 않습니다. 다음 배틀부터 적용됩니다."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "배틀 HUD가 든 테마를 찾지 못했습니다. battle\\hud 폴더가 든 테마를 게임 폴더의 ember\\themes에 넣고 게임을 다시 시작하세요."
 
 msgid "menu.pages"
 msgstr "페이지"

@@ -21,7 +21,7 @@ void TrainingSettingsAndHome() {
  h.Choose("settings");
  Check(h.shell.Navigation().Screen()=="tab-player","Settings did not open on its Player tab");
  // The Interface tab's panels, each with its rows in order; endless lobby music is a sound.
- const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},
+ const std::pair<const char*,std::vector<std::string>> interfacePanels[]={{"tab-interface/look",{"tv"}},{"tab-interface/game-themes",{"game-theme-main-menu","game-theme-title","game-theme-chara-select","game-theme-stage-select","game-theme-versus","game-theme-pause-menu","game-theme-network","game-theme-edition-marks","game-theme-buttons","game-theme-menu-sounds","game-theme-battle-hud"}},
   {"tab-interface/match-hud",{"hud","hud-layout","hud-name-offset","hud-size","hud-position","hud-spacing"}},
   {"tab-interface/room-layout",{"arrange-column","arrange-split","arrange-preset","arrange-members","arrange-chat","arrange-tables","arrange-pictures","chat-filter","arrange-picture","arrange-reset"}},
   {"tab-interface/sounds",{"ready-sound","ready-volume","ready-test","lobby-music"}}};
@@ -31,6 +31,25 @@ void TrainingSettingsAndHome() {
    "An Interface panel's rows changed");
  }
  Check(!rows.back().enabled,"Endless lobby music was offered without the game's menu entry");
+ // The menus theme is off without themes. Right picks the first and saves it,
+ // and its panel lists the game's own and the themes side by side.
+ h.Screen("tab-interface/game-themes");
+ Check(!rows.front().enabled&&!rows.back().enabled,"A part's theme was offered without any themes");
+ h.view.gameThemes[netplay::GameThemeMainMenu]={"Neon","Blue"};h.Frame();
+ Check(!rows.back().enabled,"The battle HUD theme was offered with themes that have only a main menu");
+ Check(rows.front().choices.size()==3&&rows.front().choices[1].label=="Neon"&&rows.front().chosen=="#0","The menus theme's panel did not list the game's own and the themes");
+ h.FocusOn("game-theme-main-menu");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.gameThemes[netplay::GameThemeMainMenu]=="Neon","Right on the menus theme did not save the first theme");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ h.Press(MenuInput::Select);h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.gameThemes[netplay::GameThemeMainMenu]=="Blue","Picking a theme in the menus theme's panel did not save it");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
+ // The battle HUD has its own themes and its own pick; the menus stay.
+ h.view.gameThemes[netplay::GameThemeBattleHud]={"CvS2"};h.Frame();
+ h.FocusOn("game-theme-battle-hud");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.gameThemes[netplay::GameThemeBattleHud]=="CvS2"&&h.actions.back().preferences.gameThemes[netplay::GameThemeMainMenu]=="Blue",
+  "Right on the battle HUD theme did not save it beside the menus theme");
+ h.view.preferences=h.actions.back().preferences;h.Frame();
  // The chat filter starts on, and Left turns it off and saves it.
  h.Screen("tab-interface/room-layout");
  Check(h.view.preferences.chatFilter,"The chat filter did not start on");

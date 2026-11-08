@@ -1,5 +1,6 @@
 #include "ReplaysPanel.hxx"
 #include "ApplicationShell.hxx"
+#include "GameMenu.hxx"
 #include "MenuRows.hxx"
 #include "ReplaySummaryText.hxx"
 #include "MenuDialogs.hxx"
@@ -73,7 +74,7 @@ const Replay* RowReplay(const ShellView& v,const std::vector<Set>& sets,const st
 }
 }
 ReplaysPanel::Wants ReplaysPanel::Wanted(const std::string& screen) const {
- Wants wants;wants.listing=screen=="replays"||screen=="replay-sets"||screen=="replay-set";
+ Wants wants;wants.listing=screen=="replays"||screen=="replay-filter"||screen=="replay-sets"||screen=="replay-set";
  // Each entry owns a revision. WantDetail coalesces frames of that entry;
  // the worker rereads the bounded file before considering its content cache.
  if(screen=="replay-inputs"){wants.detail=true;wants.detailFile=inputsFile_;wants.detailRevision=inputsRevision_;}
@@ -99,9 +100,45 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
   if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);Generate(v,submit);}
  }
 }
+// The archive's replays the list shows, in Sort's order.
+std::vector<const platform::replays::ArchivedReplay*> ReplaysPanel::Shown(const ShellView& v) const {
+ std::vector<const platform::replays::ArchivedReplay*> shown;
+ if(!v.replays.archive)return shown;
+ const std::wstring search=LoweredText(search_);
+ for(const auto& replay:*v.replays.archive)if(ReplayShown(replay,show_,search,fighters_,side_))shown.push_back(&replay);
+ std::stable_sort(shown.begin(),shown.end(),[&](const auto* a,const auto* b){return ReplayBefore(*a,*b,sort_);});
+ return shown;
+}
+// What the filter row says it is set to, "Newest first" when nothing is.
+std::string ReplaysPanel::FilterText() const {
+ std::string text=loc::T(kReplaySortKeys[static_cast<int>(sort_)]);
+ if(show_!=ReplayShow{})text+=std::string(" \xC2\xB7 ")+loc::T(kReplayShowKeys[static_cast<int>(show_)]);
+ std::string names;
+ for(const int id:selection::RosterDisplayOrder)if(fighters_>>id&1)names+=(names.empty()?"":", ")+std::string(selection::FindFighter(id)->name);
+ if(!names.empty())text+=" \xC2\xB7 "+(side_?std::string(loc::T(kReplaySideKeys[side_]))+": ":std::string())+names;
+ return text;
+}
+std::optional<int> ReplaysPanel::FilterFighter(const std::string& id) {
+ if(id.size()<4||id.compare(0,3,"rf-")!=0||id[3]<'0'||id[3]>'9')return std::nullopt;
+ const int fighter=std::stoi(id.substr(3));
+ return selection::FindFighter(fighter)?std::optional<int>(fighter):std::nullopt;
+}
 std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
+ }else if(screen=="replay-filter"){
+  // The fighters as a grid of cards that Select ticks, then the choices under it, as a grid's footer.
+  title=loc::T("replays.filter");
+  for(const int id:selection::RosterDisplayOrder){
+   rows.push_back(Row("rf-"+std::to_string(id),selection::FindFighter(id)->name,loc::T("replays.fighter_detail")));
+   rows.back().key=static_cast<std::uint64_t>(id);
+  }
+  const auto wide=[&](MenuEntry e){e.wide=true;rows.push_back(std::move(e));};
+  wide(Value("rf-sort",loc::T("replays.sort"),loc::T(kReplaySortKeys[static_cast<int>(sort_)]),loc::T("replays.sort_detail")));
+  wide(Value("rf-show",loc::T("replays.show"),loc::T(kReplayShowKeys[static_cast<int>(show_)]),loc::T("replays.show_detail")));
+  wide(Value("rf-side",loc::T("replays.side"),loc::T(kReplaySideKeys[side_]),loc::T("replays.side_detail")));
+  wide(InfoRow("rf-count",loc::T("replays.matches_shown"),std::to_string(Shown(v).size())+" / "+std::to_string(v.replays.archive?v.replays.archive->size():0),""));
+  wide(Row("rf-reset",loc::T("replays.filter_reset"),loc::T("replays.filter_reset_detail")));
  }else if(screen=="replay-export"){
   // Each part of the caption on or off, with its text; Generate sends it with the
   // export. A tab of Replays, it keeps their title; the eyebrow names the tab.
@@ -168,12 +205,12 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   else{
    // Show and Search narrow the list (ReplayShown); with nothing left it says so.
-   rows.push_back(Value("replay-show",loc::T("replays.show"),loc::T(kReplayShowKeys[static_cast<int>(show_)]),loc::T("replays.show_detail")));
+   rows.push_back(Row("replay-filter",loc::T("replays.filter"),loc::T("replays.filter_detail")));rows.back().value=FilterText();
    rows.push_back(TextRow("replay-search",loc::T("replays.search"),search_,40));rows.back().detail=loc::T("replays.search_detail");NoteUserText(search_);
    // A row is its file, not its place: the list is listed again while a row's choices are open.
    // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
-   const std::size_t before=rows.size();const std::wstring search=LoweredText(search_);
-   for(const auto& replay:*r.archive)if(ReplayShown(replay,show_,search)){rows.push_back(ReplayRow(v,replay,idle));rows.back().height=72;}
+   const std::size_t before=rows.size();
+   for(const auto* replay:Shown(v)){rows.push_back(ReplayRow(v,*replay,idle));rows.back().height=72;}
    if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
   }
  }
@@ -298,6 +335,9 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return true;
  }
+ if(a.id=="replay-filter"){nav.Push("replay-filter");return true;}
+ if(a.id=="rf-reset"){fighters_=0;side_=0;show_={};sort_={};return true;}
+ if(const auto fighter=FilterFighter(a.id)){fighters_^=std::uint64_t(1)<<*fighter;return true;}
  if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error=loc::T("error.queue_failed");return true;}
  return false;
 }
@@ -309,7 +349,9 @@ bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
   {"cap-mark",&caption_.mark,&P::exportMark},{"cap-meter",&meter_,&P::exportMeter}};
  // A press that changes nothing on screen (Left on a row already Off) saves nothing.
  for(const auto& toggle:toggles)if(a.id==toggle.id){const bool on=a.delta>0;if(*toggle.part==on)return nullptr;*toggle.part=on;return toggle.saved;}
- if(a.id=="replay-show")show_=Stepped(show_,a.delta);
+ if(a.id=="rf-show")show_=Stepped(show_,a.delta);
+ else if(a.id=="rf-sort")sort_=Stepped(sort_,a.delta);
+ else if(a.id=="rf-side")side_=StepWord(side_,a.delta,std::size(kReplaySideKeys));
  else if(a.id=="replay-search")search_=a.text;
  else if(a.id=="cap-name1")caption_.name[0]=a.text;else if(a.id=="cap-name2")caption_.name[1]=a.text;
  else if(a.id=="cap-text")caption_.text=a.text;
@@ -420,7 +462,11 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  // The players and the score between them (a set's by match), the fighters or the set's length under them.
  std::string score=r->summary?ScoreText(*r->summary):std::string();
  if(set){if(const Set* one=FindSet(sets_,e.id.substr(4))){const auto wins=SetScore(*one);score=std::to_string(wins.first)+"-"+std::to_string(wins.second);}}
- const float x=min.x+16*s,top=min.y+10*s;
+ // The fighters' faces first, a match's two side by side.
+ const float face=max.y-min.y-16*s;float x=min.x+16*s;
+ if(!set)for(int side=0;side<2;side++)if(selection::FindFighter(r->fighters[side])){DrawCharacterPortrait(r->fighters[side],ImVec2(x,min.y+8*s),ImVec2(x+face,min.y+8*s+face),c.frame);x+=face+4*s;}
+ if(x>min.x+16*s)x+=8*s;
+ const float top=min.y+10*s;
  ImGui::PushFont(HeadingFont());
  const std::string a=ReplayPlayerName(r->names,0),b=ReplayPlayerName(r->names,1);
  const float room=(right-x-ImGui::CalcTextSize(score.empty()?"-":score.c_str()).x-24*s)*.5f;
@@ -433,8 +479,22 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  d->AddText(ImVec2(at,top),c.text,fb.c_str());
  const float below=top+ImGui::GetFontSize()+4*s;
  ImGui::PopFont();
- const std::string sub=set?e.detail:FightersText(*r)+(r->summary?" \xC2\xB7 "+MatchText(*r->summary):"");
- d->AddText(ImVec2(x,below),c.muted,FitLabel(sub,right-x).c_str());
+ // Under the names: the fighters with their Ultras, then the match's length and each side's costume and colour.
+ std::string sub=set?e.detail:FightersText(*r),look;
+ if(!set&&r->summary){
+  const auto& pl=r->summary->players;
+  const auto named=[&](int side){const auto* f=selection::FindFighter(r->fighters[side]);const std::string n=f?f->name:loc::T("common.unavailable");return pl[side].ultra>=0?n+" ("+UltraLabel(pl[side].ultra)+")":n;};
+  sub=loc::Tf("replays.fighters",named(0),named(1));
+  look=MatchText(*r->summary);
+  for(int side=0;side<2;side++){
+   const auto* f=selection::FindFighter(pl[side].fighter);
+   if(!f||pl[side].costume<0||pl[side].costume>=selection::CostumeCount(pl[side].fighter)||pl[side].color<0)continue;
+   selection::Pick pick;pick.fighter=pl[side].fighter;pick.costume=pl[side].costume;
+   look+=" \xC2\xB7 "+std::string(f->name)+": "+loc::Tf("selection.appearance_value",CostumeLabel(pick),pl[side].color+1);
+  }
+ }
+ d->AddText(ImVec2(x,below),c.text,FitLabel(sub,right-x).c_str());
+ if(!look.empty())d->AddText(ImVec2(x,below+ImGui::GetFontSize()+3*s),c.muted,FitLabel(look,right-x).c_str());
  return true;
 }
 void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const std::string& id,MenuNavigation& nav,const std::vector<MenuEntry>& rows) const {

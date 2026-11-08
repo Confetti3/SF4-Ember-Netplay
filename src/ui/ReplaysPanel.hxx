@@ -8,6 +8,7 @@
 #include <functional>
 #include <imgui.h>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,6 +16,7 @@
 namespace sf4e { namespace ui {
 // What the list's Show row lists (ReplaySummaryText.hxx).
 enum class ReplayShow;
+enum class ReplaySort;
 struct ShellView;
 struct ShellAction;
 enum class Tone;
@@ -29,7 +31,7 @@ enum class Tone;
 class ReplaysPanel {
 public:
     using Submit = std::function<bool(ShellAction)>;
-    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set"; }
+    static bool Owns(const std::string& screen) { return screen == "replays" || screen == "replay-filter" || screen == "replay-inputs" || screen == "replay-export" || screen == "replay-sets" || screen == "replay-set"; }
     // Home, then the Replays screen: a replay link's question, and the way
     // back once the game's battle log returns to the main menu.
     static void Show(MenuNavigation& navigation) { navigation.Home(); navigation.Push("replays"); }
@@ -40,6 +42,10 @@ public:
         std::string detailFile;
         std::uint64_t detailRevision = 0;
     };
+    // Whether the fighter filter lists this native id (the card on the Sort and filter screen).
+    bool Ticked(int fighter) const { return (fighters_ >> fighter & 1) != 0; }
+    // The fighter a card on the Sort & filter screen names ("rf-<native id>"), if the id is one.
+    static std::optional<int> FilterFighter(const std::string& id);
     Wants Wanted(const std::string& screen) const;
     // Every frame, before the rows: a new replay link takes the menu to its
     // question, only with no room open; in a room it waits until it is left.
@@ -96,7 +102,12 @@ private:
     bool meter_ = false;
     // The list's filter (ReplaySummaryText.hxx: ReplayShown): what Show lists,
     // and the Search text a player's or fighter's name must contain.
+    std::vector<const platform::replays::ArchivedReplay*> Shown(const ShellView& view) const;
+    std::string FilterText() const;
     ReplayShow show_{}; // All
+    ReplaySort sort_{}; // Newest
+    std::uint64_t fighters_ = 0; // the fighters the filter lists, by native id as bits; 0 for any
+    int side_ = 0;               // which side they must be on: either, player 1, player 2
     std::string search_;
     // The archive's sets (ReplaySets.hxx), grouped when Update sees a new
     // listing. The listing is held beside them, as the sets' games point into it.

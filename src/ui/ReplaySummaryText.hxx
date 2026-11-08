@@ -11,6 +11,8 @@
 #include <cwctype>
 #include <iterator>
 #include <string>
+#include <string_view>
+#include <tuple>
 
 namespace sf4e { namespace ui {
 // What a replay's file says of its match, as text: the one place it is
@@ -40,24 +42,53 @@ inline std::string ReplayRowLabel(const std::string& date,const std::string name
 // and those the player keeps.
 enum class ReplayShow { All, Mine, Spectated, Unseen, Video, Kept };
 constexpr const char* kReplayShowKeys[]={"replays.show.all","replays.show.mine","replays.show.spectated","replays.show.unseen","replays.show.video","replays.show.kept"};
-inline ReplayShow Stepped(ReplayShow show,int delta){
- const int last=static_cast<int>(std::size(kReplayShowKeys))-1;
- return static_cast<ReplayShow>((std::max)(0,(std::min)(last,static_cast<int>(show)+delta)));
+// A choice stepped by Left and Right, held to its words.
+inline int StepWord(int at,int delta,std::size_t words){return (std::max)(0,(std::min)(static_cast<int>(words)-1,at+delta));}
+inline ReplayShow Stepped(ReplayShow show,int delta){return static_cast<ReplayShow>(StepWord(static_cast<int>(show),delta,std::size(kReplayShowKeys)));}
+// What the Sort row orders the list by. The archive lists newest first.
+enum class ReplaySort { Newest, Oldest, Player, Fighter, Longest };
+constexpr const char* kReplaySortKeys[]={"replays.sort.newest","replays.sort.oldest","replays.sort.player","replays.sort.fighter","replays.sort.longest"};
+inline ReplaySort Stepped(ReplaySort sort,int delta){return static_cast<ReplaySort>(StepWord(static_cast<int>(sort),delta,std::size(kReplaySortKeys)));}
+static_assert(selection::FighterCount<=64,"the fighter filter is a bit per native id");
+// A replay's side (0 either, 1 player 1, 2 player 2) played one of the fighters whose native
+// ids are the bits of `fighters`.
+inline bool ReplayHasFighter(const platform::replays::ArchivedReplay& replay,std::uint64_t fighters,int side) {
+ for(int s=0;s<2;s++){
+  const int f=replay.fighters[s];
+  if((side==0||side==s+1)&&f>=0&&f<64&&(fighters>>f&1))return true;
+ }
+ return false;
 }
+// The side filter's words (Either side, Player 1, Player 2).
+constexpr const char* kReplaySideKeys[]={"replays.side.either","replays.side.one","replays.side.two"};
 // A name in lower case, so Search matches it in any case.
 inline std::wstring LoweredText(const std::string& text){std::wstring wide=platform::Utf8ToWide(text.c_str());for(auto& c:wide)c=static_cast<wchar_t>(std::towlower(c));return wide;}
 // Whether the list shows a replay under that Show and a lowered Search text,
-// which a player's or a fighter's name must contain.
-inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplayShow show,const std::wstring& search) {
+// which a player's or a fighter's name must contain, and fighters (native ids as bits, none for any)
+// one side, or the one `side` names, must have played.
+inline bool ReplayShown(const platform::replays::ArchivedReplay& replay,ReplayShow show,const std::wstring& search,std::uint64_t fighters=0,int side=0) {
  const bool spectated=replay.provenance==replayfiles::Provenance::Spectated;
  if((show==ReplayShow::Mine&&spectated)||(show==ReplayShow::Spectated&&!spectated)||(show==ReplayShow::Unseen&&replay.watched)||
   (show==ReplayShow::Video&&!replay.video)||(show==ReplayShow::Kept&&!replay.kept))return false;
+ if(fighters&&!ReplayHasFighter(replay,fighters,side))return false;
  if(search.empty())return true;
  for(int side=0;side<2;side++){
   if(LoweredText(replay.names[side]).find(search)!=std::wstring::npos)return true;
   if(const auto* fighter=selection::FindFighter(replay.fighters[side]))if(LoweredText(fighter->name).find(search)!=std::wstring::npos)return true;
  }
  return false;
+}
+// Whether `a` comes before `b` under Sort. Ties keep the archive's order (newest first),
+// so sort with std::stable_sort. Player and Fighter order by player 1, then player 2.
+inline bool ReplayBefore(const platform::replays::ArchivedReplay& a,const platform::replays::ArchivedReplay& b,ReplaySort sort) {
+ const auto fighterName=[](const platform::replays::ArchivedReplay& r,int side){const auto* f=selection::FindFighter(r.fighters[side]);return std::string_view(f?f->name:"");};
+ switch(sort){
+ case ReplaySort::Oldest: return a.time<b.time;
+ case ReplaySort::Player: return std::tie(a.names[0],a.names[1])<std::tie(b.names[0],b.names[1]);
+ case ReplaySort::Fighter: return std::make_tuple(fighterName(a,0),fighterName(a,1))<std::make_tuple(fighterName(b,0),fighterName(b,1));
+ case ReplaySort::Longest: return (a.summary?a.summary->frames:0)>(b.summary?b.summary->frames:0);
+ default: return false;
+ }
 }
 // What Ember knows of a replay, after its score: Spectated when this PC only
 // watched the match live, Seen once its replay was played with Watch now,

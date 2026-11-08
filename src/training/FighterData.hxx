@@ -110,6 +110,9 @@ inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
     return runs;
 }
 
+// A charge name the command file gives that a player can read ("SONICBOOM"); some files name them by code ("CMD_4C"),
+// and those are shown by their direction instead.
+inline bool ReadableChargeName(const std::string& name) { return !name.empty() && name.rfind("CMD_", 0) != 0; }
 // The charge names of a command file (<CODE>.bcm): their count at +0x10 and
 // their names from the offsets at +0x1C. The game keeps one state each, in
 // this order (Command::CommandImpl::GetChargeStates). Empty when the file is

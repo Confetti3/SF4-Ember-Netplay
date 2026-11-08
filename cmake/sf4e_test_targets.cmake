@@ -6,6 +6,19 @@ if(NOT BUILD_TESTING)
 endif()
 sf4e_add_unit_test(NAME CheckpointTransfer SOURCES "src/tests/checkpoint_transfer_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json bcrypt)
 sf4e_add_unit_test(NAME RoomLoadWindow SOURCES "src/tests/room_load_window_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS room)
+# Includes nlohmann/json, found after sf4e_core_tests.cmake.
+sf4e_add_unit_test(NAME TrainingRemoteProtocol SOURCES "src/tests/training_remote_protocol_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME HudLayout SOURCES "src/tests/hud_layout_test.cxx" STD 17 LIBS sf4e_hud_layout TIMEOUT 15 LABELS training)
+if(WIN32)
+    sf4e_add_unit_test(NAME TrainingRemoteHud SOURCES "src/tests/training_remote_hud_test.cxx" "src/training/RemoteHud.cxx" STD 17
+        LIBS sf4e_hud_layout sf4e_game_themes sf4e_durable_file TIMEOUT 15 LABELS training)
+endif()
+sf4e_add_unit_test(NAME TrainingCameraRig SOURCES "src/tests/training_camera_rig_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME ComboFile SOURCES "src/tests/combo_file_test.cxx" STD 17 LIBS nlohmann_json::nlohmann_json LABELS training)
+sf4e_add_unit_test(NAME ComboStore SOURCES "src/tests/combo_store_test.cxx" STD 17
+    LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> LABELS training)
 sf4e_add_unit_test(NAME ReplayFiles SOURCES "src/tests/replay_files_test.cxx" STD 17
     LIBS nlohmann_json::nlohmann_json $<$<PLATFORM_ID:Windows>:sf4e_durable_file> TIMEOUT 15 LABELS replay)
 
@@ -174,6 +187,9 @@ find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
     add_test(NAME SpeechRelay COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/src/tests/speech_relay_test.py" "${CMAKE_SOURCE_DIR}/src/platform/speech_relay.py")
     sf4e_test_labels(LABELS ui TESTS SpeechRelay)
+    # The frame data the phone remote shows: its shape and numbers that cannot be right (docs/guides/FRAME_DATA.md).
+    add_test(NAME FrameData COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/scripts/framedata/validate.py" "${CMAKE_SOURCE_DIR}/assets/framedata/usf4.json")
+    sf4e_test_labels(LABELS training TESTS FrameData)
 endif()
 target_link_libraries(UiRenderTest PRIVATE sf4e_ui "d3d9" "dbghelp" "psapi")
 # The UI lab (src/ui/lab/UiLab.cxx): the shell in a window of its own, for working on layouts.

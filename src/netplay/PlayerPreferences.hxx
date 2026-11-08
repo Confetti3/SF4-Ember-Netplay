@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <string>
 #include <map>
 #include <vector>
@@ -97,6 +98,18 @@ struct RoomTemplate {
 };
 constexpr std::size_t MaxRoomTemplates = 12;
 
+// The parts of an in-game theme (sf4e__GameThemes.cxx), in Settings order,
+// and the key each part's pick is saved under.
+// Each menu screen is a part of its own, so its pick can come from any theme.
+enum GameThemePart {
+    GameThemeMainMenu, GameThemeTitle, GameThemeCharaSelect, GameThemeStageSelect, GameThemeVersus,
+    GameThemePauseMenu, GameThemeNetwork, GameThemeEditionMarks, GameThemeButtons, GameThemeMenuSounds,
+    GameThemeBattleHud, GameThemePartCount };
+constexpr const char* GameThemeKeys[GameThemePartCount] = {
+    "gameThemeMainMenu", "gameThemeTitle", "gameThemeCharaSelect", "gameThemeStageSelect", "gameThemeVersus",
+    "gameThemePauseMenu", "gameThemeNetwork", "gameThemeEditionMarks", "gameThemeButtons", "gameThemeMenuSounds",
+    "gameThemeBattleHud" };
+
 struct PlayerPreferences {
     std::string displayName = "Player";
     int mainFighter = 0;
@@ -171,6 +184,9 @@ struct PlayerPreferences {
     // The main menu plays a stage or character theme, another one after every
     // match, instead of its own track (sf4e__MenuMusic.cxx).
     bool endlessLobbyMusic = true;
+    // The theme each part loads its files from (sf4e__GameThemes.cxx), by
+    // GameThemePart: a folder in <game>\ember\themes, or empty for the game's own.
+    std::array<std::string, GameThemePartCount> gameThemes;
     // Experimental (sf4e__InputLag.cxx): the battle reads each input in the
     // frame it was made instead of the next. A room's match does so only when
     // both fighters have it on, for them and whoever watches; offline battles

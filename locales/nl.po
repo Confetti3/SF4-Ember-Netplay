@@ -1743,6 +1743,18 @@ msgstr "Counter hit"
 msgid "training.dummy.quick"
 msgstr "Snel opstaan"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "Supermeter"
 
@@ -5177,6 +5189,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Zet onderdelen van de HUD tijdens het gevecht aan of uit."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboxen"
 
@@ -5659,6 +5713,60 @@ msgstr "Met video"
 
 msgid "replays.show.kept"
 msgstr "Bewaard"
+
+msgid "replays.sort"
+msgstr "Sorteren"
+
+msgid "replays.sort_detail"
+msgstr "De volgorde van de lijst."
+
+msgid "replays.sort.newest"
+msgstr "Nieuwste eerst"
+
+msgid "replays.sort.oldest"
+msgstr "Oudste eerst"
+
+msgid "replays.sort.player"
+msgstr "Spelersnaam"
+
+msgid "replays.sort.fighter"
+msgstr "Vechternaam"
+
+msgid "replays.sort.longest"
+msgstr "Langste eerst"
+
+msgid "replays.fighter_detail"
+msgstr "Alleen matches waarin deze vechter speelde."
+
+msgid "replays.filter"
+msgstr "Sorteren en filteren"
+
+msgid "replays.filter_detail"
+msgstr "Opent de pagina die de lijst sorteert en vechters kiest."
+
+msgid "replays.side"
+msgstr "Kant"
+
+msgid "replays.side_detail"
+msgstr "Aan welke kant de gekozen vechters moeten staan."
+
+msgid "replays.side.either"
+msgstr "Beide kanten"
+
+msgid "replays.side.one"
+msgstr "Speler 1"
+
+msgid "replays.side.two"
+msgstr "Speler 2"
+
+msgid "replays.matches_shown"
+msgstr "Getoonde matches"
+
+msgid "replays.filter_reset"
+msgstr "Herstellen"
+
+msgid "replays.filter_reset_detail"
+msgstr "Zet elke keuze terug naar het begin."
 
 msgid "replays.search"
 msgstr "Zoeken"
@@ -7652,6 +7760,57 @@ msgstr "Tv-modus"
 
 msgid "settings.tv_mode_detail"
 msgstr "Voor een tv aan de andere kant van de kamer: alles een kwart groter, binnen een veilige rand van 5%."
+
+msgid "settings.group.game_themes"
+msgstr "Thema's in de game"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Hoofdmenu"
+
+msgid "settings.game_theme_title"
+msgstr "Titelscherm"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Personagekeuze"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Stagekeuze"
+
+msgid "settings.game_theme_versus"
+msgstr "Versusscherm"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Pauzemenu"
+
+msgid "settings.game_theme_network"
+msgstr "Netwerkmenu's"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Editietekens"
+
+msgid "settings.game_theme_buttons"
+msgstr "Knoppen en pictogrammen"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Menugeluiden"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Bestanden voor dit scherm uit een thema in de map ember\\themes van de spelmap. De eigen bestanden van het spel blijven zoals ze zijn. Het hoofdmenu toont de keuze meteen, andere schermen de volgende keer dat ze openen."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Geen thema heeft bestanden voor dit scherm. Zet een thema, met de ui-map erin, in de map ember\\themes van de spelmap en start het spel opnieuw."
+
+msgid "settings.game_theme_game"
+msgstr "Die van de game"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "Gevechts-HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Levens-, super- en revengebalken, timer en aankondigingen uit een thema in de map ember\\themes in de gamemap. De bestanden van de game blijven zoals ze zijn. Het volgende gevecht toont het."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Geen thema's met een gevechts-HUD gevonden. Zet een thema, met de map battle\\hud erin, in ember\\themes in de gamemap en start de game opnieuw."
 
 msgid "menu.pages"
 msgstr "Pagina's"

@@ -1743,6 +1743,18 @@ msgstr "Counter hit"
 msgid "training.dummy.quick"
 msgstr "Quick stand"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "Super gauge"
 
@@ -4800,6 +4812,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Turn parts of the HUD over the fight on or off."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboxes"
 
@@ -5282,6 +5336,60 @@ msgstr "With video"
 
 msgid "replays.show.kept"
 msgstr "Kept"
+
+msgid "replays.sort"
+msgstr "Sort"
+
+msgid "replays.sort_detail"
+msgstr "The order of the list."
+
+msgid "replays.sort.newest"
+msgstr "Newest first"
+
+msgid "replays.sort.oldest"
+msgstr "Oldest first"
+
+msgid "replays.sort.player"
+msgstr "Player name"
+
+msgid "replays.sort.fighter"
+msgstr "Fighter name"
+
+msgid "replays.sort.longest"
+msgstr "Longest first"
+
+msgid "replays.fighter_detail"
+msgstr "Only matches in which this fighter played."
+
+msgid "replays.filter"
+msgstr "Sort & filter"
+
+msgid "replays.filter_detail"
+msgstr "Opens the page that sorts the list and picks fighters."
+
+msgid "replays.side"
+msgstr "Side"
+
+msgid "replays.side_detail"
+msgstr "Which side the picked fighters must be on."
+
+msgid "replays.side.either"
+msgstr "Either side"
+
+msgid "replays.side.one"
+msgstr "Player 1"
+
+msgid "replays.side.two"
+msgstr "Player 2"
+
+msgid "replays.matches_shown"
+msgstr "Matches listed"
+
+msgid "replays.filter_reset"
+msgstr "Reset"
+
+msgid "replays.filter_reset_detail"
+msgstr "Takes every choice back to its start."
 
 msgid "replays.search"
 msgstr "Search"
@@ -7276,6 +7384,57 @@ msgstr "TV mode"
 
 msgid "settings.tv_mode_detail"
 msgstr "For a TV across the room: everything a quarter larger, kept inside a 5% safe area at the edges."
+
+msgid "settings.group.game_themes"
+msgstr "In-game themes"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Main menu"
+
+msgid "settings.game_theme_title"
+msgstr "Title screen"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Character select"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Stage select"
+
+msgid "settings.game_theme_versus"
+msgstr "Versus screen"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Pause menu"
+
+msgid "settings.game_theme_network"
+msgstr "Network menus"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Edition marks"
+
+msgid "settings.game_theme_buttons"
+msgstr "Buttons and icons"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Menu sounds"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Files for this screen from a theme in the game folder's ember\\themes folder. The game's own files stay as they are. The main menu shows its pick at once, other screens the next time they open."
+
+msgid "settings.game_theme_screen_none"
+msgstr "No theme has files for this screen. Put a theme, with its ui folder inside, in the game folder's ember\\themes folder, then start the game again."
+
+msgid "settings.game_theme_game"
+msgstr "The game's own"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "Battle HUD"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Life, super and revenge bars, timer and announcements from a theme in the game folder's ember\\themes folder. The game's own files stay as they are. The next battle shows it."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "No themes with a battle HUD found. Put a theme, with its battle\\hud folder inside, in the game folder's ember\\themes folder, then start the game again."
 
 msgid "menu.pages"
 msgstr "Pages"

@@ -56,14 +56,15 @@ inline const char* RegulationFolder(int edition, int id) {
 // and the game reads a folder from the newest layer that has it, so the
 // edition's folder (RegulationFolder) is looked for in each layer in turn.
 // An edition without one, or an install that lacks it, falls back on USF4's.
+// The game's folders, newest layer first.
+inline const char* const GameLayers[] = {"patch_ae2_tu3", "patch_ae2_tu2", "patch_ae2_tu1b", "patch_ae2_tu1", "patch_ae2",
+    "dlc/04_ae2", "dlc/03_character_free", "patch", "resource"};
 inline std::filesystem::path CommandFolder(const std::filesystem::path& game, const std::string& code, int id, int edition) {
-    static const char* const layers[] = {"patch_ae2_tu3", "patch_ae2_tu2", "patch_ae2_tu1b", "patch_ae2_tu1", "patch_ae2",
-        "dlc/04_ae2", "dlc/03_character_free", "patch", "resource"};
     std::error_code ignored;
     for (const int one : {edition, 14}) {
         const char* folder = RegulationFolder(one, id);
         if (!folder) continue;
-        for (const char* layer : layers) {
+        for (const char* layer : GameLayers) {
             const auto found = (*folder ? game / layer / "battle/regulation" / folder : game / layer / "battle/chara") / code;
             if (std::filesystem::exists(found / (code + ".bcm"), ignored)) return found;
         }

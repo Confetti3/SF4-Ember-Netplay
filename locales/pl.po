@@ -1743,6 +1743,18 @@ msgstr "Counter hit"
 msgid "training.dummy.quick"
 msgstr "Szybkie wstanie"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "Pasek super"
 
@@ -5177,6 +5189,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Włącz lub wyłącz części HUD podczas walki."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboksy"
 
@@ -5659,6 +5713,60 @@ msgstr "Z wideo"
 
 msgid "replays.show.kept"
 msgstr "Zachowane"
+
+msgid "replays.sort"
+msgstr "Sortuj"
+
+msgid "replays.sort_detail"
+msgstr "Kolejność listy."
+
+msgid "replays.sort.newest"
+msgstr "Najnowsze najpierw"
+
+msgid "replays.sort.oldest"
+msgstr "Najstarsze najpierw"
+
+msgid "replays.sort.player"
+msgstr "Nazwa gracza"
+
+msgid "replays.sort.fighter"
+msgstr "Nazwa wojownika"
+
+msgid "replays.sort.longest"
+msgstr "Najdłuższe najpierw"
+
+msgid "replays.fighter_detail"
+msgstr "Tylko mecze, w których grał ten wojownik."
+
+msgid "replays.filter"
+msgstr "Sortuj i filtruj"
+
+msgid "replays.filter_detail"
+msgstr "Otwiera stronę, która sortuje listę i wybiera wojowników."
+
+msgid "replays.side"
+msgstr "Strona"
+
+msgid "replays.side_detail"
+msgstr "Po której stronie muszą być wybrani wojownicy."
+
+msgid "replays.side.either"
+msgstr "Dowolna strona"
+
+msgid "replays.side.one"
+msgstr "Gracz 1"
+
+msgid "replays.side.two"
+msgstr "Gracz 2"
+
+msgid "replays.matches_shown"
+msgstr "Wyświetlone mecze"
+
+msgid "replays.filter_reset"
+msgstr "Resetuj"
+
+msgid "replays.filter_reset_detail"
+msgstr "Przywraca każdy wybór do początku."
 
 msgid "replays.search"
 msgstr "Szukaj"
@@ -7652,6 +7760,57 @@ msgstr "Tryb TV"
 
 msgid "settings.tv_mode_detail"
 msgstr "Do telewizora po drugiej stronie pokoju: wszystko o jedną czwartą większe, w bezpiecznym marginesie 5%."
+
+msgid "settings.group.game_themes"
+msgstr "Motywy w grze"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Menu główne"
+
+msgid "settings.game_theme_title"
+msgstr "Ekran tytułowy"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Wybór postaci"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Wybór areny"
+
+msgid "settings.game_theme_versus"
+msgstr "Ekran versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menu pauzy"
+
+msgid "settings.game_theme_network"
+msgstr "Menu sieciowe"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Znaki edycji"
+
+msgid "settings.game_theme_buttons"
+msgstr "Przyciski i ikony"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Dźwięki menu"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Pliki dla tego ekranu z motywu w folderze ember\\themes folderu gry. Pliki gry pozostają bez zmian. Menu główne pokazuje wybór od razu, inne ekrany przy następnym otwarciu."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Żaden motyw nie ma plików dla tego ekranu. Umieść motyw z jego folderem ui w folderze ember\\themes folderu gry i uruchom grę ponownie."
+
+msgid "settings.game_theme_game"
+msgstr "Oryginalny z gry"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD walki"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Paski życia, super i revenge, licznik czasu i komunikaty z motywu w folderze ember\\themes w folderze gry. Pliki gry pozostają bez zmian. Następna walka go pokaże."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Nie znaleziono motywów z HUD walki. Umieść motyw z folderem battle\\hud w ember\\themes w folderze gry i uruchom grę ponownie."
 
 msgid "menu.pages"
 msgstr "Strony"

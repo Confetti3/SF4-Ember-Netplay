@@ -1743,6 +1743,18 @@ msgstr "Contre"
 msgid "training.dummy.quick"
 msgstr "Relevée rapide"
 
+msgid "training.dummy.stun"
+msgstr "Stun"
+
+msgid "training.dummy.stun_normal"
+msgstr "Normal"
+
+msgid "training.dummy.stun_constant"
+msgstr "Constant"
+
+msgid "training.dummy.stun_none"
+msgstr "None"
+
 msgid "training.dummy.super"
 msgstr "Jauge super"
 
@@ -5177,6 +5189,48 @@ msgstr "HUD"
 msgid "training.hud.detail"
 msgstr "Activez ou désactivez des éléments du HUD pendant le combat."
 
+msgid "training.remote"
+msgstr "Phone remote"
+
+msgid "training.remote.detail"
+msgstr "Change the dummy and the recording from a phone on the same network. Off until you turn it on."
+
+msgid "training.remote.address"
+msgstr "Address"
+
+msgid "training.remote.address.detail"
+msgstr "Open this in the phone's browser, then type the PIN. Select opens it in this PC's browser."
+
+msgid "training.remote.pin"
+msgstr "PIN"
+
+msgid "training.remote.pin.detail"
+msgstr "The phone types this once. It changes each time the remote is turned on."
+
+msgid "training.remote.qr"
+msgstr "Scan QR to Connect"
+
+msgid "training.remote.qr.detail"
+msgstr "Point the phone's camera at the code. It opens the page and signs in."
+
+msgid "training.remote.newpin"
+msgstr "New PIN"
+
+msgid "training.remote.newpin.detail"
+msgstr "Make a new PIN and QR code. Phones that were connected have to scan again."
+
+msgid "training.remote.hud"
+msgstr "Edit the HUD from a PC"
+
+msgid "training.remote.hud.detail"
+msgstr "Lets a PC on this network move the battle HUD parts from the remote page. Off again each time the remote starts. Not for phones."
+
+msgid "training.remote.failed"
+msgstr "The phone remote could not start."
+
+msgid "training.remote.open_failed"
+msgstr "The browser could not be opened."
+
 msgid "training.hitboxes"
 msgstr "Hitboxes"
 
@@ -5659,6 +5713,60 @@ msgstr "Avec vidéo"
 
 msgid "replays.show.kept"
 msgstr "Conservés"
+
+msgid "replays.sort"
+msgstr "Trier"
+
+msgid "replays.sort_detail"
+msgstr "L'ordre de la liste."
+
+msgid "replays.sort.newest"
+msgstr "Plus récents d'abord"
+
+msgid "replays.sort.oldest"
+msgstr "Plus anciens d'abord"
+
+msgid "replays.sort.player"
+msgstr "Nom du joueur"
+
+msgid "replays.sort.fighter"
+msgstr "Nom du combattant"
+
+msgid "replays.sort.longest"
+msgstr "Plus longs d'abord"
+
+msgid "replays.fighter_detail"
+msgstr "Seulement les matchs où ce combattant a joué."
+
+msgid "replays.filter"
+msgstr "Trier et filtrer"
+
+msgid "replays.filter_detail"
+msgstr "Ouvre la page qui trie la liste et choisit les combattants."
+
+msgid "replays.side"
+msgstr "Côté"
+
+msgid "replays.side_detail"
+msgstr "De quel côté les combattants choisis doivent être."
+
+msgid "replays.side.either"
+msgstr "Un côté ou l'autre"
+
+msgid "replays.side.one"
+msgstr "Joueur 1"
+
+msgid "replays.side.two"
+msgstr "Joueur 2"
+
+msgid "replays.matches_shown"
+msgstr "Matchs listés"
+
+msgid "replays.filter_reset"
+msgstr "Réinitialiser"
+
+msgid "replays.filter_reset_detail"
+msgstr "Remet chaque choix à son début."
 
 msgid "replays.search"
 msgstr "Rechercher"
@@ -7652,6 +7760,57 @@ msgstr "Mode TV"
 
 msgid "settings.tv_mode_detail"
 msgstr "Pour une TV à l'autre bout de la pièce : tout est un quart plus grand, à l'intérieur d'une marge de sécurité de 5 %."
+
+msgid "settings.group.game_themes"
+msgstr "Thèmes du jeu"
+
+msgid "settings.game_theme_main_menu"
+msgstr "Menu principal"
+
+msgid "settings.game_theme_title"
+msgstr "Écran titre"
+
+msgid "settings.game_theme_chara_select"
+msgstr "Sélection du personnage"
+
+msgid "settings.game_theme_stage_select"
+msgstr "Sélection du stage"
+
+msgid "settings.game_theme_versus"
+msgstr "Écran de versus"
+
+msgid "settings.game_theme_pause_menu"
+msgstr "Menu pause"
+
+msgid "settings.game_theme_network"
+msgstr "Menus réseau"
+
+msgid "settings.game_theme_edition_marks"
+msgstr "Marques d'édition"
+
+msgid "settings.game_theme_buttons"
+msgstr "Boutons et icônes"
+
+msgid "settings.game_theme_menu_sounds"
+msgstr "Sons des menus"
+
+msgid "settings.game_theme_screen_detail"
+msgstr "Fichiers pour cet écran venant d'un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le menu principal affiche le choix tout de suite, les autres écrans à leur prochaine ouverture."
+
+msgid "settings.game_theme_screen_none"
+msgstr "Aucun thème n'a de fichiers pour cet écran. Placez un thème, avec son dossier ui, dans le dossier ember\\themes du dossier du jeu, puis relancez le jeu."
+
+msgid "settings.game_theme_game"
+msgstr "Celui du jeu"
+
+msgid "settings.game_theme_battle_hud"
+msgstr "HUD de combat"
+
+msgid "settings.game_theme_battle_hud_detail"
+msgstr "Barres de vie, de super et de revenge, chrono et annonces pris dans un thème du dossier ember\\themes du dossier du jeu. Les fichiers du jeu restent tels quels. Le prochain combat l'affiche."
+
+msgid "settings.game_theme_battle_hud_none"
+msgstr "Aucun thème avec un HUD de combat trouvé. Placez un thème, avec son dossier battle\\hud, dans ember\\themes du dossier du jeu, puis relancez le jeu."
 
 msgid "menu.pages"
 msgstr "Pages"
