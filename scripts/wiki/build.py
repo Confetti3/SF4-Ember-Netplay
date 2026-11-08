@@ -340,6 +340,28 @@ def headings(text):
     return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)} | set(re.findall(r'<a name="([^"]+)">', text))
 
 
+def release_tag(src):
+    """The release tag at HEAD, such as v1.5.4, or None: nightly builds are tagged v1.5.1-nightly20261102."""
+    tag = subprocess.run(["git", "-C", src, "describe", "--tags", "--exact-match", "--match", "v*", "--exclude", "v*-*"],
+                         capture_output=True, text=True)
+    return tag.stdout.strip() if tag.returncode == 0 else None
+
+
+def version(src):
+    """The Ember version the docs describe: CMakeLists' project version, "nightly" unless HEAD is a release tag."""
+    number = re.search(r"^\s*VERSION\s+([\d.]+)", (src / "CMakeLists.txt").read_text(encoding="utf-8"), re.M)[1]
+    return f"Ember {number}" + ("" if release_tag(src) else " nightly")
+
+
+def versions(repo, tags):
+    """The Versions page: each release's Home as it was when it came out, newest first; tags maps a ref to its commit."""
+    key = lambda ref: [int(n) for n in ref.removeprefix("refs/tags/v").split(".")]
+    lines = ["Each release's guides as they were when it came out. Links inside an old page lead to the current pages.", ""]
+    lines += [f"- [{ref.removeprefix('refs/tags/')}](https://github.com/{repo}/wiki/Home/{tags[ref]})"
+              for ref in sorted(tags, key=key, reverse=True)]
+    return "\n".join(lines) + "\n"
+
+
 def blurbs(lines):
     """What each guide covers, by path, from the README's Guides table: `| [name](path) | text |` rows."""
     found = {}
@@ -451,11 +473,19 @@ def build(src, repo, out, auth, label=PR_LABEL, overlay_prs=True, framedata=None
                                  encoding="utf-8")
     links = ["**Links**", "", f"- [Download](https://github.com/{UPSTREAM}/releases)", f"- [Discord]({DISCORD})",
              f"- [Report a bug](https://github.com/{UPSTREAM}/issues)", ""]
+    # Each release's wiki is a tag on the wiki repository; GitHub shows any page as it was at a commit.
+    # A fork without a wiki has nothing to list.
+    tags = subprocess.run(["git", "ls-remote", "--refs", "--tags", f"https://github.com/{repo}.wiki.git", "v*"],
+                          capture_output=True, text=True, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"}).stdout.split()
+    if tags:
+        (out / "Versions.md").write_text(versions(repo, dict(zip(tags[1::2], tags[::2]))), encoding="utf-8")
+        links.insert(-1, "- [Versions](Versions)")
     sidebar_lines = ["**[Home](Home)**", ""] + listing("**%s**", lambda p: f"- [{p}]({slug(p)})") + links
     (out / "_Sidebar.md").write_text("\n".join(sidebar_lines), encoding="utf-8")
 
     sha = subprocess.run(["git", "-C", src, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    text = f"Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); edit the docs, not this page."
+    text = (f"{version(src)}. Generated from the docs at [`{sha[:9]}`](https://github.com/{repo}/tree/{sha}); "
+            "edit the docs, not this page.")
     if included:
         # Titles are other people's text: escape what Markdown would read as links or markup.
         titles = {n: re.sub(r"([\\[\]<>*_`])", r"\\\1", pr["title"]) for n, pr in included.items()}

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Checks for the wiki build that need no network: python3 scripts/wiki/test_wiki.py"""
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -91,6 +92,21 @@ rows = [{"picture": "a.webp", "source": "render home"}, {"picture": "b.webp", "s
 assert stale.stale(rows, lambda path: ["c2abcde"] if path == "src/ui" else []) == \
     ["render pictures: src/ui changed after their capture, last in c2abcde"]
 assert stale.stale(rows, lambda path: []) == []
+# The footer names the version from CMakeLists, as a nightly unless HEAD is a release tag.
+with tempfile.TemporaryDirectory() as folder:
+    Path(folder, "CMakeLists.txt").write_text("project(x\n  VERSION 1.2.3)\n")
+    git = lambda *command: subprocess.run(["git", "-C", folder, "-c", "user.name=x", "-c", "user.email=x@y", *command],
+                                          check=True)
+    git("init", "-q"), git("add", "."), git("commit", "-q", "-m", "x"), git("tag", "v1.2.3-nightly20260101")
+    assert build.release_tag(Path(folder)) is None and build.version(Path(folder)) == "Ember 1.2.3 nightly"
+    git("tag", "v1.2.3")
+    assert build.release_tag(Path(folder)) == "v1.2.3" and build.version(Path(folder)) == "Ember 1.2.3"
+# A guide is stale the same way, and every source it names exists, so a rename shows up here.
+assert stale.guides(lambda guide: "c0", lambda since, path: ["c3"] if path == "src/training" else []) == \
+    ["docs/guides/TRAINING_LAB.md: src/training changed after it, last in c3"]
+missing = [p for paths in stale.GUIDES.values() for p in paths if not (build.ROOT / p).exists()]
+assert not missing, missing
+assert set(stale.GUIDES) <= {path for path, _, _ in build.PAGES}, set(stale.GUIDES) - {path for path, _, _ in build.PAGES}
 # Every picture in the docs is in the manifest, and the manifest names no picture that is gone.
 rows = stale.read(build.ROOT)
 assert {row["source"].split()[0] for row in rows} <= set(stale.WATCHED), "a manifest row names a source kind stale.py lacks"
@@ -98,6 +114,11 @@ listed = {row["picture"] for row in rows}
 images = build.ROOT / "docs/images"
 present = {str(p.relative_to(images)) for p in images.rglob("*") if p.suffix in build.IMAGES}
 assert listed == present, (listed ^ present)
+# The Versions page lists each release's Home at the wiki commit its tag marks, newest first.
+page = build.versions("o/r", {"refs/tags/v1.4.0": "abc", "refs/tags/v1.5.0": "def", "refs/tags/v1.10.0": "g"})
+assert page.splitlines()[2:] == \
+    ["- [v1.10.0](https://github.com/o/r/wiki/Home/g)", "- [v1.5.0](https://github.com/o/r/wiki/Home/def)",
+     "- [v1.4.0](https://github.com/o/r/wiki/Home/abc)"]
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
