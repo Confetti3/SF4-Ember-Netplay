@@ -5539,6 +5539,12 @@ msgstr "换对手"
 msgid "room.new_opponent_detail"
 msgstr "留在座位上，与等待最久的玩家对战，或等待下一位入座的玩家。"
 
+msgid "room.new_opponent_wait"
+msgstr "其他人都在对战中。你保留座位，与下一位空闲的玩家对战。等待期间可以去训练。"
+
+msgid "room.new_opponent_chosen"
+msgstr "已选换对手"
+
 msgid "room.rematch_ask"
 msgstr "再战？"
 

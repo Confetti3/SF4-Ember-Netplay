@@ -5538,6 +5538,12 @@ msgstr "Nový soupeř"
 msgid "room.new_opponent_detail"
 msgstr "Zůstaňte sedět a hrajte s tím, kdo čeká nejdéle, nebo počkejte na dalšího hráče."
 
+msgid "room.new_opponent_wait"
+msgstr "Všichni ostatní hrají. Zůstanete sedět a budete hrát s dalším volným hráčem. Mezitím můžete čekat v tréninku."
+
+msgid "room.new_opponent_chosen"
+msgstr "Nový soupeř zvolen"
+
 msgid "room.rematch_ask"
 msgstr "Odveta?"
 

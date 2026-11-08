@@ -36,6 +36,25 @@ int main() {
 		EXPECT(!TrainingCall::MayTrain(readied));
 		for (const auto phase : {TablePhase::Ready, TablePhase::Playing, TablePhase::Paused, TablePhase::Closed})
 			EXPECT(!TrainingCall::MayTrain(Room(2, 0, 2, phase)));
+		// An Arcade pair choosing after a set: the one who asked for a new
+		// opponent in a full room waits for someone else, so Training is theirs;
+		// the other, or one who chose Rematch, still has the old one opposite.
+		auto asked = Room(2, 1, 2); asked.tables[1].deciding = true; asked.tables[1].wantsNew[1] = true;
+		EXPECT(TrainingCall::MayTrain(asked));
+		auto partner = asked; partner.localMember = 1;
+		EXPECT(!TrainingCall::MayTrain(partner));
+		auto rematch = Room(2, 1, 2); rematch.tables[1].deciding = true; rematch.tables[1].rematch[1] = true;
+		EXPECT(!TrainingCall::MayTrain(rematch));
+	}
+	{
+		// The one who asked for a new opponent trains: the old one opposite
+		// never calls them. The swap seats someone new there: one call.
+		TrainingCall call;
+		auto room = Room(2, 1, 2); room.tables[1].deciding = true; room.tables[1].wantsNew[1] = true;
+		EXPECT(call.Update(room, In(true, false), 1000) == Step::None && !call.Called());
+		EXPECT(call.Update(room, In(true, false), 120000) == Step::None);
+		room.tables[1].deciding = false; room.tables[1].wantsNew[1] = false; room.tables[1].p1 = 5;
+		EXPECT(call.Update(room, In(true, false), 121000) == Step::Call && call.Called());
 	}
 	{
 		// Seated alone in Training: nothing, however long. A fighter sits down opposite: one call.
