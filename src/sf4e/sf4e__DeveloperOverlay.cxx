@@ -348,7 +348,7 @@ static void DrawThemeTester(const sf4e::NetplayFacade::RuntimeSnapshot& snapshot
 	ImGui::Separator();
 }
 
-void sf4e::ui::DrawGameThemesWindow(bool focused, bool here, bool always) {
+void sf4e::ui::DrawGameThemesFloat(bool focused, bool here, bool always) {
 	static bool open = false;
 	if (focused && here && !always && ImGui::IsKeyPressed(ImGuiKey_F8, false)) open = !open;
 	if (!here || !(open || always)) return;
