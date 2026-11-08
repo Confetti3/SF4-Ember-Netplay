@@ -37,8 +37,10 @@ or King of the hill. Any type can be private or public.
 5. King of the hill rotates the same way, with streaks: every pair plays at
    once. When nobody waits alone the winner still waits for the next one free
    while anyone else sits at a cabinet; with nobody else there the loser
-   challenges again. The top slot stays with its holder until someone beats
-   that streak or beats them.
+   challenges again. In a full room, every table a pair, the pair stays and
+   the loser asks for a new opponent at once: the next set to end elsewhere
+   trades the losers, or both choose Rematch. The top slot stays with its
+   holder until someone beats that streak or beats them.
 6. After a set the WIN screen's prompt asks the room's question too. While
    the pair decides it offers Rematch and New opponent (Y), the same choices
    as the cabinet, and a Rematch chosen there readies the player once both

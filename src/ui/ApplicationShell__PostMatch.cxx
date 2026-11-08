@@ -232,12 +232,13 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     const auto standing = room::StandingAfter(v.room, t, p.generation, p.result);
     const bool midSet = t.rules.format != room::SetFormat::Unlimited && !standing.over;
     // An Arcade or King of the hill room after a set: the pair decides when
-    // nobody waited alone but others sit at the cabinets (Arcade only). Once
-    // one of them has left the table for their cabinet the room has paired
-    // someone new, so there is nothing to choose (an opponent gone from the
-    // cabinets has left, as in a Classic room). A pair still seated together (nobody else to play,
-    // or the result still on its way, as in an Unlimited game that may go on
-    // in place) has the ordinary Rematch, as a Classic pair does.
+    // nobody waited alone but others sit at the cabinets; a King loser arrives
+    // already asking for a new opponent. Once one of them has left the table
+    // for their cabinet the room has paired someone new, so there is nothing
+    // to choose (an opponent gone from the cabinets has left, as in a Classic
+    // room). A pair still seated together (nobody else to play, or the result
+    // still on its way, as in an Unlimited game that may go on in place) has
+    // the ordinary Rematch, as a Classic pair does.
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
     // Rematch and New opponent, and Y, follow the pair's answers as the

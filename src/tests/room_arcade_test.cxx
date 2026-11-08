@@ -588,6 +588,31 @@ static void TestFullRoomRotates() {
 	for (const auto member : m) CHECK(met[member].size() >= 3);
 }
 
+// King of the hill in a full room: the loser has no table to wait at, so the
+// pair stays and the loser asks for a new opponent at once; the next set to
+// end elsewhere trades the losers, and both streaks go on. Rematch from both
+// keeps the pair instead.
+static void TestFullRoomKing() {
+	auto authority = Arcade(KingRoom);
+	const auto m = FullRoom(authority);
+	const auto& room = authority.SnapshotView();
+	const MemberId a = m[0], b = OpponentOf(authority, a);
+	Beat(authority, a);
+	const auto& t = room.tables[TableOf(authority, a)];
+	CHECK(Paired(authority, a, b) && t.deciding && t.wantsNew[t.p1 == b ? 0 : 1] && Asking(authority) == 1);
+	CHECK(room.streaks[0] == 1 && room.topSlot == 0);
+	MemberId c = 0;
+	for (const auto member : m) if (member != a && member != b) { c = member; break; }
+	const MemberId d = OpponentOf(authority, c);
+	Beat(authority, c);
+	CHECK(Paired(authority, a, d) && Paired(authority, c, b) && Asking(authority) == 0);
+	CHECK(room.streaks[0] == 1 && room.streaks[CabinetOf(room, c)] == 1);
+	for (const auto& x : room.tables) CHECK(!x.deciding);
+	Beat(authority, a);
+	CHECK(Choose(authority, d, ActionKind::Rematch).accepted && Choose(authority, a, ActionKind::Rematch).accepted);
+	CHECK(Paired(authority, a, d) && !t.deciding && Asking(authority) == 0 && room.streaks[0] == 2);
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
@@ -598,6 +623,7 @@ int main() {
 		TestFullRoomRequestTakesAFreedSeat();
 		TestFullRoomTwoRequestsSwap();
 		TestFullRoomRotates();
+		TestFullRoomKing();
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();

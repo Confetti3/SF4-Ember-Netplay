@@ -53,12 +53,10 @@ void RoomAuthority::JoinTable(MemberId member, Table& table) {
 }
 
 // First come, first paired: `member`, at no table, plays the player who has
-// waited longest, else waits at an empty table. Two who just parted and find
-// nobody else are paired again only when no table is left to wait at.
+// waited longest, else waits at an empty table.
 void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
 	Table* table = Waiter(member, parted, nullptr);
 	for (auto& empty : snapshot_.tables) if (!table && ArcadeEmpty(empty)) table = &empty;
-	if (!table) table = Waiter(member, 0, nullptr);
 	if (!table) return;
 	JoinTable(member, *table);
 }
@@ -78,8 +76,9 @@ void RoomAuthority::SwapFighter(MemberId leaving, Table& table, const ArcadeWait
 // here; the loser waits for the next one (PairArcade), not the winner. With
 // nobody waiting alone the pair stays: an Arcade pair chooses Rematch or New
 // opponent, and with nobody else there just readies again. King of the hill
-// moves the streaks and the top slot, and while anyone else sits at a
-// cabinet the winner waits here for them instead.
+// moves the streaks and the top slot, and while a table is free the loser
+// waits there and the winner here for a challenger; in a full room the pair
+// stays like an Arcade one, the loser already asking for a new opponent.
 void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser) {
 	const bool king = snapshot_.arcade == KingRoom;
 	if (king) {
@@ -92,14 +91,15 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 	Table* const challenger = Waiter(winner, loser, &table);
 	const bool others = std::any_of(snapshot_.cabinets.begin(), snapshot_.cabinets.end(),
 		[&](MemberId m) { return m && m != winner && m != loser; });
-	const bool parts = challenger || (king && others);
+	const bool parts = challenger || (king && others && ArcadeSomeoneFree(snapshot_, table.id));
 	if (!parts) {
 		// Someone at another table asked for a new opponent and nobody was free:
 		// the loser goes there, and the one who asked plays the winner.
-		const auto asker = king ? ArcadeWaitingAsker{} : ArcadeAsker(snapshot_, table.id);
+		const auto asker = ArcadeAsker(snapshot_, table.id);
 		if (asker.member) { SwapFighter(loser, table, asker); return; }
 		EndChoice(table);
-		table.deciding = !king && others;
+		table.deciding = others;
+		if (king && others) table.wantsNew[table.p1 == loser ? 0 : 1] = true;
 		return;
 	}
 	if (table.p1 == loser) table.p1 = 0; else table.p2 = 0;
