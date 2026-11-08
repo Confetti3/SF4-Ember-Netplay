@@ -159,6 +159,16 @@ const char* ArcadeAnswerKey(const room::Table& table, int seat);
 // open until they ask for it, and what it does now (room::ArcadeNewOpponentFor).
 struct NewOpponentChoice { bool open = false; const char* detail = nullptr; };
 NewOpponentChoice DescribeNewOpponent(const room::Snapshot& s, std::size_t table, int seat);
+// Both answers for `seat` at the deciding Arcade pair at `table`, as the
+// cabinet, the room's bar and the post-match prompt offer them: each open until
+// it is given (New opponent by DescribeNewOpponent) and while the room takes
+// actions now; its detail says what it does, or why the room cannot take it yet.
+// The bar's Ready is the same Rematch (DescribeReady).
+struct ArcadeChoice {
+    bool rematchOpen = false, newOpponentOpen = false;
+    std::string rematchDetail, newOpponentDetail;
+};
+ArcadeChoice DescribeArcadeChoice(const ShellView& v, std::size_t table, int seat);
 // "3 sets in a row" for the member who has won two or more sets in a row at
 // this table (Table::streakHolder), else empty.
 std::string StreakText(const room::Table& t, room::MemberId member);

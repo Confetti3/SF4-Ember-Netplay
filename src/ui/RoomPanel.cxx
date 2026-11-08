@@ -141,11 +141,12 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
   if(static_cast<int>(c)!=ownCabinet||mine.kind!=Place::Kind::Seat)continue;
   const auto& table=s.tables[mine.table];
   if(table.deciding){
-   const auto next=DescribeNewOpponent(s,static_cast<std::size_t>(mine.table),mine.seat);
-   row.choices={{"rematch",loc::T("room.rematch"),loc::T("room.rematch_detail")},
-    {"new-opponent",loc::T("room.new_opponent"),loc::T(next.detail)}};
-   row.choices[0].enabled=!table.rematch[mine.seat];
-   row.choices[1].enabled=next.open;
+   // The pair's two answers, as the bar and the post-match prompt offer them.
+   const auto answer=DescribeArcadeChoice(v,static_cast<std::size_t>(mine.table),mine.seat);
+   row.choices={{"rematch",loc::T("room.rematch"),answer.rematchDetail},
+    {"new-opponent",loc::T("room.new_opponent"),answer.newOpponentDetail}};
+   row.choices[0].enabled=answer.rematchOpen;
+   row.choices[1].enabled=answer.newOpponentOpen;
    continue;
   }
   OwnSeatRow(row,v,table,mine.seat,leaveAsk==mine.table);
@@ -395,10 +396,9 @@ void ApplicationShell::RoomBoardRows(std::vector<MenuEntry>& rows,const RoomScre
   // An Arcade pair deciding after a set: Ready is its Rematch, and New
   // opponent stands beside it, the cabinet's two choices (CabinetRows) on the
   // bar, so neither needs the player to find their own cabinet.
-  const auto& own=s.tables[c.place.table];
-  if(s.arcade&&own.deciding){
-   const auto next=DescribeNewOpponent(s,static_cast<std::size_t>(c.place.table),c.place.seat);
-   rows.push_back(Row("new-opponent",loc::T("room.new_opponent"),loc::T(next.detail),next.open));
+  if(s.tables[c.place.table].deciding){
+   const auto answer=DescribeArcadeChoice(v,static_cast<std::size_t>(c.place.table),c.place.seat);
+   rows.push_back(Row("new-opponent",loc::T("room.new_opponent"),answer.newOpponentDetail,answer.newOpponentOpen));
   }
   rows.push_back(UltraRow(v));
   // The opponent showed another fighter: the Ultra takes the focus, so one

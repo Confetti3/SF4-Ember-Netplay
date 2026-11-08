@@ -39,6 +39,11 @@ std::string ReadyBlocker(const ShellView& v, const room::Table& t) {
     if (!v.controllerReady) return loc::T("room.controller_required");
     return v.selectionError;
 }
+// The deciding pair's Rematch for `seat`: open until chosen, while the room
+// takes actions now. The bar's Ready and every other view of it ask this.
+bool ArcadeRematchOpen(const ShellView& v, const room::Table& t, int seat) {
+    return t.deciding && seat >= 0 && seat < 2 && !t.rematch[seat] && RoomActionsAvailable(v);
+}
 }
 const char* PhaseName(const room::Table& table) {
     switch (table.phase) {
@@ -70,6 +75,20 @@ NewOpponentChoice DescribeNewOpponent(const room::Snapshot& s, std::size_t table
     choice.open = s.tables[table].deciding && !s.tables[table].wantsNew[seat];
     // A swap with the one waiting elsewhere is a new opponent now, as parting is.
     choice.detail = room::ArcadeNewOpponentFor(s, table) == room::ArcadeNewOpponent::Wait ? "room.new_opponent_wait" : "room.new_opponent_detail";
+    return choice;
+}
+ArcadeChoice DescribeArcadeChoice(const ShellView& v, std::size_t table, int seat) {
+    ArcadeChoice choice;
+    if (table >= v.room.tables.size() || seat < 0 || seat > 1) return choice;
+    const auto& t = v.room.tables[table];
+    const auto next = DescribeNewOpponent(v.room, table, seat);
+    // A room busy elsewhere (recovering, closing, catching up) takes neither
+    // answer yet, and both say why, as Ready does.
+    const bool takes = RoomActionsAvailable(v);
+    choice.rematchOpen = ArcadeRematchOpen(v, t, seat);
+    choice.newOpponentOpen = takes && next.open;
+    choice.rematchDetail = takes ? std::string(loc::T("room.rematch_detail")) : std::string(RoomWaitReason(v));
+    choice.newOpponentDetail = takes ? std::string(loc::T(next.detail)) : std::string(RoomWaitReason(v));
     return choice;
 }
 std::string StreakText(const room::Table& t, room::MemberId member) {
@@ -230,7 +249,7 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
         control.label = loc::T("room.rematch");
         control.detail = loc::T("room.rematch_detail");
         if (!RoomActionsAvailable(v)) control.refusal = RoomWaitReason(v);
-        else if (t.rematch[seat]) control.refusal = control.detail;
+        else if (!ArcadeRematchOpen(v, t, seat)) control.refusal = control.detail;
         else control.kind = ReadyControl::Rematch;
         return control;
     }

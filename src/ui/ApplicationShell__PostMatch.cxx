@@ -215,9 +215,10 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // in place) has the ordinary Rematch, as a Classic pair does.
     const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
-    // New opponent's row and Y follow the room's own choice (DescribeNewOpponent).
-    const auto newOpponent = deciding ? room_controls::DescribeNewOpponent(v.room, static_cast<std::size_t>(p.table), mine) : room_controls::NewOpponentChoice{};
-    const bool newOpponentOpen = newOpponent.open && !p.left;
+    // Rematch and New opponent, and Y, follow the pair's answers as the
+    // cabinet and the room's bar offer them (DescribeArcadeChoice).
+    const auto answer = deciding ? room_controls::DescribeArcadeChoice(v, static_cast<std::size_t>(p.table), mine) : room_controls::ArcadeChoice{};
+    const bool newOpponentOpen = answer.newOpponentOpen && !p.left;
     const bool opponentGone = room::CabinetOf(v.room, p.opponent) < 0;
     const bool rotates = cabinets && !deciding && (mine < 0 || (theirs < 0 && !opponentGone));
     // Chosen is a commitment to play on: Rematch, a Ready, or this PC's
@@ -269,9 +270,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, double now, const Submi
     // device without the X or Y shortcut reaches every answer with the D-pad.
     std::vector<MenuEntry> rows;
     if (deciding) {
-        rows.push_back(Row("rematch", loc::T("room.rematch"), loc::T("room.rematch_detail"), !chosen));
-        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"),
-            loc::T(newOpponent.detail), newOpponentOpen));
+        rows.push_back(Row("rematch", loc::T("room.rematch"), answer.rematchDetail, answer.rematchOpen && !chosen));
+        rows.push_back(Row("new-opponent", loc::T("room.new_opponent"), answer.newOpponentDetail, newOpponentOpen));
     } else if (!rotates)
         rows.push_back(Row("again", loc::T(midSet ? "postmatch.next_game" : "postmatch.rematch"),
             again ? std::string(loc::T("postmatch.again.detail")) : refusal ? std::string(loc::T(refusal)) : loc::Tf("postmatch.opponent_left", name),
