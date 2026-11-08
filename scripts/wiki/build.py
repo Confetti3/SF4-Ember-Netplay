@@ -336,8 +336,8 @@ def anchor(heading):
 
 
 def headings(text):
-    """The ids of a page's headings, for links to check."""
-    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)}
+    """The ids of a page's headings, for links to check; an `<a name>` kept for a heading that moved counts."""
+    return {anchor(h) for h in re.findall(r"^(?:> )*#{1,6} (.+)$", text, re.M)} | set(re.findall(r'<a name="([^"]+)">', text))
 
 
 def blurbs(lines):

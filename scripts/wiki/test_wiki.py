@@ -81,8 +81,9 @@ with tempfile.TemporaryDirectory() as folder:
         assert build.README_PART[0] in str(stop), stop
     else:
         raise AssertionError("a README without its part-headings built")
-# A page or a heading that links point to may not disappear unnoticed.
+# A page or a heading that links point to may not disappear unnoticed; an anchor kept for a moved heading counts.
 assert publish.lost({"A": "## One\n## Two", "B": "x"}, {"A": "## One\n## Three"}) == (["B"], ["A#two"])
+assert publish.lost({"A": "## Two"}, {"A": '<a name="two"></a>'}) == ([], [])
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old

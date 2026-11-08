@@ -112,6 +112,7 @@ The menu pictures above are drawn by Ember's own interface code with made-up sam
 
 The right mouse button also goes back. You can choose other menu buttons for a stick on its **Button layout** screen. Back from Home hides Ember and keeps you in your room. To leave a room, use **Leave room**. More detail is in the [controller guide](docs/guides/CONTROLLER_MENUS.md).
 
+<a name="settings-updates-and-legacy-builds"></a>
 ## Settings and updates
 
 Ember keeps your settings in `%APPDATA%\sf4e`, so they stay through updates. **Settings > About** shows your version and has **Check for updates**, the update channel, attribution and diagnostics. Each update is checked against its SHA-256 before it installs.
