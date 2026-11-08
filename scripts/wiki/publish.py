@@ -27,10 +27,19 @@ def carry(old, new, prefix):
     return "".join(parts[:at] + frame + parts[at:])
 
 
+def lost(old, new):
+    """The pages and heading links an old wiki had that a new one lacks, since players have linked to them."""
+    pages = sorted(set(old) - set(new))
+    anchors = sorted(f"{page}#{name}" for page in set(old) & set(new)
+                     for name in build.headings(old[page]) - build.headings(new[page]))
+    return pages, anchors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=build.ROOT / "build/wiki", help="the built wiki")
     parser.add_argument("--repo", required=True, help="the repository whose wiki to publish, as owner/name")
+    parser.add_argument("--allow-removal", action="store_true", help="publish although pages that were linked to are gone")
     parser.add_argument("--dry-run", action="store_true", help="show what would change, do not commit or push")
     args = parser.parse_args()
     if not (args.out / "Home.md").is_file():
@@ -54,6 +63,8 @@ def main():
             keep = {*wiki.glob("Frame-Data*.md"), *wiki.glob("images/banner-Frame-Data*.svg")}
         old = {name: (wiki / name).read_text(encoding="utf-8") for name in ("_Sidebar.md", "Home.md")
                if keep and (wiki / name).exists()}
+        read = lambda: {path.stem: path.read_text(encoding="utf-8") for path in wiki.glob("[!_]*.md")}
+        before = read()
         for item in wiki.rglob("*"):
             if item.is_file() and ".git" not in item.relative_to(wiki).parts and item not in keep:
                 item.unlink()
@@ -62,6 +73,12 @@ def main():
             if name in old:
                 (wiki / name).write_text(carry(old[name], (wiki / name).read_text(encoding="utf-8"), prefix),
                                          encoding="utf-8")
+        pages, anchors = lost(before, read())
+        for line in anchors:
+            print(f"warning: the link {line} no longer has a heading")
+        if pages and not args.allow_removal:
+            sys.exit("these pages would be removed, which breaks links to them: " + ", ".join(pages)
+                     + "; keep them (a short page pointing to the new one) or pass --allow-removal")
         git("add", "-A")
         if subprocess.run(["git", "-C", wiki, "diff", "--cached", "--quiet"]).returncode == 0:
             print("the wiki is already up to date")
