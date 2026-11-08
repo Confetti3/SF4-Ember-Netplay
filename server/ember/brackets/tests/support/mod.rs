@@ -19,7 +19,7 @@ use ember_brackets::{
     Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Hold, Results,
     RoundRule, Rounds, Side, Tournament,
 };
-use ember_protocol::webhook::Secret;
+use ember_protocol::{matches::Game, webhook::Secret};
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 
@@ -100,6 +100,7 @@ pub fn challonge_tournament(dir: &Path, kind: CredentialKind, api_base: &str) ->
         active_until: None,
         mark_underway: true,
         api_base: Some(api_base.into()),
+        game: Default::default(),
     }
 }
 
@@ -180,6 +181,8 @@ pub struct Setup {
     /// schema describes (players in `relationships`) instead of the live
     /// API's (players in `points_by_participant`), which is the default.
     pub documented_shape: bool,
+    /// Every tournament's game (`usf4`, as an older configuration reads).
+    pub game: Game,
 }
 
 impl Default for Setup {
@@ -211,6 +214,7 @@ impl Default for Setup {
                 FakeMatch::fed_by("1003", 2, ["1001", "1002"]),
             ],
             documented_shape: false,
+            game: Game::Usf4,
         }
     }
 }
@@ -233,6 +237,7 @@ impl World {
                 active_until: setup.active_until.clone(),
                 rounds: setup.rounds.clone(),
                 hold: setup.hold,
+                game: setup.game,
                 ..challonge_tournament(&dir, setup.kind, &challonge.api)
             });
         }
@@ -253,6 +258,7 @@ impl World {
                 active_until: setup.active_until.clone(),
                 mark_underway: true,
                 api_base: Some(extra.api_base),
+                game: setup.game,
             });
         }
         // Both clocks stand still from here until a test moves them.

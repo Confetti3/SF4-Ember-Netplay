@@ -168,7 +168,9 @@ abort with `reason: "insufficientPlayers"` and `retryable: false`, so it does
 not ask for the match again and its host takes it.
 
 `GET /v1/assignments` rows and `GET /v1/matches/{id}` carry `created_at` and
-`expires_at`, and an expired match stays in the assignments for a day.
+`expires_at`, and an expired match stays in the assignments for a day. Each
+assignment row also names its match's `game` (`usf4` or `sfv`, migration
+059), so each product lists only its own game's matches.
 
 ## Player lookup
 

@@ -121,3 +121,27 @@ async fn an_event_a_configured_tournament_runs_is_left_to_it() {
     // The configured tournament's length, not the event's.
     assert_eq!(world.snapshot(&matches[0].1).await["games_to_win"], 2);
 }
+
+#[tokio::test]
+async fn an_event_that_names_sfv_makes_sfv_matches() {
+    let world = World::start(Setup {
+        challonge: false,
+        kind: CredentialKind::Bearer,
+        ..Setup::default()
+    })
+    .await;
+    let mut config = world.config.clone();
+    config.desk = Some(Desk {
+        api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
+        ..Desk::default()
+    });
+    let connector = support::connector(&config, &world.clock);
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+
+    run_event(&world, json!({ "rounds": { "games_to_win": 2 }, "game": "sfv" })).await;
+    connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 1);
+    assert_eq!(world.bridge.match_game(&matches[0].1).await, "sfv");
+}

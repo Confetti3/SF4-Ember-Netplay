@@ -67,7 +67,7 @@ mod tests {
         challenge::{Action, Method},
         event::Kind,
         lobby::Rotation,
-        matches::{DeliveryState, MatchState},
+        matches::{DeliveryState, Game, MatchState},
         tournament::{Format, Side, Status},
     };
 
@@ -99,6 +99,7 @@ mod tests {
         names_agree(&Status::ALL, Status::as_str, Status::parse);
         names_agree(&Rotation::ALL, Rotation::as_str, Rotation::parse);
         names_agree(&MatchState::ALL, MatchState::as_str, MatchState::parse);
+        names_agree(&Game::ALL, Game::as_str, Game::parse);
         names_agree(
             &DeliveryState::ALL,
             DeliveryState::as_str,

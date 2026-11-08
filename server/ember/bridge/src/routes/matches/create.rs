@@ -4,7 +4,11 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::Response,
 };
-use ember_protocol::{api::ErrorCode, matches::CreateMatch, play::play_url};
+use ember_protocol::{
+    api::ErrorCode,
+    matches::{CreateMatch, Game},
+    play::play_url,
+};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde_json::json;
 
@@ -103,6 +107,7 @@ fn create_match(
             connection_id,
             external_match_id: &command.external_match_id,
             digest,
+            game: Game::of(&command.game)?,
             rules: &command.rules,
             required_build_id: &command.required_build_id,
             metadata: &command.metadata,

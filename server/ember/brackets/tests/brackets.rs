@@ -4,6 +4,7 @@
 mod support;
 
 use ember_brackets::{CredentialKind, RoundRule, Rounds, Side};
+use ember_protocol::matches::{Game, NO_EDITION_POLICY};
 use serde_json::json;
 use support::{
     Setup, World,
@@ -566,4 +567,38 @@ async fn an_open_set_listing_one_player_is_not_made() {
 
     world.connector.pass(true).await;
     assert_eq!(world.bridge.matches().await.len(), 0);
+}
+
+#[tokio::test]
+async fn a_bracket_configured_for_sfv_makes_sfv_matches() {
+    // A configuration that names no game is USF4's, as every one before
+    // games was (`a_set_is_played_in_ember_and_its_score_goes_back`).
+    let world = World::start(Setup::default()).await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(world.bridge.match_game(&matches[0].1).await, "usf4");
+    let found = world.snapshot(&matches[0].1).await;
+    assert_eq!(found["rules"]["edition_policy"], "ultra_only");
+
+    let world = World::start(Setup {
+        game: Game::Sfv,
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect(1, "player1").await;
+    world.bridge.connect(2, "Player_2").await;
+    world.connector.pass(true).await;
+    let matches = world.bridge.matches().await;
+    assert_eq!(matches.len(), 1);
+    assert_eq!(world.bridge.match_game(&matches[0].1).await, "sfv");
+    let found = world.snapshot(&matches[0].1).await;
+    assert_eq!(found["rules"]["edition_policy"], NO_EDITION_POLICY);
+
+    // It is played and reported back as any other set.
+    world.play(&matches[0].1, &[0, 0]).await;
+    world.bridge.deliver().await;
+    world.connector.pass(false).await;
+    assert_eq!(world.challonge.find("1001").winner.as_deref(), Some("355"));
 }

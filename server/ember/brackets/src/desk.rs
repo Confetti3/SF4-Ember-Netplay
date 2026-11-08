@@ -23,12 +23,13 @@ use crate::{
 
 /// The settings of a configured tournament an event may carry: the bridge
 /// keeps them to these keys too (`routes::organizer::SETTINGS`).
-const SETTINGS: [&str; 5] = [
+const SETTINGS: [&str; 6] = [
     "rounds",
     "hold",
     "active_from",
     "active_until",
     "mark_underway",
+    "game",
 ];
 
 pub(crate) struct Desk {

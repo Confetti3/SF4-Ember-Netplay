@@ -69,7 +69,11 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
     ok(&Capabilities {
         api_version: API_VERSION.into(),
         event_version: "v1".into(),
-        games: vec!["usf4".into()],
+        // Every game a match, lobby or tournament may name (migration 059).
+        games: ember_protocol::rooms::GAMES
+            .iter()
+            .map(|game| (*game).to_owned())
+            .collect(),
         games_to_win: (1..=MAX_GAMES_TO_WIN).collect(),
         // `ember-room-v1` plays under the room's own settings. No translator
         // for a native USF4 rules profile is tested yet (spec 13.3).

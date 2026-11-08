@@ -297,7 +297,7 @@ Secrets are only ever read from files, never written to the log.
   the bridge's `/v1/desk/brackets`, so `bridge.connection_id` and its
   credential must be the bridge's desk connection. An event runs as a
   tournament here would, from its `rounds`, `hold`, `active_from`,
-  `active_until` and `mark_underway`, with the access token the bridge
+  `active_until`, `mark_underway` and `game`, with the access token the bridge
   hands out with it as a bearer credential, kept in memory only. An event
   the bridge stops listing is no longer read, its sets left as they are; one
   a tournament here already runs is left to that tournament.
@@ -309,6 +309,10 @@ Secrets are only ever read from files, never written to the log.
   with the organizer's access token.
 - `mark_underway`: per tournament, default `true`. Marking each set underway
   costs one request a set; `false` saves them.
+- `game`: per tournament (and a desk event's settings), `usf4` (the
+  default) or `sfv`: the game its matches are created for. A configuration
+  that names none plays USF4 as before. Needs a bridge whose capabilities'
+  `games` list it (migration 059).
 - `rounds`: `games_to_win` (1 to 10) unless a rule covers the set. Rules are
   read in order and the first that covers a set sets its length, so put a
   narrower rule before a wider one. A rule covers `from_round` (1 when

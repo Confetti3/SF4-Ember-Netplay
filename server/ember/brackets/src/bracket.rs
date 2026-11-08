@@ -75,6 +75,8 @@ pub(crate) struct Bracket {
     window: Window,
     mark_underway: bool,
     hold: Hold,
+    /// The game its matches are for (`config::Tournament::game`).
+    game: ember_protocol::matches::Game,
     context: Arc<Context>,
     /// Whether the last lookup of players failed, so a failure is logged
     /// once until lookups work again.
@@ -224,6 +226,7 @@ impl Bracket {
             window: tournament.window()?,
             mark_underway: tournament.mark_underway,
             hold: tournament.hold,
+            game: tournament.game,
             context,
             lookup_failing: AtomicBool::new(false),
             cancel_failing: std::sync::Mutex::default(),

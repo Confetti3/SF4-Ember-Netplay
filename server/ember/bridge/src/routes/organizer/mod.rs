@@ -68,13 +68,15 @@ const MAX_SETTINGS: usize = 4096;
 /// The settings the bracket connector reads for an event: those of a
 /// tournament in its own configuration that are not its site, event or
 /// credential. The connector checks their values as it checks its own
-/// file's; the bridge only keeps them to this shape.
-const SETTINGS: [&str; 5] = [
+/// file's; the bridge only keeps them to this shape. `game` is the game the
+/// event's matches are for (USF4's when absent).
+const SETTINGS: [&str; 6] = [
     "rounds",
     "hold",
     "active_from",
     "active_until",
     "mark_underway",
+    "game",
 ];
 
 #[derive(Deserialize)]
@@ -557,7 +559,7 @@ fn settings_of(settings: serde_json::Map<String, Value>) -> Result<String> {
     let settings = Value::Object(settings).to_string();
     if !keys_ok || settings.len() > MAX_SETTINGS {
         return Err(ApiFailure::invalid(
-            "settings take rounds, hold, active_from, active_until and mark_underway, \
+            "settings take rounds, hold, active_from, active_until, mark_underway and game, \
              in at most 4096 bytes.",
         ));
     }

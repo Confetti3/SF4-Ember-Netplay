@@ -122,7 +122,7 @@ pub(super) fn advance(
         ember_id: entry.ember_id.clone(),
         slot: entry.slot.unwrap_or(0),
     });
-    let rules = Rules::standard(lobby.games_to_win, ORGANIZER_PROFILE);
+    let rules = Rules::standard(lobby.game, lobby.games_to_win, ORGANIZER_PROFILE);
     let external_match_id = format!("{MATCH_PREFIX}{}:{number}", lobby.id);
     let digest = json::digest(&json!({ "lobby_id": lobby.id, "set": number }))
         .map_err(|_| ApiFailure::unavailable())?;
@@ -138,6 +138,7 @@ pub(super) fn advance(
             connection_id: &lobby.connection_id,
             external_match_id: &external_match_id,
             digest: &digest,
+            game: lobby.game,
             rules: &rules,
             required_build_id: &lobby.required_build_id,
             metadata: &metadata,

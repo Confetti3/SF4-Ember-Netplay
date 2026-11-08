@@ -8,6 +8,7 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     event::{EventSeed, Kind, TournamentCreatedData, TournamentStartedData},
+    matches::Game,
     tournament::{self as bracket, CreateTournament, Format, RegisterEntrant, Status},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -56,13 +57,14 @@ pub fn create(
         return Ok(Applied::Unchanged(tournament));
     }
     let id = new_id("etn");
+    let game = Game::of(&command.game)?;
     let finals = command.finals_games_to_win.unwrap_or(command.games_to_win);
     let reset = command.grand_final_reset && command.format == Format::DoubleElimination;
     tx.execute(
         "INSERT INTO tournaments (id, tenant_id, connection_id, external_tournament_id, create_digest, revision,
             state, format, games_to_win, finals_games_to_win, grand_final_reset, required_build_id, metadata,
-            created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, 'registration', ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)",
+            created_at, updated_at, game)
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, 'registration', ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12, ?13)",
         params![
             id,
             tenant_id,
@@ -75,7 +77,8 @@ pub fn create(
             reset,
             command.required_build_id,
             serde_json::to_string(&command.metadata).unwrap_or_default(),
-            ctx.now
+            ctx.now,
+            game.as_str()
         ],
     )?;
     let tournament = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;

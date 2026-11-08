@@ -143,7 +143,10 @@ lists queue rotation and multi-table scheduling as future work.
   lobby snapshot's `standings` add up finished matches. They are computed from accepted
   games on every read, so corrections show at once; only a lobby player's best streak is
   stored, as sets complete. Records are scoped like events: a provider sees its
-  connection, an organizer its tenant, and a player only their own. Lobbies (migration
+  connection, an organizer its tenant, and a player only their own. A record is
+  one game's (`?game=`, `usf4` when absent; migration 059 gives matches, lobbies and
+  tournaments a `game`, `usf4` or `sfv`, and a lobby's or tournament's sets take
+  its game). Lobbies (migration
   003) and the stored best streak (004) are both unreleased and ship together, so no
   deployed bridge has lobby history without it; a local test database that played lobby
   sets before 004 keeps a best streak of zero for those earlier sets. Snapshots a player

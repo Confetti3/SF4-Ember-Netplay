@@ -554,13 +554,14 @@ mod tests {
     use zeroize::Zeroizing;
 
     use super::*;
+    use crate::matches::Game;
 
     fn key(byte: u8) -> SigningIdentity {
         SigningIdentity::from_seed(&Zeroizing::new([byte; 32])).unwrap()
     }
 
     fn rules() -> Rules {
-        Rules::standard(2, PROFILE)
+        Rules::standard(Game::Usf4, 2, PROFILE)
     }
 
     fn permit(p1: &EmberId, p2: &EmberId) -> Permit {

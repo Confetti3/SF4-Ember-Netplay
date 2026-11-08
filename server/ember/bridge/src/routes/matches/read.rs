@@ -5,7 +5,11 @@ use axum::{
     http::HeaderMap,
     response::Response,
 };
-use ember_protocol::{EmberId, matches::MatchState, play::play_url};
+use ember_protocol::{
+    EmberId,
+    matches::{Game, MatchState},
+    play::play_url,
+};
 use rusqlite::{Transaction, params};
 use serde_json::json;
 
@@ -138,8 +142,9 @@ pub async fn link(State(state): State<AppState>, Path(id): Path<String>) -> Resu
 /// needs to pick one: the set length and score, the round, the opponent's
 /// fingerprint and whether the game is played through Ember. Each row has the
 /// match's `created_at` and `expires_at` (unix seconds; `expires_at` is null
-/// for a lobby or bracket set). An expired match stays listed, as `expired`,
-/// for a day.
+/// for a lobby or bracket set) and its `game` (`matches::Game`), so each
+/// product lists only its own game's matches. An expired match stays listed,
+/// as `expired`, for a day.
 pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
     let config = state.config.clone();
@@ -151,7 +156,7 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                 .prepare(&format!(
                     "SELECT m.id, m.connection_id, m.state, m.revision, p.slot, m.games_to_win, m.rules, m.metadata,
                             o.ember_id, m.created_at, m.expires_at,
-                            m.starting_wins_p1 + {P1_GAMES}, m.starting_wins_p2 + {P2_GAMES}
+                            m.starting_wins_p1 + {P1_GAMES}, m.starting_wins_p2 + {P2_GAMES}, m.game
                      FROM matches m
                      JOIN match_participants p ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
                      JOIN match_participants o ON o.match_id = m.id AND o.assignment_generation = m.assignment_generation
@@ -174,15 +179,16 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                         row.get::<_, u64>(9)?,
                         row.get::<_, Option<u64>>(10)?,
                         [row.get::<_, u8>(11)?, row.get::<_, u8>(12)?],
+                        row.get::<_, String>(13)?,
                     ))
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let mut assignments = Vec::with_capacity(rows.len());
-            for (id, connection, state, revision, slot, games_to_win, rules, metadata, opponent, created_at, expires_at, wins) in rows {
-                // A state this bridge does not know (a newer bridge wrote it
-                // before a rollback) is left out rather than shown.
-                if MatchState::parse(&state).is_none() {
-                    eprintln!("ember-bridge: match {id} has a stored state this bridge does not know; not listed");
+            for (id, connection, state, revision, slot, games_to_win, rules, metadata, opponent, created_at, expires_at, wins, game) in rows {
+                // A state or game this bridge does not know (a newer bridge
+                // wrote it before a rollback) is left out rather than shown.
+                if MatchState::parse(&state).is_none() || Game::parse(&game).is_none() {
+                    eprintln!("ember-bridge: match {id} has a stored state or game this bridge does not know; not listed");
                     continue;
                 }
                 let rules: serde_json::Value = serde_json::from_str(&rules).unwrap_or_default();
@@ -201,6 +207,7 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                     "wins": wins,
                     "created_at": created_at,
                     "expires_at": expires_at,
+                    "game": game,
                 }));
             }
             Ok(json!({ "assignments": assignments, "event_cursor": events::head(tx)?.to_string() }))

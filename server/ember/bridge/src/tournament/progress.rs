@@ -74,7 +74,7 @@ fn start_node(
         }
         metadata.entry(key.clone()).or_insert_with(|| value.clone());
     }
-    let rules = Rules::standard(games_to_win, ORGANIZER_PROFILE);
+    let rules = Rules::standard(tournament.game, games_to_win, ORGANIZER_PROFILE);
     let roster = [first, second].map(|entrant| entrant.clone());
     let assigned = [0u8, 1].map(|slot| Assigned {
         participant_id: roster[usize::from(slot)].participant_id.clone(),
@@ -89,6 +89,7 @@ fn start_node(
             connection_id: &tournament.connection_id,
             external_match_id: &external_match_id,
             digest: &digest,
+            game: tournament.game,
             rules: &rules,
             required_build_id: &tournament.required_build_id,
             metadata: &metadata,

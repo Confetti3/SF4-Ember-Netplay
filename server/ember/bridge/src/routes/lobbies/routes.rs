@@ -11,6 +11,7 @@ use ember_protocol::{
     encoding::{Counter, is_prefixed_id},
     event::{Kind, LobbyCreatedData},
     lobby::{CreateLobby, JoinLobby},
+    matches::Game,
 };
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -77,11 +78,12 @@ pub async fn create(
                 return Ok((StatusCode::OK, snapshot(tx, &lobby)?));
             }
             let id = crate::util::new_id("elb");
+            let game = Game::of(&command.game)?;
             tx.execute(
                 "INSERT INTO lobbies (id, tenant_id, connection_id, external_lobby_id, create_digest, revision, state,
                     games_to_win, rotation, required_build_id, metadata, current_match_id, sets_started, sets_completed,
-                    next_position, streak_holder, streak, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, 1, 'open', ?6, ?7, ?8, ?9, NULL, 0, 0, 1, NULL, 0, ?10, ?10)",
+                    next_position, streak_holder, streak, created_at, updated_at, game)
+                 VALUES (?1, ?2, ?3, ?4, ?5, 1, 'open', ?6, ?7, ?8, ?9, NULL, 0, 0, 1, NULL, 0, ?10, ?10, ?11)",
                 params![
                     id,
                     tenant_id,
@@ -92,7 +94,8 @@ pub async fn create(
                     command.rotation.as_str(),
                     command.required_build_id,
                     serde_json::to_string(&command.metadata).unwrap_or_default(),
-                    ctx.now
+                    ctx.now,
+                    game.as_str()
                 ],
             )?;
             let lobby = load(tx, &id)?.ok_or_else(ApiFailure::unavailable)?;

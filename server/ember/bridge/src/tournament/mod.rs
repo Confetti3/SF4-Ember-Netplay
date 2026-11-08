@@ -29,7 +29,7 @@ pub use state::{entrants, load_bracket, set_json};
 
 use std::collections::BTreeMap;
 
-use ember_protocol::{api::ErrorCode, event::Kind, tournament::Format};
+use ember_protocol::{api::ErrorCode, event::Kind, matches::Game, tournament::Format};
 use rusqlite::{OptionalExtension, Transaction, params};
 
 use crate::{
@@ -55,24 +55,26 @@ pub struct Tournament {
     pub grand_final_reset: bool,
     pub required_build_id: String,
     pub metadata: BTreeMap<String, String>,
+    /// The game its sets are for, as its create command named it.
+    pub game: Game,
 }
 
-/// The tournament `id`. A format this bridge does not know (a newer bridge
-/// wrote it before a rollback) fails the read: the tournament answers as
-/// unavailable rather than being run as some other format.
+/// The tournament `id`. A format or game this bridge does not know (a newer
+/// bridge wrote it before a rollback) fails the read: the tournament answers
+/// as unavailable rather than being run as some other format or game.
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>> {
     Ok(read(tx, id)?)
 }
 
 /// `load` for a pass over many tournaments, such as the ones a freed or
-/// unlinked player is entered in: one whose stored format this bridge does
-/// not know is logged and passed over (`None`), so it never stops the others
-/// or the write that freed the player.
+/// unlinked player is entered in: one whose stored format or game this
+/// bridge does not know is logged and passed over (`None`), so it never stops
+/// the others or the write that freed the player.
 pub fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>> {
     match read(tx, id) {
         Err(error) if db::unknown(&error) => {
             eprintln!(
-                "ember-bridge: tournament {id} has a stored format this bridge does not know; skipped"
+                "ember-bridge: tournament {id} has a stored format or game this bridge does not know; skipped"
             );
             Ok(None)
         }
@@ -83,7 +85,7 @@ pub fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Tournament>>
 fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Tournament>> {
     tx.query_row(
         "SELECT id, tenant_id, connection_id, external_tournament_id, revision, state, format, games_to_win,
-                finals_games_to_win, grand_final_reset, required_build_id, metadata
+                finals_games_to_win, grand_final_reset, required_build_id, metadata, game
          FROM tournaments WHERE id = ?1",
         [id],
         |row| {
@@ -100,6 +102,7 @@ fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Tournament>> 
                 grand_final_reset: row.get(9)?,
                 required_build_id: row.get(10)?,
                 metadata: serde_json::from_str(&row.get::<_, String>(11)?).unwrap_or_default(),
+                game: db::known(row, 12, Game::parse)?,
             })
         },
     )

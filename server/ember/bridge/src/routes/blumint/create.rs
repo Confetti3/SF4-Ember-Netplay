@@ -11,7 +11,7 @@ use ember_protocol::{
     EmberId,
     api::ErrorCode,
     json as wire,
-    matches::{MAX_GAMES_TO_WIN, Participant, Rules},
+    matches::{Game, MAX_GAMES_TO_WIN, Participant, Rules},
     play::{PROFILE, play_url},
 };
 use rusqlite::{OptionalExtension, Transaction, params};
@@ -263,7 +263,9 @@ fn insert(
             connection_id,
             external_match_id: &keys::external_id(key),
             digest,
-            rules: &Rules::standard(set.games_to_win, PROFILE),
+            // BluMint's contract (v2) is for USF4.
+            game: Game::Usf4,
+            rules: &Rules::standard(Game::Usf4, set.games_to_win, PROFILE),
             required_build_id: "",
             metadata: &BTreeMap::new(),
             participants: [&roster[0], &roster[1]],

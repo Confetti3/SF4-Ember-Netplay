@@ -53,6 +53,18 @@ impl Fixture {
     }
 
     pub async fn create(&self, external: &str, games_to_win: u8, rotation: &str) -> Value {
+        self.create_in("usf4", external, games_to_win, rotation)
+            .await
+    }
+
+    /// A lobby for `game`.
+    pub async fn create_in(
+        &self,
+        game: &str,
+        external: &str,
+        games_to_win: u8,
+        rotation: &str,
+    ) -> Value {
         let (status, lobby) = self
             .bridge
             .post_keyed(
@@ -60,7 +72,7 @@ impl Fixture {
                 "/v1/lobbies",
                 json!({
                     "external_lobby_id": external,
-                    "game": "usf4",
+                    "game": game,
                     "games_to_win": games_to_win,
                     "rotation": rotation,
                     "required_build_id": "test-build",
@@ -106,33 +118,55 @@ impl Fixture {
         second: usize,
         games_to_win: u8,
     ) -> Value {
-        let (status, bracket) = self
+        self.ordinary_in("usf4", "ultra_only", external, [first, second], games_to_win)
+            .await
+    }
+
+    /// `ordinary`, for `game` under `edition_policy`.
+    pub async fn ordinary_in(
+        &self,
+        game: &str,
+        edition_policy: &str,
+        external: &str,
+        players: [usize; 2],
+        games_to_win: u8,
+    ) -> Value {
+        let command = self.match_command(game, edition_policy, external, players, games_to_win);
+        let (status, created) = self
             .bridge
-            .post_keyed(
-                &self.provider,
-                "/v1/matches",
-                json!({
-                    "external_match_id": external,
-                    "game": "usf4",
-                    "participants": [
-                        { "participant_id": self.participant(first), "ember_id": self.id(first), "slot": 0 },
-                        { "participant_id": self.participant(second), "ember_id": self.id(second), "slot": 1 },
-                    ],
-                    "rules": {
-                        "games_to_win": games_to_win, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
-                        "edition_policy": "ultra_only", "character_policy": "unrestricted_between_games",
-                        "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
-                    },
-                    "observer_policy": "authorized_only",
-                    "result_policy": "two_player_agreement_or_review",
-                    "required_build_id": "test-build",
-                    "metadata": {},
-                }),
-                Some(external),
-            )
+            .post_keyed(&self.provider, "/v1/matches", command, Some(external))
             .await;
-        assert_eq!(status, StatusCode::CREATED, "{bracket}");
-        bracket
+        assert_eq!(status, StatusCode::CREATED, "{created}");
+        created
+    }
+
+    /// The provider's create command of an ordinary match, organizer
+    /// reported, between two of the players.
+    pub fn match_command(
+        &self,
+        game: &str,
+        edition_policy: &str,
+        external: &str,
+        [first, second]: [usize; 2],
+        games_to_win: u8,
+    ) -> Value {
+        json!({
+            "external_match_id": external,
+            "game": game,
+            "participants": [
+                { "participant_id": self.participant(first), "ember_id": self.id(first), "slot": 0 },
+                { "participant_id": self.participant(second), "ember_id": self.id(second), "slot": 1 },
+            ],
+            "rules": {
+                "games_to_win": games_to_win, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
+                "edition_policy": edition_policy, "character_policy": "unrestricted_between_games",
+                "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
+            },
+            "observer_policy": "authorized_only",
+            "result_policy": "two_player_agreement_or_review",
+            "required_build_id": "test-build",
+            "metadata": {},
+        })
     }
 
     /// The organizer records one game of the lobby's running set.

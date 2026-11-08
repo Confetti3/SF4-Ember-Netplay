@@ -103,7 +103,7 @@ mod tests {
         SigningIdentity,
         encoding::Counter,
         json,
-        matches::Rules,
+        matches::{Game, Rules},
         play::{Binding, PROFILE, VERSION, roster_digest, rules_digest},
     };
 
@@ -129,7 +129,7 @@ mod tests {
             room_id: "0123456789abcdef0123456789abcdef".into(),
             build_id: "build".into(),
             games_to_win: 2,
-            rules_digest: rules_digest(&Rules::standard(2, PROFILE)).unwrap(),
+            rules_digest: rules_digest(&Rules::standard(Game::Usf4, 2, PROFILE)).unwrap(),
             roster_digest: roster_digest(a.ember_id(), b.ember_id()).unwrap(),
             fighters: [
                 BoundFighter {

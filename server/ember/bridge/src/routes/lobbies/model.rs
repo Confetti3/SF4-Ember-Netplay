@@ -1,7 +1,7 @@
 //! A lobby as stored, its queue and seats, and its snapshot.
 use std::collections::BTreeMap;
 
-use ember_protocol::{EmberId, event::Kind, lobby::Rotation};
+use ember_protocol::{EmberId, event::Kind, lobby::Rotation, matches::Game};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
 use serde_json::json;
@@ -22,6 +22,8 @@ pub(super) struct Lobby {
     pub(super) revision: u64,
     pub(super) open: bool,
     pub(super) games_to_win: u8,
+    /// The game its sets are for, as its create command named it.
+    pub(super) game: Game,
     pub(super) rotation: Rotation,
     pub(super) required_build_id: String,
     pub(super) metadata: BTreeMap<String, String>,
@@ -32,22 +34,22 @@ pub(super) struct Lobby {
     pub(super) streak: u64,
 }
 
-/// The lobby `id`. A rotation this bridge does not know (a newer bridge wrote
-/// it before a rollback) fails the read: the lobby answers as unavailable
-/// rather than rotating some other way.
+/// The lobby `id`. A rotation or game this bridge does not know (a newer
+/// bridge wrote it before a rollback) fails the read: the lobby answers as
+/// unavailable rather than rotating some other way or for another game.
 pub(super) fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby>> {
     Ok(read(tx, id)?)
 }
 
 /// `load` for a pass over many lobbies, such as the ones a freed or unlinked
-/// player waits in: one whose stored rotation this bridge does not know is
-/// logged and passed over (`None`), so it never stops the others or the
-/// write that freed the player.
+/// player waits in: one whose stored rotation or game this bridge does not
+/// know is logged and passed over (`None`), so it never stops the others or
+/// the write that freed the player.
 pub(super) fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby>> {
     match read(tx, id) {
         Err(error) if db::unknown(&error) => {
             eprintln!(
-                "ember-bridge: lobby {id} has a stored rotation this bridge does not know; skipped"
+                "ember-bridge: lobby {id} has a stored rotation or game this bridge does not know; skipped"
             );
             Ok(None)
         }
@@ -58,7 +60,8 @@ pub(super) fn load_listed(tx: &Transaction<'_>, id: &str) -> Result<Option<Lobby
 fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Lobby>> {
     tx.query_row(
         "SELECT id, tenant_id, connection_id, external_lobby_id, revision, state, games_to_win, rotation,
-                required_build_id, metadata, current_match_id, sets_started, sets_completed, streak_holder, streak
+                required_build_id, metadata, current_match_id, sets_started, sets_completed, streak_holder, streak,
+                game
          FROM lobbies WHERE id = ?1",
         [id],
         |row| {
@@ -78,6 +81,7 @@ fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Lobby>> {
                 sets_completed: row.get(12)?,
                 streak_holder: row.get(13)?,
                 streak: row.get(14)?,
+                game: db::known(row, 15, Game::parse)?,
             })
         },
     )

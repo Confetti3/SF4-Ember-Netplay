@@ -113,10 +113,14 @@ end to end against any bridge.
 ## Create and decide matches
 
 - `POST /v1/matches` (provider, `Idempotency-Key` required) takes the two
-  linked participants, the set length (`games_to_win` of 1 to 10) and the
-  rules profile: `ember-room-v1` for a match played in Ember (next section) or
-  `organizer-reported-v1` for one an organizer decides. Retrying with the same
-  key or the same `external_match_id` returns the same match.
+  linked participants, the game, the set length (`games_to_win` of 1 to 10)
+  and the rules profile: `ember-room-v1` for a match played in Ember (next
+  section) or `organizer-reported-v1` for one an organizer decides. `game` is
+  one of the capabilities' `games`: `usf4` (SF4 Ember), whose rules need
+  `edition_policy` `ultra_only`, or `sfv` (SFV Ember), which has no edition
+  and does not read `edition_policy`. Lobbies and tournaments name their game
+  the same way, and their sets are of that game. Retrying with the same key or
+  the same `external_match_id` returns the same match.
 - `POST /v1/matches/{id}/adjudications` (organizer only) records one game:
   `{"kind": "game_result", "winner_slot": 0, "reason": "...",
   "expected_revision": "1"}`, or `"draw": true`, which scores nothing. When a
@@ -138,7 +142,8 @@ shows, so two people acting at once cannot both win.
 ### Matches nobody plays
 
 A match does not wait forever. Its `created_at` and `expires_at` (unix
-seconds) are on `GET /v1/matches/{id}` and in the players' assignments, and
+seconds) are on `GET /v1/matches/{id}` and in the players' assignments
+(`GET /v1/assignments`, whose rows also name the match's `game`), and
 `expires_at` is the match's current deadline: `match_expiry_hours` after
 creation, a day unless the operator changed it, and again that long after each
 game that starts or is decided. On a BluMint connection games move it the
@@ -654,8 +659,8 @@ Routes, all with the organizer's player session:
   spent from a limited site's budget.
 - `POST /v1/organizer/events` (proof action `site.connect` on that path),
   command `{ "site", "tournament", "settings" }`: runs a listed event.
-  `settings` takes `rounds`, `hold`, `active_from`, `active_until` and
-  `mark_underway` as `brackets.json` does, in at most 4096 bytes; the
+  `settings` takes `rounds`, `hold`, `active_from`, `active_until`,
+  `mark_underway` and `game` as `brackets.json` does, in at most 4096 bytes; the
   connector checks their values. An event runs once at a time, and an
   organizer runs at most 8.
 - `POST /v1/organizer/drafts` (`site.connect`), command `{ "title" }`
@@ -1161,7 +1166,10 @@ two players. A correction is refused for a set whose player has withdrawn.
 `GET /v1/players/{ember_id}/record` adds up a player's finished matches: sets
 played, won and lost, games won, lost and drawn, cancelled matches, and the
 most recent matches (`?limit=`, 10 by default, at most 50) with the opponent,
-the score, `round_label` and the lobby a set belonged to. A provider sees the
+the score, `round_label` and the lobby a set belonged to. A record is one
+game's: `?game=usf4` (the default, so a request without it is answered as
+before games existed) or `?game=sfv`; another value is `invalid_request`. The
+body does not name the game. A provider sees the
 matches on its connection, an organizer every match in its tenant, and a player
 only their own record, without other players' account IDs.
 
@@ -1170,7 +1178,8 @@ voided game or other correction shows straight away. A set a platform asked
 for again from a score (BluMint's `startingWins`) counts that score in the
 set's result and its recent score, but only the games played in it in games
 won and lost. Lobby standings work the same way; only a lobby player's best
-streak is kept as sets are played.
+streak is kept as sets are played. A lobby's standings are its own game's,
+since every set of a lobby is of the lobby's game.
 
 ## Receive events
 

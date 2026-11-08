@@ -21,6 +21,44 @@ pub fn games_to_win_valid(games: u8) -> bool {
     (1..=MAX_GAMES_TO_WIN).contains(&games)
 }
 
+wire_enum! {
+    serde
+    /// The game an organised match, lobby or tournament is for: the games of
+    /// `rooms::GAMES`, by the same keys (a test keeps them equal). A command
+    /// names it as a string, so an unknown one is `game`'s `invalid_request`
+    /// as it always was; this is what the string is once checked.
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub enum Game {
+        /// Ultra Street Fighter IV, SF4 Ember's: every command from before
+        /// games existed, and the game of a configuration that names none.
+        #[default]
+        Usf4 = "usf4",
+        /// Street Fighter V, SFV Ember's.
+        Sfv = "sfv",
+    }
+}
+
+/// The `edition_policy` a game with no editions to choose is written with
+/// (`Rules::standard`). Such a game does not read the field.
+pub const NO_EDITION_POLICY: &str = "not_applicable";
+
+impl Game {
+    /// The game a command names, or `game`'s `InvalidField`.
+    pub fn of(game: &str) -> Result<Self> {
+        Self::parse(game).ok_or(Error::InvalidField("game"))
+    }
+
+    /// The edition a set of this game must be played in, where the game has
+    /// editions: USF4's sets are Ultra only. SFV has one edition, so its
+    /// sets are asked none and their `edition_policy` is not read.
+    pub fn edition_policy(self) -> Option<&'static str> {
+        match self {
+            Self::Usf4 => Some("ultra_only"),
+            Self::Sfv => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Participant {
@@ -30,7 +68,8 @@ pub struct Participant {
 }
 
 /// Set rules. Only the named policies below exist in v1; anything else is
-/// `unsupported_rules`, never an approximation.
+/// `unsupported_rules`, never an approximation. `edition_policy` is the
+/// game's own (`Game::edition_policy`) and is not read for a game without one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Rules {
@@ -44,21 +83,26 @@ pub struct Rules {
 }
 
 impl Rules {
-    /// A first-to-`games_to_win` set under `native_rules_profile`, with the
-    /// only policies v1 has.
-    pub fn standard(games_to_win: u8, native_rules_profile: &str) -> Self {
+    /// A first-to-`games_to_win` set of `game` under `native_rules_profile`,
+    /// with the only policies v1 has. USF4's are what they were before games
+    /// existed, to the byte, since every binding carries their digest.
+    pub fn standard(game: Game, games_to_win: u8, native_rules_profile: &str) -> Self {
         Self {
             games_to_win,
             draw_policy: "replay_no_score".into(),
             native_rules_profile: native_rules_profile.into(),
-            edition_policy: "ultra_only".into(),
+            edition_policy: game.edition_policy().unwrap_or(NO_EDITION_POLICY).into(),
             character_policy: "unrestricted_between_games".into(),
             stage_policy: "p1_selects".into(),
             input_delay_policy: "ember_existing_ready_policy".into(),
         }
     }
 
-    pub fn check(&self) -> Result<()> {
+    /// The rules of a set of `game`.
+    pub fn check(&self, game: Game) -> Result<()> {
+        let edition_valid = game
+            .edition_policy()
+            .is_none_or(|policy| self.edition_policy == policy);
         let valid = [
             (games_to_win_valid(self.games_to_win), "games_to_win"),
             (self.draw_policy == "replay_no_score", "draw_policy"),
@@ -66,7 +110,7 @@ impl Rules {
                 !self.native_rules_profile.is_empty() && self.native_rules_profile.len() <= 64,
                 "native_rules_profile",
             ),
-            (self.edition_policy == "ultra_only", "edition_policy"),
+            (edition_valid, "edition_policy"),
             (
                 self.character_policy == "unrestricted_between_games",
                 "character_policy",
@@ -101,7 +145,7 @@ impl CreateMatch {
     /// Shape only. Whether each participant's Ember ID is that participant's
     /// current approved link is the bridge's check.
     pub fn check(&self) -> Result<()> {
-        check_provider_head(&self.external_match_id, "external_match_id", &self.game)?;
+        let game = check_provider_head(&self.external_match_id, "external_match_id", &self.game)?;
         let [a, b] = self.participants.as_slice() else {
             return Err(Error::InvalidField("participants"));
         };
@@ -115,7 +159,7 @@ impl CreateMatch {
                 "participants must be two distinct fighters",
             ));
         }
-        self.rules.check()?;
+        self.rules.check(game)?;
         if self.observer_policy != "authorized_only" {
             return Err(Error::InvalidField("observer_policy"));
         }
@@ -133,19 +177,17 @@ impl CreateMatch {
 }
 
 /// The first two checks of every provider create command (a match, a lobby
-/// or a tournament): the provider's own ID for it, and the game.
+/// or a tournament): the provider's own ID for it, and the game, which is
+/// returned.
 pub(crate) fn check_provider_head(
     external_id: &str,
     external_field: &'static str,
     game: &str,
-) -> Result<()> {
+) -> Result<Game> {
     if external_id.is_empty() || external_id.len() > MAX_EXTERNAL_ID {
         return Err(Error::InvalidField(external_field));
     }
-    if game != "usf4" {
-        return Err(Error::InvalidField("game"));
-    }
-    Ok(())
+    Game::of(game)
 }
 
 /// The last two checks of every provider create command: the required build,
@@ -312,6 +354,69 @@ impl MatchCompleted {
             Ok(())
         } else {
             Err(Error::Mismatch("set score"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{play::PROFILE, rooms};
+
+    /// The specification's example create command, for `game` and with
+    /// `edition_policy`.
+    fn command(game: &str, edition_policy: &str) -> CreateMatch {
+        let mut command: CreateMatch = crate::json::parse_as(
+            include_bytes!("../../../../docs/design/identity-bridge/examples/create-match.json"),
+            crate::json::MAX_BODY,
+        )
+        .unwrap();
+        command.game = game.into();
+        command.rules.edition_policy = edition_policy.into();
+        command
+    }
+
+    #[test]
+    fn the_games_of_matches_are_the_games_of_rooms() {
+        assert_eq!(Game::ALL.map(Game::as_str), rooms::GAMES);
+        assert_eq!(Game::default().as_str(), rooms::DEFAULT_GAME);
+        for game in Game::ALL {
+            assert_eq!(Game::of(game.as_str()), Ok(game));
+        }
+        for other in ["", "USF4", "sf4", "sf6"] {
+            assert_eq!(Game::of(other), Err(Error::InvalidField("game")));
+        }
+    }
+
+    #[test]
+    fn usf4s_standard_rules_are_what_they_were_before_games() {
+        // Every binding, permit and report carries the digest of these.
+        assert_eq!(
+            serde_json::to_string(&Rules::standard(Game::Usf4, 2, PROFILE)).unwrap(),
+            format!(
+                r#"{{"games_to_win":2,"draw_policy":"replay_no_score","native_rules_profile":"{PROFILE}","edition_policy":"ultra_only","character_policy":"unrestricted_between_games","stage_policy":"p1_selects","input_delay_policy":"ember_existing_ready_policy"}}"#
+            )
+        );
+        let sfv = Rules::standard(Game::Sfv, 2, PROFILE);
+        assert_eq!(sfv.edition_policy, NO_EDITION_POLICY);
+        assert_eq!(sfv.check(Game::Sfv), Ok(()));
+    }
+
+    #[test]
+    fn an_edition_is_asked_of_usf4_alone() {
+        assert_eq!(command("usf4", "ultra_only").check(), Ok(()));
+        assert_eq!(
+            command("usf4", NO_EDITION_POLICY).check(),
+            Err(Error::InvalidField("edition_policy"))
+        );
+        for edition in ["ultra_only", NO_EDITION_POLICY, "anything"] {
+            assert_eq!(command("sfv", edition).check(), Ok(()), "{edition}");
+        }
+        for other in ["", "sf6", "USF4"] {
+            assert_eq!(
+                command(other, "ultra_only").check(),
+                Err(Error::InvalidField("game"))
+            );
         }
     }
 }

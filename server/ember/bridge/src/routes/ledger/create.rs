@@ -8,7 +8,7 @@ use ember_protocol::{
     api::ErrorCode,
     encoding::Counter,
     event::{EventParticipant, Kind, MatchCreatedData},
-    matches::{MatchState, Participant as Assigned, Rules},
+    matches::{Game, MatchState, Participant as Assigned, Rules},
 };
 use rusqlite::{Transaction, params};
 
@@ -28,6 +28,8 @@ pub struct NewMatch<'a> {
     pub connection_id: &'a str,
     pub external_match_id: &'a str,
     pub digest: &'a str,
+    /// The game it is for: its command's, or its lobby's or tournament's.
+    pub game: Game,
     pub rules: &'a Rules,
     pub required_build_id: &'a str,
     pub metadata: &'a BTreeMap<String, String>,
@@ -111,9 +113,10 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
     tx.execute(
         "INSERT INTO matches (id, tenant_id, connection_id, external_match_id, create_digest, revision,
             assignment_generation, state, games_to_win, rules, required_build_id, metadata, delivery_state,
-            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, starting_wins_p1, starting_wins_p2, ends_by)
+            created_at, updated_at, lobby_id, tournament_id, expires_at, expiry_secs, starting_wins_p1, starting_wins_p2, ends_by,
+            game)
          VALUES (?1, ?2, ?3, ?4, ?5, 1, 1, 'awaiting_players', ?6, ?7, ?8, ?9, ?13, ?10, ?10, ?11, ?12, ?14, ?15,
-            ?16, ?17, ?18)",
+            ?16, ?17, ?18, ?19)",
         params![
             id,
             new.tenant_id,
@@ -132,7 +135,8 @@ pub fn insert_match(tx: &Transaction<'_>, ctx: &Ctx, new: &NewMatch<'_>) -> Resu
             lifetime,
             new.starting_wins[0],
             new.starting_wins[1],
-            ends_by
+            ends_by,
+            new.game.as_str()
         ],
     )?;
     for participant in new.participants {

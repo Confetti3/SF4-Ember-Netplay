@@ -318,7 +318,7 @@ impl Bracket {
         };
         CreateMatch {
             external_match_id: external.to_string(),
-            game: "usf4".into(),
+            game: self.game.as_str().into(),
             participants: [0, 1]
                 .map(|slot| Participant {
                     participant_id: players[usize::from(slot)].participant_id.clone(),
@@ -326,7 +326,11 @@ impl Bracket {
                     slot,
                 })
                 .into(),
-            rules: Rules::standard(self.rounds.length(set, self.shape(set)), play::PROFILE),
+            rules: Rules::standard(
+                self.game,
+                self.rounds.length(set, self.shape(set)),
+                play::PROFILE,
+            ),
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),

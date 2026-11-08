@@ -6,6 +6,7 @@ use ember_protocol::{
     encoding::{OriginPolicy, check_origin},
     event::parse_rfc3339,
     json,
+    matches::Game,
     sites::is_site_id,
 };
 use serde::{Deserialize, Serialize};
@@ -144,6 +145,10 @@ pub struct Tournament {
     /// http adapter, required: the service's https base URL.
     #[serde(default)]
     pub api_base: Option<String>,
+    /// The game its matches are for (`usf4` or `sfv`); `usf4` when absent,
+    /// so a configuration from before games plays USF4 as it did.
+    #[serde(default)]
+    pub game: Game,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -603,6 +608,16 @@ mod tests {
         // The first config this connector read had no `hold`, and a rule
         // gave its `from_round`: both still read, the rule from round 1.
         assert_eq!(config.tournaments[0].hold, Hold::default());
+        // Nor a game: its matches are USF4's. A tournament may name SFV, and
+        // nothing else.
+        assert_eq!(config.tournaments[0].game, Game::Usf4);
+        for (game, read) in [("sfv", Some(Game::Sfv)), ("usf4", Some(Game::Usf4)), ("sf6", None)] {
+            let mut named = text.clone();
+            named["tournaments"][0]["game"] = serde_json::json!(game);
+            std::fs::write(&path, named.to_string()).unwrap();
+            let loaded = Config::load(&path).map(|config| config.tournaments[0].game);
+            assert_eq!(loaded.ok(), read, "{game}");
+        }
         let mut old = text.clone();
         old["tournaments"][0]["rounds"] =
             serde_json::json!({ "games_to_win": 2, "rules": [{ "games_to_win": 3 }] });

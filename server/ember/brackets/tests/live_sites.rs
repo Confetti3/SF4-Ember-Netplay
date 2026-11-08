@@ -95,6 +95,7 @@ async fn read_bracket(adapter: Adapter, tournament: String, token: &str) {
         active_until: None,
         mark_underway: false,
         api_base: None,
+        game: Default::default(),
     });
     let connector = connector(&config, &ember_brackets::Clock::default());
     connector.pass(true).await;

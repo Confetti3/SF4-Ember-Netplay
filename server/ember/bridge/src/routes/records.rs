@@ -2,6 +2,9 @@
 //!
 //! Both are computed from finished matches and their accepted games when they
 //! are read, so a correction shows at once and no stored counter can drift.
+//! A record is one game's (`?game=`, USF4's when absent, so a request that
+//! predates games is answered as it was); a lobby's standings are its own
+//! game's, since its sets take the lobby's game.
 use std::collections::BTreeMap;
 
 use axum::{
@@ -19,7 +22,10 @@ use crate::{
     error::{ApiFailure, Result},
     events::{self, Viewer},
     http::ok,
-    routes::ledger::{DRAWN_GAMES, P1_GAMES, P2_GAMES},
+    routes::{
+        ledger::{DRAWN_GAMES, P1_GAMES, P2_GAMES},
+        rooms::listed_game,
+    },
 };
 
 const DEFAULT_RECENT: usize = 10;
@@ -62,8 +68,14 @@ impl Played {
     }
 }
 
-/// Completed and cancelled matches of `ember_id` that `viewer` may see, newest first.
-fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<Vec<Played>> {
+/// Completed and cancelled matches of `ember_id` in `game` that `viewer` may
+/// see, newest first.
+fn played(
+    tx: &Transaction<'_>,
+    viewer: &Viewer,
+    ember_id: &EmberId,
+    game: &str,
+) -> Result<Vec<Played>> {
     let (connection, tenant) = match viewer {
         Viewer::Provider { connection_id, .. } => (Some(connection_id.as_str()), None),
         Viewer::Organizer { tenant_id } => (None, Some(tenant_id.as_str())),
@@ -78,11 +90,11 @@ fn played(tx: &Transaction<'_>, viewer: &Viewer, ember_id: &EmberId) -> Result<V
          JOIN matches m ON m.id = p.match_id AND m.assignment_generation = p.assignment_generation
          LEFT JOIN match_participants o
            ON o.match_id = m.id AND o.assignment_generation = m.assignment_generation AND o.slot != p.slot
-         WHERE p.ember_id = ?1 AND m.state IN ('completed', 'cancelled')
+         WHERE p.ember_id = ?1 AND m.state IN ('completed', 'cancelled') AND m.game = ?4
            AND (?2 IS NULL OR m.connection_id = ?2) AND (?3 IS NULL OR m.tenant_id = ?3)
          ORDER BY m.updated_at DESC, m.rowid DESC"
     ))?
-    .query_map(params![ember_id.as_str(), connection, tenant], |row| {
+    .query_map(params![ember_id.as_str(), connection, tenant, game], |row| {
         let slot: u8 = row.get(6)?;
         let p1: u32 = row.get(10)?;
         let p2: u32 = row.get(11)?;
@@ -126,11 +138,17 @@ struct Tally {
 pub struct RecordQuery {
     #[serde(default)]
     limit: Option<usize>,
+    /// The game whose matches are counted (`matches::Game`); USF4's when
+    /// absent.
+    #[serde(default)]
+    game: Option<String>,
 }
 
 /// `GET /v1/players/{ember_id}/record`: sets and games won and lost, and the
-/// most recent finished matches. A provider sees its connection's matches, an
-/// organizer its tenant's, and a player only their own record.
+/// most recent finished matches, of one game (`?game=`, USF4's when absent;
+/// the body names no game, so it is what it was before games). A provider
+/// sees its connection's matches, an organizer its tenant's, and a player
+/// only their own record.
 pub async fn record(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -145,11 +163,12 @@ pub async fn record(
         return Err(ApiFailure::not_found());
     }
     let limit = query.limit.unwrap_or(DEFAULT_RECENT).min(MAX_RECENT);
+    let game = listed_game(query.game.as_deref())?;
     let service = !matches!(viewer, Viewer::Player { .. });
     let body = state
         .db
         .read(move |tx| {
-            let rows = played(tx, &viewer, &ember_id)?;
+            let rows = played(tx, &viewer, &ember_id, &game)?;
             let mut sets = Tally::default();
             let (mut won, mut lost, mut drawn) = (0u32, 0u32, 0u32);
             let mut cancelled = 0u32;

@@ -224,6 +224,20 @@ impl TestBridge {
             .unwrap()
     }
 
+    /// The game the bridge stored for the match `id`.
+    pub async fn match_game(&self, id: &str) -> String {
+        let id = id.to_owned();
+        self.state()
+            .db
+            .read(move |tx| {
+                Ok(tx.query_row("SELECT game FROM matches WHERE id = ?1", [id], |row| {
+                    row.get(0)
+                })?)
+            })
+            .await
+            .unwrap()
+    }
+
     /// Runs delivery passes, beside the bridge's own worker, until the SQL
     /// condition `settled` holds, for at most `DELIVERY_DEADLINE`. Either
     /// may be the one that sends; waiting on the recorded outcome rather

@@ -173,6 +173,11 @@ mod tests {
             metadata: BTreeMap::new(),
         };
         assert!(command.check().is_ok());
+        command.game = "sfv".into();
+        assert!(command.check().is_ok());
+        command.game = "sf6".into();
+        assert_eq!(command.check(), Err(Error::InvalidField("game")));
+        command.game = "usf4".into();
         command.finals_games_to_win = Some(10);
         assert!(command.check().is_ok());
         command.finals_games_to_win = Some(11);

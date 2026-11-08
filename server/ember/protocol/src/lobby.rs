@@ -110,7 +110,9 @@ mod tests {
         command.games_to_win = 11;
         assert!(command.check().is_err());
         command.games_to_win = 3;
+        command.game = "sfv".into();
+        assert!(command.check().is_ok());
         command.game = "sf6".into();
-        assert!(command.check().is_err());
+        assert_eq!(command.check(), Err(Error::InvalidField("game")));
     }
 }
