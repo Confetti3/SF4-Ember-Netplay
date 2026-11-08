@@ -52,7 +52,7 @@ find_package(ggpo CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 # HUD layout editing (platform/HudLayout.hxx): moves the elements of a theme's battle HUD.
-add_library(sf4e_hud_layout STATIC "src/platform/HudLayout.cxx")
+add_library(sf4e_hud_layout STATIC "src/platform/HudLayout.cxx" "src/platform/HudTextures.cxx")
 target_compile_features(sf4e_hud_layout PRIVATE cxx_std_17)
 target_link_libraries(sf4e_hud_layout PUBLIC ZLIB::ZLIB nlohmann_json::nlohmann_json)
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_discord.cmake")

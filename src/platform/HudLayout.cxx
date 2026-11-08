@@ -238,6 +238,37 @@ const std::vector<Element>& Elements() {
     return elements;
 }
 
+std::vector<Sprite> Sprites(const std::map<std::string, std::string>& emz) {
+    std::map<std::string, Ems> files;
+    std::vector<Sprite> out;
+    if (!Load(emz, files)) return out;
+    std::map<std::string, std::set<std::string>> seen;
+    for (const Element& el : Elements()) {
+        const auto file = files.find(el.file);
+        if (el.file.empty() || file == files.end()) continue;
+        const Ems& e = file->second;
+        for (const std::string& n : NodesOf(e, el.pattern)) {
+            if (!seen[el.file].insert(n).second) continue;
+            const uint32_t action = e.Action(n), g2 = e.Group(action, 1), key = g2 ? e.U32(g2 + 0x14) : 0;
+            const auto size = StaticSize(e, n);
+            const auto raw = e.Rect(n);
+            const float r[4] = { raw[0] * size[0], raw[1] * size[1], raw[2] * size[0], raw[3] * size[1] };
+            if (!key || (!r[0] && !r[1] && !r[2] && !r[3])) continue;
+            Sprite s;
+            s.node = n; s.element = el.id; s.file = el.file;
+            s.tex = (int)e.U32(key);
+            for (int i = 0; i < 4; ++i) { s.uv[i] = (int)std::lround(e.F(key + 16 + 4 * i)); s.r[i] = r[i]; }
+            if (s.uv[2] <= s.uv[0] || s.uv[3] <= s.uv[1] || s.tex > 40) continue;
+            const auto pos = e.Pos(n); const Keys keys = e.SizeRot(n);
+            for (int i = 0; i < 3; ++i) s.pos[i] = pos[i];
+            s.rot = keys.empty() ? 0 : keys[0][4];
+            s.additive = (e.U32(action) & 0x200) != 0;
+            out.push_back(std::move(s));
+        }
+    }
+    return out;
+}
+
 Layout LayoutFromJson(const nlohmann::json& json) {
     Layout layout;
     if (!json.is_object()) return layout;

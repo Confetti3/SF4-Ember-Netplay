@@ -36,6 +36,7 @@ R"HTML(<section id="t-layout" hidden>
 <button class="act" id="lyUndo">Undo</button><button class="act" id="lyRedo">Redo</button>
 <button class="act" id="lyCx">Centre X</button><button class="act" id="lyCy">Centre Y</button>
 <button class="act" id="lyReset">Reset element</button><button class="act" id="lyFit">Fit view</button>
+<label class="bar"><input type="checkbox" id="lyArt" checked> Art</label><select id="lyFighter" aria-label="Fighter for names and portraits"></select>
 <label class="bar"><input type="checkbox" id="lyAuto" checked> Auto-apply</label>
 <button class="act primary" id="lyApply" disabled>Apply 0 changes</button><span class="chip" id="lyChip">Applied</span></div>
 <div class="ed"><div class="card" id="lyList" role="listbox" aria-label="HUD elements"></div>
@@ -54,7 +55,7 @@ R"HTML((function(){
 if(/Mobi|Android|iPhone|iPad|iPod|Tablet|Silk/i.test(navigator.userAgent)||(navigator.maxTouchPoints>0&&matchMedia("(pointer:coarse)").matches))return;   // a phone or a touch tablet (an iPad says Mac): desktop only
 tabs.push(["layout","Layout"]);
 const g=id=>document.getElementById(id),DY=21,GO=[-59.2,55.6];
-let theme="",els=[],byId={},lay={},undo=[],redo=[],sel="",pending=0,V={z:1,ox:0,oy:0},guide=null,drag=null,saveT=0;
+let sprites=[],sheets={},fighter="RYU",loadId=0,theme="",els=[],byId={},lay={},undo=[],redo=[],sel="",pending=0,V={z:1,ox:0,oy:0},guide=null,drag=null,saveT=0;
 let auto=true;try{auto=localStorage.getItem("hudAuto")!=="0"}catch(e){}
 function say(t,bad){g("lyMsg").textContent=t||"";g("lyMsg").className=bad?"bad":""}
 async function call(path,body){
@@ -94,6 +95,22 @@ const cv=g("lyCanvas"),cx=cv.getContext("2d");
 function base(){return cv.width/1280}
 function toScr(px,py){const k=base()*V.z;return [px*k+V.ox,py*k+V.oy]}
 function fromScr(px,py){const k=base()*V.z;return [(px-V.ox)/k,(py-V.oy)/k]}
+const SKIP=/blink|thunder|fire|on2|text|num|_ef\d|efc|_color|time_loop|_on_|_on\d|_loop|_half|_time|combo|ex_on|uc_max|revenge_uc|revenge_max/,KEEP=/revenge_num1$|sc_max_super|sc_part\d$|vital_max$|sc_max_gauge$|(?<!num1)(?<!num2)(?<!num3)_max$/,WIN=/^[12]_winmark_(\d+)$/;
+function drawArt(){
+ cx.imageSmoothingEnabled=true;
+ for(const sp of sprites){
+  const img=sheets[sp.f+":"+sp.t];if(!img||!byId[sp.e])continue;
+  const w=WIN.exec(sp.n);if(w?+w[1]>2:(SKIP.test(sp.n)&&!KEEP.test(sp.n)))continue;
+  let x=sp.p[0],y=sp.p[1],rot=sp.rot,sc=1,hide=false;
+  for(const [e,i] of chainOf(sp.e)){const r=e.rot*Math.PI/180,c=Math.cos(r),n=Math.sin(r),dx=e.s*(x-i.cx),dy=e.s*(y-i.cy);x=e.x+dx*c-dy*n;y=e.y+dx*n+dy*c;rot+=e.rot;sc*=e.s;hide=hide||e.hide}
+  if(hide)continue;
+  const m=/^([12])_(sc|revenge|uc_|combo$|ex_on$)/.exec(sp.n);if(m){x+=m[1]=="1"?GO[0]:-GO[0];y+=GO[1]}
+  y-=DY;
+  const a=sp.r.map(v=>v*sc),w2=Math.abs(a[2]-a[0]),h2=Math.abs(a[3]-a[1]);if(w2<.5||h2<.5||w2>3000||h2>3000)continue;
+  cx.save();cx.translate(x,y);cx.rotate(rot*Math.PI/180);cx.translate((a[0]+a[2])/2,(a[1]+a[3])/2);cx.scale(a[2]<a[0]?-1:1,a[3]<a[1]?-1:1);
+  cx.globalCompositeOperation=sp.add?"lighter":"source-over";
+  cx.drawImage(img,sp.uv[0],sp.uv[1],sp.uv[2]-sp.uv[0],sp.uv[3]-sp.uv[1],-w2/2,-h2/2,w2,h2);cx.restore()}
+ cx.globalCompositeOperation="source-over"}
 function colour(id){return id.startsWith("p1")?"#ff7a2e":id.startsWith("p2")?"#5aa9ff":"#b9b4ad"}
 function draw(){
  const st=g("lyStage");if(st.hidden||!st.offsetWidth)return;
@@ -105,12 +122,14 @@ function draw(){
  cx.strokeStyle=guide&&guide.includes("x")?"#52c27a":"#ffffff30";cx.beginPath();cx.moveTo(640,0);cx.lineTo(640,720);cx.stroke();
  cx.strokeStyle=guide&&guide.includes("y")?"#52c27a":"#ffffff30";cx.beginPath();cx.moveTo(0,360);cx.lineTo(1280,360);cx.stroke();
  cx.strokeStyle="#ffffff60";cx.strokeRect(0,0,1280,720);
+ if(g("lyArt").checked)drawArt();
  cx.font=(11/k)+"px system-ui";
+ const art=g("lyArt").checked&&sprites.length;
  for(const e of els){
   if(e.group&&e.id!=sel)continue;
   const b=box(e.id);if(!b)continue;
   cx.save();cx.translate(b.x,b.y);cx.rotate(b.rot*Math.PI/180);
-  cx.globalAlpha=b.hide?.25:1;cx.lineWidth=(e.id==sel?2.5:1)/k;cx.strokeStyle=colour(e.id);cx.fillStyle=colour(e.id)+(e.id==sel?"40":"18");
+  cx.globalAlpha=b.hide?.25:art&&e.id!=sel?.35:1;cx.lineWidth=(e.id==sel?2.5:1)/k;cx.strokeStyle=colour(e.id);cx.fillStyle=colour(e.id)+(art?(e.id==sel?"20":"00"):(e.id==sel?"40":"18"));
   if(b.hide)cx.setLineDash([4/k,3/k]);
   cx.fillRect(-b.w/2,-b.h/2,b.w,b.h);cx.strokeRect(-b.w/2,-b.h/2,b.w,b.h);cx.setLineDash([]);
   if(e.id==sel||k>1.4){cx.fillStyle="#f0eeeb";cx.fillText(e.label,-b.w/2+2/k,-b.h/2-3/k)}
@@ -152,7 +171,18 @@ async function open(){
 async function load(name){
  const r=await call("/api/hud/theme?name="+encodeURIComponent(name));if(!r)return;
  theme=name;els=r.elements;byId={};for(const e of els)byId[e.id]=e;for(const e of els)e.group=els.some(o=>o.parent==e.id);
- lay=r.layout;undo=[];redo=[];pending=0;sel=els.length?els.find(e=>!e.group).id:"";say("");paint()}
+ lay=r.layout;undo=[];redo=[];pending=0;sel=els.length?els.find(e=>!e.group).id:"";say("");paint();art()}
+async function art(){
+ const me=++loadId;say("Loading art...");
+ const r=await call("/api/hud/scene?name="+encodeURIComponent(theme)+"&fighter="+encodeURIComponent(fighter));if(!r||me!=loadId)return;
+ fighter=r.fighter;const f=g("lyFighter");if(f.options.length!=r.fighters.length){f.innerHTML="";for(const n of r.fighters){const o=document.createElement("option");o.textContent=o.value=n;f.append(o)}}f.value=fighter;
+ const got={},jobs=[];
+ for(const [file,list] of Object.entries(r.sheets))list.forEach((_,i)=>jobs.push((async()=>{
+  try{const res=await fetch("/api/hud/sheet?name="+encodeURIComponent(theme)+"&file="+file+"&fighter="+fighter+"&index="+i,{headers:{"X-Pin":pin}});
+   if(res.ok)got[file+":"+i]=await createImageBitmap(await res.blob())}catch(e){}})()));
+ await Promise.all(jobs);if(me!=loadId)return;
+ sheets=got;sprites=r.sprites.slice().sort((a,b)=>b.p[2]-a.p[2]);say("");draw()}
+g("lyFighter").onchange=e=>{fighter=e.target.value;art()};g("lyArt").onchange=draw;
 g("lyTheme").onchange=e=>load(e.target.value);
 g("lyUndo").onclick=()=>restore(undo,redo);g("lyRedo").onclick=()=>restore(redo,undo);
 g("lyFit").onclick=fit;

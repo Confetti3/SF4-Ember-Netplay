@@ -38,6 +38,11 @@ int main() {
         const std::string emz = sf4e::platform::hud_layout::Pack(hud_fixture::OneNode());
         std::ofstream(hudFolder / "cockpit.ems.emz", std::ios::binary).write(emz.data(), static_cast<std::streamsize>(emz.size()));
     }
+    {
+        const std::string tex = sf4e::platform::hud_layout::Pack(hud_fixture::OneSheet());
+        std::ofstream(hudFolder / "cockpit.tex.emz", std::ios::binary).write(tex.data(), static_cast<std::streamsize>(tex.size()));
+    }
+    fs::create_directories(root / "resource" / "battle" / "hud" / "ENG" / "RYU");
     fs::create_directories(root / sf4e::platform::game_themes::Folder / "NoHud" / "battle" / "hud");
 
     std::string appliedTo; std::map<std::string, std::string> applied;
@@ -58,6 +63,17 @@ int main() {
     CHECK(get("/api/hud/theme", "name=Missing").status == 404);
     auto theme = nlohmann::json::parse(get("/api/hud/theme", "name=Test").body);
     CHECK(theme["elements"].size() == 2 && theme["layout"].empty());
+
+    // The sprites, and the textures they cut from.
+    CHECK(get("/api/hud/scene", "name=Missing").status == 404);
+    const auto scene = nlohmann::json::parse(get("/api/hud/scene", "name=Test&fighter=RYU").body);
+    CHECK(scene["fighter"] == "RYU" && scene["sprites"].size() == 1);
+    CHECK(scene["sprites"][0]["n"] == "1_vital_base_2" && scene["sprites"][0]["e"] == "p1_plate" && scene["sprites"][0]["uv"][2] == 4);
+    CHECK(scene["sheets"]["cockpit"].size() == 1 && scene["sheets"]["cockpit"][0][0] == 4);
+    const auto sheet = get("/api/hud/sheet", "name=Test&file=cockpit&index=0");
+    CHECK(sheet.status == 200 && sheet.type == "image/png" && sheet.body.compare(1, 3, "PNG") == 0);
+    CHECK(get("/api/hud/sheet", "name=Test&file=cockpit&index=3").status == 404);
+    CHECK(get("/api/hud/sheet", "name=Test&file=../x&index=0").status == 404);
 
     CHECK(post("/api/hud/layout", R"({"theme":"../x","layout":{}})").status == 404);
     CHECK(post("/api/hud/layout", R"({"theme":"Test","layout":{"p1_plate":{"x":300,"y":200,"rot":0,"s":1,"hide":false}}})").status == 200);

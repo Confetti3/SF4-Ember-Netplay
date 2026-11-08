@@ -24,6 +24,18 @@ struct Info { std::string id, label, parent; double cx = 0, cy = 0, w = 0, h = 0
 struct Edit { double x = 0, y = 0, rot = 0, scale = 1; bool hide = false; };
 using Layout = std::map<std::string, Edit>;
 
+// A sprite the HUD draws: where it sits and which part of which texture of the file's sheet.
+struct Sprite {
+    std::string node, element, file;   // element: the editor element it belongs to
+    int tex = 0, uv[4] = {};           // texture number in the file's sheet; u0, v0, u1, v1 in its pixels
+    float r[4] = {};                   // the quad the game stretches it to, relative to pos (a negative width flips it)
+    float pos[3] = {};                 // x, y on the 1280x720 canvas, z (lower is drawn on top)
+    float rot = 0;                     // clockwise degrees
+    bool additive = false;
+};
+// The sprites of the elements, before any layout.
+std::vector<Sprite> Sprites(const std::map<std::string, std::string>& emz);
+
 // layout.json beside a theme: {"p1_name": {"x": 90, "y": 73, "rot": -10, "s": 0.87, "hide": false}, ...}.
 // An entry with a missing or bad number is left out; ids that are not elements are left out.
 Layout LayoutFromJson(const nlohmann::json& json);
