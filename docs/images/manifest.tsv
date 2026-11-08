@@ -1,0 +1,73 @@
+picture	source
+ember-home.png	render home
+ember-room.png	render room
+ember-king-of-the-hill.png	render room-king-full
+ember-fighter-selection.png	render selection
+ember-costumes.png	render custom-costumes
+guides/user_netplay/launch-recovery.webp	render launch-recovery
+guides/user_netplay/game-settings.webp	render game-settings-card
+guides/user_netplay/player-controller.webp	render player
+guides/user_netplay/assign-controller.webp	render controllers-capture-press
+guides/user_netplay/create-room.webp	render create
+guides/user_netplay/join-room.webp	render join
+guides/user_netplay/seat-chooser.webp	render room-seat-chooser
+guides/user_netplay/ready-up.webp	render table-ready-up
+guides/user_netplay/interface.webp	render tab-interface-match-hud
+guides/user_netplay/replays.webp	render replays
+guides/user_netplay/replay-export.webp	render replay-export
+guides/user_netplay/leave-room.webp	render leave-confirmation
+guides/user_netplay/check-connection.webp	render table-delay-auto-measured
+guides/user_netplay/discord-invite.webp	render discord-invitation
+guides/user_netplay/discord-settings.webp	render tab-online-discord
+guides/user_netplay/replace-room.webp	render table-replacement
+guides/user_netplay/about-version.webp	render about-version
+guides/user_netplay/crash-report.webp	render crash-report-offer
+guides/custom_rooms/members.webp	render room-members
+guides/custom_rooms/transfer-host.webp	render room-transfer-host-confirm
+guides/custom_rooms/room-settings.webp	render room-admin
+guides/custom_rooms/watching.webp	render room-seat-chooser-watching
+guides/custom_rooms/lock-in.webp	render table-hold-spectator
+guides/custom_rooms/chat.webp	render chat-conversation
+guides/custom_rooms/unresolved.webp	render table-postmatch-unresolved
+guides/controller_menus/profile.webp	render profile
+guides/controller_menus/colors.webp	render custom-colors
+guides/controller_menus/button-layout.webp	render button-layout-xbox
+guides/training_lab/controls.webp	render training-home
+guides/training_lab/dummy-recording.webp	render training-recording
+guides/training_lab/reply-preset.webp	render training-reply-presets
+guides/training_lab/classic.webp	render training-meter-classic
+guides/training_lab/practice-room.webp	render room-practice-fight
+guides/saving_logs/help-about.webp	render about
+guides/saving_logs/report-comment.webp	render report-problem-comment
+guides/saving_logs/report-send.webp	render report-consent
+guides/saving_logs/report-sent.webp	render report-sent
+guides/troubleshooting/save-error.webp	render save-error
+guides/integrations/ember-id.webp	render identity-ready
+guides/integrations/play-button.webp	render home-tournament-match
+guides/controller_menus/main-character.webp	render main-character
+guides/controller_menus/online.webp	render online
+guides/controller_menus/stage.webp	game
+guides/controller_menus/training-flyout.webp	uilab --training
+guides/custom_rooms/room-two-players.webp	uilab --room --seats duo
+guides/input_lag/game-options.webp	game
+guides/training_lab/dummy.webp	uilab --training --keys row:dummy,enter
+guides/training_lab/frame-data.webp	game
+guides/training_lab/meter-settings.webp	uilab --training --keys row:frame-data,enter,row:meter-settings,enter
+guides/training_lab/meter.webp	game
+guides/training_lab/playing.webp	game
+guides/training_lab/position.webp	uilab --training --keys row:tools,enter
+guides/training_lab/recording.webp	game
+guides/training_lab/reply.webp	uilab --training --keys row:reply,enter
+guides/user_netplay/match-hud.webp	uilab --hud 0
+guides/user_netplay/rematch.webp	uilab --postmatch choose
+guides/user_netplay/replay-controls.webp	uilab --playback
+guides/user_netplay/update-channel.webp	uilab --screen about --keys row:channel
+guides/user_netplay/updates-window.webp	uilab --recovery offer
+steamdeck-1-download.png	deck
+steamdeck-2-downloads.png	deck
+steamdeck-3-trust.png	deck
+steamdeck-4-done.png	deck
+steamdeck-5-library.png	deck
+steamdeck-6-game-mode.png	deck
+ember-frame-meter.png	still
+browse-local-files-context-menu.png	still

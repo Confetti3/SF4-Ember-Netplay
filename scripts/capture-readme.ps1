@@ -8,6 +8,8 @@ $build = Join-Path $repo $target.buildDirectory
 $renderer = Join-Path $build 'UiRenderTest.exe'
 $cwebp = (Get-Command cwebp -ErrorAction Stop).Source
 if (!(Test-Path -LiteralPath (Join-Path $GameRoot 'SSFIV.exe'))) { throw 'GameRoot must be the owned Steam USF4 installation.' }
+# captured.txt names the commit the pictures show, so the tree must be that commit.
+if (git -C $repo status --porcelain) { throw 'the checkout has uncommitted changes.' }
 $captures = Join-Path $build ('readme-captures-' + (Get-Date).ToString('yyyyMMdd-HHmmss', [cultureinfo]::InvariantCulture))
 New-Item -ItemType Directory -Path $captures | Out-Null
 # Every capture below is English at 1280x720 and 100%, so the sweep renders only that size.
@@ -18,64 +20,38 @@ if ($LASTEXITCODE) { throw 'README UI rendering failed.' }
 Add-Type -AssemblyName System.Drawing
 $destination = Join-Path $repo 'docs/images'
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
-# Each picture under docs/images and the render it is made from. The guides'
-# step pictures are WebP to keep the repository small; cwebp reads PNG, not BMP.
-$shots = [ordered]@{
-    'ember-home.png'='home'
-    'ember-room.png'='room'
-    'ember-king-of-the-hill.png'='room-king-full'
-    'ember-fighter-selection.png'='roster'
-    'ember-costumes.png'='costumes'
-    'guides/user_netplay/launch-recovery.webp'='launch-recovery'
-    'guides/user_netplay/game-settings.webp'='game-settings-card'
-    'guides/user_netplay/player-controller.webp'='player'
-    'guides/user_netplay/assign-controller.webp'='controllers-capture-press'
-    'guides/user_netplay/create-room.webp'='create'
-    'guides/user_netplay/join-room.webp'='join'
-    'guides/user_netplay/seat-chooser.webp'='room-seat-chooser'
-    'guides/user_netplay/fighter-select.webp'='selection'
-    'guides/user_netplay/ready-up.webp'='table-ready-up'
-    'guides/user_netplay/interface.webp'='interface'
-    'guides/user_netplay/replays.webp'='replays'
-    'guides/user_netplay/replay-export.webp'='replay-export'
-    'guides/user_netplay/leave-room.webp'='leave-confirmation'
-    'guides/user_netplay/check-connection.webp'='table-delay-auto-measured'
-    'guides/user_netplay/discord-invite.webp'='discord-invitation'
-    'guides/user_netplay/discord-settings.webp'='discord'
-    'guides/user_netplay/replace-room.webp'='table-replacement'
-    'guides/user_netplay/about-version.webp'='about-version'
-    'guides/user_netplay/crash-report.webp'='crash-report-offer'
-    'guides/custom_rooms/members.webp'='room-members'
-    'guides/custom_rooms/transfer-host.webp'='room-transfer-host-confirm'
-    'guides/custom_rooms/room-settings.webp'='room-admin'
-    'guides/custom_rooms/watching.webp'='room-seat-chooser-watching'
-    'guides/custom_rooms/lock-in.webp'='table-hold-spectator'
-    'guides/custom_rooms/chat.webp'='chat-conversation'
-    'guides/custom_rooms/unresolved.webp'='table-postmatch-unresolved'
-    'guides/controller_menus/profile.webp'='profile'
-    'guides/controller_menus/colors.webp'='colors'
-    'guides/controller_menus/button-layout.webp'='button-layout-xbox'
-    'guides/training_lab/controls.webp'='training-home'
-    'guides/training_lab/dummy-recording.webp'='training-recording'
-    'guides/training_lab/reply-preset.webp'='training-reply-presets'
-    'guides/training_lab/classic.webp'='training-meter-classic'
-    'guides/training_lab/practice-room.webp'='room-practice-fight'
-    'guides/saving_logs/help-about.webp'='about'
-    'guides/saving_logs/report-comment.webp'='report-problem-comment'
-    'guides/saving_logs/report-send.webp'='report-consent'
-    'guides/saving_logs/report-sent.webp'='report-sent'
-    'guides/troubleshooting/save-error.webp'='save-error'
-    'guides/integrations/ember-id.webp'='identity-ready'
-    'guides/integrations/play-button.webp'='home-tournament-match'
-}
-foreach ($shot in $shots.GetEnumerator()) {
-    $output = Join-Path $destination $shot.Key
+# docs/images/manifest.tsv names the render each picture is made from: one of the
+# sweep's, or the UI lab started with those arguments (a screen the sweep has no
+# scene for, such as the training pages, the match HUD or the updater). The
+# guides' step pictures are WebP to keep the repository small; cwebp reads PNG, not BMP.
+$lab = Join-Path $build 'UiLab.exe'
+$env:SF4E_GAME_DIR = $GameRoot
+$rows = Import-Csv -LiteralPath (Join-Path $destination 'manifest.tsv') -Delimiter "`t"
+foreach ($row in $rows | Where-Object { $_.source -like 'render *' -or $_.source -like 'uilab *' }) {
+    $kind, $rest = $row.source -split ' ', 2
+    $name = $row.picture -replace '[/.]', '-'
+    if ($kind -eq 'render') {
+        $bmp = Join-Path $captures "$rest-en-1280-100.bmp"
+        if (-not (Test-Path -LiteralPath $bmp)) { throw "the render test wrote no '$rest' for $($row.picture)" }
+    } else {
+        $bmp = Join-Path $captures "$name.bmp"
+        # UiLab is a windowed program, which `&` would not wait for.
+        $run = Start-Process -FilePath $lab -ArgumentList (@($rest -split ' ') + @('--size', '1280x720', '--shot', $bmp)) `
+            -Wait -PassThru -NoNewWindow
+        if ($run.ExitCode) { throw "UiLab failed on $($row.picture)" }
+    }
+    $output = Join-Path $destination $row.picture
     New-Item -ItemType Directory -Path (Split-Path $output -Parent) -Force | Out-Null
-    $png = Join-Path $captures "$($shot.Value).png"
-    $bitmap = [Drawing.Bitmap]::new((Join-Path $captures "$($shot.Value)-en-1280-100.bmp"))
+    $png = Join-Path $captures "$name.png"
+    $bitmap = [Drawing.Bitmap]::new($bmp)
     try { $bitmap.Save($png,[Drawing.Imaging.ImageFormat]::Png) } finally { $bitmap.Dispose() }
-    if ($output.EndsWith('.png')) { Copy-Item -LiteralPath $png -Destination $output; continue }
-    & $cwebp -quiet -q 85 $png -o $output
-    if ($LASTEXITCODE) { throw "cwebp failed on $($shot.Value)" }
+    if ($output.EndsWith('.png')) { Copy-Item -LiteralPath $png -Destination $output }
+    else {
+        & $cwebp -quiet -q 85 $png -o $output
+        if ($LASTEXITCODE) { throw "cwebp failed on $($row.picture)" }
+    }
 }
-Write-Output "Fresh README and guide pictures: $destination. Original captures: $captures"
+# The commit the pictures show; scripts/wiki/stale.py compares the interface's history against it.
+git -C $repo rev-parse HEAD | Set-Content -LiteralPath (Join-Path $destination 'captured.txt') -NoNewline
+Remove-Item -LiteralPath $captures -Recurse -Force
+Write-Output "Fresh README and guide pictures: $destination"

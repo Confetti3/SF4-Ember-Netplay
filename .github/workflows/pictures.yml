@@ -1,0 +1,71 @@
+name: Pictures
+# Keeps the pictures in docs/images showing the interface as it is: when the
+# stale check says the interface moved on since the last capture, the pictures
+# are taken again and come as a draft pull request to look over, as does the
+# record of a capture that changed none.
+#
+# The capture draws with DX9, so it runs on the self-hosted Windows machine of
+# windows-suite.yml, in its signed-in desktop session. The runner's environment
+# provides python, cwebp on PATH and SF4E_GAME_ROOT, the owned Steam
+# installation the renders take portraits from.
+on:
+  push:
+    branches: [nightly]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: pictures
+  cancel-in-progress: true
+jobs:
+  pictures:
+    if: vars.EMBER_WINDOWS_RUNNER == 'true'
+    runs-on: [self-hosted, Windows, ember]
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out exact commit, with the history the stale check reads
+        run: |
+          git init -q .
+          if ($LASTEXITCODE) { throw "git init failed" }
+          git -c protocol.version=2 fetch --filter=blob:none "https://github.com/$env:GITHUB_REPOSITORY.git" $env:GITHUB_SHA
+          if ($LASTEXITCODE) { throw "git fetch failed" }
+          git checkout --force --detach FETCH_HEAD
+          if ($LASTEXITCODE) { throw "git checkout failed" }
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw "checked out $(git rev-parse HEAD), not $env:GITHUB_SHA" }
+      - name: Ask whether the interface changed since the last capture
+        id: stale
+        run: |
+          python scripts/wiki/stale.py
+          "due=$($LASTEXITCODE -ne 0)" >> $env:GITHUB_OUTPUT
+      - name: Build
+        if: steps.stale.outputs.due == 'True'
+        run: ./scripts/build-current.ps1 -SkipTests
+      - name: Capture the pictures
+        if: steps.stale.outputs.due == 'True'
+        run: ./scripts/capture-readme.ps1 -GameRoot $env:SF4E_GAME_ROOT
+      - name: Record the capture as a draft pull request
+        if: steps.stale.outputs.due == 'True'
+        run: |
+          git add docs/images
+          $changed = @(git diff --cached --name-only)
+          $short = $env:GITHUB_SHA.Substring(0, 9)
+          $remote = "https://x-access-token:$env:GH_TOKEN@github.com/$env:GITHUB_REPOSITORY.git"
+          $git = @('-c', 'user.name=github-actions[bot]',
+                  '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com')
+          $same = $changed.Count -eq 1 -and $changed[0] -eq 'docs/images/captured.txt'
+          $title = if ($same) { "Docs: the pictures still show the interface at $short" } `
+            else { "Docs: pictures of the interface at $short" }
+          git @git commit -q -m $title
+          if ($LASTEXITCODE) { throw "git commit failed" }
+          git push -q $remote "HEAD:refs/heads/pictures/$short"
+          if ($LASTEXITCODE) { throw "git push failed" }
+          $body = if ($same) { "No picture changed; only the record of the capture moves." } `
+            else { "The pictures in docs/images, captured by the Pictures workflow from $short. Look them over before merging." }
+          gh pr create --draft --base nightly --head "pictures/$short" --title $title --body $body
+          if ($LASTEXITCODE) { throw "gh pr create failed" }
