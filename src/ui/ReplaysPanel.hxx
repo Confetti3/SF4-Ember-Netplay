@@ -53,7 +53,7 @@ public:
     // Sets (replay-sets) lists the sets the archive holds, and a set's own
     // screen (replay-set) its games (platform/ReplaySets.hxx).
     void Update(const ShellView& view, const netplay::PlayerPreferences& saved, MenuNavigation& navigation, const Submit& submit);
-    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, bool idle, std::string& title) const;
+    std::vector<MenuEntry> Rows(const ShellView& view, const std::string& screen, const std::string& parent, bool idle, std::string& title) const;
     // True when the row was the panel's own. `error` is what the shell shows
     // when a request could not be queued.
     // `saved` is the shell's copy of the player's preferences, which an export's
@@ -105,8 +105,8 @@ private:
     std::vector<const platform::replays::ArchivedReplay*> Shown(const ShellView& view) const;
     std::vector<const platform::replays::ArchivedSet*> SetsShown() const;
     void FilterRows(std::vector<MenuEntry>& rows) const;
+    void NoneShownRow(std::vector<MenuEntry>& rows, std::size_t before) const;
     std::string FilterText() const;
-    bool filterSets_ = false; // the filter screen was opened from the Sets tab
     ReplayShow show_{}; // All
     ReplaySort sort_{}; // Newest
     std::uint64_t fighters_ = 0; // the fighters the filter lists, by native id as bits; 0 for any

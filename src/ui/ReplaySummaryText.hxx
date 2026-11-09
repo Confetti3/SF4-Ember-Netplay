@@ -8,7 +8,6 @@
 #include "../platform/Utf8.hxx"
 #include "FighterSelector.hxx"
 #include <algorithm>
-#include <array>
 #include <cstdint>
 #include <cwctype>
 #include <iterator>
@@ -142,11 +141,6 @@ inline std::string PressesText(const replayinputs::Stats& s){
  return presses;
 }
 inline std::string ActivityText(const replayinputs::Stats& s){const unsigned perMinute=s.PerMinute(),jumps=s.jumps,crouched=s.CrouchedPercent();return loc::Tf("inputs.activity",perMinute,jumps,crouched);}
-// A game's score for the player named first and the other: the seat the player sat in decides.
-inline std::array<int,2> ScoreFor(const platform::replays::ArchivedReplay& game,const std::string& player){
- const bool flip=game.names[0]!=player;
- return {game.summary->score[flip],game.summary->score[!flip]};
-}
 // A set's games oldest first, each one's score for the set's last game's player 1 ("2-0 / 1-2 / 2-1"),
 // a dash for a game whose score is not known.
 inline std::string SetScoresText(const platform::replays::ArchivedSet& set){
@@ -154,8 +148,8 @@ inline std::string SetScoresText(const platform::replays::ArchivedSet& set){
  std::string text;
  for(const auto* game:set.games){
   const bool known=game->summary&&game->summary->scored;
-  const auto score=known?ScoreFor(*game,player):std::array<int,2>{};
-  text+=(text.empty()?"":" / ")+(known?std::to_string(score[0])+"-"+std::to_string(score[1]):std::string("-"));
+  const int seat=game->names[0]!=player; // the seat the set's first player sat in
+  text+=(text.empty()?"":" / ")+(known?std::to_string(game->summary->score[seat])+"-"+std::to_string(game->summary->score[!seat]):std::string("-"));
  }
  return text;
 }

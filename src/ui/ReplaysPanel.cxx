@@ -62,13 +62,13 @@ std::string SetLabel(const Set& set){
  const auto& last=*set.games.back();const auto wins=SetScore(set);
  return ReplayPlayerName(last.names,0)+" "+std::to_string(wins.first)+"-"+std::to_string(wins.second)+" "+ReplayPlayerName(last.names,1);
 }
-// The fighters' names, "Ryu vs Ken", each with its Ultra when the players are given (the card has room for it, the facts do not).
-std::string FightersText(const Replay& r,const replayinputs::Player* players){
- const auto name=[&](int side){
-  const auto* f=selection::FindFighter(r.fighters[side]);
-  const std::string n=f?f->name:loc::T("common.unavailable");
-  return players&&players[side].ultra>=0?n+" ("+UltraLabel(players[side].ultra)+")":n;
- };
+// A fighter's name, or that it is not one Ember knows.
+std::string FighterName(const Replay& r,int side){const auto* f=selection::FindFighter(r.fighters[side]);return f?f->name:loc::T("common.unavailable");}
+// The fighters' names, "Ryu vs Ken".
+std::string FightersText(const Replay& r){return loc::Tf("replays.fighters",FighterName(r,0),FighterName(r,1));}
+// The same with each one's Ultra: a card has room for them, the facts do not.
+std::string FightersUltraText(const Replay& r,const replayinputs::Player (&players)[2]){
+ const auto name=[&](int side){return players[side].ultra>=0?FighterName(r,side)+" ("+UltraLabel(players[side].ultra)+")":FighterName(r,side);};
  return loc::Tf("replays.fighters",name(0),name(1));
 }
 // The replay a Replays row is of: "replay:<file>", or a set's last game, "set:<id>".
@@ -111,6 +111,10 @@ void ReplaysPanel::FilterRows(std::vector<MenuEntry>& rows) const {
  rows.push_back(Row("replay-filter",loc::T("replays.filter"),loc::T("replays.filter_detail")));rows.back().value=FilterText();
  rows.push_back(TextRow("replay-search",loc::T("replays.search"),search_,40));rows.back().detail=loc::T("replays.search_detail");NoteUserText(search_);
 }
+// What a list says when the filter and Search left nothing after its `before` header rows.
+void ReplaysPanel::NoneShownRow(std::vector<MenuEntry>& rows,std::size_t before) const {
+ if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
+}
 // The archive's replays the list shows, in Sort's order.
 std::vector<const platform::replays::ArchivedReplay*> ReplaysPanel::Shown(const ShellView& v) const {
  std::vector<const platform::replays::ArchivedReplay*> shown;
@@ -143,7 +147,7 @@ std::optional<int> ReplaysPanel::FilterFighter(const std::string& id) {
  const int fighter=std::stoi(id.substr(3));
  return selection::FindFighter(fighter)?std::optional<int>(fighter):std::nullopt;
 }
-std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
+std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,const std::string& parent,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
  }else if(screen=="replay-filter"){
@@ -157,8 +161,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   wide(Value("rf-sort",loc::T("replays.sort"),loc::T(kReplaySortKeys[static_cast<int>(sort_)]),loc::T("replays.sort_detail")));
   wide(Value("rf-show",loc::T("replays.show"),loc::T(kReplayShowKeys[static_cast<int>(show_)]),loc::T("replays.show_detail")));
   wide(Value("rf-side",loc::T("replays.side"),loc::T(kReplaySideKeys[side_]),loc::T("replays.side_detail")));
-  // The count is of what the list it was opened from shows.
-  wide(filterSets_?InfoRow("rf-count",loc::T("replays.sets_shown"),std::to_string(SetsShown().size())+" / "+std::to_string(sets_.size()),""):
+  // The count is of what the list it was opened from shows (the screen below it).
+  wide(parent=="replay-sets"?InfoRow("rf-count",loc::T("replays.sets_shown"),std::to_string(SetsShown().size())+" / "+std::to_string(sets_.size()),""):
    InfoRow("rf-count",loc::T("replays.matches_shown"),std::to_string(Shown(v).size())+" / "+std::to_string(v.replays.archive?v.replays.archive->size():0),""));
   wide(Row("rf-reset",loc::T("replays.filter_reset"),loc::T("replays.filter_reset_detail")));
  }else if(screen=="replay-export"){
@@ -200,7 +204,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
     {"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()}};
    rows.back().chosen=idle&&r.ready?"set-watch":"set-pick";
   }
-  if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
+  NoneShownRow(rows,before);
  }else if(screen=="replay-set"){
   // One set's games, in the order they were played.
   title=loc::T("replays.title");
@@ -236,7 +240,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
    const std::size_t before=rows.size();
    for(const auto* replay:Shown(v)){rows.push_back(ReplayRow(v,*replay,idle));rows.back().height=kCardHeight;}
-   if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
+   NoneShownRow(rows,before);
   }
  }
  return rows;
@@ -360,7 +364,7 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return true;
  }
- if(a.id=="replay-filter"){filterSets_=nav.Screen()=="replay-sets";nav.Push("replay-filter");return true;}
+ if(a.id=="replay-filter"){nav.Push("replay-filter");return true;}
  if(a.id=="rf-reset"){fighters_=0;side_=0;show_={};sort_={};return true;}
  if(const auto fighter=FilterFighter(a.id)){fighters_^=std::uint64_t(1)<<*fighter;return true;}
  if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error=loc::T("error.queue_failed");return true;}
@@ -507,7 +511,7 @@ bool ReplaysPanel::DrawCard(const ShellView& v,const MenuEntry& e,ImVec2 min,ImV
  ImGui::PopFont();
  // Under the names: the fighters with their Ultras, then how it went. A match goes round by round
  // with its length; a set gives its game count, then game by game.
- std::string sub=FightersText(*r,r->summary?r->summary->players:nullptr),went;
+ std::string sub=r->summary?FightersUltraText(*r,r->summary->players):FightersText(*r),went;
  if(one)went=e.detail+" \xC2\xB7 "+SetScoresText(*one);
  else if(!set&&r->summary){went=ScoreChangesText(*r->summary);went+=(went.empty()?"":" \xC2\xB7 ")+replayinputs::Clock(r->summary->frames);}
  d->AddText(ImVec2(x,below),c.text,FitLabel(sub,right-x).c_str());
@@ -552,7 +556,7 @@ void ReplaysPanel::DrawDetail(const ShellView& v,const std::string& screen,const
  ImGui::PopFont();
  ImGui::Dummy(ImVec2(0,6*s));
  if(set){if(const Set* one=FindSet(sets_,id.substr(4)))v2::Fact(loc::T("replays.tab.matches"),std::to_string(one->games.size()));}
- else v2::Fact(loc::T("replays.fact.fighters"),FightersText(*r,nullptr));
+ else v2::Fact(loc::T("replays.fact.fighters"),FightersText(*r));
  v2::Fact(loc::T("replays.fact.played"),r->label);
  if(!set&&r->summary)v2::Fact(loc::T("replays.fact.length"),MatchText(*r->summary));
  // Watch now opens the row's choices, as Select does.
