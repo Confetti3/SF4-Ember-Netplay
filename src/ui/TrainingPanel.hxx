@@ -9,6 +9,7 @@
 #include "MenuNavigation.hxx"
 #include "TrainingInRoom.hxx"
 #include "TrainingHudLayout.hxx"
+#include "FrameMeterWindow.hxx"
 
 namespace sf4e { namespace ui {
 using TrainingSubmit = std::function<bool(training::Command)>;
@@ -71,7 +72,6 @@ std::vector<TrainingKeyHint> TrainingPositionKeys();
 // What the last position command did, while it is news; empty after a few seconds.
 std::string TrainingNotice(bool& failed);
 MenuNavigation& TrainingNavigation();
-std::string TrainingFrameData(const training::MeterView& meter, int side);
 // The Frame data page's choices for drawing the meter, as training.json keeps
 // them; the training HUD and the match meter read them every frame. Set is for
 // tests, as the page sets them.
@@ -80,16 +80,6 @@ void SetTrainingMeterOptions(const training::MeterOptions& options);
 // The reset and save hotkeys counted from F1, -1 for Off, as the Position
 // page sets them; for tests.
 void SetTrainingPositionKeys(int reset, int save);
-void DrawTrainingColorKey(bool angled);
-// One row of the F6 colour key: a locale key, what it names and the exact
-// colour (ImU32) the frame meter bars draw for it. Flat bars colour a cell by
-// its phase; angled bars by its resolved kind (training::MeterCell; an entry
-// names one kind; Knockdown covers Down and Rise).
-struct TrainingKeyEntry { const char* label; training::Phase phase; training::MeterKind kind; unsigned color; };
-std::vector<TrainingKeyEntry> TrainingColorKeyEntries(bool angled);
-// The colour a bar cell draws, angled or flat: the one function the bars and
-// the key both take their colours from.
-unsigned TrainingCellColor(const training::MeterCell& cell, bool angled);
 // Over the battle while it is about to be taken away, with who called and go
 // now under the game's words when the call has them.
 void ChallengerBanner(const training::View& view, const ChallengerCall& call = {});
@@ -99,16 +89,8 @@ constexpr float TrainingRoomStatusTop = .26f;
 // Where a member waiting in Training stands in their room, on one muted line.
 // Passive: takes no input.
 void DrawTrainingRoomStatus(const TrainingRoomStatus& status);
-// The meter's width at this viewport and HUD scale, centred on the screen.
-float TrainingMeterWidth(float hudScale);
-// The passive HUD's size: it follows the game's window, smaller with a smaller
-// or narrower one down to the smallest text that still reads, times the HUD
-// size picked on the HUD page and the player's Interface size. Windows' DPI is
-// left out: the HUD is laid out in the game's pixels, which the window's size
-// already measures.
+// The passive HUD's size (FrameMeterHudScale) at the HUD size picked on the HUD page.
 float TrainingHudScale();
-// The HUD's windows: dark enough to read over a bright stage, which still shows through.
-constexpr float TrainingHudBackground = .62f;
 // called: a room calls the player back (ChallengerCall::called); the chip is
 // not drawn then.
 TrainingHudInput DrawTrainingHud(const training::View& view, bool called = false);
@@ -122,9 +104,6 @@ TrainingHudInput DrawTrainingShortcuts(const training::View& view, bool called, 
 // Empty when the strip was not drawn.
 struct TrainingStripShown { float textPixels = 0, width = 0, room = 0; std::vector<std::string> pieces; };
 const TrainingStripShown& LastTrainingStrip();
-// The frame meter's window, alone over a rollback match or a replay the
-// runtime is watching, or with the training HUD.
-constexpr const char* FrameMeterWindow = "Training frame meter";
 // The fighters' boxes over the fight, when Hitboxes on the lab's HUD page is on.
 void DrawTrainingBoxes(const training::View& view);
 // The Data panel (TrainingData.cxx), while it is on and the game has read it,
