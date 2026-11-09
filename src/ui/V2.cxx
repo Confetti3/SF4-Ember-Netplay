@@ -114,10 +114,11 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
         if (bar) CutBar(draw, min, max, 5 * s, c, Colors().accent);
         return;
     }
-    if (bar && ember::ProductTheme().underlineFocus) {
-        // A row or a button: the bar on its left and a hairline along its foot, no box.
-        draw->AddRectFilled(min, ImVec2(min.x + 4 * s, max.y), Colors().accent, r, ImDrawFlags_RoundCornersLeft);
-        draw->AddRectFilled(ImVec2(min.x, max.y - 2 * s), max, Colors().accent);
+    if (bar && ember::ProductTheme().barFocus) {
+        // A row or a button: only the bar on its left, on the focused ground.
+        // Whole pixels, so its edges stay sharp at any interface scale.
+        const float left = std::floor(min.x + .5f), width = (std::max)(1.f, std::floor(4 * s + .5f));
+        draw->AddRectFilled(ImVec2(left, min.y), ImVec2(left + width, max.y), Colors().accent, r, ImDrawFlags_RoundCornersLeft);
         return;
     }
     draw->AddRect(ImVec2(min.x + s, min.y + s), ImVec2(max.x - s, max.y - s), Colors().accent, r, 0, 2 * s);
@@ -127,7 +128,9 @@ void Focus(ImDrawList* draw, ImVec2 min, ImVec2 max, bool bar) {
 void CardGround(ImDrawList* draw, Box card, bool focused, bool hovered, bool act) {
     const float s = Scale();
     Ground(draw, card.min, card.max, focused ? Colors().header : hovered ? Colors().hover : color::Alpha(Colors().frame, .92f), Corner());
-    Edge(draw, card.min, card.max, color::Alpha(Colors().border, .6f), Corner(), s);
+    // With the bar alone marking focus, the focused card is its ground and
+    // bar: a border-tone edge around it would fringe the bar.
+    if (!(focused && ember::ProductTheme().barFocus)) Edge(draw, card.min, card.max, color::Alpha(Colors().border, .6f), Corner(), s);
     if (!act) return;
     if (const float c = CutOf(card.min, card.max)) CutBar(draw, card.min, card.max, 3 * s, c, Colors().accent);
     else draw->AddRectFilled(card.min, ImVec2(card.min.x + 3 * s, card.max.y), Colors().accent, Corner(), ImDrawFlags_RoundCornersLeft);

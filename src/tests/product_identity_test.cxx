@@ -40,7 +40,7 @@ static void TestBranding() {
 		theme.ready == own.ready && theme.pending == own.pending && theme.shade == own.shade && theme.portrait == own.portrait &&
 		theme.pill == own.pill && theme.entryText == own.entryText && theme.entryTextDisabled == own.entryTextDisabled);
 	CHECK(theme.corner == 4.f && theme.cut == 0.f && theme.headingSlant == 0.f);
-	CHECK(theme.rule == theme.border && !theme.underlineFocus && !theme.quietButtons && !theme.upperTitles && !theme.promptOnGround);
+	CHECK(theme.rule == theme.border && !theme.barFocus && !theme.quietButtons && !theme.upperTitles && !theme.promptOnGround);
 	// USF4's battle HUD; the Members rows show each player's main, and the
 	// post-match prompt reads the opponent's answer from the room.
 	CHECK(branding.battleHud == nullptr && !branding.roomFacesArePicks && !branding.answersFromInput);

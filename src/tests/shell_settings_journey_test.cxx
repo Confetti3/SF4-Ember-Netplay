@@ -206,7 +206,7 @@ void SaveWhileHidden() {
 // every feature, as SF4's adapter has them, every row and head is there.
 void RowsFollowTheGame() {
  using namespace sf4e;
- const std::vector<std::string> featureRows = {"lower-input-lag", "lower-keyboard-lag", "faster-display", "borderless", "controllers", "controls",
+ const std::vector<std::string> featureRows = {"lower-input-lag", "lower-keyboard-lag", "faster-display", "borderless", "controllers", "capture", "controls",
   "game-buttons", "game-reads-pads", "keyboard", "ready-sound", "ready-volume", "ready-test", "lobby-music", "arrange-pictures", "shortcut-hint",
   "share-steam", "tab-interface/sounds", "tab-access/help"};
  const std::vector<const char*> screens = {"player", "tab-player/controls", "tab-player/profile", "tab-interface", "tab-interface/room-layout", "tab-access"};

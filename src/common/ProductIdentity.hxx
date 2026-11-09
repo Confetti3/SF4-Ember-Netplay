@@ -48,8 +48,9 @@ struct ShellTheme {
 	// The hairlines that close the header and open the hint bar.
 	unsigned rule;
 	// The focus marks: the accent's box edge and left bar (Ember's), or, when
-	// set, the left bar and a hairline along the bottom with no box edge.
-	bool underlineFocus;
+	// set, only the full-height left bar on the focused ground: no box edge,
+	// and a focused card drops its border-tone edge too.
+	bool barFocus;
 	// Secondary buttons edged in the border tone rather than the accent's.
 	bool quietButtons;
 	// A screen's title in capitals.

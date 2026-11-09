@@ -82,7 +82,9 @@ std::vector<MenuEntry> Offered(std::vector<MenuEntry> rows, const ShellView& v) 
     const Need needs[] = {
         {"lower-input-lag", f.inputDisplayFixes}, {"lower-keyboard-lag", f.inputDisplayFixes},
         {"faster-display", f.inputDisplayFixes}, {"borderless", f.inputDisplayFixes},
-        {"controllers", f.padLayer}, {"controls", f.padLayer}, {"game-buttons", f.padLayer}, {"game-reads-pads", f.padLayer},
+        // Change controller picks the gameplay pad among several; a game
+        // whose battle always plays its own first pad (SFV) has none to pick.
+        {"controllers", f.padLayer}, {"capture", f.padLayer}, {"controls", f.padLayer}, {"game-buttons", f.padLayer}, {"game-reads-pads", f.padLayer},
         {"keyboard", f.keyboard},
         {"ready-sound", f.challengerCall}, {"ready-volume", f.challengerCall}, {"ready-test", f.challengerCall},
         {"lobby-music", f.lobbyMusic}, {"arrange-pictures", f.characterPictures}, {"shortcut-hint", f.shortcutHint},
