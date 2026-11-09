@@ -15,4 +15,11 @@ int main() {
         CHECK(ShouldApplyRumble(true, 0, 0)); // An explicit stop reaches SDL once.
         CHECK(!ShouldApplyRumble(false, 0, 0));
     }
+    // A layer polling faster than SDL needs refreshes held motors only when due;
+    // a new request, a stop included, still goes at once.
+    CHECK(!ShouldApplyRumble(false, 12000, 0, false));
+    CHECK(ShouldApplyRumble(false, 12000, 0, true));
+    CHECK(ShouldApplyRumble(true, 12000, 0, false));
+    CHECK(ShouldApplyRumble(true, 0, 0, false));
+    CHECK(!ShouldApplyRumble(false, 0, 0, true));
 }
