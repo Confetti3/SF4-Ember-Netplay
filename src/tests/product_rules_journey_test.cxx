@@ -1,5 +1,5 @@
-// The shell's product rules (Branding::roomFacesArePicks, answersFromInput,
-// rankingClasses), built twice: ProductRules under SF4 Ember's identity, where
+// The shell's product rules (Branding::roomFacesArePicks and with it
+// ember::PlayersHaveMain, answersFromInput, rankingClasses), built twice: ProductRules under SF4 Ember's identity, where
 // they are off and the shell is as it was, and ProductRulesOn under a product
 // that turns them on (product_rules_product.cxx). Each run checks the
 // behaviour its product's rules ask for.
@@ -59,6 +59,25 @@ void RoomFaces() {
  h.Screen("room");
  {const auto seats=Fighters(Drawn(h));
   Check(std::find(seats.begin(),seats.end(),0)!=seats.end()&&std::find(seats.begin(),seats.end(),2)!=seats.end(),"A picked seat did not show the pick");}
+}
+
+// The main (ember::PlayersHaveMain). SF4 Ember's players choose one on
+// Profile and their card shows it; a product whose room faces are its picks
+// has none, so Profile offers no Main character and the card shows no main.
+void MainFighter() {
+ const bool hasMain=ember::PlayersHaveMain();
+ Harness h;h.view.preferences.mainFighter=8;h.Frame();
+ std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
+ h.Screen("tab-player/profile");h.Frame();
+ SetMenuEntriesProbe({});
+ Check(!rows.empty(),"Profile drew no rows");
+ const bool offered=std::any_of(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="main-character";});
+ Check(offered==hasMain,hasMain?"Profile did not offer Main character":"A product whose players have no main offered Main character");
+ const auto& card=MenuPlayerCard().profile;
+ const std::string badge=loc::T("profile.main_badge");
+ const bool told=std::any_of(card.facts.begin(),card.facts.end(),[&](const auto& f){return f.key==badge;});
+ Check(told==hasMain,hasMain?"The profile card did not show the main":"The profile card showed a main the product's players do not have");
+ if(!hasMain)Check(card.fighter==-1,"The profile card drew a main the product's players do not have");
 }
 
 // The opponent's answer over a WIN that goes on in place. Off, it reads
@@ -133,6 +152,7 @@ void ClassNames() {
 int main() {
  try {
   RoomFaces();
+  MainFighter();
   OpponentAnswer();
   ClassNames();
   std::cout<<"Product rules ("<<(ember::Product().branding.roomFacesArePicks?"on":"off")<<") passed.\n";

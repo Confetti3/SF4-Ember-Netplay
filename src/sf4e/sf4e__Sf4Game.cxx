@@ -258,6 +258,7 @@ constexpr Capabilities Sf4Capabilities() {
     caps.steamProfile = true;
     caps.customContent = true;
     caps.frameMeter = true;
+    caps.settingsFeatures = ember::SettingsFeatures::All();
     return caps;
 }
 const Adapter s_game = {

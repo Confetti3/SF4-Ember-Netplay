@@ -370,7 +370,9 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.country=ShownCountry(preferences_.country,v.automaticCountry);
  // The profile card (the L tag): Home's and the Player tab's.
  auto& tag=card.profile;const auto& standing=v.rankings.standing;const auto& record=v.preferences.record;
- tag.name=card.name;tag.marks.country=card.country;tag.fighter=preferences_.mainFighter;
+ // A product whose players have no main shows none (ember::PlayersHaveMain).
+ const bool hasMain=ember::PlayersHaveMain();
+ tag.name=card.name;tag.marks.country=card.country;tag.fighter=hasMain?preferences_.mainFighter:-1;
  tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
  // What the player picked on the awards wall, while it is earned.
  if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=loc::T(a->title);tag.tier=a->tier;}
@@ -378,7 +380,7 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  if(standing.loaded&&standing.value.kind==netplay::rankings::Standing::Kind::Ranked&&standing.value.classesShown)tag.marks.badge=standing.value.badge;
  if(card.country.Present())tag.about=CountryName(card.country);
  if(tag.marks.badge.HasClass())tag.about+=(tag.about.empty()?"":" \xC2\xB7 ")+loc::Tf("class.tip",ClassName(tag.marks.badge.band));
- tag.facts={{loc::T("profile.main_badge"),ember::Catalog().fighterName(preferences_.mainFighter)}};
+ if(hasMain)tag.facts.push_back({loc::T("profile.main_badge"),ember::Catalog().fighterName(preferences_.mainFighter)});
  if(record.available)tag.facts.push_back({loc::T("profile.record"),RecordValue(record)});
  SetMenuPlayerCard(std::move(card));
  std::vector<MenuNewsItem> news;

@@ -25,6 +25,7 @@
 
 #include "../common/ControllerView.hxx"
 #include "../common/SelectionPick.hxx"
+#include "../common/SettingsFeatures.hxx"
 #include "../common/GamePing.hxx"
 #include "../common/MatchResult.hxx"
 #include "../common/MenuButtons.hxx"
@@ -69,6 +70,9 @@ struct Capabilities {
     // Ember's frame meter over a match: Settings' Match frame meter row,
     // which a game without the meter does not offer.
     bool frameMeter = false;
+    // The game features whose Settings rows only some games have
+    // (SettingsFeatures.hxx): a game without one is not offered its rows.
+    SettingsFeatures settingsFeatures;
 };
 
 // Where the game is. Game thread.

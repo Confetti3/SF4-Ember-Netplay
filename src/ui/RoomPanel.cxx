@@ -354,8 +354,10 @@ std::vector<MenuEntry> ApplicationShell::RoomEntries(const ShellView& v) {
   if(*id==s.localMember){row.info=true;continue;}
   const auto* m=Member(s,*id);
   if(!m)continue;
-  row.choices={{"mute",loc::T(muted_.count(*id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")},
-   {"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()}};
+  row.choices={{"mute",loc::T(muted_.count(*id)?"room.unmute_member":"room.mute_member"),loc::T("room.mute_member.detail")}};
+  // A game without Steam profiles has none to open (ShellView::offersSteamProfile).
+  if(v.offersSteamProfile)
+   row.choices.push_back({"steam-profile",loc::T("room.steam_profile"),loc::T(m->steamId.Present()?"room.steam_profile.detail":"room.steam_profile.none"),m->steamId.Present()});
   if(!tournamentRoom)row.choices.push_back({"kick",loc::T("room.kick_member"),loc::Tf("room.kick_member.detail",m->name),host});
   row.choices.push_back({"transfer-host",loc::T("room.transfer_host"),loc::Tf("room.transfer_host.detail",m->name),host&&!room::IsWatcher(s,*id)});
   row.popout=true;
@@ -659,9 +661,10 @@ void ApplicationShell::RoomMemberRows(std::vector<MenuEntry>& rows,const RoomScr
  const bool tournamentRoom=c.tournamentRoom;
    const auto* m=Member(s,selectedMember_);const bool other=m&&m->id!=s.localMember;
    rows.push_back(Row("mute",loc::T(muted_.count(selectedMember_)?"room.unmute_member":"room.mute_member"),loc::T(m?"room.mute_member.detail":"room.member_left.detail"),other));
-   // Only a member who chose to show the room their profile has one to open.
+   // Only a member who chose to show the room their profile has one to open,
+   // in a game with Steam profiles (ShellView::offersSteamProfile).
    const bool hasSteam=m&&m->steamId.Present();
-   rows.push_back(Row("steam-profile",loc::T("room.steam_profile"),
+   if(c.v.offersSteamProfile)rows.push_back(Row("steam-profile",loc::T("room.steam_profile"),
     loc::T(!m?"room.member_left.detail":hasSteam?"room.steam_profile.detail":"room.steam_profile.none"),hasSteam));
    if(!tournamentRoom){
     rows.push_back(ConfirmRow("kick",loc::T("room.kick_member"),m?loc::Tf("room.kick_member.detail",m->name):loc::T("room.member_left.detail"),host&&other));

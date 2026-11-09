@@ -4,6 +4,7 @@
 #include "../common/ReplayInputDetails.hxx"
 #include "../common/ReplayRequest.hxx"
 #include "../common/SelectionPick.hxx"
+#include "../common/SettingsFeatures.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/GameDisplayConfig.hxx"
 #include "../discord/Presence.hxx"
@@ -187,8 +188,11 @@ struct ShellView {
     bool canTrain = false;
     // The game has Training and replays at all (its adapter's capabilities):
     // the shell shows no way into one it lacks. Nor does it offer the Match
-    // frame meter setting to a game without Ember's frame meter.
-    bool offersTraining = true, offersReplays = true, offersFrameMeter = true;
+    // frame meter setting to a game without Ember's frame meter, a member's
+    // Steam profile or Share my Steam profile to one without Steam profiles,
+    // or a Settings row of a feature the game lacks (SettingsFeatures.hxx).
+    bool offersTraining = true, offersReplays = true, offersFrameMeter = true, offersSteamProfile = true;
+    ember::SettingsFeatures settingsFeatures = ember::SettingsFeatures::All();
     // What the Replays screen offers of a replay beyond watching, keeping and
     // showing it (the adapter's replay capabilities): the game's own replay
     // list, a video, the frame meter, and its inputs and stats.

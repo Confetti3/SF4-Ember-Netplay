@@ -1,7 +1,8 @@
 // The settings' journeys that cross screens: the one rule for the settings a
 // room leaves open, pad and pointer alike; Retry saving, the shell's own row,
 // drawn and reached on every kind of screen; a Settings panel opened from the
-// rail of another; and a save that goes on while Ember is hidden.
+// rail of another; a save that goes on while Ember is hidden; and the rows of
+// the game features only some games have.
 #include "shell_journey_support.hxx"
 #include "shell_additional_journeys.hxx"
 #include <algorithm>
@@ -196,6 +197,63 @@ void SaveWhileHidden() {
  Check(std::none_of(h.actions.begin() + static_cast<std::ptrdiff_t>(after), h.actions.end(), [](const ShellAction& a) { return a.command.kind == Kind::SavePreferences; }),
   "The save went out again once Ember showed");
 }
+
+// A game without a feature (ShellView::settingsFeatures, offersSteamProfile;
+// SFV's adapter has none of them) is offered none of its rows: not on the
+// Player page or its panel, Profile, Room layout or a member's actions, and
+// Sounds and Help, left with no row, have no head on their tab. The pad walks
+// each page's rows that are left, top to bottom, and never meets one. With
+// every feature, as SF4's adapter has them, every row and head is there.
+void RowsFollowTheGame() {
+ using namespace sf4e;
+ const std::vector<std::string> featureRows = {"lower-input-lag", "lower-keyboard-lag", "faster-display", "borderless", "controllers", "controls",
+  "game-buttons", "game-reads-pads", "keyboard", "ready-sound", "ready-volume", "ready-test", "lobby-music", "arrange-pictures", "shortcut-hint",
+  "share-steam", "tab-interface/sounds", "tab-access/help"};
+ const std::vector<const char*> screens = {"player", "tab-player/controls", "tab-player/profile", "tab-interface", "tab-interface/room-layout", "tab-access"};
+ const auto offer = [](Harness& h, bool every) {
+  h.view.settingsFeatures = every ? ember::SettingsFeatures::All() : ember::SettingsFeatures{};
+  h.view.offersSteamProfile = every; h.Frame();
+ };
+ {
+  Harness h; h.Frame();
+  Drawn drawn;
+  const auto shown = [&](const std::string& id) { return drawn.Row(id.c_str()) != nullptr; };
+  offer(h, false);
+  for (const char* screen : screens) {
+   h.Screen(screen);
+   const std::string where = std::string(" on ") + screen;
+   Check(!drawn.rows.empty(), ("Nothing was left" + where).c_str());
+   for (const auto& id : featureRows) Check(!shown(id), ("A game without its feature was offered " + id + where).c_str());
+   // Top to bottom by the pad: no row reached is one left out, and the last row is reached.
+   for (int i = 0; i < 60; ++i) { const std::string before = h.shell.Navigation().Focus(); h.Press(MenuInput::Up); if (h.shell.Navigation().Focus() == before) break; }
+   std::vector<std::string> reached{h.shell.Navigation().Focus()};
+   for (int i = 0; i < 60; ++i) { h.Press(MenuInput::Down); if (h.shell.Navigation().Focus() == reached.back()) break; reached.push_back(h.shell.Navigation().Focus()); }
+   for (const auto& id : reached)
+    Check(std::find(featureRows.begin(), featureRows.end(), id) == featureRows.end(), ("The pad focused " + id + ", a row left out," + where).c_str());
+   Check(std::find(reached.begin(), reached.end(), drawn.rows.back().id) != reached.end(), ("The pad did not reach the last row" + where).c_str());
+  }
+  offer(h, true);
+  std::vector<std::string> all;
+  for (const char* screen : screens) { h.Screen(screen); for (const auto& row : drawn.rows) all.push_back(row.id); }
+  for (const auto& id : featureRows) Check(std::count(all.begin(), all.end(), id) > 0, ("With every feature, " + id + " was not offered").c_str());
+ }
+ // A member's actions, in a room with a peer who shows their Steam profile.
+ Harness h; h.Frame();
+ InRoom(h, 23);
+ room::Member peer; peer.id = 2; peer.name = "Peer"; peer.steamId = SteamId::Parsed("76561200000000000");
+ h.view.room.members.push_back(peer); ++h.view.room.revision;
+ Drawn drawn;
+ const auto steamChoice = [&] {
+  h.Screen("room-members");
+  const auto* row = drawn.Row("member-2");
+  Check(row != nullptr, "The peer's row was not shown");
+  return std::any_of(row->choices.begin(), row->choices.end(), [](const MenuChoice& c) { return c.id == "steam-profile"; });
+ };
+ offer(h, false);
+ Check(!steamChoice(), "A game without Steam profiles offered a member's Steam profile");
+ offer(h, true);
+ Check(steamChoice(), "With Steam profiles, a member's Steam profile was not offered");
+}
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one after another.
 void SettingsJourneys() {
@@ -203,4 +261,5 @@ void SettingsJourneys() {
  RetrySaveOnPanelScreens();
  PanelFromRailFocusesHead();
  SaveWhileHidden();
+ RowsFollowTheGame();
 }

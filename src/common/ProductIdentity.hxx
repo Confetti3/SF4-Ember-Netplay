@@ -236,6 +236,13 @@ inline const ShellTheme& ProductTheme() {
 	return Product().branding.theme ? *Product().branding.theme : EmberShellTheme;
 }
 
+// The product's players have a main fighter: one whose room shows only picks
+// (Branding::roomFacesArePicks) has none, so the shell neither asks for one
+// (Profile's Main character) nor shows one (the profile card).
+inline bool PlayersHaveMain() {
+	return !Product().branding.roomFacesArePicks;
+}
+
 // "Local\\" + objectStem + role.
 inline std::wstring KernelObjectName(const wchar_t* role) {
 	return std::wstring(L"Local\\") + Product().objectStem + role;

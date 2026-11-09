@@ -28,6 +28,7 @@
 #include <cfloat>
 #include <cstdio>
 #include <ctime>
+#include <iterator>
 
 namespace sf4e { namespace ui {
 namespace {
@@ -68,6 +69,34 @@ std::string ReportTime(std::int64_t time) {
 }
 // What a row whose setting cannot change now says instead.
 const char* Reason(const ShellView& v) { return v.canEditPreferences ? loc::T("settings.auto_save") : loc::T("settings.leave_room_to_edit"); }
+// The rows only some games or products have, each with whether this one has
+// what the row sets: a game feature (ShellView::settingsFeatures,
+// offersFrameMeter, offersSteamProfile) or the product's own (a main, the
+// HUD's name offset). Every Settings builder's rows pass through here, so a
+// row the game or product lacks is left out in this one place and the menu
+// never has it to focus; a panel left with none is left out too (TabRows).
+std::vector<MenuEntry> Offered(std::vector<MenuEntry> rows, const ShellView& v) {
+    struct Need { const char* id; bool offered; };
+    const auto& f = v.settingsFeatures;
+    const auto* hud = ember::Product().branding.battleHud;
+    const Need needs[] = {
+        {"lower-input-lag", f.inputDisplayFixes}, {"lower-keyboard-lag", f.inputDisplayFixes},
+        {"faster-display", f.inputDisplayFixes}, {"borderless", f.inputDisplayFixes},
+        {"controllers", f.padLayer}, {"controls", f.padLayer}, {"game-buttons", f.padLayer}, {"game-reads-pads", f.padLayer},
+        {"keyboard", f.keyboard},
+        {"ready-sound", f.challengerCall}, {"ready-volume", f.challengerCall}, {"ready-test", f.challengerCall},
+        {"lobby-music", f.lobbyMusic}, {"arrange-pictures", f.characterPictures}, {"shortcut-hint", f.shortcutHint},
+        {"match-frame-meter", v.offersFrameMeter}, {"share-steam", v.offersSteamProfile},
+        {"main-character", ember::PlayersHaveMain()},
+        // The name offset follows a game's own HUD position option; a game
+        // without one (ember::BattleHud::nameOffset) leaves it nothing to follow.
+        {"hud-name-offset", !hud || hud->nameOffset}};
+    const auto lacking = [&](const MenuEntry& row) {
+        return std::any_of(std::begin(needs), std::end(needs), [&](const Need& need) { return !need.offered && row.id == need.id; });
+    };
+    rows.erase(std::remove_if(rows.begin(), rows.end(), lacking), rows.end());
+    return rows;
+}
 }
 
 // A Settings panel: its id, unique across the tabs, its heading (a locale
@@ -191,8 +220,6 @@ public:
             OnOffValue(p, "replay-save-watched", loc::T("replays.save_watched"), loc::T("replays.save_watched_detail"), v.canEditPreferences),
             OnOffValue(p, "replay-share", loc::T("replays.share"), loc::T("replays.share_detail"), v.canEditPreferences),
             PictureMode(s, v, "watched-picture")};
-        // A game without Ember's frame meter has nothing for the setting to show.
-        if (!v.offersFrameMeter) rows.erase(rows.begin());
         // Where the picture sits and how big (the Matches tab's map also drags it there).
         const int corners[] = {4, 3, 2, 1};
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
@@ -214,18 +241,12 @@ public:
     static Entries MatchHud(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
         const char* sizes[] = {loc::T("size.small"), loc::T("size.standard"), loc::T("size.large")};
-        Entries entries = {OnOffValue(p, "hud", loc::T("settings.match_hud"), Reason(v), v.canEditPreferences),
+        return {OnOffValue(p, "hud", loc::T("settings.match_hud"), Reason(v), v.canEditPreferences),
             Value("hud-layout", loc::T("settings.match_hud_layout"), MatchStripLayoutName(p.matchHudLayout), loc::T("settings.match_hud_layout_detail"), v.canEditPreferences),
             Value("hud-name-offset", loc::T("settings.name_offset"), MatchHudNameOffsetText(p.matchHudNameOffset), loc::T("settings.name_offset_detail"), v.canEditPreferences && p.matchHudLayout == 1),
             Value("hud-size", loc::T("settings.match_hud_size"), sizes[(std::max)(0, (std::min)(2, p.matchHudSize))], loc::T("settings.match_hud_size_detail"), v.canEditPreferences),
             Value("hud-position", loc::T("settings.match_hud_position"), MatchStripAnchorName(p.matchHudAnchor), loc::T("settings.match_hud_position_detail"), v.canEditPreferences),
             Value("hud-spacing", loc::T("settings.edge_spacing"), p.matchHudRaised ? loc::T("spacing.raised") : loc::T("spacing.normal"), loc::T("settings.edge_spacing_detail"), v.canEditPreferences)};
-        // The name offset follows a game's own HUD position option; a game
-        // without one (ember::BattleHud::nameOffset) leaves it nothing to follow.
-        const auto* hud = ember::Product().branding.battleHud;
-        if (hud && !hud->nameOffset)
-            entries.erase(std::remove_if(entries.begin(), entries.end(), [](const MenuEntry& e) { return e.id == "hud-name-offset"; }), entries.end());
-        return entries;
     }
     static Entries Sounds(Shell& s, const ShellView& v) {
         const auto& p = s.preferences_;
@@ -378,8 +399,11 @@ public:
         auto& built = s.settingsPanels_;
         built.clear();
         for (const SettingsPanel* panel : tab.panels) {
-            built.push_back({panel, panel->rows(s, v)});
-            for (auto& row : built.back().rows) row.group = loc::T(panel->heading);
+            auto rows = Offered(panel->rows(s, v), v);
+            // A panel of nothing this game has is no panel of its.
+            if (rows.empty()) continue;
+            for (auto& row : rows) row.group = loc::T(panel->heading);
+            built.push_back({panel, std::move(rows)});
         }
         if (screen != tab.screen) {
             const BuiltPanel* open = Built(s, screen);
@@ -414,7 +438,7 @@ public:
         if (f.screen == CountryPicker::Screen) return CountryRows(s, f.view, title);
         const Page& page = *PageOf(f.screen);
         title = loc::T(page.title);
-        return page.rows(s, f.view);
+        return Offered(page.rows(s, f.view), f.view);
     }
     // The letters board, where the language's initials fit a grid. A typed
     // letter goes to its first country, and the board shows that letter's.
@@ -484,7 +508,8 @@ public:
                 for (const auto& b : s->settingsPanels_)
                     if (b.panel->picture && std::any_of(b.rows.begin(), b.rows.end(), [&](const MenuEntry& e) { return e.id == id; })) { b.panel->picture(*s, *v); return; }
             };
-        if (screen == "profile" || screen == "main-character")
+        // The main beside Profile's rows, where the product's players have one.
+        if ((screen == "profile" && ember::PlayersHaveMain()) || screen == "main-character")
             return [v, screen](const std::string& id) {
                 const auto chosen = screen == "main-character" ? RowKey<int>(id, "main-") : std::nullopt;
                 const int fighter = chosen.value_or(v->preferences.mainFighter);

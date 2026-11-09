@@ -134,6 +134,7 @@ Capabilities Everything() {
     caps.steamProfile = true;
     caps.customContent = true;
     caps.frameMeter = true;
+    caps.settingsFeatures = ember::SettingsFeatures::All();
     return caps;
 }
 
