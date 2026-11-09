@@ -116,10 +116,17 @@ async fn assignments_are_one_games_chosen_before_the_limit() {
     // SFV's list holds 50 of its own and nothing of USF4's.
     let listed = assignments(&f, 0, "?game=sfv").await;
     assert_eq!(listed.len(), 50);
-    assert!(listed.iter().all(|row| row["game"] == "sfv" && sfv.contains(&row["match_id"])));
+    assert!(
+        listed
+            .iter()
+            .all(|row| row["game"] == "sfv" && sfv.contains(&row["match_id"]))
+    );
     let (_, found) = f
         .bridge
-        .get(&f.organizer, &format!("/v1/matches/{}", sfv[0].as_str().unwrap()))
+        .get(
+            &f.organizer,
+            &format!("/v1/matches/{}", sfv[0].as_str().unwrap()),
+        )
         .await;
     assert!(found["rules"].get("edition_policy").is_none(), "{found}");
     // An unknown game is refused as the other routes refuse one.
@@ -135,7 +142,9 @@ async fn assignments_are_one_games_chosen_before_the_limit() {
 async fn a_match_link_says_its_matchs_game() {
     let f = fixture(3).await;
     let link = |id: &Value| {
-        let url = f.bridge.url(&format!("/v1/matches/{}/link", id.as_str().unwrap()));
+        let url = f
+            .bridge
+            .url(&format!("/v1/matches/{}/link", id.as_str().unwrap()));
         let client = f.bridge.client.clone();
         async move { common::read(client.get(url).send().await.unwrap()).await }
     };
@@ -201,9 +210,7 @@ async fn a_record_is_one_games_and_usf4s_reads_as_it_always_did() {
     assert_eq!(record_bytes(&f, 0, "?limit=10").await, before);
 
     // An SFV set player 0 loses counts in SFV's record alone.
-    let sfv = f
-        .ordinary_in("sfv", None, "sfv-lost", [0, 2], 1)
-        .await;
+    let sfv = f.ordinary_in("sfv", None, "sfv-lost", [0, 2], 1).await;
     let (status, body) = f.game(sfv["match_id"].as_str().unwrap(), 1).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     let after = record_bytes(&f, 0, "").await;
@@ -267,7 +274,10 @@ async fn an_sfv_lobbys_sets_are_sfv_matches_and_its_standings_count_them() {
     // The next set is SFV's too.
     let next = f.lobby(&id).await["current_match_id"].clone();
     assert_ne!(next, set);
-    assert_eq!(game_of(&assignments(&f, 0, "?game=sfv").await, &next), "sfv");
+    assert_eq!(
+        game_of(&assignments(&f, 0, "?game=sfv").await, &next),
+        "sfv"
+    );
 
     // A USF4 lobby's sets stay USF4's.
     let g = fixture(2).await;

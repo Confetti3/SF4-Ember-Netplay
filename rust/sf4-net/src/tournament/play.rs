@@ -775,7 +775,10 @@ mod tests {
         let named = json!({ "op": "assignment_list", "bridge_id": "brg_x", "game": "usf4" });
         let parsed: Request = serde_json::from_value(named).unwrap();
         assert_eq!(serde_json::to_value(&parsed).unwrap(), sf4);
-        assert_eq!(game_path(ASSIGNMENTS_PATH, "usf4").unwrap(), "/v1/assignments");
+        assert_eq!(
+            game_path(ASSIGNMENTS_PATH, "usf4").unwrap(),
+            "/v1/assignments"
+        );
         // SFV Ember's names its game, on the request and in the query.
         let sfv = json!({ "op": "assignment_list", "bridge_id": "brg_x", "game": "sfv" });
         let parsed: Request = serde_json::from_value(sfv.clone()).unwrap();

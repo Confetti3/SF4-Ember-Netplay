@@ -374,7 +374,10 @@ mod tests {
         match edition_policy {
             Some(policy) => wire["rules"]["edition_policy"] = policy.into(),
             None => {
-                wire["rules"].as_object_mut().unwrap().remove("edition_policy");
+                wire["rules"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("edition_policy");
             }
         }
         let command: CreateMatch =
@@ -413,7 +416,10 @@ mod tests {
             )
         );
         assert_eq!(sfv.check(Game::Sfv), Ok(()));
-        assert_eq!(sfv.check(Game::Usf4), Err(Error::InvalidField("edition_policy")));
+        assert_eq!(
+            sfv.check(Game::Usf4),
+            Err(Error::InvalidField("edition_policy"))
+        );
     }
 
     #[test]
