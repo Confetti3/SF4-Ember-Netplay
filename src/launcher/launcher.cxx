@@ -354,24 +354,17 @@ int ShowLauncherMessage(const char* key, UINT flags) {
 }
 
 namespace ember { namespace launch {
-bool ConfirmSteamRestart() {
-	const bool restart = ShowLauncherMessage("launcher.steam_restart_ask", MB_OKCANCEL | MB_ICONINFORMATION | MB_SETFOREGROUND) == IDOK;
-	spdlog::info("Steam restart: the player chose {}", restart ? "to restart Steam" : "to start without restarting Steam");
-	return restart;
+bool AskOkCancel(const char* key) {
+	const bool ok = ShowLauncherMessage(key, MB_OKCANCEL | MB_ICONINFORMATION | MB_SETFOREGROUND) == IDOK;
+	spdlog::info("{}: the player chose {}", key, ok ? "OK" : "Cancel");
+	return ok;
 }
 } }
 
-// What the player is told when a start failed: the product's own refusal,
-// else the shared message for the Win32 error.
-std::string StartFailureMessage(const ember::launch::StartFailure& failure, const std::wstring& executable) {
-	using ember::launch::StartRefusal;
-	switch (failure.refusal) {
-	case StartRefusal::SteamNotReady: return sf4e::loc::T("launcher.steam_not_ready");
-	case StartRefusal::UnsupportedBuild:
-		return sf4e::loc::Tf("launcher.game_build_unsupported", ember::Product().branding.productName, failure.supportedBuild,
-			sf4e::platform::WideToUtf8(executable));
-	case StartRefusal::None: break;
-	}
+// What the player is told when a start failed: the product's own message,
+// else the shared one for the Win32 error.
+std::string StartFailureMessage(const ember::launch::StartFailure& failure) {
+	if (!failure.message.empty()) return failure.message;
 	// ERROR_ELEVATION_REQUIRED: the game's exe is marked to run as administrator.
 	return sf4e::loc::T(failure.error == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed");
 }
@@ -660,7 +653,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (!game) {
             ember::launch::GameEnded(false);
             dumps.Close();
-            if (!ShowRecovery(StartFailureMessage(startFailure, location.executable),chosenDirectory)) return 0;
+            if (!ShowRecovery(StartFailureMessage(startFailure),chosenDirectory)) return 0;
             continue;
         }
         // The game's crash handler asks for its dump here and waits for it.

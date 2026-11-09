@@ -106,7 +106,7 @@ public:
     bool Owns(const std::string& screen) const override { return screen == "welcome"; }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.WelcomeRows(f.view, title); }
     // Its own rows and Back; false for a row another screen owns (Language, Choose controller).
-    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override { return f.shell.WelcomeActivate(a); }
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override { return f.shell.WelcomeActivate(f.view, a); }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         menu.ownsBack = true;
         menu.backInert = !f.shell.welcomeStep_;
@@ -114,7 +114,8 @@ public:
     }
     GameMenu::Body Body(const ScreenFrame& f) const override {
         ApplicationShell* s = &f.shell;
-        return [s](const std::vector<MenuEntry>& e, MenuNavigation& n, MenuAction& a, float h, const MenuVisualFeedback&) { s->DrawWelcomeBoard(e, n, a, h); };
+        const int steps = WelcomeStepCount(f.view.settingsFeatures);
+        return [s, steps](const std::vector<MenuEntry>& e, MenuNavigation& n, MenuAction& a, float h, const MenuVisualFeedback&) { s->DrawWelcomeBoard(e, n, a, h, steps); };
     }
 };
 

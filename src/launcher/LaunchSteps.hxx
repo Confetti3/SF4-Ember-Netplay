@@ -60,19 +60,12 @@ struct StartRequest {
 	sf4e::crash::DumpChannel* dumps; // the crash dump channel, open or not
 };
 
-// Why a start failed, for the message the launcher shows. A product's own
-// check before the start may refuse it with a reason the shared messages do
-// not cover; otherwise the Win32 error picks a shared one.
-enum class StartRefusal {
-	None,             // the start itself failed: error
-	SteamNotReady,    // Steam is not running with an account signed in
-	UnsupportedBuild, // the executable is not the game build the product runs on
-};
+// Why a start failed: the Win32 error of the start itself, which picks one of
+// the shared messages, or the product's own message when its own check
+// refused the start (for example with LaunchMessages.hxx's words).
 struct StartFailure {
 	DWORD error = 0;
-	StartRefusal refusal = StartRefusal::None;
-	// UnsupportedBuild: the build the product runs on, as players name it.
-	std::string supportedBuild;
+	std::string message; // shown in place of the shared message when set
 };
 
 // Starts the game with the module inside it, before any of the game's own
@@ -80,10 +73,10 @@ struct StartFailure {
 // its own steps.
 HANDLE StartGame(const StartRequest& request, StartFailure& failure);
 
-// What the launcher offers a product's steps.
-// Asks the player whether Steam may be restarted before the game starts
-// (OK or Cancel, launcher.steam_restart_ask); true for OK.
-bool ConfirmSteamRestart();
+// What the launcher offers a product's steps: the localized message `key`
+// in a message box with OK and Cancel, before the game starts. True for OK;
+// the answer is logged.
+bool AskOkCancel(const char* key);
 
 // After each StartGame: ran when the game started and has now exited, false
 // when the start failed. Releases what the run held.
