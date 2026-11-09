@@ -6,6 +6,7 @@
 #include "../ui/RoomControls.hxx"
 #include "../ui/RoomFeedback.hxx"
 #include "../ui/RowId.hxx"
+#include "../ui/SelectionLabels.hxx"
 #include "../ui/Theme.hxx"
 #include "../ui/V2.hxx"
 #include "imgui_test_support.hxx"
@@ -58,6 +59,15 @@ void TestNoticeWithoutHeadingIsNotAnError() {
     Check(menu.NoticeOpen() && !menu.NoticeError(), "A notice with no heading read as an error");
     menu.ShowError("Ready failed");
     Check(menu.NoticeError(), "An error notice did not read as one");
+}
+// SF4's own badges (Sf4SelectionLabels, which sf4e_ui links here, not the
+// fake game's copy): the old Ultra page's I, II and W, and none past Double,
+// so DrawUltraMark draws nothing there.
+void TestSf4UltraBadge() {
+    using namespace sf4e::ui;
+    Check(std::strcmp(UltraBadge(0), "I") == 0 && std::strcmp(UltraBadge(1), "II") == 0 && std::strcmp(UltraBadge(2), "W") == 0,
+        "SF4's Ultra badges are not I, II and W");
+    Check(*UltraBadge(3) == 0 && *UltraBadge(-1) == 0 && *UltraBadge(255) == 0, "An Ultra past SF4's three has a badge");
 }
 }
 
@@ -818,6 +828,7 @@ int main() try {
         Check(room_controls::DescribeTableBanner(view, view.room.tables[0]).text.empty(), "The Training call stayed on the card after the opponent came back");
     }
     TestNoticeWithoutHeadingIsNotAnError();
+    TestSf4UltraBadge();
     // Both fighters are ready and a locked-in spectator holds the start.
     shell.Navigation().Home(); shell.Navigation().Push("room-table");
     view.room.tables[0].phase = room::TablePhase::Ready; view.room.tables[0].spectatorHold = true;

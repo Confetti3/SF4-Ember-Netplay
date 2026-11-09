@@ -85,11 +85,15 @@ float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
     // Ember on a dark plate.
     const char* text=badge;
     const float font=height*.8f,pad=height*.22f;
-    const float wide=HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,text).x+2*pad;
+    const float wide=UltraBadgeWidth(height,text);
     const ImVec2 min(topRight.x-wide,topRight.y);
     d->AddRectFilled(min,ImVec2(topRight.x,topRight.y+height),palette::ShadeAt(230),height*.12f);
     d->AddText(HeadingFont(),font,ImVec2(min.x+pad,min.y+(height-font)*.5f),palette::Ember,text);
     return wide;
+}
+float UltraBadgeWidth(float height,const char* badge){
+    const float font=height*.8f,pad=height*.22f;
+    return HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,badge).x+2*pad;
 }
 RosterGrid LayOutRosterGrid(float windowWidth){
     // The Fighter design board: eight across beside the preview, fewer on a narrow screen.

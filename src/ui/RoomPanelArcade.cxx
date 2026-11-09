@@ -10,6 +10,7 @@
 #include "LatencyMark.hxx"
 #include "RoomControls.hxx"
 #include "RowId.hxx"
+#include "SelectionLabels.hxx"
 #include "../common/GameCatalog.hxx"
 #include "../common/Localization.hxx"
 #include <algorithm>
@@ -87,13 +88,17 @@ void GlassScanlines(ImDrawList* d,const v2::Box& lines,float alpha,float s) {
 // the game's mark (SF4's I, II or W; SFV's loadout, as "II/I") in the
 // top-right corner of the cabinet's `screen`, as on the Ultra cards, about a
 // quarter of the glass tall. A glass too small to hold it beside the screen's
-// words shows none. Drawn before the screen's scanlines, so they run on over
-// it, as over the fighter, and it reads as shown on the screen.
+// words shows none: 2.5 marks' heights wide, the room SF4's widest badge (W)
+// was given, and a wider badge (SFV's "II/II") asks for its extra width on
+// top, so SF4's three keep exactly that rule. Drawn before the screen's
+// scanlines, so they run on over it, as over the fighter, and it reads as
+// shown on the screen.
 void DrawScreenUltra(ImDrawList* d,const v2::Box& screen,int ultra,float s) {
     // A game whose fighters have one Ultra (the catalog's) marks none.
     if(ultra<0||ultra>=ember::Catalog().ultraChoices||ember::Catalog().ultraChoices<=1)return;
     const float tall=std::floor((std::min)(56*s,(std::max)(14*s,screen.H()*.24f)));
-    if(screen.H()<tall*2.2f||screen.W()<tall*2.5f)return;
+    const float wider=(std::max)(0.f,UltraBadgeWidth(tall,UltraBadge(ultra))-UltraBadgeWidth(tall,"W"));
+    if(screen.H()<tall*2.2f||screen.W()<tall*2.5f+wider)return;
     DrawUltraMark(d,ImVec2(std::floor(screen.max.x-3*s),std::floor(screen.min.y+3*s)),tall,ultra);
 }
 // The image of `picture` for a cabinet's glass; none while the art has no

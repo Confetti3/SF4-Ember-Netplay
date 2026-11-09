@@ -125,6 +125,9 @@ float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,boo
 // where the game has none its badge drawn in Ember. Nothing while the icon
 // still loads, or for an Ultra with no badge. Returns its width.
 float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra);
+// How wide DrawUltraMark draws `badge` in Ember, `height` tall: the badge in
+// the heading font at 80% of the height, with 22% of the height either side.
+float UltraBadgeWidth(float height,const char* badge);
 // The fighter pickers' select grid (the catalog's rosterOrder): up to eight across beside
 // the preview, fewer on a narrow window. cardHeight is in unscaled pixels, as
 // GameMenu::Draw takes it.
