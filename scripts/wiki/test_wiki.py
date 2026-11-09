@@ -65,4 +65,9 @@ with tempfile.TemporaryDirectory() as folder:
 # A build without frame data keeps the published Frame Data section after Training.
 old = "**[Home](Home)**\n\n**Training**\n\n- a\n\n**Frame Data**\n\n- b\n\n**Tournaments**\n\n- c\n"
 assert publish.carry(old, old.replace("**Frame Data**\n\n- b\n\n", ""), "**") == old
+
+# The README still has both headings the wiki takes its install part between.
+readme = (build.ROOT / "README.md").read_text(encoding="utf-8").splitlines()
+assert all(h in readme for h in build.README_PART), [h for h in build.README_PART if h not in readme]
+
 print("wiki checks passed")
