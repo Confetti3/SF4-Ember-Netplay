@@ -311,5 +311,30 @@ int main() {
         mk.hits.push_back({-1, -1});
         CHECK(bac::PhaseAt(mk, 9.f) == P::Untimed);
     }
+    {
+        // El Fuerte's charges are three counters at three levels, and three pairs; Guile's two are alone.
+        training::FighterData ric;
+        const std::vector<std::string> names{"QUESA_L_tameL", "QUESA_L_tameM", "QUESA_L_tameH", "QUESA_M_tameL", "QUESA_M_tameM", "QUESA_M_tameH",
+            "QUESA_H_tameL", "QUESA_H_tameM", "QUESA_H_tameH", "QUESA_EX_tameLM", "QUESA_EX_tameLH", "QUESA_EX_tameMH"};
+        ric.chargeNames = std::make_shared<const std::vector<std::string>>(names);
+        // As the game counts: 130, 37 and 185 frames held, each level stopping at its own requirement.
+        const int held[3] = {130, 37, 185}, need[3] = {60, 120, 180};
+        for (std::size_t i = 0; i < names.size(); ++i) ric.charges[i] = {i, training::ChargeBack, i < 9 ? need[i / 3] : 210, i < 9 ? (std::min)(held[i % 3], need[i / 3]) : 40 + static_cast<int>(i)};
+        ric.chargeCount = names.size();
+        auto groups = training::ChargeGroups(ric);
+        const std::vector<std::size_t> lights{0, 3, 6}, mediums{1, 4, 7}, heavies{2, 5, 8};
+        CHECK(training::ChargeGroupName(ric, lights) == "QUESA_tameL" && training::ChargeGroupName(ric, groups[3]) == "QUESA_EX_tameLM");
+        CHECK(groups.size() == 6 && groups[0] == lights && groups[1] == mediums && groups[2] == heavies);
+        // Nothing held yet: the same groups, as the frames a word changes tell the level from the counter.
+        for (auto& charge : ric.charges) charge.held = 0;
+        CHECK(training::ChargeGroups(ric).size() == 6);
+        training::FighterData guile;
+        guile.chargeNames = std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"SONICBOOM", "SOMERSAULT"});
+        guile.charges[0] = {0, training::ChargeBack, 50, 45}; guile.charges[1] = {1, training::ChargeDown, 55, 55}; guile.chargeCount = 2;
+        CHECK(training::ChargeGroups(guile).size() == 2);
+        // Juri's three button charges are not her fireball stock; no one else's are named so.
+        const std::vector<std::string> juri{"CHARGE_L", "CHARGE_M", "CHARGE_H"};
+        CHECK(training::HasFuhajinStock(&juri) && !training::HasFuhajinStock(ric.chargeNames.get()) && !training::HasFuhajinStock(guile.chargeNames.get()));
+    }
     return 0;
 }

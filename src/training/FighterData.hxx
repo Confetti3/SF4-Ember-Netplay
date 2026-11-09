@@ -22,8 +22,8 @@ enum class Stance { Standing, Crouching, Airborne, Down };
 // and the frames held so far, which stop at required.
 constexpr unsigned ChargeDown = 0x4, ChargeBack = 0x8;
 struct Charge { std::size_t index = 0; unsigned directions = 0; int required = 0, held = 0; };
-// The most charges a panel shows; Guile's file has three.
-constexpr std::size_t MaxCharges = 8;
+// The most charges a panel reads; Balrog's file has 23 (a turn punch and a turn kick count in ten levels each), El Fuerte's twelve.
+constexpr std::size_t MaxCharges = 24;
 // A command move's distance rule, as close and far normals pick theirs: at
 // least or at most its range from the other fighter, along x or on height.
 enum class RangeRule { None, From, Within, HeightFrom, HeightWithin };
@@ -52,6 +52,8 @@ struct FighterData {
     Juggle juggle;
     RangeRule rangeRule = RangeRule::None; float range = 0;
     std::array<Charge, MaxCharges> charges; std::size_t chargeCount = 0;
+    // Juri's Fuhajin stock, bit 0 light, 1 medium, 2 heavy, in place of her button counters; -1 for everyone else.
+    int stock = -1;
     // The script in the files, null when they do not have it.
     const bac::Script* Script() const { return scripts && script >= 0 && script < static_cast<int>(scripts->scripts.size()) ? &scripts->scripts[script] : nullptr; }
     // A charge's name in the command file, empty when it has none.
@@ -113,6 +115,70 @@ inline std::vector<ScriptRun> ScriptRuns(const bac::File& file, int script) {
 // A charge name the command file gives that a player can read ("SONICBOOM"); some files name them by code ("CMD_4C"),
 // and those are shown by their direction instead.
 inline bool ReadableChargeName(const std::string& name) { return !name.empty() && name.rfind("CMD_", 0) != 0; }
+// A charge name's words between underscores.
+inline std::vector<std::string> NameWords(const std::string& name) {
+    std::vector<std::string> out; std::string word;
+    for (const char c : name) { if (c == '_') { out.push_back(word); word.clear(); } else word += c; }
+    out.push_back(word);
+    return out;
+}
+// The charges of one hold at several levels, as the command file names them
+// ("QUESA_L_tameL", "QUESA_M_tameL", "QUESA_H_tameL": one counter, three
+// levels), each a list of indices into `charges` in the order of the frames
+// they need. Two charges are one counter when they hold the same directions
+// for the same frames so far, their names differ in a single word between
+// underscores, and they need different frames: the word that changes the
+// frames needed is the level, while one that does not is another counter
+// ("tameL" against "tameM"). Other charges are a group of one.
+inline std::vector<std::vector<std::size_t>> ChargeGroups(const FighterData& fighter) {
+    const std::size_t count = fighter.chargeCount;
+    const auto words = [&](std::size_t i) { return NameWords(fighter.ChargeName(fighter.charges[i].index)); };
+    std::vector<std::size_t> root(count);
+    for (std::size_t i = 0; i < count; ++i) root[i] = i;
+    const auto find = [&](std::size_t i) { while (root[i] != i) i = root[i] = root[root[i]]; return i; };
+    for (std::size_t i = 0; i < count; ++i)
+        for (std::size_t j = i + 1; j < count; ++j) {
+            const Charge &a = fighter.charges[i], &b = fighter.charges[j];
+            if (a.directions != b.directions || a.required == b.required) continue;
+            // A level's frames held stop at its own requirement, so of one counter the lower level is
+            // either as far as the higher or stopped at its own.
+            const Charge &low = a.required < b.required ? a : b, &high = a.required < b.required ? b : a;
+            if (high.held != low.held && low.held != low.required) continue;
+            if (!ReadableChargeName(fighter.ChargeName(a.index)) || !ReadableChargeName(fighter.ChargeName(b.index))) continue;
+            const auto x = words(i), y = words(j);
+            if (x.size() != y.size()) continue;
+            std::size_t differ = 0;
+            for (std::size_t k = 0; k < x.size(); ++k) differ += x[k] != y[k];
+            if (differ == 1) root[find(j)] = find(i);
+        }
+    std::vector<std::vector<std::size_t>> groups;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (find(i) != i) continue;
+        std::vector<std::size_t> members;
+        for (std::size_t j = i; j < count; ++j) if (find(j) == i) members.push_back(j);
+        std::stable_sort(members.begin(), members.end(), [&](std::size_t a, std::size_t b) { return fighter.charges[a].required < fighter.charges[b].required; });
+        groups.push_back(std::move(members));
+    }
+    return groups;
+}
+// A group's name: its charges' name without the word that tells the levels apart
+// ("QUESA_tameL" for QUESA_L_tameL, QUESA_M_tameL, QUESA_H_tameL).
+inline std::string ChargeGroupName(const FighterData& fighter, const std::vector<std::size_t>& group) {
+    const auto first = NameWords(fighter.ChargeName(fighter.charges[group.front()].index));
+    if (group.size() < 2) return fighter.ChargeName(fighter.charges[group.front()].index);
+    const auto last = NameWords(fighter.ChargeName(fighter.charges[group.back()].index));
+    std::string name;
+    for (std::size_t i = 0; i < first.size(); ++i) if (first[i] == last[i]) name += (name.empty() ? "" : "_") + first[i];
+    return name;
+}
+
+// Juri's command file names three charges (CHARGE_L, CHARGE_M, CHARGE_H) that only count
+// a button held, motion or not. Her Fuhajin stock is not one of them: the game keeps it in
+// three bits of the fighter (kick light, medium, heavy), set by the motion.
+inline bool HasFuhajinStock(const std::vector<std::string>* names) {
+    return names && names->size() == 3 && (*names)[0] == "CHARGE_L" && (*names)[1] == "CHARGE_M" && (*names)[2] == "CHARGE_H";
+}
+
 // The charge names of a command file (<CODE>.bcm): their count at +0x10 and
 // their names from the offsets at +0x1C. The game keeps one state each, in
 // this order (Command::CommandImpl::GetChargeStates). Empty when the file is

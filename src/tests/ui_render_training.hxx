@@ -513,7 +513,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 f.x=side?1.25f:-0.625f;f.y=side?0.75f:0;f.status=side?16:0;
                 f.stance=side?training::Stance::Airborne:training::Stance::Crouching;f.life=side?820:1000;f.lifeMax=1000;f.recoverable=side?900:1000;f.stun=side?240:0;f.stunMax=1000;f.super=side?1000:750;f.superMax=1000;f.revenge=side?400:150;f.revengeMax=400;
                 f.juggled=side?2:-1;f.juggle={1,1,side?7:0};f.rangeRule=side?training::RangeRule::None:training::RangeRule::Within;f.range=1.3f;
-                if(!side){f.charges[0]={0,training::ChargeBack,50,45};f.charges[1]={1,training::ChargeDown,55,55};f.chargeCount=2;}
+                if(!side){ // Juri's: the fireball stock of her light and medium kick
+                    f.chargeNames=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"CHARGE_L","CHARGE_M","CHARGE_H"});f.stock=3;}
+                else{ // El Fuerte's: the L button past its second level, M past its first, H not yet, and an EX pair
+                    const std::vector<std::string> names{"QUESA_L_tameL","QUESA_L_tameM","QUESA_L_tameH","QUESA_M_tameL","QUESA_M_tameM","QUESA_M_tameH","QUESA_H_tameL","QUESA_H_tameM","QUESA_H_tameH","QUESA_EX_tameLM"};
+                    f.chargeNames=std::make_shared<const std::vector<std::string>>(names);const int held[3]={130,70,45},need[3]={60,120,180};
+                    for(std::size_t i=0;i<names.size();++i)f.charges[i]={i,training::ChargeBack,i<9?need[i/3]:210,i<9?(std::min)(held[i%3],need[i/3]):60};f.chargeCount=names.size();}
             }
             const auto savedData=training.data;training.data=data;training.meter=runs;
             // Every HUD size here; then Large at 1280x800, where there is no room beside the
@@ -543,7 +548,11 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 check(shown,hudSize!=1?nullptr:fighters==0?"training-data-both":fighters==1?"training-data-p1":"training-data-p2");
             }
             {
-                for(auto& f:training.data.fighters){f.chargeCount=training::MaxCharges;for(std::size_t i=0;i<training::MaxCharges;++i)f.charges[i]={i%2,training::ChargeBack,60,static_cast<int>(i*8)};}
+                // El Fuerte's twelve (the bug report's): three buttons held 45, 37 and 50 frames, each at three levels, and the EX pairs.
+                {const std::vector<std::string> names{"QUESA_L_tameL","QUESA_L_tameM","QUESA_L_tameH","QUESA_M_tameL","QUESA_M_tameM","QUESA_M_tameH","QUESA_H_tameL","QUESA_H_tameM","QUESA_H_tameH","QUESA_EX_tameLM","QUESA_EX_tameLH","QUESA_EX_tameMH"};
+                const auto shared=std::make_shared<const std::vector<std::string>>(names);const int held[3]={130,37,185},need[3]={60,120,180};
+                for(auto& f:training.data.fighters){f.chargeNames=shared;f.chargeCount=names.size();
+                    for(std::size_t i=0;i<names.size();++i)f.charges[i]={i,training::ChargeBack,i<9?need[i/3]:210,i<9?(std::min)(held[i%3],need[i/3]):(i==9?41:i==10?47:37)};}}
                 io.DisplaySize=ImVec2(1280,800);
                 training::MeterOptions shown;shown.data=true;shown.size=2;
                 check(shown,"training-data-large-1280x800");
