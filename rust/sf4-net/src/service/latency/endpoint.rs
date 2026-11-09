@@ -6,7 +6,6 @@ use iroh::{
     Endpoint,
     endpoint::{
         Builder, ConnectOptions, IdleTimeout, PortmapperConfig, QuicTransportConfig, VarInt,
-        presets,
     },
 };
 use tokio::time::timeout;
@@ -18,14 +17,14 @@ pub(crate) const LATENCY_BIND_TIMEOUT: Duration = Duration::from_secs(3);
 /// How long a dropped endpoint is given to close.
 const CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// How latency endpoints are built. Production uses the N0 preset; tests
+/// How latency endpoints are built. Production uses `endpoint_builder`; tests
 /// give a local relay and address lookup instead, or none at all.
 #[derive(Clone)]
 pub(crate) struct LatencyNet(Option<Arc<dyn Fn() -> Builder + Send + Sync>>);
 
 impl Default for LatencyNet {
     fn default() -> Self {
-        Self(Some(Arc::new(|| Endpoint::builder(presets::N0))))
+        Self(Some(Arc::new(crate::transport::endpoint_builder)))
     }
 }
 

@@ -4,16 +4,16 @@
   <p><strong>Your room. Your rivals. One more game.</strong></p>
   <p>Rollback rooms, public rooms and training tools for Ultra Street Fighter IV.</p>
   <p>
-    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest"><img alt="Release 1.5.4" src="https://img.shields.io/badge/release-1.5.4-e97835?style=flat-square&labelColor=242321"></a>
+    <a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/latest"><img alt="Release 1.5.6" src="https://img.shields.io/badge/release-1.5.6-e97835?style=flat-square&labelColor=242321"></a>
     <img alt="Windows x64, Linux and Steam Deck through Proton" src="https://img.shields.io/badge/platform-Windows_%7C_Proton-e97835?style=flat-square&labelColor=242321">
     <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-e97835?style=flat-square&labelColor=242321"></a>
     <a href="https://discord.gg/uPNqF5A5uq"><img alt="Join the Discord" src="https://img.shields.io/badge/discord-join-e97835?style=flat-square&labelColor=242321&logo=discord&logoColor=white"></a>
   </p>
   <p>
-    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.5.4/sf4-ember-netplay-1.5.4-setup.exe">Download Ember 1.5.4 for Windows</a></strong>
+    <strong><a href="https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.5.6/sf4-ember-netplay-1.5.6-setup.exe">Download Ember 1.5.6 for Windows</a></strong>
     &nbsp; · &nbsp; <a href="#which-download-do-i-need">Which download?</a>
     &nbsp; · &nbsp; <a href="docs/guides/STEAM_DECK.md">Steam Deck</a>
-    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v1.5.4.md">What's new</a>
+    &nbsp; · &nbsp; <a href="docs/release-notes/RELEASE_NOTES_v1.5.6.md">What's new</a>
     &nbsp; · &nbsp; <a href="https://discord.gg/uPNqF5A5uq">Discord</a>
   </p>
 </div>
@@ -30,20 +30,20 @@ The [release page](https://github.com/Confetti3/SF4-Ember-Netplay/releases/lates
 
 | You are | Download | Then |
 | --- | --- | --- |
-| **New to Ember, on Windows** | [`sf4-ember-netplay-1.5.4-setup.exe`](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.5.4/sf4-ember-netplay-1.5.4-setup.exe) | Install into a new, empty folder. It adds a Start menu entry and an uninstaller. |
-| New, and you'd rather not run an installer | [`sf4-ember-netplay-1.5.4.zip`](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.5.4/sf4-ember-netplay-1.5.4.zip) | Extract everything into a new, writable folder. |
-| **Already on Ember 1.5.3** | Nothing | Start Ember. It offers the update at launch and keeps your settings, recordings and replays. |
-| On an Ember older than 1.5.3 | The setup.exe above | Run it over your Ember folder. It updates the folder in place. |
+| **New to Ember, on Windows** | [`sf4-ember-netplay-1.5.6-setup.exe`](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.5.6/sf4-ember-netplay-1.5.6-setup.exe) | Install into a new, empty folder. It adds a Start menu entry and an uninstaller. |
+| New, and you'd rather not run an installer | [`sf4-ember-netplay-1.5.6.zip`](https://github.com/Confetti3/SF4-Ember-Netplay/releases/download/v1.5.6/sf4-ember-netplay-1.5.6.zip) | Extract everything into a new, writable folder. |
+| **Already on Ember 1.5.5** | Nothing | Start Ember. It offers the update at launch and keeps your settings, recordings and replays. |
+| On an Ember older than 1.5.5 | The setup.exe above | Run it over your Ember folder. It updates the folder in place. |
 | **On a Steam Deck or Linux** | See the guide | [Steam Deck guide](docs/guides/STEAM_DECK.md) or [Linux guide](docs/guides/LINUX.md). Ember runs through Proton. |
 | On the old SF4 Netplay Launcher | The setup.exe or zip above | Moving to Ember is a fresh install. Keep the old launcher in its own folder. |
 
 You don't need the other files:
 
-- **`upgrade-…-1.5.3-to-1.5.4.zip`** is what Ember's own updater downloads. You never need to open it yourself.
+- **`upgrade-…-1.5.5-to-1.5.6.zip`** is what Ember's own updater downloads. You never need to open it yourself.
 - **`.sha256` files** are checksums, for checking a download.
 - **Source code (zip / tar.gz)**, which GitHub adds to every release, is the code. It is not something you can play.
 
-**Everyone in a room needs the same Ember version, spectators included.** 1.5.3 and 1.5.4 cannot share a room. If a friend can't join you, check that you both show 1.5.4 under **Settings > About**.
+**Everyone in a room needs the same Ember version, spectators included.** 1.5.5 and 1.5.6 cannot share a room. If a friend can't join you, check that you both show 1.5.6 under **Settings > About**.
 
 ### Stable and Nightly
 

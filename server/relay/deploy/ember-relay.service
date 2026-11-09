@@ -1,0 +1,34 @@
+[Unit]
+Description=Ember relay (iroh-relay) for relay.embernetplay.link
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# --dev only turns TLS off on the HTTP port nginx proxies to (relay.toml).
+ExecStart=/usr/local/lib/ember-relay/iroh-relay --dev --config-path /etc/ember-relay/relay.toml
+DynamicUser=yes
+LoadCredential=cert.pem:/etc/ssl/certs/embernetplay.link.fullchain.pem
+LoadCredential=key.pem:/etc/ssl/private/embernetplay.link.key
+# Warnings only: at info the relay logs every client it serves.
+Environment=RUST_LOG=warn
+Restart=always
+RestartSec=2
+LimitNOFILE=65536
+MemoryMax=512M
+TasksMax=256
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

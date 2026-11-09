@@ -20,9 +20,7 @@ fn address(endpoint: &Endpoint) -> EndpointAddr {
 }
 
 fn room(endpoint: &Endpoint) -> Invite {
-    let relay = iroh::defaults::prod::default_relay_map()
-        .urls::<Vec<_>>()
-        .remove(0);
+    let relay = crate::invite::relay_map().urls::<Vec<_>>().remove(0);
     Invite::create(
         endpoint.id(),
         relay,
@@ -605,4 +603,144 @@ async fn closed_ggpo_socket_with_peer_traffic_keeps_the_runtime_responsive() {
     drop(finished);
     a.close().await;
     b.close().await;
+}
+
+/// Against the live relays, by hand only (needs the internet):
+/// `cargo test --lib live_relays -- --ignored --nocapture`. For each relay
+/// this build uses: an endpoint with that relay alone gets it as its home
+/// relay, learns its public address from the relay's QUIC address discovery
+/// and sees no captive portal; then two relay-only endpoints connect through
+/// it and exchange a stream.
+#[tokio::test]
+#[ignore = "needs the internet and the live relays"]
+async fn live_relays_answer_probes_and_carry_a_relay_only_connection() {
+    use iroh::{RelayMap, RelayUrl, Watcher as _};
+    use std::time::Duration;
+    const ALPN: &[u8] = b"sf4e/live-relay-check/1";
+    for relay in crate::invite::relay_map().urls::<Vec<RelayUrl>>() {
+        let only = || {
+            Endpoint::builder(presets::N0)
+                .relay_mode(RelayMode::Custom(RelayMap::from_iter([
+                    iroh::RelayConfig::from(relay.clone()),
+                ])))
+                .alpns(vec![ALPN.to_vec()])
+                .portmapper_config(PortmapperConfig::Disabled)
+        };
+        let probe = only().bind().await.unwrap();
+        let mut reports = probe.net_report();
+        let report = timeout(Duration::from_secs(30), async {
+            loop {
+                if let Some(report) = reports.get()
+                    && report.preferred_relay.is_some()
+                    && report.global_v4.is_some()
+                {
+                    return report;
+                }
+                reports.updated().await.unwrap();
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("{relay}: no complete net report: {:?}", reports.get()));
+        println!(
+            "{relay}: preferred {:?}, global v4 {}, captive portal {:?}",
+            report.preferred_relay,
+            report.global_v4.is_some(),
+            report.captive_portal
+        );
+        assert_eq!(report.preferred_relay.as_ref(), Some(&relay), "{relay}");
+        assert!(report.global_v4.is_some(), "{relay}: no QUIC address discovery");
+        // iroh checks for a captive portal only when its probes are slow, so
+        // an unset answer is fine; a portal seen on our own relay is not.
+        assert_ne!(report.captive_portal, Some(true), "{relay}");
+        probe.close().await;
+
+        let a = only().clear_ip_transports().bind().await.unwrap();
+        let b = only().clear_ip_transports().bind().await.unwrap();
+        timeout(Duration::from_secs(20), async {
+            tokio::join!(a.online(), b.online());
+        })
+        .await
+        .unwrap_or_else(|_| panic!("{relay}: endpoints did not come online"));
+        let target = EndpointAddr::new(b.id()).with_relay_url(relay.clone());
+        let accept = tokio::spawn({
+            let b = b.clone();
+            async move {
+                let connection = b.accept().await.unwrap().await.unwrap();
+                let mut stream = connection.accept_uni().await.unwrap();
+                let bytes = stream.read_to_end(64).await.unwrap();
+                connection.close(0u32.into(), b"done");
+                bytes
+            }
+        });
+        let connection = timeout(Duration::from_secs(20), a.connect(target, ALPN))
+            .await
+            .unwrap_or_else(|_| panic!("{relay}: connect timed out"))
+            .unwrap();
+        let mut stream = connection.open_uni().await.unwrap();
+        stream.write_all(b"ember").await.unwrap();
+        stream.finish().unwrap();
+        let received = timeout(Duration::from_secs(20), accept)
+            .await
+            .unwrap_or_else(|_| panic!("{relay}: nothing arrived"))
+            .unwrap();
+        assert_eq!(received, b"ember", "{relay}");
+        connection.closed().await;
+        a.close().await;
+        b.close().await;
+    }
+}
+
+#[tokio::test]
+async fn active_relays_answer_any_id_with_every_relay() {
+    use iroh::address_lookup::AddressLookup as _;
+    use n0_future::StreamExt as _;
+    let id = iroh::SecretKey::generate().public();
+    let mut items = ActiveRelays.resolve(id).expect("an answer for any id");
+    let item = items.next().await.expect("one item").expect("no error");
+    assert_eq!(item.endpoint_id(), id);
+    let relays: std::collections::BTreeSet<_> =
+        item.endpoint_info().relay_urls().cloned().collect();
+    let active: std::collections::BTreeSet<_> =
+        crate::invite::relay_map().urls::<Vec<_>>().into_iter().collect();
+    assert_eq!(relays, active);
+    assert_eq!(item.endpoint_info().ip_addrs().count(), 0);
+    assert!(items.next().await.is_none());
+}
+
+/// By hand only (needs the internet): a dialer with `ActiveRelays` and no
+/// n0 lookup at all, as a player whose router filter blocks dns.iroh.link,
+/// finds a peer by its id alone, as a match dials an opponent who is not the
+/// room host. Without `ActiveRelays` that dial fails with "No addressing
+/// information available" (the 1.5.5 match-start failure).
+#[tokio::test]
+#[ignore = "needs the internet and the live relays"]
+async fn live_a_dialer_without_n0_lookup_finds_a_peer_by_id() {
+    use std::time::Duration;
+    const ALPN: &[u8] = b"sf4e/live-id-dial/1";
+    let filtered = || {
+        Endpoint::builder(presets::Minimal)
+            .relay_mode(RelayMode::Custom(crate::invite::relay_map()))
+            .alpns(vec![ALPN.to_vec()])
+    };
+    let bare = filtered().bind().await.unwrap();
+    let a = filtered().address_lookup(ActiveRelays).bind().await.unwrap();
+    let b = filtered().bind().await.unwrap();
+    timeout(Duration::from_secs(20), async {
+        tokio::join!(bare.online(), a.online(), b.online());
+    })
+    .await
+    .expect("online");
+    let failed = timeout(Duration::from_secs(10), bare.connect(EndpointAddr::new(b.id()), ALPN)).await;
+    assert!(matches!(failed, Ok(Err(_))), "without ActiveRelays: {failed:?}");
+    let accept = tokio::spawn({
+        let b = b.clone();
+        async move { b.accept().await.unwrap().await.map(|c| c.remote_id()) }
+    });
+    let connection = timeout(Duration::from_secs(20), a.connect(EndpointAddr::new(b.id()), ALPN))
+        .await
+        .expect("dial timed out")
+        .expect("dial by id with ActiveRelays");
+    assert_eq!(connection.remote_id(), b.id());
+    let accepted = timeout(Duration::from_secs(5), accept).await.unwrap().unwrap().unwrap();
+    assert_eq!(accepted, a.id());
 }
