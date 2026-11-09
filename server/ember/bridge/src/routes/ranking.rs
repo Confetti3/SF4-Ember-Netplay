@@ -22,7 +22,7 @@ use crate::{
     http::{Body, GENERAL_BODY, ok},
     routes::{
         play::playing,
-        rooms::{self, classes_shown, developers, listed_game},
+        rooms::{self, GameQuery, classes_shown, developers, listed_game},
     },
     skill::ranking,
 };
@@ -30,13 +30,6 @@ use crate::{
 /// Ranking requests one player may make per window, all routes together.
 const REQUESTS_PER_WINDOW: usize = 60;
 const WINDOW_SECS: u64 = 10 * 60;
-
-#[derive(serde::Deserialize)]
-pub struct GameQuery {
-    /// The game whose ranking is meant; `DEFAULT_GAME` when absent.
-    #[serde(default)]
-    game: Option<String>,
-}
 
 /// `GET /v1/ranking/me?game=`. A write: a class shown is remembered as
 /// shown, as a ticket's is.

@@ -38,10 +38,6 @@ wire_enum! {
     }
 }
 
-/// The `edition_policy` a game with no editions to choose is written with
-/// (`Rules::standard`). Such a game does not read the field.
-pub const NO_EDITION_POLICY: &str = "not_applicable";
-
 impl Game {
     /// The game a command names, or `game`'s `InvalidField`.
     pub fn of(game: &str) -> Result<Self> {
@@ -50,7 +46,8 @@ impl Game {
 
     /// The edition a set of this game must be played in, where the game has
     /// editions: USF4's sets are Ultra only. SFV has one edition, so its
-    /// sets are asked none and their `edition_policy` is not read.
+    /// sets are asked none: their `edition_policy` may be left out, and is
+    /// not read when given.
     pub fn edition_policy(self) -> Option<&'static str> {
         match self {
             Self::Usf4 => Some("ultra_only"),
@@ -69,14 +66,16 @@ pub struct Participant {
 
 /// Set rules. Only the named policies below exist in v1; anything else is
 /// `unsupported_rules`, never an approximation. `edition_policy` is the
-/// game's own (`Game::edition_policy`) and is not read for a game without one.
+/// game's own (`Game::edition_policy`): required for USF4, and for a game
+/// without one optional and not read.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Rules {
     pub games_to_win: u8,
     pub draw_policy: String,
     pub native_rules_profile: String,
-    pub edition_policy: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edition_policy: Option<String>,
     pub character_policy: String,
     pub stage_policy: String,
     pub input_delay_policy: String,
@@ -85,13 +84,14 @@ pub struct Rules {
 impl Rules {
     /// A first-to-`games_to_win` set of `game` under `native_rules_profile`,
     /// with the only policies v1 has. USF4's are what they were before games
-    /// existed, to the byte, since every binding carries their digest.
+    /// existed, to the byte, since every binding carries their digest; a
+    /// game without an edition rule has no `edition_policy`.
     pub fn standard(game: Game, games_to_win: u8, native_rules_profile: &str) -> Self {
         Self {
             games_to_win,
             draw_policy: "replay_no_score".into(),
             native_rules_profile: native_rules_profile.into(),
-            edition_policy: game.edition_policy().unwrap_or(NO_EDITION_POLICY).into(),
+            edition_policy: game.edition_policy().map(str::to_owned),
             character_policy: "unrestricted_between_games".into(),
             stage_policy: "p1_selects".into(),
             input_delay_policy: "ember_existing_ready_policy".into(),
@@ -102,7 +102,7 @@ impl Rules {
     pub fn check(&self, game: Game) -> Result<()> {
         let edition_valid = game
             .edition_policy()
-            .is_none_or(|policy| self.edition_policy == policy);
+            .is_none_or(|policy| self.edition_policy.as_deref() == Some(policy));
         let valid = [
             (games_to_win_valid(self.games_to_win), "games_to_win"),
             (self.draw_policy == "replay_no_score", "draw_policy"),
@@ -363,17 +363,24 @@ mod tests {
     use super::*;
     use crate::{play::PROFILE, rooms};
 
+    const EXAMPLE: &[u8] =
+        include_bytes!("../../../../docs/design/identity-bridge/examples/create-match.json");
+
     /// The specification's example create command, for `game` and with
-    /// `edition_policy`.
-    fn command(game: &str, edition_policy: &str) -> CreateMatch {
-        let mut command: CreateMatch = crate::json::parse_as(
-            include_bytes!("../../../../docs/design/identity-bridge/examples/create-match.json"),
-            crate::json::MAX_BODY,
-        )
-        .unwrap();
-        command.game = game.into();
-        command.rules.edition_policy = edition_policy.into();
-        command
+    /// `edition_policy` (left out when `None`), as the wire carries it.
+    fn command(game: &str, edition_policy: Option<&str>) -> Result<CreateMatch> {
+        let mut wire: serde_json::Value = crate::json::parse_as(EXAMPLE, crate::json::MAX_BODY)?;
+        wire["game"] = game.into();
+        match edition_policy {
+            Some(policy) => wire["rules"]["edition_policy"] = policy.into(),
+            None => {
+                wire["rules"].as_object_mut().unwrap().remove("edition_policy");
+            }
+        }
+        let command: CreateMatch =
+            crate::json::parse_as(wire.to_string().as_bytes(), crate::json::MAX_BODY)?;
+        command.check()?;
+        Ok(command)
     }
 
     #[test]
@@ -397,25 +404,39 @@ mod tests {
                 r#"{{"games_to_win":2,"draw_policy":"replay_no_score","native_rules_profile":"{PROFILE}","edition_policy":"ultra_only","character_policy":"unrestricted_between_games","stage_policy":"p1_selects","input_delay_policy":"ember_existing_ready_policy"}}"#
             )
         );
+        // SFV's say nothing of an edition.
         let sfv = Rules::standard(Game::Sfv, 2, PROFILE);
-        assert_eq!(sfv.edition_policy, NO_EDITION_POLICY);
+        assert_eq!(
+            serde_json::to_string(&sfv).unwrap(),
+            format!(
+                r#"{{"games_to_win":2,"draw_policy":"replay_no_score","native_rules_profile":"{PROFILE}","character_policy":"unrestricted_between_games","stage_policy":"p1_selects","input_delay_policy":"ember_existing_ready_policy"}}"#
+            )
+        );
         assert_eq!(sfv.check(Game::Sfv), Ok(()));
+        assert_eq!(sfv.check(Game::Usf4), Err(Error::InvalidField("edition_policy")));
     }
 
     #[test]
     fn an_edition_is_asked_of_usf4_alone() {
-        assert_eq!(command("usf4", "ultra_only").check(), Ok(()));
-        assert_eq!(
-            command("usf4", NO_EDITION_POLICY).check(),
-            Err(Error::InvalidField("edition_policy"))
-        );
-        for edition in ["ultra_only", NO_EDITION_POLICY, "anything"] {
-            assert_eq!(command("sfv", edition).check(), Ok(()), "{edition}");
+        // USF4's sets must be Ultra only, named on the wire.
+        let usf4 = command("usf4", Some("ultra_only")).unwrap();
+        assert_eq!(usf4.rules.edition_policy.as_deref(), Some("ultra_only"));
+        for edition in [None, Some("not_applicable"), Some("")] {
+            assert_eq!(
+                command("usf4", edition).unwrap_err(),
+                Error::InvalidField("edition_policy"),
+                "{edition:?}"
+            );
+        }
+        // SFV's may leave it out, and any it names is not read.
+        for edition in [None, Some("ultra_only"), Some("anything")] {
+            let sfv = command("sfv", edition).unwrap();
+            assert_eq!(sfv.rules.edition_policy.as_deref(), edition);
         }
         for other in ["", "sf6", "USF4"] {
             assert_eq!(
-                command(other, "ultra_only").check(),
-                Err(Error::InvalidField("game"))
+                command(other, Some("ultra_only")).unwrap_err(),
+                Error::InvalidField("game")
             );
         }
     }

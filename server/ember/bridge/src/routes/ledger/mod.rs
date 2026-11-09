@@ -12,7 +12,7 @@ use ember_protocol::{
     api::ErrorCode,
     encoding::Counter,
     event::{EventScore, Kind, ScoreChangedData},
-    matches::{DeliveryState, MatchCompleted, MatchState, Resolution, Score},
+    matches::{DeliveryState, Game, MatchCompleted, MatchState, Resolution, Score},
 };
 pub use lifecycle::{
     cancel_and_release, cancel_lobby_set, cancel_tournament_set, has_games, needs_review, on_unlink,
@@ -48,6 +48,8 @@ pub struct Match {
     pub generation: u64,
     pub state: MatchState,
     pub games_to_win: u8,
+    /// The game it is for (migration 059).
+    pub game: Game,
     /// The lobby that plays this match as one of its sets.
     pub lobby_id: Option<String>,
     /// The tournament that plays this match as one of its bracket sets.
@@ -68,9 +70,9 @@ impl Match {
     }
 }
 
-/// The match `id`. A state or delivery state this bridge does not know (a
-/// newer bridge wrote it before a rollback) fails the read: the match answers
-/// as unavailable rather than being read as some other state.
+/// The match `id`. A state, delivery state or game this bridge does not know
+/// (a newer bridge wrote it before a rollback) fails the read: the match
+/// answers as unavailable rather than being read as some other one.
 pub fn load(tx: &Transaction<'_>, id: &str) -> Result<Option<Match>> {
     Ok(read(tx, id)?)
 }
@@ -94,7 +96,7 @@ fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Match>> {
     tx.query_row(
         "SELECT m.id, m.tenant_id, m.connection_id, m.external_match_id, m.revision, m.assignment_generation, m.state,
                 m.games_to_win, m.lobby_id, m.tournament_id, m.delivery_state, m.starting_wins_p1, m.starting_wins_p2,
-                c.kind, c.disputes
+                c.kind, c.disputes, m.game
          FROM matches m LEFT JOIN provider_connections c ON c.id = m.connection_id WHERE m.id = ?1",
         [id],
         |row| {
@@ -111,6 +113,7 @@ fn read(tx: &Transaction<'_>, id: &str) -> rusqlite::Result<Option<Match>> {
                 tournament_id: row.get(9)?,
                 delivery: db::known(row, 10, DeliveryState::parse)?,
                 starting_wins: [row.get(11)?, row.get(12)?],
+                game: db::known(row, 15, Game::parse)?,
                 policy: match (row.get::<_, Option<String>>(13)?, row.get::<_, Option<String>>(14)?) {
                     (Some(kind), Some(disputes)) => policy::of_record(&kind, &disputes),
                     _ => None,

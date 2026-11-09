@@ -420,7 +420,9 @@ void DispatchTournament(const netplay::tournament::Command& command, bool helper
 		if (list.bridge != command.bridgeId) list.items.clear();
 		list.bridge = command.bridgeId;
 		std::uint64_t id = 0;
-		const auto text = json{{"op", "assignment_list"}, {"bridge_id", command.bridgeId}}.dump();
+		// The product's own game's matches (WithGame), filtered by the bridge
+		// before its limit; DecodeAssignments keeps the same game's again.
+		const auto text = WithGame(json{{"op", "assignment_list"}, {"bridge_id", command.bridgeId}}).dump();
 		if (helperReady && runtime->room && runtime->room->SendTournament(text, &id)) {
 			runtime->assignmentRequest = id;
 			list.loading = true;

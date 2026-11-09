@@ -4,7 +4,7 @@
 mod support;
 
 use ember_brackets::{CredentialKind, RoundRule, Rounds, Side};
-use ember_protocol::matches::{Game, NO_EDITION_POLICY};
+use ember_protocol::matches::Game;
 use serde_json::json;
 use support::{
     Setup, World,
@@ -594,7 +594,7 @@ async fn a_bracket_configured_for_sfv_makes_sfv_matches() {
     assert_eq!(matches.len(), 1);
     assert_eq!(world.bridge.match_game(&matches[0].1).await, "sfv");
     let found = world.snapshot(&matches[0].1).await;
-    assert_eq!(found["rules"]["edition_policy"], NO_EDITION_POLICY);
+    assert!(found["rules"].get("edition_policy").is_none(), "{found}");
 
     // It is played and reported back as any other set.
     world.play(&matches[0].1, &[0, 0]).await;

@@ -1,7 +1,7 @@
 //! Reading matches: who may see one, its snapshot, and a player's
 //! assignments.
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::HeaderMap,
     response::Response,
 };
@@ -21,6 +21,7 @@ use crate::{
     routes::{
         expiry::EXPIRED_LISTED_SECS,
         ledger::{Match, P1_GAMES, P2_GAMES, load, participants, scores},
+        rooms::{GameQuery, listed_game},
     },
 };
 
@@ -121,32 +122,43 @@ pub async fn get(
     Ok(ok(&body))
 }
 
-/// `GET /v1/matches/{id}/link`: whether the match a link names is over, for
-/// the match link's page, which asks before it opens Ember so that a link
-/// left from a finished match does not open it. It needs no credential and
-/// says nothing else: the match ID in a link is already the secret, and over
-/// (completed, cancelled, failed or expired) is all the page needs. An
-/// unknown match is not found.
+/// `GET /v1/matches/{id}/link`: whether the match a link names is over, and
+/// its game, for the match link's page, which asks before it opens Ember so
+/// that a link left from a finished match does not open it, and so that a
+/// match opens in its own game's Ember (`ember-sfv:` for SFV's). It needs no
+/// credential and says nothing else: the match ID in a link is already the
+/// secret, and over (completed, cancelled, failed or expired) and the game
+/// are all the page needs. A bridge from before games answers `over` alone,
+/// which the page reads as USF4's. An unknown match is not found.
 pub async fn link(State(state): State<AppState>, Path(id): Path<String>) -> Result<Response> {
-    let over = state
+    let (over, game) = state
         .db
         .read(move |tx| {
             let found = load(tx, &id)?.ok_or_else(ApiFailure::not_found)?;
-            Ok(found.state.is_terminal())
+            Ok((found.state.is_terminal(), found.game))
         })
         .await?;
-    Ok(ok(&json!({ "over": over })))
+    Ok(ok(&json!({ "over": over, "game": game })))
 }
+
+/// The most matches a player's assignments list.
+const ASSIGNMENTS_LISTED: usize = 50;
 
 /// `GET /v1/assignments`: the caller's own matches only, with what a player
 /// needs to pick one: the set length and score, the round, the opponent's
 /// fingerprint and whether the game is played through Ember. Each row has the
 /// match's `created_at` and `expires_at` (unix seconds; `expires_at` is null
-/// for a lobby or bracket set) and its `game` (`matches::Game`), so each
-/// product lists only its own game's matches. An expired match stays listed,
-/// as `expired`, for a day.
-pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> Result<Response> {
+/// for a lobby or bracket set) and its `game` (`matches::Game`). The list is
+/// one game's (`?game=`, USF4's when absent, as every match was before games
+/// existed), chosen before the limit, so one game's history never crowds
+/// out another's. An expired match stays listed, as `expired`, for a day.
+pub async fn assignments(
+    State(state): State<AppState>,
+    Query(query): Query<GameQuery>,
+    headers: HeaderMap,
+) -> Result<Response> {
     let player = auth::player(&state, &headers).await?;
+    let game = listed_game(query.game.as_deref())?;
     let config = state.config.clone();
     let listed_since = state.now().saturating_sub(EXPIRED_LISTED_SECS);
     let body = state
@@ -161,11 +173,11 @@ pub async fn assignments(State(state): State<AppState>, headers: HeaderMap) -> R
                      JOIN match_participants p ON p.match_id = m.id AND p.assignment_generation = m.assignment_generation
                      JOIN match_participants o ON o.match_id = m.id AND o.assignment_generation = m.assignment_generation
                        AND o.slot != p.slot
-                     WHERE p.ember_id = ?1 AND (m.state != 'expired' OR m.updated_at > ?2)
+                     WHERE p.ember_id = ?1 AND (m.state != 'expired' OR m.updated_at > ?2) AND m.game = ?3
                      ORDER BY (m.state IN ('completed', 'cancelled', 'failed', 'expired')), m.updated_at DESC
-                     LIMIT 50"
+                     LIMIT {ASSIGNMENTS_LISTED}"
                 ))?
-                .query_map(params![player.ember_id.as_str(), listed_since], |row| {
+                .query_map(params![player.ember_id.as_str(), listed_since, game], |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,

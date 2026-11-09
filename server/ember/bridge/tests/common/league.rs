@@ -120,7 +120,7 @@ impl Fixture {
     ) -> Value {
         self.ordinary_in(
             "usf4",
-            "ultra_only",
+            Some("ultra_only"),
             external,
             [first, second],
             games_to_win,
@@ -128,11 +128,11 @@ impl Fixture {
         .await
     }
 
-    /// `ordinary`, for `game` under `edition_policy`.
+    /// `ordinary`, for `game` under `edition_policy` (left out when `None`).
     pub async fn ordinary_in(
         &self,
         game: &str,
-        edition_policy: &str,
+        edition_policy: Option<&str>,
         external: &str,
         players: [usize; 2],
         games_to_win: u8,
@@ -151,12 +151,12 @@ impl Fixture {
     pub fn match_command(
         &self,
         game: &str,
-        edition_policy: &str,
+        edition_policy: Option<&str>,
         external: &str,
         [first, second]: [usize; 2],
         games_to_win: u8,
     ) -> Value {
-        json!({
+        let mut command = json!({
             "external_match_id": external,
             "game": game,
             "participants": [
@@ -165,14 +165,18 @@ impl Fixture {
             ],
             "rules": {
                 "games_to_win": games_to_win, "draw_policy": "replay_no_score", "native_rules_profile": "organizer-reported-v1",
-                "edition_policy": edition_policy, "character_policy": "unrestricted_between_games",
+                "character_policy": "unrestricted_between_games",
                 "stage_policy": "p1_selects", "input_delay_policy": "ember_existing_ready_policy",
             },
             "observer_policy": "authorized_only",
             "result_policy": "two_player_agreement_or_review",
             "required_build_id": "test-build",
             "metadata": {},
-        })
+        });
+        if let Some(policy) = edition_policy {
+            command["rules"]["edition_policy"] = json!(policy);
+        }
+        command
     }
 
     /// The organizer records one game of the lobby's running set.

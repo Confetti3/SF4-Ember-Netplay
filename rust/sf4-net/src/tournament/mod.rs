@@ -157,8 +157,15 @@ pub enum Request {
         bridge_id: String,
         site: String,
     },
+    /// The player's matches of `game` (`rooms::GAMES`): SF4 Ember's when
+    /// absent, so its request is what it always was.
     AssignmentList {
         bridge_id: String,
+        #[serde(
+            default = "ember_protocol::rooms::default_game",
+            skip_serializing_if = "ember_protocol::rooms::is_default_game"
+        )]
+        game: String,
     },
     /// The tournament desk: the organizer's events, or `event`'s sets.
     DeskRead {
@@ -1158,7 +1165,9 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             organizer,
         } => sites::remove(shared, &bridge_id, &site, organizer).await,
         Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
-        Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
+        Request::AssignmentList { bridge_id, game } => {
+            play::assignments(shared, &bridge_id, &game).await
+        }
         Request::DeskRead { bridge_id, event } => {
             desk::read(shared, &bridge_id, event.as_deref()).await
         }

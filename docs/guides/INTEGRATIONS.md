@@ -118,9 +118,10 @@ end to end against any bridge.
   section) or `organizer-reported-v1` for one an organizer decides. `game` is
   one of the capabilities' `games`: `usf4` (SF4 Ember), whose rules need
   `edition_policy` `ultra_only`, or `sfv` (SFV Ember), which has no edition
-  and does not read `edition_policy`. Lobbies and tournaments name their game
-  the same way, and their sets are of that game. Retrying with the same key or
-  the same `external_match_id` returns the same match.
+  and may leave `edition_policy` out (any it gives is not read). Lobbies and
+  tournaments name their game the same way, and their sets are of that game.
+  Retrying with the same key or the same `external_match_id` returns the same
+  match.
 - `POST /v1/matches/{id}/adjudications` (organizer only) records one game:
   `{"kind": "game_result", "winner_slot": 0, "reason": "...",
   "expected_revision": "1"}`, or `"draw": true`, which scores nothing. When a
@@ -143,7 +144,8 @@ shows, so two people acting at once cannot both win.
 
 A match does not wait forever. Its `created_at` and `expires_at` (unix
 seconds) are on `GET /v1/matches/{id}` and in the players' assignments
-(`GET /v1/assignments`, whose rows also name the match's `game`), and
+(`GET /v1/assignments`, one game's matches: `?game=usf4`, the default, or
+`?game=sfv`; each row names its `game`), and
 `expires_at` is the match's current deadline: `match_expiry_hours` after
 creation, a day unless the operator changed it, and again that long after each
 game that starts or is decided. On a BluMint connection games move it the
@@ -245,12 +247,14 @@ says the match is over and asks for the newest link instead of opening Ember,
 and an Ember still in the match's room leaves it within about 10 seconds, or
 once the game on screen ends (a minute at most). The page learns this from
 `GET /v1/matches/{id}/link`, which needs no credential and answers only
-`{"over": true}` or `{"over": false}` (`404` for a match the bridge does not
-have).
+whether the match is over and its game, `{"over": false, "game": "usf4"}`
+(`404` for a match the bridge does not have; a bridge from before games
+answers `over` alone, which means USF4).
 
 The page asks the player to choose Open in Ember, which hands Ember
 `ember://tournament/open?bridge=...&match=...`, and opens it by itself in a
-browser where Ember opened from the page before. Below that it shows how to
+browser where Ember opened from the page before. An SFV match hands SFV Ember
+`ember-sfv://tournament/open?...` instead, and only on the player's click. Below that it shows how to
 get Ember when it is not installed yet (download, start it once, come back to
 the same link), and on a phone it asks the player to open the link on their
 PC, so your site needs no explanation of its own. Ember opens the Tournament

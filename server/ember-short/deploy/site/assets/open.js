@@ -10,8 +10,10 @@
 // fragment, which is never sent to the server. Its one request asks whether
 // a match is over (/link/BRIDGE/MATCH, which nginx hands to that bridge), and
 // a match that is over shows that instead of opening Ember, so a link left
-// from an earlier match sends nobody back to it. When the answer does not
-// come, the page works as it did before.
+// from an earlier match sends nobody back to it. The answer also names the
+// match's game: an SFV match opens SFV Ember (ember-sfv:), never by itself.
+// When the answer does not come, or names no game (a bridge from before
+// games), the page works as it did before, for SF4 Ember.
 // It offers the ember: link on the player's click, and opens it by itself only
 // for a match (/m) in a browser where Ember has opened from a match page that
 // named the same required version: a browser without Ember's handler would
@@ -125,6 +127,31 @@
     };
   }
 
+  // The same match once its bridge says it is SFV's: SFV Ember's own link
+  // and words. SF4 Ember's version, update and download help does not
+  // apply, and nothing here opens it by itself, since this browser's
+  // remembered open is for SF4 Ember's ember: link.
+  function sfvMatch(found) {
+    found.game = 'sfv';
+    found.need = null;
+    found.needText = null;
+    found.lead = 'Your tournament match is ready to play in SFV Ember.';
+    found.ember = 'ember-sfv://tournament/open?bridge=' + found.bridge + '&match=' + found.match;
+    found.after = 'SFV Ember opens the match on its Tournament matches screen; press Play there. Your browser may ask first whether to open SFV Ember.';
+    found.steps = ['Start SFV Ember.',
+      'Choose <strong>Online play</strong>, then <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
+      'Choose <strong>Paste match link</strong>, then <strong>Play</strong>.'];
+    var byId = function (id) { return document.getElementById(id); };
+    byId('lead').textContent = found.lead;
+    byId('after').textContent = found.after;
+    byId('open').href = found.ember;
+    byId('steps').innerHTML = found.steps.map(function (step) { return '<li>' + step + '</li>'; }).join('');
+    byId('phone').textContent = SFV_PHONE;
+    if (PHONE) byId('fallback-lead').textContent = PHONE_FALLBACK_LEAD;
+    ['need', 'update', 'update-how', 'version', 'get', 'not-opened-download'].forEach(function (id) { byId(id).hidden = true; });
+    byId('open').classList.add('primary');
+  }
+
   // A public room: the service and room a bot or site's link names.
   function publicRoom(path, fragment) {
     var parts = fragment.replace(/\/$/, '').split('/');
@@ -201,6 +228,8 @@
       byId(id).hidden = true;
     });
     byId('phone').hidden = !PHONE;
+    byId('phone').textContent = PHONE_NOTE;
+    byId('not-opened-download').hidden = false;
     byId('open').classList.add('primary');
     byId('update').classList.remove('primary');
     byId('not-opened-download').textContent = NOT_OPENED_DOWNLOAD;
@@ -312,10 +341,14 @@
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (body) {
         if (current !== found) return;
+        if (body && body.game === 'sfv') sfvMatch(found);
         if (body && body.over === true) {
           proceeded = true;
           clearTimeout(timer);
           showOver();
+        } else if (found.game === 'sfv') {
+          proceeded = true;
+          clearTimeout(timer);
         } else {
           go();
         }
@@ -353,8 +386,10 @@
   var leftPage = false;
   var recording = false;
   function opened() {
+    // SFV Ember's link says nothing of SF4 Ember's handler.
+    var flagged = !current || current.game !== 'sfv';
     leftPage = false;
-    recording = true;
+    recording = flagged;
     clearTimeout(openTimer);
     clearTimeout(recordTimer);
     openTimer = setTimeout(function () {
@@ -362,7 +397,7 @@
     }, OPEN_WAIT_MS);
     recordTimer = setTimeout(function () {
       recording = false;
-      if (!leftPage) forgetOpen();
+      if (flagged && !leftPage) forgetOpen();
     }, RECORD_WAIT_MS);
   }
   function left() { leftPage = true; }
@@ -401,8 +436,10 @@
     return /Android|iPhone|iPad|iPod|Mobile/i.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
   }
 
-  var FALLBACK_LEAD, FALLBACK_TITLE, TOURNAMENTS_TITLE, NOT_OPENED_DOWNLOAD, PHONE;
+  var SFV_PHONE = 'SFV Ember runs on the Windows PC you play Street Fighter V on, so open this link on that PC.';
+  var FALLBACK_LEAD, FALLBACK_TITLE, TOURNAMENTS_TITLE, NOT_OPENED_DOWNLOAD, PHONE, PHONE_NOTE;
   function start() {
+    PHONE_NOTE = document.getElementById('phone').textContent;
     FALLBACK_LEAD = document.getElementById('fallback-lead').textContent;
     NOT_OPENED_DOWNLOAD = document.getElementById('not-opened-download').textContent;
     FALLBACK_TITLE = document.getElementById('fallback-title').textContent;

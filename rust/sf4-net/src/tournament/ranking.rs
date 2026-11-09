@@ -9,7 +9,7 @@ use super::{
     Code, Failure, Outcome, Shared,
     client::{self, Body, BridgeCall, Refusals, Verb},
     play::{self, Features, Need},
-    rooms::check_game,
+    rooms::game_path,
 };
 use ember_protocol::{
     rooms::is_default_game,
@@ -25,18 +25,6 @@ const REFUSALS: Refusals<'static> = Refusals {
     reasons: &REASONS,
     missing: Some(Code::RankingUnavailable),
 };
-
-/// `path` for `game`'s ranking: as it was for SF4 Ember's, so its requests
-/// are what they always were, and with `?game=` for another game's. A game
-/// the protocol does not know is an invalid request.
-fn game_path(path: &str, game: &str) -> Result<String, Failure> {
-    check_game(game)?;
-    Ok(if is_default_game(game) {
-        path.to_owned()
-    } else {
-        format!("{path}?game={game}")
-    })
-}
 
 /// Whether a bridge offering `offered` may be asked for `game`'s ranking:
 /// SF4's always, as before; another game's only by a bridge that keeps

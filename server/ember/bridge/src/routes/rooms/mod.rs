@@ -460,6 +460,15 @@ pub(crate) fn listed_game(game: Option<&str>) -> Result<String> {
     }
 }
 
+/// A route's `?game=`, read with `listed_game`: the ranking routes' and a
+/// player's assignments.
+#[derive(serde::Deserialize)]
+pub struct GameQuery {
+    /// The game meant; `DEFAULT_GAME` when absent.
+    #[serde(default)]
+    pub(crate) game: Option<String>,
+}
+
 #[derive(serde::Deserialize)]
 pub struct ListQuery {
     #[serde(default)]

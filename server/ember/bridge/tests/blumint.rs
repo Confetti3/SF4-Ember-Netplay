@@ -468,7 +468,8 @@ async fn a_busy_player_is_refused_until_their_match_ends() {
 }
 
 // The match link's page asks, with no credential, whether its match is over
-// before it opens Ember, so a link left from a decided or closed set does not.
+// and in which game before it opens Ember, so a link left from a decided or
+// closed set does not open, and a BluMint set opens in SF4 Ember.
 #[tokio::test]
 async fn a_match_link_reads_over_once_the_set_is_decided_or_closed() {
     let f = fixture().await;
@@ -482,18 +483,18 @@ async fn a_match_link_reads_over_once_the_set_is_decided_or_closed() {
     let decided = created["matchId"].as_str().unwrap().to_owned();
     assert_eq!(
         over(decided.clone()).await,
-        (StatusCode::OK, json!({ "over": false }))
+        (StatusCode::OK, json!({ "over": false, "game": "usf4" }))
     );
     win(&f, &decided, 0, "game-1").await;
     assert_eq!(
         over(decided).await,
-        (StatusCode::OK, json!({ "over": true }))
+        (StatusCode::OK, json!({ "over": true, "game": "usf4" }))
     );
     let (_, created) = create(&f, "set-2", 2).await;
     let closed = created["matchId"].as_str().unwrap().to_owned();
     assert_eq!(
         over(closed.clone()).await,
-        (StatusCode::OK, json!({ "over": false }))
+        (StatusCode::OK, json!({ "over": false, "game": "usf4" }))
     );
     let (status, _) = close(
         &f,
@@ -503,7 +504,7 @@ async fn a_match_link_reads_over_once_the_set_is_decided_or_closed() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         over(closed).await,
-        (StatusCode::OK, json!({ "over": true }))
+        (StatusCode::OK, json!({ "over": true, "game": "usf4" }))
     );
     let (status, _) = over("emt_00000000-0000-4000-8000-000000000000".into()).await;
     assert_eq!(status, StatusCode::NOT_FOUND);

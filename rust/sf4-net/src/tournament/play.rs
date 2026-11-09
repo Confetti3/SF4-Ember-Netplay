@@ -26,6 +26,7 @@ use super::{
     Code, Failure, Locked, Outcome, Shared,
     bridges::Approved,
     client::{self, Body, BridgeCall, Verb, now},
+    rooms::game_path,
     spool::Entry,
 };
 
@@ -334,8 +335,14 @@ pub(super) async fn proven<T: DeserializeOwned>(
     client::fetch_as(shared, bridge, Some(token), &call).await
 }
 
-pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    let call = BridgeCall::new(Verb::Get, "/v1/assignments", &[200]);
+/// A player's own matches on a bridge.
+const ASSIGNMENTS_PATH: &str = "/v1/assignments";
+
+/// The player's matches of `game`. A bridge from before games ignores
+/// `?game=` and lists USF4's alone, which the game keeps only for SF4 Ember.
+pub async fn assignments(shared: &Arc<Shared>, bridge_id: &str, game: &str) -> Outcome {
+    let path = game_path(ASSIGNMENTS_PATH, game)?;
+    let call = BridgeCall::new(Verb::Get, &path, &[200]);
     client::request(shared, bridge_id, &call).await.map(Some)
 }
 
@@ -757,6 +764,32 @@ mod tests {
 
     fn capabilities(features: &[&str]) -> Capabilities {
         serde_json::from_value(capabilities_json(features)).unwrap()
+    }
+
+    #[test]
+    fn an_assignment_list_names_a_game_other_than_sf4s() {
+        // SF4 Ember's request and path are what they always were.
+        let sf4 = json!({ "op": "assignment_list", "bridge_id": "brg_x" });
+        let parsed: Request = serde_json::from_value(sf4.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), sf4);
+        let named = json!({ "op": "assignment_list", "bridge_id": "brg_x", "game": "usf4" });
+        let parsed: Request = serde_json::from_value(named).unwrap();
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), sf4);
+        assert_eq!(game_path(ASSIGNMENTS_PATH, "usf4").unwrap(), "/v1/assignments");
+        // SFV Ember's names its game, on the request and in the query.
+        let sfv = json!({ "op": "assignment_list", "bridge_id": "brg_x", "game": "sfv" });
+        let parsed: Request = serde_json::from_value(sfv.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), sfv);
+        assert_eq!(
+            game_path(ASSIGNMENTS_PATH, "sfv").unwrap(),
+            "/v1/assignments?game=sfv"
+        );
+        for unknown in ["sf6", "", "sfv&x=1"] {
+            assert_eq!(
+                game_path(ASSIGNMENTS_PATH, unknown).unwrap_err().as_str(),
+                "invalid_request"
+            );
+        }
     }
 
     #[test]

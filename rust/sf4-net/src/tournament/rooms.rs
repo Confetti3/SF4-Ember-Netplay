@@ -105,6 +105,19 @@ pub(super) fn check_game(game: &str) -> Result<(), Failure> {
     }
 }
 
+/// `path` for `game`: as it was for SF4 Ember's, so its requests are what
+/// they always were, and with `?game=` for another game's. A game the
+/// protocol does not know is an invalid request. The ranking routes and the
+/// assignment list name their game this way.
+pub(super) fn game_path(path: &str, game: &str) -> Result<String, Failure> {
+    check_game(game)?;
+    Ok(if is_default_game(game) {
+        path.to_owned()
+    } else {
+        format!("{path}?game={game}")
+    })
+}
+
 /// The listing's path and query: the build, `detail=1` for what the room
 /// hosts reported, and the game when it is not SF4 Ember's, so an SF4
 /// listing asks what it always did. An older bridge ignores the parameters it

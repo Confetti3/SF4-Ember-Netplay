@@ -29,10 +29,14 @@ async fn record_bytes(f: &Fixture, player: usize, query: &str) -> Vec<u8> {
     response.bytes().await.unwrap().to_vec()
 }
 
-async fn assignments(f: &Fixture, player: usize) -> Vec<Value> {
+/// A player's assignments, with `query`.
+async fn assignments(f: &Fixture, player: usize, query: &str) -> Vec<Value> {
     let (status, listed) = f
         .bridge
-        .get(f.players[player].token(), "/v1/assignments")
+        .get(
+            f.players[player].token(),
+            &format!("/v1/assignments{query}"),
+        )
         .await;
     assert_eq!(status, StatusCode::OK, "{listed}");
     listed["assignments"].as_array().unwrap().clone()
@@ -55,11 +59,12 @@ async fn the_bridge_offers_both_games_and_checks_usf4_as_before() {
 
     // USF4's sets are Ultra only; another game, or none, is refused as before.
     for (game, edition) in [
-        ("usf4", "not_applicable"),
-        ("sf6", "ultra_only"),
-        ("", "ultra_only"),
+        ("usf4", Some("not_applicable")),
+        ("usf4", None),
+        ("sf6", Some("ultra_only")),
+        ("", Some("ultra_only")),
     ] {
-        let external = format!("refused-{game}-{edition}");
+        let external = format!("refused-{game}-{edition:?}");
         let command = f.match_command(game, edition, &external, [0, 1], 2);
         let (status, body) = f
             .bridge
@@ -68,33 +73,88 @@ async fn the_bridge_offers_both_games_and_checks_usf4_as_before() {
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
         assert_eq!(code(&body), "invalid_request", "{body}");
     }
-    // SFV has no edition: whatever its sets name, nothing is asked of it.
-    f.ordinary_in("sfv", "ultra_only", "sfv-any-edition", [0, 1], 1)
+    // SFV has no edition: its sets may leave it out, and whatever they name
+    // is not read.
+    let sfv = f
+        .ordinary_in("sfv", None, "sfv-no-edition", [0, 1], 1)
+        .await;
+    let (status, body) = f.game(sfv["match_id"].as_str().unwrap(), 0).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    f.ordinary_in("sfv", Some("ultra_only"), "sfv-any-edition", [0, 1], 1)
         .await;
 }
 
 #[tokio::test]
-async fn assignments_name_each_matchs_game() {
+async fn assignments_are_one_games_chosen_before_the_limit() {
     let f = fixture(3).await;
     let usf4 = f.bracket("usf4-set", 0, 1).await;
     // Decided, so player 0 is free for the next; it stays listed.
     let (status, body) = f.game(usf4["match_id"].as_str().unwrap(), 0).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
-    let sfv = f
-        .ordinary_in("sfv", "not_applicable", "sfv-set", [0, 2], 2)
+    // More newer SFV sets than the list holds.
+    let mut sfv = Vec::new();
+    for set in 0..51 {
+        let created = f
+            .ordinary_in("sfv", None, &format!("sfv-set-{set}"), [0, 2], 1)
+            .await;
+        let (status, body) = f.game(created["match_id"].as_str().unwrap(), 1).await;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+        sfv.push(created["match_id"].clone());
+    }
+    // Without a game the list is USF4's, as every list was before games, and
+    // SFV's history does not push the older USF4 set out of it.
+    let listed = assignments(&f, 0, "").await;
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0]["match_id"], usf4["match_id"]);
+    assert_eq!(listed[0]["game"], "usf4");
+    let (_, plain) = f.bridge.get(f.players[0].token(), "/v1/assignments").await;
+    let (_, named) = f
+        .bridge
+        .get(f.players[0].token(), "/v1/assignments?game=usf4")
         .await;
-    let listed = assignments(&f, 0).await;
-    assert_eq!(listed.len(), 2);
-    assert_eq!(game_of(&listed, &usf4["match_id"]), "usf4");
-    assert_eq!(game_of(&listed, &sfv["match_id"]), "sfv");
+    assert_eq!(plain["assignments"], named["assignments"]);
+    // SFV's list holds 50 of its own and nothing of USF4's.
+    let listed = assignments(&f, 0, "?game=sfv").await;
+    assert_eq!(listed.len(), 50);
+    assert!(listed.iter().all(|row| row["game"] == "sfv" && sfv.contains(&row["match_id"])));
     let (_, found) = f
         .bridge
-        .get(
-            &f.organizer,
-            &format!("/v1/matches/{}", sfv["match_id"].as_str().unwrap()),
-        )
+        .get(&f.organizer, &format!("/v1/matches/{}", sfv[0].as_str().unwrap()))
         .await;
-    assert_eq!(found["rules"]["edition_policy"], "not_applicable");
+    assert!(found["rules"].get("edition_policy").is_none(), "{found}");
+    // An unknown game is refused as the other routes refuse one.
+    let (status, body) = f
+        .bridge
+        .get(f.players[0].token(), "/v1/assignments?game=sf6")
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["error"]["message"], "game is not a known game.");
+}
+
+#[tokio::test]
+async fn a_match_link_says_its_matchs_game() {
+    let f = fixture(3).await;
+    let link = |id: &Value| {
+        let url = f.bridge.url(&format!("/v1/matches/{}/link", id.as_str().unwrap()));
+        let client = f.bridge.client.clone();
+        async move { common::read(client.get(url).send().await.unwrap()).await }
+    };
+    let usf4 = f.bracket("usf4-link", 0, 1).await;
+    let sfv = f.ordinary_in("sfv", None, "sfv-link", [2, 0], 1).await;
+    // No credential, and nothing but whether it is over and its game.
+    assert_eq!(
+        link(&usf4["match_id"]).await,
+        (StatusCode::OK, json!({ "over": false, "game": "usf4" }))
+    );
+    assert_eq!(
+        link(&sfv["match_id"]).await,
+        (StatusCode::OK, json!({ "over": false, "game": "sfv" }))
+    );
+    f.game(sfv["match_id"].as_str().unwrap(), 0).await;
+    assert_eq!(
+        link(&sfv["match_id"]).await,
+        (StatusCode::OK, json!({ "over": true, "game": "sfv" }))
+    );
 }
 
 /// A first-to-1 USF4 record that player 0 won against player 1, as the
@@ -142,7 +202,7 @@ async fn a_record_is_one_games_and_usf4s_reads_as_it_always_did() {
 
     // An SFV set player 0 loses counts in SFV's record alone.
     let sfv = f
-        .ordinary_in("sfv", "not_applicable", "sfv-lost", [0, 2], 1)
+        .ordinary_in("sfv", None, "sfv-lost", [0, 2], 1)
         .await;
     let (status, body) = f.game(sfv["match_id"].as_str().unwrap(), 1).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
@@ -190,7 +250,7 @@ async fn an_sfv_lobbys_sets_are_sfv_matches_and_its_standings_count_them() {
         assert_eq!(status, StatusCode::CREATED, "{body}");
     }
     let set = f.lobby(&id).await["current_match_id"].clone();
-    assert_eq!(game_of(&assignments(&f, 0).await, &set), "sfv");
+    assert_eq!(game_of(&assignments(&f, 0, "?game=sfv").await, &set), "sfv");
     let (_, found) = f
         .bridge
         .get(
@@ -198,7 +258,7 @@ async fn an_sfv_lobbys_sets_are_sfv_matches_and_its_standings_count_them() {
             &format!("/v1/matches/{}", set.as_str().unwrap()),
         )
         .await;
-    assert_eq!(found["rules"]["edition_policy"], "not_applicable");
+    assert!(found["rules"].get("edition_policy").is_none(), "{found}");
 
     let (status, body) = f.win(&id, 0).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
@@ -207,7 +267,7 @@ async fn an_sfv_lobbys_sets_are_sfv_matches_and_its_standings_count_them() {
     // The next set is SFV's too.
     let next = f.lobby(&id).await["current_match_id"].clone();
     assert_ne!(next, set);
-    assert_eq!(game_of(&assignments(&f, 0).await, &next), "sfv");
+    assert_eq!(game_of(&assignments(&f, 0, "?game=sfv").await, &next), "sfv");
 
     // A USF4 lobby's sets stay USF4's.
     let g = fixture(2).await;
@@ -217,7 +277,7 @@ async fn an_sfv_lobbys_sets_are_sfv_matches_and_its_standings_count_them() {
         g.join(&usf4_id, index).await;
     }
     let usf4_set = g.lobby(&usf4_id).await["current_match_id"].clone();
-    assert_eq!(game_of(&assignments(&g, 0).await, &usf4_set), "usf4");
+    assert_eq!(game_of(&assignments(&g, 0, "").await, &usf4_set), "usf4");
 }
 
 #[tokio::test]
@@ -274,5 +334,5 @@ async fn an_sfv_tournaments_sets_are_sfv_matches() {
         .find(|set| set["status"] == "playing")
         .unwrap()["match_id"]
         .clone();
-    assert_eq!(game_of(&assignments(&f, 1).await, &set), "sfv");
+    assert_eq!(game_of(&assignments(&f, 1, "?game=sfv").await, &set), "sfv");
 }
