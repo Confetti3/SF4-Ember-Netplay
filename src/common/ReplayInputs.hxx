@@ -36,6 +36,7 @@
 // Everything works on bytes in memory; ReplayInputsTest covers it on a
 // replay built at these offsets.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -192,12 +193,23 @@ struct Summary {
 	bool scored = false;
 	int score[2] = {0, 0};
 	std::uint32_t rounds = 0, frames = 0;
+	// The match was played first to this many rounds, and the score after each round before the last
+	// (whose score is `score`); both only when the score is known.
+	int firstTo = 0;
+	std::vector<std::array<std::uint8_t, 2>> roundScores;
 	Player players[2];
 	Stats stats[2];
 };
 inline Summary Summarize(const Match& match) {
 	Summary summary;
 	summary.scored = Score(match, summary.score);
+	if (summary.scored) {
+		summary.firstTo = match.roundsToWin;
+		// Each round starts with the wins before it, so round n + 1's tell the score after round n.
+		for (std::size_t i = 1; i < match.rounds.size(); i++)
+			summary.roundScores.push_back({static_cast<std::uint8_t>(match.rounds[i].wins[0]), static_cast<std::uint8_t>(match.rounds[i].wins[1])});
+	}
+	}
 	summary.rounds = static_cast<std::uint32_t>(match.rounds.size());
 	for (const Round& round : match.rounds) summary.frames += round.frames;
 	for (int side = 0; side < 2; side++) { summary.players[side] = match.players[side]; summary.stats[side] = Count(match, side); }
