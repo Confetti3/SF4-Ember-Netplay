@@ -257,8 +257,6 @@ To do:
 - **Batch video export.** Export every game of a set, or of many sets, as
   videos in one go, for organisers and content creators; built on the
   existing replay video export.
-- **Translations.** The new strings are English only for now; the other 13
-  locale files carry English placeholders until translators fill them in.
 
 ## 5. Commits
 
