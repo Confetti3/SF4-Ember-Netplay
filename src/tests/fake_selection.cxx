@@ -25,6 +25,8 @@ std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::I
 }
 const char* UltraLabel(int) { return "Ultra"; }
 const char* ShortUltraLabel(int) { return "Ultra"; }
+// SF4's badges, so the fake game's screens draw what they drew before the hook.
+const char* UltraBadge(int ultra) { return ultra == 2 ? "W" : ultra == 1 ? "II" : ultra == 0 ? "I" : ""; }
 std::string UltraMove(int, int) { return "Ultra"; }
 std::string UltraName(int, int) { return "Ultra"; }
 

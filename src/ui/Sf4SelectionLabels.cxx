@@ -38,6 +38,10 @@ std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::I
 const char* ShortUltraLabel(int ultra) {
     return loc::T(ultra==2?"home.selection_ultra_double":ultra==1?"home.selection_ultra_two":"home.selection_ultra_one");
 }
+// The old Ultra page's badge, the same in every language.
+const char* UltraBadge(int ultra) {
+    return ultra==2?"W":ultra==1?"II":ultra==0?"I":"";
+}
 std::string UltraMove(int fighter, int ultra) {
     const auto* found = selection::FindFighter(fighter);
     if (!found) return {};

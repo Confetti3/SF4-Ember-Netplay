@@ -5,6 +5,7 @@
 #include "../common/Localization.hxx"
 #include "Theme.hxx"
 #include "SelectionArt.hxx"
+#include "SelectionLabels.hxx"
 #include "MenuGlyphs.hxx"
 #include "MenuPresentation.hxx"
 #include "MenuDialogs.hxx"
@@ -68,7 +69,9 @@ float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool
     return textWidth+2*pad;
 }
 float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
-    if(ultra<0||ultra>2||height<=0)return 0;
+    // The game's badge says which Ultra numbers have a mark: SF4's 0 to 2.
+    const char* badge=ultra<0?"":UltraBadge(ultra);
+    if(!badge||!*badge||height<=0)return 0;
     const SelectionImage icon=menuArt?menuArt->UltraIcon(ultra):SelectionImage{};
     if(icon.texture&&icon.width>0&&icon.height>0){
         // A 32-pixel icon: at most twice as large, on whole pixels, so it stays sharp.
@@ -78,8 +81,9 @@ float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
         return wide;
     }
     if(menuArt&&!icon.missing)return 0;
-    // The old Ultra page's badge: the numeral in Ember on a dark plate.
-    const char* text=ultra==2?"W":ultra==1?"II":"I";
+    // The game's badge (UltraBadge; SF4's is the old Ultra page's numeral) in
+    // Ember on a dark plate.
+    const char* text=badge;
     const float font=height*.8f,pad=height*.22f;
     const float wide=HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,text).x+2*pad;
     const ImVec2 min(topRight.x-wide,topRight.y);

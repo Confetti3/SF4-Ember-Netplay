@@ -17,6 +17,11 @@ const char* UltraLabel(int ultra);
 std::string ShortCostumeLabel(const selection::Pick& pick, const selection::InstalledContent* installed = nullptr);
 std::string ShortAppearanceLabel(const selection::Pick& pick, const selection::InstalledContent* installed = nullptr);
 const char* ShortUltraLabel(int ultra);
+// The Ultra's badge where the game has no icon for it (GameMenu's
+// DrawUltraMark: the Ultra cards, the Arcade cabinet's glass): SF4's "I",
+// "II" or "W"; a game whose Ultra number means more than one choice says so
+// in its own short form. Empty draws no badge.
+const char* UltraBadge(int ultra);
 // The fighter's Ultra by the game's own name, wherever a player chooses or
 // readies with it: "Ultra I: Metsu Hadoken", or "Ultra Double" (UltraName);
 // the move alone, "Metsu Hadoken" (UltraMove). Empty for no fighter.

@@ -119,10 +119,11 @@ bool DrawMenuBackdrop();
 // A card's corner marker (SAVED, MAIN), fitted to the card's width. `at` is its
 // top-left corner, or its top-right when rightAligned. Returns the badge's drawn width.
 float DrawCardBadge(ImVec2 at,float width,const char* text,const char* probe,bool rightAligned=false);
-// An Ultra's mark (`ultra` 0 to 2) with its top-right corner at `topRight`, at
-// most `height` tall: the game's own I, II or W (SelectionArt::UltraIcon),
-// never more than twice its size, or where the game has none a drawn badge
-// (I, II or W) in Ember. Nothing while the icon still loads. Returns its width.
+// An Ultra's mark (an `ultra` with a badge, UltraBadge: SF4's 0 to 2) with
+// its top-right corner at `topRight`, at most `height` tall: the game's own
+// I, II or W (SelectionArt::UltraIcon), never more than twice its size, or
+// where the game has none its badge drawn in Ember. Nothing while the icon
+// still loads, or for an Ultra with no badge. Returns its width.
 float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra);
 // The fighter pickers' select grid (the catalog's rosterOrder): up to eight across beside
 // the preview, fewer on a narrow window. cardHeight is in unscaled pixels, as

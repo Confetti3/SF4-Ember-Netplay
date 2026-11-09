@@ -83,14 +83,15 @@ void GlassScanlines(ImDrawList* d,const v2::Box& lines,float alpha,float s) {
     const ImU32 ink=v2::color::Alpha(v2::Colors().ink,alpha);
     for(float y=lines.min.y;y<lines.max.y;y+=3*s)d->AddLine(ImVec2(lines.min.x,y),ImVec2(lines.max.x,y),ink,(std::max)(1.f,.75f*s));
 }
-// The seated player's Ultra (0 to 2, else none): the game's I, II or W in the
+// The seated player's Ultra (below the catalog's ultraChoices, else none):
+// the game's mark (SF4's I, II or W; SFV's loadout, as "II/I") in the
 // top-right corner of the cabinet's `screen`, as on the Ultra cards, about a
 // quarter of the glass tall. A glass too small to hold it beside the screen's
 // words shows none. Drawn before the screen's scanlines, so they run on over
 // it, as over the fighter, and it reads as shown on the screen.
 void DrawScreenUltra(ImDrawList* d,const v2::Box& screen,int ultra,float s) {
     // A game whose fighters have one Ultra (the catalog's) marks none.
-    if(ultra<0||ultra>2||ember::Catalog().ultraChoices<=1)return;
+    if(ultra<0||ultra>=ember::Catalog().ultraChoices||ember::Catalog().ultraChoices<=1)return;
     const float tall=std::floor((std::min)(56*s,(std::max)(14*s,screen.H()*.24f)));
     if(screen.H()<tall*2.2f||screen.W()<tall*2.5f)return;
     DrawUltraMark(d,ImVec2(std::floor(screen.max.x-3*s),std::floor(screen.min.y+3*s)),tall,ultra);
