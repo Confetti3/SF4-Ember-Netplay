@@ -12,8 +12,9 @@
 // a match that is over shows that instead of opening Ember, so a link left
 // from an earlier match sends nobody back to it. The answer also names the
 // match's game: an SFV match opens SFV Ember (ember-sfv:), never by itself.
-// When the answer does not come, or names no game (a bridge from before
-// games), the page works as it did before, for SF4 Ember.
+// A match page offers nothing to open until that answer comes or its wait
+// ends. When the answer does not come, or names no game (a bridge from
+// before games), the page works as it did before, for SF4 Ember.
 // It offers the ember: link on the player's click, and opens it by itself only
 // for a match (/m) in a browser where Ember has opened from a match page that
 // named the same required version: a browser without Ember's handler would
@@ -108,6 +109,8 @@
     return {
       bridge: parts[0],
       match: parts[1],
+      // SF4's until the bridge names the match's game (lookUp).
+      game: 'usf4',
       need: staging ? 'nightly' : STABLE_VERSION,
       needText: staging ? 'Both players need the same Ember Nightly. If Ember says yours differs from your opponent\'s, update it.' :
         'Both players need the same Ember version. If Ember says yours differs from your opponent\'s, update it. Ember shows its version in the corner of Home.',
@@ -130,26 +133,19 @@
   // The same match once its bridge says it is SFV's: SFV Ember's own link
   // and words. SF4 Ember's version, update and download help does not
   // apply, and nothing here opens it by itself, since this browser's
-  // remembered open is for SF4 Ember's ember: link.
-  function sfvMatch(found) {
+  // remembered open is for SF4 Ember's ember: link. Only the match changes;
+  // draw shows it.
+  function asSfv(found) {
     found.game = 'sfv';
     found.need = null;
     found.needText = null;
     found.lead = 'Your tournament match is ready to play in SFV Ember.';
+    found.phone = 'SFV Ember runs on the Windows PC you play Street Fighter V on, so open this link on that PC.';
     found.ember = 'ember-sfv://tournament/open?bridge=' + found.bridge + '&match=' + found.match;
     found.after = 'SFV Ember opens the match on its Tournament matches screen; press Play there. Your browser may ask first whether to open SFV Ember.';
     found.steps = ['Start SFV Ember.',
       'Choose <strong>Online play</strong>, then <strong>Ember ID</strong>, then <strong>Tournament matches</strong>.',
       'Choose <strong>Paste match link</strong>, then <strong>Play</strong>.'];
-    var byId = function (id) { return document.getElementById(id); };
-    byId('lead').textContent = found.lead;
-    byId('after').textContent = found.after;
-    byId('open').href = found.ember;
-    byId('steps').innerHTML = found.steps.map(function (step) { return '<li>' + step + '</li>'; }).join('');
-    byId('phone').textContent = SFV_PHONE;
-    if (PHONE) byId('fallback-lead').textContent = PHONE_FALLBACK_LEAD;
-    ['need', 'update', 'update-how', 'version', 'get', 'not-opened-download'].forEach(function (id) { byId(id).hidden = true; });
-    byId('open').classList.add('primary');
   }
 
   // A public room: the service and room a bot or site's link names.
@@ -267,24 +263,37 @@
     current = found;
     document.title = found.title;
     document.getElementById('title').textContent = found.title;
+    // A match's bridge names its game, which decides which Ember Open starts:
+    // until it answers, or the wait ends, the page offers nothing to open.
+    if (found.match && askable(found)) lookUp(found, path);
+    else draw(found, path)();
+  }
+
+  // Shows what found offers, and returns what to do once it shows: open a
+  // match by itself, or nothing.
+  function draw(found, path) {
+    var sfv = found.game === 'sfv';
     document.getElementById('lead').textContent = found.lead;
+    if (found.phone) document.getElementById('phone').textContent = found.phone;
     document.getElementById('page').hidden = false;
     // Public rooms, matches and Connect Discord open only in Ember 1.1.0 or
-    // newer, and those of the staging bridge only in Nightly.
-    document.getElementById('version').hidden = path.indexOf('/j') === 0;
+    // newer, and those of the staging bridge only in Nightly. None of that,
+    // nor SF4 Ember's download, is SFV Ember's.
+    document.getElementById('version').hidden = path.indexOf('/j') === 0 || sfv;
+    document.getElementById('not-opened-download').hidden = sfv;
     if (found.bridge === STAGING_BRIDGE) {
       document.getElementById('version').textContent = NIGHTLY_NOTE;
       document.getElementById('download').href = NIGHTLY_DOWNLOAD;
       document.getElementById('not-opened-download').href = NIGHTLY_DOWNLOAD;
     }
     // A phone can neither open Ember nor install it.
-    if (PHONE) document.getElementById('get').hidden = true;
+    if (PHONE || sfv) document.getElementById('get').hidden = true;
     if (!found.ember) {
       document.getElementById('get-title').textContent = 'Get Ember';
       document.getElementById('come-back').hidden = true;
       document.getElementById('tournaments').hidden = false;
       if (PHONE) document.getElementById('tournaments-title').textContent = 'Connect Discord on your PC';
-      return;
+      return function () {};
     }
     document.getElementById('after').textContent = found.after;
     document.getElementById('lasts').textContent = found.lasts;
@@ -299,60 +308,65 @@
       document.getElementById('copy-code').hidden = false;
     }
     document.getElementById('fallback').hidden = false;
-    var proceed = function () {};
     if (PHONE) {
       document.getElementById('fallback-title').textContent = PHONE_FALLBACK_TITLE;
       document.getElementById('fallback-lead').textContent = (found.needText ? found.needText + ' ' : '') + PHONE_FALLBACK_LEAD;
-    } else {
-      document.getElementById('link').hidden = false;
-      var known = found.need && rememberedOpen() === found.need;
-      if (found.need) showNeed(found);
-      // A match opens by itself once per link while this page is open, and only
-      // where Ember opened before from a match page asking for the same version.
-      if (path === '/m' && found.link !== autoOpened && known) {
-        proceed = function () {
-          autoOpened = found.link;
-          document.getElementById('after').textContent = AUTO_AFTER;
-          location.href = found.ember;
-        };
-      }
+      return function () {};
     }
-    if (found.match) checkOver(found, proceed);
-    else proceed();
+    document.getElementById('link').hidden = false;
+    if (found.need) showNeed(found);
+    // A match opens by itself once per link while this page is open, and only
+    // where Ember opened before from a match page asking for the same version.
+    // An SFV match never does: it needs no version (asSfv).
+    if (path !== '/m' || !found.need || found.link === autoOpened || rememberedOpen() !== found.need) return function () {};
+    return function () {
+      if (current !== found) return;
+      autoOpened = found.link;
+      document.getElementById('after').textContent = AUTO_AFTER;
+      location.href = found.ember;
+    };
   }
 
-  // Asks the match's bridge whether the match is over, then calls proceed
-  // unless it is. Only Ember's own two bridges are asked: nginx on this site
-  // reaches no other. No answer within OVER_WAIT_MS, or any failure, proceeds.
-  function checkOver(found, proceed) {
-    if (!window.fetch || (found.bridge !== PRODUCTION_BRIDGE && found.bridge !== STAGING_BRIDGE)) {
-      proceed();
-      return;
-    }
-    var proceeded = false;
-    function go() {
-      if (proceeded) return;
-      proceeded = true;
+  // Only Ember's own two bridges are asked: nginx on this site reaches no other.
+  function askable(found) {
+    return !!window.fetch && (found.bridge === PRODUCTION_BRIDGE || found.bridge === STAGING_BRIDGE);
+  }
+
+  // Asks the match's bridge whether the match is over and which game it is,
+  // then draws the page once, for that game. No answer within OVER_WAIT_MS,
+  // any failure, or an answer naming no game (a bridge from before games)
+  // draws it for SF4 Ember, as before games. An answer after the wait still
+  // shows: a match that is over, or one that is SFV's, drawn again for SFV
+  // Ember.
+  function lookUp(found, path) {
+    var drawn = false;
+    function settle(body) {
+      if (drawn || current !== found) return;
+      drawn = true;
       clearTimeout(timer);
-      if (current === found) proceed();
+      if (body && body.game === 'sfv') asSfv(found);
+      var proceed = draw(found, path);
+      if (body && body.over === true) showOver();
+      else proceed();
     }
-    var timer = setTimeout(go, OVER_WAIT_MS);
+    var timer = setTimeout(function () { settle(null); }, OVER_WAIT_MS);
     fetch('/link/' + found.bridge + '/' + found.match, { cache: 'no-store', credentials: 'omit' })
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (body) {
         if (current !== found) return;
-        if (body && body.game === 'sfv') sfvMatch(found);
-        if (body && body.over === true) {
-          proceeded = true;
-          clearTimeout(timer);
+        if (!drawn) {
+          settle(body);
+        } else if (body && body.over === true) {
           showOver();
-        } else if (found.game === 'sfv') {
-          proceeded = true;
-          clearTimeout(timer);
-        } else {
-          go();
+        } else if (body && body.game === 'sfv' && found.game !== 'sfv') {
+          reset();
+          current = found;
+          document.title = found.title;
+          document.getElementById('title').textContent = found.title;
+          asSfv(found);
+          draw(found, path);
         }
-      }, go);
+      }, function () { settle(null); });
   }
 
   // The match a link names has ended: nothing to open, get or copy.
@@ -436,7 +450,6 @@
     return /Android|iPhone|iPad|iPod|Mobile/i.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
   }
 
-  var SFV_PHONE = 'SFV Ember runs on the Windows PC you play Street Fighter V on, so open this link on that PC.';
   var FALLBACK_LEAD, FALLBACK_TITLE, TOURNAMENTS_TITLE, NOT_OPENED_DOWNLOAD, PHONE, PHONE_NOTE;
   function start() {
     PHONE_NOTE = document.getElementById('phone').textContent;
