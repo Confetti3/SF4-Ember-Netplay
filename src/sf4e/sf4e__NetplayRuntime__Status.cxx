@@ -2,6 +2,7 @@
 #include "../netplay/PublishCadence.hxx"
 #include "../netplay/LatencyBoard.hxx"
 #include "../common/HelperFailure.hxx"
+#include "../common/JoinLink.hxx"
 
 namespace sf4e { namespace NetplayFacade {
 namespace internal {
@@ -680,7 +681,7 @@ PostPublishState Publish() {
 		std::chrono::steady_clock::now() - runtime->pendingJoinArrived < JoinLinkDirectWindow;
 	if (runtime->room) {
 		snapshot.invitation = runtime->room->Invitation();
-		snapshot.shortInvitation = runtime->room->ShortInvitation();
+		snapshot.shortInvitation = join_link::ProductShortLink(runtime->room->ShortInvitation());
 		snapshot.shortInvitationPending = runtime->room->ShortInvitationPending();
 		snapshot.shortInvitationFailures = runtime->room->ShortInvitationFailures();
 		snapshot.memberLatency = runtime->room->MemberLatencies();

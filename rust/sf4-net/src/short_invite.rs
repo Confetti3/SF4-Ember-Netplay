@@ -115,7 +115,8 @@ pub fn link(code: &str) -> String {
 }
 
 /// The canonical code in a pasted short link or code, or None when the text
-/// is not one. Accepts the link with `#` or `/`, with or without the scheme
+/// is not one. Accepts SF4 Ember's `/j` link and SFV Ember's `/v` link with
+/// `#` or `/`, with or without the scheme
 /// or `www.`, and the bare code with or without dashes or spaces, in any
 /// case. Crockford look-alikes (O for 0, I and L for 1) are read as digits.
 pub fn parse(text: &str) -> Option<String> {
@@ -133,10 +134,12 @@ pub fn parse(text: &str) -> Option<String> {
     }
     rest = rest.strip_prefix("www.").unwrap_or(rest);
     if let Some(path) = rest.strip_prefix("embernetplay.link") {
-        rest = path
-            .strip_prefix("/j#")
-            .or_else(|| path.strip_prefix("/j/#"))
-            .or_else(|| path.strip_prefix("/j/"))?;
+        // /j is SF4 Ember's room page and /v SFV Ember's: the same code.
+        let page = path.strip_prefix("/j").or_else(|| path.strip_prefix("/v"))?;
+        rest = page
+            .strip_prefix('#')
+            .or_else(|| page.strip_prefix("/#"))
+            .or_else(|| page.strip_prefix('/'))?;
         rest = rest.trim_end_matches('/');
     } else if text.contains(':') || text.contains('/') {
         return None;
@@ -376,6 +379,9 @@ mod tests {
             "HTTPS://WWW.EMBERNETPLAY.LINK/j#7K3M-0X1R-T9PZ\r\n",
             "embernetplay.link/j#7K3M-0X1R-T9PZ",
             "http://embernetplay.link/j/7K3M0X1RT9PZ/",
+            "https://embernetplay.link/v#7K3M-0X1R-T9PZ",
+            "https://embernetplay.link/v/7K3M-0X1R-T9PZ",
+            "embernetplay.link/v/#7k3m0x1rt9pz",
             "7K3M-0X1R-T9PZ",
             " 7k3m 0x1r t9pz ",
             "7k3mox1rt9pz",
@@ -392,6 +398,8 @@ mod tests {
             "https://example.com/j#7K3M-0X1R-T9PZ",
             "https://embernetplay.link.evil/j#7K3M-0X1R-T9PZ",
             "https://embernetplay.link/x#7K3M-0X1R-T9PZ",
+            "https://embernetplay.link/jv#7K3M-0X1R-T9PZ",
+            "https://embernetplay.link/v7K3M-0X1R-T9PZ",
             "sf4e3:AAAAAAAAAAAA",
             "emd2:7K3M0X1RT9PZ",
             "7K3M_0X1R_T9PZ",

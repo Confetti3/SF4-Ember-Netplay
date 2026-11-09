@@ -53,6 +53,11 @@ static void TestTheJoinScreenGetsTheShortLink() {
 	CHECK(ShortLink("7K3M0X1RT9PZ") == "https://embernetplay.link/j#7K3M-0X1R-T9PZ");
 	CHECK(ShortLink("").empty());
 	CHECK(ShortLink("7K3M").empty());
+	// SF4 Ember shows and copies the helper's /j# link as it is; another
+	// product swaps only the prefix (SFV Ember's test covers /v#).
+	CHECK(ProductShortLink("https://embernetplay.link/j#7K3M-0X1R-T9PZ") == "https://embernetplay.link/j#7K3M-0X1R-T9PZ");
+	CHECK(ProductShortLink("").empty());
+	CHECK(ProductShortLink("https://example.com/j#7K3M-0X1R-T9PZ") == "https://example.com/j#7K3M-0X1R-T9PZ");
 }
 
 static const char* const Bridge = "brg_0dbc0598-2312-4ce3-9df8-e160330565e6";

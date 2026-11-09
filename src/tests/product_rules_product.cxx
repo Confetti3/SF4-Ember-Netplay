@@ -44,6 +44,7 @@ constexpr ember::ProductIdentity RulesOn = {
 	L".sf4e-product-rules-test-tmp",
 	"ember-product-rules-test",
 	"usf4",
+	"https://embernetplay.link/j#",
 	"",
 	"",
 	"sf4-ember-product-rules-test-",

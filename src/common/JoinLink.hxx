@@ -71,10 +71,21 @@ inline std::string DisplayCode(const std::string& code) {
 	return code.substr(0, 4) + "-" + code.substr(4, 4) + "-" + code.substr(8, 4);
 }
 
-// The short link the helper reads, for the Join screen's text box.
+// The short link the helper reads, for the Join screen's text box, in this
+// product's form (ProductIdentity::roomLinkPrefix).
 inline std::string ShortLink(const std::string& code) {
 	const std::string shown = DisplayCode(code);
-	return shown.empty() ? std::string() : "https://embernetplay.link/j#" + shown;
+	return shown.empty() ? std::string() : ember::Product().roomLinkPrefix + shown;
+}
+
+// The helper's short link (always SF4 Ember's https://embernetplay.link/j#
+// form) as this product shows and copies it: the same code after
+// ProductIdentity::roomLinkPrefix, so the site's page opens this product.
+// Anything not in the helper's form comes back unchanged.
+inline std::string ProductShortLink(const std::string& helperLink) {
+	static const std::string helperPrefix = "https://embernetplay.link/j#";
+	if (helperLink.compare(0, helperPrefix.size(), helperPrefix) != 0) return helperLink;
+	return ember::Product().roomLinkPrefix + helperLink.substr(helperPrefix.size());
 }
 
 } // namespace join_link

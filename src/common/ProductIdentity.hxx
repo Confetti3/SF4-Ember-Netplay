@@ -203,6 +203,12 @@ struct ProductIdentity {
 	// never see or join the other's rooms. Requests name it only when it is
 	// not "usf4", which is what a request that names none means.
 	const char* roomGame;
+	// A room's short link as this product shows and copies it: the prefix
+	// before the code, "https://embernetplay.link/j#" for SF4 Ember and
+	// "https://embernetplay.link/v#" for SFV Ember. The site's /j page opens
+	// SF4 Ember (ember://join/...) and its /v page SFV Ember
+	// (ember-sfv://join/...); the helper reads either form (short_invite.rs).
+	const char* roomLinkPrefix;
 
 	// GitHub repositories (owner/name): Stable and Beta, and Nightly.
 	const char* stableRepo;
