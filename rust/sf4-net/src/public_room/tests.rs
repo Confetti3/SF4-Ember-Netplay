@@ -58,9 +58,7 @@ fn address(endpoint: &Endpoint) -> EndpointAddr {
 }
 
 fn invite_for(endpoint: &Endpoint, now: u64) -> Invite {
-    let relay = iroh::defaults::prod::default_relay_map()
-        .urls::<Vec<_>>()
-        .remove(0);
+    let relay = crate::invite::relay_map().urls::<Vec<_>>().remove(0);
     Invite::create(endpoint.id(), relay, BUILD.into(), now, 3600).unwrap()
 }
 
@@ -508,9 +506,7 @@ async fn a_public_host_reads_only_a_public_proof_and_a_private_host_only_a_priva
 #[test]
 fn the_two_proofs_are_not_readable_as_each_other() {
     let id = iroh::SecretKey::generate().public();
-    let relay = iroh::defaults::prod::default_relay_map()
-        .urls::<Vec<_>>()
-        .remove(0);
+    let relay = crate::invite::relay_map().urls::<Vec<_>>().remove(0);
     let invite = Invite::create(id, relay, BUILD.into(), unix_now(), 3600).unwrap();
     let ticket = RoomTicket {
         version: TICKET_VERSION,

@@ -1,0 +1,24 @@
+# Ember's iroh relay at relay.embernetplay.link (iroh-relay 1.1.0, the same
+# release as the helper's iroh). nginx terminates HTTPS on 443 and proxies to
+# the plain HTTP port below; the unit runs the relay with --dev, which keeps
+# TLS off that port. QUIC address discovery has no proxy in front: it answers
+# on UDP 7842 itself, with the embernetplay.link wildcard certificate that
+# systemd hands the service as credentials.
+
+enable_relay = true
+http_bind_addr = "127.0.0.1:47895"
+enable_quic_addr_discovery = true
+enable_metrics = true
+metrics_bind_addr = "127.0.0.1:47896"
+
+[tls]
+cert_mode = "Manual"
+manual_cert_path = "/run/credentials/ember-relay.service/cert.pem"
+manual_key_path = "/run/credentials/ember-relay.service/key.pem"
+quic_bind_addr = "[::]:7842"
+
+# A relayed match sends a few KB/s per player. The cap keeps one client from
+# filling the VPS's link; it is far above anything a match sends.
+[limits.client.rx]
+bytes_per_second = 1048576
+max_burst_bytes = 4194304

@@ -8,8 +8,10 @@ use std::{
 
 use ember_protocol::{EmberId, rooms::RoomTicket};
 use iroh::{
-    Endpoint, EndpointAddr, EndpointId,
-    endpoint::{Connection, ConnectionError, PortmapperConfig, RecvStream, SendStream, presets},
+    Endpoint, EndpointAddr, EndpointId, RelayMode,
+    endpoint::{
+        Builder, Connection, ConnectionError, PortmapperConfig, RecvStream, SendStream, presets,
+    },
 };
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
@@ -82,8 +84,14 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
     bound.map_err(|_| failed())
 }
 
-fn production_builder() -> iroh::endpoint::Builder {
-    Endpoint::builder(presets::N0).alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
+/// Every production endpoint starts here: the N0 preset's address lookup
+/// with this build's relays (`invite::relay_map`) in place of iroh's.
+pub(crate) fn endpoint_builder() -> Builder {
+    Endpoint::builder(presets::N0).relay_mode(RelayMode::Custom(crate::invite::relay_map()))
+}
+
+fn production_builder() -> Builder {
+    endpoint_builder().alpns(vec![CONTROL_ALPN.to_vec(), GAME_ALPN.to_vec()])
 }
 
 /// Binds the primary endpoint's IPv4 socket on exactly this UDP port, with no
