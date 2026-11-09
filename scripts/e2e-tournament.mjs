@@ -37,6 +37,9 @@ mkdirSync(out, { recursive: true });
 const repo = new URL("..", import.meta.url).pathname;
 const linux = (windows) => execFileSync("wslpath", ["-u", windows], { encoding: "utf8" }).trim();
 const ssh = (command) => execFileSync("ssh", ["-o", "BatchMode=yes", config.remote.ssh, command], { encoding: "utf8" }).replace(/\r/g, "");
+// PowerShell on the other PC, sent encoded: its ssh shell may be PowerShell
+// itself, which would expand the script's $variables before passing it on.
+const ps = (script) => ssh("powershell -NoProfile -EncodedCommand " + Buffer.from(script, "utf16le").toString("base64"));
 const scp = (from, to) => execFileSync("scp", ["-q", "-o", "BatchMode=yes", from, config.remote.ssh + ":" + to.replace(/\\/g, "/")]);
 const log = (...text) => console.log(new Date().toTimeString().slice(0, 8), ...text);
 
@@ -110,12 +113,12 @@ function startRemote() {
     log("copying the self-test package to the other PC");
     const tar = join(out, ".stage.tar");
     execFileSync("tar", ["-cf", tar, "-C", linux(config.local.package), "."]);
-    ssh(`powershell -NoProfile -Command "Remove-Item -Recurse -Force '${config.remote.package}' -EA 0; New-Item -ItemType Directory -Force '${config.remote.package}' | Out-Null"`);
+    ps(`Remove-Item -Recurse -Force '${config.remote.package}' -EA 0; New-Item -ItemType Directory -Force '${config.remote.package}' | Out-Null`);
     scp(tar, w + "\\stage.tar");
     rmSync(tar);
-    ssh(`powershell -NoProfile -Command "tar -xf '${w}\\stage.tar' -C '${config.remote.package}'; Remove-Item '${w}\\stage.tar'; Set-Content '${w}\\stage.stamp' '${stamp}'"`);
+    ps(`tar -xf '${w}\\stage.tar' -C '${config.remote.package}'; Remove-Item '${w}\\stage.tar'; Set-Content '${w}\\stage.stamp' '${stamp}'`);
   }
-  ssh(`powershell -NoProfile -Command "Remove-Item -Recurse -Force '${remote.dir}','${w}\\out.txt' -EA 0; New-Item -ItemType Directory -Force '${remote.dir}' | Out-Null"`);
+  ps(`Remove-Item -Recurse -Force '${remote.dir}','${w}\\out.txt' -EA 0; New-Item -ItemType Directory -Force '${remote.dir}' | Out-Null`);
   scp(join(repo, "scripts/run-selftest.ps1"), w + "\\run-selftest.ps1");
   const job = join(out, ".run.cmd");
   const quoted = selftest(remote, "tournament-guest").map((arg) => (/[\s]/.test(arg) ? `"${arg}"` : arg)).join(" ");
@@ -125,7 +128,7 @@ function startRemote() {
   rmSync(job);
   // A process started over ssh has no desktop: the game starts through a task
   // that runs in the signed-in user's session.
-  ssh(`powershell -NoProfile -Command "$a=New-ScheduledTaskAction -Execute '${w}\\run.cmd'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask ${config.remote.task} -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask ${config.remote.task}"`);
+  ps(`$a=New-ScheduledTaskAction -Execute '${w}\\run.cmd'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask ${config.remote.task} -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask ${config.remote.task}`);
   return (async () => {
     for (;;) {
       await sleep(10000);
@@ -162,7 +165,7 @@ async function shotRemote(name) {
   writeFileSync(script, shotScript);
   scp(script, w + "\\shot.ps1");
   rmSync(script);
-  ssh(`powershell -NoProfile -Command "Remove-Item '${w}\\shot.png' -EA 0; $a=New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ${w}\\shot.ps1 -Path ${w}\\shot.png'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask EmberShot -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask EmberShot"`);
+  ps(`Remove-Item '${w}\\shot.png' -EA 0; $a=New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ${w}\\shot.ps1 -Path ${w}\\shot.png'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask EmberShot -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask EmberShot`);
   for (let i = 0; i < 20; i++) {
     await sleep(1000);
     try { execFileSync("scp", ["-q", "-o", "BatchMode=yes", config.remote.ssh + ":" + (w + "\\shot.png").replace(/\\/g, "/"), join(out, name + ".png")]); return; } catch {}
@@ -193,7 +196,7 @@ const stopScript = (pkg) => "Get-CimInstance Win32_Process | Where-Object { $_.E
   `($_.Name -eq 'SSFIV.exe' -and (Get-Process -Id $_.ParentProcessId -EA 0).Path -like '${pkg}\\*') } | Sort-Object Name -Descending | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
 function stopGames() {
   if (!ended[0]) { try { execFileSync("powershell.exe", ["-NoProfile", "-Command", stopScript(config.local.package)], { stdio: "ignore" }); } catch {} }
-  if (!ended[1]) { try { ssh(`powershell -NoProfile -Command "${stopScript(config.remote.package)}"`); } catch {} }
+  if (!ended[1]) { try { ps(`${stopScript(config.remote.package)}`); } catch {} }
 }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { stopGames(); process.exit(130); });
 const page = await chrome(out);
