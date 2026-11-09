@@ -140,7 +140,7 @@ async fn assignments_are_one_games_chosen_before_the_limit() {
 
 #[tokio::test]
 async fn a_match_link_says_its_matchs_game() {
-    let f = fixture(3).await;
+    let f = fixture(4).await;
     let link = |id: &Value| {
         let url = f
             .bridge
@@ -149,7 +149,7 @@ async fn a_match_link_says_its_matchs_game() {
         async move { common::read(client.get(url).send().await.unwrap()).await }
     };
     let usf4 = f.bracket("usf4-link", 0, 1).await;
-    let sfv = f.ordinary_in("sfv", None, "sfv-link", [2, 0], 1).await;
+    let sfv = f.ordinary_in("sfv", None, "sfv-link", [2, 3], 1).await;
     // No credential, and nothing but whether it is over and its game.
     assert_eq!(
         link(&usf4["match_id"]).await,
