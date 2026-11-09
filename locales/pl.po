@@ -5762,6 +5762,9 @@ msgstr "Gracz 2"
 msgid "replays.matches_shown"
 msgstr "Wyświetlone mecze"
 
+msgid "replays.sets_shown"
+msgstr "Wyświetlone sety"
+
 msgid "replays.filter_reset"
 msgstr "Resetuj"
 

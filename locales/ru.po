@@ -5762,6 +5762,9 @@ msgstr "Игрок 2"
 msgid "replays.matches_shown"
 msgstr "Матчей в списке"
 
+msgid "replays.sets_shown"
+msgstr "Сетов в списке"
+
 msgid "replays.filter_reset"
 msgstr "Сбросить"
 

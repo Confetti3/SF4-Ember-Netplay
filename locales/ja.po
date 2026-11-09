@@ -5763,6 +5763,9 @@ msgstr "プレイヤー2"
 msgid "replays.matches_shown"
 msgstr "表示中の試合"
 
+msgid "replays.sets_shown"
+msgstr "表示中のセット"
+
 msgid "replays.filter_reset"
 msgstr "リセット"
 
