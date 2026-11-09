@@ -234,7 +234,10 @@ void RowsFollowTheGame() {
   }
   offer(h, true);
   std::vector<std::string> all;
-  for (const char* screen : screens) { h.Screen(screen); for (const auto& row : drawn.rows) all.push_back(row.id); }
+  // The panels a game without the feature has no head for hold their rows.
+  std::vector<const char*> everyScreen = screens;
+  everyScreen.insert(everyScreen.end(), {"tab-interface/sounds", "tab-access/help"});
+  for (const char* screen : everyScreen) { h.Screen(screen); for (const auto& row : drawn.rows) all.push_back(row.id); }
   for (const auto& id : featureRows) Check(std::count(all.begin(), all.end(), id) > 0, ("With every feature, " + id + " was not offered").c_str());
  }
  // A member's actions, in a room with a peer who shows their Steam profile.
