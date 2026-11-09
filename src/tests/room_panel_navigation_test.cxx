@@ -68,6 +68,14 @@ void TestSf4UltraBadge() {
     Check(std::strcmp(UltraBadge(0), "I") == 0 && std::strcmp(UltraBadge(1), "II") == 0 && std::strcmp(UltraBadge(2), "W") == 0,
         "SF4's Ultra badges are not I, II and W");
     Check(*UltraBadge(3) == 0 && *UltraBadge(-1) == 0 && *UltraBadge(255) == 0, "An Ultra past SF4's three has a badge");
+    // In Ember's plate none of SF4's three is wider than W, the badge the
+    // Arcade glass rule measures against (RoomPanelArcade's kWidestSf4Badge),
+    // so the glass asks SF4 for no extra width; a wider badge (SFV's "II/II") does.
+    for (const float tall : {14.f, 24.f, 56.f}) {
+        for (int ultra = 0; ultra < 3; ultra++)
+            Check(UltraBadgeWidth(tall, UltraBadge(ultra)) <= UltraBadgeWidth(tall, "W"), "An SF4 badge's plate is wider than W's");
+        Check(UltraBadgeWidth(tall, "II/II") > UltraBadgeWidth(tall, "W"), "A wider badge's plate is no wider than W's");
+    }
 }
 }
 

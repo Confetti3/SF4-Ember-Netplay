@@ -68,6 +68,16 @@ float DrawCardBadge(ImVec2 p,float width,const char* text,const char* probe,bool
     d->AddText(ImGui::GetFont(),font,ImVec2(p.x+pad,p.y+(natural-font)*.5f),palette::Ember,text);
     return textWidth+2*pad;
 }
+namespace {
+// The dark plate a badge is drawn on in Ember, `height` tall: the badge in the
+// heading font at 80% of the height, with 22% of the height either side. The
+// one measure of it, which DrawUltraMark draws and UltraBadgeWidth reports.
+struct BadgePlate { float font,pad,width; };
+BadgePlate UltraBadgePlate(float height,const char* badge){
+    const float font=height*.8f,pad=height*.22f;
+    return {font,pad,HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,badge).x+2*pad};
+}
+}
 float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
     // The game's badge says which Ultra numbers have a mark: SF4's 0 to 2.
     const char* badge=ultra<0?"":UltraBadge(ultra);
@@ -83,17 +93,14 @@ float DrawUltraMark(ImDrawList* d,ImVec2 topRight,float height,int ultra){
     if(menuArt&&!icon.missing)return 0;
     // The game's badge (UltraBadge; SF4's is the old Ultra page's numeral) in
     // Ember on a dark plate.
-    const char* text=badge;
-    const float font=height*.8f,pad=height*.22f;
-    const float wide=UltraBadgeWidth(height,text);
-    const ImVec2 min(topRight.x-wide,topRight.y);
+    const BadgePlate plate=UltraBadgePlate(height,badge);
+    const ImVec2 min(topRight.x-plate.width,topRight.y);
     d->AddRectFilled(min,ImVec2(topRight.x,topRight.y+height),palette::ShadeAt(230),height*.12f);
-    d->AddText(HeadingFont(),font,ImVec2(min.x+pad,min.y+(height-font)*.5f),palette::Ember,text);
-    return wide;
+    d->AddText(HeadingFont(),plate.font,ImVec2(min.x+plate.pad,min.y+(height-plate.font)*.5f),palette::Ember,badge);
+    return plate.width;
 }
 float UltraBadgeWidth(float height,const char* badge){
-    const float font=height*.8f,pad=height*.22f;
-    return HeadingFont()->CalcTextSizeA(font,FLT_MAX,0,badge).x+2*pad;
+    return UltraBadgePlate(height,badge).width;
 }
 RosterGrid LayOutRosterGrid(float windowWidth){
     // The Fighter design board: eight across beside the preview, fewer on a narrow screen.

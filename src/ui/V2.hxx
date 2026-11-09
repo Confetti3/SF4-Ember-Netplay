@@ -165,6 +165,7 @@ void Fact(const std::string& key, const std::string& value);
 // 1.45 line height, which ImGui's own wrapping (one em) has no room for.
 void Paragraph(const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
 // The same drawn at `at` across `width`, for code without a cursor. Returns its height.
+// With no draw list (`draw` null) it draws nothing and only measures: the height it would take.
 float Paragraph(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = ImGui::GetFont());
 // A Paragraph in the current font, size and colour, at the cursor.
 void Wrapped(const std::string& text);
