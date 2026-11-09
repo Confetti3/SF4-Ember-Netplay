@@ -25,4 +25,7 @@ struct TrainingHudInput { bool open = false, pointer = false; TrainingHudArea ar
 // notice, the replay strip) goes with it.
 constexpr float TrainingHudBottom = .82f;
 float TrainingMeterBottom();
+// The HUD's windows (the meter's, the room line's, the input displays'): dark
+// enough to read over a bright stage, which still shows through.
+constexpr float TrainingHudBackground = .62f;
 } }

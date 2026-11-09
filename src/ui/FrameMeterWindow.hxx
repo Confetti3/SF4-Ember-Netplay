@@ -1,5 +1,6 @@
 #pragma once
 #include "../training/FrameMeter.hxx"
+#include "TrainingHudLayout.hxx"
 #include <imgui.h>
 #include <functional>
 #include <string>
@@ -28,8 +29,6 @@ ImVec2 DrawFrameMeterWindow(const training::MeterView& meter, float hudScale, fl
 float FrameMeterHudScale(int size);
 // The meter's width at this viewport and HUD scale, centred on the screen.
 float TrainingMeterWidth(float hudScale);
-// The HUD's windows: dark enough to read over a bright stage, which still shows through.
-constexpr float TrainingHudBackground = .62f;
 // A fighter's readings as text, one per line: startup, active, recovery, the
 // result and the last advantage, and the meaty timing.
 std::string TrainingFrameData(const training::MeterView& meter, int side);
