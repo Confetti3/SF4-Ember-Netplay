@@ -85,9 +85,42 @@ pub async fn bind_endpoint_with_policy(relay_only: bool) -> io::Result<Endpoint>
 }
 
 /// Every production endpoint starts here: the N0 preset's address lookup
-/// with this build's relays (`invite::relay_map`) in place of iroh's.
+/// with this build's relays (`invite::relay_map`) in place of iroh's, and
+/// `ActiveRelays` beside that lookup.
 pub(crate) fn endpoint_builder() -> Builder {
-    Endpoint::builder(presets::N0).relay_mode(RelayMode::Custom(crate::invite::relay_map()))
+    Endpoint::builder(presets::N0)
+        .relay_mode(RelayMode::Custom(crate::invite::relay_map()))
+        .address_lookup(ActiveRelays)
+}
+
+/// Answers any endpoint id with every relay this build uses. A match, a probe
+/// or a member dials a peer by id alone, and n0's lookup service
+/// (dns.iroh.link) is blocked by the same US router filters as n0's relays
+/// (2026-11-08): a filtered player can neither publish nor resolve there, and
+/// the dial failed with "No addressing information available". Every peer of
+/// this build sits on one of these relays as its home relay, so naming them
+/// all reaches it through whichever it holds; the others drop the packets.
+#[derive(Debug)]
+struct ActiveRelays;
+
+impl iroh::address_lookup::AddressLookup for ActiveRelays {
+    fn resolve(
+        &self,
+        endpoint_id: EndpointId,
+    ) -> Option<
+        n0_future::boxed::BoxStream<
+            Result<iroh::address_lookup::Item, iroh::address_lookup::Error>,
+        >,
+    > {
+        let info = crate::invite::relay_map()
+            .urls::<Vec<_>>()
+            .into_iter()
+            .fold(iroh::address_lookup::EndpointInfo::new(endpoint_id), |info, relay| {
+                info.with_relay_url(relay)
+            });
+        let item = iroh::address_lookup::Item::new(info, "ember-active-relays", None);
+        Some(Box::pin(n0_future::stream::once(Ok(item))))
+    }
 }
 
 fn production_builder() -> Builder {
