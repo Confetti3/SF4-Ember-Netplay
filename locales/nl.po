@@ -5762,6 +5762,9 @@ msgstr "Speler 2"
 msgid "replays.matches_shown"
 msgstr "Getoonde matches"
 
+msgid "replays.sets_shown"
+msgstr "Getoonde sets"
+
 msgid "replays.filter_reset"
 msgstr "Herstellen"
 

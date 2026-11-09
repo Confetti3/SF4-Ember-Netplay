@@ -5763,6 +5763,9 @@ msgstr "玩家 2"
 msgid "replays.matches_shown"
 msgstr "列出的比赛"
 
+msgid "replays.sets_shown"
+msgstr "列出的比赛组"
+
 msgid "replays.filter_reset"
 msgstr "重置"
 

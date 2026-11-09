@@ -5295,6 +5295,9 @@ msgstr "Jugador 2"
 msgid "replays.matches_shown"
 msgstr "Partidas en la lista"
 
+msgid "replays.sets_shown"
+msgstr "Sets en la lista"
+
 msgid "replays.filter_reset"
 msgstr "Restablecer"
 

@@ -43,7 +43,18 @@ void ShootReplays(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,co
     Require(rows.size()==9,"Reset did not list every match again");
     // Alice and Bob's two matches in a row are a set on the Sets tab, 1-1 by who won each; Pick a game lists them oldest first.
     page("replay-sets");draw("replay-sets");
-    Require(rows.size()==1&&rows[0].id=="set:a"&&rows[0].label=="Alice 1-1 Bob","The set of Alice and Bob was not listed");
+    Require(rows.size()==3&&rows[0].id=="replay-filter"&&rows[1].id=="replay-search"&&rows[2].id=="set:a"&&rows[2].label=="Alice 1-1 Bob","The set of Alice and Bob was not listed");
+    // The same filter narrows the Sets tab: Spectated hides a set none of whose games were watched live, and Reset lists it again.
+    shell.Navigation().Focus("replay-filter",rows);draw(nullptr,MenuInput::Select,1);draw();draw();
+    shell.Navigation().Focus("rf-show",rows);draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Right,1);draw();
+    const auto count=std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="rf-count";});
+    Require(count!=rows.end()&&count->label==loc::T("replays.sets_shown")&&count->value=="0 / 1","The filter counted matches while the Sets tab was open");
+    draw(nullptr,MenuInput::Back,1);draw();draw();
+    Require(shell.Navigation().Screen()=="replay-sets"&&rows.size()==3&&rows[2].id=="replay-none-shown","Spectated did not hide the set");
+    shell.Navigation().Focus("replay-filter",rows);draw(nullptr,MenuInput::Select,1);draw();draw();
+    shell.Navigation().Focus("rf-reset",rows);draw(nullptr,MenuInput::Select,1);draw();
+    draw(nullptr,MenuInput::Back,1);draw();draw();
+    Require(rows.size()==3&&rows[2].id=="set:a","Reset did not list the set again");
     shell.Navigation().Focus("set:a",rows);draw(nullptr,MenuInput::Select,1);draw();draw(nullptr,MenuInput::Right,1);draw();draw(nullptr,MenuInput::Select,1);draw("replay-set");
     Require(shell.Navigation().Screen()=="replay-set"&&rows.size()==2&&rows[0].id=="replay:e"&&rows[1].id=="replay:a","Pick a game did not list the set's games");
     draw(nullptr,MenuInput::Back,1);draw();

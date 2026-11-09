@@ -5762,6 +5762,9 @@ msgstr "Giocatore 2"
 msgid "replays.matches_shown"
 msgstr "Partite elencate"
 
+msgid "replays.sets_shown"
+msgstr "Set elencati"
+
 msgid "replays.filter_reset"
 msgstr "Ripristina"
 

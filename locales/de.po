@@ -5762,6 +5762,9 @@ msgstr "Spieler 2"
 msgid "replays.matches_shown"
 msgstr "Angezeigte Matches"
 
+msgid "replays.sets_shown"
+msgstr "Angezeigte Sets"
+
 msgid "replays.filter_reset"
 msgstr "Zurücksetzen"
 

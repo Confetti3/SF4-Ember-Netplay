@@ -103,7 +103,10 @@ private:
     // The list's filter (ReplaySummaryText.hxx: ReplayShown): what Show lists,
     // and the Search text a player's or fighter's name must contain.
     std::vector<const platform::replays::ArchivedReplay*> Shown(const ShellView& view) const;
+    std::vector<const platform::replays::ArchivedSet*> SetsShown() const;
+    void FilterRows(std::vector<MenuEntry>& rows) const;
     std::string FilterText() const;
+    bool filterSets_ = false; // the filter screen was opened from the Sets tab
     ReplayShow show_{}; // All
     ReplaySort sort_{}; // Newest
     std::uint64_t fighters_ = 0; // the fighters the filter lists, by native id as bits; 0 for any

@@ -5762,6 +5762,9 @@ msgstr "Hráč 2"
 msgid "replays.matches_shown"
 msgstr "Zobrazené zápasy"
 
+msgid "replays.sets_shown"
+msgstr "Zobrazené sety"
+
 msgid "replays.filter_reset"
 msgstr "Obnovit"
 
