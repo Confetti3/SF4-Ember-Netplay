@@ -205,6 +205,9 @@ void AttachRoom() {
 	RuntimeSession::netplay->client.SetProfileSteam(SharedSteamId(runtime->preferences.shareSteamProfile, [] { return Game().services.LocalSteamId(); }));
 	RuntimeSession::netplay->client.SetProfileCountry(ShownCountry(runtime->preferences.country, runtime->automaticCountry));
 	RuntimeSession::netplay->client.SetProfileObserver(runtime->join==JoinKind::Observer);
+	// What this copy cannot load travels with it, so its table never starts a
+	// game on such a stage (StageNotShared). SF4 sends none.
+	RuntimeSession::netplay->client.SetProfileMissingStages(Game().state.MissingStages());
     runtime->selectedDelay=runtime->preferences.inputDelay;
     RuntimeSession::netplay->client.SetSelectedDelay(ReadyDelay());
     runtime->inputInitialized=true;

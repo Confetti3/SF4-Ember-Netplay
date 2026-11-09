@@ -3606,6 +3606,18 @@ msgstr "방에서 준비 요청을 거부했습니다. 준비를 다시 누르�
 msgid "runtime.ready.previous_match_timeout"
 msgstr "준비 요청이 처리되지 않았습니다. 이전 대전이 제때 종료되지 않았습니다. 준비를 다시 누르세요."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "상대의 게임에 이 스테이지가 설치되어 있지 않습니다. 다른 스테이지를 고르세요."
+
+msgid "room.stage_not_shared_wait"
+msgstr "상대가 당신의 게임에 있는 스테이지를 고르기를 기다리는 중입니다."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "이 대전의 스테이지가 당신의 게임에 설치되어 있지 않습니다. 다음 대전부터 관전합니다."
+
+msgid "runtime.stage_not_installed"
+msgstr "이 대전의 스테이지가 당신의 게임에 설치되어 있지 않아 대전이 취소되었습니다."
+
 msgid "runtime.room_open_failed"
 msgstr "방을 열지 못했습니다. 다시 시도하세요."
 

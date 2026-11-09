@@ -651,6 +651,28 @@ TypedCommand& WithRandomFighter(TypedCommand& command);
 // Tests only: the roll draws from `roll` instead of a random engine; an empty
 // one restores the engine.
 void SetRandomFighterRollForTest(std::function<int()> roll);
+
+// Stages a seated player lacks (sf4e__NetplayRuntime__Stages.cxx). The one
+// definition of the stages this player may not choose now: at a table, both
+// seats' missing stages (room::UnavailableStagesFor); anywhere else this
+// copy's own (GameState::MissingStages). The snapshot's unavailableStages,
+// the Ready check and Random all read it.
+std::vector<std::int64_t> UnavailableStagesNow();
+// The stage P1's Ready sends for its choice: Random rolled with `roll` over
+// the stages UnavailableStagesNow leaves (the catalog's resolveStage).
+int StageToSend(const commands::Room& command, std::uint32_t roll);
+// Why P1 may not ready with the command's stage now, or null: Random with no
+// stage left (runtime.ready.stage_unavailable), or a stage the opponent's
+// copy lacks (runtime.ready.stage_not_shared). Resolves with a fixed roll, so
+// the check spends none of the game's own.
+const char* StageReadyRefusal(const commands::Room& command);
+// The table's StageNotShared (room::Event), as this player hears it: P1's
+// Ready taken back fails it with the reason, the other fighter is told to
+// wait, and a watcher left out of the game is told it watches the next.
+void ObserveStageNotShared(const room::Event& event);
+// The notice for a room game this copy cannot enter (Battle::Enter refused
+// it): its stage is not installed here, or the match is unsupported.
+const char* MatchEntryRefusal();
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

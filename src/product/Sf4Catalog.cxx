@@ -13,8 +13,9 @@
 
 namespace {
 // Random lands on the custom stages installed here as well as the game's.
+// Every SF4 copy has every stock stage, so no stage is ever unavailable.
 int ResolveInstalledStage(int choice, std::uint32_t roll, const sf4e::selection::RandomPool& pool,
-	const sf4e::selection::InstalledContent* installed) {
+	const sf4e::selection::InstalledContent* installed, const std::vector<std::int64_t>&) {
 	return sf4e::selection::ResolveStage(choice, roll, pool, installed ? installed->stages : std::vector<int>());
 }
 const char* FighterName(int fighter) { return sf4e::selection::FindFighter(fighter)->name; }

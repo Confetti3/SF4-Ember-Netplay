@@ -15,6 +15,7 @@ set(SF4E_RUNTIME_SOURCES
     sf4e/sf4e__NetplayRuntime__PublicRooms.cxx
     sf4e/sf4e__NetplayRuntime__Rankings.cxx
     sf4e/sf4e__NetplayRuntime__RandomFighter.cxx
+    sf4e/sf4e__NetplayRuntime__Stages.cxx
     sf4e/sf4e__NetplayRuntime__Status.cxx
     sf4e/sf4e__NetplayPresentation.cxx
     sf4e/sf4e__RuntimeBridge.hxx

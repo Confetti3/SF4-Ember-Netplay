@@ -641,6 +641,7 @@ PostPublishState Publish() {
     if(snapshot.atMainMenu) for(int fighter=0;fighter<ember::Catalog().fighterCount;++fighter)
         snapshot.fighterAvailability[fighter]=Game().state.FighterAvailability(fighter);
     snapshot.installedContent = InstalledContent();
+    snapshot.unavailableStages = UnavailableStagesNow();
     // The explicit gameplay-device assignment stays authoritative, including
     // keyboard selection, capture, disconnects and local P1/P2 handoff.
     if (snapshot.menuContext != input::MenuContext::Unavailable && snapshot.inputCapture == input::Capture::Idle &&

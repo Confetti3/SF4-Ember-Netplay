@@ -58,6 +58,9 @@ constexpr std::uint64_t SpectatorStartHoldMs = 10000;
 constexpr std::uint64_t ReadyTimeoutMs = 90000;
 // How long "is typing" stands after a member last said so.
 constexpr std::uint64_t TypingMs = 5000;
+// The most stages a member's missingStages names; a longer list keeps its
+// lowest ids (MissingStagesFrom).
+constexpr std::size_t MaximumMissingStages = 64;
 
 enum class MemberStatus : std::uint8_t {
 	Idle = 0,
@@ -188,7 +191,21 @@ struct MemberProfile {
 	// name its endpoint as a watcher refuses it. A courtesy of a cooperating
 	// game, never part of a snapshot.
 	bool observer = false;
+	// The stages the joiner's copy cannot load (GameState::MissingStages),
+	// as MissingStagesFrom keeps them. Empty is every stage: what SF4 and
+	// every full install send.
+	std::vector<std::int64_t> missingStages;
 };
+
+// A list of stage ids as a member's missingStages keeps it: valid stages of
+// the game's catalog (GameCatalog::validStage), ascending, without repeats,
+// at most MaximumMissingStages; anything else is dropped. A list that makes
+// no sense reads as "none missing", which fails closed at the game's own
+// launch check. Defined with the room types' JSON (RoomModelJson.cxx).
+std::vector<std::int64_t> MissingStagesFrom(std::vector<std::int64_t> stages);
+// The same from a JSON value: a non-array is none, and an entry that is not
+// an integer is dropped.
+std::vector<std::int64_t> MissingStagesFrom(const nlohmann::json& value);
 
 struct ConnectionRef {
 	std::string host;
@@ -240,6 +257,10 @@ struct Member {
     CountryCode country;
     // The class a public room's ticket vouched for (MemberProfile::admission), or none.
     SkillBadge badge;
+    // The stages this member's copy cannot load, from its profile when it
+    // joined (MemberProfile::missingStages). Written only when not empty, so
+    // a room of copies that miss nothing, SF4's every room, keeps its form.
+    std::vector<std::int64_t> missingStages;
     // The selected delay belongs to this fighter until Ready captures it.
     // Values are deliberately bounded by Action deserialization
     // (0..InputDelayWireCeiling); the authority records at most MaximumInputDelay.
@@ -490,6 +511,13 @@ struct Event {
 	// AdvanceTime took `member` out of a seat at `table` for not readying
 	// within ReadyTimeoutMs. Every member gets it, for the room chat.
 	ReadyTimeout,
+	// The stage P1 chose at `table` is one a member there cannot load
+	// (RoomQueries' StagePlayableAt). With `member` the table's P1 and no
+	// matchGeneration: the session owner took P1's Ready back at the start,
+	// and no game began. With `member` a watcher and the game's
+	// matchGeneration: that watcher sits the game out (BeginMatch left it out
+	// of the game's roster). The table's members get it, for their notices.
+	StageNotShared,
 	};
 	Kind kind = Kind::SnapshotChanged;
 	std::uint8_t table = 0;

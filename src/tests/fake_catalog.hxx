@@ -12,6 +12,7 @@
 #include "../common/RoomRules.hxx"
 
 #include <cstdint>
+#include <vector>
 
 namespace ember { namespace test {
 
@@ -28,7 +29,7 @@ bool CatalogAvailable(const sf4e::selection::Pick& pick, bool editionSelect,
 bool CatalogNormalize(sf4e::selection::Pick& pick, bool editionSelect,
 	const sf4e::selection::Availability* availability, const sf4e::selection::InstalledContent* installed);
 int CatalogResolveStage(int choice, std::uint32_t roll, const sf4e::selection::RandomPool& pool,
-	const sf4e::selection::InstalledContent* installed);
+	const sf4e::selection::InstalledContent* installed, const std::vector<std::int64_t>& unavailable);
 // "Fighter 1" for fighter 0, and so on.
 const char* CatalogFighterName(int fighter);
 int CatalogCostumeCount(int fighter);

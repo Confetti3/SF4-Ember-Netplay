@@ -372,4 +372,39 @@ inline SetStanding StandingAfter(const Snapshot& room, const Table& table, std::
 	return standing;
 }
 
+// The stages a seated fighter at the table cannot load: the union of both
+// seats' missingStages, ascending, without repeats (one seat's when the other
+// has none; none for an empty seat). Every check of a table's stage asks this
+// or StagePlayableAt, and nothing else.
+inline std::vector<std::int64_t> TableMissingStages(const Snapshot& room, const Table& table) {
+	std::vector<std::int64_t> missing;
+	for (const MemberId id : {table.p1, table.p2}) {
+		const auto* member = id ? FindMember(room, id) : nullptr;
+		if (member) missing.insert(missing.end(), member->missingStages.begin(), member->missingStages.end());
+	}
+	std::sort(missing.begin(), missing.end());
+	missing.erase(std::unique(missing.begin(), missing.end()), missing.end());
+	return missing;
+}
+// Both seated fighters' copies can load the stage. Always true where no
+// member lacks a stage, as in every SF4 room.
+inline bool StagePlayableAt(const Snapshot& room, const Table& table, std::int64_t stage) {
+	const auto missing = TableMissingStages(room, table);
+	return !std::binary_search(missing.begin(), missing.end(), stage);
+}
+// The member's copy can load the stage (a watcher's, for a game it would watch).
+inline bool MemberHasStage(const Member& member, std::int64_t stage) {
+	return !std::binary_search(member.missingStages.begin(), member.missingStages.end(), stage);
+}
+// What a player may not choose as the stage now (the runtime's
+// unavailableStages): seated at a table, TableMissingStages for it, which
+// holds their own copy's missing stages too; anywhere else, or with no room,
+// their own copy's (`own`, GameState::MissingStages).
+inline std::vector<std::int64_t> UnavailableStagesFor(const Snapshot& room, const std::vector<std::int64_t>& own) {
+	const auto* local = room.roomEpoch ? FindMember(room, room.localMember) : nullptr;
+	const bool seated = local && local->table >= 0 && local->table < static_cast<std::int8_t>(TableCount) &&
+		(local->seat == 0 || local->seat == 1);
+	return seated ? TableMissingStages(room, room.tables[local->table]) : own;
+}
+
 } }

@@ -94,13 +94,19 @@ static void TestOwnershipAndFacts() {
 	selection::InstalledContent installed;
 	installed.stages.push_back(selection::CustomStageId("C12"));
 	const selection::RandomPool pool;
+	// SF4's installs never differ, so a set of unavailable stages (which no
+	// SF4 copy sends) changes nothing it resolves.
+	const std::vector<std::int64_t> none, someStages = {0, 11, 29};
 	for (std::uint32_t roll = 0; roll < 40; ++roll) {
-		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, nullptr) ==
+		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, nullptr, none) ==
 			selection::ResolveStage(selection::RandomStageId, roll, pool));
-		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, &installed) ==
+		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, &installed, none) ==
 			selection::ResolveStage(selection::RandomStageId, roll, pool, installed.stages));
+		CHECK(catalog.resolveStage(selection::RandomStageId, roll, pool, &installed, someStages) ==
+			catalog.resolveStage(selection::RandomStageId, roll, pool, &installed, none));
 	}
-	CHECK(catalog.resolveStage(11, 0, pool, nullptr) == 11 && catalog.resolveStage(22, 0, pool, nullptr) == 0);
+	CHECK(catalog.resolveStage(11, 0, pool, nullptr, none) == 11 && catalog.resolveStage(22, 0, pool, nullptr, none) == 0);
+	CHECK(catalog.resolveStage(11, 0, pool, nullptr, someStages) == 11);
 }
 
 int main() {

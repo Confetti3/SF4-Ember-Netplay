@@ -3605,6 +3605,18 @@ msgstr "Demande Prêt refusée par le salon. Réessayez."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Votre demande Prêt n'a pas abouti. Le salon n'a pas terminé le combat précédent à temps. Réessayez."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "Ce niveau n'est pas installé dans la copie du jeu de votre adversaire. Choisissez un autre niveau."
+
+msgid "room.stage_not_shared_wait"
+msgstr "En attente que l'autre joueur choisisse un niveau présent dans votre copie du jeu."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Le niveau de ce combat n'est pas installé dans votre copie du jeu. Vous suivrez le prochain."
+
+msgid "runtime.stage_not_installed"
+msgstr "Le niveau de ce combat n'est pas installé dans votre copie du jeu : le combat a été annulé."
+
 msgid "runtime.room_open_failed"
 msgstr "Impossible d'ouvrir le salon. Réessayez."
 

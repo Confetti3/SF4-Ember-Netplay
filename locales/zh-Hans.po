@@ -3606,6 +3606,18 @@ msgstr "房间拒绝了您的准备请求。请再次准备。"
 msgid "runtime.ready.previous_match_timeout"
 msgstr "准备请求未生效。房间未能及时结束上一场对战。请再次准备。"
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "对手的游戏未安装此场地。请选择其他场地。"
+
+msgid "room.stage_not_shared_wait"
+msgstr "正在等待另一位玩家选择你的游戏中有的场地。"
+
+msgid "runtime.spectator_stage_missing"
+msgstr "你的游戏未安装本场对战的场地。你将观战下一场。"
+
+msgid "runtime.stage_not_installed"
+msgstr "你的游戏未安装本场对战的场地，因此对战已取消。"
+
 msgid "runtime.room_open_failed"
 msgstr "无法打开房间，请重试。"
 

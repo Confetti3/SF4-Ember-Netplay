@@ -39,7 +39,7 @@ bool CatalogNormalize(sf4e::selection::Pick& pick, bool, const sf4e::selection::
 }
 
 int CatalogResolveStage(int choice, std::uint32_t, const sf4e::selection::RandomPool&,
-	const sf4e::selection::InstalledContent*) {
+	const sf4e::selection::InstalledContent*, const std::vector<std::int64_t>&) {
 	return CatalogStage(choice) ? choice : 0;
 }
 

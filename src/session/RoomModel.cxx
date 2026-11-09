@@ -265,6 +265,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
+	member.missingStages = MissingStagesFrom(profile.missingStages);
 	member.badge = profile.admission.badge;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
@@ -576,7 +577,18 @@ Result RoomAuthority::Leave(MemberId member) {
 	return Accept(std::move(departureEvents));
 }
 
-Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2) {
+Result RoomAuthority::WithdrawStage(std::uint8_t tableId) {
+	Table* table = FindTable(tableId);
+	if (!table) return Reject(RejectReason::UnknownTable);
+	Member* p1 = Find(table->p1);
+	if (!p1 || table->phase != TablePhase::Ready || !table->ready[0]) return Reject(RejectReason::WrongPhase);
+	ReleaseReady(*table, 0, *p1);
+	Result settled = SettleReadiness(*table, p1->id);
+	settled.events.push_back(Event{Event::Kind::StageNotShared, tableId, 0, p1->id, MatchResult::Abort});
+	return settled;
+}
+
+Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2, std::int64_t stage) {
 	Table* table = FindTable(tableId);
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
 		table->phase != TablePhase::Ready || table->spectatorHold || PermitPending(*table) || table->resultPending ||
@@ -622,11 +634,20 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2)
 			// for the match that just began.
 		}
 	}
-	for (const auto spectator : table->spectators)
+	// A spectator whose copy lacks the game's stage could not load the battle:
+	// it sits this game out, keeps its place for the next, and hears why.
+	std::vector<Event> events{Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}};
+	for (const auto spectator : table->spectators) {
+		const auto* member = Find(spectator);
+		if (member && !MemberHasStage(*member, stage)) {
+			events.push_back(Event{Event::Kind::StageNotShared, tableId, table->matchGeneration, spectator, MatchResult::Abort});
+			continue;
+		}
 		if (!HasOutstandingTerminalReceiptForMember(spectator)) freezeRecipient(spectator);
+	}
 	Touch(*table);
 	NormalizeTableMembers(*table);
-	return Accept({Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}});
+	return Accept(std::move(events));
 }
 
 Result RoomAuthority::EndMatch(std::uint8_t tableId, std::uint64_t generation, MatchResult result) {

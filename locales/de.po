@@ -3605,6 +3605,18 @@ msgstr "Raum lehnte Bereit ab. Erneut Bereit drücken."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Ihre Bereit-Aktion kam nicht an. Der Raum beendete den vorigen Kampf nicht rechtzeitig. Drücken Sie erneut Bereit."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "In der Spielkopie Ihres Gegners ist diese Stage nicht installiert. Wählen Sie eine andere Stage."
+
+msgid "room.stage_not_shared_wait"
+msgstr "Warten, bis der andere Spieler eine Stage wählt, die Ihre Spielkopie hat."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Die Stage dieses Spiels ist in Ihrer Spielkopie nicht installiert. Das nächste sehen Sie."
+
+msgid "runtime.stage_not_installed"
+msgstr "Die Stage dieses Spiels ist in Ihrer Spielkopie nicht installiert, daher wurde das Spiel abgebrochen."
+
 msgid "runtime.room_open_failed"
 msgstr "Raum nicht geöffnet. Erneut versuchen."
 

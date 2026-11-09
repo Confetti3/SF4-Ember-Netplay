@@ -3606,6 +3606,18 @@ msgstr "La sala rechazó tu estado Listo. Pulsa Listo otra vez."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Tu estado Listo no se registró. La sala no terminó a tiempo la partida anterior. Pulsa Listo otra vez."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "La copia del juego de tu rival no tiene instalada esta fase. Elige otra fase."
+
+msgid "room.stage_not_shared_wait"
+msgstr "Esperando a que el otro jugador elija una fase que tenga tu copia del juego."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "La fase de esta partida no está instalada en tu copia del juego. Verás la siguiente."
+
+msgid "runtime.stage_not_installed"
+msgstr "La fase de esta partida no está instalada en tu copia del juego, así que la partida se canceló."
+
 msgid "runtime.room_open_failed"
 msgstr "No se pudo abrir la sala. Reintenta."
 

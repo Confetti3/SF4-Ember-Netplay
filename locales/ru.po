@@ -3605,6 +3605,18 @@ msgstr "Лобби отклонило вашу готовность. Нажми�
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Не удалось подтвердить готовность: лобби не успело завершить прошлый матч. Нажмите «Готов» снова."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "В копии игры вашего соперника эта арена не установлена. Выберите другую арену."
+
+msgid "room.stage_not_shared_wait"
+msgstr "Ожидание, пока другой игрок выберет арену, которая есть в вашей копии игры."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Арена этого боя не установлена в вашей копии игры. Следующий бой вы будете смотреть."
+
+msgid "runtime.stage_not_installed"
+msgstr "Арена этого боя не установлена в вашей копии игры, поэтому бой отменён."
+
 msgid "runtime.room_open_failed"
 msgstr "Не удалось открыть лобби. Повторите попытку."
 

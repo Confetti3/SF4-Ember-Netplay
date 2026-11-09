@@ -260,6 +260,10 @@ namespace sf4e {
 			// The joiner watches a tournament match: its room admits only the
 			// watchers it names. Sent only when true, and read as false otherwise.
 			bool observer = false;
+			// The stages the joiner's copy cannot load (room::MemberProfile::
+			// missingStages). Sent only when not empty, and read through
+			// room::MissingStagesFrom: a malformed list is none.
+			std::vector<std::int64_t> missingStages;
 			// The client keeps its room chat when a snapshot says chat_unchanged.
 			bool roomChatDelta = false;
 			// The member's latency endpoint; absent from older clients and read as
@@ -270,6 +274,7 @@ namespace sf4e {
 				profile.steamId = SteamId::Parsed(steamId);
 				profile.country = CountryCode::Parsed(country);
 				profile.observer = observer;
+				profile.missingStages = missingStages;
 				return profile;
 			}
 			void SetProfile(const room::MemberProfile& profile) {
@@ -277,6 +282,7 @@ namespace sf4e {
 				steamId = profile.steamId.Present() ? profile.steamId.ToString() : std::string();
 				country = profile.country.ToString();
 				observer = profile.observer;
+				missingStages = profile.missingStages;
 			}
 			AdmissionRequest Admission(const std::string& peerAddress) const {
 				return {sidecarHash, username, peerAddress, port, Profile(), latency};
@@ -481,6 +487,7 @@ namespace sf4e {
 			if (!value.steamId.empty()) j["steamId"] = value.steamId;
 			if (!value.country.empty()) j["country"] = value.country;
 			if (value.observer) j["observer"] = true;
+			if (!value.missingStages.empty()) j["missingStages"] = value.missingStages;
 			if (value.latency.Valid()) j["latency"] = value.latency;
 		}
 		inline void from_json(const nlohmann::json& j, SessionJoinRequest& value) {
@@ -506,6 +513,9 @@ namespace sf4e {
 			// Anything but a true is a plain join.
 			const auto observer = j.find("observer");
 			value.observer = observer != j.end() && observer->is_boolean() && observer->get<bool>();
+			// Not a list of this build's stages: none missing, the join itself is unaffected.
+			const auto missing = j.find("missingStages");
+			value.missingStages = missing != j.end() ? room::MissingStagesFrom(*missing) : std::vector<std::int64_t>();
 			// A malformed route is no route; the join itself is unaffected.
 			const auto latency = j.find("latency");
 			value.latency = {};

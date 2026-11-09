@@ -3605,6 +3605,18 @@ msgstr "La sala ha rifiutato Pronto. Premilo di nuovo."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Pronto non è stato applicato. La sala non ha terminato la partita precedente in tempo. Premi di nuovo Pronto."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "Questo livello non è installato nella copia del gioco del tuo avversario. Scegli un altro livello."
+
+msgid "room.stage_not_shared_wait"
+msgstr "In attesa che l'altro giocatore scelga un livello presente nella tua copia del gioco."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Il livello di questa partita non è installato nella tua copia del gioco. Guarderai la prossima."
+
+msgid "runtime.stage_not_installed"
+msgstr "Il livello di questa partita non è installato nella tua copia del gioco, quindi la partita è stata annullata."
+
 msgid "runtime.room_open_failed"
 msgstr "Impossibile aprire la sala. Riprova."
 

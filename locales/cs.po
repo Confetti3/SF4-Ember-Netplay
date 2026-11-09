@@ -3605,6 +3605,18 @@ msgstr "Místnost odmítla vaše potvrzení Připraven. Zkuste to znovu."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Potvrzení Připraven neprošlo. Místnost nestihla dokončit předchozí zápas. Zkuste to znovu."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "Kopie hry vašeho soupeře tuto scénu nemá nainstalovanou. Zvolte jinou scénu."
+
+msgid "room.stage_not_shared_wait"
+msgstr "Čeká se, až druhý hráč zvolí scénu, kterou má vaše kopie hry."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Scéna tohoto zápasu není ve vaší kopii hry nainstalovaná. Další budete sledovat."
+
+msgid "runtime.stage_not_installed"
+msgstr "Scéna tohoto zápasu není ve vaší kopii hry nainstalovaná, proto byl zápas zrušen."
+
 msgid "runtime.room_open_failed"
 msgstr "Místnost se neotevřela. Zkuste to znovu."
 

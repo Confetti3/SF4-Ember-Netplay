@@ -9,6 +9,7 @@
 #include "test_support.hxx"
 #include "../common/Localization.hxx"
 #include "../session/IrohMatchSession.hxx"
+#include "../session/RoomModel.hxx"
 #include "../session/sf4e__SessionClient.hxx"
 #include "../sf4e/sf4e__NetplayFacade.hxx"
 #include "../sf4e/sf4e__NetplayRuntime.hxx"
@@ -233,6 +234,63 @@ void TestReadyUnderGameCatalog() {
 	std::cout << "TestReadyUnderGameCatalog passed\n";
 }
 
+// The stages a player may not choose (UnavailableStagesNow, SFV Ember's
+// EMBER_LIBRARY.md section 38): at Home the game's own missing stages; in a
+// room before any seat, the same; seated as P1, both seats'. P1's Ready on a
+// stage the opponent's copy lacks is refused with that reason before anything
+// is sent; one both copies have passes the stage check.
+void TestStagesAtTheTable() {
+	{
+		Home home;
+		Fake().missingStages = {7};
+		CHECK(internal::UnavailableStagesNow() == std::vector<std::int64_t>{7});
+		Fake().missingStages.clear();
+		CHECK(internal::UnavailableStagesNow().empty());
+	}
+	InRoom r;
+	Fake().missingStages = {7};
+	CHECK(internal::UnavailableStagesNow() == std::vector<std::int64_t>{7});
+	input::Device pad;
+	pad.type = 0; pad.index = 0; pad.connected = true;
+	r.runtime->input.Adopt(pad);
+	// The room as its owner sends it to this PC: this PC is P1 at table 0, and
+	// the opponent's copy lacks stage 5.
+	room::RoomAuthority authority("Stages", 8, 9);
+	room::MemberProfile own, theirs;
+	own.missingStages = {7};
+	theirs.missingStages = {5};
+	const auto local = authority.Join("Watcher", {"room", "watcher"}, true, own).snapshot.members.back().id;
+	const auto other = authority.Join("Opponent", {"room", "p2"}, false, theirs).snapshot.members.back().id;
+	std::uint64_t actionId = 0;
+	for (const auto member : {local, other}) {
+		room::Action queue;
+		queue.kind = room::ActionKind::Queue; queue.roomEpoch = authority.SnapshotView().roomEpoch;
+		queue.revision = authority.SnapshotView().revision; queue.tableRevision = authority.SnapshotView().tables[0].revision;
+		queue.actionId = ++actionId;
+		CHECK(authority.Apply(member, queue).accepted);
+	}
+	CHECK(authority.SnapshotView().tables[0].p1 == local);
+	SessionProtocol::RoomSnapshotMessage message;
+	message.snapshot = authority.SnapshotFor(local);
+	r.Deliver(json(message));
+	CHECK(internal::UnavailableStagesNow() == (std::vector<std::int64_t>{5, 7}));
+	const auto ready = [&](int stage) {
+		facade::RuntimeCommand press{};
+		press.command.kind = netplay::CommandKind::Ready;
+		press.command.generation = r.runtime->controller.GetSnapshot().generation;
+		press.character.charaID = 1;
+		press.stage = stage;
+		r.runtime->readyFailure.clear();
+		CHECK(facade::SubmitRuntimeCommand(std::move(press)));
+		internal::DrainCommands(true);
+		return r.runtime->readyFailure;
+	};
+	CHECK(ready(5) == loc::T("runtime.ready.stage_not_shared"));
+	CHECK(ready(6) != loc::T("runtime.ready.stage_not_shared"));
+	Fake().missingStages.clear();
+	std::cout << "TestStagesAtTheTable passed\n";
+}
+
 // The host refuses the join as full: worded for a public room's lock when the
 // room was entered with a public ticket, else as a full room.
 void TestJoinRefusalWording(bool publicJoin) {
@@ -267,6 +325,7 @@ int main() {
 		TestRoomWatch(offered);
 	}
 	TestReadyUnderGameCatalog();
+	TestStagesAtTheTable();
 	TestJoinRefusalWording(false);
 	TestJoinRefusalWording(true);
 	std::cout << "Runtime capabilities tests passed\n";

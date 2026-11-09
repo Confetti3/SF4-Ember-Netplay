@@ -3605,6 +3605,18 @@ msgstr "De kamer weigerde je Klaar-verzoek. Druk opnieuw op Klaar."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Je Klaar-verzoek kwam niet door. De kamer rondde de vorige match niet op tijd af. Druk opnieuw op Klaar."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "In het spel van je tegenstander is dit level niet geïnstalleerd. Kies een ander level."
+
+msgid "room.stage_not_shared_wait"
+msgstr "Wachten tot de andere speler een level kiest dat jouw spel heeft."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Het level van deze partij is niet geïnstalleerd in jouw spel. Bij de volgende kijk je mee."
+
+msgid "runtime.stage_not_installed"
+msgstr "Het level van deze partij is niet geïnstalleerd in jouw spel, dus de partij is afgebroken."
+
 msgid "runtime.room_open_failed"
 msgstr "Kon de kamer niet openen. Probeer opnieuw."
 

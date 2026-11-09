@@ -178,6 +178,11 @@ namespace sf4e {
             std::array<selection::Availability,ember::MaxFighters> fighterAvailability;
             // The custom content installed on this PC: built once at the scan and shared, never copied.
             selection::InstalledContentPtr installedContent;
+            // The stages this player may not choose now (UnavailableStagesNow):
+            // seated at a table, those either fighter's copy lacks; elsewhere
+            // this copy's own missing stages. Empty for SF4. A game's stage
+            // row reads it, and nothing else, for what it offers.
+            std::vector<std::int64_t> unavailableStages;
 			netplay::Snapshot session;
 			// The room as this player's screen shows it (class emblems already
 			// dropped where they are not shown). Built once per change of the

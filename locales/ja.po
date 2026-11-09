@@ -3606,6 +3606,18 @@ msgstr "ルームが準備完了を拒否しました。もう一度押してく
 msgid "runtime.ready.previous_match_timeout"
 msgstr "準備完了になりませんでした。前の対戦が時間内に終了していません。もう一度押してください。"
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "対戦相手のゲームにはこのステージがインストールされていません。別のステージを選んでください。"
+
+msgid "room.stage_not_shared_wait"
+msgstr "相手があなたのゲームにあるステージを選ぶのを待っています。"
+
+msgid "runtime.spectator_stage_missing"
+msgstr "この対戦のステージがあなたのゲームにインストールされていません。次の対戦から観戦します。"
+
+msgid "runtime.stage_not_installed"
+msgstr "この対戦のステージがあなたのゲームにインストールされていないため、対戦は中止されました。"
+
 msgid "runtime.room_open_failed"
 msgstr "ルームを開設できませんでした。再試行してください。"
 

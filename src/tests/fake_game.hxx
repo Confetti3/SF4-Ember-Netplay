@@ -11,6 +11,8 @@ struct FakeGame {
     bool mainMenu = true;
     // What Battle::Enter answers.
     game::Battle::Entry entry = game::Battle::Entry::Deferred;
+    // GameState::MissingStages.
+    std::vector<std::int64_t> missingStages;
     // The calls the runtime made.
     int trainingRequests = 0;
     int battleEntries = 0;

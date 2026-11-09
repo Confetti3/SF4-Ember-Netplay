@@ -336,6 +336,8 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 			refusal = loc::T("runtime.ready.selection_unavailable");
 		else if (roomState != netplay::RoomState::Joined || gates.localSlot < 0 || gates.localSlot > 1)
 			refusal = loc::T("runtime.ready.take_seat");
+		// Only P1's stage travels, so only P1's is judged against the table.
+		else if (const char* stage = gates.localSlot == 0 ? StageReadyRefusal(command) : nullptr) refusal = stage;
 		if (refusal) { FailReady(refusal); return DispatchOutcome::Dropped; }
 		// A parked Rematch may drain after the session left PostMatch; the
 		// controller accepts Ready in either state.
@@ -521,7 +523,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		bool sent = client.PreBattle_SetChara(command.character) == session::SendResult::Queued;
 		if (!client._lobbyData.members.empty() && client._lobbyData.members[0].connId == client._cid) {
 			sent = client.PreBattle_SetEnv(Game().state.Random()) == session::SendResult::Queued && sent;
-			sent = client.PreBattle_SetStage(ember::Catalog().resolveStage(command.stage, Game().state.Random(), command.randomPool, InstalledContent().get())) == session::SendResult::Queued && sent;
+			sent = client.PreBattle_SetStage(StageToSend(command, Game().state.Random())) == session::SendResult::Queued && sent;
 		}
 		if (!sent || client.Lobby_Ready() != session::SendResult::Queued) {
 			FailReady(loc::T("runtime.match_settings_send_failed"));
@@ -762,6 +764,7 @@ void DrainRoomEvents() {
 				runtime->roomNotices.push_back({++runtime->roomNoticeSequence, event});
 				if (runtime->roomNotices.size() > Runtime::RoomNoticesKept) runtime->roomNotices.pop_front();
 			}
+			if (event.kind == room::Event::Kind::StageNotShared) ObserveStageNotShared(event);
 			if (event.kind == room::Event::Kind::ResultDisputed)
 				spdlog::warn("Match result: disputed table={} generation={} reporter={} result={}",
 					event.table, event.matchGeneration, event.member, static_cast<int>(event.result));

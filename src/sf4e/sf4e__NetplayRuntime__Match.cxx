@@ -108,13 +108,14 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 
 // The room's match is one the game cannot take, and nothing of it was
 // written. Leave this game as a failed setup does: the room hears of it, the
-// session is retired, and the next game enters as usual.
+// session is retired, and the next game enters as usual. The notice says why
+// (MatchEntryRefusal): a stage this copy lacks has its own.
 static void RejectMatchEntry() {
 	spdlog::warn("Netplay: leaving generation {}: the game cannot take its match", runtime->match->Generation());
 	if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->Generation(), true);
 	ReportMatchAbort();
 	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-	internal::AbortLocalMatch(loc::T("runtime.unsupported_match"), NoticeSeverity::Warning);
+	internal::AbortLocalMatch(MatchEntryRefusal(), NoticeSeverity::Warning);
 }
 
 // The game offers no spectating (Capabilities::spectators), so a game this PC

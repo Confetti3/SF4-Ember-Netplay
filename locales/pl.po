@@ -3605,6 +3605,18 @@ msgstr "Pokój odrzucił zgłoszenie gotowości. Zgłoś ją ponownie."
 msgid "runtime.ready.previous_match_timeout"
 msgstr "Nie zgłoszono gotowości. Pokój nie zakończył poprzedniej walki na czas. Zgłoś ją ponownie."
 
+msgid "runtime.ready.stage_not_shared"
+msgstr "Kopia gry twojego przeciwnika nie ma zainstalowanej tej areny. Wybierz inną arenę."
+
+msgid "room.stage_not_shared_wait"
+msgstr "Czekanie, aż drugi gracz wybierze arenę, którą ma twoja kopia gry."
+
+msgid "runtime.spectator_stage_missing"
+msgstr "Arena tej walki nie jest zainstalowana w twojej kopii gry. Następną obejrzysz."
+
+msgid "runtime.stage_not_installed"
+msgstr "Arena tej walki nie jest zainstalowana w twojej kopii gry, więc walkę odwołano."
+
 msgid "runtime.room_open_failed"
 msgstr "Nie można otworzyć pokoju. Spróbuj ponownie."
 

@@ -94,6 +94,13 @@ public:
     // What the player has unlocked of a fighter. Only the game's own code reads
     // it: its catalog's fighterLocked and availablePick, and its select screen.
     virtual sf4e::selection::Availability FighterAvailability(int fighter) const = 0;
+    // The valid stage ids of this build that this copy cannot load, sorted
+    // and unique: none for a game whose installs never differ (SF4's). Fixed
+    // for the process's life. The room carries them with this member
+    // (room::MemberProfile::missingStages), so no table starts a game on a
+    // stage one of its fighters lacks, and the runtime's unavailableStages
+    // starts from them.
+    virtual std::vector<std::int64_t> MissingStages() const { return {}; }
     // A random number from the game's own generator.
     virtual std::uint32_t Random() = 0;
     // The announcer's challenger call at `volume` of the game's voice volume;

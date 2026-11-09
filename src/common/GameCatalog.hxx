@@ -18,6 +18,7 @@
 // C++11 and no game header: the Linux room host compiles it with g++ alone.
 
 #include <cstdint>
+#include <vector>
 
 namespace sf4e { namespace selection {
 struct Pick;
@@ -68,8 +69,13 @@ struct GameCatalog {
 		const sf4e::selection::Availability* availability, const sf4e::selection::InstalledContent* installed);
 	// The stage P1 sends for a choice: randomStage becomes one of the pool's
 	// stages by roll (installed may be null), any other choice a valid stage.
+	// `unavailable` holds the stages a seated player at P1's table cannot
+	// load (the runtime's unavailableStages, empty where every copy has every
+	// stage): a game whose installs can differ rolls Random only over the
+	// others, and returns randomStage itself when none is left. SF4's
+	// installs never differ, and its catalog ignores it.
 	int (*resolveStage)(int choice, std::uint32_t roll, const sf4e::selection::RandomPool& pool,
-		const sf4e::selection::InstalledContent* installed);
+		const sf4e::selection::InstalledContent* installed, const std::vector<std::int64_t>& unavailable);
 
 	// A fighter's name as every screen shows it; only for a fighter the
 	// catalog has (ValidFighter).

@@ -24,6 +24,7 @@ public:
     std::string ForegroundScreen() const override { return Fake().mainMenu ? "MainMenu" : ""; }
     std::string Language() const override { return {}; }
     sf4e::selection::Availability FighterAvailability(int) const override { return {}; }
+    std::vector<std::int64_t> MissingStages() const override { return Fake().missingStages; }
     std::uint32_t Random() override { return 4; }
     bool PlayChallengerCall(float) override { return false; }
     void CloseGame() override {}
