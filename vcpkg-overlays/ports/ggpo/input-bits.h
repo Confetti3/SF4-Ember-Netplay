@@ -12,12 +12,14 @@ namespace netplay {
 // any of it is applied: every read stays inside the declared bits, and every
 // button inside the input.
 // bufferBytes is the message's bit buffer; maxInputBytes is GameInput's.
-inline bool InputBitsValid(const uint8_t* bits, int numBits, int bufferBytes, int inputSize, int maxInputBytes) {
+// Returns the number of frames the stream holds, or -1 when it is invalid.
+inline int InputBitsFrames(const uint8_t* bits, int numBits, int bufferBytes, int inputSize, int maxInputBytes) {
     if (!bits || numBits < 0 || numBits > bufferBytes * 8 || inputSize <= 0 || inputSize > maxInputBytes) {
-        return false;
+        return -1;
     }
     const int inputBits = inputSize * 8;
     int offset = 0;
+    int frames = 0;
     const auto read = [&](int count, int* value) {
         if (count > numBits - offset) {
             return false;
@@ -32,11 +34,12 @@ inline bool InputBitsValid(const uint8_t* bits, int numBits, int bufferBytes, in
     while (offset < numBits) {
         int delta = 0;
         if (!read(1, &delta)) {
-            return false;
+            return -1;
         }
+        frames++;
         if (!delta) {
             if (inputBits > numBits - offset) {
-                return false;
+                return -1;
             }
             offset += inputBits;
             continue;
@@ -44,17 +47,21 @@ inline bool InputBitsValid(const uint8_t* bits, int numBits, int bufferBytes, in
         for (;;) {
             int more = 0, on = 0, button = 0;
             if (!read(1, &more)) {
-                return false;
+                return -1;
             }
             if (!more) {
                 break;
             }
             if (!read(1, &on) || !read(8, &button) || button >= inputBits) {
-                return false;
+                return -1;
             }
         }
     }
-    return true;
+    return frames;
+}
+
+inline bool InputBitsValid(const uint8_t* bits, int numBits, int bufferBytes, int inputSize, int maxInputBytes) {
+    return InputBitsFrames(bits, numBits, bufferBytes, inputSize, maxInputBytes) >= 0;
 }
 
 }

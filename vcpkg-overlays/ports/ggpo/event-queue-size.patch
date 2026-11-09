@@ -2,14 +2,15 @@ diff --git a/src/lib/ggpo/network/udp_proto.h b/src/lib/ggpo/network/udp_proto.h
 index 4bf6374..9b7097a 100644
 --- a/src/lib/ggpo/network/udp_proto.h
 +++ b/src/lib/ggpo/network/udp_proto.h
-@@ -17,6 +17,16 @@
+@@ -17,6 +17,17 @@
  #include "ring_buffer.h"
  #include "input-repair.h"
  
 +/*
-+ * One input packet carries at most the sender's whole pending output
-+ * (PENDING_OUTPUT_SIZE - 1 frames), so the event queue holds a full window of
-+ * inputs plus the control events one poll can add: at most 7 while syncing
++ * An honest sender's input packet carries at most its whole pending output
++ * (PENDING_OUTPUT_SIZE - 1 frames).  OnInput admits new frames only while the
++ * event queue, counting them, holds at most that window, which leaves room
++ * for the control events one poll can add: at most 7 while syncing
 + * (Connected, up to 4 Synchronizing, Synchronized, Disconnected) and 3 when
 + * running (NetworkInterrupted, NetworkResumed, Disconnected).
 + */
@@ -19,7 +20,7 @@ index 4bf6374..9b7097a 100644
  class UdpProtocol : public IPollSink
  {
  public:
-@@ -181,7 +191,7 @@ protected:
+@@ -181,7 +192,7 @@ protected:
     /*
      * Packet loss...
      */
@@ -28,7 +29,7 @@ index 4bf6374..9b7097a 100644
     GameInput                  _last_received_input;
     GameInput                  _last_sent_input;
     GameInput                  _last_acked_input;
-@@ -211,7 +221,7 @@ protected:
+@@ -211,7 +222,7 @@ protected:
     /*
      * Event queue
      */

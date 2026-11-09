@@ -1,30 +1,205 @@
+diff --git a/src/lib/ggpo/backends/p2p.cpp b/src/lib/ggpo/backends/p2p.cpp
+index e85bc48..2b59ac6 100644
+--- a/src/lib/ggpo/backends/p2p.cpp
++++ b/src/lib/ggpo/backends/p2p.cpp
+@@ -70,7 +70,7 @@ Peer2PeerBackend::AddRemotePlayer(char *ip,
+     */
+    _synchronizing = true;
+    
+-   _endpoints[queue].Init(&_udp, _poll, queue, ip, port, _local_connect_status);
++   _endpoints[queue].Init(&_udp, _poll, queue, ip, port, _local_connect_status, _input_size);
+    _endpoints[queue].SetDisconnectTimeout(_disconnect_timeout);
+    _endpoints[queue].SetDisconnectNotifyStart(_disconnect_notify_start);
+    _endpoints[queue].Synchronize();
+@@ -90,7 +90,8 @@ GGPOErrorCode Peer2PeerBackend::AddSpectator(char *ip,
+    }
+    int queue = _num_spectators++;
+ 
+-   _spectators[queue].Init(&_udp, _poll, queue + 1000, ip, port, _local_connect_status);
++   /* A spectator stream carries every player's input in each frame (DoPoll). */
++   _spectators[queue].Init(&_udp, _poll, queue + 1000, ip, port, _local_connect_status, _input_size * _num_players);
+    _spectators[queue].SetDisconnectTimeout(_disconnect_timeout);
+    _spectators[queue].SetDisconnectNotifyStart(_disconnect_notify_start);
+    _spectators[queue].Synchronize();
+diff --git a/src/lib/ggpo/backends/spectator.cpp b/src/lib/ggpo/backends/spectator.cpp
+index 375fc99..f52679b 100644
+--- a/src/lib/ggpo/backends/spectator.cpp
++++ b/src/lib/ggpo/backends/spectator.cpp
+@@ -34,7 +34,7 @@ SpectatorBackend::SpectatorBackend(GGPOSessionCallbacks *cb,
+    /*
+     * Init the host endpoint
+     */
+-   _host.Init(&_udp, _poll, 0, hostip, hostport, NULL);
++   _host.Init(&_udp, _poll, 0, hostip, hostport, NULL, _input_size * _num_players);
+    _host.Synchronize();
+ 
+    /*
 diff --git a/src/lib/ggpo/network/udp_proto.cpp b/src/lib/ggpo/network/udp_proto.cpp
-index 2a3b46c..18a219f 100644
+index d2acd5d..35f4951 100644
 --- a/src/lib/ggpo/network/udp_proto.cpp
 +++ b/src/lib/ggpo/network/udp_proto.cpp
-@@ -9,6 +9,7 @@
+@@ -8,7 +8,9 @@
+ #include "types.h"
  #include "udp_proto.h"
  #include <stddef.h>
++#include <limits.h>
  #include "bitvector.h"
 +#include "input-bits.h"
  
  static const int UDP_HEADER_SIZE = 28;     /* Size of IP + UDP headers */
  static const int NUM_SYNC_PACKETS = 5;
-@@ -630,6 +631,17 @@ UdpProtocol::OnSyncReply(UdpMsg *msg, int len)
+@@ -77,6 +79,7 @@ UdpProtocol::UdpProtocol() :
+    _remote_frame_advantage(0),
+    _round_trip_time(0),
+    _queue(-1),
++   _input_size(0),
+    _magic_number(0),
+    _remote_magic_number(0),
+    _packets_sent(0),
+@@ -125,10 +128,12 @@ UdpProtocol::Init(Udp *udp,
+                   int queue,
+                   char *ip,
+                   u_short port,
+-                  UdpMsg::connect_status *status)
++                  UdpMsg::connect_status *status,
++                  int input_size)
+ {  
+    _udp = udp;
+    _queue = queue;
++   _input_size = input_size;
+    _local_connect_status = status;
+ 
+    _peer_addr.sin_family = AF_INET;
+@@ -643,9 +648,78 @@ UdpProtocol::OnSyncReply(UdpMsg *msg, int len)
+    return true;
+ }
+ 
++/*
++ * The receive boundary for input: nothing in an input packet is applied until
++ * all of it is known to fit this session, whatever the packet declares.
++ *  - width: every frame is the session's input size (Init);
++ *  - encoding: every read stays inside the declared bits and every button
++ *    inside the input (input-bits.h), which also counts the frames;
++ *  - frame count: at most an honest sender's whole pending output
++ *    (PENDING_OUTPUT_SIZE - 1 frames), numbered as non-negative ints;
++ *  - continuity: the frames continue the stream without a gap.  A sender that
++ *    skipped frames we never received (it stopped queueing for us when its
++ *    pending output filled) cannot resume the stream;
++ *  - capacity: the new frames fit in the event queue within that same window,
++ *    counting what every packet read since the backend last drained it queued
++ *    (see EVENT_QUEUE_SIZE).
++ * An honest peer never fails these, so a packet that does is not consumed and
++ * ends the stream like a receive timeout.
++ */
++bool
++UdpProtocol::AcceptsInput(UdpMsg *msg)
++{
++   if (!msg->u.input.num_bits) {
++      return true;
++   }
++   if (msg->u.input.input_size != _input_size) {
++      Log("input size %d is not this session's %d.\n", (int)msg->u.input.input_size, _input_size);
++      return false;
++   }
++   const int frames = sf4e::netplay::InputBitsFrames(msg->u.input.bits, msg->u.input.num_bits, (int)sizeof(msg->u.input.bits),
++                                                     _input_size, (int)sizeof(_last_received_input.bits));
++   if (frames < 0) {
++      Log("input has an invalid encoding (bits:%d).\n", (int)msg->u.input.num_bits);
++      return false;
++   }
++   if (frames > PENDING_OUTPUT_SIZE - 1 || msg->u.input.start_frame > (uint32)(INT_MAX - frames)) {
++      Log("input holds %d frames from frame %u.\n", frames, msg->u.input.start_frame);
++      return false;
++   }
++   const int first = (int)msg->u.input.start_frame;
++   const int expected = _last_received_input.frame < 0 ? first : _last_received_input.frame + 1;
++   if (first > expected) {
++      Log("Input gap (got frame %d, expected %d).\n", first, expected);
++      return false;
++   }
++   const int new_frames = MAX(first + frames - expected, 0);
++   if (_event_queue.size() + new_frames > PENDING_OUTPUT_SIZE - 1) {
++      Log("%d new input frames do not fit beside %d queued events.\n", new_frames, _event_queue.size());
++      return false;
++   }
++   return true;
++}
++
  bool
  UdpProtocol::OnInput(UdpMsg *msg, int len)
  {
 +   /*
-+    * Check the whole input encoding before any of it changes this
-+    * endpoint's state (see input-bits.h).
++    * Input is read only while running.  Until the handshake completes, the
++    * magic filter in OnMsg passes only packets no peer of ours sent, and once
++    * this endpoint is disconnected nothing reads its stream.
 +    */
-+   if (msg->u.input.num_bits &&
-+       !sf4e::netplay::InputBitsValid(msg->u.input.bits, msg->u.input.num_bits, (int)sizeof(msg->u.input.bits),
-+                                      msg->u.input.input_size, (int)sizeof(_last_received_input.bits))) {
-+      Log("skipping input with an invalid encoding (bits:%d size:%d).\n", (int)msg->u.input.num_bits, (int)msg->u.input.input_size);
-+      return true;
++   if (_current_state != Running) {
++      Log("dropping input while not running.\n");
++      return false;
++   }
++   if (!AcceptsInput(msg)) {
++      Log("Rejecting input outside this session's bounds.  Disconnecting endpoint.\n");
++      if (!_disconnect_event_sent) {
++         QueueEvent(Event(Event::Disconnected));
++         _disconnect_event_sent = true;
++      }
++      return false;
 +   }
 +
     /*
      * If a disconnect is requested, go ahead and disconnect now.
      */
+@@ -687,19 +761,7 @@ UdpProtocol::OnInput(UdpMsg *msg, int len)
+           * Keep walking through the frames (parsing bits) until we reach
+           * the inputs for the frame right after the one we're on.
+           */
+-         if (currentFrame > (_last_received_input.frame + 1)) {
+-            /*
+-             * The sender skipped frames we never received (it stopped queueing for us
+-             * when its pending output filled).  The stream cannot be resumed, so end
+-             * it like a receive timeout instead of asserting the process away.
+-             */
+-            Log("Input gap (got frame %d, expected %d).  Disconnecting endpoint.\n", currentFrame, _last_received_input.frame + 1);
+-            if (!_disconnect_event_sent) {
+-               QueueEvent(Event(Event::Disconnected));
+-               _disconnect_event_sent = true;
+-            }
+-            return true;
+-         }
++         ASSERT(currentFrame <= (_last_received_input.frame + 1));
+          bool useInputs = currentFrame == _last_received_input.frame + 1;
+          int isDelta = BitVector_ReadBit(bits, &offset);
+          if (isDelta) {
+diff --git a/src/lib/ggpo/network/udp_proto.h b/src/lib/ggpo/network/udp_proto.h
+index 4b3a4cc..3cabc31 100644
+--- a/src/lib/ggpo/network/udp_proto.h
++++ b/src/lib/ggpo/network/udp_proto.h
+@@ -75,7 +75,11 @@ public:
+    UdpProtocol();
+    virtual ~UdpProtocol();
+ 
+-   void Init(Udp *udp, Poll &p, int queue, char *ip, u_short port, UdpMsg::connect_status *status);
++   /*
++    * input_size is the width of every input frame on this endpoint's stream:
++    * the session's input size, or all players' together on a spectator stream.
++    */
++   void Init(Udp *udp, Poll &p, int queue, char *ip, u_short port, UdpMsg::connect_status *status, int input_size);
+ 
+    void Synchronize();
+    bool GetPeerConnectStatus(int id, int *frame);
+@@ -130,6 +134,7 @@ protected:
+    bool OnInvalid(UdpMsg *msg, int len);
+    bool OnSyncRequest(UdpMsg *msg, int len);
+    bool OnSyncReply(UdpMsg *msg, int len);
++   bool AcceptsInput(UdpMsg *msg);
+    bool OnInput(UdpMsg *msg, int len);
+    bool OnInputAck(UdpMsg *msg, int len);
+    bool OnQualityReport(UdpMsg *msg, int len);
+@@ -144,6 +149,7 @@ protected:
+    sockaddr_in    _peer_addr; 
+    uint16         _magic_number;
+    int            _queue;
++   int            _input_size;
+    uint16         _remote_magic_number;
+    bool           _connected;
+    int            _send_latency;

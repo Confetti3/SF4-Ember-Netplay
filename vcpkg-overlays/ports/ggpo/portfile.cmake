@@ -18,9 +18,9 @@ vcpkg_from_github(
         "init-round-trip-time.patch"
         "assert-handler.patch"
         "spectator-catch-up.patch"
-        "bound-input-decoding.patch"
         "sync-retry-timer.patch"
         "event-queue-size.patch"
+        "bound-input-decoding.patch"
         "ignored-inputs.patch"
 )
 
