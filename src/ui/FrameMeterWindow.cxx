@@ -284,10 +284,10 @@ void Meter(const MeterView& meter, float hudScale, const MeterOptions& options) 
     const float gap = 10 * hudScale;
     const auto measure=[&](const char* value){return ImGui::CalcTextSize(value).x;};
     // The startup and recovery columns are sized from the translated text they will show.
-    const float startup=(std::max)(measure(loc::Tf("training.start_frames",999).c_str()),measure(loc::T("training.start_unknown")));
-    const float recovery=options.recovery?(std::max)({measure(loc::Tf("training.recovery_frames",999).c_str()),measure(loc::T("training.recovery_unknown")),
+    const float startupColumn=(std::max)(measure(loc::Tf("training.start_frames",999).c_str()),measure(loc::T("training.start_unknown")));
+    const float recoveryColumn=options.recovery?(std::max)({measure(loc::Tf("training.recovery_frames",999).c_str()),measure(loc::T("training.recovery_unknown")),
         measure(loc::T("training.recovery_cancelled"))})+gap:0;
-    const float label = options.numbers ? measure("P2") + gap + measure("+999 f") + gap + startup + gap + recovery : 0;
+    const float label = options.numbers ? measure("P2") + gap + measure("+999 f") + gap + startupColumn + gap + recoveryColumn : 0;
     // As tall as the text beside it allows, so the run lengths read too.
     const float height = 14 * hudScale;
     const float width = (std::max)(120.f, ImGui::GetContentRegionAvail().x - label);
