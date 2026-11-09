@@ -203,6 +203,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/sf4e_replays.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/sf4e_video.cmake")
 
 add_library(sf4e STATIC
+    "src/common/SdlPadSource.cxx"
     "src/sf4e/sf4e__Gamepads.cxx"
     "src/sf4e/sf4e__GamepadLayouts.cxx"
     "src/sf4e/sf4e__OptionUIController.cxx"

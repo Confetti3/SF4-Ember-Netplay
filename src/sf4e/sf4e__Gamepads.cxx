@@ -46,7 +46,7 @@ bool setupRestLogged = false;
 Slots slots{ReadsNativeProfile};
 Inventory inventory, logged;
 bool haveLogged = false;
-std::map<Id, SDL_Gamepad*> handles;
+SdlPadSource source;
 struct RawJoystick { SDL_Joystick* handle; std::vector<int> rest; };
 std::map<Id, RawJoystick> rawHandles;
 std::vector<PadFrame> frames;
@@ -60,19 +60,17 @@ std::map<Id, RumbleState> rumble;
 std::array<Snapshot, 4> snapshots;
 std::atomic<void*> originalState{nullptr}, originalCapabilities{nullptr}, originalRumble{nullptr}, originalBattery{nullptr};
 
-std::string Text(const char* value) { return value ? value : ""; }
-
 // The mapping SDL holds for a GUID (its own, or an Ember one once added), or empty.
 std::string MappingForGuid(const std::string& guid) {
     char* mapping = SDL_GetGamepadMappingForGUID(SDL_StringToGUID(guid.c_str()));
-    auto text = Text(mapping); SDL_free(mapping);
+    auto text = SdlText(mapping); SDL_free(mapping);
     return text;
 }
 
 // The mapping SDL applies to this device now (the same one SDL_IsGamepad found), or empty.
 std::string MappingForId(Id id) {
     char* mapping = SDL_GetGamepadMappingForID(id);
-    auto text = Text(mapping); SDL_free(mapping);
+    auto text = SdlText(mapping); SDL_free(mapping);
     return text;
 }
 
@@ -126,27 +124,15 @@ void LogLocked() {
 }
 
 void Rebuild() {
-    int count = 0;
-    SDL_JoystickID* ids = SDL_GetJoysticks(&count);
-    if (!ids) { spdlog::warn("Input: controller inventory failed (SDL: {})", SDL_GetError()); return; }
-    std::vector<Pad> pads;
-    for (int i = 0; i < count; ++i) {
-        Pad pad;
-        pad.id = ids[i];
-        pad.vid = SDL_GetJoystickVendorForID(pad.id); pad.pid = SDL_GetJoystickProductForID(pad.id);
-        pad.type = PadType(pad.id);
-        pad.arcadeStick = SDL_GetJoystickTypeForID(pad.id) == SDL_JOYSTICK_TYPE_ARCADE_STICK;
-        char guid[33];
-        SDL_GUIDToString(SDL_GetJoystickGUIDForID(pad.id), guid, sizeof(guid));
-        pad.identity = {guid, "", Text(SDL_GetJoystickPathForID(pad.id)), Text(SDL_GetJoystickNameForID(pad.id))};
+    auto listed = source.List();
+    if (!listed) { spdlog::warn("Input: controller inventory failed (SDL: {})", SDL_GetError()); return; }
+    std::vector<Pad> pads = std::move(*listed);
+    for (auto& pad : pads) {
         const bool emberSetUp = savedEmberMappingGuids.count(pad.identity.guid) != 0;
-        const bool sdlMaps = SDL_IsGamepad(pad.id);
         // A mapping Ember saved stands as it is, even with skipped steps; SDL's own must bind every required wizard step.
-        pad.mapped = sdlMaps && (emberSetUp || MapsRequiredSteps(MappingForId(pad.id)));
-        pad.sdlMapping = emberSetUp ? sdlMappedGuids.count(pad.identity.guid) != 0 : sdlMaps;
-        pads.push_back(std::move(pad));
+        pad.mapped = pad.mapped && (emberSetUp || MapsRequiredSteps(MappingForId(pad.id)));
+        if (emberSetUp) pad.sdlMapping = sdlMappedGuids.count(pad.identity.guid) != 0;
     }
-    SDL_free(ids);
     Classify(pads, savedEmberMappingGuids, ReadsNativeProfile);
     const auto settingUp = setup.state.active ? std::make_optional(setup.identity) : std::nullopt;
     for (auto it = rawHandles.begin(); it != rawHandles.end();) {
@@ -176,25 +162,10 @@ void Rebuild() {
     // is the same with or without its setup handle.
     for (auto& pad : pads) {
         const auto raw = rawHandles.find(pad.id);
-        if (raw != rawHandles.end()) pad.identity.serial = Text(SDL_GetJoystickSerial(raw->second.handle));
+        if (raw != rawHandles.end()) pad.identity.serial = SdlText(SDL_GetJoystickSerial(raw->second.handle));
     }
-    for (auto it = handles.begin(); it != handles.end();) {
-        const bool keep = std::any_of(pads.begin(), pads.end(), [&](const Pad& pad) {
-            return pad.id == it->first && pad.status == Status::NotInUse;
-        });
-        if (keep) { ++it; continue; }
-        SDL_CloseGamepad(it->second);
-        it = handles.erase(it);
-    }
-    for (auto& pad : pads) if (pad.status == Status::NotInUse) {
-        auto handle = handles.find(pad.id);
-        if (handle == handles.end()) {
-            if (auto* opened = SDL_OpenGamepad(pad.id)) handle = handles.emplace(pad.id, opened).first;
-            else spdlog::warn("Input: controller '{}' not in use (SDL: {})", pad.identity.name, SDL_GetError());
-        }
-        pad.available = handle != handles.end();
-        if (pad.available) pad.identity.serial = Text(SDL_GetGamepadSerial(handle->second));
-    }
+    for (const auto& failure : source.Hold(pads))
+        spdlog::warn("Input: controller '{}' not in use (SDL: {})", failure.name, failure.error);
     inventory = slots.Update(std::move(pads), preferred, savedEmberMappingGuids);
     for (const auto& dropped : slots.DroppedReservations()) {
         const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(),
@@ -202,30 +173,6 @@ void Rebuild() {
         spdlog::info("Input: slot {} reserved for id {} given to '{}' id {}", dropped.slot,
             IdentityTag(dropped.owner), pad->identity.name, IdentityTag(pad->identity));
     }
-}
-
-// SDL's buttons for the extra buttons, in Extra order.
-constexpr std::array<SDL_GamepadButton, ExtraCount> ExtraButtons = {
-    SDL_GAMEPAD_BUTTON_TOUCHPAD, SDL_GAMEPAD_BUTTON_GUIDE, SDL_GAMEPAD_BUTTON_MISC1, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1,
-    SDL_GAMEPAD_BUTTON_LEFT_PADDLE1, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2, SDL_GAMEPAD_BUTTON_LEFT_PADDLE2};
-State ReadState(SDL_Gamepad* pad) {
-    constexpr std::array<SDL_GamepadButton, static_cast<unsigned>(Button::Count)> buttons = {
-        SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH,
-        SDL_GAMEPAD_BUTTON_BACK, SDL_GAMEPAD_BUTTON_GUIDE, SDL_GAMEPAD_BUTTON_START,
-        SDL_GAMEPAD_BUTTON_LEFT_STICK, SDL_GAMEPAD_BUTTON_RIGHT_STICK,
-        SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,
-        SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT
-    };
-    State state;
-    for (unsigned i = 0; i < buttons.size(); ++i) state.buttons[i] = SDL_GetGamepadButton(pad, buttons[i]);
-    for (unsigned i = 0; i < ExtraCount; ++i) state.extras[i] = SDL_GetGamepadButton(pad, ExtraButtons[i]);
-    state.leftX = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFTX);
-    state.leftY = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFTY);
-    state.rightX = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHTX);
-    state.rightY = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHTY);
-    state.leftTrigger = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
-    state.rightTrigger = SDL_GetGamepadAxis(pad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
-    return state;
 }
 
 RawState ReadRaw(SDL_Joystick* joystick, const std::vector<int>& rest = {}) {
@@ -273,14 +220,14 @@ void UpdateSetup(const RawState& raw, bool connected) {
 }
 void ApplyRumble() {
     for (auto it = rumble.begin(); it != rumble.end();) {
-        const auto handle = handles.find(it->first);
-        if (handle == handles.end() || !SDL_GamepadConnected(handle->second)) { it = rumble.erase(it); continue; }
+        SDL_Gamepad* const gamepad = source.Handle(it->first);
+        if (!gamepad || !SDL_GamepadConnected(gamepad)) { it = rumble.erase(it); continue; }
         auto& request = it->second;
         const bool applied = ShouldApplyRumble(request.pending, request.left, request.right) &&
-            SDL_RumbleGamepad(handle->second, request.left, request.right, 200);
+            SDL_RumbleGamepad(gamepad, request.left, request.right, 200);
         if (request.pending) {
             request.pending = false;
-            const bool supported = SDL_GetBooleanProperty(SDL_GetGamepadProperties(handle->second), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
+            const bool supported = SDL_GetBooleanProperty(SDL_GetGamepadProperties(gamepad), SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false);
             request.result = !applied && supported ? ERROR_NOT_SUPPORTED : ERROR_SUCCESS;
             if (!applied && !supported) {
                 const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [&](const Pad& pad) { return pad.id == it->first; });
@@ -295,16 +242,7 @@ void ApplyRumble() {
     }
 }
 void UpdateLocked(bool rebuild) {
-    SDL_UpdateGamepads();
-    SDL_PumpEvents();
-    SDL_Event events[32];
-    int count;
-    while ((count = SDL_PeepEvents(events, 32, SDL_GETEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST)) > 0)
-        for (int i = 0; i < count; ++i) switch (events[i].type) {
-        case SDL_EVENT_JOYSTICK_ADDED: case SDL_EVENT_JOYSTICK_REMOVED:
-        case SDL_EVENT_GAMEPAD_ADDED: case SDL_EVENT_GAMEPAD_REMOVED: case SDL_EVENT_GAMEPAD_REMAPPED:
-            rebuild = true;
-        }
+    if (source.Pump()) rebuild = true;
     if (rebuild) Rebuild();
     GamepadLayouts::Update(inventory);
     std::array<Snapshot, 4> next{};
@@ -314,21 +252,21 @@ void UpdateLocked(bool rebuild) {
         PadFrame frame; frame.pad = pad;
         GamepadLayouts::Read(frame, inventory);
         const bool settingUp = setup.state.active && Same(pad.identity, setup.identity);
-        auto handle = handles.find(pad.id);
-        if (handle != handles.end() && SDL_GamepadConnected(handle->second)) {
-            frame.state = ReadState(handle->second);
+        SDL_Gamepad* const gamepad = source.Handle(pad.id);
+        if (gamepad && SDL_GamepadConnected(gamepad)) {
+            frame.state = ReadState(gamepad);
             if (pad.hasEmberMapping) {
                 // A failed read names no bound inputs this frame.
-                frame.bindings = ReadBindings(handle->second).value_or(std::vector<SdlBinding>{});
-                frame.numberedHats = SDL_GetNumJoystickHats(SDL_GetGamepadJoystick(handle->second)) > 1;
+                frame.bindings = ReadBindings(gamepad).value_or(std::vector<SdlBinding>{});
+                frame.numberedHats = SDL_GetNumJoystickHats(SDL_GetGamepadJoystick(gamepad)) > 1;
             }
             const SDL_GamepadButton buttons[] = {SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER};
-            for (unsigned i = 0; i < 6; ++i) frame.has[i] = SDL_GamepadHasButton(handle->second, buttons[i]);
-            frame.has[6] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
-            frame.has[7] = SDL_GamepadHasAxis(handle->second, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
-            frame.has[8] = SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_LEFT_STICK);
-            frame.has[9] = SDL_GamepadHasButton(handle->second, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
-            for (unsigned i = 0; i < ExtraCount; ++i) frame.hasExtras[i] = SDL_GamepadHasButton(handle->second, ExtraButtons[i]);
+            for (unsigned i = 0; i < 6; ++i) frame.has[i] = SDL_GamepadHasButton(gamepad, buttons[i]);
+            frame.has[6] = SDL_GamepadHasAxis(gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+            frame.has[7] = SDL_GamepadHasAxis(gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+            frame.has[8] = SDL_GamepadHasButton(gamepad, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+            frame.has[9] = SDL_GamepadHasButton(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+            for (unsigned i = 0; i < ExtraCount; ++i) frame.hasExtras[i] = SDL_GamepadHasButton(gamepad, SdlExtraButtons[i]);
             const auto held = [](bool down) { return down; };
             frame.pressed = std::any_of(frame.state.buttons.begin(), frame.state.buttons.end(), held) ||
                 std::any_of(frame.state.extras.begin(), frame.state.extras.end(), held) ||
@@ -350,9 +288,9 @@ void UpdateLocked(bool rebuild) {
         }
         if (settingUp) {
             setup.identity = pad.identity;
-            if (handle != handles.end()) rawState = ReadRaw(SDL_GetGamepadJoystick(handle->second));
+            if (gamepad) rawState = ReadRaw(SDL_GetGamepadJoystick(gamepad));
             setupRaw = std::move(rawState);
-            setupConnected = (handle != handles.end() && SDL_GamepadConnected(handle->second)) ||
+            setupConnected = (gamepad && SDL_GamepadConnected(gamepad)) ||
                 (raw != rawHandles.end() && SDL_JoystickConnected(raw->second.handle));
         }
         frames.push_back(std::move(frame));
@@ -404,7 +342,7 @@ DWORD WINAPI SetState(DWORD slot, XINPUT_VIBRATION* vibration) {
         return reinterpret_cast<decltype(&XInputSetState)>(originalRumble.load())(slot, vibration);
     }
     if (!vibration) return ERROR_BAD_ARGUMENTS;
-    if (slot >= snapshots.size() || !snapshots[slot].id || !handles.count(snapshots[slot].id)) return ERROR_DEVICE_NOT_CONNECTED;
+    if (slot >= snapshots.size() || !snapshots[slot].id || !source.Handle(snapshots[slot].id)) return ERROR_DEVICE_NOT_CONNECTED;
     auto& request = rumble[snapshots[slot].id];
     request.left = vibration->wLeftMotorSpeed; request.right = vibration->wRightMotorSpeed; request.pending = true;
     // Import callers can run on another thread. Report the last hardware
@@ -427,13 +365,12 @@ DWORD WINAPI GetBattery(DWORD slot, BYTE deviceType, XINPUT_BATTERY_INFORMATION*
 
 void CloseLocked() {
     GamepadLayouts::Shutdown();
-    for (const auto& [id, handle] : handles) SDL_CloseGamepad(handle);
-    handles.clear(); rumble.clear();
+    rumble.clear();
     for (const auto& [id, raw] : rawHandles) SDL_CloseJoystick(raw.handle);
     rawHandles.clear(); frames.clear();
     DirectInputFilter::LendToSetup({});
     inventory = {}; snapshots = {};
-    SDL_Quit();
+    source.Stop();
     active = false;
 }
 }
@@ -460,18 +397,11 @@ void Start() {
     layerSetting = prefs.controllerLayer;
     if (!layerSetting) { GamepadLayouts::Started({}, false); startupNote = "Input: the game reads controllers itself (setting)"; return; }
     preferred = prefs.deviceIdentity;
-    // Only GAMEPAD is initialized, so SDL owns no video or game window. Keep
-    // SDL's default backend deduplication; disabling it can expose Xbox pads twice.
-    for (const char* hint : {SDL_HINT_JOYSTICK_THREAD, SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS,
-        SDL_HINT_JOYSTICK_HIDAPI, SDL_HINT_JOYSTICK_HIDAPI_PS4, SDL_HINT_JOYSTICK_HIDAPI_PS5,
-        SDL_HINT_JOYSTICK_HIDAPI_SWITCH, SDL_HINT_JOYSTICK_HIDAPI_STEAM, SDL_HINT_JOYSTICK_HIDAPI_XBOX,
-        SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS, SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS}) SDL_SetHint(hint, "1");
     // The caller holds this thread in the multithreaded apartment (fMain::Initialize).
-    if (!SDL_Init(SDL_INIT_GAMEPAD)) {
+    if (const auto failed = source.Start(SdlBackends::Every)) {
         GamepadLayouts::Started({}, false);
         startupWarning = true;
-        startupNote = "Input: SDL failed to start (" + Text(SDL_GetError()) + "); the game reads controllers itself";
-        SDL_Quit();
+        startupNote = "Input: SDL failed to start (" + *failed + "); the game reads controllers itself";
         return;
     }
     nlohmann::json values; std::string error;
@@ -487,9 +417,7 @@ void Start() {
     UpdateLocked(true);
     active = true;
     GamepadLayouts::Started(inventory, true);
-    const int version = SDL_GetVersion();
-    startupNote = fmt::format("Input: SDL {}.{}.{} started, hidapi {}, background events on, {} saved mappings loaded",
-        SDL_VERSIONNUM_MAJOR(version), SDL_VERSIONNUM_MINOR(version), SDL_VERSIONNUM_MICRO(version),
+    startupNote = fmt::format("Input: SDL {} started, hidapi {}, background events on, {} saved mappings loaded", SdlVersion(),
         SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI, true) ? "on" : "off", savedEmberMappingGuids.size());
 }
 
@@ -555,10 +483,10 @@ void BeginSetup(const Identity& identity, unsigned padId) {
     if (!active || setup.state.active) return;
     std::optional<SetupAxisEntry> entry;
     for (const auto& pad : inventory.pads) if (Same(pad.identity, identity)) {
-        const auto handle = handles.find(pad.id);
-        if (handle == handles.end() || !SDL_GetGamepadButton(handle->second, SDL_GAMEPAD_BUTTON_SOUTH)) break;
+        SDL_Gamepad* const gamepad = source.Handle(pad.id);
+        if (!gamepad || !SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_SOUTH)) break;
         // A failed read finds no axis behind the entry press.
-        for (const auto& binding : ReadBindings(handle->second).value_or(std::vector<SdlBinding>{}))
+        for (const auto& binding : ReadBindings(gamepad).value_or(std::vector<SdlBinding>{}))
             if (binding.output == SdlTarget("a") && binding.input.type == SdlBindType::Axis) {
                 entry = SetupAxisEntry{binding.input.index, binding.input.min}; break;
             }
@@ -582,8 +510,7 @@ std::optional<std::string> SaveSetup() {
     // The merge starts from SDL's snapshot of the pad, its bindings, face style
     // and type; its mapping text only supplies the other fields that bind nothing.
     const auto pad = std::find_if(inventory.pads.begin(), inventory.pads.end(), [](const Pad& candidate) { return Same(candidate.identity, setup.identity); });
-    const auto handle = pad == inventory.pads.end() ? handles.end() : handles.find(pad->id);
-    const auto snapshot = pad == inventory.pads.end() ? std::nullopt : ReadSnapshot(pad->id, handle == handles.end() ? nullptr : handle->second);
+    const auto snapshot = pad == inventory.pads.end() ? std::nullopt : ReadSnapshot(pad->id, source.Handle(pad->id));
     const auto text = MappingForGuid(guid);
     const auto mapping = SetupMapping(setup.state, snapshot, guid, setup.identity.name, text);
     std::string failure;

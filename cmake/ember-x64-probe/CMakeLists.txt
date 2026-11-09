@@ -90,12 +90,17 @@ set(EMBER_LAUNCHER_UI
     ui/RecoverySurface.cxx ui/RecoverySurface.hxx ui/RecoveryController.cxx
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx)
 
+# The controller layers' SDL pad source: built into its own library below,
+# which only a game's mod links, so nothing else of the library needs SDL.
+set(EMBER_SDL
+    common/SdlPadSource.cxx common/SdlPadSource.hxx)
+
 set(EMBER_NOT_FOR_WINDOWS
     # The Linux room host's helper client; Windows builds HelperClient.cxx.
     platform/HelperClientPosix.cxx)
 
 # A file named in a list but gone from the tree is a stale entry: stop.
-foreach(_file IN LISTS EMBER_SF4_SIDE EMBER_NOT_FOR_WINDOWS EMBER_LAUNCHER_UI)
+foreach(_file IN LISTS EMBER_SF4_SIDE EMBER_NOT_FOR_WINDOWS EMBER_LAUNCHER_UI EMBER_SDL)
     if(NOT EXISTS "${EMBER_SOURCE_ROOT}/${_file}")
         message(FATAL_ERROR "ember-x64-probe: '${_file}' is listed but is not in src/")
     endif()
@@ -118,7 +123,7 @@ function(ember_probe_units files out_var)
 endfunction()
 
 set(_ember_neutral "${_ember_files}")
-list(REMOVE_ITEM _ember_neutral ${EMBER_SF4_SIDE} ${EMBER_NOT_FOR_WINDOWS} ${EMBER_LAUNCHER_UI})
+list(REMOVE_ITEM _ember_neutral ${EMBER_SF4_SIDE} ${EMBER_NOT_FOR_WINDOWS} ${EMBER_LAUNCHER_UI} ${EMBER_SDL})
 ember_probe_units("${_ember_neutral}" _ember_neutral_units)
 list(LENGTH _ember_neutral_units _neutral_count)
 message(STATUS "ember-x64-probe: ${_neutral_count} neutral units")
@@ -153,6 +158,13 @@ endif()
 target_compile_definitions(ember_neutral_x64 PRIVATE SF4E_APP_VERSION="${EMBER_APP_VERSION}")
 target_link_libraries(ember_neutral_x64 PRIVATE
     fmt::fmt ggpo::GGPO imgui::imgui nlohmann_json::nlohmann_json spdlog::spdlog ZLIB::ZLIB)
+# The SDL pad source (common/SdlPadSource), with SDL linked statically as in
+# SF4 Ember's build: SFV Ember's controller layer links it.
+find_package(SDL3 CONFIG REQUIRED)
+ember_probe_units("${EMBER_SDL}" _ember_sdl_units)
+add_library(ember_sdl_pads_x64 STATIC ${_ember_sdl_units})
+target_link_libraries(ember_sdl_pads_x64 PUBLIC ember_neutral_x64 SDL3::SDL3-static)
+
 # The product's package inventory (common/PackageInventory.hxx): a game that
 # ships its own package names its file before it adds this folder; the probe
 # on its own compiles SF4 Ember's.

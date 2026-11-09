@@ -25,6 +25,11 @@
       "version>=": "3.11.2"
     },
     {
+      "name": "sdl3",
+      "version>=": "3.4.16",
+      "default-features": false
+    },
+    {
       "name": "spdlog",
       "version>=": "1.11.0",
       "features": [
