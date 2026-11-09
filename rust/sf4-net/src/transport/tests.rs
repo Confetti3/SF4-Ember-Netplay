@@ -689,3 +689,58 @@ async fn live_relays_answer_probes_and_carry_a_relay_only_connection() {
         b.close().await;
     }
 }
+
+#[tokio::test]
+async fn active_relays_answer_any_id_with_every_relay() {
+    use iroh::address_lookup::AddressLookup as _;
+    use n0_future::StreamExt as _;
+    let id = iroh::SecretKey::generate().public();
+    let mut items = ActiveRelays.resolve(id).expect("an answer for any id");
+    let item = items.next().await.expect("one item").expect("no error");
+    assert_eq!(item.endpoint_id(), id);
+    let relays: std::collections::BTreeSet<_> =
+        item.endpoint_info().relay_urls().cloned().collect();
+    let active: std::collections::BTreeSet<_> =
+        crate::invite::relay_map().urls::<Vec<_>>().into_iter().collect();
+    assert_eq!(relays, active);
+    assert_eq!(item.endpoint_info().ip_addrs().count(), 0);
+    assert!(items.next().await.is_none());
+}
+
+/// By hand only (needs the internet): a dialer with `ActiveRelays` and no
+/// n0 lookup at all, as a player whose router filter blocks dns.iroh.link,
+/// finds a peer by its id alone, as a match dials an opponent who is not the
+/// room host. Without `ActiveRelays` that dial fails with "No addressing
+/// information available" (the 1.5.5 match-start failure).
+#[tokio::test]
+#[ignore = "needs the internet and the live relays"]
+async fn live_a_dialer_without_n0_lookup_finds_a_peer_by_id() {
+    use std::time::Duration;
+    const ALPN: &[u8] = b"sf4e/live-id-dial/1";
+    let filtered = || {
+        Endpoint::builder(presets::Minimal)
+            .relay_mode(RelayMode::Custom(crate::invite::relay_map()))
+            .alpns(vec![ALPN.to_vec()])
+    };
+    let bare = filtered().bind().await.unwrap();
+    let a = filtered().address_lookup(ActiveRelays).bind().await.unwrap();
+    let b = filtered().bind().await.unwrap();
+    timeout(Duration::from_secs(20), async {
+        tokio::join!(bare.online(), a.online(), b.online());
+    })
+    .await
+    .expect("online");
+    let failed = timeout(Duration::from_secs(10), bare.connect(EndpointAddr::new(b.id()), ALPN)).await;
+    assert!(matches!(failed, Ok(Err(_))), "without ActiveRelays: {failed:?}");
+    let accept = tokio::spawn({
+        let b = b.clone();
+        async move { b.accept().await.unwrap().await.map(|c| c.remote_id()) }
+    });
+    let connection = timeout(Duration::from_secs(20), a.connect(EndpointAddr::new(b.id()), ALPN))
+        .await
+        .expect("dial timed out")
+        .expect("dial by id with ActiveRelays");
+    assert_eq!(connection.remote_id(), b.id());
+    let accepted = timeout(Duration::from_secs(5), accept).await.unwrap().unwrap().unwrap();
+    assert_eq!(accepted, a.id());
+}
