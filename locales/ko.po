@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "더미 반격"
 
 msgid "training.reply.detail"
-msgstr "더미가 다시 움직일 수 있게 되는 순간 스스로 하는 행동입니다. 놓친 콤보나 빈틈 있는 마무리를 응징합니다. 반격 기술을 재생하고, 그 줄이 비어 있으면 반격 슬롯을 재생합니다. 재생이나 녹화 중에는 기다립니다."
+msgstr "더미가 다시 자유로워졌을 때 스스로 하는 행동으로, 놓친 콤보나 불안전한 마무리를 응징합니다: 켜진 반격 슬롯 중 하나를 사용하고, 켜진 슬롯이 없는 동안에는 켜진 녹화를 재생합니다."
 
 msgid "training.reply.hit"
 msgstr "콤보를 놓친 뒤"
@@ -1673,9 +1673,6 @@ msgstr "기상 시"
 
 msgid "training.reply.any"
 msgstr "회복할 때마다"
-
-msgid "training.reply.recordings"
-msgstr "녹화"
 
 msgid "training.reply.no_recordings_on"
 msgstr "반격으로 쓸 수 있는 켜진 녹화가 없습니다"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "반격 기술"
 
 msgid "training.reply.moves.detail"
-msgstr "숫자 표기로 입력하는 반격입니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽습니다. qcf, qcb, dp, rdp, hcf, hcb도 됩니다. 예: qcfP, dp+HP. 더미가 아직 움직일 수 없는 동안 커맨드를 넣어, 움직일 수 있는 첫 프레임에 버튼이 들어갑니다. [1]은 다음 기술까지 방향을 유지하고, [1]20f는 20프레임 유지하며, 10f는 기다립니다. 예: [1] > 3HP. 비워 두면 켜진 녹화로 반격합니다."
-
-msgid "training.reply.move"
-msgstr "반격 프리셋"
-
-msgid "training.reply.move.detail"
-msgstr "좌우로 자주 쓰는 반격을 숫자 패드 표기로 고릅니다. 더미가 보는 방향 기준으로 읽습니다. 녹화는 켜진 녹화로 반격하고, 사용자 지정은 입력한 기술을 씁니다. 선택하면 반격 기술을 열어 입력합니다."
-
-msgid "training.reply.custom"
-msgstr "사용자 지정"
+msgstr "이 슬롯의 기술을 넘패드 표기로 입력합니다. 예: 623HP, 44. 더미가 보는 방향에 맞춰 읽힙니다. 커맨드 단어도 됩니다: qcf, qcb, dp, rdp, hcf, hcb. [HP]는 버튼 누르고 있기, ]HP[는 첫 자유 프레임에 떼기, [1]20f는 방향을 20프레임 유지, 10f는 대기. 비우면 기술이 제거됩니다."
 
 msgid "training.reply.timing"
 msgstr "반격 타이밍"
 
 msgid "training.reply.timing.detail"
 msgstr "더미가 움직일 수 있는 첫 프레임 뒤 반격 버튼이 들어가는 프레임 수입니다. 경직 길이는 처음 볼 때 기억합니다. 그 전에는 경직이 끝날 때 반격을 시작합니다."
+
+msgid "training.reply.order"
+msgstr "반격 순서"
+
+msgid "training.reply.order.detail"
+msgstr "켜진 슬롯 중 더미가 고르는 방식: 무작위(각 슬롯의 가중치에 따라) 또는 순서대로(하나씩 차례로)."
+
+msgid "training.reply.slot"
+msgstr "반격 슬롯 {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "더미가 반격에 쓸 수 있는 기술 하나. 좌우로 켜고 끄며, 선택으로 기술 목록을 엽니다."
+
+msgid "training.reply.slot_on"
+msgstr "이 슬롯 사용"
+
+msgid "training.reply.slot_on.detail"
+msgstr "더미가 반격에 이 슬롯을 고를 수 있는지 여부."
+
+msgid "training.reply.weight"
+msgstr "가중치"
+
+msgid "training.reply.weight.detail"
+msgstr "무작위 선택에서 다른 슬롯 대비 이 슬롯의 비중, 1~9."
+
+msgid "training.reply.clear_slot"
+msgstr "이 슬롯 비우기"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "이 슬롯의 기술을 제거합니다."
+
+msgid "training.reply.every_fighter"
+msgstr "모든 파이터"
 
 msgid "training.key.reset"
 msgstr "위치 복원 키"

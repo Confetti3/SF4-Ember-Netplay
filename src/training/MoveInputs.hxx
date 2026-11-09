@@ -89,7 +89,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         Step step;
         if (!ParseStep(text, step, error)) return fail(error);
         if (step.hold) {
-            const unsigned held = DirectionBits(step.motion[0], facingRight);
+            const unsigned held = DirectionBits(step.motion[0], facingRight) | ChosenButtons(step);
             if (step.frames) push(held, step.frames);
             else pending = held;
             continue;
@@ -160,7 +160,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             put(dash, 2); put(0, 2); put(dash, 2);
         } else {
             // A jumping move takes effect on its jump.
-            if (step.air) { mark(); put(DirectionBits('8', facingRight), 2); put(0, 10); }
+            if (step.air) { mark(); put(DirectionBits(step.jump, facingRight), 2); put(0, 10); }
             unsigned last = 0;
             // The wait held the motion's first direction, or a hold in its
             // place; a lone direction goes in with the button either way,
@@ -175,7 +175,8 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
                 last = DirectionBits(motion[i], facingRight);
                 lastAt = static_cast<int>(own.size());
                 const bool held = firstHeld && i == 0;
-                put(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
+                // A 720 has 32 frames for its two turns (.bcm ROTATE window): a frame each.
+                put(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.motion == "720" ? 1 : step.cancel ? 2 : 3);
             }
             // A move with no button takes effect on its last direction; one
             // with a button, on it.
@@ -186,9 +187,20 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
                 if (!step.air) mark();
                 if (step.edge == Edge::Hold) put(last | buttons, 30);
                 else if (step.edge == Edge::Release) { if (!letGo) put(last | buttons, 30); put(last, 2); }
+                else if (step.mash && step.mashOrder.empty() && !(step.cancel && after)) {
+                    // A mash on its own: the first press starts a normal, which a whiff
+                    // cannot cancel, and the game drops the presses before it; the move
+                    // comes out on the first press after that normal (.bcm: five presses
+                    // of any punch or kick, then the move's own). So the light normal,
+                    // the shortest (twice: a reversal's first press can land a frame
+                    // early), then the move's buttons until well past its end.
+                    const unsigned light = (step.buttons & Punches) ? LP : LK;
+                    put(last | light, 1); put(last, 1); put(last | light, 1); put(last, 1);
+                    for (int press = 0; press < 8; ++press) { put(last | buttons, 1); if (press < 7) put(last, 1); }
+                }
                 else if (step.mash) {
-                    // Five presses: several buttons are cycled one per frame (a piano),
-                    // one button goes on and off a frame at a time.
+                    // A cancelled mash: five presses; several buttons are cycled one per
+                    // frame (a piano), one button goes on and off a frame at a time.
                     std::vector<Step::MashPress> cycle = step.mashOrder;
                     const int presses = cycle.empty() ? 5 : static_cast<int>(cycle.size());
                     if (cycle.empty()) {

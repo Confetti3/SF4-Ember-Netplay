@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Odpowiedź manekina"
 
 msgid "training.reply.detail"
-msgstr "Co manekin robi sam, gdy znów jest wolny, aby ukarać przerwane combo lub ryzykowne zakończenie: odtwarza Ciosy odpowiedzi albo slot odpowiedzi, gdy ten wiersz jest pusty. Odpowiedź czeka, gdy trwa odtwarzanie lub nagrywanie."
+msgstr "Co manekin robi sam, gdy tylko znów jest wolny, by ukarać przerwane combo lub niebezpieczne zakończenie: wykonuje jeden z włączonych slotów odpowiedzi, albo włączone nagrania, dopóki żaden slot nie jest włączony."
 
 msgid "training.reply.hit"
 msgstr "Po przerwanym combo"
@@ -1673,9 +1673,6 @@ msgstr "Przy wstawaniu"
 
 msgid "training.reply.any"
 msgstr "Zawsze po odzyskaniu kontroli"
-
-msgid "training.reply.recordings"
-msgstr "Nagrania"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Żadne włączone nagranie nie nadaje się na odpowiedź"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Ciosy odpowiedzi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. [1] trzyma kierunek do następnego ruchu, [1]20f trzyma go 20 klatek, a 10f czeka: [1] > 3HP blokuje nisko, aż manekin będzie wolny, potem wciska 3HP. Puste pole odpowiada włączonym nagraniem."
-
-msgid "training.reply.move"
-msgstr "Gotowa odpowiedź"
-
-msgid "training.reply.move.detail"
-msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Nagrania odpowiadają włączonym nagraniem; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
-
-msgid "training.reply.custom"
-msgstr "Własna"
+msgstr "Cios tego slotu w notacji numpad, np. 623HP lub 44, odczytany dla strony, w którą patrzy manekin. Działają też słowa ruchów: qcf, qcb, dp, rdp, hcf i hcb. [HP] przytrzymuje przycisk, ]HP[ puszcza go w pierwszej wolnej klatce, [1]20f trzyma kierunek 20 klatek, a 10f czeka. Puste usuwa cios."
 
 msgid "training.reply.timing"
 msgstr "Synchronizacja odpowiedzi"
 
 msgid "training.reply.timing.detail"
 msgstr "Liczba klatek po pierwszej wolnej klatce manekina, w której trafia przycisk odpowiedzi. Długość ogłuszenia jest zapamiętywana za pierwszym razem; do tego czasu odpowiedź zaczyna się, gdy ogłuszenie się kończy."
+
+msgid "training.reply.order"
+msgstr "Kolejność odpowiedzi"
+
+msgid "training.reply.order.detail"
+msgstr "Jak manekin wybiera spośród włączonych slotów: losowo, każdy slot według jego wagi, albo po kolei, jeden po drugim."
+
+msgid "training.reply.slot"
+msgstr "Slot odpowiedzi {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Jeden cios, którym manekin może odpowiedzieć. Lewo i Prawo włączają go lub wyłączają; Wybór otwiera jego ciosy."
+
+msgid "training.reply.slot_on"
+msgstr "Używaj tego slotu"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Czy manekin może wybrać ten slot do swojej odpowiedzi."
+
+msgid "training.reply.weight"
+msgstr "Waga"
+
+msgid "training.reply.weight.detail"
+msgstr "Udział tego slotu w losowaniu obok pozostałych, od 1 do 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Opróżnij ten slot"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Usuwa cios z tego slotu."
+
+msgid "training.reply.every_fighter"
+msgstr "Każdy wojownik"
 
 msgid "training.key.reset"
 msgstr "Klawisz przywracania"

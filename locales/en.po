@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Dummy reply"
 
 msgid "training.reply.detail"
-msgstr "What the dummy does by itself once it is free again, to punish a dropped combo or an unsafe ender: it plays Reply moves, or the reply slot while that line is empty. It waits while a playback or recording runs."
+msgstr "What the dummy does by itself once it is free again, to punish a dropped combo or an unsafe ender: it plays one of the reply slots that are on, or the recordings that are on while no slot is."
 
 msgid "training.reply.hit"
 msgstr "After a dropped combo"
@@ -1673,9 +1673,6 @@ msgstr "On Wake-Up"
 
 msgid "training.reply.any"
 msgstr "Whenever it recovers"
-
-msgid "training.reply.recordings"
-msgstr "Recordings"
 
 msgid "training.reply.no_recordings_on"
 msgstr "No recordings are on that can be used as a reply"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Reply moves"
 
 msgid "training.reply.moves.detail"
-msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. [1] holds a direction until the next move, [1]20f holds it 20 frames and 10f waits: [1] > 3HP blocks low until the dummy is free, then presses 3HP. Empty replies with a recording that is on."
-
-msgid "training.reply.move"
-msgstr "Reply preset"
-
-msgid "training.reply.move.detail"
-msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Recordings replies with a recording that is on; Custom keeps the moves you typed. Select opens Reply moves to type one."
-
-msgid "training.reply.custom"
-msgstr "Custom"
+msgstr "This slot's move typed in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb. [HP] holds a button, ]HP[ lets it go on the first free frame, [1]20f holds a direction 20 frames and 10f waits. Empty removes the move."
 
 msgid "training.reply.timing"
 msgstr "Reply timing"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames after the dummy's first free frame that the reply's button lands. How long a stun lasts is learned the first time it is seen; until then the reply starts as the stun ends."
+
+msgid "training.reply.order"
+msgstr "Reply order"
+
+msgid "training.reply.order.detail"
+msgstr "How the dummy picks among the slots that are on: at random, each slot by its weight, or in order, one after the other."
+
+msgid "training.reply.slot"
+msgstr "Reply slot {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "One move the dummy may reply with. Left and Right turn it on or off; Select opens its moves."
+
+msgid "training.reply.slot_on"
+msgstr "Use this slot"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Whether the dummy may pick this slot for its reply."
+
+msgid "training.reply.weight"
+msgstr "Weight"
+
+msgid "training.reply.weight.detail"
+msgstr "This slot's share of the random draw next to the others, 1 to 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Empty this slot"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Removes this slot's move."
+
+msgid "training.reply.every_fighter"
+msgstr "Every fighter"
 
 msgid "training.key.reset"
 msgstr "Reset key"

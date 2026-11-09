@@ -1964,7 +1964,7 @@ msgid "training.reply"
 msgstr "Resposta do boneco"
 
 msgid "training.reply.detail"
-msgstr "O que o boneco faz sozinho assim que fica livre de novo, para punir um combo perdido ou um final inseguro: reproduz os Golpes de resposta, ou o espaço de resposta se essa linha estiver vazia. A resposta espera enquanto houver reprodução ou gravação."
+msgstr "O que o boneco faz sozinho assim que fica livre de novo, para punir um combo perdido ou um final inseguro: ele executa um dos espaços de resposta ativos, ou as gravações ativas enquanto nenhum espaço estiver ligado."
 
 msgid "training.reply.hit"
 msgstr "Após um combo perdido"
@@ -1977,9 +1977,6 @@ msgstr "Ao levantar"
 
 msgid "training.reply.any"
 msgstr "Sempre que se recuperar"
-
-msgid "training.reply.recordings"
-msgstr "Gravações"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Nenhuma gravação ligada serve como resposta"
@@ -2000,22 +1997,46 @@ msgid "training.reply.moves"
 msgstr "Golpes de resposta"
 
 msgid "training.reply.moves.detail"
-msgstr "A resposta digitada em notação numérica, como 623HP ou 44, lida para o lado que o boneco encara. Nomes de movimentos também valem: qcf, qcb, dp, rdp, hcf e hcb, como qcfP ou dp+HP. O movimento entra enquanto o boneco ainda está preso, para o botão cair no primeiro frame livre. [1] segura uma direção até o próximo movimento, [1]20f a segura por 20 frames e 10f espera: [1] > 3HP defende embaixo até o boneco ficar livre e então aperta 3HP. Vazio responde com uma gravação ligada."
-
-msgid "training.reply.move"
-msgstr "Resposta predefinida"
-
-msgid "training.reply.move.detail"
-msgstr "Esquerda e direita escolhem uma resposta comum em notação numérica, lida para o lado para onde o boneco olha. Gravações responde com uma gravação ligada; Personalizada mantém os golpes digitados. Selecionar abre Golpes de resposta para digitar um."
-
-msgid "training.reply.custom"
-msgstr "Personalizada"
+msgstr "O golpe deste espaço em notação numpad, como 623HP ou 44, lido para o lado que o boneco encara. Palavras de movimento também valem: qcf, qcb, dp, rdp, hcf e hcb. [HP] segura um botão, ]HP[ o solta no primeiro quadro livre, [1]20f segura uma direção por 20 quadros e 10f espera. Vazio remove o golpe."
 
 msgid "training.reply.timing"
 msgstr "Ajuste da resposta"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames depois do primeiro frame livre do boneco em que cai o botão da resposta. A duração de um atordoamento é aprendida na primeira vez; até lá a resposta começa quando ele termina."
+
+msgid "training.reply.order"
+msgstr "Ordem da resposta"
+
+msgid "training.reply.order.detail"
+msgstr "Como o boneco escolhe entre os espaços ativos: ao acaso, cada espaço pelo seu peso, ou em ordem, um após o outro."
+
+msgid "training.reply.slot"
+msgstr "Espaço de resposta {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Um golpe com que o boneco pode responder. Esquerda e Direita o ligam ou desligam; Selecionar abre seus golpes."
+
+msgid "training.reply.slot_on"
+msgstr "Usar este espaço"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Se o boneco pode escolher este espaço para sua resposta."
+
+msgid "training.reply.weight"
+msgstr "Peso"
+
+msgid "training.reply.weight.detail"
+msgstr "A parte deste espaço no sorteio diante dos outros, de 1 a 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Esvaziar este espaço"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Remove o golpe deste espaço."
+
+msgid "training.reply.every_fighter"
+msgstr "Todos os lutadores"
 
 msgid "training.key.reset"
 msgstr "Tecla Restaurar"

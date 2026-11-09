@@ -1964,7 +1964,7 @@ msgid "training.reply"
 msgstr "Respuesta del muñeco"
 
 msgid "training.reply.detail"
-msgstr "Lo que hace el muñeco por sí solo en cuanto vuelve a estar libre, para castigar un combo fallado o un final inseguro: reproduce los Golpes de respuesta, o el espacio de respuesta si esa línea está vacía. Espera mientras haya una reproducción o grabación."
+msgstr "Lo que el muñeco hace por sí mismo en cuanto vuelve a estar libre, para castigar un combo fallido o un remate inseguro: ejecuta uno de los espacios de respuesta activos, o las grabaciones activas mientras ningún espacio lo esté."
 
 msgid "training.reply.hit"
 msgstr "Tras un combo fallado"
@@ -1977,9 +1977,6 @@ msgstr "Al levantarse"
 
 msgid "training.reply.any"
 msgstr "Siempre que se recupere"
-
-msgid "training.reply.recordings"
-msgstr "Grabaciones"
 
 msgid "training.reply.no_recordings_on"
 msgstr "No hay grabaciones activadas que sirvan como respuesta"
@@ -2000,22 +1997,46 @@ msgid "training.reply.moves"
 msgstr "Golpes de respuesta"
 
 msgid "training.reply.moves.detail"
-msgstr "La respuesta escrita en notación numérica, como 623HP o 44, leída según el lado al que mira el muñeco. También sirven los nombres de movimientos: qcf, qcb, dp, rdp, hcf y hcb, como en qcfP o dp+HP. El movimiento se ingresa mientras el muñeco sigue retenido, para que el botón caiga en su primer frame libre. [1] mantiene una dirección hasta el siguiente movimiento, [1]20f la mantiene 20 frames y 10f espera: [1] > 3HP bloquea abajo hasta que el muñeco queda libre y luego pulsa 3HP. Vacío responde con una grabación activada."
-
-msgid "training.reply.move"
-msgstr "Respuesta predefinida"
-
-msgid "training.reply.move.detail"
-msgstr "Izquierda y derecha eligen una respuesta común en notación numérica, leída para el lado al que mira el muñeco. Grabaciones responde con una grabación activada; Personalizada conserva los golpes que escribiste. Seleccionar abre Golpes de respuesta para escribir uno."
-
-msgid "training.reply.custom"
-msgstr "Personalizada"
+msgstr "El golpe de este espacio en notación numpad, como 623HP o 44, leído para el lado al que mira el muñeco. También sirven las palabras de movimiento: qcf, qcb, dp, rdp, hcf y hcb. [HP] mantiene un botón, ]HP[ lo suelta en el primer cuadro libre, [1]20f mantiene una dirección 20 cuadros y 10f espera. Vacío quita el golpe."
 
 msgid "training.reply.timing"
 msgstr "Ajuste de respuesta"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames tras el primer frame libre del muñeco en los que cae el botón de la respuesta. La duración de un aturdimiento se aprende la primera vez; hasta entonces la respuesta empieza cuando termina."
+
+msgid "training.reply.order"
+msgstr "Orden de respuesta"
+
+msgid "training.reply.order.detail"
+msgstr "Cómo elige el muñeco entre los espacios activos: al azar, cada espacio según su peso, o en orden, uno tras otro."
+
+msgid "training.reply.slot"
+msgstr "Espacio de respuesta {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Un golpe con el que el muñeco puede responder. Izquierda y Derecha lo activan o desactivan; Seleccionar abre sus golpes."
+
+msgid "training.reply.slot_on"
+msgstr "Usar este espacio"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Si el muñeco puede elegir este espacio para su respuesta."
+
+msgid "training.reply.weight"
+msgstr "Peso"
+
+msgid "training.reply.weight.detail"
+msgstr "La parte de este espacio en el sorteo frente a los demás, de 1 a 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Vaciar este espacio"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Quita el golpe de este espacio."
+
+msgid "training.reply.every_fighter"
+msgstr "Todos los peleadores"
 
 msgid "training.key.reset"
 msgstr "Tecla Restablecer"
