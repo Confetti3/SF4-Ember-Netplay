@@ -161,7 +161,7 @@ class ApplicationShell::ReplaysScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return ReplaysPanel::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool idle, std::string& title) const override {
-        return f.shell.replays_.Rows(f.view, f.screen, idle, title);
+        return f.shell.replays_.Rows(f.view, f.screen, f.shell.Navigation().Parent(), idle, title);
     }
     // Only an empty status line takes the panel's, so its place among the
     // shell's reports does not change what shows.

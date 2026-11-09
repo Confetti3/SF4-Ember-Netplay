@@ -106,6 +106,15 @@ void ReplaysPanel::Update(const ShellView& v,const netplay::PlayerPreferences& s
   if(const auto* shown=Find(v,setQueue_.front())){OpenExport(v,saved,*shown);Generate(v,submit);}
  }
 }
+// The Sort & filter and Search rows that head the Replays and Sets lists.
+void ReplaysPanel::FilterRows(std::vector<MenuEntry>& rows) const {
+ rows.push_back(Row("replay-filter",loc::T("replays.filter"),loc::T("replays.filter_detail")));rows.back().value=FilterText();
+ rows.push_back(TextRow("replay-search",loc::T("replays.search"),search_,40));rows.back().detail=loc::T("replays.search_detail");NoteUserText(search_);
+}
+// What a list says when the filter and Search left nothing after its `before` header rows.
+void ReplaysPanel::NoneShownRow(std::vector<MenuEntry>& rows,std::size_t before) const {
+ if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
+}
 // The archive's replays the list shows, in Sort's order.
 std::vector<const platform::replays::ArchivedReplay*> ReplaysPanel::Shown(const ShellView& v) const {
  std::vector<const platform::replays::ArchivedReplay*> shown;
@@ -113,6 +122,15 @@ std::vector<const platform::replays::ArchivedReplay*> ReplaysPanel::Shown(const 
  const std::wstring search=LoweredText(search_);
  for(const auto& replay:*v.replays.archive)if(ReplayShown(replay,show_,search,fighters_,side_))shown.push_back(&replay);
  std::stable_sort(shown.begin(),shown.end(),[&](const auto* a,const auto* b){return ReplayBefore(*a,*b,sort_);});
+ return shown;
+}
+// The sets the Sets tab shows: those with a game the filter and Search list, in Sort's order by their last game.
+std::vector<const platform::replays::ArchivedSet*> ReplaysPanel::SetsShown() const {
+ std::vector<const Set*> shown;
+ const std::wstring search=LoweredText(search_);
+ for(const auto& set:sets_)
+  if(std::any_of(set.games.begin(),set.games.end(),[&](const Replay* g){return ReplayShown(*g,show_,search,fighters_,side_);}))shown.push_back(&set);
+ std::stable_sort(shown.begin(),shown.end(),[&](const Set* a,const Set* b){return ReplayBefore(*a->games.back(),*b->games.back(),sort_);});
  return shown;
 }
 // What the filter row says it is set to, "Newest first" when nothing is.
@@ -129,7 +147,7 @@ std::optional<int> ReplaysPanel::FilterFighter(const std::string& id) {
  const int fighter=std::stoi(id.substr(3));
  return selection::FindFighter(fighter)?std::optional<int>(fighter):std::nullopt;
 }
-std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,bool idle,std::string& title) const {
+std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& screen,const std::string& parent,bool idle,std::string& title) const {
  const auto& r=v.replays;std::vector<MenuEntry> rows;
  if(screen=="replay-inputs"){title=loc::T("replays.inputs");InputsRows(v,rows);
  }else if(screen=="replay-filter"){
@@ -143,7 +161,9 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   wide(Value("rf-sort",loc::T("replays.sort"),loc::T(kReplaySortKeys[static_cast<int>(sort_)]),loc::T("replays.sort_detail")));
   wide(Value("rf-show",loc::T("replays.show"),loc::T(kReplayShowKeys[static_cast<int>(show_)]),loc::T("replays.show_detail")));
   wide(Value("rf-side",loc::T("replays.side"),loc::T(kReplaySideKeys[side_]),loc::T("replays.side_detail")));
-  wide(InfoRow("rf-count",loc::T("replays.matches_shown"),std::to_string(Shown(v).size())+" / "+std::to_string(v.replays.archive?v.replays.archive->size():0),""));
+  // The count is of what the list it was opened from shows (the screen below it).
+  wide(parent=="replay-sets"?InfoRow("rf-count",loc::T("replays.sets_shown"),std::to_string(SetsShown().size())+" / "+std::to_string(sets_.size()),""):
+   InfoRow("rf-count",loc::T("replays.matches_shown"),std::to_string(Shown(v).size())+" / "+std::to_string(v.replays.archive?v.replays.archive->size():0),""));
   wide(Row("rf-reset",loc::T("replays.filter_reset"),loc::T("replays.filter_reset_detail")));
  }else if(screen=="replay-export"){
   // Each part of the caption on or off, with its text; Generate sends it with the
@@ -168,7 +188,10 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   // order, pick one, make their videos, or save its pack. A tournament set's
   // card counts its games and rooms; a room set's and a pack's, its games.
   title=loc::T("replays.title");
-  for(const auto& set:sets_){
+  FilterRows(rows);
+  const std::size_t before=rows.size();
+  for(const auto* shown:SetsShown()){
+   const Set& set=*shown;
    const auto& last=*set.games.back();
    rows.push_back(Row("set:"+SetId(set),SetLabel(set),set.Tagged()?loc::Tf("replays.set_value",set.games.size(),set.rooms):loc::Tf("replays.set_matches",set.games.size())));
    rows.back().userText=true;for(const auto& name:last.names)NoteUserText(name);
@@ -181,6 +204,7 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
     {"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()}};
    rows.back().chosen=idle&&r.ready?"set-watch":"set-pick";
   }
+  NoneShownRow(rows,before);
  }else if(screen=="replay-set"){
   // One set's games, in the order they were played.
   title=loc::T("replays.title");
@@ -211,13 +235,12 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
   if(!r.archive||r.archive->empty())rows.push_back(InfoRow("replay-none",loc::T("replays.empty"),"",loc::T("replays.empty_detail")));
   else{
    // Show and Search narrow the list (ReplayShown); with nothing left it says so.
-   rows.push_back(Row("replay-filter",loc::T("replays.filter"),loc::T("replays.filter_detail")));rows.back().value=FilterText();
-   rows.push_back(TextRow("replay-search",loc::T("replays.search"),search_,40));rows.back().detail=loc::T("replays.search_detail");NoteUserText(search_);
+   FilterRows(rows);
    // A row is its file, not its place: the list is listed again while a row's choices are open.
    // A row is always open: reading its inputs needs nothing of the game. What does is each choice's own.
    const std::size_t before=rows.size();
    for(const auto* replay:Shown(v)){rows.push_back(ReplayRow(v,*replay,idle));rows.back().height=kCardHeight;}
-   if(rows.size()==before)rows.push_back(InfoRow("replay-none-shown",loc::T("replays.none_shown"),"",loc::T("replays.none_shown_detail")));
+   NoneShownRow(rows,before);
   }
  }
  return rows;

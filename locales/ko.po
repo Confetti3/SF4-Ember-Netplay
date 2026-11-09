@@ -5763,6 +5763,9 @@ msgstr "플레이어 2"
 msgid "replays.matches_shown"
 msgstr "표시된 경기"
 
+msgid "replays.sets_shown"
+msgstr "표시된 세트"
+
 msgid "replays.filter_reset"
 msgstr "초기화"
 

@@ -209,7 +209,6 @@ inline Summary Summarize(const Match& match) {
 		for (std::size_t i = 1; i < match.rounds.size(); i++)
 			summary.roundScores.push_back({static_cast<std::uint8_t>(match.rounds[i].wins[0]), static_cast<std::uint8_t>(match.rounds[i].wins[1])});
 	}
-	}
 	summary.rounds = static_cast<std::uint32_t>(match.rounds.size());
 	for (const Round& round : match.rounds) summary.frames += round.frames;
 	for (int side = 0; side < 2; side++) { summary.players[side] = match.players[side]; summary.stats[side] = Count(match, side); }
