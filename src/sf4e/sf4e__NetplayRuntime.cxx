@@ -63,7 +63,11 @@ bool AtMainMenu() {
 	auto* root = Dimps::App::GetRootEvent();
 	if (!root) return false;
 	char* query[] = { "MainMenu" };
-	return Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1) != nullptr;
+	if (!Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1)) return false;
+	// Not Ember's while a save's unlock box is up: the game's input answers it.
+	using Dimps::Game::SaveDataController;
+	auto* const unlock = SaveDataController::GetUnlockMessage(SaveDataController::staticMethods.GetSingleton());
+	return !unlock || SaveDataController::staticMethods.UnlockIdle(unlock);
 }
 
 // The native screen in front ("MainMenu", "Option", ...), empty while the

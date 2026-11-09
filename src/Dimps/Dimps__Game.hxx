@@ -177,6 +177,7 @@ namespace Dimps {
 		// then waits for State (0x67C410, the implementation's +0x240) to
 		// reach 2; Busy (0x67C430) refuses a new request while one runs.
 		struct SaveDataController {
+			struct UnlockMessage;
 			typedef struct __publicMethods {
 				void (SaveDataController::* ReadSlot)(int slot, void* buffer, int bytes, int a, int b);
 				void (SaveDataController::* Start)(int);
@@ -185,8 +186,17 @@ namespace Dimps {
 			} __publicMethods;
 			typedef struct __staticMethods {
 				SaveDataController* (*GetSingleton)();
+				bool (__thiscall* UnlockIdle)(UnlockMessage* unlock);
 			} __staticMethods;
 
+			// The implementation's UnlockMessage, idle once every unlock box a save
+			// shows first (0x4DE760) is answered; null until the game's boot builds
+			// the implementation (the singleton's own constructor leaves it null).
+			static constexpr std::size_t Implementation = 0x4, ImplementationUnlock = 0x4;
+			static UnlockMessage* GetUnlockMessage(SaveDataController* controller) {
+				auto* const implementation = *reinterpret_cast<std::uint8_t**>(reinterpret_cast<std::uint8_t*>(controller) + Implementation);
+				return implementation ? reinterpret_cast<UnlockMessage*>(implementation + ImplementationUnlock) : nullptr;
+			}
 			static void Locate(HMODULE peRoot);
 			static __publicMethods publicMethods;
 			static __staticMethods staticMethods;
