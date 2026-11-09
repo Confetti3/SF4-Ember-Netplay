@@ -78,6 +78,15 @@ msgstr "Spel afgesloten met een fout. Bekijk het launcherlogboek in %APPDATA%\\s
 msgid "launcher.steam_runs_as_admin"
 msgstr "Het spel kon Steam niet bereiken omdat Steam als administrator draait. Sluit Steam, start het normaal opnieuw en probeer het nogmaals. Ember als administrator starten werkt ook, maar dan worden updates niet geïnstalleerd."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam is niet klaar voor het spel. Het moet draaien met je account aangemeld. Start Steam, meld je aan en probeer het opnieuw."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam moet opnieuw starten voordat het spel kan starten: de gegevens die Steam over zijn draaiende exemplaar bijhoudt zijn verouderd, en het spel zou zonder verse gegevens crashen. Steam opnieuw starten onderbreekt de downloads, een spel dat het draait en de spraakchat.\n\nSteam nu opnieuw starten? Annuleren start het spel zonder Steam opnieuw te starten."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} draait alleen op {1}, en dit bestand is een andere build:\n{2}\n\nKies de installatiemap van het spel. Als Steam het spel heeft bijgewerkt, wacht dan op een update van {0}."
+
 msgid "launcher.game_crashed"
 msgstr "Het spel is gecrasht. Kies hieronder Dit rapport versturen om te helpen het op te lossen. Of stuur de bestanden uit %APPDATA%\\sf4e\\logs zelf."
 

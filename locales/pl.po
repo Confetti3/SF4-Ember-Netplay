@@ -78,6 +78,15 @@ msgstr "Gra zakończyła się błędem. Sprawdź dziennik launchera w %APPDATA%\
 msgid "launcher.steam_runs_as_admin"
 msgstr "Gra nie mogła połączyć się ze Steamem, ponieważ Steam działa jako administrator. Zamknij Steam, uruchom go normalnie i spróbuj ponownie. Uruchomienie Embera jako administrator też działa, ale wtedy aktualizacje się nie instalują."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam nie jest gotowy do uruchomienia gry. Musi działać z zalogowanym kontem. Uruchom Steam, zaloguj się i spróbuj ponownie."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam musi zostać uruchomiony ponownie, zanim gra się włączy: zapis Steama o jego działającej kopii jest nieaktualny, a gra bez świeżego zapisu uległaby awarii. Ponowne uruchomienie Steama przerywa jego pobieranie, uruchomioną przez niego grę i czat głosowy.\n\nUruchomić Steam ponownie teraz? Anuluj uruchamia grę bez ponownego uruchamiania Steama."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} działa tylko na {1}, a ten plik pochodzi z innego buildu:\n{2}\n\nWybierz folder instalacyjny gry. Jeśli Steam zaktualizował grę, poczekaj na aktualizację {0}."
+
 msgid "launcher.game_crashed"
 msgstr "Gra uległa awarii. Aby pomóc to naprawić, wybierz poniżej Wyślij to zgłoszenie. Możesz też sam wysłać pliki z %APPDATA%\\sf4e\\logs."
 

@@ -5,7 +5,7 @@
 
 #include "test_support.hxx"
 
-using sf4e::launcher::GameExecutable;
+using sf4e::launcher::FindGame;
 using sf4e::launcher::GameFoldersInLibrary;
 using sf4e::launcher::ManifestInstallDir;
 using sf4e::launcher::LibraryCandidates;
@@ -125,15 +125,18 @@ int main() {
     CHECK((LibraryCandidates(L"c:/program files (x86)/steam", "") == Paths{L"c:\\program files (x86)\\steam"}));
     CHECK((LibraryCandidates(L"", Flat) == Paths{L"D:\\SteamLibrary", L"F:\\More Games"}));
 
-    // The executable is joined to the folder with exactly one separator.
+    // The executable is joined to the folder with exactly one separator, and
+    // the folder is kept as given: SF4 Ember has no exeFolder to try first.
     Paths asked;
     const auto present = [&asked](const std::wstring& path) { asked.push_back(path); return true; };
     const auto absent = [](const std::wstring&) { return false; };
-    CHECK(GameExecutable(L"D:\\Games\\Ultra", present) == L"D:\\Games\\Ultra\\SSFIV.exe");
-    CHECK(GameExecutable(L"D:\\Games\\Ultra\\", present) == L"D:\\Games\\Ultra\\SSFIV.exe");
-    CHECK((asked == Paths{L"D:\\Games\\Ultra\\SSFIV.exe", L"D:\\Games\\Ultra\\SSFIV.exe"}));
-    CHECK(GameExecutable(L"D:\\Games\\Ultra", absent).empty());
-    CHECK(GameExecutable(L"", present).empty());
+    CHECK(FindGame(L"D:\\Games\\Ultra", present).executable == L"D:\\Games\\Ultra\\SSFIV.exe");
+    CHECK(FindGame(L"D:\\Games\\Ultra\\", present).executable == L"D:\\Games\\Ultra\\SSFIV.exe");
+    CHECK(FindGame(L"D:\\Games\\Ultra\\", present).directory == L"D:\\Games\\Ultra\\");
+    CHECK((asked == Paths{L"D:\\Games\\Ultra\\SSFIV.exe", L"D:\\Games\\Ultra\\SSFIV.exe", L"D:\\Games\\Ultra\\SSFIV.exe"}));
+    CHECK(FindGame(L"D:\\Games\\Ultra", absent).executable.empty());
+    CHECK(FindGame(L"D:\\Games\\Ultra", absent).directory.empty());
+    CHECK(FindGame(L"", present).executable.empty());
 
     // A folder counts as saved only after the write succeeds, so a failed
     // write is attempted again on the next round.

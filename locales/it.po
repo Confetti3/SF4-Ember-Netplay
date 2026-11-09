@@ -78,6 +78,15 @@ msgstr "Il gioco si è chiuso con un errore. Controlla il log del launcher in %A
 msgid "launcher.steam_runs_as_admin"
 msgstr "Il gioco non è riuscito a raggiungere Steam perché Steam è in esecuzione come amministratore. Chiudi Steam, riavvialo normalmente e riprova. Avviare Ember come amministratore funziona, ma così gli aggiornamenti non vengono installati."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam non è pronto per il gioco. Deve essere in esecuzione con il tuo account connesso. Avvia Steam, accedi e riprova."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam deve essere riavviato prima che il gioco possa partire: la registrazione di Steam della sua copia in esecuzione è obsoleta e il gioco si arresterebbe senza una aggiornata. Riavviare Steam interrompe i suoi download, un gioco che sta eseguendo e la sua chat vocale.\n\nRiavviare Steam ora? Annulla avvia il gioco senza riavviare Steam."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} funziona solo con {1}, e questo file è di un'altra build:\n{2}\n\nScegli la cartella di installazione del gioco. Se Steam ha aggiornato il gioco, attendi un aggiornamento di {0}."
+
 msgid "launcher.game_crashed"
 msgstr "Il gioco si è bloccato. Per aiutarci a risolvere, scegli Invia questa segnalazione qui sotto. Oppure invia tu i file in %APPDATA%\\sf4e\\logs."
 

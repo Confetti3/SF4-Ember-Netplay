@@ -78,6 +78,15 @@ msgstr "Le jeu s'est fermé avec une erreur. Consultez le journal du lanceur (%A
 msgid "launcher.steam_runs_as_admin"
 msgstr "Le jeu n'a pas pu joindre Steam, car Steam s'exécute en tant qu'administrateur. Fermez Steam, relancez-le normalement, puis réessayez. Lancer Ember en tant qu'administrateur fonctionne aussi, mais les mises à jour ne s'installent pas ainsi."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam n'est pas prêt pour le jeu. Il doit être lancé avec votre compte connecté. Lancez Steam, connectez-vous, puis réessayez."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam doit redémarrer avant que le jeu puisse démarrer : l'enregistrement par Steam de sa copie en cours d'exécution est obsolète, et le jeu planterait sans un enregistrement à jour. Redémarrer Steam interrompt ses téléchargements, un jeu qu'il exécute et son chat vocal.\n\nRedémarrer Steam maintenant ? Annuler lance le jeu sans redémarrer Steam."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} ne fonctionne qu'avec {1}, et ce fichier provient d'un autre build :\n{2}\n\nChoisissez le dossier d'installation du jeu. Si Steam a mis le jeu à jour, attendez une mise à jour de {0}."
+
 msgid "launcher.game_crashed"
 msgstr "Le jeu a planté. Pour aider à corriger le problème, choisissez Envoyer ce rapport ci-dessous. Ou envoyez vous-même les fichiers de %APPDATA%\\sf4e\\logs."
 

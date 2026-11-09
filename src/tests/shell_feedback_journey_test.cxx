@@ -350,6 +350,15 @@ void V2AuditJourneys() {
   h.FocusOn("welcome-next");h.Press(MenuInput::Select);
   Check(h.shell.Navigation().Screen()=="welcome"&&h.shell.Navigation().Focus()=="language","Next did not go on to the language step");
  }
+ // A game without a pad layer has no controller rows: its welcome ends at
+ // language, whose Next starts the game instead of asking for a controller.
+ {
+  Harness h;h.view.settingsFeatures=ember::SettingsFeatures{};h.view.preferences.welcomed=false;h.Frame();h.Frame();
+  h.FocusOn("welcome-next");h.Press(MenuInput::Select);
+  Check(h.shell.Navigation().Focus()=="language","Next did not go on to the language step without a pad layer");
+  h.FocusOn("welcome-next");h.Press(MenuInput::Select);
+  Check(h.shell.Navigation().Screen()=="home","The welcome without a pad layer did not end after the language step");
+ }
  // Settings, Player: Button layout opens the gameplay pad's layout, and the
  // Settings tabs do not come with it.
  {

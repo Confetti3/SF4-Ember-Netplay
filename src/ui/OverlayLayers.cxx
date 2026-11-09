@@ -1,4 +1,5 @@
 #include "OverlayLayers.hxx"
+#include "PassiveHint.hxx"
 #include "OverlayPresentation.hxx"
 #include "TrainingPanel.hxx"
 #include "../common/Localization.hxx"
@@ -19,21 +20,11 @@ TrainingHudInput DrawOverlayLayers(const OverlayLayersView& view, const training
         DrawTrainingData(training, hud.area);
         if (hud.open) passive = false;
     }
-    const auto hint = [](const char* name, const char* text, float top, float alpha = 1) {
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-        const auto* vp = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(ImVec2(vp->Pos.x + vp->Size.x * .5f, vp->Pos.y + top * Scale()), ImGuiCond_Always, ImVec2(.5f, 0));
-        ImGui::Begin(name, nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
-        ImGui::TextUnformatted(text); ImGui::End();
-        ImGui::PopStyleVar();
-    };
     // Never over a fight, where it would cover the timer; a Practice match's
     // own notice names the keys there.
-    if (passive && view.shellAvailable && !view.matchActive && view.shortcutHintAlpha > 0)
-        hint("Ember shortcut", loc::T("runtime.open_shortcut"), 12, view.shortcutHintAlpha);
-    if (passive && view.matchWaitsForMenu) hint("Ember match waiting", loc::T("runtime.return_menu_to_join"), 44);
-    if (passive && !view.matchActive && !view.padHint.empty()) hint("Ember controller", view.padHint.c_str(), 76);
+    if (passive && view.shellAvailable && !view.matchActive) DrawShortcutHint(view.shortcutHintAlpha);
+    if (passive && view.matchWaitsForMenu) DrawPassiveHint("Ember match waiting", loc::T("runtime.return_menu_to_join"), 44);
+    if (passive && !view.matchActive && !view.padHint.empty()) DrawPassiveHint("Ember controller", view.padHint.c_str(), 76);
     if (view.captionShown) DrawExportCaption(view.caption);
     // A replay has no GGPO session, so its meter is drawn here, not with the
     // match's below. An export's stays drawn under a window, since it is in

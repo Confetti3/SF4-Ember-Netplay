@@ -78,6 +78,15 @@ msgstr "ゲームがエラーで終了しました。ランチャーのログ（
 msgid "launcher.steam_runs_as_admin"
 msgstr "Steamが管理者として実行されているため、ゲームがSteamに接続できませんでした。Steamを終了して通常どおり起動し直してから再試行してください。Emberを管理者として起動しても動作しますが、その場合アップデートはインストールされません。"
 
+msgid "launcher.steam_not_ready"
+msgstr "Steamがゲームを開始できる状態ではありません。Steamを起動してアカウントにサインインし、再試行してください。"
+
+msgid "launcher.steam_restart_ask"
+msgstr "ゲームを開始する前にSteamを再起動する必要があります。Steamが記録している実行中のコピーの情報が古く、更新しないとゲームがクラッシュします。Steamを再起動すると、ダウンロード、Steamが実行しているゲーム、ボイスチャットが中断されます。\n\nSteamを今すぐ再起動しますか？キャンセルを選ぶと、Steamを再起動せずにゲームを開始します。"
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0}は{1}でのみ動作しますが、このファイルは別のビルドです。\n{2}\n\nゲームのインストールフォルダーを選んでください。Steamがゲームを更新した場合は、{0}のアップデートをお待ちください。"
+
 msgid "launcher.game_crashed"
 msgstr "ゲームがクラッシュしました。修正に協力いただける場合は、下の「このレポートを送信」を選んでください。%APPDATA%\\sf4e\\logs のファイルを自分で送ることもできます。"
 

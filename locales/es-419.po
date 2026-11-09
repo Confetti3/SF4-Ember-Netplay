@@ -78,6 +78,15 @@ msgstr "El juego terminó con un error. Revisa el registro del iniciador en %APP
 msgid "launcher.steam_runs_as_admin"
 msgstr "El juego no pudo conectarse a Steam porque Steam se está ejecutando como administrador. Cierra Steam, ábrelo normalmente y vuelve a intentarlo. Iniciar Ember como administrador también funciona, pero así no se instalan las actualizaciones."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam no está listo para el juego. Debe estar abierto con tu cuenta iniciada. Abre Steam, inicia sesión y vuelve a intentarlo."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam debe reiniciarse antes de que el juego pueda iniciar: el registro de Steam sobre su copia en ejecución está desactualizado y el juego fallaría sin uno nuevo. Reiniciar Steam interrumpe sus descargas, un juego que esté ejecutando y su chat de voz.\n\n¿Reiniciar Steam ahora? Cancelar inicia el juego sin reiniciar Steam."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} solo funciona con {1}, y este archivo es de otra compilación:\n{2}\n\nElige la carpeta de instalación del juego. Si Steam actualizó el juego, espera una actualización de {0}."
+
 msgid "launcher.game_crashed"
 msgstr "El juego falló. Para ayudar a corregirlo, elige Enviar este reporte abajo. O envía tú mismo los archivos de %APPDATA%\\sf4e\\logs."
 

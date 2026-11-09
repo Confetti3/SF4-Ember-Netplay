@@ -78,6 +78,15 @@ msgstr "The game exited with an error. Inspect the launcher log at %APPDATA%\\sf
 msgid "launcher.steam_runs_as_admin"
 msgstr "The game could not reach Steam because Steam is running as administrator. Close Steam, start it again normally, then retry. Starting Ember as administrator also works, but updates will not install that way."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam is not ready for the game. It must be running with your account signed in. Start Steam, sign in, then retry."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam must restart before the game can start: Steam's record of its running copy is out of date, and the game would crash without a fresh one. Restarting Steam interrupts its downloads, a game it is running and its voice chat.\n\nRestart Steam now? Cancel starts the game without restarting Steam."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} runs only on {1}, and this file is a different build:\n{2}\n\nChoose the game's install folder. If Steam has updated the game, wait for an update of {0}."
+
 msgid "launcher.game_crashed"
 msgstr "The game crashed. To help fix it, choose Send this report below. Or send the files in %APPDATA%\\sf4e\\logs yourself."
 

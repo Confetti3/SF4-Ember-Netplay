@@ -1,5 +1,8 @@
 // The first-run welcome (FirstRun.dc.html): shown once on a fresh install
 // (PlayerPreferences::welcomed), speech first, then language and controller.
+// The controller step is the pad layer's (SettingsFeatures::padLayer): a game
+// without one has no controller rows to send the player to, so its welcome
+// ends at language.
 // Every step is rows, so the pad, the keys and the mouse all answer it,
 // and Skip leaves it at any step.
 #include "ApplicationShell.hxx"
@@ -13,6 +16,8 @@
 namespace sf4e { namespace ui {
 namespace {
 constexpr int WelcomeSteps = 3;
+// The steps a game's welcome has: all, or all but the controller (the last).
+int WelcomeStepCount(const ember::SettingsFeatures& features) { return features.padLayer ? WelcomeSteps : WelcomeSteps - 1; }
 // Each step's question and the words under it.
 const char* const Titles[WelcomeSteps] = {"welcome.speech_title", "welcome.language_title", "welcome.controller_title"};
 const char* const Texts[WelcomeSteps] = {"welcome.speech_text", "welcome.language_text", "welcome.controller_text"};
@@ -27,6 +32,7 @@ MenuEntry Answer(const char* id, const char* label, const char* detail, bool cho
 }
 std::vector<MenuEntry> ApplicationShell::WelcomeRows(const ShellView& v, std::string& title) {
     // The brand is drawn over the board, so the title is the step's question, the first thing speech says.
+    welcomeSteps_ = WelcomeStepCount(v.settingsFeatures);
     title = loc::T(Titles[welcomeStep_]);
     std::vector<MenuEntry> rows;
     switch (welcomeStep_) {
@@ -35,7 +41,7 @@ std::vector<MenuEntry> ApplicationShell::WelcomeRows(const ShellView& v, std::st
     case 1: rows = {LanguageRow()}; break;
     default: rows = {Row("player", loc::T("home.choose_controller"), v.controllerReady ? loc::Tf("welcome.controller_ready", v.controller) : std::string(loc::T("home.choose_controller_detail")))};
     }
-    rows.push_back(Row("welcome-next", loc::T(welcomeStep_ + 1 < WelcomeSteps ? "welcome.next" : "welcome.start"), loc::T("welcome.next_detail")));
+    rows.push_back(Row("welcome-next", loc::T(welcomeStep_ + 1 < welcomeSteps_ ? "welcome.next" : "welcome.start"), loc::T("welcome.next_detail")));
     rows.push_back(Row("welcome-skip", loc::T("welcome.skip"), loc::T("welcome.skip_detail")));
     return rows;
 }
@@ -49,7 +55,7 @@ bool ApplicationShell::WelcomeActivate(const MenuAction& a) {
         preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45;
     }
     // An answer goes on to the next step, as Next does; Skip and the last step's answer end it.
-    if (a.id != "welcome-skip" && ++welcomeStep_ < WelcomeSteps) { nav.Prefer(FirstRows[welcomeStep_]); return true; }
+    if (a.id != "welcome-skip" && ++welcomeStep_ < welcomeSteps_) { nav.Prefer(FirstRows[welcomeStep_]); return true; }
     preferences_.welcomed = true; preferencesDirty_ = true; saveAt_ = ImGui::GetTime() + .45;
     welcomeStep_ = 0; nav.Home();
     return true;
@@ -66,9 +72,9 @@ void ApplicationShell::DrawWelcomeBoard(const std::vector<MenuEntry>& rows, Menu
     const auto press = [&](const MenuEntry& e, v2::Box b) { return PressEntry(nav, rows, e, b, action).hovered; };
     float y = origin.y;
     // WELCOME · STEP 1 OF 3, and a dot per step, the current one long.
-    v2::SectionHeading(d, ImVec2(origin.x, y), loc::Tf("welcome.step", welcomeStep_ + 1, WelcomeSteps), c.accent);
+    v2::SectionHeading(d, ImVec2(origin.x, y), loc::Tf("welcome.step", welcomeStep_ + 1, welcomeSteps_), c.accent);
     y += 30 * s;
-    for (int i = 0, x = 0; i < WelcomeSteps; ++i) {
+    for (int i = 0, x = 0; i < welcomeSteps_; ++i) {
         const float w = (i == welcomeStep_ ? 40 : 12) * s;
         d->AddRectFilled(ImVec2(origin.x + x, y), ImVec2(origin.x + x + w, y + 6 * s), i <= welcomeStep_ ? c.accent : c.border, 3 * s);
         x += static_cast<int>(w + 8 * s);

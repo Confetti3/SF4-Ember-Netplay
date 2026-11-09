@@ -818,6 +818,8 @@ std::string memberAsk_;
     // The welcome's step (0 speech to 3 look), whether it was offered this
     // launch, and the speech answer (ponytail: kept until speech settings land).
     int welcomeStep_ = 0;
+    // How many steps this game's welcome has (WelcomeRows sets it each frame).
+    int welcomeSteps_ = 3;
     bool welcomeOffered_ = false;
     room::RoomType createArcade_ = room::ClassicRoom;
     bool preferencesDirty_ = false;

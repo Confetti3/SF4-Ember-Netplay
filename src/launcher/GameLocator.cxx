@@ -144,12 +144,22 @@ std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, cons
     return folders;
 }
 
-std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists) {
+GameFolder FindGame(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists) {
     if (directory.empty() || !exists) return {};
-    std::wstring path = directory;
-    if (path.back() != L'\\' && path.back() != L'/') path += L'\\';
-    path += ember::Product().gameExe;
-    return exists(path) ? path : std::wstring();
+    const auto executableIn = [](const std::wstring& folder) {
+        std::wstring path = folder;
+        if (path.back() != L'\\' && path.back() != L'/') path += L'\\';
+        return path + ember::Product().gameExe;
+    };
+    // The exe's own folder first: the folder given may be the game's top
+    // folder, which holds a starter under the game's name.
+    const std::wstring exeFolder = ember::Product().steam.exeFolder;
+    if (!exeFolder.empty()) {
+        std::wstring inner = FolderKey(directory) + L"\\" + exeFolder;
+        if (std::wstring path = executableIn(inner); exists(path)) return {std::move(inner), std::move(path)};
+    }
+    if (std::wstring path = executableIn(directory); exists(path)) return {directory, std::move(path)};
+    return {};
 }
 
 RememberedFolder::RememberedFolder(std::wstring persisted) : persisted_(std::move(persisted)) {}
@@ -168,13 +178,10 @@ GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring&
     const std::function<std::wstring()>& search) {
     GameLocation location;
     location.fromRecovery = !chosenDirectory.empty();
-    std::wstring directory = location.fromRecovery ? chosenDirectory : savedDirectory;
-    location.executable = GameExecutable(directory, exists);
-    if (location.executable.empty() && !location.fromRecovery && search) {
-        directory = search();
-        location.executable = GameExecutable(directory, exists);
-    }
-    if (!location.executable.empty()) location.directory = std::move(directory);
+    GameFolder found = FindGame(location.fromRecovery ? chosenDirectory : savedDirectory, exists);
+    if (found.executable.empty() && !location.fromRecovery && search) found = FindGame(search(), exists);
+    location.directory = std::move(found.directory);
+    location.executable = std::move(found.executable);
     return location;
 }
 

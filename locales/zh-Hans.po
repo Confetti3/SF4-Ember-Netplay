@@ -78,6 +78,15 @@ msgstr "游戏异常退出。请查看启动器日志（%APPDATA%\\sf4e\\logs\\l
 msgid "launcher.steam_runs_as_admin"
 msgstr "Steam 正以管理员身份运行，因此游戏无法连接到 Steam。请关闭 Steam，以普通方式重新启动后重试。以管理员身份启动 Ember 也可以，但这样不会安装更新。"
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam 尚未为游戏准备就绪。它必须正在运行并已登录你的账号。请启动 Steam、登录后重试。"
+
+msgid "launcher.steam_restart_ask"
+msgstr "游戏启动前需要重启 Steam：Steam 记录的其运行中副本的信息已过期，没有新的记录游戏会崩溃。重启 Steam 会中断其下载、它正在运行的游戏和语音聊天。\n\n现在重启 Steam？取消将不重启 Steam 直接启动游戏。"
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} 只能在 {1} 上运行，而此文件是另一个构建：\n{2}\n\n请选择游戏的安装文件夹。如果 Steam 已更新游戏，请等待 {0} 的更新。"
+
 msgid "launcher.game_crashed"
 msgstr "游戏崩溃了。如愿协助修复，请选择下方的“发送此报告”。也可以自己发送 %APPDATA%\\sf4e\\logs 中的文件。"
 

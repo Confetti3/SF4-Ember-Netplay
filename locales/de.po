@@ -78,6 +78,15 @@ msgstr "Spiel mit Fehler beendet. Launcher-Log prüfen (%APPDATA%\\sf4e\\logs\\l
 msgid "launcher.steam_runs_as_admin"
 msgstr "Das Spiel konnte Steam nicht erreichen, weil Steam als Administrator läuft. Beenden Sie Steam, starten Sie es normal neu und versuchen Sie es erneut. Ember als Administrator zu starten geht auch, dann werden aber keine Updates installiert."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam ist nicht bereit für das Spiel. Es muss laufen und Ihr Konto muss angemeldet sein. Starten Sie Steam, melden Sie sich an und versuchen Sie es erneut."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam muss neu gestartet werden, bevor das Spiel starten kann: Der Eintrag von Steam über seine laufende Kopie ist veraltet, und das Spiel würde ohne einen aktuellen abstürzen. Ein Neustart von Steam unterbricht dessen Downloads, ein laufendes Spiel und den Sprachchat.\n\nSteam jetzt neu starten? Abbrechen startet das Spiel ohne Neustart von Steam."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} läuft nur mit {1}, und diese Datei stammt aus einem anderen Build:\n{2}\n\nWählen Sie den Installationsordner des Spiels. Falls Steam das Spiel aktualisiert hat, warten Sie auf ein Update von {0}."
+
 msgid "launcher.game_crashed"
 msgstr "Das Spiel ist abgestürzt. Um bei der Behebung zu helfen, wählen Sie unten Diesen Bericht senden. Oder senden Sie die Dateien aus %APPDATA%\\sf4e\\logs selbst."
 
