@@ -608,10 +608,12 @@ async fn a_player_out_of_usf4s_ranking_is_out_of_another_games_until_they_choose
     assert_eq!(status, StatusCode::OK, "{back}");
     assert_eq!(back["ranking"], "ranked");
     assert_eq!(back["badge"], json!({ "band": 7, "settled": true }));
-    assert_eq!(
-        standing(&bridge, &first).await,
-        json!({ "ranking": "opted_out", "change_in": DAY })
-    );
+    // Read on the clock after the USF4 choice, so a second may have passed.
+    let usf4 = standing(&bridge, &first).await;
+    assert_eq!(usf4["ranking"], "opted_out", "{usf4}");
+    let change_in = usf4["change_in"].as_i64().unwrap_or_default();
+    assert!((DAY - 1..=DAY).contains(&change_in), "{usf4}");
+    assert_eq!(usf4.as_object().map(|standing| standing.len()), Some(2), "{usf4}");
     let (_, admission) = call(&bridge, &first, Method::POST, &path, Some(ticket)).await;
     assert_eq!(
         admission["ticket"]["ticket"]["badge"],
