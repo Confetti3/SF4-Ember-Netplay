@@ -370,9 +370,11 @@ void ApplicationShell::PublishPlayerCard(const ShellView& v) {
  card.country=ShownCountry(preferences_.country,v.automaticCountry);
  // The profile card (the L tag): Home's and the Player tab's.
  auto& tag=card.profile;const auto& standing=v.rankings.standing;const auto& record=v.preferences.record;
- // A product whose players have no main shows none (ember::PlayersHaveMain).
+ // A product whose players have no main (ember::PlayersHaveMain) shows their
+ // pick there instead, as its room's faces do; a Random pick shows no face.
  const bool hasMain=ember::PlayersHaveMain();
- tag.name=card.name;tag.marks.country=card.country;tag.fighter=hasMain?preferences_.mainFighter:-1;
+ tag.name=card.name;tag.marks.country=card.country;
+ tag.fighter=hasMain?preferences_.mainFighter:v.selectedRandom?-1:v.selectedPick.fighter;
  tag.title=v.playerTitle;tag.tier=v.playerTier;tag.icon=v.playerIcon;
  // What the player picked on the awards wall, while it is earned.
  if(const auto* a=WornAward(v,preferences_.wornTitle)){tag.title=loc::T(a->title);tag.tier=a->tier;}

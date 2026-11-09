@@ -63,10 +63,11 @@ void RoomFaces() {
 
 // The main (ember::PlayersHaveMain). SF4 Ember's players choose one on
 // Profile and their card shows it; a product whose room faces are its picks
-// has none, so Profile offers no Main character and the card shows no main.
+// has none, so Profile offers no Main character and the card shows the
+// player's pick instead (no face for a Random pick).
 void MainFighter() {
  const bool hasMain=ember::PlayersHaveMain();
- Harness h;h.view.preferences.mainFighter=8;h.Frame();
+ Harness h;h.view.preferences.mainFighter=8;h.view.selectedPick.fighter=3;h.Frame();
  std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& shown){rows=shown;});
  h.Screen("tab-player/profile");h.Frame();
  SetMenuEntriesProbe({});
@@ -77,7 +78,11 @@ void MainFighter() {
  const std::string badge=loc::T("profile.main_badge");
  const bool told=std::any_of(card.facts.begin(),card.facts.end(),[&](const auto& f){return f.key==badge;});
  Check(told==hasMain,hasMain?"The profile card did not show the main":"The profile card showed a main the product's players do not have");
- if(!hasMain)Check(card.fighter==-1,"The profile card drew a main the product's players do not have");
+ Check(card.fighter==(hasMain?8:3),hasMain?"The profile card did not draw the main":"The profile card did not draw the player's pick");
+ if(!hasMain){
+  h.view.selectedRandom=true;h.Frame();
+  Check(MenuPlayerCard().profile.fighter==-1,"The profile card drew a face for a Random pick");
+ }
 }
 
 // The opponent's answer over a WIN that goes on in place. Off, it reads
