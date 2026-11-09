@@ -25,6 +25,10 @@ map rather than ranked below ours.
 - QUIC address discovery answers on UDP 7842 directly, with the same
   certificate passed in by systemd (`LoadCredential`). Both ufw and the IONOS
   Cloud Panel firewall must allow UDP 7842.
+- nginx caps relay WebSockets at 16 per address and 1800 in all (each holds
+  two of the worker connections the other sites share), about 600 players at
+  three endpoints each. Raise `worker_connections` with the cap if that is
+  ever reached.
 - The relay logs warnings only; nginx keeps no access log.
 
 ## Deploy
@@ -39,8 +43,13 @@ sudo bash ~/ember-relay/setup.sh
 ```
 
 It installs the binary, config, unit and nginx site, opens UDP 7842 in ufw,
-restarts the relay and checks it locally (ping, HTTPS through nginx, the
-captive-portal answer, the QUIC port).
+restarts the relay and checks it locally (ping, HTTPS and the WebSocket
+upgrade through nginx, the captive-portal answer, the QUIC port). If nginx
+refuses the site or a check fails, it puts the previous install back.
+
+From a client, `cargo test --lib live_relays -- --ignored --nocapture` in
+`rust/sf4-net` checks every relay the helper uses end to end: home relay,
+QUIC address discovery, no captive portal, and a relay-only connection.
 
 The wildcard certificate is renewed by hand (expires 2027-03-30); restart
 `ember-relay` after a renewal so QUIC picks up the new one.

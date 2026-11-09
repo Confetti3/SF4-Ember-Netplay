@@ -1,12 +1,21 @@
 # Ember's iroh relay at relay.embernetplay.link, proxied to iroh-relay on
 # 127.0.0.1:47895 (relay.toml). Clients hold a WebSocket open at /relay for as
-# long as the game runs, so reads wait an hour. No access log: the relay sees
-# every player's address.
+# long as the game runs, so reads there wait an hour. No access log: the relay
+# sees every player's address.
 
 map $http_upgrade $ember_relay_connection {
     default upgrade;
     ''      close;
 }
+
+# Every open relay WebSocket holds two of nginx's worker connections (client
+# and upstream), shared with the bridge and every other site on this host
+# (4 workers x 4096). A player's helper keeps about three open (primary,
+# coordination, latency). The total stays under one worker's 4096 even if
+# all of them land on the same worker; per address, a household or a room
+# box with a few helpers fits, one caller holding hundreds does not.
+limit_conn_zone $binary_remote_addr zone=ember_relay_per_ip:2m;
+limit_conn_zone $server_name zone=ember_relay_total:1m;
 
 server {
     listen 80;
@@ -19,6 +28,8 @@ server {
     location = /generate_204 {
         proxy_pass http://127.0.0.1:47895;
         proxy_set_header Host $host;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
     }
 
     location / {
@@ -37,15 +48,28 @@ server {
 
     access_log off;
 
-    location / {
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_connect_timeout 2s;
+
+    # The relay itself: one long-lived WebSocket per endpoint.
+    location = /relay {
+        limit_conn ember_relay_per_ip 16;
+        limit_conn ember_relay_total 1800;
+        limit_conn_status 503;
         proxy_pass http://127.0.0.1:47895;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $ember_relay_connection;
         proxy_buffering off;
-        proxy_connect_timeout 2s;
         proxy_read_timeout 1h;
         proxy_send_timeout 1h;
+    }
+
+    # Latency probes (/ping) and anything else: short requests.
+    location / {
+        proxy_pass http://127.0.0.1:47895;
+        proxy_set_header Connection "";
+        proxy_read_timeout 5s;
+        proxy_send_timeout 5s;
     }
 }

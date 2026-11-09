@@ -653,11 +653,38 @@ mod tests {
 
     #[test]
     fn relay_regions_are_stable_codes_and_never_a_url() {
-        // The wire IDs of n0's relays never move.
+        // Wire IDs never move: each one names exactly this relay.
+        let wire = [
+            ("https://use1-1.relay.n0.iroh.link./", "use1"),
+            ("https://usw1-1.relay.n0.iroh.link./", "usw1"),
+            ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
+            ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
+            ("https://relay.embernetplay.link./", "use1"),
+        ];
+        assert_eq!(RELAYS, wire);
         let n0 = iroh::defaults::prod::default_relay_map();
         for (index, code) in relay::REGIONS.iter().enumerate() {
             assert_eq!(RELAYS[index].1, *code);
             assert!(n0.contains(&pinned(index)), "{code}");
+        }
+        // Exactly these relays are active; neither of n0's US relays is.
+        let expected: std::collections::BTreeSet<RelayUrl> = [
+            "https://relay.embernetplay.link./",
+            "https://euc1-1.relay.n0.iroh.link./",
+            "https://aps1-1.relay.n0.iroh.link./",
+        ]
+        .iter()
+        .map(|url| url.parse().unwrap())
+        .collect();
+        assert_eq!(
+            relay_map().urls::<Vec<_>>().into_iter().collect::<std::collections::BTreeSet<_>>(),
+            expected
+        );
+        for url in [
+            "https://use1-1.relay.n0.iroh.link./",
+            "https://usw1-1.relay.n0.iroh.link./",
+        ] {
+            assert!(!expected.contains(&url.parse().unwrap()), "{url}");
         }
         for (url, code) in RELAYS {
             assert!(relay::is_region(code), "{code}");
