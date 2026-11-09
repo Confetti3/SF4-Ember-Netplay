@@ -4,6 +4,7 @@
 #include "../common/ReplayExport.hxx"
 #include "../common/ReplayInputs.hxx"
 #include "../platform/ReplayFiles.hxx"
+#include "../platform/ReplaySets.hxx"
 #include "../platform/Utf8.hxx"
 #include "FighterSelector.hxx"
 #include <algorithm>
@@ -118,6 +119,14 @@ inline std::string ExportStageText(replay::ExportStage stage,std::uint32_t frame
 }
 // "2-1", player 1 first, or nothing when the last round's winner is not known.
 inline std::string ScoreText(const replayinputs::Summary& s){return s.scored?std::to_string(s.score[0])+"-"+std::to_string(s.score[1]):std::string();}
+// How a match went, "First to 2 \xC2\xB7 1-0 / 1-1 / 2-1": what it was played to and the score after each
+// round. Empty when the score is not known.
+inline std::string ScoreChangesText(const replayinputs::Summary& s){
+ if(!s.scored)return std::string();
+ std::string text=loc::Tf("rules.set_length.first_to",s.firstTo)+" \xC2\xB7 ";
+ for(const auto& wins:s.roundScores)text+=std::to_string(wins[0])+"-"+std::to_string(wins[1])+" / ";
+ return text+std::to_string(s.score[0])+"-"+std::to_string(s.score[1]);
+}
 inline std::string MatchText(const replayinputs::Summary& s){const std::string length=replayinputs::Clock(s.frames);const unsigned rounds=s.rounds;return loc::Tf("inputs.length_value",rounds,length);}
 // The costume, color and Ultra in Fighter Select's own words, or that a choice is not one Ember knows.
 inline std::string LookText(const replayinputs::Player& p){
@@ -132,4 +141,16 @@ inline std::string PressesText(const replayinputs::Stats& s){
  return presses;
 }
 inline std::string ActivityText(const replayinputs::Stats& s){const unsigned perMinute=s.PerMinute(),jumps=s.jumps,crouched=s.CrouchedPercent();return loc::Tf("inputs.activity",perMinute,jumps,crouched);}
+// A set's games oldest first, each one's score for the set's last game's player 1 ("2-0 / 1-2 / 2-1"),
+// a dash for a game whose score is not known.
+inline std::string SetScoresText(const platform::replays::ArchivedSet& set){
+ const std::string& player=set.games.back()->names[0];
+ std::string text;
+ for(const auto* game:set.games){
+  const bool known=game->summary&&game->summary->scored;
+  const int seat=game->names[0]!=player; // the seat the set's first player sat in
+  text+=(text.empty()?"":" / ")+(known?std::to_string(game->summary->score[seat])+"-"+std::to_string(game->summary->score[!seat]):std::string("-"));
+ }
+ return text;
+}
 } }

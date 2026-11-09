@@ -69,6 +69,20 @@ int main() {
 		Check(ReplayBefore(older, mine, ReplaySort::Oldest) && !ReplayBefore(mine, older, ReplaySort::Oldest), "Oldest did not put the earlier replay first");
 		Check(ReplayBefore(longer, mine, ReplaySort::Longest) && !ReplayBefore(mine, longer, ReplaySort::Longest), "Longest did not put the longer replay first");
 		Check(!ReplayBefore(mine, older, ReplaySort::Newest) && !ReplayBefore(older, mine, ReplaySort::Newest), "Newest reordered the archive's order");
+		// A match card's score after each round, and a set card's score per game for the last game's player 1.
+		{
+			replayinputs::Summary summary;
+			Check(ScoreChangesText(summary).empty(), "A match with no known score listed rounds");
+			summary.scored = true; summary.score[0] = 2; summary.score[1] = 1; summary.firstTo = 2; summary.roundScores = {{1, 0}, {1, 1}};
+			Check(ScoreChangesText(summary) == loc::Tf("rules.set_length.first_to", 2) + " \xC2\xB7 1-0 / 1-1 / 2-1", "A match did not list the score after each round");
+			platform::replays::ArchivedReplay first, second, third;
+			first.names[0] = "Alice"; first.names[1] = "Bob"; second.names[0] = "Bob"; second.names[1] = "Alice"; third = first;
+			first.summary = replayinputs::Summary{}; first.summary->scored = true; first.summary->score[0] = 2; first.summary->score[1] = 0;
+			second.summary = replayinputs::Summary{}; second.summary->scored = true; second.summary->score[0] = 2; second.summary->score[1] = 1;
+			platform::replays::ArchivedSet set;
+			set.games = {&first, &second, &third};
+			Check(SetScoresText(set) == "2-0 / 1-2 / -", "A set card did not list each game's score for its first player");
+		}
 		Check(std::size(kReplaySortKeys) == static_cast<std::size_t>(ReplaySort::Longest) + 1, "Sort's words are not in their order");
 	}
 
