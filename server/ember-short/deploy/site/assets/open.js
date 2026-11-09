@@ -81,12 +81,28 @@
   }
 
   // A room link: the code from the fragment, or from a path someone typed.
+  // /j is an SF4 Ember room's link and /v an SFV Ember room's: the same code,
+  // opened in the Ember that made it.
   function room(path, fragment) {
-    var typed = path.replace(/^\/j\/?/, '');
+    var page = /^\/v(\/|$)/.test(path) ? '/v' : /^\/j(\/|$)/.test(path) ? '/j' : null;
+    if (!page) return null;
+    var typed = path.slice(page.length).replace(/^\//, '');
     var code = parseCode(fragment) || parseCode(typed);
     if (!code) return null;
     // A code typed into the path moves into the fragment, out of later requests.
-    if (typed && history.replaceState) history.replaceState(null, '', '/j#' + code);
+    if (typed && history.replaceState) history.replaceState(null, '', page + '#' + code);
+    if (page === '/v') return {
+      title: 'Join an SFV Ember room',
+      lead: 'Someone invited you to an SFV Ember room.',
+      game: 'sfv',
+      code: code,
+      ember: 'ember-sfv://join/' + code,
+      link: 'https://embernetplay.link/v#' + code,
+      after: 'SFV Ember joins the room. Your browser may ask first whether to open SFV Ember.',
+      steps: ['Start SFV Ember.', 'Choose <strong>Online play</strong>, then <strong>Join room</strong>.',
+        'Choose <strong>Paste invitation</strong>, then <strong>Join room</strong>.'],
+      lasts: 'The link works while the room is open. If it stops working, ask the host for a new one.'
+    };
     return {
       title: 'Join an Ember room',
       lead: 'Someone invited you to an SF4 Ember Netplay room.',
@@ -279,7 +295,7 @@
     // Public rooms, matches and Connect Discord open only in Ember 1.1.0 or
     // newer, and those of the staging bridge only in Nightly. None of that,
     // nor SF4 Ember's download, is SFV Ember's.
-    document.getElementById('version').hidden = path.indexOf('/j') === 0 || sfv;
+    document.getElementById('version').hidden = path.indexOf('/j') === 0 || path.indexOf('/v') === 0 || sfv;
     document.getElementById('not-opened-download').hidden = sfv;
     if (found.bridge === STAGING_BRIDGE) {
       document.getElementById('version').textContent = NIGHTLY_NOTE;
