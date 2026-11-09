@@ -25,10 +25,13 @@ map rather than ranked below ours.
 - QUIC address discovery answers on UDP 7842 directly, with the same
   certificate passed in by systemd (`LoadCredential`). Both ufw and the IONOS
   Cloud Panel firewall must allow UDP 7842.
-- nginx caps relay WebSockets at 16 per address and 1800 in all (each holds
-  two of the worker connections the other sites share), about 600 players at
-  three endpoints each. Raise `worker_connections` with the cap if that is
-  ever reached.
+- nginx caps relay WebSockets at 1800 in all (each holds two of the worker
+  connections the other sites share), about 600 players at three endpoints
+  each, and at 600 per address: the public room hosts on the VPS and the room
+  box each share one address, as do households and carrier NATs. A refused
+  `/relay` does not move a player to another relay (iroh keeps preferring one
+  whose probes answer), so raise `worker_connections` and the cap together
+  before it is reached.
 - The relay logs warnings only; nginx keeps no access log.
 
 ## Deploy
@@ -43,9 +46,10 @@ sudo bash ~/ember-relay/setup.sh
 ```
 
 It installs the binary, config, unit and nginx site, opens UDP 7842 in ufw,
-restarts the relay and checks it locally (ping, HTTPS and the WebSocket
-upgrade through nginx, the captive-portal answer, the QUIC port). If nginx
-refuses the site or a check fails, it puts the previous install back.
+restarts the relay and checks it locally (ping, HTTPS, a complete relay
+WebSocket upgrade through nginx, the captive-portal answer, the QUIC port).
+Any failure from the first change on puts the previous install back and
+returns the service to its earlier state.
 
 From a client, `cargo test --lib live_relays -- --ignored --nocapture` in
 `rust/sf4-net` checks every relay the helper uses end to end: home relay,

@@ -10,10 +10,13 @@ map $http_upgrade $ember_relay_connection {
 
 # Every open relay WebSocket holds two of nginx's worker connections (client
 # and upstream), shared with the bridge and every other site on this host
-# (4 workers x 4096). A player's helper keeps about three open (primary,
-# coordination, latency). The total stays under one worker's 4096 even if
-# all of them land on the same worker; per address, a household or a room
-# box with a few helpers fits, one caller holding hundreds does not.
+# (4 workers x 4096). A helper keeps up to three open (primary, coordination,
+# latency). The total stays under one worker's 4096 even if all of them land
+# on the same worker. Per address the cap is for one caller holding most of
+# that, not for real players: every public room host on this VPS (up to 80
+# rooms) and on the room box shares one address, at up to three each, and so
+# does a household, a campus or a carrier NAT. A refused /relay is not a
+# fallback: iroh keeps preferring a relay whose probes still answer.
 limit_conn_zone $binary_remote_addr zone=ember_relay_per_ip:2m;
 limit_conn_zone $server_name zone=ember_relay_total:1m;
 
@@ -54,7 +57,7 @@ server {
 
     # The relay itself: one long-lived WebSocket per endpoint.
     location = /relay {
-        limit_conn ember_relay_per_ip 16;
+        limit_conn ember_relay_per_ip 600;
         limit_conn ember_relay_total 1800;
         limit_conn_status 503;
         proxy_pass http://127.0.0.1:47895;
