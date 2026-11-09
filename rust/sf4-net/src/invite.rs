@@ -31,32 +31,56 @@ const RECOVERY_DISCORD_PREFIX: &str = "emd2:";
 const HEADER: usize = 91;
 /// The same for an sf4e3 record, which adds the coordination route.
 const RECOVERY_HEADER: usize = HEADER + 32 + 8 + 8;
-// Stable wire IDs, independent of relay-map iteration order. Never reorder or
-// reuse these entries; a different dictionary requires a new invite version.
-const RELAYS: [&str; 4] = [
-    "https://use1-1.relay.n0.iroh.link./",
-    "https://usw1-1.relay.n0.iroh.link./",
-    "https://euc1-1.relay.n0.iroh.link./",
-    "https://aps1-1.relay.n0.iroh.link./",
+// Stable wire IDs, independent of relay-map iteration order, each with the
+// region code (`relay::REGIONS`) the native side and the bridge show for it.
+// Append only: never reorder, remove or reuse an entry. A peer of another
+// build never reads these invitations (the build check refuses them first),
+// so an appended entry needs no new invite version.
+const RELAYS: [(&str, &str); 5] = [
+    ("https://use1-1.relay.n0.iroh.link./", "use1"),
+    ("https://usw1-1.relay.n0.iroh.link./", "usw1"),
+    ("https://euc1-1.relay.n0.iroh.link./", "euc1"),
+    ("https://aps1-1.relay.n0.iroh.link./", "aps1"),
+    // Ember's own relay, on the VPS in Kansas: both US regions reach it.
+    ("https://relay.embernetplay.link./", "use1"),
 ];
 
-/// The region code of a pinned relay (`relay::REGIONS`, in RELAYS order), or
-/// "other" for any other URL. The native side shows these instead of a relay
-/// address.
+/// The RELAYS entries this build's endpoints use, one per region they cover.
+/// Some US internet providers' router filters (Xfinity, Spectrum, Cox) block
+/// n0's US and Asia relays over HTTPS since 2026-11-08, and iroh picks a home
+/// relay by latency alone, so a US player must not be able to land on one:
+/// Ember's relay replaces both n0 US relays. Europe and Asia stay on n0's.
+const ACTIVE: [usize; 3] = [4, 2, 3];
+
+fn pinned(index: usize) -> RelayUrl {
+    RELAYS[index].0.parse().expect("pinned relay URL")
+}
+
+/// The relays every endpoint of this build uses, in place of iroh's default
+/// map. Each one also answers QUIC address discovery on iroh's default port.
+pub fn relay_map() -> iroh::RelayMap {
+    ACTIVE
+        .iter()
+        .map(|&index| iroh::RelayConfig::from(pinned(index)))
+        .collect()
+}
+
+/// The region code of a pinned relay, or "other" for any other URL. The
+/// native side shows these instead of a relay address.
 pub fn relay_region(relay: &RelayUrl) -> &'static str {
     RELAYS
         .iter()
-        .position(|url| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
-        .map_or("other", |index| relay::REGIONS[index])
+        .find(|(url, _)| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
+        .map_or("other", |(_, code)| code)
 }
 
-/// The pinned relay of a region code: `relay_region`'s inverse. None for
-/// "other" or any code that names no pinned relay.
+/// The relay this build uses for a region code: `relay_region`'s inverse
+/// over `relay_map`. None for "other" or any code no active relay covers.
 pub fn relay_for_region(code: &str) -> Option<RelayUrl> {
-    relay::REGIONS
+    ACTIVE
         .iter()
-        .position(|region| *region == code)
-        .and_then(|index| RELAYS[index].parse().ok())
+        .find(|&&index| RELAYS[index].1 == code)
+        .map(|&index| pinned(index))
 }
 
 /// The route a selected path reports outside the helper: `direct` for an IP
@@ -113,9 +137,11 @@ fn discord_payload(text: &str) -> Option<&str> {
 }
 
 fn relay_allowed(relay: &RelayUrl) -> bool {
-    // Match entire normalized URLs from the pinned Iroh release. Suffix checks
+    // Match entire normalized URLs from the pinned dictionary. Suffix checks
     // would admit credentials, arbitrary paths, ports, and look-alike hosts.
-    iroh::defaults::prod::default_relay_map().contains(relay)
+    RELAYS
+        .iter()
+        .any(|(url, _)| url.parse::<RelayUrl>().is_ok_and(|pinned| pinned == *relay))
 }
 
 impl Invite {
@@ -316,6 +342,7 @@ impl Invite {
             relay: RELAYS
                 .get(bytes[34] as usize)
                 .ok_or_else(invalid)?
+                .0
                 .parse()
                 .map_err(|_| invalid())?,
             room: bytes[35..51].try_into().map_err(|_| invalid())?,
@@ -349,7 +376,7 @@ impl Invite {
     fn compact_bytes(&self) -> io::Result<Vec<u8>> {
         let relay = RELAYS
             .iter()
-            .position(|url| {
+            .position(|(url, _)| {
                 url.parse::<RelayUrl>()
                     .is_ok_and(|relay| relay == self.relay)
             })
@@ -534,9 +561,7 @@ mod tests {
 
     fn invite() -> Invite {
         let id = iroh::SecretKey::generate().public();
-        let relay = iroh::defaults::prod::default_relay_map()
-            .urls::<Vec<_>>()
-            .remove(0);
+        let relay = relay_map().urls::<Vec<_>>().remove(0);
         Invite::create(id, relay, "test-sidecar-hash".into(), 100, 3600).unwrap()
     }
 
@@ -568,9 +593,7 @@ mod tests {
     #[test]
     fn a_reader_with_a_slower_clock_still_takes_a_fresh_week_long_invitation() {
         let id = iroh::SecretKey::generate().public();
-        let relay = iroh::defaults::prod::default_relay_map()
-            .urls::<Vec<_>>()
-            .remove(0);
+        let relay = relay_map().urls::<Vec<_>>().remove(0);
         let issued = 1_000_000;
         let fresh = Invite::create(id, relay, "build".into(), issued, MAX_INVITE_LIFETIME_SECS).unwrap();
         let renewed = fresh.clone().renewed(issued + 100, MAX_INVITE_LIFETIME_SECS).unwrap();
@@ -630,22 +653,36 @@ mod tests {
 
     #[test]
     fn relay_regions_are_stable_codes_and_never_a_url() {
-        assert_eq!(RELAYS.len(), relay::REGIONS.len());
-        for (url, code) in RELAYS.iter().zip(relay::REGIONS) {
+        // The wire IDs of n0's relays never move.
+        let n0 = iroh::defaults::prod::default_relay_map();
+        for (index, code) in relay::REGIONS.iter().enumerate() {
+            assert_eq!(RELAYS[index].1, *code);
+            assert!(n0.contains(&pinned(index)), "{code}");
+        }
+        for (url, code) in RELAYS {
+            assert!(relay::is_region(code), "{code}");
             assert_eq!(relay_region(&url.parse().unwrap()), code);
-            let pinned = relay_for_region(code).unwrap();
-            assert_eq!(pinned, url.parse::<RelayUrl>().unwrap());
-            assert_eq!(relay_region(&pinned), code);
         }
-        for code in ["other", "", "USE1", "euc2"] {
-            assert!(relay_for_region(code).is_none(), "{code}");
-        }
-        // Every relay of the pinned release has a code of its own.
+        // Every region has exactly one active relay, which maps back to it.
+        let active = relay_map().urls::<Vec<_>>();
+        assert_eq!(active.len(), ACTIVE.len());
         let mut seen = std::collections::BTreeSet::new();
-        for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
-            let code = relay_region(&relay);
-            assert_ne!(code, "other");
-            assert!(seen.insert(code));
+        for relay in &active {
+            let code = relay_region(relay);
+            assert!(seen.insert(code), "{code}");
+            assert_eq!(relay_for_region(code).as_ref(), Some(relay));
+        }
+        // Neither of n0's US relays is active: both are blocked by some US
+        // providers' router filters. Ember's relay, coded use1, covers both
+        // US regions, so no relay of this build reports usw1.
+        assert_eq!(relay_for_region("use1"), Some(pinned(4)));
+        assert_eq!(relay_for_region("euc1"), Some(pinned(2)));
+        assert_eq!(relay_for_region("aps1"), Some(pinned(3)));
+        for index in [0, 1] {
+            assert!(!active.contains(&pinned(index)));
+        }
+        for code in ["usw1", "other", "", "USE1", "euc2"] {
+            assert!(relay_for_region(code).is_none(), "{code}");
         }
         for other in [
             "https://use1-1.relay.n0.iroh.link.evil/",
@@ -661,7 +698,7 @@ mod tests {
         let ip = |addr: &str| TransportAddr::Ip(addr.parse().unwrap());
         assert_eq!(public_route(Some(&ip("203.0.113.7:45760"))), "direct");
         assert_eq!(public_route(Some(&ip("[2001:db8::1]:57845"))), "direct");
-        for (url, code) in RELAYS.iter().zip(relay::REGIONS) {
+        for (url, code) in RELAYS {
             let relay = TransportAddr::Relay(url.parse().unwrap());
             assert_eq!(public_route(Some(&relay)), format!("relay:{code}"));
         }
@@ -677,7 +714,8 @@ mod tests {
 
     #[test]
     fn discord_ticket_preserves_capability_and_host_checks_build_and_expiry() {
-        for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
+        for (url, _) in RELAYS {
+            let relay: RelayUrl = url.parse().unwrap();
             let mut original = invite();
             original.relay = relay;
             original.build = "a".repeat(64);
@@ -758,7 +796,8 @@ mod tests {
 
     #[test]
     fn compact_invites_preserve_every_field_and_accept_legacy() {
-        for relay in iroh::defaults::prod::default_relay_map().urls::<Vec<_>>() {
+        for (url, _) in RELAYS {
+            let relay: RelayUrl = url.parse().unwrap();
             let mut original = invite();
             original.relay = relay;
             original.build = "a".repeat(64); // Production sidecar SHA-256 string.
@@ -895,7 +934,7 @@ mod tests {
         Invite {
             version: VERSION,
             endpoint: iroh::SecretKey::from_bytes(&[7; 32]).public(),
-            relay: RELAYS[1].parse().unwrap(),
+            relay: pinned(1),
             room: [0x11; 16],
             capability: [0x22; 32],
             expires: 1_000_000,

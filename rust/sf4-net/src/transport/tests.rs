@@ -20,9 +20,7 @@ fn address(endpoint: &Endpoint) -> EndpointAddr {
 }
 
 fn room(endpoint: &Endpoint) -> Invite {
-    let relay = iroh::defaults::prod::default_relay_map()
-        .urls::<Vec<_>>()
-        .remove(0);
+    let relay = crate::invite::relay_map().urls::<Vec<_>>().remove(0);
     Invite::create(
         endpoint.id(),
         relay,

@@ -246,9 +246,7 @@ pub(super) async fn complete_next(actor: &mut Actor) {
 }
 
 pub(super) fn test_relay() -> iroh::RelayUrl {
-    iroh::defaults::prod::default_relay_map()
-        .urls::<Vec<_>>()
-        .remove(0)
+    crate::invite::relay_map().urls::<Vec<_>>().remove(0)
 }
 
 pub(super) fn joined_invite(authority: &Endpoint) -> Invite {
