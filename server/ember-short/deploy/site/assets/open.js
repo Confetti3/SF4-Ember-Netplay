@@ -171,6 +171,9 @@
       !ROOM.test(parts[1])) return null;
     return {
       bridge: parts[0],
+      room: parts[1].toLowerCase(),
+      // SF4's until the bridge lists the room as SFV's (roomLookUp).
+      game: 'usf4',
       title: 'Join a public room',
       lead: 'Someone invited you to a public room in SF4 Ember Netplay.',
       code: null,
@@ -181,6 +184,17 @@
         'Choose <strong>Paste room link</strong>.'],
       lasts: 'You need an Ember ID, and the room must still be open. Anyone with an Ember ID can join a public room, so it is safe to share this link.'
     };
+  }
+
+  // The same public room once the bridge lists it among SFV's rooms: SFV
+  // Ember's link and words.
+  function asSfvRoom(found) {
+    found.game = 'sfv';
+    found.lead = 'Someone invited you to a public room in SFV Ember.';
+    found.ember = 'ember-sfv://room/open?bridge=' + found.bridge + '&room=' + found.room;
+    found.after = 'SFV Ember opens Public rooms and asks to join this room. Your browser may ask first whether to open SFV Ember.';
+    found.steps = ['Start SFV Ember.', 'Choose <strong>Online play</strong>, then <strong>Public rooms</strong>.',
+      'Choose <strong>Paste room link</strong>.'];
   }
 
   function copy(text, done) {
@@ -282,6 +296,7 @@
     // A match's bridge names its game, which decides which Ember Open starts:
     // until it answers, or the wait ends, the page offers nothing to open.
     if (found.match && askable(found)) lookUp(found, path);
+    else if (found.room && window.fetch && found.bridge === PRODUCTION_BRIDGE) roomLookUp(found, path);
     else draw(found, path)();
   }
 
@@ -354,6 +369,27 @@
   // draws it for SF4 Ember, as before games. An answer after the wait still
   // shows: a match that is over, or one that is SFV's, drawn again for SFV
   // Ember.
+  // A public room's game: the production bridge's SFV list (/rooms-sfv.json,
+  // the site's own cached proxy) names it, or it is SF4's. The page draws
+  // once, for that game; no answer within OVER_WAIT_MS draws it as SF4's.
+  function roomLookUp(found, path) {
+    var drawn = false;
+    function settle(sfv) {
+      if (drawn || current !== found) return;
+      drawn = true;
+      clearTimeout(timer);
+      if (sfv) asSfvRoom(found);
+      draw(found, path)();
+    }
+    var timer = setTimeout(function () { settle(false); }, OVER_WAIT_MS);
+    fetch('/rooms-sfv.json', { cache: 'no-store', credentials: 'omit' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (body) {
+        var rooms = body && Array.isArray(body.rooms) ? body.rooms : [];
+        settle(rooms.some(function (room) { return room && typeof room.room_id === 'string' && room.room_id.toLowerCase() === found.room; }));
+      }, function () { settle(false); });
+  }
+
   function lookUp(found, path) {
     var drawn = false;
     function settle(body) {
