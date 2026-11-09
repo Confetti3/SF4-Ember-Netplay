@@ -2,7 +2,6 @@
 use std::{fmt, io};
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use ember_protocol::relay;
 use iroh::{EndpointAddr, EndpointId, RelayUrl, TransportAddr};
 use serde::{Deserialize, Serialize};
 use subtle::ConstantTimeEq;
@@ -558,6 +557,7 @@ pub(crate) struct RoomProof {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ember_protocol::relay;
 
     fn invite() -> Invite {
         let id = iroh::SecretKey::generate().public();
