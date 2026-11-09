@@ -107,6 +107,8 @@ static void TestOwnershipAndFacts() {
 	}
 	CHECK(catalog.resolveStage(11, 0, pool, nullptr, none) == 11 && catalog.resolveStage(22, 0, pool, nullptr, none) == 0);
 	CHECK(catalog.resolveStage(11, 0, pool, nullptr, someStages) == 11);
+	// So no SF4 room reads a member's list of missing stages as anything but none.
+	CHECK(!catalog.stagesCanBeMissing);
 }
 
 int main() {

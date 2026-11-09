@@ -3,6 +3,7 @@
 
 #include "../common/SelectionPick.hxx"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -38,9 +39,13 @@ bool CatalogNormalize(sf4e::selection::Pick& pick, bool, const sf4e::selection::
 		pick.ultra != before.ultra;
 }
 
-int CatalogResolveStage(int choice, std::uint32_t, const sf4e::selection::RandomPool&,
-	const sf4e::selection::InstalledContent*, const std::vector<std::int64_t>&) {
-	return CatalogStage(choice) ? choice : 0;
+int CatalogResolveStage(int choice, std::uint32_t roll, const sf4e::selection::RandomPool&,
+	const sf4e::selection::InstalledContent*, const std::vector<std::int64_t>& unavailable) {
+	if (choice != CatalogRandomStage) return CatalogStage(choice) ? choice : 0;
+	std::vector<int> left;
+	for (int stage = 0; stage < CatalogStages; ++stage)
+		if (std::find(unavailable.begin(), unavailable.end(), stage) == unavailable.end()) left.push_back(stage);
+	return left.empty() ? CatalogRandomStage : left[roll % left.size()];
 }
 
 const char* CatalogFighterName(int fighter) {

@@ -828,7 +828,7 @@ static void FuzzBoundRoom(Random& random) {
 			if (random.Chance(50)) {
 				const auto& table = authority.SnapshotView().tables[room::TournamentTable];
 				if (table.p1 && table.p2 && table.phase == room::TablePhase::Ready && !room::PermitPending(table) &&
-					authority.BeginMatch(room::TournamentTable, table.p1, table.p2).accepted && ++started)
+					authority.BeginMatch(room::TournamentTable, table.p1, table.p2, sf4e::room::MatchStage::Unsent()).accepted && ++started)
 					authority.EndMatch(room::TournamentTable, authority.SnapshotView().tables[room::TournamentTable].matchGeneration,
 						static_cast<room::MatchResult>(random.Below(5)));
 			}

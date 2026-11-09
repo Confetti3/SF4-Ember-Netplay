@@ -14,7 +14,7 @@ static void TestLocalMatchGenerations() {
 	EXPECT(authority.SnapshotFor(queuer).localMatchGenerationsSent && authority.SnapshotFor(queuer).localMatchGenerations[0] == 0);
 	EXPECT(!authority.SnapshotView().localMatchGenerationsSent);
 	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	for (const auto member : {p1, p2, queuer}) EXPECT(authority.SnapshotFor(member).localMatchGenerations[0] == generation);
 	EXPECT(authority.SnapshotFor(host).localMatchGenerationsSent && authority.SnapshotFor(host).localMatchGenerations[0] == 0);
@@ -63,7 +63,7 @@ static void TestSnapshotWithoutChat() {
 	same(authority);
 	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
 	same(authority);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	same(authority);
 	// A King of the hill room's type and cabinets, with someone seated.
 	RoomAuthority king("King", 16, 314, Rules(), false, DelayPolicy::Shared, KingRoom);

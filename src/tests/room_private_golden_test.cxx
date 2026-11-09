@@ -160,7 +160,7 @@ std::vector<Line> Run() {
 	apply("ready a", a, act(a, ActionKind::Ready));
 	apply("ready b", b, act(b, ActionKind::Ready));
 	authority.AdvanceTime(1000);
-	const auto begun = authority.BeginMatch(0, a, b);
+	const auto begun = authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent());
 	record("begin match", begun.accepted);
 	authority.AdvanceTime(2000);
 	record("advance time", true);

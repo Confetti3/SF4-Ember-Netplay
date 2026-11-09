@@ -191,9 +191,10 @@ struct MemberProfile {
 	// name its endpoint as a watcher refuses it. A courtesy of a cooperating
 	// game, never part of a snapshot.
 	bool observer = false;
-	// The stages the joiner's copy cannot load (GameState::MissingStages),
-	// as MissingStagesFrom keeps them. Empty is every stage: what SF4 and
-	// every full install send.
+	// The stages the joiner's copy cannot load (GameState::MissingStages).
+	// Empty is every stage: what SF4 and every full install send. The
+	// session owner reads it from the join request through MissingStagesFrom,
+	// its one check of the list, and RoomAuthority::Join keeps it as given.
 	std::vector<std::int64_t> missingStages;
 };
 
@@ -201,11 +202,29 @@ struct MemberProfile {
 // the game's catalog (GameCatalog::validStage), ascending, without repeats,
 // at most MaximumMissingStages; anything else is dropped. A list that makes
 // no sense reads as "none missing", which fails closed at the game's own
-// launch check. Defined with the room types' JSON (RoomModelJson.cxx).
+// launch check. A game whose copies cannot lack stages
+// (GameCatalog::stagesCanBeMissing off, as SF4) reads every list as none, so
+// its rooms never hold one. Read where a list arrives: the join request and
+// a member's JSON (snapshots and checkpoints). Defined with the room types'
+// JSON (RoomModelJson.cxx).
 std::vector<std::int64_t> MissingStagesFrom(std::vector<std::int64_t> stages);
 // The same from a JSON value: a non-array is none, and an entry that is not
 // an integer is dropped.
 std::vector<std::int64_t> MissingStagesFrom(const nlohmann::json& value);
+
+// The stage a table's game starts on, as the session owner holds it from
+// P1's PreBattleSetStage. Unsent: P1 sent none for this game. Such a game
+// starts as one always has, every watcher with it, and each copy's entry
+// judges the stage (an SF4 copy refuses it, SessionProtocol's
+// FindMatchProblem). A sent stage is judged by RoomAuthority::BeginMatch.
+struct MatchStage {
+	static MatchStage Unsent() { return MatchStage(false, 0); }
+	static MatchStage Sent(std::int64_t id) { return MatchStage(true, id); }
+	bool sent;
+	std::int64_t id;
+private:
+	MatchStage(bool sentStage, std::int64_t stageId) : sent(sentStage), id(stageId) {}
+};
 
 struct ConnectionRef {
 	std::string host;
@@ -511,13 +530,17 @@ struct Event {
 	// AdvanceTime took `member` out of a seat at `table` for not readying
 	// within ReadyTimeoutMs. Every member gets it, for the room chat.
 	ReadyTimeout,
-	// The stage P1 chose at `table` is one a member there cannot load
-	// (RoomQueries' StagePlayableAt). With `member` the table's P1 and no
-	// matchGeneration: the session owner took P1's Ready back at the start,
-	// and no game began. With `member` a watcher and the game's
-	// matchGeneration: that watcher sits the game out (BeginMatch left it out
-	// of the game's roster). The table's members get it, for their notices.
+	// BeginMatch refused the stage P1 sent at `table`: not one of the game's,
+	// or one a fighter's copy cannot load (RoomQueries' StagePlayableAt).
+	// P1's Ready was taken back and no game began; `member` is P1. It ends
+	// P1's pending Ready, so a room client never drops it. The table's
+	// members get it, for their notices.
 	StageNotShared,
+	// A watcher at `table` whose copy lacks the stage of the game that began
+	// (`matchGeneration`) sits it out: BeginMatch left `member` out of the
+	// game's roster, and it keeps its place for the next. The table's
+	// members get it, for the watcher's notice.
+	WatcherLacksStage,
 	};
 	Kind kind = Kind::SnapshotChanged;
 	std::uint8_t table = 0;

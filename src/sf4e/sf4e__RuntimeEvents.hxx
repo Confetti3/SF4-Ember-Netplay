@@ -15,6 +15,9 @@
 #include "../common/sf4e__NetplayConfig.hxx"
 #include "../netplay/SessionController.hxx"
 
+// Why the game cannot take a room's match (sf4e__GameAdapter.hxx).
+namespace ember { namespace game { enum class EntryRefusal : std::uint8_t; } }
+
 namespace sf4e {
 	// Authenticated Iroh loopback bridge endpoint selected for this match.
 	struct GgpoTransportStatus {
@@ -106,6 +109,10 @@ namespace sf4e {
 		// NetplayStatus::lastError; the one-argument PushAlert records an Error.
 		void PushAlert(const char* msg);
 		void PushAlert(const char* msg, NoticeSeverity severity);
+		// The notice for a room match the game refuses, worded by its reason
+		// (a watcher's own for a stage this copy lacks). The runtime gives it
+		// when Battle::Enter refuses; a later check of the game's says the same.
+		const char* EntryRefusalNotice(ember::game::EntryRefusal refusal);
 		// Drops the current notice (a new session starts).
 		void ClearMatchNotice();
 		// Drops an Info or Warning notice. An Error stays until a newer notice

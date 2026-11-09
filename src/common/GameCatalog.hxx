@@ -100,6 +100,11 @@ struct GameCatalog {
 	// The game asks its fighters Rematch, Character select or Back to room
 	// over its result screen, so a table's Instant rematch rule plays.
 	bool rematchInPlace;
+	// Copies of the game can lack some of its stages (SFV's installs differ,
+	// and GameState::MissingStages names this copy's). Where they cannot, as
+	// in SF4, a member's list of missing stages reads as none wherever it
+	// arrives (room::MissingStagesFrom), so no room ever holds one.
+	bool stagesCanBeMissing;
 };
 
 // A catalog the shared code can use: a roster that fits MaxFighters,

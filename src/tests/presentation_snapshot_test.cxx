@@ -250,7 +250,7 @@ static void TestTrainingRoster(const sf4e::netplay::Snapshot& session, const sf4
 	for (const auto member : {p1, p2, queuer}) CHECK(act(member, room::ActionKind::Queue, 0));
 	const auto begin = [&] {
 		for (const auto member : {p1, p2}) CHECK(act(member, room::ActionKind::Ready, 0));
-		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		CHECK(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		return authority.SnapshotView().tables[0].matchGeneration;
 	};
 	room::Snapshot live = authority.SnapshotFor(queuer);
@@ -412,7 +412,7 @@ static void TestTrainingMatrix(const sf4e::netplay::Snapshot& joined, const sf4e
 	for (const auto member : {p1, p2, admittedQueue, failedQueue, unqueued}) CHECK(act(member, room::ActionKind::Queue, 0, 0, false));
 	for (const auto member : {watcher, failedWatcher, unwatcher, mover, leaver}) CHECK(act(member, room::ActionKind::Watch, 0, 0, false));
 	for (const auto member : {p1, p2}) CHECK(act(member, room::ActionKind::Ready, 0, 0, false));
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	CHECK(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto game = authority.SnapshotView().tables[0].matchGeneration;
 	// Before anything else happens: who the game took in.
 	const auto admitted = authority.MatchRoster(0);
@@ -456,7 +456,7 @@ static void TestTrainingMatrix(const sf4e::netplay::Snapshot& joined, const sf4e
 	CHECK(authority.EndMatch(0, game, room::MatchResult::P1Win).accepted);
 	for (const auto member : {p1, p2, failedWatcher}) CHECK(act(member, room::ActionKind::AcknowledgeTerminal, 0, game, false));
 	for (const auto member : {p1, p2}) CHECK(act(member, room::ActionKind::Ready, 0, 0, false));
-	CHECK(authority.BeginMatch(0, p1, p2).accepted);
+	CHECK(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto next = authority.SnapshotView().tables[0].matchGeneration;
 	CHECK(next > game);
 	const auto failedWatcherNext = view(failedWatcher);
@@ -522,7 +522,7 @@ static void TestTrainingPausedMatrix(const sf4e::netplay::Snapshot& joined, cons
 	for (const auto member : {p1, p2, excluded}) CHECK(act(member, room::ActionKind::Queue, 0));
 	const auto begin = [&] {
 		for (const auto member : {p1, p2}) CHECK(act(member, room::ActionKind::Ready, 0));
-		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		CHECK(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		return authority.SnapshotView().tables[0].matchGeneration;
 	};
 	// An earlier game leaves the excluded member owing its receipt.

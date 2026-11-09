@@ -90,6 +90,9 @@ namespace sf4e {
 		};
 
 		struct MatchData {
+			// The stageID of a match P1 has sent no stage for.
+			static constexpr int64_t NoStage = -1;
+
 			MatchData();
 			void Clear();
 			void ClearReady();

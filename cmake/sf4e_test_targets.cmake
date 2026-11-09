@@ -54,7 +54,14 @@ sf4e_add_unit_test(NAME RoomDelayLimits SOURCES "src/tests/room_delay_limits_tes
 sf4e_add_unit_test(NAME RoomSnapshot SOURCES "src/tests/room_snapshot_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomSteamProfile SOURCES "src/tests/room_steam_profile_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomCountry SOURCES "src/tests/room_country_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
-sf4e_add_unit_test(NAME RoomMissingStages SOURCES "src/tests/room_missing_stages_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
+# Members' missing stages under catalogs the test defines from the fake game's
+# (fake_catalog.cxx): one whose copies can lack stages and SF4's rule, whose
+# cannot. It must not link sf4e_catalog, so it is registered by hand.
+add_executable(RoomMissingStagesTest "src/tests/room_missing_stages_test.cxx" "src/tests/fake_catalog.cxx")
+target_link_libraries(RoomMissingStagesTest PRIVATE sf4e_product sf4e_room_model sf4e_selection)
+add_test(NAME RoomMissingStages COMMAND RoomMissingStagesTest)
+set_tests_properties(RoomMissingStages PROPERTIES TIMEOUT 30)
+sf4e_test_labels(LABELS unit room TESTS RoomMissingStages)
 sf4e_add_unit_test(NAME RoomSets SOURCES "src/tests/room_sets_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomTableCount SOURCES "src/tests/room_table_count_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
 sf4e_add_unit_test(NAME RoomWiredOnly SOURCES "src/tests/room_wired_only_test.cxx" LIBS sf4e_room_model TIMEOUT 30 LABELS room)
@@ -299,7 +306,12 @@ sf4e_add_unit_test(NAME RoomHostConfig SOURCES "src/tests/room_host_config_test.
     "server/roomhost/RoomHostSf4Catalog.cxx"
     STD 17 LIBS sf4e_iroh_room LABELS room)
 sf4e_add_unit_test(NAME SessionServerReadyTimeout SOURCES "src/tests/session_server_ready_timeout_test.cxx" LIBS sf4e_session_server LABELS room)
-sf4e_add_unit_test(NAME SessionServerMissingStages SOURCES "src/tests/session_server_missing_stages_test.cxx" LIBS sf4e_session_server LABELS room)
+# The session server's start on a stage a fighter lacks, under catalogs the
+# test defines from the fake game's, as RoomMissingStages is.
+add_executable(SessionServerMissingStagesTest "src/tests/session_server_missing_stages_test.cxx" "src/tests/fake_catalog.cxx")
+target_link_libraries(SessionServerMissingStagesTest PRIVATE sf4e_product sf4e_session_server)
+add_test(NAME SessionServerMissingStages COMMAND SessionServerMissingStagesTest)
+sf4e_test_labels(LABELS unit room TESTS SessionServerMissingStages)
 sf4e_add_unit_test(NAME LowerInputLag SOURCES "src/tests/lower_input_lag_test.cxx" LIBS sf4e_session_server LABELS room)
 sf4e_add_unit_test(NAME PracticeRoomProjection SOURCES "src/tests/practice_room_projection_test.cxx" LIBS sf4e_session_server LABELS room)
 sf4e_add_unit_test(NAME DelayPolicyProjection SOURCES "src/tests/delay_policy_projection_test.cxx" LIBS sf4e_session_server LABELS room)

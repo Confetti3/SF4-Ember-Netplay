@@ -369,7 +369,7 @@ void AuthorityTakesTheMove() {
 	const auto p1 = join("P1", 1, false), p2 = join("P2", 2, false), viewer = join("Viewer", 3, false);
 	EXPECT(apply(p1, 1, ActionKind::Queue).accepted && apply(p2, 1, ActionKind::Queue).accepted);
 	EXPECT(apply(p1, 1, ActionKind::Ready).accepted && apply(p2, 1, ActionKind::Ready).accepted);
-	EXPECT(authority.BeginMatch(1, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(1, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(apply(viewer, 0, ActionKind::Watch).accepted);
 	auto room = authority.SnapshotFor(viewer);
 	RoomFollow follow;

@@ -1,9 +1,14 @@
-// The session server's start gate for a stage a fighter's copy lacks (SFV
-// Ember's EMBER_LIBRARY.md section 38): StartReadyTables takes P1's Ready back
-// instead of beginning a game on a stage either fighter lacks, and the table
-// hears StageNotShared; a stage both have begins, and a watcher that lacks it
-// sits the game out. An SF4 room, where nobody lacks a stage, starts as it
-// always did, with or without a stage sent.
+// The session server's start for a stage a fighter's copy lacks (SFV Ember's
+// EMBER_LIBRARY.md section 38): StartReadyTables hands the stage P1 sent to
+// RoomAuthority::BeginMatch, which takes P1's Ready back instead of beginning
+// a game on a stage either fighter lacks, and the table hears StageNotShared;
+// a stage both have begins, and a watcher that lacks it sits the game out
+// with WatcherLacksStage. Under SF4's rule, where no copy lacks a stage, a
+// room starts as it always did, with or without a stage sent, and a forged
+// list on a join is read as none.
+// It defines Catalog() from the fake game's (fake_catalog.hxx: stages 0 to
+// 39) rather than linking sf4e_catalog (cmake/sf4e_test_targets.cmake), and
+// switches between a game whose copies can lack stages and one whose cannot.
 #include "../session/sf4e__SessionServer.hxx"
 #include <algorithm>
 #include <array>
@@ -11,12 +16,26 @@
 #include <string>
 #include <vector>
 
+#include "fake_catalog.hxx"
 #include "test_support.hxx"
 #include "server_transport_support.hxx"
 
 using namespace sf4e;
 namespace protocol = sf4e::SessionProtocol;
 using nlohmann::json;
+
+namespace {
+ember::GameCatalog Catalogue(bool stagesCanBeMissing) {
+	ember::GameCatalog catalog = ember::test::TestCatalog(ember::test::CatalogFighters);
+	catalog.stagesCanBeMissing = stagesCanBeMissing;
+	return catalog;
+}
+ember::GameCatalog current = Catalogue(true);
+}
+
+namespace ember {
+const GameCatalog& Catalog() { return current; }
+}
 
 namespace {
 // A custom room whose members, on connections 1 and up, lack the stages
@@ -74,11 +93,8 @@ struct Room {
 	}
 };
 
-// Stages of SF4's catalog, which the library's tests are built with.
-std::int64_t StageAt(std::size_t index) { return selection::StageList()[index].id; }
-
 void TestOpponentLacksTheStage() {
-	const auto theirs = StageAt(1), watchers = StageAt(2);
+	const std::int64_t theirs = 1, watchers = 2;
 	// P2 lacks `theirs`; the third member watches and lacks `watchers`.
 	Room room({{}, {theirs}, {watchers}});
 	room.Act(1, room::ActionKind::Queue);
@@ -102,43 +118,48 @@ void TestOpponentLacksTheStage() {
 	room.Act(1, room::ActionKind::Ready);
 	CHECK(room.Table().phase == room::TablePhase::Playing && room.Table().matchGeneration != 0);
 	CHECK(room.Events(1, room::Event::Kind::MatchStarted).size() == 1);
-	const auto sitting = room.Events(3, room::Event::Kind::StageNotShared);
+	CHECK(room.Events(1, room::Event::Kind::StageNotShared).empty());
+	const auto sitting = room.Events(3, room::Event::Kind::WatcherLacksStage);
 	CHECK(sitting.size() == 1 && sitting[0].member == room.Member(3) && sitting[0].matchGeneration == room.Table().matchGeneration);
 	const auto roster = room.server._roomAuthority->MatchRoster(0);
 	CHECK(roster.size() == 2 && std::find(roster.begin(), roster.end(), room.Member(3)) == roster.end());
 }
 
-// A watcher that has the stage watches; nobody hears StageNotShared.
+// A watcher that has the stage watches; nobody hears of stages.
 void TestEveryoneHasTheStage() {
-	Room room({{StageAt(3)}, {StageAt(4)}, {StageAt(5)}});
+	Room room({{3}, {4}, {5}});
 	room.Act(1, room::ActionKind::Queue);
 	room.Act(2, room::ActionKind::Queue);
 	room.Act(3, room::ActionKind::Watch);
-	room.Stage(StageAt(0));
+	room.Stage(0);
 	room.Act(1, room::ActionKind::Ready);
 	room.Act(2, room::ActionKind::Ready);
 	CHECK(room.Table().phase == room::TablePhase::Playing);
-	for (session::Connection connection = 1; connection <= 3; ++connection)
+	for (session::Connection connection = 1; connection <= 3; ++connection) {
 		CHECK(room.Events(connection, room::Event::Kind::StageNotShared).empty());
+		CHECK(room.Events(connection, room::Event::Kind::WatcherLacksStage).empty());
+	}
 	const auto roster = room.server._roomAuthority->MatchRoster(0);
 	CHECK(std::find(roster.begin(), roster.end(), room.Member(3)) != roster.end());
 }
 
-// SF4: nobody lacks a stage, so a Ready is never taken back, with a stage
-// sent or none at all (the table's stored stage is then -1).
+// SF4's rule: no copy lacks a stage, so a list on a join, forged or not, is
+// read as none, and a Ready is never taken back, with a stage sent or none at
+// all (the table's stored stage is then the match data's NoStage).
 void TestSf4RoomStarts() {
+	current = Catalogue(false);
 	for (const bool sent : {true, false}) {
-		Room room({{}, {}});
+		Room room({{1}, {1}});
 		room.Act(1, room::ActionKind::Queue);
 		room.Act(2, room::ActionKind::Queue);
-		if (sent) room.Stage(StageAt(1));
+		if (sent) room.Stage(1);
 		room.Act(1, room::ActionKind::Ready);
 		room.Act(2, room::ActionKind::Ready);
 		CHECK(room.Table().phase == room::TablePhase::Playing);
 		CHECK(room.Events(1, room::Event::Kind::StageNotShared).empty());
-		// The join requests carried no list, and the members have none.
 		for (const auto& member : room.server.RoomSnapshot()->members) CHECK(member.missingStages.empty());
 	}
+	current = Catalogue(true);
 }
 } // namespace
 

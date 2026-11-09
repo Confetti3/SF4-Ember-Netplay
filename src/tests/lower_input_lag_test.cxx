@@ -141,7 +141,7 @@ void TestReadinessResets() {
 		Authority room;
 		room.Seat();
 		CHECK(room.Ready(room.p1, true) && room.Ready(room.p2, true) && room::MatchLowerLag(room.Table()));
-		CHECK(room.authority.BeginMatch(0, room.p1, room.p2).accepted && room::MatchLowerLag(room.Table()));
+		CHECK(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted && room::MatchLowerLag(room.Table()));
 		CHECK(room.authority.EndMatch(0, room.Table().matchGeneration, room::MatchResult::P1Win).accepted);
 		CHECK(room.Cleared());
 	}

@@ -127,6 +127,19 @@ struct LinkSample {
     bool localFighter = false;
 };
 
+// Why the game cannot take a room's match (Battle::Entry). The runtime words
+// the notice: the game names the reason, and only the game knows it.
+enum class EntryRefusal : std::uint8_t {
+    // Its fighters or settings are not ones the game plays
+    // (runtime.unsupported_match). What a refusal that names no other gives.
+    UnsupportedMatch,
+    // Its stage is not one of the game's (runtime.unsupported_stage).
+    UnsupportedStage,
+    // Its stage is the game's, but this copy has not installed it
+    // (runtime.stage_not_installed; a watcher's runtime.spectator_stage_missing).
+    StageNotInstalled,
+};
+
 // The game's battle and its rollback session. Game thread.
 //
 // A room match reaches the battle in two steps (EMBER_LIBRARY.md §6, #7):
@@ -137,10 +150,18 @@ struct LinkSample {
 // has loaded.
 class Battle {
 public:
-    // Deferred: not yet (no opponent, or away from the main menu).
-    // Rejected: the room's match is one the game cannot take; nothing of it
-    // was written, and the runtime leaves the game.
-    enum class Entry { Deferred, Entered, Rejected };
+    // What Enter did with the room's match. Deferred: not yet (no opponent,
+    // or away from the main menu). Rejected: the match is one the game cannot
+    // take, for `refusal`; nothing of it was written, and the runtime leaves
+    // the game and tells the player why. `refusal` means nothing otherwise.
+    struct Entry {
+        enum class Outcome { Deferred, Entered, Rejected };
+        Outcome outcome;
+        EntryRefusal refusal;
+        static Entry Deferred() { return {Outcome::Deferred, EntryRefusal::UnsupportedMatch}; }
+        static Entry Entered() { return {Outcome::Entered, EntryRefusal::UnsupportedMatch}; }
+        static Entry Rejected(EntryRefusal why = EntryRefusal::UnsupportedMatch) { return {Outcome::Rejected, why}; }
+    };
     // The room's granted match. Its facts are still read from the room client
     // (SessionClient's lobby and match data) until the wire is the library's.
     virtual Entry Enter() = 0;

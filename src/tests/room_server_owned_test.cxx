@@ -144,7 +144,7 @@ static void StartMatchRoom(MatchRoom& room) {
 	EXPECT(room.host && room.p1 && room.p2 && room.bystander);
 	for (const auto member : {room.p1, room.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	for (const auto member : {room.p1, room.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, room.p1, room.p2).accepted);
+	EXPECT(authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Playing);
 }
 
@@ -331,7 +331,7 @@ static void Acknowledge(RoomAuthority& authority, std::uint64_t generation, Memb
 static std::uint64_t PlayGame(RoomAuthority& authority, MatchResult result) {
 	const auto table = authority.SnapshotView().tables[0];
 	for (const auto member : {table.p1, table.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, table.p1, table.p2).accepted);
+	EXPECT(authority.BeginMatch(0, table.p1, table.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	EXPECT(authority.EndMatch(0, generation, result).accepted);
 	Acknowledge(authority, generation, table.p1, table.p2);

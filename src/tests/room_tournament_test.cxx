@@ -107,14 +107,14 @@ static void TestPermitGate() {
 		const auto reserved = authority.SnapshotView().tables[0].permitGeneration;
 		EXPECT(reserved != 0 && PermitPending(authority.SnapshotView().tables[0]));
 		EXPECT(ReadyCancellable(authority.SnapshotView().tables[0], 0));
-		EXPECT(!authority.BeginMatch(0, a, b).accepted);
+		EXPECT(!authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
 		EXPECT(!authority.Apply(b, Permit(authority, b, "not-a-permit")).accepted);
 		const auto differing = authority.Apply(b, Permit(authority, b, "per_two"));
 		EXPECT(differing.accepted && !HasEvent(differing, Event::Kind::MatchReady));
 		const auto agreed = authority.Apply(b, Permit(authority, b, "per_one"));
 		EXPECT(agreed.accepted && HasEvent(agreed, Event::Kind::MatchReady));
-		EXPECT(authority.BeginMatch(0, a, b).accepted);
+		EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(authority.SnapshotView().tables[0].matchGeneration == reserved);
 		EXPECT(authority.SnapshotView().tables[0].permitGeneration == 0);
 		EXPECT(authority.EndMatch(0, reserved, MatchResult::P1Win).accepted);
@@ -255,7 +255,7 @@ static void TestPermitWindowGate() {
 		inTime.AdvanceTime(due - 1);
 		const auto agreed = inTime.Apply(b, Permit(inTime, b, "per_one"));
 		EXPECT(agreed.accepted && HasEvent(agreed, Event::Kind::MatchReady));
-		EXPECT(inTime.BeginMatch(0, a, b).accepted && inTime.SnapshotView().tables[0].matchGeneration == reserved);
+		EXPECT(inTime.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted && inTime.SnapshotView().tables[0].matchGeneration == reserved);
 	}
 	{
 		// Arriving after it, even with a longer window of its own, it starts
@@ -265,7 +265,7 @@ static void TestPermitWindowGate() {
 		late.AgePermitHolds(due);
 		const auto agreed = late.Apply(b, Permit(late, b, "per_one"));
 		EXPECT(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
-		EXPECT(!late.BeginMatch(0, a, b).accepted);
+		EXPECT(!late.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(late.HasDueTimerTransition(due));
 	}
 	authority.AdvanceTime(due);
@@ -305,7 +305,7 @@ static void TestPermitWindowAcrossRecovery() {
 		EXPECT(owner.HasDueTimerTransition(7000) == expired);
 		const auto agreed = owner.Apply(b, Permit(owner, b, "per_one"));
 		EXPECT(agreed.accepted && HasEvent(agreed, Event::Kind::MatchReady) == !expired);
-		EXPECT(owner.BeginMatch(0, a, b).accepted == !expired);
+		EXPECT(owner.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted == !expired);
 		if (!expired) {
 			EXPECT(owner.SnapshotView().tables[0].matchGeneration == reserved);
 			continue;
@@ -402,7 +402,7 @@ static void TestRestoreKeepsPermitAge() {
 		held->KeepPermitAges(kept->PermitAges());
 		const auto agreed = held->Apply(b, Permit(*held, b, "per_one"));
 		EXPECT(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
-		EXPECT(!held->BeginMatch(0, a, b).accepted && held->HasDueTimerTransition(100000));
+		EXPECT(!held->BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted && held->HasDueTimerTransition(100000));
 		held->AdvanceTime(100000);
 		EXPECT(held->SnapshotView().tables[0].permitGeneration == 0);
 	}
@@ -560,7 +560,7 @@ static void TestPermitClockIsTheOwners() {
 		moved.AgePermitHolds(87000);
 		const auto agreed = moved.Apply(b, Permit(moved, b, "per_one"));
 		EXPECT(agreed.accepted && !HasEvent(agreed, Event::Kind::MatchReady));
-		EXPECT(!moved.BeginMatch(0, a, b).accepted);
+		EXPECT(!moved.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		moved.AdvanceTime(87000);
 		EXPECT(moved.SnapshotView().tables[0].permitGeneration == 0);
 	}
@@ -622,7 +622,7 @@ static void TestNativeStartWindow() {
 	EXPECT(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
 	const auto holding = authority.PermitAges();
 	EXPECT(holding.tables[0].windowMs == 0);
-	EXPECT(authority.BeginMatch(0, a, b).accepted);
+	EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(!authority.NativeStartExpired(0, reserved));
 	const auto checkpoint = PausedCheckpoint(authority);
 	EXPECT(checkpoint.contains("start_window") && checkpoint.at("start_window").at(0) == 90000 &&
@@ -673,7 +673,7 @@ static void PlayBoundGame(RoomAuthority& authority, MemberId a, MemberId b, Matc
 	EXPECT(authority.Apply(a, Permit(authority, a, "per_one")).accepted);
 	EXPECT(authority.Apply(b, Permit(authority, b, "per_one")).accepted);
 	const auto generation = authority.SnapshotView().tables[0].permitGeneration;
-	EXPECT(authority.BeginMatch(0, a, b).accepted);
+	EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 	EndGame(authority, generation, result);
 }
 
@@ -741,7 +741,7 @@ static void TestLeavingKeepsThePlayedScore() {
 	for (const auto member : {a, b})
 		EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	ReadyBoth(authority);
-	EXPECT(authority.BeginMatch(0, a, b).accepted);
+	EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 	EndGame(authority, authority.SnapshotView().tables[0].matchGeneration, MatchResult::P1Win);
 	EXPECT(authority.SnapshotView().tables[0].score[0] == 1 && authority.SnapshotView().tables[0].score[1] == 0);
 	EXPECT(authority.BindTournament(Binding()).accepted);
@@ -774,7 +774,7 @@ static void TestACasualGameDelaysTheFirstBinding() {
 	carried.startingWins = {1, 0};
 	auto refused = authority.BindTournament(carried);
 	EXPECT(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
-	EXPECT(authority.BeginMatch(0, a, b).accepted);
+	EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 	refused = authority.BindTournament(carried);
 	EXPECT(!refused.accepted && refused.reason == RejectReason::WrongPhase && !authority.SnapshotView().tournament.Active());
 	EndGame(authority, authority.SnapshotView().tables[0].matchGeneration, MatchResult::P1Win);
@@ -821,7 +821,7 @@ static void TestCasualRoomsNeedNoPermit() {
 		EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	ReadyBoth(authority);
 	EXPECT(authority.SnapshotView().tables[0].permitGeneration == 0);
-	EXPECT(authority.BeginMatch(0, host, other).accepted);
+	EXPECT(authority.BeginMatch(0, host, other, sf4e::room::MatchStage::Unsent()).accepted);
 }
 
 // A tournament match is never played in a Practice room, whose games are not

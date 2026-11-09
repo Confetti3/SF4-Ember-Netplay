@@ -2,6 +2,8 @@
 // Queries on the room model's values that the UI and the session layer share.
 #include "RoomTypes.hxx"
 
+#include <iterator>
+
 namespace sf4e { namespace room {
 
 // A seated fighter may still change fighter and delay: no game is being
@@ -372,19 +374,26 @@ inline SetStanding StandingAfter(const Snapshot& room, const Table& table, std::
 	return standing;
 }
 
-// The stages a seated fighter at the table cannot load: the union of both
-// seats' missingStages, ascending, without repeats (one seat's when the other
-// has none; none for an empty seat). Every check of a table's stage asks this
-// or StagePlayableAt, and nothing else.
+// Two lists of stages as a member's missingStages keeps them (ascending,
+// without repeats) as one such list. Either one alone, copied, when the other
+// is empty, so lists of none, every SF4 room's, cost no merge.
+inline std::vector<std::int64_t> StageUnion(const std::vector<std::int64_t>& first, const std::vector<std::int64_t>& second) {
+	if (second.empty()) return first;
+	if (first.empty()) return second;
+	std::vector<std::int64_t> both;
+	std::set_union(first.begin(), first.end(), second.begin(), second.end(), std::back_inserter(both));
+	return both;
+}
+// The stages a seated fighter at the table cannot load: both seats'
+// missingStages (StageUnion; none for an empty seat). Every check of a
+// table's stage asks this or StagePlayableAt, and nothing else.
 inline std::vector<std::int64_t> TableMissingStages(const Snapshot& room, const Table& table) {
-	std::vector<std::int64_t> missing;
-	for (const MemberId id : {table.p1, table.p2}) {
+	static const std::vector<std::int64_t> none;
+	const auto seat = [&](MemberId id) -> const std::vector<std::int64_t>& {
 		const auto* member = id ? FindMember(room, id) : nullptr;
-		if (member) missing.insert(missing.end(), member->missingStages.begin(), member->missingStages.end());
-	}
-	std::sort(missing.begin(), missing.end());
-	missing.erase(std::unique(missing.begin(), missing.end()), missing.end());
-	return missing;
+		return member ? member->missingStages : none;
+	};
+	return StageUnion(seat(table.p1), seat(table.p2));
 }
 // Both seated fighters' copies can load the stage. Always true where no
 // member lacks a stage, as in every SF4 room.
@@ -397,14 +406,16 @@ inline bool MemberHasStage(const Member& member, std::int64_t stage) {
 	return !std::binary_search(member.missingStages.begin(), member.missingStages.end(), stage);
 }
 // What a player may not choose as the stage now (the runtime's
-// unavailableStages): seated at a table, TableMissingStages for it, which
-// holds their own copy's missing stages too; anywhere else, or with no room,
-// their own copy's (`own`, GameState::MissingStages).
+// unavailableStages): their own copy's missing stages (`own`,
+// GameState::MissingStages, ascending and without repeats) and, seated at a
+// table, TableMissingStages for it too. The union is taken with `own` itself,
+// not with the room's copy of it, which a list the session owner cut short
+// or a room that has not seen this member's profile would leave out.
 inline std::vector<std::int64_t> UnavailableStagesFor(const Snapshot& room, const std::vector<std::int64_t>& own) {
 	const auto* local = room.roomEpoch ? FindMember(room, room.localMember) : nullptr;
 	const bool seated = local && local->table >= 0 && local->table < static_cast<std::int8_t>(TableCount) &&
 		(local->seat == 0 || local->seat == 1);
-	return seated ? TableMissingStages(room, room.tables[local->table]) : own;
+	return seated ? StageUnion(TableMissingStages(room, room.tables[local->table]), own) : own;
 }
 
 } }

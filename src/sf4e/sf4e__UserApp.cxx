@@ -1,5 +1,6 @@
 #include <chrono>
 #include <memory>
+#include <optional>
 
 #include <windows.h>
 #include <detours/detours.h>
@@ -52,17 +53,20 @@ using sf4e::Game::Battle::Sound::SoundPlayerManager;
 using sf4e::SessionClient;
 using ember::RuntimeSession;
 
-// The room's match checked as the game would take it, logged and named to the
-// player when it cannot be: the catalog id of the notice, or nullptr.
-static const char* RejectedMatch(const SessionClient& client, const char* where) {
+using Entry = ember::game::Battle::Entry;
+using ember::game::EntryRefusal;
+
+// The room's match checked as the game would take it, and logged when it
+// cannot be: why (EntryRefusalNotice words it), or nothing.
+static std::optional<EntryRefusal> RejectedMatch(const SessionClient& client, const char* where) {
     const auto& lobby = client._lobbyData;
     const auto& match = client._matchData;
     switch (SessionProtocol::FindMatchProblem(lobby, match)) {
     case SessionProtocol::MatchProblem::None:
-        return nullptr;
+        return std::nullopt;
     case SessionProtocol::MatchProblem::Stage:
         spdlog::error("{}: rejected unsupported stage ID {}", where, match.stageID);
-        return "runtime.unsupported_stage";
+        return EntryRefusal::UnsupportedStage;
     case SessionProtocol::MatchProblem::Settings:
         spdlog::error("{}: rejected match settings rounds={} time={}.{}", where,
             lobby.roundCount, lobby.roundTime.integral, lobby.roundTime.fractional);
@@ -76,10 +80,8 @@ static const char* RejectedMatch(const SessionClient& client, const char* where)
             match.chara[1].charaID, match.chara[1].costume, match.chara[1].unc_edition);
         break;
     }
-    return "runtime.unsupported_match";
+    return EntryRefusal::UnsupportedMatch;
 }
-
-using Entry = ember::game::Battle::Entry;
 
 static Entry StartMatchFromLobby(SessionClient* const client) {
     sf4e::NetplayFacade::ClearBattleState();
@@ -91,14 +93,12 @@ static Entry StartMatchFromLobby(SessionClient* const client) {
     if (!client || client->_lobbyData.members.size() < 2) {
         spdlog::info("Client: deferring match start until opponent joins the lobby");
         sf4e::NetplayFacade::PushAlert(sf4e::loc::T("runtime.waiting_opponent_join"));
-        return Entry::Deferred;
+        return Entry::Deferred();
     }
     // Before anything of the match reaches the game: its settings go into the
-    // battle settings below and its stage and fighters into VS mode.
-    if (const char* notice = RejectedMatch(*client, "Client")) {
-        sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
-        return Entry::Rejected;
-    }
+    // battle settings below and its stage and fighters into VS mode. The
+    // runtime tells the player why.
+    if (const auto refusal = RejectedMatch(*client, "Client")) return Entry::Rejected(*refusal);
 
     fVsPreBattle::VersusSettings settings;
     settings.editionSelect = client->_lobbyData.editionSelect;
@@ -118,7 +118,7 @@ static Entry StartMatchFromLobby(SessionClient* const client) {
     settings.next = sf4e::battle::NextRequest::ForMatch(client->_lobbyData.trainingMode, client->_matchData.rngSeed);
     settings.onBattleTasksRegistered = fUserApp::_OnVsBattleTasksRegistered;
     if (!fVsPreBattle::GoToVersus(settings, fUserApp::_OnVsPreBattleTasksRegistered)) {
-        return Entry::Deferred;
+        return Entry::Deferred();
     }
     // The fighters and editions name the HUD's edition badges the first round
     // shows, for a crash at the battle's start.
@@ -134,7 +134,7 @@ static Entry StartMatchFromLobby(SessionClient* const client) {
         chara[1].charaID, chara[1].costume, chara[1].unc_edition,
         client->_matchData.stageID
     );
-    return Entry::Entered;
+    return Entry::Entered();
 }
 
 // Every PC simulating the match, fighters and spectators alike, reads inputs
@@ -270,8 +270,8 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
     // Entry refused such a match before VS mode began. This keeps the bytes
     // out of the game should they change after entry, which a session that
     // takes host updates until the battle allows.
-    if (const char* notice = RejectedMatch(RuntimeSession::netplay->client, "VsPreBattle")) {
-        sf4e::NetplayFacade::PushAlert(sf4e::loc::T(notice));
+    if (const auto refusal = RejectedMatch(RuntimeSession::netplay->client, "VsPreBattle")) {
+        sf4e::NetplayFacade::PushAlert(sf4e::NetplayFacade::EntryRefusalNotice(*refusal));
         return;
     }
     // What this PC shows: custom costumes and colors it has play as stand-ins, ones it doesn't have become the
@@ -285,7 +285,7 @@ void fUserApp::_OnVsPreBattleTasksRegistered()
 }
 
 Entry fUserApp::EnterAuthorizedMatch() {
-    return RuntimeSession::netplay ? StartMatchFromLobby(&RuntimeSession::netplay->client) : Entry::Deferred;
+    return RuntimeSession::netplay ? StartMatchFromLobby(&RuntimeSession::netplay->client) : Entry::Deferred();
 }
 
 void fUserApp::Install() {

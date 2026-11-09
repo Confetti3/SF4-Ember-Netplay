@@ -46,7 +46,7 @@ struct Room {
 		EXPECT(Apply(spectator, ActionKind::Watch).accepted);
 		if (locked) EXPECT(Lock(spectator, true).accepted);
 		EXPECT(ReadyBoth());
-		EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+		EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		finished = authority.SnapshotView().tables[0].matchGeneration;
 		EXPECT(authority.EndMatch(0, finished, MatchResult::P1Win).accepted);
 		EXPECT(Acknowledge(p1) && Acknowledge(p2));
@@ -87,7 +87,7 @@ static void TestAcknowledgementReleasesTheHold() {
 	EXPECT(room.member(room.spectator).spectatorLocked);
 	EXPECT(!room.ReadyBoth());
 	EXPECT(room.table().phase == TablePhase::Ready && room.table().spectatorHold);
-	EXPECT(!room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+	EXPECT(!room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	// Nothing else releases it early.
 	EXPECT(!StartsMatch(room.authority.AdvanceTime(5000)));
 	EXPECT(StartsMatch(room.authority.Apply(room.spectator, [&] {
@@ -96,7 +96,7 @@ static void TestAcknowledgementReleasesTheHold() {
 		return action;
 	}())));
 	EXPECT(!room.table().spectatorHold);
-	EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+	EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT((room.authority.MatchRoster(0) == std::vector<MemberId>{room.p1, room.p2, room.spectator}));
 	// The lock lasts across games, and the watcher reads as watching.
 	EXPECT(room.member(room.spectator).spectatorLocked);
@@ -110,7 +110,7 @@ static void TestHoldExpires() {
 	EXPECT(!StartsMatch(room.authority.AdvanceTime(1000 + SpectatorStartHoldMs - 1)));
 	EXPECT(room.authority.HasDueTimerTransition(1000 + SpectatorStartHoldMs));
 	EXPECT(StartsMatch(room.authority.AdvanceTime(1000 + SpectatorStartHoldMs)));
-	EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+	EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT((room.authority.MatchRoster(0) == std::vector<MemberId>{room.p1, room.p2}));
 	// Left out of this game, it waits for the next one, even once it is back.
 	EXPECT(room.member(room.spectator).status == MemberStatus::WatchingNext);
@@ -154,7 +154,7 @@ static void TestOnlyWatchersLockIn() {
 	const auto queued = room.Join("Queued", 4);
 	EXPECT(room.Apply(queued, ActionKind::Queue).accepted);
 	EXPECT(room.ReadyBoth());
-	EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+	EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	// A queued member watches the game it waits out, but not by choice.
 	const auto waiting = room.Lock(queued, true);
 	EXPECT(!waiting.accepted && waiting.reason == RejectReason::NotWatching);
@@ -212,7 +212,7 @@ struct LiveGame {
 	explicit LiveGame(bool locked) : room(locked) {
 		EXPECT(room.Acknowledge(room.spectator));
 		EXPECT(room.ReadyBoth());
-		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		generation = room.table().matchGeneration;
 		EXPECT((room.authority.MatchRoster(0) == std::vector<MemberId>{room.p1, room.p2, room.spectator}));
 	}
@@ -241,7 +241,7 @@ static void TestStreamLossKeepsTheWatch() {
 	EXPECT(game.room.Acknowledge(game.room.p1) && game.room.Acknowledge(game.room.p2));
 	EXPECT(game.room.ReadyBoth() && !game.room.table().spectatorHold);
 	EXPECT(game.room.Acknowledge(game.room.spectator));
-	EXPECT(game.room.authority.BeginMatch(0, game.room.p1, game.room.p2).accepted);
+	EXPECT(game.room.authority.BeginMatch(0, game.room.p1, game.room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT((game.room.authority.MatchRoster(0) == std::vector<MemberId>{game.room.p1, game.room.p2, game.room.spectator}));
 
 	// A player's own Stop watching sends no such flag, and leaves the table.

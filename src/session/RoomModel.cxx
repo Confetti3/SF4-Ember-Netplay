@@ -265,7 +265,7 @@ Result RoomAuthority::Join(const std::string& name, const ConnectionRef& connect
 	member.nat = NatClassFromWire(static_cast<long long>(profile.nat));
 	member.steamId = profile.steamId;
 	member.country = profile.country;
-	member.missingStages = MissingStagesFrom(profile.missingStages);
+	member.missingStages = profile.missingStages;
 	member.badge = profile.admission.badge;
 	member.connection = connection;
 	member.host = snapshot_.host == 0 || host;
@@ -577,18 +577,7 @@ Result RoomAuthority::Leave(MemberId member) {
 	return Accept(std::move(departureEvents));
 }
 
-Result RoomAuthority::WithdrawStage(std::uint8_t tableId) {
-	Table* table = FindTable(tableId);
-	if (!table) return Reject(RejectReason::UnknownTable);
-	Member* p1 = Find(table->p1);
-	if (!p1 || table->phase != TablePhase::Ready || !table->ready[0]) return Reject(RejectReason::WrongPhase);
-	ReleaseReady(*table, 0, *p1);
-	Result settled = SettleReadiness(*table, p1->id);
-	settled.events.push_back(Event{Event::Kind::StageNotShared, tableId, 0, p1->id, MatchResult::Abort});
-	return settled;
-}
-
-Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2, std::int64_t stage) {
+Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2, MatchStage stage) {
 	Table* table = FindTable(tableId);
 	if (!table || table->p1 != p1 || table->p2 != p2 || p1 == 0 || p2 == 0 ||
 		table->phase != TablePhase::Ready || table->spectatorHold || PermitPending(*table) || table->resultPending ||
@@ -598,6 +587,17 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2,
 		// again before the native start.
 		(BoundTable(*table) && (!table->permitGeneration || PermitStartPassed(*table, PermitAge(*table)))) ||
 		nextMatchGeneration_ == (std::numeric_limits<std::uint64_t>::max)()) return Reject(table ? RejectReason::WrongPhase : RejectReason::UnknownTable);
+	// A game starts only on a stage of the game that both fighters' copies
+	// can load. Otherwise P1 chooses again: its Ready is taken back, and the
+	// table hears why.
+	if (stage.sent && (!ember::Catalog().validStage(stage.id) || !StagePlayableAt(snapshot_, *table, stage.id))) {
+		Member* first = Find(p1);
+		if (!first) return Reject(RejectReason::WrongPhase);
+		ReleaseReady(*table, 0, *first);
+		Result withdrawn = SettleReadiness(*table, p1);
+		withdrawn.events.push_back(Event{Event::Kind::StageNotShared, tableId, 0, p1, MatchResult::Abort});
+		return withdrawn;
+	}
 	// A bound table plays the generation its permit names, and its permit
 	// timer runs on until the native start.
 	table->matchGeneration = table->permitGeneration ? table->permitGeneration : nextMatchGeneration_++;
@@ -639,8 +639,8 @@ Result RoomAuthority::BeginMatch(std::uint8_t tableId, MemberId p1, MemberId p2,
 	std::vector<Event> events{Event{Event::Kind::MatchStarted, tableId, table->matchGeneration, 0, MatchResult::Abort}};
 	for (const auto spectator : table->spectators) {
 		const auto* member = Find(spectator);
-		if (member && !MemberHasStage(*member, stage)) {
-			events.push_back(Event{Event::Kind::StageNotShared, tableId, table->matchGeneration, spectator, MatchResult::Abort});
+		if (member && stage.sent && !MemberHasStage(*member, stage.id)) {
+			events.push_back(Event{Event::Kind::WatcherLacksStage, tableId, table->matchGeneration, spectator, MatchResult::Abort});
 			continue;
 		}
 		if (!HasOutstandingTerminalReceiptForMember(spectator)) freezeRecipient(spectator);

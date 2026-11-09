@@ -77,7 +77,7 @@ int main() {
 		EXPECT(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
 		EXPECT(room.member(room.p1).training);
 		// A game of theirs starting ends it without their word.
-		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(room.member(room.p1).status == MemberStatus::Playing && !room.member(room.p1).training);
 		// And the game ending does not bring it back.
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
@@ -155,7 +155,7 @@ int main() {
 		EXPECT(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().practice);
 		EXPECT(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
 		EXPECT(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
-		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
 		EXPECT(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().practice);
 		EXPECT(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().practice);
@@ -195,7 +195,7 @@ int main() {
 		EXPECT(room.authority.Apply(room.host, set).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
 		EXPECT(room.Apply(room.p1, ActionKind::Queue).accepted && room.Apply(room.p2, ActionKind::Queue).accepted);
 		EXPECT(room.Apply(room.p1, ActionKind::Ready).accepted && room.Apply(room.p2, ActionKind::Ready).accepted);
-		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2).accepted);
+		EXPECT(room.authority.BeginMatch(0, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		const auto generation = room.authority.SnapshotView().tables[0].matchGeneration;
 		EXPECT(room.authority.EndMatch(0, generation, MatchResult::Abort).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);
 		EXPECT(room.authority.Leave(room.host).accepted && room.authority.SnapshotView().delayPolicy == DelayPolicy::Own);

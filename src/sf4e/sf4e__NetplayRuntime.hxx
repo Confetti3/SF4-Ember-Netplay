@@ -653,26 +653,26 @@ TypedCommand& WithRandomFighter(TypedCommand& command);
 void SetRandomFighterRollForTest(std::function<int()> roll);
 
 // Stages a seated player lacks (sf4e__NetplayRuntime__Stages.cxx). The one
-// definition of the stages this player may not choose now: at a table, both
-// seats' missing stages (room::UnavailableStagesFor); anywhere else this
-// copy's own (GameState::MissingStages). The snapshot's unavailableStages,
-// the Ready check and Random all read it.
+// definition of the stages this player may not choose now: this copy's own
+// (GameState::MissingStages) and, at a table, both seats' missing stages too
+// (room::UnavailableStagesFor). The snapshot's unavailableStages, the Ready
+// check and Random all read it; each computes it once.
 std::vector<std::int64_t> UnavailableStagesNow();
 // The stage P1's Ready sends for its choice: Random rolled with `roll` over
 // the stages UnavailableStagesNow leaves (the catalog's resolveStage).
 int StageToSend(const commands::Room& command, std::uint32_t roll);
 // Why P1 may not ready with the command's stage now, or null: Random with no
-// stage left (runtime.ready.stage_unavailable), or a stage the opponent's
-// copy lacks (runtime.ready.stage_not_shared). Resolves with a fixed roll, so
-// the check spends none of the game's own.
+// stage left, or a stage this copy lacks (runtime.ready.stage_unavailable),
+// or one the opponent's copy lacks (runtime.ready.stage_not_shared).
+// Resolves with a fixed roll, so the check spends none of the game's own.
 const char* StageReadyRefusal(const commands::Room& command);
 // The table's StageNotShared (room::Event), as this player hears it: P1's
-// Ready taken back fails it with the reason, the other fighter is told to
-// wait, and a watcher left out of the game is told it watches the next.
+// Ready, taken back at the start, fails with the reason, and the other
+// fighter is told to wait.
 void ObserveStageNotShared(const room::Event& event);
-// The notice for a room game this copy cannot enter (Battle::Enter refused
-// it): its stage is not installed here, or the match is unsupported.
-const char* MatchEntryRefusal();
+// The table's WatcherLacksStage: a watcher left out of the game is told it
+// watches the next.
+void ObserveWatcherLacksStage(const room::Event& event);
 } // namespace internal
 using namespace internal;
 } } // namespace sf4e::NetplayFacade

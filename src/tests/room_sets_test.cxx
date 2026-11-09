@@ -19,7 +19,7 @@ static void QueueAll(RoomAuthority& authority, std::initializer_list<MemberId> m
 static std::uint64_t Play(RoomAuthority& authority, MatchResult result) {
 	const auto seated = authority.SnapshotView().tables[0];
 	for (const auto member : {seated.p1, seated.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, seated.p1, seated.p2).accepted);
+	EXPECT(authority.BeginMatch(0, seated.p1, seated.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	EXPECT(authority.EndMatch(0, generation, result).accepted);
 	for (const auto member : authority.TerminalMembers(0, generation)) {
@@ -195,7 +195,7 @@ static void TestRotatedFighterKeepsItsReceipt() {
 	QueueAll(authority, {a, b, c});
 	SetRules(authority, host, SetFormat::Ft1, RotationMode::WinnerStays);
 	for (const auto member : {a, b}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, a, b).accepted);
+	EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	for (const auto member : {a, b}) {
 		Action report = TableAction(authority, member, 0, ActionKind::RecordResult);
@@ -223,7 +223,7 @@ static void TestRotatedFighterKeepsItsReceipt() {
 	EXPECT(!authority.Apply(c, TableAction(authority, c, 0, ActionKind::Ready)).accepted);
 	acknowledge(b);
 	EXPECT(authority.Apply(c, TableAction(authority, c, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, a, c).accepted);
+	EXPECT(authority.BeginMatch(0, a, c, sf4e::room::MatchStage::Unsent()).accepted);
 	// The rotated fighter waits in the queue and watches the next game.
 	const auto& t = authority.SnapshotView().tables[0];
 	EXPECT(Queued(t, b) && std::find(t.spectators.begin(), t.spectators.end(), b) != t.spectators.end());
@@ -272,7 +272,7 @@ static void TestGamesPlayedInPlace() {
 	QueueAll(authority, {a, b});
 	SetRules(authority, host, SetFormat::Ft3, RotationMode::WinnerStays);
 	for (const auto member : {a, b}) CHECK(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(0, a, b).accepted);
+	CHECK(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	const auto report = [&](MemberId member, unsigned game, bool continued, MatchResult result) {
 		Action action = TableAction(authority, member, 0, ActionKind::RecordResult);

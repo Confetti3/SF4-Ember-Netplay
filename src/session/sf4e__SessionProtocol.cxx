@@ -51,7 +51,7 @@ namespace sf4e {
 		void MatchData::Clear() {
 			readyMessageNum[0] = -1;
 			readyMessageNum[1] = -1;
-			stageID = -1;
+			stageID = NoStage;
 			rngSeed = 0xffffffff;
 			memset(chara.data(), 0, sizeof(sf4e::wire::ConfirmedCharaConditions) * 2);
 			chara[0].unc_edition = chara[1].unc_edition = 14; // USFIV default; edition 0 is not selectable.

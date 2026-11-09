@@ -78,7 +78,7 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 	CHECK(act(member, queued ? room::ActionKind::Queue : room::ActionKind::Watch, 0));
 	const auto begin = [&] {
 		for (const auto fighter : {p1, p2}) CHECK(act(fighter, room::ActionKind::Ready, 0));
-		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		CHECK(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		return authority.SnapshotView().tables[0].matchGeneration;
 	};
 	RuntimeRoom r;
@@ -214,7 +214,7 @@ struct WatchedGame {
 		for (const auto fighter : {p1, p2}) CHECK(Act(fighter, room::ActionKind::Queue));
 		CHECK(Act(member, queued ? room::ActionKind::Queue : room::ActionKind::Watch));
 		for (const auto fighter : {p1, p2}) CHECK(Act(fighter, room::ActionKind::Ready));
-		CHECK(authority.BeginMatch(0, p1, p2).accepted);
+		CHECK(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		generation = authority.SnapshotView().tables[0].matchGeneration;
 		r.Snapshot(authority.SnapshotFor(member));
 		if (!enter) r.Match().FailPortReservationForTest(true);
@@ -476,7 +476,7 @@ void TestFailedViewCountsLockInDrops() {
 		ack.kind = room::ActionKind::AcknowledgeTerminal; ack.table = 0; ack.matchGeneration = game.generation;
 		for (const auto who : {game.p1, game.p2, game.member}) CHECK(ApplyAs(game, who, ack).accepted);
 		for (const auto fighter : {game.p1, game.p2}) CHECK(game.Act(fighter, room::ActionKind::Ready));
-		CHECK(game.authority.BeginMatch(0, game.p1, game.p2).accepted);
+		CHECK(game.authority.BeginMatch(0, game.p1, game.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		game.r.Snapshot(game.authority.SnapshotFor(game.member));
 		CHECK(game.r.Client().GetRoomSnapshot().tables[0].matchGeneration > game.generation);
 		Answer(game, room::ActionKind::LockSpectating, true);
@@ -619,7 +619,7 @@ void TestFinishedWatchEndsOnlyTheView() {
 				CHECK(game.authority.Apply(fighter, ack).accepted);
 			}
 			for (const auto fighter : {game.p1, game.p2}) CHECK(game.Act(fighter, room::ActionKind::Ready));
-			CHECK(game.authority.BeginMatch(0, game.p1, game.p2).accepted);
+			CHECK(game.authority.BeginMatch(0, game.p1, game.p2, sf4e::room::MatchStage::Unsent()).accepted);
 			CHECK(view.tables[0].phase == room::TablePhase::Playing && view.tables[0].matchGeneration > game.generation);
 		} else CHECK(view.tables[0].phase != room::TablePhase::Playing);
 		game.r.Snapshot(game.authority.SnapshotFor(game.member));

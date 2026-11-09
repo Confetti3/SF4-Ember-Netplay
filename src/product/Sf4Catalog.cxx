@@ -44,6 +44,8 @@ constexpr ember::GameCatalog Usf4 = {
 	sizeof(sf4e::room::RoundTimes) / sizeof(sf4e::room::RoundTimes[0]),
 	true,
 	true,
+	// Every SF4 copy has every stock stage.
+	false,
 };
 static_assert(ember::Usable(Usf4), "SF4's catalog must fit the shared code's limits");
 }

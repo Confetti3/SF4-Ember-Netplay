@@ -680,7 +680,7 @@ static void TestArcadeKeeperReady() {
 		ready.tableRevision = authority.SnapshotView().tables[table].revision;
 		CHECK(authority.Apply(fighter, ready).accepted);
 	}
-	CHECK(authority.BeginMatch(table, seated.p1, seated.p2).accepted);
+	CHECK(authority.BeginMatch(table, seated.p1, seated.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[table].matchGeneration;
 	CHECK(authority.EndMatch(table, generation, seated.p1 == a ? room::MatchResult::P1Win : room::MatchResult::P2Win).accepted);
 	for (const auto recipient : authority.TerminalMembers(table, generation)) {

@@ -93,7 +93,7 @@ int main() {
 		// Two fighters with a game under way keep their table too.
 		EXPECT(room.At(room.p1, ActionKind::Queue, 4).accepted && room.At(room.p2, ActionKind::Queue, 4).accepted);
 		EXPECT(room.At(room.p1, ActionKind::Ready, 4).accepted && room.At(room.p2, ActionKind::Ready, 4).accepted);
-		const auto begun = room.authority.BeginMatch(4, room.p1, room.p2);
+		const auto begun = room.authority.BeginMatch(4, room.p1, room.p2, sf4e::room::MatchStage::Unsent());
 		EXPECT(begun.accepted && room.View().tables[4].phase == TablePhase::Playing);
 		EXPECT(room.SetTables(room.host, 2).reason == RejectReason::WrongPhase);
 		const auto generation = room.View().tables[4].matchGeneration;
@@ -171,7 +171,7 @@ int main() {
 		EXPECT(room.At(room.p1, ActionKind::Queue, 5).accepted && room.At(room.p2, ActionKind::Queue, 5).accepted);
 		EXPECT(room.At(spectator, ActionKind::Queue, 5).accepted);
 		EXPECT(room.At(room.p1, ActionKind::Ready, 5).accepted && room.At(room.p2, ActionKind::Ready, 5).accepted);
-		EXPECT(room.authority.BeginMatch(5, room.p1, room.p2).accepted);
+		EXPECT(room.authority.BeginMatch(5, room.p1, room.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		const auto generation = room.View().tables[5].matchGeneration;
 		const auto roster = room.authority.MatchRoster(5);
 		EXPECT(std::find(roster.begin(), roster.end(), spectator) != roster.end());

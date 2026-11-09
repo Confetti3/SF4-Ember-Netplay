@@ -43,7 +43,7 @@ static void Play(RoomAuthority& authority, MemberId member, MatchResult result) 
 	const auto table = static_cast<std::uint8_t>(TableOf(authority, member));
 	const auto seated = authority.SnapshotView().tables[table];
 	for (const auto fighter : {seated.p1, seated.p2}) CHECK(authority.Apply(fighter, TableAction(authority, fighter, table, ActionKind::Ready)).accepted);
-	CHECK(authority.BeginMatch(table, seated.p1, seated.p2).accepted);
+	CHECK(authority.BeginMatch(table, seated.p1, seated.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[table].matchGeneration;
 	CHECK(authority.EndMatch(table, generation, result).accepted);
 	for (const auto recipient : authority.TerminalMembers(table, generation)) {

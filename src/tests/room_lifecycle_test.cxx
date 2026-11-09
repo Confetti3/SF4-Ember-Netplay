@@ -12,7 +12,7 @@ static void TestQueueWatchAndReplay() {
 	for (const auto member : {p1, p2, p3, p4}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto queued = authority.SnapshotView().tables[0];
 	for (const auto member : {queued.p1, queued.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, queued.p1, queued.p2).accepted);
+	EXPECT(authority.BeginMatch(0, queued.p1, queued.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto playing = authority.SnapshotView().tables[0];
 	EXPECT(playing.queue.size() == 2 && playing.spectators.size() == 2);
 	const auto generation = playing.matchGeneration;
@@ -87,7 +87,7 @@ struct LiveTable {
 		q = Join(authority, 3); w = Join(authority, 4);
 		for (const auto member : {a, b, q}) EXPECT(Do(member, ActionKind::Queue).accepted);
 		for (const auto member : {a, b}) EXPECT(Do(member, ActionKind::Ready).accepted);
-		EXPECT(authority.BeginMatch(0, a, b).accepted);
+		EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		generation = table().matchGeneration;
 		EXPECT(Do(w, ActionKind::Watch).accepted);
 	}
@@ -140,7 +140,7 @@ static void TestFighterDepartureClosesTheGame() {
 		// The watcher is granted the game that replaces it.
 		live.Acknowledge(live.b, live.generation); live.Acknowledge(live.q, live.generation);
 		for (const auto member : {live.q, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
-		EXPECT(live.authority.BeginMatch(0, live.q, live.b).accepted);
+		EXPECT(live.authority.BeginMatch(0, live.q, live.b, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(live.Has(live.authority.MatchRoster(0), live.w) && live.member(live.w).status == MemberStatus::Watching);
 	}
 }
@@ -193,7 +193,7 @@ static void TestLeavingQueueEndsTheQueuedWatch() {
 		EXPECT(live.member(live.q).status == MemberStatus::Idle && live.member(live.q).table == -1);
 		EXPECT(!WatchesByChoice(table, live.q));
 		for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
-		EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
+		EXPECT(live.authority.BeginMatch(0, live.a, live.b, sf4e::room::MatchStage::Unsent()).accepted);
 		// (w asked to watch the next game, and does.)
 		EXPECT((live.authority.MatchRoster(0) == std::vector<MemberId>{live.a, live.b, live.w}));
 	}
@@ -220,7 +220,7 @@ static void TestLeavingQueueEndsTheQueuedWatch() {
 		EXPECT(live.member(live.q).status == MemberStatus::Idle);
 		for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
 		for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
-		EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
+		EXPECT(live.authority.BeginMatch(0, live.a, live.b, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(!live.Has(live.authority.MatchRoster(0), live.q));
 	}
 	{
@@ -266,7 +266,7 @@ static void TestQueuedWatcherLeavesOneGame() {
 	EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
 	for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
 	for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
-	EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
+	EXPECT(live.authority.BeginMatch(0, live.a, live.b, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(live.Has(live.authority.MatchRoster(0), live.q) && live.Has(live.table().queue, live.q));
 }
 
@@ -288,7 +288,7 @@ static void TestHudScoreFollowsTheWatchedGame() {
 	EXPECT(live.authority.EndMatch(0, live.generation, MatchResult::P1Win).accepted);
 	for (const auto member : {live.a, live.b, live.q}) live.Acknowledge(member, live.generation);
 	for (const auto member : {live.a, live.b}) EXPECT(live.Do(member, ActionKind::Ready).accepted);
-	EXPECT(live.authority.BeginMatch(0, live.a, live.b).accepted);
+	EXPECT(live.authority.BeginMatch(0, live.a, live.b, sf4e::room::MatchStage::Unsent()).accepted);
 	const std::uint32_t start[2] = { live.table().score[0], live.table().score[1] };
 	EXPECT(start[0] == 1 && start[1] == 0);
 	std::uint32_t shown[2] = { 9, 9 };
@@ -346,7 +346,7 @@ static void TestHudDelayFollowsTheWatchedGame() {
 		for (const auto member : {a, b}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 		EXPECT(authority.Apply(w, TableAction(authority, w, 0, ActionKind::Watch)).accepted);
 		ready(a, 3); ready(b, 5);
-		EXPECT(authority.BeginMatch(0, a, b).accepted);
+		EXPECT(authority.BeginMatch(0, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		// What the grant's seats carry, as the host projects them (SeatMatchDelay).
 		const auto& room = authority.SnapshotView();
 		const auto& table = room.tables[0];

@@ -168,7 +168,7 @@ static void TestTerminalReceiptReplay() {
 	const auto seated = model.SnapshotView().tables[0];
 	CHECK(applyTable(seated.p1, room::ActionKind::Ready, 4).accepted);
 	CHECK(applyTable(seated.p2, room::ActionKind::Ready, 5).accepted);
-	CHECK(model.BeginMatch(0, seated.p1, seated.p2).accepted);
+	CHECK(model.BeginMatch(0, seated.p1, seated.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = model.SnapshotView().tables[0].matchGeneration;
 	CHECK(model.EndMatch(0, generation, room::MatchResult::P2Win).accepted);
 	// The spectator already acknowledged; the two fighters did not.
@@ -326,7 +326,7 @@ static void TestTerminalAcknowledgmentBatch() {
 	const auto seated = model.SnapshotView().tables[0];
 	CHECK(applyTable(seated.p1, room::ActionKind::Ready, 2001).accepted);
 	CHECK(applyTable(seated.p2, room::ActionKind::Ready, 2002).accepted);
-	CHECK(model.BeginMatch(0, seated.p1, seated.p2).accepted);
+	CHECK(model.BeginMatch(0, seated.p1, seated.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = model.SnapshotView().tables[0].matchGeneration;
 	CHECK(model.EndMatch(0, generation, room::MatchResult::P1Win).accepted);
 	CHECK(model.TerminalMembers(0, generation).size() == room::MaximumMembers);

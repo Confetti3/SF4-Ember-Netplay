@@ -564,17 +564,19 @@ bool SessionClient::HandleRoomEvent(json& msg) {
 		spdlog::warn("Client: unreadable room event: {}", e.what());
 		_roomError = "runtime.room_request_failed"; return true;
 	}
-	const bool lifecycle = event.event.kind == room::Event::Kind::MatchReady ||
-		event.event.kind == room::Event::Kind::MatchStarted ||
-		event.event.kind == room::Event::Kind::MatchEnded ||
-		event.event.kind == room::Event::Kind::RoomClosed ||
-		event.event.kind == room::Event::Kind::ResultDisputed;
+	// The kinds a full queue never drops: each moves a match or a pending
+	// Ready on, which no snapshot does. StageNotShared is the only end of a
+	// P1 Ready whose stage the start refused: that Ready was taken back in
+	// the same step that accepted it, so no snapshot ever shows it.
+	const auto lifecycle = [](room::Event::Kind kind) {
+		return kind == room::Event::Kind::MatchReady || kind == room::Event::Kind::MatchStarted ||
+			kind == room::Event::Kind::MatchEnded || kind == room::Event::Kind::RoomClosed ||
+			kind == room::Event::Kind::ResultDisputed || kind == room::Event::Kind::StageNotShared;
+	};
 	if (_roomEvents.size() >= 64) {
-		if (!lifecycle) return true; // the accompanying snapshot is authoritative
+		if (!lifecycle(event.event.kind)) return true; // the accompanying snapshot is authoritative
 		auto discard = std::find_if(_roomEvents.begin(), _roomEvents.end(), [&](const room::Event& queued) {
-			return queued.kind != room::Event::Kind::MatchReady && queued.kind != room::Event::Kind::MatchStarted &&
-				queued.kind != room::Event::Kind::MatchEnded && queued.kind != room::Event::Kind::RoomClosed &&
-				queued.kind != room::Event::Kind::ResultDisputed;
+			return !lifecycle(queued.kind);
 		});
 		if (discard == _roomEvents.end()) {
 			spdlog::warn("Client: room event queue overflow");

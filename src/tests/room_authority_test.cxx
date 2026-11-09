@@ -23,7 +23,7 @@ static void TestAuthorityRecovery() {
     EXPECT(original.Apply(host, ban).accepted);
     for (auto member : {p1, p2}) EXPECT(original.Apply(member, TableAction(original, member, 0, ActionKind::Queue)).accepted);
     for (auto member : {p1, p2}) EXPECT(original.Apply(member, TableAction(original, member, 0, ActionKind::Ready)).accepted);
-    EXPECT(original.BeginMatch(0, p1, p2).accepted);
+    EXPECT(original.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
     original.AdvanceTime(1000);
     Action report = TableAction(original, p1, 0, ActionKind::RecordResult);
     report.matchGeneration = original.SnapshotView().tables[0].matchGeneration;
@@ -66,7 +66,7 @@ static void TestRelativeTimerRecovery() {
 	EXPECT(source.Apply(p2, TableAction(source, p2, 0, ActionKind::Queue)).accepted);
 	EXPECT(source.Apply(p1, TableAction(source, p1, 0, ActionKind::Ready)).accepted);
 	EXPECT(source.Apply(p2, TableAction(source, p2, 0, ActionKind::Ready)).accepted);
-	EXPECT(source.BeginMatch(0, p1, p2).accepted);
+	EXPECT(source.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	Action finished = TableAction(source, p1, 0, ActionKind::MatchFinished);
 	finished.matchGeneration = source.SnapshotView().tables[0].matchGeneration;
 	EXPECT(source.Apply(p1, finished).accepted);
@@ -123,7 +123,7 @@ static void TestUnlimitedRematch() {
 			Action ready = TableAction(authority, member, 0, ActionKind::Ready);
 			EXPECT(authority.Apply(member, ready).accepted);
 		}
-		EXPECT(authority.BeginMatch(0, before.p1, before.p2).accepted);
+		EXPECT(authority.BeginMatch(0, before.p1, before.p2, sf4e::room::MatchStage::Unsent()).accepted);
 		const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 		EXPECT(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
 		for (const auto member : authority.TerminalMembers(0, generation)) {
@@ -243,7 +243,7 @@ static void TestIdleTimeIsStampedPerSnapshot() {
 	const MemberId other = Join(authority, 2);
 	EXPECT(authority.Apply(other, TableAction(authority, other, 0, ActionKind::Queue)).accepted);
 	for (const auto member : {guest, other}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, authority.SnapshotView().tables[0].p1, authority.SnapshotView().tables[0].p2).accepted);
+	EXPECT(authority.BeginMatch(0, authority.SnapshotView().tables[0].p1, authority.SnapshotView().tables[0].p2, sf4e::room::MatchStage::Unsent()).accepted);
 	authority.AdvanceTime(500 + 600 * 1000);
 	EXPECT(idleOf(guest) == 0 && idleOf(other) == 0 && idleOf(host) == 600);
 	// Members who come and go leave no activity behind.
@@ -266,7 +266,7 @@ static void TestMatchFinishedAndSeatLifecycle() {
 	for (const auto member : {p1, p2, p3}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto initial = authority.SnapshotView().tables[0];
 	for (const auto member : {initial.p1, initial.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, initial.p1, initial.p2).accepted);
+	EXPECT(authority.BeginMatch(0, initial.p1, initial.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	EXPECT(!authority.HasDueTimerTransition(0)); // no pending result
 	Action finished = TableAction(authority, p1, 0, ActionKind::MatchFinished);
@@ -334,7 +334,7 @@ static void TestDepartureRecoveryAndSnapshotValidation() {
 	for (const auto member : {p1, p2, p3, p4}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	const auto seated = authority.SnapshotView().tables[0];
 	for (const auto member : {seated.p1, seated.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, seated.p1, seated.p2).accepted);
+	EXPECT(authority.BeginMatch(0, seated.p1, seated.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(authority.SnapshotView().tables[0].spectators.size() == 2);
 
 	// A watcher/queued member can disappear without touching the frozen fighter
@@ -425,7 +425,7 @@ static void TestTerminalLifecycleGate() {
 	EXPECT(authority.Apply(spectator, watch).accepted);
 	const auto seated = authority.SnapshotView().tables[0];
 	for (const auto member : {seated.p1, seated.p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	Action first = TableAction(authority, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation; first.result = MatchResult::P1Win;
@@ -463,7 +463,7 @@ static void TestTerminalLifecycleGate() {
 	EXPECT(authority.Apply(p1, ready).accepted);
 	ready = TableAction(authority, p2, 0, ActionKind::Ready);
 	EXPECT(authority.Apply(p2, ready).accepted);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 }
 
 // Diverged peers report different results, which pauses the table at once.
@@ -479,7 +479,7 @@ static void TestFighterAbandonsDisputedResult() {
 	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Queue)).accepted);
 	EXPECT(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
 	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	Action first = TableAction(authority, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation; first.result = MatchResult::P1Win;
@@ -523,7 +523,7 @@ static void TestFighterAbandonsDisputedResult() {
 		EXPECT(authority.Apply(member, acknowledgment).accepted);
 	}
 	for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(authority.SnapshotView().host == host);
 
 	// A fighter can also leave the seat once the abandoned game has drained.
@@ -550,7 +550,7 @@ static void TestTerminalReceiptSurvivesCompaction() {
 	for (const auto member : {departedP1, departedP2}) EXPECT(departed.Apply(member, TableAction(departed, member, 0, ActionKind::Queue)).accepted);
 	const auto departedTable = departed.SnapshotView().tables[0];
 	for (const auto member : {departedTable.p1, departedTable.p2}) EXPECT(departed.Apply(member, TableAction(departed, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(departed.BeginMatch(0, departedP1, departedP2).accepted);
+	EXPECT(departed.BeginMatch(0, departedP1, departedP2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto departedGeneration = departed.SnapshotView().tables[0].matchGeneration;
 	Action departedFirst = TableAction(departed, departedP1, 0, ActionKind::RecordResult);
 	departedFirst.matchGeneration = departedGeneration; departedFirst.result = MatchResult::P1Win;
@@ -570,7 +570,7 @@ static void TestTerminalReceiptSurvivesCompaction() {
 	for (const auto member : {p1, p2}) EXPECT(source.Apply(member, TableAction(source, member, 0, ActionKind::Queue)).accepted);
 	const auto seated = source.SnapshotView().tables[0];
 	for (const auto member : {seated.p1, seated.p2}) EXPECT(source.Apply(member, TableAction(source, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(source.BeginMatch(0, p1, p2).accepted);
+	EXPECT(source.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = source.SnapshotView().tables[0].matchGeneration;
 	Action first = TableAction(source, p1, 0, ActionKind::RecordResult);
 	first.matchGeneration = generation;
@@ -628,7 +628,7 @@ static void TestTerminalReceiptSurvivesCompaction() {
 	// Cancel/abort teardown has the same durable replay path even when the
 	// moderator is not one of the two frozen fighters.
 	for (const auto member : {p1, p2}) EXPECT(source.Apply(member, TableAction(source, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(source.BeginMatch(0, p1, p2).accepted);
+	EXPECT(source.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto cancelledGeneration = source.SnapshotView().tables[0].matchGeneration;
 	Action cancel = TableAction(source, source.SnapshotView().host, 0, ActionKind::CancelResult);
 	cancel.matchGeneration = cancelledGeneration;
@@ -764,7 +764,7 @@ static void TestSpectatorDoesNotHoldTable() {
 	EXPECT(authority.Apply(spectator, TableAction(authority, spectator, 0, ActionKind::Watch)).accepted);
 	const auto begin = [&]() {
 		for (const auto member : {p1, p2}) EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-		EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+		EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		return authority.SnapshotView().tables[0].matchGeneration;
 	};
 	const auto acknowledge = [&](MemberId member, std::uint64_t generation) {
@@ -915,7 +915,7 @@ static void TestReadyDelaysShareTheHigherValue() {
 	const auto& first = authority.SnapshotView().tables[0];
 	EXPECT(first.inputDelay[0] == 1 && first.inputDelay[1] == 5);
 	EXPECT(MatchDelay(first) == 5);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	EXPECT(authority.EndMatch(0, generation, MatchResult::P1Win).accepted);
 	for (const auto member : authority.TerminalMembers(0, generation)) {
@@ -1067,7 +1067,7 @@ int main() {
 	Action ready2 = TableAction(authority, p2, 0, ActionKind::Ready);
 	EXPECT(authority.Apply(p2, ready2).accepted);
 	EXPECT(authority.SnapshotView().tables[0].phase == TablePhase::Ready);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	EXPECT(generation != 0);
 

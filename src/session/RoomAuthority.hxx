@@ -71,17 +71,16 @@ public:
 	// ready. These operations are intentionally separate from client actions:
 	// only the session owner can grant a match generation or acknowledge native
 	// game teardown.
-	// `stage` is the stage P1 chose, when the session owner knows it: a
-	// spectator whose copy lacks it (Member::missingStages) is left out of the
-	// game's roster and sits the game out, and gets a StageNotShared event;
-	// -1 leaves every spectator in, as no member ever lacks it.
-	Result BeginMatch(std::uint8_t table, MemberId p1, MemberId p2, std::int64_t stage = -1);
-	// The session owner found, at the start, that the stage P1 chose is one a
-	// fighter at the table cannot load (StagePlayableAt): P1's Ready is taken
-	// back as an Unready would, and every member of the table hears
-	// StageNotShared, so P1 chooses again. Refused unless the table's game is
-	// about to start (Ready, P1 ready).
-	Result WithdrawStage(std::uint8_t table);
+	// `stage` is the stage P1 sent for the game. A sent stage that is not one
+	// of the game's (GameCatalog::validStage), or one a fighter's copy cannot
+	// load (StagePlayableAt), starts no game: P1's Ready is taken back as an
+	// Unready would, and the result is accepted with StageNotShared, so P1
+	// chooses again. Both seats were filled before either fighter readied, so
+	// this backs a P1 that judged on an older snapshot, or a forged one. A
+	// watcher whose copy lacks the stage (Member::missingStages) is left out
+	// of the game's roster, sits it out and gets WatcherLacksStage. An unsent
+	// stage starts the game with every watcher, as it always has.
+	Result BeginMatch(std::uint8_t table, MemberId p1, MemberId p2, MatchStage stage);
 	// The session owner applies the tournament binding its own helper checked.
 	// It never comes from another member. Members whose endpoint the binding
 	// does not name leave, and the bound fighters are seated by slot at table

@@ -89,7 +89,7 @@ static void TestNextDueMsResultDispute() {
 	const auto seats = authority.SnapshotView().tables[0];
 	for (const auto member : {seats.p1, seats.p2})
 		EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, seats.p1, seats.p2).accepted);
+	EXPECT(authority.BeginMatch(0, seats.p1, seats.p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(authority.NextDueMs(0) == NoTimer); // playing, no result yet
 	auto finished = TableAction(authority, p1, 0, ActionKind::MatchFinished);
 	finished.matchGeneration = authority.SnapshotView().tables[0].matchGeneration;
@@ -204,7 +204,7 @@ static void TestReadyTimeoutExclusions() {
 	EXPECT(base.Apply(p2, TableAction(base, p2, 0, ActionKind::Ready)).accepted);
 	EXPECT(base.SnapshotFor(p1).tables[0].readyRemainingMs == 0);
 	EXPECT(base.AdvanceTime(ReadyTimeoutMs * 4).empty()); // both Ready, phase Ready
-	EXPECT(base.BeginMatch(0, p1, p2).accepted);
+	EXPECT(base.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	EXPECT(base.AdvanceTime(ReadyTimeoutMs * 5).empty()); // Playing
 	const auto generation = base.SnapshotView().tables[0].matchGeneration;
 	for (const auto member : {p1, p2}) {
@@ -257,7 +257,7 @@ static void TestReadyTimeoutMemberReceipt() {
 	EXPECT(authority.Apply(returning, TableAction(authority, returning, 0, ActionKind::Watch)).accepted);
 	for (const auto member : {p1, p2})
 		EXPECT(authority.Apply(member, TableAction(authority, member, 0, ActionKind::Ready)).accepted);
-	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+	EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto generation = authority.SnapshotView().tables[0].matchGeneration;
 	for (const auto member : {opponent, returning})
 		EXPECT(authority.Apply(member, TableAction(authority, member, 1, ActionKind::Queue)).accepted);

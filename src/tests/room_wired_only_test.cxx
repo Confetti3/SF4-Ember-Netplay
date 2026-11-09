@@ -67,7 +67,7 @@ struct Room {
 		const auto& t = View().tables[table];
 		const MemberId p1 = t.p1, p2 = t.p2;
 		EXPECT(At(p1, ActionKind::Ready, table).accepted && At(p2, ActionKind::Ready, table).accepted);
-		EXPECT(authority.BeginMatch(table, p1, p2).accepted);
+		EXPECT(authority.BeginMatch(table, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 		EXPECT(authority.EndMatch(table, View().tables[table].matchGeneration, result).accepted);
 	}
 };
@@ -143,7 +143,7 @@ int main() {
 		EXPECT(room.SetWiredOnly(room.host, true).accepted);
 		EXPECT(room.View().tables[0].p1 == wifi && room.View().tables[0].ready[0] && room.Find(wifi)->status == MemberStatus::Ready);
 		EXPECT(room.At(wired, ActionKind::Ready, 0).accepted);
-		EXPECT(room.authority.BeginMatch(0, wifi, wired).accepted && room.View().tables[0].phase == TablePhase::Playing);
+		EXPECT(room.authority.BeginMatch(0, wifi, wired, sf4e::room::MatchStage::Unsent()).accepted && room.View().tables[0].phase == TablePhase::Playing);
 		EXPECT(room.SetWiredOnly(room.host, false).accepted && room.SetWiredOnly(room.host, true).accepted);
 		EXPECT(room.View().tables[0].phase == TablePhase::Playing && room.View().tables[0].p1 == wifi);
 		EXPECT(room.authority.EndMatch(0, room.View().tables[0].matchGeneration, MatchResult::P1Win).accepted);

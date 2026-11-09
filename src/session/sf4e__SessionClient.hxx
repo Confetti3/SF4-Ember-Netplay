@@ -116,8 +116,10 @@ namespace sf4e {
 		void SetProfileCountry(const CountryCode& country) { _profile.country = country; }
 		// The join watches a tournament match, which admits only its named watchers.
 		void SetProfileObserver(bool observer) { _profile.observer = observer; }
-		// The stages this copy cannot load (GameState::MissingStages); none sends no key.
-		void SetProfileMissingStages(std::vector<std::int64_t> stages) { _profile.missingStages = room::MissingStagesFrom(std::move(stages)); }
+		// The stages this copy cannot load (GameState::MissingStages), sent as
+		// the game gives them; none sends no key. The session owner checks the
+		// list where it reads the join (room::MissingStagesFrom).
+		void SetProfileMissingStages(std::vector<std::int64_t> stages) { _profile.missingStages = std::move(stages); }
 		bool IsCustomRoom() const { return _customRoomsSeen; }
 		const std::string& RoomError() const { return _roomError; }
 		bool TakeRoomEvent(room::Event& event);

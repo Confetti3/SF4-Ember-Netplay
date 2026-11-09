@@ -192,28 +192,19 @@ std::vector<room::Event> SessionServer::StartReadyTables(const std::vector<room:
 	std::vector<room::Event> started;
 	for (const auto& event : events) {
 		if (event.kind != room::Event::Kind::MatchReady) continue;
-		const auto& snapshot = _roomAuthority->SnapshotView();
-		const auto& table = snapshot.tables[event.table];
-		// The one authoritative stage check: only here are both seats and the
-		// stage P1 sent (before its Ready) known together, since the opponent
-		// may have sat down after P1 readied. A stage a fighter's copy lacks
-		// starts no game: P1's Ready is taken back and the table hears why.
-		// Where no member lacks a stage (every SF4 room) it never refuses.
+		const auto& table = _roomAuthority->SnapshotView().tables[event.table];
+		// The stage P1 sent before its Ready; BeginMatch judges it.
 		const auto stored = _roomMatchData.find(event.table);
-		const std::int64_t stage = stored != _roomMatchData.end() ? stored->second.stageID : -1;
-		if (!room::StagePlayableAt(snapshot, table, stage)) {
-			const auto withdrawn = _roomAuthority->WithdrawStage(event.table);
-			if (withdrawn.accepted) {
-				spdlog::info("Server: table {} stage {} is not on both fighters' copies; P1's Ready was taken back", event.table, stage);
-				started.insert(started.end(), withdrawn.events.begin(), withdrawn.events.end());
-			}
-			continue;
-		}
+		const auto stage = stored == _roomMatchData.end() || stored->second.stageID == SessionProtocol::MatchData::NoStage ?
+			room::MatchStage::Unsent() : room::MatchStage::Sent(stored->second.stageID);
 		const auto begun = _roomAuthority->BeginMatch(event.table, table.p1, table.p2, stage);
 		if (!begun.accepted) continue;
-		for (const auto& value : begun.events)
+		for (const auto& value : begun.events) {
 			if (value.kind == room::Event::Kind::MatchStarted && !BeginAuthorizedTable(value.table, value.matchGeneration))
 				_transportFailed = true;
+			if (value.kind == room::Event::Kind::StageNotShared)
+				spdlog::info("Server: table {} refused stage {}; P1's Ready was taken back", value.table, stage.id);
+		}
 		started.insert(started.end(), begun.events.begin(), begun.events.end());
 	}
 	return started;

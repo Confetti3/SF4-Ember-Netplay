@@ -93,7 +93,7 @@ struct Match {
 	std::uint64_t Begin() {
 		ReadyBoth();
 		PermitBoth();
-		CHECK(authority.BeginMatch(TournamentTable, a, b).accepted);
+		CHECK(authority.BeginMatch(TournamentTable, a, b, sf4e::room::MatchStage::Unsent()).accepted);
 		return Table0().matchGeneration;
 	}
 	// The game ends and every recipient, watchers included, acknowledges it.
@@ -371,7 +371,7 @@ static void TestSpectatorListAtStart() {
 	const MemberId leaves = Watcher(match.authority, 2);
 	CHECK(leaves && match.authority.Leave(leaves).accepted);
 	CHECK(match.Table0().revision == tableRevision);
-	CHECK(match.authority.BeginMatch(TournamentTable, match.a, match.b).accepted);
+	CHECK(match.authority.BeginMatch(TournamentTable, match.a, match.b, sf4e::room::MatchStage::Unsent()).accepted);
 	const auto roster = match.authority.LiveMatchRoster(TournamentTable);
 	CHECK(roster.size() == 3 && roster[0] == match.a && roster[1] == match.b && Listed(roster, stays));
 	CHECK(match.Find(stays)->status == MemberStatus::Watching);

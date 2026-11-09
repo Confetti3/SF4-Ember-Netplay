@@ -106,16 +106,20 @@ static void HandleSessionlessClose(std::uint64_t closedGeneration) {
 	internal::AbortLocalMatch("");
 }
 
-// The room's match is one the game cannot take, and nothing of it was
-// written. Leave this game as a failed setup does: the room hears of it, the
-// session is retired, and the next game enters as usual. The notice says why
-// (MatchEntryRefusal): a stage this copy lacks has its own.
-static void RejectMatchEntry() {
-	spdlog::warn("Netplay: leaving generation {}: the game cannot take its match", runtime->match->Generation());
+// The room's match is one the game cannot take, for the reason it gave, and
+// nothing of it was written. Leave this game as a failed setup does: the room
+// hears of it, the session is retired, and the next game enters as usual.
+// The player is told why (EntryRefusalNotice): a stage this copy lacks is
+// told as a warning, a match the game does not play as an error.
+static void RejectMatchEntry(game::EntryRefusal refusal) {
+	const char* notice = EntryRefusalNotice(refusal);
+	const auto severity = refusal == game::EntryRefusal::StageNotInstalled ? NoticeSeverity::Warning : NoticeSeverity::Error;
+	spdlog::warn("Netplay: leaving generation {}: the game cannot take its match: {}", runtime->match->Generation(), notice);
+	PushAlert(notice, severity);
 	if (LocalIsSpectator()) ArmSpectatorLockRelease(runtime->match->Generation(), true);
 	ReportMatchAbort();
 	runtime->readyIntent.Withdraw(); runtime->lobbyEditIntent.Clear();
-	internal::AbortLocalMatch(MatchEntryRefusal(), NoticeSeverity::Warning);
+	internal::AbortLocalMatch(notice, severity);
 }
 
 // The game offers no spectating (Capabilities::spectators), so a game this PC
@@ -673,7 +677,8 @@ void TickMatch() {
 				if (LocalIsSpectator() && !CurrentGates().canWatch) SitOutUnwatchableGame();
 				else {
 					const auto entry = Game().battle.Enter();
-					runtime->entry.matchEntered = entry == game::Battle::Entry::Entered;
+					using Outcome = game::Battle::Entry::Outcome;
+					runtime->entry.matchEntered = entry.outcome == Outcome::Entered;
 					if (runtime->entry.matchEntered) {
 						runtime->entry.enteredGeneration = runtime->match->Generation();
 						runtime->promptOverBattle = false;
@@ -681,7 +686,7 @@ void TickMatch() {
 						const auto* local = room::FindMember(room, room.localMember);
 						runtime->entry.enteredTable = local ? local->table : -1;
 					}
-					else if (entry == game::Battle::Entry::Rejected) RejectMatchEntry();
+					else if (entry.outcome == Outcome::Rejected) RejectMatchEntry(entry.refusal);
 					else if (!AtMainMenu()) ObserveDeferredEntry();
 				}
 			}

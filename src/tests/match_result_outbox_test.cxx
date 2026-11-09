@@ -34,7 +34,7 @@ static void TestDegradedCaptureAndLostReplyRetry() {
     EXPECT(authority.Apply(p2, ActionFor(authority, p2, room::ActionKind::Queue, 1)).accepted);
     EXPECT(authority.Apply(p1, ActionFor(authority, p1, room::ActionKind::Ready, 2)).accepted);
     EXPECT(authority.Apply(p2, ActionFor(authority, p2, room::ActionKind::Ready, 2)).accepted);
-    EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+    EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
 
     netplay::RandomRoomId roomId{};
     roomId[0] = 0x42;
@@ -220,7 +220,7 @@ static void TestDegradedCaptureAndLostReplyRetry() {
     }
     EXPECT(authority.Apply(p1, ActionFor(authority, p1, room::ActionKind::Ready, 7)).accepted);
     EXPECT(authority.Apply(p2, ActionFor(authority, p2, room::ActionKind::Ready, 7)).accepted);
-    EXPECT(authority.BeginMatch(0, p1, p2).accepted);
+    EXPECT(authority.BeginMatch(0, p1, p2, sf4e::room::MatchStage::Unsent()).accepted);
     EXPECT(authority.SnapshotView().tables[0].matchGeneration > generation);
 }
 
