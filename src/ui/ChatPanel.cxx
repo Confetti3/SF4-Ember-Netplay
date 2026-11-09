@@ -11,19 +11,6 @@
 
 namespace sf4e { namespace ui {
 namespace {
-// A line of what happened in the room, in the player's language now.
-std::string EventText(const ChatLine& line) {
-    const std::string name = line.name.empty() ? std::string(loc::T("room.player")) : line.name;
-    switch (line.kind) {
-    case ChatLine::Kind::Joined: return loc::Tf("chat.event.joined", name);
-    case ChatLine::Kind::Left: return loc::Tf("chat.event.left", name);
-    case ChatLine::Kind::NewHost: return loc::Tf("chat.event.host", name);
-    case ChatLine::Kind::GameWon: return loc::Tf("chat.event.game_won", name, line.table + 1, SetScoreText(line.score));
-    case ChatLine::Kind::SetWon: return loc::Tf("chat.event.set_won", name, line.table + 1, SetScoreText(line.score));
-    case ChatLine::Kind::ReadyTimeout: return loc::Tf("chat.event.ready_timeout", name, line.table + 1);
-    default: return {};
-    }
-}
 // ImGui selects the whole box when the keyboard focus lands on it, which would
 // have the next letter replace a kept draft. The caret goes to the end instead.
 int CaretToEnd(ImGuiInputTextCallbackData* data) {
@@ -143,7 +130,7 @@ void ApplicationShell::DrawChatLog(const ShellView&, bool compact) {
     for (const auto& line : transcript_.Lines()) {
         if (line.kind != ChatLine::Kind::Message) {
             any = true; above = 0;
-            const std::string text = EventText(line);
+            const std::string text = ChatEventText(line);
             const float room = (std::max)(1.f, ImGui::GetContentRegionAvail().x - 8 * s);
             const float width = (std::min)(room, ImGui::CalcTextSize(text.c_str(), nullptr, false, room).x);
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (std::max)(0.f, (room - width) * .5f));

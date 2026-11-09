@@ -472,16 +472,28 @@ float BrandMark(ImDrawList* draw, ImVec2 at, float height) {
     return height;
 }
 
+HeaderMeasures MeasureHeader(bool eyebrow, float windowWidth) {
+    const float s = Scale();
+    const bool narrow = Narrow(windowWidth, s);
+    HeaderMeasures m;
+    m.mark = (narrow ? 32 : 40) * s;
+    m.title = (narrow ? 22 : 26) * s;
+    m.eyebrow = 13 * s;
+    m.eyebrowLine = eyebrow ? m.eyebrow + 4 * s : 0;
+    m.band = (std::max)(m.mark, m.eyebrowLine + m.title) + 10 * s;
+    m.height = m.band + 8 * s;
+    return m;
+}
 bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip>& chips, const char* back) {
     const float s = Scale();
     const auto p = ImGui::GetCursorScreenPos();
     const float width = ImGui::GetContentRegionAvail().x;
-    const bool narrow = Narrow(ImGui::GetWindowWidth(), s);
     auto* draw = ImGui::GetWindowDrawList();
-    const float markHeight = (narrow ? 32 : 40) * s, gap = 16 * s;
-    const float eyebrowSize = 13 * s, titleSize = (narrow ? 22 : 26) * s;
-    const float eyebrowHeight = eyebrow ? eyebrowSize + 4 * s : 0;
-    const float height = (std::max)(markHeight, eyebrowHeight + titleSize) + 10 * s;
+    const HeaderMeasures measures = MeasureHeader(eyebrow != nullptr, ImGui::GetWindowWidth());
+    const float markHeight = measures.mark, gap = 16 * s;
+    const float eyebrowSize = measures.eyebrow, titleSize = measures.title;
+    const float eyebrowHeight = measures.eyebrowLine;
+    const float height = measures.band;
     // Back: a chevron and its word on a button, as the boards draw it.
     float left = p.x;
     bool pressed = false;
@@ -531,7 +543,7 @@ bool Header(const char* title, const char* eyebrow, const std::vector<HeaderChip
         const ImVec2 rule[] = {ImVec2(x + 4 * s, p.y + height - 2 * s), ImVec2(x + 92 * s, p.y + height - 2 * s), ImVec2(x + 88 * s, p.y + height + 2 * s), ImVec2(x, p.y + height + 2 * s)};
         draw->AddConvexPolyFilled(rule, 4, Colors().accent);
     } else draw->AddRectFilled(ImVec2(x, p.y + height - s), ImVec2(x + 72 * s, p.y + height + 2 * s), Colors().accent);
-    ImGui::Dummy(ImVec2(width, height + 8 * s));
+    ImGui::Dummy(ImVec2(width, measures.height));
     return pressed;
 }
 

@@ -3,6 +3,9 @@
 #include "room_authority_support.hxx"
 #include "../common/RematchInput.hxx"
 
+#include <iterator>
+#include <map>
+#include <set>
 #include <vector>
 
 static RoomAuthority Arcade(RoomType type = ArcadeRoom, SetFormat format = SetFormat::Ft1) {
@@ -89,21 +92,6 @@ static void TestRematchBoth() {
 	CHECK(Choose(authority, a, ActionKind::Ready).accepted);
 	const auto wire = nlohmann::json(authority.SnapshotView());
 	CHECK(!wire.at("tables")[table].contains("rematch"));
-}
-
-// New opponent can part a pair only when someone waits alone at another
-// table or another table is free; with every other table taken, the room
-// could only pair the two again, so the prompt says so instead.
-static void TestNewOpponentNeedsSomeoneElse() {
-	Snapshot room;
-	for (auto& table : room.tables) { table.p1 = 1; table.p2 = 2; table.phase = TablePhase::Waiting; }
-	CHECK(!ArcadeOtherOpponentPossible(room, 0));
-	room.tables[3].p2 = 0; room.tables[3].phase = TablePhase::Idle;
-	CHECK(ArcadeOtherOpponentPossible(room, 0));
-	// A table's own lone fighter is not someone else for it.
-	CHECK(!ArcadeOtherOpponentPossible(room, 3));
-	room.tables[3].p1 = 0;
-	CHECK(ArcadeOtherOpponentPossible(room, 0));
 }
 
 // One Rematch and one New opponent part the pair: each plays whoever waited
@@ -452,13 +440,164 @@ static void TestChangedPickLeavesTheBattle() {
 	CHECK(!GoesOnInPlace(played, next));
 }
 
+// A full room: sixteen at eight tables, nobody alone and no table free. New
+// opponent is always on offer. With nobody else choosing it waits: the next
+// set to end elsewhere sends its loser here and the one who asked plays the
+// winner. With another fighter choosing, it swaps at once.
+static void TestFullRoomNewOpponent() {
+	auto authority = Arcade();
+	std::vector<MemberId> m;
+	for (int i = 0; i < 16; ++i) m.push_back(Join(authority, i, i == 0));
+	for (int i = 0; i < 16; ++i) Sit(authority, m[i], i);
+	const MemberId a = m[0], b = Paired(authority, a, m[8]) ? m[8] : m[1];
+	const MemberId c = m[2], d = Paired(authority, c, m[10]) ? m[10] : m[3];
+	const MemberId e = m[4], f = Paired(authority, e, m[12]) ? m[12] : m[5];
+	CHECK(Paired(authority, a, b) && Paired(authority, c, d) && Paired(authority, e, f));
+	Beat(authority, a);
+	CHECK(authority.SnapshotView().tables[TableOf(authority, a)].deciding);
+	// Nobody else is choosing: the request waits, the pair stays.
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted);
+	const auto& asked = authority.SnapshotView().tables[TableOf(authority, a)];
+	CHECK(Paired(authority, a, b) && asked.wantsNew[asked.p1 == a ? 0 : 1]);
+	const auto wire = nlohmann::json(authority.SnapshotView());
+	CHECK(wire.at("tables")[TableOf(authority, a)].contains("wants_new"));
+	// Another set ends: its loser goes to a's partner, a plays the winner.
+	const MemberId winner = c, loser = d;
+	Beat(authority, winner);
+	CHECK(Paired(authority, winner, a) && Paired(authority, loser, b));
+	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding && !t.wantsNew[0] && !t.wantsNew[1]);
+	// Two pairs choosing at once: New opponent never pulls in a fighter who
+	// has not asked, so it waits; once one at the other table asks too, the
+	// two who asked play each other's last opponents.
+	Beat(authority, e);
+	Beat(authority, a);
+	const MemberId aOpponent = Paired(authority, a, winner) ? winner : loser;
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Paired(authority, a, aOpponent) && Paired(authority, e, f));
+	CHECK(Choose(authority, e, ActionKind::NewOpponent).accepted);
+	CHECK(Paired(authority, a, f) && Paired(authority, e, aOpponent));
+	// Answering Rematch instead withdraws the request.
+	Beat(authority, winner);
+	const auto& mine = authority.SnapshotView().tables[TableOf(authority, winner)];
+	const int seat = mine.p1 == winner ? 0 : 1;
+	CHECK(Choose(authority, winner, ActionKind::NewOpponent).accepted && mine.wantsNew[seat]);
+	CHECK(Choose(authority, winner, ActionKind::Rematch).accepted && !mine.wantsNew[seat] && mine.rematch[seat]);
+}
+
+static MemberId OpponentOf(const RoomAuthority& authority, MemberId member) {
+	const int table = TableOf(authority, member);
+	if (table < 0) return 0;
+	const auto& t = authority.SnapshotView().tables[table];
+	return t.p1 == member ? t.p2 : t.p1;
+}
+static int Asking(const RoomAuthority& authority) {
+	int asking = 0;
+	for (const auto& t : authority.SnapshotView().tables) asking += t.wantsNew[0] + t.wantsNew[1];
+	return asking;
+}
+static std::vector<MemberId> FullRoom(RoomAuthority& authority) {
+	std::vector<MemberId> m;
+	for (int i = 0; i < 16; ++i) m.push_back(Join(authority, i, i == 0));
+	for (int i = 0; i < 16; ++i) Sit(authority, m[i], i);
+	for (const auto& t : authority.SnapshotView().tables) CHECK(t.p1 && t.p2);
+	return m;
+}
+
+// A request that waits in a full room is answered as soon as anyone waits
+// alone, not only when a set ends: a fighter stands up, and the one who asked
+// plays their partner at once. The one left behind waits and plays the next
+// to sit down.
+static void TestFullRoomRequestTakesAFreedSeat() {
+	auto authority = Arcade();
+	const auto m = FullRoom(authority);
+	const MemberId a = m[0], b = OpponentOf(authority, a);
+	Beat(authority, a);
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 1 && Paired(authority, a, b));
+	MemberId x = 0;
+	for (const auto member : m) if (member != a && member != b) { x = member; break; }
+	const MemberId y = OpponentOf(authority, x);
+	const int cabinet = CabinetOf(authority.SnapshotView(), x);
+	CHECK(Choose(authority, x, ActionKind::Unqueue).accepted);
+	CHECK(Paired(authority, a, y) && Waits(authority, b) && Asking(authority) == 0);
+	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding);
+	Sit(authority, x, cabinet);
+	CHECK(Paired(authority, x, b));
+}
+
+// A waiting request is served by the next set to end, or by a second request
+// at another table, never by pulling in a fighter who did not ask. One who
+// asked and stands up takes the request with them; the partner then waits.
+static void TestFullRoomTwoRequestsSwap() {
+	auto authority = Arcade();
+	const auto m = FullRoom(authority);
+	const MemberId a = m[0], b = OpponentOf(authority, a);
+	MemberId c = 0;
+	for (const auto member : m) if (member != a && member != b) { c = member; break; }
+	const MemberId d = OpponentOf(authority, c);
+	Beat(authority, a);
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 1);
+	// c's set ends while a waits: a's request is served by it at once.
+	Beat(authority, c);
+	CHECK(Paired(authority, a, c) && Paired(authority, b, d) && Asking(authority) == 0);
+	// Both pairs finish. A Rematch vote at the other table is never taken
+	// back by a request here: it waits. When the other fighter there asks
+	// too, the two who asked trade places.
+	Beat(authority, a);
+	Beat(authority, b);
+	CHECK(Choose(authority, b, ActionKind::Rematch).accepted);
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 1 && Paired(authority, a, c));
+	const auto& other = authority.SnapshotView().tables[TableOf(authority, b)];
+	CHECK(Paired(authority, b, d) && other.deciding && other.rematch[other.p1 == b ? 0 : 1]);
+	CHECK(Choose(authority, d, ActionKind::NewOpponent).accepted && Asking(authority) == 0);
+	CHECK(Paired(authority, a, b) && Paired(authority, d, c));
+	for (const auto& t : authority.SnapshotView().tables) CHECK(!t.deciding);
+	// A request leaves with the one who made it; the partner waits alone.
+	Beat(authority, a);
+	const MemberId partner = OpponentOf(authority, a);
+	CHECK(Choose(authority, a, ActionKind::NewOpponent).accepted && Asking(authority) == 1);
+	CHECK(Choose(authority, a, ActionKind::Unqueue).accepted);
+	CHECK(Asking(authority) == 0 && Waits(authority, partner));
+}
+
+// Gagapa's room: sixteen fighters, sets ending one table after another, and
+// every winner asking for a new opponent. Nobody is kept on the same opponent:
+// at most one request waits at a time, each fighter meets several others, and
+// nobody who asked is paired with the one they asked to leave.
+static void TestFullRoomRotates() {
+	auto authority = Arcade();
+	const auto m = FullRoom(authority);
+	std::map<MemberId, std::set<MemberId>> met;
+	std::map<MemberId, MemberId> leftBehind;
+	for (int step = 0; step < 96; ++step) {
+		const auto& tables = authority.SnapshotView().tables;
+		const auto& t = tables[step % tables.size()];
+		if (t.deciding || !t.p1 || !t.p2) continue;
+		const MemberId winner = step % 3 ? t.p1 : t.p2;
+		const MemberId loser = OpponentOf(authority, winner);
+		Beat(authority, winner);
+		met[winner].insert(loser); met[loser].insert(winner);
+		if (authority.SnapshotView().tables[TableOf(authority, winner)].deciding) {
+			CHECK(Choose(authority, winner, ActionKind::NewOpponent).accepted);
+			if (Paired(authority, winner, loser)) leftBehind[winner] = loser;
+		}
+		CHECK(Asking(authority) <= 1);
+		for (const auto& left : leftBehind)
+			if (!authority.SnapshotView().tables[TableOf(authority, left.first)].deciding) CHECK(OpponentOf(authority, left.first) != left.second);
+		for (auto it = leftBehind.begin(); it != leftBehind.end();)
+			it = authority.SnapshotView().tables[TableOf(authority, it->first)].deciding ? std::next(it) : leftBehind.erase(it);
+	}
+	for (const auto member : m) CHECK(met[member].size() >= 3);
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
 		TestFirstComeFirstPaired();
 		TestRematchBoth();
 		TestRematchOneRepairs();
-		TestNewOpponentNeedsSomeoneElse();
+		TestFullRoomNewOpponent();
+		TestFullRoomRequestTakesAFreedSeat();
+		TestFullRoomTwoRequestsSwap();
+		TestFullRoomRotates();
 		TestArcadeWinnerPlaysWaiter();
 		TestArcadeTwoPlayers();
 		TestArcadePairsChoose();

@@ -2720,6 +2720,8 @@ msgstr "{0} a gagné un combat à la table {1} ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} a remporté le set à la table {1} ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0} a remporté le set contre {1} ({2})"
 msgid "chat.typing.one"
 msgstr "{0} écrit..."
 msgid "chat.typing.two"
@@ -5550,8 +5552,11 @@ msgstr "Nouvel adversaire"
 msgid "room.new_opponent_detail"
 msgstr "Restez assis et affrontez celui qui attend depuis le plus longtemps, ou attendez le prochain qui s'assied."
 
-msgid "room.new_opponent_none"
-msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
+msgid "room.new_opponent_wait"
+msgstr "Tous les autres sont en partie. Vous gardez votre place et affrontez le prochain joueur libre. En attendant, vous pouvez attendre en entraînement."
+
+msgid "room.new_opponent_chosen"
+msgstr "Nouvel adversaire choisi"
 
 msgid "room.rematch_ask"
 msgstr "Revanche ?"

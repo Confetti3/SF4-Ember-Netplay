@@ -38,6 +38,7 @@
 #include <utility>
 #include "ChatTranscript.hxx"
 #include "GameMenu.hxx"
+#include "PostMatchPrompt.hxx"
 #include "../common/ControllerView.hxx"
 #include "../common/ControllerRequest.hxx"
 #include "../common/ButtonLayoutCapture.hxx"
@@ -486,8 +487,9 @@ private:
     // The screen shown, inside the shell's window: an embedded one (Button
     // layout, Pad setup, fighter select, post-match, a report) or the menu.
     // True when the shell's own menu read the frame's input. Draw ends every
-    // frame after it the same way (the toasts).
-    bool DrawScreen(const ShellView& view,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom);
+    // frame after it the same way (the toasts). postMatch: the prompt's frame,
+    // built by Draw to size its window, for the post-match screen.
+    bool DrawScreen(const ShellView& view,bool* open,const Submit& submit,const DrawSelection& selection,const DrawSelection& developer,double now,bool healthyRoom,const PostMatchFrame& postMatch);
     void PublishPlayerCard(const ShellView& view);
     void HandleActivate(const MenuAction& action,const ShellView& view,const std::string& screen,bool idle,const Submit& submit);
     void HandleAdjust(const MenuAction& action,const ShellView& view,const std::string& screen,const Submit& submit);
@@ -659,56 +661,22 @@ private:
     void ToggleFollow(const ShellView& view, const Submit& submit);
     void NoteWatching(const room::Action& sent, const room::Snapshot& room);
     void UpdateFollow(const ShellView& view, double now, const Submit& submit);
-    // The post-match prompt (ApplicationShell__PostMatch.cxx), opened over the
-    // WIN screen (ShellView::matchResult) on its own screen, "post-match". It
-    // keeps the table and the opponent of the game it follows, and the
-    // generation of that game: a new one at the table ends it, unless both
-    // fighters chose Rematch, when it stays until that game is loading.
-    // What Back to room, Character select or no answer leaves to do once the
-    // game is over and the room takes it: leave the seat, or open fighter select.
-    enum class AfterPostMatch { None, LeaveSeat, FighterSelect } afterPostMatch_ = AfterPostMatch::None;
-    struct PostMatchPrompt {
-        int table = -1;
-        room::MemberId opponent = 0;
-        std::uint64_t generation = 0;
-        // The game's result, once the runtime has it (FoughtGame::result).
-        room::MatchResult result = room::MatchResult::Abort;
-        double until = 0;
-        bool chose = false, starting = false;
-        // An Arcade pair's Rematch chosen here (Table::deciding): once both
-        // chose it the room asks no more, and the prompt readies the player.
-        bool pairRematch = false;
-        // The runtime's Ready failures seen so far: a new one takes back the
-        // choice, but the player still answered (no seat left for no answer).
-        std::uint64_t failures = 0;
-        bool answered = false;
-        // Back to room or Character select over the WIN: the prompt shows the
-        // choice until the game is over, then does `after`.
-        bool left = false;
-        AfterPostMatch after = AfterPostMatch::None;
-        // The opponent's answer as the battle's input carried it
-        // (Branding::answersFromInput), kept for this prompt: the battle reads
-        // it only until it decides, and a decline ends the WIN at once.
-        bool theyChose = false, theyDeclined = false;
-    };
+    // The post-match prompt (ApplicationShell__PostMatch.cxx, PostMatchPrompt.hxx),
+    // over the WIN screen on its own screen, "post-match"; what it leaves to do
+    // once the game is over; its focused button last frame (a change scrolls it
+    // into view); and the WIN and in-place games already seen.
     std::optional<PostMatchPrompt> postMatch_;
-    // The prompt's focused button last frame, where it stood in the panel's
-    // content (not scrolled) and the panel's size: a change scrolls the button
-    // into view.
-    struct PostMatchBarView {
-        std::string focus;
-        float top = 0, bottom = 0, panelWidth = 0, panelHeight = 0;
-        bool operator==(const PostMatchBarView& o) const {
-            return focus == o.focus && top == o.top && bottom == o.bottom && panelWidth == o.panelWidth && panelHeight == o.panelHeight;
-        }
-    };
+    AfterPostMatch afterPostMatch_ = AfterPostMatch::None;
     PostMatchBarView postMatchBarShown_;
     bool matchResultSeen_ = false;
     unsigned gamesInPlaceSeen_ = 0;
+    // What the prompt shows this frame; Draw builds it once, sizes the panel by
+    // it (PostMatchPanelFor) and hands it to DrawPostMatch.
+    PostMatchModel BuildPostMatch(const ShellView& view) const;
     // Opens, times out and ends the prompt; open is null while Ember is hidden.
     void UpdatePostMatch(const ShellView& view, const room::Snapshot& room, double now, const Submit& submit, bool* open);
     void ClosePostMatch(const ShellView& view, AfterPostMatch after, bool* open);
-    void DrawPostMatch(const ShellView& view, double now, const Submit& submit, bool* open);
+    void DrawPostMatch(const ShellView& view, const PostMatchFrame& frame, double now, const Submit& submit, bool* open);
     int lockedInTable_=-1;
     std::uint64_t lockInEpoch_=0, lockInDropsSeen_=0;
     bool GameIsStale(std::size_t table) const;

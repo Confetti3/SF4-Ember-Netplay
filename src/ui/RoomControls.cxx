@@ -1,5 +1,6 @@
 #include "RoomControls.hxx"
 #include "RoomFeedback.hxx"
+#include "../session/RoomQueries.hxx"
 #include "Theme.hxx"
 #include "SelectionLabels.hxx"
 #include "../common/GameCatalog.hxx"
@@ -38,6 +39,11 @@ std::string ReadyBlocker(const ShellView& v, const room::Table& t) {
     if (!v.controllerReady) return loc::T("room.controller_required");
     return v.selectionError;
 }
+// The deciding pair's Rematch for `seat`: open until chosen, while the room
+// takes actions now. The bar's Ready and every other view of it ask this.
+bool ArcadeRematchOpen(const ShellView& v, const room::Table& t, int seat) {
+    return t.deciding && seat >= 0 && seat < 2 && !t.rematch[seat] && RoomActionsAvailable(v);
+}
 }
 const char* PhaseName(const room::Table& table) {
     switch (table.phase) {
@@ -56,10 +62,28 @@ std::string CabinetState(const room::Snapshot& s, std::size_t cabinet) {
     const int side = t.p2 == m->id ? 1 : 0;
     const auto* other = room::FindMember(s, side ? t.p1 : t.p2);
     std::string text = other ? loc::Tf("room.arcade_vs", other->name) : std::string(loc::T("room.arcade_waiting"));
-    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(t.rematch[side] ? "room.rematch_chosen" : "room.rematch_ask");
+    if (other && t.deciding) text += std::string(" \xC2\xB7 ") + loc::T(ArcadeAnswerKey(t, side));
     else if (other && !SetScoreText(t.score).empty()) text += " \xC2\xB7 " + SetScoreText(t.score);
     if (s.streaks[cabinet]) text += " \xC2\xB7 " + loc::Tf("room.streak", s.streaks[cabinet]);
     return text;
+}
+const char* ArcadeAnswerKey(const room::Table& table, int seat) {
+    return table.wantsNew[seat] ? "room.new_opponent_chosen" : table.rematch[seat] ? "room.rematch_chosen" : "room.rematch_ask";
+}
+ArcadeChoice DescribeArcadeChoice(const ShellView& v, std::size_t table, int seat) {
+    ArcadeChoice choice;
+    if (table >= v.room.tables.size() || seat < 0 || seat > 1) return choice;
+    const auto& t = v.room.tables[table];
+    // A swap with the one waiting elsewhere is a new opponent now, as parting is.
+    const char* next = room::ArcadeNewOpponentFor(v.room, table) == room::ArcadeNewOpponent::Wait ? "room.new_opponent_wait" : "room.new_opponent_detail";
+    // A room busy elsewhere (recovering, closing, catching up) takes neither
+    // answer yet, and both say why, as Ready does.
+    const bool takes = RoomActionsAvailable(v);
+    choice.rematchOpen = ArcadeRematchOpen(v, t, seat);
+    choice.newOpponentOpen = takes && t.deciding && !t.wantsNew[seat];
+    choice.rematchDetail = takes ? std::string(loc::T("room.rematch_detail")) : std::string(RoomWaitReason(v));
+    choice.newOpponentDetail = takes ? std::string(loc::T(next)) : std::string(RoomWaitReason(v));
+    return choice;
 }
 std::string StreakText(const room::Table& t, room::MemberId member) {
     return member && t.streakHolder == member && t.streak >= 2 ? loc::Tf("room.streak", t.streak) : std::string();
@@ -223,7 +247,7 @@ ReadyControl DescribeReady(const ShellView& v, const room::Table& t, int seat) {
         control.label = loc::T("room.rematch");
         control.detail = loc::T("room.rematch_detail");
         if (!RoomActionsAvailable(v)) control.refusal = RoomWaitReason(v);
-        else if (t.rematch[seat]) control.refusal = control.detail;
+        else if (!ArcadeRematchOpen(v, t, seat)) control.refusal = control.detail;
         else control.kind = ReadyControl::Rematch;
         return control;
     }

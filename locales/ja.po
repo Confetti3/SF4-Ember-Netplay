@@ -2721,6 +2721,8 @@ msgstr "{0}が対戦席{1}で1戦勝利しました ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0}が対戦席{1}でセットを獲得しました ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0}が{1}とのセットを獲得しました ({2})"
 msgid "chat.typing.one"
 msgstr "{0}が入力中..."
 msgid "chat.typing.two"
@@ -5551,8 +5553,11 @@ msgstr "新しい相手"
 msgid "room.new_opponent_detail"
 msgstr "席に座ったまま、いちばん長く待っている人と対戦するか、次に座る人を待ちます。"
 
-msgid "room.new_opponent_none"
-msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
+msgid "room.new_opponent_wait"
+msgstr "ほかの全員が対戦中です。席はそのままで、次に空いた人と対戦します。それまでトレーニングで待てます。"
+
+msgid "room.new_opponent_chosen"
+msgstr "新しい相手を選択済み"
 
 msgid "room.rematch_ask"
 msgstr "リマッチ？"

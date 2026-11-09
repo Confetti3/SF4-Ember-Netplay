@@ -266,7 +266,7 @@ MenuAction GameMenu::Draw(const char* title, const std::vector<MenuEntry>& entri
     // A flyout (the training controls) sits over the fight: no art behind it.
     if (backdrop && !flyout) DrawMenuBackdrop();
     v2::Box screen{win, ImVec2(win.x + size.x, win.y + size.y)};
-    const v2::Box hintBar = v2::CutBottom(screen, (narrow || flyout ? 48 : 56) * s, (flyout ? 8 : 16) * s);
+    const v2::Box hintBar = v2::CutBottom(screen, v2::HintBarHeight(narrow || flyout, s), v2::HintBarGap(flyout, s));
     v2::Box content{ImVec2(screen.min.x + side, screen.min.y + pad), ImVec2(screen.max.x - side, screen.max.y)};
     DrawHeader(f, content, narrow);
     if (body && !navigation.Reading()) DrawBody(f, content);
@@ -284,6 +284,12 @@ MenuAction GameMenu::Draw(const char* title, const std::vector<MenuEntry>& entri
     }
     DrawHintBar(f, hintBar);
     return Finish(f);
+}
+
+float GameMenu::ChromeHeight(float windowWidth, bool eyebrow) {
+    const float s = Scale();
+    return v2::Pad(windowWidth, s) + v2::MeasureHeader(eyebrow, windowWidth).height + ImGui::GetStyle().ItemSpacing.y +
+        v2::HintBarHeight(v2::Narrow(windowWidth, s), s) + v2::HintBarGap(false, s);
 }
 
 void GameMenu::DrawHeader(Frame& f, v2::Box& content, bool narrow) {
@@ -334,7 +340,10 @@ void GameMenu::DrawBody(Frame& f, v2::Box content) {
     const bool inert = (f.modalAtStart && !f.choosingAtStart) || navigation.Editing() || navigation.Confirming();
     ImGui::SetCursorScreenPos(content.min);
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
-    ImGui::BeginChild("Body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs);
+    // Content known to fit (bodyContent): its size now, and no scroll bar, which
+    // ImGui would otherwise judge by the body's size on the last frame.
+    if (bodyContent > 0) ImGui::SetNextWindowContentSize(ImVec2(0, bodyContent));
+    ImGui::BeginChild("Body", ImVec2(content.W(), content.H()), 0, ImGuiWindowFlags_NoNavInputs | (bodyContent > 0 ? ImGuiWindowFlags_NoScrollbar : 0));
     ImGui::BeginDisabled(inert);
     bodyChoices = {};
     f.body(footer.empty() ? f.entries : own, navigation, f.action, content.H(), feedback_);

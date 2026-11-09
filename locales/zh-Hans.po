@@ -2721,6 +2721,8 @@ msgstr "{0} 在对战席 {1} 赢下一局 ({2})"
 
 msgid "chat.event.set_won"
 msgstr "{0} 在对战席 {1} 赢下对战组 ({2})"
+msgid "chat.event.set_won_against"
+msgstr "{0} 赢下与 {1} 的对战组 ({2})"
 msgid "chat.typing.one"
 msgstr "{0} 正在输入..."
 msgid "chat.typing.two"
@@ -5551,8 +5553,11 @@ msgstr "换对手"
 msgid "room.new_opponent_detail"
 msgstr "留在座位上，与等待最久的玩家对战，或等待下一位入座的玩家。"
 
-msgid "room.new_opponent_none"
-msgstr "Every other table is in use and nobody is waiting, so there is nobody else to play yet. Rematch, or wait for a table to free up."
+msgid "room.new_opponent_wait"
+msgstr "其他人都在对战中。你保留座位，与下一位空闲的玩家对战。等待期间可以去训练。"
+
+msgid "room.new_opponent_chosen"
+msgstr "已选换对手"
 
 msgid "room.rematch_ask"
 msgstr "再战？"
