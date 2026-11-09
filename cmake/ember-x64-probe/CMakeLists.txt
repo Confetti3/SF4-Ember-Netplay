@@ -59,7 +59,7 @@ set(EMBER_SF4_SIDE
     ui/SelectionArtD3D9.cxx ui/SelectionArtD3D9.hxx
     # Language, display and pads: the game's files and its pad layer.
     common/GameLanguage.cxx common/GameLanguage.hxx
-    common/GameDisplayConfig.hxx common/GamepadSlots.hxx common/DirectInputState.hxx
+    common/GameDisplayConfig.hxx common/DirectInputState.hxx
     common/GamepadBrand.hxx common/ControllerView.hxx common/TrainingPad.hxx common/TrainingStage.hxx
     # Layouts of the 32-bit engine's keyboard list and replay recorder, held
     # by static_asserts that only the 32-bit game meets (section 7).

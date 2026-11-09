@@ -5,6 +5,24 @@
 
 namespace sf4e { namespace gamepads {
 
+struct NativeProfile { std::uint16_t vid, pid; };
+// The game's native DirectInput profiles, from guidProduct strings at 0x517900.
+constexpr std::array<NativeProfile, 14> NativeProfiles = {{
+    {0x0079, 0x0011}, {0x05FD, 0x262A}, {0x046D, 0xC20C}, {0x0E8F, 0x0003},
+    {0x0E8F, 0x3013}, {0x0F0D, 0x0032}, {0x0F0D, 0x0022}, {0x0738, 0x8838},
+    {0x1A34, 0x0802}, {0x0E8F, 0x0012}, {0x0079, 0x0006}, {0x046D, 0xC216},
+    {0x0079, 0x0002}, {0x0F0D, 0x0037}
+}};
+
+// SF4's rule for a pad it reads itself (Classify's GameReadsPad): a stick of
+// one of its native DirectInput profiles. Steam's pad is XInput even when it
+// reports a native stick's VID:PID.
+inline bool ReadsNativeProfile(const Pad& pad) {
+    return !SteamVirtual(pad) && std::any_of(NativeProfiles.begin(), NativeProfiles.end(), [&](const NativeProfile& profile) {
+        return pad.vid == profile.vid && pad.pid == profile.pid;
+    });
+}
+
 inline bool Served(std::uint32_t vidpid, const std::string& path, const std::vector<Pad>& inventory) {
     const auto owned = [](const Pad& pad) {
         return pad.available && pad.status != Status::Unmapped && pad.status != Status::GameRead;

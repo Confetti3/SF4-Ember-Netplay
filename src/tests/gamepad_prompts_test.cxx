@@ -6,6 +6,7 @@
 using namespace sf4e;
 using namespace sf4e::gamepads;
 static bool Same(const char* a, const char* b) { return std::strcmp(a,b)==0; }
+static bool ReadsNothing(const Pad&) { return false; }
 static constexpr PromptBrand brands[] = {
     {Brand::Xbox}, {Brand::PlayStation,PlayStationArt::PS3}, {Brand::PlayStation,PlayStationArt::PS4},
     {Brand::PlayStation,PlayStationArt::PS5}, {Brand::Nintendo}, {Brand::Stick}, {Brand::Generic}
@@ -34,8 +35,8 @@ static void Detection() {
     CHECK(GameplayBrand(input::PadKeyboard)==PromptBrand{});
     // P4 supplies mappings; classification already makes the per-pad input explicit.
     Pad mapped; mapped.id=1; mapped.mapped=true; mapped.identity.guid="wizard";
-    std::vector<Pad> pads{mapped}; Classify(pads,{}); CHECK(!pads[0].hasEmberMapping);
-    Classify(pads,{"wizard"}); CHECK(pads[0].hasEmberMapping);
+    std::vector<Pad> pads{mapped}; Classify(pads,{},ReadsNothing); CHECK(!pads[0].hasEmberMapping);
+    Classify(pads,{"wizard"},ReadsNothing); CHECK(pads[0].hasEmberMapping);
 }
 static void Resolution() {
     for (auto brand : brands) for (auto setting : {ButtonPrompts::Automatic,ButtonPrompts::Xbox,ButtonPrompts::PlayStation,ButtonPrompts::Nintendo}) {

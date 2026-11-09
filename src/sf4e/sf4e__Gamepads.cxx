@@ -4,6 +4,7 @@
 #include "sf4e__ImportPatch.hxx"
 #include "sf4e__DirectInputFilter.hxx"
 #include "sf4e__OverlayPrefs.hxx"
+#include "../common/DirectInputState.hxx"
 #include "../common/XInputMapping.hxx"
 #include "../common/GamepadRumble.hxx"
 #include "../netplay/SettingsStore.hxx"
@@ -42,7 +43,7 @@ PadSetup setupModel;
 SetupSnapshot setup;
 std::deque<std::pair<SetupCommand, int>> setupCommands;
 bool setupRestLogged = false;
-Slots slots;
+Slots slots{ReadsNativeProfile};
 Inventory inventory, logged;
 bool haveLogged = false;
 std::map<Id, SDL_Gamepad*> handles;
@@ -60,23 +61,6 @@ std::array<Snapshot, 4> snapshots;
 std::atomic<void*> originalState{nullptr}, originalCapabilities{nullptr}, originalRumble{nullptr}, originalBattery{nullptr};
 
 std::string Text(const char* value) { return value ? value : ""; }
-
-const char* TypeName(Type type) {
-    switch (type) {
-    case Type::Standard: return "standard";
-    case Type::Xbox360: return "xbox360";
-    case Type::XboxOne: return "xboxone";
-    case Type::PS3: return "ps3";
-    case Type::PS4: return "ps4";
-    case Type::PS5: return "ps5";
-    case Type::SwitchPro: return "switchpro";
-    case Type::JoyConLeft: return "joyconleft";
-    case Type::JoyConRight: return "joyconright";
-    case Type::JoyConPair: return "joyconpair";
-    case Type::GameCube: return "gamecube";
-    default: return "unknown";
-    }
-}
 
 // The mapping SDL holds for a GUID (its own, or an Ember one once added), or empty.
 std::string MappingForGuid(const std::string& guid) {
@@ -163,7 +147,7 @@ void Rebuild() {
         pads.push_back(std::move(pad));
     }
     SDL_free(ids);
-    Classify(pads, savedEmberMappingGuids);
+    Classify(pads, savedEmberMappingGuids, ReadsNativeProfile);
     const auto settingUp = setup.state.active ? std::make_optional(setup.identity) : std::nullopt;
     for (auto it = rawHandles.begin(); it != rawHandles.end();) {
         const bool keep = std::any_of(pads.begin(), pads.end(), [&](const Pad& pad) {

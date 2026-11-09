@@ -1,3 +1,4 @@
+#include "../common/DirectInputState.hxx"
 #include "../common/GamepadSlots.hxx"
 #include "../common/PadSetup.hxx"
 #include "../common/XInputMapping.hxx"
@@ -41,7 +42,7 @@ static void IdentityMatching() {
 }
 
 static void Reservations() {
-    Slots slots;
+    Slots slots{ReadsNativeProfile};
     CHECK(slots.Update({}).pads.empty());
     CHECK(Slot(slots.Update({Controller(1), Controller(2)}), 2) == 1);
     auto pads = slots.Update({Controller(2), Controller(3)});
@@ -54,7 +55,7 @@ static void Reservations() {
     pads = slots.Update({Controller(5, "pad-2")});
     CHECK(Slot(pads, 5) == 1); // Session reservation survives an empty inventory.
 
-    Slots takeover;
+    Slots takeover{ReadsNativeProfile};
     takeover.Update({Controller(1), Controller(2), Controller(3), Controller(4)});
     pads = takeover.Update({Controller(2), Controller(3), Controller(4), Controller(5)});
     CHECK(Slot(pads, 5) == 0);
@@ -69,12 +70,12 @@ static void Reservations() {
     pads = takeover.Update({Controller(2), Controller(4), Controller(7, "pad-1")});
     CHECK(Slot(pads, 7) == 2); // Only its new reservation remains.
 
-    Slots lowest;
+    Slots lowest{ReadsNativeProfile};
     lowest.Update({Controller(1), Controller(2), Controller(3), Controller(4)});
     pads = lowest.Update({Controller(2), Controller(4), Controller(5)});
     CHECK(Slot(pads, 5) == 0); // Lowest free reservation is taken first.
 
-    Slots serial;
+    Slots serial{ReadsNativeProfile};
     auto usb = Controller(1), bluetooth = Controller(2);
     usb.identity.serial = bluetooth.identity.serial = "DS4";
     serial.Update({Controller(3), usb}); serial.Update({Controller(3)});
@@ -82,7 +83,7 @@ static void Reservations() {
 }
 
 static void WaitingOrder() {
-    Slots slots;
+    Slots slots{ReadsNativeProfile};
     auto pads = slots.Update({Controller(1), Controller(2), Controller(3), Controller(4), Controller(5), Controller(6)});
     CHECK(Slot(pads, 5) == -1 && pads.pads[4].status == Status::NotInUse && Slot(pads, 6) == -1);
     // Even with reversed enumeration, the older waiting connection wins.
@@ -93,19 +94,19 @@ static void WaitingOrder() {
 }
 
 static void Eligibility() {
-    Slots slots;
+    Slots slots{ReadsNativeProfile};
     auto unmapped = Controller(1); unmapped.mapped = false;
     auto unavailable = Controller(2); unavailable.available = false;
     auto pads = slots.Update({unmapped, unavailable, Controller(3)});
     CHECK(pads.pads[0].status == Status::Unmapped && Slot(pads, 1) == -1);
     CHECK(pads.pads[1].status == Status::NotInUse && Slot(pads, 2) == -1 && Slot(pads, 3) == 0);
     for (const auto& profile : NativeProfiles) {
-        Slots native;
+        Slots native{ReadsNativeProfile};
         auto stick = Controller(1); stick.vid = profile.vid; stick.pid = profile.pid;
         pads = native.Update({stick});
         CHECK(pads.pads[0].status == Status::GameRead && Slot(pads, 1) == -1);
         std::vector<Pad> beforeOpen{stick};
-        Classify(beforeOpen, {});
+        Classify(beforeOpen, {}, ReadsNativeProfile);
         CHECK(beforeOpen[0].status == Status::GameRead);
         pads = native.Update({stick}, {}, {stick.identity.guid});
         CHECK(pads.pads[0].status == Status::Slotted && Slot(pads, 1) == 0);
@@ -137,13 +138,13 @@ static void RequiredStepMappings() {
     CHECK(MapsRequiredSteps(qanba + ",lefttrigger:a4,righttrigger:a5") && MapsRequiredSteps(qanba + ",+righttrigger:b6"));
     CHECK(!MapsRequiredSteps(qanba + ",lefttrigger:b6,hint:righttrigger:=1"));
     // The same pad, mapped by that text, waits for Ember's setup instead of taking a slot.
-    Slots slots;
+    Slots slots{ReadsNativeProfile};
     auto stick = Controller(1);
     stick.mapped = MapsRequiredSteps(qanba);
     auto pads = slots.Update({stick, Controller(2)});
     CHECK(pads.pads[0].status == Status::Unmapped && Slot(pads, 1) == -1 && Slot(pads, 2) == 0);
     stick.mapped = MapsRequiredSteps(xbox);
-    CHECK(Slots().Update({stick}).pads[0].status == Status::Slotted);
+    CHECK(Slots(ReadsNativeProfile).Update({stick}).pads[0].status == Status::Slotted);
 }
 
 // SDL and the game both take DirectInput pads exclusively, so SDL holds one raw
@@ -152,7 +153,7 @@ static void RawHandles() {
     auto unmapped = Controller(1); unmapped.mapped = false;
     auto stick = Controller(2); stick.vid = NativeProfiles[0].vid; stick.pid = NativeProfiles[0].pid;
     std::vector<Pad> pads{unmapped, stick, Controller(3)};
-    Classify(pads, {});
+    Classify(pads, {}, ReadsNativeProfile);
     CHECK(pads[0].status == Status::Unmapped && pads[1].status == Status::GameRead && pads[2].status == Status::NotInUse);
     for (const auto& pad : pads) CHECK(!WantsRawHandle(pad, std::nullopt));
     CHECK(WantsRawHandle(pads[0], pads[0].identity) && !WantsRawHandle(pads[1], pads[0].identity) && !WantsRawHandle(pads[2], pads[0].identity));
@@ -171,11 +172,11 @@ static void RawHandles() {
 static void SteamPairing() {
     auto steam = Controller(2, SteamGuid);
     auto physical = Controller(1);
-    Slots both, onlyPhysical, onlySteam, unrelated;
+    Slots both{ReadsNativeProfile}, onlyPhysical{ReadsNativeProfile}, onlySteam{ReadsNativeProfile}, unrelated{ReadsNativeProfile};
     auto pads = both.Update({physical, steam});
     CHECK(Slot(pads, 2) == 0 && Slot(pads, 1) == -1);
     CHECK(pads.pads[0].status == Status::SteamTwin && pads.pads[0].steamPad == 2);
-    std::vector<Pad> beforeOpen{physical, steam}; Classify(beforeOpen, {});
+    std::vector<Pad> beforeOpen{physical, steam}; Classify(beforeOpen, {}, ReadsNativeProfile);
     CHECK(beforeOpen[0].status == Status::SteamTwin); // The SDL owner checks this before opening.
     CHECK(Slot(onlyPhysical.Update({physical}), 1) == 0);
     CHECK(Slot(onlySteam.Update({steam}), 2) == 0);
@@ -184,15 +185,15 @@ static void SteamPairing() {
     CHECK(Slot(pads, 2) == 0 && Slot(pads, 3) == 1);
     // Same brand is insufficient: PS4 and PS5 are different SDL types.
     auto ps5 = Controller(4); ps5.type = Type::PS5;
-    Slots differentType;
+    Slots differentType{ReadsNativeProfile};
     CHECK(Slot(differentType.Update({steam, ps5}), 4) == 1);
     auto nativeTwin = physical;
     nativeTwin.vid = NativeProfiles[0].vid; nativeTwin.pid = NativeProfiles[0].pid;
-    Slots nativeSteam;
+    Slots nativeSteam{ReadsNativeProfile};
     pads = nativeSteam.Update({nativeTwin, steam});
     CHECK(pads.pads[0].status == Status::GameRead && pads.pads[0].steamPad == steam.id && Slot(pads, 2) == 0);
     auto twin = Controller(5), steam2 = steam; steam2.id = 6; steam2.identity = PadIdentity("03001234de280000ff11000000007801");
-    Slots pairs;
+    Slots pairs{ReadsNativeProfile};
     pads = pairs.Update({twin, physical, steam2, steam, Controller(7)});
     CHECK(pads.pads[0].steamPad == 6 && pads.pads[1].steamPad == 2);
     CHECK(Slot(pads, 6) == 0 && Slot(pads, 2) == 1 && Slot(pads, 7) == 2);
@@ -214,30 +215,82 @@ static void SteamByGuid() {
     CHECK(!SteamVirtual(ids28DE));
     // The physical twin of the same type is paired and never opened.
     auto physical = Controller(3, "030000005e0400008e02000000007801"); physical.vid = 0x045E; physical.pid = 0x028E; physical.type = Type::Xbox360;
-    Slots slots;
+    Slots slots{ReadsNativeProfile};
     auto pads = slots.Update({physical, steam});
     CHECK(pads.pads[0].status == Status::SteamTwin && pads.pads[0].steamPad == 1 && Slot(pads, 1) == 0 && Slot(pads, 3) == -1);
     // Steam's pad is XInput even when a native-profile stick is behind it.
     auto stick = steam; stick.vid = NativeProfiles[13].vid; stick.pid = NativeProfiles[13].pid;
-    Slots native;
+    Slots native{ReadsNativeProfile};
     CHECK(native.Update({stick}).pads[0].status == Status::Slotted);
 }
 
+// A slot the game reads without the layer (SFV Ember: a real XInput pad or a
+// virtual test pad) is never given. A pad keeps its slot while that stays
+// free, and Changed says whether the slot map moved. Each Update takes the
+// last one's pads back, as SFV Ember's layer plans again without listing.
+static void Occupied() {
+    Slots slots{ReadsNativeProfile};
+    const auto first = slots.Update({Controller(10), Controller(11)}, {}, {}, 0x1u);
+    CHECK(Slot(first, 10) == 1 && Slot(first, 11) == 2 && slots.Changed());
+    CHECK(first.pads[0].status == Status::Slotted);
+    Slots freed = slots, taken = slots, virtualPad = slots, full = slots;
+    // Slot 0 frees: nothing moves.
+    auto pads = freed.Update(first.pads, {}, {}, 0x0u);
+    CHECK(Slot(pads, 10) == 1 && Slot(pads, 11) == 2 && !freed.Changed());
+    // XInput gives a new Xbox pad slot 1: its pad takes the lowest slot no pad last held.
+    pads = taken.Update(first.pads, {}, {}, 0x3u);
+    CHECK(Slot(pads, 10) == 3 && Slot(pads, 11) == 2 && taken.Changed());
+    pads = virtualPad.Update(first.pads, {}, {}, 0x1u | 0x4u);
+    CHECK(Slot(pads, 10) == 1 && Slot(pads, 11) == 3);
+    // Only slot 1 free: the second pad waits.
+    pads = full.Update(first.pads, {}, {}, 0xDu);
+    CHECK(Slot(pads, 10) == 1 && Slot(pads, 11) == -1 && pads.pads[1].status == Status::NotInUse);
+    // A removed pad changes the map; a pad plugged in again goes back to its slot.
+    Slots replug{ReadsNativeProfile};
+    replug.Update({Controller(1), Controller(2)});
+    pads = replug.Update({Controller(1)});
+    CHECK(Slot(pads, 1) == 0 && replug.Changed());
+    pads = replug.Update({Controller(1), Controller(3)});
+    CHECK(Slot(pads, 3) == 2);
+    pads = replug.Update({Controller(1), Controller(3), Controller(7, "pad-2")});
+    CHECK(Slot(pads, 7) == 1 && Slot(pads, 1) == 0 && Slot(pads, 3) == 2);
+    // The saved pad's slot 0 at start is not given when slot 0 is occupied.
+    Slots blocked{ReadsNativeProfile};
+    pads = blocked.Update({Controller(1), Controller(2, "saved")}, PadIdentity("saved"), {}, 0x1u);
+    CHECK(Slot(pads, 1) == 1 && Slot(pads, 2) == 2);
+}
+
+// The game says which pads it reads itself. A rule like SFV Ember's (Xbox
+// pads and Steam's virtual pad) leaves them, and Steam's twin, to the game.
+static bool ReadsXboxAndSteam(const Pad& pad) { return pad.type == Type::XboxOne || SteamVirtual(pad); }
+static void GameRule() {
+    auto xbox = Controller(1); xbox.type = Type::XboxOne;
+    const auto steam = Controller(2, SteamGuid);
+    Slots slots{ReadsXboxAndSteam};
+    auto pads = slots.Update({xbox, steam, Controller(3), Controller(4)});
+    CHECK(pads.pads[0].status == Status::GameRead && pads.pads[1].status == Status::GameRead);
+    CHECK(pads.pads[2].status == Status::SteamTwin && pads.pads[2].steamPad == 2);
+    CHECK(Slot(pads, 4) == 0);
+    // SF4's rule gives the same Xbox pad a slot; an Ember setup takes a pad from the game's rule.
+    CHECK(Slot(Slots{ReadsNativeProfile}.Update({xbox}), 1) == 0);
+    CHECK(Slots{ReadsXboxAndSteam}.Update({xbox}, {}, {xbox.identity.guid}).pads[0].status == Status::Slotted);
+}
+
 static void PreferredAndDeterminism() {
-    Slots slots;
+    Slots slots{ReadsNativeProfile};
     auto pads = slots.Update({Controller(1), Controller(2, "saved")}, PadIdentity("saved"));
     CHECK(Slot(pads, 2) == 0 && Slot(pads, 1) == 1);
     CHECK(slots.Update({Controller(1), Controller(2, "saved")}, PadIdentity("saved")) == pads);
     slots.Update({Controller(1)}, PadIdentity("saved"));
     CHECK(Slot(slots.Update({Controller(1), Controller(3, "saved")}), 3) == 0);
-    Slots late;
+    Slots late{ReadsNativeProfile};
     late.Update({Controller(1)}, PadIdentity("saved"));
     pads = late.Update({Controller(1), Controller(2, "saved")}, PadIdentity("saved"));
     CHECK(Slot(pads, 1) == 0 && Slot(pads, 2) == 1);
     CHECK(Slot(late.Update({Controller(2, "saved")}), 2) == 1);
-    Slots enumeration;
+    Slots enumeration{ReadsNativeProfile};
     CHECK(Slot(enumeration.Update({Controller(9), Controller(1)}), 9) == 0);
-    Slots a, b;
+    Slots a{ReadsNativeProfile}, b{ReadsNativeProfile};
     std::vector<Pad> input = {Controller(6), Controller(3), Controller(9), Controller(1), Controller(5)};
     CHECK(a.Update(input, PadIdentity("pad-9")) == b.Update(input, PadIdentity("pad-9")));
     input.erase(input.begin() + 1);
@@ -343,6 +396,6 @@ static void Mapping() {
 }
 
 int main() {
-    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); RequiredStepMappings(); RawHandles(); SteamPairing(); SteamByGuid(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
+    IdentityMatching(); Reservations(); WaitingOrder(); Eligibility(); RequiredStepMappings(); RawHandles(); SteamPairing(); SteamByGuid(); Occupied(); GameRule(); PreferredAndDeterminism(); AssignmentIdentity(); Restore(); Mapping();
     std::cout << "Gamepad slots and XInput mapping passed\n";
 }
