@@ -60,10 +60,23 @@ struct StartRequest {
 	sf4e::crash::DumpChannel* dumps; // the crash dump channel, open or not
 };
 
+// Why a start failed: the Win32 error of the start itself, which picks one of
+// the shared messages, or the product's own message when its own check
+// refused the start (for example with LaunchMessages.hxx's words).
+struct StartFailure {
+	DWORD error = 0;
+	std::string message; // shown in place of the shared message when set
+};
+
 // Starts the game with the module inside it, before any of the game's own
-// code runs. Returns the game's process, or null with the Win32 error in
-// startError. Logs its own steps.
-HANDLE StartGame(const StartRequest& request, DWORD& startError);
+// code runs. Returns the game's process, or null with why in failure. Logs
+// its own steps.
+HANDLE StartGame(const StartRequest& request, StartFailure& failure);
+
+// What the launcher offers a product's steps: the localized message `key`
+// in a message box with OK and Cancel, before the game starts. True for OK;
+// the answer is logged.
+bool AskOkCancel(const char* key);
 
 // After each StartGame: ran when the game started and has now exited, false
 // when the start failed. Releases what the run held.

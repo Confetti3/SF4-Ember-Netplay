@@ -273,12 +273,12 @@ void BeforeStart(const std::wstring& gameDirectory) {
     CreateAppIDFile(directory.data());
 }
 
-HANDLE StartGame(const StartRequest& request, DWORD& startError) {
+HANDLE StartGame(const StartRequest& request, StartFailure& failure) {
     run = std::make_unique<Run>();
     const auto helperPath = std::filesystem::path(request.installRoot)/sf4e::platform::helper_pipe::Executable;
     std::wstring directory = request.gameDirectory, executable = request.executable;
     const char* dlls[] = {request.moduleAnsi.c_str()};
-    return CreateSF4Process(payload,run->helper,run->discord,helperPath.wstring(),directory.data(),executable.data(),1,dlls,*request.dumps,startError);
+    return CreateSF4Process(payload,run->helper,run->discord,helperPath.wstring(),directory.data(),executable.data(),1,dlls,*request.dumps,failure.error);
 }
 
 void GameEnded(bool ran) {

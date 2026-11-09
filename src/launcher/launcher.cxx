@@ -64,24 +64,31 @@ void ConfigureLauncherLogging() {
 		if (SUCCEEDED(PathCchCombine(logsDir, MAX_PATH, sf4eDir, L"logs"))) {
 			CreateDirectoryW(logsDir, NULL);
 			if (SUCCEEDED(PathCchCombine(logPath, MAX_PATH, logsDir, ember::launch::LauncherLogName().c_str()))) {
-				try {
-					std::vector<spdlog::sink_ptr> sinks;
-					sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-						logPath,
-						1048576 * 5,
-						10,
-						true
-					));
-					auto logger = std::make_shared<spdlog::logger>("sf4e-launcher", sinks.begin(), sinks.end());
-					spdlog::set_default_logger(logger);
+				// The usual log, rotated as it opens; when that cannot be
+				// opened (another program holds it, or its rotation is
+				// refused), a log of this launch's own beside it that names
+				// why. Logging never blocks the game's start.
+				const auto open = [](const std::wstring& path, bool rotate) {
+					auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(path, 1048576 * 5, 10, rotate);
+					spdlog::set_default_logger(std::make_shared<spdlog::logger>("sf4e-launcher", std::move(sink)));
 					spdlog::flush_on(spdlog::level::info);
-					spdlog::info("Launcher logging initialized");
-					// A field log names the build it came from.
-					spdlog::info("Launcher build: version={} revision={}", SF4E_APP_VERSION, SF4E_SOURCE_REVISION);
+				};
+				std::string failure;
+				try {
+					open(logPath, true);
+				} catch (const spdlog::spdlog_ex& e) {
+					failure = e.what();
+					const std::wstring own = std::wstring(logsDir) + L"\\launcher-" + std::to_wstring(GetCurrentProcessId()) + L".log";
+					try {
+						open(own, false);
+					} catch (const spdlog::spdlog_ex&) {
+						// No file can be written there: the launch goes on unlogged.
+					}
 				}
-				catch (const spdlog::spdlog_ex&) {
-					// Logging should never block game startup.
-				}
+				spdlog::info("Launcher logging initialized");
+				if (!failure.empty()) spdlog::warn(L"Could not open {}: {}", logPath, sf4e::platform::Utf8ToWide(failure.c_str()));
+				// A field log names the build it came from.
+				spdlog::info("Launcher build: version={} revision={}", SF4E_APP_VERSION, SF4E_SOURCE_REVISION);
 			}
 		}
 	}
@@ -344,6 +351,22 @@ constexpr wchar_t SteamOverlayModule[] = L"GameOverlayRenderer.dll";
 int ShowLauncherMessage(const char* key, UINT flags) {
 	return MessageBoxW(nullptr, sf4e::platform::Utf8ToWide(sf4e::loc::T(key)).c_str(),
 		sf4e::platform::Utf8ToWide(ember::Product().branding.productName).c_str(), flags);
+}
+
+namespace ember { namespace launch {
+bool AskOkCancel(const char* key) {
+	const bool ok = ShowLauncherMessage(key, MB_OKCANCEL | MB_ICONINFORMATION | MB_SETFOREGROUND) == IDOK;
+	spdlog::info("{}: the player chose {}", key, ok ? "OK" : "Cancel");
+	return ok;
+}
+} }
+
+// What the player is told when a start failed: the product's own message,
+// else the shared one for the Win32 error.
+std::string StartFailureMessage(const ember::launch::StartFailure& failure) {
+	if (!failure.message.empty()) return failure.message;
+	// ERROR_ELEVATION_REQUIRED: the game's exe is marked to run as administrator.
+	return sf4e::loc::T(failure.error == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed");
 }
 
 // The recovery screen, with its selection art reporting to launcher.log. The
@@ -625,14 +648,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const bool steamAbove = sf4e::platform::ProcessElevation() == sf4e::platform::Elevation::Normal &&
             sf4e::platform::SteamElevation() == sf4e::platform::Elevation::Elevated;
         if (steamAbove) spdlog::warn("Steam runs as administrator and the launcher does not; the game may not reach Steam");
-        DWORD startError = 0;
-        HANDLE game = ember::launch::StartGame({installRoot, location.directory, location.executable, sidecar, sidecarAnsi, &dumps}, startError);
+        ember::launch::StartFailure startFailure;
+        HANDLE game = ember::launch::StartGame({installRoot, location.directory, location.executable, sidecar, sidecarAnsi, &dumps}, startFailure);
         if (!game) {
             ember::launch::GameEnded(false);
             dumps.Close();
-            // ERROR_ELEVATION_REQUIRED: SSFIV.exe is marked to run as administrator.
-            const char* startMessage = startError == ERROR_ELEVATION_REQUIRED ? "launcher.game_runs_as_admin" : "launcher.start_failed";
-            if (!ShowRecovery(sf4e::loc::T(startMessage),chosenDirectory)) return 0;
+            if (!ShowRecovery(StartFailureMessage(startFailure),chosenDirectory)) return 0;
             continue;
         }
         // The game's crash handler asks for its dump here and waits for it.

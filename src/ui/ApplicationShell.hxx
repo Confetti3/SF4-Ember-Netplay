@@ -601,8 +601,11 @@ private:
     // controller and look, a step at a time, each a few rows, Next and Skip.
     std::vector<MenuEntry> WelcomeRows(const ShellView& view,std::string& title);
     // Its own rows and Back; false for a row another screen owns (Language, Choose controller).
-    bool WelcomeActivate(const MenuAction& action);
-    void DrawWelcomeBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height);
+    bool WelcomeActivate(const ShellView& view,const MenuAction& action);
+    void DrawWelcomeBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,int steps);
+    // How many steps a game's welcome has: all, or all but the controller
+    // step without a pad layer (ApplicationShell__FirstRun.cxx).
+    static int WelcomeStepCount(const ember::SettingsFeatures& features);
     // Create on Public: Create public room, the empty list's card and Quick join's notice all open it.
     void OpenPublicCreate();
     // A public room still named with the default is named for its host.

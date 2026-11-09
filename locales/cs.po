@@ -78,6 +78,15 @@ msgstr "Hra skončila s chybou. Zkontrolujte protokol spouštěče v %APPDATA%\\
 msgid "launcher.steam_runs_as_admin"
 msgstr "Hra se nemohla spojit se Steamem, protože Steam běží jako správce. Zavřete Steam, spusťte ho normálně a zkuste to znovu. Spuštění Emberu jako správce také funguje, ale aktualizace se tak neinstalují."
 
+msgid "launcher.steam_not_ready"
+msgstr "Steam není pro hru připravený. Musí běžet a musíte v něm být přihlášeni. Spusťte Steam, přihlaste se a zkuste to znovu."
+
+msgid "launcher.steam_restart_ask"
+msgstr "Steam se musí restartovat, než hra může začít: záznam Steamu o jeho běžící kopii je zastaralý a hra by bez nového spadla. Restart Steamu přeruší jeho stahování, běžící hru a hlasový chat.\n\nRestartovat Steam teď? Zrušit spustí hru bez restartu Steamu."
+
+msgid "launcher.game_build_unsupported"
+msgstr "{0} běží jen na {1}, a tento soubor je jiné sestavení:\n{2}\n\nVyberte instalační složku hry. Pokud Steam hru aktualizoval, počkejte, až vyjde aktualizace pro {0}."
+
 msgid "launcher.game_crashed"
 msgstr "Hra spadla. Chcete-li pomoci s opravou, zvolte níže Odeslat toto hlášení. Nebo pošlete soubory ze složky %APPDATA%\\sf4e\\logs sami."
 

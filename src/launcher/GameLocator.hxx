@@ -32,9 +32,17 @@ std::wstring ManifestInstallDir(const std::string& acfUtf8);
 // library has none.
 std::vector<std::wstring> GameFoldersInLibrary(const std::wstring& library, const std::string& manifestUtf8);
 
-// The full path of the game executable in directory when exists reports it
-// there, otherwise empty. An empty directory never resolves.
-std::wstring GameExecutable(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists);
+// The game in a folder: the folder that holds the game executable and the
+// executable's full path, both empty when exists reports neither below.
+// When the product has an exeFolder (SFV Ember's Binaries\Win64),
+// <directory>\<exeFolder> is tried first: a game's top folder, where Steam's
+// "Browse local files" opens, holds UE4's starter exe under the game's own
+// name, and the starter must never be what starts. Then <directory> itself,
+// as given (SF4 Ember's only folder). An empty directory never resolves.
+struct GameFolder {
+    std::wstring directory, executable;
+};
+GameFolder FindGame(const std::wstring& directory, const std::function<bool(const std::wstring&)>& exists);
 
 // The game folder last written to settings, and the one operation that
 // changes it: a write attempt whose success is the only thing that moves
@@ -59,7 +67,8 @@ struct GameLocation {
 };
 
 // The folder picked in recovery this run, else the saved folder while it
-// still holds the game, else whatever search finds. search returns the
+// still holds the game, else whatever search finds, each through FindGame
+// (so directory is where the executable is). search returns the
 // found directory or empty. A recovery choice is never replaced by the
 // search, and search runs at most once.
 GameLocation LocateGame(const std::wstring& chosenDirectory, const std::wstring& savedDirectory,
