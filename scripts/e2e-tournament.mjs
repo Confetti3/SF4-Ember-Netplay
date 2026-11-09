@@ -22,6 +22,9 @@
 //     "local": { "package": "C:\\...\\stage-tournament-selftest", "work": "D:\\ember-build\\e2e-games" },
 //     "remote": { "ssh": "user@host", "package": "C:\\ember-ci\\tournament-selftest\\stage",
 //                 "work": "C:\\ember-ci\\tournament-selftest", "task": "EmberSelfTest" } }
+//
+// "site": "ember-bracket-site" with "site_name": "Ember brackets" runs it on
+// Ember's own bracket site instead of Challonge.
 import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -33,6 +36,10 @@ const configFile = args.includes("--config") ? args[args.indexOf("--config") + 1
 const config = JSON.parse(readFileSync(configFile, "utf8"));
 const bridge = config.bridge.replace(/\/$/, "");
 const out = config.out;
+// The bracket service the desk creates the tournament on: Challonge unless the
+// config names another sign-in site (ember-bracket-site, Ember's own).
+const site = config.site || "challonge";
+const siteName = config.site_name || "Challonge";
 mkdirSync(out, { recursive: true });
 const repo = new URL("..", import.meta.url).pathname;
 const linux = (windows) => execFileSync("wslpath", ["-u", windows], { encoding: "utf8" }).trim();
@@ -88,7 +95,7 @@ const emberDir = (side) => {
 };
 const selftest = (side, test) => ["-PackageDir", side === local ? config.local.package : config.remote.package,
   "-Test", test, "-Exchange", (side === local ? config.local.work : config.remote.work) + "\\exchange", "-Bridge", bridge,
-  "-Connection", config.connection, "-Site", "challonge", "-KeptEmberDir", emberDir(side),
+  "-Connection", config.connection, "-Site", site, "-KeptEmberDir", emberDir(side),
   "-TimeoutMinutes", "45"];
 
 function startLocal() {
@@ -203,8 +210,8 @@ const page = await chrome(out);
 let event = null;
 
 try {
-  await play("both games connected their Challonge accounts", async () => {
-    log("first run: approve Challonge in the browser on each PC (5 minutes each)");
+  await play("both games connected their " + siteName + " accounts", async () => {
+    log("first run: approve " + siteName + " in the browser on each PC (5 minutes each)");
     await Promise.all([wait(local, "site-account", 12, "this PC's account"), wait(remote, "site-account", 12, "the other PC's account")]);
     await shots("01-connected");
   });
@@ -237,7 +244,7 @@ try {
     await layout(page, "05-desk-home", true);
   });
 
-  await play("the desk creates a single elimination Challonge tournament, first to 1, with sign-ups", async () => {
+  await play("the desk creates a first to 1 " + siteName + " tournament with sign-ups", async () => {
     await page.eval("document.getElementById('new-tournament').click()");
     await page.until("!document.getElementById('wizard').hidden");
     await page.eval(`document.getElementById('title').value = 'ember-2p ' + new Date().toISOString().slice(0, 16);
@@ -248,12 +255,15 @@ try {
     await page.eval("document.getElementById('next').click()");
     await page.until("/Service/.test(document.getElementById('step-now').textContent)", 15000);
     event = await page.eval("desk.event.id");
-    await page.eval(`document.querySelector('[data-field=format]').value = JSON.stringify('single elimination');
-      document.getElementById('games').value = '1'`);
+    await page.eval(`document.querySelector('input[name=service][value=${JSON.stringify(site)}]').click()`);
+    // Single elimination where the service asks; Ember's own brackets have no format field.
+    await page.eval(`(() => { const format = document.querySelector('[data-field=format]');
+      if (format) format.value = JSON.stringify('single elimination');
+      document.getElementById('games').value = '1'; })()`);
     await layout(page, "07-service", true);
     await page.eval("document.getElementById('next').click()");
     await page.until("/Discord/.test(document.getElementById('step-now').textContent)", 20000);
-    must(await page.eval("Boolean(desk.event.tournament)"), "no Challonge tournament");
+    must(await page.eval("Boolean(desk.event.tournament)"), "no " + siteName + " tournament");
     // With a webhook in ~/tournament-lab/e2e/discord-webhook, calls and scores
     // go to that Discord channel; it is never printed.
     await page.eval(`document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => { box.checked = ${JSON.stringify(Boolean(webhook))} || !/score/.test(box.parentElement.textContent); })`);
@@ -274,7 +284,7 @@ try {
     await layout(page, "09-ready", true);
   });
 
-  await play("the desk readies it and starts the bracket on Challonge", async () => {
+  await play("the desk readies it and starts the bracket on " + siteName, async () => {
     await page.eval("document.getElementById('next').click()");
     await page.until("desk.event.status !== 'draft'", 15000);
     await page.eval("go(5)");
@@ -282,7 +292,7 @@ try {
     await layout(page, "10-start");
     await page.eval("document.getElementById('start-bracket').click()");
     await page.until("document.getElementById('start-bracket').hidden || /Bracket started/.test(document.body.textContent)", 20000);
-    // The bracket connector reads Challonge every two minutes at most.
+    // The bracket connector reads the service every two minutes at most.
     log("waiting for the connector to read the bracket");
     for (const end = Date.now() + 12 * 60000; !(await page.eval("readSets().then(() => view.sets.length > 0)")); await sleep(10000))
       if (Date.now() > end) throw new Error("the connector never read the bracket");
@@ -324,7 +334,7 @@ try {
   });
 
   if (!args.includes("--keep")) {
-    await play("stopped and deleted on Challonge", async () => {
+    await play("stopped and deleted on " + siteName, async () => {
       await page.go(bridge + "/desk");
       await page.until("!document.getElementById('home').hidden", 15000);
       await page.eval(`home().then(() => open(desk.events.find((e) => e.id === ${JSON.stringify(event)})))`);
@@ -333,17 +343,17 @@ try {
       await page.eval("go(5); document.getElementById('stop').click()");
       await page.until("document.getElementById('decide').open");
       await layout(page, "15-stop");
-      await page.eval("[...document.querySelectorAll('#decide button')].find((b) => /delete it on Challonge/.test(b.textContent)).click()");
+      await page.eval("[...document.querySelectorAll('#decide button')].find((b) => /delete it on/.test(b.textContent)).click()");
       await page.until("!document.getElementById('decide').open && !desk.event", 20000);
-      const listed = await page.eval("api('GET', '/v1/organizer/tournaments?site=challonge').then((r) => JSON.stringify(r.tournaments))");
-      must(!listed.includes(JSON.stringify(tournament)), "still on Challonge");
+      const listed = await page.eval("api('GET', '/v1/organizer/tournaments?site=" + site + "').then((r) => JSON.stringify(r.tournaments))");
+      must(!listed.includes(JSON.stringify(tournament)), "still on " + siteName);
       event = null;
     });
   }
 } finally {
   if (event && !args.includes("--keep")) {
     const status = await page.eval(`api('DELETE', '/v1/organizer/events/${event}', { on_site: true }).then(() => 'deleted', (e) => e.message)`).catch((e) => e.message);
-    log("this run's tournament, with Challonge's:", status);
+    log("this run's tournament, with " + siteName + "'s:", status);
   }
   page.close();
   if (!ended.every(Boolean)) {
