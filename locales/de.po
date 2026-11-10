@@ -3321,6 +3321,8 @@ msgid "room.tables"
 msgstr "Tische"
 msgid "room.tables_detail"
 msgstr "Wie viele Tische der Raum hat, von 1 bis {0}. Der Host kann das später in Raumeinstellungen ändern."
+msgid "room.tables_arcade_detail"
+msgstr "Wie viele Paare gleichzeitig spielen, von 1 bis {0}. Alle anderen warten in der Schlange. Bei 1 bleibt der Sieger, und der Verlierer stellt sich hinten an."
 msgid "room.tables.detail"
 msgstr "Bis zu {0} Tische hinzufügen. Ein Tisch lässt sich nur entfernen, solange dort niemand spielt, wartet oder zuschaut."
 msgid "room.apply_tables"
@@ -5566,6 +5568,9 @@ msgstr "Hier hinsetzen: Du spielst gegen den, der am längsten wartet, oder wart
 
 msgid "room.arcade_waiting"
 msgstr "Wartet"
+
+msgid "room.arcade_in_line"
+msgstr "Platz in der Schlange: {0}"
 
 msgid "room.cabinet_free"
 msgstr "MÜNZE EINWERFEN"

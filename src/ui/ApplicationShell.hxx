@@ -815,6 +815,11 @@ std::string memberAsk_;
     int welcomeStep_ = 0;
     bool welcomeOffered_ = false;
     room::RoomType createArcade_ = room::ClassicRoom;
+    // An Arcade or King of the hill room's tables on Create, all of them until
+    // changed; at one the winner stays. Not kept, like the type.
+    int createArcadeTables_ = static_cast<int>(room::TableCount);
+    // The table count Create opens its room with, of the type chosen.
+    int CreateTableCount() const { return createArcade_ ? createArcadeTables_ : preferences_.roomTableCount; }
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

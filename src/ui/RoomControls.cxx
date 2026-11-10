@@ -182,6 +182,11 @@ PlaceExit ExitFromPlace(const ShellView& v) {
         if (v.room.tournament.Active() && place.table == room::TournamentTable && !exit.unready) return PlaceExit{};
     } else if (place.kind == room::Place::Kind::Queue) {
         exit.table = place.table; exit.allowed = true; exit.label = loc::T("room.leave_queue");
+    } else if (place.kind == room::Place::Kind::Line) {
+        // Standing up from the cabinet, which Unqueue names as Queue does.
+        const int cabinet = room::CabinetOf(v.room, v.room.localMember);
+        exit.table = cabinet % static_cast<int>(room::TableCount); exit.allowed = true; exit.label = loc::T("room.leave_seat");
+        exit.row = "cabinet-" + std::to_string(cabinet);
     }
     return exit;
 }

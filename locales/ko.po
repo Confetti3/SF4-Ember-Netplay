@@ -3322,6 +3322,8 @@ msgid "room.tables"
 msgstr "테이블 수"
 msgid "room.tables_detail"
 msgstr "방의 테이블 수입니다(1~{0}). 방장은 나중에 방 설정에서 바꿀 수 있습니다."
+msgid "room.tables_arcade_detail"
+msgstr "동시에 대전하는 쌍의 수(1~{0}). 나머지는 줄을 서서 기다립니다. 1이면 승자는 남고 패자는 줄 맨 뒤로 갑니다."
 msgid "room.tables.detail"
 msgstr "테이블은 {0}개까지 추가할 수 있습니다. 테이블은 아무도 없을 때만 줄일 수 있습니다."
 msgid "room.apply_tables"
@@ -5567,6 +5569,9 @@ msgstr "여기에 앉기: 가장 오래 기다린 사람과 대전하거나, 다
 
 msgid "room.arcade_waiting"
 msgstr "대기 중"
+
+msgid "room.arcade_in_line"
+msgstr "대기 순서: {0}"
 
 msgid "room.cabinet_free"
 msgstr "코인을 넣으세요"

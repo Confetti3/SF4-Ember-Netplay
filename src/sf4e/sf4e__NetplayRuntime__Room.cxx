@@ -471,7 +471,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		// Only a room just created carries its tables: the join of a public one,
 		// or a private one hosted from a template.
 		if ((runtime->join == JoinKind::Public || decision.effect == netplay::Effect::HostRoom) && command.createdRules) {
-			runtime->createdRules.Start(*command.createdRules, GetTickCount64(), command.arcadeRoom, command.wiredOnly);
+			runtime->createdRules.Start(*command.createdRules, GetTickCount64(), command.arcadeRoom, command.wiredOnly, command.tableCount);
 			spdlog::info("Room: created room tables armed format={} rotation={} type={} wired_only={} named={}",
 				static_cast<int>(command.createdRules->rules[0].format), static_cast<int>(command.createdRules->rules[0].rotation), static_cast<int>(command.arcadeRoom), command.wiredOnly,
 				std::count_if(command.createdRules->names.begin(), command.createdRules->names.end(), [](const std::string& name) { return !name.empty(); }));

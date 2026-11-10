@@ -8,7 +8,7 @@ class RoomAuthority {
 public:
 	// practice, delayPolicy and arcade are the room's for its life
 	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
-	// changes them later. tableCount is how many tables a Classic room starts
+	// changes them later. tableCount is how many tables the room starts
 	// with (Snapshot::tableCount), which its host can change (SetTableCount);
 	// out of range it is ClassicTableCount. wiredOnly is the room's Wired
 	// players only rule (Snapshot::wiredOnly), which its host can change
@@ -293,6 +293,8 @@ private:
 	void SwapFighter(MemberId leaving, Table& table, const ArcadeWaitingAsker& asker);
 	void PartPair(Table& table, MemberId member);
 	void PairArcade(MemberId member, MemberId parted);
+	void SeatLine(MemberId a, MemberId b);
+	Result ApplyArcadeStand(MemberId member);
 	void ArcadeSetEnded(Table& table, MemberId winner, MemberId loser);
 	void ArcadeVacated(Table& table, MemberId left);
 	void StandUp(MemberId member);

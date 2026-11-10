@@ -3321,6 +3321,8 @@ msgid "room.tables"
 msgstr "Ячейки"
 msgid "room.tables_detail"
 msgstr "Сколько ячеек в лобби, от 1 до {0}. Ведущий может изменить это позже в настройках лобби."
+msgid "room.tables_arcade_detail"
+msgstr "Сколько пар играет одновременно, от 1 до {0}. Остальные ждут в очереди. При 1 победитель остаётся, а проигравший уходит в конец очереди."
 msgid "room.tables.detail"
 msgstr "Можно добавить до {0} ячеек. Ячейку можно убрать, только если в ней никто не играет, не ждёт и не смотрит."
 msgid "room.apply_tables"
@@ -5566,6 +5568,9 @@ msgstr "Сесть здесь: вы играете с тем, кто ждёт д
 
 msgid "room.arcade_waiting"
 msgstr "Ждёт"
+
+msgid "room.arcade_in_line"
+msgstr "Место в очереди: {0}"
 
 msgid "room.cabinet_free"
 msgstr "ВСТАВЬТЕ МОНЕТУ"

@@ -3322,6 +3322,8 @@ msgid "room.tables"
 msgstr "对战席数"
 msgid "room.tables_detail"
 msgstr "房间的对战席数量（1 至 {0}）。房主之后可在房间设置中更改。"
+msgid "room.tables_arcade_detail"
+msgstr "同时对战的组数，1 到 {0}。其他人排队等候。设为 1 时，胜者留下，败者排到队尾。"
 msgid "room.tables.detail"
 msgstr "对战席最多可增加到 {0} 个。只有在没有人使用时才能减少对战席。"
 msgid "room.apply_tables"
@@ -5567,6 +5569,9 @@ msgstr "坐在这里：与等待最久的玩家对战，或等待下一位入座
 
 msgid "room.arcade_waiting"
 msgstr "等待中"
+
+msgid "room.arcade_in_line"
+msgstr "排队位置：{0}"
 
 msgid "room.cabinet_free"
 msgstr "请投币"

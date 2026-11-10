@@ -3321,6 +3321,8 @@ msgid "room.tables"
 msgstr "Tavoli"
 msgid "room.tables_detail"
 msgstr "Quanti tavoli ha la sala, da 1 a {0}. L'host può cambiarlo in seguito in Impostazioni sala."
+msgid "room.tables_arcade_detail"
+msgstr "Quante coppie giocano insieme, da 1 a {0}. Gli altri aspettano in coda. Con 1, chi vince resta e chi perde va in fondo alla coda."
 msgid "room.tables.detail"
 msgstr "Aggiungi tavoli fino a {0}. Un tavolo si può togliere solo se nessuno ci gioca, aspetta o guarda."
 msgid "room.apply_tables"
@@ -5566,6 +5568,9 @@ msgstr "Siediti qui: giochi contro chi aspetta da più tempo, oppure aspetti il 
 
 msgid "room.arcade_waiting"
 msgstr "In attesa"
+
+msgid "room.arcade_in_line"
+msgstr "Posto in coda: {0}"
 
 msgid "room.cabinet_free"
 msgstr "INSERISCI GETTONE"

@@ -372,14 +372,19 @@ void TableCountCreate() {
  h.Choose("host");
  Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().tableCount==6,"Create room did not ask for six tables");
  Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"The table count did not reach the saved defaults");
- // Kept: Create opens on six again. An Arcade room plays at every table and a
- // public room opens at four, so neither offers the row.
+ // Kept: Create opens on six again. An Arcade room has its own count, all
+ // eight until changed and not kept; one table is winner stays. A public
+ // Classic room opens at four, so it offers no row.
  h.Screen("online");h.Choose("create");
  Check(row("tables")->value=="6","The table count was forgotten when Create opened again");
  h.FocusOn("room-type");h.Press(MenuInput::Right);
- Check(row("tables")==rows.end(),"An Arcade room offered a table count");
+ Check(row("tables")->value=="8"&&row("tables")->detail==loc::Tf("room.tables_arcade_detail",static_cast<int>(room::TableCount)),
+  "An Arcade room did not offer its own table count");
+ h.FocusOn("tables");for(int i=0;i<8;++i)h.Press(MenuInput::Left);
+ Check(row("tables")->value=="1","An Arcade room's tables did not stop at one");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==room::ClassicTableCount,"An Arcade room asked for a table count");
+ Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==1,"An Arcade room did not ask for one table");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"An Arcade room's count reached the Classic default");
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("tables")==rows.end(),"Public Create offered a table count");
  h.Press(MenuInput::Left);
@@ -400,9 +405,11 @@ void TableCountCreate() {
  h.Choose("apply-tables");
  Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::RoomAction&&h.actions.back().roomAction.kind==room::ActionKind::SetTableCount&&
   h.actions.back().roomAction.tableCount==7,"Apply tables did not send the count");
- // An Arcade room's settings have no count.
+ // A private Arcade room's host changes its count too; a public one keeps it.
  h.view.room.arcade=room::ArcadeRoom;h.Frame();
- Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"An Arcade room's settings offered a table count");
+ Check(row("room-tables")!=rows.end(),"A private Arcade room's settings did not offer a table count");
+ h.view.room.serverOwned=true;h.Frame();
+ Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"A public Arcade room's settings offered a table count");
  SetMenuEntriesProbe({});
 }
 void TrainingJourneys() {

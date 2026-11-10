@@ -352,7 +352,9 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // the Rematch choice, or Insert coin.
   const int side=t&&t->p2==m->id?1:0;
   std::string first=loc::T("room.cabinet_free"),second;ImU32 tone=c.muted;
-  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;}
+  if(m&&!paired){first=loc::T("room.arcade_waiting");tone=c.text;
+   // At no table: every table in play is taken, so they wait in line.
+   if(const int place=room::ArcadeLinePlace(v.room,m->id))second=loc::Tf("room.arcade_in_line",place);}
   else if(paired&&t->deciding){first=loc::T(ArcadeAnswerKey(*t,side));tone=pending;}
   // Who plays whom: the opponent's name on the screen, in the pair's colour, over the score.
   else if(paired){const auto* other=room::FindMember(v.room,side?t->p1:t->p2);

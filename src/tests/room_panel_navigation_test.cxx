@@ -1712,7 +1712,7 @@ int main() try {
         // Two pairs: Player 1 at cabinet 1 against Player 2 at 9, Player 3 at 3 against Player 4 at 11.
         view.room.cabinets[0] = 1; view.room.cabinets[8] = 2; view.room.cabinets[2] = 3; view.room.cabinets[10] = 4;
         const auto board = [&](room::RoomType type, float scale, ImVec2 size) {
-            view.room.arcade = type; ++view.room.revision;
+            view.room.arcade = type; view.room.tableCount = room::DefaultTableCount(type); ++view.room.revision;
             ApplyTheme(scale); io.DisplaySize = size;
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
         };
