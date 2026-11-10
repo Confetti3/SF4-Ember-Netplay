@@ -136,6 +136,10 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
     // or a prompt closed over one WIN would keep the next one's shut.
     if (!v.matchResult) matchResultSeen_ = false;
     const auto& fought = v.foughtGame;
+    const bool onResultsRule = ember::Product().branding.rematchOnResults;
+    if (fought.Active()) lastFought_ = fought;
+    // The game is over and the room is in front: its results screen.
+    const bool gameOver = !Fighting(v.session.match) && v.atMainMenu;
     if (open) {
         // Only over the game's WIN: the game over, the room is shown, not a new
         // prompt. It is the game's own table, which an Arcade set's loser left.
@@ -150,11 +154,37 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             prompt.opponent = p1 == snapshot.localMember ? p2 : p2 == snapshot.localMember ? p1 : 0;
             if (prompt.opponent) {
                 postMatch_ = prompt; afterPostMatch_ = AfterPostMatch::None;
+                promptedGeneration_ = fought.generation;
                 if (nav.Screen() != "post-match") nav.Push("post-match");
                 nav.Prefer("again");
             }
         }
         matchResultSeen_ = v.matchResult;
+        // A game whose WIN asked nothing (it ended at once, or Ember was not
+        // shown over it) asks on its results instead, while the room still
+        // has that game as the table's latest and both fighters seated. A
+        // cancelled game (a desync, a lost link) has no result to follow.
+        if (onResultsRule && !postMatch_ && gameOver && v.session.match == MatchState::PostMatch && lastFought_.Active() &&
+            lastFought_.generation != promptedGeneration_ && lastFought_.table < static_cast<int>(snapshot.tables.size())) {
+            promptedGeneration_ = lastFought_.generation;
+            const auto& t = snapshot.tables[lastFought_.table];
+            const auto [p1, p2] = GameSeats(t, lastFought_.generation);
+            const room::MemberId opponent = p1 == snapshot.localMember ? p2 : p2 == snapshot.localMember ? p1 : 0;
+            if (opponent && t.matchGeneration == lastFought_.generation && lastFought_.result != room::MatchResult::Abort &&
+                SeatOf(t, snapshot.localMember) >= 0 && SeatOf(t, opponent) >= 0) {
+                PostMatchPrompt prompt;
+                prompt.table = lastFought_.table; prompt.generation = lastFought_.generation; prompt.result = lastFought_.result;
+                prompt.until = now + PostMatchSeconds;
+                prompt.failures = v.readyFailureSequence;
+                prompt.opponent = opponent;
+                // Asked only now, so no answer costs no seat: without this
+                // prompt the player would have stayed seated.
+                prompt.onResults = prompt.resultsShown = prompt.answered = true;
+                postMatch_ = prompt; afterPostMatch_ = AfterPostMatch::None;
+                if (nav.Screen() != "post-match") nav.Push("post-match");
+                nav.Prefer("again");
+            }
+        }
     }
     if (postMatch_) {
         auto& p = *postMatch_;
@@ -166,9 +196,27 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         if (p.result == room::MatchResult::Abort && fought.generation == p.generation) p.result = fought.result;
         // The opponent's answer as soon as the battle's input carries it, kept:
         // the battle reads it only until it decides.
-        if (ember::Product().branding.answersFromInput && theirs >= 0) {
+        if (ember::Product().branding.answersFromInput && theirs >= 0 && !p.onResults) {
             p.theyChose |= (v.rematchChoices >> theirs & 1) != 0;
             p.theyDeclined |= (v.rematchDeclines >> theirs & 1) != 0;
+        }
+        // The WIN over, the prompt goes on over the room's results
+        // (Branding::rematchOnResults), so Rematch never needs the player to
+        // find their table and Ready: the answers over the WIN no longer
+        // stand (the opponent's Rematch stays as their Ready in the room), and
+        // a Back pressed over it, most often a press meant to skip its
+        // scenes, is taken back, the player having answered (no seat is left
+        // for it). Character select still goes to the fighter select.
+        if (onResultsRule && !p.onResults && gameOver && !p.starting) {
+            p.onResults = true;
+            if (p.left && p.after == AfterPostMatch::None) { p.left = false; p.answered = true; }
+            if (!p.left) { p.theyChose = p.theyDeclined = false; p.until = now + PostMatchSeconds; }
+        }
+        // Put in front on the results screen once, as the room comes back.
+        if (p.onResults && !p.resultsShown && !p.left && open) {
+            p.resultsShown = true;
+            if (nav.Screen() != "post-match") nav.Push("post-match");
+            nav.Prefer("again");
         }
         // The set's end as the room first shows it: the pair still together there
         // stayed (PostMatchPrompt::pairStayed); apart, the set's rotation moved them.
@@ -215,7 +263,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // WIN they still play out, end later than this one.
         else if (!p.starting && ready && theirs >= 0) { if (now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open); }
         // A WIN cut short ends the game before the timer: no answer by then is no answer.
-        else if (!p.starting && (now >= p.until || ready || (!Fighting(v.session.match) && v.atMainMenu)))
+        else if (!p.starting && (now >= p.until || ready || (gameOver && !p.onResults)))
             ClosePostMatch(v, ready || p.answered || KeepsSeat(snapshot, t, p.generation, p.result) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
     }
     // What the prompt left to do waits for the game's end, in the room.

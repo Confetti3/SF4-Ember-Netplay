@@ -677,6 +677,12 @@ private:
     PostMatchBarView postMatchBarShown_;
     bool matchResultSeen_ = false;
     unsigned gamesInPlaceSeen_ = 0;
+    // The last game this PC fought, kept past its end (the runtime's
+    // FoughtGame is gone once the game is), and the last game a prompt was
+    // opened for: each game gets one, over its WIN or on its results
+    // (Branding::rematchOnResults).
+    netplay::FoughtGame lastFought_;
+    std::uint64_t promptedGeneration_ = 0;
     // What the prompt shows this frame; Draw builds it once, sizes the panel by
     // it (PostMatchPanelFor) and hands it to DrawPostMatch.
     PostMatchModel BuildPostMatch(const ShellView& view) const;

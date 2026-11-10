@@ -35,6 +35,7 @@ constexpr ember::ProductIdentity RulesOn = {
 		true,
 		Ranks,
 		GameRankName,
+		true,
 	},
 	L"sf4e-product-rules-test",
 	false,

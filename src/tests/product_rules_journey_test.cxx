@@ -124,11 +124,63 @@ void OpponentAnswer() {
  Check(h.shell.Navigation().Screen()=="post-match"&&words["pm-opponent"]==(fromInput?back:choosing),"The decline over a chosen Rematch was not shown as it should be");
  const auto sent=h.actions.size();
  backInRoom();h.Frame();
- Check((h.shell.Navigation().Screen()=="post-match")!=fromInput,
-  fromInput?"The prompt waited on over the room after the opponent's decline":"SF4 Ember's prompt did not wait for the opponent's answer");
+ // On the results (Branding::rematchOnResults) it waits for the opponent's
+ // Ready there, as SF4 Ember's prompt waits for it over the room.
+ const bool onResults=ember::Product().branding.rematchOnResults;
+ Check((h.shell.Navigation().Screen()=="post-match")==(!fromInput||onResults),
+  fromInput&&!onResults?"The prompt waited on over the room after the opponent's decline":"The prompt did not wait for the opponent's answer");
+ if(onResults)Check(words["pm-opponent"]==choosing,"The opponent's decline over the WIN still stood on the results");
  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(sent),h.actions.end(),[](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),
   "A chosen Rematch gave up the seat");
  SetMenuCardTextProbe({});
+}
+
+// Rematch on the results (Branding::rematchOnResults). On: a Back pressed over
+// the WIN (a press meant to skip its scenes) is taken back once the room's
+// results show, with Rematch there and no seat given up; a game whose WIN
+// asked nothing asks on its results. Off: the prompt ends with the WIN.
+void ResultsRematch() {
+ const bool onResults=ember::Product().branding.rematchOnResults;
+ Harness h;SeatedPair(h,23);
+ auto& t=h.view.room.tables[0];t.phase=room::TablePhase::Playing;
+ h.Screen("room");
+ const auto fight=[&]{h.view.rematchChoices=h.view.rematchDeclines=0;h.view.matchResult=false;
+  h.view.session.match=netplay::MatchState::Playing;h.view.atMainMenu=false;h.view.foughtGame={0,t.matchGeneration,room::MatchResult::P1Win};h.Frame();};
+ const auto backInRoom=[&]{h.view.matchResult=false;h.view.foughtGame={};h.view.session.match=netplay::MatchState::PostMatch;
+  h.view.atMainMenu=true;t.phase=room::TablePhase::Waiting;h.open=true;h.Frame();h.Frame();};
+ const auto unqueued=[&](std::size_t from){return std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),
+  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;});};
+ // Back over the WIN.
+ fight();h.view.matchResult=true;h.Frame();
+ Check(h.shell.Navigation().Screen()=="post-match","The WIN's prompt did not open");
+ h.Choose("back");
+ Check(h.shell.PostMatchLeft(),"Back over the WIN was not this fighter's decline");
+ std::size_t sent=h.actions.size();
+ backInRoom();
+ Check((h.shell.Navigation().Screen()=="post-match")==onResults,
+  onResults?"Rematch did not come up on the results after a Back over the WIN":"SF4 Ember's prompt stayed after the WIN");
+ if(onResults){
+  Check(!h.shell.PostMatchLeft()&&h.shell.Navigation().Focus()=="again","The results' prompt did not offer Rematch first");
+  h.Wait(11);
+  Check(h.shell.Navigation().Screen()!="post-match","The results' prompt did not end with its countdown");
+  Check(!unqueued(sent),"A Back over the WIN taken back on the results gave up the seat");
+ }
+ // A WIN that asked nothing: the game ends at once.
+ h.Screen("room");t.matchGeneration=6;t.phase=room::TablePhase::Playing;
+ fight();sent=h.actions.size();
+ backInRoom();
+ Check((h.shell.Navigation().Screen()=="post-match")==onResults,
+  onResults?"A game whose WIN asked nothing did not ask on its results":"SF4 Ember asked on the results");
+ if(onResults){
+  h.Choose("again");
+  Check(h.actions.back().command.kind==Kind::Rematch,"Rematch on the results did not send the room's Ready");
+  Check(!unqueued(sent),"Rematch on the results gave up the seat");
+ }
+ // A cancelled game (no result) asks nothing.
+ h.Screen("room");t.matchGeneration=7;t.phase=room::TablePhase::Playing;
+ fight();h.view.foughtGame.result=room::MatchResult::Abort;h.Frame();
+ backInRoom();
+ Check(h.shell.Navigation().Screen()!="post-match","A cancelled game asked for a rematch");
 }
 }
 
@@ -159,6 +211,7 @@ int main() {
   RoomFaces();
   MainFighter();
   OpponentAnswer();
+  ResultsRematch();
   ClassNames();
   std::cout<<"Product rules ("<<(ember::Product().branding.roomFacesArePicks?"on":"off")<<") passed.\n";
   return 0;

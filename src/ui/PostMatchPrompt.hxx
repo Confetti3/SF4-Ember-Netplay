@@ -49,6 +49,10 @@ struct PostMatchPrompt {
     // (Branding::answersFromInput), kept for this prompt: the battle reads
     // it only until it decides, and a decline ends the WIN at once.
     bool theyChose = false, theyDeclined = false;
+    // On the room's results once the WIN is over (Branding::rematchOnResults):
+    // the answers over the WIN no longer stand, the room's Readies do. shown:
+    // the prompt has been put in front on the results screen.
+    bool onResults = false, resultsShown = false;
 };
 
 // The prompt's focused button last frame, where it stood in the panel's

@@ -153,6 +153,13 @@ struct Branding {
 	// back to `rankingClasses`' name. A name it gives stays valid and unchanged
 	// for the process's life, and any thread may ask. None for SF4 Ember.
 	const char* (*rankingClassName)(int band);
+	// The post-match prompt carries on to the room's results once the WIN is
+	// over: an answer it is still waiting for, a Back pressed over the WIN (a
+	// press left over from skipping its scenes) and a game whose WIN asked
+	// nothing all get Rematch on the results screen, with a fresh countdown
+	// (ApplicationShell__PostMatch.cxx). Off (SF4 Ember), the prompt ends with
+	// the WIN and the room is shown.
+	bool rematchOnResults = false;
 };
 
 // A product's own text for a few msgids of one locale's shared catalog: a PO
