@@ -11,8 +11,8 @@ On the nightly service the desk is at `https://desk.ember.fraccie.be`
 at `https://tournament.ember.fraccie.be/<event>` (`/t/<event>` on the
 bridge's address).
 
-The pictures on this page come from the automated test of a whole tournament
-(docs/guides/TOURNAMENT_TEST.md), so they show what you will see.
+The pictures on this page come from a test run of a whole tournament, so they
+show what you will see.
 
 **What you need**
 

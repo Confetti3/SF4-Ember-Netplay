@@ -851,13 +851,9 @@ Any other match answers 404, as one that does not exist.
 
 ## Testing the desk
 
-Three layers, from fastest:
-
-- **The page's own logic** (Discord post, tiers, bracket grouping, counts,
-  title length), without a browser:
-  `node --test 'server/ember/bridge/desk/test/*.test.js'`.
-- **A running bridge**: `scripts/e2e-tournament.mjs` plays a whole event on
-  two PCs against it and the real Challonge (docs/guides/TOURNAMENT_TEST.md).
+The page's own logic (Discord post, tiers, bracket grouping, counts, title
+length) has unit tests, without a browser:
+`node --test 'server/ember/bridge/desk/test/*.test.js'`.
 
 ## Bracket sites (Challonge, start.gg, your own)
 

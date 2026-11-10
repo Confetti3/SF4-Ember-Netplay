@@ -16,7 +16,6 @@ mod ranking;
 mod replays;
 mod rooms;
 mod sign_in;
-mod sites;
 mod spool;
 #[cfg(test)]
 mod test_support;
@@ -130,32 +129,6 @@ pub enum Request {
     },
     DiscordCancel {
         bridge_id: String,
-    },
-    /// A sign-in site's requests, for the site the bridge lists under `site`.
-    /// With `organizer`, the first three are for the organizer sign-in
-    /// instead: its grant, a sign-in asking for the site's organizer scopes,
-    /// and dropping the grant (the account stays).
-    SiteStatus {
-        bridge_id: String,
-        site: String,
-        #[serde(default)]
-        organizer: bool,
-    },
-    SiteConnect {
-        bridge_id: String,
-        site: String,
-        #[serde(default)]
-        organizer: bool,
-    },
-    SiteRemove {
-        bridge_id: String,
-        site: String,
-        #[serde(default)]
-        organizer: bool,
-    },
-    SiteCancel {
-        bridge_id: String,
-        site: String,
     },
     AssignmentList {
         bridge_id: String,
@@ -356,10 +329,6 @@ requests! {
     DiscordConnect => "discord_connect", Bridge;
     DiscordRemove => "discord_remove", Bridge;
     DiscordCancel => "discord_cancel", Bridge;
-    SiteStatus => "site_status", Bridge;
-    SiteConnect => "site_connect", Bridge;
-    SiteRemove => "site_remove", Bridge;
-    SiteCancel => "site_cancel", Bridge;
     AssignmentList => "assignment_list", Bridge;
     DeskRead => "desk_read", Bridge;
     DeskAct => "desk_act", Bridge;
@@ -1026,9 +995,7 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
     match request {
         Request::BridgeInspect { origin } => {
             let (profile, offered) = shared.client.inspect(&origin).await?;
-            Ok(Some(
-                json!({ "profile": profile, "capabilities": offered.to_json() }),
-            ))
+            Ok(Some(json!({ "profile": profile, "capabilities": offered })))
         }
         Request::BridgeApprove { origin, bridge_id } => {
             let (profile, _) = shared.client.inspect(&origin).await?;
@@ -1075,22 +1042,6 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
         Request::DiscordCancel { bridge_id } => {
             sign_in::cancel(shared, &bridge_id, &discord::routes()).await
         }
-        Request::SiteStatus {
-            bridge_id,
-            site,
-            organizer,
-        } => sites::status(shared, &bridge_id, &site, organizer).await,
-        Request::SiteConnect {
-            bridge_id,
-            site,
-            organizer,
-        } => sites::connect(shared, &bridge_id, &site, organizer).await,
-        Request::SiteRemove {
-            bridge_id,
-            site,
-            organizer,
-        } => sites::remove(shared, &bridge_id, &site, organizer).await,
-        Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
         Request::DeskRead {
             bridge_id,
@@ -1210,7 +1161,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 45);
+        assert_eq!(seen.len(), 41);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)

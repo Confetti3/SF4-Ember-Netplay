@@ -54,7 +54,6 @@ async fn session(shared: &Arc<Shared>, bridge_id: &str) -> Result<SiteSession, F
     let bridge = client::approved(shared, bridge_id)?;
     let offered = shared.client.capabilities(&bridge.origin).await?;
     let origin = offered
-        .capabilities
         .tournaments
         .ok_or_else(|| Failure::new(Code::Unsupported))?;
     check_origin(&origin, client::POLICY).map_err(|_| Failure::new(Code::InvalidOrigin))?;

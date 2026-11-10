@@ -5,9 +5,7 @@ game: each game creates its Ember ID, trusts a local test bridge, links to a
 provider connection with a code, then claims and plays the match through the
 real tournament flow (claim, host, publish, bind, permit, game, report). The
 runner then checks on the bridge that the match completed and that the
-signed result was delivered. A second mode, `-Site challonge`, plays a set of
-a real Challonge tournament through the sign-in site and bracket connector
-instead of the mock provider ("Challonge mode", below).
+signed result was delivered.
 
 It builds on the in-game self-test (`docs/development/IN_GAME_SELFTEST.md`)
 and is compiled in only by `scripts\build-current.ps1 -SelfTest` (CMake
@@ -41,9 +39,7 @@ Two tests, `tournament-host` (the PC with the bridge's tunnel end, Player 1)
 and `tournament-guest` (Player 2), share one file,
 `sf4e__SelfTest__Tournament.cxx`. They talk to the runner through files in
 the folder `SF4E_SELFTEST_EXCHANGE` names, and find the bridge at
-`SF4E_SELFTEST_BRIDGE` (its origin) and `SF4E_SELFTEST_CONNECTION`. In the
-Challonge mode `SF4E_SELFTEST_SITE` names the sign-in site to connect an
-account on instead of linking with a code.
+`SF4E_SELFTEST_BRIDGE` (its origin) and `SF4E_SELFTEST_CONNECTION`.
 
 Every bridge and identity step is a runtime command the Ember ID and Linked
 accounts screens send (`RuntimeCommand::identity`, `RuntimeCommand::tournament`),
@@ -201,132 +197,3 @@ runner after two minutes more and the bridge side after five.
 - Settings are restored by each game's own script from `*.selftest` copies next
   to `settings.json` and `ui-preferences.json`; if one is left, the script
   that died did not finish and the copy is the original.
-
-## Challonge mode
-
-`-Site challonge` runs the path a real event uses (`docs/guides/INTEGRATIONS.md`,
-"Sign-in sites" and "Bracket sites"): the bridge offers Challonge's sign-in
-site, each game connects its Challonge account to its Ember ID in the browser
-of its PC, and the `ember-brackets` connector (its `challonge` adapter) makes
-the Ember match from the tournament's open set and reports the score back. Only
-the platform differs; the games claim, host, bind and play the match as above,
-with the host winning.
-
-```powershell
-scripts\run-tournament-selftest.ps1 -Site challonge -ChallongeConfig <run configuration> `
-    -ConnectorExe <ember-brackets.exe> -PackageDir <stage> -BridgeExe <ember-bridge.exe> `
-    -RemoteHost <ssh name> -RemoteCheckout <checkout there> -RemoteJobs <folder there>
-```
-
-`ember-brackets.exe` is built from the same checkout as the bridge
-(`cargo build --locked -p ember-bridge -p ember-brackets` in `server/ember`).
-
-### What it needs of Challonge
-
-A tournament of the organizer's with one open set between two Challonge
-accounts (single elimination, started), the organizer's v1 API key, and a
-developer app whose client ID, client secret and redirect URI are known. The
-redirect URI has to be `http://127.0.0.1:<-Port>/v1/sites/challonge/callback`:
-the bridge names itself by that origin, and each PC reaches it through the same
-tunnel as before, so the browser on the other PC is sent to its own loopback.
-Each PC's browser has to be signed in to the account of the player that PC
-stands for (the games sign in as different accounts; the run stops if both
-connect the same one).
-
-### The run configuration
-
-A JSON file kept outside the repository, since it names the organizer's
-tournament and where the secrets are. The secrets themselves are in the files
-it names, read when they are used and never printed.
-
-```json
-{
-  "clientId": "<the developer app's client ID>",
-  "clientSecretFile": "C:\\path\\to\\client-secret.txt",
-  "apiKeyFile": "C:\\path\\to\\organizer-v1.key",
-  "tournament": "<the tournament's ID or URL slug>",
-  "match": "<the open match's ID>",
-  "redirectUri": "http://127.0.0.1:18787/v1/sites/challonge/callback"
-}
-```
-
-### What differs in the run
-
-- **Bridge.** The bridge side (`tools/selftest-bridge.ts --site challonge`)
-  reads the site definition the repository ships
-  (`server/ember/bridge/deploy/sites/challonge.json`) with the app's client
-  ID, stores the client secret in the bridge's integration secrets, and
-  replaces the mock connection with a `direct` one named `brackets`, with
-  `lookup_sites` `challonge` and a `results_url` for the connector. It
-  issues the connection's provider credential for the connector.
-- **Before anything starts** it reads the set once with the organizer's key
-  and stops unless it is open with both players in it.
-- **Linking.** No code. Each game checks that the bridge lists a sign-in on
-  `challonge`, then sends the command the site's Connect screen sends
-  (`IdentityOp::SiteConnect`, `site_connect` to the helper), which opens the
-  sign-in page in that PC's browser. The person at the PC signs in and
-  approves. The game reads the account (`SiteStatus`, every four seconds, as
-  the screen does) until one other than the earlier one shows, within five
-  minutes, and writes `site-account` (`<user ID> <name>`). The step fails if
-  nothing connects.
-- **Connector.** With both accounts connected, the bridge side writes the
-  connector's `brackets.json` (one Challonge tournament, first to 1, a new
-  database and a request budget of 40 for the run) and starts it. Its first
-  read finds both players by their accounts, which links them on the
-  `brackets` connection, and makes the match. It is started late on purpose:
-  the free tier allows 500 requests a month, and a scheduled read for every
-  minute people spend signing in would be spent for nothing. The connector's
-  secret files are in the bridge side's work folder, which is deleted at
-  the end; the organizer's key is read from where it is.
-- **Match.** The games link, then each plays the one match the bridge lists
-  as playable, writes its ID to `match-id` (the two have to agree, and be the
-  connector's, `external_match_id` `challonge:<tournament>:<match>:1`) and
-  goes on as in the mock run.
-- **Checks.** After both games have closed: the bridge holds the match as
-  `completed` with the host ahead and its result `delivered` to the connector
-  (which answers a delivery only once its signature verified); and Challonge,
-  read once more with the organizer's key, has the match `complete` with
-  the host's participant as the winner and 1 - 0. The bridge knows the
-  players by its own IDs, so the participants are found by the accounts the
-  two games reported connecting (the participant list, read once, shows each
-  one's username). The accounts' user IDs and names do appear in one place
-  during a run: the `site-account` file each game writes to its exchange
-  folder (the other PC's folder is read over ssh). Neither the games nor the
-  tools print them, a failure message names no account, and nothing is
-  committed; the run's folders are temporary. Do not paste a run's exchange
-  files. The bridge's and the connector's logs, printed when a run fails, name
-  matches, sets and participant IDs as far as they were read on 2026-10-19,
-  not accounts, but nothing enforces that: read a failed run's output before
-  pasting it anywhere.
-- **Output.** A failed run prints the bridge's and the connector's own logs.
-  The connector's library prints only through its `log!` macro, which is never
-  given a secret, and a test in `ember-brackets` fails on any other print
-  there; its entry point prints a usage line, a startup line and the error that
-  stops it, naming a file or setting and never a secret's value. The
-  bridge's messages (a few fixed lines on standard error) were read for
-  secrets on 2026-10-19, but nothing enforces that; look at them again after
-  a change to the bridge's logging.
-
-### Request budget
-
-Challonge's free tier is 500 requests a month. A run makes, here, one read of
-the set before, and after it one of the participants and one of the set (a few
-more of the set only if the report is slow), and the
-connector about ten (the open sets, the participants, the mark underway, a read
-and the report for the result, a check that the tournament is not over, and at
-most a scheduled read or two while the game is played), capped at 40. The two
-sign-ins cost the bridge two each, from the bridge's own count.
-
-The connector leaves a set it reported to the organizer, so to play the same set
-again, reopen it first:
-
-```powershell
-node sdk\typescript\tools\selftest-challonge.ts reopen <run configuration>
-```
-
-which reads the set and, unless it is open, sends `change_state` `reopen`,
-then reads it again and exits non-zero unless it is open with both players.
-It prints the score the set shows afterwards: whether Challonge keeps the
-earlier score and winner on a reopen has not been seen. A run passes a set
-only if it is `complete` with the host as winner, so a kept result cannot pass
-for a report, but a stale score would show here first.
