@@ -838,6 +838,19 @@ int main() {
             CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
         }
     }
+    // The last public room's type and template, for a stream PC: written only
+    // when not Classic or none, and a type past King is refused.
+    {
+        CHECK(!result["roomDefaults"].contains("publicType") && !result["roomDefaults"].contains("publicTemplate"));
+        auto last = defaults;
+        last.publicRoomType = sf4e::room::KingRoom; last.publicRoomTemplate = "Stream";
+        const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(last)}};
+        sf4e::netplay::PlayerPreferences read;
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.publicRoomType == sf4e::room::KingRoom && read.publicRoomTemplate == "Stream");
+        auto bad = document;
+        bad["roomDefaults"]["publicType"] = 3;
+        CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
+    }
     for (const Json& invalid : {Json{{"capacity", 17}}, Json{{"capacity", 258}}, Json{{"capacity", 2.5}},
         Json{{"format", 257}}, Json{{"format", 11}}, Json{{"rotation", -1}}, Json{{"rotation", 3}}, Json{{"name", std::string(65, 'x')}}, Json{{"public", "yes"}},
         Json{{"publicRules", 2}}, Json{{"publicRules", {{"format", 11}}}}, Json{{"publicRules", {{"rotation", 3}}}}, Json{{"publicRules", {{"roundTime", 10}}}},

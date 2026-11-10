@@ -52,7 +52,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  if(!free){joinLinkDirect_=false;return;}
  const bool direct=joinLinkDirect_&&v.pendingJoinDirect;
  if(direct&&!v.canOpenRoom)return;
- if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen())||publicRooms_.Busy())return;
+ if(MenuBusy()||publicRooms_.Busy())return;
  std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirect_=false;
  nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
  error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
@@ -76,7 +76,7 @@ void ApplicationShell::UpdatePublicRoomLink(const ShellView& v,double now) {
  if(!roomLinkOpening_)return;
  // Busy by the time it can go on (a hidden menu, a dialog): it waits as a row instead.
  if(v.session.room!=RoomState::Idle||v.session.match!=MatchState::None){roomLinkOpening_=false;publicRooms_.HoldLink();return;}
- if(nav.Editing()||nav.Reading()||nav.Confirming()||nav.Choosing()||menu_.NoticeOpen()||IdentityPanel::Owns(nav.Screen()))return;
+ if(MenuBusy())return;
  roomLinkOpening_=false;
  ShowRoomLink();
 }
