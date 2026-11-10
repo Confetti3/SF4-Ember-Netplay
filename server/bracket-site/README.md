@@ -154,8 +154,14 @@ tokens last an hour, refresh tokens 60 days.
 The home page (`/`) shows who is signed in, the tournaments open or live,
 and the latest results, with Sign in with Discord or Sign out
 (`POST /signout`). A browser signs in on the site's own page
-(`/signin?back=<path>`, home without `back`) and gets a session cookie, a player's only, whose writes are taken only with the site's
+(`/signin?back=<path>`, home without `back`) and gets a session cookie, an organizer's only when the site made them one, whose writes are taken only with the site's
 own `Origin`. The bracket page then offers Sign up, Check in and Leave.
+
+The desk (`/desk`) is the organizers' page on the same session: an invite
+code for a player who does not organize yet, then their tournaments to make,
+set up, move through their states and delete, the Discord channel to post
+to, and each set to hold, call again, or have its games decided, drawn,
+voided or added. It uses the routes above and nothing of its own.
 
 ## The connector
 

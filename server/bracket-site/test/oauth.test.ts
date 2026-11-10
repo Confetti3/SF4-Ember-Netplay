@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 
+import { EmberSignIn } from "../src/ember.ts";
 import { OAuth } from "../src/oauth.ts";
 import { bracketSite } from "../src/server.ts";
 import { Store } from "../src/store.ts";
@@ -56,7 +57,9 @@ before(async () => {
   );
   const oauth = new OAuth({ db: store.db, origin: ORIGIN, discord: { clientId: "1546980049692135514", clientSecret: "discord-test-secret", apiBase: `${discord}/api`, authorizeUrl: `${discord}/oauth2/authorize` }, clients: [BRIDGE] });
   const lookups = { lookupPlayers: async () => [] };
-  site = await listen(bracketSite({ store, operatorToken: "operator", connectorToken: "connector", oauth, origin: ORIGIN, bridge: lookups }));
+  // Only the site's organizers come from here: the invites the desk test redeems.
+  const ember = new EmberSignIn({ db: store.db, origin: ORIGIN, bridgeId: "brg_test", bridge: { prover: async () => assert.fail("no game signs in here") } });
+  site = await listen(bracketSite({ store, operatorToken: "operator", connectorToken: "connector", oauth, ember, origin: ORIGIN, bridge: lookups }));
 });
 
 after(() => {
@@ -172,4 +175,25 @@ test("the home page lists what is on, and signs a browser in and out", async () 
   assert.match(out.headers.get("set-cookie")!, /Max-Age=0/);
   // The session is gone, not only its cookie.
   assert.match(await (await get(`${site}/`, { cookie })).text(), /Sign in with Discord/);
+});
+
+test("the desk: signed out it signs in, a player redeems an invite, then runs their tournaments with the session", async () => {
+  assert.match(await (await get(`${site}/desk`)).text(), /href="\/signin\?back=\/desk">Sign in with Discord/);
+  const cookie = (await throughDiscord(`${site}/signin?back=/desk`, "code-player")).headers.get("set-cookie")!.split(";")[0]!;
+  assert.match(await (await get(`${site}/desk`, { cookie })).text(), /id="redeem"/);
+
+  const write = (method: string, path: string, body: object) => fetch(site + path, { method, headers: { cookie, origin: ORIGIN }, body: JSON.stringify(body) });
+  const invite = (await (await fetch(`${site}/organizer-invites`, { method: "POST", headers: { authorization: "Bearer operator" } })).json()) as { code: string };
+  assert.equal((await write("POST", "/organizer-invites/redeem", { code: invite.code })).status, 200);
+  const desk = await (await get(`${site}/desk`, { cookie })).text();
+  assert.match(desk, /<main id="desk">/);
+  for (const [, script] of desk.matchAll(/<script>([\s\S]*?)<\/script>/g)) new Function(script!);
+
+  const made = await write("POST", "/tournaments", { title: "From the desk" });
+  assert.equal(made.status, 201);
+  const { id } = (await made.json()) as { id: string };
+  assert.equal((await write("PATCH", `/tournaments/${id}`, { games_to_win: 3, discord_webhook: "https://discord.com/api/webhooks/123456789012345678/abc" })).status, 200);
+  const { tournaments: mine } = (await (await get(`${site}/tournaments`, { cookie })).json()) as { tournaments: { id: string; games_to_win: number; discord: boolean }[] };
+  assert.deepEqual(mine.filter((each) => each.id === id).map((each) => [each.games_to_win, each.discord]), [[3, true]]);
+  assert.equal((await write("DELETE", `/tournaments/${id}`, {})).status, 204);
 });

@@ -6,6 +6,7 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import { BridgeError, type BridgeClient } from "../../../sdk/typescript/src/index.ts";
 import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
+import { deskPage } from "./desk.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { seasonAwards } from "./awards.ts";
 import { emblem, isKind } from "./emblems.ts";
@@ -617,6 +618,12 @@ export function bracketSite(options: Options): Server {
       if (url.pathname === "/" && request.method === "GET") {
         const viewer = options.oauth?.session(request);
         const shown = home(store.all(), viewer ? (viewer.name ?? viewer.discord) : null, !!options.oauth);
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
+        return;
+      }
+      if (url.pathname === "/desk" && request.method === "GET" && options.oauth) {
+        const who = actor(request);
+        const shown = deskPage(who ? { name: who.name ?? who.discord ?? "", organizer: who.organizer } : null);
         response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(shown);
         return;
       }

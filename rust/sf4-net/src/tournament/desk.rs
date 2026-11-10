@@ -189,11 +189,11 @@ pub async fn stop(shared: &Arc<Shared>, bridge_id: &str, event: &str) -> Outcome
     Ok(None)
 }
 
-/// Opens the bracket site in this PC's browser, where the organizer signs
-/// in with Discord.
+/// Opens the bracket site's desk in this PC's browser, where the organizer
+/// signs in with Discord.
 pub async fn open(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
     let session = session(shared, bridge_id).await?;
-    browser::open(&format!("{}/", session.site.origin))?;
+    browser::open(&format!("{}/desk", session.site.origin))?;
     Ok(None)
 }
 
