@@ -29,7 +29,7 @@ const JSON: &str = "application/json";
 /// hosted, so the ordinary request timeout would give up on a room that is
 /// then opened.
 pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
-const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
+pub(super) const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
 /// The bridge's code for a session it no longer accepts.
@@ -47,6 +47,19 @@ struct Session {
 pub struct Client {
     http: Option<reqwest::Client>,
     sessions: Mutex<HashMap<String, Session>>,
+    /// Sessions on the bracket site each bridge names, by bridge ID (desk.rs).
+    sites: Mutex<HashMap<String, SiteSession>>,
+}
+
+/// A session on a bridge's bracket site: the site (the bridge with the
+/// site's origin), its token, and whether the player organizes there.
+#[derive(Clone)]
+pub(super) struct SiteSession {
+    pub site: Approved,
+    pub token: Zeroizing<String>,
+    pub expires_at: u64,
+    pub ember_id: EmberId,
+    pub organizer: bool,
 }
 
 pub(super) fn now() -> u64 {
@@ -72,6 +85,7 @@ impl Client {
         Self {
             http,
             sessions: Mutex::new(HashMap::new()),
+            sites: Mutex::new(HashMap::new()),
         }
     }
 
@@ -79,11 +93,36 @@ impl Client {
         if let Ok(mut sessions) = self.sessions.lock() {
             sessions.clear();
         }
+        if let Ok(mut sites) = self.sites.lock() {
+            sites.clear();
+        }
     }
 
     pub fn forget_session(&self, bridge_id: &str) {
         if let Ok(mut sessions) = self.sessions.lock() {
             sessions.remove(bridge_id);
+        }
+        self.forget_site_session(bridge_id);
+    }
+
+    pub(super) fn site_session(&self, bridge_id: &str, ember_id: &EmberId) -> Option<SiteSession> {
+        let sites = self.sites.lock().ok()?;
+        sites
+            .get(bridge_id)
+            .filter(|session| &session.ember_id == ember_id)
+            .filter(|session| session.expires_at > now() + SESSION_MARGIN_SECS)
+            .cloned()
+    }
+
+    pub(super) fn keep_site_session(&self, session: SiteSession) {
+        if let Ok(mut sites) = self.sites.lock() {
+            sites.insert(session.site.bridge_id.clone(), session);
+        }
+    }
+
+    pub(super) fn forget_site_session(&self, bridge_id: &str) {
+        if let Ok(mut sites) = self.sites.lock() {
+            sites.remove(bridge_id);
         }
     }
 
@@ -323,6 +362,7 @@ pub(super) enum Verb {
     Get,
     Post,
     Put,
+    Patch,
     Delete,
 }
 
@@ -332,6 +372,7 @@ impl Verb {
             Self::Get => reqwest::Method::GET,
             Self::Post => reqwest::Method::POST,
             Self::Put => reqwest::Method::PUT,
+            Self::Patch => reqwest::Method::PATCH,
             Self::Delete => reqwest::Method::DELETE,
         }
     }
@@ -343,7 +384,7 @@ impl Verb {
         match self {
             Self::Post => Some(Method::Post),
             Self::Delete => Some(Method::Delete),
-            Self::Get | Self::Put => None,
+            Self::Get | Self::Put | Self::Patch => None,
         }
     }
 }

@@ -4048,9 +4048,6 @@ msgid "site.organizer"
 msgstr "主办方权限"
 
 
-msgid "site.organizer_held"
-msgstr "已允许"
-
 
 msgid "site.organizer_opened"
 msgstr "请在浏览器中允许组织者权限。此界面会自动更新。"
@@ -4064,19 +4061,7 @@ msgid "screen.tournament_desk"
 msgstr "赛事组织"
 
 msgid "desk.entry_detail"
-msgstr "组织者权限、网页控制台和你的赛事。"
-
-msgid "desk.event_detail"
-msgstr "在 {0}。选择以查看对局。"
-
-msgid "desk.status.draft"
-msgstr "草稿"
-
-msgid "desk.status.ready"
-msgstr "已就绪"
-
-msgid "desk.status.running"
-msgstr "进行中"
+msgstr "你在 Ember 对阵表网站上的比赛。"
 
 msgid "desk.none"
 msgstr "暂无赛事"
@@ -4102,12 +4087,6 @@ msgstr "显示"
 msgid "desk.filter.all"
 msgstr "全部"
 
-msgid "desk.filter.winners"
-msgstr "胜者组"
-
-msgid "desk.filter.losers"
-msgstr "败者组"
-
 msgid "desk.filter.action"
 msgstr "需要处理"
 
@@ -4129,35 +4108,17 @@ msgstr "等待中"
 msgid "desk.state.not_ready"
 msgstr "未就绪"
 
-msgid "desk.state.called"
-msgstr "已叫号"
-
 msgid "desk.state.playing"
 msgstr "比赛中"
 
 msgid "desk.state.needs_review"
 msgstr "需要审核"
 
-msgid "desk.state.needs_organizer"
-msgstr "需要你处理"
-
-msgid "desk.state.reporting"
-msgstr "正在上报结果"
-
 msgid "desk.state.done"
 msgstr "已结束"
 
 msgid "desk.state.held"
 msgstr "已暂停"
-
-msgid "desk.side.winners"
-msgstr "胜者组"
-
-msgid "desk.side.losers"
-msgstr "败者组"
-
-msgid "desk.side.grand_final"
-msgstr "总决赛"
 
 msgid "desk.tbd"
 msgstr "待定"
@@ -4176,21 +4137,6 @@ msgstr "此对局已不在赛事中"
 
 msgid "desk.state"
 msgstr "状态"
-
-msgid "desk.called"
-msgstr "已叫号。"
-
-msgid "desk.called_posted"
-msgstr "已叫号，并已发布到 Discord。"
-
-msgid "desk.called_waiting"
-msgstr "已叫号；Discord 消息正在发送。"
-
-msgid "desk.called_failed"
-msgstr "已叫号，但 Discord 未接受消息。"
-
-msgid "desk.not_called"
-msgstr "尚未叫号。"
 
 msgid "desk.call"
 msgstr "再次叫号"
@@ -4237,44 +4183,11 @@ msgstr "记录在 Ember 之外进行的一局，例如双方同意的重赛。"
 msgid "desk.done"
 msgstr "已完成。"
 
-msgid "desk.web"
-msgstr "已在网页登录"
-
-msgid "desk.web_none"
-msgstr "没有浏览器登录赛事台。"
-
-msgid "desk.web_detail"
-msgstr "最新：{0}，通过 {1}。网页会话在 12 小时后或闲置 2 小时后结束。"
-
-msgid "desk.web_end"
-msgstr "在所有地方退出"
-
-msgid "desk.web_end_detail"
-msgstr "结束此 Ember ID 的所有网页赛事台会话。要使用，请在网页上重新登录。"
-
-msgid "desk.web_new"
-msgstr "有人在网页上登录了你的赛事台。不是你？请选择“在所有地方退出”。"
-
-msgid "desk.web_ended"
-msgstr "已在所有地方退出网页赛事台。"
-
 msgid "desk.open_browser"
 msgstr "在浏览器中打开"
 
 msgid "desk.open_browser_detail"
-msgstr "在本机浏览器中打开网页赛事台，以此 Ember ID 登录，允许所有更改。"
-
-msgid "desk.open_phone"
-msgstr "在其他设备上登录"
-
-msgid "desk.open_phone_detail"
-msgstr "在任意设备上打开控制台，然后在这里输入它显示的代码。"
-
-msgid "desk.code_at"
-msgstr "输入位置"
-
-msgid "desk.code_at_detail"
-msgstr "在另一台设备上打开这个。它会显示一个要在这里输入的代码。"
+msgstr "在这台电脑的浏览器中打开对阵表网站。在那里用 Discord 登录。"
 
 
 
@@ -4282,7 +4195,7 @@ msgstr "在另一台设备上打开这个。它会显示一个要在这里输入
 
 
 msgid "desk.opened"
-msgstr "已在浏览器中打开赛事台。"
+msgstr "对阵表网站已在浏览器中打开。"
 
 msgid "site.cancel_detail"
 msgstr "停止等待。准备好后，请再次选择“关联 {0}”。"
@@ -7528,36 +7441,6 @@ msgstr "津巴布韦"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "请在直播画面外操作"
-
-msgid "desk.offstream_detail"
-msgstr "看到你屏幕的人无法使用该代码，但仍请在直播画面外登录。"
-
-msgid "desk.device_code"
-msgstr "另一台设备上的代码"
-
-msgid "desk.device_approved"
-msgstr "另一台设备已登录控制台。"
-
-msgid "desk.device_asked"
-msgstr "请求来自"
-
-msgid "desk.device_unknown"
-msgstr "未知浏览器"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} 分钟前。仅在这是你自己的设备时批准。"
-
-msgid "desk.device_pick"
-msgstr "显示 {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "选择另一台设备上显示的数字。选错会拒绝该代码。"
-
-msgid "desk.device_refused"
-msgstr "代码错误或已过期。请在另一台设备上获取新代码。"
-
 msgid "desk.mode"
 msgstr "赛事模式"
 
@@ -7568,7 +7451,7 @@ msgid "desk.mode_invite"
 msgstr "需要邀请"
 
 msgid "desk.mode_on_detail"
-msgstr "在 Ember 中举办你自己的赛事：关联你的对阵表网站，在下方允许主办方权限，然后在这台电脑或其他设备上打开主办台。"
+msgstr "在 Ember 中通过 Ember 对阵表网站举办你自己的比赛。"
 
 msgid "desk.mode_invite_detail"
 msgstr "赛事模式目前仅限邀请。请输入你收到的邀请码；每个邀请码只能使用一次。"
@@ -7581,9 +7464,6 @@ msgstr "你的 Ember ID 已开启赛事模式。"
 
 msgid "desk.invite_invalid"
 msgstr "该邀请无效。请检查，或申请新的邀请。"
-
-msgid "desk.site.on"
-msgstr "在 {0} 上"
 
 msgid "desk.site.detail"
 msgstr "赛事在对阵表网站上的状态。下面是网站目前允许的操作。"
@@ -7634,25 +7514,7 @@ msgid "desk.move.cancel"
 msgstr "取消赛事"
 
 msgid "desk.move.detail"
-msgstr "请 {0} 现在进行此更改。玩家会立即看到。"
-
-msgid "desk.org_site"
-msgstr "{0} 组织者权限"
-
-msgid "desk.org_unlinked"
-msgstr "未关联"
-
-msgid "desk.org_unlinked_detail"
-msgstr "请先在已关联账号中关联你的 {0} 账号。"
-
-msgid "desk.org_allow"
-msgstr "允许"
-
-msgid "desk.org_allow_detail"
-msgstr "让 Ember 运营你的 {0} 赛事。{0} 会在浏览器中打开以便批准。"
-
-msgid "desk.org_remove_detail"
-msgstr "移除组织者权限。已关联的账号保留。"
+msgstr "立即在对阵表网站上做出此更改。玩家马上就能看到。"
 
 msgid "site.organizer_where"
 msgstr "组织者权限位于 Ember ID > 赛事组织。"
@@ -8665,7 +8527,7 @@ msgid "desk.draft.new"
 msgstr "新大会"
 
 msgid "desk.draft.new_detail"
-msgstr "标题、日期、对阵表服务、局数、报名。边设置边保存为草稿。"
+msgstr "标题、日期、局数和签到。边改边存为草稿。"
 
 msgid "desk.draft.title"
 msgstr "标题"
@@ -8675,9 +8537,6 @@ msgstr "先填写标题"
 
 msgid "desk.draft.saved"
 msgstr "草稿以标题创建；其余稍后设置，每次更改都会保存。"
-
-msgid "desk.draft.details"
-msgstr "详情"
 
 msgid "desk.draft.date"
 msgstr "日期"
@@ -8691,65 +8550,11 @@ msgstr "开始"
 msgid "desk.draft.time_detail"
 msgstr "左 / 右:15 分钟。"
 
-msgid "desk.draft.service"
-msgstr "服务与规则"
-
-msgid "desk.draft.on_detail"
-msgstr "此大会所运行的网站赛事。"
-
-msgid "desk.draft.site"
-msgstr "对阵表服务"
-
-msgid "desk.draft.site_creates"
-msgstr "左 / 右:你已允许主办方访问的网站。Ember 会在 {0} 上创建赛事。"
-
-msgid "desk.draft.site_pick"
-msgstr "左 / 右:你已允许主办方访问的网站。先在 {0} 上创建赛事，再在下方选择。"
-
-msgid "desk.draft.as_site"
-msgstr "按 {0} 的设置"
-
-msgid "desk.draft.create"
-msgstr "在 {0} 上创建"
-
-msgid "desk.draft.create_detail"
-msgstr "用这些设置在那里创建赛事。网站拒绝时会说明原因。"
-
-msgid "desk.draft.pick_detail"
-msgstr "使用这个 {0} 赛事。"
-
-msgid "desk.draft.none_listed"
-msgstr "未找到赛事"
-
-msgid "desk.draft.none_listed_detail"
-msgstr "先在 {0} 上创建赛事，之后会显示在这里。"
-
-msgid "desk.draft.no_site"
-msgstr "还没有对阵表服务"
-
-msgid "desk.draft.no_site_detail"
-msgstr "请先在“大会主办方”页面允许某个网站的主办方访问。"
-
 msgid "desk.draft.first_to"
 msgstr "每局先赢"
 
 msgid "desk.draft.first_to_detail"
-msgstr "左 / 右。后续阶段保留网页控制台中设定的长度。"
-
-msgid "desk.draft.people"
-msgstr "Discord 与报名"
-
-msgid "desk.draft.sign_ups"
-msgstr "玩家通过 Ember 报名"
-
-msgid "desk.draft.sign_ups_detail"
-msgstr "在线 > 大会 > 报名。左 / 右。"
-
-msgid "desk.draft.public"
-msgstr "公开页面"
-
-msgid "desk.draft.public_detail"
-msgstr "任何人都能关注的页面，实时显示各局。左 / 右。"
+msgstr "左 / 右:赢下一局所需的胜场数。"
 
 msgid "desk.draft.discord"
 msgstr "Discord 频道"
@@ -8761,25 +8566,7 @@ msgid "desk.draft.discord_unset"
 msgstr "无"
 
 msgid "desk.draft.discord_detail"
-msgstr "呼叫和比分会发到这个频道。目前在网页控制台中设置。"
-
-msgid "desk.draft.results"
-msgstr "发布每局比分"
-
-msgid "desk.draft.results_detail"
-msgstr "在该频道，每局结束时。左 / 右。"
-
-msgid "desk.draft.ready_step"
-msgstr "就绪"
-
-msgid "desk.draft.ready"
-msgstr "标记为就绪"
-
-msgid "desk.draft.ready_detail"
-msgstr "Ember 从 {0} 开始呼叫各局。"
-
-msgid "desk.draft.ready_needs"
-msgstr "需要先有网站赛事和开始时间。"
+msgstr "叫号和比分会发到这个频道。在对阵表网站的页面上设置。"
 
 msgid "desk.draft.open_event"
 msgstr "打开赛事"
@@ -8797,7 +8584,7 @@ msgid "desk.event.signed_up"
 msgstr "已报名"
 
 msgid "desk.event.signed_up_detail"
-msgstr "通过 Ember 报名的玩家。"
+msgstr "在对阵表网站页面上报名的玩家。"
 
 msgid "desk.start"
 msgstr "启动对阵表"
@@ -8805,95 +8592,17 @@ msgstr "启动对阵表"
 msgid "desk.start_detail"
 msgstr "根据报名者生成，Ember 会呼叫首批对局。"
 
-msgid "desk.start_not_yet"
-msgstr "还不行：请先在网站上开放报名。"
-
 msgid "desk.event.edit"
 msgstr "编辑详情与规则"
 
 msgid "desk.event.edit_detail"
-msgstr "标题、开始时间、局数、报名和 Discord。"
-
-msgid "desk.stop"
-msgstr "停止此大会"
-
-msgid "desk.stop_detail"
-msgstr "在这里，如需也可在网站上。"
-
-msgid "desk.stop.title"
-msgstr "停止 {0}?"
-
-msgid "desk.stop.what"
-msgstr "停止会怎样"
-
-msgid "desk.stop.what_detail"
-msgstr "进行中的对局会被取消，玩家被释放。"
-
-msgid "desk.stop.site"
-msgstr "停止并在 {0} 上删除"
-
-msgid "desk.stop.site_detail"
-msgstr "Ember 在 {0} 上创建了它，所以也会在那里删除。"
-
-msgid "desk.stop.keep"
-msgstr "停止，保留在网站上"
-
-msgid "desk.stop.keep_detail"
-msgstr "Ember 不再运行它；{0} 保留该赛事原样。"
+msgstr "标题、开始时间、局数和签到。"
 
 msgid "desk.stop.draft"
 msgstr "删除此草稿"
 
-msgid "desk.stop.back"
-msgstr "保持运行"
-
-msgid "desk.stop.done"
-msgstr "已停止。"
-
-msgid "desk.stop.home"
-msgstr "返回你的大会"
-
 msgid "desk.draft.ft"
 msgstr "FT{0}"
 
-msgid "desk.field.format"
-msgstr "赛制"
-
-msgid "desk.field.grand_final"
-msgstr "总决赛"
-
-msgid "desk.field.third_place"
-msgstr "季军赛"
-
-msgid "desk.field.open_signup"
-msgstr "网站自己的报名页"
-
 msgid "desk.field.check_in"
 msgstr "签到"
-
-msgid "desk.value.single"
-msgstr "单败淘汰"
-
-msgid "desk.value.double"
-msgstr "双败淘汰"
-
-msgid "desk.value.round_robin"
-msgstr "循环赛"
-
-msgid "desk.value.swiss"
-msgstr "瑞士制"
-
-msgid "desk.value.reset"
-msgstr "常规，可重置"
-
-msgid "desk.value.one_match"
-msgstr "一场"
-
-msgid "desk.value.no_final"
-msgstr "无总决赛"
-
-msgid "desk.value.yes"
-msgstr "是"
-
-msgid "desk.value.no"
-msgstr "否"

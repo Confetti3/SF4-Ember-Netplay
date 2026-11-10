@@ -48,16 +48,6 @@ constexpr const wchar_t* kClaimFile = L"claim";
 constexpr const wchar_t* kMatchFile = L"match";
 constexpr const wchar_t* kSiteAccountFile = L"site-account";
 constexpr const wchar_t* kMatchIdFile = L"match-id";
-// The desk run (docs/guides/TOURNAMENT_TEST.md): the runner writes the code
-// the web desk shows and then the number it shows; the organizer's game
-// writes what asked and the numbers it offers, then that it approved. The
-// runner writes the event to sign up for; each game writes that it did.
-constexpr const wchar_t* kDeskCodeFile = L"desk-code";
-constexpr const wchar_t* kDeskDeviceFile = L"desk-device";
-constexpr const wchar_t* kDeskNumberFile = L"desk-number";
-constexpr const wchar_t* kDeskApprovedFile = L"desk-approved";
-constexpr const wchar_t* kEventFile = L"event";
-constexpr const wchar_t* kSignedUpFile = L"signed-up";
 
 // A person has this long to sign in and approve in the browser, on each PC in
 // turn. The connector links the players only once both have, so the wait for
@@ -66,7 +56,7 @@ constexpr int kSiteSignInSeconds = 300, kSiteLinkSeconds = 420;
 
 // Done: the outcome is written (Finish).
 enum class Stage { Setup, Settings, EmberId, Inspect, Approve, SiteRead, SiteOpen, SiteWait, OrganizerRead, OrganizerOpen, OrganizerWait,
-	DeskCode, DeskNumber, SignUp, Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
+	Claim, Linked, Match, Room, Ready, Playing, Leaving, Done };
 
 // How a player is linked and finds the match, which is the one thing the two
 // modes do differently. It is chosen once, from SF4E_SELFTEST_SITE, so the
@@ -87,10 +77,9 @@ struct Flow {
 	bool runnerNamesMatch = true;
 	// The desk run, against a running bridge such as staging: the Ember ID is
 	// kept between runs in a folder of the test's own (its accounts connect
-	// once, by a person), this game is the organizer who approves the web
-	// desk's code with its number, each game signs up for the event, and the
-	// first game is a draw.
-	bool kept = false, organizer = false, signUp = false, drawFirst = false;
+	// once, by a person), this game holds organizer access, and the first
+	// game is a draw.
+	bool kept = false, organizer = false, drawFirst = false;
 	// Rematch sent after the drawn game, once.
 	bool rematched = false;
 
@@ -126,10 +115,9 @@ struct Run : Steps<Stage> {
 
 bool Host() { return Requested() == Test::TournamentHost; }
 
-// What follows a connected account: organizer access and the desk's code,
-// then the sign-up, then the link the connector makes.
-Stage AfterDesk() { return s_run.flow.signUp ? Stage::SignUp : Stage::Linked; }
-Stage AfterSite() { return s_run.flow.organizer ? Stage::OrganizerRead : AfterDesk(); }
+// What follows a connected account: organizer access, then the link the
+// connector makes.
+Stage AfterSite() { return s_run.flow.organizer ? Stage::OrganizerRead : Stage::Linked; }
 
 // The first line of an exchange file, empty until the runner has written it;
 // and the game's own, written whole.
@@ -334,7 +322,7 @@ void Step(const RuntimeSnapshot& now) {
 			const auto answer = Answered(now);
 			if (answer.given) {
 				run.asked = false;
-				if (answer.ok && id.siteOrganizer) { Say(true, "organizer access", run.flow.site); run.Enter(Stage::DeskCode); break; }
+				if (answer.ok && id.siteOrganizer) { Say(true, "organizer access", run.flow.site); run.Enter(Stage::Linked); break; }
 				if (run.stage == Stage::OrganizerRead) { run.Enter(Stage::OrganizerOpen); break; }
 			}
 		}
@@ -350,71 +338,6 @@ void Step(const RuntimeSnapshot& now) {
 		if (!answer.ok) { run.Fail("organizer sign-in", answer.reason.empty() ? "refused" : answer.reason); break; }
 		Say(true, "organizer sign-in opened", run.flow.site);
 		run.Enter(Stage::OrganizerWait);
-		break;
-	}
-	case Stage::DeskCode: {
-		// The code the web desk shows, typed on Sign in on another device:
-		// read first, as that screen does, for what asked and the numbers.
-		if (!run.asked) {
-			const std::string code = ReadExchange(kDeskCodeFile);
-			if (code.empty()) { if (run.Late(600)) run.Fail("desk code", "no code arrived from the runner"); break; }
-			IdentityRequest info = Request(IdentityOp::DeskCodeInfo);
-			info.command = code;
-			Ask(std::move(info));
-			run.waited = 0; // the helper's minute starts now, not when the stage began waiting for the runner
-			break;
-		}
-		const auto answer = Answered(now);
-		if (!answer.given) { if (run.Late(60)) run.Fail("desk code", "the helper never answered"); break; }
-		run.asked = false;
-		if (!answer.ok || id.deskDevice.choices.empty()) { run.Fail("desk code", answer.reason.empty() ? "no numbers to pick from" : answer.reason); break; }
-		std::string choices;
-		for (const int choice : id.deskDevice.choices) choices += (choices.empty() ? "" : ",") + std::to_string(choice);
-		if (!WriteExchange(kDeskDeviceFile, choices + " " + id.deskDevice.device)) { run.Fail("desk code", "could not be written to the exchange folder"); break; }
-		Say(true, "desk code read", id.deskDevice.device);
-		run.Enter(Stage::DeskNumber);
-		break;
-	}
-	case Stage::DeskNumber: {
-		// The number the person sees on the other device, picked from three.
-		if (!run.asked) {
-			const std::string number = ReadExchange(kDeskNumberFile);
-			if (number.empty()) { if (run.Late(120)) run.Fail("desk approve", "no number arrived from the runner"); break; }
-			IdentityRequest approve = Request(IdentityOp::DeskApprove);
-			approve.command = ReadExchange(kDeskCodeFile);
-			approve.number = static_cast<std::uint8_t>(std::atoi(number.c_str()));
-			Ask(std::move(approve));
-			run.waited = 0;
-			break;
-		}
-		const auto answer = Answered(now);
-		if (!answer.given) { if (run.Late(60)) run.Fail("desk approve", "the helper never answered"); break; }
-		run.asked = false;
-		if (!answer.ok) { run.Fail("desk approve", answer.reason.empty() ? "refused" : answer.reason); break; }
-		if (!WriteExchange(kDeskApprovedFile, "approved")) { run.Fail("desk approve", "could not be written to the exchange folder"); break; }
-		Say(true, "desk approved");
-		run.Enter(AfterDesk());
-		break;
-	}
-	case Stage::SignUp: {
-		// Sign up for the event the runner names, as the event's Sign up does.
-		if (!run.asked) {
-			const std::string event = ReadExchange(kEventFile);
-			if (event.empty()) { if (run.Late(900)) run.Fail("sign up", "no event arrived from the runner"); break; }
-			IdentityRequest signUp = Request(IdentityOp::DeskAct);
-			signUp.target = "/v1/events/" + event + "/sign-up";
-			signUp.command = "{}";
-			Ask(std::move(signUp));
-			run.waited = 0;
-			break;
-		}
-		const auto answer = Answered(now);
-		if (!answer.given) { if (run.Late(60)) run.Fail("sign up", "the helper never answered"); break; }
-		run.asked = false;
-		if (!answer.ok) { run.Fail("sign up", answer.reason.empty() ? "refused" : answer.reason); break; }
-		if (!WriteExchange(kSignedUpFile, "signed up")) { run.Fail("sign up", "could not be written to the exchange folder"); break; }
-		Say(true, "signed up");
-		run.Enter(Stage::Linked);
 		break;
 	}
 	case Stage::Claim: {
@@ -470,8 +393,7 @@ void Step(const RuntimeSnapshot& now) {
 			break;
 		}
 		if (run.Every(5)) SendTournament(netplay::tournament::Command::Op::Refresh);
-		// The desk run's connector reads the bracket every few minutes.
-		if (run.Late(run.flow.signUp ? 600 : 120)) run.Fail("match", now.tournament.list.error.empty() ? "never listed as playable" : now.tournament.list.error);
+		if (run.Late(120)) run.Fail("match", now.tournament.list.error.empty() ? "never listed as playable" : now.tournament.list.error);
 		break;
 	case Stage::Room:
 		// Claim, host or join, publish and bind are the runtime's own; the
@@ -532,11 +454,7 @@ bool StartTournament() {
 	const auto on = [](const wchar_t* name) { return Environment(name) == L"1"; };
 	s_run.flow.kept = on(L"SF4E_SELFTEST_EMBER_KEPT");
 	s_run.flow.organizer = on(L"SF4E_SELFTEST_ORGANIZER");
-	s_run.flow.signUp = on(L"SF4E_SELFTEST_SIGN_UP");
 	s_run.flow.drawFirst = on(L"SF4E_SELFTEST_DRAW_FIRST");
-	// The organizer readies the event and starts its bracket after both have
-	// signed up, and the connector links players on its next read.
-	if (s_run.flow.signUp) s_run.flow.linkSeconds = 900;
 	if (s_run.exchange.empty() || s_run.origin.empty() || s_run.connection.empty()) {
 		Say(false, "tournament", "SF4E_SELFTEST_EXCHANGE, SF4E_SELFTEST_BRIDGE and SF4E_SELFTEST_CONNECTION are needed");
 		return false;

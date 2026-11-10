@@ -1,6 +1,5 @@
 #include "IdentityEvents.hxx"
 #include "../common/Utf8Text.hxx"
-#include "../common/JsonDump.hxx"
 #include <nlohmann/json.hpp>
 
 namespace sf4e { namespace session {
@@ -85,6 +84,7 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             view.inspectedDiscord = view.inspectedDiscord || feature == "discord";
             view.inspectedDiscordAccounts = view.inspectedDiscordAccounts || feature == "discord.accounts";
         }
+        view.inspectedDesk = capabilities.value("tournaments", nlohmann::json()).is_string();
         // The helper has already checked each site's ID and dropped repeats.
         view.signInSites.clear();
         const auto sites = capabilities.value("sign_in_sites", nlohmann::json::array());
@@ -93,19 +93,7 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
                 if (view.signInSites.size() == netplay::MaxSignInSites) break;
                 const auto id = site.is_object() ? Text(site, "id", 32) : std::string();
                 if (id.empty()) continue;
-                netplay::IdentitySignInSite listed{id, Text(site, "display_name", 64), Flag(site, "sign_in"), Flag(site, "organizer")};
-                // The helper passes the create form's choices as the service wrote them.
-                if (const auto create = site.find("create"); create != site.end() && create->is_object()) {
-                    auto& fields = listed.create.emplace();
-                    for (const auto& [name, values] : create->items()) {
-                        if (fields.size() == 16 || name.size() > 32 || !values.is_array()) continue;
-                        std::vector<std::string> kept;
-                        for (const auto& value : values)
-                            if (kept.size() < 16 && (value.is_string() || value.is_number() || value.is_boolean())) kept.push_back(DumpJson(value));
-                        fields.push_back({name, std::move(kept)});
-                    }
-                }
-                view.signInSites.push_back(std::move(listed));
+                view.signInSites.push_back({id, Text(site, "display_name", 64), Flag(site, "sign_in"), Flag(site, "organizer")});
             }
     } else if (view.op == "link_list") {
         view.links.clear(); view.pending.clear();
@@ -130,9 +118,8 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         for (const auto& set : data.value("sets", nlohmann::json::array())) {
             if (!set.is_object() || view.deskSets.size() >= 160) continue;
             netplay::DeskSet d;
-            d.id = Text(set, "id", 64); d.roundLabel = Text(set, "round_label", 64); d.phase = Text(set, "phase", 64);
-            d.side = Text(set, "side", 16); d.state = Text(set, "desk_state", 32); d.matchId = Text(set, "match_id", 64);
-            d.revision = Text(set, "revision", 32); d.posted = Text(set, "posted", 16);
+            d.id = Text(set, "id", 64); d.roundLabel = Text(set, "round_label", 64);
+            d.state = Text(set, "desk_state", 32); d.matchId = Text(set, "match_id", 64); d.revision = Text(set, "revision", 32);
             const auto players = set.value("players", nlohmann::json::array());
             for (std::size_t slot = 0; slot < 2 && slot < players.size(); ++slot)
                 if (players[slot].is_string()) d.players[slot] = players[slot].get<std::string>(); // the helper keeps them to 64 characters
@@ -143,38 +130,11 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
             const auto round = set.find("round");
             if (round != set.end() && round->is_number_integer()) d.round = round->get<int>();
             d.held = set.value("held", false);
-            const auto called = set.find("called_at");
-            if (called != set.end() && called->is_number_unsigned()) d.calledAt = called->get<std::uint64_t>();
             for (const auto& game : set.value("games", nlohmann::json::array()))
                 if (game.is_object() && d.games.size() < 16)
                     d.games.push_back({Text(game, "attempt_id", 64), Text(game, "outcome", 32), Text(game, "state", 32)});
             view.deskSets.push_back(std::move(d));
         }
-    } else if (view.op == "desk_web") {
-        view.webSessions.clear();
-        for (const auto& session : data.value("sessions", nlohmann::json::array())) {
-            if (!session.is_object() || view.webSessions.size() >= 20) continue;
-            netplay::WebSession w;
-            w.site = Text(session, "site", 32); w.browser = Text(session, "browser", 32);
-            w.startedAt = Number(session, "started_at"); w.lastUsedAt = Number(session, "last_used_at");
-            w.fresh = session.value("new", false);
-            view.webSessions.push_back(std::move(w));
-        }
-    } else if (view.op == "desk_code_info") {
-        view.deskDevice = {Text(data, "device", 64), 0, {}};
-        const auto at = data.find("requested_at");
-        if (at != data.end() && at->is_number_unsigned()) view.deskDevice.requestedAt = at->get<std::uint64_t>();
-        for (const auto& choice : data.value("choices", nlohmann::json::array()))
-            if (choice.is_number_integer() && view.deskDevice.choices.size() < 3) view.deskDevice.choices.push_back(choice.get<int>());
-    } else if (view.op == "desk_site_events") {
-        view.deskSiteEvents = {Text(data, "site", 64), {}};
-        for (const auto& event : data.value("tournaments", nlohmann::json::array()))
-            if (event.is_object() && view.deskSiteEvents.events.size() < 16)
-                view.deskSiteEvents.events.push_back({Text(event, "id", 64), Text(event, "name", 64)});
-    } else if (view.op == "desk_site_state") {
-        view.deskSiteState = {Text(data, "tournament", 64), Text(data, "state", 32), {}};
-        for (const auto& action : data.value("actions", nlohmann::json::array()))
-            if (action.is_string() && view.deskSiteState.actions.size() < 8) view.deskSiteState.actions.push_back(Utf8Trim(action.get<std::string>(), 32));
     } else if (view.op == "desk_read") {
         // Whether Tournament Mode is the player's: by invitation, and redeemed.
         if (const auto access = data.find("access"); access != data.end() && access->is_object())
@@ -182,17 +142,16 @@ void ApplyTournamentEvent(const nlohmann::json& event, netplay::IdentityView& li
         view.deskEvents.clear();
         for (const auto& event : data.value("events", nlohmann::json::array()))
             if (event.is_object() && view.deskEvents.size() < 32) {
-                netplay::DeskEvent e{Text(event, "id", 64), Text(event, "title", 64), Text(event, "status", 16), Text(event, "site", 32),
-                    Text(event, "tournament", 64), Text(event, "name", 64)};
-                if (const auto settings = event.find("settings"); settings != event.end() && settings->is_object()) e.settings = DumpJson(*settings);
-                e.startsAt = Number(event, "starts_at"); e.signedUp = Number(event, "signed_up");
-                e.startsOnSite = Flag(event, "starts_on_site"); e.createdOnSite = Flag(event, "created_on_site"); e.signUps = Flag(event, "sign_ups");
-                e.isPublic = Flag(event, "public"); e.postResults = Flag(event, "post_results");
-                e.webhook = event.contains("discord_webhook") && event["discord_webhook"].is_string();
+                netplay::DeskEvent e{Text(event, "id", 64), Text(event, "title", 64), Text(event, "status", 16)};
+                e.startsAt = Number(event, "starts_at"); e.signedUp = Number(event, "signed_up"); e.cap = Number(event, "cap");
+                if (const auto games = event.find("games_to_win"); games != event.end() && games->is_number_integer()) e.gamesToWin = games->get<int>();
+                e.checkIn = Flag(event, "check_in"); e.webhook = Flag(event, "discord");
+                for (const auto& action : event.value("actions", nlohmann::json::array()))
+                    if (action.is_string() && e.actions.size() < 12) e.actions.push_back(Utf8Trim(action.get<std::string>(), 32));
                 view.deskEvents.push_back(std::move(e));
             }
     } else if (view.op == "desk_act") {
-        // Only making a draft answers with an ID.
+        // Only making a tournament answers with an ID.
         view.deskMade = Text(data, "id", 64);
     } else if (view.op == "link_claim") {
         view.claimFingerprint = Text(data, "fingerprint", 32);
@@ -262,30 +221,11 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     case IdentityOp::DeskRead:
         body["op"] = "desk_read"; complete = need({{"bridge_id", &r.bridge}});
         if (!r.target.empty()) body["event"] = r.target;
+        if (!r.target.empty() && !r.command.empty()) body["set"] = r.command;
         break;
-    case IdentityOp::DeskOpen:
-        body["op"] = "desk_handoff"; complete = need({{"bridge_id", &r.bridge}});
-        break;
-    case IdentityOp::DeskApprove:
-        body["op"] = "desk_approve"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
-        if (r.number) body["number"] = r.number;
-        break;
-    case IdentityOp::DeskCodeInfo:
-        body["op"] = "desk_code_info"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
-        break;
-    case IdentityOp::DeskSiteState:
-        body["op"] = "desk_site_state"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}, {"tournament", &r.target}});
-        break;
-    case IdentityOp::DeskSiteEvents:
-        body["op"] = "desk_site_events"; complete = need({{"bridge_id", &r.bridge}, {"site", &r.site}});
-        break;
+    case IdentityOp::DeskOpen: body["op"] = "desk_open"; complete = need({{"bridge_id", &r.bridge}}); break;
     case IdentityOp::DeskRedeem:
         body["op"] = "desk_redeem"; complete = need({{"bridge_id", &r.bridge}, {"code", &r.command}});
-        break;
-    case IdentityOp::DeskWeb: case IdentityOp::DeskWebSeen: case IdentityOp::DeskWebEnd:
-        body["op"] = "desk_web"; complete = need({{"bridge_id", &r.bridge}});
-        if (r.op == IdentityOp::DeskWebSeen) body["seen"] = true;
-        if (r.op == IdentityOp::DeskWebEnd) body["end"] = true;
         break;
     case IdentityOp::DeskAct: {
         body["op"] = "desk_act"; complete = need({{"bridge_id", &r.bridge}, {"path", &r.target}});
@@ -295,7 +235,6 @@ std::string BuildTournamentRequest(const netplay::IdentityRequest& r) {
     }
     case IdentityOp::DeskStop:
         body["op"] = "desk_stop"; complete = need({{"bridge_id", &r.bridge}, {"event", &r.target}});
-        body["on_site"] = r.onSite;
         break;
     default: complete = false; break;
     }

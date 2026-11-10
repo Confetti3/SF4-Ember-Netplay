@@ -4047,9 +4047,6 @@ msgid "site.organizer"
 msgstr "Organisatortoegang"
 
 
-msgid "site.organizer_held"
-msgstr "Toegestaan"
-
 
 msgid "site.organizer_opened"
 msgstr "Sta organisatortoegang toe in je browser. Dit scherm werkt zichzelf bij."
@@ -4063,19 +4060,7 @@ msgid "screen.tournament_desk"
 msgstr "Toernooiorganisatie"
 
 msgid "desk.entry_detail"
-msgstr "Organisatortoegang, de webdesk en je events."
-
-msgid "desk.event_detail"
-msgstr "Op {0}. Kies om de sets te zien."
-
-msgid "desk.status.draft"
-msgstr "Concept"
-
-msgid "desk.status.ready"
-msgstr "Klaar"
-
-msgid "desk.status.running"
-msgstr "Loopt"
+msgstr "Je toernooien op de bracketsite van Ember."
 
 msgid "desk.none"
 msgstr "Nog geen events"
@@ -4101,12 +4086,6 @@ msgstr "Toon"
 msgid "desk.filter.all"
 msgstr "Alle"
 
-msgid "desk.filter.winners"
-msgstr "Winners"
-
-msgid "desk.filter.losers"
-msgstr "Losers"
-
 msgid "desk.filter.action"
 msgstr "Heeft jou nodig"
 
@@ -4128,35 +4107,17 @@ msgstr "Wacht"
 msgid "desk.state.not_ready"
 msgstr "Nog niet klaar"
 
-msgid "desk.state.called"
-msgstr "Opgeroepen"
-
 msgid "desk.state.playing"
 msgstr "Bezig"
 
 msgid "desk.state.needs_review"
 msgstr "Controle nodig"
 
-msgid "desk.state.needs_organizer"
-msgstr "Heeft jou nodig"
-
-msgid "desk.state.reporting"
-msgstr "Wordt gemeld"
-
 msgid "desk.state.done"
 msgstr "Klaar"
 
 msgid "desk.state.held"
 msgstr "Vastgehouden"
-
-msgid "desk.side.winners"
-msgstr "Winners"
-
-msgid "desk.side.losers"
-msgstr "Losers"
-
-msgid "desk.side.grand_final"
-msgstr "Grand final"
 
 msgid "desk.tbd"
 msgstr "Nog niet bekend"
@@ -4175,21 +4136,6 @@ msgstr "Deze set hoort niet meer bij het event"
 
 msgid "desk.state"
 msgstr "Status"
-
-msgid "desk.called"
-msgstr "Opgeroepen."
-
-msgid "desk.called_posted"
-msgstr "Opgeroepen en op Discord geplaatst."
-
-msgid "desk.called_waiting"
-msgstr "Opgeroepen; de Discord-post is onderweg."
-
-msgid "desk.called_failed"
-msgstr "Opgeroepen, maar Discord nam de post niet aan."
-
-msgid "desk.not_called"
-msgstr "Nog niet opgeroepen."
 
 msgid "desk.call"
 msgstr "Opnieuw oproepen"
@@ -4236,44 +4182,11 @@ msgstr "Legt een game vast die buiten Ember werd gespeeld, zoals een herhaling w
 msgid "desk.done"
 msgstr "Klaar."
 
-msgid "desk.web"
-msgstr "Aangemeld op het web"
-
-msgid "desk.web_none"
-msgstr "Geen browser is aangemeld bij de toernooidesk."
-
-msgid "desk.web_detail"
-msgstr "Nieuwste: {0} met {1}. Een websessie eindigt na 12 uur, of na 2 uur zonder gebruik."
-
-msgid "desk.web_end"
-msgstr "Overal afmelden"
-
-msgid "desk.web_end_detail"
-msgstr "Beëindigt elke webdesksessie van deze Ember ID. Meld je opnieuw aan op het web om hem te gebruiken."
-
-msgid "desk.web_new"
-msgstr "Iemand heeft zich op het web aangemeld bij je toernooidesk. Was jij het niet? Kies Overal afmelden."
-
-msgid "desk.web_ended"
-msgstr "Overal afgemeld van de webdesk."
-
 msgid "desk.open_browser"
 msgstr "Openen in browser"
 
 msgid "desk.open_browser_detail"
-msgstr "Opent de webdesk in de browser van deze pc, aangemeld als deze Ember ID, met alle wijzigingen toegestaan."
-
-msgid "desk.open_phone"
-msgstr "Aanmelden op een ander apparaat"
-
-msgid "desk.open_phone_detail"
-msgstr "Open de desk op een willekeurig apparaat en typ hier de code die het toont."
-
-msgid "desk.code_at"
-msgstr "Typ hem op"
-
-msgid "desk.code_at_detail"
-msgstr "Open dit op het andere apparaat. Het toont een code om hier te typen."
+msgstr "Opent de bracketsite in de browser van deze pc. Log daar in met Discord."
 
 
 
@@ -4281,7 +4194,7 @@ msgstr "Open dit op het andere apparaat. Het toont een code om hier te typen."
 
 
 msgid "desk.opened"
-msgstr "De desk is geopend in je browser."
+msgstr "De bracketsite is geopend in je browser."
 
 msgid "site.cancel_detail"
 msgstr "Stopt met wachten. Kies {0} koppelen opnieuw als je klaar bent."
@@ -7527,36 +7440,6 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Doe dit buiten de stream"
-
-msgid "desk.offstream_detail"
-msgstr "Wie je scherm ziet kan de code niet gebruiken, maar log toch buiten de stream in."
-
-msgid "desk.device_code"
-msgstr "Code van het andere apparaat"
-
-msgid "desk.device_approved"
-msgstr "Het andere apparaat is aangemeld bij de desk."
-
-msgid "desk.device_asked"
-msgstr "Gevraagd door"
-
-msgid "desk.device_unknown"
-msgstr "Een onbekende browser"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} min geleden. Keur alleen goed als dit je eigen apparaat is."
-
-msgid "desk.device_pick"
-msgstr "Het toont {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Kies het getal dat het andere apparaat toont. Een verkeerde keuze weigert de code."
-
-msgid "desk.device_refused"
-msgstr "Die code is fout of verlopen. Haal een nieuwe op het andere apparaat."
-
 msgid "desk.mode"
 msgstr "Toernooimodus"
 
@@ -7567,7 +7450,7 @@ msgid "desk.mode_invite"
 msgstr "Uitnodiging nodig"
 
 msgid "desk.mode_on_detail"
-msgstr "Organiseer je eigen events vanuit Ember: koppel je bracketsite, sta hieronder organisatortoegang toe en open dan de desk op deze pc of een ander apparaat."
+msgstr "Organiseer je eigen toernooien vanuit Ember, op de bracketsite van Ember."
 
 msgid "desk.mode_invite_detail"
 msgstr "Toernooimodus is voorlopig alleen op uitnodiging. Vul de uitnodiging in die je kreeg; elke uitnodiging werkt maar één keer."
@@ -7580,9 +7463,6 @@ msgstr "Toernooimodus staat aan voor je Ember ID."
 
 msgid "desk.invite_invalid"
 msgstr "Die uitnodiging is niet geldig. Controleer ze of vraag een nieuwe."
-
-msgid "desk.site.on"
-msgstr "Op {0}"
 
 msgid "desk.site.detail"
 msgstr "Waar het toernooi staat op zijn bracketsite. Hieronder de stappen die de site nu toestaat."
@@ -7633,25 +7513,7 @@ msgid "desk.move.cancel"
 msgstr "Toernooi annuleren"
 
 msgid "desk.move.detail"
-msgstr "Vraagt {0} dit nu te veranderen. Spelers zien het meteen."
-
-msgid "desk.org_site"
-msgstr "{0}-organisatortoegang"
-
-msgid "desk.org_unlinked"
-msgstr "Niet gekoppeld"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Koppel eerst je {0}-account onder Gekoppelde accounts."
-
-msgid "desk.org_allow"
-msgstr "Toestaan"
-
-msgid "desk.org_allow_detail"
-msgstr "Laat Ember je {0}-toernooien leiden. {0} opent in je browser om het goed te keuren."
-
-msgid "desk.org_remove_detail"
-msgstr "Verwijdert de organisatortoegang. Je gekoppelde account blijft."
+msgstr "Voert deze wijziging nu uit op de bracketsite. Spelers zien het meteen."
 
 msgid "site.organizer_where"
 msgstr "Organisatortoegang staat onder Ember ID > Toernooiorganisatie."
@@ -8664,7 +8526,7 @@ msgid "desk.draft.new"
 msgstr "Nieuw toernooi"
 
 msgid "desk.draft.new_detail"
-msgstr "Titel, datum, bracketdienst, sets, inschrijvingen. Wordt onderweg als concept bewaard."
+msgstr "Titel, datum, sets en check-in. Gaandeweg als concept opgeslagen."
 
 msgid "desk.draft.title"
 msgstr "Titel"
@@ -8674,9 +8536,6 @@ msgstr "Geef het eerst een titel"
 
 msgid "desk.draft.saved"
 msgstr "Het concept wordt gemaakt met de titel; de rest stel je daarna in en wordt bij elke wijziging bewaard."
-
-msgid "desk.draft.details"
-msgstr "Details"
 
 msgid "desk.draft.date"
 msgstr "Datum"
@@ -8690,65 +8549,11 @@ msgstr "Start"
 msgid "desk.draft.time_detail"
 msgstr "Links / Rechts: 15 minuten."
 
-msgid "desk.draft.service"
-msgstr "Dienst en regels"
-
-msgid "desk.draft.on_detail"
-msgstr "Het evenement op de site dat dit toernooi leidt."
-
-msgid "desk.draft.site"
-msgstr "Bracketdienst"
-
-msgid "desk.draft.site_creates"
-msgstr "Links / Rechts: een site waar je organisatortoegang gaf. Ember maakt het evenement op {0}."
-
-msgid "desk.draft.site_pick"
-msgstr "Links / Rechts: een site waar je organisatortoegang gaf. Maak het evenement op {0} en kies het hieronder."
-
-msgid "desk.draft.as_site"
-msgstr "Zoals {0} het instelt"
-
-msgid "desk.draft.create"
-msgstr "Maken op {0}"
-
-msgid "desk.draft.create_detail"
-msgstr "Maakt het evenement daar met deze instellingen. Weigert de site, dan zegt die waarom."
-
-msgid "desk.draft.pick_detail"
-msgstr "Dit {0}-evenement gebruiken."
-
-msgid "desk.draft.none_listed"
-msgstr "Geen evenementen gevonden"
-
-msgid "desk.draft.none_listed_detail"
-msgstr "Maak het evenement eerst op {0}; daarna staat het hier."
-
-msgid "desk.draft.no_site"
-msgstr "Nog geen bracketdienst"
-
-msgid "desk.draft.no_site_detail"
-msgstr "Geef eerst organisatortoegang op een site via het scherm Toernooiorganisator."
-
 msgid "desk.draft.first_to"
 msgstr "Elke set first to"
 
 msgid "desk.draft.first_to_detail"
-msgstr "Links / Rechts. Latere fases houden de lengtes van de webbalie."
-
-msgid "desk.draft.people"
-msgstr "Discord en inschrijvingen"
-
-msgid "desk.draft.sign_ups"
-msgstr "Spelers schrijven zich in via Ember"
-
-msgid "desk.draft.sign_ups_detail"
-msgstr "Online > Toernooien > Inschrijven. Links / Rechts."
-
-msgid "desk.draft.public"
-msgstr "Openbare pagina"
-
-msgid "desk.draft.public_detail"
-msgstr "Een pagina die iedereen kan volgen, met de sets terwijl ze lopen. Links / Rechts."
+msgstr "Links / Rechts: de games die een set winnen."
 
 msgid "desk.draft.discord"
 msgstr "Discord-kanaal"
@@ -8760,25 +8565,7 @@ msgid "desk.draft.discord_unset"
 msgstr "Geen"
 
 msgid "desk.draft.discord_detail"
-msgstr "Oproepen en scores gaan naar dit kanaal. Voorlopig stel je het in op de webbalie."
-
-msgid "desk.draft.results"
-msgstr "Score van elke set posten"
-
-msgid "desk.draft.results_detail"
-msgstr "In dat kanaal, als sets eindigen. Links / Rechts."
-
-msgid "desk.draft.ready_step"
-msgstr "Klaar"
-
-msgid "desk.draft.ready"
-msgstr "Als klaar markeren"
-
-msgid "desk.draft.ready_detail"
-msgstr "Ember roept sets op vanaf {0}."
-
-msgid "desk.draft.ready_needs"
-msgstr "Heeft eerst het evenement op de site en een starttijd nodig."
+msgstr "Oproepen en scores gaan naar dit kanaal. Het wordt ingesteld op de pagina van de bracketsite."
 
 msgid "desk.draft.open_event"
 msgstr "Evenement openen"
@@ -8796,7 +8583,7 @@ msgid "desk.event.signed_up"
 msgstr "Ingeschreven"
 
 msgid "desk.event.signed_up_detail"
-msgstr "Spelers die zich via Ember inschreven."
+msgstr "Spelers die zich op de pagina van de bracketsite hebben aangemeld."
 
 msgid "desk.start"
 msgstr "Bracket starten"
@@ -8804,95 +8591,17 @@ msgstr "Bracket starten"
 msgid "desk.start_detail"
 msgstr "Gemaakt uit wie zich inschreef; Ember roept de eerste sets op."
 
-msgid "desk.start_not_yet"
-msgstr "Nog niet: open eerst de inschrijvingen op de site."
-
 msgid "desk.event.edit"
 msgstr "Details en regels bewerken"
 
 msgid "desk.event.edit_detail"
-msgstr "Titel, start, sets, inschrijvingen en Discord."
-
-msgid "desk.stop"
-msgstr "Dit toernooi stoppen"
-
-msgid "desk.stop_detail"
-msgstr "Hier, en desgewenst ook op de site."
-
-msgid "desk.stop.title"
-msgstr "{0} stoppen?"
-
-msgid "desk.stop.what"
-msgstr "Wat stoppen doet"
-
-msgid "desk.stop.what_detail"
-msgstr "Open sets worden geannuleerd en hun spelers vrijgegeven."
-
-msgid "desk.stop.site"
-msgstr "Stoppen en verwijderen op {0}"
-
-msgid "desk.stop.site_detail"
-msgstr "Ember maakte het op {0}, dus verwijdert het daar ook."
-
-msgid "desk.stop.keep"
-msgstr "Stoppen, op de site laten staan"
-
-msgid "desk.stop.keep_detail"
-msgstr "Ember leidt het niet meer; {0} houdt het evenement zoals het is."
+msgstr "Titel, start, sets en check-in."
 
 msgid "desk.stop.draft"
 msgstr "Dit concept verwijderen"
 
-msgid "desk.stop.back"
-msgstr "Laten doorlopen"
-
-msgid "desk.stop.done"
-msgstr "Gestopt."
-
-msgid "desk.stop.home"
-msgstr "Terug naar je toernooien"
-
 msgid "desk.draft.ft"
 msgstr "FT{0}"
 
-msgid "desk.field.format"
-msgstr "Formaat"
-
-msgid "desk.field.grand_final"
-msgstr "Grote finale"
-
-msgid "desk.field.third_place"
-msgstr "Wedstrijd om de derde plaats"
-
-msgid "desk.field.open_signup"
-msgstr "Eigen inschrijfpagina van de site"
-
 msgid "desk.field.check_in"
 msgstr "Check-in"
-
-msgid "desk.value.single"
-msgstr "Enkele eliminatie"
-
-msgid "desk.value.double"
-msgstr "Dubbele eliminatie"
-
-msgid "desk.value.round_robin"
-msgstr "Round robin"
-
-msgid "desk.value.swiss"
-msgstr "Zwitsers systeem"
-
-msgid "desk.value.reset"
-msgstr "Normaal, met reset"
-
-msgid "desk.value.one_match"
-msgstr "Eén wedstrijd"
-
-msgid "desk.value.no_final"
-msgstr "Geen grote finale"
-
-msgid "desk.value.yes"
-msgstr "Ja"
-
-msgid "desk.value.no"
-msgstr "Nee"

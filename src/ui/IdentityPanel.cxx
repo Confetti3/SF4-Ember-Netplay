@@ -35,8 +35,7 @@ std::string FailureText(const std::string& code) {
         {"corrupt", "identity.failure.corrupt"}, {"unsupported_envelope", "identity.failure.corrupt"},
         {"file_unreadable", "identity.failure.file"}, {"invalid_path", "identity.failure.file"},
         {"identity_busy", "identity.failure.busy"},
-        {"desk_code_refused", "desk.device_refused"},
-        {"invite_invalid", "desk.invite_invalid"}, {"invites_unsupported", "desk.invite_invalid"},
+        {"invite_invalid", "desk.invite_invalid"}, {"discord_required", "identity.connect_discord_detail"},
         {"invite_required", "desk.mode_invite_detail"},
         {"identity_unavailable", "identity.failure.state"}, {"wrong_state", "identity.failure.state"},
         {"key_missing", "identity.failure.state"},
@@ -469,29 +468,16 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         break;
     case IdentityOp::DeskAct:
-        // The desk shows what the action changed at once; a new draft opens
-        // on its screen.
+        // The desk shows what the action changed at once; a new tournament
+        // opens on its screen.
         Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0;
         if (!id.deskMade.empty()) deskEvent_ = id.deskMade;
-        if (deskMoved_) { deskMoved_ = false; DeskSiteRead(v); }
         break;
     case IdentityOp::DeskStop: Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0; break;
-    case IdentityOp::DeskWeb:
-        // A web sign-in the player has not heard of is told once.
-        if (std::any_of(id.webSessions.begin(), id.webSessions.end(), [](const netplay::WebSession& w) { return w.fresh; })) {
-            Say(loc::T("desk.web_new"), Tone::Success, 8);
-            IdentityRequest seen; seen.op = IdentityOp::DeskWebSeen; seen.bridge = sentBridge_; Queue(std::move(seen));
-        }
-        break;
     case IdentityOp::DeskOpen:
         Say(loc::T("desk.opened"), Tone::Success, 4); break;
     case IdentityOp::DeskRedeem:
         Say(loc::T("desk.invite_done"), Tone::Success, 8); deskReadAt_ = 0; break;
-    case IdentityOp::DeskApprove:
-        deskCode_.clear();
-        Say(loc::T("desk.device_approved"), Tone::Success, 8); break;
-    case IdentityOp::DeskWebEnd:
-        Say(loc::T("desk.web_ended"), Tone::Success, 4); deskReadAt_ = 0; break;
     case IdentityOp::DiscordStatus:
         SignInFinish(v);
         // Connect Discord's steps go on from the account read.

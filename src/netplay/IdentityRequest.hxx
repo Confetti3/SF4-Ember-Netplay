@@ -15,26 +15,16 @@ enum class IdentityOp : std::uint8_t {
     LinkList, LinkClaim, LinkCancel, LinkRemove,
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
     SiteStatus, SiteConnect, SiteRemove, SiteCancel,
-    // The tournament desk: a read of the organizer's events or one event's
-    // sets (`target`: the event, or none), and an action at `target`, a desk
-    // path, with `command` (JSON) as its body.
+    // The tournament desk, on the bracket site the service names: a read of
+    // the organizer's tournaments or one tournament's sets (`target`: the
+    // tournament, or none; `command`: a set whose games are read too), and an
+    // action at `target`, a desk path, with `command` (JSON) as its body.
     DeskRead, DeskAct,
-    // The player's web desk sessions: a read, noting the game told the
-    // player about them, and signing them all out.
-    DeskWeb, DeskWebSeen, DeskWebEnd,
-    // Opening the web desk from the game: in the browser, or as a code to
-    // type on another device, read first for what asked and the numbers to
-    // pick from, then approved with the number that device shows.
-    DeskOpen, DeskApprove, DeskCodeInfo,
-    // Redeeming an invite to Tournament Mode (`command`: the code), on a
-    // service that takes organizers by invitation.
+    // Opening the bracket site in the browser.
+    DeskOpen,
+    // Redeeming an invite to organize (`command`: the code).
     DeskRedeem,
-    // An event's state on its site (`site`) and the moves allowed now, for
-    // the site's event `target`.
-    DeskSiteState,
-    // The organizer's events on the site `site`, for a draft to pick one.
-    DeskSiteEvents,
-    // Stopping the organizer's event `target`; with `onSite`, deleting it on its site too.
+    // Deleting the organizer's tournament `target`.
     DeskStop,
 };
 
@@ -81,8 +71,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     }
     switch (op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
-    case IdentityOp::DeskRead: case IdentityOp::DeskWeb: case IdentityOp::DeskCodeInfo: case IdentityOp::DeskSiteState:
-    case IdentityOp::DeskSiteEvents:
+    case IdentityOp::DeskRead:
         return IdentityEffect::Read;
     case IdentityOp::DeskOpen: return IdentityEffect::Open;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;
@@ -111,9 +100,6 @@ struct IdentityRequest {
     bool replace = false;
     // A desk action's body, as JSON.
     std::string command;
-    bool onSite = false;
-    // DeskApprove: the number the other device shows.
-    std::uint8_t number = 0;
 
     static constexpr std::size_t MaxSecret = 1024, MaxPath = 1024, MaxField = 256;
     bool Valid() const {

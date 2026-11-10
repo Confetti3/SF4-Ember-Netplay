@@ -203,26 +203,18 @@ private:
     // The tournament matches screen's rows, and its own rows' presses (IdentityMatches.cxx).
     void MatchesRows(const ShellView& view, std::vector<MenuEntry>& rows) const;
     bool MatchesActivate(const MenuAction& a, const ShellView& view);
-    // The tournament desk's screens (IdentityDesk.cxx): shown while the Ember
-    // ID holds organizer access on Ember's own service; their rows, presses
-    // and Left/Right, and the read every few seconds while one is open.
+    // The tournament desk's screens (IdentityDesk.cxx), on the bracket site
+    // Ember's own service names: their rows, presses and Left/Right, and the
+    // read every few seconds while one is open.
     static bool DeskScreen(const std::string& screen);
-    // Whether Ember's own service offers organizer access on any site.
+    // Whether Ember's own service names a bracket site.
     bool DeskOffered(const ShellView& view) const;
-    // Asks a listed site for organizer access, or drops it (IdentitySignIn.cxx).
-    void OrganizerAccess(const ShellView& view, const std::string& site, bool allow);
     const netplay::DeskSet* DeskSelected(const ShellView& view) const;
     void DeskPoll(const ShellView& view, const std::string& screen);
-    // The open event's state on its site, read on opening it and after a move.
-    void DeskSiteRead(const ShellView& view);
     void DeskRows(const ShellView& view, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const;
     void DraftRows(const ShellView& view, std::vector<MenuEntry>& rows, std::string& title, bool busy) const;
     bool DeskActivate(const MenuAction& a, const ShellView& view, MenuNavigation& navigation);
     bool DeskAccept(const MenuAction& a, const ShellView& view);
-    // The organizer's sites with organizer access held, and the one a draft
-    // on desk-draft is set up for (picked, else the first).
-    std::vector<const netplay::IdentitySignInSite*> DeskSites(const ShellView& view) const;
-    const netplay::IdentitySignInSite* DraftSite(const ShellView& view) const;
     // A desk action at `path` with `command` as its body.
     void DeskSend(const ShellView& view, const std::string& path, const nlohmann::json& command);
     // Says so when the list a link's refresh brought back lacks its match.
@@ -372,17 +364,11 @@ private:
     // The desk's event and set on screen, the queue's filter (IdentityDesk.cxx
     // Filters) or the bracket, and when the desk is read next.
     std::string deskEvent_, deskSet_;
-    // The other device's code typed on desk-device, until it is approved.
-    std::string deskCode_;
     int deskFilter_ = 0;
     bool deskBracket_ = false;
     double deskReadAt_ = 0;
-    // A move was sent: its answer reads the event's site state again.
-    bool deskMoved_ = false;
-    // The draft's service and its create form's values picked (JSON text;
-    // none: as the site sets it), until it is created there.
-    // `listed`: the service whose events were last listed for it.
-    struct Draft { std::string site; std::map<std::string, std::string> fields; std::string listed; } draft_;
+    // Ember's own service, when it names a bracket site for the desk.
+    std::string deskBridge_;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
     const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
     // The sign-in sites Ember's own service (sitesBridge_) lists, as its

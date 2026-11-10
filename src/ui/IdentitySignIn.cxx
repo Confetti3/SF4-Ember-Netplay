@@ -180,6 +180,10 @@ void IdentityPanel::ReadSiteAccounts(const netplay::IdentityView& id, const std:
         if (id.inspectedDiscord || id.inspectedDiscordAccounts) Queue(Request(SignInTarget::Discord(), SignInStep::Status, bridge));
         else Account(SignInTarget::Discord(), bridge).failed = false;
     }
+    // The tournament desk, on the bracket site the same service names; another
+    // service's profile leaves it as it was.
+    if (id.inspectedDesk) deskBridge_ = bridge;
+    else if (deskBridge_ == bridge) deskBridge_.clear();
     if (!reads.ReadsSites()) return;
     // The sites Ember's own service lists, as its profile says now. One no
     // longer listed goes (DropSite); another service's list replaces the
@@ -309,12 +313,6 @@ void IdentityPanel::ListedSiteRows(const ShellView& v, std::vector<MenuEntry>& r
     }
     // A sign-in under way can always be stopped, even with the ID not ready.
     if (ActiveFor(target)) rows.push_back(Row(Site(SignInSource::Site).rows.cancel, loc::T("common.cancel"), Word(target, "site.cancel_detail")));
-}
-
-void IdentityPanel::OrganizerAccess(const ShellView& v, const std::string& site, bool allow) {
-    message_.clear();
-    const auto bridge = SiteBridge(v, SignInTarget::Listed(site));
-    if (!bridge.empty()) Queue(Organizer(site, allow ? SignInStep::Connect : SignInStep::Remove, bridge));
 }
 
 bool IdentityPanel::SignInActivate(const MenuAction& a, const ShellView& v) {

@@ -160,69 +160,34 @@ pub enum Request {
     AssignmentList {
         bridge_id: String,
     },
-    /// The tournament desk: the organizer's events, or `event`'s sets.
+    /// The tournament desk on the bracket site the bridge names: the
+    /// organizer's tournaments, or `event`'s sets, with `set`'s games.
     DeskRead {
         bridge_id: String,
         #[serde(default)]
         event: Option<String>,
-    },
-    /// The player's web desk sessions; with `seen`, noting the game has
-    /// told the player about them, and with `end`, signing them all out.
-    DeskWeb {
-        bridge_id: String,
         #[serde(default)]
-        seen: bool,
-        #[serde(default)]
-        end: bool,
+        set: Option<String>,
     },
-    /// A one-time link that opens the web desk in this PC's browser.
-    DeskHandoff {
+    /// Opens the bracket site in this PC's browser.
+    DeskOpen {
         bridge_id: String,
     },
-    /// Approves the code another device's browser shows, signing that
-    /// browser in to the web desk.
-    DeskApprove {
-        bridge_id: String,
-        code: String,
-        /// The number the other device shows (from `DeskCodeInfo`).
-        #[serde(default)]
-        number: u8,
-    },
-    /// What asked for another device's code and when, and the numbers to
-    /// pick from before approving it.
-    DeskCodeInfo {
-        bridge_id: String,
-        code: String,
-    },
-    /// Redeems an invite to Tournament Mode on a bridge that takes
-    /// organizers by invitation.
+    /// Redeems an invite to organize on the bracket site.
     DeskRedeem {
         bridge_id: String,
         code: String,
     },
-    /// An event's state on its site and the moves the site allows now.
-    DeskSiteState {
-        bridge_id: String,
-        site: String,
-        tournament: String,
-    },
-    /// A desk action on one of an event's sets or matches, at `path`.
+    /// A desk action at `path`, one of the site's routes, with `command`.
     DeskAct {
         bridge_id: String,
         path: String,
         command: Value,
     },
-    /// Stops the organizer's event, and deletes it on its site with `on_site`.
+    /// Deletes the organizer's tournament `event` on the site.
     DeskStop {
         bridge_id: String,
         event: String,
-        #[serde(default)]
-        on_site: bool,
-    },
-    /// The events the organizer has on `site`, for a draft to pick one.
-    DeskSiteEvents {
-        bridge_id: String,
-        site: String,
     },
     MatchClaim {
         bridge_id: String,
@@ -399,13 +364,8 @@ requests! {
     DeskRead => "desk_read", Bridge;
     DeskAct => "desk_act", Bridge;
     DeskStop => "desk_stop", Bridge;
-    DeskWeb => "desk_web", Bridge;
-    DeskHandoff => "desk_handoff", Bridge;
-    DeskApprove => "desk_approve", Bridge;
-    DeskCodeInfo => "desk_code_info", Bridge;
+    DeskOpen => "desk_open", Bridge;
     DeskRedeem => "desk_redeem", Bridge;
-    DeskSiteState => "desk_site_state", Bridge;
-    DeskSiteEvents => "desk_site_events", Bridge;
     MatchClaim => "match_claim", Bridge;
     RoomPublish => "room_publish", Bridge;
     RoomList => "room_list", Bridge;
@@ -439,8 +399,6 @@ pub enum Code {
     BrowserUnavailable,
     ChallengeMismatch,
     Corrupt,
-    DeskCodeRefused,
-    DeskNumberWrong,
     DiscordRequired,
     FileUnreadable,
     IdentityBusy,
@@ -453,7 +411,6 @@ pub enum Code {
     InvalidReplay,
     InvalidRequest,
     InviteInvalid,
-    InvitesUnsupported,
     Io,
     MatchLeft,
     NotABridge,
@@ -469,7 +426,7 @@ pub enum Code {
     ServiceUnavailable,
     SignInOff,
     TooManyBridges,
-        UnknownPermit,
+    UnknownPermit,
     Unsupported,
     UnsupportedBridge,
     UntrustedSignature,
@@ -491,8 +448,6 @@ impl Code {
             Self::BrowserUnavailable => "browser_unavailable",
             Self::ChallengeMismatch => "challenge_mismatch",
             Self::Corrupt => "corrupt",
-            Self::DeskCodeRefused => "desk_code_refused",
-            Self::DeskNumberWrong => "desk_number_wrong",
             Self::DiscordRequired => "discord_required",
             Self::FileUnreadable => "file_unreadable",
             Self::IdentityBusy => "identity_busy",
@@ -505,7 +460,6 @@ impl Code {
             Self::InvalidReplay => "invalid_replay",
             Self::InvalidRequest => "invalid_request",
             Self::InviteInvalid => "invite_invalid",
-            Self::InvitesUnsupported => "invites_unsupported",
             Self::Io => "io",
             Self::MatchLeft => "match_left",
             Self::NotABridge => "not_a_bridge",
@@ -1138,42 +1092,19 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
         } => sites::remove(shared, &bridge_id, &site, organizer).await,
         Request::SiteCancel { bridge_id, site } => sites::cancel(shared, &bridge_id, &site).await,
         Request::AssignmentList { bridge_id } => play::assignments(shared, &bridge_id).await,
-        Request::DeskRead { bridge_id, event } => {
-            desk::read(shared, &bridge_id, event.as_deref()).await
-        }
+        Request::DeskRead {
+            bridge_id,
+            event,
+            set,
+        } => desk::read(shared, &bridge_id, event.as_deref(), set.as_deref()).await,
         Request::DeskAct {
             bridge_id,
             path,
             command,
         } => desk::act(shared, &bridge_id, &path, command).await,
-        Request::DeskStop {
-            bridge_id,
-            event,
-            on_site,
-        } => desk::stop(shared, &bridge_id, &event, on_site).await,
-        Request::DeskSiteEvents { bridge_id, site } => {
-            desk::site_events(shared, &bridge_id, &site).await
-        }
-        Request::DeskWeb {
-            bridge_id,
-            seen,
-            end,
-        } => desk::web(shared, &bridge_id, seen, end).await,
-        Request::DeskHandoff { bridge_id } => desk::handoff(shared, &bridge_id).await,
-        Request::DeskApprove {
-            bridge_id,
-            code,
-            number,
-        } => desk::approve(shared, &bridge_id, &code, number).await,
-        Request::DeskCodeInfo { bridge_id, code } => {
-            desk::code_info(shared, &bridge_id, &code).await
-        }
+        Request::DeskStop { bridge_id, event } => desk::stop(shared, &bridge_id, &event).await,
+        Request::DeskOpen { bridge_id } => desk::open(shared, &bridge_id).await,
         Request::DeskRedeem { bridge_id, code } => desk::redeem(shared, &bridge_id, &code).await,
-        Request::DeskSiteState {
-            bridge_id,
-            site,
-            tournament,
-        } => desk::site_state(shared, &bridge_id, &site, &tournament).await,
         Request::MatchClaim {
             bridge_id,
             match_id,
@@ -1279,7 +1210,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 50);
+        assert_eq!(seen.len(), 45);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)
@@ -1512,8 +1443,6 @@ mod tests {
             (Code::BrowserUnavailable, "browser_unavailable"),
             (Code::ChallengeMismatch, "challenge_mismatch"),
             (Code::Corrupt, "corrupt"),
-            (Code::DeskCodeRefused, "desk_code_refused"),
-            (Code::DeskNumberWrong, "desk_number_wrong"),
             (Code::DiscordRequired, "discord_required"),
             (Code::FileUnreadable, "file_unreadable"),
             (Code::IdentityBusy, "identity_busy"),
@@ -1526,7 +1455,6 @@ mod tests {
             (Code::InvalidReplay, "invalid_replay"),
             (Code::InvalidRequest, "invalid_request"),
             (Code::InviteInvalid, "invite_invalid"),
-            (Code::InvitesUnsupported, "invites_unsupported"),
             (Code::Io, "io"),
             (Code::MatchLeft, "match_left"),
             (Code::NotABridge, "not_a_bridge"),

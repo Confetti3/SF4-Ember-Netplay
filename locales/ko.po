@@ -4048,9 +4048,6 @@ msgid "site.organizer"
 msgstr "주최자 권한"
 
 
-msgid "site.organizer_held"
-msgstr "허용됨"
-
 
 msgid "site.organizer_opened"
 msgstr "브라우저에서 주최자 접근을 허용하세요. 이 화면은 자동으로 갱신됩니다."
@@ -4064,19 +4061,7 @@ msgid "screen.tournament_desk"
 msgstr "대회 운영"
 
 msgid "desk.entry_detail"
-msgstr "주최자 권한, 웹 데스크, 내 이벤트."
-
-msgid "desk.event_detail"
-msgstr "{0}의 이벤트. 선택하면 세트를 봅니다."
-
-msgid "desk.status.draft"
-msgstr "초안"
-
-msgid "desk.status.ready"
-msgstr "준비됨"
-
-msgid "desk.status.running"
-msgstr "진행 중"
+msgstr "Ember 대진표 사이트의 내 토너먼트."
 
 msgid "desk.none"
 msgstr "아직 이벤트가 없습니다"
@@ -4102,12 +4087,6 @@ msgstr "표시"
 msgid "desk.filter.all"
 msgstr "전체"
 
-msgid "desk.filter.winners"
-msgstr "승자조"
-
-msgid "desk.filter.losers"
-msgstr "패자조"
-
 msgid "desk.filter.action"
 msgstr "처리 필요"
 
@@ -4129,35 +4108,17 @@ msgstr "대기 중"
 msgid "desk.state.not_ready"
 msgstr "준비 안 됨"
 
-msgid "desk.state.called"
-msgstr "호출됨"
-
 msgid "desk.state.playing"
 msgstr "경기 중"
 
 msgid "desk.state.needs_review"
 msgstr "검토 필요"
 
-msgid "desk.state.needs_organizer"
-msgstr "처리 필요"
-
-msgid "desk.state.reporting"
-msgstr "결과 보고 중"
-
 msgid "desk.state.done"
 msgstr "완료"
 
 msgid "desk.state.held"
 msgstr "보류됨"
-
-msgid "desk.side.winners"
-msgstr "승자조"
-
-msgid "desk.side.losers"
-msgstr "패자조"
-
-msgid "desk.side.grand_final"
-msgstr "그랜드 파이널"
 
 msgid "desk.tbd"
 msgstr "미정"
@@ -4176,21 +4137,6 @@ msgstr "이 세트는 더 이상 이벤트에 없습니다"
 
 msgid "desk.state"
 msgstr "상태"
-
-msgid "desk.called"
-msgstr "호출됨."
-
-msgid "desk.called_posted"
-msgstr "호출되었고 Discord에 게시되었습니다."
-
-msgid "desk.called_waiting"
-msgstr "호출됨. Discord 게시물을 보내는 중입니다."
-
-msgid "desk.called_failed"
-msgstr "호출되었지만 Discord가 게시물을 받지 않았습니다."
-
-msgid "desk.not_called"
-msgstr "아직 호출하지 않았습니다."
 
 msgid "desk.call"
 msgstr "다시 호출"
@@ -4237,44 +4183,11 @@ msgstr "Ember 밖에서 한 게임(두 선수가 합의한 재경기 등)을 기
 msgid "desk.done"
 msgstr "완료했습니다."
 
-msgid "desk.web"
-msgstr "웹에서 로그인됨"
-
-msgid "desk.web_none"
-msgstr "토너먼트 데스크에 로그인한 브라우저가 없습니다."
-
-msgid "desk.web_detail"
-msgstr "최근: {0}({1}). 웹 세션은 12시간 후 또는 2시간 동안 사용하지 않으면 끝납니다."
-
-msgid "desk.web_end"
-msgstr "모든 곳에서 로그아웃"
-
-msgid "desk.web_end_detail"
-msgstr "이 Ember ID의 웹 데스크 세션을 모두 끝냅니다. 사용하려면 웹에서 다시 로그인하세요."
-
-msgid "desk.web_new"
-msgstr "누군가 웹에서 내 토너먼트 데스크에 로그인했습니다. 본인이 아니라면 모든 곳에서 로그아웃을 선택하세요."
-
-msgid "desk.web_ended"
-msgstr "모든 곳에서 웹 데스크 로그아웃됨."
-
 msgid "desk.open_browser"
 msgstr "브라우저에서 열기"
 
 msgid "desk.open_browser_detail"
-msgstr "이 PC의 브라우저에서 이 Ember ID로 로그인된 웹 데스크를 엽니다. 모든 변경이 허용됩니다."
-
-msgid "desk.open_phone"
-msgstr "다른 기기에서 로그인"
-
-msgid "desk.open_phone_detail"
-msgstr "아무 기기에서나 데스크를 열고 표시된 코드를 여기에 입력하세요."
-
-msgid "desk.code_at"
-msgstr "입력할 곳"
-
-msgid "desk.code_at_detail"
-msgstr "다른 기기에서 이것을 여세요. 여기에 입력할 코드가 표시됩니다."
+msgstr "이 PC의 브라우저에서 대진표 사이트를 엽니다. 그곳에서 Discord로 로그인하세요."
 
 
 
@@ -4282,7 +4195,7 @@ msgstr "다른 기기에서 이것을 여세요. 여기에 입력할 코드가 �
 
 
 msgid "desk.opened"
-msgstr "브라우저에서 데스크를 열었습니다."
+msgstr "브라우저에서 대진표 사이트가 열렸습니다."
 
 msgid "site.cancel_detail"
 msgstr "기다리기를 멈춥니다. 준비되면 {0} 연결을 다시 선택하세요."
@@ -7528,36 +7441,6 @@ msgstr "짐바브웨"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "방송 밖에서 하세요"
-
-msgid "desk.offstream_detail"
-msgstr "화면을 보는 사람은 코드를 쓸 수 없지만, 로그인은 방송 밖에서 하세요."
-
-msgid "desk.device_code"
-msgstr "다른 기기의 코드"
-
-msgid "desk.device_approved"
-msgstr "다른 기기가 데스크에 로그인했습니다."
-
-msgid "desk.device_asked"
-msgstr "요청한 기기"
-
-msgid "desk.device_unknown"
-msgstr "알 수 없는 브라우저"
-
-msgid "desk.device_asked_detail"
-msgstr "{0}분 전. 본인 기기일 때만 승인하세요."
-
-msgid "desk.device_pick"
-msgstr "{0} 표시"
-
-msgid "desk.device_pick_detail"
-msgstr "다른 기기에 표시된 숫자를 고르세요. 잘못 고르면 코드가 거부됩니다."
-
-msgid "desk.device_refused"
-msgstr "코드가 틀렸거나 만료되었습니다. 다른 기기에서 새 코드를 받으세요."
-
 msgid "desk.mode"
 msgstr "대회 모드"
 
@@ -7568,7 +7451,7 @@ msgid "desk.mode_invite"
 msgstr "초대 필요"
 
 msgid "desk.mode_on_detail"
-msgstr "Ember에서 직접 대회를 운영하세요. 대진표 사이트를 연결하고, 아래에서 운영자 권한을 허용한 뒤, 이 PC나 다른 기기에서 데스크를 여세요."
+msgstr "Ember에서 Ember 대진표 사이트로 나만의 토너먼트를 운영하세요."
 
 msgid "desk.mode_invite_detail"
 msgstr "대회 모드는 당분간 초대제로 운영됩니다. 받은 초대 코드를 입력하세요. 각 초대는 한 번만 사용할 수 있습니다."
@@ -7581,9 +7464,6 @@ msgstr "내 Ember ID에 대회 모드가 켜졌습니다."
 
 msgid "desk.invite_invalid"
 msgstr "유효하지 않은 초대입니다. 확인하거나 새 초대를 요청하세요."
-
-msgid "desk.site.on"
-msgstr "{0}에서"
 
 msgid "desk.site.detail"
 msgstr "대진표 사이트에서 대회가 어떤 상태인지 보여 줍니다. 아래는 지금 사이트가 허용하는 단계입니다."
@@ -7634,25 +7514,7 @@ msgid "desk.move.cancel"
 msgstr "대회 취소"
 
 msgid "desk.move.detail"
-msgstr "{0}에 지금 이 변경을 요청합니다. 플레이어에게 바로 보입니다."
-
-msgid "desk.org_site"
-msgstr "{0} 주최자 권한"
-
-msgid "desk.org_unlinked"
-msgstr "연결 안 됨"
-
-msgid "desk.org_unlinked_detail"
-msgstr "먼저 연결된 계정에서 {0} 계정을 연결하세요."
-
-msgid "desk.org_allow"
-msgstr "허용"
-
-msgid "desk.org_allow_detail"
-msgstr "Ember가 {0} 대회를 운영하도록 합니다. 승인을 위해 브라우저에서 {0}이(가) 열립니다."
-
-msgid "desk.org_remove_detail"
-msgstr "주최자 권한을 제거합니다. 연결된 계정은 유지됩니다."
+msgstr "대진표 사이트에서 지금 이 변경을 적용합니다. 플레이어에게 바로 보입니다."
 
 msgid "site.organizer_where"
 msgstr "주최자 권한은 Ember ID > 대회 운영에 있습니다."
@@ -8665,7 +8527,7 @@ msgid "desk.draft.new"
 msgstr "새 대회"
 
 msgid "desk.draft.new_detail"
-msgstr "제목, 날짜, 대진표 서비스, 세트, 참가 신청. 진행하면서 초안으로 저장됩니다."
+msgstr "제목, 날짜, 세트, 체크인. 입력하는 대로 초안으로 저장됩니다."
 
 msgid "desk.draft.title"
 msgstr "제목"
@@ -8675,9 +8537,6 @@ msgstr "먼저 제목을 정하세요"
 
 msgid "desk.draft.saved"
 msgstr "제목으로 초안이 만들어집니다. 나머지는 이후에 설정하며 바꿀 때마다 저장됩니다."
-
-msgid "desk.draft.details"
-msgstr "세부 정보"
 
 msgid "desk.draft.date"
 msgstr "날짜"
@@ -8691,65 +8550,11 @@ msgstr "시작"
 msgid "desk.draft.time_detail"
 msgstr "좌 / 우: 15분씩."
 
-msgid "desk.draft.service"
-msgstr "서비스와 규칙"
-
-msgid "desk.draft.on_detail"
-msgstr "이 대회가 운영하는 사이트의 이벤트입니다."
-
-msgid "desk.draft.site"
-msgstr "대진표 서비스"
-
-msgid "desk.draft.site_creates"
-msgstr "좌 / 우: 주최자 접근을 허용한 사이트. Ember가 {0}에 이벤트를 만듭니다."
-
-msgid "desk.draft.site_pick"
-msgstr "좌 / 우: 주최자 접근을 허용한 사이트. {0}에서 이벤트를 만든 뒤 아래에서 고르세요."
-
-msgid "desk.draft.as_site"
-msgstr "{0} 기본값"
-
-msgid "desk.draft.create"
-msgstr "{0}에 만들기"
-
-msgid "desk.draft.create_detail"
-msgstr "이 설정으로 그곳에 이벤트를 만듭니다. 사이트가 거부하면 이유를 알려 줍니다."
-
-msgid "desk.draft.pick_detail"
-msgstr "이 {0} 이벤트를 사용합니다."
-
-msgid "desk.draft.none_listed"
-msgstr "이벤트 없음"
-
-msgid "desk.draft.none_listed_detail"
-msgstr "먼저 {0}에서 이벤트를 만들면 여기에 표시됩니다."
-
-msgid "desk.draft.no_site"
-msgstr "아직 대진표 서비스가 없습니다"
-
-msgid "desk.draft.no_site_detail"
-msgstr "먼저 대회 주최자 화면에서 사이트의 주최자 접근을 허용하세요."
-
 msgid "desk.draft.first_to"
 msgstr "모든 세트 선승"
 
 msgid "desk.draft.first_to_detail"
-msgstr "좌 / 우. 후반 단계는 웹 데스크에서 정한 길이를 유지합니다."
-
-msgid "desk.draft.people"
-msgstr "Discord와 참가 신청"
-
-msgid "desk.draft.sign_ups"
-msgstr "플레이어가 Ember로 참가 신청"
-
-msgid "desk.draft.sign_ups_detail"
-msgstr "온라인 > 대회 > 참가 신청. 좌 / 우."
-
-msgid "desk.draft.public"
-msgstr "공개 페이지"
-
-msgid "desk.draft.public_detail"
-msgstr "누구나 볼 수 있는 페이지로 세트 진행을 보여 줍니다. 좌 / 우."
+msgstr "왼쪽 / 오른쪽: 세트를 따는 데 필요한 승수."
 
 msgid "desk.draft.discord"
 msgstr "Discord 채널"
@@ -8761,25 +8566,7 @@ msgid "desk.draft.discord_unset"
 msgstr "없음"
 
 msgid "desk.draft.discord_detail"
-msgstr "호출과 점수가 이 채널로 갑니다. 지금은 웹 데스크에서 설정합니다."
-
-msgid "desk.draft.results"
-msgstr "세트마다 점수 게시"
-
-msgid "desk.draft.results_detail"
-msgstr "세트가 끝날 때 그 채널에. 좌 / 우."
-
-msgid "desk.draft.ready_step"
-msgstr "준비"
-
-msgid "desk.draft.ready"
-msgstr "준비 완료로 표시"
-
-msgid "desk.draft.ready_detail"
-msgstr "Ember가 {0}부터 세트를 호출합니다."
-
-msgid "desk.draft.ready_needs"
-msgstr "먼저 사이트 이벤트와 시작 시간이 필요합니다."
+msgstr "호출과 점수가 이 채널로 갑니다. 대진표 사이트 페이지에서 설정합니다."
 
 msgid "desk.draft.open_event"
 msgstr "이벤트 열기"
@@ -8797,7 +8584,7 @@ msgid "desk.event.signed_up"
 msgstr "참가 신청"
 
 msgid "desk.event.signed_up_detail"
-msgstr "Ember로 참가 신청한 플레이어."
+msgstr "대진표 사이트 페이지에서 참가 신청한 플레이어."
 
 msgid "desk.start"
 msgstr "대진표 시작"
@@ -8805,95 +8592,17 @@ msgstr "대진표 시작"
 msgid "desk.start_detail"
 msgstr "신청자로 만들어지고 Ember가 첫 세트를 호출합니다."
 
-msgid "desk.start_not_yet"
-msgstr "아직 아닙니다. 먼저 사이트에서 참가 신청을 여세요."
-
 msgid "desk.event.edit"
 msgstr "세부 정보와 규칙 편집"
 
 msgid "desk.event.edit_detail"
-msgstr "제목, 시작, 세트, 참가 신청, Discord."
-
-msgid "desk.stop"
-msgstr "이 대회 중지"
-
-msgid "desk.stop_detail"
-msgstr "여기서, 원하면 사이트에서도."
-
-msgid "desk.stop.title"
-msgstr "{0}을(를) 중지할까요?"
-
-msgid "desk.stop.what"
-msgstr "중지하면"
-
-msgid "desk.stop.what_detail"
-msgstr "열린 세트는 취소되고 선수들은 풀려납니다."
-
-msgid "desk.stop.site"
-msgstr "중지하고 {0}에서 삭제"
-
-msgid "desk.stop.site_detail"
-msgstr "Ember가 {0}에 만들었으므로 거기서도 삭제합니다."
-
-msgid "desk.stop.keep"
-msgstr "중지하고 사이트에는 유지"
-
-msgid "desk.stop.keep_detail"
-msgstr "Ember는 운영을 멈추고 {0}의 이벤트는 그대로 둡니다."
+msgstr "제목, 시작, 세트, 체크인."
 
 msgid "desk.stop.draft"
 msgstr "이 초안 삭제"
 
-msgid "desk.stop.back"
-msgstr "계속 진행"
-
-msgid "desk.stop.done"
-msgstr "중지했습니다."
-
-msgid "desk.stop.home"
-msgstr "내 대회로 돌아가기"
-
 msgid "desk.draft.ft"
 msgstr "FT{0}"
 
-msgid "desk.field.format"
-msgstr "형식"
-
-msgid "desk.field.grand_final"
-msgstr "그랜드 파이널"
-
-msgid "desk.field.third_place"
-msgstr "3위 결정전"
-
-msgid "desk.field.open_signup"
-msgstr "사이트 자체 참가 신청 페이지"
-
 msgid "desk.field.check_in"
 msgstr "체크인"
-
-msgid "desk.value.single"
-msgstr "싱글 엘리미네이션"
-
-msgid "desk.value.double"
-msgstr "더블 엘리미네이션"
-
-msgid "desk.value.round_robin"
-msgstr "라운드 로빈"
-
-msgid "desk.value.swiss"
-msgstr "스위스 방식"
-
-msgid "desk.value.reset"
-msgstr "일반 (리셋 있음)"
-
-msgid "desk.value.one_match"
-msgstr "한 경기"
-
-msgid "desk.value.no_final"
-msgstr "그랜드 파이널 없음"
-
-msgid "desk.value.yes"
-msgstr "예"
-
-msgid "desk.value.no"
-msgstr "아니요"

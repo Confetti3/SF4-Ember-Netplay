@@ -1,7 +1,6 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,12 +19,9 @@ struct IdentityLink { std::string id, connection, provider, account; };
 // A sign-in site a service lists: its ID, its name to show, whether it
 // offers sign-in now, and whether it offers an organizer sign-in too. Which
 // pages its sign-in may open is the helper's to check, from the same list.
-// A site that creates events for the organizer lists the settings its
-// create form takes (create), each with its values as JSON text.
 struct IdentitySignInSite {
     std::string id, name;
     bool signIn = false, organizer = false;
-    std::optional<std::vector<std::pair<std::string, std::vector<std::string>>>> create;
 };
 // The most sign-in sites kept from one service's list.
 constexpr std::size_t MaxSignInSites = 16;
@@ -40,46 +36,31 @@ struct IdentityAccount {
         return !user.empty() && (user != before.user || connectedAt != before.connectedAt);
     }
 };
-// The tournament desk: one of the organizer's events, and one set of an
-// event with what the desk shows of it (side: winners, losers or
-// grand_final; state: the bridge's desk_state). A set's games are what the
-// desk can decide or void; revision is what a decision names.
-// An event's settings stay JSON so one changes and the rest stay; startsAt
-// 0 is not set; webhook: a Discord channel is set.
+// The tournament desk on the bracket site: one of the organizer's
+// tournaments, and one set of it with what the desk shows of it (state: the
+// helper's desk_state). A set's games are what the desk can decide or void;
+// revision is what a decision names. startsAt 0 and cap 0 are not set;
+// webhook: a Discord channel is set.
 struct DeskEvent {
-    std::string id, title, status, site, tournament, name, settings;
-    std::uint64_t startsAt = 0, signedUp = 0;
-    bool startsOnSite = false, createdOnSite = false, signUps = false, isPublic = false, postResults = false, webhook = false;
+    // `status`: the bracket site's state; `actions`: the moves it allows now.
+    std::string id, title, status;
+    std::uint64_t startsAt = 0, signedUp = 0, cap = 0;
+    int gamesToWin = 2;
+    bool checkIn = false, webhook = false;
+    std::vector<std::string> actions;
 };
-// An event's state on its site and the moves the site allows now, for a
-// site whose listing says them (the bracket site).
-struct DeskSiteState { std::string tournament, state; std::vector<std::string> actions; };
-// The organizer's events on a site (ID and name), for a draft to pick one.
-struct DeskSiteEvents { std::string site; std::vector<std::pair<std::string, std::string>> events; };
 struct DeskGame { std::string attempt, outcome, state; };
 struct DeskSet {
-    std::string id, roundLabel, phase, side, state, matchId, revision, posted;
+    std::string id, roundLabel, state, matchId, revision;
     std::string players[2];
     int score[2] = {0, 0};
     int round = 0;
     bool held = false, scored = false;
-    std::uint64_t calledAt = 0;
     std::vector<DeskGame> games;
 };
-// Another device asking for the web desk with a code: what it is, when it
-// asked (unix seconds) and the numbers to pick from, one of them its own.
-// Whether the service takes organizers by invitation, and whether this
-// Ember ID redeemed one; a service without invitations takes everyone.
+// Whether the site takes organizers by invitation, and whether this
+// player redeemed one.
 struct DeskAccess { bool known = false, inviteOnly = false, allowed = true; };
-struct DeskDevice { std::string device; std::uint64_t requestedAt = 0; std::vector<int> choices; };
-// A web desk session of the player's: the site it signed in with, the
-// browser's short name, when it started and was last used, and whether the
-// game has told the player about it.
-struct WebSession {
-    std::string site, browser;
-    std::uint64_t startedAt = 0, lastUsedAt = 0;
-    bool fresh = false;
-};
 struct IdentityView {
     // A status has arrived from the helper.
     bool known = false;
@@ -95,6 +76,8 @@ struct IdentityView {
     IdentityBridge inspected;
     std::vector<IdentityConnection> connections;
     bool inspectedDiscord = false, inspectedDiscordAccounts = false;
+    // Whether it names a bracket site for the tournament desk.
+    bool inspectedDesk = false;
     // The sign-in sites the bridge last inspected lists.
     std::vector<IdentitySignInSite> signInSites;
     // The Discord account connected on the bridge last asked, and the account
@@ -121,15 +104,9 @@ struct IdentityView {
     std::vector<DeskEvent> deskEvents;
     std::string deskEvent;
     std::vector<DeskSet> deskSets;
-    // The player's web desk sessions, newest first.
-    std::vector<WebSession> webSessions;
-    // The last code read for another device.
-    DeskDevice deskDevice;
-    // Tournament Mode on this service: known once the desk was read.
+    // Tournament Mode on the site: known once the desk was read.
     DeskAccess deskAccess;
-    DeskSiteState deskSiteState;
-    DeskSiteEvents deskSiteEvents;
-    // The draft the last desk action made, by ID.
+    // The tournament the last desk action made, by ID.
     std::string deskMade;
 };
 } }

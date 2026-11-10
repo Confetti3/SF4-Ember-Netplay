@@ -49,22 +49,18 @@ void Answers() {
         "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
         "capabilities":{"connections":[],"features":["discord.accounts","sites"],"sign_in_sites":[
             {"id":"challonge","display_name":"Challonge","sign_in":true,"lookup_by":"username",
-             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize","organizer":true,
-             "create":{"format":["single elimination","double elimination",{"x":1}],"open_signup":[true,false],"bad":3}},
+             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize","organizer":true},
             {"id":"startgg","display_name":"start.gg","sign_in":false,"lookup_by":"user_id",
              "authorize_origin":"https://start.gg","authorize_path":"/oauth/authorize"},
             {"display_name":"No ID"}, 7, {"id":"","display_name":"Empty"},
-            {"id":"later","display_name":"Later","sign_in":"yes","lookup_by":"email"}]}}})"), view);
+            {"id":"later","display_name":"Later","sign_in":"yes","lookup_by":"email"}],
+        "tournaments":"https://brackets.embernetplay.link"}}})"), view);
     Check(!view.inspectedDiscord && view.inspectedDiscordAccounts, "Discord's features were not read");
+    Check(view.inspectedDesk, "The bracket site for the desk was not read");
     Check(view.signInSites.size() == 3 && view.signInSites[0].id == "challonge" && view.signInSites[0].name == "Challonge" &&
         view.signInSites[0].signIn && view.signInSites[0].organizer && !view.signInSites[1].organizer &&
         view.signInSites[1].id == "startgg" && view.signInSites[1].name == "start.gg" && !view.signInSites[1].signIn,
         "The sign-in sites were not read");
-    // A site that creates events keeps its create form's values as JSON, to send back as they were.
-    const auto& creates = view.signInSites[0];
-    Check(creates.create && !view.signInSites[1].create && creates.create->size() == 2 && (*creates.create)[0].first == "format" &&
-        (*creates.create)[0].second == std::vector<std::string>{"\"single elimination\"", "\"double elimination\""} &&
-        (*creates.create)[1].second == std::vector<std::string>{"true", "false"}, "A site's create form was not read");
     // An entry without an ID is skipped; a site whose sign_in is not a yes offers none.
     Check(view.signInSites[2].id == "later" && !view.signInSites[2].signIn, "A site entry was not read");
     nlohmann::json many = nlohmann::json::array();
@@ -75,6 +71,7 @@ void Answers() {
             {"data", {{"profile", nlohmann::json::object()}, {"capabilities", {{"sign_in_sites", many}}}}}}, listed);
         Check(listed.signInSites.size() == sf4e::netplay::MaxSignInSites && listed.signInSites.back().id == "site-15",
             "A long site list was not cut to the kept sites");
+        Check(!listed.inspectedDesk, "A service without a bracket site offered the desk");
     }
     view.discordUser = "274220342558756145"; view.discordName = "player1";
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"site_status","ok":true,"data":{
@@ -179,10 +176,13 @@ void Desk() {
     Check(sf4e::netplay::EffectOf(IdentityOp::DeskAct) == sf4e::netplay::IdentityEffect::Change, "A desk action is not a change");
     sf4e::netplay::IdentityRequest read; read.op = IdentityOp::DeskRead; read.bridge = "brg_1";
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(read)) == nlohmann::json({{"op", "desk_read"}, {"bridge_id", "brg_1"}}),
-        "The events read was not built");
-    read.target = "oev_1";
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(read)).value("event", "") == "oev_1", "A sets read lost its event");
-    sf4e::netplay::IdentityRequest act; act.op = IdentityOp::DeskAct; act.bridge = "brg_1"; act.target = "/v1/organizer/events/oev_1/sets/7";
+        "The tournaments read was not built");
+    read.command = "r1-1";
+    Check(!nlohmann::json::parse(sf4e::session::BuildTournamentRequest(read)).contains("set"), "A set was read without its tournament");
+    read.target = "weekly_3";
+    const auto sets = nlohmann::json::parse(sf4e::session::BuildTournamentRequest(read));
+    Check(sets.value("event", "") == "weekly_3" && sets.value("set", "") == "r1-1", "A sets read lost its tournament or its set");
+    sf4e::netplay::IdentityRequest act; act.op = IdentityOp::DeskAct; act.bridge = "brg_1"; act.target = "/tournaments/weekly_3/sets/r1-1/hold";
     act.command = R"({"held":true})";
     const auto built = nlohmann::json::parse(sf4e::session::BuildTournamentRequest(act));
     Check(built.value("path", "") == act.target && built["command"] == nlohmann::json({{"held", true}}), "A desk action was not built");
@@ -191,103 +191,45 @@ void Desk() {
 
     sf4e::netplay::IdentityView view;
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":1,"op":"desk_read","ok":true,"data":{"events":[
-        {"id":"oev_1","title":"Weekly","status":"running","site":"challonge"}, 5]}})"), view);
-    Check(view.deskEvents.size() == 1 && view.deskEvents[0].title == "Weekly" && view.deskEvents[0].status == "running", "The events were not read");
+        {"id":"weekly_3","title":"Weekly","status":"sign_ups","starts_at":1800000000,"signed_up":9,"cap":0,"games_to_win":3,
+         "check_in":true,"discord":true,"actions":["close_sign_ups","start",5]}, 5]}})"), view);
+    Check(view.deskEvents.size() == 1, "The tournaments were not read");
+    const auto& event = view.deskEvents[0];
+    Check(event.title == "Weekly" && event.status == "sign_ups" && event.startsAt == 1800000000 && event.signedUp == 9 && event.gamesToWin == 3 &&
+        event.checkIn && event.webhook && event.actions == std::vector<std::string>{"close_sign_ups", "start"},
+        "A tournament was not read as the desk shows it");
     Check(!view.deskAccess.known && view.deskAccess.allowed, "A read without access said something about Tournament Mode");
-    // On a service that takes organizers by invitation: not yet invited.
+    // Not an organizer yet: the invite is asked for.
     sf4e::netplay::IdentityView invited;
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"desk_read","ok":true,"data":{"events":[],
         "access":{"invite_only":true,"allowed":false}}})"), invited);
     Check(invited.deskAccess.known && invited.deskAccess.inviteOnly && !invited.deskAccess.allowed, "Tournament Mode's invitation was not read");
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"desk_read","ok":true,"data":{"event":"oev_1","sets":[
-        {"id":"7","round_label":"Losers Top 8","round":-3,"side":"losers","players":["Kuro",null],"score":[2,1],"desk_state":"needs_review",
-         "match_id":"emt_1","revision":"4","held":true,"called_at":50,"posted":"failed",
-         "games":[{"attempt_id":"att_1","outcome":null,"state":"review"}]},
-        {"id":"8","score":"2-1"}]}})"), view);
-    Check(view.deskEvent == "oev_1" && view.deskSets.size() == 2 && view.deskEvents.size() == 1, "The sets were not read, or they replaced the events");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":2,"op":"desk_read","ok":true,"data":{"event":"weekly_3","sets":[
+        {"id":"r1-1","round_label":"Semifinals","round":1,"players":["Kuro",""],"score":[2,1],"desk_state":"needs_review",
+         "match_id":"emt_1","revision":"4","held":true,"games":[{"attempt_id":"att_1","outcome":null,"state":"review"}]},
+        {"id":"r1-2","score":"2-1"}]}})"), view);
+    Check(view.deskEvent == "weekly_3" && view.deskSets.size() == 2 && view.deskEvents.size() == 1, "The sets were not read, or they replaced the tournaments");
     const auto& set = view.deskSets[0];
-    Check(set.round == -3 && set.side == "losers" && set.players[0] == "Kuro" && set.players[1].empty() && set.scored &&
-        set.score[0] == 2 && set.score[1] == 1 && set.state == "needs_review" && set.held && set.calledAt == 50 && set.posted == "failed",
-        "A set was not read as the desk shows it");
+    Check(set.round == 1 && set.players[0] == "Kuro" && set.players[1].empty() && set.scored && set.score[0] == 2 && set.score[1] == 1 &&
+        set.state == "needs_review" && set.held && set.revision == "4", "A set was not read as the desk shows it");
     Check(set.games.size() == 1 && set.games[0].attempt == "att_1" && set.games[0].state == "review", "A set's games were not read");
     Check(!view.deskSets[1].scored, "A score that is no pair was taken");
 
-    // The web desk's sessions: read, noted, and all signed out.
-    Check(sf4e::netplay::EffectOf(IdentityOp::DeskWeb) == sf4e::netplay::IdentityEffect::Read, "A web sessions read is not a read");
-    Check(sf4e::netplay::EffectOf(IdentityOp::DeskWebEnd) == sf4e::netplay::IdentityEffect::Change, "Signing the web out is not a change");
-    sf4e::netplay::IdentityRequest web; web.op = IdentityOp::DeskWebEnd; web.bridge = "brg_1";
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(web)) == nlohmann::json({{"op", "desk_web"}, {"bridge_id", "brg_1"}, {"end", true}}),
-        "Signing the web out was not built");
-    web.op = IdentityOp::DeskWebSeen;
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(web)).value("seen", false), "Noting web sessions seen was not built");
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":3,"op":"desk_web","ok":true,"data":{"sessions":[
-        {"site":"challonge","browser":"Chrome on a phone","started_at":10,"last_used_at":20,"new":true}, 5]}})"), view);
-    Check(view.webSessions.size() == 1 && view.webSessions[0].browser == "Chrome on a phone" && view.webSessions[0].fresh &&
-        view.webSessions[0].lastUsedAt == 20 && view.deskSets.size() == 2, "The web sessions were not read, or they replaced the desk");
-
-    // Opening the web desk from the game in the browser, and approving the
-    // code another device's browser shows.
-    Check(sf4e::netplay::EffectOf(IdentityOp::DeskOpen) == sf4e::netplay::IdentityEffect::Open, "Opening the desk is not an open");
+    // Opening the bracket site, redeeming an invite, a new tournament's ID, and deleting a draft.
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskOpen) == sf4e::netplay::IdentityEffect::Open, "Opening the site is not an open");
     sf4e::netplay::IdentityRequest open; open.op = IdentityOp::DeskOpen; open.bridge = "brg_1";
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(open)) == nlohmann::json({{"op", "desk_handoff"}, {"bridge_id", "brg_1"}}),
-        "Opening the desk was not built");
-    sf4e::netplay::IdentityRequest approve; approve.op = IdentityOp::DeskApprove; approve.bridge = "brg_1"; approve.command = "ABCD EFGH";
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(approve)) == nlohmann::json({{"op", "desk_approve"}, {"bridge_id", "brg_1"}, {"code", "ABCD EFGH"}}),
-        "Approving another device was not built");
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(open)) == nlohmann::json({{"op", "desk_open"}, {"bridge_id", "brg_1"}}),
+        "Opening the site was not built");
     sf4e::netplay::IdentityRequest invite; invite.op = IdentityOp::DeskRedeem; invite.bridge = "brg_1"; invite.command = "ABCDE-FGHJK";
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(invite)) == nlohmann::json({{"op", "desk_redeem"}, {"bridge_id", "brg_1"}, {"code", "ABCDE-FGHJK"}}),
         "Redeeming an invite was not built");
-    // An event's state on its site: asked on opening the event, with the moves it allows.
-    sf4e::netplay::IdentityRequest siteState; siteState.op = IdentityOp::DeskSiteState; siteState.bridge = "brg_1";
-    siteState.site = "ember-bracket-site"; siteState.target = "t_7";
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(siteState)) ==
-        nlohmann::json({{"op", "desk_site_state"}, {"bridge_id", "brg_1"}, {"site", "ember-bracket-site"}, {"tournament", "t_7"}}),
-        "An event's site state was not asked for");
-    sf4e::netplay::IdentityView sited;
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":9,"op":"desk_site_state","ok":true,
-        "data":{"tournament":"t_7","state":"planned","actions":["open_sign_ups","cancel",5]}})"), sited);
-    Check(sited.deskSiteState.tournament == "t_7" && sited.deskSiteState.state == "planned" && sited.deskSiteState.actions.size() == 2,
-        "An event's site state was not read");
-    // The code is read first, for what asked and the numbers to pick from,
-    // and approved with the number picked.
-    sf4e::netplay::IdentityRequest info; info.op = IdentityOp::DeskCodeInfo; info.bridge = "brg_1"; info.command = "123 456";
-    Check(sf4e::netplay::EffectOf(IdentityOp::DeskCodeInfo) == sf4e::netplay::IdentityEffect::Read, "Reading a code is not a read");
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(info)) == nlohmann::json({{"op", "desk_code_info"}, {"bridge_id", "brg_1"}, {"code", "123 456"}}),
-        "Reading another device's code was not built");
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":4,"op":"desk_code_info","ok":true,"data":{
-        "device":"Chrome on Android","requested_at":1700000000,"choices":[12,47,83,99]}})"), view);
-    Check(view.deskDevice.device == "Chrome on Android" && view.deskDevice.requestedAt == 1700000000 &&
-        view.deskDevice.choices == std::vector<int>{12, 47, 83}, "What asked with the code was not read, or more than three numbers were kept");
-    approve.number = 47;
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(approve)).value("number", 0) == 47, "The number picked was not sent");
-    approve.command.clear();
-    Check(sf4e::session::BuildTournamentRequest(approve).empty(), "An approval without a code was built");
-
-    // The organizer in the game: an event as the draft and event screens
-    // show it, a new draft's ID, a site's events to pick from, and a stop.
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":5,"op":"desk_read","ok":true,"data":{"events":[
-        {"id":"oev_2","title":"Thursday","status":"draft","site":"ember-bracket-site","tournament":"t_8","name":"Thursday #14",
-         "starts_at":1800000000,"signed_up":9,"sign_ups":true,"public":true,"post_results":"yes","created_on_site":true,
-         "starts_on_site":true,"discord_webhook":"https://discord.com/api/webhooks/1/…","settings":{"rounds":{"games_to_win":2}}}]}})"), view);
-    const auto& made = view.deskEvents[0];
-    Check(made.name == "Thursday #14" && made.startsAt == 1800000000 && made.signedUp == 9 && made.signUps && made.isPublic &&
-        !made.postResults && made.createdOnSite && made.startsOnSite && made.webhook &&
-        nlohmann::json::parse(made.settings)["rounds"]["games_to_win"] == 2, "An event's settings were not read as the draft screen shows them");
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":6,"op":"desk_act","ok":true,"data":{"id":"oev_3"}})"), view);
-    Check(view.deskMade == "oev_3", "A new draft's ID was not read");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":6,"op":"desk_act","ok":true,"data":{"id":"t8"}})"), view);
+    Check(view.deskMade == "t8", "A new tournament's ID was not read");
     sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":7,"op":"desk_act","ok":true,"data":null})"), view);
-    Check(view.deskMade.empty(), "An action that made no draft kept the last one's ID");
-    sf4e::netplay::IdentityRequest listing; listing.op = IdentityOp::DeskSiteEvents; listing.bridge = "brg_1"; listing.site = "startgg";
-    Check(sf4e::netplay::EffectOf(IdentityOp::DeskSiteEvents) == sf4e::netplay::IdentityEffect::Read, "Listing a site's events is not a read");
-    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(listing)) ==
-        nlohmann::json({{"op", "desk_site_events"}, {"bridge_id", "brg_1"}, {"site", "startgg"}}), "A site's events were not asked for");
-    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":10,"op":"desk_site_events","ok":true,
-        "data":{"site":"startgg","tournaments":[{"id":"sgg_1","name":"Weekly 3"},5]}})"), sited);
-    Check(sited.deskSiteEvents.site == "startgg" && sited.deskSiteEvents.events.size() == 1 && sited.deskSiteEvents.events[0].second == "Weekly 3" &&
-        sited.deskSiteState.state == "planned", "A site's events were not read, or they replaced an event's state");
-    sf4e::netplay::IdentityRequest stop; stop.op = IdentityOp::DeskStop; stop.bridge = "brg_1"; stop.target = "oev_2"; stop.onSite = true;
+    Check(view.deskMade.empty(), "An action that made no tournament kept the last one's ID");
+    sf4e::netplay::IdentityRequest stop; stop.op = IdentityOp::DeskStop; stop.bridge = "brg_1"; stop.target = "t8";
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(stop)) ==
-        nlohmann::json({{"op", "desk_stop"}, {"bridge_id", "brg_1"}, {"event", "oev_2"}, {"on_site", true}}), "Stopping an event was not asked for");
+        nlohmann::json({{"op", "desk_stop"}, {"bridge_id", "brg_1"}, {"event", "t8"}}), "Deleting a tournament was not asked for");
 }
 
 int main() {

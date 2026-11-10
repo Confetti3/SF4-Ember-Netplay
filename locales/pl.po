@@ -4047,9 +4047,6 @@ msgid "site.organizer"
 msgstr "Dostęp organizatora"
 
 
-msgid "site.organizer_held"
-msgstr "Dozwolony"
-
 
 msgid "site.organizer_opened"
 msgstr "Zezwól na dostęp organizatora w przeglądarce. Ten ekran odświeży się sam."
@@ -4063,19 +4060,7 @@ msgid "screen.tournament_desk"
 msgstr "Organizacja turniejów"
 
 msgid "desk.entry_detail"
-msgstr "Dostęp organizatora, web desk i twoje wydarzenia."
-
-msgid "desk.event_detail"
-msgstr "Na {0}. Wybierz, aby zobaczyć sety."
-
-msgid "desk.status.draft"
-msgstr "Szkic"
-
-msgid "desk.status.ready"
-msgstr "Gotowe"
-
-msgid "desk.status.running"
-msgstr "Trwa"
+msgstr "Twoje turnieje na stronie drabinki Embera."
 
 msgid "desk.none"
 msgstr "Brak wydarzeń"
@@ -4101,12 +4086,6 @@ msgstr "Pokaż"
 msgid "desk.filter.all"
 msgstr "Wszystkie"
 
-msgid "desk.filter.winners"
-msgstr "Wygrani"
-
-msgid "desk.filter.losers"
-msgstr "Przegrani"
-
 msgid "desk.filter.action"
 msgstr "Wymaga ciebie"
 
@@ -4128,35 +4107,17 @@ msgstr "Czeka"
 msgid "desk.state.not_ready"
 msgstr "Niegotowy"
 
-msgid "desk.state.called"
-msgstr "Wezwany"
-
 msgid "desk.state.playing"
 msgstr "Trwa gra"
 
 msgid "desk.state.needs_review"
 msgstr "Do sprawdzenia"
 
-msgid "desk.state.needs_organizer"
-msgstr "Wymaga ciebie"
-
-msgid "desk.state.reporting"
-msgstr "Zgłaszanie wyniku"
-
 msgid "desk.state.done"
 msgstr "Zakończony"
 
 msgid "desk.state.held"
 msgstr "Wstrzymany"
-
-msgid "desk.side.winners"
-msgstr "Wygrani"
-
-msgid "desk.side.losers"
-msgstr "Przegrani"
-
-msgid "desk.side.grand_final"
-msgstr "Wielki finał"
 
 msgid "desk.tbd"
 msgstr "Do ustalenia"
@@ -4175,21 +4136,6 @@ msgstr "Ten set nie należy już do wydarzenia"
 
 msgid "desk.state"
 msgstr "Stan"
-
-msgid "desk.called"
-msgstr "Wezwany."
-
-msgid "desk.called_posted"
-msgstr "Wezwany i opublikowany na Discordzie."
-
-msgid "desk.called_waiting"
-msgstr "Wezwany; post na Discordzie jest w drodze."
-
-msgid "desk.called_failed"
-msgstr "Wezwany, ale Discord nie przyjął posta."
-
-msgid "desk.not_called"
-msgstr "Jeszcze nie wezwany."
 
 msgid "desk.call"
 msgstr "Wezwij ponownie"
@@ -4236,44 +4182,11 @@ msgstr "Zapisuje grę rozegraną poza Ember, na przykład powtórkę uzgodnioną
 msgid "desk.done"
 msgstr "Gotowe."
 
-msgid "desk.web"
-msgstr "Zalogowano w sieci"
-
-msgid "desk.web_none"
-msgstr "Żadna przeglądarka nie jest zalogowana do biurka turnieju."
-
-msgid "desk.web_detail"
-msgstr "Najnowsza: {0} przez {1}. Sesja w sieci kończy się po 12 godzinach lub po 2 godzinach bezczynności."
-
-msgid "desk.web_end"
-msgstr "Wyloguj wszędzie"
-
-msgid "desk.web_end_detail"
-msgstr "Kończy wszystkie sesje biurka w sieci dla tego Ember ID. Zaloguj się ponownie w sieci, aby z niego korzystać."
-
-msgid "desk.web_new"
-msgstr "Ktoś zalogował się do twojego biurka turnieju w sieci. To nie ty? Wybierz Wyloguj wszędzie."
-
-msgid "desk.web_ended"
-msgstr "Wylogowano z biurka w sieci wszędzie."
-
 msgid "desk.open_browser"
 msgstr "Otwórz w przeglądarce"
 
 msgid "desk.open_browser_detail"
-msgstr "Otwiera biurko w przeglądarce tego komputera, zalogowane jako to Ember ID, ze wszystkimi zmianami dozwolonymi."
-
-msgid "desk.open_phone"
-msgstr "Zaloguj się na innym urządzeniu"
-
-msgid "desk.open_phone_detail"
-msgstr "Otwórz desk na dowolnym urządzeniu i wpisz tutaj kod, który pokaże."
-
-msgid "desk.code_at"
-msgstr "Wpisz na"
-
-msgid "desk.code_at_detail"
-msgstr "Otwórz to na drugim urządzeniu. Pokaże kod do wpisania tutaj."
+msgstr "Otwiera stronę drabinki w przeglądarce tego komputera. Zaloguj się tam przez Discord."
 
 
 
@@ -4281,7 +4194,7 @@ msgstr "Otwórz to na drugim urządzeniu. Pokaże kod do wpisania tutaj."
 
 
 msgid "desk.opened"
-msgstr "Biurko otwarte w przeglądarce."
+msgstr "Strona drabinki otworzyła się w przeglądarce."
 
 msgid "site.cancel_detail"
 msgstr "Przestaje czekać. Wybierz ponownie Połącz {0}, kiedy zechcesz."
@@ -7527,36 +7440,6 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Zrób to poza streamem"
-
-msgid "desk.offstream_detail"
-msgstr "Nikt, kto widzi twój ekran, nie użyje kodu, ale i tak loguj się poza streamem."
-
-msgid "desk.device_code"
-msgstr "Kod z drugiego urządzenia"
-
-msgid "desk.device_approved"
-msgstr "Drugie urządzenie jest zalogowane do desku."
-
-msgid "desk.device_asked"
-msgstr "Prośba od"
-
-msgid "desk.device_unknown"
-msgstr "Nieznana przeglądarka"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} min temu. Zatwierdź tylko, jeśli to twoje urządzenie."
-
-msgid "desk.device_pick"
-msgstr "Pokazuje {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Wybierz liczbę widoczną na drugim urządzeniu. Zły wybór odrzuca kod."
-
-msgid "desk.device_refused"
-msgstr "Ten kod jest błędny lub wygasł. Pobierz nowy na drugim urządzeniu."
-
 msgid "desk.mode"
 msgstr "Tryb turniejowy"
 
@@ -7567,7 +7450,7 @@ msgid "desk.mode_invite"
 msgstr "Potrzebne zaproszenie"
 
 msgid "desk.mode_on_detail"
-msgstr "Prowadź własne wydarzenia z Embera: połącz swoją stronę z drabinkami, poniżej zezwól na dostęp organizatora, a potem otwórz panel na tym PC lub innym urządzeniu."
+msgstr "Prowadź własne turnieje z Embera, na stronie drabinki Embera."
 
 msgid "desk.mode_invite_detail"
 msgstr "Tryb turniejowy jest na razie tylko na zaproszenie. Wpisz otrzymane zaproszenie; każde działa tylko raz."
@@ -7580,9 +7463,6 @@ msgstr "Tryb turniejowy jest włączony dla twojego Ember ID."
 
 msgid "desk.invite_invalid"
 msgstr "To zaproszenie jest nieważne. Sprawdź je lub poproś o nowe."
-
-msgid "desk.site.on"
-msgstr "Na {0}"
 
 msgid "desk.site.detail"
 msgstr "Na jakim etapie jest turniej na swojej stronie z drabinkami. Poniżej kroki, na które strona teraz pozwala."
@@ -7633,25 +7513,7 @@ msgid "desk.move.cancel"
 msgstr "Odwołaj turniej"
 
 msgid "desk.move.detail"
-msgstr "Prosi {0} o tę zmianę teraz. Gracze widzą ją od razu."
-
-msgid "desk.org_site"
-msgstr "Dostęp organizatora {0}"
-
-msgid "desk.org_unlinked"
-msgstr "Niepołączone"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Najpierw połącz konto {0} w Połączonych kontach."
-
-msgid "desk.org_allow"
-msgstr "Zezwól"
-
-msgid "desk.org_allow_detail"
-msgstr "Pozwala Ember prowadzić twoje turnieje {0}. {0} otworzy się w przeglądarce do zatwierdzenia."
-
-msgid "desk.org_remove_detail"
-msgstr "Usuwa dostęp organizatora. Połączone konto zostaje."
+msgstr "Wprowadza tę zmianę na stronie drabinki. Gracze widzą ją od razu."
 
 msgid "site.organizer_where"
 msgstr "Dostęp organizatora jest w Ember ID > Organizacja turniejów."
@@ -8664,7 +8526,7 @@ msgid "desk.draft.new"
 msgstr "Nowy turniej"
 
 msgid "desk.draft.new_detail"
-msgstr "Tytuł, data, serwis drabinki, sety, zapisy. Zapisywane na bieżąco jako szkic."
+msgstr "Tytuł, data, sety i check-in. Zapisywane na bieżąco jako szkic."
 
 msgid "desk.draft.title"
 msgstr "Tytuł"
@@ -8674,9 +8536,6 @@ msgstr "Najpierw nadaj tytuł"
 
 msgid "desk.draft.saved"
 msgstr "Szkic powstaje z tytułem; resztę ustawiasz potem i zapisuje się przy każdej zmianie."
-
-msgid "desk.draft.details"
-msgstr "Szczegóły"
 
 msgid "desk.draft.date"
 msgstr "Data"
@@ -8690,65 +8549,11 @@ msgstr "Start"
 msgid "desk.draft.time_detail"
 msgstr "Lewo / Prawo: 15 minut."
 
-msgid "desk.draft.service"
-msgstr "Serwis i zasady"
-
-msgid "desk.draft.on_detail"
-msgstr "Wydarzenie na stronie prowadzone przez ten turniej."
-
-msgid "desk.draft.site"
-msgstr "Serwis drabinki"
-
-msgid "desk.draft.site_creates"
-msgstr "Lewo / Prawo: strona z dostępem organizatora. Ember tworzy wydarzenie na {0}."
-
-msgid "desk.draft.site_pick"
-msgstr "Lewo / Prawo: strona z dostępem organizatora. Utwórz wydarzenie na {0}, potem wybierz je poniżej."
-
-msgid "desk.draft.as_site"
-msgstr "Jak ustawia {0}"
-
-msgid "desk.draft.create"
-msgstr "Utwórz na {0}"
-
-msgid "desk.draft.create_detail"
-msgstr "Tworzy tam wydarzenie z tymi ustawieniami. Jeśli strona odmówi, poda powód."
-
-msgid "desk.draft.pick_detail"
-msgstr "Użyj tego wydarzenia z {0}."
-
-msgid "desk.draft.none_listed"
-msgstr "Nie znaleziono wydarzeń"
-
-msgid "desk.draft.none_listed_detail"
-msgstr "Najpierw utwórz wydarzenie na {0}; potem pojawi się tutaj."
-
-msgid "desk.draft.no_site"
-msgstr "Brak serwisu drabinki"
-
-msgid "desk.draft.no_site_detail"
-msgstr "Najpierw zezwól na dostęp organizatora na stronie, na ekranie Organizator turnieju."
-
 msgid "desk.draft.first_to"
 msgstr "Każdy set do"
 
 msgid "desk.draft.first_to_detail"
-msgstr "Lewo / Prawo. Późniejsze etapy zachowują długości z biurka w sieci."
-
-msgid "desk.draft.people"
-msgstr "Discord i zapisy"
-
-msgid "desk.draft.sign_ups"
-msgstr "Gracze zapisują się przez Ember"
-
-msgid "desk.draft.sign_ups_detail"
-msgstr "Online > Turnieje > Zapisz się. Lewo / Prawo."
-
-msgid "desk.draft.public"
-msgstr "Strona publiczna"
-
-msgid "desk.draft.public_detail"
-msgstr "Strona, którą każdy może śledzić, z setami na bieżąco. Lewo / Prawo."
+msgstr "Lewo / Prawo: liczba gier wygrywająca set."
 
 msgid "desk.draft.discord"
 msgstr "Kanał Discord"
@@ -8760,25 +8565,7 @@ msgid "desk.draft.discord_unset"
 msgstr "Brak"
 
 msgid "desk.draft.discord_detail"
-msgstr "Wezwania i wyniki trafiają na ten kanał. Na razie ustawia się go na biurku w sieci."
-
-msgid "desk.draft.results"
-msgstr "Publikuj wynik każdego setu"
-
-msgid "desk.draft.results_detail"
-msgstr "Na tym kanale, gdy sety się kończą. Lewo / Prawo."
-
-msgid "desk.draft.ready_step"
-msgstr "Gotowe"
-
-msgid "desk.draft.ready"
-msgstr "Oznacz jako gotowe"
-
-msgid "desk.draft.ready_detail"
-msgstr "Ember wywołuje sety od {0}."
-
-msgid "desk.draft.ready_needs"
-msgstr "Najpierw potrzebne jest wydarzenie na stronie i godzina startu."
+msgstr "Wezwania i wyniki trafiają na ten kanał. Ustawia się go na stronie drabinki."
 
 msgid "desk.draft.open_event"
 msgstr "Otwórz wydarzenie"
@@ -8796,7 +8583,7 @@ msgid "desk.event.signed_up"
 msgstr "Zapisani"
 
 msgid "desk.event.signed_up_detail"
-msgstr "Gracze zapisani przez Ember."
+msgstr "Gracze zapisani na stronie drabinki."
 
 msgid "desk.start"
 msgstr "Uruchom drabinkę"
@@ -8804,95 +8591,17 @@ msgstr "Uruchom drabinkę"
 msgid "desk.start_detail"
 msgstr "Tworzona z zapisanych; Ember wywołuje pierwsze sety."
 
-msgid "desk.start_not_yet"
-msgstr "Jeszcze nie: najpierw otwórz zapisy na stronie."
-
 msgid "desk.event.edit"
 msgstr "Edytuj szczegóły i zasady"
 
 msgid "desk.event.edit_detail"
-msgstr "Tytuł, start, sety, zapisy i Discord."
-
-msgid "desk.stop"
-msgstr "Zatrzymaj ten turniej"
-
-msgid "desk.stop_detail"
-msgstr "Tutaj, a jeśli chcesz, także na stronie."
-
-msgid "desk.stop.title"
-msgstr "Zatrzymać {0}?"
-
-msgid "desk.stop.what"
-msgstr "Co robi zatrzymanie"
-
-msgid "desk.stop.what_detail"
-msgstr "Otwarte sety zostają anulowane, a gracze zwolnieni."
-
-msgid "desk.stop.site"
-msgstr "Zatrzymaj i usuń na {0}"
-
-msgid "desk.stop.site_detail"
-msgstr "Ember utworzył je na {0}, więc tam też je usuwa."
-
-msgid "desk.stop.keep"
-msgstr "Zatrzymaj, zostaw na stronie"
-
-msgid "desk.stop.keep_detail"
-msgstr "Ember przestaje je prowadzić; {0} zachowuje wydarzenie bez zmian."
+msgstr "Tytuł, start, sety i check-in."
 
 msgid "desk.stop.draft"
 msgstr "Usuń ten szkic"
 
-msgid "desk.stop.back"
-msgstr "Zostaw działający"
-
-msgid "desk.stop.done"
-msgstr "Zatrzymano."
-
-msgid "desk.stop.home"
-msgstr "Wróć do swoich turniejów"
-
 msgid "desk.draft.ft"
 msgstr "FT{0}"
 
-msgid "desk.field.format"
-msgstr "Format"
-
-msgid "desk.field.grand_final"
-msgstr "Wielki finał"
-
-msgid "desk.field.third_place"
-msgstr "Mecz o trzecie miejsce"
-
-msgid "desk.field.open_signup"
-msgstr "Własna strona zapisów serwisu"
-
 msgid "desk.field.check_in"
 msgstr "Check-in"
-
-msgid "desk.value.single"
-msgstr "Pojedyncza eliminacja"
-
-msgid "desk.value.double"
-msgstr "Podwójna eliminacja"
-
-msgid "desk.value.round_robin"
-msgstr "Każdy z każdym"
-
-msgid "desk.value.swiss"
-msgstr "System szwajcarski"
-
-msgid "desk.value.reset"
-msgstr "Normalny, z resetem"
-
-msgid "desk.value.one_match"
-msgstr "Jeden mecz"
-
-msgid "desk.value.no_final"
-msgstr "Bez wielkiego finału"
-
-msgid "desk.value.yes"
-msgstr "Tak"
-
-msgid "desk.value.no"
-msgstr "Nie"

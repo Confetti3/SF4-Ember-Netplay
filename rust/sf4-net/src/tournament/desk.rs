@@ -1,431 +1,249 @@
-//! The tournament desk in the game: the organizer's events and one event's
-//! sets, read with the player's session, and the desk's actions on a set
-//! (hold or let go, call again, decide or void a game) and a player's
-//! sign-up for an event, each proven for its
-//! path as the bridge asks (`site.connect`). The bridge checks the event is
-//! the player's; the helper only keeps the paths to the desk's own.
+//! The tournament desk in the game, on the bracket site the approved bridge
+//! names (`capabilities.tournaments`, docs/design/BRACKET_SITE.md): the
+//! organizer's tournaments and one tournament's sets, its settings and
+//! moves, and the desk's actions on a set (hold or let go, call again,
+//! decide or void a game). The site is trusted as part of the bridge, so it
+//! is reached as the bridge with the site's origin: a session there is a
+//! `tournament.act` proof the site checks with the bridge, and it signs in
+//! as the player's Discord account. The site checks the tournament is the
+//! player's; the helper only keeps the paths to the desk's own.
 use std::sync::Arc;
 
-use ember_protocol::{challenge::Action, encoding::is_prefixed_id};
+use ember_protocol::{challenge::Action, encoding::check_origin, event};
+use serde::Deserialize;
 use serde_json::{Map, Value, json};
+use zeroize::Zeroizing;
 
 use super::{
-    Code, Failure, Outcome, Shared, browser,
-    client::{self, Body, BridgeCall, Refusals, Verb, with_session},
+    Code, Failure, Outcome, Shared,
+    bridges::Approved,
+    browser,
+    client::{self, Body, BridgeCall, SiteSession, Verb},
 };
 
-const EVENTS: &str = "/v1/organizer/events";
-const DRAFTS: &str = "/v1/organizer/drafts";
-const SIGN_UP: &str = "/v1/events/";
-const WEB: &str = "/v1/web-sessions";
-const HANDOFF: &str = "/v1/web-sessions/handoff";
-const APPROVE: &str = "/v1/web-sessions/approve";
-const DEVICE: &str = "/v1/web-sessions/device";
-const ACCESS: &str = "/v1/organizer/access";
-const REDEEM: &str = "/v1/organizer/invites/redeem";
+const TOURNAMENTS: &str = "/tournaments";
+const REDEEM: &str = "/organizer-invites/redeem";
 
 /// The most sets an answer carries, and the longest text kept from one: an
 /// answer goes to the game in one 64 KiB message.
-// ponytail: a bracket past 160 sets shows its first 160; page by phase if one ever does.
+// ponytail: a bracket past 160 sets shows its first 160; page by round if one ever does.
 const MAX_SETS: usize = 160;
 const MAX_TEXT: usize = 64;
-/// The most an event's sets weigh as the bridge sends them, with every
-/// set's players, score and games: the bridge keeps up to 1024 sets.
-const MAX_SETS_ANSWER: usize = 1024 * 1024;
+/// The most a tournament weighs as the site sends it, with its entrants,
+/// sets and log.
+const MAX_ANSWER: usize = 1024 * 1024;
 
 fn invalid_request() -> Failure {
     Failure::new(Code::InvalidRequest)
 }
 
-/// The organizer's events, or `event`'s sets with what the desk shows of
-/// each, when `event` is given.
-pub async fn read(shared: &Arc<Shared>, bridge_id: &str, event: Option<&str>) -> Outcome {
-    let path = match event {
-        None => EVENTS.to_owned(),
-        Some(event) if is_prefixed_id(event, "oev") => format!("{EVENTS}/{event}/sets"),
-        Some(_) => return Err(invalid_request()),
-    };
-    // An event's sets outgrow the 64 KiB of other answers from about 90 sets
-    // on; what goes to the game is cut down below.
-    let listing = BridgeCall::new(Verb::Get, &path, &[200]).limit(if event.is_some() {
-        MAX_SETS_ANSWER
-    } else {
-        client::MAX_RESPONSE
-    });
-    // Whether Tournament Mode is the player's yet, on a bridge that takes
-    // organizers by invitation; a bridge without the route takes everyone.
-    let access = BridgeCall::new(Verb::Get, ACCESS, &[200]).refusals(Refusals {
-        reasons: &[],
-        missing: Some(Code::Unsupported),
-    });
-    with_session(shared, bridge_id, |bridge, token| {
-        let (listing, access) = (&listing, &access);
-        async move {
-            let (status, body) = client::send(shared, &bridge, Some(&token), listing).await?;
-            let found = if status == 200 {
-                large_answer(&body)?
-            } else {
-                client::answer(status, &body, &[200], &Refusals::NONE)?
-            };
-            if event.is_some() {
-                return Ok(Some(
-                    json!({ "event": event, "sets": sets(&found["sets"]) }),
-                ));
-            }
-            let access = match client::fetch(shared, &bridge, Some(&token), access).await {
-                Ok(found) => json!({
-                    "invite_only": found["invite_only"].as_bool().unwrap_or(false),
-                    "allowed": found["allowed"].as_bool().unwrap_or(true),
-                }),
-                Err(Failure::Local(Code::Unsupported)) => {
-                    json!({ "invite_only": false, "allowed": true })
-                }
-                Err(failure) => return Err(failure),
-            };
-            Ok(Some(
-                json!({ "events": events(&found["events"]), "access": access }),
-            ))
-        }
-    })
-    .await
+#[derive(Deserialize)]
+struct SessionCreated {
+    access_token: String,
+    expires_in: u64,
+    #[serde(default)]
+    organizer: bool,
 }
 
-/// An answer of up to `MAX_SETS_ANSWER` bytes, as `client::answer` reads
-/// the smaller ones.
-fn large_answer(body: &[u8]) -> Result<Value, Failure> {
-    ember_protocol::json::parse(body, MAX_SETS_ANSWER)
+/// A session on the bridge's bracket site, from the cache or a new proof.
+async fn session(shared: &Arc<Shared>, bridge_id: &str) -> Result<SiteSession, Failure> {
+    let ember_id = client::current_id(shared)?;
+    if let Some(session) = shared.client.site_session(bridge_id, &ember_id) {
+        return Ok(session);
+    }
+    let bridge = client::approved(shared, bridge_id)?;
+    let offered = shared.client.capabilities(&bridge.origin).await?;
+    let origin = offered
+        .capabilities
+        .tournaments
+        .ok_or_else(|| Failure::new(Code::Unsupported))?;
+    check_origin(&origin, client::POLICY).map_err(|_| Failure::new(Code::InvalidOrigin))?;
+    let site = Approved { origin, ..bridge };
+    let command = json!({});
+    let call = BridgeCall::new(Verb::Post, "/v1/sessions", &[201]).body(Body::Proven {
+        action: Action::TournamentAct,
+        command: &command,
+    });
+    let (status, body) = client::send(shared, &site, None, &call).await?;
+    // The site knows players by Discord: one not connected in Ember is told so.
+    if status == 409 {
+        return Err(Failure::new(Code::DiscordRequired));
+    }
+    let created: SessionCreated = client::read(status, &body, &[201], &call.refusals)?;
+    let session = SiteSession {
+        site,
+        token: Zeroizing::new(created.access_token),
+        expires_at: client::now() + created.expires_in,
+        ember_id,
+        organizer: created.organizer,
+    };
+    shared.client.keep_site_session(session.clone());
+    Ok(session)
+}
+
+/// `call` on the bracket site, its status and body, with a new session once
+/// when the site no longer takes the cached one.
+async fn site_call(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    call: &BridgeCall<'_>,
+) -> Result<(SiteSession, u16, Vec<u8>), Failure> {
+    let session = session(shared, bridge_id).await?;
+    let (status, body) = client::send(shared, &session.site, Some(&session.token), call).await?;
+    if status != 401 {
+        return Ok((session, status, body));
+    }
+    shared.client.forget_site_session(bridge_id);
+    let session = self::session(shared, bridge_id).await?;
+    let (status, body) = client::send(shared, &session.site, Some(&session.token), call).await?;
+    Ok((session, status, body))
+}
+
+/// The site's answer to a read, as JSON, up to `MAX_ANSWER` bytes.
+fn answer(status: u16, body: &[u8]) -> Result<Value, Failure> {
+    if status != 200 {
+        return Err(client::refused(status, body, &client::Refusals::NONE));
+    }
+    ember_protocol::json::parse(body, MAX_ANSWER)
         .and_then(|value| ember_protocol::json::from_value::<Value>(&value))
         .map_err(|_| Failure::new(Code::BridgeInvalidResponse))
 }
 
-/// A desk action on `path`, one of the organizer's routes for a draft, an
-/// event or its sets and matches, proven and sent with `command` as its body.
-pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, command: Value) -> Outcome {
-    if !is_action(path) || !command.is_object() {
+/// The organizer's tournaments, or `event`'s sets with what the desk shows
+/// of each, when `event` is given; with `set`, that set's games too.
+pub async fn read(
+    shared: &Arc<Shared>,
+    bridge_id: &str,
+    event: Option<&str>,
+    set: Option<&str>,
+) -> Outcome {
+    let Some(event) = event else {
+        let call = BridgeCall::new(Verb::Get, TOURNAMENTS, &[200]).limit(MAX_ANSWER);
+        let (session, status, body) = site_call(shared, bridge_id, &call).await?;
+        let found = answer(status, &body)?;
+        return Ok(Some(json!({
+            "events": events(&found["tournaments"]),
+            "access": { "invite_only": true, "allowed": session.organizer },
+        })));
+    };
+    if !is_slug(event) || set.is_some_and(|set| !is_slug(set)) {
         return Err(invalid_request());
     }
-    // A sign-up or a draft the bridge took is 201 Created; the rest 200.
-    let call = BridgeCall::new(Verb::Post, path, &[200, 201]).body(Body::Proven {
-        action: Action::SiteConnect,
-        command: &command,
-    });
-    let answer = client::request(shared, bridge_id, &call).await?;
-    // A new draft's ID, for the game to go on with it.
-    Ok((path == DRAFTS)
-        .then(|| answer["id"].as_str())
-        .flatten()
-        .filter(|id| is_prefixed_id(id, "oev"))
+    let path = format!("{TOURNAMENTS}/{event}");
+    let call = BridgeCall::new(Verb::Get, &path, &[200]).limit(MAX_ANSWER);
+    let (_, status, body) = site_call(shared, bridge_id, &call).await?;
+    let mut sets = sets(&answer(status, &body)?);
+    // The open set's games, from its Ember match, for the organizer to decide.
+    if let Some(set) = set
+        && let Some(shown) = sets.iter_mut().find(|shown| shown["id"] == set)
+        && shown.get("match_id").is_some()
+    {
+        let path = format!("{TOURNAMENTS}/{event}/sets/{set}/games");
+        let call = BridgeCall::new(Verb::Get, &path, &[200]);
+        let (_, status, body) = site_call(shared, bridge_id, &call).await?;
+        games(shown, &answer(status, &body)?);
+    }
+    Ok(Some(json!({ "event": event, "sets": sets })))
+}
+
+/// A desk action at `path`, one of the site's routes for the organizer's
+/// tournaments and their sets, with `command` as its body. A `starts_at`
+/// given in Unix seconds goes to the site as its date and time.
+pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, mut command: Value) -> Outcome {
+    let Some(verb) = verb_of(path) else {
+        return Err(invalid_request());
+    };
+    let Some(fields) = command.as_object_mut() else {
+        return Err(invalid_request());
+    };
+    if let Some(at) = fields.get("starts_at").and_then(Value::as_u64) {
+        fields.insert("starts_at".into(), json!(event::rfc3339(at)));
+    }
+    let bytes = serde_json::to_vec(&command).map_err(|_| Failure::new(Code::Internal))?;
+    let call = BridgeCall::new(verb, path, &[200, 201]).body(Body::Json(&bytes));
+    let (_, status, body) = site_call(shared, bridge_id, &call).await?;
+    if !(200..300).contains(&status) {
+        return Err(client::refused(status, &body, &client::Refusals::NONE));
+    }
+    // A new tournament's ID, for the game to go on with it.
+    if path != TOURNAMENTS {
+        return Ok(None);
+    }
+    let made = answer(200, &body)?;
+    Ok(made["id"]
+        .as_str()
+        .filter(|id| is_slug(id))
         .map(|id| json!({ "id": id })))
 }
 
-/// Stops the organizer's `event`, and deletes it on its site too with
-/// `on_site` (one Ember created there), proven with `site.remove`.
-pub async fn stop(shared: &Arc<Shared>, bridge_id: &str, event: &str, on_site: bool) -> Outcome {
-    if !is_prefixed_id(event, "oev") {
+/// Deletes the organizer's tournament `event` on the site.
+pub async fn stop(shared: &Arc<Shared>, bridge_id: &str, event: &str) -> Outcome {
+    if !is_slug(event) {
         return Err(invalid_request());
     }
-    let path = format!("{EVENTS}/{event}");
-    let command = json!({ "on_site": on_site });
-    let call = BridgeCall::new(Verb::Delete, &path, &[200]).body(Body::Proven {
-        action: Action::SiteRemove,
-        command: &command,
-    });
-    client::request(shared, bridge_id, &call).await?;
+    let path = format!("{TOURNAMENTS}/{event}");
+    let call = BridgeCall::new(Verb::Delete, &path, &[204]);
+    let (_, status, body) = site_call(shared, bridge_id, &call).await?;
+    if !(200..300).contains(&status) {
+        return Err(client::refused(status, &body, &client::Refusals::NONE));
+    }
     Ok(None)
 }
 
-/// The player's web desk sessions, after noting them seen (`seen`) or
-/// ending them all (`end`, proven with `site.remove`).
-pub async fn web(shared: &Arc<Shared>, bridge_id: &str, seen: bool, end: bool) -> Outcome {
-    let command = json!({});
-    let end_all = BridgeCall::new(Verb::Delete, WEB, &[200]).body(Body::Proven {
-        action: Action::SiteRemove,
-        command: &command,
-    });
-    let seen_path = format!("{WEB}/seen");
-    let note_seen = BridgeCall::new(Verb::Post, &seen_path, &[200]).body(Body::Json(b"{}"));
-    let list = BridgeCall::new(Verb::Get, WEB, &[200]);
-    with_session(shared, bridge_id, |bridge, token| {
-        let (end_all, note_seen, list) = (&end_all, &note_seen, &list);
-        async move {
-            if end {
-                client::fetch(shared, &bridge, Some(&token), end_all).await?;
-            } else if seen {
-                client::fetch(shared, &bridge, Some(&token), note_seen).await?;
-            }
-            let found = client::fetch(shared, &bridge, Some(&token), list).await?;
-            let sessions: Vec<Value> = found["sessions"]
-                .as_array()
-                .map(Vec::as_slice)
-                .unwrap_or_default()
-                .iter()
-                .take(20)
-                .map(|session| {
-                    kept(
-                        session,
-                        &["site", "browser", "started_at", "last_used_at", "new"],
-                    )
-                })
-                .collect();
-            Ok(Some(json!({ "sessions": sessions })))
+/// Opens the bracket site in this PC's browser, where the organizer signs
+/// in with Discord.
+pub async fn open(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
+    let session = session(shared, bridge_id).await?;
+    browser::open(&format!("{}/", session.site.origin))?;
+    Ok(None)
+}
+
+/// Redeems `code`, an invite to organize on the site.
+pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
+    let code: String = code.trim().chars().take(64).collect();
+    if code.is_empty() || !is_slug(&code) {
+        return Err(Failure::new(Code::InviteInvalid));
+    }
+    let bytes =
+        serde_json::to_vec(&json!({ "code": code })).map_err(|_| Failure::new(Code::Internal))?;
+    let call = BridgeCall::new(Verb::Post, REDEEM, &[200]).body(Body::Json(&bytes));
+    let (_, status, body) = site_call(shared, bridge_id, &call).await?;
+    match status {
+        200 => {
+            // The session said who organizes when it opened.
+            shared.client.forget_site_session(bridge_id);
+            Ok(None)
         }
-    })
-    .await
-}
-
-/// A one-time handoff to the web desk, proven with `site.connect`: its link
-/// opens in this PC's browser, and its token stays in the helper.
-pub async fn handoff(shared: &Arc<Shared>, bridge_id: &str) -> Outcome {
-    let command = json!({});
-    let call = BridgeCall::new(Verb::Post, HANDOFF, &[201]).body(Body::Proven {
-        action: Action::SiteConnect,
-        command: &command,
-    });
-    with_session(shared, bridge_id, |bridge, token| {
-        let call = &call;
-        async move {
-            let made = client::fetch(shared, &bridge, Some(&token), call).await?;
-            let link = made["token"].as_str().unwrap_or_default();
-            let well_formed = (16..=64).contains(&link.len())
-                && link
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
-            if !well_formed {
-                return Err(Failure::new(Code::BridgeInvalidResponse));
-            }
-            browser::open(&format!("{}/desk/h/{link}", bridge.origin))?;
-            Ok(Some(json!({ "desk": format!("{}/desk", bridge.origin) })))
-        }
-    })
-    .await
-}
-
-/// Another device's code as typed: its six digits, or nothing.
-fn code_of(code: &str) -> Option<String> {
-    let digits: String = code.chars().filter(char::is_ascii_digit).collect();
-    (digits.len() == 6
-        && code
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == ' ' || c == '-'))
-    .then_some(digits)
-}
-
-/// What asked for `code`, another device's code at the desk, and when, with
-/// the three numbers the organizer picks from: that device shows one of them
-/// now.
-pub async fn code_info(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
-    let Some(code) = code_of(code) else {
-        return Err(Failure::new(Code::DeskCodeRefused));
-    };
-    let path = format!("{DEVICE}?code={code}");
-    // A 404 is a code the bridge does not know, whatever it says.
-    let call = BridgeCall::new(Verb::Get, &path, &[200]).refusals(Refusals {
-        reasons: &[],
-        missing: Some(Code::DeskCodeRefused),
-    });
-    let found = client::request(shared, bridge_id, &call).await?;
-    info(&found).map(Some)
-}
-
-/// What the game shows of a device's code: its name kept short, when it
-/// asked, and exactly three numbers from 10 to 99.
-fn info(found: &Value) -> Result<Value, Failure> {
-    let choices: Vec<u64> = found["choices"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_u64)
-        .filter(|n| (10..100).contains(n))
-        .collect();
-    let Some(requested_at) = found["requested_at"].as_u64() else {
-        return Err(Failure::new(Code::BridgeInvalidResponse));
-    };
-    if choices.len() != 3 {
-        return Err(Failure::new(Code::BridgeInvalidResponse));
-    }
-    Ok(json!({
-        "device": text(&found["device"]),
-        "requested_at": requested_at,
-        "choices": choices,
-    }))
-}
-
-/// The bridge's reason for a code approved with the wrong number.
-const NUMBER_WRONG: &str = "number_wrong";
-
-/// Approves `code`, shown by another device's browser at the desk, with
-/// `number`, the one that device shows now (`code_info`), proven with
-/// `site.connect`: that browser, and only it, signs in to the desk. A wrong
-/// number ends the code.
-pub async fn approve(shared: &Arc<Shared>, bridge_id: &str, code: &str, number: u8) -> Outcome {
-    let Some(code) = code_of(code) else {
-        return Err(Failure::new(Code::DeskCodeRefused));
-    };
-    if !(10..100).contains(&number) {
-        return Err(Failure::new(Code::DeskNumberWrong));
-    }
-    let command = json!({ "code": code, "number": number });
-    let call = BridgeCall::new(Verb::Post, APPROVE, &[200])
-        .body(Body::Proven {
-            action: Action::SiteConnect,
-            command: &command,
-        })
-        .refusals(Refusals {
-            reasons: &[NUMBER_WRONG],
-            missing: Some(Code::DeskCodeRefused),
-        });
-    match client::request(shared, bridge_id, &call).await {
-        Ok(_) => Ok(Some(json!({ "approved": true }))),
-        Err(Failure::Bridge(reason)) if reason == NUMBER_WRONG => {
-            Err(Failure::new(Code::DeskNumberWrong))
-        }
-        Err(failure) => Err(failure),
+        404 => Err(Failure::new(Code::InviteInvalid)),
+        _ => Err(client::refused(status, &body, &client::Refusals::NONE)),
     }
 }
 
-/// The state of `tournament` on `site` and the moves the site allows now,
-/// from the organizer's listing there; nothing for a site that says none.
-/// Read when the organizer opens an event, not polled: each read is one
-/// request to the site.
-pub async fn site_state(
-    shared: &Arc<Shared>,
-    bridge_id: &str,
-    site: &str,
-    tournament: &str,
-) -> Outcome {
-    if !valid(site) || !valid(tournament) {
-        return Err(invalid_request());
-    }
-    let listed = listing(shared, bridge_id, site).await?;
-    let Some(event) = listed.iter().find(|each| each["id"] == tournament) else {
-        return Ok(Some(json!({ "state": null, "actions": [] })));
-    };
-    let actions: Vec<&str> = event["actions"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or_default()
-        .iter()
-        .filter_map(Value::as_str)
-        .filter(|name| name.len() <= 32)
-        .take(8)
-        .collect();
-    let state = event["state"].as_str().filter(|state| state.len() <= 32);
-    Ok(Some(
-        json!({ "tournament": tournament, "state": state, "actions": actions }),
-    ))
-}
-
-/// The organizer's events on `site`, by ID and name, for a draft to pick
-/// one on a site where the organizer makes them.
-pub async fn site_events(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
-    if !valid(site) {
-        return Err(invalid_request());
-    }
-    let listed = listing(shared, bridge_id, site).await?;
-    Ok(Some(
-        json!({ "site": site, "tournaments": site_events_of(&listed) }),
-    ))
-}
-
-async fn listing(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Result<Vec<Value>, Failure> {
-    let path = format!("/v1/organizer/tournaments?site={site}");
-    let found = client::request(
-        shared,
-        bridge_id,
-        &BridgeCall::new(Verb::Get, &path, &[200]),
-    )
-    .await?;
-    Ok(found["tournaments"].as_array().cloned().unwrap_or_default())
-}
-
-/// A site or site event ID the helper sends on: 1 to 64 letters, digits,
-/// `-` and `_`.
-fn valid(text: &str) -> bool {
+/// 1 to 64 letters, digits, `_` or `-`: the site's tournament and set IDs.
+fn is_slug(text: &str) -> bool {
     (1..=64).contains(&text.len())
         && text
             .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
-/// Up to 16 of a site's listed events, by ID and name, leaving out any
-/// whose ID could not be sent back or whose name is longer than a row shows.
-fn site_events_of(listed: &[Value]) -> Vec<Value> {
-    listed
-        .iter()
-        .filter_map(|each| Some((each["id"].as_str()?, each["name"].as_str()?)))
-        .filter(|(id, name)| valid(id) && name.chars().count() <= 64)
-        .take(16)
-        .map(|(id, name)| json!({ "id": id, "name": name }))
-        .collect()
-}
-
-/// Redeems `code`, an invite to Tournament Mode, for the player's Ember ID.
-pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcome {
-    let code: String = code.trim().chars().take(16).collect();
-    if code.is_empty() {
-        return Err(Failure::new(Code::InviteInvalid));
+/// The verb of a desk action at `path`, or none for a path not the desk's.
+fn verb_of(path: &str) -> Option<Verb> {
+    if path == TOURNAMENTS {
+        return Some(Verb::Post);
     }
-    let command = json!({ "code": code });
-    // `invite_invalid` is the bridge's own word and passes through as it is.
-    let call = BridgeCall::new(Verb::Post, REDEEM, &[200])
-        .body(Body::Proven {
-            action: Action::SiteConnect,
-            command: &command,
-        })
-        .refusals(Refusals {
-            reasons: &["invite_invalid"],
-            missing: Some(Code::InvitesUnsupported),
-        });
-    client::request(shared, bridge_id, &call).await?;
-    Ok(Some(json!({ "allowed": true })))
-}
-
-/// A new draft, `/v1/organizer/drafts`; an event's settings, creation on
-/// its site, ready and start, `/v1/organizer/events/{event}[/create|/ready|/start]`;
-/// `/v1/organizer/events/{event}/sets/{set}`,
-/// `/v1/organizer/events/{event}/matches/{match}/adjudications`, or a
-/// player signing up for an event, `/v1/events/{event}/sign-up`.
-fn is_action(path: &str) -> bool {
-    if path == DRAFTS {
-        return true;
-    }
-    if let Some(event) = path
-        .strip_prefix(SIGN_UP)
-        .and_then(|rest| rest.strip_suffix("/sign-up"))
-    {
-        return is_prefixed_id(event, "oev");
-    }
-    let Some(rest) = path
-        .strip_prefix(EVENTS)
-        .and_then(|rest| rest.strip_prefix('/'))
-    else {
-        return false;
-    };
-    match rest.split('/').collect::<Vec<_>>().as_slice() {
-        // The organizer's own event: its settings, creating it on its site,
-        // marking it ready and starting its bracket.
-        [event] => is_prefixed_id(event, "oev"),
-        [event, "create" | "ready" | "start"] => is_prefixed_id(event, "oev"),
-        [event, "sets", set] => is_prefixed_id(event, "oev") && is_set_id(set),
-        [event, "matches", id, "adjudications"] => {
-            is_prefixed_id(event, "oev") && is_prefixed_id(id, "emt")
+    let rest = path.strip_prefix(TOURNAMENTS)?.strip_prefix('/')?;
+    let parts: Vec<&str> = rest.split('/').collect();
+    match parts.as_slice() {
+        [event] if is_slug(event) => Some(Verb::Patch),
+        [event, "state"] if is_slug(event) => Some(Verb::Put),
+        [event, "sets", set, "hold" | "call" | "adjudications"]
+            if is_slug(event) && is_slug(set) =>
+        {
+            Some(Verb::Post)
         }
-        // A move of the event on its site, as the site's listing offers it.
-        [event, "transitions", name] => {
-            is_prefixed_id(event, "oev")
-                && (1..=32).contains(&name.len())
-                && name.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
-        }
-        _ => false,
+        _ => None,
     }
-}
-
-/// A set ID as the bridge takes it: 1 to 64 letters, digits, `-` or `_`.
-fn is_set_id(id: &str) -> bool {
-    (1..=64).contains(&id.len())
-        && id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
 }
 
 fn text(value: &Value) -> Value {
@@ -435,219 +253,214 @@ fn text(value: &Value) -> Value {
     }
 }
 
-/// Only the fields of `value` named in `keys`, each text cut to `MAX_TEXT`.
-fn kept(value: &Value, keys: &[&str]) -> Value {
-    let mut out = Map::new();
-    for key in keys {
-        let field = &value[*key];
-        let field = if field.is_string() {
-            text(field)
-        } else {
-            field.clone()
-        };
-        if !field.is_null() {
-            out.insert((*key).to_owned(), field);
-        }
-    }
-    Value::Object(out)
+/// The site's `2026-11-10T20:00:00.000Z` in Unix seconds, or none.
+fn unix(value: &Value) -> Option<u64> {
+    let at = value.as_str()?;
+    let whole = at.get(..19)?;
+    matches!(at.get(19..)?, "Z" | ".000Z")
+        .then(|| event::parse_rfc3339(&format!("{whole}Z")))
+        .flatten()
 }
 
+/// What the desk shows of each tournament.
 fn events(found: &Value) -> Value {
     let list = found.as_array().map(Vec::as_slice).unwrap_or_default();
     list.iter()
         .take(32)
-        .map(|event| {
-            kept(
-                event,
-                &[
-                    "id",
-                    "title",
-                    "status",
-                    "site",
-                    "starts_at",
-                    "tournament",
-                    "name",
-                    "starts_on_site",
-                    "created_on_site",
-                    "sign_ups",
-                    "signed_up",
-                    "public",
-                    "post_results",
-                    "discord_webhook",
-                    "settings",
-                ],
-            )
+        .map(|t| {
+            let actions: Vec<Value> = t["actions"]
+                .as_array()
+                .map(|actions| actions.iter().take(12).map(text).collect())
+                .unwrap_or_default();
+            let mut event = Map::new();
+            event.insert("id".into(), text(&t["id"]));
+            event.insert("title".into(), text(&t["title"]));
+            event.insert("status".into(), text(&t["state"]));
+            event.insert(
+                "starts_at".into(),
+                json!(unix(&t["starts_at"]).unwrap_or(0)),
+            );
+            event.insert("games_to_win".into(), t["games_to_win"].clone());
+            event.insert(
+                "check_in".into(),
+                json!(t["check_in"].as_bool().unwrap_or(false)),
+            );
+            event.insert("cap".into(), json!(t["cap"].as_u64().unwrap_or(0)));
+            let entrants = t["entrants"].as_array().map_or(0, Vec::len);
+            event.insert("signed_up".into(), json!(entrants));
+            event.insert(
+                "discord".into(),
+                json!(t["discord"].as_bool().unwrap_or(false)),
+            );
+            event.insert("actions".into(), json!(actions));
+            Value::Object(event)
         })
         .collect()
 }
 
-fn sets(found: &Value) -> Value {
-    let list = found.as_array().map(Vec::as_slice).unwrap_or_default();
+/// What the desk shows of each set: its players by name, its score, and its
+/// state in the desk's words.
+fn sets(found: &Value) -> Vec<Value> {
+    let names: Map<String, Value> = found["entrants"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| Some((e["ember_id"].as_str()?.to_owned(), text(&e["name"]))))
+        .collect();
+    let list = found["sets"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default();
     list.iter()
         .take(MAX_SETS)
         .map(|set| {
-            let mut kept = kept(
-                set,
-                &[
-                    "id",
-                    "round_label",
-                    "round",
-                    "phase",
-                    "side",
-                    "score",
-                    "desk_state",
-                    "held",
-                    "called_at",
-                    "match_id",
-                    "revision",
-                ],
-            );
-            let players: Vec<Value> = set["players"]
-                .as_array()
-                .map(|players| players.iter().take(2).map(text).collect())
-                .unwrap_or_default();
-            kept["players"] = json!(players);
-            kept["posted"] = text(&set["call"]["posted"]);
-            let games: Vec<Value> = set["games"]
-                .as_array()
-                .map(|games| games.iter().take(16).map(kept_game).collect())
-                .unwrap_or_default();
-            kept["games"] = json!(games);
-            kept
+            let players: Vec<Value> = (0..2)
+                .map(|slot| {
+                    set["entries"][slot]
+                        .as_str()
+                        .and_then(|id| names.get(id).cloned())
+                        .unwrap_or(json!(""))
+                })
+                .collect();
+            let held = set["held"].as_bool().unwrap_or(false);
+            let state = if set["winner"].is_string() {
+                "done"
+            } else if held {
+                "held"
+            } else if set["underway"].as_bool().unwrap_or(false) {
+                "playing"
+            } else if set["status"] == "open" {
+                "waiting"
+            } else {
+                "not_ready"
+            };
+            let mut shown = Map::new();
+            shown.insert("id".into(), text(&set["id"]));
+            shown.insert("round".into(), set["round"].clone());
+            shown.insert("round_label".into(), text(&set["round_label"]));
+            shown.insert("players".into(), json!(players));
+            if set["scores"].is_array() {
+                shown.insert("score".into(), set["scores"].clone());
+            }
+            shown.insert("desk_state".into(), json!(state));
+            shown.insert("held".into(), json!(held));
+            if set["ember_match"].is_string() {
+                shown.insert("match_id".into(), text(&set["ember_match"]));
+            }
+            Value::Object(shown)
         })
         .collect()
 }
 
-fn kept_game(game: &Value) -> Value {
-    kept(game, &["attempt_id", "outcome", "state"])
+/// The set's games from its Ember match, and the match's revision a
+/// decision names; a game waiting for review says the set needs it.
+fn games(shown: &mut Value, found: &Value) {
+    let games: Vec<Value> = found["games"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .take(16)
+        .map(|game| {
+            json!({
+                "attempt_id": text(&game["attempt_id"]),
+                "outcome": text(&game["outcome"]),
+                "state": text(&game["state"]),
+            })
+        })
+        .collect();
+    if games.iter().any(|game| game["state"] == "review") && shown["desk_state"] == "playing" {
+        shown["desk_state"] = json!("needs_review");
+    }
+    shown["games"] = json!(games);
+    shown["revision"] = match &found["revision"] {
+        Value::Number(n) => json!(n.to_string()),
+        other => text(other),
+    };
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EVENT: &str = "oev_0f8fad5b-d9cb-469f-a165-70867728950e";
-    const MATCH: &str = "emt_7c9e6679-7425-40de-944b-e07fc1f90ae7";
-
     #[test]
-    fn an_event_keeps_what_the_draft_and_event_screens_show() {
-        let found = json!([{ "id": "oev_1", "title": "Weekly", "name": "Weekly #3",
-            "signed_up": 9, "links": [{ "url": "https://x" }], "created_at": 5 }]);
-        let kept = events(&found);
-        assert_eq!(kept[0]["name"], "Weekly #3");
-        assert_eq!(kept[0]["signed_up"], 9);
-        assert!(kept[0].get("links").is_none() && kept[0].get("created_at").is_none());
-    }
-
-    #[test]
-    fn a_sites_events_keep_only_what_can_be_sent_back() {
-        let mut listed = vec![
-            json!({ "id": "sgg_1", "name": "Weekly 3", "state": "planned" }),
-            json!({ "id": "a/b", "name": "Slash" }),
-            json!({ "id": "sgg_2", "name": "x".repeat(65) }),
-            json!({ "id": 7, "name": "Number" }),
-        ];
-        listed.extend((0..20).map(|n| json!({ "id": format!("e{n}"), "name": "E" })));
-        let kept = site_events_of(&listed);
-        assert_eq!(kept[0], json!({ "id": "sgg_1", "name": "Weekly 3" }));
-        assert_eq!(kept.len(), 16);
-        assert!(
-            kept.iter()
-                .all(|event| event["id"] != "a/b" && event["id"] != "sgg_2")
-        );
-    }
-
-    #[test]
-    fn only_the_desks_own_action_paths_are_sent() {
-        assert!(is_action(&format!("{EVENTS}/{EVENT}/sets/1001")));
-        assert!(is_action(&format!(
-            "{EVENTS}/{EVENT}/matches/{MATCH}/adjudications"
-        )));
-        assert!(is_action(&format!("/v1/events/{EVENT}/sign-up")));
-        assert!(is_action(&format!(
-            "{EVENTS}/{EVENT}/transitions/open_sign_ups"
-        )));
-        assert!(is_action(DRAFTS));
-        for end in ["", "/create", "/ready", "/start"] {
-            assert!(is_action(&format!("{EVENTS}/{EVENT}{end}")), "{end}");
+    fn only_the_desks_own_paths_are_sent() {
+        assert_eq!(verb_of("/tournaments"), Some(Verb::Post));
+        assert_eq!(verb_of("/tournaments/weekly_3"), Some(Verb::Patch));
+        assert_eq!(verb_of("/tournaments/weekly_3/state"), Some(Verb::Put));
+        for end in ["hold", "call", "adjudications"] {
+            assert_eq!(
+                verb_of(&format!("/tournaments/w/sets/r1-2/{end}")),
+                Some(Verb::Post),
+                "{end}"
+            );
         }
         for path in [
-            format!("{EVENTS}/{EVENT}/delete"),
-            format!("{EVENTS}/oev_1/ready"),
-            format!("{DRAFTS}/x"),
-            format!("{EVENTS}/{EVENT}/transitions/Open"),
-            format!("{EVENTS}/{EVENT}/transitions/../x"),
-            format!("/v1/events/{EVENT}/sign-up/x"),
-            format!("/v1/events/oev_1/sign-up"),
-            format!("/v1/events/{EVENT}/../x/sign-up"),
-            format!("{EVENTS}/{EVENT}/sets/../x"),
-            format!("{EVENTS}/{EVENT}/matches/{MATCH}/cancel"),
-            format!("{EVENTS}/oev_1/sets/1"),
-            format!("/v1/matches/{MATCH}/adjudications"),
+            "/tournaments/",
+            "/tournaments/w/entrants",
+            "/tournaments/w/sets/r1-2/result",
+            "/tournaments/w/sets/../hold",
+            "/tournaments/a.b",
+            "/tournaments/w/state/x",
+            "/organizer-invites",
+            "/v1/sessions",
         ] {
-            assert!(!is_action(&path), "{path}");
+            assert_eq!(verb_of(path), None, "{path}");
         }
     }
 
     #[test]
-    fn a_code_is_six_digits_however_spaced() {
-        assert_eq!(code_of("123 456").as_deref(), Some("123456"));
-        assert_eq!(code_of("123-456").as_deref(), Some("123456"));
-        for wrong in ["12345", "1234567", "ABCD EFGH", "12a456", "../123456"] {
-            assert!(code_of(wrong).is_none(), "{wrong}");
-        }
-    }
-
-    #[test]
-    fn a_device_shows_its_name_its_time_and_three_numbers() {
-        let shown = info(&json!({
-            "device": "Chrome on Android", "requested_at": 5, "choices": [47, 12, 83], "extra": 1,
-        }))
-        .unwrap();
-        assert_eq!(
-            shown,
-            json!({ "device": "Chrome on Android", "requested_at": 5, "choices": [47, 12, 83] })
-        );
-        assert!(info(&json!({ "device": "x", "requested_at": 5, "choices": [47, 12] })).is_err());
-        assert!(
-            info(&json!({ "device": "x", "requested_at": 5, "choices": [47, 12, 100] })).is_err()
-        );
-        assert!(info(&json!({ "device": "x", "choices": [47, 12, 83] })).is_err());
-    }
-
-    #[test]
-    fn a_large_event_is_read_whole_and_cut_down_for_the_game() {
-        // A thousand sets as the bridge sends them: well past 64 KiB.
-        let one = json!({
-            "id": "set-0000000", "round": 3, "round_label": "Winners Round 3", "phase": "Top 64",
-            "status": "open", "players": ["A player name", "Another player"], "score": [1, 0],
-            "draws": 0, "side": "winners", "desk_state": "playing", "held": false,
-            "match_id": "emt_6f1c0d2a-6a9c-4f30-9c5e-0d8f4f0b9a01", "revision": "4",
-            "ember_ids": ["emb1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "emb1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
-            "games": [{ "attempt_id": "att_1", "outcome": "p1_win", "state": "accepted" }],
-        });
-        let body = serde_json::to_vec(&json!({ "sets": vec![one; 1000] })).unwrap();
-        assert!(body.len() > 64 * 1024);
-        let found = large_answer(&body).unwrap();
-        assert_eq!(sets(&found["sets"]).as_array().unwrap().len(), MAX_SETS);
-    }
-
-    #[test]
-    fn a_set_keeps_what_the_desk_shows_and_cuts_long_text() {
+    fn a_tournament_keeps_what_the_desk_shows() {
         let found = json!([{
-            "id": "1001", "round_label": "x".repeat(200), "players": ["Kuro", "Velvet", "extra"],
-            "score": [2, 1], "desk_state": "playing", "entries": ["355", "354"], "ember_ids": ["a", "b"],
-            "call": { "at": 5, "posted": "posted" },
-            "games": [{ "attempt_id": "att_1", "outcome": "p1_win", "state": "accepted", "seq": 1 }],
+            "id": "weekly_3", "title": "Weekly", "state": "sign_ups", "starts_at": "2026-11-12T19:00:00.000Z",
+            "games_to_win": 3, "check_in": true, "cap": null, "discord": true, "organizers": ["1"],
+            "entrants": [{ "discord": "1" }, { "discord": "2" }], "actions": ["close_sign_ups", "start"], "log": [],
         }]);
-        let set = &sets(&found)[0];
-        assert_eq!(set["round_label"].as_str().unwrap().len(), MAX_TEXT);
-        assert_eq!(set["players"], json!(["Kuro", "Velvet"]));
-        assert_eq!(set["posted"], "posted");
-        assert!(set.get("entries").is_none() && set.get("ember_ids").is_none());
         assert_eq!(
-            set["games"][0],
-            json!({ "attempt_id": "att_1", "outcome": "p1_win", "state": "accepted" })
+            events(&found)[0],
+            json!({ "id": "weekly_3", "title": "Weekly", "status": "sign_ups", "starts_at": 1_794_510_000,
+                "games_to_win": 3, "check_in": true, "cap": 0, "signed_up": 2, "discord": true,
+                "actions": ["close_sign_ups", "start"] })
+        );
+        assert_eq!(unix(&json!("2026-11-12T19:00:00.500Z")), None);
+        assert_eq!(unix(&Value::Null), None);
+    }
+
+    #[test]
+    fn a_set_shows_its_players_by_name_and_its_state() {
+        let found = json!({
+            "entrants": [{ "ember_id": "emb_a", "name": "Kuro" }, { "ember_id": "emb_b", "name": "Velvet" }],
+            "sets": [
+                { "id": "r1-1", "round": 1, "round_label": "Semifinals", "entries": ["emb_a", "emb_b"], "winner": null,
+                  "scores": null, "underway": true, "held": false, "status": "open", "ember_match": "emt_1" },
+                { "id": "r1-2", "round": 1, "entries": ["emb_b", null], "winner": null, "underway": false, "held": true, "status": "pending" },
+                { "id": "r2-1", "round": 2, "entries": ["emb_a", "emb_b"], "winner": "emb_a", "scores": [2, 1], "underway": true, "status": "decided" },
+            ],
+        });
+        let shown = sets(&found);
+        assert_eq!(shown[0]["players"], json!(["Kuro", "Velvet"]));
+        assert_eq!(shown[0]["desk_state"], "playing");
+        assert_eq!(shown[0]["match_id"], "emt_1");
+        assert!(shown[0].get("score").is_none());
+        assert_eq!(
+            [&shown[1]["desk_state"], &shown[1]["players"]],
+            [&json!("held"), &json!(["Velvet", ""])]
+        );
+        assert_eq!(
+            [&shown[2]["desk_state"], &shown[2]["score"]],
+            [&json!("done"), &json!([2, 1])]
+        );
+
+        let mut set = shown[0].clone();
+        games(
+            &mut set,
+            &json!({ "revision": 7, "games": [{ "attempt_id": "att_1", "seq": 1, "outcome": null, "state": "review" }] }),
+        );
+        assert_eq!(set["desk_state"], "needs_review");
+        assert_eq!(set["revision"], "7");
+        assert_eq!(
+            set["games"],
+            json!([{ "attempt_id": "att_1", "outcome": null, "state": "review" }])
         );
     }
 }
