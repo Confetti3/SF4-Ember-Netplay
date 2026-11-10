@@ -24,13 +24,24 @@ async fn a_player_connects_challonge_through_the_bridge_page() {
             .unwrap()
             .contains(&json!("sites"))
     );
-    let origin = url::Url::parse(&bridge.state().config.sign_in_sites[0].authorize_url).unwrap();
+    let defined = &bridge.state().config.sign_in_sites[0];
+    let origin = url::Url::parse(&defined.authorize_url).unwrap();
+    // What creating an event there sets, for the game's own desk.
+    let create = defined
+        .organizer
+        .as_ref()
+        .unwrap()
+        .create
+        .as_ref()
+        .unwrap()
+        .choices();
+    assert!(create.contains_key("format"));
     assert_eq!(
         capabilities["sign_in_sites"],
         json!([{
             "id": "challonge", "display_name": "Challonge", "sign_in": true, "lookup_by": "username",
             "authorize_origin": origin.origin().ascii_serialization(),
-            "authorize_path": "/oauth/authorize", "organizer": true,
+            "authorize_path": "/oauth/authorize", "organizer": true, "create": create,
         }])
     );
     let player1 = player(&bridge, 1).await;

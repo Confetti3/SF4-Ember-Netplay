@@ -15,6 +15,7 @@ use super::{
 };
 
 const EVENTS: &str = "/v1/organizer/events";
+const DRAFTS: &str = "/v1/organizer/drafts";
 const SIGN_UP: &str = "/v1/events/";
 const WEB: &str = "/v1/web-sessions";
 const HANDOFF: &str = "/v1/web-sessions/handoff";
@@ -97,15 +98,36 @@ fn large_answer(body: &[u8]) -> Result<Value, Failure> {
         .map_err(|_| Failure::new(Code::BridgeInvalidResponse))
 }
 
-/// A desk action on `path`, one of an event's set or match routes, proven
-/// and sent with `command` as its body.
+/// A desk action on `path`, one of the organizer's routes for a draft, an
+/// event or its sets and matches, proven and sent with `command` as its body.
 pub async fn act(shared: &Arc<Shared>, bridge_id: &str, path: &str, command: Value) -> Outcome {
     if !is_action(path) || !command.is_object() {
         return Err(invalid_request());
     }
-    // A sign-up the bridge took is 201 Created; a set's action 200.
+    // A sign-up or a draft the bridge took is 201 Created; the rest 200.
     let call = BridgeCall::new(Verb::Post, path, &[200, 201]).body(Body::Proven {
         action: Action::SiteConnect,
+        command: &command,
+    });
+    let answer = client::request(shared, bridge_id, &call).await?;
+    // A new draft's ID, for the game to go on with it.
+    Ok((path == DRAFTS)
+        .then(|| answer["id"].as_str())
+        .flatten()
+        .filter(|id| is_prefixed_id(id, "oev"))
+        .map(|id| json!({ "id": id })))
+}
+
+/// Stops the organizer's `event`, and deletes it on its site too with
+/// `on_site` (one Ember created there), proven with `site.remove`.
+pub async fn stop(shared: &Arc<Shared>, bridge_id: &str, event: &str, on_site: bool) -> Outcome {
+    if !is_prefixed_id(event, "oev") {
+        return Err(invalid_request());
+    }
+    let path = format!("{EVENTS}/{event}");
+    let command = json!({ "on_site": on_site });
+    let call = BridgeCall::new(Verb::Delete, &path, &[200]).body(Body::Proven {
+        action: Action::SiteRemove,
         command: &command,
     });
     client::request(shared, bridge_id, &call).await?;
@@ -271,22 +293,10 @@ pub async fn site_state(
     site: &str,
     tournament: &str,
 ) -> Outcome {
-    let valid = |text: &str| {
-        (1..=64).contains(&text.len())
-            && text
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-    };
     if !valid(site) || !valid(tournament) {
         return Err(invalid_request());
     }
-    let path = format!("/v1/organizer/tournaments?site={site}");
-    let call = BridgeCall::new(Verb::Get, &path, &[200]);
-    let found = client::request(shared, bridge_id, &call).await?;
-    let listed = found["tournaments"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or_default();
+    let listed = listing(shared, bridge_id, site).await?;
     let Some(event) = listed.iter().find(|each| each["id"] == tournament) else {
         return Ok(Some(json!({ "state": null, "actions": [] })));
     };
@@ -303,6 +313,50 @@ pub async fn site_state(
     Ok(Some(
         json!({ "tournament": tournament, "state": state, "actions": actions }),
     ))
+}
+
+/// The organizer's events on `site`, by ID and name, for a draft to pick
+/// one on a site where the organizer makes them.
+pub async fn site_events(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Outcome {
+    if !valid(site) {
+        return Err(invalid_request());
+    }
+    let listed = listing(shared, bridge_id, site).await?;
+    Ok(Some(
+        json!({ "site": site, "tournaments": site_events_of(&listed) }),
+    ))
+}
+
+async fn listing(shared: &Arc<Shared>, bridge_id: &str, site: &str) -> Result<Vec<Value>, Failure> {
+    let path = format!("/v1/organizer/tournaments?site={site}");
+    let found = client::request(
+        shared,
+        bridge_id,
+        &BridgeCall::new(Verb::Get, &path, &[200]),
+    )
+    .await?;
+    Ok(found["tournaments"].as_array().cloned().unwrap_or_default())
+}
+
+/// A site or site event ID the helper sends on: 1 to 64 letters, digits,
+/// `-` and `_`.
+fn valid(text: &str) -> bool {
+    (1..=64).contains(&text.len())
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
+/// Up to 16 of a site's listed events, by ID and name, leaving out any
+/// whose ID could not be sent back or whose name is longer than a row shows.
+fn site_events_of(listed: &[Value]) -> Vec<Value> {
+    listed
+        .iter()
+        .filter_map(|each| Some((each["id"].as_str()?, each["name"].as_str()?)))
+        .filter(|(id, name)| valid(id) && name.chars().count() <= 64)
+        .take(16)
+        .map(|(id, name)| json!({ "id": id, "name": name }))
+        .collect()
 }
 
 /// Redeems `code`, an invite to Tournament Mode, for the player's Ember ID.
@@ -326,10 +380,15 @@ pub async fn redeem(shared: &Arc<Shared>, bridge_id: &str, code: &str) -> Outcom
     Ok(Some(json!({ "allowed": true })))
 }
 
+/// A new draft, `/v1/organizer/drafts`; an event's settings, creation on
+/// its site, ready and start, `/v1/organizer/events/{event}[/create|/ready|/start]`;
 /// `/v1/organizer/events/{event}/sets/{set}`,
 /// `/v1/organizer/events/{event}/matches/{match}/adjudications`, or a
 /// player signing up for an event, `/v1/events/{event}/sign-up`.
 fn is_action(path: &str) -> bool {
+    if path == DRAFTS {
+        return true;
+    }
     if let Some(event) = path
         .strip_prefix(SIGN_UP)
         .and_then(|rest| rest.strip_suffix("/sign-up"))
@@ -343,6 +402,10 @@ fn is_action(path: &str) -> bool {
         return false;
     };
     match rest.split('/').collect::<Vec<_>>().as_slice() {
+        // The organizer's own event: its settings, creating it on its site,
+        // marking it ready and starting its bracket.
+        [event] => is_prefixed_id(event, "oev"),
+        [event, "create" | "ready" | "start"] => is_prefixed_id(event, "oev"),
         [event, "sets", set] => is_prefixed_id(event, "oev") && is_set_id(set),
         [event, "matches", id, "adjudications"] => {
             is_prefixed_id(event, "oev") && is_prefixed_id(id, "emt")
@@ -396,7 +459,23 @@ fn events(found: &Value) -> Value {
         .map(|event| {
             kept(
                 event,
-                &["id", "title", "status", "site", "starts_at", "tournament"],
+                &[
+                    "id",
+                    "title",
+                    "status",
+                    "site",
+                    "starts_at",
+                    "tournament",
+                    "name",
+                    "starts_on_site",
+                    "created_on_site",
+                    "sign_ups",
+                    "signed_up",
+                    "public",
+                    "post_results",
+                    "discord_webhook",
+                    "settings",
+                ],
             )
         })
         .collect()
@@ -451,6 +530,34 @@ mod tests {
     const MATCH: &str = "emt_7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
     #[test]
+    fn an_event_keeps_what_the_draft_and_event_screens_show() {
+        let found = json!([{ "id": "oev_1", "title": "Weekly", "name": "Weekly #3",
+            "signed_up": 9, "links": [{ "url": "https://x" }], "created_at": 5 }]);
+        let kept = events(&found);
+        assert_eq!(kept[0]["name"], "Weekly #3");
+        assert_eq!(kept[0]["signed_up"], 9);
+        assert!(kept[0].get("links").is_none() && kept[0].get("created_at").is_none());
+    }
+
+    #[test]
+    fn a_sites_events_keep_only_what_can_be_sent_back() {
+        let mut listed = vec![
+            json!({ "id": "sgg_1", "name": "Weekly 3", "state": "planned" }),
+            json!({ "id": "a/b", "name": "Slash" }),
+            json!({ "id": "sgg_2", "name": "x".repeat(65) }),
+            json!({ "id": 7, "name": "Number" }),
+        ];
+        listed.extend((0..20).map(|n| json!({ "id": format!("e{n}"), "name": "E" })));
+        let kept = site_events_of(&listed);
+        assert_eq!(kept[0], json!({ "id": "sgg_1", "name": "Weekly 3" }));
+        assert_eq!(kept.len(), 16);
+        assert!(
+            kept.iter()
+                .all(|event| event["id"] != "a/b" && event["id"] != "sgg_2")
+        );
+    }
+
+    #[test]
     fn only_the_desks_own_action_paths_are_sent() {
         assert!(is_action(&format!("{EVENTS}/{EVENT}/sets/1001")));
         assert!(is_action(&format!(
@@ -460,13 +567,19 @@ mod tests {
         assert!(is_action(&format!(
             "{EVENTS}/{EVENT}/transitions/open_sign_ups"
         )));
+        assert!(is_action(DRAFTS));
+        for end in ["", "/create", "/ready", "/start"] {
+            assert!(is_action(&format!("{EVENTS}/{EVENT}{end}")), "{end}");
+        }
         for path in [
+            format!("{EVENTS}/{EVENT}/delete"),
+            format!("{EVENTS}/oev_1/ready"),
+            format!("{DRAFTS}/x"),
             format!("{EVENTS}/{EVENT}/transitions/Open"),
             format!("{EVENTS}/{EVENT}/transitions/../x"),
             format!("/v1/events/{EVENT}/sign-up/x"),
             format!("/v1/events/oev_1/sign-up"),
             format!("/v1/events/{EVENT}/../x/sign-up"),
-            format!("{EVENTS}/{EVENT}"),
             format!("{EVENTS}/{EVENT}/sets/../x"),
             format!("{EVENTS}/{EVENT}/matches/{MATCH}/cancel"),
             format!("{EVENTS}/oev_1/sets/1"),
