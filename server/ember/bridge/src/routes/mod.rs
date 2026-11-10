@@ -68,6 +68,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/links/{id}", delete(links::remove))
         .route("/v1/players/resolve", post(links::resolve))
         .route(ember_protocol::partner::LOOKUP_PATH, post(lookup::lookup))
+        .route(ember_protocol::partner::PROVER_PATH, post(lookup::prover))
         .route("/v1/players/{ember_id}/record", get(records::record))
         .route("/v1/matches", post(matches::create))
         .route("/v1/matches/{id}", get(matches::get))

@@ -52,6 +52,10 @@ pub struct Config {
     /// connection they run on. None runs none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub desk: Option<Desk>,
+    /// The tournament service the game's desk talks to (Ember's bracket
+    /// site), named to the game in the capabilities. None runs none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tournaments: Option<Tournaments>,
     /// An owner-only file with the secrets of the services this bridge calls
     /// (`integrations::Secrets`). Needed when `discord` or a sign-in site is
     /// set.
@@ -93,6 +97,16 @@ pub struct Desk {
     /// organizer access and the desk (`routes::organizer::invites`).
     #[serde(default)]
     pub invite_only: bool,
+}
+
+/// The tournament service: it issues `tournament.act` challenges at its own
+/// `origin`, and its `direct` connection asks who signed them
+/// (`routes::lookup::prover`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Tournaments {
+    pub connection: String,
+    pub origin: String,
 }
 
 /// Pruning of old sets' replays (`routes::replays::prune`).
@@ -429,6 +443,7 @@ impl Config {
             discord: None,
             sign_in_sites: Vec::new(),
             desk: None,
+            tournaments: None,
             integration_secrets: None,
             rooms: None,
             match_expiry_hours: DEFAULT_MATCH_EXPIRY_HOURS,
@@ -580,6 +595,19 @@ impl Config {
                 .is_some_and(|(_, connection)| connection.kind == "direct")
         {
             return Err("desk.connection must name a direct connection".into());
+        }
+        if let Some(tournaments) = &self.tournaments {
+            if !self
+                .connection(&tournaments.connection)
+                .is_some_and(|(_, connection)| connection.kind == "direct")
+            {
+                return Err("tournaments.connection must name a direct connection".into());
+            }
+            if check_origin(&tournaments.origin, self.policy()).is_err()
+                || tournaments.origin == self.origin
+            {
+                return Err("tournaments.origin must be another origin".into());
+            }
         }
         Ok(())
     }

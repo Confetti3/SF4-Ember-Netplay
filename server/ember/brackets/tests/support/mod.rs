@@ -75,6 +75,7 @@ pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
         allow_loopback_http: true,
         tournaments: Vec::new(),
         desk: None,
+        tournaments: None,
     }
 }
 
