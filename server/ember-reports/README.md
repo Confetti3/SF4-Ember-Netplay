@@ -80,8 +80,9 @@ Exception code/address are optional hex strings, with or without `0x`, up to
 types, missing required fields, duplicate parts and unknown parts are rejected.
 
 Zero to four `log` parts are allowed. Each has a filename exactly equal to
-`sf4e.log`, `launcher.log`, `sf4e-crash.log` or `sf4-net.log`, is UTF-8 text,
-and is at most 192 KiB. Duplicate filenames and path components are rejected.
+one of SF4 Ember's logs (`sf4e.log`, `launcher.log`, `sf4e-crash.log`,
+`sf4-net.log`) or SFV Ember's (`sfv_ember.log`, `launcher.log`,
+`sfv_ember-crash.log`, `sf4-net.log`), is UTF-8 text, and is at most 192 KiB. Duplicate filenames and path components are rejected.
 The launcher redacts logs before upload. The optional single `minidump` part is
 at most 4 MiB and starts with `MDMP`; its filename is ignored. A damaged dump
 with a valid signature still produces an event with raw facts and walk status.
@@ -151,10 +152,11 @@ in-app status. Launcher.exe, Sidecar.dll, Updater.exe and sf4-net.exe are in-app
 Unsymbolicated crashing stacks use a fingerprint of
 `["{{ default }}", "<top module>+0x<offset>"]`; unknown modules use the absolute
 instruction address. A report without a dump takes the module and offset from the
-newest `sf4e-crash.log` line for its crash address (`module=<name>+0x<offset>`),
+newest `sf4e-crash.log` (or `sfv_ember-crash.log`) line for its crash address (`module=<name>+0x<offset>`),
 so every load of a DLL groups as one issue. Events carry channel/build/kind/Windows/exception tags,
 release, comment, source revision, raw codes, report ID and saved dump path.
-Problems use the comment as their message. Events stay strictly below 900 KiB
+Problems use the comment as their message, so Bugsink groups them by its first
+line (SFV Ember's desync reports put a fixed title there). Events stay strictly below 900 KiB
 after JSON escaping: the crashing stack takes priority, auxiliary threads may
 be limited, and logs retain UTF-8 tails when trimmed from their start.
 

@@ -111,6 +111,48 @@ async fn multipart_accepts_all_allowlisted_logs_and_optional_dump() {
 }
 
 #[tokio::test]
+async fn sfv_ember_reports_carry_its_own_logs() {
+    let temp = Temp::new();
+    let state = app(&temp).await;
+    let mut input = vec![meta_part()];
+    for name in intake::SFV_LOG_NAMES {
+        input.push(("log", Some(name), b"desync: checkpoint 2580".to_vec()));
+    }
+    let response = router(state.clone())
+        .oneshot(request(Body::from(parts(input))))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+    let value: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), 1024).await.unwrap()).unwrap();
+    let stored = state
+        .store
+        .event(&support::id(value["id"].as_str().unwrap()))
+        .await
+        .unwrap()
+        .unwrap();
+    let event: Value = serde_json::from_slice(&stored).unwrap();
+    let logs = event["extra"]["logs"].as_object().unwrap();
+    assert_eq!(logs.len(), 4);
+    assert_eq!(logs["sfv_ember.log"], "desync: checkpoint 2580");
+    assert!(logs.contains_key("sfv_ember-crash.log"));
+    // Still four at most, whichever product's names they are.
+    let mut fifth = vec![meta_part()];
+    for name in intake::SFV_LOG_NAMES {
+        fifth.push(("log", Some(name), vec![]));
+    }
+    fifth.push(("log", Some("sf4e.log"), vec![]));
+    assert_eq!(validate(parts(fifth)).await, StatusCode::BAD_REQUEST);
+    // Only the products' own names: a near miss is still refused.
+    for name in ["sfv_ember.txt", "sfv-ember.log", "../sfv_ember.log"] {
+        assert_eq!(
+            validate(parts(vec![meta_part(), ("log", Some(name), vec![])])).await,
+            StatusCode::BAD_REQUEST
+        );
+    }
+}
+
+#[tokio::test]
 async fn exact_part_and_body_boundaries_are_accepted() {
     let mut dump = vec![0; intake::DUMP_BYTES];
     dump[..4].copy_from_slice(b"MDMP");

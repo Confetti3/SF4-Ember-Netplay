@@ -544,4 +544,15 @@ fn dumpless_crash_takes_its_module_from_the_crash_log() {
         fingerprint(&report).0,
         json!(["{{ default }}", "unknown+0x514d16b4"])
     );
+    // SFV Ember's crash record is read the same way.
+    report.meta.crash_address = Some("0x7FF812332BD0".into());
+    report.logs.insert(
+        "sfv_ember-crash.log".into(),
+        "kind=unhandled_exception code=0xC0000005 (access violation) address=0x7FF812332BD0 module=sfv_ember.dll+0x32BD0 thread=9\n"
+            .into(),
+    );
+    assert_eq!(
+        fingerprint(&report).0,
+        json!(["{{ default }}", "sfv_ember.dll+0x32bd0"])
+    );
 }

@@ -7,7 +7,22 @@ pub const BODY_BYTES: usize = 5 * 1024 * 1024;
 pub const LOG_BYTES: usize = 192 * 1024;
 pub const DUMP_BYTES: usize = 4 * 1024 * 1024;
 pub const META_BYTES: usize = 16 * 1024;
+// The logs a report may carry, as each product's launcher names them (the
+// library's ProductIdentity: gameLog, launcherLog, crashLog, and the helper's
+// log): SF4 Ember's, then SFV Ember's. A report carries at most four, any of
+// these, each once.
 pub const LOG_NAMES: [&str; 4] = ["sf4e.log", "launcher.log", "sf4e-crash.log", "sf4-net.log"];
+pub const SFV_LOG_NAMES: [&str; 4] = [
+    "sfv_ember.log",
+    "launcher.log",
+    "sfv_ember-crash.log",
+    "sf4-net.log",
+];
+// Each product's crash record, which names a dumpless crash's module.
+pub const CRASH_LOGS: [&str; 2] = ["sf4e-crash.log", "sfv_ember-crash.log"];
+pub fn allowed_log(name: &str) -> bool {
+    LOG_NAMES.contains(&name) || SFV_LOG_NAMES.contains(&name)
+}
 
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -119,7 +134,7 @@ pub async fn read(mut multipart: Multipart) -> Result<Report, Error> {
                 let file = filename
                     .as_deref()
                     .ok_or_else(|| bad(Refusal::MissingLogFilename))?;
-                if !LOG_NAMES.contains(&file) {
+                if !allowed_log(file) {
                     return Err(bad(Refusal::UnknownLogFilename));
                 }
                 if logs.contains_key(file) || logs.len() >= 4 {

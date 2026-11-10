@@ -1,5 +1,5 @@
 use crate::{
-    intake::{Channel, Kind, Report, hex},
+    intake::{CRASH_LOGS, Channel, Kind, Report, hex},
     store::ReportId,
     symbolicate::{Frame, Walk, exception_name},
 };
@@ -147,11 +147,11 @@ pub fn tail(text: &str, bytes: usize) -> &str {
 
 // Without a dump the stack is only the crash address, which moves with each
 // load of a DLL, so one fault opened a new issue per run. The game's crash
-// log names it as `address=0x... module=Name+0x...`. Only the newest line for
+// log (SF4 Ember's or SFV Ember's, CRASH_LOGS) names it as `address=0x... module=Name+0x...`. Only the newest line for
 // this report's address counts: the log keeps earlier runs, and when that line
 // names no module an older crash at the same address must not stand in for it.
 fn logged_module(report: &Report, address: u64) -> Option<(String, u64)> {
-    let log = report.logs.get("sf4e-crash.log")?;
+    let log = CRASH_LOGS.iter().find_map(|name| report.logs.get(*name))?;
     let logged_address = |line: &str| {
         let (_, rest) = line.split_once("address=")?;
         hex(rest.split(' ').next()?, 16)
