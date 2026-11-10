@@ -156,6 +156,8 @@ void ResultsRematch() {
  h.Choose("back");
  Check(h.shell.PostMatchLeft(),"Back over the WIN was not this fighter's decline");
  std::size_t sent=h.actions.size();
+ // The game's main menu comes back while the match still reads Playing, as SFV's does.
+ h.view.matchResult=false;h.view.atMainMenu=true;h.Frame();
  backInRoom();
  Check((h.shell.Navigation().Screen()=="post-match")==onResults,
   onResults?"Rematch did not come up on the results after a Back over the WIN":"SF4 Ember's prompt stayed after the WIN");

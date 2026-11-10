@@ -207,7 +207,9 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // a Back pressed over it, most often a press meant to skip its
         // scenes, is taken back, the player having answered (no seat is left
         // for it). Character select still goes to the fighter select.
-        if (onResultsRule && !p.onResults && gameOver && !p.starting) {
+        // The WIN is over on either sign, as the Back below reads it: the game
+        // reaches its main menu a frame or more before the match is PostMatch.
+        if (onResultsRule && !p.onResults && (!Fighting(v.session.match) || v.atMainMenu) && !p.starting) {
             p.onResults = true;
             if (p.left && p.after == AfterPostMatch::None) { p.left = false; p.answered = true; }
             if (!p.left) { p.theyChose = p.theyDeclined = false; p.until = now + PostMatchSeconds; }
