@@ -74,7 +74,8 @@ jobs:
           python3 scripts/wiki/check.py | tee -a "$GITHUB_STEP_SUMMARY"
           mkdir -p build/wiki-base
           if [ -f build/base/scripts/wiki/build.py ]; then
-            python3 build/base/scripts/wiki/build.py --out "$PWD/build/wiki-base"
+            python3 build/base/scripts/wiki/build.py --out "$PWD/build/wiki-base" \
+              || echo "::warning::The base cannot build the wiki, so there is nothing to compare with."
           fi
           {
             echo '```diff'
