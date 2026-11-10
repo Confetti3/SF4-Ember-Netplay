@@ -323,6 +323,7 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.identity = snapshot.identity;
     view.identityTicket = snapshot.identityTicket; view.identityRequest = snapshot.identityRequest;
     view.identityRefusal = snapshot.identityRefusal;
+    view.hostPublicRoom = snapshot.hostPublicRoom;
     shell.Background(view, view.room, [](sf4e::ui::ShellAction action) {
         sf4e::NetplayFacade::RuntimeCommand request;
         request.command = std::move(action.command);

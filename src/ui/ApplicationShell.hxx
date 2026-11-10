@@ -442,6 +442,7 @@ private:
     void UpdatePublicRoomLink(const ShellView& view,double now);
     // Launcher --host-public-room (ApplicationShell__StreamHost.cxx).
     void UpdateHostedPublicRoom(const ShellView& view,double now);
+    void FollowAsStreamHost(const ShellView& view);
     // A dialog, a notice or an Ember ID screen is open, whose drafts moving
     // the menu would discard.
     bool MenuBusy() const {
@@ -950,6 +951,8 @@ std::string memberAsk_;
     bool roomLinkOpening_=false;
     // --host-public-room: the next time a refused or lost create may be asked again.
     double hostRoomAt_=0;
+    // --host-public-room: the room it started following in.
+    std::uint64_t streamFollowEpoch_=0;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

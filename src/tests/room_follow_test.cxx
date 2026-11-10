@@ -165,6 +165,35 @@ void LowestPlayableTableWins() {
 	EXPECT(Move(Following(room), room, 0) == -1);
 }
 
+// A stream PC follows from table 1: watching nothing it goes to the lowest
+// table playing, else waits at table 1; with no game anywhere it goes back there.
+void StreamFollowerWaitsAtTableOne() {
+	auto room = Room();
+	RoomFollow follow;
+	follow.Start(room, true);
+	EXPECT(Move(follow, room, 0) == 0);
+	Seat(room.tables[2], 1, 2); Play(room.tables[2]);
+	follow.Start(room, true);
+	EXPECT(Move(follow, room, 0) == 2);
+	// Its pair leaves after the game, so nothing holds it at table 3.
+	Watch(room, 2); End(room.tables[2]); room.tables[2].p1 = room.tables[2].p2 = 0; room.tables[2].phase = TablePhase::Idle;
+	Seat(room.tables[0], 3, 4); Play(room.tables[0]);
+	Seat(room.tables[1], 5, 6); Play(room.tables[1]);
+	follow.Start(room, true);
+	EXPECT(Move(follow, room, 0) == 0);
+	// Nobody plays: back to table 1, where it then waits.
+	for (auto& table : room.tables) { table.p1 = table.p2 = 0; table.phase = TablePhase::Idle; }
+	follow.Start(room, true);
+	EXPECT(Move(follow, room, 0) == 0);
+	Watch(room, 0);
+	follow.Start(room, true);
+	EXPECT(Move(follow, room, 0) == -1 && follow.On());
+	// Any other follower watching nothing stops following, as before.
+	auto room2 = Room();
+	auto plain = Following(room2);
+	EXPECT(Move(plain, room2, 0) == -1 && !plain.On());
+}
+
 // One move at a time: none is decided while one is on its way. A move the
 // room refuses leaves the follower where it was; after FollowMoveTimeoutMs it
 // decides again from what the room shows, which here passes over the table
@@ -391,6 +420,7 @@ int main() {
 	NewPairDoesNotHold();
 	ArrivalWaitsForItsGame();
 	LowestPlayableTableWins();
+	StreamFollowerWaitsAtTableOne();
 	OneMoveInFlight();
 	EndsWithAPlace();
 	LockInEndsFollowing();
