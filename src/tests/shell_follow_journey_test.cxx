@@ -124,6 +124,15 @@ void FollowWhileHidden() {
  Check(f.Watches(from)==std::vector<int>{3},"Following did not move while Ember was hidden");
 }
 
+// A stream PC (--host-public-room) follows by itself, with Ember hidden:
+// from idle table 1 to the game on table 3.
+void StreamPcFollowsByItself() {
+ FollowRoom f(37);auto& h=f.h;
+ h.view.hostPublicRoom=true;
+ const auto from=h.actions.size();f.Hidden(3);
+ Check(f.Watches(from)==std::vector<int>{2},"A stream PC did not follow the room by itself");
+}
+
 // A lock-in pressed on an older snapshot than Follow the room's press lands
 // after following started, while following's move to table 2 is still on
 // its way: following ends there, never holding the start, and Release
@@ -191,6 +200,7 @@ void StopWatchingOnTheDueFrame() {
 void FollowJourneys() {
  FollowFromBoardAndOptions();
  FollowWhileHidden();
+ StreamPcFollowsByItself();
  LockInLandsAfterFollow();
  StopWatchingBeatsMove();
  StopWatchingOnTheDueFrame();

@@ -73,8 +73,9 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,createArcade_,preferences_.roomWiredOnly);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();CreatePublicRoom(createArcade_);}
  else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
+  if(preferences_.publicRoomTemplate==preferences_.roomTemplates[createTemplate_].name)preferences_.publicRoomTemplate.clear();
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
   createTemplate_=-1;createTables_.reset();preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
  }
@@ -112,6 +113,15 @@ netplay::TableSetup ApplicationShell::CreateTables(const room::Rules& rules) con
  auto tables=netplay::TableSetup::Same(rules);
  if(createTables_)tables.names=createTables_->names;
  return tables;
+}
+// It keeps the room's type and template for a stream PC (UpdateHostedPublicRoom).
+void ApplicationShell::CreatePublicRoom(room::RoomType type) {
+ const auto& templates=preferences_.roomTemplates;
+ const std::string made=createTemplate_>=0&&createTemplate_<static_cast<int>(templates.size())?templates[createTemplate_].name:std::string();
+ if(preferences_.publicRoomType!=type||preferences_.publicRoomTemplate!=made){
+  preferences_.publicRoomType=type;preferences_.publicRoomTemplate=made;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;
+ }
+ publicRooms_.Create(preferences_.roomName,preferences_.roomCapacity,CreateTables(preferences_.publicTableRules),preferences_.roomDelayPolicy,type,preferences_.roomWiredOnly);
 }
 void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
  netplay::RoomTemplate saved;

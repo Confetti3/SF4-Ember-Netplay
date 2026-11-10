@@ -680,6 +680,7 @@ PostPublishState Publish() {
                 gamepads::Same(pad.identity, runtime->matchBinding.matchInput.identity) && pad.slot != runtime->matchBinding.matchInput.index;
         }) ? "runtime.match_input_moved" : "runtime.match_input_blocked", DeviceName(runtime->matchBinding.matchInput)):std::string();
 	snapshot.offlineRequested = runtime->offlineRequested;
+	snapshot.hostPublicRoom = runtime->hostPublicRoom;
 	snapshot.pendingJoinLink = runtime->pendingJoinLink;
 	snapshot.pendingJoinSequence = runtime->pendingJoinSequence;
 	constexpr std::chrono::seconds JoinLinkDirectWindow{120};
