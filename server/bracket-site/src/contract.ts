@@ -27,6 +27,16 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
   return [
     [
       "GET",
+      /^\/ember\/tournaments$/,
+      (request) => {
+        // The tournaments a connector in desk mode runs: the live ones. Only its own token reads them.
+        authorize(request, undefined);
+        const live = store.all().filter((tournament) => tournament.state === "live");
+        return [200, { tournaments: live.map(({ id, games_to_win }) => ({ id, games_to_win })) }];
+      },
+    ],
+    [
+      "GET",
       /^\/tournaments\/([^/]+)\/ember\/sets$/,
       (request, [id], url) => {
         const tournament = played(request, id!);

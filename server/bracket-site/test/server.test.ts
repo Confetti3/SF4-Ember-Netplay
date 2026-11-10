@@ -162,6 +162,9 @@ test("players sign up from the bot or the site, linked or not yet, check in, and
 
 test("the connector plays the live bracket and reports; the site finishes it", async () => {
   assert.equal((await connector("GET", "/sets?state=open", undefined, undefined, OPERATOR)).status, 200, "the operator may");
+  const lists = (token: string) => call("GET", "/ember/tournaments", { token });
+  assert.deepEqual((await lists(CONNECTOR)).body.tournaments.find((each: { id: string }) => each.id === "weekly"), { id: "weekly", games_to_win: 2 });
+  assert.equal((await lists("organizer-1")).status, 401, "only the connector lists them");
   assert.equal((await connector("GET", "/sets?state=open", undefined, undefined, "player-2")).status, 401);
   // A desk event's connector comes with the organizer's token.
   const open = (await connector("GET", "/sets?state=open", undefined, undefined, "organizer-1")).body.sets;

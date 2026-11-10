@@ -225,3 +225,70 @@ async fn the_bracket_site_is_played_to_its_final() {
     assert_eq!(finished["state"], "finished");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[tokio::test]
+#[ignore = "needs Node with TypeScript support"]
+async fn the_desk_runs_the_bracket_sites_live_tournaments() {
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let world = World::start(Setup {
+        challonge: false,
+        desk_site: Some((format!("http://127.0.0.1:{port}"), CONNECTOR_TOKEN)),
+        ..Setup::default()
+    })
+    .await;
+    let mut players = Vec::new();
+    for (byte, discord) in (1..).zip(DISCORD) {
+        players.push(world.bridge.connect_discord(byte, discord).await);
+    }
+    let dir = support::temp("bracket-site-desk");
+    let site = Site::start(&dir, port, &world.bridge.origin, &world.provider).await;
+    let (status, _) = site
+        .operator(
+            Method::POST,
+            "/tournaments",
+            json!({ "id": "weekly", "title": "Weekly", "games_to_win": 2 }),
+        )
+        .await;
+    assert_eq!(status, 201);
+    // Not live yet: nothing to run.
+    world.connector.pass(true).await;
+    assert!(world.bridge.matches().await.is_empty());
+    for action in ["plan", "open_sign_ups"] {
+        site.operator(
+            Method::PUT,
+            "/tournaments/weekly/state",
+            json!({ "action": action }),
+        )
+        .await;
+    }
+    for (n, discord) in DISCORD.iter().enumerate() {
+        site.operator(
+            Method::POST,
+            "/tournaments/weekly/entrants",
+            json!({ "discord": discord, "name": format!("Player {}", n + 1) }),
+        )
+        .await;
+    }
+    let (status, started) = site
+        .operator(
+            Method::PUT,
+            "/tournaments/weekly/state",
+            json!({ "action": "start" }),
+        )
+        .await;
+    assert_eq!(status, 200, "{started}");
+
+    // Live: the connector finds it and plays the semifinal, first to 2, as
+    // the site set it; the site learns its Ember match on the way.
+    assert_eq!(play(&world, &[1, 0, 1]).await, "http:weekly:r1-2:1");
+    let semifinal = site.set("r1-2").await;
+    assert_eq!(semifinal["winner"], players[2].as_str());
+    assert_eq!(semifinal["scores"], json!([1, 2]));
+    let (_, match_id, _) = world.bridge.matches().await.pop().unwrap();
+    assert_eq!(semifinal["ember_match"], match_id.as_str());
+    let _ = std::fs::remove_dir_all(dir);
+}

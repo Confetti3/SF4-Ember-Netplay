@@ -16,8 +16,8 @@ use axum::{
     http::{Method, StatusCode},
 };
 use ember_brackets::{
-    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Hold, Results,
-    RoundRule, Rounds, Side, Tournament,
+    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Desk, DeskSite, Hold,
+    Results, RoundRule, Rounds, Side, Tournament,
 };
 use ember_protocol::webhook::Secret;
 use serde_json::{Value, json};
@@ -180,6 +180,9 @@ pub struct Setup {
     /// schema describes (players in `relationships`) instead of the live
     /// API's (players in `points_by_participant`), which is the default.
     pub documented_shape: bool,
+    /// A bracket site whose live tournaments the desk runs, with its
+    /// connector token.
+    pub desk_site: Option<(String, &'static str)>,
 }
 
 impl Default for Setup {
@@ -211,6 +214,7 @@ impl Default for Setup {
                 FakeMatch::fed_by("1003", 2, ["1001", "1002"]),
             ],
             documented_shape: false,
+            desk_site: None,
         }
     }
 }
@@ -253,6 +257,18 @@ impl World {
                 active_until: setup.active_until.clone(),
                 mark_underway: true,
                 api_base: Some(extra.api_base),
+            });
+        }
+        if let Some((base, token)) = setup.desk_site {
+            let credential_file = dir.join("desk-site.token");
+            std::fs::write(&credential_file, token).unwrap();
+            config.desk = Some(Desk {
+                services: [("ember".to_owned(), base)].into(),
+                site: Some(DeskSite {
+                    service: "ember".into(),
+                    credential_file,
+                }),
+                ..Desk::default()
             });
         }
         // Both clocks stand still from here until a test moves them.

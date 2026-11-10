@@ -4,6 +4,8 @@
 //! The token is kept in memory only; a newer one, or changed settings,
 //! replaces the event's worker. An event the bridge no longer lists stops being
 //! read, its sets left as they are, as at the end of `active_until`.
+//! With `desk.site`, the events are the bracket site's live tournaments
+//! instead, run with its connector token, and their sets stay on the site.
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
@@ -42,6 +44,20 @@ pub(crate) struct Desk {
     /// Events that could not be run, each said once until they can.
     refused: Mutex<HashSet<String>>,
     failing: std::sync::atomic::AtomicBool,
+    /// The bracket site the events come from, and its connector token.
+    site: Option<(ember_protocol::client::BridgeClient, Zeroizing<String>)>,
+}
+
+/// A tournament the bracket site lists as live.
+#[derive(serde::Deserialize)]
+struct SiteTournament {
+    id: String,
+    games_to_win: u8,
+}
+
+#[derive(serde::Deserialize)]
+struct SiteTournaments {
+    tournaments: Vec<SiteTournament>,
 }
 
 struct Running {
@@ -68,8 +84,21 @@ impl Desk {
         config: config::Desk,
         allow_loopback_http: bool,
         configured: HashSet<String>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, String> {
+        let site = match &config.site {
+            Some(site) => {
+                let token = config::read_secret(&site.credential_file)?;
+                let base = &config.services[&site.service];
+                let client = ember_protocol::client::BridgeClient::new(
+                    crate::http::http_client()?,
+                    base,
+                    token.clone(),
+                );
+                Some((client, token))
+            }
+            None => None,
+        };
+        Ok(Self {
             sites,
             context,
             config,
@@ -78,7 +107,42 @@ impl Desk {
             running: Mutex::default(),
             refused: Mutex::default(),
             failing: Default::default(),
-        }
+            site,
+        })
+    }
+
+    /// The running events: the bridge's, or the bracket site's live
+    /// tournaments as events on its service.
+    async fn events(&self) -> Result<Vec<DeskEvent>, String> {
+        let (Some((client, token)), Some(site)) = (&self.site, &self.config.site) else {
+            return self
+                .context
+                .bridge
+                .desk()
+                .await
+                .map_err(|error| error.to_string());
+        };
+        let listed: SiteTournaments = client
+            .answer(client.get("/ember/tournaments"), 256 * 1024)
+            .await
+            .map_err(|_| "the bracket site did not answer".to_owned())?;
+        Ok(listed
+            .tournaments
+            .into_iter()
+            .map(|tournament| DeskEvent {
+                id: tournament.id.clone(),
+                site: site.service.clone(),
+                settings: json!({
+                    "rounds": { "games_to_win": tournament.games_to_win },
+                    "mark_underway": true,
+                })
+                .as_object()
+                .cloned()
+                .unwrap_or_default(),
+                tournament: tournament.id,
+                access_token: token.to_string(),
+            })
+            .collect())
     }
 
     fn running(&self) -> std::sync::MutexGuard<'_, HashMap<String, Running>> {
@@ -100,7 +164,7 @@ impl Desk {
     /// failed read changes nothing.
     pub async fn sync(&self, spawn: bool) {
         use std::sync::atomic::Ordering;
-        let events = match self.context.bridge.desk().await {
+        let events = match self.events().await {
             Ok(events) => {
                 if self.failing.swap(false, Ordering::Relaxed) {
                     log!("desk: reading its events works again");
@@ -143,8 +207,13 @@ impl Desk {
                 // The budget follows the event, not its token, which changes.
                 let name = format!("desk event {}", event.id);
                 let site = self.sites.site(&tournament, &token, &name, name.clone())?;
-                Bracket::new(&tournament, site, self.context.clone())
-                    .map(|bracket| bracket.for_desk(event.id.clone(), held(&event)))
+                let bracket = Bracket::new(&tournament, site, self.context.clone())?;
+                // The bracket site keeps its own sets: none go to the bridge.
+                Ok(if self.site.is_some() {
+                    bracket
+                } else {
+                    bracket.for_desk(event.id.clone(), held(&event))
+                })
             });
             let bracket = match made {
                 Ok(bracket) => Arc::new(bracket),

@@ -92,6 +92,20 @@ pub struct Desk {
     /// docs/design/BRACKET_SITE.md).
     #[serde(default)]
     pub services: std::collections::BTreeMap<String, String>,
+    /// Reads the events from this bracket site instead of the bridge: every
+    /// tournament it lists as live, run with its connector token.
+    #[serde(default)]
+    pub site: Option<DeskSite>,
+}
+
+/// A bracket site the desk reads its events from (`GET <base>/ember/tournaments`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeskSite {
+    /// The key in `services` that names its base URL.
+    pub service: String,
+    /// Its connector token.
+    pub credential_file: PathBuf,
 }
 
 /// Where the bridge sends each finished match (the connection's
@@ -399,6 +413,13 @@ impl Config {
         .chain(config.results.previous_secret_file.as_mut())
         .chain(
             config
+                .desk
+                .as_mut()
+                .and_then(|desk| desk.site.as_mut())
+                .map(|site| &mut site.credential_file),
+        )
+        .chain(
+            config
                 .tournaments
                 .iter_mut()
                 .map(|tournament| &mut tournament.credential.file),
@@ -459,6 +480,15 @@ impl Config {
             if !is_service_base(base, self.allow_loopback_http) {
                 return Err(format!("desk.services: {site} is an https base URL"));
             }
+        }
+        if let Some(desk) = &self.desk
+            && let Some(site) = &desk.site
+            && !desk.services.contains_key(&site.service)
+        {
+            return Err(format!(
+                "desk.site: {} is not in desk.services",
+                site.service
+            ));
         }
         let mut keys = std::collections::BTreeSet::new();
         for tournament in &self.tournaments {

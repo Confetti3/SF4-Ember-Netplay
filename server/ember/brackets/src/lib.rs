@@ -28,7 +28,9 @@ use ember_protocol::webhook::Secret;
 use tokio::{net::TcpListener, task::JoinHandle};
 use zeroize::Zeroizing;
 
-pub use config::{Adapter, Bridge, Config, Credential, CredentialKind, Desk, Results, Tournament};
+pub use config::{
+    Adapter, Bridge, Config, Credential, CredentialKind, Desk, DeskSite, Results, Tournament,
+};
 pub use ember_protocol::client::Clock;
 pub use rounds::{Hold, RoundRule, Rounds, Side, Stage, Tier, Top};
 
@@ -270,16 +272,19 @@ impl Connector {
                 Ok(Arc::new(Bracket::new(tournament, site, context.clone())?))
             })
             .collect::<Result<_, String>>()?;
-        let desk = config.desk.map(|desk| {
-            let configured = brackets.iter().map(|bracket| bracket.key.clone()).collect();
-            DeskEvents::new(
-                sites,
-                context.clone(),
-                desk,
-                config.allow_loopback_http,
-                configured,
-            )
-        });
+        let desk = config
+            .desk
+            .map(|desk| {
+                let configured = brackets.iter().map(|bracket| bracket.key.clone()).collect();
+                DeskEvents::new(
+                    sites,
+                    context.clone(),
+                    desk,
+                    config.allow_loopback_http,
+                    configured,
+                )
+            })
+            .transpose()?;
         Ok(Self(Arc::new(Inner {
             gate: Gate::new(secrets, config.bridge.connection_id),
             results_path: config.results.path,
