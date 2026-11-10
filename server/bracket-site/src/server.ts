@@ -9,6 +9,7 @@ import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
 import { seasonAwards } from "./awards.ts";
 import { emblem, isKind } from "./emblems.ts";
+import type { EmberSignIn } from "./ember.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
 import { push, stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
@@ -47,6 +48,8 @@ export interface Options {
   tokens?: (token: string) => Actor | undefined;
   /** Sign-in: the site's OAuth access tokens, browser sessions and their routes. */
   oauth?: OAuth;
+  /** Sign-in from Ember with a proof, and the site's own organizers. */
+  ember?: EmberSignIn;
   /** The site's public origin: a browser's session writes only from its own pages. */
   origin?: string;
   /** The bridge's public origin, which serves a public event's replays. */
@@ -62,7 +65,12 @@ export function bracketSite(options: Options): Server {
   const now = () => (options.now?.() ?? new Date()).toISOString();
   const found = (id: string) => store.get(id) ?? fail(404, `no tournament ${id}`);
 
+  /** Who is asking; an organizer also when the site made them one (`ember.ts`). */
   function actor(request: IncomingMessage): Actor | undefined {
+    const who = asking(request);
+    return who && !who.organizer && who.discord && options.ember?.isOrganizer(who.discord) ? { ...who, organizer: true } : who;
+  }
+  function asking(request: IncomingMessage): Actor | undefined {
     const token = /^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1];
     if (!token) {
       const session = options.oauth?.session(request);
@@ -73,7 +81,7 @@ export function bracketSite(options: Options): Server {
     const discord = typeof header === "string" && DISCORD_ID.test(header) ? header : null;
     if (same(token, options.operatorToken)) return { discord, operator: true, organizer: true };
     if (options.botToken && same(token, options.botToken)) return discord ? { discord, operator: false, organizer: false } : fail(400, "X-Discord-User is required");
-    return options.tokens?.(token) ?? options.oauth?.actor(token);
+    return options.tokens?.(token) ?? options.ember?.actor(token) ?? options.oauth?.actor(token);
   }
   const signedIn = (request: IncomingMessage) => actor(request) ?? fail(401, "wrong or missing token");
   const manages = (who: Actor | undefined, managed: { organizers: string[] }) =>
@@ -120,7 +128,11 @@ export function bracketSite(options: Options): Server {
     if (!tournament || !manages(actor(request), tournament)) fail(401, "wrong or missing token");
   });
 
+  const operator = (request: IncomingMessage) => {
+    if (!signedIn(request).operator) fail(403, "only the operator may");
+  };
   const routes: Route[] = [
+    ...(options.ember?.routes(signedIn, operator) ?? []),
     [
       "POST",
       /^\/tournaments$/,

@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 
 import { BridgeClient } from "../../../sdk/typescript/src/index.ts";
+import { EmberSignIn } from "./ember.ts";
 import { OAuth } from "./oauth.ts";
 import { bracketSite } from "./server.ts";
 import { Store } from "./store.ts";
@@ -45,13 +46,17 @@ const oauth =
         clients: [{ id: env("BRACKET_SITE_BRIDGE_CLIENT_ID"), secret: secret("BRACKET_SITE_BRIDGE_CLIENT_SECRET_FILE"), redirect_uri: env("BRACKET_SITE_BRIDGE_REDIRECT_URI") }],
       })
     : undefined;
+const bridge = new BridgeClient({ origin: env("EMBER_BRIDGE_ORIGIN"), credential: secret("EMBER_BRIDGE_CREDENTIAL_FILE") });
+// Sign-in from the game, once the site has its public origin and knows its bridge's ID.
+const ember = origin && process.env.EMBER_BRIDGE_ID ? new EmberSignIn({ db: store.db, origin, bridgeId: env("EMBER_BRIDGE_ID"), bridge }) : undefined;
 const server = bracketSite({
   store,
+  ...(ember ? { ember } : {}),
   ...(oauth ? { oauth, origin } : {}),
   bridgeOrigin: env("EMBER_BRIDGE_ORIGIN"),
   operatorToken: secret("BRACKET_SITE_OPERATOR_TOKEN_FILE"),
   connectorToken: secret("BRACKET_SITE_CONNECTOR_TOKEN_FILE"),
   ...(process.env.BRACKET_SITE_BOT_TOKEN_FILE ? { botToken: secret("BRACKET_SITE_BOT_TOKEN_FILE") } : {}),
-  bridge: new BridgeClient({ origin: env("EMBER_BRIDGE_ORIGIN"), credential: secret("EMBER_BRIDGE_CREDENTIAL_FILE") }),
+  bridge,
 });
 server.listen(Number(port), host, () => console.log(`ember-bracket-site listening on http://${host}:${port}`));

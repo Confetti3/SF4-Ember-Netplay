@@ -6,6 +6,7 @@ export {
   type BridgeClientOptions,
   type FoundAccount,
   type FoundPlayer,
+  type ProverAnswer,
   type GamesToWin,
   type Lobby,
   type LobbyPlayer,

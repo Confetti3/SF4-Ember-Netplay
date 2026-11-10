@@ -52,13 +52,31 @@ own connection, so the players it finds are the ones the connector looks up.
 Put the site behind an https proxy; the connector takes only https (or
 loopback http with `allow_loopback_http`).
 
+With `BRACKET_SITE_ORIGIN` and `EMBER_BRIDGE_ID` (the bridge's `brg_` ID), the
+game signs in too (`src/ember.ts`): the bridge's config names this site in
+`tournaments` (its origin, and the connection of the bridge credential), so
+the bridge tells the site who signed its challenges.
+
 ## API
 
 Every write takes a bearer token: the operator's (who may do anything, and
 acts as the user named in `X-Discord-User` when given), the Discord bot's
 (always with `X-Discord-User`, the player who pressed its button), or a
 signed-in user's. Only organizers create tournaments, and an organizer
-manages the tournaments that name them in `organizers`.
+manages the tournaments that name them in `organizers`. Organizers are the
+site's: the operator makes single-use invites, and a signed-in user who
+redeems one organizes from then on.
+
+The game signs in with `POST /v1/challenges` `{ "ember_id", "request_digest" }`,
+which answers a `tournament.act` challenge for `POST /v1/sessions`, then
+`POST /v1/sessions` `{ "command": {}, "proof" }`. The answer's
+`access_token` (an hour) is the player's Discord account on every route; a
+player who has not connected Discord in Ember gets 409.
+
+| Request | Who | |
+|---|---|---|
+| `POST /organizer-invites` | the operator | `{ "code" }`, used once |
+| `POST /organizer-invites/redeem` | signed in | `{ "code" }`: they organize from now on |
 
 | Request | Who | |
 |---|---|---|
