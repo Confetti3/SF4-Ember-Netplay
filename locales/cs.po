@@ -4060,7 +4060,7 @@ msgid "desk.none"
 msgstr "Zatím žádné události"
 
 msgid "desk.none_detail"
-msgstr "Vytvoř a spusť své události na webu turnajového stolu; objeví se tady, jakmile poběží."
+msgstr "Vyber Nový turnaj a vytvoř ho; od té doby se ukazuje tady."
 
 msgid "desk.view"
 msgstr "Zobrazení"
@@ -8635,3 +8635,240 @@ msgstr "Dopadly všechny zásahy."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Nedopadly všechny zásahy."
+
+msgid "desk.draft.new"
+msgstr "Nový turnaj"
+
+msgid "desk.draft.new_detail"
+msgstr "Název, datum, služba pavouka, sety, přihlášky. Ukládá se průběžně jako koncept."
+
+msgid "desk.draft.title"
+msgstr "Název"
+
+msgid "desk.draft.title_first"
+msgstr "Nejdřív zadej název"
+
+msgid "desk.draft.saved"
+msgstr "Koncept vznikne s názvem; zbytek nastavíš potom a ukládá se při každé změně."
+
+msgid "desk.draft.details"
+msgstr "Podrobnosti"
+
+msgid "desk.draft.date"
+msgstr "Datum"
+
+msgid "desk.draft.date_detail"
+msgstr "Vlevo / vpravo: den. Tvoje časové pásmo; každý ho vidí ve svém."
+
+msgid "desk.draft.time"
+msgstr "Začátek"
+
+msgid "desk.draft.time_detail"
+msgstr "Vlevo / vpravo: 15 minut."
+
+msgid "desk.draft.service"
+msgstr "Služba a pravidla"
+
+msgid "desk.draft.on_detail"
+msgstr "Akce na webu, kterou tento turnaj vede."
+
+msgid "desk.draft.site"
+msgstr "Služba pavouka"
+
+msgid "desk.draft.site_creates"
+msgstr "Vlevo / vpravo: web, kde jsi povolil přístup pořadatele. Ember vytvoří akci na {0}."
+
+msgid "desk.draft.site_pick"
+msgstr "Vlevo / vpravo: web, kde jsi povolil přístup pořadatele. Vytvoř akci na {0} a pak ji vyber níže."
+
+msgid "desk.draft.as_site"
+msgstr "Jak nastaví {0}"
+
+msgid "desk.draft.create"
+msgstr "Vytvořit na {0}"
+
+msgid "desk.draft.create_detail"
+msgstr "Vytvoří tam akci s tímto nastavením. Web, který odmítne, řekne proč."
+
+msgid "desk.draft.pick_detail"
+msgstr "Použít tuto akci z {0}."
+
+msgid "desk.draft.none_listed"
+msgstr "Žádné akce"
+
+msgid "desk.draft.none_listed_detail"
+msgstr "Nejdřív vytvoř akci na {0}; potom se ukáže tady."
+
+msgid "desk.draft.no_site"
+msgstr "Zatím žádná služba pavouka"
+
+msgid "desk.draft.no_site_detail"
+msgstr "Nejdřív povol přístup pořadatele na některém webu na obrazovce Pořadatel turnaje."
+
+msgid "desk.draft.first_to"
+msgstr "Každý set do"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Vlevo / vpravo. Pozdější fáze si drží délky nastavené na webovém pultu."
+
+msgid "desk.draft.people"
+msgstr "Discord a přihlášky"
+
+msgid "desk.draft.sign_ups"
+msgstr "Hráči se přihlašují přes Ember"
+
+msgid "desk.draft.sign_ups_detail"
+msgstr "Online > Turnaje > Přihlásit se. Vlevo / vpravo."
+
+msgid "desk.draft.public"
+msgstr "Veřejná stránka"
+
+msgid "desk.draft.public_detail"
+msgstr "Stránka, kterou může sledovat kdokoli, se sety, jak běží. Vlevo / vpravo."
+
+msgid "desk.draft.discord"
+msgstr "Kanál Discordu"
+
+msgid "desk.draft.discord_set"
+msgstr "Nastaveno"
+
+msgid "desk.draft.discord_unset"
+msgstr "Žádný"
+
+msgid "desk.draft.discord_detail"
+msgstr "Výzvy a skóre jdou do tohoto kanálu. Zatím se nastavuje na webovém pultu."
+
+msgid "desk.draft.results"
+msgstr "Zveřejnit skóre každého setu"
+
+msgid "desk.draft.results_detail"
+msgstr "V tom kanálu, jak sety končí. Vlevo / vpravo."
+
+msgid "desk.draft.ready_step"
+msgstr "Připraveno"
+
+msgid "desk.draft.ready"
+msgstr "Označit jako připravené"
+
+msgid "desk.draft.ready_detail"
+msgstr "Ember volá sety od {0}."
+
+msgid "desk.draft.ready_needs"
+msgstr "Nejdřív potřebuje akci na webu a čas začátku."
+
+msgid "desk.draft.open_event"
+msgstr "Otevřít akci"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Přihlášky, kroky na webu, spuštění pavouka a jeho sety."
+
+msgid "desk.event.state"
+msgstr "Stav"
+
+msgid "desk.event.starts"
+msgstr "Začíná {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Přihlášeno"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Hráči přihlášení přes Ember."
+
+msgid "desk.start"
+msgstr "Spustit pavouka"
+
+msgid "desk.start_detail"
+msgstr "Vytvoří se z přihlášených; Ember zavolá první sety."
+
+msgid "desk.start_not_yet"
+msgstr "Zatím ne: nejdřív otevři přihlášky na webu."
+
+msgid "desk.event.edit"
+msgstr "Upravit podrobnosti a pravidla"
+
+msgid "desk.event.edit_detail"
+msgstr "Název, začátek, sety, přihlášky a Discord."
+
+msgid "desk.stop"
+msgstr "Zastavit turnaj"
+
+msgid "desk.stop_detail"
+msgstr "Tady, a pokud chceš, i na webu."
+
+msgid "desk.stop.title"
+msgstr "Zastavit {0}?"
+
+msgid "desk.stop.what"
+msgstr "Co zastavení udělá"
+
+msgid "desk.stop.what_detail"
+msgstr "Otevřené sety se zruší a jejich hráči uvolní."
+
+msgid "desk.stop.site"
+msgstr "Zastavit a smazat na {0}"
+
+msgid "desk.stop.site_detail"
+msgstr "Ember ho vytvořil na {0}, takže ho tam i smaže."
+
+msgid "desk.stop.keep"
+msgstr "Zastavit, na webu ponechat"
+
+msgid "desk.stop.keep_detail"
+msgstr "Ember ho přestane vést; {0} akci ponechá, jak je."
+
+msgid "desk.stop.draft"
+msgstr "Smazat koncept"
+
+msgid "desk.stop.back"
+msgstr "Nechat běžet"
+
+msgid "desk.stop.done"
+msgstr "Zastaveno."
+
+msgid "desk.stop.home"
+msgstr "Zpět na tvé turnaje"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.format"
+msgstr "Formát"
+
+msgid "desk.field.grand_final"
+msgstr "Velké finále"
+
+msgid "desk.field.third_place"
+msgstr "Zápas o třetí místo"
+
+msgid "desk.field.open_signup"
+msgstr "Vlastní přihlašovací stránka webu"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"
+
+msgid "desk.value.single"
+msgstr "Jednoduchá eliminace"
+
+msgid "desk.value.double"
+msgstr "Dvojitá eliminace"
+
+msgid "desk.value.round_robin"
+msgstr "Každý s každým"
+
+msgid "desk.value.swiss"
+msgstr "Švýcarský systém"
+
+msgid "desk.value.reset"
+msgstr "Normální, s resetem"
+
+msgid "desk.value.one_match"
+msgstr "Jeden zápas"
+
+msgid "desk.value.no_final"
+msgstr "Bez velkého finále"
+
+msgid "desk.value.yes"
+msgstr "Ano"
+
+msgid "desk.value.no"
+msgstr "Ne"

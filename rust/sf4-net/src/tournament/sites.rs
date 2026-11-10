@@ -36,6 +36,10 @@ pub struct Listed {
     /// Whether it offers an organizer sign-in; older bridges leave it out.
     #[serde(default)]
     pub organizer: bool,
+    /// The choices its create form offers, by field; passed on to the game
+    /// as written. Older bridges leave it out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub create: Option<ember_protocol::sites::CreateChoices>,
 }
 
 /// The sites in a capabilities document's `sign_in_sites`, as written,
@@ -276,6 +280,13 @@ mod tests {
         let ids: Vec<&str> = kept.iter().map(|site| site.id.as_str()).collect();
         assert_eq!(ids, ["challonge", "emailed"]);
         assert_eq!(kept[0].display_name, "Brackets");
+        let mut creates = site("creates");
+        creates["create"] = serde_json::json!({ "format": ["single", "double"] });
+        let kept = listed(Some(serde_json::json!([creates])));
+        assert_eq!(
+            serde_json::to_value(&kept[0]).unwrap()["create"]["format"],
+            serde_json::json!(["single", "double"])
+        );
 
         for sites in [
             None,

@@ -4060,7 +4060,7 @@ msgid "desk.none"
 msgstr "Noch keine Events"
 
 msgid "desk.none_detail"
-msgstr "Erstelle und starte deine Events auf der Turniertisch-Website; sie erscheinen hier, sobald sie laufen."
+msgstr "Wähle Neues Turnier, um eins anzulegen; es erscheint dann hier."
 
 msgid "desk.view"
 msgstr "Ansicht"
@@ -8635,3 +8635,240 @@ msgstr "Jeder Treffer landete."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Nicht jeder Treffer landete."
+
+msgid "desk.draft.new"
+msgstr "Neues Turnier"
+
+msgid "desk.draft.new_detail"
+msgstr "Titel, Datum, Bracket-Dienst, Sets, Anmeldungen. Wird laufend als Entwurf gespeichert."
+
+msgid "desk.draft.title"
+msgstr "Titel"
+
+msgid "desk.draft.title_first"
+msgstr "Gib ihm zuerst einen Titel"
+
+msgid "desk.draft.saved"
+msgstr "Der Entwurf entsteht mit dem Titel; den Rest stellst du danach ein, jede Änderung wird gespeichert."
+
+msgid "desk.draft.details"
+msgstr "Details"
+
+msgid "desk.draft.date"
+msgstr "Datum"
+
+msgid "desk.draft.date_detail"
+msgstr "Links / Rechts: ein Tag. Deine Zeitzone; jeder sieht es in seiner."
+
+msgid "desk.draft.time"
+msgstr "Beginn"
+
+msgid "desk.draft.time_detail"
+msgstr "Links / Rechts: 15 Minuten."
+
+msgid "desk.draft.service"
+msgstr "Dienst und Regeln"
+
+msgid "desk.draft.on_detail"
+msgstr "Das Event auf der Seite, das dieses Turnier leitet."
+
+msgid "desk.draft.site"
+msgstr "Bracket-Dienst"
+
+msgid "desk.draft.site_creates"
+msgstr "Links / Rechts: eine Seite mit erlaubtem Veranstalterzugang. Ember legt das Event auf {0} an."
+
+msgid "desk.draft.site_pick"
+msgstr "Links / Rechts: eine Seite mit erlaubtem Veranstalterzugang. Leg das Event auf {0} an und wähle es unten."
+
+msgid "desk.draft.as_site"
+msgstr "Wie {0} es setzt"
+
+msgid "desk.draft.create"
+msgstr "Auf {0} anlegen"
+
+msgid "desk.draft.create_detail"
+msgstr "Legt das Event dort mit diesen Einstellungen an. Lehnt die Seite ab, sagt sie warum."
+
+msgid "desk.draft.pick_detail"
+msgstr "Dieses {0}-Event verwenden."
+
+msgid "desk.draft.none_listed"
+msgstr "Keine Events gefunden"
+
+msgid "desk.draft.none_listed_detail"
+msgstr "Leg das Event zuerst auf {0} an; danach erscheint es hier."
+
+msgid "desk.draft.no_site"
+msgstr "Noch kein Bracket-Dienst"
+
+msgid "desk.draft.no_site_detail"
+msgstr "Erlaube zuerst auf dem Bildschirm Turnierveranstalter den Veranstalterzugang auf einer Seite."
+
+msgid "desk.draft.first_to"
+msgstr "Jedes Set bis"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Links / Rechts. Spätere Phasen behalten die Längen vom Web-Desk."
+
+msgid "desk.draft.people"
+msgstr "Discord und Anmeldungen"
+
+msgid "desk.draft.sign_ups"
+msgstr "Spieler melden sich über Ember an"
+
+msgid "desk.draft.sign_ups_detail"
+msgstr "Online > Turniere > Anmelden. Links / Rechts."
+
+msgid "desk.draft.public"
+msgstr "Öffentliche Seite"
+
+msgid "desk.draft.public_detail"
+msgstr "Eine Seite, der jeder folgen kann, mit den Sets im Verlauf. Links / Rechts."
+
+msgid "desk.draft.discord"
+msgstr "Discord-Kanal"
+
+msgid "desk.draft.discord_set"
+msgstr "Gesetzt"
+
+msgid "desk.draft.discord_unset"
+msgstr "Keiner"
+
+msgid "desk.draft.discord_detail"
+msgstr "Aufrufe und Ergebnisse gehen in diesen Kanal. Er wird vorerst am Web-Desk gesetzt."
+
+msgid "desk.draft.results"
+msgstr "Ergebnis jedes Sets posten"
+
+msgid "desk.draft.results_detail"
+msgstr "In diesem Kanal, wenn Sets enden. Links / Rechts."
+
+msgid "desk.draft.ready_step"
+msgstr "Bereit"
+
+msgid "desk.draft.ready"
+msgstr "Als bereit markieren"
+
+msgid "desk.draft.ready_detail"
+msgstr "Ember ruft ab {0} die Sets auf."
+
+msgid "desk.draft.ready_needs"
+msgstr "Braucht zuerst das Event auf der Seite und eine Startzeit."
+
+msgid "desk.draft.open_event"
+msgstr "Event öffnen"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Anmeldungen, Schritte der Seite, Bracket starten und seine Sets."
+
+msgid "desk.event.state"
+msgstr "Status"
+
+msgid "desk.event.starts"
+msgstr "Beginnt {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Angemeldet"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Spieler, die sich über Ember angemeldet haben."
+
+msgid "desk.start"
+msgstr "Bracket starten"
+
+msgid "desk.start_detail"
+msgstr "Aus den Angemeldeten erstellt; Ember ruft die ersten Sets auf."
+
+msgid "desk.start_not_yet"
+msgstr "Noch nicht: öffne zuerst die Anmeldungen auf der Seite."
+
+msgid "desk.event.edit"
+msgstr "Details und Regeln bearbeiten"
+
+msgid "desk.event.edit_detail"
+msgstr "Titel, Beginn, Sets, Anmeldungen und Discord."
+
+msgid "desk.stop"
+msgstr "Turnier beenden"
+
+msgid "desk.stop_detail"
+msgstr "Hier, und auf Wunsch auch auf der Seite."
+
+msgid "desk.stop.title"
+msgstr "{0} beenden?"
+
+msgid "desk.stop.what"
+msgstr "Was das Beenden bewirkt"
+
+msgid "desk.stop.what_detail"
+msgstr "Offene Sets werden abgebrochen, ihre Spieler freigegeben."
+
+msgid "desk.stop.site"
+msgstr "Beenden und auf {0} löschen"
+
+msgid "desk.stop.site_detail"
+msgstr "Ember hat es auf {0} angelegt und löscht es dort auch."
+
+msgid "desk.stop.keep"
+msgstr "Beenden, auf der Seite behalten"
+
+msgid "desk.stop.keep_detail"
+msgstr "Ember leitet es nicht mehr; {0} behält das Event, wie es ist."
+
+msgid "desk.stop.draft"
+msgstr "Diesen Entwurf löschen"
+
+msgid "desk.stop.back"
+msgstr "Weiterlaufen lassen"
+
+msgid "desk.stop.done"
+msgstr "Beendet."
+
+msgid "desk.stop.home"
+msgstr "Zurück zu deinen Turnieren"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.format"
+msgstr "Format"
+
+msgid "desk.field.grand_final"
+msgstr "Grand Final"
+
+msgid "desk.field.third_place"
+msgstr "Spiel um Platz drei"
+
+msgid "desk.field.open_signup"
+msgstr "Eigene Anmeldeseite der Seite"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"
+
+msgid "desk.value.single"
+msgstr "Single Elimination"
+
+msgid "desk.value.double"
+msgstr "Double Elimination"
+
+msgid "desk.value.round_robin"
+msgstr "Jeder gegen jeden"
+
+msgid "desk.value.swiss"
+msgstr "Schweizer System"
+
+msgid "desk.value.reset"
+msgstr "Normal, mit Reset"
+
+msgid "desk.value.one_match"
+msgstr "Ein Match"
+
+msgid "desk.value.no_final"
+msgstr "Kein Grand Final"
+
+msgid "desk.value.yes"
+msgstr "Ja"
+
+msgid "desk.value.no"
+msgstr "Nein"

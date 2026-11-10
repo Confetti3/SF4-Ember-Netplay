@@ -22,6 +22,9 @@
 //     "local": { "package": "C:\\...\\stage-tournament-selftest", "work": "D:\\ember-build\\e2e-games" },
 //     "remote": { "ssh": "user@host", "package": "C:\\ember-ci\\tournament-selftest\\stage",
 //                 "work": "C:\\ember-ci\\tournament-selftest", "task": "EmberSelfTest" } }
+//
+// "site": "ember-bracket-site" with "site_name": "Ember brackets" runs it on
+// Ember's own bracket site instead of Challonge.
 import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -33,10 +36,17 @@ const configFile = args.includes("--config") ? args[args.indexOf("--config") + 1
 const config = JSON.parse(readFileSync(configFile, "utf8"));
 const bridge = config.bridge.replace(/\/$/, "");
 const out = config.out;
+// The bracket service the desk creates the tournament on: Challonge unless the
+// config names another sign-in site (ember-bracket-site, Ember's own).
+const site = config.site || "challonge";
+const siteName = config.site_name || "Challonge";
 mkdirSync(out, { recursive: true });
 const repo = new URL("..", import.meta.url).pathname;
 const linux = (windows) => execFileSync("wslpath", ["-u", windows], { encoding: "utf8" }).trim();
 const ssh = (command) => execFileSync("ssh", ["-o", "BatchMode=yes", config.remote.ssh, command], { encoding: "utf8" }).replace(/\r/g, "");
+// PowerShell on the other PC, sent encoded: its ssh shell may be PowerShell
+// itself, which would expand the script's $variables before passing it on.
+const ps = (script) => ssh("powershell -NoProfile -EncodedCommand " + Buffer.from(script, "utf16le").toString("base64"));
 const scp = (from, to) => execFileSync("scp", ["-q", "-o", "BatchMode=yes", from, config.remote.ssh + ":" + to.replace(/\\/g, "/")]);
 const log = (...text) => console.log(new Date().toTimeString().slice(0, 8), ...text);
 
@@ -61,7 +71,10 @@ const closed = [];
 // it goes straight to deleting its tournament.
 async function play(name, run) {
   await step(name, run);
-  if (closed.length) throw new Error(closed.join("; "));
+  if (!closed.length) return;
+  // A game that closed while the step still passed is a failure of its own.
+  if (results.at(-1)[0] !== "FAIL") await step("both games still running", () => { throw new Error(closed.join("; ")); });
+  throw new Error(closed.join("; "));
 }
 async function wait(side, name, minutes, what) {
   const end = Date.now() + minutes * 60000;
@@ -85,7 +98,7 @@ const emberDir = (side) => {
 };
 const selftest = (side, test) => ["-PackageDir", side === local ? config.local.package : config.remote.package,
   "-Test", test, "-Exchange", (side === local ? config.local.work : config.remote.work) + "\\exchange", "-Bridge", bridge,
-  "-Connection", config.connection, "-Site", "challonge", "-KeptEmberDir", emberDir(side),
+  "-Connection", config.connection, "-Site", site, "-KeptEmberDir", emberDir(side),
   "-TimeoutMinutes", "45"];
 
 function startLocal() {
@@ -104,18 +117,20 @@ function startLocal() {
 
 function startRemote() {
   const w = config.remote.work;
-  // The other PC's package is copied when this PC's differs from the copy there.
-  const stamp = execFileSync("stat", ["-c", "%s-%Y", join(linux(config.local.package), "sf4-net.exe")], { encoding: "utf8" }).trim();
+  // The other PC's package is copied when this PC's differs from the copy
+  // there: any of its files, as a rebuilt game alone changes the build ID.
+  const stamp = execFileSync("sh", ["-c", "stat -c '%n %s %Y' * | md5sum | cut -c1-32"],
+    { cwd: linux(config.local.package), encoding: "utf8" }).trim();
   if (ssh(`type "${w}\\stage.stamp" 2>nul || echo none`).trim() !== stamp) {
     log("copying the self-test package to the other PC");
     const tar = join(out, ".stage.tar");
     execFileSync("tar", ["-cf", tar, "-C", linux(config.local.package), "."]);
-    ssh(`powershell -NoProfile -Command "Remove-Item -Recurse -Force '${config.remote.package}' -EA 0; New-Item -ItemType Directory -Force '${config.remote.package}' | Out-Null"`);
+    ps(`Remove-Item -Recurse -Force '${config.remote.package}' -EA 0; New-Item -ItemType Directory -Force '${config.remote.package}' | Out-Null`);
     scp(tar, w + "\\stage.tar");
     rmSync(tar);
-    ssh(`powershell -NoProfile -Command "tar -xf '${w}\\stage.tar' -C '${config.remote.package}'; Remove-Item '${w}\\stage.tar'; Set-Content '${w}\\stage.stamp' '${stamp}'"`);
+    ps(`tar -xf '${w}\\stage.tar' -C '${config.remote.package}'; Remove-Item '${w}\\stage.tar'; Set-Content '${w}\\stage.stamp' '${stamp}'`);
   }
-  ssh(`powershell -NoProfile -Command "Remove-Item -Recurse -Force '${remote.dir}','${w}\\out.txt' -EA 0; New-Item -ItemType Directory -Force '${remote.dir}' | Out-Null"`);
+  ps(`Remove-Item -Recurse -Force '${remote.dir}','${w}\\out.txt' -EA 0; New-Item -ItemType Directory -Force '${remote.dir}' | Out-Null`);
   scp(join(repo, "scripts/run-selftest.ps1"), w + "\\run-selftest.ps1");
   const job = join(out, ".run.cmd");
   const quoted = selftest(remote, "tournament-guest").map((arg) => (/[\s]/.test(arg) ? `"${arg}"` : arg)).join(" ");
@@ -125,7 +140,7 @@ function startRemote() {
   rmSync(job);
   // A process started over ssh has no desktop: the game starts through a task
   // that runs in the signed-in user's session.
-  ssh(`powershell -NoProfile -Command "$a=New-ScheduledTaskAction -Execute '${w}\\run.cmd'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask ${config.remote.task} -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask ${config.remote.task}"`);
+  ps(`$a=New-ScheduledTaskAction -Execute '${w}\\run.cmd'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask ${config.remote.task} -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask ${config.remote.task}`);
   return (async () => {
     for (;;) {
       await sleep(10000);
@@ -162,7 +177,7 @@ async function shotRemote(name) {
   writeFileSync(script, shotScript);
   scp(script, w + "\\shot.ps1");
   rmSync(script);
-  ssh(`powershell -NoProfile -Command "Remove-Item '${w}\\shot.png' -EA 0; $a=New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ${w}\\shot.ps1 -Path ${w}\\shot.png'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask EmberShot -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask EmberShot"`);
+  ps(`Remove-Item '${w}\\shot.png' -EA 0; $a=New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ${w}\\shot.ps1 -Path ${w}\\shot.png'; $p=New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; Register-ScheduledTask EmberShot -Action $a -Principal $p -Force | Out-Null; Start-ScheduledTask EmberShot`);
   for (let i = 0; i < 20; i++) {
     await sleep(1000);
     try { execFileSync("scp", ["-q", "-o", "BatchMode=yes", config.remote.ssh + ":" + (w + "\\shot.png").replace(/\\/g, "/"), join(out, name + ".png")]); return; } catch {}
@@ -193,15 +208,15 @@ const stopScript = (pkg) => "Get-CimInstance Win32_Process | Where-Object { $_.E
   `($_.Name -eq 'SSFIV.exe' -and (Get-Process -Id $_.ParentProcessId -EA 0).Path -like '${pkg}\\*') } | Sort-Object Name -Descending | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
 function stopGames() {
   if (!ended[0]) { try { execFileSync("powershell.exe", ["-NoProfile", "-Command", stopScript(config.local.package)], { stdio: "ignore" }); } catch {} }
-  if (!ended[1]) { try { ssh(`powershell -NoProfile -Command "${stopScript(config.remote.package)}"`); } catch {} }
+  if (!ended[1]) { try { ps(`${stopScript(config.remote.package)}`); } catch {} }
 }
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { stopGames(); process.exit(130); });
 const page = await chrome(out);
 let event = null;
 
 try {
-  await play("both games connected their Challonge accounts", async () => {
-    log("first run: approve Challonge in the browser on each PC (5 minutes each)");
+  await play("both games connected their " + siteName + " accounts", async () => {
+    log("first run: approve " + siteName + " in the browser on each PC (5 minutes each)");
     await Promise.all([wait(local, "site-account", 12, "this PC's account"), wait(remote, "site-account", 12, "the other PC's account")]);
     await shots("01-connected");
   });
@@ -234,7 +249,7 @@ try {
     await layout(page, "05-desk-home", true);
   });
 
-  await play("the desk creates a single elimination Challonge tournament, first to 1, with sign-ups", async () => {
+  await play("the desk creates a first to 1 " + siteName + " tournament with sign-ups", async () => {
     await page.eval("document.getElementById('new-tournament').click()");
     await page.until("!document.getElementById('wizard').hidden");
     await page.eval(`document.getElementById('title').value = 'ember-2p ' + new Date().toISOString().slice(0, 16);
@@ -245,12 +260,15 @@ try {
     await page.eval("document.getElementById('next').click()");
     await page.until("/Service/.test(document.getElementById('step-now').textContent)", 15000);
     event = await page.eval("desk.event.id");
-    await page.eval(`document.querySelector('[data-field=format]').value = JSON.stringify('single elimination');
-      document.getElementById('games').value = '1'`);
+    await page.eval(`document.querySelector('input[name=service][value=${JSON.stringify(site)}]').click()`);
+    // Single elimination where the service asks; Ember's own brackets have no format field.
+    await page.eval(`(() => { const format = document.querySelector('[data-field=format]');
+      if (format) format.value = JSON.stringify('single elimination');
+      document.getElementById('games').value = '1'; })()`);
     await layout(page, "07-service", true);
     await page.eval("document.getElementById('next').click()");
     await page.until("/Discord/.test(document.getElementById('step-now').textContent)", 20000);
-    must(await page.eval("Boolean(desk.event.tournament)"), "no Challonge tournament");
+    must(await page.eval("Boolean(desk.event.tournament)"), "no " + siteName + " tournament");
     // With a webhook in ~/tournament-lab/e2e/discord-webhook, calls and scores
     // go to that Discord channel; it is never printed.
     await page.eval(`document.querySelectorAll('#live-settings input[type=checkbox]').forEach((box) => { box.checked = ${JSON.stringify(Boolean(webhook))} || !/score/.test(box.parentElement.textContent); })`);
@@ -271,15 +289,21 @@ try {
     await layout(page, "09-ready", true);
   });
 
-  await play("the desk readies it and starts the bracket on Challonge", async () => {
+  await play("the desk readies it and starts the bracket on " + siteName, async () => {
     await page.eval("document.getElementById('next').click()");
     await page.until("desk.event.status !== 'draft'", 15000);
     await page.eval("go(5)");
     await page.until("!document.getElementById('start-bracket').hidden", 30000);
+    // A site with its own states (the bracket site) starts only from sign-ups:
+    // the moves the desk offers under the event, as the organizer presses them.
+    for (const name of ["plan", "open_sign_ups"])
+      await page.eval(`api("GET", "/v1/organizer/tournaments?site=" + encodeURIComponent(desk.event.site))
+        .then((listed) => listed.tournaments.find((each) => each.id === desk.event.tournament))
+        .then((found) => found && (found.actions || []).includes("${name}") && api("POST", "/v1/organizer/events/" + desk.event.id + "/transitions/${name}"))`);
     await layout(page, "10-start");
     await page.eval("document.getElementById('start-bracket').click()");
     await page.until("document.getElementById('start-bracket').hidden || /Bracket started/.test(document.body.textContent)", 20000);
-    // The bracket connector reads Challonge every two minutes at most.
+    // The bracket connector reads the service every two minutes at most.
     log("waiting for the connector to read the bracket");
     for (const end = Date.now() + 12 * 60000; !(await page.eval("readSets().then(() => view.sets.length > 0)")); await sleep(10000))
       if (Date.now() > end) throw new Error("the connector never read the bracket");
@@ -292,6 +316,7 @@ try {
       await page.eval("readSets()");
       if (await page.eval("view.sets.some((set) => set.desk_state === 'done')")) break;
       if (Date.now() > end) throw new Error("the set never finished");
+      if (closed.length) throw new Error(closed.join("; "));
       if (shot < 4 && (await page.eval("view.sets.some((set) => set.desk_state === 'playing')"))) await shots("12-playing-" + ++shot);
       await sleep(15000);
     }
@@ -321,7 +346,7 @@ try {
   });
 
   if (!args.includes("--keep")) {
-    await play("stopped and deleted on Challonge", async () => {
+    await play("stopped and deleted on " + siteName, async () => {
       await page.go(bridge + "/desk");
       await page.until("!document.getElementById('home').hidden", 15000);
       await page.eval(`home().then(() => open(desk.events.find((e) => e.id === ${JSON.stringify(event)})))`);
@@ -330,17 +355,17 @@ try {
       await page.eval("go(5); document.getElementById('stop').click()");
       await page.until("document.getElementById('decide').open");
       await layout(page, "15-stop");
-      await page.eval("[...document.querySelectorAll('#decide button')].find((b) => /delete it on Challonge/.test(b.textContent)).click()");
+      await page.eval("[...document.querySelectorAll('#decide button')].find((b) => /delete it on/.test(b.textContent)).click()");
       await page.until("!document.getElementById('decide').open && !desk.event", 20000);
-      const listed = await page.eval("api('GET', '/v1/organizer/tournaments?site=challonge').then((r) => JSON.stringify(r.tournaments))");
-      must(!listed.includes(JSON.stringify(tournament)), "still on Challonge");
+      const listed = await page.eval("api('GET', '/v1/organizer/tournaments?site=" + site + "').then((r) => JSON.stringify(r.tournaments))");
+      must(!listed.includes(JSON.stringify(tournament)), "still on " + siteName);
       event = null;
     });
   }
 } finally {
   if (event && !args.includes("--keep")) {
     const status = await page.eval(`api('DELETE', '/v1/organizer/events/${event}', { on_site: true }).then(() => 'deleted', (e) => e.message)`).catch((e) => e.message);
-    log("this run's tournament, with Challonge's:", status);
+    log("this run's tournament, with " + siteName + "'s:", status);
   }
   page.close();
   if (!ended.every(Boolean)) {

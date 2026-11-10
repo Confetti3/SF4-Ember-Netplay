@@ -2,6 +2,7 @@
 #include "ReplaySlots.hxx"
 #include "ReplayFileSafety.hxx"
 #include "Sha256.hxx"
+#include "LocalTime.hxx"
 #include <algorithm>
 #include <cstdio>
 #include <ctime>
@@ -121,15 +122,5 @@ NamePublication PublishBodyNames(const std::filesystem::path& path, const replay
  if (status.type() != std::filesystem::file_type::not_found || (error && error != std::errc::no_such_file_or_directory)) return NamePublication::Refused;
  return NamePublication::Retryable;
 }
-inline std::string ReplayDateLabel(std::uint64_t time) {
- const std::time_t at = static_cast<std::time_t>(time);
- std::tm local = {};
-#ifdef _WIN32
- if (localtime_s(&local, &at)) return {};
-#else
- if (!localtime_r(&at, &local)) return {};
-#endif
- char label[32] = {};
- return std::strftime(label, sizeof label, "%Y-%m-%d %H:%M", &local) ? label : std::string();
-}
+inline std::string ReplayDateLabel(std::uint64_t time) { return LocalTime(time); }
 } }

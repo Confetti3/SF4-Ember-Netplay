@@ -212,6 +212,18 @@ pub enum Request {
         path: String,
         command: Value,
     },
+    /// Stops the organizer's event, and deletes it on its site with `on_site`.
+    DeskStop {
+        bridge_id: String,
+        event: String,
+        #[serde(default)]
+        on_site: bool,
+    },
+    /// The events the organizer has on `site`, for a draft to pick one.
+    DeskSiteEvents {
+        bridge_id: String,
+        site: String,
+    },
     MatchClaim {
         bridge_id: String,
         match_id: String,
@@ -386,12 +398,14 @@ requests! {
     AssignmentList => "assignment_list", Bridge;
     DeskRead => "desk_read", Bridge;
     DeskAct => "desk_act", Bridge;
+    DeskStop => "desk_stop", Bridge;
     DeskWeb => "desk_web", Bridge;
     DeskHandoff => "desk_handoff", Bridge;
     DeskApprove => "desk_approve", Bridge;
     DeskCodeInfo => "desk_code_info", Bridge;
     DeskRedeem => "desk_redeem", Bridge;
     DeskSiteState => "desk_site_state", Bridge;
+    DeskSiteEvents => "desk_site_events", Bridge;
     MatchClaim => "match_claim", Bridge;
     RoomPublish => "room_publish", Bridge;
     RoomList => "room_list", Bridge;
@@ -1132,6 +1146,14 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             path,
             command,
         } => desk::act(shared, &bridge_id, &path, command).await,
+        Request::DeskStop {
+            bridge_id,
+            event,
+            on_site,
+        } => desk::stop(shared, &bridge_id, &event, on_site).await,
+        Request::DeskSiteEvents { bridge_id, site } => {
+            desk::site_events(shared, &bridge_id, &site).await
+        }
         Request::DeskWeb {
             bridge_id,
             seen,
@@ -1257,7 +1279,7 @@ mod tests {
                 ),
             }
         }
-        assert_eq!(seen.len(), 48);
+        assert_eq!(seen.len(), 50);
         let local: Vec<_> = REQUESTS
             .iter()
             .filter(|(_, lane)| *lane == Lane::Local)

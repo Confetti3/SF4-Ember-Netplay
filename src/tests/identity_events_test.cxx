@@ -49,7 +49,8 @@ void Answers() {
         "profile":{"bridge_id":"brg_1","origin":"https://bridge.embernetplay.link","display_name":"Ember"},
         "capabilities":{"connections":[],"features":["discord.accounts","sites"],"sign_in_sites":[
             {"id":"challonge","display_name":"Challonge","sign_in":true,"lookup_by":"username",
-             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize","organizer":true},
+             "authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize","organizer":true,
+             "create":{"format":["single elimination","double elimination",{"x":1}],"open_signup":[true,false],"bad":3}},
             {"id":"startgg","display_name":"start.gg","sign_in":false,"lookup_by":"user_id",
              "authorize_origin":"https://start.gg","authorize_path":"/oauth/authorize"},
             {"display_name":"No ID"}, 7, {"id":"","display_name":"Empty"},
@@ -59,6 +60,11 @@ void Answers() {
         view.signInSites[0].signIn && view.signInSites[0].organizer && !view.signInSites[1].organizer &&
         view.signInSites[1].id == "startgg" && view.signInSites[1].name == "start.gg" && !view.signInSites[1].signIn,
         "The sign-in sites were not read");
+    // A site that creates events keeps its create form's values as JSON, to send back as they were.
+    const auto& creates = view.signInSites[0];
+    Check(creates.create && !view.signInSites[1].create && creates.create->size() == 2 && (*creates.create)[0].first == "format" &&
+        (*creates.create)[0].second == std::vector<std::string>{"\"single elimination\"", "\"double elimination\""} &&
+        (*creates.create)[1].second == std::vector<std::string>{"true", "false"}, "A site's create form was not read");
     // An entry without an ID is skipped; a site whose sign_in is not a yes offers none.
     Check(view.signInSites[2].id == "later" && !view.signInSites[2].signIn, "A site entry was not read");
     nlohmann::json many = nlohmann::json::array();
@@ -256,6 +262,32 @@ void Desk() {
     Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(approve)).value("number", 0) == 47, "The number picked was not sent");
     approve.command.clear();
     Check(sf4e::session::BuildTournamentRequest(approve).empty(), "An approval without a code was built");
+
+    // The organizer in the game: an event as the draft and event screens
+    // show it, a new draft's ID, a site's events to pick from, and a stop.
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":5,"op":"desk_read","ok":true,"data":{"events":[
+        {"id":"oev_2","title":"Thursday","status":"draft","site":"ember-bracket-site","tournament":"t_8","name":"Thursday #14",
+         "starts_at":1800000000,"signed_up":9,"sign_ups":true,"public":true,"post_results":"yes","created_on_site":true,
+         "starts_on_site":true,"discord_webhook":"https://discord.com/api/webhooks/1/…","settings":{"rounds":{"games_to_win":2}}}]}})"), view);
+    const auto& made = view.deskEvents[0];
+    Check(made.name == "Thursday #14" && made.startsAt == 1800000000 && made.signedUp == 9 && made.signUps && made.isPublic &&
+        !made.postResults && made.createdOnSite && made.startsOnSite && made.webhook &&
+        nlohmann::json::parse(made.settings)["rounds"]["games_to_win"] == 2, "An event's settings were not read as the draft screen shows them");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":6,"op":"desk_act","ok":true,"data":{"id":"oev_3"}})"), view);
+    Check(view.deskMade == "oev_3", "A new draft's ID was not read");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":7,"op":"desk_act","ok":true,"data":null})"), view);
+    Check(view.deskMade.empty(), "An action that made no draft kept the last one's ID");
+    sf4e::netplay::IdentityRequest listing; listing.op = IdentityOp::DeskSiteEvents; listing.bridge = "brg_1"; listing.site = "startgg";
+    Check(sf4e::netplay::EffectOf(IdentityOp::DeskSiteEvents) == sf4e::netplay::IdentityEffect::Read, "Listing a site's events is not a read");
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(listing)) ==
+        nlohmann::json({{"op", "desk_site_events"}, {"bridge_id", "brg_1"}, {"site", "startgg"}}), "A site's events were not asked for");
+    sf4e::session::ApplyTournamentEvent(nlohmann::json::parse(R"({"request_id":10,"op":"desk_site_events","ok":true,
+        "data":{"site":"startgg","tournaments":[{"id":"sgg_1","name":"Weekly 3"},5]}})"), sited);
+    Check(sited.deskSiteEvents.site == "startgg" && sited.deskSiteEvents.events.size() == 1 && sited.deskSiteEvents.events[0].second == "Weekly 3" &&
+        sited.deskSiteState.state == "planned", "A site's events were not read, or they replaced an event's state");
+    sf4e::netplay::IdentityRequest stop; stop.op = IdentityOp::DeskStop; stop.bridge = "brg_1"; stop.target = "oev_2"; stop.onSite = true;
+    Check(nlohmann::json::parse(sf4e::session::BuildTournamentRequest(stop)) ==
+        nlohmann::json({{"op", "desk_stop"}, {"bridge_id", "brg_1"}, {"event", "oev_2"}, {"on_site", true}}), "Stopping an event was not asked for");
 }
 
 int main() {

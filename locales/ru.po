@@ -4060,7 +4060,7 @@ msgid "desk.none"
 msgstr "Пока нет событий"
 
 msgid "desk.none_detail"
-msgstr "Создавайте и запускайте события на сайте стола турнира; они появятся здесь, когда начнутся."
+msgstr "Выбери «Новый турнир», чтобы создать его; затем он появится здесь."
 
 msgid "desk.view"
 msgstr "Вид"
@@ -8635,3 +8635,240 @@ msgstr "Попали все удары."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Попали не все удары."
+
+msgid "desk.draft.new"
+msgstr "Новый турнир"
+
+msgid "desk.draft.new_detail"
+msgstr "Название, дата, сервис сетки, сеты, запись. Сохраняется как черновик по ходу дела."
+
+msgid "desk.draft.title"
+msgstr "Название"
+
+msgid "desk.draft.title_first"
+msgstr "Сначала дай название"
+
+msgid "desk.draft.saved"
+msgstr "Черновик создаётся с названием; остальное настраивается потом и сохраняется при каждом изменении."
+
+msgid "desk.draft.details"
+msgstr "Подробности"
+
+msgid "desk.draft.date"
+msgstr "Дата"
+
+msgid "desk.draft.date_detail"
+msgstr "Влево / вправо: день. Твой часовой пояс; каждый видит в своём."
+
+msgid "desk.draft.time"
+msgstr "Начало"
+
+msgid "desk.draft.time_detail"
+msgstr "Влево / вправо: 15 минут."
+
+msgid "desk.draft.service"
+msgstr "Сервис и правила"
+
+msgid "desk.draft.on_detail"
+msgstr "Событие на сайте, которое ведёт этот турнир."
+
+msgid "desk.draft.site"
+msgstr "Сервис сетки"
+
+msgid "desk.draft.site_creates"
+msgstr "Влево / вправо: сайт с разрешённым доступом организатора. Ember создаёт событие на {0}."
+
+msgid "desk.draft.site_pick"
+msgstr "Влево / вправо: сайт с разрешённым доступом организатора. Создай событие на {0} и выбери его ниже."
+
+msgid "desk.draft.as_site"
+msgstr "Как задаёт {0}"
+
+msgid "desk.draft.create"
+msgstr "Создать на {0}"
+
+msgid "desk.draft.create_detail"
+msgstr "Создаёт там событие с этими настройками. Если сайт откажет, он скажет почему."
+
+msgid "desk.draft.pick_detail"
+msgstr "Использовать это событие {0}."
+
+msgid "desk.draft.none_listed"
+msgstr "Событий нет"
+
+msgid "desk.draft.none_listed_detail"
+msgstr "Сначала создай событие на {0}; потом оно появится здесь."
+
+msgid "desk.draft.no_site"
+msgstr "Сервиса сетки пока нет"
+
+msgid "desk.draft.no_site_detail"
+msgstr "Сначала разреши доступ организатора на сайте на экране «Организатор турнира»."
+
+msgid "desk.draft.first_to"
+msgstr "Каждый сет до"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Влево / вправо. Поздние этапы сохраняют длину, заданную на веб-столе."
+
+msgid "desk.draft.people"
+msgstr "Discord и запись"
+
+msgid "desk.draft.sign_ups"
+msgstr "Игроки записываются через Ember"
+
+msgid "desk.draft.sign_ups_detail"
+msgstr "Онлайн > Турниры > Записаться. Влево / вправо."
+
+msgid "desk.draft.public"
+msgstr "Публичная страница"
+
+msgid "desk.draft.public_detail"
+msgstr "Страница, которую может смотреть любой, с сетами по ходу. Влево / вправо."
+
+msgid "desk.draft.discord"
+msgstr "Канал Discord"
+
+msgid "desk.draft.discord_set"
+msgstr "Задан"
+
+msgid "desk.draft.discord_unset"
+msgstr "Нет"
+
+msgid "desk.draft.discord_detail"
+msgstr "Вызовы и счёт идут в этот канал. Пока он задаётся на веб-столе."
+
+msgid "desk.draft.results"
+msgstr "Публиковать счёт каждого сета"
+
+msgid "desk.draft.results_detail"
+msgstr "В этот канал, когда сеты заканчиваются. Влево / вправо."
+
+msgid "desk.draft.ready_step"
+msgstr "Готово"
+
+msgid "desk.draft.ready"
+msgstr "Отметить как готовое"
+
+msgid "desk.draft.ready_detail"
+msgstr "Ember вызывает сеты с {0}."
+
+msgid "desk.draft.ready_needs"
+msgstr "Сначала нужны событие на сайте и время начала."
+
+msgid "desk.draft.open_event"
+msgstr "Открыть событие"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Запись, шаги на сайте, запуск сетки и её сеты."
+
+msgid "desk.event.state"
+msgstr "Состояние"
+
+msgid "desk.event.starts"
+msgstr "Начало {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Записались"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Игроки, записавшиеся через Ember."
+
+msgid "desk.start"
+msgstr "Запустить сетку"
+
+msgid "desk.start_detail"
+msgstr "Строится из записавшихся; Ember вызывает первые сеты."
+
+msgid "desk.start_not_yet"
+msgstr "Пока нельзя: сначала открой запись на сайте."
+
+msgid "desk.event.edit"
+msgstr "Изменить детали и правила"
+
+msgid "desk.event.edit_detail"
+msgstr "Название, начало, сеты, запись и Discord."
+
+msgid "desk.stop"
+msgstr "Остановить турнир"
+
+msgid "desk.stop_detail"
+msgstr "Здесь, а при желании и на сайте."
+
+msgid "desk.stop.title"
+msgstr "Остановить {0}?"
+
+msgid "desk.stop.what"
+msgstr "Что даст остановка"
+
+msgid "desk.stop.what_detail"
+msgstr "Открытые сеты отменяются, игроки освобождаются."
+
+msgid "desk.stop.site"
+msgstr "Остановить и удалить на {0}"
+
+msgid "desk.stop.site_detail"
+msgstr "Ember создал его на {0}, поэтому удалит и там."
+
+msgid "desk.stop.keep"
+msgstr "Остановить, оставить на сайте"
+
+msgid "desk.stop.keep_detail"
+msgstr "Ember перестаёт его вести; {0} оставляет событие как есть."
+
+msgid "desk.stop.draft"
+msgstr "Удалить черновик"
+
+msgid "desk.stop.back"
+msgstr "Оставить как есть"
+
+msgid "desk.stop.done"
+msgstr "Остановлено."
+
+msgid "desk.stop.home"
+msgstr "Назад к твоим турнирам"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.format"
+msgstr "Формат"
+
+msgid "desk.field.grand_final"
+msgstr "Гранд-финал"
+
+msgid "desk.field.third_place"
+msgstr "Матч за третье место"
+
+msgid "desk.field.open_signup"
+msgstr "Своя страница записи на сайте"
+
+msgid "desk.field.check_in"
+msgstr "Отметка о готовности"
+
+msgid "desk.value.single"
+msgstr "Олимпийская система"
+
+msgid "desk.value.double"
+msgstr "Двойное выбывание"
+
+msgid "desk.value.round_robin"
+msgstr "Круговая система"
+
+msgid "desk.value.swiss"
+msgstr "Швейцарская система"
+
+msgid "desk.value.reset"
+msgstr "Обычный, со сбросом"
+
+msgid "desk.value.one_match"
+msgstr "Один матч"
+
+msgid "desk.value.no_final"
+msgstr "Без гранд-финала"
+
+msgid "desk.value.yes"
+msgstr "Да"
+
+msgid "desk.value.no"
+msgstr "Нет"
