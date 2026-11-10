@@ -19,7 +19,7 @@ Result RoomAuthority::ApplySetCapacity(MemberId member, const Action& action) {
 	snapshot_.capacity = action.capacity; TouchRoom(); return Accept();
 }
 
-// A private Classic room (TableCountChangeable) grows to any count up to
+// A private room (TableCountChangeable) grows to any count up to
 // TableCount. It shrinks only past tables nobody is at and whose last game is
 // wholly over: every recipient of its terminal receipt, an ending spectator as
 // much as a fighter, has acknowledged it. So no place, game or result is lost
@@ -35,7 +35,12 @@ Result RoomAuthority::ApplySetTableCount(MemberId member, const Action& action) 
 		if (std::any_of(receipt.recipients.begin(), receipt.recipients.end(), [](const TerminalRecipient& recipient) { return !recipient.acknowledged; }))
 			return Reject(RejectReason::TerminalLedgerFull);
 	}
-	if (snapshot_.tableCount != action.tableCount) { snapshot_.tableCount = action.tableCount; TouchRoom(); }
+	if (snapshot_.tableCount != action.tableCount) {
+		snapshot_.tableCount = action.tableCount;
+		// An Arcade room's new tables seat its line.
+		if (snapshot_.arcade) SeatLine(0, 0);
+		TouchRoom();
+	}
 	return Accept();
 }
 
@@ -190,7 +195,6 @@ Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table
 
 Result RoomAuthority::ApplyQueue(MemberId member, const Action& action, Table* table) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
-	if (snapshot_.arcade) return ApplyArcadeSit(member, action);
 	const bool asked = action.seat == 0 || action.seat == 1;
 	for (const auto& other : snapshot_.tables) {
 		if (other.p1 == member || other.p2 == member) return Reject(RejectReason::AlreadySeated);
@@ -235,8 +239,6 @@ Result RoomAuthority::ApplyUnqueue(MemberId member, Table* table) {
 	const int seat = table->p1 == member ? 0 : table->p2 == member ? 1 : -1;
 	if (seat < 0) return Reject(RejectReason::NotQueued);
 	if (table->phase == TablePhase::Playing || table->phase == TablePhase::Paused) return Reject(RejectReason::WrongPhase);
-	// In an Arcade room it is standing up from the cabinet.
-	if (snapshot_.arcade) { RemoveFromTable(member); return Accept(); }
 	if (seat == 0) table->p1 = 0; else table->p2 = 0;
 	if (auto* standing = Find(member)) standing->delayLocked = false;
 	ClearReadiness(*table);
@@ -504,6 +506,14 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// A bound match's watchers read the room and say nothing: every kind, room
 	// actions included, is refused to them unless WatcherMay lists it.
 	if (IsWatcher(snapshot_, member) && !WatcherMay(action.kind)) return Reject(RejectReason::Unauthorized);
+	// An Arcade room's Queue and Unqueue name a cabinet, not a table: sitting
+	// down there, perhaps into the line, and standing up. Its table can be
+	// out of play, where FindTable finds nothing; the revision still counts.
+	if (snapshot_.arcade && (action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue)) {
+		if (action.table >= TableCount) return Reject(RejectReason::UnknownTable);
+		if (action.tableRevision != snapshot_.tables[action.table].revision) return Reject(RejectReason::StaleTable);
+		return action.kind == ActionKind::Queue ? ApplyArcadeSit(member, action) : ApplyArcadeStand(member);
+	}
 	// PermitReady names its reserved generation, so the other fighter's
 	// permit arriving first does not make it stale.
 	if (IsTableAction(action.kind) && action.kind != ActionKind::RecordResult && action.kind != ActionKind::MatchFinished && action.kind != ActionKind::CancelResult && action.kind != ActionKind::AbortMatch && action.kind != ActionKind::AcknowledgeTerminal && action.kind != ActionKind::PermitReady && !generationScopedUnwatch) {

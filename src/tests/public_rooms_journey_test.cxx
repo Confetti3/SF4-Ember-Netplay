@@ -459,18 +459,18 @@ void HostedRoomJourney(){
  j.Admit();
  Check(j.joins()==1&&j.hosts()==0,"The hosted room's admission did not join it");
 }
-// A stream PC opens the last public room created here: a King room made from
-// a template comes back as King, with that template's tables.
+// A stream PC opens the last public room created here: a one-table King room
+// made from a template comes back as one, with that template's tables.
 void HostedLastRoomJourney(){
  Journey j;auto& h=j.h;
  netplay::RoomTemplate saved;saved.name="Stream";saved.roomName="Stream room";saved.capacity=8;saved.isPublic=true;
  saved.tables=netplay::TableSetup::Same(room::PublicRoomRules());saved.tables.names[0]="Main stage";
- h.view.preferences.roomTemplates={saved};h.view.preferences.publicRoomType=room::KingRoom;h.view.preferences.publicRoomTemplate="Stream";
+ h.view.preferences.roomTemplates={saved};h.view.preferences.publicRoomType=room::KingRoom;h.view.preferences.publicRoomTemplate="Stream";h.view.preferences.publicArcadeTables=1;
  h.view.hostPublicRoom=true;h.Frame(0,2);j.answerIdentityUntilIdle();h.Frame(0,2);
  Check(Creates(j)==1&&j.requests().back()->roomName=="Stream room"&&j.requests().back()->capacity==8,"A stream PC did not open its template's room");
  j.Admit();
  const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
- Check(join!=h.actions.rend()&&join->arcadeRoom==room::KingRoom&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
+ Check(join!=h.actions.rend()&&join->arcadeRoom==room::KingRoom&&join->tableCount==1&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
 }
 
 // Rooms that can be joined come first, near ones before far ones once the region

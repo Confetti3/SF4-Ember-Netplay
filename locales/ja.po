@@ -3322,6 +3322,8 @@ msgid "room.tables"
 msgstr "対戦席の数"
 msgid "room.tables_detail"
 msgstr "ルームの対戦席の数です（1～{0}）。ホストはあとでルーム設定から変更できます。"
+msgid "room.tables_arcade_detail"
+msgstr "同時に対戦するペアの数（1～{0}）。ほかの人は列に並んで待ちます。1にすると勝者が残り、敗者は列の最後に並びます。"
 msgid "room.tables.detail"
 msgstr "対戦席は{0}まで追加できます。対戦席を減らせるのは、そこに誰もいないときだけです。"
 msgid "room.apply_tables"
@@ -5567,6 +5569,9 @@ msgstr "ここに座る：いちばん長く待っている人と対戦するか
 
 msgid "room.arcade_waiting"
 msgstr "待機中"
+
+msgid "room.arcade_in_line"
+msgstr "待ち順: {0}"
 
 msgid "room.cabinet_free"
 msgstr "コイン投入"

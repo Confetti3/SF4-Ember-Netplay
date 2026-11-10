@@ -40,9 +40,10 @@ public:
     // A SetRules with no answer by then is sent again.
     static constexpr std::uint64_t RetryMs = 1500;
 
-    void Start(const TableSetup& setup, std::uint64_t nowMs, room::RoomType type = room::ClassicRoom, bool wiredOnly = false) {
+    // `tableCount`: how many tables an Arcade type plays at.
+    void Start(const TableSetup& setup, std::uint64_t nowMs, room::RoomType type = room::ClassicRoom, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount) {
         *this = CreatedRules();
-        active_ = true; setup_ = setup; type_ = type; wiredOnly_ = wiredOnly; armedAtMs_ = nowMs;
+        active_ = true; setup_ = setup; type_ = type; wiredOnly_ = wiredOnly; tableCount_ = tableCount; armedAtMs_ = nowMs;
     }
     void Cancel(const char* why) { if (active_) { active_ = false; ended_ = why; } }
     bool Active() const { return active_; }
@@ -80,6 +81,7 @@ public:
             action.revision = room.revision;
             action.rules = setup_.rules[0];
             action.roomType = type_;
+            action.tableCount = tableCount_;
             return true;
         }
         if (wiredOnly_ && room.wiredOnly) wiredOnly_ = false;
@@ -140,6 +142,7 @@ private:
     const char* ended_ = "";
     TableSetup setup_;
     room::RoomType type_ = room::ClassicRoom;
+    std::uint8_t tableCount_ = room::TableCount;
     // The rule still to be sent; false once the room shows it or the host sets it.
     bool wiredOnly_ = false;
     std::uint64_t wiredSentAtMs_ = 0;

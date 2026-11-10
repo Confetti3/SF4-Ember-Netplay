@@ -537,13 +537,15 @@ void to_json(nlohmann::json& json, const Snapshot& value) { json = nlohmann::jso
 		json["arcade"] = static_cast<int>(value.arcade);
 		json["cabinets"] = value.cabinets; json["streaks"] = value.streaks;
 		if (value.topSlot >= 0) json["top_slot"] = value.topSlot;
+		// Written only while someone waits in line, so a room with free tables reads as before.
+		if (!value.line.empty()) json["line"] = value.line;
 	}
 	if (value.delayPolicy == DelayPolicy::Own) json["delay"] = "own";
 	// Written only when on, so any other room's state is what it was.
 	if (value.wiredOnly) json["wired_only"] = true;
-	// Only a count other than the default is written: a room at four tables
+	// Only a count other than the type's default is written: a room at it
 	// reads as it did before there was a choice.
-	if (value.tableCount != ClassicTableCount) json["table_count"] = value.tableCount;
+	if (value.tableCount != DefaultTableCount(value.arcade)) json["table_count"] = value.tableCount;
 }
 void from_json(const nlohmann::json& json, Snapshot& value) {
 	value.protocolVersion = static_cast<std::uint32_t>(ReadInt(json, "protocol_version", 0, 100));
@@ -560,9 +562,9 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 	if (json.contains("wired_only") && !json.at("wired_only").is_boolean()) throw std::invalid_argument("room wired only field");
 	value.wiredOnly = json.value("wired_only", false);
 	value.arcade = json.contains("arcade") ? static_cast<RoomType>(ReadInt(json, "arcade", ArcadeRoom, KingRoom)) : ClassicRoom;
-	// Absent reads as the default four.
-	value.tableCount = static_cast<std::uint8_t>(json.contains("table_count") ? ReadInt(json, "table_count", 1, static_cast<int>(TableCount)) : ClassicTableCount);
-	value.cabinets = {}; value.streaks = {}; value.topSlot = -1;
+	// Absent reads as the room type's default.
+	value.tableCount = static_cast<std::uint8_t>(json.contains("table_count") ? ReadInt(json, "table_count", 1, static_cast<int>(TableCount)) : DefaultTableCount(value.arcade));
+	value.cabinets = {}; value.streaks = {}; value.line.clear(); value.topSlot = -1;
 	if (value.arcade) {
 		const auto& cabinets = json.at("cabinets"); const auto& streaks = json.at("streaks");
 		if (!cabinets.is_array() || cabinets.size() != CabinetCount || !streaks.is_array() || streaks.size() != CabinetCount) throw std::invalid_argument("room cabinets");
@@ -571,6 +573,16 @@ void from_json(const nlohmann::json& json, Snapshot& value) {
 			value.streaks[i] = static_cast<std::uint16_t>(streaks.at(i).get<unsigned>() > 0xFFFF ? 0xFFFF : streaks.at(i).get<unsigned>());
 		}
 		value.topSlot = static_cast<std::int8_t>(json.contains("top_slot") ? ReadInt(json, "top_slot", 0, static_cast<int>(CabinetCount - 1)) : -1);
+		if (json.contains("line")) {
+			const auto& line = json.at("line");
+			if (!line.is_array() || line.size() > CabinetCount) throw std::invalid_argument("room line");
+			// Each in line once, and at a cabinet.
+			for (const auto& entry : line) {
+				const auto member = entry.get<MemberId>();
+				if (CabinetOf(value, member) < 0 || ArcadeLinePlace(value, member)) throw std::invalid_argument("room line member");
+				value.line.push_back(member);
+			}
+		}
 	}
 	// Absent reads as Shared: only an Own room says so.
 	value.delayPolicy = DelayPolicy::Shared;

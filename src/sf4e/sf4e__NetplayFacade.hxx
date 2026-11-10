@@ -146,7 +146,7 @@ namespace sf4e {
             room::RoomType arcadeRoom = room::ClassicRoom;
             // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
             room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-            // With HostRoom: how many tables a Classic room opens with (room::Snapshot::tableCount).
+            // How many tables the room opens with (room::Snapshot::tableCount): with HostRoom, and with the join of a new public Arcade room (0: all).
             std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
             // With HostRoom, or the JoinInvite of a public room just created: its
             // Wired players only rule (room::Snapshot::wiredOnly).

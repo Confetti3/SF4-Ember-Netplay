@@ -843,10 +843,10 @@ int main() {
     {
         CHECK(!result["roomDefaults"].contains("publicType") && !result["roomDefaults"].contains("publicTemplate"));
         auto last = defaults;
-        last.publicRoomType = sf4e::room::KingRoom; last.publicRoomTemplate = "Stream";
+        last.publicRoomType = sf4e::room::KingRoom; last.publicRoomTemplate = "Stream"; last.publicArcadeTables = 1;
         const Json document{{"roomDefaults", sf4e::netplay::RoomPreferences(last)}};
         sf4e::netplay::PlayerPreferences read;
-        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.publicRoomType == sf4e::room::KingRoom && read.publicRoomTemplate == "Stream");
+        CHECK(sf4e::netplay::ReadRoomPreferences(document, read) && read.publicRoomType == sf4e::room::KingRoom && read.publicRoomTemplate == "Stream" && read.publicArcadeTables == 1);
         auto bad = document;
         bad["roomDefaults"]["publicType"] = 3;
         CHECK(!sf4e::netplay::ReadRoomPreferences(bad, read));
