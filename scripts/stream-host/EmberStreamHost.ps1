@@ -45,7 +45,9 @@ $logs = Join-Path $env:APPDATA 'sf4e\logs'
 $gameLog = Join-Path $logs 'sf4e.log'
 
 # Settings: the Ember folder and the tick boxes and numbers on the window.
-$settings = [ordered]@{ emberFolder = $here; restartHours = 12; memoryRestart = $true; memoryMB = 120; emptyMinutes = 10 }
+# Ember ships it in scripts\stream-host; copied beside Launcher.exe it works there too.
+$emberHome = if (Test-Path -LiteralPath (Join-Path $here 'Launcher.exe')) { $here } else { Split-Path (Split-Path $here) }
+$settings = [ordered]@{ emberFolder = $emberHome; restartHours = 12; memoryRestart = $true; memoryMB = 120; emptyMinutes = 10 }
 if (Test-Path $settingsPath) {
     try { (Get-Content $settingsPath -Raw | ConvertFrom-Json).psobject.Properties | ForEach-Object { $settings[$_.Name] = $_.Value } } catch {}
 }

@@ -24,9 +24,9 @@ and the game fresh without anyone at the PC.
 
 1. In Ember, create the public room once from **Public rooms → Create**, with
    a template if you like. That room is what the host opens.
-2. Copy `EmberStreamHost.ps1` and `EmberStreamHost.cmd` into the Ember folder,
-   beside `Launcher.exe`. Kept elsewhere, it asks for `Launcher.exe` the first
-   time; **Change...** picks another one later.
+2. Ember ships it in its folder under `scripts\stream-host`. Kept elsewhere,
+   it asks for `Launcher.exe` the first time; **Change...** picks another one
+   later.
 3. Close Ember, then start `EmberStreamHost.cmd`. It starts Ember itself; an
    Ember started another way is watched but does not reopen the room.
 4. In OBS, capture the game with **Game Capture** set to the `SSFIV.exe`
