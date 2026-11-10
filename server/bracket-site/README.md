@@ -67,7 +67,7 @@ manages the tournaments that name them in `organizers`. Organizers are the
 site's: the operator makes single-use invites, and a signed-in user who
 redeems one organizes from then on.
 
-The game signs in with `POST /v1/challenges` `{ "ember_id", "request_digest" }`,
+The game signs in with `POST /v1/auth/challenges`, as on the bridge (`public_key`, and `tournament.act` at `POST /v1/sessions`),
 which answers a `tournament.act` challenge for `POST /v1/sessions`, then
 `POST /v1/sessions` `{ "command": {}, "proof" }`. The answer's
 `access_token` (an hour) is the player's Discord account on every route; a

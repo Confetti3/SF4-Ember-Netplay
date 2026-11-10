@@ -7,7 +7,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { DatabaseSync } from "node:sqlite";
 
-import { checkChallenge, isEmberId, ProofError, type BridgeClient, type Challenge, type Json as SdkJson, type Proof } from "../../../sdk/typescript/src/index.ts";
+import { checkChallenge, decodeBase64url, emberIdFromPublicKey, ProofError, type BridgeClient, type Challenge, type Json as SdkJson, type Proof } from "../../../sdk/typescript/src/index.ts";
 import { fail, readJson, text, type Json, type Route } from "./http.ts";
 import type { Actor } from "./server.ts";
 
@@ -66,9 +66,11 @@ export class EmberSignIn {
     return [
       [
         "POST",
-        /^\/v1\/challenges$/,
+        /^\/v1\/auth\/challenges$/,
         async (request) => {
+          // The body the bridge's own challenges take, so the game asks both alike.
           const body = await readJson(request);
+          if (body.action !== ACTION || body.method !== "POST" || body.path !== SESSIONS_PATH) fail(400, `only ${ACTION} at POST ${SESSIONS_PATH}`);
           const now = this.#now();
           db.prepare("DELETE FROM ember_challenges WHERE expires_at <= ?").run(now);
           // ponytail: no rate limit; add one per Ember ID if challenges are ever flooded.
@@ -77,7 +79,7 @@ export class EmberSignIn {
             bridge_id: bridgeId,
             audience: origin,
             challenge_id: `chl_${randomUUID()}`,
-            ember_id: typeof body.ember_id === "string" && isEmberId(body.ember_id) ? body.ember_id : fail(400, "ember_id is an Ember ID"),
+            ember_id: emberIdOf(body.public_key),
             action: ACTION,
             method: "POST",
             path: SESSIONS_PATH,
@@ -144,6 +146,15 @@ export class EmberSignIn {
       ],
     ];
   }
+}
+
+function emberIdOf(publicKey: unknown): string {
+  try {
+    if (typeof publicKey === "string") return emberIdFromPublicKey(decodeBase64url(publicKey, 32));
+  } catch {
+    // Answered below.
+  }
+  return fail(400, "public_key is an Ed25519 key in base64url");
 }
 
 function hash(value: string): string {

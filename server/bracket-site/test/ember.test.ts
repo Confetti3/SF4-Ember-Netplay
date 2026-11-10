@@ -72,7 +72,7 @@ async function call(method: string, path: string, body?: object, token?: string)
 
 /** What the game does: ask for a challenge, sign it, send the proof. */
 async function signIn(seed: Uint8Array, change?: (challenge: Challenge) => void): Promise<[number, Record<string, unknown>]> {
-  const [status, issued] = await call("POST", "/v1/challenges", { ember_id: idOf(seed), request_digest: commandDigest({}) });
+  const [status, issued] = await call("POST", "/v1/auth/challenges", { public_key: publicKeyFromSeed(seed), action: "tournament.act", method: "POST", path: "/v1/sessions", request_digest: commandDigest({}) });
   assert.equal(status, 201);
   const challenge = issued as unknown as Challenge;
   const proof = signChallenge(seed, challenge, { bridgeId: BRIDGE, audience: ORIGIN, emberId: idOf(seed), action: "tournament.act", method: "POST", path: "/v1/sessions", command: {} }, Math.floor(Date.now() / 1000));
@@ -92,14 +92,14 @@ test("the game signs in with a proof, as its Discord account", async () => {
 });
 
 test("a challenge answers once, and a player without Discord is told to connect it", async () => {
-  const [status, issued] = await call("POST", "/v1/challenges", { ember_id: idOf(seeds.kate), request_digest: commandDigest({}) });
+  const [status, issued] = await call("POST", "/v1/auth/challenges", { public_key: publicKeyFromSeed(seeds.kate), action: "tournament.act", method: "POST", path: "/v1/sessions", request_digest: commandDigest({}) });
   assert.equal(status, 201);
   const challenge = issued as unknown as Challenge;
   const proof = signChallenge(seeds.kate, challenge, { bridgeId: BRIDGE, audience: ORIGIN, emberId: idOf(seeds.kate), action: "tournament.act", method: "POST", path: "/v1/sessions", command: {} }, Math.floor(Date.now() / 1000));
   assert.equal((await call("POST", "/v1/sessions", { command: {}, proof }))[0], 201);
   assert.equal((await call("POST", "/v1/sessions", { command: {}, proof }))[0], 401);
   // Another command than the one signed for.
-  const [, again] = await call("POST", "/v1/challenges", { ember_id: idOf(seeds.kate), request_digest: commandDigest({}) });
+  const [, again] = await call("POST", "/v1/auth/challenges", { public_key: publicKeyFromSeed(seeds.kate), action: "tournament.act", method: "POST", path: "/v1/sessions", request_digest: commandDigest({}) });
   const second = signChallenge(seeds.kate, again as unknown as Challenge, { bridgeId: BRIDGE, audience: ORIGIN, emberId: idOf(seeds.kate), action: "tournament.act", method: "POST", path: "/v1/sessions", command: {} }, Math.floor(Date.now() / 1000));
   assert.equal((await call("POST", "/v1/sessions", { command: { other: true }, proof: second }))[0], 401);
   const [sam, answer] = await signIn(seeds.sam);
