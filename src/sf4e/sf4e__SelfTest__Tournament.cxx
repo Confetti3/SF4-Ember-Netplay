@@ -361,6 +361,7 @@ void Step(const RuntimeSnapshot& now) {
 			IdentityRequest info = Request(IdentityOp::DeskCodeInfo);
 			info.command = code;
 			Ask(std::move(info));
+			run.waited = 0; // the helper's minute starts now, not when the stage began waiting for the runner
 			break;
 		}
 		const auto answer = Answered(now);
@@ -383,6 +384,7 @@ void Step(const RuntimeSnapshot& now) {
 			approve.command = ReadExchange(kDeskCodeFile);
 			approve.number = static_cast<std::uint8_t>(std::atoi(number.c_str()));
 			Ask(std::move(approve));
+			run.waited = 0;
 			break;
 		}
 		const auto answer = Answered(now);
@@ -403,6 +405,7 @@ void Step(const RuntimeSnapshot& now) {
 			signUp.target = "/v1/events/" + event + "/sign-up";
 			signUp.command = "{}";
 			Ask(std::move(signUp));
+			run.waited = 0;
 			break;
 		}
 		const auto answer = Answered(now);
