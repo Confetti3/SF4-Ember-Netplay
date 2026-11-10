@@ -123,28 +123,37 @@ inline bool ValidDummyState(const DummyState& s) {
         (s.super == -1 || s.super == 0 || s.super == 5 || s.super == 7 || s.super == 8) &&
         (s.revenge == -1 || s.revenge == 0 || s.revenge == 5 || s.revenge == 7 || s.revenge == 8);
 }
+// One typed reply (a reply slot): made-up input, held as a slot holds it
+// (for the dummy facing right) and played for the way it faces on each
+// frame, with its schedule as synthesis gives it (Compiled): offset, the
+// first move's own ("5MK@+3"), added to the plan's timing; anchor, the frame
+// of moves its input takes effect on; hold, the frame of its leading hold,
+// -1 for none. weight: its share of a random draw among the choices.
+struct ReplyChoice { std::vector<Input> moves; int offset = 0, anchor = -1, hold = -1, weight = 1; };
 // What the dummy does by itself once it is free again. when: 0 nothing, 1
-// after being hit, 2 after blocking, 3 on getting up, 4 any
-// of them. moves: the reply as made-up input, held as a slot holds it (for
-// the dummy facing right) and played for the way it faces on each frame; when
-// empty it replies with a recording that is on, picked in the slots' order
-// (DummyReply.hxx). chance: percent of the times it replies. timing: frames the reply's first attack
-// button lands after the dummy's first free frame. varyStance: it stands or
-// crouches at random each time. The typed moves' schedule, as synthesis
-// gives it (Compiled), with no typed moves 0, -1 and -1: offset, the first
-// move's own ("5MK@+3"), added to timing; anchor, the frame of moves its
-// input takes effect on; hold, the frame of its leading hold, -1 for none.
+// after being hit, 2 after blocking, 3 on getting up, 4 any of them.
+// choices: the typed replies, one of which each stretch plays, drawn by
+// weight or taken in order; with none it replies with a recording that is
+// on, picked in the recording slots' order (DummyReply.hxx). chance: percent
+// of the times it replies. timing: frames the reply's first attack button
+// lands after the dummy's first free frame. varyStance: it stands or
+// crouches at random each time.
 struct DummyPlan {
-    int when = 0, chance = 100, timing = 0; bool varyStance = false; std::vector<Input> moves;
-    int offset = 0, anchor = -1, hold = -1;
+    int when = 0, chance = 100, timing = 0; bool varyStance = false;
+    std::vector<ReplyChoice> choices; Order order = Order::Random;
 };
 constexpr int MaxReplyTiming = 5;
+constexpr int MaxReplyWeight = 9;
+inline bool ValidChoice(const ReplyChoice& c) {
+    const int frames = static_cast<int>(c.moves.size());
+    return frames > 0 && frames <= MaxFrames && c.weight >= 1 && c.weight <= MaxReplyWeight && c.offset >= MinOffset && c.offset <= MaxOffset &&
+        c.anchor >= 0 && c.anchor < frames && c.hold < c.anchor && (c.hold < 0 || c.moves[c.hold].wait == WaitReply);
+}
+// At most one choice per reply slot (SlotCount), so the choices draw as slots do.
 inline bool ValidDummyPlan(const DummyPlan& plan) {
-    const int frames = static_cast<int>(plan.moves.size());
-    const bool schedule = frames ? plan.offset >= MinOffset && plan.offset <= MaxOffset && plan.anchor >= 0 && plan.anchor < frames &&
-        plan.hold < plan.anchor && (plan.hold < 0 || plan.moves[plan.hold].wait == WaitReply) : !plan.offset && plan.anchor < 0 && plan.hold < 0;
-    return plan.when >= 0 && plan.when <= 4 && plan.chance >= 0 && plan.chance <= 100 &&
-        plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && frames <= MaxFrames && schedule;
+    bool choices = plan.choices.size() <= static_cast<std::size_t>(SlotCount);
+    for (const auto& choice : plan.choices) choices = choices && ValidChoice(choice);
+    return plan.when >= 0 && plan.when <= 4 && plan.chance >= 0 && plan.chance <= 100 && plan.timing >= -MaxReplyTiming && plan.timing <= MaxReplyTiming && choices;
 }
 // When a reply's first move lands, in frames of the reply as Session plays
 // it: start, its first played frame (ReplyStart); hold, the frame its
@@ -161,11 +170,10 @@ inline ReplySchedule RecordingSchedule(const std::vector<Input>& frames, int tim
     schedule.anchor = press == frames.end() ? schedule.start : static_cast<int>(press - frames.begin());
     return schedule;
 }
-// The schedule of the reply a plan plays: its typed moves', else its slot's recording's.
-inline ReplySchedule PlanSchedule(const DummyPlan& plan, const std::vector<Input>& slot) {
-    if (plan.moves.empty()) return RecordingSchedule(slot, plan.timing);
-    ReplySchedule schedule; schedule.start = ReplyStart(plan.moves); schedule.hold = plan.hold; schedule.anchor = plan.anchor;
-    schedule.timing = plan.timing + plan.offset;
+// A typed reply's, from its synthesis, its own offset added to the plan's timing.
+inline ReplySchedule ChoiceSchedule(const ReplyChoice& choice, int timing) {
+    ReplySchedule schedule; schedule.start = ReplyStart(choice.moves); schedule.hold = choice.hold; schedule.anchor = choice.anchor;
+    schedule.timing = timing + choice.offset;
     return schedule;
 }
 // Frames a reply plays before its first move takes effect, after its leading

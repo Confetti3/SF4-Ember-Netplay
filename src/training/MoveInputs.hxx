@@ -53,8 +53,8 @@ inline unsigned ChosenButtons(const Step& step) {
 // move's "@N" counted from that frame), counted from the reply's first played frame,
 // which only frames of a known length before it can reach: "#N" after a wait
 // on the fight is refused, as on the first move with nothing before it. A
-// first move pressed and let go ("]HP[") comes out on the release, which the
-// reply cannot time, so it is refused (ParseSteps).
+// first move let go ("]HP[") is a leading hold of its button, through the
+// stun, and the release is the move, so no "#N" can land on it.
 struct Compiled { std::vector<training::Input> frames; int offset = 0, anchor = -1, hold = -1; };
 // Directions are read for the facing; the buttons of a step are chosen once.
 // steps: as ParseSteps leaves them. False, with out empty and error set, when
@@ -89,12 +89,16 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         Step step;
         if (!ParseStep(text, step, error)) return fail(error);
         if (step.hold) {
-            const unsigned held = DirectionBits(step.motion[0], facingRight);
+            const unsigned held = DirectionBits(step.motion[0], facingRight) | ChosenButtons(step);
             if (step.frames) push(held, step.frames);
             else pending = held;
             continue;
         }
         const int timing = step.offset;
+        // A first move let go is held through the stun like a leading hold of
+        // its buttons; the move itself is the release, on the frame the reply is due.
+        const bool letGo = !follows && step.edge == Edge::Release;
+        if (letGo) pending |= ChosenButtons(step);
         // A move laid out on a frame ("#45") starts its input so it takes
         // effect there, or at once when that frame has passed; it waits for no cue.
         const bool timed = step.at >= 0;
@@ -156,7 +160,7 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             put(dash, 2); put(0, 2); put(dash, 2);
         } else {
             // A jumping move takes effect on its jump.
-            if (step.air) { mark(); put(DirectionBits('8', facingRight), 2); put(0, 10); }
+            if (step.air) { mark(); put(DirectionBits(step.jump, facingRight), 2); put(0, 10); }
             unsigned last = 0;
             // The wait held the motion's first direction, or a hold in its
             // place; a lone direction goes in with the button either way,
@@ -171,7 +175,8 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
                 last = DirectionBits(motion[i], facingRight);
                 lastAt = static_cast<int>(own.size());
                 const bool held = firstHeld && i == 0;
-                put(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.cancel ? 2 : 3);
+                // A 720 has 32 frames for its two turns (.bcm ROTATE window): a frame each.
+                put(last, step.charge && i == 0 ? ChargeFrames : held ? 0 : step.motion == "720" ? 1 : step.cancel ? 2 : 3);
             }
             // A move with no button takes effect on its last direction; one
             // with a button, on it.
@@ -181,10 +186,21 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
                 if (finish) last = DirectionBits(motion.back(), facingRight);
                 if (!step.air) mark();
                 if (step.edge == Edge::Hold) put(last | buttons, 30);
-                else if (step.edge == Edge::Release) { put(last | buttons, 30); put(last, 2); }
+                else if (step.edge == Edge::Release) { if (!letGo) put(last | buttons, 30); put(last, 2); }
+                else if (step.mash && step.mashOrder.empty() && !(step.cancel && after)) {
+                    // A mash on its own: the first press starts a normal, which a whiff
+                    // cannot cancel, and the game drops the presses before it; the move
+                    // comes out on the first press after that normal (.bcm: five presses
+                    // of any punch or kick, then the move's own). So the light normal,
+                    // the shortest (twice: a reversal's first press can land a frame
+                    // early), then the move's buttons until well past its end.
+                    const unsigned light = (step.buttons & Punches) ? LP : LK;
+                    put(last | light, 1); put(last, 1); put(last | light, 1); put(last, 1);
+                    for (int press = 0; press < 8; ++press) { put(last | buttons, 1); if (press < 7) put(last, 1); }
+                }
                 else if (step.mash) {
-                    // Five presses: several buttons are cycled one per frame (a piano),
-                    // one button goes on and off a frame at a time.
+                    // A cancelled mash: five presses; several buttons are cycled one per
+                    // frame (a piano), one button goes on and off a frame at a time.
                     std::vector<Step::MashPress> cycle = step.mashOrder;
                     const int presses = cycle.empty() ? 5 : static_cast<int>(cycle.size());
                     if (cycle.empty()) {
@@ -211,8 +227,9 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         // A move takes effect on input: one that presses nothing there (a
         // neutral "5") is no move, to time the reply by or to recover from,
         // wherever it stands, so the moves are refused whole. A linked lone
-        // direction is its wait's: its own input has none after it.
-        const unsigned takes = anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : link ? linkHeld : 0u;
+        // direction is its wait's: its own input has none after it. A move let
+        // go presses nothing by its frames alone: its button is the leading hold's.
+        const unsigned takes = letGo ? 1u : anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : link ? linkHeld : 0u;
         if (!takes) return fail("\"" + text + "\" presses nothing: a move needs a direction or a button");
         follows = true;
         // On a frame, the move's anchor lands there ("@N" from it, but on the

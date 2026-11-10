@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Riposte du mannequin"
 
 msgid "training.reply.detail"
-msgstr "Ce que fait le mannequin de lui-même dès qu'il est de nouveau libre, pour punir un combo raté ou une fin risquée : il joue les Coups de riposte, ou l'emplacement de riposte si cette ligne est vide. La riposte attend pendant une relecture ou un enregistrement."
+msgstr "Ce que le mannequin fait de lui-même dès qu'il est libre, pour punir un combo raté ou une fin dangereuse : il joue l'un des emplacements de riposte activés, ou les enregistrements activés tant qu'aucun emplacement ne l'est."
 
 msgid "training.reply.hit"
 msgstr "Après un combo raté"
@@ -1673,9 +1673,6 @@ msgstr "Au relevé"
 
 msgid "training.reply.any"
 msgstr "Dès qu'il récupère"
-
-msgid "training.reply.recordings"
-msgstr "Enregistrements"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Aucun enregistrement activé ne peut servir de riposte"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Coups de riposte"
 
 msgid "training.reply.moves.detail"
-msgstr "La riposte saisie en notation numérique, comme 623HP ou 44, lue selon le côté où regarde le mannequin. Les noms de mouvements marchent aussi : qcf, qcb, dp, rdp, hcf et hcb, comme qcfP ou dp+HP. Le mouvement est entré pendant que le mannequin est encore bloqué, pour que le bouton tombe sur sa première frame libre. [1] maintient une direction jusqu'au mouvement suivant, [1]20f la maintient 20 frames et 10f attend : [1] > 3HP garde en bas jusqu'à ce que le mannequin soit libre, puis appuie 3HP. Vide : le mannequin riposte avec un enregistrement activé."
-
-msgid "training.reply.move"
-msgstr "Riposte prédéfinie"
-
-msgid "training.reply.move.detail"
-msgstr "Gauche et droite choisissent une riposte courante en notation numpad, lue pour le côté où regarde le mannequin. Enregistrements riposte avec un enregistrement activé ; Personnalisée garde les coups saisis. Sélectionner ouvre Coups de riposte pour en saisir un."
-
-msgid "training.reply.custom"
-msgstr "Personnalisée"
+msgstr "Le coup de cet emplacement en notation numpad, comme 623HP ou 44, lu pour le côté que regarde le mannequin. Les mots de manipulation marchent aussi : qcf, qcb, dp, rdp, hcf et hcb. [HP] maintient un bouton, ]HP[ le relâche à la première frame libre, [1]20f maintient une direction 20 frames et 10f attend. Vide retire le coup."
 
 msgid "training.reply.timing"
 msgstr "Timing de riposte"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames après la première frame libre du mannequin où tombe le bouton de la riposte. La durée d'un étourdissement est apprise la première fois ; d'ici là, la riposte commence quand il se termine."
+
+msgid "training.reply.order"
+msgstr "Ordre des ripostes"
+
+msgid "training.reply.order.detail"
+msgstr "Comment le mannequin choisit parmi les emplacements activés : au hasard, chacun selon son poids, ou dans l'ordre, l'un après l'autre."
+
+msgid "training.reply.slot"
+msgstr "Riposte {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Un coup avec lequel le mannequin peut riposter. Gauche et Droite l'activent ou le désactivent ; Valider ouvre ses coups."
+
+msgid "training.reply.slot_on"
+msgstr "Utiliser cet emplacement"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Si le mannequin peut choisir cet emplacement pour sa riposte."
+
+msgid "training.reply.weight"
+msgstr "Poids"
+
+msgid "training.reply.weight.detail"
+msgstr "La part de cet emplacement dans le tirage au sort face aux autres, de 1 à 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Vider cet emplacement"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Retire le coup de cet emplacement."
+
+msgid "training.reply.every_fighter"
+msgstr "Tous les combattants"
 
 msgid "training.key.reset"
 msgstr "Touche Rétablir"

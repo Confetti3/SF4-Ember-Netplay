@@ -14,6 +14,7 @@
 #include "../netplay/JsonFileStore.hxx"
 #include "../training/MoveInputs.hxx"
 #include "../training/RecordingFile.hxx"
+#include "../training/FighterMoves.hxx"
 #include "../training/PracticeSettings.hxx"
 #include <algorithm>
 #include <cstdint>
@@ -47,10 +48,10 @@ struct Lab {
     std::string notice; double noticeAt=0;
     // What the dummy does by itself, and the keys that reset and save the
     // position as offsets from F1 (-1 unbound): the player's, kept in training.json.
-    training::DummyPlan plan; std::string replyMoves;
-    // The last reply typed that is no preset, which Custom on the pick list
-    // brings back; pickCustom: Custom is picked with nothing typed yet.
-    std::string customMoves; bool pickCustom=false;
+    training::DummyPlan plan;
+    // The reply's slots; slotAt is the one the move list is open for, and
+    // pickAt the strength each of its rows has lit (Pickables), the first until stepped.
+    training::ReplySlots slots; int slotAt=0; std::vector<int> pickAt;
     // How the frame meter is drawn (the Frame data page's two options).
     training::MeterOptions meter;
     std::array<int,2> keys{{1,10}};
@@ -72,11 +73,16 @@ std::uint64_t nextRequest=1;
 enum { ResetKey, SaveKey };
 constexpr const wchar_t* PracticeFile=L"training.json";
 void Notice(std::string text,bool failed=false) { lab.notice=std::move(text); lab.failed=failed; lab.noticeAt=ImGui::GetTime(); }
+nlohmann::json SlotsJson() {
+    nlohmann::json list=nlohmann::json::array();
+    for(const auto& slot:lab.slots) list.push_back({{"moves",slot.moves},{"on",slot.on},{"weight",slot.weight}});
+    return list;
+}
 void SavePractice() {
     if(lab.directory.empty()) return;
     std::string error;
     const nlohmann::json practice{{"reply",{{"when",lab.plan.when},{"chance",lab.plan.chance},{"timing",lab.plan.timing},
-        {"vary_stance",lab.plan.varyStance},{"moves",lab.replyMoves},{"custom",lab.customMoves}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]},{"pad_back",lab.padBack}}},
+        {"vary_stance",lab.plan.varyStance},{"order",static_cast<int>(lab.plan.order)},{"slots",SlotsJson()}}},{"keys",{{"reset_position",lab.keys[ResetKey]},{"save_position",lab.keys[SaveKey]},{"pad_back",lab.padBack}}},
         {"meter",MeterOptionsJson(lab.meter)},
         {"combo_check",{{"fighters",lab.check.fighters},{"standing",lab.check.standing},{"crouching",lab.check.crouching},
             {"start",static_cast<int>(lab.check.start)},{"fast",lab.check.fast}}}};
@@ -87,7 +93,7 @@ bool SendPlan(const training::View& view,const TrainingSubmit& submit) {
     Command command; command.action=Action::DummyPlan; command.generation=view.generation; command.plan=lab.plan;
     std::string error;
     // Off needs no moves, even when the saved text cannot be read.
-    if(!BuildReplyPlan(lab.plan.when==0?std::string():lab.replyMoves,lab.plan,command.plan,error)) { Notice(loc::Tf("training.invalid",error),true); return false; }
+    if(!BuildSlotPlan(lab.plan.when==0?training::ReplySlots{}:lab.slots,lab.plan,command.plan,error)) { Notice(loc::Tf("training.invalid",error),true); return false; }
     const bool sent=submit&&submit(command);
     if(!sent) Notice(loc::T("training.command_rejected"),true);
     return sent;
@@ -107,9 +113,21 @@ void LoadPractice() {
     if(reply.is_object()) {
         lab.plan.when=number("when",0,4,0); lab.plan.chance=number("chance",25,100,100);
         lab.plan.timing=number("timing",-MaxReplyTiming,MaxReplyTiming,0); lab.plan.varyStance=reply.value("vary_stance",nlohmann::json(false))==true;
-        if(reply.contains("moves")&&reply["moves"].is_string()) lab.replyMoves=MigrateReplyMoves(reply["moves"].get<std::string>());
-        if(reply.contains("custom")&&reply["custom"].is_string()) lab.customMoves=MigrateReplyMoves(reply["custom"].get<std::string>());
-        else if(!lab.replyMoves.empty()&&ReplyPresetIndex(lab.replyMoves)<0) lab.customMoves=lab.replyMoves;
+        lab.plan.order=static_cast<training::Order>(number("order",0,1,0));
+        const auto slots=reply.find("slots");
+        if(slots!=reply.end()&&slots->is_array()) {
+            for(std::size_t i=0;i<slots->size()&&i<lab.slots.size();++i) {
+                const auto& one=(*slots)[i];
+                if(!one.is_object()) continue;
+                if(one.contains("moves")&&one["moves"].is_string()) lab.slots[i].moves=one["moves"].get<std::string>();
+                lab.slots[i].on=one.value("on",false)&&!lab.slots[i].moves.empty();
+                const auto weight=one.find("weight");
+                if(weight!=one.end()&&weight->is_number_integer()) lab.slots[i].weight=(std::max)(1,(std::min)(training::MaxReplyWeight,weight->get<int>()));
+            }
+        }
+        // An older file's one reply is the first slot.
+        else if(reply.contains("moves")&&reply["moves"].is_string()&&!reply["moves"].get<std::string>().empty())
+            lab.slots[0]={MigrateReplyMoves(reply["moves"].get<std::string>()),true,1};
     }
     // An older file lists six keys in a row; these two were its second and its last.
     const auto keys=practice.value("keys",nlohmann::json::object());
@@ -185,30 +203,41 @@ int StepDummy(int kind,int value,int delta) {
 // A hotkey's key as the hint and its row show it.
 std::string KeyName(int which) { return lab.keys[which]<0?loc::T("common.off"):TrainingKeyName(lab.keys[which]); }
 constexpr const char* ReplyNames[]={"common.off","training.reply.hit","training.reply.block","training.reply.rise","training.reply.any"};
-// Where the reply's pick list stands: 0 the recordings that are on (no
-// moves), then the presets, then Custom for anything else. A saved reply that
-// spells a preset shows as that preset.
-constexpr int ReplyCustom=ReplyPresetCount+1;
-int ReplyPick() {
-    if(lab.replyMoves.empty()) return lab.pickCustom?ReplyCustom:0;
-    const int preset=ReplyPresetIndex(lab.replyMoves);
-    return preset<0?ReplyCustom:preset+1;
+// The reply's slot rows, each as "On, ]HP[ x3" so the screen reader says all of it.
+std::string SlotValue(const training::ReplySlotSetting& slot) {
+    if(slot.moves.empty()) return loc::T("training.slot.empty");
+    std::string text=std::string(loc::T(slot.on?"common.on":"common.off"))+", "+slot.moves;
+    if(slot.weight>1) text+=" x"+std::to_string(slot.weight);
+    return text;
 }
-std::string ReplyPickName(int pick) {
-    return pick==0?loc::T("training.reply.recordings"):pick==ReplyCustom?loc::T("training.reply.custom"):ReplyPresets[pick-1];
+std::string FighterName(int fighter){const auto* f=selection::FindFighter(fighter);return f?f->name:std::to_string(fighter);}
+// The moves the list offers, the same for every fighter first, then the
+// dummy's own, one row per move ("pick-" and its index here) with its
+// strengths as chips on the row (LP, MP, HP, EX). A move's name ends in its
+// strength, or starts with EX, as the tables and the command list write it.
+struct Pickable { std::string name,group; std::vector<std::pair<std::string,std::string>> strengths; };
+void AddPick(std::vector<Pickable>& list,std::string name,const char* moves,const std::string& group) {
+    std::string strength;
+    if(name.compare(0,3,"EX ")==0) { strength="EX"; name.erase(0,3); }
+    const auto space=name.rfind(' ');
+    if(space!=std::string::npos&&space+1<name.size()&&name.find_first_not_of("LMHPK+",space+1)==std::string::npos) {
+        const auto buttons=name.substr(space+1); name.erase(space);
+        strength=buttons.find('+')==std::string::npos&&!strength.empty()?strength+" "+buttons:buttons; // a pair is EX by itself: "LK+MK"
+    }
+    for(auto& pick:list) if(pick.name==name&&pick.group==group) { pick.strengths.push_back({strength,moves}); return; }
+    list.push_back({std::move(name),group,{{strength,moves}}});
 }
-// Select on the pick list opens Reply moves' field on the next frame, once its row exists.
-bool openReplyEditor=false;
-// Left and Right step the pick list. A preset goes through the same parser and
-// checks as typed text; Custom brings back the last reply typed that is no
-// preset, or none until one is typed.
-void PickReply(const training::View& view,const TrainingSubmit& submit,int step) {
-    const int count=ReplyCustom+1, pick=(ReplyPick()+count+step)%count;
-    const std::string text=pick==0?std::string():pick==ReplyCustom?lab.customMoves:std::string(ReplyPresets[pick-1]);
-    DummyPlan plan; std::string error;
-    if(!BuildReplyPlan(text,lab.plan,plan,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
-    lab.pickCustom=pick==ReplyCustom; lab.replyMoves=text; SavePractice();
-    SendPlan(view,submit);
+std::vector<Pickable> Pickables(const training::View& view) {
+    std::vector<Pickable> list;
+    for(const auto& move:training::UniversalMoves) AddPick(list,move.name,move.moves,loc::T("training.reply.every_fighter"));
+    const auto* fighter=selection::FindFighter(view.check.dummy);
+    for(const auto* move:training::MovesOf(fighter?fighter->code:nullptr)) AddPick(list,move->name,move->moves,FighterName(view.check.dummy));
+    return list;
+}
+// The strength a pick row has lit, kept while the move list is open.
+std::size_t PickAt(std::size_t row,std::size_t count) {
+    if(lab.pickAt.size()<=row) lab.pickAt.resize(row+1,0);
+    return static_cast<std::size_t>(lab.pickAt[row])%count;
 }
 // Combo check's start and stance, in the order Left and Right step through them.
 const char* const StartNames[]={"training.combo_check.start_from.recorded","training.combo_check.start_from.middle","training.combo_check.start_from.corner"};
@@ -226,6 +255,8 @@ void OfferTrainingValues(std::vector<MenuEntry>& rows) {
             for(const int value:DummyChoices(kind)) labels.push_back(DummyLabel(kind,value));
         }
         else if(e.id=="reply") for(const char* name:ReplyNames) labels.push_back(loc::T(name));
+        else if(e.id=="reply-order") labels={loc::T("training.order.random"),loc::T("training.order.in_order")};
+        else if(e.id=="slot-weight") for(int w=1;w<=training::MaxReplyWeight;++w) labels.push_back(std::to_string(w));
         else if(e.id=="reply-chance") for(int chance=25;chance<=100;chance+=25) labels.push_back(std::to_string(chance)+"%");
         else if(e.id=="reply-timing") for(int t=-MaxReplyTiming;t<=MaxReplyTiming;++t) labels.push_back((t>0?"+":"")+std::to_string(t)+" f");
         else if(e.id=="meter-style") labels={loc::T("training.meter.style.angled"),loc::T("training.meter.style.flat"),loc::T("training.meter.style.classic")};
@@ -253,13 +284,39 @@ std::vector<MenuEntry> ToolRows(const training::View& view,const std::string& sc
         Value("dummy-quick",loc::T("training.dummy.quick"),DummyLabel(3,dummy.quickStand),loc::T("training.dummy.detail")),
         Value("dummy-super",loc::T("training.dummy.super"),DummyLabel(4,dummy.super),loc::T("training.dummy.detail")),
         Value("dummy-revenge",loc::T("training.dummy.revenge"),DummyLabel(4,dummy.revenge),loc::T("training.dummy.detail"))};
-    if(screen=="reply") return {
-        Value("reply",loc::T("training.reply"),loc::T(ReplyNames[lab.plan.when]),loc::T("training.reply.detail")),
-        opening(Value("reply-move",loc::T("training.reply.move"),ReplyPickName(ReplyPick()),loc::T("training.reply.move.detail"))),
-        detailed(TextRow("reply-moves",loc::T("training.reply.moves"),lab.replyMoves,256),loc::T("training.reply.moves.detail")),
-        Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0),
-        Value("reply-chance",loc::T("training.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.reply.chance.detail"),lab.plan.when!=0),
-        Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail"))};
+    if(screen=="reply") {
+        std::vector<MenuEntry> rows{
+            Value("reply",loc::T("training.reply"),loc::T(ReplyNames[lab.plan.when]),loc::T("training.reply.detail")),
+            Value("reply-order",loc::T("training.reply.order"),loc::T(lab.plan.order==training::Order::InOrder?"training.order.in_order":"training.order.random"),loc::T("training.reply.order.detail"))};
+        for(int i=0;i<SlotCount;++i) {
+            const auto& slot=lab.slots[i];
+            auto row=Value("reply-slot-"+std::to_string(i),loc::Tf("training.reply.slot",i+1),SlotValue(slot),loc::T("training.reply.slot.detail"));
+            row.adjustable=!slot.moves.empty(); row.opens=true; rows.push_back(row);
+        }
+        rows.push_back(Value("reply-timing",loc::T("training.reply.timing"),(lab.plan.timing>0?"+":"")+std::to_string(lab.plan.timing)+" f",loc::T("training.reply.timing.detail"),lab.plan.when!=0));
+        rows.push_back(Value("reply-chance",loc::T("training.reply.chance"),std::to_string(lab.plan.chance)+"%",loc::T("training.reply.chance.detail"),lab.plan.when!=0));
+        rows.push_back(Value("reply-stance",loc::T("training.reply.vary_stance"),loc::T(lab.plan.varyStance?"common.on":"common.off"),loc::T("training.reply.vary_stance.detail")));
+        return rows;
+    }
+    if(screen=="reply-slot") {
+        const auto& slot=lab.slots[lab.slotAt];
+        std::vector<MenuEntry> rows{
+            Value("slot-on",loc::T("training.reply.slot_on"),loc::T(slot.on?"common.on":"common.off"),loc::T("training.reply.slot_on.detail"),!slot.moves.empty()),
+            Value("slot-weight",loc::T("training.reply.weight"),std::to_string(slot.weight),loc::T("training.reply.weight.detail")),
+            detailed(TextRow("slot-moves",loc::T("training.reply.moves"),slot.moves,256),loc::T("training.reply.moves.detail")),
+            Row("slot-clear",loc::T("training.reply.clear_slot"),loc::T("training.reply.clear_slot.detail"),!slot.moves.empty())};
+        // A move's strengths are chips on its row: Left and Right light one,
+        // Select puts it in the slot. A move with one strength shows its input.
+        const auto picks=Pickables(view);
+        for(std::size_t i=0;i<picks.size();++i) {
+            const auto& pick=picks[i]; const auto& lit=pick.strengths[PickAt(i,pick.strengths.size())];
+            auto e=Row("pick-"+std::to_string(i),pick.name,pick.group+": "+pick.name+", "+(lit.first.empty()?"":lit.first+", ")+lit.second);
+            if(pick.strengths.size()==1) e.value=lit.second;
+            else { e.value=lit.first; e.adjustable=e.opens=true; for(const auto& strength:pick.strengths) e.segments.push_back(strength.first); }
+            rows.push_back(e);
+        }
+        return rows;
+    }
     return {
         Row("save-pos",loc::T("training.position.save"),loc::T("training.position.save.detail"),view.ready),
         Row("reset-pos",loc::T("training.position.reset"),loc::T("training.position.reset.detail"),view.ready&&view.checkpoint),
@@ -271,14 +328,26 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
     if(a.kind==MenuAction::Adjust) {
         const int step=a.delta>0?1:-1;
         if(a.id.compare(0,5,"reply")==0) {
-            if(a.id=="reply-move") { PickReply(view,submit,step); return; }
-            if(a.id=="reply") lab.plan.when=((lab.plan.when+a.delta)%5+5)%5;
+            if(a.id.compare(0,11,"reply-slot-")==0) {
+                auto& slot=lab.slots[std::atoi(a.id.c_str()+11)];
+                if(slot.moves.empty()) return;
+                slot.on=a.delta>0; SavePractice(); SendPlan(view,submit); return;
+            }
+            if(a.id=="reply-order") lab.plan.order=a.delta>0?training::Order::InOrder:training::Order::Random;
+            else if(a.id=="reply") lab.plan.when=((lab.plan.when+a.delta)%5+5)%5;
             else if(a.id=="reply-chance") lab.plan.chance=(std::max)(25,(std::min)(100,lab.plan.chance+25*a.delta));
             else if(a.id=="reply-timing") lab.plan.timing=(std::max)(-MaxReplyTiming,(std::min)(MaxReplyTiming,lab.plan.timing+a.delta));
             else if(a.id=="reply-stance") lab.plan.varyStance=a.delta>0;
             else return;
             SavePractice();
             SendPlan(view,submit);
+        }
+        else if(a.id=="slot-on") { auto& slot=lab.slots[lab.slotAt]; slot.on=a.delta>0&&!slot.moves.empty(); SavePractice(); SendPlan(view,submit); }
+        else if(a.id=="slot-weight") { auto& slot=lab.slots[lab.slotAt]; slot.weight=(std::max)(1,(std::min)(training::MaxReplyWeight,slot.weight+a.delta)); SavePractice(); SendPlan(view,submit); }
+        else if(a.id.compare(0,5,"pick-")==0) {
+            const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+5));
+            // A click on a chip lights that chip: the whole distance, not one step.
+            if(at<picks.size()) { const int n=static_cast<int>(picks[at].strengths.size()); lab.pickAt[at]=((static_cast<int>(PickAt(at,n))+a.delta)%n+n)%n; }
         }
         else if(a.id=="key-0"||a.id=="key-1") {
             // One key does one thing, so the other row's key is passed over.
@@ -305,17 +374,23 @@ void HandleTools(const MenuAction& a,const training::View& view,const TrainingSu
         }
         return;
     }
-    if(a.kind==MenuAction::TextAccepted&&a.id=="reply-moves") {
-        DummyPlan plan; std::string error; const auto text=combo::Clean(a.text);
-        if(!BuildReplyPlan(text,lab.plan,plan,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
-        lab.replyMoves=text; lab.pickCustom=false;
-        if(!text.empty()&&ReplyPresetIndex(text)<0) lab.customMoves=text;
+    if(a.kind==MenuAction::TextAccepted&&a.id=="slot-moves") {
+        training::ReplyChoice reply; std::string error; const auto text=combo::Clean(a.text);
+        if(!BuildReply(text,reply,error)) { Notice(loc::Tf("training.invalid",error),true); return; }
+        auto& slot=lab.slots[lab.slotAt]; slot.moves=text; slot.on=!text.empty();
         SavePractice();
         SendPlan(view,submit);
         return;
     }
     if(a.kind!=MenuAction::Activate) return;
-    if(a.id=="reply-move") openReplyEditor=true;
+    if(a.id.compare(0,11,"reply-slot-")==0) { lab.slotAt=std::atoi(a.id.c_str()+11); lab.pickAt.clear(); TrainingNavigation().Push("reply-slot"); }
+    else if(a.id=="slot-clear") { lab.slots[lab.slotAt]={}; SavePractice(); SendPlan(view,submit); TrainingNavigation().Replace("reply"); }
+    else if(a.id.compare(0,5,"pick-")==0) {
+        const auto picks=Pickables(view); const auto at=static_cast<std::size_t>(std::atoi(a.id.c_str()+5));
+        if(at>=picks.size()) return;
+        auto& slot=lab.slots[lab.slotAt]; slot.moves=picks[at].strengths[PickAt(at,picks[at].strengths.size())].second; slot.on=true;
+        SavePractice(); SendPlan(view,submit); TrainingNavigation().Replace("reply");
+    }
     else if(a.id=="save-pos") SavePosition(view,submit);
     else if(a.id=="reset-pos") ResetPosition(view,submit);
 }
@@ -500,7 +575,6 @@ void CheckFighter(int fighter,bool on){
  list=std::move(ordered);
 }
 int Stance(){return checkSettings.standing&&checkSettings.crouching?2:checkSettings.crouching?1:0;}
-std::string FighterName(int fighter){const auto* f=selection::FindFighter(fighter);return f?f->name:std::to_string(fighter);}
 std::vector<MenuEntry> ComboCheckRows(const training::View& v,const std::string& screen,bool ready){
  using namespace training;
  const auto onOff=[](bool on){return std::string(loc::T(on?"common.on":"common.off"));};
@@ -657,7 +731,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  const auto screen=nav.Screen();std::vector<MenuEntry> rows;
  const bool ready=v.ready&&!pending;
  const char* sizes[HudSizes]={"size.small","size.standard","size.large"};
- const bool compactSlots=screen=="recording"&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
+ const bool compactSlots=(screen=="recording"||screen=="reply")&&ImGui::GetContentRegionAvail().x>=640*ImGui::GetFontSize()/ImGui::GetFont()->FontSize;
  if(screen=="home"){
   rows={Row("recording",loc::T("training.dummy_recording"),loc::T("training.dummy_recording.detail")),
    Row("history",loc::T("training.input_history"),loc::T("training.input_history.detail")),
@@ -711,8 +785,10 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   // A file that comes out the wrong way round is turned in one press.
   rows.push_back(Row("mirror",loc::T("training.mirror"),loc::T("training.mirror.detail"),ready&&v.mode==Mode::Idle&&v.lengths[v.selected]>0));
   for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i>=SlotCount;rows[i].height=compactSlots?30:0;}
- }else if(screen=="tools"||screen=="dummy"||screen=="reply"){
+ }else if(screen=="tools"||screen=="dummy"||screen=="reply"||screen=="reply-slot"){
   rows=ToolRows(v,screen);
+  // The reply slots after the first two rows are laid out as the recording slots are.
+  if(screen=="reply")for(std::size_t i=0;i<rows.size();++i){rows[i].wide=i<2||i>=2+SlotCount;rows[i].height=compactSlots?30:0;}
  }else if(screen=="combo-check"||screen=="check-fighters"){
   rows=ComboCheckRows(v,screen,ready);
  }else if(screen=="frame-data"){
@@ -771,12 +847,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   offerOverwrite=false;
   if(screen=="recording"){nav.Focus("record",rows);nav.Choose(rows);}
  }
- // Select on the reply's pick list (Custom above all) opens the typed field.
- if(openReplyEditor){
-  openReplyEditor=false;
-  if(screen=="reply"){nav.Focus("reply-moves",rows);nav.Choose(rows);}
- }
- std::string modeStatus;
+  std::string modeStatus;
  switch(v.mode){
  case Mode::Idle: modeStatus=loc::T("training.practice_ready"); break;
  case Mode::Standby: modeStatus=loc::Tf("training.standby_status",TrainingKeyName(TrainingRecordKey),TrainingPadChord()); break;
@@ -785,9 +856,9 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
  }
  std::string status=pending?loc::T("training.applying"):!error.empty()?error:!v.ready?loc::T("training.waiting_battle"):modeStatus;
  Tone statusTone=pending?Tone::Pending:!error.empty()?Tone::Error:!v.ready?Tone::Pending:Tone::Neutral;
- if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
+ if((screen=="tools"||screen=="dummy"||screen=="reply"||screen=="reply-slot"||screen=="recording")&&!lab.notice.empty()){status=lab.notice;statusTone=lab.failed?Tone::Error:Tone::Success;}
  // A recorded reply with no slot that can be one would do nothing; the page says so.
- else if(screen=="reply"&&lab.plan.when!=0&&lab.replyMoves.empty()&&!v.replyable){status=loc::T("training.reply.no_recordings_on");statusTone=Tone::Pending;}
+ else if(screen=="reply"&&lab.plan.when!=0&&std::none_of(lab.slots.begin(),lab.slots.end(),[](const auto& slot){return slot.on;})&&!v.replyable){status=loc::T("training.reply.no_recordings_on");statusTone=Tone::Pending;}
  // Every value in a panel, and the lab's pages as tabs that LB and RB step through.
  trainingMenu.tab=-1;
  OfferTrainingValues(rows);
@@ -827,7 +898,7 @@ void DrawTrainingPanel(const training::View& v,const TrainingSubmit& submit) {
   return;
  }
  if(screen=="recording"&&HandleRecordingLibrary(a,v,submit))return;
- if(screen=="tools"||screen=="dummy"||screen=="reply"){HandleTools(a,v,submit);return;}
+ if(screen=="tools"||screen=="dummy"||screen=="reply"||screen=="reply-slot"){HandleTools(a,v,submit);return;}
  if(a.kind==MenuAction::Activate&&a.id=="check-fighters"){nav.Push(a.id);return;}
  if((screen=="combo-check"||screen=="check-fighters")&&HandleComboCheck(a)){SavePractice();return;}
  // The HUD's size, Small to Large, and a part of the HUD: Off, then On.

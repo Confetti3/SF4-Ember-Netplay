@@ -1,10 +1,13 @@
 #pragma once
 #include "FrameMeter.hxx"
 #include "MoveInputs.hxx"
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <nlohmann/json.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
 // Pure decoding of the lab's saved settings; no game or overlay state.
 namespace sf4e { namespace training {
@@ -131,37 +134,39 @@ inline std::string MigrateReplyMoves(const std::string& text) {
     for (const auto& step : steps) line += (line.empty() ? "" : " > ") + step;
     return line;
 }
-// The dummy reply's pick list: generic notation that reads the same for every
-// fighter (a reversal, back and forward dashes, a throw, jumps, a low jab and
-// two quarter circles). Character-specific names are not read, so none are offered.
-constexpr const char* ReplyPresets[] = {"623P", "44", "66", "LP+LK", "8", "9", "2LK", "214K", "236P"};
-constexpr int ReplyPresetCount = static_cast<int>(sizeof(ReplyPresets) / sizeof(*ReplyPresets));
-// The preset a reply's text spells, compared by its parsed moves, so a saved
-// "lp+lk" or "throw" (migrated to 5LP+LK) is the LP+LK preset; -1 for none,
-// including empty or unreadable text.
-inline int ReplyPresetIndex(const std::string& text) {
-    std::vector<std::string> steps, preset; std::string error;
-    if (!combo::ParseSteps(text, steps, error) || steps.empty()) return -1;
-    for (int i = 0; i < ReplyPresetCount; ++i)
-        if (combo::ParseSteps(ReplyPresets[i], preset, error) && preset == steps) return i;
-    return -1;
-}
-// Empty text selects a recording. Invalid nonempty text is never that path,
-// and leaves the output plan alone so no partial reply can be submitted.
-inline bool BuildReplyPlan(const std::string& text, const DummyPlan& settings, DummyPlan& result, std::string& error) {
+// The reply slots, like the recording slots: each holds one typed move, is on
+// or off, and has a weight for the random draw (DummyPlan::order). The reply
+// plays one of the slots that are on; with none on, a recording that is on.
+struct ReplySlotSetting { std::string moves; bool on = false; int weight = 1; };
+using ReplySlots = std::array<ReplySlotSetting, SlotCount>;
+// A slot's typed moves as the plan plays them; empty text is no move. Invalid
+// text leaves the output alone so no partial reply can be submitted.
+inline bool BuildReply(const std::string& text, ReplyChoice& result, std::string& error) {
     std::vector<std::string> steps;
     if (!combo::ParseSteps(text, steps, error)) return false;
     if (!combo::Clean(text).empty() && steps.empty()) { error = "a reply needs a move"; return false; }
     // A reply plays from its first pressed frame, so a wait before it would be lost.
     combo::Step first;
-    if (!steps.empty() && combo::ParseStep(steps[0], first, error) && first.hold && first.motion == "5") {
+    if (!steps.empty() && combo::ParseStep(steps[0], first, error) && combo::Wait(first)) {
         error = "a reply cannot start with a wait"; return false;
     }
-    DummyPlan plan = settings;
     // Made for the dummy facing right, as a slot holds it; it is played for the way it faces.
     combo::Compiled compiled;
     if (!steps.empty() && !combo::Synthesize(steps, true, compiled, error)) return false;
-    plan.moves = std::move(compiled.frames); plan.offset = compiled.offset; plan.anchor = compiled.anchor; plan.hold = compiled.hold;
+    result = ReplyChoice{}; result.moves = std::move(compiled.frames); result.offset = compiled.offset; result.anchor = compiled.anchor; result.hold = compiled.hold;
+    return true;
+}
+// The plan for the slots that are on, each made as BuildReply makes one;
+// false with the first slot's error, leaving the output plan alone.
+inline bool BuildSlotPlan(const ReplySlots& slots, const DummyPlan& settings, DummyPlan& result, std::string& error) {
+    DummyPlan plan = settings; plan.choices.clear();
+    for (const auto& slot : slots) {
+        if (!slot.on || combo::Clean(slot.moves).empty()) continue;
+        ReplyChoice choice;
+        if (!BuildReply(slot.moves, choice, error)) return false;
+        choice.weight = (std::max)(1, (std::min)(MaxReplyWeight, slot.weight));
+        plan.choices.push_back(std::move(choice));
+    }
     result = std::move(plan);
     return true;
 }

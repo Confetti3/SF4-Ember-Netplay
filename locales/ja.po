@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "ダミーの反撃"
 
 msgid "training.reply.detail"
-msgstr "ダミーが動けるようになった瞬間に自分で行う行動です。落としたコンボや隙のある締めに反撃します。反撃の技を再生し、その欄が空なら反撃スロットを再生します。再生中や記録中は待機します。"
+msgstr "ダミーが再び自由になったときに自分で行う行動。落としたコンボや不利な締めに反撃します: オンの反撃スロットのどれかを出し、スロットが一つもオンでない間はオンの録画を再生します。"
 
 msgid "training.reply.hit"
 msgstr "コンボを落とした後"
@@ -1673,9 +1673,6 @@ msgstr "起き上がり"
 
 msgid "training.reply.any"
 msgstr "復帰するたび"
-
-msgid "training.reply.recordings"
-msgstr "記録"
 
 msgid "training.reply.no_recordings_on"
 msgstr "反撃に使えるオンの記録がありません"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
-msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空ならオンの記録で反撃します。"
-
-msgid "training.reply.move"
-msgstr "反撃のプリセット"
-
-msgid "training.reply.move.detail"
-msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。記録はオンの記録で反撃し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
-
-msgid "training.reply.custom"
-msgstr "カスタム"
+msgstr "このスロットの技をテンキー表記で入力します。例: 623HP、44。ダミーの向きに合わせて読まれます。コマンド語も使えます: qcf、qcb、dp、rdp、hcf、hcb。[HP]はボタン押しっぱなし、]HP[は最初の自由なフレームで離す、[1]20fは方向を20フレーム保持、10fは待機。空にすると技を削除します。"
 
 msgid "training.reply.timing"
 msgstr "反撃のタイミング"
 
 msgid "training.reply.timing.detail"
 msgstr "ダミーが動ける最初のフレームから、反撃のボタンが入るまでのフレーム数です。硬直の長さは最初に見たときに覚えます。それまでは硬直が終わった時点で反撃を始めます。"
+
+msgid "training.reply.order"
+msgstr "反撃の順番"
+
+msgid "training.reply.order.detail"
+msgstr "オンのスロットからダミーがどう選ぶか: ランダム(各スロットの重みに応じて)、または順番(一つずつ順に)。"
+
+msgid "training.reply.slot"
+msgstr "反撃スロット{0}"
+
+msgid "training.reply.slot.detail"
+msgstr "ダミーが反撃に使える技の一つ。左右でオン/オフ、決定で技一覧を開きます。"
+
+msgid "training.reply.slot_on"
+msgstr "このスロットを使う"
+
+msgid "training.reply.slot_on.detail"
+msgstr "ダミーが反撃にこのスロットを選べるかどうか。"
+
+msgid "training.reply.weight"
+msgstr "重み"
+
+msgid "training.reply.weight.detail"
+msgstr "ランダム選択での他のスロットに対するこのスロットの割合、1~9。"
+
+msgid "training.reply.clear_slot"
+msgstr "このスロットを空にする"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "このスロットの技を削除します。"
+
+msgid "training.reply.every_fighter"
+msgstr "全ファイター共通"
 
 msgid "training.key.reset"
 msgstr "位置を戻すキー"
