@@ -92,6 +92,8 @@ player who has not connected Discord in Ember gets 409.
 | `POST /tournaments/{id}/sets/{set}/result` | its organizers | `{ "winner": "<ember id>", "scores": { "<ember id>": 2, "<ember id>": 1 } }` |
 | `POST /tournaments/{id}/sets/{set}/hold` | its organizers | `{ "held" }`: a held set waits for the connector (shown to it as `pending`); not once its match is made |
 | `POST /tournaments/{id}/sets/{set}/call` | its organizers | calls its players again, in the feed Discord shows |
+| `GET /tournaments/{id}/sets/{set}/games` | its organizers | the set's Ember match on the bridge: `{ "revision", "games": [{ "attempt_id", "seq", "outcome", "state" }] }`; `409` before the connector started it |
+| `POST /tournaments/{id}/sets/{set}/adjudications` | its organizers | the bridge's adjudication body (`kind` `game_result` with `winner_slot` or `draw: true`, and `attempt_id` for a played game waiting; or `void_game` with `attempt_id`; `reason`, `expected_revision`), sent to the bridge for the set's match; its refusal comes back as it is. The site's bridge credential needs the organizer role on the connector's connection |
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
 | `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
 | `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |

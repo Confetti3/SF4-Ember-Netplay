@@ -276,9 +276,10 @@ impl Bracket {
             command.rules.games_to_win,
             tracked.attempt
         );
-        // An earlier attempt already marked it, when the read says so.
-        if self.mark_underway && !set.underway {
-            match self.site.mark_underway(&set.id).await {
+        // Also for a set an earlier attempt marked: the site learns this
+        // attempt's match.
+        if self.mark_underway {
+            match self.site.mark_underway(&set.id, &match_id).await {
                 Ok(()) | Err(SiteError::BudgetSpent) => {}
                 Err(error) => log!("{} set {}: not marked underway: {error}", self.key, set.id),
             }

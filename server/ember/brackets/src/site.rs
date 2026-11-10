@@ -30,7 +30,8 @@ pub trait Site: Send + Sync {
     fn set<'a>(&'a self, id: &'a str, purpose: Purpose) -> SiteFuture<'a, Option<Set>>;
     /// Whether the bracket is over, asked when a read finds no open set.
     fn standing(&self) -> SiteFuture<'_, Standing>;
-    fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()>;
+    /// `match_id`: the Ember match made for this attempt.
+    fn mark_underway<'a>(&'a self, id: &'a str, match_id: &'a str) -> SiteFuture<'a, ()>;
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported>;
 
     /// Whether `report` uses each game's winner (`Report::sequence`), which

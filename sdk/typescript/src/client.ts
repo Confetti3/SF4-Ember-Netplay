@@ -507,7 +507,8 @@ export class BridgeClient {
   /** Organizer credentials only. */
   recordGame(
     matchId: string,
-    result: { winnerSlot: 0 | 1 } | { draw: true },
+    /** `attemptId`: a played game waiting for a result, decided in place. */
+    result: ({ winnerSlot: 0 | 1 } | { draw: true }) & { attemptId?: string },
     expectedRevision: string,
     reason: string,
     idempotencyKey: string = randomUUID(),
@@ -518,6 +519,7 @@ export class BridgeClient {
       {
         kind: "game_result",
         ...("draw" in result ? { draw: true } : { winner_slot: result.winnerSlot }),
+        ...(result.attemptId ? { attempt_id: result.attemptId } : {}),
         reason,
         expected_revision: expectedRevision,
       },

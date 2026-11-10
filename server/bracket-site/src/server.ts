@@ -1,9 +1,9 @@
 // The HTTP routes: who is asking, the tournaments' API for organizers and
 // players, a public view, and the connector's contract (contract.ts).
-import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 
-import type { BridgeClient } from "../../../sdk/typescript/src/index.ts";
+import { BridgeError, type BridgeClient } from "../../../sdk/typescript/src/index.ts";
 import { Conflict, Invalid, roundLabel, status } from "./bracket.ts";
 import { contractRoutes, record } from "./contract.ts";
 import { fail, Failure, readJson, send, text, type Json, type Route } from "./http.ts";
@@ -57,8 +57,12 @@ export interface Options {
   /** The bridge's public origin, which serves a public event's replays. */
   bridgeOrigin?: string;
   fetch?: typeof fetch;
-  /** A bridge connection with `discord_lookup`, which finds each player's Ember ID. */
-  bridge: Pick<BridgeClient, "lookupPlayers">;
+  /**
+   * A bridge connection with `discord_lookup`, which finds each player's Ember
+   * ID. Deciding or voiding a game also needs the organizer role, on the
+   * connection the connector makes matches on.
+   */
+  bridge: Pick<BridgeClient, "lookupPlayers" | "getMatch" | "recordGame" | "voidGame">;
   now?: () => Date;
 }
 
@@ -91,6 +95,11 @@ export function bracketSite(options: Options): Server {
   const manager = (request: IncomingMessage, tournament: Tournament) => {
     if (!manages(signedIn(request), tournament)) fail(403, "only its organizers may");
     return tournament;
+  };
+  /** The Ember match a set an organizer runs is played as, and the bridge that decides its games. */
+  const played = (request: IncomingMessage, id: string, setId: string) => {
+    const set = manager(request, found(id)).sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
+    return [set.ember_match ?? fail(409, "the set has no Ember match yet"), options.bridge] as const;
   };
   const player = (request: IncomingMessage) => signedIn(request).discord ?? fail(400, "who? (X-Discord-User)");
   const by = (request: IncomingMessage) => signedIn(request).discord ?? "operator";
@@ -443,6 +452,37 @@ export function bracketSite(options: Options): Server {
       },
     ],
     [
+      "GET",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/games$/,
+      async (request, [id, setId]) => {
+        const [match, bridge] = played(request, id!, setId!);
+        const found = await bridge.getMatch(match).catch(bridgeFailure);
+        const games = (found.attempts as Json[] | undefined) ?? [];
+        return [200, { revision: found.revision ?? null, games: games.map(({ attempt_id, seq, outcome, state }: Json) => ({ attempt_id, seq, outcome, state })) }];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/adjudications$/,
+      async (request, [id, setId]) => {
+        // The bridge's own body (kind, winner_slot or draw, attempt_id, reason, expected_revision): it checks the rest.
+        const body = await readJson(request);
+        const [match, bridge] = played(request, id!, setId!);
+        const revision = text(body.expected_revision, /^\d{1,20}$/, "expected_revision is the match's revision");
+        const reason = text(body.reason, /^.{1,500}$/su, "reason is 1 to 500 characters");
+        const attempt = body.attempt_id === undefined ? undefined : text(body.attempt_id, SLUG, "attempt_id is a game's ID");
+        const header = request.headers["idempotency-key"];
+        const key = typeof header === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(header) ? header : randomUUID();
+        const answer =
+          body.kind === "void_game"
+            ? bridge.voidGame(match, attempt ?? fail(400, "attempt_id is the game to void"), revision, reason, key)
+            : body.kind === "game_result" && (body.draw === true || body.winner_slot === 0 || body.winner_slot === 1)
+              ? bridge.recordGame(match, { ...(body.draw === true ? { draw: true as const } : { winnerSlot: body.winner_slot as 0 | 1 }), ...(attempt ? { attemptId: attempt } : {}) }, revision, reason, key)
+              : fail(400, "kind is game_result (winner_slot 0 or 1, or draw: true) or void_game");
+        return [200, (await answer.catch(bridgeFailure)) as Json];
+      },
+    ],
+    [
       "POST",
       /^\/leagues$/,
       async (request) => {
@@ -690,4 +730,10 @@ function view(tournament: Tournament): Json {
     actions: actions(tournament),
     sets: tournament.sets.map(({ key: _, ...set }) => ({ ...set, status: status(set), round_label: roundLabel(set.round, tournament.rounds) })),
   };
+}
+
+/** The bridge's refusal, passed on as it is. */
+function bridgeFailure(error: unknown): never {
+  if (error instanceof BridgeError) fail(error.status >= 500 ? 502 : error.status, error.message);
+  throw error;
 }

@@ -37,7 +37,21 @@ const bridge = {
       .filter((n) => n <= 4 || (n === 5 && linkFive))
       .map((n) => ({ discord_user_id: discordId(n), ember_id: emberId(n), participant_id: `prt_${n}` }));
   },
+  async getMatch(match: string) {
+    return { id: match, revision: "7", attempts: [{ attempt_id: "ega_1", seq: 1, outcome: "p1_win", state: "accepted", source: "reports" }] };
+  },
+  async recordGame(match: string, result: object, revision: string, reason: string) {
+    decided.push(["record", match, result, revision, reason]);
+    return { revision: "8" };
+  },
+  async voidGame(match: string, attempt: string, revision: string, reason: string) {
+    if (revision !== "7") throw new BridgeError(409, "stale_revision", "stale", false);
+    decided.push(["void", match, attempt, revision, reason]);
+    return { revision: "8" };
+  },
 };
+/** What organizers asked the bridge to decide. */
+const decided: unknown[][] = [];
 
 let dir: string;
 let store: Store;
@@ -178,8 +192,22 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.deepEqual([(await listed()).webhook, (await listed(BOT)).webhook], [undefined, hook]);
   const old = await call("GET", "/tournaments/weekly/ember/sets?state=open", { token: CONNECTOR, headers: { "ember-brackets-contract": "2" } });
   assert.deepEqual([old.status, old.body], [426, { contract: "1" }]);
-  assert.equal((await connector("POST", "/sets/r1-1/underway", {})).status, 204);
+  const games = () => organizer("GET", "/tournaments/weekly/sets/r1-1/games");
+  assert.equal((await games()).status, 409, "no Ember match yet");
+  assert.equal((await connector("POST", "/sets/r1-1/underway", { ember_match: "emt_semi-0" })).status, 204);
   assert.equal((await connector("GET", "/sets/r1-1")).body.set.underway, true);
+  // Its organizers read the match's games and void or draw one, on the bridge.
+  assert.deepEqual((await games()).body, { revision: "7", games: [{ attempt_id: "ega_1", seq: 1, outcome: "p1_win", state: "accepted" }] });
+  const adjudicate = (body: object, who = organizer) => who("POST", "/tournaments/weekly/sets/r1-1/adjudications", body);
+  assert.equal((await adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "7", reason: "lag" }, as("player-2"))).status, 403);
+  assert.equal((await adjudicate({ kind: "void_game", expected_revision: "7", reason: "lag" })).status, 400);
+  assert.equal((await adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "6", reason: "lag" })).status, 409, "the bridge's refusal");
+  assert.equal((await adjudicate({ kind: "void_game", attempt_id: "ega_1", expected_revision: "7", reason: "lag" })).status, 200);
+  assert.equal((await adjudicate({ kind: "game_result", draw: true, expected_revision: "8", reason: "double KO" })).status, 200);
+  assert.deepEqual(decided, [
+    ["void", "emt_semi-0", "ega_1", "7", "lag"],
+    ["record", "emt_semi-0", { draw: true }, "8", "double KO"],
+  ]);
   assert.deepEqual((await connector("GET", "/sets/r9-1")).body, { set: null });
 
   const report = (winner: number, loser: number, key?: string) =>

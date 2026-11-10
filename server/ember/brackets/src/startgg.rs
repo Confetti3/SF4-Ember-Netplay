@@ -532,7 +532,7 @@ impl Site for Startgg {
         Box::pin(self.read_standing())
     }
 
-    fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()> {
+    fn mark_underway<'a>(&'a self, id: &'a str, _match_id: &'a str) -> SiteFuture<'a, ()> {
         Box::pin(self.send_underway(id))
     }
 

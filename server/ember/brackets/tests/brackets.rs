@@ -143,12 +143,15 @@ async fn a_restart_makes_a_fresh_attempt_and_a_set_changed_by_hand_is_cancelled(
     world.challonge.log();
 
     // A disputed game cancels the match: the set is played again, from the
-    // same read, and is not marked underway again.
+    // same read, and marked underway again with the new match.
     assert!(world.challonge.find("1001").underway);
     world.cancel(&first).await;
     world.bridge.deliver().await;
     world.connector.pass(false).await;
-    assert_eq!(lines(&world.challonge.log()), [LIST]);
+    assert_eq!(
+        lines(&world.challonge.log()),
+        [LIST, "PUT /matches/1001/change_state.json"]
+    );
     let matches = world.bridge.matches().await;
     assert_eq!(matches.len(), 2);
     let (external, second, _) = &matches[1];

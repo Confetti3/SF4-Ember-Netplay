@@ -481,8 +481,13 @@ impl Site for Service {
         true
     }
 
-    fn mark_underway<'a>(&'a self, id: &'a str) -> SiteFuture<'a, ()> {
-        Box::pin(self.post(id, "underway", json!({}), Kind::Plain))
+    fn mark_underway<'a>(&'a self, id: &'a str, match_id: &'a str) -> SiteFuture<'a, ()> {
+        Box::pin(self.post(
+            id,
+            "underway",
+            json!({ "ember_match": match_id }),
+            Kind::Plain,
+        ))
     }
 
     fn report<'a>(&'a self, id: &'a str, report: &'a Report) -> SiteFuture<'a, Reported> {

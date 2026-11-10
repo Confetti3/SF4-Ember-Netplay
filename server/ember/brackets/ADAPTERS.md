@@ -32,7 +32,7 @@ rely on.
 | `open_sets(purpose)` | every set the site lists as open | Each playable set it can see, entries player 1 first. A set it cannot see may simply be missing: the connector never acts on a set's absence. |
 | `set(id, purpose)` | one set, or `None` | `None` only when the site itself says the set does not exist: Challonge answers 404 for the match's own URL (any 404 there, including one from a proxy in front of it), start.gg `Set not found for id: <id>`, an `http` service `{"set": null}`. |
 | `standing()` | `Finished`, `PlayedOut` or `Running` | `Finished` only when the site says the event is over: the connector then stops reading it for good. `PlayedOut` when every set looks played but more may come (a later stage, a reopened set). |
-| `mark_underway(id)` | nothing | May be called again for a set already underway. A failure is only logged. |
+| `mark_underway(id, match_id)` | nothing | May be called again for a set already underway, also with a new attempt's match. A failure is only logged. |
 | `report(id, report)` | `Sent` or `AlreadyHeld` | Records the winner and each entry's games won. May be called again for a report already recorded (see Delivery below): answer `AlreadyHeld` when the set already holds this winner, so the log does not claim the connector wrote it. Answer `Sent` only on positive evidence: the site's answer shows the set decided for this winner, or, when it does not, a fresh read of the set does (one still open is `Deferred`). Report only a set that reads open now, not one gone pending. If the site can tell, refuse (`Refused`) rather than write over a set that has a different result, or games entered that disagree with `report.sequence`. |
 | `wants_games()` | `bool`, `false` unless overridden | Whether `report` uses each game's winner, in the order played (`report.sequence`). Only then does the connector read the games from the bridge before reporting, and check that they add up to the score. |
 
@@ -253,8 +253,9 @@ tournament for good.
 
 ### Writing
 
-`POST {base}/sets/{id}/underway` with `{}`: mark the set started. Answer
-`2xx`, also when it already was.
+`POST {base}/sets/{id}/underway` with `{ "ember_match": "<match ID>" }`: mark
+the set started, played as that Ember match. Sent again with each new
+attempt's match. Answer `2xx`, also when it already was.
 
 `POST {base}/sets/{id}/report`, with an `Idempotency-Key` header:
 

@@ -58,10 +58,12 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
       /^\/tournaments\/([^/]+)\/ember\/sets\/([^/]+)\/underway$/,
       async (request, [id, setId]) => {
         const tournament = played(request, id!) ?? fail(404, `no tournament ${id}`);
-        await readJson(request);
+        const { ember_match } = gamesOf(await readJson(request));
         const set = tournament.sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
         if (!set.underway) setLive(tournament, set, new Date().toISOString());
         set.underway = true;
+        // Each attempt's match, for the organizer to void or draw its games.
+        if (ember_match) set.ember_match = ember_match;
         store.save(tournament);
         return [204];
       },
