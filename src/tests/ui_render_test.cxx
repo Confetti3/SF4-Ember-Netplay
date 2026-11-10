@@ -1212,6 +1212,8 @@ int main(int argc, char** argv) {
                 draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
                 draw(nullptr,MenuInput::Select,1);draw(nullptr,0,4);draw("desk-event");
                 Require(shell.Navigation().Screen()=="desk-event","The desk's event did not open");
+                // Past its state, Edit and Stop to the view.
+                for(int i=0;i<3;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
                 draw(nullptr,MenuInput::Right,1);draw(nullptr,0,2);draw("desk-bracket");
                 draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
                 for(int i=0;i<2;++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
