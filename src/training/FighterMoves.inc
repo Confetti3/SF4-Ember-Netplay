@@ -682,7 +682,7 @@
     {"GEN", "Jyakoha MK", "5KKK > 236236MK"},
     {"GEN", "Jyakoha HK", "5KKK > 236236HK"},
     {"GEN", "Ryukoha", "5KKK > 236236KKK"},
-    {"GEN", "Teiga", "5KKK > [8]5f > 236236KKK#40"},
+    {"GEN", "Teiga", "5KKK > 8 > ~ 236236KKK@+8"},
     {"DAN", "Saikyo Kick HK", "4HK"},
     {"DAN", "Gadoken LP", "236LP"},
     {"DAN", "Gadoken MP", "236MP"},
