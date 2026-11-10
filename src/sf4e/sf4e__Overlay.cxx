@@ -356,6 +356,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 	view.lobbySettings = snapshot.lobbySettings;
 	view.helperReady = snapshot.helperReady;
 	view.canOpenRoom = snapshot.canOpenRoom;
+	view.hostPublicRoom = snapshot.hostPublicRoom;
 	view.canReplaceRoom = snapshot.canReplaceRoom;
 	view.canReady = snapshot.canReady;
 	view.canReady = snapshot.atMainMenu && view.canReady && sf4e::selection::Available(sf4e::selection::FromNative(lobbyConditions),

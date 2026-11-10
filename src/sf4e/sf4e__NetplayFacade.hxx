@@ -277,6 +277,7 @@ namespace sf4e {
 			CountryCode automaticCountry;
 			int localSlot = -1;
 			bool offlineRequested = false;
+			bool hostPublicRoom = false;
 			std::string displayName;
 			std::string invitation;
 			// The room's short link once the helper has one; see IrohRoom.

@@ -435,6 +435,44 @@ std::string Shown(const Journey& j){
  std::string out;for(const auto& r:j.rows)if(r.id.compare(0,8,"pr-room:")==0)out+=r.id.substr(8);return out;
 }
 
+// Launcher --host-public-room: from Home, once the Ember ID's service is
+// known, the public room Create would open is asked for with no press; a
+// refusal waits 30 s before the next ask, and an admission joins.
+// The room creates asked for so far.
+std::size_t Creates(Journey& j){
+ const auto& sent=j.requests();
+ return static_cast<std::size_t>(std::count_if(sent.begin(),sent.end(),[](const auto& r){return r->op==Op::RoomCreate;}));
+}
+void HostedRoomJourney(){
+ Journey j;auto& h=j.h;
+ h.view.preferences.roomName="Stream";h.view.preferences.roomCapacity=8;h.Frame(0,2);
+ j.answerIdentityUntilIdle();h.Frame(0,10);
+ Check(j.requests().empty(),"A public room was asked for without --host-public-room");
+ // With the flag Public rooms opens, and asks for the room once the Ember ID's services answer.
+ h.view.hostPublicRoom=true;h.Frame(0,2);j.answerIdentityUntilIdle();h.Frame(0,2);
+ Check(h.shell.Navigation().Screen()=="public-rooms"&&Creates(j)==1&&j.requests().back()->op==Op::RoomCreate&&j.requests().back()->bridgeId=="brg_1"&&
+  j.requests().back()->roomName=="Stream"&&j.requests().back()->capacity==8,"--host-public-room did not ask for its room from Public rooms");
+ j.Admit("unavailable");h.Frame(0,60);
+ Check(Creates(j)==1,"A refused hosted room was asked for again at once");
+ h.Wait(31);h.Frame(0,2);
+ Check(Creates(j)==2&&j.requests().back()->op==Op::RoomCreate,"A refused hosted room was not asked for again after 30 s");
+ j.Admit();
+ Check(j.joins()==1&&j.hosts()==0,"The hosted room's admission did not join it");
+}
+// A stream PC opens the last public room created here: a King room made from
+// a template comes back as King, with that template's tables.
+void HostedLastRoomJourney(){
+ Journey j;auto& h=j.h;
+ netplay::RoomTemplate saved;saved.name="Stream";saved.roomName="Stream room";saved.capacity=8;saved.isPublic=true;
+ saved.tables=netplay::TableSetup::Same(room::PublicRoomRules());saved.tables.names[0]="Main stage";
+ h.view.preferences.roomTemplates={saved};h.view.preferences.publicRoomType=room::KingRoom;h.view.preferences.publicRoomTemplate="Stream";
+ h.view.hostPublicRoom=true;h.Frame(0,2);j.answerIdentityUntilIdle();h.Frame(0,2);
+ Check(Creates(j)==1&&j.requests().back()->roomName=="Stream room"&&j.requests().back()->capacity==8,"A stream PC did not open its template's room");
+ j.Admit();
+ const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
+ Check(join!=h.actions.rend()&&join->arcadeRoom==room::KingRoom&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
+}
+
 // Rooms that can be joined come first, near ones before far ones once the region
 // is known, then the most free seats, the most players and the oldest; locked and
 // full rooms are last and cannot be pressed. Without a region nothing is near.
@@ -828,5 +866,5 @@ void RoomLostJourney(){
  Check(!j.row("replace-room")&&j.row("leave"),"A public room offered to replace its room");
 }
 }
-int main(){try{ListJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
+int main(){try{ListJourney();JoinJourney();CreateJourney();TemplateJourney();OwnDelayJourney();CreateWithRulesJourney();RestoredCreateJourney();AbandonedRequestJourney();AbandonedCreateJourney();RoomJourney();RoomLostJourney();SortJourney();QuickJoinJourney();FilterJourney();AutoRefreshJourney();CreateOpeningJourney();CurrentRoomJourney();HostedRoomJourney();HostedLastRoomJourney();RunPublicRoomsSetupJourneys();std::cout<<"Public rooms journeys passed.\n";return 0;}
 catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

@@ -619,6 +619,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
+ UpdateHostedPublicRoom(v,now);
  if(openPublicCreate_){
   openPublicCreate_=false;
   if(v.session.room==RoomState::Idle&&v.canOpenRoom&&nav.Screen()=="public-rooms")OpenPublicCreate();
