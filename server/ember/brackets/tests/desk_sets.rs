@@ -3,53 +3,23 @@
 //! makes the event public.
 mod support;
 
-use std::collections::BTreeMap;
-
-use ember_brackets::{CredentialKind, Desk};
 use reqwest::{Method, StatusCode};
-use rusqlite::params;
 use serde_json::json;
-use support::{CHALLONGE_KEY, Setup, TOURNAMENT, World};
+use support::{Setup, World};
 
-/// The organizer, byte 9, runs the fake tournament on the desk, made public.
-async fn run_public_event(world: &World) {
-    run_public_event_with(world, json!({ "rounds": { "games_to_win": 2 } })).await;
-}
-
-async fn run_public_event_with(world: &World, settings: serde_json::Value) {
-    let organizer = world.bridge.connect(9, "organizer").await;
-    let state = world.bridge.state();
-    let now = world.bridge.clock.now();
-    let sealed = state.keys.seal(
-        json!({
-            "access": CHALLONGE_KEY,
-            "refresh": null,
-            "scope": "me tournaments:read matches:read matches:write participants:read",
-            "expires_at": now + 604_800,
-        })
-        .to_string()
-        .as_bytes(),
-    );
-    let ember_id = organizer.as_str().to_owned();
-    state
-        .db
-        .write(move |tx| {
-            tx.execute(
-                "INSERT INTO organizer_grants (site, user_id, sealed, refreshed_at)
-                 VALUES ('challonge', '9009', ?1, ?2)",
-                params![sealed, now],
-            )?;
-            tx.execute(
-                "INSERT INTO organizer_events
-                     (id, ember_id, title, status, site, tournament, name, settings, created_at,
-                      public)
-                 VALUES ('evt_1', ?1, 'Weekly', 'ready', 'challonge', ?2, 'Weekly', ?3, ?4, 1)",
-                params![ember_id, TOURNAMENT, settings.to_string(), now],
-            )?;
-            Ok(())
-        })
-        .await
-        .unwrap();
+/// A world whose desk runs the fake service's tournament, made public with
+/// `settings`, and players 1 and 2 connected.
+async fn public_event(settings: serde_json::Value) -> World {
+    let world = World::start(Setup {
+        configured: false,
+        desk: true,
+        ..Setup::default()
+    })
+    .await;
+    world.bridge.connect(1).await;
+    world.bridge.connect(2).await;
+    world.run_event(settings, true).await;
+    world
 }
 
 async fn public_set(world: &World) -> (StatusCode, serde_json::Value) {
@@ -62,33 +32,17 @@ async fn public_set(world: &World) -> (StatusCode, serde_json::Value) {
 
 #[tokio::test]
 async fn a_desk_events_sets_follow_its_matches_and_show_while_public() {
-    let world = World::start(Setup {
-        challonge: false,
-        kind: CredentialKind::Bearer,
-        ..Setup::default()
-    })
-    .await;
-    let mut config = world.config.clone();
-    config.desk = Some(Desk {
-        api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
-        ..Desk::default()
-    });
-    let connector = support::connector(&config, &world.clock);
-    world.bridge.connect(1, "player1").await;
-    world.bridge.connect(2, "Player_2").await;
-    connector.pass(true).await;
-    run_public_event(&world).await;
+    let world = public_event(json!({ "rounds": { "games_to_win": 2 } })).await;
 
     // Read: the set's match is made, and the set is called.
-    connector.pass(true).await;
+    world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
     let (status, set) = public_set(&world).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(set["id"], "1001");
+    assert_eq!(set["id"], "s-1");
     assert_eq!(set["round_label"], "Round 1");
     assert_eq!(set["side"], "winners");
     assert_eq!(set["desk_state"], "called");
-    assert_eq!(set["players"], json!(["player1", "Player_2"]));
     assert_eq!(set["score"], json!([0, 0]));
     // Ember IDs and match IDs stay with the organizer.
     assert!(set.get("ember_ids").is_none() && set.get("match_id").is_none());
@@ -96,7 +50,7 @@ async fn a_desk_events_sets_follow_its_matches_and_show_while_public() {
     // Played: its score, waiting to be reported (the results URL here is
     // another connector's; the report itself is covered in brackets.rs).
     world.play(&match_id, &[0, 0]).await;
-    connector.pass(true).await;
+    world.connector.pass(true).await;
     let (_, set) = public_set(&world).await;
     assert_eq!(set["desk_state"], "reporting");
     assert_eq!(set["score"], json!([2, 0]));
@@ -117,89 +71,16 @@ async fn a_desk_events_sets_follow_its_matches_and_show_while_public() {
 }
 
 #[tokio::test]
-async fn a_desk_events_sets_hold_the_whole_bracket() {
-    let world = World::start(Setup {
-        challonge: false,
-        kind: CredentialKind::Bearer,
-        ..Setup::default()
-    })
-    .await;
-    // A later round nobody can play yet: never in a read of open sets.
-    world
-        .challonge
-        .state
-        .lock()
-        .unwrap()
-        .matches
-        .push(support::challonge::FakeMatch::fed_by(
-            "2001",
-            2,
-            ["1001", "1001"],
-        ));
-    let mut config = world.config.clone();
-    config.desk = Some(Desk {
-        api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
-        ..Desk::default()
-    });
-    let connector = support::connector(&config, &world.clock);
-    world.bridge.connect(1, "player1").await;
-    world.bridge.connect(2, "Player_2").await;
-    connector.pass(true).await;
-    run_public_event(&world).await;
-    connector.pass(true).await;
-
-    let (status, view) = world
-        .bridge
-        .send("", Method::GET, "/v1/public/events/evt_1", None, None)
-        .await;
-    assert_eq!(status, StatusCode::OK);
-    let later = view["sets"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|set| set["id"] == "2001")
-        .expect("the later round is in the bracket");
-    assert_eq!(later["round"], 2);
-    assert_eq!(later["desk_state"], "not_ready");
-}
-
-#[tokio::test]
 async fn a_set_held_from_the_desk_is_not_played() {
-    let world = World::start(Setup {
-        challonge: false,
-        kind: CredentialKind::Bearer,
-        ..Setup::default()
-    })
-    .await;
-    let mut config = world.config.clone();
-    config.desk = Some(Desk {
-        api_bases: BTreeMap::from([("challonge".into(), world.challonge.api.clone())]),
-        ..Desk::default()
-    });
-    let connector = support::connector(&config, &world.clock);
-    world.bridge.connect(1, "player1").await;
-    world.bridge.connect(2, "Player_2").await;
-    connector.pass(true).await;
-    run_public_event_with(
-        &world,
-        json!({ "rounds": { "games_to_win": 2 }, "hold": { "sets": ["1001"] } }),
-    )
-    .await;
-    connector.pass(true).await;
+    let world =
+        public_event(json!({ "rounds": { "games_to_win": 2 }, "hold": { "sets": ["s-1"] } })).await;
+    world.connector.pass(true).await;
     assert!(world.bridge.matches().await.is_empty());
     let (status, set) = public_set(&world).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(set["desk_state"], "held");
-    // No Ember match yet: the players are the names the site shows, and
-    // the public view carries none of the site's IDs.
-    let players = set["players"].as_array().unwrap();
-    assert_eq!(players.len(), 2);
-    assert!(
-        players
-            .iter()
-            .all(|name| name.as_str().is_some_and(|name| name.starts_with("Entry "))),
-        "{set}"
-    );
+    // No Ember match yet, and the public view carries none of the
+    // service's IDs or accounts.
     assert!(
         set.get("entries").is_none() && set.get("names").is_none() && set.get("discord").is_none(),
         "{set}"

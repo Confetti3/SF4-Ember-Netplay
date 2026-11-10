@@ -25,7 +25,7 @@ use crate::{
     http::{bearer, exchange, http_client},
     log,
     site::{
-        Account, Entry, Extras, MAX_PHASE, Phase, Purpose, Report, Reported, Set, Site, SiteError,
+        Entry, Extras, MAX_PHASE, Phase, Purpose, Report, Reported, Set, Site, SiteError,
         SiteFuture, Standing, Status,
     },
 };
@@ -103,12 +103,11 @@ struct WireEntry {
     accounts: Vec<WireAccount>,
 }
 
-/// `{"site": ..., "id": ...}` or `{"discord": ...}`.
+/// `{"discord": ...}`; any other kind of account is passed over.
 #[derive(Deserialize)]
-#[serde(untagged)]
-enum WireAccount {
-    Site { site: String, id: String },
-    Discord { discord: String },
+struct WireAccount {
+    #[serde(default)]
+    discord: Option<String>,
 }
 
 /// `423 Locked` with `{"retry": true}`: this one report cannot be taken now,
@@ -251,15 +250,6 @@ impl<'a> WireReport<'a> {
     }
 }
 
-impl From<WireAccount> for Account {
-    fn from(account: WireAccount) -> Self {
-        match account {
-            WireAccount::Site { site, id } => Self::Site { site, id },
-            WireAccount::Discord { discord } => Self::Discord { user_id: discord },
-        }
-    }
-}
-
 impl WireSet {
     /// The set as the connector sees it, or `None` when its IDs could not
     /// go back into a URL or a match's external ID.
@@ -280,7 +270,7 @@ impl WireSet {
         let entry = |wire: WireEntry| Entry {
             participant_id: wire.id,
             name: None,
-            accounts: wire.accounts.into_iter().map(Account::from).collect(),
+            discord: wire.accounts.into_iter().find_map(|account| account.discord),
         };
         Some(Set {
             round_label: self
@@ -298,7 +288,6 @@ impl WireSet {
             winner: self.winner,
             extras: Extras {
                 phase: self.phase.and_then(|phase| Phase::new(Some(&phase), None)),
-                ..Extras::default()
             },
         })
     }
@@ -575,13 +564,13 @@ mod tests {
     }
 
     #[test]
-    fn a_set_reads_with_its_accounts_in_order() {
+    fn a_set_reads_with_its_discord_accounts() {
         let read = set(json!({
             "id": "s-12",
             "round": -2,
             "status": "open",
             "entries": [
-                { "id": "e1", "accounts": [{ "site": "startgg", "id": "1234" }, { "discord": "274220342558756145" }] },
+                { "id": "e1", "accounts": [{ "site": "elsewhere", "id": "1234" }, { "discord": "274220342558756145" }] },
                 { "id": "e2" },
             ],
             "some_future_field": true,
@@ -590,19 +579,9 @@ mod tests {
         assert_eq!(read.round_label, "Round -2");
         assert_eq!(read.playable_ids(), Some(["e1", "e2"]));
         let [one, two] = read.entries.unwrap();
-        assert_eq!(
-            one.accounts,
-            [
-                Account::Site {
-                    site: "startgg".into(),
-                    id: "1234".into()
-                },
-                Account::Discord {
-                    user_id: "274220342558756145".into()
-                },
-            ]
-        );
-        assert!(two.accounts.is_empty());
+        // An account of another kind is passed over.
+        assert_eq!(one.discord.as_deref(), Some("274220342558756145"));
+        assert_eq!(two.discord, None);
     }
 
     #[test]

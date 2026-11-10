@@ -20,7 +20,6 @@ use std::{
     time::Duration,
 };
 
-use ember_protocol::EmberId;
 use tokio::sync::{Mutex, Notify};
 
 use crate::{
@@ -28,7 +27,7 @@ use crate::{
     bridge::{BridgeClient, BridgeError},
     config::Tournament,
     log,
-    rounds::{Hold, PhaseWatch, Rounds, Shape},
+    rounds::{PhaseWatch, Rounds},
     schedule::{Backoff, Phase, Window},
     sets::{
         MAX_ATTEMPTS, OnOpen, OnResult, Progress, Received, Seen, Tracked, adds_up, on_open,
@@ -49,10 +48,6 @@ const MIN_WAKE_SECS: u64 = 1;
 /// tries span 1 + 2 + 4 + 8 + 16 + 32 minutes and five hours, about 6
 /// hours. Counted while the connector runs.
 const MAX_DEFERRALS: u32 = 12;
-/// How often a desk event's scheduled read takes the whole bracket rather
-/// than its open sets. A paged site spends a request per page of decided
-/// sets too, so this keeps a Challonge month within its budget.
-const WHOLE_SECS: u64 = 600;
 
 /// What every tournament shares.
 pub(crate) struct Context {
@@ -62,9 +57,6 @@ pub(crate) struct Context {
     pub build_id: String,
     pub poll_secs: u64,
     pub max_poll_secs: u64,
-    /// Players whose old account connection has been pointed out since the
-    /// connector started, so each is pointed out once.
-    pub pointed_out: std::sync::Mutex<HashSet<EmberId>>,
 }
 
 pub(crate) struct Bracket {
@@ -74,7 +66,6 @@ pub(crate) struct Bracket {
     rounds: Rounds,
     window: Window,
     mark_underway: bool,
-    hold: Hold,
     context: Arc<Context>,
     /// Whether the last lookup of players failed, so a failure is logged
     /// once until lookups work again.
@@ -85,11 +76,6 @@ pub(crate) struct Bracket {
     /// The desk event this bracket is, whose sets go to the bridge after
     /// each read (`snapshot`); none for a configured tournament.
     desk_event: Option<String>,
-    /// Each phase's bracket shape from the sets read, for the top and grand
-    /// final lengths (`Rounds::needs_shape`).
-    shapes: std::sync::Mutex<Vec<(Option<crate::site::Phase>, Shape)>>,
-    /// Whether sets wait for the bracket's shape, logged once.
-    shape_waiting: AtomicBool,
     /// The sets its organizer holds from the desk, by ID.
     desk_held: Vec<String>,
     /// Whether the last snapshot failed to reach the bridge, logged once.
@@ -117,11 +103,6 @@ struct State {
     last_read: Option<Vec<(String, [String; 2])>>,
     /// Every set the reads have shown, as last shown, for the desk.
     seen: BTreeMap<String, Set>,
-    /// When a desk event's whole bracket was last read.
-    whole_at: Option<u64>,
-    /// The sets the last whole read showed, while a length follows the
-    /// bracket's shape (`Rounds::needs_shape`): none until a whole read.
-    shaped: Option<HashSet<String>>,
     /// Kept in the database too, so a restart does not read it again.
     finished: bool,
     /// Every set looks played but the site does not say it is over: read
@@ -223,13 +204,10 @@ impl Bracket {
             rounds: tournament.rounds.clone(),
             window: tournament.window()?,
             mark_underway: tournament.mark_underway,
-            hold: tournament.hold,
             context,
             lookup_failing: AtomicBool::new(false),
             cancel_failing: std::sync::Mutex::default(),
             desk_event: None,
-            shapes: std::sync::Mutex::default(),
-            shape_waiting: AtomicBool::new(false),
             desk_held: Vec::new(),
             snapshot_failing: AtomicBool::new(false),
             state: Mutex::new(State {
@@ -240,8 +218,6 @@ impl Bracket {
                 phases: PhaseWatch::default(),
                 last_read: None,
                 seen: BTreeMap::new(),
-                whole_at: None,
-                shaped: None,
                 finished,
                 played_out: false,
                 window_end_logged: false,
@@ -291,7 +267,6 @@ impl Bracket {
                     );
                 }
             }
-            Err(SiteError::BudgetSpent) => {}
             Err(error) => {
                 if state.retry.grow(now) == 1 {
                     log!(
@@ -443,51 +418,7 @@ impl Bracket {
             Purpose::Result
         };
         state.schedule.hold(now);
-        // A desk event's scheduled read takes the whole bracket now and
-        // then, which also gives the open sets the rest of the pass needs. A
-        // length that follows the bracket's shape needs a whole read before
-        // any match, and another when a set shows up that the last one did
-        // not have: the bracket was reset, or grew before its start.
-        let shaped = self.rounds.needs_shape();
-        let whole_due = (self.desk_event.is_some()
-            && purpose == Purpose::Scheduled
-            && state.whole_at.is_none_or(|at| now >= at + WHOLE_SECS))
-            || (shaped && state.shaped.is_none());
-        let mut whole = if whole_due {
-            self.site.whole_sets(purpose).await?
-        } else {
-            None
-        };
-        let mut open = None;
-        if whole.is_none() {
-            let read = self.site.open_sets(purpose).await?;
-            let unknown = shaped
-                && state
-                    .shaped
-                    .as_ref()
-                    .is_some_and(|known| read.iter().any(|set| !known.contains(&set.id)));
-            if unknown {
-                whole = self.site.whole_sets(purpose).await?;
-            }
-            if whole.is_none() {
-                open = Some(read);
-            }
-        }
-        let mut sets = match (whole, open) {
-            (Some((open, rest)), _) => {
-                state.whole_at = Some(now);
-                if shaped {
-                    self.reshape(&open, &rest);
-                    state.shaped =
-                        Some(open.iter().chain(&rest).map(|set| set.id.clone()).collect());
-                }
-                for set in rest {
-                    state.seen.insert(set.id.clone(), set);
-                }
-                open
-            }
-            (None, open) => open.unwrap_or_default(),
-        };
+        let mut sets = self.site.open_sets(purpose).await?;
         // A paged list can show a set twice, when a set ahead of it opens
         // between two pages.
         sets.sort_by(|a, b| a.id.cmp(&b.id));
@@ -517,12 +448,7 @@ impl Bracket {
         if !sets.is_empty() {
             state.played_out = false;
         } else if !state.played_out && self.store().has_sets(&self.key)? {
-            // A budget too spent to ask is no failure: the read worked.
-            let standing = match self.site.standing().await {
-                Err(SiteError::BudgetSpent) => Standing::Running,
-                standing => standing?,
-            };
-            match standing {
+            match self.site.standing().await? {
                 Standing::Finished => {
                     self.store().finish(&self.key, now)?;
                     state.finished = true;
@@ -599,7 +525,6 @@ impl Bracket {
             // on meanwhile.
             let set = match self.site.set(&set_id, purpose).await {
                 Ok(set) => set,
-                Err(SiteError::BudgetSpent) => continue,
                 Err(error) => {
                     failure.get_or_insert(error);
                     continue;
@@ -620,7 +545,6 @@ impl Bracket {
             }
             let set = match self.site.set(&set_id, purpose).await {
                 Ok(set) => set,
-                Err(SiteError::BudgetSpent) => continue,
                 Err(error) => {
                     failure.get_or_insert(error);
                     continue;
@@ -640,43 +564,10 @@ impl Bracket {
         }
     }
 
-    /// Each phase's shape from a whole read: the open sets and the rest.
-    fn reshape(&self, open: &[Set], rest: &[Set]) {
-        let mut phases: Vec<Option<crate::site::Phase>> = Vec::new();
-        for set in open.iter().chain(rest) {
-            if !phases.contains(&set.extras.phase) {
-                phases.push(set.extras.phase.clone());
-            }
-        }
-        let shapes = phases
-            .into_iter()
-            .map(|phase| {
-                (
-                    phase.clone(),
-                    Shape::of(open.iter().chain(rest), phase.as_ref()),
-                )
-            })
-            .collect();
-        *self
-            .shapes
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = shapes;
-    }
-
-    /// Creates the matches of the sets that are ready. A set whose length
-    /// follows its bracket's shape waits until a whole read gave it.
+    /// Creates the matches of the sets that are ready.
     async fn create_ready(&self, open: &[(&Set, [&str; 2])]) -> Result<bool, SiteError> {
         let mut starts = Vec::new();
         for &(set, entries) in open {
-            if self.rounds.needs_shape() && self.shape(set).is_none() {
-                if !self.shape_waiting.swap(true, Ordering::Relaxed) {
-                    log!(
-                        "{}: sets wait for a read of the whole bracket, which their top or grand final length needs",
-                        self.key
-                    );
-                }
-                continue;
-            }
             let tracked = self.store().tracked(&self.key, &set.id)?;
             match (on_open(tracked.as_ref(), entries), tracked) {
                 (OnOpen::Start(attempt), _) => starts.push((set, attempt)),
@@ -987,8 +878,6 @@ mod tests {
             phases: PhaseWatch::default(),
             last_read: None,
             seen: BTreeMap::new(),
-            whole_at: None,
-            shaped: None,
             finished: false,
             played_out: false,
             window_end_logged: false,

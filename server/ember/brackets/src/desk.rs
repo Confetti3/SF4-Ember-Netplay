@@ -16,7 +16,6 @@ use tokio::task::JoinHandle;
 use zeroize::Zeroizing;
 
 use crate::{
-    Sites,
     bracket::{Bracket, Context},
     bridge::DeskEvent,
     config::{self, Tournament},
@@ -25,16 +24,9 @@ use crate::{
 
 /// The settings of a configured tournament an event may carry: the bridge
 /// keeps them to these keys too (`routes::organizer::SETTINGS`).
-const SETTINGS: [&str; 5] = [
-    "rounds",
-    "hold",
-    "active_from",
-    "active_until",
-    "mark_underway",
-];
+const SETTINGS: [&str; 4] = ["rounds", "active_from", "active_until", "mark_underway"];
 
 pub(crate) struct Desk {
-    pub sites: Sites,
     pub context: Arc<Context>,
     pub config: config::Desk,
     pub allow_loopback_http: bool,
@@ -79,7 +71,6 @@ impl Drop for Running {
 
 impl Desk {
     pub fn new(
-        sites: Sites,
         context: Arc<Context>,
         config: config::Desk,
         allow_loopback_http: bool,
@@ -99,7 +90,6 @@ impl Desk {
             None => None,
         };
         Ok(Self {
-            sites,
             context,
             config,
             allow_loopback_http,
@@ -204,9 +194,7 @@ impl Desk {
                 if taken(&tournament.key(), &running) {
                     return Err(format!("{} is already run here", tournament.key()));
                 }
-                // The budget follows the event, not its token, which changes.
-                let name = format!("desk event {}", event.id);
-                let site = self.sites.site(&tournament, &token, &name, name.clone())?;
+                let site = crate::site_of(&tournament, &token)?;
                 let bracket = Bracket::new(&tournament, site, self.context.clone())?;
                 // The bracket site keeps its own sets: none go to the bridge.
                 Ok(if self.site.is_some() {
@@ -247,39 +235,27 @@ impl Desk {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    /// The event as a configured tournament: its site's adapter, its
-    /// settings, and the bearer token in place of a credential file. A site
-    /// in `services` is played on the `http` adapter.
+    /// The event as a configured tournament on the `http` adapter: its
+    /// service in `services`, its settings, and the bearer token in place of
+    /// a credential file.
     fn tournament(&self, event: &DeskEvent) -> Result<Tournament, String> {
-        let service = self.config.services.get(&event.site);
-        if service.is_none() && !matches!(event.site.as_str(), "challonge" | "startgg") {
-            return Err(format!("site {} has no adapter here", event.site));
-        }
+        let Some(base) = self.config.services.get(&event.site) else {
+            return Err(format!("site {} is not in desk.services", event.site));
+        };
         let mut fields: serde_json::Map<String, Value> = event
             .settings
             .iter()
             .filter(|(key, _)| SETTINGS.contains(&key.as_str()))
             .map(|(key, value)| (key.clone(), value.clone()))
             .collect();
-        // The desk's holds are the bracket's own, not a configured setting.
-        if let Some(hold) = fields.get_mut("hold").and_then(Value::as_object_mut) {
-            hold.remove("sets");
-        }
         fields.insert("tournament".into(), json!(event.tournament));
         fields.insert("credential".into(), json!({ "kind": "bearer", "file": "" }));
-        if let Some(base) = service {
-            fields.insert("adapter".into(), json!("http"));
-            let base = base.trim_end_matches('/');
-            fields.insert(
-                "api_base".into(),
-                json!(format!("{base}/tournaments/{}/ember", event.tournament)),
-            );
-        } else {
-            fields.insert("adapter".into(), json!(event.site));
-            if let Some(base) = self.config.api_bases.get(&event.site) {
-                fields.insert("api_base".into(), json!(base));
-            }
-        }
+        fields.insert("adapter".into(), json!("http"));
+        let base = base.trim_end_matches('/');
+        fields.insert(
+            "api_base".into(),
+            json!(format!("{base}/tournaments/{}/ember", event.tournament)),
+        );
         let tournament: Tournament = serde_json::from_value(Value::Object(fields))
             .map_err(|error| format!("its settings do not read: {error}"))?;
         tournament.check(self.allow_loopback_http)?;

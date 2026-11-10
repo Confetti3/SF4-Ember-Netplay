@@ -1,24 +1,19 @@
-//! Plays bracket sites' sets in Ember: README.md says what it does, and
-//! ADAPTERS.md how a site is added. This module builds the connector from
-//! its configuration (one worker per tournament, sharing the bridge client,
-//! the database and each start.gg token's rate limit) and serves the
-//! results URL.
+//! Plays the sets of Ember's bracket site, or any service that answers the
+//! same contract, in Ember: README.md says what it does, and ADAPTERS.md
+//! the contract. This module builds the connector from its configuration
+//! (one worker per tournament, sharing the bridge client and the database)
+//! and serves the results URL.
 mod bracket;
 mod bridge;
-mod budget;
-mod challonge;
 mod config;
 mod desk;
 mod http;
-mod limit;
 mod results;
-mod roster;
 mod rounds;
 mod schedule;
 mod service;
 mod sets;
 pub mod site;
-mod startgg;
 mod store;
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
@@ -32,18 +27,14 @@ pub use config::{
     Adapter, Bridge, Config, Credential, CredentialKind, Desk, DeskSite, Results, Tournament,
 };
 pub use ember_protocol::client::Clock;
-pub use rounds::{Hold, RoundRule, Rounds, Side, Stage, Tier, Top};
+pub use rounds::{RoundRule, Rounds, Side};
 
 use bracket::{Bracket, Context};
 use bridge::BridgeClient;
-use budget::Budget;
-use challonge::Challonge;
 use config::read_secret;
 use desk::Desk as DeskEvents;
-use limit::Limiters;
 use results::Gate;
 use service::Service;
-use startgg::Startgg;
 use store::Store;
 
 /// One human-readable line on standard error. Never given a secret.
@@ -144,72 +135,15 @@ struct Inner {
     desk: Option<DeskEvents>,
 }
 
-/// Builds each tournament's site, sharing the database, the Challonge
-/// budget and each start.gg token's rate limit.
-pub(crate) struct Sites {
-    store: Arc<Store>,
-    monthly_request_budget: u32,
-    clock: Clock,
-    limiters: std::sync::Mutex<Limiters>,
-}
-
-impl Sites {
-    /// The site of `tournament`, reached with `credential`. Its Challonge
-    /// budget is kept under `budget` (the credential itself, so tournaments
-    /// sharing one share it) and named `name` in the log.
-    fn site(
-        &self,
-        tournament: &Tournament,
-        credential: &Zeroizing<String>,
-        budget: &str,
-        name: String,
-    ) -> Result<Box<dyn site::Site>, String> {
-        let clock = self.clock.clone();
-        Ok(match tournament.adapter {
-            Adapter::Challonge => Box::new(Challonge::new(
-                tournament
-                    .api_base
-                    .as_deref()
-                    .unwrap_or(challonge::API_ORIGIN),
-                &tournament.tournament,
-                tournament.bridge_site(),
-                tournament.credential.kind,
-                credential,
-                // Challonge's free tier counts requests a month.
-                Budget::new(
-                    self.store.clone(),
-                    budget,
-                    name,
-                    self.monthly_request_budget,
-                    clock.clone(),
-                ),
-                clock,
-            )?),
-            Adapter::Http => Box::new(Service::new(
-                tournament.api_base.as_deref().unwrap_or_default(),
-                credential,
-            )?),
-            Adapter::Startgg => Box::new(Startgg::new(
-                tournament
-                    .api_base
-                    .as_deref()
-                    .unwrap_or(startgg::API_ORIGIN),
-                &tournament.tournament,
-                tournament.bridge_site(),
-                credential,
-                // One limit for everything that uses this token.
-                self.limiters
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-                    .for_token(credential),
-                clock,
-                startgg::Wanted {
-                    phases: tournament.rounds.names_phases(),
-                    streams: tournament.hold.streamed,
-                },
-            )?),
-        })
-    }
+/// The site of `tournament`, reached with `credential`.
+pub(crate) fn site_of(
+    tournament: &Tournament,
+    credential: &Zeroizing<String>,
+) -> Result<Box<dyn site::Site>, String> {
+    Ok(Box::new(Service::new(
+        tournament.api_base.as_deref().unwrap_or_default(),
+        credential,
+    )?))
 }
 
 #[derive(Clone)]
@@ -217,17 +151,6 @@ pub struct Connector(Arc<Inner>);
 
 impl Connector {
     pub fn new(config: Config, clock: Clock) -> Result<Self, String> {
-        Self::with_startgg_rate(config, clock, startgg::RATE)
-    }
-
-    /// As `new`, with each start.gg token allowed `rate.0` requests in any
-    /// `rate.1` seconds. For tests, which make many requests in a moment.
-    #[doc(hidden)]
-    pub fn with_startgg_rate(
-        config: Config,
-        clock: Clock,
-        rate: (usize, u64),
-    ) -> Result<Self, String> {
         let _ = rustls::crypto::ring::default_provider().install_default();
         config.check()?;
         let secrets = std::iter::once(&config.results.secret_file)
@@ -248,27 +171,12 @@ impl Connector {
             build_id: config.bridge.build_id.clone(),
             poll_secs: config.poll_secs,
             max_poll_secs: config.max_poll_secs,
-            pointed_out: Default::default(),
         });
-        let (count, secs) = rate;
-        let sites = Sites {
-            store: store.clone(),
-            monthly_request_budget: config.monthly_request_budget,
-            clock: clock.clone(),
-            limiters: std::sync::Mutex::new(Limiters::new(count, Duration::from_secs(secs))),
-        };
         let brackets: Vec<Arc<Bracket>> = config
             .tournaments
             .iter()
             .map(|tournament| {
-                let file = &tournament.credential.file;
-                let credential = read_secret(file)?;
-                let site = sites.site(
-                    tournament,
-                    &credential,
-                    &credential,
-                    file.display().to_string(),
-                )?;
+                let site = site_of(tournament, &read_secret(&tournament.credential.file)?)?;
                 Ok(Arc::new(Bracket::new(tournament, site, context.clone())?))
             })
             .collect::<Result<_, String>>()?;
@@ -277,7 +185,6 @@ impl Connector {
             .map(|desk| {
                 let configured = brackets.iter().map(|bracket| bracket.key.clone()).collect();
                 DeskEvents::new(
-                    sites,
                     context.clone(),
                     desk,
                     config.allow_loopback_http,

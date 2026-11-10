@@ -1,6 +1,5 @@
-//! The connector's SQLite file: each set's Ember match, the results received,
-//! the requests made with each site credential per month, and the
-//! tournaments that have finished.
+//! The connector's SQLite file: each set's Ember match, the results received
+//! and the tournaments that have finished.
 use std::{
     path::Path,
     sync::{Mutex, MutexGuard, PoisonError},
@@ -16,9 +15,6 @@ use crate::sets::{Ended, ExternalId, Progress, Received, Tracked};
 
 /// The schema this build writes, in `PRAGMA user_version`.
 const SCHEMA_VERSION: u32 = 1;
-
-/// The month a request counts in, in UTC, from Unix seconds.
-const MONTH: &str = "strftime('%Y-%m', ?2, 'unixepoch')";
 
 pub(crate) struct Store(Mutex<Connection>);
 
@@ -144,9 +140,6 @@ impl Store {
                  games1 INTEGER, games2 INTEGER, winner INTEGER,
                  ember1 TEXT NOT NULL, ember2 TEXT NOT NULL,
                  received_at INTEGER NOT NULL, done INTEGER NOT NULL);
-             CREATE TABLE IF NOT EXISTS requests (
-                 credential TEXT NOT NULL, month TEXT NOT NULL, count INTEGER NOT NULL,
-                 PRIMARY KEY (credential, month));
              CREATE TABLE IF NOT EXISTS finished (
                  bracket TEXT PRIMARY KEY, finished_at INTEGER NOT NULL);
              PRAGMA user_version = {SCHEMA_VERSION};
@@ -379,66 +372,6 @@ impl Store {
         )?;
         Ok(())
     }
-
-    /// Counts one request with `credential` in the month of `now`, unless
-    /// it `can_wait` and `limit` are spent. Returns the month's count, or
-    /// `None` if the request is not to be made.
-    pub fn count_request(
-        &self,
-        credential: &str,
-        now: u64,
-        limit: u32,
-        can_wait: bool,
-    ) -> rusqlite::Result<Option<u32>> {
-        let mut db = self.db();
-        let tx = db.transaction()?;
-        let used: u32 = tx
-            .query_row(
-                &format!("SELECT count FROM requests WHERE credential = ?1 AND month = {MONTH}"),
-                params![credential, now],
-                |row| row.get(0),
-            )
-            .optional()?
-            .unwrap_or(0);
-        if can_wait && used >= limit {
-            return Ok(None);
-        }
-        tx.execute(
-            &format!(
-                "INSERT INTO requests (credential, month, count) VALUES (?1, {MONTH}, 1)
-                 ON CONFLICT (credential, month) DO UPDATE SET count = count + 1"
-            ),
-            params![credential, now],
-        )?;
-        tx.commit()?;
-        Ok(Some(used + 1))
-    }
-
-    /// Takes back one request counted in the month of `now`: the site
-    /// refused it without serving it.
-    pub fn uncount_request(&self, credential: &str, now: u64) -> rusqlite::Result<()> {
-        self.db().execute(
-            &format!(
-                "UPDATE requests SET count = count - 1
-                 WHERE credential = ?1 AND month = {MONTH} AND count > 0"
-            ),
-            params![credential, now],
-        )?;
-        Ok(())
-    }
-
-    /// The month's count, for tests and logs.
-    #[cfg(test)]
-    pub fn requests(&self, credential: &str, now: u64) -> rusqlite::Result<u32> {
-        self.db()
-            .query_row(
-                &format!("SELECT count FROM requests WHERE credential = ?1 AND month = {MONTH}"),
-                params![credential, now],
-                |row| row.get(0),
-            )
-            .optional()
-            .map(Option::unwrap_or_default)
-    }
 }
 
 #[cfg(test)]
@@ -446,27 +379,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn months_are_calendar_months_in_utc() {
+    fn a_file_from_a_newer_build_is_not_opened() {
         let dir = crate::test_dir("store");
-        let store = Store::open(&dir.join("brackets.sqlite3")).unwrap();
-        // 2000-02-29 is in February; 2027-01-01 starts a new year's count.
-        for now in [
-            951_782_399,
-            951_782_400,
-            951_868_800,
-            1_798_761_599,
-            1_798_761_600,
-        ] {
-            store.count_request("key", now, 10, false).unwrap();
-        }
-        let counts: Vec<u32> = [951_782_400, 951_868_800, 1_798_761_599, 1_798_761_600]
-            .into_iter()
-            .map(|now| store.requests("key", now).unwrap())
-            .collect();
-        assert_eq!(counts, [2, 1, 1, 1]);
-        store.uncount_request("key", 951_782_400).unwrap();
-        assert_eq!(store.requests("key", 951_782_400).unwrap(), 1);
-        drop(store);
+        drop(Store::open(&dir.join("brackets.sqlite3")).unwrap());
         // A file from a newer build, or from an unversioned test build, is
         // not opened.
         let db = Connection::open(dir.join("brackets.sqlite3")).unwrap();
@@ -497,16 +412,16 @@ mod tests {
             match_id: None,
             progress: Progress::Waiting,
         };
-        store.save("startgg:e", "s1", &tracked).unwrap();
+        store.save("http:e", "s1", &tracked).unwrap();
         // Each reason is logged once: only a change says so.
-        assert!(store.note("startgg:e", "s1", Some("held")).unwrap());
-        assert!(!store.note("startgg:e", "s1", Some("held")).unwrap());
-        assert!(store.note("startgg:e", "s1", Some("other")).unwrap());
+        assert!(store.note("http:e", "s1", Some("held")).unwrap());
+        assert!(!store.note("http:e", "s1", Some("held")).unwrap());
+        assert!(store.note("http:e", "s1", Some("other")).unwrap());
         // Saving the set again keeps its reason, so it is not said again.
-        store.save("startgg:e", "s1", &tracked).unwrap();
-        assert!(!store.note("startgg:e", "s1", Some("other")).unwrap());
-        assert!(store.note("startgg:e", "s1", None).unwrap());
-        assert!(!store.note("startgg:e", "s1", None).unwrap());
+        store.save("http:e", "s1", &tracked).unwrap();
+        assert!(!store.note("http:e", "s1", Some("other")).unwrap());
+        assert!(store.note("http:e", "s1", None).unwrap());
+        assert!(!store.note("http:e", "s1", None).unwrap());
         drop(store);
         std::fs::remove_dir_all(&dir).unwrap();
     }

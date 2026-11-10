@@ -16,36 +16,6 @@ set up.
 node --test server/ember/bridge/desk/test/sets.test.js
 ```
 
-## Desk end to end
-
-`scripts/e2e-desk.mjs` drives a headless Chrome over the DevTools protocol and
-checks every page at 390, 1440 and 1920 px: nothing scrolls sideways, every
-button is at least 44 px tall, no page shows `null`, and each setup step fits
-a desktop screen without scrolling. Pictures of every page go to its out
-folder.
-
-Local, from `server/ember` in WSL:
-
-```sh
-export CARGO_TARGET_DIR=/mnt/d/ember-build/cargo-target CARGO_PROFILE_DEV_DEBUG=0
-EMBER_E2E_OUT=/mnt/d/ember-build/e2e-out cargo test -p ember-brackets --test desk_e2e_stack -- --ignored --nocapture &
-cargo build -p ember-bridge --example desk_game
-node ../../scripts/e2e-desk.mjs
-```
-
-It signs in from Ember (a wrong number turned down, the right one signed in),
-creates a Challonge tournament in the four steps with tiers, sets the webhook
-and sign-ups, readies it, starts the bracket from the desk, decides a disputed
-game as a draw, gives one to player 1 and voids it, opens the bracket and the
-public page, and stops it and deletes it on Challonge. Start a fresh stack for
-each run: sign-in rate limits are per bridge.
-
-A running bridge and the real Challonge are covered by the run on two PCs,
-below, which does all of this with real games. (The desk test once had a
-staging mode of its own, signed in as a terminal-made Ember ID; it could not
-share the organizer's Challonge account with the two-PC run, since an account
-belongs to one Ember ID.)
-
 ## Tournament on two PCs
 
 `scripts/e2e-tournament.mjs` runs a whole event with nobody at either game:

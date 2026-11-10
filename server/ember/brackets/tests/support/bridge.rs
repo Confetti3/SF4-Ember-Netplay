@@ -1,7 +1,6 @@
-//! A real bridge on a loopback port, with the shipped Challonge and
-//! start.gg sign-in site definitions and the connector's `direct`
-//! connection: lookup by those sites' accounts and by Discord, disputes
-//! restarted, results sent to the connector.
+//! A real bridge on a loopback port, with the connector's `direct`
+//! connection: lookup by Discord account, disputes restarted, results sent
+//! to the connector.
 use std::{ops::Deref, time::Duration};
 
 use axum::http::{Method, StatusCode};
@@ -30,20 +29,10 @@ impl Deref for TestBridge {
 }
 
 impl TestBridge {
-    /// A bridge whose `brackets` connection sends results to `results_url`,
-    /// and looks players up by Discord account when `discord_lookup`.
-    pub async fn start(results_url: &str, discord_lookup: bool) -> Self {
+    /// A bridge whose `brackets` connection sends results to `results_url`.
+    pub async fn start(results_url: &str) -> Self {
         // Built from JSON, as bridge.json is, so new optional settings need
-        // no change here. The sites are the shipped definitions.
-        let site = |name: &str| -> Value {
-            let path = format!(
-                "{}/../bridge/deploy/sites/{name}.json",
-                env!("CARGO_MANIFEST_DIR")
-            );
-            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
-        };
-        let sites: Vec<config::SignInSite> =
-            serde_json::from_value(json!([site("challonge"), site("startgg")])).unwrap();
+        // no change here.
         let tenants: Vec<config::Tenant> = serde_json::from_value(json!([{
             "id": "organizers",
             "name": "Organizers",
@@ -52,8 +41,8 @@ impl TestBridge {
                 "kind": "direct",
                 "environment": "local",
                 "display_name": "Brackets",
-                "lookup_sites": ["challonge", "startgg"],
-                "discord_lookup": discord_lookup,
+                "lookup_sites": [],
+                "discord_lookup": true,
                 "disputes": "restart",
                 "results_url": results_url,
             }],
@@ -68,9 +57,6 @@ impl TestBridge {
                 config.display_name = "Test bridge".into();
                 config.integration_secrets =
                     Some(config.database.with_file_name("integrations.json"));
-                config.sign_in_sites = sites;
-                config.desk =
-                    Some(serde_json::from_value(json!({ "connection": CONNECTION })).unwrap());
                 config.tenants = tenants;
                 config.desk = Some(ember_bridge::config::Desk {
                     connection: CONNECTION.into(),
@@ -120,28 +106,19 @@ impl TestBridge {
         ember_id
     }
 
-    /// A player who connected an account on a sign-in site, written as the
-    /// sign-in would (the bridge's own tests cover it). `username_key` is
-    /// kept only for a site that looks accounts up by username.
-    async fn connect_site(
-        &self,
-        byte: u8,
-        site: &'static str,
-        user_id: String,
-        username: String,
-        by_username: bool,
-    ) -> EmberId {
+    /// A player with Ember who connected the account `user_id` on the
+    /// sign-in site `site`, written as the sign-in would (the bridge's own
+    /// tests cover it).
+    pub async fn connect_site(&self, byte: u8, site: &'static str, user_id: &str) -> EmberId {
         let ember_id = self.player(byte).await;
-        let id = ember_id.as_str().to_owned();
-        // The shipped Challonge definition compares usernames without case.
-        let key = by_username.then(|| username.to_ascii_lowercase());
+        let row = [user_id.to_owned(), ember_id.as_str().to_owned()];
         self.state()
             .db
             .write(move |tx| {
                 tx.execute(
-                    "INSERT INTO site_accounts (site, user_id, ember_id, username, username_key, connected_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, 1)",
-                    params![site, user_id, id, username, key],
+                    "INSERT INTO site_accounts (site, user_id, ember_id, username, connected_at)
+                     VALUES (?1, ?2, ?3, ?2, 1)",
+                    params![site, row[0], row[1]],
                 )?;
                 Ok(())
             })
@@ -150,18 +127,10 @@ impl TestBridge {
         ember_id
     }
 
-    /// A player with Ember who connected the Challonge account `username`.
-    pub async fn connect(&self, byte: u8, username: &str) -> EmberId {
-        let user_id = (9_000 + u32::from(byte)).to_string();
-        self.connect_site(byte, "challonge", user_id, username.to_owned(), true)
-            .await
-    }
-
-    /// A player with Ember who connected the start.gg account `user_id`.
-    pub async fn connect_startgg(&self, byte: u8, user_id: u64) -> EmberId {
-        let gamer_tag = format!("Player {byte}");
-        self.connect_site(byte, "startgg", user_id.to_string(), gamer_tag, false)
-            .await
+    /// Player `n`, with Ember, who connected the Discord account their
+    /// entry names (`service::entry`).
+    pub async fn connect(&self, n: u8) -> EmberId {
+        self.connect_discord(n, &super::service::discord(n)).await
     }
 
     /// A player with Ember who connected the Discord account `user_id`, as

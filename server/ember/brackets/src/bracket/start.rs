@@ -5,7 +5,6 @@ use std::{collections::BTreeMap, sync::atomic::Ordering};
 use ember_protocol::{
     Error as ProtocolError,
     api::ErrorCode,
-    event::rfc3339,
     matches::{CreateMatch, MAX_METADATA_VALUE, Participant, Rules},
     play,
 };
@@ -14,23 +13,16 @@ use super::Bracket;
 use crate::{
     bridge::{BridgeError, Found, Player},
     log,
-    rounds::Shape,
     sets::{ExternalId, MAX_ATTEMPTS, Progress, Seen, Tracked},
-    site::{Account, Set, SiteError},
+    site::{Set, SiteError},
 };
-
-/// A connected site account older than this is pointed out when its
-/// player is given a match: a site such as Challonge lets an account
-/// rename, and the bridge knows the name it had when it was connected.
-const OLD_CONNECTION_SECS: u64 = 30 * 24 * 60 * 60;
 
 impl Bracket {
     /// Creates the match of each attempt whose two players are found, and
-    /// holds the sets assigned to a stream when asked to. Returns whether it
-    /// changed anything: created a match or ended an attempt.
+    /// holds the sets the organizer holds. Returns whether it changed
+    /// anything: created a match or ended an attempt.
     pub(super) async fn start(&self, starts: &[(&Set, u32)]) -> Result<bool, SiteError> {
-        // Held sets are settled first and never looked up: a set that waits
-        // for the stream has no players to find yet.
+        // Held sets are settled first and never looked up.
         let mut changed = false;
         let mut ready = Vec::new();
         for &(set, attempt) in starts {
@@ -43,13 +35,13 @@ impl Bracket {
             return Ok(changed);
         }
         let starts = ready.as_slice();
-        let accounts: Vec<_> = starts
+        let discords: Vec<&str> = starts
             .iter()
             .flat_map(|(set, _)| set.entries.iter().flatten())
-            .flat_map(|entry| &entry.accounts)
+            .filter_map(|entry| entry.discord.as_deref())
             .collect();
         let now = self.context.clock.now();
-        let found = match self.context.bridge.lookup(&accounts, now).await {
+        let found = match self.context.bridge.lookup(&discords, now).await {
             Ok(found) => {
                 if self.lookup_failing.swap(false, Ordering::Relaxed) {
                     log!("{}: players can be looked up again", self.key);
@@ -72,23 +64,11 @@ impl Bracket {
         Ok(changed)
     }
 
-    /// Why the set waits: the organizer holds it, or the stream it is
-    /// assigned to when the tournament holds such sets.
+    /// Why the set waits: the organizer holds it.
     pub(super) fn held(&self, set: &Set) -> Option<String> {
-        if self.desk_held.contains(&set.id) {
-            return Some(
-                "the organizer holds it on the desk; it is played in Ember once they let it go"
-                    .into(),
-            );
-        }
-        let stream = self
-            .hold
-            .streamed
-            .then_some(set.extras.stream.as_deref())
-            .flatten()?;
-        Some(format!(
-            "it is assigned to stream {stream}; it is played in Ember once it is taken off the stream"
-        ))
+        self.desk_held.contains(&set.id).then(|| {
+            "the organizer holds it on the desk; it is played in Ember once they let it go".into()
+        })
     }
 
     /// A held set waits, said once. A creation sent for it
@@ -145,38 +125,19 @@ impl Bracket {
             return Ok(false);
         };
         let players = entries.each_ref().map(|entry| {
-            found.player(entry).ok_or_else(|| {
-                // The accounts asked found nobody; the others say why not.
-                let (asked, reasons): (Vec<_>, Vec<_>) = entry
-                    .accounts
-                    .iter()
-                    .map(|account| (account, found.not_asked(account)))
-                    .partition(|(_, reason)| reason.is_none());
-                let reasons: Vec<String> = reasons.into_iter().filter_map(|(_, why)| why).collect();
-                let asked: Vec<String> = asked
-                    .iter()
-                    .map(|(account, _)| account.to_string())
-                    .collect();
-                match (asked.as_slice(), reasons.as_slice()) {
-                    ([], []) => format!(
-                        "entry {} has no account to find its player by",
-                        entry.participant_id
-                    ),
-                    ([], reasons) => reasons.join("; "),
-                    (asked, []) => format!("{} has not connected in Ember", asked.join(" or ")),
-                    (asked, reasons) => format!(
-                        "{} has not connected in Ember; {}",
-                        asked.join(" or "),
-                        reasons.join("; ")
-                    ),
+            found.player(entry).ok_or_else(|| match (&entry.discord, found.not_asked()) {
+                (_, Some(why)) => why.to_owned(),
+                (None, None) => format!(
+                    "entry {} has no Discord account to find its player by",
+                    entry.participant_id
+                ),
+                (Some(discord), None) => {
+                    format!("Discord account {discord} has not connected in Ember")
                 }
             })
         });
         let command = match players {
-            [Ok(one), Ok(two)] => {
-                self.point_out_old_connections(set, [one, two]).await;
-                self.command(set, attempt, [one.1, two.1])
-            }
+            [Ok(one), Ok(two)] => self.command(set, attempt, [one, two]),
             [Err(why), _] | [_, Err(why)] => return self.note(set, attempt, Some(&why)),
         };
         match command.check() {
@@ -280,7 +241,7 @@ impl Bracket {
         // attempt's match.
         if self.mark_underway {
             match self.site.mark_underway(&set.id, &match_id).await {
-                Ok(()) | Err(SiteError::BudgetSpent) => {}
+                Ok(()) => {}
                 Err(error) => log!("{} set {}: not marked underway: {error}", self.key, set.id),
             }
         }
@@ -327,50 +288,11 @@ impl Bracket {
                     slot,
                 })
                 .into(),
-            rules: Rules::standard(self.rounds.length(set, self.shape(set)), play::PROFILE),
+            rules: Rules::standard(self.rounds.length(set), play::PROFILE),
             observer_policy: "authorized_only".into(),
             result_policy: "two_player_agreement_or_review".into(),
             required_build_id: self.context.build_id.clone(),
             metadata: placement(set),
-        }
-    }
-
-    /// Says once per player, while the connector runs, that the site
-    /// account they were found by was connected long ago, when that site
-    /// looks accounts up by username (the bridge's `lookup_by`), which an
-    /// account can change.
-    async fn point_out_old_connections(&self, set: &Set, players: [(&Account, &Player); 2]) {
-        let now = self.context.clock.now();
-        let old = |player: &Player| {
-            player
-                .connected_at
-                .is_some_and(|at| now.saturating_sub(at) > OLD_CONNECTION_SECS)
-        };
-        if !players.iter().any(|(_, player)| old(player)) {
-            return;
-        }
-        let Some(sites) = self.context.bridge.sign_in_sites(now).await else {
-            return;
-        };
-        let mut pointed_out = self
-            .context
-            .pointed_out
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        for (account, player) in players {
-            if let Account::Site { site, .. } = account
-                && sites.get(site) == Some(&true)
-                && let Some(at) = player.connected_at
-                && old(player)
-                && pointed_out.insert(player.ember_id.clone())
-            {
-                log!(
-                    "{} set {}: {account} was connected in Ember on {}; if it was renamed since, check that its player is the entry's",
-                    self.key,
-                    set.id,
-                    rfc3339(at)
-                );
-            }
         }
     }
 }
@@ -406,18 +328,6 @@ fn round_label(label: &str) -> &str {
     &label[..end]
 }
 
-impl Bracket {
-    /// The shape of `set`'s bracket, as the last read showed it.
-    pub(super) fn shape(&self, set: &Set) -> Option<Shape> {
-        self.shapes
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .iter()
-            .find(|(phase, _)| *phase == set.extras.phase)
-            .map(|&(_, shape)| shape)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -435,7 +345,6 @@ mod tests {
             winner: None,
             extras: Extras {
                 phase: Phase::new(Some("Top 8"), Some("p8".into())),
-                ..Extras::default()
             },
         };
         let placed = placement(&set);

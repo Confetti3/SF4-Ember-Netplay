@@ -1,4 +1,4 @@
-// Shared by the end-to-end scripts (e2e-desk.mjs, e2e-tournament.mjs): a
+// Shared by the end-to-end scripts (e2e-tournament.mjs): a
 // Chrome driven over the DevTools protocol (no Puppeteer), the run's steps
 // and the layout checks. Pictures go to the folder chrome() is given.
 import { spawn } from "node:child_process";

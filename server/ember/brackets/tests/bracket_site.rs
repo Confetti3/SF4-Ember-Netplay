@@ -17,10 +17,9 @@ use std::{
     time::Duration,
 };
 
-use ember_brackets::Adapter;
 use reqwest::Method;
 use serde_json::{Value, json};
-use support::{Extra, Setup, World};
+use support::{Setup, World};
 
 const CONNECTOR_TOKEN: &str = "bracket-site-connector-token";
 const OPERATOR_TOKEN: &str = "bracket-site-operator-token";
@@ -145,13 +144,10 @@ async fn the_bracket_site_is_played_to_its_final() {
         .unwrap()
         .port();
     let world = World::start(Setup {
-        challonge: false,
-        extra: vec![Extra {
-            adapter: Adapter::Http,
-            tournament: "weekly".into(),
-            api_base: format!("http://127.0.0.1:{port}/tournaments/weekly/ember"),
-            token: CONNECTOR_TOKEN,
-        }],
+        base: Some((
+            format!("http://127.0.0.1:{port}/tournaments/weekly/ember"),
+            CONNECTOR_TOKEN,
+        )),
         ..Setup::default()
     })
     .await;
@@ -235,7 +231,7 @@ async fn the_desk_runs_the_bracket_sites_live_tournaments() {
         .unwrap()
         .port();
     let world = World::start(Setup {
-        challonge: false,
+        configured: false,
         desk_site: Some((format!("http://127.0.0.1:{port}"), CONNECTOR_TOKEN)),
         ..Setup::default()
     })
