@@ -84,6 +84,7 @@ player who has not connected Discord in Ember gets 409.
 | `GET /tournaments` | signed in | the tournaments they manage |
 | `GET /tournaments/{id}` | anyone | the tournament, with the `actions` its state allows |
 | `PATCH /tournaments/{id}` | its organizers | settings, and `organizers`, before it is live |
+| `PATCH /tournaments/{id}` `{ "discord_webhook" }` | its organizers | its own Discord channel (a Discord webhook, or null), changeable while live too; never shown back (`discord`: true or false), only listed in `/live` to the bot, whose notifier posts the feed there too |
 | `PUT /tournaments/{id}/state` | its organizers | `{ "action": "<action>" }`; `start` takes `"seeding": "join"`, `"random"` or `"points"` (its season's standings) |
 | `POST /tournaments/{id}/entrants` | a player, or its organizers for anyone | `{ "name" }`; an organizer adds `"discord"` |
 | `DELETE /tournaments/{id}/entrants/{discord}` | that player, or its organizers | before it is live |

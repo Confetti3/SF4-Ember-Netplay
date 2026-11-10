@@ -31,6 +31,9 @@ struct Listed {
     /// Where its feed is, when not a tournament's (a league's news).
     #[serde(default)]
     feed: Option<String>,
+    /// Its organizers' own Discord channel, which gets its news too.
+    #[serde(default)]
+    webhook: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -84,6 +87,44 @@ impl Notifier {
         }) else {
             return;
         };
+        // Each tournament with a channel of its own gets its news there too,
+        // kept apart from what the shared channel was sent.
+        for tournament in &live.tournaments {
+            let Some(url) = tournament
+                .webhook
+                .as_deref()
+                .and_then(|url| own_channel(&brackets.webhooks, url))
+            else {
+                continue;
+            };
+            let key = format!("hook:{}", tournament.id);
+            let after = self.posted(&key);
+            if tournament.last <= after {
+                continue;
+            }
+            let Ok(response) = get(format!(
+                "{base}/tournaments/{}/feed?after={after}",
+                tournament.id
+            ))
+            .await
+            else {
+                continue;
+            };
+            let Ok(feed) = response.json::<Feed>().await else {
+                continue;
+            };
+            let Some(last) = feed.items.last().map(|item| item.n) else {
+                continue;
+            };
+            let lines: Vec<_> = feed
+                .items
+                .iter()
+                .map(|item| escape_markdown(&item.text))
+                .collect();
+            if let Sent::Done = self.post_to(&url, &message(&lines)).await {
+                self.set_posted(&key, last);
+            }
+        }
         let mut lines = Vec::new();
         let mut seen = Vec::new();
         for tournament in live.tournaments {
@@ -118,30 +159,24 @@ impl Notifier {
         if lines.is_empty() {
             return;
         }
-        let mut text = String::new();
-        for line in &lines {
-            if text.len() + line.len() + 1 > MAX_MESSAGE {
-                text.push('…');
-                break;
-            }
-            text.push_str(line);
-            text.push('\n');
-        }
-        if let Sent::Done = self.post_text(text.trim_end()).await {
+        let Some(url) = self.0.discord_url.clone() else {
+            return;
+        };
+        if let Sent::Done = self.post_to(url.as_str(), &message(&lines)).await {
             for (id, n) in seen {
                 self.set_posted(&id, n);
             }
         }
     }
 
-    async fn post_text(&self, text: &str) -> Sent {
-        let (Some(config), Some(url)) = (&self.0.config.discord, &self.0.discord_url) else {
+    async fn post_to(&self, url: &str, text: &str) -> Sent {
+        let Some(config) = &self.0.config.discord else {
             return Sent::Done;
         };
         // News never pings anyone.
         let body = json!({ "username": config.username, "content": text, "allowed_mentions": { "parse": [] } });
         classify(
-            self.0.http.post(url.as_str()).json(&body).send().await,
+            self.0.http.post(url).json(&body).send().await,
             Reset::After("x-ratelimit-reset-after"),
             self.0.clock.now(),
         )
@@ -171,6 +206,62 @@ impl Notifier {
                  ON CONFLICT (tournament) DO UPDATE SET posted = MAX(posted, excluded.posted)",
                 rusqlite::params![id, n],
             );
+        }
+    }
+}
+
+/// The lines as one message, cut where Discord would refuse it.
+fn message(lines: &[String]) -> String {
+    let mut text = String::new();
+    for line in lines {
+        if text.len() + line.len() + 1 > MAX_MESSAGE {
+            text.push('…');
+            break;
+        }
+        text.push_str(line);
+        text.push('\n');
+    }
+    text.trim_end().to_owned()
+}
+
+/// A tournament's own channel, posted to under `base`: only a Discord
+/// webhook's ID and token are taken from what the site lists, so no other
+/// address is ever called.
+fn own_channel(base: &str, url: &str) -> Option<String> {
+    let rest = url
+        .strip_prefix("https://discord.com/api/webhooks/")
+        .or_else(|| url.strip_prefix("https://discordapp.com/api/webhooks/"))?;
+    let (id, token) = rest.split_once('/')?;
+    let id_ok = (17..=20).contains(&id.len()) && id.bytes().all(|byte| byte.is_ascii_digit());
+    let token_ok = (1..=100).contains(&token.len())
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-');
+    (id_ok && token_ok).then(|| format!("{}/{id}/{token}", base.trim_end_matches('/')))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::own_channel;
+
+    #[test]
+    fn only_a_discord_webhook_is_a_channel() {
+        let base = "https://discord.com/api/webhooks";
+        assert_eq!(
+            own_channel(
+                base,
+                "https://discord.com/api/webhooks/123456789012345678/abc_DEF-1"
+            )
+            .as_deref(),
+            Some("https://discord.com/api/webhooks/123456789012345678/abc_DEF-1")
+        );
+        for url in [
+            "https://example.com/api/webhooks/123456789012345678/abc",
+            "https://discord.com/api/webhooks/123/abc",
+            "https://discord.com/api/webhooks/123456789012345678/a/../b",
+            "https://discord.com/api/webhooks/123456789012345678/",
+        ] {
+            assert_eq!(own_channel(base, url), None, "{url}");
         }
     }
 }

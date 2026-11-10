@@ -21,6 +21,8 @@ import { ACTIONS, actions, beforeLive, checkIn, enter, move, type Action, type E
 
 const SLUG = /^[A-Za-z0-9_-]{1,64}$/;
 export const DISCORD_ID = /^\d{17,20}$/;
+/** The webhooks the notifier posts to: Discord's own, nothing else. */
+export const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d{17,20}\/[A-Za-z0-9_-]{1,100}$/;
 /** The most Discord IDs one bridge lookup takes. */
 const LOOKUP_BATCH = 32;
 
@@ -296,7 +298,9 @@ export function bracketSite(options: Options): Server {
     [
       "GET",
       /^\/live$/,
-      () => {
+      (request) => {
+        // The bot's notifier also gets each tournament's own channel.
+        const bot = !!options.botToken && same(/^Bearer (.+)$/.exec(request.headers.authorization ?? "")?.[1] ?? "", options.botToken);
         // Live, or over within the hour, so a follower sees how it ended.
         const recent = (tournament: Tournament) => Date.parse(tournament.log.at(-1)?.at ?? "") > Date.parse(now()) - 3600_000;
         const shown = store.all().filter((tournament) => tournament.state === "live" || (["finished", "cancelled"].includes(tournament.state) && recent(tournament)));
@@ -306,7 +310,13 @@ export function bracketSite(options: Options): Server {
           200,
           {
             tournaments: [
-              ...shown.map((tournament) => ({ id: tournament.id, title: tournament.title, state: tournament.state, last: tournament.feed?.at(-1)?.n ?? 0 })),
+              ...shown.map((tournament) => ({
+                id: tournament.id,
+                title: tournament.title,
+                state: tournament.state,
+                last: tournament.feed?.at(-1)?.n ?? 0,
+                ...(bot && tournament.discord_webhook ? { webhook: tournament.discord_webhook } : {}),
+              })),
               ...leagues.map((league) => ({ id: `league:${league.id}`, title: league.title, state: "league", last: league.feed!.at(-1)!.n, feed: `/leagues/${league.id}/feed` })),
             ],
           },
@@ -320,7 +330,8 @@ export function bracketSite(options: Options): Server {
         const body = await readJson(request);
         const who = signedIn(request);
         return [200, view(change(id!, request, (tournament) => {
-          if (!beforeLive(tournament)) throw new Conflict(`its settings are fixed while ${tournament.state}`);
+          // Its Discord channel may change any time; the rest is fixed once it is live.
+          if (!beforeLive(tournament) && Object.keys(body).some((key) => key !== "discord_webhook")) throw new Conflict(`its settings are fixed while ${tournament.state}`);
           settings(tournament, body, who.operator ? null : who.discord);
           if (tournament.season && !store.leagueOf(tournament.season)) throw new Invalid(`no season ${tournament.season}`);
         }))];
@@ -627,6 +638,12 @@ function settings(tournament: Tournament, body: Json, self: string | null): void
     if (body.starts_at !== null && (typeof body.starts_at !== "string" || Number.isNaN(Date.parse(body.starts_at)))) fail(400, "starts_at is a date and time, or null");
     tournament.starts_at = body.starts_at === null ? null : new Date(body.starts_at as string).toISOString();
   }
+  if (body.discord_webhook !== undefined) {
+    if (body.discord_webhook !== null && (typeof body.discord_webhook !== "string" || !WEBHOOK.test(body.discord_webhook))) {
+      fail(400, "discord_webhook is a Discord channel webhook (https://discord.com/api/webhooks/...), or null");
+    }
+    tournament.discord_webhook = body.discord_webhook as string | null;
+  }
   if (body.season !== undefined) tournament.season = body.season === null ? null : text(body.season, SLUG, "season is 1 to 64 letters, digits, _ or -");
   if (body.organizers !== undefined) {
     const organizers = body.organizers;
@@ -666,9 +683,10 @@ function shuffle<T>(items: T[]): void {
 /** The tournament as anyone may see it, with the actions its state allows. */
 function view(tournament: Tournament): Json {
   // The feed, report, clips and vote have routes of their own; a vote's ballots are never shown.
-  const { feed: _, report: __, clips: ___, vote: ____, ...shown } = tournament;
+  const { feed: _, report: __, clips: ___, vote: ____, discord_webhook: webhook, ...shown } = tournament;
   return {
     ...shown,
+    discord: !!webhook,
     actions: actions(tournament),
     sets: tournament.sets.map(({ key: _, ...set }) => ({ ...set, status: status(set), round_label: roundLabel(set.round, tournament.rounds) })),
   };

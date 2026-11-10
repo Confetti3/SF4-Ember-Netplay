@@ -169,6 +169,13 @@ test("the connector plays the live bracket and reports; the site finishes it", a
   assert.equal((await set("call")).status, 200);
   const called = (await call("GET", "/tournaments/weekly/feed")).body.items.at(-1);
   assert.deepEqual([called.kind, called.set], ["call", "r1-2"]);
+  // Its own Discord channel: never shown, only handed to the bot's notifier.
+  const hook = "https://discord.com/api/webhooks/123456789012345678/abc_DEF-1";
+  assert.equal((await organizer("PATCH", "/tournaments/weekly", { discord_webhook: "https://example.com/hook" })).status, 400);
+  const changed = await organizer("PATCH", "/tournaments/weekly", { discord_webhook: hook });
+  assert.deepEqual([changed.status, changed.body.discord, JSON.stringify(changed.body).includes(hook)], [200, true, false]);
+  const listed = async (token?: string) => (await call("GET", "/live", { ...(token ? { token } : {}) })).body.tournaments.find((each: { id: string }) => each.id === "weekly");
+  assert.deepEqual([(await listed()).webhook, (await listed(BOT)).webhook], [undefined, hook]);
   const old = await call("GET", "/tournaments/weekly/ember/sets?state=open", { token: CONNECTOR, headers: { "ember-brackets-contract": "2" } });
   assert.deepEqual([old.status, old.body], [426, { contract: "1" }]);
   assert.equal((await connector("POST", "/sets/r1-1/underway", {})).status, 204);
