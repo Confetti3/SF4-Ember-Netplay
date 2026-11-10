@@ -110,6 +110,11 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
                     authorize_origin,
                     authorize_path,
                     organizer: sign_in && site.organizer.is_some(),
+                    create: site
+                        .organizer
+                        .as_ref()
+                        .and_then(|organizer| organizer.create.as_ref())
+                        .map(|create| create.choices()),
                 }
             })
             .collect(),

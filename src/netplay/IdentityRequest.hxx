@@ -32,6 +32,10 @@ enum class IdentityOp : std::uint8_t {
     // An event's state on its site (`site`) and the moves allowed now, for
     // the site's event `target`.
     DeskSiteState,
+    // The organizer's events on the site `site`, for a draft to pick one.
+    DeskSiteEvents,
+    // Stopping the organizer's event `target`; with `onSite`, deleting it on its site too.
+    DeskStop,
 };
 
 // Where a player connects an account to their Ember ID through a browser
@@ -78,6 +82,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     switch (op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
     case IdentityOp::DeskRead: case IdentityOp::DeskWeb: case IdentityOp::DeskCodeInfo: case IdentityOp::DeskSiteState:
+    case IdentityOp::DeskSiteEvents:
         return IdentityEffect::Read;
     case IdentityOp::DeskOpen: return IdentityEffect::Open;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;
@@ -106,6 +111,7 @@ struct IdentityRequest {
     bool replace = false;
     // A desk action's body, as JSON.
     std::string command;
+    bool onSite = false;
     // DeskApprove: the number the other device shows.
     std::uint8_t number = 0;
 

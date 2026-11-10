@@ -1,7 +1,9 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sf4e { namespace netplay {
@@ -18,7 +20,13 @@ struct IdentityLink { std::string id, connection, provider, account; };
 // A sign-in site a service lists: its ID, its name to show, whether it
 // offers sign-in now, and whether it offers an organizer sign-in too. Which
 // pages its sign-in may open is the helper's to check, from the same list.
-struct IdentitySignInSite { std::string id, name; bool signIn = false, organizer = false; };
+// A site that creates events for the organizer lists the settings its
+// create form takes (create), each with its values as JSON text.
+struct IdentitySignInSite {
+    std::string id, name;
+    bool signIn = false, organizer = false;
+    std::optional<std::vector<std::pair<std::string, std::vector<std::string>>>> create;
+};
 // The most sign-in sites kept from one service's list.
 constexpr std::size_t MaxSignInSites = 16;
 // An account connected on a sign-in service: its user ID (empty when none),
@@ -36,10 +44,18 @@ struct IdentityAccount {
 // event with what the desk shows of it (side: winners, losers or
 // grand_final; state: the bridge's desk_state). A set's games are what the
 // desk can decide or void; revision is what a decision names.
-struct DeskEvent { std::string id, title, status, site, tournament; };
+// An event's settings stay JSON so one changes and the rest stay; startsAt
+// 0 is not set; webhook: a Discord channel is set.
+struct DeskEvent {
+    std::string id, title, status, site, tournament, name, settings;
+    std::uint64_t startsAt = 0, signedUp = 0;
+    bool startsOnSite = false, createdOnSite = false, signUps = false, isPublic = false, postResults = false, webhook = false;
+};
 // An event's state on its site and the moves the site allows now, for a
 // site whose listing says them (the bracket site).
 struct DeskSiteState { std::string tournament, state; std::vector<std::string> actions; };
+// The organizer's events on a site (ID and name), for a draft to pick one.
+struct DeskSiteEvents { std::string site; std::vector<std::pair<std::string, std::string>> events; };
 struct DeskGame { std::string attempt, outcome, state; };
 struct DeskSet {
     std::string id, roundLabel, phase, side, state, matchId, revision, posted;
@@ -112,5 +128,8 @@ struct IdentityView {
     // Tournament Mode on this service: known once the desk was read.
     DeskAccess deskAccess;
     DeskSiteState deskSiteState;
+    DeskSiteEvents deskSiteEvents;
+    // The draft the last desk action made, by ID.
+    std::string deskMade;
 };
 } }
