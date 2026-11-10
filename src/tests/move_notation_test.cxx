@@ -313,9 +313,11 @@ int main() {
             for (const char* line : {"[2]30f", "[2]30f > [4]10f", "[2]30f > 5f > [4]10f", "5", "5 > 5", "[2]30f > 5", "[2]30f > 2f > [4]10f > 5",
                      "[1] > 5", "[2]30f > 5 > 5MK", "5LP > 5 > 5MK", "5MK > 5"})
                 CHECK(!Synthesize(Steps(line), true, compiled, error) && compiled.frames.empty() && compiled.anchor == -1 && !error.empty());
-            // A linked jump is a move: its wait holds its direction to the free frame.
-            CHECK(Synthesize(Steps("5LP > 8"), true, compiled, error) && std::any_of(compiled.frames.begin(), compiled.frames.end(),
-                [](const sf4e::training::Input& frame) { return frame.wait == sf4e::training::WaitActionable && frame.raw == Up; }));
+            // A linked jump is a move: its wait holds its direction to the free
+            // frame, and it goes on held as a first move's jump is.
+            std::vector<std::pair<unsigned, int>> jump;
+            for (const auto& frame : Synth(Steps("5LP > 8"), true)) jump.push_back({frame.raw, frame.wait});
+            CHECK(jump == (std::vector<std::pair<unsigned, int>>{{LP, 0}, {0, 0}, {Up, sf4e::training::WaitActionable}, {Up, 0}, {Up, 0}, {Up, 0}, {0, 0}}));
         }
         const auto spaced = Synth(Steps("5LP > 10f > 5MK"), true);
         const auto lp = std::find_if(spaced.begin(), spaced.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });

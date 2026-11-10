@@ -164,9 +164,11 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
             unsigned last = 0;
             // The wait held the motion's first direction, or a hold in its
             // place; a lone direction goes in with the button either way,
-            // after a leading hold too.
+            // after a leading hold too. A lone direction with no button (a
+            // jump) is the move itself: after its wait it is held as long as
+            // a first move's, or the game takes no jump.
             const bool lone = motion.size() == 1 && buttons;
-            const bool firstHeld = (link && !idle) || ((link || afterLead) && lone);
+            const bool firstHeld = (link && !idle && (buttons || motion.size() > 1)) || ((link || afterLead) && lone);
             const bool finish = step.cancel && !step.follow && after && !timed && buttons && !motion.empty();
             int lastAt = static_cast<int>(own.size());
             for (std::size_t i = 0; i + (finish ? 1 : 0) < motion.size(); ++i) {
@@ -226,10 +228,9 @@ inline bool Synthesize(const std::vector<std::string>& steps, bool facingRight, 
         }
         // A move takes effect on input: one that presses nothing there (a
         // neutral "5") is no move, to time the reply by or to recover from,
-        // wherever it stands, so the moves are refused whole. A linked lone
-        // direction is its wait's: its own input has none after it. A move let
-        // go presses nothing by its frames alone: its button is the leading hold's.
-        const unsigned takes = letGo ? 1u : anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : link ? linkHeld : 0u;
+        // wherever it stands, so the moves are refused whole. A move let go
+        // presses nothing by its frames alone: its button is the leading hold's.
+        const unsigned takes = letGo ? 1u : anchor < 0 ? 0u : anchor < static_cast<int>(own.size()) ? own[anchor].raw : 0u;
         if (!takes) return fail("\"" + text + "\" presses nothing: a move needs a direction or a button");
         follows = true;
         // On a frame, the move's anchor lands there ("@N" from it, but on the
