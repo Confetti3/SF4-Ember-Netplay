@@ -1,6 +1,7 @@
 #pragma once
 #include "ComboFile.hxx"
 #include "FighterData.hxx"
+#include "FighterMoves.hxx"
 #include "RemoteOptions.hxx"
 #include <cstdint>
 #include <functional>
@@ -23,7 +24,7 @@ inline nlohmann::json OptionsJson(const Say& say) {
             {"section", say(option.section, -1)}, {"switch", option.Switch()}, {"choices", choices}});
     }
     nlohmann::json presets = nlohmann::json::array();
-    for (const char* preset : ReplyPresets) presets.push_back(preset);
+    for (const auto& move : UniversalMoves) presets.push_back(move.moves);
     return {{"options", list}, {"replyPresets", presets}};
 }
 // Every option's value now, by id: the game's from the view, the rest as the overlay thread

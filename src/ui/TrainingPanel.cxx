@@ -435,12 +435,15 @@ void ServeTrainingPhone(const training::View& view,const TrainingSubmit& submit)
     remote::Settings now{lab.meter,lab.plan,lab.check};
     bool changed=false,reply=false;
     static std::string replyError;
-    // Moves typed or picked on the phone go through the same checks as the menu's field.
+    // Moves typed or picked on the phone go in the first slot, through the
+    // same checks as the menu's; none turns every slot off, so the
+    // recordings play.
     for(const auto& order:phone.TakeText()) {
-        DummyPlan plan; std::string error; const auto text=combo::Clean(order.second);
-        if(!BuildReplyPlan(text,now.plan,plan,error)) { replyError=error; continue; }
-        replyError.clear(); lab.replyMoves=text; lab.pickCustom=false;
-        if(!text.empty()&&ReplyPresetIndex(text)<0) lab.customMoves=text;
+        training::ReplyChoice choice; std::string error; const auto text=combo::Clean(order.second);
+        if(!text.empty()&&!training::BuildReply(text,choice,error)) { replyError=error; continue; }
+        replyError.clear();
+        if(text.empty()) for(auto& slot:lab.slots) slot.on=false;
+        else { lab.slots[0].moves=text; lab.slots[0].on=true; }
         changed=reply=true;
     }
     for(const auto& order:phone.Take()) {
@@ -457,7 +460,7 @@ void ServeTrainingPhone(const training::View& view,const TrainingSubmit& submit)
     }
     static nlohmann::json shown;
     auto values=remote::ReadLab(now);
-    values["replyMoves"]=lab.replyMoves; values["replyError"]=replyError;
+    values["replyMoves"]=lab.slots[0].on?lab.slots[0].moves:std::string(); values["replyError"]=replyError;
     if(values!=shown) { shown=values; phone.Publish(std::move(values)); }
 }
 training::MeterOptions TrainingMeterOptions() { LoadPractice(); return lab.meter; }

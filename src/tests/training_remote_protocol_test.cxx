@@ -1,5 +1,6 @@
 #include "../training/RemoteProtocol.hxx"
 #include <algorithm>
+#include <iterator>
 #include <cstdio>
 #include <set>
 #include <stdexcept>
@@ -44,7 +45,7 @@ int main() {
         Require(ParseOrder({{"set", "style"}, {"value", 1}}, view, order, error) == Route::Overlay && order.id == "style" && order.value == 1, "A Lab order was not left to the overlay");
         Require(ParseOrder({{"cmd", "replyMoves"}, {"text", "623P"}}, view, order, error) == Route::Overlay && order.id == "replyMoves" && order.text == "623P", "The reply's moves were not left to the overlay");
         Require(ParseOrder({{"cmd", "replyMoves"}}, view, order, error) == Route::Refused, "Reply moves without text were accepted");
-        Require(OptionsJson([](const char*, int) { return std::string("x"); })["replyPresets"].size() == static_cast<std::size_t>(ReplyPresetCount), "The reply presets were not offered");
+        Require(OptionsJson([](const char*, int) { return std::string("x"); })["replyPresets"].size() == std::size(UniversalMoves), "The reply presets were not offered");
         Require(ParseOrder({{"cmd", "comboStart"}}, view, order, error) == Route::Overlay && order.id == "comboStart", "Combo check's start was not left to the overlay");
         Require(ParseOrder({{"cmd", "play"}}, view, order, error) == Route::Game && order.command.action == Action::Play, "Play");
         Require(ParseOrder({{"cmd", "stop"}}, view, order, error) == Route::Game && order.command.action == Action::Interrupt, "Stop is the Interrupt");
