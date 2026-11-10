@@ -2974,6 +2974,8 @@ msgid "room.tables"
 msgstr "Mesas"
 msgid "room.tables_detail"
 msgstr "Quantas mesas a sala tem, de 1 a {0}. O anfitrião pode mudar isso depois em Configurações da sala."
+msgid "room.tables_arcade_detail"
+msgstr "Quantos pares jogam ao mesmo tempo, de 1 a {0}. Os demais esperam na fila. Com 1, quem vence fica e quem perde vai para o fim da fila."
 msgid "room.tables.detail"
 msgstr "Adicione mesas até {0}. Uma mesa só pode ser removida quando ninguém joga, espera ou assiste nela."
 msgid "room.apply_tables"
@@ -4949,6 +4951,9 @@ msgstr "Sente aqui: você joga contra quem espera há mais tempo, ou espera o pr
 
 msgid "room.arcade_waiting"
 msgstr "Aguardando"
+
+msgid "room.arcade_in_line"
+msgstr "Posição na fila: {0}"
 
 msgid "room.cabinet_free"
 msgstr "INSIRA FICHA"

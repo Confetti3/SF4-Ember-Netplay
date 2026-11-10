@@ -3342,6 +3342,8 @@ msgid "room.tables"
 msgstr "Stoły"
 msgid "room.tables_detail"
 msgstr "Ile stołów ma pokój, od 1 do {0}. Host może to później zmienić w Ustawieniach pokoju."
+msgid "room.tables_arcade_detail"
+msgstr "Ile par gra jednocześnie, od 1 do {0}. Pozostali czekają w kolejce. Przy 1 zwycięzca zostaje, a przegrany idzie na koniec kolejki."
 msgid "room.tables.detail"
 msgstr "Stoły można dodawać do {0}. Stół można usunąć tylko wtedy, gdy nikt przy nim nie gra, nie czeka ani nie ogląda."
 msgid "room.apply_tables"
@@ -5416,6 +5418,9 @@ msgstr "Usiądź tutaj: grasz z tym, kto czeka najdłużej, albo czekasz na kole
 
 msgid "room.arcade_waiting"
 msgstr "Czeka"
+
+msgid "room.arcade_in_line"
+msgstr "Miejsce w kolejce: {0}"
 
 msgid "room.cabinet_free"
 msgstr "WRZUĆ MONETĘ"

@@ -13,7 +13,7 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 	snapshot_.wiredOnly = wiredOnly;
 	snapshot_.arcade = arcade;
 	snapshot_.tableCount = InRange<std::uint8_t>(tableCount, 1, static_cast<std::uint8_t>(TableCount))
-		? tableCount : static_cast<std::uint8_t>(ClassicTableCount);
+		? tableCount : DefaultTableCount(arcade);
 	snapshot_.delayPolicy = delayPolicy;
 	snapshot_.roomEpoch = roomEpoch == 0 ? 1 : roomEpoch;
 	snapshot_.name = (!name.empty() && name.size() <= MaximumRoomNameBytes && IsValidUtf8(name) && IsSingleLineText(name))

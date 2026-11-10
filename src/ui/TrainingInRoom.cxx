@@ -7,14 +7,15 @@ TrainingRoomStatus DescribeTrainingRoom(const room::Snapshot& room, unsigned unr
     if (!room.roomEpoch || !room::FindMember(room, room.localMember)) return status;
     status.room = room.name;
     const auto place = room::PlaceOf(room, room.localMember);
-    if (place.kind != room::Place::Kind::None) status.table = loc::Tf("training.room.table", place.table + 1);
+    if (place.kind == room::Place::Kind::Seat || place.kind == room::Place::Kind::Queue) status.table = loc::Tf("training.room.table", place.table + 1);
     if (place.kind == room::Place::Kind::Seat) {
         const auto* opponent = room::SeatOpponent(room, static_cast<std::uint8_t>(place.table), room.localMember);
         if (opponent) status.opponent = opponent->name;
         else status.place = loc::T("training.room.waiting");
     } else if (place.kind == room::Place::Kind::Queue) {
         status.place = loc::Tf("training.room.queued", place.position, static_cast<int>(room.tables[place.table].queue.size()));
-    } else status.place = loc::T("training.room.not_queued");
+    } else if (place.kind == room::Place::Kind::Line) status.place = loc::Tf("room.arcade_in_line", place.position);
+    else status.place = loc::T("training.room.not_queued");
     if (unread) status.unread = loc::Tf("training.room.unread", unread);
     return status;
 }

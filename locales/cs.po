@@ -3342,6 +3342,8 @@ msgid "room.tables"
 msgstr "Stoly"
 msgid "room.tables_detail"
 msgstr "Kolik stolů místnost má, od 1 do {0}. Hostitel to může později změnit v Nastavení místnosti."
+msgid "room.tables_arcade_detail"
+msgstr "Kolik dvojic hraje najednou, od 1 do {0}. Ostatní čekají ve frontě. Při 1 vítěz zůstává a poražený jde na konec fronty."
 msgid "room.tables.detail"
 msgstr "Stoly lze přidat až do počtu {0}. Stůl lze odebrat, jen když u něj nikdo nehraje, nečeká ani nesleduje."
 msgid "room.apply_tables"
@@ -5416,6 +5418,9 @@ msgstr "Sedněte si sem: hrajete s tím, kdo čeká nejdéle, nebo počkáte na 
 
 msgid "room.arcade_waiting"
 msgstr "Čeká"
+
+msgid "room.arcade_in_line"
+msgstr "Pořadí ve frontě: {0}"
 
 msgid "room.cabinet_free"
 msgstr "VHOĎ MINCI"

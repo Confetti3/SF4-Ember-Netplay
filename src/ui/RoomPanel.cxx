@@ -130,7 +130,7 @@ void CabinetRows(std::vector<MenuEntry>& rows,const ShellView& v,bool mutableRoo
    m?CabinetState(s,c):loc::T(ownCabinet>=0?"room.arcade_move_detail":"room.arcade_sit_detail")));
   auto& row=rows.back();row.detailText=DetailText::Name;
   if(!m){
-   const bool between=ownCabinet>=0?!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
+   const bool between=ownCabinet>=0?mine.table<0||!room::GameUnderWay(s.tables[mine.table]):mine.kind==Place::Kind::None;
    row.hint=loc::T("room.arcade_sit");row.enabled=between&&mutableRoom;
    if(WiredFenced(v,room::ActionKind::Queue)){row.enabled=false;row.detail=WiredOnlyReason();}
    continue;
@@ -679,9 +679,9 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
  const bool host=c.host;
   rows.push_back(TextRow("rename",loc::T("room.name"),roomName_,64,host));
   rows.push_back(Value("room-capacity",loc::T("room.capacity"),std::to_string(roomCapacity_),loc::T("room.capacity.detail"),host));
-  // A private Classic room's host adds tables, or takes away empty ones
-  // (room::TableCountAllowed). An Arcade room plays at all of them; a public
-  // or tournament room keeps the tables it opened with.
+  // A private room's host adds tables, or takes away empty ones
+  // (room::TableCountAllowed); a public or tournament room keeps the tables
+  // it opened with.
   const bool tables=TableCountChangeable(s);
   if(tables)rows.push_back(Value("room-tables",loc::T("room.tables"),std::to_string(roomTableCount_),
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));

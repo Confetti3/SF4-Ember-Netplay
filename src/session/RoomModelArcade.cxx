@@ -1,6 +1,9 @@
 // An Arcade or King of the hill room's seating (Snapshot::arcade): sixteen
 // one-player cabinets, and tables that are pairs, not places. Whoever sits
-// down plays the player who has waited longest, at whichever table is free.
+// down plays the player who has waited longest, at whichever table in play is
+// free; with none free they wait in line (Snapshot::line). At one table the
+// winner stays, as in the game's Endless Battle, and the loser goes to the
+// back of the line.
 // Other rooms never reach this code.
 #include "RoomModel.hxx"
 #include "RoomQueries.hxx"
@@ -41,6 +44,8 @@ void RoomAuthority::JoinTable(MemberId member, Table& table) {
 	// Moved to another table, a keeper keeps nothing (Table::keeper).
 	for (auto& other : snapshot_.tables)
 		if (&other != &table && other.keeper == member) { other.keeper = 0; other.keptFighter = other.keptEdition = -1; }
+	auto& line = snapshot_.line;
+	line.erase(std::remove(line.begin(), line.end(), member), line.end());
 	if (!table.p1) table.p1 = member; else table.p2 = member;
 	ClearReadiness(table);
 	table.score[0] = table.score[1] = 0;
@@ -52,13 +57,31 @@ void RoomAuthority::JoinTable(MemberId member, Table& table) {
 	NormalizeMemberStatus(table.p1); NormalizeMemberStatus(table.p2);
 }
 
-// First come, first paired: `member`, at no table, plays the player who has
-// waited longest, else waits at an empty table.
+// First come, first paired: `member`, at no table, joins the back of the
+// line, and the line is seated (SeatLine). So they play the player who has
+// waited longest, or wait at an empty table, or in line.
 void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
-	Table* table = Waiter(member, parted, nullptr);
-	for (auto& empty : snapshot_.tables) if (!table && ArcadeEmpty(empty)) table = &empty;
-	if (!table) return;
-	JoinTable(member, *table);
+	if (CabinetOf(snapshot_, member) < 0) return;
+	auto& line = snapshot_.line;
+	if (std::find(line.begin(), line.end(), member) == line.end()) line.push_back(member);
+	SeatLine(member, parted);
+	// Still in line: a pair waiting for a new opponent parts, and the one who
+	// asked plays whoever has waited longest.
+	if (std::find(line.begin(), line.end(), member) == line.end()) return;
+	const auto asker = ArcadeAsker(snapshot_, TableCount);  // at any table
+	if (asker.member) PartPair(snapshot_.tables[asker.table], asker.member);
+}
+
+// The line, front first, sits down while the tables in play have room:
+// beside whoever waits alone there, else at an empty table to wait. `a` and
+// `b`, a pair that just parted, are not seated together again.
+void RoomAuthority::SeatLine(MemberId a, MemberId b) {
+	for (const MemberId member : std::vector<MemberId>(snapshot_.line)) {
+		Table* table = Waiter(member, member == a ? b : member == b ? a : 0, nullptr);
+		for (std::size_t i = 0; !table && i < TablesInPlay(snapshot_); ++i)
+			if (ArcadeEmpty(snapshot_.tables[i])) table = &snapshot_.tables[i];
+		if (table) JoinTable(member, *table);
+	}
 }
 
 // `leaving` at `table` and `asker`, waiting at another pair for a new
@@ -72,9 +95,9 @@ void RoomAuthority::SwapFighter(MemberId leaving, Table& table, const ArcadeWait
 	TouchRoom();
 }
 
-// A set is over. The winner stays and plays whoever has waited longest alone,
-// here; the loser waits for the next one (PairArcade), not the winner. With
-// nobody waiting alone the pair stays: an Arcade pair chooses Rematch or New
+// A set is over. The winner stays and plays whoever has waited longest, alone
+// or in line, here; the loser waits for the next one (PairArcade), not the
+// winner. With nobody waiting the pair stays: an Arcade pair chooses Rematch or New
 // opponent, and with nobody else there just readies again. King of the hill
 // moves the streaks and the top slot, and while a table is free the loser
 // waits there and the winner here for a challenger; in a full room the pair
@@ -89,9 +112,10 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 		TouchRoom();
 	}
 	Table* const challenger = Waiter(winner, loser, &table);
+	const MemberId waiting = challenger || snapshot_.line.empty() ? 0 : snapshot_.line.front();
 	const bool others = std::any_of(snapshot_.cabinets.begin(), snapshot_.cabinets.end(),
 		[&](MemberId m) { return m && m != winner && m != loser; });
-	const bool parts = challenger || (king && others && ArcadeSomeoneFree(snapshot_, table.id));
+	const bool parts = challenger || waiting || (king && others && ArcadeSomeoneFree(snapshot_, table.id));
 	if (!parts) {
 		// Someone at another table asked for a new opponent and nobody was free:
 		// the loser goes there, and the one who asked plays the winner.
@@ -109,7 +133,8 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 		challenger->p1 = challenger->p2 = 0; challenger->waitingSince = 0;
 		Touch(*challenger);
 		JoinTable(next, table);
-	} else table.waitingSince = NextArrival(snapshot_);
+	} else if (waiting) JoinTable(waiting, table);
+	else table.waitingSince = NextArrival(snapshot_);
 	PairArcade(loser, winner);
 	NormalizeMemberStatus(loser);
 	TouchRoom();
@@ -122,13 +147,14 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 void RoomAuthority::ArcadeVacated(Table& table, MemberId left) {
 	EndChoice(table);
 	const MemberId stays = Lone(table);
-	if (!stays) { table.waitingSince = 0; return; }
+	if (!stays) { table.waitingSince = 0; SeatLine(0, 0); return; }
 	if (Table* waiter = Waiter(stays, left, &table)) {
 		table.p1 = table.p2 = 0; table.waitingSince = 0;
 		Touch(table);
 		JoinTable(stays, *waiter);
 		return;
 	}
+	if (!snapshot_.line.empty()) { JoinTable(snapshot_.line.front(), table); return; }
 	table.waitingSince = NextArrival(snapshot_);
 	const auto asker = ArcadeAsker(snapshot_, table.id);
 	if (asker.member) PartPair(snapshot_.tables[asker.table], asker.member);
@@ -154,6 +180,7 @@ void RoomAuthority::StandUp(MemberId member) {
 	const int cabinet = CabinetOf(snapshot_, member);
 	if (cabinet < 0) return;
 	snapshot_.cabinets[cabinet] = 0; snapshot_.streaks[cabinet] = 0;
+	snapshot_.line.erase(std::remove(snapshot_.line.begin(), snapshot_.line.end(), member), snapshot_.line.end());
 	CrownTopSlot();
 	TouchRoom();
 }
@@ -171,6 +198,7 @@ void RoomAuthority::CrownTopSlot() {
 // sits there and is paired; one at another cabinet moves, with their pair and
 // streak, between games only.
 Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
+	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (action.seat != 0 && action.seat != 1) return Reject(RejectReason::InvalidSeat);
 	const std::size_t cabinet = action.table + action.seat * TableCount;
 	if (snapshot_.cabinets[cabinet]) return Reject(RejectReason::InvalidSeat);
@@ -194,6 +222,17 @@ Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
 	PairArcade(member, 0);
 	TouchRoom();
 	NormalizeMemberStatus(member);
+	return Accept();
+}
+
+// `member` stands up from their cabinet, from a table between games or from
+// the line.
+Result RoomAuthority::ApplyArcadeStand(MemberId member) {
+	const Member* own = Find(member);
+	if (!own || CabinetOf(snapshot_, member) < 0) return Reject(RejectReason::NotQueued);
+	if (own->table >= 0 && (snapshot_.tables[own->table].phase == TablePhase::Playing || snapshot_.tables[own->table].phase == TablePhase::Paused))
+		return Reject(RejectReason::WrongPhase);
+	RemoveFromTable(member);
 	return Accept();
 }
 
@@ -221,14 +260,16 @@ Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table*
 }
 
 // A new public room's host makes it an Arcade room while alone in it, with
-// the rules of every table (netplay::CreatedRules).
+// the rules of every table and how many tables it plays at
+// (netplay::CreatedRules).
 Result RoomAuthority::ApplySetRoomType(MemberId member, const Action& action) {
 	if (!snapshot_.serverOwned || !IsHost(member) || snapshot_.arcade || snapshot_.members.size() != 1 ||
 		!action.roomType || action.roomType > KingRoom) return Reject(RejectReason::Unauthorized);
-	if (!action.rules.Valid()) return Reject(RejectReason::InvalidRules);
+	if (!action.rules.Valid() || action.tableCount < 1 || action.tableCount > TableCount) return Reject(RejectReason::InvalidRules);
 	for (const auto& table : snapshot_.tables)
 		if (!ArcadeEmpty(table) || !table.queue.empty()) return Reject(RejectReason::WrongPhase);
 	snapshot_.arcade = action.roomType;
+	snapshot_.tableCount = action.tableCount;
 	for (auto& table : snapshot_.tables) { table.rules = action.rules; table.streakHolder = 0; table.streak = 0; Touch(table); }
 	TouchRoom();
 	return Accept();

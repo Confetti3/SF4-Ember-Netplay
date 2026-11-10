@@ -276,8 +276,10 @@ struct PlayerPreferences {
     room::Rules publicTableRules = room::PublicRoomRules();
     std::vector<RoomTemplate> roomTemplates;
     // The last public room created here, which a stream PC (--host-public-room)
-    // opens again: its type, and the template it was made from (none if empty).
+    // opens again: its type, an Arcade or King room's table count, and the
+    // template it was made from (none if empty).
     room::RoomType publicRoomType = room::ClassicRoom;
+    int publicArcadeTables = static_cast<int>(room::TableCount);
     std::string publicRoomTemplate;
     bool Valid() const {
         if (roomTemplates.size() > MaxRoomTemplates || !std::all_of(roomTemplates.begin(), roomTemplates.end(), [](const RoomTemplate& saved) { return saved.Valid(); })) return false;
@@ -286,7 +288,7 @@ struct PlayerPreferences {
             matchHudSize < 0 || matchHudSize > 2 || matchHudAnchor < 0 || matchHudAnchor > MaxMatchHudAnchor || matchHudLayout < 0 || matchHudLayout > 1 || pictureSpot < 0 || pictureSpot > 11 || pictureMode < PictureSmall || pictureMode > PictureOff || roomColumn < MinRoomColumn || roomColumn > MaxRoomColumn || roomSplit < MinRoomSplit || roomSplit > MaxRoomSplit || matchHudNameOffset < -MaxMatchHudNameOffset || matchHudNameOffset > MaxMatchHudNameOffset || readySoundVolume < 10 || readySoundVolume > 100 || !(interfaceScale >= 1.f && interfaceScale <= 1.5f) ||
             !lobby.Valid() ||
             roomName.empty() || roomName.size() > 64 || roomCapacity < 2 || roomCapacity > static_cast<int>(room::MaxMembers) ||
-            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || publicRoomType > room::KingRoom || publicRoomTemplate.size() > 32) return false;
+            roomTableCount < 1 || roomTableCount > static_cast<int>(room::TableCount) || publicRoomType > room::KingRoom || publicArcadeTables < 1 || publicArcadeTables > static_cast<int>(room::TableCount) || publicRoomTemplate.size() > 32) return false;
         for (unsigned char c : displayName) if (c < 32 || c == 127) return false;
         for (unsigned char c : roomName) if (c < 32 || c == 127) return false;
         return country.Valid() && speech.Valid() && roomFilter.Valid() && tableRules.Valid() && publicTableRules.Valid();

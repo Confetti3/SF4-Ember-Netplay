@@ -21,6 +21,7 @@ void ApplicationShell::UpdateHostedPublicRoom(const ShellView& v,double now) {
  const auto made=std::find_if(templates.begin(),templates.end(),[&](const RoomTemplate& t){return t.name==preferences_.publicRoomTemplate;});
  const int index=made==templates.end()?-1:static_cast<int>(made-templates.begin());
  if(index>=0&&createTemplate_!=index)ApplyRoomTemplate(index);
+ createArcadeTables_=preferences_.publicArcadeTables;
  CreatePublicRoom(preferences_.publicRoomType);
 }
 // It always watches a game: each room it joins, it follows from table 1

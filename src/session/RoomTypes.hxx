@@ -392,13 +392,14 @@ struct Snapshot {
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
 	// place. Its rules are the room's, set when it is created. Serialized only
-	// when not Classic, with the three fields below.
+	// when not Classic, with the cabinet fields below.
 	RoomType arcade = ClassicRoom;
-	// How many tables a Classic room plays at, the first ones (TablesInPlay):
-	// chosen when it is created and changed by its host (SetTableCount). An
-	// Arcade or King of the hill room plays at all of them whatever this says.
-	// Serialized only when not ClassicTableCount, so a room at the default
-	// has the wire form it had before.
+	// How many tables a room plays at, the first ones (TablesInPlay): chosen
+	// when it is created and changed by a private room's host (SetTableCount).
+	// An Arcade or King of the hill room's pairs play there, and whoever finds
+	// no seat at them waits in line.
+	// Serialized only when not its type's DefaultTableCount, so a room at the
+	// default has the wire form it had before.
 	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
 	// Who sits at each cabinet (0: free), the sets each has won in a row in
 	// King of the hill, and its top slot: the cabinet with the longest current
@@ -406,6 +407,9 @@ struct Snapshot {
 	// beats them.
 	std::array<MemberId, CabinetCount> cabinets = {};
 	std::array<std::uint16_t, CabinetCount> streaks = {};
+	// An Arcade room's line, front first: cabinet holders at no table because
+	// every table in play is a pair. Empty while any table has room.
+	std::vector<MemberId> line;
 	std::int8_t topSlot = -1;
 	MemberId host = 0;
 	MemberId localMember = 0;

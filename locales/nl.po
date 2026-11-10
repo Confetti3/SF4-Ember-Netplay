@@ -3342,6 +3342,8 @@ msgid "room.tables"
 msgstr "Tafels"
 msgid "room.tables_detail"
 msgstr "Hoeveel tafels de kamer heeft, van 1 tot {0}. De host kan dit later wijzigen in Kamerinstellingen."
+msgid "room.tables_arcade_detail"
+msgstr "Hoeveel paren tegelijk spelen, van 1 tot {0}. De rest wacht in de rij. Bij 1 blijft de winnaar zitten en sluit de verliezer achteraan aan."
 msgid "room.tables.detail"
 msgstr "Voeg tafels toe tot {0}. Een tafel kan alleen weg als niemand er speelt, wacht of kijkt."
 msgid "room.apply_tables"
@@ -5416,6 +5418,9 @@ msgstr "Ga hier zitten: je speelt tegen wie het langst wacht, of wacht op de vol
 
 msgid "room.arcade_waiting"
 msgstr "Wacht"
+
+msgid "room.arcade_in_line"
+msgstr "Plaats in de rij: {0}"
 
 msgid "room.cabinet_free"
 msgstr "WERP MUNT IN"
