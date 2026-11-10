@@ -49,13 +49,12 @@ struct Item {
 
 impl Notifier {
     pub(crate) fn follows_feeds(&self) -> bool {
-        self.0.discord_url.is_some()
-            && self
-                .0
-                .config
-                .brackets
-                .as_ref()
-                .is_some_and(|brackets| brackets.feed)
+        // The shared channel or a tournament's own: either is somewhere to post.
+        self.0
+            .config
+            .brackets
+            .as_ref()
+            .is_some_and(|brackets| brackets.feed)
     }
 
     pub(crate) async fn follow_feeds(self) {
@@ -170,11 +169,15 @@ impl Notifier {
     }
 
     async fn post_to(&self, url: &str, text: &str) -> Sent {
-        let Some(config) = &self.0.config.discord else {
-            return Sent::Done;
-        };
+        let username = self
+            .0
+            .config
+            .discord
+            .as_ref()
+            .map_or("Ember", |config| config.username.as_str());
         // News never pings anyone.
-        let body = json!({ "username": config.username, "content": text, "allowed_mentions": { "parse": [] } });
+        let body =
+            json!({ "username": username, "content": text, "allowed_mentions": { "parse": [] } });
         classify(
             self.0.http.post(url).json(&body).send().await,
             Reset::After("x-ratelimit-reset-after"),
