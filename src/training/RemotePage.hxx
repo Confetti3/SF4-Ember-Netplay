@@ -443,11 +443,11 @@ document.head.appendChild(Object.assign(document.createElement("style"),{textCon
 ".dc .sec{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-top:3px}"+
 "#data:has(.dc),#data2:has(.dc){grid-template-columns:minmax(0,1fr)!important;font-size:12px}"+
 ".dc .kv{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px}.dc .kv span{display:inline;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;text-align:right}.dc .kv em{font-style:normal;color:var(--dim)}"+
-".db{position:relative;height:16px;background:#26262a;border-radius:2px;overflow:hidden}.db i{position:absolute;left:0;top:0;bottom:0}.db u{position:absolute;left:0;top:0;bottom:0;background:#fff3}"+
+".db{position:relative;height:16px;background:#26262a;border-radius:2px;overflow:hidden}.db i{position:absolute;left:0;top:0;bottom:0}.db u{position:absolute;left:0;top:0;bottom:0;background:#fff3}.db s{position:absolute;top:0;bottom:0;width:1px;background:#000a}"+
 ".db span{position:absolute;left:4px;right:4px;top:0;display:flex;justify-content:space-between;gap:6px;font-size:11px;line-height:16px;white-space:nowrap;text-shadow:0 0 2px #000}"+
 ".db.s4::after,.db.s2::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(25% - 1px),#000a calc(25% - 1px) 25%)}.db.s2::after{background:repeating-linear-gradient(90deg,transparent 0 calc(50% - 1px),#000a calc(50% - 1px) 50%)}"+
 ".tl{position:relative;height:9px;background:#26262a;border-radius:2px}.tl i{position:absolute;top:0;bottom:0}.tl b{position:absolute;top:-2px;bottom:-2px;width:2px;background:#f2f2f2}.tl s{position:absolute;top:-1px;bottom:-1px;width:1px;background:#a8a8b0}"+
-".jg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;text-align:center}.jg div{background:#26262a;border-radius:3px;padding:1px 0}.jg small{display:block;color:var(--dim);font-size:9px}"+
+".jg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;text-align:center}.jg div{background:#26262a;border-radius:3px;padding:1px 0}.jg small{display:block;color:var(--dim);font-size:9px}.jg div.on{background:#3cc46e;color:#fff}"+
 ".chip2{display:inline-block;padding:0 6px;border-radius:3px;color:#fff;font-size:10px}"}));
 const STANCE=[["Standing","#4b6b8a"],["Crouching","#a07a2a"],["Airborne","#3b7a5a"],["Down","#9a3a3a"]];
 const RANGE=["","Close from ","Far within ","Close height from ","Far height within "];
@@ -467,9 +467,14 @@ function dataCard(d,f,s,on){
  if(on("data_state"))h+=sec("State")+'<div class="kv"><span class="chip2" style="background:'+st[1]+'">'+st[0]+"</span><em>status "+f.status+"</em></div>";
  if(on("data_gauges"))h+=sec("Gauges")+bar("Life",f.life[0],f.life[1],"#3cc46e",f.life[0],"",f.life[2])+bar("Stun",f.stun[0],f.stun[1],"#e8c23c",f.stun[0])+bar("Super",f.super[0],f.super[1],"#3c78e8",f.super[0],"s4")+bar("Revenge",f.revenge[0],f.revenge[1],"#ec3860",f.revenge[0],"s2");
  if(on("data_juggle")){const c=v=>v<0?"-":v;h+=sec("Juggle")+'<div class="jg"><div><small>Juggled</small>'+(f.juggled<0?"none":f.juggled)+"</div><div><small>Start</small>"+c(f.juggle[0])+"</div><div><small>Add</small>"+c(f.juggle[1])+"</div><div><small>Limit</small>"+c(f.juggle[2])+"</div></div>"}
- if(on("data_charge")){h+=sec("Charge");if(!f.charges.length)h+=kv("No charge moves","");
-  for(const c of f.charges){const full=c.r>0&&c.h>=c.r,arrow=c.b&&c.d?"↙":c.b?"←":c.d?"↓":"",label=c.n||(c.b&&c.d?"Down + Back":c.b?"Back":"Down");
-   h+=bar(arrow+" "+e(label),c.h,c.r,full?"#3cc46e":"#ff7a2e",c.h+" / "+c.r)}}
+ if(on("data_charge")){h+=sec("Charge");
+  if(f.stock>=0)h+='<div class="jg" style="grid-template-columns:repeat(3,1fr)">'+["L","M","H"].map((k,i)=>'<div'+(f.stock>>i&1?' class="on"':"")+">"+k+"</div>").join("")+"</div>";
+  else if(!f.charges.length)h+=kv("No charge moves","");
+  for(const c of f.charges){const top=c.r[c.r.length-1]||0,full=top>0&&c.h>=top,next=c.r.find(r=>c.h<r)||top,arrow=c.b&&c.d?"↙":c.b?"←":c.d?"↓":"",label=c.n||(c.b&&c.d?"Down + Back":c.b?"Back":"Down");
+   let from=0,seg="";
+   for(const r of c.r){const fill=Math.max(0,Math.min(1,(c.h-from)/Math.max(1,r-from)));
+    seg+=(fill>0?'<i style="left:'+from/top*100+"%;width:"+(r-from)*fill/top*100+"%;background:"+(fill>=1?"#3cc46e":"#ff7a2e")+'"></i>':"")+(r<top?'<s style="left:'+r/top*100+'%"></s>':"");from=r}
+   h+='<div class="db">'+seg+'<span><b style="color:#fff;font-weight:500">'+arrow+" "+e(label)+'</b><b style="color:#fff;font-weight:400">'+c.h+" / "+next+"</b></span></div>"}}
  return h+"</div>"}
 )HTML"
 R"HTML(
