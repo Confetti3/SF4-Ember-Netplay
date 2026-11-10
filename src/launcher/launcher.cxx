@@ -587,7 +587,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
-    app.add_flag("--host-public-room", hostPublicRoom, "Open the last public room created again, and again whenever it closes (a stream PC).");
+    app.add_flag("--host-public-room", hostPublicRoom, "Open the last public room created again, and again whenever it closes, watching its games (a stream PC).");
     app.add_flag("--updates", updates, "Open update and recovery controls.");
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");

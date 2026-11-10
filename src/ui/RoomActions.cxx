@@ -390,6 +390,7 @@ void ApplicationShell::NoteWatching(const room::Action& sent,const room::Snapsho
 // not go is noted as sent, so it waits as one the room refused and goes again.
 void ApplicationShell::UpdateFollow(const ShellView& v,double now,const Submit& submit) {
  const auto nowMs=static_cast<std::uint64_t>(now*1000);
+ FollowAsStreamHost(v);
  const auto step=follow_.Next(v.room,nowMs,{RoomActionsAvailable(v),v.watchedGame.Active()});
  if(!step)return;
  room::Action action;action.kind=step.kind;action.table=static_cast<std::uint8_t>(step.table);

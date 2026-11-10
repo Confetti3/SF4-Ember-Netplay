@@ -23,4 +23,12 @@ void ApplicationShell::UpdateHostedPublicRoom(const ShellView& v,double now) {
  if(index>=0&&createTemplate_!=index)ApplyRoomTemplate(index);
  CreatePublicRoom(preferences_.publicRoomType);
 }
+// It always watches a game: each room it joins, it follows from table 1
+// (RoomFollow::Start). Nobody is at the PC to start following, but Stop
+// watching or a lock-in still end it there, as for anyone.
+void ApplicationShell::FollowAsStreamHost(const ShellView& v) {
+ if(!v.hostPublicRoom||v.room.roomEpoch==streamFollowEpoch_||!room::FindMember(v.room,v.room.localMember)||v.room.tournament.Active())return;
+ streamFollowEpoch_=v.room.roomEpoch;
+ if(room::PlaceOf(v.room,v.room.localMember).kind==room::Place::Kind::None)follow_.Start(v.room,true);
+}
 } }

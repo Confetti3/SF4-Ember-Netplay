@@ -6,6 +6,8 @@ and the game fresh without anyone at the PC.
 - Starts Ember with `Launcher.exe --host-public-room`. Ember then opens the
   last public room created on its Create screen again (its settings, type and
   template), whenever the room closes.
+- Ember watches the room's games by itself: table 1's first, else any other,
+  else it waits at table 1.
 - Restarts the game when the room is empty (only this PC in it, no game on)
   for 10 minutes and the game has run longer than the hours set, or, if ticked,
   its memory is below the MB set. The game is a 32-bit program and runs short
