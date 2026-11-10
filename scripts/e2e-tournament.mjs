@@ -71,7 +71,10 @@ const closed = [];
 // it goes straight to deleting its tournament.
 async function play(name, run) {
   await step(name, run);
-  if (closed.length) throw new Error(closed.join("; "));
+  if (!closed.length) return;
+  // A game that closed while the step still passed is a failure of its own.
+  if (results.at(-1)[0] !== "FAIL") await step("both games still running", () => { throw new Error(closed.join("; ")); });
+  throw new Error(closed.join("; "));
 }
 async function wait(side, name, minutes, what) {
   const end = Date.now() + minutes * 60000;
@@ -114,8 +117,10 @@ function startLocal() {
 
 function startRemote() {
   const w = config.remote.work;
-  // The other PC's package is copied when this PC's differs from the copy there.
-  const stamp = execFileSync("stat", ["-c", "%s-%Y", join(linux(config.local.package), "sf4-net.exe")], { encoding: "utf8" }).trim();
+  // The other PC's package is copied when this PC's differs from the copy
+  // there: any of its files, as a rebuilt game alone changes the build ID.
+  const stamp = execFileSync("sh", ["-c", "stat -c '%n %s %Y' * | md5sum | cut -c1-32"],
+    { cwd: linux(config.local.package), encoding: "utf8" }).trim();
   if (ssh(`type "${w}\\stage.stamp" 2>nul || echo none`).trim() !== stamp) {
     log("copying the self-test package to the other PC");
     const tar = join(out, ".stage.tar");
@@ -289,6 +294,12 @@ try {
     await page.until("desk.event.status !== 'draft'", 15000);
     await page.eval("go(5)");
     await page.until("!document.getElementById('start-bracket').hidden", 30000);
+    // A site with its own states (the bracket site) starts only from sign-ups:
+    // the moves the desk offers under the event, as the organizer presses them.
+    for (const name of ["plan", "open_sign_ups"])
+      await page.eval(`api("GET", "/v1/organizer/tournaments?site=" + encodeURIComponent(desk.event.site))
+        .then((listed) => listed.tournaments.find((each) => each.id === desk.event.tournament))
+        .then((found) => found && (found.actions || []).includes("${name}") && api("POST", "/v1/organizer/events/" + desk.event.id + "/transitions/${name}"))`);
     await layout(page, "10-start");
     await page.eval("document.getElementById('start-bracket').click()");
     await page.until("document.getElementById('start-bracket').hidden || /Bracket started/.test(document.body.textContent)", 20000);
@@ -305,6 +316,7 @@ try {
       await page.eval("readSets()");
       if (await page.eval("view.sets.some((set) => set.desk_state === 'done')")) break;
       if (Date.now() > end) throw new Error("the set never finished");
+      if (closed.length) throw new Error(closed.join("; "));
       if (shot < 4 && (await page.eval("view.sets.some((set) => set.desk_state === 'playing')"))) await shots("12-playing-" + ++shot);
       await sleep(15000);
     }
