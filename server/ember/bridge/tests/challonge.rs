@@ -1658,6 +1658,75 @@ async fn an_organizer_holds_calls_and_decides_from_the_desk() {
     assert_eq!(found["state"], "cancelled", "{found}");
 }
 
+// Stopped, an event on a site of the organizer's own (the bracket site)
+// cancels its open match too, which the connector names `http:...`.
+#[tokio::test]
+async fn stopping_a_bracket_site_event_cancels_its_match() {
+    let fake = fake_challonge();
+    let bridge = desk_bridge(&fake).await;
+    let player1 = player(&bridge, 1).await;
+    let player2 = player(&bridge, 2).await;
+    let player3 = player(&bridge, 3).await;
+    let organizer = player1.id().as_str().to_owned();
+    bridge
+        .state()
+        .db
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO organizer_events (id, ember_id, title, status, site, tournament, name, settings, created_at)
+                 VALUES ('oev_00000000-0000-4000-8000-000000000001', ?1, 'Weekly', 'ready', 'ember-bracket-site', 'tweekly', 'Weekly', '{}', 1)",
+                [&organizer],
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let desk = bridge.provider(BRACKETS).await;
+    let links = [
+        bridge.link(&desk, &player2, BRACKETS, "p2").await,
+        bridge.link(&desk, &player3, BRACKETS, "p3").await,
+    ];
+    let (status, created) = bridge
+        .post_keyed(
+            &desk,
+            "/v1/matches",
+            json!({
+                "external_match_id": "http:tweekly:r1-1:1",
+                "game": "usf4",
+                "participants": [
+                    { "participant_id": links[0]["participant_id"], "ember_id": player2.id(), "slot": 0 },
+                    { "participant_id": links[1]["participant_id"], "ember_id": player3.id(), "slot": 1 },
+                ],
+                "rules": {
+                    "games_to_win": 1,
+                    "draw_policy": "replay_no_score",
+                    "native_rules_profile": "ember-room-v1",
+                    "edition_policy": "ultra_only",
+                    "character_policy": "unrestricted_between_games",
+                    "stage_policy": "p1_selects",
+                    "input_delay_policy": "ember_existing_ready_policy",
+                },
+                "observer_policy": "authorized_only",
+                "result_policy": "two_player_agreement_or_review",
+                "required_build_id": "test-build",
+                "metadata": {},
+            }),
+            Some("create-r1-1"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let match_id = created["match_id"].as_str().unwrap();
+    let (status, _) = stop_event(
+        &bridge,
+        &player1,
+        "oev_00000000-0000-4000-8000-000000000001",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, found) = bridge.get(&desk, &format!("/v1/matches/{match_id}")).await;
+    assert_eq!(found["state"], "cancelled", "{found}");
+}
+
 // A web desk session is short and narrow: it ends after two idle hours or
 // twelve in all, the game lists and ends it, and it cannot make the changes
 // that need the game's proof.
