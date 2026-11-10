@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "木桩反击"
 
 msgid "training.reply.detail"
-msgstr "木桩恢复自由后自己做的动作，用来惩罚断掉的连招或不安全的收尾：播放反击招式，该行为空时播放反击槽位。回放或录制进行时它会等待。"
+msgstr "木桩在重新获得自由后自行做出的动作，用来惩罚掉落的连段或不安全的收尾：它使用已开启的某个反击槽位；没有槽位开启时，则播放已开启的录像。"
 
 msgid "training.reply.hit"
 msgstr "连招断掉后"
@@ -1673,9 +1673,6 @@ msgstr "起身时"
 
 msgid "training.reply.any"
 msgstr "每次恢复时"
-
-msgid "training.reply.recordings"
-msgstr "录制"
 
 msgid "training.reply.no_recordings_on"
 msgstr "没有可用作反击的已开启录制"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "反击招式"
 
 msgid "training.reply.moves.detail"
-msgstr "用数字表示法输入的反击，例如 623HP 或 44，按木桩面对的方向读取。也可使用 qcf、qcb、dp、rdp、hcf、hcb 等缩写，例如 qcfP 或 dp+HP。指令在木桩仍被控制时输入，使按键落在它第一个可行动的帧上。[1] 保持一个方向直到下一招，[1]20f 保持 20 帧，10f 等待：例如 [1] > 3HP。留空则用已开启的录制反击。"
-
-msgid "training.reply.move"
-msgstr "预设反击"
-
-msgid "training.reply.move.detail"
-msgstr "左右键以小键盘记法选择常用反击，按木人面向的一侧解读。录制会用一段已开启的录制反击；自定义保留你输入的招式。选择打开反击招式进行输入。"
-
-msgid "training.reply.custom"
-msgstr "自定义"
+msgstr "此槽位的招式，用小键盘表示法输入，例如 623HP 或 44，按木桩朝向解读。也可用指令词：qcf、qcb、dp、rdp、hcf 和 hcb。[HP] 按住按键，]HP[ 在第一个自由帧松开，[1]20f 按住方向 20 帧，10f 为等待。留空则移除招式。"
 
 msgid "training.reply.timing"
 msgstr "反击时机"
 
 msgid "training.reply.timing.detail"
 msgstr "反击按键落在木桩第一个可行动帧之后的帧数。硬直的长度在第一次看到时记下；在此之前，反击在硬直结束时开始。"
+
+msgid "training.reply.order"
+msgstr "反击顺序"
+
+msgid "training.reply.order.detail"
+msgstr "木桩如何在已开启的槽位中选择：随机（按各槽位的权重），或按顺序（一个接一个）。"
+
+msgid "training.reply.slot"
+msgstr "反击槽位 {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "木桩可用来反击的一个招式。左右键开启或关闭；确认键打开它的招式列表。"
+
+msgid "training.reply.slot_on"
+msgstr "使用此槽位"
+
+msgid "training.reply.slot_on.detail"
+msgstr "木桩反击时是否可以选中此槽位。"
+
+msgid "training.reply.weight"
+msgstr "权重"
+
+msgid "training.reply.weight.detail"
+msgstr "随机选择中此槽位相对其他槽位的比重，1 到 9。"
+
+msgid "training.reply.clear_slot"
+msgstr "清空此槽位"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "移除此槽位的招式。"
+
+msgid "training.reply.every_fighter"
+msgstr "所有角色"
 
 msgid "training.key.reset"
 msgstr "重置键"

@@ -90,9 +90,9 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         // A row with more than On and Off offers every value, whichever one it shows (Counter hit: On, the reply and the inputs shown: Off).
         const auto choicesOf=[&](const char* id){for(const auto& row:trainingRows)if(row.id==id)return row.choices.size();return std::size_t(0);};
         if(std::string(screen)=="dummy")Require(choicesOf("dummy-counter")==3,"Counter hit offered fewer values than it has");
-        if(std::string(screen)=="reply")Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");
+        if(std::string(screen)=="reply"){Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");Require(choicesOf("reply-order")==2,"The reply's order offered fewer values than it has");}
         if(std::string(screen)=="hud")Require(choicesOf("hud-inputs")==static_cast<std::size_t>(training::InputDisplays),"Inputs shown offered fewer values than it has");
-        if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
+        if(std::string(screen)=="reply")Require(trainingRows.size()==13,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
         if(std::string(screen)=="hud")Require(trainingRows.size()==9&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes"&&trainingRows[8].id=="data","HUD page lost its size, one of its parts, Hitboxes or the Data panel");
@@ -209,24 +209,13 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         SetMenuCardProbe({});SetMenuEntriesProbe({});
     }
-    // The reply's pick list: Right from the reply slot picks the first preset,
-    // which is sent to the dummy as typed notation is; Left goes back.
+    // The reply's slots and its move list: Select on the first slot opens the list.
     {
-        std::vector<MenuEntry> replyRows;
-        SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){replyRows=rows;});
         TrainingNavigation().Home();TrainingNavigation().Push("reply");draw();
         for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
-        for(int i=0;i<20&&TrainingNavigation().Focus()!="reply-move";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-        Require(TrainingNavigation().Focus()=="reply-move","Reply pick list unreachable");
-        const auto pickValue=[&]{for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
-        Require(pickValue()==loc::T("training.reply.recordings"),"Reply pick list did not start on the recordings");
-        acceptTraining=true;trainingCommand={};draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-        Require(pickValue()=="623P"&&trainingCommand.action==training::Action::DummyPlan,"Reply preset was not sent as a plan");
-        draw("training-reply-presets");
-        draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
-        Require(pickValue()==loc::T("training.reply.recordings"),"Left did not return the pick list to the recordings");
-        acceptTraining=false;
-        SetMenuEntriesProbe({});
+        draw("training-reply-slots");
+        TrainingNavigation().Push("reply-slot");draw();
+        draw("training-reply-pick");
     }
     TrainingNavigation().Home();TrainingNavigation().Push("recording");draw();
     // Returning restores the prior selection, which may be below Record.

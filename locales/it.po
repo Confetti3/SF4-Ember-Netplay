@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Risposta del manichino"
 
 msgid "training.reply.detail"
-msgstr "Cosa fa il manichino da solo appena torna libero, per punire una combo sbagliata o una chiusura rischiosa: riproduce le Mosse di risposta, o lo slot di risposta se quella riga è vuota. Attende mentre è in corso una riproduzione o una registrazione."
+msgstr "Cosa fa il manichino da solo appena torna libero, per punire una combo sbagliata o un finale non sicuro: esegue uno degli slot di risposta attivi, o le registrazioni attive finché nessuno slot lo è."
 
 msgid "training.reply.hit"
 msgstr "Dopo una combo sbagliata"
@@ -1673,9 +1673,6 @@ msgstr "Al rialzo"
 
 msgid "training.reply.any"
 msgstr "Ogni volta che si riprende"
-
-msgid "training.reply.recordings"
-msgstr "Registrazioni"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Nessuna registrazione attiva può fare da risposta"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Mosse di risposta"
 
 msgid "training.reply.moves.detail"
-msgstr "La risposta scritta in notazione numerica, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche i nomi dei movimenti: qcf, qcb, dp, rdp, hcf e hcb, come qcfP o dp+HP. Il movimento viene inserito mentre il manichino è ancora bloccato, così il tasto cade sul suo primo frame libero. [1] tiene una direzione fino alla mossa successiva, [1]20f la tiene 20 frame e 10f aspetta: [1] > 3HP para in basso finché il manichino è libero, poi preme 3HP. Vuoto risponde con una registrazione attiva."
-
-msgid "training.reply.move"
-msgstr "Risposta predefinita"
-
-msgid "training.reply.move.detail"
-msgstr "Sinistra e destra scelgono una risposta comune in notazione numerica, letta per il lato verso cui guarda il manichino. Registrazioni risponde con una registrazione attiva; Personalizzata tiene le mosse scritte. Seleziona apre Mosse di risposta per scriverne una."
-
-msgid "training.reply.custom"
-msgstr "Personalizzata"
+msgstr "La mossa di questo slot in notazione numpad, come 623HP o 44, letta per il lato verso cui guarda il manichino. Valgono anche le parole dei movimenti: qcf, qcb, dp, rdp, hcf e hcb. [HP] tiene premuto un tasto, ]HP[ lo rilascia al primo frame libero, [1]20f tiene una direzione per 20 frame e 10f attende. Vuoto rimuove la mossa."
 
 msgid "training.reply.timing"
 msgstr "Tempismo della risposta"
 
 msgid "training.reply.timing.detail"
 msgstr "Frame dopo il primo frame libero del manichino in cui cade il tasto della risposta. La durata di uno stordimento si impara la prima volta; fino ad allora la risposta parte quando finisce."
+
+msgid "training.reply.order"
+msgstr "Ordine delle risposte"
+
+msgid "training.reply.order.detail"
+msgstr "Come il manichino sceglie tra gli slot attivi: a caso, ogni slot secondo il suo peso, oppure in ordine, uno dopo l'altro."
+
+msgid "training.reply.slot"
+msgstr "Slot di risposta {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Una mossa con cui il manichino può rispondere. Sinistra e Destra lo attivano o disattivano; Seleziona apre le sue mosse."
+
+msgid "training.reply.slot_on"
+msgstr "Usa questo slot"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Se il manichino può scegliere questo slot per la sua risposta."
+
+msgid "training.reply.weight"
+msgstr "Peso"
+
+msgid "training.reply.weight.detail"
+msgstr "La quota di questo slot nel sorteggio rispetto agli altri, da 1 a 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Svuota questo slot"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Rimuove la mossa di questo slot."
+
+msgid "training.reply.every_fighter"
+msgstr "Ogni lottatore"
 
 msgid "training.key.reset"
 msgstr "Tasto Ripristina"

@@ -18,16 +18,16 @@ sf4e::combo::Compiled Compile(const std::vector<std::string>& steps) {
     Require(sf4e::combo::Synthesize(steps, true, compiled, error), "A move did not synthesize");
     return compiled;
 }
-// A typed reply's plan as BuildReplyPlan makes it (PracticeSettings.hxx).
+// A typed reply's plan, its one choice as BuildReply makes it (PracticeSettings.hxx).
 DummyPlan Plan(const std::vector<std::string>& steps) {
     const auto compiled = Compile(steps);
-    DummyPlan plan; plan.when = 4; plan.moves = compiled.frames;
-    plan.offset = compiled.offset; plan.anchor = compiled.anchor; plan.hold = compiled.hold;
+    ReplyChoice reply; reply.moves = compiled.frames; reply.offset = compiled.offset; reply.anchor = compiled.anchor; reply.hold = compiled.hold;
+    DummyPlan plan; plan.when = 4; plan.choices = {reply};
     Require(ValidDummyPlan(plan), "A typed reply made no plan");
     return plan;
 }
 // Frames a typed reply plays before its first move takes effect.
-int Lead(const DummyPlan& plan) { return ReplyLead(PlanSchedule(plan, {})); }
+int Lead(const DummyPlan& plan) { return ReplyLead(ChoiceSchedule(plan.choices[0], plan.timing)); }
 int main() {
     try {
         {
@@ -231,7 +231,7 @@ int main() {
                 DummyWatch& watch = dummy.watch; Session& session = dummy.session;
                 reply.timing = timing;
                 // The reply's frames, typed or recorded, for the game's side to find its button in.
-                const std::vector<Input> frames = reply.moves.empty() ? recorded(session) : reply.moves;
+                const std::vector<Input> frames = reply.choices.empty() ? recorded(session) : reply.choices[0].moves;
                 Run run; bool held = false, began = false;
                 DummyControl control; Game game;
                 const auto sample = [&](int frame) {
@@ -286,7 +286,7 @@ int main() {
             const std::pair<const char*, unsigned> presses[] = {{"5MK", MK}, {"LP+LK", LP | LK}, {"MP+MK", MP | MK}, {"PPP", Punches}, {"KKK", Kicks}};
             for (const auto& pressed : presses) {
                 const auto reply = Plan({pressed.first});
-                const auto& frames = reply.moves;
+                const auto& frames = reply.choices[0].moves;
                 const int start = ReplyStart(frames);
                 Require(start >= 0 && frames[start].raw == pressed.second && Lead(reply) == 0, "A press was not all its buttons on the reply's first frame");
                 for (int timing = 0; timing <= MaxReplyTiming; ++timing) {
@@ -313,7 +313,7 @@ int main() {
                 for (const char* move : {"3HP", "623P", "236P", "22LK", "3HP@+3", "3HP@-2", "[HP]", "P(mash)"}) {
                     const auto reply = Plan({"[1]", move});
                     Step step; std::string error;
-                    Require(ParseStep(move, step, error) && reply.hold == 0 && ReplyStart(reply.moves) == 0 && reply.offset == step.offset,
+                    Require(ParseStep(move, step, error) && reply.choices[0].hold == 0 && ReplyStart(reply.choices[0].moves) == 0 && reply.choices[0].offset == step.offset,
                         "A reply did not begin with its hold");
                     for (const unsigned after : {0u, guardCrouch}) for (int timing = -MaxReplyTiming; timing <= MaxReplyTiming; ++timing) {
                         const int at = timing + step.offset;
@@ -356,8 +356,8 @@ int main() {
                 // free frame plus timing, so the move comes out as a reversal.
                 {
                     const auto reply = Plan({"]HP["});
-                    const auto& frames = reply.moves;
-                    Require(reply.hold == 0 && frames[0].raw == HP && frames[0].wait == WaitReply && ReplyStart(frames) == 0 && Lead(reply) == 0,
+                    const auto& frames = reply.choices[0].moves;
+                    Require(reply.choices[0].hold == 0 && frames[0].raw == HP && frames[0].wait == WaitReply && ReplyStart(frames) == 0 && Lead(reply) == 0,
                         "A release move did not begin with its button held");
                     for (const int timing : {-MaxReplyTiming, 0, MaxReplyTiming}) {
                         Dummy dummy;
@@ -377,7 +377,7 @@ int main() {
                     DummyPlan reply = Plan(line);
                     for (const unsigned after : {0u, walkBack}) for (const int timing : {0, 2}) {
                         reply.timing = timing;
-                        const int at = PlanSchedule(reply, {}).timing;
+                        const int at = ChoiceSchedule(reply.choices[0], reply.timing).timing;
                         Require(at == timing + (line.back().back() == '3' ? 3 : -2), "A reply's first move's offset was not in its timing");
                         Dummy dummy;
                         const auto block = statuses(ActorStatus::DamageGuard, 90, after, 40);
@@ -421,13 +421,13 @@ int main() {
                 // an attack, the reply is refused, and the dummy keeps the plan
                 // it had, its button acted on the free frame plus timing.
                 {
-                    DummyPlan settings; settings.when = 4; std::string error;
-                    DummyPlan kept;
-                    Require(BuildReplyPlan("[2]30f > 5MK", settings, kept, error) && ValidDummyPlan(kept), "The reply kept was not built");
+                    ReplyChoice built; std::string error;
+                    Require(BuildReply("[2]30f > 5MK", built, error) && ValidChoice(built), "The reply kept was not built");
+                    DummyPlan kept; kept.when = 4; kept.choices = {built};
                     for (const char* line : {"[2]30f > 5", "[2]30f > 3f > [4]10f > 5", "[2]30f > 5 > 5MK"}) {
                         DummyPlan reply = kept;
-                        Require(!BuildReplyPlan(line, settings, reply, error) && !error.empty(), "A reply that presses nothing was built");
-                        Require(reply.moves.size() == kept.moves.size() && reply.anchor == kept.anchor && reply.hold == kept.hold && reply.offset == kept.offset,
+                        Require(!BuildReply(line, reply.choices[0], error) && !error.empty(), "A reply that presses nothing was built");
+                        Require(reply.choices[0].moves.size() == built.moves.size() && reply.choices[0].anchor == built.anchor && reply.choices[0].hold == built.hold && reply.choices[0].offset == built.offset,
                             "A refused reply changed the plan");
                         for (const int timing : {0, 2}) {
                             Dummy dummy;
@@ -513,17 +513,17 @@ int main() {
             // "[1]7K" charges down and back, and keeps back through the release.
             for (const char* move : {"[4]6P", "[2]8K", "[1]7K"}) {
                 const auto reply = Plan({move});
-                const auto& frames = reply.moves;
+                const auto& frames = reply.choices[0].moves;
                 const unsigned back = move[1] == '4' ? Left : Down;
                 int hold = 0;
                 while (hold < static_cast<int>(frames.size()) && (frames[hold].raw & back) == back) ++hold;
                 // The charge is the reply's leading hold, on its last frame:
                 // only the release and the button lead into the free frame.
-                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && reply.hold == ChargeFrames - 1 && Lead(reply) == 3,
+                Require(hold == ChargeFrames && ChargeFrames >= 60 && ReplyStart(frames) == 0 && reply.choices[0].hold == ChargeFrames - 1 && Lead(reply) == 3,
                     "A charge was held too briefly for some fighter, or was not the reply's leading hold");
                 if (move[1] == '1') {
                     bool backKept = true;
-                    for (int frame = 0; frame <= reply.anchor; ++frame) backKept = backKept && (frames[frame].raw & Left);
+                    for (int frame = 0; frame <= reply.choices[0].anchor; ++frame) backKept = backKept && (frames[frame].raw & Left);
                     Require(backKept, "A down-back charge let go of back before its button");
                 }
                 for (const int timing : {-1, 0, 2}) {

@@ -469,7 +469,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     // The dummy fighter's slots from its last battle (CloseBattle keeps them).
     if (!session.GetView().available) {
         const int fighter = BattleFighter(system, 1);
-        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom());
+        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom()); replies.Seed(dummyRandom());
         comboView.dummy = fighter;
         if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
     }

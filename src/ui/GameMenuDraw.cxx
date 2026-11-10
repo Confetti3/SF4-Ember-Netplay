@@ -128,6 +128,17 @@ bool MenuValueIsToggle(const MenuEntry& e) { return e.adjustable && (e.value == 
 void DrawMenuValue(ImDrawList* d, const MenuEntry& e, v2::Box box, bool enabled, ImU32 text) {
     const float s = Scale(), h = box.H(), y = box.min.y + (h - ImGui::GetFontSize()) * .5f;
     const auto& col = v2::Colors();
+    if (!e.segments.empty()) {
+        // The chips from the right end, the value's on the accent, the others muted.
+        float x = box.max.x;
+        const float top = box.min.y + (h - v2::ChipFont() - 8 * s) * .5f;
+        for (auto word = e.segments.rbegin(); word != e.segments.rend(); ++word) {
+            x -= v2::ChipWidth(*word);
+            v2::Chip(d, ImVec2(x, top), *word, *word == e.value ? col.accent : enabled ? col.muted : v2::color::Alpha(col.muted, .5f));
+            x -= 6 * s;
+        }
+        return;
+    }
     if (MenuValueIsToggle(e)) {
         const bool on = e.value == loc::T("common.on");
         const float tw = 36 * s, th = 20 * s, ty = box.min.y + (h - th) * .5f, tx = box.max.x - tw;
@@ -151,14 +162,28 @@ namespace {
 const char* ValueWord(const MenuEntry& e) { return e.value.empty() ? loc::T("common.not_set") : e.value.c_str(); }
 float ValueFrame(const MenuEntry& e) { return (e.adjustable ? 48 : 28) * Scale(); }
 // What a press under the pointer does to the value laid out `at` (MenuValueStep):
-// a switch's own 36 px flips it, a word's 24 px arrows step it.
+// a switch's own 36 px flips it, a word's 24 px arrows step it, a segment
+// chip lights itself (the steps to it), the lit one or the rest of the row is Select.
 int StepAtPointer(const MenuEntry& e, const MenuRowLayout& at) {
     const auto mouse = ImGui::GetMousePos();
+    if (!e.segments.empty() && e.enabled) {
+        const MenuRect& v = at.value;
+        if (mouse.y < v.y0 || mouse.y > v.y1) return 0;
+        float x = v.x1; int lit = 0, under = -1;
+        for (int i = static_cast<int>(e.segments.size()) - 1; i >= 0; --i) {
+            const float left = x - v2::ChipWidth(e.segments[i]);
+            if (mouse.x >= left && mouse.x <= x) under = i;
+            if (e.segments[i] == e.value) lit = i;
+            x = left - 6 * Scale();
+        }
+        return under < 0 ? 0 : under - lit;
+    }
     const int toggle = MenuValueIsToggle(e) ? (e.value == loc::T("common.on") ? -1 : 1) : 0;
     return MenuValueStep(e, at, mouse.x, mouse.y, toggle, 36 * Scale(), 24 * Scale());
 }
 }
 float MenuValueWidth(const MenuEntry& e) {
+    if (!e.segments.empty()) { float width = -6 * Scale(); for (const auto& word : e.segments) width += v2::ChipWidth(word) + 6 * Scale(); return width; }
     if (MenuValueIsToggle(e)) return 36 * Scale();
     float words = ImGui::CalcTextSize(ValueWord(e)).x;
     for (const auto& c : e.choices) words = (std::max)(words, ImGui::CalcTextSize(c.label.c_str()).x);

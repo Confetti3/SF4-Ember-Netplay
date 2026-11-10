@@ -238,6 +238,15 @@ int main() {
         CHECK(script.interruptible == 54 && script.speeds.size() == 2 && script.speeds[1].from == 50 && script.speeds[0].speed == 2.0f);
         CHECK(bac::GameFrames(script, 0, 54) == 29 && bac::GameFrames(script, 2, 54) == 28 && bac::GameFrames(script, 54, 54) == 0);
         CHECK(bac::GameFrames(model.scripts[0], 0, 10) == 10 && bac::GameFrames(bac::Script{{}, {}, {}, {{0, 0.0f}}}, 0, 10) == -1);
+        // Cammy's plays 2 a frame up to 57: the frame from 56 ends at 57.5,
+        // so 58 is 30 frames on, not 29 (in game).
+        bac::Script cammy;
+        cammy.speeds = {{0, 2.0f}, {57, 1.0f}};
+        CHECK(bac::GameFrames(cammy, 0, 58) == 30 && bac::GameFrames(cammy, 56, 58) == 2 && bac::GameFrames(cammy, 56, 57) == 1);
+        // 0.5 up to 57, then 2: the frame from 56.75 reaches 58; stopping on
+        // the change would take two.
+        cammy.speeds = {{0, 0.5f}, {57, 2.0f}};
+        CHECK(bac::GameFrames(cammy, 56.75f, 58) == 1);
     }
     // A reaction as the game played Balrog's to Ryu's 5LP, 5MP, 5HP and 2MK,
     // first frame after hitstop, and 5LP's at speed 1 again: frames to free less one.

@@ -83,7 +83,8 @@ int main() {
             }
             // The plan going from a recording to typed moves drops it too.
             Bench bench({Dragon});
-            DummyPlan typed = bench.plan; typed.moves = Jab; typed.anchor = 0;
+            ReplyChoice jab; jab.moves = Jab; jab.anchor = 0;
+            DummyPlan typed = bench.plan; typed.choices = {jab};
             Require(ValidDummyPlan(typed), "The typed plan was not valid");
             Require(bench.Stretch(1, [&] { bench.plan = typed; }) == 1000, "A plan changed to typed moves kept the recorded reply");
             // The next stretch replies with the typed moves.
@@ -122,6 +123,31 @@ int main() {
             bool none = false;
             for (int until = 20; until >= 0; --until) none = standing.Step(Held(1, until)).none || none;
             Require(none && !standing.session.Replying(), "A recording that only stands was played as a reply");
+        }
+        {
+            // Choices: drawn by weight, else in order, which as with recordings
+            // moves on only once a reply starts.
+            const auto choice = [](const std::vector<Input>& moves, int weight) { ReplyChoice c; c.moves = moves; c.anchor = 0; c.weight = weight; return c; };
+            // Whether the dragon was pinned for the stretch, which then starts, or is dropped.
+            const auto played = [&](Bench& bench, unsigned stretch, bool start) {
+                bench.replies.Observe(bench.plan, Held(stretch, 19), bench.session, 0);
+                const auto* pending = bench.replies.Pending();
+                const bool second = pending && pending->frames.size() == Dragon.size();
+                if (start) { Require(bench.Stretch(stretch) != 1000, "A choice did not start"); bench.session.StopReply(); }
+                else bench.replies.Reset();
+                return second;
+            };
+            Bench bench({});
+            bench.plan.choices = {choice(Jab, 1), choice(Dragon, 3)};
+            Require(ValidDummyPlan(bench.plan), "A plan with two choices was refused");
+            int dragons = 0;
+            for (unsigned stretch = 1; stretch <= 100; ++stretch) dragons += played(bench, stretch, false);
+            Require(dragons > 60 && dragons < 90, "The random draw did not follow the weights");
+            bench.plan.order = Order::InOrder;
+            const bool a = played(bench, 101, false), b = played(bench, 102, true), c = played(bench, 103, true), d = played(bench, 104, false);
+            Require(a == b && b != c && c != d, "The choices did not follow one another as replies started");
+            bench.plan.choices[0].weight = 0;
+            Require(!ValidDummyPlan(bench.plan), "A choice without a weight was accepted");
         }
         std::puts("Training pending reply checks passed.");
         return 0;

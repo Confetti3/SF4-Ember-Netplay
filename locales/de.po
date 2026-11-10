@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Dummy-Antwort"
 
 msgid "training.reply.detail"
-msgstr "Was der Dummy von selbst tut, sobald er wieder frei ist, um eine abgebrochene Combo oder ein unsicheres Ende zu bestrafen: Er spielt die Antwortzüge ab, oder den Antwort-Slot, solange diese Zeile leer ist. Die Antwort wartet, solange eine Wiedergabe oder Aufnahme läuft."
+msgstr "Was der Dummy von selbst tut, sobald er wieder frei ist, um eine abgebrochene Combo oder einen unsicheren Abschluss zu bestrafen: Er spielt einen der eingeschalteten Antwort-Slots, oder die eingeschalteten Aufnahmen, solange kein Slot an ist."
 
 msgid "training.reply.hit"
 msgstr "Nach abgebrochener Combo"
@@ -1673,9 +1673,6 @@ msgstr "Beim Aufstehen"
 
 msgid "training.reply.any"
 msgstr "Immer wenn er sich erholt"
-
-msgid "training.reply.recordings"
-msgstr "Aufnahmen"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Keine eingeschaltete Aufnahme taugt als Antwort"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Antwortzüge"
 
 msgid "training.reply.moves.detail"
-msgstr "Die Antwort als Züge in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy blickt. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb, etwa qcfP oder dp+HP. Die Bewegung wird eingegeben, solange der Dummy noch festhängt, damit die Taste auf seinen ersten freien Frame fällt. [1] hält eine Richtung bis zum nächsten Zug, [1]20f hält sie 20 Frames und 10f wartet: [1] > 3HP blockt unten, bis der Dummy frei ist, dann kommt 3HP. Leer antwortet mit einer eingeschalteten Aufnahme."
-
-msgid "training.reply.move"
-msgstr "Antwortvorlage"
-
-msgid "training.reply.move.detail"
-msgstr "Links und Rechts wählen eine gängige Antwort in Numpad-Notation, gelesen für die Seite, in die der Dummy blickt. Aufnahmen antwortet mit einer eingeschalteten Aufnahme; Eigene behält die getippten Züge. Auswählen öffnet Antwortzüge zum Tippen."
-
-msgid "training.reply.custom"
-msgstr "Eigene"
+msgstr "Der Zug dieses Slots in Numpad-Notation, etwa 623HP oder 44, gelesen für die Seite, in die der Dummy schaut. Bewegungswörter gehen auch: qcf, qcb, dp, rdp, hcf und hcb. [HP] hält eine Taste, ]HP[ lässt sie im ersten freien Frame los, [1]20f hält eine Richtung 20 Frames und 10f wartet. Leer entfernt den Zug."
 
 msgid "training.reply.timing"
 msgstr "Antwort-Timing"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames nach dem ersten freien Frame des Dummys, auf die die Taste der Antwort fällt. Wie lange ein Stun dauert, wird beim ersten Mal gelernt; bis dahin beginnt die Antwort, wenn der Stun endet."
+
+msgid "training.reply.order"
+msgstr "Antwort-Reihenfolge"
+
+msgid "training.reply.order.detail"
+msgstr "Wie der Dummy unter den eingeschalteten Slots wählt: zufällig, jeden Slot nach seinem Gewicht, oder der Reihe nach, einen nach dem anderen."
+
+msgid "training.reply.slot"
+msgstr "Antwort-Slot {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Ein Zug, mit dem der Dummy antworten kann. Links und Rechts schalten ihn ein oder aus; Auswahl öffnet seine Züge."
+
+msgid "training.reply.slot_on"
+msgstr "Diesen Slot nutzen"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Ob der Dummy diesen Slot für seine Antwort wählen darf."
+
+msgid "training.reply.weight"
+msgstr "Gewicht"
+
+msgid "training.reply.weight.detail"
+msgstr "Anteil dieses Slots an der Zufallsauswahl neben den anderen, 1 bis 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Diesen Slot leeren"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Entfernt den Zug dieses Slots."
+
+msgid "training.reply.every_fighter"
+msgstr "Jeder Kämpfer"
 
 msgid "training.key.reset"
 msgstr "Taste Zurücksetzen"

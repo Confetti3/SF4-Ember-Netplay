@@ -90,6 +90,10 @@ struct MenuEntry {
     // A disabled row's pane says nothing more than its detail does: no "Unavailable".
     bool quiet = false;
     bool valueHighlighted = false;
+    // An adjustable value's words all shown on the row as chips, the value
+    // among them lit ("LP MP HP EX"): Left and Right move along them, and
+    // Select (with opens) takes the lit one. No arrows.
+    std::vector<std::string> segments;
     // The heading this row sits under; a new one starts a group of cards.
     std::string group;
     // A match's row (a replay): each side's fighter as a small native

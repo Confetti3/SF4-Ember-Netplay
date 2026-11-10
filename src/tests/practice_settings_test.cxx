@@ -1,3 +1,4 @@
+#include "../training/FighterMoves.hxx"
 #include "../training/PracticeSettings.hxx"
 #include "test_support.hxx"
 #include <cctype>
@@ -56,9 +57,8 @@ int main() {
         const auto migrated = MigrateReplyMoves(names[i]);
         CHECK(migrated == sf4e::combo::Canonical(step));
         CHECK(MigrateReplyMoves(migrated) == migrated);
-        DummyPlan plan;
-        CHECK(BuildReplyPlan(migrated, settings, plan, error));
-        CHECK(plan.when == 4 && plan.chance == 75 && !plan.moves.empty());
+        ReplyChoice plan;
+        CHECK(BuildReply(migrated, plan, error) && !plan.moves.empty());
         // Made once, for the dummy facing right, as a slot holds it.
         sf4e::combo::Compiled compiled;
         CHECK(sf4e::combo::Synthesize({notation[i]}, true, compiled, error));
@@ -75,7 +75,7 @@ int main() {
     CHECK(MigrateReplyMoves("dash > Hadoken") == "dash > Hadoken");
     // Invalid saved text (including a nonempty separator-only line) cannot
     // erase a typed reply and silently switch the command to a recording.
-    DummyPlan result; result.moves = {{0x10, 0x10, 0, 0}};
+    ReplyChoice result; result.moves = {{0x10, 0x10, 0, 0}};
     // A reply plays from its first pressed frame, so one starting with a wait
     // is refused, as are holds with no move to time the reply by and a
     // neutral "5", which presses nothing.
@@ -83,38 +83,44 @@ int main() {
              "[2]30f", "[2]30f > [4]10f", "[2]30f > [4]10f > [1]5f", "5", "[2]30f > 5",
              "[2]30f > 3f > [4]10f > 5", "[2]30f > 5 > 5MK"}) {
         error.clear();
-        CHECK(!BuildReplyPlan(bad, settings, result, error) && !error.empty());
+        CHECK(!BuildReply(bad, result, error) && !error.empty());
         CHECK(result.moves.size() == 1 && result.moves[0].raw == 0x10);
     }
-    CHECK(BuildReplyPlan("", settings, result, error) && result.moves.empty() && result.chance == 75);
-    CHECK(BuildReplyPlan("[1] > 3HP", settings, result, error) && !result.moves.empty() && BuildReplyPlan("[2]30f > 5MK", settings, result, error));
+    CHECK(BuildReply("", result, error) && result.moves.empty());
+    CHECK(BuildReply("[1] > 3HP", result, error) && !result.moves.empty() && BuildReply("[2]30f > 5MK", result, error));
     // The first move's own offset rides with the plan, and goes with typed moves.
-    CHECK(BuildReplyPlan("[2]30f > 5MK@+3", settings, result, error) && result.offset == 3 && ValidDummyPlan(result));
+    CHECK(BuildReply("[2]30f > 5MK@+3", result, error) && result.offset == 3 && ValidChoice(result));
     // A plan built is one the dummy takes: its frames and schedule agree.
-    for (const char* line : {"5MK", "[2]30f > 8#45", "[2]30f > 66#45@+2", "[2]30f > [4] > 5MK", "5LP > [4] > 66#60", "[1] > 623HP > xx 5MP+MK"}) {
-        DummyPlan built; error.clear();
-        CHECK(BuildReplyPlan(line, settings, built, error) && ValidDummyPlan(built));
+    for (const char* line : {"5MK", "[2]30f > 8#45", "[2]30f > 66#45@+2", "[2]30f > [4] > 5MK", "5LP > [4] > 66#60", "[1] > 623HP > xx 5MP+MK", "[KK]210f > ]KK["}) {
+        ReplyChoice built; error.clear();
+        CHECK(BuildReply(line, built, error) && ValidChoice(built));
     }
-    CHECK(BuildReplyPlan("", settings, result, error) && result.offset == 0 && result.moves.empty());
+    CHECK(BuildReply("", result, error) && result.offset == 0 && result.moves.empty());
 
-    // Every reply preset, 214K and 236P included, is notation the parser and
-    // the plan builder take as typed text, and reads back as itself however
-    // it is spelled; text that is no preset, or none, picks none.
-    CHECK(ReplyPresetCount == 9);
-    for (int i = 0; i < ReplyPresetCount; ++i) {
-        DummyPlan plan; error.clear();
-        CHECK(BuildReplyPlan(ReplyPresets[i], settings, plan, error) && !plan.moves.empty());
-        CHECK(ReplyPresetIndex(ReplyPresets[i]) == i);
-        std::string lower;
-        for (const char* c = ReplyPresets[i]; *c; ++c) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(*c)));
-        CHECK(ReplyPresetIndex("  " + lower + " ") == i);
-        // Saved and loaded again, as training.json keeps the typed text.
-        CHECK(ReplyPresetIndex(MigrateReplyMoves(json(ReplyPresets[i]).get<std::string>())) == i);
-        for (int j = 0; j < i; ++j) CHECK(ReplyPresetIndex(ReplyPresets[j]) != i);
+    // Every move the pick list offers is a reply the plan builder takes: the
+    // same ones for every fighter, then each fighter's own.
+    for (const auto& move : UniversalMoves) {
+        ReplyChoice reply; error.clear();
+        CHECK(BuildReply(move.moves, reply, error) && !reply.moves.empty());
     }
-    CHECK(ReplyPresetIndex(MigrateReplyMoves("throw")) == 3 && ReplyPresetIndex(MigrateReplyMoves("dash")) == 2);
-    CHECK(ReplyPresetIndex("5LP+LK") == 3 && ReplyPresetIndex("cr.LK") == 6);
-    for (const char* none : {"", "  ", "623HP", "2LK > 623P", "not a move", "8LP"}) CHECK(ReplyPresetIndex(none) < 0);
+    for (const auto& move : FighterMoves) {
+        ReplyChoice reply; error.clear();
+        CHECK(BuildReply(move.moves, reply, error) && !reply.moves.empty());
+    }
+    CHECK(MovesOf("CDY").size() >= 20 && MovesOf("RYU").size() >= 10 && MovesOf("XXX").empty() && MovesOf(nullptr).empty());
+    {
+        // The slots that are on make the plan's choices, with their weights and the settings' order.
+        ReplySlots slots;
+        slots[0] = {"]HP[", true, 3}; slots[1] = {"623P", true, 2}; slots[2] = {"44", false, 5}; slots[3] = {"", true, 1};
+        DummyPlan plan; error.clear(); settings.order = Order::InOrder;
+        CHECK(BuildSlotPlan(slots, settings, plan, error) && plan.choices.size() == 2 && plan.choices[0].weight == 3 && plan.choices[1].weight == 2 && plan.order == Order::InOrder && ValidDummyPlan(plan));
+        slots[0].on = slots[1].on = false;
+        CHECK(BuildSlotPlan(slots, settings, plan, error) && plan.choices.empty());
+        slots[2] = {"not a move", true, 1};
+        plan.choices.clear(); plan.when = 7;
+        CHECK(!BuildSlotPlan(slots, settings, plan, error) && plan.when == 7);
+    }
+    CHECK(MigrateReplyMoves("throw") == "5LP+LK" && MigrateReplyMoves("dash") == "66");
 
     // The meter's options: angled bars and no recovery number unless saved
     // as flat and true, and a round trip keeps each one apart from the other.

@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Odpověď figuríny"
 
 msgid "training.reply.detail"
-msgstr "Co figurína udělá sama, jakmile je znovu volná, aby potrestala přerušené kombo nebo riskantní zakončení: přehraje Údery odpovědi, nebo pozici odpovědi, když je ten řádek prázdný. Odpověď čeká, dokud běží přehrávání nebo nahrávání."
+msgstr "Co figurína dělá sama od sebe, jakmile je zase volná, aby potrestala pokažené kombo nebo nebezpečné zakončení: zahraje jednu ze zapnutých pozic odpovědi, nebo zapnuté nahrávky, dokud není zapnutá žádná pozice."
 
 msgid "training.reply.hit"
 msgstr "Po přerušeném kombu"
@@ -1673,9 +1673,6 @@ msgstr "Při vstávání"
 
 msgid "training.reply.any"
 msgstr "Vždy po zotavení"
-
-msgid "training.reply.recordings"
-msgstr "Nahrávky"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Žádná zapnutá nahrávka se nehodí jako odpověď"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Údery odpovědi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpověď zapsaná číselnou notací, například 623HP nebo 44, čtená pro stranu, kam se figurína dívá. Fungují i slova pro pohyby: qcf, qcb, dp, rdp, hcf a hcb, například qcfP nebo dp+HP. Pohyb se zadá, dokud je figurína ještě držena, aby tlačítko padlo na její první volný snímek. [1] drží směr do dalšího pohybu, [1]20f ho drží 20 snímků a 10f čeká: [1] > 3HP blokuje dole, dokud figurína není volná, pak stiskne 3HP. Prázdné pole odpoví zapnutou nahrávkou."
-
-msgid "training.reply.move"
-msgstr "Předvolba odpovědi"
-
-msgid "training.reply.move.detail"
-msgstr "Vlevo a vpravo vyberou běžnou odpověď v numpad zápisu, čtenou pro stranu, kam figurína hledí. Nahrávky odpovídají zapnutou nahrávkou; Vlastní ponechá napsané údery. Vybrat otevře Údery odpovědi k napsání."
-
-msgid "training.reply.custom"
-msgstr "Vlastní"
+msgstr "Úder této pozice v numpadové notaci, třeba 623HP nebo 44, čtený pro stranu, kam figurína hledí. Fungují i slova pohybů: qcf, qcb, dp, rdp, hcf a hcb. [HP] drží tlačítko, ]HP[ ho pustí v prvním volném snímku, [1]20f drží směr 20 snímků a 10f čeká. Prázdné úder odebere."
 
 msgid "training.reply.timing"
 msgstr "Načasování odpovědi"
 
 msgid "training.reply.timing.detail"
 msgstr "Počet snímků po prvním volném snímku figuríny, na který padne tlačítko odpovědi. Délka omráčení se zjistí napoprvé; do té doby odpověď začne, když omráčení skončí."
+
+msgid "training.reply.order"
+msgstr "Pořadí odpovědí"
+
+msgid "training.reply.order.detail"
+msgstr "Jak figurína vybírá ze zapnutých pozic: náhodně, každou pozici podle její váhy, nebo postupně, jednu po druhé."
+
+msgid "training.reply.slot"
+msgstr "Pozice odpovědi {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Jeden úder, kterým může figurína odpovědět. Vlevo a Vpravo ho zapnou nebo vypnou; Vybrat otevře jeho údery."
+
+msgid "training.reply.slot_on"
+msgstr "Používat tuto pozici"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Zda figurína smí pro svou odpověď vybrat tuto pozici."
+
+msgid "training.reply.weight"
+msgstr "Váha"
+
+msgid "training.reply.weight.detail"
+msgstr "Podíl této pozice v náhodném výběru vedle ostatních, 1 až 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Vyprázdnit tuto pozici"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Odebere úder této pozice."
+
+msgid "training.reply.every_fighter"
+msgstr "Každý bojovník"
 
 msgid "training.key.reset"
 msgstr "Klávesa obnovení"

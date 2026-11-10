@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Dummy-antwoord"
 
 msgid "training.reply.detail"
-msgstr "Wat de dummy uit zichzelf doet zodra hij weer vrij is, om een gedropte combo of een onveilig einde af te straffen: hij speelt Antwoordmoves af, of het antwoordslot als die regel leeg is. Het wacht terwijl een replay of opname loopt."
+msgstr "Wat de dummy uit zichzelf doet zodra hij weer vrij is, om een gemiste combo of een onveilige afsluiter af te straffen: hij speelt een van de ingeschakelde antwoordslots, of de ingeschakelde opnames zolang geen slot aan staat."
 
 msgid "training.reply.hit"
 msgstr "Na een gedropte combo"
@@ -1673,9 +1673,6 @@ msgstr "Bij het opstaan"
 
 msgid "training.reply.any"
 msgstr "Telkens als hij herstelt"
-
-msgid "training.reply.recordings"
-msgstr "Opnames"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Geen opname die aan staat kan als antwoord dienen"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Antwoordmoves"
 
 msgid "training.reply.moves.detail"
-msgstr "Het antwoord getypt als moves in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb, zoals qcfP of dp+HP. De beweging gaat erin terwijl de dummy nog vastzit, zodat de knop op zijn eerste vrije frame valt. [1] houdt een richting vast tot de volgende move, [1]20f houdt hem 20 frames vast en 10f wacht: [1] > 3HP blokt laag tot de dummy vrij is en drukt dan 3HP. Leeg antwoordt met een opname die aan staat."
-
-msgid "training.reply.move"
-msgstr "Antwoordvoorkeuze"
-
-msgid "training.reply.move.detail"
-msgstr "Links en rechts kiezen een gangbaar antwoord in numpadnotatie, gelezen voor de kant waar de dummy naar kijkt. Opnames antwoordt met een opname die aan staat; Eigen houdt de getypte moves. Kiezen opent Antwoordmoves om er een te typen."
-
-msgid "training.reply.custom"
-msgstr "Eigen"
+msgstr "De move van dit slot in numpadnotatie, zoals 623HP of 44, gelezen voor de kant waar de dummy naar kijkt. Bewegingswoorden werken ook: qcf, qcb, dp, rdp, hcf en hcb. [HP] houdt een knop vast, ]HP[ laat hem los op het eerste vrije frame, [1]20f houdt een richting 20 frames vast en 10f wacht. Leeg verwijdert de move."
 
 msgid "training.reply.timing"
 msgstr "Antwoordtiming"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames na het eerste vrije frame van de dummy waarop de knop van het antwoord valt. Hoe lang een stun duurt wordt de eerste keer geleerd; tot dan begint het antwoord als de stun eindigt."
+
+msgid "training.reply.order"
+msgstr "Antwoordvolgorde"
+
+msgid "training.reply.order.detail"
+msgstr "Hoe de dummy kiest uit de ingeschakelde slots: willekeurig, elk slot naar zijn gewicht, of op volgorde, een voor een."
+
+msgid "training.reply.slot"
+msgstr "Antwoordslot {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Een move waarmee de dummy kan antwoorden. Links en Rechts zetten hem aan of uit; Selecteren opent zijn moves."
+
+msgid "training.reply.slot_on"
+msgstr "Dit slot gebruiken"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Of de dummy dit slot mag kiezen voor zijn antwoord."
+
+msgid "training.reply.weight"
+msgstr "Gewicht"
+
+msgid "training.reply.weight.detail"
+msgstr "Het aandeel van dit slot in de willekeurige keuze naast de andere, 1 tot 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Dit slot leegmaken"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Verwijdert de move van dit slot."
+
+msgid "training.reply.every_fighter"
+msgstr "Elke vechter"
 
 msgid "training.key.reset"
 msgstr "Toets herstellen"

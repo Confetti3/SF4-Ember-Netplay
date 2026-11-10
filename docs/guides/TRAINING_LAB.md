@@ -209,11 +209,9 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
    ![Dummy reply](../images/guides/training_lab/reply.webp)
 
-3. On **Reply preset**, pick a common reply with Left and Right, or press Select to type your own into **Reply moves**.
-
-   ![Reply preset set to 623P](../images/guides/training_lab/reply-preset.webp)
-
-4. Close the controls and knock the dummy down, or hit it, as the reply needs.
+3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between, or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
+4. With more than one slot on, **Reply order** says how the dummy picks: at random, each slot as often as its **Weight** says, or in order, one after the other. With no slot on, the dummy replies with the recordings that are on.
+5. Close the controls and knock the dummy down, or hit it, as the reply needs.
 
 The first time the dummy sees a given knockdown or stun, it measures it and replies as it ends, often a little late. Every time after that, the reply comes out on the first free frame, as a reversal. **Reply timing** moves it up to five frames earlier or later.
 
