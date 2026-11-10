@@ -15,7 +15,7 @@ export interface FeedItem {
   /** From 1, in order: a reader asks for those after the last it saw. */
   n: number;
   at: string;
-  kind: "state" | "set_live" | "set_done" | "upset" | "streak" | "award";
+  kind: "state" | "set_live" | "set_done" | "upset" | "streak" | "award" | "call";
   /** The set it is about, if any. */
   set?: string;
   /** In words, names and all, as Discord and the page show it. */
@@ -52,6 +52,12 @@ const seedOf = (tournament: Tournament, ember: string | null) => tournament.entr
 export function setLive(tournament: Tournament, set: BracketSet, at: string): void {
   const [a, b] = set.entries;
   push(tournament, { at, kind: "set_live", set: set.id, text: `${label(tournament, set)}: ${nameOf(tournament, a)} vs ${nameOf(tournament, b)} is live.` });
+}
+
+/** Its organizers call a set's players again. */
+export function setCalled(tournament: Tournament, set: BracketSet, at: string): void {
+  const [a, b] = set.entries;
+  push(tournament, { at, kind: "call", set: set.id, text: `${label(tournament, set)}: ${nameOf(tournament, a)} and ${nameOf(tournament, b)}, you're up.` });
 }
 
 /** A set's result, and the upset or streak it makes. */

@@ -31,7 +31,7 @@ export function contractRoutes(store: Store, authorize: (request: IncomingMessag
       (request, [id], url) => {
         const tournament = played(request, id!);
         const state = url.searchParams.get("state");
-        const sets = (tournament?.sets ?? []).filter((set) => !state || status(set) === state);
+        const sets = (tournament?.sets ?? []).filter((set) => !state || statusFor(set) === state);
         return [200, { sets: sets.map((set) => contractSet(tournament!, set)) }];
       },
     ],
@@ -125,6 +125,11 @@ function gamesOf(body: Json): Played {
 }
 
 /** A set as the connector reads it: each entry is found by its Discord account. */
+/** A held set waits, as one still missing a player does. */
+function statusFor(set: BracketSet): string {
+  return set.held && status(set) === "open" ? "pending" : status(set);
+}
+
 function contractSet(tournament: Tournament, set: BracketSet): Json {
   const [one, two] = set.entries;
   const entry = (id: string) => ({ id, accounts: [{ discord: tournament.entrants.find((each) => each.ember_id === id)!.discord }] });
@@ -132,7 +137,7 @@ function contractSet(tournament: Tournament, set: BracketSet): Json {
     id: set.id,
     round: set.round,
     round_label: roundLabel(set.round, tournament.rounds),
-    status: status(set),
+    status: statusFor(set),
     entries: one && two ? [entry(one), entry(two)] : null,
     underway: set.underway,
     winner: set.winner,

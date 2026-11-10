@@ -158,6 +158,17 @@ test("the connector plays the live bracket and reports; the site finishes it", a
       ["r1-2", "Semifinals", [[emberId(3), [{ discord: discordId(3) }]], [emberId(5), [{ discord: discordId(5) }]]]],
     ],
   );
+  // Held by its organizers, a set waits for the connector; called, its players are told again.
+  const set = (what: string, body: object = {}) => organizer("POST", `/tournaments/weekly/sets/r1-2/${what}`, body);
+  assert.equal((await set("hold", { held: true })).status, 200);
+  assert.deepEqual((await connector("GET", "/sets?state=open")).body.sets.map((each: { id: string }) => each.id), ["r1-1"]);
+  assert.equal((await connector("GET", "/sets/r1-2")).body.set.status, "pending");
+  assert.equal((await bot(2, "POST", "/tournaments/weekly/sets/r1-2/hold", { held: false })).status, 403);
+  assert.equal((await set("hold", { held: false })).status, 200);
+  assert.equal((await connector("GET", "/sets?state=open")).body.sets.length, 2);
+  assert.equal((await set("call")).status, 200);
+  const called = (await call("GET", "/tournaments/weekly/feed")).body.items.at(-1);
+  assert.deepEqual([called.kind, called.set], ["call", "r1-2"]);
   const old = await call("GET", "/tournaments/weekly/ember/sets?state=open", { token: CONNECTOR, headers: { "ember-brackets-contract": "2" } });
   assert.deepEqual([old.status, old.body], [426, { contract: "1" }]);
   assert.equal((await connector("POST", "/sets/r1-1/underway", {})).status, 204);

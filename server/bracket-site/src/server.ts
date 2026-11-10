@@ -11,7 +11,7 @@ import { seasonAwards } from "./awards.ts";
 import { emblem, isKind } from "./emblems.ts";
 import type { EmberSignIn } from "./ember.ts";
 import { DEFAULT_POINTS, standings, type League, type Season } from "./league.ts";
-import { push, stats } from "./live.ts";
+import { push, setCalled, stats } from "./live.ts";
 import { OAuth, OAuthError, Redirect } from "./oauth.ts";
 import { home, page, reportPage } from "./page.ts";
 import { manifest, setReplays, type Clip } from "./replays.ts";
@@ -412,6 +412,23 @@ export function bracketSite(options: Options): Server {
         if (typeof body.winner !== "string" || typeof scores !== "object" || scores === null) fail(400, "a result is { winner, scores: { <ember id>: <games> } }");
         record(store, tournament, setId!, { winner: body.winner, scores, key: null });
         return [200, view(found(id!))];
+      },
+    ],
+    [
+      "POST",
+      /^\/tournaments\/([^/]+)\/sets\/([^/]+)\/(hold|call)$/,
+      async (request, [id, setId, what]) => {
+        const body = await readJson(request);
+        const tournament = change(id!, request, (tournament) => {
+          const set = tournament.sets.find((each) => each.id === setId) ?? fail(404, `no set ${setId}`);
+          if (status(set) !== "open") fail(409, "only a set waiting to be played");
+          if (what === "call") return setCalled(tournament, set, now());
+          if (typeof body.held !== "boolean") fail(400, "held is true or false");
+          // A match the connector made already plays on; holding it is for the stream's order before.
+          if (body.held && set.underway) fail(409, "the set is already being played");
+          set.held = body.held;
+        });
+        return [200, view(tournament)];
       },
     ],
     [

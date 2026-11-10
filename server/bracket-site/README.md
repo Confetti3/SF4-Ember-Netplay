@@ -89,6 +89,8 @@ player who has not connected Discord in Ember gets 409.
 | `DELETE /tournaments/{id}/entrants/{discord}` | that player, or its organizers | before it is live |
 | `POST /tournaments/{id}/check-in` | a player | while checking in |
 | `POST /tournaments/{id}/sets/{set}/result` | its organizers | `{ "winner": "<ember id>", "scores": { "<ember id>": 2, "<ember id>": 1 } }` |
+| `POST /tournaments/{id}/sets/{set}/hold` | its organizers | `{ "held" }`: a held set waits for the connector (shown to it as `pending`); not once its match is made |
+| `POST /tournaments/{id}/sets/{set}/call` | its organizers | calls its players again, in the feed Discord shows |
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
 | `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
 | `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |
