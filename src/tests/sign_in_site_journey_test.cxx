@@ -718,9 +718,101 @@ void SiteOrganizer(){
  Check(h.status==loc::T("desk.device_approved"),"Approving the other device was not said");
 }
 
+// The organizer runs a tournament from the game alone: a draft made from
+// its title, the service's create form and a start time saved as they
+// change, the event created on the site and marked ready; on the event's
+// page Start waits, greyed with its reason, until sign-ups are open, and
+// Stop asks whether to delete the event on the site too.
+// A service without a create form (start.gg): the draft picks one of the
+// organizer's events there, and that links it.
+void OrganizerPicksSiteEvent(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;
+ const auto organizerRead=[&]{const auto* r=h.sent().back();return r->op==IdentityOp::SiteStatus&&r->organizer&&r->site==Challonge.id;};
+ h.Screen("identity");Profile(h,{Challonge});for(int i=0;i<6;++i)h.answer();
+ h.Choose(RowId(Challonge).c_str());
+ Check(h.until(IdentityOp::BridgeInspect),"The site's screen did not read Ember's service");
+ List(h,{Challonge},true);
+ id.signInSites[0].organizer=true;
+ h.answer();id.siteUser="1001";id.siteName="player1";
+ for(int i=0;i<4&&!organizerRead();++i)h.answer();
+ id.siteOrganizer=true;h.answer();
+ netplay::DeskEvent draft;draft.id="oev_9";draft.title="Thursday";draft.status="draft";id.deskEvents={draft};
+ h.Screen("tournament-desk");for(int i=0;i<4;++i)h.answer();
+ h.Choose("dk-event:oev_9");
+ Check(h.until(IdentityOp::DeskSiteEvents)&&h.sent().back()->site==Challonge.id,"The draft did not list the service's events");
+ id.deskSiteEvents={Challonge.id,{{"t_5","Weekly 3"}}};for(int i=0;i<3;++i)h.answer();
+ Check(h.row("dk-d-pick:t_5")&&h.row("dk-d-pick:t_5")->label=="Weekly 3","The service's events are not offered to pick");
+ h.Choose("dk-d-pick:t_5");
+ Check(h.sent().back()->op==IdentityOp::DeskAct&&h.sent().back()->target=="/v1/organizer/events/oev_9"&&
+  h.sent().back()->command==R"({"site":"challonge","tournament":"t_5"})","Picking an event did not link the draft to it");
+}
+
+void OrganizerInGame(){
+ using namespace sf4e;using netplay::IdentityOp;
+ Journey h;Ready(h);auto& id=h.view.identity;
+ // Answers what the action sent and the reads it brings on.
+ const auto settle=[&]{for(int i=0;i<3;++i)h.answer();};
+ const auto organizerRead=[&]{const auto* r=h.sent().back();return r->op==IdentityOp::SiteStatus&&r->organizer&&r->site==Challonge.id;};
+ h.Screen("identity");Profile(h,{Challonge});for(int i=0;i<6;++i)h.answer();
+ h.Choose(RowId(Challonge).c_str());
+ Check(h.until(IdentityOp::BridgeInspect),"The site's screen did not read Ember's service");
+ List(h,{Challonge},true);
+ auto& site=id.signInSites[0];site.organizer=true;site.create={{{"format",{"\"single elimination\"","\"double elimination\""}}}};
+ h.answer();id.siteUser="1001";id.siteName="player1";
+ for(int i=0;i<4&&!organizerRead();++i)h.answer();
+ id.siteOrganizer=true;h.answer();
+ h.Screen("tournament-desk");for(int i=0;i<4;++i)h.answer();
+ Check(h.row("dk-new")&&h.row("dk-new")->enabled,"A new tournament cannot be made in the game");
+ h.Choose("dk-new");settle();
+ Check(h.shell.Navigation().Screen()=="desk-draft"&&h.row("dk-d-title")&&!h.row("dk-d-ready"),"A new tournament does not start with its title");
+ h.Choose("dk-d-title");h.type("Thursday");
+ Check(h.sent().back()->op==IdentityOp::DeskAct&&h.sent().back()->target=="/v1/organizer/drafts"&&h.sent().back()->command==R"({"title":"Thursday"})",
+  "The title did not make a draft");
+ id.deskMade="oev_9";h.answer();id.deskMade.clear();
+ netplay::DeskEvent draft;draft.id="oev_9";draft.title="Thursday";draft.status="draft";id.deskEvents={draft};
+ for(int i=0;i<3&&!h.row("dk-d-site");++i)h.answer();
+ Check(h.row("dk-d-site")&&h.row("dk-d-site")->value=="Challonge"&&h.row("dk-d-field:format")&&h.row("dk-d-ready")&&!h.row("dk-d-ready")->enabled,
+  "The draft does not offer its service's create form, or can be marked ready before it is on the site");
+ h.FocusOn("dk-d-field:format");h.Press(MenuInput::Right);
+ Check(h.row("dk-d-field:format")->value==loc::T("desk.value.single"),"The create form's values are not stepped through");
+ h.FocusOn("dk-d-day");h.Press(MenuInput::Right);
+ Check(h.sent().back()->target=="/v1/organizer/events/oev_9"&&h.sent().back()->command.find("\"starts_at\":")!=std::string::npos,
+  "The date was not saved on the service");
+ settle();
+ h.Choose("dk-d-create");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.sent().back()->target=="/v1/organizer/events/oev_9/create"&&h.sent().back()->command==R"({"fields":{"format":"single elimination"},"site":"challonge"})",
+  "Create did not send the form as picked");
+ auto& made=id.deskEvents[0];made.site="challonge";made.tournament="t_8";made.startsAt=1800000000;made.createdOnSite=made.startsOnSite=true;
+ for(int i=0;i<3;++i)h.answer();
+ Check(h.row("dk-d-on")&&h.row("dk-d-ready")&&h.row("dk-d-ready")->enabled,"A draft on the site with a start time cannot be marked ready");
+ h.Choose("dk-d-ready");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.sent().back()->target=="/v1/organizer/events/oev_9/ready","Mark ready was not sent");
+ h.answer();made.status="ready";for(int i=0;i<3;++i)h.answer();
+ id.deskSiteState={"t_8","planned",{"open_sign_ups"}};
+ h.Choose("dk-d-open");for(int i=0;i<4;++i)h.answer();
+ Check(h.shell.Navigation().Screen()=="desk-event"&&h.row("dk-start")&&!h.row("dk-start")->enabled&&h.row("dk-start")->detail==loc::T("desk.start_not_yet"),
+  "Start was not greyed with its reason before sign-ups opened");
+ h.Choose("dk-move:open_sign_ups");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ id.deskSiteState.state="sign_ups";id.deskSiteState.actions={"close_sign_ups","start"};for(int i=0;i<4;++i)h.answer();
+ Check(h.row("dk-start")&&h.row("dk-start")->enabled,"Start did not open up once sign-ups were open");
+ h.Choose("dk-start");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.sent().back()->target=="/v1/organizer/events/oev_9/start","Start was not sent");
+ settle();
+ h.Choose("dk-stop");settle();
+ Check(h.shell.Navigation().Screen()=="desk-stop"&&h.row("dk-stop-site")&&h.row("dk-stop-keep")&&h.row("dk-stop-back"),"Stop does not ask how");
+ h.Choose("dk-stop-site");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+ Check(h.sent().back()->op==IdentityOp::DeskStop&&h.sent().back()->target=="oev_9"&&h.sent().back()->onSite,
+  "Stopping did not delete the event on the site");
+ h.answer();id.deskEvents.clear();for(int i=0;i<3;++i)h.answer();
+ Check(h.row("dk-stopped")&&h.row("dk-stop-home"),"A stopped event was not said");
+ h.Choose("dk-stop-home");
+ Check(h.shell.Navigation().Screen()=="tournament-desk","Back to the tournaments did not go there");
+}
+
 void RunSignInSiteJourneys(){
  for(const auto& site:{Challonge,Startgg,Other}){SiteRows(site);SiteConnects(site);SiteStops(site);SiteOffAndRetry(site);SiteBusy(site);SiteGone(site);ConnectedAgain(&site);}
  ManySites();LongSiteName();TwoSites();DiscordFirst();OneSignInAtATime();DiscordKeepsItsWait();LookingAtDiscordKeepsSite();SiteReadsQuietly();
  SiteDeadline();SiteWaitsWhileHidden();LinkWhileSiteWaits();CancelWithoutReadyId();DiscordGoEndsItsWait();LinkForTheWaitedService();
- DiscordChangeNeedsSignIn();ConnectedAgain(nullptr);SiteOrganizer();
+ DiscordChangeNeedsSignIn();ConnectedAgain(nullptr);SiteOrganizer();OrganizerInGame();OrganizerPicksSiteEvent();
 }

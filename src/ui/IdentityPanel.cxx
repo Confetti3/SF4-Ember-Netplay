@@ -469,10 +469,13 @@ void IdentityPanel::Finish(const ShellView& v) {
         }
         break;
     case IdentityOp::DeskAct:
-        // The desk shows what the action changed at once.
+        // The desk shows what the action changed at once; a new draft opens
+        // on its screen.
         Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0;
+        if (!id.deskMade.empty()) deskEvent_ = id.deskMade;
         if (deskMoved_) { deskMoved_ = false; DeskSiteRead(v); }
         break;
+    case IdentityOp::DeskStop: Say(loc::T("desk.done"), Tone::Success, 4); deskReadAt_ = 0; break;
     case IdentityOp::DeskWeb:
         // A web sign-in the player has not heard of is told once.
         if (std::any_of(id.webSessions.begin(), id.webSessions.end(), [](const netplay::WebSession& w) { return w.fresh; })) {

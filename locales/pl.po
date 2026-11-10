@@ -4060,7 +4060,7 @@ msgid "desk.none"
 msgstr "Brak wydarzeń"
 
 msgid "desk.none_detail"
-msgstr "Twórz i uruchamiaj wydarzenia na stronie stołu turniejowego; pojawią się tutaj, gdy trwają."
+msgstr "Wybierz Nowy turniej, aby go utworzyć; od tej pory jest tutaj."
 
 msgid "desk.view"
 msgstr "Widok"
@@ -8638,3 +8638,240 @@ msgstr "Weszły wszystkie ciosy."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Nie weszły wszystkie ciosy."
+
+msgid "desk.draft.new"
+msgstr "Nowy turniej"
+
+msgid "desk.draft.new_detail"
+msgstr "Tytuł, data, serwis drabinki, sety, zapisy. Zapisywane na bieżąco jako szkic."
+
+msgid "desk.draft.title"
+msgstr "Tytuł"
+
+msgid "desk.draft.title_first"
+msgstr "Najpierw nadaj tytuł"
+
+msgid "desk.draft.saved"
+msgstr "Szkic powstaje z tytułem; resztę ustawiasz potem i zapisuje się przy każdej zmianie."
+
+msgid "desk.draft.details"
+msgstr "Szczegóły"
+
+msgid "desk.draft.date"
+msgstr "Data"
+
+msgid "desk.draft.date_detail"
+msgstr "Lewo / Prawo: dzień. Twoja strefa czasowa; każdy widzi ją w swojej."
+
+msgid "desk.draft.time"
+msgstr "Start"
+
+msgid "desk.draft.time_detail"
+msgstr "Lewo / Prawo: 15 minut."
+
+msgid "desk.draft.service"
+msgstr "Serwis i zasady"
+
+msgid "desk.draft.on_detail"
+msgstr "Wydarzenie na stronie prowadzone przez ten turniej."
+
+msgid "desk.draft.site"
+msgstr "Serwis drabinki"
+
+msgid "desk.draft.site_creates"
+msgstr "Lewo / Prawo: strona z dostępem organizatora. Ember tworzy wydarzenie na {0}."
+
+msgid "desk.draft.site_pick"
+msgstr "Lewo / Prawo: strona z dostępem organizatora. Utwórz wydarzenie na {0}, potem wybierz je poniżej."
+
+msgid "desk.draft.as_site"
+msgstr "Jak ustawia {0}"
+
+msgid "desk.draft.create"
+msgstr "Utwórz na {0}"
+
+msgid "desk.draft.create_detail"
+msgstr "Tworzy tam wydarzenie z tymi ustawieniami. Jeśli strona odmówi, poda powód."
+
+msgid "desk.draft.pick_detail"
+msgstr "Użyj tego wydarzenia z {0}."
+
+msgid "desk.draft.none_listed"
+msgstr "Nie znaleziono wydarzeń"
+
+msgid "desk.draft.none_listed_detail"
+msgstr "Najpierw utwórz wydarzenie na {0}; potem pojawi się tutaj."
+
+msgid "desk.draft.no_site"
+msgstr "Brak serwisu drabinki"
+
+msgid "desk.draft.no_site_detail"
+msgstr "Najpierw zezwól na dostęp organizatora na stronie, na ekranie Organizator turnieju."
+
+msgid "desk.draft.first_to"
+msgstr "Każdy set do"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Lewo / Prawo. Późniejsze etapy zachowują długości z biurka w sieci."
+
+msgid "desk.draft.people"
+msgstr "Discord i zapisy"
+
+msgid "desk.draft.sign_ups"
+msgstr "Gracze zapisują się przez Ember"
+
+msgid "desk.draft.sign_ups_detail"
+msgstr "Online > Turnieje > Zapisz się. Lewo / Prawo."
+
+msgid "desk.draft.public"
+msgstr "Strona publiczna"
+
+msgid "desk.draft.public_detail"
+msgstr "Strona, którą każdy może śledzić, z setami na bieżąco. Lewo / Prawo."
+
+msgid "desk.draft.discord"
+msgstr "Kanał Discord"
+
+msgid "desk.draft.discord_set"
+msgstr "Ustawiono"
+
+msgid "desk.draft.discord_unset"
+msgstr "Brak"
+
+msgid "desk.draft.discord_detail"
+msgstr "Wezwania i wyniki trafiają na ten kanał. Na razie ustawia się go na biurku w sieci."
+
+msgid "desk.draft.results"
+msgstr "Publikuj wynik każdego setu"
+
+msgid "desk.draft.results_detail"
+msgstr "Na tym kanale, gdy sety się kończą. Lewo / Prawo."
+
+msgid "desk.draft.ready_step"
+msgstr "Gotowe"
+
+msgid "desk.draft.ready"
+msgstr "Oznacz jako gotowe"
+
+msgid "desk.draft.ready_detail"
+msgstr "Ember wywołuje sety od {0}."
+
+msgid "desk.draft.ready_needs"
+msgstr "Najpierw potrzebne jest wydarzenie na stronie i godzina startu."
+
+msgid "desk.draft.open_event"
+msgstr "Otwórz wydarzenie"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Zapisy, kroki na stronie, start drabinki i jej sety."
+
+msgid "desk.event.state"
+msgstr "Stan"
+
+msgid "desk.event.starts"
+msgstr "Start {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Zapisani"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Gracze zapisani przez Ember."
+
+msgid "desk.start"
+msgstr "Uruchom drabinkę"
+
+msgid "desk.start_detail"
+msgstr "Tworzona z zapisanych; Ember wywołuje pierwsze sety."
+
+msgid "desk.start_not_yet"
+msgstr "Jeszcze nie: najpierw otwórz zapisy na stronie."
+
+msgid "desk.event.edit"
+msgstr "Edytuj szczegóły i zasady"
+
+msgid "desk.event.edit_detail"
+msgstr "Tytuł, start, sety, zapisy i Discord."
+
+msgid "desk.stop"
+msgstr "Zatrzymaj ten turniej"
+
+msgid "desk.stop_detail"
+msgstr "Tutaj, a jeśli chcesz, także na stronie."
+
+msgid "desk.stop.title"
+msgstr "Zatrzymać {0}?"
+
+msgid "desk.stop.what"
+msgstr "Co robi zatrzymanie"
+
+msgid "desk.stop.what_detail"
+msgstr "Otwarte sety zostają anulowane, a gracze zwolnieni."
+
+msgid "desk.stop.site"
+msgstr "Zatrzymaj i usuń na {0}"
+
+msgid "desk.stop.site_detail"
+msgstr "Ember utworzył je na {0}, więc tam też je usuwa."
+
+msgid "desk.stop.keep"
+msgstr "Zatrzymaj, zostaw na stronie"
+
+msgid "desk.stop.keep_detail"
+msgstr "Ember przestaje je prowadzić; {0} zachowuje wydarzenie bez zmian."
+
+msgid "desk.stop.draft"
+msgstr "Usuń ten szkic"
+
+msgid "desk.stop.back"
+msgstr "Zostaw działający"
+
+msgid "desk.stop.done"
+msgstr "Zatrzymano."
+
+msgid "desk.stop.home"
+msgstr "Wróć do swoich turniejów"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.format"
+msgstr "Format"
+
+msgid "desk.field.grand_final"
+msgstr "Wielki finał"
+
+msgid "desk.field.third_place"
+msgstr "Mecz o trzecie miejsce"
+
+msgid "desk.field.open_signup"
+msgstr "Własna strona zapisów serwisu"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"
+
+msgid "desk.value.single"
+msgstr "Pojedyncza eliminacja"
+
+msgid "desk.value.double"
+msgstr "Podwójna eliminacja"
+
+msgid "desk.value.round_robin"
+msgstr "Każdy z każdym"
+
+msgid "desk.value.swiss"
+msgstr "System szwajcarski"
+
+msgid "desk.value.reset"
+msgstr "Normalny, z resetem"
+
+msgid "desk.value.one_match"
+msgstr "Jeden mecz"
+
+msgid "desk.value.no_final"
+msgstr "Bez wielkiego finału"
+
+msgid "desk.value.yes"
+msgstr "Tak"
+
+msgid "desk.value.no"
+msgstr "Nie"

@@ -18,6 +18,7 @@
 #include "VersionLine.hxx"
 #include "WatchedPicture.hxx"
 #include "../common/FighterCatalog.hxx"
+#include "../common/LocalTime.hxx"
 #include "../common/Localization.hxx"
 #include "../common/MatchFrameMeter.hxx"
 #include "../platform/LocaleWindows.hxx"
@@ -63,11 +64,8 @@ std::vector<MenuChoice> LanguageChoices() {
 }
 // When a report was sent, in this PC's time, as 2026-10-09 14:03.
 std::string ReportTime(std::int64_t time) {
-    const std::time_t at = static_cast<std::time_t>(time);
-    std::tm local{};
-    char text[32] = {};
-    if (localtime_s(&local, &at) != 0 || !std::strftime(text, sizeof(text), "%Y-%m-%d %H:%M", &local)) return "-";
-    return text;
+    const auto text = LocalTime(static_cast<std::uint64_t>(time));
+    return text.empty() ? "-" : text;
 }
 // What a row whose setting cannot change now says instead.
 const char* Reason(const ShellView& v) { return v.canEditPreferences ? loc::T("settings.auto_save") : loc::T("settings.leave_room_to_edit"); }

@@ -4061,7 +4061,7 @@ msgid "desk.none"
 msgstr "イベントはまだありません"
 
 msgid "desk.none_detail"
-msgstr "大会デスクのウェブサイトでイベントを作成して開始すると、進行中にここに表示されます。"
+msgstr "「新しい大会」を選んで作成すると、ここに表示されます。"
 
 msgid "desk.view"
 msgstr "表示"
@@ -8639,3 +8639,240 @@ msgstr "全ヒットしました。"
 
 msgid "training.combo_check.run.dropped"
 msgstr "全ヒットしませんでした。"
+
+msgid "desk.draft.new"
+msgstr "新しい大会"
+
+msgid "desk.draft.new_detail"
+msgstr "タイトル、日付、トーナメント表サービス、セット、参加受付。下書きとして随時保存されます。"
+
+msgid "desk.draft.title"
+msgstr "タイトル"
+
+msgid "desk.draft.title_first"
+msgstr "まずタイトルを付けてください"
+
+msgid "desk.draft.saved"
+msgstr "タイトルで下書きが作られます。残りはその後に設定し、変更ごとに保存されます。"
+
+msgid "desk.draft.details"
+msgstr "詳細"
+
+msgid "desk.draft.date"
+msgstr "日付"
+
+msgid "desk.draft.date_detail"
+msgstr "左右:1日ずつ。あなたのタイムゾーンで、見る人には各自の時刻で表示されます。"
+
+msgid "desk.draft.time"
+msgstr "開始"
+
+msgid "desk.draft.time_detail"
+msgstr "左右:15分ずつ。"
+
+msgid "desk.draft.service"
+msgstr "サービスとルール"
+
+msgid "desk.draft.on_detail"
+msgstr "この大会が運営するサイト上のイベントです。"
+
+msgid "desk.draft.site"
+msgstr "トーナメント表サービス"
+
+msgid "desk.draft.site_creates"
+msgstr "左右:主催者アクセスを許可したサイト。Emberが{0}にイベントを作成します。"
+
+msgid "desk.draft.site_pick"
+msgstr "左右:主催者アクセスを許可したサイト。{0}でイベントを作り、下から選んでください。"
+
+msgid "desk.draft.as_site"
+msgstr "{0}の設定どおり"
+
+msgid "desk.draft.create"
+msgstr "{0}に作成"
+
+msgid "desk.draft.create_detail"
+msgstr "この設定でそこにイベントを作成します。サイトが拒否した場合は理由が表示されます。"
+
+msgid "desk.draft.pick_detail"
+msgstr "この{0}のイベントを使います。"
+
+msgid "desk.draft.none_listed"
+msgstr "イベントがありません"
+
+msgid "desk.draft.none_listed_detail"
+msgstr "先に{0}でイベントを作成すると、ここに表示されます。"
+
+msgid "desk.draft.no_site"
+msgstr "トーナメント表サービスがまだありません"
+
+msgid "desk.draft.no_site_detail"
+msgstr "先に大会主催者画面で、サイトの主催者アクセスを許可してください。"
+
+msgid "desk.draft.first_to"
+msgstr "各セットの先取数"
+
+msgid "desk.draft.first_to_detail"
+msgstr "左右で変更。後半ステージはWebデスクで設定した長さのままです。"
+
+msgid "desk.draft.people"
+msgstr "Discordと参加受付"
+
+msgid "desk.draft.sign_ups"
+msgstr "プレイヤーがEmberで参加登録"
+
+msgid "desk.draft.sign_ups_detail"
+msgstr "オンライン > 大会 > 参加登録。左右で切り替え。"
+
+msgid "desk.draft.public"
+msgstr "公開ページ"
+
+msgid "desk.draft.public_detail"
+msgstr "誰でも見られるページで、セットの進行を表示します。左右で切り替え。"
+
+msgid "desk.draft.discord"
+msgstr "Discordチャンネル"
+
+msgid "desk.draft.discord_set"
+msgstr "設定済み"
+
+msgid "desk.draft.discord_unset"
+msgstr "なし"
+
+msgid "desk.draft.discord_detail"
+msgstr "呼び出しとスコアはこのチャンネルに届きます。今のところWebデスクで設定します。"
+
+msgid "desk.draft.results"
+msgstr "各セットのスコアを投稿"
+
+msgid "desk.draft.results_detail"
+msgstr "そのチャンネルに、セット終了ごとに。左右で切り替え。"
+
+msgid "desk.draft.ready_step"
+msgstr "準備完了"
+
+msgid "desk.draft.ready"
+msgstr "準備完了にする"
+
+msgid "desk.draft.ready_detail"
+msgstr "Emberは{0}からセットを呼び出します。"
+
+msgid "desk.draft.ready_needs"
+msgstr "先にサイトのイベントと開始時刻が必要です。"
+
+msgid "desk.draft.open_event"
+msgstr "イベントを開く"
+
+msgid "desk.draft.open_event_detail"
+msgstr "参加受付、サイトの操作、トーナメント表の開始とセット。"
+
+msgid "desk.event.state"
+msgstr "状態"
+
+msgid "desk.event.starts"
+msgstr "開始 {0}"
+
+msgid "desk.event.signed_up"
+msgstr "参加登録"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Emberで参加登録したプレイヤー。"
+
+msgid "desk.start"
+msgstr "トーナメント表を開始"
+
+msgid "desk.start_detail"
+msgstr "参加者から作成され、Emberが最初のセットを呼び出します。"
+
+msgid "desk.start_not_yet"
+msgstr "まだです。先にサイトで参加受付を開始してください。"
+
+msgid "desk.event.edit"
+msgstr "詳細とルールを編集"
+
+msgid "desk.event.edit_detail"
+msgstr "タイトル、開始、セット、参加受付、Discord。"
+
+msgid "desk.stop"
+msgstr "この大会を中止"
+
+msgid "desk.stop_detail"
+msgstr "ここで。希望すればサイト上でも。"
+
+msgid "desk.stop.title"
+msgstr "{0}を中止しますか?"
+
+msgid "desk.stop.what"
+msgstr "中止すると"
+
+msgid "desk.stop.what_detail"
+msgstr "進行中のセットは取り消され、プレイヤーは解放されます。"
+
+msgid "desk.stop.site"
+msgstr "中止して{0}からも削除"
+
+msgid "desk.stop.site_detail"
+msgstr "Emberが{0}に作成したので、そこでも削除します。"
+
+msgid "desk.stop.keep"
+msgstr "中止し、サイトには残す"
+
+msgid "desk.stop.keep_detail"
+msgstr "Emberは運営をやめ、{0}のイベントはそのまま残ります。"
+
+msgid "desk.stop.draft"
+msgstr "この下書きを削除"
+
+msgid "desk.stop.back"
+msgstr "続ける"
+
+msgid "desk.stop.done"
+msgstr "中止しました。"
+
+msgid "desk.stop.home"
+msgstr "大会一覧に戻る"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.format"
+msgstr "形式"
+
+msgid "desk.field.grand_final"
+msgstr "グランドファイナル"
+
+msgid "desk.field.third_place"
+msgstr "3位決定戦"
+
+msgid "desk.field.open_signup"
+msgstr "サイト自身の参加登録ページ"
+
+msgid "desk.field.check_in"
+msgstr "チェックイン"
+
+msgid "desk.value.single"
+msgstr "シングルエリミネーション"
+
+msgid "desk.value.double"
+msgstr "ダブルエリミネーション"
+
+msgid "desk.value.round_robin"
+msgstr "総当たり"
+
+msgid "desk.value.swiss"
+msgstr "スイス式"
+
+msgid "desk.value.reset"
+msgstr "通常(リセットあり)"
+
+msgid "desk.value.one_match"
+msgstr "1試合"
+
+msgid "desk.value.no_final"
+msgstr "グランドファイナルなし"
+
+msgid "desk.value.yes"
+msgstr "はい"
+
+msgid "desk.value.no"
+msgstr "いいえ"

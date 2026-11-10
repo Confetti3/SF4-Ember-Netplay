@@ -3683,7 +3683,7 @@ msgid "desk.none"
 msgstr "No events yet"
 
 msgid "desk.none_detail"
-msgstr "Create and start your events on the tournament desk website; they show here once they run."
+msgstr "Select New tournament to make one; it shows here from then on."
 
 msgid "desk.view"
 msgstr "View"
@@ -8261,3 +8261,240 @@ msgstr "Every hit landed."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Not every hit landed."
+
+msgid "desk.draft.new"
+msgstr "New tournament"
+
+msgid "desk.draft.new_detail"
+msgstr "Title, date, bracket service, sets, sign-ups. Saved as a draft as you go."
+
+msgid "desk.draft.title"
+msgstr "Title"
+
+msgid "desk.draft.title_first"
+msgstr "Give it a title first"
+
+msgid "desk.draft.saved"
+msgstr "The draft is made with its title; the rest is set next and saved as you change it."
+
+msgid "desk.draft.details"
+msgstr "Details"
+
+msgid "desk.draft.date"
+msgstr "Date"
+
+msgid "desk.draft.date_detail"
+msgstr "Left / Right: a day. Your time zone; each reader sees it in theirs."
+
+msgid "desk.draft.time"
+msgstr "Start"
+
+msgid "desk.draft.time_detail"
+msgstr "Left / Right: 15 minutes."
+
+msgid "desk.draft.service"
+msgstr "Service and rules"
+
+msgid "desk.draft.on_detail"
+msgstr "The site's event this tournament runs."
+
+msgid "desk.draft.site"
+msgstr "Bracket service"
+
+msgid "desk.draft.site_creates"
+msgstr "Left / Right: a site you allowed organizer access on. Ember creates the event on {0}."
+
+msgid "desk.draft.site_pick"
+msgstr "Left / Right: a site you allowed organizer access on. Make the event on {0}, then pick it below."
+
+msgid "desk.draft.as_site"
+msgstr "As {0} sets it"
+
+msgid "desk.draft.create"
+msgstr "Create on {0}"
+
+msgid "desk.draft.create_detail"
+msgstr "Makes the event there with these settings. A site that refuses says why."
+
+msgid "desk.draft.pick_detail"
+msgstr "Use this {0} event."
+
+msgid "desk.draft.none_listed"
+msgstr "No events found"
+
+msgid "desk.draft.none_listed_detail"
+msgstr "Create the event on {0} first; it shows here after that."
+
+msgid "desk.draft.no_site"
+msgstr "No bracket service yet"
+
+msgid "desk.draft.no_site_detail"
+msgstr "Allow organizer access on a site on the Tournament organizer screen first."
+
+msgid "desk.draft.first_to"
+msgstr "Every set first to"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Left / Right. Later stages keep the lengths set on the web desk."
+
+msgid "desk.draft.people"
+msgstr "Discord and sign-ups"
+
+msgid "desk.draft.sign_ups"
+msgstr "Players sign up through Ember"
+
+msgid "desk.draft.sign_ups_detail"
+msgstr "Online > Tournaments > Sign up. Left / Right."
+
+msgid "desk.draft.public"
+msgstr "Public page"
+
+msgid "desk.draft.public_detail"
+msgstr "A page anyone can follow, with the sets as they go. Left / Right."
+
+msgid "desk.draft.discord"
+msgstr "Discord channel"
+
+msgid "desk.draft.discord_set"
+msgstr "Set"
+
+msgid "desk.draft.discord_unset"
+msgstr "None"
+
+msgid "desk.draft.discord_detail"
+msgstr "Calls and scores go to this channel. It is set on the web desk for now."
+
+msgid "desk.draft.results"
+msgstr "Post each set's score"
+
+msgid "desk.draft.results_detail"
+msgstr "In that channel, as sets end. Left / Right."
+
+msgid "desk.draft.ready_step"
+msgstr "Ready"
+
+msgid "desk.draft.ready"
+msgstr "Mark ready"
+
+msgid "desk.draft.ready_detail"
+msgstr "Ember calls sets from {0}."
+
+msgid "desk.draft.ready_needs"
+msgstr "Needs the site's event and a start time first."
+
+msgid "desk.draft.open_event"
+msgstr "Open the event"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Sign-ups, the site's moves, starting the bracket and its sets."
+
+msgid "desk.event.state"
+msgstr "State"
+
+msgid "desk.event.starts"
+msgstr "Starts {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Signed up"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Players who signed up through Ember."
+
+msgid "desk.start"
+msgstr "Start the bracket"
+
+msgid "desk.start_detail"
+msgstr "Made from who signed up; Ember calls the first sets."
+
+msgid "desk.start_not_yet"
+msgstr "Not yet: open sign-ups on the site first."
+
+msgid "desk.event.edit"
+msgstr "Edit details and rules"
+
+msgid "desk.event.edit_detail"
+msgstr "Title, start, sets, sign-ups and Discord."
+
+msgid "desk.stop"
+msgstr "Stop this tournament"
+
+msgid "desk.stop_detail"
+msgstr "Here, and on the site too if you want."
+
+msgid "desk.stop.title"
+msgstr "Stop {0}?"
+
+msgid "desk.stop.what"
+msgstr "What stopping does"
+
+msgid "desk.stop.what_detail"
+msgstr "Open sets are cancelled and their players freed."
+
+msgid "desk.stop.site"
+msgstr "Stop and delete it on {0}"
+
+msgid "desk.stop.site_detail"
+msgstr "Ember made it on {0}, so Ember deletes it there too."
+
+msgid "desk.stop.keep"
+msgstr "Stop it, keep it on the site"
+
+msgid "desk.stop.keep_detail"
+msgstr "Ember stops running it; {0} keeps the event as it is."
+
+msgid "desk.stop.draft"
+msgstr "Delete this draft"
+
+msgid "desk.stop.back"
+msgstr "Keep it running"
+
+msgid "desk.stop.done"
+msgstr "Stopped."
+
+msgid "desk.stop.home"
+msgstr "Back to your tournaments"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.format"
+msgstr "Format"
+
+msgid "desk.field.grand_final"
+msgstr "Grand final"
+
+msgid "desk.field.third_place"
+msgstr "Third place match"
+
+msgid "desk.field.open_signup"
+msgstr "The site's own sign-up page"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"
+
+msgid "desk.value.single"
+msgstr "Single elimination"
+
+msgid "desk.value.double"
+msgstr "Double elimination"
+
+msgid "desk.value.round_robin"
+msgstr "Round robin"
+
+msgid "desk.value.swiss"
+msgstr "Swiss"
+
+msgid "desk.value.reset"
+msgstr "Normal, with a reset"
+
+msgid "desk.value.one_match"
+msgstr "One match"
+
+msgid "desk.value.no_final"
+msgstr "No grand final"
+
+msgid "desk.value.yes"
+msgstr "Yes"
+
+msgid "desk.value.no"
+msgstr "No"
