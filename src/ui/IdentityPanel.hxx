@@ -9,6 +9,7 @@
 #include "../netplay/IdentityRequest.hxx"
 #include "../netplay/IdentityView.hxx"
 #include "../netplay/TournamentStatus.hxx"
+#include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <cstdint>
 #include <deque>
@@ -206,7 +207,6 @@ private:
     // ID holds organizer access on Ember's own service; their rows, presses
     // and Left/Right, and the read every few seconds while one is open.
     static bool DeskScreen(const std::string& screen);
-    bool DeskHeld(const ShellView& view) const;
     // Whether Ember's own service offers organizer access on any site.
     bool DeskOffered(const ShellView& view) const;
     // Asks a listed site for organizer access, or drops it (IdentitySignIn.cxx).
@@ -216,8 +216,15 @@ private:
     // The open event's state on its site, read on opening it and after a move.
     void DeskSiteRead(const ShellView& view);
     void DeskRows(const ShellView& view, const std::string& screen, std::vector<MenuEntry>& rows, std::string& title) const;
+    void DraftRows(const ShellView& view, std::vector<MenuEntry>& rows, std::string& title, bool busy) const;
     bool DeskActivate(const MenuAction& a, const ShellView& view, MenuNavigation& navigation);
     bool DeskAccept(const MenuAction& a, const ShellView& view);
+    // The organizer's sites with organizer access held, and the one a draft
+    // on desk-draft is set up for (picked, else the first).
+    std::vector<const netplay::IdentitySignInSite*> DeskSites(const ShellView& view) const;
+    const netplay::IdentitySignInSite* DraftSite(const ShellView& view) const;
+    // A desk action at `path` with `command` as its body.
+    void DeskSend(const ShellView& view, const std::string& path, const nlohmann::json& command);
     // Says so when the list a link's refresh brought back lacks its match.
     void CheckOpenedMatch(const netplay::tournament::AssignmentList& list);
     // Reads the service list again after the helper answered for a dormant
@@ -372,6 +379,10 @@ private:
     double deskReadAt_ = 0;
     // A move was sent: its answer reads the event's site state again.
     bool deskMoved_ = false;
+    // The draft's service and its create form's values picked (JSON text;
+    // none: as the site sets it), until it is created there.
+    // `listed`: the service whose events were last listed for it.
+    struct Draft { std::string site; std::map<std::string, std::string> fields; std::string listed; } draft_;
     SiteAccount& Account(const SignInTarget& target, const std::string& bridge);
     const SiteAccount* FindAccount(const SignInTarget& target, const std::string& bridge) const;
     // The sign-in sites Ember's own service (sitesBridge_) lists, as its
