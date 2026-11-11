@@ -243,6 +243,7 @@ std::vector<MenuEntry> FriendsPanel::SettingsRows(const ShellView& v) {
     appear.value = loc::T(state.appearOffline ? "common.on" : "common.off");
     auto code = ConfirmRow(NewCodeRow, loc::T("friends.code"), detail("friends.new_code_detail"), !why);
     code.value = state.code.empty() ? std::string("-") : state.code;
+    code.wholeValue = true;
     auto off = ConfirmRow(ForgetRow, loc::T("friends.turn_off"), detail("friends.turn_off_detail"), !why);
     for (auto* row : {&appear, &code, &off}) if (pending_.active && pending_.row == row->id) row->value = "...";
     return {appear, code, off};
