@@ -230,10 +230,8 @@ int main() try {
         shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
         const auto toggleMute = [&] {
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
-            // Mute is the first of the actions the member's row opens.
-            focus("member-3"); press(MenuInput::Select);
-            Check(shell.Navigation().Choosing(), "The member row did not open its actions");
-            press(MenuInput::Select);
+            // Mute is one of the actions the member's row opens, after Player card.
+            pickMemberAction("member-3", "mute");
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
         };
         toggleMute();
