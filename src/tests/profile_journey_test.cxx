@@ -1,7 +1,7 @@
 // Profile (docs/design/PLAYER_CARD.md): Home's card opens it on Card, LB and RB
 // step Card, Fighters, Titles and Icons and wrap, a strip tile opens Fighters
-// on that fighter, Select on a fighter makes it the main, the levels are read
-// when Profile opens and once at start, and the states without levels have a
+// on that fighter, Select on a fighter makes it the main, the points are read
+// when Profile opens and once at start, and the states without points have a
 // row the pad can stand on.
 #include "public_rooms_journey_support.hxx"
 #include "../ui/PlayerCard.hxx"
@@ -19,17 +19,17 @@ const netplay::tournament::Command* LastRead(const Journey& j) {
  return nullptr;
 }
 
-void Play(Own& own, int fighter, int level, std::uint64_t games) {
+void Play(Own& own, int fighter, std::uint64_t games) {
  auto& l = own.fighters[fighter];
- l.level = static_cast<std::uint8_t>(level); l.games = games; l.wins = games / 2; l.floor = 10; l.next = 5000; l.since = 1700000000;
+ l.games = games; l.wins = games / 2; l.points = l.games + l.wins; l.tier = 0; l.next = 5000; l.since = 1700000000;
 }
 
-// The levels the runtime has: Ryu (0) at 42, and four others.
+// The points the runtime has: Ryu (0) with the most, and four others.
 void Answer(Journey& j, Own::Kind kind = Own::Kind::Counted, bool shown = true) {
  auto& answer = j.h.view.levels;
  Own own;
  own.kind = kind; own.shown = shown;
- if (kind == Own::Kind::Counted) { Play(own, 0, 42, 600); Play(own, 5, 25, 300); Play(own, 12, 18, 200); Play(own, 7, 13, 90); Play(own, 20, 9, 40); }
+ if (kind == Own::Kind::Counted) { Play(own, 0, 600); Play(own, 5, 300); Play(own, 12, 200); Play(own, 7, 90); Play(own, 20, 40); }
  answer.value = own; answer.loaded = true; answer.loading = false; ++answer.revision; ++answer.finished;
  j.h.Frame(0, 2);
 }
@@ -77,7 +77,7 @@ void StripTilesJourney() {
  Check(j.h.shell.Navigation().Screen() == "home", "Back from Fighters opened from the strip did not return to Home");
 }
 
-// Fighters lists the played fighters, highest level first, and Select makes one the main.
+// Fighters lists the played fighters, most points first, and Select makes one the main.
 void FightersJourney() {
  Journey j;
  j.h.view.preferences.mainFighter = 0;
@@ -85,7 +85,7 @@ void FightersJourney() {
  j.h.Screen("fighters");
  std::vector<std::string> fighters;
  for (const auto& row : j.rows) if (ui::HasPrefix(row.id, "main-")) fighters.push_back(row.id);
- Check(fighters == std::vector<std::string>({"main-0", "main-5", "main-12", "main-7", "main-20"}), "The Fighters tab does not list the played fighters by level");
+ Check(fighters == std::vector<std::string>({"main-0", "main-5", "main-12", "main-7", "main-20"}), "The Fighters tab does not list the played fighters by points");
  Check(j.row("fighters-unplayed") != nullptr, "The Fighters tab has no row for the fighters not played yet");
  j.h.Choose("main-12");
  j.h.Frame(0, 40);

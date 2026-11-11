@@ -7,6 +7,7 @@
 #include "../common/NetworkLink.hxx"
 #include <imgui.h>
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -218,22 +219,26 @@ const char* TierName(Tier tier);
 // title needs, from 340 px up to `room`. Returns its width.
 float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier);
 
-// A fighter's level (FIGHTER_LEVELS.md, PLAYER_CARD.md), in Ember's own brush
+// A fighter's points (FIGHTER_LEVELS.md, PLAYER_CARD.md), in Ember's own brush
 // digits: drawn from the digits' art, or while that has not loaded the heading
 // font's digits in ivory, on the same ground and frame. Each part draws
-// nothing for level 0 (not played). Speech and the text probe read the words a
-// caller puts beside it ("Level 42"), never the number drawn. LevelMark.cxx.
-// The frame's tier: Ash 1 to 12, Copper 13 to 24, Silver 25 to 36, Gold 37 to
-// 48, Ember from 49; None for 0.
-Tier LevelTier(int level);
+// nothing for 0 points (not played), and shows at most 999999. The frame's
+// `tier` (0 Ash to 4 Ember) is the bridge's to decide and is only passed in,
+// never worked out from the points. Speech and the text probe read the words
+// a caller puts beside it ("1986 points"), never the number drawn.
+// LevelMark.cxx.
+// The award tier of a frame tier the bridge sent, 0 (Ash) to 4 (Ember); another
+// number is held to that range.
+Tier FrameTier(int tier);
 // The number on dark ground in a plate `height` tall with its top left at `at`,
 // framed in its tier's stripe colour, at least as wide as it is tall. Returns
 // its width, which LevelWidth gives without drawing.
-float Level(ImDrawList* draw, ImVec2 at, float height, int level);
-float LevelWidth(int level, float height);
+float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, int tier);
+float LevelWidth(std::uint64_t points, float height);
 // Over a fighter's picture `tile`: a dark band across its foot with the number
-// centred in it, and the picture's edge in the tier's stripe colour.
-void LevelBand(ImDrawList* draw, Box tile, int level);
+// centred in it, shrunk to fit the picture's width, and the picture's edge in
+// the tier's stripe colour.
+void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, int tier);
 // A progress bar on the frame's ground: `part` of it (0 to 1) in the accent,
 // and the last `fresh` of that part (the same measure) in the light accent.
 void Meter(ImDrawList* draw, Box box, float part, float fresh);
