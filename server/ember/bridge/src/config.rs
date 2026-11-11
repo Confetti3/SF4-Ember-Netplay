@@ -179,6 +179,12 @@ pub struct Rooms {
     /// way, so the bands can be calibrated before anyone sees one.
     #[serde(default)]
     pub skill_badges: bool,
+    /// Friends are on: the friends routes, the `friends` capability, the card
+    /// look-up's `friend` selector and a card's `relation`. Off by default, as
+    /// no 1.6.0 game screen calls them yet. They also need Discord sign-in,
+    /// since a friend list belongs to a Discord account.
+    #[serde(default)]
+    pub friends: bool,
     /// Discord user IDs of Ember's developers: their badge is the developer
     /// mark in place of a class, and they are not on the ranking board. Their
     /// games are rated as anyone's, so their opponents' ratings stay fair.

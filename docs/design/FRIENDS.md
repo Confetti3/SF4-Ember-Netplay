@@ -119,6 +119,12 @@ request type denies unknown fields and every answer type ignores them
 (`friends.rs` header). A build asks only a bridge that lists `friends`;
 an older bridge answers 404, worded `friends_unavailable`.
 
+Friends ship dormant in 1.6.0: no game screen calls them, so the bridge setting
+`rooms.friends` is off by default (`config::Rooms::friends`, read only by
+`friends::offered`). While it is off, discovery does not list `friends`, both
+routes answer as an unknown route (404), the card look-up's `friend` selector
+answers null and a card's `relation` is `none`. Turn it on with the screens.
+
 Both routes take the player session (`routes::play::playing`) and answer the
 whole `FriendsState`, so the client holds one state and replaces it whole,
 as the desk's read and act do (`desk_read`, `desk_act`).

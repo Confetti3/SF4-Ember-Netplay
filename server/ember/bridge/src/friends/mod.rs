@@ -35,10 +35,14 @@ use crate::{
     skill,
 };
 
-/// Whether friends are offered: where public rooms are on, beside `points`,
-/// and Discord sign-in is offered, since friends belong to a Discord account.
+/// Whether friends are offered: where public rooms are on and `rooms.friends`
+/// is set, beside `points`, and Discord sign-in is offered, since friends
+/// belong to a Discord account. The one place the switch is read: discovery,
+/// the friends routes and the card look-up all ask this.
 pub fn offered(state: &AppState) -> bool {
-    rooms::enabled(state) && sign_in::offered(state, &Site::Discord)
+    rooms::enabled(state)
+        && state.config.rooms.as_ref().is_some_and(|rooms| rooms.friends)
+        && sign_in::offered(state, &Site::Discord)
 }
 
 /// What a state shows of others' classes: the bridge's `rooms.skill_badges`
