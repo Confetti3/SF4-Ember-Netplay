@@ -10,6 +10,8 @@
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
 // --profile played|fresh|sixty|noaccount|unavailable|loading|unreachable: the player's levels (--screen card, fighters,
 //   card-edit or home)
+// --friends full|requests|empty|noaccount|unavailable|loading|unreachable|offline: the player's friends in that state
+//   (--screen friends, friends-add, friends-sent or friends-blocked; UiLabSocial.hxx)
 // --levels: fighter points in the game's digits, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --points public|private with --room or --arcade: every member's card as the bridge would have it, in a public room
@@ -22,10 +24,11 @@
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
-// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--points public|private] [--rankings] [--profile state] [--friends state] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
+#include "UiLabSocial.hxx"
 #include "../ApplicationShell.hxx"
 #include "../ControllerNavigation.hxx"
 #include "../FighterSelector.hxx"
@@ -439,7 +442,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
     std::string points;  // --points public|private
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile, friendsState;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -469,6 +472,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--levels") levels = true;
         else if (args[i] == "--profile" && more) profile = args[++i];
+        else if (args[i] == "--friends" && more) friendsState = args[++i];
         else if (args[i] == "--points" && more) points = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
@@ -543,6 +547,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
     if (!profile.empty()) Profile(view, profile);
+    if (!friendsState.empty() && !uilab::Friends(view, friendsState)) return 4;
     if (!points.empty()) {
         if (profile.empty()) Profile(view, "played");
         RoomPoints(view, points != "private");
