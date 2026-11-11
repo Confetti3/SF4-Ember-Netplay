@@ -207,12 +207,11 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   return;
  }
  if(const auto index=RowKey<std::size_t>(a.id,"cabinet-");index&&*index<room::CabinetCount){
-  // A free cabinet: Queue names it as table + seat * TableCount.
+  // A free cabinet: the Queue that names it.
   const auto cabinet=*index;
   const auto* m=room::FindMember(v.room,v.room.cabinets[cabinet]);
   if(!m){
-   Action request;request.kind=ActionKind::Queue;request.table=static_cast<std::uint8_t>(cabinet%TableCount);request.seat=static_cast<std::int8_t>(cabinet/TableCount);
-   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
+   if(!SendRoom(room::CabinetQueueAction(cabinet),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
    return;
   }
   if(m->table<0)return;

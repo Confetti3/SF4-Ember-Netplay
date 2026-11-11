@@ -201,7 +201,7 @@ void RoomAuthority::CrownTopSlot() {
 Result RoomAuthority::ApplyArcadeSit(MemberId member, const Action& action) {
 	if (HasOutstandingTerminalReceiptForMember(member)) return Reject(RejectReason::TerminalLedgerFull);
 	if (action.seat != 0 && action.seat != 1) return Reject(RejectReason::InvalidSeat);
-	const std::size_t cabinet = action.table + action.seat * TableCount;
+	const std::size_t cabinet = CabinetNamed(action);
 	if (snapshot_.cabinets[cabinet]) return Reject(RejectReason::InvalidSeat);
 	const int from = CabinetOf(snapshot_, member);
 	if (from >= 0) {

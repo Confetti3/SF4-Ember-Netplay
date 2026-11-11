@@ -331,6 +331,23 @@ inline int CabinetOf(const Snapshot& room, MemberId member) {
 	const auto at = std::find(room.cabinets.begin(), room.cabinets.end(), member);
 	return member && at != room.cabinets.end() ? static_cast<int>(at - room.cabinets.begin()) : -1;
 }
+// In a room that seats by cabinet, Queue and Unqueue name a cabinet, not the
+// table its pair plays at: table + seat * TableCount, a table out of play too.
+inline bool NamesCabinet(const Snapshot& room, ActionKind kind) {
+	return RulesOf(room).cabinets && (kind == ActionKind::Queue || kind == ActionKind::Unqueue);
+}
+// The cabinet a Queue or Unqueue names there; its seat is 0 or 1.
+inline std::size_t CabinetNamed(const Action& action) {
+	return action.table + static_cast<std::size_t>(action.seat) * TableCount;
+}
+// The Queue that sits down at `cabinet` (below CabinetCount).
+inline Action CabinetQueueAction(std::size_t cabinet) {
+	Action action;
+	action.kind = ActionKind::Queue;
+	action.table = static_cast<std::uint8_t>(cabinet % TableCount);
+	action.seat = static_cast<std::int8_t>(cabinet / TableCount);
+	return action;
+}
 
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 	Place place;
@@ -425,6 +442,34 @@ inline SetStanding StandingAfter(const Snapshot& room, const Table& table, std::
 	++standing.score[seat];
 	standing.over = !RematchInPlaceOffered(room, table, result);
 	return standing;
+}
+
+// The two seats of the game `generation` at `table`: the set's, once the room
+// recorded the set it ended (its rotation has moved them since), else the
+// table's own.
+inline std::pair<MemberId, MemberId> GameSeats(const Table& table, std::uint64_t generation) {
+	return table.lastSet.generation == generation ? std::make_pair(table.lastSet.p1, table.lastSet.p2) : std::make_pair(table.p1, table.p2);
+}
+// Whether the set's rotation keeps `member` seated (RotationKeeps). Before the
+// room has the result, `result` names the winner.
+inline bool RotationKeepsMember(const Table& table, std::uint64_t generation, MatchResult result, MemberId member) {
+	const int winnerSeat = table.lastSet.generation == generation ? table.lastSet.winnerSeat :
+		result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
+	const auto seats = GameSeats(table, generation);
+	if (!member || winnerSeat < 0 || (member != seats.first && member != seats.second)) return false;
+	return RotationKeeps(table.rules.rotation, member == (winnerSeat == 0 ? seats.first : seats.second));
+}
+// Whether `member`, who fought the game `generation` at `table`, keeps the
+// seat when they give no answer after it. Only a room that seats from a
+// table's queue hands a seat over after a set, and only from a player the
+// rotation moves on: the one it keeps stays for the next challenger. A room
+// that seats by cabinet keeps everyone at their cabinet and rotates them itself
+// (RoomAuthority::ArcadeSetEnded); a set's game keeps both seats: a set one the
+// room has recorded as ended, or that its result ends, is over (StandingAfter).
+inline bool KeepsSeatAfterGame(const Snapshot& room, const Table& table, std::uint64_t generation, MatchResult result, MemberId member) {
+	if (RulesOf(room).cabinets) return true;
+	if (table.rules.format == SetFormat::Unlimited) return false;
+	return !StandingAfter(room, table, generation, result).over || RotationKeepsMember(table, generation, result, member);
 }
 
 } }

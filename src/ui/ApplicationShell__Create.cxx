@@ -90,7 +90,7 @@ bool ApplicationShell::CreateAdjust(const MenuAction& a) {
   ApplyRoomTemplate((createTemplate_+1+(a.delta>0?1:count))%(count+1)-1);
   return true;
  }
- if(a.id=="room-type"){createType_=static_cast<room::RoomType>((std::max)(0,(std::min)(2,static_cast<int>(createType_)+a.delta)));return true;}
+ if(a.id=="room-type"){createType_=static_cast<room::RoomType>((std::max)(0,(std::min)(static_cast<int>(room::RoomType::King),static_cast<int>(createType_)+a.delta)));return true;}
  if(a.id=="tables"&&createType_!=room::RoomType::Classic){createArcadeTables_=(std::max)(1,(std::min)(static_cast<int>(room::TableCount),createArcadeTables_+a.delta));return true;}
  if(a.id!="practice-room")return false;
  createPractice_=a.delta>0;

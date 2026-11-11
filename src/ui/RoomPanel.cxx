@@ -241,8 +241,8 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
         return false;
     }
     const bool localSeated = mine.kind == room::Place::Kind::Seat && mine.table == static_cast<int>(action.table);
-    // An Arcade room's Queue names a cabinet, not the table the pair plays at.
-    if (((action.kind == room::ActionKind::Queue && !room::RulesOf(view.room).cabinets) || action.kind == room::ActionKind::Watch ||
+    // A cabinet's Queue names no table (room::NamesCabinet).
+    if (((action.kind == room::ActionKind::Queue && !room::NamesCabinet(view.room, action.kind)) || action.kind == room::ActionKind::Watch ||
         action.kind == room::ActionKind::Unwatch) && localSeated) return false;
     if (action.kind == room::ActionKind::AbortMatch && AbandonableAt(view, table) == AbandonableGame::None) return false;
     if (action.kind == room::ActionKind::Unqueue && localSeated) {

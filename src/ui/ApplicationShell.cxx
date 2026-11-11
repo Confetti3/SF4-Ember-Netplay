@@ -74,9 +74,8 @@ bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
 std::string RoomKindText(const room::Snapshot& room) {
     if(room.serverOwned)return std::string(RoomTypeName(room.type))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
     if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
-    if(room.type==room::RoomType::King)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
-    if(room.type!=room::RoomType::Classic)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
-    return loc::T(room.locked?"room.locked_status":"room.private_status");
+    const auto& words=WordsOf(room.type);
+    return loc::T(room.locked?words.lockedStatus:words.status);
 }
 std::string RoomStatusText(const room::Snapshot& room) {
     return room.wiredOnly?RoomKindText(room)+" · "+loc::T("room.wired_only"):RoomKindText(room);

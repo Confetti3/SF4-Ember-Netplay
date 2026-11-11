@@ -791,10 +791,48 @@ static void TestTypeRules() {
 	CHECK(!ArcadeKindValid(room));
 }
 
+// A cabinet's Queue names it as table + seat * TableCount, and the room reads
+// it back the same way; only in a room that seats by cabinet do Queue and
+// Unqueue name one.
+static void TestCabinetNaming() {
+	for (std::size_t cabinet = 0; cabinet < CabinetCount; ++cabinet) {
+		const auto action = CabinetQueueAction(cabinet);
+		CHECK(action.kind == ActionKind::Queue && action.table < TableCount && (action.seat == 0 || action.seat == 1) && CabinetNamed(action) == cabinet);
+	}
+	Snapshot room;
+	CHECK(!NamesCabinet(room, ActionKind::Queue) && !NamesCabinet(room, ActionKind::Unqueue));
+	room.type = RoomType::King;
+	CHECK(NamesCabinet(room, ActionKind::Queue) && NamesCabinet(room, ActionKind::Unqueue) && !NamesCabinet(room, ActionKind::Watch));
+}
+
+// Who keeps the seat with no answer after a game: everyone in a room that
+// seats by cabinet; nobody at an Unlimited Classic table; both inside a set;
+// after a set, whoever the rotation keeps.
+static void TestKeepsSeatAfterGame() {
+	Snapshot room;
+	auto& table = room.tables[0];
+	table.p1 = 1; table.p2 = 2; table.phase = TablePhase::Playing; table.matchGeneration = 5;
+	table.rules.format = SetFormat::Unlimited;
+	CHECK(!KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1));
+	table.rules.format = SetFormat::Ft2;
+	CHECK(KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1) && KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+	table.score[0] = 1;
+	table.rules.rotation = RotationMode::WinnerStays;
+	CHECK(KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1) && !KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+	table.rules.rotation = RotationMode::LoserStays;
+	CHECK(!KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 1) && KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+	CHECK(GameSeats(table, 5) == std::make_pair(MemberId(1), MemberId(2)));
+	room.type = RoomType::Arcade;
+	table.rules.format = SetFormat::Unlimited;
+	CHECK(KeepsSeatAfterGame(room, table, 5, MatchResult::P1Win, 2));
+}
+
 int main() {
 	std::setvbuf(stdout, nullptr, _IONBF, 0);
 	try {
 		TestTypeRules();
+		TestCabinetNaming();
+		TestKeepsSeatAfterGame();
 		TestFirstComeFirstPaired();
 		TestCabinetActionsKeepTableRules();
 		TestRematchBoth();

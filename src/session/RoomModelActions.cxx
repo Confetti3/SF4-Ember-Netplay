@@ -509,7 +509,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// An Arcade room's Queue and Unqueue name a cabinet, not a table: sitting
 	// down there, perhaps into the line, and standing up. Its table can be
 	// out of play, where FindTable finds nothing; the revision still counts.
-	if (RulesOf(snapshot_).cabinets && (action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue)) {
+	if (NamesCabinet(snapshot_, action.kind)) {
 		if (action.table >= TableCount) return Reject(RejectReason::UnknownTable);
 		if (action.tableRevision != snapshot_.tables[action.table].revision) return Reject(RejectReason::StaleTable);
 		return action.kind == ActionKind::Queue ? ApplyArcadeSit(member, action) : ApplyArcadeStand(member);
