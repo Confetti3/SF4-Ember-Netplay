@@ -1222,9 +1222,6 @@ msgstr "Fighters played"
 msgid "card.of"
 msgstr "{0} of {1}"
 
-msgid "fighters.unplayed"
-msgstr "{0} fighters not played yet. Each starts earning points with its first rated public game."
-
 msgid "fighters.how"
 msgstr "How points are earned"
 
@@ -1239,6 +1236,15 @@ msgstr "Since"
 
 msgid "fighters.main"
 msgstr "Main"
+
+msgid "fighters.played_heading"
+msgstr "PLAYED · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "NOT PLAYED YET · {0}"
+
+msgid "fighters.your_main"
+msgstr "Your main"
 
 msgid "online.title"
 msgstr "ONLINE PLAY"

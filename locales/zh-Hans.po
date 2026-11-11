@@ -1222,9 +1222,6 @@ msgstr "已使用角色"
 msgid "card.of"
 msgstr "{0} / {1}"
 
-msgid "fighters.unplayed"
-msgstr "还有 {0} 名角色未使用。每名角色在第一场排位公开对战后开始获得积分。"
-
 msgid "fighters.how"
 msgstr "积分如何获得"
 
@@ -1239,6 +1236,15 @@ msgstr "起始"
 
 msgid "fighters.main"
 msgstr "主角"
+
+msgid "fighters.played_heading"
+msgstr "已使用 · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "尚未使用 · {0}"
+
+msgid "fighters.your_main"
+msgstr "你的主角"
 
 msgid "online.title"
 msgstr "在线对战"

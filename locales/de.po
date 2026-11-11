@@ -1222,9 +1222,6 @@ msgstr "Gespielte Kämpfer"
 msgid "card.of"
 msgstr "{0} von {1}"
 
-msgid "fighters.unplayed"
-msgstr "{0} Kämpfer noch nicht gespielt. Jeder sammelt mit seinem ersten gewerteten öffentlichen Spiel Punkte."
-
 msgid "fighters.how"
 msgstr "So sammelst du Punkte"
 
@@ -1239,6 +1236,15 @@ msgstr "Seit"
 
 msgid "fighters.main"
 msgstr "Haupt"
+
+msgid "fighters.played_heading"
+msgstr "GESPIELT · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "NOCH NICHT GESPIELT · {0}"
+
+msgid "fighters.your_main"
+msgstr "Dein Haupt"
 
 msgid "online.title"
 msgstr "ONLINE-SPIEL"

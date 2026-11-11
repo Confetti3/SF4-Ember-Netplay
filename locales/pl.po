@@ -1222,9 +1222,6 @@ msgstr "Użyci wojownicy"
 msgid "card.of"
 msgstr "{0} z {1}"
 
-msgid "fighters.unplayed"
-msgstr "Wojownicy jeszcze niegrani: {0}. Każdy zaczyna zdobywać punkty po pierwszej publicznej grze rankingowej."
-
 msgid "fighters.how"
 msgstr "Jak zdobywa się punkty"
 
@@ -1239,6 +1236,15 @@ msgstr "Od"
 
 msgid "fighters.main"
 msgstr "Główny"
+
+msgid "fighters.played_heading"
+msgstr "ZAGRANE · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "JESZCZE NIE GRANE · {0}"
+
+msgid "fighters.your_main"
+msgstr "Twój główny"
 
 msgid "online.title"
 msgstr "GRA ONLINE"

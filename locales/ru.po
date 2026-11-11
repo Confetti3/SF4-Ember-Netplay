@@ -1222,9 +1222,6 @@ msgstr "Сыграно бойцами"
 msgid "card.of"
 msgstr "{0} из {1}"
 
-msgid "fighters.unplayed"
-msgstr "Бойцов, за которых ещё не играли: {0}. Каждый начинает получать очки после первой публичной рейтинговой игры."
-
 msgid "fighters.how"
 msgstr "Как начисляются очки"
 
@@ -1239,6 +1236,15 @@ msgstr "С"
 
 msgid "fighters.main"
 msgstr "Основной"
+
+msgid "fighters.played_heading"
+msgstr "СЫГРАНО · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "ЕЩЁ НЕ ИГРАЛИ · {0}"
+
+msgid "fighters.your_main"
+msgstr "Ваш основной"
 
 msgid "online.title"
 msgstr "ИГРА ПО СЕТИ"

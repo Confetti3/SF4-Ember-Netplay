@@ -1222,9 +1222,6 @@ msgstr "使用ファイター"
 msgid "card.of"
 msgstr "{0} / {1}"
 
-msgid "fighters.unplayed"
-msgstr "未使用のファイターは{0}人です。ランクつきの公開試合を初めて遊ぶと、ポイントがたまり始めます。"
-
 msgid "fighters.how"
 msgstr "ポイントのためかた"
 
@@ -1239,6 +1236,15 @@ msgstr "開始日"
 
 msgid "fighters.main"
 msgstr "メイン"
+
+msgid "fighters.played_heading"
+msgstr "プレイ済み · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "未プレイ · {0}"
+
+msgid "fighters.your_main"
+msgstr "あなたのメイン"
 
 msgid "online.title"
 msgstr "オンライン対戦"

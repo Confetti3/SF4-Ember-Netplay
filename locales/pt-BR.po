@@ -1222,9 +1222,6 @@ msgstr "Lutadores jogados"
 msgid "card.of"
 msgstr "{0} de {1}"
 
-msgid "fighters.unplayed"
-msgstr "{0} lutadores ainda não jogados. Cada um começa a ganhar pontos com sua primeira partida pública ranqueada."
-
 msgid "fighters.how"
 msgstr "Como os pontos são ganhos"
 
@@ -1239,6 +1236,15 @@ msgstr "Desde"
 
 msgid "fighters.main"
 msgstr "Principal"
+
+msgid "fighters.played_heading"
+msgstr "JOGADOS · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "AINDA NÃO JOGADOS · {0}"
+
+msgid "fighters.your_main"
+msgstr "Seu principal"
 
 msgid "online.title"
 msgstr "JOGO ONLINE"

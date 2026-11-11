@@ -1222,9 +1222,6 @@ msgstr "플레이한 파이터"
 msgid "card.of"
 msgstr "{0} / {1}"
 
-msgid "fighters.unplayed"
-msgstr "아직 플레이하지 않은 파이터가 {0}명 있습니다. 랭크 공개 경기를 처음 하면 포인트가 쌓이기 시작합니다."
-
 msgid "fighters.how"
 msgstr "포인트를 얻는 방법"
 
@@ -1239,6 +1236,15 @@ msgstr "시작일"
 
 msgid "fighters.main"
 msgstr "주 캐릭터"
+
+msgid "fighters.played_heading"
+msgstr "플레이함 · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "아직 안 함 · {0}"
+
+msgid "fighters.your_main"
+msgstr "내 주 캐릭터"
 
 msgid "online.title"
 msgstr "온라인 플레이"

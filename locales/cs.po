@@ -1222,9 +1222,6 @@ msgstr "Hraní bojovníci"
 msgid "card.of"
 msgstr "{0} z {1}"
 
-msgid "fighters.unplayed"
-msgstr "Bojovníci, kteří ještě nehráli: {0}. Každý začíná získávat body prvním veřejným hodnoceným zápasem."
-
 msgid "fighters.how"
 msgstr "Jak se body získávají"
 
@@ -1239,6 +1236,15 @@ msgstr "Od"
 
 msgid "fighters.main"
 msgstr "Hlavní"
+
+msgid "fighters.played_heading"
+msgstr "ODEHRANÉ · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "ZATÍM NEHRANÉ · {0}"
+
+msgid "fighters.your_main"
+msgstr "Váš hlavní"
 
 msgid "online.title"
 msgstr "HRA ONLINE"

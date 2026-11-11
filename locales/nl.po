@@ -1222,9 +1222,6 @@ msgstr "Gespeelde vechters"
 msgid "card.of"
 msgstr "{0} van {1}"
 
-msgid "fighters.unplayed"
-msgstr "{0} vechters nog niet gespeeld. Elke verdient punten met het eerste openbare potje met ranglijst."
-
 msgid "fighters.how"
 msgstr "Zo verdien je punten"
 
@@ -1239,6 +1236,15 @@ msgstr "Sinds"
 
 msgid "fighters.main"
 msgstr "Hoofd"
+
+msgid "fighters.played_heading"
+msgstr "GESPEELD · {0}"
+
+msgid "fighters.unplayed_heading"
+msgstr "NOG NIET GESPEELD · {0}"
+
+msgid "fighters.your_main"
+msgstr "Je hoofd"
 
 msgid "online.title"
 msgstr "ONLINE SPELEN"
