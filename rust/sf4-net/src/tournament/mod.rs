@@ -36,11 +36,14 @@ use std::{
 };
 
 use ember_protocol::{
-    EmberId, encoding::Counter, play::PublishRoom, report::Outcome as GameOutcome,
+    EmberId,
+    encoding::Counter,
+    friends::{FriendAction, FriendsSync as FriendsSyncBody},
+    levels::CardSelector,
+    play::PublishRoom,
+    report::Outcome as GameOutcome,
     skill::RankingChoice,
 };
-use friends::{FriendAction, FriendsSync as FriendsSyncBody};
-use levels::CardSelector;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::{Semaphore, mpsc};
@@ -400,6 +403,7 @@ pub enum Code {
     Corrupt,
     DiscordRequired,
     FileUnreadable,
+    FriendsUnavailable,
     IdentityBusy,
     IdentityUnavailable,
     Internal,
@@ -411,6 +415,7 @@ pub enum Code {
     InvalidRequest,
     InviteInvalid,
     Io,
+    LevelsUnavailable,
     MatchLeft,
     NotABridge,
     NotBound,
@@ -418,8 +423,6 @@ pub enum Code {
     OwnDelayUnsupported,
     PermitMismatch,
     PinnedBridgeMismatch,
-    FriendsUnavailable,
-    LevelsUnavailable,
     RankingUnavailable,
     ReplaysUnsupported,
     ReportNotSaved,
@@ -451,6 +454,7 @@ impl Code {
             Self::Corrupt => "corrupt",
             Self::DiscordRequired => "discord_required",
             Self::FileUnreadable => "file_unreadable",
+            Self::FriendsUnavailable => "friends_unavailable",
             Self::IdentityBusy => "identity_busy",
             Self::IdentityUnavailable => "identity_unavailable",
             Self::Internal => "internal",
@@ -462,6 +466,7 @@ impl Code {
             Self::InvalidRequest => "invalid_request",
             Self::InviteInvalid => "invite_invalid",
             Self::Io => "io",
+            Self::LevelsUnavailable => "levels_unavailable",
             Self::MatchLeft => "match_left",
             Self::NotABridge => "not_a_bridge",
             Self::NotBound => "not_bound",
@@ -1431,6 +1436,7 @@ mod tests {
             (Code::Corrupt, "corrupt"),
             (Code::DiscordRequired, "discord_required"),
             (Code::FileUnreadable, "file_unreadable"),
+            (Code::FriendsUnavailable, "friends_unavailable"),
             (Code::IdentityBusy, "identity_busy"),
             (Code::IdentityUnavailable, "identity_unavailable"),
             (Code::Internal, "internal"),
@@ -1442,6 +1448,7 @@ mod tests {
             (Code::InvalidRequest, "invalid_request"),
             (Code::InviteInvalid, "invite_invalid"),
             (Code::Io, "io"),
+            (Code::LevelsUnavailable, "levels_unavailable"),
             (Code::MatchLeft, "match_left"),
             (Code::NotABridge, "not_a_bridge"),
             (Code::NotBound, "not_bound"),
@@ -1449,8 +1456,6 @@ mod tests {
             (Code::OwnDelayUnsupported, "own_delay_unsupported"),
             (Code::PermitMismatch, "permit_mismatch"),
             (Code::PinnedBridgeMismatch, "pinned_bridge_mismatch"),
-            (Code::FriendsUnavailable, "friends_unavailable"),
-            (Code::LevelsUnavailable, "levels_unavailable"),
             (Code::RankingUnavailable, "ranking_unavailable"),
             (Code::ReplaysUnsupported, "replays_unsupported"),
             (Code::ReportNotSaved, "report_not_saved"),
