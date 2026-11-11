@@ -1,33 +1,33 @@
-//! Fighter levels (docs/design/FIGHTER_LEVELS.md): for each fighter a Discord
-//! account has played in counted public room games, its games and wins. A
-//! level is a grind value, never skill: it only goes up, and nothing of the
-//! rating is read to make it. `record_games` decides which games count; this
-//! module stores them and serves them.
+//! Fighter points (docs/design/FIGHTER_LEVELS.md): for each fighter a Discord
+//! account has played in counted public room games, its games and wins. The
+//! points, games plus wins, are a grind value, never skill: they only go up,
+//! and nothing of the rating is read to make them. `record_games` decides
+//! which games count; this module stores them and serves them.
 //!
-//! Only games and wins are stored. The curve (`floor`, `level`) lives here
-//! alone and is applied when a level is served, so it can be retuned without
-//! a data change or a client update.
+//! Only games and wins are stored. The tier thresholds (`TIER_STARTS`) live
+//! here alone and are applied when points are served, so they can be retuned
+//! without a data change or a client update.
 use ember_protocol::{
     EmberId,
-    levels::{CardFighter, MAX_LEVEL, OwnFighter, OwnLevels, PlayerCard, Relation},
+    levels::{CardFighter, OwnFighter, OwnLevels, PlayerCard, Relation},
 };
 use rusqlite::{Transaction, params};
 
 use super::{account, takes_part};
 use crate::error::Result;
 
-/// The points that reach `level`: (L - 1)(L + 3). Each step costs 2L + 3, 5
-/// for the first and 121 for the last.
-pub fn floor(level: u8) -> u64 {
-    let level = u64::from(level);
-    (level - 1) * (level + 3)
+/// The points where each tier begins, Ash to Ember: the frame colours of
+/// `v2::TierColor`. The one place the thresholds are written.
+const TIER_STARTS: [u64; 5] = [0, 200, 700, 1500, 2500];
+
+/// The tier `points` reach, 0 to `TIER_STARTS.len() - 1`.
+pub fn tier(points: u64) -> u8 {
+    TIER_STARTS.iter().rposition(|start| points >= *start).unwrap_or(0) as u8
 }
 
-/// The level `points` reach, 1 to `MAX_LEVEL`. `floor(L) + 4` is `(L + 1)²`,
-/// so the level is the integer square root of `points + 4`, less one.
-pub fn level(points: u64) -> u8 {
-    let reached = points.saturating_add(4).isqrt() - 1;
-    reached.min(u64::from(MAX_LEVEL)) as u8
+/// The points where the tier after `tier` begins; none at the last tier.
+pub fn next(tier: u8) -> Option<u64> {
+    TIER_STARTS.get(usize::from(tier) + 1).copied()
 }
 
 /// Counts a game for `account` on `fighter`, won or not.
@@ -48,7 +48,7 @@ pub(super) fn count(
     Ok(())
 }
 
-/// The levels of the player as `ember_id`, for themselves: every fighter,
+/// The points of the player as `ember_id`, for themselves: every fighter,
 /// whether or not others see them.
 pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
     let Some(account) = account(tx, ember_id)? else {
@@ -61,7 +61,7 @@ pub fn own(tx: &Transaction<'_>, ember_id: &EmberId) -> Result<OwnLevels> {
 }
 
 /// The card of Discord account `account` as another player sees it: its
-/// levels while it takes part in ranking (FIGHTER_LEVELS.md, Privacy), and
+/// points while it takes part in ranking (FIGHTER_LEVELS.md, Privacy), and
 /// None once it has no Discord account connected. Its relation is `none`;
 /// the card look-up sets the caller's own (`friends::store::relation`).
 pub fn card(tx: &Transaction<'_>, account: &str) -> Result<Option<PlayerCard>> {
@@ -93,29 +93,31 @@ struct Counted {
 }
 
 impl Counted {
-    fn level(&self) -> u8 {
-        level(self.games.saturating_add(self.wins))
+    fn points(&self) -> u64 {
+        self.games.saturating_add(self.wins)
     }
 
     fn own(&self) -> OwnFighter {
-        let level = self.level();
+        let points = self.points();
+        let tier = tier(points);
         OwnFighter {
             fighter: self.fighter,
-            level,
+            points,
             games: self.games,
             wins: self.wins,
-            floor: floor(level),
-            next: (level < MAX_LEVEL).then(|| floor(level + 1)),
+            tier,
+            next: next(tier),
             since: self.first_at,
         }
     }
 
-    /// Never the wins, the points or the floor: points less games are wins.
+    /// Never the wins or the games, which the points only sum.
     fn card(&self) -> CardFighter {
+        let points = self.points();
         CardFighter {
             fighter: self.fighter,
-            level: self.level(),
-            games: self.games,
+            points,
+            tier: tier(points),
         }
     }
 }
@@ -144,33 +146,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_curve_is_the_designs_table() {
-        for (level, points) in [
-            (1, 0),
-            (2, 5),
-            (13, 192),
-            (25, 672),
-            (37, 1440),
-            (49, 2496),
-            (60, 3717),
+    fn a_tier_starts_at_its_threshold_and_ends_one_point_before_the_next() {
+        for (points, want) in [
+            (0, 0),
+            (199, 0),
+            (200, 1),
+            (699, 1),
+            (700, 2),
+            (1499, 2),
+            (1500, 3),
+            (2499, 3),
+            (2500, 4),
+            (1_000_000, 4),
+            (u64::MAX, 4),
         ] {
-            assert_eq!(floor(level), points, "level {level}");
+            assert_eq!(tier(points), want, "{points} points");
         }
-        assert_eq!(floor(2) - floor(1), 5);
-        assert_eq!(floor(60) - floor(59), 121);
     }
 
     #[test]
-    fn a_level_starts_at_its_floor_and_ends_one_point_before_the_next() {
-        assert_eq!(level(0), 1);
-        for at in 1..MAX_LEVEL {
-            assert_eq!(level(floor(at)), at);
-            assert_eq!(level(floor(at + 1) - 1), at);
+    fn the_next_tier_is_the_next_threshold_and_the_top_has_none() {
+        let thresholds = [200, 700, 1500, 2500];
+        for (tier, start) in thresholds.into_iter().enumerate() {
+            assert_eq!(next(tier as u8), Some(start));
         }
-        assert_eq!(level(floor(MAX_LEVEL)), MAX_LEVEL);
-        // Past the last level's floor it stays the last, for any count.
-        assert_eq!(level(floor(MAX_LEVEL) + 10_000), MAX_LEVEL);
-        assert_eq!(level(u64::MAX), MAX_LEVEL);
+        assert_eq!(next(4), None);
     }
 
     #[test]
@@ -181,7 +181,7 @@ mod tests {
             wins,
             first_at: 1_729_468_800,
         };
-        for games in 1..=2_600 {
+        for games in 1..=1_400 {
             for wins in [0, games / 2, games] {
                 let counted = row(games, wins);
                 let own = counted.own();
@@ -189,10 +189,12 @@ mod tests {
                 assert!(counted.card().check().is_ok());
             }
         }
-        // The top level has no next level.
+        // The top tier has no next tier.
         let top = row(2_500, 1_300).own();
-        assert_eq!((top.level, top.next), (MAX_LEVEL, None));
+        assert_eq!((top.points, top.tier, top.next), (3_800, 4, None));
         let first = row(1, 0).own();
-        assert_eq!((first.level, first.floor, first.next), (1, 0, Some(5)));
+        assert_eq!((first.points, first.tier, first.next), (1, 0, Some(200)));
+        let edge = row(100, 100).own();
+        assert_eq!((edge.points, edge.tier, edge.next), (200, 1, Some(700)));
     }
 }
