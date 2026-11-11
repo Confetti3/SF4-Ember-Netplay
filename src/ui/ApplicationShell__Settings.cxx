@@ -479,6 +479,8 @@ public:
         }
         const Tab* tab = TabOf(f.screen);
         if (!tab) return;
+        // The Friends panel's chips (Appearing offline, not updated) show on it as on the tab.
+        if (f.rows && f.screen == FriendsPanel::SettingsScreen) f.shell.friends_.Dress(f.view, f.screen, *f.rows, menu);
         // Settings · Tab, and · Panel while one is open.
         menu.eyebrow = std::string(loc::T("home.settings")) + " \xC2\xB7 " + loc::T(tab->label);
         if (const BuiltPanel* open = Built(s, f.screen)) menu.eyebrow += std::string(" \xC2\xB7 ") + loc::T(open->panel->heading);

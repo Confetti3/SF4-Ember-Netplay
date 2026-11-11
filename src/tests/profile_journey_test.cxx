@@ -212,7 +212,12 @@ void AwardsJourney() {
   for (int i = 0; i < right; ++i) j.h.Press(MenuInput::Right);
   j.h.Press(MenuInput::Select);
   j.h.Frame(0, 40);
-  return Last<commands::SavePreferences>(j.h.actions);
+  const auto* sent = Last<commands::SavePreferences>(j.h.actions);
+  // A copy, because the frames that follow may add to the actions. The runtime
+  // applies a save before the next one can go out.
+  const auto save = sent ? std::make_shared<commands::SavePreferences>(*sent) : nullptr;
+  if (save) { j.h.view.preferences = save->preferences; j.h.Frame(0, 2); }
+  return save;
  };
  auto save = pick("award:entrant", 0);
  Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon != "entrant", "Wear title did not wear only the title");
