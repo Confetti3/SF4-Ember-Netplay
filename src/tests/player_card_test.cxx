@@ -132,6 +132,8 @@ void Distances() {
     Check(Part(level) == 1.f, "points at the next tier's start are not the whole way");
 }
 
+}
+
 int main() {
     PlayedOrder();
     Strip();
