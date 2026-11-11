@@ -16,6 +16,8 @@ use ember_protocol::{
         Permit, Prepare, PrepareAnswer, PublishRoom, SignedBinding, SignedPermit, TABLE,
         WATCH_FEATURE,
     },
+    friends::FRIENDS_FEATURE,
+    levels::LEVELS_FEATURE,
     report::Outcome as GameOutcome,
     skill::RANKING_FEATURE,
 };
@@ -62,6 +64,10 @@ pub(super) struct Features {
     /// It serves the ranking routes and reads a ticket request's
     /// `developer_badge`.
     pub ranking: bool,
+    /// It serves the level routes and reads a ticket request's `card`.
+    pub levels: bool,
+    /// It serves the friends routes.
+    pub friends: bool,
     /// It reads a claim's `held_binding` and may answer it `Unchanged`.
     pub unchanged: bool,
 }
@@ -73,6 +79,8 @@ impl Features {
             ready: lists(CLAIM_READY_FEATURE),
             watch: lists(WATCH_FEATURE),
             ranking: lists(RANKING_FEATURE),
+            levels: lists(LEVELS_FEATURE),
+            friends: lists(FRIENDS_FEATURE),
             unchanged: lists(CLAIM_UNCHANGED_FEATURE),
         }
     }
@@ -87,6 +95,10 @@ pub(super) enum Need {
     Ready,
     /// The watch routes.
     Watch,
+    /// The level routes.
+    Levels,
+    /// The friends routes.
+    Friends,
 }
 
 impl Need {
@@ -95,6 +107,8 @@ impl Need {
             Self::Nothing => true,
             Self::Ready => offered.ready,
             Self::Watch => offered.watch,
+            Self::Levels => offered.levels,
+            Self::Friends => offered.friends,
         }
     }
 }
