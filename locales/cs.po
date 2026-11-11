@@ -1093,9 +1093,6 @@ msgstr "Přátelé přijdou v této verzi."
 msgid "card.edit"
 msgstr "Upravit kartu"
 
-msgid "card.class"
-msgstr "Třída"
-
 msgid "card.account"
 msgstr "Účet"
 
@@ -8307,12 +8304,6 @@ msgstr "Předchozí krok"
 
 msgid "screen.awards"
 msgstr "Ocenění"
-
-msgid "awards.titles"
-msgstr "Tituly"
-
-msgid "awards.icons"
-msgstr "Ikony"
 
 msgid "awards.card"
 msgstr "Tvoje karta"

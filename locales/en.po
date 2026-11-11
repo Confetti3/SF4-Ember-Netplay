@@ -1093,9 +1093,6 @@ msgstr "Friends are coming in this build."
 msgid "card.edit"
 msgstr "Edit card"
 
-msgid "card.class"
-msgstr "Class"
-
 msgid "card.account"
 msgstr "Account"
 
@@ -7929,12 +7926,6 @@ msgstr "Previous step"
 
 msgid "screen.awards"
 msgstr "Awards"
-
-msgid "awards.titles"
-msgstr "Titles"
-
-msgid "awards.icons"
-msgstr "Icons"
 
 msgid "awards.card"
 msgstr "Your card"

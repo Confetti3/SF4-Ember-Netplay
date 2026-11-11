@@ -1093,9 +1093,6 @@ msgstr "フレンド機能はこのビルドで追加されます。"
 msgid "card.edit"
 msgstr "カードを編集"
 
-msgid "card.class"
-msgstr "クラス"
-
 msgid "card.account"
 msgstr "アカウント"
 
@@ -8308,12 +8305,6 @@ msgstr "前のステップ"
 
 msgid "screen.awards"
 msgstr "アワード"
-
-msgid "awards.titles"
-msgstr "称号"
-
-msgid "awards.icons"
-msgstr "アイコン"
 
 msgid "awards.card"
 msgstr "あなたのカード"

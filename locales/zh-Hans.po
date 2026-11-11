@@ -1093,9 +1093,6 @@ msgstr "好友功能将在此版本推出。"
 msgid "card.edit"
 msgstr "编辑名片"
 
-msgid "card.class"
-msgstr "段位"
-
 msgid "card.account"
 msgstr "账号"
 
@@ -8308,12 +8305,6 @@ msgstr "上一步"
 
 msgid "screen.awards"
 msgstr "奖励"
-
-msgid "awards.titles"
-msgstr "称号"
-
-msgid "awards.icons"
-msgstr "图标"
 
 msgid "awards.card"
 msgstr "你的名片"

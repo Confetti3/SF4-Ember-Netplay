@@ -1093,9 +1093,6 @@ msgstr "친구 기능은 이 빌드에서 추가됩니다."
 msgid "card.edit"
 msgstr "카드 편집"
 
-msgid "card.class"
-msgstr "등급"
-
 msgid "card.account"
 msgstr "계정"
 
@@ -8308,12 +8305,6 @@ msgstr "이전 단계"
 
 msgid "screen.awards"
 msgstr "어워드"
-
-msgid "awards.titles"
-msgstr "칭호"
-
-msgid "awards.icons"
-msgstr "아이콘"
 
 msgid "awards.card"
 msgstr "내 카드"

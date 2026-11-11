@@ -1093,9 +1093,6 @@ msgstr "Los amigos llegan en esta versión."
 msgid "card.edit"
 msgstr "Editar tarjeta"
 
-msgid "card.class"
-msgstr "Clase"
-
 msgid "card.account"
 msgstr "Cuenta"
 
@@ -7839,12 +7836,6 @@ msgstr "Paso anterior"
 
 msgid "screen.awards"
 msgstr "Premios"
-
-msgid "awards.titles"
-msgstr "Títulos"
-
-msgid "awards.icons"
-msgstr "Íconos"
 
 msgid "awards.card"
 msgstr "Tu tarjeta"

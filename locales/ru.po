@@ -1093,9 +1093,6 @@ msgstr "Друзья появятся в этой версии."
 msgid "card.edit"
 msgstr "Изменить карточку"
 
-msgid "card.class"
-msgstr "Класс"
-
 msgid "card.account"
 msgstr "Аккаунт"
 
@@ -8307,12 +8304,6 @@ msgstr "Предыдущий шаг"
 
 msgid "screen.awards"
 msgstr "Награды"
-
-msgid "awards.titles"
-msgstr "Титулы"
-
-msgid "awards.icons"
-msgstr "Значки"
 
 msgid "awards.card"
 msgstr "Твоя карточка"

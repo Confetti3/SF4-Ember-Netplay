@@ -1093,9 +1093,6 @@ msgstr "Vrienden komen in deze versie."
 msgid "card.edit"
 msgstr "Kaart bewerken"
 
-msgid "card.class"
-msgstr "Klasse"
-
 msgid "card.account"
 msgstr "Account"
 
@@ -8307,12 +8304,6 @@ msgstr "Vorige stap"
 
 msgid "screen.awards"
 msgstr "Onderscheidingen"
-
-msgid "awards.titles"
-msgstr "Titels"
-
-msgid "awards.icons"
-msgstr "Iconen"
 
 msgid "awards.card"
 msgstr "Jouw kaart"
