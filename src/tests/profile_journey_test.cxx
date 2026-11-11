@@ -101,6 +101,8 @@ void FightersJourney() {
  j.h.Frame(0, 40);
  const auto* save = Last<commands::SavePreferences>(j.h.actions);
  Check(save && save->preferences.mainFighter == 12, "Select on a fighter did not save it as the main");
+ // The runtime applies the save before the next one can go out.
+ if (save) { j.h.view.preferences = save->preferences; j.h.Frame(0, 2); }
  // So does one never played: its tile is there at 0 points.
  const auto* unplayed = j.row("main-3");
  Check(unplayed && unplayed->enabled, "A fighter not played cannot be chosen");
