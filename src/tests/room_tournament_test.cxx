@@ -827,7 +827,7 @@ static void TestCasualRoomsNeedNoPermit() {
 // A tournament match is never played in a Practice room, whose games are not
 // scored as a match's; a room a binding is accepted by is not one.
 static void TestPracticeRoomsTakeNoBinding() {
-	RoomAuthority practice("Practice", 8, 1, Rules(), true);
+	RoomAuthority practice("Practice", 8, 1, Rules(), Charter{RoomType::Classic, true});
 	EXPECT(Join(practice, 0, true));
 	const auto refused = practice.BindTournament(Binding());
 	EXPECT(!refused.accepted && refused.reason == RejectReason::Unauthorized && !practice.SnapshotView().tournament.Active());

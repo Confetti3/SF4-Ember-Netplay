@@ -6,17 +6,9 @@ namespace sf4e { namespace room {
 
 class RoomAuthority {
 public:
-	// practice, delayPolicy and arcade are the room's for its life
-	// (Snapshot::practice, Snapshot::delayPolicy, Snapshot::arcade); nothing
-	// changes them later. tableCount is how many tables the room starts
-	// with (Snapshot::tableCount), which its host can change (SetTableCount);
-	// out of range it is ClassicTableCount. wiredOnly is the room's Wired
-	// players only rule (Snapshot::wiredOnly), which its host can change
-	// (SetWiredOnly).
+	// The room starts as `charter` says (Charter), every table with `defaults`.
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
-		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
-		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom,
-		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false);
+		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), Charter charter = Charter());
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }

@@ -260,16 +260,16 @@ void PracticeRoomCreate() {
  Check(row("room-type")->value==loc::T("room.type.arcade")&&row("room-type")->detail==loc::T("room.type.arcade_detail"),"Room type did not turn to Arcade");
  Check(row("set-length")!=rows.end()&&row("rotation")==rows.end(),"An Arcade room offered who stays after a set");
  h.Choose("host");
- Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().arcadeRoom==room::ArcadeRoom,"Create room did not ask for an Arcade room");
+ Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().arcadeRoom==room::RoomType::Arcade,"Create room did not ask for an Arcade room");
  h.Screen("online");h.Choose("create");
  Check(row("room-type")->value==loc::T("room.type.classic"),"Arcade was still chosen when Create opened again");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ClassicRoom,"A Classic room asked to be an Arcade room");
+ Check(h.actions.back().arcadeRoom==room::RoomType::Classic,"A Classic room asked to be an Arcade room");
  // King of the hill is the third type; nothing else about the layout is asked.
  h.Screen("online");h.Choose("create");h.FocusOn("room-type");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Right);
  Check(row("room-type")->value==loc::T("room.type.king")&&row("arcade-view")==rows.end(),"Room type did not step to King of the hill");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::KingRoom,"Create room did not ask for King of the hill");
+ Check(h.actions.back().arcadeRoom==room::RoomType::King,"Create room did not ask for King of the hill");
  // A public room may have any type but is never a Practice room; the gameplay defaults offer neither.
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("practice-room")==rows.end()&&row("room-type")!=rows.end()&&row("time")!=rows.end(),"Public Create offered Practice room, or no room type");
@@ -383,7 +383,7 @@ void TableCountCreate() {
  h.FocusOn("tables");for(int i=0;i<8;++i)h.Press(MenuInput::Left);
  Check(row("tables")->value=="1","An Arcade room's tables did not stop at one");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==1,"An Arcade room did not ask for one table");
+ Check(h.actions.back().arcadeRoom==room::RoomType::Arcade&&h.actions.back().tableCount==1,"An Arcade room did not ask for one table");
  Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"An Arcade room's count reached the Classic default");
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("tables")==rows.end(),"Public Create offered a table count");
@@ -406,7 +406,7 @@ void TableCountCreate() {
  Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::RoomAction&&h.actions.back().roomAction.kind==room::ActionKind::SetTableCount&&
   h.actions.back().roomAction.tableCount==7,"Apply tables did not send the count");
  // A private Arcade room's host changes its count too; a public one keeps it.
- h.view.room.arcade=room::ArcadeRoom;h.Frame();
+ h.view.room.type=room::RoomType::Arcade;h.Frame();
  Check(row("room-tables")!=rows.end(),"A private Arcade room's settings did not offer a table count");
  h.view.room.serverOwned=true;h.Frame();
  Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"A public Arcade room's settings offered a table count");

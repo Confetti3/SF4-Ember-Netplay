@@ -167,17 +167,22 @@ inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
     return Value("practice-room",loc::T("room.practice"),loc::T(on?"common.on":"common.off"),
         loc::Tf("room.practice.detail",room::PracticeRoundTime),enabled);
 }
-// A room type's name (Classic, Arcade, King of the hill) and how it plays, wherever a room's
-// type is shown: Create's row, the public room list and a public room's status line.
-inline const char* RoomTypeName(room::RoomType type) {
-    static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
-    return loc::T(names[type]);
+// A room type's words, the text keys of each room::RoomType: its name (Classic,
+// Arcade, King of the hill) and how it plays, wherever a room's type is shown
+// (Create's row, the public room list and a public room's status line), and a
+// private room's status line, open and locked. Out of range, which no room
+// holds, Arcade's, as any type but Classic read before.
+struct RoomTypeWords { const char* name; const char* detail; const char* status; const char* lockedStatus; };
+inline const RoomTypeWords& WordsOf(room::RoomType type) {
+    static const RoomTypeWords words[]={
+        {"room.type.classic","room.type.classic_detail","room.private_status","room.locked_status"},
+        {"room.type.arcade","room.type.arcade_detail","room.arcade_status","room.arcade_locked_status"},
+        {"room.type.king","room.type.king_detail","room.king_status","room.king_locked_status"}};
+    return words[room::ValidRoomType(static_cast<int>(type))?static_cast<std::size_t>(type):static_cast<std::size_t>(room::RoomType::Arcade)];
 }
-inline const char* RoomTypeDetail(room::RoomType type) {
-    static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
-    return loc::T(details[type]);
-}
-// Create's choice of the room's type, fixed for its life (room::Snapshot::arcade).
+inline const char* RoomTypeName(room::RoomType type) { return loc::T(WordsOf(type).name); }
+inline const char* RoomTypeDetail(room::RoomType type) { return loc::T(WordsOf(type).detail); }
+// Create's choice of the room's type, fixed for its life (room::Snapshot::type).
 inline MenuEntry RoomTypeRow(room::RoomType type,bool enabled) {
     return Value("room-type",loc::T("room.type"),RoomTypeName(type),RoomTypeDetail(type),enabled);
 }

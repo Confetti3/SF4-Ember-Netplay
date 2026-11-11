@@ -20,7 +20,7 @@
 // own question instead: Rematch or New opponent.
 // Back to room never gives up the seat, so a Back mashed through the WIN costs
 // nothing; leaving it is the board's Leave seat. No answer gives it up only
-// where a set hands seats over by the queue (KeepsSeat).
+// where a set hands seats over by the queue (room::KeepsSeatAfterGame).
 //
 // Under the player's own answer, their Ultra for the next game: Left and Right
 // step it, through the same pick the room's rows step, until they answer
@@ -56,31 +56,6 @@ bool KeeperKnown(const room::Table& t, std::uint64_t generation) {
     if (ResultIn(t, generation)) return true;
     return t.rules.format != room::SetFormat::Unlimited &&
         (std::max)(t.score[0], t.score[1]) + 1 < static_cast<std::uint32_t>(t.rules.format);
-}
-// The game's two seats: the set's, once the room recorded the set it ended
-// (its rotation has moved them since), else the table's own.
-std::pair<room::MemberId, room::MemberId> GameSeats(const room::Table& t, std::uint64_t generation) {
-    return t.lastSet.generation == generation ? std::make_pair(t.lastSet.p1, t.lastSet.p2) : std::make_pair(t.p1, t.p2);
-}
-// Whether the set's rotation keeps `member` seated (room::RotationKeeps).
-// Before the room has the result, the result names the winner.
-bool RotationKeepsMember(const room::Table& t, std::uint64_t generation, room::MatchResult result, room::MemberId member) {
-    const int winnerSeat = t.lastSet.generation == generation ? t.lastSet.winnerSeat :
-        result == room::MatchResult::P1Win ? 0 : result == room::MatchResult::P2Win ? 1 : -1;
-    const auto [p1, p2] = GameSeats(t, generation);
-    if (!member || winnerSeat < 0 || (member != p1 && member != p2)) return false;
-    return room::RotationKeeps(t.rules.rotation, member == (winnerSeat == 0 ? p1 : p2));
-}
-// No answer gives the seat to whoever waits only in a Classic room after a
-// set, and only from a player the rotation moves on: the one it keeps stays
-// for the next challenger. An Arcade or King of the hill room keeps everyone at
-// their cabinet and rotates them itself (ArcadeSetEnded); a set's game keeps
-// both seats: a set one the room has recorded as ended, or that its result
-// ends, is over (room::StandingAfter).
-bool KeepsSeat(const room::Snapshot& room, const room::Table& t, std::uint64_t generation, room::MatchResult result) {
-    if (room.arcade != room::ClassicRoom) return true;
-    if (t.rules.format == room::SetFormat::Unlimited) return false;
-    return !room::StandingAfter(room, t, generation, result).over || RotationKeepsMember(t, generation, result, room.localMember);
 }
 // The glyph of the press each button answers to, drawn on it; none where the
 // device has no such button (MenuShortcutGlyph).
@@ -140,7 +115,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
             prompt.until = now + PostMatchSeconds;
             prompt.failures = v.readyFailureSequence;
             // A set the result has already ended rotated its seats: the opponent is the set's.
-            const auto [p1, p2] = GameSeats(t, fought.generation);
+            const auto [p1, p2] = room::GameSeats(t, fought.generation);
             prompt.opponent = p1 == snapshot.localMember ? p2 : p2 == snapshot.localMember ? p1 : 0;
             if (prompt.opponent) {
                 postMatch_ = prompt; afterPostMatch_ = AfterPostMatch::None;
@@ -198,7 +173,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         else if (!p.starting && ready && theirs >= 0) { if (now >= p.until + StartGraceSeconds) ClosePostMatch(v, AfterPostMatch::None, open); }
         // A WIN cut short ends the game before the timer: no answer by then is no answer.
         else if (!p.starting && (now >= p.until || ready || (!Fighting(v.session.match) && v.atMainMenu)))
-            ClosePostMatch(v, ready || p.answered || KeepsSeat(snapshot, t, p.generation, p.result) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
+            ClosePostMatch(v, ready || p.answered || room::KeepsSeatAfterGame(snapshot, t, p.generation, p.result, snapshot.localMember) ? AfterPostMatch::None : AfterPostMatch::LeaveSeat, open);
     }
     // What the prompt left to do waits for the game's end, in the room.
     if (!open || postMatch_ || afterPostMatch_ == AfterPostMatch::None || Fighting(v.session.match) || !v.atMainMenu) return;
@@ -239,7 +214,7 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     // room). A pair still seated together (nobody else to play, or the result
     // still on its way, as in an Unlimited game that may go on in place) has
     // the ordinary Rematch, as a Classic pair does.
-    const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
+    const bool cabinets = room::RulesOf(v.room).cabinets && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
     // Rematch and New opponent, and Y, follow the pair's answers as the
     // cabinet and the room's bar offer them (DescribeArcadeChoice).
@@ -323,7 +298,7 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     const bool keeps = KeeperKnown(t, p.generation) && room::KeepsFighter(v.room, v.room.localMember);
     rows.push_back(Row("fighter", loc::T("postmatch.character_select"),
         rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left));
-    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(KeepsSeat(v.room, t, p.generation, p.result) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
+    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(room::KeepsSeatAfterGame(v.room, t, p.generation, p.result, v.room.localMember) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
     // The Ultra is the one row after the buttons, so Left and Right step it
     // (a footer row, MenuGridCells) and the bar's own walk stays as it was.
     // It shows while it can change, and once Rematch has set it; where it

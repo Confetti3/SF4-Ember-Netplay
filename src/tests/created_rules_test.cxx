@@ -230,14 +230,14 @@ static void TestEachTableAndItsName() {
 // room shows the type, and the operation is then done.
 static void TestRoomType() {
 	Room room;
-	room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::KingRoom);
+	room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::RoomType::King);
 	room::Action sent;
-	CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType && sent.roomType == room::KingRoom);
+	CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType && sent.roomType == room::RoomType::King);
 	CHECK(room.Run(CreatedRules::RetryMs - 16).empty());
 	CHECK(room.authority.Apply(room.creator, sent).accepted);
 	CHECK(room.Run(32).empty() && !room.rules.Active() && std::string(room.rules.Ended()) == "done");
 	const auto& shown = room.authority.SnapshotView();
-	CHECK(shown.arcade == room::KingRoom && shown.tables[7].rules == Chosen());
+	CHECK(shown.type == room::RoomType::King && shown.tables[7].rules == Chosen());
 }
 
 // A Wired players only rule chosen on Create: one SetWiredOnly once the type
@@ -245,7 +245,7 @@ static void TestRoomType() {
 static void TestWiredOnly() {
 	{
 		Room room;
-		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ArcadeRoom, true);
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::RoomType::Arcade, true);
 		room::Action sent;
 		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRoomType);
 		CHECK(room.Apply(sent));
@@ -257,7 +257,7 @@ static void TestWiredOnly() {
 	{
 		// A Classic room's tables follow it.
 		Room room;
-		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ClassicRoom, true);
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::RoomType::Classic, true);
 		room::Action sent;
 		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetWiredOnly);
 		CHECK(room.Apply(sent));
@@ -269,14 +269,14 @@ static void TestWiredOnly() {
 		auto on = room.Made(room.creator, 0, room::ActionKind::SetWiredOnly);
 		on.wiredOnly = true;
 		CHECK(room.Apply(on));
-		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ClassicRoom, true);
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::RoomType::Classic, true);
 		room::Action sent;
 		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules);
 	}
 	{
 		// The host's own SetWiredOnly makes the rule theirs.
 		Room room;
-		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::ClassicRoom, true);
+		room.rules.Start(netplay::TableSetup::Same(Chosen()), room.now, room::RoomType::Classic, true);
 		room.rules.ObservePlayer(room.Made(room.creator, 0, room::ActionKind::SetWiredOnly));
 		room::Action sent;
 		CHECK(room.Tick(sent) && sent.kind == room::ActionKind::SetRules && room.rules.Active());

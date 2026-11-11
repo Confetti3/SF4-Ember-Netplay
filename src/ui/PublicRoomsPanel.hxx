@@ -98,7 +98,7 @@ public:
     // and so do its type, its Wired players only rule and how many tables an
     // Arcade room plays at.
     void Create(const std::string& name, int capacity, const netplay::TableSetup& tables, room::DelayPolicy delayPolicy,
-        room::RoomType type = room::ClassicRoom, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount);
+        room::RoomType type = room::RoomType::Classic, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount);
     // A create or ticket request is waiting to be sent or answered.
     bool Busy() const { return pending_.has_value(); }
     // What a pending request or refresh says on `screen`, and the list's own
@@ -144,7 +144,7 @@ private:
         double sentAt = 0;
         // A create's chosen tables, room type and Wired players only rule.
         std::optional<netplay::TableSetup> createdRules;
-        room::RoomType createdType = room::ClassicRoom;
+        room::RoomType createdType = room::RoomType::Classic;
         bool createdWiredOnly = false;
         std::uint8_t createdTableCount = room::TableCount;
     };

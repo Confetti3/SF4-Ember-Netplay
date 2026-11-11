@@ -458,11 +458,14 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
 		}
 		runtime->displayName = runtime->preferences.displayName;
 		runtime->error.clear(); runtime->offlineRequested = false;
-		runtime->practiceRoom = decision.effect == netplay::Effect::HostRoom && command.practiceRoom;
-		runtime->arcadeRoom = decision.effect == netplay::Effect::HostRoom ? command.arcadeRoom : room::ClassicRoom;
-		runtime->delayPolicy = decision.effect == netplay::Effect::HostRoom ? command.delayPolicy : room::DelayPolicy::Shared;
-		runtime->tableCount = decision.effect == netplay::Effect::HostRoom ? command.tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
-		runtime->wiredOnly = decision.effect == netplay::Effect::HostRoom && command.wiredOnly;
+		runtime->charter = room::Charter();
+		if (decision.effect == netplay::Effect::HostRoom) {
+			runtime->charter.type = command.arcadeRoom;
+			runtime->charter.practice = command.practiceRoom;
+			runtime->charter.delayPolicy = command.delayPolicy;
+			runtime->charter.tableCount = command.tableCount;
+			runtime->charter.wiredOnly = command.wiredOnly;
+		}
 		// A public room's admission carries the bridge's signed ticket, which the
 		// helper presents to the room host; a ticket that is not an object is no admission.
 		const auto ticket = command.publicTicket.empty() ? nlohmann::json() : nlohmann::json::parse(command.publicTicket, nullptr, false);
@@ -492,11 +495,7 @@ static DispatchOutcome Handle(commands::Room& command, bool helperReady, Attempt
     case netplay::Effect::ReplaceRoom:
         runtime->replacementPending=true;
         // The replacement is the same kind of room as the one it replaces.
-        runtime->practiceRoom=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().practice;
-        runtime->arcadeRoom=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().arcade : room::ClassicRoom;
-        runtime->delayPolicy=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().delayPolicy : room::DelayPolicy::Shared;
-        runtime->tableCount=UserApp::netplay ? UserApp::netplay->client.GetRoomSnapshot().tableCount : static_cast<std::uint8_t>(room::ClassicTableCount);
-        runtime->wiredOnly=UserApp::netplay && UserApp::netplay->client.GetRoomSnapshot().wiredOnly;
+        runtime->charter=UserApp::netplay ? room::CharterOf(UserApp::netplay->client.GetRoomSnapshot()) : room::Charter();
         CancelDeferredGgpoClose();
         Game::Battle::System::RetireGgpoSession("replacement_room");
         if(runtime->match) runtime->match->BeginReplacement();

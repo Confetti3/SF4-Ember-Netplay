@@ -123,6 +123,47 @@ inline bool ProbePairCommitted(const Table& seen, const Table& committed) {
 		seen.p1 == committed.p1 && seen.p2 == committed.p2;
 }
 
+// What a room type allows: the one place each of its rules is decided. Code
+// that behaves differently by room type asks RulesOf for the rule, never the
+// type itself, so a type added later is a row here.
+struct TypeRules {
+	// Members sit at one-player cabinets (Snapshot::cabinets) and play whoever
+	// has waited longest at whichever table is free: a Queue or Unqueue names a
+	// cabinet, no table has a queue, whoever finds no table waits in line, and
+	// a pair still together after a set chooses Rematch or New opponent.
+	// Otherwise each table seats from its own queue and rotates after a set.
+	bool cabinets;
+	// Every table's rules are the room's, set when it is created; no SetRules.
+	bool rulesFixed;
+	// A set ends after at least one game, even with no set length (SetGoal).
+	bool setAlwaysEnds;
+	// A set's winner stays for the next challenger: cabinets count the sets
+	// won in a row, and the longest streak holds the top slot.
+	bool winnerStays;
+	// The rules may keep a set's winner on their fighter (Rules::winnerKeepsFighter).
+	bool keeperOption;
+	// A tournament's binding may make the room its match's.
+	bool tournamentBindable;
+	// How many tables it plays at unless created with another count.
+	std::uint8_t defaultTableCount;
+};
+// The rules of `type`. Out of range, which no snapshot or action holds
+// (ArcadeKindValid, ValidRoomType), they are Arcade's, as for any type but
+// Classic before there was a table.
+inline const TypeRules& RulesOf(RoomType type) {
+	//                                 cabinets rulesFixed setAlwaysEnds winnerStays keeperOption tournamentBindable defaultTableCount
+	static const TypeRules classic = {false,   false,     false,        false,      false,       true,              static_cast<std::uint8_t>(ClassicTableCount)};
+	static const TypeRules arcade =  {true,    true,      true,         false,      true,        false,             static_cast<std::uint8_t>(TableCount)};
+	static const TypeRules king =    {true,    true,      true,         true,       true,        false,             static_cast<std::uint8_t>(TableCount)};
+	switch (type) {
+	case RoomType::Classic: return classic;
+	case RoomType::Arcade: return arcade;
+	case RoomType::King: return king;
+	}
+	return arcade;
+}
+inline const TypeRules& RulesOf(const Snapshot& room) { return RulesOf(room.type); }
+
 // Only a player creates a Practice room, so it is never public (server
 // owned) or a tournament's. Every snapshot read from the wire or a
 // checkpoint holds to it, as the actions that make the other kinds do.
@@ -132,8 +173,16 @@ inline bool PracticeKindValid(const Snapshot& room) {
 // How many tables a room plays at unless it was created with another count:
 // four for Classic, all eight for Arcade and King of the hill, as before
 // either could choose.
-inline std::uint8_t DefaultTableCount(RoomType type) {
-	return static_cast<std::uint8_t>(type == ClassicRoom ? ClassicTableCount : TableCount);
+inline std::uint8_t DefaultTableCount(RoomType type) { return RulesOf(type).defaultTableCount; }
+// The room `room` is now, as a Charter: what a room replacing it is created as.
+inline Charter CharterOf(const Snapshot& room) {
+	Charter charter;
+	charter.type = room.type;
+	charter.practice = room.practice;
+	charter.delayPolicy = room.delayPolicy;
+	charter.tableCount = room.tableCount;
+	charter.wiredOnly = room.wiredOnly;
+	return charter;
 }
 // The tables a room's members can sit at, watch or set rules for; the others
 // stay empty. How many is the room's (Snapshot::tableCount).
@@ -185,10 +234,13 @@ inline ArcadeNewOpponent ArcadeNewOpponentFor(const Snapshot& room, std::size_t 
 	return ArcadeAsker(room, table).member ? ArcadeNewOpponent::Swap : ArcadeNewOpponent::Wait;
 }
 
-// An Arcade room, public or private, is never a tournament's and seats from no
-// table's queue.
+// A room of a known type, bound to a tournament only if its type may be, and
+// with no table queue if it seats by cabinet. Every snapshot read from the
+// wire or a checkpoint holds to it.
 inline bool ArcadeKindValid(const Snapshot& room) {
-	return !room.arcade || (room.arcade <= KingRoom && !room.tournament.Active() &&
+	if (!ValidRoomType(static_cast<int>(room.type))) return false;
+	const auto& rules = RulesOf(room);
+	return (rules.tournamentBindable || !room.tournament.Active()) && (!rules.cabinets ||
 		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));
 }
 
@@ -258,7 +310,7 @@ inline bool TableCountChangeable(const Snapshot& room) {
 // Whether Create offers the count for the room it is about to open: a private
 // room, and a public Arcade or King of the hill one (sent with its type,
 // netplay::CreatedRules).
-inline bool TableCountChosen(RoomType type, bool isPublic) { return !isPublic || type != ClassicRoom; }
+inline bool TableCountChosen(RoomType type, bool isPublic) { return !isPublic || type != RoomType::Classic; }
 // `member`'s place in an Arcade room's line, from 1 for the player seated
 // next; 0 when they are not in line.
 inline int ArcadeLinePlace(const Snapshot& room, MemberId member) {
@@ -278,6 +330,23 @@ inline bool TableCountAllowed(const Snapshot& room, std::size_t count) {
 inline int CabinetOf(const Snapshot& room, MemberId member) {
 	const auto at = std::find(room.cabinets.begin(), room.cabinets.end(), member);
 	return member && at != room.cabinets.end() ? static_cast<int>(at - room.cabinets.begin()) : -1;
+}
+// In a room that seats by cabinet, Queue and Unqueue name a cabinet, not the
+// table its pair plays at: table + seat * TableCount, a table out of play too.
+inline bool NamesCabinet(const Snapshot& room, ActionKind kind) {
+	return RulesOf(room).cabinets && (kind == ActionKind::Queue || kind == ActionKind::Unqueue);
+}
+// The cabinet a Queue or Unqueue names there; its seat is 0 or 1.
+inline std::size_t CabinetNamed(const Action& action) {
+	return action.table + static_cast<std::size_t>(action.seat) * TableCount;
+}
+// The Queue that sits down at `cabinet` (below CabinetCount).
+inline Action CabinetQueueAction(std::size_t cabinet) {
+	Action action;
+	action.kind = ActionKind::Queue;
+	action.table = static_cast<std::uint8_t>(cabinet % TableCount);
+	action.seat = static_cast<std::int8_t>(cabinet / TableCount);
+	return action;
 }
 
 inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
@@ -305,7 +374,7 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 // the table they sit at (Table::keeper): until they lose a set there or
 // leave it, only the Ultra and the look change.
 inline bool KeepsFighter(const Snapshot& room, MemberId member) {
-	if (!room.arcade || !member) return false;
+	if (!RulesOf(room).keeperOption || !member) return false;
 	const auto place = PlaceOf(room, member);
 	return place.kind == Place::Kind::Seat && room.tables[place.table].keeper == member;
 }
@@ -341,7 +410,7 @@ inline bool LocalLeftSeat(const Snapshot& snapshot) {
 // room with no set length (the authority's rule in RoomAuthority::RecordResult).
 // 0 means the set never ends.
 inline std::uint32_t SetGoal(const Snapshot& room, const Table& table) {
-	return (std::max)(static_cast<std::uint32_t>(table.rules.format), room.arcade ? 1u : 0u);
+	return (std::max)(static_cast<std::uint32_t>(table.rules.format), RulesOf(room).setAlwaysEnds ? 1u : 0u);
 }
 
 // Whether the game that just ended with `result` leaves the pair to fight on in
@@ -373,6 +442,34 @@ inline SetStanding StandingAfter(const Snapshot& room, const Table& table, std::
 	++standing.score[seat];
 	standing.over = !RematchInPlaceOffered(room, table, result);
 	return standing;
+}
+
+// The two seats of the game `generation` at `table`: the set's, once the room
+// recorded the set it ended (its rotation has moved them since), else the
+// table's own.
+inline std::pair<MemberId, MemberId> GameSeats(const Table& table, std::uint64_t generation) {
+	return table.lastSet.generation == generation ? std::make_pair(table.lastSet.p1, table.lastSet.p2) : std::make_pair(table.p1, table.p2);
+}
+// Whether the set's rotation keeps `member` seated (RotationKeeps). Before the
+// room has the result, `result` names the winner.
+inline bool RotationKeepsMember(const Table& table, std::uint64_t generation, MatchResult result, MemberId member) {
+	const int winnerSeat = table.lastSet.generation == generation ? table.lastSet.winnerSeat :
+		result == MatchResult::P1Win ? 0 : result == MatchResult::P2Win ? 1 : -1;
+	const auto seats = GameSeats(table, generation);
+	if (!member || winnerSeat < 0 || (member != seats.first && member != seats.second)) return false;
+	return RotationKeeps(table.rules.rotation, member == (winnerSeat == 0 ? seats.first : seats.second));
+}
+// Whether `member`, who fought the game `generation` at `table`, keeps the
+// seat when they give no answer after it. Only a room that seats from a
+// table's queue hands a seat over after a set, and only from a player the
+// rotation moves on: the one it keeps stays for the next challenger. A room
+// that seats by cabinet keeps everyone at their cabinet and rotates them itself
+// (RoomAuthority::ArcadeSetEnded); a set's game keeps both seats: a set one the
+// room has recorded as ended, or that its result ends, is over (StandingAfter).
+inline bool KeepsSeatAfterGame(const Snapshot& room, const Table& table, std::uint64_t generation, MatchResult result, MemberId member) {
+	if (RulesOf(room).cabinets) return true;
+	if (table.rules.format == SetFormat::Unlimited) return false;
+	return !StandingAfter(room, table, generation, result).over || RotationKeepsMember(table, generation, result, member);
 }
 
 } }

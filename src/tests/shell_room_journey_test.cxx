@@ -756,7 +756,7 @@ void ArcadeJourneys() {
   // An Arcade room's Queue names a cabinet (table + seat * TableCount), not the
   // table its pair plays at: a member paired at table 0 still moves to cabinet 1.
   Harness a;JoinedRoom(a,14);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
   room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
   a.view.room.tables[0].p1=1;a.view.room.tables[0].p2=2;a.view.room.cabinets[1]=1;a.view.room.cabinets[2]=2;
@@ -766,7 +766,7 @@ void ArcadeJourneys() {
   // The status line names the room's type: Arcade, or King of the hill, locked or not.
   std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});a.Frame();
   Check(status==loc::T("room.arcade_status"),"An Arcade room's status line did not say so");
-  a.view.room.arcade=room::KingRoom;a.Frame();
+  a.view.room.type=room::RoomType::King;a.Frame();
   Check(status==loc::T("room.king_status"),"A King of the hill room's status line called it an Arcade room");
   a.view.room.locked=true;a.Frame();
   Check(status==loc::T("room.king_locked_status"),"A locked King of the hill room's status line did not say so");
@@ -778,7 +778,7 @@ void ArcadeJourneys() {
   // nothing to choose; the set's winner stays on, its loser waits, and no
   // answer keeps the seat.
   Harness k;JoinedRoom(k,15);k.view.session.generation.room=1;k.view.session.control=netplay::Health::Healthy;
-  k.view.room.host=1;k.view.room.revision=3;k.view.room.arcade=room::KingRoom;
+  k.view.room.host=1;k.view.room.revision=3;k.view.room.type=room::RoomType::King;
   room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;k.view.room.members.push_back(local);
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;k.view.room.members.push_back(peer);
   room::Member third;third.id=3;third.name="Third";third.table=1;third.seat=0;k.view.room.members.push_back(third);
@@ -833,7 +833,7 @@ void ArcadeJourneys() {
   // table's choices, not a Ready the room refuses while it decides; no answer
   // and Back to room keep the cabinet (ARCADE_CABINET_MODE.md, item 4).
   Harness a;JoinedRoom(a,16);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
   room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
   auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
@@ -899,12 +899,12 @@ void ArcadeJourneys() {
    [](const ShellAction& x){return x.command.kind==Kind::Rematch;}),"A Rematch taken back with Back still readied the player");
   SetMenuEntriesProbe({});
  }
- for(const auto type:{room::ArcadeRoom,room::KingRoom}){
+ for(const auto type:{room::RoomType::Arcade,room::RoomType::King}){
   // The set's loser, whom the room moved on to wait at another table before
   // the WIN was over, still gets the prompt of the game they fought: the
   // winner stays on, the loser waits, and there is nothing to choose.
   Harness a;JoinedRoom(a,19);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=type;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=type;
   room::Member local;local.id=1;local.name="Local";local.table=1;local.seat=0;a.view.room.members.push_back(local);
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
   room::Member third;third.id=3;third.name="Third";third.table=0;third.seat=0;a.view.room.members.push_back(third);
@@ -919,7 +919,7 @@ void ArcadeJourneys() {
   const auto has=[&](const char* id){return std::any_of(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
   a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;
   a.view.foughtGame={0,5,room::MatchResult::P2Win};a.view.matchResult=true;a.Frame();
-  const std::string mode=type==room::ArcadeRoom?"Arcade":"King of the hill";
+  const std::string mode=type==room::RoomType::Arcade?"Arcade":"King of the hill";
   Check(a.shell.Navigation().Screen()=="post-match"&&has("fighter")&&has("back")&&!has("again"),
    ("The loser of an "+mode+" set moved to another table got no prompt").c_str());
   Check(words["pm-you"]==loc::T("postmatch.king.waits")&&words["pm-opponent"]==loc::T("postmatch.king.stays"),
@@ -933,7 +933,7 @@ void ArcadeJourneys() {
   // as the screen's height (480 lines here) lets it. Each one the pad focuses
   // is scrolled into view, inside the clip it is drawn under.
   Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
   for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
   auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
   a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
@@ -989,7 +989,7 @@ void ArcadeJourneys() {
    // Named, not bound, so the checks below can capture them.
    const ImVec2 size=screen.first;const float scale=screen.second;
    Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-   a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+   a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
    for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
    auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;t.rules.format=room::SetFormat::Ft2;
    a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;
@@ -1041,7 +1041,7 @@ void ArcadeJourneys() {
   // "stay on" and the loser does not "wait". Each chip names who they play now,
   // and no button explains a rotation.
   Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
   for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
   auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;t.rules.format=room::SetFormat::Ft2;
   auto& other=a.view.room.tables[1];other.p1=3;other.p2=4;other.phase=room::TablePhase::Waiting;other.deciding=true;other.wantsNew[0]=true;
@@ -1068,7 +1068,7 @@ void ArcadeJourneys() {
    fighter->detail.find(loc::Tf("postmatch.rotate.loser","Player 2"))==std::string::npos,"A New opponent swap was explained as the set's rotation");
   SetMenuEntriesProbe({});SetMenuCardTextProbe({});
  }
- for(const auto type:{room::ArcadeRoom,room::KingRoom}){
+ for(const auto type:{room::RoomType::Arcade,room::RoomType::King}){
   // A pair alone in an Arcade or King room stays together after a set and
   // readies again: the prompt offers the ordinary Rematch and names no winner
   // who stays or loser who waits (ARCADE_CABINET_MODE.md, items 4 to 6). It
@@ -1076,7 +1076,7 @@ void ArcadeJourneys() {
   // may go on in place only sends once it has. A Rematch the runtime refuses
   // is offered again, and an opponent who leaves the cabinets has left.
   Harness a;JoinedRoom(a,17);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
-  a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=type;
+  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=type;
   room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
   auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
@@ -1086,7 +1086,7 @@ void ArcadeJourneys() {
   std::vector<MenuEntry> rows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& r){rows=r;});
   std::map<std::string,std::string> words;SetMenuCardTextProbe([&](const std::string& id,const std::string& text){words[id]=text;});
   const auto row=[&](const char* id){return std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});};
-  const std::string mode=type==room::ArcadeRoom?"Arcade":"King of the hill";
+  const std::string mode=type==room::RoomType::Arcade?"Arcade":"King of the hill";
   const auto offered=[&]{return a.shell.Navigation().Screen()=="post-match"&&row("again")!=rows.end()&&row("again")->enabled&&
    row("rematch")==rows.end()&&row("new-opponent")==rows.end();};
   a.view.session.match=netplay::MatchState::Playing;a.view.atMainMenu=false;a.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};a.view.matchResult=true;a.Frame();

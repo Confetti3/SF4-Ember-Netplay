@@ -281,7 +281,7 @@ static void TestStatusLineDetails() {
 	// The room's type is always said, so a Classic room reads as one, and a
 	// type set after the room opened changes the line.
 	auto kingDetails = details;
-	kingDetails.roomType = static_cast<int>(room::KingRoom);
+	kingDetails.roomType = static_cast<int>(room::RoomType::King);
 	CHECK(json::parse(roomhost::StatusLine({3, 1, "sf4e3:x", {}, kingDetails})).at("details").at("room_type") == 2);
 	CHECK(!(kingDetails == details) && roomhost::StatusLine({3, 1, "sf4e3:x", {}, kingDetails}) != roomhost::StatusLine({3, 1, "sf4e3:x", {}, details}));
 	// Whether the creator is inside is said either way, and changes the line.
@@ -359,9 +359,9 @@ static void TestDetailsOfSnapshot() {
 	CHECK(roomhost::DetailsOf(snapshot).ownDelay);
 	// The room's type is the snapshot's.
 	CHECK(roomhost::DetailsOf(snapshot).roomType == 0);
-	snapshot.arcade = room::ArcadeRoom;
+	snapshot.type = room::RoomType::Arcade;
 	CHECK(roomhost::DetailsOf(snapshot).roomType == 1);
-	snapshot.arcade = room::KingRoom;
+	snapshot.type = room::RoomType::King;
 	CHECK(roomhost::DetailsOf(snapshot).roomType == 2);
 }
 

@@ -148,7 +148,7 @@ struct Room {
     std::optional<netplay::TableSetup> createdRules;
     JoinKind join = JoinKind::Private;
     bool practiceRoom = false;
-    room::RoomType arcadeRoom = room::ClassicRoom;
+    room::RoomType arcadeRoom = room::RoomType::Classic;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
     bool wiredOnly = false;
@@ -283,16 +283,9 @@ struct Runtime {
 	// Not part of MatchTeardown: CloseRoom does not reset it.
 	std::uint8_t matchFinishedTable = 0;
     bool replacementPending=false;
-    // The Practice and Arcade choices of the room this PC hosts: the player's
-    // on Create, the closed room's for a replacement, false for a room it joins.
-    bool practiceRoom=false;
-    room::RoomType arcadeRoom=room::ClassicRoom;
-    // The delay policy of the room this PC hosts, chosen the same way.
-    room::DelayPolicy delayPolicy=room::DelayPolicy::Shared;
-    // How many tables the Classic room this PC hosts opens with, chosen the same way.
-    std::uint8_t tableCount=static_cast<std::uint8_t>(room::ClassicTableCount);
-    // The Wired players only rule of the room this PC hosts, chosen the same way.
-    bool wiredOnly=false;
+    // What the room this PC hosts is created as: the player's choices on
+    // Create, the closed room's for a replacement, the default for a room it joins.
+    room::Charter charter;
     // The player's Leave of the room. CloseRoom resets it whole.
     struct RoomLeave {
         bool leaveRequested=false, leaveAcknowledged=false;

@@ -110,16 +110,10 @@ namespace sf4e {
 			std::function<std::uint64_t(session::Connection)> incarnation = {});
 		// Enables the multi-table room authority while retaining the legacy
 		// two-player path until this method is called by the room bootstrap.
-		// practice makes it a Practice room for its life (room::Snapshot::practice);
-		// delayPolicy fixes whose input delay its games are played at (room::Snapshot::delayPolicy);
-		// arcade makes it an Arcade room for its life (room::Snapshot::arcade);
-		// tableCount is how many tables a Classic room opens with (room::Snapshot::tableCount);
-		// wiredOnly is its Wired players only rule (room::Snapshot::wiredOnly).
+		// The room is created as `charter` says (room::Charter).
 		void EnableCustomRooms(const std::string& name = "Private room",
 			std::uint8_t capacity = static_cast<std::uint8_t>(room::MaximumMembers),
-			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), bool practice = false,
-			room::DelayPolicy delayPolicy = room::DelayPolicy::Shared, room::RoomType arcade = room::ClassicRoom,
-			std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount), bool wiredOnly = false);
+			std::uint64_t roomEpoch = 1, room::Rules defaults = room::Rules(), room::Charter charter = room::Charter());
 		// Server-owned mode, for a room host process with no player host: no
 		// connection is the local host, and every join names an account (the
 		// player's Ember ID) that the embedding process supplied for that

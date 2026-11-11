@@ -30,7 +30,7 @@ struct Room {
 			return identity;
 		});
 		if (serverOwned) CHECK(server.EnableServerOwnedRooms("Delay policy", 8, 78, room::Rules(), policy));
-		else server.EnableCustomRooms("Delay policy", 8, 78, room::Rules(), false, policy);
+		else server.EnableCustomRooms("Delay policy", 8, 78, room::Rules(), room::Charter{room::RoomType::Classic, false, policy});
 		for (session::Connection connection = 1; connection <= 3; ++connection) {
 			protocol::SessionJoinRequest join;
 			join.username = "Member-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;

@@ -441,7 +441,7 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
   // The bar stays along the bottom while the floor fits over it and the
   // focused row's line: a row of cards, or an Arcade room's whole floor. On a
   // shorter board it follows the floor in its scroll.
-  const float floorHeight=v.room.arcade?ArcadeBoardHeight(v,rows,tables.W()):cardHeight;
+  const float floorHeight=room::RulesOf(v.room).cabinets?ArcadeBoardHeight(v,rows,tables.W()):cardHeight;
   const bool follows=tables.H()-bar.Height(tables.W())-38*s<floorHeight;
   // A board that starts or stops scrolling, or changes size, can leave the
   // focused row out of sight with the focus unchanged: it scrolls back into
@@ -461,15 +461,15 @@ void ApplicationShell::DrawRoomBoard(const ShellView& v,const std::vector<MenuEn
    const ImVec2 at(pic.min.x+(pic.W()-pw)*.5f,pic.min.y),to(at.x+pw,pic.max.y);
    showPicture(at,to);
   }
-  if(v.room.arcade){
+  if(room::RulesOf(v.room).cabinets){
    ImGui::SetCursorScreenPos(tables.min);
-   if(!follows)DrawArcadeBoard(v,rows,nav,action,ImVec2(tables.W(),tables.H()),v.room.arcade,false,f.focusChanged);
+   if(!follows)DrawArcadeBoard(v,rows,nav,action,ImVec2(tables.W(),tables.H()),v.room.type,false,f.focusChanged);
    else{
     // The floor at its least height in a scroll of its own, the bar after it, as DrawTableCards does.
     ImGui::BeginChild("Arcade floor",ImVec2(tables.W(),tables.H()),0,ImGuiWindowFlags_NoNavInputs);
     const ImVec2 start=ImGui::GetCursorScreenPos();
     const float width=ImGui::GetContentRegionAvail().x,height=ArcadeBoardHeight(v,rows,width);
-    DrawArcadeBoard(v,rows,nav,action,ImVec2(width,height),v.room.arcade,true,f.focusChanged);
+    DrawArcadeBoard(v,rows,nav,action,ImVec2(width,height),v.room.type,true,f.focusChanged);
     bar.Draw(ImGui::GetWindowDrawList(),ImVec2(start.x,start.y+height+12*s),width,tables);
     ImGui::SetCursorScreenPos(start);ImGui::Dummy(ImVec2(width,height+12*s+bar.Height(width)));
     ImGui::EndChild();

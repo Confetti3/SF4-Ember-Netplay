@@ -1,4 +1,4 @@
-// The room board of an Arcade or King of the hill room (Snapshot::arcade,
+// The room board of an Arcade or King of the hill room (Snapshot::type,
 // Arcade.dc.html): sixteen cabinets in two rows, each pair in its own colour
 // and linked by a line wherever its two cabinets stand; King of the hill the
 // same under its top slot. Every cabinet is its row. A Classic room keeps its
@@ -214,7 +214,7 @@ float ApplicationShell::ArcadeBoardHeight(const ShellView& v,const std::vector<M
  const float s=Scale(),strip=MatchupStripHeight(MatchupCount(rows),s);
  // As DrawArcadeBoard lays it out: the banner, the matchups, the focus margin
  // round the rows, and a scrollbar under rows that scroll across.
- return (v.room.arcade==room::KingRoom?(TopSlotHeight+8)*s:0)+(strip>0?strip+8*s:0)+12*s+
+ return (room::RulesOf(v.room).winnerStays?(TopSlotHeight+8)*s:0)+(strip>0?strip+8*s:0)+12*s+
   2*LeastCabinet*s*CabinetReach+Aisle*s+(RowsScrollAcross(width-12*s,s)?ImGui::GetStyle().ScrollbarSize:0);
 }
 
@@ -251,7 +251,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
  };
  const FighterArt art=RoomFighterArt(preferences_);
  v2::Box board=area;
- if(type==room::KingRoom){
+ if(room::RulesOf(type).winnerStays){
   // The top slot: the longest current streak, its holder and the streak.
   const v2::Box banner=v2::CutTop(board,TopSlotHeight*s,8*s);
   v2::CardGround(d,banner,false,false,true);
@@ -339,7 +339,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   const auto* m=room::FindMember(v.room,v.room.cabinets[i]);
   const auto* t=m&&m->table>=0?&v.room.tables[m->table]:nullptr;
   const bool paired=t&&t->p1&&t->p2,seated=m!=nullptr;const ImU32 pair=paired?PairColor(t->id):pending;
-  const bool crowned=type==room::KingRoom&&v.room.topSlot==i;
+  const bool crowned=room::RulesOf(type).winnerStays&&v.room.topSlot==i;
   // What the seated player picked, or their main (SeatLookOf).
   const SeatLook look=m?SeatLookOf(v,*m):SeatLook{};
   // Every cabinet glows: dim while free, brighter once someone sits there, in the
@@ -383,7 +383,7 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
   // gold on the top slot.
   const v2::Box& marquee=k.marquee;
   const float mh=marquee.H(),ms=(std::min)(15*s,mh*.68f);const ImU32 ink=paired||crowned?c.ink:waiting?c.text:c.muted;
-  const int streak=type==room::KingRoom?v.room.streaks[i]:0;
+  const int streak=room::RulesOf(type).winnerStays?v.room.streaks[i]:0;
   v2::Text(d,ImVec2(marquee.min.x+4*s,marquee.min.y+(mh-ms)*.5f),streak?marquee.W()*.45f:marquee.W()-8*s,std::to_string(i+1),ms,ink,HeadingFont(),!streak);
   if(streak){
    const std::string count=std::to_string(streak);

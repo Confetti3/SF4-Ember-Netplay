@@ -43,24 +43,23 @@ std::vector<MenuEntry> ApplicationShell::RoomSetupRows(const ShellView& v,const 
  rows.push_back(Value("capacity",loc::T("room.capacity"),std::to_string(preferences_.roomCapacity),loc::T("room.capacity_detail"),can));
  // Any new room has a type; only a private one can be a Practice room, which
  // has no round time to choose.
- const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_,arcade=screen=="create"&&createArcade_;
- if(screen=="create")rows.push_back(RoomTypeRow(createArcade_,can));
+ const bool privateCreate=screen=="create"&&!publicRoom,practice=privateCreate&&createPractice_;
+ const room::TypeRules& typeRules=room::RulesOf(screen=="create"?createType_:room::RoomType::Classic);
+ if(screen=="create")rows.push_back(RoomTypeRow(createType_,can));
  if(privateCreate)rows.push_back(PracticeRoomRow(practice,can));
  // A private Classic room's tables, kept with the room defaults; an Arcade
  // or King of the hill room's, private or public, chosen here each time. A
  // public Classic room opens at the default.
- if(screen=="create"&&room::TableCountChosen(createArcade_,publicRoom))rows.push_back(Value("tables",loc::T("room.tables"),
+ if(screen=="create"&&room::TableCountChosen(createType_,publicRoom))rows.push_back(Value("tables",loc::T("room.tables"),
   std::to_string(CreateTableCount()),
-  loc::Tf(createArcade_?"room.tables_arcade_detail":"room.tables_detail",static_cast<int>(room::TableCount)),can));
+  loc::Tf(createType_!=room::RoomType::Classic?"room.tables_arcade_detail":"room.tables_detail",static_cast<int>(room::TableCount)),can));
  rows.push_back(WiredOnlyRow("wired-only",preferences_.roomWiredOnly,loc::T("room.wired_only.detail"),can));
  rows.push_back(DelayPolicyRow(preferences_.roomDelayPolicy,can));
  RuleRows(rows,publicRoom?preferences_.publicTableRules:preferences_.tableRules,can,reason,practice);
  // An Arcade pair rematches after every set, so nobody stays or rotates; the
  // room may keep its winners on their fighters instead.
- if(arcade){
-  rows.erase(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="rotation";}));
-  rows.push_back(WinnerKeepsFighterRow((publicRoom?preferences_.publicTableRules:preferences_.tableRules).winnerKeepsFighter,can,reason));
- }
+ if(typeRules.cabinets)rows.erase(std::find_if(rows.begin(),rows.end(),[](const MenuEntry& e){return e.id=="rotation";}));
+ if(typeRules.keeperOption)rows.push_back(WinnerKeepsFighterRow((publicRoom?preferences_.publicTableRules:preferences_.tableRules).winnerKeepsFighter,can,reason));
  if(screen=="create"){rows.push_back(opening?ConfirmRow("cancel-open",loc::T("room.stop_creating_action"),loc::T("room.stop_creating"),true):
   Row("host",loc::T(publicRoom?"public.create":"online.create"),loc::T(!publicRoom?"room.create_requirements":bridge.empty()?"public.create_needs_id":"public.create_requirements"),
    can&&preferences_.Valid()&&!publicRooms_.Busy()&&(!publicRoom||!bridge.empty())));
@@ -75,7 +74,7 @@ void ApplicationShell::CreateActivate(const MenuAction& a,const ShellView& v,con
  using namespace netplay;
  if(a.id=="create")OpenCreate();
  else if(a.id=="pr-create"||a.id=="pr-none")OpenPublicCreate();
- else if(a.id=="host"&&preferences_.roomPublic){error_.clear();CreatePublicRoom(createArcade_);}
+ else if(a.id=="host"&&preferences_.roomPublic){error_.clear();CreatePublicRoom(createType_);}
  else if(a.id=="delete-template"&&createTemplate_>=0&&createTemplate_<static_cast<int>(preferences_.roomTemplates.size())){
   if(preferences_.publicRoomTemplate==preferences_.roomTemplates[createTemplate_].name)preferences_.publicRoomTemplate.clear();
   preferences_.roomTemplates.erase(preferences_.roomTemplates.begin()+createTemplate_);
@@ -91,8 +90,8 @@ bool ApplicationShell::CreateAdjust(const MenuAction& a) {
   ApplyRoomTemplate((createTemplate_+1+(a.delta>0?1:count))%(count+1)-1);
   return true;
  }
- if(a.id=="room-type"){createArcade_=static_cast<room::RoomType>((std::max)(0,(std::min)(2,static_cast<int>(createArcade_)+a.delta)));return true;}
- if(a.id=="tables"&&createArcade_){createArcadeTables_=(std::max)(1,(std::min)(static_cast<int>(room::TableCount),createArcadeTables_+a.delta));return true;}
+ if(a.id=="room-type"){createType_=static_cast<room::RoomType>((std::max)(0,(std::min)(static_cast<int>(room::RoomType::King),static_cast<int>(createType_)+a.delta)));return true;}
+ if(a.id=="tables"&&createType_!=room::RoomType::Classic){createArcadeTables_=(std::max)(1,(std::min)(static_cast<int>(room::TableCount),createArcadeTables_+a.delta));return true;}
  if(a.id!="practice-room")return false;
  createPractice_=a.delta>0;
  return true;
@@ -130,7 +129,7 @@ void ApplicationShell::CreatePublicRoom(room::RoomType type) {
 void ApplicationShell::SaveRoomTemplate(const room::Snapshot& room,const std::string& name) {
  netplay::RoomTemplate saved;
  saved.name=CutUtf8(name,32);saved.roomName=room.name;saved.capacity=room.capacity;saved.isPublic=room.serverOwned;saved.practice=room.practice;saved.delayPolicy=room.delayPolicy;saved.wiredOnly=room.wiredOnly;
- saved.tableCount=room.arcade?static_cast<int>(room::ClassicTableCount):static_cast<int>(room::TablesInPlay(room));
+ saved.tableCount=room.type!=room::RoomType::Classic?static_cast<int>(room::ClassicTableCount):static_cast<int>(room::TablesInPlay(room));
  for(const auto& table:room.tables)if(table.id<room::TableCount){saved.tables.rules[table.id]=table.rules;saved.tables.names[table.id]=table.name;}
  if(!saved.Valid()){error_=loc::T("error.invalid_value");return;}
  auto& templates=preferences_.roomTemplates;
@@ -161,7 +160,7 @@ void ApplicationShell::UpdatePublicBridge(const ShellView& v,const std::string& 
 
 // Create public room opens Create on Public, which stays the default until changed.
 void ApplicationShell::OpenCreate() {
- createPractice_=false;createArcade_=room::ClassicRoom;createArcadeTables_=static_cast<int>(room::TableCount);createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
+ createPractice_=false;createType_=room::RoomType::Classic;createArcadeTables_=static_cast<int>(room::TableCount);createTemplate_=-1;createTables_.reset();menu_.navigation.Push("create");
 }
 void ApplicationShell::OpenPublicCreate() {
  if(!preferences_.roomPublic){preferences_.roomPublic=true;preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}

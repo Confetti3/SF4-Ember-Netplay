@@ -588,7 +588,7 @@ private:
     void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
     // Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
     void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);
-    // The Create screen, a Classic room with Practice room off (createArcade_, createPractice_).
+    // The Create screen, a Classic room with Practice room off (createType_, createPractice_).
     void OpenCreate();
     // Settings > Interface > Language, also the welcome's.
     MenuEntry LanguageRow() const;
@@ -814,12 +814,12 @@ std::string memberAsk_;
     // launch, and the speech answer (ponytail: kept until speech settings land).
     int welcomeStep_ = 0;
     bool welcomeOffered_ = false;
-    room::RoomType createArcade_ = room::ClassicRoom;
+    room::RoomType createType_ = room::RoomType::Classic;
     // An Arcade or King of the hill room's tables on Create, all of them until
     // changed; at one the winner stays. Not kept, like the type.
     int createArcadeTables_ = static_cast<int>(room::TableCount);
     // The table count Create opens its room with, of the type chosen.
-    int CreateTableCount() const { return createArcade_ ? createArcadeTables_ : preferences_.roomTableCount; }
+    int CreateTableCount() const { return createType_ != room::RoomType::Classic ? createArcadeTables_ : preferences_.roomTableCount; }
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.

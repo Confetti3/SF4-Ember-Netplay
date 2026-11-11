@@ -371,10 +371,10 @@ int main() try {
     {
         const auto place = room::PlaceOf(view.room, view.room.localMember);
         Check(place.kind == room::Place::Kind::Seat, "The table page fixture is not seated");
-        view.room.arcade = room::ArcadeRoom; view.room.tables[place.table].keeper = view.room.localMember; frame();
+        view.room.type = room::RoomType::Arcade; view.room.tables[place.table].keeper = view.room.localMember; frame();
         Check(row("selection").enabled && row("selection").detail.find(loc::T("selection.winner_keeps_fighter")) != std::string::npos,
             "The Fighter row did not tell the winner they keep the fighter");
-        view.room.arcade = room::ClassicRoom; view.room.tables[place.table].keeper = 0; frame();
+        view.room.type = room::RoomType::Classic; view.room.tables[place.table].keeper = 0; frame();
         Check(row("selection").detail.find(loc::T("room.change_fighter.detail")) != std::string::npos, "The Fighter row lost its usual detail");
     }
     // Under Ready: the player's own pick, then the match (stage and the table's
@@ -1712,7 +1712,7 @@ int main() try {
         // Two pairs: Player 1 at cabinet 1 against Player 2 at 9, Player 3 at 3 against Player 4 at 11.
         view.room.cabinets[0] = 1; view.room.cabinets[8] = 2; view.room.cabinets[2] = 3; view.room.cabinets[10] = 4;
         const auto board = [&](room::RoomType type, float scale, ImVec2 size) {
-            view.room.arcade = type; view.room.tableCount = room::DefaultTableCount(type); ++view.room.revision;
+            view.room.type = type; view.room.tableCount = room::DefaultTableCount(type); ++view.room.revision;
             ApplyTheme(scale); io.DisplaySize = size;
             shell.Navigation().Home(); shell.Navigation().Push("room"); frame(); frame();
         };
@@ -1724,7 +1724,7 @@ int main() try {
         // ArcadeBoardReachesActionBarByGeometry: from cabinet 7 three Downs reach
         // the action bar under it and Right goes on to Leave room; Left from a
         // member reaches a cabinet; the board's edges are its only dead ends.
-        board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+        board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
         focus("cabinet-6"); frame();
         for (int i = 0; i < 3; ++i) press(MenuInput::Down);
         Check(onBar(), "Down, Down, Down from cabinet 7 did not reach the action bar");
@@ -1737,7 +1737,7 @@ int main() try {
         Check(at() == "cabinet-0", "Left on cabinet 1 moved the focus");
         // ClassicV2CardsOnePerLine: the default lays one table per line, so
         // Down goes to the next table and Right leaves the tables for the members.
-        board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
+        board(room::RoomType::Classic, 1.f, ImVec2(1280, 960));
         // TableStreakLine: a seat's third line names a streak of two sets or
         // more at the table, for its holder only.
         {
@@ -1770,7 +1770,7 @@ int main() try {
         Check(RowKey(at(), "member-").has_value(), "Right from a table did not reach the members");
         // ClassicV2CardsMoveAsGrid: with Tables set to Grid, two cards across at this size.
         view.preferences.roomTableGrid = true;
-        board(room::ClassicRoom, 1.f, ImVec2(1280, 960));
+        board(room::RoomType::Classic, 1.f, ImVec2(1280, 960));
         focus("table-0"); frame(); press(MenuInput::Right);
         Check(at() == "table-1", "Right from table 1 did not reach table 2 beside it");
         focus("table-0"); frame(); press(MenuInput::Down);
@@ -1779,7 +1779,7 @@ int main() try {
         // V2BoardDrawsEveryFocusableRow: wide, short (1280x720), narrow and
         // ultra-wide, every row the pad can focus is drawn as a box the mouse can press.
         const std::pair<float, ImVec2> sizes[] = {{1.f, {1920, 1080}}, {1.f, {1280, 720}}, {1.5f, {1280, 720}}, {1.f, {3840, 1080}}};
-        for (const auto type : {room::ArcadeRoom, room::ClassicRoom})
+        for (const auto type : {room::RoomType::Arcade, room::RoomType::Classic})
             for (const auto& [scale, size] : sizes) {
                 board(type, scale, size);
                 const auto shown = rows;
@@ -1796,7 +1796,7 @@ int main() try {
         // screen shrinks to 1280x720 at 150%, where the bar follows the
         // floor in its scroll. The focus is unchanged, and still in view.
         for (const char* id : {"ready", "cabinet-8"}) {
-            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
             focus(id); frame(); frame();
             Check(at() == id && inView[id], "The wide Arcade board's fixture row was out of view");
             // The floor's scroll at its top, as a new one's is: ImGui keeps the
@@ -1810,7 +1810,7 @@ int main() try {
             Check(at() == id && inView[id], "The focused row went out of view when the Arcade bar began to follow the floor");
         }
         // ArcadeTopRowUpStays: nothing is above the top row.
-        board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+        board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
         focus("cabinet-3"); frame(); press(MenuInput::Up);
         if (at() != "cabinet-3") std::cerr << "Up on cabinet 4 went to " << at() << std::endl;
         Check(at() == "cabinet-3", "Up on a top-row cabinet moved the focus");
@@ -1838,7 +1838,7 @@ int main() try {
                 view.room.tables[0].deciding = true;
             };
             full();
-            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
             const auto cabinet = [&] { return row("cabinet-0"); };
             const auto barMatches = [&] {
                 return row("ready").label == loc::T("room.rematch") && row("ready").enabled == cabinet().choices[0].enabled &&
@@ -1881,7 +1881,7 @@ int main() try {
             // Rematch chosen, nobody free: New opponent is still there to pick, and
             // once asked for only Rematch is left.
             view = saved; full(); view.room.tables[0].rematch[0] = true;
-            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
             Check(cabinet().choices.size() == 2 && !cabinet().choices[0].enabled && cabinet().choices[1].enabled,
                 "Rematch chosen with nobody free left no New opponent to pick");
             view.room.tables[0].rematch[0] = false; view.room.tables[0].wantsNew[0] = true; ++view.room.revision; frame();
@@ -1897,7 +1897,7 @@ int main() try {
             // says it finds a new opponent, not that it waits for a set to end.
             view = saved; full();
             view.room.tables[1].deciding = true; view.room.tables[1].wantsNew[0] = true;
-            board(room::ArcadeRoom, 1.f, ImVec2(1920, 1080));
+            board(room::RoomType::Arcade, 1.f, ImVec2(1920, 1080));
             Check(cabinet().choices.size() == 2 && cabinet().choices[1].enabled &&
                 cabinet().choices[1].detail == loc::T("room.new_opponent_detail"),
                 "With a fighter waiting to swap at another table, New opponent said it waits");
