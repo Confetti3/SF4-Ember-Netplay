@@ -2,7 +2,6 @@
 // of a file that fails to decode, and which failures are final and logged.
 #include "../ui/SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
-#include "../common/LevelDigits.hxx"
 #include "../common/PointDigits.hxx"
 #include "../common/StageCatalog.hxx"
 #include "temp_root.hxx"
@@ -234,16 +233,6 @@ int main() {
         CHECK(logged.size() == 5 && logged[4].find("ultra-icons/uc2.dds uses a fallback") != std::string::npos);
         CHECK(!art.UltraIcon(3).texture && !art.UltraIcon(-1).texture);
 
-        // Ember's level digits sit beside the developer mark and load at
-        // exactly the size LevelDigits.hxx lays out, without a log line.
-        std::ifstream digitsFile(fs::path(SF4E_TEST_ASSET_ROOT) / L".." / L"input" / L"level_digits.png", std::ios::binary);
-        const std::string digits((std::istreambuf_iterator<char>(digitsFile)), std::istreambuf_iterator<char>());
-        CHECK(digits.size() > 8);
-        Write(root / L"input" / L"level_digits.png", digits);
-        const auto atlas = Settle(art, [&] { return art.LevelDigits(); }, 2000);
-        CHECK(atlas.texture && !atlas.missing && atlas.width == sf4e::level_digits::AtlasWidth && atlas.height == sf4e::level_digits::AtlasHeight);
-        CHECK(logged.size() == 5);
-
         // The game's point digits come from its ranked result archive: the
         // sheet loads at its own size, and each glyph's ink is measured from
         // its alpha (the digit 7 of the white set is the second row's second).
@@ -271,21 +260,13 @@ int main() {
         const auto huge = Settle(art, [&] { return art.UltraIcon(0); }, 4000);
         CHECK(huge.missing && !huge.texture);
         CHECK(lines.size() == 1 && lines[0].find("ultra-icons/uc1.dds") != std::string::npos && lines[0].find("96x96") != std::string::npos);
-        // A digits atlas of another size would place every sprite wrong: it is
-        // refused as an unusable file, retried, then reported once, and the
-        // levels are drawn in the heading font.
-        Write(root / L"input" / L"level_digits.png", png);
-        const auto wrong = Settle(art, [&] { return art.LevelDigits(); }, 4000);
-        CHECK(wrong.missing && !wrong.texture);
-        const std::string expected = "not " + std::to_string(sf4e::level_digits::AtlasWidth) + "x" + std::to_string(sf4e::level_digits::AtlasHeight);
-        CHECK(lines.size() == 2 && lines[1].find("level-digits") != std::string::npos && lines[1].find(expected) != std::string::npos);
         // A point digits' sheet of another size, or with a glyph missing from a
         // row, is refused as unusable, retried, then reported once.
         const fs::path result = game / L"resource" / L"ui" / L"net_result" / L"CMN" / L"net_result.tex.emz";
         Write(result, Archive("net_vs_number.dds", PlainDds(128)));
         const auto small = Settle(art, [&] { return art.PointDigits().image; }, 4000);
         CHECK(small.missing && !small.texture && !art.PointDigits().sheet);
-        CHECK(lines.size() == 3 && lines[2].find("point-digits") != std::string::npos && lines[2].find("not 256x256") != std::string::npos);
+        CHECK(lines.size() == 2 && lines[1].find("point-digits") != std::string::npos && lines[1].find("not 256x256") != std::string::npos);
         sf4e::point_digits::Sheet measured;
         std::string why;
         const std::string whole = DigitSheet(), gapped = DigitSheet(1);

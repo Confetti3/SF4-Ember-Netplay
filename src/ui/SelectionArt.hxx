@@ -65,11 +65,6 @@ public:
     // Ember's developer mark (assets/input/mark_developer.png), shown in place
     // of a class; wider than tall.
     SelectionImage DeveloperMark();
-    // Ember's level digits (assets/input/level_digits.png), whose sprites
-    // src/common/LevelDigits.hxx places; decoded at its own size and never
-    // resized. Missing when the atlas is absent or not the size the header
-    // lays out (LevelMark.cxx then draws the heading font's digits).
-    SelectionImage LevelDigits();
     // The digits of the game's ranked result screen (point_digits, PointDigits.hxx),
     // read from the game at runtime and never repackaged. Missing, with a log
     // line, when the game lacks the sheet or it is not as measured.
