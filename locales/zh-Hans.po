@@ -8310,7 +8310,7 @@ msgid "awards.card"
 msgstr "你的名片"
 
 msgid "awards.card_detail"
-msgstr "其他人看到的你的名片。选择可打开奖励：你可以佩戴的称号和图标。"
+msgstr "其他人看到的你的名片。选择可打开个人资料。"
 
 msgid "awards.entry_detail"
 msgstr "你已获得的称号和图标，以及其余的获取方式。选择一个即可佩戴在名片上。"
@@ -8335,6 +8335,15 @@ msgstr "未解锁"
 
 msgid "awards.wear"
 msgstr "佩戴到名片"
+
+msgid "awards.wear_title"
+msgstr "佩戴称号"
+
+msgid "awards.wear_icon"
+msgstr "佩戴图标"
+
+msgid "awards.wear_both"
+msgstr "全部佩戴"
 
 msgid "awards.detail_worn"
 msgstr "已佩戴在名片上。"

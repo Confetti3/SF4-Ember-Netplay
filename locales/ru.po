@@ -8309,7 +8309,7 @@ msgid "awards.card"
 msgstr "Твоя карточка"
 
 msgid "awards.card_detail"
-msgstr "Твоя карточка такой, какой её видят другие. Выбор открывает награды: титулы и значки, которые можно носить."
+msgstr "Твоя карточка такой, какой её видят другие. Выбор открывает профиль игрока."
 
 msgid "awards.entry_detail"
 msgstr "Титулы и значки, которые ты получил, и как получить остальные. Выбери один, чтобы носить его на карточке."
@@ -8334,6 +8334,15 @@ msgstr "Закрыто"
 
 msgid "awards.wear"
 msgstr "Надеть на карточку"
+
+msgid "awards.wear_title"
+msgstr "Надеть титул"
+
+msgid "awards.wear_icon"
+msgstr "Надеть значок"
+
+msgid "awards.wear_both"
+msgstr "Надеть оба"
 
 msgid "awards.detail_worn"
 msgstr "На твоей карточке."

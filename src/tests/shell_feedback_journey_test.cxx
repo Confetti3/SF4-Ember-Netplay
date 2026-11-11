@@ -323,11 +323,11 @@ void V2AuditJourneys() {
   Check(select==MenuInput::Select&&back==MenuInput::Back,"A stick's LP or HP button bound to Select or Back also stepped a tab");
   SetMenuGlyphs(input::PadDirectInput,rebound);h.Frame();
   Check(!MenuShortcutGlyph(MenuInput::PrevTab)&&!MenuShortcutGlyph(MenuInput::NextTab),"The hint bar names a tab button that selects or goes back");
-  // With tabs (Awards): HP goes back, not on to Icons; LP selects, not back to Icons.
+  // With tabs (Awards): HP goes back, not on to another tab; LP selects, not back to the previous one.
   h.Screen("awards");h.Press(back);
   Check(h.shell.Navigation().Screen()=="home","HP bound to Back did not go back from a screen with tabs");
   h.Screen("awards");h.Press(select);
-  Check(h.shell.Navigation().Screen()!="awards-icons","LP bound to Select stepped a tab");
+  Check(h.shell.Navigation().Screen()=="awards","LP bound to Select stepped a tab");
   // Without tabs (Online play): LP opens the focused row, HP comes back.
   h.Screen("online");const std::string row=h.shell.Navigation().Focus();h.Press(select);
   Check(!row.empty()&&h.shell.Navigation().Screen()!="online","LP bound to Select did not select on a screen without tabs");

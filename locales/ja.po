@@ -8310,7 +8310,7 @@ msgid "awards.card"
 msgstr "あなたのカード"
 
 msgid "awards.card_detail"
-msgstr "他のプレイヤーから見たあなたのカード。選択するとアワードを開きます。付けられる称号とアイコンの一覧です。"
+msgstr "他のプレイヤーから見たあなたのカード。選択するとプロフィールを開きます。"
 
 msgid "awards.entry_detail"
 msgstr "獲得した称号とアイコン、そして残りの獲得方法。選択するとカードに付けます。"
@@ -8335,6 +8335,15 @@ msgstr "未獲得"
 
 msgid "awards.wear"
 msgstr "カードに付ける"
+
+msgid "awards.wear_title"
+msgstr "称号を付ける"
+
+msgid "awards.wear_icon"
+msgstr "アイコンを付ける"
+
+msgid "awards.wear_both"
+msgstr "両方を付ける"
 
 msgid "awards.detail_worn"
 msgstr "カードに装着中。"

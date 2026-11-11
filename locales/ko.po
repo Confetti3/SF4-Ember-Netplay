@@ -8310,7 +8310,7 @@ msgid "awards.card"
 msgstr "내 카드"
 
 msgid "awards.card_detail"
-msgstr "다른 사람에게 보이는 내 카드입니다. 선택하면 어워드가 열립니다. 달 수 있는 칭호와 아이콘이 있습니다."
+msgstr "다른 사람에게 보이는 내 카드입니다. 선택하면 프로필이 열립니다."
 
 msgid "awards.entry_detail"
 msgstr "획득한 칭호와 아이콘, 나머지를 얻는 방법입니다. 하나를 선택하면 카드에 답니다."
@@ -8335,6 +8335,15 @@ msgstr "잠김"
 
 msgid "awards.wear"
 msgstr "카드에 달기"
+
+msgid "awards.wear_title"
+msgstr "칭호 달기"
+
+msgid "awards.wear_icon"
+msgstr "아이콘 달기"
+
+msgid "awards.wear_both"
+msgstr "둘 다 달기"
 
 msgid "awards.detail_worn"
 msgstr "카드에 표시 중입니다."

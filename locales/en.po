@@ -7931,7 +7931,7 @@ msgid "awards.card"
 msgstr "Your card"
 
 msgid "awards.card_detail"
-msgstr "Your card as others see it. Select opens your awards: the titles and icons you can wear."
+msgstr "Your card as others see it. Select opens Profile."
 
 msgid "awards.entry_detail"
 msgstr "The titles and icons you have earned, and how to earn the rest. Select one to wear it on your card."
@@ -7956,6 +7956,15 @@ msgstr "Locked"
 
 msgid "awards.wear"
 msgstr "Put on card"
+
+msgid "awards.wear_title"
+msgstr "Wear title"
+
+msgid "awards.wear_icon"
+msgstr "Wear icon"
+
+msgid "awards.wear_both"
+msgstr "Wear both"
 
 msgid "awards.detail_worn"
 msgstr "On your card."

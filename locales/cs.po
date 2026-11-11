@@ -8309,7 +8309,7 @@ msgid "awards.card"
 msgstr "Tvoje karta"
 
 msgid "awards.card_detail"
-msgstr "Tvoje karta, jak ji vidí ostatní. Výběr otevře tvá ocenění: tituly a ikony, které můžeš nosit."
+msgstr "Tvoje karta, jak ji vidí ostatní. Výběr otevře Profil."
 
 msgid "awards.entry_detail"
 msgstr "Tituly a ikony, které jsi získal, a jak získat ostatní. Vyber jeden a nos ho na své kartě."
@@ -8334,6 +8334,15 @@ msgstr "Zamčeno"
 
 msgid "awards.wear"
 msgstr "Dát na kartu"
+
+msgid "awards.wear_title"
+msgstr "Nosit titul"
+
+msgid "awards.wear_icon"
+msgstr "Nosit ikonu"
+
+msgid "awards.wear_both"
+msgstr "Nosit obojí"
 
 msgid "awards.detail_worn"
 msgstr "Na tvé kartě."
