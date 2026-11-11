@@ -32,6 +32,7 @@
 #include "../common/ReplayRequest.hxx"
 #include "../common/TrainingEntry.hxx"
 #include "../common/RoomLimits.hxx"
+#include "../netplay/RuntimeCommands.hxx"
 #include "../session/RoomModel.hxx"
 #include "../session/MemberLatency.hxx"
 #include <optional>
@@ -94,10 +95,8 @@ namespace sf4e {
 	};
 
 	namespace NetplayFacade {
-		// How the room being opened was entered: a private invitation or a host, a
-		// public room's ticket (a refusal or failure is worded for it), or a
-		// tournament match's watcher (the room admits it only if it names it).
-		enum class JoinKind : std::uint8_t { Private, Public, Observer };
+		// How the room being opened was entered (a host opens it as Private).
+		using JoinKind = commands::JoinKind;
 
 		struct RuntimeCommand {
 			netplay::Command command;

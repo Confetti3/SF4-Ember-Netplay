@@ -787,10 +787,8 @@ void TestGatesMatchPublished() {
 // A Ready parked by hand, as Dispatch parks one, for the controller's generation now.
 static void ParkReady(sf4e::NetplayFacade::internal::Runtime& runtime) {
 	namespace internal = sf4e::NetplayFacade::internal;
-	internal::commands::Room ready;
-	ready.command = {sf4e::netplay::CommandKind::Ready, runtime.controller.GetSnapshot().generation, {}};
-	runtime.readyIntent.Defer(internal::TypedCommand(ready), ready.command.generation, GetTickCount64(),
-		internal::Intent::Budget::Timed);
+	const sf4e::commands::Ready ready{runtime.controller.GetSnapshot().generation};
+	runtime.readyIntent.Defer(sf4e::RuntimeRequest(ready), ready.generation, GetTickCount64(), internal::Intent::Budget::Timed);
 	CHECK(runtime.readyIntent.Parked());
 }
 
