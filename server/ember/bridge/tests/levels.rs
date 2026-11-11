@@ -16,7 +16,7 @@ use common::{
 use ember_bridge::{Db, testing::TempDir};
 use ember_protocol::{
     encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, POINTS_PATH, LOOKUP_PATH, is_card_token},
+    levels::{CARD_PREFIX, CARD_VALID_SECS, LOOKUP_PATH, POINTS_PATH, is_card_token},
 };
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};
@@ -719,7 +719,9 @@ async fn migration_057_leaves_behind_a_rated_game_whose_room_is_gone_and_keeps_t
     let kept: Vec<(String, i64, i64, i64)> = connection
         .prepare("SELECT room_id, table_id, generation, game FROM rated_games ORDER BY table_id")
         .unwrap()
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
         .unwrap()
         .collect::<rusqlite::Result<_>>()
         .unwrap();

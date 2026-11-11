@@ -194,7 +194,21 @@ async fn the_desk_calls_a_set_on_discord_and_posts_its_score() {
     // The desk's new match is called once, however often the connector reads.
     assert_eq!(put(snapshot("live")).await, StatusCode::OK);
     assert_eq!(put(snapshot("live")).await, StatusCode::OK);
-    ember_bridge::deliver_results(bridge.state()).await;
+    // The bridge's own worker runs alongside and may hold the post while
+    // this pass finds nothing due: wait for its outcome to be recorded.
+    ember_bridge::testing::until_async(
+        "the call to be posted",
+        std::time::Duration::from_secs(30),
+        || async {
+            ember_bridge::deliver_results(bridge.state()).await;
+            bridge
+                .get(player1.token(), &format!("{event_path}/sets"))
+                .await
+                .1["sets"][0]["call"]["posted"]
+                == "delivered"
+        },
+    )
+    .await;
     let posts = discord.posts();
     assert_eq!(posts.len(), 1);
     let (path, call) = &posts[0];

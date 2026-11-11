@@ -197,7 +197,9 @@ wire_enum! {
 /// An unknown relation reads as `None`, so a relation a later bridge adds does
 /// not fail the whole answer.
 impl<'de> Deserialize<'de> for Relation {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
         let name = String::deserialize(deserializer)?;
         Ok(Self::parse(&name).unwrap_or(Self::None))
     }
@@ -629,11 +631,7 @@ mod tests {
                 .check()
                 .is_ok()
         );
-        for bad in [
-            fighter(44, 1, 0),
-            fighter(3, 0, 0),
-            fighter(3, 1, 5),
-        ] {
+        for bad in [fighter(44, 1, 0), fighter(3, 0, 0), fighter(3, 1, 5)] {
             assert!(bad.check().is_err(), "{bad:?}");
             assert!(card(vec![bad]).check().is_err(), "{bad:?}");
         }
