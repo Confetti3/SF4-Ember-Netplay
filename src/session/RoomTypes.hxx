@@ -362,6 +362,19 @@ struct ChatMessage {
 	std::string text;
 };
 
+// What a room is created as: the choices made on Create, or the closed room's
+// for its replacement (CharterOf). RoomAuthority starts the room's Snapshot
+// with them. type, practice and delayPolicy are the room's for its life;
+// tableCount (out of range: the type's DefaultTableCount) and wiredOnly are
+// where it starts, which its host can change (SetTableCount, SetWiredOnly).
+struct Charter {
+	RoomType type = ClassicRoom;
+	bool practice = false;
+	DelayPolicy delayPolicy = DelayPolicy::Shared;
+	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
+	bool wiredOnly = false;
+};
+
 struct Snapshot {
 	std::uint32_t protocolVersion = ProtocolVersion;
 	std::uint64_t roomEpoch = 0;

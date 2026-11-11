@@ -29,8 +29,8 @@ struct Room {
 	int nextConnection = 0;
 
 	explicit Room(bool wiredOnly, RoomType type = ClassicRoom)
-		: authority("Wired room", 16, 51, FirstToOne(), false, DelayPolicy::Shared, type,
-			static_cast<std::uint8_t>(ClassicTableCount), wiredOnly) {
+		: authority("Wired room", 16, 51, FirstToOne(),
+			Charter{type, false, DelayPolicy::Shared, static_cast<std::uint8_t>(ClassicTableCount), wiredOnly}) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", NetworkLink::Wired, true);
 	}

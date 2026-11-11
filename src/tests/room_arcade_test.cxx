@@ -13,7 +13,7 @@
 static RoomAuthority Arcade(RoomType type = ArcadeRoom, SetFormat format = SetFormat::Ft1, std::size_t tables = TableCount) {
 	Rules rules;
 	rules.format = format;
-	return RoomAuthority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, type, static_cast<std::uint8_t>(tables));
+	return RoomAuthority("Arcade", 16, 1, rules, Charter{type, false, DelayPolicy::Shared, static_cast<std::uint8_t>(tables)});
 }
 
 // Queue names a cabinet: table + seat * TableCount.
@@ -313,7 +313,7 @@ static void TestPublicArcade() {
 
 // An Arcade room may also be a Practice room.
 static void TestArcadePracticeRoom() {
-	RoomAuthority authority("Both", 8, 1, Rules(), true, DelayPolicy::Shared, ArcadeRoom);
+	RoomAuthority authority("Both", 8, 1, Rules(), Charter{ArcadeRoom, true});
 	const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 	Sit(authority, a, 0); Sit(authority, b, 2);
 	CHECK(authority.SnapshotView().practice && Paired(authority, a, b));
@@ -327,7 +327,7 @@ static void TestWinnerKeepsFighterAndRecords() {
 		Rules rules;
 		rules.format = SetFormat::Ft1;
 		rules.winnerKeepsFighter = option;
-		RoomAuthority authority("Arcade", 16, 1, rules, false, DelayPolicy::Shared, ArcadeRoom);
+		RoomAuthority authority("Arcade", 16, 1, rules, Charter{ArcadeRoom});
 		const MemberId a = Join(authority, 0, true), b = Join(authority, 1);
 		Sit(authority, a, 0); Sit(authority, b, 9);
 		CHECK(authority.SetMemberChara(a, {5, 14}) && authority.SetMemberChara(b, {7, 14}));

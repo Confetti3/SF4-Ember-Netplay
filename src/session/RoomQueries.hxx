@@ -135,6 +135,16 @@ inline bool PracticeKindValid(const Snapshot& room) {
 inline std::uint8_t DefaultTableCount(RoomType type) {
 	return static_cast<std::uint8_t>(type == ClassicRoom ? ClassicTableCount : TableCount);
 }
+// The room `room` is now, as a Charter: what a room replacing it is created as.
+inline Charter CharterOf(const Snapshot& room) {
+	Charter charter;
+	charter.type = room.arcade;
+	charter.practice = room.practice;
+	charter.delayPolicy = room.delayPolicy;
+	charter.tableCount = room.tableCount;
+	charter.wiredOnly = room.wiredOnly;
+	return charter;
+}
 // The tables a room's members can sit at, watch or set rules for; the others
 // stay empty. How many is the room's (Snapshot::tableCount).
 inline std::size_t TablesInPlay(const Snapshot& room) {

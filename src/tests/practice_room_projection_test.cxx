@@ -19,7 +19,7 @@ struct Room {
 	explicit Room(bool practice) {
 		room::Rules rules;
 		rules.roundTime = 60;
-		server.EnableCustomRooms("Practice projection", 8, 31, rules, practice);
+		server.EnableCustomRooms("Practice projection", 8, 31, rules, room::Charter{room::ClassicRoom, practice});
 		for (session::Connection connection = 1; connection <= 2; ++connection) {
 			protocol::SessionJoinRequest join;
 			join.username = "Member-" + std::to_string(connection); join.sidecarHash = "build"; join.port = 30000;

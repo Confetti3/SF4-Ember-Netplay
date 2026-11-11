@@ -18,7 +18,7 @@ struct Room {
 	std::uint64_t nextAction = 1;
 
 	explicit Room(std::uint8_t tables = static_cast<std::uint8_t>(ClassicTableCount), RoomType type = ClassicRoom)
-		: authority("Table count", 16, 41, Rules(), false, DelayPolicy::Shared, type, tables) {
+		: authority("Table count", 16, 41, Rules(), Charter{type, false, DelayPolicy::Shared, tables}) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", 0, true);
 		p1 = Join("P1", 1); p2 = Join("P2", 2);

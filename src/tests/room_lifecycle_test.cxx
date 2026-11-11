@@ -335,7 +335,7 @@ static void TestHudScoreCountsInPlaceGames() {
 // HUD's do not. An Own room's game says Own throughout.
 static void TestHudDelayFollowsTheWatchedGame() {
 	for (const auto policy : {DelayPolicy::Shared, DelayPolicy::Own}) {
-		RoomAuthority authority("Delays", 8, 7, Rules(), false, policy);
+		RoomAuthority authority("Delays", 8, 7, Rules(), Charter{ClassicRoom, false, policy});
 		Join(authority, 0, true);
 		const auto a = Join(authority, 1), b = Join(authority, 2), w = Join(authority, 3);
 		const auto ready = [&](MemberId member, std::uint8_t delay) {
