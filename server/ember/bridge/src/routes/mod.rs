@@ -279,7 +279,8 @@ pub async fn maintenance(state: AppState, resumed: tokio::sync::oneshot::Sender<
 }
 
 /// Expires link intents, holds games whose reports did not arrive, expires
-/// matches nobody played, observes the fighters whose claims lapsed, and
+/// matches nobody played, observes the fighters whose claims lapsed, brings
+/// the archive's classes towards the rankings board's, and
 /// removes sign-ins no site answered, stale challenges, sessions, replay
 /// records, refused BluMint keys and old sets' replays when the bridge prunes
 /// them, once the archive has taken in the sets' games it has not seen.
@@ -291,6 +292,8 @@ pub async fn maintenance_once(state: &AppState) {
     let ctx = Ctx::of(state);
     let now = ctx.now;
     let cutoff = now.saturating_sub(RETENTION_SECS);
+    let classes_shown = rooms::enabled(state) && rooms::classes_shown(state);
+    let developers = rooms::developers(state);
     // A failed pass changes nothing and the next one tries again.
     let _ = state
         .db
@@ -319,4 +322,13 @@ pub async fn maintenance_once(state: &AppState) {
             Ok(())
         })
         .await;
+    // Its own transaction: the rest of the pass never waits on it or fails
+    // with it.
+    if let Err(error) = state
+        .db
+        .write(move |tx| crate::archive::classes::refresh(tx, classes_shown, &developers, now))
+        .await
+    {
+        eprintln!("maintenance: could not refresh the archive's classes: {error:?}");
+    }
 }

@@ -309,7 +309,41 @@ async fn set_answer(
     (status, serde_json::from_slice(&body).unwrap_or(Json::Null))
 }
 
+/// That everything migration 055 derives agrees with the games, after any
+/// write: each stored game's keys are the view's, the counts the keys', the
+/// kept total every row's and the sides' players the view's.
+async fn assert_index(f: &Fixture) {
+    let wrong: Vec<(String, i64)> = f
+        .bridge
+        .state()
+        .db
+        .read(|tx| {
+            let mut wrong = Vec::new();
+            for check in [
+                "SELECT key, saved_at, digest FROM archive_keys EXCEPT SELECT key, saved_at, unhex(digest) FROM archive_game_keys",
+                "SELECT key, saved_at, unhex(digest) FROM archive_game_keys EXCEPT SELECT key, saved_at, digest FROM archive_keys",
+                "SELECT key, games FROM archive_key_counts EXCEPT SELECT key, COUNT(*) FROM archive_keys GROUP BY key",
+                "SELECT key, COUNT(*) FROM archive_keys GROUP BY key EXCEPT SELECT key, games FROM archive_key_counts",
+                "SELECT g.digest FROM archive_games g JOIN archive_side_players s ON s.digest = g.digest
+                 WHERE g.player_a IS NOT s.player_a OR g.player_b IS NOT s.player_b",
+                "SELECT 1 FROM archive_kept WHERE games != (SELECT COUNT(*) FROM archive_games)
+                    OR bytes != (SELECT COALESCE(SUM(size), 0) FROM archive_games)",
+            ] {
+                let found: i64 =
+                    tx.query_row(&format!("SELECT COUNT(*) FROM ({check})"), [], |row| row.get(0))?;
+                if found > 0 {
+                    wrong.push((check.to_owned(), found));
+                }
+            }
+            Ok(wrong)
+        })
+        .await
+        .unwrap();
+    assert!(wrong.is_empty(), "{wrong:?}");
+}
+
 async fn listed(f: &Fixture, query: &str) -> Json {
+    assert_index(f).await;
     let response = f
         .bridge
         .client
@@ -1541,10 +1575,17 @@ async fn with_classes(shown: bool) -> Fixture {
     .await
 }
 
+/// A maintenance pass, which gives the archive's games their players'
+/// classes as the board shows them now (`archive::classes`).
+async fn classes_refreshed(f: &Fixture) {
+    ember_bridge::maintain(f.bridge.state()).await;
+}
+
 /// Each side lists the class the public rankings board shows today for the
 /// player who played it, as far as the archive knows who did: a set's
 /// roster, or the account that sent or named that side. A player who is not
-/// on the board (not listed, not settled, a developer) shows none.
+/// on the board (not listed, not settled, a developer) shows none. The
+/// games carry the board's classes from the next maintenance pass on.
 #[tokio::test]
 async fn a_side_lists_its_players_class_as_the_board_shows_it() {
     let f = with_classes(true).await;
@@ -1552,6 +1593,7 @@ async fn a_side_lists_its_players_class_as_the_board_shows_it() {
     connect(&f, &f.b, "200").await;
     ranked(&f, "100", true, 7, true).await;
     ranked(&f, "200", false, 3, true).await;
+    classes_refreshed(&f).await;
     let online = game(21, [1, 2]);
     assert_eq!(
         send(&f, &f.a, &online, "a=Ann&b=Bob&side=0").await,
@@ -1575,13 +1617,16 @@ async fn a_side_lists_its_players_class_as_the_board_shows_it() {
     let list = listed(&f, "").await;
     assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
     ranked(&f, "200", true, 3, true).await;
+    classes_refreshed(&f).await;
     let list = listed(&f, "").await;
     assert_eq!(listed_game(&list, &online)["classes"], json!([7, 3]));
     ranked(&f, "200", true, 3, false).await;
+    classes_refreshed(&f).await;
     let list = listed(&f, "").await;
     assert_eq!(listed_game(&list, &online)["classes"], json!([7, null]));
     // A set's sides are its roster's, whoever sent the game.
     ranked(&f, "200", true, 3, true).await;
+    classes_refreshed(&f).await;
     let id = set(&f, "archive-classes", 1).await;
     assert_eq!(
         send_to_set(&f, &f.a, &id, &replay_of(&f.bridge, 1), "country=BE").await,
@@ -1592,6 +1637,29 @@ async fn a_side_lists_its_players_class_as_the_board_shows_it() {
         listed_game(&list, &replay_of(&f.bridge, 1))["classes"],
         json!([7, 3])
     );
+    // The set is assigned again with its players' slots the other way round,
+    // as a replaced room assigns it again (its roster first, then the
+    // generation): its game's sides follow the roster.
+    sql(
+        &f,
+        "INSERT INTO match_participants (match_id, assignment_generation, slot, participant_id, ember_id)
+         SELECT p.match_id, m.assignment_generation + 1, 1 - p.slot, p.participant_id, p.ember_id
+         FROM match_participants p JOIN matches m ON m.id = p.match_id
+         WHERE p.match_id = ?1 AND p.assignment_generation = m.assignment_generation",
+        vec![id.clone()],
+    )
+    .await;
+    sql(
+        &f,
+        "UPDATE matches SET assignment_generation = assignment_generation + 1 WHERE id = ?1",
+        vec![id.clone()],
+    )
+    .await;
+    let list = listed(&f, "").await;
+    assert_eq!(
+        listed_game(&list, &replay_of(&f.bridge, 1))["classes"],
+        json!([3, 7])
+    );
     // No Ember ID or Discord account is ever listed.
     let text = list.to_string();
     for hidden in [f.a.id().as_str(), f.b.id().as_str(), "\"100\"", "\"200\""] {
@@ -1600,12 +1668,14 @@ async fn a_side_lists_its_players_class_as_the_board_shows_it() {
 }
 
 /// A developer is not on the board, so their side shows no class; nor does
-/// any side while the bridge hides classes.
+/// any side while the bridge hides classes, when the class order is the
+/// newest and no game is picked by class.
 #[tokio::test]
 async fn no_class_for_a_developer_or_while_classes_are_hidden() {
     let f = with_classes(true).await;
     connect(&f, &f.a, "300").await;
     ranked(&f, "300", true, 7, true).await;
+    classes_refreshed(&f).await;
     let online = game(23, [1, 2]);
     assert_eq!(
         send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
@@ -1617,10 +1687,106 @@ async fn no_class_for_a_developer_or_while_classes_are_hidden() {
     let f = with_classes(false).await;
     connect(&f, &f.a, "100").await;
     ranked(&f, "100", true, 7, true).await;
+    classes_refreshed(&f).await;
     assert_eq!(
         send(&f, &f.a, &online, "a=Ann&b=&side=0").await,
         StatusCode::CREATED
     );
     let list = listed_when(&f, "", |list| games(list).len() == 1).await;
     assert_eq!(listed_game(&list, &online)["classes"], json!([null, null]));
+    let list = listed(&f, "sort=class").await;
+    assert_eq!(list["sort"], "newest");
+    assert_eq!(games(&list).len(), 1);
+    let list = listed(&f, "class=7").await;
+    assert!(games(&list).is_empty());
+    assert_eq!(list["matching"], 0);
+}
+
+async fn status_of(f: &Fixture, query: &str) -> StatusCode {
+    f.bridge
+        .client
+        .get(f.bridge.url(&format!("/v1/archive?{query}")))
+        .send()
+        .await
+        .unwrap()
+        .status()
+}
+
+/// The bridge picks games by class and lists them highest class first, with
+/// the class order's own cursor; the counts say how many games there are
+/// and how many a filter keeps.
+#[tokio::test]
+async fn games_are_picked_and_ordered_by_class() {
+    let f = with_classes(true).await;
+    connect(&f, &f.a, "100").await;
+    connect(&f, &f.b, "200").await;
+    ranked(&f, "100", true, 9, true).await;
+    ranked(&f, "200", true, 4, true).await;
+    classes_refreshed(&f).await;
+    let by_a = game(31, [1, 2]);
+    let by_b = game(32, [3, 4]);
+    let unsided = game(33, [5, 6]);
+    assert_eq!(
+        send(&f, &f.a, &by_a, "a=Ann&b=&side=0").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.b, &by_b, "a=&b=Bob&side=1").await,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        send(&f, &f.a, &unsided, "a=Ann&b=").await,
+        StatusCode::CREATED
+    );
+    let list = listed_when(&f, "", |list| games(list).len() == 3).await;
+    assert_eq!((&list["total"], &list["matching"]), (&json!(3), &json!(3)));
+    assert_eq!(list["sort"], "newest");
+
+    let list = listed(&f, "class=9").await;
+    assert_eq!(games(&list).len(), 1);
+    assert_eq!(games(&list)[0]["digest"], digest(&by_a).as_str());
+    assert_eq!(list["matching"], 1);
+    let list = listed(&f, "class=4&fighter=3").await;
+    assert_eq!(games(&list).len(), 1);
+    assert_eq!(list["matching"], 1);
+    let list = listed(&f, "class=4&fighter=1").await;
+    assert!(games(&list).is_empty());
+    assert_eq!(list["matching"], 0);
+
+    let list = listed(&f, "sort=class").await;
+    assert_eq!(list["sort"], "class");
+    let order: Vec<&str> = games(&list)
+        .iter()
+        .map(|game| game["digest"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        order,
+        [
+            digest(&by_a).as_str(),
+            digest(&by_b).as_str(),
+            digest(&unsided).as_str()
+        ]
+    );
+    assert_eq!(list["more"], false);
+    // A newest-first cursor is not one of the class order's, nor the other way.
+    let zeros = "0".repeat(64);
+    assert_eq!(
+        status_of(&f, &format!("sort=class&cursor=1.{zeros}")).await,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        status_of(&f, &format!("cursor=9.1.{zeros}")).await,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        status_of(&f, &format!("sort=class&cursor=9.1.{zeros}")).await,
+        StatusCode::OK
+    );
+    // A player who leaves the board leaves their games' order too.
+    ranked(&f, "100", false, 9, true).await;
+    classes_refreshed(&f).await;
+    let list = listed(&f, "class=9").await;
+    assert!(games(&list).is_empty());
+    let list = listed(&f, "sort=class").await;
+    assert_eq!(games(&list)[0]["digest"], digest(&by_b).as_str());
 }
