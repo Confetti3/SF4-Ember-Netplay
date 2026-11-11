@@ -1,5 +1,6 @@
 #include "ApplicationShell.hxx"
 #include "MenuPresentation.hxx"
+#include "PlayerCard.hxx"
 #include "NetworkFeedback.hxx"
 #include "PublicRoomsCards.hxx"
 #include "RowId.hxx"
@@ -164,8 +165,10 @@ class ApplicationShell::ProfileScreens final : public ScreenPanel {
 public:
     bool Owns(const std::string& screen) const override { return ProfilePanel::Owns(screen); }
     std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
-        const auto& shell = f.shell;
-        return shell.profile_.Rows(f.view, f.screen, MenuPlayerCard(), f.view.canEditPreferences, title);
+        // The levels part of the card, as of this frame (the published card is last frame's).
+        PlayerCardView levels;
+        player_card::Fill(levels, f.view.levels, f.shell.preferences_.mainFighter);
+        return f.shell.profile_.Rows(f.view, f.screen, levels, f.view.canEditPreferences, title);
     }
     // A strip tile opens the Fighters page on that fighter; Connect Discord is the Ember ID panel's.
     // A fighter's row on the Fighters page makes it the main, which the shell's own rows do.

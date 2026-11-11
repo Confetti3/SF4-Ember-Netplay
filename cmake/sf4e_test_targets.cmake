@@ -169,6 +169,7 @@ sf4e_add_unit_test(NAME WatchJourney SOURCES src/tests/watch_journey_test.cxx LI
 sf4e_add_unit_test(NAME PublicRoomsJourney SOURCES src/tests/public_rooms_journey_test.cxx src/tests/public_rooms_setup_journey_test.cxx
     LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME RankingsJourney SOURCES src/tests/rankings_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
+sf4e_add_unit_test(NAME ProfileJourney SOURCES src/tests/profile_journey_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME RoomPanelNavigation SOURCES src/tests/room_panel_navigation_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
 sf4e_add_unit_test(NAME TableCardShape SOURCES src/tests/table_card_shape_test.cxx TIMEOUT 15 LABELS ui room)
 sf4e_add_unit_test(NAME WatchedMatchExit SOURCES src/tests/watched_match_exit_test.cxx LIBS sf4e_ui Dimps TIMEOUT 30 LABELS ui room)
@@ -181,6 +182,7 @@ sf4e_add_unit_test(NAME Win32Cursor SOURCES src/tests/win32_cursor_test.cxx LIBS
 sf4e_add_unit_test(NAME CountryPicker SOURCES src/tests/country_picker_test.cxx LIBS sf4e_ui TIMEOUT 30 LABELS ui)
 sf4e_add_unit_test(NAME V2Layout SOURCES src/tests/v2_layout_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME LevelMark SOURCES src/tests/level_mark_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
+sf4e_add_unit_test(NAME PlayerCard SOURCES src/tests/player_card_test.cxx LIBS sf4e_ui TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME AppearanceGrid SOURCES src/tests/appearance_grid_test.cxx TIMEOUT 15 LABELS ui)
 sf4e_add_unit_test(NAME MenuSpeech SOURCES src/tests/menu_speech_test.cxx LIBS sf4e_localization STD 17 LABELS ui)
 sf4e_add_unit_test(NAME SpeechLinux SOURCES src/tests/speech_linux_test.cxx STD 17)

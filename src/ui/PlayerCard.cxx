@@ -104,7 +104,7 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     const bool leads = !card.fighters.empty() && card.fighters.front().fighter == main;
     if (card.levels == CardLevels::Counted && leads && card.fighters.front().level && fighter) {
         const auto& lead = card.fighters.front();
-        const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, lead.level), x = left + width + pad, text = room - width - pad;
+        const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, lead.level), x = left + width + pad, text = (std::max)(0.f, room - width - pad);
         v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
         v2::Text(d, ImVec2(x, foot.min.y + pad + 30 * s), text, loc::Tf("level.games", lead.games), 14 * s, c.muted);
     } else if (const char* why = player_card::NoLevelWords(card)) {
