@@ -119,11 +119,11 @@ request type denies unknown fields and every answer type ignores them
 (`friends.rs` header). A build asks only a bridge that lists `friends`;
 an older bridge answers 404, worded `friends_unavailable`.
 
-Friends ship dormant in 1.6.0: no game screen calls them, so the bridge setting
-`rooms.friends` is off by default (`config::Rooms::friends`, read only by
-`friends::offered`). While it is off, discovery does not list `friends`, both
-routes answer as an unknown route (404), the card look-up's `friend` selector
-answers null and a card's `relation` is `none`. Turn it on with the screens.
+Friends are on by default: the bridge setting `rooms.friends`
+(`config::Rooms::friends`, read only by `friends::offered`) defaults to true,
+and an operator can still turn it off. While it is off, discovery does not
+list `friends`, both routes answer as an unknown route (404), the card
+look-up's `friend` selector answers null and a card's `relation` is `none`.
 
 Both routes take the player session (`routes::play::playing`) and answer the
 whole `FriendsState`, so the client holds one state and replaces it whole,
@@ -201,7 +201,7 @@ offline). Rate limits answer 429.
 | `code` | the caller's friend code, `XXXX-XXXX` in Crockford base32 |
 | `appear_offline` | written only when on |
 | `friends` | at most 200, in no order (the client groups and sorts) |
-| `main` | the friend's main and its points and tier; `points` and `tier` absent together while they do not show points |
+| `main` | the friend's main and its points and tier; `points` and `tier` absent together until the friend has played that fighter |
 | `badge` | `SkillBadge`: their class as last shown (`skill_ratings.band`, settled by the aged deviation), read without remembering anything; the developer mark for a developer; absent when they do not take part, or classes are hidden |
 | `presence.state` | `offline` (with `seen_at` when known), `online` (with `activity`), `room` (with `status`, `table`, and `room` for a public room or `private: true`) |
 | `room.joinable` | open, not locked, not full, and of the caller's build |
@@ -248,7 +248,7 @@ invite box says).
 ## Privacy
 
 - **Friends** see: name and flag (as the friend's game sends them), class as
-  last shown, main and its points and tier (while they show points), presence, and the
+  last shown, main and its points and tier (once played), presence, and the
   record between the two of them.
 - **A non-friend** learns nothing of presence. Holding a card token (being in
   the same public room) they see the points and tier that player shows and
@@ -456,6 +456,6 @@ Friends ship last: the levels slice and the room's cards do not need them.
 | Join a friend's private room from presence, without an invite? | No: invites only; the secret never sits in presence. | A presence field and a setting. |
 | Tell friends when someone comes online? | No: noise. | A toast and a setting. |
 | Friend cap 200? | Yes, to bound the state's size (about 50 KB). | A constant; past about 500 the state needs paging. |
-| Show friends' levels when they do not take part in ranking? | The rooms' rule: no. | The same read filter as rooms. |
+| Show friends' levels when they do not take part in ranking? | Yes, decided: a card is how players find each other to add friends, so it is public, here and in rooms (`FIGHTER_LEVELS.md`, Who sees what). | The same read filter as rooms. |
 | A recent-players list to add from after leaving a room? | Later: card tokens already last 7 days, so the client can keep them. | Client only. |
 | Friends' presence on the Discord bot or website? | Not in 1.6.0. | A read route; the data is there. |

@@ -13,8 +13,11 @@ fighter a level from 1 to 60; the points replace it, and the file keeps its
 name (the `fighter_levels` table and the C++ and Rust type names keep theirs; the
 wire says "points" throughout).
 
-Where points show and how the card is laid out is `PLAYER_CARD.md`; who sees
-what is settled here (Privacy).
+Every account also has **account points (BP)**, its own count beside the
+fighters' (FP): every counted game earns them, whether or not it named
+fighters. Cards are public (Who sees what).
+
+Where points show and how the card is laid out is `PLAYER_CARD.md`.
 
 ## Rules
 
@@ -30,9 +33,13 @@ what is settled here (Privacy).
   (Bridge, `record_games`).
 - Nothing else weighs a game: no opponent strength, no lopsided-game or
   unsure-rating weight.
-- Taking part in ranking does not change what counts. A player who stopped
-  taking part still earns points (USF4 keeps every player's per-character
-  record the same way); whether others see them is Privacy.
+- Account points (BP): the same counted games count for both accounts, a win
+  adding 2 and a loss 1, whether or not the host reported fighters. They count
+  inside the same sitting rule as fighter points (the repeat cap above), and
+  never go down.
+- Taking part in ranking does not change what counts, nor who sees it. A
+  player who stopped taking part still earns points (USF4 keeps every
+  player's per-character record the same way) and their card shows them.
 - No history is backfilled: no stored game names its fighters, so every
   account starts with no points on every fighter when the bridge and the 1.6.0
   room host are both live.
@@ -44,7 +51,8 @@ games: a win adds 2, a loss 1. They never go down and have no cap. A fighter
 with no counted game has no points and is not listed.
 
 The **tier** is the frame's colour, from the five award tiers (`v2::Tier`,
-`v2::TierColor` in `src/ui/V2.cxx`), by points:
+`v2::TierColor` in `src/ui/V2.cxx`), by points. A fighter's tier is its
+frame's colour; the number is never coloured by it:
 
 | Tier | Frame | From points | Games at 1.5 points a game |
 |---|---|---|---|
@@ -54,13 +62,24 @@ The **tier** is the frame's colour, from the five award tiers (`v2::Tier`,
 | 3 | Gold | 1,500 | about 1,000 |
 | 4 | Ember | 2,500 | about 1,667 |
 
-The thresholds live only in the bridge, one constant table
-(`skill/levels.rs`, `TIER_STARTS`): a client is sent each fighter's points, its
-tier and the points where that tier and the next one begin, so the thresholds can be
+The account's points have their own thresholds, on the same five tiers:
+
+| Tier | From account points |
+|---|---|
+| 0 | 0 |
+| 1 | 500 |
+| 2 | 2,000 |
+| 3 | 5,000 |
+| 4 | 10,000 |
+
+The thresholds live only in the bridge, two constant tables
+(`skill/levels.rs`, `TIER_STARTS` for a fighter and `ACCOUNT_TIER_STARTS` for
+the account, both checked at compile time to have one start per tier, begin
+at 0 and only go up): a client is sent each count's points, its tier and the
+points where that tier and the next one begin, so the thresholds can be
 retuned after real play without a client update or a data change (games and
-wins are stored, never points or tiers). A client never computes a tier. The
-number is drawn on dark ground; the tier colours only the frame. Points show
-up to 999,999 (six digits).
+wins are stored, never points or tiers). A client never computes a tier.
+Points show up to 999,999 (six digits).
 
 ## Room host: what it must report
 
@@ -120,10 +139,30 @@ older supervisor drops a whole games array over 6,144 bytes, which a busy
 The bridge reads `game` and `fighters` as optional (`Game` in
 `skill/mod.rs` does not deny unknown fields, so an older bridge ignores them).
 A room of an older build reports neither: its games are rated exactly as
-before (game 0) and earn no points. Players are matched by build, so a 1.5.x
+before (game 0) and earn account points but no fighter points. Players are matched by build, so a 1.5.x
 player only ever plays in 1.5.x rooms and never sees any points.
 
 ## Bridge
+
+### Migration 059 (`059_account_points.sql`)
+
+Named in the list in `src/db/migrations.rs` after 058. One new table, shaped
+and referenced like `fighter_levels`; nothing existing changes, and every
+account starts at 0 account points (no history is backfilled).
+
+```sql
+CREATE TABLE account_points (
+    discord_user_id TEXT PRIMARY KEY,
+    games INTEGER NOT NULL,
+    wins INTEGER NOT NULL CHECK (wins <= games),
+    first_at INTEGER NOT NULL,
+    played_at INTEGER NOT NULL
+) WITHOUT ROWID;
+```
+
+Read only by account (its key); a row for good, one per account that ever
+played a counted game. Points and tier are worked out when served, as for
+fighters.
 
 ### Migration 057 (`057_fighter_levels.sql`)
 
@@ -187,8 +226,9 @@ points never read them:
 3. The pair's sitting (`rated_pairs`, as before: a row older than three hours
    is deleted, then `games` adds 1) and its record (`pair_records`): the
    winner's side of `first_wins`/`second_wins` adds 1; `played_at` is now.
-4. With `fighters` and a sitting count of at most `FULL_REPEATS`: upsert both
-   rows of `fighter_levels` (`skill/levels.rs`).
+4. With a sitting count of at most `FULL_REPEATS`: upsert both accounts' rows
+   of `account_points`, and, when the game has `fighters`, both rows of
+   `fighter_levels` (`skill/levels.rs`).
 5. Both accounts take part in ranking (`ranking_choices`): rate as today,
    with the sitting weight from step 3.
 
@@ -214,14 +254,16 @@ Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
 
 ```json
 {"points":"no_account"}
-{"points":"counted","shown":true,"fighters":[
+{"points":"counted",
+ "account":{"points":13,"games":9,"wins":4,"tier":0,"floor":0,"next":500,"since":1729468800},
+ "fighters":[
   {"fighter":3,"points":1986,"games":1284,"wins":702,"tier":3,"floor":1500,"next":2500,"since":1729468800}]}
 ```
 
 | Field | Rule |
 |---|---|
 | `points` | `no_account` (no Discord account on the Ember ID) or `counted` |
-| `shown` | others see this account's points (Privacy); written only when true |
+| `account` | the account's points (BP), always present in `counted`: `points`, `games`, `wins`, `tier`, `floor`, `next` as for a fighter but on the account's thresholds, `points` 0 and `games` 0 while no game is counted; `since` (first counted game) is omitted exactly while `games` is 0 |
 | `fighters` | played fighters only, ascending by `fighter`, unique, at most 44 |
 | `fighter` | 0 to 43 |
 | `points` | `games + wins`, at least 1 |
@@ -231,7 +273,8 @@ Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
 | `next` | the points where the next tier begins; absent exactly when `tier` is 4; otherwise `points < next` |
 | `since` | `first_at`, unix seconds |
 
-Read only: nothing is remembered as shown.
+Read only: nothing is remembered as shown. There is no `shown` member:
+cards are public.
 
 ### The card token in the room ticket
 
@@ -268,30 +311,32 @@ ask the bridge for that player's card later, as often as it needs, fresh.
 
 ```json
 {"cards":[{"card":"c1.…"},{"friend":"fr_…"}]}
-{"cards":[{"fighters":[{"fighter":3,"points":1986,"tier":3}],"relation":"none"},null]}
+{"cards":[{"account":{"points":13,"tier":0},"fighters":[{"fighter":3,"points":1986,"tier":3}],"relation":"none"},null]}
 ```
 
 | Field | Rule |
 |---|---|
 | request `cards` | 1 to 16 selectors: `card` (a token) or `friend` (a friend id, `FRIENDS.md`) |
 | answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, and for a friend id that is not the caller's friend |
-| `fighters` | as in `points/me` but `fighter`, `points`, `tier` only; absent when the player does not show points |
+| `account` | always present: the account's `points` and `tier` only |
+| `fighters` | as in `points/me` but `fighter`, `points`, `tier` only; always present, an empty array when nothing is played |
 | `relation` | the caller's relation to that player: `none`, `friend`, `sent`, `received`, `blocked` (the caller blocked them); `none` for a player who blocked the caller |
 
 The bridge serves `relation` once `friends` is offered; before that it is
 always `none`.
 
-## Privacy
+## Who sees what
 
 - Your own points: always, to you.
-- Others' points: shown to a room member (through the card token) and to a
-  friend while that player takes part in ranking (`ranking_choices.ranked`,
-  default true). A player who stopped taking part keeps earning points,
-  shows none to others, and sees on their Fighters tab that others do not see
-  them. This answers `MASTERY.md`'s open question; see Open questions.
-- Others see a fighter's points and tier, never wins, games or win rate.
-  Points minus games would be wins, which is why the card carries the points
-  only.
+- A card is how players find each other to add friends, so it is public.
+  Others' points are shown to a room member (through the card token) and to a
+  friend, whether or not that player takes part in ranking
+  (`ranking_choices.ranked` is not read). A card is `null` only for an account
+  with no Discord account connected, and for a player who blocked the caller
+  (`FRIENDS.md`).
+- Others see the account's and each fighter's points and tier, never wins,
+  games or win rate. Points minus games would be wins, which is why the card
+  carries the points only.
 - No private room shows points: its host writes its own snapshot, so a token
   there is dropped like a class.
 - A card token says nothing by itself; it is unreadable without the bridge's
@@ -301,7 +346,8 @@ always `none`.
 
 - `netplay::levels::Own` (`src/netplay/Levels.hxx`): `unavailable`,
   `no_account` or counted, with an array of 44 `{points, games, wins, tier,
-  floor, next, since}` (points 0 for unplayed) and `shown`. Read on Profile's open, at
+  floor, next, since}` (points 0 for unplayed) and the account's own count of the
+  same fields. Read on Profile's open, at
   start, and twice after each set this PC fought (8 and 20 seconds after the
   set's end, since the bridge polls rooms every 5 seconds,
   `routes/rooms/poll.rs` `POLL_SECS`). Kept per bridge and Ember ID, as
@@ -341,27 +387,39 @@ and its generator are gone).
   painted. Points need up to six digits (the largest shown is 999,999); the same
   code lays out any count. A band over a small picture shrinks the digits until
   the number fits the picture's width.
-- **The label.** `v2::Level` draws a short label before the plate, left of it, in
-  the kit's bold heading font in white, like the game's "PP" and "BP": the string
-  `points.label`, English "FP" (fighter points), in every catalog. The tier
-  stays the colour of the frame round the number.
+- **The label.** After the number and a space (about a third of the digits'
+  height) comes a two-letter label in the kit's bold heading font: white with a
+  dark outline (the text drawn offset by about a fourteenth of the digits' height
+  in the eight directions in near black, then white on top), sized so its
+  capitals stand as tall as the digits. It is `points.label` (English "FP",
+  a fighter's points) or `points.account_label` ("BP", the account's), Latin
+  letters in every catalog, as the game keeps "PP" and "BP" in every language.
 - **A gain.** `v2::LevelGain(d, at, height, gain)` draws "+16" with the gold set
   on no ground. The sheet has no plus, so the plus is the heading font's, in the
   same gold.
+- **The line.** The owner's reference is SF4's own versus screen: under a
+  player's name two plain lines, `2331 PP / [trophy] 6555` and
+  `1606 BP / [trophy] 189`, the number first, then the label, both white with a
+  dark outline at the same height, with no plate, box, background or coloured
+  frame. Ember draws `<number> FP` and `<number> BP` the same way. The tier
+  never colours the number; it may still colour a picture's own outer frame
+  where a caller already draws one.
 - **Fallback.** While the sheet has not loaded, or the game has none or it does
   not match, the number is drawn in the heading font's digits, white (gold for a
-  gain), on the same dark ground and frame (as the Dev mark falls back to a pill,
-  `NameMarks.cxx` `MarkOf`).
-- **Kit.** `V2.hxx` declares `v2::Level(d, at, height, points, tier)` (the label
-  and the number on dark ground in the tier's frame, returning the width of both),
-  `v2::LevelWidth(points, height)`, `v2::LevelGain` and `v2::FrameTier(tier)` (the
-  award tier a bridge tier names), with the two parts built on them in
-  `PLAYER_CARD.md` (`LevelBand`, `Meter`). The tier is always passed in, never
-  worked out from the points. Speech and the text probe read the row's words
-  ("1986 points"), never the art or the label.
-- **Lab.** `UiLab --levels` shows 7, 86, 412, 1986 and 12840 at three heights with
-  a gain, and again without art; the digits are the game's when `SF4E_GAME_DIR`
-  names a game folder.
+  gain), outlined the same way.
+- **Kit.** `V2.hxx` declares `v2::Level(d, at, height, points, labelId)` (the
+  line, the digits `height` tall, returning its width), `v2::LevelWidth(points,
+  height, labelId)`, `v2::LevelGain` and `v2::FrameTier(tier)` (the award tier a
+  bridge tier names), with the two parts built on them in `PLAYER_CARD.md`
+  (`LevelBand`, `Meter`). `LevelBand` is the line `<number> FP` on a short dark
+  shade across a fighter's picture's foot, shrunk to fit its width; the shade is
+  only there to read over art, with no frame stroke round the picture. Speech
+  and the text probe read the row's words ("1986 points"), never the art or the
+  label.
+- **Lab.** `UiLab --levels` shows 0, 7, 86, 412, 1986, 12840 and 999999 as FP and
+  BP at three heights with a gain, and again without art, then bands with 0, 1,
+  4, 86, 1986 and six digits on a narrow picture; the digits are the game's when
+  `SF4E_GAME_DIR` names a game folder.
 
 ## Work packages
 
@@ -376,7 +434,7 @@ cap).
 |---|---|---|---|---|
 | P0 Contracts | `server/ember/protocol/src/{levels.rs,friends.rs,lib.rs}`, `rooms/mod.rs` (`TicketRequest::card`), `rooms/ticket.rs` (`RoomTicket::card`) | none | shapes, `check`, requests refuse unknown fields and answers ignore them, tickets without `card` byte-identical | none |
 | P1 Room host | `src/common/{SkillBadge.hxx,SkillBadgeJson.hxx}`, `src/session/{RoomAuthority.hxx,RoomModelServerOwned.cxx,RoomModelActions.cxx,RoomModel.cxx,RoomTypes.hxx,RoomModelJson.cxx,Admission.hxx,IrohRoomPeers.cxx}`, `server/roomhost/{RoomHostStatus.hxx,README.md}`, `server/ember-rooms/src/protocol.rs`, `server/ember/bridge/src/routes/rooms/supervisor.rs` (the limit only), `rust/sf4-net/src/{control.rs,service/controls.rs,service/protocol.rs}` | P0 | `room_server_owned_test` (fighters, game index across a rematch in place, old checkpoint restores), `room_host_config_test` (largest line), `session_server_moderation_test` (card admitted, forged card ignored), ember-rooms limits test, helper `connected` with `card` | two 1.6.0 PCs in a public room: a set of three games in place reaches the bridge as three games |
-| P2 Bridge levels | `migrations/057_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates but counts no points; opted-out player earns points, shows none; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
+| P2 Bridge levels | `migrations/057_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates and earns account points but no fighter points; opted-out player earns points and shows them; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
 | P3 Bridge friends | `FRIENDS.md` | P2 | there | there |
 | P4 Helper and runtime | `rust/sf4-net/src/tournament/{levels.rs,friends.rs,mod.rs,play.rs,rooms.rs}`, `src/netplay/{Levels.hxx,LevelRequests.hxx,Friends.hxx,FriendRequests.hxx,TournamentStatus.hxx}`, `src/session/SocialAnswers.{hxx,cxx}`, `src/sf4e/{sf4e__NetplayRuntime__Social.cxx,sf4e__NetplayRuntime.hxx,sf4e__NetplayRuntime__Status.cxx}` (publishing levels and friends; dropping `card` outside public rooms), the answer hook beside `TakeRankingsAnswer`, the netplay and session library lines of `CMakeLists.txt`, `src/tests/{social_answers_test.cxx,tournament_fuzz_test.cxx}` | P0; P1 for `Member::card` | ops round-trip, `card` asked only with `levels` listed, decoders ignore unknown members and keep known keys exact, request cadence | none |
 | P5 Digits and points parts | `src/common/PointDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `FrameTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | glyph measuring on a synthetic sheet; layout from a synthetic glyph set | the digits against the game's own PP and BP at three sizes |
@@ -393,7 +451,7 @@ without changing anything that slice stored.
 
 | Question | Recommendation | Cost to change later |
 |---|---|---|
-| Do a player's games count while they do not take part in ranking? Do others see their points? | Count always; others see points only while they take part (the Room board's footer line). | Showing is a read filter: one line. Not counting could never be undone, which is why counting is the default. |
+| Do a player's games count while they do not take part in ranking? Do others see their points? | Count always, and show always: a card is how players find each other to add friends, so it is public (decided for 1.6.0, replacing the earlier "only while they take part"). | Hiding again is a read filter: one line. Not counting could never be undone, which is why counting is the default. |
 | Rate rematch-in-place games too (the `game` key)? | Yes: today games 2 and 3 of a set played in place are silently not rated. | Ignoring `game` again is one line; ratings moved meanwhile stay moved. |
 | Are the tier thresholds right? | Ship 0, 200, 700, 1,500 and 2,500 points; read real `games` and `wins` after four weeks and retune. | None: only the bridge knows them, stored data is games and wins. |
 | Points in the match HUD? | No for 1.6.0: the HUD has no room, and the class is the skill mark there. | A HUD layout change and a settings row. |
