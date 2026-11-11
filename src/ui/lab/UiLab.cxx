@@ -8,6 +8,7 @@
 // --playback: a replay's strip and input lanes over the art, paused at half speed
 // --caption: an export's caption (plates with classes, the line and Ember's mark) over the art
 // --rankings: an Ember ID with Rankings' answers (--screen rankings or rankings-board)
+// --profile played|fresh|sixty|hidden|noaccount|unavailable|loading: the player's levels (--screen card or fighters)
 // --levels: fighter levels 1 to 60 on their plates at the digits' three sizes, bands on pictures and meters
 //   (all of it shows in --size 3840x2160)
 // --recovery launch|offer|download|install: the launch window, or the updater at that step
@@ -17,7 +18,7 @@
 //   and writes each step there; exits when it is done, 3 when a step failed
 // --walk-from step: starts the walk at that step (a name its lines print), as a rerun of a failed one
 // --seats watch|none with --room: FRaccie watches table 2's game, or has no place in the Classic room
-// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
+// UiLab.exe [--size WxH] [--scale 1.25] [--levels] [--room] [--arcade classic|arcade|king] [--seats empty|alone|duo|apart|rematch|full] [--postmatch choose|you|they|left] [--public] [--rankings] [--profile state] [--playback] [--caption] [--pip] [--picture 0|1|2] [--hide members|chat|both] [--hud 0|1] [--training] [--update] [--screen id] [--keys down,down,enter,click:x:y] [--shot file.bmp]
 //   With --shot it plays --keys (one per 6 frames), saves the picture and exits.
 // --trace trace.txt (with --shot): writes the screen and the focused row before the first key and after each one,
 //   so a walk's presses can be counted without reading the pictures
@@ -294,6 +295,35 @@ void Rankings(ui::ShellView& view) {
         board->push_back({{std::get<0>(p), CountryCode::Parsed(std::get<1>(p))}, static_cast<std::uint8_t>(std::get<2>(p)), std::string(std::get<0>(p)) == "FRaccie"});
     r.board.value = board; r.board.loaded = true; r.board.revision = r.board.finished = 1;
 }
+// --profile played|fresh|sixty|hidden|noaccount|unavailable|loading: the player's
+// levels as the card and the Fighters tab show them (--screen card or fighters).
+// played: twelve fighters, the main (Ryu) at 42; fresh: counted, none played yet;
+// sixty: the main at the top; hidden: played, and others do not see the levels.
+void Profile(ui::ShellView& view, const std::string& state) {
+    auto& answer = view.levels;
+    answer.loading = state == "loading";
+    answer.loaded = !answer.loading;
+    answer.revision = answer.finished = 1;
+    if (!answer.loaded) return;
+    auto& own = answer.value;
+    own.kind = state == "noaccount" ? netplay::levels::Own::Kind::NoAccount : state == "unavailable" ? netplay::levels::Own::Kind::Unavailable : netplay::levels::Own::Kind::Counted;
+    own.shown = state != "hidden";
+    if (own.kind != netplay::levels::Own::Kind::Counted || state == "fresh") return;
+    // A level L begins at (L - 1)(L + 3) points and the next at L(L + 4); a point is a game, and a win another.
+    const auto set = [&](int fighter, int level, double part) {
+        auto& l = own.fighters[fighter];
+        l.level = static_cast<std::uint8_t>(level);
+        l.floor = static_cast<std::uint64_t>((level - 1) * (level + 3));
+        l.next = level == netplay::levels::MaxLevel ? 0 : static_cast<std::uint64_t>(level * (level + 4));
+        const std::uint64_t points = l.floor + (l.next ? static_cast<std::uint64_t>((l.next - l.floor) * part) : 0);
+        l.games = static_cast<std::uint64_t>(points / 1.5);
+        l.wins = points - l.games;
+        l.since = 1700000000 + static_cast<std::uint64_t>(fighter) * 86400;
+    };
+    set(0, state == "sixty" ? 60 : 42, .7);
+    const int levels[][2] = {{5, 25}, {12, 18}, {7, 13}, {20, 9}, {3, 6}, {30, 3}, {40, 2}, {17, 1}, {9, 1}, {26, 1}, {33, 1}};
+    for (const auto& pair : levels) set(pair[0], pair[1], .35);
+}
 // --levels: every level on its plate (FIGHTER_LEVELS.md, The digits atlas),
 // wrapping across the window, at plates 36, 72 and 143 px tall, whose digits
 // stand at the atlas's own sizes, 20, 40 and 80 px, whatever the interface
@@ -336,7 +366,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     float textSize = 1;
     bool tv = false;  // --tv: TV mode
     bool welcome = false, pad = false;  // --welcome: a fresh install's first run; --pad: the pad was used last (the on-screen keyboard)
-    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile;
+    std::string shot, keys, screen, recovery, check, walkFile, walkFrom, traceFile, profile;
     bool inRoom = false, pip = false;
     std::string postMatch;  // --postmatch choose|you|they|left: the post-match prompt over the art, inside a first to 2
     int arcade = -1;  // --arcade classic|arcade|king: a room of that type
@@ -365,6 +395,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--public") publicLab = true;
         else if (args[i] == "--rankings") rankings = true;
         else if (args[i] == "--levels") levels = true;
+        else if (args[i] == "--profile" && more) profile = args[++i];
         else if (args[i] == "--playback") playback = true;
         else if (args[i] == "--caption") caption = true;
         else if (args[i] == "--screen" && more) screen = args[++i];
@@ -437,6 +468,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     if (!walkFile.empty()) walkLog.open(walkFile, std::ios::trunc);
     if (!walkFrom.empty() && !walk.StartAt(walkFrom)) { if (walkLog.is_open()) walkLog << "FAIL walk-from: no step named " << walkFrom << std::endl; return 3; }
     if (rankings) Rankings(view);
+    if (!profile.empty()) Profile(view, profile);
     // Fighter select (--screen selection) with every fighter, costume and colour there.
     ui::FighterSelector selector;
     selection::Pick pick;

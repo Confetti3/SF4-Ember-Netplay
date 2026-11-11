@@ -1069,6 +1069,78 @@ msgstr "선택하면 주 캐릭터를 저장하고 플레이어 카드를 업데
 msgid "profile.leave_room_to_edit"
 msgstr "프로필을 편집하려면 방을 나가세요."
 
+msgid "profile.eyebrow"
+msgstr "프로필 · {0}"
+
+msgid "profile.tab.card"
+msgstr "카드"
+
+msgid "profile.tab.fighters"
+msgstr "파이터"
+
+msgid "card.edit"
+msgstr "카드 편집"
+
+msgid "card.class"
+msgstr "등급"
+
+msgid "level.value"
+msgstr "레벨 {0}"
+
+msgid "level.games"
+msgstr "{0}경기"
+
+msgid "level.games_away"
+msgstr "레벨 {0}까지 약 {1}경기"
+
+msgid "level.top"
+msgstr "최고 레벨"
+
+msgid "level.hidden"
+msgstr "랭킹에 참여하지 않는 동안에는 다른 플레이어에게 레벨이 보이지 않습니다."
+
+msgid "level.no_account"
+msgstr "설정의 온라인 플레이에서 Discord를 연결하면 레벨을 올릴 수 있습니다."
+
+msgid "level.unavailable"
+msgstr "이 서비스는 아직 레벨을 집계하지 않습니다."
+
+msgid "level.loading"
+msgstr "레벨을 불러오는 중입니다."
+
+msgid "level.none"
+msgstr "랭크 공개 경기를 하면 레벨이 오르기 시작합니다."
+
+msgid "card.counted_games"
+msgstr "랭크 경기 수"
+
+msgid "card.win_rate"
+msgstr "승률"
+
+msgid "card.fighters_played"
+msgstr "플레이한 파이터"
+
+msgid "card.of"
+msgstr "{0} / {1}"
+
+msgid "fighters.unplayed"
+msgstr "아직 플레이하지 않은 파이터가 {0}명 있습니다. 랭크 공개 경기를 처음 하면 레벨 1로 시작합니다."
+
+msgid "fighters.how"
+msgstr "레벨이 오르는 방법"
+
+msgid "fighters.how_detail"
+msgstr "파이터로 한 랭크 공개 경기는 모두 집계되며, 승리는 두 배로 집계됩니다. 레벨은 내려가지 않고 등급과는 관계없습니다. 한 번에 같은 플레이어와 8경기를 넘기면 더 이상 집계되지 않습니다."
+
+msgid "fighters.won"
+msgstr "승리"
+
+msgid "fighters.since"
+msgstr "시작일"
+
+msgid "fighters.main"
+msgstr "주 캐릭터"
+
 msgid "online.title"
 msgstr "온라인 플레이"
 

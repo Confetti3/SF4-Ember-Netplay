@@ -416,7 +416,7 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
     // one (52), so all of them show without a scroll where they can.
     float homeRow = 64 * s;
     if (home) {
-        const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && e.id == "awards"); }));
+        const float rows = static_cast<float>(std::count_if(entries.begin(), entries.end(), [&](const MenuEntry& e) { return !(split && e.id == "card"); }));
         if (rows > 0) homeRow = (std::max)(52 * s, (std::min)(64 * s, (list.H() - 8 * s * (rows - 1)) / rows));
     }
     // A flyout keeps to one line a card past its first page, so more of its settings show at once.
@@ -465,8 +465,8 @@ v2::Box GameMenu::DrawCardList(Frame& f, v2::Box list, bool split) {
         // the first there, where a new line would take it back to the left column.
         if (i == half && halves) { ImGui::SetCursorScreenPos(top); ImGui::Indent(full + gap); }
         const auto& e = entries[i];
-        // Home's "awards" row is the player's card in the pane.
-        if (home && split && e.id == "awards") continue;
+        // Home's "card" row is the player's card in the pane.
+        if (home && split && e.id == "card") continue;
         const bool focused = e.id == navigation.Focus(), enabled = feedback_.Enabled(e), cell = i < cells;
         if (cell && i % f.columns) ImGui::SameLine(0, gap);
         // A group's heading over its first card.
@@ -517,8 +517,8 @@ void GameMenu::DrawHomePane(Frame& f, v2::Box pane) {
     // The player's card (the L tag: title, icon, facts) on top, the news under it.
     const float cardHeight = v2::Tag(d, pane.min, pane.W(), MenuPlayerCard().profile, v2::TagSize::L);
     NoteUserText(MenuPlayerCard().profile.title);
-    // The card is the "awards" row: Select, or a click, opens the awards wall.
-    if (const MenuEntry* row = FocusedIn(f.entries, "awards")) {
+    // The card is the "card" row: Select, or a click, opens Profile.
+    if (const MenuEntry* row = FocusedIn(f.entries, "card")) {
         const v2::Box card{pane.min, ImVec2(pane.max.x, pane.min.y + cardHeight)};
         ImGui::SetCursorScreenPos(card.min);
         const bool pressed = ImGui::InvisibleButton("##player-card", ImVec2(card.W(), card.H())), hovered = ImGui::IsItemHovered();

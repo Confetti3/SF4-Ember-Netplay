@@ -1069,6 +1069,78 @@ msgstr "Selecione para salvar seu principal e atualizar o cartão de jogador."
 msgid "profile.leave_room_to_edit"
 msgstr "Saia da sala para editar seu perfil."
 
+msgid "profile.eyebrow"
+msgstr "Perfil · {0}"
+
+msgid "profile.tab.card"
+msgstr "Cartão"
+
+msgid "profile.tab.fighters"
+msgstr "Lutadores"
+
+msgid "card.edit"
+msgstr "Editar cartão"
+
+msgid "card.class"
+msgstr "Classe"
+
+msgid "level.value"
+msgstr "Nível {0}"
+
+msgid "level.games"
+msgstr "{0} partidas"
+
+msgid "level.games_away"
+msgstr "O nível {0} está a cerca de {1} partidas"
+
+msgid "level.top"
+msgstr "Nível máximo"
+
+msgid "level.hidden"
+msgstr "Os outros não veem seus níveis enquanto você não participa do ranking."
+
+msgid "level.no_account"
+msgstr "Conecte o Discord em Configurações, Jogo online para ganhar níveis."
+
+msgid "level.unavailable"
+msgstr "Este serviço ainda não conta níveis."
+
+msgid "level.loading"
+msgstr "Lendo seus níveis."
+
+msgid "level.none"
+msgstr "Jogue uma partida pública ranqueada para começar a ganhar níveis."
+
+msgid "card.counted_games"
+msgstr "Partidas ranqueadas"
+
+msgid "card.win_rate"
+msgstr "Taxa de vitórias"
+
+msgid "card.fighters_played"
+msgstr "Lutadores jogados"
+
+msgid "card.of"
+msgstr "{0} de {1}"
+
+msgid "fighters.unplayed"
+msgstr "{0} lutadores ainda não jogados. Cada um começa no nível 1 com sua primeira partida pública ranqueada."
+
+msgid "fighters.how"
+msgstr "Como um nível é ganho"
+
+msgid "fighters.how_detail"
+msgstr "Toda partida pública ranqueada com um lutador conta, e uma vitória conta em dobro. O nível nunca diminui e não tem relação com a sua classe. Depois de oito partidas contra o mesmo jogador em uma sessão, as partidas deixam de contar."
+
+msgid "fighters.won"
+msgstr "Vitórias"
+
+msgid "fighters.since"
+msgstr "Desde"
+
+msgid "fighters.main"
+msgstr "Principal"
+
 msgid "online.title"
 msgstr "JOGO ONLINE"
 

@@ -1069,6 +1069,78 @@ msgstr "Kies om je hoofdpersonage en spelerskaart bij te werken."
 msgid "profile.leave_room_to_edit"
 msgstr "Verlaat de kamer om je profiel te bewerken."
 
+msgid "profile.eyebrow"
+msgstr "Profiel · {0}"
+
+msgid "profile.tab.card"
+msgstr "Kaart"
+
+msgid "profile.tab.fighters"
+msgstr "Vechters"
+
+msgid "card.edit"
+msgstr "Kaart bewerken"
+
+msgid "card.class"
+msgstr "Klasse"
+
+msgid "level.value"
+msgstr "Level {0}"
+
+msgid "level.games"
+msgstr "{0} potjes"
+
+msgid "level.games_away"
+msgstr "Level {0} is nog ongeveer {1} potjes weg"
+
+msgid "level.top"
+msgstr "Hoogste level"
+
+msgid "level.hidden"
+msgstr "Anderen zien je levels niet zolang je niet meedoet aan de ranglijst."
+
+msgid "level.no_account"
+msgstr "Koppel Discord onder Instellingen, Online spelen om levels te verdienen."
+
+msgid "level.unavailable"
+msgstr "Deze dienst telt nog geen levels."
+
+msgid "level.loading"
+msgstr "Je levels worden gelezen."
+
+msgid "level.none"
+msgstr "Speel een openbaar potje met ranglijst om levels te verdienen."
+
+msgid "card.counted_games"
+msgstr "Potjes met ranglijst"
+
+msgid "card.win_rate"
+msgstr "Winstpercentage"
+
+msgid "card.fighters_played"
+msgstr "Gespeelde vechters"
+
+msgid "card.of"
+msgstr "{0} van {1}"
+
+msgid "fighters.unplayed"
+msgstr "{0} vechters nog niet gespeeld. Elke begint op level 1 met het eerste openbare potje met ranglijst."
+
+msgid "fighters.how"
+msgstr "Zo verdien je een level"
+
+msgid "fighters.how_detail"
+msgstr "Elk openbaar potje met ranglijst met een vechter telt, en een winst telt dubbel. Een level gaat nooit omlaag en heeft niets met je klasse te maken. Na acht potjes tegen dezelfde speler in één sessie tellen potjes niet meer mee."
+
+msgid "fighters.won"
+msgstr "Gewonnen"
+
+msgid "fighters.since"
+msgstr "Sinds"
+
+msgid "fighters.main"
+msgstr "Hoofd"
+
 msgid "online.title"
 msgstr "ONLINE SPELEN"
 

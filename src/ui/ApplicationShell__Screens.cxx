@@ -1,13 +1,16 @@
 #include "ApplicationShell.hxx"
 #include "MenuPresentation.hxx"
+#include "PlayerCard.hxx"
 #include "NetworkFeedback.hxx"
 #include "PublicRoomsCards.hxx"
+#include "RowId.hxx"
 #include "RankingsCards.hxx"
 #include "ScreenPanel.hxx"
 #include "SignInSites.hxx"
 #include "Theme.hxx"
 #include "../common/Localization.hxx"
 #include <imgui.h>
+#include <cstring>
 
 // The panels that own screens, as the shell routes a drawn frame's parts to
 // them (ScreenPanel). Each holds nothing of its own: it reaches the panel, and
@@ -156,6 +159,44 @@ public:
     }
 };
 
+// Profile: the player's Card and Fighters pages, under the strip the awards
+// wall's two pages share.
+class ApplicationShell::ProfileScreens final : public ScreenPanel {
+public:
+    bool Owns(const std::string& screen) const override { return ProfilePanel::Owns(screen); }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override {
+        // The levels part of the card, as of this frame (the published card is last frame's).
+        PlayerCardView levels;
+        player_card::Fill(levels, f.view.levels, f.shell.preferences_.mainFighter);
+        return f.shell.profile_.Rows(f.view, f.screen, levels, f.view.canEditPreferences, title);
+    }
+    // A strip tile opens the Fighters page on that fighter; Connect Discord is the Ember ID panel's.
+    // A fighter's row on the Fighters page makes it the main, which the shell's own rows do.
+    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+        auto& nav = f.shell.menu_.navigation;
+        if (a.id == DiscordConnectScreen) { f.shell.identity_.Activate(a, f.view, nav); return true; }
+        if (!HasPrefix(a.id, "card-fighter:")) return false;
+        nav.Replace(ProfilePanel::FightersScreen);
+        nav.Prefer("main-" + a.id.substr(std::strlen("card-fighter:")));
+        return true;
+    }
+    // Edit card: the Profile page of Settings, Player.
+    void Shortcut(const ScreenFrame& f, const MenuAction& a) const override {
+        if (a.delta == MenuInput::Options && f.screen == ProfilePanel::CardScreen) f.shell.menu_.navigation.Push("profile");
+    }
+    GameMenu::Body Body(const ScreenFrame& f) const override {
+        ApplicationShell* shell = &f.shell; const ShellView* view = &f.view; const std::string* screen = &f.screen;
+        return [shell, view, screen](const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float, const MenuVisualFeedback&) {
+            shell->profile_.Draw(*view, shell->preferences_.mainFighter, *screen, rows, nav, action);
+        };
+    }
+    void Dress(const ScreenFrame& f, GameMenu& menu) const override {
+        ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
+        // In a room X is the room's own shortcut on every screen (RoomShortcut).
+        if (f.screen == ProfilePanel::CardScreen && f.view.session.room == netplay::RoomState::Idle) menu.shortcutHints = ShortcutHints({{MenuInput::Options, loc::T("card.edit")}});
+    }
+};
+
 // Replays: the list, Inputs and stats, and an export's caption page.
 class ApplicationShell::ReplaysScreens final : public ScreenPanel {
 public:
@@ -234,9 +275,10 @@ const ScreenPanel* ApplicationShell::ScreenOf(const std::string& screen) {
     // No two panels own a screen, so the order they are asked in decides nothing.
     static const PublicRoomsScreens publicRooms{};
     static const RankingsScreens rankings{};
+    static const ProfileScreens profile{};
     static const ReplaysScreens replays{};
     static const IdentityScreens identity{};
-    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
+    static const ScreenPanel* const owners[] = {&publicRooms, &rankings, &profile, &replays, &identity, &SettingsOwner(), &OnlineOwner(),
         &WelcomeOwner(), &NewsOwner(), &AwardsOwner(), &NotificationsOwner(), &RoomOwner()};
     for (const ScreenPanel* owner : owners)
         if (owner->Owns(screen)) return owner;

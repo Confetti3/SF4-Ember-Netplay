@@ -1069,6 +1069,78 @@ msgstr "選択するとメインキャラを保存し、プレイヤーカード
 msgid "profile.leave_room_to_edit"
 msgstr "プロフィールを編集するにはルームから退出してください。"
 
+msgid "profile.eyebrow"
+msgstr "プロフィール · {0}"
+
+msgid "profile.tab.card"
+msgstr "カード"
+
+msgid "profile.tab.fighters"
+msgstr "ファイター"
+
+msgid "card.edit"
+msgstr "カードを編集"
+
+msgid "card.class"
+msgstr "クラス"
+
+msgid "level.value"
+msgstr "Lv.{0}"
+
+msgid "level.games"
+msgstr "{0}試合"
+
+msgid "level.games_away"
+msgstr "Lv.{0}まであと約{1}試合"
+
+msgid "level.top"
+msgstr "最高レベル"
+
+msgid "level.hidden"
+msgstr "ランキングに参加していない間は、他のプレイヤーにレベルは表示されません。"
+
+msgid "level.no_account"
+msgstr "設定のオンライン対戦でDiscordを連携すると、レベルが上がります。"
+
+msgid "level.unavailable"
+msgstr "このサービスはまだレベルを集計していません。"
+
+msgid "level.loading"
+msgstr "レベルを読み込み中です。"
+
+msgid "level.none"
+msgstr "ランクつきの公開試合を遊ぶと、レベルが上がり始めます。"
+
+msgid "card.counted_games"
+msgstr "ランク試合数"
+
+msgid "card.win_rate"
+msgstr "勝率"
+
+msgid "card.fighters_played"
+msgstr "使用ファイター"
+
+msgid "card.of"
+msgstr "{0} / {1}"
+
+msgid "fighters.unplayed"
+msgstr "未使用のファイターは{0}人です。ランクつきの公開試合を初めて遊ぶと、Lv.1から始まります。"
+
+msgid "fighters.how"
+msgstr "レベルの上がり方"
+
+msgid "fighters.how_detail"
+msgstr "ファイターを使ったランクつきの公開試合はすべて集計され、勝利は2倍で数えます。レベルは下がらず、クラスとは関係ありません。同じ相手との対戦が1回の滞在で8試合を超えると、集計されなくなります。"
+
+msgid "fighters.won"
+msgstr "勝利"
+
+msgid "fighters.since"
+msgstr "開始日"
+
+msgid "fighters.main"
+msgstr "メイン"
+
 msgid "online.title"
 msgstr "オンライン対戦"
 

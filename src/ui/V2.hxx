@@ -213,6 +213,10 @@ struct Award { const char* id; int icon; Tier tier; const char *title, *name, *h
 extern const Award Awards[11];
 const Award* FindAward(const std::string& id);
 const char* TierName(Tier tier);
+// A title on its tier's plate (the profile card's, the Card tab's): a slanted
+// bar `line` tall at `at` with the tier's stripe at its start, as wide as the
+// title needs, from 340 px up to `room`. Returns its width.
+float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier);
 
 // A fighter's level (FIGHTER_LEVELS.md, PLAYER_CARD.md), in Ember's own brush
 // digits: drawn from the digits' art, or while that has not loaded the heading
@@ -258,6 +262,10 @@ struct TagView {
     struct Fact { std::string key, value; };
     std::vector<Fact> facts;
 };
+// Facts as cells across `width`, `across` to a line (at least one), each line
+// 52 px: the key muted over the value, a rule over each line and between
+// cells (the L tag's, the Card tab's). Returns the height it took.
+float FactCells(ImDrawList* draw, ImVec2 at, float width, const std::vector<TagView::Fact>& facts, std::size_t across);
 // Draws at `at` within `width`; returns the height it took.
 float Tag(ImDrawList* draw, ImVec2 at, float width, const TagView& tag, TagSize size);
 // The width an XS or S tag needs on its one line for nothing in it to give

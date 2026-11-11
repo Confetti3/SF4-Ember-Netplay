@@ -1069,6 +1069,78 @@ msgstr "Select to save your main and update your player card."
 msgid "profile.leave_room_to_edit"
 msgstr "Leave the room to edit your profile."
 
+msgid "profile.eyebrow"
+msgstr "Profile · {0}"
+
+msgid "profile.tab.card"
+msgstr "Card"
+
+msgid "profile.tab.fighters"
+msgstr "Fighters"
+
+msgid "card.edit"
+msgstr "Edit card"
+
+msgid "card.class"
+msgstr "Class"
+
+msgid "level.value"
+msgstr "Level {0}"
+
+msgid "level.games"
+msgstr "{0} games"
+
+msgid "level.games_away"
+msgstr "Level {0} is about {1} games away"
+
+msgid "level.top"
+msgstr "Highest level"
+
+msgid "level.hidden"
+msgstr "Others do not see your levels while you do not take part in ranking."
+
+msgid "level.no_account"
+msgstr "Connect Discord in Settings, Online to earn levels."
+
+msgid "level.unavailable"
+msgstr "This service does not count levels yet."
+
+msgid "level.loading"
+msgstr "Reading your levels."
+
+msgid "level.none"
+msgstr "Play a rated public game to start earning levels."
+
+msgid "card.counted_games"
+msgstr "Rated games"
+
+msgid "card.win_rate"
+msgstr "Win rate"
+
+msgid "card.fighters_played"
+msgstr "Fighters played"
+
+msgid "card.of"
+msgstr "{0} of {1}"
+
+msgid "fighters.unplayed"
+msgstr "{0} fighters not played yet. Each starts at level 1 with its first rated public game."
+
+msgid "fighters.how"
+msgstr "How a level is earned"
+
+msgid "fighters.how_detail"
+msgstr "Every rated public game with a fighter counts, and a win counts double. It never goes down and has nothing to do with your class. Past eight games against the same player in one sitting, games stop counting."
+
+msgid "fighters.won"
+msgstr "Won"
+
+msgid "fighters.since"
+msgstr "Since"
+
+msgid "fighters.main"
+msgstr "Main"
+
 msgid "online.title"
 msgstr "ONLINE PLAY"
 

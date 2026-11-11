@@ -31,12 +31,33 @@ int TakeMenuDescribes();
 void SayMenuNotice(const std::string& text);
 // The accessibility button's name on the device the player last used ("RT", "R2", "F2").
 std::string AccessibilityKeyName();
+// What the player's fighter levels say, for the card (PLAYER_CARD.md, View models).
+enum class CardLevels {
+    // No answer yet.
+    Pending,
+    // No Discord account is connected, or the service does not count levels.
+    NoAccount, Unavailable,
+    // Counted: `fighters` and the rest are filled, shown to others or not.
+    Counted,
+};
+// One fighter of the card's strip: its level (0 for not played) and counted games.
+struct CardFighter { int fighter = -1; int level = 0; std::uint64_t games = 0; };
+// The main's way to its next level, in points (a game and a win again); next is 0 at the top.
+struct CardProgress { int level = 0; std::uint64_t points = 0, floor = 0, next = 0; };
+struct CardFacts { std::uint64_t games = 0; int winPercent = 0, fightersPlayed = 0; };
 struct PlayerCardView {
     std::string name;
     // The flag before the name: the country the player shows, or none.
     CountryCode country;
     // The card as the L tag draws it (title, icon, facts).
     v2::TagView profile;
+    // The player's own levels: the main, then the two highest others played.
+    CardLevels levels = CardLevels::Pending;
+    // Others see these levels (the Fighters panel says so when they do not).
+    bool levelsShown = true;
+    std::vector<CardFighter> fighters;
+    CardProgress progress;
+    CardFacts facts;
 };
 void SetMenuPlayerCard(PlayerCardView view);
 const PlayerCardView& MenuPlayerCard();
