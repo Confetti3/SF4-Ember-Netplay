@@ -16,7 +16,7 @@ use rusqlite::params;
 
 use super::{Address, classes_shown, developers, load, refuse, supervisor};
 use crate::{
-    AppState,
+    AppState, cards,
     error::{ApiFailure, Result},
     http::{Body, GENERAL_BODY, json},
     routes::play::playing,
@@ -56,12 +56,12 @@ pub async fn ticket(
         build_id,
         skill_badge,
         developer_badge,
-        card: _,
+        card: wants_card,
     } = request;
     let show_badge = skill_badge && classes_shown(&state);
     let developers = developers(&state);
     // A write: showing a class remembers it (`skill::show`).
-    let (room, sealed, badge) = state
+    let (room, sealed, badge, card_account) = state
         .db
         .write(move |tx| {
             let room = load(tx, &looked_up)?
@@ -102,7 +102,12 @@ pub async fn ticket(
             } else {
                 None
             };
-            Ok((room, sealed, badge))
+            let card_account = if wants_card {
+                skill::account(tx, &ember_id)?
+            } else {
+                None
+            };
+            Ok((room, sealed, badge, card_account))
         })
         .await?;
     let invitation = state
@@ -121,7 +126,9 @@ pub async fn ticket(
             issued_at: now,
             expires_at: now + TICKET_SECS,
             badge,
-            card: None,
+            // A build asks only a bridge that lists `levels`, so a ticket
+            // that carries a card reaches only a helper that reads one.
+            card: card_account.and_then(|account| cards::issue(&state.keys, &account, now)),
         })
         .map_err(|_| ApiFailure::unavailable())?;
     let admission = RoomAdmission {
