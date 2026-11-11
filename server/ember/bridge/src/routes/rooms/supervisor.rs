@@ -23,7 +23,7 @@ const MAX_ANSWER: usize = 1024 * 1024;
 const MAX_DETAILS_REPORT: usize = 2048;
 /// The most a room's `games` can weigh in `GET /rooms` (`MAX_GAMES_BYTES` in
 /// ember-rooms; keep them equal).
-const MAX_GAMES_REPORT: usize = 6144;
+const MAX_GAMES_REPORT: usize = 8192;
 /// The most one room can weigh in `GET /rooms`: `MAX_ROOM_BANS` Ember IDs (57
 /// bytes, 60 with quotes and a comma), its invitation, its details, its games
 /// and about 300 bytes for the other fields.
