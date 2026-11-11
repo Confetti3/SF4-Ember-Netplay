@@ -1096,6 +1096,54 @@ msgstr "Игр: {0}"
 msgid "level.game_one"
 msgstr "Игр: {0}"
 
+msgid "friends.unknown_code"
+msgstr "Нет игрока с таким кодом друга."
+
+msgid "friends.full"
+msgstr "Список друзей заполнен."
+
+msgid "friends.request_limit"
+msgstr "На сегодня вы отправили достаточно запросов."
+
+msgid "friends.card_expired"
+msgstr "Эта карточка устарела. Повторите из лобби."
+
+msgid "friends.own_card"
+msgstr "Это ваша собственная карточка."
+
+msgid "friends.code_too_soon"
+msgstr "Новый код можно создать раз в сутки."
+
+msgid "friends.invite_unavailable"
+msgstr "Этого друга сейчас нельзя пригласить."
+
+msgid "friends.failed"
+msgstr "Не удалось связаться со службой друзей. Повторите позже."
+
+msgid "friends.no_account"
+msgstr "Для друзей нужен аккаунт Discord. Подключите его в Настройках, Онлайн."
+
+msgid "friends.unavailable"
+msgstr "Эта служба пока не поддерживает друзей."
+
+msgid "friends.cannot_join"
+msgstr "Сейчас нельзя войти в это лобби."
+
+msgid "friends.cannot_watch"
+msgstr "Этот друг не в игре, которую можно смотреть."
+
+msgid "friends.private_invite_only"
+msgstr "В закрытое лобби входят только по приглашению."
+
+msgid "friends.invite_gone"
+msgstr "Это приглашение уже недействительно."
+
+msgid "friends.nothing_to_offer"
+msgstr "Ваше лобби сейчас нельзя предложить."
+
+msgid "friends.busy"
+msgstr "Дождитесь завершения последнего запроса."
+
 msgid "level.points_to"
 msgstr "До {1} осталось очков: {0}"
 

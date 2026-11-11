@@ -1096,6 +1096,54 @@ msgstr "Spiele: {0}"
 msgid "level.game_one"
 msgstr "Spiele: {0}"
 
+msgid "friends.unknown_code"
+msgstr "Kein Spieler hat diesen Freundescode."
+
+msgid "friends.full"
+msgstr "Diese Freundesliste ist voll."
+
+msgid "friends.request_limit"
+msgstr "Du hast für heute genug Anfragen gesendet."
+
+msgid "friends.card_expired"
+msgstr "Diese Karte ist abgelaufen. Versuche es erneut im Raum."
+
+msgid "friends.own_card"
+msgstr "Das ist deine eigene Karte."
+
+msgid "friends.code_too_soon"
+msgstr "Einen neuen Code kannst du einmal am Tag erstellen."
+
+msgid "friends.invite_unavailable"
+msgstr "Dieser Freund kann gerade nicht eingeladen werden."
+
+msgid "friends.failed"
+msgstr "Freunde konnten nicht erreicht werden. Versuche es später erneut."
+
+msgid "friends.no_account"
+msgstr "Freunde brauchen ein Discord-Konto. Verbinde es unter Einstellungen, Online."
+
+msgid "friends.unavailable"
+msgstr "Dieser Dienst bietet noch keine Freunde an."
+
+msgid "friends.cannot_join"
+msgstr "Du kannst diesem Raum gerade nicht beitreten."
+
+msgid "friends.cannot_watch"
+msgstr "Dieser Freund ist nicht in einem Spiel, das du ansehen kannst."
+
+msgid "friends.private_invite_only"
+msgstr "Einem privaten Raum tritt man nur per Einladung bei."
+
+msgid "friends.invite_gone"
+msgstr "Diese Einladung ist abgelaufen."
+
+msgid "friends.nothing_to_offer"
+msgstr "Dein Raum kann gerade nicht angeboten werden."
+
+msgid "friends.busy"
+msgstr "Warte, bis die letzte Anfrage abgeschlossen ist."
+
 msgid "level.points_to"
 msgstr "{0} Punkte bis {1}"
 

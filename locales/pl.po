@@ -1096,6 +1096,54 @@ msgstr "Gier: {0}"
 msgid "level.game_one"
 msgstr "Gier: {0}"
 
+msgid "friends.unknown_code"
+msgstr "Żaden gracz nie ma tego kodu znajomego."
+
+msgid "friends.full"
+msgstr "Ta lista znajomych jest pełna."
+
+msgid "friends.request_limit"
+msgstr "Limit próśb na dziś został wyczerpany."
+
+msgid "friends.card_expired"
+msgstr "Ta karta wygasła. Spróbuj ponownie z pokoju."
+
+msgid "friends.own_card"
+msgstr "To twoja własna karta."
+
+msgid "friends.code_too_soon"
+msgstr "Nowy kod możesz utworzyć raz dziennie."
+
+msgid "friends.invite_unavailable"
+msgstr "Tego znajomego nie można teraz zaprosić."
+
+msgid "friends.failed"
+msgstr "Nie udało się połączyć ze znajomymi. Spróbuj później."
+
+msgid "friends.no_account"
+msgstr "Znajomi wymagają konta Discord. Połącz je w Ustawieniach, Online."
+
+msgid "friends.unavailable"
+msgstr "Ta usługa nie oferuje jeszcze znajomych."
+
+msgid "friends.cannot_join"
+msgstr "Nie możesz teraz dołączyć do tego pokoju."
+
+msgid "friends.cannot_watch"
+msgstr "Ten znajomy nie jest w grze, którą możesz oglądać."
+
+msgid "friends.private_invite_only"
+msgstr "Do pokoju prywatnego wchodzi się tylko z zaproszeniem."
+
+msgid "friends.invite_gone"
+msgstr "To zaproszenie wygasło."
+
+msgid "friends.nothing_to_offer"
+msgstr "Twojego pokoju nie można teraz zaproponować."
+
+msgid "friends.busy"
+msgstr "Poczekaj na zakończenie ostatniej prośby."
+
 msgid "level.points_to"
 msgstr "Do {1} brakuje punktów: {0}"
 

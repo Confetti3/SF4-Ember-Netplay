@@ -1096,6 +1096,54 @@ msgstr "{0} parties"
 msgid "level.game_one"
 msgstr "{0} partie"
 
+msgid "friends.unknown_code"
+msgstr "Aucun joueur n'a ce code ami."
+
+msgid "friends.full"
+msgstr "Cette liste d'amis est pleine."
+
+msgid "friends.request_limit"
+msgstr "Vous avez envoyé assez de demandes pour aujourd'hui."
+
+msgid "friends.card_expired"
+msgstr "Cette carte a expiré. Réessayez depuis le salon."
+
+msgid "friends.own_card"
+msgstr "C'est votre propre carte."
+
+msgid "friends.code_too_soon"
+msgstr "Vous pouvez créer un nouveau code une fois par jour."
+
+msgid "friends.invite_unavailable"
+msgstr "Cet ami ne peut pas être invité pour le moment."
+
+msgid "friends.failed"
+msgstr "Impossible de joindre le service d'amis. Réessayez plus tard."
+
+msgid "friends.no_account"
+msgstr "Les amis nécessitent un compte Discord. Connectez-le dans Paramètres, En ligne."
+
+msgid "friends.unavailable"
+msgstr "Ce service ne propose pas encore les amis."
+
+msgid "friends.cannot_join"
+msgstr "Vous ne pouvez pas rejoindre ce salon pour le moment."
+
+msgid "friends.cannot_watch"
+msgstr "Cet ami n'est pas dans une partie que vous pouvez regarder."
+
+msgid "friends.private_invite_only"
+msgstr "On ne rejoint un salon privé que sur invitation."
+
+msgid "friends.invite_gone"
+msgstr "Cette invitation est terminée."
+
+msgid "friends.nothing_to_offer"
+msgstr "Votre salon ne peut pas être proposé pour le moment."
+
+msgid "friends.busy"
+msgstr "Attendez la fin de la dernière demande."
+
 msgid "level.points_to"
 msgstr "{0} points avant {1}"
 
