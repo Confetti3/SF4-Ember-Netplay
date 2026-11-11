@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Připraví video této hry: zkontroluj popisek a pak Vytvořit video."
 
 msgid "replays.link_import"
-msgstr "Importovat set"
+msgstr "Importovat"
 
 msgid "replays.link_import_detail"
-msgstr "Přidá všechny hry z tohoto balíčku setu do Záznamů."
+msgstr "Přidá do Záznamů záznam nebo všechny hry z balíčku setu."
 
 msgid "replays.set_pack_working"
 msgstr "Ukládám balíček setu..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "Balíček setu teď nejde uložit. Ember potřebuje spojení se službou setu."
 
 msgid "replays.set_imported"
-msgstr "{0} her setu je v Záznamech."
+msgstr "V Záznamech je teď {0} ze souboru."
 
 msgid "replays.set_import_failed"
-msgstr "Tento soubor není celý balíček setu, nic se neimportovalo."
+msgstr "Tento soubor není celý záznam ani balíček setu, nic se neimportovalo."
 
 msgid "settings.training_auto_ready"
 msgstr "Připravit mě při výzvě z Tréninku"

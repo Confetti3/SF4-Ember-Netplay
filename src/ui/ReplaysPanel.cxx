@@ -26,6 +26,13 @@ using Replay=platform::replays::ArchivedReplay;
 constexpr int MaxWins=99;
 // A Replays card: two lines under the players.
 constexpr int kCardHeight=88;
+// A choice that needs the main menu (`menu`, no match running) and no room open
+// (`idle`): when it is not available its detail says which, as every
+// unavailable choice does, rather than the greyed choice saying nothing.
+MenuChoice NeedsMenu(std::string id,std::string label,std::string detail,bool idle,bool menu){
+ const bool open=idle&&menu;
+ return {std::move(id),std::move(label),open?std::move(detail):std::string(loc::T(idle?"replays.not_ready":"replays.open_log_room")),open};
+}
 MenuEntry WinsRow(std::string id,std::string label,int wins,bool enabled){
  auto e=Value(std::move(id),std::move(label),std::to_string(wins),loc::T("export.set_detail"),enabled);
  e.text=true;e.textLimit=2;return e;
@@ -199,8 +206,8 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    rows.back().fighter1=known(0);rows.back().fighter2=known(1);
    rows.back().value=last.label;rows.back().height=kCardHeight;
    // Only a set its bridge holds has a pack to ask for.
-   rows.back().choices={{"set-watch",loc::T("replays.watch_set"),loc::T("replays.watch_set_detail"),idle&&r.ready},{"set-pick",loc::T("replays.pick_game"),loc::T("replays.pick_game_detail")},
-    {"set-export",loc::T("replays.export_set"),loc::T("replays.export_set_detail"),idle},
+   rows.back().choices={NeedsMenu("set-watch",loc::T("replays.watch_set"),loc::T("replays.watch_set_detail"),idle,r.ready),{"set-pick",loc::T("replays.pick_game"),loc::T("replays.pick_game_detail")},
+    NeedsMenu("set-export",loc::T("replays.export_set"),loc::T("replays.export_set_detail"),idle,true),
     {"set-pack",loc::T("replays.save_pack"),loc::T("replays.save_pack_detail"),!set.bridgeId.empty()}};
    rows.back().chosen=idle&&r.ready?"set-watch":"set-pick";
   }
@@ -218,12 +225,14 @@ std::vector<MenuEntry> ReplaysPanel::Rows(const ShellView& v,const std::string& 
    if(replay::ExportCancellable(r.exportStage))rows.push_back(ConfirmRow("export-cancel",loc::T("export.cancel"),loc::T("export.cancel_detail")));
   }
   if(!r.link.empty()){
-   // A link names a file and nothing is played on its word: Select asks. A set's pack is imported instead.
+   // A link names a file and nothing is played on its word: Select asks. A set's pack is
+   // imported, not played; any other replay may be either.
    rows.push_back(Row("replay-link",loc::T("replays.link"),loc::Tf("replays.link_detail",r.link)));
    rows.back().detailText=DetailText::Name;NoteUserText(r.link);
    const bool pack=replay_link::IsSetPack(r.link);
-   rows.back().choices={pack?MenuChoice{"link-import",loc::T("replays.link_import"),loc::T("replays.link_import_detail")}:MenuChoice{"link-play",loc::T("replays.link_play"),loc::T("replays.watch_detail"),idle&&r.ready},
-    {"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")}};
+   if(!pack)rows.back().choices.push_back(NeedsMenu("link-play",loc::T("replays.link_play"),loc::T("replays.watch_detail"),idle,r.ready));
+   rows.back().choices.push_back({"link-import",loc::T("replays.link_import"),loc::T("replays.link_import_detail")});
+   rows.back().choices.push_back({"link-dismiss",loc::T("replays.link_dismiss"),loc::T("replays.link_dismiss_detail")});
    rows.back().chosen=pack?"link-import":idle&&r.ready?"link-play":"link-dismiss";
   }
   // Watch set plays a game at a time, and Export set videos sets one up at a
@@ -263,7 +272,7 @@ MenuEntry ReplaysPanel::ReplayRow(const ShellView& v,const platform::replays::Ar
   row.detail=said+"\n\n"+row.detail;row.detailText=DetailText::Name;
  }
  // Select offers playback, adding to the Battle Log, exporting video, reading inputs, or its file in Explorer.
- row.choices={{"watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle&&r.ready},{"watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle&&r.ready},{"add",loc::T("replays.add"),loc::T("replays.add_detail"),r.ready},{"export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle&&r.ready},{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},
+ row.choices={NeedsMenu("watch",loc::T("replays.watch"),loc::T("replays.watch_detail"),idle,r.ready),NeedsMenu("watch-meter",loc::T("replays.watch_meter"),loc::T("replays.watch_meter_detail"),idle,r.ready),NeedsMenu("add",loc::T("replays.add"),loc::T("replays.add_detail"),true,r.ready),NeedsMenu("export",loc::T("replays.export_gpu"),loc::T("replays.export_gpu_detail"),idle,r.ready),{"inputs",loc::T("replays.inputs"),loc::T("replays.inputs_detail")},
   {"keep",loc::T(replay.kept?"replays.unkeep":"replays.keep"),loc::T(replay.kept?"replays.unkeep_detail":"replays.keep_detail")},
   {"show-folder",loc::T("replays.show_folder"),loc::T("replays.show_folder_detail"),!v.services.pending}};
  row.chosen=!r.ready?"inputs":idle?"watch":"add";
@@ -397,7 +406,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
   folderAsked_=false;setAsked_=a.text=="link-import";setNoticeAsked_=v.replays.setNotices;
   ShellAction r;r.command.generation=v.session.generation;
   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link};
-  else if(a.text=="link-import")r.replay={replay::Mode::ImportPack,v.replays.link};
+  else if(a.text=="link-import")r.replay={replay::Mode::Import,v.replays.link};
   else r.replay.mode=replay::Mode::DismissLink;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return;

@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "准备这一局的视频：检查字幕，然后选择“生成视频”。"
 
 msgid "replays.link_import"
-msgstr "导入对局"
+msgstr "导入"
 
 msgid "replays.link_import_detail"
-msgstr "将此对局包的所有局加入回放。"
+msgstr "将此回放，或对局包的所有局，加入回放。"
 
 msgid "replays.set_pack_working"
 msgstr "正在保存对局包..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "现在无法保存对局包。Ember 需要连接到对局的服务。"
 
 msgid "replays.set_imported"
-msgstr "对局的 {0} 局已在回放中。"
+msgstr "该文件中的 {0} 项已在回放中。"
 
 msgid "replays.set_import_failed"
-msgstr "该文件不是完整的对局包，因此未导入任何内容。"
+msgstr "该文件不是完整的回放或对局包，因此未导入任何内容。"
 
 msgid "settings.training_auto_ready"
 msgstr "从训练被叫回时自动准备"

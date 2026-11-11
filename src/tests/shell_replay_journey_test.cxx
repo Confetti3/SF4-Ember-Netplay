@@ -210,7 +210,10 @@ void ReplayJourneys() {
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.meter,"Watch with frame meter did not request the meter");
   h.Screen("home");h.view.replays.link="D:\\x\\b.usf4replay";h.Frame();
   Check(h.shell.Navigation().Screen()=="replays","A replay link did not open the Replays screen");
+  // A replay file may be imported as a set pack is; Not now is last.
   h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
+  Check(h.actions.back().replay.mode==sf4e::replay::Mode::Import&&h.actions.back().replay.path==h.view.replays.link,"Import did not ask for the link's replay file");
+  h.Choose("replay-link");h.Press(MenuInput::Right);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::DismissLink&&h.actions.back().replay.path.empty(),"Not now did not dismiss the link");
   h.Choose("replay-link");h.Press(MenuInput::Select);
   Check(h.actions.back().replay.mode==sf4e::replay::Mode::Watch&&h.actions.back().replay.path==h.view.replays.link,"Play it did not ask for the link's file");
@@ -270,6 +273,19 @@ void ReplayJourneys() {
     SetMenuEntriesProbe({});}}
   InputsJourney(h,true);
   InputsReplacementJourney(h);
+  // A choice that needs the main menu and no room says why it is unavailable, not only greys.
+  {std::vector<MenuEntry> shownRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& e){shownRows=e;});
+   const auto choice=[&](const char* id){
+    for(const auto& e:shownRows)if(e.id=="replay:C:\\r\\c.emberreplay")for(const auto& c:e.choices)if(c.id==id)return c;
+    Check(false,"A replay row's choice was not listed");return MenuChoice{};};
+   h.view.replays.link.clear();List(h,{Listed("C:\\r\\c.emberreplay","2026-10-06 21:40")});h.Screen("replays");
+   Check(choice("watch").enabled&&choice("watch").detail==loc::T("replays.watch_detail"),"Watch now was not offered at the main menu");
+   h.view.session.room=netplay::RoomState::Joined;h.Frame();
+   Check(!choice("watch").enabled&&choice("watch").detail==loc::T("replays.open_log_room"),"Watch now in a room did not say to leave it");
+   Check(!choice("export").enabled&&choice("export").detail==loc::T("replays.open_log_room")&&choice("add").enabled&&choice("inputs").enabled,"A room left a choice without its reason, or greyed one that works there");
+   h.view.session.room=netplay::RoomState::Idle;h.view.replays.ready=false;h.Frame();
+   Check(!choice("watch").enabled&&choice("watch").detail==loc::T("replays.not_ready")&&!choice("add").enabled&&choice("add").detail==loc::T("replays.not_ready"),"Watch now in a match did not say it needs the main menu");
+   h.view.replays.ready=true;SetMenuEntriesProbe({});h.Frame();}
   // In a room the menu is the room's: a link waits there, and takes the menu once the room is left.
   h.view.replays.link.clear();h.Frame();h.Screen("home");
   h.view.session.room=netplay::RoomState::Joined;h.view.replays.link="D:\\x\\c.usf4replay";h.Frame();

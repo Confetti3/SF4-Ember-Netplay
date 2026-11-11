@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "この試合の動画を準備します。キャプションを確認して「動画を作成」を選んでください。"
 
 msgid "replays.link_import"
-msgstr "セットを読み込む"
+msgstr "読み込む"
 
 msgid "replays.link_import_detail"
-msgstr "このセットパックの全試合をリプレイに追加します。"
+msgstr "リプレイ、またはセットパックの全試合をリプレイに追加します。"
 
 msgid "replays.set_pack_working"
 msgstr "セットパックを保存中..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "今はセットパックを保存できません。セットのサービスへの接続が必要です。"
 
 msgid "replays.set_imported"
-msgstr "セットの{0}試合がリプレイにあります。"
+msgstr "このファイルから{0}件がリプレイにあります。"
 
 msgid "replays.set_import_failed"
-msgstr "このファイルは完全なセットパックではないため、何も読み込まれませんでした。"
+msgstr "このファイルは完全なリプレイでもセットパックでもないため、何も読み込まれませんでした。"
 
 msgid "settings.training_auto_ready"
 msgstr "トレーニングから呼ばれたら自動準備完了"

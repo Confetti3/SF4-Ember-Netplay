@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Przygotowuje wideo tej gry: sprawdź podpis, potem Utwórz wideo."
 
 msgid "replays.link_import"
-msgstr "Importuj set"
+msgstr "Importuj"
 
 msgid "replays.link_import_detail"
-msgstr "Dodaje wszystkie gry z tej paczki setu do Powtórek."
+msgstr "Dodaje powtórkę lub wszystkie gry z paczki setu do Powtórek."
 
 msgid "replays.set_pack_working"
 msgstr "Zapisywanie paczki setu..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "Nie można teraz zapisać paczki setu. Ember potrzebuje połączenia z usługą setu."
 
 msgid "replays.set_imported"
-msgstr "Gry setu w Powtórkach: {0}."
+msgstr "Powtórek z tego pliku: {0}."
 
 msgid "replays.set_import_failed"
-msgstr "Ten plik nie jest pełną paczką setu, więc nic nie zaimportowano."
+msgstr "Ten plik nie jest pełną powtórką ani paczką setu, więc nic nie zaimportowano."
 
 msgid "settings.training_auto_ready"
 msgstr "Gotowość po wezwaniu z Treningu"

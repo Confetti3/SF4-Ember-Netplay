@@ -971,10 +971,10 @@ msgid "replays.next_video_detail"
 msgstr "Prépare la vidéo de cette manche : vérifiez sa légende, puis Générer la vidéo."
 
 msgid "replays.link_import"
-msgstr "Importer le set"
+msgstr "Importer"
 
 msgid "replays.link_import_detail"
-msgstr "Ajoute toutes les manches de ce pack de set à Replays."
+msgstr "Ajoute le replay, ou toutes les manches du pack de set, à Replays."
 
 msgid "replays.set_pack_working"
 msgstr "Enregistrement du pack du set..."
@@ -989,10 +989,10 @@ msgid "replays.set_pack_unavailable"
 msgstr "Le pack du set ne peut pas être enregistré maintenant. Ember doit être connecté au service du set."
 
 msgid "replays.set_imported"
-msgstr "{0} manches du set sont dans Replays."
+msgstr "Replays contient maintenant {0} de ce fichier."
 
 msgid "replays.set_import_failed"
-msgstr "Ce fichier n'est pas un pack de set complet, rien n'a donc été importé."
+msgstr "Ce fichier n'est ni un replay complet ni un pack de set complet, rien n'a donc été importé."
 
 msgid "settings.training_auto_ready"
 msgstr "Prêt automatique depuis l'Entraînement"
