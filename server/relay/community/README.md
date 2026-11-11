@@ -80,13 +80,23 @@ Find the folder NPM keeps its certificates in (the source of its
 docker inspect <npm container> --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
 ```
 
+Inside it, each certificate has its own folder under `live/` (`npm-1`,
+`npm-2`, ...). This prints the one for the relay's name and the owner of its
+key (put your folder in place of `/path/to/letsencrypt`):
+
+```bash
+sudo sh -c 'for c in /path/to/letsencrypt/live/*/fullchain.pem; do openssl x509 -in "$c" -noout -checkhost relay-eu.embernetplay.link | grep -q "does match" && stat -L -c "%n owner %u:%g" "${c%fullchain.pem}privkey.pem"; done'
+```
+
 Copy this folder to the machine, then:
 
 ```bash
 cp .env.example .env
 ```
 
-Set `RELAY_HOSTNAME` and `NPM_LETSENCRYPT_DIR` in `.env`, and start it:
+In `.env`, set `RELAY_HOSTNAME`, `NPM_LETSENCRYPT_DIR`, and `RELAY_CERT_NAME`
+to the folder name that command printed (such as `npm-12`). If the owner it
+printed is not `0:0`, set `RELAY_USER` to it as well. Then start it:
 
 ```bash
 docker compose up -d --build
@@ -96,13 +106,16 @@ docker compose up -d --build
 docker logs ember-relay
 ```
 
-The log's first line names the certificate it found, such as
+The log's first line names the certificate, such as
 `relay-eu.embernetplay.link with the certificate in live/npm-12`. After that
 the relay logs warnings only. `docker ps` shows it as `healthy` within a
-minute.
+minute. If it does not start, that first line says why (wrong folder name,
+a certificate for another name, a key it cannot read).
 
 The relay uses the machine's own network (`network_mode: host`): plain HTTP
-on TCP 47895 for the proxy and QUIC on UDP 7842 for players.
+on TCP 47895 for the proxy and QUIC on UDP 7842 for players. It runs with no
+capabilities, on a read-only file system, and sees only that one
+certificate's two folders, read-only.
 
 ### 4. The router and the firewall
 
@@ -133,7 +146,7 @@ WSL with OpenSSL 3.2 or later:
 bash check.sh relay-eu.embernetplay.link
 ```
 
-All four checks must say `ok`:
+All four IPv4 checks must say `ok`:
 
 | Check | If it fails |
 |---|---|
@@ -141,6 +154,12 @@ All four checks must say `ok`:
 | `/relay` upgrades to a relay WebSocket | Websockets Support is off |
 | `http://.../generate_204` reaches the relay | Force SSL is on |
 | QUIC answers on UDP 7842 | the router forward or a firewall for UDP 7842 |
+
+When the name has an IPv6 address and the line you check from has IPv6, the
+first three run again over IPv6 and must pass too: players with IPv6 reach
+the proxy that way first. QUIC over IPv6 is only noted.
+
+Run it again after any change to the proxy host or the router.
 
 ### 6. Tell Katie
 
@@ -153,7 +172,8 @@ Until then nothing uses it, so you can change or restart it freely.
 
 - **Certificate renewals** need nothing: NPM renews, and the relay re-reads
   the files once a day. If you delete and re-request the certificate in NPM,
-  restart the relay (`docker compose restart`) so it finds the new one.
+  it gets a new folder: put the new name in `RELAY_CERT_NAME` and run
+  `docker compose up -d`.
 - **Restarts and reboots**: the container restarts by itself
   (`restart: unless-stopped`).
 - **Updates**: Ember's relays must run the same iroh release as the helper.
@@ -166,13 +186,24 @@ Until then nothing uses it, so you can change or restart it freely.
 
 ## Downtime and taking it down
 
-Once a build pins this relay, players near it use it as their home relay. If
-it stops answering, their helpers move to the next nearest relay by
-themselves (iroh picks the home relay from the ones that answer its probes);
-play continues, with a longer detour for relayed traffic and for the first
-packets of each connection. So:
+Once a build pins this relay, players near it use it as their home relay. A
+helper picks its home relay from the ones that answer its probes: HTTPS
+`/ping` and QUIC on UDP 7842.
 
-- A restart or a short outage needs no announcement.
+- **Fully down** (`docker compose down`, the machine off, the line down):
+  neither probe answers, so helpers pick the next nearest relay on their next
+  check. New connections work again from then, with a longer detour for
+  relayed traffic and for the first packets of each connection. A match that
+  was running through the relay at that moment can drop.
+- **Half up** is worse: if a probe still answers while `/relay` does not
+  (Websockets Support turned off, a proxy change), helpers near it keep
+  choosing it and those players cannot host or join until it is fixed. If
+  something is wrong and you cannot fix it right away, take the relay fully
+  down with `docker compose down` rather than leave it half working.
+
+So:
+
+- A restart needs no announcement.
 - Before planned downtime of more than an hour or so, tell Katie.
 - To stop hosting, tell Katie first. The name is in Ember's domain, so she
   can point it at another relay and no player needs a new build. Then:
@@ -201,7 +232,8 @@ if `check.sh` and Katie's live test pass. What the relay needs:
    (no proxy, no Docker port mapping in between), and the relay holds a
    valid certificate and key for the name for it. `entrypoint.sh` shows the
    configuration; `RELAY_CERT_ROOT` can point it at any folder laid out like
-   Let's Encrypt's (`live/<any>/fullchain.pem` and `privkey.pem`).
+   Let's Encrypt's (`live/<RELAY_CERT_NAME>/fullchain.pem` and
+   `privkey.pem`).
 4. No access log.
 
 On a machine where nothing else uses ports 80 and 443, `iroh-relay` can also

@@ -10,24 +10,38 @@ services:
     # address their packets arrive from, and a published Docker port can
     # replace that address with Docker's.
     network_mode: host
+    # The owner of the proxy's certificate files, with no capabilities: it
+    # can read those files as their owner and nothing else on the machine.
+    user: ${RELAY_USER:-0:0}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       RELAY_HOSTNAME: ${RELAY_HOSTNAME:?set RELAY_HOSTNAME in .env}
-      RELAY_CERT_NAME: ${RELAY_CERT_NAME:-}
+      RELAY_CERT_NAME: ${RELAY_CERT_NAME:?set RELAY_CERT_NAME in .env}
       RELAY_HTTP_PORT: ${RELAY_HTTP_PORT:-47895}
       # Warnings only: at info the relay logs every client it serves.
       RUST_LOG: warn
+    # Only the relay's own certificate, read-only: its live folder holds
+    # links into its archive folder, so both keep their places. A folder that
+    # does not exist is an error, never created.
     volumes:
-      - ${NPM_LETSENCRYPT_DIR:?set NPM_LETSENCRYPT_DIR in .env}:/etc/letsencrypt:ro
+      - type: bind
+        source: ${NPM_LETSENCRYPT_DIR:?set NPM_LETSENCRYPT_DIR in .env}/live/${RELAY_CERT_NAME}
+        target: /etc/letsencrypt/live/${RELAY_CERT_NAME}
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${NPM_LETSENCRYPT_DIR}/archive/${RELAY_CERT_NAME}
+        target: /etc/letsencrypt/archive/${RELAY_CERT_NAME}
+        read_only: true
+        bind:
+          create_host_path: false
     read_only: true
     tmpfs:
-      - /run/ember-relay
-    # Nothing but reading the proxy's certificate files, whoever owns them.
-    cap_drop:
-      - ALL
-    cap_add:
-      - DAC_READ_SEARCH
-    security_opt:
-      - no-new-privileges:true
+      - /run/ember-relay:mode=1777
     mem_limit: 512m
     pids_limit: 256
     ulimits:

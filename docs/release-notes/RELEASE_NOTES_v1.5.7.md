@@ -15,7 +15,7 @@ Experimental unofficial rollback netplay for Ultra Street Fighter IV, based on [
 ### Connections
 
 - **Ember's own relay for Europe.** Players in Europe now meet through relay-eu.embernetplay.link, hosted by FRaccie, in place of the public Europe relay. If the filters on US routers (Xfinity Advanced Security, Spectrum Security Shield, Cox Panoramic Advanced Security) had extended their block to that relay, players behind them could no longer have joined a host in Europe. Asia keeps its public relay for now.
-- **Nothing to set up.** Ember still picks the nearest relay that answers. If the Europe relay is ever unreachable, it uses the next nearest one by itself.
+- **Nothing to set up.** Ember still picks the nearest relay that answers. If the Europe relay goes offline, Ember moves to the next nearest one for new connections.
 - **The relay only helps players find each other.** Matches still go direct, player to player, whenever your connection allows it. Like any relay, it sees the internet addresses of the players who connect through it; it cannot read a match, which is encrypted between the players.
 
 ## Thanks

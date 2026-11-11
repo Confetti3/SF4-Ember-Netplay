@@ -90,5 +90,10 @@ with that. To bring one into the builds:
    build, so this ships like 1.5.5 did: a client release and room hosts from
    the same source. Run the live test again without `EMBER_LIVE_RELAY`.
 
-If a hosted relay stops answering, helpers near it pick the next nearest
-relay that does; nothing else has to change until the name is repointed.
+If a hosted relay stops answering its probes (HTTPS `/ping` and QUIC),
+helpers near it pick the next nearest relay that does; nothing else has to
+change until the name is repointed. A relay whose probes answer while its
+`/relay` WebSocket does not keeps being chosen (iroh 1.1.0 selects by probe
+latency alone), and players near it cannot host or join: `community/check.sh
+<name>` from the VPS or any Linux machine shows that state, and the host's
+guide says to take such a relay fully down.
