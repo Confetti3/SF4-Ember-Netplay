@@ -348,10 +348,10 @@ void DrawLevels() {
     }
     const float tile = std::round(96 * s), bar = std::round(8 * s);
     for (int i = 0; i < 6; ++i) {
-        const ImVec2 min(left + i * (tile + gap), at.y), max(min.x + tile, min.y + tile);
-        ui::DrawCharacterPortrait(i * 7, min, max, c.frame);
-        v2::LevelBand(d, {min, max}, i < 5 ? 1 + 12 * i : 60);
-        v2::Meter(d, {ImVec2(min.x, max.y + gap), ImVec2(max.x, max.y + gap + bar)}, .2f * i + .1f, .08f);
+        const ImVec2 low(left + i * (tile + gap), at.y), high(low.x + tile, low.y + tile);
+        ui::DrawCharacterPortrait(i * 7, low, high, c.frame);
+        v2::LevelBand(d, {low, high}, i < 5 ? 1 + 12 * i : 60);
+        v2::Meter(d, {ImVec2(low.x, high.y + gap), ImVec2(high.x, high.y + gap + bar)}, .2f * i + .1f, .08f);
     }
     ImGui::End();
 }

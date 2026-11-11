@@ -32,7 +32,7 @@ void ShootRankings(sf4e::ui::ApplicationShell& shell,sf4e::ui::ShellView& view,c
     Standing hidden=ranked(5,true);hidden.classesShown=false;hidden.listed=false;stand(hidden,"rankings-hidden");
     Standing out;out.kind=Standing::Kind::OptedOut;out.changeIn=20*3600;stand(out,"rankings-opted-out");
     stand(Standing{},"rankings-no-account");
-    rankings.standing=netplay::rankings::Answered<Standing>{};rankings.standing.error="ranking_unavailable";++rankings.standing.finished;
+    rankings.standing=netplay::Answered<Standing>{};rankings.standing.error="ranking_unavailable";++rankings.standing.finished;
     page("rankings");draw(nullptr,0,6);draw("rankings-unavailable");
     // The board: your row, two classes, a name in Japanese and the longest name.
     stand(ranked(10,true),"rankings-grand-master");

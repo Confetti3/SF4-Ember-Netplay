@@ -801,7 +801,7 @@ static void TestPartedPairInLineAndAlone() {
 // whenever a table is free (King) or someone else sits (Arcade, asked
 // first); New opponent with someone free parts the pair.
 static void TestRandomWalk(RoomType type, std::size_t tables = TableCount) {
-	std::uint32_t rng = 2026u + type + 97u * static_cast<std::uint32_t>(tables);
+	std::uint32_t rng = 2026u + static_cast<std::uint32_t>(type) + 97u * static_cast<std::uint32_t>(tables);
 	const auto roll = [&](int n) { rng = rng * 1664525u + 1013904223u; return static_cast<int>((rng >> 8) % n); };
 	for (int round = 0; round < 60; ++round) {
 		auto authority = Arcade(type, SetFormat::Ft1, tables);

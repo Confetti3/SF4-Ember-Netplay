@@ -13,11 +13,18 @@
 
 using namespace sf4e::room;
 
+static Charter CharterOf(bool practice, DelayPolicy policy) {
+	Charter charter;
+	charter.practice = practice;
+	charter.delayPolicy = policy;
+	return charter;
+}
+
 struct Room {
 	RoomAuthority authority;
 	MemberId host = 0, p1 = 0, p2 = 0;
 
-	explicit Room(bool practice = false, DelayPolicy policy = DelayPolicy::Shared) : authority("Training flag", 8, 41, Rules(), practice, policy) {
+	explicit Room(bool practice = false, DelayPolicy policy = DelayPolicy::Shared) : authority("Training flag", 8, 41, Rules(), CharterOf(practice, policy)) {
 		authority.AdvanceTime(1000);
 		host = Join("Host", 0, true);
 		p1 = Join("P1", 1); p2 = Join("P2", 2);

@@ -349,7 +349,12 @@ static void TestWonGamesAreKeptByAccount() {
 	const auto first = authority.SnapshotView().tables[0].matchGeneration;
 	EXPECT(authority.EndMatch(0, first, MatchResult::P2Win).accepted);
 	Acknowledge(authority, first, room.p1, room.p2);
-	const std::vector<sf4e::WonGame> won{{0, first, "ember-p2", "ember-p1"}};
+	sf4e::WonGame game;
+	game.table = 0;
+	game.generation = first;
+	game.winner = "ember-p2";
+	game.loser = "ember-p1";
+	const std::vector<sf4e::WonGame> won{game};
 	EXPECT(authority.WonGames() == won);
 	PlayGame(authority, MatchResult::Draw);
 	EXPECT(authority.WonGames().size() == 1);

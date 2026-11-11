@@ -196,13 +196,19 @@ void TestFailedSetupThroughRuntime(bool queued, bool staged, bool alreadyEnded) 
 // fails (its port cannot be reserved) at the next TickMatch. queued: this PC
 // waits in the table's queue rather than watching by choice, and each game is
 // a whole set, so the end of one rotates the queue.
+sf4e::room::Charter PracticeCharter(bool practice) {
+	sf4e::room::Charter charter;
+	charter.practice = practice;
+	return charter;
+}
+
 struct WatchedGame {
 	sf4e::room::RoomAuthority authority;
 	sf4e::room::MemberId p1 = 0, p2 = 0, member = 0;
 	std::uint64_t generation = 0;
 	RuntimeRoom r;
 	explicit WatchedGame(bool practice, bool enter = true, bool queued = false) :
-		authority("Watched", 16, 96, TableRules(queued), practice) {
+		authority("Watched", 16, 96, TableRules(queued), PracticeCharter(practice)) {
 		namespace room = sf4e::room;
 		const auto join = [&](int index, bool host) {
 			const auto result = authority.Join("Player" + std::to_string(index), room::ConnectionRef{"host", std::to_string(index)}, host);
