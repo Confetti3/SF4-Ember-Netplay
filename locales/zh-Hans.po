@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "仍在检查你的网络是否允许直连。"
 
 msgid "connection.blocked_local_no_udp"
-msgstr "可能原因: 你的网络阻止了 UDP。"
+msgstr "可能原因: Windows 防火墙或你的网络阻止了 UDP。请在“Windows 安全中心 > 防火墙和网络保护 > 允许应用通过防火墙”中允许 sf4-net.exe (专用和公用网络)。"
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "可能原因: {0} 的网络阻止了 UDP。"
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "你的路由器使用严格 NAT，直连常常失败，对战可能会经过中继服务器。"
 
 msgid "network.nat_detail_no_udp"
-msgstr "你的网络似乎阻止了 UDP，直连会失败，对战可能会经过中继服务器。原因可能是防火墙或 VPN。"
+msgstr "你的网络似乎阻止了 UDP，直连会失败，对战可能会经过中继服务器。最常见的原因是 Windows 防火墙: 首次启动时跳过了它的提示，或网络被设为公用网络。请在“Windows 安全中心 > 防火墙和网络保护 > 允许应用通过防火墙”中允许 sf4-net.exe (专用和公用网络)。VPN 也可能阻止 UDP。"
 
 msgid "network.nat_detail_checking"
 msgstr "正在检查网络。游戏启动后需要几秒钟。"
@@ -3687,7 +3687,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "无法连接到中继服务器 ({0})。请检查网络连接、防火墙或 VPN 后重试。"
 
 msgid "runtime.host_unreachable"
-msgstr "无法连接到房主，直连和经中继都失败了。房间可能已关闭，或被防火墙或 VPN 挡住。"
+msgstr "无法连接到房主，直连和经中继都失败了。房间可能已关闭。如果房间还开着，最常见的原因是 Windows 防火墙: 请在“Windows 安全中心 > 防火墙和网络保护 > 允许应用通过防火墙”中允许 sf4-net.exe (专用和公用网络)。VPN 也可能造成阻碍。"
 
 msgid "runtime.join_control_lost"
 msgstr "已连上房主，但连接一直中断。请检查网络连接后重试。"

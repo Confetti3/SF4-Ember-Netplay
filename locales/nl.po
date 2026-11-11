@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Er wordt nog gecontroleerd of je netwerk directe verbindingen toestaat."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Waarschijnlijke oorzaak: je netwerk blokkeert UDP."
+msgstr "Waarschijnlijke oorzaak: de Windows-firewall of je netwerk blokkeert UDP. Sta sf4-net.exe toe in Windows-beveiliging > Firewall en netwerkbeveiliging > Een app toestaan via de firewall (Privé en Openbaar)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Waarschijnlijke oorzaak: het netwerk van {0} blokkeert UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Je router gebruikt strikte NAT, waardoor directe verbindingen vaak mislukken en matches via een relais kunnen lopen."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Je netwerk lijkt UDP te blokkeren, waardoor directe verbindingen mislukken en matches via een relais kunnen lopen. Een firewall of VPN kan de oorzaak zijn."
+msgstr "Je netwerk lijkt UDP te blokkeren, waardoor directe verbindingen mislukken en matches via een relais kunnen lopen. Meestal is de Windows-firewall de oorzaak, als je de melding bij de eerste start hebt overgeslagen of het netwerk op Openbaar staat. Sta sf4-net.exe toe in Windows-beveiliging > Firewall en netwerkbeveiliging > Een app toestaan via de firewall (Privé en Openbaar). Ook een VPN kan UDP blokkeren."
 
 msgid "network.nat_detail_checking"
 msgstr "Je netwerk wordt gecontroleerd. Dit duurt een paar seconden na het starten van het spel."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "Kon de relaisserver ({0}) niet bereiken. Controleer je internetverbinding, firewall of VPN en probeer het opnieuw."
 
 msgid "runtime.host_unreachable"
-msgstr "De host was niet bereikbaar, direct noch via een relais. De kamer is misschien gesloten, of een firewall of VPN zit in de weg."
+msgstr "De host was niet bereikbaar, direct noch via een relais. De kamer is misschien gesloten. Als die open is, is meestal de Windows-firewall de oorzaak: sta sf4-net.exe toe in Windows-beveiliging > Firewall en netwerkbeveiliging > Een app toestaan via de firewall (Privé en Openbaar). Ook een VPN kan in de weg zitten."
 
 msgid "runtime.join_control_lost"
 msgstr "De host werd bereikt, maar de verbinding bleef wegvallen. Controleer je internetverbinding en probeer het opnieuw."

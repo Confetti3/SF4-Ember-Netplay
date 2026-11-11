@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Todavía se está comprobando si tu red permite conexiones directas."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Causa probable: tu red bloquea UDP."
+msgstr "Causa probable: el Firewall de Windows o tu red bloquea UDP. En Seguridad de Windows > Firewall y protección de red > Permitir una aplicación a través del firewall, permite sf4-net.exe (Privada y Pública)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Causa probable: la red de {0} bloquea UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Tu router usa NAT estricto, por lo que las conexiones directas suelen fallar y las partidas pueden pasar por un relé."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Tu red parece bloquear UDP, por lo que las conexiones directas fallarán y las partidas pueden pasar por un relé. La causa puede ser un firewall o una VPN."
+msgstr "Tu red parece bloquear UDP, por lo que las conexiones directas fallarán y las partidas pueden pasar por un relé. Lo más habitual es el Firewall de Windows, si omitiste su aviso al abrir el juego por primera vez o la red está como Pública. En Seguridad de Windows > Firewall y protección de red > Permitir una aplicación a través del firewall, permite sf4-net.exe (Privada y Pública). Una VPN también puede bloquear UDP."
 
 msgid "network.nat_detail_checking"
 msgstr "Comprobando tu red. Tarda unos segundos después de iniciar el juego."
@@ -3687,7 +3687,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "No se pudo conectar con el servidor de retransmisión ({0}). Revisa tu conexión a internet, el firewall o la VPN e inténtalo de nuevo."
 
 msgid "runtime.host_unreachable"
-msgstr "No se pudo contactar con el anfitrión, ni directamente ni por un relé. Puede que la sala se haya cerrado, o que un firewall o una VPN lo impida."
+msgstr "No se pudo contactar con el anfitrión, ni directamente ni por un relé. Puede que la sala se haya cerrado. Si sigue abierta, lo más habitual es el Firewall de Windows: en Seguridad de Windows > Firewall y protección de red > Permitir una aplicación a través del firewall, permite sf4-net.exe (Privada y Pública). Una VPN también puede estorbar."
 
 msgid "runtime.join_control_lost"
 msgstr "Se contactó con el anfitrión, pero la conexión se cortaba una y otra vez. Revisa tu conexión a internet e inténtalo de nuevo."

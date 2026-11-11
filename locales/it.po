@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Sto ancora verificando se la tua rete consente connessioni dirette."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Causa probabile: la tua rete blocca l'UDP."
+msgstr "Causa probabile: Windows Firewall o la tua rete blocca l'UDP. In Sicurezza di Windows > Firewall e protezione della rete > Consenti app attraverso il firewall, consenti sf4-net.exe (Privata e Pubblica)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Causa probabile: la rete di {0} blocca l'UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Il tuo router usa un NAT restrittivo, quindi le connessioni dirette spesso falliscono e le partite possono passare da un relay."
 
 msgid "network.nat_detail_no_udp"
-msgstr "La tua rete sembra bloccare l'UDP, quindi le connessioni dirette falliranno e le partite possono passare da un relay. La causa potrebbe essere un firewall o una VPN."
+msgstr "La tua rete sembra bloccare l'UDP, quindi le connessioni dirette falliranno e le partite possono passare da un relay. Di solito la causa è Windows Firewall, se la sua richiesta è stata saltata al primo avvio o la rete è impostata come Pubblica. In Sicurezza di Windows > Firewall e protezione della rete > Consenti app attraverso il firewall, consenti sf4-net.exe (Privata e Pubblica). Anche una VPN può bloccare l'UDP."
 
 msgid "network.nat_detail_checking"
 msgstr "Verifica della rete in corso. Richiede alcuni secondi dopo l'avvio del gioco."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "Impossibile raggiungere il server relay ({0}). Controlla la connessione a internet, il firewall o la VPN e riprova."
 
 msgid "runtime.host_unreachable"
-msgstr "Impossibile raggiungere l'host, né direttamente né tramite relay. La sala potrebbe essere chiusa, oppure un firewall o una VPN potrebbe essere di ostacolo."
+msgstr "Impossibile raggiungere l'host, né direttamente né tramite relay. La sala potrebbe essere chiusa. Se è aperta, di solito la causa è Windows Firewall: in Sicurezza di Windows > Firewall e protezione della rete > Consenti app attraverso il firewall, consenti sf4-net.exe (Privata e Pubblica). Anche una VPN può essere d'ostacolo."
 
 msgid "runtime.join_control_lost"
 msgstr "L'host è stato raggiunto, ma la connessione continuava a cadere. Controlla la connessione a internet e riprova."

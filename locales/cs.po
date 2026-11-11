@@ -551,7 +551,7 @@ msgid "connection.direct_checking"
 msgstr "Stále se kontroluje, zda vaše síť umožňuje přímá spojení."
 
 msgid "connection.blocked_local_no_udp"
-msgstr "Pravděpodobná příčina: vaše síť blokuje UDP."
+msgstr "Pravděpodobná příčina: Windows Firewall nebo vaše síť blokuje UDP. V Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné)."
 
 msgid "connection.blocked_peer_no_udp"
 msgstr "Pravděpodobná příčina: síť hráče {0} blokuje UDP."
@@ -617,7 +617,7 @@ msgid "network.nat_detail_strict"
 msgstr "Váš router používá striktní NAT, proto přímá spojení často selhávají a zápasy mohou jít přes server."
 
 msgid "network.nat_detail_no_udp"
-msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Příčinou může být firewall nebo VPN."
+msgstr "Vaše síť zřejmě blokuje UDP, proto přímá spojení selžou a zápasy mohou jít přes server. Nejčastěji za to může Windows Firewall, když jste při prvním spuštění přeskočili jeho dotaz nebo je síť nastavená jako veřejná. V Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). UDP může blokovat i VPN."
 
 msgid "network.nat_detail_checking"
 msgstr "Kontrola vaší sítě. Po spuštění hry to trvá několik sekund."
@@ -3686,7 +3686,7 @@ msgid "runtime.relay_unreachable_region"
 msgstr "K zprostředkujícímu serveru ({0}) se nepodařilo připojit. Zkontrolujte internet, firewall nebo VPN a zkuste to znovu."
 
 msgid "runtime.host_unreachable"
-msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít, nebo může překážet firewall či VPN."
+msgstr "Hostitele se nepodařilo zastihnout, ani přímo, ani přes zprostředkující server. Místnost se mohla zavřít. Pokud je otevřená, nejčastěji za to může Windows Firewall: v Zabezpečení Windows > Brána firewall a ochrana sítě > Povolit aplikaci prostřednictvím brány firewall povolte sf4-net.exe (Soukromé i Veřejné). Překážet může i VPN."
 
 msgid "runtime.join_control_lost"
 msgstr "K hostiteli se podařilo připojit, ale spojení se neustále přerušovalo. Zkontrolujte připojení k internetu a zkuste to znovu."
