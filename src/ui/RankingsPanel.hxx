@@ -1,4 +1,5 @@
 #pragma once
+#include "ShellAction.hxx"
 #include "MenuNavigation.hxx"
 #include "../netplay/PlayerPreferences.hxx"
 #include "../netplay/Rankings.hxx"
@@ -11,7 +12,6 @@
 
 namespace sf4e { namespace ui {
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // Rankings (docs/design/SKILL_BADGE.md, "Rankings"): the player's own class and

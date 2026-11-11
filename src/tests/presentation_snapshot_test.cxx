@@ -127,17 +127,13 @@ static void TestTwoThreads() {
 }
 
 static std::size_t Drain(bridge::CommandMailbox& mailbox) {
-	facade::RuntimeCommand command;
+	sf4e::RuntimeRequest command;
 	std::size_t count = 0;
 	while (mailbox.TryPop(command)) ++count;
 	return count;
 }
 
-static facade::RuntimeCommand Leave() {
-	facade::RuntimeCommand command;
-	command.command.kind = sf4e::netplay::CommandKind::LeaveRoom;
-	return command;
-}
+static sf4e::RuntimeRequest Leave() { return sf4e::commands::LeaveRoom{}; }
 
 static void TestCommandLifetime() {
 	// No runtime: nothing accepts commands.
@@ -148,8 +144,8 @@ static void TestCommandLifetime() {
 	CHECK(facade::SubmitRuntimeCommand(Leave()));
 	CHECK(Drain(*first) == 1);
 	// Malformed commands are refused before the queue.
-	auto oversized = Leave();
-	oversized.displayName.assign(sf4e::NETPLAY_DISPLAY_NAME_LEN, 'x');
+	sf4e::commands::SavePreferences oversized;
+	oversized.preferences.displayName.assign(sf4e::NETPLAY_DISPLAY_NAME_LEN, 'x');
 	CHECK(!facade::SubmitRuntimeCommand(std::move(oversized)));
 
 	// Producers race a stop and a restart. A closed queue takes nothing more,
@@ -160,7 +156,7 @@ static void TestCommandLifetime() {
 		producers.emplace_back([&] { while (!stop) facade::SubmitRuntimeCommand(Leave()); });
 	Sleep(50);
 	bridge::CloseCommands();
-	CHECK(!first->TryPush(Leave(), sizeof(facade::RuntimeCommand)));
+	CHECK(!first->TryPush(Leave(), sizeof(sf4e::RuntimeRequest)));
 	auto second = std::make_shared<bridge::CommandMailbox>(32, 128 * 1024);
 	bridge::OpenCommands(second);
 	for (int round = 0; round < 200; ++round) Drain(*second);
@@ -792,20 +788,16 @@ static void TestRuntimeJudgesTraining() {
 	facade::NotifyRuntimeEventSystemReady();
 	facade::TickRuntime();
 	const auto current = facade::GetRuntimeSnapshot().session.generation;
-	facade::RuntimeCommand room;
-	room.command.generation = current;
-	room.training = TrainingEntry::Room;
+	sf4e::commands::Training room{current, TrainingEntry::Room};
 	CHECK(facade::SubmitRuntimeCommand(room));
-	room.command.generation = {current.room + 1, 0};
+	room.generation = {current.room + 1, 0};
 	CHECK(facade::SubmitRuntimeCommand(room));
 	facade::TickRuntime();
 	CHECK(!record.Peek(GetTickCount64(), seen));
 	CHECK(facade::GetRuntimeSnapshot().session.room == netplay::RoomState::Idle);
 	// Play offline sends the game to its own menus, Training among them, and
 	// asks the menu for nothing.
-	facade::RuntimeCommand offline;
-	offline.command = {netplay::CommandKind::StartOffline, current, {}};
-	CHECK(facade::SubmitRuntimeCommand(offline));
+	CHECK(facade::SubmitRuntimeCommand(sf4e::commands::StartOffline{current}));
 	facade::TickRuntime();
 	CHECK(facade::GetRuntimeSnapshot().offlineRequested && !record.Peek(GetTickCount64(), seen));
 	// The menu's own question, live: no main menu is up, so nothing holds.

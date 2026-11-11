@@ -107,15 +107,6 @@ struct TraceFields {
     }
 };
 
-// The one place that decides which command (netplay/RuntimeCommands.hxx) a
-// submitted RuntimeCommand is. A command with several families' fields set is
-// the first of: identity, tournament, Training from the room, leave the
-// watched game, Discord invite action, sound preview, replay, short link, pad
-// request, room settings save, input action, service, else the room command
-// its kind names. So the hidden shell's submit, which fills identity and a
-// room command together, is an identity request. None for a kind no command has.
-std::optional<RuntimeRequest> Classify(RuntimeCommand command);
-
 // A parked command waits under one of these (Runtime::readyIntent and the rest).
 using Intent = netplay::ParkedIntent<RuntimeRequest>;
 // The game's form of the pick a Ready carries.

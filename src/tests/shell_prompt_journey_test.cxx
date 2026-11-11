@@ -65,15 +65,15 @@ static void ButtonPromptsRow() {
   Check(MenuPromptBrand()==brands[i],"Button prompts did not apply before autosave");
   Check(h.actions.size()==before,"Button prompts bypassed normal autosave");
   h.Frame(0,45);
-  Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.buttonPrompts==choices[i],"Button prompts did not autosave the next style");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.buttonPrompts==choices[i];}),"Button prompts did not autosave the next style");
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  }
  h.Press(MenuInput::Right);Check(MenuPromptBrand()==PromptBrand{Brand::Nintendo},"Button prompts exceeded its last value");
  for(int i=2;i>=0;--i) {
   h.Press(MenuInput::Left);h.Frame(0,45);
   const auto want=static_cast<ButtonPrompts>(i);
-  Check(h.actions.back().preferences.buttonPrompts==want,"Button prompts did not autosave the previous style");
-  h.view.preferences=h.actions.back().preferences;h.Frame();
+  Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.buttonPrompts==want;}),"Button prompts did not autosave the previous style");
+  h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  }
  Check(MenuPromptBrand()==h.view.gameplayBrand,"Automatic did not restore the PS5 variant");
  h.Press(MenuInput::Left);Check(MenuPromptBrand()==h.view.gameplayBrand,"Button prompts exceeded Automatic");
@@ -98,7 +98,7 @@ static void ButtonPromptsRow() {
 // send, until the player answers; the countdown runs on.
 static void PostMatchUltra() {
  using namespace sf4e;
- using Field=ShellAction::SelectionStep::Field;
+ using Field=ui::SelectionStep::Field;
  Harness a;JoinedRoom(a,18);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
  a.view.room.host=1;a.view.room.revision=3;
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
@@ -112,7 +112,7 @@ static void PostMatchUltra() {
  Check(a.shell.Navigation().Screen()=="post-match"&&a.shell.Navigation().Focus()=="again"&&row("ultra")!=rows.end()&&row("ultra")->enabled&&
   row("ultra")->adjustable&&row("ultra")->value==ui::UltraName(0,0)&&rows.back().id=="ultra","The post-match prompt offers no Ultra under the answer, or Rematch lost the focus");
  a.FocusOn("ultra");const auto sent=a.actions.size();a.Press(MenuInput::Right);
- Check(a.actions.size()==sent+1&&a.actions.back().selectionStep.field==Field::Ultra&&a.actions.back().selectionStep.delta==1&&
+ Check(a.actions.size()==sent+1&&Is<ui::SelectionStep>(a.actions.back(),[](const ui::SelectionStep& s){return s.field==Field::Ultra&&s.delta==1;})&&
   a.shell.Navigation().Screen()=="post-match","Right on the post-match Ultra did not step it");
  // Once the runtime holds the answer, the Ultra is set for the next game.
  a.view.canChangeUltra=false;a.view.readyPress=netplay::ReadyPress::Held;a.Frame();
@@ -127,7 +127,7 @@ static void PostMatchUltra() {
 // next game; only New opponent is closed, and both views say it was chosen.
 static void PostMatchRematchAfterNewOpponent() {
  using namespace sf4e;
- using Field=ShellAction::SelectionStep::Field;
+ using Field=ui::SelectionStep::Field;
  Harness a;JoinedRoom(a,19);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
  a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
@@ -144,7 +144,7 @@ static void PostMatchRematchAfterNewOpponent() {
  Check(a.shell.Navigation().Screen()=="post-match"&&row("rematch")!=rows.end()&&row("rematch")->enabled&&row("new-opponent")!=rows.end()&&row("new-opponent")->enabled,
   "A deciding prompt did not open with Rematch and New opponent");
  const auto sent=a.actions.size();a.shell.Navigation().Focus("new-opponent",rows);a.Press(MenuInput::Select);
- Check(a.actions.size()==sent+1&&a.actions.back().roomAction.kind==room::ActionKind::NewOpponent,"The prompt's New opponent did not ask the room");
+ Check(a.actions.size()==sent+1&&RoomActionIs(a.actions.back(),room::ActionKind::NewOpponent),"The prompt's New opponent did not ask the room");
  // The room holds the request until a set ends or a seat comes free.
  t.wantsNew[0]=true;++t.revision;++a.view.room.revision;a.Frame(0,2);
  Check(a.shell.Navigation().Screen()=="post-match","The prompt closed once New opponent was asked for");
@@ -154,9 +154,9 @@ static void PostMatchRematchAfterNewOpponent() {
  Check(words["pm-you"]==loc::T("room.new_opponent_chosen"),"This PC's row did not say New opponent was chosen");
  // The Ultra still steps, and Rematch still answers, taking the request back.
  a.shell.Navigation().Focus("ultra",rows);const auto stepped=a.actions.size();a.Press(MenuInput::Right);
- Check(a.actions.size()==stepped+1&&a.actions.back().selectionStep.field==Field::Ultra,"The Ultra did not step after New opponent was asked for");
+ Check(a.actions.size()==stepped+1&&Is<ui::SelectionStep>(a.actions.back(),[](const ui::SelectionStep& s){return s.field==Field::Ultra;}),"The Ultra did not step after New opponent was asked for");
  const auto answered=a.actions.size();a.shell.Navigation().Focus("rematch",rows);a.Press(MenuInput::Select);
- Check(a.actions.size()==answered+1&&a.actions.back().roomAction.kind==room::ActionKind::Rematch,"Rematch after New opponent did not answer the room");
+ Check(a.actions.size()==answered+1&&RoomActionIs(a.actions.back(),room::ActionKind::Rematch),"Rematch after New opponent did not answer the room");
  SetMenuEntriesProbe({});SetMenuCardTextProbe({});
 }
 // Each journey has its own harness, one ImGui context at a time.

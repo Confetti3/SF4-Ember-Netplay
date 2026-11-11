@@ -32,8 +32,8 @@ void TableNameCommitNamesTable() {
  ImGui::GetIO().AddInputCharactersUTF8("Finals");h.Frame();
  const auto sent=h.actions.size();
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
- Check(h.actions.size()==sent+1&&h.actions.back().roomAction.kind==room::ActionKind::NameTable&&h.actions.back().roomAction.text=="Finals"&&
-  h.actions.back().roomAction.table==0,"Committing a table name did not send NameTable");
+ Check(h.actions.size()==sent+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::NameTable&&sent.roomAction.text=="Finals"&&
+  sent.roomAction.table==0;}),"Committing a table name did not send NameTable");
 }
 // Each of the board's rows is in the area that draws it, the one answer the
 // action bar, LB and RB and the narrow tabs read: the room's status while it
@@ -178,12 +178,12 @@ void RoomLayoutSavesInRoom() {
  h.Frame();
  Check(!h.view.canEditPreferences,"A joined room left the player's settings open");
  const auto roomSaves=[&](std::size_t from){
-  std::vector<ShellAction> sent;
-  for(auto i=from;i<h.actions.size();++i)if(h.actions[i].roomSettings)sent.push_back(h.actions[i]);
+  std::vector<commands::RoomSettings> sent;
+  for(auto i=from;i<h.actions.size();++i)if(const auto* save=As<commands::RoomSettings>(h.actions[i]))sent.push_back(*save);
   return sent;
  };
  const auto lockedSave=[&](std::size_t from){
-  return std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),[](const ShellAction& a){return a.command.kind==Kind::SavePreferences;});
+  return std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),[](const ShellAction& a){return Is<commands::SavePreferences>(a);});
  };
  h.Screen("tab-interface/room-layout");h.FocusOn("arrange-column");
  const auto first=h.actions.size();
@@ -239,7 +239,7 @@ static void RoomBoardJourneys() {
  {const auto before=h.actions.size();h.Press(MenuInput::Back);Check(!h.open&&h.shell.Navigation().Screen()=="home"&&h.actions.size()==before,"Back on an idle Home did not hide Ember");h.open=true;}
  h.Screen("player");h.view.inputCapture=input::Capture::ReleaseAll;h.Frame();
  h.Press(MenuInput::Back);
- Check(h.shell.Navigation().Screen()=="assignment"&&h.actions.back().inputAction==input::Action::Cancel,"Assignment Back did not only cancel capture");
+ Check(h.shell.Navigation().Screen()=="assignment"&&Is<commands::Input>(h.actions.back(),[](const commands::Input& i){return i.inputAction==input::Action::Cancel;}),"Assignment Back did not only cancel capture");
  h.view.inputCapture=input::Capture::Idle;h.Frame();Check(h.shell.Navigation().Screen()=="player","Assignment lost return destination");
  h.Screen("home");h.Choose("online");Check(h.shell.Navigation().Screen()=="online","Online route");
  // The Online screen tells the player, for information only, which relay this PC uses
@@ -266,7 +266,7 @@ static void RoomBoardJourneys() {
   const auto actions=h.actions.size();h.Choose("network");Check(h.actions.size()==actions&&h.shell.Navigation().Screen()=="online","An information row acted on Select");
   h.view.netReport=NetworkSummary{};SetMenuEntriesProbe({});
  }
- h.Choose("create");h.Choose("host");Check(h.actions.back().command.kind==Kind::HostRoom,"Create journey");
+ h.Choose("create");h.Choose("host");Check(Is<commands::HostRoom>(h.actions.back()),"Create journey");
  // Opening a room keeps the player on Create with a Cancel; the room screen
  // appears only once the committed snapshot says the room is joined.
  // The controller records that the room being opened is hosted, so Back
@@ -287,13 +287,13 @@ static void RoomBoardJourneys() {
   "Home does not say the room is being created");
  h.Press(MenuInput::Back);
  h.Choose("cancel-open");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.back().command.kind==Kind::LeaveRoom,"Cancel while opening did not leave the room");
+ Check(Is<commands::LeaveRoom>(h.actions.back()),"Cancel while opening did not leave the room");
  h.view.session.room=netplay::RoomState::Joined;h.view.session.control=netplay::Health::Healthy;h.view.room.roomEpoch=9;h.view.room.localMember=1;h.Frame();
  Check(h.shell.Navigation().Screen()=="room","Joined room did not open the room screen");
  h.view.session.room=netplay::RoomState::Idle;h.view.session.generation.room=0;h.view.room.roomEpoch=0;h.view.room.localMember=0;h.Frame();h.Screen("home");
  h.Screen("join");h.Choose("invite-text");ImGui::GetIO().AddInputCharactersUTF8("sf4://invitation");h.Frame();
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
- h.Choose("join-now");Check(h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation=="sf4://invitation","Join draft journey");
+ h.Choose("join-now");Check(Is<commands::JoinRoom>(h.actions.back(),[](const commands::JoinRoom& join){return join.invitation=="sf4://invitation";}),"Join draft journey");
  h.Frame(0,5);h.view.session.room=netplay::RoomState::Opening;h.view.session.isHost=false;h.Frame();
  Check(h.shell.Navigation().Screen()=="join"&&openingStatus==loc::T("room.joining_status"),"Joining a room is not reported as joining");
  h.Screen("home");Check(openingStatus==loc::T("room.joining_status")&&onlineDetail()==loc::T("room.joining_status"),
@@ -353,15 +353,15 @@ static void RoomBoardJourneys() {
  auto before=h.actions.size();h.Press(MenuInput::Back);
  Check(!h.shell.Navigation().Choosing()&&h.actions.size()==before&&h.shell.Navigation().Screen()=="room","B did not cancel the seat chooser");
  h.Choose("table-2");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.table==2&&
-  h.actions.back().roomAction.seat==1,"Seat chooser did not take the P2 seat");
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==2&&
+  sent.roomAction.seat==1;}),"Seat chooser did not take the P2 seat");
  // P1 taken under a chooser highlighting P2: the chooser closes, the A pressed
  // on that same frame does nothing, and the next A offers the new options.
  h.Choose("table-1");h.Press(MenuInput::Right);h.view.room.tables[1].p1=2;
  auto raced=h.actions.size();h.Frame(MenuInput::Select);h.Frame();
  Check(h.actions.size()==raced&&!h.shell.Navigation().Choosing(),"A changed chooser sent an option the player never saw");
  h.Press(MenuInput::Select);h.Press(MenuInput::Select);
- Check(h.actions.size()==raced+1&&h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.seat==1,
+ Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.seat==1;}),
   "The reopened chooser did not offer the open P2 seat first");
  h.view.room.tables[1].p1=0;
  // The mouse picks from the chooser with real buttons: a notice over it
@@ -381,26 +381,26 @@ static void RoomBoardJourneys() {
  // A cursor resting on P1 does not undo P2 picked on the pad.
  {const auto at=centres.at("table-3/0");ImGui::GetIO().AddMousePosEvent(at.x,at.y);h.Frame();h.Frame();}
  h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.size()==raced+1&&h.actions.back().roomAction.seat==1,"A resting cursor overrode the pad's choice");
+ Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.seat==1;}),"A resting cursor overrode the pad's choice");
  // The right mouse button cancels a choice, sending nothing.
  click("table-3");Check(h.shell.Navigation().Choosing(),"Clicking a table did not open its chooser");
  raced=h.actions.size();
  {auto& io=ImGui::GetIO();io.AddMouseButtonEvent(1,true);h.Frame();io.AddMouseButtonEvent(1,false);h.Frame();h.Frame();}
  Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","The right mouse button did not cancel the chooser");
  click("table-3");click("table-3/1");
- Check(h.actions.size()==raced+1&&h.actions.back().roomAction.table==3&&h.actions.back().roomAction.seat==1,"Clicking P2 in the chooser did not take it");
+ Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.table==3&&sent.roomAction.seat==1;}),"Clicking P2 in the chooser did not take it");
  ImGui::GetIO().AddMousePosEvent(-1,-1);
  SetMenuCardProbe({});h.view.room.tables[3].matchGeneration=0;
  // A full table offers the queue or watching instead.
  h.view.room.tables[3].p1=3;h.view.room.tables[3].p2=4;h.view.room.tables[3].phase=room::TablePhase::Playing;
  h.Choose("table-3");h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.back().roomAction.kind==room::ActionKind::Watch&&h.actions.back().roomAction.table==3,"Full-table chooser did not watch");
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Watch&&sent.roomAction.table==3;}),"Full-table chooser did not watch");
  h.view.room.tables[3].p1=h.view.room.tables[3].p2=0;h.view.room.tables[3].phase=room::TablePhase::Idle;
  // Y opens the table's options; the list still queues and watches.
  h.Screen("room");h.Choose("table-2");h.Press(MenuInput::Back);h.Press(MenuInput::Options);
  Check(h.shell.Navigation().Screen()=="room-table","Y did not open the table options");
- h.Choose("queue");Check(h.actions.back().roomAction.kind==room::ActionKind::Queue&&h.actions.back().roomAction.table==2,"Table queue journey");
- h.Choose("watch");Check(h.actions.back().roomAction.kind==room::ActionKind::Watch,"Watch journey");
+ h.Choose("queue");Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==2;}),"Table queue journey");
+ h.Choose("watch");Check(RoomActionIs(h.actions.back(),room::ActionKind::Watch),"Watch journey");
  h.Press(MenuInput::Options);Check(h.shell.Navigation().Screen()=="room","Y again did not return to the board");
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room-chat","View did not open chat");
  h.Press(MenuInput::Chat);Check(h.shell.Navigation().Screen()=="room","View again did not return to the board");
@@ -453,14 +453,14 @@ static void RoomBoardJourneys() {
  Check(tableStatus.find("READY")==std::string::npos,"Post-match footer falsely reports READY");
  Check(tableStatus.find("Waiting for results")==std::string::npos,"Post-match footer exposes the result wait");
  const auto postMatchActions=h.actions.size();h.Choose("ready");
- Check(h.actions.size()==postMatchActions+1&&h.actions.back().command.kind==Kind::Rematch,"Pending result dropped the rematch press");
+ Check(h.actions.size()==postMatchActions+1&&ReadyIs(h.actions.back(),true),"Pending result dropped the rematch press");
  // A Ready the runtime still holds (while the last game closes) is taken
  // back with Unready, which does not wait for the last game's receipt.
  h.view.readyPress=netplay::ReadyPress::Held;h.view.room.localTerminalPending=true;h.Frame();
  Check(row("ready").label=="Unready / unlock fighter"&&row("ready").enabled,"In-flight Ready cannot be taken back");
  Check(tableStatus.find("Readying up")!=std::string::npos,"In-flight Ready is not shown on the seat line");
  h.Choose("ready");
- Check(h.actions.back().roomAction.kind==room::ActionKind::Unready&&h.actions.back().roomAction.seat==0,"Unready of an in-flight Ready was refused");
+ Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Unready&&sent.roomAction.seat==0;}),"Unready of an in-flight Ready was refused");
  // A Ready already sent waits for the room, and offers no second press.
  h.view.readyPress=netplay::ReadyPress::Sent;h.Frame();
  Check(row("ready").label=="Readying up..."&&!row("ready").enabled,"A sent Ready still offers a second press");
@@ -478,16 +478,16 @@ static void RoomBoardJourneys() {
  h.view.room.tables[2].ready[0]=h.view.room.tables[2].ready[1]=false;
  h.view.session.match=netplay::MatchState::None;h.view.canEditSelection=true;
  SetMenuEntriesProbe({});h.view.room.tables[2].p2=2;h.view.canReady=true;
- h.Choose("ready");Check(h.actions.back().command.kind==Kind::Ready,"Ready journey");
- h.view.room.tables[2].ready[0]=true;h.Choose("ready");Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"Unready journey");
+ h.Choose("ready");Check(ReadyIs(h.actions.back()),"Ready journey");
+ h.view.room.tables[2].ready[0]=true;h.Choose("ready");Check(RoomActionIs(h.actions.back(),room::ActionKind::Unready),"Unready journey");
  // On the board, A on your own seat readies and unreadies, and one B leaves
  // the seat, ready or not. While the game is starting B takes Ready back
  // instead, and the legend says which.
  h.Screen("room");h.view.room.tables[2].ready[0]=false;h.Choose("table-2");
- Check(h.actions.back().command.kind==Kind::Ready,"A on your seat did not ready");
+ Check(ReadyIs(h.actions.back()),"A on your seat did not ready");
  h.view.room.tables[2].ready[0]=true;h.Press(MenuInput::Select);
- Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"A again did not unready");
- h.Press(MenuInput::Back);Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.actions.back().roomAction.table==2&&
+ Check(RoomActionIs(h.actions.back(),room::ActionKind::Unready),"A again did not unready");
+ h.Press(MenuInput::Back);Check(Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Unqueue&&sent.roomAction.table==2;})&&
   h.shell.Navigation().Screen()=="room","One B did not leave a readied seat");
  // Leaving a seat that holds a set score, or that passes to the queue, asks
  // first, and the answer starts on staying.
@@ -501,7 +501,7 @@ static void RoomBoardJourneys() {
  h.Press(MenuInput::Back);Check(h.shell.Navigation().Choosing(),"B did not ask again");
  h.Press(MenuInput::Back);Check(!h.shell.Navigation().Choosing()&&h.actions.size()==raced,"B did not cancel the leave question");
  h.Press(MenuInput::Back);h.Press(MenuInput::Right);h.Press(MenuInput::Select);
- Check(h.actions.size()==raced+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.actions.back().roomAction.table==2,
+ Check(h.actions.size()==raced+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Unqueue&&sent.roomAction.table==2;}),
   "Confirming the leave question did not release the seat");
  seatTable.score[0]=seatTable.score[1]=0;seatTable.queue={3};raced=h.actions.size();
  h.Press(MenuInput::Back);
@@ -539,9 +539,9 @@ static void RoomBoardJourneys() {
  const std::string finishFirst=loc::T("room.leave_seat.finish_first");
  h.view.room.tables[2].ready[1]=true;h.view.room.tables[2].phase=room::TablePhase::Ready;h.view.room.tables[2].spectatorHold=true;
  raced=h.actions.size();h.Press(MenuInput::Back);
- Check(h.actions.size()==raced+1&&h.actions.back().roomAction.kind==room::ActionKind::Unready&&h.shell.Navigation().Screen()=="room",
+ Check(h.actions.size()==raced+1&&RoomActionIs(h.actions.back(),room::ActionKind::Unready)&&h.shell.Navigation().Screen()=="room",
   "B while the start is held did not unready, or left the board");
- h.Press(MenuInput::Select);Check(h.actions.back().roomAction.kind==room::ActionKind::Unready,"A while the start is held did not unready");
+ h.Press(MenuInput::Select);Check(RoomActionIs(h.actions.back(),room::ActionKind::Unready),"A while the start is held did not unready");
  h.view.room.tables[2].spectatorHold=false;raced=h.actions.size();h.Press(MenuInput::Back);
  Check(h.actions.size()==raced&&h.shell.Navigation().Screen()=="room","B during a starting game left the seat or the board");
  // A refusal names its screen, its cause and a few seconds: it lapses on its
@@ -607,100 +607,100 @@ static void RoomBoardJourneys() {
  h.Screen("room");h.FocusOn("table-2");
  // A queued member's B leaves the queue.
  h.view.room.members[0].seat=-1;h.view.room.tables[2].p1=3;h.view.room.tables[2].queue={1};h.Press(MenuInput::Back);
- Check(h.actions.back().roomAction.kind==room::ActionKind::Unqueue&&h.shell.Navigation().Screen()=="room","B did not leave the queue");
+ Check(RoomActionIs(h.actions.back(),room::ActionKind::Unqueue)&&h.shell.Navigation().Screen()=="room","B did not leave the queue");
  h.view.room.members[0].seat=0;h.view.room.tables[2].p1=1;h.view.room.tables[2].queue.clear();
  h.Screen("room-table");
  h.view.room.tables[2].ready[0]=false;h.view.session.match=netplay::MatchState::PostMatch;
- h.Choose("ready");Check(h.actions.back().command.kind==Kind::Rematch,"Rematch journey");
+ h.Choose("ready");Check(ReadyIs(h.actions.back(),true),"Rematch journey");
  h.view.room.tables[2].phase=room::TablePhase::Paused;h.Choose("cancel-result");
  auto count=h.actions.size();++h.view.room.tables[2].matchGeneration;h.Frame();h.Press(MenuInput::Right);h.Press(MenuInput::Select);
  Check(h.actions.size()==count,"Stale confirmation cancelled a different game");h.Press(MenuInput::Back);
  h.Screen("room");h.Choose("leave");count=h.actions.size();h.Press(MenuInput::Select);Check(h.actions.size()==count,"Leave default was not Cancel");
- h.Choose("leave");h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.size()==count+1&&h.actions.back().command.kind==Kind::LeaveRoom,"Confirmed leave");
+ h.Choose("leave");h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.size()==count+1&&Is<commands::LeaveRoom>(h.actions.back()),"Confirmed leave");
   // Kick, third of a member's actions, asks first on the member's page.
   h.Screen("room");h.Choose("room-members");h.Choose("member-2");h.Press(MenuInput::Down);h.Press(MenuInput::Down);h.Press(MenuInput::Select);h.Frame(0,2);
-  h.view.room.members.pop_back();h.Frame();h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(h.actions.back().command.kind==Kind::LeaveRoom,"Removed member was kicked");
+  h.view.room.members.pop_back();h.Frame();h.Press(MenuInput::Right);h.Press(MenuInput::Select);Check(Is<commands::LeaveRoom>(h.actions.back()),"Removed member was kicked");
  h.Screen("room");h.Choose("room-chat");h.Frame(0,4);ImGui::GetIO().AddInputCharactersUTF8("Hello");h.Frame();
  count=h.actions.size();h.Press(MenuInput::Down);Check(h.actions.size()==count,"Scrolling the chat sent it");
  ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,true);h.Frame();ImGui::GetIO().AddKeyEvent(ImGuiKey_Enter,false);h.Frame();
- Check(h.actions.size()==count+1&&h.actions.back().roomAction.kind==room::ActionKind::Chat&&h.actions.back().roomAction.text=="Hello","Enter in the chat box did not send");
+ Check(h.actions.size()==count+1&&Is<commands::RoomAction>(h.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Chat&&sent.roomAction.text=="Hello";}),"Enter in the chat box did not send");
   h.view.session.control=netplay::Health::Lost;h.Screen("room");count=h.actions.size();h.Choose("table-2");Check(h.actions.size()==count,"Lost connection submitted Ready");
  h.view={};h.view.controllerReady=h.view.canEditPreferences=h.view.canOpenRoom=h.view.lobbyMusicAvailable=true;h.Frame();h.Screen("tab-interface/match-hud");h.FocusOn("hud");h.Press(MenuInput::Left);
  count=h.actions.size();h.Frame(0,20);Check(h.actions.size()==count,"Autosave not coalesced");
- h.Frame(0,20);Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.showMatchHud,"Autosave did not queue");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.backgroundPlay,"Play in the background did not save");
- Check(h.actions.back().preferences.endlessLobbyMusic,"Endless lobby music was not on by default");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-interface/sounds");h.FocusOn("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.endlessLobbyMusic,"Turning off endless lobby music did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.fasterDisplay&&h.actions.back().preferences.backgroundPlay,"Faster display did not save off");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("player");h.FocusOn("borderless");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.borderless&&!h.actions.back().preferences.fasterDisplay,"Borderless did not save on");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-matches/training-replays");h.FocusOn("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.recordWatched,"Save matches you watch did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ h.Frame(0,20);Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.showMatchHud;}),"Autosave did not queue");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("player");h.FocusOn("background-play");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.backgroundPlay;}),"Play in the background did not save");
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.endlessLobbyMusic;}),"Endless lobby music was not on by default");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("tab-interface/sounds");h.FocusOn("lobby-music");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.endlessLobbyMusic;}),"Turning off endless lobby music did not save");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("player");h.FocusOn("faster-display");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.fasterDisplay&&s.preferences.backgroundPlay;}),"Faster display did not save off");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("player");h.FocusOn("borderless");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.borderless&&!s.preferences.fasterDisplay;}),"Borderless did not save on");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("tab-matches/training-replays");h.FocusOn("replay-save-watched");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.recordWatched;}),"Save matches you watch did not save");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  // Show my Steam profile to room members: on until the player turns it off, saved with the other preferences.
  Check(h.view.preferences.shareSteamProfile,"Steam profile sharing was not on by default");
  h.Screen("profile");h.FocusOn("share-steam");
  h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.shareSteamProfile,"Hiding the Steam profile did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.shareSteamProfile,"Showing the Steam profile did not save");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-interface/match-hud");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudSize==1,"HUD size did not save"); // Small by default; Right steps to Standard.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudLayout==0,"HUD layout did not save"); // Split by default; Left steps to the Ember strip.
- {std::vector<MenuEntry> stripRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){stripRows=rows;});h.view.preferences=h.actions.back().preferences;h.Frame();SetMenuEntriesProbe({});
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.shareSteamProfile;}),"Hiding the Steam profile did not save");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.shareSteamProfile;}),"Showing the Steam profile did not save");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("tab-interface/match-hud");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("hud-size");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudSize==1;}),"HUD size did not save"); // Small by default; Right steps to Standard.
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("hud-layout");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudLayout==0;}),"HUD layout did not save"); // Split by default; Left steps to the Ember strip.
+ {std::vector<MenuEntry> stripRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){stripRows=rows;});h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();SetMenuEntriesProbe({});
   const auto offset=std::find_if(stripRows.begin(),stripRows.end(),[](const MenuEntry& e){return e.id=="hud-name-offset";});
   Check(offset!=stripRows.end()&&!offset->enabled,"Name height is offered for the Ember strip, which has no name plates");}
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudLayout==1,"HUD layout did not step back to Split");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudLayout==1;}),"HUD layout did not step back to Split");
  // Name height: Left moves the plates up two units at a time, to the limit and no further, and Right back down.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-name-offset");h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudNameOffset==-2,"Name height did not save");
- for(int i=0;i<40;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
- Check(h.actions.back().preferences.matchHudNameOffset==-netplay::MaxMatchHudNameOffset,"Name height went past its limit");
- for(int i=0;i<30;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
- Check(h.actions.back().preferences.matchHudNameOffset==0,"Name height did not step back to Default");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudAnchor==1,"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not step back to Bottom center");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("hud-name-offset");h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudNameOffset==-2;}),"Name height did not save");
+ for(int i=0;i<40;++i){h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudNameOffset==-netplay::MaxMatchHudNameOffset;}),"Name height went past its limit");
+ for(int i=0;i<30;++i){h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudNameOffset==0;}),"Name height did not step back to Default");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("hud-position");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudAnchor==1;}),"HUD position did not save"); // Bottom center by default; Right steps to Bottom left.
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudAnchor==0;}),"HUD position did not step back to Bottom center");
  // Right steps through the positions to Top center (the sixth) and stops there; Left comes back.
- for(int i=0;i<netplay::MaxMatchHudAnchor+3;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
- Check(h.actions.back().preferences.matchHudAnchor==5,"HUD position did not reach Top center, or went past it");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudAnchor==4,"HUD position did not step back from Top center");
- for(int i=0;i<netplay::MaxMatchHudAnchor+2;++i){h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
- Check(h.actions.back().preferences.matchHudAnchor==0,"HUD position did not return to Bottom center");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
- Check(h.actions.back().preferences.matchHudRaised,"HUD spacing did not save");
+ for(int i=0;i<netplay::MaxMatchHudAnchor+3;++i){h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Right);h.Frame(0,45);}
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudAnchor==5;}),"HUD position did not reach Top center, or went past it");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudAnchor==4;}),"HUD position did not step back from Top center");
+ for(int i=0;i<netplay::MaxMatchHudAnchor+2;++i){h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);}
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudAnchor==0;}),"HUD position did not return to Bottom center");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("hud-spacing");h.Press(MenuInput::Right);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.matchHudRaised;}),"HUD spacing did not save");
  // A new profile is on Auto. Right from Auto starts at 0 frames, and Left from 0 returns to Auto, keeping the number.
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Screen("tab-matches/defaults");h.FocusOn("delay");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Screen("tab-matches/defaults");h.FocusOn("delay");
  Check(h.view.preferences.autoInputDelay,"A new profile did not start on Auto");
  h.Press(MenuInput::Right);h.Frame(0,45);
- Check(!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Leaving Auto did not start at 0 frames");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
- Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Auto delay did not save");
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return !s.preferences.autoInputDelay&&s.preferences.inputDelay==0;}),"Leaving Auto did not start at 0 frames");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,45);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.autoInputDelay&&s.preferences.inputDelay==0;}),"Auto delay did not save");
  h.Screen("tab-access/text");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.FocusOn("scale");h.Press(MenuInput::Right);
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.FocusOn("scale");h.Press(MenuInput::Right);
  h.view.settingsError="Disk unavailable";h.Frame(0,45);
  {std::vector<MenuEntry> saveRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){saveRows=rows;});h.Frame();SetMenuEntriesProbe({});
   const auto retry=std::find_if(saveRows.begin(),saveRows.end(),[](const MenuEntry& e){return e.id=="retry-save";});
   Check(retry!=saveRows.end()&&retry->detail==loc::T("error.settings_not_saved"),"The retry row shows the store's English diagnostic, not the catalog's message");}
  h.Choose("retry-save");h.Frame();
- Check(h.actions.back().command.kind==Kind::SavePreferences,"Save retry missing");
- h.view.settingsError.clear();h.view.preferences=h.actions.back().preferences;h.Frame();
+ Check(Is<commands::SavePreferences>(h.actions.back()),"Save retry missing");
+ h.view.settingsError.clear();h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  // An invitation arrives as a toast; its screen opens from Home's row (or the toast's Join).
  h.view.discordPending=h.view.discordConfirm=h.view.discordCanSwitch=true;h.view.discordRevision=9;h.Frame();
  h.Screen("home");h.Choose("discord-invitation");
- h.Choose("invite-switch");h.Press(MenuInput::Select);Check(h.actions.back().discordAction==discord::InviteAction::None,"Switch default not Cancel");
- h.Choose("invite-cancel");Check(h.actions.back().discordAction==discord::InviteAction::Cancel&&h.actions.back().discordRevision==9,"Discord cancellation");
+ h.Choose("invite-switch");h.Press(MenuInput::Select);Check(!Is<commands::DiscordInvite>(h.actions.back()),"Switch default not Cancel");
+ h.Choose("invite-cancel");Check(Is<commands::DiscordInvite>(h.actions.back(),[](const commands::DiscordInvite& d){return d.discordAction==discord::InviteAction::Cancel&&d.discordRevision==9;}),"Discord cancellation");
  h.view.discordPending=false;h.Frame();h.Screen("home");h.Choose("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==sf4e::selection::RosterDisplayOrder[1],"Profile main was not saved");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.mainFighter==sf4e::selection::RosterDisplayOrder[1];}),"Profile main was not saved");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  h.Screen("profile");h.Choose("main-character");count=h.actions.size();
  h.Press(MenuInput::Right);
  ControllerNavigation profilePad;
@@ -709,8 +709,8 @@ static void RoomBoardJourneys() {
   profilePad.Update(sample,true,true,true);h.Frame(profilePad.Buttons());
  };
  physical(0,0);physical(0,0);physical(0x40,0x40000);physical(0,0);h.Frame(0,40);
- Check(h.actions.size()>count&&h.actions.back().preferences.mainFighter==sf4e::selection::RosterDisplayOrder[2],"Physical A did not save profile portrait");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ Check(h.actions.size()>count&&Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.mainFighter==sf4e::selection::RosterDisplayOrder[2];}),"Physical A did not save profile portrait");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Accepted portrait save did not return to Profile");
  h.Choose("main-character");count=h.actions.size();
  ImVec2 mouseTarget;
@@ -718,8 +718,8 @@ static void RoomBoardJourneys() {
  h.Frame();SetMenuCardProbe({});
  auto& mouse=ImGui::GetIO();mouse.AddMousePosEvent(mouseTarget.x,mouseTarget.y);h.Frame();
  mouse.AddMouseButtonEvent(0,true);h.Frame();mouse.AddMouseButtonEvent(0,false);h.Frame(0,40);
- Check(h.actions.size()>count&&h.actions.back().preferences.mainFighter==3,"Mouse click did not save profile portrait");
- h.view.preferences=h.actions.back().preferences;h.Frame();Check(h.shell.Navigation().Screen()=="profile","Mouse portrait save did not confirm");
+ Check(h.actions.size()>count&&Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.mainFighter==3;}),"Mouse click did not save profile portrait");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();Check(h.shell.Navigation().Screen()=="profile","Mouse portrait save did not confirm");
  // A rejected save must leave a labelled, actionable retry in the portrait grid.
  h.Choose("main-character");h.Press(MenuInput::Right);h.accept=false;h.Press(MenuInput::Select);h.Frame(0,40);
  Check(h.shell.Navigation().Screen()=="main-character","Failed portrait save closed the roster");
@@ -732,8 +732,8 @@ static void RoomBoardJourneys() {
  h.Frame();SetMenuTextProbe({});
  Check(retryLabel,"Portrait save retry has no visible label");
  h.accept=true;h.Choose("retry-save");h.Frame();
- Check(h.actions.back().command.kind==Kind::SavePreferences&&h.actions.back().preferences.mainFighter==DisplayedAfter(3),"Portrait retry lost the selected main");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ Check(Is<commands::SavePreferences>(h.actions.back(),[&](const commands::SavePreferences& s){return s.preferences.mainFighter==DisplayedAfter(3);}),"Portrait retry lost the selected main");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  Check(h.shell.Navigation().Screen()=="profile","Retried portrait save did not return to Profile");
 }
 // Each journey owns a Harness and with it the ImGui context, so they run one
@@ -761,8 +761,8 @@ void ArcadeJourneys() {
   room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
   a.view.room.tables[0].p1=1;a.view.room.tables[0].p2=2;a.view.room.cabinets[1]=1;a.view.room.cabinets[2]=2;
   a.Screen("room");const auto sent=a.actions.size();a.Choose("cabinet-0");
-  Check(a.actions.size()==sent+1&&a.actions.back().roomAction.kind==room::ActionKind::Queue&&a.actions.back().roomAction.table==0&&
-   a.actions.back().roomAction.seat==0,"A paired member could not move to cabinet 1");
+  Check(a.actions.size()==sent+1&&Is<commands::RoomAction>(a.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Queue&&sent.roomAction.table==0&&
+   sent.roomAction.seat==0;}),"A paired member could not move to cabinet 1");
   // The status line names the room's type: Arcade, or King of the hill, locked or not.
   std::string status;SetMenuStatusProbe([&](const char* text,Tone){status=text;});a.Frame();
   Check(status==loc::T("room.arcade_status"),"An Arcade room's status line did not say so");
@@ -824,7 +824,7 @@ void ArcadeJourneys() {
    Check(k.shell.Navigation().Focus()==id,"Down left the post-match buttons");}
   const auto sent=k.actions.size();k.Wait(11);
   k.view.matchResult=false;k.view.session.match=netplay::MatchState::PostMatch;k.view.atMainMenu=true;t.phase=room::TablePhase::Waiting;k.open=true;k.Frame(0,5);
-  Check(std::none_of(k.actions.begin()+sent,k.actions.end(),[](const ShellAction& a){return a.roomAction.kind==room::ActionKind::Unqueue;}),"No answer after a King of the hill set left the cabinet");
+  Check(std::none_of(k.actions.begin()+sent,k.actions.end(),[](const ShellAction& a){return RoomActionIs(a,room::ActionKind::Unqueue);}),"No answer after a King of the hill set left the cabinet");
   SetMenuEntriesProbe({});SetMenuCardTextProbe({});
  }
  {
@@ -853,7 +853,7 @@ void ArcadeJourneys() {
   const auto gameOver=[&]{a.view.matchResult=false;a.view.session.match=netplay::MatchState::PostMatch;a.view.atMainMenu=true;
    t.phase=room::TablePhase::Waiting;a.open=true;a.Frame(0,5);};
   const auto leftCabinet=[&](std::size_t from){return std::any_of(a.actions.begin()+static_cast<std::ptrdiff_t>(from),a.actions.end(),
-   [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;});};
+   [](const ShellAction& x){return RoomActionIs(x,room::ActionKind::Unqueue);});};
   setOver(5);
   Check(a.shell.Navigation().Screen()=="post-match"&&row("rematch")!=rows.end()&&row("new-opponent")!=rows.end()&&row("again")==rows.end(),
    "A deciding Arcade pair was not asked Rematch or New opponent");
@@ -862,22 +862,22 @@ void ArcadeJourneys() {
   Check(!leftCabinet(quiet),"No answer after an Arcade set left the cabinet");
   // With the prompt missed, the room's Ready is the pair's Rematch.
   const auto readied=a.actions.size();a.Screen("room");a.Choose("ready");
-  Check(a.actions.size()==readied+1&&a.actions.back().roomAction.kind==room::ActionKind::Rematch,
+  Check(a.actions.size()==readied+1&&RoomActionIs(a.actions.back(),room::ActionKind::Rematch),
    "Ready after a missed Arcade prompt was not the table's Rematch");
   // Another pair's cabinet focused last (the board's selected table follows
   // it): Ready still answers this player's own table.
   a.FocusOn("cabinet-1");a.shell.Navigation().Focus("ready",rows);
   const auto elsewhere=a.actions.size();a.Press(MenuInput::Select);
-  Check(a.actions.size()==elsewhere+1&&a.actions.back().roomAction.kind==room::ActionKind::Rematch&&a.actions.back().roomAction.table==0,
+  Check(a.actions.size()==elsewhere+1&&Is<commands::RoomAction>(a.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Rematch&&sent.roomAction.table==0;}),
    "Ready with another pair's cabinet focused answered that pair's table");
   setOver(6);
   const auto chose=a.actions.size();a.Choose("rematch");
-  Check(a.actions.size()==chose+1&&a.actions.back().command.kind==Kind::RoomAction&&a.actions.back().roomAction.kind==room::ActionKind::Rematch&&
-   a.actions.back().roomAction.table==0,"The prompt's Rematch was not the table's Rematch while it decides");
+  Check(a.actions.size()==chose+1&&Is<commands::RoomAction>(a.actions.back(),[](const commands::RoomAction& sent){return sent.roomAction.kind==room::ActionKind::Rematch&&
+   sent.roomAction.table==0;}),"The prompt's Rematch was not the table's Rematch while it decides");
   t.rematch[0]=true;a.Frame();
   Check(!row("rematch")->enabled,"The prompt offered Rematch again after the room showed it chosen");
   const auto opponent=a.actions.size();a.Press(MenuInput::Options);
-  Check(a.actions.size()==opponent+1&&a.actions.back().roomAction.kind==room::ActionKind::NewOpponent,"Y on a deciding prompt did not choose New opponent");
+  Check(a.actions.size()==opponent+1&&RoomActionIs(a.actions.back(),room::ActionKind::NewOpponent),"Y on a deciding prompt did not choose New opponent");
   // A Back mashed through the WIN keeps the cabinet.
   const auto backed=a.actions.size();a.Press(MenuInput::Back);a.Press(MenuInput::Back);gameOver();
   Check(!leftCabinet(backed),"Back to room after an Arcade set left the cabinet");
@@ -887,7 +887,7 @@ void ArcadeJourneys() {
   setOver(7);a.Choose("rematch");t.rematch[0]=true;a.Wait(11);
   Check(a.shell.Navigation().Screen()=="post-match","The prompt gave up on a pair whose Rematch was chosen while the other decided");
   const auto paired=a.actions.size();t.deciding=false;t.rematch[0]=false;t.phase=room::TablePhase::Waiting;a.Frame();
-  Check(a.actions.size()==paired+1&&a.actions.back().command.kind==Kind::Rematch,"Both choosing Rematch did not ready the player for the next set");
+  Check(a.actions.size()==paired+1&&ReadyIs(a.actions.back(),true),"Both choosing Rematch did not ready the player for the next set");
   a.Frame(0,3);
   Check(a.actions.size()==paired+1&&a.shell.Navigation().Screen()=="post-match","The pair's Rematch was sent twice or the prompt left");
   gameOver();
@@ -896,7 +896,7 @@ void ArcadeJourneys() {
   setOver(8);a.Choose("rematch");t.rematch[0]=true;a.Frame();a.Press(MenuInput::Back);
   const auto withdrawn=a.actions.size();t.deciding=false;t.rematch[0]=false;t.phase=room::TablePhase::Waiting;a.Frame(0,3);
   Check(std::none_of(a.actions.begin()+static_cast<std::ptrdiff_t>(withdrawn),a.actions.end(),
-   [](const ShellAction& x){return x.command.kind==Kind::Rematch;}),"A Rematch taken back with Back still readied the player");
+   [](const ShellAction& x){return ReadyIs(x,true);}),"A Rematch taken back with Back still readied the player");
   SetMenuEntriesProbe({});
  }
  for(const auto type:{room::RoomType::Arcade,room::RoomType::King}){
@@ -1096,7 +1096,7 @@ void ArcadeJourneys() {
   Check(words["pm-you"]!=loc::T("postmatch.king.waits")&&words["pm-opponent"]!=loc::T("postmatch.king.stays"),
    ("A lone pair in "+mode+" was shown a winner who stays and a loser who waits").c_str());
   const auto sent=a.actions.size();a.Choose("again");
-  Check(a.actions.size()==sent+1&&a.actions.back().command.kind==Kind::Rematch,("A lone pair's Rematch in "+mode+" was not sent").c_str());
+  Check(a.actions.size()==sent+1&&ReadyIs(a.actions.back(),true),("A lone pair's Rematch in "+mode+" was not sent").c_str());
   Check(row("again")!=rows.end()&&!row("again")->enabled,("A lone pair in "+mode+" was offered Rematch again while it was on its way").c_str());
   a.view.readyFailure="Assign a controller first.";a.view.readyFailureSequence=1;a.Frame();
   Check(row("again")!=rows.end()&&row("again")->enabled,("A refused Rematch in "+mode+" was not offered again").c_str());
@@ -1104,7 +1104,7 @@ void ArcadeJourneys() {
   // taken back with a refusal too.
   a.Press(MenuInput::Select);  // the refusal's notice
   a.view.rematchChoices=2;const auto again=a.actions.size();a.Choose("again");a.Frame();
-  Check(a.actions.size()==again+1&&a.actions.back().command.kind==Kind::Rematch,("A lone pair's second Rematch in "+mode+" was not sent").c_str());
+  Check(a.actions.size()==again+1&&ReadyIs(a.actions.back(),true),("A lone pair's second Rematch in "+mode+" was not sent").c_str());
   Check(!row("again")->enabled,("A lone pair in "+mode+" was offered Rematch again while starting").c_str());
   a.view.readyFailureSequence=2;a.Frame();
   Check(row("again")->enabled,("A refused Rematch in "+mode+" stayed starting with the opponent's Rematch in").c_str());
@@ -1144,7 +1144,7 @@ void PostMatchJourneys() {
  Check(h.shell.Navigation().Screen()=="post-match"&&row("again").label==loc::T("postmatch.rematch")&&row("again").enabled,"WIN did not open the post-match prompt");
  // Down stays on the buttons: the two fighters' answers are drawn, not rows.
  h.FocusOn("again");h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="again","Down left the post-match buttons");
- h.Choose("again");Check(h.actions.back().command.kind==Kind::Rematch,"Rematch did not send the room's Ready");
+ h.Choose("again");Check(ReadyIs(h.actions.back(),true),"Rematch did not send the room's Ready");
  // Both chose: the room starts the next game at once; the prompt covers the
  // room until that game loads, past its own timer.
  // The other Ready and the new game can arrive in one snapshot.
@@ -1185,13 +1185,13 @@ void PostMatchJourneys() {
  h.view.matchResult=false;h.Frame();win();const auto before=h.actions.size();h.Wait(11);
  Check(!h.open&&h.shell.Navigation().Screen()!="post-match"&&h.actions.size()==before,"No answer did not close the prompt over WIN");
  gameOver();h.Frame();
- Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"No answer after the game did not leave the seat");
+ Check(h.actions.size()==before+1&&RoomActionIs(h.actions.back(),room::ActionKind::Unqueue),"No answer after the game did not leave the seat");
  // A Rematch the runtime refuses as the game ends, the opponent's already in,
  // is still an answer: the seat stays.
  h.view.matchResult=false;h.Frame();win();h.view.rematchChoices=2;const auto refused=h.actions.size();h.Choose("again");h.Frame();
  h.view.readyFailure="Assign a controller first.";++h.view.readyFailureSequence;gameOver();h.Frame();
  Check(h.actions.size()>refused&&std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(refused),h.actions.end(),
-  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"A refused Rematch gave up the seat once the game was over");
+  [](const ShellAction& x){return RoomActionIs(x,room::ActionKind::Unqueue);}),"A refused Rematch gave up the seat once the game was over");
  h.view.rematchChoices=0;h.Press(MenuInput::Select);  // the refusal's notice
  // Back to room over the WIN: the prompt shows that choice until the game is
  // over, and keeps the seat, so a Back mashed through the WIN costs nothing.
@@ -1227,12 +1227,12 @@ void PostMatchJourneys() {
  Check(h.shell.Navigation().Screen()!="post-match","The prompt stayed over the room after the game was over");
  h.Wait(11);
  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(setOver),h.actions.end(),
-  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"The set's winner gave up the seat for not answering");
+  [](const ShellAction& x){return RoomActionIs(x,room::ActionKind::Unqueue);}),"The set's winner gave up the seat for not answering");
  // Where the loser stays, the winner the rotation moves on gives it up.
  t.rules.rotation=room::RotationMode::LoserStays;h.view.matchResult=false;h.Frame();win();
  const auto moved=h.actions.size();gameOver();h.Wait(11);
  Check(std::any_of(h.actions.begin()+static_cast<std::ptrdiff_t>(moved),h.actions.end(),
-  [](const ShellAction& x){return x.roomAction.kind==room::ActionKind::Unqueue;}),"The winner the rotation moves on kept the seat without answering");
+  [](const ShellAction& x){return RoomActionIs(x,room::ActionKind::Unqueue);}),"The winner the rotation moves on kept the seat without answering");
  t.rules.rotation=room::RotationMode::WinnerStays;
  t.p1=0;t.queue.clear();h.view.room.members[0].table=h.view.room.members[0].seat=-1;++h.view.room.revision;h.Frame();h.Frame();
  std::map<std::string,ImVec2> cards;
@@ -1243,7 +1243,7 @@ void PostMatchJourneys() {
  };
  click("table-0");Check(h.shell.Navigation().Choosing(),"After the prompt a click on the table did not open the seat chooser");
  const auto sat=h.actions.size();click("table-0/0");
- Check(h.actions.size()==sat+1&&h.actions.back().roomAction.kind==room::ActionKind::Queue,"After the prompt a click on Play as P1 did nothing");
+ Check(h.actions.size()==sat+1&&RoomActionIs(h.actions.back(),room::ActionKind::Queue),"After the prompt a click on Play as P1 did nothing");
  // Rematch chosen, then the room goes away before the room shows the Ready
  // (the host closed it, a kick, a Discord invite): the prompt closes without
  // reading the table it no longer has.
@@ -1259,7 +1259,7 @@ void PostMatchJourneys() {
  h.view.foughtGame={0,t.matchGeneration,room::MatchResult::Abort};h.view.matchResult=true;h.Frame(MenuInput::Down);
  Check(h.shell.Navigation().Screen()=="post-match"&&h.shell.Navigation().Focus()=="again","The WIN with a direction held opened no prompt on Rematch");
  const auto held=h.actions.size();h.Frame(MenuInput::Down|MenuInput::Select);
- Check(h.actions.size()==held+1&&h.actions.back().command.kind==Kind::Rematch,"Rematch pressed beside a held direction was swallowed");
+ Check(h.actions.size()==held+1&&ReadyIs(h.actions.back(),true),"Rematch pressed beside a held direction was swallowed");
  // Back to room chosen over the WIN keeps the prompt up; the room going away
  // closes it with nothing left to do, so no seat is left once the game is over.
  h.view.session.room=netplay::RoomState::Closing;h.Frame();h.view.session.room=netplay::RoomState::Joined;

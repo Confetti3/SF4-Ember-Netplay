@@ -41,14 +41,14 @@ void RoomPartsHide(){
  JoinedRoom(h,10);h.view.session.generation.room=1;h.view.session.control=netplay::Health::Healthy;h.view.room.host=1;h.view.room.capacity=8;
  for(room::MemberId id:{1,2}){room::Member m;m.id=id;m.name=id==1?"Local":"Other";h.view.room.members.push_back(m);}
  h.Screen("room");h.Choose("room-hide-members");h.Wait(1);h.Frame();
- const auto saved=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.roomSettings;});
- Check(saved!=h.actions.rend()&&!saved->preferences.roomShowMembers&&saved->preferences.roomShowChat,"Hide on the Members panel did not save it hidden");
+ const auto* saved=Last<commands::RoomSettings>(h.actions);
+ Check(saved&&!saved->preferences.roomShowMembers&&saved->preferences.roomShowChat,"Hide on the Members panel did not save it hidden");
  h.view.preferences=saved->preferences;h.Frame();
  bool gone=false;try{h.FocusOn("member-2");}catch(const std::runtime_error&){gone=true;}
  Check(gone,"A hidden Members panel's rows are still on the board");
  h.Choose("room-show-members");h.Wait(1);h.Frame();
- const auto shown=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.roomSettings;});
- Check(shown!=h.actions.rend()&&shown->preferences.roomShowMembers,"Show on the folded Members panel did not unfold it");
+ const auto* shown=Last<commands::RoomSettings>(h.actions);
+ Check(shown&&shown->preferences.roomShowMembers,"Show on the folded Members panel did not unfold it");
  h.view.preferences=shown->preferences;
  h.Frame();
  h.Choose("room-hide-members");h.Wait(1);h.Frame();
@@ -77,7 +77,7 @@ void KeyboardJourneys(){
  h.Screen("room");h.FocusOn("table-0");
  // Delete there leaves it, like a pad's B.
  key(ImGuiKey_Delete);
- Check(h.actions.size()==before+1&&h.actions.back().roomAction.kind==room::ActionKind::Unqueue,"Delete on your own card did not leave the seat");
+ Check(h.actions.size()==before+1&&RoomActionIs(h.actions.back(),room::ActionKind::Unqueue),"Delete on your own card did not leave the seat");
  // Delete anywhere else does nothing.
  before=h.actions.size();h.FocusOn("copy");key(ImGuiKey_Delete);
  Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="room","Delete away from your card did something");
@@ -195,20 +195,20 @@ void PresentationJourneys(){
  Check(h.shell.Navigation().Focus()=="background-play","Mouse hover stole controller focus");
  io.AddMousePosEvent(leftArrow.x,leftArrow.y);h.Frame();io.AddMouseButtonEvent(0,true);h.Frame();
  io.AddMouseButtonEvent(0,false);h.Frame(0,40);
- Check(!h.actions.empty()&&h.actions.back().command.kind==Kind::SavePreferences&&!h.actions.back().preferences.backgroundPlay,"Visible value arrows did not adjust on click");
+ Check(!h.actions.empty()&&Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return !s.preferences.backgroundPlay;}),"Visible value arrows did not adjust on click");
  Check(status=="Saving...","Queued settings falsely reported Saved before acknowledgement");
- h.view.preferences=h.actions.back().preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();Check(status=="Saved","Acknowledged settings did not report Saved");h.Press(MenuInput::Down);
  Check(h.shell.Navigation().Focus()=="lower-input-lag","Controller did not move to the row following the mouse-selected row");
  // Gameplay defaults step through 0 frames: Left from a chosen 1 saves 0, and Left from 0 goes to Auto, keeping 0.
  h.view.preferences.inputDelay=1;h.view.preferences.autoInputDelay=false;h.Screen("tab-matches/defaults");h.FocusOn("delay");const auto delaySaves=h.actions.size();
  h.Press(MenuInput::Left);h.Frame(0,40);
- Check(h.actions.size()>delaySaves&&!h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,
+ Check(h.actions.size()>delaySaves&&Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return !s.preferences.autoInputDelay&&s.preferences.inputDelay==0;}),
   "Gameplay defaults did not offer 0 frames of input delay");
- h.view.preferences=h.actions.back().preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,40);
- Check(h.actions.back().preferences.autoInputDelay&&h.actions.back().preferences.inputDelay==0,"Left from 0 frames did not choose Auto");
- h.view.preferences=h.actions.back().preferences;h.Frame();
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();h.Press(MenuInput::Left);h.Frame(0,40);
+ Check(Is<commands::SavePreferences>(h.actions.back(),[](const commands::SavePreferences& s){return s.preferences.autoInputDelay&&s.preferences.inputDelay==0;}),"Left from 0 frames did not choose Auto");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame();
  h.Screen("profile");h.Choose("main-character");h.Press(MenuInput::Right);h.Press(MenuInput::Select);h.Frame(0,40);
- h.view.preferences=h.actions.back().preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
+ h.view.preferences=std::get<commands::SavePreferences>(h.actions.back()).preferences;h.Frame(0,3);Check(status.find("Profile portrait saved:")==0,"Profile success notice missing");
  h.Frame(0,200);Check(status=="Saved","Success notice did not expire");SetMenuStatusProbe({});
  GameMenu recovery;recovery.navigation=RecoveryNavigation(true);sf4e::platform::ServiceSnapshot state;
  state.update.ok=state.update.updateAvailable=true;state.update.expectedSha256=std::string(64,'a');state.update.latestVersion="v9.9.9";

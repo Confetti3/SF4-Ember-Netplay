@@ -109,8 +109,7 @@ void RankingsPanel::Update(const ShellView& v, const std::string& screen, const 
     TakeAnswers(v, owned);
     if (!owned) { ReadForProfile(v, bridge, submit); return; }
     if (bridge_.empty()) return;
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     if (pending_ && !pending_->sent) {
         // Beyond every identity the runtime has seen, so no earlier answer can pass for this one's.
         lastRequest_ = (std::max)({lastRequest_, status.chose, status.choosing}) + 1;
@@ -142,8 +141,7 @@ void RankingsPanel::ReadForProfile(const ShellView& v, const std::string& bridge
     std::string key = bridge + "\n" + v.identity.emberId;
     if (key == profileRead_ || status.choosing || status.standing.loading) return;
     if (status.bridge == bridge && status.emberId == v.identity.emberId && status.standing.loaded) { profileRead_ = std::move(key); return; }
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     action.tournament.op = Command::Op::RankingStanding;
     action.tournament.bridgeId = bridge;
     if (submit(std::move(action))) profileRead_ = std::move(key);

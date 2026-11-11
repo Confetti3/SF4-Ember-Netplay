@@ -456,40 +456,54 @@ static void TakeJoinLink() {
 	spdlog::info("Room: a room link arrived from the browser");
 }
 
-bool SubmitRuntimeCommand(RuntimeCommand command) {
-	if (command.preferences.buttonLayouts.size() > 32 || command.padAction.log.size() > 2048 || command.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.command.invitation.size() > 4096 ||
-		command.preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || command.roomAction.text.size() > room::MaximumChatBytes ||
-		command.preferences.roomName.size() > 64 || !command.identity.Valid() || !command.tournament.Valid() ||
-		command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || command.servicePath.size() > 4096 ||
-		(command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
-		command.reportSubmission.comment.size() > 8000 ||
-		command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64 ||
-		(command.createdRules && !command.createdRules->Valid())) return false;
-	if (command.identity.op != netplay::IdentityOp::None) {
-		const auto bytes = sizeof(RuntimeCommand) + command.identity.Bytes() + command.reportSubmission.comment.size();
-		return bridge::PushCommand(std::move(command), bytes);
-	}
-	if (command.tournament.op != netplay::tournament::Command::Op::None) {
-		const auto bytes = sizeof(RuntimeCommand) + command.tournament.Bytes() + command.reportSubmission.comment.size();
-		return bridge::PushCommand(std::move(command), bytes);
-	}
-	// Gameplay/update commands join this queue when their effect handlers exist.
-	const auto kind = command.command.kind;
-	if (command.padAction.kind == gamepads::ControllerRequest::Kind::None && command.inputAction == input::Action::None && command.service == platform::ServiceAction::None && command.previewSoundVolume < 0 && !command.shortInvitation && !command.roomSettings &&
-		command.replay.mode == replay::Mode::None && command.training == TrainingEntry::None && !command.leaveWatchedGame.Active() && kind != netplay::CommandKind::HostRoom && kind != netplay::CommandKind::JoinInvite &&
-		kind != netplay::CommandKind::LeaveRoom && kind != netplay::CommandKind::StartOffline &&
-		kind != netplay::CommandKind::Ready && kind != netplay::CommandKind::Rematch &&
-		kind != netplay::CommandKind::SavePreferences && kind != netplay::CommandKind::SetLobbySettings &&
-		kind != netplay::CommandKind::RoomAction && kind != netplay::CommandKind::ReplaceRoom &&
-		kind != netplay::CommandKind::CheckConnection && kind != netplay::CommandKind::ApplyDelay) return false;
-	const auto bytes = sizeof(RuntimeCommand) + command.displayName.size() + command.command.invitation.size() +
-		command.preferences.displayName.size() + command.preferences.roomName.size() + command.roomAction.text.size() + command.publicTicket.size() +
-		command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.replay.path.size() + command.replay.caption.name[0].size() + command.replay.caption.name[1].size() + command.replay.caption.text.size() +
-		command.reportSubmission.comment.size() + command.padAction.log.size();
-    std::size_t layoutBytes = 0;
-    for (const auto& layout : command.preferences.buttonLayouts)
-        layoutBytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
-	return bridge::PushCommand(std::move(command), bytes + layoutBytes);
+namespace {
+// What a command may hold, checked before it is queued: the bytes it holds
+// beyond the command itself (the queue's budget), or none when it is malformed.
+using Footprint = std::optional<std::size_t>;
+Footprint PreferencesFootprint(const netplay::PlayerPreferences& preferences) {
+	if (preferences.buttonLayouts.size() > 32 || preferences.displayName.size() >= NETPLAY_DISPLAY_NAME_LEN || preferences.roomName.size() > 64)
+		return std::nullopt;
+	std::size_t bytes = preferences.displayName.size() + preferences.roomName.size();
+	for (const auto& layout : preferences.buttonLayouts)
+		bytes += sizeof(layout) + layout.identity.guid.size() + layout.identity.serial.size() + layout.identity.path.size() + layout.identity.name.size();
+	return bytes;
+}
+bool CreatedValid(const std::optional<netplay::TableSetup>& rules) { return !rules || rules->Valid(); }
+Footprint FootprintOf(const commands::Identity& command) { return command.identity.Valid() ? Footprint(command.identity.Bytes()) : std::nullopt; }
+Footprint FootprintOf(const commands::Tournament& command) { return command.tournament.Valid() ? Footprint(command.tournament.Bytes()) : std::nullopt; }
+Footprint FootprintOf(const commands::Replay& command) {
+	const auto& request = command.replay;
+	return request.path.size() + request.caption.name[0].size() + request.caption.name[1].size() + request.caption.text.size();
+}
+Footprint FootprintOf(const commands::Pad& command) {
+	return command.padAction.log.size() > 2048 ? std::nullopt : Footprint(command.padAction.log.size());
+}
+Footprint FootprintOf(const commands::RoomSettings& command) { return PreferencesFootprint(command.preferences); }
+Footprint FootprintOf(const commands::SavePreferences& command) { return PreferencesFootprint(command.preferences); }
+Footprint FootprintOf(const commands::Service& command) {
+	if (command.servicePath.size() > 4096 || (command.service == platform::ServiceAction::OpenSteamProfile && !command.steamProfile.Present()) ||
+		command.reportSubmission.comment.size() > 8000 || command.updateOffer.tag.size() > 64 || command.updateOffer.sha256.size() > 64)
+		return std::nullopt;
+	return command.servicePath.size() + command.updateOffer.tag.size() + command.updateOffer.sha256.size() + command.reportSubmission.comment.size();
+}
+Footprint FootprintOf(const commands::HostRoom& command) {
+	return CreatedValid(command.createdRules) ? PreferencesFootprint(command.preferences) : std::nullopt;
+}
+Footprint FootprintOf(const commands::JoinRoom& command) {
+	if (command.invitation.size() > 4096 || command.publicTicket.size() > netplay::publicrooms::MaxTicketBytes || !CreatedValid(command.createdRules))
+		return std::nullopt;
+	return command.invitation.size() + command.publicTicket.size();
+}
+Footprint FootprintOf(const commands::RoomAction& command) {
+	return command.roomAction.text.size() > room::MaximumChatBytes ? std::nullopt : Footprint(command.roomAction.text.size());
+}
+// Every other command holds nothing beyond itself.
+template <typename Command> Footprint FootprintOf(const Command&) { return std::size_t(0); }
+}
+
+bool SubmitRuntimeCommand(RuntimeRequest command) {
+	const auto bytes = std::visit([](const auto& typed) { return FootprintOf(typed); }, command);
+	return bytes && bridge::PushCommand(std::move(command), sizeof(RuntimeRequest) + *bytes);
 }
 
 
@@ -630,14 +644,10 @@ static void SettleRoomState(bool helperReady) {
 		runtime->room->GetState() == session::IrohRoom::State::Idle)) Apply(netplay::EventKind::RoomClosed);
     if(runtime->replacementPending && runtime->controller.GetSnapshot().room==netplay::RoomState::Idle &&
         helperReady && AtMainMenu() && !UserApp::netplay && !Game::Battle::System::ggpo) {
-        RuntimeCommand replacement;
-        replacement.command={netplay::CommandKind::HostRoom,runtime->controller.GetSnapshot().generation,{}};
+        commands::HostRoom replacement;
+        replacement.generation=runtime->controller.GetSnapshot().generation;
         replacement.preferences=runtime->preferences;
-        replacement.practiceRoom=runtime->charter.practice;
-        replacement.arcadeRoom=runtime->charter.type;
-        replacement.delayPolicy=runtime->charter.delayPolicy;
-        replacement.tableCount=runtime->charter.tableCount;
-        replacement.wiredOnly=runtime->charter.wiredOnly;
+        replacement.charter=runtime->charter;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }
@@ -733,9 +743,8 @@ static void CallOutOfTraining() {
 	case room::TrainingCall::Step::Forfeit: {
 		const auto mine = room::PlaceOf(room, room.localMember);
 		if (mine.kind != room::Place::Kind::Seat || mine.table < 0 || mine.table >= static_cast<int>(room.tables.size())) break;
-		RuntimeCommand forfeit;
-		forfeit.command = {netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
-		forfeit.preferences = runtime->preferences;
+		commands::RoomAction forfeit;
+		forfeit.generation = runtime->controller.GetSnapshot().generation;
 		forfeit.roomAction.kind = room::ActionKind::Unqueue;
 		forfeit.roomAction.table = static_cast<std::uint8_t>(mine.table);
 		forfeit.roomAction.roomEpoch = room.roomEpoch;

@@ -309,6 +309,19 @@ static void DrawTrainingDummy(const sf4e::NetplayFacade::RuntimeSnapshot& snapsh
 	sf4e::selection::ToNative(pick, trainingDummy);
 }
 
+// Hands the menu's command to the runtime, with what only the overlay holds:
+// a Ready's pick, stage and the stages Random may land on.
+static bool SubmitToRuntime(sf4e::RuntimeRequest request) {
+    if (auto* ready = std::get_if<sf4e::commands::Ready>(&request)) {
+        auto character = lobbyConditions;
+        character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
+        ready->pick = sf4e::selection::FromNative(character);
+        ready->stage = lobbyStageID;
+        ready->randomPool = lobbyRandomPool;
+    }
+    return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+}
+
 // Hidden, the shell still takes identity answers, ends a cancelled Discord
 // sign-in on its service, keeps the room chat and follows the room. The room
 // is lent as a drawn frame lends it (copied once per change, not per match
@@ -327,16 +340,8 @@ static void ConcealApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& s
     view.identityRefusal = snapshot.identityRefusal;
     view.hostPublicRoom = snapshot.hostPublicRoom;
     shell.Background(view, view.room, [](sf4e::ui::ShellAction action) {
-        sf4e::NetplayFacade::RuntimeCommand request;
-        request.command = std::move(action.command);
-        request.roomAction = std::move(action.roomAction);
-        request.leaveWatchedGame = action.leaveWatchedGame;
-        request.identity = std::move(action.identity);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.arcadeRoom = action.arcadeRoom;
-        request.wiredOnly = action.wiredOnly;
-        return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
+        auto request = sf4e::ui::ForRuntime(std::move(action));
+        return request && SubmitToRuntime(std::move(*request));
     });
     s_roomCarry.Return(view);
 }
@@ -479,18 +484,18 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     shell.Draw(view, &open, [&](sf4e::ui::ShellAction action) {
 		// The Ultra (the board, the table page, the post-match prompt) and the
 		// table page's Appearance edit the pick here; nothing is sent.
-		if (const auto step = action.selectionStep; step.field != sf4e::ui::ShellAction::SelectionStep::Field::None) {
-			const bool ultra = step.field == sf4e::ui::ShellAction::SelectionStep::Field::Ultra;
+		if (const auto* step = std::get_if<sf4e::ui::SelectionStep>(&action)) {
+			const bool ultra = step->field == sf4e::ui::SelectionStep::Field::Ultra;
 			if (!(ultra ? snapshot.canChangeUltra : snapshot.canEditSelection) || !sf4e::selection::FindFighter(lobbyMenuCharaID)) return false;
 			auto pick = sf4e::selection::FromNative(lobbyConditions); pick.fighter = lobbyMenuCharaID;
 			sf4e::ui::Step(ultra ? pick.ultra : pick.color, ultra ? sf4e::selection::AllowedUltras(pick.fighter, pick.edition) :
-				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step.delta);
+				sf4e::selection::AllowedColors(pick.fighter, pick.costume, snapshot.fighterAvailability[lobbyMenuCharaID], snapshot.installedContent.get()), step->delta);
 			sf4e::selection::ToNative(pick, lobbyConditions);
 			return true;
 		}
 		// Training select's Start: the main menu enters Training with these
 		// once it is idle (GameEvents::TrainingMode). Not from a room or match.
-		if (action.startTraining) {
+		if (std::holds_alternative<sf4e::ui::StartTraining>(action)) {
 			if (!snapshot.atMainMenu || snapshot.session.room != sf4e::netplay::RoomState::Idle || snapshot.session.match != sf4e::netplay::MatchState::None)
 				return false;
 			sf4e::GameEvents::TrainingSides sides;
@@ -503,41 +508,12 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
 			presentation.Close("Training select");
 			return true;
 		}
-		sf4e::NetplayFacade::RuntimeCommand request;
-		request.command = std::move(action.command);
-        request.service = action.service; request.servicePath = std::move(action.servicePath); request.steamProfile = action.steamProfile;
-        request.updateOffer = std::move(action.updateOffer); request.updateChannel = action.updateChannel;
-        request.replay = std::move(action.replay);
-        request.reportSubmission = std::move(action.reportSubmission);
-        request.inputAction = action.inputAction; request.discordAction = action.discordAction;
-        request.padAction = action.padAction;
-        request.discordRevision = action.discordRevision;
-		request.displayName = snapshot.preferences.displayName;
-		request.preferences = std::move(action.preferences);
-		request.roomAction = std::move(action.roomAction);
-        request.selectedDelay=action.selectedDelay;
-        request.previewSoundVolume=action.previewSoundVolume;
-        request.identity = std::move(action.identity);
-        request.shortInvitation=action.shortInvitation;
-        request.roomSettings=action.roomSettings;
-        request.tournament = std::move(action.tournament);
-        request.publicTicket = std::move(action.publicTicket);
-        request.createdRules = action.createdRules;
-        request.practiceRoom = action.practiceRoom;
-        request.arcadeRoom = action.arcadeRoom;
-        request.delayPolicy = action.delayPolicy;
-        request.tableCount = action.tableCount;
-        request.wiredOnly = action.wiredOnly;
-		request.character = lobbyConditions;
-		request.character.charaID = static_cast<BYTE>(lobbyMenuCharaID);
-		request.stage = lobbyStageID;
-		request.randomPool = lobbyRandomPool;
-		request.training = action.training;
-		request.leaveWatchedGame = action.leaveWatchedGame;
-		if (!sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request))) return false;
+		const bool training = std::holds_alternative<sf4e::commands::Training>(action);
+		auto request = sf4e::ui::ForRuntime(std::move(action));
+		if (!request || !SubmitToRuntime(std::move(*request))) return false;
 		// Training from a room or Home: the menu closes behind it while the runtime
 		// sends the game on.
-		if (action.training != sf4e::TrainingEntry::None) presentation.Close("Training");
+		if (training) presentation.Close("Training");
 		return true;
 	}, [&] {
 		if (shell.SelectingDummy()) DrawTrainingDummy(snapshot);
@@ -686,10 +662,7 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
     if (presentation.Visible()) DrawApplicationHome(snapshot, status);
     else ConcealApplicationHome(snapshot);
     if (!presentation.Visible() && assigning) {
-        sf4e::NetplayFacade::RuntimeCommand cancel;
-        cancel.command = {sf4e::netplay::CommandKind::HostRoom, snapshot.session.generation, {}};
-        cancel.inputAction = sf4e::input::Action::Cancel;
-        sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(cancel));
+        sf4e::NetplayFacade::SubmitRuntimeCommand(sf4e::commands::Input{snapshot.session.generation, sf4e::input::Action::Cancel});
     }
     // The setter keeps only its first call, and the lookup asks the shell each time.
     // Before the HUD, the match meter and the hotkeys, which read the lab's settings.

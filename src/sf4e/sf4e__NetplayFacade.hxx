@@ -98,68 +98,6 @@ namespace sf4e {
 		// How the room being opened was entered (a host opens it as Private).
 		using JoinKind = commands::JoinKind;
 
-		struct RuntimeCommand {
-			netplay::Command command;
-            platform::ServiceAction service = platform::ServiceAction::None;
-            // With ShowReplayFile: the archived replay whose folder opens.
-            std::string servicePath;
-            // With UpdateNow or SkipUpdate: the launch offer the player saw.
-            launcher::InstallOffer updateOffer;
-            // With SwitchUpdateChannel: the channel to save and check.
-            updates::UpdateChannel updateChannel = updates::UpdateChannel::Stable;
-            // With OpenSteamProfile: the member's profile to open.
-            SteamId steamProfile;
-            reports::Submission reportSubmission;
-            input::Action inputAction = input::Action::None;
-            gamepads::ControllerRequest padAction;
-            // ShellAction::roomSettings: save only the settings a room leaves open, from `preferences`.
-            bool roomSettings = false;
-    discord::InviteAction discordAction = discord::InviteAction::None;
-    std::uint64_t discordRevision = 0;
-			std::string displayName;
-			Dimps::GameEvents::VsMode::ConfirmedCharaConditions character = {};
-			int stage = 0;
-			// The stages Random may land on (P1 resolves Random with it).
-			selection::RandomPool randomPool;
-			netplay::PlayerPreferences preferences;
-			room::Action roomAction;
-            int selectedDelay=-1;
-            int previewSoundVolume=-1;
-            // An identity or bridge request; op None when the command is something else.
-            netplay::IdentityRequest identity;
-            // Ask the helper for the room's short link (IrohRoom::RequestShortInvitation).
-            bool shortInvitation=false;
-            // Refresh the assignment list, play a match or stop; op None otherwise.
-            netplay::tournament::Command tournament;
-            // With JoinInvite: the signed ticket (JSON) of a public room's admission, or empty for a private room.
-            std::string publicTicket;
-            // With JoinInvite: Observer for a tournament match's watcher, which the room admits only when it
-            // names it. Public is never set here: a public room's join is the one with a publicTicket.
-            JoinKind join = JoinKind::Private;
-            // With HostRoom, or the JoinInvite of a public room just created: each table's
-            // rules and name chosen on Create.
-            std::optional<netplay::TableSetup> createdRules;
-            // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
-            bool practiceRoom = false;
-            // With HostRoom: the room is an Arcade room for its life (room::Snapshot::type).
-            room::RoomType arcadeRoom = room::RoomType::Classic;
-            // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
-            room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
-            // How many tables the room opens with (room::Snapshot::tableCount): with HostRoom, and with the join of a new public Arcade room (0: all).
-            std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
-            // With HostRoom, or the JoinInvite of a public room just created: its
-            // Wired players only rule (room::Snapshot::wiredOnly).
-            bool wiredOnly = false;
-            // What the Replays screen asks of the game (sf4e__ReplayStore), or
-            // the player's answer to a replay link; mode None for every other command.
-            replay::Request replay;
-            // Leave the main menu for Training (common/TrainingEntry.hxx). The
-            // runtime judges it when it takes it and only then asks the menu.
-            TrainingEntry training = TrainingEntry::None;
-            // Leave this watched game (Stop watching); empty for every other
-            // command. The runtime decides what leaving it takes when it runs.
-            netplay::WatchedGame leaveWatchedGame;
-		};
 		struct RuntimeSnapshot {
             ui::ControllerSample menuController;
             // The gameplay pad's Training record and play buttons (sf4e__Pad.cxx).
@@ -362,7 +300,7 @@ namespace sf4e {
 		void PublishPresentationFrame();
 		// Any thread. False when the command is malformed, the queue is full,
 		// or no runtime is accepting commands.
-		bool SubmitRuntimeCommand(RuntimeCommand command);
+		bool SubmitRuntimeCommand(RuntimeRequest command);
 		// Any thread: the room board of room `roomGeneration` (room::Snapshot::roomEpoch)
 		// was drawn this frame. The runtime asks for each member's ping only
 		// while the board is drawn (netplay/LatencyBoard.hxx).

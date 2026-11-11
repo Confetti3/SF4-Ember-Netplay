@@ -9,7 +9,7 @@ using sf4e::platform::LaunchCheck;
 using sf4e::platform::ServiceAction;
 const InstallOffer Offer{sf4e::launcher::UpdateChannel::Nightly, "v1.3.0-nightly20261014", std::string(64, 'c')};
 std::size_t Count(const Harness& h, ServiceAction action) {
- return static_cast<std::size_t>(std::count_if(h.actions.begin(), h.actions.end(), [&](const ShellAction& a) { return a.service == action; }));
+ return static_cast<std::size_t>(std::count_if(h.actions.begin(), h.actions.end(), [&](const ShellAction& a) { return ServiceIs(a, action); }));
 }
 // A service that found `Offer`.
 void Found(Harness& h) { h.view.services.launchCheck = LaunchCheck::Settled; h.view.services.launchOffer = Offer; }
@@ -37,8 +37,8 @@ void UpdateLaunchJourneys() {
   Check(h.shell.NoticeOpen(), "Home did not ask about the update it was offered");
   const auto before = h.actions.size();
   h.Press(MenuInput::Left); h.Press(MenuInput::Select);
-  Check(!h.shell.NoticeOpen() && h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::UpdateNow &&
-   h.actions.back().updateOffer == Offer, "Update now did not send the offer that was shown");
+  Check(!h.shell.NoticeOpen() && h.actions.size() == before + 1 && Is<commands::Service>(h.actions.back(), [](const commands::Service& s) {
+   return s.service == ServiceAction::UpdateNow && s.updateOffer == Offer; }), "Update now did not send the offer that was shown");
   h.Frame(0, 30);
   Check(!h.shell.NoticeOpen(), "The question came back after it was answered");
  }
@@ -47,8 +47,8 @@ void UpdateLaunchJourneys() {
   Harness h; Found(h); h.Screen("home"); h.Frame(0, 2);
   const auto before = h.actions.size();
   h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-  Check(!h.shell.NoticeOpen() && h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::SkipUpdate &&
-   h.actions.back().updateOffer == Offer, "Skip this version did not send the offer that was shown");
+  Check(!h.shell.NoticeOpen() && h.actions.size() == before + 1 && Is<commands::Service>(h.actions.back(), [](const commands::Service& s) {
+   return s.service == ServiceAction::SkipUpdate && s.updateOffer == Offer; }), "Skip this version did not send the offer that was shown");
  }
  // A skip the queue refused is said on Home, and the question comes back so it can be answered again.
  {
@@ -157,7 +157,7 @@ void UpdateLaunchJourneys() {
   h.Frame(0, 3);
   Check(h.shell.NoticeOpen(), "The question did not follow the settings notice");
   h.Press(MenuInput::Left); h.Press(MenuInput::Select);
-  Check(h.actions.back().service == ServiceAction::UpdateNow, "The answer after the settings notice was lost");
+  Check(ServiceIs(h.actions.back(), ServiceAction::UpdateNow), "The answer after the settings notice was lost");
  }
  {
   Harness other; Found(other);
@@ -187,7 +187,7 @@ void UpdateLaunchJourneys() {
   Check(saved == (std::vector<bool>{false, true}) && row().value == loc::T("common.on"), "Turning the row on did not save On");
   // Nothing for the runtime to do: no service, and no save of the room preferences.
   Check(std::none_of(h.actions.begin(), h.actions.end(), [](const ShellAction& a) {
-   return a.service != ServiceAction::None || a.command.kind == netplay::CommandKind::SavePreferences; }), "The row sent a command to the runtime");
+   return Is<commands::Service>(a) || Is<commands::SavePreferences>(a); }), "The row sent a command to the runtime");
   SetMenuEntriesProbe({});
  }
  {
@@ -223,8 +223,8 @@ void UpdateLaunchJourneys() {
   h.Press(MenuInput::Select);
   Check(h.actions.size() == before, "Cancel switched the channel");
   h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-  Check(h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::SwitchUpdateChannel &&
-   h.actions.back().updateChannel == launcher::UpdateChannel::Beta, "Confirming did not send the switch to Beta");
+  Check(h.actions.size() == before + 1 && Is<commands::Service>(h.actions.back(), [](const commands::Service& s) {
+   return s.service == ServiceAction::SwitchUpdateChannel && s.updateChannel == launcher::UpdateChannel::Beta; }), "Confirming did not send the switch to Beta");
   // Once the service has saved it, the row shows the saved channel.
   h.view.services.channel = launcher::UpdateChannel::Beta; h.Frame(0, 2);
   Check(row().value == loc::T("updates.channel.prerelease") && !row().confirm, "The saved channel did not settle the row");
@@ -241,8 +241,9 @@ void UpdateLaunchJourneys() {
   Check(row != rows.end() && row->label == loc::T("updates.launch_now") && row->confirm && row->enabled, "Help & about does not offer Update now for what it found");
   const auto before = h.actions.size();
   h.Press(MenuInput::Select); h.Press(MenuInput::Right); h.Press(MenuInput::Select);
-  Check(h.actions.size() == before + 1 && h.actions.back().service == ServiceAction::UpdateNow &&
-   h.actions.back().updateOffer == InstallOffer{launcher::UpdateChannel::Stable, "v1.3.0", std::string(64, 'a')}, "Update now did not send the release that was found");
+  Check(h.actions.size() == before + 1 && Is<commands::Service>(h.actions.back(), [](const commands::Service& s) {
+   return s.service == ServiceAction::UpdateNow && s.updateOffer == InstallOffer{launcher::UpdateChannel::Stable, "v1.3.0", std::string(64, 'a')}; }),
+   "Update now did not send the release that was found");
   SetMenuEntriesProbe({});
  }
  {

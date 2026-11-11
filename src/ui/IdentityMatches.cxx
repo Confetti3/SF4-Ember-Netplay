@@ -132,8 +132,7 @@ void IdentityPanel::SendTournament(const ShellView& v, const std::string& screen
     }
     // While a fresh link waits for its match, the list is read as often as after a lost connection.
     const bool linking = linkedPlay_.has_value();
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     if (play_) {
         action.tournament = std::move(*play_);
         play_.reset();

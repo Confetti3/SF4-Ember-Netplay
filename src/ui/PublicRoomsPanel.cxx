@@ -296,8 +296,7 @@ void PublicRoomsPanel::Update(const ShellView& v, const std::string& screen, con
     // a refresh is already on its way.
     if (Owns(screen) && !bridge_.empty() && !Busy() && !link_ && !list.loading && v.session.room == netplay::RoomState::Idle &&
         now >= nextAuto_) wantList_ = true;
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Tournament action;
     if (pending_ && !pending_->sent) {
         // Beyond every identity the runtime has seen, so no earlier answer can pass for this one's.
         lastRequest_ = (std::max)({lastRequest_, list.answered, list.admitting}) + 1;
@@ -326,14 +325,14 @@ void PublicRoomsPanel::Joined(const ShellView& v, const Submit& submit, const Pe
         Say(FailureText(answer.failure));
         return;
     }
-    ShellAction join;
-    join.command.kind = netplay::CommandKind::JoinInvite;
-    join.command.generation = v.session.generation;
-    join.command.invitation = answer.admission.invitation;
+    commands::JoinRoom join;
+    join.generation = v.session.generation;
+    join.invitation = answer.admission.invitation;
     join.publicTicket = answer.admission.ticket;
     if (done.op == Command::Op::RoomCreate) {
-        join.createdRules = answered.createdRules; join.arcadeRoom = answered.createdType; join.wiredOnly = answered.createdWiredOnly;
-        join.tableCount = answered.createdTableCount;
+        join.createdRules = answered.createdRules;
+        join.charter.type = answered.createdType; join.charter.wiredOnly = answered.createdWiredOnly;
+        join.charter.tableCount = answered.createdTableCount;
     }
     if (!submit(std::move(join))) { Say(loc::T("error.queue_failed")); return; }
     Current joined;

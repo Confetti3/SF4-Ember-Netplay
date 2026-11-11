@@ -140,7 +140,7 @@ void ApplicationShell::UpdatePostMatch(const ShellView& v, const room::Snapshot&
         // and the player's Rematch is their Ready for the next set.
         if (p.pairRematch && !t.deciding && mine >= 0 && theirs >= 0) {
             p.pairRematch = false;
-            if (!Readied(t, mine, p.generation)) p.answered |= p.chose = Send(netplay::CommandKind::Rematch, v, submit);
+            if (!Readied(t, mine, p.generation)) p.answered |= p.chose = SendReady(v, true, submit);
         }
         // The press counts until the room shows it: the runtime holds it while
         // the WIN plays out and resends it after. A Ready the room takes back
@@ -467,13 +467,13 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
         postMatch_->pairRematch = false; RoomAction({MenuAction::Activate, "new-opponent"}, v, submit);
     }
     else if (a.kind == MenuAction::Activate) {
-        if (a.id == "again" && model.again && !model.chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = Send(netplay::CommandKind::Rematch, v, submit); }
+        if (a.id == "again" && model.again && !model.chosen) { selectedTable_ = p.table; postMatch_->answered |= postMatch_->chose = SendReady(v, true, submit); }
         else if (a.id == "rematch" || a.id == "new-opponent") { postMatch_->pairRematch = a.id == "rematch"; RoomAction(a, v, submit); }
         else if (a.id == "fighter") leave(AfterPostMatch::FighterSelect);
         else if (a.id == "back") leave(AfterPostMatch::None);
     }
     // The Ultra steps the pick the next game's Ready carries, as the room's rows do.
     else if (a.kind == MenuAction::Adjust && a.id == "ultra" && model.ultraOpen)
-        StepPick(v, {ShellAction::SelectionStep::Field::Ultra, a.delta}, submit);
+        StepPick({SelectionStep::Field::Ultra, a.delta}, submit);
 }
 } }

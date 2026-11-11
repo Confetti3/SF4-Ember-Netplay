@@ -1,4 +1,5 @@
 #pragma once
+#include "ShellAction.hxx"
 #include "GameMenu.hxx"
 #include "MenuNavigation.hxx"
 #include <functional>
@@ -8,7 +9,6 @@
 namespace sf4e { namespace ui {
 class ApplicationShell;
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // One drawn frame's screen, as the shell hands it to the panel that owns it.

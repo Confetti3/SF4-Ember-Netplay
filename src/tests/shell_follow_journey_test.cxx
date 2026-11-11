@@ -38,7 +38,7 @@ struct FollowRoom {
  std::vector<int> Sent(room::ActionKind kind,std::size_t from) const{
   std::vector<int> sent;
   for(auto i=from;i<h.actions.size();++i)
-   if(h.actions[i].command.kind==Kind::RoomAction&&h.actions[i].roomAction.kind==kind)sent.push_back(h.actions[i].roomAction.table);
+   if(RoomActionIs(h.actions[i],kind))sent.push_back(As<commands::RoomAction>(h.actions[i])->roomAction.table);
   return sent;
  }
  std::vector<int> Watches(std::size_t from) const{return Sent(room::ActionKind::Watch,from);}
@@ -65,7 +65,7 @@ void FollowFromBoardAndOptions() {
  h.Choose("follow-room");h.Frame(0,3);
  Check(f.Watches(from)==std::vector<int>{2},"Following did not move the watcher to the table playing");
  Check(std::none_of(h.actions.begin()+static_cast<std::ptrdiff_t>(from),h.actions.end(),[](const ShellAction& a){
-  return a.roomAction.kind==room::ActionKind::Unwatch||a.roomAction.kind==room::ActionKind::LockSpectating;}),"Following sent more than a Watch");
+  return RoomActionIs(a,room::ActionKind::Unwatch)||RoomActionIs(a,room::ActionKind::LockSpectating);}),"Following sent more than a Watch");
  tables[0].spectators.clear();tables[2].watchingNext={1};
  from=h.actions.size();h.Frame(0,10);f.Capture();
  Check(f.Watches(from).empty(),"Following moved again while the game it waits for plays");

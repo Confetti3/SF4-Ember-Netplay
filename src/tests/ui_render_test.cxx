@@ -9,6 +9,7 @@
 #include "../common/Localization.hxx"
 #include "../common/StageCatalog.hxx"
 #include "ui_render_support.hxx"
+#include "shell_action_support.hxx"
 #include "ui_render_prompt_assets.hxx"
 #include <imgui_internal.h>
 #include <imgui_impl_dx9.h>
@@ -767,18 +768,19 @@ int main(int argc, char** argv) {
                     renderer.NewFrame();ImGui::NewFrame();
                     if(mode==0)shell.Draw(view,&open,[&](ShellAction a){
                         // An identity request is answered at once, successfully.
-                        if(a.identity.op!=netplay::IdentityOp::None){
+                        if(const auto* identity=test::As<commands::Identity>(a)){
                             // Held: the helper has not answered, so a setup stays on its step until the shot answers by hand.
-                            if(holdIdentity){heldTicket=a.identity.ticket;return true;}
-                            view.identityTicket=a.identity.ticket;view.identityRequest=view.identity.requestId=view.identityTicket+1000;
+                            if(holdIdentity){heldTicket=identity->identity.ticket;return true;}
+                            view.identityTicket=identity->identity.ticket;view.identityRequest=view.identity.requestId=view.identityTicket+1000;
                             view.identity.ok=true;view.identity.failure.clear();return true;
                         }
-                        if(a.command.kind==netplay::CommandKind::SavePreferences&&view.settingsError.empty())view.preferences=a.preferences;
-                        if(a.replay.mode==replay::Mode::Export){if(refuseExports)return false;const auto& c=a.replay.caption;exportsStarted.push_back(a.replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
+                        if(const auto* save=test::As<commands::SavePreferences>(a))if(view.settingsError.empty())view.preferences=save->preferences;
+                        if(const auto* r=test::As<commands::Replay>(a))if(r->replay.mode==replay::Mode::Export){if(refuseExports)return false;const auto& c=r->replay.caption;exportsStarted.push_back(r->replay.path+(c.set?" set "+std::to_string(c.wins[0])+"-"+std::to_string(c.wins[1]):""));}
                         // A public room's ticket is answered with an admission to the room it asked for.
-                        if(answerTickets&&a.tournament.op==netplay::tournament::Command::Op::RoomTicket){
-                            view.publicRooms.answered=a.tournament.request;view.publicRooms.failure.clear();
-                            view.publicRooms.admission.room.id=a.tournament.roomId;
+                        if(answerTickets&&test::TournamentIs(a,netplay::tournament::Command::Op::RoomTicket)){
+                            const auto& ticket=test::As<commands::Tournament>(a)->tournament;
+                            view.publicRooms.answered=ticket.request;view.publicRooms.failure.clear();
+                            view.publicRooms.admission.room.id=ticket.roomId;
                         }
                         return true;},[&]{selector.Draw(pick,true,art.get(),availability,&stage,view.canEditSelection,{},&stagePool,selectorContent,false,&randomPick);});
                     else if(mode==1)DrawTrainingFlyout(training,[&](training::Command c){trainingCommand=c;return acceptTraining;});

@@ -264,15 +264,11 @@ bool ApplicationShell::SendRoom(room::Action action, const ShellView& view, cons
 			action.matchGeneration = table.matchGeneration;
     }
     action.actionId = nextActionId_++;
-    ShellAction request;
-    request.command.kind = netplay::CommandKind::RoomAction;
-    request.command.generation = view.session.generation;
     // Sent, it is the member's watching intent, before the room answers.
     const auto sent = action;
-    request.roomAction = std::move(action);
-    if (!submit(std::move(request))) { error_ = loc::T("error.queue_failed"); return false; }
+    if (!Send(commands::RoomAction{view.session.generation, std::move(action)}, submit)) return false;
     NoteWatching(sent, view.room);
-    error_.clear(); return true;
+    return true;
 }
 
 
@@ -734,7 +730,7 @@ void ApplicationShell::ToggleReady(const ShellView& v,const Submit& submit) {
   room::Action request;request.table=static_cast<std::uint8_t>(table);request.kind=room::ActionKind::Rematch;
   if(!SendRoom(std::move(request),v,submit)&&error_.empty())error_=loc::T("room.action_rejected");
  }else if(control.kind!=ReadyControl::None)
-  Send(control.kind==ReadyControl::Rematch?netplay::CommandKind::Rematch:netplay::CommandKind::Ready,v,submit);
+  SendReady(v,control.kind==ReadyControl::Rematch,submit);
  else if(!control.refusal.empty())
   Refuse(control.refusal,[table,seat](const ShellView& now){
    return DescribeReady(now,now.room.tables[table],seat).kind==ReadyControl::None;});
@@ -756,8 +752,7 @@ bool ApplicationShell::LeaveWatchedGame(const ShellView& v,const Submit& submit)
   Refuse(RoomWaitReason(v),[table](const ShellView& now){return LeavesWatchedGame(now,table)&&!RoomTakesNow(now,room::ActionKind::Unwatch,table);});
   return false;
  }
- ShellAction request;request.command.generation=v.session.generation;request.leaveWatchedGame=v.watchedGame;
- if(!submit(std::move(request))){error_=loc::T("error.queue_failed");return false;}
+ if(!submit(commands::LeaveWatchedGame{v.session.generation,v.watchedGame})){error_=loc::T("error.queue_failed");return false;}
  // Stop watching of the table, not only the rest of a finished stream or a
  // queued member's game, is the member's watching intent.
  if(leave==netplay::WatchedLeave::Unwatch)follow_.StoppedWatching(v.room,v.watchedGame.table,static_cast<std::uint64_t>(ImGui::GetTime()*1000));

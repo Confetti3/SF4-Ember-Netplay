@@ -1,4 +1,5 @@
 #pragma once
+#include "ShellAction.hxx"
 #include "IdentityPanel.hxx"
 #include "MenuNavigation.hxx"
 #include "../netplay/PublicRoomFilterMatch.hxx"
@@ -14,7 +15,6 @@
 
 namespace sf4e { namespace ui {
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // The bridge's public rooms: the list to browse, and the one step from a

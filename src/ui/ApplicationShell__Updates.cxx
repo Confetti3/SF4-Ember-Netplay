@@ -142,7 +142,7 @@ void ApplicationShell::UpdateLaunchCheck(const ShellView& v,double now,const Sub
  const bool home=nav.Screen()=="home";
  if(home&&v.services.launchCheck==platform::LaunchCheck::Waiting&&now-launchCheckAskedAt_>=1){
   launchCheckAskedAt_=now;
-  ShellAction ask;ask.service=platform::ServiceAction::LaunchUpdateCheck;ask.command.generation=v.session.generation;
+  commands::Service ask;ask.service=platform::ServiceAction::LaunchUpdateCheck;ask.generation=v.session.generation;
   submit(std::move(ask));
  }
  // Update now closes the game when the Launcher starts; when it does not, the player is still here and is told.
@@ -180,7 +180,7 @@ void ApplicationShell::FinishUpdatePrompt(NoticeResult result,const Submit& subm
  if(!offer)return;
  const auto answer=UpdatePrompt::AnswerOf(result);
  if(answer==UpdatePrompt::Answer::Later){updatePrompt_.Settle(*offer);return;}
- ShellAction r;r.command.generation=updateGeneration_;
+ commands::Service r;r.generation=updateGeneration_;
  r.service=answer==UpdatePrompt::Answer::UpdateNow?platform::ServiceAction::UpdateNow:platform::ServiceAction::SkipUpdate;
  r.updateOffer=*offer;
  const bool skip=answer==UpdatePrompt::Answer::Skip;

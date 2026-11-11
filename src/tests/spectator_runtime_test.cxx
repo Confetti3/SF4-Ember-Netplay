@@ -281,10 +281,8 @@ static void StreamWatchedGame(WatchedGame& game) {
 
 // Stop watching as the shell submits it: the leave of the watched game, by name.
 static void SubmitStopWatching(WatchedGame& game) {
-	sf4e::NetplayFacade::RuntimeCommand leave{};
-	leave.command.generation = game.r.runtime->controller.GetSnapshot().generation;
-	leave.leaveWatchedGame = {0, game.generation};
-	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(leave)));
+	const sf4e::commands::LeaveWatchedGame leave{game.r.runtime->controller.GetSnapshot().generation, {0, game.generation}};
+	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(leave));
 }
 
 // The room actions of `kind` this PC sent from its `from`th message on.
@@ -417,9 +415,7 @@ void TestSpectatorLeavesWatchedGame() {
 // Release lock-in as the shell submits it, taken by the game thread.
 static void SubmitRelease(WatchedGame& game) {
 	const auto& seen = game.r.Client().GetRoomSnapshot();
-	sf4e::NetplayFacade::RuntimeCommand release{};
-	release.command = {sf4e::netplay::CommandKind::RoomAction, game.r.runtime->controller.GetSnapshot().generation, {}};
-	release.roomAction = LockAction(false);
+	sf4e::commands::RoomAction release{game.r.runtime->controller.GetSnapshot().generation, LockAction(false)};
 	release.roomAction.roomEpoch = seen.roomEpoch; release.roomAction.revision = seen.revision;
 	release.roomAction.tableRevision = seen.tables[0].revision;
 	CHECK(sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(release)));
@@ -521,8 +517,7 @@ void TestTableChangeLeavesWithoutFailure() {
 		const auto before = runtime->lockInDrops;
 		const auto sentBefore = game.r.transport->sent.size();
 		const auto& seen = game.r.Client().GetRoomSnapshot();
-		sf4e::NetplayFacade::RuntimeCommand change{};
-		change.command = {sf4e::netplay::CommandKind::RoomAction, runtime->controller.GetSnapshot().generation, {}};
+		sf4e::commands::RoomAction change{runtime->controller.GetSnapshot().generation};
 		change.roomAction.kind = test.kind; change.roomAction.table = test.table;
 		change.roomAction.roomEpoch = seen.roomEpoch; change.roomAction.revision = seen.revision;
 		change.roomAction.tableRevision = seen.tables[test.table].revision;
@@ -727,9 +722,7 @@ void TestEnteredBattleRequestCancelled() {
 		game.r.room->Coordinate();
 		runtime->room = game.r.room;
 		arm();
-		sf4e::NetplayFacade::RuntimeCommand leave;
-		leave.command = {sf4e::netplay::CommandKind::LeaveRoom, runtime->controller.GetSnapshot().generation, {}};
-		CHECK(facade::SubmitRuntimeCommand(std::move(leave)));
+		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::LeaveRoom{runtime->controller.GetSnapshot().generation}));
 		sf4e::NetplayFacade::internal::DrainCommands(true);
 		CHECK(runtime->leave.leaveRequested && game.r.room->leaveCalls == 0);
 		CHECK(!prepared());
@@ -826,11 +819,11 @@ void TestGatesAreCurrent() {
 		r.Projection(1, 0);
 		// A controller change (an input action), or an Unready room action.
 		const auto submit = [&](bool unready) {
-			facade::RuntimeCommand command;
-			command.command = {sf4e::netplay::CommandKind::RoomAction, runtime.controller.GetSnapshot().generation, {}};
-			if (unready) command.roomAction.kind = sf4e::room::ActionKind::Unready;
-			else command.inputAction = sf4e::input::Action::BeginCapture;
-			CHECK(facade::SubmitRuntimeCommand(std::move(command)));
+			const auto generation = runtime.controller.GetSnapshot().generation;
+			sf4e::commands::RoomAction release{generation};
+			release.roomAction.kind = sf4e::room::ActionKind::Unready;
+			CHECK(facade::SubmitRuntimeCommand(unready ? sf4e::RuntimeRequest(release) :
+				sf4e::RuntimeRequest(sf4e::commands::Input{generation, sf4e::input::Action::BeginCapture})));
 		};
 		// The last Publish shows the gate closed (it ran away from the main menu).
 		internal::Publish();
@@ -885,8 +878,7 @@ void TestUnreadyWithdrawsAParkedReady() {
 	const auto generation = runtime->controller.GetSnapshot().generation;
 	ParkReady(*runtime);
 	const auto sentBefore = r.transport->sent.size();
-	facade::RuntimeCommand unready{};
-	unready.command = {sf4e::netplay::CommandKind::RoomAction, generation, {}};
+	sf4e::commands::RoomAction unready{generation};
 	unready.roomAction.kind = room::ActionKind::Unready; unready.roomAction.table = 0; unready.roomAction.seat = 0;
 	CHECK(facade::SubmitRuntimeCommand(std::move(unready)));
 	facade::internal::DrainCommands(true);
@@ -925,11 +917,8 @@ void TestWatcherSavesRoomSettings() {
 		sent.roomShowChat = !sent.roomShowChat;
 		const gamepads::Identity pad{"guid", "serial", "path", "Pad"};
 		sent.buttonLayouts.push_back({pad, gamepads::DefaultLayout});
-		facade::RuntimeCommand save;
-		save.command = {netplay::CommandKind::SavePreferences, session.generation, {}};
-		save.roomSettings = true; save.preferences = sent;
 		runtime.error.clear();
-		CHECK(facade::SubmitRuntimeCommand(std::move(save)));
+		CHECK(facade::SubmitRuntimeCommand(sf4e::commands::RoomSettings{session.generation, sent}));
 		internal::DrainCommands(true);
 		CHECK_MSG(runtime.error.empty(), "%s", runtime.error.c_str());
 		CHECK(runtime.preferences.roomColumn == sent.roomColumn && runtime.preferences.roomShowChat == sent.roomShowChat);
@@ -949,8 +938,7 @@ void TestWatcherSavesRoomSettings() {
 		runtime.pads = {served}; runtime.padLayer = gamepads::Layer::Active;
 		auto edited = gamepads::DefaultLayout; std::swap(edited[0], edited[1]);
 		const auto edit = [&] {
-			facade::RuntimeCommand layout;
-			layout.command = {netplay::CommandKind::SavePreferences, session.generation, {}};
+			sf4e::commands::Pad layout{session.generation};
 			layout.padAction.kind = gamepads::ControllerRequest::Kind::Layout; layout.padAction.id = served.id; layout.padAction.buttons = edited;
 			CHECK(facade::SubmitRuntimeCommand(std::move(layout)));
 			internal::DrainCommands(true);

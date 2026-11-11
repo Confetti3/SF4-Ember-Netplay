@@ -343,12 +343,12 @@ void ReplaysPanel::QueueSet(const Set& set,bool exporting) {
  setGames_=setQueue_.size();setExport_=exporting;setStep_=SetStep::Manual;
 }
 void ReplaysPanel::Watch(const ShellView& v,const std::string& path,bool meter,const Submit& submit,std::string& error) {
- ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
+ commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Watch,path};r.replay.meter=meter;
  if(!submit(std::move(r)))error=loc::T("error.queue_failed");
 }
 // Sends the export set up: the replay, its caption and the frame meter row.
 bool ReplaysPanel::Generate(const ShellView& v,const Submit& submit) {
- ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;r.replay.id=exports_+1;
+ commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Export,exportPath_,caption_};r.replay.meter=meter_;r.replay.id=exports_+1;
  if(!submit(std::move(r)))return false;
  ++exports_;
  // The queue's front, sent: the end of this export is what takes it out of the queue.
@@ -369,14 +369,14 @@ bool ReplaysPanel::Activate(const MenuAction& a,const ShellView& v,const netplay
  }
  if(a.id=="export-cancel"){
   // Confirmed on the row. The game keeps no video of it; the notice says so once the encoder has gone.
-  ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::CancelExport;
+  commands::Replay r;r.generation=v.session.generation;r.replay.mode=replay::Mode::CancelExport;
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
   return true;
  }
  if(a.id=="replay-filter"){nav.Push("replay-filter");return true;}
  if(a.id=="rf-reset"){fighters_=0;side_=0;show_={};sort_={};return true;}
  if(const auto fighter=FilterFighter(a.id)){fighters_^=std::uint64_t(1)<<*fighter;return true;}
- if(a.id=="replay-log"){ShellAction r;r.command.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error=loc::T("error.queue_failed");return true;}
+ if(a.id=="replay-log"){commands::Replay r;r.generation=v.session.generation;r.replay.mode=replay::Mode::OpenLog;if(!submit(std::move(r)))error=loc::T("error.queue_failed");return true;}
  return false;
 }
 bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
@@ -404,7 +404,7 @@ bool netplay::PlayerPreferences::* ReplaysPanel::Accept(const MenuAction& a) {
 void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::PlayerPreferences& saved,MenuNavigation& nav,const Submit& submit,std::string& error) {
  if(a.id=="replay-link"){
   folderAsked_=false;setAsked_=a.text=="link-import";setNoticeAsked_=v.replays.setNotices;
-  ShellAction r;r.command.generation=v.session.generation;
+  commands::Replay r;r.generation=v.session.generation;
   if(a.text=="link-play")r.replay={replay::Mode::Watch,v.replays.link};
   else if(a.text=="link-import")r.replay={replay::Mode::Import,v.replays.link};
   else r.replay.mode=replay::Mode::DismissLink;
@@ -418,7 +418,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
    if(a.text=="set-pick"){setShown_=id;nav.Push("replay-set");}
    else if(a.text=="set-pack"){
     folderAsked_=false;setAsked_=true;setNoticeAsked_=v.replays.setNotices;
-    ShellAction r;r.command.generation=v.session.generation;
+    commands::Tournament r;
     r.tournament.op=netplay::tournament::Command::Op::SavePack;r.tournament.bridgeId=set.bridgeId;r.tournament.matchId=set.matchId;
     if(!submit(std::move(r))){setAsked_=false;error=loc::T("error.queue_failed");}
    }else if(a.text=="set-export"){
@@ -440,11 +440,11 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
  setQueue_.clear();setStep_=SetStep::Manual;
  if(a.text=="show-folder"){
   // Explorer opens on the replay's own folder: the archive, or a usf4-replay-saver folder in it.
-  ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::ShowReplayFile;r.servicePath=path;
+  commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::ShowReplayFile;r.servicePath=path;
   if(!submit(std::move(r))){folderAsked_=false;error=loc::T("error.queue_failed");}
  }else if(a.text=="keep"){
   // The mark goes on or comes off; the listing that follows shows it.
-  if(const auto* shown=Find(v,path)){ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Keep,path};r.replay.keep=!shown->kept;if(!submit(std::move(r)))error=loc::T("error.queue_failed");}
+  if(const auto* shown=Find(v,path)){commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Keep,path};r.replay.keep=!shown->kept;if(!submit(std::move(r)))error=loc::T("error.queue_failed");}
  }else if(a.text=="inputs"){
   // Nothing is sent to the game: the screen names the file and is handed its match (InputsFile).
   if(Find(v,path)){inputsFile_=path;++inputsRevision_;nav.Push("replay-inputs");}
@@ -453,7 +453,7 @@ void ReplaysPanel::Choose(const MenuAction& a,const ShellView& v,const netplay::
   if(const auto* shown=Find(v,path)){OpenExport(v,saved,*shown);nav.Push("replay-export");}
  }else if(v.replays.ready&&(a.text=="watch"||a.text=="watch-meter")){Watch(v,path,a.text=="watch-meter",submit,error);
  }else if(v.replays.ready){
-  ShellAction r;r.command.generation=v.session.generation;r.replay={replay::Mode::Add,path};
+  commands::Replay r;r.generation=v.session.generation;r.replay={replay::Mode::Add,path};
   if(!submit(std::move(r)))error=loc::T("error.queue_failed");
  }
 }

@@ -11,7 +11,7 @@
 
 namespace sf4e { namespace NetplayFacade { namespace bridge {
 
-using CommandMailbox = netplay::BoundedMailbox<RuntimeCommand>;
+using CommandMailbox = netplay::BoundedMailbox<RuntimeRequest>;
 
 void PublishRuntime(std::shared_ptr<const RuntimeSnapshot> snapshot);
 std::shared_ptr<const RuntimeSnapshot> LatestRuntime();
@@ -22,7 +22,7 @@ std::shared_ptr<const PresentationSnapshot> LatestPresentation();
 // a closed queue can no longer push into it, and never reaches its successor.
 void OpenCommands(std::shared_ptr<CommandMailbox> mailbox);
 void CloseCommands();
-bool PushCommand(RuntimeCommand command, std::size_t bytes);
+bool PushCommand(RuntimeRequest command, std::size_t bytes);
 
 // Back to the state before the first publish (the runtime has stopped).
 void Reset();

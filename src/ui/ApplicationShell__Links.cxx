@@ -12,11 +12,10 @@ void ApplicationShell::CopyShortInvitation(const ShellView& v,const Submit& subm
   ShowNotice(loc::T("room.short_invitation_copied"),Tone::Success,ImGui::GetTime()+3);shortCopyPending_=false;
   return;
  }
- ShellAction request;request.command.generation=v.session.generation;request.shortInvitation=true;
  shortFailuresSeen_=v.shortInvitationFailures;
  shortCopyPending_=true;shortCopyUntil_=ImGui::GetTime()+12;
  // A request that cannot be queued falls back at once, in UpdateShortCopy.
- if(!submit(std::move(request)))shortCopyUntil_=0;
+ if(!submit(commands::ShortInvitation{v.session.generation}))shortCopyUntil_=0;
  ShowNotice(loc::T("room.short_invitation_pending"),Tone::Pending,ImGui::GetTime()+12);
 }
 // The short link answers within a few seconds. Without one, the full
@@ -56,7 +55,7 @@ void ApplicationShell::UpdateJoinLink(const ShellView& v,double now,const Submit
  std::snprintf(invitation_,sizeof(invitation_),"%s",joinLink_.c_str());joinLink_.clear();joinLinkDirect_=false;
  nav.Cancel();nav.Home();nav.Push("online");nav.Push("join");
  error_.clear();noticeTone_=Tone::Neutral;noticeUntil_=now+8;
- if(direct&&Send(CommandKind::JoinInvite,v,submit)){notice_=loc::T("room.link_joining");noticeTone_=Tone::Pending;}
+ if(direct&&SendJoin(v,submit)){notice_=loc::T("room.link_joining");noticeTone_=Tone::Pending;}
  else notice_=loc::T("room.link_opened");
 }
 // A public room link opens Public rooms on its service and asks for its room

@@ -1,4 +1,5 @@
 #pragma once
+#include "ShellAction.hxx"
 #include "MenuNavigation.hxx"
 #include "ReplaysView.hxx"
 #include "../platform/ReplaySets.hxx"
@@ -18,7 +19,6 @@ namespace sf4e { namespace ui {
 enum class ReplayShow;
 enum class ReplaySort;
 struct ShellView;
-struct ShellAction;
 enum class Tone;
 
 // Ember's replay archive: the Replays list and what Select offers on a row

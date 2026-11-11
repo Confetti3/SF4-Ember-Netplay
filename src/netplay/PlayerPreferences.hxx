@@ -244,7 +244,7 @@ struct PlayerPreferences {
     // play: the button layouts, the room board's layout, the chat filter and
     // the watched game's picture, which the board's grips, Hide and Show, More… and
     // Settings › Interface › Room layout change in a room
-    // (ShellAction::roomSettings). The shell sends these alone while a room
+    // (commands::RoomSettings). The shell sends these alone while a room
     // locks the rest (OnlyRoomSettingsChanged), and the runtime saves these
     // alone then (SaveRoomSettings), both while netplay::RoomSettingsOpen holds.
     void CopyRoomSettings(const PlayerPreferences& from) {

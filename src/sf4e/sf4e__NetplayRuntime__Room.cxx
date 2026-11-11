@@ -610,53 +610,6 @@ static void Retry(Intent& intent, bool helperReady) {
 }
 
 namespace internal {
-std::optional<RuntimeRequest> Classify(RuntimeCommand command) {
-	const auto generation = command.command.generation;
-	if (command.identity.op != netplay::IdentityOp::None) return RuntimeRequest(commands::Identity{std::move(command.identity)});
-	if (command.tournament.op != netplay::tournament::Command::Op::None) return RuntimeRequest(commands::Tournament{std::move(command.tournament)});
-	if (command.training != TrainingEntry::None) return RuntimeRequest(commands::Training{generation, command.training});
-	if (command.leaveWatchedGame.Active()) return RuntimeRequest(commands::LeaveWatchedGame{generation, command.leaveWatchedGame});
-	if (command.discordAction != discord::InviteAction::None)
-		return RuntimeRequest(commands::DiscordInvite{generation, command.discordAction, command.discordRevision});
-	if (command.previewSoundVolume >= 0) return RuntimeRequest(commands::PreviewSound{generation, command.previewSoundVolume});
-	if (command.replay.mode != replay::Mode::None) return RuntimeRequest(commands::Replay{generation, std::move(command.replay)});
-	if (command.shortInvitation) return RuntimeRequest(commands::ShortInvitation{generation});
-	if (command.padAction.kind != gamepads::ControllerRequest::Kind::None) return RuntimeRequest(commands::Pad{generation, std::move(command.padAction)});
-	if (command.roomSettings) return RuntimeRequest(commands::RoomSettings{generation, std::move(command.preferences)});
-	if (command.inputAction != input::Action::None) return RuntimeRequest(commands::Input{generation, command.inputAction});
-	if (command.service != platform::ServiceAction::None)
-		return RuntimeRequest(commands::Service{generation, command.service, std::move(command.servicePath), std::move(command.updateOffer),
-			command.updateChannel, command.steamProfile, std::move(command.reportSubmission)});
-	room::Charter charter;
-	charter.type = command.arcadeRoom; charter.practice = command.practiceRoom; charter.delayPolicy = command.delayPolicy;
-	charter.tableCount = command.tableCount; charter.wiredOnly = command.wiredOnly;
-	using Kind = netplay::CommandKind;
-	switch (command.command.kind) {
-	case Kind::HostRoom: return RuntimeRequest(commands::HostRoom{generation, std::move(command.preferences), charter, std::move(command.createdRules)});
-	case Kind::JoinInvite:
-		return RuntimeRequest(commands::JoinRoom{generation, std::move(command.command.invitation), std::move(command.publicTicket), command.join,
-			command.discordRevision, std::move(command.createdRules), charter});
-	case Kind::LeaveRoom: return RuntimeRequest(commands::LeaveRoom{generation, command.discordRevision});
-	case Kind::ReplaceRoom: return RuntimeRequest(commands::ReplaceRoom{generation});
-	case Kind::StartOffline: return RuntimeRequest(commands::StartOffline{generation});
-	case Kind::SavePreferences: return RuntimeRequest(commands::SavePreferences{generation, std::move(command.preferences)});
-	case Kind::SetLobbySettings: return RuntimeRequest(commands::LobbySettings{generation, command.preferences.lobby});
-	case Kind::Ready:
-	case Kind::Rematch: {
-		commands::Ready ready;
-		ready.generation = generation; ready.rematch = command.command.kind == Kind::Rematch;
-		ready.pick = selection::FromNative(command.character); ready.stage = command.stage; ready.randomPool = std::move(command.randomPool);
-		return RuntimeRequest(std::move(ready));
-	}
-	case Kind::RoomAction: return RuntimeRequest(commands::RoomAction{generation, std::move(command.roomAction)});
-	case Kind::CheckConnection: return RuntimeRequest(commands::CheckConnection{generation, command.command.benchmark});
-	case Kind::ApplyDelay: return RuntimeRequest(commands::ApplyDelay{generation, command.selectedDelay});
-	// SubmitRuntimeCommand queues no update request.
-	case Kind::RequestUpdate: break;
-	}
-	return std::nullopt;
-}
-
 // No room joined and none being joined: where the battle log may be opened
 // and where Ember's menu may come back to the Replays screen.
 static bool NoRoom() { return runtime->controller.GetSnapshot().room == netplay::RoomState::Idle && !UserApp::netplay; }
@@ -808,9 +761,9 @@ void TickCreatedRules(bool helperReady) {
 }
 
 void DrainCommands(bool helperReady) {
-	RuntimeCommand command;
+	RuntimeRequest command;
 	for (int budget = 0; budget < 8 && runtime->commands->TryPop(command); ++budget)
-		if (auto typed = Classify(std::move(command))) Dispatch(std::move(*typed), helperReady, Attempt::Fresh);
+		Dispatch(std::move(command), helperReady, Attempt::Fresh);
 }
 
 void DrainRoomEvents() {

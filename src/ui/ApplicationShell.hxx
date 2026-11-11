@@ -50,7 +50,7 @@
 #include "UpdatePrompt.hxx"
 #include "CountryPicker.hxx"
 #include "ScreenPanel.hxx"
-#include "RuntimeRequest.hxx"
+#include "ShellAction.hxx"
 
 namespace sf4e { namespace ui {
 
@@ -288,17 +288,6 @@ private:
 
 // "Ready in N s" for a player called out of Training: ShellView::trainingReadySeconds, in words.
 std::string TrainingReadyText(int seconds);
-
-// What a press asks: a request for the runtime (RuntimeRequest), or a step of
-// the chosen Ultra or color, which is the overlay's alone.
-struct ShellAction : RuntimeRequest {
-    // Steps the chosen Ultra or color by delta (the table page's Ultra and
-    // Appearance rows); the overlay applies it to the pick, and nothing is sent.
-    struct SelectionStep {
-        enum class Field { None, Ultra, Color } field = Field::None;
-        int delta = 0;
-    } selectionStep;
-};
 
 // Why the room chat can or cannot send now (ChatGateOf). Only Writable lets a message go; Recovering and
 // CatchingUp hold one the player entered (queuedChat_) until the room can take it. ReadOnly is a
@@ -637,8 +626,8 @@ private:
     void OpenTableOptions(const ShellView& view, int table);
     void ToggleReady(const ShellView& view, const Submit& submit);
     // Sends a step of the pick's Ultra or color, which the overlay applies
-    // (ShellAction::selectionStep): the room's rows and the post-match prompt.
-    static void StepPick(const ShellView& view, ShellAction::SelectionStep step, const Submit& submit);
+    // (SelectionStep): the room's rows and the post-match prompt.
+    static void StepPick(SelectionStep step, const Submit& submit);
     // Leaves the seat or queue place B was pressed on, once any confirmation is answered.
     void LeavePlace(const ShellView& view, const Submit& submit);
     // Leaves the game this PC watches (Stop watching, or the table's own
@@ -847,7 +836,6 @@ std::string memberAsk_;
     // Whether it waited for a room.
     bool pendingConnectStale_ = false;
     netplay::PlayerPreferences preferences_;
-    netplay::LobbySettings lobby_;
     std::string error_;
     // A shell error has no natural clear point (a paste that failed, an
     // invalid value), so it ends with the screen it appeared on, with the
@@ -972,7 +960,15 @@ std::string memberAsk_;
     std::uint64_t mutedEpoch_ = 0;
     bool Service(platform::ServiceAction action, const ShellView& view, const Submit& submit);
     bool SendRoom(room::Action action, const ShellView& view, const Submit& submit);
-    bool Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit);
+    // Hands a command to the runtime: a full queue is said on the status
+    // line, which is cleared otherwise. False when it was not taken.
+    bool Send(ShellAction action, const Submit& submit);
+    // The room commands sent from more than one place.
+    bool SendReady(const ShellView& view, bool rematch, const Submit& submit);
+    bool SendJoin(const ShellView& view, const Submit& submit);
+    bool SendLeave(const ShellView& view, const Submit& submit);
+    // The preferences being edited, as a save or a new room sends them.
+    netplay::PlayerPreferences PreferencesToSend() const;
 };
 
 } }

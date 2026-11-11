@@ -223,7 +223,7 @@ void PlayRechecks(){
   match.state=state;match.expiresAt=expires;v.tournament.list.items.clear();if(listed)v.tournament.list.items.push_back(match);
   MenuAction a;a.kind=MenuAction::Activate;a.id="tm-play:emt_1";panel.Activate(a,v,nav);
   sent.clear();panel.Update(v,"tournament-matches",submit,now+=1);
-  return std::any_of(sent.begin(),sent.end(),[](const ShellAction& s){return s.tournament.op==Command::Op::Play;});
+  return std::any_of(sent.begin(),sent.end(),[](const ShellAction& s){return TournamentIs(s,Command::Op::Play);});
  };
  for(const char* state:{"running","awaiting_reports","needs_review","created","expired","completed"})
   Check(!press(state,0,true),"Play went out for a match that is not waiting for its players");
@@ -232,7 +232,7 @@ void PlayRechecks(){
  Check(!press("ready",0,false),"Play went out for a match the list no longer holds");
  v.session.room=netplay::RoomState::Joined;Check(!press("ready",0,true),"Play went out while the player is in a room");
  v.session.room=netplay::RoomState::Idle;
- Check(press("between_games",9000,true)&&sent.back().tournament.matchId=="emt_1"&&sent.back().tournament.bridgeId=="brg_1","Play did not go out for a match that can be played");
+ Check(press("between_games",9000,true)&&Is<commands::Tournament>(sent.back(),[](const auto& t){return t.tournament.matchId=="emt_1"&&t.tournament.bridgeId=="brg_1";}),"Play did not go out for a match that can be played");
 }
 // A match that ended for a lost connection says so, and that the tournament
 // is setting up a new one (Ember does not start it), and its service is read
@@ -288,7 +288,7 @@ void TournamentRoom(){
  Check(h.status==loc::Tf("room.tournament_status",2)&&!h.has("copy")&&!h.has("copy-short"),"A tournament room reads like a casual one");
  const auto sent=h.actions.size();h.FocusOn("table-0");h.Press(MenuInput::Back);
  for(std::size_t i=sent;i<h.actions.size();++i)
-  Check(h.actions[i].roomAction.kind!=room::ActionKind::Unqueue,"B on a tournament seat tried to leave it");
+  Check(!RoomActionIs(h.actions[i],room::ActionKind::Unqueue),"B on a tournament seat tried to leave it");
  // A member's actions are the choices on their row.
  h.Screen("room");h.Choose("room-members");h.Frame();
  {const auto* member=h.row("member-2");
@@ -361,7 +361,7 @@ void RoomLinks(){
  h.view.session.room=netplay::RoomState::Joined;h.view.invitation=full;
  h.Screen("room");
  auto before=h.actions.size();g_clipboard.clear();h.Choose("copy-short");
- Check(h.actions.size()==before+1&&h.actions.back().shortInvitation,"Copy short link did not ask for the link");
+ Check(h.actions.size()==before+1&&Is<commands::ShortInvitation>(h.actions.back()),"Copy short link did not ask for the link");
  Check(g_clipboard.empty(),"Copy short link copied before the link existed");
  h.view.shortInvitation=link;h.Frame();
  Check(g_clipboard==link,"The short link was not copied when it arrived");
@@ -388,7 +388,7 @@ void RoomLinks(){
   Check(join!=rows.end()&&join->enabled,"Join room is not available for the room link");
  }
  h.Choose("join-now");
- Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation==link,
+ Check(h.actions.size()==before+1&&Is<commands::JoinRoom>(h.actions.back(),[&](const auto& j){return j.invitation==link;}),
   "Join room did not join with the room link");
  // The same link is not offered twice.
  h.shell.Navigation().Home();h.Frame(0,3);Check(h.shell.Navigation().Screen()=="home","A used room link came back");
@@ -400,7 +400,7 @@ void RoomLinks(){
  Check(h.actions.size()==before&&h.shell.Navigation().Screen()=="home","A room link joined before a room could be opened");
  h.view.canOpenRoom=true;h.Frame(0,3);
  Check(h.shell.Navigation().Screen()=="join","A room link did not open the Join screen while joining");
- Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::JoinInvite&&h.actions.back().command.invitation==second,
+ Check(h.actions.size()==before+1&&Is<commands::JoinRoom>(h.actions.back(),[&](const auto& j){return j.invitation==second;}),
   "A room link did not join its room");
  h.Frame(0,3);Check(h.actions.size()==before+1,"A room link joined twice");
  // It never interrupts an Ember ID screen, and once the runtime stops

@@ -73,19 +73,16 @@ bool ApplicationShell::ControllerActivate(const MenuAction& action, const ShellV
     if (request->kind == ControllerRequest::Kind::OpenLayout) { if (view.atMainMenu && !netplay::Fighting(view.session.match)) OpenButtonLayout(*pad); }
     else if (request->kind == ControllerRequest::Kind::Setup) BeginPadSetup(*pad, view, submit);
     else {
-        ShellAction sent; sent.command.generation = view.session.generation; sent.padAction = *request;
-        if (!submit(std::move(sent))) error_ = loc::T("error.queue_failed");
+        if (!submit(commands::Pad{view.session.generation, *request})) error_ = loc::T("error.queue_failed");
     }
     return true;
 }
 bool ApplicationShell::SavePreferences(const ShellView& view, const Submit& submit) {
-    if (view.canEditPreferences) return Send(netplay::CommandKind::SavePreferences, view, submit);
-    ShellAction action; action.command.generation = view.session.generation;
-    action.roomSettings = true; action.preferences = preferences_;
-    return submit(std::move(action));
+    if (view.canEditPreferences) return Send(commands::SavePreferences{view.session.generation, PreferencesToSend()}, submit);
+    return submit(commands::RoomSettings{view.session.generation, preferences_});
 }
 void ApplicationShell::LayoutLog(const ShellView& view, const Submit& submit, std::string text) {
-    ShellAction action; action.command.generation = view.session.generation;
+    commands::Pad action; action.generation = view.session.generation;
     action.padAction.kind = ControllerRequest::Kind::LayoutLog; action.padAction.log = std::move(text);
     submit(std::move(action));
 }
@@ -95,7 +92,7 @@ bool ApplicationShell::ChangeLayout(const PadView& pad, const std::optional<Butt
     if (!CanEditLayout(view) || !Served(pad)) return false;
     const auto binding = bound.value_or(pad.bound);
     const auto copies = extras.value_or(pad.extras);
-    ShellAction action; action.command.generation = view.session.generation;
+    commands::Pad action; action.generation = view.session.generation;
     action.padAction.kind = layout ? ControllerRequest::Kind::Layout : ControllerRequest::Kind::RemoveLayout;
     action.padAction.id = pad.id; action.padAction.buttons = layout.value_or(DefaultLayout); action.padAction.bound = binding;
     action.padAction.extras = copies; action.padAction.log = log;

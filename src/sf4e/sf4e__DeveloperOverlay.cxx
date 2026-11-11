@@ -412,9 +412,8 @@ void sf4e::ui::DrawGameThemesPicker() {
 			sf4e::GameThemes::Preview(static_cast<GameThemePart>(part), picked);
 			continue;
 		}
-		sf4e::NetplayFacade::RuntimeCommand request;
-		request.command.kind = sf4e::netplay::CommandKind::SavePreferences;
-		request.command.generation = snapshot.session.generation;
+		sf4e::commands::SavePreferences request;
+		request.generation = snapshot.session.generation;
 		request.preferences = snapshot.preferences;
 		request.preferences.gameThemes[part] = picked;
 		sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));

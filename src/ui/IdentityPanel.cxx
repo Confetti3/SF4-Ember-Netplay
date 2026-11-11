@@ -302,8 +302,7 @@ void IdentityPanel::Send(const ShellView& v, const Submit& submit, double now) {
         cleanup_.pop_front();
     }
     if (queue_.empty()) return;
-    ShellAction action;
-    action.command.generation = v.session.generation;
+    commands::Identity action;
     sentLookUp_ = queue_.front().lookUp; sentJourney_ = queue_.front().journey; sentAccount_ = queue_.front().account;
     sentOwner_ = queue_.front().owner; sentReads_ = queue_.front().reads;
     action.identity = std::move(queue_.front().request); queue_.pop_front();

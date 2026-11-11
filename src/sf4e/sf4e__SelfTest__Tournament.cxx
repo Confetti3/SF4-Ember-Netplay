@@ -21,13 +21,12 @@
 namespace sf4e { namespace selftest {
 namespace {
 
-using NetplayFacade::RuntimeCommand;
 using NetplayFacade::RuntimeSnapshot;
 using netplay::IdentityOp;
 using netplay::IdentityRequest;
 using netplay::tournament::Phase;
 using netplay::tournament::PlayUnderWay;
-using online::Command;
+using online::Generation;
 using online::Now;
 
 // The files of the exchange folder. The game writes its Ember ID and build,
@@ -75,9 +74,7 @@ bool WriteExchange(const wchar_t* name, const std::string& line) { return online
 // An identity or bridge request, as the screens send it.
 void Ask(IdentityRequest request) {
 	request.ticket = ++s_run.ticket;
-	RuntimeCommand command;
-	command.identity = std::move(request);
-	NetplayFacade::SubmitRuntimeCommand(std::move(command));
+	NetplayFacade::SubmitRuntimeCommand(commands::Identity{std::move(request)});
 	s_run.asked = true;
 }
 IdentityRequest Request(IdentityOp op) {
@@ -111,7 +108,7 @@ bool Asked(const RuntimeSnapshot& now, IdentityOp op, const std::string& step, S
 
 // A tournament command, as the Matches screen sends it.
 void SendTournament(netplay::tournament::Command::Op op) {
-	RuntimeCommand command;
+	commands::Tournament command;
 	command.tournament.op = op; command.tournament.bridgeId = s_run.bridge; command.tournament.matchId = s_run.matchId;
 	NetplayFacade::SubmitRuntimeCommand(std::move(command));
 }
@@ -148,7 +145,7 @@ void Step(const RuntimeSnapshot& now) {
 	case Stage::Settings: {
 		const auto wanted = TournamentPreferences(now);
 		if (now.preferences.displayName == wanted.displayName && now.preferences.tableRules == wanted.tableRules) { Say(true, "settings"); run.Enter(Stage::EmberId); break; }
-		if (run.Every(5)) { RuntimeCommand request = Command(netplay::CommandKind::SavePreferences); request.preferences = wanted; request.displayName = wanted.displayName; NetplayFacade::SubmitRuntimeCommand(std::move(request)); }
+		if (run.Every(5)) NetplayFacade::SubmitRuntimeCommand(commands::SavePreferences{Generation(), wanted});
 		if (run.Late(20)) run.Fail("settings", "were not taken");
 		break;
 	}
@@ -260,9 +257,7 @@ void Step(const RuntimeSnapshot& now) {
 		// Rematch on the room's screen does.
 		if (phase == Phase::Finished) { Say(true, "match finished", now.tournament.reason); run.Enter(Stage::Leaving); }
 		else if (run.flow.drawFirst && !run.flow.rematched && now.session.match == netplay::MatchState::PostMatch && !now.session.readyPending) {
-			RuntimeCommand rematch = Command(netplay::CommandKind::Rematch);
-			rematch.character.charaID = 0; rematch.character.unc_edition = Dimps::Game::Battle::ED_USF4;
-			NetplayFacade::SubmitRuntimeCommand(std::move(rematch));
+			NetplayFacade::SubmitRuntimeCommand(online::AsRyu(true));
 			run.flow.rematched = true;
 			Say(true, "drawn game, rematch");
 		}

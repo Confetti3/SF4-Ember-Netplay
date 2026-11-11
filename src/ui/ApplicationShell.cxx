@@ -87,39 +87,40 @@ float ApplicationShell::PublicListWidth() {
 }
 std::string TrainingReadyText(int seconds) { return loc::Tf("room.training_call.ready_in",seconds); }
 bool ApplicationShell::Service(platform::ServiceAction kind, const ShellView& view, const Submit& submit) {
-    ShellAction action; action.service = kind; action.command.generation = view.session.generation;
-    if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    error_.clear(); return true;
+    commands::Service service; service.generation = view.session.generation; service.service = kind;
+    return Send(std::move(service), submit);
 }
 void ApplicationShell::Refuse(std::string text, std::function<bool(const ShellView&)> stillBlocked) {
     error_ = std::move(text); errorBlockedText_ = error_; errorBlocked_ = std::move(stillBlocked);
 }
-bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, const Submit& submit) {
-    ShellAction action;
-    action.command.kind = kind;
-    action.command.generation = view.session.generation;
-    action.preferences = preferences_;
-    if (kind == netplay::CommandKind::SetLobbySettings) action.preferences.lobby = lobby_;
-    else if (kind == netplay::CommandKind::HostRoom || kind == netplay::CommandKind::SavePreferences) {
-        // Keep the legacy lobby copy synchronized while the room defaults use
-        // the richer per-table Rules contract.
-        action.preferences.lobby.editionSelect = action.preferences.tableRules.editionSelect;
-        action.preferences.lobby.roundCount = action.preferences.tableRules.roundCount;
-        action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
-    }
-    action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
-    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createType_ : room::RoomType::Classic;
-    if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
-    if (kind == netplay::CommandKind::HostRoom) action.tableCount = static_cast<std::uint8_t>(CreateTableCount());
-    // Opened from a template: the runtime sets its tables once the room is up.
-    if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
-    if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = pasted_link::Tidied(invitation_);
-    // A room opened here is not the public one the panel joined.
-    if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::HostRoom) publicRooms_.ForgetCurrent();
+bool ApplicationShell::Send(ShellAction action, const Submit& submit) {
     if (!submit(std::move(action))) { error_ = loc::T("error.queue_failed"); return false; }
-    error_.clear();
-    if (kind == netplay::CommandKind::JoinInvite || kind == netplay::CommandKind::LeaveRoom)
-        std::fill(std::begin(invitation_), std::end(invitation_), '\0');
+    error_.clear(); return true;
+}
+netplay::PlayerPreferences ApplicationShell::PreferencesToSend() const {
+    auto preferences = preferences_;
+    // Keep the legacy lobby copy synchronized while the room defaults use
+    // the richer per-table Rules contract.
+    preferences.lobby.editionSelect = preferences.tableRules.editionSelect;
+    preferences.lobby.roundCount = preferences.tableRules.roundCount;
+    preferences.lobby.roundTime = preferences.tableRules.roundTime;
+    return preferences;
+}
+bool ApplicationShell::SendReady(const ShellView& view, bool rematch, const Submit& submit) {
+    commands::Ready ready; ready.generation = view.session.generation; ready.rematch = rematch;
+    return Send(std::move(ready), submit);
+}
+bool ApplicationShell::SendJoin(const ShellView& view, const Submit& submit) {
+    commands::JoinRoom join; join.generation = view.session.generation; join.invitation = pasted_link::Tidied(invitation_);
+    // A room opened here is not the public one the panel joined.
+    publicRooms_.ForgetCurrent();
+    if (!Send(std::move(join), submit)) return false;
+    std::fill(std::begin(invitation_), std::end(invitation_), '\0');
+    return true;
+}
+bool ApplicationShell::SendLeave(const ShellView& view, const Submit& submit) {
+    if (!Send(commands::LeaveRoom{view.session.generation}, submit)) return false;
+    std::fill(std::begin(invitation_), std::end(invitation_), '\0');
     return true;
 }
 
@@ -402,7 +403,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="replays"||a.id=="controllers"||a.id=="news"||a.id=="notifications")nav.Push(a.id);
  // News' Update now, confirmed on its row: the launch check's offer, as its question's Update now sends it.
  else if(a.id=="news-update-now"&&v.services.launchOffer){
-  ShellAction r;r.command.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
+  commands::Service r;r.generation=v.session.generation;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*v.services.launchOffer;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");else updatePrompt_.Settle(*v.services.launchOffer);
  }
  else if(a.id=="replay-folder")Service(platform::ServiceAction::OpenReplayFolder,v,submit);
@@ -414,20 +415,20 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   // A public room's link pasted here opens the room on Public rooms, as Paste
   // room link there does; while that screen is busy joining, it shows that.
   const auto room=tournament_link::ParseRoomPasted(invitation_);
-  if(!room.Valid())Send(CommandKind::JoinInvite,v,submit);
+  if(!room.Valid())SendJoin(v,submit);
   else {
    if(!publicRooms_.Busy()){publicRooms_.OpenLink(room.bridgeId,room.roomId,true);std::fill(std::begin(invitation_),std::end(invitation_),'\0');}
    ShowRoomLink();
   }
  }
- else if(a.id=="cancel-open")Send(CommandKind::LeaveRoom,v,submit);
- else if(a.id=="offline"||a.id=="game-buttons")Send(CommandKind::StartOffline,v,submit);
+ else if(a.id=="cancel-open")SendLeave(v,submit);
+ else if(a.id=="offline"||a.id=="game-buttons")Send(commands::StartOffline{v.session.generation},submit);
  // Training: the game's main menu goes straight to Training mode, if the runtime finds no room or match.
- else if(a.id=="training"){ShellAction training;training.command.generation=v.session.generation;training.training=TrainingEntry::Home;
-  if(!submit(std::move(training)))error_=loc::T("home.training_unavailable");}
+ else if(a.id=="training"){if(!submit(commands::Training{v.session.generation,TrainingEntry::Home}))error_=loc::T("home.training_unavailable");}
  else if(a.id=="paste"){const char* t=ImGui::GetClipboardText();if(t&&*t&&std::strlen(t)<sizeof(invitation_)){std::strcpy(invitation_,t);error_.clear();}else error_=loc::T("error.invitation_invalid");}
- else if(a.id=="capture"||a.id=="keyboard"){ShellAction r;r.command.generation=v.session.generation;r.inputAction=a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard;submit(std::move(r));}
- else if(a.id=="invite-cancel"||a.id=="invite-switch"){ShellAction r;r.command.generation=v.session.generation;r.discordRevision=v.discordRevision;r.discordAction=a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch;if(!submit(std::move(r)))error_=loc::T("error.invitation_changed");}
+ else if(a.id=="capture"||a.id=="keyboard")submit(commands::Input{v.session.generation,a.id=="capture"?input::Action::BeginCapture:input::Action::UseKeyboard});
+ else if(a.id=="invite-cancel"||a.id=="invite-switch"){
+  if(!submit(commands::DiscordInvite{v.session.generation,a.id=="invite-cancel"?discord::InviteAction::Cancel:discord::InviteAction::Switch,v.discordRevision}))error_=loc::T("error.invitation_changed");}
  else if(a.id=="diagnostics")Service(platform::ServiceAction::ExportDiagnostics,v,submit);
  else if(a.id=="problem-report"){
   if(Service(platform::ServiceAction::PrepareProblemReport,v,submit)){reportPanel_.Open(v.services.reporting.preparation + 1);menu_.navigation.Push("report");}
@@ -439,13 +440,12 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
   preferencesDirty_=true;saveAt_=ImGui::GetTime()+.45;}
  else if(a.id=="ready-test"){
   // The volume on screen, which may not be saved yet.
-  ShellAction r;r.command.generation=v.session.generation;r.previewSoundVolume=preferences_.readySoundVolume;
-  if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
+  if(!submit(commands::PreviewSound{v.session.generation,preferences_.readySoundVolume}))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="channel"){
   // Confirmed: the pick is saved and checked; the row shows it until that ends.
   if(!channelPick_.Pending(v.services.channel))return;
-  ShellAction r;r.service=platform::ServiceAction::SwitchUpdateChannel;r.updateChannel=*channelPick_.picked;r.command.generation=v.session.generation;
+  commands::Service r;r.service=platform::ServiceAction::SwitchUpdateChannel;r.updateChannel=*channelPick_.picked;r.generation=v.session.generation;
   channelPick_.applying=submit(std::move(r));
   if(!channelPick_.applying)error_=loc::T("error.queue_failed");
  }
@@ -454,7 +454,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="update-now"){
   const auto& offer=v.services.offer;
   if(!offer)return;
-  ShellAction r;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*offer;r.command.generation=v.session.generation;
+  commands::Service r;r.service=platform::ServiceAction::UpdateNow;r.updateOffer=*offer;r.generation=v.session.generation;
   if(!submit(std::move(r)))error_=loc::T("error.queue_failed");
  }
  else if(a.id=="recovery")Service(platform::ServiceAction::OpenRecovery,v,submit);
@@ -504,7 +504,7 @@ void ApplicationShell::AnswerDialog(const Submit& submit) {
  case NoticeResult::HideGameSettings:{std::string diagnostic;platform::HideGameSettingsCardForever(diagnostic);break;}
  case NoticeResult::OpenButtonLayout:if(dialogContext_.pad)OpenButtonLayout(*dialogContext_.pad);break;
  case NoticeResult::LeaveButtonLayout:{
-  ShellAction log;log.command.generation=dialogContext_.generation;log.padAction.kind=gamepads::ControllerRequest::Kind::LayoutLog;
+  commands::Pad log;log.generation=dialogContext_.generation;log.padAction.kind=gamepads::ControllerRequest::Kind::LayoutLog;
   log.padAction.log=dialogContext_.log;submit(std::move(log));menu_.navigation.Return();break;
  }
  default:break;
@@ -573,7 +573,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
   // The Ready waits for the runtime's gate, and ends with the seat or the window.
   // A refused submit keeps the request, since the runtime asks for the Ready only once.
   if(!seated||v.trainingReadySeconds<=0)trainingReadySeen_=v.trainingReadySequence;
-  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(Send(CommandKind::Ready,v,submit))trainingReadySeen_=v.trainingReadySequence;}
+  else if(v.trainingReadySequence!=trainingReadySeen_&&v.canReady){selectedTable_=place.table;if(SendReady(v,false,submit))trainingReadySeen_=v.trainingReadySequence;}
  }
  if(lastUiTime_ >= 0 && now < lastUiTime_) {
   // DX9 reset recreates ImGui, but these deadlines belong to the surviving shell.
@@ -771,7 +771,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
  if(screen=="report") {
   const auto intent=reportPanel_.Draw(v.services,error_.empty()?v.error:error_);
   if(intent.service!=platform::ServiceAction::None){
-   ShellAction action;action.service=intent.service;action.reportSubmission=intent.submission;action.command.generation=v.session.generation;
+   commands::Service action;action.service=intent.service;action.reportSubmission=intent.submission;action.generation=v.session.generation;
    if(!submit(std::move(action)))error_=loc::T("error.queue_failed");else error_.clear();
   }
   if(intent.close)nav.Return();
@@ -845,7 +845,7 @@ bool ApplicationShell::DrawScreen(const ShellView& v,bool* open,const Submit& su
   toastFocus_=0;
  }
  if(v.inputCapture!=input::Capture::Idle&&(a.id=="capture-cancel"||a.kind==MenuAction::Returned||a.kind==MenuAction::Close)){
-  ShellAction r;r.command.generation=v.session.generation;r.inputAction=input::Action::Cancel;submit(std::move(r));
+  submit(commands::Input{v.session.generation,input::Action::Cancel});
  }else if(a.kind==MenuAction::Close&&opening){
   // A room being opened keeps its Stop row in reach.
   nav.Push(OpeningScreen(v));
