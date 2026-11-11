@@ -228,26 +228,31 @@ float DrawIdentity(ImDrawList* d, float x, float y, float room, const PlayerCard
 
 // "PROGRESS" and a row each for the main and the account: its name and frame,
 // the meter, and the way to the next frame. Narrow, the words go at the right
-// of the name and the meter under both. Returns the y under them.
+// of the name and the meter under both. The words wrap in their column rather
+// than be cut (they are long in some languages), and the row grows by the
+// lines. Returns the y under them.
 float DrawProgress(ImDrawList* d, float x, float y, float room, const std::vector<player_card::Progress>& rows, const Sizes& z) {
     const auto& c = v2::Colors();
-    const float s = Scale();
+    const float s = Scale(), size = 14 * s;
     v2::SectionHeading(d, ImVec2(x, y), loc::T("card.progress"));
     y += z.heading;
     for (const auto& row : rows) {
+        const float natural = TextAcross(row.words, size, ImGui::GetFont()) + s;
         if (z.narrow) {
-            const float words = (std::min)(TextAcross(row.words, 14 * s, ImGui::GetFont()), room * .5f);
+            const float words = (std::min)(natural, room * .5f), height = v2::Paragraph(nullptr, ImVec2(), words, row.words, size, 0);
+            const float meter = (std::max)(30 * s, height + 2 * s);
             v2::Text(d, ImVec2(x, y), room - words - 12 * s, row.label, 15 * s, c.text, HeadingFont());
-            v2::Text(d, ImVec2(x + room - words, y + s), words, row.words, 14 * s, c.muted);
-            v2::Meter(d, {ImVec2(x, y + 30 * s), ImVec2(x + room, y + 40 * s)}, row.part, 0.f);
+            v2::Paragraph(d, ImVec2(x + room - words, y - 2 * s), words, row.words, size, c.muted);
+            v2::Meter(d, {ImVec2(x, y + meter), ImVec2(x + room, y + meter + 10 * s)}, row.part, 0.f);
+            y += meter + 22 * s;
         } else {
-            const float label = 200 * s, words = 220 * s, mid = y + (z.progress - 10 * s) * .5f;
-            v2::Text(d, ImVec2(x, y + (z.progress - 15 * s) * .5f), label, row.label, 15 * s, c.text, HeadingFont());
+            const float label = 200 * s, words = 220 * s, shown = (std::min)(natural, words), height = v2::Paragraph(nullptr, ImVec2(), shown, row.words, size, 0);
+            const float line = (std::max)(z.progress, height + 8 * s), mid = y + (line - 10 * s) * .5f;
+            v2::Text(d, ImVec2(x, y + (line - 15 * s) * .5f), label, row.label, 15 * s, c.text, HeadingFont());
             v2::Meter(d, {ImVec2(x + label + 12 * s, mid), ImVec2(x + room - words - 12 * s, mid + 10 * s)}, row.part, 0.f);
-            const float shown = (std::min)(TextAcross(row.words, 14 * s, ImGui::GetFont()), words);
-            v2::Text(d, ImVec2(x + room - shown, y + (z.progress - 14 * s) * .5f), shown, row.words, 14 * s, c.muted);
+            v2::Paragraph(d, ImVec2(x + room - shown, y + (line - height) * .5f), shown, row.words, size, c.muted);
+            y += line;
         }
-        y += z.progress;
     }
     return y;
 }
@@ -264,7 +269,7 @@ void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, Fight
     DrawFighterEdge(d, tile, fighter.points, fighter.tier);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
-    v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);
+    v2::TextShrunk(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, 9 * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max);
 }
 

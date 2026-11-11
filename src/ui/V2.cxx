@@ -250,6 +250,12 @@ float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, fl
     draw->AddText(font, size, ImVec2(centred ? at.x + (width - w) * .5f : at.x, at.y), color, shown.c_str());
     return w;
 }
+float TextShrunk(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, float least, ImU32 color, ImFont* font) {
+    if (!font) font = ImGui::GetFont();
+    const float measured = font->CalcTextSizeA(size, FLT_MAX, 0, text.c_str()).x;
+    const float used = measured > width ? (std::max)(least, size * width / measured) : size;
+    return Text(draw, ImVec2(at.x, at.y + (size - used) * .5f), width, text, used, color, font, false, false);
+}
 namespace {
 // A heading's two lines in `width`: all of it on the first when it fits, else
 // the most whole words that fit (the first word at least) and the rest.

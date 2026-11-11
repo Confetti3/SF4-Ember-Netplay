@@ -77,13 +77,17 @@ void DrawMainPicture(const BoardFrame& f, v2::Box tile, const nf::Friend& entry)
     DrawFighterEdge(f.d, tile, entry.main.showsPoints ? entry.main.points : 0, entry.main.tier);
 }
 
-// The row's value at the row's right end; returns its width.
-float DrawValue(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool dim) {
-    if (e.value.empty()) return 0;
+// The room the row's value takes at its right end: its word and the margin.
+float ValueRoom(const BoardFrame& f, const MenuEntry& e) {
+    return e.value.empty() ? 0 : TextWidth(e.value, 16 * f.s, HeadingFont()) + 1 + 18 * f.s;
+}
+
+// The row's value at the row's right end.
+void DrawValue(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool dim) {
+    if (e.value.empty()) return;
     const auto& c = v2::Colors();
-    const float s = f.s, size = 16 * s, w = TextWidth(e.value, size, HeadingFont()) + 1;
+    const float s = f.s, size = 16 * s, w = ValueRoom(f, e) - 18 * s;
     v2::Text(f.d, ImVec2(box.max.x - 18 * s - w, box.min.y + (box.H() - size) * .5f), w, e.value, size, dim ? c.muted : e.valueHighlighted ? c.accent : c.text, HeadingFont());
-    return w + 18 * s;
 }
 
 // The focus marks over a row, and its popout's place when it has choices.
@@ -93,31 +97,28 @@ void Finish(const BoardFrame& f, const MenuEntry& e, v2::Box box) {
     if (!e.choices.empty()) f.menu.bodyChoices = {box, f.column};
 }
 
-// A request or a friend: the mark, the friend's picture, flag, name and class, and the status under them.
+// A request or a friend: the mark, the friend's picture, flag, name and class, and the status under them. The status
+// wraps under the name, the row growing by its lines (the Played you words and the friend's table are long in some languages).
 float DrawPerson(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width) {
     const float s = f.s;
-    const v2::Box box{at, ImVec2(at.x + width, at.y + 64 * s)};
-    const auto hit = PressEntry(f.nav(), f.rows, e, box, f.action, f.changed);
-    v2::CardGround(f.d, box, e.id == f.nav().Focus(), hit.hovered);
     const nf::Friend* entry = HasPrefix(e.id, FriendPrefix) ? f.state.FindFriend(IdOf(e.id, FriendPrefix)) : nullptr;
     const nf::Incoming* request = entry ? nullptr : RequestOf(f.state, e.id);
-    float x = box.min.x + 14 * s;
-    const ImVec2 centre(x + 6 * s, box.min.y + box.H() * .5f);
+    const float x = at.x + 48 * s + (entry ? 60 * s : 0), room = at.x + width - x - ValueRoom(f, e) - 12 * s;
+    const float lines = v2::Paragraph(nullptr, ImVec2(), room, e.detail, 14 * s, 0);
+    const v2::Box box{at, ImVec2(at.x + width, at.y + (std::max)(64 * s, 41 * s + lines))};
+    const auto hit = PressEntry(f.nav(), f.rows, e, box, f.action, f.changed);
+    v2::CardGround(f.d, box, e.id == f.nav().Focus(), hit.hovered);
+    const ImVec2 centre(at.x + 20 * s, box.min.y + 32 * s);
     if (entry) DrawPresenceMark(f.d, centre, 6 * s, entry->presence.kind);
     else DrawRequestMark(f.d, centre, 6 * s);
-    x += 34 * s;
-    if (entry) {
-        DrawMainPicture(f, v2::Box{ImVec2(x, box.min.y + 8 * s), ImVec2(x + 48 * s, box.min.y + 56 * s)}, *entry);
-        x += 60 * s;
-    }
+    if (entry) DrawMainPicture(f, v2::Box{ImVec2(at.x + 48 * s, box.min.y + 8 * s), ImVec2(at.x + 96 * s, box.min.y + 56 * s)}, *entry);
     // The word dims while its action cannot be taken: Join waits on the list being current, the rest on no action in flight.
     const bool dim = entry && PressOf(*entry, f.view.canInvite) == Press::Join ? !f.gate.go : !f.gate.act;
-    const float value = DrawValue(f, box, e, dim);
-    const float room = box.max.x - x - value - 12 * s;
+    DrawValue(f, box, e, dim);
     const CountryCode country = entry ? entry->country : request ? request->country : CountryCode();
     DrawNameLine(f.d, x, box.min.y + 8 * s, room, 22 * s, 16 * s, e.label, country, entry ? entry->badge : SkillBadge{});
     NoteUserText(e.detail);
-    v2::Text(f.d, ImVec2(x, box.min.y + 34 * s), room, e.detail, 14 * s, v2::Colors().muted);
+    v2::Paragraph(f.d, ImVec2(x, box.min.y + 31 * s), room, e.detail, 14 * s, v2::Colors().muted);
     Finish(f, e, box);
     return box.max.y;
 }

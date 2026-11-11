@@ -113,7 +113,7 @@ void MoreOnAFriend() {
     const auto hiding = fp::FriendChoices(state, state.friends[0], true, open);
     Check(Pick(hiding, "invite")->enabled && Pick(hiding, "invite")->detail == loc::T("friends.invite_reveals"), "an invite while appearing offline does not say it shows where the player is");
     // An action in flight holds the bridge's actions but not Join or Watch; a stale list holds all.
-    const fp::Gate busy{false, true, nullptr, "friends.busy"};
+    const fp::Gate busy{false, true, "friends.busy", nullptr};
     const auto held = fp::FriendChoices(state, state.friends[0], true, busy);
     Check(Pick(held, "join")->enabled && Pick(held, "watch")->enabled && !Pick(held, "invite")->enabled && !Pick(held, "remove")->enabled && !Pick(held, "remove-block")->enabled &&
         Pick(held, "remove")->detail == loc::T("friends.busy"), "an action in flight does not hold the bridge's actions only");
@@ -133,7 +133,7 @@ void MoreOnARequest() {
     const auto choices = fp::RequestChoices(fp::Gate{true, true, nullptr, nullptr});
     Check(choices.size() == 3 && choices[0].id == "accept" && choices[1].id == "decline" && choices[2].id == "decline-block", "More on a request is not Accept, Decline, Decline and block");
     Check(choices[0].enabled && choices[1].enabled && choices[2].enabled, "a request cannot be answered with nothing in flight");
-    const auto busy = fp::RequestChoices(fp::Gate{false, true, nullptr, "friends.busy"});
+    const auto busy = fp::RequestChoices(fp::Gate{false, true, "friends.busy", nullptr});
     Check(!busy[0].enabled && !busy[1].enabled && busy[0].detail == loc::T("friends.busy"), "a request can be answered while an action is in flight");
     const auto ask = fp::AskChoices("remove-block", "Player 3");
     Check(ask.size() == 1 && ask[0].id == "yes" && ask[0].label == loc::T("friends.remove_block") && ask[0].detail == "Player 3", "the question that asks again does not name the choice and the player");
