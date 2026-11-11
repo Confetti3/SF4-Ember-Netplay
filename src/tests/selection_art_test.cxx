@@ -48,8 +48,9 @@ std::string PlainDds(std::uint32_t side, std::uint32_t margin = 0) {
     Put32(dds, 92, 0xff0000); Put32(dds, 96, 0xff00); Put32(dds, 100, 0xff); Put32(dds, 104, 0xff000000); Put32(dds, 108, 0x1000);
     return dds;
 }
-// An EMZ like the game's: one EMB entry `name` holding `dds`, in one stored
-// deflate block.
+// An EMZ like the game's: one EMB entry `name` holding `dds`, in stored
+// deflate blocks (a stored block holds at most 65535 bytes, so a 256x256
+// sheet takes several).
 std::string Archive(const std::string& name, const std::string& dds) {
     std::string emb(64, '\0');
     std::memcpy(&emb[0], "#EMB", 4);
@@ -57,15 +58,19 @@ std::string Archive(const std::string& name, const std::string& dds) {
     Put32(emb, 32, 64 - 32); Put32(emb, 36, static_cast<std::uint32_t>(dds.size()));
     Put32(emb, 40, 44); std::memcpy(&emb[44], name.c_str(), name.size() + 1);
     emb += dds;
-    const auto length = static_cast<std::uint16_t>(emb.size());
     std::string emz(16, '\0');
     std::memcpy(&emz[0], "#EMZ", 4);
     Put32(emz, 8, static_cast<std::uint32_t>(emb.size())); Put32(emz, 12, 16);
-    emz += '\x01';
-    emz.append(reinterpret_cast<const char*>(&length), 2);
-    const std::uint16_t inverse = static_cast<std::uint16_t>(~length);
-    emz.append(reinterpret_cast<const char*>(&inverse), 2);
-    return emz + emb;
+    for (std::size_t at = 0; at < emb.size();) {
+        const auto length = static_cast<std::uint16_t>((std::min)(emb.size() - at, std::size_t{65535}));
+        emz += at + length == emb.size() ? '\x01' : '\x00';
+        emz.append(reinterpret_cast<const char*>(&length), 2);
+        const std::uint16_t inverse = static_cast<std::uint16_t>(~length);
+        emz.append(reinterpret_cast<const char*>(&inverse), 2);
+        emz.append(emb, at, length);
+        at += length;
+    }
+    return emz;
 }
 std::string RankingArchive(const std::string& name, std::uint32_t side, std::uint32_t margin = 0) { return Archive(name, PlainDds(side, margin)); }
 // The point digits' sheet as the game draws it (PointDigits.hxx): glyph blocks

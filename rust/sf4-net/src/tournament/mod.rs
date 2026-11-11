@@ -221,7 +221,7 @@ pub enum Request {
         bridge_id: String,
     },
     /// The player's own fighter levels.
-    LevelsMe {
+    PointsMe {
         bridge_id: String,
     },
     /// Other players' cards, by card token or by friend.
@@ -372,7 +372,7 @@ requests! {
     RankingStanding => "ranking_standing", Bridge;
     RankingChoose => "ranking_choose", Bridge;
     RankingBoard => "ranking_board", Bridge;
-    LevelsMe => "points_me", Bridge;
+    PointsMe => "points_me", Bridge;
     CardsLookup => "cards_lookup", Bridge;
     FriendsSync => "friends_sync", Bridge;
     FriendsAct => "friends_act", Bridge;
@@ -1119,7 +1119,7 @@ async fn bridge_request(shared: &Arc<Shared>, order: u64, request: Request) -> O
             ranking::choose(shared, &bridge_id, choice).await
         }
         Request::RankingBoard { bridge_id } => ranking::board(shared, &bridge_id).await,
-        Request::LevelsMe { bridge_id } => levels::own(shared, &bridge_id).await,
+        Request::PointsMe { bridge_id } => levels::own(shared, &bridge_id).await,
         Request::CardsLookup { bridge_id, cards } => levels::lookup(shared, &bridge_id, cards).await,
         Request::FriendsSync { bridge_id, sync } => friends::sync(shared, &bridge_id, sync).await,
         Request::FriendsAct { bridge_id, act } => friends::act(shared, &bridge_id, act).await,
