@@ -223,7 +223,8 @@ float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std:
 // draws its PP and BP: white, in the game's own digits, read from the player's
 // installed game (SelectionArt::PointDigits), with a short label before them in
 // the heading font; while the digits have not loaded, or the game has none, the
-// heading font's digits. Each part draws nothing for 0 points (not played), and
+// heading font's digits. 0 draws as 0 (the Profile card of a fighter not played yet:
+// callers that show only played fighters leave those out), and
 // shows at most 999999. The frame's `tier` (0 Ash to 4 Ember) is the bridge's to
 // decide and is only passed in, never worked out from the points. Speech and
 // the text probe read the words a caller puts beside it ("1986 points"), never

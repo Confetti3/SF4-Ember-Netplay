@@ -137,11 +137,10 @@ Tier FrameTier(int tier) {
 }
 
 float LevelWidth(std::uint64_t points, float height) {
-    return points > 0 ? LabelRoom(height) + PlateOf(DigitArt(), points, height).width : 0;
+    return LabelRoom(height) + PlateOf(DigitArt(), points, height).width;
 }
 
 float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, int tier) {
-    if (points == 0) return 0;
     const Plate plate = PlateOf(DigitArt(), points, height);
     const float s = Scale(), edge = 2 * s, room = LabelRoom(height), label = LabelFont(height);
     const ImVec2 origin(std::round(at.x), std::round(at.y));
@@ -166,7 +165,7 @@ float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain) {
 }
 
 void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, int tier) {
-    if (points == 0 || tile.H() <= 0) return;
+    if (tile.H() <= 0) return;
     const float s = Scale(), band = std::round((std::min)(tile.H(), (std::max)(tile.H() * BandShare, 20 * s)));
     const Box foot{ImVec2(tile.min.x, tile.max.y - band), tile.max};
     draw->AddRectFilled(foot.min, foot.max, color::Alpha(Colors().ink, .88f));
