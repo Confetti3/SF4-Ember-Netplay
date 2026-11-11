@@ -1,6 +1,5 @@
-//! Plays the game's side of the tournament desk from a terminal, for the
-//! desk's end-to-end test (scripts/e2e-desk.mjs): an Ember ID from a seed
-//! file signs what Ember would sign, against any bridge.
+//! Plays the game's side of the tournament desk from a terminal: an Ember
+//! ID from a seed file signs what Ember would sign, against any bridge.
 //!
 //! ```sh
 //! desk_game <bridge origin> <seed file> id

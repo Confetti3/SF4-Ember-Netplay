@@ -28,11 +28,19 @@ int main() {
     CHECK(ParseStep("cr.mk", step, error) && step.motion == "2" && step.buttons == MK && step.need == 1 && !step.air);
     CHECK(ParseStep("HP", step, error) && step.motion == "5" && step.buttons == HP);
     CHECK(ParseStep("j.HK", step, error) && step.air && step.motion.empty() && step.buttons == HK);
+    // From a forward or back jump: the jump the move needs (Zangief's j.2HP, Cammy's Cannon Strike).
+    CHECK(ParseStep("fj.2HP", step, error) && step.air && step.jump == '9' && Canonical(step) == "fj.2HP");
+    CHECK(ParseStep("bj.LK", step, error) && step.jump == '7' && Canonical(step) == "bj.LK" && Synth({"bj.LK"}, true)[0].raw == (Up | Left));
     CHECK(ParseStep("236236ppp", step, error) && step.motion == "236236" && step.buttons == Punches && step.need == 3);
     CHECK(ParseStep("623PP", step, error) && step.buttons == Punches && step.need == 2);
     CHECK(ParseStep("[4]6HP", step, error) && step.charge && step.motion == "46");
     CHECK(ParseStep("LP + LK", step, error) && step.buttons == (LP | LK) && step.need == 2);
     CHECK(ParseStep("360HP", step, error) && step.motion == "360");
+    // A 720's two turns fit the game's 32 frames for them: a frame a direction.
+    {
+        const auto spin = Synth({"720HP"}, true);
+        CHECK(std::find_if(spin.begin(), spin.end(), [](const auto& f) { return f.raw & HP; }) - spin.begin() == 16);
+    }
     CHECK(ParseStep("66", step, error) && step.motion == "66" && !step.buttons);
     CHECK(ParseStep("FADC", step, error) && step.motion == "66" && step.buttons == (MP | MK) && step.need == 2);
     // Cancels, both focus dashes, held and released buttons, close and far normals.
@@ -71,8 +79,12 @@ int main() {
     CHECK(ParseStep("[2] 30F", step, error) && step.hold && step.motion == "2" && step.frames == 30 && Canonical(step) == "[2]30f");
     CHECK(ParseStep("20f", step, error) && step.hold && step.motion == "5" && step.frames == 20 && Canonical(step) == "20f");
     CHECK(ParseStep("[5]8f", step, error) && step.hold && Canonical(step) == "8f");
+    // Buttons held for a count: a charge longer than the stun (El Fuerte's EX Q-bomb, 210 frames).
+    CHECK(ParseStep("[kk] 210F", step, error) && step.hold && step.motion == "5" && step.buttons == Kicks && step.need == 2 && step.frames == 210 &&
+        Canonical(step) == "[KK]210f");
+    CHECK(ParseStep("[HP]20f", step, error) && step.hold && step.buttons == HP && Canonical(step) == "[HP]20f");
     CHECK(ParseStep("qcf", step, error) && !step.hold && step.motion == "236" && ParseStep("[4]6P", step, error) && !step.hold && step.charge);
-    for (const char* bad : {"[5]", "[1]0f", "0f", "f", "[0]", "[12]", "[1]@+1", "20f#5", "xx [1]", "~ 20f", "[1]7201f", "[1]20fHP", "[HP]20f"})
+    for (const char* bad : {"[5]", "[1]0f", "0f", "f", "[0]", "[12]", "[1]@+1", "20f#5", "xx [1]", "~ 20f", "[1]7201f", "[1]20fHP", "[HP]20f#5", "[2HP]20f", "j.[HP]20f", "[HP(mash)]20f"})
         CHECK(!ParseStep(bad, step, error));
     // A hold kept until the next move needs one after it.
     CHECK(ParseSteps("[1] > 3hp", steps, error) && steps == (std::vector<std::string>{"[1]", "3HP"}));
@@ -85,14 +97,22 @@ int main() {
         const auto dash = Synth({"66"}, true);
         CHECK(dash.size() >= 7 && dash[0].raw == Right && dash[3].raw == 0 && dash[4].raw == Right);
     }
-    // A mash: five presses, several buttons cycled a frame each, one button on and off.
+    // A mash on its own: the light button through the normal it starts, the move's own last; cancelled,
+    // five presses, several buttons cycled a frame each, one button on and off.
     {
         const auto first = [](const std::vector<sf4e::training::Input>& f) { std::size_t i = 0; while (i < f.size() && !f[i].raw) ++i; return i; };
-        const auto piano = Synth({"5P(mash)"}, true); const auto p = first(piano);
-        CHECK(p + 5 < piano.size() && piano[p].raw == LP && piano[p + 1].raw == MP && piano[p + 2].raw == HP && piano[p + 3].raw == LP && piano[p + 4].raw == MP && piano[p + 5].raw == 0);
         const auto one = Synth({"5HP(mash)"}, true); const auto o = first(one);
-        CHECK(o + 9 < one.size() && one[o].raw == HP && one[o + 1].raw == 0 && one[o + 8].raw == HP && one[o + 9].raw == 0);
-        const auto two = Synth({"5LP+MP(mash)"}, true); const auto t = first(two);
+        CHECK(o + 19 < one.size() && one[o].raw == LP && one[o + 1].raw == 0 && one[o + 2].raw == LP && one[o + 4].raw == HP && one[o + 18].raw == HP && one[o + 19].raw == 0);
+        CHECK(std::count_if(one.begin(), one.end(), [](const auto& f) { return f.raw == HP; }) == 8);
+        const auto ex = Synth({"5KK(mash)"}, true); const auto e = first(ex);
+        CHECK(ex[e].raw == LK && ex[e + 2].raw == LK && (ex[e + 4].raw & Kicks) && ex[e + 4].raw != LK && ex[e + 18].raw == ex[e + 4].raw);
+        const auto piano = Synth({"2MK", "xx 5P(mash)"}, true);
+        const auto p = std::find_if(piano.begin() + 1, piano.end(), [](const auto& f) { return (f.raw & Punches) != 0; }) - piano.begin();
+        CHECK(p + 5 < static_cast<long>(piano.size()) && piano[p].raw == LP && piano[p + 1].raw == MP && piano[p + 2].raw == HP && piano[p + 3].raw == LP && piano[p + 4].raw == MP && piano[p + 5].raw == 0);
+        const auto cancelled = Synth({"2MK", "xx 5HP(mash)"}, true);
+        CHECK(std::count_if(cancelled.begin(), cancelled.end(), [](const auto& f) { return f.raw == HP; }) == 5);
+        const auto two = Synth({"2MK", "xx 5LP+MP(mash)"}, true);
+        const auto t = std::find_if(two.begin() + 1, two.end(), [](const auto& f) { return (f.raw & Punches) != 0; }) - two.begin();
         CHECK(two[t].raw == LP && two[t + 1].raw == MP && two[t + 4].raw == LP);
         // An order of its own sets the presses and their count; a repeat gets a frame off between.
         CHECK(ParseStep("5P(mash HP-MP-LP-LP)", step, error) && step.mash && step.mashOrder.size() == 4 && Canonical(step) == "5P(mash HP-MP-LP-LP)");
@@ -132,8 +152,10 @@ int main() {
     CHECK(!ParseSteps("cr.MK > shoryu", steps, error) && steps.empty() && error == "\"shoryu\" is not a move");
     CHECK(!ParseSteps("xx 236HP", steps, error) && error == "the first move cannot be a cancel");
     // Leading holds and waits are no move to cancel or follow up.
-    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP", "236]HP[", "[1] > ]HP[ > 5MK"}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
+    for (const char* line : {"[1] > xx 236HP", "[2]10f > xx 236HP", "~ LP", "[1] > ~ LP", "236]HP[", "cr.]HP[", "]HP[(mash)", "~ ]HP["}) CHECK(!ParseSteps(line, steps, error) && steps.empty());
     CHECK(ParseSteps("5LP > 236]HP[", steps, error) && ParseSteps("[1] > [HP]", steps, error));
+    // A first move let go is held through the stun: a plain button only.
+    CHECK(ParseSteps("]HP[", steps, error));
     CHECK(!ParseSteps("2MK xx", steps, error));
     CHECK(ParseStep("[2]8LP(mash)", step, error) && step.mash && step.charge && step.buttons == LP);
     CHECK(!ParseStep("236(mash)", step, error) && !ParseStep("FADC(mash)", step, error));
@@ -233,6 +255,17 @@ int main() {
             CHECK(Synthesize(Steps("[2]30f > 5MK@+3"), true, compiled, error) && compiled.offset == 3 && compiled.frames.size() == 36 && compiled.frames[33].raw == MK);
             CHECK(Synthesize(Steps("[2]30f > [4] > 5MK@-2"), true, compiled, error) && compiled.offset == -2 && compiled.frames[30].wait == sf4e::training::WaitReply &&
                 compiled.frames[30].offset == 0);
+            // A first move let go: the button held through the stun, released on the move's frame.
+            CHECK(Synthesize(Steps("]HP[ > 5LP"), true, compiled, error) && compiled.hold == 0 && compiled.anchor == 1 &&
+                compiled.frames[0].raw == HP && compiled.frames[0].wait == sf4e::training::WaitReply && compiled.frames[1].raw == 0);
+            // After a leading direction hold the let-go button is held with it; a frame number cannot land on a held release, with frames before it or not.
+            CHECK(Synthesize(Steps("[1] > ]MP+MK[ > 5MK"), true, compiled, error) && compiled.hold == 0 && compiled.frames[0].raw == (DirectionBits('1', true) | MP | MK) &&
+                compiled.frames[0].wait == sf4e::training::WaitReply);
+            // Held for a count first, then still through the stun, and let go on the move's frame.
+            CHECK(Synthesize(Steps("[KK]210f > ]KK["), true, compiled, error) && compiled.hold == 210 && compiled.frames[0].raw == (LK | MK) &&
+                compiled.frames[209].raw == (LK | MK) && compiled.frames[210].raw == (LK | MK) && compiled.frames[210].wait == sf4e::training::WaitReply &&
+                compiled.frames[211].raw == 0);
+            CHECK(!Synthesize(Steps("]HP[#30"), true, compiled, error) && compiled.frames.empty() && !Synthesize(Steps("[2]10f > ]HP[#30"), true, compiled, error) && compiled.frames.empty());
             CHECK(Synthesize(Steps("5MK@+2 > 5LP@+1"), true, compiled, error) && compiled.offset == 2 && compiled.frames[0].raw == MK);
             // Where the first move takes effect: its button; with none, its last
             // direction (a jump, a dash); a jumping attack, its jump. And the leading hold.
@@ -280,9 +313,11 @@ int main() {
             for (const char* line : {"[2]30f", "[2]30f > [4]10f", "[2]30f > 5f > [4]10f", "5", "5 > 5", "[2]30f > 5", "[2]30f > 2f > [4]10f > 5",
                      "[1] > 5", "[2]30f > 5 > 5MK", "5LP > 5 > 5MK", "5MK > 5"})
                 CHECK(!Synthesize(Steps(line), true, compiled, error) && compiled.frames.empty() && compiled.anchor == -1 && !error.empty());
-            // A linked jump is a move: its wait holds its direction to the free frame.
-            CHECK(Synthesize(Steps("5LP > 8"), true, compiled, error) && std::any_of(compiled.frames.begin(), compiled.frames.end(),
-                [](const sf4e::training::Input& frame) { return frame.wait == sf4e::training::WaitActionable && frame.raw == Up; }));
+            // A linked jump is a move: its wait holds its direction to the free
+            // frame, and it goes on held as a first move's jump is.
+            std::vector<std::pair<unsigned, int>> jump;
+            for (const auto& frame : Synth(Steps("5LP > 8"), true)) jump.push_back({frame.raw, frame.wait});
+            CHECK(jump == (std::vector<std::pair<unsigned, int>>{{LP, 0}, {0, 0}, {Up, sf4e::training::WaitActionable}, {Up, 0}, {Up, 0}, {Up, 0}, {0, 0}}));
         }
         const auto spaced = Synth(Steps("5LP > 10f > 5MK"), true);
         const auto lp = std::find_if(spaced.begin(), spaced.end(), [](const sf4e::training::Input& frame) { return frame.raw == LP; });

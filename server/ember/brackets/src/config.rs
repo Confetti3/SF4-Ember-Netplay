@@ -6,25 +6,19 @@ use ember_protocol::{
     encoding::{OriginPolicy, check_origin},
     event::parse_rfc3339,
     json,
-    sites::is_site_id,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
-use crate::{
-    rounds::{Hold, Rounds},
-    schedule::Window,
-};
+use crate::{rounds::Rounds, schedule::Window};
 
 const MAX_CONFIG: usize = 64 * 1024;
-/// Challonge's free tier: 500 requests a month per developer app.
-const DEFAULT_BUDGET: u32 = 500;
 const DEFAULT_POLL_SECS: u64 = 120;
 const DEFAULT_MAX_POLL_SECS: u64 = 600;
 const MIN_POLL_SECS: u64 = 30;
 /// Tournament and set IDs go into URLs and `external_match_id`. With slugs
 /// this long, the longest `external_match_id`
-/// (`startgg:tournament/<64>/event/<64>:<64>:<attempt>`) stays within the
+/// (`http:<64>:<64>:<attempt>`) stays well within the
 /// bridge's 256 bytes.
 const MAX_SLUG: usize = 64;
 
@@ -43,12 +37,6 @@ pub struct Config {
     /// doubles the wait from `poll_secs` up to this.
     #[serde(default = "default_max_poll_secs")]
     pub max_poll_secs: u64,
-    /// Requests each Challonge credential may make in a calendar month
-    /// (UTC); start.gg keeps to its own rate (`startgg::RATE`) and an `http`
-    /// service to its own limits. At 80% the connector warns; at 100% it
-    /// stops reading brackets but still reports results.
-    #[serde(default = "default_budget")]
-    pub monthly_request_budget: u32,
     pub tournaments: Vec<Tournament>,
     /// Organizers' own events, read from the bridge's desk connection
     /// (`/v1/desk/brackets`, docs/design/TOURNAMENT_DESK.md), which must be
@@ -82,16 +70,26 @@ pub struct Bridge {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Desk {
-    /// A site's API origin by adapter name (`challonge`, `startgg`), when
-    /// not its public one, as a tournament's `api_base`. For local tests.
-    #[serde(default)]
-    pub api_bases: std::collections::BTreeMap<String, String>,
     /// Sign-in sites that answer the `http` adapter's contract, by bridge
     /// site ID, with their base URL: an event there runs on that adapter at
     /// `<base>/tournaments/<event>/ember` (the bracket site,
     /// docs/design/BRACKET_SITE.md).
     #[serde(default)]
     pub services: std::collections::BTreeMap<String, String>,
+    /// Reads the events from this bracket site instead of the bridge: every
+    /// tournament it lists as live, run with its connector token.
+    #[serde(default)]
+    pub site: Option<DeskSite>,
+}
+
+/// A bracket site the desk reads its events from (`GET <base>/ember/tournaments`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeskSite {
+    /// The key in `services` that names its base URL.
+    pub service: String,
+    /// Its connector token.
+    pub credential_file: PathBuf,
 }
 
 /// Where the bridge sends each finished match (the connection's
@@ -112,22 +110,12 @@ pub struct Results {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Tournament {
-    /// The site the bracket is run on.
+    /// How the bracket is read: `http`, the only adapter.
     pub adapter: Adapter,
-    /// The bridge sign-in site its players' accounts are under; the
-    /// adapter's name when absent. The http adapter's service names each
-    /// account's site itself.
-    #[serde(default)]
-    pub bridge_site: Option<String>,
-    /// Challonge: the tournament's ID or URL slug. start.gg: the event's
-    /// slug, `tournament/<tournament>/event/<event>`. http: a name for the
-    /// bracket, which its matches' IDs carry.
+    /// A name for the bracket, which its matches' IDs carry.
     pub tournament: String,
     pub credential: Credential,
     pub rounds: Rounds,
-    /// Sets the connector leaves to the organizer for now. Off by default.
-    #[serde(default)]
-    pub hold: Hold,
     /// When the event runs, as `YYYY-MM-DDTHH:MM:SSZ`. Outside it the
     /// bracket is not read on a schedule and no match is created; a result
     /// received is still read for and reported.
@@ -139,51 +127,24 @@ pub struct Tournament {
     /// one request a set.
     #[serde(default = "default_mark_underway")]
     pub mark_underway: bool,
-    /// The site's API origin, when not its public one: an https origin on
-    /// the site's own domain, or loopback http for local tests. For the
-    /// http adapter, required: the service's https base URL.
+    /// The service's https base URL (loopback http for local tests).
     #[serde(default)]
     pub api_base: Option<String>,
 }
 
+/// The one adapter, kept as a name so configurations and match IDs read
+/// as before.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Adapter {
-    Challonge,
-    Startgg,
-    /// The organizer's own service, through the contract in ADAPTERS.md.
+    /// Ember's bracket site, or a service that answers its contract
+    /// (ADAPTERS.md).
     Http,
 }
 
 impl Adapter {
     pub fn name(self) -> &'static str {
-        match self {
-            Self::Challonge => "challonge",
-            Self::Startgg => "startgg",
-            Self::Http => "http",
-        }
-    }
-
-    /// The domain the organizer's credential may be sent to; any the
-    /// organizer configures for their own service.
-    fn domain(self) -> Option<&'static str> {
-        match self {
-            Self::Challonge => Some("challonge.com"),
-            Self::Startgg => Some("start.gg"),
-            Self::Http => None,
-        }
-    }
-
-    /// Whether `tournament` names a bracket on this site in a form that is
-    /// safe in its requests and in `external_match_id`.
-    fn names(self, tournament: &str) -> bool {
-        match self {
-            Self::Challonge | Self::Http => is_slug(tournament),
-            Self::Startgg => {
-                let parts: Vec<&str> = tournament.split('/').collect();
-                matches!(parts.as_slice(), ["tournament", name, "event", event] if is_slug(name) && is_slug(event))
-            }
-        }
+        "http"
     }
 }
 
@@ -198,9 +159,7 @@ pub struct Credential {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CredentialKind {
-    /// Challonge's v1 API key, which v2.1 accepts.
-    V1Key,
-    /// An OAuth access token.
+    /// A bearer token.
     Bearer,
 }
 
@@ -210,10 +169,6 @@ fn default_poll_secs() -> u64 {
 
 fn default_max_poll_secs() -> u64 {
     DEFAULT_MAX_POLL_SECS
-}
-
-fn default_budget() -> u32 {
-    DEFAULT_BUDGET
 }
 
 fn default_results_path() -> String {
@@ -231,60 +186,23 @@ impl Tournament {
         format!("{}:{}", self.adapter.name(), self.tournament)
     }
 
-    /// The bridge sign-in site its players' accounts are under.
-    pub fn bridge_site(&self) -> &str {
-        self.bridge_site
-            .as_deref()
-            .unwrap_or_else(|| self.adapter.name())
-    }
-
     pub(crate) fn check(&self, allow_loopback_http: bool) -> Result<(), String> {
         let key = self.key();
-        if !self.adapter.names(&self.tournament) {
-            return Err(match self.adapter {
-                Adapter::Challonge => format!("{key}: tournament is a Challonge ID or URL slug"),
-                Adapter::Startgg => {
-                    format!("{key}: tournament is an event slug, tournament/<name>/event/<name>")
-                }
-                Adapter::Http => format!("{key}: tournament is 1 to 64 letters, digits, _ or -"),
-            });
-        }
-        match (self.adapter, &self.bridge_site) {
-            (Adapter::Http, Some(_)) => {
-                return Err(format!(
-                    "{key}: the service names each account's site; bridge_site is not used"
-                ));
-            }
-            _ if !is_site_id(self.bridge_site()) => {
-                return Err(format!(
-                    "{key}: bridge_site is 1 to 32 lowercase letters, digits or -"
-                ));
-            }
-            _ => {}
-        }
-        if self.adapter != Adapter::Challonge && self.credential.kind != CredentialKind::Bearer {
-            return Err(format!("{key}: its token is a bearer credential"));
-        }
-        if self.hold.streamed && self.adapter != Adapter::Startgg {
+        if !is_slug(&self.tournament) {
             return Err(format!(
-                "{key}: hold.streamed is for start.gg, the only site that says which sets are on a stream; an http service holds a set by not listing it open"
+                "{key}: tournament is 1 to 64 letters, digits, _ or -"
             ));
         }
         self.rounds
             .check()
             .map_err(|error| format!("{key}: {error}"))?;
         self.window()?;
-        match (self.adapter.domain(), &self.api_base) {
-            (Some(domain), Some(origin))
-                if !is_site_origin(origin, domain, allow_loopback_http) =>
-            {
-                Err(format!("{key}: api_base is an https origin on {domain}"))
-            }
-            (None, None) => Err(format!("{key}: api_base is the service's base URL")),
-            (None, Some(base)) if !is_service_base(base, allow_loopback_http) => Err(format!(
+        match &self.api_base {
+            None => Err(format!("{key}: api_base is the service's base URL")),
+            Some(base) if !is_service_base(base, allow_loopback_http) => Err(format!(
                 "{key}: api_base is an https URL with no user, query or fragment"
             )),
-            _ => Ok(()),
+            Some(_) => Ok(()),
         }
     }
 
@@ -338,25 +256,6 @@ pub(crate) fn is_slug(text: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
 
-/// Whether the organizer's credential for a site on `domain` may go to
-/// `origin`: an https origin on `domain` or one of its subdomains, with no
-/// port, path or user info, or a loopback http origin when tests allow it.
-/// The bridge holds its own sign-in sites to the same rule.
-pub(crate) fn is_site_origin(origin: &str, domain: &str, allow_loopback_http: bool) -> bool {
-    let policy = if allow_loopback_http {
-        OriginPolicy::AllowLoopbackHttp
-    } else {
-        OriginPolicy::HttpsOnly
-    };
-    let on_domain = origin.strip_prefix("https://").is_some_and(|host| {
-        host == domain
-            || host
-                .strip_suffix(domain)
-                .is_some_and(|sub| sub.ends_with('.'))
-    });
-    check_origin(origin, policy).is_ok() && (on_domain || origin.starts_with("http://"))
-}
-
 /// Whether the organizer's token may go to `base`, their own service: an
 /// https origin with an optional path of plain segments, or a loopback http
 /// one when tests allow it.
@@ -399,6 +298,13 @@ impl Config {
         .chain(config.results.previous_secret_file.as_mut())
         .chain(
             config
+                .desk
+                .as_mut()
+                .and_then(|desk| desk.site.as_mut())
+                .map(|site| &mut site.credential_file),
+        )
+        .chain(
+            config
                 .tournaments
                 .iter_mut()
                 .map(|tournament| &mut tournament.credential.file),
@@ -435,30 +341,22 @@ impl Config {
         if self.max_poll_secs < self.poll_secs {
             return Err("max_poll_secs is at least poll_secs".into());
         }
-        if self.monthly_request_budget == 0 {
-            return Err("monthly_request_budget is at least 1".into());
-        }
-        for (adapter, origin) in self.desk.iter().flat_map(|desk| &desk.api_bases) {
-            let domain = match adapter.as_str() {
-                "challonge" => "challonge.com",
-                "startgg" => "start.gg",
-                _ => return Err(format!("desk.api_bases: {adapter} is challonge or startgg")),
-            };
-            if !is_site_origin(origin, domain, self.allow_loopback_http) {
-                return Err(format!(
-                    "desk.api_bases: {adapter} is an https origin on {domain}"
-                ));
-            }
-        }
         for (site, base) in self.desk.iter().flat_map(|desk| &desk.services) {
-            if !is_slug(site) || matches!(site.as_str(), "challonge" | "startgg") {
-                return Err(format!(
-                    "desk.services: {site} is a bridge site ID, not challonge or startgg"
-                ));
+            if !is_slug(site) {
+                return Err(format!("desk.services: {site} is a bridge site ID"));
             }
             if !is_service_base(base, self.allow_loopback_http) {
                 return Err(format!("desk.services: {site} is an https base URL"));
             }
+        }
+        if let Some(desk) = &self.desk
+            && let Some(site) = &desk.site
+            && !desk.services.contains_key(&site.service)
+        {
+            return Err(format!(
+                "desk.site: {} is not in desk.services",
+                site.service
+            ));
         }
         let mut keys = std::collections::BTreeSet::new();
         for tournament in &self.tournaments {
@@ -475,61 +373,6 @@ impl Config {
 mod tests {
     use super::*;
     use crate::rounds::Side;
-
-    #[test]
-    fn the_organizers_credential_goes_to_challonge_only() {
-        for origin in [
-            "https://api.challonge.com",
-            "https://challonge.com",
-            "https://staging.api.challonge.com",
-        ] {
-            assert!(is_site_origin(origin, "challonge.com", false), "{origin}");
-        }
-        for origin in [
-            "http://api.challonge.com",
-            "https://evilchallonge.com",
-            "https://challonge.com.evil.example",
-            "https://api.challonge.co",
-            "https://api.challonge.com:8443",
-            "https://user@api.challonge.com",
-            "https://api.challonge.com/v2.1",
-            "https://api.challonge.com/",
-            "http://127.0.0.1:9000",
-            "",
-        ] {
-            assert!(!is_site_origin(origin, "challonge.com", false), "{origin}");
-        }
-        // Loopback http is for tests, and only loopback.
-        assert!(is_site_origin(
-            "http://127.0.0.1:9000",
-            "challonge.com",
-            true
-        ));
-        assert!(is_site_origin(
-            "http://localhost:9000",
-            "challonge.com",
-            true
-        ));
-        assert!(!is_site_origin(
-            "http://api.challonge.com",
-            "challonge.com",
-            true
-        ));
-        assert!(!is_site_origin(
-            "http://10.0.0.5:9000",
-            "challonge.com",
-            true
-        ));
-        // start.gg's tokens go to start.gg the same way, and only there.
-        assert!(is_site_origin("https://api.start.gg", "start.gg", false));
-        for origin in [
-            "https://api.challonge.com",
-            "https://evilstart.gg",
-            "http://api.start.gg",
-        ] {
-            assert!(!is_site_origin(origin, "start.gg", false), "{origin}");
-        }
-    }
 
     #[test]
     fn the_organizers_own_service_is_any_https_base() {
@@ -572,9 +415,10 @@ mod tests {
             "results": { "listen": "127.0.0.1:8791", "secret_file": "/etc/ember/result.secret" },
             "database": "brackets.sqlite3",
             "tournaments": [{
-                "adapter": "challonge",
-                "tournament": "ember_weekly_12",
-                "credential": { "kind": "v1_key", "file": "challonge.key" },
+                "adapter": "http",
+                "tournament": "spring-pools",
+                "credential": { "kind": "bearer", "file": "service.token" },
+                "api_base": "https://brackets.example/ember",
                 "rounds": { "games_to_win": 2, "rules": [{ "from_round": 4, "games_to_win": 3 }] },
             }],
         });
@@ -584,25 +428,21 @@ mod tests {
         assert_eq!(config.bridge.credential_file, dir.join("provider.token"));
         assert_eq!(
             config.tournaments[0].credential.file,
-            dir.join("challonge.key")
+            dir.join("service.token")
         );
         assert!(config.results.secret_file.is_absolute());
         assert_eq!(
             (
                 config.poll_secs,
                 config.max_poll_secs,
-                config.monthly_request_budget,
                 config.results.path.as_str()
             ),
-            (120, 600, 500, "/results")
+            (120, 600, "/results")
         );
         assert_eq!(config.tournaments[0].window(), Ok(Window::default()));
-        assert_eq!(config.tournaments[0].key(), "challonge:ember_weekly_12");
-        assert_eq!(config.tournaments[0].bridge_site(), "challonge");
+        assert_eq!(config.tournaments[0].key(), "http:spring-pools");
         assert_eq!(config.tournaments[0].rounds.rules[0].side, Side::Any);
-        // The first config this connector read had no `hold`, and a rule
-        // gave its `from_round`: both still read, the rule from round 1.
-        assert_eq!(config.tournaments[0].hold, Hold::default());
+        // A rule that gave no `from_round` still reads, from round 1.
         let mut old = text.clone();
         old["tournaments"][0]["rounds"] =
             serde_json::json!({ "games_to_win": 2, "rules": [{ "games_to_win": 3 }] });
@@ -613,40 +453,36 @@ mod tests {
             .clone();
         assert_eq!((rules[0].from_round, rules[0].phase.as_deref()), (1, None));
 
-        // A rule's phase is a name, and holding streamed sets is off or on.
-        for (rules, hold) in [
-            (
-                serde_json::json!([{ "phase": "", "games_to_win": 3 }]),
-                None,
-            ),
-            (
-                serde_json::json!([{ "phase": "x".repeat(65), "games_to_win": 3 }]),
-                None,
-            ),
-            (
-                serde_json::json!([]),
-                Some(serde_json::json!({ "later": true })),
-            ),
+        // A rule's phase is a name.
+        for rules in [
+            serde_json::json!([{ "phase": "", "games_to_win": 3 }]),
+            serde_json::json!([{ "phase": "x".repeat(65), "games_to_win": 3 }]),
         ] {
             let mut changed = text.clone();
             changed["tournaments"][0]["rounds"]["rules"] = rules;
-            if let Some(hold) = hold {
-                changed["tournaments"][0]["hold"] = hold;
-            }
             std::fs::write(&path, changed.to_string()).unwrap();
             assert!(Config::load(&path).is_err());
         }
 
-        // Unknown fields, a slug with a colon and plain http are refused.
+        // Unknown fields, a bad slug, plain http and the old sites are refused.
         for (pointer, value) in [
             ("/bridge/extra", serde_json::json!(1)),
             ("/tournaments/0/tournament", serde_json::json!("a:b")),
+            (
+                "/tournaments/0/tournament",
+                serde_json::json!("spring pools"),
+            ),
             ("/bridge/api", serde_json::json!("http://bridge.example")),
             ("/poll_secs", serde_json::json!(5)),
             ("/results/path", serde_json::json!("/results/{id}")),
+            ("/tournaments/0/api_base", serde_json::Value::Null),
             (
                 "/tournaments/0/api_base",
-                serde_json::json!("http://api.challonge.com"),
+                serde_json::json!("http://brackets.example/ember"),
+            ),
+            (
+                "/tournaments/0/api_base",
+                serde_json::json!("https://brackets.example/ember?x=1"),
             ),
             (
                 "/tournaments/0/api_base",
@@ -661,9 +497,18 @@ mod tests {
                 "/tournaments/0/active_until",
                 serde_json::json!("2026-10-18"),
             ),
-            ("/tournaments/0/bridge_site", serde_json::json!("Challonge")),
-            ("/tournaments/0/bridge_site", serde_json::json!("")),
-            ("/tournaments/0/adapter", serde_json::json!("smashgg")),
+            ("/tournaments/0/bridge_site", serde_json::json!("challonge")),
+            (
+                "/tournaments/0/hold",
+                serde_json::json!({ "streamed": true }),
+            ),
+            ("/tournaments/0/adapter", serde_json::json!("challonge")),
+            ("/tournaments/0/adapter", serde_json::json!("startgg")),
+            (
+                "/tournaments/0/credential",
+                serde_json::json!({ "kind": "v1_key", "file": "k" }),
+            ),
+            ("/monthly_request_budget", serde_json::json!(500)),
         ] {
             let mut changed = text.clone();
             let (parent, field) = pointer.rsplit_once('/').unwrap();
@@ -687,108 +532,6 @@ mod tests {
         windowed["tournaments"][0]["active_until"] = serde_json::json!("2026-10-18T18:00:00Z");
         std::fs::write(&path, windowed.to_string()).unwrap();
         assert!(Config::load(&path).is_err());
-
-        // A start.gg event: its slug, a bearer token, an origin on start.gg,
-        // and a bridge site of the operator's naming.
-        let mut startgg = text.clone();
-        startgg["tournaments"][0] = serde_json::json!({
-            "adapter": "startgg",
-            "bridge_site": "startgg-staging",
-            "tournament": "tournament/ember-weekly-12/event/ultra-street-fighter-iv",
-            "credential": { "kind": "bearer", "file": "startgg.token" },
-            "api_base": "https://api.start.gg",
-            "rounds": { "games_to_win": 2 },
-        });
-        std::fs::write(&path, startgg.to_string()).unwrap();
-        let config = Config::load(&path).unwrap();
-        assert_eq!(config.tournaments[0].bridge_site(), "startgg-staging");
-        assert_eq!(
-            config.tournaments[0].key(),
-            "startgg:tournament/ember-weekly-12/event/ultra-street-fighter-iv"
-        );
-        // Only start.gg says which sets are on a stream.
-        let mut held = startgg.clone();
-        held["tournaments"][0]["hold"] = serde_json::json!({ "streamed": true });
-        std::fs::write(&path, held.to_string()).unwrap();
-        assert!(Config::load(&path).unwrap().tournaments[0].hold.streamed);
-        let mut challonge = text.clone();
-        challonge["tournaments"][0]["hold"] = serde_json::json!({ "streamed": true });
-        std::fs::write(&path, challonge.to_string()).unwrap();
-        let refused = Config::load(&path).unwrap_err();
-        assert!(
-            refused.contains("hold.streamed is for start.gg"),
-            "{refused}"
-        );
-        for (field, value) in [
-            ("tournament", serde_json::json!("ember-weekly-12")),
-            ("tournament", serde_json::json!("tournament/a/event/b/c")),
-            ("tournament", serde_json::json!("tournament/a b/event/c")),
-            (
-                "credential",
-                serde_json::json!({ "kind": "v1_key", "file": "k" }),
-            ),
-            ("api_base", serde_json::json!("https://api.challonge.com")),
-            ("api_base", serde_json::json!("http://api.start.gg")),
-        ] {
-            let mut changed = startgg.clone();
-            changed["tournaments"][0][field] = value;
-            std::fs::write(&path, changed.to_string()).unwrap();
-            assert!(
-                Config::load(&path).is_err(),
-                "{field}: {}",
-                changed["tournaments"][0][field]
-            );
-        }
-
-        // The organizer's own service: its https base URL is required, it
-        // names the accounts' sites itself, and its token is a bearer one.
-        let mut service = text.clone();
-        service["tournaments"][0] = serde_json::json!({
-            "adapter": "http",
-            "tournament": "spring-pools",
-            "credential": { "kind": "bearer", "file": "service.token" },
-            "api_base": "https://brackets.example/ember",
-            "rounds": { "games_to_win": 2 },
-        });
-        std::fs::write(&path, service.to_string()).unwrap();
-        assert_eq!(
-            Config::load(&path).unwrap().tournaments[0].key(),
-            "http:spring-pools"
-        );
-        for (field, value) in [
-            ("api_base", serde_json::Value::Null),
-            (
-                "api_base",
-                serde_json::json!("http://brackets.example/ember"),
-            ),
-            (
-                "api_base",
-                serde_json::json!("https://brackets.example/ember?x=1"),
-            ),
-            ("bridge_site", serde_json::json!("challonge")),
-            (
-                "credential",
-                serde_json::json!({ "kind": "v1_key", "file": "k" }),
-            ),
-            ("tournament", serde_json::json!("spring pools")),
-        ] {
-            let mut changed = service.clone();
-            changed["tournaments"][0][field] = value;
-            std::fs::write(&path, changed.to_string()).unwrap();
-            assert!(
-                Config::load(&path).is_err(),
-                "{field}: {}",
-                changed["tournaments"][0][field]
-            );
-        }
-        let mut held_service = service.clone();
-        held_service["tournaments"][0]["hold"] = serde_json::json!({ "streamed": true });
-        std::fs::write(&path, held_service.to_string()).unwrap();
-        let refused = Config::load(&path).unwrap_err();
-        assert!(
-            refused.contains("hold.streamed is for start.gg"),
-            "{refused}"
-        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

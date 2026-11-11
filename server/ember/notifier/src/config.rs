@@ -50,6 +50,11 @@ pub struct Brackets {
     pub feed: bool,
     #[serde(default = "default_feed_secs")]
     pub feed_secs: u64,
+    /// Where a tournament's own Discord channel (its organizers' webhook,
+    /// which the site lists to the bot) is posted: the webhook's ID and token
+    /// under this base. Discord's own, but for tests.
+    #[serde(default = "default_webhooks")]
+    pub webhooks: String,
     /// Discord roles for awards in one server; none unless set.
     #[serde(default)]
     pub roles: Option<Roles>,
@@ -79,6 +84,10 @@ fn default_role_kinds() -> Vec<String> {
 
 fn default_role_prefix() -> String {
     "Ember".into()
+}
+
+fn default_webhooks() -> String {
+    "https://discord.com/api/webhooks".into()
 }
 
 fn default_feed_secs() -> u64 {

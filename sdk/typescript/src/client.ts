@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { parseStrict, type Json } from "./canonical.ts";
 import { parseEvent, type BridgeEvent, type ConnectionRoom } from "./events.ts";
-import { isBridgeOrigin } from "./signed.ts";
+import { isBridgeOrigin, type Challenge, type Proof } from "./signed.ts";
 
 export interface BridgeClientOptions {
   /** The bridge origin, e.g. `https://bridge.example`. */
@@ -211,6 +211,12 @@ export interface FoundPlayer {
   participant_id: string;
 }
 
+/** Who signed a tournament service's challenge; `player` once they connected Discord. */
+export interface ProverAnswer {
+  ember_id: string;
+  player?: FoundPlayer;
+}
+
 /**
  * A sign-in site the bridge offers (`sign_in_sites` in its capabilities):
  * players connect their accounts there, and connections whose
@@ -384,6 +390,16 @@ export class BridgeClient {
    * (`discord_lookup`). Each one found is linked on your connection, in the
    * order asked; an ID with no connected account is left out.
    */
+  /**
+   * Who signed `challenge`: for the bridge's tournament service alone (its
+   * `tournaments` connection), with a `tournament.act` challenge it issued
+   * at its own origin. The bridge checks the signature; the path, command
+   * and single use are the service's to check (`checkChallenge`).
+   */
+  prover(challenge: Challenge, proof: Proof): Promise<ProverAnswer> {
+    return this.#json<ProverAnswer>("POST", "/v1/players/prover", { challenge, proof } as unknown as Body);
+  }
+
   async lookupPlayers(discordIds: string[]): Promise<FoundPlayer[]> {
     const result = await this.#json<{ players: FoundPlayer[] }>("POST", "/v1/players/lookup", { discord: discordIds });
     return result.players;
@@ -491,7 +507,8 @@ export class BridgeClient {
   /** Organizer credentials only. */
   recordGame(
     matchId: string,
-    result: { winnerSlot: 0 | 1 } | { draw: true },
+    /** `attemptId`: a played game waiting for a result, decided in place. */
+    result: ({ winnerSlot: 0 | 1 } | { draw: true }) & { attemptId?: string },
     expectedRevision: string,
     reason: string,
     idempotencyKey: string = randomUUID(),
@@ -502,6 +519,7 @@ export class BridgeClient {
       {
         kind: "game_result",
         ...("draw" in result ? { draw: true } : { winner_slot: result.winnerSlot }),
+        ...(result.attemptId ? { attempt_id: result.attemptId } : {}),
         reason,
         expected_revision: expectedRevision,
       },

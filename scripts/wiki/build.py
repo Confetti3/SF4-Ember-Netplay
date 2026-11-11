@@ -48,7 +48,7 @@ PAGES = [
     ("docs/guides/WINDOWS_DEFENDER.md", "Windows Defender", "Troubleshooting"),
 ]
 # Only the README's install part is for players; the rest is for the repository page.
-README_PART = ("## Get started", "## Status and documentation")
+README_PART = ("## Which download do I need?", "## What's inside")
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 ITEM = re.compile(r"(\d+\.|[-*+]) ")
 LINK = re.compile(r'(\]\(|(?:src|href)=")([^)"\s]+)')

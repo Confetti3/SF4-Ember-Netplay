@@ -472,7 +472,7 @@ void BeforeUpdate(Native* system, bool networkOwned) {
     // The dummy fighter's slots from its last battle (CloseBattle keeps them).
     if (!session.GetView().available) {
         const int fighter = BattleFighter(system, 1);
-        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom());
+        session.Enter(banks.Attach(fighter)); session.Seed(dummyRandom()); replies.Seed(dummyRandom());
         comboView.dummy = fighter; comboView.p1 = BattleFighter(system, 0);
         if (fighter < 0) spdlog::info("Training: the dummy's fighter is not known; its slots last this battle only");
     }
@@ -656,6 +656,9 @@ std::array<FighterSample, 2> ReadFighters(Native* system, bool files) {
     }
     return fighters;
 }
+// Chara::Actor +0x6ecc, Juri's Fuhajin stock: a bit to each kick (L, M, H), set by the scripts that charge it
+// (409 to 411) and cleared by the ones that throw it (412 to 414); found in the game's code, read only here.
+constexpr std::size_t FuhajinStockOffset = 0x6ecc;
 // The Data panel's readings after an update, on top of the meter's own
 // readings of the fighters (ReadFighters). Only reads.
 DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
@@ -706,6 +709,9 @@ DataView ReadData(Native* system, const std::array<FighterSample, 2>& samples) {
         auto* impl = commands ? (commands->*Command::Unit::publicMethods.GetCommandImplForEntry)(side) : nullptr;
         int count = 0;
         const auto* states = impl ? Command::CommandImpl::GetChargeStates(impl, count) : nullptr;
+        // Juri's three charges only count a held button; her fireball stock is three bits of the fighter.
+        if (HasFuhajinStock(fighter.chargeNames.get())) fighter.stock = *reinterpret_cast<const unsigned*>(reinterpret_cast<const char*>(actor) + FuhajinStockOffset) & 7u;
+        else
         for (int i = 0; states && i < count && fighter.chargeCount < MaxCharges; ++i)
             if (const unsigned short* record = states[i].record)
                 fighter.charges[fighter.chargeCount++] = {static_cast<std::size_t>(i), record[0], record[3], states[i].held};

@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Dummy reply"
 
 msgid "training.reply.detail"
-msgstr "What the dummy does by itself once it is free again, to punish a dropped combo or an unsafe ender: it plays Reply moves, or the reply slot while that line is empty. It waits while a playback or recording runs."
+msgstr "What the dummy does by itself once it is free again, to punish a dropped combo or an unsafe ender: it plays one of the reply slots that are on, or the recordings that are on while no slot is."
 
 msgid "training.reply.hit"
 msgstr "After a dropped combo"
@@ -1673,9 +1673,6 @@ msgstr "On Wake-Up"
 
 msgid "training.reply.any"
 msgstr "Whenever it recovers"
-
-msgid "training.reply.recordings"
-msgstr "Recordings"
 
 msgid "training.reply.no_recordings_on"
 msgstr "No recordings are on that can be used as a reply"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Reply moves"
 
 msgid "training.reply.moves.detail"
-msgstr "The reply typed as moves in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb, as in qcfP or dp+HP. The motion goes in while the dummy is still held, so the button lands on its first free frame. [1] holds a direction until the next move, [1]20f holds it 20 frames and 10f waits: [1] > 3HP blocks low until the dummy is free, then presses 3HP. Empty replies with a recording that is on."
-
-msgid "training.reply.move"
-msgstr "Reply preset"
-
-msgid "training.reply.move.detail"
-msgstr "Left and Right pick a common reply in numpad notation, read for the side the dummy faces. Recordings replies with a recording that is on; Custom keeps the moves you typed. Select opens Reply moves to type one."
-
-msgid "training.reply.custom"
-msgstr "Custom"
+msgstr "This slot's move typed in numpad notation, such as 623HP or 44, read for the side the dummy faces. Motion words work too: qcf, qcb, dp, rdp, hcf and hcb. [HP] holds a button, ]HP[ lets it go on the first free frame, [1]20f holds a direction 20 frames and 10f waits. Empty removes the move."
 
 msgid "training.reply.timing"
 msgstr "Reply timing"
 
 msgid "training.reply.timing.detail"
 msgstr "Frames after the dummy's first free frame that the reply's button lands. How long a stun lasts is learned the first time it is seen; until then the reply starts as the stun ends."
+
+msgid "training.reply.order"
+msgstr "Reply order"
+
+msgid "training.reply.order.detail"
+msgstr "How the dummy picks among the slots that are on: at random, each slot by its weight, or in order, one after the other."
+
+msgid "training.reply.slot"
+msgstr "Reply slot {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "One move the dummy may reply with. Left and Right turn it on or off; Select opens its moves."
+
+msgid "training.reply.slot_on"
+msgstr "Use this slot"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Whether the dummy may pick this slot for its reply."
+
+msgid "training.reply.weight"
+msgstr "Weight"
+
+msgid "training.reply.weight.detail"
+msgstr "This slot's share of the random draw next to the others, 1 to 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Empty this slot"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Removes this slot's move."
+
+msgid "training.reply.every_fighter"
+msgstr "Every fighter"
 
 msgid "training.key.reset"
 msgstr "Reset key"
@@ -3044,6 +3065,8 @@ msgid "room.tables"
 msgstr "Tables"
 msgid "room.tables_detail"
 msgstr "How many tables the room has, from 1 to {0}. The host can change it later in Room settings."
+msgid "room.tables_arcade_detail"
+msgstr "How many pairs play at once, from 1 to {0}. Everyone else waits in line. With 1, the winner stays and the loser goes to the back of the line."
 msgid "room.tables.detail"
 msgstr "Add tables up to {0}. A table can be taken away only while nobody plays, waits or watches at it."
 msgid "room.apply_tables"
@@ -3609,55 +3632,7 @@ msgstr "Use a different Discord account"
 msgid "connect.change_detail"
 msgstr "Opens Discord in your browser to connect another account instead. Your tournament site must then use that account."
 
-msgid "site.title"
-msgstr "Connect {0}"
 
-msgid "site.row_detail"
-msgstr "Connect your {0} account so tournaments on {0} can find your Ember ID."
-
-msgid "site.go_detail"
-msgstr "Connecting {0} lets tournaments on {0} find your Ember ID. Ember opens {0} in your browser: approve there with the account your tournament uses."
-
-msgid "site.setting_up_detail"
-msgstr "Ember is opening {0} in your browser."
-
-msgid "site.waiting"
-msgstr "Approve in your browser. This screen updates when {0} is connected."
-
-msgid "site.waiting_label"
-msgstr "Waiting for {0}"
-
-msgid "site.waiting_detail"
-msgstr "Approve in your browser with the {0} account your tournament uses. This screen updates by itself."
-
-msgid "site.connected"
-msgstr "{0} connected"
-
-msgid "site.connected_detail"
-msgstr "Tournaments on {0} can now find you by this account."
-
-msgid "site.change"
-msgstr "Use a different {0} account"
-
-msgid "site.change_detail"
-msgstr "Opens {0} in your browser to connect another account instead. Your tournament must then use that account."
-
-msgid "site.remove_detail"
-msgstr "Disconnects this {0} account from your Ember ID on this service. Tournaments on {0} can no longer find you by it."
-
-msgid "site.organizer"
-msgstr "Organizer access"
-
-
-msgid "site.organizer_held"
-msgstr "Allowed"
-
-
-msgid "site.organizer_opened"
-msgstr "Approve organizer access in your browser. This screen updates by itself."
-
-msgid "site.organizer_now"
-msgstr "Organizer access is allowed. The tournament desk is under Ember ID."
 
 
 
@@ -3665,25 +3640,13 @@ msgid "screen.tournament_desk"
 msgstr "Tournament organizer"
 
 msgid "desk.entry_detail"
-msgstr "Organizer access, the web desk and your events."
-
-msgid "desk.event_detail"
-msgstr "On {0}. Select to see its sets."
-
-msgid "desk.status.draft"
-msgstr "Draft"
-
-msgid "desk.status.ready"
-msgstr "Ready"
-
-msgid "desk.status.running"
-msgstr "Running"
+msgstr "Your tournaments on Ember's bracket site."
 
 msgid "desk.none"
 msgstr "No events yet"
 
 msgid "desk.none_detail"
-msgstr "Create and start your events on the tournament desk website; they show here once they run."
+msgstr "Select New tournament to make one; it shows here from then on."
 
 msgid "desk.view"
 msgstr "View"
@@ -3702,12 +3665,6 @@ msgstr "Show"
 
 msgid "desk.filter.all"
 msgstr "All"
-
-msgid "desk.filter.winners"
-msgstr "Winners"
-
-msgid "desk.filter.losers"
-msgstr "Losers"
 
 msgid "desk.filter.action"
 msgstr "Needs action"
@@ -3730,35 +3687,17 @@ msgstr "Waiting"
 msgid "desk.state.not_ready"
 msgstr "Not ready"
 
-msgid "desk.state.called"
-msgstr "Called"
-
 msgid "desk.state.playing"
 msgstr "Playing"
 
 msgid "desk.state.needs_review"
 msgstr "Needs review"
 
-msgid "desk.state.needs_organizer"
-msgstr "Needs you"
-
-msgid "desk.state.reporting"
-msgstr "Reporting"
-
 msgid "desk.state.done"
 msgstr "Done"
 
 msgid "desk.state.held"
 msgstr "Held"
-
-msgid "desk.side.winners"
-msgstr "Winners"
-
-msgid "desk.side.losers"
-msgstr "Losers"
-
-msgid "desk.side.grand_final"
-msgstr "Grand final"
 
 msgid "desk.tbd"
 msgstr "To be decided"
@@ -3777,21 +3716,6 @@ msgstr "This set is no longer in the event"
 
 msgid "desk.state"
 msgstr "State"
-
-msgid "desk.called"
-msgstr "Called."
-
-msgid "desk.called_posted"
-msgstr "Called, and posted on Discord."
-
-msgid "desk.called_waiting"
-msgstr "Called; the Discord post is on its way."
-
-msgid "desk.called_failed"
-msgstr "Called, but Discord did not take the post."
-
-msgid "desk.not_called"
-msgstr "Not called yet."
 
 msgid "desk.call"
 msgstr "Call again"
@@ -3838,44 +3762,11 @@ msgstr "Records a game played outside Ember, such as a replay agreed by both pla
 msgid "desk.done"
 msgstr "Done."
 
-msgid "desk.web"
-msgstr "Signed in on the web"
-
-msgid "desk.web_none"
-msgstr "No browser is signed in to the tournament desk."
-
-msgid "desk.web_detail"
-msgstr "Newest: {0} with {1}. A web session ends after 12 hours, or 2 hours unused."
-
-msgid "desk.web_end"
-msgstr "Sign out everywhere"
-
-msgid "desk.web_end_detail"
-msgstr "Ends every web desk session of this Ember ID. Sign in on the web again to use it."
-
-msgid "desk.web_new"
-msgstr "Someone signed in to your tournament desk on the web. Not you? Choose Sign out everywhere."
-
-msgid "desk.web_ended"
-msgstr "Signed out of the web desk everywhere."
-
 msgid "desk.open_browser"
 msgstr "Open in browser"
 
 msgid "desk.open_browser_detail"
-msgstr "Opens the web desk in this PC's browser, signed in as this Ember ID, with every change allowed."
-
-msgid "desk.open_phone"
-msgstr "Sign in on another device"
-
-msgid "desk.open_phone_detail"
-msgstr "Open the desk on any device, then type the code it shows here."
-
-msgid "desk.code_at"
-msgstr "Type it at"
-
-msgid "desk.code_at_detail"
-msgstr "Open this on the other device. It shows a code to type here."
+msgstr "Opens the bracket site in this PC's browser. Sign in there with Discord."
 
 
 
@@ -3883,46 +3774,7 @@ msgstr "Open this on the other device. It shows a code to type here."
 
 
 msgid "desk.opened"
-msgstr "The desk opened in your browser."
-
-msgid "site.cancel_detail"
-msgstr "Stops waiting. Choose Connect {0} again when you are ready."
-
-msgid "site.off"
-msgstr "{0} sign-in is off"
-
-msgid "site.off_detail"
-msgstr "This tournament service does not offer {0} sign-in right now. Try again later."
-
-msgid "site.retry_detail"
-msgstr "Reads your {0} account again."
-
-msgid "site.opened"
-msgstr "Finish signing in to {0} in your browser."
-
-msgid "site.done"
-msgstr "{0} connected as {1}."
-
-msgid "site.removed"
-msgstr "{0} account disconnected."
-
-msgid "site.cancelled"
-msgstr "Stopped waiting for {0}."
-
-msgid "site.busy"
-msgstr "{0} sign-in is busy right now. Try again later."
-
-msgid "site.gone"
-msgstr "This tournament service no longer offers {0} sign-in."
-
-msgid "site.no_service"
-msgstr "Ember's tournament service is not set up"
-
-msgid "site.no_service_detail"
-msgstr "{0} connects through Ember's tournament service. Look it up under Linked accounts first, then come back here."
-
-msgid "site.screen"
-msgstr "Site account"
+msgstr "The bracket site opened in your browser."
 
 msgid "identity.failure.browser"
 msgstr "Ember could not open your browser."
@@ -5190,6 +5042,9 @@ msgstr "Sit here: you play whoever has waited longest, or wait for the next play
 msgid "room.arcade_waiting"
 msgstr "Waiting"
 
+msgid "room.arcade_in_line"
+msgstr "Place in line: {0}"
+
 msgid "room.cabinet_free"
 msgstr "INSERT COIN"
 
@@ -5384,6 +5239,9 @@ msgstr "Player 2"
 
 msgid "replays.matches_shown"
 msgstr "Matches listed"
+
+msgid "replays.sets_shown"
+msgstr "Sets listed"
 
 msgid "replays.filter_reset"
 msgstr "Reset"
@@ -7127,36 +6985,6 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Do this off stream"
-
-msgid "desk.offstream_detail"
-msgstr "Anyone who sees your screen can't use the code, but keep sign-ins off stream anyway."
-
-msgid "desk.device_code"
-msgstr "Code from the other device"
-
-msgid "desk.device_approved"
-msgstr "The other device is signed in to the desk."
-
-msgid "desk.device_asked"
-msgstr "Asked by"
-
-msgid "desk.device_unknown"
-msgstr "An unknown browser"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} min ago. Approve only if this is your own device."
-
-msgid "desk.device_pick"
-msgstr "It shows {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Pick the number the other device shows. A wrong pick turns the code down."
-
-msgid "desk.device_refused"
-msgstr "That code is wrong or expired. Get a new one on the other device."
-
 msgid "desk.mode"
 msgstr "Tournament Mode"
 
@@ -7167,7 +6995,7 @@ msgid "desk.mode_invite"
 msgstr "Invite needed"
 
 msgid "desk.mode_on_detail"
-msgstr "Run your own events from Ember: link your bracket site, allow organizer access below, then open the desk on this PC or another device."
+msgstr "Run your own tournaments from Ember, on Ember's bracket site."
 
 msgid "desk.mode_invite_detail"
 msgstr "Tournament Mode is by invitation while it is new. Enter the invite you were given; each invite works once."
@@ -7180,9 +7008,6 @@ msgstr "Tournament Mode is on for your Ember ID."
 
 msgid "desk.invite_invalid"
 msgstr "That invite is not valid. Check it, or ask for a new one."
-
-msgid "desk.site.on"
-msgstr "On {0}"
 
 msgid "desk.site.detail"
 msgstr "Where the tournament is on its bracket site. The moves below are the ones the site allows now."
@@ -7233,28 +7058,7 @@ msgid "desk.move.cancel"
 msgstr "Cancel the tournament"
 
 msgid "desk.move.detail"
-msgstr "Asks {0} to make this change now. Players see it at once."
-
-msgid "desk.org_site"
-msgstr "{0} organizer access"
-
-msgid "desk.org_unlinked"
-msgstr "Not linked"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Link your {0} account under Linked accounts first."
-
-msgid "desk.org_allow"
-msgstr "Allow"
-
-msgid "desk.org_allow_detail"
-msgstr "Lets Ember run your {0} tournaments. {0} opens in your browser to approve it."
-
-msgid "desk.org_remove_detail"
-msgstr "Removes organizer access. Your linked account stays."
-
-msgid "site.organizer_where"
-msgstr "Organizer access is under Ember ID > Tournament organizer."
+msgstr "Makes this change on the bracket site now. Players see it at once."
 
 msgid "screen.rankings"
 msgstr "Rankings"
@@ -8258,3 +8062,87 @@ msgstr "Every hit landed."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Not every hit landed."
+
+msgid "desk.draft.new"
+msgstr "New tournament"
+
+msgid "desk.draft.new_detail"
+msgstr "Title, date, sets and check-in. Saved as a draft as you go."
+
+msgid "desk.draft.title"
+msgstr "Title"
+
+msgid "desk.draft.title_first"
+msgstr "Give it a title first"
+
+msgid "desk.draft.saved"
+msgstr "The draft is made with its title; the rest is set next and saved as you change it."
+
+msgid "desk.draft.date"
+msgstr "Date"
+
+msgid "desk.draft.date_detail"
+msgstr "Left / Right: a day. Your time zone; each reader sees it in theirs."
+
+msgid "desk.draft.time"
+msgstr "Start"
+
+msgid "desk.draft.time_detail"
+msgstr "Left / Right: 15 minutes."
+
+msgid "desk.draft.first_to"
+msgstr "Every set first to"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Left / Right: the games that win a set."
+
+msgid "desk.draft.discord"
+msgstr "Discord channel"
+
+msgid "desk.draft.discord_set"
+msgstr "Set"
+
+msgid "desk.draft.discord_unset"
+msgstr "None"
+
+msgid "desk.draft.discord_detail"
+msgstr "Calls and scores go to this channel. It is set on the bracket site's page."
+
+msgid "desk.draft.open_event"
+msgstr "Open the event"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Sign-ups, the site's moves, starting the bracket and its sets."
+
+msgid "desk.event.state"
+msgstr "State"
+
+msgid "desk.event.starts"
+msgstr "Starts {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Signed up"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Players who signed up on the bracket site's page."
+
+msgid "desk.start"
+msgstr "Start the bracket"
+
+msgid "desk.start_detail"
+msgstr "Made from who signed up; Ember calls the first sets."
+
+msgid "desk.event.edit"
+msgstr "Edit details and rules"
+
+msgid "desk.event.edit_detail"
+msgstr "Title, start, sets and check-in."
+
+msgid "desk.stop.draft"
+msgstr "Delete this draft"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"

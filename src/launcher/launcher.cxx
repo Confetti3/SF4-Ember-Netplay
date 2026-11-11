@@ -578,7 +578,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     ConfigureLauncherLogging();
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     sf4e::Payload payload{};
-    bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false;
+    bool offline = false, updates = false, recovery = false, updateError = false, discordLaunch = false, hostPublicRoom = false;
     DWORD waitPid = 0;
     std::string localeOverride, joinUri;
     std::vector<std::string> offerWords;
@@ -587,6 +587,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     app.add_flag("--discord-launch", discordLaunch, "Start Ember for an accepted Discord invitation.");
     app.add_flag("--console", payload.args.bShowConsole, "Show diagnostic logging.");
     app.add_flag("--offline", offline, "Start at the native game menu without networking.");
+    app.add_flag("--host-public-room", hostPublicRoom, "Open the last public room created again, and again whenever it closes, watching its games (a stream PC).");
     app.add_flag("--updates", updates, "Open update and recovery controls.");
     app.add_flag("--recovery", recovery, "Open launch recovery controls.");
     app.add_flag("--update-error", updateError, "Show updater recovery after an installation failure.");
@@ -701,6 +702,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     payload.netplay.roundTimeIntegral = settings.roundTimeIntegral;
     payload.netplay.useRelay = 0;
     SetEnvironmentVariableW(L"SF4E_START_OFFLINE", offline ? L"1" : nullptr);
+    SetEnvironmentVariableW(L"SF4E_HOST_PUBLIC_ROOM", hostPublicRoom ? L"1" : nullptr);
     // The game reads the room link once at start and clears it (NetplayRuntime).
     SetEnvironmentVariableW(L"SF4E_JOIN_LINK", joinCode.empty() ? nullptr : sf4e::platform::Utf8ToWide(joinCode.c_str()).c_str());
     // A match link likewise, as "<bridge id> <match id>".

@@ -3,7 +3,7 @@ param([switch]$SkipTests, [switch]$SelfTest, [switch]$CompilerCache, [switch]$Sy
       [string]$EmberService = '')
 $ErrorActionPreference = 'Stop'
 # -EmberService <origin> points Linked accounts and public-room tickets of THIS build at another bridge (a staging or
-# test bridge, as docs/guides/TOURNAMENT_TEST.md needs). Without it every build clears the origin. The receipt records
+# test bridge, as docs/design/TOURNAMENT_SELFTEST.md needs). Without it every build clears the origin. The receipt records
 # the value, so Assert-BuildReceipt still refuses to package such a build.
 if ($EmberService -and $EmberService -notmatch '^https?://[^\s"]+$') { throw "-EmberService must be an http(s) origin, not '$EmberService'." }
 $repo = Split-Path $PSScriptRoot -Parent

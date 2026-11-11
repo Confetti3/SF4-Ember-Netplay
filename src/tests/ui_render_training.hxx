@@ -90,9 +90,9 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         // A row with more than On and Off offers every value, whichever one it shows (Counter hit: On, the reply and the inputs shown: Off).
         const auto choicesOf=[&](const char* id){for(const auto& row:trainingRows)if(row.id==id)return row.choices.size();return std::size_t(0);};
         if(std::string(screen)=="dummy")Require(choicesOf("dummy-counter")==3,"Counter hit offered fewer values than it has");
-        if(std::string(screen)=="reply")Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");
+        if(std::string(screen)=="reply"){Require(choicesOf("reply")==5,"The reply's timing offered fewer values than it has");Require(choicesOf("reply-order")==2,"The reply's order offered fewer values than it has");}
         if(std::string(screen)=="hud")Require(choicesOf("hud-inputs")==static_cast<std::size_t>(training::InputDisplays),"Inputs shown offered fewer values than it has");
-        if(std::string(screen)=="reply")Require(trainingRows.size()==6,"Reply page lost one of its own rows");
+        if(std::string(screen)=="reply")Require(trainingRows.size()==13,"Reply page lost one of its own rows");
         if(std::string(screen)=="tools")Require(trainingRows.size()==5,"Position page lost one of its own rows");
         if(std::string(screen)=="frame-data")Require(trainingRows.size()==7&&trainingRows[6].id=="meter-settings","Frame data page lost one of its own rows or the Meter settings link");
         if(std::string(screen)=="hud")Require(trainingRows.size()==9&&trainingRows[0].id=="hud-size"&&trainingRows[7].id=="hitboxes"&&trainingRows[8].id=="data","HUD page lost its size, one of its parts, Hitboxes or the Data panel");
@@ -211,24 +211,13 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
         }
         SetMenuCardProbe({});SetMenuEntriesProbe({});
     }
-    // The reply's pick list: Right from the reply slot picks the first preset,
-    // which is sent to the dummy as typed notation is; Left goes back.
+    // The reply's slots and its move list: Select on the first slot opens the list.
     {
-        std::vector<MenuEntry> replyRows;
-        SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){replyRows=rows;});
         TrainingNavigation().Home();TrainingNavigation().Push("reply");draw();
         for(int i=0;i<20;++i){draw(nullptr,MenuInput::Up,1);draw(nullptr,0,1);}
-        for(int i=0;i<20&&TrainingNavigation().Focus()!="reply-move";++i){draw(nullptr,MenuInput::Down,1);draw(nullptr,0,1);}
-        Require(TrainingNavigation().Focus()=="reply-move","Reply pick list unreachable");
-        const auto pickValue=[&]{for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
-        Require(pickValue()==loc::T("training.reply.recordings"),"Reply pick list did not start on the recordings");
-        acceptTraining=true;trainingCommand={};draw(nullptr,MenuInput::Right,1);draw(nullptr,0,1);
-        Require(pickValue()=="623P"&&trainingCommand.action==training::Action::DummyPlan,"Reply preset was not sent as a plan");
-        draw("training-reply-presets");
-        draw(nullptr,MenuInput::Left,1);draw(nullptr,0,1);
-        Require(pickValue()==loc::T("training.reply.recordings"),"Left did not return the pick list to the recordings");
-        acceptTraining=false;
-        SetMenuEntriesProbe({});
+        draw("training-reply-slots");
+        TrainingNavigation().Push("reply-slot");draw();
+        draw("training-reply-pick");
     }
     TrainingNavigation().Home();TrainingNavigation().Push("recording");draw();
     // Returning restores the prior selection, which may be below Record.
@@ -513,7 +502,12 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 f.x=side?1.25f:-0.625f;f.y=side?0.75f:0;f.status=side?16:0;
                 f.stance=side?training::Stance::Airborne:training::Stance::Crouching;f.life=side?820:1000;f.lifeMax=1000;f.recoverable=side?900:1000;f.stun=side?240:0;f.stunMax=1000;f.super=side?1000:750;f.superMax=1000;f.revenge=side?400:150;f.revengeMax=400;
                 f.juggled=side?2:-1;f.juggle={1,1,side?7:0};f.rangeRule=side?training::RangeRule::None:training::RangeRule::Within;f.range=1.3f;
-                if(!side){f.charges[0]={0,training::ChargeBack,50,45};f.charges[1]={1,training::ChargeDown,55,55};f.chargeCount=2;}
+                if(!side){ // Juri's: the fireball stock of her light and medium kick
+                    f.chargeNames=std::make_shared<const std::vector<std::string>>(std::vector<std::string>{"CHARGE_L","CHARGE_M","CHARGE_H"});f.stock=3;}
+                else{ // El Fuerte's: the L button past its second level, M past its first, H not yet, and an EX pair
+                    const std::vector<std::string> names{"QUESA_L_tameL","QUESA_L_tameM","QUESA_L_tameH","QUESA_M_tameL","QUESA_M_tameM","QUESA_M_tameH","QUESA_H_tameL","QUESA_H_tameM","QUESA_H_tameH","QUESA_EX_tameLM"};
+                    f.chargeNames=std::make_shared<const std::vector<std::string>>(names);const int held[3]={130,70,45},need[3]={60,120,180};
+                    for(std::size_t i=0;i<names.size();++i)f.charges[i]={i,training::ChargeBack,i<9?need[i/3]:210,i<9?(std::min)(held[i%3],need[i/3]):60};f.chargeCount=names.size();}
             }
             const auto savedData=training.data;training.data=data;training.meter=runs;
             // Every HUD size here; then Large at 1280x800, where there is no room beside the
@@ -543,7 +537,11 @@ void ShootTraining(sf4e::training::View& training,const std::array<sf4e::trainin
                 check(shown,hudSize!=1?nullptr:fighters==0?"training-data-both":fighters==1?"training-data-p1":"training-data-p2");
             }
             {
-                for(auto& f:training.data.fighters){f.chargeCount=training::MaxCharges;for(std::size_t i=0;i<training::MaxCharges;++i)f.charges[i]={i%2,training::ChargeBack,60,static_cast<int>(i*8)};}
+                // El Fuerte's twelve (the bug report's): three buttons held 45, 37 and 50 frames, each at three levels, and the EX pairs.
+                {const std::vector<std::string> names{"QUESA_L_tameL","QUESA_L_tameM","QUESA_L_tameH","QUESA_M_tameL","QUESA_M_tameM","QUESA_M_tameH","QUESA_H_tameL","QUESA_H_tameM","QUESA_H_tameH","QUESA_EX_tameLM","QUESA_EX_tameLH","QUESA_EX_tameMH"};
+                const auto shared=std::make_shared<const std::vector<std::string>>(names);const int held[3]={130,37,185},need[3]={60,120,180};
+                for(auto& f:training.data.fighters){f.chargeNames=shared;f.chargeCount=names.size();
+                    for(std::size_t i=0;i<names.size();++i)f.charges[i]={i,training::ChargeBack,i<9?need[i/3]:210,i<9?(std::min)(held[i%3],need[i/3]):(i==9?41:i==10?47:37)};}}
                 io.DisplaySize=ImVec2(1280,800);
                 training::MeterOptions shown;shown.data=true;shown.size=2;
                 check(shown,"training-data-large-1280x800");

@@ -129,8 +129,17 @@ inline bool ProbePairCommitted(const Table& seen, const Table& committed) {
 inline bool PracticeKindValid(const Snapshot& room) {
 	return !room.practice || (!room.serverOwned && !room.tournament.Active());
 }
-// An Arcade room, public or private, is never a tournament's and seats from no
-// queue.
+// How many tables a room plays at unless it was created with another count:
+// four for Classic, all eight for Arcade and King of the hill, as before
+// either could choose.
+inline std::uint8_t DefaultTableCount(RoomType type) {
+	return static_cast<std::uint8_t>(type == ClassicRoom ? ClassicTableCount : TableCount);
+}
+// The tables a room's members can sit at, watch or set rules for; the others
+// stay empty. How many is the room's (Snapshot::tableCount).
+inline std::size_t TablesInPlay(const Snapshot& room) {
+	return room.tableCount < 1 ? 1 : room.tableCount > TableCount ? TableCount : room.tableCount;
+}
 // An Arcade table where one fighter waits for an opponent, and an empty one.
 inline bool ArcadeAlone(const Table& table) {
 	return table.phase == TablePhase::Idle && (table.p1 == 0) != (table.p2 == 0);
@@ -138,10 +147,11 @@ inline bool ArcadeAlone(const Table& table) {
 inline bool ArcadeEmpty(const Table& table) { return table.phase == TablePhase::Idle && !table.p1 && !table.p2; }
 
 // Whether New opponent parts the Arcade pair at `table` at once: someone
-// waits alone at another table, or another table is free to wait at.
+// waits in line or alone at another table, or another table is free to wait at.
 // Otherwise every table is a pair and the request waits (Table::wantsNew).
 inline bool ArcadeSomeoneFree(const Snapshot& room, std::size_t table) {
-	for (std::size_t other = 0; other < room.tables.size(); ++other)
+	if (!room.line.empty()) return true;
+	for (std::size_t other = 0; other < TablesInPlay(room); ++other)
 		if (other != table && (ArcadeAlone(room.tables[other]) || ArcadeEmpty(room.tables[other]))) return true;
 	return false;
 }
@@ -151,8 +161,8 @@ inline bool ArcadeSomeoneFree(const Snapshot& room, std::size_t table) {
 inline bool ArcadeAsked(const Table& table, int seat) { return table.deciding && table.wantsNew[seat]; }
 inline bool ArcadeAwaitsNew(const Table& table) { return ArcadeAsked(table, 0) || ArcadeAsked(table, 1); }
 
-// A fighter waiting for a new opponent at a table other than `except`, and
-// that table; member 0 when nobody waits. Only one table ever waits: the next
+// A fighter waiting for a new opponent at a table other than `except`
+// (TableCount: at any), and that table; member 0 when nobody waits. Only one table ever waits: the next
 // request, set end or freed seat answers it.
 struct ArcadeWaitingAsker { std::size_t table = 0; MemberId member = 0; };
 inline ArcadeWaitingAsker ArcadeAsker(const Snapshot& room, std::size_t except) {
@@ -175,6 +185,8 @@ inline ArcadeNewOpponent ArcadeNewOpponentFor(const Snapshot& room, std::size_t 
 	return ArcadeAsker(room, table).member ? ArcadeNewOpponent::Swap : ArcadeNewOpponent::Wait;
 }
 
+// An Arcade room, public or private, is never a tournament's and seats from no
+// table's queue.
 inline bool ArcadeKindValid(const Snapshot& room) {
 	return !room.arcade || (room.arcade <= KingRoom && !room.tournament.Active() &&
 		std::all_of(room.tables.begin(), room.tables.end(), [](const Table& table) { return table.queue.empty(); }));
@@ -222,21 +234,15 @@ inline std::size_t WatcherCount(const Snapshot& snapshot) {
 }
 
 // Where a member holds a place in the room: a seat at one table, a place in one
-// table's queue, or neither. Watching is not a place, because Queue and Watch
-// both end it.
+// table's queue or in an Arcade room's line (at no table), or neither. Watching
+// is not a place, because Queue and Watch both end it.
 struct Place {
-	enum class Kind : std::uint8_t { None, Seat, Queue } kind = Kind::None;
+	enum class Kind : std::uint8_t { None, Seat, Queue, Line } kind = Kind::None;
 	int table = -1;
 	int seat = -1;
-	// In a queue: the place in it, from 1 for the member who plays next.
+	// In a queue or the line: the place in it, from 1 for the member who plays next.
 	int position = 0;
 };
-// The tables a room's members can sit at, watch or set rules for; the others
-// stay empty. A Classic room's host chooses how many (Snapshot::tableCount).
-inline std::size_t TablesInPlay(const Snapshot& room) {
-	if (room.arcade) return TableCount;
-	return room.tableCount < 1 ? 1 : room.tableCount > TableCount ? TableCount : room.tableCount;
-}
 // Nobody sits, queues or watches at `table` and no game of it is under way or
 // waiting on its result: a Classic room's host may take it away (SetTableCount).
 inline bool TableEmpty(const Table& table) {
@@ -245,15 +251,19 @@ inline bool TableEmpty(const Table& table) {
 		!table.resultPending && !table.permitGeneration;
 }
 // Whether the room has a table count its host may change (SetTableCount): a
-// private Classic room. An Arcade or King of the hill room plays at every
-// table, and a public or tournament room keeps the tables it opened with. The
-// authority and the Create and Room settings rows all ask this; Create asks
-// of the room it is about to open.
-inline bool TableCountChangeable(RoomType type, bool serverOwned, bool tournament) {
-	return type == ClassicRoom && !serverOwned && !tournament;
-}
+// private room. A public or tournament room keeps the tables it opened with.
 inline bool TableCountChangeable(const Snapshot& room) {
-	return TableCountChangeable(room.arcade, room.serverOwned, room.tournament.Active());
+	return !room.serverOwned && !room.tournament.Active();
+}
+// Whether Create offers the count for the room it is about to open: a private
+// room, and a public Arcade or King of the hill one (sent with its type,
+// netplay::CreatedRules).
+inline bool TableCountChosen(RoomType type, bool isPublic) { return !isPublic || type != ClassicRoom; }
+// `member`'s place in an Arcade room's line, from 1 for the player seated
+// next; 0 when they are not in line.
+inline int ArcadeLinePlace(const Snapshot& room, MemberId member) {
+	const auto at = std::find(room.line.begin(), room.line.end(), member);
+	return member && at != room.line.end() ? static_cast<int>(at - room.line.begin()) + 1 : 0;
 }
 // Whether the host may set the room to `count` tables now: any count up to
 // TableCount in a room whose count can change, as long as each table it takes
@@ -278,6 +288,7 @@ inline Place PlaceOf(const Snapshot& snapshot, MemberId id) {
 		place.kind = Place::Kind::Seat; place.table = member->table; place.seat = member->seat;
 		return place;
 	}
+	if (const int position = ArcadeLinePlace(snapshot, id)) { place.kind = Place::Kind::Line; place.position = position; return place; }
 	for (const auto& table : snapshot.tables) {
 		const auto queued = std::find(table.queue.begin(), table.queue.end(), id);
 		if (queued != table.queue.end()) {

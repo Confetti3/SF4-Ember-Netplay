@@ -14,38 +14,29 @@ enum class IdentityOp : std::uint8_t {
     BridgeList, BridgeInspect, BridgeApprove, BridgeForget,
     LinkList, LinkClaim, LinkCancel, LinkRemove,
     DiscordStatus, DiscordConnect, DiscordRemove, DiscordCancel,
-    SiteStatus, SiteConnect, SiteRemove, SiteCancel,
-    // The tournament desk: a read of the organizer's events or one event's
-    // sets (`target`: the event, or none), and an action at `target`, a desk
-    // path, with `command` (JSON) as its body.
+    // The tournament desk, on the bracket site the service names: a read of
+    // the organizer's tournaments or one tournament's sets (`target`: the
+    // tournament, or none; `command`: a set whose games are read too), and an
+    // action at `target`, a desk path, with `command` (JSON) as its body.
     DeskRead, DeskAct,
-    // The player's web desk sessions: a read, noting the game told the
-    // player about them, and signing them all out.
-    DeskWeb, DeskWebSeen, DeskWebEnd,
-    // Opening the web desk from the game: in the browser, or as a code to
-    // type on another device, read first for what asked and the numbers to
-    // pick from, then approved with the number that device shows.
-    DeskOpen, DeskApprove, DeskCodeInfo,
-    // Redeeming an invite to Tournament Mode (`command`: the code), on a
-    // service that takes organizers by invitation.
+    // Opening the bracket site in the browser.
+    DeskOpen,
+    // Redeeming an invite to organize (`command`: the code).
     DeskRedeem,
-    // An event's state on its site (`site`) and the moves allowed now, for
-    // the site's event `target`.
-    DeskSiteState,
+    // Deleting the organizer's tournament `target`.
+    DeskStop,
 };
 
 // Where a player connects an account to their Ember ID through a browser
-// sign-in on a tournament service: Discord, or one of the sign-in sites the
-// service lists (Challonge, start.gg and later ones, each named by its ID in
-// the request's `site`). Each has four requests: read the account, start a
-// sign-in (the helper opens the site's page), disconnect, and end a sign-in.
-enum class SignInSource : std::uint8_t { Discord, Site };
+// sign-in on a tournament service: Discord. It has four requests: read the
+// account, start a sign-in (the helper opens the site's page), disconnect,
+// and end a sign-in.
+enum class SignInSource : std::uint8_t { Discord };
 enum class SignInStep : std::uint8_t { Status, Connect, Remove, Cancel };
-constexpr std::size_t SignInSourceCount = 2, SignInStepCount = 4;
+constexpr std::size_t SignInSourceCount = 1, SignInStepCount = 4;
 struct SignInOp { SignInSource source; SignInStep step; };
 constexpr IdentityOp SignInOps[SignInSourceCount][SignInStepCount] = {
     {IdentityOp::DiscordStatus, IdentityOp::DiscordConnect, IdentityOp::DiscordRemove, IdentityOp::DiscordCancel},
-    {IdentityOp::SiteStatus, IdentityOp::SiteConnect, IdentityOp::SiteRemove, IdentityOp::SiteCancel},
 };
 constexpr IdentityOp SignInRequest(SignInSource source, SignInStep step) {
     return SignInOps[static_cast<std::size_t>(source)][static_cast<std::size_t>(step)];
@@ -77,7 +68,7 @@ constexpr IdentityEffect EffectOf(IdentityOp op) {
     }
     switch (op) {
     case IdentityOp::Status: case IdentityOp::BridgeList: case IdentityOp::BridgeInspect: case IdentityOp::LinkList:
-    case IdentityOp::DeskRead: case IdentityOp::DeskWeb: case IdentityOp::DeskCodeInfo: case IdentityOp::DeskSiteState:
+    case IdentityOp::DeskRead:
         return IdentityEffect::Read;
     case IdentityOp::DeskOpen: return IdentityEffect::Open;
     case IdentityOp::PreviewImport: return IdentityEffect::Preview;
@@ -97,28 +88,22 @@ struct IdentityRequest {
     std::string origin, bridge, connection, code;
     // The claim or link to cancel or remove.
     std::string target;
-    // The sign-in site the site requests are for, by its ID, and whether its
-    // status, connect and remove are the organizer sign-in's.
-    std::string site;
-    bool organizer = false;
     // Import: the ID its preview showed; Reset: the ID being retired.
     std::string emberId;
     bool replace = false;
     // A desk action's body, as JSON.
     std::string command;
-    // DeskApprove: the number the other device shows.
-    std::uint8_t number = 0;
 
     static constexpr std::size_t MaxSecret = 1024, MaxPath = 1024, MaxField = 256;
     bool Valid() const {
         return passphrase.size() <= MaxSecret && localPassphrase.size() <= MaxSecret && path.size() <= MaxPath &&
             origin.size() <= MaxField && bridge.size() <= MaxField && connection.size() <= MaxField &&
-            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField && site.size() <= MaxField &&
+            code.size() <= MaxField && target.size() <= MaxField && emberId.size() <= MaxField &&
             command.size() <= MaxPath;
     }
     std::size_t Bytes() const {
         return passphrase.size() + localPassphrase.size() + path.size() + origin.size() + bridge.size() +
-            connection.size() + code.size() + target.size() + emberId.size() + site.size() + command.size();
+            connection.size() + code.size() + target.size() + emberId.size() + command.size();
     }
     // Every copy wipes its secrets when it goes, including one a full queue refused.
     IdentityRequest() = default;

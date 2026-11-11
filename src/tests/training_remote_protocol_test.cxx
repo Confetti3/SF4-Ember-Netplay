@@ -1,4 +1,6 @@
 #include "../training/RemoteProtocol.hxx"
+#include <algorithm>
+#include <iterator>
 #include <cstdio>
 #include <set>
 #include <stdexcept>
@@ -43,7 +45,7 @@ int main() {
         Require(ParseOrder({{"set", "style"}, {"value", 1}}, view, order, error) == Route::Overlay && order.id == "style" && order.value == 1, "A Lab order was not left to the overlay");
         Require(ParseOrder({{"cmd", "replyMoves"}, {"text", "623P"}}, view, order, error) == Route::Overlay && order.id == "replyMoves" && order.text == "623P", "The reply's moves were not left to the overlay");
         Require(ParseOrder({{"cmd", "replyMoves"}}, view, order, error) == Route::Refused, "Reply moves without text were accepted");
-        Require(OptionsJson([](const char*, int) { return std::string("x"); })["replyPresets"].size() == static_cast<std::size_t>(ReplyPresetCount), "The reply presets were not offered");
+        Require(OptionsJson([](const char*, int) { return std::string("x"); })["replyPresets"].size() == std::size(UniversalMoves), "The reply presets were not offered");
         Require(ParseOrder({{"cmd", "comboStart"}}, view, order, error) == Route::Overlay && order.id == "comboStart", "Combo check's start was not left to the overlay");
         Require(ParseOrder({{"cmd", "play"}}, view, order, error) == Route::Game && order.command.action == Action::Play, "Play");
         Require(ParseOrder({{"cmd", "stop"}}, view, order, error) == Route::Game && order.command.action == Action::Interrupt, "Stop is the Interrupt");
@@ -76,6 +78,21 @@ int main() {
         Require(marked["hits"].size() == 1 && marked["hits"][0] == json::array({1, 1, 4}) && marked["cells"][1][4] == 4, "A hit's advantage was not sent");
         Require(EventFrame({{"a", 1}}) == "data: {\"a\":1}\n\n", "An event was not framed as Server-Sent Events");
         Require(DataJson(View{}).is_null(), "Data was sent with none read");
+        {
+            // El Fuerte's twelve charges go out as six counters, the three levels of a button's in one; Juri's as her stock.
+            View view; view.data.valid = true;
+            auto& ric = view.data.fighters[0]; ric.valid = true;
+            const std::vector<std::string> names{"QUESA_L_tameL", "QUESA_L_tameM", "QUESA_L_tameH", "QUESA_M_tameL", "QUESA_M_tameM", "QUESA_M_tameH",
+                "QUESA_H_tameL", "QUESA_H_tameM", "QUESA_H_tameH", "QUESA_EX_tameLM", "QUESA_EX_tameLH", "QUESA_EX_tameMH"};
+            ric.chargeNames = std::make_shared<const std::vector<std::string>>(names);
+            const int held[3] = {130, 37, 185}, need[3] = {60, 120, 180};
+            for (std::size_t i = 0; i < names.size(); ++i) ric.charges[i] = {i, ChargeBack, i < 9 ? need[i / 3] : 210, i < 9 ? (std::min)(held[i % 3], need[i / 3]) : 0};
+            ric.chargeCount = names.size();
+            auto& juri = view.data.fighters[1]; juri.valid = true; juri.stock = 5;
+            const auto sent = DataJson(view)["sides"];
+            Require(sent[0]["charges"].size() == 6 && sent[0]["charges"][0]["n"] == "QUESA_tameL" && sent[0]["charges"][0]["h"] == 130 && sent[0]["charges"][0]["r"] == json::array({60, 120, 180}) &&
+                sent[0]["stock"] == -1 && sent[1]["stock"] == 5, "Charges were not sent as one counter with its levels");
+        }
         // What the phone queued reaches the overlay thread, and no more than fits.
         Mailbox box;
         for (std::size_t i = 0; i < Mailbox::Capacity; ++i) Require(box.Push("style", 1), "The mailbox refused early");

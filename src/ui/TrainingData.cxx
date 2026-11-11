@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 // The Data panel: each fighter's script, position, state, gauges, juggle and
 // charges as the game holds them this frame (training::DataView), for those
@@ -100,6 +101,28 @@ struct Rows {
         for (int part = 1; part < parts; ++part) {
             const float at = x0 + (x1 - x0) * part / parts;
             Line(ImVec2(at, top), ImVec2(at, top + height), IM_COL32(0, 0, 0, 200), 1.5f * s);
+        }
+        y += height + 5 * s;
+    }
+    // A label and `held` over one bar cut where each of `needs` (the frames
+    // a level needs, rising) is reached, as wide as the frames it needs;
+    // a level turns `full` once reached.
+    void Levels(const std::string& label, const std::vector<int>& needs, int held, ImU32 colour, ImU32 full, float indent = 0) {
+        const int next = [&] { for (const int need : needs) if (held < need) return need; return needs.back(); }();
+        const std::string value = std::to_string(held) + " / " + std::to_string(next);
+        const float height = 5 * s, x0 = left, x1 = left + width, total = static_cast<float>((std::max)(1, needs.back()));
+        Text(left + indent, y + (line - small) * .5f, small, palette::Muted, v2::Fit(label, width - indent - Measure(value, line).x - 8 * s, small, nullptr, false));
+        Right(left + width, y, line, palette::Ivory, value);
+        y += line + s;
+        // A segment to each level with a gap between, its own track under what is held of it.
+        const float gap = 2 * s;
+        int from = 0;
+        for (const int need : needs) {
+            const float a = x0 + (x1 - x0) * from / total + (from ? gap * .5f : 0), b = x0 + (x1 - x0) * need / total - (need < needs.back() ? gap * .5f : 0);
+            const float reached = (std::max)(0.f, (std::min)(1.f, static_cast<float>(held - from) / (std::max)(1, need - from)));
+            Rect(ImVec2(a, y), ImVec2(b, y + height), Track, 2 * s);
+            if (reached > 0) Rect(ImVec2(a, y), ImVec2(a + (b - a) * reached, y + height), reached >= 1 ? full : colour, 2 * s);
+            from = need;
         }
         y += height + 5 * s;
     }
@@ -230,25 +253,42 @@ void JuggleRows(Rows& rows, const FighterData& fighter, const FighterData& foe) 
 }
 void ChargeRows(Rows& rows, const FighterData& fighter) {
     rows.Section("training.data.charge");
+    // Juri: the fireball stock the motion gives, a cell to each kick lit green while held. Her EX
+    // fireball takes no stock.
+    if (fighter.stock >= 0) {
+        const float gap = 4 * rows.s, height = rows.line + 4 * rows.s, cell = (rows.width - 2 * gap) / 3;
+        static const char* const kicks[] = {"L", "M", "H"};
+        for (int i = 0; i < 3; ++i) {
+            const float x = rows.left + (cell + gap) * i;
+            const bool lit = (fighter.stock >> i) & 1;
+            rows.Rect(ImVec2(x, rows.y), ImVec2(x + cell, rows.y + height), lit ? Full : Track, 3 * rows.s);
+            rows.Text(x + (cell - rows.Measure(kicks[i], rows.line).x) * .5f, rows.y + 2 * rows.s, rows.line, lit ? IM_COL32(255, 255, 255, 255) : palette::Muted, kicks[i]);
+        }
+        rows.y += height + 3 * rows.s;
+        return;
+    }
     if (!fighter.chargeCount) rows.Pair(loc::T("training.data.no_charge"), std::string());
-    // Each charge by its name in the command file after an arrow for the
-    // directions it holds (back, down or down-back, as on a P1 stick),
-    // green once it is full.
+    // Each counter by its name in the command file after an arrow for the
+    // directions it holds (back, down or down-back, as on a P1 stick), its
+    // levels in one bar, green once reached.
     const float icon = rows.small * .8f;
-    for (std::size_t i = 0; i < fighter.chargeCount; ++i) {
-        const auto& charge = fighter.charges[i];
+    for (const auto& group : training::ChargeGroups(fighter)) {
+        const auto& charge = fighter.charges[group.front()];
         const bool back = (charge.directions & training::ChargeBack) != 0, down = (charge.directions & training::ChargeDown) != 0;
         const float x0 = rows.left, y0 = rows.y + (rows.line - icon) * .5f, x1 = x0 + icon, y1 = y0 + icon;
         if (back && down) rows.Triangle(ImVec2(x0, y0), ImVec2(x0, y1), ImVec2(x1, y1), palette::Ivory);
         else if (back) rows.Triangle(ImVec2(x0, (y0 + y1) * .5f), ImVec2(x1, y0), ImVec2(x1, y1), palette::Ivory);
         else if (down) rows.Triangle(ImVec2(x0, y0), ImVec2(x1, y0), ImVec2((x0 + x1) * .5f, y1), palette::Ivory);
-        const bool full = charge.required > 0 && charge.held >= charge.required;
-        // The file's own name when it can be read; some are codes ("CMD_4C"), and those are shown by their direction.
-        const std::string name = fighter.ChargeName(charge.index);
+        // The file's own name when it can be read (a counter of several levels by what they share); some are codes ("CMD_4C"), and those are shown by their direction.
+        const std::string name = training::ChargeGroupName(fighter, group);
         const std::string label = training::ReadableChargeName(name) ? name :
             back && down ? std::string(loc::T("training.data.down")) + " + " + loc::T("common.back") : back ? std::string(loc::T("common.back")) : std::string(loc::T("training.data.down"));
-        rows.Bar(label, charge.required ? static_cast<float>(charge.held) / charge.required : 0.f, 1,
-            full ? Full : palette::Ember, std::to_string(charge.held) + " / " + std::to_string(charge.required), icon + 4 * rows.s);
+        std::vector<int> needs;
+        int held = 0;
+        for (const std::size_t i : group) { needs.push_back(fighter.charges[i].required); held = (std::max)(held, fighter.charges[i].held); }
+        const bool full = needs.back() > 0 && held >= needs.back();
+        if (needs.back() <= 0) { rows.Bar(label, 0.f, 1, palette::Ember, "0 / 0", icon + 4 * rows.s); continue; }
+        rows.Levels(label, needs, held, full ? Full : palette::Ember, Full, icon + 4 * rows.s);
     }
 }
 

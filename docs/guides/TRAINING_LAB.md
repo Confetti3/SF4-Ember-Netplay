@@ -209,11 +209,9 @@ The dummy rows (dummy action, guard, counter hit, quick stand, super and revenge
 
    ![Dummy reply](../images/guides/training_lab/reply.webp)
 
-3. On **Reply preset**, pick a common reply with Left and Right, or press Select to type your own into **Reply moves**.
-
-   ![Reply preset set to 623P](../images/guides/training_lab/reply-preset.webp)
-
-4. Close the controls and knock the dummy down, or hit it, as the reply needs.
+3. Press Select on a **Reply slot** to give it a move: pick one from the list, the moves every fighter has first, then the dummy's own from its command list, with its strengths as buttons on the row that Left and Right move between, or press Select on **Reply moves** to type your own. Left and Right on a slot turn it on or off; **Empty this slot** removes its move.
+4. With more than one slot on, **Reply order** says how the dummy picks: at random, each slot as often as its **Weight** says, or in order, one after the other. With no slot on, the dummy replies with the recordings that are on.
+5. Close the controls and knock the dummy down, or hit it, as the reply needs.
 
 The first time the dummy sees a given knockdown or stun, it measures it and replies as it ends, often a little late. Every time after that, the reply comes out on the first free frame, as a reversal. **Reply timing** moves it up to five frames earlier or later.
 
@@ -239,6 +237,7 @@ Directions are written for a dummy facing right; the dummy turns them for the si
 | Short combo | `2LK > 2LP xx 623HP` |
 | Hundred Hand Slap | `HP(mash)` |
 | Block low until free, then sweep | `[1] > 2HK` |
+| Move on letting a button go (Zonk Knuckle, Quesadilla Bomb, Turn Punch) | `]HP[` |
 | Charge move on wake-up (Flash Kick, Sonic Boom) | `[1] > 8HK`, `[1] > 6HP` |
 
 #### Charge moves
@@ -296,7 +295,7 @@ Moves are separated by `>` or `,`; `xx` before a move means it cancels the one b
 
 - motion: numpad digits, `[4]6` for charge, `360`, `720`, or a word: `qcf` (236), `qcb` (214), `dp` (623), `rdp` (421), `hcf` (41236), `hcb` (63214), with its button straight after, after a space or after `+` (`qcfP`, `dp HP`, `qcb+LK`). `cr.` is 2; `st.`, `cl.` and `far.` are 5.
 - buttons: `LP MP HP LK MK HK` joined by `+`, or `P PP PPP K KK KKK`. `[HP]` holds, `]HP[` releases, `(mash)` presses five times: `P(mash)`, `K(mash)` or several buttons cycle one per frame (a piano, five presses in five frames), a single button goes on and off (five in ten). `(mash HP-MP-LP-HP-MP)` sets the order and the count, one press per frame, up to 10; a digit before a button gives that press its own direction, `5K(mash 1MK-1MK-1MK-1MK)`.
-- `@N`: the move's own timing offset, -120 to +120 frames, from what it waits on: the dummy being free for the first move (added to **Reply timing**), the move before for a link, the hit for a cancel. `#N`: the frame of the reply the move takes effect on (its button; with none, its last direction, as for a jump or a dash; for a jumping attack, its jump), 0 to 7200, counted from the reply's first played frame, a later move's `@N` then counted from that frame (the first move's stays the reply's); only frames of a known length can come before it, so it is refused on the first move with nothing before it, after a hold with no count leading the reply, and after any wait on the fight (a link or a cancel). The first move cannot be a cancel, a follow-up or a button let go (`]HP[`, which comes out on the release, a time the reply cannot set). A reply needs a move: holds and waits alone are refused.
+- `@N`: the move's own timing offset, -120 to +120 frames, from what it waits on: the dummy being free for the first move (added to **Reply timing**), the move before for a link, the hit for a cancel. `#N`: the frame of the reply the move takes effect on (its button; with none, its last direction, as for a jump or a dash; for a jumping attack, its jump), 0 to 7200, counted from the reply's first played frame, a later move's `@N` then counted from that frame (the first move's stays the reply's); only frames of a known length can come before it, so it is refused on the first move with nothing before it, after a hold with no count leading the reply, and after any wait on the fight (a link or a cancel). The first move cannot be a cancel or a follow-up. It can be a plain button let go (`]HP[`): the dummy holds the button through the stun and lets go when the reply is due, so a hold-and-release move such as Cody's Zonk Knuckle comes out on wake-up with no hold to wait out. A reply needs a move: holds and waits alone are refused.
 - `FADC` is the focus cancel (MP+MK, then the dash at once). `RFADC` is the red focus: LP+MP+MK tapped and let go so the red focus attack comes out and lands, then the dash on that hit.
 - A direction held alone, read for the facing like any other: `[1]` holds down-back until the next move begins its own input, held through that move's wait for the dummy to be free or a follow-up's delay (`[1] > 3HP`); `[2]30f` holds down for 30 frames (1 to 7200); `10f` waits 10 frames with nothing held. Before the first move these lead into it: the move plays straight after them, and a reply starts early enough for them and the move's motion to end with its button, or a jump's or a dash's last direction, on the first free frame. A hold with no count needs a move right after it, not another hold or a wait; a reply cannot start with a wait; and moves that would take more than 7200 frames are refused whole.
 

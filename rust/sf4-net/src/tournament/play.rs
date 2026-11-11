@@ -115,13 +115,7 @@ pub(super) async fn features(
     if let Some(known) = known.filter(|known| need.met_by(*known)) {
         return Ok(known);
     }
-    let read = Features::of(
-        &shared
-            .client
-            .capabilities(&bridge.origin)
-            .await?
-            .capabilities,
-    );
+    let read = Features::of(&shared.client.capabilities(&bridge.origin).await?);
     play_state(shared)?
         .features
         .insert(bridge.bridge_id.clone(), read);

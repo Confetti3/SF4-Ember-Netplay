@@ -1,5 +1,5 @@
-//! The `http` adapter between an organizer's own service (a fake answering
-//! the contract in ADAPTERS.md) and a real bridge: accounts named by the
+//! The `http` adapter between a bracket service (a fake answering the
+//! contract in ADAPTERS.md) and a real bridge: accounts named by the
 //! service, a match created and marked underway, and the result reported
 //! with each game in the order played; a report delivered again, a
 //! conflicting one, a bare 404, refusals and rate limits, and an account
@@ -7,49 +7,29 @@
 mod support;
 
 use axum::http::StatusCode;
-use ember_brackets::{Adapter, RoundRule, Rounds, Side};
+use ember_brackets::{RoundRule, Rounds, Side};
 use ember_protocol::EmberId;
 use serde_json::{Value, json};
 use support::{
-    Extra, Setup, World,
-    service::{FakeService, Recorded, SERVICE_TOKEN},
+    BRACKET, Setup, World,
+    service::{FakeService, Recorded, open},
 };
 
-const PLAYER2_DISCORD: &str = "274220342558756145";
-const BRACKET: &str = "http:pools";
-
 fn player1_and_player2() -> Value {
-    json!({
-        "id": "s-1",
-        "round": 1,
-        "round_label": "Pools A, round 1",
-        "status": "open",
-        "entries": [
-            { "id": "player1", "accounts": [{ "site": "challonge", "id": "Player1" }] },
-            { "id": "player2", "accounts": [{ "site": "startgg", "id": "77" }, { "discord": PLAYER2_DISCORD }] },
-        ],
-    })
+    let mut set = open("s-1", 1, [1, 2]);
+    set["round_label"] = json!("Pools A, round 1");
+    set
 }
 
-/// A service with Player 1 and Player 2's set, both connected in Ember: Player 1 by a
-/// Challonge account, Player 2 by the Discord account the service gives as a
-/// second.
-async fn world(sets: Vec<Value>) -> (FakeService, World, [EmberId; 2]) {
-    let service = FakeService::start(sets).await;
+/// A service with `sets`, and players 1 and 2 connected in Ember.
+async fn world(sets: Vec<Value>) -> (World, [EmberId; 2]) {
     let world = World::start(Setup {
-        challonge: false,
-        extra: vec![Extra {
-            adapter: Adapter::Http,
-            tournament: "pools".into(),
-            api_base: service.base.clone(),
-            token: SERVICE_TOKEN,
-        }],
+        sets,
         ..Setup::default()
     })
     .await;
-    let player1 = world.bridge.connect(1, "player1").await;
-    let player2 = world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
-    (service, world, [player1, player2])
+    let players = [world.bridge.connect(1).await, world.bridge.connect(2).await];
+    (world, players)
 }
 
 /// Creates s-1's match and plays it to Player 1's 2-1 win, delivered.
@@ -78,7 +58,7 @@ fn player1_wins(key: &str) -> Recorded {
 
 #[tokio::test]
 async fn an_organizers_own_service_is_played_and_reported() {
-    let (service, world, players) = world(vec![
+    let (world, players) = world(vec![
         player1_and_player2(),
         json!({ "id": "s-2", "round": 2, "status": "pending" }),
         // Out of the contract's shape: left out, and the rest played.
@@ -86,17 +66,18 @@ async fn an_organizers_own_service_is_played_and_reported() {
         json!({ "id": "s-5", "round": 1, "status": "paused" }),
     ])
     .await;
+    let service = &world.service;
     let [player1, player2] = players;
 
     world.connector.pass(true).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/underway"]
+        ["GET /sets?state=open", "POST /sets/s-1/underway"]
     );
     let matches = world.bridge.matches().await;
     assert_eq!(matches.len(), 1);
     let (external, match_id, _) = &matches[0];
-    assert_eq!(external, "http:pools:s-1:1");
+    assert_eq!(external, "http:weekly:s-1:1");
     let found = world.snapshot(match_id).await;
     assert_eq!(found["metadata"]["round_label"], "Pools A, round 1");
     assert_eq!(found["participants"][0]["ember_id"], player1.as_str());
@@ -109,7 +90,7 @@ async fn an_organizers_own_service_is_played_and_reported() {
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(service.reports(), [player1_wins(match_id)]);
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
@@ -117,18 +98,19 @@ async fn an_organizers_own_service_is_played_and_reported() {
 
 #[tokio::test]
 async fn a_report_delivered_twice_is_answered_as_the_first() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
     // The service records the report but its answer is lost, and its
     // reads stay cached: the set still looks open.
     service.with(|state| {
         state.lose_report_answer = true;
         state.stale_reads = true;
     });
-    let match_id = played(&service, &world).await;
+    let match_id = played(service, &world).await;
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
 
@@ -138,7 +120,7 @@ async fn a_report_delivered_twice_is_answered_as_the_first() {
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(service.reports(), [player1_wins(&match_id)]);
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
@@ -146,8 +128,9 @@ async fn a_report_delivered_twice_is_answered_as_the_first() {
 
 #[tokio::test]
 async fn a_set_with_a_different_result_is_left_to_the_organizer() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
-    played(&service, &world).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
+    played(service, &world).await;
     // The organizer entered Player 2's win, which the cached reads do not show
     // yet.
     let theirs = Recorded {
@@ -162,7 +145,7 @@ async fn a_set_with_a_different_result_is_left_to_the_organizer() {
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "stuck");
     assert_eq!(service.reports(), [theirs]);
@@ -174,13 +157,14 @@ async fn a_set_with_a_different_result_is_left_to_the_organizer() {
         service
             .log()
             .iter()
-            .all(|line| line != "POST /svc/sets/s-1/report")
+            .all(|line| line != "POST /sets/s-1/report")
     );
 }
 
 #[tokio::test]
 async fn only_a_set_the_service_says_is_gone_has_its_match_cancelled() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
     world.connector.pass(true).await;
     let match_id = world.bridge.matches().await[0].1.clone();
     service.log();
@@ -189,10 +173,7 @@ async fn only_a_set_the_service_says_is_gone_has_its_match_cancelled() {
     service.with(|state| state.hidden.insert("s-1".into()));
     world.advance(601);
     world.connector.pass(true).await;
-    assert_eq!(
-        service.log(),
-        ["GET /svc/sets?state=open", "GET /svc/sets/s-1"]
-    );
+    assert_eq!(service.log(), ["GET /sets?state=open", "GET /sets/s-1"]);
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
     assert_ne!(world.snapshot(&match_id).await["state"], "cancelled");
 
@@ -207,11 +188,7 @@ async fn only_a_set_the_service_says_is_gone_has_its_match_cancelled() {
     // has no `/standing`, so it is running.
     assert_eq!(
         service.log(),
-        [
-            "GET /svc/sets?state=open",
-            "GET /svc/sets/s-1",
-            "GET /svc/standing"
-        ]
+        ["GET /sets?state=open", "GET /sets/s-1", "GET /standing"]
     );
     assert_eq!(world.snapshot(&match_id).await["state"], "cancelled");
     // Gone before it was decided: played again if it ever opens again.
@@ -220,7 +197,8 @@ async fn only_a_set_the_service_says_is_gone_has_its_match_cancelled() {
 
 #[tokio::test]
 async fn a_refused_token_and_a_rate_limit_are_waited_out() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
     service.with(|state| {
         state
             .fail_next
@@ -230,10 +208,10 @@ async fn a_refused_token_and_a_rate_limit_are_waited_out() {
     // Nothing is read again until the wait is over.
     world.advance(30);
     world.connector.pass(true).await;
-    assert_eq!(service.log(), ["GET /svc/sets?state=open"]);
+    assert_eq!(service.log(), ["GET /sets?state=open"]);
     world.advance(31);
     world.connector.pass(true).await;
-    assert_eq!(service.log(), ["GET /svc/sets?state=open"]);
+    assert_eq!(service.log(), ["GET /sets?state=open"]);
     assert!(world.bridge.matches().await.is_empty());
 
     // The wait doubles, then the read works.
@@ -241,43 +219,45 @@ async fn a_refused_token_and_a_rate_limit_are_waited_out() {
     world.connector.pass(true).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/underway"]
+        ["GET /sets?state=open", "POST /sets/s-1/underway"]
     );
     assert_eq!(world.bridge.matches().await.len(), 1);
 }
 
 #[tokio::test]
 async fn an_account_nobody_can_be_found_by_holds_only_its_own_set() {
-    let (service, world, _) = world(vec![
+    let (world, _) = world(vec![
         player1_and_player2(),
-        // A start.gg username where start.gg needs a user ID, which finds
-        // nobody, and a site the bridge does not have, which is not asked.
+        // A Discord account nobody connected, which finds nobody, and a
+        // site the bridge does not have, which is not asked.
         json!({
             "id": "s-3",
             "round": 1,
             "status": "open",
             "entries": [
-                { "id": "player3", "accounts": [{ "site": "startgg", "id": "player3" }] },
-                { "id": "player4", "accounts": [{ "site": "smashgg", "id": "12" }] },
+                support::service::entry(3),
+                { "id": "player4", "accounts": [{ "site": "nosuchsite", "id": "12" }] },
             ],
         }),
     ])
     .await;
+    let service = &world.service;
     world.connector.pass(true).await;
     let matches = world.bridge.matches().await;
     assert_eq!(matches.len(), 1);
-    assert_eq!(matches[0].0, "http:pools:s-1:1");
+    assert_eq!(matches[0].0, "http:weekly:s-1:1");
     assert_eq!(world.progress(BRACKET, "s-3"), "waiting");
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/underway"]
+        ["GET /sets?state=open", "POST /sets/s-1/underway"]
     );
 }
 
 #[tokio::test]
 async fn a_report_the_service_defers_waits_alone_and_is_sent_again() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
-    let match_id = played(&service, &world).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
+    let match_id = played(service, &world).await;
     service.with(|state| {
         state
             .deferred_reports
@@ -286,21 +266,21 @@ async fn a_report_the_service_defers_waits_alone_and_is_sent_again() {
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
 
     // The tournament is still read while the result waits its minute.
     world.advance(30);
     world.connector.pass(true).await;
-    assert_eq!(service.log(), ["GET /svc/sets?state=open"]);
+    assert_eq!(service.log(), ["GET /sets?state=open"]);
 
     service.with(|state| state.deferred_reports.clear());
     world.advance(31);
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(service.reports(), [player1_wins(&match_id)]);
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
@@ -308,15 +288,16 @@ async fn a_report_the_service_defers_waits_alone_and_is_sent_again() {
 
 #[tokio::test]
 async fn any_2xx_answer_to_a_write_is_taken() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
     // A service that answers its writes with `200 OK, recorded`.
     service.with(|state| state.text_answers = true);
-    let match_id = played(&service, &world).await;
+    let match_id = played(service, &world).await;
     assert!(service.with(|state| state.sets[0]["underway"] == true));
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(service.reports(), [player1_wins(&match_id)]);
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
@@ -324,14 +305,15 @@ async fn any_2xx_answer_to_a_write_is_taken() {
 
 #[tokio::test]
 async fn a_contract_mismatch_holds_results_until_it_is_fixed() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
-    let match_id = played(&service, &world).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
+    let match_id = played(service, &world).await;
     // The service moved to another contract version for a moment.
     service.with(|state| state.fail_reports.push_back(StatusCode::UPGRADE_REQUIRED));
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
     assert!(service.reports().is_empty());
@@ -342,35 +324,18 @@ async fn a_contract_mismatch_holds_results_until_it_is_fixed() {
     assert_eq!(world.progress(BRACKET, "s-1"), "reported");
 }
 
-/// Another set, s-3, for two more players, with Challonge accounts.
+/// Another set, s-3, for players 5 and 6.
 fn player5_and_player6() -> Value {
-    json!({
-        "id": "s-3",
-        "round": 1,
-        "status": "open",
-        "entries": [
-            { "id": "player5", "accounts": [{ "site": "challonge", "id": "player5" }] },
-            { "id": "player6", "accounts": [{ "site": "challonge", "id": "player6" }] },
-        ],
-    })
+    open("s-3", 1, [5, 6])
 }
 
 #[tokio::test]
 async fn a_report_that_fails_for_a_moment_waits_alone() {
-    let mut second = player1_and_player2();
-    second["id"] = json!("s-2");
-    second["entries"][0] =
-        json!({ "id": "player3", "accounts": [{ "site": "challonge", "id": "player3" }] });
-    second["entries"][1] =
-        json!({ "id": "player4", "accounts": [{ "site": "challonge", "id": "player4" }] });
-    let (service, world, _) = world(vec![player1_and_player2(), second]).await;
-    for (byte, name) in [
-        (3, "player3"),
-        (4, "player4"),
-        (5, "player5"),
-        (6, "player6"),
-    ] {
-        world.bridge.connect(byte, name).await;
+    let second = open("s-2", 1, [3, 4]);
+    let (world, _) = world(vec![player1_and_player2(), second]).await;
+    let service = &world.service;
+    for n in 3..=6 {
+        world.bridge.connect(n).await;
     }
     world.connector.pass(true).await;
     let matches = world.bridge.matches().await;
@@ -397,12 +362,12 @@ async fn a_report_that_fails_for_a_moment_waits_alone() {
     assert_eq!(
         service.log(),
         [
-            "GET /svc/sets?state=open",
-            "POST /svc/sets/s-1/report",
+            "GET /sets?state=open",
+            "POST /sets/s-1/report",
             // s-1's report may have gone in: s-2 is read again first.
-            "GET /svc/sets/s-2",
-            "POST /svc/sets/s-2/report",
-            "POST /svc/sets/s-3/underway",
+            "GET /sets/s-2",
+            "POST /sets/s-2/report",
+            "POST /sets/s-3/underway",
         ]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
@@ -417,10 +382,11 @@ async fn a_report_that_fails_for_a_moment_waits_alone() {
 
 #[tokio::test]
 async fn a_result_that_cannot_be_settled_does_not_stop_new_matches() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
-    world.bridge.connect(5, "player5").await;
-    world.bridge.connect(6, "player6").await;
-    played(&service, &world).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
+    world.bridge.connect(5).await;
+    world.bridge.connect(6).await;
+    played(service, &world).await;
     // The list leaves s-1 out, and asked alone it answers a bare 404: the
     // result cannot be settled now. s-3 opens meanwhile.
     service.with(|state| {
@@ -431,11 +397,11 @@ async fn a_result_that_cannot_be_settled_does_not_stop_new_matches() {
     assert_eq!(
         service.log(),
         [
-            "GET /svc/sets?state=open",
+            "GET /sets?state=open",
             // For the result, then for its live match.
-            "GET /svc/sets/s-1",
-            "GET /svc/sets/s-1",
-            "POST /svc/sets/s-3/underway",
+            "GET /sets/s-1",
+            "GET /sets/s-1",
+            "POST /sets/s-3/underway",
         ]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
@@ -444,15 +410,16 @@ async fn a_result_that_cannot_be_settled_does_not_stop_new_matches() {
 
 #[tokio::test]
 async fn a_token_refused_on_a_report_holds_the_whole_tournament() {
-    let (service, world, _) = world(vec![player1_and_player2()]).await;
-    let match_id = played(&service, &world).await;
+    let (world, _) = world(vec![player1_and_player2()]).await;
+    let service = &world.service;
+    let match_id = played(service, &world).await;
     // A token the service takes for reads but refuses for writes: no one
     // set is at fault, so none waits on its own or is given up.
     service.with(|state| state.fail_reports.push_back(StatusCode::UNAUTHORIZED));
     world.connector.pass(false).await;
     assert_eq!(
         service.log(),
-        ["GET /svc/sets?state=open", "POST /svc/sets/s-1/report"]
+        ["GET /sets?state=open", "POST /sets/s-1/report"]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
     // The whole tournament waits out the growing wait: not even a forced
@@ -468,15 +435,11 @@ async fn a_token_refused_on_a_report_holds_the_whole_tournament() {
 
 #[tokio::test]
 async fn a_refused_token_on_one_report_still_tries_the_others() {
-    let mut second = player1_and_player2();
-    second["id"] = json!("s-2");
-    second["entries"][0] =
-        json!({ "id": "player3", "accounts": [{ "site": "challonge", "id": "player3" }] });
-    second["entries"][1] =
-        json!({ "id": "player4", "accounts": [{ "site": "challonge", "id": "player4" }] });
-    let (service, world, _) = world(vec![player1_and_player2(), second]).await;
-    world.bridge.connect(3, "player3").await;
-    world.bridge.connect(4, "player4").await;
+    let second = open("s-2", 1, [3, 4]);
+    let (world, _) = world(vec![player1_and_player2(), second]).await;
+    let service = &world.service;
+    world.bridge.connect(3).await;
+    world.bridge.connect(4).await;
     world.connector.pass(true).await;
     let matches = world.bridge.matches().await;
     for set in ["s-1", "s-2"] {
@@ -496,9 +459,9 @@ async fn a_refused_token_on_one_report_still_tries_the_others() {
     assert_eq!(
         service.log(),
         [
-            "GET /svc/sets?state=open",
-            "POST /svc/sets/s-1/report",
-            "POST /svc/sets/s-2/report",
+            "GET /sets?state=open",
+            "POST /sets/s-1/report",
+            "POST /sets/s-2/report",
         ]
     );
     assert_eq!(world.progress(BRACKET, "s-1"), "live");
@@ -518,22 +481,10 @@ async fn a_set_s_phase_names_the_rule_for_its_length() {
     // first to 3.
     let mut pools = player1_and_player2();
     pools["phase"] = json!("Pools");
-    let mut top = player1_and_player2();
-    top["id"] = json!("s-2");
+    let mut top = open("s-2", 1, [3, 4]);
     top["phase"] = json!("Top 8");
-    top["entries"][0] =
-        json!({ "id": "player3", "accounts": [{ "site": "challonge", "id": "player3" }] });
-    top["entries"][1] =
-        json!({ "id": "player4", "accounts": [{ "site": "challonge", "id": "player4" }] });
-    let service = FakeService::start(vec![pools, top]).await;
     let world = World::start(Setup {
-        challonge: false,
-        extra: vec![Extra {
-            adapter: Adapter::Http,
-            tournament: "pools".into(),
-            api_base: service.base.clone(),
-            token: SERVICE_TOKEN,
-        }],
+        sets: vec![pools, top],
         rounds: Rounds {
             games_to_win: 2,
             rules: vec![RoundRule {
@@ -543,24 +494,21 @@ async fn a_set_s_phase_names_the_rule_for_its_length() {
                 side: Side::Any,
                 games_to_win: 3,
             }],
-            top: None,
-            grand_final: None,
-            tiers: vec![],
         },
         ..Setup::default()
     })
     .await;
-    world.bridge.connect(1, "player1").await;
-    world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
-    world.bridge.connect(3, "player3").await;
-    world.bridge.connect(4, "player4").await;
+    world.bridge.connect(1).await;
+    world.bridge.connect(2).await;
+    world.bridge.connect(3).await;
+    world.bridge.connect(4).await;
     world.connector.pass(true).await;
     let lengths = world.lengths().await;
     assert_eq!(
         lengths,
         [
-            ("http:pools:s-1:1".to_owned(), 2),
-            ("http:pools:s-2:1".to_owned(), 3),
+            ("http:weekly:s-1:1".to_owned(), 2),
+            ("http:weekly:s-2:1".to_owned(), 3),
         ]
     );
 }
@@ -575,15 +523,8 @@ async fn a_blank_phase_is_none_and_a_phase_over_64_characters_leaves_the_set_out
     let mut long = player1_and_player2();
     long["id"] = json!("s-2");
     long["phase"] = json!("x".repeat(65));
-    let service = FakeService::start(vec![blank, long]).await;
     let world = World::start(Setup {
-        challonge: false,
-        extra: vec![Extra {
-            adapter: Adapter::Http,
-            tournament: "pools".into(),
-            api_base: service.base.clone(),
-            token: SERVICE_TOKEN,
-        }],
+        sets: vec![blank, long],
         rounds: Rounds {
             games_to_win: 2,
             rules: vec![RoundRule {
@@ -593,15 +534,12 @@ async fn a_blank_phase_is_none_and_a_phase_over_64_characters_leaves_the_set_out
                 side: Side::Any,
                 games_to_win: 3,
             }],
-            top: None,
-            grand_final: None,
-            tiers: vec![],
         },
         ..Setup::default()
     })
     .await;
-    world.bridge.connect(1, "player1").await;
-    world.bridge.connect_discord(2, PLAYER2_DISCORD).await;
+    world.bridge.connect(1).await;
+    world.bridge.connect(2).await;
     world.connector.pass(true).await;
-    assert_eq!(world.lengths().await, [("http:pools:s-1:1".to_owned(), 2)]);
+    assert_eq!(world.lengths().await, [("http:weekly:s-1:1".to_owned(), 2)]);
 }

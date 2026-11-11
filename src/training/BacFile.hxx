@@ -147,6 +147,9 @@ inline bool Read(const std::uint8_t* bytes, std::size_t size, File& model, std::
 
 // Game frames the script takes from script frame `at` to `to`, each moving it
 // on by the speed in effect, 1 before any; -1 when the speeds never get there.
+// A frame that crosses a speed change plays the rest of it at the new speed,
+// not stopping on the change: Cammy getting up, 2 a frame up to 57, read in
+// game at 56, 57.5, 58.5.
 inline float SpeedAt(const Script& script, float at) {
     const Speed* now = nullptr;
     for (const auto& speed : script.speeds) if (speed.from <= at && (!now || speed.from >= now->from)) now = &speed;
@@ -155,9 +158,16 @@ inline float SpeedAt(const Script& script, float at) {
 inline int GameFrames(const Script& script, float at, int to) {
     int frames = 0;
     for (; at < to; ++frames) {
-        const float step = SpeedAt(script, at);
-        if (!(step > 0) || frames >= 4096) return -1;
-        at += step;
+        if (frames >= 4096) return -1;
+        for (float left = 1; left > 0;) {
+            const float step = SpeedAt(script, at);
+            if (!(step > 0)) return -1;
+            float next = 1e9f;
+            for (const auto& speed : script.speeds) if (speed.from > at && speed.from < next) next = static_cast<float>(speed.from);
+            if (at + step * left <= next) { at += step * left; break; }
+            left -= (next - at) / step;
+            at = next;
+        }
     }
     return frames;
 }

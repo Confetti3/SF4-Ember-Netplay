@@ -372,14 +372,19 @@ void TableCountCreate() {
  h.Choose("host");
  Check(h.actions.back().command.kind==Kind::HostRoom&&h.actions.back().tableCount==6,"Create room did not ask for six tables");
  Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"The table count did not reach the saved defaults");
- // Kept: Create opens on six again. An Arcade room plays at every table and a
- // public room opens at four, so neither offers the row.
+ // Kept: Create opens on six again. An Arcade room has its own count, all
+ // eight until changed and not kept; one table is winner stays. A public
+ // Classic room opens at four, so it offers no row.
  h.Screen("online");h.Choose("create");
  Check(row("tables")->value=="6","The table count was forgotten when Create opened again");
  h.FocusOn("room-type");h.Press(MenuInput::Right);
- Check(row("tables")==rows.end(),"An Arcade room offered a table count");
+ Check(row("tables")->value=="8"&&row("tables")->detail==loc::Tf("room.tables_arcade_detail",static_cast<int>(room::TableCount)),
+  "An Arcade room did not offer its own table count");
+ h.FocusOn("tables");for(int i=0;i<8;++i)h.Press(MenuInput::Left);
+ Check(row("tables")->value=="1","An Arcade room's tables did not stop at one");
  h.Choose("host");
- Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==room::ClassicTableCount,"An Arcade room asked for a table count");
+ Check(h.actions.back().arcadeRoom==room::ArcadeRoom&&h.actions.back().tableCount==1,"An Arcade room did not ask for one table");
+ Check(netplay::RoomPreferences(h.actions.back().preferences).at("tableCount")==6,"An Arcade room's count reached the Classic default");
  h.Screen("online");h.Choose("create");h.FocusOn("visibility");h.Press(MenuInput::Right);
  Check(row("tables")==rows.end(),"Public Create offered a table count");
  h.Press(MenuInput::Left);
@@ -400,9 +405,11 @@ void TableCountCreate() {
  h.Choose("apply-tables");
  Check(h.actions.size()==before+1&&h.actions.back().command.kind==Kind::RoomAction&&h.actions.back().roomAction.kind==room::ActionKind::SetTableCount&&
   h.actions.back().roomAction.tableCount==7,"Apply tables did not send the count");
- // An Arcade room's settings have no count.
+ // A private Arcade room's host changes its count too; a public one keeps it.
  h.view.room.arcade=room::ArcadeRoom;h.Frame();
- Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"An Arcade room's settings offered a table count");
+ Check(row("room-tables")!=rows.end(),"A private Arcade room's settings did not offer a table count");
+ h.view.room.serverOwned=true;h.Frame();
+ Check(row("room-tables")==rows.end()&&row("apply-tables")==rows.end(),"A public Arcade room's settings offered a table count");
  SetMenuEntriesProbe({});
 }
 void TrainingJourneys() {
@@ -576,59 +583,60 @@ void TrainingJourneys() {
  // Even unreadable loaded text must allow Off to reach the runtime.
  reach("reply");press(MenuInput::Right);
  Check(commands.size()==1&&runtimePlan.when==0&&!training::DummyReplies(runtimePlan,1,0)&&
-  saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="not a move","Invalid loaded text prevented Reply Off");
- const auto edit=[&](const char* text){choose("reply-moves");
+  saved()["reply"]["when"]==0&&saved()["reply"]["slots"][0]["moves"]=="not a move","Invalid loaded text prevented Reply Off");
+ const auto edit=[&](const char* text){choose("reply-slot-0");choose("slot-moves");
   Check(TrainingNavigation().Editing(),"Reply editor did not open");TrainingNavigation().Draft(text);
   // InputText keeps a separate buffer while active. Reload the model draft
   // into that buffer before rendering, or it copies the previous text back.
   auto* editor=ImGui::FindWindowByName("###EditText");Check(editor!=nullptr,"Reply editor was not drawn");
   if(auto* input=ImGui::GetInputTextState(editor->GetID("##Draft"))) input->ReloadUserBufAndMoveToEnd();
   frame();Check(TrainingNavigation().Draft()==text,"Reply draft did not survive rendering");press(MenuInput::Select);
-  Check(!TrainingNavigation().Editing(),"Reply editor did not accept its draft");};
+  Check(!TrainingNavigation().Editing(),"Reply editor did not accept its draft");press(MenuInput::Back);};
  // Start with a valid enabled reply, then accept a nonempty line with no
  // moves. Rejection must preserve the editor, file and runtime together.
  edit("623HP");reach("reply");press(MenuInput::Right);
- Check(runtimePlan.when==1&&!runtimePlan.moves.empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
- const auto active=saved();const auto activeFrames=runtimePlan.moves.size();commands.clear();
+ Check(runtimePlan.when==1&&!runtimePlan.choices.empty()&&training::DummyReplies(runtimePlan,1,0),"Valid reply did not become active");
+ const auto active=saved();const auto activeFrames=runtimePlan.choices.size();commands.clear();
  edit("> ,");
- Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.moves.size()==activeFrames&&
+ Check(commands.empty()&&saved()==active&&runtimePlan.when==1&&runtimePlan.choices.size()==activeFrames&&
   !TrainingNotice(failed).empty()&&failed,"Rejected reply partially changed saved settings or runtime");
- choose("reply-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);
+ choose("reply-slot-0");choose("slot-moves");Check(TrainingNavigation().Draft()=="623HP","Rejected reply replaced the editor's accepted text");press(MenuInput::Back);press(MenuInput::Back);
  reach("reply");press(MenuInput::Left);
- Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.moves.empty()&&
-  !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["moves"]=="623HP",
+ Check(commands.size()==1&&runtimePlan.when==0&&runtimePlan.choices.empty()&&
+  !training::DummyReplies(runtimePlan,1,0)&&saved()["reply"]["when"]==0&&saved()["reply"]["slots"][0]["moves"]=="623HP",
   "Reply Off disagreed with the saved settings or runtime after a rejected edit");
  // The editor still validates notation while Off; it cannot persist text
  // that would fail the next time replies are enabled.
  const auto off=saved();commands.clear();edit("> ,");
  Check(commands.empty()&&saved()==off&&runtimePlan.when==0,"Reply Off allowed an invalid edit to be saved");
- // The pick list: the typed reply that is no preset shows as Custom; a preset
- // is sent and saved as the same text typed would be; Custom brings the typed
- // reply back; Select opens the typed field; a preset typed in another
- // spelling shows as that preset.
+ // The slots: Select opens one's move list, a pick fills it and turns it
+ // on, the order and weights are kept, Left and Right turn a slot off.
  {
-  const auto focus=[&](const char* id){frame();for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Up);
-   for(int i=0;i<100&&TrainingNavigation().Focus()!=id;++i)press(MenuInput::Down);Check(TrainingNavigation().Focus()==id,"Training entry unreachable");};
   std::vector<MenuEntry> replyRows;SetMenuEntriesProbe([&](const std::vector<MenuEntry>& rows){replyRows=rows;});
-  const auto pick=[&]{frame();for(const auto& row:replyRows)if(row.id=="reply-move")return row.value;return std::string();};
-  focus("reply");press(MenuInput::Right);
-  Check(runtimePlan.when==1&&!runtimePlan.moves.empty(),"The typed reply was not turned back on");
-  Check(pick()==loc::T("training.reply.custom"),"A typed reply that is no preset did not show as Custom");
-  focus("reply-move");commands.clear();press(MenuInput::Right);
-  Check(pick()==loc::T("training.reply.recordings")&&saved()["reply"]["moves"]==""&&saved()["reply"]["custom"]=="623HP"&&
-   runtimePlan.moves.empty()&&!saved()["reply"].contains("slot"),"Custom did not step on to the recordings");
-  press(MenuInput::Right);
-  training::DummyPlan typed;std::string error;
-  Check(training::BuildReplyPlan("623P",runtimePlan,typed,error),"The first preset is not notation");
-  Check(pick()=="623P"&&saved()["reply"]["moves"]=="623P"&&commands.back().action==training::Action::DummyPlan&&
-   runtimePlan.moves.size()==typed.moves.size(),"The first preset was not sent and saved as typed text");
-  press(MenuInput::Left);press(MenuInput::Left);
-  Check(pick()==loc::T("training.reply.custom")&&saved()["reply"]["moves"]=="623HP"&&!runtimePlan.moves.empty(),"Custom did not bring the typed reply back");
-  press(MenuInput::Select);frame();
-  Check(TrainingNavigation().Editing()&&TrainingNavigation().Focus()=="reply-moves"&&TrainingNavigation().Draft()=="623HP","Select on the pick list did not open the typed field");
-  press(MenuInput::Back);Check(!TrainingNavigation().Editing(),"The typed field did not close");
-  edit("lp+lk");
-  Check(pick()=="LP+LK"&&saved()["reply"]["custom"]=="623HP","A preset typed in another spelling did not show as that preset");
+  const auto value=[&](const char* id){frame();for(const auto& row:replyRows)if(row.id==id)return row.value;return std::string();};
+  reach("reply");press(MenuInput::Right);
+  Check(runtimePlan.when==1&&runtimePlan.choices.size()==1,"The typed reply was not turned back on");
+  Check(value("reply-slot-0")==std::string(loc::T("common.on"))+", 623HP","A typed reply did not show in the first slot");
+  Check(value("reply-slot-1")==loc::T("training.slot.empty"),"An empty slot did not say so");
+  choose("reply-slot-1");Check(TrainingNavigation().Screen()=="reply-slot","Select on a slot did not open its moves");
+  commands.clear();choose("pick-0");
+  Check(TrainingNavigation().Screen()=="reply","A pick did not return to the slots");
+  Check(saved()["reply"]["slots"][1]["moves"]=="44"&&saved()["reply"]["slots"][1]["on"]==true,"A picked move was not saved");
+  Check(runtimePlan.choices.size()==2,"A picked move did not reach the plan");
+  Check(!commands.empty()&&commands.back().action==training::Action::DummyPlan,"A picked move was not sent");
+  reach("reply-order");press(MenuInput::Right);
+  Check(saved()["reply"]["order"]==1&&runtimePlan.choices.size()==2&&runtimePlan.order==training::Order::InOrder,"In order was not saved and sent");
+  press(MenuInput::Left);Check(saved()["reply"]["order"]==0&&runtimePlan.order==training::Order::Random,"Random was not saved and sent");
+  choose("reply-slot-1");reach("slot-weight");press(MenuInput::Right);
+  Check(saved()["reply"]["slots"][1]["weight"]==2,"A slot's weight was not saved");
+  press(MenuInput::Back);reach("reply-slot-1");press(MenuInput::Left);
+  Check(saved()["reply"]["slots"][1]["on"]==false&&runtimePlan.choices.size()==1,"Left on a slot did not turn it off");
+  // A move with several strengths is one row with them as chips: Right lights the next, Select takes the lit one.
+  choose("reply-slot-2");reach("pick-11");
+  Check([&]{frame();for(const auto& row:replyRows)if(row.id=="pick-11")return row.segments.size()==6&&row.value=="LP";return false;}(),"A move's strengths were not chips on its row");
+  press(MenuInput::Right);Check(value("pick-11")=="MP","Right did not light the next strength");
+  press(MenuInput::Select);
+  Check(TrainingNavigation().Screen()=="reply"&&saved()["reply"]["slots"][2]["moves"]=="cl.MP","Select did not put the lit strength in the slot");
   SetMenuEntriesProbe({});
  }
  // A position is told saved or reset only once the game has done it: a

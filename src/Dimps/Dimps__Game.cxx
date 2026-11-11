@@ -64,6 +64,7 @@ void SaveDataController::Locate(HMODULE peRoot) {
 	*(PVOID*)&publicMethods.State = (PVOID)(peRootOffset + 0x27c410);
 	*(PVOID*)&publicMethods.Busy = (PVOID)(peRootOffset + 0x27c430);
 	staticMethods.GetSingleton = (SaveDataController* (*)())(peRootOffset + 0x27c880);
+	*(PVOID*)&staticMethods.UnlockIdle = (PVOID)(peRootOffset + 0x27df70);
 }
 
 void ReplayInfoList::Locate(HMODULE peRoot) {

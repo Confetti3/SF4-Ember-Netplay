@@ -116,13 +116,12 @@ int main() {
 		EXPECT(room.SetTables(room.host, 8).accepted && room.View().tables[7].rules == Rules());
 	}
 	{
-		// An Arcade or King of the hill room plays at every table and has no count to change.
+		// A private Arcade or King of the hill room plays at the tables it opened
+		// with, and its host changes them as in a Classic room.
 		for (const RoomType type : {ArcadeRoom, KingRoom}) {
-			Room room(static_cast<std::uint8_t>(ClassicTableCount), type);
-			EXPECT(TablesInPlay(room.View()) == TableCount && !TableCountChangeable(room.View()));
-			const auto revision = room.View().revision;
-			EXPECT(room.SetTables(room.host, 2).reason == RejectReason::Unauthorized && TablesInPlay(room.View()) == TableCount);
-			EXPECT(room.View().revision == revision && room.View().tableCount == ClassicTableCount);
+			Room room(1, type);
+			EXPECT(TablesInPlay(room.View()) == 1 && TableCountChangeable(room.View()));
+			EXPECT(room.SetTables(room.host, 3).accepted && TablesInPlay(room.View()) == 3);
 		}
 	}
 	{

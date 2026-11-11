@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Ответ манекена"
 
 msgid "training.reply.detail"
-msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: воспроизводит «Приёмы ответа» или слот ответа, если эта строка пуста. Ответ ждёт, пока идёт воспроизведение или запись."
+msgstr "Что манекен делает сам, как только снова свободен, чтобы наказать сорванное комбо или небезопасное завершение: выполняет один из включённых слотов ответа, или включённые записи, пока ни один слот не включён."
 
 msgid "training.reply.hit"
 msgstr "После сорванного комбо"
@@ -1673,9 +1673,6 @@ msgstr "При подъёме"
 
 msgid "training.reply.any"
 msgstr "Всегда после восстановления"
-
-msgid "training.reply.recordings"
-msgstr "Записи"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Нет включённых записей, подходящих для ответа"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Приёмы ответа"
 
 msgid "training.reply.moves.detail"
-msgstr "Ответ, записанный цифровой нотацией, например 623HP или 44, читается для стороны, в которую смотрит манекен. Подходят и названия движений: qcf, qcb, dp, rdp, hcf и hcb, например qcfP или dp+HP. Движение вводится, пока манекен ещё скован, чтобы кнопка попала на его первый свободный кадр. [1] держит направление до следующего приёма, [1]20f держит его 20 кадров, а 10f ждёт: [1] > 3HP блокирует внизу, пока манекен не освободится, затем жмёт 3HP. Пустая строка отвечает включённой записью."
-
-msgid "training.reply.move"
-msgstr "Готовый ответ"
-
-msgid "training.reply.move.detail"
-msgstr "Влево и вправо выбирают обычный ответ в нумпад-записи для стороны, куда смотрит манекен. «Записи» отвечают включённой записью; «Свой» оставляет набранные приёмы. «Выбрать» открывает «Приёмы ответа» для ввода."
-
-msgid "training.reply.custom"
-msgstr "Свой"
+msgstr "Приём этого слота в нумпад-нотации, например 623HP или 44, читается для стороны, куда смотрит манекен. Работают и слова движений: qcf, qcb, dp, rdp, hcf и hcb. [HP] удерживает кнопку, ]HP[ отпускает её в первый свободный кадр, [1]20f держит направление 20 кадров, а 10f ждёт. Пусто убирает приём."
 
 msgid "training.reply.timing"
 msgstr "Тайминг ответа"
 
 msgid "training.reply.timing.detail"
 msgstr "Число кадров после первого свободного кадра манекена, на которое попадает кнопка ответа. Длительность оглушения запоминается с первого раза; до этого ответ начинается, когда оно заканчивается."
+
+msgid "training.reply.order"
+msgstr "Порядок ответов"
+
+msgid "training.reply.order.detail"
+msgstr "Как манекен выбирает среди включённых слотов: случайно, каждый слот по его весу, или по порядку, один за другим."
+
+msgid "training.reply.slot"
+msgstr "Слот ответа {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Один приём, которым манекен может ответить. Влево и Вправо включают или выключают его; Выбор открывает его приёмы."
+
+msgid "training.reply.slot_on"
+msgstr "Использовать этот слот"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Может ли манекен выбрать этот слот для своего ответа."
+
+msgid "training.reply.weight"
+msgstr "Вес"
+
+msgid "training.reply.weight.detail"
+msgstr "Доля этого слота в случайном выборе среди остальных, от 1 до 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Очистить этот слот"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Убирает приём этого слота."
+
+msgid "training.reply.every_fighter"
+msgstr "Любой боец"
 
 msgid "training.key.reset"
 msgstr "Клавиша позиции"
@@ -3321,6 +3342,8 @@ msgid "room.tables"
 msgstr "Ячейки"
 msgid "room.tables_detail"
 msgstr "Сколько ячеек в лобби, от 1 до {0}. Ведущий может изменить это позже в настройках лобби."
+msgid "room.tables_arcade_detail"
+msgstr "Сколько пар играет одновременно, от 1 до {0}. Остальные ждут в очереди. При 1 победитель остаётся, а проигравший уходит в конец очереди."
 msgid "room.tables.detail"
 msgstr "Можно добавить до {0} ячеек. Ячейку можно убрать, только если в ней никто не играет, не ждёт и не смотрит."
 msgid "room.apply_tables"
@@ -3986,55 +4009,7 @@ msgstr "Использовать другой аккаунт Discord"
 msgid "connect.change_detail"
 msgstr "Открывает Discord в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнирный сайт должен использовать этот аккаунт."
 
-msgid "site.title"
-msgstr "Подключить {0}"
 
-msgid "site.row_detail"
-msgstr "Подключите аккаунт {0}, чтобы турниры на {0} находили ваш Ember ID."
-
-msgid "site.go_detail"
-msgstr "Подключив {0}, вы позволите турнирам на {0} находить ваш Ember ID. Ember откроет {0} в браузере: подтвердите там вход аккаунтом, который использует ваш турнир."
-
-msgid "site.setting_up_detail"
-msgstr "Ember открывает {0} в браузере."
-
-msgid "site.waiting"
-msgstr "Подтвердите в браузере. Этот экран обновится, когда {0} будет подключён."
-
-msgid "site.waiting_label"
-msgstr "Ожидание {0}"
-
-msgid "site.waiting_detail"
-msgstr "Подтвердите в браузере вход аккаунтом {0}, который использует ваш турнир. Этот экран обновится сам."
-
-msgid "site.connected"
-msgstr "{0} подключён"
-
-msgid "site.connected_detail"
-msgstr "Теперь турниры на {0} найдут вас по этому аккаунту."
-
-msgid "site.change"
-msgstr "Использовать другой аккаунт {0}"
-
-msgid "site.change_detail"
-msgstr "Открывает {0} в браузере, чтобы вместо этого подключить другой аккаунт. Тогда ваш турнир должен использовать этот аккаунт."
-
-msgid "site.remove_detail"
-msgstr "Отключает этот аккаунт {0} от вашего Ember ID в этом сервисе. Турниры на {0} больше не найдут вас по нему."
-
-msgid "site.organizer"
-msgstr "Доступ организатора"
-
-
-msgid "site.organizer_held"
-msgstr "Разрешён"
-
-
-msgid "site.organizer_opened"
-msgstr "Разрешите доступ организатора в браузере. Этот экран обновится сам."
-
-msgid "site.organizer_now"
-msgstr "Доступ организатора разрешён. Стол турнира — в разделе Ember ID."
 
 
 
@@ -4042,25 +4017,13 @@ msgid "screen.tournament_desk"
 msgstr "Организация турниров"
 
 msgid "desk.entry_detail"
-msgstr "Доступ организатора, веб-панель и твои события."
-
-msgid "desk.event_detail"
-msgstr "На {0}. Выберите, чтобы увидеть сеты."
-
-msgid "desk.status.draft"
-msgstr "Черновик"
-
-msgid "desk.status.ready"
-msgstr "Готово"
-
-msgid "desk.status.running"
-msgstr "Идёт"
+msgstr "Твои турниры на сайте сеток Ember."
 
 msgid "desk.none"
 msgstr "Пока нет событий"
 
 msgid "desk.none_detail"
-msgstr "Создавайте и запускайте события на сайте стола турнира; они появятся здесь, когда начнутся."
+msgstr "Выбери «Новый турнир», чтобы создать его; затем он появится здесь."
 
 msgid "desk.view"
 msgstr "Вид"
@@ -4079,12 +4042,6 @@ msgstr "Показать"
 
 msgid "desk.filter.all"
 msgstr "Все"
-
-msgid "desk.filter.winners"
-msgstr "Верхняя сетка"
-
-msgid "desk.filter.losers"
-msgstr "Нижняя сетка"
 
 msgid "desk.filter.action"
 msgstr "Ждёт вас"
@@ -4107,35 +4064,17 @@ msgstr "Ожидание"
 msgid "desk.state.not_ready"
 msgstr "Не готов"
 
-msgid "desk.state.called"
-msgstr "Вызван"
-
 msgid "desk.state.playing"
 msgstr "Идёт игра"
 
 msgid "desk.state.needs_review"
 msgstr "Нужна проверка"
 
-msgid "desk.state.needs_organizer"
-msgstr "Ждёт вас"
-
-msgid "desk.state.reporting"
-msgstr "Отправка результата"
-
 msgid "desk.state.done"
 msgstr "Завершён"
 
 msgid "desk.state.held"
 msgstr "Удержан"
-
-msgid "desk.side.winners"
-msgstr "Верхняя сетка"
-
-msgid "desk.side.losers"
-msgstr "Нижняя сетка"
-
-msgid "desk.side.grand_final"
-msgstr "Гранд-финал"
 
 msgid "desk.tbd"
 msgstr "Определится"
@@ -4154,21 +4093,6 @@ msgstr "Этого сета больше нет в событии"
 
 msgid "desk.state"
 msgstr "Состояние"
-
-msgid "desk.called"
-msgstr "Вызван."
-
-msgid "desk.called_posted"
-msgstr "Вызван и опубликован в Discord."
-
-msgid "desk.called_waiting"
-msgstr "Вызван; публикация в Discord отправляется."
-
-msgid "desk.called_failed"
-msgstr "Вызван, но Discord не принял публикацию."
-
-msgid "desk.not_called"
-msgstr "Ещё не вызван."
 
 msgid "desk.call"
 msgstr "Вызвать снова"
@@ -4215,44 +4139,11 @@ msgstr "Записывает игру, сыгранную вне Ember, напр
 msgid "desk.done"
 msgstr "Готово."
 
-msgid "desk.web"
-msgstr "Вход в вебе"
-
-msgid "desk.web_none"
-msgstr "Ни один браузер не вошёл в пульт турнира."
-
-msgid "desk.web_detail"
-msgstr "Последний: {0} через {1}. Веб-сеанс заканчивается через 12 часов или через 2 часа без использования."
-
-msgid "desk.web_end"
-msgstr "Выйти везде"
-
-msgid "desk.web_end_detail"
-msgstr "Завершает все веб-сеансы пульта для этого Ember ID. Чтобы пользоваться им, войдите в вебе заново."
-
-msgid "desk.web_new"
-msgstr "Кто-то вошёл в ваш пульт турнира через веб. Это были не вы? Выберите «Выйти везде»."
-
-msgid "desk.web_ended"
-msgstr "Выход из веб-пульта выполнен везде."
-
 msgid "desk.open_browser"
 msgstr "Открыть в браузере"
 
 msgid "desk.open_browser_detail"
-msgstr "Открывает веб-пульт в браузере этого ПК под этим Ember ID, со всеми разрешёнными изменениями."
-
-msgid "desk.open_phone"
-msgstr "Войти на другом устройстве"
-
-msgid "desk.open_phone_detail"
-msgstr "Открой панель на любом устройстве и введи здесь код, который она покажет."
-
-msgid "desk.code_at"
-msgstr "Введите на"
-
-msgid "desk.code_at_detail"
-msgstr "Открой это на другом устройстве. Оно покажет код, который нужно ввести здесь."
+msgstr "Открывает сайт сеток в браузере этого ПК. Войди там через Discord."
 
 
 
@@ -4260,46 +4151,7 @@ msgstr "Открой это на другом устройстве. Оно по�
 
 
 msgid "desk.opened"
-msgstr "Пульт открыт в браузере."
-
-msgid "site.cancel_detail"
-msgstr "Прекращает ожидание. Когда будете готовы, снова выберите «Подключить {0}»."
-
-msgid "site.off"
-msgstr "Вход через {0} отключён"
-
-msgid "site.off_detail"
-msgstr "Этот турнирный сервис сейчас не предлагает вход через {0}. Повторите попытку позже."
-
-msgid "site.retry_detail"
-msgstr "Снова получает данные аккаунта {0}."
-
-msgid "site.opened"
-msgstr "Завершите вход в {0} в браузере."
-
-msgid "site.done"
-msgstr "{0} подключён как {1}."
-
-msgid "site.removed"
-msgstr "Аккаунт {0} отключён."
-
-msgid "site.cancelled"
-msgstr "Ожидание {0} прекращено."
-
-msgid "site.busy"
-msgstr "Вход через {0} сейчас перегружен. Повторите попытку позже."
-
-msgid "site.gone"
-msgstr "Этот турнирный сервис больше не предлагает вход через {0}."
-
-msgid "site.no_service"
-msgstr "Турнирный сервис Ember не настроен"
-
-msgid "site.no_service_detail"
-msgstr "{0} подключается через турнирный сервис Ember. Сначала найдите его в разделе «Привязанные аккаунты», затем вернитесь сюда."
-
-msgid "site.screen"
-msgstr "Аккаунт сайта"
+msgstr "Сайт сеток открылся в браузере."
 
 msgid "identity.failure.browser"
 msgstr "Ember не удалось открыть браузер."
@@ -5567,6 +5419,9 @@ msgstr "Сесть здесь: вы играете с тем, кто ждёт д
 msgid "room.arcade_waiting"
 msgstr "Ждёт"
 
+msgid "room.arcade_in_line"
+msgstr "Место в очереди: {0}"
+
 msgid "room.cabinet_free"
 msgstr "ВСТАВЬТЕ МОНЕТУ"
 
@@ -5761,6 +5616,9 @@ msgstr "Игрок 2"
 
 msgid "replays.matches_shown"
 msgstr "Матчей в списке"
+
+msgid "replays.sets_shown"
+msgstr "Сетов в списке"
 
 msgid "replays.filter_reset"
 msgstr "Сбросить"
@@ -7503,36 +7361,6 @@ msgstr "Зимбабве"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Делай это не на стриме"
-
-msgid "desk.offstream_detail"
-msgstr "Тот, кто видит твой экран, не сможет использовать код, но всё равно входи не на стриме."
-
-msgid "desk.device_code"
-msgstr "Код с другого устройства"
-
-msgid "desk.device_approved"
-msgstr "Другое устройство вошло в панель."
-
-msgid "desk.device_asked"
-msgstr "Запрос от"
-
-msgid "desk.device_unknown"
-msgstr "Неизвестный браузер"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} мин назад. Подтверждайте, только если это ваше устройство."
-
-msgid "desk.device_pick"
-msgstr "Показывает {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Выберите число, которое показывает другое устройство. Неверный выбор отклонит код."
-
-msgid "desk.device_refused"
-msgstr "Код неверный или устарел. Получи новый на другом устройстве."
-
 msgid "desk.mode"
 msgstr "Турнирный режим"
 
@@ -7543,7 +7371,7 @@ msgid "desk.mode_invite"
 msgstr "Нужно приглашение"
 
 msgid "desk.mode_on_detail"
-msgstr "Проводите свои турниры из Ember: привяжите сайт с сеткой, ниже разрешите доступ организатора, затем откройте панель на этом ПК или другом устройстве."
+msgstr "Проводи свои турниры из Ember, на сайте сеток Ember."
 
 msgid "desk.mode_invite_detail"
 msgstr "Пока турнирный режим доступен только по приглашению. Введите полученное приглашение; каждое работает один раз."
@@ -7556,9 +7384,6 @@ msgstr "Турнирный режим включён для вашего Ember I
 
 msgid "desk.invite_invalid"
 msgstr "Это приглашение недействительно. Проверьте его или попросите новое."
-
-msgid "desk.site.on"
-msgstr "На {0}"
 
 msgid "desk.site.detail"
 msgstr "На каком этапе турнир на сайте с сеткой. Ниже шаги, которые сайт сейчас разрешает."
@@ -7609,28 +7434,7 @@ msgid "desk.move.cancel"
 msgstr "Отменить турнир"
 
 msgid "desk.move.detail"
-msgstr "Просит {0} сделать это изменение сейчас. Игроки увидят его сразу."
-
-msgid "desk.org_site"
-msgstr "Доступ организатора {0}"
-
-msgid "desk.org_unlinked"
-msgstr "Не привязан"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Сначала привяжи аккаунт {0} в разделе «Привязанные аккаунты»."
-
-msgid "desk.org_allow"
-msgstr "Разрешить"
-
-msgid "desk.org_allow_detail"
-msgstr "Позволяет Ember вести твои турниры на {0}. {0} откроется в браузере для подтверждения."
-
-msgid "desk.org_remove_detail"
-msgstr "Убирает доступ организатора. Привязанный аккаунт остаётся."
-
-msgid "site.organizer_where"
-msgstr "Доступ организатора находится в Ember ID > Организация турниров."
+msgstr "Вносит это изменение на сайте сеток сейчас. Игроки сразу его увидят."
 
 msgid "screen.rankings"
 msgstr "Рейтинги"
@@ -8635,3 +8439,87 @@ msgstr "Попали все удары."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Попали не все удары."
+
+msgid "desk.draft.new"
+msgstr "Новый турнир"
+
+msgid "desk.draft.new_detail"
+msgstr "Название, дата, сеты и чекин. Сохраняется как черновик по ходу дела."
+
+msgid "desk.draft.title"
+msgstr "Название"
+
+msgid "desk.draft.title_first"
+msgstr "Сначала дай название"
+
+msgid "desk.draft.saved"
+msgstr "Черновик создаётся с названием; остальное настраивается потом и сохраняется при каждом изменении."
+
+msgid "desk.draft.date"
+msgstr "Дата"
+
+msgid "desk.draft.date_detail"
+msgstr "Влево / вправо: день. Твой часовой пояс; каждый видит в своём."
+
+msgid "desk.draft.time"
+msgstr "Начало"
+
+msgid "desk.draft.time_detail"
+msgstr "Влево / вправо: 15 минут."
+
+msgid "desk.draft.first_to"
+msgstr "Каждый сет до"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Влево / Вправо: сколько игр выигрывает сет."
+
+msgid "desk.draft.discord"
+msgstr "Канал Discord"
+
+msgid "desk.draft.discord_set"
+msgstr "Задан"
+
+msgid "desk.draft.discord_unset"
+msgstr "Нет"
+
+msgid "desk.draft.discord_detail"
+msgstr "Вызовы и счёт идут в этот канал. Он задаётся на странице сайта сеток."
+
+msgid "desk.draft.open_event"
+msgstr "Открыть событие"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Запись, шаги на сайте, запуск сетки и её сеты."
+
+msgid "desk.event.state"
+msgstr "Состояние"
+
+msgid "desk.event.starts"
+msgstr "Начало {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Записались"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Игроки, записавшиеся на странице сайта сеток."
+
+msgid "desk.start"
+msgstr "Запустить сетку"
+
+msgid "desk.start_detail"
+msgstr "Строится из записавшихся; Ember вызывает первые сеты."
+
+msgid "desk.event.edit"
+msgstr "Изменить детали и правила"
+
+msgid "desk.event.edit_detail"
+msgstr "Название, начало, сеты и чекин."
+
+msgid "desk.stop.draft"
+msgstr "Удалить черновик"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "Отметка о готовности"

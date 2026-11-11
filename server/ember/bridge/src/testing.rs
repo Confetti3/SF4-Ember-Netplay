@@ -97,6 +97,7 @@ pub fn loopback_config(dir: &Path, origin: &str) -> Config {
         sign_in_sites: Vec::new(),
         integration_secrets: None,
         desk: None,
+        tournaments: None,
         rooms: None,
         match_expiry_hours: config::DEFAULT_MATCH_EXPIRY_HOURS,
         replay_retention: None,

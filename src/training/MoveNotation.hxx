@@ -40,18 +40,22 @@ enum class Range { Any, Close, Far };
 // range: a standing normal that must come out as its close or far version.
 // cancel: this move cancels the one before it; otherwise it links after it.
 // follow: "~", a follow-up of the move before it: pressed a few frames in, no cue.
-// mash: five presses; P, K or several buttons are cycled one per frame, one
-// button goes on and off (Hundred Hand Slap, lightning legs).
+// mash: Hundred Hand Slap, lightning legs. Cancelled, five presses; P, K or several
+// buttons are cycled one per frame, one button goes on and off. On its own, the
+// light button through the normal it starts, then the move's button (MoveInputs.hxx).
 // offset: frames after this move's cue the press lands on, before it when negative ("cr.MK@+1").
 // at: the frame of the playback the move takes effect on, -1 when the move follows
 // the fight's cues instead ("cr.MK#45").
-// hold: the step holds the direction in motion and presses nothing, for
-// `frames` frames ("[1]20f"), or with frames 0 until the next move begins
-// its own input ("[1]"), through that move's wait. Holding 5 is a wait with
-// nothing held ("20f"), and needs its frames.
+// hold: the step is no move: it holds the direction in motion, for `frames`
+// frames ("[1]20f"), or with frames 0 until the next move begins its own
+// input ("[1]"), through that move's wait; or it holds `buttons` for its
+// frames ("[KK]210f", a charge that outlasts the stun). A hold of 5 with no
+// buttons is a wait ("20f", Wait), and needs its frames.
 struct Step {
     std::string motion;
     bool charge = false, air = false, cancel = false, mash = false;
+    // jump: the jump an air move is done from, 8 up ("j."), 9 forward ("fj."), 7 back ("bj.").
+    char jump = '8';
     // follow: a follow-up pressed a few frames into the move before it, with
     // no cue to wait for (a run's stop); it counts as a cancel otherwise.
     bool follow = false;
@@ -68,7 +72,7 @@ struct Step {
 constexpr int MaxAtFrame = 7200;
 
 // Strict notation, any case:
-//   [xx|~] [j.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]   or   [xx] RFADC[66|44] [#N] [@N]
+//   [xx|~] [j.|fj.|bj.|cr.|st.|cl.|far.] [motion] [buttons] [(mash)] [#N] [@N]   or   [xx] FADC[66|44] [#N] [@N]   or   [xx] RFADC[66|44] [#N] [@N]
 //   motion:  numpad digits 1-9, "[4]6" for charge, "360", "720", or a word:
 //            qcf 236, qcb 214, dp 623, rdp 421, hcf 41236, hcb 63214, its button after it or after "+"
 //   buttons: LP MP HP LK MK HK joined by "+", or P PP PPP K KK KKK;
@@ -78,7 +82,8 @@ constexpr int MaxAtFrame = 7200;
 //   @N:      playback timing, -120..+120 frames ("@-1", "@+3")
 //   #N:      playback frame the move takes effect on, 0..7200 ("#45")
 // or a direction held with no button, alone: "[1]" until the next move
-// begins, "[1]20f" for 1..7200 frames; "20f" waits that long, nothing held.
+// begins, "[1]20f" for 1..7200 frames; "20f" waits that long, nothing held;
+// "[KK]210f" holds buttons that long.
 // cr. is 2; st., cl. and far. are 5. FADC is MP+MK then a dash, 66 unless 44;
 // RFADC is the red focus, LP+MP+MK tapped so the attack comes out and lands, then the dash on its hit.
 inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
@@ -114,8 +119,8 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
         s.resize(mark);
     }
     {
-        // A hold or a wait: "[d]", "[d]Nf" or "Nf". The frame count is digits
-        // before an F, which no other move ends in.
+        // A hold or a wait: "[d]", "[d]Nf", "[buttons]Nf" or "Nf". The frame
+        // count is digits before an F, which no other move ends in.
         std::size_t head = s.size();
         if (head > 1 && s.back() == 'F') {
             std::size_t digits = head - 1;
@@ -123,8 +128,11 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
             if (digits < head - 1 && head - 1 - digits <= 4) { step.frames = std::atoi(s.c_str() + digits); head = digits; }
         }
         const bool held = head == 3 && s[0] == '[' && s[1] >= '1' && s[1] <= '9' && s[2] == ']';
-        if (held || (head == 0 && step.frames)) {
-            step.hold = true; step.motion = held ? s.substr(1, 1) : "5";
+        Step press;
+        const bool pressed = !held && step.frames && head > 2 && s[0] == '[' && s[head - 1] == ']' && ParseStep(s.substr(0, head), press, error) &&
+            press.edge == Edge::Hold && press.motion == "5" && !press.air && !press.mash && press.range == Range::Any;
+        if (held || pressed || (head == 0 && step.frames)) {
+            step.hold = true; step.motion = held ? s.substr(1, 1) : "5"; step.buttons = press.buttons; step.need = press.need;
             if (step.at >= 0 || step.offset || step.frames > MaxAtFrame || (head < s.size() && step.frames < 1) || (step.motion == "5" && !step.frames))
                 return fail();
             return true;
@@ -160,6 +168,8 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     }
     bool stance = false;
     if (starts("J.")) step.air = true;
+    else if (starts("FJ.")) { step.air = true; step.jump = '9'; }
+    else if (starts("BJ.")) { step.air = true; step.jump = '7'; }
     else if (starts("CR.")) { step.motion = "2"; stance = true; }
     else if (starts("ST.")) { step.motion = "5"; stance = true; }
     else if (starts("CL.")) { step.motion = "5"; step.range = Range::Close; stance = true; }
@@ -202,25 +212,30 @@ inline bool ParseStep(const std::string& text, Step& step, std::string& error) {
     if (step.motion.empty() && !step.air) step.motion = "5";
     return true;
 }
+// A step that holds nothing and waits ("20f").
+inline bool Wait(const Step& step) { return step.hold && step.motion == "5" && !step.buttons; }
+// A step's buttons as written: "PP", "LP+HP".
+inline std::string ButtonsText(const Step& step) {
+    if (step.buttons == Punches || step.buttons == Kicks) return std::string(static_cast<std::size_t>(step.need), step.buttons == Punches ? 'P' : 'K');
+    std::string text;
+    for (unsigned bit : {LP, MP, HP, LK, MK, HK}) if (step.buttons & bit) { text += text.empty() ? "" : "+"; text += ButtonName(bit); }
+    return text;
+}
 // The one spelling of a step: what is stored, shared and compared.
 inline std::string Canonical(const Step& step) {
-    if (step.hold) return (step.motion == "5" ? "" : "[" + step.motion + "]") + (step.frames ? std::to_string(step.frames) + "f" : "");
+    if (step.hold)
+        return (step.buttons ? "[" + ButtonsText(step) + "]" : step.motion == "5" ? "" : "[" + step.motion + "]") +
+            (step.frames ? std::to_string(step.frames) + "f" : "");
     std::string out = step.follow ? "~ " : step.cancel ? "xx " : "";
     const std::string timing = (step.at >= 0 ? "#" + std::to_string(step.at) : "") +
         (step.offset ? (step.offset > 0 ? "@+" : "@") + std::to_string(step.offset) : "");
     const bool focus = step.buttons == (MP | MK) && step.need == 2, red = step.buttons == (LP | MP | MK) && step.need == 3;
     if (!step.air && !step.charge && (step.motion == "66" || step.motion == "44") && (focus || red) && step.edge == Edge::Press && !step.mash)
         return out + (red ? "RFADC" : "FADC") + (step.motion == "66" ? "" : "44") + timing;
-    if (step.air) out += "j.";
+    if (step.air) out += step.jump == '9' ? "fj." : step.jump == '7' ? "bj." : "j.";
     if (step.range != Range::Any) out += step.range == Range::Close ? "cl." : "far.";
     else out += step.charge ? "[" + step.motion.substr(0, 1) + "]" + step.motion.substr(1) : step.motion;
-    std::string buttons;
-    if (step.buttons == Punches || step.buttons == Kicks) buttons.assign(static_cast<std::size_t>(step.need), step.buttons == Punches ? 'P' : 'K');
-    else {
-        static const char* const names[] = {"LP", "MP", "HP", "LK", "MK", "HK"};
-        static const unsigned masks[] = {LP, MP, HP, LK, MK, HK};
-        for (int n = 0; n < 6; ++n) if (step.buttons & masks[n]) { buttons += buttons.empty() ? "" : "+"; buttons += names[n]; }
-    }
+    std::string buttons = ButtonsText(step);
     if (step.edge == Edge::Hold) buttons = "[" + buttons + "]";
     if (step.edge == Edge::Release) buttons = "]" + buttons + "[";
     std::string mash;
@@ -262,16 +277,16 @@ inline bool ParseSteps(const std::string& line, std::vector<std::string>& steps,
     steps.clear();
     const auto fail = [&](std::string why) { error = std::move(why); steps.clear(); return false; };
     // A hold with no frames lasts until the next step begins, so that step is
-    // a move; the first move has no move before it to cancel or follow up,
-    // and is pressed, not let go.
+    // a move; the first move has no move before it to cancel or follow up.
     bool holding = false, moved = false;
     for (const auto& token : Tokens(line)) {
         Step step;
         if (!ParseStep(token, step, error)) return fail(error);
         if (holding && step.hold) return fail("a hold with no frames needs a move after it, not \"" + Canonical(step) + "\"");
         if (!step.hold && !moved && step.cancel) return fail(step.follow ? "the first move cannot be a follow-up" : "the first move cannot be a cancel");
-        // A reply is timed by its first press; a negative edge comes out on the release.
-        if (!step.hold && !moved && step.edge == Edge::Release) return fail("the first move cannot be let go (\"" + Canonical(step) + "\")");
+        // A first move let go is held through the stun and released when the reply is due, which needs a plain button.
+        if (!step.hold && !moved && step.edge == Edge::Release && (step.motion != "5" || step.range != Range::Any || step.air || step.mash))
+            return fail("the first move can be let go only as a button, not \"" + Canonical(step) + "\"");
         holding = step.hold && !step.frames;
         moved = moved || !step.hold;
         steps.push_back(Canonical(step));

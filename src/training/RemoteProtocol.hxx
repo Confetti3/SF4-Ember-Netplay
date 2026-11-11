@@ -1,6 +1,7 @@
 #pragma once
 #include "ComboFile.hxx"
 #include "FighterData.hxx"
+#include "FighterMoves.hxx"
 #include "RemoteOptions.hxx"
 #include <cstdint>
 #include <functional>
@@ -23,7 +24,7 @@ inline nlohmann::json OptionsJson(const Say& say) {
             {"section", say(option.section, -1)}, {"switch", option.Switch()}, {"choices", choices}});
     }
     nlohmann::json presets = nlohmann::json::array();
-    for (const char* preset : ReplyPresets) presets.push_back(preset);
+    for (const auto& move : UniversalMoves) presets.push_back(move.moves);
     return {{"options", list}, {"replyPresets", presets}};
 }
 // Every option's value now, by id: the game's from the view, the rest as the overlay thread
@@ -83,7 +84,8 @@ private:
 // The Data panel's readings, one object per fighter, in the game's units: everything the panel in the game shows.
 // "script": id, name, frame, total, the frame it can be cancelled from, its meter runs [from, to, kind]; "advantage" is
 // the frames the meter measured for the fighter (null before one); "range" the rule and its distance; "charges" each a
-// name (empty when the file's is a code), the directions held and the frames held and asked.
+// counter: a name (empty when the file's is a code), the directions held, the frames held and the frames each of its levels asks;
+// "stock" Juri's Fuhajin stock, a bit to each kick, -1 for everyone else.
 inline nlohmann::json DataJson(const View& view) {
     const DataView& data = view.data;
     if (!data.valid) return nullptr;
@@ -91,11 +93,16 @@ inline nlohmann::json DataJson(const View& view) {
     nlohmann::json sides = nlohmann::json::array();
     int side = 0;
     for (const auto& f : data.fighters) {
+        // A counter with several levels is one entry: its frames held and the frames each level asks.
         nlohmann::json charges = nlohmann::json::array();
-        for (std::size_t i = 0; i < f.chargeCount; ++i) {
-            const std::string name = f.ChargeName(f.charges[i].index);
-            charges.push_back({{"n", ReadableChargeName(name) ? name : std::string()}, {"b", (f.charges[i].directions & ChargeBack) != 0}, {"d", (f.charges[i].directions & ChargeDown) != 0},
-                {"h", f.charges[i].held}, {"r", f.charges[i].required}});
+        for (const auto& group : ChargeGroups(f)) {
+            const Charge& first = f.charges[group.front()];
+            int held = 0;
+            nlohmann::json needs = nlohmann::json::array();
+            for (const std::size_t i : group) { held = (std::max)(held, f.charges[i].held); needs.push_back(f.charges[i].required); }
+            const std::string name = ChargeGroupName(f, group);
+            charges.push_back({{"n", ReadableChargeName(name) ? name : std::string()}, {"b", (first.directions & ChargeBack) != 0}, {"d", (first.directions & ChargeDown) != 0},
+                {"h", held}, {"r", needs}});
         }
         const bac::Script* named = f.Script();
         nlohmann::json runs = nlohmann::json::array();
@@ -105,7 +112,7 @@ inline nlohmann::json DataJson(const View& view) {
         sides.push_back({{"valid", f.valid}, {"life", {f.life, f.lifeMax, f.recoverable}}, {"stun", {f.stun, f.stunMax}}, {"super", {f.super, f.superMax}},
             {"revenge", {f.revenge, f.revengeMax}}, {"x", f.x}, {"y", f.y}, {"stance", static_cast<int>(f.stance)}, {"status", f.status}, {"juggled", f.juggled},
             {"juggle", {f.juggle.start, f.juggle.add, f.juggle.limit}}, {"script", script}, {"range", {static_cast<int>(f.rangeRule), f.range}},
-            {"advantage", advantage.valid ? nlohmann::json(advantage.frames[side]) : nlohmann::json()}, {"charges", charges}});
+            {"advantage", advantage.valid ? nlohmann::json(advantage.frames[side]) : nlohmann::json()}, {"charges", charges}, {"stock", f.stock}});
         ++side;
     }
     return {{"distance", data.distance}, {"frame", data.frame}, {"sides", sides}};

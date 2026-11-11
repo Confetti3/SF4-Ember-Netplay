@@ -52,13 +52,31 @@ own connection, so the players it finds are the ones the connector looks up.
 Put the site behind an https proxy; the connector takes only https (or
 loopback http with `allow_loopback_http`).
 
+With `BRACKET_SITE_ORIGIN` and `EMBER_BRIDGE_ID` (the bridge's `brg_` ID), the
+game signs in too (`src/ember.ts`): the bridge's config names this site in
+`tournaments` (its origin, and the connection of the bridge credential), so
+the bridge tells the site who signed its challenges.
+
 ## API
 
 Every write takes a bearer token: the operator's (who may do anything, and
 acts as the user named in `X-Discord-User` when given), the Discord bot's
 (always with `X-Discord-User`, the player who pressed its button), or a
 signed-in user's. Only organizers create tournaments, and an organizer
-manages the tournaments that name them in `organizers`.
+manages the tournaments that name them in `organizers`. Organizers are the
+site's: the operator makes single-use invites, and a signed-in user who
+redeems one organizes from then on.
+
+The game signs in with `POST /v1/auth/challenges`, as on the bridge (`public_key`, and `tournament.act` at `POST /v1/sessions`),
+which answers a `tournament.act` challenge for `POST /v1/sessions`, then
+`POST /v1/sessions` `{ "command": {}, "proof" }`. The answer's
+`access_token` (an hour) is the player's Discord account on every route; a
+player who has not connected Discord in Ember gets 409.
+
+| Request | Who | |
+|---|---|---|
+| `POST /organizer-invites` | the operator | `{ "code" }`, used once |
+| `POST /organizer-invites/redeem` | signed in | `{ "code" }`: they organize from now on |
 
 | Request | Who | |
 |---|---|---|
@@ -66,11 +84,16 @@ manages the tournaments that name them in `organizers`.
 | `GET /tournaments` | signed in | the tournaments they manage |
 | `GET /tournaments/{id}` | anyone | the tournament, with the `actions` its state allows |
 | `PATCH /tournaments/{id}` | its organizers | settings, and `organizers`, before it is live |
+| `PATCH /tournaments/{id}` `{ "discord_webhook" }` | its organizers | its own Discord channel (a Discord webhook, or null), changeable while live too; never shown back (`discord`: true or false), only listed in `/live` to the bot, whose notifier posts the feed there too |
 | `PUT /tournaments/{id}/state` | its organizers | `{ "action": "<action>" }`; `start` takes `"seeding": "join"`, `"random"` or `"points"` (its season's standings) |
 | `POST /tournaments/{id}/entrants` | a player, or its organizers for anyone | `{ "name" }`; an organizer adds `"discord"` |
 | `DELETE /tournaments/{id}/entrants/{discord}` | that player, or its organizers | before it is live |
 | `POST /tournaments/{id}/check-in` | a player | while checking in |
 | `POST /tournaments/{id}/sets/{set}/result` | its organizers | `{ "winner": "<ember id>", "scores": { "<ember id>": 2, "<ember id>": 1 } }` |
+| `POST /tournaments/{id}/sets/{set}/hold` | its organizers | `{ "held" }`: a held set waits for the connector (shown to it as `pending`); not once its match is made |
+| `POST /tournaments/{id}/sets/{set}/call` | its organizers | calls its players again, in the feed Discord shows |
+| `GET /tournaments/{id}/sets/{set}/games` | its organizers | the set's Ember match on the bridge: `{ "revision", "games": [{ "attempt_id", "seq", "outcome", "state" }] }`; `409` before the connector started it |
+| `POST /tournaments/{id}/sets/{set}/adjudications` | its organizers | the bridge's adjudication body (`kind` `game_result` with `winner_slot` or `draw: true`, and `attempt_id` for a played game waiting; or `void_game` with `attempt_id`; `reason`, `expected_revision`), sent to the bridge for the set's match; its refusal comes back as it is. The site's bridge credential needs the organizer role on the connector's connection |
 | `DELETE /tournaments/{id}` | its organizers | its live matches are cancelled |
 | `GET /tournaments/{id}/feed?after=<n>` | anyone | what happened since item `n`: moves, sets live and done, upsets, streaks |
 | `GET /tournaments/{id}/stats` | anyone | sets live and done, placements, per player games, rounds, perfects and characters, upsets, the longest set |
@@ -131,8 +154,14 @@ tokens last an hour, refresh tokens 60 days.
 The home page (`/`) shows who is signed in, the tournaments open or live,
 and the latest results, with Sign in with Discord or Sign out
 (`POST /signout`). A browser signs in on the site's own page
-(`/signin?back=<path>`, home without `back`) and gets a session cookie, a player's only, whose writes are taken only with the site's
+(`/signin?back=<path>`, home without `back`) and gets a session cookie, an organizer's only when the site made them one, whose writes are taken only with the site's
 own `Origin`. The bracket page then offers Sign up, Check in and Leave.
+
+The desk (`/desk`) is the organizers' page on the same session: an invite
+code for a player who does not organize yet, then their tournaments to make,
+set up, move through their states and delete, the Discord channel to post
+to, and each set to hold, call again, or have its games decided, drawn,
+voided or added. It uses the routes above and nothing of its own.
 
 ## The connector
 

@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "Odpowiedź manekina"
 
 msgid "training.reply.detail"
-msgstr "Co manekin robi sam, gdy znów jest wolny, aby ukarać przerwane combo lub ryzykowne zakończenie: odtwarza Ciosy odpowiedzi albo slot odpowiedzi, gdy ten wiersz jest pusty. Odpowiedź czeka, gdy trwa odtwarzanie lub nagrywanie."
+msgstr "Co manekin robi sam, gdy tylko znów jest wolny, by ukarać przerwane combo lub niebezpieczne zakończenie: wykonuje jeden z włączonych slotów odpowiedzi, albo włączone nagrania, dopóki żaden slot nie jest włączony."
 
 msgid "training.reply.hit"
 msgstr "Po przerwanym combo"
@@ -1673,9 +1673,6 @@ msgstr "Przy wstawaniu"
 
 msgid "training.reply.any"
 msgstr "Zawsze po odzyskaniu kontroli"
-
-msgid "training.reply.recordings"
-msgstr "Nagrania"
 
 msgid "training.reply.no_recordings_on"
 msgstr "Żadne włączone nagranie nie nadaje się na odpowiedź"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "Ciosy odpowiedzi"
 
 msgid "training.reply.moves.detail"
-msgstr "Odpowiedź wpisana w notacji numerycznej, np. 623HP lub 44, czytana dla strony, w którą patrzy manekin. Działają też nazwy ruchów: qcf, qcb, dp, rdp, hcf i hcb, np. qcfP lub dp+HP. Ruch jest wprowadzany, gdy manekin jest jeszcze unieruchomiony, aby przycisk trafił w jego pierwszą wolną klatkę. [1] trzyma kierunek do następnego ruchu, [1]20f trzyma go 20 klatek, a 10f czeka: [1] > 3HP blokuje nisko, aż manekin będzie wolny, potem wciska 3HP. Puste pole odpowiada włączonym nagraniem."
-
-msgid "training.reply.move"
-msgstr "Gotowa odpowiedź"
-
-msgid "training.reply.move.detail"
-msgstr "W lewo i w prawo wybierają typową odpowiedź w zapisie numerycznym, czytaną dla strony, w którą patrzy manekin. Nagrania odpowiadają włączonym nagraniem; Własna zachowuje wpisane ciosy. Wybór otwiera Ciosy odpowiedzi, by wpisać własną."
-
-msgid "training.reply.custom"
-msgstr "Własna"
+msgstr "Cios tego slotu w notacji numpad, np. 623HP lub 44, odczytany dla strony, w którą patrzy manekin. Działają też słowa ruchów: qcf, qcb, dp, rdp, hcf i hcb. [HP] przytrzymuje przycisk, ]HP[ puszcza go w pierwszej wolnej klatce, [1]20f trzyma kierunek 20 klatek, a 10f czeka. Puste usuwa cios."
 
 msgid "training.reply.timing"
 msgstr "Synchronizacja odpowiedzi"
 
 msgid "training.reply.timing.detail"
 msgstr "Liczba klatek po pierwszej wolnej klatce manekina, w której trafia przycisk odpowiedzi. Długość ogłuszenia jest zapamiętywana za pierwszym razem; do tego czasu odpowiedź zaczyna się, gdy ogłuszenie się kończy."
+
+msgid "training.reply.order"
+msgstr "Kolejność odpowiedzi"
+
+msgid "training.reply.order.detail"
+msgstr "Jak manekin wybiera spośród włączonych slotów: losowo, każdy slot według jego wagi, albo po kolei, jeden po drugim."
+
+msgid "training.reply.slot"
+msgstr "Slot odpowiedzi {0}"
+
+msgid "training.reply.slot.detail"
+msgstr "Jeden cios, którym manekin może odpowiedzieć. Lewo i Prawo włączają go lub wyłączają; Wybór otwiera jego ciosy."
+
+msgid "training.reply.slot_on"
+msgstr "Używaj tego slotu"
+
+msgid "training.reply.slot_on.detail"
+msgstr "Czy manekin może wybrać ten slot do swojej odpowiedzi."
+
+msgid "training.reply.weight"
+msgstr "Waga"
+
+msgid "training.reply.weight.detail"
+msgstr "Udział tego slotu w losowaniu obok pozostałych, od 1 do 9."
+
+msgid "training.reply.clear_slot"
+msgstr "Opróżnij ten slot"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "Usuwa cios z tego slotu."
+
+msgid "training.reply.every_fighter"
+msgstr "Każdy wojownik"
 
 msgid "training.key.reset"
 msgstr "Klawisz przywracania"
@@ -3321,6 +3342,8 @@ msgid "room.tables"
 msgstr "Stoły"
 msgid "room.tables_detail"
 msgstr "Ile stołów ma pokój, od 1 do {0}. Host może to później zmienić w Ustawieniach pokoju."
+msgid "room.tables_arcade_detail"
+msgstr "Ile par gra jednocześnie, od 1 do {0}. Pozostali czekają w kolejce. Przy 1 zwycięzca zostaje, a przegrany idzie na koniec kolejki."
 msgid "room.tables.detail"
 msgstr "Stoły można dodawać do {0}. Stół można usunąć tylko wtedy, gdy nikt przy nim nie gra, nie czeka ani nie ogląda."
 msgid "room.apply_tables"
@@ -3986,55 +4009,7 @@ msgstr "Użyj innego konta Discord"
 msgid "connect.change_detail"
 msgstr "Otwiera Discord w przeglądarce, aby zamiast tego połączyć inne konto. Twoja strona turniejowa będzie wtedy musiała używać tego konta."
 
-msgid "site.title"
-msgstr "Połącz {0}"
 
-msgid "site.row_detail"
-msgstr "Połącz konto {0}, aby turnieje na {0} mogły znaleźć Twoje Ember ID."
-
-msgid "site.go_detail"
-msgstr "Połączenie {0} pozwala turniejom na {0} znaleźć Twoje Ember ID. Ember otworzy {0} w przeglądarce: zatwierdź tam kontem, którego używa Twój turniej."
-
-msgid "site.setting_up_detail"
-msgstr "Ember otwiera {0} w przeglądarce."
-
-msgid "site.waiting"
-msgstr "Zatwierdź w przeglądarce. Ten ekran zaktualizuje się po połączeniu {0}."
-
-msgid "site.waiting_label"
-msgstr "Oczekiwanie na {0}"
-
-msgid "site.waiting_detail"
-msgstr "Zatwierdź w przeglądarce kontem {0}, którego używa Twój turniej. Ten ekran zaktualizuje się sam."
-
-msgid "site.connected"
-msgstr "{0} połączony"
-
-msgid "site.connected_detail"
-msgstr "Turnieje na {0} mogą Cię teraz znaleźć po tym koncie."
-
-msgid "site.change"
-msgstr "Użyj innego konta {0}"
-
-msgid "site.change_detail"
-msgstr "Otwiera {0} w przeglądarce, aby zamiast tego połączyć inne konto. Twój turniej będzie wtedy musiał używać tego konta."
-
-msgid "site.remove_detail"
-msgstr "Odłącza to konto {0} od Twojego Ember ID w tym serwisie. Turnieje na {0} nie znajdą Cię już po nim."
-
-msgid "site.organizer"
-msgstr "Dostęp organizatora"
-
-
-msgid "site.organizer_held"
-msgstr "Dozwolony"
-
-
-msgid "site.organizer_opened"
-msgstr "Zezwól na dostęp organizatora w przeglądarce. Ten ekran odświeży się sam."
-
-msgid "site.organizer_now"
-msgstr "Dostęp organizatora przyznany. Stół turniejowy jest w Ember ID."
 
 
 
@@ -4042,25 +4017,13 @@ msgid "screen.tournament_desk"
 msgstr "Organizacja turniejów"
 
 msgid "desk.entry_detail"
-msgstr "Dostęp organizatora, web desk i twoje wydarzenia."
-
-msgid "desk.event_detail"
-msgstr "Na {0}. Wybierz, aby zobaczyć sety."
-
-msgid "desk.status.draft"
-msgstr "Szkic"
-
-msgid "desk.status.ready"
-msgstr "Gotowe"
-
-msgid "desk.status.running"
-msgstr "Trwa"
+msgstr "Twoje turnieje na stronie drabinki Embera."
 
 msgid "desk.none"
 msgstr "Brak wydarzeń"
 
 msgid "desk.none_detail"
-msgstr "Twórz i uruchamiaj wydarzenia na stronie stołu turniejowego; pojawią się tutaj, gdy trwają."
+msgstr "Wybierz Nowy turniej, aby go utworzyć; od tej pory jest tutaj."
 
 msgid "desk.view"
 msgstr "Widok"
@@ -4079,12 +4042,6 @@ msgstr "Pokaż"
 
 msgid "desk.filter.all"
 msgstr "Wszystkie"
-
-msgid "desk.filter.winners"
-msgstr "Wygrani"
-
-msgid "desk.filter.losers"
-msgstr "Przegrani"
 
 msgid "desk.filter.action"
 msgstr "Wymaga ciebie"
@@ -4107,35 +4064,17 @@ msgstr "Czeka"
 msgid "desk.state.not_ready"
 msgstr "Niegotowy"
 
-msgid "desk.state.called"
-msgstr "Wezwany"
-
 msgid "desk.state.playing"
 msgstr "Trwa gra"
 
 msgid "desk.state.needs_review"
 msgstr "Do sprawdzenia"
 
-msgid "desk.state.needs_organizer"
-msgstr "Wymaga ciebie"
-
-msgid "desk.state.reporting"
-msgstr "Zgłaszanie wyniku"
-
 msgid "desk.state.done"
 msgstr "Zakończony"
 
 msgid "desk.state.held"
 msgstr "Wstrzymany"
-
-msgid "desk.side.winners"
-msgstr "Wygrani"
-
-msgid "desk.side.losers"
-msgstr "Przegrani"
-
-msgid "desk.side.grand_final"
-msgstr "Wielki finał"
 
 msgid "desk.tbd"
 msgstr "Do ustalenia"
@@ -4154,21 +4093,6 @@ msgstr "Ten set nie należy już do wydarzenia"
 
 msgid "desk.state"
 msgstr "Stan"
-
-msgid "desk.called"
-msgstr "Wezwany."
-
-msgid "desk.called_posted"
-msgstr "Wezwany i opublikowany na Discordzie."
-
-msgid "desk.called_waiting"
-msgstr "Wezwany; post na Discordzie jest w drodze."
-
-msgid "desk.called_failed"
-msgstr "Wezwany, ale Discord nie przyjął posta."
-
-msgid "desk.not_called"
-msgstr "Jeszcze nie wezwany."
 
 msgid "desk.call"
 msgstr "Wezwij ponownie"
@@ -4215,44 +4139,11 @@ msgstr "Zapisuje grę rozegraną poza Ember, na przykład powtórkę uzgodnioną
 msgid "desk.done"
 msgstr "Gotowe."
 
-msgid "desk.web"
-msgstr "Zalogowano w sieci"
-
-msgid "desk.web_none"
-msgstr "Żadna przeglądarka nie jest zalogowana do biurka turnieju."
-
-msgid "desk.web_detail"
-msgstr "Najnowsza: {0} przez {1}. Sesja w sieci kończy się po 12 godzinach lub po 2 godzinach bezczynności."
-
-msgid "desk.web_end"
-msgstr "Wyloguj wszędzie"
-
-msgid "desk.web_end_detail"
-msgstr "Kończy wszystkie sesje biurka w sieci dla tego Ember ID. Zaloguj się ponownie w sieci, aby z niego korzystać."
-
-msgid "desk.web_new"
-msgstr "Ktoś zalogował się do twojego biurka turnieju w sieci. To nie ty? Wybierz Wyloguj wszędzie."
-
-msgid "desk.web_ended"
-msgstr "Wylogowano z biurka w sieci wszędzie."
-
 msgid "desk.open_browser"
 msgstr "Otwórz w przeglądarce"
 
 msgid "desk.open_browser_detail"
-msgstr "Otwiera biurko w przeglądarce tego komputera, zalogowane jako to Ember ID, ze wszystkimi zmianami dozwolonymi."
-
-msgid "desk.open_phone"
-msgstr "Zaloguj się na innym urządzeniu"
-
-msgid "desk.open_phone_detail"
-msgstr "Otwórz desk na dowolnym urządzeniu i wpisz tutaj kod, który pokaże."
-
-msgid "desk.code_at"
-msgstr "Wpisz na"
-
-msgid "desk.code_at_detail"
-msgstr "Otwórz to na drugim urządzeniu. Pokaże kod do wpisania tutaj."
+msgstr "Otwiera stronę drabinki w przeglądarce tego komputera. Zaloguj się tam przez Discord."
 
 
 
@@ -4260,46 +4151,7 @@ msgstr "Otwórz to na drugim urządzeniu. Pokaże kod do wpisania tutaj."
 
 
 msgid "desk.opened"
-msgstr "Biurko otwarte w przeglądarce."
-
-msgid "site.cancel_detail"
-msgstr "Przestaje czekać. Wybierz ponownie Połącz {0}, kiedy zechcesz."
-
-msgid "site.off"
-msgstr "Logowanie przez {0} jest wyłączone"
-
-msgid "site.off_detail"
-msgstr "Ten serwis turniejowy nie oferuje teraz logowania przez {0}. Spróbuj ponownie później."
-
-msgid "site.retry_detail"
-msgstr "Ponownie odczytuje Twoje konto {0}."
-
-msgid "site.opened"
-msgstr "Dokończ logowanie do {0} w przeglądarce."
-
-msgid "site.done"
-msgstr "{0} połączony jako {1}."
-
-msgid "site.removed"
-msgstr "Konto {0} odłączone."
-
-msgid "site.cancelled"
-msgstr "Przestano czekać na {0}."
-
-msgid "site.busy"
-msgstr "Logowanie przez {0} jest teraz przeciążone. Spróbuj ponownie później."
-
-msgid "site.gone"
-msgstr "Ten serwis turniejowy nie oferuje już logowania przez {0}."
-
-msgid "site.no_service"
-msgstr "Serwis turniejowy Ember nie jest skonfigurowany"
-
-msgid "site.no_service_detail"
-msgstr "{0} łączy się przez serwis turniejowy Ember. Najpierw wyszukaj go w sekcji Powiązane konta, a potem wróć tutaj."
-
-msgid "site.screen"
-msgstr "Konto w serwisie"
+msgstr "Strona drabinki otworzyła się w przeglądarce."
 
 msgid "identity.failure.browser"
 msgstr "Ember nie mógł otworzyć przeglądarki."
@@ -5567,6 +5419,9 @@ msgstr "Usiądź tutaj: grasz z tym, kto czeka najdłużej, albo czekasz na kole
 msgid "room.arcade_waiting"
 msgstr "Czeka"
 
+msgid "room.arcade_in_line"
+msgstr "Miejsce w kolejce: {0}"
+
 msgid "room.cabinet_free"
 msgstr "WRZUĆ MONETĘ"
 
@@ -5761,6 +5616,9 @@ msgstr "Gracz 2"
 
 msgid "replays.matches_shown"
 msgstr "Wyświetlone mecze"
+
+msgid "replays.sets_shown"
+msgstr "Wyświetlone sety"
 
 msgid "replays.filter_reset"
 msgstr "Resetuj"
@@ -7503,36 +7361,6 @@ msgstr "Zimbabwe"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "Zrób to poza streamem"
-
-msgid "desk.offstream_detail"
-msgstr "Nikt, kto widzi twój ekran, nie użyje kodu, ale i tak loguj się poza streamem."
-
-msgid "desk.device_code"
-msgstr "Kod z drugiego urządzenia"
-
-msgid "desk.device_approved"
-msgstr "Drugie urządzenie jest zalogowane do desku."
-
-msgid "desk.device_asked"
-msgstr "Prośba od"
-
-msgid "desk.device_unknown"
-msgstr "Nieznana przeglądarka"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} min temu. Zatwierdź tylko, jeśli to twoje urządzenie."
-
-msgid "desk.device_pick"
-msgstr "Pokazuje {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "Wybierz liczbę widoczną na drugim urządzeniu. Zły wybór odrzuca kod."
-
-msgid "desk.device_refused"
-msgstr "Ten kod jest błędny lub wygasł. Pobierz nowy na drugim urządzeniu."
-
 msgid "desk.mode"
 msgstr "Tryb turniejowy"
 
@@ -7543,7 +7371,7 @@ msgid "desk.mode_invite"
 msgstr "Potrzebne zaproszenie"
 
 msgid "desk.mode_on_detail"
-msgstr "Prowadź własne wydarzenia z Embera: połącz swoją stronę z drabinkami, poniżej zezwól na dostęp organizatora, a potem otwórz panel na tym PC lub innym urządzeniu."
+msgstr "Prowadź własne turnieje z Embera, na stronie drabinki Embera."
 
 msgid "desk.mode_invite_detail"
 msgstr "Tryb turniejowy jest na razie tylko na zaproszenie. Wpisz otrzymane zaproszenie; każde działa tylko raz."
@@ -7556,9 +7384,6 @@ msgstr "Tryb turniejowy jest włączony dla twojego Ember ID."
 
 msgid "desk.invite_invalid"
 msgstr "To zaproszenie jest nieważne. Sprawdź je lub poproś o nowe."
-
-msgid "desk.site.on"
-msgstr "Na {0}"
 
 msgid "desk.site.detail"
 msgstr "Na jakim etapie jest turniej na swojej stronie z drabinkami. Poniżej kroki, na które strona teraz pozwala."
@@ -7609,28 +7434,7 @@ msgid "desk.move.cancel"
 msgstr "Odwołaj turniej"
 
 msgid "desk.move.detail"
-msgstr "Prosi {0} o tę zmianę teraz. Gracze widzą ją od razu."
-
-msgid "desk.org_site"
-msgstr "Dostęp organizatora {0}"
-
-msgid "desk.org_unlinked"
-msgstr "Niepołączone"
-
-msgid "desk.org_unlinked_detail"
-msgstr "Najpierw połącz konto {0} w Połączonych kontach."
-
-msgid "desk.org_allow"
-msgstr "Zezwól"
-
-msgid "desk.org_allow_detail"
-msgstr "Pozwala Ember prowadzić twoje turnieje {0}. {0} otworzy się w przeglądarce do zatwierdzenia."
-
-msgid "desk.org_remove_detail"
-msgstr "Usuwa dostęp organizatora. Połączone konto zostaje."
-
-msgid "site.organizer_where"
-msgstr "Dostęp organizatora jest w Ember ID > Organizacja turniejów."
+msgstr "Wprowadza tę zmianę na stronie drabinki. Gracze widzą ją od razu."
 
 msgid "screen.rankings"
 msgstr "Rankingi"
@@ -8635,3 +8439,87 @@ msgstr "Weszły wszystkie ciosy."
 
 msgid "training.combo_check.run.dropped"
 msgstr "Nie weszły wszystkie ciosy."
+
+msgid "desk.draft.new"
+msgstr "Nowy turniej"
+
+msgid "desk.draft.new_detail"
+msgstr "Tytuł, data, sety i check-in. Zapisywane na bieżąco jako szkic."
+
+msgid "desk.draft.title"
+msgstr "Tytuł"
+
+msgid "desk.draft.title_first"
+msgstr "Najpierw nadaj tytuł"
+
+msgid "desk.draft.saved"
+msgstr "Szkic powstaje z tytułem; resztę ustawiasz potem i zapisuje się przy każdej zmianie."
+
+msgid "desk.draft.date"
+msgstr "Data"
+
+msgid "desk.draft.date_detail"
+msgstr "Lewo / Prawo: dzień. Twoja strefa czasowa; każdy widzi ją w swojej."
+
+msgid "desk.draft.time"
+msgstr "Start"
+
+msgid "desk.draft.time_detail"
+msgstr "Lewo / Prawo: 15 minut."
+
+msgid "desk.draft.first_to"
+msgstr "Każdy set do"
+
+msgid "desk.draft.first_to_detail"
+msgstr "Lewo / Prawo: liczba gier wygrywająca set."
+
+msgid "desk.draft.discord"
+msgstr "Kanał Discord"
+
+msgid "desk.draft.discord_set"
+msgstr "Ustawiono"
+
+msgid "desk.draft.discord_unset"
+msgstr "Brak"
+
+msgid "desk.draft.discord_detail"
+msgstr "Wezwania i wyniki trafiają na ten kanał. Ustawia się go na stronie drabinki."
+
+msgid "desk.draft.open_event"
+msgstr "Otwórz wydarzenie"
+
+msgid "desk.draft.open_event_detail"
+msgstr "Zapisy, kroki na stronie, start drabinki i jej sety."
+
+msgid "desk.event.state"
+msgstr "Stan"
+
+msgid "desk.event.starts"
+msgstr "Start {0}"
+
+msgid "desk.event.signed_up"
+msgstr "Zapisani"
+
+msgid "desk.event.signed_up_detail"
+msgstr "Gracze zapisani na stronie drabinki."
+
+msgid "desk.start"
+msgstr "Uruchom drabinkę"
+
+msgid "desk.start_detail"
+msgstr "Tworzona z zapisanych; Ember wywołuje pierwsze sety."
+
+msgid "desk.event.edit"
+msgstr "Edytuj szczegóły i zasady"
+
+msgid "desk.event.edit_detail"
+msgstr "Tytuł, start, sety i check-in."
+
+msgid "desk.stop.draft"
+msgstr "Usuń ten szkic"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "Check-in"

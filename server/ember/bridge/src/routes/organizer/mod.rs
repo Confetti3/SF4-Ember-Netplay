@@ -449,8 +449,14 @@ fn end(tx: &Transaction<'_>, ctx: &Ctx, id: &str, ember_id: &str) -> Result<bool
         )
         .optional()?;
     if let (Some((Some(site), Some(tournament))), Some(desk)) = (&event, &ctx.config.desk) {
-        // The connector names a set's match `<site>:<tournament>:<set>:<attempt>`.
-        let prefix = format!("{site}:{tournament}:");
+        // The connector names a set's match `<site>:<tournament>:<set>:<attempt>`,
+        // with `http` for a site it plays on its `http` adapter: any but
+        // Challonge and start.gg, as its desk (brackets `desk.rs`) does.
+        let adapter = match site.as_str() {
+            "challonge" | "startgg" => site.as_str(),
+            _ => "http",
+        };
+        let prefix = format!("{adapter}:{tournament}:");
         let ids: Vec<String> = tx
             .prepare(
                 "SELECT id FROM matches WHERE connection_id = ?1

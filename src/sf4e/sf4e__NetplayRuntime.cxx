@@ -63,7 +63,11 @@ bool AtMainMenu() {
 	auto* root = Dimps::App::GetRootEvent();
 	if (!root) return false;
 	char* query[] = { "MainMenu" };
-	return Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1) != nullptr;
+	if (!Dimps::Event::EventBaseWithEC::FindForegroundEvent(root, query, 1)) return false;
+	// Not Ember's while a save's unlock box is up: the game's input answers it.
+	using Dimps::Game::SaveDataController;
+	auto* const unlock = SaveDataController::GetUnlockMessage(SaveDataController::staticMethods.GetSingleton());
+	return !unlock || SaveDataController::staticMethods.UnlockIdle(unlock);
 }
 
 // The native screen in front ("MainMenu", "Option", ...), empty while the
@@ -82,11 +86,13 @@ static std::string NativeForegroundName() {
 }
 
 // While a room is joined the native screen is logged whenever it changes, so
-// a log shows what was in front of the player's pad.
+// a log shows what was in front of the player's pad. On a stream PC
+// (--host-public-room) it is logged with no room too: its script presses
+// Start on the title screen.
 static void NoteNativeScreen() {
 	static std::string last;
 	const auto state = runtime->controller.GetSnapshot();
-	if (state.room == netplay::RoomState::Idle) { last.clear(); return; }
+	if (state.room == netplay::RoomState::Idle && !runtime->hostPublicRoom) { last.clear(); return; }
 	const std::string now = NativeForegroundName();
 	if (now.empty() || now == last) return;
 	spdlog::info("Room: native screen {} (was {}), room {}, match {}", now, last.empty() ? "none seen" : last,
@@ -310,6 +316,7 @@ void StartHelper() {
     MenuMusic::Use(runtime->preferences.endlessLobbyMusic);
     GameThemes::Use(runtime->preferences.gameThemes);
     runtime->offlineRequested = EnvFlag("SF4E_START_OFFLINE");
+    runtime->hostPublicRoom = EnvFlag("SF4E_HOST_PUBLIC_ROOM");
     {
         // Read once and cleared, so the helper never inherits the code.
         char link[64] = {};

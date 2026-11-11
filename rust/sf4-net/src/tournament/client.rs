@@ -20,7 +20,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::{Value, json, value::RawValue};
 use zeroize::Zeroizing;
 
-use super::{Code, Failure, Locked, Outcome, Shared, bridges::Approved, sites};
+use super::{Code, Failure, Locked, Outcome, Shared, bridges::Approved};
 
 pub(super) const MAX_RESPONSE: usize = 64 * 1024;
 const JSON: &str = "application/json";
@@ -29,7 +29,7 @@ const JSON: &str = "application/json";
 /// hosted, so the ordinary request timeout would give up on a room that is
 /// then opened.
 pub(super) const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
-const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
+pub(super) const POLICY: OriginPolicy = OriginPolicy::AllowLoopbackHttp;
 /// Renew a cached session this long before it expires.
 const SESSION_MARGIN_SECS: u64 = 30;
 /// The bridge's code for a session it no longer accepts.
@@ -47,6 +47,19 @@ struct Session {
 pub struct Client {
     http: Option<reqwest::Client>,
     sessions: Mutex<HashMap<String, Session>>,
+    /// Sessions on the bracket site each bridge names, by bridge ID (desk.rs).
+    sites: Mutex<HashMap<String, SiteSession>>,
+}
+
+/// A session on a bridge's bracket site: the site (the bridge with the
+/// site's origin), its token, and whether the player organizes there.
+#[derive(Clone)]
+pub(super) struct SiteSession {
+    pub site: Approved,
+    pub token: Zeroizing<String>,
+    pub expires_at: u64,
+    pub ember_id: EmberId,
+    pub organizer: bool,
 }
 
 pub(super) fn now() -> u64 {
@@ -72,6 +85,7 @@ impl Client {
         Self {
             http,
             sessions: Mutex::new(HashMap::new()),
+            sites: Mutex::new(HashMap::new()),
         }
     }
 
@@ -79,11 +93,36 @@ impl Client {
         if let Ok(mut sessions) = self.sessions.lock() {
             sessions.clear();
         }
+        if let Ok(mut sites) = self.sites.lock() {
+            sites.clear();
+        }
     }
 
     pub fn forget_session(&self, bridge_id: &str) {
         if let Ok(mut sessions) = self.sessions.lock() {
             sessions.remove(bridge_id);
+        }
+        self.forget_site_session(bridge_id);
+    }
+
+    pub(super) fn site_session(&self, bridge_id: &str, ember_id: &EmberId) -> Option<SiteSession> {
+        let sites = self.sites.lock().ok()?;
+        sites
+            .get(bridge_id)
+            .filter(|session| &session.ember_id == ember_id)
+            .filter(|session| session.expires_at > now() + SESSION_MARGIN_SECS)
+            .cloned()
+    }
+
+    pub(super) fn keep_site_session(&self, session: SiteSession) {
+        if let Ok(mut sites) = self.sites.lock() {
+            sites.insert(session.site.bridge_id.clone(), session);
+        }
+    }
+
+    pub(super) fn forget_site_session(&self, bridge_id: &str) {
+        if let Ok(mut sites) = self.sites.lock() {
+            sites.remove(bridge_id);
         }
     }
 
@@ -146,7 +185,7 @@ impl Client {
 
     /// Fetches a bridge's discovery document and capabilities. This does not
     /// make the bridge trusted; the caller shows it for approval.
-    pub async fn inspect(&self, origin: &str) -> Result<(BridgeProfile, Offered), Failure> {
+    pub async fn inspect(&self, origin: &str) -> Result<(BridgeProfile, Capabilities), Failure> {
         let profile = self.profile(origin).await?;
         Ok((profile, self.capabilities(origin).await?))
     }
@@ -189,11 +228,8 @@ impl Client {
         Ok(profile)
     }
 
-    /// What the bridge at `origin` offers. Its sign-in sites are read on
-    /// their own and leniently (`sites::listed`): an entry this build does
-    /// not understand is dropped, never failing the document that Discord,
-    /// approval and match play also read.
-    pub async fn capabilities(&self, origin: &str) -> Result<Offered, Failure> {
+    /// What the bridge at `origin` offers (`read_capabilities`).
+    pub async fn capabilities(&self, origin: &str) -> Result<Capabilities, Failure> {
         check_origin(origin, POLICY).map_err(|_| Failure::new(Code::InvalidOrigin))?;
         let (status, body) = self
             .call(
@@ -206,8 +242,8 @@ impl Client {
         if status != 200 {
             return Err(Failure::new(Code::NotABridge));
         }
-        let offered = Offered::read(&body).ok_or_else(|| Failure::new(Code::NotABridge))?;
-        if offered.capabilities.api_version != "v1" {
+        let offered = read_capabilities(&body).ok_or_else(|| Failure::new(Code::NotABridge))?;
+        if offered.api_version != "v1" {
             return Err(Failure::new(Code::UnsupportedBridge));
         }
         Ok(offered)
@@ -233,61 +269,28 @@ impl Client {
     }
 }
 
-/// A bridge's capabilities, with the sign-in sites it lists kept apart:
-/// `capabilities.sign_in_sites` is always empty.
-pub struct Offered {
-    pub capabilities: Capabilities,
-    pub sign_in_sites: Vec<sites::Listed>,
-}
-
-impl Offered {
-    /// The capabilities document `body`, held to the strict JSON rules
-    /// (`json::parse`) everywhere but inside `sign_in_sites`. The document's
-    /// own members are split out as written, their values not yet read
-    /// (`Members`). Every member but `sign_in_sites` is put back byte for
-    /// byte and read strictly, so a duplicate key, a fraction, an unsafe
-    /// integer, a value nested too deep or trailing data there fails the
-    /// read as it always has, and so does a second `sign_in_sites`. The one
-    /// `sign_in_sites` is read entry by entry (`sites::listed`): whatever a
-    /// newer bridge puts in it, it never fails the document that Discord,
-    /// approval and match play read.
-    fn read(body: &[u8]) -> Option<Self> {
-        let Members(members) = serde_json::from_slice(body).ok()?;
-        let mut rest = Vec::with_capacity(body.len());
-        let mut listed = None;
-        rest.push(b'{');
-        for (key, value) in members {
-            if key == "sign_in_sites" {
-                if listed.replace(value).is_some() {
-                    return None;
-                }
-                continue;
-            }
-            if rest.len() > 1 {
-                rest.push(b',');
-            }
-            serde_json::to_writer(&mut rest, &key).ok()?;
-            rest.push(b':');
-            rest.extend_from_slice(value.get().as_bytes());
+/// The capabilities document `body`, held to the strict JSON rules
+/// (`json::parse`) everywhere but the sign-in sites an older bridge still
+/// lists: the document's own members are split out as written (`Members`),
+/// every one but `sign_in_sites` is put back byte for byte and read
+/// strictly, and the site list is dropped unread, whatever it holds.
+fn read_capabilities(body: &[u8]) -> Option<Capabilities> {
+    let Members(members) = serde_json::from_slice(body).ok()?;
+    let mut rest = Vec::with_capacity(body.len());
+    rest.push(b'{');
+    for (key, value) in members {
+        if key == "sign_in_sites" {
+            continue;
         }
-        rest.push(b'}');
-        Some(Self {
-            capabilities: json::parse_as(&rest, MAX_RESPONSE).ok()?,
-            sign_in_sites: sites::listed(listed),
-        })
-    }
-
-    /// The document the game reads: the capabilities, with the sites listed
-    /// only when there are any, so a bridge without them answers as before.
-    pub fn to_json(&self) -> Value {
-        let mut document = json!(self.capabilities);
-        if !self.sign_in_sites.is_empty()
-            && let Some(fields) = document.as_object_mut()
-        {
-            fields.insert("sign_in_sites".into(), json!(self.sign_in_sites));
+        if rest.len() > 1 {
+            rest.push(b',');
         }
-        document
+        serde_json::to_writer(&mut rest, &key).ok()?;
+        rest.push(b':');
+        rest.extend_from_slice(value.get().as_bytes());
     }
+    rest.push(b'}');
+    json::parse_as(&rest, MAX_RESPONSE).ok()
 }
 
 /// A JSON object's members in the order written, a repeated key kept each
@@ -323,6 +326,7 @@ pub(super) enum Verb {
     Get,
     Post,
     Put,
+    Patch,
     Delete,
 }
 
@@ -332,6 +336,7 @@ impl Verb {
             Self::Get => reqwest::Method::GET,
             Self::Post => reqwest::Method::POST,
             Self::Put => reqwest::Method::PUT,
+            Self::Patch => reqwest::Method::PATCH,
             Self::Delete => reqwest::Method::DELETE,
         }
     }
@@ -343,7 +348,7 @@ impl Verb {
         match self {
             Self::Post => Some(Method::Post),
             Self::Delete => Some(Method::Delete),
-            Self::Get | Self::Put => None,
+            Self::Get | Self::Put | Self::Patch => None,
         }
     }
 }
@@ -825,28 +830,24 @@ mod tests {
     }
 
     /// The capabilities hold to the strict JSON rules everywhere but inside
-    /// `sign_in_sites`: a break of them anywhere else fails the read as it
-    /// always did, and nothing a site list holds ever does. A bridge without
-    /// sites reads back exactly as it was served.
+    /// an older bridge's `sign_in_sites`, which is dropped whatever it holds.
     #[test]
-    fn only_the_site_list_is_read_leniently() {
+    fn only_the_site_list_is_dropped_unread() {
         const FIELDS: &str = concat!(
             r#""api_version":"v1","event_version":"v1","games":["usf4"],"games_to_win":[1],"#,
             r#""native_rules_profiles":[],"native_play":true,"result_sources":[],"#,
-            r#""features":["discord","sites","matches.play"],"lobby_rotations":[],"#,
+            r#""features":["discord","matches.play"],"lobby_rotations":[],"#,
             r#""tournament_formats":[],"connections":[],"limits":{"max_body_bytes":1,"#,
             r#""max_proof_body_bytes":1,"max_json_depth":1,"challenge_lifetime_secs":1,"#,
             r#""session_lifetime_secs":1,"link_code_lifetime_secs":1}"#,
         );
-        let read = |extra: &str| Offered::read(format!("{{{FIELDS}{extra}}}").as_bytes());
-        let plain = read("").unwrap();
-        assert!(plain.sign_in_sites.is_empty());
+        let read = |extra: &str| read_capabilities(format!("{{{FIELDS}{extra}}}").as_bytes());
         let served: Value = serde_json::from_str(&format!("{{{FIELDS}}}")).unwrap();
-        assert_eq!(plain.to_json(), served);
+        assert_eq!(json!(read("").unwrap()), served);
 
         // Outside the site list: a duplicate key, a fraction, an exponent, an
-        // unsafe integer, nesting past the limit, a second site list,
-        // trailing data, a missing field, or no object at all.
+        // unsafe integer, nesting past the limit, trailing data, a missing
+        // field, or no object at all.
         let deep = format!("{}1{}", "[".repeat(17), "]".repeat(17));
         for extra in [
             r#","features":["discord"]"#.to_owned(),
@@ -854,58 +855,23 @@ mod tests {
             r#","weight":1e3"#.to_owned(),
             r#","weight":9007199254740993"#.to_owned(),
             format!(r#","nested":{deep}"#),
-            r#","sign_in_sites":[],"sign_in_sites":[]"#.to_owned(),
         ] {
             assert!(read(&extra).is_none(), "{extra}");
         }
-        assert!(Offered::read(format!("{{{FIELDS}}} {{}}").as_bytes()).is_none());
-        assert!(Offered::read(br#"{"api_version":"v1"}"#).is_none());
-        assert!(Offered::read(b"[]").is_none());
+        assert!(read_capabilities(format!("{{{FIELDS}}} {{}}").as_bytes()).is_none());
+        assert!(read_capabilities(br#"{"api_version":"v1"}"#).is_none());
+        assert!(read_capabilities(b"[]").is_none());
 
-        // Inside it, the same breaks and any shape at all never fail it.
-        let good = concat!(
-            r#"{"id":"challonge","display_name":"Challonge","sign_in":true,"lookup_by":"username","#,
-            r#""authorize_origin":"https://api.challonge.com","authorize_path":"/oauth/authorize"}"#,
-        );
-        let later = format!(
-            r#"{{"id":"later","display_name":"Later","sign_in":true,"lookup_by":"email","weight":0.5,"rank":1e3,"big":9007199254740993,"deep":{deep},"authorize_origin":"https://later.example","authorize_path":"/sign-in"}}"#
-        );
-        let twice = concat!(
-            r#"{"id":"twice","id":"again","display_name":"Twice","sign_in":true,"#,
-            r#""authorize_origin":"https://twice.example","authorize_path":"/x"}"#,
-        );
-        let listed: &[&str] = &["challonge", "later"];
-        for (sites, ids) in [
-            (
-                format!(r#"[{good},{later},{twice},{{"id":"half"}},7,1.5,"x",null,[{good}]]"#),
-                listed,
-            ),
-            (format!(r#"{{"challonge":{good}}}"#), &[][..]),
-            (r#""challonge""#.to_owned(), &[][..]),
-            ("2.5e10".to_owned(), &[][..]),
-            ("null".to_owned(), &[][..]),
-            (format!("[{deep}]"), &[][..]),
+        // Inside it, any shape at all is dropped.
+        for sites in [
+            r#"[{"id":"challonge","lookup_by":"username","weight":0.5}]"#.to_owned(),
+            r#""challonge""#.to_owned(),
+            "2.5e10".to_owned(),
+            format!("[{deep}]"),
         ] {
             let offered =
                 read(&format!(r#","sign_in_sites":{sites}"#)).unwrap_or_else(|| panic!("{sites}"));
-            assert_eq!(
-                offered.capabilities.features,
-                ["discord", "sites", "matches.play"]
-            );
-            assert!(offered.capabilities.sign_in_sites.is_empty());
-            let kept: Vec<&str> = offered
-                .sign_in_sites
-                .iter()
-                .map(|site| site.id.as_str())
-                .collect();
-            assert_eq!(kept, ids, "{sites}");
-            let shown = offered.to_json();
-            if ids.is_empty() {
-                assert_eq!(shown, served, "{sites}");
-            } else {
-                assert!(shown["sign_in_sites"][0].get("lookup_by").is_none());
-                assert_eq!(shown["sign_in_sites"][1]["authorize_path"], "/sign-in");
-            }
+            assert_eq!(json!(offered), served, "{sites}");
         }
     }
 

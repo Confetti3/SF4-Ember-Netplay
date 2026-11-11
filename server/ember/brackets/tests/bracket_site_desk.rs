@@ -55,7 +55,8 @@ async fn discord() -> String {
         .route(
             "/api/oauth2/token",
             post(|body: Bytes| async move {
-                let form = support::oauth::params(&body);
+                let form: std::collections::HashMap<String, String> =
+                    url::form_urlencoded::parse(&body).into_owned().collect();
                 let user = form["code"].strip_prefix("code-").unwrap_or_default();
                 answer(json!({ "access_token": format!("at-{user}"), "token_type": "Bearer" }))
             }),

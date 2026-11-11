@@ -1,13 +1,10 @@
-//! Fake bracket sites (Challonge, start.gg, an organizer's own service), a
-//! real bridge on a loopback port, and a connector between them. All keys
-//! and tokens here are throwaway test values.
+//! A fake bracket service answering the `http` adapter's contract, a real
+//! bridge on a loopback port, and a connector between them. All keys and
+//! tokens here are throwaway test values.
 #![allow(dead_code)]
 
 pub mod bridge;
-pub mod challonge;
-pub mod oauth;
 pub mod service;
-pub mod startgg;
 
 use std::path::{Path, PathBuf};
 
@@ -16,7 +13,7 @@ use axum::{
     http::{Method, StatusCode},
 };
 use ember_brackets::{
-    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Hold, Results,
+    Adapter, Bridge, Clock, Config, Connector, Credential, CredentialKind, Desk, DeskSite, Results,
     RoundRule, Rounds, Side, Tournament,
 };
 use ember_protocol::webhook::Secret;
@@ -24,10 +21,13 @@ use serde_json::{Value, json};
 use tokio::net::TcpListener;
 
 use bridge::TestBridge;
-use challonge::{FakeChallonge, FakeMatch};
+use service::{FakeService, SERVICE_TOKEN, fed_by, open};
 
-pub const TOURNAMENT: &str = "ember_weekly";
-pub const CHALLONGE_KEY: &str = "test-challonge-api-key";
+pub const TOURNAMENT: &str = "weekly";
+/// The tournament's key, as the connector's database and logs name it.
+pub const BRACKET: &str = "http:weekly";
+/// The bridge site the desk runs the fake service's events on.
+pub const DESK_SITE: &str = "ember";
 pub const CONNECTION: &str = "brackets";
 
 /// Serves `app` on a loopback port of its own; returns its origin.
@@ -38,23 +38,12 @@ pub async fn serve(app: Router) -> String {
     origin
 }
 
-/// Page `page` (from 1) of `per_page` items, and how many pages there are.
-pub fn page<T: Clone>(items: &[T], page: usize, per_page: usize) -> (Vec<T>, usize) {
-    let slice = items
-        .iter()
-        .skip(page.saturating_sub(1) * per_page)
-        .take(per_page)
-        .cloned()
-        .collect();
-    (slice, items.len().div_ceil(per_page).max(1))
-}
-
 /// A connector's configuration over `dir`, with no tournament yet: its
-/// provider credential, result secret and Challonge key written there.
+/// provider credential, result secret and service token written there.
 pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
     std::fs::write(dir.join("provider.token"), format!("{provider}\n")).unwrap();
     std::fs::write(dir.join("result.secret"), result_secret().reveal().as_str()).unwrap();
-    std::fs::write(dir.join("challonge.key"), CHALLONGE_KEY).unwrap();
+    std::fs::write(dir.join("service.token"), SERVICE_TOKEN).unwrap();
     Config {
         bridge: Bridge {
             api: bridge_api.into(),
@@ -71,31 +60,26 @@ pub fn config(dir: &Path, bridge_api: &str, provider: &str) -> Config {
         database: dir.join("brackets.sqlite3"),
         poll_secs: 120,
         max_poll_secs: 600,
-        monthly_request_budget: 500,
         allow_loopback_http: true,
         tournaments: Vec::new(),
         desk: None,
     }
 }
 
-/// A connector over `config`, with start.gg's rate raised so that no test
-/// waits on it.
 pub fn connector(config: &Config, clock: &Clock) -> Connector {
-    Connector::with_startgg_rate(config.clone(), clock.clone(), (10_000, 60)).unwrap()
+    Connector::new(config.clone(), clock.clone()).unwrap()
 }
 
-/// The Challonge tournament, on the key `config` wrote.
-pub fn challonge_tournament(dir: &Path, kind: CredentialKind, api_base: &str) -> Tournament {
+/// The tournament at `api_base`, on the token `config` wrote.
+pub fn tournament(dir: &Path, api_base: &str) -> Tournament {
     Tournament {
-        adapter: Adapter::Challonge,
-        bridge_site: None,
+        adapter: Adapter::Http,
         tournament: TOURNAMENT.into(),
         credential: Credential {
-            kind,
-            file: dir.join("challonge.key"),
+            kind: CredentialKind::Bearer,
+            file: dir.join("service.token"),
         },
         rounds: rounds(),
-        hold: Hold::default(),
         active_from: None,
         active_until: None,
         mark_underway: true,
@@ -112,11 +96,9 @@ pub fn result_secret() -> Secret {
 }
 
 pub struct World {
-    pub challonge: FakeChallonge,
+    pub service: FakeService,
     pub bridge: TestBridge,
     pub connector: Connector,
-    /// Where the connector receives results.
-    pub results_url: String,
     /// The connector's clock, frozen at the same second as the bridge's;
     /// `advance` moves both.
     pub clock: Clock,
@@ -143,74 +125,49 @@ pub fn rounds() -> Rounds {
             side: Side::Any,
             games_to_win: 3,
         }],
-        top: None,
-        grand_final: None,
-        tiers: vec![],
     }
 }
 
-/// A tournament on another fake site, beside or instead of the Challonge
-/// one.
-pub struct Extra {
-    pub adapter: Adapter,
-    pub tournament: String,
-    pub api_base: String,
-    pub token: &'static str,
-}
-
 pub struct Setup {
-    /// Whether the connector runs the fake Challonge tournament.
-    pub challonge: bool,
-    pub extra: Vec<Extra>,
-    pub kind: CredentialKind,
-    pub budget: u32,
+    /// Whether the connector runs the tournament as a configured one. The
+    /// desk runs it as an event instead.
+    pub configured: bool,
+    /// The tournament's base URL and token, when it is not the fake
+    /// service's.
+    pub base: Option<(String, &'static str)>,
+    /// Whether the desk runs events on the fake service (`DESK_SITE`).
+    pub desk: bool,
+    /// A bracket site whose live tournaments the desk runs, with its
+    /// connector token.
+    pub desk_site: Option<(String, &'static str)>,
     pub active_from: Option<String>,
     pub active_until: Option<String>,
     /// Whether the connector answers on its results URL. Without it every
     /// delivery fails, as one lost in the network would.
     pub serve_results: bool,
-    /// Whether the bridge connection may look players up by Discord account.
-    pub discord_lookup: bool,
-    /// Every tournament's set lengths and held sets.
     pub rounds: Rounds,
-    pub hold: Hold,
-    pub participants: Vec<(String, Option<String>)>,
-    pub matches: Vec<FakeMatch>,
-    /// Whether the fake Challonge sends matches in the shape the published
-    /// schema describes (players in `relationships`) instead of the live
-    /// API's (players in `points_by_participant`), which is the default.
-    pub documented_shape: bool,
+    /// The fake service's sets.
+    pub sets: Vec<Value>,
 }
 
 impl Default for Setup {
-    /// Player 1 (355) and Player 2 (354) play set 1001; Player 3 (353) and an entry with
-    /// no account (352) play 1002; their winners meet in 1003.
+    /// Players 1 and 2 play s-1, players 3 and 4 play s-2, and their
+    /// winners meet in s-3.
     fn default() -> Self {
         Self {
-            challonge: true,
-            extra: Vec::new(),
-            kind: CredentialKind::V1Key,
-            budget: 500,
+            configured: true,
+            base: None,
+            desk: false,
+            desk_site: None,
             active_from: None,
             active_until: None,
             serve_results: true,
-            discord_lookup: true,
             rounds: rounds(),
-            hold: Hold::default(),
-            participants: [
-                ("355", Some("Player1")),
-                ("354", Some("player_2")),
-                ("353", Some("player3")),
-                ("352", None),
-            ]
-            .map(|(id, username)| (id.to_owned(), username.map(str::to_owned)))
-            .into(),
-            matches: vec![
-                FakeMatch::open("1001", 1, ["355", "354"]),
-                FakeMatch::open("1002", 1, ["353", "352"]),
-                FakeMatch::fed_by("1003", 2, ["1001", "1002"]),
+            sets: vec![
+                open("s-1", 1, [1, 2]),
+                open("s-2", 1, [3, 4]),
+                fed_by("s-3", 2, ["s-1", "s-2"]),
             ],
-            documented_shape: false,
         }
     }
 }
@@ -220,39 +177,38 @@ impl World {
         let dir = temp("connector");
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let results_url = format!("http://{}/results", listener.local_addr().unwrap());
-        let challonge = FakeChallonge::start(setup.kind, setup.participants, setup.matches).await;
-        challonge.state.lock().unwrap().documented_shape = setup.documented_shape;
-        let bridge = TestBridge::start(&results_url, setup.discord_lookup).await;
+        let service = FakeService::start(setup.sets).await;
+        let bridge = TestBridge::start(&results_url).await;
         let provider = bridge.provider().await;
         let organizer = bridge.organizer().await;
         let mut config = config(&dir, &bridge.origin, &provider);
-        config.monthly_request_budget = setup.budget;
-        if setup.challonge {
+        if setup.configured {
+            let (base, token) = setup
+                .base
+                .unwrap_or_else(|| (service.base.clone(), SERVICE_TOKEN));
+            std::fs::write(dir.join("service.token"), token).unwrap();
             config.tournaments.push(Tournament {
-                active_from: setup.active_from.clone(),
-                active_until: setup.active_until.clone(),
-                rounds: setup.rounds.clone(),
-                hold: setup.hold,
-                ..challonge_tournament(&dir, setup.kind, &challonge.api)
+                active_from: setup.active_from,
+                active_until: setup.active_until,
+                rounds: setup.rounds,
+                ..tournament(&dir, &base)
             });
         }
-        for extra in setup.extra {
-            let file = dir.join(format!("{}.token", extra.adapter.name()));
-            std::fs::write(&file, extra.token).unwrap();
-            config.tournaments.push(Tournament {
-                adapter: extra.adapter,
-                bridge_site: None,
-                tournament: extra.tournament,
-                credential: Credential {
-                    kind: CredentialKind::Bearer,
-                    file,
-                },
-                rounds: setup.rounds.clone(),
-                hold: setup.hold,
-                active_from: setup.active_from.clone(),
-                active_until: setup.active_until.clone(),
-                mark_underway: true,
-                api_base: Some(extra.api_base),
+        if setup.desk {
+            config.desk = Some(Desk {
+                services: [(DESK_SITE.to_owned(), service.origin.clone())].into(),
+                ..Desk::default()
+            });
+        }
+        if let Some((base, token)) = setup.desk_site {
+            let credential_file = dir.join("desk-site.token");
+            std::fs::write(&credential_file, token).unwrap();
+            config.desk = Some(Desk {
+                services: [(DESK_SITE.to_owned(), base)].into(),
+                site: Some(DeskSite {
+                    service: DESK_SITE.into(),
+                    credential_file,
+                }),
             });
         }
         // Both clocks stand still from here until a test moves them.
@@ -263,10 +219,9 @@ impl World {
             connector.serve(listener).unwrap();
         }
         Self {
-            challonge,
+            service,
             bridge,
             connector,
-            results_url,
             clock,
             provider,
             organizer,
@@ -379,17 +334,6 @@ impl World {
             .collect()
     }
 
-    /// Why the set waits, as the connector keeps it (and logs it once).
-    pub fn note(&self, bracket: &str, set_id: &str) -> Option<String> {
-        self.database()
-            .query_row(
-                "SELECT note FROM sets WHERE bracket = ?1 AND set_id = ?2",
-                [bracket, set_id],
-                |row| row.get(0),
-            )
-            .unwrap()
-    }
-
     /// What a crash leaves when it comes after a creation was saved and
     /// before the bridge's answer was: the set's attempt 1 waiting, with
     /// its creation, which is sent again as it is.
@@ -450,6 +394,52 @@ impl World {
             found["metadata"].clone(),
         );
         self.stage_waiting(bracket, set_id, entries, &command);
+    }
+
+    /// The organizer, byte 9, runs the fake service's tournament as a desk
+    /// event on `DESK_SITE`, as the bridge's organizer routes would leave
+    /// it (the bridge's own tests cover those), public or not.
+    pub async fn run_event(&self, settings: Value, public: bool) {
+        let organizer = self.bridge.connect_site(9, DESK_SITE, "9009").await;
+        let state = self.bridge.state();
+        let now = self.bridge.clock.now();
+        let sealed = state.keys.seal(
+            json!({
+                "access": SERVICE_TOKEN,
+                "refresh": null,
+                "scope": "",
+                "expires_at": now + 604_800,
+            })
+            .to_string()
+            .as_bytes(),
+        );
+        let ember_id = organizer.as_str().to_owned();
+        state
+            .db
+            .write(move |tx| {
+                tx.execute(
+                    "INSERT INTO organizer_grants (site, user_id, sealed, refreshed_at)
+                     VALUES (?1, '9009', ?2, ?3)",
+                    rusqlite::params![DESK_SITE, sealed, now],
+                )?;
+                tx.execute(
+                    "INSERT INTO organizer_events
+                         (id, ember_id, title, status, site, tournament, name, settings,
+                          created_at, public)
+                     VALUES ('evt_1', ?1, 'Weekly', 'ready', ?2, ?3, 'Weekly', ?4, ?5, ?6)",
+                    rusqlite::params![
+                        ember_id,
+                        DESK_SITE,
+                        TOURNAMENT,
+                        settings.to_string(),
+                        now,
+                        public
+                    ],
+                )?;
+                Ok(())
+            })
+            .await
+            .unwrap();
     }
 
     pub async fn snapshot(&self, match_id: &str) -> Value {

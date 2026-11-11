@@ -1660,7 +1660,7 @@ msgid "training.reply"
 msgstr "ダミーの反撃"
 
 msgid "training.reply.detail"
-msgstr "ダミーが動けるようになった瞬間に自分で行う行動です。落としたコンボや隙のある締めに反撃します。反撃の技を再生し、その欄が空なら反撃スロットを再生します。再生中や記録中は待機します。"
+msgstr "ダミーが再び自由になったときに自分で行う行動。落としたコンボや不利な締めに反撃します: オンの反撃スロットのどれかを出し、スロットが一つもオンでない間はオンの録画を再生します。"
 
 msgid "training.reply.hit"
 msgstr "コンボを落とした後"
@@ -1673,9 +1673,6 @@ msgstr "起き上がり"
 
 msgid "training.reply.any"
 msgstr "復帰するたび"
-
-msgid "training.reply.recordings"
-msgstr "記録"
 
 msgid "training.reply.no_recordings_on"
 msgstr "反撃に使えるオンの記録がありません"
@@ -1696,22 +1693,46 @@ msgid "training.reply.moves"
 msgstr "反撃の技"
 
 msgid "training.reply.moves.detail"
-msgstr "テンキー表記で入力する反撃です。例: 623HP、44。ダミーの向きに合わせて読みます。qcf、qcb、dp、rdp、hcf、hcbも使えます。例: qcfP、dp+HP。ダミーがまだ動けない間にコマンドを入れ、動ける最初のフレームにボタンが重なります。[1]で次の技まで方向を入れ続け、[1]20fで20フレーム入れ、10fで待ちます。例: [1] > 3HP。空ならオンの記録で反撃します。"
-
-msgid "training.reply.move"
-msgstr "反撃のプリセット"
-
-msgid "training.reply.move.detail"
-msgstr "左右でよく使う反撃をテンキー表記で選びます。ダミーの向きに合わせて読みます。記録はオンの記録で反撃し、カスタムは入力した技を使います。選択で反撃の技を開いて入力します。"
-
-msgid "training.reply.custom"
-msgstr "カスタム"
+msgstr "このスロットの技をテンキー表記で入力します。例: 623HP、44。ダミーの向きに合わせて読まれます。コマンド語も使えます: qcf、qcb、dp、rdp、hcf、hcb。[HP]はボタン押しっぱなし、]HP[は最初の自由なフレームで離す、[1]20fは方向を20フレーム保持、10fは待機。空にすると技を削除します。"
 
 msgid "training.reply.timing"
 msgstr "反撃のタイミング"
 
 msgid "training.reply.timing.detail"
 msgstr "ダミーが動ける最初のフレームから、反撃のボタンが入るまでのフレーム数です。硬直の長さは最初に見たときに覚えます。それまでは硬直が終わった時点で反撃を始めます。"
+
+msgid "training.reply.order"
+msgstr "反撃の順番"
+
+msgid "training.reply.order.detail"
+msgstr "オンのスロットからダミーがどう選ぶか: ランダム(各スロットの重みに応じて)、または順番(一つずつ順に)。"
+
+msgid "training.reply.slot"
+msgstr "反撃スロット{0}"
+
+msgid "training.reply.slot.detail"
+msgstr "ダミーが反撃に使える技の一つ。左右でオン/オフ、決定で技一覧を開きます。"
+
+msgid "training.reply.slot_on"
+msgstr "このスロットを使う"
+
+msgid "training.reply.slot_on.detail"
+msgstr "ダミーが反撃にこのスロットを選べるかどうか。"
+
+msgid "training.reply.weight"
+msgstr "重み"
+
+msgid "training.reply.weight.detail"
+msgstr "ランダム選択での他のスロットに対するこのスロットの割合、1~9。"
+
+msgid "training.reply.clear_slot"
+msgstr "このスロットを空にする"
+
+msgid "training.reply.clear_slot.detail"
+msgstr "このスロットの技を削除します。"
+
+msgid "training.reply.every_fighter"
+msgstr "全ファイター共通"
 
 msgid "training.key.reset"
 msgstr "位置を戻すキー"
@@ -3322,6 +3343,8 @@ msgid "room.tables"
 msgstr "対戦席の数"
 msgid "room.tables_detail"
 msgstr "ルームの対戦席の数です（1～{0}）。ホストはあとでルーム設定から変更できます。"
+msgid "room.tables_arcade_detail"
+msgstr "同時に対戦するペアの数（1～{0}）。ほかの人は列に並んで待ちます。1にすると勝者が残り、敗者は列の最後に並びます。"
 msgid "room.tables.detail"
 msgstr "対戦席は{0}まで追加できます。対戦席を減らせるのは、そこに誰もいないときだけです。"
 msgid "room.apply_tables"
@@ -3987,55 +4010,7 @@ msgstr "別のDiscordアカウントを使う"
 msgid "connect.change_detail"
 msgstr "ブラウザーでDiscordを開き、代わりに別のアカウントを連携します。その後は、大会サイトでもそのアカウントを使う必要があります。"
 
-msgid "site.title"
-msgstr "{0}を連携"
 
-msgid "site.row_detail"
-msgstr "{0}アカウントを連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。"
-
-msgid "site.go_detail"
-msgstr "{0}を連携すると、{0}の大会があなたのEmber IDを見つけられるようになります。Emberがブラウザーで{0}を開きます。そこで、大会で使うアカウントで承認してください。"
-
-msgid "site.setting_up_detail"
-msgstr "Emberがブラウザーで{0}を開いています。"
-
-msgid "site.waiting"
-msgstr "ブラウザーで承認してください。{0}が連携されると、この画面が更新されます。"
-
-msgid "site.waiting_label"
-msgstr "{0}を待っています"
-
-msgid "site.waiting_detail"
-msgstr "ブラウザーで、大会で使う{0}アカウントで承認してください。この画面は自動で更新されます。"
-
-msgid "site.connected"
-msgstr "{0}連携済み"
-
-msgid "site.connected_detail"
-msgstr "{0}の大会がこのアカウントからあなたを見つけられるようになりました。"
-
-msgid "site.change"
-msgstr "別の{0}アカウントを使う"
-
-msgid "site.change_detail"
-msgstr "ブラウザーで{0}を開き、代わりに別のアカウントを連携します。その後は、大会でもそのアカウントを使う必要があります。"
-
-msgid "site.remove_detail"
-msgstr "このサービスでこの{0}アカウントとEmber IDの連携を解除します。{0}の大会はこのアカウントからあなたを見つけられなくなります。"
-
-msgid "site.organizer"
-msgstr "主催者アクセス"
-
-
-msgid "site.organizer_held"
-msgstr "許可済み"
-
-
-msgid "site.organizer_opened"
-msgstr "ブラウザで主催者アクセスを承認してください。この画面は自動で更新されます。"
-
-msgid "site.organizer_now"
-msgstr "主催者アクセスが許可されました。大会デスクはEmber IDにあります。"
 
 
 
@@ -4043,25 +4018,13 @@ msgid "screen.tournament_desk"
 msgstr "大会運営"
 
 msgid "desk.entry_detail"
-msgstr "主催者アクセス、Webデスク、あなたのイベント。"
-
-msgid "desk.event_detail"
-msgstr "{0} のイベント。選ぶとセットを表示します。"
-
-msgid "desk.status.draft"
-msgstr "下書き"
-
-msgid "desk.status.ready"
-msgstr "準備完了"
-
-msgid "desk.status.running"
-msgstr "進行中"
+msgstr "Emberのブラケットのサイトでのあなたのトーナメント。"
 
 msgid "desk.none"
 msgstr "イベントはまだありません"
 
 msgid "desk.none_detail"
-msgstr "大会デスクのウェブサイトでイベントを作成して開始すると、進行中にここに表示されます。"
+msgstr "「新しい大会」を選んで作成すると、ここに表示されます。"
 
 msgid "desk.view"
 msgstr "表示"
@@ -4080,12 +4043,6 @@ msgstr "絞り込み"
 
 msgid "desk.filter.all"
 msgstr "すべて"
-
-msgid "desk.filter.winners"
-msgstr "勝者側"
-
-msgid "desk.filter.losers"
-msgstr "敗者側"
 
 msgid "desk.filter.action"
 msgstr "要対応"
@@ -4108,35 +4065,17 @@ msgstr "待機中"
 msgid "desk.state.not_ready"
 msgstr "準備中"
 
-msgid "desk.state.called"
-msgstr "呼び出し済み"
-
 msgid "desk.state.playing"
 msgstr "対戦中"
 
 msgid "desk.state.needs_review"
 msgstr "要確認"
 
-msgid "desk.state.needs_organizer"
-msgstr "要対応"
-
-msgid "desk.state.reporting"
-msgstr "結果を送信中"
-
 msgid "desk.state.done"
 msgstr "終了"
 
 msgid "desk.state.held"
 msgstr "保留中"
-
-msgid "desk.side.winners"
-msgstr "勝者側"
-
-msgid "desk.side.losers"
-msgstr "敗者側"
-
-msgid "desk.side.grand_final"
-msgstr "グランドファイナル"
 
 msgid "desk.tbd"
 msgstr "未定"
@@ -4155,21 +4094,6 @@ msgstr "このセットはイベントにありません"
 
 msgid "desk.state"
 msgstr "状態"
-
-msgid "desk.called"
-msgstr "呼び出し済み。"
-
-msgid "desk.called_posted"
-msgstr "呼び出し済み、Discord に投稿しました。"
-
-msgid "desk.called_waiting"
-msgstr "呼び出し済み。Discord への投稿を送信中です。"
-
-msgid "desk.called_failed"
-msgstr "呼び出し済みですが、Discord が投稿を受け付けませんでした。"
-
-msgid "desk.not_called"
-msgstr "まだ呼び出していません。"
 
 msgid "desk.call"
 msgstr "再度呼び出す"
@@ -4216,44 +4140,11 @@ msgstr "Ember の外で行ったゲーム（両者が合意した再戦など）
 msgid "desk.done"
 msgstr "完了しました。"
 
-msgid "desk.web"
-msgstr "Webでサインイン中"
-
-msgid "desk.web_none"
-msgstr "トーナメントデスクにサインインしているブラウザーはありません。"
-
-msgid "desk.web_detail"
-msgstr "最新: {0}（{1}）。Webセッションは12時間後、または2時間使わないと終了します。"
-
-msgid "desk.web_end"
-msgstr "すべてサインアウト"
-
-msgid "desk.web_end_detail"
-msgstr "この Ember ID のWebデスクのセッションをすべて終了します。使うにはWebで再度サインインしてください。"
-
-msgid "desk.web_new"
-msgstr "Webで誰かがあなたのトーナメントデスクにサインインしました。心当たりがなければ「すべてサインアウト」を選んでください。"
-
-msgid "desk.web_ended"
-msgstr "Webデスクからすべてサインアウトしました。"
-
 msgid "desk.open_browser"
 msgstr "ブラウザーで開く"
 
 msgid "desk.open_browser_detail"
-msgstr "このPCのブラウザーでWebデスクを開きます。この Ember ID でサインインし、すべての変更ができます。"
-
-msgid "desk.open_phone"
-msgstr "別のデバイスでサインイン"
-
-msgid "desk.open_phone_detail"
-msgstr "任意の端末でデスクを開き、表示されたコードをここに入力します。"
-
-msgid "desk.code_at"
-msgstr "入力先"
-
-msgid "desk.code_at_detail"
-msgstr "もう一方の端末でこれを開いてください。ここに入力するコードが表示されます。"
+msgstr "このPCのブラウザでブラケットのサイトを開きます。そこでDiscordでサインインしてください。"
 
 
 
@@ -4261,46 +4152,7 @@ msgstr "もう一方の端末でこれを開いてください。ここに入力
 
 
 msgid "desk.opened"
-msgstr "ブラウザーでデスクを開きました。"
-
-msgid "site.cancel_detail"
-msgstr "待機をやめます。準備ができたら、もう一度「{0}を連携」を選んでください。"
-
-msgid "site.off"
-msgstr "{0}でのサインインは無効です"
-
-msgid "site.off_detail"
-msgstr "この大会サービスでは現在{0}でのサインインを利用できません。しばらくしてからもう一度お試しください。"
-
-msgid "site.retry_detail"
-msgstr "{0}アカウントをもう一度読み込みます。"
-
-msgid "site.opened"
-msgstr "ブラウザーで{0}へのサインインを完了してください。"
-
-msgid "site.done"
-msgstr "{0}を{1}として連携しました。"
-
-msgid "site.removed"
-msgstr "{0}アカウントの連携を解除しました。"
-
-msgid "site.cancelled"
-msgstr "{0}の待機をやめました。"
-
-msgid "site.busy"
-msgstr "現在{0}でのサインインが混み合っています。しばらくしてからもう一度お試しください。"
-
-msgid "site.gone"
-msgstr "この大会サービスでは{0}でのサインインを利用できなくなりました。"
-
-msgid "site.no_service"
-msgstr "Emberの大会サービスが設定されていません"
-
-msgid "site.no_service_detail"
-msgstr "{0}はEmberの大会サービスを通じて連携します。先に「連携アカウント」でサービスを探してから、ここに戻ってください。"
-
-msgid "site.screen"
-msgstr "サイトアカウント"
+msgstr "ブラウザでブラケットのサイトが開きました。"
 
 msgid "identity.failure.browser"
 msgstr "Emberはブラウザーを開けませんでした。"
@@ -5568,6 +5420,9 @@ msgstr "ここに座る：いちばん長く待っている人と対戦するか
 msgid "room.arcade_waiting"
 msgstr "待機中"
 
+msgid "room.arcade_in_line"
+msgstr "待ち順: {0}"
+
 msgid "room.cabinet_free"
 msgstr "コイン投入"
 
@@ -5762,6 +5617,9 @@ msgstr "プレイヤー2"
 
 msgid "replays.matches_shown"
 msgstr "表示中の試合"
+
+msgid "replays.sets_shown"
+msgstr "表示中のセット"
 
 msgid "replays.filter_reset"
 msgstr "リセット"
@@ -7504,36 +7362,6 @@ msgstr "ジンバブエ"
 
 #. End of the generated country names.
 
-msgid "desk.offstream"
-msgstr "配信外で行ってください"
-
-msgid "desk.offstream_detail"
-msgstr "画面を見た人はコードを使えませんが、サインインは配信外で行ってください。"
-
-msgid "desk.device_code"
-msgstr "もう一方の端末のコード"
-
-msgid "desk.device_approved"
-msgstr "もう一方の端末がデスクにサインインしました。"
-
-msgid "desk.device_asked"
-msgstr "要求元"
-
-msgid "desk.device_unknown"
-msgstr "不明なブラウザ"
-
-msgid "desk.device_asked_detail"
-msgstr "{0} 分前。自分の端末の場合のみ承認してください。"
-
-msgid "desk.device_pick"
-msgstr "表示は {0}"
-
-msgid "desk.device_pick_detail"
-msgstr "もう一方の端末に表示された数字を選んでください。間違えるとコードは拒否されます。"
-
-msgid "desk.device_refused"
-msgstr "コードが違うか期限切れです。もう一方の端末で新しいコードを取得してください。"
-
 msgid "desk.mode"
 msgstr "大会モード"
 
@@ -7544,7 +7372,7 @@ msgid "desk.mode_invite"
 msgstr "招待が必要"
 
 msgid "desk.mode_on_detail"
-msgstr "Emberから自分の大会を運営できます。ブラケットサイトを連携し、下で運営者アクセスを許可してから、このPCまたは別の端末でデスクを開いてください。"
+msgstr "Emberから、Emberのブラケットのサイトで自分のトーナメントを運営できます。"
 
 msgid "desk.mode_invite_detail"
 msgstr "大会モードは当面招待制です。受け取った招待コードを入力してください。各コードは1回だけ使えます。"
@@ -7557,9 +7385,6 @@ msgstr "あなたのEmber IDで大会モードがオンになりました。"
 
 msgid "desk.invite_invalid"
 msgstr "この招待は無効です。確認するか、新しい招待を依頼してください。"
-
-msgid "desk.site.on"
-msgstr "{0}での状態"
 
 msgid "desk.site.detail"
 msgstr "ブラケットサイトでの大会の状態です。下は今サイトが許可している操作です。"
@@ -7610,28 +7435,7 @@ msgid "desk.move.cancel"
 msgstr "大会を中止"
 
 msgid "desk.move.detail"
-msgstr "{0}にこの変更を今すぐ依頼します。プレイヤーにはすぐ反映されます。"
-
-msgid "desk.org_site"
-msgstr "{0}の主催者アクセス"
-
-msgid "desk.org_unlinked"
-msgstr "未連携"
-
-msgid "desk.org_unlinked_detail"
-msgstr "先に連携済みアカウントで{0}アカウントを連携してください。"
-
-msgid "desk.org_allow"
-msgstr "許可"
-
-msgid "desk.org_allow_detail"
-msgstr "Emberが{0}の大会を運営できるようにします。承認のため{0}がブラウザで開きます。"
-
-msgid "desk.org_remove_detail"
-msgstr "主催者アクセスを削除します。連携したアカウントはそのままです。"
-
-msgid "site.organizer_where"
-msgstr "主催者アクセスはEmber ID > 大会運営にあります。"
+msgstr "ブラケットのサイトでこの変更を今すぐ行います。プレイヤーにはすぐ反映されます。"
 
 msgid "screen.rankings"
 msgstr "ランキング"
@@ -8636,3 +8440,87 @@ msgstr "全ヒットしました。"
 
 msgid "training.combo_check.run.dropped"
 msgstr "全ヒットしませんでした。"
+
+msgid "desk.draft.new"
+msgstr "新しい大会"
+
+msgid "desk.draft.new_detail"
+msgstr "タイトル、日付、セット、チェックイン。入力するたびに下書きとして保存されます。"
+
+msgid "desk.draft.title"
+msgstr "タイトル"
+
+msgid "desk.draft.title_first"
+msgstr "まずタイトルを付けてください"
+
+msgid "desk.draft.saved"
+msgstr "タイトルで下書きが作られます。残りはその後に設定し、変更ごとに保存されます。"
+
+msgid "desk.draft.date"
+msgstr "日付"
+
+msgid "desk.draft.date_detail"
+msgstr "左右:1日ずつ。あなたのタイムゾーンで、見る人には各自の時刻で表示されます。"
+
+msgid "desk.draft.time"
+msgstr "開始"
+
+msgid "desk.draft.time_detail"
+msgstr "左右:15分ずつ。"
+
+msgid "desk.draft.first_to"
+msgstr "各セットの先取数"
+
+msgid "desk.draft.first_to_detail"
+msgstr "左 / 右:セットを取るのに必要な勝利数。"
+
+msgid "desk.draft.discord"
+msgstr "Discordチャンネル"
+
+msgid "desk.draft.discord_set"
+msgstr "設定済み"
+
+msgid "desk.draft.discord_unset"
+msgstr "なし"
+
+msgid "desk.draft.discord_detail"
+msgstr "呼び出しとスコアはこのチャンネルに届きます。ブラケットのサイトのページで設定します。"
+
+msgid "desk.draft.open_event"
+msgstr "イベントを開く"
+
+msgid "desk.draft.open_event_detail"
+msgstr "参加受付、サイトの操作、トーナメント表の開始とセット。"
+
+msgid "desk.event.state"
+msgstr "状態"
+
+msgid "desk.event.starts"
+msgstr "開始 {0}"
+
+msgid "desk.event.signed_up"
+msgstr "参加登録"
+
+msgid "desk.event.signed_up_detail"
+msgstr "ブラケットのサイトのページで参加登録したプレイヤー。"
+
+msgid "desk.start"
+msgstr "トーナメント表を開始"
+
+msgid "desk.start_detail"
+msgstr "参加者から作成され、Emberが最初のセットを呼び出します。"
+
+msgid "desk.event.edit"
+msgstr "詳細とルールを編集"
+
+msgid "desk.event.edit_detail"
+msgstr "タイトル、開始、セット、チェックイン。"
+
+msgid "desk.stop.draft"
+msgstr "この下書きを削除"
+
+msgid "desk.draft.ft"
+msgstr "FT{0}"
+
+msgid "desk.field.check_in"
+msgstr "チェックイン"

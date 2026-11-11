@@ -110,9 +110,19 @@ pub async fn capabilities(State(state): State<AppState>) -> Response {
                     authorize_origin,
                     authorize_path,
                     organizer: sign_in && site.organizer.is_some(),
+                    create: site
+                        .organizer
+                        .as_ref()
+                        .and_then(|organizer| organizer.create.as_ref())
+                        .map(|create| create.choices()),
                 }
             })
             .collect(),
+        tournaments: state
+            .config
+            .tournaments
+            .as_ref()
+            .map(|tournaments| tournaments.origin.clone()),
         limits: Limits {
             max_body_bytes: json::MAX_BODY,
             max_proof_body_bytes: challenge::MAX_PROOF_BODY,

@@ -80,6 +80,8 @@ struct ShellView {
     netplay::LobbySettings lobbySettings;
     bool helperReady = false, canOpenRoom = false, canReady = false;
     bool canReplaceRoom = false;
+    // Launcher --host-public-room: keep a public room open (UpdateHostedPublicRoom).
+    bool hostPublicRoom = false;
     // canChangeUltra: canEditSelection, or over the WIN until the post-match
     // prompt is answered (RuntimeGates::canChangeUltra).
     bool canEditSelection = false, canChangeUltra = false;
@@ -438,6 +440,17 @@ private:
     void UpdateShortCopy(const ShellView& view,double now);
     void UpdateJoinLink(const ShellView& view,double now,const Submit& submit);
     void UpdatePublicRoomLink(const ShellView& view,double now);
+    // Launcher --host-public-room (ApplicationShell__StreamHost.cxx).
+    void UpdateHostedPublicRoom(const ShellView& view,double now);
+    void FollowAsStreamHost(const ShellView& view);
+    // A dialog, a notice or an Ember ID screen is open, whose drafts moving
+    // the menu would discard.
+    bool MenuBusy() const {
+        const auto& nav = menu_.navigation;
+        return nav.Editing() || nav.Reading() || nav.Confirming() || nav.Choosing() || menu_.NoticeOpen() || IdentityPanel::Owns(nav.Screen());
+    }
+    // The public room Create opens, from the saved settings.
+    void CreatePublicRoom(room::RoomType type);
     void UpdatePublicBridge(const ShellView& view,const std::string& screen);
     void CopyShortInvitation(const ShellView& view,const Submit& submit);
     std::vector<MenuEntry> BuildRows(const ShellView& view,const std::string& screen,bool idle,bool opening,const DrawSelection& selection,const DrawSelection& developer,std::string& title);
@@ -802,6 +815,11 @@ std::string memberAsk_;
     int welcomeStep_ = 0;
     bool welcomeOffered_ = false;
     room::RoomType createArcade_ = room::ClassicRoom;
+    // An Arcade or King of the hill room's tables on Create, all of them until
+    // changed; at one the winner stays. Not kept, like the type.
+    int createArcadeTables_ = static_cast<int>(room::TableCount);
+    // The table count Create opens its room with, of the type chosen.
+    int CreateTableCount() const { return createArcade_ ? createArcadeTables_ : preferences_.roomTableCount; }
     bool preferencesDirty_ = false;
     bool publicBridgeAsked_ = false; // the public-room service was asked for in this stay on a screen that needs it
     // Quick join's notice chose Create room: Draw opens it on the next frame, outside the menu's own draw.
@@ -936,6 +954,10 @@ std::string memberAsk_;
     // Public rooms still has to open for it.
     std::uint64_t roomLinkSeen_=0;
     bool roomLinkOpening_=false;
+    // --host-public-room: the next time a refused or lost create may be asked again.
+    double hostRoomAt_=0;
+    // --host-public-room: the room it started following in.
+    std::uint64_t streamFollowEpoch_=0;
     Tone noticeTone_=Tone::Success;
     std::uint64_t roomEpoch_ = 0, rulesRevision_ = 0, nextActionId_ = 1, readyFailureSequence_ = 0;
     int selectedTable_ = 0, roomCapacity_ = 16;

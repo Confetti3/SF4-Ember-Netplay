@@ -7,7 +7,9 @@ or King of the hill. Any type can be private or public.
 
 1. Create: Room type Classic, Arcade or King of the hill. An Arcade room's
    rules are chosen on Create and apply at every table; a set ends at its
-   length (one game when it has none).
+   length (one game when it has none). So is how many pairs play at once,
+   1 to 8 tables, all eight unless changed; a private room's host changes
+   it later in Room settings, as in a Classic room.
 2. The V2 room board lays the tables out by type (Arcade.dc.html):
    - Classic: today's tables as the floor, the two seats of each facing
      across the score.
@@ -22,11 +24,15 @@ or King of the hill. Any type can be private or public.
      streak by a crown; the top slot's marquee is gold.
    The Classic look shows the same rows plainly.
 3. Arcade: sit at any free cabinet. First come, first paired: whoever sits
-   down plays the player who has waited longest. Between games a player may
-   move to another free cabinet, keeping opponent and streak.
+   down plays the player who has waited longest. With every table in play a
+   pair, they wait in line instead, their cabinet's screen showing their
+   place, and sit down in line order as tables come free. At one table it is
+   the game's Endless Battle: the winner stays, and the loser goes to the
+   back of the line. Between games a player may move to another free
+   cabinet, keeping opponent, streak and place in line.
 4. After a set, as at a real arcade, the winner stays at the table and plays
-   whoever has waited alone longest; the loser waits for the next one who
-   sits down, not the winner. With three players the winner plays the third
+   whoever has waited longest, alone or in line; the loser waits for the next
+   one who sits down, not the winner. With three players the winner plays the third
    and the loser waits. Only when nobody waits alone does the pair stay:
    with others at the cabinets each chooses Rematch or New opponent (the
    board's Ready is the Rematch); alone in the room they just ready again.
@@ -34,12 +40,13 @@ or King of the hill. Any type can be private or public.
    whoever waited longest (not each other), or waits for the next one who
    sits. One who sits down while a pair
    chooses waits alone until a set ends or the pair parts.
-5. King of the hill rotates the same way, with streaks: every pair plays at
-   once. When nobody waits alone the winner still waits for the next one free
+5. King of the hill rotates the same way, with streaks: every pair at a
+   table in play plays at once. When nobody waits alone the winner still waits for the next one free
    while anyone else sits at a cabinet; with nobody else there the loser
    challenges again. In a full room, every table a pair, the pair stays and
    the loser asks for a new opponent at once: the next set to end elsewhere
-   trades the losers, or both choose Rematch. The top slot stays with its
+   trades the losers, someone joining the line parts them, or both choose
+   Rematch. The top slot stays with its
    holder until someone beats that streak or beats them.
 6. After a set the WIN screen's prompt asks the room's question too. While
    the pair decides it offers Rematch and New opponent (Y), the same choices
@@ -69,16 +76,20 @@ or King of the hill. Any type can be private or public.
 
 - Snapshot::arcade is the room::RoomType. Snapshot::cabinets holds who sits
   at each cabinet, Snapshot::streaks each cabinet's streak, topSlot the
-  crown. A table is a pair, not a place: Table::deciding and rematch hold the
-  choice after a set nobody waited alone for, waitingSince orders the players
-  waiting alone. RoomAuthority::ArcadeSetEnded rotates both types through one
+  crown, Snapshot::line those at no table, front first, while every table in
+  play (Snapshot::tableCount) is a pair. A table is a pair, not a place:
+  Table::deciding and rematch hold the choice after a set nobody waited for,
+  waitingSince orders the players waiting alone. RoomAuthority::ArcadeSetEnded rotates both types through one
   path; only the streaks and what happens with nobody waiting differ.
 - RoomModelArcade.cxx seats, pairs, parts and crowns. Queue names a cabinet
-  as table + seat * TableCount; Unqueue stands up. Rematch and NewOpponent
+  as table + seat * TableCount, also at a table out of play, whose player
+  waits in line; Unqueue stands up, from a table or the line
+  (room::Place::Kind::Line). Rematch and NewOpponent
   are table actions. SetRules is refused.
 - Public: the service opens a Classic room; the creator, alone in it as host,
-  sends SetRoomType with the type and the rules of all tables
-  (netplay::CreatedRules). An emptied public room goes back to Classic.
+  sends SetRoomType with the type, the rules of all tables and how many
+  play (netplay::CreatedRules). An emptied public room goes back to Classic
+  at the default four tables. Older room hosts play at all eight.
 - RoomPanelArcade.cxx draws the board from the V2 kit; the rows are
   cabinet-N in RoomPanel.cxx. Every cabinet and matchup goes through
   PressEntry, so MenuNavigation moves between them by their boxes.

@@ -111,8 +111,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
     action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
     if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
-    // An Arcade room plays at every table; only a Classic one has a count to choose.
-    if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
+    if (kind == netplay::CommandKind::HostRoom) action.tableCount = static_cast<std::uint8_t>(CreateTableCount());
     // Opened from a template: the runtime sets its tables once the room is up.
     if (kind == netplay::CommandKind::HostRoom && createTables_) action.createdRules = CreateTables(preferences_.tableRules);
     if (kind == netplay::CommandKind::JoinInvite) action.command.invitation = pasted_link::Tidied(invitation_);
@@ -619,6 +618,7 @@ void ApplicationShell::Draw(const ShellView& v,bool* open,const Submit& submit,c
  UpdateShortCopy(v,now);
  UpdateJoinLink(v,now,submit);
  UpdatePublicRoomLink(v,now);
+ UpdateHostedPublicRoom(v,now);
  if(openPublicCreate_){
   openPublicCreate_=false;
   if(v.session.room==RoomState::Idle&&v.canOpenRoom&&nav.Screen()=="public-rooms")OpenPublicCreate();

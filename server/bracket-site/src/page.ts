@@ -5,7 +5,7 @@ import { stats } from "./live.ts";
 import type { Report } from "./report.ts";
 import { beforeLive, type Tournament } from "./tournament.ts";
 
-const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export const escape = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const STATES: Record<Tournament["state"], string> = {
   draft: "Being set up.",

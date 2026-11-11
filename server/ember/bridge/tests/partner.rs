@@ -12,7 +12,9 @@ use common::{
 };
 use ember_bridge::{AppState, Config, config, integrations::Secrets, testing::reconfigured};
 use ember_protocol::{
-    challenge::{Action, Method},
+    challenge::{self, Action, Challenge, Expected, Method, command_digest},
+    encoding::OriginPolicy,
+    json,
     partner::{LookupAnswer, MatchResult, Outcome, RESULT_TYPE, result_id},
     webhook::{self, Secret},
 };
@@ -21,6 +23,7 @@ use serde_json::{Value as Json, json};
 
 const KATE: &str = "274220342558756145";
 const SAM: &str = "1725265127372152396";
+const BRACKETS: &str = "https://brackets.example";
 
 /// The result secret of every connection that has one here.
 fn secret() -> Secret {
@@ -91,6 +94,10 @@ async fn start() -> (Bridge, Receiver, String) {
                     environment: "staging".into(),
                     ..direct("blumint-test", false, None, None)
                 }],
+            });
+            config.tournaments = Some(config::Tournaments {
+                connection: "night-bot".into(),
+                origin: BRACKETS.into(),
             });
         },
         secrets_for(&["night-bot"]),
@@ -800,4 +807,112 @@ async fn an_expired_match_is_sent_as_expired_never_as_a_restart() {
     // The pair can play again, and the new match is a new one.
     let next = f.create("set-2", "organizer-reported-v1", 2).await;
     assert_ne!(next, id);
+}
+
+/// A challenge the tournament service would issue to `player` for `path`,
+/// and the game's proof for it, as `/v1/players/prover` takes them.
+fn service_proof(bridge: &Bridge, player: &Player, audience: &str, path: &str) -> Json {
+    let command = json::to_value(&json!({})).unwrap();
+    let now = bridge.clock.now();
+    let issued = Challenge {
+        version: challenge::VERSION,
+        bridge_id: bridge.bridge_id.clone(),
+        audience: audience.into(),
+        challenge_id: "chl_00000000-0000-4000-8000-000000000001".into(),
+        ember_id: player.id().clone(),
+        action: Action::TournamentAct,
+        method: Method::Post,
+        path: path.into(),
+        request_digest: command_digest(&command),
+        nonce: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
+        issued_at: now,
+        expires_at: now + challenge::LIFETIME_SECS,
+    };
+    let expected = Expected {
+        bridge_id: &bridge.bridge_id,
+        audience,
+        ember_id: player.id(),
+        action: Action::TournamentAct,
+        method: Method::Post,
+        path,
+        command: &command,
+    };
+    let proof = issued
+        .sign(
+            &player.identity,
+            &expected,
+            now,
+            OriginPolicy::AllowLoopbackHttp,
+        )
+        .unwrap();
+    json!({ "challenge": issued, "proof": proof })
+}
+
+#[tokio::test]
+async fn the_tournament_service_learns_who_signed_its_challenge() {
+    let (bridge, _, _) = start().await;
+    let (mut kate, mut sam) = (bridge.player(1), bridge.player(2));
+    bridge.open_session(&mut kate).await;
+    bridge.open_session(&mut sam).await;
+    connect_discord(&bridge, &[(KATE, &kate)]).await;
+    let service = bridge.provider("night-bot").await;
+    // The game finds the service in the capabilities.
+    let (_, capabilities) = bridge.get("", "/v1/capabilities").await;
+    assert_eq!(capabilities["tournaments"], BRACKETS);
+    let asked = service_proof(&bridge, &kate, BRACKETS, "/v1/desk/drafts");
+
+    // Only the service's own connection may ask.
+    let (status, body) = bridge
+        .post(
+            &bridge.provider("quiet-bot").await,
+            "/v1/players/prover",
+            asked.clone(),
+        )
+        .await;
+    assert_eq!(
+        (status, code(&body)),
+        (StatusCode::FORBIDDEN, "forbidden"),
+        "{body}"
+    );
+
+    // The signer, their Discord account, linked on the service's connection.
+    let (status, body) = bridge
+        .post(&service, "/v1/players/prover", asked.clone())
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["ember_id"], kate.id().as_str());
+    assert_eq!(body["player"]["discord_user_id"], KATE);
+    assert_eq!(
+        link_of(&bridge, "night-bot", &kate).await,
+        ("discord".to_owned(), true)
+    );
+
+    // A player with no Discord account is still named.
+    let (status, body) = bridge
+        .post(
+            &service,
+            "/v1/players/prover",
+            service_proof(&bridge, &sam, BRACKETS, "/v1/desk/drafts"),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        (body["ember_id"].as_str(), body.get("player")),
+        (Some(sam.id().as_str()), None)
+    );
+
+    // A proof for the bridge itself, or a challenge changed after it was signed, is not one.
+    let mut changed = asked.clone();
+    changed["challenge"]["path"] = json!("/v1/desk/other");
+    for refused in [
+        service_proof(&bridge, &kate, &bridge.origin, "/v1/desk/drafts"),
+        changed,
+    ] {
+        let (status, body) = bridge.post(&service, "/v1/players/prover", refused).await;
+        assert_eq!(
+            (status, code(&body)),
+            (StatusCode::BAD_REQUEST, "invalid_request"),
+            "{body}"
+        );
+    }
 }
