@@ -808,11 +808,15 @@ fn a_new_database_records_each_file_by_name_and_checksum() {
 fn records_by_number_only_take_this_bridges_names_and_keep_when_they_ran() {
     let mut connection = Connection::open_in_memory().unwrap();
     as_an_older_bridge(&mut connection, &files_to(56));
-    assert!(
-        records(&connection)
-            .iter()
-            .all(|(_, name, _)| name.is_none())
-    );
+    // An older bridge's record has no name or checksum columns at all.
+    let named: bool = connection
+        .query_row(
+            "SELECT EXISTS (SELECT 1 FROM pragma_table_info('schema_migrations') WHERE name = 'name')",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(!named);
     migrate(&mut connection, MIGRATIONS).unwrap();
     assert_every_file_recorded(&connection);
     assert_eq!(applied_at(&connection, 55), 1000);
