@@ -47,7 +47,7 @@ void FirstSync() {
 	EXPECT(!requests.Busy() && !requests.Acting());
 	requests.Finish("", Listed("AAAA-AAAA"), 300);
 	const auto& answered = requests.Published();
-	EXPECT(!answered.loading && answered.loaded && answered.value.code == "AAAA-AAAA" && answered.revision == 1 && answered.finished == 1 && answered.installedMs == 300);
+	EXPECT(!answered.loading && answered.loaded && answered.value->code == "AAAA-AAAA" && answered.revision == 1 && answered.finished == 1 && answered.installedMs == 300);
 }
 
 // The game's own cadence is 30 s, the tab's 10 s, and no two syncs are less than 5 s apart.
@@ -117,7 +117,7 @@ void ActionAnswers() {
 	requests.Finish("", Listed("AAAA-AAAA"), 30100);
 	requests.SentAction(3, Kind::NewCode, 31000);
 	requests.Finish("", Listed("BBBB-BBBB"), 31200);
-	EXPECT(requests.Published().value.code == "BBBB-BBBB" && requests.Published().revision == 3 && requests.Refusal().empty());
+	EXPECT(requests.Published().value->code == "BBBB-BBBB" && requests.Published().revision == 3 && requests.Refusal().empty());
 	EXPECT(!requests.Acting() && !requests.SyncDue(31200 + Requests::SettleMs - 1) && requests.SyncDue(31200 + Requests::SettleMs));
 	// The action's own settle never brings a sync inside the gap of the last one.
 	requests.SentSync(4, 40000);
@@ -133,7 +133,7 @@ void Refusals() {
 	requests.SentAction(2, Kind::Request, 2000);
 	requests.Finish("unknown_code", std::nullopt, 2100);
 	EXPECT(requests.Refusal() == "unknown_code" && requests.Refusals() == 1 && !requests.Busy());
-	EXPECT(requests.Published().value.code == "AAAA-AAAA" && requests.Published().revision == 1 && requests.Published().error == "unknown_code");
+	EXPECT(requests.Published().value->code == "AAAA-AAAA" && requests.Published().revision == 1 && requests.Published().error == "unknown_code");
 	requests.SentAction(3, Kind::Request, 3000);
 	EXPECT(requests.Refusal().empty() && requests.Refusals() == 1);
 	requests.Finish("request_limit", std::nullopt, 3100);
@@ -144,7 +144,7 @@ void Refusals() {
 	// A refused sync is not an action's refusal; it only keeps its code.
 	requests.SentSync(5, 50000);
 	requests.Finish("rate_limited", std::nullopt, 50100);
-	EXPECT(requests.Refusal().empty() && requests.Published().error == "rate_limited" && requests.Published().value.code == "AAAA-AAAA");
+	EXPECT(requests.Refusal().empty() && requests.Published().error == "rate_limited" && requests.Published().value->code == "AAAA-AAAA");
 	EXPECT(!requests.SyncDue(50100 + Requests::IdleSyncMs - 1) && requests.SyncDue(50100 + Requests::IdleSyncMs));
 }
 
@@ -157,7 +157,7 @@ void NoFriends() {
 		requests.Finish(code, std::nullopt, 10);
 		const bool unavailable = std::string(code) == Requests::Unavailable;
 		EXPECT(requests.Published().loaded && requests.Published().revision == 1 &&
-			requests.Published().value.kind == (unavailable ? State::Kind::Unavailable : State::Kind::NoAccount));
+			requests.Published().value->kind == (unavailable ? State::Kind::Unavailable : State::Kind::NoAccount));
 		EXPECT(!requests.SyncDue(10000000));
 		requests.NotePresence(3);
 		EXPECT(!requests.SyncDue(10000000));
@@ -165,14 +165,14 @@ void NoFriends() {
 		EXPECT(requests.SyncDue(20000));
 		requests.SentSync(2, 25000);
 		requests.Finish("", Listed("AAAA-AAAA"), 25100);
-		EXPECT(requests.Published().value.kind == State::Kind::Listed && !requests.SyncDue(25100 + Requests::ShownSyncMs - 1) &&
+		EXPECT(requests.Published().value->kind == State::Kind::Listed && !requests.SyncDue(25100 + Requests::ShownSyncMs - 1) &&
 			requests.SyncDue(25100 + Requests::ShownSyncMs));
 	}
 	// An action's refusal for the same reason says so too.
 	Requests requests = Synced(0);
 	requests.SentAction(2, Kind::AppearOffline, 100);
 	requests.Finish(Requests::NoAccount, std::nullopt, 200);
-	EXPECT(requests.Published().value.kind == State::Kind::NoAccount && requests.Refusal() == Requests::NoAccount && !requests.SyncDue(10000000));
+	EXPECT(requests.Published().value->kind == State::Kind::NoAccount && requests.Refusal() == Requests::NoAccount && !requests.SyncDue(10000000));
 }
 
 // Turning friends off stops the syncs, which would make the account again, until the tab opens.
@@ -196,7 +196,7 @@ void ScopeChange() {
 	EXPECT(requests.Awaiting(3) && requests.Published().loaded);
 	requests.Scope("brg_1", "emb1_b");
 	const auto& answered = requests.Published();
-	EXPECT(!answered.loaded && !answered.loading && answered.value.kind == State::Kind::Unavailable && answered.revision == 1 && answered.finished == 2);
+	EXPECT(!answered.loaded && !answered.loading && answered.value->kind == State::Kind::Unavailable && answered.revision == 1 && answered.finished == 2);
 	EXPECT(!requests.Awaiting(3) && !requests.Busy() && requests.Refusal().empty() && requests.MayAct() && requests.SyncDue(45000));
 	requests.SentSync(4, 45000);
 	requests.Finish("", Listed("DDDD-DDDD"), 45010);

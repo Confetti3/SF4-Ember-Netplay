@@ -43,6 +43,9 @@
 #include "../netplay/OwedAbort.hxx"
 #include "../netplay/PublicRooms.hxx"
 #include "../netplay/CardRequests.hxx"
+#include "../netplay/FriendRequests.hxx"
+#include "../netplay/FriendVisits.hxx"
+#include "../netplay/FriendsView.hxx"
 #include "../netplay/LevelRequests.hxx"
 #include "../netplay/RankingRequests.hxx"
 #include "../netplay/TournamentStatus.hxx"
@@ -275,6 +278,12 @@ struct Runtime {
     netplay::levels::Requests levels;
     // Other players' cards in a public room: the look-up in flight and the answers.
     netplay::levels::Cards cards;
+    // The player's friends: the sync or action in flight and the last state, the
+    // visit to a friend's public room under way, and whether the player's room
+    // can be offered a friend now (sf4e__NetplayRuntime__Social.cxx).
+    netplay::friends::Requests friends;
+    netplay::friends::Visit friendVisit;
+    bool friendsCanInvite = false;
     // Match links from the browser (ember://tournament/open), from a later
     // launcher or the start argument, and the last one the interface was given.
     platform::MatchLinkMailbox matchLinks;
@@ -560,6 +569,17 @@ void TickLevels(bool helperReady, std::uint64_t nowMs);
 bool TakeCardsAnswer(const session::TournamentAnswer& answer);
 void TickCards(bool helperReady, std::uint64_t nowMs);
 
+// Friends (sf4e__NetplayRuntime__Social.cxx): the interface's commands, the
+// helper's answers, the presence sent each tick it is due, and what the
+// interface reads. A Join, a Watch or an invitation of a friend's is carried
+// out here too (netplay/FriendVisits.hxx).
+void DispatchFriends(const netplay::friends::Command& command, const netplay::Generation& pressed, bool helperReady);
+bool TakeSocialAnswer(const session::TournamentAnswer& answer);
+void TickSocial(bool helperReady, std::uint64_t nowMs);
+// Tells the friends' service this player is leaving, best effort, as the game closes.
+void SayFriendsGoodbye();
+netplay::friends::View FriendsStatus();
+
 // Controllers (sf4e__NetplayRuntime__Input.cxx).
 std::string DeviceName(const input::Device& device);
 std::string ControllerLabel(const input::Device& device);
@@ -583,6 +603,9 @@ PostPublishState Publish();
 PostPublishState PublishThrottled();
 void PumpDiscordClient();
 void PublishAndTickDiscordInvite();
+// Whether an invitation to another room must ask first: this PC is in a room,
+// plays offline, or is in a game (the rule a Discord join is asked by).
+bool BusyForInvitation(const netplay::Snapshot& state);
 // Keeps the helper's ping subscription in step with the room board.
 void TickMemberLatency();
 // Whether the overlay drew the fighter selector lately in room `roomGeneration` (NoteFighterSelector).

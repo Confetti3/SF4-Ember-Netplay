@@ -25,11 +25,15 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
 namespace sf4e { namespace netplay { namespace friends {
+
+// The state, as the last answer left it: never null, and replaced (never changed) when an answer installs a new one.
+using Answer = Answered<std::shared_ptr<const State>>;
 
 class Requests {
 public:
@@ -42,10 +46,14 @@ public:
 	static constexpr const char* Unavailable = "friends_unavailable";
 	static constexpr const char* NoAccount = "no_discord_account";
 
-	const Answered<State>& Published() const { return answered_; }
+	Requests() { answered_.value = Empty(); }
+
+	const Answer& Published() const { return answered_; }
 	const std::string& Bridge() const { return bridge_; }
 	const std::string& EmberId() const { return emberId_; }
 	bool Visiting() const { return visiting_; }
+	// Syncs are running: a service is named, and it has friends for this player and they are on.
+	bool Syncing() const { return !bridge_.empty() && !stopped_; }
 	// An action is in flight or held: the interface may not ask another.
 	bool Busy() const { return actionInFlight() || held_.has_value(); }
 	// The action in flight, or nothing.
@@ -62,7 +70,8 @@ public:
 		if (bridge == bridge_ && emberId == emberId_) return;
 		bridge_ = bridge;
 		emberId_ = emberId;
-		Answered<State> fresh;
+		Answer fresh;
+		fresh.value = Empty();
 		fresh.finished = answered_.finished;
 		fresh.revision = answered_.revision;
 		answered_ = std::move(fresh);
@@ -173,8 +182,13 @@ private:
 		if (!id) Finish("helper_unavailable", std::nullopt, nowMs);
 	}
 
+	static const std::shared_ptr<const State>& Empty() {
+		static const std::shared_ptr<const State> empty = std::make_shared<const State>();
+		return empty;
+	}
+
 	void Install(State state, std::uint64_t nowMs) {
-		answered_.value = std::move(state);
+		answered_.value = std::make_shared<const State>(std::move(state));
 		answered_.loaded = true;
 		answered_.installedMs = nowMs;
 		++answered_.revision;
@@ -189,7 +203,7 @@ private:
 	}
 
 	std::string bridge_, emberId_, refusal_;
-	Answered<State> answered_;
+	Answer answered_;
 	InFlight flight_;
 	std::optional<Command> held_;
 	bool visiting_ = false, stopped_ = false, wanted_ = true, synced_ = false;

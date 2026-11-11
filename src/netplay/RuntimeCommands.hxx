@@ -18,6 +18,7 @@
 #include "../platform/ApplicationServices.hxx"
 #include "../platform/ProblemReport.hxx"
 #include "../session/RoomModel.hxx"
+#include "FriendCommands.hxx"
 #include "IdentityRequest.hxx"
 #include "InputAssignment.hxx"
 #include "MatchEndRules.hxx"
@@ -41,6 +42,10 @@ enum class JoinKind : std::uint8_t { Private, Public, Observer };
 struct Identity { netplay::IdentityRequest identity; };
 // Refresh the assignment list, play a match, stop, and the bridge's other asks.
 struct Tournament { netplay::tournament::Command tournament; };
+// What the friends screens ask (netplay/FriendCommands.hxx). The generation is
+// the one the press saw: Join, Watch, TakeInvite and AnswerVisit are dropped
+// once it has moved on, the rest need none.
+struct Friends { netplay::Generation generation; netplay::friends::Command friends; };
 
 // Every command below is made for the controller generation the press saw
 // (netplay::Snapshot::generation), and is dropped once that has moved on.
@@ -153,7 +158,7 @@ struct ApplyDelay { netplay::Generation generation; int selectedDelay = -1; };
 // One command for the runtime, and the same with other alternatives after it
 // (ui::ShellAction adds the overlay's own steps).
 template <class... Extra>
-using RuntimeRequestWith = std::variant<commands::Identity, commands::Tournament, commands::Training, commands::LeaveWatchedGame,
+using RuntimeRequestWith = std::variant<commands::Identity, commands::Tournament, commands::Friends, commands::Training, commands::LeaveWatchedGame,
     commands::DiscordInvite, commands::PreviewSound, commands::Replay, commands::ShortInvitation, commands::Pad,
     commands::RoomSettings, commands::Input, commands::Service,
     commands::HostRoom, commands::JoinRoom, commands::LeaveRoom, commands::ReplaceRoom, commands::StartOffline,

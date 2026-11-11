@@ -1,6 +1,7 @@
 #pragma once
 #include "../session/RoomModel.hxx"
 #include "../netplay/SessionController.hxx"
+#include <algorithm>
 #include <string>
 #include <cstdint>
 
@@ -75,15 +76,18 @@ enum class Next { None, Leave, Join, Expired };
 // silently replace a session. Generation checks also cover delayed UI actions.
 class PendingInvite {
 public:
+    // The companion's invitation: `sequence` is its own count, and an older one is ignored.
     bool Offer(const std::string& secret, const std::string& party, std::uint64_t expires,
                std::uint64_t sequence, std::uint64_t generation, bool busy) {
         if (sequence <= sequence_) return false;
         sequence_ = sequence;
-        if (secret == secret_) return false;
-        revision_ = sequence;
-        secret_ = secret; party_ = party; expires_ = expires; generation_ = generation;
-        confirm_ = busy; switching_ = false;
-        return true;
+        return Accept(secret, party, expires, generation, busy);
+    }
+    // A friend's invitation (netplay/FriendVisits.hxx), which the companion's count does not order.
+    // Its revision follows the last one's, so a command made for an earlier invitation still misses.
+    bool OfferFromFriend(const std::string& secret, const std::string& party, std::uint64_t expires,
+                         std::uint64_t generation, bool busy) {
+        return Accept(secret, party, expires, generation, busy);
     }
     void Cancel() { secret_.clear(); party_.clear(); confirm_ = switching_ = false; }
     bool Matches(std::uint64_t revision) const { return Active() && revision == revision_; }
@@ -111,6 +115,14 @@ public:
     bool NeedsConfirmation() const { return confirm_; }
     const std::string& Secret() const { return secret_; }
 private:
+    bool Accept(const std::string& secret, const std::string& party, std::uint64_t expires,
+                std::uint64_t generation, bool busy) {
+        if (secret == secret_) return false;
+        revision_ = std::max(revision_ + 1, sequence_);
+        secret_ = secret; party_ = party; expires_ = expires; generation_ = generation;
+        confirm_ = busy; switching_ = false;
+        return true;
+    }
     std::string secret_, party_;
     std::uint64_t expires_ = 0, sequence_ = 0, generation_ = 0, revision_ = 0;
     bool confirm_ = false, switching_ = false;
