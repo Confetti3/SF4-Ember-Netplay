@@ -35,7 +35,7 @@ use crate::{
     skill,
 };
 
-/// Whether friends are offered: where public rooms are on, beside `levels`,
+/// Whether friends are offered: where public rooms are on, beside `points`,
 /// and Discord sign-in is offered, since friends belong to a Discord account.
 pub fn offered(state: &AppState) -> bool {
     rooms::enabled(state) && sign_in::offered(state, &Site::Discord)

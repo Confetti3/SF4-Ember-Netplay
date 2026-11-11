@@ -10,7 +10,8 @@ shown. This replaces `MASTERY.md` (pull request 183): its points stay, its ten
 named tiers and 30 emblems become a number in the game's own digits on a frame
 coloured by the five award tiers. An earlier draft of this document gave each
 fighter a level from 1 to 60; the points replace it, and the file keeps its
-name (and the `levels` capability, routes and tables keep theirs).
+name (the `fighter_levels` table and the C++ and Rust type names keep theirs; the
+wire says "points" throughout).
 
 Where points show and how the card is laid out is `PLAYER_CARD.md`; who sees
 what is settled here (Privacy).
@@ -199,26 +200,26 @@ ratings is one constant, `RATE_GAMES_AFTER_THE_FIRST`.
 
 ## Wire contracts
 
-Capability `levels` (`ember_protocol::levels::LEVELS_FEATURE`), offered
+Capability `points` (`ember_protocol::levels::POINTS_FEATURE`), offered
 wherever public rooms are on (`routes/discovery.rs`, beside `ranking`).
 Every type below denies unknown fields; a build asks only a bridge that lists
-`levels`, and an older bridge answers 404, which the helper words as
-`levels_unavailable` (as `ranking_unavailable`, `tournament/ranking.rs`).
+`points`, and an older bridge answers 404, which the helper words as
+`points_unavailable` (as `ranking_unavailable`, `tournament/ranking.rs`).
 
-### `GET /v1/levels/me`
+### `GET /v1/points/me`
 
-Player session (`routes::play::playing`), bucket `levels:{ember_id}` 60 per
+Player session (`routes::play::playing`), bucket `points:{ember_id}` 60 per
 10 minutes shared with card look-ups.
 
 ```json
-{"levels":"no_account"}
-{"levels":"counted","shown":true,"fighters":[
+{"points":"no_account"}
+{"points":"counted","shown":true,"fighters":[
   {"fighter":3,"points":1986,"games":1284,"wins":702,"tier":3,"floor":1500,"next":2500,"since":1729468800}]}
 ```
 
 | Field | Rule |
 |---|---|
-| `levels` | `no_account` (no Discord account on the Ember ID) or `counted` |
+| `points` | `no_account` (no Discord account on the Ember ID) or `counted` |
 | `shown` | others see this account's points (Privacy); written only when true |
 | `fighters` | played fighters only, ascending by `fighter`, unique, at most 44 |
 | `fighter` | 0 to 43 |
@@ -241,7 +242,7 @@ player's Discord account that the room shows its members, so any member can
 ask the bridge for that player's card later, as often as it needs, fresh.
 
 - `TicketRequest::card: bool` (written only when true). A build sends it only
-  to a bridge that lists `levels` (`tournament/play.rs` `Features`), since an
+  to a bridge that lists `points` (`tournament/play.rs` `Features`), since an
   older one refuses the field.
 - `RoomTicket::card: Option<String>` (written only when present), for a
   joiner who asked and has a Discord account. A ticket without one is byte
@@ -273,7 +274,7 @@ ask the bridge for that player's card later, as often as it needs, fresh.
 |---|---|
 | request `cards` | 1 to 16 selectors: `card` (a token) or `friend` (a friend id, `FRIENDS.md`) |
 | answer `cards` | one entry per selector, in order; `null` for a token that does not open, is over 7 days old, or names an account without a Discord account now, and for a friend id that is not the caller's friend |
-| `fighters` | as in `levels/me` but `fighter`, `points`, `tier` only; absent when the player does not show points |
+| `fighters` | as in `points/me` but `fighter`, `points`, `tier` only; absent when the player does not show points |
 | `relation` | the caller's relation to that player: `none`, `friend`, `sent`, `received`, `blocked` (the caller blocked them); `none` for a player who blocked the caller |
 
 The bridge serves `relation` once `friends` is offered; before that it is
@@ -382,7 +383,7 @@ cap).
 
 **Smallest slice that ships something visible.** P0 (points types and
 `TicketRequest`/`RoomTicket` untouched), P1 without the card token, P2 without
-`cards.rs` and the look-up, P4's `levels_me` alone, P5, and P6's Card and
+`cards.rs` and the look-up, P4's `points_me` alone, P5, and P6's Card and
 Fighters tabs: points are recorded and the player sees their own on their
 card and Fighters tab. The card token, points in rooms and friends follow
 without changing anything that slice stored.

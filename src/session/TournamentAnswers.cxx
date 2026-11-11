@@ -207,7 +207,7 @@ bool IsTournamentPlayOp(const std::string& op) {
 		op == "match_leave" || op == "assignment_list" || op == "match_watch" || op == "match_unwatch" ||
 		op == "room_list" || op == "room_create" || op == "room_ticket" ||
 		op == "ranking_standing" || op == "ranking_choose" || op == "ranking_board" ||
-		op == "levels_me" || op == "cards_lookup" ||
+		op == "points_me" || op == "cards_lookup" ||
 		op == "replay_send" || op == "replay_archive" || op == "replay_pack";
 }
 
@@ -534,14 +534,14 @@ netplay::levels::Card DecodeCard(const json& value) {
 std::optional<netplay::levels::Own> DecodeOwnLevels(const json& data) {
 	try {
 		netplay::levels::Own own;
-		const auto levels = Text(data, "levels", 16);
-		if (levels == "no_account") {
-			Strict(data, {"levels"});
+		const auto tag = Text(data, "points", 16);
+		if (tag == "no_account") {
+			Strict(data, {"points"});
 			own.kind = netplay::levels::Own::Kind::NoAccount;
 			return own;
 		}
-		if (levels != "counted") return std::nullopt;
-		Strict(data, {"levels", "shown", "fighters"});
+		if (tag != "counted") return std::nullopt;
+		Strict(data, {"points", "shown", "fighters"});
 		own.kind = netplay::levels::Own::Kind::Counted;
 		if (const auto shown = data.find("shown"); shown != data.end()) {
 			if (!shown->is_boolean()) return std::nullopt;

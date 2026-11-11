@@ -36,7 +36,7 @@ void DispatchLevels(const Command& command, bool helperReady) {
 	if (!requests.MayRead()) return;
 	// A read the menu asks for answers the reads that were due.
 	requests.TakeDue(GetTickCount64());
-	const json request = {{"op", "levels_me"}, {"bridge_id", command.bridgeId}};
+	const json request = {{"op", "points_me"}, {"bridge_id", command.bridgeId}};
 	requests.Sent(helperReady ? SendBridgeRequest(request) : 0, GetTickCount64());
 }
 

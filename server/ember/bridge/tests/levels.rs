@@ -16,7 +16,7 @@ use common::{
 use ember_bridge::{Db, testing::TempDir};
 use ember_protocol::{
     encoding::b64u,
-    levels::{CARD_PREFIX, CARD_VALID_SECS, LEVELS_PATH, LOOKUP_PATH, is_card_token},
+    levels::{CARD_PREFIX, CARD_VALID_SECS, POINTS_PATH, LOOKUP_PATH, is_card_token},
 };
 use reqwest::{Method, StatusCode};
 use serde_json::{Value as Json_, json};
@@ -119,7 +119,7 @@ async fn fighters(bridge: &Bridge, account: &'static str) -> Vec<(u8, u64, u64)>
         .unwrap()
 }
 
-/// `GET /v1/levels/me` for `player`, with each fighter's `since` checked and
+/// `GET /v1/points/me` for `player`, with each fighter's `since` checked and
 /// left out.
 async fn own(bridge: &Bridge, player: &Player) -> Json_ {
     let (status, mut levels) = send(
@@ -127,7 +127,7 @@ async fn own(bridge: &Bridge, player: &Player) -> Json_ {
         Method::GET,
         player.token(),
         "198.51.100.7",
-        LEVELS_PATH,
+        POINTS_PATH,
         None,
     )
     .await;
@@ -208,11 +208,11 @@ async fn each_players_fighter_earns_points_from_a_game() {
     let unlinked = player(&bridge, 3).await;
     assert_eq!(
         own(&bridge, &first).await,
-        json!({ "levels": "counted", "shown": true, "fighters": [] })
+        json!({ "points": "counted", "shown": true, "fighters": [] })
     );
     assert_eq!(
         own(&bridge, &unlinked).await,
-        json!({ "levels": "no_account" })
+        json!({ "points": "no_account" })
     );
 
     play(
@@ -224,12 +224,12 @@ async fn each_players_fighter_earns_points_from_a_game() {
     .await;
     assert_eq!(
         own(&bridge, &first).await,
-        json!({ "levels": "counted", "shown": true, "fighters": [
+        json!({ "points": "counted", "shown": true, "fighters": [
             { "fighter": 3, "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 200 }] })
     );
     assert_eq!(
         own(&bridge, &second).await,
-        json!({ "levels": "counted", "shown": true, "fighters": [
+        json!({ "points": "counted", "shown": true, "fighters": [
             { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200 }] })
     );
     // The poll after reports the same game: it counted once.
@@ -382,7 +382,7 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_none() {
     assert!(ratings(&bridge).await.is_empty());
     assert_eq!(
         own(&bridge, &second).await,
-        json!({ "levels": "counted", "fighters": [
+        json!({ "points": "counted", "fighters": [
             { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200 }] })
     );
 
@@ -500,7 +500,7 @@ async fn a_look_up_takes_one_to_sixteen_well_formed_selectors() {
     }
 }
 
-/// Whether `bridge` lists `levels` among its capabilities.
+/// Whether `bridge` lists `points` among its capabilities.
 async fn offers_levels(bridge: &Bridge) -> bool {
     let response = bridge
         .client
@@ -513,7 +513,7 @@ async fn offers_levels(bridge: &Bridge) -> bool {
     body["features"]
         .as_array()
         .unwrap()
-        .contains(&json!("levels"))
+        .contains(&json!("points"))
 }
 
 #[tokio::test]
@@ -529,7 +529,7 @@ async fn levels_are_offered_with_public_rooms_and_answer_404_without() {
         Method::GET,
         caller.token(),
         "198.51.100.7",
-        LEVELS_PATH,
+        POINTS_PATH,
         None,
     )
     .await;

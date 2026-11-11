@@ -29,7 +29,7 @@ struct FighterLevel {
 	std::uint64_t since = 0;
 };
 
-// The player's own points, as GET /v1/levels/me answers them.
+// The player's own points, as GET /v1/points/me answers them.
 struct Own {
 	enum class Kind : std::uint8_t {
 		// No Discord account is connected to the Ember ID.

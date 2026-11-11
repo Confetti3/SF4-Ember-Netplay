@@ -114,7 +114,7 @@ The friendship's record (wins each way, last game) is `pair_records`
 
 Capability `friends` (`ember_protocol::friends::FRIENDS_FEATURE`), offered
 where public rooms are on and Discord sign-in is offered
-(`sign_in::offered(&state, &Site::Discord)`), and only beside `levels`. Every
+(`sign_in::offered(&state, &Site::Discord)`), and only beside `points`. Every
 type denies unknown fields. A build asks only a bridge that lists `friends`;
 an older bridge answers 404, worded `friends_unavailable`.
 

@@ -5,7 +5,7 @@
 //! the points and their progress, and nothing of the rating.
 //!
 //! Every type refuses unknown members: a build asks only a bridge that lists
-//! [`LEVELS_FEATURE`], and an older bridge answers 404.
+//! [`POINTS_FEATURE`], and an older bridge answers 404.
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,9 +15,9 @@ use crate::{
 };
 
 /// The capability a bridge with the levels routes offers.
-pub const LEVELS_FEATURE: &str = "levels";
+pub const POINTS_FEATURE: &str = "points";
 /// `GET` the caller's `OwnLevels`.
-pub const LEVELS_PATH: &str = "/v1/levels/me";
+pub const POINTS_PATH: &str = "/v1/points/me";
 /// `POST` a `CardLookup`, answered with `CardAnswers`.
 pub const LOOKUP_PATH: &str = "/v1/cards/lookup";
 /// Fighters a player can have points for: 0 to 43, USF4's roster.
@@ -47,9 +47,9 @@ pub fn is_card_token(text: &str) -> bool {
     })
 }
 
-/// The caller's own points (`GET /v1/levels/me`).
+/// The caller's own points (`GET /v1/points/me`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "levels", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(tag = "points", rename_all = "snake_case", deny_unknown_fields)]
 pub enum OwnLevels {
     /// No Discord account is connected to the caller's Ember ID, and points
     /// belong to one.
@@ -321,11 +321,11 @@ mod tests {
 
     #[test]
     fn the_own_points_in_the_design_round_trip() {
-        let none = json!({"levels": "no_account"});
+        let none = json!({"points": "no_account"});
         assert_eq!(read::<OwnLevels>(&none), OwnLevels::NoAccount {});
         assert_eq!(serde_json::to_value(OwnLevels::NoAccount {}).unwrap(), none);
 
-        let counted = json!({"levels": "counted", "shown": true, "fighters": [
+        let counted = json!({"points": "counted", "shown": true, "fighters": [
             {"fighter": 3, "points": 1986, "games": 1284, "wins": 702,
              "tier": 3, "floor": 1500, "next": 2500, "since": 1729468800}]});
         let levels: OwnLevels = read(&counted);
@@ -347,7 +347,7 @@ mod tests {
         assert!(hidden.check().is_ok());
         assert_eq!(
             serde_json::to_string(&hidden).unwrap(),
-            r#"{"levels":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
+            r#"{"points":"counted","fighters":[{"fighter":43,"points":3717,"games":2480,"wins":1237,"tier":4,"floor":2500,"since":1729468800}]}"#
         );
         let nobody = OwnLevels::Counted {
             shown: false,
@@ -356,22 +356,22 @@ mod tests {
         assert!(nobody.check().is_ok());
         assert_eq!(
             serde_json::to_string(&nobody).unwrap(),
-            r#"{"levels":"counted","fighters":[]}"#
+            r#"{"points":"counted","fighters":[]}"#
         );
     }
 
     #[test]
     fn own_points_refuse_unknown_members_and_unknown_states() {
-        let none = json!({"levels": "no_account"});
+        let none = json!({"points": "no_account"});
         refuses_extra::<OwnLevels>(&none, "");
-        let counted = json!({"levels": "counted", "fighters": [
+        let counted = json!({"points": "counted", "fighters": [
             {"fighter": 3, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200, "since": 1}]});
         refuses_extra::<OwnLevels>(&counted, "");
         refuses_extra::<OwnLevels>(&counted, "/fighters/0");
-        assert!(serde_json::from_value::<OwnLevels>(json!({"levels": "top"})).is_err());
+        assert!(serde_json::from_value::<OwnLevels>(json!({"points": "top"})).is_err());
         assert!(serde_json::from_value::<OwnLevels>(json!({"fighters": []})).is_err());
         // A member that is missing is refused, not defaulted.
-        assert!(serde_json::from_value::<OwnLevels>(json!({"levels": "counted"})).is_err());
+        assert!(serde_json::from_value::<OwnLevels>(json!({"points": "counted"})).is_err());
         assert!(
             serde_json::from_value::<OwnFighter>(
                 json!({"fighter": 3, "games": 1, "wins": 0, "since": 1})

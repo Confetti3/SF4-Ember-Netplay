@@ -136,7 +136,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(ember_protocol::skill::BOARD_PATH, get(ranking::board))
         .route("/v1/ranking/board/public", get(ranking::public_board))
-        .route(ember_protocol::levels::LEVELS_PATH, get(levels::own))
+        .route(ember_protocol::levels::POINTS_PATH, get(levels::own))
         .route(ember_protocol::levels::LOOKUP_PATH, post(levels::lookup))
         // tests/friends.rs scans every answer of these and the level routes
         // for Discord IDs: a route serving one player's data to another
