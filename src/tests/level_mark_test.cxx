@@ -95,7 +95,11 @@ int main() {
         }
     }
     // Any count of digits; nothing at no height.
-    Check(LayOut(0, 20).count == 1 && LayOut(0, 20).digits[0].digit == &level_digits::Sizes[0].digits[0], "0 is one digit");
+    // Sizes has internal linkage, so each file holds its own copy: the digit is
+    // told by its sprite's place in the atlas, not by its address.
+    const auto zero = LayOut(0, 20);
+    const Cell& zeroUnder = level_digits::Sizes[0].digits[0].under;
+    Check(zero.count == 1 && zero.digits[0].digit->under.x == zeroUnder.x && zero.digits[0].digit->under.y == zeroUnder.y, "0 is one digit");
     Check(LayOut(4294967295u, 40).count == 10, "the largest number has ten digits");
     Check(!LayOut(42, 0).size && LayOut(42, 0).count == 0 && LayOut(42, -5).width == 0, "nothing at no height");
     std::printf(failures ? "%d failures\n" : "Level mark: all checks passed\n", failures);
