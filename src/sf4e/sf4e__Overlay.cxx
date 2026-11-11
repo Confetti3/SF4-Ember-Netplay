@@ -12,6 +12,7 @@
 #include "../ui/FighterSelector.hxx"
 #include "../ui/MenuRows.hxx"
 #include "../ui/OverlayLifecycle.hxx"
+#include "../ui/MenuSummons.hxx"
 #include "../ui/OverlayPresentation.hxx"
 #include "../ui/OverlayLayers.hxx"
 #include "../ui/Theme.hxx"
@@ -85,6 +86,7 @@ static sf4e::ui::ApplicationShell shell;
 // The room the drawn shell shows, kept across frames (DrawApplicationHome).
 static sf4e::ui::RoomCarry s_roomCarry;
 static sf4e::ui::OverlayPresentation presentation;
+static sf4e::ui::MenuSummons summons;
 // The picks as this session has them (the per-fighter memory included), and
 // as the settings writer last accepted them. A save the writer refuses is
 // tried again the next frame; the session keeps its picks meanwhile.
@@ -606,48 +608,31 @@ void Overlay::DrawOverlay(const std::function<void()>& picture) {
         }
         break;
     }
-    // The WIN screen of a room game this PC fought: the post-match prompt opens over it, once per game.
-    static bool matchResultShown = false;
-    const bool matchResult = snapshot.menuContext == sf4e::input::MenuContext::MatchResult;
-    if (matchResult && !matchResultShown) presentation.Open("the match result");
-    matchResultShown = matchResult;
-    static bool inviteShown=false;
-    if (snapshot.discordPending && !inviteShown && snapshot.atMainMenu) { presentation.Open("a Discord invite"); inviteShown=true; }
-    if (!snapshot.discordPending) inviteShown=false;
-    // A room link from the browser opens the menu at the main menu, where
-    // the shell puts it on the Join screen.
-    static std::uint64_t joinLinkShown=0;
-    if (snapshot.pendingJoinSequence!=joinLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open("a room link"); joinLinkShown=snapshot.pendingJoinSequence;
-    }
-    // Called out of Training: back at the main menu the menu opens on the
-    // player's table, which the shell turns to, so the Ready row is in reach.
-    static std::uint64_t trainingCallShown=0;
-    if (snapshot.trainingCallSequence!=trainingCallShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open("a Training call"); trainingCallShown=snapshot.trainingCallSequence;
-    }
-    // A Discord connect link likewise, at the main menu only: during play it
-    // waits until the player opens Ember, which then asks before going on.
-    static std::uint64_t connectLinkShown=0;
-    if (snapshot.tournament.connect.sequence!=connectLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        presentation.Open("a Discord connect link"); connectLinkShown=snapshot.tournament.connect.sequence;
-    }
-    // A replay link opens the menu at the main menu with no room, where the
-    // shell puts its question on the Replays screen; in a room or in play it
-    // waits until then.
-    static std::string replayLinkShown;
-    if (snapshot.replays.link.empty()) replayLinkShown.clear();
-    else if (snapshot.replays.link != replayLinkShown && snapshot.atMainMenu && presentation.Available() &&
-        snapshot.session.room == sf4e::netplay::RoomState::Idle) {
-        presentation.Open("a replay link"); replayLinkShown = snapshot.replays.link;
-    }
-    // A public room link the player was free to follow opens the menu, where
-    // the shell takes them to Public rooms; during play it waits until the
-    // player opens Ember, and the shell says so.
-    static std::uint64_t roomLinkShown=0;
-    if (snapshot.tournament.roomLink.sequence!=roomLinkShown && snapshot.atMainMenu && presentation.Available()) {
-        if (snapshot.tournament.roomLink.free) presentation.Open("a public room link");
-        roomLinkShown=snapshot.tournament.roomLink.sequence;
+    // The menu opens by itself for each of these, once per event
+    // (MenuSummons.hxx). Away from the main menu an event waits there until the
+    // player is back; the shell turns the menu to the screen each one is about.
+    {
+        using sf4e::ui::SummonsAsk; using sf4e::ui::SummonsReason; using sf4e::ui::SummonsSequenceKey;
+        const bool atMenu = snapshot.atMainMenu, menuFree = atMenu && presentation.Available();
+        std::array<SummonsAsk, static_cast<std::size_t>(SummonsReason::Count)> asks;
+        const auto ask = [&asks](SummonsReason reason, std::string key, bool ready, bool opens = true) {
+            asks[static_cast<std::size_t>(reason)] = SummonsAsk{std::move(key), ready, opens};
+        };
+        // The WIN screen of a room game this PC fought: the post-match prompt opens over it, once per game.
+        ask(SummonsReason::MatchResult, snapshot.menuContext == sf4e::input::MenuContext::MatchResult ? "1" : "", true);
+        ask(SummonsReason::DiscordInvite, snapshot.discordPending ? "1" : "", atMenu);
+        // A room link from the browser opens the menu at the main menu, where the shell puts it on the Join screen.
+        ask(SummonsReason::JoinLink, SummonsSequenceKey(snapshot.pendingJoinSequence), menuFree);
+        // Called out of Training: back at the main menu the menu opens on the player's table, which the shell turns to.
+        ask(SummonsReason::TrainingCall, SummonsSequenceKey(snapshot.trainingCallSequence), menuFree);
+        // A Discord connect link likewise, at the main menu only: during play it waits until the player opens Ember, which then asks before going on.
+        ask(SummonsReason::DiscordConnectLink, SummonsSequenceKey(snapshot.tournament.connect.sequence), menuFree);
+        // A replay link opens the menu at the main menu with no room, where the shell puts its question on the Replays screen.
+        ask(SummonsReason::ReplayLink, snapshot.replays.link, menuFree && snapshot.session.room == sf4e::netplay::RoomState::Idle);
+        // A public room link the player was free to follow opens the menu, where the shell takes them to Public rooms;
+        // one that was not waits until the player opens Ember, and the shell says so.
+        ask(SummonsReason::PublicRoomLink, SummonsSequenceKey(snapshot.tournament.roomLink.sequence), menuFree, snapshot.tournament.roomLink.free);
+        summons.Update(asks, [](const char* why) { presentation.Open(why); });
     }
     sf4e::ui::SetOverlayCursorOwnership(focused && presentation.Visible());
     const bool assigning = snapshot.inputCapture != sf4e::input::Capture::Idle;

@@ -277,7 +277,7 @@ void NotifyRuntimeMatchResult(room::MatchResult result, std::uint64_t captureFra
 	// running match a terminal receipt, so the profile counts it here.
 	runtime->readyIntent.Clear();
 	runtime->promptOverBattle = false;
-	if (runtime->preferences.record.Record(capture.roomId, capture.table, generation, capture.slot, result, game))
+	if (runtime->EditPreferences().record.Record(capture.roomId, capture.table, generation, capture.slot, result, game))
 		OverlayPrefs::QueuePlayerPreferences(runtime->preferences);
 }
 

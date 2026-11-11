@@ -863,9 +863,9 @@ static void TestSharedRoom() {
 	const auto second = publish();
 	CHECK(second != first && second->room == first->room && second->Members().size() == 2);
 	// A setting that cannot show a class in this room changes nothing.
-	runtime->preferences.classEmblems = !runtime->preferences.classEmblems;
+	runtime->EditPreferences().classEmblems = !runtime->preferences.classEmblems;
 	CHECK(publish()->room == first->room);
-	runtime->preferences.classEmblems = !runtime->preferences.classEmblems;
+	runtime->EditPreferences().classEmblems = !runtime->preferences.classEmblems;
 	// A resend at the same revision is a new room: its idle times are new.
 	deliver(sent);
 	const auto resent = publish();
