@@ -1102,6 +1102,9 @@ msgstr "最高边框"
 msgid "level.hidden"
 msgstr "在你不参与排名期间，其他玩家看不到你的积分。"
 
+msgid "room.member_points_private"
+msgstr "该玩家未公开自己的积分。"
+
 msgid "level.no_account"
 msgstr "在设置的在线对战中关联 Discord，即可获得积分。"
 

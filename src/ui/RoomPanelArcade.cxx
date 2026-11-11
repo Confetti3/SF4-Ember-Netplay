@@ -392,6 +392,13 @@ void ApplicationShell::DrawArcadeBoard(const ShellView& v,const std::vector<Menu
    v2::Icon(d,v2::IconCount-1,ImVec2(marquee.max.x-8*s-cw-ms,marquee.min.y+(mh-ms)*.5f),ms,ink);
   }
   if(pictured)DrawCabinetFighter(d,screen,picture,glass,ultra,s);
+  // Their points in the screen's top right corner, where the screen's words (at its foot) are not.
+  if(m)if(const auto points=PointsOf(v,*m).Of(look.fighter)){
+   const float h=(std::min)(18*s,screen.H()*.2f),x=(std::max)(screen.min.x+2*s,screen.max.x-3*s-v2::LevelWidth(points->points,h));
+   d->PushClipRect(screen.min,screen.max,true);
+   v2::Level(d,ImVec2(x,screen.min.y+3*s),h,points->points,points->tier);
+   d->PopClipRect();
+  }
   const float ss=(std::min)(15*s,screen.H()*.34f);
   const auto space=first.find(' ');
   if(second.empty()&&space!=std::string::npos&&HeadingFont()->CalcTextSizeA(ss,FLT_MAX,0,first.c_str()).x>screen.W()-4*s){second=first.substr(space+1);first.resize(space);}

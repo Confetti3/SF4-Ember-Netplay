@@ -379,6 +379,7 @@ void StressAtlas(Renderer& renderer, int iterations, unsigned seed) {
 #include "ui_render_chat.hxx"
 #include "ui_render_latency.hxx"
 #include "ui_render_pictures.hxx"
+#include "ui_render_room_points.hxx"
 #include "ui_render_random_card.hxx"
 #include "ui_render_training.hxx"
 #include "ui_render_overlay.hxx"
@@ -957,6 +958,7 @@ int main(int argc, char** argv) {
             draw();for(const char* screen:{"room","room-table","room-members","room-chat","room-admin"})page(screen);
             page("room");
             ShootRoomPictures(view,draw,page);
+            ShootRoomPoints(view,draw,page);
             ShootRoomPromptBrands(view,draw,page);
             ShootChat(shell,view,draw);
             ShootFlags(shell,view,art.get(),draw,page,[&]{if(ApplyTheme(size.dpi))renderer.Invalidate();});

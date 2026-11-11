@@ -698,6 +698,7 @@ MemberCardView ApplicationShell::RoomMemberCard(const ShellView& v,const MenuEnt
  const auto tag=MemberTag(v.memberLatency,*m,v.room.localMember);
  card.id=e.id;card.name=m->name;card.label=e.label;card.link=*tag.link;card.marks=tag.marks;card.latency=tag.ping;
  card.mainFighter=m->id==v.room.localMember?v.preferences.mainFighter:m->mainFighter;
+ card.points=PointsOf(v,*m).Of(card.mainFighter);
  const auto status=MemberStatusText(v.room,*m,false,true);
  const auto idle=IdleText(*m,v.roomElapsedMs);
  card.status=idle.empty()?status:status+" \xC2\xB7 "+idle;

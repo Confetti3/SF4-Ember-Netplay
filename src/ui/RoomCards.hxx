@@ -5,7 +5,9 @@
 #include "../common/NetworkLink.hxx"
 #include "NameMarks.hxx"
 #include "FighterArt.hxx"
+#include "RoomPoints.hxx"
 #include <imgui.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,8 @@ struct MemberCardView {
     // after the status, and on the board's list only where it fits beside it.
     std::string record;
     int mainFighter=-1;
+    // The main's points, drawn as a band across its face (PointsOf); none when the room shows none.
+    std::optional<SeatPoints> points;
     // Settings › Room layout › Pictures. A main has no costume of its own, so
     // Characters draws it in the original outfit.
     FighterArt art=FighterArt::Portrait;
@@ -51,4 +55,8 @@ struct MemberCardView {
 // A member as a list row in `min`-`max`: portrait, player tag, status
 // and link mark. The list draws the row's ground, focus and press.
 void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max);
+// A member's played fighters, up to three, most points first, each as its
+// points on a plate and its name, from the cursor down in a detail pane; or,
+// where the player does not show their points, a line that says so.
+void DrawMemberPoints(const MemberPoints& points);
 } }

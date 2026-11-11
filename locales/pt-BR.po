@@ -1102,6 +1102,9 @@ msgstr "Moldura máxima"
 msgid "level.hidden"
 msgstr "Os outros não veem seus pontos enquanto você não participa do ranking."
 
+msgid "room.member_points_private"
+msgstr "Este jogador mantém seus pontos privados."
+
 msgid "level.no_account"
 msgstr "Conecte o Discord em Configurações, Jogo online para ganhar pontos."
 

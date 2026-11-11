@@ -1102,6 +1102,9 @@ msgstr "Höchster Rahmen"
 msgid "level.hidden"
 msgstr "Andere sehen deine Punkte nicht, solange du nicht am Ranking teilnimmst."
 
+msgid "room.member_points_private"
+msgstr "Dieser Spieler hält seine Punkte privat."
+
 msgid "level.no_account"
 msgstr "Verbinde Discord unter Einstellungen, Online-Spiel, um Punkte zu sammeln."
 
