@@ -74,7 +74,10 @@ or King of the hill. Any type can be private or public.
 
 ## How it is built
 
-- Snapshot::arcade is the room::RoomType. Snapshot::cabinets holds who sits
+- Snapshot::type is the room::RoomType (on the wire still "arcade"), and
+  room::RulesOf (RoomQueries.hxx) is what each type allows: seats by
+  cabinet, rules fixed at create, a set always ends, the winner stays,
+  the keeper option, tournament binding, default table count. Snapshot::cabinets holds who sits
   at each cabinet, Snapshot::streaks each cabinet's streak, topSlot the
   crown, Snapshot::line those at no table, front first, while every table in
   play (Snapshot::tableCount) is a pair. A table is a pair, not a place:

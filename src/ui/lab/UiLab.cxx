@@ -206,11 +206,11 @@ void JoinRoom(ui::ShellView& view) {
 void ArcadeRoom(ui::ShellView& view, room::RoomType type, const std::string& seats) {
     JoinRoom(view);
     const bool full = seats == "full";
-    view.room.arcade = type; view.room.name = type == room::KingRoom ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
+    view.room.type = type; view.room.name = type == room::RoomType::King ? "King of the hill" : "FRaccie's arcade"; view.room.members.resize(full ? 16 : 9);
     const char* names[] = {"FRaccie", "Katie", "Jimbo", "Deck01", "Ash", "Mo", "Lena", "TJ", "Rook", "Sven", "Marn", "Kaz", "Nia", "Otto", "Yui", "Bram"};
     for (auto& m : view.room.members) { m.id = static_cast<room::MemberId>(&m - view.room.members.data() + 1); m.name = names[m.id - 1]; m.table = m.seat = -1; m.status = room::MemberStatus::Idle; }
     for (std::size_t i = 0; i < room::TableCount; ++i) view.room.tables[i] = {}, view.room.tables[i].id = static_cast<std::uint8_t>(i), view.room.tables[i].revision = 1;
-    const bool king = type == room::KingRoom;
+    const bool king = type == room::RoomType::King;
     // Cabinet, member, table, seat, streak.
     const int arcade[][5] = {{0, 2, 0, 0, 0}, {9, 3, 0, 1, 0}, {2, 4, 1, 0, 0}, {5, 5, 1, 1, 0}, {3, 6, 4, 0, 0}, {6, 7, 2, 0, 0}, {14, 8, 2, 1, 0}, {11, 1, 3, 0, 0}, {12, 9, 3, 1, 0}};
     const int hill[][5] = {{0, 2, 0, 0, 5}, {8, 3, 0, 1, 0}, {2, 4, 1, 0, 2}, {3, 5, 1, 1, 0}, {5, 6, 2, 0, 3}, {13, 7, 2, 1, 0}, {10, 8, 3, 0, 1}, {15, 9, 3, 1, 0}, {6, 1, 4, 0, 1}};
@@ -260,7 +260,7 @@ void DrawLabBackdrop() {
 void PublicRooms(ui::ShellView& view) {
     const auto room = [](const char* id, const char* name, const char* host, const char* region, unsigned members, unsigned capacity, unsigned playing) {
         netplay::publicrooms::Room r; r.id = id; r.name = name; r.hostName = host; r.region = region; r.members = members; r.capacity = capacity; r.playing = playing;
-        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::ClassicRoom;
+        r.hasDetails = true; r.setFormat = 2; r.rotation = 0; r.createdAt = 100; r.type = room::RoomType::Classic;
         for (unsigned i = 0; i < members; ++i) r.fighters.push_back(static_cast<int>(i * 5 % 44));
         return r;
     };
@@ -269,7 +269,7 @@ void PublicRooms(ui::ShellView& view) {
     list.rooms = {room("a", "EU Monday Night Fights", "Katie", "euc1", 6, 8, 2), room("b", "Ultra only, AE2012 welcome", "Daigo-fan", "euc1", 3, 4, 1),
         room("c", "Beginners, ask anything", "Sven", "euc1", 2, 12, 0), room("d", "East coast casuals", "Marn", "use1", 8, 8, 3), room("e", "Tokyo late night", "Kaz", "aps1", 5, 10, 2)};
     // Each type of room on the board: Arcade cabinets and a King of the hill among the Classic tables.
-    list.rooms[0].type = room::ArcadeRoom; list.rooms[4].type = room::KingRoom;
+    list.rooms[0].type = room::RoomType::Arcade; list.rooms[4].type = room::RoomType::King;
 }
 // An Ember ID on a trusted service (lab --rankings), and Rankings' answers from
 // it: FRaccie at B+ and listed, and a board of sixteen by class, as the design board.
@@ -324,7 +324,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         else if (args[i] == "--picture" && more) pictureMode = std::atoi(args[++i].c_str());
         else if (args[i] == "--hide" && more) hidePanes = args[++i];
         else if (args[i] == "--pip") pip = true;
-        else if (args[i] == "--arcade" && more) { ++i; arcade = args[i] == "king" ? room::KingRoom : args[i] == "arcade" ? room::ArcadeRoom : room::ClassicRoom; }
+        else if (args[i] == "--arcade" && more) { ++i; arcade = static_cast<int>(args[i] == "king" ? room::RoomType::King : args[i] == "arcade" ? room::RoomType::Arcade : room::RoomType::Classic); }
         else if (args[i] == "--seats" && more) seats = args[++i];
         else if (args[i] == "--hud" && more) hud = std::atoi(args[++i].c_str());
         else if (args[i] == "--training") trainingPanel = true;

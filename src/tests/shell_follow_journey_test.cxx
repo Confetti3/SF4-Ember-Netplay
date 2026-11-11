@@ -94,7 +94,7 @@ void FollowFromBoardAndOptions() {
  Check(f.Watches(from).empty()&&!f.Row("follow-room"),"A seat did not end following");
  // An Arcade board's action bar offers it too, and moves the same way.
  tables[1].p1=0;f.Local().table=-1;f.Local().seat=-1;tables[1].spectators={1};
- h.view.room.arcade=room::ArcadeRoom;h.Screen("room");f.Capture();
+ h.view.room.type=room::RoomType::Arcade;h.Screen("room");f.Capture();
  Check(f.Row("follow-room")&&f.Row("follow-room")->enabled,"An Arcade watcher's board did not offer Follow the room");
  from=h.actions.size();h.Choose("follow-room");h.Frame(0,3);
  Check(f.Watches(from)==std::vector<int>{2},"Following in an Arcade room did not move to the pair playing");

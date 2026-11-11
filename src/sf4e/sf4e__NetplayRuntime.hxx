@@ -147,7 +147,7 @@ struct Room {
     std::optional<netplay::TableSetup> createdRules;
     JoinKind join = JoinKind::Private;
     bool practiceRoom = false;
-    room::RoomType arcadeRoom = room::ClassicRoom;
+    room::RoomType arcadeRoom = room::RoomType::Classic;
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
     bool wiredOnly = false;

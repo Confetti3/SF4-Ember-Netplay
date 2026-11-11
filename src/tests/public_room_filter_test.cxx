@@ -12,7 +12,7 @@ using namespace sf4e::room;
 
 namespace {
 // A room with a free seat in `region`; Classic unless `type` says none or other.
-Room Make(const std::string& region, std::optional<RoomType> type = ClassicRoom) {
+Room Make(const std::string& region, std::optional<RoomType> type = RoomType::Classic) {
 	Room room;
 	room.id = "r"; room.name = "Open room"; room.region = region;
 	room.members = 2; room.capacity = 8;
@@ -24,7 +24,7 @@ void DefaultListsEverything() {
 	const RoomFilter filter;
 	EXPECT(!filter.Active() && filter.Valid());
 	Room full = Make("euc1", std::nullopt); full.members = 8; full.locked = true; full.wiredOnly = true;
-	EXPECT(Matches(filter, full, "") && Matches(filter, full, "use1") && Matches(filter, Make("aps1", ArcadeRoom), "use1"));
+	EXPECT(Matches(filter, full, "") && Matches(filter, full, "use1") && Matches(filter, Make("aps1", RoomType::Arcade), "use1"));
 }
 
 void RegionNearAndOne() {
@@ -46,13 +46,13 @@ void RegionNearAndOne() {
 void TypeNeedsASentType() {
 	RoomFilter filter;
 	filter.type = RoomFilter::Type::Arcade;
-	EXPECT(Matches(filter, Make("use1", ArcadeRoom), "") && !Matches(filter, Make("use1", ClassicRoom), "") && !Matches(filter, Make("use1", KingRoom), ""));
+	EXPECT(Matches(filter, Make("use1", RoomType::Arcade), "") && !Matches(filter, Make("use1", RoomType::Classic), "") && !Matches(filter, Make("use1", RoomType::King), ""));
 	// A room that sent no type passes under All only.
 	EXPECT(!Matches(filter, Make("use1", std::nullopt), ""));
 	filter.type = RoomFilter::Type::Classic;
-	EXPECT(Matches(filter, Make("use1", ClassicRoom), "") && !Matches(filter, Make("use1", std::nullopt), ""));
+	EXPECT(Matches(filter, Make("use1", RoomType::Classic), "") && !Matches(filter, Make("use1", std::nullopt), ""));
 	filter.type = RoomFilter::Type::King;
-	EXPECT(Matches(filter, Make("use1", KingRoom), "") && !Matches(filter, Make("use1", ArcadeRoom), ""));
+	EXPECT(Matches(filter, Make("use1", RoomType::King), "") && !Matches(filter, Make("use1", RoomType::Arcade), ""));
 	filter.type = RoomFilter::Type::All;
 	EXPECT(Matches(filter, Make("use1", std::nullopt), ""));
 }

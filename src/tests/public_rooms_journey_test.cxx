@@ -465,12 +465,12 @@ void HostedLastRoomJourney(){
  Journey j;auto& h=j.h;
  netplay::RoomTemplate saved;saved.name="Stream";saved.roomName="Stream room";saved.capacity=8;saved.isPublic=true;
  saved.tables=netplay::TableSetup::Same(room::PublicRoomRules());saved.tables.names[0]="Main stage";
- h.view.preferences.roomTemplates={saved};h.view.preferences.publicRoomType=room::KingRoom;h.view.preferences.publicRoomTemplate="Stream";h.view.preferences.publicArcadeTables=1;
+ h.view.preferences.roomTemplates={saved};h.view.preferences.publicRoomType=room::RoomType::King;h.view.preferences.publicRoomTemplate="Stream";h.view.preferences.publicArcadeTables=1;
  h.view.hostPublicRoom=true;h.Frame(0,2);j.answerIdentityUntilIdle();h.Frame(0,2);
  Check(Creates(j)==1&&j.requests().back()->roomName=="Stream room"&&j.requests().back()->capacity==8,"A stream PC did not open its template's room");
  j.Admit();
  const auto join=std::find_if(h.actions.rbegin(),h.actions.rend(),[](const ShellAction& a){return a.command.kind==Kind::JoinInvite;});
- Check(join!=h.actions.rend()&&join->arcadeRoom==room::KingRoom&&join->tableCount==1&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
+ Check(join!=h.actions.rend()&&join->arcadeRoom==room::RoomType::King&&join->tableCount==1&&join->createdRules&&*join->createdRules==saved.tables,"A stream PC did not open the last room's type and tables");
 }
 
 // Rooms that can be joined come first, near ones before far ones once the region
@@ -542,9 +542,9 @@ void QuickJoinJourney(){
  {
   // The filter narrows Quick join: a room type, and a region the player chose in place of the near default.
   Journey k;auto& h=k.h;k.OpenList();h.view.netReport.relay="use1";
-  auto arcade=Placed("a","use1",2,8,1);arcade.type=room::ArcadeRoom;
-  auto classic=Placed("c","use1",2,8,2);classic.type=room::ClassicRoom;
-  auto distant=Placed("f","euc1",1,8,3);distant.type=room::ClassicRoom;
+  auto arcade=Placed("a","use1",2,8,1);arcade.type=room::RoomType::Arcade;
+  auto classic=Placed("c","use1",2,8,2);classic.type=room::RoomType::Classic;
+  auto distant=Placed("f","euc1",1,8,3);distant.type=room::RoomType::Classic;
   k.List({arcade,classic,distant});
   const auto settle=[&]{
    h.Wait(1);
@@ -561,7 +561,7 @@ void QuickJoinJourney(){
   Check(tickets(k)==1&&lastTicketIs(k,"brg_1","c"),"Quick join asked for a room the type filter hides");
   k.Admit("room_full");
   step("pr-filter-region",MenuInput::Right,4);
-  Check(k.row("pr-filters")->value==PublicRoomsPanel::RegionLabel("euc1")+" \xC2\xB7 "+RoomTypeName(room::ClassicRoom),"The Filters row does not say Europe and Classic");
+  Check(k.row("pr-filters")->value==PublicRoomsPanel::RegionLabel("euc1")+" \xC2\xB7 "+RoomTypeName(room::RoomType::Classic),"The Filters row does not say Europe and Classic");
   h.Choose("pr-quick");
   Check(tickets(k)==2&&lastTicketIs(k,"brg_1","f"),"Quick join stayed near the player's region after the filter named another");
   k.Admit("room_full");
@@ -580,9 +580,9 @@ void QuickJoinJourney(){
 void FilterJourney(){
  Journey j;auto& h=j.h;j.OpenList();
  const auto relist=[&]{
-  auto a=Placed("a","use1",3,8,1);a.type=room::ClassicRoom;
-  auto b=Placed("b","euc1",2,4,2);b.type=room::ArcadeRoom;b.wiredOnly=true;
-  auto c=Placed("c","use1",4,4,3);c.type=room::KingRoom;
+  auto a=Placed("a","use1",3,8,1);a.type=room::RoomType::Classic;
+  auto b=Placed("b","euc1",2,4,2);b.type=room::RoomType::Arcade;b.wiredOnly=true;
+  auto c=Placed("c","use1",4,4,3);c.type=room::RoomType::King;
   auto d=Placed("d","aps1",1,8,4);
   j.List({a,b,c,d});
  };
@@ -642,11 +642,11 @@ void FilterJourney(){
 
  // Room type: a room that sent no type (d) passes under All types only.
  step("pr-filter-type");
- Check(value("pr-filter-type")==RoomTypeName(room::ClassicRoom)&&summary()==RoomTypeName(room::ClassicRoom)&&Shown(j)=="a","Classic lists a room of another type or none");
+ Check(value("pr-filter-type")==RoomTypeName(room::RoomType::Classic)&&summary()==RoomTypeName(room::RoomType::Classic)&&Shown(j)=="a","Classic lists a room of another type or none");
  step("pr-filter-type");
- Check(value("pr-filter-type")==RoomTypeName(room::ArcadeRoom)&&Shown(j)=="b","Arcade lists a room of another type");
+ Check(value("pr-filter-type")==RoomTypeName(room::RoomType::Arcade)&&Shown(j)=="b","Arcade lists a room of another type");
  step("pr-filter-type");
- Check(value("pr-filter-type")==RoomTypeName(room::KingRoom)&&Shown(j)=="c","King of the Hill lists a room of another type");
+ Check(value("pr-filter-type")==RoomTypeName(room::RoomType::King)&&Shown(j)=="c","King of the Hill lists a room of another type");
  step("pr-filter-type");
  Check(value("pr-filter-type")==loc::T("public.filter_type_all")&&Shown(j)=="adbc","Stepping past King of the Hill did not return to every type");
 
@@ -669,7 +669,7 @@ void FilterJourney(){
  Check(saved>=1&&h.view.preferences.roomFilter.wiredOnly&&h.view.preferences.roomFilter.openSeats&&h.view.preferences.roomFilter.type==netplay::publicrooms::RoomFilter::Type::King&&
   h.view.preferences.roomFilter.scope==netplay::publicrooms::RoomFilter::Region::All,"The filter was not sent to be saved");
  h.Screen("online");h.Choose("public-rooms");h.Frame(0,2);relist();
- Check(summary()==std::string(RoomTypeName(room::KingRoom))+dot+loc::T("public.filter_summary_seats")+dot+loc::T("public.filter_wired_only")&&j.row("pr-clear-filters"),"The filter was forgotten on leaving Public rooms");
+ Check(summary()==std::string(RoomTypeName(room::RoomType::King))+dot+loc::T("public.filter_summary_seats")+dot+loc::T("public.filter_wired_only")&&j.row("pr-clear-filters"),"The filter was forgotten on leaving Public rooms");
 
  // Clear filters lists every room again, and that is saved too.
  h.Choose("pr-clear-filters");settle();
@@ -843,9 +843,9 @@ void RoomJourney(){
  h.view.room.serverOwned=true;h.Frame(0,2);
  Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_status")&&!j.row("copy")&&!j.row("copy-short")&&j.row("leave"),"A public room reads like a private one");
  // A public room's line starts with its type.
- h.view.room.arcade=room::ArcadeRoom;h.Frame(0,2);
+ h.view.room.type=room::RoomType::Arcade;h.Frame(0,2);
  Check(j.status==std::string(loc::T("room.type.arcade"))+" · "+loc::T("room.public_status"),"A public Arcade room's status line does not say Arcade");
- h.view.room.arcade=room::ClassicRoom;
+ h.view.room.type=room::RoomType::Classic;
  h.view.room.locked=true;h.Frame(0,2);Check(j.status==std::string(loc::T("room.type.classic"))+" · "+loc::T("room.public_locked_status"),"A locked public room does not say so");
 }
 

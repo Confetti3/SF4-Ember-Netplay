@@ -37,7 +37,7 @@ Chara Pressed(int fighter, int costume) {
 // on `shown`.
 room::Snapshot Room(std::uint64_t revision, int shown) {
     room::Snapshot snapshot;
-    snapshot.roomEpoch = 5; snapshot.revision = revision; snapshot.localMember = 2; snapshot.arcade = room::ArcadeRoom;
+    snapshot.roomEpoch = 5; snapshot.revision = revision; snapshot.localMember = 2; snapshot.type = room::RoomType::Arcade;
     snapshot.name = "Random room";
     for (std::size_t i = 0; i < snapshot.tables.size(); ++i) snapshot.tables[i].id = static_cast<std::uint8_t>(i);
     room::Member opponent, local;

@@ -154,7 +154,7 @@ static void TestRoomListDetails() {
 	// The room's type: Classic, Arcade or King of the hill. Details without one are an older
 	// room host's, whose rooms are Classic; a type this build does not know stays unknown.
 	for (unsigned type = 0; type <= 2; ++type) CHECK(room({{"room_type", type}}).type == static_cast<room::RoomType>(type) && room({{"room_type", type}}).hasDetails);
-	CHECK(room({{"set_format", 2u}}).type == room::ClassicRoom);
+	CHECK(room({{"set_format", 2u}}).type == room::RoomType::Classic);
 	CHECK(!room({{"room_type", 3u}}).type && !room({{"room_type", 3u}}).hasDetails);
 	CHECK(!room({{"room_type", 3u}, {"set_format", 2u}}).type && !room({{"room_type", "arcade"}}).type && !room({{"room_type", -1}}).type);
 	// wired_only: only a room that takes wired players alone sends it, and a missing, false or

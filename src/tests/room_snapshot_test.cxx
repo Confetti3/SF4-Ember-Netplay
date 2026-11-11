@@ -66,7 +66,7 @@ static void TestSnapshotWithoutChat() {
 	EXPECT(authority.BeginMatch(0, p1, p2).accepted);
 	same(authority);
 	// A King of the hill room's type and cabinets, with someone seated.
-	RoomAuthority king("King", 16, 314, Rules(), Charter{KingRoom});
+	RoomAuthority king("King", 16, 314, Rules(), Charter{RoomType::King});
 	EXPECT(Join(king, 0, true) == host);
 	Action sit = TableAction(king, host, 2, ActionKind::Queue);
 	sit.seat = 1;
@@ -128,16 +128,16 @@ static void TestMemberLook() {
 // room replacing it is created with; a table count out of range is the type's
 // default.
 static void TestCharter() {
-	const Charter chosen{KingRoom, true, DelayPolicy::Own, 3, true};
+	const Charter chosen{RoomType::King, true, DelayPolicy::Own, 3, true};
 	RoomAuthority authority("Charter", 16, 315, Rules(), chosen);
 	const auto& room = authority.SnapshotView();
-	EXPECT(room.arcade == KingRoom && room.practice && room.delayPolicy == DelayPolicy::Own && room.tableCount == 3 && room.wiredOnly);
+	EXPECT(room.type == RoomType::King && room.practice && room.delayPolicy == DelayPolicy::Own && room.tableCount == 3 && room.wiredOnly);
 	const auto again = CharterOf(room);
 	EXPECT(again.type == chosen.type && again.practice && again.delayPolicy == chosen.delayPolicy && again.tableCount == 3 && again.wiredOnly);
 	const Charter defaults;
-	EXPECT(defaults.type == ClassicRoom && !defaults.practice && defaults.delayPolicy == DelayPolicy::Shared &&
+	EXPECT(defaults.type == RoomType::Classic && !defaults.practice && defaults.delayPolicy == DelayPolicy::Shared &&
 		defaults.tableCount == ClassicTableCount && !defaults.wiredOnly);
-	for (const RoomType type : {ClassicRoom, ArcadeRoom}) {
+	for (const RoomType type : {RoomType::Classic, RoomType::Arcade}) {
 		RoomAuthority outOfRange("Default count", 16, 316, Rules(), Charter{type, false, DelayPolicy::Shared, 0});
 		EXPECT(outOfRange.SnapshotView().tableCount == DefaultTableCount(type));
 	}

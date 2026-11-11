@@ -232,7 +232,7 @@ static void TestSetServerOwnedNeedsAFreshRoom() {
 	EXPECT(emptied.Leave(member).accepted);
 	EXPECT(!emptied.SetServerOwned());
 	// Only a player creates a Practice room, so none is ever a public one.
-	RoomAuthority practice("Practice", 8, 1, Rules(), Charter{ClassicRoom, true});
+	RoomAuthority practice("Practice", 8, 1, Rules(), Charter{RoomType::Classic, true});
 	EXPECT(!practice.SetServerOwned() && !practice.SnapshotView().serverOwned);
 	RoomAuthority fresh("Fresh", 8, 1);
 	EXPECT(fresh.SetServerOwned() && !fresh.SnapshotView().practice);
@@ -242,7 +242,7 @@ static void TestSetServerOwnedNeedsAFreshRoom() {
 // Own, an emptied room keeps it when its rules go back to the default, and it
 // survives a checkpoint.
 static void TestDelayPolicyIsKept() {
-	RoomAuthority authority("Own", 8, 1, PublicRoomRules(), Charter{ClassicRoom, false, DelayPolicy::Own});
+	RoomAuthority authority("Own", 8, 1, PublicRoomRules(), Charter{RoomType::Classic, false, DelayPolicy::Own});
 	EXPECT(authority.SetServerOwned() && authority.SnapshotView().serverOwned);
 	EXPECT(authority.SnapshotView().delayPolicy == DelayPolicy::Own);
 	const auto host = MemberOf(JoinAs(authority, 1, "ember-a"));

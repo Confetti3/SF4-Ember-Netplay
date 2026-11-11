@@ -259,7 +259,7 @@ Result RoomAuthority::BindTournament(const TournamentBinding& binding) {
 	if (snapshot_.closed) return Reject(RejectReason::Closed);
 	// A tournament match is scored; a Practice room's games end only on time.
 	// An Arcade room seats whoever sits down, not the bound fighters.
-	if (snapshot_.practice || snapshot_.arcade) return Reject(RejectReason::Unauthorized);
+	if (snapshot_.practice || !RulesOf(snapshot_).tournamentBindable) return Reject(RejectReason::Unauthorized);
 	auto& current = snapshot_.tournament;
 	if (current.Active()) {
 		// A room plays one match; a newer binding for it replaces the old one.

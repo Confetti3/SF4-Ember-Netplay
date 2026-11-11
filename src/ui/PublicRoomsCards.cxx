@@ -63,7 +63,7 @@ struct TypeLook { const char* name; const char* detail; ImU32 colour; };
 std::optional<TypeLook> LookOf(const Room& room) {
     if (!room.type) return std::nullopt;
     const room::RoomType type = *room.type;
-    const ImU32 colour = type == room::KingRoom ? v2::TierColor(v2::Tier::Gold).stripe : type == room::ArcadeRoom ? palette::Purple : palette::Ivory;
+    const ImU32 colour = type == room::RoomType::King ? v2::TierColor(v2::Tier::Gold).stripe : type == room::RoomType::Arcade ? palette::Purple : palette::Ivory;
     return TypeLook{RoomTypeName(type), RoomTypeDetail(type), colour};
 }
 

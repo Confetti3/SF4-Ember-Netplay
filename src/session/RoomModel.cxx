@@ -11,7 +11,7 @@ RoomAuthority::RoomAuthority(std::string name, std::uint8_t capacity, std::uint6
 	snapshot_.protocolVersion = ProtocolVersion;
 	snapshot_.practice = charter.practice;
 	snapshot_.wiredOnly = charter.wiredOnly;
-	snapshot_.arcade = charter.type;
+	snapshot_.type = charter.type;
 	snapshot_.tableCount = InRange<std::uint8_t>(charter.tableCount, 1, static_cast<std::uint8_t>(TableCount))
 		? charter.tableCount : DefaultTableCount(charter.type);
 	snapshot_.delayPolicy = charter.delayPolicy;
@@ -44,7 +44,7 @@ Snapshot RoomAuthority::SnapshotFor(MemberId member, bool withChat) const {
 		result.practice = snapshot_.practice;
 		result.delayPolicy = snapshot_.delayPolicy;
 		result.wiredOnly = snapshot_.wiredOnly;
-		result.arcade = snapshot_.arcade;
+		result.type = snapshot_.type;
 		result.tableCount = snapshot_.tableCount;
 		result.cabinets = snapshot_.cabinets;
 		result.streaks = snapshot_.streaks;
@@ -376,7 +376,7 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 	if (auto* member = Find(winner)) count(member->setsWon);
 	if (auto* member = Find(loser)) count(member->setsLost);
 	// Rules::winnerKeepsFighter: the winner keeps the fighter and edition they won with.
-	const Member* kept = snapshot_.arcade && table.rules.winnerKeepsFighter ? Find(winner) : nullptr;
+	const Member* kept = RulesOf(snapshot_).keeperOption && table.rules.winnerKeepsFighter ? Find(winner) : nullptr;
 	table.keeper = kept && kept->fighter >= 0 ? winner : 0;
 	table.keptFighter = table.keeper ? kept->fighter : -1;
 	table.keptEdition = table.keeper ? kept->edition : -1;
@@ -387,7 +387,7 @@ void RoomAuthority::CompleteSet(Table& table, int winnerSeat) {
 		table.streak = 1;
 	}
 	table.score[0] = table.score[1] = 0;
-	if (snapshot_.arcade) { ArcadeSetEnded(table, winner, loser); return; }
+	if (RulesOf(snapshot_).cabinets) { ArcadeSetEnded(table, winner, loser); return; }
 	// A tournament set has no queue to rotate: the bridge decides what comes
 	// next, and the same two fighters stay seated by slot.
 	if (BoundTable(table)) return;
@@ -478,11 +478,11 @@ void RoomAuthority::RemoveFromTable(MemberId member, bool preserveSpectator) {
 			Touch(table);
 			SeatQueued(table);
 			NormalizeTableMembers(table);
-			if (snapshot_.arcade) ArcadeVacated(table, member);
+			if (RulesOf(snapshot_).cabinets) ArcadeVacated(table, member);
 		} else if (queueChanged) Touch(table);
 		else if (spectatorsChanged) TouchSpectators(table);
 	}
-	if (snapshot_.arcade) StandUp(member);
+	if (RulesOf(snapshot_).cabinets) StandUp(member);
 	NormalizeMemberStatus(member);
 }
 

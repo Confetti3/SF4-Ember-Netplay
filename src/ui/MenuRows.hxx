@@ -171,13 +171,13 @@ inline MenuEntry PracticeRoomRow(bool on,bool enabled) {
 // type is shown: Create's row, the public room list and a public room's status line.
 inline const char* RoomTypeName(room::RoomType type) {
     static const char* const names[]={"room.type.classic","room.type.arcade","room.type.king"};
-    return loc::T(names[type]);
+    return loc::T(names[static_cast<std::size_t>(type)]);
 }
 inline const char* RoomTypeDetail(room::RoomType type) {
     static const char* const details[]={"room.type.classic_detail","room.type.arcade_detail","room.type.king_detail"};
-    return loc::T(details[type]);
+    return loc::T(details[static_cast<std::size_t>(type)]);
 }
-// Create's choice of the room's type, fixed for its life (room::Snapshot::arcade).
+// Create's choice of the room's type, fixed for its life (room::Snapshot::type).
 inline MenuEntry RoomTypeRow(room::RoomType type,bool enabled) {
     return Value("room-type",loc::T("room.type"),RoomTypeName(type),RoomTypeDetail(type),enabled);
 }

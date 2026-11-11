@@ -294,7 +294,7 @@ void TestTheLargestLineFitsTheSupervisorsLimits() {
 	details.setFormat = 10;
 	details.rotation = 2;
 	details.ownDelay = true;
-	details.roomType = static_cast<int>(room::KingRoom);
+	details.roomType = static_cast<int>(room::RoomType::King);
 	details.creatorIn = true;
 	const std::string invitation = "sf4e3:" + std::string(4090, 'x');
 	const auto line = roomhost::StatusLine({room::MaximumMembers, room::TableCount, invitation, banned, details, games});

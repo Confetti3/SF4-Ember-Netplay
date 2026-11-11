@@ -41,7 +41,7 @@ public:
     static constexpr std::uint64_t RetryMs = 1500;
 
     // `tableCount`: how many tables an Arcade type plays at.
-    void Start(const TableSetup& setup, std::uint64_t nowMs, room::RoomType type = room::ClassicRoom, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount) {
+    void Start(const TableSetup& setup, std::uint64_t nowMs, room::RoomType type = room::RoomType::Classic, bool wiredOnly = false, std::uint8_t tableCount = room::TableCount) {
         *this = CreatedRules();
         active_ = true; setup_ = setup; type_ = type; wiredOnly_ = wiredOnly; tableCount_ = tableCount; armedAtMs_ = nowMs;
     }
@@ -72,8 +72,8 @@ public:
         }
         if (room.roomEpoch != roomEpoch_ || room.localMember != host_ || room.host != host_) { Cancel("room_changed"); return false; }
         if (nowMs >= deadlineMs_) { Cancel("deadline"); return false; }
-        if (type_ && room.arcade != type_) {
-            if (room.arcade) { Cancel("edited"); return false; }
+        if (type_ != room::RoomType::Classic && room.type != type_) {
+            if (room.type != room::RoomType::Classic) { Cancel("edited"); return false; }
             if (!canSend || (sentAtMs_ && nowMs - sentAtMs_ < RetryMs)) return false;
             action = room::Action();
             action.kind = room::ActionKind::SetRoomType;
@@ -95,7 +95,7 @@ public:
             return true;
         }
         // An Arcade room's tables are the room's: nothing is left once it has its type.
-        if (type_) { Cancel("done"); return false; }
+        if (type_ != room::RoomType::Classic) { Cancel("done"); return false; }
         int next = -1;
         // Only the tables a room plays at take rules; the others stay as they are.
         for (std::size_t i = 0; i < room::TablesInPlay(room); ++i) {
@@ -141,7 +141,7 @@ private:
     bool active_ = false;
     const char* ended_ = "";
     TableSetup setup_;
-    room::RoomType type_ = room::ClassicRoom;
+    room::RoomType type_ = room::RoomType::Classic;
     std::uint8_t tableCount_ = room::TableCount;
     // The rule still to be sent; false once the room shows it or the host sets it.
     bool wiredOnly_ = false;

@@ -140,8 +140,8 @@ void DecodeDetails(const json& view, Room& room) {
 		room.hasDetails = true;
 	}
 	if (const auto found = view.find("room_type"); found == view.end()) {
-		if (room.hasDetails) room.type = room::ClassicRoom;
-	} else if (found->is_number_unsigned() && found->get<std::uint64_t>() <= room::KingRoom) {
+		if (room.hasDetails) room.type = room::RoomType::Classic;
+	} else if (found->is_number_unsigned() && found->get<std::uint64_t>() <= static_cast<std::uint64_t>(room::RoomType::King)) {
 		room.type = static_cast<room::RoomType>(found->get<std::uint64_t>());
 		room.hasDetails = true;
 	}

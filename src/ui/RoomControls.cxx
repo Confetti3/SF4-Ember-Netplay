@@ -154,7 +154,7 @@ std::vector<MenuChoice> SeatChoices(const ShellView& v, const room::Table& t) {
     for (const char* id : {left, right}) {
         const auto* option = FindSeatOption(id);
         // In an Arcade room, joining is sitting down at whichever cabinet the room gives.
-        const bool sit = v.room.arcade && option->kind == room::ActionKind::Queue;
+        const bool sit = room::RulesOf(v.room).cabinets && option->kind == room::ActionKind::Queue;
         MenuChoice choice{id, loc::T(sit ? "room.arcade_sit" : option->label), loc::T(sit ? "room.arcade_sit_detail" : option->detail) + WatchingNote(v, option->kind)};
         if (!RoomTakesNow(v, option->kind, t.id)) { choice.enabled = false; choice.detail = RoomWaitReason(v); }
         else if (TerminalFenced(v, option->kind, t.id)) { choice.enabled = false; choice.detail = TerminalPendingReason(); }
@@ -170,7 +170,7 @@ PlaceExit ExitFromPlace(const ShellView& v) {
     if (place.kind == room::Place::Kind::Seat) {
         const auto& t = v.room.tables[place.table];
         exit.table = place.table; exit.seat = true; exit.label = loc::T("room.leave_seat");
-        if (v.room.arcade) exit.row = "cabinet-" + std::to_string(room::CabinetOf(v.room, v.room.localMember));
+        if (room::RulesOf(v.room).cabinets) exit.row = "cabinet-" + std::to_string(room::CabinetOf(v.room, v.room.localMember));
         const auto hold = room::LeavingSeatHold(t, place.seat, GameLive(v), PostMatch(v));
         if (hold == room::SeatHold::None) { exit.allowed = true; exit.cost = room::CostOfLeavingSeat(t); }
         else if (hold == room::SeatHold::UnreadyFirst) {

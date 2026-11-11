@@ -35,7 +35,7 @@ inline nlohmann::json RoomPreferences(const PlayerPreferences& value) {
     if (value.roomTableCount != static_cast<int>(room::ClassicTableCount)) json["tableCount"] = value.roomTableCount;
     // Only on is written; a document without the key reads as off.
     if (value.roomWiredOnly) json["wiredOnly"] = true;
-    if (value.publicRoomType != room::ClassicRoom) json["publicType"] = static_cast<int>(value.publicRoomType);
+    if (value.publicRoomType != room::RoomType::Classic) json["publicType"] = static_cast<int>(value.publicRoomType);
     if (value.publicArcadeTables != static_cast<int>(room::TableCount)) json["publicTables"] = value.publicArcadeTables;
     if (!value.publicRoomTemplate.empty()) json["publicTemplate"] = value.publicRoomTemplate;
     if (!value.roomTemplates.empty()) {
@@ -142,8 +142,8 @@ inline bool ReadRoomPreferences(const nlohmann::json& document, PlayerPreference
         candidate.roomPublic = defaults.value("public", candidate.roomPublic);
         candidate.roomDelayPolicy = DelayPolicyOr(defaults);
         candidate.roomWiredOnly = defaults.value("wiredOnly", false);
-        const auto publicType = defaults.value("publicType", static_cast<std::int64_t>(room::ClassicRoom));
-        if (publicType < room::ClassicRoom || publicType > room::KingRoom) return false;
+        const auto publicType = defaults.value("publicType", static_cast<std::int64_t>(room::RoomType::Classic));
+        if (!room::ValidRoomType(publicType)) return false;
         candidate.publicRoomType = static_cast<room::RoomType>(publicType);
         if (defaults.contains("publicTables") && !defaults["publicTables"].is_number_integer()) return false;
         const auto publicTables = defaults.value("publicTables", static_cast<std::int64_t>(room::TableCount));

@@ -1,4 +1,4 @@
-// An Arcade or King of the hill room's seating (Snapshot::arcade): sixteen
+// An Arcade or King of the hill room's seating (Snapshot::type): sixteen
 // one-player cabinets, and tables that are pairs, not places. Whoever sits
 // down plays the player who has waited longest, at whichever table in play is
 // free; with none free they wait in line (Snapshot::line). At one table the
@@ -103,7 +103,7 @@ void RoomAuthority::SwapFighter(MemberId leaving, Table& table, const ArcadeWait
 // waits there and the winner here for a challenger; in a full room the pair
 // stays like an Arcade one, the loser already asking for a new opponent.
 void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser) {
-	const bool king = snapshot_.arcade == KingRoom;
+	const bool king = RulesOf(snapshot_).winnerStays;
 	if (king) {
 		const int won = CabinetOf(snapshot_, winner), lost = CabinetOf(snapshot_, loser);
 		if (won >= 0 && snapshot_.streaks[won] < 0xFFFF) ++snapshot_.streaks[won];
@@ -188,8 +188,9 @@ void RoomAuthority::StandUp(MemberId member) {
 // The top slot stays where it is until its streak ends or another is longer.
 void RoomAuthority::CrownTopSlot() {
 	auto& top = snapshot_.topSlot;
-	if (snapshot_.arcade != KingRoom || (top >= 0 && !snapshot_.streaks[top])) top = -1;
-	if (snapshot_.arcade != KingRoom) return;
+	const bool streaks = RulesOf(snapshot_).winnerStays;
+	if (!streaks || (top >= 0 && !snapshot_.streaks[top])) top = -1;
+	if (!streaks) return;
 	for (std::size_t i = 0; i < CabinetCount; ++i)
 		if (snapshot_.streaks[i] > (top < 0 ? 0 : snapshot_.streaks[top])) top = static_cast<std::int8_t>(i);
 }
@@ -242,7 +243,7 @@ Result RoomAuthority::ApplyArcadeStand(MemberId member) {
 // new opponent at another table, or else waits (Table::wantsNew) for the next
 // set to end or seat to come free.
 Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table* table) {
-	if (!snapshot_.arcade || !table->deciding) return Reject(RejectReason::WrongPhase);
+	if (!RulesOf(snapshot_).cabinets || !table->deciding) return Reject(RejectReason::WrongPhase);
 	const int seat = table->p1 == member ? 0 : table->p2 == member ? 1 : -1;
 	if (seat < 0) return Reject(RejectReason::NotSeated);
 	if (action.kind == ActionKind::Rematch) {
@@ -263,12 +264,12 @@ Result RoomAuthority::ApplyRematch(MemberId member, const Action& action, Table*
 // the rules of every table and how many tables it plays at
 // (netplay::CreatedRules).
 Result RoomAuthority::ApplySetRoomType(MemberId member, const Action& action) {
-	if (!snapshot_.serverOwned || !IsHost(member) || snapshot_.arcade || snapshot_.members.size() != 1 ||
-		!action.roomType || action.roomType > KingRoom) return Reject(RejectReason::Unauthorized);
+	if (!snapshot_.serverOwned || !IsHost(member) || snapshot_.type != RoomType::Classic || snapshot_.members.size() != 1 ||
+		action.roomType == RoomType::Classic || !ValidRoomType(static_cast<int>(action.roomType))) return Reject(RejectReason::Unauthorized);
 	if (!action.rules.Valid() || action.tableCount < 1 || action.tableCount > TableCount) return Reject(RejectReason::InvalidRules);
 	for (const auto& table : snapshot_.tables)
 		if (!ArcadeEmpty(table) || !table.queue.empty()) return Reject(RejectReason::WrongPhase);
-	snapshot_.arcade = action.roomType;
+	snapshot_.type = action.roomType;
 	snapshot_.tableCount = action.tableCount;
 	for (auto& table : snapshot_.tables) { table.rules = action.rules; table.streakHolder = 0; table.streak = 0; Touch(table); }
 	TouchRoom();

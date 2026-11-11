@@ -78,7 +78,7 @@ bool RotationKeepsMember(const room::Table& t, std::uint64_t generation, room::M
 // both seats: a set one the room has recorded as ended, or that its result
 // ends, is over (room::StandingAfter).
 bool KeepsSeat(const room::Snapshot& room, const room::Table& t, std::uint64_t generation, room::MatchResult result) {
-    if (room.arcade != room::ClassicRoom) return true;
+    if (room::RulesOf(room).cabinets) return true;
     if (t.rules.format == room::SetFormat::Unlimited) return false;
     return !room::StandingAfter(room, t, generation, result).over || RotationKeepsMember(t, generation, result, room.localMember);
 }
@@ -239,7 +239,7 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     // room). A pair still seated together (nobody else to play, or the result
     // still on its way, as in an Unlimited game that may go on in place) has
     // the ordinary Rematch, as a Classic pair does.
-    const bool cabinets = v.room.arcade != room::ClassicRoom && !midSet;
+    const bool cabinets = room::RulesOf(v.room).cabinets && !midSet;
     const bool deciding = cabinets && t.deciding && mine >= 0 && theirs >= 0;
     // Rematch and New opponent, and Y, follow the pair's answers as the
     // cabinet and the room's bar offer them (DescribeArcadeChoice).

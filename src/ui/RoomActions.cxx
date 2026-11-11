@@ -25,7 +25,7 @@ std::string AreaStart(const ShellView& v,const std::vector<MenuEntry>& rows,Boar
  // A panel's Hide is a corner button, not where its area starts.
  for(const auto& e:rows)if(BoardAreaOf(e.id)==area&&!HasPrefix(e.id,"room-hide-")){first=e.id;break;}
  if(area==BoardArea::Floor&&mine.kind!=room::Place::Kind::None){
-  const int cabinet=s.arcade?room::CabinetOf(s,s.localMember):-1;
+  const int cabinet=room::RulesOf(s).cabinets?room::CabinetOf(s,s.localMember):-1;
   const std::string own=cabinet>=0?"cabinet-"+std::to_string(cabinet):"table-"+std::to_string(mine.table);
   if(Has(rows,own))return own;
  }
@@ -86,7 +86,7 @@ void ApplicationShell::SettleRoomBoard(const ShellView& v,std::vector<MenuEntry>
  // Watching, the bar: Stop watching while the game shows, else Table options
  // (a Big picture covers the table cards).
  if(to.empty()&&room::WatchedTable(s,s.localMember)>=0)to=Has(rows,"stop-watching")?"stop-watching":"options";
- if(to.empty()&&s.arcade){
+ if(to.empty()&&room::RulesOf(s).cabinets){
   for(std::size_t c=0;c<room::CabinetCount&&to.empty();++c)
    if(!s.cabinets[c]){const auto id="cabinet-"+std::to_string(c);const auto row=std::find_if(rows.begin(),rows.end(),[&](const MenuEntry& e){return e.id==id;});if(row!=rows.end()&&row->enabled)to=id;}
  }else if(to.empty()){

@@ -72,10 +72,10 @@ bool MaySave(const ShellView& v,const netplay::PlayerPreferences& edited) {
 // the list showed it, so a player who came in from there still sees which kind of
 // room they are in.
 std::string RoomKindText(const room::Snapshot& room) {
-    if(room.serverOwned)return std::string(RoomTypeName(room.arcade))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
+    if(room.serverOwned)return std::string(RoomTypeName(room.type))+" · "+loc::T(room.locked?"room.public_locked_status":"room.public_status");
     if(room.practice)return loc::T(room.locked?"room.practice_locked_status":"room.practice_status");
-    if(room.arcade==room::KingRoom)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
-    if(room.arcade)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
+    if(room.type==room::RoomType::King)return loc::T(room.locked?"room.king_locked_status":"room.king_status");
+    if(room.type!=room::RoomType::Classic)return loc::T(room.locked?"room.arcade_locked_status":"room.arcade_status");
     return loc::T(room.locked?"room.locked_status":"room.private_status");
 }
 std::string RoomStatusText(const room::Snapshot& room) {
@@ -109,7 +109,7 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
         action.preferences.lobby.roundTime = action.preferences.tableRules.roundTime;
     }
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_;
-    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
+    action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createType_ : room::RoomType::Classic;
     if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
     if (kind == netplay::CommandKind::HostRoom) action.tableCount = static_cast<std::uint8_t>(CreateTableCount());
     // Opened from a template: the runtime sets its tables once the room is up.

@@ -11,7 +11,7 @@ void DecidingPromptOnStick() {
  NoteMenuDevice(0);NoteMenuDevice(MenuInput::Down);NoteMenuDevice(0);
  Check(!MenuShortcutGlyph(MenuInput::Fighter)&&!MenuShortcutGlyph(MenuInput::Options),"The stick was given a Fighter or Options shortcut");
  JoinedRoom(a,16);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
- a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+ a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
  room::Member local;local.id=1;local.name="Local";local.table=0;local.seat=0;a.view.room.members.push_back(local);
  room::Member peer;peer.id=2;peer.name="Peer";peer.table=0;peer.seat=1;a.view.room.members.push_back(peer);
  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
@@ -129,7 +129,7 @@ static void PostMatchRematchAfterNewOpponent() {
  using namespace sf4e;
  using Field=ShellAction::SelectionStep::Field;
  Harness a;JoinedRoom(a,19);a.view.session.generation.room=1;a.view.session.control=netplay::Health::Healthy;
- a.view.room.host=1;a.view.room.revision=3;a.view.room.arcade=room::ArcadeRoom;
+ a.view.room.host=1;a.view.room.revision=3;a.view.room.type=room::RoomType::Arcade;
  for(int i=0;i<4;++i){room::Member m;m.id=static_cast<room::MemberId>(i+1);m.name="Player "+std::to_string(i+1);m.table=static_cast<std::int8_t>(i/2);m.seat=static_cast<std::int8_t>(i%2);a.view.room.members.push_back(m);}
  auto& t=a.view.room.tables[0];t.p1=1;t.p2=2;t.revision=7;t.matchGeneration=5;t.phase=room::TablePhase::Playing;
  a.view.room.tables[1].p1=3;a.view.room.tables[1].p2=4;a.view.room.tables[1].phase=room::TablePhase::Playing;

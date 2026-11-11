@@ -38,7 +38,7 @@ Result RoomAuthority::ApplySetTableCount(MemberId member, const Action& action) 
 	if (snapshot_.tableCount != action.tableCount) {
 		snapshot_.tableCount = action.tableCount;
 		// An Arcade room's new tables seat its line.
-		if (snapshot_.arcade) SeatLine(0, 0);
+		if (RulesOf(snapshot_).cabinets) SeatLine(0, 0);
 		TouchRoom();
 	}
 	return Accept();
@@ -182,7 +182,7 @@ Result RoomAuthority::ApplyAcknowledgeTerminal(MemberId member, const Action& ac
 
 Result RoomAuthority::ApplySetRules(MemberId member, const Action& action, Table* table) {
 	// An Arcade room's rules are the room's, chosen when it was created.
-	if (snapshot_.arcade) return Reject(RejectReason::Unauthorized);
+	if (RulesOf(snapshot_).rulesFixed) return Reject(RejectReason::Unauthorized);
 	if (!CanEditRules(member)) return Reject(RejectReason::NotHost);
 	if (GameUnderWay(*table) || !action.rules.Valid()) return Reject(RejectReason::InvalidRules);
 	// A different set length or rotation starts a new set. Round count, time and
@@ -509,7 +509,7 @@ Result RoomAuthority::ApplyAction(MemberId member, const Action& action) {
 	// An Arcade room's Queue and Unqueue name a cabinet, not a table: sitting
 	// down there, perhaps into the line, and standing up. Its table can be
 	// out of play, where FindTable finds nothing; the revision still counts.
-	if (snapshot_.arcade && (action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue)) {
+	if (RulesOf(snapshot_).cabinets && (action.kind == ActionKind::Queue || action.kind == ActionKind::Unqueue)) {
 		if (action.table >= TableCount) return Reject(RejectReason::UnknownTable);
 		if (action.tableRevision != snapshot_.tables[action.table].revision) return Reject(RejectReason::StaleTable);
 		return action.kind == ActionKind::Queue ? ApplyArcadeSit(member, action) : ApplyArcadeStand(member);

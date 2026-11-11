@@ -75,8 +75,8 @@ struct RuntimeRequest {
     std::optional<netplay::TableSetup> createdRules;
     // With HostRoom: the room is a Practice room for its life (room::Snapshot::practice).
     bool practiceRoom = false;
-    // With HostRoom: the room is an Arcade room for its life (room::Snapshot::arcade).
-    room::RoomType arcadeRoom = room::ClassicRoom;
+    // With HostRoom: the room is an Arcade room for its life (room::Snapshot::type).
+    room::RoomType arcadeRoom = room::RoomType::Classic;
     // With HostRoom: whose input delay the room plays at for its life (room::Snapshot::delayPolicy).
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     // How many tables the room opens with (room::Snapshot::tableCount): with HostRoom, and with the join of a new public Arcade room (0: all).

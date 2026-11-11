@@ -93,9 +93,9 @@ void RoomAuthority::ReopenEmptyRoom() {
 	snapshot_.host = 0;
 	snapshot_.locked = false;
 	// The next to open it chooses its type again, as with its rules.
-	snapshot_.arcade = ClassicRoom; snapshot_.topSlot = -1;
+	snapshot_.type = RoomType::Classic; snapshot_.topSlot = -1;
 	snapshot_.cabinets = {}; snapshot_.streaks = {}; snapshot_.line.clear();
-	snapshot_.tableCount = DefaultTableCount(ClassicRoom);
+	snapshot_.tableCount = DefaultTableCount(RoomType::Classic);
 	for (auto& table : snapshot_.tables)
 		if (!(table.rules == PublicRoomRules())) { table.rules = PublicRoomRules(); Touch(table); }
 }

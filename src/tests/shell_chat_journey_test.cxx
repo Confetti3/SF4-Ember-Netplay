@@ -69,14 +69,14 @@ void TranscriptLogic(){
   "A Classic set's line did not name its table");
  // In an Arcade room the cabinets move players between tables, so the line
  // names who the set was won against instead.
- s.arcade=room::ArcadeRoom;
+ s.type=room::RoomType::Arcade;
  s.tables[0].lastSet.generation=8;s.tables[0].lastSet.winnerSeat=1;s.tables[0].lastSet.score[0]=1;s.tables[0].lastSet.score[1]=3;t.Update(s,n);t.Update(s,n);
  Check(t.Lines().size()==count+3&&t.Lines().back().kind==ChatLine::Kind::SetWon&&t.Lines().back().name=="Peer"&&t.Lines().back().opponent=="Local"&&
   t.Lines().back().score[0]==3&&t.Lines().back().score[1]==1,"An Arcade set was not announced once, against its loser");
  const std::string against=ui::ChatEventText(t.Lines().back());
  Check(against==loc::Tf("chat.event.set_won_against","Peer","Local",SetScoreText(t.Lines().back().score))&&against.find("Local")!=std::string::npos,
   "An Arcade set's line did not name the opponent");
- s.arcade=room::ClassicRoom;
+ s.type=room::RoomType::Classic;
  // A draw changes no score, so says nothing.
  const auto quiet=t.Lines().size();s.tables[0].phase=room::TablePhase::Playing;t.Update(s,n);s.tables[0].phase=room::TablePhase::Waiting;t.Update(s,n);
  Check(t.Lines().size()==quiet,"A game with no winner was announced");

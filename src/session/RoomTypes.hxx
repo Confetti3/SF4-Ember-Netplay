@@ -320,7 +320,7 @@ struct Table {
 	std::uint32_t streak = 0;
 	bool resultPending = false;
 	// An Arcade room's pair after a set that nobody waited alone for, with
-	// others at the cabinets (Snapshot::arcade): each fighter's Rematch so
+	// others at the cabinets (Snapshot::type): each fighter's Rematch so
 	// far. Nobody readies until both chose it; New opponent from either
 	// parts the pair.
 	bool deciding = false;
@@ -368,7 +368,7 @@ struct ChatMessage {
 // tableCount (out of range: the type's DefaultTableCount) and wiredOnly are
 // where it starts, which its host can change (SetTableCount, SetWiredOnly).
 struct Charter {
-	RoomType type = ClassicRoom;
+	RoomType type = RoomType::Classic;
 	bool practice = false;
 	DelayPolicy delayPolicy = DelayPolicy::Shared;
 	std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount);
@@ -404,9 +404,10 @@ struct Snapshot {
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
-	// place. Its rules are the room's, set when it is created. Serialized only
-	// when not Classic, with the cabinet fields below.
-	RoomType arcade = ClassicRoom;
+	// place. Its rules are the room's, set when it is created. What each type
+	// allows is RulesOf's (RoomQueries.hxx). Serialized as "arcade", only when
+	// not Classic, with the cabinet fields below.
+	RoomType type = RoomType::Classic;
 	// How many tables a room plays at, the first ones (TablesInPlay): chosen
 	// when it is created and changed by a private room's host (SetTableCount).
 	// An Arcade or King of the hill room's pairs play there, and whoever finds
@@ -487,7 +488,7 @@ struct Action {
 	std::uint32_t game = 0;
 	bool continued = false;
 	// SetRoomType: the type. Written only when set.
-	RoomType roomType = ClassicRoom;
+	RoomType roomType = RoomType::Classic;
 	// SetTableCount: the count. Written only when set.
 	std::uint8_t tableCount = 0;
 	// SetWiredOnly: the rule on. Written only when set.

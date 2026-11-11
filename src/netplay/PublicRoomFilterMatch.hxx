@@ -10,9 +10,9 @@ namespace sf4e { namespace netplay { namespace publicrooms {
 // The room type a filter asks for; none under All.
 inline std::optional<room::RoomType> WantedType(RoomFilter::Type type) {
 	switch (type) {
-	case RoomFilter::Type::Classic: return room::ClassicRoom;
-	case RoomFilter::Type::Arcade: return room::ArcadeRoom;
-	case RoomFilter::Type::King: return room::KingRoom;
+	case RoomFilter::Type::Classic: return room::RoomType::Classic;
+	case RoomFilter::Type::Arcade: return room::RoomType::Arcade;
+	case RoomFilter::Type::King: return room::RoomType::King;
 	default: return std::nullopt;
 	}
 }
