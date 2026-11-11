@@ -27,7 +27,7 @@ public:
     static constexpr const char* FriendsScreen = "friends";
     static bool Owns(const std::string& screen) { return screen == CardScreen || screen == FightersScreen || screen == FriendsScreen; }
     // Every screen under the strip, the awards wall's two included.
-    static bool InStrip(const std::string& screen) { return Owns(screen) || screen == "awards" || screen == "awards-icons"; }
+    static bool InStrip(const std::string& screen) { return Owns(screen) || screen == "awards"; }
     // The strip over `screen` and the eyebrow "Profile · name". Friends says
     // how many requests wait (the published card's count).
     static void Dress(GameMenu& menu, const std::string& screen, const std::string& name);

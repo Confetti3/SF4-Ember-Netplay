@@ -227,10 +227,8 @@ void ProfilePanel::Dress(GameMenu& menu, const std::string& screen, const std::s
     const int requests = MenuPlayerCard().requests;
     menu.tabs = {{CardScreen, loc::T("profile.tab.card")}, {FightersScreen, loc::T("profile.tab.fighters")},
         {FriendsScreen, requests ? loc::Tf("friends.tab_count", requests) : std::string(loc::T("profile.tab.friends"))}, {"awards", loc::T("screen.awards")}};
-    // The awards wall's Icons page is the Awards tab too until the two merge.
-    const std::string shown = screen == "awards-icons" ? "awards" : screen;
     for (std::size_t i = 0; i < menu.tabs.size(); ++i)
-        if (menu.tabs[i].first == shown) menu.tab = static_cast<int>(i);
+        if (menu.tabs[i].first == screen) menu.tab = static_cast<int>(i);
 }
 
 void ProfilePanel::Update(const ShellView& v, const std::string& screen, const std::string& bridge, const Submit& submit) {

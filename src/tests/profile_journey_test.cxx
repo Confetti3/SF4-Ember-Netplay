@@ -1,7 +1,8 @@
 // Profile (docs/design/PROFILE.md): Home's card and Profile row open it on Card
 // (Friends while requests wait), LB and RB step Card, Fighters, Friends and
 // Awards and wrap, a strip tile opens Fighters on that fighter, Y and the Edit
-// card button open Edit card, Select on a fighter makes it the main, the
+// card button open Edit card, Select on a fighter makes it the main, Select on
+// an earned award wears its title, its icon or both, the
 // points are read when Profile opens and once at start, and every state
 // without points is still a whole card.
 #include "public_rooms_journey_support.hxx"
@@ -193,6 +194,41 @@ void EditCardJourney() {
  Check(locked && !locked->enabled && j.row("main-character") && !j.row("main-character")->enabled, "Edit card changes in a room");
 }
 
+// One Awards tab for titles and icons: Select on an earned award opens Wear title, Wear icon and Wear both, each saved on the card; the one worn is off; a locked award only says how to earn it.
+void AwardsJourney() {
+ Journey j;
+ Answer(j);
+ j.h.view.earnedAwards = {"entrant", "launch-night"};
+ j.h.Screen("awards");
+ const auto* earned = j.row("award:entrant");
+ Check(earned && earned->choices.size() == 3 && earned->choices[0].id == "title" && earned->choices[1].id == "icon" && earned->choices[2].id == "both", "An earned award does not offer title, icon and both");
+ const auto* locked = j.row("award:organizer");
+ Check(locked && locked->info && locked->choices.empty() && !locked->enabled, "A locked award can be worn");
+ const auto pick = [&](const char* id, int right) {
+  j.h.shell.Navigation().Focus(id, j.rows);
+  j.h.Press(MenuInput::Select);
+  for (int i = 0; i < right; ++i) j.h.Press(MenuInput::Right);
+  j.h.Press(MenuInput::Select);
+  j.h.Frame(0, 40);
+  return Last<commands::SavePreferences>(j.h.actions);
+ };
+ auto save = pick("award:entrant", 0);
+ Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon != "entrant", "Wear title did not wear only the title");
+ save = pick("award:launch-night", 1);
+ Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon == "launch-night", "Wear icon did not wear only the icon");
+ j.h.Frame(0, 2);
+ earned = j.row("award:entrant");
+ Check(earned && !earned->choices[0].enabled && earned->choices[0].detail == loc::T("awards.detail_worn") && earned->choices[1].enabled && earned->choices[2].enabled, "The title already worn is not off in the popout");
+ save = pick("award:entrant", 2);
+ Check(save && save->preferences.wornTitle == "entrant" && save->preferences.wornIcon == "entrant", "Wear both did not wear the title and the icon");
+ j.h.Frame(0, 2);
+ earned = j.row("award:entrant");
+ Check(earned && !earned->choices[0].enabled && !earned->choices[1].enabled && !earned->choices[2].enabled && earned->valueHighlighted, "An award worn as title and icon still offers to be worn");
+ // In a room nothing on the card changes.
+ j.h.view.canEditPreferences = false; j.h.Frame(0, 2);
+ Check(j.row("award:launch-night") && !j.row("award:launch-night")->enabled, "Awards change in a room");
+}
+
 // Home's Profile row opens Card, or Friends while requests wait, and says so; the Friends tab counts them.
 void HomeJourney() {
  Journey j;
@@ -245,7 +281,7 @@ void ReadJourney() {
 
 int main() {
  try {
-  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); HomeJourney(); ReadJourney();
+  StripJourney(); StripTilesJourney(); FightersJourney(); FightersMainJourney(); StatesJourney(); EditCardJourney(); AwardsJourney(); HomeJourney(); ReadJourney();
   std::cout << "Profile journeys passed.\n";
   return 0;
  } catch (const std::exception& e) { std::cerr << e.what() << "\n"; return 1; }

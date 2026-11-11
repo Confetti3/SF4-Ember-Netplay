@@ -400,7 +400,7 @@ void ApplicationShell::HandleActivate(const MenuAction& a,const ShellView& v,con
  else if(a.id=="profile")nav.Push(player_card::RequestsWaiting(v.friends)?ProfilePanel::FriendsScreen:ProfilePanel::CardScreen);
  else if(a.id=="main-character")nav.Push(a.id);
  // Edit card's Title and Icon rows go to the award worn there, to change it.
- else if(a.id=="card-title"||a.id=="card-icon"){const bool title=a.id=="card-title";const std::string& worn=title?preferences_.wornTitle:preferences_.wornIcon;if(!worn.empty())nav.Prefer("award:"+worn);nav.Push(title?"awards":"awards-icons");}
+ else if(a.id=="card-title"||a.id=="card-icon"){const bool title=a.id=="card-title";const std::string& worn=title?preferences_.wornTitle:preferences_.wornIcon;if(!worn.empty())nav.Prefer("award:"+worn);nav.Push("awards");}
  else if(a.id=="awards")nav.Push("awards");
  else if(a.id=="card")nav.Push(ProfilePanel::CardScreen);
  else if(a.id=="country"){countryPicker_.Open();nav.Push(CountryPicker::Screen);nav.Prefer(CountryPicker::RowId(preferences_.country));}

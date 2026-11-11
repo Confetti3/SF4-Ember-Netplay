@@ -395,12 +395,11 @@ private:
     // Training select: both picks and the stage, then Start Training (ApplicationShell__Training.cxx).
     std::vector<MenuEntry> TrainingSelectRows(const ShellView& view,std::string& title) const;
     void TrainingSelectActivate(const MenuAction& action,const ShellView& view,const Submit& submit);
-    // The awards wall (ApplicationShell__Awards.cxx): "awards" for titles, "awards-icons" for icons.
-    static bool AwardsScreen(const std::string& screen) { return screen == "awards" || screen == "awards-icons"; }
+    // The awards wall, Profile's last tab (ApplicationShell__Awards.cxx).
     static const v2::Award* WornAward(const ShellView& v, const std::string& id);
     static std::string EarnedCount(const ShellView& v);
     static int AwardColumns();
-    std::vector<MenuEntry> AwardRows(const ShellView& v, const std::string& screen, std::string& title) const;
+    std::vector<MenuEntry> AwardRows(const ShellView& v, std::string& title) const;
     void DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float height, const MenuVisualFeedback& feedback);
     // Create (GameMenu body): the Room and Rules panels, the focused row's words, and the Create button.
     void DrawCreateBoard(const std::vector<MenuEntry>& rows,MenuNavigation& nav,MenuAction& action,float height,const MenuVisualFeedback& feedback);

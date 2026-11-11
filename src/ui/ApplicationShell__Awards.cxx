@@ -1,10 +1,11 @@
-// The awards wall (Awards.dc.html), the last two tabs of Profile (ProfilePanel): every title (on the Titles tab) and icon
-// (on Icons), earned or locked with how to earn it, the one worn marked. Select
-// on an earned one wears it; the player's card above or beside the wall shows
-// the result. Each award is a row ("award:<id>"), so the pad, the keys and a
-// screen reader walk the wall as a list.
+// The awards wall (Awards.dc.html), the last tab of Profile (ProfilePanel): the
+// eleven awards, earned or locked with how to earn it, the worn ones marked. Select
+// on an earned one offers Wear title, Wear icon or Wear both; the player's card
+// beside or above the wall, as others see it, shows the result. Each award is a
+// row ("award:<id>"), so the pad, the keys and a screen reader walk the wall as a list.
 #include "ApplicationShell.hxx"
 #include "MenuRows.hxx"
+#include "PlayerCard.hxx"
 #include "Theme.hxx"
 #include "V2.hxx"
 #include "../common/Localization.hxx"
@@ -23,41 +24,50 @@ std::string ApplicationShell::EarnedCount(const ShellView& v) {
 }
 int ApplicationShell::AwardColumns() { return v2::Narrow(ImGui::GetIO().DisplaySize.x, Scale()) ? 3 : 4; }
 
-std::vector<MenuEntry> ApplicationShell::AwardRows(const ShellView& v, const std::string& screen, std::string& title) const {
+// Wear's options as a row offers them: each is off while that part of the
+// card already wears the award.
+std::vector<MenuEntry> ApplicationShell::AwardRows(const ShellView& v, std::string& title) const {
     title = loc::T("screen.awards");
-    const bool titles = screen == "awards";
-    const std::string& worn = titles ? preferences_.wornTitle : preferences_.wornIcon;
     std::vector<MenuEntry> rows;
     for (const auto& a : v2::Awards) {
-        const bool earned = Earned(v, a.id), on = earned && worn == a.id;
+        const bool earned = Earned(v, a.id), asTitle = earned && preferences_.wornTitle == a.id, asIcon = earned && preferences_.wornIcon == a.id, on = asTitle || asIcon;
         const std::string tier = v2::TierName(a.tier);
-        auto row = Row(std::string("award:") + a.id, loc::T(titles ? a.title : a.name),
+        auto row = Row(std::string("award:") + a.id, loc::T(a.title),
             tier + " \xC2\xB7 " + (on ? std::string(loc::T("awards.detail_worn")) : earned ? std::string(loc::T("awards.detail_earned")) : loc::Tf("awards.detail_locked", loc::T(a.how))),
             earned && v.canEditPreferences);
         row.value = loc::T(on ? "awards.on_card" : earned ? "awards.earned" : "awards.locked");
         row.valueHighlighted = on;
-        if (earned) row.hint = loc::T("awards.wear"); else row.info = true;
+        if (earned) {
+            row.hint = loc::T("awards.wear");
+            const char* worn = loc::T("awards.detail_worn");
+            row.choices = {{"title", loc::T("awards.wear_title"), asTitle ? worn : "", !asTitle},
+                {"icon", loc::T("awards.wear_icon"), asIcon ? worn : "", !asIcon},
+                {"both", loc::T("awards.wear_both"), asTitle && asIcon ? worn : "", !(asTitle && asIcon)}};
+        } else row.info = true;
         rows.push_back(std::move(row));
     }
     return rows;
 }
 
-// The wall under its Titles and Icons tabs, with the earned count in its header.
+// The wall, with the earned count in its header.
 class ApplicationShell::AwardsScreens final : public ScreenPanel {
 public:
-    bool Owns(const std::string& screen) const override { return AwardsScreen(screen); }
-    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.AwardRows(f.view, f.screen, title); }
-    // An earned award goes on the card: its title on the Titles tab, its icon on Icons.
-    bool Activate(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
+    bool Owns(const std::string& screen) const override { return screen == "awards"; }
+    std::vector<MenuEntry> Rows(const ScreenFrame& f, bool, std::string& title) const override { return f.shell.AwardRows(f.view, title); }
+    // An earned award's popout wears its title, its icon or both on the card.
+    bool Choose(const ScreenFrame& f, const MenuAction& a, const Submit&) const override {
         if (a.id.compare(0, 6, "award:") != 0) return false;
         auto& s = f.shell;
-        if (f.view.canEditPreferences) {
-            (f.screen == "awards" ? s.preferences_.wornTitle : s.preferences_.wornIcon) = a.id.substr(6);
-            s.preferencesDirty_ = true;
-            s.saveAt_ = ImGui::GetTime() + .45;
-        }
+        if (!f.view.canEditPreferences) return true;
+        const std::string id = a.id.substr(6);
+        if (a.text != "icon") s.preferences_.wornTitle = id;
+        if (a.text != "title") s.preferences_.wornIcon = id;
+        s.preferencesDirty_ = true;
+        s.saveAt_ = ImGui::GetTime() + .45;
         return true;
     }
+    // Select on a locked award reads it: nothing to do.
+    bool Activate(const ScreenFrame&, const MenuAction& a, const Submit&) const override { return a.id.compare(0, 6, "award:") == 0; }
     void Dress(const ScreenFrame& f, GameMenu& menu) const override {
         ProfilePanel::Dress(menu, f.screen, f.shell.preferences_.displayName);
         menu.headerChips.push_back({EarnedCount(f.view), v2::Colors().accentLight});
@@ -73,7 +83,7 @@ const ScreenPanel& ApplicationShell::AwardsOwner() {
     return awards;
 }
 
-// The card (L) with where else it shows (S, XS) on the left, the wall of tiles
+// The card as others see it, then where else it shows (S, XS), on the left, the wall of tiles
 // beside it and the focused award's words under the wall. Narrow, the card
 // goes on top and the wall under it, and the body scrolls.
 void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<MenuEntry>& rows, MenuNavigation& nav, MenuAction& action, float,
@@ -95,7 +105,9 @@ void ApplicationShell::DrawAwardsBoard(const ShellView& v, const std::vector<Men
     };
     const auto& profile = MenuPlayerCard().profile;
     heading(loc::T("awards.card_heading"));
-    v2::CutTop(side, v2::Tag(d, side.min, side.W(), profile, v2::TagSize::L), 16 * s);
+    auto card = OwnAsOthers(MenuPlayerCard());
+    card.art = v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait;
+    DrawOtherCard(d, v2::CutTop(side, 160 * s, 16 * s), card);
     if (!narrow) {
         heading(loc::T("awards.where_heading"));
         auto small = profile;
