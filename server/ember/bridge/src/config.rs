@@ -164,6 +164,10 @@ pub struct Discord {
     pub api_base: String,
 }
 
+fn friends_on() -> bool {
+    true
+}
+
 fn discord_api() -> String {
     "https://discord.com/api".into()
 }
@@ -180,10 +184,10 @@ pub struct Rooms {
     #[serde(default)]
     pub skill_badges: bool,
     /// Friends are on: the friends routes, the `friends` capability, the card
-    /// look-up's `friend` selector and a card's `relation`. Off by default, as
-    /// no 1.6.0 game screen calls them yet. They also need Discord sign-in,
+    /// look-up's `friend` selector and a card's `relation`. On by default; an
+    /// operator turns them off with `false`. They also need Discord sign-in,
     /// since a friend list belongs to a Discord account.
-    #[serde(default)]
+    #[serde(default = "friends_on")]
     pub friends: bool,
     /// Discord user IDs of Ember's developers: their badge is the developer
     /// mark in place of a class, and they are not on the ranking board. Their
