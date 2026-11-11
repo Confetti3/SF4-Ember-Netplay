@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Clase"
 
 msgid "level.value"
-msgstr "Nivel {0}"
+msgstr "{0} puntos"
 
 msgid "level.games"
 msgstr "{0} partidas"
 
-msgid "level.games_away"
-msgstr "El nivel {0} está a unas {1} partidas"
+msgid "level.points_to"
+msgstr "{0} puntos para {1}"
 
 msgid "level.top"
-msgstr "Nivel máximo"
+msgstr "Marco máximo"
 
 msgid "level.hidden"
-msgstr "Los demás no ven tus niveles mientras no participes en el ranking."
+msgstr "Los demás no ven tus puntos mientras no participes en el ranking."
 
 msgid "level.no_account"
-msgstr "Conecta Discord en Ajustes, Juego online para ganar niveles."
+msgstr "Conecta Discord en Ajustes, Juego online para ganar puntos."
 
 msgid "level.unavailable"
-msgstr "Este servicio aún no cuenta niveles."
+msgstr "Este servicio aún no cuenta puntos."
 
 msgid "level.loading"
-msgstr "Leyendo tus niveles."
+msgstr "Leyendo tus puntos."
 
 msgid "level.none"
-msgstr "Juega una partida pública con ranking para empezar a ganar niveles."
+msgstr "Juega una partida pública con ranking para empezar a ganar puntos."
 
 msgid "card.counted_games"
 msgstr "Partidas con ranking"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} de {1}"
 
 msgid "fighters.unplayed"
-msgstr "{0} luchadores sin jugar todavía. Cada uno empieza en el nivel 1 con su primera partida pública con ranking."
+msgstr "{0} luchadores sin jugar todavía. Cada uno empieza a ganar puntos con su primera partida pública con ranking."
 
 msgid "fighters.how"
-msgstr "Cómo se gana un nivel"
+msgstr "Cómo se ganan los puntos"
 
 msgid "fighters.how_detail"
-msgstr "Cada partida pública con ranking con un luchador cuenta, y una victoria cuenta doble. Nunca baja y no tiene nada que ver con tu clase. Pasadas ocho partidas contra el mismo jugador en una sesión, las partidas dejan de contar."
+msgstr "Cada partida pública con ranking con un luchador cuenta: una victoria suma 2 puntos y una derrota suma 1. Los puntos nunca bajan y no tienen nada que ver con tu clase. El color del marco cambia a medida que suben. Pasadas ocho partidas contra el mismo jugador en una sesión, las partidas dejan de contar."
 
 msgid "fighters.won"
 msgstr "Victorias"

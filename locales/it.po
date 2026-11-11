@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "Classe"
 
 msgid "level.value"
-msgstr "Livello {0}"
+msgstr "{0} punti"
 
 msgid "level.games"
 msgstr "{0} partite"
 
-msgid "level.games_away"
-msgstr "Il livello {0} è a circa {1} partite"
+msgid "level.points_to"
+msgstr "{0} punti a {1}"
 
 msgid "level.top"
-msgstr "Livello massimo"
+msgstr "Cornice massima"
 
 msgid "level.hidden"
-msgstr "Gli altri non vedono i tuoi livelli finché non partecipi alla classifica."
+msgstr "Gli altri non vedono i tuoi punti finché non partecipi alla classifica."
 
 msgid "level.no_account"
-msgstr "Collega Discord in Impostazioni, Gioco online per guadagnare livelli."
+msgstr "Collega Discord in Impostazioni, Gioco online per guadagnare punti."
 
 msgid "level.unavailable"
-msgstr "Questo servizio non conta ancora i livelli."
+msgstr "Questo servizio non conta ancora i punti."
 
 msgid "level.loading"
-msgstr "Lettura dei tuoi livelli."
+msgstr "Lettura dei tuoi punti."
 
 msgid "level.none"
-msgstr "Gioca una partita pubblica classificata per iniziare a guadagnare livelli."
+msgstr "Gioca una partita pubblica classificata per iniziare a guadagnare punti."
 
 msgid "card.counted_games"
 msgstr "Partite classificate"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} su {1}"
 
 msgid "fighters.unplayed"
-msgstr "{0} combattenti non ancora giocati. Ognuno parte dal livello 1 con la sua prima partita pubblica classificata."
+msgstr "{0} combattenti non ancora giocati. Ognuno inizia a guadagnare punti con la sua prima partita pubblica classificata."
 
 msgid "fighters.how"
-msgstr "Come si guadagna un livello"
+msgstr "Come si guadagnano i punti"
 
 msgid "fighters.how_detail"
-msgstr "Ogni partita pubblica classificata con un combattente conta, e una vittoria conta doppio. Un livello non scende mai e non ha a che fare con la tua classe. Dopo otto partite contro lo stesso giocatore in una sessione, le partite non contano più."
+msgstr "Ogni partita pubblica classificata con un combattente conta: una vittoria vale 2 punti e una sconfitta 1. I punti non scendono mai e non hanno a che fare con la tua classe. Il colore della cornice cambia man mano che salgono. Dopo otto partite contro lo stesso giocatore in una sessione, le partite non contano più."
 
 msgid "fighters.won"
 msgstr "Vinte"

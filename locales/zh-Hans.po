@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "段位"
 
 msgid "level.value"
-msgstr "等级 {0}"
+msgstr "{0} 积分"
 
 msgid "level.games"
 msgstr "{0} 场"
 
-msgid "level.games_away"
-msgstr "距离等级 {0} 约还差 {1} 场"
+msgid "level.points_to"
+msgstr "距离{1}还差 {0} 积分"
 
 msgid "level.top"
-msgstr "最高等级"
+msgstr "最高边框"
 
 msgid "level.hidden"
-msgstr "在你不参与排名期间，其他玩家看不到你的等级。"
+msgstr "在你不参与排名期间，其他玩家看不到你的积分。"
 
 msgid "level.no_account"
-msgstr "在设置的在线对战中关联 Discord，即可获得等级。"
+msgstr "在设置的在线对战中关联 Discord，即可获得积分。"
 
 msgid "level.unavailable"
-msgstr "此服务暂不统计等级。"
+msgstr "此服务暂不统计积分。"
 
 msgid "level.loading"
-msgstr "正在读取你的等级。"
+msgstr "正在读取你的积分。"
 
 msgid "level.none"
-msgstr "进行一场排位公开对战，即可开始获得等级。"
+msgstr "进行一场排位公开对战，即可开始获得积分。"
 
 msgid "card.counted_games"
 msgstr "排位场数"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} / {1}"
 
 msgid "fighters.unplayed"
-msgstr "还有 {0} 名角色未使用。每名角色在第一场排位公开对战后从 1 级开始。"
+msgstr "还有 {0} 名角色未使用。每名角色在第一场排位公开对战后开始获得积分。"
 
 msgid "fighters.how"
-msgstr "等级如何获得"
+msgstr "积分如何获得"
 
 msgid "fighters.how_detail"
-msgstr "使用角色进行的每场排位公开对战都会计入，胜利计为两倍。等级不会下降，也与你的段位无关。同一次连续游玩中对同一玩家超过八场后，不再计入。"
+msgstr "使用角色进行的每场排位公开对战都会计入：胜利得 2 分，失败得 1 分。积分不会下降，也与你的段位无关。边框颜色随积分变化。同一次连续游玩中对同一玩家超过八场后，不再计入。"
 
 msgid "fighters.won"
 msgstr "胜场"

@@ -1085,31 +1085,31 @@ msgid "card.class"
 msgstr "クラス"
 
 msgid "level.value"
-msgstr "Lv.{0}"
+msgstr "{0}ポイント"
 
 msgid "level.games"
 msgstr "{0}試合"
 
-msgid "level.games_away"
-msgstr "Lv.{0}まであと約{1}試合"
+msgid "level.points_to"
+msgstr "{1}まであと{0}ポイント"
 
 msgid "level.top"
-msgstr "最高レベル"
+msgstr "最上位のフレーム"
 
 msgid "level.hidden"
-msgstr "ランキングに参加していない間は、他のプレイヤーにレベルは表示されません。"
+msgstr "ランキングに参加していない間は、他のプレイヤーにポイントは表示されません。"
 
 msgid "level.no_account"
-msgstr "設定のオンライン対戦でDiscordを連携すると、レベルが上がります。"
+msgstr "設定のオンライン対戦でDiscordを連携すると、ポイントがたまります。"
 
 msgid "level.unavailable"
-msgstr "このサービスはまだレベルを集計していません。"
+msgstr "このサービスはまだポイントを集計していません。"
 
 msgid "level.loading"
-msgstr "レベルを読み込み中です。"
+msgstr "ポイントを読み込み中です。"
 
 msgid "level.none"
-msgstr "ランクつきの公開試合を遊ぶと、レベルが上がり始めます。"
+msgstr "ランクつきの公開試合を遊ぶと、ポイントがたまり始めます。"
 
 msgid "card.counted_games"
 msgstr "ランク試合数"
@@ -1124,13 +1124,13 @@ msgid "card.of"
 msgstr "{0} / {1}"
 
 msgid "fighters.unplayed"
-msgstr "未使用のファイターは{0}人です。ランクつきの公開試合を初めて遊ぶと、Lv.1から始まります。"
+msgstr "未使用のファイターは{0}人です。ランクつきの公開試合を初めて遊ぶと、ポイントがたまり始めます。"
 
 msgid "fighters.how"
-msgstr "レベルの上がり方"
+msgstr "ポイントのためかた"
 
 msgid "fighters.how_detail"
-msgstr "ファイターを使ったランクつきの公開試合はすべて集計され、勝利は2倍で数えます。レベルは下がらず、クラスとは関係ありません。同じ相手との対戦が1回の滞在で8試合を超えると、集計されなくなります。"
+msgstr "ファイターを使ったランクつきの公開試合はすべて集計され、勝利は2ポイント、敗北は1ポイントです。ポイントは下がらず、クラスとは関係ありません。フレームの色はポイントに応じて変わります。同じ相手との対戦が1回の滞在で8試合を超えると、集計されなくなります。"
 
 msgid "fighters.won"
 msgstr "勝利"
