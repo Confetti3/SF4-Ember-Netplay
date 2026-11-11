@@ -14,9 +14,10 @@
 namespace sf4e { namespace session {
 
 namespace {
-// What a public host's helper says the ticket admitted, on "connected".
+// What a public host's helper says the ticket admitted, on "connected". A card
+// that is not shaped like a token reads as none, as a badge that is not one does.
 Admission ReadAdmission(const nlohmann::json& event) {
-	return {event.value("account", std::string()), ReadSkillBadge(event)};
+	return {event.value("account", std::string()), ReadSkillBadge(event), ReadCardToken(event)};
 }
 }
 using nlohmann::json;

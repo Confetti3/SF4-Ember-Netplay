@@ -365,10 +365,10 @@ static void TestDetailsOfSnapshot() {
 	CHECK(roomhost::DetailsOf(snapshot).roomType == 2);
 }
 
-// A public member's class is the one the room's ticket vouched for: it reaches
-// every member's snapshot, and a joiner who writes its own into the join
-// request gets nothing for it.
-static void TestAdmissionCarriesTheClass() {
+// A public member's class and card token are the ones the room's ticket
+// vouched for: they reach every member's snapshot, and a joiner who writes its
+// own into the join request gets nothing for them.
+static void TestAdmissionCarriesTheClassAndCard() {
 	auto* transport = new MockTransport();
 	SessionServer server("classes", "build", true, 3, {0, 99}, std::unique_ptr<session::ServerTransport>(transport));
 	CHECK(server.EnableServerOwnedRooms("Classes", 8, 61));
@@ -391,15 +391,33 @@ static void TestAdmissionCarriesTheClass() {
 		++request; ++revision;
 	};
 	const auto aPlus = SkillBadge::OfClass(8, true);
-	admit(1, {"ember-a", aPlus}, json::object());
-	admit(2, {"ember-b", {}}, {{"badge", {{"band", 10}, {"settled", true}}}});
+	const std::string token = "c1." + std::string(75, 'x') + "_";
+	// The helper's "connected" event names the card as the ticket had it.
+	const auto card = ReadCardToken({{"type", "connected"}, {"account", "ember-a"}, {"card", token}});
+	CHECK(card.Present() && card.ToString() == token);
+	admit(1, {"ember-a", aPlus, card}, json::object());
+	admit(2, {"ember-b", {}}, {{"badge", {{"band", 10}, {"settled", true}}}, {"card", "c1." + std::string(76, 'y')}});
 	const auto& members = server.RoomSnapshot()->members;
 	CHECK(members.size() == 2);
 	CHECK(members[0].badge == aPlus && !members[1].badge.Present());
-	// The wire form round-trips, and a member without a class has no key.
+	CHECK(members[0].card == card && !members[1].card.Present());
+	// The wire form round-trips, and a member without a class or a card has no key.
 	const json first = members[0], second = members[1];
 	CHECK(first.at("badge") == json({{"band", 8}, {"settled", true}}) && !second.contains("badge"));
+	CHECK(first.at("card") == token && !second.contains("card"));
 	CHECK(first.get<room::Member>().badge == members[0].badge);
+	CHECK(first.get<room::Member>().card == card);
+	// A card that is not shaped like a token reads as none, in a snapshot and
+	// on the helper's event alike.
+	for (const json& malformed : {json("c2." + std::string(76, 'x')), json("c1."), json("c1." + std::string(97, 'x')),
+		json("c1.abc="), json("c1.ab+c"), json("c1.ab/c"), json(42), json::array({token})}) {
+		auto forged = first;
+		forged["card"] = malformed;
+		CHECK(!forged.get<room::Member>().card.Present());
+		CHECK(!ReadCardToken({{"card", malformed}}).Present());
+	}
+	// The longest body a token may have still reads.
+	CHECK(CardToken::Parsed("c1." + std::string(CardToken::MaximumBody, '-')).Present());
 	// A badge that is not one reads as none.
 	auto forged = first;
 	forged["badge"]["band"] = SkillBadge::Classes + 1;
@@ -435,7 +453,7 @@ int main() {
 	TestHostDisplayName();
 	TestDetailsOfSnapshot();
 	TestPublicRoomListsFirstToTwo();
-	TestAdmissionCarriesTheClass();
+	TestAdmissionCarriesTheClassAndCard();
 	std::puts("SessionServerModeration test passed");
 	return 0;
 }
