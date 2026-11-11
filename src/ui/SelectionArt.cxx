@@ -1,6 +1,5 @@
 #include "SelectionArt.hxx"
 #include "../common/FighterCatalog.hxx"
-#include "../common/LevelDigits.hxx"
 #include "../common/StageCatalog.hxx"
 #include "../platform/GameThemes.hxx"
 #include "../platform/Utf8.hxx"
@@ -17,6 +16,7 @@
 #include <deque>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -223,7 +223,7 @@ struct SelectionArt::Impl {
     // An atlas must decode to exactly its layout's size (exactWidth by exactHeight).
     // An image whose longer side is over maxSide (0: any) fails before it is
     // decoded, so a hostile file cannot make it decode a huge image.
-    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0, maxSide = 0; };
+    struct Policy { bool cropToContent = false, reportAbsence = false; UINT exactWidth = 0, exactHeight = 0, maxSide = 0; bool pointDigits = false; };
     // Queued: a decode is in flight. Waiting: the last attempt failed and a
     // retry is due at retryFrame. Ready and Missing are final.
     enum class State { Queued, Waiting, Ready, Missing };
@@ -236,6 +236,8 @@ struct SelectionArt::Impl {
         std::uint64_t retryFrame = 0;
         ImVec2 uvMin = ImVec2(0, 0), uvMax = ImVec2(1, 1);
         std::uint64_t lastUse = 0;
+        // The measured glyphs of the point digits' sheet.
+        std::shared_ptr<const point_digits::Sheet> sheet;
     };
     ComPtr<IDirect3DDevice9> device;
     std::wstring gameRoot, assetRoot;
@@ -395,6 +397,15 @@ void SelectionArt::Pump() {
                 std::to_string(entry.policy.exactWidth) + "x" + std::to_string(entry.policy.exactHeight));
             continue;
         }
+        if (entry.policy.pointDigits) {
+            auto sheet = std::make_shared<point_digits::Sheet>();
+            std::string why;
+            if (!point_digits::Measure(pixels.bgra.data(), static_cast<int>(pixels.width), static_cast<int>(pixels.height), *sheet, why)) {
+                state.Failed(entry, pixels.key, Outcome::Failed, why);
+                continue;
+            }
+            entry.sheet = std::move(sheet);
+        }
         ComPtr<IDirect3DTexture9> texture;
         HRESULT hr = state.device->CreateTexture(pixels.width, pixels.height, 1, 0, D3DFMT_A8R8G8B8,
             D3DPOOL_MANAGED, &texture, nullptr);
@@ -534,12 +545,15 @@ SelectionImage SelectionArt::DeveloperMark() {
         return std::vector<std::wstring>{impl_->assetRoot + L"/../input/mark_developer.png"};
     }, NativeSide, shipped);
 }
-SelectionImage SelectionArt::LevelDigits() {
-    Impl::Policy atlas; atlas.reportAbsence = true;
-    atlas.exactWidth = level_digits::AtlasWidth; atlas.exactHeight = level_digits::AtlasHeight;
-    return impl_->Request("level-digits", [&] {
-        return std::vector<std::wstring>{impl_->assetRoot + L"/../input/level_digits.png"};
-    }, NativeSide, atlas);
+PointDigitSheet SelectionArt::PointDigits() {
+    // The ranked result screen's number art, the same for every language.
+    Impl::Policy digits; digits.reportAbsence = digits.pointDigits = true; digits.maxSide = point_digits::SheetSide;
+    PointDigitSheet result;
+    result.image = impl_->Request("point-digits", [&] {
+        return std::vector<std::wstring>{impl_->gameRoot + L"/resource/ui/net_result/CMN/net_result.tex.emz"};
+    }, NativeSide, digits, "net_vs_number.dds");
+    if (result.image.texture) result.sheet = impl_->entries["point-digits"].sheet;
+    return result;
 }
 SelectionImage SelectionArt::Stage(int nativeId) {
     // The Random card borrows the game's character-select random tile, read at

@@ -7,7 +7,7 @@ rating is read to make it, and nothing in a rating is moved by it (ranked play
 is untouched). The one skill mark stays the account's class
 (`SKILL_BADGE.md`); there are no per-fighter ranks and no rating points are
 shown. This replaces `MASTERY.md` (pull request 183): its points stay, its ten
-named tiers and 30 emblems become a number in Ember's brush digits on a frame
+named tiers and 30 emblems become a number in the game's own digits on a frame
 coloured by the five award tiers. An earlier draft of this document gave each
 fighter a level from 1 to 60; the points replace it, and the file keeps its
 name (and the `levels` capability, routes and tables keep theirs).
@@ -55,7 +55,7 @@ The **tier** is the frame's colour, from the five award tiers (`v2::Tier`,
 
 The thresholds live only in the bridge, one constant table
 (`skill/levels.rs`, `TIER_STARTS`): a client is sent each fighter's points, its
-tier and the points where the next tier begins, so the thresholds can be
+tier and the points where that tier and the next one begin, so the thresholds can be
 retuned after real play without a client update or a data change (games and
 wins are stored, never points or tiers). A client never computes a tier. The
 number is drawn on dark ground; the tier colours only the frame. Points show
@@ -213,7 +213,7 @@ Player session (`routes::play::playing`), bucket `levels:{ember_id}` 60 per
 ```json
 {"levels":"no_account"}
 {"levels":"counted","shown":true,"fighters":[
-  {"fighter":3,"points":1986,"games":1284,"wins":702,"tier":3,"next":2500,"since":1729468800}]}
+  {"fighter":3,"points":1986,"games":1284,"wins":702,"tier":3,"floor":1500,"next":2500,"since":1729468800}]}
 ```
 
 | Field | Rule |
@@ -225,6 +225,7 @@ Player session (`routes::play::playing`), bucket `levels:{ember_id}` 60 per
 | `points` | `games + wins`, at least 1 |
 | `games`, `wins` | counted games; `wins <= games` |
 | `tier` | 0 to 4, the frame's colour (Points and tiers) |
+| `floor` | the points where `tier` begins, at most `points`; 0 at tier 0; always present (the meter runs from `floor` to `next`) |
 | `next` | the points where the next tier begins; absent exactly when `tier` is 4; otherwise `points < next` |
 | `since` | `first_at`, unix seconds |
 
@@ -298,7 +299,7 @@ always `none`.
 
 - `netplay::levels::Own` (`src/netplay/Levels.hxx`): `unavailable`,
   `no_account` or counted, with an array of 44 `{points, games, wins, tier,
-  next, since}` (points 0 for unplayed) and `shown`. Read on Profile's open, at
+  floor, next, since}` (points 0 for unplayed) and `shown`. Read on Profile's open, at
   start, and twice after each set this PC fought (8 and 20 seconds after the
   set's end, since the bridge polls rooms every 5 seconds,
   `routes/rooms/poll.rs` `POLL_SECS`). Kept per bridge and Ember ID, as
@@ -309,56 +310,56 @@ always `none`.
 - A tier change is found by comparing the new `Own` with the one before the set;
   `PLAYER_CARD.md` draws it.
 
-### The digits atlas
+### Drawing points
 
-Ember's level digits come from the brush strokes in
-`mockups/level-digits/make_font.py` (outlines 0 to 9 and the Dev mark's flame
-renderer). The game draws them from an atlas, never from a font.
+Points are drawn as the game draws its own PP and BP: in the game's digits, read
+from the player's installed game at runtime and never shipped, as the class
+emblems are. They replace the flame digits Ember once drew (the packaged atlas
+and its generator are gone).
 
-- **Source and output.** The generator moves into the repository as
-  `scripts/level-digits/make_level_digits.py` (Pillow only; the TTF stays a
-  mockup tool) and writes `assets/input/level_digits.png` and
-  `src/common/LevelDigits.hxx`, both checked in. The build never runs Python;
-  the rule that installs `assets/input` ships it. It cannot have a folder of
-  its own: Stable 1.4.1's updater refuses a package path it does not know,
-  and `assets\input\*.png` is one of the two patterns it leaves open.
-  `scripts/level-digits/check_level_digits.py` renders again and fails when
-  either file differs, as `check-flag-atlas.py` does for flags.
-  `assets/input/README.md` says the art is Ember's own, like
-  `mark_developer.png`.
-- **Layers.** Each digit is two sprites: *under* (the shadow, red rim, orange
-  and yellow spreads of `flame`) and *core* (the white stroke). A number draws
-  every under sprite left to right, then every core sprite, so a slanted
-  digit's glow never covers its neighbour's core where they tuck (`TUCK`).
-- **Sizes.** Rendered at cap heights 20, 40 and 80 px (four times
-  supersampled, as `render_mask` does). A number drawn `h` tall uses the
-  smallest size at least `h`, so it scales down by at most half; above 80 it
-  scales up (a card at 175 % interface scale). Each cell carries the glow pad
-  `0.3h + 4` and the brush tips reach past the cap, so cells are about
-  `1.9h` by `2.35h`; ten digits by two
-  layers by three sizes is 1,273 by 586 px, decoded at its own size like
-  the flag atlas (`SelectionArt::Impl::Policy` `exactWidth`, `exactHeight`).
-- **The header.** For each size: the cap height, and for each digit its two
-  cells (x, y, w, h in the atlas), the ink's left bearing and the advance,
-  both in that size's pixels, and the baseline in the cell.
-- **Laying out a number.** The pen starts at 0; each digit's cells are placed
-  at `pen + bearing - pad`, `baseline - capHeight - pad`; the pen moves by
-  the advance. Positions are rounded to whole pixels at the drawn scale. The
-  width is from the first digit's ink to the last digit's ink plus its lean,
-  so a number centres on what is painted. Points need up to six digits (the
-  largest shown is 999,999); the same code lays out any count. A band over a
-  small picture shrinks the digits until the number fits the picture's width.
-- **Fallback.** While the atlas has not loaded, or is missing, the number is
-  drawn in the heading font in ivory, on the same dark ground and frame (as
-  the Dev mark falls back to a pill, `NameMarks.cxx` `MarkOf`).
-- **Kit.** `SelectionArt::LevelDigits()` loads the atlas (as
-  `DeveloperMark`); `src/ui/LevelMark.cxx` lays numbers out; `V2.hxx` declares
-  `v2::Level(d, at, height, points, tier)` (the number on dark ground in the
-  tier's frame, returning its width), `v2::LevelWidth(points, height)` and
-  `v2::FrameTier(tier)` (the award tier a bridge tier names), with the two
-  parts built on them in `PLAYER_CARD.md` (`LevelBand`, `Meter`). The tier is
-  always passed in, never worked out from the points. Speech and the text
-  probe read the row's words ("1986 points"), never the art.
+- **The sheet.** `resource/ui/net_result/CMN/net_result.tex.emz` in the game
+  folder holds the ranked result screen's number art: the EMB entry
+  `net_vs_number.dds`, 256 by 256, uncompressed 32-bit BGRA with alpha, the same
+  in every language. It has three sets of 0 to 9: white, gold (the "rank up"
+  numbers) and blue ("rank down"), in rows of glyphs. `SelectionArt::PointDigits()`
+  opens it the way `RankingEmblem` opens `Ranking.emz` (`src/ui/SelectionArt.cxx`)
+  and returns the texture with a `point_digits::Sheet`.
+- **Measuring.** `src/common/PointDigits.hxx` finds each glyph's ink box from the
+  sheet's alpha: it scans the columns inside each row's known band (`kBands`, a
+  couple of rows of slack) and takes every run of columns with ink (alpha 16 or
+  more) as one glyph. A sheet that is not 256 by 256, or a row that does not hold
+  the glyphs expected, is refused as an unusable file (retried, then logged
+  once), so a changed game file never draws wrong digits. The result is a table
+  of boxes, never numbers written in code.
+- **Laying out a number.** `src/ui/LevelMark.cxx` places the digits of one set on
+  one baseline (the bottom of their ink), left to right, with a 2 px gap
+  between ink boxes at the sheet's scale. The tallest digit stands the height
+  asked for; positions are rounded to whole pixels at the drawn scale; the width
+  runs from the first digit's ink to the last's, so a number centres on what is
+  painted. Points need up to six digits (the largest shown is 999,999); the same
+  code lays out any count. A band over a small picture shrinks the digits until
+  the number fits the picture's width.
+- **The label.** `v2::Level` draws a short label before the plate, left of it, in
+  the kit's bold heading font in white, like the game's "PP" and "BP": the string
+  `points.label`, English "FP" (fighter points), in every catalog. The tier
+  stays the colour of the frame round the number.
+- **A gain.** `v2::LevelGain(d, at, height, gain)` draws "+16" with the gold set
+  on no ground. The sheet has no plus, so the plus is the heading font's, in the
+  same gold.
+- **Fallback.** While the sheet has not loaded, or the game has none or it does
+  not match, the number is drawn in the heading font's digits, white (gold for a
+  gain), on the same dark ground and frame (as the Dev mark falls back to a pill,
+  `NameMarks.cxx` `MarkOf`).
+- **Kit.** `V2.hxx` declares `v2::Level(d, at, height, points, tier)` (the label
+  and the number on dark ground in the tier's frame, returning the width of both),
+  `v2::LevelWidth(points, height)`, `v2::LevelGain` and `v2::FrameTier(tier)` (the
+  award tier a bridge tier names), with the two parts built on them in
+  `PLAYER_CARD.md` (`LevelBand`, `Meter`). The tier is always passed in, never
+  worked out from the points. Speech and the text probe read the row's words
+  ("1986 points"), never the art or the label.
+- **Lab.** `UiLab --levels` shows 7, 86, 412, 1986 and 12840 at three heights with
+  a gain, and again without art; the digits are the game's when `SF4E_GAME_DIR`
+  names a game folder.
 
 ## Work packages
 
@@ -376,7 +377,7 @@ cap).
 | P2 Bridge levels | `migrations/057_fighter_levels.sql`, `src/db/migrations.rs` (one line), `src/skill/{mod.rs,levels.rs}`, `src/cards.rs`, `src/routes/{levels.rs,mod.rs,discovery.rs}`, `src/routes/rooms/ticket.rs`, `tests/levels.rs` | P0 | migration from 056 keeps rated games and pairs; three games of one generation count three times; cap at nine; a game without fighters rates but counts no points; opted-out player earns points, shows none; token round trip, 7-day expiry, wrong purpose; 404 shape | none |
 | P3 Bridge friends | `FRIENDS.md` | P2 | there | there |
 | P4 Helper and runtime | `rust/sf4-net/src/tournament/{levels.rs,friends.rs,mod.rs,play.rs,rooms.rs}`, `src/netplay/{Levels.hxx,LevelRequests.hxx,Friends.hxx,FriendRequests.hxx,TournamentStatus.hxx}`, `src/session/SocialAnswers.{hxx,cxx}`, `src/sf4e/{sf4e__NetplayRuntime__Social.cxx,sf4e__NetplayRuntime.hxx,sf4e__NetplayRuntime__Status.cxx}` (publishing levels and friends; dropping `card` outside public rooms), the answer hook beside `TakeRankingsAnswer`, the netplay and session library lines of `CMakeLists.txt`, `src/tests/{social_answers_test.cxx,tournament_fuzz_test.cxx}` | P0; P1 for `Member::card` | ops round-trip, `card` asked only with `levels` listed, strict decoders refuse unknown members, request cadence | none |
-| P5 Digits and points parts | `scripts/level-digits/*`, `assets/input/level_digits.png`, `src/common/LevelDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `FrameTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the install line and the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | checker passes; layout widths for 1 to 6 digits at each size; lab renders numbers of 1 to 6 digits at each tier | the flame against the Dev mark at three sizes |
+| P5 Digits and points parts | `src/common/PointDigits.hxx`, `src/ui/LevelMark.{hxx,cxx}`, `src/ui/V2.hxx` (declarations of `Level`, `LevelWidth`, `FrameTier`, `LevelBand`, `Meter`, `PLAYER_CARD.md`), `src/ui/SelectionArt.{hxx,cxx}`, the `sf4e_ui` source line of `CMakeLists.txt`, the lab case | none | glyph measuring on a synthetic sheet; layout from a synthetic glyph set | the digits against the game's own PP and BP at three sizes |
 | P6 to P8 Interface | `PLAYER_CARD.md`, `FRIENDS.md` | P4, P5 (P8 also P3) | there | there |
 
 **Smallest slice that ships something visible.** P0 (points types and

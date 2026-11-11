@@ -1084,6 +1084,9 @@ msgstr "Upravit kartu"
 msgid "card.class"
 msgstr "Třída"
 
+msgid "points.label"
+msgstr "FP"
+
 msgid "level.value"
 msgstr "Body: {0}"
 

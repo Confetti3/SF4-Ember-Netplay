@@ -1084,6 +1084,9 @@ msgstr "编辑名片"
 msgid "card.class"
 msgstr "段位"
 
+msgid "points.label"
+msgstr "点数"
+
 msgid "level.value"
 msgstr "{0} 积分"
 

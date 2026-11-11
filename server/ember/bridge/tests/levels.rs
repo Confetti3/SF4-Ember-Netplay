@@ -225,12 +225,12 @@ async fn each_players_fighter_earns_points_from_a_game() {
     assert_eq!(
         own(&bridge, &first).await,
         json!({ "levels": "counted", "shown": true, "fighters": [
-            { "fighter": 3, "points": 2, "games": 1, "wins": 1, "tier": 0, "next": 200 }] })
+            { "fighter": 3, "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 200 }] })
     );
     assert_eq!(
         own(&bridge, &second).await,
         json!({ "levels": "counted", "shown": true, "fighters": [
-            { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "next": 200 }] })
+            { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200 }] })
     );
     // The poll after reports the same game: it counted once.
     ember_bridge::poll_rooms(bridge.state()).await;
@@ -251,8 +251,8 @@ async fn each_players_fighter_earns_points_from_a_game() {
     assert_eq!(
         own(&bridge, &first).await["fighters"],
         json!([
-            { "fighter": 0, "points": 2, "games": 1, "wins": 1, "tier": 0, "next": 200 },
-            { "fighter": 3, "points": 6, "games": 3, "wins": 3, "tier": 0, "next": 200 }])
+            { "fighter": 0, "points": 2, "games": 1, "wins": 1, "tier": 0, "floor": 0, "next": 200 },
+            { "fighter": 3, "points": 6, "games": 3, "wins": 3, "tier": 0, "floor": 0, "next": 200 }])
     );
     // A game with a fighter who has no Discord account counts for nobody.
     play(
@@ -383,7 +383,7 @@ async fn a_player_who_does_not_take_part_earns_points_and_shows_none() {
     assert_eq!(
         own(&bridge, &second).await,
         json!({ "levels": "counted", "fighters": [
-            { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "next": 200 }] })
+            { "fighter": 7, "points": 1, "games": 1, "wins": 0, "tier": 0, "floor": 0, "next": 200 }] })
     );
 
     // Others see the points of a player who takes part, and none of one who

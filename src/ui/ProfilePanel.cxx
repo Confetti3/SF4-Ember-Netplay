@@ -67,21 +67,22 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
     v2::SectionHeading(d, ImVec2(x, y), loc::T("fighters.how"));
     y += 22 * s;
     y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("fighters.how_detail"), 14 * s, c.muted) + 12 * s;
-    // The five frames, each tier with a sample number (the thresholds are the bridge's, so they are not drawn), under
-    // its tier's name. A place is as wide as its frame or its name needs, at least 56 px, and the frames go on to a
-    // new line when the next does not fit.
+    // The five frames, each an empty frame in its tier's colour with the tier's name in it (the thresholds are the
+    // bridge's, so they are not drawn). A frame is as wide as its name needs, at least 56 px, and the frames go on to
+    // a new line when the next does not fit.
     float fx = x;
-    constexpr std::uint64_t Samples[netplay::levels::TierCount] = {7, 86, 412, 1986, 12840};
+    const float frame = 28 * s;
     for (int tier = 0; tier < netplay::levels::TierCount; ++tier) {
-        const std::string name = v2::TierName(v2::FrameTier(tier));
-        const float named = ImGui::GetFont()->CalcTextSizeA(11 * s, FLT_MAX, 0, name.c_str()).x;
-        const float place = (std::max)({v2::LevelWidth(Samples[tier], 34 * s), named, 56 * s});
-        if (fx > x && fx + place > x + room) { fx = x; y += 58 * s; }
-        v2::Level(d, ImVec2(fx, y), 34 * s, Samples[tier], tier);
-        v2::Text(d, ImVec2(fx, y + 38 * s), place, name, 11 * s, c.muted);
+        const v2::Tier award = v2::FrameTier(tier);
+        const std::string name = v2::TierName(award);
+        const float place = (std::max)(ImGui::GetFont()->CalcTextSizeA(12 * s, FLT_MAX, 0, name.c_str()).x + 16 * s, 56 * s);
+        if (fx > x && fx + place > x + room) { fx = x; y += frame + 8 * s; }
+        d->AddRectFilled(ImVec2(fx, y), ImVec2(fx + place, y + frame), c.ink, 4 * s);
+        v2::Text(d, ImVec2(fx, y + (frame - 12 * s) * .5f), place, name, 12 * s, c.text, nullptr, true);
+        d->AddRect(ImVec2(fx, y), ImVec2(fx + place, y + frame), v2::TierColor(award).stripe, 4 * s, 0, 2 * s);
         fx += place + 8 * s;
     }
-    y += 58 * s;
+    y += frame + 8 * s;
     if (!own.shown) y += v2::Paragraph(d, ImVec2(x, y), room, loc::T("level.hidden"), 14 * s, c.muted) + pad;
     box.max.y = y + pad * .5f;
     split.SetCurrentChannel(d, 0);

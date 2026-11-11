@@ -1,5 +1,6 @@
 #pragma once
 #include "../common/Country.hxx"
+#include "../common/PointDigits.hxx"
 #include <imgui.h>
 #include <functional>
 #include <memory>
@@ -13,6 +14,13 @@ struct SelectionImage {
     int width = 0, height = 0;
     ImVec2 uvMin = ImVec2(0, 0), uvMax = ImVec2(1, 1);
     bool missing = false;
+};
+
+// The game's point digits: their sheet, and each glyph's ink in it. `sheet` is
+// set once the sheet has loaded and been measured.
+struct PointDigitSheet {
+    SelectionImage image;
+    std::shared_ptr<const point_digits::Sheet> sheet;
 };
 
 // File reads, decompression, and WIC decoding run on a worker. Only Pump touches
@@ -57,11 +65,10 @@ public:
     // Ember's developer mark (assets/input/mark_developer.png), shown in place
     // of a class; wider than tall.
     SelectionImage DeveloperMark();
-    // Ember's level digits (assets/input/level_digits.png), whose sprites
-    // src/common/LevelDigits.hxx places; decoded at its own size and never
-    // resized. Missing when the atlas is absent or not the size the header
-    // lays out (LevelMark.cxx then draws the heading font's digits).
-    SelectionImage LevelDigits();
+    // The digits of the game's ranked result screen (point_digits, PointDigits.hxx),
+    // read from the game at runtime and never repackaged. Missing, with a log
+    // line, when the game lacks the sheet or it is not as measured.
+    PointDigitSheet PointDigits();
     SelectionImage MenuBackdrop();
     SelectionImage InputPrompt(const std::string& name);
     // A country's flag: its cell of the flag atlas (assets/flags/flags.png),

@@ -265,10 +265,10 @@ static void TestLevels() {
 	using Kind = netplay::levels::Own::Kind;
 	using netplay::levels::Relation;
 	CHECK(session::DecodeOwnLevels({{"levels", "no_account"}})->kind == Kind::NoAccount);
-	const json entry = {{"fighter", 3u}, {"points", 1900u}, {"games", 1000u}, {"wins", 900u}, {"tier", 3u}, {"next", 2500u}, {"since", 1729468800u}};
+	const json entry = {{"fighter", 3u}, {"points", 1900u}, {"games", 1000u}, {"wins", 900u}, {"tier", 3u}, {"floor", 1500u}, {"next", 2500u}, {"since", 1729468800u}};
 	const auto own = session::DecodeOwnLevels({{"levels", "counted"}, {"fighters", json::array({entry})}});
 	CHECK(own && own->kind == Kind::Counted && !own->shown && own->fighters[3].points == 1900 && own->fighters[3].games == 1000 &&
-		own->fighters[3].wins == 900 && own->fighters[3].tier == 3 && own->fighters[3].next == 2500 &&
+		own->fighters[3].wins == 900 && own->fighters[3].tier == 3 && own->fighters[3].floor == 1500 && own->fighters[3].next == 2500 &&
 		own->fighters[3].since == 1729468800 && own->fighters[2].points == 0);
 	const auto shown = session::DecodeOwnLevels({{"levels", "counted"}, {"shown", true}, {"fighters", json::array()}});
 	CHECK(shown && shown->shown);
@@ -286,6 +286,8 @@ static void TestLevels() {
 	};
 	auto lacking = entry;
 	lacking.erase("next");
+	auto unfloored = entry;
+	unfloored.erase("floor");
 	auto extra = entry;
 	extra["rank"] = 1u;
 	auto second = entry;
@@ -294,7 +296,8 @@ static void TestLevels() {
 			json{{"levels", "counted"}}, json{{"levels", "counted"}, {"fighters", json::array()}, {"rank", 1u}},
 			json{{"levels", "counted"}, {"shown", 1u}, {"fighters", json::array()}},
 			changed("fighter", 44u), changed("tier", 5u), changed("points", 1899u), changed("points", 0u), changed("wins", 1001u),
-			changed("next", 1900u), changed("next", 1899u), changed("since", -1), changed("games", "1000"),
+			changed("next", 1900u), changed("next", 1899u), changed("floor", 1901u), changed("floor", -1),
+			json{{"levels", "counted"}, {"fighters", json::array({unfloored})}}, changed("since", -1), changed("games", "1000"),
 			json{{"levels", "counted"}, {"fighters", json::array({lacking})}},
 			json{{"levels", "counted"}, {"fighters", json::array({extra})}},
 			json{{"levels", "counted"}, {"fighters", json::array({entry, entry})}},

@@ -18,7 +18,9 @@ void Check(bool ok, const char* what) {
 
 void Play(Own& own, int fighter, std::uint64_t games, std::uint64_t wins, int tier, std::uint64_t next) {
     auto& l = own.fighters[fighter];
-    l.points = games + wins; l.games = games; l.wins = wins; l.tier = static_cast<std::uint8_t>(tier); l.next = next;
+    // The tiers begin at 0, 200, 700, 1500 and 2500 points, as the bridge decides them.
+    const std::uint64_t starts[] = {0, 200, 700, 1500, 2500};
+    l.points = games + wins; l.games = games; l.wins = wins; l.tier = static_cast<std::uint8_t>(tier); l.floor = starts[tier]; l.next = next;
 }
 
 Answered<Own> Counted(Own own, bool shown = true) {
@@ -117,18 +119,21 @@ void States() {
     Check(!ui::player_card::NoLevelWords(view), "a card with points says why it has none");
 }
 
-// How far the points are to the next tier's start, counted from none.
+// How far the points are from their tier's start to the next tier's.
 void Distances() {
     using ui::player_card::Part;
     netplay::levels::FighterLevel level;
-    level.points = 300; level.games = 200; level.wins = 100; level.tier = 1; level.next = 700;
-    // 300 of 700.
-    Check(Part(level) > .42f && Part(level) < .44f, "the part of the way to the next tier is wrong");
+    level.points = 300; level.games = 200; level.wins = 100; level.tier = 1; level.floor = 200; level.next = 700;
+    // 100 of the 500 from 200 to 700.
+    Check(Part(level) > .19f && Part(level) < .21f, "the part of the way to the next tier is wrong");
+    level.points = 200;
+    Check(Part(level) == 0.f, "a tier's first point is part of the way");
+    level.points = 300;
     level.next = 0;
     Check(Part(level) == 1.f, "the top tier has a way to go");
     level = {};
     Check(Part(level) == 1.f, "an unplayed fighter has a way to go");
-    level.points = 700; level.tier = 2; level.next = 700;
+    level.points = 700; level.tier = 2; level.floor = 700; level.next = 700;
     Check(Part(level) == 1.f, "points at the next tier's start are not the whole way");
 }
 

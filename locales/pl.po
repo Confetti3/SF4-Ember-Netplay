@@ -1084,6 +1084,9 @@ msgstr "Edytuj kartę"
 msgid "card.class"
 msgstr "Klasa"
 
+msgid "points.label"
+msgstr "FP"
+
 msgid "level.value"
 msgstr "Punkty: {0}"
 

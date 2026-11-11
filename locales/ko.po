@@ -1084,6 +1084,9 @@ msgstr "카드 편집"
 msgid "card.class"
 msgstr "등급"
 
+msgid "points.label"
+msgstr "점수"
+
 msgid "level.value"
 msgstr "{0}포인트"
 

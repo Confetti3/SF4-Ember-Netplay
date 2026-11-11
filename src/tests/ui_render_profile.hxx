@@ -16,6 +16,7 @@ inline void ProfilePlay(ProfileOwn& own,int fighter,std::uint64_t points){
     auto& l=own.fighters[fighter];
     l.points=points;l.tier=0;
     while(l.tier+1<sf4e::netplay::levels::TierCount&&points>=starts[l.tier+1])++l.tier;
+    l.floor=starts[l.tier];
     l.next=l.tier+1<sf4e::netplay::levels::TierCount?starts[l.tier+1]:0;
     l.games=static_cast<std::uint64_t>(points/1.5);l.wins=points-l.games;l.since=1700000000+static_cast<std::uint64_t>(fighter)*86400;
 }

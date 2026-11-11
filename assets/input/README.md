@@ -14,5 +14,3 @@ Selected assets come from `Xbox Series/Double`, `Keyboard & Mouse/Double`, `Gene
 `mark_developer.png` is not from Kenney: it is Ember's developer mark, drawn beside a developer's name in place of a class (`src/ui/NameMarks.cxx`). It is the project's flame "DEV" lettering (2508 x 627 on black) cut out with its glow as alpha (alpha from the brightest channel, colour unpremultiplied), cropped to the glow and resized to 256 x 116 RGBA. It sits in this folder because a 1.3 updater accepts new PNGs here by pattern (`PackageInventory.hxx`), so the update needs no reinstall.
 
 SHA-256: `B3D6CAA086242F85BA3DDFFB5DE7E71CDE61A520168B50ECDA75FFED8CEBC675`.
-
-`level_digits.png` is not from Kenney either: it is Ember's level digits, the numerals of a fighter's level drawn in the manner of the developer mark. `scripts/level-digits/make_level_digits.py` renders it, with `src/common/LevelDigits.hxx` that places its sprites, from brush strokes written out in that script; no font or outside picture goes into it. `scripts/level-digits/check_level_digits.py` fails when either file differs from a new render.

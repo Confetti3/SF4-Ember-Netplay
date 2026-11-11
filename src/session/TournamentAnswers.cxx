@@ -475,15 +475,18 @@ std::uint8_t ReadTier(const json& object) {
 
 netplay::levels::FighterLevel DecodeFighterLevel(const json& entry) {
 	netplay::levels::FighterLevel fighter;
-	Strict(entry, {"fighter", "points", "games", "wins", "tier", "next", "since"});
+	Strict(entry, {"fighter", "points", "games", "wins", "tier", "floor", "next", "since"});
 	fighter.points = Unsigned(entry, "points");
 	fighter.games = Unsigned(entry, "games");
 	fighter.wins = Unsigned(entry, "wins");
 	fighter.tier = ReadTier(entry);
+	fighter.floor = Unsigned(entry, "floor");
 	fighter.since = Unsigned(entry, "since");
 	if (fighter.wins > fighter.games || fighter.games > UINT64_MAX - fighter.wins) throw std::invalid_argument("wins");
 	// A listed fighter has a counted game, and its points are its games and wins.
 	if (fighter.points == 0 || fighter.points != fighter.games + fighter.wins) throw std::invalid_argument("points");
+	// A tier begins at or below the points, and the first begins at 0.
+	if (fighter.floor > fighter.points || (fighter.tier == 0 && fighter.floor != 0)) throw std::invalid_argument("floor");
 	// The last tier has no next one; every other has one still ahead.
 	const bool hasNext = entry.find("next") != entry.end();
 	if (hasNext != (fighter.tier != netplay::levels::TierCount - 1)) throw std::invalid_argument("next");

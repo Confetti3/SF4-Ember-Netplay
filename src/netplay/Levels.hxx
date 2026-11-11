@@ -20,10 +20,11 @@ struct FighterLevel {
 	// Games + wins: a win is worth 2, a loss 1.
 	std::uint64_t points = 0;
 	std::uint64_t games = 0, wins = 0;
-	// The frame colour, 0 to TierCount - 1, as the bridge decides it, and the
-	// points at which the next tier begins; next is 0 at the last tier.
+	// The frame colour, 0 to TierCount - 1, as the bridge decides it, the points
+	// at which that tier begins (0 at tier 0), and those at which the next tier
+	// begins; next is 0 at the last tier.
 	std::uint8_t tier = 0;
-	std::uint64_t next = 0;
+	std::uint64_t floor = 0, next = 0;
 	// Unix seconds of the first counted game.
 	std::uint64_t since = 0;
 };

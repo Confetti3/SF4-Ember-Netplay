@@ -1084,6 +1084,9 @@ msgstr "Karte bearbeiten"
 msgid "card.class"
 msgstr "Klasse"
 
+msgid "points.label"
+msgstr "FP"
+
 msgid "level.value"
 msgstr "{0} Punkte"
 
