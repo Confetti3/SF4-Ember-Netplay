@@ -694,6 +694,36 @@ void TestSpectatorSitOutNotice() {
 	std::cout << "TestSpectatorSitOutNotice passed\n";
 }
 
+// A started game whose battle never runs here (it never loads, or never
+// synchronizes) is given up at its start bound (IrohMatchSession::StartTimeoutMs),
+// through the one path a failed setup takes: the room hears of it and this PC
+// leaves the game. A spectator leaves that game only, as a lost stream, and
+// keeps watching the table; a fighter's AbortMatch ends it for the table.
+void TestStartBoundLeavesTheGame() {
+	namespace facade = sf4e::NetplayFacade;
+	WatchedGame game(false);
+	auto* runtime = game.r.runtime;
+	auto& match = game.r.Client()._matchData;
+	match.stageID = 0;
+	for (auto& chara : match.chara) { chara.charaID = 0; chara.ultraCombo = 0; chara.unc_edition = 14; }
+	game.r.room->LinkUp(game.generation);
+	game.Tick();
+	game.r.Deliver(json{{"type", "game_start"}, {"generation", game.generation}});
+	game.Tick();
+	CHECK(game.r.Match().GetPhase() == Phase::Started && !runtime->entry.matchEntered);
+	facade::ClearMatchNotice();
+	game.r.now += sf4e::session::IrohMatchSession::StartTimeoutMs - 1;
+	facade::internal::TickMatch();
+	CHECK(game.r.Match().GetPhase() == Phase::Started && game.r.KeptUnwatches(game.generation) == 0);
+	game.r.now += 2;
+	facade::internal::TickMatch();
+	CHECK(game.r.Match().LastFailure() == "match_start_timeout" && runtime->recoveringMatch);
+	CHECK(runtime->error == sf4e::loc::T("runtime.spectator_stream_lost"));
+	CHECK(game.r.KeptUnwatches(game.generation) == 1);
+	facade::ClearMatchNotice();
+	std::cout << "TestStartBoundLeavesTheGame passed\n";
+}
+
 // What an entered room match arms for its battle (its seed and Training rules)
 // reaches no later battle when the entry ends before the game prepares one:
 // the netplay session shut down, the game left, or the entry reset.
@@ -986,6 +1016,7 @@ int main() {
 	TestParkedStopWatchingCatchesUp();
 	TestFinishedWatchEndsOnlyTheView();
 	TestSpectatorSitOutNotice();
+	TestStartBoundLeavesTheGame();
 	TestEnteredBattleRequestCancelled();
 	TestGatesMatchPublished();
 	TestGatesAreCurrent();

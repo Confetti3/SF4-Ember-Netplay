@@ -11,6 +11,7 @@ Do not change these behaviors without regression testing (SessionInteractiveTest
 - When `bUsePureSounds` is enabled, call `fSoundPlayerManager::SyncState()` around simulation steps.
 - Create the GGPO session in `fUserApp::_OnVsBattleTasksRegistered` (after VsBattle load), not earlier.
 - Fighter-link disconnect tolerance: **8000 ms / notify 1500 ms**, owned by `common/GgpoDisconnectTolerance.hxx` and applied in `StartGGPO` only (the spectator client backend rejects it). It must stay under iroh's 15 s direct-path idle and openraft's 10-12 s election. The launcher payload no longer carries it. Regression gate: `GgpoOutageTolerance` (a 6.5 s silence resumes; a longer one disconnects at about 8 s).
+- That tolerance runs only once a link is RUNNING: GGPO never times out a sync. From `IrohMatchSession` Started a game has `StartTimeoutMs` (60 s) to enter, load and reach RUNNING, which the runtime reports (`GameRunning`) from its outer tick; past it the session fails with `match_start_timeout` and the ordinary setup-failure path aborts the game for the table (a spectator leaves only that game). The bound is outside the simulation and never read during rollback.
 
 ## Session protocol (`sf4e__SessionProtocol.hxx`)
 

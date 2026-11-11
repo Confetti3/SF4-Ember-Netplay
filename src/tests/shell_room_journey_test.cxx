@@ -1145,6 +1145,12 @@ void PostMatchJourneys() {
  // Down stays on the buttons: the two fighters' answers are drawn, not rows.
  h.FocusOn("again");h.Press(MenuInput::Down);Check(h.shell.Navigation().Focus()=="again","Down left the post-match buttons");
  h.Choose("again");Check(h.actions.back().command.kind==Kind::Rematch,"Rematch did not send the room's Ready");
+ // That Ready plays the next game whatever else is pressed over the WIN, so
+ // Character select (X) and Back to room are not offered there and leave the
+ // answer shown, which once read Character select over a rematch that went on.
+ {const auto sent=h.actions.size();h.Press(MenuInput::Fighter);h.Press(MenuInput::Back);
+  Check(h.shell.Navigation().Screen()=="post-match"&&words["pm-you"]==loc::T("postmatch.state.ready")&&!row("fighter").enabled&&!row("back").enabled&&
+   h.actions.size()==sent,"Character select or Back over the WIN replaced a chosen Rematch");}
  // Both chose: the room starts the next game at once; the prompt covers the
  // room until that game loads, past its own timer.
  // The other Ready and the new game can arrive in one snapshot.

@@ -2476,6 +2476,9 @@ msgstr "Retour au salon."
 msgid "runtime.table_game_cancelled"
 msgstr "Combat de cette table annulé. Retournez au salon pour repasser à Prêt."
 
+msgid "runtime.match_start_timeout"
+msgstr "Le combat n'a pas démarré en une minute : il est annulé pour les deux joueurs. Repassez à Prêt dans le salon."
+
 msgid "runtime.practice_ended"
 msgstr "Entraînement terminé. Retournez au salon pour repasser à Prêt."
 

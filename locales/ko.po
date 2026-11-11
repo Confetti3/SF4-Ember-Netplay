@@ -2476,6 +2476,9 @@ msgstr "방으로 돌아가는 중입니다."
 msgid "runtime.table_game_cancelled"
 msgstr "이 테이블의 대전이 취소되었습니다. 방으로 돌아가 다시 준비하세요."
 
+msgid "runtime.match_start_timeout"
+msgstr "1분 안에 대전이 시작되지 않아 두 플레이어 모두 취소되었습니다. 방에서 다시 준비하세요."
+
 msgid "runtime.practice_ended"
 msgstr "연습이 종료되었습니다. 방으로 돌아가 다시 준비하세요."
 

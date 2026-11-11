@@ -380,6 +380,40 @@ void TestHostEndsDroppedSpectatorLink() {
 	CHECK(room->endPeerCalls.size() == 2);
 	std::cout << "TestHostEndsDroppedSpectatorLink passed\n";
 }
+
+// (9) Started, the game has StartTimeoutMs to enter and load the battle and
+// reach GGPO's RUNNING. One that never runs fails the match, which the
+// runtime turns into the abort that ends the game for the whole table; one
+// that runs in time is never timed out, however long it lasts. A room control
+// outage does not stop the start's clock: the start needs no room.
+void TestStartIsBounded() {
+	for (const bool runs : {false, true}) {
+		Fixture f(1);
+		f.transport->Push(f.Grant(5));
+		f.transport->Push(GameConnect(5));
+		CHECK(f.client.Step() == 0);
+		CHECK(f.session.Tick());
+		CHECK(f.session.Tick());
+		CHECK(f.session.GetPhase() == Phase::Connecting);
+		f.room->LinkUp(5);
+		CHECK(f.session.Tick()); // game_ready
+		f.transport->Push(json{{"type", "game_start"}, {"generation", 5}});
+		CHECK(f.client.Step() == 0);
+		CHECK(f.session.Tick());
+		CHECK(f.session.GetPhase() == Phase::Started);
+		f.room->ready = false;
+		f.now += IrohMatchSession::StartTimeoutMs - 1000;
+		if (runs) f.session.GameRunning();
+		CHECK(f.session.Tick() && f.session.GetPhase() == Phase::Started);
+		f.now += 1001;
+		CHECK(f.session.Tick() == runs);
+		CHECK(f.session.GetPhase() == (runs ? Phase::Started : Phase::Failed));
+		CHECK(f.session.Error() == (runs ? "" : "match_start_timeout"));
+		f.now += 10 * IrohMatchSession::StartTimeoutMs;
+		CHECK(f.session.Tick() == runs);
+	}
+	std::cout << "TestStartIsBounded passed\n";
+}
 }
 int main() {
 	TestEarlyConnectSameTick();
@@ -390,6 +424,7 @@ int main() {
 	TestFighterMissingRoomEndIsBounded();
 	TestSpectatorStreamSourceClosed();
 	TestHostEndsDroppedSpectatorLink();
+	TestStartIsBounded();
 	std::cout << "Iroh match session tests passed\n";
 	return 0;
 }

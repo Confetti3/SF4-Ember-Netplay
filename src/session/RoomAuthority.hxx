@@ -50,6 +50,9 @@ public:
     bool FighterAllowed(MemberId member,int fighter,int edition) const;
     // Members whose last activity is tracked; never more than the roster.
     std::size_t TrackedActivity() const { return lastActiveMs_.size(); }
+	// Whether an Arcade or King of the hill room seats `a` and `b` together
+	// now (partedFrom_, RoomModelArcade.cxx).
+	bool MayMeet(MemberId a, MemberId b) const;
 
     // Authority recovery is deliberately distinct from the public UI snapshot.
     // Import validates into a temporary owner and leaves this owner unchanged
@@ -281,6 +284,7 @@ private:
 	Result ApplyRematch(MemberId member, const Action& action, Table* table);
 	Result ApplySetRoomType(MemberId member, const Action& action);
 	Table* Waiter(MemberId member, MemberId parted, const Table* except);
+	MemberId NextInLine(MemberId member) const;
 	void JoinTable(MemberId member, Table& table);
 	void SwapFighter(MemberId leaving, Table& table, const ArcadeWaitingAsker& asker);
 	void PartPair(Table& table, MemberId member);
@@ -419,6 +423,11 @@ private:
 	// Not checkpointed. TypingLeftMs is how long that word still stands.
 	std::map<MemberId, std::pair<std::uint64_t, bool>> typing_;
 	std::uint32_t TypingLeftMs(MemberId member) const;
+	// An Arcade or King of the hill room's fighters who asked for a new
+	// opponent and parted from them (PartPair), each with the one they left,
+	// until they sit with someone else (MayMeet). Not checkpointed: a restored
+	// room forgets it, and such a pair may meet again sooner.
+	std::map<MemberId, MemberId> partedFrom_;
 	std::map<MemberId, ActionId> lastAcceptedActions_;
 	std::set<ConnectionRef> kicked_;
 	// Server-owned rooms only. Held here rather than on Member so an account

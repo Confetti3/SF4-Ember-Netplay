@@ -65,6 +65,8 @@ struct PostMatchModel {
     bool open = false;
     int mine = -1, theirs = -1;
     bool chosen = false, theyChose = false, again = false, ultraOpen = false, newOpponentOpen = false;
+    // Over the WIN with this PC's Ready given: Back and Character select are not offered.
+    bool committed = false;
     const room::Member* local = nullptr;
     const room::Member* opponent = nullptr;
     std::string title, eyebrow, mineWord, theirWord;

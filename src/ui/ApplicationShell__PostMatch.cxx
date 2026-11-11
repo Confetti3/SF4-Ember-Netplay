@@ -225,8 +225,13 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     // Chosen is a commitment to play on: Rematch, a Ready, or this PC's
     // press. Asking for a new opponent is an answer that Rematch can still
     // take back (RoomAuthority::ApplyRematch), so it is not.
-    const bool chosen = p.starting || p.left || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None ||
-        (deciding && t.rematch[mine])));
+    const bool readied = p.starting || (mine >= 0 && (p.chose || Readied(t, mine, p.generation) || v.readyPress != netplay::ReadyPress::None));
+    const bool chosen = readied || p.left || (mine >= 0 && deciding && t.rematch[mine]);
+    // Over the WIN a Ready already given plays the next game whatever else is
+    // pressed: Back to room and Character select take nothing back there, so
+    // they are not offered and do not replace the answer shown. Once the game
+    // is over they close the prompt as ever.
+    const bool committed = readied && netplay::Fighting(v.session.match);
     const bool theyChose = p.starting || Readied(t, theirs, p.generation) || (deciding && t.rematch[theirs]);
     const bool askedNew = deciding && t.wantsNew[mine], theyAskedNew = deciding && t.wantsNew[theirs];
     const auto* opponent = room::FindMember(v.room, p.opponent);
@@ -297,8 +302,8 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     // not only once the fighter select refuses another fighter.
     const bool keeps = KeeperKnown(t, p.generation) && room::KeepsFighter(v.room, v.room.localMember);
     rows.push_back(Row("fighter", loc::T("postmatch.character_select"),
-        rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left));
-    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(room::KeepsSeatAfterGame(v.room, t, p.generation, p.result, v.room.localMember) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left));
+        rotation + loc::T(keeps ? "selection.winner_keeps_fighter" : "postmatch.character_select.detail"), !p.left && !committed));
+    rows.push_back(Row("back", loc::T("postmatch.back"), rotation + loc::T(room::KeepsSeatAfterGame(v.room, t, p.generation, p.result, v.room.localMember) ? "postmatch.back.keep_seat" : "room.leave_seat.keep"), !p.left && !committed));
     // The Ultra is the one row after the buttons, so Left and Right step it
     // (a footer row, MenuGridCells) and the bar's own walk stays as it was.
     // It shows while it can change, and once Rematch has set it; where it
@@ -311,7 +316,7 @@ PostMatchModel ApplicationShell::BuildPostMatch(const ShellView& v) const {
     }
     model.open = true;
     model.mine = mine; model.theirs = theirs;
-    model.chosen = chosen; model.theyChose = theyChose; model.again = again;
+    model.chosen = chosen; model.committed = committed; model.theyChose = theyChose; model.again = again;
     model.ultraOpen = ultraOpen; model.newOpponentOpen = newOpponentOpen;
     model.local = local; model.opponent = opponent;
     model.title = std::move(title); model.mineWord = std::move(mineWord); model.theirWord = std::move(theirWord);
@@ -344,7 +349,8 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
     if (!model.open || !postMatch_) { menu_.navigation.Return(); return; }
     const auto p = *postMatch_;
     const int seconds = static_cast<int>(std::ceil((std::max)(0.0, p.until - now)));
-    std::vector<std::pair<unsigned, std::string>> shortcuts{{MenuInput::Fighter, loc::T("postmatch.character_select")}};
+    std::vector<std::pair<unsigned, std::string>> shortcuts;
+    if (!model.committed) shortcuts.push_back({MenuInput::Fighter, loc::T("postmatch.character_select")});
     if (model.newOpponentOpen) shortcuts.push_back({MenuInput::Options, loc::T("room.new_opponent")});
     menu_.shortcutHints = ShortcutHints(shortcuts);
     menu_.backHint = loc::T("postmatch.back"); menu_.exitName.clear(); menu_.ownsBack = true;
@@ -453,7 +459,7 @@ void ApplicationShell::DrawPostMatch(const ShellView& v, const PostMatchFrame& f
     AnswerDialog(submit);
     // Over the WIN the choice stays shown until the game is over (UpdatePostMatch).
     const auto leave = [&](AfterPostMatch after) {
-        if (p.left) return;
+        if (p.left || model.committed) return;
         if (!netplay::Fighting(v.session.match)) { ClosePostMatch(v, after, open); return; }
         // Back or Character select takes back a pair's Rematch: the room's
         // answer may still end its question, but it readies nobody here.

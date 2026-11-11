@@ -27,16 +27,35 @@ std::uint64_t NextArrival(const Snapshot& room) {
 }
 }
 
+// A fighter who asked for a new opponent does not sit with the one they left
+// again until they have sat with someone else, nor the other with them, while
+// anyone else at the cabinets can still come free to play either: they wait,
+// in Training if they like. With nobody else there they play each other, as
+// a pair alone in the room does.
+bool RoomAuthority::MayMeet(MemberId a, MemberId b) const {
+	const auto left = [&](MemberId from, MemberId other) {
+		const auto at = partedFrom_.find(from);
+		return at != partedFrom_.end() && at->second == other;
+	};
+	return !(left(a, b) || left(b, a)) || !OthersAtCabinets(snapshot_, a, b);
+}
+
 // The table of the player who has waited longest for `member`, not counting
-// the one they just parted from.
+// the one they just parted from or one they may not meet.
 Table* RoomAuthority::Waiter(MemberId member, MemberId parted, const Table* except) {
 	Table* longest = nullptr;
 	for (auto& table : snapshot_.tables) {
 		if (&table == except || !ArcadeAlone(table) || Lone(table) == member) continue;
-		if (parted && Lone(table) == parted) continue;
+		if (Lone(table) == parted || !MayMeet(member, Lone(table))) continue;
 		if (!longest || table.waitingSince < longest->waitingSince) longest = &table;
 	}
 	return longest;
+}
+
+// The first in line who may play `member`, or 0. Whoever may not keeps their place.
+MemberId RoomAuthority::NextInLine(MemberId member) const {
+	for (const MemberId next : snapshot_.line) if (next != member && MayMeet(member, next)) return next;
+	return 0;
 }
 
 // `member` takes the open seat at `table`: a new pair at 0-0, or one waiting.
@@ -51,6 +70,8 @@ void RoomAuthority::JoinTable(MemberId member, Table& table) {
 	table.score[0] = table.score[1] = 0;
 	EndChoice(table);
 	const bool pair = table.p1 && table.p2;
+	// A new pair: whoever either of them left before, they have now sat with someone (MayMeet).
+	if (pair) { partedFrom_.erase(table.p1); partedFrom_.erase(table.p2); }
 	table.phase = pair ? TablePhase::Waiting : TablePhase::Idle;
 	table.waitingSince = pair ? 0 : NextArrival(snapshot_);
 	Touch(table);
@@ -73,8 +94,8 @@ void RoomAuthority::PairArcade(MemberId member, MemberId parted) {
 }
 
 // The line, front first, sits down while the tables in play have room:
-// beside whoever waits alone there, else at an empty table to wait. `a` and
-// `b`, a pair that just parted, are not seated together again.
+// beside whoever waits alone there and may meet them, else at an empty table
+// to wait. `a` and `b`, a pair that just parted, are not seated together again.
 void RoomAuthority::SeatLine(MemberId a, MemberId b) {
 	for (const MemberId member : std::vector<MemberId>(snapshot_.line)) {
 		Table* table = Waiter(member, member == a ? b : member == b ? a : 0, nullptr);
@@ -96,9 +117,10 @@ void RoomAuthority::SwapFighter(MemberId leaving, Table& table, const ArcadeWait
 }
 
 // A set is over. The winner stays and plays whoever has waited longest, alone
-// or in line, here; the loser waits for the next one (PairArcade), not the
-// winner. With nobody waiting the pair stays: an Arcade pair chooses Rematch or New
-// opponent, and with nobody else there just readies again. King of the hill
+// or in line, of those they may meet (MayMeet), here; the loser waits for the
+// next one (PairArcade), not the winner. With nobody waiting the pair stays:
+// an Arcade pair chooses Rematch or New opponent, and with nobody else there
+// just readies again. King of the hill
 // moves the streaks and the top slot, and while a table is free the loser
 // waits there and the winner here for a challenger; in a full room the pair
 // stays like an Arcade one, the loser already asking for a new opponent.
@@ -112,9 +134,8 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 		TouchRoom();
 	}
 	Table* const challenger = Waiter(winner, loser, &table);
-	const MemberId waiting = challenger || snapshot_.line.empty() ? 0 : snapshot_.line.front();
-	const bool others = std::any_of(snapshot_.cabinets.begin(), snapshot_.cabinets.end(),
-		[&](MemberId m) { return m && m != winner && m != loser; });
+	const MemberId waiting = challenger ? 0 : NextInLine(winner);
+	const bool others = OthersAtCabinets(snapshot_, winner, loser);
 	const bool parts = challenger || waiting || (king && others && ArcadeSomeoneFree(snapshot_, table.id));
 	if (!parts) {
 		// Someone at another table asked for a new opponent and nobody was free:
@@ -140,10 +161,11 @@ void RoomAuthority::ArcadeSetEnded(Table& table, MemberId winner, MemberId loser
 	TouchRoom();
 }
 
-// `left` stood up from `table`: the one still there plays whoever waited
-// longest, or the fighter waiting for a new opponent, or waits here. A seat
-// coming free is the one way someone is free while a request waits: requests
-// wait only in a full room, and a set that ends answers them itself.
+// `left` stood up from `table` and from their cabinet (RemoveFromTable): the
+// one still there plays whoever waited longest, or the fighter waiting for a
+// new opponent, or waits here. A seat coming free is the one way someone is
+// free while a request waits: requests wait only in a full room, and a set
+// that ends answers them itself.
 void RoomAuthority::ArcadeVacated(Table& table, MemberId left) {
 	EndChoice(table);
 	const MemberId stays = Lone(table);
@@ -152,18 +174,24 @@ void RoomAuthority::ArcadeVacated(Table& table, MemberId left) {
 		table.p1 = table.p2 = 0; table.waitingSince = 0;
 		Touch(table);
 		JoinTable(stays, *waiter);
+		// Only someone who may not meet that waiter can be in line: this table is theirs now.
+		SeatLine(0, 0);
 		return;
 	}
-	if (!snapshot_.line.empty()) { JoinTable(snapshot_.line.front(), table); return; }
+	if (const MemberId next = NextInLine(stays)) { JoinTable(next, table); return; }
 	table.waitingSince = NextArrival(snapshot_);
 	const auto asker = ArcadeAsker(snapshot_, table.id);
 	if (asker.member) PartPair(snapshot_.tables[asker.table], asker.member);
 }
 
-// The pair at `table` parts: `member` plays whoever has waited longest, and so
-// does the other, or each waits alone.
+// The pair at `table` parts: `member`, who asked to, plays whoever has waited
+// longest, and so does the other, or each waits alone. Neither is seated with
+// the other again while the one who asked has sat with nobody else, nor while
+// the other has if they asked too (MayMeet).
 void RoomAuthority::PartPair(Table& table, MemberId member) {
 	const MemberId other = table.p1 == member ? table.p2 : table.p1;
+	partedFrom_[member] = other;
+	if (ArcadeAsked(table, table.p1 == other ? 0 : 1)) partedFrom_[other] = member;
 	table.p1 = table.p2 = 0;
 	ClearReadiness(table);
 	EndChoice(table);
@@ -175,12 +203,16 @@ void RoomAuthority::PartPair(Table& table, MemberId member) {
 	TouchRoom();
 }
 
-// `member` leaves their cabinet, and its streak with it.
+// `member` leaves their cabinet, and its streak with it, and nobody waits to
+// avoid them any more.
 void RoomAuthority::StandUp(MemberId member) {
 	const int cabinet = CabinetOf(snapshot_, member);
 	if (cabinet < 0) return;
 	snapshot_.cabinets[cabinet] = 0; snapshot_.streaks[cabinet] = 0;
 	snapshot_.line.erase(std::remove(snapshot_.line.begin(), snapshot_.line.end(), member), snapshot_.line.end());
+	partedFrom_.erase(member);
+	for (auto at = partedFrom_.begin(); at != partedFrom_.end();)
+		if (at->second == member) at = partedFrom_.erase(at); else ++at;
 	CrownTopSlot();
 	TouchRoom();
 }
