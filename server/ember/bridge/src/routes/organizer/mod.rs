@@ -43,6 +43,7 @@ use crate::{
 
 mod drafts;
 pub mod invites;
+mod public_set;
 mod sets;
 
 use drafts::Link;
