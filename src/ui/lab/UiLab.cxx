@@ -366,10 +366,10 @@ void Profile(ui::ShellView& view, const std::string& state) {
     own.account.since = 1700000000;
 }
 // --levels: points as the game draws them (FIGHTER_LEVELS.md, Drawing points), wrapping across the window: the
-// numbers 7, 86, 412, 1986 and 12840 on their plates at 36, 72 and 143 px tall, each with a gain of +16 in the gold
-// digits; the same once more with no art, as when the game's sheet is missing (the heading font's digits); then a
-// band on a picture at each tier (the last with six digits, to see the digits shrink), each over a meter part way
-// with a fresh end. The digits are the game's when the game folder (SF4E_GAME_DIR) has its ranked result archive.
+// numbers 0, 7, 86, 412, 1986 and 12840 and 999999 as `<number> FP` and `<number> BP` at 24, 48 and 96 px (the digits'
+// height), each row ending with a gain of +16 in the gold digits; the same once more with no art, as when the game's
+// sheet is missing (the heading font's digits); then a band on a picture, `<number> FP` on a shade at its foot, with
+// 0, 1, 4 and 6 digits and a narrow picture where the line shrinks to fit, each over a meter part way with a fresh end. The digits are the game's when the game folder (SF4E_GAME_DIR) has its ranked result archive.
 void DrawLevels() {
     namespace v2 = ui::v2;
     const auto* vp = ImGui::GetMainViewport();
@@ -380,29 +380,34 @@ void DrawLevels() {
     const float s = ui::Scale(), gap = std::round(8 * s), left = vp->Pos.x + 16 * s, right = vp->Pos.x + vp->Size.x - 16 * s;
     d->AddRectFilled(vp->Pos, ImVec2(vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y), c.panel);
     ImVec2 at(left, vp->Pos.y + 16 * s);
-    struct Sample { std::uint64_t points; int tier; };
-    const Sample samples[] = {{7, 0}, {86, 0}, {412, 1}, {1986, 3}, {12840, 4}};
+    const std::uint64_t samples[] = {0, 7, 86, 412, 1986, 12840, 999999};
+    const char* const labels[] = {"points.label", "points.account_label"};
     const auto row = [&](float height) {
-        for (const auto& sample : samples) {
-            if (at.x + v2::LevelWidth(sample.points, height) > right) at = ImVec2(left, at.y + height + gap);
-            at.x += v2::Level(d, at, height, sample.points, sample.tier) + gap;
+        for (const char* label : labels) {
+            for (const auto points : samples) {
+                if (at.x + v2::LevelWidth(points, height, label) > right) at = ImVec2(left, at.y + height + gap);
+                at.x += v2::Level(d, at, height, points, label) + gap;
+            }
         }
-        const float gain = std::round(height * .56f);
+        const float gain = std::round(height * .8f);
         if (at.x + 4 * gain > right) at = ImVec2(left, at.y + height + gap);
         at.x += v2::LevelGain(d, ImVec2(at.x, at.y + (height - gain) * .5f), gain, 16) + gap;
         at = ImVec2(left, at.y + height + 2 * gap);
     };
-    for (const float height : {36.f, 72.f, 143.f}) row(height);
+    for (const float height : {24.f, 48.f, 96.f}) row(height * s);
     // The fallback: the menu art taken away for one row.
     auto* art = ui::MenuArt();
     ui::SetMenuArt(nullptr);
-    row(72.f);
+    row(48.f * s);
     ui::SetMenuArt(art);
     const float tile = std::round(96 * s), bar = std::round(8 * s);
+    const std::uint64_t bands[] = {0, 1, 4, 86, 1986, 999999};
     for (int i = 0; i < 6; ++i) {
-        const ImVec2 low(left + i * (tile + gap), at.y), high(low.x + tile, low.y + tile);
+        // The last picture is narrow, so the six digits shrink to fit.
+        const float side = i == 5 ? std::round(64 * s) : tile;
+        const ImVec2 low(left + i * (tile + gap), at.y), high(low.x + side, low.y + side);
         ui::DrawCharacterPortrait(i * 7, low, high, c.frame);
-        v2::LevelBand(d, {low, high}, i < 5 ? std::uint64_t(7) : 999999, i < 5 ? i : 4);
+        v2::LevelBand(d, {low, high}, bands[i]);
         v2::Meter(d, {ImVec2(low.x, high.y + gap), ImVec2(high.x, high.y + gap + bar)}, .2f * i + .1f, .08f);
     }
     ImGui::End();

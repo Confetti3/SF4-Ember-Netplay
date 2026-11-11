@@ -1085,7 +1085,10 @@ msgid "card.class"
 msgstr "등급"
 
 msgid "points.label"
-msgstr "점수"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
 
 msgid "level.value"
 msgstr "{0}포인트"

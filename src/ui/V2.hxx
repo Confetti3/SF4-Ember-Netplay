@@ -219,32 +219,33 @@ const char* TierName(Tier tier);
 // title needs, from 340 px up to `room`. Returns its width.
 float TitlePlate(ImDrawList* draw, ImVec2 at, float room, float line, const std::string& title, Tier tier);
 
-// A fighter's points (FIGHTER_LEVELS.md, PLAYER_CARD.md), drawn as the game
-// draws its PP and BP: white, in the game's own digits, read from the player's
-// installed game (SelectionArt::PointDigits), with a short label before them in
-// the heading font; while the digits have not loaded, or the game has none, the
-// heading font's digits. 0 draws as 0 (the Profile card of a fighter not played yet:
-// callers that show only played fighters leave those out), and
-// shows at most 999999. The frame's `tier` (0 Ash to 4 Ember) is the bridge's to
-// decide and is only passed in, never worked out from the points. Speech and
-// the text probe read the words a caller puts beside it ("1986 points"), never
-// the number drawn. LevelMark.cxx.
+// Points (FIGHTER_LEVELS.md, PLAYER_CARD.md), drawn as the game draws its PP and
+// BP under a player's name: the number, a space, then the two-letter label, on one
+// line with no plate, box or frame. The number is white, in the game's own digits,
+// read from the player's installed game (SelectionArt::PointDigits); while the
+// digits have not loaded, or the game has none, it is the heading font's digits.
+// The label is in the heading font, white with a dark outline, its capitals as
+// tall as the digits. 0 draws as 0 (the Profile card of a fighter not played
+// yet: callers that show only played fighters leave those out), and shows at
+// most 999999. The tier never colours the number. Speech and the text probe read
+// the words a caller puts beside it ("1986 points"), never the number drawn.
+// LevelMark.cxx.
 // The award tier of a frame tier the bridge sent, 0 (Ash) to 4 (Ember); another
 // number is held to that range.
 Tier FrameTier(int tier);
-// The label (points.label), then the number on dark ground in a plate `height`
-// tall with its top left at `at`, framed in its tier's stripe colour, at least
-// as wide as it is tall. Returns the width of both, which LevelWidth gives
-// without drawing.
-float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, int tier);
-float LevelWidth(std::uint64_t points, float height);
+// The line `<number> <label>` with its top left at `at`, the digits `height`
+// tall. `labelId` is the catalog id of the label: "points.label" (FP, a
+// fighter's points) or "points.account_label" (BP, the account's). Returns the
+// width, which LevelWidth gives without drawing.
+float Level(ImDrawList* draw, ImVec2 at, float height, std::uint64_t points, const char* labelId);
+float LevelWidth(std::uint64_t points, float height, const char* labelId);
 // A gain ("+16") `height` tall at `at` on no ground, in the game's gold digits
 // with a plus in the heading font. Returns its width; nothing for 0.
 float LevelGain(ImDrawList* draw, ImVec2 at, float height, std::uint64_t gain);
-// Over a fighter's picture `tile`: a dark band across its foot with the number
-// centred in it, shrunk to fit the picture's width, and the picture's edge in
-// the tier's stripe colour.
-void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points, int tier);
+// Over a fighter's picture `tile`: the line `<number> FP` centred on a short
+// dark shade across its foot, shrunk to fit the picture's width. The shade is
+// only there to read over art: no frame is drawn round the picture.
+void LevelBand(ImDrawList* draw, Box tile, std::uint64_t points);
 // A progress bar on the frame's ground: `part` of it (0 to 1) in the accent,
 // and the last `fresh` of that part (the same measure) in the light accent.
 void Meter(ImDrawList* draw, Box box, float part, float fresh);

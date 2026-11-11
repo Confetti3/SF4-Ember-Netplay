@@ -1085,7 +1085,10 @@ msgid "card.class"
 msgstr "Класс"
 
 msgid "points.label"
-msgstr "ОБ"
+msgstr "FP"
+
+msgid "points.account_label"
+msgstr "BP"
 
 msgid "level.value"
 msgstr "Очки: {0}"

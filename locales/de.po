@@ -1087,6 +1087,9 @@ msgstr "Klasse"
 msgid "points.label"
 msgstr "FP"
 
+msgid "points.account_label"
+msgstr "BP"
+
 msgid "level.value"
 msgstr "{0} Punkte"
 

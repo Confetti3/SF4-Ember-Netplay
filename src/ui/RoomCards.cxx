@@ -30,7 +30,7 @@ void DrawMemberRow(const MemberCardView& card,ImVec2 min,ImVec2 max) {
  const float s=Scale(),h=max.y-min.y,face=h-12*s;auto* d=ImGui::GetWindowDrawList();
  const v2::Box portrait{ImVec2(min.x+6*s,min.y+6*s),ImVec2(min.x+6*s+face,max.y-6*s)};
  DrawCharacterPortrait(FighterPicture{card.mainFighter,card.art},portrait.min,portrait.max);
- if(card.points)v2::LevelBand(d,portrait,card.points->points,card.points->tier);
+ if(card.points)v2::LevelBand(d,portrait,card.points->points);
  const float x=min.x+16*s+face,w=max.x-x-14*s;
  v2::TagView tag{card.label,{},{},card.marks,card.latency};tag.link=card.link;
  v2::Tag(d,ImVec2(x,min.y+5*s),w,tag,v2::TagSize::S);
@@ -46,10 +46,10 @@ void DrawMemberPoints(const MemberPoints& points) {
   const std::size_t shown=(std::min)(points.fighters.size(),static_cast<std::size_t>(3));
   // The names stand in one column, after the widest plate.
   float plates=0;
-  for(std::size_t i=0;i<shown;++i)plates=(std::max)(plates,v2::LevelWidth(points.fighters[i].points,line));
+  for(std::size_t i=0;i<shown;++i)plates=(std::max)(plates,v2::LevelWidth(points.fighters[i].points,line*.4f,"points.label"));
   for(std::size_t i=0;i<shown;++i){
    const auto& played=points.fighters[i];
-   v2::Level(d,at,line,played.points,played.tier);
+   v2::Level(d,at,line*.4f,played.points,"points.label");
    if(const auto* fighter=selection::FindFighter(played.fighter))
     v2::Text(d,ImVec2(at.x+plates+12*s,at.y+(line-16*s)*.5f),(std::max)(0.f,width-plates-12*s),fighter->name,16*s,c.text,HeadingFont());
    at.y+=line+gap;

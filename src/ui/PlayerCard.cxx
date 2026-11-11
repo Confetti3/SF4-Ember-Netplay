@@ -101,7 +101,7 @@ void DrawPlates(ImDrawList* d, v2::Box foot, const PlayerCardView& card, int mai
     const auto* fighter = main >= 0 ? selection::FindFighter(main) : nullptr;
     const bool leads = !card.fighters.empty() && card.fighters.front().fighter == main;
     const std::uint64_t points = leads ? card.fighters.front().points : 0, games = leads ? card.fighters.front().games : 0;
-    const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, points, leads ? card.fighters.front().tier : 0), x = left + width + pad,
+    const float width = v2::Level(d, ImVec2(left, foot.min.y + pad), plate, points, "points.label"), x = left + width + pad,
                 text = (std::max)(0.f, room - width - pad);
     if (fighter) {
         v2::Text(d, ImVec2(x, foot.min.y + pad + 4 * s), text, fighter->name, 18 * s, c.text, HeadingFont());
@@ -118,7 +118,7 @@ void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, Fight
     v2::CardGround(d, box, focused, hovered);
     const v2::Box tile{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.max.x - pad, box.min.y + pad + side)};
     DrawCharacterPortrait(FighterPicture{fighter.fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, fighter.points, fighter.tier);
+    v2::LevelBand(d, tile, fighter.points);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
     v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);

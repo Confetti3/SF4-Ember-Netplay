@@ -30,7 +30,7 @@ void DrawFighterRow(ImDrawList* d, v2::Box box, int fighter, const netplay::leve
     v2::CardGround(d, box, focused, hovered);
     const v2::Box tile{ImVec2(box.min.x + pad, box.min.y + pad), ImVec2(box.min.x + pad + side, box.max.y - pad)};
     DrawCharacterPortrait(FighterPicture{fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, level.points, level.tier);
+    v2::LevelBand(d, tile, level.points);
     const float x = tile.max.x + 12 * s, room = box.max.x - pad - x;
     v2::Text(d, ImVec2(x, box.min.y + 12 * s), room, selection::FindFighter(fighter)->name, 15 * s, enabled ? c.text : c.muted, HeadingFont());
     v2::Text(d, ImVec2(x, box.min.y + 34 * s), room, player_card::GamesWords(level.games), 12 * s, c.muted);
@@ -53,7 +53,7 @@ float DrawFighterPanel(ImDrawList* d, v2::Box box, int fighter, const netplay::l
     float y = box.min.y + head + pad;
     const v2::Box tile{ImVec2(x, y), ImVec2(x + picture, y + picture)};
     DrawCharacterPortrait(FighterPicture{fighter, art, 0, 0}, tile.min, tile.max, c.frame);
-    v2::LevelBand(d, tile, level.points, level.tier);
+    v2::LevelBand(d, tile, level.points);
     const float tx = tile.max.x + pad, tw = room - picture - pad;
     v2::Text(d, ImVec2(tx, y), tw, loc::Tf("level.value", level.points), 22 * s, c.text, HeadingFont());
     v2::Meter(d, {ImVec2(tx, y + 38 * s), ImVec2(tx + tw, y + 48 * s)}, player_card::Part(level), 0.f);

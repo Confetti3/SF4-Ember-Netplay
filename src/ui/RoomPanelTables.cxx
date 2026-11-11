@@ -222,7 +222,7 @@ void DrawSeat(const RoomBoardFrame& f,ImDrawList* d,const v2::Box& box,const roo
  // The lines together, centred on the picture.
  const float block=tagLine+4*s+lineSize+(third?4*s+lineSize:0),top=box.min.y+(std::max)(0.f,(face-block)*.5f);
  DrawCharacterPortrait(SeatPicture(look,f.art),tile.min,tile.max,c.frame);
- if(const auto points=PointsOf(v,*m).Of(look.fighter))v2::LevelBand(d,tile,points->points,points->tier);
+ if(const auto points=PointsOf(v,*m).Of(look.fighter))v2::LevelBand(d,tile,points->points);
  if(marked)d->AddRect(ImVec2(tile.min.x-2*s,tile.min.y-2*s),ImVec2(tile.max.x+2*s,tile.max.y+2*s),ImGui::ColorConvertFloat4ToU32(ToneColor(Tone::Pending)),3*s,0,2*s);
  const auto tag=MemberTag(v.memberLatency,*m,v.room.localMember);
  const float tagWidth=(std::min)(room,v2::TagWidth(tag,v2::TagSize::S));
