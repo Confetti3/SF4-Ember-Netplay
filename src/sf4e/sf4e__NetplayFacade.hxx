@@ -261,6 +261,8 @@ namespace sf4e {
             netplay::rankings::Status rankings;
             // The player's own fighter levels, as last read.
             netplay::Answered<netplay::levels::Own> levels;
+            // The cards of a public room's members by card token (null: none).
+            std::shared_ptr<const netplay::levels::CardMap> memberCards;
 		};
 		// Everything the overlay draws from, built on the game thread at the end
 		// of each outer tick and never changed afterwards. It owns its values:

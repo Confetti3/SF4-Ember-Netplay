@@ -446,6 +446,7 @@ static void DrawApplicationHome(const sf4e::NetplayFacade::RuntimeSnapshot& snap
     view.publicRooms = snapshot.publicRooms;
     view.rankings = snapshot.rankings;
     view.levels = snapshot.levels;
+    view.memberCards = snapshot.memberCards;
     // The archive is listed, and an entry's inputs read, off this thread (the
     // runtime's workers). The screen on show says what to ask for; the last
     // listing and detail they made come with the snapshot.
