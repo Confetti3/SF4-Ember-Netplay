@@ -21,7 +21,7 @@ using namespace friends_panel;
 constexpr float Pi = 3.14159265f;
 
 // What a row's board knows of the frame: the window, the sizes, and where a popout opens.
-struct Frame {
+struct BoardFrame {
     ImDrawList* d;
     GameMenu& menu;
     // Opens More on a row (FriendsPanel::Ask).
@@ -69,7 +69,7 @@ void DrawRequestMark(ImDrawList* d, ImVec2 at, float radius) {
 }
 
 // A friend's main on its tier edge in `tile`; no main is a bare frame, and an offline friend's is dimmed.
-void DrawMainPicture(const Frame& f, v2::Box tile, const nf::Friend& entry) {
+void DrawMainPicture(const BoardFrame& f, v2::Box tile, const nf::Friend& entry) {
     const auto& c = v2::Colors();
     if (entry.hasMain) DrawCharacterPortrait(FighterPicture{entry.main.fighter, f.art, 0, 0}, tile.min, tile.max, c.frame);
     else f.d->AddRectFilled(tile.min, tile.max, c.frame);
@@ -78,7 +78,7 @@ void DrawMainPicture(const Frame& f, v2::Box tile, const nf::Friend& entry) {
 }
 
 // The row's value at the row's right end; returns its width.
-float DrawValue(const Frame& f, v2::Box box, const MenuEntry& e, bool dim) {
+float DrawValue(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool dim) {
     if (e.value.empty()) return 0;
     const auto& c = v2::Colors();
     const float s = f.s, size = 16 * s, w = TextWidth(e.value, size, HeadingFont()) + 1;
@@ -87,14 +87,14 @@ float DrawValue(const Frame& f, v2::Box box, const MenuEntry& e, bool dim) {
 }
 
 // The focus marks over a row, and its popout's place when it has choices.
-void Finish(const Frame& f, const MenuEntry& e, v2::Box box) {
+void Finish(const BoardFrame& f, const MenuEntry& e, v2::Box box) {
     if (e.id != f.nav().Focus()) return;
     v2::Focus(f.d, box.min, box.max);
     if (!e.choices.empty()) f.menu.bodyChoices = {box, f.column};
 }
 
 // A request or a friend: the mark, the friend's picture, flag, name and class, and the status under them.
-float DrawPerson(const Frame& f, const MenuEntry& e, ImVec2 at, float width) {
+float DrawPerson(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width) {
     const float s = f.s;
     const v2::Box box{at, ImVec2(at.x + width, at.y + 64 * s)};
     const auto hit = PressEntry(f.nav(), f.rows, e, box, f.action, f.changed);
@@ -123,7 +123,7 @@ float DrawPerson(const Frame& f, const MenuEntry& e, ImVec2 at, float width) {
 }
 
 // Add a friend: the word and, at the right, "Your code" with the code in the heading font.
-float DrawAdd(const Frame& f, const MenuEntry& e, ImVec2 at, float width, bool compact) {
+float DrawAdd(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width, bool compact) {
     const auto& c = v2::Colors();
     const float s = f.s;
     const v2::Box box{at, ImVec2(at.x + width, at.y + (compact ? 50 : 56) * s)};
@@ -146,7 +146,7 @@ float DrawAdd(const Frame& f, const MenuEntry& e, ImVec2 at, float width, bool c
 }
 
 // Sent and Blocked: the word and a chevron; Appear offline: the word and its switch.
-float DrawLink(const Frame& f, const MenuEntry& e, ImVec2 at, float width) {
+float DrawLink(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width) {
     const auto& c = v2::Colors();
     const float s = f.s;
     const v2::Box box{at, ImVec2(at.x + width, at.y + 48 * s)};
@@ -172,7 +172,7 @@ float DrawLink(const Frame& f, const MenuEntry& e, ImVec2 at, float width) {
 }
 
 // One line of words on a card: a state with nothing to list, or the empty list's hint.
-float DrawNote(const Frame& f, const MenuEntry& e, ImVec2 at, float width) {
+float DrawNote(const BoardFrame& f, const MenuEntry& e, ImVec2 at, float width) {
     const auto& c = v2::Colors();
     const float s = f.s, pad = 18 * s;
     ImDrawListSplitter split;
@@ -189,7 +189,7 @@ float DrawNote(const Frame& f, const MenuEntry& e, ImVec2 at, float width) {
 }
 
 // A panel button: the pad button's glyph and the word, pressed with the pointer (the pad uses A and Y on the row).
-bool PanelButton(const Frame& f, const char* id, v2::Box box, const std::string& label, const char* glyph, v2::ButtonKind kind, bool enabled) {
+bool PanelButton(const BoardFrame& f, const char* id, v2::Box box, const std::string& label, const char* glyph, v2::ButtonKind kind, bool enabled) {
     const auto& c = v2::Colors();
     const float s = f.s;
     ImGui::SetCursorScreenPos(box.min);
@@ -211,7 +211,7 @@ std::string RecordOf(const nf::Friend& entry) {
 
 // The focused friend's or request's panel: for a friend their card (main, flag, name, class, the main's points), where
 // they are, the record, and the row's action beside More; for a request the name and the played line with Accept and More.
-void DrawPersonPanel(const Frame& f, v2::Box box, const MenuEntry& e, bool compact) {
+void DrawPersonPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e, bool compact) {
     const auto& c = v2::Colors();
     const float s = f.s, pad = 16 * s;
     const nf::Friend* entry = HasPrefix(e.id, FriendPrefix) ? f.state.FindFriend(IdOf(e.id, FriendPrefix)) : nullptr;
@@ -266,7 +266,7 @@ void DrawPersonPanel(const Frame& f, v2::Box box, const MenuEntry& e, bool compa
 }
 
 // The other rows' detail, as words in a panel's place.
-void DrawWordsPanel(const Frame& f, v2::Box box, const MenuEntry& e) {
+void DrawWordsPanel(const BoardFrame& f, v2::Box box, const MenuEntry& e) {
     if (e.detail.empty()) return;
     box.max.y = box.min.y + v2::WordsHeight(box.W(), e.detail);
     NoteUserText(e.detail);
@@ -274,7 +274,7 @@ void DrawWordsPanel(const Frame& f, v2::Box box, const MenuEntry& e) {
 }
 
 // Under the list on a narrow window: the focused friend's presence, record and points as words.
-float DrawNarrowWords(const Frame& f, ImVec2 at, float width, const MenuEntry& e) {
+float DrawNarrowWords(const BoardFrame& f, ImVec2 at, float width, const MenuEntry& e) {
     const nf::Friend* entry = HasPrefix(e.id, FriendPrefix) ? f.state.FindFriend(IdOf(e.id, FriendPrefix)) : nullptr;
     std::string detail = e.detail;
     if (entry) {
@@ -302,7 +302,7 @@ void FriendsPanel::Draw(const ShellView& v, GameMenu& menu, const std::vector<Me
     const Mode mode = ModeOf(v.friends, service_);
     v2::Box list{origin, ImVec2(origin.x + width, FLT_MAX)};
     const v2::Box side = narrow || mode != Mode::Listed ? v2::Box{} : v2::CutRight(list, (compact ? 400 : 520) * s, 24 * s);
-    const Frame f{d, menu, [this](const std::string& row) { Ask(row, {}); }, rows, action, v.friends, StateOf(v.friends), GateOf(v.friends, service_, pending_.active),
+    const BoardFrame f{d, menu, [this](const std::string& row) { Ask(row, {}); }, rows, action, v.friends, StateOf(v.friends), GateOf(v.friends, service_, pending_.active),
         v.preferences.roomCharacterPictures ? FighterArt::Character : FighterArt::Portrait, v.unixNow, changed,
         v2::Box{origin, ImVec2(list.max.x, origin.y + height)}, s};
     float y = origin.y;
