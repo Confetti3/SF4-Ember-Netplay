@@ -2506,8 +2506,6 @@ msgstr "このバージョンは提示されたものではありません。も
 
 msgid "update.close_sf4"
 msgstr "更新をインストールする前にUltra Street Fighter IVを閉じてください。"
-msgid "update.elevated"
-msgstr "Ember が管理者として実行されています。アップデートをインストールするには、終了して通常どおり起動してください。"
 
 msgid "update.install_dir_failed"
 msgstr "インストール先を特定できませんでした。"

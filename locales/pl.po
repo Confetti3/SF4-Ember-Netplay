@@ -2506,8 +2506,6 @@ msgstr "Ta wersja nie jest tą, którą zaproponowano. Sprawdź aktualizacje pon
 
 msgid "update.close_sf4"
 msgstr "Zamknij Ultra Street Fighter IV przed instalacją aktualizacji."
-msgid "update.elevated"
-msgstr "Ember działa jako administrator. Zamknij go i uruchom normalnie, aby instalować aktualizacje."
 
 msgid "update.install_dir_failed"
 msgstr "Nie udało się ustalić folderu instalacji."

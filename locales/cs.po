@@ -2506,8 +2506,6 @@ msgstr "Tato verze není ta, která byla nabídnuta. Zkontrolujte aktualizace zn
 
 msgid "update.close_sf4"
 msgstr "Před instalací aktualizace zavřete Ultra Street Fighter IV."
-msgid "update.elevated"
-msgstr "Ember běží jako správce. Zavřete ho a spusťte normálně, aby šly instalovat aktualizace."
 
 msgid "update.install_dir_failed"
 msgstr "Nepodařilo se zjistit instalační složku."

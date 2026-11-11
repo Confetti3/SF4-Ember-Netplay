@@ -2506,8 +2506,6 @@ msgstr "Deze versie is niet de aangeboden versie. Controleer opnieuw op updates.
 
 msgid "update.close_sf4"
 msgstr "Sluit Ultra Street Fighter IV voor je een update installeert."
-msgid "update.elevated"
-msgstr "Ember draait als beheerder. Sluit het en start het normaal om updates te installeren."
 
 msgid "update.install_dir_failed"
 msgstr "Kon de installatiemap niet bepalen."
