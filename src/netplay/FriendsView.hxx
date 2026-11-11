@@ -9,9 +9,7 @@
 // `refusal` for the words of the last action's failure, `canInvite` for whether
 // "Invite to my room" can be offered, and `visit` for the question a Join, a
 // Watch or an invite asks when the player is in a room or a game.
-#include "Answered.hxx"
 #include "FriendCommands.hxx"
-#include "FriendRequests.hxx"
 #include "Friends.hxx"
 
 #include <cstdint>

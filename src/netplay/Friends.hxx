@@ -8,11 +8,13 @@
 // Plain types only (C++14: the room model's decoders build them).
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "../common/Country.hxx"
 #include "../common/SkillBadge.hxx"
+#include "Answered.hxx"
 
 namespace sf4e { namespace netplay { namespace friends {
 
@@ -146,5 +148,10 @@ struct State {
 		return nullptr;
 	}
 };
+
+// The state as the last answer left it (Answered says how current): never
+// null, and replaced (never changed) when an answer installs a new one, so a
+// copy is cheap and a reader holds one state for a whole frame.
+using Answer = Answered<std::shared_ptr<const State>>;
 
 } } }

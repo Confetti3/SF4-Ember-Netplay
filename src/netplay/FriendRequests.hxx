@@ -32,9 +32,6 @@
 
 namespace sf4e { namespace netplay { namespace friends {
 
-// The state, as the last answer left it: never null, and replaced (never changed) when an answer installs a new one.
-using Answer = Answered<std::shared_ptr<const State>>;
-
 class Requests {
 public:
 	// The helper bounds its own bridge requests; this only ends a wait for one it lost.
