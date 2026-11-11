@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn what_the_bridge_answers_is_read_leniently_about_members_and_strictly_about_values() {
         let counted = br#"{"points":"counted","shown":true,"fighters":[
-            {"fighter":3,"points":1900,"games":1000,"wins":900,"tier":3,"next":2500,"since":1}]}"#;
+            {"fighter":3,"points":1900,"games":1000,"wins":900,"tier":3,"floor":1500,"next":2500,"since":1}]}"#;
         assert!(read::<OwnLevels>(counted).unwrap().check().is_ok());
         // An unknown state is refused.
         assert_eq!(
@@ -186,11 +186,11 @@ mod tests {
             "bridge_invalid_response"
         );
         // A member a later bridge adds is ignored.
-        let extra = br#"{"points":"counted","extra":1,"fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"next":200,"since":1,"extra":1}]}"#;
+        let extra = br#"{"points":"counted","extra":1,"fighters":[{"fighter":3,"points":1,"games":1,"wins":0,"tier":0,"floor":0,"next":200,"since":1,"extra":1}]}"#;
         assert!(read::<OwnLevels>(extra).unwrap().check().is_ok());
         // A fighter whose numbers disagree parses but does not check.
         let wrong = read::<OwnLevels>(
-            br#"{"points":"counted","fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"next":200,"since":1}]}"#,
+            br#"{"points":"counted","fighters":[{"fighter":3,"points":14,"games":5,"wins":9,"tier":0,"floor":0,"next":200,"since":1}]}"#,
         )
         .unwrap();
         assert!(wrong.check().is_err());
