@@ -41,7 +41,7 @@ void DrawFighterTile(ImDrawList* d, v2::Box box, int fighter, const Level& level
     if (isMain) v2::Chip(d, ImVec2(tile.min.x + 6 * s, tile.min.y + 6 * s), loc::T("fighters.main"), c.accentLight);
     const float x = box.min.x + 6 * s, room = box.W() - 12 * s, y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(x, y), room, selection::FindFighter(fighter)->name, 14 * s, enabled ? c.text : c.muted, HeadingFont());
-    v2::Text(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), 12 * s, c.muted);
+    v2::TextShrunk(d, ImVec2(x, y + 20 * s), room, player_card::GamesWords(level.games), 12 * s, 9 * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max, false);
 }
 

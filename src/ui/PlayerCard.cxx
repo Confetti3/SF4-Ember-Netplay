@@ -269,7 +269,7 @@ void DrawStripTile(ImDrawList* d, v2::Box box, const CardFighter& fighter, Fight
     DrawFighterEdge(d, tile, fighter.points, fighter.tier);
     const float y = tile.max.y + 6 * s;
     v2::Text(d, ImVec2(box.min.x + pad, y), side, selection::FindFighter(fighter.fighter)->name, 14 * s, c.text, HeadingFont());
-    v2::Text(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, c.muted);
+    v2::TextShrunk(d, ImVec2(box.min.x + pad, y + 20 * s), side, player_card::GamesWords(fighter.games), 12 * s, 9 * s, c.muted);
     if (focused) v2::Focus(d, box.min, box.max);
 }
 

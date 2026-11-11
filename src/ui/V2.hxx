@@ -69,6 +69,10 @@ float SectionHeading(ImDrawList* draw, ImVec2 at, const std::string& text, ImU32
 // with Fit, so the text probe sees it; `centred` centres it in `width`.
 // Returns the width drawn.
 float Text(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, ImU32 color, ImFont* font = nullptr, bool centred = false, bool probe = true);
+// A line `size` tall that gives way down to `least` when it would not fit `width`, centred on the line it
+// would have had at `size`, and cut with "..." only beyond that. Its words are shown whole elsewhere (a tile's
+// games are on the Fighters tab), so the text probe is not told.
+float TextShrunk(ImDrawList* draw, ImVec2 at, float width, const std::string& text, float size, float least, ImU32 color, ImFont* font = nullptr);
 // A heading at `size` in the heading font that wraps rather than cut (a
 // Settings rail head, a panel's title): one line when it fits `width`, else
 // as many whole words as the first line holds (one at least) and the rest on
