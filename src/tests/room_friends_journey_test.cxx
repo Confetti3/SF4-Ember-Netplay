@@ -127,16 +127,23 @@ void RelationRowsJourney() {
   Check((j.sent(Kind::Request).size() == 1) == state.enabled, "A relation row that says a state was sent, or Add friend was not");
  }
  // A request waiting is accepted by sending the request back.
- RoomJourney received(Relation::Received);
- received.page(); received.h.Choose("friend-request");
- Check(received.sent(Kind::Request).size() == 1 && received.sent(Kind::Request)[0]->card == "c1.player_2", "Accept request did not send the request to the member");
+ // One journey at a time: each harness's interface loads its fonts into its own context.
+ {
+  RoomJourney received(Relation::Received);
+  received.page(); received.h.Choose("friend-request");
+  Check(received.sent(Kind::Request).size() == 1 && received.sent(Kind::Request)[0]->card == "c1.player_2", "Accept request did not send the request to the member");
+ }
  // A member with no card, and a private room, leave the relation and Block out.
- RoomJourney none;
- none.h.Screen("room-members"); none.h.Choose("member-3"); none.h.Press(MenuInput::Select); none.h.Frame(0, 2);
- Check(none.screen() == "room-member" && !none.row("friend-request") && !none.row("friend-block"), "A member with no card has a friend row or Block");
- RoomJourney priv(Relation::None, false);
- priv.page();
- Check(!priv.row("friend-request") && !priv.row("friend-block") && priv.row("mute"), "A private room's member page offers a friend row or Block");
+ {
+  RoomJourney none;
+  none.h.Screen("room-members"); none.h.Choose("member-3"); none.h.Press(MenuInput::Select); none.h.Frame(0, 2);
+  Check(none.screen() == "room-member" && !none.row("friend-request") && !none.row("friend-block"), "A member with no card has a friend row or Block");
+ }
+ {
+  RoomJourney priv(Relation::None, false);
+  priv.page();
+  Check(!priv.row("friend-request") && !priv.row("friend-block") && priv.row("mute"), "A private room's member page offers a friend row or Block");
+ }
 }
 
 // Block asks first and then sends the card token with the room name.

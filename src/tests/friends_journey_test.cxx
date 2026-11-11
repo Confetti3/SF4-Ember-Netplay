@@ -218,6 +218,8 @@ void RoomJourney() {
  JoinedRoom(j.h, 10);
  j.h.view.session.generation.room = 1; j.h.view.session.control = netplay::Health::Healthy;
  for (room::MemberId id : {1, 2}) { room::Member m; m.id = id; m.name = id == 1 ? "Player 1" : "Player 2"; j.h.view.room.members.push_back(m); }
+ // The join settles first: the shell shows the room it joined, then the player opens Friends.
+ j.h.Frame(0, 3);
  j.open();
  Check(j.screen() == "friends", "Friends did not open in a room");
  j.focus("friend:fr_3");

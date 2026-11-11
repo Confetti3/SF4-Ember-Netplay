@@ -277,8 +277,8 @@ int main() try {
         room::Member muted; muted.id = 3; muted.name = "Muted";
         view.room.members.push_back(muted);
         shell.Navigation().Home(); shell.Navigation().Push("room"); frame();
-        // Mute is the first of the actions the member's row opens.
-        focus("member-3"); press(MenuInput::Select); press(MenuInput::Select);
+        // Mute, picked by its choice: Player card comes first.
+        pickMemberAction("member-3", "mute");
         shell.Navigation().Home(); frame();
         const unsigned unreadBefore = shell.UnreadChat();
         view.room.chat.push_back({301, 3, "From the muted member"}); frame();
