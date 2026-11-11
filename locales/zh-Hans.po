@@ -3307,6 +3307,12 @@ msgstr "使用 Wi-Fi 的玩家仍可加入、观战和聊天，但不能入座�
 msgid "room.wired_only.settings_detail"
 msgstr "从下一次入座开始生效。已入座的人不会失去席位。"
 
+msgid "room.tiny_fighters"
+msgstr "允许迷你角色"
+
+msgid "room.tiny_fighters.detail"
+msgstr "玩家可以选择角色的迷你版本。只改变外观。"
+
 msgid "room.apply_name"
 msgstr "应用房间名称"
 

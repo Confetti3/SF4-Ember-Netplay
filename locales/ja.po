@@ -3307,6 +3307,12 @@ msgstr "Wi-Fiのプレイヤーも参加、観戦、チャットはできます�
 msgid "room.wired_only.settings_detail"
 msgstr "次に席に着くときから適用されます。今座っている人は席を失いません。"
 
+msgid "room.tiny_fighters"
+msgstr "ちびキャラを許可"
+
+msgid "room.tiny_fighters.detail"
+msgstr "プレイヤーはキャラクターのちびサイズを選べます。見た目だけが変わります。"
+
 msgid "room.apply_name"
 msgstr "ルーム名を適用"
 

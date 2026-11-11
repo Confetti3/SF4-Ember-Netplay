@@ -2941,6 +2941,12 @@ msgstr "Los jugadores con Wi-Fi pueden unirse, mirar y chatear, pero no ocupar u
 
 msgid "room.wired_only.settings_detail"
 msgstr "Se aplica al siguiente asiento que se ocupe. Nadie sentado ahora pierde su asiento."
+
+msgid "room.tiny_fighters"
+msgstr "Luchadores diminutos permitidos"
+
+msgid "room.tiny_fighters.detail"
+msgstr "Los jugadores pueden elegir una versión diminuta de su luchador. Solo cambia el aspecto."
 msgid "room.apply_name"
 msgstr "Aplicar nombre de sala"
 msgid "room.apply_name.detail"

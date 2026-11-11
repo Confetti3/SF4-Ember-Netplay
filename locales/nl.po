@@ -3306,6 +3306,12 @@ msgstr "Spelers op wifi kunnen meedoen, kijken en chatten, maar geen plek inneme
 msgid "room.wired_only.settings_detail"
 msgstr "Geldt vanaf de volgende plek die wordt ingenomen. Wie nu zit, houdt zijn plek."
 
+msgid "room.tiny_fighters"
+msgstr "Kleine vechters toegestaan"
+
+msgid "room.tiny_fighters.detail"
+msgstr "Spelers mogen een kleine versie van hun vechter kiezen. Alleen het uiterlijk verandert."
+
 msgid "room.apply_name"
 msgstr "Kamernaam toepassen"
 

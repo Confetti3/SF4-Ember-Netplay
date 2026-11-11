@@ -701,6 +701,8 @@ void ApplicationShell::RoomAdminRows(std::vector<MenuEntry>& rows,const RoomScre
    loc::Tf("room.tables.detail",static_cast<int>(TableCount)),host));
   rows.push_back(Value("lock",loc::T("room.admission"),loc::T(s.locked?"room.locked":"room.open"),loc::T("room.admission.detail"),host));
   rows.push_back(WiredOnlyRow("room-wired-only",s.wiredOnly,std::string(loc::T("room.wired_only.detail"))+"\n"+loc::T("room.wired_only.settings_detail"),host));
+  // A private room's host, in a game that draws tiny fighters; a public room has no such rule.
+  if(c.v.offersTinyFighters&&!s.serverOwned)rows.push_back(TinyFightersRow("room-tiny-fighters",s.tinyFighters,loc::T("room.tiny_fighters.detail"),host));
   rows.push_back(Row("apply-name",loc::T("room.apply_name"),loc::T("room.apply_name.detail"),host&&roomName_[0]));
   rows.push_back(Row("apply-capacity",loc::T("room.apply_capacity"),loc::T("room.apply_capacity.detail"),host&&roomCapacity_>=static_cast<int>(s.members.size())));
   if(tables)rows.push_back(Row("apply-tables",loc::T("room.apply_tables"),loc::Tf("room.tables.detail",static_cast<int>(TableCount)),

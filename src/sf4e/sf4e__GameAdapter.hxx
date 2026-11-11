@@ -67,6 +67,10 @@ struct Capabilities {
     bool padSetup = false;       // the pad wizard (a pad's Setup request)
     bool steamProfile = false;   // opening a member's Steam profile (the OpenSteamProfile service)
     bool customContent = false;  // installed custom costumes, colours and stages (InstalledContent)
+    // The game can draw a fighter small on screen (selection::Pick::size 1):
+    // a private room's host is offered the Tiny fighters allowed rule
+    // (room::Snapshot::tinyFighters) and a player the game's Size choice. SF4 has no such size.
+    bool tinyFighters = false;
     // Ember's frame meter over a match: Settings' Match frame meter row,
     // which a game without the meter does not offer.
     bool frameMeter = false;

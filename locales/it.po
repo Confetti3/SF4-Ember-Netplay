@@ -3306,6 +3306,12 @@ msgstr "I giocatori in Wi-Fi possono entrare, guardare e chattare, ma non prende
 msgid "room.wired_only.settings_detail"
 msgstr "Vale dal prossimo posto occupato. Chi è seduto ora mantiene il posto."
 
+msgid "room.tiny_fighters"
+msgstr "Combattenti minuscoli consentiti"
+
+msgid "room.tiny_fighters.detail"
+msgstr "I giocatori possono scegliere una versione minuscola del loro combattente. Cambia solo l'aspetto."
+
 msgid "room.apply_name"
 msgstr "Applica nome sala"
 

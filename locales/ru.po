@@ -3306,6 +3306,12 @@ msgstr "Игроки на Wi-Fi могут войти, смотреть и пи�
 msgid "room.wired_only.settings_detail"
 msgstr "Действует со следующего занятого места. Те, кто уже сидит, места не теряют."
 
+msgid "room.tiny_fighters"
+msgstr "Крошечные бойцы разрешены"
+
+msgid "room.tiny_fighters.detail"
+msgstr "Игроки могут выбрать крошечную версию своего бойца. Меняется только внешний вид."
+
 msgid "room.apply_name"
 msgstr "Сохранить имя"
 

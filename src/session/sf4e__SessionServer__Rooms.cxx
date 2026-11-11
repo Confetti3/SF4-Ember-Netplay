@@ -30,9 +30,9 @@ using sf4e::wire::FixedPoint;
 using sf4e::SessionServer;
 
 void SessionServer::EnableCustomRooms(const std::string& name, std::uint8_t capacity,
-	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy, room::RoomType arcade, std::uint8_t tableCount, bool wiredOnly) {
+	std::uint64_t roomEpoch, room::Rules defaults, bool practice, room::DelayPolicy delayPolicy, room::RoomType arcade, std::uint8_t tableCount, bool wiredOnly, bool tinyFighters) {
 	if (_roomAuthority || !name.size()) return;
-	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice, delayPolicy, arcade, tableCount, wiredOnly));
+	_roomAuthority.reset(new room::RoomAuthority(name, capacity, roomEpoch, defaults, practice, delayPolicy, arcade, tableCount, wiredOnly, tinyFighters));
 	_roomMatchData.clear();
 	for (auto& authority : _roomMatchAuthorities) authority.reset();
 	if (_matchAuthorizationConfigured) {

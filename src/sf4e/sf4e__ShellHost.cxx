@@ -33,6 +33,7 @@ void ShellHost::Background(const ShellGame::RuntimeSnapshot& snapshot) {
         request.createdRules = action.createdRules;
         request.arcadeRoom = action.arcadeRoom;
         request.wiredOnly = action.wiredOnly;
+        request.tinyFighters = action.tinyFighters;
         return sf4e::NetplayFacade::SubmitRuntimeCommand(std::move(request));
     });
     roomCarry_.Return(view);
@@ -70,6 +71,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
     view.trainingReadySeconds = snapshot.trainingReadySeconds; view.canTrain = snapshot.canTrain; view.canWatch = snapshot.canWatch;
     view.offersTraining = game::Game().caps.training; view.offersReplays = game::Game().caps.replays;
     view.offersFrameMeter = game::Game().caps.frameMeter; view.offersSteamProfile = game::Game().caps.steamProfile;
+    view.offersTinyFighters = game::Game().caps.tinyFighters;
     view.settingsFeatures = game::Game().caps.settingsFeatures;
     view.replayGameList = game::Game().caps.replayGameList; view.replayVideo = game::Game().caps.replayVideo;
     view.replayMeter = game::Game().caps.replayMeter; view.replayInputs = game::Game().caps.replayInputs;
@@ -184,6 +186,7 @@ const char* ShellHost::Draw(const ShellGame::RuntimeSnapshot& snapshot, const sf
         request.delayPolicy = action.delayPolicy;
         request.tableCount = action.tableCount;
         request.wiredOnly = action.wiredOnly;
+        request.tinyFighters = action.tinyFighters;
         game.AddPick(request);
         request.training = action.training;
         request.leaveWatchedGame = action.leaveWatchedGame;

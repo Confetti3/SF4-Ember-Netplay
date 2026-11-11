@@ -192,6 +192,9 @@ struct ShellView {
     // Steam profile or Share my Steam profile to one without Steam profiles,
     // or a Settings row of a feature the game lacks (SettingsFeatures.hxx).
     bool offersTraining = true, offersReplays = true, offersFrameMeter = true, offersSteamProfile = true;
+    // The game draws tiny fighters (Capabilities::tinyFighters): the shell offers
+    // a private room's host the Tiny fighters allowed rule.
+    bool offersTinyFighters = false;
     ember::SettingsFeatures settingsFeatures = ember::SettingsFeatures::All();
     // What the Replays screen offers of a replay beyond watching, keeping and
     // showing it (the adapter's replay capabilities): the game's own replay
@@ -820,6 +823,8 @@ std::string memberAsk_;
     // Create's Practice room and Arcade choices for the private room it opens.
     // Never saved: every visit to Create starts with them off.
     bool createPractice_ = false;
+    // Create's Tiny fighters allowed choice for the private room it opens; never saved either.
+    bool createTinyFighters_ = false;
     // The template Create was set from (-1 none), and its tables. Like the
     // Practice room choice, every visit to Create starts without one.
     int createTemplate_ = -1;

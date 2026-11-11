@@ -145,6 +145,7 @@ struct Room {
     room::DelayPolicy delayPolicy = room::DelayPolicy::Shared;
     std::uint8_t tableCount = static_cast<std::uint8_t>(room::ClassicTableCount);
     bool wiredOnly = false;
+    bool tinyFighters = false;
     sf4e::wire::ConfirmedCharaConditions character = {};
     int stage = 0;
     selection::RandomPool randomPool;
@@ -286,6 +287,8 @@ struct Runtime {
     std::uint8_t tableCount=static_cast<std::uint8_t>(room::ClassicTableCount);
     // The Wired players only rule of the room this PC hosts, chosen the same way.
     bool wiredOnly=false;
+    // The Tiny fighters allowed rule of the room this PC hosts, chosen the same way.
+    bool tinyFighters=false;
     // The player's Leave of the room. CloseRoom resets it whole.
     struct RoomLeave {
         bool leaveRequested=false, leaveAcknowledged=false;

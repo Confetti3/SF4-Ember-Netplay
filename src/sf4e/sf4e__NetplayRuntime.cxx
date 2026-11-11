@@ -186,7 +186,7 @@ void AttachRoom() {
 		}, [room](session::Connection connection) { return room->PeerIncarnation(connection); });
 		auto rules = runtime->preferences.tableRules;
 		RuntimeSession::server->EnableCustomRooms(runtime->preferences.roomName,
-			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom, runtime->tableCount, runtime->wiredOnly);
+			static_cast<std::uint8_t>(runtime->preferences.roomCapacity), runtime->room->Epoch(), rules, runtime->practiceRoom, runtime->delayPolicy, runtime->arcadeRoom, runtime->tableCount, runtime->wiredOnly, runtime->tinyFighters);
         const auto& authority=runtime->room->Coordination();
         if(authority.active) RuntimeSession::server->SetAuthority(authority.term,authority.revision,
             authority.writable && authority.leaderLocal && authority.rebound);
@@ -619,6 +619,7 @@ static void SettleRoomState(bool helperReady) {
         replacement.delayPolicy=runtime->delayPolicy;
         replacement.tableCount=runtime->tableCount;
         replacement.wiredOnly=runtime->wiredOnly;
+        replacement.tinyFighters=runtime->tinyFighters;
         if(SubmitRuntimeCommand(std::move(replacement))) runtime->replacementPending=false;
     }
 }

@@ -198,6 +198,12 @@ inline MenuEntry DelayPolicyRow(room::DelayPolicy policy,bool enabled) {
 inline MenuEntry WiredOnlyRow(const char* id,bool on,const std::string& detail,bool enabled) {
     return Value(id,loc::T("room.wired_only"),loc::T(on?"common.on":"common.off"),detail,enabled);
 }
+// The room's Tiny fighters allowed rule (room::Snapshot::tinyFighters): Create's
+// choice for a private room (id "tiny-fighters") and the host's in Room
+// settings (id "room-tiny-fighters").
+inline MenuEntry TinyFightersRow(const char* id,bool on,const std::string& detail,bool enabled) {
+    return Value(id,loc::T("room.tiny_fighters"),loc::T(on?"common.on":"common.off"),detail,enabled);
+}
 inline bool AdjustRule(room::Rules& rules,const MenuAction& a) {
     if(a.kind!=MenuAction::Adjust) return false;
     if(a.id=="edition") rules.editionSelect=a.delta>0;

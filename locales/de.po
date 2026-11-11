@@ -3306,6 +3306,12 @@ msgstr "Spieler im WLAN können beitreten, zuschauen und chatten, aber keinen Pl
 msgid "room.wired_only.settings_detail"
 msgstr "Gilt ab dem nächsten Platz, der genommen wird. Wer jetzt sitzt, behält seinen Platz."
 
+msgid "room.tiny_fighters"
+msgstr "Winzige Kämpfer erlaubt"
+
+msgid "room.tiny_fighters.detail"
+msgstr "Spieler dürfen eine winzige Version ihres Kämpfers wählen. Nur das Aussehen ändert sich."
+
 msgid "room.apply_name"
 msgstr "Raumnamen übernehmen"
 

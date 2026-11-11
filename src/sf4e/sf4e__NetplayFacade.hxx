@@ -138,6 +138,8 @@ namespace sf4e {
             // With HostRoom, or the JoinInvite of a public room just created: its
             // Wired players only rule (room::Snapshot::wiredOnly).
             bool wiredOnly = false;
+            // With HostRoom: the room's Tiny fighters allowed rule (room::Snapshot::tinyFighters).
+            bool tinyFighters = false;
             // What the Replays screen asks of the game (sf4e__ReplayStore), or
             // the player's answer to a replay link; mode None for every other command.
             replay::Request replay;

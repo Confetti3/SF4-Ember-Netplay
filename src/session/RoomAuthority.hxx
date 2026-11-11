@@ -12,11 +12,12 @@ public:
 	// with (Snapshot::tableCount), which its host can change (SetTableCount);
 	// out of range it is ClassicTableCount. wiredOnly is the room's Wired
 	// players only rule (Snapshot::wiredOnly), which its host can change
-	// (SetWiredOnly).
+	// (SetWiredOnly). tinyFighters is the Tiny fighters allowed rule
+	// (Snapshot::tinyFighters), which its host can change (SetTinyFighters).
 	RoomAuthority(std::string name, std::uint8_t capacity = static_cast<std::uint8_t>(MaximumMembers),
 		std::uint64_t roomEpoch = 1, Rules defaults = Rules(), bool practice = false,
 		DelayPolicy delayPolicy = DelayPolicy::Shared, RoomType arcade = ClassicRoom,
-		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false);
+		std::uint8_t tableCount = static_cast<std::uint8_t>(ClassicTableCount), bool wiredOnly = false, bool tinyFighters = false);
 
 	const Snapshot& SnapshotView() const { return snapshot_; }
 	Snapshot SnapshotCopy() const { return snapshot_; }
@@ -193,6 +194,7 @@ private:
 	Result ApplySetTableCount(MemberId member, const Action& action);
 	Result ApplyLock(MemberId member, const Action& action);
 	Result ApplySetWiredOnly(MemberId member, const Action& action);
+	Result ApplySetTinyFighters(MemberId member, const Action& action);
 	Result ApplyKick(MemberId member, const Action& action);
 	Result ApplyChat(MemberId member, const Action& action);
 	Result ApplyRename(MemberId member, const Action& action);

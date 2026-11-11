@@ -3307,6 +3307,12 @@ msgstr "Wi-Fi 플레이어도 참가, 관전, 채팅은 할 수 있지만 자리
 msgid "room.wired_only.settings_detail"
 msgstr "다음에 자리에 앉을 때부터 적용됩니다. 지금 앉아 있는 사람은 자리를 잃지 않습니다."
 
+msgid "room.tiny_fighters"
+msgstr "작은 파이터 허용"
+
+msgid "room.tiny_fighters.detail"
+msgstr "플레이어가 자신의 파이터를 작은 크기로 고를 수 있습니다. 겉모습만 바뀝니다."
+
 msgid "room.apply_name"
 msgstr "방 이름 적용"
 

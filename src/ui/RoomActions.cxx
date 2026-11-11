@@ -338,6 +338,12 @@ void ApplicationShell::RoomAction(const MenuAction& a,const ShellView& v,const S
   if(on==v.room.wiredOnly)return;
   request.kind=ActionKind::SetWiredOnly;request.wiredOnly=on;
  }
+ else if(a.id=="room-tiny-fighters"){
+  // Left is off and Right on; Select turns it the other way.
+  const bool on=a.kind==MenuAction::Adjust?a.delta>0:!v.room.tinyFighters;
+  if(on==v.room.tinyFighters)return;
+  request.kind=ActionKind::SetTinyFighters;request.tinyFighters=on;
+ }
  else if(a.id=="compose"){
   // The draft stays in the box until the room's chat has it (ObserveChat); the same text is not sent twice while it is on its way.
   // A room that cannot take it yet holds it, and FlushChat sends it then; one held is the only one accepted.

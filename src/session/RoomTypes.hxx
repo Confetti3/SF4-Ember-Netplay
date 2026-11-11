@@ -135,9 +135,12 @@ enum class ActionKind : std::uint8_t {
 	// The host turns the room's Wired players only rule on (Action::wiredOnly)
 	// or off. Appended so older authorities reject it as an unknown kind.
 	SetWiredOnly,
+	// The host turns the room's Tiny fighters allowed rule on (Action::tinyFighters)
+	// or off. A look-only rule that gates no seat. Appended last, so no kind moves.
+	SetTinyFighters,
 };
 // The last kind, the wire's upper bound: a kind appended after it moves this too.
-constexpr ActionKind LastActionKind = ActionKind::SetWiredOnly;
+constexpr ActionKind LastActionKind = ActionKind::SetTinyFighters;
 
 enum class RejectReason : std::uint8_t {
 	None = 0,
@@ -428,6 +431,11 @@ struct Snapshot {
 	// by its host (SetWiredOnly); a fighter seated before it came on keeps the
 	// seat. Serialized only when true.
 	bool wiredOnly = false;
+	// Tiny fighters allowed: each player may pick the tiny size of their fighter
+	// (selection::Pick::size), drawn small on screen only. A rule its host sets
+	// (SetTinyFighters), in a private room only; it gates no seat, and turning it
+	// off touches no pick already readied. Serialized only when true.
+	bool tinyFighters = false;
 	// The room's type (RoomType), fixed for its life. In an Arcade or King of
 	// the hill room a member sits at any free cabinet and plays the player who
 	// has waited longest, at whichever table is free: a table is a pair, not a
@@ -515,6 +523,8 @@ struct Action {
 	std::uint8_t tableCount = 0;
 	// SetWiredOnly: the rule on. Written only when set.
 	bool wiredOnly = false;
+	// SetTinyFighters: the rule on. Written only when set.
+	bool tinyFighters = false;
 };
 
 struct Event {

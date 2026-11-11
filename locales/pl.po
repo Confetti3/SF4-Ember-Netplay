@@ -3306,6 +3306,12 @@ msgstr "Gracze na Wi-Fi mogą dołączyć, oglądać i czatować, ale nie mogą 
 msgid "room.wired_only.settings_detail"
 msgstr "Dotyczy następnego zajętego miejsca. Nikt, kto teraz siedzi, nie traci miejsca."
 
+msgid "room.tiny_fighters"
+msgstr "Mali wojownicy dozwoleni"
+
+msgid "room.tiny_fighters.detail"
+msgstr "Gracze mogą wybrać małą wersję swojego wojownika. Zmienia się tylko wygląd."
+
 msgid "room.apply_name"
 msgstr "Zmień nazwę"
 

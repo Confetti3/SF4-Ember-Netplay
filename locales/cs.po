@@ -3306,6 +3306,12 @@ msgstr "Hráči na Wi-Fi se mohou připojit, dívat se a chatovat, ale nemohou o
 msgid "room.wired_only.settings_detail"
 msgstr "Platí od dalšího obsazeného místa. Nikdo, kdo teď sedí, o místo nepřijde."
 
+msgid "room.tiny_fighters"
+msgstr "Povolit malé bojovníky"
+
+msgid "room.tiny_fighters.detail"
+msgstr "Hráči si mohou vybrat malou verzi svého bojovníka. Mění se jen vzhled."
+
 msgid "room.apply_name"
 msgstr "Použít název"
 

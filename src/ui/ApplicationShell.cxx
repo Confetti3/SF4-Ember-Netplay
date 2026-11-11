@@ -118,6 +118,8 @@ bool ApplicationShell::Send(netplay::CommandKind kind, const ShellView& view, co
     action.practiceRoom = kind == netplay::CommandKind::HostRoom && createPractice_ && ember::PlayableRoundTime(room::PracticeRoundTime);
     action.arcadeRoom = kind == netplay::CommandKind::HostRoom ? createArcade_ : room::ClassicRoom;
     if (kind == netplay::CommandKind::HostRoom) { action.delayPolicy = preferences_.roomDelayPolicy; action.wiredOnly = preferences_.roomWiredOnly; }
+    // A private room only, in a game that draws tiny fighters (the Create row is shown on the same terms).
+    action.tinyFighters = kind == netplay::CommandKind::HostRoom && createTinyFighters_ && !preferences_.roomPublic && view.offersTinyFighters;
     // An Arcade room plays at every table; only a Classic one has a count to choose.
     if (kind == netplay::CommandKind::HostRoom && !createArcade_) action.tableCount = static_cast<std::uint8_t>(preferences_.roomTableCount);
     // Opened from a template: the runtime sets its tables once the room is up.

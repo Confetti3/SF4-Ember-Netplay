@@ -86,6 +86,9 @@ struct RuntimeRequest {
     // room is created with it; the runtime sets a public one's once the
     // creator is in it as host.
     bool wiredOnly = false;
+    // With HostRoom of a private room: its Tiny fighters allowed rule
+    // (room::Snapshot::tinyFighters). Never sent for a public room.
+    bool tinyFighters = false;
     // What the Replays screen asks of the game: an archived replay (its
     // file, as its row names it) to add or to watch, the game's own list, or
     // no to a replay link. Nothing is sent to the room.
