@@ -352,9 +352,11 @@ bool ReadRuntimeMatchInput(int side,unsigned& mapped,unsigned& raw) {
     const bool due=Game().battle.ResultHeld()&&internal::PostMatchPromptDue()&&!internal::RandomFighterChosen()&&
         !ParkedRematchChangesPick();
     const ULONGLONG now=GetTickCount64();
-    if(!due)runtime->promptDueSinceMs=0;
+    // While the game plays its scenes before the WIN the prompt is already
+    // open, but the fighter's asking time starts with the WIN itself.
+    if(!due||Game().battle.ResultScenesPlaying())runtime->promptDueSinceMs=0;
     else if(!runtime->promptDueSinceMs)runtime->promptDueSinceMs=now;
-    if(valid)raw|=rematch::LocalBits(due,runtime->readyIntent.Active(),now-runtime->promptDueSinceMs);
+    if(valid)raw|=rematch::LocalBits(due,runtime->readyIntent.Active(),runtime->promptDueSinceMs?now-runtime->promptDueSinceMs:0);
     // The tournament self-test plays its own fighter; nothing without SF4E_SELFTEST.
     Game().services.SelfTestInput(side,mapped,raw);
     return valid;

@@ -185,6 +185,11 @@ public:
     virtual bool ResultHeld() const = 0;
     // The WIN or DRAW screen is up.
     virtual bool ResultScreenShown() const = 0;
+    // The result is known on a confirmed frame and held for the prompt, but
+    // the game still plays its scenes before the WIN screen (SFV's KO, win
+    // pose and quote). The prompt is open and takes answers; its countdown
+    // and the fighter's asking time start with the WIN. Never for SF4.
+    virtual bool ResultScenesPlaying() const { return false; }
     virtual sf4e::room::MatchResult GameResult() const = 0;
     // Both players' rematch choices as the battle's input carries them.
     virtual unsigned RematchChoices() const = 0;

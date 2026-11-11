@@ -219,6 +219,9 @@ struct ShellView {
     // declined it (bit 1 = P1, 2 = P2; Battle::RematchDeclines), and the games
     // of the battle that went on to a rematch in place.
     unsigned rematchChoices = 0, rematchDeclines = 0, gamesInPlace = 0;
+    // The game plays its scenes before the WIN (GameAdapter's
+    // ResultScenesPlaying): the prompt is open, its countdown waits for the WIN.
+    bool resultScenes = false;
     // The room game this PC fights: its table and generation, kept when an
     // Arcade room moves the set's loser on, and the WIN's result.
     netplay::FoughtGame foughtGame;
